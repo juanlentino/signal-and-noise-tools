@@ -15,11 +15,10 @@
  * Same readers, same fields, same actions, same three-state credential card
  * and three-state scheduled-sync paragraph.
  *
- * Composition (17.4.1, #1573): the classic credential section was one box,
- * 635px live against Property's 311. It is now two: the readout (identity
- * card or its two other states, plus Test connection, which acts on the
- * stored credential rather than the textarea) shares a row with Property;
- * the textarea form stands alone below it at full width.
+ * Composition (17.4.1, #1573; 2026-10-12): the readout (identity card or its
+ * two other states, plus Test connection, which acts on the stored
+ * credential rather than the textarea) shares a row with the form that sets
+ * it; Property shares the next with Sync.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -56,15 +55,15 @@ function search_console_state() {
  */
 function search_console_identity_html( array $identity ) {
 	$signing = ! empty( $identity['signing_ready'] )
-		? \snt_kit_badge( 'ok', __( 'openssl available', 'signal-and-noise-tools' ) )
-		: \snt_kit_badge( 'warn', __( 'openssl_sign() missing — this credential cannot mint a token on this host', 'signal-and-noise-tools' ) );
+		? \snt_kit_badge( 'ok', __( 'Available', 'signal-and-noise-tools' ) )
+		: \snt_kit_badge( 'warn', __( 'Not available: this host’s PHP cannot sign the token request, so the credential cannot be used here', 'signal-and-noise-tools' ) );
 	return \snt_kit_kv(
 		array(
 			array( 'label' => __( 'Service account', 'signal-and-noise-tools' ), 'value' => (string) ( $identity['client_email'] ?? '' ) ),
 			array( 'label' => __( 'Google Cloud project', 'signal-and-noise-tools' ), 'value' => (string) ( $identity['project_id'] ?? '' ) ),
 			array( 'label' => __( 'Key ID', 'signal-and-noise-tools' ), 'value' => (string) ( $identity['private_key_id'] ?? '' ) ),
 			array( 'label' => __( 'Key fingerprint', 'signal-and-noise-tools' ), 'value' => (string) ( $identity['key_fingerprint'] ?? '' ) ),
-			array( 'label' => __( 'Signing (RS256)', 'signal-and-noise-tools' ), 'value' => $signing, 'html' => true ),
+			array( 'label' => __( 'Token signing', 'signal-and-noise-tools' ), 'value' => $signing, 'html' => true ),
 		)
 	);
 }
@@ -77,20 +76,20 @@ function search_console_identity_html( array $identity ) {
  * @return string
  */
 function search_console_credential_html( array $s ) {
-	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'A Google Cloud service-account key, granted read access to the Search Console property. Nothing here queries Google yet — this stores the credential the search reports will use.', 'signal-and-noise-tools' ) ) . '</p>';
+	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'A Google Cloud service-account key, granted read access to the Search Console property. Test connection lists the properties it can read; Sync now pulls their pages and queries, and a daily sync keeps them fresh.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	if ( null !== $s['identity'] ) {
 		$out .= search_console_identity_html( (array) $s['identity'] );
-		$out .= '<p class="snt-prose">' . \snt_kit_esc( __( 'The private key is never displayed. To change the credential, paste a whole new key file below; to remove it, type clear.', 'signal-and-noise-tools' ) ) . '</p>';
+		$out .= '<p class="snt-prose">' . \snt_kit_esc( __( 'The private key is never displayed. To change the credential, paste a whole new key file into Service-account JSON; to remove it, type clear there.', 'signal-and-noise-tools' ) ) . '</p>';
 	} elseif ( $s['stored'] ) {
 		$out .= '<p class="snt-prose">' . \snt_kit_badge( 'warn', __( 'A credential is stored but no longer parses as a service-account key. Paste a fresh one, or type clear to remove it.', 'signal-and-noise-tools' ) ) . '</p>';
 	} else {
 		$out .= '<p class="snt-prose">' . \snt_kit_badge( 'neutral', __( 'Not configured.', 'signal-and-noise-tools' ) ) . '</p>';
 		$steps = array(
-			__( 'In Google Cloud, ENABLE the "Google Search Console API" for the project. Skipping this returns 403 later even when everything else is correct — the error looks exactly like a missing permission.', 'signal-and-noise-tools' ),
+			__( 'In Google Cloud, ENABLE the "Google Search Console API" for the project. Skipping this returns 403 later even when everything else is correct: the error looks exactly like a missing permission.', 'signal-and-noise-tools' ),
 			__( 'In that same project, create a service account and download a JSON key.', 'signal-and-noise-tools' ),
 			__( 'In Search Console → Settings → Users and permissions, add that service account\'s email as a user on the property.', 'signal-and-noise-tools' ),
-			__( 'Paste the whole JSON key file below, then Test connection.', 'signal-and-noise-tools' ),
+			__( 'Paste the whole JSON key file into Service-account JSON, then press Test connection.', 'signal-and-noise-tools' ),
 		);
 		$out .= \snt_kit_steps( array_map( '\snt_kit_esc', $steps ) );
 	}
@@ -147,7 +146,7 @@ function search_console_property_html( array $s ) {
 		}
 		return $out;
 	}
-	$options = array( '' => __( '— choose a property —', 'signal-and-noise-tools' ) );
+	$options = array( '' => __( 'Choose a property', 'signal-and-noise-tools' ) );
 	foreach ( $sites as $site ) {
 		$url = (string) ( $site['siteUrl'] ?? '' );
 		if ( '' === $url ) {
@@ -168,8 +167,7 @@ function search_console_property_html( array $s ) {
  * @return string
  */
 function search_console_sync_html( array $s ) {
-	$out  = \snt_kit_tag( 'h3', array( 'class' => 'snt-col__h' ), \snt_kit_esc( __( 'Sync', 'signal-and-noise-tools' ) ) );
-	$out .= null === $s['data']
+	$out  = null === $s['data']
 		? '<p class="snt-prose">' . \snt_kit_badge( 'neutral', __( 'Never synced.', 'signal-and-noise-tools' ) ) . '</p>'
 		: '<p class="snt-prose">' . sprintf(
 			/* translators: 1: start date, 2: end date, 3: relative time element. */
@@ -208,31 +206,34 @@ function search_console_sync_html( array $s ) {
 	}
 	$out .= '</p>';
 	$out .= \snt_kit_action_button( __( 'Sync now', 'signal-and-noise-tools' ), 'gsc_sync' );
-	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Data appears in Analytics → Search, and as impressions/position columns beside Top pages.', 'signal-and-noise-tools' ) ) . '</p>';
+	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Data appears in Analytics › Search, and as the Impressions and Position columns of the Top pages table.', 'signal-and-noise-tools' ) ) . '</p>';
 	return $out;
 }
 
 /**
- * The leaf.
+ * The leaf (2026-10-12 audit: "Set the credential" stood alone at full width
+ * holding one 760px form, and Sync was an uppercase sub-label inside
+ * Property). Two rows of paired boxes: the credential readout beside the form
+ * that sets it; then, once the credential parses, Property beside Sync (Sync
+ * once a property is chosen).
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
  */
 function paint_monitoring_search_console( array $ctx ) {
 	unset( $ctx );
-	$s     = search_console_state();
-	$left  = \snt_kit_section( __( 'Search Console credential', 'signal-and-noise-tools' ), search_console_credential_html( $s ) );
-	$right = '';
+	$s   = search_console_state();
+	$out = search_console_pair(
+		\snt_kit_section( __( 'Search Console credential', 'signal-and-noise-tools' ), search_console_credential_html( $s ) ),
+		\snt_kit_section( __( 'Set the credential', 'signal-and-noise-tools' ), search_console_credential_form_html( $s ) )
+	);
 	if ( null !== $s['identity'] ) {
-		$inner = search_console_property_html( $s );
-		if ( '' !== $s['current'] ) {
-			$inner .= search_console_sync_html( $s );
-		}
-		$right = \snt_kit_section( __( 'Property', 'signal-and-noise-tools' ), $inner );
+		$out .= search_console_pair(
+			\snt_kit_section( __( 'Property', 'signal-and-noise-tools' ), search_console_property_html( $s ) ),
+			'' !== $s['current'] ? \snt_kit_section( __( 'Sync', 'signal-and-noise-tools' ), search_console_sync_html( $s ) ) : ''
+		);
 	}
-	// The two readouts share the row; the form stands alone below at full width.
-	return search_console_pair( $left, $right )
-		. \snt_kit_section( __( 'Set the credential', 'signal-and-noise-tools' ), search_console_credential_form_html( $s ) );
+	return $out;
 }
 
 add_filter(

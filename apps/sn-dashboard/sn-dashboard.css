@@ -1089,9 +1089,23 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
  * Connections and Measurement leaves (2026-10-12 audit, batch 7)
  * ══════════════════════════════════════════════════════════════════════════ */
 
-/* Scheduled's version swaps: the ledger grid (os-app.css, #1604) with five
-   tracks, not seven: Target flexes, Swap at and Status share the rest, Next
-   transition and the Run swap now form take their own width. */
+/* Scheduled's ledgers (the grid in os-app.css, #1604). An <os-form> is an
+   inline-size container (its :host sets container-type), so it has no
+   intrinsic width: a max-content track sized it to nothing and the buttons
+   piled up and clipped (seen in the preview). These one-button forms carry
+   no fields to query, so they size to their button. The swaps take five
+   tracks, not seven: Target flexes, Swap at and Status share the rest. */
+.snt-list--ledger os-form {
+	container-type: normal;
+	width: max-content;
+}
+
+/* A schedule's window ("always → 2026-11-16 22:13") is read whole: it wraps
+   instead of ending in an ellipsis. */
+.snt-ledger--wrap .snt-list__value {
+	white-space: normal;
+}
+
 .snt-list--ledger.snt-list--ledger-5 {
 	grid-template-columns: minmax( 8em, 2fr ) repeat( 2, minmax( 4em, 1fr ) ) max-content max-content;
 	min-width: 40em;

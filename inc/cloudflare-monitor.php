@@ -360,6 +360,23 @@ function sn_cf_monitor_read() {
 }
 
 /**
+ * The keyring's flush for the Cloudflare token (2026-10-12 audit): the stored
+ * reading described the token that was just replaced, so Connections ›
+ * Cloudflare kept its status and expiry until the daily run. The token part
+ * says it changed; the zone and firewall readings stay (same zone).
+ *
+ * @return void
+ */
+function sn_cf_monitor_forget_token() {
+	$record = sn_cf_monitor_read();
+	if ( ! is_array( $record ) ) {
+		return;
+	}
+	$record['token'] = array( 'verified' => false, 'status' => 'changed', 'expires_on' => '', 'error' => '', 'kind' => '' );
+	update_option( SN_CF_MONITOR_OPT, $record, false );
+}
+
+/**
  * Schedule the daily refresh, idempotently, on init.
  *
  * @return void

@@ -273,7 +273,7 @@ function scheduled_content_swaps_html( array $pairs ) {
 	}
 	return \snt_kit_section(
 		__( 'Version swaps', 'signal-and-noise-tools' ),
-		'<div class="snt-ledger"><ul class="snt-list snt-list--ledger snt-list--ledger-5">' . $rows . '</ul></div>',
+		'<div class="snt-ledger snt-ledger--wrap"><ul class="snt-list snt-list--ledger snt-list--ledger-5">' . $rows . '</ul></div>',
 		__( 'Two scheduled containers on the same page whose windows meet at one instant: the current version hides and the new version reveals together, with a single edge purge.', 'signal-and-noise-tools' )
 	);
 }

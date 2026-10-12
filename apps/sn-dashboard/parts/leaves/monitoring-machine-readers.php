@@ -67,12 +67,13 @@ function machine_readers_hero_html( array $d ) {
  * @return string
  */
 function paint_monitoring_machine_readers( array $ctx ) {
-	unset( $ctx );
-	$d    = machine_readers_data();
-	$edge = \snt_kit_section(
+	$state  = $ctx['state'] ?? null;
+	$params = ( is_object( $state ) && method_exists( $state, 'get' ) ) ? (array) $state->get( 'params' ) : array();
+	$d      = machine_readers_data( ! empty( $params['sn_mr_reread'] ) );
+	$edge   = \snt_kit_section(
 		__( 'Edge sensor', 'signal-and-noise-tools' ),
 		machine_readers_edge_readout_html( $d['info'] ),
-		__( 'The deployed rights-signals Worker, from its version endpoint. Cached for up to 15 minutes, so a fresh deploy can take that long to appear here — purge caches to read it now.', 'signal-and-noise-tools' )
+		__( 'The deployed rights-signals Worker, from its version endpoint. Cached for up to 15 minutes, so a fresh deploy can take that long to appear here; Re-read now asks it again.', 'signal-and-noise-tools' )
 	);
 	return machine_readers_hero_html( $d )
 		. machine_readers_health_row_html()

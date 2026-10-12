@@ -50,7 +50,7 @@ function webhooks_entry_html( array $wh, $is_new, $watching = false ) {
 	$selected = isset( $wh['events'] ) ? (array) $wh['events'] : array( 'post.published' );
 	$fields   = \snt_kit_field( 'text', 'name', __( 'Name', 'signal-and-noise-tools' ), (string) ( $wh['name'] ?? '' ) )
 		. \snt_kit_field( 'url', 'url', __( 'Endpoint URL', 'signal-and-noise-tools' ), (string) ( $wh['url'] ?? '' ), array( 'hint' => __( 'Receiving endpoint. Must respond with 2xx within 10 seconds. 5xx triggers retry (3 attempts, 5min backoff); 4xx is a hard rejection.', 'signal-and-noise-tools' ) ) )
-		. \snt_kit_tag( 'os-field-row', array( 'label' => __( 'Status', 'signal-and-noise-tools' ) ), webhooks_native_checkbox( 'enabled', '1', ! empty( $wh['enabled'] ), \snt_kit_esc( __( 'Enabled: deliveries fire on the events below', 'signal-and-noise-tools' ) ) ) )
+		. \snt_kit_tag( 'os-field-row', array( 'label' => __( 'Status', 'signal-and-noise-tools' ) ), webhooks_native_checkbox( 'enabled', '1', ! empty( $wh['enabled'] ), \snt_kit_esc( __( 'Enabled: deliveries fire on the events ticked under Events', 'signal-and-noise-tools' ) ) ) )
 		. webhooks_events_fields( $selected, __( 'Pick which post-lifecycle events POST to this endpoint. If none are ticked, post.published is used.', 'signal-and-noise-tools' ) )
 		. webhooks_secret_html( $wh, $is_new );
 	// The classic marks the just-saved fieldset with `.sn-fieldset--new` /

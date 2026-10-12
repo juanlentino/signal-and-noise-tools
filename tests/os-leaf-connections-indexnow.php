@@ -69,6 +69,7 @@ ok( false !== strpos( $kit, 'Last submission' ) && false !== strpos( $kit, '<os-
 // mostly empty box. Two paired boxes now: IndexNow (status + toggle) | Status.
 ok( false !== strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2" aria-label="IndexNow status"><os-section heading="IndexNow" stack><os-notice' ) && false !== strpos( $kit, '<os-section heading="Status" stack>' ), 'the IndexNow box (status notice first, then the toggle) beside the Status box, one row' );
 ok( false === strpos( $kit, '<os-row' ) && false === strpos( $kit, 'col="4"' ) && strpos( $kit, '<os-form' ) < strpos( $kit, 'heading="Status"' ) && strpos( $kit, 'heading="Status"' ) < strpos( $kit, 'os-arg-action="sn_indexnow_ping_now"' ), 'no rail: the toggle sits in the IndexNow box, the two maintenance actions in Status' );
+snt_leaf_preview( 'connections-indexnow', $kit );
 
 // ── Per-form field census: the enable form alone carries all five classic
 // field names (the whole-blob names oracle can't see which form a hidden

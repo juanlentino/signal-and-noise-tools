@@ -36,7 +36,7 @@ function sn_cf_readings_refresh_form( $record ) {
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-card sn-card--narrow">';
 	wp_nonce_field( 'sn_cf_monitor_refresh' );
 	if ( is_array( $record ) && ! empty( $record['configured'] ) ) {
-		echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Read %s. Refresh reads the token, the edge and the firewall again.', wp_date( 'Y-m-d H:i T', (int) $record['fetched_at'] ) ) ) . '</p>';
+		echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Read %s. Refresh reads the token, the edge and the firewall again.', wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), (int) $record['fetched_at'] ) ) ) . '</p>';
 	} else {
 		echo '<p class="sn-field-helper">The monitor has not run yet. It runs daily; press Refresh to run it now.</p>';
 	}
@@ -63,7 +63,7 @@ function sn_cf_edge_card_render() {
 		if ( function_exists( 'sn_admin_glance_grid' ) ) {
 			sn_admin_glance_grid( array(
 				array( 'label' => 'Requests, 7 days', 'value' => number_format_i18n( (int) $tt['requests'] ) ),
-				array( 'label' => 'Served from cache', 'value' => null === ( $tt['cache_share'] ?? null ) ? '—' : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%' ),
+				array( 'label' => 'Served from cache', 'value' => null === ( $tt['cache_share'] ?? null ) ? 'not read' : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%' ),
 				array( 'label' => 'Bytes', 'value' => size_format( (int) $tt['bytes'] ) ),
 				array( 'label' => 'Threats', 'value' => number_format_i18n( (int) $tt['threats'] ) ),
 				array( 'label' => '5xx at the edge', 'value' => number_format_i18n( (int) $tt['status_5xx'] ) ),

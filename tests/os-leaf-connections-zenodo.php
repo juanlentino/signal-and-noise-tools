@@ -64,6 +64,7 @@ for ( $i = 1; $i <= 13; $i++ ) {
 	$GLOBALS['__zl']['rows'][] = array( 'id' => 100 + $i, 'title' => 'Note ' . $i, 'kind' => 'note', 'state' => 13 === $i ? 'ready' : 'minted', 'doi' => 13 === $i ? '' : '10.5281/zenodo.' . $i, 'env' => 'production', 'at' => 13 === $i ? '' : '2026-09-18T01:00:00+00:00', 'error' => '' );
 }
 $big = snt_leaf_paint( 'connections', 'zenodo' );
+snt_leaf_preview( 'connections-zenodo', $big );
 preg_match( '/os-prop-data="([^"]*)"/', $big, $bm );
 $bdata = json_decode( html_entity_decode( $bm[1] ?? '', ENT_QUOTES, 'UTF-8' ), true );
 ok( is_array( $bdata ) && 10 === count( $bdata ) && 'Note 13' === $bdata[0]['title']['text'] && false !== strpos( $big, '+3 more; the list is capped, not complete.' ) && false !== strpos( $big, '12 of 13 minted; 1 not yet: 1 Ready.' ), 'thirteen documents: the waiting one first, ten rows, "+3 more"' );

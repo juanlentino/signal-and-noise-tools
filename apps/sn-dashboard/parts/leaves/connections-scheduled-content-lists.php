@@ -79,7 +79,7 @@ function scheduled_content_fragments_html( array $fragments, $rows_html ) {
 	return \snt_kit_section(
 		__( 'Scheduled fragments', 'signal-and-noise-tools' ),
 		'<p class="snt-prose">' . \snt_kit_esc( $finding ) . '</p>'
-			. '<div class="snt-ledger"><ul class="snt-list snt-list--ledger">' . scheduled_content_row_head_html() . $rows_html . '</ul></div>'
+			. '<div class="snt-ledger snt-ledger--wrap"><ul class="snt-list snt-list--ledger">' . scheduled_content_row_head_html() . $rows_html . '</ul></div>'
 	);
 }
 

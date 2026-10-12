@@ -81,12 +81,13 @@ ok( false !== strpos( $kit, '<p class="snt-hint">Sync now runs the full Muso →
 $row1 = strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2" role="complementary" aria-label="Sync status">' );
 $row2 = strpos( $kit, snt_leaf_row( 2 ), (int) $row1 + 1 );
 ok( false !== $row1 && false !== $row2 && 2 === substr_count( $kit, '<os-grid' ) && 0 === substr_count( $kit, '<os-card' ), 'two rows of paired boxes, the first carrying the landmark name' );
-$order = array( strpos( $kit, '<p class="snt-prose">' ), strpos( $kit, '<os-notice' ), $row1, strpos( $kit, 'heading="Status"' ), strpos( $kit, 'value="sn_music_sync"' ), strpos( $kit, 'heading="Spotify (optional)"' ), $row2, strpos( $kit, 'heading="Muso.AI profile"' ), strpos( $kit, 'heading="Featured release"' ) );
+$order = array( strpos( $kit, '<p class="snt-prose">' ), strpos( $kit, '<os-notice' ), $row1, strpos( $kit, 'heading="Status"' ), strpos( $kit, 'value="sn_music_sync"' ), strpos( $kit, 'heading="Featured release"' ), $row2, strpos( $kit, 'heading="Muso.AI profile"' ), strpos( $kit, 'heading="Spotify (optional)"' ) );
 $sorted = $order;
 sort( $sorted );
-ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: intro, the sync notice, Status with Sync now then Spotify, then the profile then the featured release: ' . implode( ' < ', $order ) );
+ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: intro, the sync notice, Status with Sync now beside the featured release, then the two sources, the profile beside Spotify (pairs of comparable height): ' . implode( ' < ', $order ) );
 ok( 1 === preg_match( '#<os-form[^>]*>(?:(?!</os-form>).)*name="sn_muso_profile"(?:(?!</os-form>).)*</os-form>#s', $kit, $mf ) && false === strpos( $mf[0], 'sn_music_featured' ), 'the profile saves on its own form, without the featured field' );
 ok( false === strpos( $kit, '<os-section heading="Spotify (optional)" stack><os-form' ) && 1 === preg_match( '#heading="Spotify \(optional\)"(?:(?!</os-section>).)*</os-section>#s', $kit, $sp ) && false === strpos( $sp[0], '<os-form' ), 'the read-only Spotify facts are no longer inside a form' );
+snt_leaf_preview( 'connections-music', $kit );
 
 // ── Stale state: releases cached but the last sync failed.
 music_fixture( array( 'store' => array( 'last_error' => 'Muso: HTTP 502' ) ) );

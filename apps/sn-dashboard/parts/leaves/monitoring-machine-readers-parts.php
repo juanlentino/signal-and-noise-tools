@@ -23,12 +23,18 @@ if ( ! defined( 'ABSPATH' ) ) {
  * readings live in S&N Analytics (Machine readers, Reader evidence).
  * Data only, no HTML here.
  *
+ * @param bool $reread Drop the sensor's cached version reading first (Re-read now).
  * @return array<string,mixed>
  */
-function machine_readers_data() {
+function machine_readers_data( $reread = false ) {
 	$days   = 30;
 	$result = function_exists( '\snt_mr_fetch' ) ? \snt_mr_fetch( $days ) : array( 'ok' => false, 'rows' => array() );
 
+	// Re-read now drops the 15-minute cache first (2026-10-12 audit: the box
+	// said "purge caches to read it now", and no purge clears this transient).
+	if ( $reread ) {
+		\delete_transient( 'sn_mr_sensor_info' );
+	}
 	$info   = function_exists( '\snt_mr_sensor_info' ) ? \snt_mr_sensor_info() : null;
 	$status = function_exists( '\snt_mr_crawler_list_status' ) ? \snt_mr_crawler_list_status() : null;
 
@@ -60,25 +66,34 @@ function machine_readers_pills_html( array $pills ) {
 	$warns = '';
 	foreach ( $pills as $p ) {
 		if ( 'warn' === $p[0] && '' !== (string) ( $p[2] ?? '' ) ) {
-			$warns .= \snt_kit_notice( 'warn', \snt_kit_esc( $p[1] . ' — ' . $p[2] ) );
+			$warns .= \snt_kit_notice( 'warn', \snt_kit_esc( $p[1] . ': ' . $p[2] ) );
 		}
 	}
 	return ( '' !== $badges ? '<os-cluster gap="8">' . $badges . '</os-cluster>' : '' ) . $warns;
 }
 
-/** @param array|null $info snt_mr_sensor_info() shape, or null. @return string */
+/**
+ * The Edge sensor readout: facts rows in the classic readout's words
+ * (snt_mr_edge_readout()), or "not read" when the endpoint did not answer;
+ * then Re-read now, a `go` back to this leaf that drops the cache first.
+ *
+ * @param array|null $info snt_mr_sensor_info() shape, or null.
+ * @return string
+ */
 function machine_readers_edge_readout_html( $info ) {
-	$info  = is_array( $info ) ? $info : array();
-	$label = 'sn-rights-signals' . ( '' !== (string) ( $info['version'] ?? '' ) ? ' v' . (string) $info['version'] : '' );
-	$lines = '<p><b>' . \snt_kit_esc( __( 'Worker', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_code( $label, false ) . '</p>';
-	if ( '' !== (string) ( $info['deployed_at'] ?? '' ) ) {
-		$lines .= '<p><b>' . \snt_kit_esc( __( 'Deployed:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( (string) $info['deployed_at'] ) . '</p>';
+	$rows = function_exists( '\snt_mr_edge_readout' ) ? \snt_mr_edge_readout( $info ) : null;
+	if ( null === $rows ) {
+		$out = \snt_kit_notice( 'warn', \snt_kit_esc( function_exists( '\snt_mr_edge_not_read' ) ? \snt_mr_edge_not_read() : __( 'Not read.', 'signal-and-noise-tools' ) ) );
+	} else {
+		$kv = array();
+		foreach ( $rows as $row ) {
+			$kv[] = isset( $row['ts'] )
+				? array( 'label' => $row['label'], 'html' => true, 'value' => \snt_kit_relative_time( (int) $row['ts'] ) )
+				: array( 'label' => $row['label'], 'value' => $row['value'] );
+		}
+		$out = \snt_kit_kv( $kv );
 	}
-	if ( isset( $info['fetched_at'] ) ) {
-		$lines .= '<p><b>' . \snt_kit_esc( __( 'Read:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_relative_time( (int) $info['fetched_at'] ) . '</p>';
-	}
-	$lines .= '<p><em>' . \snt_kit_esc( __( 'Source:', 'signal-and-noise-tools' ) ) . '</em> ' . \snt_kit_code( defined( 'SN_MR_VERSION_ENDPOINT' ) ? SN_MR_VERSION_ENDPOINT : '', false ) . '</p>';
-	return \snt_kit_notice( 'info', $lines );
+	return $out . '<footer>' . \snt_kit_button( __( 'Re-read now', 'signal-and-noise-tools' ), 'go', array( 'args' => array( 'sub' => 'machine-readers', 'sn_mr_reread' => '1' ) ) ) . '</footer>';
 }
 
 /** @param array<string,mixed> $d machine_readers_data() output. @return string */

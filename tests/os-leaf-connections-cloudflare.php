@@ -16,6 +16,7 @@ require_once __DIR__ . '/lib/os-leaf-harness.php';
 if ( ! function_exists( 'sn_mask_secret' ) ) {
 	function sn_mask_secret( $value ) { $value = (string) $value; if ( '' === $value ) { return ''; } return strlen( $value ) <= 8 ? '••••••••' : '••••' . substr( $value, -4 ); }
 }
+if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; } } // 2026-10-12: the monitor's token flush
 $GLOBALS['__cw_configured'] = false;
 if ( ! function_exists( 'sn_cloudways_is_configured' ) ) {
 	function sn_cloudways_is_configured() { return ! empty( $GLOBALS['__cw_configured'] ); }
@@ -31,6 +32,7 @@ require SNT_PATH . 'inc/cloudflare-purge.php';
 require SNT_PATH . 'inc/cloudflare-monitor.php'; // 14.9.0: the monitor section + its Refresh action, on both leaves
 require SNT_PATH . 'inc/cloudflare-firewall-events.php'; // 15.1.0: the event log's tops paint under the firewall reading
 require SNT_PATH . 'inc/cloudflare-credentials.php'; // 14.10.0: the account id + grant list
+if ( ! function_exists( 'sn_keyring' ) ) { require SNT_PATH . 'inc/keyring.php'; } // 2026-10-12: the cf_token row's monitor flush
 define( 'SN_ADMIN_CLOUDWAYS_TEST', true );
 require SNT_PATH . 'inc/admin-forms/cloudways.php'; // 2026-10-12: the Cloudways verdict both leaves share
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-cloudflare.php';
@@ -191,11 +193,17 @@ ok( 1 === substr_count( $with_log, 'os-arg-action="sn_cf_monitor_refresh"' ) && 
 ok( array( 'cf_monitor_refresh' ) === snt_leaf_actions( $with_log ), 'still the one action' );
 // 2026-10-12 audit: the time printed twice (Verified, then "Read …" in the
 // footer), and "expires within 14 days" was carried by the warning color alone.
-ok( 1 === substr_count( $with_log, gmdate( 'Y-m-d H:i', time() ) ) && false !== strpos( $with_log, '<p class="snt-hint">Refresh reads the token, the edge and the firewall again.</p>' ), 'the Token box says when it was read once, in its Verified row' );
+ok( 1 === substr_count( $with_log, gmdate( 'F j, Y g:i a', time() ) ) && false !== strpos( $with_log, '<p class="snt-hint">Refresh reads the token, the edge and the firewall again.</p>' ), 'the Token box says when it was read once, in its Verified row, in the site\'s format' );
 $GLOBALS['__options'][ SN_CF_MONITOR_OPT ]['token']['expires_on'] = gmdate( 'Y-m-d\TH:i:s\Z', time() + 9 * DAY_IN_SECONDS + 600 );
 $expiring = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( 1 === preg_match( '#<span class="snt-kv__v" data-tone="warning">active · user · expires in 1 hour</span>#', $expiring ), 'a token expiring within 14 days says so in words beside the warning tone (the harness human_time_diff() reads "1 hour")' );
 ok( false === strpos( $with_log, 'rate-limit headers' ) && false === strpos( $with_log, 'answers 429' ) && false !== strpos( $with_log, 'past 1,200 calls in five minutes' ), 'the API allowance note is in plain words' );
+// 2026-10-12 audit: saving a new token left the old token's status and expiry
+// on the Token box until the daily run; the keyring's flush marks it changed.
+ok( 'sn_cf_monitor_forget_token' === ( sn_keyring()['cf_token']['flush_fn'] ?? '' ), 'the keyring flushes the monitor\'s token reading when the Cloudflare token is saved' );
+sn_cf_monitor_forget_token();
+$changed = snt_leaf_paint( 'connections', 'cloudflare' );
+ok( false !== strpos( $changed, 'The token changed after the last read. Press Refresh now to read the new one.' ) && false === strpos( $changed, 'active · user' ) && true === ( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ]['firewall']['available'] ?? null ), 'after a new token: the Token box says it changed, not the old status; the zone and firewall readings stay' );
 $GLOBALS['__options'] = $opts_before;
 ok( false !== strpos( $kit, '>locked by SN_CLOUDFLARE_ZONE_ID</span></os-fact>' ) && false === strpos( $kit, 'zoneconst0123456789' ), 'both locked: the zone reads as locked and its constant value is not painted' );
 define( 'SN_CF_ACCOUNT_ID', 'acctconst0123456789' );

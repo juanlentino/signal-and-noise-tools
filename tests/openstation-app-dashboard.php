@@ -301,8 +301,9 @@ namespace {
 	ok( false !== strpos( $css, '.snt-leaf:has( os-grid )' ), 'sn-dashboard.css uncaps .snt-leaf max-width for os-grid' );
 
 	$analytics_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-analytics.php' );
-	ok( false !== strpos( $analytics_src, 'snt_kit_grid( array( \\snt_kit_stack( $left ), \\snt_kit_stack( $right ) ), 290, 24 )' ), 'monitoring/analytics source paints two os-stack columns on the kit grid' );
-	ok( false !== strpos( $analytics_src, 'analytics_pipeline_html()' ), 'monitoring/analytics positions pipeline status above columns' );
+	// 2026-10-12 audit: one Pipeline box at full width, then rows of paired boxes.
+	ok( false === strpos( $analytics_src, 'snt_kit_stack' ) && 3 === substr_count( $analytics_src, '\\snt_kit_grid( array( analytics_' ), 'monitoring/analytics source paints rows of paired boxes, no two-up columns' );
+	ok( false !== strpos( $analytics_src, '. analytics_pipeline_html( $ctx )' ) && strpos( $analytics_src, 'analytics_pipeline_html( $ctx )' ) < strpos( $analytics_src, 'analytics_collector_html()' ), 'monitoring/analytics leads with the Pipeline box' );
 
 
 

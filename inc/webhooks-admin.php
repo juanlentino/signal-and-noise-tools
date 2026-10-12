@@ -95,7 +95,7 @@ function sn_webhooks_render_admin_tab() {
 		// Enabled
 		echo '<div class="sn-field">';
 		echo '<label class="sn-field-label">Status</label>';
-		echo '<label><input type="checkbox" name="enabled" value="1"' . checked( ! empty( $wh['enabled'] ), true, false ) . '> Enabled: deliveries fire on the events below</label>';
+		echo '<label><input type="checkbox" name="enabled" value="1"' . checked( ! empty( $wh['enabled'] ), true, false ) . '> Enabled: deliveries fire on the events ticked under Events</label>';
 		echo '</div>';
 
 		// Events — per-webhook subscription. Default (no events key) = post.published only.

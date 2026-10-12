@@ -116,7 +116,7 @@ $native  = (string) file_get_contents( $root . '/apps/sn-dashboard/parts/leaves/
 $monitor = (string) file_get_contents( $root . '/apps/sn-dashboard/parts/leaves/connections-cloudflare-monitor.php' );
 $classic = (string) file_get_contents( $root . '/inc/edge-admin.php' );
 $ability = (string) file_get_contents( $root . '/inc/abilities-cloudflare-status.php' );
-ok( false !== strpos( $native, 'sn_edge_errors_reading(' ) && false !== strpos( $monitor, 'cloudflare_edge_errors_html()' ), 'the native Edge section paints it' );
+ok( false !== strpos( $native, 'sn_edge_errors_reading(' ) && false !== strpos( $monitor, 'cloudflare_edge_errors_html( $code_list )' ), 'the native Edge section paints it, beside the status codes' );
 ok( false !== strpos( $classic, 'sn_edge_errors_range( $from, $to )' ), 'the classic Edge panel paints it, over its own range' );
 ok( false !== strpos( $ability, "'errors_5xx' => \$errors" ) && 2 === substr_count( $ability, "'errors_5xx' => \$errors" ), 'cloudflare-status carries it on BOTH returns, never_run included (the rollup does not depend on the monitor)' );
 ok( false !== strpos( $ability, "'errors_5xx' => array( 'type'" ), 'and declares it in the output schema' );

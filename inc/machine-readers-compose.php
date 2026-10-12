@@ -63,7 +63,7 @@ function snt_mr_compose_tab( $ctx ) {
 
 	$out .= '<div class="sn-2up sn-mr-2up">';
 	$out .= '<div class="sn-fieldset"><h3 class="sn-fieldset-h">' . esc_html__( 'Edge sensor', 'signal-and-noise-tools' ) . '</h3>';
-	$out .= '<p class="sn-an-settings-help">' . esc_html__( 'The deployed rights-signals Worker, from its version endpoint. Cached for up to 15 minutes, so a fresh deploy can take that long to appear here — purge caches to read it now.', 'signal-and-noise-tools' ) . '</p>';
+	$out .= '<p class="sn-an-settings-help">' . esc_html__( 'The deployed rights-signals Worker, from its version endpoint. Cached for up to 15 minutes, so a fresh deploy can take that long to appear here.', 'signal-and-noise-tools' ) . '</p>';
 	$out .= (string) ( $ctx['edge_readout_html'] ?? '' ) . '</div>';
 	$out .= '<div class="sn-fieldset"><h3 class="sn-fieldset-h">' . esc_html__( 'Sensor settings', 'signal-and-noise-tools' ) . '</h3>' . (string) ( $ctx['settings_form_html'] ?? '' ) . '</div>';
 	$out .= '</div>'; // .sn-2up

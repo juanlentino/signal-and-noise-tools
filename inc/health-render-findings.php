@@ -84,7 +84,7 @@ function sn_health_render_findings_section( $with_findings, $ai_available, $sugg
 	// Advisories last: they ask for attention, not action.
 	if ( ! empty( $advisories ) ) {
 		echo '<h3 class="sn-health-findings__family">' . esc_html__( 'Advisories', 'signal-and-noise-tools' ) . '</h3>';
-		echo '<p class="sn-field-helper">' . esc_html__( 'Surfaced, never alarming: these do not count toward the findings total above, and a clean site can carry them indefinitely.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-field-helper">' . esc_html__( 'Surfaced, never alarming: these do not count toward the findings total, and a clean site can carry them indefinitely.', 'signal-and-noise-tools' ) . '</p>';
 		foreach ( $advisories as $key => $check ) {
 			sn_health_render_finding_card( $key, $check, $ai_available, $suggest_keys, true );
 		}

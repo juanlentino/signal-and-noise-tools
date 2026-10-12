@@ -74,11 +74,11 @@ $GLOBALS['__rss_srv'] = '';
 $h = render();
 ok( strpos( $h, 'sn-an-pill--warn' ) !== false, 'missing server token renders a warn pill' );
 ok( strpos( $h, 'Connections › Credentials (Analytics server token)' ) !== false && strpos( $h, 'wp-config' ) === false && strpos( $h, 'SN_SRV_TOKEN' ) === false, 'warn points at the keyring row, not wp-config' );
-ok( strpos( $h, 'cron refresh' ) !== false, 'warn names the disabled */15 cron consequence' );
-ok( strpos( $h, 'RSS srv' ) !== false, 'both seams empty: the warn also names the RSS srv-trust loss' );
+ok( strpos( $h, 'The 15-minute refresh is off' ) !== false && strpos( $h, '*/15' ) === false, 'warn names the disabled 15-minute refresh, in plain words (2026-10-12 audit)' );
+ok( strpos( $h, 'Feed requests the server reports are no longer marked as trusted either.' ) !== false && strpos( $h, 'RSS srv' ) === false, 'both seams empty: the warn also names the trust loss, in plain words' );
 $GLOBALS['__rss_srv'] = 'x'; // sn_server_token filter supplies a token the refresh seam lacks
 $h = render();
-ok( strpos( $h, 'RSS srv' ) === false, 'diverged seams: warn keeps the cron clause but drops the RSS srv claim' );
+ok( strpos( $h, 'The 15-minute refresh is off' ) !== false && strpos( $h, 'no longer marked as trusted' ) === false, 'diverged seams: warn keeps the refresh clause but drops the trust claim' );
 $GLOBALS['__srv']     = 'srv-sekrit-99y';
 $GLOBALS['__rss_srv'] = 'srv-sekrit-99y';
 

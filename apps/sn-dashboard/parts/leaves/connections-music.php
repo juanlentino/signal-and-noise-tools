@@ -80,26 +80,12 @@ function music_status_html( array $s ) {
 }
 
 /**
- * One settings box as its own form: Muso.AI profile or Featured release.
- * Both post `music_save`, whose handler leaves a field it is not sent alone
- * (an empty profile or featured value changes nothing), so each box saves
- * only its own field. A box with nothing to post (the profile locked by its
- * constant) paints without a form.
- *
- * @param string $section The painted section (intro + field + helper).
- * @param bool   $postable Whether the section holds a named field.
- * @return string
- */
-function music_save_box( $section, $postable ) {
-	return $postable ? \snt_kit_form( 'music_save', $section, array( 'submit' => __( 'Save settings', 'signal-and-noise-tools' ), 'hidden' => music_hidden() ) ) : $section;
-}
-
-/**
  * The leaf (2026-10-12 audit: the settings form stood alone at its 760px
  * measure beside 540px of nothing, and Sync now was an empty box holding one
- * button). Two rows of paired boxes now: Status (with Sync now at its foot)
- * beside the read-only Spotify facts; then the Muso.AI profile beside the
- * Featured release, each saving its own field.
+ * button). Two rows of paired boxes of comparable height, measured: Status
+ * (with Sync now at its foot, 281px) beside the Featured release (217px);
+ * then the two sources, the Muso.AI profile (198px) beside the read-only
+ * Spotify facts (147px). Each form saves only its own field.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -112,8 +98,8 @@ function paint_connections_music( array $ctx ) {
 	$s = music_state();
 	return music_intro_html()
 		. music_status_html( $s )
-		. \snt_kit_grid( array( music_rail_status_html( $s ), music_spotify_section( $s ) ), 290, 18, array( 'role' => 'complementary', 'aria-label' => __( 'Sync status', 'signal-and-noise-tools' ) ) )
-		. \snt_kit_grid( array( music_save_box( music_muso_section( $s ), ! $s['profile_const'] ), music_save_box( music_featured_section( $s ), true ) ) );
+		. \snt_kit_grid( array( music_rail_status_html( $s ), music_featured_section( $s ) ), 290, 18, array( 'role' => 'complementary', 'aria-label' => __( 'Sync status', 'signal-and-noise-tools' ) ) )
+		. \snt_kit_grid( array( music_muso_section( $s ), music_spotify_section( $s ) ) );
 }
 
 add_filter(

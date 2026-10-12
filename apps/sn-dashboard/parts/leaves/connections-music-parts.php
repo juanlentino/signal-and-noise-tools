@@ -106,7 +106,19 @@ function music_muso_section( array $s ) {
 		? music_locked_field( __( 'Profile ID', 'signal-and-noise-tools' ), $s['profile_id'], 'SN_MUSO_PROFILE_ID' )
 		: \snt_kit_field( 'text', 'sn_muso_profile', __( 'Profile ID', 'signal-and-noise-tools' ), $s['profile_id'] )
 			. music_helper_html( \snt_kit_esc( __( 'Type', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'clear', false ) . ' ' . \snt_kit_esc( __( 'to revert to the default profile.', 'signal-and-noise-tools' ) ) );
-	return \snt_kit_section( __( 'Muso.AI profile', 'signal-and-noise-tools' ), $intro . $field );
+	return \snt_kit_section( __( 'Muso.AI profile', 'signal-and-noise-tools' ), $intro . ( $s['profile_const'] ? $field : music_save_form( $field ) ) );
+}
+
+/**
+ * One settings box's own form (2026-10-12 audit): `music_save` with only
+ * that box's field, inside the box, so Save sits with what it saves. The
+ * handler leaves a field it is not sent alone.
+ *
+ * @param string $fields The box's field and helper.
+ * @return string
+ */
+function music_save_form( $fields ) {
+	return \snt_kit_form( 'music_save', $fields, array( 'submit' => __( 'Save settings', 'signal-and-noise-tools' ), 'hidden' => music_hidden() ) );
 }
 
 /**
@@ -129,9 +141,10 @@ function music_featured_section( array $s ) {
 		: \snt_kit_esc( __( 'No manual pick:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/music', false ) . ' ' . \snt_kit_esc( __( 'auto-features your newest release.', 'signal-and-noise-tools' ) );
 	return \snt_kit_section(
 		__( 'Featured release', 'signal-and-noise-tools' ),
-		$intro
-		. \snt_kit_field( 'text', 'sn_music_featured', __( 'Spotify URL', 'signal-and-noise-tools' ), $s['featured_url'], array( 'placeholder' => 'https://open.spotify.com/album/…', 'autocomplete' => 'off' ) )
-		. music_helper_html( $helper )
+		$intro . music_save_form(
+			\snt_kit_field( 'text', 'sn_music_featured', __( 'Spotify URL', 'signal-and-noise-tools' ), $s['featured_url'], array( 'placeholder' => 'https://open.spotify.com/album/…', 'autocomplete' => 'off' ) )
+			. music_helper_html( $helper )
+		)
 	);
 }
 

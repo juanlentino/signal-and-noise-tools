@@ -15,6 +15,7 @@ function ok( $cond, $label ) {
 
 $GLOBALS['__opts'] = array( 'sn_machine_readers_preview' => '1' );
 function get_option( $k, $d = false ) { return $GLOBALS['__opts'][ $k ] ?? $d; }
+if ( ! function_exists( 'wp_date' ) ) { function wp_date( $format, $timestamp = null, $timezone = null ) { return gmdate( $format, null === $timestamp ? time() : (int) $timestamp ); } } // 2026-10-12: times print in the site's format
 // Storage-side URL sanitizer stub (lane 4): valid http(s) URL passes, else ''.
 function esc_url_raw( $url ) { $url = trim( (string) $url ); return false !== filter_var( $url, FILTER_VALIDATE_URL ) ? $url : ''; }
 

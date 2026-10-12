@@ -41,7 +41,8 @@ function cloudflare_monitor_record() {
  * @return string
  */
 function cloudflare_monitor_when( array $record ) {
-	return function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i T', (int) $record['fetched_at'] ) : gmdate( 'Y-m-d H:i', (int) $record['fetched_at'] ) . ' UTC';
+	// The site's own date and time format (2026-10-12 audit: one readable format).
+	return function_exists( 'wp_date' ) ? wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), (int) $record['fetched_at'] ) : gmdate( 'Y-m-d H:i', (int) $record['fetched_at'] ) . ' UTC';
 }
 
 /**
@@ -66,7 +67,7 @@ function cloudflare_token_html( array $d = array() ) {
 	$t = is_array( $record['token'] ) ? $record['token'] : array();
 	if ( ! empty( $t['verified'] ) ) {
 		$exp_ts = '' !== (string) $t['expires_on'] ? strtotime( (string) $t['expires_on'] ) : 0;
-		$exp    = $exp_ts ? ( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d', $exp_ts ) : gmdate( 'Y-m-d', $exp_ts ) ) : __( 'never', 'signal-and-noise-tools' );
+		$exp    = $exp_ts ? ( function_exists( 'wp_date' ) ? wp_date( get_option( 'date_format', 'F j, Y' ), $exp_ts ) : gmdate( 'Y-m-d', $exp_ts ) ) : __( 'never', 'signal-and-noise-tools' );
 		$soon   = 'active' === (string) $t['status'] && $exp_ts && $exp_ts < $now + 14 * DAY_IN_SECONDS;
 		$tone   = 'active' === (string) $t['status'] ? ( $soon ? 'warn' : 'ok' ) : 'err';
 		$kind   = (string) ( $t['kind'] ?? '' );
@@ -81,6 +82,9 @@ function cloudflare_token_html( array $d = array() ) {
 			array( 'label' => __( 'Expires', 'signal-and-noise-tools' ), 'value' => $exp ),
 			array( 'label' => __( 'Verified', 'signal-and-noise-tools' ), 'value' => cloudflare_monitor_when( $record ) ),
 		) );
+	} elseif ( 'changed' === (string) ( $t['status'] ?? '' ) ) {
+		// The keyring saved a new token after this reading (sn_cf_monitor_forget_token()).
+		$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'The token changed after the last read. Press Refresh now to read the new one.', 'signal-and-noise-tools' ) ) );
 	} else {
 		$inner .= \snt_kit_notice( 'error', \snt_kit_esc( sprintf( /* translators: %s: reason. */ __( 'Token could not be verified: %s', 'signal-and-noise-tools' ), (string) ( $t['error'] ?: $t['status'] ) ) ) );
 	}
@@ -115,7 +119,7 @@ function cloudflare_edge_html( array $d ) {
 		$inner .= \snt_kit_grid(
 			array(
 				\snt_kit_stat( number_format_i18n( (int) $tt['requests'] ), __( 'Requests, 7 days', 'signal-and-noise-tools' ) ),
-				\snt_kit_stat( null === ( $tt['cache_share'] ?? null ) ? '—' : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%', __( 'Served from cache', 'signal-and-noise-tools' ) ),
+				\snt_kit_stat( null === ( $tt['cache_share'] ?? null ) ? __( 'not read', 'signal-and-noise-tools' ) : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%', __( 'Served from cache', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( size_format( (int) $tt['bytes'] ), __( 'Bytes', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( number_format_i18n( (int) $tt['threats'] ), __( 'Threats', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( number_format_i18n( (int) $tt['status_5xx'] ), __( '5xx at the edge', 'signal-and-noise-tools' ), '', (int) $tt['status_5xx'] > 0 ? 'warn' : '' ),
@@ -125,17 +129,20 @@ function cloudflare_edge_html( array $d ) {
 		);
 		// 14.9.1: which 5xx. 520/522/524 are Cloudflare failing to reach or
 		// wait for the origin; 503 is the origin's own answer (Varnish).
-		$codes = (array) ( $tt['status_5xx_codes'] ?? array() );
+		$codes     = (array) ( $tt['status_5xx_codes'] ?? array() );
+		$code_list = '';
 		if ( array() !== $codes ) {
 			$code_rows = array();
 			$cf_side   = array( 520 => __( 'origin returned an unreadable or empty response', 'signal-and-noise-tools' ), 521 => __( 'origin refused the connection', 'signal-and-noise-tools' ), 522 => __( 'connection to the origin timed out', 'signal-and-noise-tools' ), 523 => __( 'origin unreachable', 'signal-and-noise-tools' ), 524 => __( 'origin took too long to answer', 'signal-and-noise-tools' ), 525 => __( 'TLS handshake with the origin failed', 'signal-and-noise-tools' ), 526 => __( 'origin certificate invalid', 'signal-and-noise-tools' ) );
 			foreach ( $codes as $code => $n ) {
 				$code_rows[] = array( 'label' => (string) $code . ' · ' . ( $cf_side[ (int) $code ] ?? __( 'answered by the origin', 'signal-and-noise-tools' ) ), 'value' => number_format_i18n( (int) $n ), 'tone' => 'warn' );
 			}
-			$inner .= \snt_kit_list( $code_rows );
+			$code_list = cloudflare_edge_errors_list( __( '5xx by status code', 'signal-and-noise-tools' ), $code_rows );
 		}
-		// 17.8.1 (#1002): which paths, and who answered.
-		$inner .= cloudflare_edge_errors_html();
+		// 17.8.1 (#1002): which paths, and who answered. 2026-10-12 audit: the
+		// three lists share one row, each capped, so the box is a row of
+		// figures and a row of lists, not a 1,300px column of rows.
+		$inner .= cloudflare_edge_errors_html( $code_list );
 	} elseif ( ! empty( $z['needs_permission'] ) ) {
 		$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'Zone analytics: ', 'signal-and-noise-tools' ) . sn_cf_monitor_permission_hint() ) );
 	} else {
@@ -143,7 +150,7 @@ function cloudflare_edge_html( array $d ) {
 	}
 
 	$inner .= cloudflare_monitor_footer_html( $d, $record );
-	return \snt_kit_section( __( 'Edge, 7 days', 'signal-and-noise-tools' ), $inner, __( 'Requests, cache share, bytes, threats and 5xx, as the zone reports them.', 'signal-and-noise-tools' ) );
+	return \snt_kit_section( __( 'Edge, 7 days', 'signal-and-noise-tools' ), $inner, __( 'Requests, cache share, bytes, threats and 5xx, as the zone reports them for the seven days to the monitor\'s last read.', 'signal-and-noise-tools' ) );
 }
 
 /**

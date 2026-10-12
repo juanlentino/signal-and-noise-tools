@@ -108,10 +108,11 @@ ok( false !== strpos( $kit, 'in 1 hour' ), 'a pending boundary reads as a relati
 ok( false !== strpos( $kit, '>nothing pending</span>' ) && false === strpos( $kit, '&mdash;' ) && false === strpos( $kit, '—' ) && false !== strpos( $classic, '>nothing pending</td>' ), 'a row with no pending boundary (both past) says "nothing pending" on both surfaces, never an em dash' );
 // 2026-10-12 audit: the fragment and swap lists were plain flex rows, so the
 // header words sat over the wrong cells (#1604); both are ledger grids now.
-ok( 1 === preg_match( '#<os-section heading="Scheduled fragments" stack><p class="snt-prose">[^<]*</p><div class="snt-ledger"><ul class="snt-list snt-list--ledger"><li class="snt-list__row"><span class="snt-list__label">Target</span>#', $kit ), 'the fragments list is a ledger grid whose first row is its header' );
-ok( false !== strpos( $kit, '<div class="snt-ledger"><ul class="snt-list snt-list--ledger snt-list--ledger-5"><li class="snt-list__row"><span class="snt-list__label">Target</span><span class="snt-list__value">Swap at</span>' ), 'the swaps list is a five-track ledger grid' );
+ok( 1 === preg_match( '#<os-section heading="Scheduled fragments" stack><p class="snt-prose">[^<]*</p><div class="snt-ledger snt-ledger--wrap"><ul class="snt-list snt-list--ledger"><li class="snt-list__row"><span class="snt-list__label">Target</span>#', $kit ), 'the fragments list is a ledger grid whose first row is its header' );
+ok( 1 === preg_match( '/\.snt-list--ledger os-form\s*\{\s*container-type:\s*normal;\s*width:\s*max-content;/', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ), 'a ledger form sizes to its button: an os-form is an inline-size container with no intrinsic width, and its buttons piled up and clipped (seen in the preview)' );
+ok( false !== strpos( $kit, '<div class="snt-ledger snt-ledger--wrap"><ul class="snt-list snt-list--ledger snt-list--ledger-5"><li class="snt-list__row"><span class="snt-list__label">Target</span><span class="snt-list__value">Swap at</span>' ), 'the swaps list is a five-track ledger grid' );
 $css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
-ok( 1 === preg_match( '/\.snt-list--ledger\.snt-list--ledger-5\s*\{[^}]*grid-template-columns:\s*minmax\( 8em, 2fr \) repeat\( 2,/', $css ), 'the five-track variant is defined' );
+ok( 1 === preg_match( '/\.snt-list--ledger\.snt-list--ledger-5\s*\{[^}]*grid-template-columns:\s*minmax\( 8em, 2fr \) repeat\( 2, minmax\( 4em, 1fr \) \) max-content max-content/', $css ), 'the five-track variant is defined' );
 
 ok( false !== strpos( $kit, 'name="row_id" value="201"' ) && false !== strpos( $kit, 'value="sn_schedule_run_now"' ) && false !== strpos( $kit, 'value="sn_schedule_repurge"' ), 'the fragment row carries its own row_id into both ops' );
 // 2026-10-12 audit: Run now and Run swap now change the public site at once

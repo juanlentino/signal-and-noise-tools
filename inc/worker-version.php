@@ -283,7 +283,34 @@ function sn_worker_version_format_deployed( $iso ) {
 	if ( false === $ts ) {
 		return $iso;
 	}
-	return gmdate( 'Y-m-d H:i', $ts ) . ' UTC (' . human_time_diff( $ts, time() ) . ' ago)';
+	// The site's own format and timezone (2026-10-12 audit: this was the one UTC
+	// stamp on a leaf of local times).
+	return wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), $ts ) . ' (' . human_time_diff( $ts, time() ) . ' ago)';
+}
+
+/**
+ * Why the Worker's version is unknown, the same words on both surfaces
+ * (2026-10-12 audit: it sent the owner to "Content → RSS", where the
+ * Collector endpoint has not lived since v10.46.0).
+ *
+ * @param string $url The /_sn/version URL probed, '' when none.
+ * @return string Plain text.
+ */
+function sn_worker_version_unknown_text( $url ) {
+	$where = '' !== (string) $url
+		/* translators: %s: the /_sn/version URL probed. */
+		? sprintf( __( 'Couldn’t reach the /_sn/version endpoint at %s.', 'signal-and-noise-tools' ), (string) $url )
+		: __( 'Couldn’t reach the /_sn/version endpoint.', 'signal-and-noise-tools' );
+	return $where . ' ' . __( 'The Worker may not be deployed yet (it needs worker v1.4.0+), or this host can’t reach it: if the origin cannot reach the edge from here, set the Collector endpoint on this screen to the Worker’s *.workers.dev URL.', 'signal-and-noise-tools' );
+}
+
+/**
+ * The Worker row's words when the Worker reports no version number.
+ *
+ * @return string
+ */
+function sn_worker_version_unreported_text() {
+	return __( 'version not reported: redeploy the Worker so it reports one', 'signal-and-noise-tools' );
 }
 
 /**
@@ -311,7 +338,7 @@ function sn_worker_version_render_data( $result, $stale ) {
 	if ( '' !== $version ) {
 		echo '<code>v' . esc_html( $version ) . '</code>';
 	} else {
-		echo '<span class="sn-an-empty">(semver unreported: deploy with <code>npm run deploy</code>)</span>';
+		echo '<span class="sn-an-empty">(' . esc_html( sn_worker_version_unreported_text() ) . ')</span>';
 	}
 	echo '</p>';
 
@@ -411,11 +438,7 @@ function sn_worker_version_render_card() {
 	} elseif ( is_array( $last_good ) && ! empty( $last_good['ok'] ) ) {
 		sn_worker_version_render_data( $last_good, true );
 	} else {
-		$body = '<strong>Worker version unknown.</strong> Couldn\'t reach the <code>/_sn/version</code> endpoint';
-		if ( ! empty( $result['url'] ) ) {
-			$body .= ' at <code class="sn-mono">' . esc_html( (string) $result['url'] ) . '</code>';
-		}
-		$body .= '. The Worker may not be deployed yet (it needs worker <strong>v1.4.0+</strong>), or this host can\'t reach it: point the <em>Collector endpoint</em> (Content &rarr; RSS) at the Worker\'s <code>*.workers.dev</code> URL if the origin doesn\'t hairpin to the edge.';
+		$body = '<strong>Worker version unknown.</strong> ' . esc_html( sn_worker_version_unknown_text( (string) ( $result['url'] ?? '' ) ) );
 		wp_admin_notice( $body, array( 'type' => 'warning', 'additional_classes' => array( 'notice-alt', 'inline' ) ) );
 	}
 

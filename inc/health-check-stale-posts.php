@@ -141,7 +141,7 @@ function sn_health_stale_posts_scan() {
  */
 function sn_health_check_stale_posts( $scan = null ) {
 	$scan = is_array( $scan ) ? $scan : sn_health_stale_posts_scan();
-	return sn_health_pack_check( sprintf( 'Stale posts (>%d months)', SN_HEALTH_STALE_MONTHS ), $scan['findings'], 'Review and either update, archive, or mark "Evergreen" in the post\'s Signal & Noise box -- which moves it to the advisory list below rather than silencing it.', sn_health_stale_posts_skipped( $scan ) );
+	return sn_health_pack_check( sprintf( 'Stale posts (>%d months)', SN_HEALTH_STALE_MONTHS ), $scan['findings'], 'Review and either update, archive, or mark "Evergreen" in the post\'s Signal & Noise box; that moves it to Advisories rather than silencing it.', sn_health_stale_posts_skipped( $scan ) );
 }
 
 /**

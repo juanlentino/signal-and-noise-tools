@@ -67,7 +67,7 @@ function snt_gsc_render_settings_section() {
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'gsc_credential_save' ) ) . '" class="sn-gsc-settings">';
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Search Console credential', 'signal-and-noise-tools' ) . '</h3>';
-	echo '<p class="description">' . esc_html__( 'A Google Cloud service-account key, granted read access to the Search Console property. Nothing here queries Google yet — this stores the credential the search reports will use.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="description">' . esc_html__( 'A Google Cloud service-account key, granted read access to the Search Console property. Test connection lists the properties it can read; Sync now pulls their pages and queries, and a daily sync keeps them fresh.', 'signal-and-noise-tools' ) . '</p>';
 
 	if ( null !== $identity ) {
 		echo '<table class="widefat striped sn-gsc-identity"><tbody>';
@@ -83,15 +83,15 @@ function snt_gsc_render_settings_section() {
 		// Signing readiness is reported HERE rather than discovered at the first
 		// token request: the JWT grant is RS256 and this plugin carries no
 		// composer dependencies, so openssl is the whole signing story.
-		echo '<tr><th scope="row">' . esc_html__( 'Signing (RS256)', 'signal-and-noise-tools' ) . '</th><td>';
+		echo '<tr><th scope="row">' . esc_html__( 'Token signing', 'signal-and-noise-tools' ) . '</th><td>';
 		if ( $identity['signing_ready'] ) {
-			echo '<span class="sn-pill sn-pill--ok">' . esc_html__( 'openssl available', 'signal-and-noise-tools' ) . '</span>';
+			echo '<span class="sn-pill sn-pill--ok">' . esc_html__( 'Available', 'signal-and-noise-tools' ) . '</span>';
 		} else {
-			echo '<span class="sn-pill sn-pill--warn">' . esc_html__( 'openssl_sign() missing — this credential cannot mint a token on this host', 'signal-and-noise-tools' ) . '</span>';
+			echo '<span class="sn-pill sn-pill--warn">' . esc_html__( 'Not available: this host’s PHP cannot sign the token request, so the credential cannot be used here', 'signal-and-noise-tools' ) . '</span>';
 		}
 		echo '</td></tr>';
 		echo '</tbody></table>';
-		echo '<p class="description">' . esc_html__( 'The private key is never displayed. To change the credential, paste a whole new key file below; to remove it, type clear.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'The private key is never displayed. To change the credential, paste a whole new key file into Service-account JSON; to remove it, type clear there.', 'signal-and-noise-tools' ) . '</p>';
 	} elseif ( $stored ) {
 		// Stored but no identity == stored but unparseable. Say so plainly
 		// rather than rendering an empty card that reads as "not configured".
@@ -104,10 +104,10 @@ function snt_gsc_render_settings_section() {
 		// answers 403 because it was never switched on in the project. Found the
 		// hard way on the first real credential (v11.19.2).
 		echo '<ol class="description">';
-		echo '<li>' . esc_html__( 'In Google Cloud, ENABLE the "Google Search Console API" for the project. Skipping this returns 403 later even when everything else is correct — the error looks exactly like a missing permission.', 'signal-and-noise-tools' ) . '</li>';
+		echo '<li>' . esc_html__( 'In Google Cloud, ENABLE the "Google Search Console API" for the project. Skipping this returns 403 later even when everything else is correct: the error looks exactly like a missing permission.', 'signal-and-noise-tools' ) . '</li>';
 		echo '<li>' . esc_html__( 'In that same project, create a service account and download a JSON key.', 'signal-and-noise-tools' ) . '</li>';
 		echo '<li>' . esc_html__( 'In Search Console → Settings → Users and permissions, add that service account\'s email as a user on the property.', 'signal-and-noise-tools' ) . '</li>';
-		echo '<li>' . esc_html__( 'Paste the whole JSON key file below, then Test connection.', 'signal-and-noise-tools' ) . '</li>';
+		echo '<li>' . esc_html__( 'Paste the whole JSON key file into Service-account JSON, then press Test connection.', 'signal-and-noise-tools' ) . '</li>';
 		echo '</ol>';
 	}
 
@@ -158,7 +158,7 @@ function snt_gsc_render_property_form() {
 	} else {
 		echo '<p><label for="sn_gsc_property"><strong>' . esc_html__( 'Read search data for', 'signal-and-noise-tools' ) . '</strong></label><br>';
 		echo '<select id="sn_gsc_property" name="sn_gsc_property">';
-		echo '<option value="">' . esc_html__( '— choose a property —', 'signal-and-noise-tools' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'Choose a property', 'signal-and-noise-tools' ) . '</option>';
 		foreach ( $sites as $site ) {
 			$url = (string) ( $site['siteUrl'] ?? '' );
 			if ( '' === $url ) {
@@ -225,7 +225,7 @@ function snt_gsc_render_property_form() {
 		}
 		echo '</p>';
 		echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_sync' ) . ' class="button">' . esc_html__( 'Sync now', 'signal-and-noise-tools' ) . '</button></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
-		echo '<p class="description">' . esc_html__( 'Data appears in Analytics → Search, and as impressions/position columns beside Top pages.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Data appears in Analytics › Search, and as the Impressions and Position columns of the Top pages table.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	echo '</form>';
 }

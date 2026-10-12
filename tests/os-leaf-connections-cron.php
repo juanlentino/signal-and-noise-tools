@@ -480,6 +480,7 @@ $box_at = strpos( $kit, 'heading="Action Scheduler backlog"' );
 // 2026-10-12 audit: five short facts stood alone across the full width; the
 // box is the third on the settings row now.
 ok( strpos( $kit, 'heading="Scheduled events"' ) < $box_at && strpos( $kit, snt_leaf_row( 3 ) ) < $box_at && strpos( $kit, 'heading="Scheduled read-only runs"' ) < $box_at, 'the box sits under the events ledger, the third box on the settings row' );
+snt_leaf_preview( 'connections-cron', $kit );
 ok( false === strpos( $box, '<os-disclosure' ), 'a reading is painted directly, not behind a fold' );
 ok( (bool) preg_match( '#<os-fact label="pending"><span class="snt-kv__v">12 \(3 overdue\)</span></os-fact>#', $box ), 'pending row: 12 with 3 overdue, no tone under the line' );
 ok( false !== strpos( $box, '<os-fact label="complete"><span class="snt-kv__v">1204</span></os-fact>' ), 'complete row: raw status label, the raw figure the Info row prints' );
