@@ -218,6 +218,17 @@ ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_run"[^>]*os-arg-hook="sn_
 ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_run"[^>]*os-arg-hook="some_orphan_hook"[^>]*>/', $kit, $m ) && false !== strpos( $m[0], ' disabled' ) && false !== strpos( $m[0], 'title="No handler' ), 'orphan hook: Run now is disabled with the no-handler reason as its title' );
 ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_unschedule"[^>]*os-arg-hook="sn_cache_sweep"[^>]*>/', $kit, $m ) && false !== strpos( $m[0], ' disabled' ) && false !== strpos( $m[0], 'title="Locked' ), 'SN-owned hook: Unschedule is disabled with the locked reason as its title' );
 ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_unschedule"[^>]*os-arg-hook="some_orphan_hook"[^>]*>/', $kit, $m ) && false === strpos( $m[0], 'disabled' ) && false !== strpos( $m[0], 'os-confirm-danger' ) && false !== strpos( $m[0], 'os-arg-args="{&quot;foo&quot;:&quot;bar&quot;}"' ), 'orphan hook: Unschedule is enabled, danger-confirmed, and carries the row`s args JSON so the impl matches the scheduled signature' );
+// 2026-10-12 audit: the gate read the `sn_` prefix while run-cron-event refuses
+// by snt_cron_is_sn_owned(), so an owned `snt_` hook offered Run now and then
+// refused it. The gate is the same ownership flag the refusal reads.
+$GLOBALS['__cron_rows'] = array(
+	array( 'hook' => 'snt_ml_rebuild', 'args_signature' => 'o', 'next_run_ts' => time() + 600, 'schedule' => 'daily', 'interval_s' => 86400, 'args' => array(), 'last_fired_ts' => 0, 'has_handler' => true, 'is_sn_owned' => true ),
+	array( 'hook' => 'sn_not_ours', 'args_signature' => 'n', 'next_run_ts' => time() + 700, 'schedule' => 'daily', 'interval_s' => 86400, 'args' => array(), 'last_fired_ts' => 0, 'has_handler' => true, 'is_sn_owned' => false ),
+);
+$own = snt_leaf_paint( 'connections', 'cron', array() );
+ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_run"[^>]*os-arg-hook="snt_ml_rebuild"[^>]*>/', $own, $m ) && false !== strpos( $m[0], ' disabled' ), 'an owned hook without the sn_ prefix: Run now is disabled, as the ability refuses it' );
+ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_run"[^>]*os-arg-hook="sn_not_ours"[^>]*>/', $own, $m ) && false === strpos( $m[0], 'disabled' ), 'an sn_ hook the plugin does not own: Run now is enabled, as the ability runs it' );
+$GLOBALS['__cron_rows'] = $rich_rows;
 ok( 3 === substr_count( $kit, 'os-confirm-danger' ) && 6 === substr_count( $kit, 'os-confirm="' ), 'every Unschedule is danger-confirmed and every control asks before dispatching' );
 ok( false === strpos( $kit, '<os-table' ) && 4 === substr_count( $kit, '<li class="snt-list__row"' ) && 3 === substr_count( $kit, ' os-key="' ), 'the ledger is a list of rows (a control cannot ride an os-table cell, upstream #862): one header row, three keyed rows the poll morph moves rather than rebuilds' );
 

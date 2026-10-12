@@ -46,10 +46,10 @@ function indexnow_status_html( array $d ) {
 		$title = __( 'Disabled', 'signal-and-noise-tools' );
 		$body  = \snt_kit_esc( __( 'Enable it in the main column to start notifying search engines.', 'signal-and-noise-tools' ) );
 		$pill  = __( 'Off', 'signal-and-noise-tools' );
-	} elseif ( ! empty( $d['result']['error'] ) ) {
+	} elseif ( '' !== ( $problem = function_exists( 'sn_indexnow_result_problem' ) ? sn_indexnow_result_problem( (array) $d['result'] ) : (string) ( $d['result']['error'] ?? '' ) ) ) {
 		$kind  = 'err';
 		$title = __( 'Last submission failed', 'signal-and-noise-tools' );
-		$body  = \snt_kit_code( (string) $d['result']['error'], false );
+		$body  = \snt_kit_esc( $problem );
 		$pill  = __( 'Error', 'signal-and-noise-tools' );
 	} else {
 		$kind  = 'ok';
@@ -85,7 +85,7 @@ function indexnow_main_html( array $d ) {
 			'os-cluster',
 			array( 'gap' => '8' ),
 			\snt_kit_action_button( __( 'Submit recent content now', 'signal-and-noise-tools' ), 'indexnow_ping_now' )
-			. \snt_kit_action_button( __( 'Regenerate key', 'signal-and-noise-tools' ), 'indexnow_regenerate' )
+			. \snt_kit_action_button( __( 'Regenerate key', 'signal-and-noise-tools' ), 'indexnow_regenerate', array( 'confirm' => __( 'Regenerate the IndexNow key? The old key file stops answering at once; search engines verify the new key on the next submission.', 'signal-and-noise-tools' ), 'confirm_title' => __( 'Regenerate key', 'signal-and-noise-tools' ), 'confirm_label' => __( 'Regenerate', 'signal-and-noise-tools' ) ) )
 		),
 		__( '“Submit recent content now” backfills your existing published posts. “Regenerate key” rotates the key (search engines re-verify on the next submission).', 'signal-and-noise-tools' )
 	);
@@ -122,10 +122,10 @@ function indexnow_rail_html( array $d ) {
 			'label' => __( 'Last submission', 'signal-and-noise-tools' ),
 			'html'  => true,
 			'value' => sprintf(
-				/* translators: 1: relative time element, 2: HTTP status code, 3: number of URLs submitted */
-				\snt_kit_esc( __( '%1$s — HTTP %2$d, %3$d URL(s)', 'signal-and-noise-tools' ) ),
+				/* translators: 1: relative time element, 2: "HTTP 200" or "no HTTP response", 3: URLs submitted */
+				\snt_kit_esc( _n( '%1$s: %2$s, %3$d URL', '%1$s: %2$s, %3$d URLs', (int) ( $d['result']['count'] ?? 0 ), 'signal-and-noise-tools' ) ),
 				\snt_kit_relative_time( (int) $d['result']['time'] ),
-				(int) ( $d['result']['code'] ?? 0 ),
+				\snt_kit_esc( (int) ( $d['result']['code'] ?? 0 ) > 0 ? 'HTTP ' . (int) $d['result']['code'] : __( 'no HTTP response', 'signal-and-noise-tools' ) ),
 				(int) ( $d['result']['count'] ?? 0 )
 			),
 		);

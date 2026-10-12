@@ -120,7 +120,7 @@ ok( false !== strpos( $kit, 'name="event_name" type="text" value="RSS Feed Reque
 ok( false !== strpos( $kit, 'name="log_retention_days"' ) && false !== strpos( $kit, 'value="45"' ), 'the retention field carries the stored value' );
 ok( false !== strpos( $kit, 'checked' ) && false !== strpos( $kit, 'name="enabled"' ), 'the enabled switch reflects the stored (on) value' );
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, 'Settings saved' ), 'the saved flash paints a success notice' );
-ok( 1 === preg_match( '/os-confirm="All RSS tracker settings[^"]*"[^>]*os-confirm-title="Reset RSS tracker to defaults\?"[^>]*os-confirm-label="Reset"/', $kit ), 'the reset form carries its own confirm, title and label' );
+ok( 1 === preg_match( '/os-confirm="Tracking, the event name and log retention return to their defaults\. The collector endpoint on Measurement › Analytics is kept\."[^>]*os-confirm-title="Reset RSS tracker to defaults\?"[^>]*os-confirm-label="Reset"/', $kit ), 'the reset form carries its own confirm (which says the collector endpoint is kept), title and label' );
 ok( 1 === preg_match( '/os-confirm="Log entries older than[^"]*"[^>]*os-confirm-title="Purge old log entries\?"[^>]*os-confirm-label="Purge"[^>]*os-confirm-danger/', $kit ), 'the purge form carries its own confirm, title, label and danger' );
 ok( 1 === substr_count( $kit, 'os-confirm-danger' ), 'only the purge form (not reset) carries danger' );
 ok( false !== strpos( $kit, 'wp_rss_feed_log' ), 'the settings retention hint names the live log table' );

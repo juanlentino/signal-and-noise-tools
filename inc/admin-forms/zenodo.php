@@ -14,6 +14,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * The deposit button's confirm, shared by both surfaces (2026-10-12 audit:
+ * the button minted DOIs with no question asked). Production DOIs are
+ * permanent; the sandbox's are tests.
+ *
+ * @param string $env 'production' or 'sandbox'.
+ * @return string
+ */
+function sn_zenodo_deposit_confirm( $env ) {
+	return 'production' === $env
+		/* translators: %d: documents per pass */
+		? sprintf( __( 'Deposit up to %d documents to Zenodo now? On production each one gets a permanent public DOI.', 'signal-and-noise-tools' ), (int) SN_ZENODO_PASS_MAX )
+		/* translators: %d: documents per pass */
+		: sprintf( __( 'Deposit up to %d documents to the Zenodo sandbox now? Sandbox DOIs are tests and never public.', 'signal-and-noise-tools' ), (int) SN_ZENODO_PASS_MAX );
+}
+
+/**
  * The ledger rows and the counts the leaf paints, shared with the kit leaf.
  *
  * @since 15.11.0
@@ -32,7 +48,9 @@ function sn_zenodo_leaf_data() {
 		'verdict' => function_exists( 'sn_zenodo_token_verdict' ) ? sn_zenodo_token_verdict() : null,
 		'rows'    => $rows,
 		'counts'  => $counts,
-		'batch'   => (array) get_transient( 'sn_zenodo_last_batch' ),
+		// (array) false is array( false ), never empty: with no pass on record
+		// the row read "0 published, 0 failed, of 0" (2026-10-12 audit).
+		'batch'   => is_array( $batch = get_transient( 'sn_zenodo_last_batch' ) ) ? $batch : array(),
 	);
 }
 
@@ -107,7 +125,7 @@ function sn_admin_render_zenodo_section() {
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';
 	wp_nonce_field( 'sn_zenodo_deposit_batch' );
 	echo '<strong>Deposit</strong><p class="sn-helper">Runs one pass now: up to ' . (int) SN_ZENODO_PASS_MAX . ' confirmed documents without a DOI. The hourly pass does the same on its own.</p>';
-	echo '<button type="submit" name="action" value="sn_zenodo_deposit_batch" class="button"' . ( $d['enabled'] ? '' : ' disabled' ) . '>Deposit the next batch</button></form>';
+	echo '<button type="submit" name="action" value="sn_zenodo_deposit_batch" class="button" data-snt-confirm="' . esc_attr( sn_zenodo_deposit_confirm( $d['env'] ) ) . '" data-snt-confirm-title="' . esc_attr__( 'Deposit the next batch', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Deposit', 'signal-and-noise-tools' ) . '"' . ( $d['enabled'] ? '' : ' disabled' ) . '>Deposit the next batch</button></form>';
 	echo '</div>';
 
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Ledger</h2>';

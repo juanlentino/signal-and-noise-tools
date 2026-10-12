@@ -56,12 +56,15 @@ ok( false !== strpos( $kit, 'submit-label="Save IndexNow settings"' ), 'the save
 ok( false !== strpos( $kit, 'os-arg-action="sn_indexnow_ping_now"' ) && false !== strpos( $kit, '>Submit recent content now</os-button>' ), 'Submit recent content now is a one-click write of indexnow_ping_now' );
 ok( false !== strpos( $kit, 'os-arg-action="sn_indexnow_regenerate"' ) && false !== strpos( $kit, '>Regenerate key</os-button>' ), 'Regenerate key is a one-click write of indexnow_regenerate' );
 ok( 1 === substr_count( $kit, 'os-arg-nonce="nonce-sn_indexnow_ping_now"' ) && 1 === substr_count( $kit, 'os-arg-nonce="nonce-sn_indexnow_regenerate"' ), 'each one-click write carries the nonce minted for ITS action (#1614)' );
-ok( false === strpos( $kit, 'os-confirm' ), 'no confirm is asked: the classic maintenance buttons ask none' );
+// 2026-10-12 audit: Regenerate kills the served key file at once, so it asks
+// first on both surfaces, in the same words; Submit recent content stays one click.
+ok( 1 === preg_match( '/<os-button[^>]*os-confirm="([^"]*)"[^>]*>Regenerate key</', $kit, $m ) && false !== strpos( $m[1], 'The old key file stops answering at once' ) && false !== strpos( $classic, 'data-snt-confirm="' . $m[1] . '"' ), 'Regenerate key asks first, in the same words on both surfaces' );
+ok( 1 === substr_count( $kit, 'os-confirm=' ), 'Submit recent content now still runs in one click' );
 ok( false !== strpos( $kit, 'backfills your existing published posts' ) && false !== strpos( $kit, 'rotates the key' ), 'the maintenance helper text survives as the section description' );
 ok( false !== strpos( $kit, 'Pushes changed URLs to <strong>IndexNow</strong>' ) && false !== strpos( $kit, 'not Google' ), 'the intro prose survives, IndexNow in bold' );
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, '<b>Active</b>' ) && false !== strpos( $kit, '<os-badge tone="success">On</os-badge>' ) && false !== strpos( $kit, 'Changed URLs are submitted automatically.' ), 'the active state paints a success notice with the On pill and the classic body' );
 ok( false !== strpos( $kit, 'href="https://example.test/' . $key . '.txt"' ) && false !== strpos( $kit, '<os-code>https://example.test/' . $key . '.txt</os-code>' ) && false !== strpos( $kit, 'Key file' ), 'the key-file URL is shown as an external link in inline code under Key file' );
-ok( false !== strpos( $kit, 'Last submission' ) && false !== strpos( $kit, '<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time> — HTTP 200, 12 URL(s)' ), '#1596: the last submission is an os-relative-time, then HTTP code and URL count' );
+ok( false !== strpos( $kit, 'Last submission' ) && false !== strpos( $kit, '<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>: HTTP 200, 12 URLs' ), '#1596: the last submission is an os-relative-time, then HTTP code and URL count' );
 ok( false !== strpos( $kit, 'col="4" aria-label="IndexNow status"' ) && false !== strpos( $kit, '<os-section heading="Status" stack>' ), 'the rail keeps its landmark name and the Status heading' );
 ok( false !== strpos( $kit, '<os-row gap="16"' ), 'the classic two-column shell survives as an os-row' );
 ok( false !== strpos( $kit, '<os-stack col="8" gap="12">' ), 'the main column carries col=8 inside the os-row' );
@@ -86,8 +89,8 @@ snt_indexnow_fixture( true, $key, array( 'time' => time() - 3600, 'code' => 429,
 $classic = snt_leaf_classic_html( 'sn_admin_render_indexnow_section' );
 $kit     = snt_leaf_paint( 'connections', 'indexnow' );
 ok( false !== strpos( $kit, 'tone="danger"' ) && false !== strpos( $kit, '<b>Last submission failed</b>' ) && false !== strpos( $kit, '<os-badge tone="danger">Error</os-badge>' ), 'the failed state paints a danger notice with the Error pill' );
-ok( false !== strpos( $kit, '<os-code>HTTP 429 slow down</os-code>' ), 'the recorded error is shown as inline code' );
-ok( false !== strpos( $kit, '>1 hour ago</os-relative-time> — HTTP 429, 3 URL(s)' ), 'the failed submission still paints its Last submission row, as the classic table does' );
+ok( false !== strpos( $kit, 'HTTP 429 slow down' ), 'the recorded error is shown' );
+ok( false !== strpos( $kit, '>1 hour ago</os-relative-time>: HTTP 429, 3 URLs' ), 'the failed submission still paints its Last submission row, as the classic table does' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'failed state: field names still match the classic forms' );
 
 // ── Escaping: a hostile error and a hostile key never reach the markup raw.
@@ -111,7 +114,7 @@ ok( false === strpos( $kit, 'Last submission' ), 'disabled with no result: no La
 snt_indexnow_fixture( false, $key, array( 'time' => time() - 3600, 'code' => 500, 'count' => 1, 'error' => 'boom' ) );
 $kit = snt_leaf_paint( 'connections', 'indexnow' );
 ok( false !== strpos( $kit, '<b>Disabled</b>' ) && false === strpos( $kit, 'Last submission failed' ), 'disabled takes precedence over a recorded error' );
-ok( false !== strpos( $kit, 'href="https://example.test/' . $key . '.txt"' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time> — HTTP 500, 1 URL(s)' ), 'disabled with a key and a result: the key link and Last submission row still paint, as the classic table does' );
+ok( false !== strpos( $kit, 'href="https://example.test/' . $key . '.txt"' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>: HTTP 500, 1 URL' ), 'disabled with a key and a result: the key link and Last submission row still paint, as the classic table does' );
 
 // ── Capability gate: without manage_options the leaf paints an empty state
 // and never a write action, matching the classic leaf's early return.
@@ -119,6 +122,12 @@ $GLOBALS['__can'] = false;
 $kit = snt_leaf_paint( 'connections', 'indexnow' );
 ok( false !== strpos( $kit, '<os-empty-state' ) && false !== strpos( $kit, 'cannot manage options' ) && false === strpos( $kit, 'os-arg-action=' ), 'without manage_options the leaf paints an empty state and no write' );
 $GLOBALS['__can'] = true;
+
+// 2026-10-12 audit: a refusal with no transport error (403 key not verified,
+// 422 wrong host, 429 throttled) painted the green Active box; and a stored
+// result from before the fix reads right too.
+ok( '' === sn_indexnow_result_problem( array( 'time' => 1, 'code' => 202, 'error' => '' ) ) && '' === sn_indexnow_result_problem( array( 'time' => 1, 'code' => 200, 'error' => '' ) ), '200 and 202 are accepted' );
+ok( false !== strpos( sn_indexnow_result_problem( array( 'time' => 1, 'code' => 403, 'error' => '' ) ), 'HTTP 403' ) && false !== strpos( sn_indexnow_result_problem( array( 'time' => 1, 'code' => 0, 'error' => '' ) ), 'no HTTP response' ), 'a 403 is a refusal, and code 0 says no response, never "HTTP 0"' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

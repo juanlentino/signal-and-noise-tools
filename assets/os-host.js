@@ -293,6 +293,96 @@
 		}
 	}
 
+	// ---------------------------------------------------------------- DRAFTS
+	// 2026-10-12 audit. The morph puts every control the reader is not in
+	// back to the value the server painted (openstation morph.ts
+	// syncAttributes()/syncFormValue() skip only the focused one), so text
+	// typed into one field was lost when the page repainted for anything
+	// else: a list's Edit on Workflow and Resume, a watch tick, a refused
+	// save. A draft is what the reader typed, kept per window against the
+	// value the server painted under it: it goes back after a paint that
+	// still paints that value, and is dropped when the server paints a new
+	// one (a save that took), when the field leaves the leaf (Cancel closes
+	// an editor), or when the window shows another leaf.
+	var DRAFT_FIELDS = 'os-text-field[name], os-textarea[name], os-number-field[name], os-select[name], textarea[name], select[name], input[name]';
+	var DRAFT_SKIP = { hidden: 1, checkbox: 1, radio: 1, submit: 1, button: 1, reset: 1, image: 1, file: 1 };
+	var drafts = new WeakMap();
+
+	function draftFields( root ) {
+		var out = [];
+		var seen = {};
+		var list = root.querySelectorAll( DRAFT_FIELDS );
+		for ( var i = 0; i < list.length; i++ ) {
+			var el = list[ i ];
+			if ( 'INPUT' === el.nodeName && DRAFT_SKIP[ ( el.type || '' ).toLowerCase() ] ) {
+				continue;
+			}
+			var name = el.getAttribute( 'name' );
+			seen[ name ] = ( seen[ name ] || 0 ) + 1;
+			out.push( { key: name + '#' + seen[ name ], el: el } );
+		}
+		return out;
+	}
+
+	function paintedValue( el ) {
+		// A kit control reflects its value into the attribute the morph sets;
+		// a native one holds it as the property the morph sets.
+		return 0 === el.nodeName.indexOf( 'OS-' ) ? ( el.getAttribute( 'value' ) || '' ) : String( el.value == null ? '' : el.value );
+	}
+
+	function leafOf( root ) {
+		var leaf = root.querySelector( '.snt-leaf' );
+		return leaf ? leaf.getAttribute( 'data-snt-leaf' ) || '' : '';
+	}
+
+	function rememberDraft( event ) {
+		var el = event.target;
+		var root = el && el.closest ? el.closest( ROOT_SELECTOR ) : null;
+		var memo = root ? drafts.get( root ) : null;
+		if ( ! memo ) {
+			return;
+		}
+		var fields = draftFields( root );
+		for ( var i = 0; i < fields.length; i++ ) {
+			if ( fields[ i ].el === el && Object.prototype.hasOwnProperty.call( memo.base, fields[ i ].key ) ) {
+				memo.typed[ fields[ i ].key ] = String( el.value == null ? '' : el.value );
+				return;
+			}
+		}
+	}
+
+	function restoreDrafts( root ) {
+		var memo = drafts.get( root );
+		var leaf = leafOf( root );
+		var same = !! memo && memo.leaf === leaf;
+		var next = { leaf: leaf, base: {}, typed: {} };
+		var active = document.activeElement;
+		var fields = draftFields( root );
+		for ( var i = 0; i < fields.length; i++ ) {
+			var key = fields[ i ].key;
+			var el = fields[ i ].el;
+			var had = same && Object.prototype.hasOwnProperty.call( memo.typed, key );
+			if ( active && ( el === active || ( el.contains && el.contains( active ) ) ) ) {
+				// The morph left the reader's field alone: so does this.
+				next.base[ key ] = same && Object.prototype.hasOwnProperty.call( memo.base, key ) ? memo.base[ key ] : paintedValue( el );
+				if ( had ) {
+					next.typed[ key ] = memo.typed[ key ];
+				}
+				continue;
+			}
+			var painted = paintedValue( el );
+			next.base[ key ] = painted;
+			if ( had && memo.base[ key ] === painted ) {
+				if ( String( el.value == null ? '' : el.value ) !== memo.typed[ key ] ) {
+					el.value = memo.typed[ key ];
+				}
+				next.base[ key ] = memo.base[ key ];
+				next.typed[ key ] = memo.typed[ key ];
+			}
+		}
+		drafts.set( root, next );
+	}
+
 	/**
 	 * The runtime's own word that a paint landed.
 	 *
@@ -318,6 +408,7 @@
 			return;
 		}
 		restoreFolds( root );
+		restoreDrafts( root );
 		schedule( root, String( effect.anchor || '' ) );
 	}
 
@@ -532,6 +623,8 @@
 		armSubmitter();
 		// Capture: the toggle is the reader's, wherever it bubbles or not.
 		document.addEventListener( 'os-disclosure-toggle', rememberFold, true );
+		document.addEventListener( 'input', rememberDraft, true );
+		document.addEventListener( 'change', rememberDraft, true );
 		document.addEventListener( 'os-app-effect', onEffect );
 	}
 

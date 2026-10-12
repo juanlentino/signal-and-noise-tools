@@ -547,7 +547,7 @@ pa_eq(
 	'identical structured re-save → now_resynced (unchanged content still re-renders)'
 );
 pa_eq(
-	'now_unparseable',
+	'now_incomplete',
 	sn_handle_now_save( array( 'now' => array( 'groups' => array(
 		array( 'label' => '', 'items' => array( 'an orphan item' ) ),
 	) ) ) ),
@@ -555,7 +555,7 @@ pa_eq(
 );
 pa_eq( 'Building', sn_now_page_sections()[0]['label'] ?? '', 'refused structured save leaves prior content intact' );
 pa_eq(
-	'now_unparseable',
+	'now_incomplete',
 	sn_handle_now_save( array( 'now' => array( 'groups' => array(
 		array( 'label' => 'Header only', 'items' => array() ),
 	) ) ) ),
@@ -567,7 +567,7 @@ pa_eq(
 // saved — and the parser drops the bare header, so the section the owner just
 // typed is invisible on re-render and permanently lost on the next save.
 pa_eq(
-	'now_unparseable',
+	'now_incomplete',
 	sn_handle_now_save( array( 'now' => array( 'groups' => array(
 		array( 'label' => 'Building', 'items' => array( 'shipping MCP' ) ),
 		array( 'label' => 'Header only', 'items' => array( '', ' ' ) ),
@@ -615,21 +615,21 @@ $pipe_groups = sn_uses_parse_groups( (string) ( sn_uses_page_get()['raw'] ?? '' 
 pa_eq( 'AB', $pipe_groups[0]['items'][0]['name'] ?? '', 'pipe stripped from name (cannot survive the pair format)' );
 pa_eq( 'kept | as-is', $pipe_groups[0]['items'][0]['note'] ?? '', 'pipe preserved in note (first-pipe split protects it)' );
 pa_eq(
-	'uses_unparseable',
+	'uses_incomplete',
 	sn_handle_uses_save( array( 'uses' => array( 'groups' => array(
 		array( 'label' => '', 'items' => array( array( 'name' => 'orphan', 'note' => '' ) ) ),
 	) ) ) ),
 	'uses items under a blank label refused'
 );
 pa_eq(
-	'uses_unparseable',
+	'uses_incomplete',
 	sn_handle_uses_save( array( 'uses' => array( 'groups' => array(
 		array( 'label' => 'Desk', 'items' => array( array( 'name' => '', 'note' => 'note with no name' ) ) ),
 	) ) ) ),
 	'note without a name refused (the pair format drops name-less lines — a silent-save would lose it)'
 );
 pa_eq(
-	'uses_unparseable',
+	'uses_incomplete',
 	sn_handle_uses_save( array( 'uses' => array( 'groups' => array(
 		array( 'label' => 'Interface', 'items' => array( array( 'name' => 'SSL UF8', 'note' => '' ) ) ),
 		array( 'label' => 'Empty group', 'items' => array( array( 'name' => '', 'note' => '' ) ) ),

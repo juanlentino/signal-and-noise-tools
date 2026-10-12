@@ -12,6 +12,21 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Nothing you did is lost or misstated any more: the second batch from the 2026.10.3 audit.** Each of these lost data or told the owner something untrue.
+  - **Typed text survives a repaint.** The window puts every field the reader is not in back to the stored value on each repaint, so text typed into Workflow's page fields vanished when a list's Edit opened, as did anything typed before a watch tick or a refused save. The host now keeps what was typed while the server still stores the value it was typed over, and lets it go when a save takes, when Cancel closes the editor it was in, or when the window shows another leaf.
+  - **Dismissing one scan candidate keeps the rest.** Pattern adoption, block migrations and corpus integrity each deleted the whole cached scan on a dismiss, so the page fell back to "no scan yet". Now only that candidate leaves the list; its count and the posts-affected count follow, and the cache keeps its expiry.
+  - **The RSS tracker's Reset keeps the collector endpoint.** Reset deleted the whole settings option, including the endpoint set on Measurement › Analytics. Both confirms now say what Reset and Purge do.
+  - **A rotated credential is not judged by its old verdict.** Saving a credential now clears the stored verdict for that row, so Credentials stops calling a new key bad (or good) on the old one's say.
+  - **IndexNow says when a submission was refused.** A 4xx or a dead connection painted "Active" with the code buried; the status now names the refusal, and the last-submission line reads "2 hours ago: HTTP 200, 12 URLs" (or "no HTTP response").
+  - **Zenodo no longer reports "0 published, 0 failed, of 0"** when no manual pass has run.
+  - **A Now or Uses card left half filled says so.** The save used to answer "parses to zero sections"; it now says a card has a label with no items (or the reverse) and to fill or clear it.
+  - **Cron's Run now matches what the ability runs.** The button was gated on an `sn_` name prefix while the ability refuses Signal & Noise's own hooks by list, so owned `snt_` hooks offered Run now and then refused it. Both surfaces gate on the same list.
+  - **Four buttons that change things at once now ask first, in the same words on both surfaces:** Zenodo's Deposit the next batch (naming production's permanent DOIs or the sandbox), IndexNow's Regenerate key, and Scheduled's Run now and Run swap now. Re-purge and Submit recent content stay one click.
+  - **Merge any two tags starts unchosen.** Both selects preselected the first tag, so the default preview was a refusal that read "the selected tags are no longer valid". They start on "Choose a tag", and a refused preview says why ("Nothing to merge: The canonical tag cannot also be a source tag.").
+  - **A tag-ledger note title opens its editor in a desktop window**, not by sending the whole desktop to the post editor.
+  - **Zenodo's two field hints paint.** They used a key the kit never reads; they now say what the classic page says.
+
 ## [2026.10.3] - 2026-10-12 — MCP Clients redesigned, boxes share rows, folds are earned, Edit opens under its row, links read as links
 
 ### Changed

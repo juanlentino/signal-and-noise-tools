@@ -22,6 +22,7 @@ function sanitize_text_field( $s ) { return trim( (string) $s ); }
 function wp_unslash( $v ) { return $v; }
 $GLOBALS['__options'] = array();
 function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; }
+function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; }
 function update_option( $k, $v ) { $GLOBALS['__options'][ $k ] = $v; return true; }
 function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; }
 function add_query_arg( $args, $url ) { return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . http_build_query( $args ); }

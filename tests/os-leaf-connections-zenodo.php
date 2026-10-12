@@ -32,6 +32,15 @@ $GLOBALS['__transients']['sn_zenodo_last_batch'] = array( 'attempted' => 2, 'pub
 $classic = snt_leaf_classic_html( 'sn_admin_render_zenodo_section' );
 $kit     = snt_leaf_paint( 'connections', 'zenodo' );
 ok( '' !== $kit, 'the kit leaf paints' );
+// 2026-10-12 audit: the deposit mints DOIs (permanent on production) and asked
+// nothing; it asks now, in the same words on both surfaces, naming the
+// environment. The field hints used `help`, which the kit never paints.
+ok( 1 === preg_match( '/<os-button[^>]*os-confirm="([^"]*)"[^>]*>Deposit the next batch</', $kit, $m ) && false !== strpos( $m[1], 'Zenodo sandbox' ) && false !== strpos( $classic, 'data-snt-confirm="' . $m[1] . '"' ), 'Deposit asks first on both surfaces and names the sandbox while it is the environment' );
+$GLOBALS['__zl']['env'] = 'production';
+$prod = snt_leaf_paint( 'connections', 'zenodo' );
+ok( false !== strpos( $prod, 'permanent public DOI' ), 'on production the question says each document gets a permanent public DOI' );
+$GLOBALS['__zl']['env'] = 'sandbox';
+ok( false !== strpos( $kit, 'reads its own token from Connections › Credentials' ) && false !== strpos( $kit, 'Empty until the first snapshot release' ), 'the two field hints paint, in the classic page\'s words' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic forms: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'zenodo_deposit_batch', 'zenodo_env_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the two actions match the classic leaf: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
@@ -59,6 +68,12 @@ ok( false !== strpos( $kit, 'No signed documents yet.' ), 'an empty ledger is ho
 $GLOBALS['__can'] = false;
 ok( false !== strpos( snt_leaf_paint( 'connections', 'zenodo' ), 'cannot manage options' ), 'the capability gate holds' );
 $GLOBALS['__can'] = true;
+
+// 2026-10-12 audit: with no pass on record, (array) false read as a pass of
+// "0 published, 0 failed, of 0".
+unset( $GLOBALS['__transients']['sn_zenodo_last_batch'] );
+$__nopass = snt_leaf_paint( 'connections', 'zenodo' );
+ok( false === strpos( $__nopass, 'Last pass' ) && false === strpos( $__nopass, '0 published, 0 failed, of 0' ), 'no pass on record paints no Last pass row' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

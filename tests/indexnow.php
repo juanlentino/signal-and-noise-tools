@@ -12,6 +12,7 @@ define( 'ABSPATH', '/' );
 
 // ── In-memory option store ──────────────────────────────────────────
 $GLOBALS['__options'] = array();
+if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 function get_option( $name, $default = false ) {
 	return array_key_exists( $name, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $name ] : $default;
 }

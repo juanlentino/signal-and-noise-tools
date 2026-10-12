@@ -184,7 +184,7 @@ function rss_reset_form_html() {
 		'',
 		array(
 			'submit'        => __( 'Reset to Defaults', 'signal-and-noise-tools' ),
-			'confirm'       => __( 'All RSS tracker settings (window threshold, log retention, etc.) will be restored to defaults.', 'signal-and-noise-tools' ),
+			'confirm'       => __( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Measurement › Analytics is kept.', 'signal-and-noise-tools' ),
 			'confirm_title' => __( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ),
 			'confirm_label' => __( 'Reset', 'signal-and-noise-tools' ),
 		)
@@ -207,7 +207,7 @@ function rss_maintenance_html( array $settings ) {
 		$fields,
 		array(
 			'submit'        => __( 'Purge now', 'signal-and-noise-tools' ),
-			'confirm'       => __( 'Log entries older than the configured retention threshold will be permanently deleted.', 'signal-and-noise-tools' ),
+			'confirm'       => __( 'Log entries older than the number of days in this box will be permanently deleted.', 'signal-and-noise-tools' ),
 			'confirm_title' => __( 'Purge old log entries?', 'signal-and-noise-tools' ),
 			'confirm_label' => __( 'Purge', 'signal-and-noise-tools' ),
 			'danger'        => true,

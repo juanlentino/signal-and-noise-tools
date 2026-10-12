@@ -156,3 +156,18 @@ function sn_admin_tag_table_html( array $columns, array $rows ) {
 	}
 	return $out . '</tbody></table>';
 }
+
+/**
+ * Why a merge preview has nothing to confirm, shared by both surfaces
+ * (2026-10-12 audit: both said "no longer valid" for every refusal, so
+ * picking the same tag twice read as a vanished tag).
+ *
+ * @param mixed $pv A sn_tag_merge_preview() result that is not a usable preview.
+ * @return string
+ */
+function sn_tag_merge_refusal( $pv ) {
+	return is_wp_error( $pv )
+		/* translators: %s: why the merge cannot run */
+		? sprintf( __( 'Nothing to merge: %s', 'signal-and-noise-tools' ), $pv->get_error_message() )
+		: __( 'Nothing to merge (the selected tags are no longer valid).', 'signal-and-noise-tools' );
+}
