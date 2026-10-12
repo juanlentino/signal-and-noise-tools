@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once dirname( __DIR__, 4 ) . '/inc/redirects-copy.php'; // the sentences both twins say (2026.10.4).
+
 /**
  * v13.109.7: moved here from site-redirects.php. BOTH leaves read it now —
  * Redirects paints the rules, Broken links paints the 404s — so it belongs in

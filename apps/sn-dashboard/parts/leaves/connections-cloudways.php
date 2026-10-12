@@ -49,7 +49,8 @@ function cloudways_card_html( array $card ) {
 	$pill  = in_array( $kind, array( 'ok', 'warn', 'err' ), true ) && '' !== $text;
 	$state = ( $pill && 'ok' !== $kind && \sn_admin_card_wants_attention( $card ) ) ? $kind : '';
 	$meta  = (string) ( $card['meta_html'] ?? '' );
-	return '<div class="snt-sys' . ( '' !== $state ? ' snt-sys--' . \snt_kit_esc( $state ) : '' ) . '"' . ( '' !== $state ? ' data-tone="' . \snt_kit_tone( $state ) . '"' : '' ) . '>'
+	// snt-sys--prose: the captions here are sentences, not values (sn-dashboard.css).
+	return '<div class="snt-sys snt-sys--prose' . ( '' !== $state ? ' snt-sys--' . \snt_kit_esc( $state ) : '' ) . '"' . ( '' !== $state ? ' data-tone="' . \snt_kit_tone( $state ) . '"' : '' ) . '>'
 		. '<span class="snt-sys__k">' . \snt_kit_esc( (string) ( $card['label'] ?? '' ) ) . '</span>'
 		. '<span class="snt-sys__v">' . \snt_kit_esc( (string) ( $card['value'] ?? '' ) ) . '</span>'
 		. ( $pill ? \snt_kit_badge( $kind, $text ) : '' )
@@ -77,8 +78,8 @@ function paint_connections_cloudways( array $ctx ) {
 	// The classic grid emits nothing for empty input; so does this.
 	$out  = \snt_kit_grid( $cells, 190, 12 );
 	$out .= '<p class="snt-hint">'
-		. 'Cloudways holds the origin cache (Breeze / Varnish). This leaf reports it; it never edits it. '
-		. 'Credentials live in <os-code>wp-config.php</os-code> only — an account-wide API key is deliberately kept out of the database.'
+		. 'Cloudways holds the origin cache (Breeze / Varnish). This screen reports it and never changes it. '
+		. 'Credentials live in <os-code>wp-config.php</os-code> only: an account-wide API key is deliberately kept out of the database.'
 		. '</p>';
 	return $out;
 }

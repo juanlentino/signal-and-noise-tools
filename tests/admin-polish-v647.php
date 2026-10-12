@@ -24,6 +24,8 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 
 // ── WP stubs (declared once, shared across the loaded modules) ──
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = false ) { return $d; } }
+if ( ! function_exists( 'wp_date' ) ) { function wp_date( $format, $timestamp = null, $timezone = null ) { return gmdate( $format, null === $timestamp ? time() : (int) $timestamp ); } } // 2026-10-12: times print in the site's format
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }

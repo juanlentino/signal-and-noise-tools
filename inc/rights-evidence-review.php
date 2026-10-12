@@ -157,7 +157,9 @@ function sn_rights_evidence_window_words( $until, $now ) {
 	if ( $until <= $now ) {
 		return 'window passed, posts at the next pass';
 	}
-	return sprintf( 'posts after %s UTC (%d h left)', gmdate( 'Y-m-d H:i', $until ), (int) ceil( ( $until - $now ) / 3600 ) );
+	// The site's timezone and format (2026-10-12 audit: the one UTC stamp on Measurement).
+	$when = function_exists( 'wp_date' ) ? wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), $until ) : gmdate( 'Y-m-d H:i', $until ) . ' UTC';
+	return sprintf( 'posts after %s (%d h left)', $when, (int) ceil( ( $until - $now ) / 3600 ) );
 }
 
 /**

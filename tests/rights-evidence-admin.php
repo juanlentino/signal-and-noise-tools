@@ -98,7 +98,10 @@ $recs( array( 'openai' => $conf, 'anthropic' => array_merge( $conf, array( 'stat
 $c = $classic(); $n = $native();
 foreach ( array( 'classic' => $c, 'native' => $n ) as $twin => $h ) {
 	ok( str_contains( $h, 'Retract August 2026, openai' ) && str_contains( $h, 'sn_rights_evidence_retract' ) && str_contains( $h, 'nonce-sn_rights_evidence_retract' ) && str_contains( $h, 'append-only ledger' ) && str_contains( $h, 'cannot be undone' ), "E1 $twin: a Retract button for the confirmed record, its own nonce, behind a confirm that says it publishes" );
-	ok( str_contains( $h, 'Claimed:</strong> ' . $t['claimed'] ) && str_contains( $h, 'What was wrong:</strong> ' . $t['what_was_wrong'] ) && str_contains( $h, 'Root cause:</strong> ' . $t['root_cause'] ) && str_contains( $h, 'What changed:</strong> ' . $t['what_changed'] ) && str_contains( $h, 'rights-evidence/u7/v1.json' ), "E2 $twin: the exact text that will be published is shown above the button" );
+	// 2026-10-12 audit: S&N Home paints the text as facts rows under a real
+	// heading; the classic keeps its bold labels. Same words either way.
+	$fact = static fn( $label, $text ) => str_contains( $h, $label . ':</strong> ' . $text ) || str_contains( $h, '<os-fact label="' . $label . '"><span class="snt-kv__v">' . $text . '</span></os-fact>' );
+	ok( $fact( 'Claimed', $t['claimed'] ) && $fact( 'What was wrong', $t['what_was_wrong'] ) && $fact( 'Root cause', $t['root_cause'] ) && $fact( 'What changed', $t['what_changed'] ) && str_contains( $h, 'rights-evidence/u7/v1.json' ), "E2 $twin: the exact text that will be published is shown above the button" );
 	ok( str_contains( $h, "Post one, wait for the ledger's checks, then the next." ), "E3 $twin: the one-at-a-time note is visible" );
 	ok( 1 === substr_count( $h, 'Retract August 2026' ) && ! str_contains( $h, 'Retract August 2026, anthropic' ) && ! str_contains( $h, 'Retract August 2026, google-ai' ) && ! str_contains( $h, 'Retract August 2026, commoncrawl' ) && ! str_contains( $h, 'Retract August 2026, mistral' ), "E4 $twin: hidden for pending, no ledger path, retracted and no approved text" );
 }

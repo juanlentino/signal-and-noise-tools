@@ -172,18 +172,18 @@ echo "\nTest: settings surface: worker-setup reference routes the summary + setu
 $html3 = capture( 'snt_analytics_render_worker_setup' );
 ok( sn_i18n_seen( 'Cloudflare Worker setup (manual, one-time)' ), 'worker-setup summary translatable' );
 ok( sn_i18n_seen( 'Read token' ), 'Read-token step label translatable' );
-ok( sn_i18n_seen( '(for the fields above): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.' ), 'Read-token step prose is a translatable sprintf msgid' );
+ok( sn_i18n_seen( '(set under Connections › Credentials): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.' ), 'Read-token step prose is a translatable sprintf msgid (2026-10-12: names the screen, not "the fields above")' );
 ok( sn_i18n_seen( 'Deploy the edge Worker + its secrets' ), 'Deploy step label translatable' );
 ok( sn_i18n_seen( '(from the analytics-worker repo: this can’t be done from WordPress):' ), 'Deploy step prose translatable' );
 ok( sn_i18n_seen( 'Theme beacon' ), 'Theme-beacon step label translatable' );
 ok( sn_i18n_seen( 'set %1$s in %2$s to the SAME value as the Worker’s %3$s so the front-end beacon is accepted.' ), 'Theme-beacon step prose is a translatable sprintf msgid' );
-ok( sn_i18n_seen( 'Hit %s above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.' ), 'final step prose is a translatable sprintf msgid' );
+ok( sn_i18n_seen( 'Press %s once the token and Account ID are set, to confirm the read side works. Pageview data appears within about 15 minutes.' ), 'final step prose is a translatable sprintf msgid (2026-10-12: no "above")' );
 ok( false !== strpos( $html3, '<summary>Cloudflare Worker setup (manual, one-time)</summary>' ), 'worker-setup summary English byte-identical' );
-ok( false !== strpos( $html3, '<li><strong>Read token</strong> (for the fields above): Cloudflare dashboard → My Profile → API Tokens → create a token with <code>Account · Analytics · Read</code>. The Account ID is in the dashboard URL: <code>dash.cloudflare.com/&lt;account_id&gt;</code>.</li>' ), 'Read-token step English byte-identical (Cloudflare permission scope + URL pattern stay outside the msgid)' );
+ok( false !== strpos( $html3, '<li><strong>Read token</strong> (set under Connections › Credentials): Cloudflare dashboard → My Profile → API Tokens → create a token with <code>Account · Analytics · Read</code>. The Account ID is in the dashboard URL: <code>dash.cloudflare.com/&lt;account_id&gt;</code>.</li>' ), 'Read-token step English byte-identical (Cloudflare permission scope + URL pattern stay outside the msgid)' );
 ok( false !== strpos( $html3, '<li><strong>Deploy the edge Worker + its secrets</strong> (from the analytics-worker repo: this can’t be done from WordPress):<pre class="sn-an-pre">wrangler secret put SN_PX_TOKEN' ), 'Deploy step English byte-identical through the <pre> block' );
 ok( false !== strpos( $html3, "wrangler deploy</pre></li>" ), 'wrangler command block unchanged (literal shell commands, not translatable)' );
 ok( false !== strpos( $html3, '<li><strong>Theme beacon</strong>: set <code>SN_BEACON_TOKEN</code> in <code>wp-config.php</code> to the SAME value as the Worker’s <code>SN_PX_TOKEN</code> so the front-end beacon is accepted.</li>' ), 'Theme-beacon step English byte-identical (constant names + file name stay outside the msgid)' );
-ok( false !== strpos( $html3, '<li>Hit <strong>Test connection</strong> above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.</li>' ), 'final step English byte-identical (reuses the Test connection msgid)' );
+ok( false !== strpos( $html3, '<li>Press <strong>Test connection</strong> once the token and Account ID are set, to confirm the read side works. Pageview data appears within about 15 minutes.</li>' ), 'final step English byte-identical (reuses the Test connection msgid)' );
 
 echo "\nTest: source contract: wrapped forms pinned at heavy-fixture call sites\n";
 $contract = array(
@@ -246,12 +246,12 @@ $contract = array(
 		"esc_html__( 'Test connection', 'signal-and-noise-tools' )",
 		"esc_html__( 'Cloudflare Worker setup (manual, one-time)', 'signal-and-noise-tools' )",
 		"esc_html__( 'Read token', 'signal-and-noise-tools' )",
-		"esc_html__( '(for the fields above): Cloudflare dashboard → My Profile → API Tokens → create a token with %1\$s. The Account ID is in the dashboard URL: %2\$s.', 'signal-and-noise-tools' )",
+		"esc_html__( '(set under Connections › Credentials): Cloudflare dashboard → My Profile → API Tokens → create a token with %1\$s. The Account ID is in the dashboard URL: %2\$s.', 'signal-and-noise-tools' )",
 		"esc_html__( 'Deploy the edge Worker + its secrets', 'signal-and-noise-tools' )",
 		"esc_html__( '(from the analytics-worker repo: this can’t be done from WordPress):', 'signal-and-noise-tools' )",
 		"esc_html__( 'Theme beacon', 'signal-and-noise-tools' )",
 		"esc_html__( 'set %1\$s in %2\$s to the SAME value as the Worker’s %3\$s so the front-end beacon is accepted.', 'signal-and-noise-tools' )",
-		"esc_html__( 'Hit %s above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.', 'signal-and-noise-tools' )",
+		"esc_html__( 'Press %s once the token and Account ID are set, to confirm the read side works. Pageview data appears within about 15 minutes.', 'signal-and-noise-tools' )",
 	),
 );
 foreach ( $contract as $file => $needles ) {

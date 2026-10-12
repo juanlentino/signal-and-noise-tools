@@ -368,19 +368,19 @@ $GLOBALS['__test_http'] = sw_http( sw_salt( array( 'prev_expires_at' => $prev_ex
 $html = sw_render();
 sw_true( false !== strpos( $html, 'Identity salt window' ), 'healthy: heading present' );
 sw_true( false !== strpos( $html, 'salt values never leave the Worker' ), 'healthy: the no-values disclosure line renders' );
-sw_true( false !== strpos( $html, 'Today’s salt: 2026-07-18: rotates at midnight (America/Argentina/Buenos_Aires).' ), 'healthy: today line pinned verbatim' );
-sw_true( false !== strpos( $html, 'Yesterday’s salt (2026-07-17) expires ' . gmdate( 'Y-m-d H:i', $prev_exp ) . ' (in 2 days).' ), 'healthy: yesterday expiry line pinned verbatim (site-local date + relative)' );
+sw_true( false !== strpos( $html, 'Today’s salt (2026-07-18) rotates at midnight (America/Argentina/Buenos_Aires).' ), 'healthy: today line pinned verbatim' );
+sw_true( false !== strpos( $html, 'Yesterday’s salt (2026-07-17) expires ' . gmdate( 'F j, Y g:i a', $prev_exp ) . ' (in 2 days).' ), 'healthy: yesterday expiry line pinned verbatim (site-local date + relative)' );
 sw_true( false !== strpos( $html, '3 salt keys at the edge.' ), 'healthy: key count pinned' );
 sw_true( false !== strpos( $html, 'Checked 2 days ago.' ), 'healthy: freshness line pinned' );
 sw_true( false !== strpos( $html, 'notice-info' ), 'healthy: calm info notice, never an alarm' );
-sw_true( false === strpos( $html, 'could not read the worker' ), 'healthy: no error copy' );
+sw_true( false === strpos( $html, 'did not answer' ), 'healthy: no error copy' );
 
 // 2. Prev-expired shape (forward secrecy already holding).
 sw_reset();
 $GLOBALS['__test_http'] = sw_http( sw_salt( array( 'prev_present' => false, 'prev_expires_at' => null, 'key_count' => 2 ) ) );
 $html = sw_render();
 sw_true( false !== strpos( $html, 'Yesterday’s salt (2026-07-17) has already expired: forward secrecy holding.' ), 'prev-expired: line pinned verbatim' );
-sw_true( false !== strpos( $html, 'Today’s salt: 2026-07-18: rotates at midnight (America/Argentina/Buenos_Aires).' ), 'prev-expired: today line still renders' );
+sw_true( false !== strpos( $html, 'Today’s salt (2026-07-18) rotates at midnight (America/Argentina/Buenos_Aires).' ), 'prev-expired: today line still renders' );
 sw_true( false !== strpos( $html, '2 salt keys at the edge.' ), 'prev-expired: key count follows the payload' );
 sw_true( false === strpos( $html, 'expires ' ), 'prev-expired: no expiry date is fabricated' );
 
@@ -388,7 +388,7 @@ sw_true( false === strpos( $html, 'expires ' ), 'prev-expired: no expiry date is
 sw_reset();
 $GLOBALS['__test_http'] = sw_http( sw_salt( array( 'today_present' => false, 'today_expires_at' => null ) ) );
 $html = sw_render();
-sw_true( false !== strpos( $html, 'Today’s salt: 2026-07-18 (not minted yet (it appears with the first visit of the day)) rotates at midnight (America/Argentina/Buenos_Aires).' ), 'not-minted: today line pinned verbatim' );
+sw_true( false !== strpos( $html, 'Today’s salt (2026-07-18) is not minted yet: it appears with the first visit of the day, and rotates at midnight (America/Argentina/Buenos_Aires).' ), 'not-minted: today line pinned verbatim' );
 
 // 4. Prev present but no expiry recorded (null expiry, per contract).
 sw_reset();
@@ -401,7 +401,7 @@ sw_reset();
 $past = time() - 100000;
 $GLOBALS['__test_http'] = sw_http( sw_salt( array( 'prev_expires_at' => $past ) ) );
 $html = sw_render();
-sw_true( false !== strpos( $html, 'Yesterday’s salt (2026-07-17) expires ' . gmdate( 'Y-m-d H:i', $past ) . ' (2 days ago).' ), 'past expiry: relative flips to "ago"' );
+sw_true( false !== strpos( $html, 'Yesterday’s salt (2026-07-17) expires ' . gmdate( 'F j, Y g:i a', $past ) . ' (2 days ago).' ), 'past expiry: relative flips to "ago"' );
 
 // 6. "salt": null (KV list failure) → honest em-dash, DISTINCT from a failed
 // fetch: the worker WAS read here — "could not read the worker" would be false
@@ -410,8 +410,8 @@ sw_true( false !== strpos( $html, 'Yesterday’s salt (2026-07-17) expires ' . g
 sw_reset();
 $GLOBALS['__test_http'] = sw_http( null );
 $html = sw_render();
-sw_true( false !== strpos( $html, 'worker reachable, but it could not list its salt keys (KV read failed at the edge).' ), 'salt:null → em-dash + the KV-failure copy (verbatim)' );
-sw_true( false === strpos( $html, 'could not read the worker' ), 'salt:null → NOT the failed-fetch copy (the worker WAS read)' );
+sw_true( false !== strpos( $html, 'Not read: the Worker answered, but it could not list its salt keys (a KV read failed at the edge).' ), 'salt:null → em-dash + the KV-failure copy (verbatim)' );
+sw_true( false === strpos( $html, 'did not answer' ), 'salt:null → NOT the failed-fetch copy (the worker WAS read)' );
 sw_true( false === strpos( $html, 'rotates at midnight' ), 'salt:null → no fabricated today line' );
 sw_true( false === strpos( $html, 'notice-error' ) && false === strpos( $html, 'notice-warning' ), 'salt:null → never a red alarm (readout, not monitoring)' );
 sw_true( false !== strpos( $html, 'Identity salt window' ), 'salt:null → the heading still frames the readout' );
@@ -420,23 +420,23 @@ sw_true( false !== strpos( $html, 'Identity salt window' ), 'salt:null → the h
 sw_reset();
 $GLOBALS['__test_http'] = new WP_Error( 'http_request_failed', 'timeout' );
 $html = sw_render();
-sw_true( false !== strpos( $html, 'could not read the worker.' ), 'WP_Error → em-dash + could-not-read' );
-sw_true( false === strpos( $html, 'salt keys (KV read failed' ), 'WP_Error → NOT the kv-failed copy (nothing answered)' );
+sw_true( false !== strpos( $html, 'Not read: the Worker did not answer.' ), 'WP_Error → em-dash + could-not-read' );
+sw_true( false === strpos( $html, 'salt keys (a KV read failed' ), 'WP_Error → NOT the kv-failed copy (nothing answered)' );
 sw_true( false === strpos( $html, 'rotates at midnight' ), 'WP_Error → no fabricated dates' );
 
 // 8. Old worker (no "salt" member) → the version-gap message, NOT the error copy.
 sw_reset();
 $GLOBALS['__test_http'] = sw_http( '__ABSENT__' );
 $html = sw_render();
-sw_true( false !== strpos( $html, 'Worker predates the salt window readout (needs v1.14.0+).' ), 'old-worker: message pinned verbatim' );
-sw_true( false === strpos( $html, 'could not read the worker' ), 'old-worker: NOT conflated with a read failure' );
+sw_true( false !== strpos( $html, 'Not read: the Worker predates the salt window readout (it needs v1.14.0+).' ), 'old-worker: message pinned verbatim' );
+sw_true( false === strpos( $html, 'did not answer' ), 'old-worker: NOT conflated with a read failure' );
 
 // 9. Non-200 → the honest error state (and NOT the kv-failed copy).
 sw_reset();
 $GLOBALS['__test_http'] = array( 'response' => array( 'code' => 503 ), 'body' => 'edge sad' );
 $html = sw_render();
-sw_true( false !== strpos( $html, 'could not read the worker.' ), 'non-200 → em-dash + could-not-read' );
-sw_true( false === strpos( $html, 'salt keys (KV read failed' ), 'non-200 → NOT the kv-failed copy (no valid answer)' );
+sw_true( false !== strpos( $html, 'Not read: the Worker did not answer.' ), 'non-200 → em-dash + could-not-read' );
+sw_true( false === strpos( $html, 'salt keys (a KV read failed' ), 'non-200 → NOT the kv-failed copy (no valid answer)' );
 
 // 10. Transient-cache pin: a SECOND render costs zero fetches.
 sw_reset();
@@ -500,7 +500,7 @@ $_GET['sn_worker_recheck'] = '1';
 $_GET['_wpnonce']          = 'testnonce';
 $html = sw_render();
 sw_eq( 1, count( $GLOBALS['__test_get_calls'] ), 'verified re-check → warm cache bypassed, one live GET' );
-sw_true( false !== strpos( $html, 'Today’s salt: 2026-07-18' ), 're-check → renders the LIVE window, not the stale transient' );
+sw_true( false !== strpos( $html, 'Today’s salt (2026-07-18)' ), 're-check → renders the LIVE window, not the stale transient' );
 sw_true( false === strpos( $html, 'predates the salt window readout' ), 're-check → the stale old-worker line is gone (cards agree again)' );
 
 // The re-probe refreshed the transient: dropping the trigger serves from cache.
@@ -524,7 +524,7 @@ $_GET['_wpnonce']              = 'forged';
 $GLOBALS['__test_nonce_valid'] = false;
 $html = sw_render();
 sw_eq( 0, count( $GLOBALS['__test_get_calls'] ), 'forged re-check → no live probe (nonce gate holds)' );
-sw_true( false !== strpos( $html, 'Worker predates the salt window readout (needs v1.14.0+).' ), 'forged re-check → served from the cached transient' );
+sw_true( false !== strpos( $html, 'Not read: the Worker predates the salt window readout (it needs v1.14.0+).' ), 'forged re-check → served from the cached transient' );
 
 // ─── Group E: wiring — mount + loader source contracts ────────────────
 echo "\nGroup E: wiring: settings-column mount + loader require\n";

@@ -26,8 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function broken_links_hits( $n ) {
-	/* translators: %s: hits on a path. */
-	return sprintf( _n( '%s hit', '%s hits', (int) $n, 'signal-and-noise-tools' ), number_format_i18n( (int) $n ) );
+	return \sn_404_hits( (int) $n );
 }
 
 /**
@@ -70,21 +69,38 @@ function broken_links_reading_html( array $data ) {
  * @param array<string,mixed> $e         count, last_seen, referer.
  * @param string              $suggested Suggested target ('' when none).
  * @param bool                $open      Whether this path's editor is open under it.
+ * @param bool                $refs      Whether any listed path has a referrer.
  * @return array<string,mixed>
  */
-function broken_links_row( $path, array $e, $suggested, $open = false ) {
+function broken_links_row( $path, array $e, $suggested, $open = false, $refs = false ) {
 	$last   = (int) ( $e['last_seen'] ?? 0 );
 	$action = $open
 		? \snt_kit_badge( 'info', __( 'Editing', 'signal-and-noise-tools' ) )
 		/* translators: %s: the path. */
 		: \snt_kit_button( __( 'Fix', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'aria_label' => sprintf( __( 'Fix %s', 'signal-and-noise-tools' ), $path ), 'args' => array( 'sub' => 'broken-links', 'sn_edit' => redirects_edit_value( $path ), 'anchor' => 'snt-edit-region' ) ) );
+	// 2026.10.4 live check: the referrer rides under the path, not in its own
+	// column (the table overran its half of the row and cut Fix off), and a
+	// long path or target breaks inside its cell.
+	$host = broken_links_referrer( $e, '' );
+	/* translators: %s: the referring host. */
+	$from = '' !== $host ? sprintf( __( 'from %s', 'signal-and-noise-tools' ), $host ) : __( 'no referrer recorded', 'signal-and-noise-tools' );
+	$sugg = '' !== $suggested ? $suggested : __( 'no close match', 'signal-and-noise-tools' );
 	return array(
 		'_key'      => $path,
-		'path'      => $path,
+		'path'      => array(
+			'html' => '<span class="snt-break">' . \snt_kit_esc( $path ) . '</span>' . ( $refs ? '<span class="snt-cell-sub">' . \snt_kit_esc( $from ) . '</span>' : '' ),
+			'text' => $path,
+		),
 		'hits'      => (int) ( $e['count'] ?? 0 ),
-		'last'      => $last > 0 ? wp_date( 'Y-m-d', $last ) : __( 'unknown', 'signal-and-noise-tools' ),
-		'referrer'  => broken_links_referrer( $e, __( 'none recorded', 'signal-and-noise-tools' ) ),
-		'suggested' => '' !== $suggested ? $suggested : __( 'no close match', 'signal-and-noise-tools' ),
+		// The site's date format, on one line (a slotted cell, so the sheet reaches it).
+		'last'      => array(
+			'html' => '<span class="snt-nowrap">' . \snt_kit_esc( \sn_404_date( $last ) ) . '</span>',
+			'text' => \sn_404_date( $last ),
+		),
+		'suggested' => array(
+			'html' => '<span class="snt-break">' . \snt_kit_esc( $sugg ) . '</span>',
+			'text' => $sugg,
+		),
 		'actions'   => array(
 			'html' => \snt_kit_row_action( $path, $action ),
 			'text' => '',
@@ -106,28 +122,27 @@ function broken_links_paths_html( array $broken, $editing = '', $editor = '' ) {
 	$heading = __( 'Broken paths', 'signal-and-noise-tools' );
 	$n       = count( $broken );
 	if ( 0 === $n ) {
-		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'No broken links: a path lands here when it resembles a published URL.', 'signal-and-noise-tools' ) ) . '</p>' );
+		// The classic's sentence (inc/redirects-copy.php), "or something here links to it" kept.
+		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( \sn_404_empty_sentence() ) . '</p>' );
 	}
-	$hits = array_sum( array_map( static function ( $row ) { return (int) ( $row['entry']['count'] ?? 0 ); }, $broken ) );
-	$top  = (string) array_key_first( $broken );
-	$tops = (int) ( $broken[ $top ]['entry']['count'] ?? 0 );
-	$finding = 1 === $n
-		/* translators: 1: the path, 2: its hits ("7 hits"). */
-		? sprintf( __( 'One broken path, %1$s, took %2$s.', 'signal-and-noise-tools' ), $top, broken_links_hits( $tops ) )
-		/* translators: 1: "2 broken paths", 2: "9 hits", 3: the busiest path, 4: its hit count. */
-		: sprintf( __( '%1$s took %2$s; the busiest, %3$s, took %4$s.', 'signal-and-noise-tools' ), sprintf( _n( '%s broken path', '%s broken paths', $n, 'signal-and-noise-tools' ), number_format_i18n( $n ) ), broken_links_hits( $hits ), $top, number_format_i18n( $tops ) );
+	$finding = \sn_404_broken_finding( array_map( static function ( $row ) { return (int) ( $row['entry']['count'] ?? 0 ); }, $broken ) );
+	$listed = array_slice( $broken, 0, SN_404_LIST_CAP, true );
+	$refs   = array() !== array_filter( $listed, static fn( $row ) => '' !== broken_links_referrer( (array) $row['entry'], '' ) );
+	if ( ! $refs ) {
+		// Said once here, not in a column of "none recorded".
+		$finding .= ' ' . _n( 'No referrer was recorded for it.', 'No referrer was recorded for any of them.', count( $listed ), 'signal-and-noise-tools' );
+	}
 	$rows = array();
 	$at   = -1;
-	foreach ( array_slice( $broken, 0, SN_404_LIST_CAP, true ) as $path => $row ) {
+	foreach ( $listed as $path => $row ) {
 		$open   = (string) $path === (string) $editing;
 		$at     = $open ? count( $rows ) : $at;
-		$rows[] = broken_links_row( (string) $path, (array) $row['entry'], (string) $row['suggested'], $open );
+		$rows[] = broken_links_row( (string) $path, (array) $row['entry'], (string) $row['suggested'], $open, $refs );
 	}
 	$columns = array(
 		array( 'key' => 'path', 'label' => __( 'Path', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'hits', 'label' => __( 'Hits', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'last', 'label' => __( 'Last seen', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'referrer', 'label' => __( 'Referrer', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'suggested', 'label' => __( 'Suggested target', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'actions', 'label' => __( 'Actions', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
 	);

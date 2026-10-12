@@ -50,7 +50,7 @@ function webhooks_entry_html( array $wh, $is_new, $watching = false ) {
 	$selected = isset( $wh['events'] ) ? (array) $wh['events'] : array( 'post.published' );
 	$fields   = \snt_kit_field( 'text', 'name', __( 'Name', 'signal-and-noise-tools' ), (string) ( $wh['name'] ?? '' ) )
 		. \snt_kit_field( 'url', 'url', __( 'Endpoint URL', 'signal-and-noise-tools' ), (string) ( $wh['url'] ?? '' ), array( 'hint' => __( 'Receiving endpoint. Must respond with 2xx within 10 seconds. 5xx triggers retry (3 attempts, 5min backoff); 4xx is a hard rejection.', 'signal-and-noise-tools' ) ) )
-		. \snt_kit_tag( 'os-field-row', array( 'label' => __( 'Status', 'signal-and-noise-tools' ) ), webhooks_native_checkbox( 'enabled', '1', ! empty( $wh['enabled'] ), \snt_kit_esc( __( 'Enabled: deliveries fire on the events below', 'signal-and-noise-tools' ) ) ) )
+		. \snt_kit_tag( 'os-field-row', array( 'label' => __( 'Status', 'signal-and-noise-tools' ) ), webhooks_native_checkbox( 'enabled', '1', ! empty( $wh['enabled'] ), \snt_kit_esc( __( 'Enabled: deliveries fire on the events ticked under Events', 'signal-and-noise-tools' ) ) ) )
 		. webhooks_events_fields( $selected, __( 'Pick which post-lifecycle events POST to this endpoint. If none are ticked, post.published is used.', 'signal-and-noise-tools' ) )
 		. webhooks_secret_html( $wh, $is_new );
 	// The classic marks the just-saved fieldset with `.sn-fieldset--new` /
@@ -84,26 +84,20 @@ function webhooks_add_html() {
 
 /**
  * The monitoring section, read-only since 15.2.0: where the Better Stack
- * token and the spend-watch credentials come from, and the door to the
- * keyring where they are set.
+ * token comes from (sn_webhooks_uptime_box(), shared with the classic page),
+ * and the door to the keyring where it is set.
  *
  * @return string
  */
 function webhooks_monitoring_html() {
+	$box  = \sn_webhooks_uptime_box();
 	$rows = array();
-	if ( function_exists( 'sn_keyring_source' ) ) {
-		foreach ( array( 'betterstack_token' => __( 'Better Stack API token', 'signal-and-noise-tools' ), 'github_token' => __( 'GitHub billing token', 'signal-and-noise-tools' ), 'anthropic_admin_key' => __( 'Anthropic admin key', 'signal-and-noise-tools' ) ) as $id => $label ) {
-			$src    = sn_keyring_source( $id );
-			$rows[] = array( 'label' => $label, 'value' => 'constant' === $src ? __( 'locked in wp-config.php', 'signal-and-noise-tools' ) : ( '' !== $src ? __( 'saved', 'signal-and-noise-tools' ) : __( 'not set', 'signal-and-noise-tools' ) ), 'tone' => '' === $src ? 'warn' : '' );
-		}
+	foreach ( $box['rows'] as $row ) {
+		$rows[] = array( 'label' => $row['label'], 'value' => $row['value'], 'tone' => $row['unset'] ? 'warn' : '' );
 	}
 	$inner = ( array() !== $rows ? \snt_kit_kv( $rows ) : '' )
 		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'connections' ) ) . '.</p>';
-	return \snt_kit_section(
-		__( 'Uptime monitoring', 'signal-and-noise-tools' ),
-		$inner,
-		__( 'Better Stack polls this site from outside and reports here. Its read-scope Uptime API token powers the status rail on this tab and the S&N Uptime dashboard widget.', 'signal-and-noise-tools' )
-	);
+	return \snt_kit_section( __( 'Uptime monitoring', 'signal-and-noise-tools' ), $inner, $box['about'] );
 }
 
 /**

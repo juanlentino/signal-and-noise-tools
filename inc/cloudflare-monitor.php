@@ -360,6 +360,64 @@ function sn_cf_monitor_read() {
 }
 
 /**
+ * The keyring's flush for the Cloudflare token (2026-10-12 audit): the stored
+ * reading described the token that was just replaced, so Connections ›
+ * Cloudflare kept its status and expiry until the daily run. The new token is
+ * verified on the spot (GET /user/tokens/verify, no side effects) and its real
+ * answer stored; the zone and firewall readings stay (same zone). A verify that
+ * cannot reach Cloudflare leaves "changed", which every reader treats as no
+ * reading, never as a fault. A cleared token makes the record say not
+ * configured; a first token on a record that said so drops the record, so the
+ * screens offer Refresh instead of "not configured".
+ *
+ * @return void
+ */
+function sn_cf_monitor_forget_token() {
+	$record = sn_cf_monitor_read();
+	if ( ! is_array( $record ) ) {
+		return;
+	}
+	$configured = function_exists( 'sn_cf_is_configured' ) && sn_cf_is_configured();
+	if ( ! $configured ) {
+		if ( ! empty( $record['configured'] ) ) {
+			update_option( SN_CF_MONITOR_OPT, array_merge( $record, array( 'configured' => false, 'token' => null ) ), false );
+		}
+		return;
+	}
+	if ( empty( $record['configured'] ) ) {
+		delete_option( SN_CF_MONITOR_OPT );
+		return;
+	}
+	$token = sn_cf_monitor_verify( sn_cf_get_zone() );
+	if ( 'unreachable' === (string) ( $token['status'] ?? '' ) ) {
+		$token = array( 'verified' => false, 'status' => 'changed', 'expires_on' => '', 'error' => (string) $token['error'], 'kind' => '' );
+	}
+	$record['token'] = $token;
+	update_option( SN_CF_MONITOR_OPT, $record, false );
+}
+
+/**
+ * What the Token and Edge boxes say before a reading, or after a token change,
+ * on both surfaces (PR #2025 review): "press Refresh" only while Refresh can be
+ * pressed. Its button is disabled until the API token and zone ID are set.
+ *
+ * @param string $when       'never_run' or 'changed'.
+ * @param bool   $configured sn_cf_is_configured().
+ * @return string
+ */
+function sn_cf_monitor_refresh_sentence( $when, $configured ) {
+	$lead = 'changed' === $when
+		? __( 'The token changed after the last read.', 'signal-and-noise-tools' )
+		: __( 'The monitor has not run yet.', 'signal-and-noise-tools' );
+	if ( ! $configured ) {
+		return $lead . ' ' . __( 'Refresh reads it once the API token and zone ID are set under Credentials.', 'signal-and-noise-tools' );
+	}
+	return $lead . ' ' . ( 'changed' === $when
+		? __( 'Press Refresh now to read the new one.', 'signal-and-noise-tools' )
+		: __( 'It runs daily; press Refresh to run it now.', 'signal-and-noise-tools' ) );
+}
+
+/**
  * Schedule the daily refresh, idempotently, on init.
  *
  * @return void
@@ -420,6 +478,10 @@ function sn_cf_monitor_api_row( $record, array $last_purge, $now ) {
 		return array( 'value' => __( 'not configured', 'signal-and-noise-tools' ), 'dot' => 'unknown', 'title' => $title );
 	}
 	$t = is_array( $record['token'] ) ? $record['token'] : array();
+	if ( 'changed' === (string) ( $t['status'] ?? '' ) ) {
+		// Saved after the last reading and not verified yet: no reading, not a fault.
+		return array( 'value' => __( 'token not read yet', 'signal-and-noise-tools' ), 'dot' => 'unknown', 'title' => $title . ' ' . __( 'The token changed after the last read.', 'signal-and-noise-tools' ) );
+	}
 	if ( empty( $t['verified'] ) ) {
 		return array( 'value' => sprintf( /* translators: %s: status. */ __( 'token %s', 'signal-and-noise-tools' ), (string) ( $t['status'] ?? 'unverified' ) ), 'dot' => 'err', 'title' => $title . ' ' . (string) ( $t['error'] ?? '' ) );
 	}

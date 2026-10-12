@@ -57,7 +57,7 @@ function health_findings_html( array $faults, array $advisories, $ai_available )
 		$out .= \snt_kit_section(
 			__( 'Advisories', 'signal-and-noise-tools' ),
 			$cards,
-			__( 'Surfaced, never alarming: these do not count toward the findings total above, and a clean site can carry them indefinitely.', 'signal-and-noise-tools' )
+			__( 'Surfaced, never alarming: these do not count toward the findings total, and a clean site can carry them indefinitely.', 'signal-and-noise-tools' )
 		);
 	}
 	return $out;

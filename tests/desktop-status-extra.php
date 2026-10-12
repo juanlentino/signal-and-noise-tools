@@ -121,6 +121,7 @@ ok( null === snt_desktop_credentials_shape( null, $cf( array( 'verified' => true
 ok( null === snt_desktop_credentials_shape( null, $cf( array( 'verified' => true, 'status' => 'active', 'expires_on' => '2026-11-30T00:00:00Z' ) ), $now )['cloudflare'], 'one that expires in seven weeks is fine' );
 ok( array( 'status' => 'active', 'expires' => 'Oct 20' ) === snt_desktop_credentials_shape( null, $cf( array( 'verified' => true, 'status' => 'active', 'expires_on' => '2026-10-20T00:00:00Z' ) ), $now )['cloudflare'], 'one that expires within 14 days is said, with the day' );
 ok( 'expired' === snt_desktop_credentials_shape( null, $cf( array( 'verified' => true, 'status' => 'expired', 'expires_on' => '' ) ), $now )['cloudflare']['status'], 'a token not active is said' );
+ok( null === snt_desktop_credentials_shape( null, $cf( array( 'verified' => false, 'status' => 'changed', 'expires_on' => '', 'error' => '' ) ), $now )['cloudflare'], 'PR #2025 review: a token saved but not read yet ("changed") is no reading, not a fault on the Health widget' );
 ok( 'unreachable' === snt_desktop_credentials_shape( null, $cf( array( 'verified' => false, 'status' => 'unreachable', 'expires_on' => '' ) ), $now )['cloudflare']['status'], 'a token that could not be verified is said' );
 ok( null === snt_desktop_credentials_shape( null, array( 'configured' => false, 'token' => null ), $now )['cloudflare'], 'not configured is no reading' );
 

@@ -98,6 +98,7 @@ function sn_admin_post_handlers() {
 		'zenodo_deposit_batch'       => 'sn_handle_zenodo_deposit_batch',
 		'zenodo_deposit_one'         => 'sn_handle_zenodo_deposit_one',
 		'analytics_exclude_save'     => 'sn_handle_analytics_exclude_save',
+		'analytics_owner_device'     => 'sn_handle_analytics_owner_device', // 2026-10-12: S&N Home's "Exclude this device" (the classic page keeps its link)
 		'analytics_test'             => 'sn_handle_analytics_test',
 		'analytics_recompute'        => 'sn_handle_analytics_recompute', // re-roll 90 days under the current human rule
 		'analytics_tuning_save'      => 'sn_handle_analytics_tuning_save',

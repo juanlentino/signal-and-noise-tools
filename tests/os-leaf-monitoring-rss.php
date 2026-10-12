@@ -52,6 +52,7 @@ $GLOBALS['__rss_row']    = array(
 );
 $GLOBALS['__rss_recent'] = array();
 
+require SNT_PATH . 'inc/admin-glance.php'; // 2026-10-12: the classic tiles the feed reach rides
 require SNT_PATH . 'inc/admin-render-sections.php';
 require SNT_PATH . 'inc/rss-feed-tracker.php';
 require SNT_PATH . 'inc/feed-subscribers.php';
@@ -107,11 +108,17 @@ ok( false !== strpos( $kit, 'os-arg-pipeline="rss"' ), 'the forms declare the rs
 ok( false !== strpos( $kit, '<os-stat value="3"' ) && false !== strpos( $kit, '2 unique' ), '24-hour count and uniques are shown' );
 ok( false !== strpos( $kit, '<os-stat value="41"' ) && false !== strpos( $kit, '9 unique' ), '7-day count and uniques are shown' );
 ok( false !== strpos( $kit, '<os-stat value="210"' ) && false !== strpos( $kit, '33 unique' ), '30-day count and uniques are shown' );
-foreach ( array( 'Subscribers (reported by readers, a ceiling)', 'Opens (at least; many readers block images)', 'Clicks (visits from feed links)' ) as $label ) {
-	ok( false !== strpos( $kit, $label ), "feed reach tile is labelled: $label" );
+// 2026-10-12 audit: the qualifier rode the label and wrapped in capitals; the
+// label is one word, the qualifier the tile's caption.
+foreach ( array( 'Subscribers' => 'reported by readers, a ceiling', 'Opens' => 'at least; many readers block images', 'Clicks' => 'visits from feed links' ) as $label => $note ) {
+	ok( 1 === preg_match( '/<os-stat value="[^"]*" label="' . $label . '" caption="7 days · ' . preg_quote( $note, '/' ) . '"/', $kit ), "feed reach tile is labelled $label, its qualifier the caption" );
+	ok( false !== strpos( $classic, '<p class="sn-glance-card__label">' . $label . '</p>' ), "the classic page shows the $label tile too (it had none)" );
 }
-// 14.7.4: the tracker stores 2026-09-05 12:00:00 UTC; the owner reads Eastern.
-ok( false !== strpos( $kit, '2026-09-05 08:00:00 EDT' ), 'the most-recent feed request timestamp is shown in the SITE timezone with its zone (12:00 UTC → 08:00 EDT)' );
+ok( false !== strpos( $classic, 'Feed reach is three different measures, never added together.' ), 'the classic page says the feed reach sentence' );
+// 14.7.4: the tracker stores 2026-09-05 12:00:00 UTC; the owner reads Eastern,
+// in the site's own date and time format (2026-10-12 audit: one format).
+ok( false !== strpos( $kit, 'September 5, 2026 8:00 am' ) && false !== strpos( $classic, 'September 5, 2026 8:00 am' ) && false === strpos( $classic, '</code> UTC' ), 'the most-recent feed request is shown in the SITE timezone and format, on both surfaces (the classic printed UTC)' );
+ok( false !== strpos( $kit, 'Client (hashed)' ) && false !== strpos( $classic, 'Client (hashed)' ) && false === strpos( $kit, 'DB writes' ) && false === strpos( $classic, 'DB writes' ), 'the client column says it is a hash; the switch hint is plain words, on both surfaces' );
 ok( false === strpos( $kit, '12:00:00' ) && false === strpos( $kit, 'Time (UTC)' ), 'and nowhere as UTC: the column is Time, the value carries its zone' );
 ok( false !== strpos( $kit, 'https://example.test/feed/' ) && false !== strpos( $kit, 'abc123' ), 'the recent-requests table carries the fixture rows' );
 ok( false !== strpos( $kit, 'https://example.test/comments/feed/' ) && false !== strpos( $kit, 'def456' ), 'a second recent-requests row survives' );

@@ -50,7 +50,7 @@ function sn_dash_zone_fleet( array $components, $last_deploy_ago = '' ) {
 			// this console is where the install is looked at.
 			$value .= sprintf(
 				/* translators: 1: live contract version, 2: expected contract version */
-				__( ' — contract skew (live %1$s ≠ expected %2$s)', 'signal-and-noise-tools' ),
+				__( '; contract skew: live %1$s, expected %2$s', 'signal-and-noise-tools' ),
 				'' !== (string) $component['contract_live'] ? (string) $component['contract_live'] : '?',
 				(string) $component['contract_expected']
 			);

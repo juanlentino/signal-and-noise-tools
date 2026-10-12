@@ -15,6 +15,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * The intro, the same on both surfaces; `%s` is the IndexNow name.
+ *
+ * @return string
+ */
+function sn_indexnow_intro_sentence() {
+	/* translators: %s: the IndexNow name. */
+	return __( 'Pushes changed URLs to %s (Bing, Yandex, Seznam, Naver and others, not Google) on publish, update, and removal so they re-crawl within minutes. The verification key file is served automatically, so no upload is needed.', 'signal-and-noise-tools' );
+}
+
+/**
+ * What the two maintenance actions do, the same on both surfaces.
+ *
+ * @return string
+ */
+function sn_indexnow_maintenance_sentence() {
+	return __( '“Submit recent content now” backfills your existing published posts. “Regenerate key” rotates the key (search engines re-verify on the next submission).', 'signal-and-noise-tools' );
+}
+
+/**
+ * The key file's link text: its path, not the whole URL, so the cell never
+ * wraps mid-word on the host (2026-10-12 audit); the URL is the link itself.
+ *
+ * @param string $url The key-file URL.
+ * @return string
+ */
+function sn_indexnow_key_label( $url ) {
+	$path = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
+	return '' !== $path ? $path : (string) $url;
+}
+
 function sn_admin_render_indexnow_section() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
@@ -26,7 +57,7 @@ function sn_admin_render_indexnow_section() {
 	sn_admin_shell_open();
 
 	// ── MAIN: intro + a 2-up of [settings card] + [maintenance card] ──
-	echo '<p class="sn-prose">Pushes changed URLs to <strong>IndexNow</strong> (Bing, Yandex, Seznam, Naver&hellip; &mdash; not Google) on publish, update, and removal so they re-crawl within minutes. The verification key file is served automatically &mdash; no upload needed.</p>';
+	echo '<p class="sn-prose">' . sprintf( esc_html( sn_indexnow_intro_sentence() ), '<strong>IndexNow</strong>' ) . '</p>';
 
 	echo '<div class="sn-2up">';
 
@@ -42,7 +73,7 @@ function sn_admin_render_indexnow_section() {
 
 	// ── ACTIONS (regenerate + backfill) ──
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'indexnow_ping_now' ) ) . '" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
-	echo '<strong>Maintenance</strong><p class="sn-helper">&ldquo;Submit recent content now&rdquo; backfills your existing published posts. &ldquo;Regenerate key&rdquo; rotates the key (search engines re-verify on the next submission).</p>';
+	echo '<strong>Maintenance</strong><p class="sn-helper">' . esc_html( sn_indexnow_maintenance_sentence() ) . '</p>';
 	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_ping_now' ) . ' class="button">Submit recent content now</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_regenerate' ) . ' class="button" data-snt-confirm="' . esc_attr__( 'Regenerate the IndexNow key? The old key file stops answering at once; search engines verify the new key on the next submission.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Regenerate key', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Regenerate', 'signal-and-noise-tools' ) . '">Regenerate key</button></form>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 
@@ -62,7 +93,7 @@ function sn_admin_render_indexnow_section() {
 
 	// ── STATUS TABLE ──
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Status</h2><table class="form-table sn-status-table sn-status-table--full"><tbody>';
-	echo '<tr><th>Key file</th><td>' . ( '' !== $key_url ? '<a href="' . esc_url( $key_url ) . '" target="_blank" rel="noopener"><code>' . esc_html( $key_url ) . '</code></a>' : '<em>not generated yet</em>' ) . '</td></tr>';
+	echo '<tr><th>Key file</th><td>' . ( '' !== $key_url ? '<a href="' . esc_url( $key_url ) . '" title="' . esc_attr( $key_url ) . '" target="_blank" rel="noopener"><code>' . esc_html( sn_indexnow_key_label( $key_url ) ) . '</code></a>' : '<em>not generated yet</em>' ) . '</td></tr>';
 	if ( ! empty( $result['time'] ) ) {
 		echo '<tr><th>Last submission</th><td>' . esc_html( human_time_diff( (int) $result['time'], time() ) ) . ' ago: ' . esc_html( (int) ( $result['code'] ?? 0 ) > 0 ? 'HTTP ' . (int) $result['code'] : __( 'no HTTP response', 'signal-and-noise-tools' ) ) . ', ' . (int) ( $result['count'] ?? 0 ) . ' ' . esc_html( _n( 'URL', 'URLs', (int) ( $result['count'] ?? 0 ), 'signal-and-noise-tools' ) ) . '</td></tr>';
 	}

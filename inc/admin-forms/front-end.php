@@ -43,12 +43,12 @@ function sn_admin_render_front_end_form() {
 	// heading + intro span all columns. Mirrors the Identity Phase 4a treatment.
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Front-End</h2>';
-	echo '<p class="sn-fieldset-intro">Render knobs the companion theme reads via filters. Defaults match the theme&rsquo;s own hardcoded values, so changes apply only once you save here. Each takes effect on the next front-end request.</p>';
+	echo '<p class="sn-fieldset-intro">How the site&rsquo;s pages render; the companion theme reads these values. The defaults are the theme&rsquo;s own, so nothing changes until you save here.</p>';
 
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_theme_related_count">Related notes shown</label>';
 	echo '<input type="number" min="1" max="12" id="sn_theme_related_count" name="theme_related_count" value="' . esc_attr( $related ) . '">';
-	echo '<p class="sn-field-helper">How many related notes appear under a single note (1&ndash;12).</p>';
+	echo '<p class="sn-field-helper">How many related notes appear under a single note (1 to 12).</p>';
 	echo '</div>';
 
 	// A SELECT, deliberately not a text field: an arbitrary local part mints an
@@ -62,43 +62,43 @@ function sn_admin_render_front_end_form() {
 		echo '<option value="' . esc_attr( $a ) . '"' . selected( $ralias, $a, false ) . '>' . esc_html( $a . '@' ) . '</option>';
 	}
 	echo '</select>';
-	echo '<p class="sn-field-helper">Which existing alias the Reply row on a note writes to. Only aliases the mailbox already filters are offered &mdash; a new local part would arrive unfiltered.</p>';
+	echo '<p class="sn-field-helper">Which existing alias the Reply row on a note writes to. Only aliases the mailbox already filters are offered; a new address would arrive unfiltered.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_theme_palette_recent_count">Command-palette recent notes</label>';
 	echo '<input type="number" min="0" max="20" id="sn_theme_palette_recent_count" name="theme_palette_recent_count" value="' . esc_attr( $precent ) . '">';
-	echo '<p class="sn-field-helper">Recent notes listed in the &#8984;K reader palette (0&ndash;20).</p>';
+	echo '<p class="sn-field-helper">Recent notes listed in the &#8984;K reader palette (0 to 20).</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label">Reader command palette</label>';
 	echo '<label><input type="checkbox" id="sn_theme_palette_enabled" name="theme_palette_enabled" value="1"' . checked( $penab, true, false ) . '> Enable the &#8984;K command palette and its footer trigger</label>';
-	echo '<p class="sn-field-helper">Turning this off hides the trigger and skips the palette&rsquo;s JS/CSS entirely.</p>';
+	echo '<p class="sn-field-helper">Turning this off hides the trigger and skips loading the palette&rsquo;s scripts and styles.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_theme_json_feed_items">JSON feed items</label>';
 	echo '<input type="number" min="1" max="50" id="sn_theme_json_feed_items" name="theme_json_feed_items" value="' . esc_attr( $jfeed ) . '">';
-	echo '<p class="sn-field-helper">Number of notes in the JSON feed (1&ndash;50).</p>';
+	echo '<p class="sn-field-helper">Number of notes in the JSON feed (1 to 50).</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_theme_updated_threshold_days">&ldquo;Updated&rdquo; badge after (days)</label>';
 	echo '<input type="number" min="1" max="90" id="sn_theme_updated_threshold_days" name="theme_updated_threshold_days" value="' . esc_attr( $uthr ) . '">';
-	echo '<p class="sn-field-helper">Show the &ldquo;Updated&rdquo; badge when a note was revised this many days after publishing (1&ndash;90).</p>';
+	echo '<p class="sn-field-helper">Show the &ldquo;Updated&rdquo; badge when a note was revised this many days after publishing (1 to 90).</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_theme_reading_wpm">Reading speed (words/min)</label>';
 	echo '<input type="number" min="100" max="400" id="sn_theme_reading_wpm" name="theme_reading_wpm" value="' . esc_attr( $wpm ) . '">';
-	echo '<p class="sn-field-helper">Words per minute used to estimate reading time (100&ndash;400).</p>';
+	echo '<p class="sn-field-helper">Words per minute used to estimate reading time (100 to 400).</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_theme_notes_per_page">Notes per page</label>';
 	echo '<input type="number" min="1" max="100" id="sn_theme_notes_per_page" name="theme_notes_per_page" value="' . esc_attr( $nperp ) . '">';
-	echo '<p class="sn-field-helper">How many notes per page on the <code>/notes</code> index (1&ndash;100). Pagination appears once published notes exceed this.</p>';
+	echo '<p class="sn-field-helper">How many notes per page on the <code>/notes</code> index (1 to 100). Pagination appears once published notes exceed this.</p>';
 	echo '</div>';
 
 	// v10.46.0: the three AI settings (prose model, vision model, monthly budget)
@@ -113,7 +113,7 @@ function sn_admin_render_front_end_form() {
 	// .sn-section (the v6.43.1 IndexNow regression). Matches Performance +
 	// IndexNow. CSS spans it across the field grid via grid-column: 1 / -1.
 	echo '<div class="sn-fieldset-actions">';
-	echo '<p class="sn-fieldset-actions-hint">Changes apply on the next front-end request. Live site re-renders automatically.</p>';
+	echo '<p class="sn-fieldset-actions-hint">Saving a change refreshes the site&rsquo;s cached pages, so the live site shows it the next time a page loads.</p>';
 	echo '<button type="submit" class="button button-primary">Save front-end settings</button>';
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset

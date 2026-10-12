@@ -524,6 +524,22 @@ function snt_rss_glance_cards( $stats ) {
 	return $cards;
 }
 
+/**
+ * A stored UTC stamp in the site's timezone and its own date and time format,
+ * the same on both surfaces (2026-10-12 audit: this page printed UTC beside a
+ * native twin that printed local time); the input unchanged when unreadable.
+ *
+ * @param string $utc A MySQL UTC stamp (the tracker stores current_time( 'mysql', true )).
+ * @return string
+ */
+function sn_rss_tracker_local_time( $utc ) {
+	$ts = strtotime( trim( (string) $utc ) . ' UTC' );
+	if ( false === $ts || $ts <= 0 ) {
+		return (string) $utc;
+	}
+	return (string) wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), $ts );
+}
+
 function sn_rss_tracker_render_stats( $stats ) {
 	echo '<h2 class="sn-section-h">Activity</h2>';
 	if ( function_exists( 'sn_admin_glance_grid' ) ) {
@@ -531,9 +547,22 @@ function sn_rss_tracker_render_stats( $stats ) {
 		sn_admin_glance_grid( snt_rss_glance_cards( $stats ) );
 		echo '</section>';
 	}
+	// 2026-10-12 audit: feed reach was on S&N Home only.
+	if ( function_exists( 'snt_feed_reach_tiles' ) ) {
+		if ( function_exists( 'sn_admin_glance_grid' ) ) {
+			$reach = array();
+			foreach ( snt_feed_reach_tiles() as $r ) {
+				$reach[] = array( 'label' => $r['label'], 'value' => null === $r['value'] ? 'not read' : number_format_i18n( (int) $r['value'] ), 'meta_html' => esc_html( '7 days · ' . $r['note'] ) );
+			}
+			echo '<section aria-label="Feed reach">';
+			sn_admin_glance_grid( $reach );
+			echo '</section>';
+		}
+		echo '<p class="sn-field-helper">' . esc_html( snt_feed_reach_sentence() ) . '</p>';
+	}
 
 	if ( ! empty( $stats['most_recent'] ) ) {
-		echo '<p class="sn-rss-meta">Most recent feed request: <code>' . esc_html( $stats['most_recent'] ) . '</code> UTC</p>';
+		echo '<p class="sn-rss-meta">Most recent feed request: <code>' . esc_html( sn_rss_tracker_local_time( (string) $stats['most_recent'] ) ) . '</code></p>';
 	} else {
 		echo '<p class="sn-rss-meta"><em>No feed requests logged yet.</em></p>';
 	}
@@ -555,7 +584,7 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<label class="sn-field-label sn-field-label--inline" for="sn_rss_enabled">';
 	echo '<input type="checkbox" id="sn_rss_enabled" name="enabled" value="1"' . checked( ! empty( $settings['enabled'] ), true, false ) . '> Enable feed-request tracking';
 	echo '</label>';
-	echo '<p class="sn-field-helper">When off, the plugin still loads but skips all DB writes and collector POSTs.</p>';
+	echo '<p class="sn-field-helper">When off, feed requests are neither logged nor sent to the collector.</p>';
 	echo '</div>';
 
 	// v10.46.0: the Collector endpoint field moved to Measurement → Analytics.
@@ -600,10 +629,10 @@ function sn_rss_tracker_render_recent_table( $recent ) {
 	echo '<div class="sn-rss-recent">';
 	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat striped">';
-	echo '<thead><tr><th class="column-primary">Time (UTC)</th><th>Feed URL</th><th>Client</th></tr></thead><tbody>';
+	echo '<thead><tr><th class="column-primary">Time</th><th>Feed URL</th><th>Client (hashed)</th></tr></thead><tbody>';
 	foreach ( $recent as $row ) {
 		echo '<tr>';
-		echo '<td><code class="sn-mono">' . esc_html( $row['ts'] ) . '</code></td>';
+		echo '<td><code class="sn-mono">' . esc_html( sn_rss_tracker_local_time( (string) $row['ts'] ) ) . '</code></td>';
 		echo '<td><code class="sn-mono">' . esc_html( $row['feed_url'] ) . '</code></td>';
 		echo '<td><code class="sn-mono">' . esc_html( $row['ua_hash'] ) . '</code></td>';
 		echo '</tr>';

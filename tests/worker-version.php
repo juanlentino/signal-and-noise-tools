@@ -119,6 +119,9 @@ function set_transient( $key, $value, $exp = 0 ) {
 function get_option( $key, $default = false ) {
 	return array_key_exists( $key, $GLOBALS['__test_options'] ) ? $GLOBALS['__test_options'][ $key ] : $default;
 }
+// The deploy time prints in the site's format (2026-10-12); UTC here, as gmdate.
+if ( ! function_exists( 'wp_date' ) ) { function wp_date( $format, $ts = null ) { return gmdate( $format, null === $ts ? time() : (int) $ts ); } }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 function update_option( $key, $value, $autoload = null ) {
 	$GLOBALS['__test_options'][ $key ] = $value;
 	return true;
@@ -460,8 +463,10 @@ wv_true( $r['ok'], 'corrupt transient → returns the live probe, not the garbag
 echo "\nGroup E: format_deployed — empty / unparseable / valid ISO\n";
 wv_eq( '', sn_worker_version_format_deployed( '' ), 'empty → ""' );
 wv_eq( 'not-a-real-date', sn_worker_version_format_deployed( 'not-a-real-date' ), 'unparseable → raw passthrough' );
-$expect_dep = gmdate( 'Y-m-d H:i', strtotime( '2026-06-17T12:00:00Z' ) ) . ' UTC (2 days ago)';
-wv_eq( $expect_dep, sn_worker_version_format_deployed( '2026-06-17T12:00:00Z' ), 'valid ISO → "Y-m-d H:i UTC (… ago)"' );
+// 2026-10-12 audit: the site's own date and time format and timezone (wp_date),
+// not the one UTC stamp on a leaf of local times.
+$expect_dep = gmdate( 'F j, Y g:i a', strtotime( '2026-06-17T12:00:00Z' ) ) . ' (2 days ago)';
+wv_eq( $expect_dep, sn_worker_version_format_deployed( '2026-06-17T12:00:00Z' ), 'valid ISO → the site\'s format, then "(… ago)"' );
 
 // ─── Group F: render — admin gate, state branch, real escaping ────────
 echo "\nGroup F: render_card / render_data — capability gate + 3 states + esc_html\n";

@@ -65,7 +65,13 @@ ok( 1 === substr_count( $kit, '<os-steps>' ) && 4 === substr_count( $kit, '<os-s
 ok( false === strpos( $kit, '<ol' ), 'not-configured: no browser ordered list survives' );
 ok( false !== strpos( $kit, '<os-textarea name="sn_gsc_credential"' ), 'the credential textarea is a kit textarea carrying the classic field name' );
 ok( false === strpos( $kit, 'Property' ), 'not-configured: the Property section is not painted (no identity yet)' );
-ok( false === strpos( $kit, '<os-grid' ) && strpos( $kit, 'heading="Search Console credential"' ) < strpos( $kit, 'heading="Set the credential"' ), '17.4.1: not-configured: no row; the readout box then the form box, each at full width' );
+// 2026-10-12 audit: the form stood alone at full width beside nothing; the
+// readout and the form that sets it share one row.
+ok( 1 === substr_count( $kit, snt_leaf_row() ) && strpos( $kit, snt_leaf_row() ) < strpos( $kit, 'heading="Search Console credential"' ) && strpos( $kit, 'heading="Search Console credential"' ) < strpos( $kit, 'heading="Set the credential"' ), 'not-configured: one row, the readout beside the form that sets it' );
+// 2026-10-12 audit: "Nothing here queries Google yet" was false beside Test
+// connection and Sync now; "below" pointed at another box.
+ok( false === strpos( $kit, 'Nothing here queries Google' ) && false === strpos( $classic, 'Nothing here queries Google' ) && false !== strpos( $kit, 'Test connection lists the properties it can read; Sync now pulls their pages and queries' ) && false !== strpos( $classic, 'Test connection lists the properties it can read; Sync now pulls their pages and queries' ), 'the intro says what the leaf does, on both surfaces' );
+ok( false === strpos( $kit, 'key file below' ) && false !== strpos( $kit, 'Paste the whole JSON key file into Service-account JSON, then press Test connection.' ) && false !== strpos( $classic, 'Paste the whole JSON key file into Service-account JSON, then press Test connection.' ) && false === strpos( $kit, '—' ), 'the steps name the field, not a position, with no em dash, on both surfaces' );
 
 // ── Unparseable-but-stored state (non-hostile raw value, since snt_gsc_credential_raw()
 // is only ever consumed as a boolean by the painter — a hostile value placed there
@@ -104,17 +110,18 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'configured: field na
 ok( array( 'gsc_credential_save', 'gsc_test' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'configured: gsc_credential_save and gsc_test are both offered: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'configured: no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, 'svc@project.iam.gserviceaccount.com' ) && false !== strpos( $kit, 'project-123' ) && false !== strpos( $kit, 'sha256:deadbeef0000' ), 'configured: the identity card carries the service account, project and fingerprint' );
-ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, 'openssl available' ), 'configured: signing-ready paints a success badge' );
+ok( false !== strpos( $kit, '<os-fact label="Token signing"><span class="snt-kv__v"><os-badge tone="success">Available</os-badge>' ), 'configured: signing-ready paints a success badge, in plain words' );
+ok( false !== strpos( $kit, 'paste a whole new key file into Service-account JSON' ) && false !== strpos( $classic, 'paste a whole new key file into Service-account JSON' ), 'configured: the replace sentence names the field, on both surfaces' );
 ok( false !== strpos( $kit, 'Run Test connection to list the properties' ) && false === strpos( $kit, 'Test connection above' ), 'configured: the Property section nudges toward Test connection (no sites yet)' );
 $row = strpos( $kit, snt_leaf_row() );
-ok( 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-2up' ) && $row < strpos( $kit, 'heading="Search Console credential"' ) && strpos( $kit, 'heading="Search Console credential"' ) < strpos( $kit, 'heading="Property"' ) && strpos( $kit, 'heading="Property"' ) < strrpos( $kit, '</os-grid>' ) && strrpos( $kit, '</os-grid>' ) < strpos( $kit, 'heading="Set the credential"' ), '17.4.1: one .snt-cols row pairs the credential readout with Property; the form box stands alone after the row (#1573)' );
+ok( 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-2up' ) && $row < strpos( $kit, 'heading="Search Console credential"' ) && strpos( $kit, 'heading="Search Console credential"' ) < strpos( $kit, 'heading="Set the credential"' ) && strpos( $kit, 'heading="Set the credential"' ) < strpos( $kit, 'heading="Property"' ) && strpos( $kit, '</os-grid>' ) < strpos( $kit, 'heading="Property"' ), 'configured: the readout beside the form; Property alone under them until a property is chosen' );
 $form = strpos( $kit, 'heading="Set the credential"' );
 ok( strpos( $kit, 'os-arg-action="sn_gsc_test"' ) < strpos( $kit, 'heading="Property"' ) && false !== $form && strpos( $kit, '<os-textarea name="sn_gsc_credential"' ) > $form, '17.4.1: Test connection sits in the readout box, before Property; the textarea sits in the form box' );
 
 // ── Signing NOT ready.
 $GLOBALS['__gsc_identity']['signing_ready'] = false;
 $kit = snt_leaf_paint( 'monitoring', 'search-console' );
-ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, 'cannot mint a token on this host' ), 'signing not ready: a warning badge is painted' );
+ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, 'cannot sign the token request' ) && false === strpos( $kit, 'openssl_sign' ), 'signing not ready: a warning badge in plain words' );
 $GLOBALS['__gsc_identity']['signing_ready'] = true;
 
 // ── State: property chosen, never synced.
@@ -126,6 +133,18 @@ ok( array( 'gsc_credential_save', 'gsc_sync', 'gsc_test' ) === snt_leaf_actions(
 ok( false !== strpos( $kit, 'Currently reading:' ) && false !== strpos( $kit, 'https://example.test/' ), 'property-chosen: the current property is shown' );
 ok( false !== strpos( $kit, 'Never synced.' ), 'property-chosen: the sync status reads Never synced' );
 ok( false !== strpos( $kit, 'No scheduled sync' ), 'property-chosen: no cron scheduled yet reads honestly' );
+// 2026-10-12 audit: Sync was an 11px uppercase sub-label inside Property.
+ok( false !== strpos( $kit, '<os-section heading="Sync" stack>' ) && strpos( $kit, 'heading="Property"' ) < strpos( $kit, 'heading="Sync"' ) && false === strpos( $kit, 'snt-col__h' ), 'property-chosen: Sync is its own box, after Property' );
+// Live check (2026-10-12): Property beside Sync read 97 against 194px (2.0x).
+// Property over Sync is one column beside the form, on the credential's row.
+ok( 1 === substr_count( $kit, '<os-grid' ) && false !== strpos( $kit, snt_leaf_row( 3 ) ) && 1 === preg_match( '#heading="Set the credential".*?</os-section><os-stack gap="18"><os-section heading="Property".*?</os-section><os-section heading="Sync"#s', $kit ), 'property-chosen: one row, the readout, the form, then Property over Sync in one column' );
+snt_leaf_preview( 'monitoring-search-console-chosen', $kit );
+// Re-measure (2026-10-12): "Set the credential" ended 116px above its
+// neighbors, and the Property heading sat 16px low in its column.
+$gsc_css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+ok( 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-section\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/', $gsc_css ) && 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-section::part\( body \)\s*\{[^}]*flex:\s*1 1 auto;/', $gsc_css ), 'the row\'s boxes stretch to its height, as on login-defense and mcp-connect' );
+ok( 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-stack\s*\{[^}]*padding:\s*0;/', $gsc_css ), 'the Property and Sync column starts level with its row' );
+ok( 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-stack\s*\{[^}]*padding:\s*0;[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/', $gsc_css ) && 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-stack > os-section:last-child\s*\{[^}]*flex:\s*1 1 auto;/', $gsc_css ) && 1 === preg_match( '/\[data-snt-leaf="search-console"\] os-grid > os-stack > os-section::part\( body \)/', $gsc_css ), 'the column has no inset, and Sync takes the rest of the row\'s height' );
 
 // ── State: Test connection returned a property list (snt_gsc_last_test transient
 // populated, ok=true) — the field and action the leaf exists to offer.
@@ -142,6 +161,8 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'sites-listed: field 
 ok( array( 'gsc_credential_save', 'gsc_property_save', 'gsc_sync', 'gsc_test' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'sites-listed: gsc_property_save joins the offered actions: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( false !== strpos( $kit, '<os-select name="sn_gsc_property" value="https://example.test/"' ), 'sites-listed: the select carries the classic field name and current value' );
 ok( false !== strpos( $kit, 'siteOwner' ), 'sites-listed: the permission level is painted' );
+ok( false !== strpos( $kit, '<os-option value="">Choose a property</os-option>' ) && false !== strpos( $classic, '<option value="">Choose a property</option>' ), 'sites-listed: the placeholder option has no em dashes, on both surfaces' );
+snt_leaf_preview( 'monitoring-search-console', $kit );
 ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&lt;script&gt;x' ), 'sites-listed: a hostile siteUrl is painted escaped' );
 $GLOBALS['__gsc_last_test'] = false;
 

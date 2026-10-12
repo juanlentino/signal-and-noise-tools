@@ -118,6 +118,8 @@ $z = sn_dash_zone_fleet( array(
 ), '' );
 ok( true === $z['cards'][0]['attention'], 'contract skew flips the card to attention' );
 ok( false !== strpos( $z['cards'][0]['value'], 'contract skew' ), 'skewed value names the condition' );
+// 2026.10.4 audit (batch 4): no em dash and no symbol in the painted value.
+ok( false === strpos( $z['cards'][0]['value'], "\u{2014}" ) && false === strpos( $z['cards'][0]['value'], "\u{2260}" ) && 1 === preg_match( '/; contract skew: live \S+, expected \S+$/', $z['cards'][0]['value'] ), 'the skew reads in words: "; contract skew: live X, expected Y"' );
 ok( false !== strpos( $z['cards'][0]['value'], '2' ) && false !== strpos( $z['cards'][0]['value'], '1' ), 'both live and expected versions render' );
 ok( true === $z['cards'][0]['measured'], 'a skewed worker is still MEASURED (the version answered)' );
 

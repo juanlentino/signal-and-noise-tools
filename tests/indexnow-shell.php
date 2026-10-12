@@ -1,5 +1,7 @@
 <?php
 if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n, $d = null ) { return 1 === (int) $n ? $s : $p; } }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
+if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return -1 === $c ? parse_url( $u ) : parse_url( $u, $c ); } }
 /**
  * Standalone test: IndexNow sub-tab two-column shell contract (v6.42.0).
  *

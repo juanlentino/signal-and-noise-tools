@@ -44,6 +44,9 @@ function human_time_diff( $from, $to = 0 ) { return '1 hour'; }
 function add_filter( $hook, $cb = null, $priority = 10, $args = 1 ) { return true; }
 
 // ── The deltas accessor under test's control (inc/analytics-derived.php) ──
+// 2026.10.4 audit (batch 4): Home reads the gated pageview_visits, and only
+// with analytics configured.
+function sn_analytics_config() { return true; }
 $GLOBALS['__deltas'] = array();
 function sn_analytics_period_deltas( $from, $to, $class = 'human' ) { return $GLOBALS['__deltas']; }
 function sn_analytics_delta( $cur, $prev ) {
@@ -86,28 +89,32 @@ echo "\nGroup: Engagement tile delta\n";
 // Both views and visits double: the ratio (2.0 v/s) is UNCHANGED, so the
 // Engagement tile's delta must read flat/absent, never the views delta.
 $GLOBALS['__deltas'] = array(
-	'views'  => array( 'current' => 200, 'previous' => 100, 'pct' => 100, 'dir' => 'up' ),
-	'visits' => array( 'current' => 100, 'previous' => 50, 'pct' => 100, 'dir' => 'up' ),
+	'views'           => array( 'current' => 200, 'previous' => 100, 'pct' => 100, 'dir' => 'up' ),
+	'pageview_visits' => array( 'current' => 100, 'previous' => 50, 'pct' => 100, 'dir' => 'up' ),
 );
 $html = \SignalNoise\OpenStationHost\Dashboard\Leaves\home_pulse_html( array(), 'dashboard' );
-ok( false !== strpos( $html, '<strong>2.0</strong>' ) && false !== strpos( $html, 'Pages per visit' ), 'the ratio itself renders (2.0), under its plain label, Pages per visit' );
-ok( false === strpos( $html, 'Pages per visit' . '</span></div><strong>2.0</strong><span class="snt-home__metric-delta">+100%' ),
+ok( false !== strpos( $html, '<strong>2.0</strong>' ) && false !== strpos( $html, 'Views per visit' ), 'the ratio itself renders (2.0), under the desktop widget\'s name, Views per visit' );
+ok( false === strpos( $html, 'Views per visit' . '</span></div><strong>2.0</strong><span class="snt-home__metric-delta">+100%' ),
 	'#1208: an UNCHANGED ratio (200/100 vs 100/50, both = 2.0) must not borrow the views delta (+100%)' );
 
 // A real ratio change: views double, visits flat -> ratio moves 1.0 -> 2.0,
 // a genuine +100%. This proves the fix computes an ACTUAL ratio delta rather
 // than simply suppressing the tile's pct outright.
 $GLOBALS['__deltas'] = array(
-	'views'  => array( 'current' => 200, 'previous' => 100, 'pct' => 100, 'dir' => 'up' ),
-	'visits' => array( 'current' => 100, 'previous' => 100, 'pct' => 0, 'dir' => 'flat' ),
+	'views'           => array( 'current' => 200, 'previous' => 100, 'pct' => 100, 'dir' => 'up' ),
+	'pageview_visits' => array( 'current' => 100, 'previous' => 100, 'pct' => 0, 'dir' => 'flat' ),
 );
 $html2 = \SignalNoise\OpenStationHost\Dashboard\Leaves\home_pulse_html( array(), 'dashboard' );
 ok( false !== strpos( $html2, '<strong>2.0</strong>' ), 'ratio renders (200/100 = 2.0 pages per visit)' );
 ok( false !== strpos( $html2, '<strong>2.0</strong><span class="snt-home__metric-delta">+100%' ),
 	'a genuine ratio move (1.0 -> 2.0) DOES show its own +100% delta' );
 
-// ── 2. "View all (%d)" must read found_posts, not the display window ──────
-echo "\nGroup: Continue working — View all count\n";
+// ── 2. The Continue working link counts what it opens ─────────────────────
+// 2026.10.4 audit (batch 4): "View all (164)" counted posts AND pages in five
+// statuses, then opened Posts. The link is "All posts", counted the way the
+// Posts list's All view counts (wp_count_posts, no trash, no auto-draft).
+function wp_count_posts( $type = 'post' ) { return (object) array( 'publish' => 5, 'draft' => 3, 'pending' => 1, 'future' => 0, 'private' => 0, 'trash' => 4 ); }
+echo "\nGroup: Continue working, the All posts count\n";
 $GLOBALS['__posts'] = array();
 for ( $i = 1; $i <= 9; $i++ ) {
 	$GLOBALS['__posts'][] = (object) array(
@@ -119,8 +126,8 @@ for ( $i = 1; $i <= 9; $i++ ) {
 	);
 }
 $work = \SignalNoise\OpenStationHost\Dashboard\Leaves\home_continue_working_html( 'dashboard' );
-ok( false !== strpos( $work, 'View all (9)' ), '#1208: "View all" reads found_posts (9 real items), not the 6-row display window' );
-ok( false === strpos( $work, 'View all (6)' ), '...never the capped window size' );
+ok( false !== strpos( $work, '>All posts (9)</a>' ), 'the link counts the posts the Posts list shows (5 published, 3 drafts, 1 pending), never pages or trash' );
+ok( false === strpos( $work, 'View all' ) && 3 === substr_count( $work, 'class="snt-home__work-row"' ), '...under its own name, over the three recent items'  );
 
 // ── #1596: every relative time in the window is an os-relative-time. The
 // helper pin: an ISO 8601 UTC datetime attribute, the server's own signed

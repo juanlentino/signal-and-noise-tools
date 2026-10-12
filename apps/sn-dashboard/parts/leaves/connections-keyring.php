@@ -63,17 +63,18 @@ function paint_connections_keyring( array $ctx ) {
 			'placeholder' => __( 'Paste the value', 'signal-and-noise-tools' ),
 			'hint'        => __( 'Paste to set. Type "clear" to remove. On a worker row, type "site" to derive it from the site secret. Rows locked in wp-config.php are not listed.', 'signal-and-noise-tools' ),
 		) );
+	$copy  = sn_keyring_copy();
 	$right = \snt_kit_section(
 		__( 'Set a credential', 'signal-and-noise-tools' ),
 		\snt_kit_form( 'keyring_save', $fields, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) ),
-		__( 'One value at a time; the ledger on the left is the record.', 'signal-and-noise-tools' )
+		$copy['set']
 	);
 	$at     = sn_keyring_verified_at();
 	$right .= \snt_kit_section(
 		__( 'Verify', 'signal-and-noise-tools' ),
 		'<footer>' . \snt_kit_action_button( __( 'Verify all', 'signal-and-noise-tools' ), 'keyring_verify' ) . '</footer>'
-		. ( $at > 0 ? '<p class="snt-hint">' . \snt_kit_esc( sprintf( /* translators: %s: time. */ __( 'Last verified %s.', 'signal-and-noise-tools' ), function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i T', $at ) : gmdate( 'Y-m-d H:i', $at ) . ' UTC' ) ) . '</p>' : '<p class="snt-hint">' . \snt_kit_esc( __( 'Never verified.', 'signal-and-noise-tools' ) ) . '</p>' ),
-		__( 'Every credential with a probe asks the service that holds its other half; each verdict names the side to fix.', 'signal-and-noise-tools' )
+		. '<p class="snt-hint">' . \snt_kit_esc( $at > 0 ? sn_keyring_verified_text( $at ) : $copy['never'] ) . '</p>',
+		$copy['verify']
 	);
 	$cmds = array();
 	foreach ( sn_keyring_worker_commands() as $c ) {
@@ -82,7 +83,7 @@ function paint_connections_keyring( array $ctx ) {
 	$right .= \snt_kit_section(
 		__( 'Worker secrets', 'signal-and-noise-tools' ),
 		\snt_kit_kv( $cmds ),
-		__( 'After changing a worker row here, set the same value on the worker.', 'signal-and-noise-tools' )
+		$copy['workers']
 	);
 
 	return \snt_kit_grid( array( \snt_kit_stack( $left ), \snt_kit_stack( $right ) ), 290, 24 );

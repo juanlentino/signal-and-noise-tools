@@ -63,35 +63,53 @@ function zenodo_main_html( array $d ) {
 	return \snt_kit_grid( array( \snt_kit_tag( 'os-card', array(), $env ), \snt_kit_tag( 'os-card', array(), $deposit ) ) );
 }
 
+/** The ledger lists this many rows (the waiting ones first), then "+N more". */
+const ZENODO_LEDGER_ROWS = 10;
+
 /**
- * The ledger as the house table.
+ * The ledger (2026-10-12 audit: a 58-row wall of "Minted" with no sentence,
+ * the DOI as plain text, raw ISO times, an empty error column): the finding,
+ * the rows still waiting first, ZENODO_LEDGER_ROWS of them then "+N more";
+ * the document opens its editor, a minted DOI opens doi.org, the time is the
+ * site's, and the Last error column paints only when a row has one.
  *
  * @param array<string,mixed> $d sn_zenodo_leaf_data().
  * @return string
  */
 function zenodo_ledger_html( array $d ) {
+	$errors  = array() !== array_filter( $d['rows'], static fn( $r ) => '' !== (string) ( $r['error'] ?? '' ) );
 	$columns = array(
 		array( 'key' => 'title', 'label' => __( 'Document', 'signal-and-noise-tools' ), 'filter' => 'text' ),
 		array( 'key' => 'kind', 'label' => __( 'Kind', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'state', 'label' => __( 'State', 'signal-and-noise-tools' ), 'filter' => 'text' ),
 		array( 'key' => 'doi', 'label' => __( 'DOI', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'at', 'label' => __( 'Deposited', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'error', 'label' => __( 'Last error', 'signal-and-noise-tools' ) ),
 	);
+	if ( $errors ) {
+		$columns[] = array( 'key' => 'error', 'label' => __( 'Last error', 'signal-and-noise-tools' ) );
+	}
 	$rows = array();
-	foreach ( $d['rows'] as $r ) {
-		$rows[] = array(
-			'title' => (string) $r['title'],
+	foreach ( \sn_zenodo_ledger_sorted( $d['rows'] ) as $r ) {
+		$doi = (string) $r['doi'];
+		$row = array(
+			'_key'  => 'zenodo-' . (int) ( $r['id'] ?? 0 ),
+			'title' => array( 'html' => '<span class="snt-zenodo-title">' . \snt_kit_link( (string) $r['title'], admin_url( 'post.php?post=' . (int) ( $r['id'] ?? 0 ) . '&action=edit' ) ) . '</span>', 'text' => (string) $r['title'] ),
 			'kind'  => (string) $r['kind'],
 			'state' => \sn_zenodo_state_label( $r['state'] ),
-			'doi'   => '' !== $r['doi'] ? (string) $r['doi'] : __( 'none yet', 'signal-and-noise-tools' ),
-			'at'    => '' !== $r['at'] ? (string) $r['at'] : __( 'not yet', 'signal-and-noise-tools' ),
-			'error' => (string) $r['error'],
+			// A sandbox DOI resolves nowhere public, by design: text, not a
+			// link. Either way it reads whole (it broke mid-number at 149px).
+			'doi'   => '' === $doi ? __( 'none yet', 'signal-and-noise-tools' ) : array( 'html' => '<span class="sn-nowrap">' . ( 'minted' === (string) $r['state'] ? \snt_kit_link( $doi, 'https://doi.org/' . rawurlencode( $doi ) ) : \snt_kit_esc( $doi ) ) . '</span>', 'text' => $doi ),
+			// One line ("6:33 pm" broke across two).
+			'at'    => array( 'html' => '<span class="sn-nowrap">' . \snt_kit_esc( \sn_zenodo_deposited_text( (string) $r['at'] ) ) . '</span>', 'text' => \sn_zenodo_deposited_text( (string) $r['at'] ) ),
 		);
+		if ( $errors ) {
+			$row['error'] = (string) $r['error'];
+		}
+		$rows[] = $row;
 	}
 	return \snt_kit_section(
 		__( 'Ledger', 'signal-and-noise-tools' ),
-		\snt_kit_table( $columns, $rows, array( 'empty' => __( 'No signed documents yet.', 'signal-and-noise-tools' ) ) ),
+		\snt_kit_ledger( \sn_zenodo_ledger_finding( $d['rows'] ), $columns, $rows, ZENODO_LEDGER_ROWS, array( 'empty' => __( 'No signed documents yet.', 'signal-and-noise-tools' ), 'stack_on_phone' => true, 'class' => 'snt-table-full' ) ),
 		__( 'Every signed document with its DOI state. A minted DOI resolves at doi.org; a sandbox DOI does not, by design.', 'signal-and-noise-tools' )
 	);
 }
@@ -111,7 +129,7 @@ function zenodo_rail_html( array $d ) {
 		$rows[] = array( 'label' => \sn_zenodo_state_label( $state ), 'value' => (string) (int) $n );
 	}
 	if ( ! empty( $d['batch'] ) ) {
-		$rows[] = array( 'label' => __( 'Last pass', 'signal-and-noise-tools' ), 'value' => sprintf( /* translators: 1: published, 2: failed, 3: attempted */ __( '%1$d published, %2$d failed, of %3$d attempted', 'signal-and-noise-tools' ), (int) ( $d['batch']['published'] ?? 0 ), (int) ( $d['batch']['failed'] ?? 0 ), (int) ( $d['batch']['attempted'] ?? 0 ) ) );
+		$rows[] = array( 'label' => __( 'Last pass', 'signal-and-noise-tools' ), 'value' => \sn_zenodo_last_pass_text( $d['batch'] ) );
 	}
 	return \snt_kit_tag(
 		'aside',
@@ -135,7 +153,7 @@ function paint_connections_zenodo( array $ctx ) {
 		return \snt_kit_empty( __( 'Zenodo is not available.', 'signal-and-noise-tools' ) );
 	}
 	$d   = \sn_zenodo_leaf_data();
-	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'Every signed document (the notes, the pillar essays) gets a DOI on Zenodo once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed beside it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.', 'signal-and-noise-tools' ) ) . '</p>';
+	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'Every signed document (the notes, the pillar essays) gets a DOI on Zenodo once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed with it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.', 'signal-and-noise-tools' ) ) . '</p>';
 	$out .= \snt_kit_tag(
 		'os-row',
 		array( 'gap' => '16' ),

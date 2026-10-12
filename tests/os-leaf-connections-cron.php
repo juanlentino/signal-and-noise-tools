@@ -229,7 +229,10 @@ $own = snt_leaf_paint( 'connections', 'cron', array() );
 ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_run"[^>]*os-arg-hook="snt_ml_rebuild"[^>]*>/', $own, $m ) && false !== strpos( $m[0], ' disabled' ), 'an owned hook without the sn_ prefix: Run now is disabled, as the ability refuses it' );
 ok( 1 === preg_match( '/<os-button[^>]*os-action="cron_run"[^>]*os-arg-hook="sn_not_ours"[^>]*>/', $own, $m ) && false === strpos( $m[0], 'disabled' ), 'an sn_ hook the plugin does not own: Run now is enabled, as the ability runs it' );
 $own_classic = snt_leaf_classic_html( 'sn_admin_render_cron_section' );
-ok( 1 === preg_match( '/<button[^>]*disabled aria-label="Run cron event snt_ml_rebuild now" title="Not runnable here: dispatched on its own schedule"/', $own_classic ) && 1 === preg_match( '/<button class="button button-small sn-cron-run-now" type="button" aria-label="Run cron event sn_not_ours now"/', $own_classic ), 'classic: the same gate, with the native page\'s sentence (PR #2014 review: only the native gate was pinned)' );
+ok( 1 === preg_match( '/<button[^>]*disabled aria-label="Run now: snt_ml_rebuild" title="Not runnable here: dispatched on its own schedule"/', $own_classic ) && 1 === preg_match( '/<button class="button button-small sn-cron-run-now" type="button" aria-label="Run now: sn_not_ours"/', $own_classic ), 'classic: the same gate, with the native page\'s sentence (PR #2014 review: only the native gate was pinned)' );
+// 2026-10-12 audit: ~85 identical "Run now" / "Unschedule" names; each row's
+// button is named for its hook, starting with the visible word, on both surfaces.
+ok( false !== strpos( $own, 'aria-label="Run now: sn_not_ours"' ) && false !== strpos( $own, 'aria-label="Unschedule: sn_not_ours"' ) && false !== strpos( $own_classic, 'aria-label="Unschedule: sn_not_ours"' ), 'each row\'s Run now and Unschedule carry the hook in their accessible name, on both surfaces' );
 $GLOBALS['__cron_rows'] = $rich_rows;
 ok( 3 === substr_count( $kit, 'os-confirm-danger' ) && 6 === substr_count( $kit, 'os-confirm="' ), 'every Unschedule is danger-confirmed and every control asks before dispatching' );
 ok( false === strpos( $kit, '<os-table' ) && 4 === substr_count( $kit, '<li class="snt-list__row"' ) && 3 === substr_count( $kit, ' os-key="' ), 'the ledger is a list of rows (a control cannot ride an os-table cell, upstream #862): one header row, three keyed rows the poll morph moves rather than rebuilds' );
@@ -280,7 +283,15 @@ ok( 1 === preg_match( '/\.snt-ledger\s*\{([^}]*)\}/', $sheet, $m ) && false !== 
 // negative-control mutation that deleted both columns from the painter
 // passed this suite before these two assertions existed.
 ok( 3 === substr_count( $kit, '>in 1 hour</os-relative-time>)' ) && 3 === preg_match_all( '#\d\d:\d\d:\d\d \(<os-relative-time datetime="\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ">in 1 hour#', $kit ), '#1596: every row prints a next-run os-relative-time, the signed server reading as its fallback' );
-ok( false !== strpos( $kit, '>1 hour ago</os-relative-time>)' ) && false !== strpos( $kit, 'not recorded' ), 'last fired prints an os-relative-time for fired rows and "not recorded" for the never-fired row' );
+ok( false !== strpos( $kit, '>1 hour ago</os-relative-time>)' ), 'last fired prints an os-relative-time for fired rows' );
+// 2026-10-12 audit: the last fire is stored per hook, so every pending one-shot
+// (25 scheduled posts) printed the same "Last fired" of another event.
+ok( false !== strpos( $kit, 'not yet: runs once' ) && false !== strpos( $classic, 'not yet: runs once' ), 'a pending single event says it has not run, on both surfaces, never its hook\'s time' );
+$one_shot = \SignalNoise\OpenStationHost\Dashboard\Leaves\cron_row_data( array( 'hook' => 'publish_future_post', 'schedule' => false, 'args' => array( 7 ), 'next_run_ts' => time() + 3600, 'last_fired_ts' => time() - 600 ) );
+ok( 'not yet: runs once' === $one_shot['last_fired'], 'a one-shot whose hook fired 10 minutes ago for another post still reads "not yet: runs once" (lowercase, as in the #2023 cells)' );
+$recurring = \SignalNoise\OpenStationHost\Dashboard\Leaves\cron_row_data( array( 'hook' => 'wp_version_check', 'schedule' => 'twicedaily', 'args' => array(), 'next_run_ts' => time() + 3600, 'last_fired_ts' => 0 ) );
+ok( 'not recorded yet' === $recurring['last_fired'] && 'none' === $recurring['args'], 'a recurring hook with no record says "not recorded yet", never an em dash; empty args read "none"' );
+ok( false === strpos( $kit, '—</span>' ) && false === strpos( $classic, '&mdash;' ), 'no ledger cell is an em dash, on either surface' );
 
 // 8e) #1596: a next_run_ts already behind now paints the same os-relative-time
 // with a "%s ago" fallback; the #1222 "overdue" reversal lives in the
@@ -466,7 +477,10 @@ $kit = snt_leaf_paint( 'connections', 'cron', array() );
 $box = cron_leaf_backlog_box( $kit );
 ok( '' !== $box, 'the backlog box paints under its heading' );
 $box_at = strpos( $kit, 'heading="Action Scheduler backlog"' );
-ok( strpos( $kit, 'heading="Scheduled events"' ) < $box_at && $box_at < strpos( $kit, snt_leaf_row() ), 'the box sits under the events ledger and above the settings row' );
+// 2026-10-12 audit: five short facts stood alone across the full width; the
+// box is the third on the settings row now.
+ok( strpos( $kit, 'heading="Scheduled events"' ) < $box_at && strpos( $kit, snt_leaf_row( 3 ) ) < $box_at && strpos( $kit, 'heading="Scheduled read-only runs"' ) < $box_at, 'the box sits under the events ledger, the third box on the settings row' );
+snt_leaf_preview( 'connections-cron', $kit );
 ok( false === strpos( $box, '<os-disclosure' ), 'a reading is painted directly, not behind a fold' );
 ok( (bool) preg_match( '#<os-fact label="pending"><span class="snt-kv__v">12 \(3 overdue\)</span></os-fact>#', $box ), 'pending row: 12 with 3 overdue, no tone under the line' );
 ok( false !== strpos( $box, '<os-fact label="complete"><span class="snt-kv__v">1204</span></os-fact>' ), 'complete row: raw status label, the raw figure the Info row prints' );

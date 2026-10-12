@@ -15,6 +15,7 @@ function ok( $cond, $label ) {
 
 $GLOBALS['__opts'] = array( 'sn_machine_readers_preview' => '1' );
 function get_option( $k, $d = false ) { return $GLOBALS['__opts'][ $k ] ?? $d; }
+if ( ! function_exists( 'wp_date' ) ) { function wp_date( $format, $timestamp = null, $timezone = null ) { return gmdate( $format, null === $timestamp ? time() : (int) $timestamp ); } } // 2026-10-12: times print in the site's format
 // Storage-side URL sanitizer stub (lane 4): valid http(s) URL passes, else ''.
 function esc_url_raw( $url ) { $url = trim( (string) $url ); return false !== filter_var( $url, FILTER_VALIDATE_URL ) ? $url : ''; }
 
@@ -30,6 +31,10 @@ function __( $s, $d = null ) { return $s; }
 function esc_html__( $s, $d = null ) { return esc_html( $s ); }
 function current_user_can( $cap ) { return true; }
 function wp_nonce_field( $action ) { echo '<!-- nonce -->'; }
+// PR #2025 review: the classic Re-read now link (a nonce-gated flag).
+if ( ! function_exists( 'wp_nonce_url' ) ) { function wp_nonce_url( $u, $a = -1, $n = '_wpnonce' ) { return $u . '&' . $n . '=nonce-' . $a; } }
+if ( ! function_exists( 'add_query_arg' ) ) { function add_query_arg( $q, $u = '' ) { return $u . ( false === strpos( $u, '?' ) ? '?' : '&' ) . http_build_query( $q ); } }
+if ( ! function_exists( 'wp_verify_nonce' ) ) { function wp_verify_nonce( $n, $a = -1 ) { return 'nonce-' . $a === $n ? 1 : false; } }
 function sn_setting( $k, $d = '' ) { return $d; }
 $GLOBALS['__mr_rows'] = array(
 	array( 'family' => 'openai', 'surface' => 'rights', 'day' => '2026-07-28', 'hits' => 3 ),

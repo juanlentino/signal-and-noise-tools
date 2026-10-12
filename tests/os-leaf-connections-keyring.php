@@ -49,6 +49,14 @@ ok( 22 === count( (array) kr_table_rows( $kit, 'Site secret and the workers' ) )
 ok( 19 === substr_count( $kit, '<os-option value="' ) && false === strpos( $kit, '<os-option value="cloudways_api_key"' ) && false !== strpos( $kit, '<os-option value="mr_read_token">Site secret and the workers · Machine Readers read token</os-option>' ), 'the select lists the nineteen rows a value can be set on (16.5.2: the TypeSafe key left; 16.3.0: + the TypeSafe key; 16.2.0: + the Bing key), labelled by group; the wp-config-only Cloudways key is not offered' );
 ok( false !== strpos( $kit, 'wrangler secret put SN_MR_READ_TOKEN' ) && 5 === substr_count( $kit, 'npx wrangler secret put' ) && false !== strpos( $kit, 'wrangler secret put SN_MR_SQL_TOKEN' ) && false !== strpos( $classic, 'wrangler secret put SN_MR_READ_TOKEN' ) && false !== strpos( $kit, 'heading="Worker secrets"' ), 'the rail lists the five worker commands (15.2.2: + the Cloudflare token\'s copy in the sensor), on both leaves' );
 ok( false !== strpos( $kit, 'Never verified.' ) && false === strpos( $kit, 'Last verified' ) && false === strpos( $kit, 'tone="warning"' ), 'never verified: says so, no refusal notice' );
+// 2026-10-12 audit: the native leaf said three sentences the classic did not,
+// one of them a position ("the ledger on the left is the record"); the group
+// sentence described the retired per-row field ("type site in a row").
+foreach ( array( 'One value at a time; each group&#039;s table shows what is set.', 'Never verified.', 'each verdict names the side to fix.', 'After changing a worker row here, set the same value on the worker.' ) as $line ) {
+	$plain = html_entity_decode( $line, ENT_QUOTES, 'UTF-8' );
+	ok( ( false !== strpos( $kit, $line ) || false !== strpos( $kit, $plain ) ) && ( false !== strpos( $classic, $line ) || false !== strpos( $classic, $plain ) ), "both surfaces say: $plain" );
+}
+ok( false === strpos( $kit, 'on the left' ) && false === strpos( $kit, 'in a row to switch it' ) && false !== strpos( $kit, 'pick the row under Set a credential and type &quot;site&quot;, then run its command under Worker secrets' ) && false !== strpos( $classic, 'pick the row under Set a credential and type &quot;site&quot;, then run its command under Worker secrets' ), 'the workers group sentence names the box and the commands it uses, on both surfaces' );
 ok( false !== strpos( $kit, 'Type &quot;clear&quot; to remove' ) && false !== strpos( $kit, 'type &quot;site&quot; to derive' ), 'the form hint names the two verbs' );
 
 // ── Values set: obscured, never raw; sources named; a constant locks.
@@ -80,7 +88,7 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_credentials_section' );
 ok( 1 === substr_count( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>Machine Readers read token</b>' ) && false !== strpos( $kit, 'SN_MR_READ_TOKEN differ' ) && strpos( $kit, 'SN_MR_READ_TOKEN differ' ) < strpos( $kit, 'heading="Site secret and the workers"' ), 'the one refusal is a notice above the ledger, naming the row and the side' );
 ok( 'refused' === kr_table_rows( $kit, 'Site secret and the workers' )[1]['verified'] && 'ok' === kr_table_rows( $kit, 'Cloudflare' )[0]['verified'], 'the table cells carry the verdict word' );
 ok( false === strpos( $kit, 'Cloudflare answers active' ), 'an ok verdict\'s sentence is not repeated on the leaf: the word is enough' );
-ok( false !== strpos( $kit, 'Last verified 2026-09-15' ) && false !== strpos( $classic, 'Last verified 2026-09-15' ), 'the verification time paints on both leaves' );
+ok( false !== strpos( $kit, 'Last verified September 15, 2026' ) && false !== strpos( $classic, 'Last verified September 15, 2026' ), 'the verification time paints on both leaves, in the site\'s date format (2026-10-12 audit: one readable format)' );
 ok( false !== strpos( $classic, 'notice-warning' ) && false !== strpos( $classic, 'SN_MR_READ_TOKEN differ' ) && false !== strpos( $classic, '<td>refused</td>' ), 'the classic leaf paints the same refusal and the same cell' );
 
 // 2026-10-12, live: the picker painted an empty box (value '' matches no

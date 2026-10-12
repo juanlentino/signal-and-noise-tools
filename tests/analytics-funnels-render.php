@@ -103,21 +103,21 @@ ok( strpos( $h, 'Home → post → subscribe' ) === false, 'a funnel with a ce/p
 ok( strpos( $h, '# (code-defined' ) === false, 'no invented comment syntax stands in for the omitted funnel' );
 ok( strpos( $h, 'Editable: /a > /b' ) !== false, 'a path-only sibling funnel still prefills' );
 ok( strpos( $h, 'sn_analytics_session_funnels' ) !== false, 'help text names the filter that keeps the omitted funnel alive' );
-ok( stripos( $h, 'replaces the built-in defaults' ) !== false, 'help text warns that saving replaces the built-in defaults' );
+ok( stripos( $h, 'replaces the Sessions view’s built-in funnels' ) !== false, 'help text warns that saving replaces the built-in funnels (2026-10-12: one sentence)' );
 // T3-review rider (a): the old "saving never silently drops it" over-promised —
 // a setting-STORED unrepresentable funnel IS dropped on the next save (only
 // FILTER-defined funnels are save-proof). The copy must not promise otherwise.
 ok( stripos( $h, 'never silently drops' ) === false, 'help text no longer over-promises "saving never silently drops it"' );
-ok( stripos( $h, 'managed in code' ) !== false, 'help text scopes the save-proof claim to code/filter-defined funnels' );
+ok( stripos( $h, 'live in code, through the sn_analytics_session_funnels filter' ) !== false, 'help text scopes the save-proof claim to code/filter-defined funnels' );
 
 // ─────────────────────────────────────────────────────────────────────────
 echo "\nGroup: T3-review — clamp copy sprintf'd from the real constants (no drift)\n";
 // ─────────────────────────────────────────────────────────────────────────
 // The bug: the copy said "2–10 steps" while SN_ANALYTICS_FUNNELS_MAX_STEPS = 8.
 // Both clamps now render from their constants, so the copy can't drift again.
-ok( strpos( $h, '2–' . SN_ANALYTICS_FUNNELS_MAX_STEPS . ' steps' ) !== false,
+ok( strpos( $h, '2 to ' . SN_ANALYTICS_FUNNELS_MAX_STEPS . ' steps' ) !== false,
 	'help copy names the REAL step clamp (' . SN_ANALYTICS_FUNNELS_MAX_STEPS . ') from the constant' );
-ok( strpos( $h, '2–8 steps' ) !== false, 'help copy literally reads "2–8 steps" (the constant is 8 today)' );
+ok( strpos( $h, '2 to 8 steps' ) !== false, 'help copy literally reads "2 to 8 steps" (the constant is 8 today; 2026-10-12: a range says "to", not an en dash)' );
 ok( strpos( $h, 'up to ' . SN_ANALYTICS_FUNNELS_MAX . ' funnels' ) !== false, 'help copy names the funnel clamp from the constant' );
 ok( strpos( $h, '2–10 steps' ) === false, 'the drifted "2–10 steps" copy is gone' );
 

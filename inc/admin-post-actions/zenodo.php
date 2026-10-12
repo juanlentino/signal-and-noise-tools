@@ -28,8 +28,7 @@ function sn_handle_zenodo_deposit_batch( $post ) {
 	if ( ! sn_zenodo_is_enabled() ) {
 		return 'zenodo_no_token';
 	}
-	$r = sn_zenodo_backfill_pass();
-	set_transient( 'sn_zenodo_last_batch', $r, HOUR_IN_SECONDS );
+	$r = sn_zenodo_backfill_pass(); // records itself as the last pass
 	return $r['published'] > 0 ? 'zenodo_batch_done' : ( $r['attempted'] > 0 ? 'zenodo_batch_failed' : 'zenodo_batch_empty' );
 }
 

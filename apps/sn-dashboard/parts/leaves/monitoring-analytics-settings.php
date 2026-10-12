@@ -1,7 +1,8 @@
 <?php
 /**
- * S&N Dashboard, Monitoring > Analytics: the credentials, collector and
- * exclusion settings, open.
+ * S&N Dashboard, Monitoring > Analytics: the collector and exclusion
+ * settings, open. (The credentials readout joined the Pipeline box,
+ * monitoring-analytics-parts.php, 2026-10-12.)
  *
  * Moved out of monitoring-analytics-parts.php when the folds came out
  * (2026-10-11, owner rule: no collapsible sections). Each setting is an open
@@ -17,36 +18,6 @@ namespace SignalNoise\OpenStationHost\Dashboard\Leaves;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
-}
-
-/**
- * Credentials: where the read token and the account ID come from (rows on the
- * keyring since 15.2.0) and the Test-connection action. The classic form
- * re-posts its two fields with the test; here the test is a one-click action
- * with no field payload, because an `<os-form>` fires one action.
- *
- * @return string
- */
-function analytics_credentials_html() {
-	$acct_locked = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) constant( 'SN_CF_ACCOUNT_ID' );
-	$acct_opt    = (string) \get_option( defined( 'SN_CF_ACCOUNT_ID_OPT' ) ? constant( 'SN_CF_ACCOUNT_ID_OPT' ) : 'sn_cf_account_id', '' );
-	$configured  = function_exists( '\sn_analytics_config' ) && \sn_analytics_config();
-	$override    = function_exists( '\sn_cf_analytics_override_source' ) ? (string) \sn_cf_analytics_override_source() : '';
-	$central     = function_exists( '\sn_cf_get_token' ) && '' !== (string) \sn_cf_get_token();
-
-	$body = '<p class="snt-prose">' . \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'measurement' ) ) . '. ' . \snt_kit_esc( __( 'Analytics Engine reads use the Cloudflare API token (Account › Account Analytics › Read on it) unless an analytics token override is set there.', 'signal-and-noise-tools' ) ) . '</p>';
-	if ( '' !== $override ) {
-		$body .= \snt_kit_notice( 'warning', \snt_kit_esc( __( 'An analytics token override is in force; the Cloudflare API token is not used for these reads. Clear the override on the keyring to use one token.', 'signal-and-noise-tools' ) ) );
-	} elseif ( ! $central ) {
-		$body .= \snt_kit_notice( 'error', \snt_kit_esc( __( 'No token anywhere: set the Cloudflare API token under Connections › Credentials.', 'signal-and-noise-tools' ) ) );
-	}
-	$body .= \snt_kit_kv( array(
-		array( 'label' => __( 'Reads with', 'signal-and-noise-tools' ), 'value' => '' !== $override ? __( 'the analytics token override', 'signal-and-noise-tools' ) : ( $central ? __( 'the Cloudflare API token', 'signal-and-noise-tools' ) : __( 'nothing', 'signal-and-noise-tools' ) ), 'tone' => '' !== $override ? 'warn' : ( $central ? '' : 'err' ) ),
-		array( 'label' => __( 'Account ID', 'signal-and-noise-tools' ), 'value' => $acct_locked ? __( 'locked by SN_CF_ACCOUNT_ID', 'signal-and-noise-tools' ) : ( '' !== $acct_opt ? $acct_opt : __( 'not set', 'signal-and-noise-tools' ) ) ),
-	) );
-	$body .= \snt_kit_action_button( __( 'Test connection', 'signal-and-noise-tools' ), 'analytics_test', array( 'disabled' => ! $configured ) );
-
-	return \snt_kit_section( __( 'Credentials', 'signal-and-noise-tools' ), $body, \snt_an_credentials_snapshot() );
 }
 
 /**
@@ -125,8 +96,31 @@ function analytics_exclusion_html() {
 	$status = ( function_exists( '\sn_beacon_owner_current_user_excluded' ) && \sn_beacon_owner_current_user_excluded() )
 		? '<p class="snt-hint" full-width><b>' . \snt_kit_esc( __( 'You are currently excluded from analytics.', 'signal-and-noise-tools' ) ) . '</b></p>'
 		: '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'You are currently counted in analytics.', 'signal-and-noise-tools' ) ) . '</p>';
-	$footnote = '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your own visits are also dropped at the edge: the collector ignores any beacon that carries a logged-in WordPress cookie, so you are excluded even when the page was served from cache. The role list above adds per-role control on uncached requests: to extend that role filter to cached pages too, add a Cloudflare rule that bypasses cache when the request carries a wordpress_logged_in_ cookie.', 'signal-and-noise-tools' ) ) . '</p>';
+	$footnote = '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your own visits are also dropped at the edge: the collector ignores any beacon that carries a logged-in WordPress cookie, so you are excluded even when the page was served from cache. The role list adds per-role control on uncached requests: to extend that role filter to cached pages too, add a Cloudflare rule that bypasses cache when the request carries a wordpress_logged_in_ cookie.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	$form = \snt_kit_form( 'analytics_exclude_save', $fields . $status . $footnote, array( 'submit' => __( 'Save exclusion', 'signal-and-noise-tools' ), 'columns' => 'auto' ) );
-	return \snt_kit_section( $heading, $intro . $form, \snt_an_exclusion_snapshot() );
+	return \snt_kit_section( $heading, $intro . $form . analytics_device_html(), \snt_an_exclusion_snapshot() );
+}
+
+/**
+ * This device: excluded even when logged out, or counted when logged out,
+ * and the one action that flips it (2026-10-12 audit: the classic box had
+ * it, S&N Home did not, so a device could not be flagged here). Only for a
+ * user whose role is excluded, as on the classic box. Its own form, because
+ * the role form's submit is Save exclusion; `analytics_owner_device` sets
+ * the same cookie the classic link does.
+ *
+ * @return string
+ */
+function analytics_device_html() {
+	if ( ! function_exists( '\sn_beacon_owner_current_user_excluded' ) || ! \sn_beacon_owner_current_user_excluded() || ! function_exists( '\sn_owner_device_flagged' ) ) {
+		return '';
+	}
+	$flagged = \sn_owner_device_flagged();
+	return '<p class="snt-hint">' . \snt_kit_esc( $flagged ? __( 'This device is excluded even when logged out.', 'signal-and-noise-tools' ) : __( 'This device is counted when logged out.', 'signal-and-noise-tools' ) ) . '</p>'
+		. \snt_kit_form(
+			'analytics_owner_device',
+			\snt_kit_field( 'hidden', 'sn_owner_device', '', $flagged ? 'forget' : 'mark' ),
+			array( 'submit' => $flagged ? __( 'Count this device again', 'signal-and-noise-tools' ) : __( 'Exclude this device', 'signal-and-noise-tools' ) )
+		);
 }

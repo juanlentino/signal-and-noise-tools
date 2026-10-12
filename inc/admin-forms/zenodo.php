@@ -55,6 +55,93 @@ function sn_zenodo_leaf_data() {
 }
 
 /**
+ * The ledger's rows in reading order: every row still waiting first, then the
+ * minted ones, each group in the ledger's own order. PURE.
+ *
+ * @param array<int,array<string,mixed>> $rows sn_zenodo_ledger() rows.
+ * @return array<int,array<string,mixed>>
+ */
+function sn_zenodo_ledger_sorted( array $rows ) {
+	$waiting = array();
+	$minted  = array();
+	foreach ( $rows as $r ) {
+		if ( 'minted' === (string) ( $r['state'] ?? '' ) ) {
+			$minted[] = $r;
+		} else {
+			$waiting[] = $r;
+		}
+	}
+	return array_merge( $waiting, $minted );
+}
+
+/**
+ * The ledger's one sentence, built from its rows, the same on both surfaces
+ * (2026-10-12 audit: 58 rows of "Minted" and no sentence). PURE.
+ *
+ * @param array<int,array<string,mixed>> $rows sn_zenodo_ledger() rows.
+ * @return string '' when the ledger is empty.
+ */
+function sn_zenodo_ledger_finding( array $rows ) {
+	$total = count( $rows );
+	if ( 0 === $total ) {
+		return '';
+	}
+	$states = array();
+	foreach ( $rows as $r ) {
+		$states[ (string) ( $r['state'] ?? '' ) ] = ( $states[ (string) ( $r['state'] ?? '' ) ] ?? 0 ) + 1;
+	}
+	$minted  = (int) ( $states['minted'] ?? 0 );
+	unset( $states['minted'] );
+	/* translators: 1: minted documents, 2: all documents. */
+	$out = sprintf( __( '%1$d of %2$d minted', 'signal-and-noise-tools' ), $minted, $total );
+	if ( array() === $states ) {
+		return $out . __( '; none waiting.', 'signal-and-noise-tools' );
+	}
+	arsort( $states );
+	$parts = array();
+	foreach ( $states as $state => $n ) {
+		$parts[] = $n . ' ' . sn_zenodo_state_label( $state );
+	}
+	/* translators: 1: documents not minted, 2: their states, e.g. "3 Ready, 1 Anchor pending". */
+	return $out . sprintf( __( '; %1$d not yet: %2$s.', 'signal-and-noise-tools' ), $total - $minted, implode( ', ', $parts ) );
+}
+
+/**
+ * When a document was deposited, in the site's own date and time format and
+ * timezone (2026-10-12 audit: the raw ISO stamp, "2026-10-11T18:33:13+00:00").
+ *
+ * @param string $at The stored ISO 8601 time, '' when never deposited.
+ * @return string
+ */
+function sn_zenodo_deposited_text( $at ) {
+	$ts = '' !== (string) $at ? strtotime( (string) $at ) : false;
+	if ( false === $ts ) {
+		return __( 'not deposited', 'signal-and-noise-tools' );
+	}
+	return wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), $ts );
+}
+
+/**
+ * The States box's "Last pass" line: how long ago, and what it did. Every
+ * pass records itself since 2026-10-12, the hourly one too.
+ *
+ * @param array<string,mixed> $batch The stored pass ({attempted, published, failed, at}).
+ * @return string
+ */
+function sn_zenodo_last_pass_text( array $batch ) {
+	$attempted = (int) ( $batch['attempted'] ?? 0 );
+	$what      = 0 === $attempted
+		? __( 'nothing waiting', 'signal-and-noise-tools' )
+		/* translators: 1: published, 2: failed, 3: attempted */
+		: sprintf( __( '%1$d published, %2$d failed, of %3$d attempted', 'signal-and-noise-tools' ), (int) ( $batch['published'] ?? 0 ), (int) ( $batch['failed'] ?? 0 ), $attempted );
+	if ( empty( $batch['at'] ) ) {
+		return $what;
+	}
+	/* translators: 1: how long ago, e.g. "20 mins", 2: what the pass did. */
+	return sprintf( __( '%1$s ago: %2$s', 'signal-and-noise-tools' ), human_time_diff( (int) $batch['at'], time() ), $what );
+}
+
+/**
  * A state's human label. PURE.
  *
  * @since 15.11.0
@@ -109,7 +196,7 @@ function sn_admin_render_zenodo_section() {
 	$d = sn_zenodo_leaf_data();
 	sn_admin_shell_open();
 
-	echo '<p class="sn-prose">Every signed document (the notes, the pillar essays) gets a DOI on <strong>Zenodo</strong> once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed beside it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.</p>';
+	echo '<p class="sn-prose">Every signed document (the notes, the pillar essays) gets a DOI on <strong>Zenodo</strong> once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed with it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.</p>';
 
 	echo '<div class="sn-2up">';
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';
@@ -132,10 +219,11 @@ function sn_admin_render_zenodo_section() {
 	if ( array() === $d['rows'] ) {
 		echo '<p class="sn-helper">No signed documents yet.</p>';
 	} else {
+		echo '<p class="sn-helper">' . esc_html( sn_zenodo_ledger_finding( $d['rows'] ) ) . '</p>';
 		echo '<table class="widefat striped sn-status-table sn-status-table--full"><thead><tr><th>Document</th><th>Kind</th><th>State</th><th>DOI</th><th>Deposited</th></tr></thead><tbody>';
-		foreach ( $d['rows'] as $r ) {
+		foreach ( sn_zenodo_ledger_sorted( $d['rows'] ) as $r ) {
 			$doi = '' !== $r['doi'] ? ( 'minted' === $r['state'] ? '<a href="https://doi.org/' . esc_attr( $r['doi'] ) . '" target="_blank" rel="noopener"><code>' . esc_html( $r['doi'] ) . '</code></a>' : '<code>' . esc_html( $r['doi'] ) . '</code>' ) : esc_html__( 'none yet', 'signal-and-noise-tools' );
-			echo '<tr><td><a href="' . esc_url( admin_url( 'post.php?post=' . (int) $r['id'] . '&action=edit' ) ) . '">' . esc_html( $r['title'] ) . '</a></td><td>' . esc_html( $r['kind'] ) . '</td><td>' . esc_html( sn_zenodo_state_label( $r['state'] ) ) . ( '' !== $r['error'] ? '<br><code>' . esc_html( $r['error'] ) . '</code>' : '' ) . '</td><td>' . wp_kses_post( $doi ) . '</td><td>' . esc_html( '' !== $r['at'] ? $r['at'] : __( 'not yet', 'signal-and-noise-tools' ) ) . '</td></tr>';
+			echo '<tr><td><a href="' . esc_url( admin_url( 'post.php?post=' . (int) $r['id'] . '&action=edit' ) ) . '">' . esc_html( $r['title'] ) . '</a></td><td>' . esc_html( $r['kind'] ) . '</td><td>' . esc_html( sn_zenodo_state_label( $r['state'] ) ) . ( '' !== $r['error'] ? '<br><code>' . esc_html( $r['error'] ) . '</code>' : '' ) . '</td><td>' . wp_kses_post( $doi ) . '</td><td>' . esc_html( sn_zenodo_deposited_text( $r['at'] ) ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 	}
@@ -151,7 +239,7 @@ function sn_admin_render_zenodo_section() {
 		echo '<tr><th>' . esc_html( sn_zenodo_state_label( $state ) ) . '</th><td>' . (int) $n . '</td></tr>';
 	}
 	if ( ! empty( $d['batch'] ) ) {
-		echo '<tr><th>Last pass</th><td>' . (int) ( $d['batch']['published'] ?? 0 ) . ' published, ' . (int) ( $d['batch']['failed'] ?? 0 ) . ' failed, of ' . (int) ( $d['batch']['attempted'] ?? 0 ) . ' attempted</td></tr>';
+		echo '<tr><th>Last pass</th><td>' . esc_html( sn_zenodo_last_pass_text( $d['batch'] ) ) . '</td></tr>';
 	}
 	echo '</tbody></table></div>';
 	sn_admin_shell_close();

@@ -7,8 +7,9 @@
  * `indexnow_enabled`, hidden `tab`/`sub`) beside the maintenance card (two
  * one-click writes, `indexnow_ping_now` and `indexnow_regenerate`), then a
  * rail: the status box (disabled / failed / active) and the status table (key
- * file, last submission). Same readers, same forms, same handlers; the kit's
- * parts instead of wp-admin's.
+ * file, last submission). Same readers, same forms, same handlers; here two
+ * paired boxes (2026-10-12 audit): IndexNow (the status notice and the
+ * toggle) beside Status (the facts and the two maintenance actions).
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -61,16 +62,18 @@ function indexnow_status_html( array $d ) {
 }
 
 /**
- * The main column's 2-up: the enable form beside the maintenance actions.
+ * The IndexNow box: the status notice above the enable form, so the one
+ * checkbox shares its box with what it switches (2026-10-12 audit: alone it
+ * was a mostly empty box).
  *
  * @param array $d From indexnow_data().
  * @return string
  */
-function indexnow_main_html( array $d ) {
+function indexnow_enable_html( array $d ) {
 	$toggle = \snt_kit_field( 'checkbox', 'indexnow_enabled', __( 'Notify search engines when content changes', 'signal-and-noise-tools' ), $d['enabled'] );
-	$enable = \snt_kit_section(
+	return \snt_kit_section(
 		__( 'IndexNow', 'signal-and-noise-tools' ),
-		\snt_kit_form(
+		indexnow_status_html( $d ) . \snt_kit_form(
 			'indexnow_save',
 			$toggle,
 			array(
@@ -79,39 +82,31 @@ function indexnow_main_html( array $d ) {
 			)
 		)
 	);
-	$maintenance = \snt_kit_section(
-		__( 'Maintenance', 'signal-and-noise-tools' ),
-		\snt_kit_tag(
-			'os-cluster',
-			array( 'gap' => '8' ),
-			\snt_kit_action_button( __( 'Submit recent content now', 'signal-and-noise-tools' ), 'indexnow_ping_now' )
-			. \snt_kit_action_button( __( 'Regenerate key', 'signal-and-noise-tools' ), 'indexnow_regenerate', array( 'confirm' => __( 'Regenerate the IndexNow key? The old key file stops answering at once; search engines verify the new key on the next submission.', 'signal-and-noise-tools' ), 'confirm_title' => __( 'Regenerate key', 'signal-and-noise-tools' ), 'confirm_label' => __( 'Regenerate', 'signal-and-noise-tools' ) ) )
-		),
-		__( '“Submit recent content now” backfills your existing published posts. “Regenerate key” rotates the key (search engines re-verify on the next submission).', 'signal-and-noise-tools' )
-	);
-	return \snt_kit_grid( array( \snt_kit_tag( 'os-card', array(), $enable ), \snt_kit_tag( 'os-card', array(), $maintenance ) ) );
 }
 
 /**
- * The rail: the status box, then the status facts (key file, last submission).
+ * The Status box: the key file and the last submission, then the two
+ * maintenance actions and what each does.
  *
  * @param array $d From indexnow_data().
  * @return string
  */
-function indexnow_rail_html( array $d ) {
+function indexnow_status_box_html( array $d ) {
 	$rows = array(
 		array(
 			'label' => __( 'Key file', 'signal-and-noise-tools' ),
+			// The path names the file; the host made the cell wrap mid-word (2026-10-12 audit).
 			'value' => '' !== $d['key_url']
 				? \snt_kit_tag(
 					'a',
 					array(
 						'class'  => 'snt-link snt-link--url',
 						'href'   => $d['key_url'],
+						'title'  => $d['key_url'],
 						'target' => '_blank',
 						'rel'    => 'noopener noreferrer',
 					),
-					\snt_kit_code( $d['key_url'], false )
+					\snt_kit_code( \sn_indexnow_key_label( $d['key_url'] ), false )
 				)
 				: '<em>' . \snt_kit_esc( __( 'not generated yet', 'signal-and-noise-tools' ) ) . '</em>',
 			'html'  => true,
@@ -130,22 +125,23 @@ function indexnow_rail_html( array $d ) {
 			),
 		);
 	}
-	return \snt_kit_tag(
-		'aside',
-		array(
-			'col'        => '4',
-			'aria-label' => __( 'IndexNow status', 'signal-and-noise-tools' ),
-		),
-		\snt_kit_tag(
-			'os-stack',
-			array( 'gap' => '16' ),
-			indexnow_status_html( $d ) . \snt_kit_section( __( 'Status', 'signal-and-noise-tools' ), \snt_kit_kv( $rows ) )
-		)
+	$actions = \snt_kit_tag(
+		'os-cluster',
+		array( 'gap' => '8' ),
+		\snt_kit_action_button( __( 'Submit recent content now', 'signal-and-noise-tools' ), 'indexnow_ping_now' )
+		. \snt_kit_action_button( __( 'Regenerate key', 'signal-and-noise-tools' ), 'indexnow_regenerate', array( 'confirm' => __( 'Regenerate the IndexNow key? The old key file stops answering at once; search engines verify the new key on the next submission.', 'signal-and-noise-tools' ), 'confirm_title' => __( 'Regenerate key', 'signal-and-noise-tools' ), 'confirm_label' => __( 'Regenerate', 'signal-and-noise-tools' ) ) )
+	);
+	// The "IndexNow status" landmark (it was an aside before 2026-10-12).
+	return \snt_kit_section(
+		__( 'Status', 'signal-and-noise-tools' ),
+		\snt_kit_kv( $rows ) . '<p class="snt-hint">' . \snt_kit_esc( \sn_indexnow_maintenance_sentence() ) . '</p>' . $actions,
+		'',
+		array( 'role' => 'region', 'aria-label' => __( 'IndexNow status', 'signal-and-noise-tools' ) )
 	);
 }
 
 /**
- * The leaf.
+ * The leaf: the intro, then the IndexNow box beside the Status box.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -158,18 +154,13 @@ function paint_connections_indexnow( array $ctx ) {
 	if ( ! function_exists( 'sn_indexnow_is_enabled' ) || ! defined( 'SN_INDEXNOW_RESULT_OPT' ) ) {
 		return \snt_kit_empty( __( 'IndexNow is not available.', 'signal-and-noise-tools' ) );
 	}
-	$d   = indexnow_data();
-	$out = '<p class="snt-prose">' . sprintf(
+	$d = indexnow_data();
+	return '<p class="snt-prose">' . sprintf(
 		/* translators: %s: the IndexNow name, in bold */
-		\snt_kit_esc( __( 'Pushes changed URLs to %s (Bing, Yandex, Seznam, Naver… — not Google) on publish, update, and removal so they re-crawl within minutes. The verification key file is served automatically — no upload needed.', 'signal-and-noise-tools' ) ),
+		\snt_kit_esc( \sn_indexnow_intro_sentence() ),
 		'<strong>IndexNow</strong>'
-	) . '</p>';
-	$out .= \snt_kit_tag(
-		'os-row',
-		array( 'gap' => '16' ),
-		\snt_kit_tag( 'os-stack', array( 'col' => '8', 'gap' => '12' ), indexnow_main_html( $d ) ) . indexnow_rail_html( $d )
-	);
-	return $out;
+	) . '</p>'
+		. \snt_kit_grid( array( indexnow_enable_html( $d ), indexnow_status_box_html( $d ) ), 290, 18 );
 }
 
 add_filter(

@@ -203,12 +203,13 @@ function insights_usage_html() {
 	$budget = function_exists( 'sn_setting' ) ? (float) sn_setting( 'theme.ai_monthly_budget', 0 ) : 0.0;
 	$spent  = function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0;
 	if ( $budget > 0 ) {
-		$pct  = (int) round( min( 100, ( $spent / $budget ) * 100 ) );
+		// The real share, past 100% too, as Analytics prints it (2026-10-12 audit).
+		$pct  = (int) round( ( $spent / $budget ) * 100 );
 		$out .= '<p class="snt-prose"><b>' . \snt_kit_esc( __( 'This month:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( $fmt_cost( $spent ) ) . ' '
 			. \snt_kit_esc( sprintf( __( 'of $%s budget (%d%%)', 'signal-and-noise-tools' ), number_format_i18n( $budget, 2 ), $pct ) )
-			. ( $spent >= $budget ? ' ' . \snt_kit_esc( __( '— limit reached; AI features are paused until next month', 'signal-and-noise-tools' ) ) : '' ) . '.</p>';
+			. ( $spent >= $budget ? \snt_kit_esc( __( ': limit reached; AI features are paused until next month', 'signal-and-noise-tools' ) ) : '' ) . '.</p>';
 	} else {
-		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'No monthly AI budget set (unlimited). Set a cap on the Front-End settings tab to pause AI features once a month\'s spend is reached.', 'signal-and-noise-tools' ) ) . '</p>';
+		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'No monthly AI budget set (unlimited). Set a cap under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'AI › Models & Budget', 'signal-and-noise-tools' ), array( 'tab' => 'ai', 'sub' => 'models-budget', 'current' => 'monitoring' ) ) . ' ' . \snt_kit_esc( __( 'to pause AI features once a month\'s spend is reached.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
 
 	if ( ! empty( $s30['by_feature'] ) && is_array( $s30['by_feature'] ) ) {
@@ -231,11 +232,12 @@ function insights_usage_html() {
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'No AI calls recorded in the trailing window yet.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
 
-	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'List-price estimate — excludes prompt-cache and batch discounts;', 'signal-and-noise-tools' ) ) . ' '
+	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'List-price estimate: excludes prompt-cache and batch discounts;', 'signal-and-noise-tools' ) ) . ' '
 		. \snt_kit_door( __( 'Settings → AI', 'signal-and-noise-tools' ), admin_url( 'options-general.php?page=ai-wp-admin' ) )
 		. ' ' . \snt_kit_esc( __( 'holds the authoritative per-request record.', 'signal-and-noise-tools' ) ) . '</p>';
 	if ( (int) ( $s30['cost_unpriced_calls'] ?? 0 ) > 0 ) {
-		$out .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( __( '%s call(s) used a model with no list price on file — tokens are counted but excluded from the dollar figure.', 'signal-and-noise-tools' ), number_format_i18n( (int) $s30['cost_unpriced_calls'] ) ) ) . '</p>';
+		/* translators: %s: calls with no list price. */
+		$out .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( _n( '%s call used a model with no list price on file: tokens are counted but excluded from the dollar figure.', '%s calls used a model with no list price on file: tokens are counted but excluded from the dollar figure.', (int) $s30['cost_unpriced_calls'], 'signal-and-noise-tools' ), number_format_i18n( (int) $s30['cost_unpriced_calls'] ) ) ) . '</p>';
 	}
 	if ( defined( 'SN_AI_USAGE_LOG_CAP' ) && (int) ( $s30['window_start'] ?? 0 ) > 0 ) {
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( __( 'The usage log keeps the last %s calls (oldest retained: %s).', 'signal-and-noise-tools' ), number_format_i18n( SN_AI_USAGE_LOG_CAP ), wp_date( 'Y-m-d', (int) $s30['window_start'] ) ) ) . '</p>';
@@ -257,10 +259,11 @@ function insights_cache_probe_html() {
 	$v       = snt_ai_cache_probe_verdict();
 	$summary = (array) ( $v['summary'] ?? array() );
 	$states  = array(
-		'no_data'        => array( 'warn', __( 'Nothing measured yet', 'signal-and-noise-tools' ), __( 'No Anthropic call has passed through the probe since it was installed. This is <b>not a verdict</b> — it is an empty window. Run an AI feature, or a couple of Ask AI turns, then reload.', 'signal-and-noise-tools' ) ),
-		'below_floor'    => array( 'ok', __( 'Caching cannot pay here', 'signal-and-noise-tools' ), __( "Every prefix measured is below its model's minimum cacheable size, so Anthropic would cache nothing even if a breakpoint were sent — silently, with zeros in the response. Repeats do not change that.", 'signal-and-noise-tools' ) ),
+		'no_data'        => array( 'warn', __( 'Nothing measured yet', 'signal-and-noise-tools' ), __( 'No Anthropic call has passed through the probe since it was installed. This is <b>not a verdict</b>: it is an empty window. Run an AI feature, or a couple of Ask AI turns, then reload.', 'signal-and-noise-tools' ) ),
+		'below_floor'    => array( 'ok', __( 'Caching cannot pay here', 'signal-and-noise-tools' ), __( "Every prefix measured is below its model's minimum cacheable size, so Anthropic would cache nothing even if a breakpoint were sent, silently, with zeros in the response. Repeats do not change that.", 'signal-and-noise-tools' ) ),
 		'no_repeats'     => array( 'warn', __( 'Large enough, but never repeated', 'signal-and-noise-tools' ), __( 'A prefix clears the floor, but no prefix repeated inside the 5-minute cache window. A cache write with no read costs 1.25× and returns nothing.', 'signal-and-noise-tools' ) ),
-		'candidate'      => array( 'err', __( 'Caching would pay', 'signal-and-noise-tools' ), __( "A prefix clears its model's floor <i>and</i> repeats inside the cache window. Reads bill at 0.1× against a 1.25× write, so this breaks even on the second call.", 'signal-and-noise-tools' ) ),
+		// An opportunity, not a fault (2026-10-12 audit: it was painted danger red).
+		'candidate'      => array( 'info', __( 'Caching would pay', 'signal-and-noise-tools' ), __( "A prefix clears its model's floor <i>and</i> repeats inside the cache window. Reads bill at 0.1× against a 1.25× write, so this breaks even on the second call.", 'signal-and-noise-tools' ) ),
 		'caching_active' => array( 'ok', __( 'Caching is active', 'signal-and-noise-tools' ), __( 'Cache reads are being reported, so something in the stack now emits a breakpoint.', 'signal-and-noise-tools' ) ),
 		'unknown_floor'  => array( 'warn', __( 'No floor on file', 'signal-and-noise-tools' ), __( 'Calls were recorded against a model whose minimum cacheable size is not known here, so no claim is made either way.', 'signal-and-noise-tools' ) ),
 	);
@@ -311,13 +314,13 @@ function insights_cache_probe_html() {
 				}
 			}
 			if ( $minor ) {
-				$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Recent calls on the models above that are not the dominant one. The probe records every Anthropic call the site makes, including other plugins, so a model this plugin never pins can appear here. Sizes and counts only — prompt text is never stored.', 'signal-and-noise-tools' ) ) . '</p>';
+				$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Recent calls on the models in the table that are not the dominant one. The probe records every Anthropic call the site makes, including other plugins, so a model this plugin never pins can appear here. Sizes and counts only: prompt text is never stored.', 'signal-and-noise-tools' ) ) . '</p>';
 				$srows = array();
 				foreach ( $minor as $m ) {
 					foreach ( (array) ( $m['samples'] ?? array() ) as $s ) {
 						$srows[] = array(
 							'model'   => '' !== (string) ( $m['model'] ?? '' ) ? (string) $m['model'] : 'unknown',
-							'when'    => (int) ( $s['ts'] ?? 0 ) > 0 ? wp_date( 'Y-m-d H:i:s T', (int) $s['ts'] ) : __( 'not recorded', 'signal-and-noise-tools' ),
+							'when'    => (int) ( $s['ts'] ?? 0 ) > 0 ? wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), (int) $s['ts'] ) : __( 'time not recorded', 'signal-and-noise-tools' ),
 							'tools'   => number_format_i18n( (int) ( $s['tools_count'] ?? 0 ) ),
 							'sys'     => number_format_i18n( (int) ( $s['sys_bytes'] ?? 0 ) ) . ' bytes',
 							'msgs'    => number_format_i18n( (int) ( $s['msg_count'] ?? 0 ) ),
@@ -341,7 +344,7 @@ function insights_cache_probe_html() {
 
 	$cap  = defined( 'SN_AI_CACHE_PROBE_CAP' ) ? SN_AI_CACHE_PROBE_CAP : 200;
 	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( "Token counts are upper bounds: the smaller of a dense byte estimate and the request's own reported input, which the cacheable prefix is always a subset of.", 'signal-and-noise-tools' ) )
-		. ' ' . \snt_kit_esc( __( 'Nothing here can change until the provider can emit a cache breakpoint — tracked upstream at', 'signal-and-noise-tools' ) ) . ' '
+		. ' ' . \snt_kit_esc( __( 'Nothing here can change until the provider can emit a cache breakpoint, tracked upstream at', 'signal-and-noise-tools' ) ) . ' '
 		. \snt_kit_link( 'ai-provider-for-anthropic#33', 'https://github.com/WordPress/ai-provider-for-anthropic/issues/33' ) . '. '
 		. \snt_kit_esc( sprintf( __( 'The probe records the last %s calls and never stores prompt text.', 'signal-and-noise-tools' ), number_format_i18n( $cap ) ) ) . '</p>';
 	return \snt_kit_section( __( 'Prompt-cache probe', 'signal-and-noise-tools' ), $out );
@@ -358,25 +361,19 @@ function insights_status_html( $last ) {
 	if ( ! $last ) {
 		return \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'No scan run yet', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_badge( 'warn', __( 'Inactive', 'signal-and-noise-tools' ) ) . '<br>' . \snt_kit_esc( __( 'Click Run Analysis to populate recommendations. ~$0.01 per scan; 7-day cache.', 'signal-and-noise-tools' ) ) );
 	}
-	$state           = function_exists( 'snt_insights_state_read' ) ? snt_insights_state_read() : array( 'dismissed_ids' => array(), 'done_ids' => array() );
-	$active          = function_exists( 'snt_insights_filter_active' ) ? snt_insights_filter_active( $last['recommendations'] ?? array() ) : array();
-	$active_count    = count( $active );
-	$dismissed_count = count( (array) ( $state['dismissed_ids'] ?? array() ) );
-	$done_count      = count( (array) ( $state['done_ids'] ?? array() ) );
-	$kind            = $active_count > 0 ? 'ok' : 'warn';
-	$ttl             = defined( 'SN_INSIGHTS_CACHE_TTL' ) ? SN_INSIGHTS_CACHE_TTL : 7 * DAY_IN_SECONDS;
-	$elapsed         = function_exists( 'snt_health_format_elapsed' ) ? snt_health_format_elapsed( (int) ( $last['elapsed_ms'] ?? 0 ) ) : '';
-	$body            = sprintf(
-		/* translators: 1: relative time element, 2: active count, 3: dismissed count, 4: done count, 5: elapsed, 6: cached-until date */
-		\snt_kit_esc( __( 'Last scan %1$s. %2$s active · %3$s dismissed · %4$s done · scan ran in %5$s · cached until %6$s.', 'signal-and-noise-tools' ) ),
+	// 2026-10-12 audit: the counts describe the last scan (snt_insights_scan_counts()),
+	// and "All caught up" is good news, painted as information, not a warning.
+	$counts = function_exists( 'snt_insights_scan_counts' ) ? snt_insights_scan_counts( $last['recommendations'] ?? array() ) : array( 'total' => 0, 'open' => 0, 'done' => 0, 'dismissed' => 0, 'snoozed' => 0 );
+	$open   = $counts['open'] > 0;
+	$kind   = $open ? 'ok' : 'info';
+	$body   = sprintf(
+		/* translators: 1: relative time element, 2: the counts, 3: how long it ran and how long it is cached. */
+		\snt_kit_esc( __( 'Last scan %1$s. %2$s. %3$s', 'signal-and-noise-tools' ) ),
 		\snt_kit_relative_time( (int) $last['scanned_at'] ),
-		\snt_kit_esc( number_format_i18n( $active_count ) ),
-		\snt_kit_esc( number_format_i18n( $dismissed_count ) ),
-		\snt_kit_esc( number_format_i18n( $done_count ) ),
-		\snt_kit_esc( $elapsed ),
-		\snt_kit_esc( wp_date( 'Y-m-d H:i', (int) $last['scanned_at'] + $ttl ) )
+		\snt_kit_esc( function_exists( 'snt_insights_scan_counts_text' ) ? snt_insights_scan_counts_text( $counts ) : '' ),
+		\snt_kit_esc( function_exists( 'snt_insights_scan_timing_text' ) ? snt_insights_scan_timing_text( (array) $last ) : '' )
 	);
-	return \snt_kit_notice( $kind, \snt_kit_badge( $kind, $active_count > 0 ? __( 'Recommendations ready', 'signal-and-noise-tools' ) : __( 'All caught up', 'signal-and-noise-tools' ) ) . '<br>' . $body );
+	return \snt_kit_notice( $kind, \snt_kit_badge( $kind, $open ? __( 'Recommendations ready', 'signal-and-noise-tools' ) : __( 'All caught up', 'signal-and-noise-tools' ) ) . '<br>' . $body );
 }
 
 /**

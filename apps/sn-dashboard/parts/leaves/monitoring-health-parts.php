@@ -72,13 +72,13 @@ function health_reports_html( array $reports ) {
 	if ( empty( $reports ) ) {
 		return '';
 	}
-	$inner = '<p class="snt-prose">' . \snt_kit_esc( __( 'Checks that measure and publish rather than flag. Nothing here is a defect list — read the coverage line before reading the numbers.', 'signal-and-noise-tools' ) ) . '</p>';
+	$inner = '<p class="snt-prose">' . \snt_kit_esc( __( 'Checks that measure and publish rather than flag. Nothing here is a defect list: read the coverage line before reading the numbers.', 'signal-and-noise-tools' ) ) . '</p>';
 	foreach ( $reports as $key => $check ) {
 		$report = isset( $check['report'] ) && is_array( $check['report'] ) ? $check['report'] : array();
 		$card   = '<header><h3>' . \snt_kit_esc( (string) ( $check['label'] ?? $key ) ) . '</h3>' . \snt_kit_badge( 'neutral', __( 'report', 'signal-and-noise-tools' ) ) . '</header>';
 		$card  .= ! empty( $report['coverage'] )
 			? '<p class="snt-prose"><b>' . \snt_kit_esc( __( 'What this covers:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( (string) $report['coverage'] ) . '</p>'
-			: '<p class="snt-hint">' . \snt_kit_esc( __( 'This report has no detail view yet — its payload is available through the health-scan ability.', 'signal-and-noise-tools' ) ) . '</p>';
+			: '<p class="snt-hint">' . \snt_kit_esc( __( 'This report has no detail view yet; its payload is available through the health-scan ability.', 'signal-and-noise-tools' ) ) . '</p>';
 		$inner .= \snt_kit_tag( 'os-card', array( 'class' => 'snt-check' ), $card );
 	}
 	return \snt_kit_section( __( 'Reports', 'signal-and-noise-tools' ), $inner );
@@ -86,9 +86,10 @@ function health_reports_html( array $reports ) {
 
 /**
  * "Also scanned, shown elsewhere": the short index of checks that run but
- * render on another surface.
+ * render on another screen, each group naming that screen and opening it
+ * (sn_health_elsewhere_index(), shared with the classic page).
  *
- * @param array<int,array{title:string,why:string,labels:string[]}> $groups From health_data().
+ * @param array<int,array<string,mixed>> $groups From health_data().
  * @return string
  */
 function health_elsewhere_html( array $groups ) {
@@ -97,12 +98,18 @@ function health_elsewhere_html( array $groups ) {
 	}
 	$inner = '<ul class="snt-plain">';
 	foreach ( $groups as $g ) {
-		$inner .= '<li><b>' . \snt_kit_esc( (string) $g['title'] ) . '</b> — ' . \snt_kit_esc( (string) $g['why'] ) . ': ' . \snt_kit_esc( implode( ', ', (array) $g['labels'] ) ) . '</li>';
+		$links = array();
+		foreach ( (array) ( $g['links'] ?? array() ) as $l ) {
+			$links[] = '' !== (string) $l['tab']
+				? \snt_kit_go( (string) $l['label'], array( 'tab' => (string) $l['tab'], 'sub' => (string) $l['sub'], 'current' => 'monitoring' ) )
+				: \snt_kit_link( (string) $l['label'], (string) $l['url'] );
+		}
+		$inner .= '<li><b>' . \snt_kit_esc( (string) $g['title'] ) . '</b>: ' . \snt_kit_esc( (string) $g['why'] ) . '. ' . \snt_kit_esc( implode( ', ', (array) $g['labels'] ) ) . '. ' . implode( ' ', $links ) . '</li>';
 	}
 	$inner .= '</ul>';
 	return \snt_kit_section(
 		__( 'Also scanned, shown elsewhere', 'signal-and-noise-tools' ),
 		$inner,
-		__( 'These still run on every scan. They are not defects, so they do not belong to a number that should read zero — but nothing here is hidden.', 'signal-and-noise-tools' )
+		function_exists( 'sn_health_elsewhere_intro' ) ? \sn_health_elsewhere_intro() : ''
 	);
 }

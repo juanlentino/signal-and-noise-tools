@@ -52,7 +52,7 @@ function paint_monitoring_insights( array $ctx ) {
 	$last     = snt_insights_last_scan();
 	$ai_ready = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
 
-	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Cross-system synthesis: reads your Plausible analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.', 'signal-and-noise-tools' ) ) . '</p>';
+	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Cross-system synthesis: reads your first-party analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.', 'signal-and-noise-tools' ) ) . '</p>';
 	// #1573: rows of comparable height, measured live at 1581px. Two columns
 	// stacked the three readouts to 1170 against 393 on the left. Now Run
 	// Analysis (223) sits beside Settings (222), the weekly scan read against

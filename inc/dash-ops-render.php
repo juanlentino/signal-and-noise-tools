@@ -50,7 +50,7 @@ function sn_dash_render_ops( array $panels ) {
 	// limits) about running it. Same rule as the native Home, which paints
 	// the first group under Site pulse.
 	$groups = array(
-		'audience' => __( 'Audience detail, 7 days', 'signal-and-noise-tools' ),
+		'audience' => __( 'Audience detail', 'signal-and-noise-tools' ), // each column names its window (2026.10.4)
 		'ops'      => __( 'Operations detail', 'signal-and-noise-tools' ),
 	);
 	foreach ( $groups as $group => $eyebrow ) {

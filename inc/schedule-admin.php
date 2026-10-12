@@ -88,12 +88,9 @@ const SN_SCHEDULE_DISPLAY_CAP = 25;
 function snt_schedule_glance_cards( $fragments, $posts ) {
 	$frag = is_array( $fragments ) ? count( $fragments ) : 0;
 	$post = is_array( $posts ) ? count( $posts ) : 0;
+	// 2026-10-12 audit: a third "Scheduled" tile was the sum of these two, so
+	// with no fragments it read "Scheduled 25" beside "Future posts 25".
 	return array(
-		array(
-			'label'     => 'Scheduled',
-			'value'     => (string) ( $frag + $post ),
-			'meta_html' => esc_html( 'awaiting transition' ),
-		),
 		array(
 			'label'     => 'Fragments',
 			'value'     => (string) $frag,
@@ -183,7 +180,7 @@ function sn_admin_render_scheduled_content_section() {
 		echo '<p class="sn-field-helper sn-schedule-remainder">';
 		printf(
 			/* translators: %d: hidden row count */
-			esc_html( _n( '+%d more scheduled item, sorted soonest-first — the tail is the furthest out.', '+%d more scheduled items, sorted soonest-first — the tail is the furthest out.', $remainder, 'signal-and-noise-tools' ) ),
+			esc_html( _n( '+%d more scheduled item, sorted soonest-first; the tail is the furthest out.', '+%d more scheduled items, sorted soonest-first; the tail is the furthest out.', $remainder, 'signal-and-noise-tools' ) ),
 			(int) $remainder
 		);
 		echo '</p>';
@@ -249,7 +246,7 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 
 		// Relative time to the swap instant (blank once past).
 		$next = sn_admin_schedule_next_transition( $pair['swap_at'] ?? null, null );
-		echo '<td data-colname="Next transition">' . esc_html( '' !== $next ? $next : __( 'none', 'signal-and-noise-tools' ) ) . '</td>';
+		echo '<td data-colname="Next transition">' . esc_html( '' !== $next ? $next : sn_admin_schedule_nothing_pending() ) . '</td>';
 
 		// One op: run the whole swap now.
 		echo '<td data-colname="Actions">';
@@ -314,7 +311,7 @@ function sn_admin_render_schedule_fragment_row( array $row ) {
 
 	// Next transition: relative time to the soonest FUTURE boundary, if any.
 	$next_frag = sn_admin_schedule_next_transition( $row['starts_at'] ?? null, $row['ends_at'] ?? null );
-	echo '<td data-colname="Next transition">' . esc_html( '' !== $next_frag ? $next_frag : __( 'none', 'signal-and-noise-tools' ) ) . '</td>';
+	echo '<td data-colname="Next transition">' . esc_html( '' !== $next_frag ? $next_frag : sn_admin_schedule_nothing_pending() ) . '</td>';
 
 	// Actions: two tiny POST forms. Cap + nonce are enforced by the dispatcher.
 	echo '<td data-colname="Actions">';
@@ -373,7 +370,7 @@ function sn_admin_render_schedule_future_post_row( array $post ) {
 
 	// Next transition: relative to the publish instant.
 	$next_post = sn_admin_schedule_next_transition( $gmt, null );
-	echo '<td data-colname="Next transition">' . esc_html( '' !== $next_post ? $next_post : __( 'none', 'signal-and-noise-tools' ) ) . '</td>';
+	echo '<td data-colname="Next transition">' . esc_html( '' !== $next_post ? $next_post : sn_admin_schedule_nothing_pending() ) . '</td>';
 
 	// Actions: none; native posts are core-managed.
 	echo '<td data-colname="Actions"><small>' . esc_html__( 'native', 'signal-and-noise-tools' ) . '</small></td>';
@@ -405,7 +402,7 @@ function sn_admin_render_schedule_op_button( $row_id, $action, $label ) {
 
 /**
  * Build the "from -> until" window cell HTML, converting the stored UTC
- * boundaries to the site timezone. Inline markup (a small arrow + open-ended
+ * boundaries to the site timezone. Inline markup (an arrow entity + open-ended
  * labels) so the caller runs it through wp_kses_post.
  *
  * @param mixed $starts_at Stored UTC starts_at ('Y-m-d H:i:s'), or null/''.
@@ -416,10 +413,13 @@ function sn_admin_schedule_window_html( $starts_at, $ends_at ) {
 	$from = sn_admin_schedule_fmt_gmt( $starts_at );
 	$to   = sn_admin_schedule_fmt_gmt( $ends_at );
 
-	$from_label = '' !== $from ? esc_html( $from ) : '<small>' . esc_html__( 'always', 'signal-and-noise-tools' ) . '</small>';
-	$to_label   = '' !== $to ? esc_html( $to ) : '<small>' . esc_html__( 'never', 'signal-and-noise-tools' ) . '</small>';
+	// Plain words at the row's size (live check 2026-10-12: a <small> computed
+	// to 10px), each end one unbreakable span, so a narrow column breaks the
+	// line at the arrow, never inside a date ("2026-11-" / "01 00:00").
+	$from_label = '' !== $from ? esc_html( $from ) : esc_html__( 'always', 'signal-and-noise-tools' );
+	$to_label   = '' !== $to ? esc_html( $to ) : esc_html__( 'never', 'signal-and-noise-tools' );
 
-	return $from_label . ' &rarr; ' . $to_label;
+	return '<span class="sn-nowrap">' . $from_label . '</span> &rarr; <span class="sn-nowrap">' . $to_label . '</span>';
 }
 
 /**
@@ -437,6 +437,17 @@ function sn_admin_schedule_fmt_gmt( $gmt ) {
 		return '';
 	}
 	return (string) get_date_from_gmt( $gmt, 'Y-m-d H:i' );
+}
+
+/**
+ * The Next transition cell when no boundary is still ahead (both passed, or
+ * none set), the same words on both surfaces (2026-10-12 audit: it was an em
+ * dash, which reads as "not known").
+ *
+ * @return string
+ */
+function sn_admin_schedule_nothing_pending() {
+	return __( 'nothing pending', 'signal-and-noise-tools' );
 }
 
 /**

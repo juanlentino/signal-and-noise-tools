@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/insights-admin-counts.php'; // The last scan's counts and timing, both surfaces.
+
 add_action( 'sn_admin_insights_tab', 'snt_insights_render_admin_tab' );
 
 function snt_insights_render_admin_tab() {
@@ -31,7 +33,7 @@ function snt_insights_render_admin_tab() {
 	sn_admin_shell_open();
 
 	// ── MAIN COLUMN: the scan workflow (configure -> run -> review) ──
-	echo '<p class="sn-prose">Cross-system synthesis: reads your Plausible analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.</p>';
+	echo '<p class="sn-prose">Cross-system synthesis: reads your first-party analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.</p>';
 
 	// ── RUN ANALYSIS form ──
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
@@ -86,19 +88,16 @@ function snt_insights_render_admin_tab() {
  */
 function snt_insights_render_status_section( $last ) {
 	if ( $last ) {
-		$state           = snt_insights_state_read();
-		$active          = snt_insights_filter_active( $last['recommendations'] );
-		$active_count    = count( $active );
-		$dismissed_count = count( $state['dismissed_ids'] );
-		$done_count      = count( $state['done_ids'] );
-
-		$pill = $active_count > 0 ? 'ok' : 'warn';
-		echo '<div class="sn-status-box' . ( 'ok' === $pill ? '' : ' sn-status-box--warn' ) . '">';
+		// 2026-10-12 audit: the counts describe the last scan, and "All caught
+		// up" is good news, not a warning (snt_insights_scan_counts()).
+		$counts = snt_insights_scan_counts( $last['recommendations'] );
+		$open   = $counts['open'] > 0;
+		echo '<div class="sn-status-box">';
 		echo '<div>';
 		echo '<p class="sn-status-box-title">Last scan ' . esc_html( human_time_diff( (int) $last['scanned_at'], time() ) ) . ' ago</p>';
-		echo '<p class="sn-status-box-body">' . esc_html( $active_count ) . ' active &middot; ' . esc_html( $dismissed_count ) . ' dismissed &middot; ' . esc_html( $done_count ) . ' done · scan ran in ' . esc_html( snt_health_format_elapsed( (int) $last['elapsed_ms'] ) ) . ' · cached until ' . esc_html( wp_date( 'Y-m-d H:i', (int) $last['scanned_at'] + SN_INSIGHTS_CACHE_TTL ) ) . '.</p>';
+		echo '<p class="sn-status-box-body">' . esc_html( snt_insights_scan_counts_text( $counts ) ) . '. ' . esc_html( snt_insights_scan_timing_text( $last ) ) . '</p>';
 		echo '</div>';
-		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill ) . '">' . esc_html( $active_count > 0 ? 'Recommendations ready' : 'All caught up' ) . '</span>';
+		echo '<span class="sn-pill sn-pill--' . ( $open ? 'ok' : 'info' ) . '">' . esc_html( $open ? 'Recommendations ready' : 'All caught up' ) . '</span>';
 		echo '</div>';
 	} else {
 		echo '<div class="sn-status-box sn-status-box--warn">';
@@ -158,14 +157,15 @@ function snt_insights_render_usage_section() {
 	$sn_budget = function_exists( 'sn_setting' ) ? (float) sn_setting( 'theme.ai_monthly_budget', 0 ) : 0.0;
 	$sn_spent  = function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0;
 	if ( $sn_budget > 0 ) {
-		$sn_pct = (int) round( min( 100, ( $sn_spent / $sn_budget ) * 100 ) );
+		// The real share, past 100% too (2026-10-12 audit: Insights capped it, Analytics did not).
+		$sn_pct = (int) round( ( $sn_spent / $sn_budget ) * 100 );
 		echo '<p class="sn-status-box-body"><strong>This month:</strong> '
 			. esc_html( $fmt_cost( $sn_spent ) ) . ' of $' . esc_html( number_format_i18n( $sn_budget, 2 ) )
 			. ' budget (' . esc_html( (string) $sn_pct ) . '%)'
-			. ( $sn_spent >= $sn_budget ? ' &mdash; <strong>limit reached; AI features are paused until next month</strong>' : '' )
+			. ( $sn_spent >= $sn_budget ? ': <strong>limit reached; AI features are paused until next month</strong>' : '' )
 			. '.</p>';
 	} else {
-		echo '<p class="sn-field-helper">No monthly AI budget set (unlimited). Set a cap on the Front-End settings tab to pause AI features once a month&rsquo;s spend is reached.</p>';
+		echo '<p class="sn-field-helper">No monthly AI budget set (unlimited). Set a cap under AI &rsaquo; Models &amp; Budget to pause AI features once a month&rsquo;s spend is reached.</p>';
 	}
 
 	if ( ! empty( $s30['by_feature'] ) ) {
@@ -188,9 +188,9 @@ function snt_insights_render_usage_section() {
 		echo '<p class="sn-field-helper">No AI calls recorded in the trailing window yet.</p>';
 	}
 
-	echo '<p class="sn-field-helper">List-price estimate &mdash; excludes prompt-cache and batch discounts; <a href="' . esc_url( admin_url( 'options-general.php?page=ai-wp-admin' ) ) . '">Settings &rarr; AI</a> holds the authoritative per-request record.</p>';
+	echo '<p class="sn-field-helper">List-price estimate: excludes prompt-cache and batch discounts; <a href="' . esc_url( admin_url( 'options-general.php?page=ai-wp-admin' ) ) . '">Settings &rarr; AI</a> holds the authoritative per-request record.</p>';
 	if ( (int) $s30['cost_unpriced_calls'] > 0 ) {
-		echo '<p class="sn-field-helper">' . esc_html( number_format_i18n( (int) $s30['cost_unpriced_calls'] ) ) . ' call' . esc_html( $plural( $s30['cost_unpriced_calls'] ) ) . ' used a model with no list price on file &mdash; tokens are counted but excluded from the dollar figure.</p>';
+		echo '<p class="sn-field-helper">' . esc_html( number_format_i18n( (int) $s30['cost_unpriced_calls'] ) ) . ' call' . esc_html( $plural( $s30['cost_unpriced_calls'] ) ) . ' used a model with no list price on file: tokens are counted but excluded from the dollar figure.</p>';
 	}
 	if ( defined( 'SN_AI_USAGE_LOG_CAP' ) && (int) $s30['window_start'] > 0 ) {
 		echo '<p class="sn-field-helper">The usage log keeps the last ' . esc_html( number_format_i18n( SN_AI_USAGE_LOG_CAP ) ) . ' calls (oldest retained: ' . esc_html( wp_date( 'Y-m-d', (int) $s30['window_start'] ) ) . ').</p>';
@@ -227,10 +227,10 @@ function snt_insights_render_cache_probe_section() {
 	// One sentence per state, each naming WHICH condition decided it. The pill
 	// is the same judgement in a word.
 	$states = array(
-		'no_data'        => array( 'warn', 'Nothing measured yet', 'No Anthropic call has passed through the probe since it was installed. This is <strong>not a verdict</strong> &mdash; it is an empty window. Run an AI feature, or a couple of Ask&nbsp;AI turns, then reload.' ),
-		'below_floor'    => array( 'ok', 'Caching cannot pay here', 'Every prefix measured is below its model&rsquo;s minimum cacheable size, so Anthropic would cache nothing even if a breakpoint were sent &mdash; silently, with zeros in the response. Repeats do not change that.' ),
+		'no_data'        => array( 'warn', 'Nothing measured yet', 'No Anthropic call has passed through the probe since it was installed. This is <strong>not a verdict</strong>: it is an empty window. Run an AI feature, or a couple of Ask&nbsp;AI turns, then reload.' ),
+		'below_floor'    => array( 'ok', 'Caching cannot pay here', 'Every prefix measured is below its model&rsquo;s minimum cacheable size, so Anthropic would cache nothing even if a breakpoint were sent, silently, with zeros in the response. Repeats do not change that.' ),
 		'no_repeats'     => array( 'warn', 'Large enough, but never repeated', 'A prefix clears the floor, but no prefix repeated inside the 5-minute cache window. A cache write with no read costs 1.25&times; and returns nothing.' ),
-		'candidate'      => array( 'err', 'Caching would pay', 'A prefix clears its model&rsquo;s floor <em>and</em> repeats inside the cache window. Reads bill at 0.1&times; against a 1.25&times; write, so this breaks even on the second call.' ),
+		'candidate'      => array( 'info', 'Caching would pay', 'A prefix clears its model&rsquo;s floor <em>and</em> repeats inside the cache window. Reads bill at 0.1&times; against a 1.25&times; write, so this breaks even on the second call.' ),
 		'caching_active' => array( 'ok', 'Caching is active', 'Cache reads are being reported, so something in the stack now emits a breakpoint.' ),
 		'unknown_floor'  => array( 'warn', 'No floor on file', 'Calls were recorded against a model whose minimum cacheable size is not known here, so no claim is made either way.' ),
 	);
@@ -293,15 +293,15 @@ function snt_insights_render_cache_probe_section() {
 				}
 			}
 			if ( $minor ) {
-				echo '<p class="sn-field-helper">Recent calls on the models above that are not the dominant one. '
+				echo '<p class="sn-field-helper">Recent calls on the models in the table that are not the dominant one. '
 					. 'The probe records every Anthropic call the site makes, including other plugins, so a model this plugin never pins can appear here. '
-					. 'Sizes and counts only &mdash; prompt text is never stored.</p>';
+					. 'Sizes and counts only: prompt text is never stored.</p>';
 				echo '<table class="widefat striped"><thead><tr><th>Model</th><th>When</th><th>Tools</th><th>System prompt</th><th>Messages</th></tr></thead><tbody>';
 				foreach ( $minor as $m ) {
 					foreach ( $m['samples'] as $s ) {
 						$when = (int) $s['ts'] > 0
-							? esc_html( wp_date( 'Y-m-d H:i:s T', (int) $s['ts'] ) )
-							: esc_html( __( 'not recorded', 'signal-and-noise-tools' ) );
+							? esc_html( wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), (int) $s['ts'] ) )
+							: esc_html( __( 'time not recorded', 'signal-and-noise-tools' ) );
 						echo '<tr><td><code>' . esc_html( '' !== $m['model'] ? $m['model'] : 'unknown' ) . '</code></td>'
 							. '<td>' . wp_kses_post( $when ) . '</td>'
 							. '<td>' . esc_html( number_format_i18n( (int) $s['tools_count'] ) ) . '</td>'
@@ -323,7 +323,7 @@ function snt_insights_render_cache_probe_section() {
 	}
 
 	echo '<p class="sn-field-helper">Token counts are upper bounds: the smaller of a dense byte estimate and the request&rsquo;s own reported input, which the cacheable prefix is always a subset of. '
-		. 'Nothing here can change until the provider can emit a cache breakpoint &mdash; tracked upstream at <a href="https://github.com/WordPress/ai-provider-for-anthropic/issues/33" rel="noopener">ai-provider-for-anthropic#33</a>. '
+		. 'Nothing here can change until the provider can emit a cache breakpoint, tracked upstream at <a href="https://github.com/WordPress/ai-provider-for-anthropic/issues/33" rel="noopener">ai-provider-for-anthropic#33</a>. '
 		. 'The probe records the last ' . esc_html( number_format_i18n( SN_AI_CACHE_PROBE_CAP ) ) . ' calls and never stores prompt text.</p>';
 
 	echo '</div>';

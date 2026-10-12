@@ -75,7 +75,7 @@ function snt_nsm_settings_html() {
 	}
 	/* translators: 1: the page groups that count, 2: scroll depth %, 3: seconds on the page */
 	$state = sprintf( __( 'Counts %1$s; a read is %2$d%% scroll or %3$d s on the page.', 'signal-and-noise-tools' ), implode( ', ', $labels ), $cfg['scroll'], $cfg['dwell_ms'] / 1000 );
-	$intro = '<p class="snt-prose">' . snt_kit_esc( __( 'The north star counts human visitors, per day, who read at least one page in the groups below: past the scroll depth OR the time on page. The notes index, its pages, tags and feed never count; a listing is not a read.', 'signal-and-noise-tools' ) ) . '</p>';
+	$intro = '<p class="snt-prose">' . snt_kit_esc( __( 'The north star counts human visitors, per day, who read at least one page in the groups this box lists: past the scroll depth OR the time on page. The notes index, its pages, tags and feed never count; a listing is not a read.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	return snt_kit_section(
 		__( 'North star', 'signal-and-noise-tools' ),

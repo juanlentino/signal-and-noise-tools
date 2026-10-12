@@ -46,7 +46,12 @@ $panels = array(
 $ops = \SignalNoise\OpenStationHost\Dashboard\Leaves\detail_html( $panels, 'ops' );
 $aud = \SignalNoise\OpenStationHost\Dashboard\Leaves\detail_html( $panels, 'audience', 'Audience detail, 7 days' );
 ok( false !== strpos( $ops, '<div class="snt-home__pulse-group-label">Operations detail</div>' ) && false !== strpos( $ops, '>Recent deploys</h3>' ) && false !== strpos( $ops, '>API limits</h3>' ) && false === strpos( $ops, 'Top pages' ) && false === strpos( $ops, 'Top queries' ) && false !== strpos( $ops, '--snt-detail-cols:2' ) && false === strpos( $ops, '<os-section' ) && false === strpos( $ops, 'snt-col"' ), '15.3.3: the ops detail is an eyebrow over two flat columns, no section, no card: deploys and API limits only' );
-ok( false !== strpos( $aud, '<div class="snt-home__pulse-group-label">Audience detail, 7 days</div>' ) && false !== strpos( $aud, '>Top pages</h3>' ) && false !== strpos( $aud, '>Top queries · clicks, 28 days</h3>' ) && false === strpos( $aud, 'Recent deploys' ) && false !== strpos( $aud, '--snt-detail-cols:2' ) && 2 === substr_count( $aud, 'class="snt-home__detail-col"' ), 'the audience detail is the same eyebrow shape, one column per panel, the queries column named by its unit' );
+ok( false !== strpos( $aud, '<div class="snt-home__pulse-group-label">Audience detail, 7 days</div>' ) && false !== strpos( $aud, '>Top pages</h3>' ) && false === strpos( $aud, 'Recent deploys' ), 'the audience detail is the same eyebrow shape' );
+// 2026.10.4 audit (batch 4, the visual pass): a panel whose every row reads 0
+// (no query brought a click) is not an empty third column; it is one line.
+ok( false !== strpos( $aud, '--snt-detail-cols:1' ) && 1 === substr_count( $aud, 'class="snt-home__detail-col"' ) && false === strpos( $aud, '>Top queries · clicks, 28 days</h3>' ) && false !== strpos( $aud, '<p class="snt-hint">Top queries (clicks, 28 days): none brought a click.</p>' ), 'an all-zero queries panel paints no column, only "Top queries (clicks, 28 days): none brought a click."' );
+$none_yet = \SignalNoise\OpenStationHost\Dashboard\Leaves\detail_html( array( array( 'title' => 'Top queries', 'group' => 'audience', 'caption' => 'clicks, 28 days', 'rows' => array(), 'empty' => 'No queries in the stored window' ) ), 'audience', 'Audience detail' );
+ok( false === strpos( $none_yet, 'snt-home__detail-col' ) && false !== strpos( $none_yet, 'Top queries (clicks, 28 days): no queries in the stored window.' ), 'an empty panel is the same one line, with its own sentence' );
 ok( '' === \SignalNoise\OpenStationHost\Dashboard\Leaves\detail_html( array( $panels[0] ), 'audience' ), 'a group with no panels paints nothing, not an empty section' );
 
 require __DIR__ . '/fixtures/dashboard-home.php';
@@ -56,10 +61,10 @@ $ops = ( $L . 'home_operations_html' )( snt_home_fixture(), 'dashboard' );
 
 echo "\nOperations: the finding names the systems that need a look\n";
 ok( array() === snt_leaf_folds( $ops ), 'Operations paints no fold: ' . implode( ', ', snt_leaf_folds( $ops ) ) );
-ok( false !== strpos( $ops, '<p class="snt-prose">2 of 10 systems need a look: Health and Cron. Remote MCP is not measured: no version reported yet.</p>' ), 'one finding names WHICH systems need a look, and the one with no reading as not measured' );
+ok( false !== strpos( $ops, '<p class="snt-prose">2 of 10 systems need a look: Health and Cron. Remote door is not measured: no version reported yet.</p>' ), 'one finding names WHICH systems need a look, and the one with no reading as not measured' );
 ok( 2 === substr_count( $ops, '<div class="snt-sys' ) && false !== strpos( $ops, 'class="snt-sys snt-sys--warn" data-tone="warning"><span class="snt-sys__k">Health</span>' ) && false !== strpos( $ops, '<span class="snt-sys__k">Cron</span>' ), 'only the two that need a look paint as system cards, in their tone' );
 ok( false !== strpos( $ops, '>3 findings</os-button>' ) && false !== strpos( $ops, '>41 events</os-button>' ) && false !== strpos( $ops, '<os-badge tone="warning">issues found</os-badge>' ) && false !== strpos( $ops, '<os-badge tone="warning">2 orphans</os-badge>' ) && false !== strpos( $ops, '<span class="snt-sys__meta">scanned 3 hours ago</span>' ), 'each card keeps its value (a go link to its leaf), its pill and its meta line' );
-ok( false !== strpos( $ops, '<os-fact label="Not measured (1)"><span class="snt-kv__v"><os-cluster gap="6"><os-chip>Remote MCP</os-chip></os-cluster>' ), 'the unmeasured system stands in its own Not measured row, never among the holding' );
+ok( false !== strpos( $ops, '<os-fact label="Not measured (1)"><span class="snt-kv__v"><os-cluster gap="6"><os-chip>Remote door</os-chip></os-cluster>' ), 'the unmeasured system stands in its own Not measured row, never among the holding' );
 $holding_ok = true;
 foreach ( array( 'Provenance · 212 confirmed', 'Theme · 8.4.1', 'Plugin · 2026.10.1', 'Analytics · 3.2.0', 'Provenance edge · 1.9.4', 'Login guard · 2.1.0', 'Rights signals · 1.3.0' ) as $chip ) {
 	$holding_ok = $holding_ok && false !== strpos( $ops, '<os-chip>' . $chip . '</os-chip>' );
@@ -84,9 +89,9 @@ $calm = ( $L . 'home_operations_html' )( snt_home_fixture( true ), 'dashboard' )
 ok( array() === snt_leaf_folds( $calm ) && false !== strpos( $calm, '<p class="snt-prose">All 10 systems are holding.</p>' ) && 0 === substr_count( $calm, '<div class="snt-sys' ) && false !== strpos( $calm, 'Holding (10)' ), 'all healthy: one calm sentence, no wall of cards, the ten as chips' );
 ok( false === strpos( $calm, 'sn-dash-diagnostics' ), 'no overrides: no overrides section' );
 $one_dark = snt_home_fixture( true );
-$one_dark['components'][5] = array( 'label' => 'Remote MCP', 'value' => "\u{2014}", 'measured' => false, 'attention' => false );
+$one_dark['components'][5] = array( 'label' => 'Remote door', 'value' => "\u{2014}", 'measured' => false, 'attention' => false );
 $dark = ( $L . 'home_operations_html' )( $one_dark, 'dashboard' );
-ok( false !== strpos( $dark, '<p class="snt-prose">9 of 10 systems are holding. Remote MCP is not measured: no version reported yet.</p>' ) && false === strpos( $dark, 'All 10' ) && false !== strpos( $dark, 'Holding (9)' ), 'one system with no reading: nine holding and one not measured, never "All 10 systems are holding"' );
+ok( false !== strpos( $dark, '<p class="snt-prose">9 of 10 systems are holding. Remote door is not measured: no version reported yet.</p>' ) && false === strpos( $dark, 'All 10' ) && false !== strpos( $dark, 'Holding (9)' ), 'one system with no reading: nine holding and one not measured, never "All 10 systems are holding"' );
 $warm = snt_home_fixture( true );
 $warm['components'][2] = array( 'label' => 'Analytics', 'value' => 'warming…', 'measured' => true, 'attention' => false );
 $warm_html = ( $L . 'home_operations_html' )( $warm, 'dashboard' );
@@ -94,11 +99,11 @@ ok( false !== strpos( $warm_html, 'Analytics is not measured: no version reporte
 // 2026-10-11 (code review): a contract-skew fleet card flags `attention => true`
 // with no pill (inc/dash-zone-fleet.php); it must not read as holding.
 $skew = snt_home_fixture( true );
-$skew['components'][5] = array( 'label' => 'Remote MCP', 'value' => 'contract 15, site 16', 'measured' => true, 'attention' => true );
-ok( false !== strpos( ( $L . 'home_operations_html' )( $skew, 'dashboard' ), '1 of 10 systems needs a look: Remote MCP.' ), 'a fleet card asking for attention with no pill needs a look, never holding' );
+$skew['components'][5] = array( 'label' => 'Remote door', 'value' => 'contract 15, site 16', 'measured' => true, 'attention' => true );
+ok( false !== strpos( ( $L . 'home_operations_html' )( $skew, 'dashboard' ), '1 of 10 systems needs a look: Remote door.' ), 'a fleet card asking for attention with no pill needs a look, never holding' );
 // Review on #2005 (P2): its card reads as a warning too, never the success tone.
 $__skew = ( $L . 'home_operations_html' )( $skew, 'dashboard' );
-ok( 1 === preg_match( '/<div class="snt-sys snt-sys--warn" data-tone="warning"><span class="snt-sys__k">Remote MCP<\/span>.*?needs a look<\/os-badge>/s', $__skew ) && false === strpos( $__skew, 'snt-sys--ok' ), 'a card that needs a look with no pill paints warn with a "needs a look" badge, never green' );
+ok( 1 === preg_match( '/<div class="snt-sys snt-sys--warn" data-tone="warning"><span class="snt-sys__k">Remote door<\/span>.*?needs a look<\/os-badge>/s', $__skew ) && false === strpos( $__skew, 'snt-sys--ok' ), 'a card that needs a look with no pill paints warn with a "needs a look" badge, never green' );
 $one_bad = snt_home_fixture( true );
 $one_bad['checks'][2] = array( 'label' => 'Cron', 'value' => '41 events', 'pill' => array( 'kind' => 'warn', 'text' => '2 orphans' ) );
 ok( false !== strpos( ( $L . 'home_operations_html' )( $one_bad, 'dashboard' ), '1 of 10 systems needs a look: Cron.' ), 'one: "needs", singular' );

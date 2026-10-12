@@ -95,13 +95,13 @@ function snt_mr_sensor_pills( $info, $status, $result ) {
 		|| ( function_exists( 'sn_setting' ) && '' !== (string) sn_setting( 'machine_readers.read_token', '' ) );
 	$pills[] = $has_token
 		? array( 'ok', __( 'Read token set', 'signal-and-noise-tools' ), '' )
-		: array( 'warn', __( 'Read token missing', 'signal-and-noise-tools' ), __( 'Save a read token below, or define SN_MR_READ_TOKEN in wp-config.php.', 'signal-and-noise-tools' ) );
+		: array( 'warn', __( 'Read token missing', 'signal-and-noise-tools' ), __( 'Set the read token under Connections › Credentials, or define SN_MR_READ_TOKEN in wp-config.php.', 'signal-and-noise-tools' ) );
 
 	// 3. The read itself.
 	if ( ! empty( $result['ok'] ) ) {
 		$pills[] = array( 'ok', __( 'Aggregates current', 'signal-and-noise-tools' ), '' );
 	} elseif ( 'not_configured' === (string) ( $result['error'] ?? '' ) ) {
-		$pills[] = array( 'warn', __( 'Not configured', 'signal-and-noise-tools' ), __( 'The sensor cannot be read until the token above is set.', 'signal-and-noise-tools' ) );
+		$pills[] = array( 'warn', __( 'Not configured', 'signal-and-noise-tools' ), __( 'The sensor cannot be read until the read token is set under Connections › Credentials.', 'signal-and-noise-tools' ) );
 	} else {
 		// 15.1.1: the code's meaning, from the one map every tile reads.
 		$hint    = function_exists( 'snt_mr_error_hint' ) ? snt_mr_error_hint( (string) ( $result['error'] ?? 'unknown' ) ) : array( 'title' => __( 'Read failed', 'signal-and-noise-tools' ), 'detail' => '' );
@@ -122,7 +122,7 @@ function snt_mr_sensor_pills( $info, $status, $result ) {
 		if ( $c_ok && ! $c_drift ) {
 			$pills[] = array( 'ok', __( 'Crawler list in sync', 'signal-and-noise-tools' ), '' );
 		} elseif ( $c_ok ) {
-			$pills[] = array( 'warn', __( 'Crawler list drift', 'signal-and-noise-tools' ), __( 'Cloudflare\'s published list changed; robots-block.mjs needs a review.', 'signal-and-noise-tools' ) );
+			$pills[] = array( 'warn', __( 'Crawler list drift', 'signal-and-noise-tools' ), __( 'Cloudflare\'s published crawler list changed; the edge Worker\'s blocked-crawler list needs a review.', 'signal-and-noise-tools' ) );
 		} else {
 			$pills[] = array( 'warn', __( 'Crawler check failed', 'signal-and-noise-tools' ), __( 'The last weekly diff could not complete; it retries on its cron.', 'signal-and-noise-tools' ) );
 		}
@@ -154,7 +154,7 @@ function snt_mr_render_sensor_status( $pills ) {
 	$out .= '</div>';
 	foreach ( (array) $pills as $p ) {
 		if ( 'warn' === $p[0] && '' !== (string) ( $p[2] ?? '' ) ) {
-			$out .= '<p class="sn-an-pipeline-warn">' . esc_html( (string) $p[1] ) . ' — ' . esc_html( (string) $p[2] ) . '</p>';
+			$out .= '<p class="sn-an-pipeline-warn">' . esc_html( (string) $p[1] ) . ': ' . esc_html( (string) $p[2] ) . '</p>';
 		}
 	}
 	return $out;
@@ -173,22 +173,52 @@ function snt_mr_render_sensor_status( $pills ) {
  * @return string
  */
 function snt_mr_render_edge_readout( $info ) {
-	$info = is_array( $info ) ? $info : array();
-	$out  = '<p><strong>' . esc_html__( 'Worker', 'signal-and-noise-tools' ) . '</strong> <code>sn-rights-signals</code>';
-	if ( '' !== (string) ( $info['version'] ?? '' ) ) {
-		$out .= ' <code>v' . esc_html( (string) $info['version'] ) . '</code>';
+	$read = snt_mr_edge_readout( $info );
+	if ( null === $read ) {
+		return wp_get_admin_notice( esc_html( snt_mr_edge_not_read() ), array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
 	}
-	$out .= '</p>';
+	$out = '';
+	foreach ( $read as $row ) {
+		$out .= '<p><strong>' . esc_html( $row['label'] ) . ':</strong> ' . esc_html( $row['value'] ) . '</p>';
+	}
+	return wp_get_admin_notice( $out, array( 'type' => 'info', 'additional_classes' => array( 'notice-alt', 'inline' ), 'paragraph_wrap' => false ) );
+}
+
+/**
+ * The Edge sensor box's words when the version endpoint did not answer
+ * (2026-10-12 audit: the box showed the Worker's name and its source as if
+ * read, and only the hero pill said otherwise).
+ *
+ * @return string
+ */
+function snt_mr_edge_not_read() {
+	return __( 'Not read: the version endpoint did not answer.', 'signal-and-noise-tools' );
+}
+
+/**
+ * The Edge sensor readout as label/value rows, the same on both surfaces, or
+ * null when the version endpoint did not answer. An entry cached before
+ * v10.70.2 has no fetched_at and gets no Read row: an unknown read time and
+ * "just now" are different answers.
+ *
+ * @param array|null $info snt_mr_sensor_info(): version, deployed_at, fetched_at.
+ * @return array<int,array{label:string,value:string,ts?:int}>|null
+ */
+function snt_mr_edge_readout( $info ) {
+	if ( ! is_array( $info ) ) {
+		return null;
+	}
+	$rows = array( array( 'label' => __( 'Worker', 'signal-and-noise-tools' ), 'value' => 'sn-rights-signals' . ( '' !== (string) ( $info['version'] ?? '' ) ? ' v' . (string) $info['version'] : '' ) ) );
 	if ( '' !== (string) ( $info['deployed_at'] ?? '' ) ) {
-		$out .= '<p><strong>' . esc_html__( 'Deployed:', 'signal-and-noise-tools' ) . '</strong> ' . esc_html( (string) $info['deployed_at'] ) . '</p>';
+		$ts     = strtotime( (string) $info['deployed_at'] );
+		$rows[] = array( 'label' => __( 'Deployed', 'signal-and-noise-tools' ), 'value' => false !== $ts ? wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), $ts ) : (string) $info['deployed_at'] );
 	}
 	if ( isset( $info['fetched_at'] ) ) {
-		$out .= '<p><strong>' . esc_html__( 'Read:', 'signal-and-noise-tools' ) . '</strong> '
-			/* translators: %s: human-readable duration, e.g. "5 mins". */
-			. esc_html( sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $info['fetched_at'], time() ) ) ) . '</p>';
+		/* translators: %s: human-readable duration, e.g. "5 mins". */
+		$rows[] = array( 'label' => __( 'Read', 'signal-and-noise-tools' ), 'value' => sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $info['fetched_at'], time() ) ), 'ts' => (int) $info['fetched_at'] );
 	}
-	$out .= '<p><em>' . esc_html__( 'Source:', 'signal-and-noise-tools' ) . '</em> <code>' . esc_html( defined( 'SN_MR_VERSION_ENDPOINT' ) ? SN_MR_VERSION_ENDPOINT : '' ) . '</code></p>';
-	return wp_get_admin_notice( $out, array( 'type' => 'info', 'additional_classes' => array( 'notice-alt', 'inline' ), 'paragraph_wrap' => false ) );
+	$rows[] = array( 'label' => __( 'Source', 'signal-and-noise-tools' ), 'value' => defined( 'SN_MR_VERSION_ENDPOINT' ) ? (string) SN_MR_VERSION_ENDPOINT : '' );
+	return $rows;
 }
 
 /**

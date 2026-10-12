@@ -78,13 +78,16 @@ function sn_dash_ops_panels( array $data ) {
 			$deploys
 		) ),
 		'empty'      => __( 'No deploys recorded yet', 'signal-and-noise-tools' ),
-		'unmeasured' => __( 'Not measured — no deploy history', 'signal-and-noise-tools' ),
+		'unmeasured' => __( 'Not measured: no deploy history', 'signal-and-noise-tools' ),
 	);
 
 	$pages = $get( 'pages' );
 	$panels[] = array(
 		'title'      => __( 'Top pages', 'signal-and-noise-tools' ),
 		'group'      => 'audience', // 15.3.2: painted under Site pulse › Audience
+		// 2026.10.4 audit: each column names its own unit and window; the
+		// eyebrow over them names none, since queries are 28 days.
+		'caption'    => __( 'views, 7 days', 'signal-and-noise-tools' ),
 		'rows'       => null === $pages ? null : array_values( array_map(
 			function ( $row ) {
 				$row = is_array( $row ) ? $row : array();
@@ -96,13 +99,14 @@ function sn_dash_ops_panels( array $data ) {
 			$pages
 		) ),
 		'empty'      => __( 'No views in the window', 'signal-and-noise-tools' ),
-		'unmeasured' => __( 'Not measured — analytics is not configured', 'signal-and-noise-tools' ),
+		'unmeasured' => __( 'Not measured: analytics is not configured', 'signal-and-noise-tools' ),
 	);
 
 	$sources = $get( 'sources' );
 	$panels[] = array(
 		'title'      => __( 'Top sources', 'signal-and-noise-tools' ),
 		'group'      => 'audience',
+		'caption'    => __( 'visits, 7 days', 'signal-and-noise-tools' ),
 		'rows'       => null === $sources ? null : array_values( array_map(
 			function ( $row ) {
 				$row = is_array( $row ) ? $row : array();
@@ -117,7 +121,7 @@ function sn_dash_ops_panels( array $data ) {
 			$sources
 		) ),
 		'empty'      => __( 'No referrers in the window', 'signal-and-noise-tools' ),
-		'unmeasured' => __( 'Not measured — analytics is not configured', 'signal-and-noise-tools' ),
+		'unmeasured' => __( 'Not measured: analytics is not configured', 'signal-and-noise-tools' ),
 	);
 
 	$queries = $get( 'queries' );
@@ -139,7 +143,7 @@ function sn_dash_ops_panels( array $data ) {
 			$queries
 		) ),
 		'empty'      => __( 'No queries in the stored window', 'signal-and-noise-tools' ),
-		'unmeasured' => __( 'Not measured — Search Console has never synced', 'signal-and-noise-tools' ),
+		'unmeasured' => __( 'Not measured: Search Console has never synced', 'signal-and-noise-tools' ),
 	);
 
 	$api  = $get( 'api' );
@@ -169,7 +173,7 @@ function sn_dash_ops_panels( array $data ) {
 				continue;
 			}
 			if ( null === $snap ) {
-				// No request to this host has been observed. Not measured — and
+				// No request to this host has been observed. Not measured, and
 				// emphatically not a healthy limit.
 				$rows[] = array(
 					'label' => $label,
@@ -206,7 +210,7 @@ function sn_dash_ops_panels( array $data ) {
 		// on a healthy site. A limit at 99% is the answer to "is it fine?".
 		'rows'       => $rows,
 		'empty'      => __( 'No hosts monitored', 'signal-and-noise-tools' ),
-		'unmeasured' => __( 'Not measured — no rate-limit monitor', 'signal-and-noise-tools' ),
+		'unmeasured' => __( 'Not measured: no rate-limit monitor', 'signal-and-noise-tools' ),
 	);
 
 	return $panels;

@@ -81,7 +81,7 @@ function cloudflare_credentials_html( array $d ) {
 		array( 'label' => __( 'Zone ID', 'signal-and-noise-tools' ), 'value' => $source( $d['zone_const_set'], 'SN_CLOUDFLARE_ZONE_ID', $d['zone'], $d['zone'] ) ),
 		array( 'label' => __( 'Account ID', 'signal-and-noise-tools' ), 'value' => $source( ! empty( $d['account_const_set'] ), 'SN_CF_ACCOUNT_ID', (string) ( $d['account'] ?? '' ), (string) ( $d['account'] ?? '' ) ) ),
 	) );
-	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'connections' ) ) . '. ' . \snt_kit_esc( __( 'This leaf only reads them.', 'signal-and-noise-tools' ) ) . '</p>';
+	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'connections' ) ) . '.</p>';
 	// 14.10.0: the grant list, one place to compare against the token summary.
 	if ( function_exists( 'sn_cf_required_grants' ) ) {
 		$rows = array();
@@ -126,9 +126,7 @@ function paint_connections_cloudflare( array $ctx ) {
 		return \snt_kit_empty( __( 'This account cannot manage options.', 'signal-and-noise-tools' ) );
 	}
 	$d = cloudflare_data();
-	$caching = \snt_kit_esc( __( "Auto-purges Cloudflare's edge cache when content changes. See", 'signal-and-noise-tools' ) ) . ' '
-		. \snt_kit_code( 'docs/CACHING.md', false ) . ' '
-		. \snt_kit_esc( __( "for the dashboard-side Cache Rule that turns on HTML caching to begin with: without that, purging clears nothing useful (origin pages aren't cached at the edge).", 'signal-and-noise-tools' ) );
+	$caching = function_exists( 'sn_cf_caching_sentence' ) ? \snt_kit_esc( \sn_cf_caching_sentence() ) : '';
 	$cache = \snt_kit_section(
 		__( 'Cache', 'signal-and-noise-tools' ),
 		cloudflare_status_html( $d ) . '<p class="snt-hint">' . $caching . '</p>',

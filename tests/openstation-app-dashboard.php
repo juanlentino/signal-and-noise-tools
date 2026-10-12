@@ -174,6 +174,16 @@ namespace {
 	ok( $polled && array( 0 ) === $os4->badges && array() === $os4->toasts && 0 === $os4->refresh && array() === $os4->opened, 'a tick re-reads the badge and does nothing else: no toast, no menu refresh, no door' );
 	$app->actions['refresh']( $st4, $os4, array() );
 	ok( null === $st4->get( 'notice' ) && '' === $st4->get( 'flash' ) && array( 'sn_prov_swept' => 'ok', 'sn_watch' => '1' ) === $st4->get( 'params' ), '...while the declared refresh still drops the notice and the flash (and keeps params), which is why the poll cannot ride it' );
+	// 2026.10.4 audit (batch 4): Refresh on Home re-reads the north star (its
+	// reading caches an hour); on any other tab it leaves that cache alone.
+	if ( ! defined( 'SNT_NSM_CACHE_KEY' ) ) { define( 'SNT_NSM_CACHE_KEY', 'snt_nsm_reading' ); }
+	$GLOBALS['__deleted'] = array();
+	if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { $GLOBALS['__deleted'][] = $k; return true; } }
+	$app->actions['refresh']( $st4, $os4, array() );
+	$on_other = $GLOBALS['__deleted'];
+	$os5 = new \OpenStation\App\Os(); $os5->view = '';
+	$app->actions['refresh']( new \OpenStation\App\State( $app->state ), $os5, array() );
+	ok( array() === $on_other && in_array( 'snt_nsm_reading', $GLOBALS['__deleted'], true ), 'Refresh on Home drops the cached north star reading, so the repaint reads it fresh; Refresh elsewhere keeps it' );
 	$src_app = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.os.php' );
 	ok( false !== strpos( $src_app, "'poll'," ) && false !== strpos( $src_app, 'os-poll' ) && false !== strpos( $src_app, 'Experimental' ), 'the poll action names the os-poll seam and its Experimental status in the app file' );
 	$src_kit = (string) file_get_contents( SNT_PATH . 'inc/openstation-kit-triggers.php' );
@@ -301,8 +311,9 @@ namespace {
 	ok( false !== strpos( $css, '.snt-leaf:has( os-grid )' ), 'sn-dashboard.css uncaps .snt-leaf max-width for os-grid' );
 
 	$analytics_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-analytics.php' );
-	ok( false !== strpos( $analytics_src, 'snt_kit_grid( array( \\snt_kit_stack( $left ), \\snt_kit_stack( $right ) ), 290, 24 )' ), 'monitoring/analytics source paints two os-stack columns on the kit grid' );
-	ok( false !== strpos( $analytics_src, 'analytics_pipeline_html()' ), 'monitoring/analytics positions pipeline status above columns' );
+	// 2026-10-12 audit: one Pipeline box at full width, then rows of paired boxes.
+	ok( false === strpos( $analytics_src, 'snt_kit_stack' ) && 3 === substr_count( $analytics_src, '\\snt_kit_grid( array( analytics_' ), 'monitoring/analytics source paints rows of paired boxes, no two-up columns' );
+	ok( false !== strpos( $analytics_src, '. analytics_pipeline_html( $ctx )' ) && strpos( $analytics_src, 'analytics_pipeline_html( $ctx )' ) < strpos( $analytics_src, 'analytics_collector_html()' ), 'monitoring/analytics leads with the Pipeline box' );
 
 
 
@@ -328,7 +339,8 @@ namespace {
 	ok( false !== strpos( $insights_src, 'snt_kit_grid( array( $left, $right ) )' ) && false === strpos( $insights_src, 'snt_kit_stack' ), 'monitoring/insights paints paired rows, not a two-up column pair (#1573)' );
 
 	$gsc_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-search-console.php' );
-	ok( false !== strpos( $gsc_src, 'snt_kit_grid( array( $left, $right ) )' ) && false === strpos( $gsc_src, 'snt_kit_stack' ), 'monitoring/search-console pairs its readouts on one row (17.4.1, #1573), no two-up columns' );
+	// Live check 2026-10-12: the boxes share ONE row (readout, form, then Property over Sync as one cell), still no two-up columns.
+	ok( false !== strpos( $gsc_src, '\\snt_kit_grid( $row )' ) && false === strpos( $gsc_src, 'snt_kit_stack' ), 'monitoring/search-console lays its boxes on one row (17.4.1, #1573), no two-up columns' );
 
 	ok( false !== strpos( $css, '.snt-leaf os-row' ) && false !== strpos( $css, 'flex-direction: column' ), 'sn-dashboard.css collapses os-row under responsive containers' );
 
@@ -342,7 +354,8 @@ namespace {
 	// not exist -- Visits used the removed sn_view=sessions slug (the slug
 	// stayed 'visits' by design, see inc/analytics-admin.php), and Provenance
 	// anchors pointed at tab=connections when the leaf lives under tab=tools.
-	$dashboard_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/dashboard.php' );
+	// 2026.10.4: the pulse lives in dashboard-pulse.php, required by dashboard.php.
+	$dashboard_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/dashboard.php' ) . (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/dashboard-pulse.php' );
 	ok( false !== strpos( $dashboard_src, 'sn_view=visits&sn_range=7d' ), 'the Visits pulse tile links the live sn_view=visits slug, not the removed sn_view=sessions' );
 	ok( false === strpos( $dashboard_src, 'sn_view=sessions' ), '...and sn_view=sessions does not linger anywhere in the leaf' );
 	// Home arrangement: the Trust & Operations tiles (plugin version, anchors,

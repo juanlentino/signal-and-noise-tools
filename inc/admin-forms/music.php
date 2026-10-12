@@ -20,6 +20,32 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Which of the four sync states the store is in, in the words both surfaces
+ * say (2026-10-12 audit: the twins pointed at different places, "the status
+ * panel on the right" and "the Sync status row below", and neither names a
+ * box; they name the button now).
+ *
+ * @param int    $count      Releases cached.
+ * @param string $last_error The last sync's error, '' when it worked.
+ * @return array{kind:string,title:string,pill:string,body:string}
+ */
+function sn_music_status_copy( $count, $last_error ) {
+	$count = (int) $count;
+	if ( $count > 0 && '' === (string) $last_error ) {
+		/* translators: %d: cached releases */
+		return array( 'kind' => 'ok', 'title' => __( 'Synced', 'signal-and-noise-tools' ), 'pill' => __( 'Synced', 'signal-and-noise-tools' ), 'body' => sprintf( _n( '%d release cached. The /music timeline + MusicAlbum schema are live.', '%d releases cached. The /music timeline + MusicAlbum schema are live.', $count, 'signal-and-noise-tools' ), $count ) );
+	}
+	if ( $count > 0 ) {
+		/* translators: %d: cached releases */
+		return array( 'kind' => 'warn', 'title' => __( 'Showing last-good data', 'signal-and-noise-tools' ), 'pill' => __( 'Stale', 'signal-and-noise-tools' ), 'body' => sprintf( _n( '%d release still cached, but the last sync failed. The page never blanks: check the error, then press Sync now.', '%d releases still cached, but the last sync failed. The page never blanks: check the error, then press Sync now.', $count, 'signal-and-noise-tools' ), $count ) );
+	}
+	if ( '' !== (string) $last_error ) {
+		return array( 'kind' => 'err', 'title' => __( 'Sync failed: no data yet', 'signal-and-noise-tools' ), 'pill' => __( 'Failed', 'signal-and-noise-tools' ), 'body' => __( 'The first sync hasn’t succeeded. The /music page falls back to its static content.', 'signal-and-noise-tools' ) );
+	}
+	return array( 'kind' => 'warn', 'title' => __( 'Not yet synced', 'signal-and-noise-tools' ), 'pill' => __( 'Pending', 'signal-and-noise-tools' ), 'body' => __( 'Press Sync now to populate the discography. The daily cron will keep it fresh after that.', 'signal-and-noise-tools' ) );
+}
+
+/**
  * Render the Connections → Discography sub-tab.
  *
  * @return void
@@ -47,34 +73,16 @@ function sn_admin_render_music_section() {
 	sn_admin_shell_open();
 
 	// ── MAIN: intro + status hero + credential/featured forms ──
-	echo '<p class="sn-prose">A zero-touch on-site discography. A daily WP-Cron job mirrors Juan&rsquo;s verified <strong>Muso.AI</strong> producer credits (no credential &mdash; the public credits endpoint), enriches each release with <strong>Spotify</strong> album media, caches it, emits <code>MusicAlbum</code> schema, and renders the <code>/music</code> timeline. Pages serve entirely from the cache &mdash; no request-time API calls.</p>';
+	echo '<p class="sn-prose">A zero-touch on-site discography. A daily WP-Cron job mirrors Juan&rsquo;s verified <strong>Muso.AI</strong> producer credits (no credential: the public credits endpoint), enriches each release with <strong>Spotify</strong> album media, caches it, emits <code>MusicAlbum</code> schema, and renders the <code>/music</code> timeline. Pages serve entirely from the cache, with no request-time API calls.</p>';
 
-	// ── STATUS BOX ──
-	if ( $count > 0 && '' === $last_error ) {
-		echo '<div class="sn-status-box">';
-		echo '<div><p class="sn-status-box-title">Synced</p>';
-		echo '<p class="sn-status-box-body">' . (int) $count . ' release(s) cached. The /music timeline + MusicAlbum schema are live.</p></div>';
-		echo '<span class="sn-pill sn-pill--ok">Synced</span>';
-		echo '</div>';
-	} elseif ( $count > 0 && '' !== $last_error ) {
-		echo '<div class="sn-status-box sn-status-box--warn">';
-		echo '<div><p class="sn-status-box-title">Showing last-good data</p>';
-		echo '<p class="sn-status-box-body">' . (int) $count . ' release(s) still cached, but the last sync failed. The page never blanks &mdash; check the error and re-sync from the status panel on the right (below on narrow screens).</p></div>';
-		echo '<span class="sn-pill sn-pill--warn">Stale</span>';
-		echo '</div>';
-	} elseif ( '' !== $last_error ) {
-		echo '<div class="sn-status-box sn-status-box--err">';
-		echo '<div><p class="sn-status-box-title">Sync failed &mdash; no data yet</p>';
-		echo '<p class="sn-status-box-body">The first sync hasn&rsquo;t succeeded. The /music page falls back to its static content.</p></div>';
-		echo '<span class="sn-pill sn-pill--err">Failed</span>';
-		echo '</div>';
-	} else {
-		echo '<div class="sn-status-box sn-status-box--warn">';
-		echo '<div><p class="sn-status-box-title">Not yet synced</p>';
-		echo '<p class="sn-status-box-body">Hit &ldquo;Sync now&rdquo; in the status panel on the right (below on narrow screens) to populate the discography. The daily cron will keep it fresh after that.</p></div>';
-		echo '<span class="sn-pill sn-pill--warn">Pending</span>';
-		echo '</div>';
-	}
+	// ── STATUS BOX ── (2026-10-12 audit: one set of sentences for both surfaces)
+	$status = sn_music_status_copy( $count, $last_error );
+	$mod    = 'ok' === $status['kind'] ? '' : ' sn-status-box--' . $status['kind'];
+	echo '<div class="sn-status-box' . esc_attr( $mod ) . '">';
+	echo '<div><p class="sn-status-box-title">' . esc_html( $status['title'] ) . '</p>';
+	echo '<p class="sn-status-box-body">' . esc_html( $status['body'] ) . '</p></div>';
+	echo '<span class="sn-pill sn-pill--' . esc_attr( $status['kind'] ) . '">' . esc_html( $status['pill'] ) . '</span>';
+	echo '</div>';
 
 	// ── CREDENTIALS FORM ──
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
@@ -96,7 +104,7 @@ function sn_admin_render_music_section() {
 
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Muso.AI profile</h2>';
-	echo '<p class="sn-fieldset-intro">The public profile whose credits are mirrored. Defaults to Juan&rsquo;s. No credential &mdash; it&rsquo;s the same id in the public credits URL. Lockable via <code>SN_MUSO_PROFILE_ID</code>.</p>';
+	echo '<p class="sn-fieldset-intro">The public profile whose credits are mirrored. Defaults to Juan&rsquo;s. No credential: it&rsquo;s the same id in the public credits URL. Lockable via <code>SN_MUSO_PROFILE_ID</code>.</p>';
 	echo '<div class="sn-field sn-field-w-lg">';
 	echo '<label class="sn-field-label" for="sn_muso_profile">Profile ID</label>';
 	if ( $profile_const ) {
@@ -112,11 +120,11 @@ function sn_admin_render_music_section() {
 	// ── Featured release (v4.14.0): the one "press play" player on /music. ──
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Featured release</h2>';
-	echo '<p class="sn-fieldset-intro">The single &ldquo;press play&rdquo; player at the top of <code>/music</code>. Paste any Spotify track, album, or playlist link; type <code>clear</code> to remove it. <strong>Leave it empty and <code>/music</code> auto-features your newest release</strong> &mdash; so the page is never headerless. Renders through the theme&rsquo;s <code>[sn_music_featured]</code> shortcode.</p>';
+	echo '<p class="sn-fieldset-intro">The single &ldquo;press play&rdquo; player at the top of <code>/music</code>. Paste any Spotify track, album, or playlist link; type <code>clear</code> to remove it. <strong>Leave it empty and <code>/music</code> auto-features your newest release</strong>, so the page is never headerless. Renders through the theme&rsquo;s <code>[sn_music_featured]</code> shortcode.</p>';
 	echo '<div class="sn-field sn-field-w-lg">';
 	echo '<label class="sn-field-label" for="sn_music_featured">Spotify URL</label>';
 	echo '<input type="text" id="sn_music_featured" name="sn_music_featured" value="' . esc_attr( $featured_url ) . '" placeholder="https://open.spotify.com/album/&hellip;" class="sn-mono" autocomplete="off">';
-	echo '<p class="sn-field-helper">' . ( $featured ? 'Currently featuring a <strong>' . esc_html( $featured['type'] ) . '</strong>.' : 'No manual pick &mdash; <code>/music</code> auto-features your newest release.' ) . '</p>';
+	echo '<p class="sn-field-helper">' . ( $featured ? 'Currently featuring a <strong>' . esc_html( $featured['type'] ) . '</strong>.' : 'No manual pick: <code>/music</code> auto-features your newest release.' ) . '</p>';
 	echo '</div>';
 
 	echo '<div class="sn-fieldset-actions">';
@@ -136,8 +144,8 @@ function sn_admin_render_music_section() {
 	echo '<tr><th>Releases cached</th><td>' . (int) $count . '</td></tr>';
 	echo '<tr><th>Data source</th><td>Muso.AI profile <code>' . esc_html( $profile_id ) . '</code> <span class="sn-pill sn-pill--ok">no credential</span></td></tr>';
 	echo '<tr><th>Spotify media</th><td>' . ( $spotify_on
-		? '<span class="sn-pill sn-pill--ok">Configured</span> &mdash; album embeds + artwork enrichment active'
-		: '<span class="sn-pill sn-pill--warn">Not configured</span> &mdash; Muso artwork only, no embeds (optional)' ) . '</td></tr>';
+		? '<span class="sn-pill sn-pill--ok">Configured</span>: album embeds + artwork enrichment active'
+		: '<span class="sn-pill sn-pill--warn">Not configured</span>: Muso artwork only, no embeds (optional)' ) . '</td></tr>';
 	if ( '' !== $last_error ) {
 		echo '<tr><th>Last error</th><td><code>' . esc_html( $last_error ) . '</code></td></tr>';
 	}
@@ -150,7 +158,7 @@ function sn_admin_render_music_section() {
 	echo '<input type="hidden" name="tab" value="content">';
 	echo '<input type="hidden" name="sub" value="music">';
 	echo '<strong>Sync now</strong>';
-	echo '<p class="sn-helper">Runs the full Muso &rarr; Spotify &rarr; store pass immediately. Keeps the last-good discography if a source fails.</p>';
+	echo '<p class="sn-helper">Sync now runs the full Muso &rarr; Spotify &rarr; store pass immediately. It keeps the last-good discography if a source fails.</p>';
 	echo '<button type="submit" name="action" value="sn_music_sync" class="button">Sync now</button>';
 	echo '</form>';
 
