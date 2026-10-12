@@ -45,8 +45,9 @@ function mcp_connect_status() {
 }
 
 /**
- * The four doors as tiles: the door, its state, and the one fact that says
- * whether it is in use. The tone is the card's own pill.
+ * The four doors as tiles: the door, its state, and what it is. Usage lives
+ * once, in the section that controls the door, never on the tile as well.
+ * The tone is the card's own pill (a swatch when the door is not ready).
  *
  * @param array $state The status state.
  * @param array $cards The four cards: read, write, adapter, remote.
@@ -54,18 +55,13 @@ function mcp_connect_status() {
  */
 function mcp_connect_tiles_html( array $state, array $cards ) {
 	list( $read, $write, $adapter, $remote ) = array_pad( $cards, 4, array() );
-	$tools   = static fn( $n ) => is_int( $n ) ? sprintf( /* translators: %d: tools. */ _n( '%d tool', '%d tools', $n, 'signal-and-noise-tools' ), $n ) : __( 'tools not readable', 'signal-and-noise-tools' );
-	$used    = (int) ( $state['rw_last_used'] ?? 0 );
-	$w_extra = 'bound' === ( $state['rw_state'] ?? '' )
-		? $tools( $state['rw_count'] ?? null ) . ' · ' . ( $used > 0 ? sprintf( /* translators: %s: time ago. */ __( 'last used %s ago', 'signal-and-noise-tools' ), human_time_diff( $used, time() ) ) : __( 'never used', 'signal-and-noise-tools' ) )
-		: $tools( $state['rw_count'] ?? null );
-	$remote_use = function_exists( 'sn_mcp_remote_log_summary_text' ) ? sn_mcp_remote_log_summary_text() : '';
-	$tile       = static fn( array $card, $label, $caption ) => \snt_kit_stat( (string) ( $card['value'] ?? '' ), $label, $caption, (string) ( $card['pill']['kind'] ?? '' ) );
+	$tools = static fn( $n ) => is_int( $n ) ? sprintf( /* translators: %d: tools. */ _n( '%d tool that can change things', '%d tools that can change things', $n, 'signal-and-noise-tools' ), $n ) : __( 'tools not readable', 'signal-and-noise-tools' );
+	$tile  = static fn( array $card, $label, $caption ) => \snt_kit_stat( (string) ( $card['value'] ?? '' ), $label, $caption, (string) ( $card['pill']['kind'] ?? '' ) );
 	return \snt_kit_grid(
 		array(
 			$tile( $read, __( 'Read door', 'signal-and-noise-tools' ), __( 'read-only, behind an Application Password', 'signal-and-noise-tools' ) ),
-			$tile( $write, __( 'Write door', 'signal-and-noise-tools' ), $w_extra ),
-			$tile( $remote, __( 'Remote door', 'signal-and-noise-tools' ), $remote_use ),
+			$tile( $write, __( 'Write door', 'signal-and-noise-tools' ), $tools( $state['rw_count'] ?? null ) ),
+			$tile( $remote, __( 'Remote door', 'signal-and-noise-tools' ), __( 'through the Cloudflare Worker', 'signal-and-noise-tools' ) ),
 			$tile( $adapter, __( 'Core MCP adapter', 'signal-and-noise-tools' ), __( 'a separate WordPress plugin', 'signal-and-noise-tools' ) ),
 		),
 		160,
@@ -87,7 +83,8 @@ function mcp_connect_remote_html( array $card ) {
 	$field           = \snt_kit_field( 'checkbox', 'sn_remote_enabled', __( 'Remote analytics door enabled', 'signal-and-noise-tools' ), $door_open, array( 'value' => '1', 'disabled' => $constant_killed ) );
 	// The card's meta is built escaped by the classic builder (it carries <code> and a <br>).
 	$meta = '' !== (string) ( $card['meta_html'] ?? '' ) ? '<p class="snt-prose">' . (string) $card['meta_html'] . '</p>' : '';
-	return \snt_kit_section( __( 'Remote door', 'signal-and-noise-tools' ), $meta . \snt_kit_form( 'remote_toggle', $field, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) ), (string) ( $card['value'] ?? '' ) );
+	// The description says what the switch decides; the tile above names the state.
+	return \snt_kit_section( __( 'Remote door', 'signal-and-noise-tools' ), $meta . \snt_kit_form( 'remote_toggle', $field, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) ), __( 'Whether this site answers the Cloudflare Worker', 'signal-and-noise-tools' ) );
 }
 
 /**

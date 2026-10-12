@@ -358,5 +358,15 @@ $mcp = snt_leaf_paint( 'ai', 'mcp-connect' );
 ok( array() === snt_leaf_folds( $mcp ) && false !== strpos( $mcp, '<b>Claude desktop app</b>' ) && false !== strpos( $mcp, 'MacBook Claude app' ), 'live-shaped preview: MCP Clients paints fold-free, the desktop-app steps open, the bound password named' );
 snt_leaf_preview( 'ai-mcp-connect', $mcp );
 
+// 2026-10-12, from the live preview: usage said twice (tile and section, and
+// the two rounded the same hour differently), the remote section's subtitle
+// repeating its tile, and four ready doors painted in the alarm-red accent.
+$mcp = \SignalNoise\OpenStationHost\Dashboard\Leaves\paint_ai_mcp_connect( array() );
+preg_match_all( '/<os-stat\b[^>]*\bcaption="([^"]*)"/', $mcp, $caps );
+ok( 4 === count( $caps[1] ) && array() === preg_grep( '/\b(?:used|calls?)\b/i', $caps[1] ), 'no door tile carries a usage line: usage lives once, in the section that controls the door' );
+ok( 1 === preg_match( '/<os-section\b[^>]*heading="Remote door"[^>]*description="([^"]*)"/', $mcp, $rd ) && 1 === preg_match( '/<os-stat\b[^>]*value="([^"]*)"[^>]*label="Remote door"/', $mcp, $rt ) && $rt[1] !== $rd[1] && '' !== $rd[1], 'the Remote door section says what its switch decides, not the state its tile already shows' );
+$css = (string) file_get_contents( dirname( __DIR__ ) . '/apps/sn-dashboard/sn-dashboard.css' );
+ok( 1 === preg_match( '/\.snt-leaf\[data-snt-leaf="mcp-connect"\] os-stat \{\s*--os-ui-stat-value-color: var\( --os-ui-fg \);/', $css ), 'the door tiles take the foreground color, not the admin accent' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
