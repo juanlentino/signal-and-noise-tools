@@ -297,6 +297,40 @@ function sn_mcp_telemetry_first_ts( $table, $fallback ) {
 }
 
 /**
+ * Why no caller could reach this slug's door now, in plain words, or '' when
+ * the door is open or its state cannot be read here (2026-10-12 audit ruling:
+ * unknown is never painted as a verdict). A remote twin cannot be called
+ * while the remote door is switched off or has no bridge secret; a write-door
+ * tool while the write door is off or unbound. Zero calls behind a closed
+ * door is "not measured", never a retirement candidate.
+ *
+ * @param string $slug Ability slug.
+ * @return string
+ */
+function sn_mcp_telemetry_door_closed( $slug ) {
+	$remote = function_exists( 'sn_mcp_remote_slugs' ) ? sn_mcp_remote_slugs() : array();
+	if ( in_array( $slug, $remote, true ) ) {
+		if ( function_exists( 'sn_mcp_remote_kill_switch_engaged' ) && sn_mcp_remote_kill_switch_engaged() ) {
+			return __( 'the remote door is off', 'signal-and-noise-tools' );
+		}
+		if ( function_exists( 'sn_bridge_secret' ) && '' === sn_bridge_secret() ) {
+			return __( 'the remote door has no bridge secret', 'signal-and-noise-tools' );
+		}
+		return '';
+	}
+	$rw = function_exists( 'sn_mcp_rw_allowlist' ) ? sn_mcp_rw_allowlist() : array();
+	if ( in_array( $slug, $rw, true ) ) {
+		if ( function_exists( 'sn_mcp_rw_kill_switch_engaged' ) && sn_mcp_rw_kill_switch_engaged() ) {
+			return __( 'the write door is off', 'signal-and-noise-tools' );
+		}
+		if ( function_exists( 'sn_mcp_rw_bound_uuid' ) && '' === sn_mcp_rw_bound_uuid() ) {
+			return __( 'the write door is unbound', 'signal-and-noise-tools' );
+		}
+	}
+	return '';
+}
+
+/**
  * Allowlisted tools with no rows, each carrying WHY it might have none.
  *
  * Zero rows is not "unused". A tool the proxy refuses on schema grounds never
@@ -305,13 +339,15 @@ function sn_mcp_telemetry_first_ts( $table, $fallback ) {
  * refuses to collapse them.
  *
  * A tool may only be retired on verdict `unused`. `unreachable` is a BUG
- * REPORT: retiring it would delete the evidence of a defect. "No calls" means
+ * REPORT: retiring it would delete the evidence of a defect. `not_measured`
+ * is a tool behind a door that is closed now (sn_mcp_telemetry_door_closed()):
+ * nobody could call it, so its zero is no evidence either way. "No calls" means
  * none THROUGH A DOOR (read, rw, remote, agent); `direct` is the plugin's own surfaces
  * polling (the large majority of 74,670 calls on 2026-09-20), and a tool only they call is
  * `first_party_only`: a door-allowlist candidate, never a code one.
  *
  * @param array $by_tool Grouped usage keyed by canonical tool_name.
- * @return array<int,array{tool:string,slug:string,calls:int,reachable:bool|null,verdict:string}>
+ * @return array<int,array{tool:string,slug:string,calls:int,reachable:bool|null,verdict:string,reason:string}>
  */
 function sn_mcp_telemetry_zero_call( $by_tool ) {
 	$out = array();
@@ -321,10 +357,13 @@ function sn_mcp_telemetry_zero_call( $by_tool ) {
 		}
 		$direct    = (int) ( $by_tool[ $tool_name ]['direct_calls'] ?? 0 );
 		$reachable = sn_mcp_telemetry_slug_reachable( $slug );
+		$closed    = sn_mcp_telemetry_door_closed( $slug );
 		if ( false === $reachable ) {
 			$verdict = 'unreachable'; // A bug outranks a quiet door: the direct calls prove nothing about projection.
 		} elseif ( null === $reachable ) {
 			$verdict = 'undetermined'; // Unknown projection cannot name a door-allowlist candidate either.
+		} elseif ( '' !== $closed ) {
+			$verdict = 'not_measured'; // Nobody could call it, so zero calls says nothing about use.
 		} elseif ( $direct > 0 ) {
 			$verdict = 'first_party_only';
 		} else {
@@ -336,6 +375,7 @@ function sn_mcp_telemetry_zero_call( $by_tool ) {
 			'calls'     => $direct, // Door calls are 0 by construction, so this is the direct count.
 			'reachable' => $reachable,
 			'verdict'   => $verdict,
+			'reason'    => 'not_measured' === $verdict ? $closed : '', // Why it was not measured, in words.
 		);
 	}
 	return $out;

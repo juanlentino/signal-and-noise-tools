@@ -83,6 +83,7 @@ if ( ! function_exists( 'wp_get_ability' ) ) {
 
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 require __DIR__ . '/../inc/mcp/mcp-remote-guard.php';
+require __DIR__ . '/../inc/mcp/mcp-rw-guard.php';
 require __DIR__ . '/../inc/mcp/mcp-telemetry.php';
 require __DIR__ . '/../inc/mcp/mcp-tools.php';
 require __DIR__ . '/../inc/mcp/mcp-telemetry-read.php';
@@ -168,6 +169,27 @@ ok( 42 === $u['by_tool'][ $remote_tool ]['door_calls'] && 0 === $u['by_tool'][ $
 ok( array( 'remote' => 42, 'read' => 9 ) === $u['by_door'], 'by_door names the remote door, and no remote call is counted as the plugin\'s own' );
 ok( true === $u['by_tool'][ $remote_tool ]['allowlisted'] && false === $u['by_tool']['signal-noise/cadence-flags']['allowlisted'], 'allowlisted: a remote twin is on a door\'s list; a retired tool keeps its calls but is on none' );
 ok( in_array( sn_mcp_remote_slugs()[1], array_column( $u['zero_call'], 'slug' ), true ), 'a remote twin with no calls is a zero-call entry like any door tool' );
+
+echo "\nGroup: a zero behind a closed door is not measured, never unused (2026-10-12 ruling)\n";
+// Unknown is never painted as a verdict. While the remote door is switched off
+// (the fail-closed default: no sn_mcp_remote_enabled option), nobody could
+// call a remote twin; while the write door is unbound, nobody could call a
+// write tool. Their zeros say nothing about use.
+$wpdb->rows = array( sn_test_row( $first_tool, 1, $ago( 3 ), $ago( 1 ) ) );
+$__z        = array_column( sn_mcp_telemetry_usage( 90 )['zero_call'], null, 'slug' );
+$__twin     = sn_mcp_remote_slugs()[1];
+$__writer   = sn_mcp_rw_allowlist()[0];
+ok( 'not_measured' === $__z[ $__twin ]['verdict'] && 'the remote door is off' === $__z[ $__twin ]['reason'], 'remote door off: an uncalled twin is not measured, "the remote door is off", never a retirement candidate' );
+ok( 'not_measured' === $__z[ $__writer ]['verdict'] && 'the write door is unbound' === $__z[ $__writer ]['reason'], 'write door unbound: an uncalled write tool is not measured, "the write door is unbound"' );
+ok( 'unused' === $__z[ sn_mcp_allowlist()[1] ]['verdict'] && '' === $__z[ sn_mcp_allowlist()[1] ]['reason'], 'the read door is open: an uncalled read tool is still a retirement candidate' );
+$GLOBALS['__opts'][ SN_MCP_REMOTE_ENABLED_OPTION ] = true;
+$GLOBALS['__opts'][ SN_MCP_RW_BOUND_UUID_OPTION ]  = 'uuid-bound';
+$__z = array_column( sn_mcp_telemetry_usage( 90 )['zero_call'], null, 'slug' );
+ok( 'unused' === $__z[ $__twin ]['verdict'] && 'unused' === $__z[ $__writer ]['verdict'], 'doors open (remote switched on, write door bound): the same zeros are retirement candidates again' );
+$GLOBALS['__opts'][ SN_MCP_RW_ENABLED_OPTION ] = false;
+$__z = array_column( sn_mcp_telemetry_usage( 90 )['zero_call'], null, 'slug' );
+ok( 'not_measured' === $__z[ $__writer ]['verdict'] && 'the write door is off' === $__z[ $__writer ]['reason'], 'write door switched off, though bound: not measured, "the write door is off"' );
+$GLOBALS['__opts'] = array();
 
 echo "\nGroup: MIN(ts) is taken across ALL groups, not the first row\n";
 $second_tool = sn_mcp_tool_name_from_slug( sn_mcp_allowlist()[1] );
@@ -311,7 +333,7 @@ echo "\nGroup: the verdict vocabulary is closed\n";
 // projection — testing the stub, not the reader. What IS pinned is that no
 // fourth verdict can appear and that no zero-call entry escapes classification.
 $all_verdicts = array_unique( array_column( $u2['zero_call'], 'verdict' ) );
-ok( array() === array_diff( $all_verdicts, array( 'unused', 'first_party_only', 'unreachable', 'undetermined' ) ), 'every verdict is one of the four known values' );
+ok( array() === array_diff( $all_verdicts, array( 'unused', 'first_party_only', 'unreachable', 'undetermined', 'not_measured' ) ), 'every verdict is one of the five known values' );
 ok( count( array_filter( array_column( $u2['zero_call'], 'verdict' ) ) ) === count( $u2['zero_call'] ), 'no zero-call entry is left unclassified' );
 ok( 0 === count( array_filter( array_column( $u2['zero_call'], 'calls' ) ) ), 'every zero_call entry really has zero calls when nothing polled directly' );
 

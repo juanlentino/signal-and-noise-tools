@@ -76,15 +76,19 @@ function agent_tools_door_band( $slugs, $kind, $usage = null ) {
 		/* translators: 1: tool count, 2: read-only or read-write, 3: category count, 4: largest category, 5: its tool count. */
 		$finding = sprintf( __( '%1$s %2$s tools across %3$s categories; %4$s holds %5$s of them.', 'signal-and-noise-tools' ), number_format_i18n( $n ), $kind, number_format_i18n( count( $known ) ), $top, number_format_i18n( count( $known[ $top ] ) ) );
 	}
-	$rows  = array();
-	$tally = array( 'called' => 0, 'none' => 0, 'bad' => 0 );
+	$rows    = array();
+	$tally   = array( 'called' => 0, 'none' => 0, 'bad' => 0, 'unmeasured' => 0 );
+	$reasons = array();
 	foreach ( $groups as $label => $group ) {
 		$chips = '';
 		foreach ( $group as $slug ) {
 			$short   = 0 === strpos( $slug, 'signal-noise/' ) ? substr( $slug, 13 ) : $slug;
 			$reading = function_exists( 'sn_admin_mcp_tool_reading' ) ? sn_admin_mcp_tool_reading( $slug, $usage ) : null;
 			$chips  .= null === $reading ? \snt_kit_chip( $short ) : \snt_kit_chip( $short . ' · ' . $reading['text'], $reading['kind'] );
-			if ( null !== $reading ) {
+			if ( null !== $reading && '' !== (string) ( $reading['reason'] ?? '' ) ) {
+				++$tally['unmeasured'];
+				$reasons[ (string) $reading['reason'] ] = true;
+			} elseif ( null !== $reading ) {
 				++$tally[ '' === $reading['kind'] ? 'called' : ( 'err' === $reading['kind'] ? 'bad' : 'none' ) ];
 			}
 		}
@@ -97,10 +101,15 @@ function agent_tools_door_band( $slugs, $kind, $usage = null ) {
 	}
 	$summary = $finding;
 	if ( is_array( $usage ) && null !== ( $usage['measured_since'] ?? null ) ) {
-		/* translators: 1: tools called, 2: tools with no door call. */
+		/* translators: 1: tools called, 2: tools with no door call (a tool behind a closed door is counted apart). */
 		$summary .= ' ' . sprintf( __( 'In this window %1$s called through a door, %2$s not.', 'signal-and-noise-tools' ), number_format_i18n( $tally['called'] ), number_format_i18n( $tally['none'] + $tally['bad'] ) )
 			/* translators: %s: tool count. */
 			. ( $tally['bad'] > 0 ? ' ' . sprintf( _n( '%s cannot be projected, a bug.', '%s cannot be projected, a bug.', $tally['bad'], 'signal-and-noise-tools' ), number_format_i18n( $tally['bad'] ) ) : '' );
+		// 2026-10-12 ruling: behind a closed door a zero is unknown, said as such.
+		if ( $tally['unmeasured'] > 0 ) {
+			/* translators: 1: why, e.g. "the remote door is off", 2: tool count. */
+			$summary .= ' ' . sprintf( _n( 'Not measured: %1$s (%2$s tool).', 'Not measured: %1$s (%2$s tools).', $tally['unmeasured'], 'signal-and-noise-tools' ), implode( '; ', array_keys( $reasons ) ), number_format_i18n( $tally['unmeasured'] ) );
+		}
 	}
 	$prefixed = array_filter( (array) $slugs, static function ( $slug ) { return 0 === strpos( (string) $slug, 'signal-noise/' ); } );
 	$hint     = empty( $prefixed ) ? '' : __( 'The chips drop the signal-noise/ prefix of each ability name.', 'signal-and-noise-tools' );

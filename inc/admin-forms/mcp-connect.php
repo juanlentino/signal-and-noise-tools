@@ -186,7 +186,8 @@ function sn_admin_render_mcp_tool_list( $slugs, $usage = null ) {
 	echo '<ul class="sn-mcp-tool-list">';
 	foreach ( (array) $slugs as $slug ) {
 		$reading = function_exists( 'sn_admin_mcp_tool_reading' ) ? sn_admin_mcp_tool_reading( (string) $slug, $usage ) : null;
-		echo '<li><code>' . esc_html( (string) $slug ) . '</code>' . ( null === $reading ? '' : ': ' . esc_html( $reading['text'] ) ) . '</li>';
+		$text    = null === $reading ? '' : ( '' !== (string) ( $reading['reason'] ?? '' ) ? sprintf( /* translators: 1: "not measured", 2: why, e.g. "the remote door is off". */ __( '%1$s, %2$s', 'signal-and-noise-tools' ), $reading['text'], $reading['reason'] ) : $reading['text'] );
+		echo '<li><code>' . esc_html( (string) $slug ) . '</code>' . ( '' === $text ? '' : ': ' . esc_html( $text ) ) . '</li>';
 	}
 	echo '</ul>';
 }

@@ -207,6 +207,21 @@ $__classic_rows = substr_count( $classic, '<tr><td><code>' );
 ok( 10 === $__classic_rows && false !== strpos( $classic, '+17 more tools, busiest first;' ) && false !== strpos( $classic, 'Remote door: through the Cloudflare Worker' ) && false !== strpos( $classic, '<code>' . $live['remote'][0] . '</code>: 40' ), 'classic: the same ten-row ledger, the remote door listed, each slug with its calls' );
 snt_leaf_preview( 'ai-agent-tools', $kit );
 
+// 2026-10-12 ruling (owner: unknown is never painted as a verdict): while the
+// remote door is off, the reader files its 16 uncalled twins as not measured.
+// The chips, the door's closed summary, the count and the classic list say so
+// in plain words; none of them reads "no calls" or "retirement candidate".
+$__quiet = array_slice( $live['remote'], 2 );
+$GLOBALS['__usage']['zero_call'] = array_merge( $zero, array_map( static fn( $slug ) => array( 'slug' => $slug, 'verdict' => 'not_measured', 'reason' => 'the remote door is off', 'calls' => 0 ), $__quiet ) );
+$kit     = snt_leaf_paint( 'ai', 'agent-tools' );
+$classic = snt_leaf_classic_html( 'sn_admin_render_agent_tools_section' );
+preg_match( '/<os-disclosure heading="Remote door: through the Cloudflare Worker" hint="([^"]*)"/', $kit, $__rh );
+ok( 16 === preg_match_all( '/<os-chip tone="neutral">[^<]+ · not measured<\/os-chip>/', $kit ) && 0 === preg_match_all( '/<os-chip[^>]*>remote-[^<]+ · no calls<\/os-chip>/', $kit ), 'remote door off: its 16 uncalled twins read "not measured" on neutral chips, never "no calls"' );
+ok( false !== strpos( html_entity_decode( $__rh[1] ?? '', ENT_QUOTES ), 'In this window 2 called through a door, 0 not. Not measured: the remote door is off (16 tools).' ), 'the remote door\'s closed summary says, in plain words, why its zeros are not measured' );
+ok( false !== strpos( $kit, '60 allowlisted tools had no call through a door: 1 cannot be projected; 1 with reachability unknown; 16 not measured, their door closed; 41 retirement candidates; 1 called only by the plugin itself.' ), 'the count keeps the not-measured tools apart from the retirement candidates' );
+ok( false !== strpos( $classic, '<code>' . $__quiet[0] . '</code>: not measured, the remote door is off</li>' ), 'classic: the same words beside each twin' );
+$GLOBALS['__usage']['zero_call'] = $zero;
+
 // 2026-10-12 audit: an unread sensor is not zero calls. Both surfaces list
 // the bridge's tools with "not read" in every count cell, never a 0.
 $GLOBALS['__mr'] = array( 'ok' => false, 'error' => 'HTTP 502' );

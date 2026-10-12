@@ -31,7 +31,7 @@ function sn_admin_mcp_usage_zero_finding( $zero ) {
 	}
 	$counts = array_count_values( array_map( static fn( $e ) => (string) ( $e['verdict'] ?? '' ), $zero ) );
 	$parts  = array();
-	foreach ( array( 'unreachable', 'undetermined', 'unused', 'first_party_only' ) as $verdict ) {
+	foreach ( array( 'unreachable', 'undetermined', 'not_measured', 'unused', 'first_party_only' ) as $verdict ) {
 		$n = (int) ( $counts[ $verdict ] ?? 0 );
 		if ( $n > 0 ) {
 			$f       = number_format_i18n( $n );
@@ -40,6 +40,8 @@ function sn_admin_mcp_usage_zero_finding( $zero ) {
 				'unreachable'      => sprintf( _n( '%s cannot be projected', '%s cannot be projected', $n, 'signal-and-noise-tools' ), $f ),
 				/* translators: %s: tool count. */
 				'undetermined'     => sprintf( _n( '%s with reachability unknown', '%s with reachability unknown', $n, 'signal-and-noise-tools' ), $f ),
+				/* translators: %s: tool count. */
+				'not_measured'     => sprintf( _n( '%s not measured, its door closed', '%s not measured, their door closed', $n, 'signal-and-noise-tools' ), $f ),
 				/* translators: %s: tool count. */
 				'unused'           => sprintf( _n( '%s retirement candidate', '%s retirement candidates', $n, 'signal-and-noise-tools' ), $f ),
 				/* translators: %s: tool count. */
@@ -100,7 +102,7 @@ function sn_admin_mcp_usage_first_party_label( $entry ) {
  *
  * @param string     $slug  Ability slug.
  * @param array|null $usage From sn_mcp_telemetry_usage(), or null when the log is not readable.
- * @return array{text:string,kind:string}|null Null when there is no reading to show.
+ * @return array{text:string,kind:string,reason?:string}|null Null when there is no reading to show; `reason` says why a tool was not measured.
  */
 function sn_admin_mcp_tool_reading( $slug, $usage ) {
 	if ( ! is_array( $usage ) || null === ( $usage['measured_since'] ?? null ) ) {
@@ -113,6 +115,9 @@ function sn_admin_mcp_tool_reading( $slug, $usage ) {
 					return array( 'text' => __( 'cannot be projected', 'signal-and-noise-tools' ), 'kind' => 'err' );
 				case 'undetermined':
 					return array( 'text' => __( 'reachability unknown', 'signal-and-noise-tools' ), 'kind' => 'warn' );
+				case 'not_measured':
+					// 2026-10-12 ruling: behind a closed door a zero is unknown, never "no calls".
+					return array( 'text' => __( 'not measured', 'signal-and-noise-tools' ), 'kind' => 'neutral', 'reason' => (string) ( $entry['reason'] ?? '' ) );
 				case 'first_party_only':
 					/* translators: %s: direct call count. */
 					return array( 'text' => sprintf( __( 'plugin only, %s', 'signal-and-noise-tools' ), number_format_i18n( (int) ( $entry['calls'] ?? 0 ) ) ), 'kind' => 'info' );
