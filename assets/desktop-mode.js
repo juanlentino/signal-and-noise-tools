@@ -31,10 +31,13 @@
 	// to <body> is marked `data-snt-dialog`, once, so assets/snt-confirm-ink.css
 	// gives its label readable ink (it was white on #ff5a5a, 3.0:1). Defined
 	// before the boot gates, so a card can call it while the shell is loading.
+	// It returns its disarm: a caller disarms when the confirm throws, rejects
+	// or settles (the dialog is appended before it settles), so a confirm that
+	// never opened cannot leave the mark on a later, unrelated dialog.
 	if ( typeof window !== 'undefined' ) {
 		window.sntMarkNextDialog = function () {
 			if ( typeof MutationObserver !== 'function' || ! document.body ) {
-				return;
+				return function () {};
 			}
 			var watch = new MutationObserver( function ( records ) {
 				for ( var i = 0; i < records.length; i++ ) {
@@ -49,6 +52,7 @@
 				}
 			} );
 			watch.observe( document.body, { childList: true } );
+			return function () { watch.disconnect(); };
 		};
 	}
 
@@ -321,13 +325,20 @@
 				danger:       true,
 			};
 			var os = window.wp.os || window.wp.desktop;
-			var shellConfirm = os && typeof os.confirm === 'function';
-			if ( shellConfirm ) {
-				window.sntMarkNextDialog(); // readable danger ink, outside any S&N window
+			var prompt;
+			if ( os && typeof os.confirm === 'function' ) {
+				// Readable danger ink, outside any S&N window; disarmed however
+				// the confirm ends, so it never marks a later dialog.
+				var disarm = window.sntMarkNextDialog();
+				try {
+					prompt = os.confirm( opts );
+				} catch ( e ) {
+					prompt = Promise.reject( e );
+				}
+				Promise.resolve( prompt ).then( disarm, disarm );
+			} else {
+				prompt = typeof window.sntConfirm === 'function' ? window.sntConfirm( opts ) : Promise.resolve( false );
 			}
-			var prompt = shellConfirm
-				? os.confirm( opts )
-				: ( typeof window.sntConfirm === 'function' ? window.sntConfirm( opts ) : Promise.resolve( false ) );
 			return prompt.then( function ( confirmed ) {
 				if ( ! confirmed ) { return 'Full reset cancelled.'; }
 				return callRest( 'full-reset' )

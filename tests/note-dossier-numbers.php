@@ -70,6 +70,7 @@ ok( 'not shown' === tile( $b[0], 'Impressions' )['value'] && 'not shown' === til
 $GLOBALS['__gsc_tot'] = array( 'clicks' => 40, 'impressions' => 1200, 'days' => 28, 'capped' => true );
 $b = sn_note_dossier_numbers( 7, 30 );
 ok( false !== strpos( tile( $b[0], 'Impressions' )['note'], 'top 250' ), 'when the sync is capped, absence may be truncation and says so' );
+ok( 'not kept' === tile( $b[0], 'Impressions' )['value'] && 'not kept' === tile( $b[0], 'Clicks' )['value'], 'and the tiles say not kept, not not shown: Google may have shown it past the rows the sync keeps (review on #2023)' );
 $GLOBALS['__gsc'] = null;
 $b = sn_note_dossier_numbers( 7, 30 );
 ok( false !== strpos( tile( $b[0], 'Impressions' )['note'], 'never synced' ), 'Search Console never synced is its own sentence' );

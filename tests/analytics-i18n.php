@@ -269,5 +269,17 @@ ok( 0 === substr_count( $lg, 'D5 §5' ), 'no stale D5 §5 citations remain (that
 ok( 5 <= substr_count( $lg, 'D5 §2' ), 'all five primitive-adoption comments cite D5 §2' );
 ok( false !== strpos( $lg, 'D5 §3' ) && false !== strpos( $lg, 'D5 §4' ), 'the correct §3/§4 citations are untouched' );
 
+echo "\nTest: Top pages says why a page has no Search Console row (review on #2023)\n";
+$GLOBALS['__gsc_capped'] = false;
+if ( ! function_exists( 'snt_gsc_data' ) ) { function snt_gsc_data() { return array( 'pages' => array() ); } }
+if ( ! function_exists( 'snt_gsc_metrics_for_path' ) ) { function snt_gsc_metrics_for_path( $p ) { return '/kept/' === $p ? array( 'impressions' => 12, 'position' => 3.4 ) : null; } }
+if ( ! function_exists( 'snt_gsc_window_totals' ) ) { function snt_gsc_window_totals() { return array( 'clicks' => 1, 'impressions' => 12, 'days' => 28, 'capped' => $GLOBALS['__gsc_capped'] ); } }
+$row  = array( 'path' => '/quiet/', 'views' => 3, 'visits' => 2, 'scroll_avg' => 40.0, 'time_avg' => 30000.0 );
+$html = capture( function () use ( $row ) { snt_analytics_render_paths_table( array( $row, array( 'path' => '/kept/' ) + $row ) ); } );
+ok( 2 === substr_count( $html, '>not shown</td>' ) && false !== strpos( $html, '>12</td>' ), 'uncapped sync: a page with no row says not shown, in both columns; a kept page shows its figures' );
+$GLOBALS['__gsc_capped'] = true;
+$html = capture( function () use ( $row ) { snt_analytics_render_paths_table( array( $row ) ); } );
+ok( 2 === substr_count( $html, '>not kept</td>' ) && false === strpos( $html, 'not shown' ), 'capped sync: it says not kept, since Google may have shown it past the 250 rows the sync keeps' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

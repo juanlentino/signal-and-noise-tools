@@ -65,5 +65,34 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'assets', 'desktop-mo
   observers = [];
   await fn('Remove the rows?');
   assert.deepEqual(confirms.pop(), { danger: true, armed: true }, 'Clear DB overrides arms the mark before it opens its danger confirm');
+
+  // Review on #2023: a confirm that never opens must not leave the mark armed
+  // for a later, unrelated dialog. The mark disarms when the confirm throws,
+  // rejects, or settles (the dialog is appended before it settles).
+  const disarm = ctx.sntMarkNextDialog();
+  assert.equal(typeof disarm, 'function', 'arming returns its own disarm');
+  disarm();
+  assert.ok(!append(new Node('OS-CONFIRM-DIALOG')).hasAttribute('data-snt-dialog'), 'a disarmed mark marks nothing');
+  const health = fn;
+  const callers = [
+    ['SN: Full reset', () => reset.run()],
+    ['Clear DB overrides', () => health('Remove the rows?')],
+  ];
+  for (const [name, call] of callers) {
+    observers = [];
+    ctx.wp.os.confirm = () => { throw new Error('the overlay bundle did not load'); };
+    await Promise.resolve().then(call).catch(() => {});
+    assert.ok(!append(new Node('OS-CONFIRM-DIALOG')).hasAttribute('data-snt-dialog'), name + ': a confirm that throws leaves no mark armed for a later dialog');
+    observers = [];
+    ctx.wp.os.confirm = () => Promise.reject(new Error('the overlay bundle did not load'));
+    await Promise.resolve().then(call).catch(() => {});
+    assert.ok(!append(new Node('OS-CONFIRM-DIALOG')).hasAttribute('data-snt-dialog'), name + ': a confirm that rejects leaves no mark armed either');
+    observers = [];
+    let own = null;
+    ctx.wp.os.confirm = () => { own = append(new Node('OS-CONFIRM-DIALOG')); return Promise.resolve(false); };
+    await Promise.resolve().then(call).catch(() => {});
+    assert.ok(own && own.hasAttribute('data-snt-dialog'), name + ': its own dialog, appended before the confirm settles, is marked');
+    assert.ok(!append(new Node('OS-CONFIRM-DIALOG')).hasAttribute('data-snt-dialog'), name + ': and the next dialog after it is not');
+  }
   console.log('PASS: S&N danger confirms opened outside a window mark their dialog');
 })().catch((e) => { console.error(e); process.exitCode = 1; });

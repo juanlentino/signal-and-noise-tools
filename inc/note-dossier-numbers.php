@@ -73,11 +73,14 @@ function sn_note_dossier_numbers( $post_id, $days ) {
 		$row = ( '' !== $key && function_exists( 'snt_gsc_metrics_for_path' ) ) ? snt_gsc_metrics_for_path( $key ) : null;
 		$tot = function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null;
 		if ( ! is_array( $row ) ) {
-			$why     = ( is_array( $tot ) && ! empty( $tot['capped'] ) ) ? __( 'not among the top 250 rows the sync keeps', 'signal-and-noise-tools' ) : __( 'not shown by Google in this window', 'signal-and-noise-tools' );
-			// The sync was read; Google showed no row for this note, so the
-			// tiles say what Top pages says for the same case (not "not read").
-			$tiles[] = array( 'label' => __( 'Impressions', 'signal-and-noise-tools' ), 'value' => __( 'not shown', 'signal-and-noise-tools' ), 'window' => $gwl, 'note' => $why );
-			$tiles[] = array( 'label' => __( 'Clicks', 'signal-and-noise-tools' ), 'value' => __( 'not shown', 'signal-and-noise-tools' ), 'window' => $gwl, 'note' => '' );
+			$capped  = is_array( $tot ) && ! empty( $tot['capped'] );
+			$why     = $capped ? __( 'not among the top 250 rows the sync keeps', 'signal-and-noise-tools' ) : __( 'not shown by Google in this window', 'signal-and-noise-tools' );
+			// The sync was read and kept no row for this note. Uncapped, Google
+			// did not show it ("not shown"); capped, it may have, past the rows
+			// the sync keeps ("not kept"). Top pages says the same.
+			$none    = $capped ? __( 'not kept', 'signal-and-noise-tools' ) : __( 'not shown', 'signal-and-noise-tools' );
+			$tiles[] = array( 'label' => __( 'Impressions', 'signal-and-noise-tools' ), 'value' => $none, 'window' => $gwl, 'note' => $why );
+			$tiles[] = array( 'label' => __( 'Clicks', 'signal-and-noise-tools' ), 'value' => $none, 'window' => $gwl, 'note' => '' );
 		} else {
 			$tiles[] = array( 'label' => __( 'Impressions', 'signal-and-noise-tools' ), 'value' => number_format_i18n( (int) ( $row['impressions'] ?? 0 ) ), 'window' => $gwl, 'note' => '' );
 			$tiles[] = array( 'label' => __( 'Clicks', 'signal-and-noise-tools' ), 'value' => number_format_i18n( (int) ( $row['clicks'] ?? 0 ) ), 'window' => $gwl, 'note' => sprintf( /* translators: %s: average position. */ __( 'average position %s', 'signal-and-noise-tools' ), number_format_i18n( (float) ( $row['position'] ?? 0 ), 1 ) ) );

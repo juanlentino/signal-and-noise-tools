@@ -516,11 +516,19 @@
 		var os = window.wp && window.wp.os;
 		if ( os && typeof os.confirm === 'function' ) {
 			// The card sits outside every S&N window: mark the dialog for the
-			// readable danger ink (assets/desktop-mode.js, review on #2023).
-			if ( typeof window.sntMarkNextDialog === 'function' ) {
-				window.sntMarkNextDialog();
+			// readable danger ink (assets/desktop-mode.js, review on #2023),
+			// and disarm however the confirm ends.
+			var disarm = typeof window.sntMarkNextDialog === 'function' ? window.sntMarkNextDialog() : null;
+			var asked;
+			try {
+				asked = Promise.resolve( os.confirm( { title: 'Clear DB overrides?', message: message, confirmLabel: 'Clear overrides', danger: true } ) );
+			} catch ( e ) {
+				asked = Promise.reject( e );
 			}
-			return Promise.resolve( os.confirm( { title: 'Clear DB overrides?', message: message, confirmLabel: 'Clear overrides', danger: true } ) );
+			if ( typeof disarm === 'function' ) {
+				asked.then( disarm, disarm );
+			}
+			return asked;
 		}
 		if ( typeof window.sntConfirm === 'function' ) {
 			return Promise.resolve( window.sntConfirm( { title: 'Clear DB overrides?', message: message, confirmLabel: 'Clear overrides', danger: true } ) );
