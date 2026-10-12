@@ -1,45 +1,35 @@
 # Signal & Noise Tools
 
-Companion plugin to the [**Signal & Noise** theme](https://github.com/juanlentino/signal-and-noise) for [juanlentino.com](https://juanlentino.com). It holds the operational tooling that doesn't belong in a presentation theme — SEO, security, analytics, admin surfaces, and AI-assisted editorial helpers — so the theme stays focused on design and the plugin owns behaviour.
+The plugin that runs [juanlentino.com](https://juanlentino.com), one person's WordPress site, built in the open. It isn't a product and isn't on WordPress.org; the code is public so the approach can be read and borrowed. The look lives in the companion [Signal & Noise theme](https://github.com/juanlentino/signal-and-noise); this plugin owns everything the site does.
 
-Built on WordPress 7.0's Abilities API and AI Client (what every model does here, and what agents read, is in [AI.md](AI.md)): it both registers the site's capabilities for AI agents and ships in-editor AI helpers (alt text, meta descriptions, excerpts, brand-voice checks) that call the site owner's configured model provider.
+Three things make it unusual:
 
-<!-- screenshot placeholder — admin UI (Appearance → Signal & Noise) -->
-<!-- ![Signal & Noise Tools admin](docs/screenshot.png) -->
+- **Agents work on the site under rules.** An MCP server lets an AI assistant read the site's state and propose edits. A routine agent's edit is staged as a WordPress revision and goes live only after automated checks and the owner's approval.
+- **Every note is signed.** Each published or edited note is Ed25519-signed and anchored to Bitcoin, so a reader can [verify it](https://juanlentino.com/verify/) without trusting the site.
+- **Nothing is rented.** Analytics are first-party and cookieless, collected at the edge on Cloudflare. Security hardening, SEO and the admin itself live here, and the admin runs as a desktop inside [OpenStation](https://github.com/WordPress/openstation).
+
+![The site's admin as an OpenStation desktop: cards for the publishing calendar, provenance, systems, reading, traffic, post stats and deploy status](docs/screenshot-desktop.jpg)
+
+The rest of this file is the detail: [what it does](#what-it-does), then [in depth](#in-depth). What every model does here, and what agents read, is in [AI.md](AI.md).
 
 ## What it does
 
 - **SEO** — meta, canonicals, OG cards, sitemaps + IndexNow, a redirect manager with a 404 log
 - **Security** — WordPress hardening, a custom login slug, a read-only panel over the edge login guard
 - **Analytics** — first-party, cookieless, edge-collected; SQL rollups, a dashboard, AI narration
-- **Content health** — a 34-check scan from Measurement → Health or the `run-health-scan` ability (the tag-fit reading rides the advisory tier, not the fault count)
+- **Content health** — a 34-check scan of the site (alt text, broken links, drift, edge headers and more), run from Measurement → Health or by an agent
 - **Provenance** — every Note Ed25519-signed and Bitcoin-anchored; readers verify without trusting the site
 - **Citation graph** — a Webmention receiver that treats every claim as unverified until cron checks it
 - **Edge cache** — one tagged Cloudflare purge on save, confirmed and retried; no routine purge button
 - **Music / discography** — a daily Muso.AI + Spotify sync the theme's `/music` page reads
 - **Admin UI** — eight tabs, the analytics dashboard, command palette, cron, audit log, deploy/health
-- **OpenStation** — three native windows, 6 widgets, 22 palette commands, the Copilot seams
-- **AI, models and Jev** — three kinds of model, one job each: a text model suggests, an embedding model relates, and Jev judges; nothing a model says is written to a note without a human's click
-- **Agent surface** — more than a hundred abilities plus their remote twins; an MCP server with a read door (51 tools) and a write door (18), and a remote door for Claude on a phone; the site as something agents read, with the rights terms they read it under
+- **OpenStation** — the admin as a desktop: three app windows, six cards, and commands in the palette
+- **AI, models and Jev** — three kinds of model, one job each: a text model suggests, an embedding model relates, and Jev (the site's editorial judge, a model that scores notes against the house rules) judges; nothing a model says is written to a note without a human's click
+- **Agent surface** — more than a hundred abilities (WordPress's named, permission-checked actions); an MCP server with a read-only endpoint (51 tools), a separate write endpoint (18 tools, every write gated and a dry run by default), and a remote endpoint for an assistant on a phone; the site as something agents read, with the rights terms they read it under
 - **Public pages**: the `[sn_colophon]` page and the Maturity hub with its system pages, painted as spec sheets
 - **Self-updater** — GitHub-poll updater wired into WordPress's native update system
 
 Each of these is expanded under [In depth](#in-depth).
-
-## Cross-package contracts
-
-The plugin coordinates with the theme through WordPress hooks rather than shared code:
-
-| Hook | Direction | Purpose |
-| --- | --- | --- |
-| `sn_purge_all_caches_result` | Plugin → Theme | Trigger the theme's cache purge, return a count |
-| `sn_clear_template_overrides_result` | Plugin → Theme | Clear the theme's template overrides, return a count |
-| `sn_gh_latest_theme_tag_result` / `sn_gh_latest_theme_tag_error_result` | Plugin → Theme | Read the theme's latest GitHub tag (and why a lookup failed) for the update panel |
-| `sn_discography_entries` | Plugin → Theme | Supply the synced Muso.AI + Spotify discography; theme renders the `[sn_discography]` grid |
-| `sn_music_featured` | Plugin → Theme | Supply the featured Spotify embed config for the `/music` hero (`[sn_music_featured]`) |
-| `sn_websub_hub` | Plugin ↔ Theme | Shared hub value — the theme advertises it in feeds, the plugin pings it on publish |
-| `identity.availability` (setting) | Plugin → Theme | Availability string the theme surfaces via `[sn_availability]` on `/contact` + `/services` |
-| `sn_prov_render_chip` / `sn_prov_render_panel` | Plugin → Theme | The plugin renders the byline chip and the record panel; the theme places them in the byline and closing parts (`[sn_prov_chip]`, `[sn_prov_panel]`). `sn_note_provenance` is the plugin-side view-model filter behind both |
 
 ## In depth
 
@@ -165,6 +155,21 @@ The `[sn_colophon]` page and the Maturity hub plus its seven system pages render
 ### Self-updater
 
 GitHub-poll updater wired into WordPress's native update system
+
+### Cross-package contracts
+
+The plugin coordinates with the theme through WordPress hooks rather than shared code:
+
+| Hook | Direction | Purpose |
+| --- | --- | --- |
+| `sn_purge_all_caches_result` | Plugin → Theme | Trigger the theme's cache purge, return a count |
+| `sn_clear_template_overrides_result` | Plugin → Theme | Clear the theme's template overrides, return a count |
+| `sn_gh_latest_theme_tag_result` / `sn_gh_latest_theme_tag_error_result` | Plugin → Theme | Read the theme's latest GitHub tag (and why a lookup failed) for the update panel |
+| `sn_discography_entries` | Plugin → Theme | Supply the synced Muso.AI + Spotify discography; theme renders the `[sn_discography]` grid |
+| `sn_music_featured` | Plugin → Theme | Supply the featured Spotify embed config for the `/music` hero (`[sn_music_featured]`) |
+| `sn_websub_hub` | Plugin ↔ Theme | Shared hub value — the theme advertises it in feeds, the plugin pings it on publish |
+| `identity.availability` (setting) | Plugin → Theme | Availability string the theme surfaces via `[sn_availability]` on `/contact` + `/services` |
+| `sn_prov_render_chip` / `sn_prov_render_panel` | Plugin → Theme | The plugin renders the byline chip and the record panel; the theme places them in the byline and closing parts (`[sn_prov_chip]`, `[sn_prov_panel]`). `sn_note_provenance` is the plugin-side view-model filter behind both |
 
 ## Requirements
 
