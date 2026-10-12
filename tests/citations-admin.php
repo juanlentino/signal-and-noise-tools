@@ -29,6 +29,8 @@ ok( false !== stripos( $s, 'measured zero' ), 'and states it is a MEASURED zero,
 $c = array( 'verified' => 2, 'unattributed' => 1, 'asserted' => 1, 'unverified' => 3, 'never_checked' => 3 );
 $s = sn_cit_summary_sentence( $c );
 ok( false !== strpos( $s, '7 claims' ), 'the total counts every tier, including the ones a fraction would hide' );
+$one = sn_cit_summary_sentence( array( 'verified' => 1, 'unattributed' => 0, 'asserted' => 0, 'unverified' => 0, 'never_checked' => 0 ) );
+ok( 0 === strpos( $one, '1 claim: ' ) && false === strpos( $one, '1 claims' ), '2026-10-12: one claim reads "1 claim:", never "1 claims" (_n, both surfaces share this sentence)' );
 foreach ( SN_CIT_TIERS as $t ) {
 	ok( false !== strpos( $s, $t ), "the readout names the $t tier explicitly" );
 }

@@ -44,7 +44,7 @@ function sn_cit_summary_sentence( $counts ) {
 	}
 	$line = sprintf(
 		/* translators: %1$d total claims, %2$s per-tier breakdown */
-		__( '%1$d claims: %2$s.', 'signal-and-noise-tools' ),
+		_n( '%1$d claim: %2$s.', '%1$d claims: %2$s.', $total, 'signal-and-noise-tools' ),
 		$total,
 		implode( ' · ', $parts )
 	);

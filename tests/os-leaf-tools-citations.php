@@ -165,6 +165,12 @@ foreach ( array( 'classic' => $classic, 'kit' => $kit ) as $which => $html ) {
 // 2026-10-12: nothing is preselected and the field is required on both: the
 // newest forgettable claim was preselected and the confirm cannot name it.
 ok( 1 === preg_match( '/<os-field-row[^>]*label="Forget a claim"[^>]*required[^>]*>\s*<os-select[^>]*value=""[^>]*placeholder="Choose a claim"/', $kit ), 'kit: the forget picker starts empty on "Choose a claim" and is required' );
+// 2026-10-12 live check: `required` on the row alone enforced nothing. os-form
+// validates `[name][required]` hosts, and os-field-row (OpenStation 1.1.13)
+// mirrors `required` only onto a light-DOM input/select/[os-field-control],
+// which <os-select> is not. The control itself carries it, for every type.
+ok( 1 === preg_match( '/<os-select name="claim"[^>]*\brequired\b[^>]*>/', $kit ), 'kit: the os-select itself carries required, the attribute os-form validates' );
+ok( 1 === preg_match( '/<os-text-field[^>]*\brequired\b/', \snt_kit_field( 'text', 'x', 'X', '', array( 'required' => true ) ) ) && 0 === preg_match( '/<os-text-field[^>]*\brequired\b/', \snt_kit_field( 'text', 'x', 'X' ) ), 'snt_kit_field: any control asked to be required carries it, and only then' );
 ok( 1 === preg_match( '/<select name="claim" required[^>]*>\s*<option value="" disabled selected>Choose a claim<\/option>/', $classic ), 'classic: the same, a disabled empty first option on a required select' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'rich fixture: no wp-admin markup: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 

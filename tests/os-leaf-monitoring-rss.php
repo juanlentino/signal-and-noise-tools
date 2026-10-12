@@ -116,7 +116,9 @@ ok( false === strpos( $kit, '12:00:00' ) && false === strpos( $kit, 'Time (UTC)'
 ok( false !== strpos( $kit, 'https://example.test/feed/' ) && false !== strpos( $kit, 'abc123' ), 'the recent-requests table carries the fixture rows' );
 ok( false !== strpos( $kit, 'https://example.test/comments/feed/' ) && false !== strpos( $kit, 'def456' ), 'a second recent-requests row survives' );
 ok( false !== strpos( $kit, 'https://sn-px.workers.dev/_sn/px' ), 'the collector endpoint is shown read-only' );
-ok( false !== strpos( $kit, 'name="event_name" type="text" value="RSS Feed Request"' ), 'the event name field carries the stored value' );
+ok( 1 === preg_match( '/<os-text-field name="event_name"[^>]*type="text" value="RSS Feed Request"/', $kit ), 'the event name field carries the stored value' );
+// 2026-10-12: a required kit field carries `required` on the control, where os-form validates it.
+ok( 1 === preg_match( '/<os-text-field name="event_name"[^>]*\brequired\b/', $kit ), 'the required event name field carries required on the control itself' );
 ok( false !== strpos( $kit, 'name="log_retention_days"' ) && false !== strpos( $kit, 'value="45"' ), 'the retention field carries the stored value' );
 ok( false !== strpos( $kit, 'checked' ) && false !== strpos( $kit, 'name="enabled"' ), 'the enabled switch reflects the stored (on) value' );
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, 'Settings saved' ), 'the saved flash paints a success notice' );
