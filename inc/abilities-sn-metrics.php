@@ -65,7 +65,7 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'        => 'integer',
 					'minimum'     => 1,
 					'maximum'     => 500,
-					'description' => 'Rows for analytics_top_content (default 5, max 100), sources, geography, devices and journeys (default 25).',
+					'description' => 'Rows for analytics_top_content (default 5, max 100), sources, geography, devices and journeys (default 25), and the top paths analytics_vitals reads (default 25, max 50).',
 				),
 				'rows'     => array(
 					'type'        => 'object',
