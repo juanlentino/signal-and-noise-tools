@@ -453,7 +453,7 @@ do_action( 'init' );
 ok( isset( $GLOBALS['__os_icons']['sn-icon-dashboard'] ), 'sn-icon-dashboard registered on init' );
 $dash_icon_enabled = $GLOBALS['__os_icons']['sn-icon-dashboard'];
 ok( 'S&N Home' === $dash_icon_enabled['title'], 'desktop icon title is S&N Home' );
-ok( 'dashicons-shield-alt' === $dash_icon_enabled['icon'], 'desktop icon has shield-alt dashicon' );
+ok( SNT_URL . 'assets/icons/sn-home.svg' === $dash_icon_enabled['icon'], 'the desktop icon wears the S&N Home faders, the same file the window registers' );
 ok( 'sn-dashboard' === ( $dash_icon_enabled['window'] ?? '' ), 'dashboard enabled: desktop icon points to window sn-dashboard' );
 ok( ! isset( $dash_icon_enabled['url'] ), 'dashboard enabled: desktop icon sets no URL' );
 

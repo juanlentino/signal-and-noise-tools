@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-	<title>S&amp;N Analytics</title>
-	<rect x="1" y="1" width="62" height="62" rx="14" fill="#161616" stroke="#3a3a3a" stroke-width="2"/>
-	<path d="M15.7 35.4A18 18 0 0 1 48.3 35.4" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="2.5" stroke-linecap="round"/>
-	<path d="M12.5 33.9L8.9 32.2M17.2 27.4L15.5 25.5M24.1 23L23.1 20.7M32 21.5L32 17.5M39.9 23L40.9 20.7M46.8 27.4L48.5 25.5M51.5 33.9L55.1 32.2" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
-	<path d="M32 43L43.7 28" stroke="#ff4c47" stroke-width="2.5" stroke-linecap="round"/>
-	<circle cx="32" cy="43" r="3.5" fill="#ffffff"/>
-</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="6 6 52 52" width="64" height="64">
+	<title>S&amp;N Analytics</title>
+	<g fill="none" stroke-linecap="round">
+		<path d="M15.7 35.4A18 18 0 0 1 48.3 35.4M32 43L43.7 28" stroke="#161616" stroke-width="5"/>
+		<path d="M12.5 33.9L8.9 32.2M17.2 27.4L15.5 25.5M24.1 23L23.1 20.7M32 21.5L32 17.5M39.9 23L40.9 20.7M46.8 27.4L48.5 25.5M51.5 33.9L55.1 32.2" stroke="#161616" stroke-width="4.5"/>
+		<path d="M15.7 35.4A18 18 0 0 1 48.3 35.4" stroke="#ffffff" stroke-opacity="0.5" stroke-width="3"/>
+		<path d="M12.5 33.9L8.9 32.2M17.2 27.4L15.5 25.5M24.1 23L23.1 20.7M32 21.5L32 17.5M39.9 23L40.9 20.7M46.8 27.4L48.5 25.5M51.5 33.9L55.1 32.2" stroke="#ffffff" stroke-width="2.5"/>
+		<path d="M32 43L43.7 28" stroke="#ff4c47" stroke-width="3"/>
+	</g>
+	<circle cx="32" cy="43" r="3.5" fill="#ffffff" stroke="#161616" stroke-width="1.5"/>
+</svg>

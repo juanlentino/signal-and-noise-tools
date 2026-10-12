@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The S&N apps wear their own icons everywhere, the phone included (owner's call, 2026-10-12: "The apps icons should be part of the integration, not theme").** S&N Home (the faders), Signal & Noise (the pulse) and S&N Analytics (the level meter) now register their icons themselves, on the window, the dock and S&N Home's desktop icon, so they show with any desktop theme or none, and on the phone's home grid and tab bar, which had shown the stock shield, megaphone and chart because the phone ignores theme icon slots. The icons are the glyph alone on a transparent background (white strokes, one red mark each), so OpenStation's own tile, dock and phone glass shows behind them; a thin dark edge keeps them legible on the Legacy theme's light title bar. The Signal through noise theme no longer carries icons (it is color, type and wallpaper; its version goes to 1.1.0). Changed: the charcoal tile behind each icon is gone. Known: the dock's submenu head paints any drawn icon in one color, so there the red mark shows white. Pinned by tests/app-icons.php (each registration names its file, no stock dashicon; each SVG has a title, no script or external reference, no charcoal tile, exactly one red mark, fixed colors with a dark edge), the four app suites (the registered icon is the plugin asset URL) and tests/openstation-desktop-theme.php (no icons key, no icon files under the theme).
+
 ## [2026.10.7] - 2026-10-12 — the queue is a calendar, and links follow your accent
 
 ### Changed

@@ -380,8 +380,8 @@ namespace {
 	echo "\nGroup 1: the definition\n";
 	ok( $app instanceof \OpenStation\App && 'sn-analytics' === $app->id,
 		'the file returns an App under the page`s own slug -- one id, one surface' );
-	ok( 'S&N Analytics' === $app->title && 'dashicons-chart-area' === $app->icon && 'dock' === $app->placement,
-		'the same title and the same chart glyph add_menu_page() gives the classic menu, on the dock' );
+	ok( 'S&N Analytics' === $app->title && SNT_URL . 'assets/icons/sn-analytics.svg' === $app->icon && 'dock' === $app->placement,
+		'the same title the classic menu has, on the dock, wearing its own S&N Analytics icon (assets/icons, not a theme slot)' );
 	ok( array( 'manage_options' ) === $app->caps, 'gated on manage_options, the capability the classic page wp_die()s without' );
 	ok( array( 1280, 860 ) === $app->size, 'opens at 1280x860 -- the report is wide' );
 	ok( array( 'view', 'range', 'from', 'to', 'class', 'compare', 'drill', 'event_prop', 'lg_range', 'notice', 'landed' ) === array_keys( $app->state ) && '' === $app->state['landed'],

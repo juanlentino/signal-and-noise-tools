@@ -435,16 +435,12 @@ function snt_dt_svg_ok( $path, &$why ) {
 	return true;
 }
 
-$icons = isset( $args['icons'] ) && is_array( $args['icons'] ) ? $args['icons'] : array();
-$want  = array( 'APP:sn-dashboard', 'APP:sn-icon-dashboard', 'APP:signal-noise', 'APP:sn-analytics' );
-ok( $want === array_keys( $icons ), 'icons answer exactly the S&N slots: the S&N Home window and its desktop icon, Signal & Noise, S&N Analytics' );
-ok( isset( $icons['APP:sn-dashboard']['path'], $icons['APP:sn-icon-dashboard']['path'] ) && $icons['APP:sn-dashboard']['path'] === $icons['APP:sn-icon-dashboard']['path'], 'the S&N Home window and its desktop icon wear the same faders' );
-foreach ( $icons as $slot => $icon ) {
-	$why = '';
-	ok( 'image' === ( $icon['type'] ?? '' ) && ! isset( $icon['color'] ) && snt_dt_svg_ok( snt_dt_path( $icon['path'] ?? '' ), $why ), "$slot is an untinted image icon, a valid SVG with a title" . ( $why ? " ($why)" : '' ) );
-	$svg = (string) @file_get_contents( snt_dt_path( $icon['path'] ?? '' ) );
-	ok( false !== stripos( $svg, '#161616' ) && false !== stripos( $svg, '#3a3a3a' ) && 1 === substr_count( strtolower( $svg ), '#ff4c47' ), "$slot is drawn on charcoal with a #3a3a3a edge and exactly one red mark" );
-}
+// 2026-10-12, the owner: "The apps icons should be part of the integration,
+// not theme." The three S&N apps register their own icons (tests/app-icons.php),
+// so they show on the phone and under any theme; this theme stays color, type
+// and wallpaper, and an APP slot here would override the apps' own art.
+ok( ! array_key_exists( 'icons', $args ), 'no icons: the S&N apps carry their own registered icons, the theme is color, type and wallpaper' );
+ok( ! is_dir( dirname( __DIR__ ) . '/assets/desktop-theme/icons' ), 'no icon files ship under the desktop theme' );
 
 $walls = isset( $args['wallpapers'] ) && is_array( $args['wallpapers'] ) ? $args['wallpapers'] : array();
 ok( array( 'signal', 'quiet' ) === array_keys( $walls ), 'two wallpapers are offered, Signal and Quiet' );

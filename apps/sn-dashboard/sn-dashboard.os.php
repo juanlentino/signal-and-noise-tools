@@ -276,7 +276,9 @@ function posted_values( array $args ) {
 
 $sn_dashboard = App::define( APP_ID )
 	->title( __( 'S&N Home', 'signal-and-noise-tools' ) )
-	->icon( 'dashicons-shield-alt' )
+	// Its own icon, a plugin asset (2026-10-12): an image URL keeps the red mark
+	// where a data: URI would be masked to one color in the dock.
+	->icon( SNT_URL . 'assets/icons/sn-home.svg' )
 	->size( 1180, 820 )
 	// Keep narrow/short desktop windows reachable, not only maximized phones.
 	->min_size( 360, 360 )

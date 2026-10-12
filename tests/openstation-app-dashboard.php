@@ -51,6 +51,7 @@ namespace OpenStation\App {
 	}
 }
 namespace {
+	defined( 'SNT_URL' ) || define( 'SNT_URL', 'https://example.test/wp-content/plugins/signal-and-noise-tools/' );
 	// The capability gate, switchable: the harness's own stub answers true
 	// forever, and a pin that cannot set it false cannot watch a guard refuse.
 	$GLOBALS['__can'] = true;
@@ -89,7 +90,7 @@ namespace {
 	function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
 	echo "Group 1: the window\n";
-	ok( 'sn-dashboard' === $app->id && 'S&N Home' === $app->title && 'dashicons-shield-alt' === $app->icon && 'dock' === $app->placement, 'the stable id keeps placement while the native surface is named S&N Home' );
+	ok( 'sn-dashboard' === $app->id && 'S&N Home' === $app->title && SNT_URL . 'assets/icons/sn-home.svg' === $app->icon && 'dock' === $app->placement, 'the stable id keeps placement while the native surface is named S&N Home' );
 	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post', 'filter', 'saved', 'answered', 'landed' ) === array_keys( $app->state ) && '' === $app->state['filter'] && false === $app->state['saved'] && '' === $app->state['answered'] && '' === $app->state['landed'], 'state has NO tab: the tab is the session (the framework`s), only the leaf, the anchor, the last write, a leaf`s text filter (#1604, written by os-bind through the built-in set) and the params last read (2026-10-12) are state' );
 	ok( array( 'go', 'post', 'door', 'refresh', 'reopen', 'poll', 'cron_run', 'cron_unschedule' ) === array_keys( $app->actions ), 'eight actions: go, post, door, refresh, reopen, poll, cron_run, cron_unschedule (#1604)' );
 	$tabs = array();
