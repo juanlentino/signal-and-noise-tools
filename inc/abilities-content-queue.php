@@ -23,6 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/abilities-content-queue-gaps.php';
+require_once __DIR__ . '/abilities-content-queue-cadence.php';
 require_once __DIR__ . '/abilities-content-queue-register.php';
 
 /** How many upcoming rows the payload carries: the headline plus three. */
@@ -126,7 +127,8 @@ function sn_content_queue_ago( $ts, $now ) {
  * @param string[]     $planned   Gaps marked planned ("from|to"), skipped by the gap line.
  * @param array        $draft_list Draft rows (titles and edit links only), newest edit first.
  * @param int|null     $draft_more Drafts left off the list, or null when not read for this user.
- * @return array{next:array,scheduled_total:int,runs_to:?array,published:array,drafts:?int,gap:?array,scheduled:array,today:string,week_start:string,planned:array,draft_list:array,draft_more:?int}
+ * @since Unreleased (cadence warnings): `cadence`, every cluster and unplanned gap.
+ * @return array{next:array,scheduled_total:int,runs_to:?array,published:array,drafts:?int,gap:?array,scheduled:array,today:string,week_start:string,planned:array,draft_list:array,draft_more:?int,cadence:array}
  */
 function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone $tz, $drafts = null, array $planned = array(), $draft_list = array(), $draft_more = null ) {
 	$future    = is_array( $future ) ? array_values( $future ) : array();
@@ -229,6 +231,9 @@ function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone
 		),
 		'draft_list'      => $draft_rows,
 		'draft_more'      => null === $draft_more ? null : max( 0, (int) $draft_more ),
+		// Phase 2 (2026-10-12): every cluster and gap by the owner's rule
+		// (under 2 days, over 7), planned gaps left out, one sentence each.
+		'cadence'         => sn_content_queue_cadence( $stamps( $future ), $stamps( array_slice( $published, 0, 1 ) )[0] ?? null, $now, $tz, $planned ),
 	);
 }
 
