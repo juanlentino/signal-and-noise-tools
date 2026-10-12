@@ -107,5 +107,10 @@ $surfaces = sn_agent_skills_advertise_surface( array() );
 ok( 1 === count( $surfaces ) && 'agent-skills' === $surfaces[0]['type'], 'appends its own surface' );
 ok( $surfaces[0]['url'] === 'https://juanlentino.com' . SN_AGENT_SKILLS_INDEX_PATH, 'surface url correct' );
 
+// The skill states what the edge serves: a note's Markdown is also at /notes/<slug>.md
+// (sn-rights-signals), so the old "no .md suffix" line would send agents away from it.
+$fam = (string) file_get_contents( SNT_PATH . 'skills/fetch-as-markdown/SKILL.md' );
+ok( false !== strpos( $fam, '/notes/<slug>.md' ) && false === strpos( $fam, 'no `.md` suffix' ), 'fetch-as-markdown names the note .md URL' );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
