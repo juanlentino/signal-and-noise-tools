@@ -22,11 +22,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/abilities-content-queue-gaps.php';
+require_once __DIR__ . '/abilities-content-queue-register.php';
+
 /** How many upcoming rows the payload carries: the headline plus three. */
 const SN_CONTENT_QUEUE_NEXT = 4;
 
 /** How many just-published rows: about twelve days at the site's cadence. */
 const SN_CONTENT_QUEUE_PUBLISHED = 3;
+
+/** How many drafts the card lists by title (the count covers the rest). */
+const SN_CONTENT_QUEUE_DRAFTS = 3;
 
 /**
  * Label a scheduled time relative to now, in the given timezone. PURE.
@@ -78,63 +84,6 @@ function sn_content_queue_day( DateTimeImmutable $at, DateTimeImmutable $today )
 }
 
 /**
- * The first hole in the schedule, or null. PURE.
- *
- * Reuses the publishing-cadence flag's own definition (inc/ml-cadence.php):
- * snt_ml_cadence_deviation() over the published history gives the expected
- * gap (EWMA) and its spread, and a gap is late at SNT_ML_CADENCE_Z_FLAG
- * sigmas. That flag scores only the current quiet spell; here the same test
- * runs on each pair of consecutive scheduled notes, so the line says where
- * the cadence flag WOULD fire if nothing new is scheduled. Honest unknowns
- * carry over: thin history or a zero-spread metronome answers null, never a
- * guessed threshold. Ceiling: an irregular history widens the spread and
- * nothing flags; that is the cadence check's posture, kept on purpose.
- *
- * The empty stretch is the whole days strictly between the two notes, in
- * the site timezone; a late pair with no whole empty day between them is
- * not a hole anyone can schedule into, so the walk moves on.
- *
- * @since 23.8.0
- * @param int[]        $scheduled Scheduled Unix times (any order).
- * @param int[]        $history   Published Unix times (any order).
- * @param int          $now       Unix time now.
- * @param DateTimeZone $tz        Site timezone.
- * @param string[]     $planned   Gaps the owner marked planned, as "from|to"
- *                                (Y-m-d): skipped, so the next one shows.
- * @return array{from:string,to:string,from_label:string,to_label:string}|null
- */
-function sn_content_queue_gap( $scheduled, $history, $now, DateTimeZone $tz, array $planned = array() ) {
-	if ( ! function_exists( 'snt_ml_cadence_deviation' ) || ! defined( 'SNT_ML_CADENCE_Z_FLAG' ) ) {
-		return null;
-	}
-	$dev = snt_ml_cadence_deviation( (array) $history, (int) $now );
-	if ( ! is_array( $dev ) || ! ( $dev['std'] > 0.0 ) ) {
-		return null;
-	}
-	$ts = array_map( 'intval', (array) $scheduled );
-	sort( $ts );
-	$today = ( new DateTimeImmutable( '@' . (int) $now ) )->setTimezone( $tz )->setTime( 0, 0, 0 );
-	$count = count( $ts );
-	for ( $i = 1; $i < $count; $i++ ) {
-		if ( ( $ts[ $i ] - $ts[ $i - 1 ] - $dev['ewma'] ) / $dev['std'] < SNT_ML_CADENCE_Z_FLAG ) {
-			continue;
-		}
-		$from = ( new DateTimeImmutable( '@' . $ts[ $i - 1 ] ) )->setTimezone( $tz )->setTime( 0, 0, 0 )->modify( '+1 day' );
-		$to   = ( new DateTimeImmutable( '@' . $ts[ $i ] ) )->setTimezone( $tz )->setTime( 0, 0, 0 )->modify( '-1 day' );
-		if ( $from > $to || in_array( $from->format( 'Y-m-d' ) . '|' . $to->format( 'Y-m-d' ), $planned, true ) ) {
-			continue;
-		}
-		return array(
-			'from'       => $from->format( 'Y-m-d' ),
-			'to'         => $to->format( 'Y-m-d' ),
-			'from_label' => sn_content_queue_day( $from, $today ),
-			'to_label'   => sn_content_queue_day( $to, $today ),
-		);
-	}
-	return null;
-}
-
-/**
  * Label a past time as "N ago", coarse. PURE.
  *
  * @since 15.8.0
@@ -165,6 +114,9 @@ function sn_content_queue_ago( $ts, $now ) {
  * @since 15.8.0
  * @since 23.8.0 $drafts and the gap: every scheduled row and the published
  *               history ride in so the gap is computed here, purely.
+ * @since Unreleased (the queue calendar): every scheduled row (`scheduled`), today and
+ *               the Monday of this week, the planned gaps as ranges, and the
+ *               drafts by title (`draft_list`); every row gains `day` and `time`.
  * @param array        $future    Scheduled rows, soonest first (the whole queue; the last is runs_to).
  * @param int          $total     Scheduled count site-wide.
  * @param array        $published Published rows, newest first (the cadence history; three are painted).
@@ -172,22 +124,30 @@ function sn_content_queue_ago( $ts, $now ) {
  * @param DateTimeZone $tz        Site timezone.
  * @param int|null     $drafts    Draft count, or null when it could not be read (never a guessed 0).
  * @param string[]     $planned   Gaps marked planned ("from|to"), skipped by the gap line.
- * @return array{next:array,scheduled_total:int,runs_to:?array,published:array,drafts:?int,gap:?array}
+ * @param array        $draft_list Draft rows (titles and edit links only), newest edit first.
+ * @param int|null     $draft_more Drafts left off the list, or null when not read for this user.
+ * @return array{next:array,scheduled_total:int,runs_to:?array,published:array,drafts:?int,gap:?array,scheduled:array,today:string,week_start:string,planned:array,draft_list:array,draft_more:?int}
  */
-function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone $tz, $drafts = null, array $planned = array() ) {
+function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone $tz, $drafts = null, array $planned = array(), $draft_list = array(), $draft_more = null ) {
 	$future    = is_array( $future ) ? array_values( $future ) : array();
 	$published = is_array( $published ) ? array_values( $published ) : array();
 	$now       = (int) $now;
 
-	$row = static function ( $r, $label ) {
+	// 2026-10-12 (the calendar): day and time ride every row, in the SITE
+	// timezone, so the card never asks the browser's clock which day a note
+	// falls on.
+	$row = static function ( $r, $label ) use ( $tz ) {
 		if ( ! is_array( $r ) ) {
 			return null;
 		}
 		$title = trim( (string) ( $r['title'] ?? '' ) );
+		$at    = ( new DateTimeImmutable( '@' . (int) ( $r['ts'] ?? 0 ) ) )->setTimezone( $tz );
 		return array(
 			'id'       => (int) ( $r['id'] ?? 0 ),
 			'title'    => '' !== $title ? $title : '(untitled)',
 			'date'     => gmdate( 'c', (int) ( $r['ts'] ?? 0 ) ),
+			'day'      => $at->format( 'Y-m-d' ),
+			'time'     => $at->format( 'g:i A' ),
 			'when'     => $label,
 			'edit_url' => (string) ( $r['edit_url'] ?? '' ),
 		);
@@ -228,6 +188,28 @@ function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone
 		return $out;
 	};
 
+	// The calendar's rows: EVERY scheduled note, not the four of `next`
+	// (the 2026-10-12 sketch plotted only those and left real notes off).
+	$all = array();
+	foreach ( $future as $r ) {
+		$shaped = is_array( $r ) ? $row( $r, sn_content_queue_when( (int) ( $r['ts'] ?? 0 ), $now, $tz ) ) : null;
+		if ( $shaped ) {
+			$all[] = $shaped;
+		}
+	}
+	$today = ( new DateTimeImmutable( '@' . $now ) )->setTimezone( $tz )->setTime( 0, 0, 0 );
+	// Monday of this week by ISO weekday ('N', 1 to 7); "monday this week"
+	// reads differently on a Sunday across PHP versions.
+	$monday = $today->modify( '-' . ( (int) $today->format( 'N' ) - 1 ) . ' days' );
+
+	$draft_rows = array();
+	foreach ( is_array( $draft_list ) ? $draft_list : array() as $r ) {
+		$shaped = is_array( $r ) ? $row( $r, '' ) : null;
+		if ( $shaped ) {
+			$draft_rows[] = array_intersect_key( $shaped, array_flip( array( 'id', 'title', 'edit_url' ) ) );
+		}
+	}
+
 	return array(
 		'next'            => $next,
 		'scheduled_total' => max( 0, (int) $total ),
@@ -235,79 +217,21 @@ function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone
 		'published'       => $recent,
 		'drafts'          => null === $drafts ? null : max( 0, (int) $drafts ),
 		'gap'             => sn_content_queue_gap( $stamps( $future ), $stamps( $published ), $now, $tz, $planned ),
+		'scheduled'       => $all,
+		'today'           => $today->format( 'Y-m-d' ),
+		'week_start'      => $monday->format( 'Y-m-d' ),
+		'planned'         => array_map(
+			static function ( $k ) {
+				$p = explode( '|', $k );
+				return array( 'from' => $p[0], 'to' => $p[1] );
+			},
+			array_values( array_filter( $planned, static fn( $k ) => is_string( $k ) && 1 === substr_count( $k, '|' ) ) )
+		),
+		'draft_list'      => $draft_rows,
+		'draft_more'      => null === $draft_more ? null : max( 0, (int) $draft_more ),
 	);
 }
 
-/**
- * Register the ability.
- *
- * @since 15.8.0
- */
-function snt_abilities_content_queue_register() {
-	if ( ! function_exists( 'wp_register_ability' ) ) {
-		return;
-	}
-	$row_schema = array(
-		'type'       => 'object',
-		'properties' => array(
-			'id'       => array( 'type' => 'integer' ),
-			'title'    => array( 'type' => 'string' ),
-			'date'     => array( 'type' => 'string' ),
-			'when'     => array( 'type' => 'string' ),
-			'edit_url' => array( 'type' => 'string' ),
-		),
-	);
-	wp_register_ability( 'signal-noise/content-queue', array(
-		'label'               => 'Content queue',
-		'description'         => 'The scheduled queue at a glance: the next four scheduled posts in date order with a site-timezone label ("Tomorrow 9:38 AM", "Sat 11:38 AM", "Dec 27"), the scheduled count and the date the queue runs to, the draft count (null when unreadable), the first hole in the schedule by the publishing-cadence flag\'s own threshold (null when none or when the history is too thin to say), and the last three published posts with a relative age. Read-only; the reading behind the SN Queue desktop widget.',
-		'category'            => 'content',
-		'permission_callback' => 'snt_ability_perm_edit_posts',
-		'execute_callback'    => 'snt_ability_content_queue',
-		'input_schema'        => array(
-			// The [object,null] union: readonly ⇒ GET run-path ⇒ an omitted
-			// ?input= delivers NULL, and a plain 'object' rejects every such call.
-			'type'                 => array( 'object', 'null' ),
-			'properties'           => array(),
-			'additionalProperties' => false,
-		),
-		'output_schema'       => array(
-			'type'       => 'object',
-			'properties' => array(
-				'next'            => array( 'type' => 'array', 'items' => $row_schema ),
-				'scheduled_total' => array( 'type' => 'integer' ),
-				'runs_to'         => array(
-					'type'       => array( 'object', 'null' ),
-					'properties' => array(
-						'date'  => array( 'type' => 'string' ),
-						'label' => array( 'type' => 'string' ),
-					),
-				),
-				'published'       => array( 'type' => 'array', 'items' => $row_schema ),
-				'drafts'          => array( 'type' => array( 'integer', 'null' ) ),
-				'gap'             => array(
-					'type'       => array( 'object', 'null' ),
-					'properties' => array(
-						'from'       => array( 'type' => 'string' ),
-						'to'         => array( 'type' => 'string' ),
-						'from_label' => array( 'type' => 'string' ),
-						'to_label'   => array( 'type' => 'string' ),
-					),
-				),
-			),
-		),
-		'meta'                => array(
-			'show_in_rest' => true,
-			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
-			'annotations'  => array(
-				'readonly'        => true,
-				'destructive'     => false,
-				'idempotent'      => true,
-				'open_world_hint' => false,
-			),
-		),
-	) );
-}
-add_action( 'wp_abilities_api_init', 'snt_abilities_content_queue_register' );
 
 /**
  * Permission: anyone who can edit posts can read the queue (the Posts screen
@@ -341,17 +265,21 @@ function sn_content_queue_row( $post ) {
 		'id'       => (int) $post->ID,
 		'title'    => (string) get_the_title( $post ),
 		'ts'       => (int) $ts,
-		'edit_url' => (string) get_edit_post_link( $post, 'raw' ),
+		// Escaped for a URL here, where the row is made (review on #2031):
+		// a link a filter bent to another scheme never reaches the card.
+		'edit_url' => esc_url_raw( (string) get_edit_post_link( $post, 'raw' ) ),
 	);
 }
 
 /**
  * Ability execute callback: signal-noise/content-queue.
  *
- * Two reads: the whole scheduled queue (asc; the shaper paints the first
- * four, labels the last as runs_to and walks all of it for the gap) and the
- * last SNT_ML_CADENCE_PUBLISH_DEPTH published (the cadence history the gap
- * is measured against; three are painted). The totals ride wp_count_posts(),
+ * Three reads: the whole scheduled queue (asc; the shaper paints the first
+ * four, labels the last as runs_to, walks all of it for the gap and hands
+ * all of it to the calendar), the last SNT_ML_CADENCE_PUBLISH_DEPTH
+ * published (the cadence history the gap is measured against; three are
+ * painted) and the newest SN_CONTENT_QUEUE_DRAFTS drafts (titles and edit
+ * links only; no post body leaves the server). The totals ride wp_count_posts(),
  * which is cached.
  *
  * @since 15.8.0
@@ -372,8 +300,15 @@ function snt_ability_content_queue( $input = null ) {
 
 	$queue = get_posts( $base + array( 'post_status' => 'future', 'order' => 'ASC', 'numberposts' => -1 ) );
 	$done  = get_posts( $base + array( 'post_status' => 'publish', 'order' => 'DESC', 'numberposts' => defined( 'SNT_ML_CADENCE_PUBLISH_DEPTH' ) ? SNT_ML_CADENCE_PUBLISH_DEPTH : 20 ) );
+	// The drafts by title for the card's list (2026-10-12): the newest edits
+	// first, capped. Only drafts this user can edit (review on #2031): a
+	// contributor reads their own, never a colleague's working title.
+	$others = current_user_can( 'edit_others_posts' );
+	$draft  = get_posts( array( 'orderby' => 'modified' ) + ( $others ? array() : array( 'author' => get_current_user_id() ) ) + $base + array( 'post_status' => 'draft', 'order' => 'DESC', 'numberposts' => SN_CONTENT_QUEUE_DRAFTS ) );
+	$draft  = array_filter( is_array( $draft ) ? $draft : array(), static fn( $p ) => $p instanceof WP_Post && current_user_can( 'edit_post', $p->ID ) );
 
-	$future = array_values( array_filter( array_map( 'sn_content_queue_row', is_array( $queue ) ? $queue : array() ) ) );
+	$future     = array_values( array_filter( array_map( 'sn_content_queue_row', is_array( $queue ) ? $queue : array() ) ) );
+	$draft_rows = array_values( array_filter( array_map( 'sn_content_queue_row', $draft ) ) );
 
 	$counts = wp_count_posts( 'post' );
 	$total  = is_object( $counts ) && isset( $counts->future ) ? (int) $counts->future : count( $future );
@@ -386,60 +321,10 @@ function snt_ability_content_queue( $input = null ) {
 		time(),
 		wp_timezone(),
 		$drafts,
-		sn_content_queue_planned_gaps()
+		sn_content_queue_planned_gaps(),
+		$draft_rows,
+		// "+N more" is the site's count less the list, so it is said only to
+		// someone whose list could hold any draft; otherwise not read.
+		$others && null !== $drafts ? max( 0, $drafts - count( $draft_rows ) ) : null
 	);
 }
-
-/** Gaps the owner marked planned (2026-10-10: the holidays are on purpose). */
-const SN_CONTENT_QUEUE_PLANNED_OPT = 'sn_content_queue_planned_gaps';
-
-/**
- * The planned gaps, as "from|to" (Y-m-d), newest last, at most 20.
- *
- * @return string[]
- */
-function sn_content_queue_planned_gaps() {
-	$v = get_option( SN_CONTENT_QUEUE_PLANNED_OPT, array() );
-	return array_values( array_filter( (array) $v, static fn( $k ) => is_string( $k ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}\|\d{4}-\d{2}-\d{2}\z/', $k ) ) );
-}
-
-/**
- * Marks one gap planned.
- *
- * @param string $from First empty day, Y-m-d.
- * @param string $to   Last empty day, Y-m-d.
- * @return bool False on a malformed range.
- */
-function sn_content_queue_mark_planned( $from, $to ) {
-	$from = (string) $from;
-	$to   = (string) $to;
-	$day = static function ( $d ) {
-		return 1 === preg_match( '/^(\d{4})-(\d{2})-(\d{2})\z/', $d, $m ) && checkdate( (int) $m[2], (int) $m[3], (int) $m[1] );
-	};
-	if ( ! $day( $from ) || ! $day( $to ) || $from > $to ) {
-		return false;
-	}
-	$keep   = array_values( array_diff( sn_content_queue_planned_gaps(), array( $from . '|' . $to ) ) );
-	$keep[] = $from . '|' . $to;
-	update_option( SN_CONTENT_QUEUE_PLANNED_OPT, array_slice( $keep, -20 ), false );
-	return true;
-}
-
-add_action( 'rest_api_init', static function () {
-	register_rest_route( 'signal-noise/v1', '/desktop/queue-gap-planned', array(
-		'methods'             => 'POST',
-		'callback'            => static function ( WP_REST_Request $req ) {
-			if ( ! sn_content_queue_mark_planned( $req->get_param( 'from' ), $req->get_param( 'to' ) ) ) {
-				return new WP_Error( 'rest_invalid_param', 'from and to must be Y-m-d days, from first.', array( 'status' => 400 ) );
-			}
-			return rest_ensure_response( array( 'ok' => true ) );
-		},
-		'permission_callback' => function () {
-			return current_user_can( 'manage_options' );
-		},
-		'args'                => array(
-			'from' => array( 'type' => 'string', 'required' => true ),
-			'to'   => array( 'type' => 'string', 'required' => true ),
-		),
-	) );
-} );

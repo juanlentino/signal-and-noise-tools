@@ -162,12 +162,22 @@ add_action( 'init', function() {
 		true
 	);
 
+	// 2026-10-12: SN Queue's calendar (the coming weeks, a dot per scheduled
+	// note). Optional to the card, which falls back to its Then list.
+	wp_register_script(
+		'snt-queue-calendar',
+		plugins_url( 'assets/desktop-mode-queue-calendar.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array(),
+		SNT_VERSION,
+		true
+	);
+
 	// 15.8.0: SN Queue widget — rides the content-queue ability read only, so
 	// snt-ability-run is the sole real dependency.
 	wp_register_script(
 		'sn-desktop-mode-widget-queue',
 		plugins_url( 'assets/desktop-mode-widget-queue.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'snt-poll-cadence', 'snt-pulse' ),
+		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'snt-poll-cadence', 'snt-pulse', 'snt-card-kit', 'snt-queue-calendar' ),
 		SNT_VERSION,
 		true
 	);

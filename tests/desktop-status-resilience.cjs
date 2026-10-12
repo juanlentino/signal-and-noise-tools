@@ -11,7 +11,15 @@ class Element {
   removeAttribute(k) { delete this.attrs[k]; }
   addEventListener(t, fn) { (this.handlers = this.handlers || {})[t] = fn; }
   appendChild(n) { this.children.push(n); Object.defineProperty(n, "parentNode", {value: this, writable: true, configurable: true}); return n; }
-  querySelector() { return null; }
+  // Only plain attribute selectors ([a="b"][c="d"]) match; anything else is
+  // null, as before, so the cards' other lookups keep their fallbacks.
+  querySelector(sel) {
+    if (!/^(\[[\w-]+="[^"]*"\])+$/.test(sel)) return null;
+    const want = [...sel.matchAll(/\[([\w-]+)="([^"]*)"\]/g)];
+    return nodes(this).slice(1).find(n => want.every(([, k, v]) => n.attrs[k] === v)) || null;
+  }
+  contains(n) { return nodes(this).includes(n); }
+  focus() { focused.el = this; }
   remove() { if (this.parentNode) this.parentNode.removeChild(this); }
   insertBefore(n, before) { const i = this.children.indexOf(before); this.children.splice(i < 0 ? this.children.length : i, 0, n); }
   removeChild(n) { this.children.splice(this.children.indexOf(n), 1); }
@@ -20,6 +28,8 @@ class Element {
   get textContent() { return this.text + this.children.map(n => n.textContent).join(' '); }
 }
 const nodes = n => [n, ...n.children.flatMap(nodes)];
+// The focused element of the harness in use (document.activeElement).
+const focused = {el: null};
 const details = n => nodes(n).map(e => e.attrs['aria-label'] || '').filter(Boolean).join(' ');
 const styles = n => String(n.attrs.style || '') + n.children.map(styles).join(' ');
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
@@ -45,7 +55,8 @@ function harness(extraData, opts) {
   };
   // A document with a visibility state the fixture can flip (#1603).
   const listeners = new Map();
-  const document = { hidden: false, createElement: tag => new Element(tag), createElementNS: (ns, tag) => new Element(tag),
+  focused.el = null;
+  const document = { get activeElement() { return focused.el; }, set activeElement(n) { focused.el = n; }, hidden: false, createElement: tag => new Element(tag), createElementNS: (ns, tag) => new Element(tag),
     addEventListener(t, fn) { listeners.set(t, [...(listeners.get(t) || []), fn]); },
     removeEventListener(t, fn) { listeners.set(t, (listeners.get(t) || []).filter(f => f !== fn)); },
     dispatch(t) { (listeners.get(t) || []).forEach(fn => fn()); } };
@@ -53,7 +64,7 @@ function harness(extraData, opts) {
   const context = vm.createContext({window, document, Date: Clock, Promise, Error, Math, Number, Array, Object, AbortController});
   // The card kit only where a fixture asks: its bars and dots are spans the
   // fake textContent joins with spaces, which would move every other regex.
-  for (const name of [...((opts && opts.kit) ? ['desktop-mode-card-kit.js'] : []), 'snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
+  for (const name of [...((opts && opts.kit) ? ['desktop-mode-card-kit.js'] : []), ...((opts && opts.calendar) ? ['desktop-mode-queue-calendar.js'] : []), 'snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
     'desktop-mode-widget-queue.js', 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-views.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets', name), 'utf8'), context, {filename: name});
   }
@@ -521,6 +532,7 @@ async function run() {
     const fl0 = nodes(fxroot).find(n => 'a' === n.tag && n.text === 'Open Cloudflare');
     fl0.tagName = 'A';
     fx.document.activeElement = fl0;
+    const saved = {contains: Element.prototype.contains, focus: Element.prototype.focus};
     Element.prototype.contains = function(n) { return nodes(this).includes(n); };
     Element.prototype.querySelectorAll = function(sel) { return 'a' === sel ? nodes(this).filter(n => 'a' === n.tag).map(n => (n.tagName = 'A', n)) : []; };
     Element.prototype.focus = function() { fx.document.activeElement = this; };
@@ -528,7 +540,7 @@ async function run() {
     fx.calls[fx.calls.length - 1].resolve({configured: true, rows: [{name: 'a', level: 'ok'}]}); await flush();
     const now = fx.document.activeElement;
     assert.ok(now && now !== fl0 && 'Open Cloudflare' === now.text && nodes(fxroot).includes(now), 'focus moves to the rebuilt link, not to nowhere');
-    delete Element.prototype.contains; delete Element.prototype.querySelectorAll; delete Element.prototype.focus;
+    Object.assign(Element.prototype, saved); delete Element.prototype.querySelectorAll;
     fxstop();
     const sp = harness({statusExtra: {systems: {edge: {day: 'Oct 4', total: 18, prior: 27, dashboard: 14}}, provenance: {}}}), sproot = new Element('div');
     const spstop = sp.window.desktopModeWidgets['sn-health'](sproot); await flush();
@@ -888,6 +900,143 @@ async function run() {
     const qstop = q.window.desktopModeWidgets['sn-queue'](qroot); await flush();
     assert.match(qroot.textContent, /^Couldn.t read the queue: the S&N status reader did not load; reload the desktop\.$/);
     q.window.sntAbilityRun = runner; qstop();
+  }
+  // 2026-10-12, the owner's redesign: SN Queue's coming weeks as a calendar.
+  {
+    const x = harness({pages: {scheduled: 'https://x.test/scheduled'}}, {kit: true, calendar: true}), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-queue'](root); await flush();
+    const days = ['2026-10-13', '2026-10-16', '2026-10-20', '2026-10-24', '2026-10-28', '2026-11-01', '2026-11-05', '2026-11-09', '2026-11-09', '2026-11-09', '2026-11-09', '2026-11-09', '2026-11-13', '2026-11-17', '2026-11-21', '2026-11-21', '2026-11-25', '2027-01-25'];
+    const scheduled = days.map((day, i) => ({title: 'Note ' + i, day, time: (i % 12 + 1) + ':00 PM', edit_url: 'https://x.test/e/' + i}));
+    const payload = extra => ({next: scheduled.slice(0, 4), published: [{title: 'Old', when: '2 days ago'}], scheduled_total: 18, drafts: 2, draft_more: 1,
+      runs_to: {label: 'Jan 25, 2027'}, gap: null, scheduled, today: '2026-10-12', week_start: '2026-10-12',
+      planned: [{from: '2026-11-14', to: '2026-11-16'}], draft_list: [{title: 'Idea', edit_url: 'https://x.test/e/idea'}], ...(extra || {})});
+    x.calls[0].resolve(payload()); await flush();
+    const cells = () => nodes(root).filter(n => 'gridcell' === n.attrs.role);
+    const cellOf = label => cells().find(n => n.attrs['aria-label'].startsWith(label));
+    // A day's marks: its dots, plus N for a "+N" past three (review on #2031).
+    const marksOf = n => { const row = n.children.find(c => 'true' === c.attrs['aria-hidden'] && /min-height:5px/.test(c.attrs.style || ''));
+      return row.children.reduce((k, c) => k + (/border:2\.5px/.test(c.attrs.style || '') ? 1 : Number((/^\+(\d+)$/.exec(c.text) || [0, 0])[1])), 0); };
+    const dotsOf = marksOf;
+    assert.equal(cells().length, 42, 'six weeks of seven days, Monday first');
+    assert.match(cells()[0].attrs['aria-label'], /^Mon, Oct 12, today/, 'the grid starts on the Monday of this week, in the server\'s days');
+    // Every note in the window gets a dot, across all six weeks (the sketch drew only the first four).
+    const inWindow = scheduled.filter(r => r.day <= '2026-11-22');
+    assert.equal(cells().reduce((n, c) => n + dotsOf(c), 0), inWindow.length, 'every scheduled note in the window is a dot, not only the four of next');
+    for (const r of inWindow) assert.ok(dotsOf(cells().find(c => c.attrs['aria-label'].includes(r.title))) >= 1, r.day + ' has its dot');
+    assert.equal(dotsOf(cellOf('Sat, Nov 21')), 2, 'two notes on one day, two dots');
+    const nov9 = cellOf('Mon, Nov 9').children.find(c => /min-height:5px/.test(c.attrs.style || ''));
+    assert.deepEqual([nov9.children.filter(c => /border:2\.5px/.test(c.attrs.style || '')).length, nov9.children[nov9.children.length - 1].text], [2, '+3'], 'five notes on one day: two dots and "+3", never three dots for five');
+    assert.match(cellOf('Mon, Nov 9').attrs['aria-label'], /5 notes: /, 'and the name counts all five');
+    // The first of a month: the month tag, the number and the dot together.
+    const nov1 = cellOf('Sun, Nov 1');
+    assert.deepEqual(nov1.children.slice(0, 2).map(n => n.text), ['Nov', '1'], 'the 1st carries its month tag AND its number');
+    assert.equal(dotsOf(nov1), 1, 'and its dot');
+    assert.equal(cellOf('Mon, Nov 2').children.length, 2, 'any other day is a number and a dot row, no tag');
+    // Today: one cell, a solid border (survives forced colors), and said in words.
+    const today = cells().filter(n => /solid currentColor/.test(n.attrs.style));
+    assert.equal(today.length, 1, 'today\'s marker is on exactly one cell');
+    assert.equal(nodes(root).filter(n => /text-decoration:underline/.test(n.attrs.style || '')).length, 1, 'and one underlined number, a shape forced colors keeps');
+    assert.match(today[0].attrs['aria-label'], /^Mon, Oct 12, today, nothing scheduled$/);
+    assert.ok(cells().every(n => !/solid currentColor/.test(n.attrs.style) || n === today[0]));
+    assert.ok(nodes(root).filter(n => /border:2\.5px solid/.test(n.attrs.style || '')).length === inWindow.length - 3, 'dots are drawn with borders, which forced colors keeps');
+    // The next-up day keeps a shape of its own once another day is selected (review on #2031).
+    const ticks = nodes(root).filter(n => /position:absolute;top:2px;right:2px;width:0;height:0;border:2px solid/.test(n.attrs.style || ''));
+    assert.equal(ticks.length, 1, 'one corner mark, drawn with a border');
+    assert.ok(cellOf('Tue, Oct 13').children.includes(ticks[0]), 'on the next-up day');
+    // Names carry the date and the titles.
+    assert.equal(cellOf('Tue, Oct 13').attrs['aria-label'], 'Tue, Oct 13, next up, 1 note: Note 0 at 1:00 PM');
+    assert.match(cellOf('Sun, Nov 15').attrs['aria-label'], /planned gap, nothing scheduled$/, 'a planned day says so');
+    assert.match(cellOf('Sun, Nov 15').attrs.style, /dashed/, 'and wears the quiet dashed mark');
+    assert.match(root.textContent, /Dashed days: a gap you marked planned/, 'the mark has a text twin');
+    // The box: the next-up day by default, with the title, time and link.
+    const box = nodes(root).find(n => 'polite' === n.attrs['aria-live']);
+    assert.match(box.textContent, /^Next up · Tue, Oct 13/, 'the box opens on the next-up day');
+    assert.ok(nodes(box).some(n => 'a' === n.tag && 'Note 0' === n.text && 'https://x.test/e/0' === n.href), 'with the note linked to its editor');
+    assert.doesNotMatch(root.textContent, /\bThen\b/, 'no Then list: its notes are on the grid');
+    assert.equal(nodes(root).filter(n => /^Next up/.test(n.text)).length, 1, 'Next up is said once, in the box');
+    assert.equal(cells().filter(n => '0' === n.attrs.tabindex).length, 1, 'one tab stop (roving tabindex)');
+    assert.equal(cellOf('Tue, Oct 13').attrs.tabindex, '0');
+    // Past the grid, drafts and the figures that stay.
+    assert.match(root.textContent, /\+2 more through Jan 25, 2027/, 'notes past the grid are counted through the last date');
+    assert.ok(nodes(root).some(n => 'a' === n.tag && 'Idea' === n.text && 'https://x.test/e/idea' === n.href), 'each draft is listed by title, linked to its editor');
+    assert.match(root.textContent, /Drafts[\s\S]*\+1 more/, 'and the drafts not listed are counted');
+    assert.match(root.textContent, /18 scheduled · to Jan 25, 2027/); assert.match(root.textContent, /2 drafts/); assert.match(root.textContent, /Just published[\s\S]*Old/);
+    // Seven columns that can never overflow: equal shares of whatever width the card has.
+    const rows = nodes(root).filter(n => 'row' === n.attrs.role);
+    assert.ok(rows.length === 6 && rows.every(r => /grid-template-columns:repeat\(7,minmax\(0,1fr\)\)/.test(r.attrs.style)), 'each week is seven minmax(0,1fr) columns');
+    assert.ok(cells().every(n => /min-width:0;/.test(n.attrs.style) && !/(^|;)width:/.test(n.attrs.style)), 'no cell has a fixed width');
+    // At the narrowest card OpenStation allows (min_width 240): 240 less the border, the body's and the card's padding.
+    const narrow = (240 - 2 - 32 - 32 - 6 * 2) / 7;
+    assert.ok(narrow > 23 && narrow + 2 >= 24, 'at min_width a column is ' + narrow.toFixed(1) + 'px, its targets 24px apart (WCAG 2.5.8 spacing)');
+    // Click and keyboard select a day; the selection survives the poll.
+    cellOf('Tue, Oct 20').handlers.click();
+    assert.match(box.textContent, /^Tue, Oct 20 Note 2/, 'a click shows that day\'s notes');
+    const grid = nodes(root).find(n => 'grid' === n.attrs.role);
+    let prevented = 0;
+    grid.handlers.keydown({key: 'ArrowRight', preventDefault() { prevented++; }});
+    assert.match(box.textContent, /^Wed, Oct 21 Nothing scheduled$/, 'ArrowRight moves to the next day');
+    assert.equal(cellOf('Wed, Oct 21').attrs.tabindex, '0'); assert.equal(prevented, 1);
+    grid.handlers.keydown({key: 'ArrowUp', preventDefault() { prevented++; }});
+    assert.match(box.textContent, /^Wed, Oct 14/, 'ArrowUp moves a week');
+    grid.handlers.keydown({key: 'ArrowUp', preventDefault() { prevented++; }});
+    assert.equal(prevented, 2, 'at the grid\'s edge the key is left to the page');
+    assert.match(box.textContent, /^Wed, Oct 14/, 'and the day stays');
+    grid.handlers.keydown({key: 'End', preventDefault() { prevented++; }});
+    assert.match(box.textContent, /^Sun, Oct 18/, 'End goes to the week\'s Sunday');
+    cellOf('Tue, Oct 20').handlers.click();
+    const before = cells()[0];
+    await x.tick(60000); x.calls[1].resolve(payload()); await flush();
+    assert.equal(cells()[0], before, 'the same reading is not repainted');
+    await x.tick(60000); x.calls[2].resolve(payload({drafts: 3})); await flush();
+    assert.notEqual(cells()[0], before, 'a changed reading repaints');
+    assert.equal(cellOf('Tue, Oct 20').attrs['aria-selected'], 'true', 'and keeps the selected day');
+    assert.match(nodes(root).find(n => 'polite' === n.attrs['aria-live']).textContent, /^Tue, Oct 20/);
+    // An EMPTY day the user picks survives a changed poll, and focus comes back to it (review on #2031).
+    nodes(root).find(n => 'grid' === n.attrs.role).handlers.keydown({key: 'ArrowRight', preventDefault() {}});
+    assert.equal(x.document.activeElement, cellOf('Wed, Oct 21'), 'the key moved focus to the empty day');
+    const oldFocus = x.document.activeElement;
+    await x.tick(60000); x.calls[3].resolve(payload({drafts: 4})); await flush();
+    assert.equal(cellOf('Wed, Oct 21').attrs['aria-selected'], 'true', 'a picked empty day is kept across a changed reading');
+    assert.match(nodes(root).find(n => 'polite' === n.attrs['aria-live']).textContent, /^Wed, Oct 21 Nothing scheduled$/);
+    assert.ok(x.document.activeElement !== oldFocus && x.document.activeElement === cellOf('Wed, Oct 21'), 'and focus is handed to the rebuilt cell, not lost');
+    // A failure keeps the calendar with its words, and the focus.
+    await x.tick(60000); x.calls[4].reject(new Error('Failed to fetch')); await flush();
+    assert.equal(cells().length, 42); assert.match(root.textContent, /showing the .* reading/);
+    assert.equal(x.document.activeElement, cellOf('Wed, Oct 21'), 'the failure repaint gives focus back too');
+    stop();
+    // An untouched card follows the next-up day: the default is never stored as a pick (review on #2031).
+    const u = harness({}, {calendar: true}), uroot = new Element('div');
+    const ustop = u.window.desktopModeWidgets['sn-queue'](uroot); await flush();
+    u.calls[0].resolve(payload()); await flush();
+    assert.match(nodes(uroot).find(n => 'polite' === n.attrs['aria-live']).textContent, /^Next up · Tue, Oct 13/);
+    const published = scheduled.slice(1);
+    await u.tick(60000); u.calls[1].resolve(payload({scheduled: published, next: published.slice(0, 4)})); await flush();
+    assert.match(nodes(uroot).find(n => 'polite' === n.attrs['aria-live']).textContent, /^Next up · Fri, Oct 16 Note 1/, 'once Oct 13 publishes, the box moves to the new next-up day');
+    ustop();
+    // Overdue: the word is kept, and a note missed before this week is named above the grid (review on #2031).
+    const o = harness({}, {calendar: true}), oroot = new Element('div');
+    const ostop = o.window.desktopModeWidgets['sn-queue'](oroot); await flush();
+    const od = [{title: 'Missed', day: '2026-10-09', when: 'Overdue', time: '9:00 AM', edit_url: 'https://x.test/e/m'},
+      {title: 'This morning', day: '2026-10-12', when: 'Overdue', time: '8:00 AM'}, {title: 'Soon', day: '2026-10-14', when: 'Wed 9:00 AM', time: '9:00 AM'}];
+    o.calls[0].resolve({next: od, published: [], scheduled_total: 3, scheduled: od, today: '2026-10-12', week_start: '2026-10-12', planned: [], draft_list: []}); await flush();
+    const missLine = nodes(oroot).find(n => /^1 overdue: $/.test(n.text));
+    assert.ok(missLine && nodes(missLine).some(n => 'a' === n.tag && 'Missed' === n.text && 'https://x.test/e/m' === n.href), 'a note missed before this week is named and linked: "1 overdue: Missed"');
+    assert.match(missLine.attrs.style, /#d29922/, 'in the gap line\'s amber');
+    assert.match(nodes(oroot).find(n => 'polite' === n.attrs['aria-live']).textContent, /^Next up · Fri, Oct 9 Missed Overdue$/, 'the box names the overdue next-up with "Overdue", not a time');
+    const om = nodes(oroot).find(n => 'gridcell' === n.attrs.role && /^Mon, Oct 12/.test(n.attrs['aria-label']));
+    assert.match(om.attrs['aria-label'], /This morning, overdue$/, 'a day\'s name says overdue too');
+    om.handlers.click();
+    assert.match(nodes(oroot).find(n => 'polite' === n.attrs['aria-live']).textContent, /This morning Overdue$/);
+    ostop();
+    // A next-up past the grid: the box still names it, and Then notes past the grid stay listed.
+    const far = harness({}, {calendar: true}), froot = new Element('div');
+    const fstop = far.window.desktopModeWidgets['sn-queue'](froot); await flush();
+    const late = [{title: 'Far', day: '2027-02-01', time: '9:00 AM'}, {title: 'Farther', day: '2027-02-05', time: '9:00 AM'}];
+    far.calls[0].resolve({next: late, published: [], scheduled_total: 2, scheduled: late, today: '2026-10-12', week_start: '2026-10-12', planned: [], draft_list: [], runs_to: {label: 'Feb 5, 2027'}}); await flush();
+    assert.match(froot.textContent, /Next up · Mon, Feb 1 Far/, 'a next-up past the grid is named in the box');
+    assert.match(froot.textContent, /Later Farther/, 'a Then note past the grid stays reachable by name');
+    assert.equal(nodes(froot).filter(n => 'gridcell' === n.attrs.role && '0' === n.attrs.tabindex).length, 1, 'and the grid keeps one tab stop');
+    fstop();
   }
   // Review on #2023: a confirm that rejects (the overlay bundle failing to
   // load) must not leave Clear DB overrides busy forever.
