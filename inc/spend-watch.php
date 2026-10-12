@@ -42,6 +42,20 @@ const SN_SPEND_AI_TRANSIENT   = 'sn_spend_ai_cost_v2';
 const SN_SPEND_TTL_OK         = 6 * HOUR_IN_SECONDS;
 const SN_SPEND_TTL_FAIL       = 600;
 
+/**
+ * Is a cached snapshot this month's? Both readers ask for the month to date,
+ * so a snapshot from last month is never served in this one (2026-10-12
+ * audit: in the first hours of the 1st, last month's full bill read as this
+ * month's). The month rides inside the snapshot, so the keyring's flush of
+ * the transient by name keeps working.
+ *
+ * @param mixed $cached The transient's value.
+ * @return bool
+ */
+function sn_spend_cache_is_current( $cached ) {
+	return is_array( $cached ) && gmdate( 'Y-m' ) === ( $cached['month'] ?? '' );
+}
+
 /** Resolve the GitHub token: constant wins over option. */
 function sn_spend_gh_token() {
 	if ( defined( 'SN_SPEND_GH_TOKEN' ) && SN_SPEND_GH_TOKEN ) {
@@ -105,7 +119,7 @@ function sn_spend_gh_usage() {
 		return null;
 	}
 	$cached = get_transient( SN_SPEND_GH_TRANSIENT );
-	if ( is_array( $cached ) ) {
+	if ( sn_spend_cache_is_current( $cached ) ) {
 		return $cached;
 	}
 	// v10.75.3: the enhanced usage report is the ONLY door. The legacy plan
@@ -125,11 +139,11 @@ function sn_spend_gh_usage() {
 			'redirection' => 0,
 		)
 	);
-	$snap = array( 'ok' => false );
+	$snap = array( 'ok' => false, 'month' => gmdate( 'Y-m' ) );
 	if ( ! is_wp_error( $res ) && 200 === wp_remote_retrieve_response_code( $res ) ) {
 		$report = sn_spend_gh_report_minutes( json_decode( (string) wp_remote_retrieve_body( $res ), true ) );
 		if ( null !== $report ) {
-			$snap = array( 'ok' => true, 'src' => 'usage' ) + $report;
+			$snap = array( 'ok' => true, 'src' => 'usage', 'month' => gmdate( 'Y-m' ) ) + $report;
 		}
 	}
 	set_transient( SN_SPEND_GH_TRANSIENT, $snap, $snap['ok'] ? SN_SPEND_TTL_OK : SN_SPEND_TTL_FAIL );
@@ -181,7 +195,7 @@ function sn_spend_ai_cost() {
 		return null;
 	}
 	$cached = get_transient( SN_SPEND_AI_TRANSIENT );
-	if ( is_array( $cached ) ) {
+	if ( sn_spend_cache_is_current( $cached ) ) {
 		return $cached;
 	}
 	// Pagination (v10.75.1): the report buckets daily and pages — a
@@ -201,7 +215,7 @@ function sn_spend_ai_cost() {
 	$cents_found = false;
 	$total       = 0.0;
 	$page        = '';
-	$snap        = array( 'ok' => false );
+	$snap        = array( 'ok' => false, 'month' => gmdate( 'Y-m' ) );
 	for ( $i = 0; $i < 12; $i++ ) {
 		$res = wp_safe_remote_get( $base . ( '' === $page ? '' : '&page=' . rawurlencode( $page ) ), $args );
 		if ( is_wp_error( $res ) || 200 !== wp_remote_retrieve_response_code( $res ) ) {
@@ -220,7 +234,7 @@ function sn_spend_ai_cost() {
 		$page = (string) $data['next_page'];
 	}
 	if ( $cents_found ) {
-		$snap = array( 'ok' => true, 'total' => round( $total, 2 ) );
+		$snap = array( 'ok' => true, 'total' => round( $total, 2 ), 'month' => gmdate( 'Y-m' ) );
 	}
 	set_transient( SN_SPEND_AI_TRANSIENT, $snap, $snap['ok'] ? SN_SPEND_TTL_OK : SN_SPEND_TTL_FAIL );
 	return $snap;

@@ -90,17 +90,21 @@ ok(
 	'both model selects paint every option the classic <select> offers'
 );
 ok( false !== strpos( $kit, 'value="claude-sonnet-5"' ), 'the stored prose-model value lands on its os-select' );
-// no-cap fixture: the "Set 0 to remove the cap" hint is absent (classic only prints it when budget > 0).
-ok( false === strpos( $kit, 'Set 0 to remove the cap.' ), 'no-cap fixture: the remove-cap hint is absent, mirroring the classic branch' );
+// 2026-10-12 audit: "Set 0 to remove the cap." sat in the spend box; it is the
+// budget field's own hint now, on both twins, whatever the budget.
+ok( false !== strpos( $kit, '<os-field-row label="Monthly budget (USD)" hint="Set 0 to remove the cap."><os-number-field name="theme_ai_monthly_budget"' ) && 1 === substr_count( $kit, 'Set 0 to remove the cap.' ) && false !== strpos( $classic, 'name="theme_ai_monthly_budget" value="0.00"><p class="sn-field-helper">Set 0 to remove the cap.</p>' ), 'the remove-cap hint is the budget field\'s own, once, on both twins' );
+ok( false !== strpos( $kit, 'Every AI feature here except Copilot' ) && false !== strpos( $classic, 'Every AI feature here except Copilot' ), 'the intro no longer claims Copilot draws on the budget, beside the row that says it does not' );
 // 17.4.1 (#1573): rows of comparable height, no 2up. The form beside the spend
 // box and the platform box stacked; nothing configured, the Jev box stands
 // alone at full width with the bare status notice under it, not beside it.
-ok( 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-2up' ), '17.4.1: one .snt-cols row when nothing is configured, no .snt-2up' );
+ok( 2 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-2up' ), '17.4.1: nothing configured, two rows (the form and its readouts; Jev beside Semantic embeddings), no .snt-2up' );
 ok( false !== strpos( $kit, 'heading="This month, by feature"' ) && strpos( $kit, 'heading="This month, by feature"' ) < strpos( $kit, 'No cap set' ), '17.4.1: the spend line is the lead of the by-feature box, which paints even with no feature rows' );
 // The row closes as </os-card></os-grid>.
 $row1 = preg_match( '#' . preg_quote( snt_leaf_row(), '#' ) . '.*?</os-card></os-grid>#s', $kit, $m ) ? $m[0] : '';
 ok( false !== strpos( $row1, 'heading="Models &amp; budget"' ) && false !== strpos( $row1, 'heading="This month, by feature"' ) && false !== strpos( $row1, 'heading="Platform-reported, this month"' ) && false === strpos( $row1, 'heading="Jev' ) && strpos( $kit, 'heading="Jev' ) > strpos( $kit, $row1 ) + strlen( $row1 ), '17.4.1: row one is the form beside the two spend readouts; Jev is under the row' );
-ok( 0 === preg_match( '#<os-card><os-section heading="Jev"#', $kit ) && false !== strpos( $kit, 'first.</os-badge></os-notice>' ) && false === strpos( $kit, 'first.</os-badge></os-notice></os-card>' ) && strpos( $kit, 'first.</os-badge>' ) > strpos( $kit, 'heading="Jev' ), '17.4.1: nothing configured, the Jev box stands alone at full width and the status notice follows it, not beside it' );
+// 2026-10-12 audit: the page ended on a bare "Not configured." notice. Now a
+// titled box says what is missing and links to where it is set, beside Jev.
+ok( 1 === preg_match( '#<os-card><os-section heading="Jev"#', $kit ) && 1 === preg_match( '#<os-card><os-section heading="Semantic embeddings"[^>]*><p class="snt-prose">Not configured: no Cloudflare account ID is set, so nothing is embedded\. Set it under <os-button class="snt-go" variant="link" data-snt-tab="connections" data-snt-sub="credentials"[^>]*>Connections › Credentials</os-button>\.</p></os-section></os-card></os-grid>#', $kit ), 'nothing configured: Semantic embeddings says what is missing, with the door to where it is set, beside the Jev box' );
 
 // ── Budget set, under cap, with a by-feature breakdown.
 $GLOBALS['__settings']['theme.ai_monthly_budget'] = 50.0;
@@ -144,6 +148,8 @@ ok( array( 'ai_settings_save', 'ml_embed_compare' ) === snt_leaf_actions( $kit )
 ok( false !== strpos( $kit, 'Not run yet' ) && false !== strpos( $kit, 'Run comparison' ), 'configured, not run yet: the runner prompt and button paint' );
 ok( false === strpos( $kit, 'a-real-token-value' ) && false !== strpos( $kit, '>set</os-badge>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.3.1: the token is never on the leaf; a set badge and the door to the keyring are' );
 ok( false !== strpos( $kit, 'Configured' ), 'the embeddings-token status pill reads Configured' );
+$__shadow = 'Embeddings run in SHADOW mode: they are computed and compared against the existing ranking, and nothing the site serves uses them yet.';
+ok( false !== strpos( $kit, $__shadow ) && false !== strpos( $classic, $__shadow ), 'configured: one embeddings sentence on both twins (#23: the classic said "never shown to a reader")' );
 ok( strpos( $kit, '>Configured</os-badge>' ) > strpos( $kit, 'heading="TF-IDF vs embeddings"' ) && strpos( $kit, '>Configured</os-badge>' ) < strpos( $kit, 'Not run yet' ), '17.4.1: configured, the status notice is the lead of the comparison box' );
 $row2 = substr( $kit, (int) strrpos( $kit, snt_leaf_row() ) );
 ok( 2 === substr_count( $kit, snt_leaf_row() ) && 1 === preg_match( '#<os-card><os-section heading="Jev#', $row2 ) && false !== strpos( $row2, 'heading="TF-IDF vs embeddings"' ), '17.4.1: configured with no result, the short comparison box sits beside the Jev box on row two' );
@@ -155,9 +161,9 @@ $GLOBALS['__embed_account_id'] = '';
 $classic = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
 $kit     = snt_leaf_paint( 'ai', 'models-budget' );
 ok(
-	false !== strpos( $kit, 'No Cloudflare account ID' ) && false === strpos( $kit, 'Not configured.' )
-	&& false !== strpos( $classic, 'No Cloudflare account ID' ) && false === strpos( $classic, 'Not configured.' ),
-	'no account id: the pill asks for the Cloudflare account ID, matching the classic leaf'
+	false !== strpos( $kit, 'no Cloudflare account ID is set' ) && false === strpos( $kit, 'Not configured.' )
+	&& false !== strpos( $classic, 'no Cloudflare account ID is set' ) && false === strpos( $classic, 'Not configured.' ) && false === strpos( $kit . $classic, ' — ' ),
+	'no account id: both twins ask for the Cloudflare account ID in the same sentence, no em dash'
 );
 
 // ── Embeddings NOT configured, but a Cloudflare account ID IS set: the
@@ -166,9 +172,9 @@ $GLOBALS['__embed_account_id'] = 'acct-123';
 $classic = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
 $kit     = snt_leaf_paint( 'ai', 'models-budget' );
 ok(
-	false !== strpos( $kit, 'Not configured.' ) && false === strpos( $kit, 'No Cloudflare account ID' )
-	&& false !== strpos( $classic, 'Not configured.' ) && false === strpos( $classic, 'No Cloudflare account ID' ),
-	'account id present, not configured: the pill reads "Not configured.", matching the classic leaf'
+	false !== strpos( $kit, 'the Workers AI token is not set' ) && false === strpos( $kit, 'no Cloudflare account ID' ) && false === strpos( $kit, 'Not configured.<' )
+	&& false !== strpos( $classic, 'the Workers AI token is not set' ) && false === strpos( $classic, 'no Cloudflare account ID' ),
+	'account id present, not configured: both twins name the missing token, never a bare "Not configured."'
 );
 $GLOBALS['__embed_configured'] = true;
 $GLOBALS['__embed_account_id'] = '';
@@ -194,7 +200,7 @@ $GLOBALS['__transients']['snt_ml_embed_compare'] = array(
 	),
 );
 $kit = snt_leaf_paint( 'ai', 'models-budget' );
-ok( false !== strpos( $kit, '40 notes embedded' ) && false !== strpos( $kit, 'Centred (recommended)' ), 'a successful comparison shows the scope line and marks the recommended variant' );
+ok( false !== strpos( $kit, '40 notes embedded' ) && false !== strpos( $kit, 'Centered (recommended)' ), 'a successful comparison shows the scope line and marks the recommended variant' );
 ok( false === strpos( $kit, '<os-disclosure' ) && false !== strpos( $kit, 'note has a pair TF-IDF does not find' ) && false !== strpos( $kit, 'Found only by embeddings' ) && false === strpos( $kit, 'more, the list is capped' ), '17.4.1: the divergent pairs are a ledger under their count line, no fold, no "+N more" under the cap' );
 // 27 divergent notes: the table holds 25, the line says +2 more.
 $GLOBALS['__transients']['snt_ml_embed_compare']['result']['divergent'] = array_fill( 0, 27, array( 'title' => 'Note A', 'only_embedding' => array( array( 'title' => 'Note B' ) ) ) );
@@ -224,14 +230,15 @@ $kit = snt_leaf_paint( 'ai', 'models-budget' );
 $box = platform_box( $kit );
 ok( '' !== $box, 'the platform-reported box paints on the leaf' );
 ok( strpos( $kit, 'heading="Platform-reported, this month"' ) > strpos( $kit, 'Spent this month' ) && strpos( $kit, 'heading="Platform-reported, this month"' ) < strpos( $kit, 'heading="Jev' ), 'the box sits under the estimate and before the Jev meter' );
-ok( 2 === substr_count( $box, '>not set</span></os-fact>' ) && false !== strpos( $box, 'Anthropic bill (month to date)' ) && false !== strpos( $box, 'GitHub Actions minutes (account, month to date)' ), 'both rows read "not set" when their keyring rows are absent' );
+ok( 2 === substr_count( $box, '>not set</span></os-fact>' ) && false !== strpos( $box, 'Anthropic bill (month to date)' ) && false !== strpos( $box, 'GitHub Actions (account, month to date)' ), 'both rows read "not set" when their keyring rows are absent' );
 ok( false === strpos( $box, '$0.00' ) && ! preg_match( '/\d min\b/', $box ) && false === strpos( $box, '<os-notice' ), 'absent is not zero: no dollar figure, no minute figure, no notice in the box' );
 ok( false !== strpos( $box, 'never estimated' ), 'the box says it is platform-reported, against the estimate above' );
 // (b) both reads ok: the platform figures, verbatim, with no quota beside the minutes.
 $GLOBALS['__gh'] = array( 'ok' => true, 'src' => 'usage', 'used' => 1234, 'billed' => 0.0 );
 $GLOBALS['__ai'] = array( 'ok' => true, 'total' => 120.39 );
 $box = platform_box( snt_leaf_paint( 'ai', 'models-budget' ) );
-ok( false !== strpos( $box, '1,234 min, $0.00 billed' ) && false !== strpos( $box, '>$120.39</span></os-fact>' ), 'both figures paint from the fixture: 1,234 min, $0.00 billed; $120.39' );
+// 2026-10-12 audit: the minutes are every repo's, and public-repo minutes are free.
+ok( false !== strpos( $box, '$0.00 billed; 1,234 min across all repos, public-repo minutes free' ) && false !== strpos( $box, 'label="GitHub Actions (account, month to date)"' ) && false !== strpos( $box, '>$120.39</span></os-fact>' ), 'both figures paint from the fixture: the GitHub row leads with the billed $0.00 and says the 1,234 minutes include free public-repo ones; $120.39' );
 ok( false === strpos( $box, 'of 3,000' ) && false === strpos( $box, 'of 3000' ) && false === strpos( $box, 'not set' ) && false === strpos( $box, '<os-notice' ), 'no invented quota, no absent wording, no notice when both reads are ok' );
 // (c) the GitHub read failed: unknown in words, a warn notice on the box, no minute figure.
 $GLOBALS['__gh'] = array( 'ok' => false );
@@ -262,12 +269,15 @@ $box = feature_box( snt_leaf_paint( 'ai', 'models-budget' ) );
 ok( false !== strpos( $box, 'Copilot (Ask AI), not counted against the cap' ), '#1597: the Copilot row paints inside the by-feature box, marked as outside the cap' );
 ok( preg_match( '#Copilot \(Ask AI\), not counted against the cap</span><span class="snt-list__value">\$0\.00</span>#', $box ) === 1, '#1597: before the first turn the row reads a recorded $0.00, not an absent reading' );
 ok( false !== strpos( $box, 'at list rates' ), '#1597: the figure says it is priced at list rates' );
+// 2026-10-12 audit (#23): the Copilot row and its pricing note were native-only.
+$__classic = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
+ok( false !== strpos( $__classic, 'Copilot (Ask AI), not counted against the cap: $0.00' ) && false !== strpos( $__classic, 'Copilot is priced at list rates from the tokens the station reports' ), 'classic: the same Copilot row and pricing note, outside the cap' );
 ok( false === strpos( $box, 'no list price on file' ), '#1597: with no unpriced turn the box carries no unpriced hint' );
 // (a2) turns ran on an id the table does not price: $0.00 stays, and one hint
 // separates it from "no Ask AI this month", the Insights leaf's wording.
 $GLOBALS['__copilot_unpriced'] = 3;
 $box = feature_box( snt_leaf_paint( 'ai', 'models-budget' ) );
-ok( false !== strpos( $box, '3 Copilot turn(s) this month reported no usage, or a model with no list price on file, and are not in the dollar figure.' ), '#1597: unpriced turns paint as a count with the Insights wording, so a silent $0.00 cannot pass for no Ask AI' );
+ok( false !== strpos( $box, '3 Copilot turns this month reported no usage, or a model with no list price on file, and are not in the dollar figure.' ), '#1597: unpriced turns paint as a count with the Insights wording, so a silent $0.00 cannot pass for no Ask AI' );
 ok( preg_match( '#Copilot \(Ask AI\), not counted against the cap</span><span class="snt-list__value">\$0\.00</span>#', $box ) === 1, '#1597: the unpriced count leaves the dollar figure at $0.00' );
 $GLOBALS['__copilot_unpriced'] = 0;
 // (b) a priced turn: the figure on the Copilot row, the total and the meter exactly as before.
