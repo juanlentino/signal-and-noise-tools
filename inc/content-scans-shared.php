@@ -61,6 +61,17 @@ function snt_block_migrations_intro() {
 }
 
 /**
+ * How a queue row is worked, on both scanners and both surfaces
+ * (assets/health-suggest-actions.js: Suggest fills an editor, Apply writes
+ * after its preview, a dismissed fingerprint is skipped by later scans).
+ *
+ * @return string
+ */
+function snt_content_scan_rows_line() {
+	return __( 'On each row, Suggest drafts the upgraded block for you to review, Apply writes it after a preview, and Dismiss keeps that block out of later scans.', 'signal-and-noise-tools' );
+}
+
+/**
  * The clean-scan line: what the detector checks, and no more (2026-10-12
  * audit: "All headings have valid hierarchy" claimed more than it checks).
  *

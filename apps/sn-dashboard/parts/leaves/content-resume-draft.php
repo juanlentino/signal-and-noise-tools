@@ -41,6 +41,9 @@ function resume_draft_controls() {
 	$stored    = function_exists( 'sn_resume_draft_exists' ) && \sn_resume_draft_exists(); // readable or not: Discard clears either.
 	$has_prev  = function_exists( 'sn_resume_prev_get' ) && null !== \sn_resume_prev_get();
 	$out       = resume_draft_status();
+	if ( ! $stored ) {
+		$out .= '<p class="snt-prose">' . \snt_kit_esc( __( 'Save draft stores a draft; its previews, Publish and Discard then appear here.', 'signal-and-noise-tools' ) ) . '</p>';
+	}
 	if ( $has_draft && function_exists( 'sn_resume_action_url' ) ) {
 		$out .= '<p class="snt-prose">' . \snt_kit_esc( __( 'Previews open in their own window and publish nothing.', 'signal-and-noise-tools' ) ) . '</p><p class="snt-prose">'
 			. \snt_kit_door( __( 'Preview page', 'signal-and-noise-tools' ), \sn_resume_action_url( 'resume_preview_page' ) )

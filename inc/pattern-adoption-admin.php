@@ -81,7 +81,7 @@ function snt_pattern_adoption_render_opportunities_section() {
 	}
 	echo '</h2>';
 
-	echo '<p class="sn-fieldset-intro">' . esc_html( snt_pattern_adoption_intro() ) . '</p>';
+	echo '<p class="sn-fieldset-intro">' . esc_html( snt_pattern_adoption_intro() ) . ' ' . esc_html( snt_content_scan_rows_line() ) . '</p>';
 	snt_content_scan_classic_age( $last_scan );
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';

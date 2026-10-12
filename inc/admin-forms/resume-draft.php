@@ -68,6 +68,9 @@ function sn_admin_render_resume_draft_controls() {
 	if ( function_exists( 'sn_resume_draft_status' ) ) {
 		echo '<p class="sn-fieldset-intro">' . esc_html( sn_resume_draft_status() ) . '</p>';
 	}
+	if ( ! $stored ) {
+		echo '<p class="description">Save draft stores a draft; its previews, Publish and Discard then appear here.</p>';
+	}
 	if ( ! $stored && ! $has_prev ) {
 		echo '</div>';
 		return;

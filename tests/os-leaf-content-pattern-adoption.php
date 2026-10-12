@@ -83,6 +83,7 @@ ok( false !== strpos( $kit, '<os-section heading="Pattern adoption" stack>' ) &&
 // status box now pairs with what the scanner looks for, on one row.
 ok( 0 === strpos( $kit, snt_leaf_row() . '<os-section heading="Pattern adoption" stack>' ) && 1 === preg_match( '#^<os-grid[^>]*><os-section heading="Pattern adoption" stack>.*?</os-section><os-section heading="What it looks for" stack>.*?Scans existing /notes posts.*?</os-section></os-grid>$#s', $kit ), 'layout: the status box and What it looks for share one row, nothing else before the first scan' );
 ok( false !== strpos( $kit, '<p class="snt-prose">Not scanned yet.</p>' ) && false !== strpos( $classic, 'Not scanned yet.' ), 'before the first scan both surfaces say so' );
+ok( false !== strpos( $kit, '<p class="snt-prose">On each row, Suggest drafts the upgraded block for you to review, Apply writes it after a preview, and Dismiss keeps that block out of later scans.</p>' ) && false !== strpos( $classic, 'On each row, Suggest drafts the upgraded block' ), 'What it looks for also says how a row is worked, on both surfaces (and balances the pair)' );
 ok( false === strpos( $kit . $classic, 'v9.2.0' ) && false !== strpos( $kit, 'upgraded to the pull-quote and numbered-steps patterns.' ) && false !== strpos( $classic, 'upgraded to the pull-quote and numbered-steps patterns.' ), 'no version stamp in the intro, on either surface' );
 
 // ── Scanned, nothing found: the count reads zero and the empty note is printed.

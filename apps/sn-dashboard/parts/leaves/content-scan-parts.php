@@ -37,6 +37,6 @@ function content_scan_layout( $heading, $scan, $badge, $form, $about, $result ) 
 		? sprintf( \snt_kit_esc( \snt_content_scan_age_format() ), \snt_kit_relative_time( (int) $scan['scanned_at'] ) )
 		: \snt_kit_esc( is_array( $scan ) ? __( 'Scanned (the time was not recorded).', 'signal-and-noise-tools' ) : __( 'Not scanned yet.', 'signal-and-noise-tools' ) );
 	$status = \snt_kit_section( $heading, $badge . '<p class="snt-prose">' . $age . '</p>' . $form );
-	$what   = \snt_kit_section( __( 'What it looks for', 'signal-and-noise-tools' ), '<p class="snt-prose">' . $about . '</p>' );
+	$what   = \snt_kit_section( __( 'What it looks for', 'signal-and-noise-tools' ), '<p class="snt-prose">' . $about . '</p><p class="snt-prose">' . \snt_kit_esc( \snt_content_scan_rows_line() ) . '</p>' );
 	return \snt_kit_grid( array( $status, $what ) ) . ( '' !== $result ? \snt_kit_section( __( 'Candidates', 'signal-and-noise-tools' ), $result ) : '' );
 }
