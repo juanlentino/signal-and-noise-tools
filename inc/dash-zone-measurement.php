@@ -17,21 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Home's seven days: the Analytics app's 7d window, the site's days (review
- * on #2020: UTC days put Home's Visits a day off the app's 7d Visits it links
- * to). UTC days only where the app's resolver is not loaded.
- *
- * @param int|null $now Unix time; defaults to now.
- * @return array{0:string,1:string} From and to, inclusive, Y-m-d.
- */
-function snt_dashboard_week( $now = null ) {
-	if ( function_exists( 'snt_analytics_range_dates' ) ) {
-		return snt_analytics_range_dates( 7, $now );
-	}
-	$now = null === $now ? time() : (int) $now;
-	return array( gmdate( 'Y-m-d', $now - 6 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', $now ) );
-}
+require_once __DIR__ . '/dash-week.php'; // Home's seven days, shared with the S&N Home leaf.
 
 /**
  * Gather the measurement figures from the accessors that exist.

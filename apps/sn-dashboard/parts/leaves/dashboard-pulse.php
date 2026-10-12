@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once dirname( __DIR__, 4 ) . '/inc/dash-week.php'; // Home's seven days, the classic twin's too.
+
 /** Below this many in the previous week, a percentage change is noise. */
 const SNT_HOME_DELTA_MIN_BASE = 50;
 
@@ -71,9 +73,7 @@ function home_pulse_reading() {
 	$on   = function_exists( 'sn_analytics_config' ) && \sn_analytics_config();
 	// The Analytics app's 7d, the site's days (review on #2020), so Visits
 	// here is the app's 7d Visits it links to.
-	$week = function_exists( 'snt_analytics_range_dates' )
-		? \snt_analytics_range_dates( 7 )
-		: array( gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', time() ) );
+	$week = \snt_dashboard_week();
 	$deltas = $on && function_exists( 'sn_analytics_period_deltas' )
 		? (array) \sn_analytics_period_deltas( $week[0], $week[1], 'human' )
 		: array();
