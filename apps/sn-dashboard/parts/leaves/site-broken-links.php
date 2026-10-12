@@ -112,8 +112,8 @@ function paint_site_broken_links( array $ctx ) {
 	$editor = '' !== $path ? broken_links_create_html( $path, (array) $broken[ $path ]['entry'], (string) $broken[ $path ]['suggested'] ) : '';
 	$paths  = broken_links_paths_html( $broken, $path, $editor );
 	$probes = ! empty( $data['probes'] ) ? broken_links_probes_html( (array) $data['probes'], (int) $data['probe_hits'] ) : '';
-	// 2026-10-12, measured live: Broken paths 578px beside Automated probes
-	// 644px (1.11x) share a row. With a path open its editor and the resumed
+	// 2026-10-12, measured live with every row shown in both lists: Broken
+	// paths 1,153px beside Automated probes 910px (1.27x) share a row. With a path open its editor and the resumed
 	// table run that side far past 1.5x, and with no broken path it is one
 	// sentence, so then they stack (snt_kit_grid() returns a lone box bare).
 	$pair   = '' === $editor && array() !== $broken;

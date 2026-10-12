@@ -211,6 +211,8 @@ snt_leaf_preview( 'site-broken-links-editing', $kit_ed );
 // Seen live with real data (2026-10-12): Save, the second form and Cancel
 // each took a row. Cancel sits in the primary form's own action row.
 ok( 1 === preg_match( '#<os-form[^>]*>(?:(?!</os-form>).)*<span slot="footer-leading"><os-button[^>]*>Cancel</os-button></span>(?:(?!</os-form>).)*name="action" value="[a-z_]*redirect_add"#s', $kit_ed ), 'Cancel sits beside the submit, in the editor form\'s footer' );
+$probes_at = strpos( $kit, '<os-section heading="Automated probes"' );
+ok( false !== $probes_at && false !== strpos( substr( $kit, $probes_at ), 'class="snt-table-full"' ), 'the probes list shows every row too: with only Broken paths in full, the pair measured 1,153px against 644px live (1.79x, past the 1.5x rule)' );
 $focus_problems = snt_leaf_edit_focus_problems( $kit, $kit_ed );
 ok( array() === $focus_problems, 'a11y: Edit lands the keyboard on the one region, Cancel lands it back on the list: ' . implode( '; ', $focus_problems ) );
 
