@@ -66,7 +66,8 @@ ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ),
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && snt_leaf_names( $classic ) === snt_leaf_names( $kit_ed ), 'field names match the classic forms in both paints: ' . implode( ',', snt_leaf_names( $kit ) ) . ' / ' . implode( ',', snt_leaf_names( $kit_ed ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( $all_actions === union( snt_leaf_actions( $kit ), snt_leaf_actions( $kit_ed ) ) && snt_leaf_actions( $classic ) === union( snt_leaf_actions( $kit ), snt_leaf_actions( $kit_ed ) ), 'the three actions match the classic leaf across both paints: ' . implode( ',', union( snt_leaf_actions( $kit ), snt_leaf_actions( $kit_ed ) ) ) );
 ok( array( 'redirect_add' ) === snt_leaf_actions( $kit ), '...the default paint offers only add: ' . implode( ',', snt_leaf_actions( $kit ) ) );
-ok( array( 'redirect_delete', 'redirect_update' ) === snt_leaf_actions( $kit_ed ), '...the editing paint offers update and delete, not add: ' . implode( ',', snt_leaf_actions( $kit_ed ) ) );
+// 2026-10-12 (edit in place): the add form stays while a rule is open, so editing offers all three.
+ok( array( 'redirect_add', 'redirect_delete', 'redirect_update' ) === snt_leaf_actions( $kit_ed ), '...the editing paint offers update and delete, and add still: ' . implode( ',', snt_leaf_actions( $kit_ed ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ) && ! styled( $kit ) && ! styled( $kit_ed ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, '<p class="snt-prose">' ) && false !== strpos( $kit, '<os-code>/new-page</os-code>' ) && false !== strpos( $kit, '<strong>Site → Broken links</strong>' ) && false === strpos( $kit, 'sidebar' ), 'the intro survives as prose with inline code, and names where the 404 log lives now' );
 
@@ -84,7 +85,7 @@ $row = $table['data'][0] ?? array();
 ok( 'https://example.com/moved' === ( $row['to'] ?? '' ) && '302 temporary' === ( $row['type'] ?? '' ) && $d1 === ( $row['added'] ?? '' ), 'a row carries the target, the type and the added date: ' . wp_json_encode( $row ) );
 ok( '/notes/design-tokens' === ( $table['data'][1]['to'] ?? '' ) && '301 permanent' === ( $table['data'][1]['type'] ?? '' ) && $d0 === ( $table['data'][1]['added'] ?? '' ), '...for every rule' );
 $cell = snt_leaf_cell_html( $table, $row['actions'] ?? null );
-ok( '<os-button variant="ghost" os-action="go" aria-label="Edit /second" os-arg-sub="redirects" os-arg-sn_edit="/second" os-arg-anchor="snt-edit-region">Edit</os-button>' === $cell, 'a row carries ONE visible action, Edit, a go button naming its rule: ' . substr( $cell, 0, 160 ) );
+ok( '<span id="snt-row-' . substr( md5( '/second' ), 0, 12 ) . '" data-snt-focus><os-button variant="ghost" os-action="go" aria-label="Edit /second" os-arg-sub="redirects" os-arg-sn_edit="/second" os-arg-anchor="snt-edit-region">Edit</os-button></span>' === $cell, 'a row carries ONE visible action, Edit, a go button naming its rule, in its row anchor: ' . substr( $cell, 0, 200 ) );
 ok( 0 === slot_forms( $kit ) && 0 === slot_forms( $kit_ed ), 'no table cell holds a form, default or editing: ' . slot_forms( $kit ) . ' / ' . slot_forms( $kit_ed ) );
 ok( false === strpos( $kit, 'name="source" value="/second"' ) && false === strpos( $kit, 'name="source" value="/first"' ), 'the default paint binds no rule to any form: no stack of forms' );
 ok( false === strpos( $kit, 'submit-label="Save changes"' ) && false === strpos( $kit, 'snt-ledger-more' ), '...no edit form and no "+N more" under the cap' );
@@ -96,10 +97,10 @@ ok( false !== strpos( $kit_ed, 'description="Now a 301 to /notes/design-tokens; 
 $edit = form_block( $kit_ed, 'Save changes' );
 ok( false !== strpos( $edit, '<input type="hidden" name="source" value="/first">' ) && false !== strpos( $edit, 'name="action" value="sn_redirect_update"' ) && false !== strpos( $edit, '<os-text-field name="target" type="text" value="/notes/design-tokens"' ) && false !== strpos( $edit, '<os-field-row label="Redirects to">' ), 'the edit form posts redirect_update with the source hidden and the current target filled' );
 ok( false !== strpos( $edit, '<os-select name="status" value="301"><os-option value="301">301 permanent</os-option><os-option value="302">302 temporary</os-option></os-select>' ), 'the type select offers 301/302 with the current one selected' );
-ok( false !== strpos( $kit_ed, '<os-button variant="ghost" os-action="go" os-arg-sub="redirects" os-arg-anchor="snt-edit-list">Cancel</os-button>' ), 'Cancel is a go that clears the param' );
+ok( false !== strpos( $kit_ed, '<os-button variant="ghost" os-action="go" os-arg-sub="redirects" os-arg-anchor="snt-row-' . substr( md5( '/first' ), 0, 12 ) . '">Cancel</os-button>' ), 'Cancel is a go that clears the param and lands back on the row\'s Edit' );
 $delete = form_block( $kit_ed, 'Delete' );
 ok( '' !== $delete && false !== strpos( $delete, '<os-form os-confirm-title="Delete this redirect?" os-confirm-label="Delete" class="snt-form" os-action="post" submit-label="Delete"' ) && false !== strpos( $delete, 'os-confirm="This redirect will stop working immediately." os-confirm-danger>' ) && false !== strpos( $delete, 'name="action" value="sn_redirect_delete"' ) && false !== strpos( $delete, '<input type="hidden" name="source" value="/first">' ) && before( $kit_ed, 'heading="Editing /first"', 'submit-label="Delete"' ), 'Delete lives in the edit region: it confirms as the classic button did (title, label, question, danger) and carries the rule' );
-ok( false === strpos( $kit_ed, 'heading="Add a redirect"' ) && 2 === substr_count( $kit_ed, '<input type="hidden" name="source" value="/first">' ) && false === strpos( $kit_ed, 'name="source" value="/second"' ), 'while editing the add form steps aside; only /first is bound, to its update and its delete form' );
+ok( 1 === substr_count( $kit_ed, 'heading="Add a redirect"' ) && 2 === substr_count( $kit_ed, '<input type="hidden" name="source" value="/first">' ) && false === strpos( $kit_ed, 'name="source" value="/second"' ), 'while editing the add form stays; only /first is bound, to its update and its delete form' );
 $unknown = editing( '/nope' );
 ok( false === strpos( $unknown, 'submit-label="Save changes"' ) && false === strpos( $unknown, 'submit-label="Delete"' ) && false === strpos( $unknown, 'Editing' ) && false !== strpos( $unknown, 'heading="Add a redirect"' ) && array() === snt_leaf_folds( $unknown ), 'an unknown sn_edit paints no edit region and the add form instead' );
 
@@ -182,6 +183,21 @@ snt_leaf_preview( 'site-redirects', $kit );
 snt_leaf_preview( 'site-redirects-editing', $kit_ed );
 $focus_problems = snt_leaf_edit_focus_problems( $kit, $kit_ed );
 ok( array() === $focus_problems, 'a11y: Edit lands the keyboard on the one region, Cancel lands it back on the list: ' . implode( '; ', $focus_problems ) );
+
+// ── 2026-10-12 (owner: "it's weird to click in 'edit' and something else
+// opens"): the editor opens UNDER its row, not below the whole table.
+$ip_def   = $kit;
+$ip_ed    = $kit_ed;
+$ip_table = rules_table( $kit );
+$ip_keys  = array_map( static function ( $v ) { return is_array( $v ) ? (string) ( $v['text'] ?? '' ) : (string) $v; }, array_column( $ip_table['data'], 'from' ) );
+$ip_at    = array_search( '/talks/aes-2024', $ip_keys, true );
+$ip_split = snt_leaf_split_problems( $ip_ed, 'from', '/talks/aes-2024', false === $ip_at ? null : ( $ip_keys[ $ip_at + 1 ] ?? null ) );
+ok( false !== $ip_at && array() === $ip_split, 'edit in place: the editor opens under its row, the row marked selected, the table resuming with the next row after it: ' . implode( '; ', $ip_split ) );
+ok( false !== strpos( $ip_ed, '>Editing</os-badge>' ), 'edit in place: the open row says Editing in words, not only by its accent bar' );
+ok( 1 === preg_match( '/os-arg-anchor="(snt-row-[0-9a-f]{12})"[^>]*>Cancel/', $ip_ed, $ip_m ) && false !== strpos( $ip_def, 'id="' . $ip_m[1] . '" data-snt-focus' ), 'edit in place: Cancel lands back on the open row\'s own button' );
+ok( false !== strpos( $ip_table['attrs'], 'class="snt-table-full"' ), 'edit in place: the list is not boxed in an inner scroller (the app caps os-table at 440px)' );
+ok( 1 === substr_count( $ip_ed, 'submit-label="Add redirect"' ) && strpos( $ip_ed, 'submit-label="Add redirect"' ) > strrpos( $ip_ed, '</os-table>' ), 'edit in place: "Add a redirect" stays, after the whole list, while a rule is open' );
+ok( 39 === array_sum( array_map( static function ( $t ) { return count( $t['data'] ); }, snt_leaf_tables( $ip_ed ) ) ) && 38 === substr_count( $ip_ed, '>Edit</os-button>' ), 'edit in place: the two halves hold the same 39 rules, nothing cut; the other 38 keep their Edit' );
 
 // ── 2026-10-11 (code review): the host keeps a `go` param to 200 characters
 // (snt_os_host_params(), substr( ..., 0, 200 )), and a path has no length cap.

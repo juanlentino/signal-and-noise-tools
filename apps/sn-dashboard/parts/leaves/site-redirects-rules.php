@@ -5,8 +5,9 @@
  * 2026-10-11 (owner rule: no collapsible sections). Every rule used to be a
  * fold holding its own edit form and delete form, 39 of them live. Now the
  * leaf reads top-down: tiles, one finding, ONE kit table whose rows carry ONE
- * visible action (Edit, a `go` that sets `sn_edit`), then ONE region below the
- * table holding every write for that rule (site-redirects-forms.php). No form
+ * visible action (Edit, a `go` that sets `sn_edit`), and ONE editor holding
+ * every write for that rule (site-redirects-forms.php), painted under the
+ * rule's own row since 2026-10-12 (snt_kit_edit_list()). No form
  * sits in a table cell: a hidden-fields-only os-form paints a ruled footer and
  * a primary submit, which on 39 rows is the stack of forms again, only
  * smaller. Required by site-redirects.php.
@@ -79,9 +80,14 @@ function redirects_reading_html( array $rules ) {
  *
  * @param string              $source Source path.
  * @param array<string,mixed> $r      to, status, created_at.
+ * @param bool                $open   Whether this row's editor is open under it.
  * @return array<string,mixed>
  */
-function redirects_rule_row( $source, array $r ) {
+function redirects_rule_row( $source, array $r, $open = false ) {
+	$action = $open
+		? \snt_kit_badge( 'info', __( 'Editing', 'signal-and-noise-tools' ) )
+		/* translators: %s: the path. */
+		: \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'aria_label' => sprintf( __( 'Edit %s', 'signal-and-noise-tools' ), $source ), 'args' => array( 'sub' => 'redirects', 'sn_edit' => redirects_edit_value( $source ), 'anchor' => 'snt-edit-region' ) ) );
 	return array(
 		'_key'    => $source,
 		'from'    => $source,
@@ -89,7 +95,7 @@ function redirects_rule_row( $source, array $r ) {
 		'type'    => 302 === redirects_code( $r ) ? __( '302 temporary', 'signal-and-noise-tools' ) : __( '301 permanent', 'signal-and-noise-tools' ),
 		'added'   => redirects_added( $r, __( 'unknown', 'signal-and-noise-tools' ) ),
 		'actions' => array(
-			'html' => \snt_kit_button( __( 'Edit', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', /* translators: %s: the path. */ 'aria_label' => sprintf( __( 'Edit %s', 'signal-and-noise-tools' ), $source ), 'args' => array( 'sub' => 'redirects', 'sn_edit' => redirects_edit_value( $source ), 'anchor' => 'snt-edit-region' ) ) ),
+			'html' => \snt_kit_row_action( $source, $action ),
 			'text' => '',
 		),
 	);
@@ -97,38 +103,48 @@ function redirects_rule_row( $source, array $r ) {
 
 /**
  * The rules section: reading, finding, the capped ledger. Newest first, so
- * the cap drops the settled tail and the "+N more" line says so.
+ * the cap drops the settled tail and the "+N more" line says so. With a rule
+ * open, the ledger splits at its row and `$editor` opens under it
+ * (snt_kit_edit_list()).
  *
- * @param array<string,array<string,mixed>> $rules Every rule, newest first.
+ * @param array<string,array<string,mixed>> $rules   Every rule, newest first.
+ * @param string                            $editing The open rule's source, '' for none.
+ * @param string                            $editor  Its editor, '' for none.
  * @return string
  */
-function redirects_rules_html( array $rules ) {
+function redirects_rules_html( array $rules, $editing = '', $editor = '' ) {
 	$heading = __( 'Redirect rules', 'signal-and-noise-tools' );
 	$total   = count( $rules );
 	if ( 0 === $total ) {
 		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'No redirect rules yet; add the first one below.', 'signal-and-noise-tools' ) ) . '</p>' );
 	}
 	$rows = array();
+	$at   = -1;
 	foreach ( array_slice( $rules, 0, SN_REDIRECT_LIST_CAP, true ) as $source => $r ) {
-		$rows[] = redirects_rule_row( (string) $source, (array) $r );
+		$open   = (string) $source === (string) $editing;
+		$at     = $open ? count( $rows ) : $at;
+		$rows[] = redirects_rule_row( (string) $source, (array) $r, $open );
 	}
-	$columns = array(
-		array( 'key' => 'from', 'label' => __( 'From', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'to', 'label' => __( 'To', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'type', 'label' => __( 'Type', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'added', 'label' => __( 'Added', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'actions', 'label' => __( 'Actions', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
-	);
 	/* translators: 1: rules listed, 2: rules in total. */
 	$showing = sprintf( __( 'Showing the %1$s most recent of %2$s redirects.', 'signal-and-noise-tools' ), number_format_i18n( SN_REDIRECT_LIST_CAP ), number_format_i18n( $total ) );
-	/* translators: %s: rules not listed. */
-	$more = __( '+%s older rules are not listed.', 'signal-and-noise-tools' ) . ' ' . str_replace( '%', '%%', $showing );
-	return \snt_kit_section(
-		$heading,
-		redirects_reading_html( $rules )
-			. \snt_kit_table( $columns, $rows, array( 'stack_on_phone' => true ) )
-			. \snt_kit_more( $total - count( $rows ), $more ),
-		__( 'Newest first. Edit opens the rule below the table, to change it or delete it.', 'signal-and-noise-tools' ),
-		array( 'id' => 'snt-edit-list', 'tabindex' => '-1', 'data-snt-focus' => true )
+	return \snt_kit_edit_list(
+		array(
+			'heading'     => $heading,
+			'lead'        => redirects_reading_html( $rules ),
+			'columns'     => array(
+				array( 'key' => 'from', 'label' => __( 'From', 'signal-and-noise-tools' ) ),
+				array( 'key' => 'to', 'label' => __( 'To', 'signal-and-noise-tools' ) ),
+				array( 'key' => 'type', 'label' => __( 'Type', 'signal-and-noise-tools' ) ),
+				array( 'key' => 'added', 'label' => __( 'Added', 'signal-and-noise-tools' ) ),
+				array( 'key' => 'actions', 'label' => __( 'Actions', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
+			),
+			'rows'        => $rows,
+			'at'          => $at,
+			/* translators: %s: rules not listed. */
+			'more'        => \snt_kit_more( $total - count( $rows ), __( '+%s older rules are not listed.', 'signal-and-noise-tools' ) . ' ' . str_replace( '%', '%%', $showing ) ),
+			'description' => __( 'Newest first. Edit opens the rule under its row, to change it or delete it.', 'signal-and-noise-tools' ),
+			'attrs'       => array( 'id' => 'snt-edit-list', 'tabindex' => '-1', 'data-snt-focus' => true ),
+		),
+		$editor
 	);
 }

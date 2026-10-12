@@ -89,7 +89,7 @@ ok( '/notes/desing-tokens' === ( $r0['path'] ?? '' ) && '/contact-us' === ( $r1[
 ok( 7 === ( $r0['hits'] ?? null ) && $d0 === ( $r0['last'] ?? '' ) && 'ref.example' === ( $r0['referrer'] ?? '' ) && '/notes/design-tokens' === ( $r0['suggested'] ?? '' ), 'a row carries hits, last date, referring host and the slug suggestion: ' . wp_json_encode( $r0 ) );
 ok( 2 === ( $r1['hits'] ?? null ) && $d1 === ( $r1['last'] ?? '' ) && 'none recorded' === ( $r1['referrer'] ?? '' ) && '/contact' === ( $r1['suggested'] ?? '' ), '...and a missing referrer reads "none recorded", never blank' );
 $cell = snt_leaf_cell_html( $broken, $r0['actions'] ?? null );
-ok( '<os-button variant="ghost" os-action="go" aria-label="Fix /notes/desing-tokens" os-arg-sub="broken-links" os-arg-sn_edit="/notes/desing-tokens" os-arg-anchor="snt-edit-region">Fix</os-button>' === $cell, 'a row carries ONE visible action, Fix, a go button naming its path: ' . substr( $cell, 0, 160 ) );
+ok( '<span id="snt-row-' . substr( md5( '/notes/desing-tokens' ), 0, 12 ) . '" data-snt-focus><os-button variant="ghost" os-action="go" aria-label="Fix /notes/desing-tokens" os-arg-sub="broken-links" os-arg-sn_edit="/notes/desing-tokens" os-arg-anchor="snt-edit-region">Fix</os-button></span>' === $cell, 'a row carries ONE visible action, Fix, a go button naming its path, in its row anchor: ' . substr( $cell, 0, 200 ) );
 ok( 0 === slot_forms( $kit ) && 0 === slot_forms( $kit_ed ), 'no table cell holds a form, default or editing: ' . slot_forms( $kit ) . ' / ' . slot_forms( $kit_ed ) );
 ok( false === strpos( $kit, 'submit-label="Create redirect"' ) && false === strpos( $kit, 'submit-label="Dismiss"' ) && false === strpos( $kit, 'name="source"' ) && false === strpos( $kit, 'quieter paths' ), 'the default paint stacks no form at all, and no "+N more" under the cap' );
 
@@ -102,7 +102,7 @@ ok( false !== strpos( $create, '<input type="hidden" name="source" value="/notes
 $dismiss = form_block( $kit_ed, 'Dismiss' );
 ok( '' !== $dismiss && false !== strpos( $dismiss, '<input type="hidden" name="source" value="/notes/desing-tokens"><input type="hidden" name="action" value="sn_redirect_404_delete">' ) && false === strpos( $dismiss, 'os-confirm' ) && before( $kit_ed, 'submit-label="Create redirect"', 'submit-label="Dismiss"' ), 'Dismiss lives in the region too: unconfirmed (redirect_404_delete), carrying the path, after the create form' );
 ok( false !== strpos( $kit_ed, '<p class="snt-hint">Dismiss removes the path from the log without a redirect.</p>' ) && 2 === substr_count( $kit_ed, 'name="source" value="/notes/desing-tokens"' ) && false === strpos( $kit_ed, 'name="source" value="/contact-us"' ), '...said in one line; only the open path is bound, to its create and its dismiss form' );
-ok( false !== strpos( $kit_ed, '<os-button variant="ghost" os-action="go" os-arg-sub="broken-links" os-arg-anchor="snt-edit-list">Cancel</os-button>' ), 'Cancel is a go that clears the param' );
+ok( false !== strpos( $kit_ed, '<os-button variant="ghost" os-action="go" os-arg-sub="broken-links" os-arg-anchor="snt-row-' . substr( md5( '/notes/desing-tokens' ), 0, 12 ) . '">Cancel</os-button>' ), 'Cancel is a go that clears the param and lands back on the row\'s Fix' );
 ok( false !== strpos( editing( '/contact-us' ), 'description="2 hits, last ' . $d1 . ', no referrer recorded."' ), 'a path with no referrer says so in its region' );
 $unknown = editing( '/nope' );
 ok( false === strpos( $unknown, 'Create redirect' ) && false === strpos( $unknown, 'submit-label="Dismiss"' ) && false === strpos( $unknown, 'Fixing' ) && array() === snt_leaf_folds( $unknown ), 'an unknown sn_edit paints no region' );
@@ -210,6 +210,20 @@ snt_leaf_preview( 'site-broken-links', $kit );
 snt_leaf_preview( 'site-broken-links-editing', $kit_ed );
 $focus_problems = snt_leaf_edit_focus_problems( $kit, $kit_ed );
 ok( array() === $focus_problems, 'a11y: Edit lands the keyboard on the one region, Cancel lands it back on the list: ' . implode( '; ', $focus_problems ) );
+
+// ── 2026-10-12 (owner: "it's weird to click in 'edit' and something else
+// opens"): the editor opens UNDER its row, not below the whole table.
+$ip_def   = $kit;
+$ip_ed    = editing( (string) array_keys( $data['broken'] )[3] );
+$ip_table = table_of( $kit, 6 );
+$ip_keys  = array_map( static function ( $v ) { return is_array( $v ) ? (string) ( $v['text'] ?? '' ) : (string) $v; }, array_column( $ip_table['data'], 'path' ) );
+$ip_at    = array_search( (string) array_keys( $data['broken'] )[3], $ip_keys, true );
+$ip_split = snt_leaf_split_problems( $ip_ed, 'path', (string) array_keys( $data['broken'] )[3], false === $ip_at ? null : ( $ip_keys[ $ip_at + 1 ] ?? null ) );
+ok( false !== $ip_at && array() === $ip_split, 'edit in place: the editor opens under its row, the row marked selected, the table resuming with the next row after it: ' . implode( '; ', $ip_split ) );
+ok( false !== strpos( $ip_ed, '>Editing</os-badge>' ), 'edit in place: the open row says Editing in words, not only by its accent bar' );
+ok( 1 === preg_match( '/os-arg-anchor="(snt-row-[0-9a-f]{12})"[^>]*>Cancel/', $ip_ed, $ip_m ) && false !== strpos( $ip_def, 'id="' . $ip_m[1] . '" data-snt-focus' ), 'edit in place: Cancel lands back on the open row\'s own button' );
+ok( false !== strpos( $ip_table['attrs'], 'class="snt-table-full"' ), 'edit in place: the list is not boxed in an inner scroller (the app caps os-table at 440px)' );
+ok( false !== strpos( $ip_ed, '+6 quieter paths are not listed.' ) && 25 === count( snt_leaf_tables( $ip_ed )[0]['data'] ) + count( snt_leaf_tables( $ip_ed )[1]['data'] ), 'edit in place: the halves hold the same 25 paths and the "+6" line still counts the rest' );
 
 // Review on #2005: each Fix names its path for a screen reader, its visible word first.
 ok( false !== strpos( $kit, 'aria-label="Fix /' ), 'each Fix button is named "Fix /path" (label in name: the visible word first)' );

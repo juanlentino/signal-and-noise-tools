@@ -198,6 +198,13 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 	--os-ui-table-max-height: 440px;
 }
 
+/* 2026-10-12: a list whose rows open an editor in place (Redirects, Broken
+   links, Resume, Workflow) shows every row it lists, never an inner scroller;
+   its length is already capped, and counted, by the leaf. */
+.snt-app[data-os-app="sn-dashboard"] os-table.snt-table-full {
+	--os-ui-table-max-height: none;
+}
+
 .snt-app[data-os-app="sn-dashboard"] os-table::part( scroll ) {
 	scrollbar-gutter: stable;
 }

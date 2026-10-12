@@ -54,8 +54,69 @@ function snt_leaf_edit_focus_problems( $list_html, $editing_html ) {
 	if ( ! preg_match( '/id="snt-edit-region"[^>]*data-snt-focus|data-snt-focus[^>]*id="snt-edit-region"/', (string) $editing_html ) ) {
 		$problems[] = 'the edit region has no focusable snt-edit-region id';
 	}
-	if ( ! preg_match( '/<os-button[^>]*os-action="go"[^>]*os-arg-anchor="snt-edit-list"[^>]*>Cancel</', (string) $editing_html ) ) {
-		$problems[] = 'Cancel does not anchor back to the list';
+	// Cancel lands on the edited row's own action (an id the list paint
+	// carries, with data-snt-focus), or failing that on the list.
+	if ( ! preg_match( '/<os-button[^>]*os-action="go"[^>]*os-arg-anchor="([^"]+)"[^>]*>Cancel</', (string) $editing_html, $m )
+		|| ! preg_match( '/id="' . preg_quote( $m[1], '/' ) . '"[^>]*data-snt-focus|data-snt-focus[^>]*id="' . preg_quote( $m[1], '/' ) . '"/', (string) $list_html ) ) {
+		$problems[] = 'Cancel does not anchor back to a focusable place in the list';
+	}
+	return $problems;
+}
+
+/**
+ * 2026-10-12 (owner: "it's weird to click in 'edit' and something else
+ * opens"): the editor opens UNDER its row. In the editing paint the table
+ * holding the edited row ends with it and marks it selected, the editor
+ * (`id="snt-edit-region"`) follows with no table or form between, and the
+ * next row starts the table that resumes after the editor.
+ *
+ * @param string      $html   The editing paint.
+ * @param string      $col    The column whose value names a row.
+ * @param string      $edited That value on the edited row.
+ * @param string|null $next   That value on the row after it; null when it is the last.
+ * @return string[] Problems, `array()` when the split is right.
+ */
+function snt_leaf_split_problems( $html, $col, $edited, $next ) {
+	$html   = (string) $html;
+	$region = strpos( $html, 'id="snt-edit-region"' );
+	if ( false === $region ) {
+		return array( 'no edit region' );
+	}
+	$start  = (int) strrpos( substr( $html, 0, $region ), '<os-section' );
+	$tables = snt_leaf_tables( $html );
+	$at     = array();
+	for ( $o = 0; false !== ( $p = strpos( $html, '<os-table', $o ) ); $o = $p + 1 ) {
+		$at[] = $p;
+	}
+	$head = null;
+	$tail = null;
+	foreach ( $at as $i => $p ) {
+		if ( $p < $start ) {
+			$head = $i;
+		} elseif ( null === $tail && $p > $region ) {
+			$tail = $i;
+		}
+	}
+	if ( null === $head ) {
+		return array( 'no table before the editor' );
+	}
+	$text     = static function ( $v ) { return is_array( $v ) ? (string) ( $v['text'] ?? '' ) : (string) $v; };
+	$problems = array();
+	$rows     = $tables[ $head ]['data'];
+	$last     = $text( end( $rows )[ $col ] ?? '' );
+	if ( $last !== $edited ) {
+		$problems[] = 'the table before the editor ends with "' . $last . '", not the edited row';
+	}
+	if ( false === strpos( $tables[ $head ]['attrs'], 'os-prop-selection="[' . ( count( $rows ) - 1 ) . ']"' ) ) {
+		$problems[] = 'the edited row is not marked selected';
+	}
+	$close   = strpos( $html, '</os-table>', $at[ $head ] );
+	$between = substr( $html, $close, $start - $close );
+	if ( false !== strpos( $between, '<os-table' ) || false !== strpos( $between, '<os-form' ) ) {
+		$problems[] = 'something sits between the edited row and its editor';
+	}
+	if ( null !== $next && ( null === $tail || $text( $tables[ $tail ]['data'][0][ $col ] ?? '' ) !== $next ) ) {
+		$problems[] = 'the table does not resume with the next row after the editor';
 	}
 	return $problems;
 }

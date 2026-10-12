@@ -16,10 +16,10 @@
  * definition), so every per-row action that reads `source` is its own form.
  *
  * 2026-10-11 (owner rule: no collapsible sections): the per-rule folds became
- * one kit table with visible row actions and ONE form region below it
- * (site-redirects-rules.php, site-redirects-forms.php). The edit form now
- * paints only for the rule `sn_edit` names, so the classic's three actions
- * show across the default and the editing paint together.
+ * one kit table with visible row actions (site-redirects-rules.php,
+ * site-redirects-forms.php). The edit form paints only for the rule `sn_edit`
+ * names, under its row (2026-10-12), so the classic's three actions show
+ * across the default and the editing paint together.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -55,8 +55,8 @@ function redirects_intro_html() {
 
 
 /**
- * The leaf: the rule ledger, then ONE form region below it (the rule
- * `sn_edit` names, or the add form when none is open).
+ * The leaf: the rule ledger, the open rule's editor under its row, and the
+ * add form below the list, always.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -67,12 +67,11 @@ function paint_site_redirects( array $ctx ) {
 	}
 	$rules  = redirects_data()['redirects'];
 	$source = redirects_editing( $ctx, array_keys( $rules ) );
-	$form   = ( '' !== $source && isset( $rules[ $source ] ) )
-		? redirects_edit_html( $source, (array) $rules[ $source ] )
-		: redirects_add_html();
+	$editor = '' !== $source ? redirects_edit_html( $source, (array) $rules[ $source ] ) : '';
 	// v13.109.7: full width, no rail; the 404 log is Site → Broken links.
+	// 2026-10-12: the editor opens under its row and never replaces the add form.
 	return redirects_intro_html()
-		. \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), redirects_rules_html( $rules ) . $form );
+		. \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), redirects_rules_html( $rules, $source, $editor ) . redirects_add_html() );
 }
 
 add_filter(

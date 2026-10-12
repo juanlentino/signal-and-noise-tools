@@ -31,6 +31,17 @@ $html = snt_kit_ledger( 'x', $cols, array_slice( $rows, 0, 26 ), 25, array( 'mor
 ok( false !== strpos( $html, '>+1 more paths, quietest last.</p>' ), 'a caller format replaces the default sentence' );
 
 ok( '' === snt_kit_more( 0 ) && '' === snt_kit_more( -3 ), 'nothing cut, nothing said' );
+
+// 2026-10-12: the table split at the row being edited, so its editor opens under it.
+list( $head, $tail ) = snt_kit_table_split( $cols, array_slice( $rows, 0, 4 ), 1 );
+$h = snt_leaf_tables( $head )[0] ?? array();
+$t = snt_leaf_tables( $tail )[0] ?? array();
+ok( array( '/p-1', '/p-2' ) === array_column( $h['data'] ?? array(), 'path' ) && 0 === strpos( $head, '<os-table os-prop-selection="[1]"' ), 'split at row 1 of 4: the head ends with that row and marks it selected' );
+ok( array( '/p-3', '/p-4' ) === array_column( $t['data'] ?? array(), 'path' ) && array( 'Path', 'Hits' ) === array_column( $t['columns'] ?? array(), 'label' ), 'the tail resumes with the next row under a repeated header' );
+list( $whole, $none ) = snt_kit_table_split( $cols, array_slice( $rows, 0, 4 ), -1 );
+list( , $after_last ) = snt_kit_table_split( $cols, array_slice( $rows, 0, 4 ), 3 );
+ok( 4 === count( snt_leaf_tables( $whole )[0]['data'] ) && false === strpos( $whole, 'os-prop-selection' ) && '' === $none && '' === $after_last, 'no row open: the whole table, nothing marked; the last row open: no tail' );
+ok( '<span id="snt-row-' . substr( md5( '/p-1' ), 0, 12 ) . '" data-snt-focus><b>x</b></span>' === snt_kit_row_action( '/p-1', '<b>x</b>' ), 'a row action carries its row anchor and asks for focus' );
 ok( false === strpos( (string) file_get_contents( SNT_PATH . 'inc/openstation-kit-ledger.php' ), "\u{2014}" ), 'no em dash in the ledger file' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

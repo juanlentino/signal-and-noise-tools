@@ -1,12 +1,14 @@
 <?php
 /**
- * S&N Dashboard, Site → Redirects: the ONE form region below the rule table.
+ * S&N Dashboard, Site → Redirects: the open rule's editor and the add form.
  *
- * 2026-10-11 (no folds): the rule `sn_edit` names gets every write here,
- * headed by the rule: its edit form, its confirmed delete, and a Cancel that
- * clears the param. With no rule open, the add form sits here instead. Never
- * one form per rule, and never a form in a table cell. Required by
- * site-redirects.php.
+ * 2026-10-11 (no folds): the rule `sn_edit` names gets every write in one
+ * editor, headed by the rule: its edit form, its confirmed delete, and a
+ * Cancel that clears the param. 2026-10-12 (owner: "it's weird to click in
+ * 'edit' and something else opens"): the editor opens under its row
+ * (snt_kit_edit_list()), Cancel lands back on that row's Edit, and the add
+ * form always stays below the list. Never one form per rule, and never a form
+ * in a table cell. Required by site-redirects.php.
  *
  * @package SignalNoiseTools
  */
@@ -42,7 +44,7 @@ function redirects_edit_html( $source, array $r ) {
 			'danger'        => true,
 		)
 	);
-	$cancel = \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects', 'anchor' => 'snt-edit-list' ) ) );
+	$cancel = \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects', 'anchor' => \snt_kit_row_anchor( $source ) ) ) );
 	return \snt_kit_section(
 		/* translators: %s: the rule's source path. */
 		sprintf( __( 'Editing %s', 'signal-and-noise-tools' ), $source ),
