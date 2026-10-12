@@ -881,6 +881,18 @@ async function run() {
     assert.match(qroot.textContent, /^Couldn.t read the queue: the S&N status reader did not load; reload the desktop\.$/);
     q.window.sntAbilityRun = runner; qstop();
   }
+  // Review on #2023: a confirm that rejects (the overlay bundle failing to
+  // load) must not leave Clear DB overrides busy forever.
+  {
+    const x = harness(), root = new Element('div');
+    x.window.wp.os = { confirm: () => Promise.reject(new Error('the overlay bundle did not load')) };
+    const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+    const btn = nodes(root).find(n => 'button' === n.tag && 'Clear DB overrides' === n.text);
+    assert.ok(btn, 'the card offers Clear DB overrides');
+    btn.handlers.click(); await flush();
+    assert.equal(btn.getAttribute('aria-busy'), null, 'a confirm that rejects clears the busy state, so the button works again');
+    stop();
+  }
   console.log('PASS: runner and both widgets — stale/429/recovery/backoff, malformed data, cross-widget cadence, abort/cleanup/remount');
 }
 run().catch(e => { console.error(e); process.exitCode = 1; });

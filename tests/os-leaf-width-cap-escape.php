@@ -209,16 +209,22 @@ foreach ( array( $css, $app_css ) as $sheet ) {
 }
 ok( array() === $form_caps, 'no rule caps a kit form at a pixel width' . ( $form_caps ? ' -- ' . implode( ', ', $form_caps ) : '' ) );
 ok( 1 === preg_match( '/\.snt-app \.snt-form--rows,\s*\.snt-app \.snt-form--stack \{[^}]*max-width: 760px/', $app_css ), 'the native rows and stack forms (no column engine) keep the 760px measure' );
+// Review on #2023 (measured live): a grid placed fields by position, so a
+// field before a spanning item sat alone at half width beside full-width
+// ones (Identity & SEO 566/1148/566/720...). Fields now wrap in a row, two
+// to a row and at least 320px, and a lone field grows to the one cap.
+ok( 1 === preg_match( '/\.snt-app os-form:is\( :not\( \[columns\] \), \[columns="auto"\] \)::part\( fields \),\s*\.snt-app os-form os-section:has\( > os-field-row \)::part\( body \) \{\s*display: flex;\s*flex-direction: row;[^}]*flex-wrap: wrap;/', $app_css ), 'a form\'s fields, and a box of fields in it, wrap in rows (a row, since the section body is a column)' );
+ok( 1 === preg_match( '/\.snt-app os-form > os-field-row,\s*\.snt-app os-form os-section:has\( > os-field-row \) > os-field-row \{\s*flex: 1 1 max\( 320px, calc\( \( 100% - 16px \) \/ 2 \) \);/', $app_css ), 'a field is half the row and at least 320px, so two share a row and a narrow form keeps one' );
 $span = '';
 foreach ( preg_split( '/\}/', $app_css ) as $chunk ) {
-	if ( false !== strpos( $chunk, 'grid-column: 1 / -1' ) && false !== strpos( $chunk, 'os-form' ) ) { $span = $chunk; }
+	if ( false !== strpos( $chunk, 'flex: 0 0 100%' ) && false !== strpos( $chunk, 'os-form' ) ) { $span = $chunk; }
 }
-foreach ( array( 'os-form >', 'os-form os-section >' ) as $parent ) {
-	ok( false !== strpos( $span, '.snt-app ' . $parent . ' :not( os-field-row )' ) && false !== strpos( $span, '.snt-app ' . $parent . ' os-field-row:has( os-textarea )' ) && false !== strpos( $span, '.snt-app ' . $parent . ' os-field-row:has( + .snt-hint )' ), "only a labelled field shares a row ($parent): a textarea, a field with its hint after it, and anything that is not a field span it" );
+foreach ( array( 'os-form >', 'os-form os-section:has( > os-field-row ) >' ) as $parent ) {
+	ok( false !== strpos( $span, '.snt-app ' . $parent . ' :not( os-field-row )' ) && false !== strpos( $span, '.snt-app ' . $parent . ' os-field-row:has( os-textarea )' ) && false !== strpos( $span, '.snt-app ' . $parent . ' os-field-row:has( + .snt-hint ):not( :has( os-checkbox-label ) )' ), "a textarea, a field with its own hint after it, and anything that is not a field take a whole row ($parent)" );
 }
-ok( 1 === preg_match( '/\.snt-app os-form os-section:has\( > os-field-row \)::part\( body \) \{\s*display: grid;\s*grid-template-columns: repeat\( auto-fit, minmax\( min\( 100%, max\( 320px, calc\( \( 100% - 16px \) \/ 2 \) \) \), 1fr \) \);/', $app_css ), 'a box of fields inside a form pairs them, at most two columns and one under about 660px' );
-$raw = (string) file_get_contents( $css_path );
+ok( false === strpos( $app_css, 'grid-template-columns: repeat( auto-fit, minmax( min( 100%, max( 320px' ), 'no positional grid for fields is left to strand one at half width' );
 ok( 1 === preg_match( '/\.snt-app os-form os-field-row:not\( :has\( os-textarea \) \) \{\s*max-width: 720px;/', $app_css ), 'a one-line field is never wider than a field\'s measure, whatever box in the form it sits in' );
+$raw = (string) file_get_contents( $css_path );
 ok( false === strpos( $css, '.snt-leaf:has( os-form ),' ) && false === strpos( $css, '.snt-leaf:has( os-form ) {' ), 'no hatch releases a leaf for a form with no fields' );
 ok( false === strpos( $raw, 'OpenStation caps' ) && false === strpos( $raw, 'os-form:has( os-grid )' ), 'the false comment is gone with the rule it defended (a form that paired its cards had to opt out of a cap that no longer exists)' );
 

@@ -330,34 +330,48 @@ a.snt-link {
 /* ── Form controls ───────────────────────────────────────────────────── */
 /* A kit form fills its leaf (2026-10-12 audit). It was capped at 760px here,
    which left about 480px empty beside every lone form in a 1,300px window;
-   os-form has no cap of its own (760 is its three-column breakpoint) and
-   pairs its fields from a 480px form up. A box of fields inside a form pairs
-   them the same way: its body becomes a grid of at most two columns (one
-   under about 660px, so a box in a paired row stays one column). Only a
-   labelled field shares a row: a textarea, a field whose hint paragraph
-   follows it, and anything that is not a field (a section, a notice, a
-   switch, a hint) take the whole row, and a one-line field is never wider
-   than a field's measure (720px), whatever box it sits in. A rule here
-   reaches the slotted children and outranks the shadow's
-   ::slotted( [full-width] ) and the section's `stack` column. The native
-   rows and stack forms have no column engine, so they keep the measure. */
+   os-form has no cap of its own (760 is its three-column breakpoint).
+   Fields flow two to a row: the form's fields part (and the body of a box
+   of fields inside it) wraps them, each a half of the row and at least
+   320px, so a narrow form or box keeps one per row. A field that ends up
+   alone (before a textarea, a hint, a box) grows to the same one cap as any
+   lone field, 720px, so a form is never half-width fields beside
+   full-width ones at random. A textarea, a field whose hint paragraph
+   follows it (so the hint sits under its own field; a checkbox's is the
+   group's), and anything that is not a field (a section, a notice, a
+   switch, a hint) take the whole row. A grid
+   placed fields by position and left a field before a spanning item alone
+   at half width (Identity & SEO, Front-End; review on #2023). A rule here
+   reaches the slotted children and outranks the shadow's grid and the
+   section's `stack` column. A form that asks for a column count keeps the
+   kit's grid. The native rows and stack forms have no column engine, so
+   they keep the measure. */
 .snt-form {
 	width: 100%;
 }
 
+.snt-app os-form:is( :not( [columns] ), [columns="auto"] )::part( fields ),
 .snt-app os-form os-section:has( > os-field-row )::part( body ) {
-	display: grid;
-	grid-template-columns: repeat( auto-fit, minmax( min( 100%, max( 320px, calc( ( 100% - 16px ) / 2 ) ) ), 1fr ) );
+	display: flex;
+	flex-direction: row; /* the section's `stack` body is a column */
+	flex-wrap: wrap;
+	align-items: flex-start;
 	gap: 14px 16px;
-	align-items: start;
+}
+
+.snt-app os-form > os-field-row,
+.snt-app os-form os-section:has( > os-field-row ) > os-field-row {
+	flex: 1 1 max( 320px, calc( ( 100% - 16px ) / 2 ) );
+	min-width: 0;
 }
 
 .snt-app os-form > :not( os-field-row ),
 .snt-app os-form > os-field-row:has( os-textarea ),
-.snt-app os-form > os-field-row:has( + .snt-hint ),
-.snt-app os-form os-section > :not( os-field-row ),
-.snt-app os-form os-section > os-field-row:has( os-textarea ),
-.snt-app os-form os-section > os-field-row:has( + .snt-hint ) {
+.snt-app os-form > os-field-row:has( + .snt-hint ):not( :has( os-checkbox-label ) ),
+.snt-app os-form os-section:has( > os-field-row ) > :not( os-field-row ),
+.snt-app os-form os-section:has( > os-field-row ) > os-field-row:has( os-textarea ),
+.snt-app os-form os-section:has( > os-field-row ) > os-field-row:has( + .snt-hint ):not( :has( os-checkbox-label ) ) {
+	flex: 0 0 100%;
 	grid-column: 1 / -1;
 }
 

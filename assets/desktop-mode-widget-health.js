@@ -596,6 +596,10 @@
 					btn.style.opacity = '1';
 					btn.removeAttribute( 'aria-busy' );
 				} );
+			} ).catch( function() {
+				// The confirm never opened (it threw or rejected): nothing ran,
+				// so the button is free again (review on #2023).
+				btn.removeAttribute( 'aria-busy' );
 			} );
 		} );
 		var actions = el( 'div', { style: 'margin-top:10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;' } );

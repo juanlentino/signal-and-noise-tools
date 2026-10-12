@@ -74,7 +74,7 @@ function sn_posts_gap( $why ) {
 	// unknown reason shows in full rather than being cut.
 	$short = array(
 		'not shown by Google in this window'          => __( 'not shown', 'signal-and-noise-tools' ),
-		'not among the rows the sync keeps'           => __( 'not in sync', 'signal-and-noise-tools' ),
+		'not among the rows the sync keeps'           => __( 'not kept', 'signal-and-noise-tools' ), // Top pages' and the dossier's word (2026-10-12)
 		'not inspected in the last run'               => __( 'not inspected', 'signal-and-noise-tools' ),
 		'not yet inspected: a run is in progress'     => __( 'not yet inspected', 'signal-and-noise-tools' ),
 		'coverage inspection has never run'           => __( 'never inspected', 'signal-and-noise-tools' ),
