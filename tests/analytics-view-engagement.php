@@ -49,6 +49,11 @@ function snt_analytics_render_distribution( $title, $rows, $empty = '' ) {
 }
 function snt_analytics_render_percentiles( $title, $rows, $fmt = 'pct', $empty = '', $note = '' ) { echo '<!--PCTL:' . $title . '-->'; }
 function snt_analytics_render_anomalies( $anom ) { echo '<!--ANOM-->'; }
+// Core Web Vitals at p75 by device (theme audit idea 4): asked only when a band has data.
+$GLOBALS['__vitals_asked'] = 0;
+function sn_analytics_vitals( $f, $t, $c = 'human' ) { $GLOBALS['__vitals_asked']++; return array( 'devices' => array() ); }
+function sn_analytics_vitals_device_rows( $v ) { return array(); }
+function snt_analytics_render_vitals_devices( $rows ) { echo '<!--VITALS-DEVICES-->'; }
 
 require_once __DIR__ . '/../inc/analytics-view-engagement.php';
 
@@ -66,6 +71,7 @@ foreach ( array( 'Scroll depth', 'Time on page', 'Connection RTT', 'LCP (field)'
 ok( false !== strpos( $html, '<!--PCTL:Scroll depth' ) && false !== strpos( $html, '<!--PCTL:Time on page' ), 'both percentile panels render' );
 ok( false !== strpos( $html, 'Field Core Web Vitals' ), 'CWV separator kept when at least one CWV panel has data' );
 ok( false !== strpos( $html, '<!--ANOM-->' ), 'anomalies panel renders' );
+ok( false !== strpos( $html, '<!--VITALS-DEVICES-->' ) && 1 === $GLOBALS['__vitals_asked'], 'CWV has data: the per-device p75 panel renders, one read' );
 
 echo "\nTest: D5 §6 — CWV all-empty folds the separator instead of orphaning it\n";
 $GLOBALS['__cwv'] = array( 'lcp' => array(), 'inp' => array(), 'cls' => array() );
@@ -81,6 +87,7 @@ ok(
 	'all-empty CWV: all three panels fold under their own titles'
 );
 ok( false !== strpos( $empty_html, 'sn-an-empty-fold' ), 'all-empty CWV: the fold markup is emitted'  );
+ok( false === strpos( $empty_html, '<!--VITALS-DEVICES-->' ) && 1 === $GLOBALS['__vitals_asked'], 'all-empty CWV: no per-device panel and no Analytics Engine read' );
 
 echo "\nTest: D5 §6 — any CWV data present keeps the separator\n";
 $GLOBALS['__cwv'] = array( 'lcp' => array( array( 'views' => 3 ) ), 'inp' => array(), 'cls' => array() );

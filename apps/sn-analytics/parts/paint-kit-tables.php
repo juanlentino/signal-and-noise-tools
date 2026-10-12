@@ -124,3 +124,22 @@ function distribution_table( $title, $rows, $empty ) {
 		)
 	);
 }
+
+/**
+ * Core Web Vitals at p75 per device: the classic Engagement panel's rows and
+ * sentences (snt_analytics_render_vitals_devices()).
+ *
+ * @param array|null $rows sn_analytics_vitals_device_rows(); null when the read failed.
+ * @return string
+ */
+function vitals_device_table( $rows ) {
+	$copy = \sn_analytics_vitals_copy();
+	if ( null === $rows ) {
+		return \snt_kit_section( $copy['title'], \snt_kit_notice( 'warn', $copy['failed'] ) );
+	}
+	$columns = array( array( 'key' => 'device', 'label' => __( 'Device', 'signal-and-noise-tools' ) ) );
+	foreach ( array( 'lcp' => 'LCP', 'inp' => 'INP', 'cls' => 'CLS' ) as $k => $label ) {
+		$columns[] = array( 'key' => $k, 'label' => $label );
+	}
+	return \snt_kit_section( $copy['title'], \snt_kit_table( $columns, $rows, array( 'empty' => $copy['failed'] ) ) . '<p class="snt-hint">' . esc_html( $copy['note'] ) . '</p>' );
+}

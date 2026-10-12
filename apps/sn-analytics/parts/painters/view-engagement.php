@@ -32,11 +32,23 @@ function paint_view_engagement( array $ctx ) {
 	$out  .= distribution_table( __( 'Connection RTT', 'signal-and-noise-tools' ), $dist( 'rtt' ), __( 'No TCP round-trips in this range. HTTP/3 connections carry no RTT, so only HTTP/1–2 visitors are measured (needs worker v1.7.0 + traffic).', 'signal-and-noise-tools' ) );
 	$out  .= '</div>';
 	$cwv_empty = __( 'No field Core Web Vitals yet: needs the web-vitals beacon (theme v10.14.0) + worker v1.8.0 + traffic.', 'signal-and-noise-tools' );
+	$cwv       = array( 'lcp' => $dist( 'lcp' ), 'inp' => $dist( 'inp' ), 'cls' => $dist( 'cls' ) );
 	$out      .= '<div class="snt-grid">';
-	$out      .= distribution_table( __( 'LCP (field)', 'signal-and-noise-tools' ), $dist( 'lcp' ), $cwv_empty );
-	$out      .= distribution_table( __( 'INP (field)', 'signal-and-noise-tools' ), $dist( 'inp' ), $cwv_empty );
-	$out      .= distribution_table( __( 'CLS (field)', 'signal-and-noise-tools' ), $dist( 'cls' ), $cwv_empty );
-	return $out . '</div>';
+	$out      .= distribution_table( __( 'LCP (field)', 'signal-and-noise-tools' ), $cwv['lcp'], $cwv_empty );
+	$out      .= distribution_table( __( 'INP (field)', 'signal-and-noise-tools' ), $cwv['inp'], $cwv_empty );
+	$out      .= distribution_table( __( 'CLS (field)', 'signal-and-noise-tools' ), $cwv['cls'], $cwv_empty );
+	$out      .= '</div>';
+	// The per-device p75 rows, painted where the classic view paints them: only when a band has measurements.
+	$has_cwv = false;
+	foreach ( $cwv as $rows ) {
+		foreach ( (array) $rows as $r ) {
+			$has_cwv = $has_cwv || (int) ( $r['views'] ?? 0 ) > 0;
+		}
+	}
+	if ( $has_cwv && function_exists( 'sn_analytics_vitals' ) ) {
+		$out .= vitals_device_table( \sn_analytics_vitals_device_rows( \sn_analytics_vitals( $from, $to, $class, 0 ) ) );
+	}
+	return $out;
 }
 
 add_filter(

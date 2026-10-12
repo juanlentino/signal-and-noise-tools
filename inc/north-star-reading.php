@@ -43,6 +43,8 @@ function snt_nsm_reading( $fresh = false ) {
 	// fetch says configured=false for both, so ask the config which it was.
 	$read_failed = ! $raw['configured'] && function_exists( 'sn_analytics_config' ) && (bool) sn_analytics_config();
 
+	$cal = array_merge( ...snt_nsm_weeks( (array) $raw['visits'], $now ) ); // the calibration's four weeks.
+
 	$out = array(
 		'configured' => (bool) $raw['configured'],
 		'read_failed' => $read_failed,
@@ -59,7 +61,13 @@ function snt_nsm_reading( $fresh = false ) {
 			'unit'     => 'visitor-day',
 		),
 		// Four weeks by device and at other floors (north-star-sweep.php).
-		'calibration' => array( 'window' => '28d', 'devices' => snt_nsm_sweep( array_merge( ...snt_nsm_weeks( (array) $raw['visits'], $now ) ), $cfg ) ),
+		// by_score: the same visitor-days split by the beacon bot-signal score,
+		// three cohorts side by side, never subtracted (north-star-sweep.php).
+		'calibration' => array(
+			'window'   => '28d',
+			'devices'  => snt_nsm_sweep( $cal, $cfg ),
+			'by_score' => snt_nsm_calibration_by_score( $cal, $cfg ),
+		),
 		'layers'     => snt_nsm_inputs( $weeks[0], $now, (int) array_sum( $series ) )
 			+ array( 'quality' => snt_nsm_quality( function_exists( 'sn_bot_signals_stored' ) ? sn_bot_signals_stored() : null ) ),
 		'as_of'      => gmdate( 'c', $now ),
@@ -221,7 +229,7 @@ add_action(
 			'signal-noise/north-star',
 			array(
 				'label'               => __( 'North star', 'signal-and-noise-tools' ),
-				'description'         => __( 'Weekly engaged readers: human visitor-days with at least one core page read past the scroll or dwell floor, over four rolling weeks, with the supporting metrics (deep readers, intent actions, resume/contact visits, RSS readers, search clicks, notes published). layers.quality.likely_automated_share is OBSERVE-ONLY: the percent of human visitor-days (all pages, the bot-signals window) the beacon signals score as likely automated; it is never subtracted from value. Cached for an hour.', 'signal-and-noise-tools' ),
+				'description'         => __( 'Weekly engaged readers: human visitor-days with at least one core page read past the scroll or dwell floor, over four rolling weeks, with the supporting metrics (deep readers, intent actions, resume/contact visits, RSS readers, search clicks, notes published). layers.quality.likely_automated_share is OBSERVE-ONLY: the percent of human visitor-days (all pages, the bot-signals window) the beacon signals score as likely automated; it is never subtracted from value. calibration (28 days) counts core-page visitor-days per device that reached each scroll and dwell floor; calibration.by_score splits the same visitor-days into three cohorts by the beacon bot-signal score (presumed_human: scored under the threshold, likely_automated: scored at it, not_scored: carried no signals), side by side and never subtracted, basis inferred; its cohorts are null with a reason when the signals cannot be read whole. Cached for an hour.', 'signal-and-noise-tools' ),
 				'category'            => 'diagnostics',
 				'permission_callback' => 'snt_ability_perm_manage_options',
 				'execute_callback'    => 'snt_ability_north_star',
