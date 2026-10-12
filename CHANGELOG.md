@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Deploy Status's Remote MCP row is its version again.** 2026.10.2 painted "2.2.0 · contract 16", which wrapped in the narrow column and said nothing when the contract matched. A match now lives in the check's title ("contract 16 matches this plugin"); only a mismatch says the contract, as one amber line under Workers naming both sides ("Remote MCP contract 15; this plugin expects 16.").
+- **SN Provenance names the top identified crawler family.** It read "Top crawler family: other-bot, 49%", the bucket for bots the taxonomy cannot name. other-bot and unclassified-machine are skipped (live: search, 15% of reader reads); with only buckets reading, the row is left out.
+
 ## [2026.10.2] - 2026-10-12 — the readership evidence reaches /stats, and S&N Home folds nothing
 
 ### Added

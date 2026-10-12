@@ -52,6 +52,12 @@ $GLOBALS['__payload']['impersonations'] = array( array( 'agent' => 'google-exten
 $p = snt_desktop_machine_readers_payload();
 ok( 100 === ( $p['top_family']['share'] ?? null ), 'with 20 control-token hits out, GPTBot is 60 of 60 reader reads: 100%, not 75%' );
 unset( $GLOBALS['__payload'] );
+// 2026-10-11 (owner, on 2026.10.2): "other-bot" is the bucket for bots the
+// taxonomy cannot name, not a family; the row names the top identified family.
+// Live 30 days: other-bot 21,982, search 6,620, unclassified-machine 3,118.
+$top = snt_desktop_machine_readers_top_family( array( 'total' => 110313, 'first_party' => 65050, 'impersonations' => array( array( 'token' => 'Google-Extended', 'hits' => 575 ) ), 'reader_families' => array( array( 'family' => 'other-bot', 'hits' => 21982 ), array( 'family' => 'search', 'hits' => 6620 ), array( 'family' => 'unclassified-machine', 'hits' => 3118 ) ) ), null );
+ok( 'search' === ( $top['family'] ?? null ) && 15 === $top['share'], 'the catch-all buckets are skipped: search, 6,620 of 44,688 reader reads (15%)' );
+ok( null === snt_desktop_machine_readers_top_family( array( 'total' => 100, 'first_party' => 0, 'reader_families' => array( array( 'family' => 'other-bot', 'hits' => 60 ), array( 'family' => 'unclassified-machine', 'hits' => 40 ) ) ), null ), 'only catch-all buckets: no top family row, never a bucket named as one' );
 
 $GLOBALS['__reads'][60] = array( 'ok' => true, 'truncated' => false, 'rows' => prior_rows( 5 ) );
 $p = snt_desktop_machine_readers_payload();
