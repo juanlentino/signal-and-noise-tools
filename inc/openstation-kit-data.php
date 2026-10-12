@@ -18,6 +18,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/openstation-kit-ledger.php'; // the no-fold list: finding, capped table, "+N more"
 
 /**
+ * What an empty table or list says (2026-10-12 audit, cross-cutting #15).
+ * The caller's `empty` sentence says what "none" means there; without one,
+ * an empty table read "Nothing to show." and an empty list painted a blank
+ * paragraph, which cannot tell none from not read. The kit's sentence stays
+ * as the fallback, and painting it logs the caller, so the gap is found and
+ * fixed rather than shown. A call that never paints empty needs no sentence.
+ *
+ * @param array<string,mixed> $opts  The helper's options.
+ * @param bool                $empty Whether the empty state is painted now.
+ * @param string              $kind  The helper's name, for the log.
+ * @return string
+ */
+function snt_kit_empty_text( array $opts, $empty, $kind ) {
+	if ( isset( $opts['empty'] ) && '' !== (string) $opts['empty'] ) {
+		return (string) $opts['empty'];
+	}
+	if ( $empty ) {
+		$at = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 2 )[1] ?? array(); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace -- names the caller to fix.
+		error_log( sprintf( '[signal-and-noise-tools] %s painted empty without `empty` at %s:%d; say what none means there.', $kind, basename( (string) ( $at['file'] ?? '?' ) ), (int) ( $at['line'] ?? 0 ) ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- a developer gap, logged once per paint.
+	}
+	return __( 'Nothing to show.', 'signal-and-noise-tools' );
+}
+
+/**
  * `<os-table>` fed from markup. A column is `key` plus optional `label`,
  * `align` (start|center|end), `filter` (text|select), `sortable`, `stack`.
  *
@@ -89,7 +113,7 @@ function snt_kit_table( array $columns, array $rows, array $opts = array() ) {
 			'bordered'        => (bool) ( $opts['bordered'] ?? false ),
 			'sticky-header'   => (bool) ( $opts['sticky_header'] ?? false ),
 			'selectable'      => $opts['selectable'] ?? null,
-			'empty'           => (string) ( $opts['empty'] ?? __( 'Nothing to show.', 'signal-and-noise-tools' ) ),
+			'empty'           => snt_kit_empty_text( $opts, array() === $rows, 'snt_kit_table' ),
 			'data-snt-stack-on-phone' => empty( $opts['stack_on_phone'] ) ? null : true,
 		),
 		$slotted
@@ -122,9 +146,28 @@ function snt_kit_histogram( array $series, array $columns, array $opts = array()
 }
 
 /**
+ * A status dot that says its state without color (2026-10-12 audit): a shape
+ * per state in os-app.css (a circle, a triangle, a square, a ring) and the
+ * word for a screen reader. Any kind snt_kit_tone() knows: ok, warn, err, or
+ * anything else as not read.
+ *
+ * @param string $kind Status kind.
+ * @return string
+ */
+function snt_kit_dot( $kind ) {
+	$states = array(
+		'success' => array( 'ok', __( 'OK', 'signal-and-noise-tools' ) ),
+		'warning' => array( 'warn', __( 'Needs a look', 'signal-and-noise-tools' ) ),
+		'danger'  => array( 'err', __( 'Problem', 'signal-and-noise-tools' ) ),
+	);
+	$state = $states[ snt_kit_tone( $kind ) ] ?? array( 'unknown', __( 'Not read', 'signal-and-noise-tools' ) );
+	return snt_kit_tag( 'span', array( 'class' => 'snt-dot snt-dot--' . $state[0], 'role' => 'img', 'aria-label' => $state[1] ) );
+}
+
+/**
  * A label/value list, the ops-wall row: `label`, `value`, optional `href`
- * (external link), `dot` (a status dot: err|unknown|ok), `go` (a `snt_kit_go()`
- * target array: tab, sub, anchor) and `tone`.
+ * (external link), `dot` (a status dot: ok|warn|err|unknown, snt_kit_dot()),
+ * `go` (a `snt_kit_go()` target array: tab, sub, anchor) and `tone`.
  *
  * @param array<int,array<string,mixed>> $rows Rows.
  * @param array<string,mixed>            $opts class, empty.
@@ -132,7 +175,7 @@ function snt_kit_histogram( array $series, array $columns, array $opts = array()
  */
 function snt_kit_list( array $rows, array $opts = array() ) {
 	if ( empty( $rows ) ) {
-		return snt_kit_tag( 'p', array( 'class' => 'snt-list__empty' ), snt_kit_esc( (string) ( $opts['empty'] ?? '' ) ) );
+		return snt_kit_tag( 'p', array( 'class' => 'snt-list__empty' ), snt_kit_esc( snt_kit_empty_text( $opts, true, 'snt_kit_list' ) ) );
 	}
 	$items = '';
 	foreach ( $rows as $row ) {
@@ -141,7 +184,7 @@ function snt_kit_list( array $rows, array $opts = array() ) {
 		}
 		$label = snt_kit_esc( (string) ( $row['label'] ?? '' ) );
 		$dot   = (string) ( $row['dot'] ?? '' );
-		$inner = '' !== $dot ? snt_kit_tag( 'span', array( 'class' => 'snt-dot snt-dot--' . $dot, 'aria-hidden' => 'true' ) ) : '';
+		$inner = '' !== $dot ? snt_kit_dot( $dot ) : '';
 		if ( isset( $row['go'] ) && is_array( $row['go'] ) && function_exists( 'snt_kit_go' ) ) {
 			$inner .= snt_kit_go( (string) ( $row['label'] ?? '' ), $row['go'], array( 'class' => 'snt-list__label', 'variant' => 'link' ) );
 		} elseif ( '' !== (string) ( $row['href'] ?? '' ) ) {

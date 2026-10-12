@@ -43,7 +43,7 @@ function sn_note_dossier_editorial( $post_id ) {
 	if ( ! $post ) {
 		return array();
 	}
-	$dash  = '—';
+	$dash  = __( 'not read', 'signal-and-noise-tools' );
 	// `post_tag` is a post-only taxonomy here: ask before reading, so a page
 	// never gets an empty answer that reads as "untagged".
 	$tagged = is_object_in_taxonomy( (string) $post->post_type, 'post_tag' );

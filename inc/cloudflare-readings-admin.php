@@ -63,10 +63,11 @@ function sn_cf_edge_card_render() {
 		if ( function_exists( 'sn_admin_glance_grid' ) ) {
 			sn_admin_glance_grid( array(
 				array( 'label' => 'Requests, 7 days', 'value' => number_format_i18n( (int) $tt['requests'] ) ),
-				array( 'label' => 'Served from cache', 'value' => null === ( $tt['cache_share'] ?? null ) ? 'not read' : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%' ),
+				array( 'label' => 'Served from cache', 'value' => null === ( $tt['cache_share'] ?? null ) ? __( 'not read', 'signal-and-noise-tools' ) : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%' ),
 				array( 'label' => 'Bytes', 'value' => size_format( (int) $tt['bytes'] ) ),
 				array( 'label' => 'Threats', 'value' => number_format_i18n( (int) $tt['threats'] ) ),
-				array( 'label' => '5xx at the edge', 'value' => number_format_i18n( (int) $tt['status_5xx'] ) ),
+				// The native tile's toned caption, in the same words (2026-10-12).
+				array( 'label' => '5xx at the edge', 'value' => number_format_i18n( (int) $tt['status_5xx'] ), 'pill' => (int) $tt['status_5xx'] > 0 ? array( 'kind' => 'warn', 'text' => __( 'needs a look', 'signal-and-noise-tools' ) ) : null ),
 			) );
 		}
 		$codes = (array) ( $tt['status_5xx_codes'] ?? array() );

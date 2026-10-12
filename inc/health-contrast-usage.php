@@ -127,6 +127,9 @@ function sn_health_contrast_usage_admin_sheets() {
 		// admin_enqueue_scripts only (inc/openstation-host-assets.php), same
 		// case as uptime-status.css — it never paints a public page.
 		'os-app.css',
+		// 2026-10-12: the shell confirm dialog's ink, enqueued with the
+		// desktop commands on admin_enqueue_scripts only.
+		'snt-confirm-ink.css',
 	);
 }
 

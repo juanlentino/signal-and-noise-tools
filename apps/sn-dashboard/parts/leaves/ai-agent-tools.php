@@ -58,7 +58,7 @@ function agent_tools_bridge_html( array $m ) {
 		. '<p class="snt-hint">' . \snt_kit_esc( $m['caption'] ) . '</p>';
 	$docs = array();
 	foreach ( $m['documents'] as $d ) {
-		$docs[] = array( 'label' => $d['label'], 'value' => $d['value'], 'dot' => null === $d['ok'] ? 'unknown' : ( $d['ok'] ? 'ok' : 'err' ), 'tone' => false === $d['ok'] ? 'warn' : '' );
+		$docs[] = array( 'label' => $d['label'], 'value' => $d['value'], 'dot' => null === $d['ok'] ? 'unknown' : ( $d['ok'] ? 'ok' : 'warn' ), 'tone' => false === $d['ok'] ? 'warn' : '' );
 	}
 	// Live check on #2022: the bridge's reading (and when it was checked) was cut off with an ellipsis; these values wrap.
 	$right = \snt_kit_list( $docs, array( 'class' => 'snt-list--wrap' ) );

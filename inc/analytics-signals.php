@@ -614,6 +614,35 @@ function sn_analytics_forecast_of( $subject, $label, $series, $from, $to, $opts 
 }
 
 /**
+ * A subject's daily series over the site series' own days (2026-10-12 audit).
+ *
+ * A path or campaign series holds only the days it had views, so its
+ * "14-day median" was the median of its last 14 days WITH views: a path read
+ * every other day forecast twice its real level. Every day the site series
+ * has becomes a row, 0 where the subject had none. A day the site series
+ * lacks (a rollup gap, a failed read) is not a 0 and stays out; with no site
+ * days at all the subject's own rows are used unchanged.
+ *
+ * @param array<int,array{day?:string,views?:int|float}> $series The subject's rows.
+ * @param string[]                                       $days   The site series' days.
+ * @return array<int,array{day:string,views:float}>
+ */
+function sn_analytics_series_on_days( array $series, array $days ) {
+	if ( array() === $days ) {
+		return $series;
+	}
+	$by = array();
+	foreach ( $series as $r ) {
+		$by[ (string) ( $r['day'] ?? '' ) ] = (float) ( $r['views'] ?? 0 );
+	}
+	$out = array();
+	foreach ( $days as $day ) {
+		$out[] = array( 'day' => $day, 'views' => $by[ $day ] ?? 0.0 );
+	}
+	return $out;
+}
+
+/**
  * Forecast signals for the window: site views+visits (trailing fit history ending
  * $to, decoupled from the display range), top campaigns, and the lifecycle
  * census's refresh candidates (spec §8 reuse — the census picks the subjects, the
@@ -626,8 +655,10 @@ function sn_analytics_signal_forecasts( $from, $to, $class = 'human', $opts = ar
 	$out       = array();
 	$history   = max( 1, (int) ( $opts['history_days'] ?? SN_ANALYTICS_FORECAST_HISTORY_DAYS ) );
 	$hist_from = gmdate( 'Y-m-d', strtotime( (string) $to . ' -' . ( $history - 1 ) . ' days' ) );
+	$site_days = array();
 	if ( function_exists( 'sn_analytics_daily_series' ) ) {
-		$series = sn_analytics_daily_series( $hist_from, (string) $to, $class, 'day' );
+		$series    = sn_analytics_daily_series( $hist_from, (string) $to, $class, 'day' );
+		$site_days = array_values( array_filter( array_map( static function ( $r ) { return (string) ( $r['day'] ?? '' ); }, (array) $series ) ) );
 		foreach ( array( 'views', 'visits' ) as $metric ) {
 			$ms  = array_map( static function ( $r ) use ( $metric ) { return array( 'views' => (float) ( $r[ $metric ] ?? 0 ) ); }, (array) $series );
 			$sig = sn_analytics_forecast_of( $metric, ucfirst( $metric ), $ms, $hist_from, $to, $opts );
@@ -639,7 +670,7 @@ function sn_analytics_signal_forecasts( $from, $to, $class = 'human', $opts = ar
 		$values = array_map( static function ( $r ) { return (string) $r['value']; }, (array) $camps );
 		$cser   = sn_analytics_utm_series( 'campaign', $values, $hist_from, (string) $to, $class, 'day' );
 		foreach ( $values as $v ) {
-			$sig = sn_analytics_forecast_of( 'campaign:' . $v, $v, $cser[ $v ] ?? array(), $hist_from, $to, $opts );
+			$sig = sn_analytics_forecast_of( 'campaign:' . $v, $v, sn_analytics_series_on_days( (array) ( $cser[ $v ] ?? array() ), $site_days ), $hist_from, $to, $opts );
 			if ( $sig ) { $out[] = $sig; }
 		}
 	}
@@ -652,7 +683,7 @@ function sn_analytics_signal_forecasts( $from, $to, $class = 'human', $opts = ar
 			if ( empty( $r['refresh_candidate'] ) ) { continue; }
 			$path = (string) wp_parse_url( (string) ( $r['permalink'] ?? '' ), PHP_URL_PATH );
 			if ( '' === $path ) { continue; }
-			$sig = sn_analytics_forecast_of( 'path:' . $path, $path, sn_analytics_path_daily_series( $path, $hist_from, (string) $to ), $hist_from, $to, $opts );
+			$sig = sn_analytics_forecast_of( 'path:' . $path, $path, sn_analytics_series_on_days( (array) sn_analytics_path_daily_series( $path, $hist_from, (string) $to ), $site_days ), $hist_from, $to, $opts );
 			if ( $sig ) {
 				$out[] = $sig;
 				if ( ++$done >= $cap ) { break; }

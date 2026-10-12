@@ -38,11 +38,11 @@ function paint_chrome_header( array $ctx ) {
 	$cards[] = array( 'l' => __( 'Views', 'signal-and-noise-tools' ), 'n' => num( $totals['views'] ?? 0 ) );
 	$cards[] = $known( 'pageview_visits' )
 		? array( 'l' => __( 'Visits', 'signal-and-noise-tools' ), 'n' => num( $totals['pageview_visits'] ) )
-		: array( 'l' => __( 'Visits', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => $caveat );
-	$cards[] = array( 'l' => __( 'Now', 'signal-and-noise-tools' ), 'n' => null === $now ? '—' : num( $now ), 'attrs' => function_exists( 'sn_analytics_live_attrs' ) ? sn_analytics_live_attrs( 'now', $class ) : array() ); // data-sn-live
+		: array( 'l' => __( 'Visits', 'signal-and-noise-tools' ), 'n' => \snt_kit_unread(), 'sub' => $caveat );
+	$cards[] = array( 'l' => __( 'Now', 'signal-and-noise-tools' ), 'n' => null === $now ? \snt_kit_unread() : num( $now ), 'attrs' => function_exists( 'sn_analytics_live_attrs' ) ? sn_analytics_live_attrs( 'now', $class ) : array() ); // data-sn-live
 	$cards[] = $known( 'scroll_avg_per_view' )
 		? array( 'l' => __( 'Scroll / view', 'signal-and-noise-tools' ), 'n' => (int) round( (float) $totals['scroll_avg_per_view'] ) . '%' )
-		: array( 'l' => __( 'Scroll / view', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => $caveat );
+		: array( 'l' => __( 'Scroll / view', 'signal-and-noise-tools' ), 'n' => \snt_kit_unread(), 'sub' => $caveat );
 	if ( is_array( $ctx['engaged'] ?? null ) && isset( $ctx['engaged']['current'] ) ) {
 		$cards[] = array( 'l' => __( 'Engaged', 'signal-and-noise-tools' ), 'n' => (int) $ctx['engaged']['current'] . '%' );
 	} elseif ( function_exists( 'sn_analytics_engaged_rate' ) ) {

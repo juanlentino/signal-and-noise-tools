@@ -35,6 +35,10 @@ function snt_analytics_render_paths_table( $paths ) {
 	// four metrics: Views/Visits already carry the post-click side, and "shown N
 	// times, ranked X" is the pair that adds something this row did not have.
 	$gsc = function_exists( 'snt_gsc_data' ) && null !== snt_gsc_data();
+	// A page with no row: Google did not show it ("not shown"), unless the
+	// sync is capped at its row limit, where it may have ("not kept").
+	$tot  = $gsc && function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null;
+	$none = is_array( $tot ) && ! empty( $tot['capped'] ) ? __( 'not kept', 'signal-and-noise-tools' ) : __( 'not shown', 'signal-and-noise-tools' );
 	echo '<table class="widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th>'
@@ -52,10 +56,11 @@ function snt_analytics_render_paths_table( $paths ) {
 		$pos  = '';
 		if ( $gsc ) {
 			$m = snt_gsc_metrics_for_path( (string) $r['path'] );
-			// NULL means Google never showed this page; 0 would claim it showed it
-			// and nobody looked. An em-dash says "no reading", which is the truth.
-			$impr = null === $m ? '—' : number_format_i18n( (int) $m['impressions'] );
-			$pos  = null === $m ? '—' : number_format_i18n( (float) $m['position'], 1 );
+			// NULL means the sync kept no row for this page; 0 would claim Google
+			// showed it and nobody looked. It says why in words (2026-10-12: it
+			// was an em dash).
+			$impr = null === $m ? $none : number_format_i18n( (int) $m['impressions'] );
+			$pos  = null === $m ? $none : number_format_i18n( (float) $m['position'], 1 );
 		}
 		echo '<tr>'
 			. '<td class="column-primary"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'

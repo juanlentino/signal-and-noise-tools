@@ -299,12 +299,13 @@ echo "\nGroup: forecast producer\n";
 $daily30 = array(); for ( $i = 0; $i < 30; $i++ ) { $daily30[] = array( 'day' => sprintf( '2026-06-%02d', $i + 1 ), 'views' => $stat30[ $i ], 'visits' => 50 ); }
 $GLOBALS['__daily'] = $daily30;
 $GLOBALS['__camps'] = array( array( 'value' => 'launch', 'views' => 900 ) );
-$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, $stat30 ) );
+$dated = static function ( array $vals, $first = 1 ) { $out = array(); foreach ( array_values( $vals ) as $i => $v ) { $out[] = array( 'day' => sprintf( '2026-06-%02d', $first + $i ), 'views' => $v ); } return $out; };
+$GLOBALS['__campseries'] = array( 'launch' => $dated( $stat30 ) );
 $GLOBALS['__lifecycle'] = array( 'rows' => array(
 	array( 'permalink' => 'https://juanlentino.com/notes/x', 'refresh_candidate' => true ),
 	array( 'permalink' => 'https://juanlentino.com/notes/keep', 'refresh_candidate' => false ),
 ), 'summary' => array() );
-$GLOBALS['__pathseries'] = array( '/notes/x' => $dec_rows );
+$GLOBALS['__pathseries'] = array( '/notes/x' => $dated( array_column( $dec_rows, 'views' ) ) );
 $fc = sn_analytics_signal_forecasts( '2026-07-06', '2026-07-12', 'human' );
 $fsub = array_map( static function ( $s ) { return $s['subject']; }, $fc );
 ok( count( $fc ) === 4, 'producer: site views+visits, campaign, decay path → 4 forecasts' );
@@ -312,8 +313,28 @@ ok( in_array( 'views', $fsub, true ) && in_array( 'visits', $fsub, true ) && in_
 ok( ! in_array( 'path:/notes/keep', $fsub, true ), 'producer: non-candidate lifecycle rows skipped' );
 $by = array(); foreach ( $fc as $s ) { $by[ $s['subject'] ] = $s; }
 ok( 'rolling_median' === $by['views']['stat'] && 'forecast' === $by['visits']['kind'] && 'holt_linear' === $by['path:/notes/x']['stat'] && 'down' === $by['path:/notes/x']['direction'] && 2 === $by['path:/notes/x']['severity'], 'producer: steady subjects take the median; the decaying path takes Holt, says down, and ranks first' );
-$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, array_slice( $stat30, 0, 10 ) ) );
-ok( count( sn_analytics_signal_forecasts( '2026-07-06', '2026-07-12', 'human' ) ) === 3, 'producer: short campaign history → that forecast suppressed' );
+// 2026-10-12 audit: a subject's series is zero-filled over the site series'
+// own days before forecasting. A campaign seen on its last 20 days is 30
+// days long (10 of them 0), not a 20-row history, which was suppressed.
+$GLOBALS['__campseries'] = array( 'launch' => $dated( array_slice( $stat30, 0, 20 ), 11 ) );
+$short = array(); foreach ( sn_analytics_signal_forecasts( '2026-07-06', '2026-07-12', 'human' ) as $s ) { $short[ $s['subject'] ] = $s; }
+ok( isset( $short['campaign:launch'] ) && 30 === $short['campaign:launch']['window']['baseline_days'], 'producer: a campaign seen on 20 of the site\'s 30 days is forecast over all 30, its quiet days as 0 (20 rows were under the 21-day floor)' );
+$GLOBALS['__campseries'] = array( 'launch' => $dated( array_slice( $stat30, 0, 10 ), 21 ) );
+$quiet = array(); foreach ( sn_analytics_signal_forecasts( '2026-07-06', '2026-07-12', 'human' ) as $s ) { $quiet[ $s['subject'] ] = $s; }
+ok( ! isset( $quiet['campaign:launch'] ), 'producer: a campaign quiet on 20 of 30 days has a median level of 0, so no forecast is made' );
+// A sparse path (views every other day): its 14-day median was the median of
+// its last 14 rows WITH views (40); over the site's days it is 20.
+$GLOBALS['__camps'] = array(); $GLOBALS['__campseries'] = array();
+$alt = array(); for ( $i = 0; $i < 30; $i++ ) { if ( 0 === $i % 2 ) { $alt[] = array( 'day' => sprintf( '2026-06-%02d', $i + 1 ), 'views' => 40 ); } }
+$GLOBALS['__daily'] = array_merge( array_map( static function ( $d ) { return array( 'day' => str_replace( '2026-06', '2026-05', $d['day'] ), 'views' => $d['views'], 'visits' => 50 ); }, $daily30 ), $daily30 );
+$alt = array_merge( array_map( static function ( $r ) { return array( 'day' => str_replace( '2026-06', '2026-05', $r['day'] ), 'views' => 40 ); }, $alt ), $alt );
+$GLOBALS['__pathseries'] = array( '/notes/x' => $alt );
+$sparse = array(); foreach ( sn_analytics_signal_forecasts( '2026-07-06', '2026-07-12', 'human' ) as $s ) { $sparse[ $s['subject'] ] = $s; }
+ok( isset( $sparse['path:/notes/x'] ) && 60 === $sparse['path:/notes/x']['window']['baseline_days'] && 20.0 === (float) $sparse['path:/notes/x']['value'], 'producer: a sparse path\'s 14-day median counts its quiet days (20 over 14 days, not 40 over its last 14 rows with views): ' . json_encode( $sparse['path:/notes/x']['value'] ?? null ) );
+// A day missing from the SITE series is not a zero: it stays out.
+$GLOBALS['__daily'] = array_values( array_filter( $GLOBALS['__daily'], static function ( $r ) { return '2026-06-30' !== $r['day']; } ) );
+$gap = array(); foreach ( sn_analytics_signal_forecasts( '2026-07-06', '2026-07-12', 'human' ) as $s ) { $gap[ $s['subject'] ] = $s; }
+ok( isset( $gap['path:/notes/x'] ) && 59 === $gap['path:/notes/x']['window']['baseline_days'], 'producer: a day the site series does not have is not filled for the path either: ' . json_encode( array_map( static function ( $s ) { return array( $s['kind'], $s['window']['baseline_days'] ?? null ); }, $gap ) ) );
 $GLOBALS['__daily'] = array(); $GLOBALS['__camps'] = array(); $GLOBALS['__campseries'] = array(); $GLOBALS['__lifecycle'] = null; $GLOBALS['__pathseries'] = array();
 
 echo "\nGroup: aggregate includes forecasts\n";
@@ -321,9 +342,10 @@ echo "\nGroup: aggregate includes forecasts\n";
 // anomaly engine stays quiet and the aggregate exercises forecasts + sorting only.
 $GLOBALS['__daily'] = $daily30;
 $GLOBALS['__camps'] = array( array( 'value' => 'launch', 'views' => 900 ) );
-$GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, $stat30 ) );
+$dated = static function ( array $vals, $first = 1 ) { $out = array(); foreach ( array_values( $vals ) as $i => $v ) { $out[] = array( 'day' => sprintf( '2026-06-%02d', $first + $i ), 'views' => $v ); } return $out; };
+$GLOBALS['__campseries'] = array( 'launch' => $dated( $stat30 ) );
 $GLOBALS['__lifecycle'] = array( 'rows' => array( array( 'permalink' => 'https://juanlentino.com/notes/x', 'refresh_candidate' => true ) ), 'summary' => array() );
-$GLOBALS['__pathseries'] = array( '/notes/x' => $dec_rows );
+$GLOBALS['__pathseries'] = array( '/notes/x' => $dated( array_column( $dec_rows, 'views' ) ) );
 $agg = sn_analytics_signals( '2026-07-06', '2026-07-12', 'human' );
 $fkinds = array_values( array_filter( $agg, static function ( $s ) { return in_array( $s['kind'], array( 'forecast', 'forecast_withheld' ), true ); } ) );
 ok( count( $fkinds ) === 4, 'aggregate: sn_analytics_signals() carries the 4 forecast verdicts' );

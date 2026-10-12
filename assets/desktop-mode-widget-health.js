@@ -24,6 +24,10 @@
 ( function() {
 	'use strict';
 
+	// 2026-10-12 audit: a failure says what happened in words, never a
+	// function name. snt-ability-run.js is the script that reads the site.
+	var NO_RUNNER = 'the S&N status reader did not load; reload the desktop';
+
 	if ( typeof window === 'undefined' ) {
 		return;
 	}
@@ -511,7 +515,20 @@
 	function confirmAction( message ) {
 		var os = window.wp && window.wp.os;
 		if ( os && typeof os.confirm === 'function' ) {
-			return Promise.resolve( os.confirm( { title: 'Clear DB overrides?', message: message, confirmLabel: 'Clear overrides', danger: true } ) );
+			// The card sits outside every S&N window: mark the dialog for the
+			// readable danger ink (assets/desktop-mode.js, review on #2023),
+			// and disarm however the confirm ends.
+			var disarm = typeof window.sntMarkNextDialog === 'function' ? window.sntMarkNextDialog() : null;
+			var asked;
+			try {
+				asked = Promise.resolve( os.confirm( { title: 'Clear DB overrides?', message: message, confirmLabel: 'Clear overrides', danger: true } ) );
+			} catch ( e ) {
+				asked = Promise.reject( e );
+			}
+			if ( typeof disarm === 'function' ) {
+				asked.then( disarm, disarm );
+			}
+			return asked;
 		}
 		if ( typeof window.sntConfirm === 'function' ) {
 			return Promise.resolve( window.sntConfirm( { title: 'Clear DB overrides?', message: message, confirmLabel: 'Clear overrides', danger: true } ) );
@@ -530,6 +547,12 @@
 		var failures  = 0;
 		var uptime    = 'pending';
 		var stale     = ''; // why the last poll failed, while a good reading is kept
+		// 2026-10-12 audit: the Health, Cron, Edge and Cache lines' re-read
+		// failed silently, so a kept reading passed for current. When they
+		// were read (the page-load localize, then each good re-read), and
+		// whether the latest re-read failed.
+		var linesAt    = ( Number( data.statusExtra && data.statusExtra.at ) * 1000 ) || Date.now();
+		var linesStale = false;
 		var toastTimer = 0;
 
 		var wrap = el( 'div', { style: 'padding:10px 12px;color:inherit;' } );
@@ -557,7 +580,7 @@
 		hoverable( btn );
 		btn.addEventListener( 'click', function() {
 			if ( btn.getAttribute( 'aria-busy' ) === 'true' ) { return; }
-			if ( typeof window.sntAbilityRun !== 'function' ) { toast( 'sntAbilityRun unavailable', false ); return; }
+			if ( typeof window.sntAbilityRun !== 'function' ) { toast( 'Could not clear: ' + NO_RUNNER + '.', false ); return; }
 			// Busy before the dialog: a second click while it is open must not open another.
 			btn.setAttribute( 'aria-busy', 'true' );
 			confirmAction( 'Remove the wp_template, wp_template_part and wp_navigation rows from the database, so the theme files are what renders?' ).then( function( yes ) {
@@ -573,6 +596,10 @@
 					btn.style.opacity = '1';
 					btn.removeAttribute( 'aria-busy' );
 				} );
+			} ).catch( function() {
+				// The confirm never opened (it threw or rejected): nothing ran,
+				// so the button is free again (review on #2023).
+				btn.removeAttribute( 'aria-busy' );
 			} );
 		} );
 		var actions = el( 'div', { style: 'margin-top:10px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;' } );
@@ -635,6 +662,23 @@
 					reads.push( read( 'Credentials', function() { return readCredentials( cred, tally ); } ) );
 				}
 			}
+			// A failed re-read keeps the lines and says so under Health, the way
+			// a failed uptime check does under Uptime: the last answer, not a
+			// current one.
+			if ( linesStale ) {
+				tally.unknown++;
+				// Every line the re-read feeds that this paint shows (review on
+				// #2023: Analytics, Watches and Credentials come from it too).
+				var fed    = reads.map( function( r ) { return r[0]; } ).filter( function( t ) { return 'Uptime' !== t; } );
+				var named  = fed.length > 1 ? fed.slice( 0, -1 ).join( ', ' ) + ' and ' + fed[ fed.length - 1 ] : fed.join( '' );
+				var health = reads[1][1];
+				var note   = named + ' not re-read; showing the ' + new Date( linesAt ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) + ' reading';
+				if ( health.empty ) {
+					health.empty += ' ' + note + '.';
+				} else {
+					health.rows = health.rows.concat( [ { label: note, value: '', tone: WARN_FG } ] );
+				}
+			}
 			var words = 'pending' === uptime ? 'Checking…' : ( headlineText( tally ) || 'All systems normal' );
 			if ( verdict.textContent !== words ) { verdict.textContent = words; }
 			// Gray, not green, when the only words are verifying or paused: not a
@@ -687,7 +731,7 @@
 			// sooner than the server's retry_after) and keeps the last good reading.
 			Promise.resolve().then( function() {
 				if ( torn ) { return; }
-				if ( typeof window.sntAbilityRun !== 'function' ) { throw new Error( 'sntAbilityRun unavailable' ); }
+				if ( typeof window.sntAbilityRun !== 'function' ) { throw new Error( NO_RUNNER ); }
 				// detail: the 30-day availability and response times the first row condenses.
 				// 2026-10-10: the health, cron, edge and cache lines were read once,
 				// from the page-load localize. Re-read them beside the monitors
@@ -698,13 +742,19 @@
 						if ( torn || ! lines || 'object' !== typeof lines ) { return; }
 						data  = Object.assign( {}, data, { healthSummary: lines.healthSummary, cronSummary: lines.cronSummary, statusExtra: lines.statusExtra || data.statusExtra } );
 						extra = ( data.statusExtra && data.statusExtra.systems ) || extra;
+						linesAt    = ( Number( lines.statusExtra && lines.statusExtra.at ) * 1000 ) || Date.now();
+						linesStale = false;
 						paint();
-					} ).catch( function() {} );
+					} ).catch( function() {
+						if ( torn ) { return; }
+						linesStale = true;
+						paint();
+					} );
 				}
 				return window.sntAbilityRun( 'uptime-status', { detail: true }, { signal: controller ? controller.signal : undefined, silent: true } );
 			} ).then( function( res ) {
 				if ( torn ) { return; }
-				if ( ! res || typeof res.configured !== 'boolean' || ( res.configured && ( ! Array.isArray( res.rows ) || ! res.rows.every( function( row ) { return row && typeof row === 'object' && ! Array.isArray( row ); } ) ) ) ) { throw new Error( 'Invalid uptime response' ); }
+				if ( ! res || typeof res.configured !== 'boolean' || ( res.configured && ( ! Array.isArray( res.rows ) || ! res.rows.every( function( row ) { return row && typeof row === 'object' && ! Array.isArray( row ); } ) ) ) ) { throw new Error( 'The site sent an incomplete uptime reading' ); }
 				if ( res.error ) { throw new Error( res.error ); }
 				uptime   = res;
 				stale    = '';

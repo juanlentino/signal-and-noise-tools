@@ -162,7 +162,7 @@ async function run() {
     w.calls[0].resolve({theme: {current: '1', state: 'ok'}, plugin: {current: '2', state: 'ok'},
       core: {current: '', latest: '', state: 'unknown', offer: '', reason: 'core status module not loaded'}}); await flush();
     const l4 = nodes(r4).find(n => n.text === 'Core'), g4 = l4.parentNode, k = g4.children.indexOf(l4);
-    assert.equal(g4.children[k + 1].text, '—', 'a versionless unknown says nothing about the cache');
+    assert.equal(g4.children[k + 1].text, 'not read', 'a versionless unknown says the version was not read (an em dash until 2026-10-12), and nothing about the cache');
     assert.equal(g4.children[k + 2].text, '?', 'a versionless unknown keeps the red ?');
     stop4();
     // 2026-10-11 (owner, on 2026.10.2: "the contract of the Remote MCP is weird"):
@@ -226,7 +226,7 @@ async function run() {
     await x.tick(f.period * 2 - 1); assert.equal(x.calls.length, 2);
     await x.tick(1); assert.equal(x.calls.length, 3, 'second failure doubles backoff');
     x.calls[2].resolve({}); await flush();
-    assert.match(details(root), /Invalid .* response/, 'malformed first load is not a successful empty card');
+    assert.match(details(root), /sent an incomplete/, 'malformed first load is not a successful empty card, and says so in words');
     await x.tick(f.period * 4); assert.equal(x.calls.length, 4);
     x.calls[3].reject({message: 'bad hint', data: {retry_after: 1e300}}); await flush();
     assert.match(details(root), /bad hint/, 'unrepresentable retry hint cannot crash failure handling');
@@ -240,6 +240,8 @@ async function run() {
     const runner = y.window.sntAbilityRun; delete y.window.sntAbilityRun;
     const cleanup = y.window.desktopModeWidgets[f.id](absent); await flush();
     assert.match(absent.textContent, /unavailable/);
+    assert.match(details(absent), /status reader did not load; reload the desktop/, 'a missing runner is named in words');
+    assert.doesNotMatch(details(absent) + absent.textContent, /sntAbilityRun/, 'no function name reaches the reader');
     y.window.sntAbilityRun = runner; await y.tick(f.period);
     y.calls[0].resolve(f.good); await flush(); assert.match(absent.textContent, new RegExp(f.marker));
     cleanup();
@@ -258,11 +260,11 @@ async function run() {
     await x.tick(f.period); x.calls[1].resolve(bad); await flush();
     assert.match(root.textContent, /12\.18\.10/, 'malformed deploy retains theme version');
     assert.match(root.textContent, /13\.107\.3/, 'malformed deploy retains plugin version');
-    assert.match(details(root), /Invalid deploy status response/);
+    assert.match(details(root), /The site sent an incomplete deploy status/);
     assert.match(root.textContent, /Last good reading /, 'failure says how old the kept reading is');
     await x.tick(f.period);
     x.calls[2].resolve({theme: {current: '', state: 'unknown'}, plugin: {current: '13.107.3', state: 'unknown'}}); await flush();
-    assert.doesNotMatch(root.textContent, /Invalid deploy status response|Stale/,
+    assert.doesNotMatch(root.textContent, /incomplete deploy status|Stale/,
       'legitimate unknown package status remains a successful response');
     stop();
   }
@@ -292,7 +294,7 @@ async function run() {
     await x.tick(f.period);
     x.calls[3].resolve({configured: true, rows: [null]}); await flush();
     assert.match(root.textContent, /example\.test/, 'invalid row preserves last good uptime data');
-    assert.match(root.textContent, /Invalid uptime response/);
+    assert.match(root.textContent, /The site sent an incomplete uptime reading/);
     stop(); await x.tick(1000000);
     assert.equal(root.textContent, ''); assert.equal(x.timers.size, 0); assert.equal(x.calls.length, 4);
     // Teardown before the first microtask never even starts the request.
@@ -378,6 +380,29 @@ async function run() {
       statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}, cache: extra.statusExtra.systems.cache}, provenance: {}}}); await flush();
     assert.match(root.textContent, /5xx · Oct 5 4 Visitors, direct 0 Day before 12/, 'a re-read moves the edge line without a reload');
     assert.match(root.textContent, /Last 24 hours 41 runs recorded/, 'and the cron day line');
+    assert.doesNotMatch(root.textContent, /not re-read/, 'a re-read that answered says nothing about itself');
+    // 2026-10-12 audit: a re-read that fails keeps the lines and says so, as
+    // a failed uptime check does, instead of passing for current.
+    await x.tick(systems.period);
+    x.calls[1].resolve({configured: true, rows: [{name: 'Home', level: 'ok', response_ms: 120, incidents_30d: 1}]});
+    x.side[1].reject(new Error('Failed to fetch')); await flush();
+    assert.match(root.textContent, /5xx · Oct 5 4/, 'a failed re-read keeps the lines it had');
+    assert.match(root.textContent, /Health, Cron, Edge and Cache not re-read; showing the \d{1,2}:\d\d( [AP]M)? reading/, 'and says they are the last reading, with its time');
+    // Review on #2023: every line the failed re-read feeds is named, the
+    // Analytics, Watches and Credentials lines too when the card shows them.
+    await x.tick(systems.period);
+    x.calls[2].resolve({configured: true, rows: [{name: 'Home', level: 'ok', response_ms: 120, incidents_30d: 1}]});
+    x.side[2].resolve({healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []}, cronSummary: {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}}, statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}, cache: extra.statusExtra.systems.cache,
+      analytics2: {ok: true, days: 5, since: 'Oct 5', last: 'Oct 8', reset: '', frozen: false, bad: false, why: ''}, watches: [{id: 'a', label: 'a watch'}], credentials: {keyring: [{id: 'site_secret', verdict: 'refused'}], cloudflare: null}}, provenance: {}}}); await flush();
+    await x.tick(systems.period);
+    x.calls[3].resolve({configured: true, rows: [{name: 'Home', level: 'ok', response_ms: 120, incidents_30d: 1}]});
+    x.side[3].reject(new Error('Failed to fetch')); await flush();
+    assert.match(root.textContent, /Health, Cron, Edge, Cache, Analytics, Watches and Credentials not re-read; showing the /, 'a failed re-read names every line it feeds that the card shows');
+    assert.doesNotMatch(root.textContent, /All systems normal/, 'a kept reading is not a current all clear');
+    await x.tick(systems.period);
+    x.calls[4].resolve({configured: true, rows: [{name: 'Home', level: 'ok', response_ms: 120, incidents_30d: 1}]});
+    x.side[4].resolve({healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []}, cronSummary: {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}}, statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}, cache: extra.statusExtra.systems.cache}, provenance: {}}}); await flush();
+    assert.doesNotMatch(root.textContent, /not re-read/, 'the next good re-read clears the line');
     assert.match(t, /queue_tick failed/, 'a failing job is named');
     assert.match(t, /\+1 more failed/, 'and the list is capped');
     assert.match(t, /Purged 3h ago/, 'the last full purge');
@@ -839,6 +864,41 @@ async function run() {
     x.calls[3].resolve({...payload(null), drafts: null}); await flush();
     assert.doesNotMatch(root.textContent, /Drafts/, 'an uncounted drafts total is left out, never painted as 0');
     assert.match(root.textContent, /6 scheduled/);
+    // 2026-10-12 audit: a failed poll keeps the last reading and says when it
+    // was read; a missing count is not read, never 0; the arrow is not read out.
+    const open = nodes(root).find(n => 'a' === n.tag && /^Open Scheduled/.test(n.textContent));
+    assert.ok(open && open.text === 'Open Scheduled ' && open.children.some(c => '→' === c.text && 'true' === c.attrs['aria-hidden']), 'the arrow after Open Scheduled is hidden from a screen reader');
+    await x.tick(60000);
+    x.calls[4].reject(new Error('Failed to fetch')); await flush();
+    assert.match(root.textContent, /Soon/, 'a failed poll keeps the last good card');
+    assert.match(root.textContent, /Couldn.t read the queue: the site did not answer; showing the \d{1,2}:\d\d( [AP]M)? reading\./, 'and says it is the last reading, with its time and why');
+    assert.doesNotMatch(root.textContent, /Queue read failed|Failed to fetch/, 'no developer words on the card');
+    // Review on #2023: the line says the real failure, not a guess at it.
+    await x.tick(60000);
+    x.calls[5].reject({code: 'sn_mcp_read_rate_limited', message: 'Rate limited', data: {status: 429}}); await flush();
+    assert.match(root.textContent, /Couldn.t read the queue: Rate limited \(HTTP 429\); showing the /, 'a refusal from the site is passed through in its own words, not "did not answer"');
+    await x.tick(60000);
+    x.calls[6].resolve({next: [], published: [], drafts: 2}); await flush();
+    assert.doesNotMatch(root.textContent, /0 scheduled|showing the/, 'a payload without a scheduled count is not painted as 0, and a good read clears the line');
+    assert.match(root.textContent, /Scheduled count not read/);
+    stop();
+    // No good reading yet: the failure is a sentence, not a function name.
+    const q = harness(), qroot = new Element('div');
+    const runner = q.window.sntAbilityRun; delete q.window.sntAbilityRun;
+    const qstop = q.window.desktopModeWidgets['sn-queue'](qroot); await flush();
+    assert.match(qroot.textContent, /^Couldn.t read the queue: the S&N status reader did not load; reload the desktop\.$/);
+    q.window.sntAbilityRun = runner; qstop();
+  }
+  // Review on #2023: a confirm that rejects (the overlay bundle failing to
+  // load) must not leave Clear DB overrides busy forever.
+  {
+    const x = harness(), root = new Element('div');
+    x.window.wp.os = { confirm: () => Promise.reject(new Error('the overlay bundle did not load')) };
+    const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+    const btn = nodes(root).find(n => 'button' === n.tag && 'Clear DB overrides' === n.text);
+    assert.ok(btn, 'the card offers Clear DB overrides');
+    btn.handlers.click(); await flush();
+    assert.equal(btn.getAttribute('aria-busy'), null, 'a confirm that rejects clears the busy state, so the button works again');
     stop();
   }
   console.log('PASS: runner and both widgets — stale/429/recovery/backoff, malformed data, cross-widget cadence, abort/cleanup/remount');

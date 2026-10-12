@@ -134,7 +134,7 @@ function cloudflare_edge_html( array $d ) {
 		$inner .= \snt_kit_grid(
 			array(
 				\snt_kit_stat( number_format_i18n( (int) $tt['requests'] ), __( 'Requests, 7 days', 'signal-and-noise-tools' ) ),
-				\snt_kit_stat( null === ( $tt['cache_share'] ?? null ) ? __( 'not read', 'signal-and-noise-tools' ) : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%', __( 'Served from cache', 'signal-and-noise-tools' ) ),
+				\snt_kit_stat( null === ( $tt['cache_share'] ?? null ) ? \snt_kit_unread() : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%', __( 'Served from cache', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( size_format( (int) $tt['bytes'] ), __( 'Bytes', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( number_format_i18n( (int) $tt['threats'] ), __( 'Threats', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( number_format_i18n( (int) $tt['status_5xx'] ), __( '5xx at the edge', 'signal-and-noise-tools' ), '', (int) $tt['status_5xx'] > 0 ? 'warn' : '' ),
@@ -217,7 +217,7 @@ function cloudflare_posture_html() {
 	if ( array() !== $m['checks'] ) {
 		$rows = array();
 		foreach ( $m['checks'] as $c ) {
-			$rows[] = array( 'label' => $c['label'], 'value' => function_exists( 'sn_cf_posture_check_text' ) ? sn_cf_posture_check_text( $c ) : $c['value'], 'dot' => $c['ok'] ? 'ok' : 'err', 'tone' => $c['ok'] ? '' : 'warn' );
+			$rows[] = array( 'label' => $c['label'], 'value' => function_exists( 'sn_cf_posture_check_text' ) ? sn_cf_posture_check_text( $c ) : $c['value'], 'dot' => $c['ok'] ? 'ok' : 'warn', 'tone' => $c['ok'] ? '' : 'warn' );
 		}
 		$inner .= \snt_kit_list( $rows );
 	}
@@ -231,7 +231,7 @@ function cloudflare_posture_html() {
 	if ( array() !== $m['rules'] ) {
 		$rows = array();
 		foreach ( $m['rules'] as $r ) {
-			$rows[] = array( 'label' => $r['name'], 'value' => $r['enabled'] ? $r['action'] : __( 'disabled', 'signal-and-noise-tools' ), 'dot' => $r['enabled'] ? 'ok' : 'err', 'tone' => $r['enabled'] ? '' : 'warn' );
+			$rows[] = array( 'label' => $r['name'], 'value' => $r['enabled'] ? $r['action'] : __( 'disabled', 'signal-and-noise-tools' ), 'dot' => $r['enabled'] ? 'ok' : 'warn', 'tone' => $r['enabled'] ? '' : 'warn' );
 		}
 		$inner .= '<h4 class="snt-h">' . \snt_kit_esc( __( 'Custom rules', 'signal-and-noise-tools' ) ) . '</h4>' . \snt_kit_list( $rows );
 	}

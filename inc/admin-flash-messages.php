@@ -55,7 +55,7 @@ function sn_admin_flash_messages() {
 		'rights_evidence_lifted'       => array( 'success', 'Hold lifted; nothing was posted now. The next daily pass posts the month\'s composed records once their review window has passed, composing first what is missing.' ),
 		'rights_evidence_lift_refused' => array( 'error', 'Hold kept: the sensor or the provenance worker is not reachable, so the month could not be composed.' ),
 		'rights_evidence_not_held'     => array( 'info', 'That month is not on hold.' ),
-		'rights_evidence_retracted'       => array( 'success', 'Retraction posted. The worker signed it and committed it beside the record; it is anchored with the next OpenTimestamps pass. Wait for the ledger\'s checks before the next one.' ),
+		'rights_evidence_retracted'       => array( 'success', 'Retraction posted. The worker signed it and committed it to the ledger with the record; it is anchored with the next OpenTimestamps pass. Wait for the ledger\'s checks before the next one.' ),
 		'rights_evidence_retract_unconfigured' => array( 'error', 'Nothing posted: the provenance worker URL or its secret is not set, so a retraction cannot be signed.' ),
 		'rights_evidence_retract_busy'    => array( 'info', 'Nothing posted: a rights evidence pass is running. Try again in a few minutes.' ),
 		'rights_evidence_not_retractable' => array( 'info', 'Nothing posted: that record is not one that can be retracted (not confirmed on the ledger, already retracted, or no approved text).' ),
@@ -89,7 +89,7 @@ function sn_admin_flash_messages() {
 		'identity_unchanged'        => array( 'info', 'No changes to save.' ),
 		'tag_merge_ok'              => array( 'success', 'Tags merged.' ),
 		'tag_merge_error'           => array( 'error', 'Tag merge failed: one or more tags were no longer valid.' ),
-		'tag_fit_read'              => array( 'success', 'Jev read every note against the tags it carries: review below.' ),
+		'tag_fit_read'              => array( 'success', 'Jev read every note against the tags it carries: review its picks in Jev: tag fit.' ),
 		'tag_fit_failed'            => array( 'error', 'The tag-fit pass failed; the Jev meter and the connector say why.' ),
 		'tag_fit_unavailable'       => array( 'error', 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.' ),
 		'tag_fit_applied'           => array( 'success', 'Tags removed; the next pass re-reads the notes.' ),
@@ -129,7 +129,7 @@ function sn_admin_flash_messages() {
 		// v10.47.0: the probe-only bulk dismiss.
 		'redirect_404_probes_cleared' => array( 'success', 'Automated probes dismissed. Genuinely broken paths were kept.' ),
 		'redirect_404_probes_none'    => array( 'info', 'No automated probes in the log.' ),
-		'insights_scanned'          => array( 'success', 'Insights scan complete. Open questions below (or none, if nothing cleared the bar).' ),
+		'insights_scanned'          => array( 'success', 'Insights scan complete. Each open question has its own box, marked Open question (none, if nothing cleared the bar).' ),
 		// v7.0.1: the genuine "no AI provider configured" case — the ONLY failure
 		// that earns the configure-AI copy. Every other scan failure resolves via
 		// the 'insights_failed' live-data branch below, which surfaces the REAL error.
@@ -138,7 +138,7 @@ function sn_admin_flash_messages() {
 		'insights_snoozed'          => array( 'success', 'Question snoozed for 30 days.' ),
 		'insights_done'             => array( 'success', 'Question marked as done.' ),
 		'insights_settings_saved'   => array( 'success', 'Insights settings saved.' ),
-		'health_scanned'            => array( 'success', 'Scan complete: findings below.' ),
+		'health_scanned'            => array( 'success', 'Scan complete: the findings are listed by family.' ),
 		// v8.0.1: findings-aware split — the static copy above promised "findings
 		// below" even over a 0-findings screen. The scan handler counts the fresh
 		// result and emits the clean code when nothing was flagged.
@@ -152,7 +152,7 @@ function sn_admin_flash_messages() {
 		'morning_brief_test_failed' => array( 'error', 'Test morning operations brief could not be sent.' ),
 		'config_drift_acknowledged' => array( 'success', 'Current settings acknowledged as the configuration baseline.' ),
 		'scheduled_reads_saved'      => array( 'success', 'Scheduled read-only runs settings saved.' ),
-		'scheduled_reads_ran'        => array( 'success', 'Read-only run completed; see the outcome line below.' ),
+		'scheduled_reads_ran'        => array( 'success', 'Read-only run completed; the outcome is in Scheduled read-only runs.' ),
 		'scheduled_reads_run_failed' => array( 'error', 'The read-only run could not execute (MCP door unavailable).' ),
 		'monitoring_url_not_https'  => array( 'error', 'Heartbeat URL must start with <code>https://</code>: the setting was cleared. Re-enter a secure URL.' ),
 		'perf_saved'                => array( 'success', 'Performance settings saved.' ),
@@ -178,15 +178,15 @@ function sn_admin_flash_messages() {
 		// v10.46.0: the collector endpoint's own save, moved here from Content → RSS.
 		'analytics_collector_saved'     => array( 'success', 'Collector endpoint saved. Beacons post there from the next request.' ),
 		'analytics_collector_unchanged' => array( 'info', 'Collector endpoint unchanged.' ),
-		'analytics_collector_invalid'   => array( 'error', 'That is not a valid collector URL &mdash; it needs an <code>http</code> or <code>https</code> scheme and a host. The previous endpoint was kept.' ),
-		'analytics_collector_failed'    => array( 'error', 'Collector endpoint could not be saved &mdash; the RSS tracker module is not loaded.' ),
+		'analytics_collector_invalid'   => array( 'error', 'That is not a valid collector URL: it needs an <code>http</code> or <code>https</code> scheme and a host. The previous endpoint was kept.' ),
+		'analytics_collector_failed'    => array( 'error', 'Collector endpoint could not be saved: the RSS tracker module is not loaded.' ),
 		'music_saved'               => array( 'success', 'Music settings saved. Hit &ldquo;Sync now&rdquo; to refresh the discography with the new credentials.' ),
 		'music_unchanged'           => array( 'info', 'No changes to save.' ),
 		'music_synced'              => array( 'success', 'Discography synced from Muso.AI + Spotify. The <code>/music</code> timeline and schema now reflect the latest credits.' ),
-		'music_sync_failed'         => array( 'error', 'Sync failed &mdash; the previous discography was kept (no blank page). See the status panel below for the error.' ),
+		'music_sync_failed'         => array( 'error', 'Sync failed: the previous discography was kept (no blank page). The error is under Status, in Last error.' ),
 		'music_featured_invalid'    => array( 'error', 'That doesn&rsquo;t look like a Spotify link. Paste a track, album, or playlist URL (e.g. <code>https://open.spotify.com/album/&hellip;</code>) or <code>spotify:</code> URI.' ),
 		'indexnow_saved'            => array( 'success', 'IndexNow settings saved. Changed URLs are submitted to search engines automatically.' ),
-		'indexnow_key_regenerated'  => array( 'success', 'IndexNow key regenerated &mdash; search engines re-verify on the next submission.' ),
+		'indexnow_key_regenerated'  => array( 'success', 'IndexNow key regenerated; search engines re-verify on the next submission.' ),
 		'indexnow_pinged'           => array( 'success', 'Recent content queued for IndexNow submission.' ),
 		'indexnow_disabled'         => array( 'error', 'Enable IndexNow first, then run the backfill.' ),
 		'zenodo_env_saved'          => array( 'success', 'Zenodo environment saved. Sandbox DOIs are test DOIs and never reach a public surface.' ),
@@ -195,37 +195,37 @@ function sn_admin_flash_messages() {
 		'zenodo_batch_failed'       => array( 'error', 'The deposit did not publish. The ledger names the step and Zenodo&rsquo;s answer; a draft, if one was created, resumes on the next pass.' ),
 		'zenodo_batch_empty'        => array( 'info', 'Nothing to deposit: every confirmed document carries a DOI, or none is confirmed yet.' ),
 		'analytics_test_unconfigured' => array( 'error', 'Analytics not configured: set the account ID and read token first.' ),
-		'analytics_recompute_started' => array( 'success', 'Recomputing 90 days of analytics history in the background. The status line under the human rule shows progress.' ),
+		'analytics_recompute_started' => array( 'success', 'Recomputing 90 days of analytics history in the background. The status line in Overview shows progress.' ),
 		'analytics_recompute_resumed' => array( 'success', 'Resuming the analytics history recompute from where it stopped.' ),
 		'analytics_recompute_busy'    => array( 'info', 'A history recompute is already running.' ),
 		'schedule_fired'              => array( 'success', 'Scheduled-content boundary fired. The row was advanced and its URLs purged.' ),
 		'schedule_repurged'           => array( 'success', 'Scheduled-content URLs re-purged from Cloudflare.' ),
-		'schedule_swap_fired'         => array( 'success', 'Version swap fired &mdash; the old version hid, the new one revealed, one edge purge dispatched.' ),
+		'schedule_swap_fired'         => array( 'success', 'Version swap fired: the old version hid, the new one revealed, one edge purge dispatched.' ),
 		'schedule_invalid'            => array( 'error', 'That scheduled-content row was not found.' ),
 		// R9 (v9.51.0, lane SEC-C): MCP write-door credential binding.
 		'mcp_rw_bound'                => array( 'success', 'Write-door credential bound. <code>/mcp-rw</code> now accepts calls authenticated with that Application Password.' ),
-		'mcp_rw_unbound'              => array( 'info', 'Write-door credential unbound &mdash; every call to <code>/mcp-rw</code> is denied until you bind one again.' ),
-		'mcp_rw_bind_invalid'         => array( 'error', 'Could not bind that Application Password &mdash; it doesn&rsquo;t belong to your account, or no longer exists.' ),
+		'mcp_rw_unbound'              => array( 'info', 'Write-door credential unbound: every call to <code>/mcp-rw</code> is denied until you bind one again.' ),
+		'mcp_rw_bind_invalid'         => array( 'error', 'Could not bind that Application Password: it doesn&rsquo;t belong to your account, or no longer exists.' ),
 		'mcp_rw_bind_choose'          => array( 'error', 'Nothing changed: choose an Application Password to bind. To unbind the write door, use Unbind.' ),
 		// v9.85.0 (Session 3): Machine Readers sensor settings.
 		'machine_readers_saved'       => array( 'success', 'Machine Readers sensor settings saved. The panels read with the new credentials on the next load.' ),
-		'gsc_credential_saved'        => array( 'success', 'Search Console credential saved. The private key is never displayed; the identity card above shows which key is stored.' ),
+		'gsc_credential_saved'        => array( 'success', 'Search Console credential saved. The private key is never displayed; Search Console credential shows which key is stored.' ),
 		'gsc_credential_cleared'      => array( 'success', 'Search Console credential removed.' ),
 		'gsc_credential_unchanged'    => array( 'info', 'Search Console credential unchanged.' ),
-		'gsc_credential_not_json'     => array( 'error', 'That is not valid JSON. Paste the whole downloaded key file, including the outer braces — the stored credential was not changed.' ),
-		'gsc_credential_not_service_account' => array( 'error', 'That JSON is not a service-account key. An OAuth client JSON looks similar and comes from the same screen, but cannot be used here — the stored credential was not changed.' ),
-		'gsc_credential_rejected'     => array( 'error', 'The pasted credential was rejected: a required field is missing or the private key is not a PEM block. Re-download the key from Google Cloud and paste it whole — the stored credential was not changed.' ),
-		'gsc_test_ok'                 => array( 'success', 'Connection works. The properties this service account can read are listed below.' ),
+		'gsc_credential_not_json'     => array( 'error', 'That is not valid JSON. Paste the whole downloaded key file, including the outer braces. The stored credential was not changed.' ),
+		'gsc_credential_not_service_account' => array( 'error', 'That JSON is not a service-account key. An OAuth client JSON looks similar and comes from the same screen, but cannot be used here. The stored credential was not changed.' ),
+		'gsc_credential_rejected'     => array( 'error', 'The pasted credential was rejected: a required field is missing or the private key is not a PEM block. Re-download the key from Google Cloud and paste it whole. The stored credential was not changed.' ),
+		'gsc_test_ok'                 => array( 'success', 'Connection works. Pick one of the properties this service account can read, in Property.' ),
 		'gsc_test_no_properties'      => array( 'warning', 'The credential works, but this service account has been granted NO Search Console properties. Add its client_email in Search Console → Settings → Users and permissions.' ),
-		'gsc_test_failed'             => array( 'error', 'The connection test failed. The reason is shown below the credential.' ),
+		'gsc_test_failed'             => array( 'error', 'The connection test failed. The reason is shown in Property.' ),
 		'gsc_test_not_configured'     => array( 'error', 'There is no credential to test yet.' ),
-		'ml_embed_compare_ok'         => array( 'success', 'Comparison complete. The result is below — divergence is the number item 8 turns on.' ),
-		'ml_embed_compare_failed'     => array( 'error', 'The comparison could not run. The reason is shown below.' ),
+		'ml_embed_compare_ok'         => array( 'success', 'Comparison complete. The result is under TF-IDF vs embeddings; divergence is the number item 8 turns on.' ),
+		'ml_embed_compare_failed'     => array( 'error', 'The comparison could not run. The reason is under TF-IDF vs embeddings.' ),
 		'gsc_property_saved'          => array( 'success', 'Search Console property selected. Run a sync to pull the first window.' ),
 		'gsc_property_unchanged'      => array( 'info', 'No property was chosen.' ),
 		'gsc_property_unknown'        => array( 'error', 'That property is not one this service account can read. Run Test connection to see the list it actually has.' ),
-		'gsc_sync_ok'                 => array( 'success', 'Search Console data synced. It appears in Analytics → Search and beside Top pages.' ),
-		'gsc_sync_failed'             => array( 'error', 'The sync failed. The reason is shown below the credential.' ),
+		'gsc_sync_ok'                 => array( 'success', 'Search Console data synced. It appears in Analytics → Search and as the Impr. and Pos. columns of Top pages.' ),
+		'gsc_sync_failed'             => array( 'error', 'The sync failed. The reason is shown in Property.' ),
 	);
 }
 
@@ -315,7 +315,7 @@ function sn_admin_flash_to_notice( $flash ) {
 	if ( 'analytics_test_err' === $flash ) {
 		$err    = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error() : null;
 		$detail = $err ? 'HTTP ' . (int) $err['code'] . ' &middot; <code>' . esc_html( substr( (string) $err['message'], 0, 200 ) ) . '</code>' : 'no diagnostic recorded';
-		return array( 'error', '&#10005; Analytics API call failed &mdash; ' . $detail );
+		return array( 'error', '&#10005; Analytics API call failed: ' . $detail );
 	}
 	// v7.0.1: surface the REAL insights-scan error (code + message) recorded by
 	// sn_handle_insights_run(). The old blanket "check that an AI provider is
@@ -350,16 +350,16 @@ function sn_admin_flash_to_notice( $flash ) {
 				$ch   = isset( $b['chars'] ) ? (int) $b['chars'] : 0;
 
 				if ( null === $done ) {
-					$notice .= ' No token record was found for this call, so the output budget cannot be checked here — see Settings &rarr; AI &rarr; AI Request Logs.';
+					$notice .= ' No token record was found for this call, so the output budget cannot be checked here; see Settings &rarr; AI &rarr; AI Request Logs.';
 				} elseif ( $max > 0 && $done >= (int) floor( $max * 0.95 ) ) {
 					$notice .= sprintf(
-						' <strong>This is a budget failure, not a JSON one:</strong> the call generated its entire %1$s-token output budget and returned only %2$s characters of text. Output tokens that never reach the text are billed all the same — extended thinking counts against this budget. Raise <code>SN_INSIGHTS_MAX_TOKENS</code> (currently %1$s, hard-clamped at 4096), or turn thinking off for this call.',
+						' <strong>This is a budget failure, not a JSON one:</strong> the call generated its entire %1$s-token output budget and returned only %2$s characters of text. Output tokens that never reach the text are billed all the same; extended thinking counts against this budget. Raise <code>SN_INSIGHTS_MAX_TOKENS</code> (currently %1$s, hard-clamped at 4096), or turn thinking off for this call.',
 						esc_html( number_format_i18n( $max ) ),
 						esc_html( number_format_i18n( $ch ) )
 					);
 				} else {
 					$notice .= sprintf(
-						' For context: the call generated %1$s of its %2$s budgeted output tokens and returned %3$s characters — the budget was not the limit here.',
+						' For context: the call generated %1$s of its %2$s budgeted output tokens and returned %3$s characters; the budget was not the limit here.',
 						esc_html( number_format_i18n( $done ) ),
 						esc_html( number_format_i18n( $max ) ),
 						esc_html( number_format_i18n( $ch ) )
@@ -432,10 +432,10 @@ function sn_admin_flash_to_notice( $flash ) {
 	// Id-prefixed codes — static message; the id is consumed elsewhere
 	// (sn_theme_options_page massages $_GET['new_id'] for the Webhooks row highlight).
 	if ( 0 === strpos( $flash, 'wh_added_' ) ) {
-		return array( 'success', 'Webhook added. Copy the signing secret below: it will not be shown again.' );
+		return array( 'success', 'Webhook added. Copy its Signing secret now: it will not be shown again.' );
 	}
 	if ( 0 === strpos( $flash, 'wh_rotated_' ) ) {
-		return array( 'success', 'Webhook updated. <strong>Signing secret was rotated</strong>: copy the new value below before navigating away.' );
+		return array( 'success', 'Webhook updated. <strong>Signing secret was rotated</strong>: copy the new value from Signing secret before navigating away.' );
 	}
 
 	return null;

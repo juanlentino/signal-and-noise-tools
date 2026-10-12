@@ -91,6 +91,9 @@ ok( false !== strpos( $t, 'Trust doesn&#039;t disappear, it relocates</strong>' 
 ok( false !== strpos( $t, 'Uninspected &lt;b&gt;hostile&lt;/b&gt;' ), 'a hostile title is escaped' );
 ok( false !== strpos( $t, '<span class="sn-an-muted sn-posts-gap" title="not shown by Google in this window">not shown</span>' ), 'a Search Console gap is the reason, muted, not a 0: short in the cell, full in the title' );
 ok( 1 === preg_match( '/<td class="num" data-v=""><span class="sn-an-muted sn-posts-gap"[^>]*>not shown/', $t ), '...and its data-v is EMPTY so it sorts last both ways' );
+// Review on #2023: a capped sync's gap says not kept, the word Top pages and
+// the note dossier use for the same case (it said "not in sync").
+ok( false !== strpos( sn_posts_gap( 'not among the rows the sync keeps' ), '>not kept</span>' ), 'a capped sync\'s gap reads not kept, matching Top pages and the dossier' );
 ok( false !== strpos( $t, 'data-v="0">0</td>' ), 'a real 0 (clicks) renders as 0 with data-v 0: real zeros stay zeros' );
 ok( false !== strpos( $t, 'title="Discovered - currently not indexed">Discovered, not indexed</span>' ), 'Index pill for Discovered, coverage_state verbatim in the title' );
 ok( false !== strpos( $t, '>Indexed</span>' ) && false !== strpos( $t, 'title="not inspected in the last run">not inspected</span>' ), 'Indexed pill and the uninspected gap' );

@@ -519,7 +519,7 @@ function snt_dashboard_version_card( $label, $pkg ) {
 	}
 	$card = array(
 		'label' => $label,
-		'value' => ( $pkg['current'] ?? '' ) ?: '—',
+		'value' => ( $pkg['current'] ?? '' ) ?: __( 'not read', 'signal-and-noise-tools' ),
 		'pill'  => $pill,
 	);
 	// v9.54.0: an "unknown" pill that can't say why is a dead end. When the
@@ -542,7 +542,7 @@ function snt_dashboard_version_card( $label, $pkg ) {
 function snt_dashboard_worker_card( $worker ) {
 	$live = (string) ( $worker['live'] ?? '' );
 	$pkg  = array(
-		'current' => '' !== $live ? $live : '—',
+		'current' => '' !== $live ? $live : __( 'not read', 'signal-and-noise-tools' ),
 		'latest'  => (string) ( $worker['latest'] ?? '' ),
 		'state'   => (string) ( $worker['state'] ?? 'unknown' ),
 		'reason'  => (string) ( $worker['reason'] ?? '' ),

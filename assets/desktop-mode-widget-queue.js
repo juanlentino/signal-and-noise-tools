@@ -18,14 +18,19 @@
  *
  * Defensive by construction: every read off the payload is guarded (a
  * missing array is an empty list, a missing title is "(untitled)", a missing
- * link is plain text), a failed fetch paints a message instead of a blank
- * card, and every async callback is gated on `torn` so a late response can
+ * link is plain text), a failed fetch keeps the last good card with the time
+ * it was read (or, before any, paints a sentence instead of a blank card),
+ * and every async callback is gated on `torn` so a late response can
  * never repaint a container the user has already removed.
  *
  * Pattern matches assets/desktop-mode-widget-rss.js.
  */
 ( function() {
 	'use strict';
+
+	// 2026-10-12 audit: a failure says what happened in words, never a
+	// function name. snt-ability-run.js is the script that reads the site.
+	var NO_RUNNER = 'the S&N status reader did not load; reload the desktop';
 
 	if ( typeof window === 'undefined' ) {
 		return;
@@ -78,8 +83,28 @@
 		clearChildren( container );
 		container.appendChild( el( 'p', {
 			style: 'padding:14px 16px;font-size:12px;color:#ff9d94;',
-			text:  'Queue read failed: ' + ( message || 'unknown' ),
+			text:  'Couldn\u2019t read the queue: ' + message + '.',
 		} ) );
+	}
+
+	/**
+	 * Why a read failed, in plain words, from the failure itself (review on
+	 * #2023: the card guessed "the site did not answer" for every failure).
+	 * The site's own message rides through with its HTTP status; only a
+	 * request that never got an answer says so.
+	 */
+	function why( err ) {
+		var msg    = err && typeof err.message === 'string' ? err.message.trim() : '';
+		var status = err && err.data ? Number( err.data.status ) || 0 : 0;
+		if ( ! msg || /failed to fetch|networkerror|load failed/i.test( msg ) ) {
+			return status ? 'the site answered HTTP ' + status : 'the site did not answer';
+		}
+		return status ? msg + ' (HTTP ' + status + ')' : msg;
+	}
+
+	/** "14:05" for a time in ms, the clock the cards' "Read at" lines use. */
+	function clock( ms ) {
+		return new Date( ms ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );
 	}
 
 	// A row: title (a link when the payload gave one) + a muted label.
@@ -114,7 +139,8 @@
 		var wrap  = el( 'div', { style: 'padding:14px 16px;color:inherit;' } );
 		var next  = asList( data.next );
 		var done  = asList( data.published );
-		var total = Number( data.scheduled_total ) || 0;
+		// A payload without the count paints it as not read, never as 0.
+		var total = typeof data.scheduled_total === 'number' ? data.scheduled_total : null;
 
 		// Headline: the next note, or the honest empty state.
 		if ( next.length ) {
@@ -138,7 +164,7 @@
 		// payload could not count it (or predates 23.8.0).
 		var runsTo = data.runs_to && typeof data.runs_to.label === 'string' ? data.runs_to.label : '';
 		var cell = 'margin:0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));font-variant-numeric:tabular-nums;';
-		var depth = el( 'p', { style: cell, text: total + ' scheduled' + ( total && runsTo ? ' · to ' + runsTo : '' ) } );
+		var depth = el( 'p', { style: cell, text: null === total ? 'Scheduled count not read' : total + ' scheduled' + ( total && runsTo ? ' · to ' + runsTo : '' ) } );
 		var drafts = typeof data.drafts === 'number' ? el( 'p', { style: cell, text: data.drafts + ( 1 === data.drafts ? ' draft' : ' drafts' ) } ) : null;
 		var kit = window.sntCardKit;
 		if ( drafts && kit && typeof kit.pair === 'function' ) {
@@ -198,11 +224,16 @@
 		// 15.8.2: the leaf where the queue lives (Connections › Scheduled folds
 		// native future posts with the fragment queue).
 		if ( scheduledUrl ) {
-			wrap.appendChild( el( 'a', {
+			var open = el( 'a', {
 				href:  scheduledUrl,
-				text:  'Open Scheduled →',
+				text:  'Open Scheduled ',
 				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:10px;font-size:11px;color:var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff));text-decoration:none;',
-			} ) );
+			} );
+			// The arrow is decoration, as on every other card: not read aloud.
+			var arrow = el( 'span', { text: '→' } );
+			arrow.setAttribute( 'aria-hidden', 'true' );
+			open.appendChild( arrow );
+			wrap.appendChild( open );
 		}
 
 		container.appendChild( wrap );
@@ -212,19 +243,35 @@
 		if ( ! container ) { return function() {}; }
 
 		var torn = false;
+		// The last good payload and when it was read: a failed poll keeps the
+		// card and says how old it is, as the other cards do (2026-10-12 audit).
+		var lastData = null;
+		var lastReadMs = 0;
 		renderLoading( container );
+
+		function fail( message ) {
+			if ( ! lastData ) {
+				renderError( container, message );
+				return;
+			}
+			renderCard( container, lastData );
+			container.appendChild( el( 'p', {
+				style: 'margin:0;padding:0 16px 12px;font-size:11px;color:#d29922;',
+				text:  'Couldn\u2019t read the queue: ' + message + '; showing the ' + clock( lastReadMs ) + ' reading.',
+			} ) );
+		}
 
 		function refresh() {
 			if ( torn ) { return; }
 			if ( typeof window.sntAbilityRun !== 'function' ) {
-				renderError( container, 'sntAbilityRun unavailable' );
+				fail( NO_RUNNER );
 				return;
 			}
 			var run;
 			try {
 				run = window.sntAbilityRun( 'content-queue', undefined, { silent: true } );
 			} catch ( e ) {
-				renderError( container, e && e.message ? e.message : 'unknown' );
+				fail( why( e ) );
 				return;
 			}
 			Promise.resolve( run )
@@ -236,14 +283,16 @@
 					// "empty response" over a perfect payload. Accept both.
 					var data = res && res.data && typeof res.data === 'object' ? res.data : res;
 					if ( data && typeof data === 'object' && ( Array.isArray( data.next ) || Array.isArray( data.published ) ) ) {
+						lastData   = data;
+						lastReadMs = Date.now();
 						renderCard( container, data );
 					} else {
-						renderError( container, 'empty response' );
+						fail( 'the site sent no queue' );
 					}
 				} )
 				.catch( function( err ) {
 					if ( torn ) { return; }
-					renderError( container, err && err.message ? err.message : 'unknown' );
+					fail( why( err ) );
 				} );
 		}
 

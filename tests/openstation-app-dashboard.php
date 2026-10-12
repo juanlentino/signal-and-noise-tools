@@ -251,7 +251,7 @@ namespace {
 	if ( $has_cron ) { $app->actions['cron_run']( $st5, $os5, array( 'hook' => 'other_plugin_cron', 'args' => '[]' ) ); }
 	if ( $has_cron ) { $app->actions['cron_unschedule']( $st5, $os5, array( 'hook' => 'some_orphan_hook', 'args' => '[]' ) ); }
 	$GLOBALS['__can'] = true;
-	ok( $has_cron && 'Nothing was saved: this account cannot manage options.' === end( $os5->toasts ) && 'Nothing was saved: this account cannot manage options.' === $os5->toasts[ count( $os5->toasts ) - 2 ], 'an account without manage_options is refused on both controls with the capability sentence' );
+	ok( $has_cron && 'Nothing was saved: your account is not allowed to change these settings.' === end( $os5->toasts ) && 'Nothing was saved: your account is not allowed to change these settings.' === $os5->toasts[ count( $os5->toasts ) - 2 ], 'an account without manage_options is refused on both controls with the capability sentence' );
 	ok( $has_cron && $got_before === $GLOBALS['__got'] && $ran_before === $GLOBALS['__ran'] && $cleared_before === $GLOBALS['__cleared'] && 4 === $GLOBALS['__perm_asked'], '...before any ability is resolved: may_manage() closes first, so nothing was looked up, asked or run' );
 
 	echo "\nGroup 4: PORT COMPLETE -- every leaf has a kit painter\n";

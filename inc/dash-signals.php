@@ -170,7 +170,7 @@ function sn_dash_signals_from_measurement( array $data ) {
 		$raw      = $measured ? $data[ $f['key'] ] : null;
 
 		if ( ! $measured ) {
-			$value = '—';
+			$value = __( 'not measured', 'signal-and-noise-tools' );
 		} elseif ( ! empty( $f['money'] ) ) {
 			$value = '$' . number_format_i18n( (float) $raw, 2 );
 		} else {

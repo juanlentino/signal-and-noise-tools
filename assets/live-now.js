@@ -7,7 +7,8 @@
  * read the cached public route; admin pages carry no config and read the
  * gated route through wp.apiFetch, which supplies the REST nonce.
  *
- * A figure the route cannot answer stays "—", never 0; a figure for a class
+ * A figure the route cannot answer says "not read" (an em dash until
+ * 2026-10-12), never 0; a real 0 stays 0; a figure for a class
  * the answer does not carry (a public answer, a suspect view) is left as the
  * server painted it. Ticks pause while the tab is hidden. No animation.
  */
@@ -20,7 +21,7 @@
 	var BUCKET  = 30000; // the edge keeps /wp-json/ long: the query changes every 30 s
 
 	function format( n ) {
-		return typeof n === 'number' ? n.toLocaleString() : '—';
+		return typeof n === 'number' ? n.toLocaleString() : 'not read';
 	}
 
 	function valueFor( data, key, cls ) {
@@ -74,7 +75,7 @@
 		} );
 		document.querySelectorAll( '[data-sn-live-top]' ).forEach( function ( el ) {
 			if ( Array.isArray( data.pages ) ) {
-				el.textContent = data.pages.length ? String( data.pages[ 0 ].label ) + ' · ' + Number( data.pages[ 0 ].readers ).toLocaleString() : '—';
+				el.textContent = data.pages.length ? String( data.pages[ 0 ].label ) + ' · ' + Number( data.pages[ 0 ].readers ).toLocaleString() : 'none';
 				showIf( el, data.pages.length > 0 );
 			}
 		} );
@@ -196,7 +197,7 @@
 		if ( ! Array.isArray( items ) ) {
 			return;
 		}
-		var empty = list.getAttribute( 'data-empty' ) || ( cfg ? String( cfg.nobody ) : '—' );
+		var empty = list.getAttribute( 'data-empty' ) || ( cfg ? String( cfg.nobody ) : 'none' );
 		// Fixed per surface, never copied from whatever row is first: after a
 		// list with rows went empty, the copied class was '' (review on #1967).
 		var emptyClass = cfg ? 'sn-public-stats__live-empty' : 'sn-live-admin__empty';

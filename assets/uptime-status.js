@@ -132,15 +132,15 @@
 			var status = el( 'td', 'sn-uw-num' );
 			status.appendChild( el( 'span', 'sn-uw-pill sn-uw--' + ( row.level || 'warn' ), row.status ) );
 			tr.appendChild( status );
-			var a30 = 'number' === typeof row.availability ? pct( row.availability ) : '—';
+			var a30 = 'number' === typeof row.availability ? pct( row.availability ) : 'not read';
 			var t30 = el( 'td', 'sn-uw-num', a30 );
 			if ( row.incidents_30d ) {
 				t30.title = row.incidents_30d + ' incident' + ( 1 === row.incidents_30d ? '' : 's' ) + ' in 30d';
 			}
 			tr.appendChild( t30 );
-			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.availability_90d ? pct( row.availability_90d ) : '—' ) );
-			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.response_ms ? row.response_ms + ' ms' : '—' ) );
-			tr.appendChild( el( 'td', 'sn-uw-num sn-uw-quiet', ago( row.checked_at ).replace( 'checked ', '' ) || '—' ) );
+			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.availability_90d ? pct( row.availability_90d ) : 'not read' ) );
+			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.response_ms ? row.response_ms + ' ms' : 'not read' ) );
+			tr.appendChild( el( 'td', 'sn-uw-num sn-uw-quiet', ago( row.checked_at ).replace( 'checked ', '' ) || 'not read' ) );
 			tbody.appendChild( tr );
 		} );
 		table.appendChild( tbody );

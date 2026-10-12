@@ -202,7 +202,8 @@ $html2 = call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] );
 ok( false !== strpos( $html2, 'Custom &lt;script&gt;' ) && false === strpos( $html2, '<script>' ), 'filtered items render escaped — markup never survives' );
 ok( false !== strpos( $html2, 'Family &lt;b&gt;' ), 'the family label is escaped too' );
 ok( false === strpos( $html2, 'Never rendered' ) && false === strpos( $html2, 'bogus' ), 'a status outside the whitelist never renders' );
-ok( 3 === substr_count( $html2, 'sn-maturity-roadmap-board__empty' ), 'the statuses the filter omitted render as honest em-dashes, not collapsed cells (3 of 4 omitted, v10.73.0)' );
+ok( 3 === substr_count( $html2, 'sn-maturity-roadmap-board__empty' ), 'the statuses the filter omitted render as honest empty cells, not collapsed cells (3 of 4 omitted, v10.73.0)' );
+ok( 3 === substr_count( $html2, '<span class="sn-maturity-roadmap-board__empty">none</span>' ) && false === strpos( $html2, 'roadmap-board__empty" aria-label' ), 'an empty cell says none in words (an em dash with a hidden label until 2026-10-12)' );
 remove_all_filters( 'sn_maturity_roadmap_board' );
 
 /* ── Board-as-data: the option override (written only by sn_apply's

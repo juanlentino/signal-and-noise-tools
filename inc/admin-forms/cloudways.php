@@ -182,7 +182,7 @@ function sn_admin_cloudways_cards( array $state ) {
 		foreach ( $missing as $m ) {
 			$names[] = '<code>' . esc_html( (string) $m ) . '</code>';
 		}
-		$conn_meta = 'Missing: ' . ( $names ? implode( ', ', $names ) : 'none' )
+		$conn_meta = 'Missing: ' . ( $names ? implode( ', ', $names ) : __( 'none', 'signal-and-noise-tools' ) )
 			. '. Add them to <code>wp-config.php</code>; the purge no-ops silently until all four are present.';
 	}
 

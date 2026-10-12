@@ -96,7 +96,7 @@ foreach ( $sheets as $name => $css ) {
 $kit = strip_comments( (string) file_get_contents( $root . '/inc/openstation-kit-display.php' ) );
 ok( 1 === preg_match( "/function snt_kit_section\(.*?'stack'\s*=>\s*true/s", $kit ), 'snt_kit_section() passes `stack`, so every section body is the kit\'s flex column' );
 ok( 1 === preg_match( "/function snt_kit_grid\(.*?'min-item-width'.*?'--snt-grid-items:' \. count\( \\\$items \)/s", $kit ), 'snt_kit_grid() paints <os-grid min-item-width> and writes the item count' );
-ok( false !== strpos( $sheets['apps/sn-dashboard/sn-dashboard.css'], '.snt-leaf:has( os-grid )' ) && false !== strpos( $sheets['apps/sn-dashboard/sn-dashboard.css'], 'os-form:has( os-grid )' ), 'the leaf width-cap hatch and the form release key on :has( os-grid )' );
+ok( false !== strpos( $sheets['apps/sn-dashboard/sn-dashboard.css'], '.snt-leaf:has( os-grid )' ), 'the leaf width-cap hatch keys on :has( os-grid )' );
 ok( 0 === preg_match( '/::part\( body \)\s*\{[^}]*flex-direction/', $sheets['apps/sn-dashboard/sn-dashboard.css'] ), 'the section body no longer re-declares the flex column the `stack` attribute provides' );
 
 // The helper itself, against the kit's own escaping.

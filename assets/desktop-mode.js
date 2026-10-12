@@ -21,6 +21,41 @@
 ( function boot() {
 	'use strict';
 
+	// 2026-10-12 audit: a failure says what happened in words, never a
+	// function name. snt-ability-run.js is the script that reads the site.
+	var NO_RUNNER = 'the S&N status reader did not load; reload the desktop';
+
+	// Review on #2023: S&N's own danger confirms opened from outside an S&N
+	// window (SN Systems' Clear DB overrides, SN: Full reset) arm this right
+	// before wp.os.confirm, and the next <os-confirm-dialog> the shell appends
+	// to <body> is marked `data-snt-dialog`, once, so assets/snt-confirm-ink.css
+	// gives its label readable ink (it was white on #ff5a5a, 3.0:1). Defined
+	// before the boot gates, so a card can call it while the shell is loading.
+	// It returns its disarm: a caller disarms when the confirm throws, rejects
+	// or settles (the dialog is appended before it settles), so a confirm that
+	// never opened cannot leave the mark on a later, unrelated dialog.
+	if ( typeof window !== 'undefined' ) {
+		window.sntMarkNextDialog = function () {
+			if ( typeof MutationObserver !== 'function' || ! document.body ) {
+				return function () {};
+			}
+			var watch = new MutationObserver( function ( records ) {
+				for ( var i = 0; i < records.length; i++ ) {
+					var added = records[ i ].addedNodes || [];
+					for ( var j = 0; j < added.length; j++ ) {
+						if ( 'OS-CONFIRM-DIALOG' === added[ j ].nodeName ) {
+							added[ j ].setAttribute( 'data-snt-dialog', '' );
+							watch.disconnect();
+							return;
+						}
+					}
+				}
+			} );
+			watch.observe( document.body, { childList: true } );
+			return function () { watch.disconnect(); };
+		};
+	}
+
 	// v10.43.0 — OpenStation rename compat (REJECT #11 MEDIUM fix):
 	// SELF-SUFFICIENT, not order-dependent on the external
 	// assets/desktop-mode-os-compat.js prelude having run first.
@@ -147,7 +182,7 @@
 	 */
 	function callRest( action ) {
 		if ( ! window.sntAbilityRun ) {
-			toast( 'sntAbilityRun unavailable — SN command cannot dispatch.', 'error' );
+			toast( 'The command did not run: ' + NO_RUNNER + '.', 'error' );
 			return Promise.reject( new Error( 'no sntAbilityRun' ) );
 		}
 		return window.sntAbilityRun( CMD_ABILITY[ action ] || action, CMD_INPUT[ action ] );
@@ -202,9 +237,8 @@
 	function versionToast( pkg ) {
 		var label = pkg === 'theme' ? 'Theme' : 'Plugin';
 		var info = data[ pkg ] || {};
-		var current = info.current || '—';
 		var state = info.state || 'unknown';
-		var msg = label + ': v' + current;
+		var msg = label + ': ' + ( info.current ? 'v' + info.current : 'version not read' );
 		if ( state === 'ok' ) {
 			msg += ' (up to date)';
 		} else if ( state === 'available' ) {
@@ -291,9 +325,20 @@
 				danger:       true,
 			};
 			var os = window.wp.os || window.wp.desktop;
-			var prompt = ( os && typeof os.confirm === 'function' )
-				? os.confirm( opts )
-				: ( typeof window.sntConfirm === 'function' ? window.sntConfirm( opts ) : Promise.resolve( false ) );
+			var prompt;
+			if ( os && typeof os.confirm === 'function' ) {
+				// Readable danger ink, outside any S&N window; disarmed however
+				// the confirm ends, so it never marks a later dialog.
+				var disarm = window.sntMarkNextDialog();
+				try {
+					prompt = os.confirm( opts );
+				} catch ( e ) {
+					prompt = Promise.reject( e );
+				}
+				Promise.resolve( prompt ).then( disarm, disarm );
+			} else {
+				prompt = typeof window.sntConfirm === 'function' ? window.sntConfirm( opts ) : Promise.resolve( false );
+			}
 			return prompt.then( function ( confirmed ) {
 				if ( ! confirmed ) { return 'Full reset cancelled.'; }
 				return callRest( 'full-reset' )
@@ -304,7 +349,7 @@
 	} );
 
 	// Navigation. All aiCallable — pure navigation, no state change.
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-dashboard', label: 'SN: Open Dashboard',    aiCallable: true, run: function( args, ctx ) { navigate( pages.dashboard, ctx, 'Dashboard' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-dashboard', label: 'SN: Open S&N Home',    aiCallable: true, run: function( args, ctx ) { navigate( pages.dashboard, ctx, 'Dashboard' ); } } );
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-identity', label: 'SN: Open Identity',     aiCallable: true, run: function( args, ctx ) { navigate( pages.identity, ctx, 'Identity' ); } } );
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-login', label: 'SN: Open Login',        aiCallable: true, run: function( args, ctx ) { navigate( pages.login, ctx, 'Login' ); } } );
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-cloudflare', label: 'SN: Open Cloudflare',   aiCallable: true, run: function( args, ctx ) { navigate( pages.cloudflare, ctx, 'Cloudflare' ); } } );
@@ -367,7 +412,7 @@
 		aiCallable: true,
 		run: function() {
 			if ( ! window.sntAbilityRun ) {
-				return toast( 'sntAbilityRun unavailable.', 'error' );
+				return toast( 'Nothing ran: ' + NO_RUNNER + '.', 'error' );
 			}
 			// v7.7.0/v8.0.0: get-audit-summary was removed — same payload rides
 			// under get-audit-log's `summary` key. v7.7.2: GET via the runner.
@@ -398,7 +443,7 @@
 		aiCallable: true,
 		run: function() {
 			if ( ! window.sntAbilityRun ) {
-				return toast( 'sntAbilityRun unavailable.', 'error' );
+				return toast( 'Nothing ran: ' + NO_RUNNER + '.', 'error' );
 			}
 			// v7.7.0/v8.0.0: get-audit-login-successes was removed — the rows ride
 			// under get-audit-log's `logins` key. v7.7.2: GET via the runner.

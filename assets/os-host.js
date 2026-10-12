@@ -293,6 +293,47 @@
 		}
 	}
 
+	// --------------------------------------------------------------- NOTICES
+	// 2026-10-12 audit. os-notice's close sets `hidden`, and the morph strips
+	// it on the next paint, so a watch tick (Provenance polls every 30
+	// seconds) brought a closed "Saved" back. A closed notice is remembered
+	// per window by its tone and words and hidden again on the paint's own
+	// effect, like a fold. A new answer (the paint after a save or a
+	// refusal, which names its form in `answered`) shows its notice again
+	// even in the same words, and a notice that leaves the page is forgotten.
+	var closedNotices = new WeakMap();
+
+	function noticeKey( el ) {
+		return ( el.getAttribute( 'tone' ) || '' ) + '|' + String( el.textContent || '' ).trim();
+	}
+
+	function rememberNotice( event ) {
+		var el = event.target;
+		var root = el && el.closest ? el.closest( ROOT_SELECTOR ) : null;
+		if ( root ) {
+			var memo = closedNotices.get( root ) || {};
+			memo[ noticeKey( el ) ] = true;
+			closedNotices.set( root, memo );
+		}
+	}
+
+	function restoreNotices( root, answered ) {
+		var memo = closedNotices.get( root );
+		if ( ! memo ) {
+			return;
+		}
+		var next = {};
+		var list = answered ? [] : root.querySelectorAll( 'os-notice' );
+		for ( var i = 0; i < list.length; i++ ) {
+			var key = noticeKey( list[ i ] );
+			if ( memo[ key ] ) {
+				list[ i ].hidden = true;
+				next[ key ] = true;
+			}
+		}
+		closedNotices.set( root, next );
+	}
+
 	// ---------------------------------------------------------------- DRAFTS
 	// 2026-10-12 audit. The morph puts every control the reader is not in
 	// back to the value the server painted (openstation morph.ts
@@ -479,6 +520,9 @@
 			return;
 		}
 		restoreFolds( root );
+		// A new answer is the one-paint `saved` or `answered`, never `refused`:
+		// a refusal stays in state, so every poll tick repeats it.
+		restoreNotices( root, !! effect.saved || '' !== String( effect.answered || '' ) );
 		restoreDrafts( root, !! effect.refused, !! effect.saved, String( effect.answered || '' ) );
 		schedule( root, String( effect.anchor || '' ) );
 	}
@@ -694,6 +738,7 @@
 		armSubmitter();
 		// Capture: the toggle is the reader's, wherever it bubbles or not.
 		document.addEventListener( 'os-disclosure-toggle', rememberFold, true );
+		document.addEventListener( 'os-notice-dismiss', rememberNotice, true );
 		// Bubble, not capture: a kit field has set its value by then.
 		document.addEventListener( 'input', rememberDraft );
 		document.addEventListener( 'change', rememberDraft );

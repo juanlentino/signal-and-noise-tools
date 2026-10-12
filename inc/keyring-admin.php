@@ -125,7 +125,7 @@ function sn_keyring_ledger_rows( array $models ) {
 		$out[] = array(
 			'credential' => (string) $m['label'],
 			'source'     => (string) $m['source_text'],
-			'value'      => '' !== (string) $m['shown'] ? (string) $m['shown'] : '—',
+			'value'      => '' !== (string) $m['shown'] ? (string) $m['shown'] : __( 'not set', 'signal-and-noise-tools' ),
 			'verified'   => (string) $text,
 		);
 	}

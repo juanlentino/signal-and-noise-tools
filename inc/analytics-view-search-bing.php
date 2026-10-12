@@ -70,7 +70,7 @@ function snt_analytics_render_search_bing() {
 			array( 'l' => __( 'Impressions', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $t['impressions'] ), 'sub' => sprintf( __( '%d days', 'signal-and-noise-tools' ), $days ) ),
 			/* translators: %d: days counted. */
 			array( 'l' => __( 'Clicks', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $t['clicks'] ), 'sub' => sprintf( __( '%d days', 'signal-and-noise-tools' ), $days ) ),
-			array( 'l' => __( 'CTR', 'signal-and-noise-tools' ), 'n' => (int) $t['impressions'] > 0 ? number_format_i18n( 100 * (int) $t['clicks'] / (int) $t['impressions'], 1 ) . '%' : '—', 'sub' => __( 'clicks over impressions', 'signal-and-noise-tools' ) ),
+			array( 'l' => __( 'CTR', 'signal-and-noise-tools' ), 'n' => (int) $t['impressions'] > 0 ? number_format_i18n( 100 * (int) $t['clicks'] / (int) $t['impressions'], 1 ) . '%' : __( 'none', 'signal-and-noise-tools' ), 'sub' => __( 'clicks over impressions', 'signal-and-noise-tools' ) ),
 		) );
 	}
 	echo '<p class="description">' . esc_html__( 'Bing counts impressions and clicks across web, chat, news, images and video. Traffic updates daily, query positions weekly; the window ends on the newest day Bing reports. Copilot and the engines that read Bing\'s index sit behind these numbers, which is why they are here beside Google\'s.', 'signal-and-noise-tools' ) . '</p>';

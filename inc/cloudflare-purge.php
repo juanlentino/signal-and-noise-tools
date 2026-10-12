@@ -656,11 +656,11 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 			$r_path = '' !== $r_url ? (string) wp_parse_url( $r_url, PHP_URL_PATH ) : '';
 			if ( '' === $r_path ) {
 				// A manual zone purge names no single page; say which purge it was.
-				$r_path = '' !== (string) ( $row['source'] ?? '' ) ? (string) $row['source'] : 'not recorded';
+				$r_path = '' !== (string) ( $row['source'] ?? '' ) ? (string) $row['source'] : __( 'not recorded', 'signal-and-noise-tools' );
 			}
 			$r_old = defined( 'SN_CF_PROBE_ALGO' ) && (int) ( $row['algo'] ?? 1 ) < SN_CF_PROBE_ALGO;
 			echo '<tr>';
-			echo '<td class="column-primary">' . esc_html( $r_time ? human_time_diff( $r_time, time() ) . ' ago' : 'not recorded' ) . '</td>';
+			echo '<td class="column-primary">' . esc_html( $r_time ? human_time_diff( $r_time, time() ) . ' ago' : __( 'not recorded', 'signal-and-noise-tools' ) ) . '</td>';
 			echo '<td data-colname="Result"><span class="' . esc_attr( $r_pill ) . '">' . esc_html( $r_label ) . '</span>'
 				. ( $r_old ? ' <span class="sn-pill sn-pill--muted">retired detector</span>' : '' ) . '</td>';
 			echo '<td data-colname="Page"><code>' . esc_html( $r_path ) . '</code></td>';

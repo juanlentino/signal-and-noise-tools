@@ -219,7 +219,7 @@ function snt_gsc_render_topic_interest() {
 				echo '<td>' . esc_html( number_format_i18n( $row['members'] ) ) . '</td>';
 				echo '<td>' . esc_html( number_format_i18n( $row['impressions'] ) ) . '</td>';
 				echo '<td>' . esc_html( number_format_i18n( $row['clicks'] ) ) . '</td>';
-				echo '<td>' . ( $row['impressions'] > 0 ? esc_html( snt_gsc_fmt_position( $row['position'] ) ) : '&mdash;' ) . '</td></tr>';
+				echo '<td>' . ( $row['impressions'] > 0 ? esc_html( snt_gsc_fmt_position( $row['position'] ) ) : esc_html__( 'none', 'signal-and-noise-tools' ) ) . '</td></tr>';
 			}
 			echo '</tbody></table></div>';
 			$o = $interest['outside'];
@@ -368,7 +368,7 @@ function snt_analytics_render_view_search() {
 				echo '<th scope="col">' . esc_html__( 'Inbound links', 'signal-and-noise-tools' ) . '</th>';
 				echo '</tr></thead><tbody>';
 				foreach ( array_slice( $cov['not_indexed_paths'], 0, 40 ) as $row ) {
-					echo '<tr><td><code>' . esc_html( $row['path'] ) . '</code></td><td>' . esc_html( $row['coverage_state'] ) . '</td><td>' . esc_html( '' === $row['last_crawl_time'] ? '—' : substr( $row['last_crawl_time'], 0, 10 ) ) . '</td><td>' . esc_html( null === $row['inbound_links'] ? '—' : number_format_i18n( (int) $row['inbound_links'] ) ) . '</td></tr>';
+					echo '<tr><td><code>' . esc_html( $row['path'] ) . '</code></td><td>' . esc_html( $row['coverage_state'] ) . '</td><td>' . esc_html( '' === $row['last_crawl_time'] ? __( 'not reported', 'signal-and-noise-tools' ) : substr( $row['last_crawl_time'], 0, 10 ) ) . '</td><td>' . esc_html( null === $row['inbound_links'] ? __( 'not read', 'signal-and-noise-tools' ) : number_format_i18n( (int) $row['inbound_links'] ) ) . '</td></tr>';
 				}
 				echo '</tbody></table></div>';
 			}

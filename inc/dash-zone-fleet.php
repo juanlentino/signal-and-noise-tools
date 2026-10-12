@@ -43,7 +43,7 @@ function sn_dash_zone_fleet( array $components, $last_deploy_ago = '' ) {
 			++$unknown;
 		}
 
-		$value = $measured ? (string) $version : ( $warming ? __( 'warming…', 'signal-and-noise-tools' ) : '—' );
+		$value = $measured ? (string) $version : ( $warming ? __( 'warming…', 'signal-and-noise-tools' ) : __( 'not read', 'signal-and-noise-tools' ) );
 		if ( $skew ) {
 			// The contract comparison the probe carries (v13.22.0) finally
 			// renders somewhere: cross-repo skew lands at INSTALL time, and

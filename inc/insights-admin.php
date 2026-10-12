@@ -259,7 +259,7 @@ function snt_insights_render_cache_probe_section() {
 				$floor = $m['floor'];
 				if ( null === $floor ) {
 					$verdict = '<span class="sn-pill sn-pill--warn">floor unknown</span>';
-					$floor_s = 'not known';
+					$floor_s = esc_html( __( 'not known', 'signal-and-noise-tools' ) );
 				} elseif ( true === $m['may_clear_floor'] ) {
 					$verdict = '<span class="sn-pill sn-pill--ok">clears the floor</span>';
 					$floor_s = esc_html( number_format_i18n( (int) $floor ) ) . ' tokens';
@@ -301,7 +301,7 @@ function snt_insights_render_cache_probe_section() {
 					foreach ( $m['samples'] as $s ) {
 						$when = (int) $s['ts'] > 0
 							? esc_html( wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), (int) $s['ts'] ) )
-							: 'time not recorded';
+							: esc_html( __( 'time not recorded', 'signal-and-noise-tools' ) );
 						echo '<tr><td><code>' . esc_html( '' !== $m['model'] ? $m['model'] : 'unknown' ) . '</code></td>'
 							. '<td>' . wp_kses_post( $when ) . '</td>'
 							. '<td>' . esc_html( number_format_i18n( (int) $s['tools_count'] ) ) . '</td>'

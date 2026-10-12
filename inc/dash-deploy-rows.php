@@ -27,7 +27,7 @@ function snt_dashboard_last_deploy_label( $runs ) {
 			}
 		}
 	}
-	return '—';
+	return __( 'not read', 'signal-and-noise-tools' );
 }
 
 /** Count runs within $window seconds of now. */

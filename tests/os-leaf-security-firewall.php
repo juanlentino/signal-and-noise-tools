@@ -94,7 +94,7 @@ fw_opts( $GLOBALS['__options'] + array( SN_CF_POSTURE_OPT => $posture ) );
 $classic = snt_leaf_classic_html( 'sn_admin_render_firewall_section' );
 $kit     = snt_leaf_paint( 'security', 'firewall' );
 ok( false !== strpos( $kit, '>SSL mode<' ) && false !== strpos( $kit, '>Full (strict)<' ) && false !== strpos( $kit, '>TLS 1.2<' ) && false !== strpos( $kit, 'snt-dot--ok' ), 'judged settings in words with an ok dot' );
-ok( false !== strpos( $kit, '>Development mode<' ) && 2 === substr_count( $kit, 'snt-dot--err' ) && 4 === substr_count( $kit, 'snt-dot--ok' ), 'two err dots (development mode on, the disabled rule) against four ok (three settings, the enabled rule)' );
+ok( false !== strpos( $kit, '>Development mode<' ) && 2 === substr_count( $kit, 'snt-dot--warn' ) && 0 === substr_count( $kit, 'snt-dot--err' ) && 4 === substr_count( $kit, 'snt-dot--ok' ), 'two warn dots (development mode on, the disabled rule), matching their amber values, against four ok (three settings, the enabled rule)' );
 // 2026-10-12 audit: the drift was a dot and a tint; the value now says what was expected.
 ok( false !== strpos( $kit, '>on, expected off<' ) && false !== strpos( $classic, '<td>on, expected off</td>' ) && false === strpos( $kit, '>Full (strict), expected' ), 'a drifted setting says what was expected, in words, on both twins; one that matches does not' );
 ok( false !== strpos( $kit, 'Also set: Security level medium · Browser integrity check on.' ), 'the readings are one quiet line' );

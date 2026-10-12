@@ -465,16 +465,18 @@ namespace {
 	// 2026-10-12 audit: the refusal stays on the page as an error notice, not
 	// only in a 3.5-second toast; the error tone is what tells the host to
 	// keep the typed values (paint_effect()'s `refused`, pinned below).
-	ok( array( 'Nothing was saved: the security token did not verify against sn_save_identity.' ) === $os->toasts && array( 'error', 'Nothing was saved: the security token did not verify against sn_save_identity.' ) === $st->get( 'notice' ) && false === $st->get( 'saved' ),
-		'a stale nonce says WHAT WAS MEASURED -- a token that did not verify against the action it was checked against. "The form expired. Reopen the tab and try again." was a cause nobody measured, and it was said to eight forms whose nonce was never this one, where reopening could never help' );
+	$stale = 'Nothing was saved: the form\'s security check did not pass (sn_save_identity). What you typed is still in the form, except any password; press Save again.';
+	ok( array( $stale ) === $os->toasts && array( 'error', esc_html( $stale ) ) === $st->get( 'notice' ) && false === $st->get( 'saved' ),
+		'a stale nonce says WHAT WAS MEASURED, in plain words: the security check did not pass, for the action in parentheses. "The form expired. Reopen the tab and try again." was a cause nobody measured, and it was said to eight forms whose nonce was never this one, where reopening could never help; and it says the typing is kept and what to press' );
 
 	$os = new \OpenStation\App\Os();
 	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce' ) ) );
-	ok( array( 'Nothing was saved: the form carried no action.' ) === $os->toasts, 'a submission with no action at all belongs to no pipeline, and the toast says exactly that' );
+	ok( array( 'Nothing was saved: the form did not say what to save.' ) === $os->toasts, 'a submission with no action at all belongs to no pipeline, and the toast says exactly that, in plain words' );
+	ok( '(no action)' === $st->get( 'answered' ), 'its answer still names a form (a sentinel), so the host shows the refusal again even if the reader closed the last one (review on #2023)' );
 
 	$os = new \OpenStation\App\Os();
 	$app->actions['post']( $st, $os, array( 'pipeline' => 'admin-post', 'values' => array( '_wpnonce' => 'good-nonce', 'action' => 'sn_prov_nothing_hooked' ) ) );
-	ok( array( 'Nothing was saved: no pipeline in this window handles the action sn_prov_nothing_hooked.' ) === $os->toasts,
+	ok( array( 'Nothing was saved: nothing in this window saves that form (sn_prov_nothing_hooked).' ) === $os->toasts,
 		'an admin-post action nothing is hooked to is named in the refusal -- do_action() on an unhooked hook is silent, and silence must not paint as a save' );
 
 	echo "\nGroup 5b: the pipelines a form can belong to\n";
@@ -563,7 +565,7 @@ namespace {
 	// 17.4.3: the leaf bar is the native list toolbar's status control, both
 	// twins bound to sub; the os-tabs strip (the kit's rose underline beside
 	// the chrome's bold white) is gone from this level.
-	ok( false !== strpos( $html, '<header class="os-app-list__toolbar snt-subbar" slot="toolbar"><div class="os-app-list__toolbar-left"><os-segmented class="os-app-list__status" value="health" os-bind="sub" label="Sections">' )
+	ok( 1 === preg_match( '#<header class="os-app-list__toolbar snt-subbar"( data-snt-fit="\d+")? slot="toolbar"><div class="os-app-list__toolbar-left"><os-segmented class="os-app-list__status" value="health" os-bind="sub" label="Sections">#', $html )
 		&& false !== strpos( $html, '<os-segment value="health">' )
 		&& false !== strpos( $html, '<os-select class="os-app-list__status snt-subbar__phone" os-key="subbar-phone" value="health" os-bind="sub" aria-label="Sections">' )
 		&& false !== strpos( $html, '<os-option value="health">' ),
@@ -578,10 +580,23 @@ namespace {
 	$css = (string) preg_replace( '#/\\*.*?\\*/#s', '', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) );
 	$css = (string) preg_replace( '/\\s+/', ' ', $css );
 	$rule = static fn( $sel, $body ) => (bool) preg_match( '/(?:^|\\}) ?' . preg_quote( $sel, '/' ) . ' \\{ ' . preg_quote( $body, '/' ) . ' \\}/', $css );
-	ok( $rule( 'html:not([data-os-mode="mobile"]) .snt-subbar__phone', 'display: none;' )
+	ok( $rule( 'html:not([data-os-mode="mobile"]) .snt-subbar:not([data-snt-fit]) .snt-subbar__phone', 'display: none;' )
 		&& $rule( 'html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmented', 'display: none;' )
 		&& ! $rule( '.snt-subbar__phone', 'display: none;' ),
 		'   ...the phone twin hides only off the shell`s mobile stamp and the desk twin only under it, each by its own rule' );
+	// 2026-10-12 audit (cross-cutting #8): nine Connections pills need about
+	// 819px, and the hidden scrollbar left Cron and Scheduled out of reach in a
+	// half-screen window. A bar the kit measured as wide (data-snt-fit, the
+	// container width it needs) switches to the select twin below that width.
+	// Review on #2023: range syntax, so no fractional width paints both twins
+	// (max-width 920 / min-width 921 left 920.5 to both), and buckets down to
+	// 440, so Site's five pills switch too in a narrow window.
+	foreach ( array( '440', '600', '760', '920', '1080', '1240' ) as $fit ) {
+		ok( 1 === preg_match( '/@container snt-dashboard \( width > ' . $fit . 'px \) \{ html:not\(\[data-os-mode="mobile"\]\) \.snt-subbar\[data-snt-fit="' . $fit . '"\] \.snt-subbar__phone \{ display: none; \} \}/', $css )
+			&& 1 === preg_match( '/@container snt-dashboard \( width <= ' . $fit . 'px \) \{ \.snt-subbar\[data-snt-fit="' . $fit . '"\] > \.os-app-list__toolbar-left > os-segmented \{ display: none; \} \}/', $css ),
+			"   ...a bar that needs {$fit}px shows the select twin in a window that narrow or narrower, the pills in a wider one" );
+	}
+	ok( 0 === preg_match( '/@container snt-dashboard \( (min|max)-width: \d+px \) \{[^{}]*snt-subbar/', $css ), '   ...and no leaf-bar switch uses min/max-width, which leave a fractional gap' );
 	ok( $rule( '.snt-subbar > .os-app-list__toolbar-left', 'min-width: 0; overflow-x: auto; scrollbar-width: none;' )
 		&& $rule( '.snt-subbar os-segment', 'flex: 0 0 auto;' ),
 		'   ...and the pill row scrolls sideways in a window narrower than its pills, the parent scrolling and the segments unshrinkable' );

@@ -62,7 +62,7 @@ $GLOBALS['__tags'] = array();
 $GLOBALS['__related'] = array();
 $GLOBALS['__meta'][7]['_snt_ml_related'] = array();
 $b = sn_note_dossier_editorial( 7 );
-ok( '—' === tile( by_heading( $b, 'Editorial' ), 'Reading time' )['value'] && false !== strpos( tile( by_heading( $b, 'Editorial' ), 'Reading time' )['note'], 'not computed' ), 'no cached reading time: not computed yet, and the getter is NOT called (it writes meta)' );
+ok( 'not read' === tile( by_heading( $b, 'Editorial' ), 'Reading time' )['value'] && false !== strpos( tile( by_heading( $b, 'Editorial' ), 'Reading time' )['note'], 'not computed' ), 'no cached reading time: not computed yet, and the getter is NOT called (it writes meta)' );
 ok( false !== strpos( by_heading( $b, 'Tags' )['text'], 'Untagged' ), 'no tags says untagged' );
 ok( 'text' === by_heading( $b, 'Related notes' )['kind'] && false !== strpos( by_heading( $b, 'Related notes' )['text'], 'None' ), 'the kernel answered "none": said so' );
 unset( $GLOBALS['__meta'][7]['_snt_ml_related'] );
@@ -74,7 +74,7 @@ $b = sn_note_dossier_editorial( 7 );
 ok( null === by_heading( $b, 'Related notes' ), 'the kernel not built: the block is omitted, not faked' );
 $GLOBALS['__tags'] = new WP_Error( 'x' );
 $b = sn_note_dossier_editorial( 7 );
-ok( false !== strpos( by_heading( $b, 'Tags' )['text'], 'could not be read' ) && '—' === tile( by_heading( $b, 'Editorial' ), 'Tags' )['value'], 'a taxonomy error is named, never "untagged"' );
+ok( false !== strpos( by_heading( $b, 'Tags' )['text'], 'could not be read' ) && 'not read' === tile( by_heading( $b, 'Editorial' ), 'Tags' )['value'], 'a taxonomy error is named, never "untagged"' );
 ok( array() === sn_note_dossier_editorial( 999 ), 'no post, no blocks' );
 
 echo "\na signed page: the two blocks that cannot be measured are OMITTED, not answered\n";

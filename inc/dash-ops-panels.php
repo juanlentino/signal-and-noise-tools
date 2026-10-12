@@ -64,7 +64,7 @@ function sn_dash_ops_panels( array $data ) {
 				$run = is_array( $run ) ? $run : array();
 				$c   = (string) ( $run['conclusion'] ?? '' );
 				return array(
-					'label' => ( snt_dashboard_short_repo( (string) ( $run['repo'] ?? '' ) ) ?: '—' )
+					'label' => ( snt_dashboard_short_repo( (string) ( $run['repo'] ?? '' ) ) ?: __( 'repo not read', 'signal-and-noise-tools' ) )
 						. '  ' . (string) ( $run['ref'] ?? '' ),
 					'value' => function_exists( 'snt_dashboard_relative_time' )
 						? snt_dashboard_relative_time( (string) ( $run['created_at'] ?? '' ) )

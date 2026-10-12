@@ -17,6 +17,14 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 
 define( 'ABSPATH', '/' );
 
+// A warning or a deprecation is a failure here, not noise: the stale
+// release_notes_failed pin warned and passed on null for months.
+set_error_handler( static function ( $no, $str, $file, $line ) {
+	$GLOBALS['fail'] = ( $GLOBALS['fail'] ?? 0 ) + 1;
+	echo "FAIL: PHP notice at $file:$line: $str\n";
+	return true;
+} );
+
 $GLOBALS['__settings']  = array( 'login.slug' => 'secret-door' );
 $GLOBALS['__transient'] = false;
 
@@ -66,7 +74,7 @@ fm_eq( array( 'success', 'Full reset: 3 override(s) cleared + all caches purged.
 fm_eq( array( 'success', '7 post(s) cleaned. Reading-time cache rebuilt.' ), sn_admin_flash_to_notice( 'rt_applied_7' ), 'rt_applied_7' );
 
 echo "\nTest 3: id-prefixed codes resolve to static message\n";
-fm_eq( array( 'success', 'Webhook added. Copy the signing secret below: it will not be shown again.' ), sn_admin_flash_to_notice( 'wh_added_abc123' ), 'wh_added_<id>' );
+fm_eq( array( 'success', 'Webhook added. Copy its Signing secret now: it will not be shown again.' ), sn_admin_flash_to_notice( 'wh_added_abc123' ), 'wh_added_<id>' );
 $rotated = sn_admin_flash_to_notice( 'wh_rotated_abc123' );
 fm_eq( 'success', $rotated[0], 'wh_rotated_<id> severity' );
 fm_eq( true, false !== strpos( $rotated[1], 'Signing secret was rotated' ), 'wh_rotated_<id> message body' );
@@ -131,9 +139,9 @@ echo "\nTest 6b: health scan flash is findings-aware (v8.0.1)\n";
 $note = sn_admin_flash_to_notice( 'health_scanned_clean' );
 fm_eq( 'success', $note[0] ?? null, 'health_scanned_clean → success severity' );
 fm_eq( true, false !== stripos( (string) ( $note[1] ?? '' ), 'all checks passing' ), 'clean copy says all checks passing' );
-fm_eq( false, false !== stripos( (string) ( $note[1] ?? '' ), 'findings below' ), 'clean copy does NOT promise findings below' );
+fm_eq( false, false !== stripos( (string) ( $note[1] ?? '' ), 'findings' ), 'clean copy does NOT promise findings' );
 $note = sn_admin_flash_to_notice( 'health_scanned' );
-fm_eq( true, false !== stripos( (string) ( $note[1] ?? '' ), 'findings below' ), 'dirty copy still points at the findings' );
+fm_eq( true, false !== stripos( (string) ( $note[1] ?? '' ), 'findings are listed by family' ), 'dirty copy still points at the findings, by name, not by position' );
 
 // v9.5.0 (R2): the weekly-digest flash codes (narration_generated / _settings_saved
 // / _ai_unavailable, and the dynamic narration_failed branch) retired with the surface.
@@ -141,8 +149,9 @@ $static = sn_admin_flash_messages();
 fm_eq( false, isset( $static['narration_ai_unavailable'] ), 'R2: narration_ai_unavailable static code removed' );
 fm_eq( false, isset( $static['narration_settings_saved'] ), 'R2: narration_settings_saved static code removed' );
 fm_eq( false, isset( $static['narration_generated'] ), 'R2: narration_generated static code removed' );
-// release_notes_failed no longer blames AI config (its detail box shows the real error).
-fm_eq( false, false !== strpos( $static['release_notes_failed'][1], 'AI provider is configured' ), 'release_notes_failed copy no longer blames AI config' );
+// release_notes_failed left with the release-notes drafter; this used to read
+// the missing key, warn, and pass on null (2026-10-12 audit).
+fm_eq( false, isset( $static['release_notes_failed'] ), 'release_notes_failed is gone with the release-notes drafter, so it cannot blame AI config' );
 
 echo "\nTest 7: analytics_funnels static codes (S2 §3)\n";
 fm_eq( array( 'success', 'Session funnels saved. The Sessions view reflects them on the next load.' ), sn_admin_flash_to_notice( 'analytics_funnels_saved' ), 'analytics_funnels_saved' );
@@ -252,6 +261,28 @@ $six_pairs = 'analytics_funnels_invalid_1k0-2k0-3k0-4k0-5k0-6k0';
 $note      = sn_admin_flash_to_notice( $six_pairs );
 fm_eq( 5, substr_count( (string) ( $note[1] ?? '' ), 'Line ' ), 'six well-formed pairs in the code -> only five "Line " reason lines render' );
 fm_eq( false, false !== strpos( (string) ( $note[1] ?? '' ), 'Line 6:' ), 'the sixth pair is dropped, not rendered' );
+
+echo "\nTest 9: every notice names its box and uses no em dash (2026-10-12 audit)\n";
+// The frame paints these notices at the top of the leaf and the toast repeats
+// them, so "below", "above" and "beside" point at nothing in a toast and were
+// false on both twins ("the identity card above": the notice paints above
+// it). Every string literal in the registry is read, comments are not.
+$bad = array();
+foreach ( token_get_all( (string) file_get_contents( __DIR__ . '/../inc/admin-flash-messages.php' ) ) as $tok ) {
+	if ( ! is_array( $tok ) || T_CONSTANT_ENCAPSED_STRING !== $tok[0] ) {
+		continue;
+	}
+	if ( preg_match( '/—|&mdash;|\b(below|above|beside|rail|main column)\b|\b(on|to) the (left|right)\b|\b(left|right) (column|side)\b/i', $tok[1], $m ) ) {
+		$bad[] = 'line ' . $tok[2] . ' (' . $m[0] . '): ' . substr( $tok[1], 0, 70 );
+	}
+}
+fm_eq( array(), $bad, 'no notice string points by position or carries an em dash' );
+foreach ( array( 'wh_added_7', 'wh_rotated_7', 'insights_failed' ) as $code ) {
+	$GLOBALS['__insights_err'] = array( 'message' => 'Bad JSON', 'code' => 'parse', 'budget' => array( 'max_tokens' => 1000, 'completion' => null, 'chars' => 4 ) );
+	$n = sn_admin_flash_to_notice( $code );
+	fm_eq( 0, preg_match( '/—|&mdash;|\b(below|above)\b/', (string) ( $n[1] ?? '' ) ), "the resolved $code notice names no position and no em dash" );
+}
+fm_eq( 1, preg_match( '/Signing secret/', (string) ( sn_admin_flash_to_notice( 'wh_added_7' )[1] ?? '' ) ), 'a new webhook\'s notice names the field that holds its secret' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

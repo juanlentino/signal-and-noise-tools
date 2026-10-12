@@ -26,7 +26,7 @@ function sn_analytics_live_admin_html() {
 		return '<div class="sn-live-admin__col">'
 			. '<h3 class="sn-live-admin__h">' . esc_html( $heading ) . '</h3>'
 			. '<p class="sn-live-admin__sub">' . esc_html( $sub ) . '</p>'
-			. '<ol class="sn-live-admin__list" ' . $hook . ' data-empty="' . esc_attr( $empty ) . '"><li class="sn-live-admin__empty">—</li></ol>'
+			. '<ol class="sn-live-admin__list" ' . $hook . ' data-empty="' . esc_attr( $empty ) . '"><li class="sn-live-admin__empty">' . esc_html__( 'not read', 'signal-and-noise-tools' ) . '</li></ol>'
 			. '</div>';
 	};
 	return '<div class="sn-live-admin">'

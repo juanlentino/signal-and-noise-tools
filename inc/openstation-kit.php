@@ -115,3 +115,15 @@ function snt_kit_tone( $kind ) {
 	);
 	return $map[ (string) $kind ] ?? 'neutral';
 }
+
+/**
+ * The words for a value that was not read (2026-10-12 audit). An em dash
+ * stood in for an unread figure across the app, which says neither that it
+ * was not read nor why; unknown is never painted as 0 or as a dash. A value
+ * known to be empty says so in its own word ("none", "not recorded").
+ *
+ * @return string
+ */
+function snt_kit_unread() {
+	return __( 'not read', 'signal-and-noise-tools' );
+}

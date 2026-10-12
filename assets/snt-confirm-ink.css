@@ -1,0 +1,23 @@
+/*
+ * The shell's confirm dialog when S&N opened it (2026-10-12 audit, review on
+ * #2023). It sits on <body>, outside every window, so assets/os-app.css never
+ * reaches it, and two of S&N's danger confirms open with no S&N window at all
+ * (SN Systems' Clear DB overrides, SN: Full reset). assets/snt-confirm.js
+ * marks a dialog an S&N window opened, and sntMarkNextDialog() in
+ * assets/desktop-mode.js marks the one those two open: `data-snt-dialog`.
+ *
+ * The rule is the windows' own (assets/os-app.css): black or white ink decided
+ * at the WCAG crossover from the fill, in linear sRGB, gated on the same
+ * expression. A rule on the dialog itself beats the ink the accent picker
+ * writes on <body>, and the shadow buttons inherit it. The danger label reads
+ * --os-ui-fg-on-accent on --os-ui-danger, white on #ff5a5a at 3.0:1; the same
+ * rule from that fill gives it black (6.9:1). Set on the marked dialog only,
+ * so the shell's other readers of that token keep theirs. Loaded on the shell
+ * with S&N's commands (inc/desktop-mode-assets.php).
+ */
+@supports ( color: color( from red srgb-linear clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) ) ) {
+	os-confirm-dialog[data-snt-dialog] {
+		--os-ui-accent-ink: color( from var( --wp-admin-theme-color, var( --os-ui-accent, #2271b1 ) ) srgb-linear clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) );
+		--os-ui-fg-on-accent: color( from var( --os-ui-danger, #d63638 ) srgb-linear clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) );
+	}
+}

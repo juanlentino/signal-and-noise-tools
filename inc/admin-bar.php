@@ -248,7 +248,7 @@ add_action( 'admin_bar_menu', function( $admin_bar ) {
 	$admin_bar->add_node( array(
 		'id'     => 'sn-quick-dashboard',
 		'parent' => 'sn-quick',
-		'title'  => '⚙ Open Dashboard',
+		'title'  => '⚙ Open S&N Home',
 		'href'   => admin_url( 'admin.php?page=sn-theme-options' ),
 	) );
 }, 100 );
