@@ -232,6 +232,8 @@ exist and falling back to the pre-rename name otherwise.
 | *(not consumed pre-rename)* | `openstation_get_os_settings()` | `includes/os-settings.php` |
 | *(not consumed pre-rename)* | `openstation_save_os_settings()` | `includes/os-settings.php` |
 | *(not consumed pre-rename)* | `openstation_content_changes_record()` | `includes/content-changes.php`, documented **Stable** in the upstream hook reference ("Content-change realtime layer", the recorder for a plugin's own mutation paths). Called since #1621 from `inc/ai-alt-text-suggest.php` (attachment/updated after the alt-text meta write) and `inc/ai-orphan-suggest.php` (attachment/deleted after `wp_delete_attachment()`), both behind `function_exists`: the realtime layer has no post-meta publisher and records nothing on `delete_attachment`, so the Media Library window never learned of either write. |
+| *(not consumed pre-rename)* | `openstation_register_desktop_theme()` | `includes/desktop-themes/registry.php`, read at v1.1.13 (the version the live site runs). Called directly, behind `function_exists`, from `inc/openstation-desktop-theme.php` on `init` at 10: after OpenStation registers Legacy at 5 and before `openstation_register_desktop_theme_wallpapers()` turns registered themes' wallpapers into picks on `init` at 20 (`includes/desktop-themes/wallpapers.php`). At 20 that registrar runs first, because `desktop-mode` sorts ahead of this plugin in `active_plugins`, and the theme's wallpapers never reach the picker (measured on WordPress 7.1 with OpenStation 1.1.13). The "Signal through noise" theme (owner-approved 2026-10-12): its tokens are only brand constants (meshes, holo, gradients, and the pink and purple literals no setting writes, text colors excepted) and `--os-titlebar-font`, and it ships no `recommendedOsSettings`; `tests/openstation-desktop-theme.php` pins both, and re-derives the constants from an OpenStation tree when `SNT_OPENSTATION_SRC` names one. Activation is per user (`desktopTheme` in the `desktop_mode_os_settings` user meta, synced over REST; localStorage only caches it), keyed by the flattened slug `sn-signal-through-noise`. |
+| *(not consumed pre-rename)* | `openstation_request_needs_admin_modules()` | `desktop-mode.php` at v1.1.13, the gate Legacy registers behind (`includes/desktop-themes/builtin.php` hooks `openstation_register_builtin_desktop_themes()` only when it is true). The theme skips registering when it returns false, so a public page never sanitizes the manifest. |
 
 All five renamed functions still accept exactly the argument shapes we pass at
 v1.1.0 (re-checked against each function's `$defaults` array, not just its
@@ -260,7 +262,13 @@ to fall back to; checking one name is correct here.
 v13.7.0–v13.7.5: the "Signal & Noise" desktop-theme arc, dropped whole by
 owner decision 2026-08-27 after six field iterations — the shell's brand
 carries 219 color-bearing tokens and a ~60-token reskin loses by coverage.
-See CHANGELOG 13.8.0. Do not re-propose without a full-coverage plan.)
+See CHANGELOG 13.8.0. Do not re-propose without a full-coverage plan.
+The 2026.10.5 theme is not that reskin: it sets no surface, text or accent
+token at all, only the brand constants no setting writes (36 at v1.1.13; it
+answers 28 and leaves 8 on purpose: two that are `none`, two pink text
+colors, one with no consumer, two aliases that follow the theme, and the
+per-workspace color) plus the title font, and calls
+`openstation_register_desktop_theme()` directly.)
 
 Worth recording alongside it: the v1.1.2 verification pass on 2026-08-21
 reported 19/19 seams clean, and it was correct — it checks NAMES. Station Home
