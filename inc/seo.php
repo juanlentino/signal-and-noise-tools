@@ -855,11 +855,18 @@ function sn_seo_singular_last_modified_gmt( $post ) {
 /**
  * When the rendered markup last changed for reasons a post row cannot show: a
  * theme or plugin update, a Styles save, a manual purge. Each runs the purge
- * chain, and the theme stamps its report (sn_last_purge_report). 0 if unknown.
+ * chain, which records the time BEFORE it purges (sn_seo_record_render_change()
+ * in inc/seo-validators.php). The theme's sn_last_purge_report is stamped at
+ * the END of the chain, after the re-warm, so it only answers until the first
+ * recorded flush. 0 if unknown.
  *
  * @return int GMT unix timestamp.
  */
 function sn_seo_render_changed_gmt() {
+	$recorded = (int) get_option( SN_SEO_RENDER_CHANGED_OPT, 0 );
+	if ( $recorded > 0 ) {
+		return $recorded;
+	}
 	$report = get_option( 'sn_last_purge_report', array() );
 	return is_array( $report ) ? (int) ( $report['time'] ?? 0 ) : 0;
 }

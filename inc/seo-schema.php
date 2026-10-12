@@ -688,7 +688,8 @@ function sn_schema_breadcrumb_list() {
 			'@type'    => 'ListItem',
 			'position' => $position,
 			'item'     => $base_id,
-			'name'     => is_tag() ? (string) single_term_title( '', false ) : 'Tags',
+			// The raw term name: single_term_title() texturizes (& to &#038;).
+			'name'     => ( is_tag() && isset( get_queried_object()->name ) ) ? (string) get_queried_object()->name : 'Tags',
 		);
 	} else {
 		return null;

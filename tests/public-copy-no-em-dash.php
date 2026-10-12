@@ -49,7 +49,11 @@ foreach ( $files as $file ) {
 
 $stats = (string) file_get_contents( $root . 'public-stats.php' );
 ok( false === strpos( $stats, 'nothing to consent to' ), '/stats no longer says there is nothing to consent to' );
-ok( false !== strpos( $stats, 'No consent banner: the measurement sets no cookies and uses no local storage.' ), '/stats says what the Privacy Policy says of the measurement' );
+ok( false !== strpos( $stats, 'No consent banner: the measurement sets no cookies on readers and uses no local storage.' ), '/stats says what the Privacy Policy says of the measurement' );
+
+$roadmap = (string) file_get_contents( $root . 'maturity-roadmap-shortcode.php' );
+ok( false === strpos( $roadmap, 'now reads views: a quiet week' ), 'the cadence line carries one colon, not two' );
+ok( false === strpos( $roadmap, 'seen at all; today each run replaces the last, and the question cannot be asked backwards; it lands' ), 'the coverage line is not a chain of semicolons' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -61,18 +61,21 @@ function wp_get_document_title() { return $GLOBALS['__v']['tags'] ? 'Tags | Juan
 function get_query_var( $k, $d = '' ) { return $d; }
 function term_description( $t ) { return '<p>Notes on music made with AI.</p>'; }
 function get_term_link( $t ) { return 'https://x.test/tag/ai-music/'; }
-function single_term_title( $p = '', $d = true ) { return 'AI music'; }
+function single_term_title( $p = '', $d = true ) { return 'AI &#038; music'; } // texturized, as WordPress returns it
 function get_queried_object() {
 	if ( ! $GLOBALS['__v']['tag'] ) {
 		return null;
 	}
 	$t           = new stdClass();
 	$t->term_id  = 9;
-	$t->name     = 'AI music';
+	$t->name     = 'AI & music';
 	$t->taxonomy = 'post_tag';
 	return $t;
 }
 function get_posts( $a ) { return array(); }
+$GLOBALS['__opt'] = array();
+function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opt'] ) ? $GLOBALS['__opt'][ $k ] : $d; }
+function update_option( $k, $v, $autoload = null ) { $GLOBALS['__opt'][ $k ] = $v; $GLOBALS['__autoload'][ $k ] = $autoload; return true; }
 function has_shortcode( $content, $tag ) { return false !== strpos( (string) $content, '[' . $tag ); }
 function wp_json_encode( $v, $f = 0 ) { return json_encode( $v, $f ); }
 
@@ -98,6 +101,33 @@ if ( function_exists( 'sn_seo_singular_validator_gmt' ) ) {
 ok( false !== strpos( $seo_src, '$modified_gmt = sn_seo_singular_validator_gmt( sn_seo_singular_last_modified_gmt( $post ), sn_seo_render_changed_gmt(), sn_seo_is_computed_content( (string) $post->post_content ) );' ), 'the handler sends the validator that rule picks' );
 ok( 1 === substr_count( $seo_src, "header( 'Last-Modified: ' . \$modified_http );" ), 'one Last-Modified header, after that rule' );
 
+echo "\nP1-1 review: the render time is recorded BEFORE the flush runs\n";
+$before = null;
+foreach ( $GLOBALS['__hooks']['sn_before_cache_flush'] ?? array() as $h ) {
+	if ( 'sn_seo_record_render_change' === $h[0] ) {
+		$before = $h;
+	}
+}
+ok( null !== $before && 1 === $before[1], 'recorded on sn_before_cache_flush at priority 1 (the theme fires it before any purge leg and before the re-warm)' );
+$after = false;
+foreach ( $GLOBALS['__hooks']['sn_after_full_cache_flush'] ?? array() as $h ) {
+	$after = $after || 'sn_seo_record_render_change' === $h[0];
+}
+ok( ! $after, 'not recorded after the flush, when the re-warmed pages are already cached' );
+$GLOBALS['__opt']['sn_last_purge_report'] = array( 'time' => 4000 );
+if ( function_exists( 'sn_seo_record_render_change' ) ) {
+	$t0 = time();
+	sn_seo_record_render_change();
+	ok( (int) ( $GLOBALS['__opt']['sn_render_changed_gmt'] ?? 0 ) >= $t0 && true === ( $GLOBALS['__autoload']['sn_render_changed_gmt'] ?? null ), 'the hook stores the time, autoloaded' );
+	ok( (int) $GLOBALS['__opt']['sn_render_changed_gmt'] === sn_seo_render_changed_gmt(), 'the validator reads that time, not the purge report' );
+} else {
+	ok( false, 'the hook stores the time, autoloaded' );
+	ok( false, 'the validator reads that time, not the purge report' );
+}
+unset( $GLOBALS['__opt']['sn_render_changed_gmt'] );
+ok( 4000 === sn_seo_render_changed_gmt(), 'before the first recorded flush, the purge report still answers' );
+$GLOBALS['__opt'] = array();
+
 echo "\nP1-2: a scheduled note going live moves the feed build date\n";
 $scheduled = (object) array( 'post_date_gmt' => '2026-10-11 16:32:49', 'post_modified_gmt' => '2026-10-01 21:49:11' );
 $older     = (object) array( 'post_date_gmt' => '2026-10-06 12:00:00', 'post_modified_gmt' => '2026-10-06 17:17:04' );
@@ -106,6 +136,8 @@ if ( function_exists( 'sn_seo_feed_build_gmt' ) ) {
 	ok( strtotime( '2026-10-11 16:32:49 UTC' ) === sn_seo_feed_build_gmt( array( $scheduled, $older ) ), 'modified Oct 1, published Oct 11: the feed is built Oct 11, not Oct 6' );
 	ok( strtotime( '2026-10-06 17:17:04 UTC' ) === sn_seo_feed_build_gmt( array( $older ) ), 'an edit after publishing still counts' );
 	ok( 0 === sn_seo_feed_build_gmt( array( (object) array( 'post_date_gmt' => '0000-00-00 00:00:00', 'post_modified_gmt' => '' ) ) ), 'no usable date: 0, and core keeps its own' );
+	$future = (object) array( 'post_date_gmt' => '2099-01-01 00:00:00', 'post_modified_gmt' => '2026-10-01 00:00:00' );
+	ok( 1000 === sn_seo_feed_build_gmt( array( $future ), 1000 ), 'a future post_date (published early, keeping its scheduled date) never dates the feed after now' );
 
 	global $wp_query;
 	$wp_query        = new stdClass();
@@ -143,6 +175,7 @@ foreach ( array( 'tags' => 'https://x.test/notes/tags/', 'tag' => 'https://x.tes
 	ok( is_array( $cp ) && 'CollectionPage' === $cp['@type'] && $url === $cp['@id'] && $url === $cp['url'], "$view: a CollectionPage at the canonical" );
 	$bc = sn_schema_breadcrumb_list();
 	ok( is_array( $bc ) && $url . '#breadcrumb' === $bc['@id'] && is_array( $cp ) && $cp['breadcrumb']['@id'] === $bc['@id'], "$view: the breadcrumb the CollectionPage points at exists" );
+	ok( is_array( $bc ) && ( 'tag' === $view ? 'AI & music' : 'Tags' ) === $bc['itemListElement'][2]['name'], "$view: the breadcrumb names the page by its raw name (no texturized &#038;)" );
 	ok( is_array( $bc ) && 3 === count( $bc['itemListElement'] ) && 'https://x.test/notes/' === $bc['itemListElement'][1]['item'] && $url === $bc['itemListElement'][2]['item'], "$view: Home, Notes, then this page" );
 }
 $GLOBALS['__v'] = array( 'tags' => false, 'tag' => false );

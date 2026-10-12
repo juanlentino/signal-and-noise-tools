@@ -140,7 +140,7 @@ function sn_maturity_roadmap_static_board() {
 				// publishes only Reading rhythm and Most read. The FEATURE is untouched:
 				// inc/insights-narration.php still assembles the ai_referrals signal.
 				__( 'Which machines send a reader back: per operator, the ledger\'s crawl counts published beside that operator\'s referred human visits, stated as a sentence each, not a ratio, because crawls are requests and visits are visitor-days. An operator that read the site hundreds of times and sent nobody back is the finding, and a bare 0 would bury it (a thread shared with Machine readability)', 'signal-and-noise-tools' ),
-				__( 'Traffic rhythm flags: the cadence watch now reads views: a quiet week flags against the site\'s own trailing weeks, robust to a viral spike and one-sided by design, read from the rollups already kept, never profiling a reader', 'signal-and-noise-tools' ),
+				__( 'Traffic rhythm flags: the cadence watch now reads views, so a quiet week flags against the site\'s own trailing weeks (robust to a viral spike and one-sided by design), read from the rollups already kept, never profiling a reader', 'signal-and-noise-tools' ),
 				// 2026-09-08: THIRD Analytics retirement, plus a graduation, in one move.
 				// RETIRED: 'Search-side metrics from Search Console'. Chosen because it is the
 				// only row in this column NO TEST PINS (0 references; the others carry 1, 2 and
@@ -164,7 +164,7 @@ function sn_maturity_roadmap_static_board() {
 				// anything to compare. The defect is real and was measured today: the coverage run
 				// stores one option and overwrites it, so the crawl-frequency question cannot be
 				// asked backwards. A baseline was captured by hand to make one comparison possible.
-				__( 'Coverage history kept rather than overwritten: the weekly index check retains its earlier readings, so a change in how often Google crawls can be seen at all; today each run replaces the last, and the question cannot be asked backwards; it lands once two runs have accrued to compare', 'signal-and-noise-tools' ),
+				__( 'Coverage history kept rather than overwritten: the weekly index check retains its earlier readings, so a change in how often Google crawls can be seen at all. Today each run replaces the last, so the question cannot be asked backwards. It lands once two runs have accrued to compare', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Where readers leave to: outbound clicks on citations counted as their own aggregate event, the first idea in this family to require new collection, named as such, and it ships only if the counting stays as blunt as the rest of the ledger', 'signal-and-noise-tools' ),

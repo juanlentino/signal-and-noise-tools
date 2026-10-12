@@ -17,6 +17,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/** The time of the last render change, written before the purge chain runs. */
+const SN_SEO_RENDER_CHANGED_OPT = 'sn_render_changed_gmt';
+
+/**
+ * Record a render change. Hooked on the theme's sn_before_cache_flush, which
+ * fires before any purge leg and before the chain re-warms /, /notes/ and
+ * /provenance/ through Cloudflare: a page re-warmed by this flush must carry
+ * this flush's time, not the previous one (review on #2037). Autoloaded: every
+ * singular reads it.
+ */
+function sn_seo_record_render_change() {
+	update_option( SN_SEO_RENDER_CHANGED_OPT, time(), true );
+}
+add_action( 'sn_before_cache_flush', 'sn_seo_record_render_change', 1, 0 );
+
 /**
  * Shortcodes whose output is computed at render time (live counts, scores),
  * so the post's own dates say nothing about when the page last changed.
@@ -70,10 +85,14 @@ function sn_seo_singular_validator_gmt( $modified_gmt, $render_changed, $compute
  * post that goes live keeps the modified time of its last edit (measured: a
  * note edited Oct 1 and published Oct 11 left the feed dated Oct 6).
  *
- * @param array $posts Feed items (objects with post_date_gmt, post_modified_gmt).
+ * Never later than now: a post published early through wp_publish_post()
+ * keeps its future post_date_gmt.
+ *
+ * @param array    $posts Feed items (objects with post_date_gmt, post_modified_gmt).
+ * @param int|null $now   The ceiling; null is time().
  * @return int GMT timestamp, 0 when no item carries a usable date.
  */
-function sn_seo_feed_build_gmt( $posts ) {
+function sn_seo_feed_build_gmt( $posts, $now = null ) {
 	$max = 0;
 	foreach ( (array) $posts as $post ) {
 		foreach ( array( 'post_date_gmt', 'post_modified_gmt' ) as $field ) {
@@ -87,7 +106,7 @@ function sn_seo_feed_build_gmt( $posts ) {
 			}
 		}
 	}
-	return $max;
+	return $max > 0 ? min( $max, null === $now ? time() : (int) $now ) : 0;
 }
 
 /**
