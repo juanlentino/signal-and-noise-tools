@@ -44,6 +44,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/content-scans-shared.php'; // 2026-10-12: the sentences the native leaf prints too.
+
 /**
  * Render the Pattern Adoption leaf. Hooked into the sn_admin_pattern_adoption_tab
  * action (delegator in inc/admin-render-sections.php) — same wiring as
@@ -73,18 +75,14 @@ function snt_pattern_adoption_render_opportunities_section() {
 	echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
 	echo esc_html__( 'Pattern adoption', 'signal-and-noise-tools' );
 	if ( $last_scan ) {
-		$total = (int) ( $last_scan['counts']['pull_quote'] ?? 0 ) + (int) ( $last_scan['counts']['steps_enumerated'] ?? 0 );
+		$total     = (int) ( $last_scan['counts']['pull_quote'] ?? 0 ) + (int) ( $last_scan['counts']['steps_enumerated'] ?? 0 );
 		$pill_kind = $total > 0 ? 'warn' : 'ok';
-		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' .
-			esc_html( sprintf(
-				/* translators: %d is the count of pattern-adoption opportunities found */
-				_n( '%d opportunity', '%d opportunities', $total, 'signal-and-noise-tools' ),
-				$total
-			) ) . '</span>';
+		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( snt_content_scan_count( $total ) ) . '</span>';
 	}
 	echo '</h2>';
 
-	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans existing /notes posts for blockquote and ordered-list blocks that could be upgraded to the v9.2.0 pull-quote and steps-enumerated patterns. Pure structural detection: no AI calls. Editorial: every upgrade is reviewed before apply.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-fieldset-intro">' . esc_html( snt_pattern_adoption_intro() ) . ' ' . esc_html( snt_content_scan_rows_line() ) . '</p>';
+	snt_content_scan_classic_age( $last_scan );
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
 	wp_nonce_field( 'sn_pattern_adoption_scan' );
@@ -98,22 +96,17 @@ function snt_pattern_adoption_render_opportunities_section() {
 		return;
 	}
 
-	$candidates = (array) ( $last_scan['candidates'] ?? array() );
+	$candidates = array_values( array_filter( (array) ( $last_scan['candidates'] ?? array() ), 'is_array' ) );
 	if ( empty( $candidates ) ) {
 		echo '<p class="sn-empty-note">' . esc_html__( 'No opportunities found. All eligible blocks are either already pattern-upgraded or have been dismissed.', 'signal-and-noise-tools' ) . '</p>';
 		echo '</div>';
 		return;
 	}
 
-	// Collapsed-by-default: wrap candidate rows in <details>.
-	echo '<details class="snt-mt-1">';
-	echo '<summary>' .
-		esc_html( sprintf(
-			/* translators: %d is the count of pattern-adoption candidates to review */
-			_n( 'Review %d candidate', 'Review %d candidates', count( $candidates ), 'signal-and-noise-tools' ),
-			count( $candidates )
-		) ) . '</summary>';
-
+	// 2026-10-12 audit: open, as on the native leaf: the finding, the first
+	// SNT_CONTENT_SCAN_ROWS rows, the rest counted. It was a closed
+	// "Review N candidates" disclosure over every row.
+	echo '<p class="snt-mt-1">' . esc_html( snt_pattern_adoption_finding( $candidates ) ) . '</p>';
 	echo '<div class="snt-scroll-table snt-mt-075">';
 	echo '<table class="widefat striped"><thead><tr>';
 	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Post', 'signal-and-noise-tools' ) . '</th>';
@@ -121,14 +114,14 @@ function snt_pattern_adoption_render_opportunities_section() {
 	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Action', 'signal-and-noise-tools' ) . '</th>';
 	echo '</tr></thead><tbody>';
 
-	foreach ( $candidates as $c ) {
+	foreach ( array_slice( $candidates, 0, SNT_CONTENT_SCAN_ROWS ) as $c ) {
 		echo '<tr>';
 		echo '<td><code>' . esc_html( (string) $c['post_title'] ) . '</code>';
 		if ( ! empty( $c['permalink'] ) ) {
 			echo '<br><small><a href="' . esc_url( (string) $c['permalink'] ) . '" target="_blank" rel="noopener">' . esc_html( (string) $c['permalink'] ) . '</a></small>';
 		}
 		echo '</td>';
-		echo '<td><span class="sn-pill sn-pill--warn">' . esc_html( (string) $c['pattern_type'] ) . '</span></td>';
+		echo '<td><span class="sn-pill sn-pill--warn">' . esc_html( snt_pattern_adoption_label( (string) $c['pattern_type'] ) ) . '</span></td>';
 		echo '<td>';
 		$check_key = 'pull-quote' === $c['pattern_type'] ? 'pattern_adoption_pull_quote' : 'pattern_adoption_steps_enumerated';
 		echo '<button type="button" class="button button-small" data-snt-suggest="1"';
@@ -147,7 +140,7 @@ function snt_pattern_adoption_render_opportunities_section() {
 	}
 	echo '</tbody></table>';
 	echo '</div>';
-	echo '</details>';
+	snt_content_scan_classic_more( count( $candidates ) );
 
 	echo '</div>'; // .sn-fieldset
 }

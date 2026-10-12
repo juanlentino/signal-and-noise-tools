@@ -19,9 +19,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/** Candidates painted before the "+N more" line. */
-const PATTERN_ADOPTION_ROWS = 25;
-
 /**
  * One candidate as a table row: the post (title, permalink), the pattern, and
  * the Suggest + Dismiss pair carrying the classic row's data attributes.
@@ -56,45 +53,16 @@ function pattern_adoption_row( array $c ) {
 	return array(
 		'_key'    => 'pa:' . $type . ':' . $common['data-fingerprint'],
 		'post'    => array( 'html' => $post, 'text' => $title ),
-		'pattern' => array( 'html' => \snt_kit_badge( 'warn', $type ), 'text' => $type ),
+		'pattern' => array( 'html' => \snt_kit_badge( 'warn', \snt_pattern_adoption_label( $type ) ), 'text' => \snt_pattern_adoption_label( $type ) ),
 		// The pair sits in an os-cluster: the action cell the shared script paints its editor into.
 		'action'  => array( 'html' => \snt_kit_tag( 'os-cluster', array( 'gap' => '6' ), $suggest . $dismiss ), 'text' => '' ),
 	);
 }
 
 /**
- * The finding over the queue: candidates, posts, and the count per pattern
- * present, from the rows themselves.
- *
- * @param array<int,array<string,mixed>> $candidates From the scan.
- * @return string
- */
-function pattern_adoption_finding( array $candidates ) {
-	$posts   = array();
-	$by_type = array( 'pull-quote' => 0, 'steps-enumerated' => 0 ); // the ladder's order, whatever the scan's.
-	foreach ( $candidates as $c ) {
-		$posts[ (int) ( $c['post_id'] ?? 0 ) ] = true;
-		$type                                 = (string) ( $c['pattern_type'] ?? '' );
-		$by_type[ $type ]                     = ( $by_type[ $type ] ?? 0 ) + 1;
-	}
-	$parts = array();
-	foreach ( array_filter( $by_type ) as $type => $n ) {
-		$parts[] = number_format_i18n( $n ) . ' ' . $type;
-	}
-	$total = count( $candidates );
-	return sprintf(
-		/* translators: 1: candidates, 2: "N posts", 3: per-pattern counts, e.g. "2 pull-quote, 1 steps-enumerated". */
-		_n( '%1$s candidate in %2$s: %3$s.', '%1$s candidates in %2$s: %3$s.', $total, 'signal-and-noise-tools' ),
-		number_format_i18n( $total ),
-		/* translators: %s: posts holding a candidate. */
-		sprintf( _n( '%s post', '%s posts', count( $posts ), 'signal-and-noise-tools' ), number_format_i18n( count( $posts ) ) ),
-		implode( ', ', $parts )
-	);
-}
-
-/**
- * The review queue, open: the finding, the first PATTERN_ADOPTION_ROWS
- * candidates as a table, and the rest counted.
+ * The review queue, open: the finding, the first SNT_CONTENT_SCAN_ROWS
+ * candidates as a table, and the rest counted, in the classic twin's words
+ * (inc/content-scans-shared.php).
  *
  * @param array<int,array<string,mixed>> $candidates From the scan.
  * @return string
@@ -107,15 +75,14 @@ function pattern_adoption_queue_html( array $candidates ) {
 		array( 'key' => 'action', 'label' => __( 'Action', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
 	);
 	return \snt_kit_ledger(
-		pattern_adoption_finding( $candidates ),
+		\snt_pattern_adoption_finding( $candidates ),
 		$columns,
 		array_map( __NAMESPACE__ . '\\pattern_adoption_row', $candidates ),
-		PATTERN_ADOPTION_ROWS,
+		\SNT_CONTENT_SCAN_ROWS,
 		array(
 			'stack_on_phone' => true,
 			'striped'        => false,
-			/* translators: %s: candidates not shown. */
-			'more'           => __( '+%s more candidates; the list is capped, not complete. Work these, then re-scan to list the rest.', 'signal-and-noise-tools' ),
+			'more'           => \snt_content_scan_more_format(),
 		)
 	);
 }
