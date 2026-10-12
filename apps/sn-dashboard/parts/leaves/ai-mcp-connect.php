@@ -55,7 +55,7 @@ function mcp_connect_status() {
  */
 function mcp_connect_tiles_html( array $state, array $cards ) {
 	list( $read, $write, $adapter, $remote ) = array_pad( $cards, 4, array() );
-	$tools = static fn( $n ) => is_int( $n ) ? sprintf( /* translators: %d: tools. */ _n( '%d tool that can change things', '%d tools that can change things', $n, 'signal-and-noise-tools' ), $n ) : __( 'tools not readable', 'signal-and-noise-tools' );
+	$tools = static fn( $n ) => is_int( $n ) ? sprintf( /* translators: %d: tools. */ _n( '%d tool: changes and AI-billed drafts', '%d tools: changes and AI-billed drafts', $n, 'signal-and-noise-tools' ), $n ) : __( 'tools not readable', 'signal-and-noise-tools' );
 	$tile  = static fn( array $card, $label, $caption ) => \snt_kit_stat( (string) ( $card['value'] ?? '' ), $label, $caption, (string) ( $card['pill']['kind'] ?? '' ) );
 	return \snt_kit_grid(
 		array(
@@ -80,7 +80,7 @@ function mcp_connect_tiles_html( array $state, array $cards ) {
 function mcp_connect_remote_html( array $card ) {
 	$constant_killed = defined( 'SN_MCP_REMOTE_DISABLED' ) && SN_MCP_REMOTE_DISABLED;
 	$door_open       = function_exists( 'sn_mcp_remote_kill_switch_engaged' ) && ! sn_mcp_remote_kill_switch_engaged();
-	$field           = \snt_kit_field( 'checkbox', 'sn_remote_enabled', __( 'Remote analytics door enabled', 'signal-and-noise-tools' ), $door_open, array( 'value' => '1', 'disabled' => $constant_killed ) );
+	$field           = \snt_kit_field( 'checkbox', 'sn_remote_enabled', __( 'Remote door enabled', 'signal-and-noise-tools' ), $door_open, array( 'value' => '1', 'disabled' => $constant_killed ) );
 	// The card's meta is built escaped by the classic builder (it carries <code> and a <br>).
 	$meta = '' !== (string) ( $card['meta_html'] ?? '' ) ? '<p class="snt-prose">' . (string) $card['meta_html'] . '</p>' : '';
 	// The description says what the switch decides; the tile above names the state.
@@ -101,8 +101,8 @@ function paint_ai_mcp_connect( array $ctx ) {
 	if ( 4 === count( $status['cards'] ) ) {
 		$out .= mcp_connect_tiles_html( $status['state'], $status['cards'] );
 		// The two controls side by side: each sits with the door it changes.
-		$explain = 'bound' === ( $status['state']['rw_state'] ?? '' ) ? '' : (string) ( $status['cards'][1]['meta_html'] ?? '' );
-		$out    .= \snt_kit_grid( array( mcp_connect_rw_binding_html( $explain ), mcp_connect_remote_html( $status['cards'][3] ) ), 320, 18 );
+		$rw_state = (string) ( $status['state']['rw_state'] ?? '' );
+		$out     .= \snt_kit_grid( array( mcp_connect_rw_binding_html( $rw_state, sn_admin_mcp_status_off_reason( $status['state'] ) ), mcp_connect_remote_html( $status['cards'][3] ) ), 320, 18 );
 	} else {
 		$out .= mcp_connect_rw_binding_html();
 	}

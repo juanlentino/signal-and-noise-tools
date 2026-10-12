@@ -137,6 +137,17 @@ ok( true === $paged['ok'] && 1.50 === $paged['total'],
 	'AI cost follows next_page and sums all pages (100c + 50c = $1.50)' );
 $GLOBALS['__http_fn'] = null;
 
+// 2026-10-12 audit: the 6-hour caches were not keyed by month, so the first
+// hours of the 1st served last month's full bill as "month to date".
+$GLOBALS['__transients'] = array( SN_SPEND_AI_TRANSIENT => array( 'ok' => true, 'total' => 412.50, 'month' => gmdate( 'Y-m', strtotime( 'first day of last month' ) ) ), SN_SPEND_GH_TRANSIENT => array( 'ok' => true, 'used' => 9999, 'billed' => 0.0 ) );
+$GLOBALS['__http_fn'] = static fn( $url ) => array( 'response' => array( 'code' => 200 ), 'body' => false !== strpos( $url, 'anthropic' ) ? json_encode( array( 'data' => array( array( 'results' => array( array( 'amount' => '25' ) ) ) ), 'has_more' => false ) ) : json_encode( array( 'usageItems' => array( array( 'product' => 'actions', 'unitType' => 'Minutes', 'quantity' => 12, 'netAmount' => 0 ) ) ) ) );
+$GLOBALS['__opts']['sn_spend_gh_token'] = 'ghp_test';
+$fresh_ai = sn_spend_ai_cost();
+$fresh_gh = sn_spend_gh_usage();
+ok( 0.25 === $fresh_ai['total'] && 12 === $fresh_gh['used'], 'a snapshot from last month, or one with no month, is not served this month: both readers read again' );
+ok( gmdate( 'Y-m' ) === $GLOBALS['__transients'][ SN_SPEND_AI_TRANSIENT ]['month'] && 0.25 === sn_spend_ai_cost()['total'], 'the new snapshot carries its month and is served from the cache inside it' );
+$GLOBALS['__http_fn'] = null;
+
 // 15.2.1: the save handler and the fieldset are gone; both credentials are keyring rows
 // (tests/keyring.php pins the verbs, tests/os-leaf-connections-keyring.php the fields).
 

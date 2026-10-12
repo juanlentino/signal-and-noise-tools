@@ -16,6 +16,8 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 function __( $s, $d = null ) { return $s; }
+function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; }
+function number_format_i18n( $n ) { return number_format( (float) $n ); }
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 $GLOBALS['__filters'] = array();
 function add_filter( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__filters'][] = array( $t, $c ); return true; }
@@ -49,29 +51,35 @@ ok( -1 === ( $GLOBALS['__get_users_args']['number'] ?? 0 ) && 'ID' === ( $GLOBAL
 // ─── (2) order of concern ───
 $d = sn_hibp_surface_data();
 $h = sn_hibp_health( $d, $NOW );
-ok( 'recommended' === $h['status'] && 2 === $h['flagged'] && false !== strpos( $h['summary'], '2 of 3' ), 'flagged accounts → recommended, summary derived from the counts (2 of 3 checked)' );
+ok( 'recommended' === $h['status'] && 2 === $h['flagged'] && false !== strpos( $h['summary'], '2 of 3 checked accounts use passwords' ), 'flagged accounts → recommended, summary derived from the counts (2 of 3 checked)' );
+$rows = sn_hibp_surface_rows( $d, $h );
+ok( 'Flagged at login' === $rows[0]['label'] && '2 of 3 checked accounts' === $rows[0]['value'] && 'warn' === $rows[0]['tone'], 'the flagged row says what its X of Y counts: flagged of the checked accounts (2026-10-12 audit)' );
 
 $GLOBALS['__users'] = array( 1 => array( 'verdict' => 'not_breached' ), 2 => array( 'verdict' => 'not_breached' ), 3 => null );
 $GLOBALS['__set_stats'] = array( 'breached_count' => 4, 'unavailable_count' => 1, 'last_breached_at' => 1, 'last_unavailable_at' => $NOW - SN_HIBP_SURFACE_RECENT_SECS );
 $h = sn_hibp_health( sn_hibp_surface_data(), $NOW );
-ok( 'recommended' === $h['status'] && true === $h['unavailable_recent'] && false !== strpos( $h['summary'], 'fail-closed' ), 'a fail-closed rejection exactly 7 days old is RECENT → recommended, and the summary names fail-closed' );
+ok( 'recommended' === $h['status'] && true === $h['unavailable_recent'] && false !== strpos( $h['summary'], 'could not be reached while a password was being set (1 refusal' ) && false === strpos( $h['summary'], 'fail-closed' ), 'a refusal exactly 7 days old is RECENT → recommended, and the summary says what happened in plain words (2026-10-12 audit: "fail-closed")' );
 $GLOBALS['__set_stats']['last_unavailable_at'] = $NOW - SN_HIBP_SURFACE_RECENT_SECS - 1;
 $h = sn_hibp_health( sn_hibp_surface_data(), $NOW );
-ok( 'good' === $h['status'] && false === $h['unavailable_recent'] && false !== strpos( $h['summary'], '2 of 3 account(s) checked' ) && false !== strpos( $h['summary'], '4 breached password(s) refused' ), 'one second older is NOT recent → good, and the good summary still reports the set-time counts' );
+ok( 'good' === $h['status'] && false === $h['unavailable_recent'] && false !== strpos( $h['summary'], '2 of 3 accounts have been checked at login' ) && false === strpos( $h['summary'], 'refused' ) && false === strpos( $h['summary'], '(s)' ), 'one second older is NOT recent → good; the summary says how many accounts were checked, and leaves the counts to the rows beside it (2026-10-12 audit)' );
 $GLOBALS['__set_stats'] = array( 'breached_count' => 0, 'unavailable_count' => 0, 'last_breached_at' => 0, 'last_unavailable_at' => 0 );
 $h = sn_hibp_health( sn_hibp_surface_data(), $NOW );
 ok( 'good' === $h['status'], 'clean everything → good' );
 $h = sn_hibp_health( array( 'set' => $GLOBALS['__set_stats'], 'login' => array( 'checked' => 0, 'breached' => 0, 'users' => 3 ), 'set_enabled' => true, 'login_enabled' => true ), $NOW );
-ok( 'good' === $h['status'] && false !== strpos( $h['summary'], '0 of 3 account(s) checked' ), 'nobody checked yet is still good — but the summary says 0 of 3, not "all clean"' );
+ok( 'good' === $h['status'] && false !== strpos( $h['summary'], '0 of 3 accounts have been checked' ), 'nobody checked yet is still good — but the summary says 0 of 3, not "all clean"' );
 
 // a mode OFF outranks everything
 $GLOBALS['__users'] = array( 1 => array( 'verdict' => 'breached' ) );
 $GLOBALS['__login_off'] = true;
 $h = sn_hibp_health( sn_hibp_surface_data(), $NOW );
-ok( 'recommended' === $h['status'] && false !== strpos( $h['summary'], 'SN_HIBP_LOGIN_DISABLED' ) && false === strpos( $h['summary'], 'SN_HIBP_SET_DISABLED' ), 'login mode OFF → recommended naming the constant, even with a flagged account (nothing is being measured)' );
+ok( 'recommended' === $h['status'] && false !== strpos( $h['summary'], 'switched off in wp-config.php for logins' ) && false === strpos( $h['summary'], 'SN_HIBP' ) && false === strpos( $h['summary'], 'below this line' ), 'login mode OFF → recommended, saying which check is off in plain words, even with a flagged account (nothing is being measured)' );
+$rows = sn_hibp_surface_rows( sn_hibp_surface_data(), $h );
+ok( 'not measured (switched off)' === $rows[0]['value'] && null === $rows[0]['tone'] && 'not measured (switched off)' !== $rows[1]['value'], 'a mode switched off prints "not measured" in its own row, never a count; the other mode keeps its figure' );
 $GLOBALS['__set_off'] = true;
 $h = sn_hibp_health( sn_hibp_surface_data(), $NOW );
-ok( false !== strpos( $h['summary'], 'SN_HIBP_SET_DISABLED' ) && false !== strpos( $h['summary'], ' and ' ), 'both OFF → both constants named' );
+ok( false !== strpos( $h['summary'], 'for new passwords and logins' ), 'both OFF → both checks named' );
+$rows = sn_hibp_surface_rows( sn_hibp_surface_data(), $h );
+ok( array( 'not measured (switched off)' ) === array_values( array_unique( array_column( $rows, 'value' ) ) ), 'both OFF → no row prints a count' );
 $GLOBALS['__set_off'] = false; $GLOBALS['__login_off'] = false;
 
 // ─── (4) never critical ───
@@ -86,6 +94,9 @@ ok( 'sn_hibp_site_health_result' === ( $tests['direct']['sn_hibp_breach_check'][
 $row = sn_hibp_site_health_result();
 ok( 'recommended' === $row['status'] && 'sn_hibp_breach_check' === $row['test'] && false !== strpos( $row['description'], '1 of 1' ), 'the row reads the same verdict (one flagged of one checked) and is HTML-escaped' );
 ok( 'Security' === ( $row['badge']['label'] ?? '' ), 'Security badge, beside the SSRF pinning row' );
+// Review on #2022: the good sentence no longer repeats the set-time counts, so
+// the Site Health row lists the three figures itself, as the leaf does.
+ok( false !== strpos( $row['description'], '<li>Flagged at login: 1 of 1 checked accounts</li>' ) && false !== strpos( $row['description'], '<li>Refused when set: 0</li>' ) && false !== strpos( $row['description'], '<li>Refused, service down: 0</li>' ), 'the Site Health row carries the flagged, refused-when-set and unreachable figures' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

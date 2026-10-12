@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/mcp-connect-parts.php'; // the write door's off reason and picker, the remote door, the adapter sentence (2026-10-12).
+
 /**
  * PURE: three glance cards from injected state. Unknown counts stay unknown
  * (null → "allowlist unavailable", never "0 tools"). No WP reads.
@@ -69,21 +71,13 @@ function sn_admin_mcp_status_cards( array $state ) {
 	switch ( $rw_state ) {
 		case 'constant_killed':
 			$rw_value = __( 'Killed in wp-config', 'signal-and-noise-tools' );
-			$rw_meta  = sprintf(
-				/* translators: %s: SN_MCP_RW_DISABLED wrapped in <code>. */
-				__( 'The %s constant is set in wp-config. Display-only: this page cannot flip it.', 'signal-and-noise-tools' ),
-				'<code>SN_MCP_RW_DISABLED</code>'
-			);
-			$rw_pill = array( 'kind' => 'err', 'text' => __( 'killed', 'signal-and-noise-tools' ) );
+			$rw_meta  = sn_admin_mcp_status_off_reason( $state );
+			$rw_pill  = array( 'kind' => 'err', 'text' => __( 'killed', 'signal-and-noise-tools' ) );
 			break;
 		case 'option_off':
 			$rw_value = __( 'Switched off', 'signal-and-noise-tools' );
-			$rw_meta  = sprintf(
-				/* translators: %s: sn_mcp_rw_enabled wrapped in <code>. */
-				__( 'The %s option is off.', 'signal-and-noise-tools' ),
-				'<code>sn_mcp_rw_enabled</code>'
-			);
-			$rw_pill = array( 'kind' => 'warn', 'text' => __( 'off', 'signal-and-noise-tools' ) );
+			$rw_meta  = sn_admin_mcp_status_off_reason( $state );
+			$rw_pill  = array( 'kind' => 'warn', 'text' => __( 'off', 'signal-and-noise-tools' ) );
 			break;
 		case 'bound':
 			// $rw_name stays RAW here: sn_admin_glance_grid() esc_html()s every
@@ -108,13 +102,14 @@ function sn_admin_mcp_status_cards( array $state ) {
 			break;
 		case 'unresolvable':
 			$rw_value = __( 'Bound credential unresolvable', 'signal-and-noise-tools' );
-			$rw_meta  = __( 'The bound UUID no longer matches an owned Application Password.', 'signal-and-noise-tools' );
+			// Short: the credential box says why, in full (2026-10-12 audit, said twice).
+			$rw_meta  = __( 'Bind a current one.', 'signal-and-noise-tools' );
 			$rw_pill  = array( 'kind' => 'err', 'text' => __( 'unresolvable', 'signal-and-noise-tools' ) );
 			break;
 		case 'inactive':
 		default:
 			$rw_value = __( 'INACTIVE', 'signal-and-noise-tools' );
-			$rw_meta  = __( 'No credential bound, so every /mcp-rw call is denied.', 'signal-and-noise-tools' );
+			$rw_meta  = __( 'No credential bound yet.', 'signal-and-noise-tools' );
 			$rw_pill  = array( 'kind' => 'warn', 'text' => __( 'unbound', 'signal-and-noise-tools' ) );
 			break;
 	}
@@ -139,7 +134,7 @@ function sn_admin_mcp_status_cards( array $state ) {
 	);
 
 	$adapter_card = array(
-		'label'     => __( 'Adapter', 'signal-and-noise-tools' ),
+		'label'     => __( 'Core MCP adapter', 'signal-and-noise-tools' ),
 		'value'     => $adapter_active
 			? __( 'Present', 'signal-and-noise-tools' )
 			: __( 'Not installed', 'signal-and-noise-tools' ),
@@ -156,7 +151,7 @@ function sn_admin_mcp_status_cards( array $state ) {
 			$remote_value = __( 'Killed in wp-config', 'signal-and-noise-tools' );
 			$remote_meta  = sprintf(
 				/* translators: %s: SN_MCP_REMOTE_DISABLED wrapped in <code>. */
-				__( 'The %s constant is set in wp-config, so the toggle below cannot reopen this door.', 'signal-and-noise-tools' ),
+				__( 'The %s constant is set in wp-config.php, so the Remote door enabled switch cannot reopen this door.', 'signal-and-noise-tools' ),
 				'<code>SN_MCP_REMOTE_DISABLED</code>'
 			);
 			$remote_pill = array( 'kind' => 'err', 'text' => __( 'killed', 'signal-and-noise-tools' ) );
@@ -165,7 +160,7 @@ function sn_admin_mcp_status_cards( array $state ) {
 			$remote_value = __( 'On, but unusable', 'signal-and-noise-tools' );
 			$remote_meta  = sprintf(
 				/* translators: %s: SN_BRIDGE_TOKEN wrapped in <code>. */
-				__( 'The door is on but %s is not defined in wp-config.php, so the bridge route is not registered. The endpoint answers 404 — the same as a closed door — on purpose.', 'signal-and-noise-tools' ),
+				__( 'The door is on but %s is not defined in wp-config.php, so the bridge route is not registered. The endpoint answers 404, the same as a closed door, on purpose.', 'signal-and-noise-tools' ),
 				'<code>SN_BRIDGE_TOKEN</code>'
 			);
 			$remote_pill = array( 'kind' => 'err', 'text' => __( 'secret missing', 'signal-and-noise-tools' ) );
@@ -180,7 +175,7 @@ function sn_admin_mcp_status_cards( array $state ) {
 			$remote_value = __( 'Switched off', 'signal-and-noise-tools' );
 			$remote_meta  = sprintf(
 				/* translators: %s: sn_mcp_remote_enabled wrapped in <code>. */
-				__( 'The %s option is off, so the endpoint answers 404.', 'signal-and-noise-tools' ),
+				__( 'The door’s switch is off (the %s option), so the endpoint answers 404.', 'signal-and-noise-tools' ),
 				'<code>sn_mcp_remote_enabled</code>'
 			);
 			$remote_pill = array( 'kind' => 'warn', 'text' => __( 'off', 'signal-and-noise-tools' ) );
@@ -305,7 +300,7 @@ function sn_admin_render_mcp_remote_toggle() {
 			<input type="checkbox" name="sn_remote_enabled" value="1"
 				<?php checked( $door_open ); ?>
 				<?php disabled( $constant_killed ); ?> />
-			<?php esc_html_e( 'Remote analytics door enabled', 'signal-and-noise-tools' ); ?>
+			<?php esc_html_e( 'Remote door enabled', 'signal-and-noise-tools' ); ?>
 		</label>
 		<?php submit_button( __( 'Save', 'signal-and-noise-tools' ), 'secondary' ); ?>
 	</form>

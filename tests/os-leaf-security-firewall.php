@@ -59,9 +59,9 @@ fw_opts( $configured + array(
 ) );
 $classic = snt_leaf_classic_html( 'sn_admin_render_firewall_section' );
 $kit     = snt_leaf_paint( 'security', 'firewall' );
-ok( false !== strpos( $kit, '3,015 events' ) && false !== strpos( $kit, '>skip<' ) && false !== strpos( $kit, '1,843' ) && false !== strpos( $kit, 'firewallCustom r1' ) && false !== strpos( $kit, 'block × 971' ), 'read: the count, by action, the top rule with its action' );
+ok( false !== strpos( $kit, '3,015 events' ) && false !== strpos( $kit, '>skipped<' ) && false === strpos( $kit, '>skip<' ) && false !== strpos( $kit, '1,843' ) && false !== strpos( $kit, 'firewallCustom r1' ) && false !== strpos( $kit, 'blocked × 971' ), 'read: the count, by action in words (2026-10-12 audit: never the API key), the top rule with its action' );
 ok( false !== strpos( $kit, 'Top paths acted on' ) && strpos( $kit, '>/<' ) < strpos( $kit, '/wp-json/wp-abilities/v1/abilities' ) && false !== strpos( $kit, 'Top countries acted on' ) && false !== strpos( $kit, 'grouped dataset is not on this zone' ), 'the log\'s tops, heaviest first, and the raw-dataset note' );
-ok( false !== strpos( $classic, '3,015 events, 24 hours' ) && false !== strpos( $classic, '<td>skip</td>' ) && false !== strpos( $classic, '/wp-json/wp-abilities/v1/abilities' ) && false !== strpos( $classic, 'grouped dataset is not on this zone' ), 'the classic leaf paints the same reading' );
+ok( false !== strpos( $classic, '3,015 events, 24 hours' ) && false !== strpos( $classic, '<td>skipped</td>' ) && false !== strpos( $classic, '/wp-json/wp-abilities/v1/abilities' ) && false !== strpos( $classic, 'grouped dataset is not on this zone' ), 'the classic leaf paints the same reading' );
 ok( 1 === substr_count( $kit, 'os-arg-action="sn_cf_monitor_refresh"' ) && false !== strpos( $kit, 'Refresh reads the token, the edge and the firewall again' ) && false !== strpos( $classic, 'value="sn_cf_monitor_refresh"' ), 'one Refresh on each leaf, saying what it refreshes' );
 ok( false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $kit, 'heading="Token"' ) && false === strpos( $kit, 'heading="Cache"' ), 'only the firewall: no Edge, Token or Cache here' );
 // 15.3.1: two columns: what happened (events, rules) left; to what (paths, countries) right.
@@ -95,6 +95,8 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_firewall_section' );
 $kit     = snt_leaf_paint( 'security', 'firewall' );
 ok( false !== strpos( $kit, '>SSL mode<' ) && false !== strpos( $kit, '>Full (strict)<' ) && false !== strpos( $kit, '>TLS 1.2<' ) && false !== strpos( $kit, 'snt-dot--ok' ), 'judged settings in words with an ok dot' );
 ok( false !== strpos( $kit, '>Development mode<' ) && 2 === substr_count( $kit, 'snt-dot--err' ) && 4 === substr_count( $kit, 'snt-dot--ok' ), 'two err dots (development mode on, the disabled rule) against four ok (three settings, the enabled rule)' );
+// 2026-10-12 audit: the drift was a dot and a tint; the value now says what was expected.
+ok( false !== strpos( $kit, '>on, expected off<' ) && false !== strpos( $classic, '<td>on, expected off</td>' ) && false === strpos( $kit, '>Full (strict), expected' ), 'a drifted setting says what was expected, in words, on both twins; one that matches does not' );
 ok( false !== strpos( $kit, 'Also set: Security level medium · Browser integrity check on.' ), 'the readings are one quiet line' );
 ok( false !== strpos( $kit, 'The token lacks Zone › DNS › Read' ) && false !== strpos( $kit, '<os-notice tone="warning"' ), 'the refused DNSSEC read is a warning notice naming the scope' );
 ok( false !== strpos( $kit, '>Custom rules</h4>' ) && false !== strpos( $kit, '>Old guard<' ) && false !== strpos( $kit, '>disabled<' ) && strpos( $kit, '>Custom rules</h4>' ) > strpos( $kit, 'heading="Edge posture"' ), 'custom rules by name; a disabled one says so' );
@@ -130,7 +132,12 @@ ok( array() === snt_leaf_classic_markers( $kit ) && array( 'cf_monitor_refresh' 
 // (c) Before the monitor ever ran, the box is there too: the posture does not wait for Cloudflare.
 fw_opts( array() );
 $kit = snt_leaf_paint( 'security', 'firewall' );
-ok( false !== strpos( $kit, 'The monitor has not run yet' ) && '' !== fw_pinning_box( $kit ) && strpos( $kit, 'heading="Firewall, 24 hours"' ) < strpos( $kit, 'heading="Outbound pinning"' ), 'never run: the pinning box still paints under the Firewall box' );
+ok( false !== strpos( $kit, 'The monitor has not run yet' ) && '' !== fw_pinning_box( $kit ) && strpos( $kit, 'heading="Firewall, 24 hours"' ) < strpos( $kit, 'heading="Outbound pinning"' ), 'never run: the pinning box still paints after the Firewall box' );
+// 2026-10-12 audit: unconfigured or never run, the Firewall box is a sentence and a button; the two short boxes share a row.
+ok( 0 === strpos( $kit, snt_leaf_row() . '<os-section heading="Firewall, 24 hours"' ) && 1 === substr_count( $kit, snt_leaf_row() ) && strpos( $kit, '</os-grid>' ) > strpos( $kit, 'heading="Outbound pinning"' ), 'never run: Firewall and Outbound pinning share one row instead of stacking at full width' );
+// #23: the pinning box was native-only.
+$classic = snt_leaf_classic_html( 'sn_admin_render_firewall_section' );
+ok( false !== strpos( $classic, 'Outbound pinning' ) && false !== strpos( $classic, 'present, the pin fires on every outbound request' ) && false !== strpos( $classic, 'none recorded' ), 'classic: the same Outbound pinning readout, in the same words' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

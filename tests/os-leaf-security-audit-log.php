@@ -77,7 +77,11 @@ $GLOBALS['__options']['sn_audit_log_v1'] = array(
 		array( 'ts' => time() - 10800, 'user' => 'carol' ),
 	),
 );
-$GLOBALS['__options']['limit_login_lockouts'] = array( time() - 100, time() - 500 );
+// LLA stores each lockout's END time and drops expired ones only at its next
+// cleanup (LocalLockoutManager, LockoutCleanupService): two still running, one over.
+$GLOBALS['__options']['limit_login_lockouts'] = array( '10.0.0.1' => time() + 600, '10.0.0.2' => time() + 1200, '10.0.0.3' => time() - 500 );
+$GLOBALS['__options']['limit_login_lockouts_total'] = 7; // LLA's own running count of every lockout
+$GLOBALS['__options']['sn_audit_lla_last_lockouts_total'] = 5;
 
 $classic = snt_leaf_classic_html( 'snt_audit_log_render_tab' );
 $kit     = snt_leaf_paint( 'security', 'audit-log' );
@@ -89,10 +93,14 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: 
 
 // ── Glance hero: last-24h totals, 7d trend, unique IPs, LLA status.
 ok( false !== strpos( $kit, 'value="9"' ) && false !== strpos( $kit, 'caption="5 failed · 4 recon"' ), 'last-24h totals: 9 all, "5 failed · 4 recon"' );
-ok( false !== strpos( $kit, 'value="+100%"' ) && false !== strpos( $kit, 'caption="9 vs 0 prior · rising"' ), 'the 7d-vs-prior trend is shown (from-zero growth reads as +100%), pill folded into the caption' );
-ok( false !== strpos( $kit, 'rising' ) && false !== strpos( $kit, 'tone="warning"' ), 'the rising trend paints a warning pill' );
+// 2026-10-12 audit: growth from zero read "+100%", a percentage of nothing.
+ok( false !== strpos( $kit, 'value="new" label="Last 7 days"' ) && false !== strpos( $kit, 'caption="9 vs 0 the 7 days before · new"' ) && false === strpos( $kit, '+100%' ), 'the 7-day trend from a zero baseline reads "new (9 vs 0)", never +100%, pill folded into the caption' );
+ok( false !== strpos( $kit, 'tone="warning"' ), 'the new activity paints a warning pill' );
 ok( false !== strpos( $kit, 'value="2"' ), 'unique attackers (24h) and active lockouts both read 2' );
-ok( false !== strpos( $kit, 'locked' ), 'two active lockouts paint the "locked" LLA pill' );
+ok( false !== strpos( $kit, 'locked' ) && false !== strpos( $kit, 'value="2" label="Lockouts now"' ), 'two lockouts still running (of three entries, one over) paint the "locked" pill' );
+ok( false !== strpos( $kit, '<os-fact label="Latest lockout ends">' ) && false !== strpos( $classic, 'Latest lockout ends: <strong>' ) && false === strpos( $kit, 'Most recent lockout' ), 'the latest timestamp is said as the END of a lockout, on both twins' );
+ok( false !== strpos( $kit, 'Lockouts (polled daily)' ) && false !== strpos( $classic, 'Lockouts (polled daily)' ), 'the Lockouts column says it is polled daily, on both twins' );
+ok( false === strpos( $kit . $classic, 'login_success' ) && false === strpos( $kit . $classic, 'counter bucket' ) && false === strpos( $kit . $classic, 'ephemeral transient' ) && false === strpos( $kit, 'limit-login-attempts-reloaded</p>' ), 'no developer words on either twin: no login_success, counter buckets, ephemeral transient, or a bare plugin slug' );
 
 // ── Counter timeline table: the same day-bucket, the same counts.
 ok( false !== strpos( $kit, '&quot;mfa_detail&quot;:&quot;2 / 1 / 1&quot;' ), 'native audit renders populated MFA subsets' );
@@ -178,7 +186,7 @@ $GLOBALS['__options']['limit_login_lockouts'] = $saved_lockouts;
 // ── The prune-now action, handled inline: paints the same stats notice the
 // classic leaf echoes, without ever going through the shared PRG.
 $kit = snt_leaf_paint( 'security', 'audit-log', array( 'post' => array( 'sn_action' => 'audit_prune_now' ) ) );
-ok( false !== strpos( $kit, 'Prune complete.' ) && false !== strpos( $kit, 'LLA delta +2' ) && false !== strpos( $kit, 'tone="success"' ) && array() === snt_leaf_folds( $kit ), 'the inline prune-now paints a success notice with the real stats, and nothing folds' );
+ok( false !== strpos( $kit, 'Prune complete.' ) && false !== strpos( $kit, '0 days of counts deleted, 0 login records deleted, and 2 new lockouts from Limit Login Attempts.' ) && false !== strpos( $kit, 'tone="success"' ) && array() === snt_leaf_folds( $kit ), 'the inline prune-now paints a success notice with the real stats in words (2 new lockouts: LLA\'s total went from 5 to 7), and nothing folds' );
 
 // ── The inline pipeline must not re-fire the prune on a second paint of the
 // SAME state object — the state contract is ONE paint's $_POST. Reproduces
@@ -207,13 +215,15 @@ ok( array() === snt_leaf_folds( $first_paint . $second_paint ), 'neither shared-
 // several times the LLA card's height, so it stands alone at full width and
 // only the two controls (retention, maintenance) still share a row.
 $kitP = snt_leaf_paint( 'security', 'audit-log' );
+// 2026-10-12 audit: the lockouts box stood alone at full width; it joins the two controls.
 ok(
-	1 === substr_count( $kitP, snt_leaf_row() ),
-	'the controls are painted in 1 paired row -- ' . substr_count( $kitP, snt_leaf_row() )
+	1 === substr_count( $kitP, snt_leaf_row( 3, 260 ) ),
+	'the lockouts box and the two controls are painted in one row of three -- ' . substr_count( $kitP, snt_leaf_row( 3, 260 ) )
 );
-$al_pair = substr( $kitP, (int) strpos( $kitP, snt_leaf_row() ) );
+$al_pair = substr( $kitP, (int) strpos( $kitP, snt_leaf_row( 3, 260 ) ) );
 $al_pair = substr( $al_pair, 0, (int) strpos( $al_pair, '</os-grid>' ) );
-ok( false === strpos( $al_pair, 'Recent successful logins' ) && false !== strpos( $al_pair, 'heading="Retention"' ) && false !== strpos( $al_pair, 'heading="Maintenance"' ), 'the logins ledger is not in a pair; the pair is retention + maintenance' );
+ok( false === strpos( $al_pair, 'Recent successful logins' ) && false !== strpos( $al_pair, 'heading="Login lockouts (Limit Login Attempts)"' ) && false !== strpos( $al_pair, 'heading="Retention"' ) && false !== strpos( $al_pair, 'heading="Maintenance"' ), 'the logins ledger is not in the row; the row is lockouts, retention and maintenance' );
+ok( 1 === preg_match( '/<os-form[^>]*os-confirm="Delete the audit records older than 90 days now\? This cannot be undone\."[^>]*os-confirm-danger/', $kitP ) && false !== strpos( snt_leaf_classic_html( 'snt_audit_log_render_tab' ), 'data-snt-confirm="Delete the audit records older than 90 days now? This cannot be undone." data-snt-confirm-danger="1">Prune now' ), 'Prune now asks first, on both twins (it deletes rows)' );
 
 // ── Live-shaped preview: ~180 successful logins by two users, a few failed.
 $al_live = array();

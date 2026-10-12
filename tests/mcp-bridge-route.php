@@ -42,6 +42,7 @@ function register_rest_route( $ns, $route, $args = array() ) { $GLOBALS['__route
 
 require __DIR__ . '/../inc/mcp/mcp-remote-guard.php';
 require __DIR__ . '/../inc/mcp/mcp-bridge-route.php';
+require __DIR__ . '/../inc/abilities-lifecycle-guard.php'; // the door the call log files a dispatch under
 
 echo "Group: the secret reader treats absent and empty alike\n";
 ok( '' === sn_bridge_secret(), 'undefined constant -> empty string' );
@@ -184,6 +185,7 @@ class SNB_Ability {
 	public function __construct( $s ) { $this->slug = $s; }
 	public function execute( $args ) {
 		$GLOBALS['__executed'][] = array( $this->slug, $args );
+		$GLOBALS['__door_seen']  = function_exists( 'sn_ability_guard_door' ) ? sn_ability_guard_door() : 'no guard';
 		// The throwing half of the stub. An ability CAN throw — a DB error, a
 		// remote timeout, a TypeError inside a callback — and the handler's
 		// cleanup has to survive it. See the throw group at the bottom.
@@ -286,6 +288,7 @@ ok( 1 === count( $GLOBALS['__executed'] ), 'the ability executed exactly once' )
 ok( array( 'range' => 7 ) === $GLOBALS['__executed'][0][1], 'and received its args' );
 ok( false === sn_bridge_is_verified(), 'THE OTHER ONE THAT MATTERS: the verified flag is cleared after dispatch' );
 ok( in_array( 'user_has_cap', $GLOBALS['__removed'], true ), 'and the capability filter was removed' );
+ok( 'remote' === ( $GLOBALS['__door_seen'] ?? '' ) && 'direct' === sn_ability_guard_door(), 'the call log files the dispatch under the remote door, not the plugin\'s own polling, and the door resets after it (2026-10-12 audit)' );
 
 echo "Group: the cleanup survives an ability that THROWS — the reason the finally exists\n";
 // NOT COVERED BY THE GROUP ABOVE, and that is the whole point of adding it.

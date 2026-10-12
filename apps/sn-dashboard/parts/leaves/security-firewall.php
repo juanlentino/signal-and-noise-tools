@@ -74,8 +74,13 @@ function paint_security_firewall( array $ctx ) {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return \snt_kit_empty( __( 'This account cannot manage options.', 'signal-and-noise-tools' ) );
 	}
-	// #1599: the pinning posture stands alone at full width under the
-	// Cloudflare reading, in every state of the monitor.
+	// #1599: the pinning posture under the Cloudflare reading. 2026-10-12
+	// audit: unconfigured or not yet run, the Firewall box is one sentence and
+	// a button, so the two short boxes share a row instead of stacking.
+	$record = function_exists( __NAMESPACE__ . '\\cloudflare_monitor_record' ) ? cloudflare_monitor_record() : null;
+	if ( ! is_array( $record ) || empty( $record['configured'] ) ) {
+		return \snt_kit_grid( array( firewall_cloudflare_html(), firewall_pinning_html() ) );
+	}
 	return firewall_cloudflare_html() . firewall_pinning_html();
 }
 
