@@ -40,7 +40,7 @@ function sn_wf_textarea( $name, $value, $label, $rows = 3, $class = '', $hint = 
 /** One map row: title, line, Show on page. @param string $prefix @param array $row */
 function sn_wf_map_row( $prefix, array $row ) {
 	echo '<div class="sn-rsm-row sn-rsm-card" data-rsm-row><div class="sn-rsm-card-head">';
-	sn_rsm_input( $prefix . '[title]', (string) ( $row['title'] ?? '' ), 'Title', 'Drafting' );
+	sn_rsm_input( $prefix . '[title]', (string) ( $row['title'] ?? '' ), 'Map step', 'Drafting' );
 	sn_rsm_controls();
 	echo '</div>';
 	sn_rsm_input( $prefix . '[line]', (string) ( $row['line'] ?? '' ), 'Line', 'One sentence on what happens here' );
@@ -79,36 +79,42 @@ function sn_admin_render_workflow_section() {
 	$doc = is_array( $doc ) ? $doc : sn_workflow_normalize( array() );
 	$s   = $doc['sample'];
 
+	$state = sn_workflow_page_state();
+	$where = 'publish' === $state['status'] ? '<a href="' . esc_url( home_url( '/workflow' ) ) . '" target="_blank" rel="noopener">/workflow</a>' : '<code>/workflow</code>';
+	// The window's words (apps/sn-dashboard/parts/leaves/content-workflow.php), 2026-10-12 audit.
+	$reorder = 'Add, remove and reorder rows with their buttons; the page shows them in this order.';
+
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-rsm-form">';
 	wp_nonce_field( 'sn_workflow_save' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Workflow page</h2>';
-	echo '<p class="sn-fieldset-intro">This form is the editor for the <a href="' . esc_url( home_url( '/workflow' ) ) . '" target="_blank" rel="noopener">/workflow</a> page. Saving regenerates it; the page does not exist until a save has something to show.</p>';
+	echo '<p class="sn-fieldset-intro">This form is the editor for the ' . wp_kses_post( $where ) . ' page. Saving regenerates it; the page does not exist until a save has something to show. ' . esc_html( sn_workflow_state_line( $state ) ) . '</p>';
 
-	sn_rsm_input( 'workflow[title]', $doc['title'], 'Title', 'Workflow' );
+	sn_rsm_input( 'workflow[title]', $doc['title'], 'Page title', 'Workflow' );
 	sn_wf_textarea( 'workflow[dek]', $doc['dek'], 'Dek (also the meta description)', 2 );
 	sn_rsm_input( 'workflow[map_heading]', $doc['map_heading'], 'Map heading', 'The rest of the set' );
 	sn_rsm_input( 'workflow[rules_heading]', $doc['rules_heading'], 'Rules heading', 'Field rules' );
-	sn_rsm_input( 'workflow[proof_heading]', $doc['proof_heading'], 'Proof heading', 'Check it yourself' );
+	sn_rsm_input( 'workflow[proof_heading]', $doc['proof_heading'], 'Proof heading', 'Check it yourself', 'Each heading shows only over rows that are on the page.' );
 
 	echo '<h3>Sample</h3>';
-	sn_rsm_input( 'workflow[sample][label]', $s['label'], 'Label', 'Sample' );
-	sn_rsm_input( 'workflow[sample][title]', $s['title'], 'Title', '' );
+	sn_rsm_input( 'workflow[sample][label]', $s['label'], 'Sample label', 'Sample' );
+	sn_rsm_input( 'workflow[sample][title]', $s['title'], 'Sample title', '' );
 	sn_wf_textarea( 'workflow[sample][intro]', $s['intro'], 'Intro', 3 );
 	sn_wf_textarea( 'workflow[sample][outcome]', $s['outcome'], 'Outcome (optional)', 3, '', 'Shown before the Body. Write it to stand on its own.' );
-	sn_wf_textarea( 'workflow[sample][body]', $s['body'], 'Body (shown exactly as typed, whitespace included)', 14, 'code' );
+	sn_wf_textarea( 'workflow[sample][body]', $s['body'], 'Sample body', 14, 'code', 'Shown exactly as typed, whitespace included, in a monospace block.' );
 
-	echo '<h3>Map</h3>';
-	echo '<p class="sn-field-helper">A row appears on the public page only when "Show on page" is checked. Unchecked rows stay here and nowhere else.</p>';
+	echo '<h3>Map steps</h3>';
+	echo '<p class="sn-field-helper">A map step appears on the public page only when "Show on page" is checked. Unchecked steps stay here and nowhere else. ' . esc_html( $reorder ) . '</p>';
 	echo '<div class="sn-rsm-list" data-rsm-list="workflow-map">';
 	foreach ( $doc['map'] as $i => $row ) {
 		sn_wf_map_row( 'workflow[map][' . $i . ']', $row );
 	}
 	echo '</div><template data-rsm-tpl="workflow-map" data-rsm-token="__M__">';
 	sn_wf_map_row( 'workflow[map][__M__]', array() );
-	echo '</template><button type="button" class="button sn-rsm-add" data-rsm-add="workflow-map">+ Add map row</button>';
+	echo '</template><button type="button" class="button sn-rsm-add" data-rsm-add="workflow-map">+ Add map step</button>';
 
 	echo '<h3>Rules</h3>';
+	echo '<p class="sn-field-helper">' . esc_html( $reorder ) . '</p>';
 	echo '<div class="sn-rsm-list" data-rsm-list="workflow-rules">';
 	foreach ( $doc['rules'] as $i => $row ) {
 		sn_wf_rule_row( 'workflow[rules][' . $i . ']', $row );
@@ -117,8 +123,8 @@ function sn_admin_render_workflow_section() {
 	sn_wf_rule_row( 'workflow[rules][__R__]', array() );
 	echo '</template><button type="button" class="button sn-rsm-add" data-rsm-add="workflow-rules">+ Add rule</button>';
 
-	echo '<h3>Proof</h3>';
-	echo '<p class="sn-field-helper">Links to evidence a reader can check. A row appears only when "Show on page" is ticked and its link is a path on this site (/maturity/) or an https URL.</p>';
+	echo '<h3>Proof links</h3>';
+	echo '<p class="sn-field-helper">Links to evidence a reader can check. A row shows only when "Show on page" is checked and its link is a path on this site (/maturity/) or an https URL. ' . esc_html( $reorder ) . '</p>';
 	echo '<div class="sn-rsm-list" data-rsm-list="workflow-proof">';
 	foreach ( $doc['proof'] as $i => $row ) {
 		sn_wf_proof_row( 'workflow[proof][' . $i . ']', $row );
