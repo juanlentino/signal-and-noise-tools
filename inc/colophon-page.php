@@ -71,7 +71,7 @@ function sn_colophon_items() {
 		'records'    => array( __( 'Records', 'signal-and-noise-tools' ), __( 'each note I publish gets a fingerprint (SHA-256) of a record holding its text, title, date and version, a digital signature from the site\'s key (Ed25519) and a timestamp written into Bitcoin (OpenTimestamps); when the text changes after a version is signed, a new signed version is added and the earlier ones are kept, so anyone can check that a note is unchanged and when it was published at Verify a Note.', 'signal-and-noise-tools' ) ),
 		'trust'      => array( __( 'Systems', 'signal-and-noise-tools' ), __( 'every system documented at the maturity index, where each system has a page explaining what it does.', 'signal-and-noise-tools' ) ),
 		'ai'         => array( __( 'AI', 'signal-and-noise-tools' ), __( 'engineered with Claude (Anthropic) as a pair programmer, meaning an AI that helps write the site\'s code.', 'signal-and-noise-tools' ) ),
-		'interop'    => array( __( 'Interop', 'signal-and-noise-tools' ), __( 'the site\'s admin dashboard runs inside OpenStation, a free WordPress plugin that turns it into a desktop with windows and a dock, which readers of the public site never see; Daniel López Sánchez, one of OpenStation\'s maintainers, contributed to this site\'s OpenStation integration.', 'signal-and-noise-tools' ) ),
+		'interop'    => array( __( 'Interop', 'signal-and-noise-tools' ), __( 'the site\'s admin runs inside OpenStation, a WordPress plugin that turns it into a desktop; Daniel López Sánchez, one of its maintainers, contributed to the integration.', 'signal-and-noise-tools' ) ),
 	);
 	return apply_filters( 'sn_colophon_items', $items );
 }

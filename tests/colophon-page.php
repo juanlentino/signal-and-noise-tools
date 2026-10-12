@@ -95,7 +95,7 @@ foreach ( array( 'stay mine', 'only person', 'exactly the code', 'load quickly',
 	ok( false === strpos( $html, $claim ), "no promise or claim beyond a checkable fact: '$claim' (owner 2026-10-06)" );
 }
 ok( 1 === preg_match( '#<strong>Platform:</strong> WordPress with Full Site Editing, so#', $html ), 'the platform row has one colon, after its label' );
-ok( false !== strpos( $html, 'OpenStation' ) && false !== strpos( $html, 'which readers of the public site never see' ), 'interop says what OpenStation is and that readers never see it' );
+ok( false !== strpos( $html, 'OpenStation' ) && false !== strpos( $html, 'a WordPress plugin that turns it into a desktop;' ) && false === strpos( $html, 'which readers of the public site never see' ) && false === strpos( $html, 'windows and a dock' ), 'interop says what OpenStation is in one clause (owner trim 2026-10-12)' );
 
 echo "\nGroup: links (every existing destination kept)\n";
 ok( false !== strpos( $html, '<a href="https://example.com/workflow/">pair programmer<span class="screen-reader-text">: how I work with AI</span></a>' ) && false === strpos( $html, 'aria-label' ), 'the AI link keeps its visible name plus hidden context, no aria-label' );
@@ -103,7 +103,7 @@ ok( false !== strpos( $html, 'href="https://example.com/maturity/"' ), 'systems 
 ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise-tools"' ) && false !== strpos( $html, '>Signal &amp; Noise Tools<span class="screen-reader-text"> (opens in a new tab)</span></a>' ), 'companion plugin links its repo, named, and says it opens a new tab' );
 ok( substr_count( $html, '<span class="screen-reader-text"> (opens in a new tab)</span></a>' ) === substr_count( $html, 'target="_blank"' ) - 2, 'every new-tab link in the rows and opening says so to a screen reader (the two changelog links in the unchanged version line excepted)' );
 ok( false !== strpos( $html, 'href="https://openstation.me/"' ), 'interop links OpenStation' );
-ok( false !== strpos( $html, '<a href="https://github.com/AllTerrainDeveloper" target="_blank" rel="noopener noreferrer">Daniel López Sánchez<span class="screen-reader-text"> (opens in a new tab)</span></a>, one of OpenStation&#039;s maintainers, contributed to this site&#039;s OpenStation integration.' ), 'interop credits Daniel López Sánchez as one of the maintainers, for his contribution to the integration, linked (owner 2026-10-06)' );
+ok( false !== strpos( $html, '<a href="https://github.com/AllTerrainDeveloper" target="_blank" rel="noopener noreferrer">Daniel López Sánchez<span class="screen-reader-text"> (opens in a new tab)</span></a>, one of its maintainers, contributed to the integration.' ), 'interop credits Daniel López Sánchez as one of the maintainers, for his contribution to the integration, linked (owner 2026-10-06; trimmed 2026-10-12)' );
 ok( false !== strpos( $html, 'href="https://example.com/verify"' ) && false !== strpos( $html, '>Verify a Note</a>' ), 'records links where a reader checks a note' );
 ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise"' ), 'the opening links the public source' );
 ok( substr_count( $html, 'target="_blank" rel="noopener noreferrer"' ) >= 5, 'external links carry the codebase target/rel convention' );
@@ -145,7 +145,7 @@ add_filter( 'sn_colophon_urls', function ( $urls ) {
 } );
 $u = sn_colophon_shortcode();
 ok( false === strpos( $u, 'github.com/juanlentino/signal-and-noise-tools"' ) && false !== strpos( $u, '<strong>Companion plugin:</strong> Signal &amp; Noise Tools adds' ), 'blanked repo URL: the plugin row degrades to plain text' );
-ok( false === strpos( $u, 'openstation.me' ) && false !== strpos( $u, 'inside OpenStation, a free' ), 'blanked OpenStation URL: plain text' );
+ok( false === strpos( $u, 'openstation.me' ) && false !== strpos( $u, 'inside OpenStation, a WordPress plugin' ), 'blanked OpenStation URL: plain text' );
 ok( false === strpos( $u, 'signal-and-noise/blob' ) && false !== strpos( $u, 'Theme v11.1.10-test' ), 'blanked theme changelog → unlinked version, stamp text intact' );
 $GLOBALS['__filters'] = array();
 
