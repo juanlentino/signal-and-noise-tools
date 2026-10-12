@@ -130,6 +130,8 @@ function sn_health_contrast_usage_admin_sheets() {
 		// 2026-10-12: the shell confirm dialog's ink, enqueued with the
 		// desktop commands on admin_enqueue_scripts only.
 		'snt-confirm-ink.css',
+		// 2026-10-12: the link color derived from the accent, same enqueue.
+		'snt-link.css',
 	);
 }
 

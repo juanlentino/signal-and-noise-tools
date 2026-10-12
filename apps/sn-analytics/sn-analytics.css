@@ -520,7 +520,7 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] .snt-vie
  * design, and these links should look like their neighbours. The `color` below
  * DOES apply, which is why the rule stays. */
 .snt-app[data-os-app="sn-analytics"] :is(a, .button-link) {
-	color: var(--sn-an-accent);
+	color: var(--snt-link, var(--sn-an-accent));
 }
 
 .snt-app[data-os-app="sn-analytics"] :is(.sn-an-grid, .sn-an-cols, .sn-an-content-grid, .sn-an-journeys-grid, .sn-an-overview-bento, .sn-an-header-grid, .sn-an-cwv-grid) {
