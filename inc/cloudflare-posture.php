@@ -261,6 +261,42 @@ function sn_cf_posture_findings( array $record ) {
 }
 
 /**
+ * A judged check as both painters say it: the value, and when it drifted,
+ * what was expected ("Flexible, expected Full (strict)").
+ *
+ * @param array{value:string,ok:bool,expected?:string} $check One `checks` row of sn_cf_posture_model().
+ * @return string
+ */
+function sn_cf_posture_check_text( array $check ) {
+	if ( ! empty( $check['ok'] ) || '' === (string) ( $check['expected'] ?? '' ) ) {
+		return (string) $check['value'];
+	}
+	/* translators: 1: the setting's value, 2: the value the check expects. */
+	return sprintf( __( '%1$s, expected %2$s', 'signal-and-noise-tools' ), (string) $check['value'], (string) $check['expected'] );
+}
+
+/**
+ * A firewall action key as words (2026-10-12 audit: `managed_challenge` and
+ * `jschallenge` were painted as the API spells them). An unknown key is kept.
+ *
+ * @param string $action The API's action key.
+ * @return string
+ */
+function sn_cf_action_word( $action ) {
+	$words = array(
+		'block'             => __( 'blocked', 'signal-and-noise-tools' ),
+		'managed_challenge' => __( 'managed challenge', 'signal-and-noise-tools' ),
+		'challenge'         => __( 'interactive challenge', 'signal-and-noise-tools' ),
+		'jschallenge'       => __( 'JavaScript challenge', 'signal-and-noise-tools' ),
+		'log'               => __( 'logged only', 'signal-and-noise-tools' ),
+		'skip'              => __( 'skipped', 'signal-and-noise-tools' ),
+		'allow'             => __( 'allowed', 'signal-and-noise-tools' ),
+		'bypass'            => __( 'bypassed', 'signal-and-noise-tools' ),
+	);
+	return $words[ (string) $action ] ?? (string) $action;
+}
+
+/**
  * The posture as rows a painter can lay out without knowing the API: the
  * judged settings and DNSSEC as `checks` (label, value in words, ok), the
  * readings as `also` (label, value), the custom rules as `rules` (name,
@@ -269,7 +305,7 @@ function sn_cf_posture_findings( array $record ) {
  * the same thing.
  *
  * @param array<string,mixed>|null $record
- * @return array{state:string,checks:array<int,array{label:string,value:string,ok:bool}>,also:array<int,array{label:string,value:string}>,rules:array<int,array{name:string,action:string,enabled:bool}>,refused:array<int,string>}
+ * @return array{state:string,checks:array<int,array{label:string,value:string,ok:bool,expected:string}>,also:array<int,array{label:string,value:string}>,rules:array<int,array{name:string,action:string,enabled:bool}>,refused:array<int,string>}
  */
 function sn_cf_posture_model( $record = null ) {
 	$record = null === $record ? sn_cf_posture_read() : $record;
@@ -319,7 +355,9 @@ function sn_cf_posture_model( $record = null ) {
 			$raw  = (string) $values[ $id ];
 			$word = $words[ $raw ] ?? ( 'min_tls_version' === $id ? 'TLS ' . $raw : ( 'challenge_ttl' === $id ? human_time_diff( 0, (int) $raw ) : $raw ) );
 			if ( null !== $expected ) {
-				$out['checks'][] = array( 'label' => $labels[ $id ], 'value' => $word, 'ok' => empty( $drift[ $id ] ) );
+				// 2026-10-12 audit: the verdict in words, not a dot's color alone.
+				$want            = $words[ $expected ] ?? ( 'min_tls_version' === $id ? sprintf( /* translators: %s: TLS version. */ __( 'TLS %s or later', 'signal-and-noise-tools' ), $expected ) : $expected );
+				$out['checks'][] = array( 'label' => $labels[ $id ], 'value' => $word, 'ok' => empty( $drift[ $id ] ), 'expected' => $want );
 			} else {
 				if ( 'always_online' === $id && 'on' === $raw && sn_cf_posture_stale_headers_sent() ) {
 					$word = __( 'on, so Cloudflare ignores stale-while-revalidate and stale-if-error; the edge lifetime still applies', 'signal-and-noise-tools' );
@@ -329,7 +367,7 @@ function sn_cf_posture_model( $record = null ) {
 		}
 	}
 	if ( ! empty( $record['dnssec']['available'] ) ) {
-		$out['checks'][] = array( 'label' => __( 'DNSSEC', 'signal-and-noise-tools' ), 'value' => (string) $record['dnssec']['status'], 'ok' => empty( $drift['dnssec'] ) );
+		$out['checks'][] = array( 'label' => __( 'DNSSEC', 'signal-and-noise-tools' ), 'value' => (string) $record['dnssec']['status'], 'ok' => empty( $drift['dnssec'] ), 'expected' => __( 'active', 'signal-and-noise-tools' ) );
 	}
 	foreach ( (array) ( $record['rules']['rules'] ?? array() ) as $r ) {
 		$out['rules'][] = array( 'name' => '' !== (string) $r['description'] ? (string) $r['description'] : (string) $r['id'], 'action' => (string) $r['action'], 'enabled' => ! empty( $r['enabled'] ) );

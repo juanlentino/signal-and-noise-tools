@@ -30,6 +30,7 @@ if ( ! defined( 'SN_AUDIT_LOGIN_DISPLAY_MAX' ) ) {
 }
 
 require_once __DIR__ . '/audit-log-admin-logins.php'; // the open logins log and its finding (2026-10-11)
+require_once __DIR__ . '/audit-log-admin-parts.php'; // the words both twins print (2026-10-12)
 
 /**
  * Main render entrypoint for the Audit log sub-tab.
@@ -41,12 +42,7 @@ function snt_audit_log_render_tab() {
 		if ( current_user_can( 'manage_options' ) ) {
 			$stats = snt_audit_prune_impl();
 			wp_admin_notice(
-				'<strong>Prune complete.</strong> ' . esc_html( sprintf(
-					'%d counter bucket(s) dropped, %d login row(s) dropped, LLA delta +%d.',
-					$stats['counter_buckets_dropped'],
-					$stats['login_rows_dropped'],
-					$stats['lla_delta']
-				) ),
+				'<strong>' . esc_html__( 'Prune complete.', 'signal-and-noise-tools' ) . '</strong> ' . esc_html( snt_audit_prune_notice_text( $stats ) ),
 				array( 'type' => 'success', 'dismissible' => true )
 			);
 		}
@@ -65,13 +61,13 @@ function snt_audit_log_render_tab() {
 
 	// ── MAIN: intro + at-a-glance + the wide data tables ──
 	$retention_intro = (int) sn_setting( 'audit.retention_days', 90 );
-	echo '<p class="sn-prose">Captures login-related events (successful logins, failed attempts, our /wp-login.php and unauth /wp-admin reconnaissance 404s, password resets, LLA lockouts). ' . esc_html( $retention_intro ) . '-day retention. Hashed-IP unique-attacker count via ephemeral transient: no raw or hashed IPs are stored long-term.</p>';
+	echo '<p class="sn-prose">' . esc_html( snt_audit_log_intro_text( $retention_intro ) ) . '</p>';
 	snt_audit_log_render_hero( $summary );
 	snt_audit_log_render_counter_table( $counters );
 	snt_audit_log_render_logins_table( $logins );
 
 	// ── RAIL: passive readouts + config ──
-	sn_admin_shell_rail( 'Audit status and maintenance' );
+	sn_admin_shell_rail( 'Lockouts, retention and maintenance' );
 	snt_audit_log_render_lla_card( $summary['lla'] );
 	snt_audit_log_render_retention_form();
 	snt_audit_log_render_prune_form();
@@ -93,7 +89,9 @@ function snt_audit_log_glance_cards( $summary ) {
 	$prior = (int) $summary['last_7d_vs_prior']['prior'];
 	$locks = (int) $summary['lla']['active_lockouts'];
 
-	if ( $pct > 0 ) {
+	if ( 0 === $prior && $cur > 0 ) {
+		$trend_pill = array( 'kind' => 'warn', 'text' => 'new' );
+	} elseif ( $pct > 0 ) {
 		$trend_pill = array( 'kind' => 'warn', 'text' => 'rising' );
 	} elseif ( $pct < 0 ) {
 		$trend_pill = array( 'kind' => 'ok', 'text' => 'easing' );
@@ -110,9 +108,10 @@ function snt_audit_log_glance_cards( $summary ) {
 			'meta_html' => esc_html( (int) $summary['last_24h']['failed_total'] . ' failed · ' . (int) $summary['last_24h']['recon_total'] . ' recon' ),
 		),
 		array(
-			'label'     => 'Last 7d trend',
-			'value'     => ( $pct > 0 ? '+' : '' ) . $pct . '%',
-			'meta_html' => esc_html( $cur . ' vs ' . $prior . ' prior' ),
+			// 2026-10-12 audit: growth from zero read "+100%", a percentage of nothing.
+			'label'     => 'Last 7 days',
+			'value'     => 0 === $prior && $cur > 0 ? 'new' : ( $pct > 0 ? '+' : '' ) . $pct . '%',
+			'meta_html' => esc_html( $cur . ' vs ' . $prior . ' the 7 days before' ),
 			'pill'      => $trend_pill,
 		),
 		array(
@@ -121,9 +120,9 @@ function snt_audit_log_glance_cards( $summary ) {
 			'meta_html' => 'hashed, not stored',
 		),
 		array(
-			'label'     => 'LLA status',
+			'label'     => 'Lockouts now',
 			'value'     => number_format_i18n( $locks ),
-			'meta_html' => 'active lockouts',
+			'meta_html' => 'active, from Limit Login Attempts',
 			'pill'      => $locks > 0 ? array( 'kind' => 'warn', 'text' => 'locked' ) : array( 'kind' => 'ok', 'text' => 'clear' ),
 		),
 	);
@@ -161,7 +160,7 @@ function snt_audit_log_render_counter_table( $counters ) {
 	echo '<th scope="col">MFA: rejected / limited / other</th>';
 	echo '<th scope="col">Login 404</th>';
 	echo '<th scope="col">Admin 404</th>';
-	echo '<th scope="col">Lockouts</th>';
+	echo '<th scope="col">Lockouts (polled daily)</th>';
 	echo '<th scope="col">Pwd reset</th>';
 	echo '<th scope="col">Unique IPs</th>';
 	echo '</tr></thead>';
@@ -190,12 +189,11 @@ function snt_audit_log_render_counter_table( $counters ) {
  * Render the small LLA summary card with a deep-link to LLA settings.
  */
 function snt_audit_log_render_lla_card( $lla ) {
-	$recent = $lla['most_recent_lockout_ts']
-		? wp_date( 'Y-m-d H:i:s', (int) $lla['most_recent_lockout_ts'] )
-		: 'never';
 	echo '<div class="sn-callout">';
-	echo '<p class="sn-callout-h">limit-login-attempts-reloaded</p>';
-	echo '<p>Active lockouts: <strong>' . (int) $lla['active_lockouts'] . '</strong>. Most recent lockout: <code>' . esc_html( $recent ) . '</code>.</p>';
+	echo '<p class="sn-callout-h">' . esc_html__( 'Login lockouts (Limit Login Attempts)', 'signal-and-noise-tools' ) . '</p>';
+	foreach ( snt_audit_log_lla_rows( $lla ) as $row ) {
+		echo '<p>' . esc_html( $row['label'] ) . ': <strong>' . esc_html( $row['value'] ) . '</strong>.</p>';
+	}
 	echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=limit-login-attempts' ) ) . '" class="button button-secondary">Manage in LLA →</a></p>';
 	echo '</div>';
 }
@@ -212,8 +210,9 @@ function snt_audit_log_render_prune_form() {
 	wp_nonce_field( 'sn_audit_prune_now' );
 	echo '<input type="hidden" name="sn_action" value="audit_prune_now">';
 	$retention_days = (int) sn_setting( 'audit.retention_days', 90 );
-	echo '<p class="sn-prose">Manually run the daily prune now. Drops counter buckets and login_success rows older than ' . esc_html( $retention_days ) . ' days, plus polls LLA for new lockouts.</p>';
-	echo '<p><button type="submit" class="button">Prune now</button></p>';
+	/* translators: %s: retention days. */
+	echo '<p class="sn-prose">' . esc_html( sprintf( __( 'Run the daily cleanup now: it deletes the daily counts and the successful-login records older than %s days, and checks Limit Login Attempts for new lockouts.', 'signal-and-noise-tools' ), number_format_i18n( $retention_days ) ) ) . '</p>';
+	echo '<p><button type="submit" class="button" data-snt-confirm="' . esc_attr( snt_audit_prune_confirm_text( $retention_days ) ) . '" data-snt-confirm-danger="1">Prune now</button></p>';
 	echo '</form>';
 
 	// v4.10.0: download the audit log (counters + login successes) as CSV/JSON.
@@ -252,7 +251,7 @@ function snt_audit_log_render_retention_form() {
 	echo '<h2 class="sn-fieldset-h">Retention</h2>';
 	echo '<label class="sn-field-label" for="sn_audit_retention">Retention (days)</label>';
 	echo '<input type="number" id="sn_audit_retention" name="audit_retention_days" class="small-text" min="7" max="365" value="' . esc_attr( (string) $retention ) . '">';
-	echo '<p class="sn-field-helper">How long to keep counter buckets and <code>login_success</code> rows. Range 7–365. Daily cron prune enforces this.</p>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'How long to keep the daily counts and the successful-login records, 7 to 365 days. A daily cleanup deletes anything older.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save retention</button></div>';
 	echo '</form>';
 }

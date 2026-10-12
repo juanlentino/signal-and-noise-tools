@@ -47,6 +47,7 @@ const SN_AUDIT_IPS_TTL        = 25 * HOUR_IN_SECONDS;
 const SN_AUDIT_LOGIN_SUCCESS_CAP = 500;
 const SN_AUDIT_PRUNE_HOOK     = 'sn_audit_log_prune';
 const SN_AUDIT_LLA_LAST_COUNT_OPT = 'sn_audit_lla_last_lockout_count';
+const SN_AUDIT_LLA_LAST_TOTAL_OPT = 'sn_audit_lla_last_lockouts_total';
 
 // Subsets of login_failed, never additional events in summary totals.
 const SN_AUDIT_MFA_FAILURE_TYPES = array( 'mfa_failed', 'mfa_throttled', 'mfa_other' );
@@ -327,12 +328,26 @@ function snt_audit_prune_impl() {
 	} ) );
 	$dropped_rows = $before - count( $blob['login_success'] );
 
-	// LLA polling fallback for lockout_triggered.
-	$lla_delta   = 0;
-	$lla_current = is_array( get_option( 'limit_login_lockouts', array() ) )
-		? count( get_option( 'limit_login_lockouts', array() ) )
-		: 0;
-	$lla_last = (int) get_option( SN_AUDIT_LLA_LAST_COUNT_OPT, 0 );
+	// LLA polling fallback for lockout_triggered. 2026-10-12 audit: the count
+	// of entries in `limit_login_lockouts` is net of the ones LLA's cleanup
+	// dropped, so lockouts that came and went between polls were never
+	// counted. LLA's own running total (`limit_login_lockouts_total`,
+	// LocalLockoutManager) counts every lockout; the delta of that is the
+	// day's figure, baselined on first read so the switch adds no spike.
+	$lla_delta = 0;
+	$lla_total = get_option( 'limit_login_lockouts_total', null );
+	if ( is_numeric( $lla_total ) ) {
+		$lla_current = (int) $lla_total;
+		$lla_last    = get_option( SN_AUDIT_LLA_LAST_TOTAL_OPT, null );
+		$lla_last    = is_numeric( $lla_last ) ? (int) $lla_last : $lla_current;
+		$lla_opt     = SN_AUDIT_LLA_LAST_TOTAL_OPT;
+	} else {
+		$lla_current = is_array( get_option( 'limit_login_lockouts', array() ) )
+			? count( get_option( 'limit_login_lockouts', array() ) )
+			: 0;
+		$lla_last    = (int) get_option( SN_AUDIT_LLA_LAST_COUNT_OPT, 0 );
+		$lla_opt     = SN_AUDIT_LLA_LAST_COUNT_OPT;
+	}
 	if ( $lla_current > $lla_last ) {
 		$lla_delta = $lla_current - $lla_last;
 		$today     = snt_audit_today_key();
@@ -342,7 +357,7 @@ function snt_audit_prune_impl() {
 		}
 		$blob['counters'][ $today ]['lockout_triggered'] = (int) ( $blob['counters'][ $today ]['lockout_triggered'] ?? 0 ) + $lla_delta;
 	}
-	update_option( SN_AUDIT_LLA_LAST_COUNT_OPT, $lla_current, false );
+	update_option( $lla_opt, $lla_current, false );
 
 	update_option( SN_AUDIT_OPTION, $blob, true );
 
@@ -355,7 +370,7 @@ function snt_audit_prune_impl() {
 
 /**
  * Safe read of LLA's `limit_login_lockouts` option.
- * Returns count + most-recent timestamp. Tolerates schema drift / missing option.
+ * Returns the active count + the latest lockout's end time. Tolerates schema drift / missing option.
  *
  * @return array { active_lockouts: int, most_recent_lockout_ts: int|null }
  */
@@ -365,12 +380,19 @@ function snt_audit_read_lla_summary_impl() {
 		return array( 'active_lockouts' => 0, 'most_recent_lockout_ts' => null );
 	}
 
-	$count       = count( $lockouts );
+	// LLA stores each IP's lockout END time (time() + duration,
+	// LocalLockoutManager) and drops expired entries only at its next
+	// cleanup, so "active" is an entry still in the future (2026-10-12 audit:
+	// every entry was counted). The latest timestamp is when the latest
+	// lockout ends, not when it began.
+	$count       = 0;
 	$most_recent = null;
 	foreach ( $lockouts as $ts ) {
-		if ( is_numeric( $ts ) && (int) $ts > (int) $most_recent ) {
-			$most_recent = (int) $ts;
+		if ( ! is_numeric( $ts ) ) {
+			continue;
 		}
+		$count      += (int) $ts > time() ? 1 : 0;
+		$most_recent = (int) $ts > (int) $most_recent ? (int) $ts : $most_recent;
 	}
 
 	return array(

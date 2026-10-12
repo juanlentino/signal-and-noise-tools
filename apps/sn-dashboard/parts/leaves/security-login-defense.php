@@ -38,16 +38,10 @@ function login_defense_status_html( $status ) {
 		return '<p class="snt-prose">' . \snt_kit_esc( __( 'Login guard status unavailable (the Worker is not reachable or not deployed yet).', 'signal-and-noise-tools' ) ) . '</p>';
 	}
 	$rows = array();
-	$ver  = (string) ( $status['version'] ?? '' );
-	if ( '' !== $ver ) {
+	if ( '' !== (string) ( $status['version'] ?? '' ) ) {
 		$rows[] = array(
 			'label' => __( 'Worker', 'signal-and-noise-tools' ),
-			'value' => sprintf(
-				/* translators: 1: worker version, 2: deploy timestamp */
-				__( 'sn-login-guard v%1$s (deployed %2$s)', 'signal-and-noise-tools' ),
-				$ver,
-				(string) ( $status['deployed_at'] ?? '?' )
-			),
+			'value' => \sn_login_defense_worker_text( $status ),
 		);
 	}
 	$rows[] = array(
@@ -126,9 +120,11 @@ function login_defense_digest_html( array $d ) {
 		$checkbox . $hints,
 		array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) )
 	);
+	// 2026-10-12 audit: the second button floated under Save with nothing to
+	// say what it does; it carries its own line now.
 	$test_form = \snt_kit_form(
 		'security_digest_save',
-		\snt_kit_field( 'hidden', 'sn_digest_test', '', '1' ),
+		'<p class="snt-hint">' . \snt_kit_esc( __( 'Sends this week’s digest to the admin address now, whether or not the weekly email is on.', 'signal-and-noise-tools' ) ) . '</p>' . \snt_kit_field( 'hidden', 'sn_digest_test', '', '1' ),
 		array( 'submit' => __( 'Send test digest', 'signal-and-noise-tools' ) )
 	);
 
@@ -159,18 +155,12 @@ function paint_security_login_defense( array $ctx ) {
 		$status_inner .= \snt_kit_door( __( 'View login defense analytics →', 'signal-and-noise-tools' ), $analytics_url );
 	}
 	$status_box = \snt_kit_section( __( 'Login guard status', 'signal-and-noise-tools' ), $status_inner );
-	// 17.2.1: boxes share a row. A side that paints nothing (module absent)
-	// leaves the status box at full width.
-	$breach = login_defense_breach_html();
-	$out    = \snt_kit_grid( array( $status_box, $breach ) );
-
-	// v7.2.1: the digest settings card mounts AFTER the status card (mirrors
-	// the classic leaf's own ordering — see inc/login-defense.php).
-	if ( function_exists( 'snt_security_digest_render_settings' ) ) {
-		$out .= login_defense_digest_html( login_defense_digest_state() );
-	}
-
-	return $out;
+	// 17.2.1: boxes share a row. 2026-10-12 audit: the digest's two forms sat
+	// alone at full width under them, half the window empty; the three boxes
+	// are of a height, so they share one row. A side that paints nothing
+	// (module absent) is dropped from the row.
+	$digest = function_exists( 'snt_security_digest_render_settings' ) ? login_defense_digest_html( login_defense_digest_state() ) : '';
+	return \snt_kit_grid( array( $status_box, login_defense_breach_html(), $digest ), 280 );
 }
 
 add_filter(

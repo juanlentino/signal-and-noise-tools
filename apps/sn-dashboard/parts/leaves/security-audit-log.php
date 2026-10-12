@@ -69,7 +69,7 @@ function audit_log_counter_table_html( array $counters ) {
 		array( 'key' => 'mfa_detail', 'label' => __( 'MFA: rejected / limited / other', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'wp_login_404', 'label' => __( 'Login 404', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'wp_admin_unauth_404', 'label' => __( 'Admin 404', 'signal-and-noise-tools' ), 'align' => 'end' ),
-		array( 'key' => 'lockout_triggered', 'label' => __( 'Lockouts', 'signal-and-noise-tools' ), 'align' => 'end' ),
+		array( 'key' => 'lockout_triggered', 'label' => __( 'Lockouts (polled daily)', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'password_reset', 'label' => __( 'Pwd reset', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'unique_ips_count', 'label' => __( 'Unique IPs', 'signal-and-noise-tools' ), 'align' => 'end' ),
 	);
@@ -81,25 +81,20 @@ function audit_log_counter_table_html( array $counters ) {
 }
 
 /**
- * The LLA status card: active lockouts + most recent, with a door to the
- * plugin's own settings screen (a foreign admin page, never a raw <a>).
+ * The lockouts box: what Limit Login Attempts reports now, with a door to its
+ * own screen (a foreign admin page, never a raw <a>). 2026-10-12 audit: it
+ * was headed with the classic rail's leftover title and led by the plugin's
+ * slug, alone at full width; now it is named for what it shows, in the row
+ * with Retention and Maintenance, and the latest timestamp says it is an end.
  *
  * @param array{active_lockouts:int,most_recent_lockout_ts:int|null} $lla From snt_audit_get_summary_impl()['lla'].
  * @return string
  */
 function audit_log_lla_html( array $lla ) {
-	$recent = $lla['most_recent_lockout_ts']
-		? wp_date( 'Y-m-d H:i:s', (int) $lla['most_recent_lockout_ts'] )
-		: __( 'never', 'signal-and-noise-tools' );
-	$body = '<p class="snt-prose">' . \snt_kit_esc( __( 'limit-login-attempts-reloaded', 'signal-and-noise-tools' ) ) . '</p>'
-		. \snt_kit_kv(
-			array(
-				array( 'label' => __( 'Active lockouts', 'signal-and-noise-tools' ), 'value' => number_format_i18n( (int) $lla['active_lockouts'] ) ),
-				array( 'label' => __( 'Most recent lockout', 'signal-and-noise-tools' ), 'value' => (string) $recent ),
-			)
-		)
+	$body = '<p class="snt-prose">' . \snt_kit_esc( __( 'Read from the Limit Login Attempts Reloaded plugin, which locks an address out after repeated failures; its own screen manages them.', 'signal-and-noise-tools' ) ) . '</p>'
+		. \snt_kit_kv( function_exists( 'snt_audit_log_lla_rows' ) ? snt_audit_log_lla_rows( $lla ) : array() )
 		. \snt_kit_door( __( 'Manage in LLA', 'signal-and-noise-tools' ) . ' →', admin_url( 'admin.php?page=limit-login-attempts' ) );
-	return \snt_kit_section( __( 'Audit status and maintenance', 'signal-and-noise-tools' ), $body );
+	return \snt_kit_section( __( 'Login lockouts (Limit Login Attempts)', 'signal-and-noise-tools' ), $body );
 }
 
 /**
@@ -117,7 +112,7 @@ function audit_log_retention_form_html() {
 		array(
 			'min'  => 7,
 			'max'  => 365,
-			'hint' => __( 'How long to keep counter buckets and login_success rows. Range 7-365. Daily cron prune enforces this.', 'signal-and-noise-tools' ),
+			'hint' => __( 'How long to keep the daily counts and the successful-login records, 7 to 365 days. A daily cleanup deletes anything older.', 'signal-and-noise-tools' ),
 		)
 	);
 	return \snt_kit_section(
@@ -139,11 +134,17 @@ function audit_log_maintenance_html() {
 		'<p class="snt-prose">' . \snt_kit_esc(
 			sprintf(
 				/* translators: %s: retention days. */
-				__( 'Manually run the daily prune now. Drops counter buckets and login_success rows older than %s days, plus polls LLA for new lockouts.', 'signal-and-noise-tools' ),
-				$retention_days
+				__( 'Run the daily cleanup now: it deletes the daily counts and the successful-login records older than %s days, and checks Limit Login Attempts for new lockouts.', 'signal-and-noise-tools' ),
+				number_format_i18n( $retention_days )
 			)
 		) . '</p>',
-		array( 'submit' => __( 'Prune now', 'signal-and-noise-tools' ), 'pipeline' => 'inline' )
+		array(
+			'submit'   => __( 'Prune now', 'signal-and-noise-tools' ),
+			'pipeline' => 'inline',
+			// 2026-10-12 audit: it deletes rows, and asked nothing first on either twin.
+			'confirm'  => function_exists( 'snt_audit_prune_confirm_text' ) ? snt_audit_prune_confirm_text( $retention_days ) : null,
+			'danger'   => true,
+		)
 	);
 
 	$export_json_url = wp_nonce_url( admin_url( 'admin-post.php?action=sn_audit_export&format=json' ), 'sn_audit_export', 'sn_audit_export_nonce' );
@@ -188,15 +189,7 @@ function paint_security_audit_log( array $ctx ) {
 		$stats = snt_audit_prune_impl();
 		$out  .= \snt_kit_notice(
 			'ok',
-			'<b>' . \snt_kit_esc( __( 'Prune complete.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc(
-				sprintf(
-					/* translators: 1: counter buckets dropped, 2: login rows dropped, 3: LLA delta. */
-					__( '%1$d counter bucket(s) dropped, %2$d login row(s) dropped, LLA delta +%3$d.', 'signal-and-noise-tools' ),
-					(int) $stats['counter_buckets_dropped'],
-					(int) $stats['login_rows_dropped'],
-					(int) $stats['lla_delta']
-				)
-			)
+			'<b>' . \snt_kit_esc( __( 'Prune complete.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( snt_audit_prune_notice_text( $stats ) )
 		);
 	}
 
@@ -205,21 +198,15 @@ function paint_security_audit_log( array $ctx ) {
 	$logins   = snt_audit_get_login_successes_impl( 30 );
 
 	$retention_intro = (int) sn_setting( 'audit.retention_days', 90 );
-	$out .= '<p class="snt-prose">' . \snt_kit_esc(
-		sprintf(
-			/* translators: %d: retention days. */
-			__( 'Captures login-related events (successful logins, failed attempts, our /wp-login.php and unauth /wp-admin reconnaissance 404s, password resets, LLA lockouts). %d-day retention. Hashed-IP unique-attacker count via ephemeral transient: no raw or hashed IPs are stored long-term.', 'signal-and-noise-tools' ),
-			$retention_intro
-		)
-	) . '</p>';
+	$out .= '<p class="snt-prose">' . \snt_kit_esc( snt_audit_log_intro_text( $retention_intro ) ) . '</p>';
 	$out .= audit_log_glance_html( $summary );
 	$out .= audit_log_counter_table_html( $counters );
-	// The counter table above keeps the full width, and so does the open logins
-	// ledger (up to 50 rows, several times the LLA card's height). The LLA
-	// facts follow it at full width, then the pair of controls.
+	// The counter timeline keeps the full width (eight columns), and so does
+	// the open logins ledger (up to 50 rows). 2026-10-12 audit: the lockouts
+	// box stood alone at full width with two rows in it; it shares one row
+	// with the two controls, three short boxes of a height.
 	$out .= audit_log_logins_html( $logins );
-	$out .= audit_log_lla_html( (array) $summary['lla'] );
-	$out .= \snt_kit_grid( array( audit_log_retention_form_html(), audit_log_maintenance_html() ) );
+	$out .= \snt_kit_grid( array( audit_log_lla_html( (array) $summary['lla'] ), audit_log_retention_form_html(), audit_log_maintenance_html() ), 260 );
 	return $out;
 }
 

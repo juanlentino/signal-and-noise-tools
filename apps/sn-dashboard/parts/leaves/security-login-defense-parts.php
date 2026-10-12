@@ -55,9 +55,7 @@ function login_defense_breach_html() {
 	// ponytail: sn_hibp_surface_data() walks every user (get_users number=-1, one meta read each) per paint, as Site Health does; the ceiling is the user count. A short transient if the site ever grows users.
 	$sd      = \sn_hibp_surface_data();
 	$hv      = \sn_hibp_health( $sd, time() );
-	$set     = is_array( $sd['set'] ?? null ) ? $sd['set'] : array();
 	$summary = '<p class="snt-hint">' . \snt_kit_esc( (string) $hv['summary'] ) . '</p>';
-	$recent  = ! empty( $hv['unavailable_recent'] );
 
 	// One notice slot per box. The viewer's memo carries the action (change
 	// it), so it wins and the posture summary drops to the hint line; a
@@ -71,27 +69,6 @@ function login_defense_breach_html() {
 		$top = \snt_kit_notice( 'warn', \snt_kit_esc( (string) $hv['summary'] ) );
 	}
 
-	$rows = array(
-		array(
-			'label' => __( 'Accounts flagged at login', 'signal-and-noise-tools' ),
-			'value' => sprintf(
-				/* translators: 1: accounts flagged, 2: accounts checked */
-				__( '%1$s of %2$s checked', 'signal-and-noise-tools' ),
-				number_format_i18n( (int) $hv['flagged'] ),
-				number_format_i18n( (int) $hv['checked'] )
-			),
-			'tone'  => (int) $hv['flagged'] > 0 ? 'warn' : null,
-		),
-		array(
-			'label' => __( 'Breached passwords refused at set-time', 'signal-and-noise-tools' ),
-			'value' => number_format_i18n( (int) ( $set['breached_count'] ?? 0 ) ),
-		),
-		array(
-			'label' => __( 'Fail-closed rejections (API unreachable)', 'signal-and-noise-tools' ),
-			'value' => number_format_i18n( (int) ( $set['unavailable_count'] ?? 0 ) )
-				. ( $recent ? __( ', recent: the API may be degrading', 'signal-and-noise-tools' ) : '' ),
-			'tone'  => $recent ? 'warn' : null,
-		),
-	);
+	$rows = function_exists( 'sn_hibp_surface_rows' ) ? \sn_hibp_surface_rows( $sd, $hv ) : array();
 	return \snt_kit_section( __( 'Breached passwords', 'signal-and-noise-tools' ), $top . \snt_kit_kv( $rows ) );
 }
