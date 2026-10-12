@@ -35,7 +35,7 @@ function analytics_tuning_html() {
 	$fields .= \snt_kit_field( 'select', 'sn_anomaly_sensitivity', __( 'Anomaly sensitivity', 'signal-and-noise-tools' ), $preset, array( 'options' => $presets, 'hint' => __( 'Governs both anomaly families: the predictive signals engine and the per-page skim/dwell detector.', 'signal-and-noise-tools' ) ) );
 	$fields .= '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'How unusual a day must be before it’s flagged as an anomaly.', 'signal-and-noise-tools' ) ) . '</p>';
 
-	$body  = '<p class="snt-prose">' . \snt_kit_esc( __( 'How the anomaly detectors read your history. Trend and forecast signals aren’t tunable here. Developers can override more via the sn_analytics_signal_config filter: see the reference in the right column.', 'signal-and-noise-tools' ) ) . '</p>';
+	$body  = '<p class="snt-prose">' . \snt_kit_esc( __( 'How the anomaly detectors read your history. Trend and forecast signals aren’t tunable here. Developers can override more via the sn_analytics_signal_config filter: see Developer filter seams, under Configured elsewhere.', 'signal-and-noise-tools' ) ) . '</p>';
 	$body .= \snt_kit_form( 'analytics_tuning_save', $fields, array( 'submit' => __( 'Save tuning', 'signal-and-noise-tools' ), 'columns' => 'auto' ) );
 
 	return \snt_kit_section( __( 'Engine tuning', 'signal-and-noise-tools' ), $body, \snt_an_tuning_snapshot() );

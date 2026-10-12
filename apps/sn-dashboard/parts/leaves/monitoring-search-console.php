@@ -140,7 +140,7 @@ function search_console_property_html( array $s ) {
 	}
 	$sites = (array) $s['sites'];
 	if ( empty( $sites ) ) {
-		$out .= '<p class="snt-prose">' . \snt_kit_esc( __( 'Run Test connection above to list the properties this service account can read.', 'signal-and-noise-tools' ) ) . '</p>';
+		$out .= '<p class="snt-prose">' . \snt_kit_esc( __( 'Run Test connection to list the properties this service account can read.', 'signal-and-noise-tools' ) ) . '</p>';
 		if ( '' !== $s['current'] ) {
 			/* translators: %s: the stored property string. */
 			$out .= '<p class="snt-prose">' . sprintf( \snt_kit_esc( __( 'Currently reading: %s', 'signal-and-noise-tools' ) ), \snt_kit_code( (string) $s['current'], false ) ) . '</p>';

@@ -112,7 +112,7 @@
 			var url = ( window.snDesktopData && window.snDesktopData.pages && window.snDesktopData.pages.analytics ) || '';
 			if ( url ) {
 				// SN Traffic shares this link text; the name starts with the visible words (WCAG 2.5.3).
-				var link = el( 'a', 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;', linkText );
+				var link = el( 'a', 'display:inline-flex;align-items:center;gap:4px;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff));text-decoration:none;', linkText );
 				var arrow = el( 'span', '', '→' );
 				arrow.setAttribute( 'aria-hidden', 'true' );
 				link.appendChild( arrow );

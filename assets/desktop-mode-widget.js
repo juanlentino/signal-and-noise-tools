@@ -319,7 +319,7 @@
 		line.appendChild( btn );
 		if ( dashboardUrl ) {
 			var link  = el( 'a', {
-				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;',
+				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff));text-decoration:none;',
 				text:  'Open Dashboard',
 				href:  dashboardUrl,
 			} );

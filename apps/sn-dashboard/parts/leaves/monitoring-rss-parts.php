@@ -162,7 +162,7 @@ function rss_settings_form_html( array $settings, $tab ) {
 		'min'  => 7,
 		'max'  => 365,
 		/* translators: %s: prefixed DB table name, e.g. wp_rss_feed_log */
-		'hint' => sprintf( __( 'How long to keep rows in %s. A daily WP-Cron job prunes rows older than this threshold; the manual button below forces a prune right now.', 'signal-and-noise-tools' ), $table ),
+		'hint' => sprintf( __( 'How long to keep rows in %s. A daily WP-Cron job prunes rows older than this threshold; Purge now, under Maintenance, forces a prune right now.', 'signal-and-noise-tools' ), $table ),
 	) );
 	return rss_form(
 		defined( 'SN_RSS_TRACKER_ACTION_SAVE' ) ? SN_RSS_TRACKER_ACTION_SAVE : 'save_settings',

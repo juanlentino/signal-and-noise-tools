@@ -356,7 +356,7 @@ function insights_cache_probe_html() {
  */
 function insights_status_html( $last ) {
 	if ( ! $last ) {
-		return \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'No scan run yet', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_badge( 'warn', __( 'Inactive', 'signal-and-noise-tools' ) ) . '<br>' . \snt_kit_esc( __( 'Click Run Analysis in the main column to populate recommendations. ~$0.01 per scan; 7-day cache.', 'signal-and-noise-tools' ) ) );
+		return \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'No scan run yet', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_badge( 'warn', __( 'Inactive', 'signal-and-noise-tools' ) ) . '<br>' . \snt_kit_esc( __( 'Click Run Analysis to populate recommendations. ~$0.01 per scan; 7-day cache.', 'signal-and-noise-tools' ) ) );
 	}
 	$state           = function_exists( 'snt_insights_state_read' ) ? snt_insights_state_read() : array( 'dismissed_ids' => array(), 'done_ids' => array() );
 	$active          = function_exists( 'snt_insights_filter_active' ) ? snt_insights_filter_active( $last['recommendations'] ?? array() ) : array();

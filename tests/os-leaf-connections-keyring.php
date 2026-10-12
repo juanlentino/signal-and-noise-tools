@@ -83,5 +83,12 @@ ok( false === strpos( $kit, 'Cloudflare answers active' ), 'an ok verdict\'s sen
 ok( false !== strpos( $kit, 'Last verified 2026-09-15' ) && false !== strpos( $classic, 'Last verified 2026-09-15' ), 'the verification time paints on both leaves' );
 ok( false !== strpos( $classic, 'notice-warning' ) && false !== strpos( $classic, 'SN_MR_READ_TOKEN differ' ) && false !== strpos( $classic, '<td>refused</td>' ), 'the classic leaf paints the same refusal and the same cell' );
 
+// 2026-10-12, live: the picker painted an empty box (value '' matches no
+// option), which read as "no credentials". It says what to do instead, and
+// every kit select with no matching value gets a placeholder.
+$picker = snt_leaf_paint( 'connections', 'credentials' );
+ok( 1 === preg_match( '/<os-select[^>]*name="key_id"[^>]*placeholder="Choose a credential"/', $picker ), 'the credential picker says "Choose a credential" until one is chosen' );
+ok( false !== strpos( snt_kit_field( 'select', 'x', 'X', '', array( 'options' => array( 'a' => 'A' ) ) ), 'placeholder="Choose one"' ) && false === strpos( snt_kit_field( 'select', 'x', 'X', 'a', array( 'options' => array( 'a' => 'A' ) ) ), 'placeholder=' ), 'a kit select whose value matches no option shows a placeholder; one with a match shows its option' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

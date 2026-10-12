@@ -75,11 +75,18 @@ foreach ( $files as $path ) {
 	ok( empty( $light ), "$name gives every --os-ui-color-* read an on-dark fallback" . ( $light ? ' [' . implode( ', ', $light ) . ']' : '' ) );
 }
 
-// Link sites: each file that paints a card link reads the accent token.
-$link_files = array( 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-views.js', 'desktop-mode-widget.js' );
+// Link sites: each file that paints a card link reads the link pink first
+// (2026-10-12: the accent is the admin color, pure red on this site, 4.4:1 on
+// a card and failing AA for 11px text), the accent and the plugin blue after.
+$link_files = array( 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-views.js', 'desktop-mode-widget.js', 'desktop-mode-widget-groups.js' );
 foreach ( $link_files as $name ) {
-	ok( isset( $code[ $name ] ) && false !== strpos( $code[ $name ], 'color:var(--os-ui-color-accent, #4a9eff)' ), "$name paints its link on --os-ui-color-accent with the plugin blue as fallback" );
+	ok( isset( $code[ $name ] ) && false !== strpos( $code[ $name ], 'color:var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff))' ), "$name paints its link in the link pink, the accent as fallback" );
 }
+$red_links = array();
+foreach ( $code as $name => $js ) {
+	if ( preg_match( "/el\\( 'a'[^;]*?font-size:11px;color:var\\(--os-ui-color-accent/", $js ) ) { $red_links[] = $name; }
+}
+ok( empty( $red_links ), 'no card link paints straight in the accent' . ( $red_links ? ' [' . implode( ', ', $red_links ) . ']' : '' ) );
 $dimmed = array();
 foreach ( $code as $name => $js ) { if ( false !== strpos( $js, 'color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;opacity' ) ) { $dimmed[] = $name; } }
 ok( empty( $dimmed ), 'no link on the accent carries an opacity that would dim the pick' . ( $dimmed ? ' [' . implode( ', ', $dimmed ) . ']' : '' ) );

@@ -58,7 +58,7 @@ function paint_connections_keyring( array $ctx ) {
 	}
 
 	// ── Right: one form, Verify all, the worker commands.
-	$fields = \snt_kit_field( 'select', 'key_id', __( 'Credential', 'signal-and-noise-tools' ), '', array( 'options' => sn_keyring_select_options() ) )
+	$fields = \snt_kit_field( 'select', 'key_id', __( 'Credential', 'signal-and-noise-tools' ), '', array( 'options' => sn_keyring_select_options(), 'placeholder' => __( 'Choose a credential', 'signal-and-noise-tools' ) ) )
 		. \snt_kit_field( 'text', 'key_value', __( 'Value', 'signal-and-noise-tools' ), '', array(
 			'placeholder' => __( 'Paste the value', 'signal-and-noise-tools' ),
 			'hint'        => __( 'Paste to set. Type "clear" to remove. On a worker row, type "site" to derive it from the site secret. Rows locked in wp-config.php are not listed.', 'signal-and-noise-tools' ),

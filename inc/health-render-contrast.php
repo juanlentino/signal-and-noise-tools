@@ -120,7 +120,9 @@ function sn_health_render_contrast_report( $report ) {
 	$thresholds = isset( $report['thresholds'] ) && is_array( $report['thresholds'] ) ? $report['thresholds'] : array();
 	$body_aa    = isset( $thresholds['aa_body'] ) ? (float) $thresholds['aa_body'] : 4.5;
 	$large_aa   = isset( $thresholds['aa_large'] ) ? (float) $thresholds['aa_large'] : 3.0;
-	$would_fail = (int) ( $report['would_fail_body'] ?? 0 );
+	// Counted from the pairs printed beside it, never the stored figure (a
+	// pre-2026.10.3 cache summed every palette: "38 of 21").
+	$would_fail = count( array_filter( (array) $pairs, static fn( $r ) => is_array( $r ) && empty( $r['aa_body'] ) ) );
 
 	// The rendered tier first: what the live pages show, so the stylesheet
 	// counts below read as the possibilities they are (2026-10-06).

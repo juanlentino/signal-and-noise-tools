@@ -130,7 +130,10 @@ function tools_reports_contrast_arithmetic( array $report, array $pairs ) {
 		sprintf(
 			/* translators: 1: failing pair count, 2: total pair count, 3: body AA ratio, 4: token count */
 			__( '%1$d of %2$d token pairs would fall below %3$s:1 (body-text AA) if rendered together, across %4$d palette tokens.', 'signal-and-noise-tools' ),
-			(int) ( $report['would_fail_body'] ?? 0 ),
+			// Counted from the pairs it is printed against, never the stored
+			// figure: a report cached before 2026.10.3 summed every palette and
+			// read "38 of 21" until the next scan.
+			count( array_filter( $pairs, static fn( $r ) => empty( $r['aa_body'] ) ) ),
 			count( $pairs ),
 			$body,
 			count( $tokens )

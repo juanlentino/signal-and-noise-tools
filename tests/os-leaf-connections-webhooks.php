@@ -65,7 +65,7 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match th
 ok( array( 'webhook_add', 'webhook_delete', 'webhook_update' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '15.2.0: three actions, as on the classic leaf; monitoring_save is gone with its fields: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( 2 === substr_count( $kit, '<os-form class="snt-form" os-action="post"' ), 'two os-forms dispatch post: two webhooks x delete (update and add are native forms; 15.2.0: no monitoring form)' );
-ok( 3 === substr_count( $kit, '<form class="snt-form snt-form--native" method="post" os-action="post">' ), 'three native forms dispatch post: two webhook_update editors plus webhook_add' );
+ok( 3 === substr_count( $kit, '<form class="snt-form snt-form--native snt-form--stack" method="post" os-action="post">' ), 'three native forms dispatch post: two webhook_update editors plus webhook_add' );
 ok( false !== strpos( $kit, '<os-field-row label="Signing secret"><os-code copy>' ) && false === strpos( $kit, 'snt-field-static' ), '#1600: the reveal-once secret is an os-field-row around the copyable os-code, the hint its sibling paragraph; no hand-rolled .snt-field-static div' );
 ok( false !== strpos( $kit, 'heading="Alpha flow"' ) && false !== strpos( $kit, 'heading="Beta flow"' ), 'each webhook is a section headed by its name' );
 ok( false !== strpos( $kit, '<os-code>wh_alpha</os-code>: created ' . gmdate( 'Y-m-d', 1756684800 ) ), 'the id and creation date are shown' );

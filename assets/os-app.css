@@ -282,6 +282,15 @@ a.snt-link {
 	font-weight: 500;
 }
 
+/* A bare <a> a builder paints without the kit (the rendered-contrast line,
+   the Tags rows) takes the same pink and underline, not wp-admin's link color,
+   which is the same failing red on this site. */
+.snt-app .snt-leaf a:not( [class] ) {
+	color: var( --os-ui-accent-strong, #ec9bff );
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
 /* Door and go links (os-button variant=link) in the same pink: the kit's
    default is the admin theme color, the same failing red. */
 .snt-app os-button[variant="link"] {
@@ -327,6 +336,17 @@ a.snt-link {
 	outline: none;
 	border-color: var( --os-ui-accent, #ec9bff );
 	box-shadow: 0 0 0 2px var( --os-ui-focus-ring, rgba( 236, 155, 255, 0.35 ) );
+}
+
+/* A stacked native form ends the way a kit form does: each control on its own
+   row, then the submit alone at the end of the form. */
+.snt-app .snt-form--stack {
+	display: grid;
+	gap: 12px;
+}
+.snt-app .snt-form--stack > .snt-submit {
+	justify-self: end;
+	margin-block-start: 4px;
 }
 
 /* A native <form os-action> (Webhooks, Tags: repeated-name checkbox groups a

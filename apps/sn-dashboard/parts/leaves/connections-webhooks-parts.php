@@ -76,7 +76,10 @@ function webhooks_native_form( $sn_action, array $hidden, $inner, $submit ) {
 	return \snt_kit_tag(
 		'form',
 		array(
-			'class'     => 'snt-form snt-form--native',
+			// --stack: one control per row and the submit in its own action row
+			// (live 2026-10-12: "Add webhook" sat jammed against the last
+			// checkbox's label, inline after it).
+			'class'     => 'snt-form snt-form--native snt-form--stack',
 			'method'    => 'post',
 			'os-action' => 'post',
 		),
@@ -199,7 +202,7 @@ function webhooks_status_html( $total, $enabled ) {
 	} else {
 		$kind  = 'warn';
 		$title = __( 'No webhooks configured', 'signal-and-noise-tools' );
-		$body  = __( 'Add one in the main column to start receiving signed post-publish notifications at your own endpoint.', 'signal-and-noise-tools' );
+		$body  = __( 'Add one under Add a webhook to start receiving signed post-publish notifications at your own endpoint.', 'signal-and-noise-tools' );
 		$pill  = __( 'Inactive', 'signal-and-noise-tools' );
 	}
 	return \snt_kit_notice( $kind, '<b>' . \snt_kit_esc( $title ) . '</b> ' . \snt_kit_badge( $kind, $pill ) . '<br>' . \snt_kit_esc( $body ) );

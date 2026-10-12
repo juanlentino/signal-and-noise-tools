@@ -44,7 +44,7 @@ function indexnow_status_html( array $d ) {
 	if ( ! $d['enabled'] ) {
 		$kind  = 'warn';
 		$title = __( 'Disabled', 'signal-and-noise-tools' );
-		$body  = \snt_kit_esc( __( 'Enable it in the main column to start notifying search engines.', 'signal-and-noise-tools' ) );
+		$body  = \snt_kit_esc( __( 'Enable it under IndexNow to start notifying search engines.', 'signal-and-noise-tools' ) );
 		$pill  = __( 'Off', 'signal-and-noise-tools' );
 	} elseif ( ! empty( $d['result']['error'] ) ) {
 		$kind  = 'err';
