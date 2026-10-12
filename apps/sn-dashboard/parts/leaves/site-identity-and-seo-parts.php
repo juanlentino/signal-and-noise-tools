@@ -34,7 +34,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function identity_seo_field( $type, $name, $label, $value, array $opts = array(), $hint_html = '' ) {
 	// One grid cell: the field and its hint stay together in the two-up grid.
-	return '<div class="snt-site-field">' . \snt_kit_field( $type, $name, $label, $value, $opts )
+	// `wide` spans the row (a tall field beside a short one left a hole).
+	$class = empty( $opts['wide'] ) ? 'snt-site-field' : 'snt-site-field snt-site-field--wide';
+	unset( $opts['wide'] );
+	return '<div class="' . $class . '">' . \snt_kit_field( $type, $name, $label, $value, $opts )
 		. ( '' !== $hint_html ? '<p class="snt-hint">' . $hint_html . '</p>' : '' ) . '</div>';
 }
 
@@ -81,21 +84,26 @@ function identity_seo_identity_panel() {
 			\snt_kit_esc( __( 'A short status line surfaced in the ', 'signal-and-noise-tools' ) ) . \snt_kit_code( '/contact', false ) . \snt_kit_esc( __( ' and ', 'signal-and-noise-tools' ) ) . \snt_kit_code( '/services', false ) . \snt_kit_esc( __( ' page heroes. Leave empty to hide it.', 'signal-and-noise-tools' ) )
 		)
 		. identity_seo_field(
-			'textarea',
-			'identity_knows_about',
-			__( 'Knows about', 'signal-and-noise-tools' ),
-			implode( "\n", array_map( 'strval', $knows_about ) ),
-			// Tall enough for every topic and one more: it scrolled inside itself.
-			array( 'rows' => max( 4, count( $knows_about ) + 1 ) ),
-			\snt_kit_esc( __( 'One topic per line. Emitted as the ', 'signal-and-noise-tools' ) ) . \snt_kit_code( 'knowsAbout', false ) . \snt_kit_esc( __( ' array on the Person schema: domain expertise areas that signal to search engines what this person is about. Leave a line blank to omit the entry.', 'signal-and-noise-tools' ) )
-		)
-		. identity_seo_field(
 			'text',
 			'identity_locale',
 			__( 'Locale', 'signal-and-noise-tools' ),
 			(string) \sn_setting( 'identity.locale', 'en_US' ),
 			array( 'placeholder' => 'en_US' ),
 			\snt_kit_esc( __( 'WP locale code (e.g. ', 'signal-and-noise-tools' ) ) . \snt_kit_code( 'en_US', false ) . \snt_kit_esc( __( '). Used for og:locale and schema inLanguage.', 'signal-and-noise-tools' ) )
+		)
+		. identity_seo_field(
+			'textarea',
+			'identity_knows_about',
+			__( 'Knows about', 'signal-and-noise-tools' ),
+			implode( "\n", array_map( 'strval', $knows_about ) ),
+			// Tall enough for every topic and one more (it scrolled inside itself),
+			// last and the full row wide, so the short fields above it pair
+			// (2026.10.4 live check: a 196px box beside an 82px field).
+			array(
+				'rows' => max( 4, count( $knows_about ) + 1 ),
+				'wide' => true,
+			),
+			\snt_kit_esc( __( 'One topic per line. Emitted as the ', 'signal-and-noise-tools' ) ) . \snt_kit_code( 'knowsAbout', false ) . \snt_kit_esc( __( ' array on the Person schema: domain expertise areas that signal to search engines what this person is about. Leave a line blank to omit the entry.', 'signal-and-noise-tools' ) )
 		);
 	return identity_seo_panel( 'identity', __( 'Identity', 'signal-and-noise-tools' ), __( 'Site-wide name, description, and locale.', 'signal-and-noise-tools' ), $fields );
 }
@@ -131,9 +139,12 @@ function identity_seo_social_panel() {
 		$urls .= \snt_kit_field( 'url', 'social_same_as[' . (int) $i . ']', __( 'Profile URL', 'signal-and-noise-tools' ), $url, array( 'placeholder' => 'https://...' ) );
 	}
 	$fields = identity_seo_field( 'text', 'social_twitter_handle', __( 'Twitter / X handle', 'signal-and-noise-tools' ), (string) \sn_setting( 'social.twitter_handle', '' ), array( 'placeholder' => '@username', 'hint' => __( 'Used as twitter:site and twitter:creator. Include the @ prefix.', 'signal-and-noise-tools' ) ) )
-		. '<div class="snt-field-static">'
+		// The profile list takes the full row under the handle (2026.10.4 live check).
+		. '<div class="snt-field-static snt-site-field--wide">'
 		. '<span class="snt-field-static__k">' . \snt_kit_esc( __( 'Profile URLs (sameAs)', 'signal-and-noise-tools' ) ) . '</span>'
-		. '<os-stack gap="8">' . $urls . '</os-stack>'
+		// padding="0": an inherited --os-ui-stack-padding indented the rows about
+		// 12px under their label (2026.10.4 live check).
+		. '<os-stack gap="8" padding="0">' . $urls . '</os-stack>'
 		. '<span class="snt-field-static__hint">' . \snt_kit_esc( __( 'Emitted as the Person schema sameAs array. Leave a row empty to remove it on save.', 'signal-and-noise-tools' ) ) . '</span>'
 		. '</div>';
 	return identity_seo_panel( 'social', __( 'Social', 'signal-and-noise-tools' ), __( 'Twitter / X handle and profile URLs (emitted as schema sameAs).', 'signal-and-noise-tools' ), $fields );

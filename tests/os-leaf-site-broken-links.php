@@ -85,18 +85,32 @@ ok( false !== strpos( $classic, '2 broken paths took 9 hits; the busiest, /notes
 ok( before( $kit, '<os-stat', 'heading="Broken paths"' ), 'reading before ledger' );
 
 // The ledger: one table, busiest first, every figure the per-path fold held.
-$broken = table_of( $kit, 6 );
-ok( array( 'Path', 'Hits', 'Last seen', 'Referrer', 'Suggested target', 'Actions' ) === array_column( $broken['columns'], 'label' ), 'the broken table has labelled columns: ' . implode( ',', array_column( $broken['columns'], 'label' ) ) );
+$broken = table_of( $kit, 5 );
+// 2026.10.4 live check: no Referrer column (it pushed Fix past the half-row box); the referrer rides under the path.
+ok( array( 'Path', 'Hits', 'Last seen', 'Suggested target', 'Actions' ) === array_column( $broken['columns'], 'label' ), 'the broken table has labelled columns, no Referrer column: ' . implode( ',', array_column( $broken['columns'], 'label' ) ) );
 $r0 = $broken['data'][0] ?? array(); $r1 = $broken['data'][1] ?? array();
-ok( '/notes/desing-tokens' === ( $r0['path'] ?? '' ) && '/contact-us' === ( $r1['path'] ?? '' ), 'broken paths paint busiest first' );
+ok( '/notes/desing-tokens' === ( $r0['path']['text'] ?? '' ) && '/contact-us' === ( $r1['path']['text'] ?? '' ), 'broken paths paint busiest first' );
+ok( '<span class="snt-break">/notes/desing-tokens</span><span class="snt-cell-sub">from ref.example</span>' === snt_leaf_cell_html( $broken, $r0['path'] ?? null ) && '<span class="snt-break">/contact-us</span><span class="snt-cell-sub">no referrer recorded</span>' === snt_leaf_cell_html( $broken, $r1['path'] ?? null ), 'with a referrer in the list, each path carries its own under it ("from ref.example", or "no referrer recorded")' );
+ok( false === strpos( $kit, 'No referrer was recorded' ), '...and the sentence does not claim none' );
+ok( 1 === preg_match( '/\.snt-break\s*\{\s*overflow-wrap:\s*anywhere;/', preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ) ), 'a long path or target breaks inside its cell, so the table fits its box and Fix is never cut off' );
 // The Last seen cell never wraps ("2026-10-" over "10" when the lists pair): a nowrap span in a slotted cell.
 ok( '<span class="snt-nowrap">' . $d0 . '</span>' === snt_leaf_cell_html( $broken, $r0['last'] ?? null ) && $d0 === ( $r0['last']['text'] ?? '' ), 'Last seen is the site\'s date format ("' . $d0 . '"), in a cell that does not wrap' );
 $css_nowrap = preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) );
 ok( 1 === preg_match( '/\.snt-nowrap\s*\{\s*white-space:\s*nowrap;/', $css_nowrap ), 'the sheet keeps .snt-nowrap on one line' );
 ok( false !== strpos( $classic, 'last <span class="sn-nowrap">' . $d0 . '</span>' ) && false === strpos( $classic, gmdate( 'Y-m-d', $t0 ) ), 'the classic twin says the same date, in the site\'s format, unwrapped' );
 ok( 1 === preg_match( '/\.sn-nowrap\s*\{\s*white-space:\s*nowrap;/', (string) file_get_contents( SNT_PATH . 'assets/admin.css' ) ), '...and the classic sheet keeps it on one line' );
-ok( 7 === ( $r0['hits'] ?? null ) && 'ref.example' === ( $r0['referrer'] ?? '' ) && '/notes/design-tokens' === ( $r0['suggested'] ?? '' ), 'a row carries hits, last date, referring host and the slug suggestion: ' . wp_json_encode( $r0 ) );
-ok( 2 === ( $r1['hits'] ?? null ) && $d1 === ( $r1['last']['text'] ?? '' ) && 'none recorded' === ( $r1['referrer'] ?? '' ) && '/contact' === ( $r1['suggested'] ?? '' ), '...and a missing referrer reads "none recorded", never blank' );
+ok( 7 === ( $r0['hits'] ?? null ) && '/notes/design-tokens' === ( $r0['suggested']['text'] ?? '' ) && '<span class="snt-break">/notes/design-tokens</span>' === snt_leaf_cell_html( $broken, $r0['suggested'] ?? null ), 'a row carries hits, last date and the slug suggestion (a breakable cell): ' . wp_json_encode( $r0 ) );
+ok( 2 === ( $r1['hits'] ?? null ) && $d1 === ( $r1['last']['text'] ?? '' ) && '/contact' === ( $r1['suggested']['text'] ?? '' ), '...for every path' );
+// 2026.10.4 live check: when no listed path has a referrer (23 of 24 live), the
+// table says nothing per row and the box's sentence says it once.
+fixture( array(), array( '/notes/desing-tokens' => entry( 7, $t0 ), '/contact-us' => entry( 2, $t1 ) ) );
+$noref = snt_leaf_paint( 'site', 'broken-links' );
+$noref_t = table_of( $noref, 5 );
+ok( false !== strpos( $noref, '<p class="snt-prose">2 broken paths took 9 hits; the busiest, /notes/desing-tokens, took 7 hits. No referrer was recorded for any of them.</p>' ) && false === strpos( $noref, 'snt-cell-sub' ) && false === strpos( $noref, 'none recorded' ) && 5 === count( $noref_t['columns'] ), 'no referrer anywhere: said once in the sentence, no column and no line under each path' );
+fixture( array(), array( '/contact-us' => entry( 2, $t1 ) ) );
+ok( false !== strpos( snt_leaf_paint( 'site', 'broken-links' ), 'took 2 hits. No referrer was recorded for it.</p>' ), 'one path with none: "No referrer was recorded for it."' );
+fixture( array( '/first' => array( 'to' => '/notes/design-tokens', 'status' => 301, 'created_at' => $t0 ) ), $log ); // the rich state again
+
 $cell = snt_leaf_cell_html( $broken, $r0['actions'] ?? null );
 ok( '<span id="snt-row-' . substr( md5( '/notes/desing-tokens' ), 0, 12 ) . '" data-snt-focus><os-button variant="ghost" os-action="go" aria-label="Fix /notes/desing-tokens" os-arg-sub="broken-links" os-arg-sn_edit="/notes/desing-tokens" os-arg-anchor="snt-edit-region">Fix</os-button></span>' === $cell, 'a row carries ONE visible action, Fix, a go button naming its path, in its row anchor: ' . substr( $cell, 0, 200 ) );
 ok( 0 === slot_forms( $kit ) && 0 === slot_forms( $kit_ed ), 'no table cell holds a form, default or editing: ' . slot_forms( $kit ) . ' / ' . slot_forms( $kit_ed ) );
@@ -138,7 +152,7 @@ ok( false === strpos( $kit, '<script>' ) && false === strpos( $kit . $kit_ed, '"
 ok( substr_count( $kit, '&lt;script&gt;' ) >= 2, '...they are escaped, not dropped' );
 // The fixture must REACH the markup for the escaping pins to mean anything:
 // v13.109.9 rejects any path containing a parenthesis, and `alert(1)` has two.
-ok( in_array( '/y"><script>alert1</script>', array_column( table_of( $kit, 2 )['data'], 'path' ), true ) && '/notes/design-tokens"><b>' === ( table_of( $kit, 6 )['data'][0]['path'] ?? '' ), '...and they REACHED the probe and broken tables, so the pins are not vacuous' );
+ok( in_array( '/y"><script>alert1</script>', array_column( table_of( $kit, 2 )['data'], 'path' ), true ) && '/notes/design-tokens"><b>' === ( table_of( $kit, 5 )['data'][0]['path']['text'] ?? '' ), '...and they REACHED the probe and broken tables, so the pins are not vacuous' );
 ok( false !== strpos( $kit_ed, 'heading="Fixing /notes/design-tokens&quot;&gt;&lt;b&gt;"' ), '...the region heading escapes it' );
 ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) && array() === snt_leaf_classic_markers( $kit ) && ! styled( $kit ), 'no fold and no wp-admin markup (hostile)' );
 
@@ -174,8 +188,8 @@ fixture( array(), $many );
 $kit     = snt_leaf_paint( 'site', 'broken-links' );
 $kit_ed  = editing( '/notes/alpha-0001x' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_broken_links_section' );
-$broken  = table_of( $kit, 6 );
-$paths   = array_column( $broken['data'], 'path' );
+$broken  = table_of( $kit, 5 );
+$paths   = array_column( array_column( $broken['data'], 'path' ), 'text' );
 ok( 30 === count( $many ) && false !== strpos( $kit, '<os-stat value="0" label="Automated probes"' ), 'sanity: 30 paths, and the suggester classified every one as BROKEN, not as a probe' );
 ok( SN_404_LIST_CAP === count( $paths ) && 1 === count( snt_leaf_tables( $kit ) ), 'exactly SN_404_LIST_CAP (' . SN_404_LIST_CAP . ') paths are listed, not all 30 -- listed ' . count( $paths ) );
 ok( '/notes/alpha-0001x' === ( $paths[0] ?? '' ) && ! in_array( '/notes/alpha-0030x', $paths, true ), '...the BUSIEST are the ones kept, and the quietest are the ones dropped' );
@@ -217,7 +231,7 @@ $kit    = snt_leaf_paint( 'site', 'broken-links' );
 $kit_ed = editing( (string) array_key_first( $data['broken'] ) );
 ok( 31 === count( $data['broken'] ) && 40 === count( $data['probes'] ), 'live-shaped sanity: 31 broken and 40 probes survive the capture filter and the partition -- ' . count( $data['broken'] ) . ' / ' . count( $data['probes'] ) );
 ok( false !== strpos( $kit, '<os-stat value="31" label="Broken paths"' ) && false !== strpos( $kit, '<os-stat value="40" label="Automated probes"' ), 'live-shaped: the tiles read 31 broken and 40 probes' );
-ok( 25 === count( table_of( $kit, 6 )['data'] ) && false !== strpos( $kit, '+6 quieter paths are not listed.' ) && 25 === count( table_of( $kit, 2 )['data'] ) && false !== strpos( $kit, '+15 more probed paths' ), 'live-shaped: both ledgers capped at 25, each with its "+N more"' );
+ok( 25 === count( table_of( $kit, 5 )['data'] ) && false !== strpos( $kit, '+6 quieter paths are not listed.' ) && 25 === count( table_of( $kit, 2 )['data'] ) && false !== strpos( $kit, '+15 more probed paths' ), 'live-shaped: both ledgers capped at 25, each with its "+N more"' );
 ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) && 1 === substr_count( $kit_ed, 'submit-label="Create redirect"' ) && 1 === substr_count( $kit_ed, 'submit-label="Dismiss"' ) && 0 === slot_forms( $kit ), 'live-shaped: fold-free, no form in any row, and editing paints ONE region (create + dismiss)' );
 snt_leaf_preview( 'site-broken-links', $kit );
 snt_leaf_preview( 'site-broken-links-editing', $kit_ed );
@@ -233,7 +247,7 @@ ok( array() === $focus_problems, 'a11y: Edit lands the keyboard on the one regio
 // opens"): the editor opens UNDER its row, not below the whole table.
 $ip_def   = $kit;
 $ip_ed    = editing( (string) array_keys( $data['broken'] )[3] );
-$ip_table = table_of( $kit, 6 );
+$ip_table = table_of( $kit, 5 );
 $ip_keys  = array_map( static function ( $v ) { return is_array( $v ) ? (string) ( $v['text'] ?? '' ) : (string) $v; }, array_column( $ip_table['data'], 'path' ) );
 $ip_at    = array_search( (string) array_keys( $data['broken'] )[3], $ip_keys, true );
 $ip_split = snt_leaf_split_problems( $ip_ed, 'path', (string) array_keys( $data['broken'] )[3], false === $ip_at ? null : ( $ip_keys[ $ip_at + 1 ] ?? null ) );

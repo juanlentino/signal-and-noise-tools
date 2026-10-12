@@ -238,6 +238,20 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 	white-space: nowrap;
 }
 
+/* Broken paths (2026.10.4 live check): a long path or target breaks inside
+   its cell, so the table fits its half of the row and Fix is never cut off;
+   the referrer is a muted line under the path. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-break {
+	overflow-wrap: anywhere;
+}
+
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-cell-sub {
+	display: block;
+	margin-block-start: 2px;
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
 /* A date that must not break across lines (Broken links' Last seen, 2026.10.4). */
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-nowrap {
 	white-space: nowrap;
@@ -1147,4 +1161,17 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 
 .snt-site-field > .snt-hint {
 	margin-block-start: 6px;
+}
+
+/* A tall item takes the whole row (Knows about, the sameAs list), so a short
+   field never sits beside a hole (2026.10.4 live check). */
+.snt-site-fields > .snt-site-field--wide {
+	grid-column: 1 / -1;
+}
+
+/* The sameAs rows sit flush under their label: no stack padding inherited
+   from an ancestor (the kit's own token; os-stack padding="0" sets it too). */
+.snt-site-fields > .snt-field-static os-stack {
+	--os-ui-stack-padding: 0;
+	padding: 0;
 }
