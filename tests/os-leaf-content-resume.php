@@ -391,7 +391,7 @@ ok( is_array( $control ) && 'resume_draft_saved' === $control[0] && $cdoc === $w
 // edited, as a hidden carrier when another is).
 ok( false !== strpos( $edits['experience'], 'name="resume[experience][0][org]" type="text" value="INDEPENDENT PRACTICE"' ) && false !== strpos( $edits['stats'], '<input type="hidden" name="resume[experience][0][org]" value="INDEPENDENT PRACTICE">' ), 'seed org prefilled, and carried while Stats is edited' );
 ok( false !== strpos( $edits['stats'], 'name="resume[stats][0][n]" type="text" value="15+"' ) && false !== strpos( $edits['stats'], 'value="Years in the industry"' ), 'seed stat prefilled' );
-ok( preg_match( '/name="resume\[experience\]\[0\]\[roles\]\[0\]\[bullets\]" value="[^"]*roughly 110 releases/', $edits['experience'] ), 'seed bullets prefilled as one textarea, one per line' );
+ok( preg_match( '/name="resume\[experience\]\[0\]\[roles\]\[0\]\[bullets\]" value="[^"]*roughly 110 tracks/', $edits['experience'] ), 'seed bullets prefilled as one textarea, one per line' );
 ok( false !== strpos( $edits['hero'], '<os-textarea name="resume[hero][chips]" value="' . snt_kit_esc( implode( "\n", $seed['hero']['chips'] ) ) . '"' ) && false !== strpos( $edits['skills'], '<input type="hidden" name="resume[hero][chips]" value="' . snt_kit_esc( implode( "\n", $seed['hero']['chips'] ) ) . '">' ), 'seed chips prefilled one per line, and carried with the newlines intact' );
 ok( false !== strpos( $edits['publications'], 'name="resume[publications][0][url]" type="text" value="https://ssrn.com/abstract=6402298"' ), 'seed publication URL prefilled' );
 ok( false !== strpos( $edits['skills'], 'name="resume[skills][5][items]" value="' ), 'sixth skills row prefilled' );
