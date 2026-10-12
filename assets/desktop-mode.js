@@ -25,6 +25,33 @@
 	// function name. snt-ability-run.js is the script that reads the site.
 	var NO_RUNNER = 'the S&N status reader did not load; reload the desktop';
 
+	// Review on #2023: S&N's own danger confirms opened from outside an S&N
+	// window (SN Systems' Clear DB overrides, SN: Full reset) arm this right
+	// before wp.os.confirm, and the next <os-confirm-dialog> the shell appends
+	// to <body> is marked `data-snt-dialog`, once, so assets/snt-confirm-ink.css
+	// gives its label readable ink (it was white on #ff5a5a, 3.0:1). Defined
+	// before the boot gates, so a card can call it while the shell is loading.
+	if ( typeof window !== 'undefined' ) {
+		window.sntMarkNextDialog = function () {
+			if ( typeof MutationObserver !== 'function' || ! document.body ) {
+				return;
+			}
+			var watch = new MutationObserver( function ( records ) {
+				for ( var i = 0; i < records.length; i++ ) {
+					var added = records[ i ].addedNodes || [];
+					for ( var j = 0; j < added.length; j++ ) {
+						if ( 'OS-CONFIRM-DIALOG' === added[ j ].nodeName ) {
+							added[ j ].setAttribute( 'data-snt-dialog', '' );
+							watch.disconnect();
+							return;
+						}
+					}
+				}
+			} );
+			watch.observe( document.body, { childList: true } );
+		};
+	}
+
 	// v10.43.0 — OpenStation rename compat (REJECT #11 MEDIUM fix):
 	// SELF-SUFFICIENT, not order-dependent on the external
 	// assets/desktop-mode-os-compat.js prelude having run first.
@@ -294,7 +321,11 @@
 				danger:       true,
 			};
 			var os = window.wp.os || window.wp.desktop;
-			var prompt = ( os && typeof os.confirm === 'function' )
+			var shellConfirm = os && typeof os.confirm === 'function';
+			if ( shellConfirm ) {
+				window.sntMarkNextDialog(); // readable danger ink, outside any S&N window
+			}
+			var prompt = shellConfirm
 				? os.confirm( opts )
 				: ( typeof window.sntConfirm === 'function' ? window.sntConfirm( opts ) : Promise.resolve( false ) );
 			return prompt.then( function ( confirmed ) {

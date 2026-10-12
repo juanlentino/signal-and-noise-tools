@@ -28,8 +28,9 @@
    2026-10-12 audit: a bar wider than the window (Connections' nine pills
    need about 819px) clipped its trailing leaves, and with the scrollbar
    hidden a mouse could not reach them. snt_kit_tabs() names the container
-   width such a bar needs (data-snt-fit), and under that width the desk
-   shows the select twin too. */
+   width such a bar needs (data-snt-fit, a bucket from 440 to 1240), and at
+   that width or under it the desk shows the select twin too. Range syntax,
+   so no fractional width falls between the two queries and paints both. */
 html:not([data-os-mode="mobile"]) .snt-subbar:not([data-snt-fit]) .snt-subbar__phone {
 	display: none;
 }
@@ -38,23 +39,41 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 	display: none;
 }
 
-@container snt-dashboard ( min-width: 761px ) {
+@container snt-dashboard ( width > 440px ) {
+	html:not([data-os-mode="mobile"]) .snt-subbar[data-snt-fit="440"] .snt-subbar__phone { display: none; }
+}
+@container snt-dashboard ( width <= 440px ) {
+	.snt-subbar[data-snt-fit="440"] > .os-app-list__toolbar-left > os-segmented { display: none; }
+}
+@container snt-dashboard ( width > 600px ) {
+	html:not([data-os-mode="mobile"]) .snt-subbar[data-snt-fit="600"] .snt-subbar__phone { display: none; }
+}
+@container snt-dashboard ( width <= 600px ) {
+	.snt-subbar[data-snt-fit="600"] > .os-app-list__toolbar-left > os-segmented { display: none; }
+}
+@container snt-dashboard ( width > 760px ) {
 	html:not([data-os-mode="mobile"]) .snt-subbar[data-snt-fit="760"] .snt-subbar__phone { display: none; }
 }
-@container snt-dashboard ( max-width: 760px ) {
+@container snt-dashboard ( width <= 760px ) {
 	.snt-subbar[data-snt-fit="760"] > .os-app-list__toolbar-left > os-segmented { display: none; }
 }
-@container snt-dashboard ( min-width: 921px ) {
+@container snt-dashboard ( width > 920px ) {
 	html:not([data-os-mode="mobile"]) .snt-subbar[data-snt-fit="920"] .snt-subbar__phone { display: none; }
 }
-@container snt-dashboard ( max-width: 920px ) {
+@container snt-dashboard ( width <= 920px ) {
 	.snt-subbar[data-snt-fit="920"] > .os-app-list__toolbar-left > os-segmented { display: none; }
 }
-@container snt-dashboard ( min-width: 1081px ) {
+@container snt-dashboard ( width > 1080px ) {
 	html:not([data-os-mode="mobile"]) .snt-subbar[data-snt-fit="1080"] .snt-subbar__phone { display: none; }
 }
-@container snt-dashboard ( max-width: 1080px ) {
+@container snt-dashboard ( width <= 1080px ) {
 	.snt-subbar[data-snt-fit="1080"] > .os-app-list__toolbar-left > os-segmented { display: none; }
+}
+@container snt-dashboard ( width > 1240px ) {
+	html:not([data-os-mode="mobile"]) .snt-subbar[data-snt-fit="1240"] .snt-subbar__phone { display: none; }
+}
+@container snt-dashboard ( width <= 1240px ) {
+	.snt-subbar[data-snt-fit="1240"] > .os-app-list__toolbar-left > os-segmented { display: none; }
 }
 
 /* Nine pills need 819px and the toolbar-left keeps min-width:auto, so a
@@ -114,7 +133,7 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( .snt-table-wrap ),
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( os-row ),
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( os-grid ),
-.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( os-form ),
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( os-form os-field-row ),
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( .snt-report-columns ),
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="analytics"],
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="machine-readers"],

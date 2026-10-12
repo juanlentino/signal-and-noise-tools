@@ -515,6 +515,11 @@
 	function confirmAction( message ) {
 		var os = window.wp && window.wp.os;
 		if ( os && typeof os.confirm === 'function' ) {
+			// The card sits outside every S&N window: mark the dialog for the
+			// readable danger ink (assets/desktop-mode.js, review on #2023).
+			if ( typeof window.sntMarkNextDialog === 'function' ) {
+				window.sntMarkNextDialog();
+			}
 			return Promise.resolve( os.confirm( { title: 'Clear DB overrides?', message: message, confirmLabel: 'Clear overrides', danger: true } ) );
 		}
 		if ( typeof window.sntConfirm === 'function' ) {
@@ -650,8 +655,12 @@
 			// current one.
 			if ( linesStale ) {
 				tally.unknown++;
+				// Every line the re-read feeds that this paint shows (review on
+				// #2023: Analytics, Watches and Credentials come from it too).
+				var fed    = reads.map( function( r ) { return r[0]; } ).filter( function( t ) { return 'Uptime' !== t; } );
+				var named  = fed.length > 1 ? fed.slice( 0, -1 ).join( ', ' ) + ' and ' + fed[ fed.length - 1 ] : fed.join( '' );
 				var health = reads[1][1];
-				var note   = 'Health, Cron, Edge and Cache not re-read; showing the ' + new Date( linesAt ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) + ' reading';
+				var note   = named + ' not re-read; showing the ' + new Date( linesAt ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) + ' reading';
 				if ( health.empty ) {
 					health.empty += ' ' + note + '.';
 				} else {

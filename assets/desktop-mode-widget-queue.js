@@ -83,8 +83,23 @@
 		clearChildren( container );
 		container.appendChild( el( 'p', {
 			style: 'padding:14px 16px;font-size:12px;color:#ff9d94;',
-			text:  'Couldn\u2019t read the queue: ' + ( message || 'the site did not answer' ) + '.',
+			text:  'Couldn\u2019t read the queue: ' + message + '.',
 		} ) );
+	}
+
+	/**
+	 * Why a read failed, in plain words, from the failure itself (review on
+	 * #2023: the card guessed "the site did not answer" for every failure).
+	 * The site's own message rides through with its HTTP status; only a
+	 * request that never got an answer says so.
+	 */
+	function why( err ) {
+		var msg    = err && typeof err.message === 'string' ? err.message.trim() : '';
+		var status = err && err.data ? Number( err.data.status ) || 0 : 0;
+		if ( ! msg || /failed to fetch|networkerror|load failed/i.test( msg ) ) {
+			return status ? 'the site answered HTTP ' + status : 'the site did not answer';
+		}
+		return status ? msg + ' (HTTP ' + status + ')' : msg;
 	}
 
 	/** "14:05" for a time in ms, the clock the cards' "Read at" lines use. */
@@ -242,7 +257,7 @@
 			renderCard( container, lastData );
 			container.appendChild( el( 'p', {
 				style: 'margin:0;padding:0 16px 12px;font-size:11px;color:#d29922;',
-				text:  'Couldn\u2019t reach the site; showing the ' + clock( lastReadMs ) + ' reading.',
+				text:  'Couldn\u2019t read the queue: ' + message + '; showing the ' + clock( lastReadMs ) + ' reading.',
 			} ) );
 		}
 
@@ -256,7 +271,7 @@
 			try {
 				run = window.sntAbilityRun( 'content-queue', undefined, { silent: true } );
 			} catch ( e ) {
-				fail( '' );
+				fail( why( e ) );
 				return;
 			}
 			Promise.resolve( run )
@@ -275,9 +290,9 @@
 						fail( 'the site sent no queue' );
 					}
 				} )
-				.catch( function() {
+				.catch( function( err ) {
 					if ( torn ) { return; }
-					fail( '' );
+					fail( why( err ) );
 				} );
 		}
 

@@ -53,8 +53,22 @@ assert.ok(!saved.hidden, 'a new save answers with its notice again, even in the 
 
 close(saved);
 notices = [new Notice('danger', 'Nothing was saved.')];
-paint({ refused: true });
+paint({ refused: true, answered: 'sn_save_identity' });
 assert.ok(!notices[0].hidden, 'a different notice shows');
+
+// Review on #2023: a refusal stays in state, so EVERY paint (each 30-second
+// poll) reports `refused`. Only the one-paint `answered` marks a new answer.
+const kept = notices[0];
+close(kept);
+paint({ refused: true });
+assert.ok(kept.hidden, 'a closed refusal stays closed on the poll ticks that repeat it');
+paint({ refused: true });
+assert.ok(kept.hidden, 'and on the next one');
+paint({ refused: true, answered: 'sn_save_identity' });
+assert.ok(!kept.hidden, 'a new refusal of a submit (answered) shows again, even in the same words');
+close(kept);
+paint({ refused: true, answered: '(no action)' });
+assert.ok(!kept.hidden, 'so does one for a form that names no action (the host sends a sentinel)');
 
 const refusal = notices[0];
 close(refusal);

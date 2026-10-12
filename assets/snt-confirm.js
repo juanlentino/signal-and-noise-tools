@@ -246,7 +246,7 @@
 	// wp.os.confirm and every kit `os-confirm` trigger open) paints its primary
 	// label in the accent picker's ink, white until the accent is very light
 	// (white on red is 3.9:1), and its danger label white on #ff5a5a (3.0:1).
-	// assets/os-app.css gives a dialog marked `data-snt-dialog` the S&N
+	// assets/snt-confirm-ink.css gives a dialog marked `data-snt-dialog` the S&N
 	// windows' own ink rule. The shell appends the dialog to <body> and names
 	// no opener, and Safari does not focus a clicked button, so the mark
 	// follows the reader: the dialog is S&N's when the last press or key

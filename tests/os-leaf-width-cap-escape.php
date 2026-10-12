@@ -135,7 +135,9 @@ ok(
 // ── The two that were actually broken, pinned by name so a revert is loud,
 // and the os-grid hatch (#1622) that took the .snt-cols and .snt-2up class
 // hatches' place at type weight. ──
-foreach ( array( 'os-table', 'os-row', 'os-grid', 'os-form' ) as $type_hatch ) {
+// A form releases its leaf only when it holds fields: a button-only form
+// (Pattern adoption's Scan, Block migrations') is no lone form (review on #2023).
+foreach ( array( 'os-table', 'os-row', 'os-grid', 'os-form os-field-row' ) as $type_hatch ) {
 	$found = array_values( array_filter( $escapes, function ( $s ) use ( $type_hatch ) {
 		return false !== strpos( $s, ':has( ' . $type_hatch . ' )' ) || false !== strpos( $s, ':has(' . $type_hatch . ')' );
 	} ) );
@@ -217,6 +219,7 @@ foreach ( array( 'os-form >', 'os-form os-section >' ) as $parent ) {
 ok( 1 === preg_match( '/\.snt-app os-form os-section:has\( > os-field-row \)::part\( body \) \{\s*display: grid;\s*grid-template-columns: repeat\( auto-fit, minmax\( min\( 100%, max\( 320px, calc\( \( 100% - 16px \) \/ 2 \) \) \), 1fr \) \);/', $app_css ), 'a box of fields inside a form pairs them, at most two columns and one under about 660px' );
 $raw = (string) file_get_contents( $css_path );
 ok( 1 === preg_match( '/\.snt-app os-form os-field-row:not\( :has\( os-textarea \) \) \{\s*max-width: 720px;/', $app_css ), 'a one-line field is never wider than a field\'s measure, whatever box in the form it sits in' );
+ok( false === strpos( $css, '.snt-leaf:has( os-form ),' ) && false === strpos( $css, '.snt-leaf:has( os-form ) {' ), 'no hatch releases a leaf for a form with no fields' );
 ok( false === strpos( $raw, 'OpenStation caps' ) && false === strpos( $raw, 'os-form:has( os-grid )' ), 'the false comment is gone with the rule it defended (a form that paired its cards had to opt out of a cap that no longer exists)' );
 
 // 17.9.0 (#1624): Block Migrations and Health are os-tables, whose own header

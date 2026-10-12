@@ -58,7 +58,7 @@ if ( ! function_exists( 'size_format' ) ) { function size_format( $b ) { return 
 require_once SNT_PATH . 'inc/admin-glance.php';
 require_once SNT_PATH . 'inc/cloudflare-readings-admin.php';
 foreach ( array( 83 => true, 0 => false ) as $n => $want ) {
-	$GLOBALS['__cf_record'] = array( 'configured' => true, 'zone' => array( 'available' => true, 'totals' => array( 'requests' => 10, 'cache_share' => null, 'bytes' => 1, 'threats' => 0, 'status_5xx' => $n ) ) );
+	$GLOBALS['__cf_record'] = array( 'configured' => true, 'fetched_at' => 0, 'zone' => array( 'available' => true, 'totals' => array( 'requests' => 10, 'cache_share' => null, 'bytes' => 1, 'threats' => 0, 'status_5xx' => $n ) ) );
 	ob_start();
 	sn_cf_edge_card_render();
 	$card = (string) ob_get_clean();
@@ -76,7 +76,9 @@ ok( false !== strpos( snt_kit_form( 'save_identity', '', array( 'columns' => '1'
 // #8: the leaf bar says how wide its pills need the window to be.
 $connections = array( 'credentials' => 'Credentials', 'cloudflare' => 'Cloudflare', 'cloudways' => 'Cloudways', 'webhooks' => 'Webhooks', 'indexnow' => 'IndexNow', 'zenodo' => 'Zenodo', 'music' => 'Discography', 'cron' => 'Cron', 'scheduled-content' => 'Scheduled' );
 ok( false !== strpos( snt_kit_tabs( 'cron', $connections, 'sub', 'Sections' ), 'data-snt-fit="920"' ), 'nine Connections pills (819px measured) ask for the select twin under a 920px window' );
-ok( false === strpos( snt_kit_tabs( 'login', array( 'login' => 'Login URL', 'login-defense' => 'Login defense', 'firewall' => 'Firewall' ), 'sub', 'Sections' ), 'data-snt-fit' ), 'three short pills fit any desk window and keep the segmented control' );
+ok( false === strpos( snt_kit_tabs( 'login', array( 'login' => 'Login URL', 'login-defense' => 'Login defense', 'firewall' => 'Firewall' ), 'sub', 'Sections' ), 'data-snt-fit' ), 'three short pills fit even a 360px window and keep the segmented control' );
+$site = array( 'identity-and-seo' => 'Identity & SEO', 'front-end' => 'Front-End', 'performance' => 'Performance', 'redirects' => 'Redirects', 'broken-links' => 'Broken links' );
+ok( false !== strpos( snt_kit_tabs( 'front-end', $site, 'sub', 'Sections' ), 'data-snt-fit="600"' ), 'Site\'s five pills (about 545px) switch under a 600px window: a short bar is not exempt (review on #2023)' );
 
 // #15: an empty table or list says what none means, or the kit says who forgot.
 $log = tempnam( sys_get_temp_dir(), 'snt-kit-empty' );

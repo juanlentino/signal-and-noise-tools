@@ -241,9 +241,13 @@ $day_cells = substr_count( $html3, 'sn-public-stats__twin-day' );
 ok( 30 === $day_cells, 'one twin day-cell per window day (got ' . $day_cells . ')' );
 $out_cells = substr_count( $html3, 'sn-public-stats__twin-out' );
 ok( $week_rows * 7 - 30 === $out_cells, 'every calendar slot outside the window is an explicit cell, never a missing one — the grid stays rectangular for the screen reader (got ' . $out_cells . ')' );
-// 2026-10-12, owner: "Yes, say 'not read'". A slot before the window says
-// not read, one after its last day not yet; never an em dash.
-ok( $out_cells === substr_count( $html3, 'twin-out">not read</td>' ) + substr_count( $html3, 'twin-out">not yet</td>' ) && false === strpos( $html3, 'twin-out">—' ), 'each slot outside the window says not read (before it) or not yet (after it), in words' );
+// 2026-10-12, owner: "Yes, say 'not read'", then yes to "before the window"
+// for the slots before it. One after its last day says not yet; never a dash.
+$before = substr_count( $html3, 'twin-out">before the window</td>' );
+ok( $out_cells === $before + substr_count( $html3, 'twin-out">not yet</td>' ) && false === strpos( $html3, 'twin-out">—' ) && false === strpos( $html3, 'twin-out">not read<' ), 'each slot outside the window says before the window or not yet, in words' );
+$last_before = strrpos( $html3, 'twin-out">before the window<' );
+$first_yet   = strpos( $html3, 'twin-out">not yet<' );
+ok( ( false === $last_before || $last_before < strpos( $html3, 'sn-public-stats__twin-day' ) ) && ( false === $first_yet || $first_yet > strrpos( $html3, 'sn-public-stats__twin-day' ) ) && $before + ( false === $first_yet ? 0 : 1 ) > 0, 'before the window only precedes the first day, not yet only follows the last (' . $before . ' before)' );
 
 echo "\nGroup: render — the rhythm section is absent when it would be filler\n";
 delete_transient( SN_PUBLIC_STATS_CACHE_KEY );

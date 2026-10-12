@@ -403,6 +403,7 @@ namespace {
 	$os = new \OpenStation\App\Os();
 	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce' ) ) );
 	ok( array( 'Nothing was saved: the form did not say what to save.' ) === $os->toasts, 'a submission with no action at all belongs to no pipeline, and the toast says exactly that, in plain words' );
+	ok( '(no action)' === $st->get( 'answered' ), 'its answer still names a form (a sentinel), so the host shows the refusal again even if the reader closed the last one (review on #2023)' );
 
 	$os = new \OpenStation\App\Os();
 	$app->actions['post']( $st, $os, array( 'pipeline' => 'admin-post', 'values' => array( '_wpnonce' => 'good-nonce', 'action' => 'sn_prov_nothing_hooked' ) ) );
@@ -518,12 +519,15 @@ namespace {
 	// 819px, and the hidden scrollbar left Cron and Scheduled out of reach in a
 	// half-screen window. A bar the kit measured as wide (data-snt-fit, the
 	// container width it needs) switches to the select twin below that width.
-	foreach ( array( '760', '920', '1080' ) as $fit ) {
-		$at = (int) $fit + 1;
-		ok( 1 === preg_match( '/@container snt-dashboard \( min-width: ' . $at . 'px \) \{ html:not\(\[data-os-mode="mobile"\]\) \.snt-subbar\[data-snt-fit="' . $fit . '"\] \.snt-subbar__phone \{ display: none; \} \}/', $css )
-			&& 1 === preg_match( '/@container snt-dashboard \( max-width: ' . $fit . 'px \) \{ \.snt-subbar\[data-snt-fit="' . $fit . '"\] > \.os-app-list__toolbar-left > os-segmented \{ display: none; \} \}/', $css ),
-			"   ...a bar that needs {$fit}px shows the select twin in a window narrower than that, the pills in a wider one" );
+	// Review on #2023: range syntax, so no fractional width paints both twins
+	// (max-width 920 / min-width 921 left 920.5 to both), and buckets down to
+	// 440, so Site's five pills switch too in a narrow window.
+	foreach ( array( '440', '600', '760', '920', '1080', '1240' ) as $fit ) {
+		ok( 1 === preg_match( '/@container snt-dashboard \( width > ' . $fit . 'px \) \{ html:not\(\[data-os-mode="mobile"\]\) \.snt-subbar\[data-snt-fit="' . $fit . '"\] \.snt-subbar__phone \{ display: none; \} \}/', $css )
+			&& 1 === preg_match( '/@container snt-dashboard \( width <= ' . $fit . 'px \) \{ \.snt-subbar\[data-snt-fit="' . $fit . '"\] > \.os-app-list__toolbar-left > os-segmented \{ display: none; \} \}/', $css ),
+			"   ...a bar that needs {$fit}px shows the select twin in a window that narrow or narrower, the pills in a wider one" );
 	}
+	ok( 0 === preg_match( '/@container snt-dashboard \( (min|max)-width: \d+px \) \{[^{}]*snt-subbar/', $css ), '   ...and no leaf-bar switch uses min/max-width, which leave a fractional gap' );
 	ok( $rule( '.snt-subbar > .os-app-list__toolbar-left', 'min-width: 0; overflow-x: auto; scrollbar-width: none;' )
 		&& $rule( '.snt-subbar os-segment', 'flex: 0 0 auto;' ),
 		'   ...and the pill row scrolls sideways in a window narrower than its pills, the parent scrolling and the segments unshrinkable' );

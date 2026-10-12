@@ -276,9 +276,9 @@ function sn_public_stats_rhythm_html( $data ) {
 	// reader experience: table navigation announces every cell with its week
 	// (row header) and weekday (column header). Slots outside the window get
 	// an explicit cell so the grid stays rectangular (a missing cell would
-	// silently shift every announcement after it one column left): "not read"
-	// before the window starts, "not yet" after its last day (2026-10-12,
-	// owner: "Yes, say 'not read'"; it was an em dash).
+	// silently shift every announcement after it one column left): "before
+	// the window" before it starts, "not yet" after its last day (2026-10-12,
+	// owner's yes to both; it was an em dash).
 	$days_keys = array_keys( $daily );
 	// Owner call: the calendar is visible, not folded. The wrapper scrolls on
 	// its own at narrow widths so the page never scrolls sideways; it takes
@@ -319,7 +319,7 @@ function sn_public_stats_rhythm_html( $data ) {
 			if ( array_key_exists( $date, $daily ) ) {
 				$out .= '<td class="sn-public-stats__twin-day' . ( $peak === $date ? ' sn-public-stats__peak' : '' ) . '">' . esc_html( number_format_i18n( (int) $daily[ $date ] ) ) . '</td>';
 			} else {
-				$out .= '<td class="sn-public-stats__twin-out">' . ( $date > (string) $days_keys[ $n - 1 ] ? esc_html__( 'not yet', 'signal-and-noise-tools' ) : esc_html__( 'not read', 'signal-and-noise-tools' ) ) . '</td>';
+				$out .= '<td class="sn-public-stats__twin-out">' . ( $date > (string) $days_keys[ $n - 1 ] ? esc_html__( 'not yet', 'signal-and-noise-tools' ) : esc_html__( 'before the window', 'signal-and-noise-tools' ) ) . '</td>';
 			}
 		}
 		$out .= '</tr>';

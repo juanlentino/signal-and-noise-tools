@@ -417,20 +417,11 @@ a.snt-link {
  * @supports test is the expression itself, so a browser that cannot compute
  * it keeps the picker's ink rather than an unset one.
  *
- * The shell's confirm dialog sits on <body>, outside every window, so it
- * takes the rule only when an S&N window opened it (assets/snt-confirm.js
- * marks it `data-snt-dialog`). A rule on the dialog itself beats the ink the
- * picker writes on <body>, and the shadow buttons inherit it. Its danger
- * label reads --os-ui-fg-on-accent on --os-ui-danger, white on #ff5a5a at
- * 3.0:1; the same rule from that fill gives it black (6.9:1). Set on the
- * marked dialog only, so the shell's other readers of that token keep it. */
+ * The shell's confirm dialog takes the same rule from
+ * assets/snt-confirm-ink.css, which the shell loads with S&N's commands. */
 @supports ( color: color( from red srgb-linear clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) ) ) {
 	.snt-app[data-os-app] {
 		--os-ui-accent-ink: color( from var( --wp-admin-theme-color, var( --os-ui-accent, #2271b1 ) ) srgb-linear clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) );
-	}
-	os-confirm-dialog[data-snt-dialog] {
-		--os-ui-accent-ink: color( from var( --wp-admin-theme-color, var( --os-ui-accent, #2271b1 ) ) srgb-linear clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) );
-		--os-ui-fg-on-accent: color( from var( --os-ui-danger, #d63638 ) srgb-linear clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) );
 	}
 }
 

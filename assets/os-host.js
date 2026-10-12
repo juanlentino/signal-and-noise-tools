@@ -298,9 +298,9 @@
 	// it on the next paint, so a watch tick (Provenance polls every 30
 	// seconds) brought a closed "Saved" back. A closed notice is remembered
 	// per window by its tone and words and hidden again on the paint's own
-	// effect, like a fold. A new answer (a save or a refusal) shows its
-	// notice again even in the same words, and a notice that leaves the page
-	// is forgotten.
+	// effect, like a fold. A new answer (the paint after a save or a
+	// refusal, which names its form in `answered`) shows its notice again
+	// even in the same words, and a notice that leaves the page is forgotten.
 	var closedNotices = new WeakMap();
 
 	function noticeKey( el ) {
@@ -520,7 +520,9 @@
 			return;
 		}
 		restoreFolds( root );
-		restoreNotices( root, !! ( effect.saved || effect.refused ) );
+		// A new answer is the one-paint `saved` or `answered`, never `refused`:
+		// a refusal stays in state, so every poll tick repeats it.
+		restoreNotices( root, !! effect.saved || '' !== String( effect.answered || '' ) );
 		restoreDrafts( root, !! effect.refused, !! effect.saved, String( effect.answered || '' ) );
 		schedule( root, String( effect.anchor || '' ) );
 	}

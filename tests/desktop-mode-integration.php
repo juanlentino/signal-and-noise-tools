@@ -82,6 +82,8 @@ function wp_localize_script( $handle, $name, $data ) { $GLOBALS['__localized'][ 
 // v11.29.1: the carrier is now enqueued explicitly, so record enqueues too.
 $GLOBALS['__enqueued'] = array();
 function wp_enqueue_script( $handle, ...$rest ) { $GLOBALS['__enqueued'][] = $handle; }
+$GLOBALS['__enqueued_styles'] = array();
+function wp_enqueue_style( $handle, ...$rest ) { $GLOBALS['__enqueued_styles'][] = $handle; }
 
 $GLOBALS['__dm_widgets']  = array();
 $GLOBALS['__dm_commands'] = array();
@@ -2176,6 +2178,9 @@ ok( $clean_out->set_data_calls === 0, 'an already-clean response is never re-wri
 // kept working while every localize-fed one went blank at once.
 ok( in_array( 'sn-desktop-mode', $GLOBALS['__enqueued'], true ),
 	'THE LOCALIZE CARRIER IS ENQUEUED — window.snDesktopData cannot print otherwise' );
+// Review on #2023: the shell confirm dialog's readable ink rides with it, so a
+// danger confirm opened with no S&N window (SN: Full reset) still reads.
+ok( in_array( 'snt-confirm-ink', $GLOBALS['__enqueued_styles'], true ), 'the confirm dialog ink sheet is enqueued on the shell with the commands' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

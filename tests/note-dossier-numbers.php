@@ -66,7 +66,7 @@ $b = sn_note_dossier_numbers( 7, 30 );
 ok( 'not read' === tile( $b[0], 'Views' )['value'] && false !== strpos( tile( $b[0], 'Views' )['note'], 'could not be read' ), 'a failed read is named, never a zero' );
 $GLOBALS['__gsc_row'] = null;
 $b = sn_note_dossier_numbers( 7, 30 );
-ok( 'not read' === tile( $b[0], 'Impressions' )['value'] && false !== strpos( tile( $b[0], 'Impressions' )['note'], 'not shown' ), 'no row for this note: Google did not show it in the window' );
+ok( 'not shown' === tile( $b[0], 'Impressions' )['value'] && 'not shown' === tile( $b[0], 'Clicks' )['value'] && false !== strpos( tile( $b[0], 'Impressions' )['note'], 'not shown' ), 'no row for this note: Google did not show it in the window, and the tiles say not shown, as Top pages does (review on #2023: the sync was read)' );
 $GLOBALS['__gsc_tot'] = array( 'clicks' => 40, 'impressions' => 1200, 'days' => 28, 'capped' => true );
 $b = sn_note_dossier_numbers( 7, 30 );
 ok( false !== strpos( tile( $b[0], 'Impressions' )['note'], 'top 250' ), 'when the sync is capped, absence may be truncation and says so' );

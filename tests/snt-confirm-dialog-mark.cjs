@@ -3,7 +3,7 @@
 // it from an S&N window, and only then. The real assets/snt-confirm.js runs in
 // a VM against a fake document: a press or a key in an S&N window, then the
 // shell appends <os-confirm-dialog> to <body> (what wp.os.confirm and a kit
-// os-confirm trigger both do), and the dialog carries the mark os-app.css
+// os-confirm trigger both do), and the dialog carries the mark snt-confirm-ink.css
 // keys the readable ink on; a dialog opened from anywhere else does not.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

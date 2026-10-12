@@ -335,7 +335,10 @@ $sn_dashboard = App::define( APP_ID )
 			$values = posted_values( $args );
 			// The answer names its form: the host keeps every form's drafts but
 			// the one this save or refusal is about (two quick submits queue).
-			$state->set( 'answered', (string) ( $values['action'] ?? $values['sn_action'] ?? '' ) );
+			// A form that names no action still gets an answer (a sentinel), so
+			// the host shows a refusal the reader had closed (review on #2023).
+			$answered = (string) ( $values['action'] ?? $values['sn_action'] ?? '' );
+			$state->set( 'answered', '' !== $answered ? $answered : '(no action)' );
 			$pipeline = isset( $args['pipeline'] ) && is_scalar( $args['pipeline'] ) ? (string) $args['pipeline'] : '';
 			$tab      = current_tab( $os );
 			$params   = $state->get( 'params' );

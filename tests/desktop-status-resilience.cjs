@@ -388,10 +388,20 @@ async function run() {
     x.side[1].reject(new Error('Failed to fetch')); await flush();
     assert.match(root.textContent, /5xx · Oct 5 4/, 'a failed re-read keeps the lines it had');
     assert.match(root.textContent, /Health, Cron, Edge and Cache not re-read; showing the \d{1,2}:\d\d( [AP]M)? reading/, 'and says they are the last reading, with its time');
-    assert.doesNotMatch(root.textContent, /All systems normal/, 'a kept reading is not a current all clear');
+    // Review on #2023: every line the failed re-read feeds is named, the
+    // Analytics, Watches and Credentials lines too when the card shows them.
     await x.tick(systems.period);
     x.calls[2].resolve({configured: true, rows: [{name: 'Home', level: 'ok', response_ms: 120, incidents_30d: 1}]});
-    x.side[2].resolve({healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []}, cronSummary: {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}}, statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}, cache: extra.statusExtra.systems.cache}, provenance: {}}}); await flush();
+    x.side[2].resolve({healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []}, cronSummary: {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}}, statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}, cache: extra.statusExtra.systems.cache,
+      analytics2: {ok: true, days: 5, since: 'Oct 5', last: 'Oct 8', reset: '', frozen: false, bad: false, why: ''}, watches: [{id: 'a', label: 'a watch'}], credentials: {keyring: [{id: 'site_secret', verdict: 'refused'}], cloudflare: null}}, provenance: {}}}); await flush();
+    await x.tick(systems.period);
+    x.calls[3].resolve({configured: true, rows: [{name: 'Home', level: 'ok', response_ms: 120, incidents_30d: 1}]});
+    x.side[3].reject(new Error('Failed to fetch')); await flush();
+    assert.match(root.textContent, /Health, Cron, Edge, Cache, Analytics, Watches and Credentials not re-read; showing the /, 'a failed re-read names every line it feeds that the card shows');
+    assert.doesNotMatch(root.textContent, /All systems normal/, 'a kept reading is not a current all clear');
+    await x.tick(systems.period);
+    x.calls[4].resolve({configured: true, rows: [{name: 'Home', level: 'ok', response_ms: 120, incidents_30d: 1}]});
+    x.side[4].resolve({healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []}, cronSummary: {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}}, statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}, cache: extra.statusExtra.systems.cache}, provenance: {}}}); await flush();
     assert.doesNotMatch(root.textContent, /not re-read/, 'the next good re-read clears the line');
     assert.match(t, /queue_tick failed/, 'a failing job is named');
     assert.match(t, /\+1 more failed/, 'and the list is capped');
@@ -853,10 +863,14 @@ async function run() {
     await x.tick(60000);
     x.calls[4].reject(new Error('Failed to fetch')); await flush();
     assert.match(root.textContent, /Soon/, 'a failed poll keeps the last good card');
-    assert.match(root.textContent, /Couldn.t reach the site; showing the \d{1,2}:\d\d( [AP]M)? reading\./, 'and says it is the last reading, with its time');
+    assert.match(root.textContent, /Couldn.t read the queue: the site did not answer; showing the \d{1,2}:\d\d( [AP]M)? reading\./, 'and says it is the last reading, with its time and why');
     assert.doesNotMatch(root.textContent, /Queue read failed|Failed to fetch/, 'no developer words on the card');
+    // Review on #2023: the line says the real failure, not a guess at it.
     await x.tick(60000);
-    x.calls[5].resolve({next: [], published: [], drafts: 2}); await flush();
+    x.calls[5].reject({code: 'sn_mcp_read_rate_limited', message: 'Rate limited', data: {status: 429}}); await flush();
+    assert.match(root.textContent, /Couldn.t read the queue: Rate limited \(HTTP 429\); showing the /, 'a refusal from the site is passed through in its own words, not "did not answer"');
+    await x.tick(60000);
+    x.calls[6].resolve({next: [], published: [], drafts: 2}); await flush();
     assert.doesNotMatch(root.textContent, /0 scheduled|showing the/, 'a payload without a scheduled count is not painted as 0, and a good read clears the line');
     assert.match(root.textContent, /Scheduled count not read/);
     stop();

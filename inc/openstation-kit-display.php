@@ -296,9 +296,19 @@ function snt_kit_tabs( $active, array $items, $bind = 'sub', $label = '', array 
 	}
 	// 2026-10-12 audit: a bar wider than a narrow desk window clipped its
 	// trailing pills with no scrollbar to reach them. The bar names the
-	// container width it needs (sn-dashboard.css switches to the select twin
-	// under it); one that fits any desk window names none.
-	$fit = $needs > 880 ? '1080' : ( $needs > 720 ? '920' : ( $needs > 560 ? '760' : null ) );
+	// container width it needs, rounded up to a bucket sn-dashboard.css
+	// switches at (40px for the toolbar's padding and some slack); one that
+	// fits even a 360px window names none (review on #2023: short bars too).
+	$fit = null;
+	if ( $needs + 40 > 360 ) {
+		$fit = '1240';
+		foreach ( array( 440, 600, 760, 920, 1080 ) as $bucket ) {
+			if ( $needs + 40 <= $bucket ) {
+				$fit = (string) $bucket;
+				break;
+			}
+		}
+	}
 	$label = '' !== (string) $label ? (string) $label : null;
 	$desk  = snt_kit_tag(
 		'os-segmented',

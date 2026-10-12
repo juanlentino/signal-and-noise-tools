@@ -75,14 +75,23 @@ foreach ( $fills as $name => $hex ) {
 foreach ( array( -5e-4, -5e-5, -5e-6, -5e-7, 5e-7, 5e-6, 5e-5, 5e-4 ) as $d ) {
 	$check( sprintf( 'a fill at luminance 0.1791%+.0e', $d ), 0.1791 + $d );
 }
-// The shell's confirm dialog, when an S&N window opened it (assets/snt-confirm.js
-// marks it): the same rule, in the same block, for its primary label, and for
+// The shell's confirm dialog, when S&N opened it (assets/snt-confirm.js and
+// sntMarkNextDialog() in desktop-mode.js mark it): the same rule for its primary label, and for
 // its danger label, which the shell paints white on #ff5a5a (3.0:1).
 $mark = preg_match( "/setAttribute\\( '(data-snt-[a-z-]+)', '' \\)/", (string) file_get_contents( $root . '/assets/snt-confirm.js' ), $mm ) ? $mm[1] : '';
 ok( '' !== $mark, 'snt-confirm.js marks the shell confirm dialog an S&N window opened' );
-$block = false !== $g0 ? substr( $app, $g0, (int) strpos( $app, "\n}\n", $g0 ) - $g0 ) : '';
-$d0    = '' !== $mark ? strpos( $block, "os-confirm-dialog[$mark] {" ) : false;
-$dlg   = false !== $d0 ? substr( $block, $d0, (int) strpos( $block, '}', $d0 ) - $d0 ) : '';
+// Review on #2023: the rule lives in a sheet the shell always loads
+// (assets/snt-confirm-ink.css, enqueued with sn-desktop-mode), because two of
+// S&N's danger confirms open with no S&N window, and so without os-app.css.
+$ink   = preg_replace( '#/\*.*?\*/#s', '', (string) @file_get_contents( $root . '/assets/snt-confirm-ink.css' ) );
+$i0    = strpos( $ink, '@supports ( color: ' );
+$igate = false !== $i0 ? substr( $ink, $i0 + 19, (int) strpos( $ink, ' ) {', $i0 ) - $i0 - 19 ) : '';
+ok( '' !== $gate && $gate === $igate, 'the shell sheet is gated on the same @supports expression as the windows\' rule' );
+$d0    = '' !== $mark ? strpos( $ink, "os-confirm-dialog[$mark] {" ) : false;
+$dlg   = false !== $d0 ? substr( $ink, $d0, (int) strpos( $ink, '}', $d0 ) - $d0 ) : '';
+$assets_php = (string) file_get_contents( $root . '/inc/desktop-mode-assets.php' );
+ok( 1 === preg_match( "/wp_enqueue_script\( 'sn-desktop-mode' \);\s*(\/\/[^\n]*\n\s*)*wp_enqueue_style\( 'snt-confirm-ink', plugins_url\( 'assets\/snt-confirm-ink\.css'/", $assets_php ), 'the shell loads the dialog ink sheet wherever it loads the S&N commands, window open or not' );
+ok( false === strpos( $app, 'os-confirm-dialog' ), 'one home for the dialog rule: not repeated in os-app.css' );
 ok( '' !== $rule && str_contains( $dlg, '--os-ui-accent-ink: color( from var( --wp-admin-theme-color, var( --os-ui-accent, #2271b1 ) ) ' . $rule . ' );' ), 'the marked dialog\'s primary label takes the window\'s ink rule, inside the same @supports gate' );
 ok( '' !== $rule && str_contains( $dlg, '--os-ui-fg-on-accent: color( from var( --os-ui-danger, #d63638 ) ' . $rule . ' );' ), 'the marked dialog\'s danger label takes the same rule from the danger fill it sits on' );
 foreach ( array( 'shell danger' => '#ff5a5a', 'danger fallback' => '#d63638' ) as $name => $hex ) {
