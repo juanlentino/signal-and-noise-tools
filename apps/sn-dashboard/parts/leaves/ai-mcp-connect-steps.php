@@ -38,10 +38,11 @@ function mcp_connect_owner_steps_html( array $state = array() ) {
 	// Claude Code takes the full width (its one command fits on one line); the
 	// desktop app's steps sit beside the config they paste. No step says
 	// "above" or "below": on a phone the pair stacks and either word would lie.
-	// The sentence names the client, so it is the label: its first two words bold.
-	$code = '<p class="snt-prose">' . preg_replace( '/^Claude Code/', '<b>Claude Code</b>', \snt_kit_esc( __( 'Claude Code can skip the proxy and connect straight over HTTP:', 'signal-and-noise-tools' ) ) ) . '</p>'
+	// Each client is a sub-heading, so a screen reader can move between them.
+	$h    = static fn( $t ) => '<h4 class="snt-h">' . \snt_kit_esc( $t ) . '</h4>';
+	$code = $h( __( 'Claude Code', 'signal-and-noise-tools' ) ) . '<p class="snt-prose">' . \snt_kit_esc( __( 'Claude Code connects straight over HTTP, with no config file:', 'signal-and-noise-tools' ) ) . '</p>'
 		. \snt_kit_code( 'claude mcp add --transport http signal-and-noise ' . $native_url . ' --header "Authorization: Basic <base64 admin-username:application-password>"', true );
-	$app  = '<p class="snt-prose"><b>' . \snt_kit_esc( __( 'Claude desktop app', 'signal-and-noise-tools' ) ) . '</b></p>' . mcp_connect_claude_app_steps();
+	$app  = $h( __( 'Claude desktop app', 'signal-and-noise-tools' ) ) . mcp_connect_claude_app_steps();
 
 	$config = '{
   "mcpServers": {
@@ -56,12 +57,17 @@ function mcp_connect_owner_steps_html( array $state = array() ) {
     }
   }
 }';
-	$paste = '<p class="snt-prose"><b>' . \snt_kit_esc( __( '@automattic/mcp-wordpress-remote config', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( __( 'Swap in your WordPress username and the Application Password you just created.', 'signal-and-noise-tools' ) ) . '</p>'
+	$paste = $h( __( '@automattic/mcp-wordpress-remote config', 'signal-and-noise-tools' ) ) . '<p class="snt-prose">' . \snt_kit_esc( __( 'Swap in your WordPress username and the Application Password you just created.', 'signal-and-noise-tools' ) ) . '</p>'
 		. \snt_kit_code( $config, true );
 	// Each half is one grid item: loose siblings would each take a track.
 	$body = $lead . $addresses . $code . \snt_kit_grid( array( \snt_kit_stack( $app, 12 ), \snt_kit_stack( $paste, 12 ) ), 320, 24 );
 
-	return \snt_kit_section( __( 'Connect a client', 'signal-and-noise-tools' ), $body );
+	// An earned fold (inc/openstation-kit-fold.php): setup, done once per
+	// client. Closed, it says what is inside; it opens itself while this user
+	// has no Application Password, because then nothing can have connected.
+	$summary = __( 'Claude Code, the Claude desktop app, or any client through @automattic/mcp-wordpress-remote, with both door addresses', 'signal-and-noise-tools' );
+	$none    = class_exists( 'WP_Application_Passwords' ) && function_exists( 'get_current_user_id' ) && array() === (array) \WP_Application_Passwords::get_user_application_passwords( get_current_user_id() );
+	return \snt_kit_fold( __( 'Connect a client', 'signal-and-noise-tools' ), $summary, $body, $none );
 }
 
 /**

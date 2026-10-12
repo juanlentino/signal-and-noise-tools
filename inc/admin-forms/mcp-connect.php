@@ -201,10 +201,10 @@ function sn_admin_render_mcp_rw_binding() {
 		}
 	}
 
-	echo '<p class="sn-callout-h">' . esc_html__( 'Bind the write-door credential', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.51.0', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<p class="sn-callout-h">' . esc_html__( 'Bind the write-door credential', 'signal-and-noise-tools' ) . '</p>';
 
 	if ( '' === $bound_uuid ) {
-		echo '<p><strong>' . esc_html__( 'The write door is INACTIVE.', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'No Application Password is bound to it yet, so every call to /mcp-rw is denied. Bind one below to turn it on.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'The write door is INACTIVE.', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'No Application Password is bound to it yet, so every call to /mcp-rw is denied. Bind one to turn it on.', 'signal-and-noise-tools' ) . '</p>';
 	} elseif ( null !== $bound_password ) {
 		echo '<p>' . sprintf(
 			/* translators: %s: the bound Application Password's name, wrapped in <strong>. */
@@ -223,7 +223,7 @@ function sn_admin_render_mcp_rw_binding() {
 		}
 		echo '<p>' . esc_html__( 'Rotate this Application Password periodically: anyone who holds it can call the write door.', 'signal-and-noise-tools' ) . '</p>';
 	} else {
-		echo '<p>' . esc_html__( 'A write-door credential is bound, but it no longer matches any of your own Application Passwords: it may have been revoked, or belongs to a different user. Re-bind below.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html__( 'A write-door credential is bound, but it no longer matches any of your own Application Passwords: it may have been revoked, or belongs to a different user. Bind a current one.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
 	if ( empty( $passwords ) ) {
@@ -399,7 +399,7 @@ function sn_admin_render_mcp_owner_steps() {
     }
   }
 }</pre>';
-	echo '<p>' . esc_html__( 'Claude Code can skip the proxy and connect straight over HTTP:', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'Claude Code connects straight over HTTP, with no config file:', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p><code>claude mcp add --transport http signal-and-noise ' . esc_url( $native_url ) . ' --header "Authorization: Basic &lt;base64 admin-username:application-password&gt;"</code></p>';
 	echo '</div>';
 

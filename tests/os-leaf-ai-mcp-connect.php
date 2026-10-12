@@ -54,9 +54,14 @@ require SNT_PATH . 'inc/agent-tools-admin.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-agent-tools.php';
 // 2026-10-11 (owner rule, no collapsible sections): every paint of the two
 // leaves is checked for a fold, and the tally is asserted at the end.
+// 2026-10-12 (owner: "Some places earn it, other don't"): Connect a client
+// is the one earned fold on these leaves; any other fold is a finding.
+function ai_unearned_folds( $html ) {
+	return snt_leaf_folds( str_replace( '<os-disclosure heading="Connect a client"', '<os-section heading="Connect a client"', (string) $html ) );
+}
 function ai_leaf_both() {
 	$html                    = snt_leaf_paint( 'ai', 'mcp-connect' ) . snt_leaf_paint( 'ai', 'agent-tools' );
-	$GLOBALS['__fold_hits']  = array_merge( $GLOBALS['__fold_hits'] ?? array(), snt_leaf_folds( $html ) );
+	$GLOBALS['__fold_hits']  = array_merge( $GLOBALS['__fold_hits'] ?? array(), ai_unearned_folds( $html ) );
 	$GLOBALS['__fold_paint'] = ( $GLOBALS['__fold_paint'] ?? 0 ) + 1;
 	return $html;
 }
@@ -90,7 +95,7 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: 
 // ── Rich-fixture readouts: specific numbers/labels, not "non-empty".
 // 2026-10-11 (no folds): the counts that headed the two tool-list folds lead
 // open findings now, and every slug the folds hid is a chip in its door band.
-ok( array() === snt_leaf_folds( $kit ), 'rich fixture: neither leaf paints a fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( array() === ai_unearned_folds( $kit ), 'rich fixture: no fold but the earned one: ' . implode( ',', ai_unearned_folds( $kit ) ) );
 ok( false !== strpos( $kit, '3 read-only tools' ) && false === strpos( $kit, 'show the list' ), 'the read door count (3) leads an open finding, not a fold heading' );
 ok( false !== strpos( $kit, '3 read-only tools; their categories are not readable here, because the Abilities API did not answer for them.' ) && false !== strpos( $kit, '<os-fact label="Category not readable (3)">' ), 'no Abilities API here: the band says the categories are not readable and why, never a guessed category' );
 ok( false !== strpos( $kit, '2 read-write tools' ) && false !== strpos( $kit, '4 abilities never reach this door: 1 permanently, 3 pending an explicit future opt-in.' ), 'the write door count (2) and the withheld count (4, built from the data) are painted open' );
@@ -122,6 +127,7 @@ $GLOBALS['__rw_bound_uuid'] = '';
 $classic = ai_classic_both();
 $kit     = ai_leaf_both();
 ok( ! in_array( 'sn_mcp_rw_uuid', snt_leaf_names( $kit ), true ) && ! in_array( 'sn_mcp_rw_uuid', snt_leaf_names( $classic ), true ), 'no-passwords state: neither leaf offers the credential picker' );
+ok( 1 === preg_match( '/<os-disclosure heading="Connect a client"[^>]*\sopen[\s=>]/', $kit ), 'no-passwords state: nothing can have connected yet, so Connect a client opens itself' );
 ok( false !== strpos( $kit, 'no Application Passwords yet' ) && ! in_array( 'bind_mcp_rw_credential', snt_leaf_actions( $kit ), true ), 'no-passwords state: explained, and the bind action is not offered' );
 
 // ── State: bound credential unresolvable (UUID matches no owned password).
@@ -197,7 +203,7 @@ ok( false !== strpos( $kit, 'retirement candidate' ) && false !== strpos( $kit, 
 // attribute), normalized so tag/entity noise doesn't matter. This is the
 // assertion that would have caught every prose-reduction finding above —
 // mutation-proven: deleting the resources-and-prompts, deep-links or adapter
-// body (agent_tools_resources_prompts_html(), mcp_connect_deep_links_html(),
+// body (agent_tools_resources_prompts_html(), mcp_connect_footer_html(),
 // agent_tools_door_adapter_html() since 2026-10-11) reds this
 // block even though the older names/actions/markers assertions stayed green.
 function ai_mcp_connect_normalize_text( $html ) {
@@ -325,21 +331,23 @@ ok( false !== strpos( $mcp, 'Four MCP doors can answer for this site' ) && false
 ok( 4 === substr_count( $mcp, '<os-stat ' ) && false !== strpos( $mcp, 'label="Read door"' ) && false !== strpos( $mcp, 'label="Write door"' ) && false !== strpos( $mcp, 'label="Remote door"' ) && false !== strpos( $mcp, 'label="Core MCP adapter"' ), 'the four doors are four tiles' );
 $ctl = strpos( $mcp, '<os-section heading="Write-door credential"' );
 $rem = strpos( $mcp, '<os-section heading="Remote door"' );
-ok( false !== $ctl && false !== $rem && $rem > $ctl && false === strpos( substr( $mcp, $ctl, $rem - $ctl ), '</os-grid>' ), 'the write-door credential and the remote door share one row' );
+ok( false !== strpos( $mcp, snt_leaf_row( 2, 320, 18 ) . '<os-section heading="Write-door credential"' ) && false !== $rem && $rem > $ctl && false === strpos( substr( $mcp, $ctl, $rem - $ctl ), '</os-grid>' ), 'the write-door credential and the remote door share one row' );
 ok( false !== strpos( substr( $mcp, (int) $rem ), 'name="sn_remote_enabled"' ) && strpos( $mcp, 'name="sn_remote_enabled"' ) > $rem, 'the remote switch sits inside the Remote door, not floating under the tiles' );
-$con = strpos( $mcp, '<os-section heading="Connect a client"' );
+$con = strpos( $mcp, '<os-disclosure heading="Connect a client"' );
 $con_html = false !== $con ? substr( $mcp, $con ) : '';
 ok( false !== strpos( $con_html, '<os-fact label="Read door">' ) && false !== strpos( $con_html, '<os-fact label="Write door">' ) && false !== strpos( $con_html, '/mcp-rw' ), 'Connect a client names both door addresses' );
 ok( false !== strpos( $con_html, '<p class="snt-prose">Create an <os-button variant="link" os-action="door" os-arg-url="https://example.test/wp-admin/profile.php#application-passwords-section"' ), 'Connect a client opens with the Application Password door' );
 ok( 1 === substr_count( $mcp, '<os-steps>' ) && 4 === substr_count( $mcp, '<os-step>' ), 'one <os-steps> of four: the Claude desktop app -- ' . substr_count( $mcp, '<os-steps>' ) . '/' . substr_count( $mcp, '<os-step>' ) );
 ok( false === strpos( $mcp, '<ol' ), 'no browser ordered list survives on MCP Clients' );
-ok( array() === snt_leaf_folds( $mcp ), 'MCP Clients paints no fold: ' . implode( ',', snt_leaf_folds( $mcp ) ) );
-$app      = strpos( $mcp, '<b>Claude desktop app</b>' );
+ok( array() === ai_unearned_folds( $mcp ), 'MCP Clients folds nothing but Connect a client: ' . implode( ',', ai_unearned_folds( $mcp ) ) );
+ok( 1 === preg_match( '/<os-disclosure heading="Connect a client" hint="Claude Code, the Claude desktop app, or any client through @automattic\/mcp-wordpress-remote, with both door addresses"/', $mcp ), 'closed, the Connect a client fold still says what is inside' );
+ok( 3 === substr_count( $con_html, '<h4 class="snt-h">' ) && false === strpos( $con_html, '<b>Claude' ), 'each client inside Connect a client is a sub-heading, not a bold paragraph' );
+$app      = strpos( $mcp, '<h4 class="snt-h">Claude desktop app</h4>' );
 $app_html = false !== $app ? substr( $mcp, $app, (int) strpos( $mcp, '</os-grid>', $app ) - $app ) : '';
 ok( false !== $app && 4 === substr_count( $app_html, '<os-step>' ) && false !== strpos( $app_html, 'Install Node.js' ) && false !== strpos( $app_html, 'Fully restart the Claude app' ) && false !== strpos( $app_html, 'Add custom connector' ), 'the Claude desktop app holds its four steps open, from Install Node.js to the restart, and the connector warning -- ' . substr_count( $app_html, '<os-step>' ) );
 ok( false !== strpos( $app_html, '<os-code>claude_desktop_config.json</os-code>' ) && false !== strpos( $app_html, '<os-code>~/Library/Application Support/Claude/</os-code>' ) && false !== strpos( $app_html, '<os-code>%APPDATA%\\Claude\\</os-code>' ), 'the config file and both paths are inline code in the second step' );
 $__cg = strpos( $mcp, '<os-grid min-item-width="320" gap="24" style="--snt-grid-items:2"><os-stack' );
-ok( false !== $__cg && strpos( $mcp, '<b>Claude Code</b>' ) < $__cg && strpos( $mcp, 'claude mcp add --transport http' ) < $__cg, 'Claude Code takes the full width, before the pair (its command fits on one line)' );
+ok( false !== $__cg && false !== strpos( $mcp, '<h4 class="snt-h">Claude Code</h4>' ) && strpos( $mcp, '<h4 class="snt-h">Claude Code</h4>' ) < $__cg && strpos( $mcp, 'claude mcp add --transport http' ) < $__cg, 'Claude Code takes the full width, before the pair (its command fits on one line)' );
 ok( false !== $__cg && 2 === preg_match_all( '#<os-stack[^>]*>#', substr( $mcp, $__cg, (int) strpos( $mcp, '</os-grid>', $__cg ) - $__cg ) ) && $app > $__cg && strpos( $mcp, '@automattic/mcp-wordpress-remote@latest' ) > $app, 'the desktop app\'s steps and the config they paste are the pair, two grid items (loose siblings would each take a track)' );
 ok( false === strpos( $mcp, 'config below' ) && false === strpos( $mcp, 'config above' ), 'no step says where the config is: the pair stacks on a phone' );
 ok( 1 === preg_match( '#<os-button variant="link" os-action="go" os-arg-sub="agent-tools">[^<]{20,}</os-button>#', $mcp ), 'MCP Clients points at Agent tools for the door lists with a visible in-window link, not a second copy of them' );
@@ -349,7 +357,7 @@ foreach ( array( 'Write-door credential', 'Remote door', 'Connect a client', 'Re
 	ok( false !== strpos( $kit, $heading ), "still painted after the regroup: $heading" );
 }
 
-ok( $GLOBALS['__fold_paint'] >= 10 && array() === array_unique( $GLOBALS['__fold_hits'] ), 'no fold on either leaf in any of the ' . $GLOBALS['__fold_paint'] . ' states this suite paints: ' . implode( ',', array_unique( $GLOBALS['__fold_hits'] ) ) );
+ok( $GLOBALS['__fold_paint'] >= 10 && array() === array_unique( $GLOBALS['__fold_hits'] ), 'no unearned fold on either leaf in any of the ' . $GLOBALS['__fold_paint'] . ' states this suite paints: ' . implode( ',', array_unique( $GLOBALS['__fold_hits'] ) ) );
 
 // ── Live-shaped preview: two Application Passwords with the write door bound
 // to one, the remote bridge ready, the live allowlists (51 read, 18 rw).
@@ -362,7 +370,8 @@ $GLOBALS['__passwords']     = array(
 );
 $GLOBALS['__rw_bound_uuid'] = 'uuid-mac';
 $mcp = snt_leaf_paint( 'ai', 'mcp-connect' );
-ok( array() === snt_leaf_folds( $mcp ) && false !== strpos( $mcp, '<b>Claude desktop app</b>' ) && false !== strpos( $mcp, 'MacBook Claude app' ), 'live-shaped preview: MCP Clients paints fold-free, the desktop-app steps open, the bound password named' );
+ok( array() === ai_unearned_folds( $mcp ) && false !== strpos( $mcp, '<h4 class="snt-h">Claude desktop app</h4>' ) && false !== strpos( $mcp, 'MacBook Claude app' ), 'live-shaped preview: only the earned fold, the desktop-app steps inside it, the bound password named' );
+ok( 0 === preg_match( '/<os-disclosure heading="Connect a client"[^>]*\sopen[\s=>]/', $mcp ), 'with Application Passwords present, Connect a client starts closed' );
 snt_leaf_preview( 'ai-mcp-connect', $mcp );
 
 // 2026-10-12, from the live preview: usage said twice (tile and section, and

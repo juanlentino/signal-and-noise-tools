@@ -45,7 +45,7 @@ function mcp_connect_rw_binding_html( $explain = '' ) {
 
 	$status = '' !== (string) $explain ? '<p class="snt-hint">' . (string) $explain . '</p>' : '';
 	if ( '' === $bound_uuid ) {
-		$status .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The write door is INACTIVE.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( __( 'No Application Password is bound to it yet, so every call to /mcp-rw is denied. Bind one below to turn it on.', 'signal-and-noise-tools' ) ) );
+		$status .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The write door is INACTIVE.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( __( 'No Application Password is bound to it yet, so every call to /mcp-rw is denied. Bind one to turn it on.', 'signal-and-noise-tools' ) ) );
 	} elseif ( null !== $bound_password ) {
 		$last_used = ! empty( $bound_password['last_used'] ) ? (int) $bound_password['last_used'] : 0;
 		$when      = ( $last_used > 0 && function_exists( 'human_time_diff' ) )
@@ -55,7 +55,7 @@ function mcp_connect_rw_binding_html( $explain = '' ) {
 		$status .= '<p class="snt-prose"><b>' . sprintf( /* translators: %s: bound Application Password name. */ \snt_kit_esc( __( 'The write door is bound to %s.', 'signal-and-noise-tools' ) ), \snt_kit_esc( (string) ( $bound_password['name'] ?? '' ) ) ) . '</b> '
 			. $when . ' ' . \snt_kit_esc( __( 'Rotate this Application Password periodically: anyone who holds it can call the write door.', 'signal-and-noise-tools' ) ) . '</p>';
 	} else {
-		$status .= \snt_kit_notice( 'warn', \snt_kit_esc( __( 'A write-door credential is bound, but it no longer matches any of your own Application Passwords: it may have been revoked, or belongs to a different user. Re-bind below.', 'signal-and-noise-tools' ) ) );
+		$status .= \snt_kit_notice( 'warn', \snt_kit_esc( __( 'A write-door credential is bound, but it no longer matches any of your own Application Passwords: it may have been revoked, or belongs to a different user. Bind a current one.', 'signal-and-noise-tools' ) ) );
 	}
 
 	if ( empty( $passwords ) ) {
