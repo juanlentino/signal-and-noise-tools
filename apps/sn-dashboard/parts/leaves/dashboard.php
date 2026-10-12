@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/dashboard-operations.php'; // Operations: the named systems and the overrides (2026-10-11).
+
 /**
  * A classic admin URL into our own pages, as a `go` target — tab, sub, anchor.
  *
@@ -679,101 +681,6 @@ function home_continue_working_html( $tab ) {
 
 	$out .= '</div></section>';
 	return $out;
-}
-
-/**
- * Render subordinate operations & maintenance.
- *
- * @param array<string,mixed> $data Dashboard data bundle.
- * @param string              $tab  Current tab.
- * @return string
- */
-function home_operations_html( array $data, $tab ) {
-	$out = '<section class="snt-home__section snt-home__section--subordinate" aria-labelledby="snt-home-ops-heading">'
-		. '<div class="snt-home__section-heading">'
-		. '<h2 id="snt-home-ops-heading">' . esc_html__( 'Operations', 'signal-and-noise-tools' ) . '</h2>'
-		. '</div>';
-
-	// The wall stays whole but folds behind one line; deploys and the maintenance bar are the
-	// Deploy Status and Quick Actions widgets' job, not Home's.
-	$out .= \snt_kit_tag(
-		'os-disclosure',
-		array( 'heading' => systems_summary( (array) ( $data['checks'] ?? array() ), (array) ( $data['components'] ?? array() ) ), 'class' => 'snt-home__systems' ),
-		systems_html( (array) ( $data['checks'] ?? array() ), (array) ( $data['components'] ?? array() ), $tab )
-	);
-
-	if ( ! empty( $data['overrides'] ) ) {
-		$names = array_map( '\snt_kit_esc', (array) $data['overrides'] );
-		$out  .= \snt_kit_tag(
-			'os-disclosure',
-			array(
-				'heading' => sprintf( /* translators: %d database overrides */ _n( '%d database override', '%d database overrides', count( $names ), 'signal-and-noise-tools' ), count( $names ) ),
-				'open'    => false,
-				'id'      => 'sn-dash-diagnostics',
-			),
-			'<ul class="snt-plain">' . implode( '', array_map( static function ( $name ) { return '<li><os-code>' . $name . '</os-code></li>'; }, $names ) ) . '</ul>'
-		);
-	}
-
-	$out .= '</section>';
-	return $out;
-}
-
-/**
- * The one line the folded Systems wall shows: how many cards want
- * attention, by the same test the wall paints its warning state with.
- *
- * @param array<int,array<string,mixed>> $checks     Checks.
- * @param array<int,array<string,mixed>> $components Fleet cards.
- * @return string
- */
-function systems_summary( array $checks, array $components ) {
-	$cards = array_filter( array_merge( array_values( $checks ), array_values( $components ) ), 'is_array' );
-	$bad   = array_filter( $cards, static fn( $c ) => 'ok' !== (string) ( $c['pill']['kind'] ?? 'ok' ) && \sn_admin_card_wants_attention( $c ) );
-	return array() === $bad
-		? sprintf( /* translators: %d systems */ _n( '%d system, all current', 'All %d systems current', count( $cards ), 'signal-and-noise-tools' ), count( $cards ) )
-		: sprintf( /* translators: 1: systems wanting attention, 2: all systems */ __( '%1$d of %2$d systems need a look', 'signal-and-noise-tools' ), count( $bad ), count( $cards ) );
-}
-
-/**
- * Systems wall: fleet checks & components.
- *
- * @param array<int,array<string,mixed>> $checks     Checks.
- * @param array<int,array<string,mixed>> $components Fleet cards.
- * @param string                         $tab        The painting tab.
- * @return string
- */
-function systems_html( array $checks, array $components, $tab ) {
-	$cells = array();
-	foreach ( array_merge( array_values( $checks ), array_values( $components ) ) as $card ) {
-		if ( ! is_array( $card ) ) {
-			continue;
-		}
-		$kind  = isset( $card['pill']['kind'] ) ? (string) $card['pill']['kind'] : 'ok';
-		$state = ( 'ok' !== $kind && \sn_admin_card_wants_attention( $card ) ) ? $kind : '';
-		$value = (string) ( $card['value'] ?? '' );
-		$go    = go_target( (string) ( $card['href'] ?? '' ) );
-		$body  = null !== $go
-			? \snt_kit_go( $value, $go + array( 'current' => $tab ), array( 'class' => 'snt-sys__v' ) )
-			: '<span class="snt-sys__v">' . \snt_kit_esc( $value ) . '</span>';
-		$pill  = (string) ( $card['pill']['text'] ?? '' );
-		$cells[] = '<div class="snt-sys' . ( '' !== $state ? ' snt-sys--' . \snt_kit_esc( $state ) : '' ) . '"' . ( '' !== $state ? ' data-tone="' . \snt_kit_tone( $state ) . '"' : '' ) . '>'
-			. '<span class="snt-sys__k">' . \snt_kit_esc( (string) ( $card['label'] ?? '' ) ) . '</span>'
-			. $body
-			. ( '' !== $pill && 'ok' !== $kind ? \snt_kit_badge( $kind, $pill ) : '' )
-			. ( '' !== (string) ( $card['meta_html'] ?? '' ) ? '<span class="snt-sys__meta">' . (string) $card['meta_html'] . '</span>' : '' )
-			. '</div>';
-	}
-	$parts = array();
-	if ( ! empty( $checks ) ) {
-		/* translators: %d health checks on the wall */
-		$parts[] = sprintf( _n( '%d check', '%d checks', count( $checks ), 'signal-and-noise-tools' ), count( $checks ) );
-	}
-	if ( ! empty( $components ) ) {
-		/* translators: %d fleet components on the wall */
-		$parts[] = sprintf( _n( '%d component', '%d components', count( $components ), 'signal-and-noise-tools' ), count( $components ) );
-	}
-	return \snt_kit_section( __( 'Systems', 'signal-and-noise-tools' ), \snt_kit_grid( $cells, 190, 12 ), implode( ' · ', $parts ) );
 }
 
 /**

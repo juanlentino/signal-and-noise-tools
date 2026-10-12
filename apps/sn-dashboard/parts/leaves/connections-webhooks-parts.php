@@ -4,8 +4,8 @@
  *
  * Every piece the classic tab paints (inc/webhooks-admin.php), as kit
  * markup: the per-webhook editor (the `webhook_update` form, the
- * `webhook_delete` form with the same confirm, the reveal-once secret, the
- * delivery log), the `webhook_add` form, the `monitoring_save` form's token
+ * `webhook_delete` form with the same confirm, the reveal-once secret; the
+ * delivery log is connections-webhooks-log.php), the `webhook_add` form, the `monitoring_save` form's token
  * fields (mirroring sn_uptime_status_token_field_html() and
  * sn_spend_watch_settings_fields_html(), which emit wp-admin markup), the
  * rail's status box and the payload reference.
@@ -179,52 +179,6 @@ function webhooks_delete_form( $id ) {
 		),
 		$hidden
 	);
-}
-
-/**
- * The delivery log, newest first: folded away as the classic `<details>`
- * while editing, open as a section while watching.
- *
- * The classic table carries `data-webhook-id` and assets/admin-heartbeat.js
- * re-renders it on every Heartbeat tick (T5, v4.9.0). Here the live refresh
- * is the runtime's `os-poll` (snt_kit_watch_bar() in the leaf, #1607), and it
- * rides only while watching: `os-disclosure` keeps its open state as an
- * attribute the morph strips on every repaint, so a watched log is painted
- * as a plain section, open by construction, instead of a disclosure that
- * would fold itself on every tick.
- *
- * @param string $id       Webhook id.
- * @param bool   $watching Whether the leaf polls (`sn_watch`).
- * @return string
- */
-function webhooks_log_html( $id, $watching = false ) {
-	$log = \sn_webhook_log_read( $id );
-	if ( empty( $log ) ) {
-		return '';
-	}
-	$rows = array();
-	foreach ( array_reverse( $log ) as $entry ) {
-		$rows[] = array(
-			'fired_at' => wp_date( 'Y-m-d H:i:s', (int) ( $entry['fired_at'] ?? 0 ) ),
-			'attempt'  => (string) ( $entry['attempt'] ?? '' ),
-			'http'     => (string) ( $entry['response_code'] ?? '' ),
-			'status'   => ! empty( $entry['success'] ) ? 'ok' : 'fail',
-			'response' => (string) ( $entry['response_excerpt'] ?? '' ),
-		);
-	}
-	$columns = array(
-		array( 'key' => 'fired_at', 'label' => __( 'Fired at', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'attempt', 'label' => __( 'Attempt', 'signal-and-noise-tools' ), 'align' => 'end' ),
-		array( 'key' => 'http', 'label' => __( 'HTTP', 'signal-and-noise-tools' ), 'align' => 'end' ),
-		array( 'key' => 'status', 'label' => __( 'Status', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'response', 'label' => __( 'Response', 'signal-and-noise-tools' ) ),
-	);
-	/* translators: %d delivery-log entries */
-	$heading = sprintf( __( 'Recent deliveries (%d)', 'signal-and-noise-tools' ), count( $log ) );
-	$table   = \snt_kit_table( $columns, $rows );
-	return $watching
-		? \snt_kit_section( $heading, $table )
-		: \snt_kit_tag( 'os-disclosure', array( 'heading' => $heading ), $table );
 }
 
 /**

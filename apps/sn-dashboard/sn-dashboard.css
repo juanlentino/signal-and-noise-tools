@@ -568,7 +568,7 @@ os-button.snt-home__action:hover {
 /* ══════════════════════════════════════════════════════════════════════════
  * North star hero: the number Home is for, at display size, its four weeks
  * under it, and three key signals ruled beside it in the pulse tiles' own
- * language. The rest of the signals fold behind "All signals".
+ * language. The rest of the signals sit open in the All signals band under it.
  * ══════════════════════════════════════════════════════════════════════════ */
 
 .snt-ns-hero {
@@ -674,6 +674,13 @@ os-button.snt-home__action:hover {
 .snt-home__systems {
 	display: block;
 	margin-block-start: 12px;
+}
+
+/* 2026-10-11: a holding system's chip reads label, value and meta in one
+   line; the kit's 220px label cap cut it mid-reading. Capped at the window
+   so a phone never scrolls sideways. */
+.snt-home__systems os-chip {
+	--os-ui-chip-label-max: min( 34em, 78vw );
 }
 
 @container snt-dashboard ( max-width: 640px ) {

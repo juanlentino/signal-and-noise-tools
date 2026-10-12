@@ -86,12 +86,22 @@ function ok( $c, $m ) {
 	}
 }
 
+// 2026-10-11 (owner rule: no collapsible sections): every paint this suite
+// makes goes through here, so every state it paints is pinned fold-free.
+function reports_paint() {
+	static $n = 0;
+	$kit   = snt_leaf_paint( 'tools', 'reports' );
+	$folds = snt_leaf_folds( $kit );
+	ok( array() === $folds, 'paint #' . ( ++$n ) . ' is fold-free' . ( $folds ? ': ' . implode( ',', $folds ) : '' ) );
+	return $kit;
+}
+
 ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['tools/reports'] ), 'the painter is registered under tools/reports' );
 
 // ── State 1: no scan yet.
 $GLOBALS['__scan'] = null;
 $classic            = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
-$kit                = snt_leaf_paint( 'tools', 'reports' );
+$kit                = reports_paint();
 ok( false !== strpos( $classic, 'No scan yet' ) && false !== strpos( $kit, 'No scan yet' ), 'no-scan state: both leaves say to run one from Measurement → Health' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no-scan state: no wp-admin markup' );
 
@@ -102,7 +112,7 @@ $GLOBALS['__scan'] = array(
 	),
 );
 $classic = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
-$kit     = snt_leaf_paint( 'tools', 'reports' );
+$kit     = reports_paint();
 ok( false !== strpos( $classic, 'The last scan produced no reports' ) && false !== strpos( $kit, 'The last scan produced no reports' ), 'no-reports state: both leaves say the scan produced no reports' );
 
 // ── State 3: a rich scan — one of each built-in report, plus an unknown key.
@@ -153,6 +163,7 @@ $rich_scan = array(
 					'conditional' => array(
 						array(
 							'selector' => '.snt-provenance--muted',
+							'source'   => 'assets/provenance.css',
 							'pair'     => 'ink/asphalt',
 							'ratio'    => 3.66,
 							'palette'  => 'default',
@@ -203,7 +214,7 @@ $rich_scan = array(
 );
 $GLOBALS['__scan'] = $rich_scan;
 $classic           = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
-$kit               = snt_leaf_paint( 'tools', 'reports' );
+$kit               = reports_paint();
 
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'no field names (this leaf offers no forms), matching the classic leaf' );
@@ -217,7 +228,9 @@ ok( false !== strpos( $kit, 'This report has no detail view yet' ), 'the unknown
 // Contrast: usage tier + arithmetic tier.
 ok( false !== strpos( $kit, '1 of 10 declared pairings fall below body-text AA, across 3 stylesheets and 1 palette(s).' ), 'contrast usage-tier headline matches the classic numbers' );
 ok( false !== strpos( $kit, 'Scored under: default.' ), 'contrast usage-tier palette line is printed' );
-ok( false !== strpos( $kit, '1 placement-dependent pairing(s)' ), 'the conditional (placement-dependent) tier count matches' );
+// 2026-10-11: the conditional tier's count rode its fold heading; it is the
+// tier's finding sentence now, with the worst ratio the rows carry.
+ok( false !== strpos( $kit, '1 pairing passes on the page background and would fail on another surface the design system paints; the worst would read 3.66:1.' ), 'the conditional (placement-dependent) tier count is the finding sentence, with the worst ratio' );
 ok( false !== strpos( $kit, '1 of 2 token pairs would fall below 4.5:1 (body-text AA) if rendered together, across 2 palette tokens.' ), 'contrast arithmetic-tier headline matches the classic numbers' );
 ok( false !== strpos( $kit, 'ink/paper' ) && false !== strpos( $kit, 'Would pass 4.5:1' ) && false !== strpos( $kit, 'Would fail 4.5:1' ), 'the arithmetic pair table carries hedged would-pass/would-fail verdicts per threshold, matching the classic wording (never bare Pass/Fail)' );
 ok( false !== strpos( $kit, 'ink #111111' ) && false !== strpos( $kit, 'paper #ffffff' ), 'the token legend names every token and its hex' );
@@ -228,15 +241,50 @@ ok( false !== strpos( $kit, 'Orphan note' ) && false !== strpos( $kit, 'orphan-n
 ok( false !== strpos( $kit, 'post=5&amp;action=edit' ) && false !== strpos( $kit, 'Edit' ), 'the isolated note row carries a live Edit link (get_edit_post_link), matching the classic Action column' );
 
 // Motion.
-ok( false !== strpos( $kit, '1 of 5 declared motions have no reduced-motion counterpart — 3 gated behind no-preference, 1 neutralized under reduce, across 2 stylesheets.' ), 'motion headline matches the classic numbers' );
+ok( false !== strpos( $classic, '1 of 5 declared motions have no reduced-motion counterpart' ) && false !== strpos( $kit, '1 of 5 declared motions have no reduced-motion counterpart: 3 gated behind no-preference, 1 neutralized under reduce, across 2 stylesheets.' ), 'motion headline matches the classic numbers' );
 ok( false !== strpos( $kit, '.snt-spin' ) && false !== strpos( $kit, 'keyframe' ), 'the uncovered-motion row carries its selector and kind' );
 
-ok( false !== strpos( $kit, '<os-disclosure' ) && false !== strpos( $kit, '<os-table' ), 'tiers fold behind os-disclosure and rows paint through os-table (never a raw <table>)' );
+// 2026-10-11 (owner rule: no collapsible sections). Each tier that sat in a
+// fold is an open section with a short heading, in the classic order (usage
+// leads, the hedged arithmetic tier last), and every figure the folds held is
+// still painted: the counts, the rows, the hedge.
+ok( false === strpos( $kit, '<os-disclosure' ) && false !== strpos( $kit, '<os-table' ), 'no tier folds; rows paint through os-table (never a raw <table>)' );
+$at_card  = strpos( $kit, 'heading="Contrast tokens"' );
+$at_usage = strpos( $kit, 'heading="Usage tier"' );
+$at_cond  = strpos( $kit, 'heading="Placement-dependent pairings"' );
+$at_arith = strpos( $kit, 'heading="Arithmetic tier"' );
+ok( false !== $at_card && false !== $at_usage && false !== $at_cond && false !== $at_arith && $at_card < $at_usage && $at_usage < $at_cond && $at_cond < $at_arith, 'the contrast report reads card, usage tier, placement-dependent pairings, arithmetic tier, each an open section' );
+ok( 0 === preg_match( '/\sheading="[^"]{61,}"/', $kit ), 'no heading is a sentence (every heading is 60 characters or fewer; the fold headings ran to 120)' );
+$reports_tables = snt_leaf_tables( $kit );
+$reports_rows   = static function ( $first_key, $value ) use ( $reports_tables ) {
+	foreach ( $reports_tables as $t ) {
+		foreach ( $t['data'] as $row ) {
+			if ( isset( $row[ $first_key ] ) && $value === $row[ $first_key ] ) {
+				return $row;
+			}
+		}
+	}
+	return null;
+};
+$cond_row = $reports_rows( 'selector', '.snt-provenance--muted (assets/provenance.css)' );
+ok( null !== $cond_row && '3.66:1' === $cond_row['ratio'] && 'ink/asphalt' === $cond_row['pair'], 'a placement-dependent row names its stylesheet (the classic\'s source line), pairing and ratio' );
+$fail_row = $reports_rows( 'selector', '.snt-badge (assets/admin.css)' );
+ok( null !== $fail_row && '2.10:1' === $fail_row['ratio'] && false !== strpos( $fail_row['pair'], 'hardcoded' ), 'the failing-pairing row keeps its source, ratio and hardcoded marker' );
+$motion_row = $reports_rows( 'sheet', 'assets/admin.css' );
+ok( null !== $motion_row && '.snt-spin' === $motion_row['selector'] && 'keyframe' === $motion_row['kind'], 'the uncovered-motion row is a ledger row: sheet, selector, kind' );
+ok( false !== strpos( $kit, 'moves only when a token changes' ), 'the arithmetic tier still says it is a palette property that moves only when a token changes' );
+ok( false === strpos( $kit, 'snt-ledger-more' ), 'under every cap: no "+N more" line is painted' );
+// The reading: the contrast card leads with one tile per tier. Only the usage
+// tier's failing count may carry a warning; the placement-dependent and the
+// arithmetic counts are conditional and hedged, so they paint no swatch.
+ok( false !== strpos( $kit, '<os-stat value="1" label="Failing pairings" caption="of 10 declared, below body-text AA" swatch data-tone="warning">' ), 'contrast tile: 1 failing pairing of 10 declared, warning swatch' );
+ok( false !== strpos( $kit, '<os-stat value="1" label="Placement-dependent" caption="pass on the page, would fail elsewhere">' ), 'contrast tile: 1 placement-dependent pairing, no swatch' );
+ok( false !== strpos( $kit, '<os-stat value="1" label="Would fail if paired" caption="of 2 token pairs, a palette property">' ), 'contrast tile: the hedged arithmetic count, 1 of 2 token pairs, no swatch' );
 
 // ── Escaping: a hostile field value never reaches the markup raw.
 $GLOBALS['__scan']['checks']['link_isolation']['report']['isolated'][0]['title'] = '"><script>x</script>';
 $GLOBALS['__scan']['checks']['contrast_tokens']['report']['coverage']           = '<img src=x onerror=alert(1)>';
-$kit = snt_leaf_paint( 'tools', 'reports' );
+$kit = reports_paint();
 ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&lt;script&gt;' ), 'a hostile isolated-note title is escaped' );
 ok( false === strpos( $kit, '<img src=x' ) && false !== strpos( $kit, '&lt;img' ), 'a hostile coverage sentence is escaped' );
 
@@ -250,7 +298,7 @@ $degenerate['checks']['link_isolation']['report']['isolated']       = array();
 $degenerate['checks']['link_isolation']['report']['isolated_total'] = 0;
 $GLOBALS['__scan'] = $degenerate;
 $classic            = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
-$kit                = snt_leaf_paint( 'tools', 'reports' );
+$kit                = reports_paint();
 ok( false !== strpos( $classic, 'Every published note is reachable from at least one other note.' ) && false !== strpos( $kit, 'Every published note is reachable from at least one other note.' ), 'link_isolation with zero isolated rows: both leaves say every note is reachable' );
 
 // link_isolation: truncated remainder line.
@@ -259,7 +307,7 @@ $degenerate['checks']['link_isolation']['report']['isolated_total']  = 9;
 $degenerate['checks']['link_isolation']['report']['truncated']       = true;
 $GLOBALS['__scan'] = $degenerate;
 $classic            = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
-$kit                = snt_leaf_paint( 'tools', 'reports' );
+$kit                = reports_paint();
 ok( false !== strpos( $classic, 'Showing 1 of 9 isolated notes' ) && false !== strpos( $kit, 'Showing 1 of 9 isolated notes' ), 'link_isolation truncated: both leaves print the capped-not-complete remainder line' );
 
 // contrast_tokens usage tier: no stylesheets readable.
@@ -267,15 +315,16 @@ $degenerate                                             = $rich_scan;
 $degenerate['checks']['contrast_tokens']['report']['usage']['scanned'] = 0;
 $GLOBALS['__scan'] = $degenerate;
 $classic            = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
-$kit                = snt_leaf_paint( 'tools', 'reports' );
+$kit                = reports_paint();
 ok( false !== strpos( $classic, 'No stylesheets were readable' ) && false !== strpos( $kit, 'No stylesheets were readable' ), 'contrast usage tier with scanned=0: both leaves say nothing was scored' );
+ok( false !== strpos( $kit, '<os-stat value="not measured" label="Failing pairings"' ) && false === strpos( $kit, '<os-stat value="0" label="Failing pairings"' ), 'contrast usage tier with scanned=0: the failing tile reads "not measured", never 0' );
 
 // contrast_tokens arithmetic tier: no palette tokens/pairs readable.
 $degenerate                                     = $rich_scan;
 $degenerate['checks']['contrast_tokens']['report']['pairs'] = array();
 $GLOBALS['__scan'] = $degenerate;
 $classic            = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
-$kit                = snt_leaf_paint( 'tools', 'reports' );
+$kit                = reports_paint();
 ok( false !== strpos( $classic, 'No theme palette tokens were readable' ) && false !== strpos( $kit, 'No theme palette tokens were readable' ), 'contrast arithmetic tier with empty pairs: both leaves say no tokens were readable' );
 
 // motion_scan: no stylesheets scanned.
@@ -283,7 +332,7 @@ $degenerate                                        = $rich_scan;
 $degenerate['checks']['motion_scan']['report']['scanned'] = 0;
 $GLOBALS['__scan'] = $degenerate;
 $classic            = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
-$kit                = snt_leaf_paint( 'tools', 'reports' );
+$kit                = reports_paint();
 ok( false !== strpos( $classic, 'No front stylesheets were readable' ) && false !== strpos( $kit, 'No front stylesheets were readable' ), 'motion_scan with scanned=0: both leaves say no motion was scanned' );
 
 // motion_scan: fully covered (zero uncovered).
@@ -291,7 +340,7 @@ $degenerate                                          = $rich_scan;
 $degenerate['checks']['motion_scan']['report']['uncovered'] = array();
 $GLOBALS['__scan'] = $degenerate;
 $classic            = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
-$kit                = snt_leaf_paint( 'tools', 'reports' );
+$kit                = reports_paint();
 ok( false !== strpos( $classic, 'Every declared motion has a reduced-motion counterpart' ) && false !== strpos( $kit, 'Every declared motion has a reduced-motion counterpart' ), 'motion_scan with zero uncovered: both leaves say every declared motion is covered' );
 
 // ── #1599: the "Plugin environment" box under the reports in every state:
@@ -314,7 +363,7 @@ $GLOBALS['__overrides']  = 3;
 $GLOBALS['__options']['snt_janitor_log'] = array( 'version' => '9.9.9', 'freed_bytes' => 123456, 'errors_total' => 0, 'errors' => array(), 'time' => time() );
 // (a) The rich scan: the box sits under the report cards, one row per fact.
 $GLOBALS['__scan'] = $rich_scan;
-$kit = snt_leaf_paint( 'tools', 'reports' );
+$kit = reports_paint();
 $box = reports_leaf_facts_box( $kit );
 ok( '' !== $box && strrpos( $kit, 'class="snt-cols"' ) < strpos( $kit, 'heading="Plugin environment"' ), 'the environment box paints under the last report row' );
 ok( false !== strpos( $box, '<os-fact label="WordPress JS packages served by"><span class="snt-kv__v">plugin:gutenberg' ) && false !== strpos( $box, '1 handles (wp-components)' ), 'the JS-package row names the plugin that serves the wp-* handles, as the Info panel does' );
@@ -334,9 +383,70 @@ unlink( $fixture . '/docs/a.md' ); unlink( $fixture . '/inc/b.php' ); rmdir( $fi
 // (c) No sweep stored: no sweep row, the box still paints; and before any scan the box is there under the sentence.
 unset( $GLOBALS['__options']['snt_janitor_log'] );
 $GLOBALS['__scan'] = null;
-$kit = snt_leaf_paint( 'tools', 'reports' );
+$kit = reports_paint();
 $box = reports_leaf_facts_box( $kit );
 ok( '' !== $box && false === strpos( $box, 'Last janitor sweep' ) && strpos( $kit, 'No scan yet' ) < strpos( $kit, 'heading="Plugin environment"' ), 'no scan and no sweep: the box paints under the no-scan sentence without a sweep row' );
+
+// ── 2026-10-11: the caps are counted out loud, never silent. At the cap the
+// "+N more" line is absent; one row past it, it counts the one. The
+// placement-dependent table used to cap at 25 with no line at all.
+$edge = $rich_scan;
+$row  = $rich_scan['checks']['contrast_tokens']['report']['usage']['conditional'][0];
+$edge['checks']['contrast_tokens']['report']['usage']['conditional'] = array_fill( 0, 25, $row );
+$GLOBALS['__scan'] = $edge;
+$kit     = reports_paint();
+$classic = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
+ok( false === strpos( $kit, 'more placement-dependent pairings' ) && false === strpos( $classic, 'more placement-dependent pairings' ), 'placement-dependent at the cap (25): no "+N more" line on either leaf' );
+$edge['checks']['contrast_tokens']['report']['usage']['conditional'] = array_fill( 0, 26, $row );
+$GLOBALS['__scan'] = $edge;
+$kit     = reports_paint();
+$classic = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
+ok( false !== strpos( $kit, '+1 more placement-dependent pairings, sorted worst-first; the tail is the safe end.' ), 'placement-dependent one past the cap (26): "+1 more" says the list is cut' );
+ok( false !== strpos( $classic, '+1 more placement-dependent pairings, sorted worst-first; the tail is the safe end.' ) && false !== strpos( $classic, 'assets/provenance.css' ), 'classic twin, one past the cap: the same "+1 more" line, and each row names its stylesheet' );
+
+// ── Live-shaped preview: the volumes the live site carries (451
+// placement-dependent pairings, ~40 failing pairings over 3 palettes, ~300
+// token pairs of which ~60 would fail, ~70 uncovered motion declarations), so
+// the owner judges the leaf at its real size. Written only when
+// SNT_LEAF_PREVIEW_DIR is set.
+$palettes = array( 'root', 'dark', 'sepia' );
+$failures = array();
+for ( $i = 0; $i < 40; $i++ ) {
+	$failures[] = array( 'selector' => '.wp-block-sn-' . $i, 'source' => 0 === $i % 2 ? 'theme/style.css' : 'assets/front.css', 'pair' => 'muted on paper', 'ratio' => round( 1.8 + $i * 0.06, 2 ), 'palette' => $palettes[ $i % 3 ], 'literal' => 0 === $i % 7, 'anchored' => 0 !== $i % 5 );
+}
+$conditional = array();
+for ( $i = 0; $i < 451; $i++ ) {
+	$conditional[] = array( 'selector' => '.sn-chip-' . ( $i % 90 ), 'source' => 'assets/provenance.css', 'pair' => 'muted on asphalt', 'ratio' => round( 2.1 + $i * 0.005, 2 ), 'palette' => $palettes[ $i % 3 ] );
+}
+$tokens = array();
+for ( $i = 0; $i < 25; $i++ ) {
+	$tokens[ 'tone-' . $i ] = sprintf( '#%06x', $i * 655321 % 16777215 );
+}
+$pairs = array();
+for ( $i = 0; $i < 300; $i++ ) {
+	$ratio   = round( 1.2 + $i * 0.055, 2 );
+	$pairs[] = array( 'pair' => 'tone-' . ( $i % 25 ) . '/tone-' . ( ( $i * 7 ) % 25 ), 'ratio' => $ratio, 'aa_body' => $ratio >= 4.5, 'aa_large' => $ratio >= 3.0 );
+}
+$uncovered = array();
+for ( $i = 0; $i < 70; $i++ ) {
+	$uncovered[] = array( 'sheet' => 0 === $i % 3 ? 'theme/style.css' : 'assets/front.css', 'selector' => '.sn-anim-' . $i, 'kind' => 0 === $i % 2 ? 'transition' : 'keyframe' );
+}
+$live = $rich_scan;
+unset( $live['checks']['unknown_report'] );
+$live['checks']['contrast_tokens']['label']                     = 'Contrast (token arithmetic, report only)';
+$live['checks']['contrast_tokens']['report']['tokens']          = $tokens;
+$live['checks']['contrast_tokens']['report']['pairs']           = $pairs;
+$live['checks']['contrast_tokens']['report']['would_fail_body'] = 60;
+$live['checks']['contrast_tokens']['report']['usage']           = array( 'scanned' => 14, 'pairings' => 1268, 'palettes' => $palettes, 'failures' => $failures, 'conditional' => $conditional );
+$live['checks']['motion_scan']['label']                         = 'Motion asks first (reduced-motion, report only)';
+$live['checks']['motion_scan']['report']                        = array( 'coverage' => 'Reads declared motion in the front stylesheets.', 'scanned' => 14, 'motion_total' => 212, 'gated' => 118, 'neutralized' => 24, 'uncovered' => $uncovered );
+$GLOBALS['__scan'] = $live;
+$kit = reports_paint();
+ok( false !== strpos( $kit, '451 pairings pass on the page background' ) && false !== strpos( $kit, '+426 more placement-dependent pairings' ), 'live-shaped: 451 placement-dependent pairings, 25 shown, "+426 more"' );
+ok( false !== strpos( $kit, '40 of 1,268 declared pairings fall below body-text AA' ) && false !== strpos( $kit, '+15 more failing pairings' ), 'live-shaped: 40 failing pairings, 25 shown, "+15 more"' );
+ok( false !== strpos( $kit, '60 of 300 token pairs would fall below 4.5:1' ) && false !== strpos( $kit, '+240 more pairs, every one of them at' ), 'live-shaped: 300 token pairs, 60 shown, "+240 more", the hedge kept' );
+ok( false !== strpos( $kit, '70 of 212 declared motions' ) && false !== strpos( $kit, '+20 more uncovered declarations' ), 'live-shaped: 70 uncovered declarations, 50 shown, "+20 more"' );
+snt_leaf_preview( 'tools-reports', $kit );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

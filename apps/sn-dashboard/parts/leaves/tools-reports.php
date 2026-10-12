@@ -2,19 +2,15 @@
 /**
  * S&N Dashboard — Tools → Reports, painted from the kit.
  *
- * The classic leaf (inc/admin-render-sections.php:87-105,
- * `sn_admin_render_health_reports_section()`, delegating to
- * inc/health-render-reports.php `sn_health_render_reports_section()` +
- * inc/health-render-contrast.php + inc/health-render-motion.php) reads the
- * last Health scan's `integrity` surface, keeps only the checks carrying a
- * `report` payload (a REGISTRY dispatch keyed by check, never an if-chain),
- * and prints one card per report: label, a neutral "report" pill, the
- * coverage sentence, then the report's own detail view (contrast_tokens:
- * usage tier + collapsed arithmetic tier; link_isolation: isolated-note
- * table; motion_scan: coverage headline + collapsed uncovered table) or a
- * degrading "no detail view yet" fallback for any other report-only check.
- * Two plain-text fallbacks precede all of that: no scan yet, and a scan with
- * no reports. This leaf paints the SAME reads, in the shell's idiom.
+ * The classic leaf (`sn_admin_render_health_reports_section()`, through
+ * inc/health-render-reports.php, -contrast.php and -motion.php) reads the last
+ * Health scan's `integrity` surface, keeps the checks carrying a `report`
+ * payload (a REGISTRY dispatch keyed by check), and prints one card per
+ * report: label, a "report" pill, the coverage sentence, then the report's
+ * own view, or a "no detail view yet" fallback; before that, the no-scan and
+ * no-reports sentences. This leaf paints the SAME reads in the shell's idiom,
+ * and since 2026-10-11 with no fold: every tier the classic collapses is an
+ * open section here, its rows a capped ledger (owner rule).
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -27,6 +23,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/tools-reports-parts.php';
+require_once __DIR__ . '/tools-reports-contrast.php';
+require_once __DIR__ . '/tools-reports-usage.php';
+require_once __DIR__ . '/tools-reports-placement.php';
+require_once __DIR__ . '/tools-reports-motion.php';
 require_once __DIR__ . '/tools-reports-facts.php';
 
 /**
@@ -69,6 +69,9 @@ function tools_reports_data() {
  * gives an unknown key, so nothing that ships later renders as broken —
  * only, like the classic page, without a detail view until it is added here.
  *
+ * A renderer returns its card's body, or (2026-10-11, no folds) a list whose
+ * first item is the card's body and the rest open sections painted under it.
+ *
  * @return array<string,callable>
  */
 function tools_reports_renderers() {
@@ -108,7 +111,6 @@ function tools_reports_scan_html( array $ctx ) {
 
 	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'Checks that measure and publish rather than flag. Nothing here is a defect list — read the coverage line before reading the numbers.', 'signal-and-noise-tools' ) ) . '</p>';
 
-	$cards     = array();
 	$renderers = tools_reports_renderers();
 	foreach ( (array) $data['reports'] as $key => $check ) {
 		$report = isset( $check['report'] ) && is_array( $check['report'] ) ? $check['report'] : array();
@@ -122,18 +124,13 @@ function tools_reports_scan_html( array $ctx ) {
 		if ( ! empty( $report['coverage'] ) ) {
 			$body .= '<p class="snt-prose"><b>' . \snt_kit_esc( __( 'What this covers:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( (string) $report['coverage'] ) . '</p>';
 		}
-		if ( isset( $renderers[ $key ] ) && is_callable( $renderers[ $key ] ) ) {
-			$body .= call_user_func( $renderers[ $key ], $report );
-		} else {
-			$body .= '<p class="snt-hint">' . \snt_kit_esc( __( 'This report has no detail view yet — its payload is available through the health-scan ability.', 'signal-and-noise-tools' ) ) . '</p>';
-		}
-		$cards[] = \snt_kit_section( $label, $body );
-	}
+		$parts = isset( $renderers[ $key ] ) && is_callable( $renderers[ $key ] )
+			? (array) call_user_func( $renderers[ $key ], $report )
+			: array( '<p class="snt-hint">' . \snt_kit_esc( __( 'This report has no detail view yet; its payload is available through the health-scan ability.', 'signal-and-noise-tools' ) ) . '</p>' );
 
-	// Each report is an independent measurement; nothing about the second
-	// depends on the first. Siblings, so a grid.
-	foreach ( array_chunk( $cards, 2 ) as $row ) {
-		$out .= \snt_kit_grid( $row );
+		// Full width, one report under the next: with every tier open, a
+		// report's height follows its data, so no two pair reliably.
+		$out .= \snt_kit_section( $label, $body . array_shift( $parts ) ) . implode( '', $parts );
 	}
 
 	return $out;

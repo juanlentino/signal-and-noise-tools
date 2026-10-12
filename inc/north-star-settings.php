@@ -1,8 +1,9 @@
 <?php
 /**
  * The north star's settings: which page groups count and what counts as a
- * read. One fold on Measurement › Analytics, one save handler on the shared
- * sn_action dispatcher (the nonce is checked there before any handler runs).
+ * read. One open section on Measurement › Analytics, one save handler on the
+ * shared sn_action dispatcher (the nonce is checked there before any handler
+ * runs).
  *
  * @package SignalNoiseTools
  */
@@ -40,15 +41,18 @@ function sn_handle_north_star_save( $post ) {
 }
 
 /**
- * The settings fold, painted on Measurement › Analytics.
+ * The settings, painted on Measurement › Analytics as an open section: the
+ * current definition as its one-line description, the form below it.
+ * 2026-10-11: no fold (owner rule: no collapsible sections on S&N Home).
  *
  * @return string
  */
 function snt_nsm_settings_html() {
-	$cfg    = snt_nsm_config();
-	$fields = '';
-	$i      = 0;
-	foreach ( snt_nsm_sections() as $slug => $def ) {
+	$cfg      = snt_nsm_config();
+	$sections = snt_nsm_sections();
+	$fields   = '';
+	$i        = 0;
+	foreach ( $sections as $slug => $def ) {
 		$fields .= snt_kit_field(
 			'select',
 			'sn_nsm_sections[' . $i++ . ']',
@@ -65,12 +69,17 @@ function snt_nsm_settings_html() {
 	$fields .= snt_kit_field( 'number', 'sn_nsm_scroll', __( 'Read at scroll depth (%)', 'signal-and-noise-tools' ), (string) $cfg['scroll'], array( 'min' => 1, 'max' => 100 ) )
 		. snt_kit_field( 'number', 'sn_nsm_dwell_s', __( 'Or after time on page (seconds)', 'signal-and-noise-tools' ), (string) ( $cfg['dwell_ms'] / 1000 ), array( 'min' => 1, 'max' => 600 ) );
 
+	$labels = array();
+	foreach ( $cfg['sections'] as $slug ) {
+		$labels[] = $sections[ $slug ]['label'];
+	}
+	/* translators: 1: the page groups that count, 2: scroll depth %, 3: seconds on the page */
+	$state = sprintf( __( 'Counts %1$s; a read is %2$d%% scroll or %3$d s on the page.', 'signal-and-noise-tools' ), implode( ', ', $labels ), $cfg['scroll'], $cfg['dwell_ms'] / 1000 );
 	$intro = '<p class="snt-prose">' . snt_kit_esc( __( 'The north star counts human visitors, per day, who read at least one page in the groups below: past the scroll depth OR the time on page. The notes index, its pages, tags and feed never count; a listing is not a read.', 'signal-and-noise-tools' ) ) . '</p>';
-	$hint  = sprintf( /* translators: 1: scroll %, 2: seconds */ __( '%1$d%% or %2$d s', 'signal-and-noise-tools' ), $cfg['scroll'], $cfg['dwell_ms'] / 1000 );
 
-	return snt_kit_tag(
-		'os-disclosure',
-		array( 'heading' => __( 'North star', 'signal-and-noise-tools' ), 'hint' => $hint ),
-		$intro . snt_kit_form( 'north_star_save', $fields, array( 'submit' => __( 'Save north star', 'signal-and-noise-tools' ) ) )
+	return snt_kit_section(
+		__( 'North star', 'signal-and-noise-tools' ),
+		$intro . snt_kit_form( 'north_star_save', $fields, array( 'submit' => __( 'Save north star', 'signal-and-noise-tools' ), 'columns' => 'auto' ) ),
+		$state
 	);
 }

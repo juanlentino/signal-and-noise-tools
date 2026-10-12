@@ -129,14 +129,16 @@ for ( $i = 1; $i <= 60; $i++ ) {
 ob_start();
 snt_audit_log_render_tab();
 $html_many = ob_get_clean();
-al_ok( false !== strpos( $html_many, '<details class="sn-audit-logins-log sn-disclosure">' ), 'the logins table sits inside its own disclosure' );
-al_ok( false === strpos( $html_many, '<details class="sn-audit-logins-log sn-disclosure" open' ), 'and it is CLOSED by default' );
-$al_det = strpos( $html_many, '<details class="sn-audit-logins-log' );
-$al_sum = substr( $html_many, (int) $al_det, 220 );
-al_ok( false !== strpos( $al_sum, '60' ), 'the summary carries the TRUE login count (60), not the displayed 50' );
+// 2026-10-11 (owner rule, no folds): the log is open, and the true count the
+// fold's summary carried is the finding sentence above the table.
+al_ok( false === strpos( $html_many, '<details' ) && false === strpos( $html_many, 'sn-disclosure' ), 'the logins log is open: no details, no disclosure' );
+al_ok( false !== strpos( $html_many, '<p class="sn-prose">60 successful logins in the window, by 60 users; the newest was 2026-07-05 10:00:00, by user60.</p>' ), 'the finding sentence carries the TRUE login count (60), not the displayed 50, and names the newest login' );
+$al_det = strpos( $html_many, '60 successful logins in the window' );
+$al_sum = substr( $html_many, (int) $al_det, 400 );
+al_ok( false !== $al_det && false !== strpos( $al_sum, '<table class="widefat sn-audit-logins">' ), 'the finding sits directly above the table it describes' );
 al_ok( 50 === substr_count( $html_many, '<tr><td><code>' ), 'the display cap renders exactly 50 rows' );
 al_ok( false !== stripos( $html_many, 'capped, not complete' ), 'the remainder line uses the house wording' );
-al_ok( false !== strpos( $html_many, '+10 more' ), 'and names how many were withheld' );
+al_ok( false !== strpos( $html_many, '+10 more logins; the list is capped, not complete.' ), 'and names how many were withheld, no em dash' );
 // Non-vacuity: if the regex above failed to find the constant it would define
 // 0, and an "at most 0" assertion would be meaningless. Pin the parse first.
 al_ok( SN_AUDIT_LOGIN_SUCCESS_CAP > 0, 'the real storage cap was parsed out of inc/audit-log.php (not defaulted to 0)' );
@@ -153,7 +155,7 @@ $GLOBALS['__logins'] = array( array( 'ts' => 5, 'formatted' => '2026-07-01 10:00
 ob_start();
 snt_audit_log_render_tab();
 $html_one = ob_get_clean();
-al_ok( false !== strpos( $html_one, '<details class="sn-audit-logins-log' ), 'a short log still folds (consistency beats a size heuristic)' );
+al_ok( false === strpos( $html_one, '<details' ) && false !== strpos( $html_one, '<p class="sn-prose">1 successful login in the window, by 1 user; the newest was 2026-07-01 10:00:00, by admin.</p>' ), 'a short log is open too, its finding in the singular' );
 al_ok( false === stripos( $html_one, 'capped, not complete' ), 'but prints no remainder line when nothing was withheld' );
 
 // Empty-logins branch: its early return must stay balanced with the new closers.
@@ -162,9 +164,9 @@ ob_start();
 snt_audit_log_render_tab();
 $html_empty = ob_get_clean();
 al_ok( false !== strpos( $html_empty, 'No successful logins recorded' ), 'empty-logins state renders its message' );
-// AL1: an empty window keeps its sentence and renders NO disclosure — a fold
-// whose summary read "0 logins" would rhyme with a measured zero.
-al_ok( false === strpos( $html_empty, '<details class="sn-audit-logins-log' ), 'empty-logins state renders no disclosure at all' );
+// AL1: an empty window keeps its sentence and renders NO count line; a
+// finding that read "0 logins" would rhyme with a measured zero.
+al_ok( false === strpos( $html_empty, '<details' ) && false === strpos( $html_empty, 'successful logins in the window' ), 'empty-logins state renders no fold and no count sentence' );
 al_ok( false === strpos( $html_empty, 'postbox' ) && false === strpos( $html_empty, 'sn-an-empty' ), 'empty-logins state carries no postbox / analytics classes' );
 al_ok( substr_count( $html_empty, 'sn-shell__main' ) === 1 && substr_count( $html_empty, 'sn-shell__rail' ) === 1, 'empty-logins render stays shell-balanced' );
 

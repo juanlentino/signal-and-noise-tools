@@ -99,10 +99,18 @@ ok( false !== strpos( $kit, '&quot;mfa_detail&quot;:&quot;2 / 1 / 1&quot;' ), 'n
 ok( false !== strpos( $kit, 'included in Failed' ) && false !== strpos( $classic, 'included in Failed' ), 'both surfaces explain subsets and legacy coverage' );
 ok( false !== strpos( $kit, '&quot;login_failed&quot;:5' ) && false !== strpos( $kit, '&quot;wp_login_404&quot;:3' ) && false !== strpos( $kit, '&quot;wp_admin_unauth_404&quot;:1' ), 'the counter timeline carries the populated day-bucket counts' );
 
-// ── Recent logins: all three users, newest-first count in the disclosure heading.
+// ── Recent logins: all three users; 2026-10-11 (no folds) the count that
+// rode the fold's heading is the section's finding sentence, open.
 ok( false !== strpos( $kit, 'alice' ) && false !== strpos( $kit, 'bob' ) && false !== strpos( $kit, 'carol' ), 'all three recent logins are listed' );
-ok( false !== strpos( $kit, '3 successful logins' ), 'the disclosure heading carries the true count' );
-ok( false !== strpos( $kit, 'Recent successful logins (last 30 days)' ), 'the populated logins card keeps its classic section heading (not just a bare disclosure)' );
+ok( array() === snt_leaf_folds( $kit ), 'no fold on the populated paint: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+$al_newest = gmdate( 'Y-m-d H:i:s', $GLOBALS['__options']['sn_audit_log_v1']['login_success'][0]['ts'] ); // the fixture's own moment, never a second call to time()
+ok( false !== strpos( $kit, '<p class="snt-prose">3 successful logins in the window, by 3 users; the newest was ' . $al_newest . ', by alice.</p>' ), 'the finding sentence carries the true count, the distinct users and the newest login, from the rows' );
+ok( false !== strpos( $kit, '<os-section heading="Recent successful logins (last 30 days)"' ), 'the populated logins section keeps its classic heading' );
+ok( false !== strpos( $kit, 'description="The store keeps at most 500 successful logins, dropping the oldest first' ), 'the store cap (500), once inside the fold, is the section description' );
+$al_tables = snt_leaf_tables( $kit );
+$al_log    = array_values( array_filter( $al_tables, static function ( $t ) { return array( 'Timestamp', 'User' ) === array_column( $t['columns'], 'label' ); } ) );
+ok( 1 === count( $al_log ) && 3 === count( $al_log[0]['data'] ) && 'alice' === $al_log[0]['data'][0]['user'], 'the log is one Timestamp/User table, newest first, every row under the cap' );
+ok( false === strpos( $kit, 'snt-ledger-more' ), 'under the cap: no "+N more" line' );
 
 // ── Classic-heading parity: every sn-fieldset-h / sn-callout-h string in the
 // classic markup shows up somewhere in the kit output.
@@ -126,14 +134,14 @@ ok( false !== strpos( $kit, 'Export CSV' ) && false !== strpos( $kit, 'action=sn
 // ── Escaping: a hostile username never reaches the markup raw.
 $GLOBALS['__options']['sn_audit_log_v1']['login_success'][2]['user'] = '"><script>x</script>';
 $kit = snt_leaf_paint( 'security', 'audit-log' );
-ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&lt;script&gt;' ), 'a hostile login username is escaped' );
+ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&lt;script&gt;' ) && array() === snt_leaf_folds( $kit ), 'a hostile login username is escaped, and nothing folds' );
 $GLOBALS['__options']['sn_audit_log_v1']['login_success'][2]['user'] = 'carol';
 
 // ── Empty state: no successful logins in the window.
 $saved_logins = $GLOBALS['__options']['sn_audit_log_v1']['login_success'];
 $GLOBALS['__options']['sn_audit_log_v1']['login_success'] = array();
 $kit = snt_leaf_paint( 'security', 'audit-log' );
-ok( false !== strpos( $kit, 'No successful logins recorded in this window.' ) && false === strpos( $kit, '<os-disclosure' ), 'the empty-logins state paints the classic empty message, no disclosure' );
+ok( false !== strpos( $kit, 'No successful logins recorded in this window.' ) && array() === snt_leaf_folds( $kit ), 'the empty-logins state paints the classic empty message, no fold' );
 ok( false !== strpos( $kit, 'Recent successful logins (last 30 days)' ), 'the empty-logins state ALSO keeps the classic section heading' );
 $GLOBALS['__options']['sn_audit_log_v1']['login_success'] = $saved_logins;
 
@@ -149,24 +157,28 @@ for ( $i = 0; $i < 52; $i++ ) {
 }
 $GLOBALS['__options']['sn_audit_log_v1']['login_success'] = $many;
 $kit = snt_leaf_paint( 'security', 'audit-log' );
-ok( false !== strpos( $kit, '52 successful logins' ), 'the disclosure heading reads the true count of 52' );
+ok( false !== strpos( $kit, '<p class="snt-prose">52 successful logins in the window, by 52 users; the newest was ' ) && array() === snt_leaf_folds( $kit ), 'the finding reads the true count of 52, not the 50 painted, and nothing folds' );
 ok( false !== strpos( $kit, '&quot;user51&quot;' ), 'the newest login (highest ts) survives the display cap' );
 ok( false === strpos( $kit, '&quot;user0&quot;' ) && false === strpos( $kit, '&quot;user1&quot;' ), 'the two oldest logins are dropped by the display cap, not kept by an unsorted slice' );
-ok( false !== strpos( $kit, '+2 more logins' ), 'the "+2 more" remainder is reported' );
+ok( false !== strpos( $kit, '<p class="snt-hint snt-ledger-more">+2 more logins; the list is capped, not complete. Newest first, so the tail is the oldest end.</p>' ), 'the "+2 more" remainder is reported on the kit more line, no em dash' );
 ok( 50 === substr_count( $kit, '&quot;user&quot;:&quot;' ), 'exactly 50 login rows are painted, matching SN_AUDIT_LOGIN_DISPLAY_MAX' );
+// Exactly at the cap: nothing is cut, so no "+N more" line.
+$GLOBALS['__options']['sn_audit_log_v1']['login_success'] = array_slice( $many, 2 );
+$kit = snt_leaf_paint( 'security', 'audit-log' );
+ok( 50 === substr_count( $kit, '&quot;user&quot;:&quot;' ) && false === strpos( $kit, 'snt-ledger-more' ) && false !== strpos( $kit, '50 successful logins in the window' ), 'exactly 50 logins: all painted, no "+N more" line' );
 $GLOBALS['__options']['sn_audit_log_v1']['login_success'] = $saved_logins;
 
 // ── Clear state: no active lockouts paints "clear", not "locked".
 $saved_lockouts = $GLOBALS['__options']['limit_login_lockouts'];
 $GLOBALS['__options']['limit_login_lockouts'] = array();
 $kit = snt_leaf_paint( 'security', 'audit-log' );
-ok( false !== strpos( $kit, 'clear' ) && false === strpos( $kit, 'locked' ), 'zero active lockouts paints the "clear" LLA pill instead of "locked"' );
+ok( false !== strpos( $kit, 'clear' ) && false === strpos( $kit, 'locked' ) && array() === snt_leaf_folds( $kit ), 'zero active lockouts paints the "clear" LLA pill instead of "locked", and nothing folds' );
 $GLOBALS['__options']['limit_login_lockouts'] = $saved_lockouts;
 
 // ── The prune-now action, handled inline: paints the same stats notice the
 // classic leaf echoes, without ever going through the shared PRG.
 $kit = snt_leaf_paint( 'security', 'audit-log', array( 'post' => array( 'sn_action' => 'audit_prune_now' ) ) );
-ok( false !== strpos( $kit, 'Prune complete.' ) && false !== strpos( $kit, 'LLA delta +2' ) && false !== strpos( $kit, 'tone="success"' ), 'the inline prune-now paints a success notice with the real stats' );
+ok( false !== strpos( $kit, 'Prune complete.' ) && false !== strpos( $kit, 'LLA delta +2' ) && false !== strpos( $kit, 'tone="success"' ) && array() === snt_leaf_folds( $kit ), 'the inline prune-now paints a success notice with the real stats, and nothing folds' );
 
 // ── The inline pipeline must not re-fire the prune on a second paint of the
 // SAME state object — the state contract is ONE paint's $_POST. Reproduces
@@ -187,14 +199,31 @@ $second_paint = call_user_func( $painter, $ctx_shared );
 ok( false !== strpos( $first_paint, 'Prune complete.' ), 'the first paint against the shared state runs the prune' );
 ok( false === strpos( $second_paint, 'Prune complete.' ), 'a second paint against the SAME state object does not re-run the prune' );
 ok( array() === $shared_state->get( 'post' ), 'the leaf clears the consumed post from state after handling it' );
+ok( array() === snt_leaf_folds( $first_paint . $second_paint ), 'neither shared-state paint folds anything' );
 
 
 // ── Siblings pair; a stack is for steps. ──
-// Measured live 2026-09-10; see the painter for the per-leaf numbers.
+// 2026-10-11 (no folds): the logins log is an open table of up to 50 rows,
+// several times the LLA card's height, so it stands alone at full width and
+// only the two controls (retention, maintenance) still share a row.
 $kitP = snt_leaf_paint( 'security', 'audit-log' );
 ok(
-	2 === substr_count( $kitP, snt_leaf_row() ),
-	'the sibling sections are painted in 2 paired row(s) -- ' . substr_count( $kitP, snt_leaf_row() )
+	1 === substr_count( $kitP, snt_leaf_row() ),
+	'the controls are painted in 1 paired row -- ' . substr_count( $kitP, snt_leaf_row() )
 );
+$al_pair = substr( $kitP, (int) strpos( $kitP, snt_leaf_row() ) );
+$al_pair = substr( $al_pair, 0, (int) strpos( $al_pair, '</os-grid>' ) );
+ok( false === strpos( $al_pair, 'Recent successful logins' ) && false !== strpos( $al_pair, 'heading="Retention"' ) && false !== strpos( $al_pair, 'heading="Maintenance"' ), 'the logins ledger is not in a pair; the pair is retention + maintenance' );
+
+// ── Live-shaped preview: ~180 successful logins by two users, a few failed.
+$al_live = array();
+for ( $i = 0; $i < 180; $i++ ) {
+	$al_live[] = array( 'ts' => time() - $i * 3 * 3600 - 600, 'user' => 0 === $i % 9 ? 'editor' : 'juan' );
+}
+$GLOBALS['__options']['sn_audit_log_v1']['login_success']                  = $al_live;
+$GLOBALS['__options']['sn_audit_log_v1']['counters'][ day_key( 0 ) ]['login_failed'] = 3;
+$kitL = snt_leaf_paint( 'security', 'audit-log' );
+ok( array() === snt_leaf_folds( $kitL ) && false !== strpos( $kitL, '180 successful logins in the window, by 2 users' ) && false !== strpos( $kitL, '+130 more logins; the list is capped' ), 'live-shaped: 180 logins read as a finding over 50 rows and "+130 more", no fold' );
+snt_leaf_preview( 'security-audit-log', $kitL );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

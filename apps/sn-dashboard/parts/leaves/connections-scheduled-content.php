@@ -22,6 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/connections-scheduled-content-parts.php';
+require_once __DIR__ . '/connections-scheduled-content-lists.php';
 
 /**
  * The module's data, read the way the classic leaf reads it: both producers,
@@ -91,40 +92,15 @@ function paint_connections_scheduled_content( array $ctx ) {
 		}
 	}
 
+	// 2026-10-11 (no folds): two open sections, each with its finding
+	// (connections-scheduled-content-lists.php), then the cap's "+N more".
 	if ( array() !== $post_rows ) {
-		$columns = array(
-			array( 'key' => 'title', 'label' => __( 'Title', 'signal-and-noise-tools' ), 'filter' => 'text' ),
-			array( 'key' => 'type', 'label' => __( 'Type', 'signal-and-noise-tools' ) ),
-			array( 'key' => 'publishes', 'label' => __( 'Publishes', 'signal-and-noise-tools' ) ),
-			array( 'key' => 'in', 'label' => __( 'In', 'signal-and-noise-tools' ) ),
-			array( 'key' => 'id', 'label' => __( 'ID', 'signal-and-noise-tools' ), 'align' => 'end' ),
-		);
-		/* translators: %d: scheduled posts and pages */
-		$posts_heading = sprintf( _n( '%d scheduled post', '%d scheduled posts', count( $post_rows ), 'signal-and-noise-tools' ), count( $post_rows ) );
-		$out .= \snt_kit_section(
-			$posts_heading,
-			\snt_kit_table( $columns, $post_rows, array( 'empty' => __( 'No scheduled posts.', 'signal-and-noise-tools' ) ) ),
-			__( 'WordPress publishes these itself on the date shown (site timezone), soonest first. Open one from the Posts window to move it.', 'signal-and-noise-tools' )
-		);
+		$out .= scheduled_content_posts_html( $post_rows, count( $d['posts'] ) );
 	}
-
 	if ( '' !== $frag_rows ) {
-		/* translators: %d: scheduled fragments */
-		$frag_heading = sprintf( _n( '%d scheduled fragment', '%d scheduled fragments', count( $d['fragments'] ), 'signal-and-noise-tools' ), count( $d['fragments'] ) );
-		$out .= \snt_kit_tag( 'os-disclosure', array( 'heading' => $frag_heading, 'open' => true ), '<ul class="snt-list">' . scheduled_content_row_head_html() . $frag_rows . '</ul>' );
+		$out .= scheduled_content_fragments_html( $d['fragments'], $frag_rows );
 	}
-
-	if ( $d['remainder'] > 0 ) {
-		$out .= '<p class="snt-hint snt-schedule-remainder">' . \snt_kit_esc(
-			sprintf(
-				/* translators: %d: hidden row count */
-				_n( '+%d more scheduled item, sorted soonest-first — the tail is the furthest out.', '+%d more scheduled items, sorted soonest-first — the tail is the furthest out.', $d['remainder'], 'signal-and-noise-tools' ),
-				(int) $d['remainder']
-			)
-		) . '</p>';
-	}
-
-	return $out;
+	return $out . scheduled_content_more_html( $d['remainder'] );
 }
 
 add_filter(

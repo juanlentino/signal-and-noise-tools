@@ -59,8 +59,9 @@ function citations_glance( array $counts ) {
 }
 
 /**
- * The folded legend: what each tier means, as a facts list inside a closed
- * disclosure — the kit's counterpart to the classic `<details><summary>`.
+ * The tier key: what each tier means, as an open facts list (tier left, its
+ * sentence right) in a small section painted right under the tiles it keys.
+ * 2026-10-11 (no folds): it was a closed disclosure inside the claims box.
  *
  * @return string
  */
@@ -72,11 +73,7 @@ function citations_legend() {
 			'value' => function_exists( 'sn_cit_tier_sentence' ) ? sn_cit_tier_sentence( $tier ) : '',
 		);
 	}
-	return \snt_kit_tag(
-		'os-disclosure',
-		array( 'heading' => __( 'What the four tiers mean', 'signal-and-noise-tools' ) ),
-		\snt_kit_kv( $rows )
-	);
+	return \snt_kit_section( __( 'What the tiers mean', 'signal-and-noise-tools' ), \snt_kit_kv( $rows ) );
 }
 
 /**
@@ -93,12 +90,12 @@ function paint_tools_citations( array $ctx ) {
 	$rows   = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY first_seen_gmt DESC LIMIT 100" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery
 	$rows   = is_array( $rows ) ? $rows : array();
 
-	$out  = '<section aria-label="' . \snt_kit_esc( __( 'Citations at a glance', 'signal-and-noise-tools' ) ) . '">' . citations_glance( $counts ) . '</section>';
+	$out  = '<section aria-label="' . \snt_kit_esc( __( 'Citations at a glance', 'signal-and-noise-tools' ) ) . '">' . citations_glance( $counts ) . '</section>'
+		. citations_legend();
 	$body = '<p class="snt-prose"><b>' . \snt_kit_esc( function_exists( 'sn_cit_summary_sentence' ) ? sn_cit_summary_sentence( $counts ) : '' ) . '</b></p>'
 		. '<p class="snt-prose">' . \snt_kit_esc( __( 'A webmention is a claim that someone cited you. Each claim is re-fetched and sorted by what can be checked: verified and unattributed citations appear on the site; a claim whose link has gone, or that could not be reached, is kept here and shown to nobody else.', 'signal-and-noise-tools' ) ) . '</p>'
 		. '<p class="snt-prose">' . \snt_kit_esc( __( 'Inbox:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( function_exists( 'sn_cit_endpoint_url' ) ? sn_cit_endpoint_url() : '', false ) . '</p>'
-		. citations_legend()
-		. citations_table( $rows )
+		. citations_table( $rows, (int) array_sum( array_intersect_key( $counts, array_flip( defined( 'SN_CIT_TIERS' ) ? SN_CIT_TIERS : array() ) ) ) )
 		. citations_forget_form( $rows );
 	$out .= \snt_kit_section( __( 'Citations', 'signal-and-noise-tools' ), $body );
 	return $out;

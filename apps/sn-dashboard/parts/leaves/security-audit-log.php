@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/security-audit-log-logins.php';
+
 /**
  * The 4-card glance hero, from the classic leaf's own pure card builder
  * (`snt_audit_log_glance_cards()`, inc/audit-log-admin.php) — reused rather
@@ -76,75 +78,6 @@ function audit_log_counter_table_html( array $counters ) {
 		'<p class="snt-prose">' . \snt_kit_esc( __( 'MFA details are included in Failed, not additional events. Older failures are unclassified; a rejected factor does not by itself prove an attack.', 'signal-and-noise-tools' ) ) . '</p>'
 		. \snt_kit_table( $columns, $counters, array( 'empty' => __( 'No counter data yet.', 'signal-and-noise-tools' ) ) )
 	);
-}
-
-/**
- * The recent successful-logins log: same AL1 display cap (newest-first,
- * SN_AUDIT_LOGIN_DISPLAY_MAX rows), the same "+N more" and store-cap notes,
- * folded into a disclosure the way the classic leaf folds it into <details>.
- *
- * @param array<int,array{ts:int,user:string,formatted:string}> $logins snt_audit_get_login_successes_impl() result.
- * @return string
- */
-function audit_log_logins_html( array $logins ) {
-	if ( empty( $logins ) ) {
-		return \snt_kit_section(
-			__( 'Recent successful logins (last 30 days)', 'signal-and-noise-tools' ),
-			'<p class="snt-prose">' . \snt_kit_esc( __( 'No successful logins recorded in this window.', 'signal-and-noise-tools' ) ) . '</p>'
-		);
-	}
-
-	$total  = count( $logins );
-	$sorted = $logins;
-	usort(
-		$sorted,
-		static function ( $a, $b ) {
-			return (int) ( $b['ts'] ?? 0 ) <=> (int) ( $a['ts'] ?? 0 );
-		}
-	);
-	$cap     = defined( 'SN_AUDIT_LOGIN_DISPLAY_MAX' ) ? SN_AUDIT_LOGIN_DISPLAY_MAX : 50;
-	$visible = array_slice( $sorted, 0, $cap );
-	$hidden  = $total - count( $visible );
-
-	$body  = \snt_kit_table(
-		array(
-			array( 'key' => 'formatted', 'label' => __( 'Timestamp', 'signal-and-noise-tools' ) ),
-			array( 'key' => 'user', 'label' => __( 'User', 'signal-and-noise-tools' ) ),
-		),
-		$visible
-	);
-	if ( $hidden > 0 ) {
-		$body .= '<p class="snt-prose">' . \snt_kit_esc(
-			sprintf(
-				/* translators: %s: number of logins not shown. */
-				__( '+%s more logins — the list is capped, not complete. Newest first, so the tail is the oldest end.', 'signal-and-noise-tools' ),
-				number_format_i18n( $hidden )
-			)
-		) . '</p>';
-	}
-	if ( defined( 'SN_AUDIT_LOGIN_SUCCESS_CAP' ) ) {
-		$body .= '<p class="snt-prose">' . \snt_kit_esc(
-			sprintf(
-				/* translators: %s: the storage cap on retained login rows. */
-				__( 'The store keeps at most %s successful logins, dropping the oldest first, so a long-enough gap is absence of a record rather than absence of a login.', 'signal-and-noise-tools' ),
-				number_format_i18n( SN_AUDIT_LOGIN_SUCCESS_CAP )
-			)
-		) . '</p>';
-	}
-
-	$disclosure = \snt_kit_tag(
-		'os-disclosure',
-		array(
-			'heading' => sprintf(
-				/* translators: %s: the true number of successful logins in the window. */
-				_n( '%s successful login', '%s successful logins', $total, 'signal-and-noise-tools' ),
-				number_format_i18n( $total )
-			),
-			'hint'    => __( 'show the log', 'signal-and-noise-tools' ),
-		),
-		$body
-	);
-	return \snt_kit_section( __( 'Recent successful logins (last 30 days)', 'signal-and-noise-tools' ), $disclosure );
 }
 
 /**
@@ -281,9 +214,11 @@ function paint_security_audit_log( array $ctx ) {
 	) . '</p>';
 	$out .= audit_log_glance_html( $summary );
 	$out .= audit_log_counter_table_html( $counters );
-	// The counter table above keeps the full width. What follows is two pairs of
-	// siblings: a pair of readouts, then a pair of controls.
-	$out .= \snt_kit_grid( array( audit_log_logins_html( $logins ), audit_log_lla_html( (array) $summary['lla'] ) ) );
+	// The counter table above keeps the full width, and so does the open logins
+	// ledger (up to 50 rows, several times the LLA card's height). The LLA
+	// facts follow it at full width, then the pair of controls.
+	$out .= audit_log_logins_html( $logins );
+	$out .= audit_log_lla_html( (array) $summary['lla'] );
 	$out .= \snt_kit_grid( array( audit_log_retention_form_html(), audit_log_maintenance_html() ) );
 	return $out;
 }
