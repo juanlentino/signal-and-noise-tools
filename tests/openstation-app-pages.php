@@ -76,6 +76,7 @@ namespace {
 	define( 'ABSPATH', '/' );
 	define( 'SNT_PATH', dirname( __DIR__ ) . '/' );
 	define( 'SNT_URL', 'https://example.test/wp-content/plugins/signal-and-noise-tools/' );
+	defined( 'SNT_VERSION' ) || define( 'SNT_VERSION', '2026.10.7' );
 
 	// ── WordPress, flat ──────────────────────────────────────────────
 	$GLOBALS['__filters'] = array();

@@ -208,7 +208,7 @@ function picked( State $state, $key, $value ) {
 
 $sn_analytics = App::define( APP_ID )
 	->title( __( 'S&N Analytics', 'signal-and-noise-tools' ) )
-	->icon( 'dashicons-chart-area' )
+	->icon( SNT_URL . 'assets/icons/sn-analytics.svg?ver=' . SNT_VERSION )
 	->size( 1280, 860 )
 	// Keep narrow/short desktop windows reachable, not only maximized phones.
 	->min_size( 360, 360 )

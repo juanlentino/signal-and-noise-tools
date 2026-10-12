@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-	<title>Signal &amp; Noise</title>
-	<rect x="1" y="1" width="62" height="62" rx="14" fill="#161616" stroke="#3a3a3a" stroke-width="2"/>
-	<g fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-		<path d="M10 33l3-4 2.5 7 3-6 2.5 5 3-4 2.5 3 3-2 2 1" stroke="#ffffff" stroke-opacity="0.5"/>
-		<path d="M31.5 33h2l3-20 4 37 3-17" stroke="#ff4c47"/>
-		<path d="M43.5 33H54" stroke="#ffffff"/>
-	</g>
-</svg>

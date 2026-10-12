@@ -42,6 +42,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 define( 'ABSPATH', '/' );
 define( 'SNT_PATH', __DIR__ . '/../' );
+define( 'SNT_URL', 'https://example.test/wp-content/plugins/signal-and-noise-tools/' );
 define( 'SNT_VERSION', '9.52.0-test' );
 define( 'MINUTE_IN_SECONDS', 60 ); // WP core constant, absent from a standalone CLI run.
 

@@ -3,20 +3,20 @@
  * Signal & Noise Tools: the "Signal through noise" OpenStation desktop theme.
  *
  * A LIGHT personalization, owner-approved 2026-10-12: one red signal line
- * through gray noise is the only brand mark. It touches four things and
- * nothing else:
+ * through gray noise is the only brand mark. It touches three things and
+ * nothing else. No icons: the three S&N apps register their own (assets/icons,
+ * 2026-10-12, the owner: "The apps icons should be part of the integration,
+ * not theme"), so they show on the phone and under any theme.
  *
- *   1. Icons. The three S&N apps wear one family (white strokes on charcoal,
- *      one #ff4c47 mark each) through their `APP:<slug>` slots.
- *   2. The brand constants. The purple and pink tokens no setting writes
+ *   1. The brand constants. The purple and pink tokens no setting writes
  *      become flat charcoal and neutral grays, with the red where a line, an
  *      edge or a signal reads (the holo edge, the rail of Station Home and
  *      S&N Home, the marker on a lit dock-submenu row, focus outlines,
  *      selections, glows, count badges). Pink TEXT colors stay: text colors
  *      are out of bounds (`--os-ui-accent-strong`, `--os-link`).
- *   3. Two wallpapers, Signal and Quiet, OFFERED in the picker. A theme
+ *   2. Two wallpapers, Signal and Quiet, OFFERED in the picker. A theme
  *      wallpaper is a pick; the owner's starfield stays until they choose.
- *   4. Bebas Neue for window titles. Body text and the clock stay as they are.
+ *   3. Bebas Neue for window titles. Body text and the clock stay as they are.
  *
  * What it must not touch (the owner: "some things are OpenStation settings or
  * components"), pinned by tests/openstation-desktop-theme.php: the accent and
@@ -53,18 +53,14 @@ function snt_desktop_theme_manifest() {
 	$base     = defined( 'SNT_URL' ) ? SNT_URL . 'assets/desktop-theme/' : '';
 	$charcoal = 'linear-gradient(#161616, #161616)';
 	$signal   = $base . 'wallpapers/signal.svg';
-	$faders   = array(
-		'type' => 'image',
-		'path' => $base . 'icons/sn-home.svg',
-	);
 
 	return array(
 		'id'   => 'sn/signal-through-noise',
 		'args' => array(
 			'name'        => 'Signal through noise',
-			'version'     => '1.0.0',
+			'version'     => '1.1.0',
 			'author'      => 'Signal & Noise Tools',
-			'description' => 'One red signal line through gray noise: S&N app icons, charcoal for the purple meshes, Bebas Neue window titles, and two wallpapers to pick.',
+			'description' => 'One red signal line through gray noise: charcoal for the purple meshes, Bebas Neue window titles, and two wallpapers to pick.',
 			'preview'     => $signal,
 			'tokens'      => array(
 				// Fields: flat charcoal. Gradients, not hex, because consumers
@@ -130,18 +126,6 @@ function snt_desktop_theme_manifest() {
 				// as the danger card tone.
 				'--os-ui-accent-soft-fg'            => '#a3a3a3',
 				'--os-titlebar-font'      => '"Bebas Neue", "Geist", system-ui, sans-serif',
-			),
-			'icons'       => array(
-				'APP:sn-dashboard'      => $faders,
-				'APP:sn-icon-dashboard' => $faders,
-				'APP:signal-noise'      => array(
-					'type' => 'image',
-					'path' => $base . 'icons/signal-noise.svg',
-				),
-				'APP:sn-analytics'      => array(
-					'type' => 'image',
-					'path' => $base . 'icons/sn-analytics.svg',
-				),
 			),
 			'fonts'       => array(
 				array(

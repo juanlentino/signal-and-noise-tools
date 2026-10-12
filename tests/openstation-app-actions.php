@@ -69,6 +69,7 @@ namespace {
 	define( 'ABSPATH', '/' );
 	define( 'SNT_PATH', dirname( __DIR__ ) . '/' );
 	define( 'SNT_URL', 'https://example.test/wp-content/plugins/signal-and-noise-tools/' );
+	defined( 'SNT_VERSION' ) || define( 'SNT_VERSION', '2026.10.7' );
 	// The three the purge path reads. The log option exists here only so the
 	// test can prove nothing ever writes it.
 	// The probe's names come from the SOURCE, so a rename there cannot leave

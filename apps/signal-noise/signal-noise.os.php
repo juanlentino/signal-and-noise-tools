@@ -94,7 +94,7 @@ function view_or_icons( $view ): string {
 // whoever the user was at that instant -- nobody, under WP-CLI or a cron.
 return App::define( APP_ID )
 	->title( __( 'Signal & Noise', 'signal-and-noise-tools' ) )
-	->icon( 'dashicons-megaphone' )
+	->icon( SNT_URL . 'assets/icons/signal-noise.svg?ver=' . SNT_VERSION )
 	->size( 1120, 720 )
 	->min_size( 640, 440 )
 	->placement( 'dock' )
