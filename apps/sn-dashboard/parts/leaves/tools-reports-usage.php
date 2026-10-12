@@ -117,10 +117,12 @@ function tools_reports_contrast_usage( array $usage ) {
 				'palette'  => (string) ( $row['palette'] ?? '' ),
 			);
 		}
+		// The column goes whenever the failures share one palette; the sentence
+		// only when several were scanned (with one, "Scored under:" said it).
 		$one    = tools_reports_one_palette( $failures );
 		$inner .= \snt_kit_ledger(
 			/* translators: %s: the one palette every listed pairing is scored under. */
-			'' !== $one ? sprintf( __( 'Every failing pairing is scored under the %s palette.', 'signal-and-noise-tools' ), $one ) : '',
+			'' !== $one && count( $palettes ) > 1 ? sprintf( __( 'Every failing pairing is scored under the %s palette.', 'signal-and-noise-tools' ), $one ) : '',
 			tools_reports_usage_columns( __( 'Pairing', 'signal-and-noise-tools' ), '' === $one ),
 			$rows,
 			TOOLS_REPORTS_ROWS,

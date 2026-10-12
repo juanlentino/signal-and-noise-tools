@@ -518,6 +518,29 @@ foreach ( snt_leaf_tables( $__rk ) as $__t ) {
 	}
 }
 ok( is_array( $__multi ) && in_array( 'Palette', array_column( $__multi['columns'], 'label' ), true ), 'rows across several palettes keep the Palette column' );
+// The usage box: the column goes when the failures share one palette; the
+// sentence naming it only when several were scanned (with one, the box's
+// "Scored under:" line already said it).
+$__u = $live;
+$__u['checks']['contrast_tokens']['report']['usage']['palettes'] = array( 'default' );
+foreach ( $__u['checks']['contrast_tokens']['report']['usage']['failures'] as $__i => $__r ) {
+	$__u['checks']['contrast_tokens']['report']['usage']['failures'][ $__i ]['palette'] = 'default';
+}
+$GLOBALS['__scan'] = $__u;
+$__usage1 = snt_leaf_paint( 'tools', 'reports' );
+$__ut     = null;
+foreach ( snt_leaf_tables( $__usage1 ) as $__t ) {
+	if ( in_array( 'Pairing', array_column( (array) $__t['columns'], 'label' ), true ) ) {
+		$__ut = $__t;
+	}
+}
+ok( is_array( $__ut ) && ! in_array( 'Palette', array_column( $__ut['columns'], 'label' ), true ), 'usage box, one palette scanned: the failures table drops its Palette column' );
+ok( 1 === substr_count( $__usage1, 'Scored under: default.' ) && false === strpos( $__usage1, 'Every failing pairing is scored under' ), '...and names the palette once, in "Scored under:", not again over the table' );
+$__u['checks']['contrast_tokens']['report']['usage']['palettes'] = array( 'default', 'dark', 'sepia' );
+$GLOBALS['__scan'] = $__u;
+$__usage3 = snt_leaf_paint( 'tools', 'reports' );
+ok( false !== strpos( $__usage3, 'Every failing pairing is scored under the default palette.' ), 'three palettes scanned, every failure under one: the sentence names which, since "Scored under:" lists three' );
+$GLOBALS['__scan'] = $live;
 ok( 4 === substr_count( $__one, '<os-table class="snt-table-full"' ), 'every capped report table shows all its rows, no inner scroller (usage, placement, arithmetic, motion)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
