@@ -271,7 +271,7 @@ ok( sn_i18n_seen( 'Door 1: the native MCP server' ), 'Door 1 heading translatabl
 ok( sn_i18n_seen( 'Door 2: the Abilities-registry adapter' ), 'Door 2 heading translatable' );
 ok( sn_i18n_seen( 'Connect a client' ), 'owner-steps heading translatable' );
 ok( sn_i18n_seen( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.' ), 'step 1 is a translatable sprintf msgid' );
-ok( sn_i18n_seen( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for abilities that opt in to the adapter (that is Door 1’s read allowlist).' ), 'step 2 translatable' );
+ok( sn_i18n_seen( 'Use the read door’s address for a client that only reads, and the write door’s for one you trust to change things.' ), 'step 2 translatable (2026-10-12: it named a "Door 1" and "Door 2" no card shows)' );
 ok( sn_i18n_seen( 'Paste the client config below, swapping in your WordPress username and the Application Password you just created.' ), 'step 3 translatable' );
 ok( sn_i18n_seen( 'More' ), 'deep-links heading translatable' );
 

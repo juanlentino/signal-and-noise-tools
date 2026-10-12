@@ -24,9 +24,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * screen, no form at all), same field (`sn_mcp_rw_uuid`), same action
  * (`bind_mcp_rw_credential`).
  *
+ * @param string $explain The write card's own explanation (escaped HTML), for every state but bound.
  * @return string
  */
-function mcp_connect_rw_binding_html() {
+function mcp_connect_rw_binding_html( $explain = '' ) {
 	$bound_uuid = function_exists( 'sn_mcp_rw_bound_uuid' ) ? sn_mcp_rw_bound_uuid() : '';
 	$passwords  = class_exists( 'WP_Application_Passwords' )
 		? (array) \WP_Application_Passwords::get_user_application_passwords( get_current_user_id() )
@@ -42,29 +43,27 @@ function mcp_connect_rw_binding_html() {
 		}
 	}
 
-	$status = '';
+	$status = '' !== (string) $explain ? '<p class="snt-hint">' . (string) $explain . '</p>' : '';
 	if ( '' === $bound_uuid ) {
-		$status = \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The write door is INACTIVE.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( __( 'No Application Password is bound to it yet, so every call to /mcp-rw is denied. Bind one below to turn it on.', 'signal-and-noise-tools' ) ) );
+		$status .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The write door is INACTIVE.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( __( 'No Application Password is bound to it yet, so every call to /mcp-rw is denied. Bind one below to turn it on.', 'signal-and-noise-tools' ) ) );
 	} elseif ( null !== $bound_password ) {
 		$last_used = ! empty( $bound_password['last_used'] ) ? (int) $bound_password['last_used'] : 0;
 		$when      = ( $last_used > 0 && function_exists( 'human_time_diff' ) )
 			? sprintf( /* translators: %s: relative time element. */ \snt_kit_esc( __( 'Last used %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( $last_used ) )
 			: \snt_kit_esc( __( 'Never used yet.', 'signal-and-noise-tools' ) );
-		$status = \snt_kit_notice(
-			'ok',
-			'<b>' . sprintf( /* translators: %s: bound Application Password name. */ \snt_kit_esc( __( 'The write door is bound to %s.', 'signal-and-noise-tools' ) ), \snt_kit_esc( (string) ( $bound_password['name'] ?? '' ) ) ) . '</b><br>'
-			. $when . '<br>' . \snt_kit_esc( __( 'Rotate this Application Password periodically: anyone who holds it can call the write door.', 'signal-and-noise-tools' ) )
-		);
+		// The tile above already says the door is bound; here, a plain line, not a second banner.
+		$status .= '<p class="snt-prose"><b>' . sprintf( /* translators: %s: bound Application Password name. */ \snt_kit_esc( __( 'The write door is bound to %s.', 'signal-and-noise-tools' ) ), \snt_kit_esc( (string) ( $bound_password['name'] ?? '' ) ) ) . '</b> '
+			. $when . ' ' . \snt_kit_esc( __( 'Rotate this Application Password periodically: anyone who holds it can call the write door.', 'signal-and-noise-tools' ) ) . '</p>';
 	} else {
-		$status = \snt_kit_notice( 'warn', \snt_kit_esc( __( 'A write-door credential is bound, but it no longer matches any of your own Application Passwords: it may have been revoked, or belongs to a different user. Re-bind below.', 'signal-and-noise-tools' ) ) );
+		$status .= \snt_kit_notice( 'warn', \snt_kit_esc( __( 'A write-door credential is bound, but it no longer matches any of your own Application Passwords: it may have been revoked, or belongs to a different user. Re-bind below.', 'signal-and-noise-tools' ) ) );
 	}
 
 	if ( empty( $passwords ) ) {
 		$profile = function_exists( 'get_edit_profile_url' ) ? get_edit_profile_url() . '#application-passwords-section' : '';
 		return \snt_kit_section(
-			__( 'Bind the write-door credential', 'signal-and-noise-tools' ),
+			__( 'Write-door credential', 'signal-and-noise-tools' ),
 			$status . '<p class="snt-prose">' . \snt_kit_esc( __( 'You have no Application Passwords yet: create one under your profile first.', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_door( __( 'Your profile', 'signal-and-noise-tools' ), $profile ) . '</p>',
-			__( 'since v9.51.0', 'signal-and-noise-tools' )
+			__( 'Which Application Password may call the write door', 'signal-and-noise-tools' )
 		);
 	}
 
@@ -87,7 +86,7 @@ function mcp_connect_rw_binding_html() {
 		array( 'options' => $options, 'hint' => __( 'The same list as your profile’s Application Passwords: this only scopes one of them to the write door.', 'signal-and-noise-tools' ) )
 	);
 	$form = \snt_kit_form( 'bind_mcp_rw_credential', $field, array( 'submit' => __( 'Save write-door credential', 'signal-and-noise-tools' ) ) );
-	return \snt_kit_section( __( 'Bind the write-door credential', 'signal-and-noise-tools' ), $status . $form, __( 'since v9.51.0', 'signal-and-noise-tools' ) );
+	return \snt_kit_section( __( 'Write-door credential', 'signal-and-noise-tools' ), $status . $form, __( 'Which Application Password may call the write door', 'signal-and-noise-tools' ) );
 }
 
 /**
@@ -106,15 +105,15 @@ function mcp_connect_door_slugs() {
 }
 
 /**
- * Deep links: AI › Agent tools (an in-window link, where the door
- * inventories live, instead of a second copy of them here), the Tools menu (a
- * door to another admin screen) and the Abilities catalog doc (external link).
+ * The footnote: Connector Approvals is a different thing, then where the tool
+ * lists live. One quiet paragraph, not a callout beside a link card.
  *
  * @return string
  */
-function mcp_connect_deep_links_html() {
-	$links = '<ul class="snt-plain"><li>' . \snt_kit_go( __( 'Agent tools: every tool each door exposes, and its calls', 'signal-and-noise-tools' ), array( 'sub' => 'agent-tools' ) ) . '</li>'
-		. '<li>' . \snt_kit_door( __( 'Tools menu. Abilities Explorer, if the AI plugin adds it', 'signal-and-noise-tools' ), function_exists( 'admin_url' ) ? admin_url( 'tools.php' ) : '' ) . '</li>'
-		. '<li>' . \snt_kit_link( __( 'The Abilities catalog (this repo’s docs)', 'signal-and-noise-tools' ), 'https://github.com/juanlentino/signal-and-noise-tools/blob/main/docs/ai-abilities-catalog.md' ) . '</li></ul>';
-	return \snt_kit_section( __( 'More', 'signal-and-noise-tools' ), $links );
+function mcp_connect_footer_html() {
+	$approvals = \snt_kit_esc( __( 'Tools → Connector Approvals (if the AI plugin is active) gates OUTBOUND use of this site’s configured AI-provider connectors by server-side plugin and theme code: it decides which of your plugins may spend against your Anthropic, OpenAI, or Google key. It has nothing to do with an external MCP client connecting IN. That inbound grant is the Application Password each client signs in with.', 'signal-and-noise-tools' ) );
+	$links     = \snt_kit_go( __( 'Agent tools: every tool each door exposes, and its calls', 'signal-and-noise-tools' ), array( 'sub' => 'agent-tools' ) )
+		. ' · ' . \snt_kit_door( __( 'Tools menu: Abilities Explorer, if the AI plugin adds it', 'signal-and-noise-tools' ), function_exists( 'admin_url' ) ? admin_url( 'tools.php' ) : '' )
+		. ' · ' . \snt_kit_link( __( 'The Abilities catalog (this repo’s docs)', 'signal-and-noise-tools' ), 'https://github.com/juanlentino/signal-and-noise-tools/blob/main/docs/ai-abilities-catalog.md' );
+	return '<p class="snt-hint"><b>' . \snt_kit_esc( __( 'Not the same as Connector Approvals', 'signal-and-noise-tools' ) ) . '.</b> ' . $approvals . '</p><p class="snt-hint">' . $links . '</p>';
 }

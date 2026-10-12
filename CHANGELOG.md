@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **AI › MCP Clients is redesigned** (owner, on 2026.10.2: "The MCP clients page is also weird. You need to do better."). It said "three doors" over four cards, pointed at a "Door 1" and "Door 2" no card named and at "the Application Password below" from its last line, floated the remote switch away from the door it controls, and stamped the credential box "since v9.51.0". Now: one line that counts the four doors, the doors as four tiles, the write-door credential beside the remote door with its switch, then Connect a client: the Application Password, both door addresses, Claude Code at full width, and the Claude desktop app's steps beside the config they paste (no step says "above" or "below", which would lie when the pair stacks on a phone). Measured live: 1,906px to about 1,460px. The classic leaf's sentences are corrected the same way; its forms, field names and actions are unchanged. The remote door's usage reads "Last used 2 hours ago", not a raw timestamp, and "1 call", not "1 calls".
+- **Boxes that fit side by side share a row** (owner: "some of the settings became a scroll page"). Measured live with the grid refit a visible window runs: Measurement › Analytics' left column ran 3,094px against 2,059px, so exclusion and tuning move to a row of their own under both columns; Agent tools pairs the read door with the write door; Health pairs "Could not run" with "Also scanned"; Reports pairs the placement-dependent and arithmetic tiers. Every pair is within 1.5x height.
+
 ## [2026.10.2] - 2026-10-12 — the readership evidence reaches /stats, and S&N Home folds nothing
 
 ### Added

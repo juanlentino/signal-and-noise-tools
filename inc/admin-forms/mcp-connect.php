@@ -48,7 +48,7 @@ require_once __DIR__ . '/mcp-connect-status.php';
  * sn_admin_render_section() callback for the 'mcp-connect' sub-tab.
  */
 function sn_admin_render_mcp_connect_section() {
-	echo '<p>' . esc_html__( 'Three MCP doors can answer for this site (two native, one third-party) and every one of them sits behind your own WordPress login, an Application Password, never a shared secret. The native doors split by capability: the read door below can only look, the write door under it can also change things, so use whichever credential scope you actually mean to grant.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'Four MCP doors can answer for this site: the read and write doors this plugin serves, the remote door through the Cloudflare Worker, and the core MCP adapter when it is installed. The read and write doors sign in as you with an Application Password, never a shared secret: the read door can only look, the write door can also change things, so use whichever scope you mean to grant.', 'signal-and-noise-tools' ) . '</p>';
 
 	sn_admin_render_mcp_status_glance();
 
@@ -62,7 +62,7 @@ function sn_admin_render_mcp_connect_section() {
 
 	echo '<div class="sn-callout">';
 	echo '<p class="sn-callout-h">' . esc_html__( 'Not the same as Connector Approvals', 'signal-and-noise-tools' ) . '</p>';
-	echo '<p>' . esc_html__( 'Tools → Connector Approvals (if the AI plugin is active) gates OUTBOUND use of this site’s configured AI-provider connectors by server-side plugin and theme code: it decides which of your plugins may spend against your Anthropic, OpenAI, or Google key. It has nothing to do with an external MCP client connecting IN. That inbound grant is the Application Password below.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'Tools → Connector Approvals (if the AI plugin is active) gates OUTBOUND use of this site’s configured AI-provider connectors by server-side plugin and theme code: it decides which of your plugins may spend against your Anthropic, OpenAI, or Google key. It has nothing to do with an external MCP client connecting IN. That inbound grant is the Application Password each client signs in with.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 
 	sn_admin_render_mcp_deep_links();
@@ -380,7 +380,7 @@ function sn_admin_render_mcp_owner_steps() {
 		esc_html__( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.', 'signal-and-noise-tools' ),
 		'<a href="' . esc_url( $profile_url ) . '">' . esc_html__( 'Application Password', 'signal-and-noise-tools' ) . '</a>'
 	) . '</li>';
-	echo '<li>' . esc_html__( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for abilities that opt in to the adapter (that is Door 1’s read allowlist).', 'signal-and-noise-tools' ) . '</li>';
+	echo '<li>' . esc_html__( 'Use the read door’s address for a client that only reads, and the write door’s for one you trust to change things.', 'signal-and-noise-tools' ) . '</li>';
 	echo '<li>' . esc_html__( 'Paste the client config below, swapping in your WordPress username and the Application Password you just created.', 'signal-and-noise-tools' ) . '</li>';
 	echo '</ol>';
 
@@ -449,7 +449,7 @@ function sn_admin_render_mcp_claude_app() {
 function sn_admin_render_mcp_deep_links() {
 	echo '<h3>' . esc_html__( 'More', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<ul>';
-	echo '<li><a href="' . esc_url( admin_url( 'tools.php' ) ) . '">' . esc_html__( 'Tools menu. Abilities Explorer, if the AI plugin adds it', 'signal-and-noise-tools' ) . '</a></li>';
+	echo '<li><a href="' . esc_url( admin_url( 'tools.php' ) ) . '">' . esc_html__( 'Tools menu: Abilities Explorer, if the AI plugin adds it', 'signal-and-noise-tools' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( 'https://github.com/juanlentino/signal-and-noise-tools/blob/main/docs/ai-abilities-catalog.md' ) . '">' . esc_html__( 'The Abilities catalog (this repo’s docs)', 'signal-and-noise-tools' ) . '</a></li>';
 	echo '</ul>';
 }
