@@ -17,6 +17,7 @@ adds a bullet below. A release is a separate, deliberate act:
   - **The same holds for every other door into the two windows** (the command palette's SN: Open commands, a door in another window, the dock's deep links), because they share the one remap that now carries the tab, and a link's `#section` rides along as the section to scroll to.
   - **A dock or icon click no longer undoes where you were.** It reopened the window with the last link's params, which put every tab of S&N Home back on that link's leaf and reset S&N Analytics' range, class and drill to the link's. A dock click now only brings the window forward, and a link to one tab leaves the other tabs on the leaves you chose.
   - The Open Analytics link now names Overview, and SN Provenance's Machine readers link names its view even where the machine-views helper is not loaded.
+  - **A restored window comes back where the last link took it.** After a reload, S&N Home or S&N Analytics reopens on the tab the last link opened, instead of on Dashboard or Overview.
 
 ## [2026.10.4] - 2026-10-12 — the 2026.10.3 audit fixed: nothing typed is lost, focus and contrast pass, forecasts that measure
 
