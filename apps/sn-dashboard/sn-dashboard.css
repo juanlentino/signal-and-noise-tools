@@ -1148,6 +1148,14 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 }
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-bind-row > os-form:first-child {
 	flex: 1 1 16rem;
+	min-width: 0;
+}
+/* The Unbind form keeps its button's width. The kit's .snt-form { width: 100% }
+   made it a full-row flex item, so it wrapped under Save (live re-measure on
+   #2022: Unbind's host measured 542px, the whole row). */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-bind-row > os-form:last-child {
+	flex: 0 0 auto;
+	width: auto;
 }
 
 /* MCP Clients and Login defense: the boxes of a row stretch to the row, so
