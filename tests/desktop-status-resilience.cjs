@@ -168,7 +168,9 @@ async function run() {
     // 2026-10-11 (owner, on 2026.10.2: "the contract of the Remote MCP is weird"):
     // the row is the version alone; a match lives in the check's title, and only
     // a mismatch says the contract, as one amber line naming both sides.
-    for (const [match, live, glyph] of [[true, '16', '✓'], [false, '15', '↑']]) {
+    // A pre-0.5.0 worker reports no contract (contract_live '', match false):
+    // the line says '?' for the live side, never 0 or a blank.
+    for (const [match, live, glyph] of [[true, '16', '✓'], [false, '15', '↑'], [false, '', '↑']]) {
       const c = harness(), rc = new Element('div');
       const stopc = c.window.desktopModeWidgets['sn-deploy-status'](rc); await flush();
       c.calls[0].resolve({theme: {current: '1', state: 'ok'}, plugin: {current: '2', state: 'ok'}, workers: [
@@ -181,7 +183,7 @@ async function run() {
         assert.match(String(gc.children[kc + 2].title), /contract 16 matches this plugin/, 'the match lives in the check\'s title');
         assert.doesNotMatch(rc.textContent, /contract/, 'a match paints no contract text');
       } else {
-        const line = nodes(rc).find(n => n.text === 'Remote MCP contract 15; this plugin expects 16.');
+        const line = nodes(rc).find(n => n.text === `Remote MCP contract ${live || '?'}; this plugin expects 16.`);
         assert.ok(line && /#d29922/.test(line.attrs.style || ''), 'a mismatch is one amber line naming both sides');
       }
       const la = nodes(rc).find(n => n.text === 'Analytics');
