@@ -462,7 +462,7 @@ os-button.snt-home__action:hover {
 .snt-home__view-all {
 	font-size: 12px;
 	font-weight: 600;
-	color: var( --os-ui-accent, #f252fc );
+	color: var( --os-ui-accent-strong, #ec9bff ); /* the link pink: the admin accent is 4.4:1 here, failing AA for text */
 	text-decoration: none;
 	display: inline-flex;
 	align-items: center;
@@ -820,7 +820,7 @@ os-button.snt-home__action:hover {
 	gap: 6px;
 	font-size: 13px;
 	font-weight: 600;
-	color: var( --os-ui-accent, #f252fc );
+	color: var( --os-ui-accent-strong, #ec9bff ); /* the link pink: the admin accent is 4.4:1 here, failing AA for text */
 }
 
 .snt-home__all-clear {
@@ -1078,22 +1078,6 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 	display: inline-block;
 	max-width: 100%;
 	vertical-align: middle;
-}
-.snt-provenance .snt-link {
-	color: var( --os-ui-fg );
-	font-family: inherit;
-	text-decoration: underline;
-	text-underline-offset: 3px;
-}
-
-/* MCP Clients: the footer's one external link reads like the door links
-   beside it, not as a monospace URL. */
-.snt-leaf[data-snt-leaf="mcp-connect"] .snt-link {
-	color: var( --os-ui-accent );
-	font-family: inherit;
-	font-size: inherit;
-	text-decoration: underline;
-	text-underline-offset: 3px;
 }
 
 .snt-provenance os-section > p {

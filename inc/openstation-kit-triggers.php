@@ -194,12 +194,28 @@ function snt_kit_go( $label, array $target, array $opts = array() ) {
  * @return string
  */
 function snt_kit_link( $label, $href ) {
-	$href = (string) $href;
+	$href  = (string) $href;
+	$class = snt_kit_link_is_address( $label ) ? 'snt-link snt-link--url' : 'snt-link';
 	if ( function_exists( 'snt_os_host_is_same_origin_url' ) && function_exists( 'snt_os_host_absolute_url' ) ) {
 		$absolute = snt_os_host_absolute_url( $href );
 		if ( '' !== $absolute && snt_os_host_is_same_origin_url( $absolute ) && ! ( function_exists( 'snt_os_host_is_download_url' ) && snt_os_host_is_download_url( $absolute ) ) ) {
-			return snt_kit_door( $label, $absolute, array( 'class' => 'snt-link' ) );
+			return snt_kit_door( $label, $absolute, array( 'class' => $class ) );
 		}
 	}
-	return snt_kit_tag( 'a', array( 'class' => 'snt-link', 'href' => $href, 'target' => '_blank', 'rel' => 'noopener noreferrer' ), snt_kit_esc( $label ) );
+	return snt_kit_tag( 'a', array( 'class' => $class, 'href' => $href, 'target' => '_blank', 'rel' => 'noopener noreferrer' ), snt_kit_esc( $label ) );
+}
+
+/**
+ * Whether a link's text IS an address (a URL, a path, a repo#issue), which
+ * keeps the code face; any other text is words in a sentence and reads as
+ * prose (2026-10-12: "Developer filter seams" painted as monospace code).
+ *
+ * @param string $label The link text.
+ * @return bool
+ */
+function snt_kit_link_is_address( $label ) {
+	$label = trim( (string) $label );
+	// A URL, a path, a host (example.com/x), or repo#123. "and/or", "AI/ML"
+	// and "C#" are words.
+	return '' !== $label && false === strpos( $label, ' ' ) && 1 === preg_match( '~^(?:https?://|/)|^[\w.-]+#\d+$|^[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:/\S*)?$~i', $label );
 }

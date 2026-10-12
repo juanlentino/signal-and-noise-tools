@@ -61,7 +61,7 @@ function snt_trust_check_keys() {
 		),
 		'rights_signals'       => array(
 			'label' => __( 'Rights signals', 'signal-and-noise-tools' ),
-			'blurb' => __( 'The TDM reservation, RSL licence, and robots Content-Signal lines are live at the edge.', 'signal-and-noise-tools' ),
+			'blurb' => __( 'The TDM reservation, RSL license, and robots Content-Signal lines are live at the edge.', 'signal-and-noise-tools' ),
 		),
 		'rights_anchored'      => array(
 			'label' => __( 'Rights anchoring', 'signal-and-noise-tools' ),

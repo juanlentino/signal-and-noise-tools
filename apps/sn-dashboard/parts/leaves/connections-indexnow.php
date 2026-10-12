@@ -106,7 +106,7 @@ function indexnow_rail_html( array $d ) {
 				? \snt_kit_tag(
 					'a',
 					array(
-						'class'  => 'snt-link',
+						'class'  => 'snt-link snt-link--url',
 						'href'   => $d['key_url'],
 						'target' => '_blank',
 						'rel'    => 'noopener noreferrer',

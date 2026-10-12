@@ -109,8 +109,8 @@ $bm_tables = snt_leaf_tables( $kit );
 ok( 1 === count( $bm_tables ) && array( 'Post', 'Issue', 'Action' ) === array_column( $bm_tables[0]['columns'], 'label' ) && 0 === substr_count( $kit, 'role="columnheader"' ) && false !== strpos( $kit, 'data-snt-stack-on-phone' ), 'candidates: one os-table of Post, Issue, Action; no hand-rolled header row; stacks on a phone' );
 ok( false !== strpos( $kit, '<os-code>Deep note</os-code>' ) && false !== strpos( $kit, '<os-code>Second note</os-code>' ), 'candidates: each post title is kit code' );
 // 14.7.5: a permalink is same-origin, so it is a DOOR (a window), not a target=_blank anchor (that relaunched the installed PWA).
-ok( false !== strpos( $kit, '<p class="snt-hint"><os-button class="snt-link" variant="link" os-action="door" os-arg-url="https://example.test/notes/deep-note/">https://example.test/notes/deep-note/</os-button></p>' ), 'candidates: the permalink is a door opening the note as a window, demoted in a hint paragraph (matching classic <small>)' );
-ok( 1 === substr_count( $kit, 'class="snt-link"' ), 'candidates: a candidate without a permalink paints no link (one link for two rows)' );
+ok( false !== strpos( $kit, '<p class="snt-hint"><os-button class="snt-link snt-link--url" variant="link" os-action="door" os-arg-url="https://example.test/notes/deep-note/">https://example.test/notes/deep-note/</os-button></p>' ), 'candidates: the permalink is a door opening the note as a window, demoted in a hint paragraph (matching classic <small>)' );
+ok( 1 === substr_count( $kit, 'class="snt-link' ), 'candidates: a candidate without a permalink paints no link (one link for two rows)' );
 ok( false !== strpos( $kit, '<os-badge tone="warning">h3 → h2</os-badge>' ) && false !== strpos( $kit, '<os-badge tone="warning">h4 → h2</os-badge>' ), 'candidates: the issue pills read h3 → h2 and h4 → h2' );
 ok( false !== strpos( $kit, '<os-button variant="secondary" data-snt-suggest="1" data-check="block_migrations_heading_skip" data-post-id="12" data-fingerprint="' . $fp_a . '" data-migration-type="heading-hierarchy-skip">Suggest</os-button>' ) && false === strpos( $kit, ' disabled' ) && false === strpos( $kit, ' title=' ), 'candidates: Suggest carries the exact data contract the shared suggest script reads, enabled (the os-cluster is the cell the script paints into)' );
 ok( false !== strpos( $kit, '<os-button variant="ghost" data-snt-block-migrations-dismiss="1" data-post-id="34" data-fingerprint="' . $fp_b . '" data-migration-type="heading-hierarchy-skip">Dismiss</os-button>' ), 'candidates: Dismiss carries the exact data contract the shared dismiss handler reads' );
@@ -143,7 +143,7 @@ ok( array() === snt_leaf_classic_markers( $kit ) && array() === snt_leaf_folds( 
 // ── A disallowed-scheme permalink: classic's esc_url() blanks it; the kit leaf must too.
 $GLOBALS['__last_scan'] = bm_envelope( array( bm_candidate( 9, 'Scheme candidate', 'javascript:alert(1)', 3, str_repeat( 'c', 32 ) ) ) );
 $kit = snt_leaf_paint( 'content', 'block-migrations' );
-ok( false === strpos( $kit, 'href="javascript:' ) && false === strpos( $kit, 'class="snt-link"' ) && array() === snt_leaf_folds( $kit ), 'a javascript: permalink is blanked, not linked, matching esc_url(); no fold' );
+ok( false === strpos( $kit, 'href="javascript:' ) && false === strpos( $kit, 'class="snt-link' ) && array() === snt_leaf_folds( $kit ), 'a javascript: permalink is blanked, not linked, matching esc_url(); no fold' );
 
 // ── The cap: 25 rows painted, the rest counted; at the cap, no "+N more".
 /** @return array<string,mixed> An envelope of $n candidates over ceil($n/2) posts, h3 and h4 alternating. */

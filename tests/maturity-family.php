@@ -262,5 +262,12 @@ ok( array() === $leaks, 'no sensitive token in any rendered format of any new pa
 ok( false !== mb_strpos( $low, 'wcag 2.1 aa' ), 'sanity: a11y still names its standard (public claim, kept)' );
 ok( false !== mb_strpos( $low, 'never confuses' ) || false !== mb_strpos( $low, 'never confused' ), 'sanity: ops carries the zero-vs-unknown principle' );
 
+// 2026-10-12 (owner: "fix the maturity page too"): the public page reads in
+// American English. The row keys ('licence', 'behaviour') are identifiers and stay.
+$page_strings = array();
+preg_match_all( "/__\\( '((?:[^'\\\\]|\\\\.)*)'/", (string) file_get_contents( dirname( __DIR__ ) . '/inc/machine-maturity-page.php' ), $page_strings );
+$british = preg_grep( '/\\b(?:licence|behaviour|behavioural|colour|centre|organis|recognis|favour|honour|catalogue|defence)/i', $page_strings[1] );
+ok( count( $page_strings[1] ) > 10 && array() === $british, 'the maturity page has no British spellings in what a reader sees: ' . implode( ' | ', $british ) );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
