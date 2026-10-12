@@ -35,6 +35,7 @@ function sn_tag_find_unused() { return $GLOBALS['__unused']; }
 function snt_ai_is_available() { return $GLOBALS['__ai']; }
 function sn_jev_is_ready() { return $GLOBALS['__jev']; }
 function human_time_diff( $a, $b = 0 ) { return '2 hours'; }
+function sn_jev_note_ids() { return range( 1, 70 ); } // 2026-10-12: the request count reads today's notes.
 if ( ! function_exists( 'get_edit_post_link' ) ) { function get_edit_post_link( $id ) { return 'https://x.test/wp-admin/post.php?post=' . (int) $id . '&action=edit'; } }
 function get_terms( $args = array() ) {
 	if ( isset( $args['fields'] ) && 'count' === $args['fields'] ) { return (string) count( $GLOBALS['__alltags'] ); }
@@ -94,13 +95,14 @@ ok( false !== strpos( $kit, 'value="1" label="Unused tags" caption="prune" swatc
 // Cluster: a native GET form dispatching go, radio on the suggested term, checkbox on the other.
 ok( false !== strpos( $kit, '<form class="snt-form snt-form--native" method="get" os-action="go">' ), 'cluster: a native GET form dispatches go (the window\'s reading of the classic GET navigation)' );
 ok( false !== strpos( $kit, 'name="page" value="sn-content"' ) && false !== strpos( $kit, 'name="tab" value="content"' ) && false !== strpos( $kit, 'name="sub" value="tags"' ) && false !== strpos( $kit, 'name="sn_tag_preview" value="1"' ), 'cluster: the four hidden GET fields survive' );
-ok( false !== strpos( $kit, '<input type="radio" name="sn_tag_into" value="10" checked aria-label="Canonical">' ), 'cluster: the suggested term is the checked canonical radio' );
-ok( false !== strpos( $kit, '<input type="checkbox" name="sn_tag_from[]" value="10" aria-label="Merge?">' ) && false !== strpos( $kit, '<input type="checkbox" name="sn_tag_from[]" value="11" checked aria-label="Merge?">' ), 'cluster: the non-suggested term is checked to fold in, the suggested one is not' );
+ok( false !== strpos( $kit, '<input type="radio" name="sn_tag_into" value="10" checked aria-label="Keep AI-Generated Music as canonical">' ), 'cluster: the suggested term is the checked canonical radio, named for its tag' );
+ok( false !== strpos( $kit, '<input type="checkbox" name="sn_tag_from[]" value="10" aria-label="Merge AI-Generated Music">' ) && false !== strpos( $kit, '<input type="checkbox" name="sn_tag_from[]" value="11" checked aria-label="Merge AI Generated Music">' ), 'cluster: the non-suggested term is checked to fold in, the suggested one is not; each box names its tag (2026-10-12: every one said "Merge?")' );
+ok( false !== strpos( $classic, 'aria-label="Keep AI-Generated Music as canonical"' ) && false !== strpos( $classic, 'aria-label="Merge AI Generated Music"' ), 'cluster: the classic twin names each control the same way' );
 ok( false !== strpos( $kit, '<strong>AI-Generated Music</strong> <os-code>ai-generated-music</os-code>' ) && false !== strpos( $kit, '<strong>AI Generated Music</strong> <os-code>ai-generated-music-2</os-code>' ), 'cluster: both members with their slugs as kit code' );
 // 17.9.0 (#1624): the picker is an os-table; read its columns and data.
 $tg_table = snt_leaf_tables( $kit )[0] ?? array( 'columns' => array(), 'data' => array(), 'slots' => array() );
 ok( array( 5, 2 ) === array_column( $tg_table['data'], 'posts' ), 'cluster: the post counts, as numbers the column sorts on' );
-ok( false !== strpos( $kit, 'heading="Possible duplicates"' ) && false !== strpos( $kit, '>Preview merge</button>' ) && array( 'Canonical', 'Merge?', 'Tag', 'Posts' ) === array_column( $tg_table['columns'], 'label' ) && false !== strpos( $kit, 'Pick the canonical tag (radio) and which dupes to fold in (checkbox).' ), 'cluster: heading, the four column headers (the table\'s own, over their controls), Preview merge and the hint' );
+ok( false !== strpos( $kit, '<os-section heading="Duplicate tags" stack><h4 class="snt-h">&quot;AI-Generated Music&quot; and 1 near-duplicate</h4>' ) && false === strpos( $kit, 'Possible duplicates' ) && false !== strpos( $kit, '>Preview merge</button>' ) && array( 'Canonical', 'Merge?', 'Tag', 'Posts' ) === array_column( $tg_table['columns'], 'label' ) && false !== strpos( $kit, 'Pick the canonical tag (radio) and which dupes to fold in (checkbox).' ), 'cluster: heading, the four column headers (the table\'s own, over their controls), Preview merge and the hint' );
 // #1624: a real header over real cells, and the inputs are still form fields.
 ok( false !== strpos( $kit, '<os-table' ) && false !== strpos( $kit, 'data-snt-stack-on-phone' ) && false === strpos( $kit, '<li class="snt-list__row"><span class="snt-list__value">Canonical' ), '#1624: the picker is an os-table that stacks on a phone; the header <li> is gone' );
 $tg_radio = snt_leaf_cell_html( $tg_table, $tg_table['data'][0]['canonical'] ?? null );
@@ -114,7 +116,8 @@ ok( 2 === preg_match_all( '/<os-select name="sn_tag_(?:from\[\]|into)"(?=[^>]* v
 ok( false !== strpos( $kit, 'label="Fold"' ) && false !== strpos( $kit, 'label="into"' ), 'picker: the Fold/into labels the classic prints around the selects survive' );
 
 // Jev ready, no pass yet: the section explains the pass and offers Read tags now.
-ok( false !== strpos( $kit, 'heading="Jev: tag fit"' ) && false !== strpos( $kit, 'About seventy requests; under a cent.' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ), '16.9.0: Jev ready, no pass: the explainer and the Read tags now form' );
+ok( false !== strpos( $kit, 'heading="Jev: tag fit"' ) && false !== strpos( $kit, 'is listed for removal. One request per note that carries a tag: at most 70 now.' ) && false === strpos( $kit, 'seventy' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ), '16.9.0: Jev ready, no pass: the explainer, its request count from today\'s notes (2026-10-12: a hard-coded "About seventy requests"), and the Read tags now form' );
+ok( false !== strpos( $classic, 'One request per note that carries a tag: at most 70 now.' ), 'no pass: the classic twin says the same' );
 
 // Unused: a native POST form with the checked term, confirmed and marked dangerous as the classic onsubmit confirm.
 ok( false !== strpos( $kit, 'os-action="post" os-confirm="Delete the selected unused tags?" os-confirm-danger>' ), 'unused: the prune form confirms with the classic question, marked dangerous' );
@@ -144,6 +147,18 @@ $kit = kit_tags();
 ok( false === strpos( $kit, '<script>' ) && substr_count( $kit, '&lt;script&gt;' ) >= 4, 'a hostile tag name is escaped everywhere it is printed' );
 array_pop( $GLOBALS['__alltags'] ); array_pop( $GLOBALS['__clusters'][0]['terms'] ); array_pop( $GLOBALS['__unused'] );
 
+// ── 2026-10-12 audit: N clusters are ONE Duplicate tags box beside the picker
+// (they were N boxes handed to the pair grid as one item: N + 1 children on
+// two tracks, the picker beside a hole).
+$GLOBALS['__clusters'][] = array( 'key' => 'jazz', 'terms' => array( array( 'term_id' => 5, 'name' => 'Jazz', 'slug' => 'jazz', 'count' => 4 ), array( 'term_id' => 6, 'name' => 'jazz.', 'slug' => 'jazz-2', 'count' => 1 ), array( 'term_id' => 7, 'name' => 'Jaz', 'slug' => 'jaz', 'count' => 1 ) ), 'suggested' => 5 );
+$kit     = kit_tags();
+$classic = classic_tags();
+$row     = substr( $kit, (int) strpos( $kit, snt_leaf_row() . '<os-section heading="Duplicate tags"' ) );
+$row     = substr( $row, 0, (int) strpos( $row, '</os-grid>' ) );
+ok( 1 === substr_count( $kit, 'heading="Duplicate tags"' ) && 2 === preg_match_all( '#<h4 class="snt-h">&quot;(?:AI-Generated Music&quot; and 1 near-duplicate|Jazz&quot; and 2 near-duplicates)</h4>#', $kit ) && 2 === substr_count( $row, '<os-section heading=' ) && false !== strpos( $row, '<os-section heading="Merge any two tags"' ), 'two clusters: one Duplicate tags box, a subheading per cluster naming its suggested tag, and the picker beside it on the same two-track row' );
+ok( 1 === substr_count( $classic, '>Duplicate tags</h2>' ) && 2 === substr_count( $classic, '<h3>&quot;' ) && false === strpos( $classic, 'Possible duplicates' ), 'two clusters: the classic twin paints one Duplicate tags box with a subheading per cluster' );
+array_pop( $GLOBALS['__clusters'] );
+
 // ── The empty list view: no clusters, no unused, no AI provider, no history.
 $GLOBALS['__clusters'] = array(); $GLOBALS['__unused'] = array(); $GLOBALS['__ai'] = false; $GLOBALS['__jev'] = false; $GLOBALS['__options']['sn_tag_merge_history'] = array();
 $classic = classic_tags();
@@ -160,7 +175,8 @@ ok( false !== strpos( $kit, 'caption="clean"' ) && false === strpos( $kit, 'swat
 $GLOBALS['__ai'] = true; $GLOBALS['__jev'] = true;
 $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array( 7 => array( 'title' => 'Fine', 'attached' => array( array( 'id' => 2, 'name' => 'Jazz', 'score' => 1.9, 'confidence' => 0.9 ) ), 'missing' => array() ) ), 'usage' => array(), 'last_error' => '' );
 $kit = kit_tags();
-ok( false !== strpos( $kit, 'Last read <os-relative-time datetime="' ) && false !== strpos( $kit, '>2 hours ago</os-relative-time>: every tag on every note touches its subject.' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ) && false === strpos( $kit, 'tag_fit_apply' ), '16.9.0: a clean pass says so and still offers Read tags now; no apply form' );
+ok( false !== strpos( $kit, 'Jev read 1 note <os-relative-time datetime="' ) && false !== strpos( $kit, '>2 hours ago</os-relative-time>: every tag on it touches its subject.' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ) && false === strpos( $kit, 'tag_fit_apply' ), '16.9.0: a clean pass says so, counting the notes read, and still offers Read tags now; no apply form' );
+ok( false !== strpos( $kit, 'at most 70 now.' ) && false !== strpos( classic_tags(), 'Jev read 1 note 2 hours ago: every tag on it touches its subject.' ), 'a clean pass keeps the explainer, so the box says what it does (2026-10-12: one sentence and a button); the classic twin reads the same' );
 
 // ── A pass with rows: the review form with per-post Remove checkboxes (16.9.2: remove only).
 $GLOBALS['__options'][ SN_JEV_TAGS_OPTION ] = array( 'synced_at' => 1, 'tags' => 3, 'notes' => array(
@@ -171,10 +187,11 @@ $classic = classic_tags();
 $kit     = kit_tags();
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'remove[7][]', snt_leaf_names( $kit ), true ) && ! array_filter( snt_leaf_names( $kit ), static fn( $n ) => str_starts_with( $n, 'assign' ) ), '16.9.2 review: field names match, remove[7][] included, no assign field anywhere: ' . names_line( $classic, $kit ) );
 ok( array( 'tag_fit_apply', 'tag_fit_run', 'tag_group_apply' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0/17.2.0 review: the writes are tag_fit_apply, tag_fit_run and tag_group_apply, same on both leaves; run, same on both leaves' );
-ok( 1 === preg_match( '#<h4 class="snt-h"><(?:a|os-button) class="snt-link"[^>]*>Untagged Note</(?:a|os-button)></h4>#', $kit ) && false === strpos( $kit, '<strong><a href=' ) && false !== strpos( $kit, 'name="remove[7][]" value="9"> Remove &quot;Empty&quot; (attached for reach, 0.30 of 2)' ) && false !== strpos( $kit, '>Apply selected</button>' ) && false !== strpos( $kit, '1 notes, read <os-relative-time datetime="' ) && false !== strpos( $kit, '>2 hours ago</os-relative-time>. A misfit' ), '16.9.0 review: the note links to its editor, the misfit unchecked with its score, Apply selected' );
-ok( false === strpos( $kit, 'Add &quot;' ) && false === strpos( $kit, 'name="remove[8][]"' ) && false === strpos( $kit, 'Umbrella' ) && false !== strpos( $kit, 'confidence 0.7 or better' ) && false !== strpos( $kit, 'Jev proposes no tags' ), '16.9.2 review: a stored 16.9.1 missing list paints no Add box, a 0.6-confidence misfit is no row, no umbrella section; the prose names the lines and says Jev proposes nothing' );
+ok( 1 === preg_match( '#<h4 class="snt-h"><(?:a|os-button) class="snt-link"[^>]*>Untagged Note</(?:a|os-button)></h4>#', $kit ) && false === strpos( $kit, '<strong><a href=' ) && false !== strpos( $kit, 'name="remove[7][]" value="9"> Remove &quot;Empty&quot; (attached for reach, 0.30 of 2)' ) && false !== strpos( $kit, '>Apply selected</button>' ) && false !== strpos( $kit, 'Jev flagged 1 of 2 notes (read <os-relative-time datetime="' ) && false !== strpos( $kit, '>2 hours ago</os-relative-time>). Listed:' ), '16.9.0 review: the note links to its editor, the misfit unchecked with its score, Apply selected; the count is flagged of READ (2026-10-12: "1 notes, read" counted only the flagged)' );
+ok( false !== strpos( $classic, 'Jev flagged 1 of 2 notes (read 2 hours ago). Listed:' ), 'review: the classic twin counts the same way' );
+ok( false === strpos( $kit, 'Add &quot;' ) && false === strpos( $kit, 'name="remove[8][]"' ) && false === strpos( $kit, 'Umbrella' ) && false !== strpos( $kit, 'confidence of 0.7 or more' ) && false !== strpos( $kit, 'Jev proposes no tags' ) && false === strpos( $kit, 'Tags are not prose' ), '16.9.2 review: a stored 16.9.1 missing list paints no Add box, a 0.6-confidence misfit is no row, no umbrella section; the prose names the lines and says Jev proposes nothing' );
 // ── 17.1.0: the pass pivoted per tag, on both surfaces, no boxes. #1573: a ledger (a kit table), not a paragraph per tag.
-ok( false !== strpos( $kit, 'heading="Jev: by tag"' ) && false !== strpos( $kit, '2 tags in the last pass; 1 carry notes that only touch them: Empty.' ) && false === strpos( $kit, '<strong>Empty: 2 notes' ) && false === strpos( $kit, '<strong>Jazz: 1 notes' ), '17.1.0/17.2.1 by tag: the summary counts every tag and names the wide ones; no per-tag paragraph' );
+ok( false !== strpos( $kit, 'heading="Jev: by tag"' ) && false !== strpos( $kit, '2 tags in the last pass; 1 carries notes that only touch it: Empty.' ) && false !== strpos( $classic, '2 tags in the last pass; 1 carries notes that only touch it: Empty.' ) && false === strpos( $kit, '<strong>Empty: 2 notes' ) && false === strpos( $kit, '<strong>Jazz: 1 notes' ), '17.1.0/17.2.1 by tag: the summary counts every tag and names the wide ones; no per-tag paragraph' );
 $bytag = ledger_rows( $kit, 'Jev: by tag' );
 ok( array( array( 'tag' => 'Empty', 'notes' => 2, 'mean' => '0.30', 'touching' => 2, 'titles' => 'Untagged Note (0.30 of 2, confidence 0.70), Shrug (0.30 of 2, confidence 0.60)' ) ) === $bytag && false !== strpos( $kit, '{&quot;key&quot;:&quot;mean&quot;,&quot;label&quot;:&quot;Mean (of 2)&quot;},{&quot;key&quot;:&quot;touching&quot;,&quot;label&quot;:&quot;Only touching&quot;},{&quot;key&quot;:&quot;titles&quot;,&quot;label&quot;:&quot;Touching notes&quot;}' ), '#1573 by tag: one row per wide tag (Tag, Notes, Mean, Only touching, the touching titles weakest-first, each with its score and confidence); Jazz (every note about it) gets no row' );
 ok( false !== strpos( $classic, '<th>Tag</th><th>Notes</th><th>Mean (of 2)</th><th>Only touching</th><th>Touching notes</th>' ) && false !== strpos( $classic, '<tr><td>Empty</td><td>2</td><td>0.30</td><td>2</td><td>Untagged Note (0.30 of 2, confidence 0.70), Shrug (0.30 of 2, confidence 0.60)</td></tr>' ) && false === strpos( $classic, 'Empty: 2 notes, mean' ), '#1573 by tag: the classic twin paints the same table with the score and confidence per note, no paragraph per tag' );
@@ -210,8 +227,8 @@ $kit = kit_tags();
 // #1573: ROW[Duplicate tags | Merge any two tags]; ROW[Jev: tag fit | Groups on /notes/tags]; then the by-tag ledger, the unused box and the recent ledger, each on a row of its own (a ten-row ledger beside a 96px box is a hole).
 $fit_row = strpos( $kit, snt_leaf_row() . '<os-section heading="Jev: tag fit"' );
 $by_tag  = strpos( $kit, '</os-grid><os-section heading="Jev: by tag"' );
-$last    = strpos( $kit, '</os-section><os-section heading="Unused tags"' );
-ok( 2 === substr_count( $kit, snt_leaf_row() ) && false !== strpos( $kit, snt_leaf_row() . '<os-section heading="Duplicate tags"' ) && false !== $fit_row && false !== $by_tag && false !== $last && $fit_row < strpos( $kit, 'heading="Groups on /notes/tags"' ) && strpos( $kit, 'heading="Groups on /notes/tags"' ) < $by_tag && $by_tag < $last && false !== strpos( $kit, '</os-section><os-section heading="Recent tag operations"' ) && $last < strpos( $kit, 'heading="Recent tag operations"' ), '#1573: two paired rows (duplicates + picker, fit + groups); the by-tag ledger, the unused box and the recent ledger each stand alone at full width, in that order' );
+$last    = strpos( $kit, '</os-section>' . snt_leaf_row() . '<os-section heading="Unused tags"' );
+ok( 3 === substr_count( $kit, snt_leaf_row() ) && false !== strpos( $kit, snt_leaf_row() . '<os-section heading="Duplicate tags"' ) && false !== $fit_row && false !== $by_tag && false !== $last && $fit_row < strpos( $kit, 'heading="Groups on /notes/tags"' ) && strpos( $kit, 'heading="Groups on /notes/tags"' ) < $by_tag && $by_tag < $last && false !== strpos( $kit, '</os-section><os-section heading="Recent tag operations"' ) && str_ends_with( trim( $kit ), '</os-section></os-grid>' ), '#1573 / 2026-10-12: three paired rows (duplicates + picker, fit + groups, unused + recent); the by-tag ledger stands alone at full width between them' );
 $GLOBALS['__options']['sn_tag_merge_history'] = array();
 $kit = kit_tags();
 ok( 2 === substr_count( $kit, snt_leaf_row() ) && false !== strpos( $kit, '</os-section><os-section heading="Unused tags"' ) && false === strpos( $kit, 'Recent tag operations' ) && str_ends_with( trim( $kit ), '</os-section>' ), '#1573: no history: no recent box, the unused box closes the leaf, the two pairs stand' );
@@ -232,10 +249,14 @@ $classic = classic_tags();
 $kit     = kit_tags( array( 'params' => $params ) );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'confirm: field names match the classic confirm form: ' . names_line( $classic, $kit ) );
 ok( array( 'tag_merge' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'confirm: the one write is tag_merge' );
-ok( false !== strpos( $kit, 'This moves 3 posts from AI-Generated Music, AI Generated Music into &quot;Music&quot;, then deletes the source tags. The old tag archives will 301-redirect to &quot;Music&quot;.' ), 'confirm: the dry-run sentence with the count, the names and the 301-redirect clause' );
+ok( false !== strpos( $kit, 'This moves 3 posts from AI-Generated Music, AI Generated Music into &quot;Music&quot;, then deletes the source tags. Links to the old tag archives redirect permanently to &quot;Music&quot;.' ) && false === strpos( $kit . $classic, '301' ), 'confirm: the dry-run sentence with the count, the names and the redirect in words, on both surfaces (no "301-redirect")' );
+ok( false !== strpos( $classic, 'This moves 3 posts from AI-Generated Music, AI Generated Music into &quot;Music&quot;' ), 'confirm: the classic twin says the same' );
+$GLOBALS['__preview']['posts_affected'] = 1;
+ok( false !== strpos( kit_tags( array( 'params' => $params ) ), 'This moves 1 post from' ), 'confirm: one post is "1 post", not "1 posts"' );
+$GLOBALS['__preview']['posts_affected'] = 3;
 ok( false !== strpos( $kit, 'name="sn_tag_from" value="10,11"' ) && false !== strpos( $kit, 'name="sn_tag_into" value="12"' ) && false !== strpos( $kit, 'submit-label="Confirm merge"' ), 'confirm: the ids round-trip as a comma string + the canonical id, under Confirm merge' );
 ok( false !== strpos( $kit, 'os-action="go" os-arg-sub="tags">Cancel</os-button>' ), 'confirm: Cancel is an in-window go back to the Tags leaf' );
-ok( false === strpos( $kit, 'Tags total' ) && false === strpos( $kit, 'Possible duplicates' ), 'confirm: the panel stays focused — no glance, no clusters' );
+ok( false === strpos( $kit, 'Tags total' ) && false === strpos( $kit, 'Duplicate tags' ), 'confirm: the panel stays focused: no glance, no clusters' );
 
 // ── The preview that no longer resolves.
 $GLOBALS['__preview'] = null;

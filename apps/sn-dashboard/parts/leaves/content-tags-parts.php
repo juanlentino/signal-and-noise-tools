@@ -117,48 +117,6 @@ function tags_glance_html( $clusters, $unused, $total ) {
 }
 
 /**
- * One cluster: canonical radio (defaulted to the suggested term), include
- * checkbox, name + slug, post count, and the GET "Preview merge" form.
- *
- * @param array $c Cluster: { key, terms:[{term_id,name,slug,count}], suggested }.
- * @return string
- */
-function tags_cluster_html( array $c ) {
-	// 17.9.0 (#1624): an os-table, not a <ul> with a header <li>. The radio,
-	// the checkbox and the name+slug are slot cells (OpenStation 1.1.11), so
-	// the inputs stay light-DOM descendants of the form: slot assignment moves
-	// nothing, and FormData still reads every one, the radios still one group.
-	$rows = array();
-	foreach ( (array) ( $c['terms'] ?? array() ) as $t ) {
-		$id     = (int) ( $t['term_id'] ?? 0 );
-		$is_sug = $id === (int) ( $c['suggested'] ?? 0 );
-		$name   = (string) ( $t['name'] ?? '' );
-		$rows[] = array(
-			'_key'      => 'term-' . $id,
-			'canonical' => array( 'html' => \snt_kit_tag( 'input', array( 'type' => 'radio', 'name' => 'sn_tag_into', 'value' => (string) $id, 'checked' => $is_sug, 'aria-label' => __( 'Canonical', 'signal-and-noise-tools' ) ) ), 'text' => '' ),
-			'merge'     => array( 'html' => \snt_kit_tag( 'input', array( 'type' => 'checkbox', 'name' => 'sn_tag_from[]', 'value' => (string) $id, 'checked' => ! $is_sug, 'aria-label' => __( 'Merge?', 'signal-and-noise-tools' ) ) ), 'text' => '' ),
-			'tag'       => array( 'html' => '<strong>' . \snt_kit_esc( $name ) . '</strong> ' . \snt_kit_code( (string) ( $t['slug'] ?? '' ), false ), 'text' => $name ),
-			'posts'     => (int) ( $t['count'] ?? 0 ),
-		);
-	}
-	$columns = array(
-		array( 'key' => 'canonical', 'label' => __( 'Canonical', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
-		array( 'key' => 'merge', 'label' => __( 'Merge?', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
-		array( 'key' => 'tag', 'label' => __( 'Tag', 'signal-and-noise-tools' ), 'sortable' => true, 'stack' => 'title' ),
-		array( 'key' => 'posts', 'label' => __( 'Posts', 'signal-and-noise-tools' ), 'sortable' => true, 'align' => 'end' ),
-	);
-	$inner = \snt_kit_table( $columns, $rows, array( 'stack_on_phone' => true, 'striped' => false ) );
-	// The hint follows the submit button, as the classic markup prints it
-	// (`<button>…</button> <span class="description">…</span>` in the same
-	// <p>, tag-consolidation-admin.php) — not before it.
-	$hint  = '<p class="snt-hint">' . \snt_kit_esc( __( 'Pick the canonical tag (radio) and which dupes to fold in (checkbox).', 'signal-and-noise-tools' ) ) . '</p>';
-	return \snt_kit_section(
-		__( 'Possible duplicates', 'signal-and-noise-tools' ),
-		tags_form( 'get', tags_page_hidden(), $inner, __( 'Preview merge', 'signal-and-noise-tools' ) ) . $hint
-	);
-}
-
-/**
  * Manual "merge any two" picker: two kit selects in an `<os-form os-action="go">`
  * (single-valued, so the kit form carries them; attributes per os-form's help).
  *
@@ -209,17 +167,7 @@ function tags_confirm_html( $pv, array $from, $into, $tab ) {
 			. \snt_kit_go( __( 'Back', 'signal-and-noise-tools' ), $back, array( 'variant' => 'secondary' ) )
 		);
 	}
-	$names = array();
-	foreach ( (array) $pv['from'] as $f ) {
-		$names[] = (string) ( $f['name'] ?? '' );
-	}
-	$prose = sprintf(
-		/* translators: 1: source tag names, 2: canonical tag name, 3: post count */
-		__( 'This moves %3$d posts from %1$s into "%2$s", then deletes the source tags. The old tag archives will 301-redirect to "%2$s".', 'signal-and-noise-tools' ),
-		implode( ', ', $names ),
-		(string) ( $pv['into']['name'] ?? '' ),
-		(int) ( $pv['posts_affected'] ?? 0 )
-	);
+	$prose = \sn_tag_merge_sentence( $pv );
 	$form = \snt_kit_form(
 		'tag_merge',
 		'',

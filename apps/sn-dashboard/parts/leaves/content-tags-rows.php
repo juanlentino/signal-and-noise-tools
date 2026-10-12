@@ -32,14 +32,18 @@ function tags_fit_html() {
 	if ( ! function_exists( 'sn_jev_is_ready' ) || ! \sn_jev_is_ready() ) {
 		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) ) . '</p>' );
 	}
-	$data = function_exists( 'sn_jev_tags_data' ) ? \sn_jev_tags_data() : null;
-	$rows = null === $data ? array() : \sn_jev_tags_rows( $data );
-	$run  = \snt_kit_form( 'tag_fit_run', '', array( 'submit' => __( 'Read tags now', 'signal-and-noise-tools' ) ) );
+	$data  = function_exists( 'sn_jev_tags_data' ) ? \sn_jev_tags_data() : null;
+	$rows  = null === $data ? array() : \sn_jev_tags_rows( $data );
+	$run   = \snt_kit_form( 'tag_fit_run', '', array( 'submit' => __( 'Read tags now', 'signal-and-noise-tools' ) ) );
+	$about = '<p class="snt-prose">' . \snt_kit_esc( \sn_tag_fit_about() ) . '</p>';
 	if ( null === $data ) {
-		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'Jev reads every published and scheduled note against the tags it carries, the tag descriptions as the state: a tag whose subject the note does not touch is listed for removal. About seventy requests; under a cent.', 'signal-and-noise-tools' ) ) . '</p>' . $run );
+		return \snt_kit_section( $heading, $about . $run );
 	}
+	// 2026-10-12 audit: the pass in counts of notes READ ("3 notes, read 2
+	// hours ago" counted only the flagged ones), the time the kit's own.
+	$read = '<p class="snt-prose">' . sprintf( \snt_kit_esc( \sn_tag_fit_read_format( $data, count( $rows ) ) ), \snt_kit_relative_time( (int) $data['synced_at'] ) );
 	if ( array() === $rows ) {
-		return \snt_kit_section( $heading, '<p class="snt-prose">' . sprintf( /* translators: %s: relative time element */ \snt_kit_esc( __( 'Last read %s: every tag on every note touches its subject.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $data['synced_at'] ) ) . '</p>' . $run );
+		return \snt_kit_section( $heading, $read . '</p>' . $about . $run );
 	}
 	$inner = '';
 	foreach ( $rows as $pid => $row ) {
@@ -54,9 +58,9 @@ function tags_fit_html() {
 	}
 	return \snt_kit_section(
 		$heading,
-		'<p class="snt-prose">' . sprintf( /* translators: 1: notes flagged, 2: relative time element */ \snt_kit_esc( __( '%1$d notes, read %2$s. A misfit is a tag whose subject Jev could not find in the note, scored under 0.5 of 2 with confidence 0.7 or better; nothing else is listed, and Jev proposes no tags. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ) ), count( $rows ), \snt_kit_relative_time( (int) $data['synced_at'] ) ) . '</p>'
-		. tags_form( 'post', tags_post_hidden( 'tag_fit_apply' ), $inner, __( 'Apply selected', 'signal-and-noise-tools' ) )
-		. $run
+		$read . ' ' . \snt_kit_esc( \sn_tag_fit_listed() ) . '</p>'
+			. tags_form( 'post', tags_post_hidden( 'tag_fit_apply' ), $inner, __( 'Apply selected', 'signal-and-noise-tools' ) )
+			. $run
 	);
 }
 
@@ -84,7 +88,7 @@ function tags_by_tag_html() {
 		return \snt_kit_section( $heading, \snt_kit_empty( __( 'No tags in the last pass.', 'signal-and-noise-tools' ) ) );
 	}
 	$wide    = array_values( array_filter( $rows, static fn( $r ) => array() !== $r['touching'] ) );
-	$summary = sprintf( /* translators: 1: tags, 2: tags with touching notes, 3: their names */ __( '%1$d tags in the last pass; %2$d carry notes that only touch them: %3$s.', 'signal-and-noise-tools' ), count( $rows ), count( $wide ), $wide ? implode( ', ', array_column( $wide, 'name' ) ) : __( 'none', 'signal-and-noise-tools' ) );
+	$summary = \sn_tag_by_tag_summary( $rows, $wide );
 	$inner   = '<p class="snt-prose">' . \snt_kit_esc( $summary ) . ' ' . \snt_kit_esc( __( 'A note under 1 of 2 touches the tag rather than being about it; which tags a note carries stays your call.', 'signal-and-noise-tools' ) ) . '</p>';
 	if ( $wide ) {
 		$ledger = \sn_admin_tag_by_tag_rows( $wide );
@@ -105,7 +109,7 @@ function tags_by_tag_html() {
 function tags_groups_html() {
 	$heading = __( 'Groups on /notes/tags', 'signal-and-noise-tools' );
 	if ( ! function_exists( 'sn_notes_tag_groups' ) || ! function_exists( 'sn_notes_tag_group_effective' ) ) {
-		return \snt_kit_section( $heading, \snt_kit_empty( __( 'The theme\'s tag groups are not available (Signal & Noise theme 13.4.0 or later).', 'signal-and-noise-tools' ) ) );
+		return \snt_kit_section( $heading, \snt_kit_empty( \sn_tag_groups_missing() ) );
 	}
 	$ledger = tags_groups_ledger();
 	if ( array() === $ledger['tags'] ) {
