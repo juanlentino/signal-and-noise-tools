@@ -64,6 +64,11 @@ function paint_connections_scheduled_content( array $ctx ) {
 		$out .= scheduled_content_glance_html( \snt_schedule_glance_cards( $d['fragments'], $d['posts'] ) );
 	}
 
+	// 2026-10-12 (queue phase 2): clusters and gaps, as the classic twin.
+	if ( function_exists( 'sn_content_queue_cadence_read' ) ) {
+		$out .= scheduled_content_cadence_html( \sn_content_queue_cadence_read() );
+	}
+
 	$out .= scheduled_content_swaps_html( $d['pairs'] );
 
 	$out .= '<p class="snt-prose">' . \snt_kit_esc( __( 'Hand-authored content scheduled to reveal or hide on a date (signal-noise/scheduled blocks), plus WordPress posts and pages waiting to auto-publish. Times shown in the site timezone.', 'signal-and-noise-tools' ) ) . '</p>';

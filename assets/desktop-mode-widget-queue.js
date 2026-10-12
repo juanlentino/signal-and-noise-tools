@@ -3,8 +3,8 @@
  *
  * "Is the queue fed, and what goes out next." The next scheduled note as the
  * headline with its site-timezone time, the depth of the schedule and the
- * date it runs to beside the draft count, the first gap in the schedule when
- * there is one, three more upcoming, and the last three published. Core's
+ * date it runs to beside the draft count, each cluster or gap in the cadence
+ * (2026-10-12), the calendar, and the last three published. Core's
  * Activity box frames the same rows as activity; this site lives on a
  * scheduled queue, so the depth line is the reading.
  *
@@ -133,6 +133,43 @@
 		} );
 	}
 
+	// Up to this many cadence lines on the card; the rest are counted.
+	var CADENCE_LINES = 3;
+
+	/**
+	 * One cadence line: the sentence (a link to Scheduled when the page is
+	 * known), and for a gap the Planned button (2026-10-10: a gap can be on
+	 * purpose; recording it removes the line, and a different gap still shows).
+	 */
+	function warnLine( w, scheduledUrl, wrap ) {
+		var style = 'display:block;margin:4px 0 0;font-size:11px;color:#d29922;font-variant-numeric:tabular-nums;text-decoration:none;';
+		var line  = el( 'div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:24px;' } );
+		var text  = scheduledUrl ? el( 'a', { href: scheduledUrl, text: w.text, style: style + 'display:flex;align-items:center;min-height:24px;margin-top:0;' } ) : el( 'p', { text: w.text, style: style } );
+		text.setAttribute( 'data-sn-gap', '' );
+		line.appendChild( text );
+		if ( 'gap' !== w.kind || ! w.from || ! w.to || ! window.wp || ! window.wp.apiFetch ) {
+			return line;
+		}
+		var planned = el( 'button', { text: 'Planned', style: 'flex:none;min-height:24px;padding:0 8px;font-size:11px;background:transparent;color:inherit;border:1px solid var(--os-ui-color-border, rgba(255,255,255,.25));border-radius:4px;cursor:pointer;' } );
+		planned.setAttribute( 'type', 'button' );
+		planned.setAttribute( 'aria-label', 'Planned: mark the gap ' + w.text.replace( /^Gap: /, '' ) + ' as intended' );
+		planned.addEventListener( 'click', function() {
+			planned.disabled = true;
+			window.wp.apiFetch( { path: '/signal-noise/v1/desktop/queue-gap-planned', method: 'POST', data: { from: w.from, to: w.to } } ).then( function() {
+				// The focused button leaves with its line: hand focus to the
+				// card's next link (Open Scheduled), never to the page body.
+				var next = wrap.querySelector ? wrap.querySelector( 'a[href]:not([data-sn-gap])' ) : null;
+				if ( line.parentNode ) { line.parentNode.removeChild( line ); }
+				if ( next && next.focus ) { next.focus(); }
+			} ).catch( function() {
+				planned.disabled = false;
+				planned.textContent = 'Not saved, retry';
+			} );
+		} );
+		line.appendChild( planned );
+		return line;
+	}
+
 	function renderCard( container, data, state ) {
 		clearChildren( container );
 		data  = data && typeof data === 'object' ? data : {};
@@ -199,40 +236,19 @@
 			if ( drafts ) { wrap.appendChild( drafts ); }
 		}
 
-		// 23.8.0: the first hole in the schedule, by the publishing-cadence
-		// flag's own threshold (server-side). Amber, and only when there is
-		// one; it links to where the queue is fixed.
-		var gap = data.gap && typeof data.gap.from_label === 'string' ? data.gap : null;
+		// Cadence (phase 2, 2026-10-12): every cluster (notes under 2 days
+		// apart) and every gap (over 7 days), one sentence each from the
+		// server, the word first so the amber is never the only cue. A payload
+		// from before the rule paints its single gap (23.8.0) the same way.
+		// Each line links to where the queue is fixed; a gap offers Planned.
 		var scheduledUrl = ( window.snDesktopData && window.snDesktopData.pages && window.snDesktopData.pages.scheduled ) || '';
-		if ( gap ) {
-			var gapText = 'Gap: no note ' + gap.from_label + ( gap.to_label && gap.to_label !== gap.from_label ? ' to ' + gap.to_label : '' );
-			var gapStyle = 'display:block;margin:4px 0 0;font-size:11px;color:#d29922;font-variant-numeric:tabular-nums;text-decoration:none;';
-			var gapLine = el( 'div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:24px;' } );
-			var gapLink = scheduledUrl ? el( 'a', { href: scheduledUrl, text: gapText, style: gapStyle + 'display:flex;align-items:center;min-height:24px;margin-top:0;' } ) : el( 'p', { text: gapText, style: gapStyle } );
-			gapLink.setAttribute( 'data-sn-gap', '' );
-			gapLine.appendChild( gapLink );
-			// 2026-10-10: a gap can be on purpose (the holidays). "Planned" records
-			// this one and the line goes; a different gap still shows.
-			if ( window.wp && window.wp.apiFetch && gap.from && gap.to ) {
-				var planned = el( 'button', { text: 'Planned', style: 'flex:none;min-height:24px;padding:0 8px;font-size:11px;background:transparent;color:inherit;border:1px solid var(--os-ui-color-border, rgba(255,255,255,.25));border-radius:4px;cursor:pointer;' } );
-				planned.setAttribute( 'type', 'button' );
-				planned.setAttribute( 'aria-label', 'Planned: mark the gap ' + gapText.replace( /^Gap: /, '' ) + ' as intended' );
-				planned.addEventListener( 'click', function() {
-					planned.disabled = true;
-					window.wp.apiFetch( { path: '/signal-noise/v1/desktop/queue-gap-planned', method: 'POST', data: { from: gap.from, to: gap.to } } ).then( function() {
-						// The focused button leaves with its line: hand focus to the
-						// card's next link (Open Scheduled), never to the page body.
-						var next = wrap.querySelector ? wrap.querySelector( 'a[href]:not([data-sn-gap])' ) : null;
-						if ( gapLine.parentNode ) { gapLine.parentNode.removeChild( gapLine ); }
-						if ( next && next.focus ) { next.focus(); }
-					} ).catch( function() {
-						planned.disabled = false;
-						planned.textContent = 'Not saved, retry';
-					} );
-				} );
-				gapLine.appendChild( planned );
-			}
-			wrap.appendChild( gapLine );
+		var legacy = data.gap && typeof data.gap.from_label === 'string' ? data.gap : null;
+		var warns = Array.isArray( data.cadence )
+			? data.cadence.filter( function( w ) { return w && typeof w.text === 'string'; } )
+			: legacy ? [ { kind: 'gap', from: legacy.from, to: legacy.to, text: 'Gap: no note ' + legacy.from_label + ( legacy.to_label && legacy.to_label !== legacy.from_label ? ' to ' + legacy.to_label : '' ) } ] : [];
+		warns.slice( 0, CADENCE_LINES ).forEach( function( w ) { wrap.appendChild( warnLine( w, scheduledUrl, wrap ) ); } );
+		if ( warns.length > CADENCE_LINES ) {
+			wrap.appendChild( el( 'p', { style: 'margin:2px 0 0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));', text: '+' + ( warns.length - CADENCE_LINES ) + ' more in Scheduled' } ) );
 		}
 
 		// The drafts this user can edit, by title, each a link to its editor.

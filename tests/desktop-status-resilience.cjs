@@ -898,6 +898,30 @@ async function run() {
     assert.doesNotMatch(root.textContent, /0 scheduled|showing the/, 'a payload without a scheduled count is not painted as 0, and a good read clears the line');
     assert.match(root.textContent, /Scheduled count not read/);
     stop();
+    // Phase 2 (2026-10-12): the cadence warnings, one line each with its word
+    // first, Planned on gaps only, three on the card and the rest counted;
+    // a payload with the rule paints no second gap definition.
+    {
+      const c = harness({pages: {scheduled: 'https://x.test/scheduled'}}, {kit: true}), croot = new Element('div');
+      const cstop = c.window.desktopModeWidgets['sn-queue'](croot); await flush();
+      const cadence = [
+        {kind: 'cluster', from: '2026-10-20', to: '2026-10-21', days: 1, count: 2, text: 'Cluster: 2 notes Oct 20 and Oct 21'},
+        {kind: 'gap', from: '2026-10-25', to: '2026-11-04', days: 12, count: 0, text: 'Gap: no note Oct 25 to Nov 4 (12 days between notes)'},
+        {kind: 'gap', from: '2026-11-10', to: '2026-11-19', days: 11, count: 0, text: 'Gap: no note Nov 10 to Nov 19 (11 days between notes)'},
+        {kind: 'gap', from: '2026-12-01', to: '2026-12-09', days: 10, count: 0, text: 'Gap: no note Dec 1 to Dec 9 (10 days between notes)'}];
+      c.calls[0].resolve({next: [{title: 'Soon', when: 'Tomorrow 9:38 AM'}], published: [], scheduled_total: 6, runs_to: {label: 'Dec 30'}, drafts: 0,
+        gap: {from: '2026-09-25', to: '2026-10-08', from_label: 'Sep 25', to_label: 'Oct 8'}, cadence}); await flush();
+      const lines = nodes(croot).filter(n => 'a' === n.tag && /^(Cluster|Gap): /.test(n.text));
+      assert.deepEqual(lines.map(n => n.text), cadence.slice(0, 3).map(w => w.text), 'three cadence lines, each the server\'s sentence with its word first');
+      assert.ok(lines.every(n => n.href === 'https://x.test/scheduled' && /#d29922/.test(n.attrs.style)), 'each links to Scheduled; amber is the second cue');
+      assert.doesNotMatch(croot.textContent, /Sep 25/, 'the cadence rule replaces the single gap: no second definition on one card');
+      assert.match(croot.textContent, /\+1 more in Scheduled/, 'the fourth is counted, never dropped');
+      const btns = nodes(croot).filter(n => 'button' === n.tag && 'Planned' === n.text);
+      assert.equal(btns.length, 2, 'Planned on the two gap lines, never on a cluster');
+      btns[0].handlers.click();
+      assert.equal(JSON.stringify(c.calls[1].opts.data), JSON.stringify({from: '2026-10-25', to: '2026-11-04'}), 'Planned records exactly that gap\'s empty days');
+      cstop();
+    }
     // No good reading yet: the failure is a sentence, not a function name.
     const q = harness(), qroot = new Element('div');
     const runner = q.window.sntAbilityRun; delete q.window.sntAbilityRun;

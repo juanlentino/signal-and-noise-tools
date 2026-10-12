@@ -118,6 +118,12 @@ function sn_admin_render_scheduled_content_section() {
 		echo '</section>';
 	}
 
+	// 2026-10-12 (queue phase 2): clusters and gaps in the scheduled notes,
+	// the same sentences as the native leaf and the SN Queue card.
+	if ( function_exists( 'sn_content_queue_cadence_read' ) ) {
+		sn_admin_render_queue_cadence( sn_content_queue_cadence_read() );
+	}
+
 	// v8.0.0: version swaps — pairs DERIVED from the fragment rows (old
 	// container's until === new container's from, same host). Rendered above
 	// the flat table so the one-operation view leads; the underlying two rows

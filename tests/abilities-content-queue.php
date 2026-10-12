@@ -82,7 +82,7 @@ $published = array(
 	array( 'id' => 4, 'title' => 'Too old for the card', 'ts' => $NOW - 9 * 86400, 'edit_url' => 'https://x.test/e/4' ),
 );
 $out = sn_content_queue_shape( $future, 26, $published, $NOW, $TZ );
-ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap', 'scheduled', 'today', 'week_start', 'planned', 'draft_list', 'draft_more' ) === array_keys( $out ), 'the payload carries exactly the twelve keys (the six it had, and the calendar\'s six)' );
+ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap', 'scheduled', 'today', 'week_start', 'planned', 'draft_list', 'draft_more', 'cadence' ) === array_keys( $out ), 'the payload carries exactly the thirteen keys (the six it had, the calendar\'s six, and the cadence warnings)' );
 ok( null === $out['drafts'], 'drafts is null when the caller could not count them, never a guessed 0' );
 ok( 7 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 7 )['drafts'] && 0 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 0 )['drafts'], 'a counted draft total passes through, a real 0 included' );
 ok( 4 === count( $out['next'] ), 'next is capped at four (the headline plus three)' );
@@ -164,6 +164,37 @@ ok( null === sn_content_queue_gap( array( $at( 9, 18 ) ), $hist, $NOW, $TZ ) && 
 $late = array( $at( 9, 18 ), $at( 9, 21 ), gmmktime( 23, 30, 0, 9, 24, 2026 ), $at( 10, 9 ) );
 $mgap = sn_content_queue_gap( $late, $hist, $NOW, new DateTimeZone( 'Europe/Madrid' ) );
 ok( is_array( $mgap ) && '2026-09-26' === $mgap['from'], 'the empty days are counted in the site timezone' );
+
+echo "\nGroup C3: the cadence warnings (phase 2, 2026-10-12): under 2 days a cluster, over 7 a gap\n";
+$NY  = new DateTimeZone( 'America/New_York' );
+$day = static fn( $d ) => ( new DateTimeImmutable( $d, $NY ) )->getTimestamp();
+$cn  = $day( '2026-10-12 12:00' );
+// The live queue on 2026-10-12: a note every 2 to 4 days, then the holiday pause.
+$live = array_map( $day, array( '2026-10-13 13:01', '2026-10-16 14:08', '2026-10-20 10:36', '2026-10-22 11:28', '2026-10-24 13:06', '2026-10-28 12:46', '2026-11-01 10:51', '2026-12-15 14:34', '2026-12-19 15:17', '2027-01-04 17:24', '2027-01-07 15:13' ) );
+array_splice( $live, 7, 0, array_map( static fn( $i ) => $day( '2026-11-01 10:00' ) + $i * 4 * 86400, range( 1, 10 ) ) );
+$hol = sn_content_queue_cadence( $live, $day( '2026-10-11 10:00' ), $cn, $NY );
+ok( 1 === count( $hol ) && 'gap' === $hol[0]['kind'] && '2026-12-20' === $hol[0]['from'] && '2027-01-03' === $hol[0]['to'] && 16 === $hol[0]['days'], 'the live queue: 2-day spacings are not a cluster, 4-day ones not a gap; the holiday pause is the one gap' );
+ok( 'Gap: no note Dec 20 to Jan 3, 2027 (16 days between notes)' === $hol[0]['text'], 'a gap says its empty days and its length, the year when it is not this one' );
+ok( array() === sn_content_queue_cadence( $live, $day( '2026-10-11 10:00' ), $cn, $NY, array( '2026-12-20|2027-01-03' ) ), 'the holiday pause stored as planned (as it is live) is deliberate: no warning' );
+ok( array() === sn_content_queue_cadence( $live, null, $cn, $NY, array( '2026-12-01|2027-01-10' ) ), 'a planned range that contains the gap covers it too' );
+ok( 1 === count( sn_content_queue_cadence( $live, null, $cn, $NY, array( '2026-12-21|2027-01-03' ) ) ), 'a planned range that covers only part of a gap does not hide it' );
+$edge = array( $day( '2026-11-01 09:00' ), $day( '2026-11-03 09:00' ), $day( '2026-11-10 09:00' ), $day( '2026-11-18 09:00' ) );
+$e    = sn_content_queue_cadence( $edge, null, $cn, $NY );
+ok( 1 === count( $e ) && 'gap' === $e[0]['kind'] && 8 === $e[0]['days'], 'exactly 2 days apart is no cluster, exactly 7 no gap; 8 is a gap' );
+$cl = sn_content_queue_cadence( array( $day( '2026-10-20 09:00' ), $day( '2026-10-20 17:00' ), $day( '2026-10-21 09:00' ), $day( '2026-10-24 09:00' ), $day( '2026-10-25 23:00' ) ), null, $cn, $NY );
+ok( array( 'Cluster: 3 notes Oct 20 to Oct 21', 'Cluster: 2 notes Oct 24 and Oct 25' ) === array_column( $cl, 'text' ), 'a run of notes each under 2 days from the last is one cluster, said with its count' );
+ok( 'Cluster: 2 notes on Oct 20' === sn_content_queue_cadence( array( $day( '2026-10-20 09:00' ), $day( '2026-10-20 17:00' ) ), null, $cn, $NY )[0]['text'], 'two notes on one day are a cluster on that day' );
+$q = sn_content_queue_cadence( array( $day( '2026-10-30 09:00' ) ), $day( '2026-10-11 10:00' ), $cn, $NY );
+ok( 1 === count( $q ) && '2026-10-12' === $q[0]['from'] && 19 === $q[0]['days'], 'the walk starts at the newest published note, so a quiet stretch starting now is said' );
+// Review on #2040: an overdue scheduled note (its date passed, cron not yet
+// fired) must not push the newest published note out of the walk.
+$od = sn_content_queue_cadence( array( $day( '2026-10-01 09:00' ), $day( '2026-10-20 09:00' ) ), $day( '2026-10-05 09:00' ), $cn, $NY );
+ok( 1 === count( $od ) && '2026-10-06' === $od[0]['from'] && '2026-10-19' === $od[0]['to'] && 'Gap: no note Oct 6 to Oct 19 (15 days between notes)' === $od[0]['text'], 'an overdue scheduled note sorts before the note published Oct 5: the gap starts after Oct 5, never "no note Oct 2" across it' );
+ok( array() === sn_content_queue_cadence( array(), $day( '2026-10-05 09:00' ), $cn, $NY ), 'nothing scheduled: no pair, no line (the card\'s "Nothing scheduled" says it)' );
+ok( 22 === sn_content_queue_cadence( array( $day( '2026-10-11 23:30' ), $day( '2026-11-03 00:30' ) ), null, $cn, new DateTimeZone( 'UTC' ) )[0]['days'] && 23 === sn_content_queue_cadence( array( $day( '2026-10-11 23:30' ), $day( '2026-11-03 00:30' ) ), null, $cn, $NY )[0]['days'], 'days are counted in the site timezone' );
+ok( array() === sn_content_queue_cadence( array(), null, $cn, $NY ) && array() === sn_content_queue_cadence( array( $cn ), null, $cn, $NY ), 'no note or one note: nothing to measure' );
+ok( 'gap' === sn_content_queue_shape( $as_rows( array( $NOW + 86400, $NOW + 20 * 86400 ) ), 2, array(), $NOW, $TZ )['cadence'][0]['kind'], 'the shaper carries the warnings' );
+ok( false !== strpos( sn_content_queue_cadence_rule(), 'under 2 days apart are a cluster; over 7 days apart, a gap' ), 'the rule the twins print names both thresholds' );
 
 echo "\nGroup D: registration and the execute path\n";
 foreach ( $GLOBALS['__cq_actions']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }

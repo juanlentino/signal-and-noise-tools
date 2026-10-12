@@ -30,19 +30,46 @@ What it shows, top to bottom:
   ends); a picked day stays picked through refreshes while it is on the grid.
 - **The figures.** How many notes are scheduled and the date the queue runs to,
   beside the draft count.
-- **The gap line**, when the schedule has a hole by the publishing-cadence
-  flag's own threshold, with a **Planned** button.
+- **The cadence lines**, one per cluster or gap (see Cadence), up to three,
+  then "+N more in Scheduled". Each gap line has a **Planned** button.
 - **Drafts**, the newest three the viewer can edit, by title, each linking to
   its editor. An editor also sees "+N more"; a contributor sees only their own
   drafts and no site-wide count beside them.
 - **Just published**, the last three, and **Open Scheduled**.
 
+### Cadence
+
+The owner's rule (2026-10-12): notes under 2 calendar days apart are a
+**cluster**, notes over 7 days apart leave a **gap**. Days are counted in the
+site timezone, over the latest published note and every scheduled one, in
+date order (an overdue scheduled note included), so a quiet stretch between
+the latest published note and the next scheduled one is said too. With
+nothing scheduled there is no pair to measure and no line; the card's
+"Nothing scheduled" headline says it. A run of notes each under 2 days from the
+last is one cluster ("Cluster: 3 notes Oct 20 to Oct 22"); a gap names its
+empty days and its length ("Gap: no note Dec 20 to Jan 3, 2027 (16 days
+between notes)"). Each line starts with its word, so the amber is never the
+only cue, and links to Connections › Scheduled. The thresholds are the
+constants `SN_CONTENT_QUEUE_CLUSTER_DAYS` and `SN_CONTENT_QUEUE_GAP_DAYS` in
+`inc/abilities-content-queue-cadence.php`, which builds every sentence; the
+ability carries them as `cadence`.
+
+This replaces the card's single gap line, which showed only the first hole by
+the publishing-cadence flag's statistical threshold. The ability still
+returns that `gap` for other readers; the card paints it only for a payload
+that has no `cadence` (an older site).
+
+Connections › Scheduled shows the same rule and sentences in a **Cadence**
+box, open, on both the native leaf and the classic page, or "No clusters or
+gaps from the latest published note through the scheduled ones." Neither twin writes: Planned lives on the card.
+
 ### Planned gaps
 
-A gap can be on purpose (the holidays). **Planned** on the gap line records it
+A gap can be on purpose (the holidays). **Planned** on a gap line records it
 in the option `sn_content_queue_planned_gaps` (as `from|to` days, the newest
-20) through `POST signal-noise/v1/desktop/queue-gap-planned`
-(`manage_options`). A planned gap no longer raises the gap line, and its days
+20; an older one drops off) through `POST signal-noise/v1/desktop/queue-gap-planned`
+(`manage_options`). A gap inside a planned range raises no line on the card
+or the Scheduled twins (a range that contains it is enough), and its days
 get a quiet dashed outline on the calendar so they do not read as holes.
 
 ### Read-only by design
@@ -54,10 +81,12 @@ Planned button above, which stores a pair of dates and nothing else.
 
 ### Size
 
-Default 312 × 590, fit to the ordinary card and measured live (2026-10-12)
+Default 312 × 640, fit to the ordinary card plus one cadence line, and measured live (2026-10-12)
 with the real queue: 573 at 265 wide and 549 at 312, chrome included, plus
-about 10px of slack. The
-busiest state (a missed note, the gap line, three drafts with "+N more" and
+about 10px of slack, then raised to 640 so one cadence line shows without a
+scrollbar (measured with the longest sentence and its Planned button: 627 at
+265 wide, where it wraps to three lines, and 585 at 312). The
+busiest state (a missed note, three cadence lines and "+N more", three drafts with "+N more" and
 three Later rows, about 180px more) scrolls inside the card. It was 780, sized
 for that busiest state, which left about 200px empty on an ordinary day. The
 scheduled count and the drafts count share one row when both fit on a line

@@ -97,3 +97,22 @@ function scheduled_content_more_html( $remainder ) {
 		_n( '+%s more scheduled item, sorted soonest-first; the tail is the furthest out.', '+%s more scheduled items, sorted soonest-first; the tail is the furthest out.', (int) $remainder, 'signal-and-noise-tools' )
 	);
 }
+
+/**
+ * The Cadence box (2026-10-12, queue phase 2): every cluster and unplanned
+ * gap from the latest published note through the scheduled ones, one sentence each with its word first, under
+ * the rule. The classic twin says the same (sn_admin_render_queue_cadence()).
+ *
+ * @param array<int,array<string,mixed>> $warnings From sn_content_queue_cadence().
+ * @return string
+ */
+function scheduled_content_cadence_html( array $warnings ) {
+	$rows = array();
+	foreach ( $warnings as $w ) {
+		$rows[] = array( 'label' => (string) ( $w['text'] ?? '' ), 'dot' => 'warn' );
+	}
+	$inner = array() === $rows
+		? '<p class="snt-prose">' . \snt_kit_esc( \sn_content_queue_cadence_clear() ) . '</p>'
+		: \snt_kit_list( $rows );
+	return \snt_kit_section( __( 'Cadence', 'signal-and-noise-tools' ), $inner, \sn_content_queue_cadence_rule() );
+}
