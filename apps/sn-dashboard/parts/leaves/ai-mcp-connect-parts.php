@@ -82,18 +82,28 @@ function mcp_connect_rw_binding_html( $rw_state = '', $explain = '' ) {
 		null !== $bound_password ? $bound_uuid : '',
 		array( 'options' => $options, 'hint' => __( 'The same list as your profile’s Application Passwords: this only scopes one of them to the write door.', 'signal-and-noise-tools' ) )
 	);
-	$form    = \snt_kit_form( 'bind_mcp_rw_credential', $field, array( 'submit' => __( 'Save write-door credential', 'signal-and-noise-tools' ) ) );
-	$unbind  = '' === $bound_uuid ? '' : \snt_kit_form(
+	// Live check on #2022: Unbind was a second form with an empty body under
+	// Save, a blank band, styled like Save. Now both buttons share one row:
+	// each form hides its footer and carries its own data-snt-form-submit
+	// button (assets/os-kit.js submits the os-form around it), Save primary,
+	// Unbind outlined danger. Unbind stays its own form, so it posts only the
+	// empty credential and sn_mcp_rw_unbind, behind its confirm; a nested form
+	// would leak its fields into Save's (os-form reads every [name] inside it).
+	$button = static fn( $label, $variant ) => \snt_kit_tag( 'os-button', array( 'variant' => $variant, 'data-snt-form-submit' => true ), \snt_kit_esc( $label ) );
+	$form   = \snt_kit_form( 'bind_mcp_rw_credential', $field . \snt_kit_tag( 'os-cluster', array( 'class' => 'snt-save-row', 'gap' => '8' ), $button( __( 'Save write-door credential', 'signal-and-noise-tools' ), 'primary' ) ), array( 'submit' => __( 'Save write-door credential', 'signal-and-noise-tools' ), 'class' => 'snt-form--saves-inline' ) );
+	$unbind = '' === $bound_uuid ? '' : \snt_kit_form(
 		'bind_mcp_rw_credential',
-		'',
+		$button( __( 'Unbind', 'signal-and-noise-tools' ), 'danger' ),
 		array(
 			'submit'  => __( 'Unbind', 'signal-and-noise-tools' ),
+			'class'   => 'snt-form--saves-inline',
 			'hidden'  => array( 'sn_mcp_rw_uuid' => '', 'sn_mcp_rw_unbind' => '1' ),
 			'confirm' => __( 'Unbind the write-door credential? Every write-door call is denied until you bind one again.', 'signal-and-noise-tools' ),
 			'danger'  => true,
 		)
 	);
-	return \snt_kit_section( __( 'Write-door credential', 'signal-and-noise-tools' ), $status . $form . $unbind, __( 'Which Application Password may call the write door', 'signal-and-noise-tools' ) );
+	$form   = '' === $unbind ? $form : \snt_kit_tag( 'div', array( 'class' => 'snt-bind-row' ), $form . $unbind );
+	return \snt_kit_section( __( 'Write-door credential', 'signal-and-noise-tools' ), $status . $form, __( 'Which Application Password may call the write door', 'signal-and-noise-tools' ) );
 }
 
 /**

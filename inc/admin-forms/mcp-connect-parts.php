@@ -156,16 +156,21 @@ function sn_admin_render_mcp_rw_binding() {
 	echo '<p class="sn-field-helper">' . esc_html__( 'The same list as your profile’s Application Passwords: this only scopes one of them to the write door.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 
+	// Live check on #2022: Unbind sits in Save's row, still its own form
+	// (the `form` attribute), so it posts only the empty credential and
+	// sn_mcp_rw_unbind, behind its confirm.
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" class="button button-primary">' . esc_html__( 'Save write-door credential', 'signal-and-noise-tools' ) . '</button>';
+	if ( '' !== $bound_uuid ) {
+		echo ' <button type="submit" form="sn-mcp-rw-unbind" class="button button-link-delete" data-snt-confirm="' . esc_attr__( 'Unbind the write-door credential? Every write-door call is denied until you bind one again.', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">' . esc_html__( 'Unbind', 'signal-and-noise-tools' ) . '</button>';
+	}
 	echo '</div>';
 	echo '</form>';
 
 	if ( '' !== $bound_uuid ) {
-		echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
-		wp_nonce_field( 'sn_bind_mcp_rw_credential' );
+		echo '<form id="sn-mcp-rw-unbind" method="post" action="' . esc_url( sn_admin_post_url() ) . '" hidden>';
+		wp_nonce_field( 'sn_bind_mcp_rw_credential', '_wpnonce', true, true );
 		echo '<input type="hidden" name="action" value="sn_bind_mcp_rw_credential"><input type="hidden" name="sn_mcp_rw_uuid" value=""><input type="hidden" name="sn_mcp_rw_unbind" value="1">';
-		echo '<button type="submit" class="button button-link-delete" data-snt-confirm="' . esc_attr__( 'Unbind the write-door credential? Every write-door call is denied until you bind one again.', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">' . esc_html__( 'Unbind', 'signal-and-noise-tools' ) . '</button>';
 		echo '</form>';
 	}
 }

@@ -55,9 +55,10 @@ function agent_tools_door_groups( array $slugs ) {
  * @param string[]|null $slugs Allowlist, or null when its reader is not loaded.
  * @param string        $kind  'read-only' or 'read-write'.
  * @param array|null    $usage From sn_mcp_telemetry_usage().
+ * @param string        $drop  The prefix the chips drop (the remote door drops "signal-noise/remote-": the door already says remote).
  * @return array{html:string,summary:string,bad:int}
  */
-function agent_tools_door_band( $slugs, $kind, $usage = null ) {
+function agent_tools_door_band( $slugs, $kind, $usage = null, $drop = 'signal-noise/' ) {
 	$n      = count( (array) $slugs );
 	$groups = agent_tools_door_groups( (array) $slugs );
 	$known  = array_diff_key( $groups, array( '' => true ) );
@@ -82,7 +83,7 @@ function agent_tools_door_band( $slugs, $kind, $usage = null ) {
 	foreach ( $groups as $label => $group ) {
 		$chips = '';
 		foreach ( $group as $slug ) {
-			$short   = 0 === strpos( $slug, 'signal-noise/' ) ? substr( $slug, 13 ) : $slug;
+			$short   = 0 === strpos( $slug, $drop ) ? substr( $slug, strlen( $drop ) ) : $slug;
 			$reading = function_exists( 'sn_admin_mcp_tool_reading' ) ? sn_admin_mcp_tool_reading( $slug, $usage ) : null;
 			$chips  .= null === $reading ? \snt_kit_chip( $short ) : \snt_kit_chip( $short . ' · ' . $reading['text'], $reading['kind'] );
 			if ( null !== $reading && '' !== (string) ( $reading['reason'] ?? '' ) ) {
@@ -95,7 +96,8 @@ function agent_tools_door_band( $slugs, $kind, $usage = null ) {
 		$rows[] = array(
 			/* translators: 1: ability category, 2: its tool count. */
 			'label' => sprintf( __( '%1$s (%2$s)', 'signal-and-noise-tools' ), '' === (string) $label ? __( 'Category not readable', 'signal-and-noise-tools' ) : (string) $label, number_format_i18n( count( $group ) ) ),
-			'value' => \snt_kit_tag( 'os-cluster', array( 'gap' => '6' ), $chips ),
+			// Live check on #2022: chips clipped at the kit's 220px and the ellipsis ate the count (sn-dashboard.css lifts the cap here).
+			'value' => \snt_kit_tag( 'os-cluster', array( 'class' => 'snt-door-chips', 'gap' => '6' ), $chips ),
 			'html'  => true,
 		);
 	}
@@ -111,8 +113,9 @@ function agent_tools_door_band( $slugs, $kind, $usage = null ) {
 			$summary .= ' ' . sprintf( _n( 'Not measured: %1$s (%2$s tool).', 'Not measured: %1$s (%2$s tools).', $tally['unmeasured'], 'signal-and-noise-tools' ), implode( '; ', array_keys( $reasons ) ), number_format_i18n( $tally['unmeasured'] ) );
 		}
 	}
-	$prefixed = array_filter( (array) $slugs, static function ( $slug ) { return 0 === strpos( (string) $slug, 'signal-noise/' ); } );
-	$hint     = empty( $prefixed ) ? '' : __( 'The chips drop the signal-noise/ prefix of each ability name.', 'signal-and-noise-tools' );
+	$prefixed = array_filter( (array) $slugs, static function ( $slug ) use ( $drop ) { return 0 === strpos( (string) $slug, $drop ); } );
+	/* translators: %s: the prefix, e.g. signal-noise/ */
+	$hint     = empty( $prefixed ) ? '' : sprintf( __( 'The chips drop the %s prefix of each ability name.', 'signal-and-noise-tools' ), $drop );
 	if ( '' !== $hint && $summary !== $finding ) {
 		$hint .= ' ' . __( 'Each carries its calls through a door in this window, or why it has none.', 'signal-and-noise-tools' );
 	}
@@ -196,7 +199,7 @@ function agent_tools_door_remote_html( $slugs, $usage = null ) {
 		. '<p>' . \snt_kit_code( 'POST ' . $url, false ) . ' ' . \snt_kit_badge( 'ok', __( 'read-only', 'signal-and-noise-tools' ) ) . '</p>'
 		. ( null === $slugs ? '<p class="snt-prose">' . \snt_kit_esc( __( 'The remote door’s list is not readable here (its reader is not loaded), so its tools are not listed.', 'signal-and-noise-tools' ) ) . '</p>' : '' );
 	$after  = '<p class="snt-hint">' . \snt_kit_esc( __( 'Its switch and its state are under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'MCP Clients › Remote door', 'signal-and-noise-tools' ), array( 'sub' => 'mcp-connect' ) ) . '.</p>';
-	return agent_tools_door_fold( __( 'Remote door: through the Cloudflare Worker', 'signal-and-noise-tools' ), $before, null === $slugs ? array() : agent_tools_door_band( $slugs, __( 'read-only', 'signal-and-noise-tools' ), $usage ), $after );
+	return agent_tools_door_fold( __( 'Remote door: through the Cloudflare Worker', 'signal-and-noise-tools' ), $before, null === $slugs ? array() : agent_tools_door_band( $slugs, __( 'read-only', 'signal-and-noise-tools' ), $usage, 'signal-noise/remote-' ), $after );
 }
 
 /**

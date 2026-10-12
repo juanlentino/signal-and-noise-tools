@@ -60,7 +60,8 @@ function agent_tools_bridge_html( array $m ) {
 	foreach ( $m['documents'] as $d ) {
 		$docs[] = array( 'label' => $d['label'], 'value' => $d['value'], 'dot' => null === $d['ok'] ? 'unknown' : ( $d['ok'] ? 'ok' : 'err' ), 'tone' => false === $d['ok'] ? 'warn' : '' );
 	}
-	$right = \snt_kit_list( $docs );
+	// Live check on #2022: the bridge's reading (and when it was checked) was cut off with an ellipsis; these values wrap.
+	$right = \snt_kit_list( $docs, array( 'class' => 'snt-list--wrap' ) );
 	return \snt_kit_grid(
 		array(
 			\snt_kit_section( sprintf( /* translators: %s: days. */ __( 'On the page, %s days', 'signal-and-noise-tools' ), number_format_i18n( $m['days'] ) ), $left, __( 'The WebMCP bridge every HTML page carries; the reader\'s own agent calls these.', 'signal-and-noise-tools' ) ),

@@ -232,7 +232,7 @@ ok( '' !== $box, 'the platform-reported box paints on the leaf' );
 ok( strpos( $kit, 'heading="Platform-reported, this month"' ) > strpos( $kit, 'Spent this month' ) && strpos( $kit, 'heading="Platform-reported, this month"' ) < strpos( $kit, 'heading="Jev' ), 'the box sits under the estimate and before the Jev meter' );
 ok( 2 === substr_count( $box, '>not set</span></os-fact>' ) && false !== strpos( $box, 'Anthropic bill (month to date)' ) && false !== strpos( $box, 'GitHub Actions (account, month to date)' ), 'both rows read "not set" when their keyring rows are absent' );
 ok( false === strpos( $box, '$0.00' ) && ! preg_match( '/\d min\b/', $box ) && false === strpos( $box, '<os-notice' ), 'absent is not zero: no dollar figure, no minute figure, no notice in the box' );
-ok( false !== strpos( $box, 'never estimated' ), 'the box says it is platform-reported, against the estimate above' );
+ok( false !== strpos( $box, 'never estimated' ) && false === stripos( $box, 'figure above' ) && false !== strpos( $box, 'the total in This month, by feature' ), 'the box says it is platform-reported, and names the box holding the estimate instead of pointing above' );
 // (b) both reads ok: the platform figures, verbatim, with no quota beside the minutes.
 $GLOBALS['__gh'] = array( 'ok' => true, 'src' => 'usage', 'used' => 1234, 'billed' => 0.0 );
 $GLOBALS['__ai'] = array( 'ok' => true, 'total' => 120.39 );

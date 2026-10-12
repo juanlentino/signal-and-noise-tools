@@ -218,14 +218,19 @@ $dig_at  = strpos( $kit, 'heading="Weekly security digest"' );
 // 2026-10-12 audit: the digest's two forms sat alone at full width (760px of
 // form, half the window empty); the three boxes share one row.
 ok( 0 === strpos( $kit, snt_leaf_row( 3, 280 ) ) && 1 === substr_count( $kit, '<os-grid' ), 'one row of three' );
+// Live check on #2022: the cards were 212 / 251 / 375px, a 295px label left its value 29px.
+ok( array( 'Flagged at login', 'Refused when set', 'Refused, service down' ) === array_column( sn_hibp_surface_rows( sn_hibp_surface_data(), sn_hibp_health( sn_hibp_surface_data(), time() ) ), 'label' ), 'Breached passwords\' labels are short, the same on both twins and in Site Health' );
+$__css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+ok( 1 === preg_match( '/\[data-snt-leaf="login-defense"\] \.snt-kv os-fact::part\( label \) \{\s*max-width: 14em;/', $__css ) && 1 === preg_match( '/\[data-snt-leaf="login-defense"\] \.snt-kv__v \{\s*overflow-wrap: normal;\s*word-break: normal;/', $__css ), 'the label column is capped and a value never breaks inside a word' );
+ok( 1 === preg_match( '/:is\( \[data-snt-leaf="mcp-connect"\], \[data-snt-leaf="login-defense"\] \) os-grid > os-section \{\s*display: flex;\s*flex-direction: column;/', $__css ) && 1 === preg_match( '/os-grid > os-section::part\( body \) \{\s*flex: 1 1 auto;/', $__css ), 'the boxes of a row stretch to the row on Login defense and MCP Clients' );
 ok( strpos( $kit, 'heading="Login guard status"' ) < $box_at && $box_at < $dig_at && strpos( $kit, '</os-grid>' ) > $dig_at, 'the row holds Login guard status, Breached passwords and the weekly digest, in that order' );
 ok( false !== strpos( $kit, 'Sends this week’s digest to the admin address now, whether or not the weekly email is on.' ) && false !== strpos( $classic, 'Sends this week’s digest to the admin address now' ), 'Send test digest says what it does, on both twins, instead of floating under Save' );
 ok( 'recommended' === $row['status'] && preg_match( '/(\d+) of (\d+) checked/', $text, $m ) && '1' === $m[1] && '2' === $m[2], 'oracle: the Site Health row reads 1 of 2 checked' );
 $flagged = kv_row( $kit, 'Flagged at login' );
 ok( null !== $flagged && $m[1] . ' of ' . $m[2] . ' checked accounts' === $flagged[0] && false !== strpos( $flagged[1], 'data-tone="warning"' ), 'the flagged row carries the row\'s numbers and says what they count, toned warning: ' . ( $flagged[0] ?? 'absent' ) );
-$unavail = kv_row( $kit, 'Refused because the breach service was unreachable' );
+$unavail = kv_row( $kit, 'Refused, service down' );
 ok( null !== $unavail && 0 === strpos( $unavail[0], '2' ) && false !== strpos( $unavail[0], 'recent' ) && false !== strpos( $unavail[1], 'data-tone="warning"' ), 'the unreachable row reads 2, recent, toned warning, in plain words' );
-$refused = kv_row( $kit, 'Breached passwords refused when set' );
+$refused = kv_row( $kit, 'Refused when set' );
 ok( null !== $refused && '4' === $refused[0] && false === strpos( $refused[1], 'data-tone' ), 'the refused row reads 4, no tone' );
 ok( snt_kit_esc( $text ) === first_notice_after( $kit, $box_at ) && false !== strpos( first_notice_after( $kit, $box_at ), 'known data breaches' ), 'the posture verdict is the notice on top of the box, the Site Health row\'s sentence' );
 ok( false === strpos( $kit, 'Your current password appears' ), 'no personal memo when the viewer\'s own password is clean' );
@@ -261,19 +266,19 @@ $kit  = snt_leaf_paint( 'security', 'login-defense' );
 // sentence keeps how many accounts were checked; the rows keep the counts.
 ok( 'good' === $row['status'] && preg_match( '/(\d+) of (\d+) accounts have been checked at login/', $text, $g ) && false === strpos( $text, '(s)' ) && false === strpos( $text, 'refused' ), 'oracle: the good row says how many accounts were checked, and leaves the counts to the rows' );
 ok( '0 of ' . $g[1] . ' checked accounts' === ( kv_row( $kit, 'Flagged at login' )[0] ?? '' ), 'good: flagged reads 0 of ' . $g[1] . ' checked accounts' );
-ok( '4' === ( kv_row( $kit, 'Breached passwords refused when set' )[0] ?? '' ), 'good: refused reads the stored 4' );
-ok( '2' === ( kv_row( $kit, 'Refused because the breach service was unreachable' )[0] ?? '' ), 'good: the unreachable count reads 2, nothing recent' );
+ok( '4' === ( kv_row( $kit, 'Refused when set' )[0] ?? '' ), 'good: refused reads the stored 4' );
+ok( '2' === ( kv_row( $kit, 'Refused, service down' )[0] ?? '' ), 'good: the unreachable count reads 2, nothing recent' );
 ok( false === strpos( $kit, '<os-notice' ) && false !== strpos( $kit, '<p class="snt-hint">' . snt_kit_esc( $text ) . '</p>' ), 'good: no notice anywhere on the leaf, the sentence is a hint' );
-ok( false === strpos( kv_row( $kit, 'Flagged at login' )[1] ?? 'absent', 'data-tone' ) && false === strpos( kv_row( $kit, 'Refused because the breach service was unreachable' )[1] ?? 'absent', 'data-tone' ) && null !== kv_row( $kit, 'Flagged at login' ), 'good: no row is toned' );
+ok( false === strpos( kv_row( $kit, 'Flagged at login' )[1] ?? 'absent', 'data-tone' ) && false === strpos( kv_row( $kit, 'Refused, service down' )[1] ?? 'absent', 'data-tone' ) && null !== kv_row( $kit, 'Flagged at login' ), 'good: no row is toned' );
 
 // (D) set-time mode switched OFF: the row says so, so does the box; the rows still paint.
 $GLOBALS['__set_off'] = true;
 $text = hibp_sentence( sn_hibp_site_health_result()['description'] );
 $kit  = snt_leaf_paint( 'security', 'login-defense' );
 ok( false !== strpos( $text, 'switched off in wp-config.php for new passwords' ) && false !== strpos( first_notice_after( $kit, strpos( $kit, 'heading="Breached passwords"' ) ), 'switched off in wp-config.php for new passwords' ) && false === strpos( $kit, 'below this line' ) && false === strpos( $kit, 'SN_HIBP' ), 'mode OFF: the box\'s notice names the switched-off check in plain words, as the row does' );
-ok( '0 of 2 checked accounts' === ( kv_row( $kit, 'Flagged at login' )[0] ?? '' ) && 'not measured (switched off)' === ( kv_row( $kit, 'Refused because the breach service was unreachable' )[0] ?? '' ) && 'not measured (switched off)' === ( kv_row( $kit, 'Breached passwords refused when set' )[0] ?? '' ), 'mode OFF: its rows say not measured instead of a count; the login row keeps its figure' );
+ok( '0 of 2 checked accounts' === ( kv_row( $kit, 'Flagged at login' )[0] ?? '' ) && 'not measured (switched off)' === ( kv_row( $kit, 'Refused, service down' )[0] ?? '' ) && 'not measured (switched off)' === ( kv_row( $kit, 'Refused when set' )[0] ?? '' ), 'mode OFF: its rows say not measured instead of a count; the login row keeps its figure' );
 $classic = snt_leaf_classic_html( 'sn_login_defense_render' );
-ok( false !== strpos( $classic, 'Breached passwords' ) && false !== strpos( $classic, '<th scope="row">Breached passwords refused when set</th><td>not measured (switched off)</td>' ), 'classic: the same Breached passwords readout (#23, native-only until 2026-10-12)' );
+ok( false !== strpos( $classic, 'Breached passwords' ) && false !== strpos( $classic, '<th scope="row">Refused when set</th><td>not measured (switched off)</td>' ), 'classic: the same Breached passwords readout (#23, native-only until 2026-10-12)' );
 $GLOBALS['__set_off'] = false;
 
 // 2026-10-11: the worker answers null when its list meta is unreadable; that is

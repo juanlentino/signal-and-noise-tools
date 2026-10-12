@@ -145,7 +145,9 @@ function sn_hibp_health( $d, $now ) {
  * The three figures both screens print beside the verdict, each saying what
  * it counts (2026-10-12 audit: "0 of 3 checked" beside a hint's "3 of 3
  * account(s) checked" were two different X of Y; a mode switched off still
- * printed its counts as if measured).
+ * printed its counts as if measured). Short labels (live check on #2022: a
+ * 295px label left its value 29px, broken across six lines); the verdict
+ * sentence the screens print with them says what "service down" refuses.
  *
  * @param array $d  sn_hibp_surface_data().
  * @param array $hv sn_hibp_health() over $d.
@@ -163,11 +165,11 @@ function sn_hibp_surface_rows( array $d, array $hv ) {
 			'tone'  => ! empty( $d['login_enabled'] ) && (int) $hv['flagged'] > 0 ? 'warn' : null,
 		),
 		array(
-			'label' => __( 'Breached passwords refused when set', 'signal-and-noise-tools' ),
+			'label' => __( 'Refused when set', 'signal-and-noise-tools' ),
 			'value' => empty( $d['set_enabled'] ) ? $off : number_format_i18n( (int) ( $set['breached_count'] ?? 0 ) ),
 		),
 		array(
-			'label' => __( 'Refused because the breach service was unreachable', 'signal-and-noise-tools' ),
+			'label' => __( 'Refused, service down', 'signal-and-noise-tools' ),
 			'value' => empty( $d['set_enabled'] ) ? $off : number_format_i18n( (int) ( $set['unavailable_count'] ?? 0 ) ) . ( $recent ? __( ', recent: the service may be failing', 'signal-and-noise-tools' ) : '' ),
 			'tone'  => ! empty( $d['set_enabled'] ) && $recent ? 'warn' : null,
 		),

@@ -116,6 +116,13 @@ ok( false !== strpos( $kit, 'Bridge ready' ), 'the remote-door card reads Bridge
 ok( false !== strpos( $kit, 'Not installed' ), 'the adapter door reads Not installed (no adapter class declared)' );
 ok( false !== strpos( $kit, '<os-select' ) && false !== strpos( $kit, 'name="sn_mcp_rw_uuid"' ), 'the credential picker is a kit select carrying the bound uuid selection' );
 ok( false !== strpos( $kit, '<os-checkbox-label' ) && false !== strpos( $kit, 'name="sn_remote_enabled"' ), 'the remote toggle is a kit checkbox' );
+// Live check on #2022: Unbind was an empty-bodied form under Save (a blank
+// band) styled exactly like Save. Both now sit in one row: Save primary,
+// Unbind outlined danger, each its own form's data-snt-form-submit button;
+// Unbind's form holds only the empty credential and sn_mcp_rw_unbind.
+$__bind = preg_match( '#<div class="snt-bind-row">(<os-form .*?</os-form>)(<os-form .*?</os-form>)</div>#s', $kit, $__bm ) ? $__bm : array( '', '', '' );
+ok( false !== strpos( $__bm[1] ?? '', 'snt-form--saves-inline' ) && false !== strpos( $__bm[1] ?? '', '<os-cluster class="snt-save-row" gap="8"><os-button variant="primary" data-snt-form-submit>Save write-door credential</os-button></os-cluster>' ) && false !== strpos( $__bm[1] ?? '', 'name="sn_mcp_rw_uuid"' ) && false === strpos( $__bm[1] ?? '', 'sn_mcp_rw_unbind' ), 'bound: the Save form holds the picker and its own Save, in the row' );
+ok( 1 === preg_match( '#^<os-form class="snt-form snt-form--saves-inline"[^>]*os-confirm="Unbind the write-door credential\? Every write-door call is denied until you bind one again\."[^>]*os-confirm-danger><os-button variant="danger" data-snt-form-submit>Unbind</os-button><input type="hidden" name="action"[^>]*><input type="hidden" name="_wpnonce"[^>]*><input type="hidden" name="sn_mcp_rw_uuid" value=""><input type="hidden" name="sn_mcp_rw_unbind" value="1"></os-form>$#', $__bm[2] ?? '' ), 'bound: Unbind is beside Save, outlined danger, its own confirmed form with no visible body but the button' );
 ok( false !== strpos( $kit, 'claude mcp add --transport http' ) && false !== strpos( $kit, '@automattic/mcp-wordpress-remote' ), 'both client configs (Claude Code one-liner, proxy JSON) survive' );
 
 // ── Escaping: a hostile Application Password name never reaches the markup raw.
