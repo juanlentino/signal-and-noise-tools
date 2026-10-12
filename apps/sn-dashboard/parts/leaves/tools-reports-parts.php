@@ -76,7 +76,7 @@ function tools_reports_render_link_isolation( array $report ) {
 		if ( ! empty( $row['slug'] ) ) {
 			$items .= ' ' . \snt_kit_code( (string) $row['slug'], false );
 		}
-		$items .= ' — ' . \snt_kit_esc( __( 'Links out:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( $links ) . $edit . '</li>';
+		$items .= ' · ' . \snt_kit_esc( __( 'Links out:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( $links ) . $edit . '</li>';
 	}
 	$out .= '<ul class="snt-plain">' . $items . '</ul>';
 
@@ -85,7 +85,7 @@ function tools_reports_render_link_isolation( array $report ) {
 		$out .= '<p class="snt-hint">' . \snt_kit_esc(
 			sprintf(
 				/* translators: 1: rows shown, 2: true total */
-				__( 'Showing %1$d of %2$d isolated notes — the list is capped, not complete.', 'signal-and-noise-tools' ),
+				__( 'Showing %1$d of %2$d isolated notes; the list is capped, not complete.', 'signal-and-noise-tools' ),
 				count( $rows ),
 				$total
 			)

@@ -69,8 +69,8 @@ function tools_reports_render_motion( array $report ) {
 			array( 'key' => 'kind', 'label' => __( 'Kind', 'signal-and-noise-tools' ) ),
 		),
 		$rows,
-		defined( 'SN_HEALTH_MOTION_MAX_ROWS' ) ? SN_HEALTH_MOTION_MAX_ROWS : 50,
+		TOOLS_REPORTS_ROWS,
 		/* translators: %s: uncovered declarations not listed. */
-		array( 'more' => __( '+%s more uncovered declarations; the list is capped, not complete.', 'signal-and-noise-tools' ) )
+		tools_reports_ledger_opts( __( '+%s more uncovered declarations; the list is capped, not complete.', 'signal-and-noise-tools' ) )
 	);
 }

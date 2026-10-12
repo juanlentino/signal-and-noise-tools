@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/tag-consolidation-rows.php'; // #1573: the two ledgers' rows, shared with the native leaf.
+require_once __DIR__ . '/tag-consolidation-words.php'; // 2026-10-12: the sentences, shared with the native leaf.
 
 /**
  * The page URL the Tags sub-tab forms post/link to (carries page/tab/sub so the
@@ -96,14 +97,16 @@ function sn_admin_render_tag_cleanup_section() {
 		echo '</section>';
 	}
 
+	// 2026-10-12 audit: ONE Duplicate tags box, a subheading per cluster (each
+	// cluster was its own "Possible duplicates" box), as on the native leaf.
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Duplicate tags', 'signal-and-noise-tools' ) . '</h2>';
 	if ( ! $clusters ) {
-		echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Duplicate tags', 'signal-and-noise-tools' ) . '</h2>';
-		echo '<p>' . esc_html__( 'No duplicate tags detected.', 'signal-and-noise-tools' ) . '</p></div>';
-	} else {
-		foreach ( $clusters as $c ) {
-			sn_admin_tag_render_cluster( $c );
-		}
+		echo '<p>' . esc_html__( 'No duplicate tags detected.', 'signal-and-noise-tools' ) . '</p>';
 	}
+	foreach ( (array) $clusters as $c ) {
+		sn_admin_tag_render_cluster( (array) $c );
+	}
+	echo '</div>';
 
 	sn_admin_tag_render_manual_picker();
 	sn_admin_tag_render_fit_section();
@@ -114,28 +117,29 @@ function sn_admin_render_tag_cleanup_section() {
 }
 
 /**
- * One cluster card: members + counts, a canonical radio (defaulted to suggested),
- * include checkboxes, and a "Preview merge" GET form.
+ * One cluster under its subheading: members + counts, a canonical radio
+ * (defaulted to suggested), include checkboxes, and a "Preview merge" GET form.
  *
  * @param array $c Cluster: { key, terms:[{term_id,name,slug,count}], suggested }.
  * @return void
  */
 function sn_admin_tag_render_cluster( $c ) {
-	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Possible duplicates', 'signal-and-noise-tools' ) . '</h2>';
+	echo '<h3>' . esc_html( sn_tag_cluster_heading( $c ) ) . '</h3>';
 	echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
 	echo '<input type="hidden" name="page" value="sn-content"><input type="hidden" name="tab" value="content"><input type="hidden" name="sub" value="tags"><input type="hidden" name="sn_tag_preview" value="1">';
 	echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Canonical', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Merge?', 'signal-and-noise-tools' ) . '</th><th class="manage-column column-primary">' . esc_html__( 'Tag', 'signal-and-noise-tools' ) . '</th><th class="num">' . esc_html__( 'Posts', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 	foreach ( $c['terms'] as $t ) {
 		$is_sug = ( (int) $t['term_id'] === (int) $c['suggested'] );
-		echo '<tr><td><input type="radio" name="sn_tag_into" value="' . esc_attr( $t['term_id'] ) . '"' . ( $is_sug ? ' checked' : '' ) . '></td>';
-		echo '<td><input type="checkbox" name="sn_tag_from[]" value="' . esc_attr( $t['term_id'] ) . '"' . ( $is_sug ? '' : ' checked' ) . '></td>';
+		$labels = sn_tag_cluster_control_labels( (string) $t['name'] );
+		echo '<tr><td><input type="radio" name="sn_tag_into" value="' . esc_attr( $t['term_id'] ) . '"' . ( $is_sug ? ' checked' : '' ) . ' aria-label="' . esc_attr( $labels[0] ) . '"></td>';
+		echo '<td><input type="checkbox" name="sn_tag_from[]" value="' . esc_attr( $t['term_id'] ) . '"' . ( $is_sug ? '' : ' checked' ) . ' aria-label="' . esc_attr( $labels[1] ) . '"></td>';
 		echo '<td class="column-primary"><strong>' . esc_html( $t['name'] ) . '</strong> <code>' . esc_html( $t['slug'] ) . '</code></td>';
 		echo '<td class="num" data-colname="Posts">' . esc_html( number_format_i18n( (int) $t['count'] ) ) . '</td></tr>';
 	}
 	echo '</tbody></table>';
 	echo '<p><button type="submit" class="button button-secondary">' . esc_html__( 'Preview merge', 'signal-and-noise-tools' ) . '</button> ';
 	echo '<span class="description">' . esc_html__( 'Pick the canonical tag (radio) and which dupes to fold in (checkbox).', 'signal-and-noise-tools' ) . '</span></p>';
-	echo '</form></div>';
+	echo '</form>';
 }
 
 /**
@@ -191,17 +195,7 @@ function sn_admin_tag_render_confirm( $pv, $from, $into ) {
 		echo '<p><a class="button" href="' . esc_url( sn_admin_tag_page_url() ) . '">' . esc_html__( 'Back', 'signal-and-noise-tools' ) . '</a></p></div>';
 		return;
 	}
-	$names = array();
-	foreach ( $pv['from'] as $f ) {
-		$names[] = $f['name'];
-	}
-	echo '<p>' . esc_html( sprintf(
-		/* translators: 1: source tag names, 2: canonical tag name, 3: post count */
-		__( 'This moves %3$d posts from %1$s into "%2$s", then deletes the source tags. The old tag archives will 301-redirect to "%2$s".', 'signal-and-noise-tools' ),
-		implode( ', ', $names ),
-		$pv['into']['name'],
-		(int) $pv['posts_affected']
-	) ) . '</p>';
+	echo '<p>' . esc_html( sn_tag_merge_sentence( $pv ) ) . '</p>';
 	echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php?page=sn-content&tab=content&sub=tags' ) ) . '">';
 	wp_nonce_field( 'sn_tag_merge' );
 	echo '<input type="hidden" name="action" value="sn_tag_merge">';
@@ -245,12 +239,15 @@ function sn_admin_tag_render_fit_section() {
 	$action = admin_url( 'admin-post.php?page=sn-content&tab=content&sub=tags' );
 	$data   = function_exists( 'sn_jev_tags_data' ) ? sn_jev_tags_data() : null;
 	$rows   = null === $data ? array() : sn_jev_tags_rows( $data );
+	/* translators: %s: how long ago ("2 hours"). */
+	$ago = null === $data ? '' : sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $data['synced_at'], time() ) );
 	if ( null === $data ) {
-		echo '<p>' . esc_html__( 'Jev reads every published and scheduled note against the tags it carries, the tag descriptions as the state: a tag whose subject the note does not touch is listed for removal. About seventy requests; under a cent.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html( sn_tag_fit_about() ) . '</p>';
 	} elseif ( array() === $rows ) {
-		echo '<p>' . esc_html( sprintf( /* translators: %s: how long ago */ __( 'Last read %s ago: every tag on every note touches its subject.', 'signal-and-noise-tools' ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( sn_tag_fit_read_format( $data, 0 ), $ago ) ) . '</p>';
+		echo '<p>' . esc_html( sn_tag_fit_about() ) . '</p>';
 	} else {
-		echo '<p>' . esc_html( sprintf( /* translators: 1: notes flagged, 2: how long ago */ __( '%1$d notes, read %2$s ago. A misfit is a tag whose subject Jev could not find in the note, scored under 0.5 of 2 with confidence 0.7 or better; nothing else is listed, and Jev proposes no tags. Jev read each tag\'s description: a wrong reading of a right tag is the description to fix. Tags are not prose; a published note can take the change.', 'signal-and-noise-tools' ), count( $rows ), human_time_diff( (int) $data['synced_at'], time() ) ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( sn_tag_fit_read_format( $data, count( $rows ) ), $ago ) ) . ' ' . esc_html( sn_tag_fit_listed() ) . '</p>';
 		echo '<form method="post" action="' . esc_url( $action ) . '">';
 		wp_nonce_field( 'sn_tag_fit_apply' );
 		echo '<input type="hidden" name="action" value="sn_tag_fit_apply">';
@@ -295,7 +292,7 @@ function sn_admin_tag_render_by_tag_section() {
 		return;
 	}
 	$wide = array_values( array_filter( $rows, static fn( $r ) => array() !== $r['touching'] ) );
-	echo '<p>' . esc_html( sprintf( /* translators: 1: tags, 2: tags with touching notes, 3: their names */ __( '%1$d tags in the last pass; %2$d carry notes that only touch them: %3$s.', 'signal-and-noise-tools' ), count( $rows ), count( $wide ), $wide ? implode( ', ', array_column( $wide, 'name' ) ) : __( 'none', 'signal-and-noise-tools' ) ) ) . ' ' . esc_html__( 'A note under 1 of 2 touches the tag rather than being about it; which tags a note carries stays your call.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html( sn_tag_by_tag_summary( $rows, $wide ) ) . ' ' . esc_html__( 'A note under 1 of 2 touches the tag rather than being about it; which tags a note carries stays your call.', 'signal-and-noise-tools' ) . '</p>';
 	if ( $wide ) {
 		$ledger = sn_admin_tag_by_tag_rows( $wide );
 		echo sn_admin_tag_table_html( sn_admin_tag_by_tag_columns(), $ledger['rows'] ) . sn_admin_tag_more_line( $ledger['more'], 'description' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every cell escaped in the builder.
@@ -312,7 +309,7 @@ function sn_admin_tag_render_by_tag_section() {
 function sn_admin_tag_render_groups_section() {
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Groups on /notes/tags', 'signal-and-noise-tools' ) . '</h2>';
 	if ( ! function_exists( 'sn_notes_tag_groups' ) || ! function_exists( 'sn_notes_tag_group_effective' ) ) {
-		echo '<p>' . esc_html__( 'The theme\'s tag groups are not available (Signal & Noise theme 13.4.0 or later).', 'signal-and-noise-tools' ) . '</p></div>';
+		echo '<p>' . esc_html( sn_tag_groups_missing() ) . '</p></div>';
 		return;
 	}
 	$ledger = sn_admin_tag_groups_ledger();

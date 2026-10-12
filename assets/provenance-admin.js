@@ -33,6 +33,14 @@
     return n;
   }
 
+  // Every sentence the poller paints comes translated from the tbody the
+  // server renders (inc/provenance-admin.php); the English here is only the
+  // fallback for markup that predates the attributes.
+  function text(live, name, fallback) {
+    var t = live.getAttribute('data-text-' + name);
+    return t ? t : fallback;
+  }
+
   function clear(node) {
     while (node.firstChild) node.removeChild(node.firstChild);
   }
@@ -110,13 +118,15 @@
     // payload that predates the field.
     var href = p.ledger_url || ledgerUrl(live, full);
     if (href) {
-      var a = el('a', null, 'Ledger');
+      // The kit leaf's words: the link names its record, and a missing one
+      // says so instead of a dash a screen reader skips (WCAG 1.3.1).
+      var a = el('a', null, text(live, 'ledger', 'v%s on the ledger').replace('%s', String(Number(p.version))));
       a.href = href;
       a.target = '_blank';
       a.rel = 'noopener';
       tdLedger.appendChild(a);
     } else {
-      tdLedger.appendChild(document.createTextNode('—'));
+      tdLedger.appendChild(document.createTextNode(text(live, 'no-ledger', 'No ledger record')));
     }
     tr.appendChild(tdLedger);
 
@@ -139,18 +149,32 @@
     clear(live);
 
     var pending = d.pending || [];
+    var cut = Number(live.getAttribute('data-unlisted')) > 0;
     if (!pending.length) {
-      live.appendChild(messageRow('All commits anchored'));
+      // What this table measures (pending proofs), the kit leaf's sentence:
+      // the old "every commit anchored" line read as "all is well" beside
+      // integrity failures, which this table does not measure. When the
+      // newest-100 cut leaves proofs out (data-unlisted), it says where they
+      // are instead of "No pending proofs" beside a Pending tile above 0.
+      live.appendChild(messageRow(cut
+        ? text(live, 'empty-cut', 'None of the newest 100 subjects has a proof waiting.')
+        : text(live, 'empty', 'No pending proofs; a new one appears here within 30 seconds of minting.')));
       return;
     }
     pending.forEach(function (p) {
       live.appendChild(commitRow(live, p));
     });
+    // The proofs past the newest-100 cut, said under the rows the poll lists:
+    // a proof minted under an empty table must not leave the cut unsaid.
+    var cutText = cut ? text(live, 'cut', '') : '';
+    if (cutText) {
+      live.appendChild(messageRow(cutText, 'sn-field-helper'));
+    }
   }
 
   function renderError(live, e) {
     clear(live);
-    var msg = 'Status check failed — reload the page to re-check.';
+    var msg = text(live, 'error', 'Status check failed: reload the page to check again.');
     if (e && e.message) msg += ' (' + e.message + ')';
     live.appendChild(messageRow(msg, 'sn-prov-error'));
   }

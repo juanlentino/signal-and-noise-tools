@@ -101,6 +101,14 @@ function _bma_post( $id, $blocks_array ) {
 	$GLOBALS['__test_posts'][ $id ] = $post;
 }
 
+// 2026-10-12: a live apply drops its row from the user's cached scan.
+$GLOBALS['__transients'] = array();
+if ( ! function_exists( 'get_current_user_id' ) ) { function get_current_user_id() { return 7; } }
+if ( ! function_exists( 'get_transient' ) ) { function get_transient( $transient ) { return $GLOBALS['__transients'][ $transient ] ?? false; } }
+if ( ! function_exists( 'set_transient' ) ) { function set_transient( $transient, $value, $expiration = 0 ) { $GLOBALS['__transients'][ $transient ] = $value; return true; } }
+if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $transient ) { unset( $GLOBALS['__transients'][ $transient ] ); return true; } }
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+
 require_once __DIR__ . '/../inc/block-fingerprint-engine.php'; // v7.7.1 shared engine
 require_once __DIR__ . '/../inc/block-migrations-apply.php';
 
@@ -202,6 +210,41 @@ bma_true( is_array( $result ) && ! empty( $result['ok'] ), 'Test 7.1: apply succ
 bma_true( strpos( $GLOBALS['__test_posts'][ 406 ]->post_content, '<script' ) === false, 'Test 7.2: <script> stripped before write' );
 bma_true( strpos( $GLOBALS['__test_posts'][ 406 ]->post_content, 'onclick' ) === false, 'Test 7.3: inline handler stripped before write' );
 bma_true( strpos( $GLOBALS['__test_posts'][ 406 ]->post_content, 'Section' ) !== false, 'Test 7.4: legitimate content survives' );
+
+// ─── Test 8: a live apply drops its row from the cached scan ─────────
+// 2026-10-12 audit: the applied row stayed listed (with a Suggest and a
+// Dismiss that then failed on a block no longer there) until the hour ran out.
+echo "\nTest 8: the applied candidate leaves the cached scan; a staged revision does not\n";
+$GLOBALS['__test_posts'] = array();
+$h3_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Section</h3>', 'innerContent' => array( '<h3>Section</h3>' ) );
+$fp       = snt_block_fp_fingerprint( $h3_block, 407, '0/0' );
+_bma_post( 407, array( $h3_block ) );
+$seed = array(
+	'candidates' => array(
+		array( 'post_id' => 407, 'migration_type' => 'heading-hierarchy-skip', 'block_fingerprint' => $fp ),
+		array( 'post_id' => 408, 'migration_type' => 'heading-hierarchy-skip', 'block_fingerprint' => 'other' ),
+	),
+	'counts'     => array( 'heading_hierarchy_skip' => 2, 'posts_affected' => 2 ),
+	'scanned_at' => time() - 60,
+);
+$key = 'snt_block_migrations_candidates_7';
+$GLOBALS['__transients'][ $key ] = $seed;
+// 2026-10-12 review: the cache is edited only after a write that took. A
+// stale fingerprint (409) must leave it byte-identical.
+$stale = snt_block_migrations_apply_impl( 407, str_repeat( 'f', 32 ), $replacement_markup, 'heading-hierarchy-skip' );
+bma_true( is_wp_error( $stale ) && 'snt_block_migration_conflict' === $stale->get_error_code() && serialize( $GLOBALS['__transients'][ $key ] ) === serialize( $seed ), 'Test 8.0: a refused apply (409, stale fingerprint) leaves the cached scan byte-identical' );
+$stale_key = array_merge( $seed, array( 'candidates' => array( array( 'post_id' => 407, 'migration_type' => 'heading-hierarchy-skip', 'block_fingerprint' => str_repeat( 'f', 32 ) ) ) ) );
+$GLOBALS['__transients'][ $key ] = $stale_key;
+snt_block_migrations_apply_impl( 407, str_repeat( 'f', 32 ), $replacement_markup, 'heading-hierarchy-skip' );
+bma_true( serialize( $GLOBALS['__transients'][ $key ] ) === serialize( $stale_key ), 'Test 8.0b: even when the cache lists that very fingerprint, a refused apply keeps its row (it is still there to fix)' );
+$GLOBALS['__transients'][ $key ] = $seed;
+$staged = snt_block_migrations_apply_impl( 407, $fp, $replacement_markup, 'heading-hierarchy-skip', static function () { return 1; } );
+bma_true( is_array( $staged ) && $GLOBALS['__transients'][ $key ] === $seed, 'Test 8.1: a staged revision (write callback) leaves the cached scan as it was' );
+$result = snt_block_migrations_apply_impl( 407, $fp, $replacement_markup, 'heading-hierarchy-skip' );
+$left   = $GLOBALS['__transients'][ $key ] ?? null;
+bma_true( is_array( $result ) && ! empty( $result['ok'] ), 'Test 8.2: the live apply succeeds' );
+bma_eq( array( 'other' ), array_column( (array) ( $left['candidates'] ?? array() ), 'block_fingerprint' ), 'Test 8.3: only the applied row left the cache' );
+bma_eq( array( 'heading_hierarchy_skip' => 1, 'posts_affected' => 1 ), $left['counts'] ?? null, 'Test 8.4: its count and the posts count follow' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

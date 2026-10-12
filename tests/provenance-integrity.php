@@ -783,7 +783,7 @@ ok( ! array_key_exists( 'unverifiable', $s ),
 	'THE SHAPE IS FROZEN: no new summary key, because this payload has a byte-identical remote twin and the contract hash covers its output_schema (a counter here is a contract bump + a worker release)' );
 $uv_findings = sn_prov_integrity_findings( sn_prov_integrity_state() );
 $uv_row = array_values( array_filter( $uv_findings, static function ( $f ) { return 402 === (int) $f['subject_id']; } ) );
-ok( 1 === count( $uv_row ) && false !== strpos( $uv_row[0]['note'], 'No provenance triangle to check' ) && false !== strpos( $uv_row[0]['note'], 'no proof exists' ),
+ok( 1 === count( $uv_row ) && false !== strpos( $uv_row[0]['note'], 'Provenance integrity cannot be checked' ) && false === strpos( $uv_row[0]['note'], 'triangle' ) && false !== strpos( $uv_row[0]['note'], 'no proof exists' ),
 	'and it is FLAGGED, with a note that says nothing was checked rather than naming a failed leg' );
 ok( false === strpos( $uv_row[0]['note'], 'failed for v0' ), 'never "check failed for v0" — there was no v-anything to check' );
 

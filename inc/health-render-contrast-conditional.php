@@ -50,7 +50,7 @@ function sn_health_render_contrast_conditional( $conditional ) {
 	);
 	echo '</summary>';
 
-	echo '<p class="sn-field-helper">' . esc_html__( 'These components set no background of their own, so where they land decides whether they pass. Not counted above, because a stylesheet cannot say where they land.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'These components set no background of their own, so where they land decides whether they pass. They are not counted as failures, because a stylesheet cannot say where they land.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat striped snt-mt-half"><thead><tr>';

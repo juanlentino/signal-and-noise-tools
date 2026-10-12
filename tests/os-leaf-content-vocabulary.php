@@ -49,7 +49,7 @@ ok( defined( 'SNT_ML_DRIFT_MIN_DOCS' ) && SNT_ML_DRIFT_MIN_DOCS > 0, 'the shippe
 $GLOBALS['__drift'] = array( 'ok' => true, 'years' => array(), 'pairs' => array() );
 $classic = snt_leaf_classic_html( 'sn_admin_render_drift_section' );
 $kit     = snt_leaf_paint( 'content', 'vocabulary' );
-ok( false !== strpos( $classic, 'No published notes yet' ) && false !== strpos( $kit, 'No published notes yet — the mirror has nothing to reflect.' ), 'empty corpus: the mirror has nothing to reflect, on both leaves' );
+ok( false !== strpos( $classic, 'No published notes yet: the mirror has nothing to reflect.' ) && false !== strpos( $kit, 'No published notes yet: the mirror has nothing to reflect.' ), 'empty corpus: the mirror has nothing to reflect, on both leaves (no em dash)' );
 ok( false === strpos( $kit, '<os-stat' ) && false === strpos( $kit, '<os-table' ), 'empty corpus: no ledger and no table are painted' );
 ok( false !== strpos( $kit, 'description="How the published corpus&#039;s vocabulary moved between years' ) && false !== strpos( $kit, 'this mirror faces the writer, never a model."' ), 'empty corpus: the intro prose the classic prints is the section description' );
 
@@ -58,7 +58,9 @@ $GLOBALS['__drift'] = array( 'ok' => true, 'years' => array( array( 'year' => 20
 $classic = snt_leaf_classic_html( 'sn_admin_render_drift_section' );
 $kit     = snt_leaf_paint( 'content', 'vocabulary' );
 ok( false !== strpos( $classic, '2024: 7 notes' ) && false !== strpos( $kit, '<os-stat value="7" label="2024" caption="notes">' ), 'one year: the ledger stat carries 2024 and 7 notes' );
-ok( false !== strpos( $classic, 'Only one year holds published notes' ) && false !== strpos( $kit, 'Only one year holds published notes so far — drift needs two to compare.' ), 'one year: both leaves say drift needs two' );
+ok( false !== strpos( $classic, 'Only one year holds published notes so far; drift needs two to compare.' ) && false !== strpos( $kit, 'Only one year holds published notes so far; drift needs two to compare.' ), 'one year: both leaves say drift needs two (no em dash)' );
+// 2026-10-12 audit: one small box (a lone stat) beside two thirds of empty window.
+ok( 1 === preg_match( '#^' . preg_quote( snt_leaf_row(), '#' ) . '<os-section heading="Vocabulary drift"[^>]*>.*?</os-section><os-section heading="Year over year" stack><os-empty-state heading="Only one year#s', $kit ), 'one year: the ledger and the reason there is no drift yet share one row' );
 $GLOBALS['__drift'] = array( 'ok' => true, 'years' => array( array( 'year' => 2024, 'docs' => 1 ) ), 'pairs' => array() );
 ok( false !== strpos( snt_leaf_paint( 'content', 'vocabulary' ), '<os-stat value="1" label="2024" caption="notes">' ), 'one year, one note: the classic always says "notes", even at 1 — the caption stays plural' );
 
@@ -97,7 +99,7 @@ ok( array() === $missing && count( snt_vocab_tokens( $classic ) ) >= 10, 'every 
 
 ok( false !== strpos( $kit, '<os-stat value="3" label="2023" caption="notes">' ) && false !== strpos( $kit, '<os-stat value="7" label="2024" caption="notes">' ) && false !== strpos( $kit, '<os-stat value="9" label="2025" caption="notes">' ), 'the year ledger is three stats: 2023/3, 2024/7, 2025/9' );
 ok( false !== strpos( $kit, 'heading="2023 → 2024"' ) && false !== strpos( $kit, 'heading="2024 → 2025"' ), 'each pair is its own section, named from → to' );
-$thin_text = sprintf( 'Too few notes to speak (3 and 7; the mirror needs %d on each side). Not the same as &quot;no drift&quot; — this pair was not measured.', SNT_ML_DRIFT_MIN_DOCS );
+$thin_text = sprintf( 'Too few notes to speak (3 and 7; the mirror needs %d on each side). Not the same as &quot;no drift&quot;: this pair was not measured.', SNT_ML_DRIFT_MIN_DOCS );
 ok( false !== strpos( $classic, sprintf( 'the mirror needs %d on each side', SNT_ML_DRIFT_MIN_DOCS ) ) && false !== strpos( $kit, $thin_text ), 'the thin pair names both sizes and the floor, on both leaves' );
 $thin_section = substr( $kit, strpos( $kit, 'heading="2023 → 2024"' ), strpos( $kit, 'heading="2024 → 2025"' ) - strpos( $kit, 'heading="2023 → 2024"' ) );
 ok( false !== strpos( $thin_section, '<os-notice tone="warning"' ) && false !== strpos( $thin_section, '<os-badge tone="warning">Not measured</os-badge>' ) && false === strpos( $thin_section, '<os-table' ) && false === strpos( $thin_section, 'held still' ), 'the thin pair is a warning notice with a badge — no table, and never "held still"' );
@@ -106,10 +108,12 @@ $moved = substr( $kit, strpos( $kit, 'heading="2024 → 2025"' ) );
 foreach ( array( 'Rose', 'Fell', 'Entered', 'Went silent' ) as $col ) {
 	ok( false !== strpos( $moved, '<h4 class="snt-col__h">' . $col . '</h4>' ), 'the measured pair paints the ' . $col . ' column' );
 }
-ok( 3 === substr_count( $moved, '<os-table' ) && 1 === substr_count( $moved, '<p class="snt-list__empty">—</p>' ), 'three lists are tables, the empty one (Fell) is the em-dash' );
+ok( 3 === substr_count( $moved, '<os-table' ) && 1 === substr_count( $moved, '<p class="snt-list__empty">None</p>' ) && 1 === substr_count( $classic, '<p class="sn-drift-none">None</p>' ), 'three lists are tables; the empty one (Fell) says None on both surfaces (a lone em dash is read aloud as "em dash")' );
+ok( false === strpos( $kit, '—' ) && false === strpos( $classic, '—' ) && false === strpos( $classic, '&#8212;' ), 'no em dash anywhere on either surface' );
+ok( false !== strpos( $moved, snt_leaf_row( 4, 200 ) . '<os-card><h4 class="snt-col__h">Rose</h4>' ) && 1 === substr_count( $moved, '<os-grid' ), 'the four lists are ONE row of four (2026-10-12: two rows of two at 1,300px), as the classic\'s four-column grid' );
 $decoded = html_entity_decode( $moved, ENT_QUOTES, 'UTF-8' );
-ok( false !== strpos( $decoded, '{"term":"provenance","share":"+25%"}' ) && false !== strpos( $decoded, '{"term":"agent","share":"40%"}' ) && false !== strpos( $decoded, '{"term":"roadmap","share":"30%"}' ), 'rows carry the term and the share exactly as the classic prints them (+25%, 40%, 30%)' );
-ok( false !== strpos( $classic, '+25%' ) && false !== strpos( $classic, '>40%<' ) && false !== strpos( $classic, '>30%<' ), 'oracle check: the classic leaf really prints +25%, 40% and 30%' );
+ok( false !== strpos( $decoded, '{"term":"provenance","share":"25% → 50%"}' ) && false !== strpos( $decoded, '{"term":"agent","share":"40%"}' ) && false !== strpos( $decoded, '{"term":"roadmap","share":"30%"}' ), 'rows carry the term and the share exactly as the classic prints them; a moved term shows its two shares (2026-10-12: "+25%" was a difference of shares printed as a percent)' );
+ok( false !== strpos( $classic, '>25% → 50%<' ) && false !== strpos( $classic, '>40%<' ) && false !== strpos( $classic, '>30%<' ) && false === strpos( $classic, '+25%' ), 'oracle check: the classic leaf really prints 25% → 50%, 40% and 30%' );
 ok( false !== strpos( $decoded, '"label":"Change"' ) && false !== strpos( $decoded, '"label":"Share"' ) && false !== strpos( $decoded, '"align":"end"' ), 'delta lists are headed Change, entered/silenced Share, shares aligned end' );
 
 // ── Per-column slice oracle: prove each row lands under ITS OWN heading, not
@@ -120,7 +124,7 @@ $col_html = function ( $html, $name ) {
 	$next  = strpos( $html, '<h4 class="snt-col__h">', $start + 1 );
 	return html_entity_decode( substr( $html, $start, false === $next ? null : $next - $start ), ENT_QUOTES, 'UTF-8' );
 };
-ok( false !== strpos( $col_html( $moved, 'Rose' ), '{"term":"provenance","share":"+25%"}' ), 'the Rose column carries provenance, not another column\'s row' );
+ok( false !== strpos( $col_html( $moved, 'Rose' ), '{"term":"provenance","share":"25% → 50%"}' ), 'the Rose column carries provenance, not another column\'s row' );
 ok( false !== strpos( $col_html( $moved, 'Entered' ), '{"term":"agent","share":"40%"}' ) && false === strpos( $col_html( $moved, 'Entered' ), 'roadmap' ), 'the Entered column carries agent (the "after" share), never the silenced term' );
 ok( false !== strpos( $col_html( $moved, 'Went silent' ), '{"term":"roadmap","share":"30%"}' ) && false === strpos( $col_html( $moved, 'Went silent' ), 'agent' ), 'the Went silent column carries roadmap (the "before" share), never the entered term' );
 preg_match_all( '/<h4 class="snt-col__h">([^<]+)</', $moved, $cols_m );
@@ -134,6 +138,24 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_drift_section' );
 $kit     = snt_leaf_paint( 'content', 'vocabulary' );
 ok( false !== strpos( $classic, 'The vocabulary held still across this pair.' ) && false !== strpos( $kit, '<p class="snt-prose">The vocabulary held still across this pair.</p>' ), 'held still: both leaves say so' );
 ok( false === strpos( $kit, '<os-table' ) && false === strpos( $kit, 'Too few notes' ) && false === strpos( $kit, '<os-notice' ), 'held still: no table, no notice, and never the thin verdict' );
+
+// ── 2026-10-12 audit: a small move reads "+0%"; whole percents that would
+// read the same take one decimal.
+$small = $rich;
+$small['pairs'][1]['risen'] = array( array( 'term' => 'mirror', 'before' => 0.102, 'after' => 0.104, 'delta' => 0.002 ) );
+$GLOBALS['__drift'] = $small;
+ok( false !== strpos( html_entity_decode( snt_leaf_paint( 'content', 'vocabulary' ), ENT_QUOTES, 'UTF-8' ), '{"term":"mirror","share":"10.2% → 10.4%"}' ) && false !== strpos( snt_leaf_classic_html( 'sn_admin_render_drift_section' ), '>10.2% → 10.4%<' ), 'a small move shows one decimal on both surfaces, never "+0%"' );
+
+// ── Short pairs (thin, held still) share a row two at a time; a moved pair spans it.
+$mixed = $rich;
+$mixed['pairs'] = array(
+	array( 'from' => 2022, 'to' => 2023, 'verdict' => 'thin', 'docs' => array( 'before' => 2, 'after' => 3 ), 'risen' => array(), 'fallen' => array(), 'entered' => array(), 'silenced' => array() ),
+	array( 'from' => 2023, 'to' => 2024, 'verdict' => 'ok', 'docs' => array( 'before' => 7, 'after' => 7 ), 'risen' => array(), 'fallen' => array(), 'entered' => array(), 'silenced' => array() ),
+	$rich['pairs'][1],
+);
+$GLOBALS['__drift'] = $mixed;
+$kit = snt_leaf_paint( 'content', 'vocabulary' );
+ok( false !== strpos( $kit, snt_leaf_row() . '<os-section heading="2022 → 2023" stack>' ) && 1 === preg_match( '#heading="2022 → 2023".*?</os-section><os-section heading="2023 → 2024" stack><p class="snt-prose">The vocabulary held still#s', $kit ) && false !== strpos( $kit, '</os-grid><os-section heading="2024 → 2025" stack>' ), 'consecutive short pairs share one row; the moved pair after them spans the window' );
 
 // ── Escaping: a hostile term never reaches the markup raw.
 $hostile = $rich;

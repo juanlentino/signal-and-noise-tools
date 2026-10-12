@@ -67,7 +67,7 @@ function now_card_html( $prefix, array $section, $hint = '' ) {
 	$lines = \snt_kit_field(
 		'textarea',
 		$prefix . '[items]',
-		__( 'Items — one per line', 'signal-and-noise-tools' ),
+		__( 'Items: one per line', 'signal-and-noise-tools' ),
 		implode( "\n", array_map( 'strval', $items ) ),
 		array(
 			'rows'        => 5,
@@ -95,18 +95,21 @@ function now_intro_html( array $s ) {
 	} else {
 		$intro = sprintf(
 			/* translators: %s: link to the /now page */
-			\snt_kit_esc( __( 'This form is the editor for the %s page. Add sections below and save to publish it.', 'signal-and-noise-tools' ) ),
+			\snt_kit_esc( __( 'This form is the editor for the %s page. Fill in a card and save to publish it.', 'signal-and-noise-tools' ) ),
 			$link
 		);
 	}
 	return '<p class="snt-prose">' . $intro . '</p>'
 		. '<p class="snt-hint">' . \snt_kit_esc( __( "Each card is one section on /now: a label, then its items one per line. Incomplete cards are refused at save (items need a label; a label needs at least one item). Removing every card clears the override: the page falls back to the theme's built-in content (it is never silently blanked).", 'signal-and-noise-tools' ) ) . '</p>'
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'The last card is always a new section. To remove a section, clear its label and its items; to reorder, move the text between cards.', 'signal-and-noise-tools' ) ) . '</p>';
+		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Each empty card at the end is a new section: fill one in to add it. To remove a section, clear its label and its items; to reorder, move the text between cards.', 'signal-and-noise-tools' ) ) . '</p>';
 }
 
 
 /**
- * The cards: one per stored section, then the new one the template stood for.
+ * The cards: one per stored section, then the new ones the template stood
+ * for. 2026-10-12 audit: one spare card added one section per save (the
+ * classic adds as many as "+ Add section" is pressed) and, after an even
+ * count, stood alone across the window; a second spare fills that row.
  *
  * @param array<int,array<string,mixed>> $sections Parsed sections.
  * @return string
@@ -118,11 +121,13 @@ function now_cards_html( array $sections ) {
 		$cards[] = now_card_html( 'now[groups][' . $i . ']', (array) $section );
 		$i++;
 	}
-	$cards[] = now_card_html(
-		'now[groups][__G__]',
-		array( 'items' => array() ),
-		__( 'New section: fill in a label and at least one item to add it, or leave both empty.', 'signal-and-noise-tools' )
-	);
+	foreach ( snt_spare_keys( count( $cards ), '__G__', '__H__' ) as $key ) {
+		$cards[] = now_card_html(
+			'now[groups][' . $key . ']',
+			array( 'items' => array() ),
+			__( 'New section: fill in a label and at least one item to add it, or leave both empty.', 'signal-and-noise-tools' )
+		);
+	}
 	return '<os-stack gap="12">' . snt_pair_cards( $cards ) . '</os-stack>';
 }
 

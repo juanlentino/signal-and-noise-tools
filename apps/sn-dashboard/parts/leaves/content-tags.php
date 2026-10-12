@@ -23,6 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/content-tags-parts.php';
 require_once __DIR__ . '/content-tags-rows.php';
+require_once __DIR__ . '/content-tags-clusters.php';
 
 /**
  * The `sn_*` params the window carries — the classic page's `$_GET`.
@@ -92,28 +93,15 @@ function paint_content_tags( array $ctx ) {
 
 	$data = tags_data();
 	$out  = tags_glance_html( $data['clusters'], $data['unused'], $data['total'] );
-	$dups = '';
-	if ( ! $data['clusters'] ) {
-		$dups = \snt_kit_section(
-			__( 'Duplicate tags', 'signal-and-noise-tools' ),
-			\snt_kit_empty( __( 'No duplicate tags detected.', 'signal-and-noise-tools' ) )
-		);
-	} else {
-		foreach ( $data['clusters'] as $c ) {
-			$dups .= tags_cluster_html( (array) $c );
-		}
-	}
-	// 17.2.1: boxes share a row. Two columns (snt_kit_grid(), one column
-	// under 640px). #1573: two boxes share a row only when their heights
-	// are comparable (live at 1581px: duplicates 96 / picker 145, fit 238 /
-	// groups 260); the by-tag ledger stood 1,329px beside a 238px box and the
-	// recent ledger (ten rows, 277px as a list) would stand beside a 96px
-	// unused box, so each ledger takes a row of its own.
-	$out .= tags_pair( $dups, tags_picker_html() );
+	// 17.2.1: boxes share a row (snt_kit_grid(), one column under 640px), when
+	// their heights are comparable (#1573). The by-tag ledger stood 1,329px
+	// beside a 238px box, so it takes a row of its own. 2026-10-12: Unused
+	// tags (161px live) and Recent tag operations (229px, ten rows at most)
+	// share a row; either alone stands at full width.
+	$out .= tags_pair( tags_duplicates_html( $data['clusters'] ), tags_picker_html() );
 	$out .= tags_pair( tags_fit_html(), tags_groups_html() );
 	$out .= tags_by_tag_html();
-	$out .= tags_unused_html( $data['unused'] );
-	$out .= tags_recent_html();
+	$out .= tags_pair( tags_unused_html( $data['unused'] ), tags_recent_html() );
 	return $out;
 }
 

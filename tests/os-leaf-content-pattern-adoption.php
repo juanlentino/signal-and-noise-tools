@@ -79,12 +79,20 @@ ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="
 ok( false !== strpos( $kit, 'submit-label="Scan for opportunities"' ) && false !== strpos( $classic, 'Scan for opportunities' ), 'before the first scan the button reads "Scan for opportunities"' );
 ok( false === strpos( $kit, '<os-badge' ) && false === strpos( $kit, '<os-table' ) && false === strpos( $kit, '<os-empty-state' ) && array() === snt_leaf_folds( $kit ), 'before the first scan there is no count, no queue, no empty note and no fold, as on the classic leaf' );
 ok( false !== strpos( $kit, '<os-section heading="Pattern adoption" stack>' ) && false !== strpos( $kit, '<p class="snt-prose">Scans existing /notes posts' ), 'the heading and the intro prose are printed' );
+// 2026-10-12 audit: one narrow box left two thirds of the window empty; the
+// status box now pairs with what the scanner looks for, on one row.
+ok( 0 === strpos( $kit, snt_leaf_row() . '<os-section heading="Pattern adoption" stack>' ) && 1 === preg_match( '#^<os-grid[^>]*><os-section heading="Pattern adoption" stack>.*?</os-section><os-section heading="What it looks for" stack>.*?Scans existing /notes posts.*?</os-section></os-grid>$#s', $kit ), 'layout: the status box and What it looks for share one row, nothing else before the first scan' );
+ok( false !== strpos( $kit, '<p class="snt-prose">Not scanned yet.</p>' ) && false !== strpos( $classic, 'Not scanned yet.' ), 'before the first scan both surfaces say so' );
+ok( false !== strpos( $kit, '<p class="snt-prose">On each row, Suggest drafts the upgraded block for you to review, Apply writes it after a preview, and Dismiss keeps that block out of later scans.</p>' ) && false !== strpos( $classic, 'On each row, Suggest drafts the upgraded block' ), 'What it looks for also says how a row is worked, on both surfaces (and balances the pair)' );
+ok( false === strpos( $kit . $classic, 'v9.2.0' ) && false !== strpos( $kit, 'upgraded to the pull-quote and numbered-steps patterns.' ) && false !== strpos( $classic, 'upgraded to the pull-quote and numbered-steps patterns.' ), 'no version stamp in the intro, on either surface' );
 
 // ── Scanned, nothing found: the count reads zero and the empty note is printed.
 $GLOBALS['__pa_scan'] = snt_pa_scan( array() );
 $classic = snt_leaf_classic_html( 'sn_admin_render_pattern_adoption_section' );
 $kit     = snt_leaf_paint( 'content', 'pattern-adoption' );
-ok( false !== strpos( $kit, '<os-badge tone="success">0 opportunities</os-badge>' ) && false !== strpos( $classic, '0 opportunities' ), 'zero found: the count pill reads "0 opportunities" in the ok tone' );
+ok( false !== strpos( $kit, '<os-badge tone="success">0 candidates</os-badge>' ) && false !== strpos( $classic, '>0 candidates</span>' ), 'zero found: the count pill reads "0 candidates" in the ok tone (the finding\'s word, not "opportunities")' );
+ok( false !== strpos( $kit, '<p class="snt-prose">Scanned <os-relative-time datetime="2025-09-04T15:33:20Z">1 hour ago</os-relative-time>. A scan&#039;s list is kept for an hour; Re-scan lists what is left.</p>' ) && false !== strpos( $classic, 'Scanned 1 hour ago. A scan&#039;s list is kept for an hour; Re-scan lists what is left.' ), 'a scan says when it ran and how long its list is kept, on both surfaces' );
+ok( 1 === preg_match( '#</os-grid><os-section heading="Candidates" stack><os-empty-state heading="No opportunities found."#', $kit ), 'zero found: the clean note sits under the pair at full width' );
 ok( false !== strpos( $kit, 'submit-label="Re-scan opportunities"' ) && false !== strpos( $classic, 'Re-scan opportunities' ), 'after a scan the button reads "Re-scan opportunities"' );
 ok( false !== strpos( $kit, '<os-empty-state heading="No opportunities found." description="All eligible blocks are either already pattern-upgraded or have been dismissed.">' ), 'zero found: the empty note survives as the kit empty state' );
 ok( false === strpos( $kit, '<os-table' ) && array() === snt_leaf_folds( $kit ), 'zero found: no review queue is painted, and no fold' );
@@ -95,21 +103,21 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_pattern_adoption_section' );
 $kit     = snt_leaf_paint( 'content', 'pattern-adoption' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'with a queue the names and the action still match the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'with a queue no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, '<os-badge tone="warning">3 opportunities</os-badge>' ) && false !== strpos( $classic, '3 opportunities' ), 'the count pill reads "3 opportunities" in the warn tone' );
+ok( false !== strpos( $kit, '<os-badge tone="warning">3 candidates</os-badge>' ) && false !== strpos( $classic, '>3 candidates</span>' ), 'the count pill reads "3 candidates" in the warn tone' );
 // 2026-10-11 (owner rule, no folds): the queue is open. The count the closed
 // "Review 3 candidates" heading carried is the finding sentence over the table.
-ok( array() === snt_leaf_folds( $kit ) && false !== strpos( $classic, 'Review 3 candidates' ), 'the queue is open: no fold (the classic leaf still folds it)' );
-ok( false !== strpos( $kit, '<p class="snt-prose">3 candidates in 2 posts: 2 pull-quote, 1 steps-enumerated.</p>' ), 'the finding sentence counts the candidates, the posts and each pattern, from the rows' );
+ok( array() === snt_leaf_folds( $kit ) && false === strpos( $classic, '<details' ) && false === strpos( $classic, 'Review 3 candidates' ), 'the queue is open on both surfaces: no fold (2026-10-12: the classic folded it)' );
+ok( false !== strpos( $kit, '<p class="snt-prose">3 candidates in 2 posts: 2 pull quotes, 1 numbered-steps list.</p>' ) && false !== strpos( $classic, '3 candidates in 2 posts: 2 pull quotes, 1 numbered-steps list.' ), 'the finding sentence counts the candidates, the posts and each pattern in words, on both surfaces' );
 $pa_tables = snt_leaf_tables( $kit );
 ok( 1 === count( $pa_tables ) && 3 === count( $pa_tables[0]['data'] ) && 3 === substr_count( $classic, '<tr>' ) - 1, 'one table row per candidate, as one classic row per candidate' );
 ok( array( 'Post', 'Pattern', 'Action' ) === array_column( $pa_tables[0]['columns'] ?? array(), 'label' ) && false !== strpos( $kit, 'data-snt-stack-on-phone' ), 'the classic column labels (Post, Pattern, Action) head one os-table that stacks on a phone' );
 ok( false === strpos( $kit, 'snt-ledger-more' ), 'three candidates are under the cap: no "+N more" line' );
-ok( false !== strpos( $kit, '<os-table' ) && strpos( $kit, '<os-table' ) < strpos( $kit, 'submit-label="Re-scan opportunities"' ), 'the Re-scan button comes after the ledger: actions last' );
+ok( 1 === preg_match( '#<os-section heading="Pattern adoption" stack>(?:(?!</os-section>).)*submit-label="Re-scan opportunities".*?</os-grid><os-section heading="Candidates" stack><p class="snt-prose">3 candidates#s', $kit ), 'Re-scan sits with the count it refreshes; the queue follows at full width' );
 ok( 2 === substr_count( $kit, '<os-code>Two kinds of provenance</os-code>' ) && 1 === substr_count( $kit, '<os-code>Signal over noise</os-code>' ), 'every post title is printed as inline code' );
 // 14.7.5: a permalink is SAME-ORIGIN, so it is a door (a window), never a
 // target=_blank anchor: in the installed PWA that relaunched the app.
 ok( 2 === substr_count( $kit, 'os-action="door"' ) && 2 === substr_count( $kit, 'os-arg-url="https://example.test/notes/two-kinds-of-provenance/"' ) && 0 === substr_count( $kit, 'target="_blank"' ) && 2 === substr_count( $classic, '<a href=' ), 'a permalink is a door (same origin → a window, never target=_blank), and a candidate without one paints no link (2 of 3, as on the classic leaf)' );
-ok( 2 === substr_count( $kit, '<os-badge tone="warning">pull-quote</os-badge>' ) && 1 === substr_count( $kit, '<os-badge tone="warning">steps-enumerated</os-badge>' ), 'every pattern type is a warn badge' );
+ok( 2 === substr_count( $kit, '<os-badge tone="warning">Pull quote</os-badge>' ) && 1 === substr_count( $kit, '<os-badge tone="warning">Numbered steps</os-badge>' ) && 2 === substr_count( $classic, '>Pull quote</span>' ) && 1 === substr_count( $classic, '>Numbered steps</span>' ), 'every pattern is a warn badge in words, not its slug, on both surfaces' );
 ok( snt_pa_data_attrs( $classic ) === snt_pa_data_attrs( $kit ) && 0 < count( snt_pa_data_attrs( $kit ) ), 'the Suggest / Dismiss data attributes match the classic row exactly: ' . implode( ' ', snt_pa_data_attrs( $kit ) ) );
 ok( 1 === preg_match( '/<os-button[^>]*data-fingerprint="d4e5f6"[^>]*data-snt-suggest="1" data-check="pattern_adoption_steps_enumerated">Suggest<\/os-button>/', $kit ) && 1 === preg_match( '/<os-button[^>]*data-fingerprint="a1b2c3"[^>]*data-check="pattern_adoption_pull_quote">Suggest<\/os-button>/', $kit ) && false === strpos( $kit, ' disabled' ) && false === strpos( $kit, ' title=' ), 'Suggest carries the per-pattern check key and is enabled: no disabled, no title' );
 $pa_pairs = 0;
@@ -130,7 +138,7 @@ ok( array() === snt_leaf_folds( $kit ), 'empty-array envelope: no fold' );
 // ── One candidate: the singular strings.
 $GLOBALS['__pa_scan'] = snt_pa_scan( array( $rich[2] ) );
 $kit = snt_leaf_paint( 'content', 'pattern-adoption' );
-ok( false !== strpos( $kit, '>1 opportunity</os-badge>' ) && false !== strpos( $kit, '<p class="snt-prose">1 candidate in 1 post: 1 pull-quote.</p>' ), 'one candidate: "1 opportunity" and the singular finding' );
+ok( false !== strpos( $kit, '>1 candidate</os-badge>' ) && false !== strpos( $kit, '<p class="snt-prose">1 candidate in 1 post: 1 pull quote.</p>' ), 'one candidate: "1 candidate" and the singular finding' );
 ok( array() === snt_leaf_folds( $kit ), 'one candidate: no fold' );
 
 // ── Escaping: a hostile title, permalink and fingerprint never reach the markup raw.
@@ -171,7 +179,9 @@ ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && false === s
 $GLOBALS['__pa_scan'] = snt_pa_scan( snt_pa_many( 30 ) );
 $kit = snt_leaf_paint( 'content', 'pattern-adoption' );
 ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && 25 === substr_count( $kit, 'data-snt-suggest="1"' ) && false !== strpos( $kit, '<p class="snt-hint snt-ledger-more">+5 more candidates; the list is capped, not complete. Work these, then re-scan to list the rest.</p>' ), '30 candidates: 25 rows, each with its Suggest, and "+5 more" said out loud' );
-ok( false !== strpos( $kit, '30 candidates in 10 posts: 20 pull-quote, 10 steps-enumerated.' ) && array() === snt_leaf_folds( $kit ), '30 candidates: the finding counts all 30, not the 25 painted; no fold' );
+ok( false !== strpos( $kit, '30 candidates in 10 posts: 20 pull quotes, 10 numbered-steps lists.' ) && array() === snt_leaf_folds( $kit ), '30 candidates: the finding counts all 30, not the 25 painted; no fold' );
+$classic = snt_leaf_classic_html( 'sn_admin_render_pattern_adoption_section' );
+ok( 25 === substr_count( $classic, 'data-snt-suggest="1"' ) && false !== strpos( $classic, '+5 more candidates; the list is capped, not complete. Work these, then re-scan to list the rest.' ) && false !== strpos( $classic, '30 candidates in 10 posts' ) && false === strpos( $classic, '<details' ), 'classic twin: the same finding, 25 rows and the same "+5 more" line, no fold' );
 snt_leaf_preview( 'content-pattern-adoption', $kit );
 
 echo "\nResult: $pass passed, $fail failed.\n";

@@ -3,8 +3,10 @@
  * Signal & Noise Tools — Block Migrations admin (Tools sub-tab).
  *
  * Renders the "Block Migrations" sub-tab under Tools:
- *   - Heading + count pill + "Scan for block migrations" form button
- *   - Collapsed-by-default <details> with per-candidate review queue
+ *   - Heading + count pill + when the scan ran + "Scan for migrations" button
+ *   - The open review queue: a finding, 25 rows, "+N more" (2026-10-12
+ *     audit: it was a closed <details> over every row; the words are
+ *     inc/content-scans-shared.php's, which the native leaf prints too)
  *   - Per-row buttons: [Suggest] (data-attrs trigger shared
  *     health-suggest-actions.js) + [Dismiss]
  *
@@ -24,6 +26,8 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+require_once __DIR__ . '/content-scans-shared.php';
 
 /**
  * Render the Block Migrations sub-tab. Hooked into
@@ -48,16 +52,12 @@ function snt_block_migrations_render_section() {
 	if ( $last_scan ) {
 		$total     = (int) ( $last_scan['counts']['heading_hierarchy_skip'] ?? 0 );
 		$pill_kind = $total > 0 ? 'warn' : 'ok';
-		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' .
-			esc_html( sprintf(
-				/* translators: %d is the count of block-migration candidates found */
-				_n( '%d candidate', '%d candidates', $total, 'signal-and-noise-tools' ),
-				$total
-			) ) . '</span>';
+		echo '<span class="sn-pill sn-pill--' . esc_attr( $pill_kind ) . '">' . esc_html( snt_content_scan_count( $total ) ) . '</span>';
 	}
 	echo '</h2>';
 
-	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans published and scheduled posts for structural issues like heading-hierarchy skips (an h3 or h4 subhead with no preceding h2, WCAG 1.3.1). Pure structural detection: no AI. Each candidate is reviewed and applied per-row.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-fieldset-intro">' . esc_html( snt_block_migrations_intro() ) . ' ' . esc_html( snt_content_scan_rows_line() ) . '</p>';
+	snt_content_scan_classic_age( $last_scan );
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
 	wp_nonce_field( 'sn_block_migrations_scan' );
@@ -71,20 +71,14 @@ function snt_block_migrations_render_section() {
 		return;
 	}
 
-	$candidates = (array) ( $last_scan['candidates'] ?? array() );
+	$candidates = array_values( array_filter( (array) ( $last_scan['candidates'] ?? array() ), 'is_array' ) );
 	if ( empty( $candidates ) ) {
-		echo '<p class="sn-empty-note">' . esc_html__( 'No migrations needed. All headings have valid hierarchy.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-empty-note">' . esc_html( snt_block_migrations_clean() ) . '</p>';
 		echo '</div>';
 		return;
 	}
 
-	echo '<details class="snt-mt-1">';
-	echo '<summary>' .
-		esc_html( sprintf(
-			/* translators: %d is the count of candidates to review */
-			_n( 'Review %d candidate', 'Review %d candidates', count( $candidates ), 'signal-and-noise-tools' ),
-			count( $candidates )
-		) ) . '</summary>';
+	echo '<p class="snt-mt-1">' . esc_html( snt_block_migrations_finding( $candidates ) ) . '</p>';
 
 	echo '<div class="snt-scroll-table snt-mt-075">';
 	echo '<table class="widefat striped"><thead><tr>';
@@ -93,7 +87,7 @@ function snt_block_migrations_render_section() {
 	echo '<th scope="col" class="snt-col-40">' . esc_html__( 'Action', 'signal-and-noise-tools' ) . '</th>';
 	echo '</tr></thead><tbody>';
 
-	foreach ( $candidates as $c ) {
+	foreach ( array_slice( $candidates, 0, SNT_CONTENT_SCAN_ROWS ) as $c ) {
 		echo '<tr>';
 		echo '<td><code>' . esc_html( (string) $c['post_title'] ) . '</code>';
 		if ( ! empty( $c['permalink'] ) ) {
@@ -118,7 +112,7 @@ function snt_block_migrations_render_section() {
 	}
 	echo '</tbody></table>';
 	echo '</div>';
-	echo '</details>';
+	snt_content_scan_classic_more( count( $candidates ) );
 
 	echo '</div>'; // .sn-fieldset
 }
