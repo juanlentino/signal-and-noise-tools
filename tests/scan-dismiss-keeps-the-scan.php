@@ -74,6 +74,13 @@ snt_corpus_integrity_dismiss_impl( 20, 'fpX', 'splice_artifact' );
 $same = $GLOBALS['tr']['snt_corpus_integrity_candidates_7'];
 ok( array( 'date_coherence' ) === array_column( $same['candidates'], 'check' ) && 1 === $same['counts']['date_coherence'] && 1 === $same['counts']['posts_affected'], 'two checks on one block: dismissing one keeps the other (the match reads the type too)' );
 
+// PR #2014 re-review: dismissing an already-dismissed candidate still drops it
+// from a cache built before the first dismiss.
+$GLOBALS['meta'][30]['_snt_pattern_adoption_dismissed'] = array( 'pull-quote:fpD' );
+$GLOBALS['tr']['snt_pattern_adoption_candidates_7'] = array( 'candidates' => array( array( 'post_id' => 30, 'pattern_type' => 'pull-quote', 'block_fingerprint' => 'fpD' ) ), 'counts' => array( 'pull_quote' => 1, 'steps_enumerated' => 0, 'posts_affected' => 1 ), 'scanned_at' => time() );
+snt_pattern_adoption_dismiss_impl( 30, 'pull-quote', 'fpD' );
+ok( array() === $GLOBALS['tr']['snt_pattern_adoption_candidates_7']['candidates'], 'an already-dismissed candidate leaves a stale cache too' );
+
 $GLOBALS['tr']['snt_pattern_adoption_candidates_7'] = array( 'stale' => true );
 snt_pattern_adoption_dismiss_impl( 10, 'pull-quote', 'fp9' );
 ok( ! isset( $GLOBALS['tr']['snt_pattern_adoption_candidates_7'] ), 'a cache that is not a scan envelope is still dropped' );

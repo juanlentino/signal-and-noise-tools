@@ -303,8 +303,8 @@
 	// value the server painted under it: it goes back after a paint that
 	// still paints that value, and is dropped when the server paints a new
 	// one, when the field leaves the leaf (Cancel closes an editor), when the
-	// window shows another leaf, or when its form was submitted and the save
-	// was not refused (an add form repaints blank after a save that took).
+	// window shows another leaf, or when the paint answering its form's submit
+	// says `saved` (an add form repaints blank after a save that took).
 	//
 	// Recorded on the BUBBLE: a kit field sets its own value in its input
 	// handler, so a capture listener read it one keystroke late. os-select
@@ -315,7 +315,7 @@
 	var DRAFT_FIELDS = 'os-text-field[name], os-textarea[name], os-number-field[name], os-select[name], textarea[name], select[name], input[name]';
 	var DRAFT_SKIP = { hidden: 1, checkbox: 1, radio: 1, submit: 1, button: 1, reset: 1, image: 1, file: 1, password: 1 };
 	var drafts = new WeakMap();
-	var submitted = new WeakMap();
+	var submitted = new WeakMap(); // root -> the last submitted form's scope, until a paint answers it
 
 	function formOf( el ) {
 		return el && el.closest ? el.closest( 'form, os-form' ) : null;
@@ -394,18 +394,23 @@
 		}
 		var scope = formKeys( root ).get( form );
 		if ( scope ) {
-			var list = submitted.get( root ) || [];
-			list.push( scope );
-			submitted.set( root, list );
+			// The latest submit is the one the next answer is about (a confirm
+			// the reader cancelled sent nothing; a new submit supersedes it).
+			submitted.set( root, scope );
 		}
 	}
 
-	function restoreDrafts( root, refused ) {
+	function restoreDrafts( root, refused, saved ) {
 		var memo = drafts.get( root );
 		var leaf = leafOf( root );
 		var same = !! memo && memo.leaf === leaf;
-		var sent = submitted.get( root ) || [];
-		submitted.delete( root );
+		// Only an answer ends a submit: `saved` drops its form's drafts,
+		// `refused` keeps them; a paint with neither (a watch tick, a
+		// cancelled confirm, a request that failed) leaves it pending.
+		var sent = saved ? submitted.get( root ) || '' : '';
+		if ( saved || refused ) {
+			submitted.delete( root );
+		}
 		var next = { leaf: leaf, base: {}, typed: {} };
 		var active = document.activeElement;
 		var fields = draftFields( root );
@@ -413,7 +418,7 @@
 			var key = fields[ i ].key;
 			var el = fields[ i ].el;
 			// A save that took ends its form's drafts; a refused one keeps them.
-			var had = same && Object.prototype.hasOwnProperty.call( memo.typed, key ) && ( refused || -1 === sent.indexOf( fields[ i ].scope ) );
+			var had = same && Object.prototype.hasOwnProperty.call( memo.typed, key ) && sent !== fields[ i ].scope;
 			if ( active && ( el === active || ( el.contains && el.contains( active ) ) ) ) {
 				// The morph left the reader's field alone: so does this.
 				next.base[ key ] = same && Object.prototype.hasOwnProperty.call( memo.base, key ) ? memo.base[ key ] : paintedValue( el );
@@ -460,7 +465,7 @@
 			return;
 		}
 		restoreFolds( root );
-		restoreDrafts( root, !! effect.refused );
+		restoreDrafts( root, !! effect.refused, !! effect.saved );
 		schedule( root, String( effect.anchor || '' ) );
 	}
 

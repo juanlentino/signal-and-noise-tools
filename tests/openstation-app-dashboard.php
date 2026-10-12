@@ -90,7 +90,7 @@ namespace {
 
 	echo "Group 1: the window\n";
 	ok( 'sn-dashboard' === $app->id && 'S&N Home' === $app->title && 'dashicons-shield-alt' === $app->icon && 'dock' === $app->placement, 'the stable id keeps placement while the native surface is named S&N Home' );
-	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post', 'filter' ) === array_keys( $app->state ) && '' === $app->state['filter'], 'state has NO tab: the tab is the session (the framework`s), only the leaf, the anchor, the last write and a leaf`s text filter (#1604, written by os-bind through the built-in set) are state' );
+	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post', 'filter', 'saved' ) === array_keys( $app->state ) && '' === $app->state['filter'] && false === $app->state['saved'], 'state has NO tab: the tab is the session (the framework`s), only the leaf, the anchor, the last write and a leaf`s text filter (#1604, written by os-bind through the built-in set) are state' );
 	ok( array( 'go', 'post', 'door', 'refresh', 'reopen', 'poll', 'cron_run', 'cron_unschedule' ) === array_keys( $app->actions ), 'eight actions: go, post, door, refresh, reopen, poll, cron_run, cron_unschedule (#1604)' );
 	$tabs = array();
 	foreach ( sn_admin_top_tabs() as $t ) { if ( 'dashboard' !== $t['tab'] ) { $tabs[ $t['tab'] ] = $t['label']; } }
