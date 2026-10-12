@@ -17,11 +17,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-// The call log and the doors (2026-10-11, open sections), and the allowlist
+// The call log, the doors (earned folds since 2026-10-12), and the allowlist
 // reader they share with MCP Clients.
 require_once __DIR__ . '/ai-mcp-connect-parts.php';
 require_once __DIR__ . '/ai-agent-tools-usage.php';
-require_once __DIR__ . '/ai-agent-tools-zero.php';
 require_once __DIR__ . '/ai-agent-tools-doors.php';
 require_once __DIR__ . '/ai-agent-tools-adapter.php';
 
@@ -59,7 +58,7 @@ function agent_tools_bridge_html( array $m ) {
 		. '<p class="snt-hint">' . \snt_kit_esc( $m['caption'] ) . '</p>';
 	$docs = array();
 	foreach ( $m['documents'] as $d ) {
-		$docs[] = array( 'label' => $d['label'], 'value' => $d['value'], 'dot' => $d['ok'] ? 'ok' : 'err', 'tone' => $d['ok'] ? '' : 'warn' );
+		$docs[] = array( 'label' => $d['label'], 'value' => $d['value'], 'dot' => null === $d['ok'] ? 'unknown' : ( $d['ok'] ? 'ok' : 'err' ), 'tone' => false === $d['ok'] ? 'warn' : '' );
 	}
 	$right = \snt_kit_list( $docs );
 	return \snt_kit_grid(
@@ -73,35 +72,41 @@ function agent_tools_bridge_html( array $m ) {
 }
 
 /**
- * Through MCP: the call log, the tools no door call reached, then every door
- * as an open section of the leaf (2026-10-11: the doors were one fold inside
- * this section and each tool list a fold inside that; owner rule, no
- * collapsible sections). Setting a client up stays on MCP Clients, one
- * visible link away.
+ * Through MCP: the call log, then every door: the read, write and remote
+ * doors as earned folds whose chips carry each tool's calls, the adapter
+ * beside the resources. The log is read once here and handed to both.
+ * Setting a client up stays on MCP Clients, one visible link away.
  *
  * @return string
  */
 function agent_tools_mcp_html() {
-	$usage = agent_tools_usage_html();
+	$usage = function_exists( 'sn_mcp_telemetry_usage' ) ? sn_mcp_telemetry_usage() : null;
 	$setup = '<p>' . \snt_kit_go( __( 'Connect a client: MCP Clients', 'signal-and-noise-tools' ), array( 'sub' => 'mcp-connect' ) ) . '</p>';
-	return \snt_kit_section( __( 'Through MCP', 'signal-and-noise-tools' ), $usage['body'] . $setup, __( 'The native read and write doors and the adapter, each behind an Application Password; the call log records every call through them.', 'signal-and-noise-tools' ) )
-		. $usage['zero']
-		. agent_tools_doors_html();
+	return \snt_kit_section( __( 'Through MCP', 'signal-and-noise-tools' ), agent_tools_usage_html( $usage ) . $setup, __( 'The read and write doors behind an Application Password, the remote door behind the bridge secret; the call log records every call through them.', 'signal-and-noise-tools' ) )
+		. agent_tools_doors_html( $usage );
 }
 
 /**
- * Through Copilot: Desktop Mode's Ask AI, the retired Copilot Usage leaf's
- * whole content (ai-copilot-usage.php parts).
+ * Through Copilot: Desktop Mode's Ask AI. Its log keeps a count per tool
+ * since logging began, so the summary says since when, and the ten busiest
+ * are chips (2026-10-12 audit: an uncapped, undated list beside a 30-day and
+ * a 90-day reading).
  *
  * @return string
  */
 function agent_tools_copilot_html() {
-	$parts  = function_exists( __NAMESPACE__ . '\\copilot_usage_data' ) && function_exists( __NAMESPACE__ . '\\copilot_usage_summary_html' ) && function_exists( __NAMESPACE__ . '\\copilot_usage_list_html' );
-	$ranked = $parts ? \call_user_func( __NAMESPACE__ . '\\copilot_usage_data' ) : array( 'tools' => array(), 'calls' => 0, 'distinct' => 0 );
-	if ( ! $parts || 0 === (int) $ranked['distinct'] ) {
-		$inner = '<p class="snt-hint">' . \snt_kit_esc( __( 'No Ask AI tool calls recorded yet. Counts appear here once Desktop Mode’s Copilot has run (logging started in v9.60.0).', 'signal-and-noise-tools' ) ) . '</p>';
+	$ranked = function_exists( 'snt_ai_tool_invocations_ranked' ) ? \snt_ai_tool_invocations_ranked() : array( 'tools' => array(), 'calls' => 0, 'distinct' => 0 );
+	if ( 0 === (int) $ranked['distinct'] ) {
+		$inner = '<p class="snt-hint">' . \snt_kit_esc( __( 'No Ask AI tool calls recorded yet. Counts appear here once Desktop Mode’s Copilot has run.', 'signal-and-noise-tools' ) ) . '</p>';
 	} else {
-		$inner = \call_user_func( __NAMESPACE__ . '\\copilot_usage_summary_html', $ranked ) . \call_user_func( __NAMESPACE__ . '\\copilot_usage_list_html', $ranked['tools'] );
+		$chips = '';
+		foreach ( array_slice( $ranked['tools'], 0, SN_AI_TOOL_INVOCATIONS_SHOWN ) as $tool ) {
+			$chips .= \snt_kit_chip( (string) $tool['name'] . ' · ' . number_format_i18n( (int) $tool['n'] ) );
+		}
+		$inner = '<p class="snt-prose">' . sprintf( \snt_kit_esc( \snt_ai_tool_invocations_summary_format() ), '<strong>' . \snt_kit_esc( number_format_i18n( $ranked['calls'] ) ) . '</strong>', '<strong>' . \snt_kit_esc( number_format_i18n( $ranked['distinct'] ) ) . '</strong>', \snt_kit_esc( \snt_ai_tool_invocations_since( $ranked ) ) ) . '</p>'
+			. \snt_kit_tag( 'os-cluster', array( 'gap' => '6' ), $chips )
+			/* translators: %s: tools not shown. */
+			. \snt_kit_more( (int) $ranked['distinct'] - SN_AI_TOOL_INVOCATIONS_SHOWN, __( '+%s more tools, busiest first.', 'signal-and-noise-tools' ) );
 	}
 	return \snt_kit_section( __( 'Through Copilot', 'signal-and-noise-tools' ), $inner, __( 'Desktop Mode’s Ask AI, the admin’s own agent, and the tools it reached for.', 'signal-and-noise-tools' ) );
 }

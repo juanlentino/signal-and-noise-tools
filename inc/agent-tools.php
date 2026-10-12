@@ -70,11 +70,11 @@ function sn_agent_tools_bridge_rows( array $webmcp ) {
 /**
  * The documents the bridge's tools read, each as a reading with a verdict:
  * the site map (built when, how many notes), the related manifest on the
- * latest note, and the bridge's anchoring (from the rights-anchoring check's
- * remembered state: a drift entry means the served bytes have not matched
- * their anchor since then).
+ * latest note, and the bridge's anchoring (sn_agent_tools_bridge_anchoring()).
+ * `ok` is null when nothing was checked; `flag` is the verdict in a word, for
+ * the classic table.
  *
- * @return array<int,array{label:string,value:string,ok:bool}>
+ * @return array<int,array{label:string,value:string,ok:?bool,flag:string}>
  */
 function sn_agent_tools_documents() {
 	$out = array();
@@ -86,9 +86,10 @@ function sn_agent_tools_documents() {
 			'label' => __( '/notes/index.json', 'signal-and-noise-tools' ),
 			'value' => sprintf( /* translators: 1: notes, 2: pages, 3: relative time. */ __( '%1$s notes, %2$s pages, built %3$s ago', 'signal-and-noise-tools' ), number_format_i18n( (int) ( $map['counts']['notes'] ?? 0 ) ), number_format_i18n( (int) ( $map['counts']['pages'] ?? 0 ) ), $built ? human_time_diff( $built, time() ) : '?' ),
 			'ok'    => true,
+			'flag'  => __( 'ok', 'signal-and-noise-tools' ),
 		);
 	} else {
-		$out[] = array( 'label' => __( '/notes/index.json', 'signal-and-noise-tools' ), 'value' => __( 'not built yet; builds at the next publish or the daily rebuild', 'signal-and-noise-tools' ), 'ok' => false );
+		$out[] = array( 'label' => __( '/notes/index.json', 'signal-and-noise-tools' ), 'value' => __( 'not built yet; builds at the next publish or the daily rebuild', 'signal-and-noise-tools' ), 'ok' => false, 'flag' => __( 'missing', 'signal-and-noise-tools' ) );
 	}
 
 	$latest = get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'numberposts' => 1, 'orderby' => 'date', 'order' => 'DESC', 'fields' => 'ids' ) );
@@ -99,21 +100,52 @@ function sn_agent_tools_documents() {
 			'label' => __( 'Related manifest', 'signal-and-noise-tools' ),
 			'value' => ! empty( $m['built'] ) ? sprintf( /* translators: %s: count. */ __( 'on the latest note, %s related', 'signal-and-noise-tools' ), number_format_i18n( count( (array) $m['related'] ) ) ) : __( 'the relatedness index is not built', 'signal-and-noise-tools' ),
 			'ok'    => ! empty( $m['built'] ),
+			'flag'  => ! empty( $m['built'] ) ? __( 'ok', 'signal-and-noise-tools' ) : __( 'missing', 'signal-and-noise-tools' ),
 		);
 	} else {
-		$out[] = array( 'label' => __( 'Related manifest', 'signal-and-noise-tools' ), 'value' => __( 'no published note to carry one', 'signal-and-noise-tools' ), 'ok' => false );
+		$out[] = array( 'label' => __( 'Related manifest', 'signal-and-noise-tools' ), 'value' => __( 'no published note to carry one', 'signal-and-noise-tools' ), 'ok' => false, 'flag' => __( 'missing', 'signal-and-noise-tools' ) );
 	}
 
-	$state = defined( 'SN_RIGHTS_ANCHOR_STATE_OPT' ) ? get_option( SN_RIGHTS_ANCHOR_STATE_OPT, array() ) : array();
-	$drift = is_array( $state ) && isset( $state['webmcp-bridge'] ) && is_array( $state['webmcp-bridge'] ) ? $state['webmcp-bridge'] : null;
-	$out[] = array(
-		'label' => __( 'The bridge', 'signal-and-noise-tools' ),
-		'value' => null === $drift
-			? __( 'served bytes match the anchored record (rights-anchoring check)', 'signal-and-noise-tools' )
-			: sprintf( /* translators: %s: relative time. */ __( 'served bytes have not matched their anchor for %s; the sweep anchors hourly', 'signal-and-noise-tools' ), human_time_diff( (int) ( $drift['first_seen'] ?? time() ), time() ) ),
-		'ok'    => null === $drift,
-	);
+	$out[] = sn_agent_tools_bridge_anchoring( time() );
 	return $out;
+}
+
+/**
+ * The bridge's anchoring, as the daily rights-anchoring check last saw it
+ * (inc/health-check-rights-anchored.php). 2026-10-12 audit: "no drift entry"
+ * read as "matches" on any install, though the entry is written only when the
+ * check runs and compares the bridge; and a drift younger than the check's
+ * grace window painted red while the check itself calls it fine.
+ *
+ * @param int $now Unix time.
+ * @return array{label:string,value:string,ok:?bool,flag:string}
+ */
+function sn_agent_tools_bridge_anchoring( $now ) {
+	$label   = __( 'The bridge', 'signal-and-noise-tools' );
+	$checked = defined( 'SN_RIGHTS_ANCHOR_CHECKED_OPT' ) ? get_option( SN_RIGHTS_ANCHOR_CHECKED_OPT, null ) : null;
+	if ( ! is_array( $checked ) || empty( $checked['at'] ) ) {
+		return array( 'label' => $label, 'value' => __( 'not checked yet; the daily health scan compares its served bytes with the anchored record', 'signal-and-noise-tools' ), 'ok' => null, 'flag' => __( 'not checked', 'signal-and-noise-tools' ) );
+	}
+	/* translators: %s: how long ago. */
+	$when = sprintf( __( 'checked %s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $checked['at'], $now ) );
+	if ( ! in_array( 'webmcp-bridge', (array) ( $checked['compared'] ?? array() ), true ) ) {
+		/* translators: %s: "checked 3 hours ago". */
+		return array( 'label' => $label, 'value' => sprintf( __( 'not compared at the last check (%s): the bridge or the ledger could not be read', 'signal-and-noise-tools' ), $when ), 'ok' => null, 'flag' => __( 'not checked', 'signal-and-noise-tools' ) );
+	}
+	$state = defined( 'SN_RIGHTS_ANCHOR_STATE_OPT' ) ? get_option( SN_RIGHTS_ANCHOR_STATE_OPT, array() ) : array();
+	$drift = is_array( $state ) && is_array( $state['webmcp-bridge'] ?? null ) ? $state['webmcp-bridge'] : null;
+	if ( null === $drift ) {
+		/* translators: %s: "checked 3 hours ago". */
+		return array( 'label' => $label, 'value' => sprintf( __( 'served bytes match the anchored record (%s)', 'signal-and-noise-tools' ), $when ), 'ok' => true, 'flag' => __( 'ok', 'signal-and-noise-tools' ) );
+	}
+	$age   = human_time_diff( (int) ( $drift['first_seen'] ?? $now ), $now );
+	$grace = (int) ( $checked['grace'] ?? ( defined( 'SN_RIGHTS_ANCHOR_GRACE' ) ? SN_RIGHTS_ANCHOR_GRACE : 7200 ) );
+	if ( $now - (int) ( $drift['first_seen'] ?? $now ) < $grace ) {
+		/* translators: 1: how long ago the bytes changed, 2: "checked 3 hours ago". */
+		return array( 'label' => $label, 'value' => sprintf( __( 'served bytes changed %1$s ago; the hourly sweep anchors them (%2$s)', 'signal-and-noise-tools' ), $age, $when ), 'ok' => true, 'flag' => __( 'ok', 'signal-and-noise-tools' ) );
+	}
+	/* translators: 1: how long, 2: "checked 3 hours ago". */
+	return array( 'label' => $label, 'value' => sprintf( __( 'served bytes have not matched their anchor for %1$s; the sweep anchors hourly (%2$s)', 'signal-and-noise-tools' ), $age, $when ), 'ok' => false, 'flag' => __( 'drifted', 'signal-and-noise-tools' ) );
 }
 
 /**

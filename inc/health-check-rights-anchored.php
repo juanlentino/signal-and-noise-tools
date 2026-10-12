@@ -37,6 +37,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SN_RIGHTS_ANCHOR_INDEX_URL = 'https://raw.githubusercontent.com/juanlentino/signal-and-noise-provenance/main/index.json';
 const SN_RIGHTS_ANCHOR_STATE_OPT = 'snt_rights_anchor_drift';
+/** When the check last ran, and which surfaces it could compare (2026-10-12: no drift entry also meant "never checked"). */
+const SN_RIGHTS_ANCHOR_CHECKED_OPT = 'snt_rights_anchor_checked';
 /** Two hourly sweeps. One absorbs the legitimate edit→sweep gap; two missed is a stuck anchor. */
 const SN_RIGHTS_ANCHOR_GRACE = 7200;
 
@@ -190,6 +192,9 @@ function snt_health_check_rights_anchored() {
 	$grace  = (int) apply_filters( 'sn_health_rights_anchor_grace', SN_RIGHTS_ANCHOR_GRACE );
 	$result = snt_rights_anchor_evaluate( $live, $anchors, is_array( $state ) ? $state : array(), time(), $grace );
 	update_option( SN_RIGHTS_ANCHOR_STATE_OPT, $result['state'], false );
+	// Which surfaces this run actually compared: an outage on either side is a
+	// gap, never a match, so a reader must not take "no drift entry" as one.
+	update_option( SN_RIGHTS_ANCHOR_CHECKED_OPT, array( 'at' => time(), 'compared' => 'advisory' === $result['status'] ? array() : array_keys( $live ), 'grace' => $grace ), false );
 
 	if ( 'advisory' === $result['status'] ) {
 		return sn_health_pack_check( $label, array(), $fix_hint, 'Probe skipped: the public ledger index was unreachable. An outage is a gap in evidence, never evidence of drift: the check will retry on the next scan.' );

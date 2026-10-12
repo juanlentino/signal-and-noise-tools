@@ -35,6 +35,7 @@ function sn_i18n_seen( $text ) {
 // ---- Real-behavior HTML escaping (not a pass-through) ----
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); }
+function esc_attr__( $s, $d = null ) { sn_test_i18n_record( $s, $d ); return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); }
 
 // ---- Recording esc_url()/rest_url() stubs — prove the escaping fn actually
 // used on each endpoint URL is esc_url(), not some other/no escaping. ----
@@ -272,7 +273,7 @@ ok( sn_i18n_seen( 'Core MCP adapter: the Abilities-registry door' ), 'adapter he
 ok( sn_i18n_seen( 'Connect a client' ), 'owner-steps heading translatable' );
 ok( sn_i18n_seen( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.' ), 'step 1 is a translatable sprintf msgid' );
 ok( sn_i18n_seen( 'Use the read door’s address for a client that only reads, and the write door’s for one you trust to change things.' ), 'step 2 translatable (2026-10-12: it named a "Door 1" and "Door 2" no card shows)' );
-ok( sn_i18n_seen( 'Paste the client config below, swapping in your WordPress username and the Application Password you just created.' ), 'step 3 translatable' );
+ok( sn_i18n_seen( 'Paste one of the configs. Swap in your WordPress username and the Application Password you just created.' ), 'step 3 translatable, and it names the config instead of pointing below at it (2026-10-12 audit)' );
 ok( sn_i18n_seen( 'More' ), 'deep-links heading translatable' );
 
 // ── The <pre> config block is code — untranslated ──
@@ -380,8 +381,11 @@ ok( false !== strpos( $html, '<form method="post" action="https://example.test/w
 ok( false !== strpos( $html, '<select id="sn_mcp_rw_uuid" name="sn_mcp_rw_uuid">' ), 'binding form renders the Application Password <select>' );
 ok( false !== strpos( $html, '<option value="' . $uuid_a . '"' ), 'select carries the first fixture UUID as an option value' );
 ok( false !== strpos( $html, '<option value="' . $uuid_b . '"' ), 'select carries the second fixture UUID as an option value' );
-ok( false !== strpos( $html, '<option value="">' ), 'select offers an explicit empty-value "Unbind" option' );
-ok( stripos( $html, 'Unbind' ) !== false, 'the unbind option is labeled' );
+// 2026-10-12 audit: the select's resting value said the ACTION "Unbind (deny
+// every write-door call)". Unbound, it rests on the state, "Not bound"; bound,
+// unbinding is its own confirmed button.
+ok( false !== strpos( $html, '<option value="" selected="selected">Not bound</option>' ), 'unbound: the select rests on "Not bound", the state, never on an action' );
+ok( false === strpos( $html, 'Unbind (deny' ) && false === strpos( $html, '>Unbind</button>' ), 'unbound: no "Unbind" option and no Unbind button (nothing is bound)' );
 ok( false !== strpos( $html, 'Claude Code' ), 'the first fixture Application Password name is rendered' );
 
 // ── Escaping: a name carrying quotes/angle-brackets must render escaped, never raw ──
@@ -399,6 +403,8 @@ ok( false !== strpos( $bound_html, 'bound to <strong>Claude Code</strong>' ), 'b
 ok( false !== strpos( $bound_html, 'Last used 3 days ago' ), 'bound state: shows the last-used relative time via human_time_diff()' );
 ok( false !== strpos( $bound_html, 'selected="selected"' ), 'bound state: the matching <option> carries selected="selected"' );
 ok( false !== strpos( $bound_html, 'Rotate this Application Password' ), 'bound state: carries the rotation reminder' );
+ok( false === strpos( $bound_html, '<option value="">' ), 'bound state: the select lists the credentials only, no empty option to unbind by accident' );
+ok( 1 === preg_match( '#<input type="hidden" name="sn_mcp_rw_uuid" value=""><button type="submit" class="button button-link-delete" data-snt-confirm="Unbind the write-door credential\? Every write-door call is denied until you bind one again\." data-snt-confirm-danger="1">Unbind</button>#', $bound_html ), 'bound state: unbinding is its own button, posting an empty credential, behind a confirm' );
 
 // ── Bound but NEVER used (last_used null): "Never used yet", no crash ──
 ok( sn_mcp_set_rw_bound_uuid( $uuid_b ), 'sanity: binding the second (never-used) fixture UUID succeeds' );
@@ -581,10 +587,10 @@ ok( stripos( $remote_absent, 'Switched off' ) !== false, 'REMOTE: an absent remo
 ok( false !== strpos( $html, '<input type="hidden" name="action" value="sn_remote_toggle" />' ), 'REMOTE: the toggle form carries the remote_toggle sn_action' );
 ok( false !== strpos( $html, 'name="sn_remote_enabled"' ), 'REMOTE: the toggle form carries the sn_remote_enabled checkbox' );
 ok( 1 === substr_count( $html, 'test-nonce-for-sn_remote_toggle' ) && 1 === substr_count( $html, 'test-nonce-for-sn_bind_mcp_rw_credential' ), 'REMOTE: the toggle form carries its OWN nonce action, as the binding form carries its own (#1614)' );
-ok( sn_i18n_seen( 'Remote analytics door enabled' ), 'REMOTE: the toggle label is translatable' );
+ok( sn_i18n_seen( 'Remote door enabled' ), 'REMOTE: the toggle label is translatable, and names the door as its tile does (2026-10-12 audit)' );
 // esc_html_e() ECHOES; esc_html__() returns. Using the returning one here would
 // print nothing at all — pin the label's actual presence, not just its i18n.
-ok( stripos( $html, 'Remote analytics door enabled' ) !== false, 'REMOTE: the toggle label is actually RENDERED (esc_html_e echoes; esc_html__ would print nothing)' );
+ok( stripos( $html, 'Remote door enabled' ) !== false && stripos( $html, 'Remote analytics door' ) === false, 'REMOTE: the toggle label is actually RENDERED (esc_html_e echoes; esc_html__ would print nothing)' );
 // SN_MCP_REMOTE_DISABLED is undefined in this process, so the live render must
 // NOT be disabled. The killed-and-therefore-disabled case is the constant path
 // and is pinned by the state card above plus tests/mcp-remote-guard.php.

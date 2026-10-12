@@ -24,6 +24,7 @@ $pass = 0; $fail = 0;
 
 // file => the reason the fold is earned. One call per file listed.
 $earned = array(
+	'apps/sn-dashboard/parts/leaves/ai-agent-tools-doors.php' => 'The read, write and remote doors (one call, agent_tools_door_fold()): reference, every tool a door exposes as a chip with its calls (2,943px open, 2026-10-12 audit); the summary states the count, the largest category and the calls; open when a tool there cannot be projected',
 	'apps/sn-dashboard/parts/leaves/ai-mcp-connect-steps.php' => 'Connect a client: setup, done once per client; the summary names the clients; open while the user has no Application Password',
 	'apps/sn-dashboard/parts/leaves/connections-cron.php'     => 'Scheduled events: a reference list (91 events, 5,473px open); the summary counts events, overdue and unhandled; open when one is overdue or unhandled, when overdue cannot be read, or while a filter is typed',
 );

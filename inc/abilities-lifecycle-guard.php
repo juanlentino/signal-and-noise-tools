@@ -123,6 +123,25 @@ function sn_ability_guard_mcp_depth( $delta = 0 ) {
 }
 
 /**
+ * The door the observers below file an execution under: `direct` (the
+ * plugin's own surfaces) unless a caller that is itself a door names one.
+ * The remote bridge dispatches abilities straight through execute(), so until
+ * 2026-10-12 its calls were filed as the plugin's own polling and the remote
+ * door read as unused on Agent tools. The bridge sets `remote` around its
+ * dispatch and resets it (mcp-bridge-route.php).
+ *
+ * @param string|null $set A door to file under, '' to reset; null reads.
+ * @return string
+ */
+function sn_ability_guard_door( $set = null ) {
+	static $door = '';
+	if ( null !== $set ) {
+		$door = (string) $set;
+	}
+	return '' === $door ? 'direct' : $door;
+}
+
+/**
  * Abilities deliberately held off BOTH MCP doors for blast radius (curation
  * documented in inc/mcp/mcp-capabilities.php, sn_mcp_rw_allowlist()'s
  * docblock). They are still reachable through the native abilities REST run
@@ -343,10 +362,10 @@ function sn_ability_guard_filter_execute_result( $result, $ability_name, $input 
 	if ( function_exists( 'sn_mcp_telemetry_record' ) ) {
 		if ( $is_error && function_exists( 'sn_mcp_telemetry_classify_wp_error' ) ) {
 			$class = sn_mcp_telemetry_classify_wp_error( $result );
-			sn_mcp_telemetry_record( (string) $ability_name, $args, 'direct', $class['outcome'], $class['refusal_gate'], $latency_ms, null, $class['error_code'] ?? null, $class['error_detail'] ?? null, $class['error_status'] ?? null );
+			sn_mcp_telemetry_record( (string) $ability_name, $args, sn_ability_guard_door(), $class['outcome'], $class['refusal_gate'], $latency_ms, null, $class['error_code'] ?? null, $class['error_detail'] ?? null, $class['error_status'] ?? null );
 		} elseif ( ! $is_error ) {
 			$count = function_exists( 'sn_mcp_telemetry_result_count' ) ? sn_mcp_telemetry_result_count( $result ) : null;
-			sn_mcp_telemetry_record( (string) $ability_name, $args, 'direct', 'ok', null, $latency_ms, $count );
+			sn_mcp_telemetry_record( (string) $ability_name, $args, sn_ability_guard_door(), 'ok', null, $latency_ms, $count );
 		}
 	}
 

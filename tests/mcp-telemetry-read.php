@@ -48,8 +48,12 @@ class SN_Test_Wpdb_Read {
 			return '%d' === $m[0] ? (string) (int) $v : "'" . addslashes( (string) $v ) . "'";
 		}, $sql );
 	}
+	public $min_ts       = null; // The table's first row, answered to SELECT MIN(ts) (null: the read found nothing).
 	public function get_var( $sql ) {
 		$this->queries[] = $sql;
+		if ( false !== strpos( $sql, 'MIN(ts)' ) ) {
+			return $this->min_ts;
+		}
 		return $this->table_exists ? $this->prefix . SN_MCP_TELEMETRY_TABLE : null;
 	}
 	public function get_results( $sql, $output = null ) {
@@ -78,6 +82,7 @@ if ( ! function_exists( 'wp_get_ability' ) ) {
 }
 
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
+require __DIR__ . '/../inc/mcp/mcp-remote-guard.php';
 require __DIR__ . '/../inc/mcp/mcp-telemetry.php';
 require __DIR__ . '/../inc/mcp/mcp-tools.php';
 require __DIR__ . '/../inc/mcp/mcp-telemetry-read.php';
@@ -87,7 +92,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 
 /** All allowlisted slugs resolve, unless a test says otherwise. */
 function sn_test_all_reachable() {
-	$GLOBALS['__abilities'] = array_merge( sn_mcp_allowlist(), sn_mcp_rw_allowlist() );
+	$GLOBALS['__abilities'] = array_merge( sn_mcp_allowlist(), sn_mcp_rw_allowlist(), sn_mcp_remote_slugs() );
 }
 function sn_test_row( $tool, $calls, $first, $last, $door = 'read', $outcome = 'success', $error_code = null ) {
 	return array(
@@ -131,6 +136,38 @@ ok( $u['measured_since'] === $wpdb->rows[0]['first_seen'], 'measured_since is th
 
 $wpdb->rows = array( sn_test_row( $first_tool, 2, $ago( 100 ), $ago( 1 ) ) );
 ok( true === sn_mcp_telemetry_usage( 90 )['complete'], 'a window fully covered by data reports complete' );
+
+echo "\nGroup: the window completes once the TABLE is as old as it (2026-10-12 audit)\n";
+// The window's own MIN(ts) is at most 89 whole days old in a 90-day window, so
+// a window measured that way never completed: "Partial window" forever, with
+// a "Recording began" date that slid every day once the prune started.
+$wpdb->rows   = array( sn_test_row( $first_tool, 2, $ago( 89.5 ), $ago( 1 ) ) );
+$wpdb->min_ts = $ago( 120 );
+$u            = sn_mcp_telemetry_usage( 90 );
+ok( true === $u['complete'] && 90 === $u['measured_days'], 'a table older than the window completes it, though the window\'s own first row is 89 days old' );
+ok( $ago( 120 ) === $u['recording_began'] && substr( $u['since'], 0, 10 ) === substr( $ago( 90 ), 0, 10 ), 'recording began at the table\'s first row; a complete window counts from its own start' );
+$wpdb->rows   = array( sn_test_row( $first_tool, 2, $ago( 89.2 ), $ago( 1 ) ) );
+$wpdb->min_ts = $ago( 89.2 );
+ok( true === sn_mcp_telemetry_usage( 90 )['complete'], 'a table that began 89 whole days ago completes a 90-day window (the last day is today)' );
+$wpdb->rows   = array( sn_test_row( $first_tool, 2, $ago( 40 ), $ago( 1 ) ) );
+$wpdb->min_ts = $ago( 40 );
+$u            = sn_mcp_telemetry_usage( 90 );
+ok( false === $u['complete'] && 40 === $u['measured_days'] && $ago( 40 ) === $u['since'], 'a younger table is a partial window, measured from when recording began' );
+$wpdb->min_ts = null;
+
+echo "\nGroup: the remote door is a door, and the ledger knows a door's list (2026-10-12 audit)\n";
+$remote_slug = sn_mcp_remote_slugs()[0];
+$remote_tool = sn_mcp_tool_name_from_slug( $remote_slug );
+$wpdb->rows  = array(
+	sn_test_row( $remote_slug, 37, $ago( 6 ), $ago( 1 ), 'direct' ),
+	sn_test_row( $remote_slug, 5, $ago( 2 ), $ago( 1 ), 'remote' ),
+	sn_test_row( 'signal-noise/cadence-flags', 9, $ago( 3 ), $ago( 1 ), 'read' ),
+);
+$u = sn_mcp_telemetry_usage( 90 );
+ok( 42 === $u['by_tool'][ $remote_tool ]['door_calls'] && 0 === $u['by_tool'][ $remote_tool ]['direct_calls'] && array( 'remote' ) === $u['by_tool'][ $remote_tool ]['doors'], 'a remote twin\'s direct rows are remote-door calls (only the bridge can call one), filed under the remote door' );
+ok( array( 'remote' => 42, 'read' => 9 ) === $u['by_door'], 'by_door names the remote door, and no remote call is counted as the plugin\'s own' );
+ok( true === $u['by_tool'][ $remote_tool ]['allowlisted'] && false === $u['by_tool']['signal-noise/cadence-flags']['allowlisted'], 'allowlisted: a remote twin is on a door\'s list; a retired tool keeps its calls but is on none' );
+ok( in_array( sn_mcp_remote_slugs()[1], array_column( $u['zero_call'], 'slug' ), true ), 'a remote twin with no calls is a zero-call entry like any door tool' );
 
 echo "\nGroup: MIN(ts) is taken across ALL groups, not the first row\n";
 $second_tool = sn_mcp_tool_name_from_slug( sn_mcp_allowlist()[1] );

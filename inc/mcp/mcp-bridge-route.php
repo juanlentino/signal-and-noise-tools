@@ -357,11 +357,20 @@ function sn_bridge_handle_request( $request ) {
 	// safe: an ability that throws must not leave the capability attached.
 	sn_bridge_set_verified( true );
 	add_filter( 'user_has_cap', 'sn_bridge_grant_capability', 10, 1 );
+	// The call log files this dispatch under the remote door, never as the
+	// plugin's own polling (abilities-lifecycle-guard.php, 2026-10-12).
+	$door = function_exists( 'sn_ability_guard_door' );
+	if ( $door ) {
+		sn_ability_guard_door( 'remote' );
+	}
 	try {
 		$out = $ability->execute( $args );
 	} finally {
 		remove_filter( 'user_has_cap', 'sn_bridge_grant_capability', 10 );
 		sn_bridge_set_verified( false );
+		if ( $door ) {
+			sn_ability_guard_door( '' );
+		}
 	}
 
 	// A WP_Error from execute() (schema, permission) is not a use: recording it
