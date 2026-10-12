@@ -170,14 +170,26 @@ ok( null === $sn_bf['skill'], 'a rigid series yields NULL skill: persistence is 
 $sn_ok = sn_analytics_forecast_of( 'x', 'Steady', $sn_series( $stat30 ), '2026-08-01', '2026-08-30', array() );
 ok( is_array( $sn_ok ) && 'forecast' === $sn_ok['kind'], 'a skillful series still forecasts' );
 
-$sn_w = sn_analytics_forecast_of( 'x', 'Trend', $sn_series( $sn_lin ), '2026-08-01', '2026-08-30', array() );
+// A steady trend the median lags is where Holt earns its place: picked by its measured skill.
+$sn_t = sn_analytics_forecast_of( 'x', 'Trend', $sn_series( $sn_lin ), '2026-08-01', '2026-08-30', array() );
+ok( is_array( $sn_t ) && 'forecast' === $sn_t['kind'] && 'holt_linear' === $sn_t['stat'] && 'up' === $sn_t['direction'], 'a steady climb picks Holt (it beats the median by the margin) and states its direction' );
+ok( false !== strpos( $sn_t['plain_label'], 'Holt trend' ), 'and the label names the model it used' );
+// Holt by less than the margin is noise, not a win: the median stays (a
+// margin of 0 let picking score below the median alone on the real crawler series).
+$sn_near = array(); for ( $i = 0; $i < 40; $i++ ) { $sn_near[] = 50 + 0.3 * $i + ( ( ( $i * 7 ) % 5 ) - 2 ) * 2; }
+$nm = sn_analytics_forecast_backtest( $sn_near, 7, 14, 'median' ); $nh = sn_analytics_forecast_backtest( $sn_near, 7, 14, 'holt' );
+$sn_n = sn_analytics_forecast_of( 'x', 'Near', $sn_series( $sn_near ), '2026-08-01', '2026-08-30', array() );
+ok( $nh['skill'] > $nm['skill'] && $nh['skill'] < $nm['skill'] + 0.1 && 'rolling_median' === ( $sn_n['stat'] ?? '' ), sprintf( 'Holt ahead by %.3f, under the 0.1 margin: the median stays', $nh['skill'] - $nm['skill'] ) );
+// Neither model beats persistence on a trend that reverses: withheld, with the reason.
+$sn_rev = array( 10,14,18,22,26,30,34,38,42,46,50,46,42,38,34,30,26,22,18,14,10,6 );
+$sn_w = sn_analytics_forecast_of( 'x', 'Reversal', $sn_series( $sn_rev ), '2026-08-01', '2026-08-30', array() );
 ok( is_array( $sn_w ), 'an unskillful series is SUPPRESSED WITH A REASON, not returned as null' );
 ok( 'forecast_withheld' === $sn_w['kind'], 'the withheld signal has its own kind' );
 ok( 'predictive' === $sn_w['tier'], 'it stays in the predictive tier — the tier reports itself either way' );
 ok( null === $sn_w['value'] && 'none' === $sn_w['confidence'], 'no value, no confidence' );
 ok( ! isset( $sn_w['direction'] ), 'and NO direction: nothing is rising or falling' );
 ok( 0 === $sn_w['severity'], 'severity 0 so it never outranks a real finding' );
-ok( false !== strpos( $sn_w['plain_label'], 'does not beat' ), 'the label states WHY' );
+ok( false !== strpos( $sn_w['plain_label'], 'beats a same-value baseline' ) && false !== strpos( $sn_w['plain_label'], 'neither' ), 'the label states WHY (neither model beats the baseline)' );
 ok( false !== strpos( $sn_w['plain_label'], 'skill' ), 'and names the skill score, so the refusal is checkable' );
 
 // NULL skill must NOT suppress — undefined is not failure.
@@ -209,6 +221,10 @@ foreach ( array( 'human_views' => 0.25, 'human_visits' => 0.25, 'crawler_total' 
 	$rb = sn_analytics_forecast_backtest( $real[ $name ], 7, 30 );
 	ok( is_array( $rb ) && $rb['skill'] > $floor, sprintf( '%s: the forecaster beats persistence by %.3f (floor %.2f) over %d checks', $name, (float) $rb['skill'], $floor, (int) $rb['checks'] ) );
 	ok( null !== $rb['coverage'] && $rb['coverage'] >= 0.5, sprintf( '%s: its 80%% band held on %.0f%% of out-of-sample checks', $name, 100 * (float) $rb['coverage'] ) );
+	$hb = sn_analytics_forecast_backtest( $real[ $name ], 7, 30, 'holt' );
+	ok( $hb['skill'] < $rb['skill'], sprintf( '%s: Holt alone scores %.3f here, below the median: the reason the median is the default', $name, (float) $hb['skill'] ) );
+	$picked = sn_analytics_forecast_of( 'x', $name, array_map( static function ( $v ) { return array( 'views' => $v ); }, array_slice( $real[ $name ], -90 ) ), 'a', 'b' );
+	ok( 'rolling_median' === ( $picked['stat'] ?? '' ) && ! isset( $picked['direction'] ), sprintf( '%s: the per-series pick is the median, with no direction', $name ) );
 }
 
 echo "\nGroup: forecast signal composer\n";
@@ -247,7 +263,7 @@ ok( count( $fc ) === 4, 'producer: site views+visits, campaign, decay path → 4
 ok( in_array( 'views', $fsub, true ) && in_array( 'visits', $fsub, true ) && in_array( 'campaign:launch', $fsub, true ) && in_array( 'path:/notes/x', $fsub, true ), 'producer: all four subjects present' );
 ok( ! in_array( 'path:/notes/keep', $fsub, true ), 'producer: non-candidate lifecycle rows skipped' );
 $by = array(); foreach ( $fc as $s ) { $by[ $s['subject'] ] = $s; }
-ok( 'forecast' === $by['views']['kind'] && 'forecast' === $by['visits']['kind'] && 'forecast_withheld' === $by['path:/notes/x']['kind'], 'producer: steady subjects forecast; the decaying path, which a median cannot follow, is withheld with its reason' );
+ok( 'rolling_median' === $by['views']['stat'] && 'forecast' === $by['visits']['kind'] && 'holt_linear' === $by['path:/notes/x']['stat'] && 'down' === $by['path:/notes/x']['direction'] && 2 === $by['path:/notes/x']['severity'], 'producer: steady subjects take the median; the decaying path takes Holt, says down, and ranks first' );
 $GLOBALS['__campseries'] = array( 'launch' => array_map( static function ( $v ) { return array( 'views' => $v ); }, array_slice( $stat30, 0, 10 ) ) );
 ok( count( sn_analytics_signal_forecasts( '2026-07-06', '2026-07-12', 'human' ) ) === 3, 'producer: short campaign history → that forecast suppressed' );
 $GLOBALS['__daily'] = array(); $GLOBALS['__camps'] = array(); $GLOBALS['__campseries'] = array(); $GLOBALS['__lifecycle'] = null; $GLOBALS['__pathseries'] = array();
@@ -263,7 +279,7 @@ $GLOBALS['__pathseries'] = array( '/notes/x' => $dec_rows );
 $agg = sn_analytics_signals( '2026-07-06', '2026-07-12', 'human' );
 $fkinds = array_values( array_filter( $agg, static function ( $s ) { return in_array( $s['kind'], array( 'forecast', 'forecast_withheld' ), true ); } ) );
 ok( count( $fkinds ) === 4, 'aggregate: sn_analytics_signals() carries the 4 forecast verdicts' );
-ok( $agg[0]['severity'] >= $agg[ count( $agg ) - 1 ]['severity'] && 0 === $fkinds[ count( $fkinds ) - 1 ]['severity'], 'aggregate: still severity-sorted; a withheld forecast sorts last' );
+ok( $agg[0]['severity'] >= $agg[ count( $agg ) - 1 ]['severity'] && 2 === $fkinds[0]['severity'], 'aggregate: still severity-sorted; the falling Holt forecast leads the forecasts' );
 $GLOBALS['__daily'] = array(); $GLOBALS['__camps'] = array(); $GLOBALS['__campseries'] = array(); $GLOBALS['__lifecycle'] = null; $GLOBALS['__pathseries'] = array();
 
 echo "\nGroup: display range never changes the stats (I5 invariant)\n";

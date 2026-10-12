@@ -69,8 +69,8 @@ ok( false !== strpos( $html, 'input contract' ) && false !== strpos( $html, 'voi
 ok( false !== strpos( $html, 'can never be narrated as an anomaly' ), 'diagnostic states the structural-not-anomaly rule' );
 ok( false !== strpos( $html, 'plain prose, no jargon' ), 'diagnostic states the voice contract terms' );
 // Predictive: the engines it names are the ones that run (2026-10-12: the
-// forecaster is a 14-day median; the public page must not still say Holt).
-ok( false !== strpos( $html, 'Transparent statistics: robust median/MAD anomalies, Theil-Sen trends, backtested median forecasts' ) && false === strpos( $html, 'Holt' ), 'predictive engine wording names the median forecaster, not Holt' );
+// forecaster picks a 14-day median or Holt per series by measured skill).
+ok( false !== strpos( $html, 'Transparent statistics: robust median/MAD anomalies, Theil-Sen trends, backtested median and Holt forecasts, each used where it measures better' ), 'predictive engine wording names both forecasters and how one is chosen' );
 // Prescriptive: the triaging Overview (v9.69.0) + the invariant.
 ok( false !== strpos( $html, 'sentiment-aware' ), 'prescriptive names the sentiment-aware attention flags' );
 ok( false !== strpos( $html, 'percentage bar and an absolute floor' ), 'prescriptive names both attention thresholds' );

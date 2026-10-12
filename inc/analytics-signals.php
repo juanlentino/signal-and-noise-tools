@@ -16,6 +16,7 @@ const SN_ANALYTICS_FORECAST_HISTORY_DAYS = 90;   // trailing history ending $to 
 const SN_ANALYTICS_FORECAST_WINDOW       = 14;   // the forecast is the median of these trailing days (2026-10-12: replaced Holt)
 const SN_ANALYTICS_FORECAST_BAND_Q       = 0.1;  // the band runs from this quantile of past misses to 1 - it: an 80% band
 const SN_ANALYTICS_FORECAST_BAND_MIN     = 20;   // past misses needed before a band is measured out of sample
+const SN_ANALYTICS_FORECAST_HOLT_MARGIN  = 0.1;  // Holt is used only when its backtest skill beats the median's by this much
 /**
  * Persistence-baseline floor, RELATIVE to the series level, below which skill is
  * undefined rather than negative.
@@ -332,22 +333,58 @@ function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) {
 }
 
 /**
- * The forecaster (2026-10-12): the median of the last
- * SN_ANALYTICS_FORECAST_WINDOW days, with a band learned from its own past
- * misses. It replaced Holt (fixed alpha 0.5, beta 0.3), which a rolling-origin
- * backtest on this site's real daily series (152 human days, 76 crawler days,
- * 7 days ahead) scored WORSE than "every day equals the last" on every series
- * (skill -0.13 to -0.28; its own gate hid it on 79 to 96% of days). The median
- * scored +0.18 to +0.30, level with TimesFM 2.5, a 200M-parameter forecasting
- * model, on the same folds. A median has no trend, so a forecast states a
- * level, never a direction; the trend tier (Theil-Sen) says which way.
+ * The forecasters (2026-10-12): two models, and the backtest picks per series.
  *
- * @param array<int,float> $ys The series, oldest first.
+ * The MEDIAN of the last SN_ANALYTICS_FORECAST_WINDOW days is the default. A
+ * rolling-origin backtest on this site's real daily series (152 human days, 76
+ * crawler days, 7 days ahead) scored Holt alone WORSE than "every day equals
+ * the last" on every series (skill -0.13 to -0.28; its gate hid it on 79 to
+ * 96% of days) and the median +0.18 to +0.30, level with TimesFM 2.5. Averaging
+ * the two was worse than the median on every series (+0.07 to +0.16).
+ *
+ * HOLT (fixed alpha 0.5, beta 0.3) is kept for what a median cannot do: follow
+ * a steady climb or fall (a synthetic climb: median -1.5, Holt +0.56). It is
+ * used only when its backtest skill beats the median's by
+ * SN_ANALYTICS_FORECAST_HOLT_MARGIN; with that margin, picking per series never
+ * scored below the median alone on the real data. Only a Holt forecast states
+ * a direction: a median states a level.
+ *
+ * @param array<int,float> $ys    The series, oldest first.
+ * @param int              $h     Days ahead (Holt only; a median is flat).
+ * @param string           $model 'median' or 'holt'.
  * @return float|null
  */
-function sn_analytics_forecast_point( array $ys ) {
+function sn_analytics_forecast_point( array $ys, $h = SN_ANALYTICS_FORECAST_HORIZON, $model = 'median' ) {
 	$ys = array_values( array_map( 'floatval', $ys ) );
-	return array() === $ys ? null : (float) sn_analytics_stat_median( array_slice( $ys, -SN_ANALYTICS_FORECAST_WINDOW ) );
+	if ( array() === $ys ) {
+		return null;
+	}
+	if ( 'holt' === $model ) {
+		$fit = sn_analytics_stat_holt( $ys );
+		return null === $fit ? null : (float) ( $fit['level'] + (int) $h * $fit['trend'] );
+	}
+	return (float) sn_analytics_stat_median( array_slice( $ys, -SN_ANALYTICS_FORECAST_WINDOW ) );
+}
+
+/**
+ * Holt linear (double exponential smoothing): the final level and trend, or
+ * null under 3 points. Fixed smoothing constants: the honesty mechanism is the
+ * backtest, not parameter tuning.
+ *
+ * @param array<int,float> $ys The series.
+ * @return array{level:float,trend:float}|null
+ */
+function sn_analytics_stat_holt( array $ys, $alpha = 0.5, $beta = 0.3 ) {
+	$ys = array_values( array_map( 'floatval', $ys ) );
+	if ( count( $ys ) < 3 ) { return null; }
+	$level = $ys[0];
+	$trend = $ys[1] - $ys[0];
+	for ( $t = 1, $n = count( $ys ); $t < $n; $t++ ) {
+		$prev  = $level;
+		$level = $alpha * $ys[ $t ] + ( 1 - $alpha ) * ( $level + $trend );
+		$trend = $beta * ( $level - $prev ) + ( 1 - $beta ) * $trend;
+	}
+	return array( 'level' => $level, 'trend' => $trend );
 }
 
 /**
@@ -379,16 +416,18 @@ function sn_analytics_stat_quantile( array $xs, $q ) {
  * @return array{mae:float,mae_naive:float,skill:float|null,coverage:float|null,band_checks:int,checks:int,errors:array<int,float>}|null
  *         null when the series cannot support a single fold.
  */
-function sn_analytics_forecast_backtest( array $ys, $horizon = SN_ANALYTICS_FORECAST_HORIZON, $min_train = SN_ANALYTICS_FORECAST_WINDOW ) {
+function sn_analytics_forecast_backtest( array $ys, $horizon = SN_ANALYTICS_FORECAST_HORIZON, $min_train = SN_ANALYTICS_FORECAST_WINDOW, $model = 'median' ) {
 	$ys = array_values( array_map( 'floatval', $ys ) );
 	$n  = count( $ys );
 	if ( $n < $min_train + 1 ) { return null; }
 	$misses = array(); // [ target index, origin, signed miss ]
 	$abs_naive = array();
 	for ( $cut = $min_train; $cut < $n; $cut++ ) {
-		$point = sn_analytics_forecast_point( array_slice( $ys, 0, $cut ) );
-		$last  = $ys[ $cut - 1 ];
+		$hist = array_slice( $ys, 0, $cut );
+		$last = $ys[ $cut - 1 ];
 		for ( $h = 1; $h <= min( $horizon, $n - $cut ); $h++ ) {
+			// A forecast is never below zero (views cannot be), Holt's included.
+			$point       = max( 0.0, (float) sn_analytics_forecast_point( $hist, $h, $model ) );
 			$actual      = $ys[ $cut + $h - 1 ];
 			$misses[]    = array( $cut + $h - 1, $cut, $actual - $point );
 			$abs_naive[] = abs( $actual - $last );
@@ -450,12 +489,15 @@ function sn_analytics_forecast_backtest( array $ys, $horizon = SN_ANALYTICS_FORE
 
 /**
  * Compose one subject's daily-views series into a forecast Signal, or null when
- * suppressed. Honesty gates: below SN_ANALYTICS_FORECAST_MIN_POINTS → null; zero
- * median level → null; skill <= 0 → forecast_withheld with its score. The value
- * is the trailing median; the 80% band is the 10th to 90th percentile of the
- * median's own past misses, and confidence is how often that band held out of
- * sample ('low', and said so, while it is not yet measured). Bounds clamp at 0.
- * No `direction`: a median states a level, not a trend.
+ * suppressed. Both models are backtested on the series; the median is used
+ * unless Holt beats it by SN_ANALYTICS_FORECAST_HOLT_MARGIN (see
+ * sn_analytics_forecast_point()). Honesty gates: below
+ * SN_ANALYTICS_FORECAST_MIN_POINTS → null; zero median level → null; the
+ * chosen model's skill <= 0 → forecast_withheld with its score. The 80% band
+ * is the 10th to 90th percentile of the chosen model's past misses, and
+ * confidence is how often that band held out of sample ('low', and said so,
+ * while unmeasured). Bounds clamp at 0. Only a Holt forecast carries a
+ * `direction`: a median states a level, not a trend.
  * @return array|null Signal
  */
 function sn_analytics_forecast_of( $subject, $label, $series, $from, $to, $opts = array() ) {
@@ -465,8 +507,17 @@ function sn_analytics_forecast_of( $subject, $label, $series, $from, $to, $opts 
 	if ( count( $ys ) < $min ) { return null; }
 	$level = sn_analytics_stat_median( $ys );
 	if ( null === $level || $level <= 0 ) { return null; }
-	$backtest = sn_analytics_forecast_backtest( $ys, $horizon, min( SN_ANALYTICS_FORECAST_WINDOW, max( 3, (int) floor( count( $ys ) / 2 ) ) ) );
-	if ( null === $backtest ) { return null; }
+	$train  = min( SN_ANALYTICS_FORECAST_WINDOW, max( 3, (int) floor( count( $ys ) / 2 ) ) );
+	$by_med = sn_analytics_forecast_backtest( $ys, $horizon, $train, 'median' );
+	if ( null === $by_med ) { return null; }
+	$by_hol = sn_analytics_forecast_backtest( $ys, $horizon, $train, 'holt' );
+	// Holt only on a clear, measured win: both skills defined, Holt ahead by the margin.
+	$holt     = is_array( $by_hol ) && null !== $by_hol['skill'] && null !== $by_med['skill']
+		&& $by_hol['skill'] > $by_med['skill'] + SN_ANALYTICS_FORECAST_HOLT_MARGIN;
+	$model    = $holt ? 'holt' : 'median';
+	$backtest = $holt ? $by_hol : $by_med;
+	$stat     = $holt ? 'holt_linear' : 'rolling_median';
+	$named    = $holt ? 'Holt trend' : sprintf( '%d-day median', SN_ANALYTICS_FORECAST_WINDOW );
 	// SKILL GATE (v13.75.0). Suppress WITH THE REASON rather than returning
 	// null: a bare null renders as absence, and absence is indistinguishable
 	// from "no data yet". null skill is NOT a failure: persistence was perfect,
@@ -479,44 +530,52 @@ function sn_analytics_forecast_of( $subject, $label, $series, $from, $to, $opts 
 			'kind'          => 'forecast_withheld',
 			'subject'       => $subject,
 			'subject_label' => (string) $label,
-			'stat'          => 'rolling_median',
+			'stat'          => $stat,
 			'value'         => null,
 			'confidence'    => 'none',
 			'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => count( $ys ) ),
 			'plain_label'   => sprintf(
-				'%s: no forecast: the %d-day median does not beat a same-value baseline on this history (skill %.2f over %d checks)',
-				(string) $label, SN_ANALYTICS_FORECAST_WINDOW, $skill, (int) $backtest['checks']
+				'%s: no forecast: neither the %d-day median nor a Holt trend beats a same-value baseline on this history (best skill %.2f over %d checks)',
+				(string) $label, SN_ANALYTICS_FORECAST_WINDOW, max( (float) $skill, (float) ( $by_hol['skill'] ?? $skill ) ), (int) $backtest['checks']
 			),
 			'severity'      => 0,
 		);
 	}
-	$point = (float) sn_analytics_forecast_point( $ys );
+	$point = (float) sn_analytics_forecast_point( $ys, $horizon, $model );
 	$lo    = (float) sn_analytics_stat_quantile( $backtest['errors'], SN_ANALYTICS_FORECAST_BAND_Q );
 	$hi    = (float) sn_analytics_stat_quantile( $backtest['errors'], 1 - SN_ANALYTICS_FORECAST_BAND_Q );
 	$shown = max( 0.0, $point );
-	$low   = max( 0.0, $point + $lo );
-	$high  = max( 0.0, $point + $hi );
+	$low   = max( 0.0, $shown + $lo );
+	$high  = max( 0.0, $shown + $hi );
 	$cov   = $backtest['coverage'];
 	$conf  = null === $cov ? 'low' : ( ( $cov >= 0.8 ) ? 'high' : ( ( $cov >= 0.5 ) ? 'medium' : 'low' ) );
 	// Plain English, as every engine label is (the narrator and MCP read them).
 	$held  = null === $cov ? 'band not yet measured on this history' : sprintf( 'held on %d%% of past checks', (int) round( $cov * 100 ) );
-	return array(
+	$signal = array(
 		'id'            => 'forecast:' . $subject . ':' . (string) $to . '+' . $horizon . 'd',
 		'tier'          => 'predictive',
 		'kind'          => 'forecast',
 		'subject'       => $subject,
 		'subject_label' => (string) $label,
-		'stat'          => 'rolling_median',
+		'stat'          => $stat,
 		'value'         => round( $shown, 1 ),
 		'interval'      => array( 'low' => round( $low, 1 ), 'high' => round( $high, 1 ) ),
 		'confidence'    => $conf,
 		'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => count( $ys ) ),
 		'plain_label'   => sprintf(
-			'%s: next %d days about %.1f/day (80%% band %.1f to %.1f; %s)',
-			(string) $label, $horizon, $shown, $low, $high, $held
+			'%s: next %d days about %.1f/day (%s; 80%% band %.1f to %.1f; %s)',
+			(string) $label, $horizon, $shown, $named, $low, $high, $held
 		),
 		'severity'      => 1,
 	);
+	if ( $holt ) {
+		// A trend the backtest chose over the median says which way it runs.
+		$fit  = sn_analytics_stat_holt( $ys );
+		$move = $horizon * (float) $fit['trend'];
+		$signal['direction'] = ( abs( $move / $level ) < 0.05 ) ? 'flat' : ( $move > 0 ? 'up' : 'down' );
+		$signal['severity']  = 'down' === $signal['direction'] ? 2 : 1;
+	}
+	return $signal;
 }
 
 /**

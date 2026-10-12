@@ -11,14 +11,15 @@
  * Three tiers, all from the same zero-filled series:
  *   descriptive  sn_analytics_anomaly_of()      median/MAD z, two-sided
  *   predictive   sn_analytics_trajectory_of()   Theil-Sen slope
- *   predictive   sn_analytics_forecast_of()     14-day median (Holt until 2026-10-12), GATED BY SKILL (v13.75.0)
+ *   predictive   sn_analytics_forecast_of()     14-day median or Holt, picked per family by backtest, GATED BY SKILL (v13.75.0)
  *
  * The skill gate matters more here than on the human side. It does NOT fire on
  * noisy stationary traffic (a median level beats persistence there: +0.22 on
  * this site's crawler total, measured 2026-10-12). It fires on STRUCTURAL
- * MISFIT: a steady climb or fall, which a median lags. Crawler series are
- * where those live, so the gate decides which families earn a forecast, per
- * family, on measured evidence.
+ * MISFIT: a trend that reverses, which neither model follows (a steady climb
+ * or fall is Holt's: the per-family pick takes it where it measures better).
+ * Crawler series are where those live, so the gate decides which families
+ * earn a forecast, per family, on measured evidence.
  *
  * FAIL-CLOSED: a failed sensor fetch is 'unavailable' with the reason, never an
  * empty findings list. An instrument that cannot read must not report calm.
