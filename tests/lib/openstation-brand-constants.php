@@ -8,14 +8,20 @@
  * constant fails that suite instead of quietly showing through the theme.
  *
  * The rule, applied to `assets/css/variables.css`, base block `body.os-active`:
- *   A. every colour-bearing token whose value is a gradient or whose name is
+ *   A. every color-bearing token whose value is a gradient or whose name is
  *      mesh, holo, crown or sheen, and every plain `var()` alias of one;
  *   B. every token whose own value carries a pink or purple literal;
  * less the five tokens a setting writes (the accent family and `--os-bg`),
  * everything whose value reaches one of them through `var()`, and the
  * light-wallpaper ink block. Plus:
- *   C. every UNDECLARED token the shell or app CSS reads with a pink or purple
- *      literal fallback that no accent token feeds.
+ *   C. every UNDECLARED token read with a pink or purple literal fallback that
+ *      no accent token feeds, anywhere in the shell CSS (assets/css), the apps'
+ *      CSS, the component styles (every .styles.ts under src), packages and
+ *      extensions.
+ *
+ * Colors are read as hex (3, 4, 6 or 8 digits), rgb()/rgba() and
+ * hsl()/hsla(); "pink or purple" is a hue from 240 to 345 degrees that is not a
+ * tinted gray (saturation under 30%) or near-black.
  *
  * @since 2026.10.5
  */
@@ -54,17 +60,31 @@ function snt_osbc_block( $css, $selector ) {
 	return $out;
 }
 
-/** Whether a value carries a pink or purple colour literal (hue 240 to 345, not a tinted gray). */
+/** RGB (0 to 255) of an HSL color, hue in degrees, saturation and lightness 0 to 1. */
+function snt_osbc_hsl_rgb( $h, $s, $l ) {
+	$c = ( 1 - abs( 2 * $l - 1 ) ) * $s;
+	$x = $c * ( 1 - abs( fmod( $h / 60, 2 ) - 1 ) );
+	$m = $l - $c / 2;
+	$k = array( array( $c, $x, 0 ), array( $x, $c, 0 ), array( 0, $c, $x ), array( 0, $x, $c ), array( $x, 0, $c ), array( $c, 0, $x ) );
+	$p = $k[ (int) floor( fmod( $h, 360 ) / 60 ) % 6 ];
+	return array( (int) round( ( $p[0] + $m ) * 255 ), (int) round( ( $p[1] + $m ) * 255 ), (int) round( ( $p[2] + $m ) * 255 ) );
+}
+
+/** Whether a value carries a pink or purple color literal (hue 240 to 345, not a tinted gray). */
 function snt_osbc_has_pink( $value ) {
 	$rgbs = array();
-	preg_match_all( '/#([0-9a-f]{6}|[0-9a-f]{3})\b/i', $value, $hex );
+	preg_match_all( '/#([0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})\b/i', $value, $hex );
 	foreach ( $hex[1] as $h ) {
-		$h      = 3 === strlen( $h ) ? $h[0] . $h[0] . $h[1] . $h[1] . $h[2] . $h[2] : $h;
+		$h      = strlen( $h ) <= 4 ? $h[0] . $h[0] . $h[1] . $h[1] . $h[2] . $h[2] : $h;
 		$rgbs[] = array( hexdec( substr( $h, 0, 2 ) ), hexdec( substr( $h, 2, 2 ) ), hexdec( substr( $h, 4, 2 ) ) );
 	}
 	preg_match_all( '/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/', $value, $fn, PREG_SET_ORDER );
 	foreach ( $fn as $f ) {
 		$rgbs[] = array( (int) $f[1], (int) $f[2], (int) $f[3] );
+	}
+	preg_match_all( '/hsla?\(\s*(-?[\d.]+)(?:deg)?[\s,]+([\d.]+)%[\s,]+([\d.]+)%/i', $value, $hs, PREG_SET_ORDER );
+	foreach ( $hs as $f ) {
+		$rgbs[] = snt_osbc_hsl_rgb( fmod( fmod( (float) $f[1], 360 ) + 360, 360 ), min( 1, (float) $f[2] / 100 ), min( 1, (float) $f[3] / 100 ) );
 	}
 	foreach ( $rgbs as $c ) {
 		$max = max( $c );
@@ -85,6 +105,38 @@ function snt_osbc_has_pink( $value ) {
 		}
 	}
 	return false;
+}
+
+/**
+ * Every stylesheet rule C reads: the shell CSS, the apps' CSS, and the CSS and
+ * component styles under src, packages and extensions (no build or vendor trees).
+ *
+ * @param string $root OpenStation source root.
+ * @return string[]
+ */
+function snt_osbc_sheets( $root ) {
+	$out = (array) glob( $root . '/assets/css/*.css' );
+	foreach ( array( 'apps', 'src', 'packages', 'extensions' ) as $dir ) {
+		if ( ! is_dir( "$root/$dir" ) ) {
+			continue;
+		}
+		$walk = new RecursiveIteratorIterator(
+			new RecursiveCallbackFilterIterator(
+				new RecursiveDirectoryIterator( "$root/$dir", FilesystemIterator::SKIP_DOTS ),
+				static function ( $f ) {
+					return ! ( $f->isDir() && in_array( $f->getFilename(), array( 'node_modules', 'vendor', 'dist', 'build' ), true ) );
+				}
+			)
+		);
+		foreach ( $walk as $f ) {
+			$name = $f->getFilename();
+			if ( '.css' === substr( $name, -4 ) && '.min.css' !== substr( $name, -8 ) || '.styles.ts' === substr( $name, -10 ) ) {
+				$out[] = $f->getPathname();
+			}
+		}
+	}
+	sort( $out );
+	return $out;
 }
 
 /**
@@ -128,8 +180,8 @@ function snt_osbc_derive( $src ) {
 		if ( isset( $skip[ $name ] ) ) {
 			continue;
 		}
-		$colour = 'none' === $value || preg_match( '/#|rgb|hsl|gradient\(|var\(|transparent/', $value );
-		$rule_a = $colour && ( false !== strpos( $value, 'gradient(' ) || preg_match( '/mesh|holo|crown|sheen/', $name ) );
+		$color = 'none' === $value || preg_match( '/#|rgb|hsl|gradient\(|var\(|transparent/', $value );
+		$rule_a = $color && ( false !== strpos( $value, 'gradient(' ) || preg_match( '/mesh|holo|crown|sheen/', $name ) );
 		if ( $rule_a || snt_osbc_has_pink( $value ) ) {
 			$set[ $name ] = true;
 		}
@@ -141,11 +193,8 @@ function snt_osbc_derive( $src ) {
 		}
 	}
 
-	// C. Undeclared tokens read with a pink literal fallback in shell or app CSS.
-	$sheets = array_merge(
-		(array) glob( dirname( $file ) . '/*.css' ),
-		(array) glob( rtrim( (string) $src, '/' ) . '/apps/*/*.css' )
-	);
+	// C. Undeclared tokens read with a pink literal fallback, wherever CSS lives.
+	$sheets = snt_osbc_sheets( rtrim( (string) $src, '/' ) );
 	foreach ( $sheets as $sheet ) {
 		$text = snt_osbc_strip( (string) file_get_contents( $sheet ) );
 		$pos  = 0;

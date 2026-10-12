@@ -114,8 +114,10 @@ function snt_desktop_theme_manifest() {
 				'--os-titlebar-btn-focused-outline' => '#ff4c47',
 				// Selected text (#fffbff) on this wash over #1a1721: 10.3:1.
 				'--os-ui-selection-bg'              => 'rgba(255, 76, 71, 0.35)',
-				// The tag input's field border: 3.93:1 on the #33303a field.
-				'--os-ui-tag-input-input-border'    => '#ff4c47',
+				// The tag input's border, on its real background --os-ui-surface
+				// #1a1721: 4.47:1. Gray, not red: a red border at rest reads as an
+				// invalid field. Red stays for signals and focus.
+				'--os-ui-tag-input-input-border'    => '#808080',
 				// Decorative glows (an avatar on hover, a linked window).
 				'--os-ui-avatar-halo'               => '#ff4c47',
 				'--os-window-link-glow'             => 'rgba(255, 76, 71, 0.45)',

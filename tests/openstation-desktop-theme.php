@@ -116,7 +116,7 @@ ok( 36 === count( $constants ), 'the fixture lists the 36 brand constants measur
 $left_alone = array(
 	'--os-tabs-active-crown'        => 'none at 1.1.13',
 	'--os-ui-segmented-hover-sheen' => 'none at 1.1.13',
-	'--os-ui-accent-strong'         => 'a text color, out of bounds for this theme',
+	'--os-ui-accent-strong'         => 'a text color, out of bounds for this theme; it also paints fills (the content graph primary button\'s hover background and border, the My WordPress category term icon gradient, os-notice links)',
 	'--os-link'                     => 'a text color, out of bounds for this theme',
 	'--os-selected'                 => 'no consumer reads it',
 	'--os-cn-row-fill'              => 'follows --os-ui-holo-fill through var() at body scope',
@@ -251,13 +251,18 @@ ok( array() === $both, 'nothing listed as left alone is set anyway' . ( $both ? 
 ok( array() === array_diff( array_keys( $left_alone ), array_keys( $constants ) ), 'the left-alone list names only measured constants' );
 
 // The upgrade guard: re-derive the set from a real OpenStation tree.
+require_once __DIR__ . '/lib/openstation-brand-constants.php';
 $os_src = (string) getenv( 'SNT_OPENSTATION_SRC' );
 if ( '' !== $os_src ) {
-	require_once __DIR__ . '/lib/openstation-brand-constants.php';
 	$derived = snt_osbc_derive( $os_src );
 	ok( is_array( $derived ) && count( $derived ) > 0, 'SNT_OPENSTATION_SRC is an OpenStation tree with assets/css/variables.css' );
 	$uncovered = array_values( array_diff( (array) $derived, array_keys( $tokens ), array_keys( $left_alone ) ) );
 	ok( array() === $uncovered, 'every brand constant in that tree is answered or left alone on purpose' . ( $uncovered ? ' (unanswered: ' . implode( ', ', $uncovered ) . ')' : ' (' . count( (array) $derived ) . ' constants)' ) );
+	// The other direction: a token the theme sets that upstream has since tied
+	// to the accent (or a setting) drops out of the set, and the theme would
+	// then override the owner's accent. Everything set must still be a constant.
+	$tied = array_values( array_diff( array_keys( $tokens ), (array) $derived, array( '--os-titlebar-font' ) ) );
+	ok( array() === $tied, 'every token the theme sets is still a brand constant in that tree, not tied to the accent' . ( $tied ? ' (no longer a constant: ' . implode( ', ', $tied ) . ')' : '' ) );
 } else {
 	echo "  SKIP - upstream re-derivation: set SNT_OPENSTATION_SRC to an OpenStation checkout to check its brand constants\n";
 }
@@ -389,7 +394,9 @@ ok( 0 === strpos( $focus, '#' ) && min( snt_dt_ratio( $focus, '#1a1721' ), snt_d
 $accent = (string) ( $tokens['--os-accent'] ?? '' );
 ok( 0 === strpos( $accent, '#' ) && snt_dt_ratio( $accent, '#ffffff' ) >= 4.5, 'white text on --os-accent (the agents chat\'s own message bubble) is 4.5:1' );
 $tag = (string) ( $tokens['--os-ui-tag-input-input-border'] ?? '' );
-ok( 0 === strpos( $tag, '#' ) && snt_dt_ratio( $tag, '#33303a' ) >= 3, 'the tag input\'s field border is 3:1 on the field' );
+// Measured on its real background, --os-ui-surface #1a1721. Not red: a red
+// border at rest reads as an invalid field; red is for signals and focus.
+ok( 0 === strpos( $tag, '#' ) && snt_dt_ratio( $tag, '#1a1721' ) >= 3 && false === stripos( $tag, 'ff4c47' ), 'the tag input\'s border is a 3:1 gray on --os-ui-surface, not red at rest' );
 $soft = (string) ( $tokens['--os-ui-accent-soft-fg'] ?? '' );
 ok( 0 === strpos( $soft, '#' ) && snt_dt_ratio( $soft, '#1a1721' ) >= 3 && false === stripos( $soft, 'ff4c47' ), 'Station Home\'s icons are a 3:1 gray, not red (red would read as the danger card tone)' );
 
@@ -461,6 +468,42 @@ $woff = snt_dt_path( $fonts[0]['src'][0] ?? '' );
 ok( is_file( $woff ) && 'wOF2' === (string) file_get_contents( $woff, false, null, 0, 4 ), 'the Bebas Neue source is a WOFF2 file the plugin ships' );
 $ofl = (string) @file_get_contents( dirname( $woff ) . '/OFL.txt' );
 ok( false !== strpos( $ofl, 'Copyright 2019 The Bebas Neue Project Authors' ) && false !== strpos( $ofl, 'SIL OPEN FONT LICENSE Version 1.1' ), 'the font ships beside its OFL 1.1 license and its own copyright line' );
+
+// ── The drift library's own reach (tests/lib/openstation-brand-constants.php) ─
+$pinks = array( 'hsl(280, 90%, 65%)', 'hsla(300 80% 60% / 0.5)', '#c084fccc', '#c8fc', '#f252fc', 'rgba(159, 152, 255, 0.6)' );
+$grays = array( 'hsl(0, 0%, 50%)', 'hsl(270, 6%, 40%)', '#1a1721', '#66636bcc', 'rgba(255, 251, 255, 0.16)', '#2271b1' );
+$missed = array_values( array_filter( $pinks, static function ( $v ) {
+	return ! snt_osbc_has_pink( $v );
+} ) );
+$false  = array_values( array_filter( $grays, static function ( $v ) {
+	return snt_osbc_has_pink( $v );
+} ) );
+ok( array() === $missed, 'the pink detector reads hsl(), hsla() and 4- and 8-digit hex' . ( $missed ? ' (missed: ' . implode( ', ', $missed ) . ')' : '' ) );
+ok( array() === $false, 'the pink detector leaves tinted grays and blue alone' . ( $false ? ' (flagged: ' . implode( ', ', $false ) . ')' : '' ) );
+
+// A tiny OpenStation tree: rule C must reach component styles and packages.
+$tree = sys_get_temp_dir() . '/snt-osbc-' . getmypid();
+$made = array(
+	'assets/css/variables.css'                    => "body.os-active {\n\t--os-ui-holo-ink: #0c0b0f;\n\t--os-ui-accent: #f252fc;\n\t--os-ui-tied: var(--os-ui-accent);\n}\n",
+	'src/ui/components/os-x/os-x.styles.ts'       => "export const s = css`:host { color: var( --os-ui-styles-pink, #c084fc ); }`;\n",
+	'packages/kit/styles/kit.css'                 => ".k { background: var( --os-pkg-pink, hsl(290, 85%, 60%) ); }\n",
+	'extensions/ext/assets/ext.css'               => ".e { border-color: var( --os-ext-pink, #f252fccc ); }\n",
+	'src/ui/components/os-y/os-y.styles.ts'       => "export const t = css`:host { color: var( --os-ui-accent-fed, var( --os-ui-accent, #f252fc ) ); }`;\n",
+);
+foreach ( $made as $rel => $body ) {
+	@mkdir( dirname( "$tree/$rel" ), 0777, true );
+	file_put_contents( "$tree/$rel", $body );
+}
+$found = (array) snt_osbc_derive( $tree );
+ok( array() === array_diff( array( '--os-ui-holo-ink', '--os-ui-styles-pink', '--os-pkg-pink', '--os-ext-pink' ), $found ), 'rule C reads component styles (src/**/*.styles.ts), packages and extensions (found: ' . implode( ', ', $found ) . ')' );
+ok( ! in_array( '--os-ui-tied', $found, true ) && ! in_array( '--os-ui-accent-fed', $found, true ), 'a token fed by the accent is never a constant, declared or not' );
+foreach ( array_reverse( array_keys( $made ) ) as $rel ) {
+	@unlink( "$tree/$rel" );
+	for ( $d = dirname( "$tree/$rel" ); strlen( $d ) > strlen( $tree ); $d = dirname( $d ) ) {
+		@rmdir( $d );
+	}
+}
+@rmdir( $tree );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
