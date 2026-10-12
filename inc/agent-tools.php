@@ -147,8 +147,9 @@ function sn_agent_tools_bridge_anchoring( $now ) {
 	$first = (int) ( $drift['first_seen'] ?? $at );
 	$grace = (int) ( $checked['grace'] ?? ( defined( 'SN_RIGHTS_ANCHOR_GRACE' ) ? SN_RIGHTS_ANCHOR_GRACE : 7200 ) );
 	if ( $at - $first < $grace ) {
-		/* translators: %s: "checked 3 hours ago". */
-		return array( 'label' => $label, 'value' => sprintf( __( 'served bytes had just changed at the last check, inside the sweep\'s two-hour window; the hourly sweep anchors them (%s)', 'signal-and-noise-tools' ), $when ), 'ok' => true, 'flag' => __( 'ok', 'signal-and-noise-tools' ) );
+		// The window is the check's own (filterable, stored with the check), said from that value.
+		/* translators: 1: the grace window, e.g. "2 hours", 2: "checked 3 hours ago". */
+		return array( 'label' => $label, 'value' => sprintf( __( 'served bytes had just changed at the last check, inside the check\'s grace window of %1$s; the hourly sweep anchors them (%2$s)', 'signal-and-noise-tools' ), human_time_diff( 0, max( 1, $grace ) ), $when ), 'ok' => true, 'flag' => __( 'ok', 'signal-and-noise-tools' ) );
 	}
 	/* translators: 1: how long, 2: "checked 3 hours ago". */
 	return array( 'label' => $label, 'value' => sprintf( __( 'served bytes had not matched their anchor for %1$s at the last check; the sweep anchors hourly (%2$s)', 'signal-and-noise-tools' ), human_time_diff( $first, $at ), $when ), 'ok' => false, 'flag' => __( 'drifted', 'signal-and-noise-tools' ) );

@@ -121,6 +121,12 @@ ok( true === $b['ok'] && 'ok' === $b['flag'], 'a change first seen at the last c
 $GLOBALS['__options']['snt_rights_anchor_drift'] = array( 'webmcp-bridge' => array( 'hash' => 'x', 'first_seen' => time() - 6 * 3600 ) );
 $b = $__bridge();
 ok( false === $b['ok'] && 'drifted' === $b['flag'] && false !== strpos( $b['value'], 'at the last check' ), 'a change seen three hours before that check is a drift, said as of the check' );
+// Review nit on #2022: the window is filterable (sn_health_rights_anchor_grace)
+// and stored with the check; the verdict and the words come from that value.
+$GLOBALS['__options']['snt_rights_anchor_checked']['grace'] = 4 * 3600;
+$b = $__bridge();
+ok( true === $b['ok'] && false !== strpos( $b['value'], 'inside the check\'s grace window of 1 hour' /* the harness stubs human_time_diff */ ) && false === strpos( $b['value'], 'two-hour' ), 'a four-hour grace stored with the check keeps a three-hour change green, and the sentence names the stored window, never a fixed "two-hour"' );
+$GLOBALS['__options']['snt_rights_anchor_checked']['grace'] = 7200;
 $GLOBALS['__options']['snt_rights_anchor_checked']['at'] = time() - 600;
 $GLOBALS['__options']['snt_rights_anchor_drift'] = array( 'webmcp-bridge' => array( 'hash' => 'x', 'first_seen' => time() - 3 * 3600 ) );
 

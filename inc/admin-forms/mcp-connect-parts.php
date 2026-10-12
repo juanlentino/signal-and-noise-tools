@@ -65,18 +65,19 @@ function sn_admin_mcp_rw_options( array $passwords, $bound_uuid, $resolved ) {
 }
 
 /**
- * R9 (v9.51.0, lane SEC-C): the write-door credential-binding form — the ONE
- * form on this otherwise read-only leaf (see the file docblock). Reads the
- * bound state through sn_mcp_rw_bound_uuid() (inc/mcp/mcp-rw-guard.php, lane
- * SEC-A — called via a function_exists() guard, never required directly,
- * exactly like every other cross-lane call in this file) and cross-references
- * it against the CURRENT user's own Application Passwords
- * (WP_Application_Passwords::get_user_application_passwords()) so the owner
- * sees WHICH credential — by name and last-used — is actually bound, not a
- * bare UUID. Three bound states are distinguished on purpose: unbound (door
- * inactive), bound-and-resolvable (name + last-used shown), and bound-but-
- * unresolvable (the UUID no longer matches any of this user's own Application
- * Passwords — revoked, or another user's — re-bind is the only path out).
+ * R9 (v9.51.0, lane SEC-C): the write-door credential-binding form, the ONE
+ * form on MCP Clients' otherwise read-only classic leaf. Reads the bound state
+ * through sn_mcp_rw_bound_uuid() (inc/mcp/mcp-rw-guard.php, lane SEC-A,
+ * called through a function_exists() guard and never required directly, like
+ * every other cross-lane call here) and cross-references it against the
+ * CURRENT user's own Application Passwords
+ * (WP_Application_Passwords::get_user_application_passwords()), so the owner
+ * sees WHICH credential is bound, by name and last use, not a bare UUID.
+ * The states are distinguished on purpose: off (the constant or the switch),
+ * unbound (door inactive), bound and resolvable (name and last use shown),
+ * and bound but unresolvable (the UUID matches none of this user's own
+ * Application Passwords: revoked, or another user's; re-binding is the only
+ * way out, and Unbind is its own confirmed button).
  *
  * Submits to sn_handle_bind_mcp_rw_credential() (inc/admin-post-actions/mcp.php)
  * via the plugin's standard admin-post.php contract, action=sn_<action> plus
