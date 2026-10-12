@@ -1,0 +1,32 @@
+/*
+ * S&N's link color follows the accent the owner picks in OS Settings,
+ * Appearance (2026-10-12, owner: "the links don't follow my pick").
+ *
+ * Links read `--os-ui-accent-strong` until now, and OpenStation declares that
+ * as the literal Nebula #ec9bff, which the accent picker never rewrites, so
+ * every link stayed pink under any pick. `--snt-link` is the pick itself when
+ * it already reads as text, else the least lift that makes it read: in linear
+ * sRGB, each channel moves toward white by the one factor that brings the
+ * pick's WCAG luminance to 0.32, which holds AA (4.5:1) on every dark surface
+ * OpenStation declares, the elevated #33303a included. Mixing light keeps the
+ * hue: red stays red (#ff6868), WordPress Blue stays blue, Nebula is untouched.
+ * On the light Legacy theme the same pick is darkened toward black to a
+ * luminance of 0.15 (4.5:1 on its #eef0f1, the darkest of its window
+ * surfaces). tests/links-follow-accent.php evaluates both for every swatch.
+ *
+ * Declared on <body> and again on the shell, where the picker also writes the
+ * accent (a desktop theme declares its own there). Without relative color,
+ * consumers fall back to `--os-ui-accent-strong`. Enqueued with S&N's desktop
+ * commands (inc/desktop-mode-assets.php), so the widget cards get it with no
+ * S&N window open.
+ */
+@supports ( color: color( from red srgb-linear calc( 1 - ( 1 - r ) * min( 1, 0.68 / max( 0.001, 1 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) g b ) ) {
+	body,
+	.os-shell {
+		--snt-link: color( from var( --os-ui-accent, #f252fc ) srgb-linear calc( 1 - ( 1 - r ) * min( 1, 0.68 / max( 0.001, 1 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) calc( 1 - ( 1 - g ) * min( 1, 0.68 / max( 0.001, 1 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) calc( 1 - ( 1 - b ) * min( 1, 0.68 / max( 0.001, 1 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) );
+	}
+
+	.os-shell[data-os-desktop-theme="desktop-mode-legacy"] {
+		--snt-link: color( from var( --os-ui-accent, #2271b1 ) srgb-linear calc( r * min( 1, 0.15 / max( 0.001, ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) calc( g * min( 1, 0.15 / max( 0.001, ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) calc( b * min( 1, 0.15 / max( 0.001, ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) );
+	}
+}

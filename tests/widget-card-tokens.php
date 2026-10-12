@@ -75,22 +75,22 @@ foreach ( $files as $path ) {
 	ok( empty( $light ), "$name gives every --os-ui-color-* read an on-dark fallback" . ( $light ? ' [' . implode( ', ', $light ) . ']' : '' ) );
 }
 
-// Link sites: each file that paints a card link reads the link pink first
+// Link sites: each file that paints a card link reads --snt-link first (assets/snt-link.css, the accent pick lifted to AA; it read the fixed Nebula pink before)
 // (2026-10-12: the accent is the admin color, pure red on this site, 4.4:1 on
 // a card and failing AA for 11px text), the accent and the plugin blue after.
 $link_files = array( 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-health.js', 'desktop-mode-widget-queue.js', 'desktop-mode-widget-views.js', 'desktop-mode-widget.js', 'desktop-mode-widget-groups.js' );
 foreach ( $link_files as $name ) {
-	ok( isset( $code[ $name ] ) && false !== strpos( $code[ $name ], 'color:var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff))' ), "$name paints its link in the link pink, the accent as fallback" );
+	ok( isset( $code[ $name ] ) && false !== strpos( $code[ $name ], 'color:var(--snt-link, var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff)))' ), "$name paints its link in --snt-link (the accent pick lifted to AA), the old tokens as fallback" );
 }
 $red_links = array();
 foreach ( $code as $name => $js ) {
 	// A card link's style is `color:…;text-decoration:none`: one on the accent
-	// must lead with the link pink (a title link on `inherit` reads as its row).
+	// must lead with --snt-link (a title link on `inherit` reads as its row).
 	// The 2026.10.3 guard anchored on `el( 'a'` and could not cross the first
 	// `;` of the style, so it matched nothing, ever.
 	preg_match_all( '/color:([^;]*);text-decoration:none/', $js, $link_colors );
 	foreach ( $link_colors[1] as $color ) {
-		if ( false !== strpos( $color, '--os-ui-color-accent' ) && 0 !== strpos( $color, 'var(--os-ui-accent-strong' ) ) { $red_links[] = $name; }
+		if ( false !== strpos( $color, '--os-ui-color-accent' ) && 0 !== strpos( $color, 'var(--snt-link' ) ) { $red_links[] = $name; }
 	}
 }
 ok( empty( $red_links ), 'no card link paints straight in the accent' . ( $red_links ? ' [' . implode( ', ', $red_links ) . ']' : '' ) );

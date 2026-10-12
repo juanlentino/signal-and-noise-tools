@@ -551,7 +551,7 @@ os-button.snt-home__action:hover {
 .snt-home__view-all {
 	font-size: 12px;
 	font-weight: 600;
-	color: var( --os-ui-accent-strong, #ec9bff ); /* the link pink: the admin accent is 4.4:1 here, failing AA for text */
+	color: var( --snt-link, var( --os-ui-accent-strong, #ec9bff ) ); /* the link color (assets/snt-link.css): the accent pick, lifted to AA for text */
 	text-decoration: none;
 	display: inline-flex;
 	align-items: center;
@@ -737,8 +737,8 @@ os-button.snt-home__action:hover {
 	animation: snt-bar-rise 0.5s cubic-bezier( 0.16, 1, 0.3, 1 ) both;
 }
 
-/* The number is text: the link pink (the accent is #ff0000 here, 4.4:1 at 11px, failing AA); the bar keeps the accent. */
-.snt-ns-hero__weeks li:last-child strong { color: var( --os-ui-accent-strong, #ec9bff ); }
+/* The number is text: the link color, the accent lifted to AA (assets/snt-link.css); the bar keeps the accent. */
+.snt-ns-hero__weeks li:last-child strong { color: var( --snt-link, var( --os-ui-accent-strong, #ec9bff ) ); }
 .snt-ns-hero__weeks li:last-child .snt-ns-hero__bar { background: var( --os-ui-accent, #f252fc ); }
 
 .snt-ns-hero__axis {
@@ -919,7 +919,7 @@ os-button.snt-home__action:hover {
 	gap: 6px;
 	font-size: 13px;
 	font-weight: 600;
-	color: var( --os-ui-accent-strong, #ec9bff ); /* the link pink: the admin accent is 4.4:1 here, failing AA for text */
+	color: var( --snt-link, var( --os-ui-accent-strong, #ec9bff ) ); /* the link color (assets/snt-link.css): the accent pick, lifted to AA for text */
 }
 
 /* 2026.10.4 audit: Needs attention beside Continue working (home_desk_html).

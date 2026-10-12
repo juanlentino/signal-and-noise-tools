@@ -475,7 +475,7 @@
 	function fixOne( box, fix ) {
 		var origin   = ( window.location && window.location.origin ) || '';
 		var external = /^https?:/.test( fix.href ) && ( ! origin || fix.href.indexOf( origin ) !== 0 );
-		var a = el( 'a', { href: fix.href, text: fix.text, style: 'display:inline-flex;align-items:center;gap:4px;margin-right:12px;min-height:24px;font-size:11px;color:var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff));text-decoration:none;' } );
+		var a = el( 'a', { href: fix.href, text: fix.text, style: 'display:inline-flex;align-items:center;gap:4px;margin-right:12px;min-height:24px;font-size:11px;color:var(--snt-link, var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff)));text-decoration:none;' } );
 		if ( external ) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
 		var arr = el( 'span', { text: external ? '↗' : '→' } );
 		arr.setAttribute( 'aria-hidden', 'true' ); // the arrow is decoration; the words name the place

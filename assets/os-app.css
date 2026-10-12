@@ -290,12 +290,12 @@ a.snt-list__label:hover { text-decoration: underline; }
 }
 
 /* A link in a sentence reads as one (2026-10-12, owner: "Fix the link style
-   too"): the sentence's own font and size, an underline, and the app's link
-   pink, about 9:1 on the window. The admin accent (pure red on this site) is
-   4.4:1 there and fails AA for text, so it is not a link color. A link whose
-   text IS an address (snt_kit_link_is_address()) keeps the code face. */
+   too"): the sentence's own font and size, an underline, and the link color,
+   --snt-link: the owner's accent pick, lifted only as far as AA for text needs
+   (assets/snt-link.css; pure red becomes #ff6868). A link whose text IS an
+   address (snt_kit_link_is_address()) keeps the code face. */
 .snt-link {
-	color: var( --os-ui-accent-strong, #ec9bff );
+	color: var( --snt-link, var( --os-ui-accent-strong, #ec9bff ) );
 	text-decoration: underline;
 	text-underline-offset: 3px;
 	overflow-wrap: anywhere;
@@ -310,18 +310,18 @@ a.snt-link {
 }
 
 /* A bare <a> a builder paints without the kit (a Tags row's note title, as
-   of 2026.10.3) takes the same pink and underline, not wp-admin's link color,
-   which is the same failing red on this site. */
+   of 2026.10.3) takes the same link color and underline, not wp-admin's link
+   color, which is the raw accent (failing AA for pure red). */
 .snt-app .snt-leaf a:not( [class] ) {
-	color: var( --os-ui-accent-strong, #ec9bff );
+	color: var( --snt-link, var( --os-ui-accent-strong, #ec9bff ) );
 	text-decoration: underline;
 	text-underline-offset: 3px;
 }
 
-/* Door and go links (os-button variant=link) in the same pink: the kit's
-   default is the admin theme color, the same failing red. */
+/* Door and go links (os-button variant=link) in the same link color: the
+   kit's default is the raw admin theme color. */
 .snt-app os-button[variant="link"] {
-	--os-ui-button-fg: var( --os-ui-accent-strong, #ec9bff );
+	--os-ui-button-fg: var( --snt-link, var( --os-ui-accent-strong, #ec9bff ) );
 }
 
 /* ── Analytics: the view body ────────────────────────────────────────── */

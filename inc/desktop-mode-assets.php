@@ -324,6 +324,9 @@ add_action( 'admin_enqueue_scripts', function() {
 	// Review on #2023: readable ink for the shell confirm dialogs S&N opens,
 	// with or without an S&N window (assets/snt-confirm-ink.css).
 	wp_enqueue_style( 'snt-confirm-ink', plugins_url( 'assets/snt-confirm-ink.css', SNT_PATH . 'signal-and-noise-tools.php' ), array(), SNT_VERSION );
+	// 2026-10-12: S&N's link color, derived from the owner's accent pick, for
+	// the widget cards and every S&N window (assets/snt-link.css).
+	wp_enqueue_style( 'snt-link', plugins_url( 'assets/snt-link.css', SNT_PATH . 'signal-and-noise-tools.php' ), array(), SNT_VERSION );
 
 	// 20.9.0: an alert as a system notification while the app is open. It
 	// returns at once in any document without wp.os.notify (a classic window).
