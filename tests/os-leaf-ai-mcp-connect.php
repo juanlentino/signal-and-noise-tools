@@ -285,8 +285,8 @@ $kit = ai_leaf_both();
 // controls and the two clients), so both rows are Agent tools'.
 ok( 2 === substr_count( $kit, snt_leaf_row() ), 'two paired rows are painted across the two leaves, both on Agent tools -- ' . substr_count( $kit, snt_leaf_row() ) );
 $pairs = array(
-	array( 'Door 1: the native MCP server', 'Door 1b: the native write door' ),
-	array( 'Door 2: the Abilities-registry adapter', 'Resources &amp; prompts' ),
+	array( 'Read door: the native MCP server', 'Write door: the same server, read-write' ),
+	array( 'Core MCP adapter: the Abilities-registry door', 'Resources &amp; prompts' ),
 );
 foreach ( $pairs as $i => $pair ) {
 	if ( preg_match_all( '/' . preg_quote( snt_leaf_row(), '/' ) . '(.*?)<\/os-grid>/s', $kit, $m ) && isset( $m[1][ $i ] ) ) {
@@ -314,6 +314,13 @@ $mcp = snt_leaf_paint( 'ai', 'mcp-connect' );
 foreach ( array( 'Three MCP doors', 'Door 1 above', 'Application Password below', 'since v9.51.0', 'Status at a glance' ) as $gone ) {
 	ok( false === strpos( $mcp, $gone ), "MCP Clients no longer says: $gone" );
 }
+// Agent tools names the doors as MCP Clients' tiles do, and says no "above" or
+// "below" about a door: the read and write doors now share a row.
+$tools_leaf = snt_leaf_paint( 'ai', 'agent-tools' );
+foreach ( array( 'Door 1', 'Door 2', 'door below', 'door above', 'tools above', 'since v9.' ) as $gone ) {
+	ok( false === strpos( $tools_leaf, $gone ), "Agent tools no longer says: $gone" );
+}
+ok( false !== strpos( $tools_leaf, 'heading="Read door: ' ) && false !== strpos( $tools_leaf, 'heading="Write door: ' ) && false !== strpos( $tools_leaf, 'heading="Core MCP adapter: ' ), 'Agent tools heads each door with the name its MCP Clients tile uses' );
 ok( false !== strpos( $mcp, 'Four MCP doors can answer for this site' ) && false !== strpos( $mcp, 'That inbound grant is the Application Password each client signs in with.' ), 'the intro counts the four doors the tiles show, and the footnote points at the grant it means' );
 ok( 4 === substr_count( $mcp, '<os-stat ' ) && false !== strpos( $mcp, 'label="Read door"' ) && false !== strpos( $mcp, 'label="Write door"' ) && false !== strpos( $mcp, 'label="Remote door"' ) && false !== strpos( $mcp, 'label="Core MCP adapter"' ), 'the four doors are four tiles' );
 $ctl = strpos( $mcp, '<os-section heading="Write-door credential"' );
@@ -338,7 +345,7 @@ ok( false === strpos( $mcp, 'config below' ) && false === strpos( $mcp, 'config 
 ok( 1 === preg_match( '#<os-button variant="link" os-action="go" os-arg-sub="agent-tools">[^<]{20,}</os-button>#', $mcp ), 'MCP Clients points at Agent tools for the door lists with a visible in-window link, not a second copy of them' );
 
 // Nothing was dropped in the rearrangement: every section still paints.
-foreach ( array( 'Write-door credential', 'Remote door', 'Connect a client', 'Door 1: the native MCP server', 'Door 1b: the native write door', 'Resources &amp; prompts', 'Door 2: the Abilities-registry adapter', 'Not the same as Connector Approvals' ) as $heading ) {
+foreach ( array( 'Write-door credential', 'Remote door', 'Connect a client', 'Read door: the native MCP server', 'Write door: the same server, read-write', 'Resources &amp; prompts', 'Core MCP adapter: the Abilities-registry door', 'Not the same as Connector Approvals' ) as $heading ) {
 	ok( false !== strpos( $kit, $heading ), "still painted after the regroup: $heading" );
 }
 

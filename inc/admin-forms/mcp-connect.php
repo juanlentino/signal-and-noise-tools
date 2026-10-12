@@ -81,7 +81,7 @@ function sn_admin_render_mcp_door_native() {
 	$slugs = function_exists( 'sn_mcp_allowlist' ) ? sn_mcp_allowlist() : array();
 
 	echo '<div class="sn-callout">';
-	echo '<p class="sn-callout-h">' . esc_html__( 'Door 1: the native MCP server', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.22.0', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<p class="sn-callout-h">' . esc_html__( 'Read door: the native MCP server', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . sprintf(
 		/* translators: %s: the WordPress capability slug, wrapped in <code>. */
 		esc_html__( 'A dependency-free JSON-RPC 2.0 endpoint this plugin hand-rolls. Every call needs a WordPress login with the %s capability, and the tool list below is the whole surface: nothing outside it is reachable, even by request.', 'signal-and-noise-tools' ),
@@ -105,7 +105,7 @@ function sn_admin_render_mcp_door_native() {
 	}
 	echo '</ul>';
 	echo '</details>';
-	echo '<p>' . esc_html__( 'This door never mutates anything, by construction: see the write door below for actions.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'This door never mutates anything, by construction: the write door carries the actions.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 }
 
@@ -130,10 +130,10 @@ function sn_admin_render_mcp_door_native_write() {
 	$read_slugs = function_exists( 'sn_mcp_allowlist' ) ? sn_mcp_allowlist() : array();
 
 	echo '<div class="sn-callout">';
-	echo '<p class="sn-callout-h">' . esc_html__( 'Door 1b: the native write door', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.50.0', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<p class="sn-callout-h">' . esc_html__( 'Write door: the same server, read-write', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . sprintf(
 		/* translators: %s: the WordPress capability slug, wrapped in <code>. */
-		esc_html__( 'The exact same JSON-RPC 2.0 server, the same %s capability, and the same Application Password as the read door above: there is no separate write-only credential. What changes is the surface: most tools here can modify your content (posts, postmeta, taxonomy terms, scheduled cron events, cached files) or spend the AI budget configured on this site; a couple are read-only login-audit exports carrying plaintext usernames, gated behind this higher bar instead of the read door.', 'signal-and-noise-tools' ),
+		esc_html__( 'The exact same JSON-RPC 2.0 server, the same %s capability, and the same Application Password as the read door: there is no separate write-only credential. What changes is the surface: most tools here can modify your content (posts, postmeta, taxonomy terms, scheduled cron events, cached files) or spend the AI budget configured on this site; a couple are read-only login-audit exports carrying plaintext usernames, gated behind this higher bar instead of the read door.', 'signal-and-noise-tools' ),
 		'<code>manage_options</code>'
 	) . '</p>';
 	echo '<p><code>POST ' . esc_url( $url ) . '</code> <span class="sn-badge">' . esc_html__( 'read-write', 'signal-and-noise-tools' ) . '</span></p>';
@@ -156,7 +156,7 @@ function sn_admin_render_mcp_door_native_write() {
 	echo '</ul>';
 	echo '<p>' . sprintf(
 		/* translators: %d: the live count of read-only tools on the read door. */
-		esc_html__( 'This door’s tools/list does not repeat the %d read-only tools above: if you only want to look, connect to the read door instead.', 'signal-and-noise-tools' ),
+		esc_html__( 'This door’s tools/list does not repeat the read door’s %d read-only tools: if you only want to look, connect to the read door instead.', 'signal-and-noise-tools' ),
 		count( $read_slugs )
 	) . '</p>';
 
@@ -321,7 +321,7 @@ function sn_admin_render_mcp_withheld_slugs() {
  */
 function sn_admin_render_mcp_resources_prompts() {
 	echo '<div class="sn-callout">';
-	echo '<p class="sn-callout-h">' . esc_html__( 'Resources & prompts', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.50.0', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<p class="sn-callout-h">' . esc_html__( 'Resources & prompts', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . esc_html__( 'Both native doors also serve four read-only MCP resources (sn://abilities-catalog, sn://changelog-latest, sn://design-tokens, and sn://llms-txt) a client can fetch any of them directly without calling a tool.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . esc_html__( 'Two ready-made prompts, weekly-report and content-audit, chain several read tools together into one owner-voiced synthesis your client can run in a single step.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
@@ -341,17 +341,17 @@ function sn_admin_render_mcp_door_adapter() {
 	$url    = function_exists( 'rest_url' ) ? (string) rest_url( 'mcp/mcp-adapter-default-server' ) : '';
 
 	echo '<div class="sn-callout">';
-	echo '<p class="sn-callout-h">' . esc_html__( 'Door 2: the Abilities-registry adapter', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-callout-h">' . esc_html__( 'Core MCP adapter: the Abilities-registry door', 'signal-and-noise-tools' ) . '</p>';
 	// v9.48.1: attribution corrected. The adapter is NOT part of the wp.org
 	// "AI" plugin (ground-truthed 2026-07-15: that plugin's MCP integration is
 	// roadmap-only, "coming soon"); it is a separate, GitHub-only WordPress
 	// plugin (WordPress/mcp-adapter, pre-1.0, on wordpress.org since 0.7.0). The old
 	// copy here taught the owner the wrong fact — never re-attribute it.
 	if ( $active ) {
-		echo '<p>' . esc_html__( 'The WordPress MCP Adapter plugin is active on this site. Since adapter 0.6.0 its default server carries only abilities that opt in through meta.mcp.public (falling back to meta.public); the abilities on Door 1’s read allowlist opt in and every other registration states meta.mcp.public false, so this door carries the same read set Door 1 does. Each exposed ability is still gated by its own capability check. The adapter is its own plugin: the wp.org “AI” plugin does not bundle it.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html__( 'The WordPress MCP Adapter plugin is active on this site. Since adapter 0.6.0 its default server carries only abilities that opt in through meta.mcp.public (falling back to meta.public); the abilities on the read door’s allowlist opt in and every other registration states meta.mcp.public false, so this door carries the same read set the read door does. Each exposed ability is still gated by its own capability check. The adapter is its own plugin: the wp.org “AI” plugin does not bundle it.', 'signal-and-noise-tools' ) . '</p>';
 		echo '<p><code>' . esc_url( $url ) . '</code></p>';
 	} else {
-		echo '<p>' . esc_html__( 'No MCP Adapter is installed on this site (Door 1 above is the only live MCP endpoint here. The adapter is a separate WordPress plugin (wordpress.org/plugins/mcp-adapter, listed there since 0.7.0 and still pre-1.0), and the wp.org “AI” plugin does not bundle it: that plugin lists MCP as coming soon. If the adapter is ever installed, its default server would answer at the address below, and since adapter 0.6.0 it would carry only abilities that opt in through meta.mcp.public; the abilities on Door 1’s read allowlist opt in and every other registration states false, so it would carry the same read set Door 1 does.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html__( 'No MCP Adapter is installed on this site, so the read and write doors are the only MCP endpoints it serves. The adapter is a separate WordPress plugin (wordpress.org/plugins/mcp-adapter, listed there since 0.7.0 and still pre-1.0), and the wp.org “AI” plugin does not bundle it: that plugin lists MCP as coming soon. If the adapter is ever installed, its default server would answer at the address below, and since adapter 0.6.0 it would carry only abilities that opt in through meta.mcp.public; the abilities on the read door’s allowlist opt in and every other registration states false, so it would carry the same read set the read door does.', 'signal-and-noise-tools' ) . '</p>';
 		echo '<p><code>' . esc_url( $url ) . '</code></p>';
 	}
 	echo '</div>';
