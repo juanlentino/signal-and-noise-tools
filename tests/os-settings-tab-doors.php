@@ -3,7 +3,8 @@
  * Doors to this plugin's own pages open the NATIVE window (14.7.6).
  *
  * Drives assets/os-settings-tab.js through tests/js/os-settings-tab-doors.mjs
- * (a vm context with a fake shell) and pins each scenario by name. Run:
+ * (a vm context with a fake shell) and pins each scenario by name; since
+ * 2026-10-12 also assets/os-kit.js, the half that shows a deep link's tab. Run:
  * php tests/os-settings-tab-doors.php
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
@@ -49,6 +50,12 @@ $expected = array(
 	'a kit door click to our page is claimed in the capture phase and stopped',
 	'a kit door click to another admin page is left to the framework',
 	'a modified click (cmd/ctrl/middle) is never claimed',
+	// 2026-10-12: a deep link lands on its tab, once (assets/os-kit.js too).
+	'every link is stamped, once, outside sn_*: two links to one leaf differ',
+	'a #fragment rides as the anchor the classic page scrolls to',
+	'snt-land shows the tab whose session landed, in that window',
+	'any other effect, or another app, shows nothing',
+	'an analytics landing does not carry the old view over the link',
 );
 foreach ( $expected as $name ) {
 	$got = isset( $by_name[ $name ] ) ? $by_name[ $name ] : null;

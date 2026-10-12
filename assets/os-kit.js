@@ -161,4 +161,30 @@
 		}
 		apps.dispatch( 'sn-analytics', 'go', args, next );
 	} );
+
+	/*
+	 * 2026-10-12: a deep link shows its tab. A link from a desktop widget, the
+	 * palette or another window opens the window with the classic URL's params
+	 * (assets/os-settings-tab.js), and every tab's session reads them; the one
+	 * the link names lands on its leaf and queues `snt-land` (read_params() in
+	 * each app). The server cannot switch the window's tabs, so this does,
+	 * through the shell (`Window.activateTab()`). The analytics view is noted
+	 * first so the carry-over above does not re-apply the old view's window
+	 * over the link's own.
+	 */
+	document.addEventListener( 'os-app-effect', function ( event ) {
+		var detail = event.detail || {};
+		if ( ! detail.effect || 'snt-land' !== detail.effect.type || ! APPS.hasOwnProperty( detail.appId ) ) {
+			return;
+		}
+		var view = String( detail.view || 'main' );
+		if ( 'sn-analytics' === detail.appId ) {
+			lastAnalyticsView = view;
+		}
+		var manager = window.wp && wp.os && wp.os.windowManager;
+		var win = manager && manager.getById ? manager.getById( detail.windowId ) : null;
+		if ( win && typeof win.activateTab === 'function' ) {
+			win.activateTab( view );
+		}
+	} );
 } )();

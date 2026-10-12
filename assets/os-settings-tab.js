@@ -8,6 +8,7 @@
 			return text;
 		};
 	var saving = false;
+	var stamps = 0;
 	var mountedControls = [];
 	var mountedStatus;
 	var mountedBody;
@@ -45,6 +46,16 @@
 			parsed.searchParams.get( 'page' ) === page;
 	}
 
+	/**
+	 * The open-time params a link to one of the two windows carries.
+	 *
+	 * 2026-10-12: `land` stamps each link. A dock click reopens a window with
+	 * no params and the shell hands back the last ones, so without a stamp the
+	 * window could not tell a second "Open Health" from a dock click; the
+	 * apps' read_params() lands once per stamp. The name is outside `sn_*`,
+	 * so it never reaches a leaf's query. A `#fragment` is the anchor the
+	 * classic page scrolls to, so it rides as `anchor` when the query has none.
+	 */
 	function remapParams( parsed, fixedKeys ) {
 		var params = {};
 		if ( ! parsed || ! parsed.searchParams ) {
@@ -55,6 +66,12 @@
 				params[ key ] = value;
 			}
 		} );
+		if ( fixedKeys.indexOf( 'anchor' ) !== -1 && ! params.anchor && parsed.hash.length > 1 ) {
+			params.anchor = parsed.hash.slice( 1 );
+		}
+		// The time AND a count: a count alone restarts at a reload, while the
+		// params the window restores with keep the old stamp.
+		params.land = Date.now() + '-' + ( ++stamps );
 		return params;
 	}
 

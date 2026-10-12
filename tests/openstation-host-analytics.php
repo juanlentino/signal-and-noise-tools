@@ -384,8 +384,8 @@ namespace {
 		'the same title and the same chart glyph add_menu_page() gives the classic menu, on the dock' );
 	ok( array( 'manage_options' ) === $app->caps, 'gated on manage_options, the capability the classic page wp_die()s without' );
 	ok( array( 1280, 860 ) === $app->size, 'opens at 1280x860 -- the report is wide' );
-	ok( array( 'view', 'range', 'from', 'to', 'class', 'compare', 'drill', 'event_prop', 'lg_range', 'notice' ) === array_keys( $app->state ),
-		'state is the page`s nine URL params, named as the page names them minus the `sn_` prefix, plus the notice' );
+	ok( array( 'view', 'range', 'from', 'to', 'class', 'compare', 'drill', 'event_prop', 'lg_range', 'notice', 'landed' ) === array_keys( $app->state ) && '' === $app->state['landed'],
+		'state is the page`s nine URL params, named as the page names them minus the `sn_` prefix, plus the notice and the params last read (2026-10-12)' );
 	ok( snt_analytics_resolve_view( '' ) === $app->state['view']
 		&& snt_analytics_resolve_class( '' ) === $app->state['class']
 		&& snt_analytics_resolve_compare( '' ) === $app->state['compare']
@@ -745,6 +745,42 @@ namespace {
 	$app->actions['reopen']( $state, $os, array() );
 	ok( 'search' === $state->get( 'view' ) && '7' === $state->get( 'range' ) && 'human' === $state->get( 'class' ),
 		'reopen retargets a live window and reads the new params wholesale -- a link that named no window must not inherit the last one`s' );
+	// 2026-10-12: a link lands its view, once. Measured live: a deep link to
+	// Machine readers opened on Overview, and a dock click (a reopen that hands
+	// back the LAST params) re-read them, resetting the range the reader picked.
+	$land = static function ( $os ) {
+		return count( array_filter( $os->effects->all(), static function ( $e ) { return 'snt-land' === $e['type']; } ) );
+	};
+	$os         = new \OpenStation\App\Os();
+	$os->view   = 'machine-readers';
+	$os->params = array( 'sn_view' => 'machine-readers', 'land' => 'a1' );
+	$state      = st( $app );
+	call_user_func( $app->mount, $state, $os );
+	$main       = new \OpenStation\App\Os();
+	$main->view = 'main';
+	$main->params = $os->params;
+	call_user_func( $app->mount, st( $app ), $main );
+	ok( 'machine-readers' === $state->get( 'view' ) && 1 === $land( $os ) && 0 === $land( $main ),
+		'a cold open queues ONE snt-land, from the session of the view the link names (assets/os-kit.js shows that tab); Overview queues none' );
+	$state->set( 'range', '90' );
+	$os->effects = new \OpenStation\App\Effects();
+	$app->actions['reopen']( $state, $os, array() );
+	ok( '90' === $state->get( 'range' ) && 0 === $land( $os ),
+		'a dock click (a reopen carrying the params already read) keeps the range the reader picked and shows nothing' );
+	$main->params = array( 'sn_view' => 'machine-readers', 'land' => 'b2' );
+	$overview = st( $app, array( 'range' => '90' ) );
+	$app->actions['reopen']( $overview, $main, array() );
+	ok( '90' === $overview->get( 'range' ) && 0 === $land( $main ),
+		'   ...and a link to another view leaves Overview`s range alone' );
+	$os->params = array( 'sn_view' => 'machine-readers', 'land' => 'c3' );
+	$app->actions['reopen']( $state, $os, array() );
+	ok( '7' === $state->get( 'range' ) && 1 === $land( $os ),
+		'   ...while the same link clicked again (a new stamp) lands again, wholesale, and shows its view' );
+	$bare = new \OpenStation\App\Os();
+	$bare->view   = 'main';
+	$bare->params = array( 'land' => 'd4' );
+	call_user_func( $app->mount, st( $app ), $bare );
+	ok( 1 === $land( $bare ), 'a link that names no view is Overview`s, as on the classic page' );
 	$state = st( $app, array( 'notice' => array( 'success', 'Saved.' ) ) );
 	$app->actions['refresh']( $state, new \OpenStation\App\Os(), array() );
 	ok( null === $state->get( 'notice' ), 'refresh drops the notice -- a notice is a one-shot on the classic page too' );
