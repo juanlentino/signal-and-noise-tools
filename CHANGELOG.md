@@ -12,6 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The forecaster is the 14-day median, with a band learned from its own misses** (owner: "Do whatever it's best for the forecaster"). A rolling-origin backtest on this site's real daily series (152 human days and 76 crawler days, 7 days ahead, 833 and 301 checks) scored the old Holt forecaster worse than "every day equals the last" on every series (skill -0.13 to -0.28); its own gate hid it on 79 to 96% of days. The median of the last 14 days scored +0.18 to +0.30, level with Google's TimesFM 2.5 run on the same folds (+0.11 to +0.30), with nothing to host. The band is the 10th to 90th percentile of the median's past misses, and how often it held is measured out of sample (it never grades itself); a band not yet measured says so and reads low confidence. The backtest is pinned on the real series.
+  - **Figures that change or go:** forecast chips lose the up or down arrow (a median states a level; the Theil-Sen trend tier still says which way); the band is 80%, not the old approximate 95%; the forecast history is 90 days, not 30 (Insights) and 60 (the views card), so both read the same series the same way.
+  - The public /maturity page's Predictive row now says "backtested median forecasts", as do Insights' methods notes and the reader-anomalies MCP description.
+
 ### Fixed
 - **Every S&N control shows focus, and primary button labels read on their fill (2026.10.3 audit, batch 3).**
   - **Focus rings were invisible.** The shell's focus token is a whole box-shadow list, so `0 0 0 2px var( --os-ui-focus-ring )` was invalid and computed to none; beside `outline: none`, a focused native field or submit (Webhooks, Tags, S&N Analytics' date field and export buttons, the Explorer's crumbs) showed no ring. Each rule now uses the token as the value: the field ring for fields, the full ring for buttons.

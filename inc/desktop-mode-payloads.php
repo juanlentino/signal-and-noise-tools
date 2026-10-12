@@ -208,9 +208,12 @@ function snt_desktop_site_views_payload() {
 	// window would return null every single time and the forecast would never
 	// once render. sn_analytics_signal_forecasts() already solves this the same
 	// way: "trailing fit history ending $to, decoupled from the display range".
-	// So fetch ONE longer series and slice it — the last 14 days draw the
-	// sparkline, the whole 60 feed the fit. One query, not two.
-	$fit_from = gmdate( 'Y-m-d', strtotime( $today . ' -59 days' ) );
+	// So fetch ONE longer series and slice it: the last 14 days draw the
+	// sparkline, the whole history feeds the fit. One query, not two.
+	// 2026-10-12: the history is the engine's own (90 days), so the card and
+	// Insights forecast the same series the same way.
+	$fit_days = defined( 'SN_ANALYTICS_FORECAST_HISTORY_DAYS' ) ? (int) SN_ANALYTICS_FORECAST_HISTORY_DAYS : 90;
+	$fit_from = gmdate( 'Y-m-d', strtotime( $today . ' -' . ( $fit_days - 1 ) . ' days' ) );
 
 	$fit_series = array();
 	if ( function_exists( 'sn_analytics_daily_series' ) ) {
@@ -290,7 +293,6 @@ function snt_desktop_site_views_payload() {
 					'high' => $signal['interval']['high'],
 				),
 				'confidence' => (string) ( $signal['confidence'] ?? 'low' ),
-				'direction'  => (string) ( $signal['direction'] ?? 'flat' ),
 				// Mirrors the engine's SN_ANALYTICS_FORECAST_HORIZON default, which
 				// is what forecast_of() used above (we pass no $opts override).
 				'horizon'    => 7,
