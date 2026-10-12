@@ -98,8 +98,7 @@
 	text-decoration: none;
 }
 
-a.snt-list__label:hover,
-a.snt-link--url:hover { text-decoration: underline; }
+a.snt-list__label:hover { text-decoration: underline; }
 
 .snt-list__value {
 	/* 14.9.1: a value may shrink, and the label keeps a floor, so a long
@@ -277,7 +276,10 @@ a.snt-link--url:hover { text-decoration: underline; }
 .snt-link--url {
 	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
 	font-size: 12px;
-	text-decoration: none;
+}
+/* An anchor matches a door link's weight (os-button sets 500 in its shadow). */
+a.snt-link {
+	font-weight: 500;
 }
 
 /* Door and go links (os-button variant=link) in the same pink: the kit's

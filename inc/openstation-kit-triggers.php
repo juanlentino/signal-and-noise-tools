@@ -215,5 +215,7 @@ function snt_kit_link( $label, $href ) {
  */
 function snt_kit_link_is_address( $label ) {
 	$label = trim( (string) $label );
-	return '' !== $label && false === strpos( $label, ' ' ) && 1 === preg_match( '#^(?:https?://|/)|[/\#]#', $label );
+	// A URL, a path, a host (example.com/x), or repo#123. "and/or", "AI/ML"
+	// and "C#" are words.
+	return '' !== $label && false === strpos( $label, ' ' ) && 1 === preg_match( '~^(?:https?://|/)|^[\w.-]+#\d+$|^[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:/\S*)?$~i', $label );
 }
