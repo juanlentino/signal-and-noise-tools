@@ -25,21 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Does the telemetry table physically exist?
- *
- * Absent table and empty table are different answers and must stay that way:
- * "the sensor is not installed" is not "the sensor recorded nothing", and
- * neither is "these tools went unused".
- *
- * @return bool
- */
-function sn_mcp_telemetry_table_exists() {
-	global $wpdb;
-	$table = $wpdb->prefix . SN_MCP_TELEMETRY_TABLE;
-	$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
-	return (string) $found === $table;
-}
+require_once __DIR__ . '/mcp-telemetry-read-parts.php'; // the table's first row and the closed-door gate (2026-10-12).
 
 /**
  * Can this slug still be projected onto the wire?
@@ -84,11 +70,37 @@ function sn_mcp_telemetry_slug_reachable( $slug ) {
  */
 function sn_mcp_telemetry_door_for_slug( $slug ) {
 	$read = function_exists( 'sn_mcp_allowlist' ) ? sn_mcp_allowlist() : array();
-	return in_array( $slug, $read, true ) ? SN_MCP_DOOR_READ : SN_MCP_DOOR_RW;
+	// A remote twin is read-only by construction, so it projects as a read.
+	$remote = function_exists( 'sn_mcp_remote_slugs' ) ? sn_mcp_remote_slugs() : array();
+	return in_array( $slug, array_merge( $read, $remote ), true ) ? SN_MCP_DOOR_READ : SN_MCP_DOOR_RW;
 }
 
 /**
- * Every slug that SHOULD have been callable, across both doors.
+ * The door a slug is listed on: read, remote or rw ('' when on none). For
+ * the closed-door gate (mcp-telemetry-read-parts.php); projection keeps
+ * sn_mcp_telemetry_door_for_slug().
+ *
+ * @param string $slug Ability slug.
+ * @return string
+ */
+function sn_mcp_telemetry_slug_door( $slug ) {
+	$lists = array(
+		'read'   => function_exists( 'sn_mcp_allowlist' ) ? sn_mcp_allowlist() : array(),
+		'remote' => function_exists( 'sn_mcp_remote_slugs' ) ? sn_mcp_remote_slugs() : array(),
+		'rw'     => function_exists( 'sn_mcp_rw_allowlist' ) ? sn_mcp_rw_allowlist() : array(),
+	);
+	foreach ( $lists as $door => $slugs ) {
+		if ( in_array( $slug, $slugs, true ) ) {
+			return $door;
+		}
+	}
+	return '';
+}
+
+/**
+ * Every slug that SHOULD have been callable, across the three doors: read,
+ * write and remote (2026-10-12: the remote twins were on no list, so their
+ * calls read as plugin polling and the door was invisible on Agent tools).
  *
  * Computed in PHP by diffing the allowlists against the grouped result, never
  * in SQL: the allowlist is the source of truth for what was callable, and it
@@ -104,6 +116,9 @@ function sn_mcp_telemetry_expected_tools() {
 	if ( function_exists( 'sn_mcp_rw_allowlist' ) ) {
 		$slugs = array_merge( $slugs, sn_mcp_rw_allowlist() );
 	}
+	if ( function_exists( 'sn_mcp_remote_slugs' ) ) {
+		$slugs = array_merge( $slugs, sn_mcp_remote_slugs() );
+	}
 	$map = array();
 	foreach ( array_unique( $slugs ) as $slug ) {
 		// Valued by the PROJECTED name every door's spelling folds onto (sn_mcp_telemetry_canonical_tool).
@@ -112,25 +127,6 @@ function sn_mcp_telemetry_expected_tools() {
 			: str_replace( '/', '__', (string) $slug );
 	}
 	return $map;
-}
-
-/**
- * One allowlisted ability, one name, at READ time (the log is append-only
- * evidence, never rewritten): the MCP doors' `signal-noise__x`, the direct
- * door's slug `signal-noise/x` and a bare `x` fold onto the projected name.
- * Only EXPECTED tools fold; a theme tool or a blank stays as recorded.
- *
- * @param string               $name     tool_name as recorded.
- * @param array<string,string> $expected slug => projected name.
- * @return string
- */
-function sn_mcp_telemetry_canonical_tool( $name, $expected ) {
-	foreach ( $expected as $slug => $projected ) {
-		if ( in_array( (string) $name, array( $projected, (string) $slug, substr( (string) strrchr( '/' . $slug, '/' ), 1 ) ), true ) ) {
-			return $projected;
-		}
-	}
-	return (string) $name;
 }
 
 /**
@@ -179,6 +175,7 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 	$total_rows  = 0;
 	$earliest    = null;
 	$expected    = sn_mcp_telemetry_expected_tools();
+	$remote      = function_exists( 'sn_mcp_remote_slugs' ) ? sn_mcp_remote_slugs() : array();
 
 	foreach ( $rows as $row ) {
 		$name    = (string) ( $row['tool_name'] ?? '' );
@@ -188,6 +185,13 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 		$first   = (string) ( $row['first_seen'] ?? '' );
 		$last    = (string) ( $row['last_seen'] ?? '' );
 		$code    = (string) ( $row['error_code'] ?? '' );
+		// A remote twin answers only the bridge: its capability is granted
+		// nowhere else (mcp-remote-guard.php), so a `direct` row for one is a
+		// remote-door call recorded before the bridge named its door
+		// (2026-10-12). Re-filed at read time; the log is never rewritten.
+		if ( 'direct' === $door && in_array( $name, $remote, true ) ) {
+			$door = 'remote';
+		}
 
 		$total_rows += $calls;
 		$by_door[ $door ] = ( $by_door[ $door ] ?? 0 ) + $calls;
@@ -211,6 +215,9 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 				'last_seen'    => null,
 				'doors'        => array(),
 				'outcomes'     => array(),
+				// On a door's list today. A retired tool keeps its calls in the
+				// log; the ledger counts only the listed ones (2026-10-12).
+				'allowlisted'  => in_array( $name, $expected, true ),
 			);
 		}
 		$by_tool[ $name ]['calls'] += $calls;
@@ -234,17 +241,27 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 		}
 	}
 
+	// When recording began is the table's first row, not the window's: MIN(ts)
+	// inside a 90-day window is at most 89 whole days old, so a window read
+	// that way never completed (2026-10-12 audit). A table younger than the
+	// window has never been pruned, so its first row IS when recording began.
+	$began         = null === $earliest ? null : sn_mcp_telemetry_first_ts( $table, $earliest );
 	$measured_days = null;
-	if ( null !== $earliest ) {
-		$span          = time() - (int) strtotime( $earliest . ' UTC' );
-		$measured_days = max( 0, (int) floor( $span / DAY_IN_SECONDS ) );
+	$complete      = false;
+	if ( null !== $began ) {
+		$span          = max( 0, (int) floor( ( time() - (int) strtotime( $began . ' UTC' ) ) / DAY_IN_SECONDS ) );
+		$complete      = $span >= $days - 1;
+		$measured_days = $complete ? $days : $span;
 	}
 
 	return array(
-		'measured_since' => $earliest,
-		'measured_days'  => $measured_days,
-		'window_days'    => $days,
-		'complete'       => ( null !== $measured_days && $measured_days >= $days ),
+		'measured_since'  => $earliest,
+		'recording_began' => $began,
+		// The first day the figures cover: the window's start, or when recording began.
+		'since'           => null === $began ? null : ( $complete ? $since : $began ),
+		'measured_days'   => $measured_days,
+		'window_days'     => $days,
+		'complete'        => $complete,
 		'by_tool'        => $by_tool,
 		'by_door'        => $by_door,
 		'by_error_code'  => $error_codes,
@@ -262,13 +279,15 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
  * refuses to collapse them.
  *
  * A tool may only be retired on verdict `unused`. `unreachable` is a BUG
- * REPORT: retiring it would delete the evidence of a defect. "No calls" means
- * none THROUGH A DOOR (read, rw, agent); `direct` is the plugin's own surfaces
+ * REPORT: retiring it would delete the evidence of a defect. `not_measured`
+ * is a tool behind a door that is closed now (sn_mcp_telemetry_door_closed()):
+ * nobody could call it, so its zero is no evidence either way. "No calls" means
+ * none THROUGH A DOOR (read, rw, remote, agent); `direct` is the plugin's own surfaces
  * polling (the large majority of 74,670 calls on 2026-09-20), and a tool only they call is
  * `first_party_only`: a door-allowlist candidate, never a code one.
  *
  * @param array $by_tool Grouped usage keyed by canonical tool_name.
- * @return array<int,array{tool:string,slug:string,calls:int,reachable:bool|null,verdict:string}>
+ * @return array<int,array{tool:string,slug:string,calls:int,reachable:bool|null,verdict:string,reason:string}>
  */
 function sn_mcp_telemetry_zero_call( $by_tool ) {
 	$out = array();
@@ -278,10 +297,13 @@ function sn_mcp_telemetry_zero_call( $by_tool ) {
 		}
 		$direct    = (int) ( $by_tool[ $tool_name ]['direct_calls'] ?? 0 );
 		$reachable = sn_mcp_telemetry_slug_reachable( $slug );
+		$closed    = sn_mcp_telemetry_door_closed( sn_mcp_telemetry_slug_door( $slug ) );
 		if ( false === $reachable ) {
 			$verdict = 'unreachable'; // A bug outranks a quiet door: the direct calls prove nothing about projection.
 		} elseif ( null === $reachable ) {
 			$verdict = 'undetermined'; // Unknown projection cannot name a door-allowlist candidate either.
+		} elseif ( '' !== $closed ) {
+			$verdict = 'not_measured'; // Nobody could call it, so zero calls says nothing about use.
 		} elseif ( $direct > 0 ) {
 			$verdict = 'first_party_only';
 		} else {
@@ -293,6 +315,7 @@ function sn_mcp_telemetry_zero_call( $by_tool ) {
 			'calls'     => $direct, // Door calls are 0 by construction, so this is the direct count.
 			'reachable' => $reachable,
 			'verdict'   => $verdict,
+			'reason'    => 'not_measured' === $verdict ? $closed : '', // Why it was not measured, in words.
 		);
 	}
 	return $out;

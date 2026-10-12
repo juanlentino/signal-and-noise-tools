@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/login-defense-status.php'; // the worker and denylist lines both twins print, and Breached passwords (2026-10-12).
+
 const SN_LG_DATASET = 'sn_login_guard';
 
 /**
@@ -208,53 +210,6 @@ function sn_login_defense_attribution() {
 }
 
 /**
- * Render the worker status block from a probed status array: deployed worker
- * version + deploy time (parity with the analytics worker-version card), then
- * denylist size + last refresh. Extracted from the panel for testability.
- */
-function sn_login_defense_render_status( $status ) {
-	if ( ! is_array( $status ) ) {
-		echo '<p>' . esc_html__( 'Login guard status unavailable (the Worker is not reachable or not deployed yet).', 'signal-and-noise-tools' ) . '</p>';
-		return;
-	}
-	$ver = (string) ( $status['version'] ?? '' );
-	if ( '' !== $ver ) {
-		echo '<p>' . esc_html(
-			sprintf(
-				/* translators: 1: worker version, 2: deploy timestamp */
-				__( 'Worker: sn-login-guard v%1$s (deployed %2$s).', 'signal-and-noise-tools' ),
-				$ver,
-				(string) ( $status['deployed_at'] ?? '?' )
-			)
-		) . '</p>';
-	}
-	/* translators: %s: the denylist's size and refresh time. */
-	echo '<p>' . esc_html( sprintf( __( 'Denylist: %s.', 'signal-and-noise-tools' ), sn_login_defense_denylist_text( $status ) ) ) . '</p>';
-}
-
-/**
- * The denylist line both twins print: "3,922 IPv4 and 81 IPv6 ranges, updated
- * 2026-10-11 16:07 UTC". The worker answers null when its list meta is
- * unreadable (sn-login-guard 1.12.1): that is not reported, never a 0.
- *
- * @param array $status sn_login_defense_status().
- * @return string
- */
-function sn_login_defense_denylist_text( array $status ) {
-	if ( ! is_numeric( $status['denylistCount'] ?? null ) ) {
-		return __( 'size not reported by the worker', 'signal-and-noise-tools' );
-	}
-	$size = is_numeric( $status['denylist6Count'] ?? null )
-		/* translators: 1: IPv4 ranges, 2: IPv6 ranges. */
-		? sprintf( __( '%1$s IPv4 and %2$s IPv6 ranges', 'signal-and-noise-tools' ), number_format_i18n( (int) $status['denylistCount'] ), number_format_i18n( (int) $status['denylist6Count'] ) )
-		/* translators: %s: ranges. */
-		: sprintf( __( '%s ranges', 'signal-and-noise-tools' ), number_format_i18n( (int) $status['denylistCount'] ) );
-	$at = strtotime( (string) ( $status['compiledAt'] ?? '' ) );
-	/* translators: 1: the size, 2: when the list was compiled, UTC. */
-	return false === $at ? $size : sprintf( __( '%1$s, updated %2$s UTC', 'signal-and-noise-tools' ), $size, gmdate( 'Y-m-d H:i', $at ) );
-}
-
-/**
  * Render the read-only Security > Login defense STATUS panel: worker version +
  * denylist size + last refresh + attribution + a link to the Analytics-dashboard
  * Login defense view. The attack analytics live in the dashboard widget + that
@@ -271,6 +226,7 @@ function sn_login_defense_render() {
 	echo '<p><a href="' . esc_url( snt_analytics_page_url( array( 'sn_view' => 'login-defense' ) ) ) . '">'
 		. esc_html__( 'View login defense analytics', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
 	echo '</div></div>'; // .sn-status-box, .sn-fieldset
+	sn_login_defense_render_breach(); // 2026-10-12 audit: native-only until then.
 	// v7.2.1: the digest settings card mounts AFTER the status card.
 	if ( function_exists( 'snt_security_digest_render_settings' ) ) {
 		snt_security_digest_render_settings();

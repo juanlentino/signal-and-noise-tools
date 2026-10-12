@@ -47,6 +47,9 @@ const SN_AUDIT_IPS_TTL        = 25 * HOUR_IN_SECONDS;
 const SN_AUDIT_LOGIN_SUCCESS_CAP = 500;
 const SN_AUDIT_PRUNE_HOOK     = 'sn_audit_log_prune';
 const SN_AUDIT_LLA_LAST_COUNT_OPT = 'sn_audit_lla_last_lockout_count';
+const SN_AUDIT_LLA_LAST_TOTAL_OPT = 'sn_audit_lla_last_lockouts_total';
+
+require_once __DIR__ . '/audit-log-lla.php'; // what Limit Login Attempts stores, read (2026-10-12).
 
 // Subsets of login_failed, never additional events in summary totals.
 const SN_AUDIT_MFA_FAILURE_TYPES = array( 'mfa_failed', 'mfa_throttled', 'mfa_other' );
@@ -327,22 +330,16 @@ function snt_audit_prune_impl() {
 	} ) );
 	$dropped_rows = $before - count( $blob['login_success'] );
 
-	// LLA polling fallback for lockout_triggered.
-	$lla_delta   = 0;
-	$lla_current = is_array( get_option( 'limit_login_lockouts', array() ) )
-		? count( get_option( 'limit_login_lockouts', array() ) )
-		: 0;
-	$lla_last = (int) get_option( SN_AUDIT_LLA_LAST_COUNT_OPT, 0 );
-	if ( $lla_current > $lla_last ) {
-		$lla_delta = $lla_current - $lla_last;
-		$today     = snt_audit_today_key();
+	// LLA polling fallback for lockout_triggered (inc/audit-log-lla.php).
+	$lla_delta = snt_audit_lla_poll_delta();
+	if ( $lla_delta > 0 ) {
+		$today = snt_audit_today_key();
 		if ( ! isset( $blob['counters'][ $today ] ) ) {
 			$blob['counters'][ $today ] = array_fill_keys( SN_AUDIT_COUNTER_TYPES, 0 );
 			$blob['counters'][ $today ]['unique_ips_count'] = 0;
 		}
 		$blob['counters'][ $today ]['lockout_triggered'] = (int) ( $blob['counters'][ $today ]['lockout_triggered'] ?? 0 ) + $lla_delta;
 	}
-	update_option( SN_AUDIT_LLA_LAST_COUNT_OPT, $lla_current, false );
 
 	update_option( SN_AUDIT_OPTION, $blob, true );
 
@@ -350,32 +347,6 @@ function snt_audit_prune_impl() {
 		'counter_buckets_dropped' => $dropped_buckets,
 		'login_rows_dropped'      => $dropped_rows,
 		'lla_delta'               => $lla_delta,
-	);
-}
-
-/**
- * Safe read of LLA's `limit_login_lockouts` option.
- * Returns count + most-recent timestamp. Tolerates schema drift / missing option.
- *
- * @return array { active_lockouts: int, most_recent_lockout_ts: int|null }
- */
-function snt_audit_read_lla_summary_impl() {
-	$lockouts = get_option( 'limit_login_lockouts', array() );
-	if ( ! is_array( $lockouts ) ) {
-		return array( 'active_lockouts' => 0, 'most_recent_lockout_ts' => null );
-	}
-
-	$count       = count( $lockouts );
-	$most_recent = null;
-	foreach ( $lockouts as $ts ) {
-		if ( is_numeric( $ts ) && (int) $ts > (int) $most_recent ) {
-			$most_recent = (int) $ts;
-		}
-	}
-
-	return array(
-		'active_lockouts'        => $count,
-		'most_recent_lockout_ts' => $most_recent,
 	);
 }
 

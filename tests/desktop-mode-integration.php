@@ -1393,6 +1393,47 @@ foreach ( $sn_expect as $sn_label => $sn_want ) {
 		"$sn_label lands on its REAL destination (" . $sn_want . ')' );
 }
 
+echo "\n── 2026-10-12: every pages link names the native tab and leaf it opens ──\n";
+// Measured live: every widget link reached the native window (the shell's link
+// interceptor and the plugin's remap), but a link that named no leaf, or a view
+// the window does not have, opened wherever the window already was. The
+// native windows read the classic URL's own vocabulary, so the pin is the
+// registry: S&N Home's tabs and leaves are sn_admin_top_tabs(), S&N Analytics'
+// views are SN_ANALYTICS_VIEWS (read from its source; the file is not loadable
+// in this harness).
+$sn_tabs = array();
+foreach ( sn_admin_top_tabs() as $sn_top ) {
+	$sn_tabs[ $sn_top['tab'] ] = array_keys( (array) ( $sn_top['sub_tabs'] ?? array() ) );
+}
+$sn_views_src = (string) file_get_contents( __DIR__ . '/../inc/analytics-admin.php' );
+preg_match( '/const SN_ANALYTICS_VIEWS = array\((.*?)\n\);/s', $sn_views_src, $sn_vm );
+preg_match_all( "/^\s*'([a-z-]+)'\s*=>/m", (string) ( $sn_vm[1] ?? '' ), $sn_vk );
+$sn_views = $sn_vk[1] ?? array();
+ok( count( $sn_tabs ) >= 8 && in_array( 'overview', $sn_views, true ) && in_array( 'machine-readers', $sn_views, true ),
+	'fixture: the tab registry and the analytics views were read (' . count( $sn_tabs ) . ' tabs, ' . count( $sn_views ) . ' views)' );
+// A tab with leaves must name one. The one exception is deliberate: the
+// Reading Time tool retired in v10.0.0, and its old link lands on Content.
+$sn_unnamed_ok = array( 'reading_time' );
+$sn_pages      = $GLOBALS['__localized']['snDesktopData']['pages'] ?? array();
+ok( count( $sn_pages ) >= 15, 'fixture: the localized pages map was captured (' . count( $sn_pages ) . ' keys)' );
+foreach ( $sn_pages as $sn_key => $sn_url ) {
+	$sn_q = array();
+	parse_str( (string) parse_url( (string) $sn_url, PHP_URL_QUERY ), $sn_q );
+	$sn_frag = (string) parse_url( (string) $sn_url, PHP_URL_FRAGMENT );
+	$sn_page = (string) ( $sn_q['page'] ?? '' );
+	if ( 'sn-analytics' === $sn_page ) {
+		$sn_view = (string) ( $sn_q['sn_view'] ?? '' );
+		ok( in_array( $sn_view, $sn_views, true ), "pages.$sn_key opens S&N Analytics on a view it has (sn_view='$sn_view')" );
+		continue;
+	}
+	$sn_tab  = (string) ( $sn_q['tab'] ?? '' );
+	$sn_sub  = (string) ( $sn_q['sub'] ?? '' );
+	$sn_ok   = 'sn-theme-options' === $sn_page && isset( $sn_tabs[ $sn_tab ] )
+		&& ( '' === $sn_sub ? ( array() === $sn_tabs[ $sn_tab ] || in_array( $sn_key, $sn_unnamed_ok, true ) ) : in_array( $sn_sub, $sn_tabs[ $sn_tab ], true ) )
+		&& ( '' === $sn_frag || 0 === strpos( $sn_frag, 'sn-sec-' ) );
+	ok( $sn_ok, "pages.$sn_key opens S&N Home on a tab and leaf it has (tab='$sn_tab', sub='$sn_sub')" );
+}
+
 echo "\n── v9.53.2: the normalizer must run LAST, or it doesn't run at all ──\n";
 // Same lesson as the skip, one level up. v9.53.1 made the normalizer
 // unconditional over the tools it SEES — but it was registered at the default

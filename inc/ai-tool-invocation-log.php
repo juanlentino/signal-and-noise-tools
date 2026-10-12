@@ -38,6 +38,10 @@ define( 'SN_AI_TOOL_INVOCATIONS_OPT', 'sn_ai_tool_invocations' );
 // data for a tool we already track.
 define( 'SN_AI_TOOL_INVOCATIONS_CAP', 200 );
 
+// The tools both twins paint before the "+N more" line (2026-10-12 audit: the
+// list was uncapped and kept every retired tool forever).
+define( 'SN_AI_TOOL_INVOCATIONS_SHOWN', 10 );
+
 /**
  * Record one Copilot tool invocation: increment its count, stamp first/last.
  *
@@ -129,9 +133,12 @@ function snt_ai_tool_invocations() {
 function snt_ai_tool_invocations_ranked() {
 	$tools = array();
 	$calls = 0;
+	$since = 0;
 	foreach ( snt_ai_tool_invocations() as $name => $rec ) {
 		$n      = (int) ( is_array( $rec ) ? ( $rec['n'] ?? 0 ) : 0 );
 		$calls += $n;
+		$first  = (int) ( is_array( $rec ) ? ( $rec['first'] ?? 0 ) : 0 );
+		$since  = $first > 0 && ( 0 === $since || $first < $since ) ? $first : $since;
 		$tools[] = array(
 			'name' => (string) $name,
 			'n'    => $n,
@@ -145,7 +152,34 @@ function snt_ai_tool_invocations_ranked() {
 		'tools'    => $tools,
 		'calls'    => $calls,
 		'distinct' => count( $tools ),
+		'since'    => $since, // The earliest first call: the counts are all-time since then.
 	);
+}
+
+/**
+ * The summary sentence both twins print: calls, tools, and since when the
+ * counts run (they are all-time, never windowed).
+ *
+ * @return string sprintf format: 1 calls, 2 tools, 3 the date.
+ */
+function snt_ai_tool_invocations_summary_format() {
+	/* translators: 1: total AI tool calls, 2: distinct tool count, 3: the date the first call was recorded. */
+	return __( '%1$s calls across %2$s tools since %3$s', 'signal-and-noise-tools' );
+}
+
+/**
+ * The date the counts run from, in the site's date format.
+ *
+ * @param array $ranked From snt_ai_tool_invocations_ranked().
+ * @return string
+ */
+function snt_ai_tool_invocations_since( array $ranked ) {
+	$ts = (int) ( $ranked['since'] ?? 0 );
+	if ( $ts <= 0 ) {
+		return __( 'logging began', 'signal-and-noise-tools' );
+	}
+	$format = function_exists( 'get_option' ) ? (string) get_option( 'date_format', 'F j, Y' ) : 'F j, Y';
+	return function_exists( 'wp_date' ) ? (string) wp_date( '' !== $format ? $format : 'F j, Y', $ts ) : gmdate( 'F j, Y', $ts );
 }
 
 /**
@@ -167,25 +201,29 @@ function snt_ai_tool_invocations_render() {
 
 	if ( 0 === $ranked['distinct'] ) {
 		echo '<div class="sn-card sn-ai-usage sn-ai-usage--empty">';
-		echo '<p class="sn-ai-usage__empty">' . esc_html__( 'No Ask AI tool calls recorded yet. Counts appear here once Desktop Mode’s Copilot has run (logging started in v9.60.0).', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-ai-usage__empty">' . esc_html__( 'No Ask AI tool calls recorded yet. Counts appear here once Desktop Mode’s Copilot has run.', 'signal-and-noise-tools' ) . '</p>';
 		echo '</div>';
 		return;
 	}
 
 	echo '<div class="sn-card sn-ai-usage">';
 	echo '<p class="sn-ai-usage__summary">' . sprintf(
-		/* translators: 1: total AI tool calls, 2: distinct tool count. Both wrapped in <strong>. */
-		esc_html__( '%1$s calls across %2$s tools', 'signal-and-noise-tools' ),
+		esc_html( snt_ai_tool_invocations_summary_format() ),
 		'<strong>' . esc_html( number_format_i18n( $ranked['calls'] ) ) . '</strong>',
-		'<strong>' . esc_html( number_format_i18n( $ranked['distinct'] ) ) . '</strong>'
+		'<strong>' . esc_html( number_format_i18n( $ranked['distinct'] ) ) . '</strong>',
+		esc_html( snt_ai_tool_invocations_since( $ranked ) )
 	) . '</p>';
 	echo '<ul class="sn-ai-usage__list">';
-	foreach ( $ranked['tools'] as $tool ) {
+	foreach ( array_slice( $ranked['tools'], 0, SN_AI_TOOL_INVOCATIONS_SHOWN ) as $tool ) {
 		echo '<li class="sn-ai-usage__row">';
 		echo '<code class="sn-ai-usage__name">' . esc_html( $tool['name'] ) . '</code>';
 		echo '<span class="sn-ai-usage__count">' . esc_html( number_format_i18n( $tool['n'] ) ) . '</span>';
 		echo '</li>';
 	}
 	echo '</ul>';
+	if ( $ranked['distinct'] > SN_AI_TOOL_INVOCATIONS_SHOWN ) {
+		/* translators: %s: tools not shown. */
+		echo '<p class="description">' . esc_html( sprintf( __( '+%s more tools, busiest first.', 'signal-and-noise-tools' ), number_format_i18n( $ranked['distinct'] - SN_AI_TOOL_INVOCATIONS_SHOWN ) ) ) . '</p>';
+	}
 	echo '</div>';
 }

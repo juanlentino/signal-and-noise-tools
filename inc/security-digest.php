@@ -256,7 +256,7 @@ function snt_security_digest_subject( $data, $test = false ) {
 function snt_security_digest_send( $test = false ) {
 	$admin_email = (string) get_option( 'admin_email' );
 	if ( '' === $admin_email || ! is_email( $admin_email ) ) {
-		update_option( SN_SECURITY_DIGEST_LAST_ERROR, array( 'message' => 'admin_email missing or invalid', 'at' => time() ), false );
+		update_option( SN_SECURITY_DIGEST_LAST_ERROR, array( 'message' => __( 'the site\'s admin email address is missing or not valid', 'signal-and-noise-tools' ), 'at' => time() ), false );
 		return false;
 	}
 	$data = snt_security_digest_collect();
@@ -265,7 +265,8 @@ function snt_security_digest_send( $test = false ) {
 		update_option( SN_SECURITY_DIGEST_LAST_SENT, time(), false );
 		update_option( SN_SECURITY_DIGEST_LAST_ERROR, false, false );
 	} else {
-		update_option( SN_SECURITY_DIGEST_LAST_ERROR, array( 'message' => 'wp_mail returned false', 'at' => time() ), false );
+		// 2026-10-12 audit: the screen printed "wp_mail returned false".
+		update_option( SN_SECURITY_DIGEST_LAST_ERROR, array( 'message' => __( 'WordPress could not hand the email to the mail server', 'signal-and-noise-tools' ), 'at' => time() ), false );
 	}
 	return $sent;
 }
@@ -341,6 +342,7 @@ function snt_security_digest_render_settings() {
 			)
 		) . '</p>';
 	}
+	echo '<p class="sn-field-helper">' . esc_html__( 'Sends this week’s digest to the admin address now, whether or not the weekly email is on.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button> ';
 	echo '<button type="submit" class="button" name="sn_digest_test" value="1">' . esc_html__( 'Send test digest', 'signal-and-noise-tools' ) . '</button>';

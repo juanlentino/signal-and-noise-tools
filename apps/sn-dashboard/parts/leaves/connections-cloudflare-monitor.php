@@ -217,7 +217,7 @@ function cloudflare_posture_html() {
 	if ( array() !== $m['checks'] ) {
 		$rows = array();
 		foreach ( $m['checks'] as $c ) {
-			$rows[] = array( 'label' => $c['label'], 'value' => $c['value'], 'dot' => $c['ok'] ? 'ok' : 'err', 'tone' => $c['ok'] ? '' : 'warn' );
+			$rows[] = array( 'label' => $c['label'], 'value' => function_exists( 'sn_cf_posture_check_text' ) ? sn_cf_posture_check_text( $c ) : $c['value'], 'dot' => $c['ok'] ? 'ok' : 'err', 'tone' => $c['ok'] ? '' : 'warn' );
 		}
 		$inner .= \snt_kit_list( $rows );
 	}
@@ -258,7 +258,7 @@ function cloudflare_firewall_parts( array $d ) {
 	if ( ! empty( $f['available'] ) ) {
 		$rows = array();
 		foreach ( (array) $f['by_action'] as $action => $n ) {
-			$rows[] = array( 'label' => (string) $action, 'value' => number_format_i18n( (int) $n ), 'tone' => in_array( $action, array( 'block', 'managed_challenge', 'challenge', 'jschallenge' ), true ) ? 'warn' : '' );
+			$rows[] = array( 'label' => function_exists( 'sn_cf_action_word' ) ? sn_cf_action_word( (string) $action ) : (string) $action, 'value' => number_format_i18n( (int) $n ), 'tone' => in_array( $action, array( 'block', 'managed_challenge', 'challenge', 'jschallenge' ), true ) ? 'warn' : '' );
 		}
 		$parts['actions'] = '<h4 class="snt-h">' . \snt_kit_esc( sprintf( /* translators: %s: count. */ __( '%s events', 'signal-and-noise-tools' ), number_format_i18n( (int) $f['events'] ) ) ) . '</h4>'
 			. ( array() !== $rows ? \snt_kit_list( $rows ) : '<p class="snt-hint">' . \snt_kit_esc( __( 'No firewall events in the window.', 'signal-and-noise-tools' ) ) . '</p>' );
@@ -268,7 +268,7 @@ function cloudflare_firewall_parts( array $d ) {
 				// 15.4.0: the rule's name from the ruleset read when the posture has
 				// it; the source and id otherwise, as before.
 				$name        = function_exists( 'sn_cf_posture_rule_name' ) ? sn_cf_posture_rule_name( (string) $r['rule'] ) : '';
-				$rule_rows[] = array( 'label' => '' !== $name ? $name : ( trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) ?: __( '(unnamed)', 'signal-and-noise-tools' ) ), 'value' => (string) $r['action'] . ' × ' . number_format_i18n( (int) $r['count'] ), 'title' => '' !== $name ? trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) : '' );
+				$rule_rows[] = array( 'label' => '' !== $name ? $name : ( trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) ?: __( '(unnamed)', 'signal-and-noise-tools' ) ), 'value' => ( function_exists( 'sn_cf_action_word' ) ? sn_cf_action_word( (string) $r['action'] ) : (string) $r['action'] ) . ' × ' . number_format_i18n( (int) $r['count'] ), 'title' => '' !== $name ? trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) : '' );
 			}
 			$parts['rules'] = '<h4 class="snt-h">' . \snt_kit_esc( __( 'Top rules', 'signal-and-noise-tools' ) ) . '</h4>' . \snt_kit_list( $rule_rows );
 		}
@@ -322,7 +322,7 @@ function cloudflare_monitor_footer_html( array $d, $record, $with_time = true ) 
 				: __( 'Refresh reads the token, the edge and the firewall again.', 'signal-and-noise-tools' )
 		) . '</p>';
 	}
-	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Cloudflare does not say how much of its API allowance is left; past 1,200 calls in five minutes it turns calls away for a while. The Dashboard\'s API row reads this monitor instead.', 'signal-and-noise-tools' ) ) . '</p>';
+	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Cloudflare\'s replies do not say how much of its limit is left (1,200 calls every five minutes, refused past that), so the Dashboard\'s API row reads this daily monitor instead.', 'signal-and-noise-tools' ) ) . '</p>';
 	$out .= '<footer>' . \snt_kit_action_button( __( 'Refresh now', 'signal-and-noise-tools' ), 'cf_monitor_refresh', array( 'disabled' => empty( $d['is_configured'] ) ) ) . '</footer>';
 	return $out;
 }

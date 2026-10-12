@@ -80,6 +80,9 @@ function models_budget_jev_html( array $d ) {
  * since 11.30.0; this box is where the figures read now. A row absent from
  * the keyring reads "not set" and a failed read
  * "unknown", never a zero; no "of N", the usage endpoint reports no quota.
+ * 2026-10-12 audit: the minutes are every repo's, and public-repo minutes are
+ * free, so the row leads with the billed dollars and says so (reading the
+ * private repos' minutes alone would need a second API read).
  *
  * @param array $d From models_budget_data().
  * @return string
@@ -87,7 +90,7 @@ function models_budget_jev_html( array $d ) {
 function models_budget_platform_html( array $d ) {
 	$labels = array(
 		'ai' => __( 'Anthropic bill (month to date)', 'signal-and-noise-tools' ),
-		'gh' => __( 'GitHub Actions minutes (account, month to date)', 'signal-and-noise-tools' ),
+		'gh' => __( 'GitHub Actions (account, month to date)', 'signal-and-noise-tools' ),
 	);
 	$rows   = array();
 	$failed = false;
@@ -105,10 +108,10 @@ function models_budget_platform_html( array $d ) {
 		// Dollars already: sn_spend_ai_sum_amounts() converted cents once.
 		$rows[] = array( 'label' => $label, 'value' => 'gh' === $key
 			? sprintf(
-				/* translators: 1: minutes used, 2: billed dollars */
-				__( '%1$s min, $%2$s billed', 'signal-and-noise-tools' ),
-				number_format_i18n( (int) $r['used'] ),
-				number_format( (float) $r['billed'], 2 )
+				/* translators: 1: billed dollars, 2: minutes used */
+				__( '$%1$s billed; %2$s min across all repos, public-repo minutes free', 'signal-and-noise-tools' ),
+				number_format( (float) $r['billed'], 2 ),
+				number_format_i18n( (int) $r['used'] )
 			)
 			: '$' . number_format( (float) $r['total'], 2 ) );
 	}
@@ -118,6 +121,27 @@ function models_budget_platform_html( array $d ) {
 	return \snt_kit_section(
 		__( 'Platform-reported, this month', 'signal-and-noise-tools' ),
 		$inner,
-		__( 'What GitHub and Anthropic themselves report, never estimated. The figure above is this plugin\'s own token estimate.', 'signal-and-noise-tools' )
+		__( 'What GitHub and Anthropic themselves report, never estimated. This plugin\'s own token estimate is the total in This month, by feature.', 'signal-and-noise-tools' )
 	);
+}
+
+/**
+ * Semantic embeddings: configured, the status that leads the comparison box;
+ * otherwise a titled box that says what is missing and where to set it
+ * (2026-10-12 audit: the page ended on a bare "Not configured." pill). The
+ * words are the classic page's (sn_admin_ai_embed_sentence()). '' when the
+ * embeddings lane is not loaded.
+ *
+ * @param array $d From models_budget_data().
+ * @return string
+ */
+function models_budget_embed_html( array $d ) {
+	if ( ! $d['embed_has_check'] || ! function_exists( 'sn_admin_ai_embed_sentence' ) ) {
+		return '';
+	}
+	$text = sn_admin_ai_embed_sentence( (bool) $d['embed_configured'], (string) $d['embed_account_id'] );
+	if ( $d['embed_configured'] ) {
+		return \snt_kit_notice( 'ok', \snt_kit_badge( 'ok', __( 'Configured', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( $text ) );
+	}
+	return \snt_kit_section( __( 'Semantic embeddings', 'signal-and-noise-tools' ), '<p class="snt-prose">' . \snt_kit_esc( $text ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'ai' ) ) . '.</p>' );
 }

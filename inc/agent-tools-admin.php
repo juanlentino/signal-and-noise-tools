@@ -31,18 +31,20 @@ function sn_admin_render_agent_tools_section() {
 	echo '<p class="sn-field-helper">' . esc_html( $m['caption'] ) . '</p>';
 	echo '<h3 class="sn-fieldset-h">What the tools read</h3><table class="widefat striped"><tbody>';
 	foreach ( $m['documents'] as $d ) {
-		echo '<tr><td>' . esc_html( $d['label'] ) . '</td><td>' . esc_html( $d['value'] ) . '</td><td>' . ( $d['ok'] ? 'ok' : '<strong>missing</strong>' ) . '</td></tr>';
+		echo '<tr><td>' . esc_html( $d['label'] ) . '</td><td>' . esc_html( $d['value'] ) . '</td><td>' . ( true === $d['ok'] ? esc_html( $d['flag'] ) : '<strong>' . esc_html( $d['flag'] ) . '</strong>' ) . '</td></tr>';
 	}
 	echo '</tbody></table></div>';
 
 	echo '<div class="sn-fieldset sn-fieldset--wide"><h2 class="sn-fieldset-h">Through MCP</h2>';
-	echo '<p class="sn-field-helper">The native read and write doors and the adapter, each behind an Application Password; the call log records every call through them.</p>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'The read and write doors behind an Application Password, the remote door behind the bridge secret; the call log records every call through them.', 'signal-and-noise-tools' ) . '</p>';
+	$usage = function_exists( 'sn_mcp_telemetry_usage' ) ? sn_mcp_telemetry_usage() : null; // read once, for the log and the door lists
 	if ( function_exists( 'sn_admin_render_mcp_usage' ) ) {
-		sn_admin_render_mcp_usage();
+		sn_admin_render_mcp_usage( $usage );
 	}
 	echo '<details class="sn-disclosure"><summary>The doors, and what each exposes</summary>';
-	sn_admin_render_mcp_door_native();
-	sn_admin_render_mcp_door_native_write();
+	sn_admin_render_mcp_door_native( $usage );
+	sn_admin_render_mcp_door_native_write( $usage );
+	sn_admin_render_mcp_door_remote( $usage );
 	sn_admin_render_mcp_resources_prompts();
 	sn_admin_render_mcp_door_adapter();
 	echo '</details></div>';

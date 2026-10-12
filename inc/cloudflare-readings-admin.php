@@ -96,6 +96,7 @@ function sn_admin_firewall_render() {
 	if ( ! is_array( $record ) || empty( $record['configured'] ) ) {
 		echo '<p class="sn-field-helper">' . ( is_array( $record ) ? 'Not configured: set the Cloudflare token under Connections › Credentials.' : 'The monitor has not run yet.' ) . '</p>';
 		sn_cf_readings_refresh_form( $record );
+		sn_admin_firewall_pinning_render(); // the posture does not wait for Cloudflare.
 		return;
 	}
 	$f = is_array( $record['firewall'] ) ? $record['firewall'] : array();
@@ -103,14 +104,14 @@ function sn_admin_firewall_render() {
 		echo '<div class="sn-fieldset sn-fieldset--wide"><h2 class="sn-fieldset-h">' . esc_html( number_format_i18n( (int) $f['events'] ) . ' events, 24 hours' ) . '</h2>';
 		echo '<table class="widefat striped"><thead><tr><th>Action</th><th>Events</th></tr></thead><tbody>';
 		foreach ( (array) $f['by_action'] as $action => $n ) {
-			echo '<tr><td>' . esc_html( (string) $action ) . '</td><td>' . esc_html( number_format_i18n( (int) $n ) ) . '</td></tr>';
+			echo '<tr><td>' . esc_html( sn_cf_action_word( (string) $action ) ) . '</td><td>' . esc_html( number_format_i18n( (int) $n ) ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 		if ( ! empty( $f['top_rules'] ) ) {
 			echo '<h3 class="sn-fieldset-h">Top rules</h3><table class="widefat striped"><thead><tr><th>Rule</th><th>Action</th><th>Events</th></tr></thead><tbody>';
 			foreach ( (array) $f['top_rules'] as $r ) {
 				$name = function_exists( 'sn_cf_posture_rule_name' ) ? sn_cf_posture_rule_name( (string) $r['rule'] ) : ''; // 15.4.0: by name when the ruleset was read.
-				echo '<tr><td' . ( '' !== $name ? '' : ' class="sn-mono"' ) . '>' . esc_html( '' !== $name ? $name : ( trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) ?: '(unnamed)' ) ) . '</td><td>' . esc_html( (string) $r['action'] ) . '</td><td>' . esc_html( number_format_i18n( (int) $r['count'] ) ) . '</td></tr>';
+				echo '<tr><td' . ( '' !== $name ? '' : ' class="sn-mono"' ) . '>' . esc_html( '' !== $name ? $name : ( trim( (string) $r['source'] . ' ' . (string) $r['rule'] ) ?: '(unnamed)' ) ) . '</td><td>' . esc_html( sn_cf_action_word( (string) $r['action'] ) ) . '</td><td>' . esc_html( number_format_i18n( (int) $r['count'] ) ) . '</td></tr>';
 			}
 			echo '</tbody></table>';
 		}
@@ -138,8 +139,32 @@ function sn_admin_firewall_render() {
 	}
 	sn_cf_posture_card_render();
 	sn_cf_readings_refresh_form( $record );
+	sn_admin_firewall_pinning_render();
 }
 add_action( 'sn_admin_firewall_tab', 'sn_admin_firewall_render' );
+
+/**
+ * Outbound pinning, classic (2026-10-12 audit: native-only until then): the
+ * SSRF guard's verdict and the two facts it is derived from, the native box's
+ * words (security-firewall.php).
+ */
+function sn_admin_firewall_pinning_render() {
+	if ( ! function_exists( 'sn_ssrf_pinning_health' ) || ! function_exists( 'sn_ssrf_pinning_available' ) ) {
+		return;
+	}
+	$last      = get_option( 'sn_ssrf_unpinned_last', null );
+	$last      = is_array( $last ) && ! empty( $last['at'] ) ? $last : null;
+	$available = (bool) sn_ssrf_pinning_available();
+	$v         = (array) sn_ssrf_pinning_health( $available, $last );
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Outbound pinning', 'signal-and-noise-tools' ) . '</h2>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'Whether outbound requests are bound to the addresses the SSRF guard validated, so a DNS answer that changes between validation and connect cannot be followed.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . ( 'good' === (string) ( $v['status'] ?? '' ) ? '' : '<strong>' ) . esc_html( (string) ( $v['summary'] ?? '' ) ) . ( 'good' === (string) ( $v['status'] ?? '' ) ? '' : '</strong>' ) . '</p>';
+	echo '<table class="widefat striped"><tbody>';
+	echo '<tr><th scope="row">' . esc_html__( 'cURL transport', 'signal-and-noise-tools' ) . '</th><td>' . esc_html( $available ? __( 'present, the pin fires on every outbound request', 'signal-and-noise-tools' ) : __( 'absent, so requests fall back to fsockopen unpinned', 'signal-and-noise-tools' ) ) . '</td></tr>';
+	/* translators: 1: host name, 2: how long ago. */
+	echo '<tr><th scope="row">' . esc_html__( 'Last unpinned request', 'signal-and-noise-tools' ) . '</th><td>' . esc_html( null === $last ? __( 'none recorded', 'signal-and-noise-tools' ) : sprintf( __( '%1$s, %2$s ago', 'signal-and-noise-tools' ), (string) ( $last['host'] ?? 'unknown' ), human_time_diff( (int) $last['at'], time() ) ) ) . '</td></tr>';
+	echo '</tbody></table></div>';
+}
 
 /**
  * Edge posture, classic (15.4.0): the same model the native leaf paints.
@@ -163,7 +188,7 @@ function sn_cf_posture_card_render() {
 	if ( array() !== $m['checks'] ) {
 		echo '<table class="widefat striped"><thead><tr><th>Setting</th><th>Value</th><th>Verdict</th></tr></thead><tbody>';
 		foreach ( $m['checks'] as $c ) {
-			echo '<tr><td>' . esc_html( $c['label'] ) . '</td><td>' . esc_html( $c['value'] ) . '</td><td>' . ( $c['ok'] ? 'ok' : '<strong>drift</strong>' ) . '</td></tr>';
+			echo '<tr><td>' . esc_html( $c['label'] ) . '</td><td>' . esc_html( sn_cf_posture_check_text( $c ) ) . '</td><td>' . ( $c['ok'] ? 'ok' : '<strong>drift</strong>' ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 	}

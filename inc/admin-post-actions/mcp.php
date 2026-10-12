@@ -68,6 +68,13 @@ function sn_handle_bind_mcp_rw_credential( $post ) {
 	$uuid = trim( sanitize_text_field( wp_unslash( $raw ) ) );
 
 	if ( '' === $uuid ) {
+		// Review on #2022: unbinding is its own confirmed button, which says so
+		// (sn_mcp_rw_unbind). A Save that posts no credential while one is
+		// bound (the picker resting on an unresolvable binding) is refused,
+		// never an unbind nobody confirmed.
+		if ( empty( $post['sn_mcp_rw_unbind'] ) && function_exists( 'sn_mcp_rw_bound_uuid' ) && '' !== sn_mcp_rw_bound_uuid() ) {
+			return 'mcp_rw_bind_choose';
+		}
 		return sn_mcp_set_rw_bound_uuid( '' ) ? 'mcp_rw_unbound' : 'mcp_rw_bind_invalid';
 	}
 

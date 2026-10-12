@@ -210,7 +210,7 @@ ok( 1 === substr_count( $with_log, gmdate( 'F j, Y g:i a', time() ) ) && false !
 $GLOBALS['__options'][ SN_CF_MONITOR_OPT ]['token']['expires_on'] = gmdate( 'Y-m-d\TH:i:s\Z', time() + 9 * DAY_IN_SECONDS + 600 );
 $expiring = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( 1 === preg_match( '#<span class="snt-kv__v" data-tone="warning">active · user · expires in 1 hour</span>#', $expiring ), 'a token expiring within 14 days says so in words beside the warning tone (the harness human_time_diff() reads "1 hour")' );
-ok( false === strpos( $with_log, 'rate-limit headers' ) && false === strpos( $with_log, 'answers 429' ) && false !== strpos( $with_log, 'past 1,200 calls in five minutes' ), 'the API allowance note is in plain words' );
+ok( false === strpos( $with_log, 'rate-limit headers' ) && false === strpos( $with_log, 'answers 429' ) && false !== strpos( $with_log, '1,200 calls every five minutes, refused past that' ), 'the API allowance note is in plain words' );
 // 2026-10-12 audit: saving a new token left the old token's status and expiry
 // on the Token box until the daily run; the keyring's flush marks it changed.
 ok( 'sn_cf_monitor_forget_token' === ( sn_keyring()['cf_token']['flush_fn'] ?? '' ), 'the keyring flushes the monitor\'s token reading when the Cloudflare token is saved' );
