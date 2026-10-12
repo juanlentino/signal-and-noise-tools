@@ -55,17 +55,23 @@ function sn_rsm_draft_button( $action, $label, $confirm ) {
 }
 
 /**
- * The Draft section: previews, Publish, Discard, Revert.
+ * The Draft section: the status line, then previews, Publish, Discard,
+ * Revert where they can act. Always painted (2026-10-12 audit: the status sat
+ * in the editor's intro, far from Publish), as on the native leaf.
  */
 function sn_admin_render_resume_draft_controls() {
 	$has_draft = function_exists( 'sn_resume_draft_get' ) && null !== sn_resume_draft_get();
 	$stored    = function_exists( 'sn_resume_draft_exists' ) && sn_resume_draft_exists(); // readable or not: Discard clears either.
 	$has_prev  = function_exists( 'sn_resume_prev_get' ) && null !== sn_resume_prev_get();
-	if ( ! $stored && ! $has_prev ) {
-		return;
-	}
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Draft</h2>';
+	if ( function_exists( 'sn_resume_draft_status' ) ) {
+		echo '<p class="sn-fieldset-intro">' . esc_html( sn_resume_draft_status() ) . '</p>';
+	}
+	if ( ! $stored && ! $has_prev ) {
+		echo '</div>';
+		return;
+	}
 	if ( $has_draft ) {
 		echo '<p class="sn-fieldset-intro">Previews open in a new tab and publish nothing.</p>';
 	}
