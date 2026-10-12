@@ -40,7 +40,7 @@ ok( array( '/p-1', '/p-2' ) === array_column( $h['data'] ?? array(), 'path' ) &&
 ok( array( '/p-3', '/p-4' ) === array_column( $t['data'] ?? array(), 'path' ) && array( 'Path', 'Hits' ) === array_column( $t['columns'] ?? array(), 'label' ), 'the tail resumes with the next row under a repeated header' );
 list( $whole, $none ) = snt_kit_table_split( $cols, array_slice( $rows, 0, 4 ), -1 );
 list( , $after_last ) = snt_kit_table_split( $cols, array_slice( $rows, 0, 4 ), 3 );
-ok( 4 === count( snt_leaf_tables( $whole )[0]['data'] ) && false === strpos( $whole, 'os-prop-selection' ) && '' === $none && '' === $after_last, 'no row open: the whole table, nothing marked; the last row open: no tail' );
+ok( 4 === count( snt_leaf_tables( $whole )[0]['data'] ) && 0 === strpos( $whole, '<os-table os-prop-selection="[]"' ) && 0 === strpos( $tail, '<os-table os-prop-selection="[]"' ) && '' === $none && '' === $after_last, 'no row open: the whole table with an EMPTY selection painted (an absent attribute leaves the runtime\'s last selection lit), the tail likewise; the last row open: no tail' );
 ok( '<span id="snt-row-' . substr( md5( '/p-1' ), 0, 12 ) . '" data-snt-focus><b>x</b></span>' === snt_kit_row_action( '/p-1', '<b>x</b>' ), 'a row action carries its row anchor and asks for focus' );
 ok( false === strpos( (string) file_get_contents( SNT_PATH . 'inc/openstation-kit-ledger.php' ), "\u{2014}" ), 'no em dash in the ledger file' );
 

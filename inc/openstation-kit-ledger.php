@@ -77,13 +77,17 @@ function snt_kit_row_action( $key, $action_html ) {
 function snt_kit_table_split( array $columns, array $rows, $at, array $opts = array() ) {
 	$rows = array_values( $rows );
 	$at   = (int) $at;
+	// The selection rides on every table this paints, `[]` when no row is open.
+	// The runtime reuses a table across paints and assigns only the os-prop-*
+	// attributes present, so an absent one left the last Edit's row lit after
+	// Cancel, Save or Delete (review of #2008, read from morph/bindings/os-table).
+	$mark = static fn( $html, array $sel ) => substr_replace( $html, snt_kit_attr( array( 'os-prop-selection' => $sel ) ), strlen( '<os-table' ), 0 );
 	if ( $at < 0 || $at >= count( $rows ) ) {
-		return array( snt_kit_table( $columns, $rows, $opts ), '' );
+		return array( $mark( snt_kit_table( $columns, $rows, $opts ), array() ), '' );
 	}
-	// snt_kit_table() takes no selection; the property rides on the tag (the runtime assigns every os-prop-*).
-	$head = substr_replace( snt_kit_table( $columns, array_slice( $rows, 0, $at + 1 ), $opts ), snt_kit_attr( array( 'os-prop-selection' => array( $at ) ) ), strlen( '<os-table' ), 0 );
+	$head = $mark( snt_kit_table( $columns, array_slice( $rows, 0, $at + 1 ), $opts ), array( $at ) );
 	$tail = array_slice( $rows, $at + 1 );
-	return array( $head, array() === $tail ? '' : snt_kit_table( $columns, $tail, $opts ) );
+	return array( $head, array() === $tail ? '' : $mark( snt_kit_table( $columns, $tail, $opts ), array() ) );
 }
 
 /**
