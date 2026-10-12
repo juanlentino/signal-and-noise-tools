@@ -77,10 +77,10 @@ function broken_links_create_html( $path, array $e, $suggested ) {
 	return \snt_kit_section(
 		/* translators: %s: the broken path. */
 		sprintf( __( 'Fixing %s', 'signal-and-noise-tools' ), $path ),
-		\snt_kit_form( 'redirect_add', $fields, array( 'submit' => __( 'Create redirect', 'signal-and-noise-tools' ) ) )
+		// Cancel sits beside Create in the form's own action row (os-form footer-leading, as on Résumé).
+		\snt_kit_form( 'redirect_add', $fields . \snt_kit_tag( 'span', array( 'slot' => 'footer-leading' ), \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links', 'anchor' => \snt_kit_row_anchor( $path ) ) ) ) ), array( 'submit' => __( 'Create redirect', 'signal-and-noise-tools' ) ) )
 			. '<p class="snt-hint">' . \snt_kit_esc( __( 'Dismiss removes the path from the log without a redirect.', 'signal-and-noise-tools' ) ) . '</p>'
-			. \snt_kit_form( 'redirect_404_delete', \snt_kit_field( 'hidden', 'source', '', $path ), array( 'submit' => __( 'Dismiss', 'signal-and-noise-tools' ) ) )
-			. \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links', 'anchor' => \snt_kit_row_anchor( $path ) ) ) ),
+			. \snt_kit_form( 'redirect_404_delete', \snt_kit_field( 'hidden', 'source', '', $path ), array( 'submit' => __( 'Dismiss', 'signal-and-noise-tools' ) ) ),
 		sprintf(
 			/* translators: 1: "7 hits", 2: date of the latest hit (Y-m-d), 3: "from <host>" or "no referrer recorded". */
 			__( '%1$s, last %2$s, %3$s.', 'signal-and-noise-tools' ),
