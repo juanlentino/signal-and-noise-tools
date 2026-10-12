@@ -173,7 +173,7 @@ ok( false !== strpos( $kit, '<p class="snt-prose">1 of 2 map steps, 1 of 1 rule 
 ok( false === strpos( $kit, 'snt-ledger-more' ), 'three lists: never capped, so no "+N more" line' );
 ok( 1 === preg_match( '#</os-table>.*<os-section heading="Map steps" description="[^"]*Show on page[^"]*"#s', $all['map'] ) && 1 === substr_count( $all['map'], '<os-section heading="Map steps"' ), 'editing the map paints ONE region below the table, named for the list, its helper line as the description' );
 ok( 1 === preg_match( '#<os-section heading="Proof links" description="Links to evidence a reader can check\\. A row shows only when &quot;Show on page&quot; is ticked and its link is a path on this site \\(/maturity/\\) or an https URL\\.#', $all['proof'] ) && false !== strpos( $all['rules'], '<os-section heading="Rules" description="Add, remove and reorder rows with their buttons, or Alt+Arrow keys on a row; the page shows them in this order."' ) && false !== strpos( $all['map'], 'Unchecked steps stay here and nowhere else.' ), 'the fold\'s and the intro\'s helper lines are the regions\' descriptions (the Proof link rule, the Show on page rule, the reorder keys)' );
-ok( 1 === preg_match( '#<span slot="footer-leading"><os-button variant="ghost" os-action="go" os-arg-sub="workflow" os-arg-anchor="snt-edit-list">Cancel</os-button></span>#', $all['map'] ) && false === strpos( $kit, '>Cancel</os-button>' ), 'the region has a Cancel beside Save (a go that clears sn_edit); the default paint has none' );
+ok( 1 === preg_match( '#<span slot="footer-leading"><os-button variant="ghost" os-action="go" os-arg-sub="workflow" os-arg-anchor="snt-row-' . substr( md5( 'map' ), 0, 12 ) . '">Cancel</os-button></span>#', $all['map'] ) && false === strpos( $kit, '>Cancel</os-button>' ), 'the region has a Cancel beside Save (a go that clears sn_edit); the default paint has none' );
 ok( false !== strpos( $kit, 'name="workflow[title]"' ) && false !== strpos( $all['proof'], 'name="workflow[sample][body]" value=' ), 'the page fields stay open on every paint' );
 ok( snt_leaf_paint( 'content', 'workflow', array( 'params' => array( 'sn_edit' => 'bogus' ) ) ) === $kit, 'an unknown sn_edit paints the default view' );
 
@@ -225,6 +225,19 @@ snt_leaf_preview( 'content-workflow', $all[''] );
 snt_leaf_preview( 'content-workflow-editing', $all['map'] );
 $focus_problems = snt_leaf_edit_focus_problems( $all[''], $all['map'] );
 ok( array() === $focus_problems, 'a11y: Edit lands the keyboard on the one region, Cancel lands it back on the list: ' . implode( '; ', $focus_problems ) );
+
+// ── 2026-10-12 (owner: "it's weird to click in 'edit' and something else
+// opens"): the editor opens UNDER its row, not below the whole table.
+$ip_def   = $all[''];
+$ip_ed    = $all['rules'];
+$ip_table = ( snt_leaf_tables( $all[''] )[0] ?? array( 'data' => array(), 'attrs' => '' ) );
+$ip_keys  = array_map( static function ( $v ) { return is_array( $v ) ? (string) ( $v['text'] ?? '' ) : (string) $v; }, array_column( $ip_table['data'], 'list' ) );
+$ip_at    = array_search( 'Rules', $ip_keys, true );
+$ip_split = snt_leaf_split_problems( $ip_ed, 'list', 'Rules', false === $ip_at ? null : ( $ip_keys[ $ip_at + 1 ] ?? null ) );
+ok( false !== $ip_at && array() === $ip_split, 'edit in place: the editor opens under its row, the row marked selected, the table resuming with the next row after it: ' . implode( '; ', $ip_split ) );
+ok( false !== strpos( $ip_ed, '>Editing</os-badge>' ), 'edit in place: the open row says Editing in words, not only by its accent bar' );
+ok( 1 === preg_match( '/os-arg-anchor="(snt-row-[0-9a-f]{12})"[^>]*>Cancel/', $ip_ed, $ip_m ) && false !== strpos( $ip_def, 'id="' . $ip_m[1] . '" data-snt-focus' ), 'edit in place: Cancel lands back on the open row\'s own button' );
+ok( false !== strpos( $ip_table['attrs'], 'class="snt-table-full"' ), 'edit in place: the list is not boxed in an inner scroller (the app caps os-table at 440px)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

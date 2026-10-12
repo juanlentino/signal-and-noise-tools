@@ -182,7 +182,7 @@ foreach ( $keys as $i => $k ) {
 		&& 1 === substr_count( $h, 'submit-label="Save draft"' )
 		&& count( $vis[1] ) > 0 && count( $vis[1] ) === count( array_filter( $vis[1], $own ) )
 		&& count( $hid[1] ) > 0 && 0 === count( array_filter( $hid[1], $own ) )
-		&& 1 === preg_match( '#<span slot="footer-leading"><os-button variant="ghost" os-action="go" os-arg-sub="resume" os-arg-anchor="snt-edit-list">Cancel</os-button></span>#', $h );
+		&& 1 === preg_match( '#<span slot="footer-leading"><os-button variant="ghost" os-action="go" os-arg-sub="resume" os-arg-anchor="snt-row-' . substr( md5( $k ), 0, 12 ) . '">Cancel</os-button></span>#', $h );
 	if ( ! $fine ) {
 		$region_bad[] = $k;
 	}
@@ -544,6 +544,19 @@ snt_leaf_preview( 'content-resume', $kit );
 snt_leaf_preview( 'content-resume-editing', $kit_edit );
 $focus_problems = snt_leaf_edit_focus_problems( $kit, $kit_edit );
 ok( array() === $focus_problems, 'a11y: Edit lands the keyboard on the one region, Cancel lands it back on the list: ' . implode( '; ', $focus_problems ) );
+
+// ── 2026-10-12 (owner: "it's weird to click in 'edit' and something else
+// opens"): the editor opens UNDER its row, not below the whole table.
+$ip_def   = $kit;
+$ip_ed    = $kit_edit;
+$ip_table = ( snt_leaf_tables( $kit )[0] ?? array( 'data' => array(), 'attrs' => '' ) );
+$ip_keys  = array_map( static function ( $v ) { return is_array( $v ) ? (string) ( $v['text'] ?? '' ) : (string) $v; }, array_column( $ip_table['data'], 'section' ) );
+$ip_at    = array_search( 'Experience', $ip_keys, true );
+$ip_split = snt_leaf_split_problems( $ip_ed, 'section', 'Experience', false === $ip_at ? null : ( $ip_keys[ $ip_at + 1 ] ?? null ) );
+ok( false !== $ip_at && array() === $ip_split, 'edit in place: the editor opens under its row, the row marked selected, the table resuming with the next row after it: ' . implode( '; ', $ip_split ) );
+ok( false !== strpos( $ip_ed, '>Editing</os-badge>' ), 'edit in place: the open row says Editing in words, not only by its accent bar' );
+ok( 1 === preg_match( '/os-arg-anchor="(snt-row-[0-9a-f]{12})"[^>]*>Cancel/', $ip_ed, $ip_m ) && false !== strpos( $ip_def, 'id="' . $ip_m[1] . '" data-snt-focus' ), 'edit in place: Cancel lands back on the open row\'s own button' );
+ok( false !== strpos( $ip_table['attrs'], 'class="snt-table-full"' ), 'edit in place: the list is not boxed in an inner scroller (the app caps os-table at 440px)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

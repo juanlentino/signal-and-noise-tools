@@ -1,12 +1,14 @@
 <?php
 /**
- * S&N Dashboard, Site → Redirects: the ONE form region below the rule table.
+ * S&N Dashboard, Site → Redirects: the open rule's editor and the add form.
  *
- * 2026-10-11 (no folds): the rule `sn_edit` names gets every write here,
- * headed by the rule: its edit form, its confirmed delete, and a Cancel that
- * clears the param. With no rule open, the add form sits here instead. Never
- * one form per rule, and never a form in a table cell. Required by
- * site-redirects.php.
+ * 2026-10-11 (no folds): the rule `sn_edit` names gets every write in one
+ * editor, headed by the rule: its edit form, its confirmed delete, and a
+ * Cancel that clears the param. 2026-10-12 (owner: "it's weird to click in
+ * 'edit' and something else opens"): the editor opens under its row
+ * (snt_kit_edit_list()), Cancel lands back on that row's Edit, and the add
+ * form always stays below the list. Never one form per rule, and never a form
+ * in a table cell. Required by site-redirects.php.
  *
  * @package SignalNoiseTools
  */
@@ -42,11 +44,12 @@ function redirects_edit_html( $source, array $r ) {
 			'danger'        => true,
 		)
 	);
-	$cancel = \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects', 'anchor' => 'snt-edit-list' ) ) );
+	// Cancel sits beside Save in the form's own action row (os-form footer-leading, as on Résumé).
+	$cancel = \snt_kit_tag( 'span', array( 'slot' => 'footer-leading' ), \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'redirects', 'anchor' => \snt_kit_row_anchor( $source ) ) ) ) );
 	return \snt_kit_section(
 		/* translators: %s: the rule's source path. */
 		sprintf( __( 'Editing %s', 'signal-and-noise-tools' ), $source ),
-		\snt_kit_form( 'redirect_update', $fields, array( 'submit' => __( 'Save changes', 'signal-and-noise-tools' ) ) ) . $delete . $cancel,
+		\snt_kit_form( 'redirect_update', $fields . $cancel, array( 'submit' => __( 'Save changes', 'signal-and-noise-tools' ) ) ) . $delete,
 		/* translators: 1: HTTP status (301/302), 2: the current target, 3: the date the rule was added (Y-m-d). */
 		sprintf( __( 'Now a %1$d to %2$s; added %3$s.', 'signal-and-noise-tools' ), $code, $target, redirects_added( $r, __( 'date unknown', 'signal-and-noise-tools' ) ) ),
 		array( 'id' => 'snt-edit-region', 'tabindex' => '-1', 'data-snt-focus' => true )

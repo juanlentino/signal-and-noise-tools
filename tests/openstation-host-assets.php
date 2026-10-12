@@ -217,7 +217,9 @@ ok( false !== strpos( $host, 'function scrollToAnchor( root, anchor )' ), 'the i
 ok( false === strpos( $host_code, 'data-snt-anchor' ), 'os-host.js never reads or writes data-snt-anchor: the views stopped painting it, so there is no attribute for the next morph to restore and scroll on again' );
 ok( false !== strpos( $anchor_fn, 'target.scrollIntoView(' ), 'it scrolls to the element with that id, the CALL, not just the capability check beside it' );
 // 2026-10-11: a row's Edit opens one region below a long table; the keyboard lands there (WCAG 2.4.3), only when the target asks.
-ok( false !== strpos( $anchor_fn, "target.hasAttribute( 'data-snt-focus' )" ) && false !== strpos( $anchor_fn, 'target.focus( { preventScroll: true } )' ), 'an anchored target that carries data-snt-focus takes focus after the scroll, and only such a target' );
+ok( false !== strpos( $anchor_fn, "target.hasAttribute( 'data-snt-focus' )" ) && false !== strpos( $anchor_fn, 'focusable.focus( { preventScroll: true } )' ), 'an anchored target that carries data-snt-focus takes focus after the scroll, and only such a target' );
+// 2026-10-12: a row anchor wraps the row's os-button; its focusable <button> is in the shadow root.
+ok( false !== strpos( $anchor_fn, "target.querySelector( 'os-button' )" ) && false !== strpos( $anchor_fn, "focusable.shadowRoot.querySelector( 'button' )" ), 'a row anchor focuses the button inside the row\'s os-button, so Cancel lands back on the row it left' );
 ok( false !== strpos( $host, 'function byId(' ) && false === strpos( $host, 'document.getElementById' ), 'the id is resolved INSIDE the root: getElementById would search the desktop, which holds every other open window' );
 $pass_fn = snt_region( $host, 'function pass(' );
 ok( false !== strpos( $pass_fn, 'scrollToAnchor( root, anchor )' ), 'pass() hands the effect\'s anchor to the scroll' );

@@ -5,12 +5,13 @@
  * 2026-10-11, owner rule: no collapsible sections. The classic editor's nine
  * folds are ONE table here: a row per section with its entry count, what it
  * opens with and a visible Edit button, under a finding built from the
- * document. `sn_edit=<section>` paints that section alone below the table, in
- * the resume_draft_save form, with the other eight riding along as hidden
- * carriers (content-resume-edit.php), because the handler rebuilds the whole
- * document from the post. With no section being edited nothing is painted
- * below the table: the sections are fixed (there is no add form to open), and
- * a long form there would push the Draft and PDF controls out of sight.
+ * document. `sn_edit=<section>` paints that section alone under its row
+ * (2026-10-12, snt_kit_edit_list()), in the resume_draft_save form, with the
+ * other eight riding along as hidden carriers (content-resume-edit.php),
+ * because the handler rebuilds the whole document from the post. With no
+ * section being edited no editor is painted: the sections are fixed (there is
+ * no add form to open), and a long form would push the Draft and PDF controls
+ * out of sight.
  *
  * @package SignalNoiseTools
  */
@@ -57,31 +58,40 @@ function resume_finding( array $sections, array $doc ) {
 }
 
 /**
- * The finding over ONE table of the nine sections. Never capped: the
- * sections are fixed.
+ * The ledger of the nine sections, as snt_kit_edit_list() takes it: the
+ * finding as the lead, ONE table, the open section's row index. Never
+ * capped: the sections are fixed.
  *
- * @param array $sections resume_section_map().
- * @param array $doc      The document.
- * @return string
+ * @param array  $sections resume_section_map().
+ * @param array  $doc      The document.
+ * @param string $editing  The open section, '' for none.
+ * @return array<string,mixed>
  */
-function resume_ledger( array $sections, array $doc ) {
+function resume_ledger( array $sections, array $doc, $editing = '' ) {
 	$rows = array();
+	$at   = -1;
 	foreach ( $sections as $key => $section ) {
+		$at     = (string) $key === (string) $editing ? count( $rows ) : $at;
 		$rows[] = array(
 			'_key'    => $key,
 			'section' => $section['title'],
 			'entries' => null === $section['count'] ? '' : number_format_i18n( $section['count'] ),
 			'first'   => resume_clip( $section['first'] ),
-			'edit'    => array( 'html' => resume_edit_button( 'resume', $key ), 'text' => '' ),
+			'edit'    => array( 'html' => resume_edit_button( 'resume', $key, (string) $key === (string) $editing ), 'text' => '' ),
 		);
 	}
-	$columns = array(
-		array( 'key' => 'section', 'label' => __( 'Section', 'signal-and-noise-tools' ), 'stack' => 'title' ),
-		array( 'key' => 'entries', 'label' => __( 'Entries', 'signal-and-noise-tools' ), 'align' => 'end' ),
-		array( 'key' => 'first', 'label' => __( 'Opens with', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'edit', 'label' => __( 'Edit', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
+	return array(
+		'lead'    => '<p class="snt-prose">' . \snt_kit_esc( resume_finding( $sections, $doc ) ) . '</p>',
+		'columns' => array(
+			array( 'key' => 'section', 'label' => __( 'Section', 'signal-and-noise-tools' ), 'stack' => 'title' ),
+			array( 'key' => 'entries', 'label' => __( 'Entries', 'signal-and-noise-tools' ), 'align' => 'end' ),
+			array( 'key' => 'first', 'label' => __( 'Opens with', 'signal-and-noise-tools' ) ),
+			array( 'key' => 'edit', 'label' => __( 'Edit', 'signal-and-noise-tools' ), 'stack' => 'actions' ),
+		),
+		'rows'    => $rows,
+		'at'      => $at,
+		'table'   => array( 'striped' => false ),
 	);
-	return \snt_kit_ledger( resume_finding( $sections, $doc ), $columns, $rows, count( $rows ), array( 'stack_on_phone' => true, 'striped' => false ) );
 }
 
 /**
@@ -97,7 +107,7 @@ function resume_edit_region( array $sections, $key ) {
 	$section = $sections[ $key ];
 	$form    = \snt_kit_form(
 		'resume_draft_save',
-		(string) call_user_func( $section['paint'] ) . resume_edit_cancel( 'resume' ),
+		(string) call_user_func( $section['paint'] ) . resume_edit_cancel( 'resume', $key ),
 		array(
 			'submit' => __( 'Save draft', 'signal-and-noise-tools' ),
 			'hidden' => resume_carry_others( $sections, $key ),
@@ -126,12 +136,13 @@ function paint_content_resume( array $ctx ) {
 	$doc      = is_array( $draft ) ? $draft : $live;
 	$sections = resume_section_map( $doc );
 	$editing  = resume_edit_key( $ctx, array_keys( $sections ) );
-	return \snt_kit_section(
-		__( 'Resume page', 'signal-and-noise-tools' ),
-		resume_intro( $live ) . resume_draft_status() . resume_ledger( $sections, $doc ),
-		'',
-		array( 'id' => 'snt-edit-list', 'tabindex' => '-1', 'data-snt-focus' => true )
-	)
-		. ( '' !== $editing ? resume_edit_region( $sections, $editing ) : '' )
+	// 2026-10-12: the section's editor opens under its row (snt_kit_edit_list()).
+	$list = resume_ledger( $sections, $doc, $editing );
+	$list = array(
+		'heading' => __( 'Resume page', 'signal-and-noise-tools' ),
+		'lead'    => resume_intro( $live ) . resume_draft_status() . $list['lead'],
+		'attrs'   => array( 'id' => 'snt-edit-list', 'tabindex' => '-1', 'data-snt-focus' => true ),
+	) + $list;
+	return \snt_kit_edit_list( $list, '' !== $editing ? resume_edit_region( $sections, $editing ) : '' )
 		. resume_draft_controls() . resume_pdf_generate();
 }
