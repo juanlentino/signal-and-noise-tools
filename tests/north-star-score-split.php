@@ -53,6 +53,10 @@ $rows = array(
 	array( 'day' => '2026-10-02', 'vid' => 'b2', 'webdriver' => 0, 'no_input' => 0, 'ua_mismatch' => 4, 'headless' => 0, 'tz_mismatch' => 0 ),
 );
 
+// Dwell in two cohorts, so the dwell floors in the sum pin are not all zeros.
+$visits[0][] = array( 'vid' => 'h1', 'ev' => 'tm', 'path' => '/notes/x/', 'ts' => $t, 'device' => 'desktop', 'dwell' => 45000 );
+$visits[2][] = array( 'vid' => 'b1', 'ev' => 'tm', 'path' => '/notes/x/', 'ts' => $t, 'device' => 'desktop', 'dwell' => 70000 );
+
 $verdicts = snt_nsm_vid_verdicts( $rows );
 ok( false === $verdicts['h1'] && false === $verdicts['h2'], 'scored under the threshold: presumed human' );
 ok( true === $verdicts['b1'], 'webdriver alone reaches the threshold (string numerics from AE included)' );
@@ -73,8 +77,12 @@ foreach ( array( 'mobile', 'desktop', 'unknown' ) as $d ) {
 	foreach ( SNT_NSM_SWEEP_SCROLL as $s ) {
 		$sum = $sum && $whole[ $d ]['scroll'][ $s ] === array_sum( array_map( static fn( $c ) => $c[ $d ]['scroll'][ $s ], $split ) );
 	}
+	foreach ( SNT_NSM_SWEEP_DWELL as $s ) {
+		$sum = $sum && $whole[ $d ]['dwell'][ $s ] === array_sum( array_map( static fn( $c ) => $c[ $d ]['dwell'][ $s ], $split ) );
+	}
 }
-ok( $sum, 'THE SUM PIN: the three cohorts add up to the whole calibration on every device and floor (nothing dropped, nothing subtracted)' );
+ok( 2 === $whole['desktop']['dwell'][30] && 1 === $whole['desktop']['dwell'][60], 'the fixture has dwell at the floors, so the dwell half of the sum pin can fail' );
+ok( $sum, 'THE SUM PIN: the three cohorts add up to the whole calibration on every device, scroll floor and dwell floor (nothing dropped, nothing subtracted)' );
 
 $no_reader = snt_nsm_calibration_by_score( $visits, $cfg );
 ok( null === $no_reader['cohorts'] && 'The bot-signal reader is not loaded.' === $no_reader['reason'] && false === $no_reader['subtracted'], 'no reader loaded: cohorts null with a reason, never zeros' );

@@ -46,7 +46,7 @@ function paint_view_engagement( array $ctx ) {
 		}
 	}
 	if ( $has_cwv && function_exists( 'sn_analytics_vitals' ) ) {
-		$out .= vitals_device_table( \sn_analytics_vitals_device_rows( \sn_analytics_vitals( $from, $to, $class ) ) );
+		$out .= vitals_device_table( \sn_analytics_vitals_device_rows( \sn_analytics_vitals( $from, $to, $class, 0 ) ) );
 	}
 	return $out;
 }

@@ -22,7 +22,8 @@ function get_transient( $k ) {
 function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__t'][ $k ] = $v; return true; }
 $GLOBALS['__q'] = array();
 function sn_analytics_query( $sql ) { $GLOBALS['__q'][] = $sql; return false !== strpos( $sql, 'blob2 IN' ) ? $GLOBALS['__path_rows'] : $GLOBALS['__dev_rows']; }
-function sn_analytics_top_paths( $from, $to, $class, $limit ) { return array( array( 'path' => '/notes/a/' ), array( 'path' => '/' ) ); }
+$GLOBALS['__top_calls'] = 0;
+function sn_analytics_top_paths( $from, $to, $class, $limit ) { ++$GLOBALS['__top_calls']; return array( array( 'path' => '/notes/a/' ), array( 'path' => '/' ), array( 'path' => "/x') OR 1=1 --" ) ); }
 function sn_analytics_canonical_path( $p ) { $t = rtrim( (string) $p, '/' ); return '' === $t ? '/' : $t; }
 
 require_once __DIR__ . '/../inc/analytics-vitals.php';
@@ -34,13 +35,14 @@ echo "Field Core Web Vitals read\n\n";
 
 echo "Group: the SQL\n";
 $sql = sn_analytics_vitals_sql( 'device', '2026-09-14', '2026-10-11', 'human', array(), 'sn_pageviews' );
-ok( false !== strpos( $sql, "SELECT blob1 AS e, blob5 AS k, double7 AS v, sum(_sample_interval) AS w" ), 'device: event, device, value, weight' );
+ok( false !== strpos( $sql, "SELECT blob1 AS e, blob5 AS k, if(blob1 = 'vc', double7, ceil(double7 / 10) * 10) AS v, sum(_sample_interval) AS w" ), 'device: event, device, value, weight; LCP and INP grouped in 10 ms steps (rounded up), CLS as stored' );
 ok( false !== strpos( $sql, "blob1 IN ('vl','vi','vc')" ), 'one query for all three vitals' );
 ok( false !== strpos( $sql, 'GROUP BY e, k, v' ) && 1 !== preg_match( '/GROUP BY[^\n]*\(/', $sql ), 'GROUP BY takes aliases only (AE refuses a function there)' );
 ok( false !== strpos( $sql, "toDateTime('2026-09-14 00:00:00')" ) && false !== strpos( $sql, "toDateTime('2026-10-11 23:59:59')" ), 'explicit window bounds' );
 $psql = sn_analytics_vitals_sql( 'path', '2026-09-14', '2026-10-11', 'human', array( '/notes/a', '/', "/x') OR 1=1 --" ), 'sn_pageviews' );
 ok( false !== strpos( $psql, "blob2 IN ('/notes/a','/notes/a/','/')" ), 'paths: both spellings of each, the root once' );
 ok( false === strpos( $psql, 'OR 1=1' ), 'a path outside the allowlisted characters never reaches the SQL' );
+ok( false === sn_analytics_vitals_path_ok( "/notes/a\n" ) && true === sn_analytics_vitals_path_ok( '/notes/a' ), 'the path allowlist anchors at the very end (a trailing newline fails)' );
 ok( '' === sn_analytics_vitals_sql( 'path', '2026-09-14', '2026-10-11', 'human', array(), 'sn_pageviews' ), 'no paths: nothing to ask' );
 
 echo "\nGroup: a cell\n";
@@ -90,6 +92,23 @@ ok( '/' === $v['paths'][1]['path'] && null === $v['paths'][1]['lcp']['p75'], 'a 
 ok( 2500.0 === $v['thresholds']['lcp']['good_max'] && 0.25 === $v['thresholds']['cls']['poor_over'] && 30 === $v['min_samples'], 'the payload names its thresholds and the small-sample floor' );
 sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 );
 ok( 2 === count( $GLOBALS['__q'] ), 'cached: a second read asks nothing' );
+ok( 2 === count( $v['paths'] ), 'a top path the SQL refuses is dropped from the list, not shown as not measured' );
+
+$GLOBALS['__t'] = array();
+$GLOBALS['__q'] = array();
+$GLOBALS['__top_calls'] = 0;
+$saved = $GLOBALS['__path_rows'];
+$GLOBALS['__path_rows'] = null;
+$d0 = sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 0 );
+ok( is_array( $d0 ) && 41 === $d0['site']['lcp']['samples'] && array() === $d0['paths'], 'devices-only (limit 0): a failing path read no longer blanks the device rows' );
+ok( 1 === count( $GLOBALS['__q'] ) && 0 === $GLOBALS['__top_calls'], 'devices-only asks neither the top-paths table nor the path query' );
+ok( null !== sn_analytics_vitals_device_rows( $d0 ), 'devices-only: the Engagement device table has rows' );
+$GLOBALS['__path_rows'] = $saved;
+
+$GLOBALS['__t'] = array();
+$GLOBALS['wpdb'] = (object) array( 'last_error' => 'Table is marked as crashed' );
+ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ), 'a top-paths read that failed in the database is no answer, not an empty list' );
+unset( $GLOBALS['wpdb'] );
 
 $GLOBALS['__t'] = array();
 $GLOBALS['__dev_rows'] = null;
@@ -104,7 +123,7 @@ $kit     = (string) file_get_contents( __DIR__ . '/../apps/sn-analytics/parts/pa
 $painter = (string) file_get_contents( __DIR__ . '/../apps/sn-analytics/parts/painters/view-engagement.php' );
 $view    = (string) file_get_contents( __DIR__ . '/../inc/analytics-view-engagement.php' );
 ok( 1 === preg_match( '/function snt_analytics_render_vitals_devices.*?sn_analytics_vitals_copy\(\)/s', $classic ) && 1 === preg_match( '/function vitals_device_table.*?sn_analytics_vitals_copy\(\)/s', $kit ), 'classic and S&N Analytics take their title, failure and note from one function' );
-ok( false !== strpos( $view, 'snt_analytics_render_vitals_devices( sn_analytics_vitals_device_rows( sn_analytics_vitals(' ) && false !== strpos( $painter, 'vitals_device_table( \\sn_analytics_vitals_device_rows( \\sn_analytics_vitals(' ), 'both twins paint the same rows from the same read' );
+ok( false !== strpos( $view, 'snt_analytics_render_vitals_devices( sn_analytics_vitals_device_rows( sn_analytics_vitals( $from, $to, $class, 0 ) ) )' ) && false !== strpos( $painter, 'vitals_device_table( \\sn_analytics_vitals_device_rows( \\sn_analytics_vitals( $from, $to, $class, 0 ) ) )' ), 'both twins paint the same rows from the same devices-only read' );
 $copy = sn_analytics_vitals_copy();
 ok( false === strpos( implode( ' ', $copy ), "\u{2014}" ) && false !== strpos( $copy['note'], 'fewer than 30' ), 'the copy has no em dash and names the small-sample floor' );
 

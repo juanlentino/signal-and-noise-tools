@@ -64,11 +64,7 @@ function sn_analytics_vitals_sql( $dim, $from, $to, $class, array $paths, $sourc
 	$in     = '';
 	if ( 'path' === $dim ) {
 		$list = array();
-		foreach ( $paths as $p ) {
-			$p = (string) $p;
-			if ( 1 !== preg_match( '#^/[A-Za-z0-9\-._~/%]*$#', $p ) ) {
-				continue;
-			}
+		foreach ( array_filter( array_map( 'strval', $paths ), 'sn_analytics_vitals_path_ok' ) as $p ) {
 			$list[ $p ]       = true;
 			$list[ $p . '/' ] = '/' !== $p;
 		}
@@ -80,13 +76,28 @@ function sn_analytics_vitals_sql( $dim, $from, $to, $class, array $paths, $sourc
 	}
 	list( $lo, $hi ) = sn_analytics_local_day_bounds_utc( $from, $to );
 	return implode( ' ', array(
-		"SELECT blob1 AS e, {$col} AS k, double7 AS v, sum(_sample_interval) AS w",
+		// LCP and INP arrive as whole ms, so a raw value per row runs into the
+		// row cap; they group into 10 ms steps, rounded up so a value lands in
+		// the same good / poor band it would raw (every threshold is a multiple
+		// of 10). p75 reads under 10 ms high. CLS keeps its stored x1000 value.
+		"SELECT blob1 AS e, {$col} AS k, if(blob1 = 'vc', double7, ceil(double7 / 10) * 10) AS v, sum(_sample_interval) AS w",
 		'FROM ' . $source,
 		"WHERE blob1 IN ({$events}) AND " . sn_analytics_class_where( $class ) . $in,
 		"AND timestamp >= toDateTime('{$lo}')",
 		"AND timestamp <= toDateTime('{$hi}'){$range}",
 		'GROUP BY e, k, v',
 	) );
+}
+
+/**
+ * Whether a path may go into the IN list: allowlisted characters only, end
+ * anchored with \z so a trailing newline never passes. PURE.
+ *
+ * @param string $p Path.
+ * @return bool
+ */
+function sn_analytics_vitals_path_ok( $p ) {
+	return 1 === preg_match( '#^/[A-Za-z0-9\-._~/%]*\z#', (string) $p );
 }
 
 /**
