@@ -99,7 +99,12 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="search-console"],
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="reports"],
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="audit-log"],
-.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="tags"] {
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="tags"],
+/* 2026.10.4 audit: Site › Front-End and Identity & SEO use the window's width
+   (their forms lift the 760px cap below; the leaf's 820px held them anyway). */
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( .snt-site-form ),
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="front-end"],
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="identity-and-seo"] {
 	max-width: 100%;
 }
 
@@ -230,6 +235,25 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 	margin: 0;
 }
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-links-nowrap {
+	white-space: nowrap;
+}
+
+/* Broken paths (2026.10.4 live check): a long path or target breaks inside
+   its cell, so the table fits its half of the row and Fix is never cut off;
+   the referrer is a muted line under the path. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-break {
+	overflow-wrap: anywhere;
+}
+
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-cell-sub {
+	display: block;
+	margin-block-start: 2px;
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+/* A date that must not break across lines (Broken links' Last seen, 2026.10.4). */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-nowrap {
 	white-space: nowrap;
 }
 
@@ -600,6 +624,15 @@ os-button.snt-home__action:hover {
 	color: var( --os-ui-fg, #fffbff );
 }
 
+/* 2026.10.4 audit: a tile with no reading ("not read", "not measured") says
+   so in words at reading size; a figure-sized phrase read as a figure. */
+.snt-home__metric strong[data-none] {
+	margin-block-start: 16px;
+	font: 600 15px/1.3 var( --os-font, 'Geist', system-ui, sans-serif );
+	letter-spacing: 0;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
 .snt-home__metric-delta {
 	display: block;
 	margin-block-start: 6px;
@@ -859,39 +892,25 @@ os-button.snt-home__action:hover {
 	color: var( --os-ui-accent-strong, #ec9bff ); /* the link pink: the admin accent is 4.4:1 here, failing AA for text */
 }
 
-.snt-home__all-clear {
-	display: grid;
-	grid-template-columns: 44px minmax( 0, 1fr );
-	align-items: center;
-	gap: 16px;
-	min-height: 68px;
-	padding: 12px 4px;
-	border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+/* 2026.10.4 audit: Needs attention beside Continue working (home_desk_html).
+   Both headings take the link's 24px line so the two lists' rules align, and
+   a title wraps to two lines in a half-width column instead of cutting at
+   one. */
+.snt-home__desk .snt-home__section-heading {
+	min-block-size: 24px;
 }
 
-.snt-home__all-clear > .dashicons {
-	color: var( --os-ui-success, #9be8ba );
-	font-size: 26px;
-}
-
-.snt-home__all-clear > span {
-	display: grid;
-	gap: 4px;
-}
-
-.snt-home__all-clear > span strong {
-	color: var( --os-ui-fg, #fffbff );
-	font-size: 15px;
-}
-
-.snt-home__all-clear > span > span {
-	color: var( --os-ui-fg-muted, #b3afb5 );
-	font-size: 13px;
+.snt-home__desk .snt-home__row-title {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	white-space: normal;
+	font-size: 16px;
 }
 
 /* Continue working with no recent post: the kit's empty state, the twin
- * Station Home pairs with the same component (station-home.css). Needs
- * attention keeps the all-clear row above, as Station Home does (#1593). */
+ * Station Home pairs with the same component (station-home.css). With
+ * nothing to fix, Needs attention paints no section at all. */
 .snt-home__work os-empty-state {
 	min-block-size: 176px;
 	border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
@@ -1118,6 +1137,43 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 
 .snt-provenance os-section > p {
 	margin-block: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * Site › Identity & SEO and Front-End (2026.10.4 audit)
+ * The two forms use the window's width: Front-End's eight short fields take
+ * its auto columns (the classic page's wide leaf), and each Identity & SEO
+ * section sets two fields to a row. Capped at 760px, both left the right
+ * half of a 1,300px window empty.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+.snt-app[data-os-app="sn-dashboard"] .snt-form.snt-site-form {
+	max-width: none;
+}
+
+.snt-site-fields {
+	display: grid;
+	/* Two to a row at most, one when the window is under about 700px. */
+	grid-template-columns: repeat( auto-fit, minmax( min( 100%, max( 340px, calc( ( 100% - 28px ) / 2 ) ) ), 1fr ) );
+	gap: 16px 28px;
+	align-items: start;
+}
+
+.snt-site-field > .snt-hint {
+	margin-block-start: 6px;
+}
+
+/* A tall item takes the whole row (Knows about, the sameAs list), so a short
+   field never sits beside a hole (2026.10.4 live check). */
+.snt-site-fields > .snt-site-field--wide {
+	grid-column: 1 / -1;
+}
+
+/* The sameAs rows sit flush under their label: no stack padding inherited
+   from an ancestor (the kit's own token; os-stack padding="0" sets it too). */
+.snt-site-fields > .snt-field-static os-stack {
+	--os-ui-stack-padding: 0;
+	padding: 0;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

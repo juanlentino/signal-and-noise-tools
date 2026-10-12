@@ -44,28 +44,41 @@ ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['site/front-end'] )
 // ── Defaults: nothing stored, the theme's own values.
 $classic = snt_leaf_classic_html( 'sn_admin_render_front_end_form' );
 $kit     = snt_leaf_paint( 'site', 'front-end' );
+snt_leaf_preview( 'site-front-end', $kit );
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 8 === count( snt_leaf_names( $kit ) ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'save_theme' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is save_theme, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, '<os-form class="snt-form" os-action="post" submit-label="Save front-end settings" show-reset="false" columns="auto">' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post on the admin-post pipeline, auto columns for the wide leaf, the classic submit label' );
+ok( false !== strpos( $kit, '<os-form class="snt-form snt-site-form" os-action="post" submit-label="Save front-end settings" show-reset="false" columns="auto">' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post on the admin-post pipeline, auto columns for the wide leaf, the classic submit label' );
+// 2026.10.4 audit (batch 4): the window's width, as the classic wide leaf; the 760px cap halved it.
+$css = preg_replace( '#/\*.*?\*/#s', '', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) );
+ok( 1 === preg_match( '/\.snt-app\[data-os-app="sn-dashboard"\] \.snt-form\.snt-site-form\s*\{\s*max-width:\s*none;/', $css ), 'the Site forms lift the 760px form cap, scoped to this app' );
 $defaults = array();
 foreach ( $knobs as $name => $b ) { $defaults[] = $number_tag( $name, $b[2] ); }
 ok( has_all( $kit, $defaults, $missing ), 'defaults: every number knob carries the theme default and its classic bounds' . ( $missing ? ' — missing ' . implode( ' | ', $missing ) : '' ) );
 ok( false !== strpos( $kit, '<os-select name="theme_note_reply_alias" value="research">' ) && false !== strpos( $kit, '<os-checkbox-label name="theme_palette_enabled" value="1" checked label="Enable the ⌘K command palette and its footer trigger">' ), 'defaults: the alias is research and the palette checkbox is checked' );
-ok( false !== strpos( $kit, '<os-section heading="Front-End" description="Render knobs the companion theme reads via filters. Defaults match the theme’s own hardcoded values, so changes apply only once you save here. Each takes effect on the next front-end request." stack>' ), 'the Front-End heading and intro are the section heading and description' );
-ok( has_all( $kit, array( 'Related notes shown', 'Note reply goes to', 'Command-palette recent notes', 'Reader command palette', 'JSON feed items', '“Updated” badge after (days)', 'Reading speed (words/min)', 'Notes per page' ), $missing ), 'all eight classic labels are painted' . ( $missing ? ' — missing ' . implode( ' | ', $missing ) : '' ) );
-ok( has_all( $kit, array(
-	'hint="How many related notes appear under a single note (1–12)."',
-	'hint="Which existing alias the Reply row on a note writes to. Only aliases the mailbox already filters are offered — a new local part would arrive unfiltered."',
-	'hint="Recent notes listed in the ⌘K reader palette (0–20)."',
-	'hint="Turning this off hides the trigger and skips the palette’s JS/CSS entirely."',
-	'hint="Number of notes in the JSON feed (1–50)."',
-	'hint="Show the “Updated” badge when a note was revised this many days after publishing (1–90)."',
-	'hint="Words per minute used to estimate reading time (100–400)."',
-	'hint="How many notes per page on the /notes index (1–100). Pagination appears once published notes exceed this."',
-	'<p class="snt-hint" slot="footer-leading">Changes apply on the next front-end request. Live site re-renders automatically.</p>',
-), $missing ), 'all eight helpers ride the field rows as hints and the save-row hint rides the form footer' . ( $missing ? ' — missing ' . implode( ' | ', $missing ) : '' ) );
+ok( false !== strpos( $kit, '<os-section heading="Front-End" description="How the site’s pages render; the companion theme reads these values. The defaults are the theme’s own, so nothing changes until you save here." stack>' ), 'the Front-End heading and intro are the section heading and description' );
+ok( has_all( $kit, array( 'Related notes shown', 'Note reply goes to', 'Command-palette recent notes', 'Reader command palette', 'JSON feed items', '“Updated” badge after (days)', 'Reading speed (words/min)', 'Notes per page' ), $missing ), 'all eight classic labels are painted' . ( $missing ? ': missing ' . implode( ' | ', $missing ) : '' ) );
+$helpers = array(
+	'hint="How many related notes appear under a single note (1 to 12)."',
+	'hint="Which existing alias the Reply row on a note writes to. Only aliases the mailbox already filters are offered; a new address would arrive unfiltered."',
+	'hint="Recent notes listed in the ⌘K reader palette (0 to 20)."',
+	'hint="Turning this off hides the trigger and skips loading the palette’s scripts and styles."',
+	'hint="Number of notes in the JSON feed (1 to 50)."',
+	'hint="Show the “Updated” badge when a note was revised this many days after publishing (1 to 90)."',
+	'hint="Words per minute used to estimate reading time (100 to 400)."',
+	'hint="How many notes per page on the /notes index (1 to 100). Pagination appears once published notes exceed this."',
+	'<p class="snt-hint" slot="footer-leading">Saving a change refreshes the site’s cached pages, so the live site shows it the next time a page loads.</p>',
+);
+ok( has_all( $kit, $helpers, $missing ), 'all eight helpers ride the field rows as hints and the save-row hint rides the form footer' . ( $missing ? ': missing ' . implode( ' | ', $missing ) : '' ) );
+// 2026.10.4 audit (batch 4): the twins say the same sentences, in plain words
+// ("render knobs", "JS/CSS", "local part" gone), ranges in words, no dashes,
+// and the save hint keeps its promise (a changed save purges the page cache).
+$classic_text = html_entity_decode( strip_tags( $classic ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+foreach ( array( 'How the site’s pages render; the companion theme reads these values.', 'skips loading the palette’s scripts and styles.', 'a new address would arrive unfiltered.', '(1 to 12)', '(100 to 400)', 'Saving a change refreshes the site’s cached pages, so the live site shows it the next time a page loads.' ) as $line ) {
+	ok( false !== strpos( $classic_text, $line ), 'the classic twin says it too: ' . $line );
+}
+ok( 1 !== preg_match( '/Render knobs|JS\/CSS|local part|re-renders|\x{2014}|\x{2013}/u', $kit . $classic_text ), 'neither twin says "render knobs", "JS/CSS", "local part" or "re-renders", or carries an em or en dash' );
 $options = array();
 foreach ( $GLOBALS['__aliases'] as $a ) { $options[] = '<os-option value="' . $a . '">' . $a . '@</os-option>'; }
 ok( has_all( $kit, $options, $missing ) && 5 === substr_count( $kit, '<os-option ' ) && 5 === substr_count( $classic, '<option ' ), 'the alias select offers exactly the five allowlisted aliases as alias@, as the classic select does' );

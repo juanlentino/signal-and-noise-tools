@@ -17,6 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/dash-week.php'; // Home's seven days, shared with the S&N Home leaf.
+
 /**
  * Gather the measurement figures from the accessors that exist.
  *
@@ -38,8 +40,7 @@ function snt_dashboard_measurement_data() {
 
 	if ( function_exists( 'sn_analytics_config' ) && sn_analytics_config()
 		&& function_exists( 'sn_analytics_period_deltas' ) ) {
-		$from   = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS );
-		$to     = gmdate( 'Y-m-d', time() );
+		list( $from, $to ) = snt_dashboard_week();
 		$deltas = sn_analytics_period_deltas( $from, $to, 'human' );
 		if ( is_array( $deltas ) && isset( $deltas['views'] ) ) {
 			$data['views_7d'] = (int) ( $deltas['views']['current'] ?? 0 );

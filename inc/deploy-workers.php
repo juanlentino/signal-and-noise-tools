@@ -106,7 +106,9 @@ function snt_deploy_workers_registry() {
 			'worker_id'    => 'sn-login-guard',
 		),
 		'sn-remote-mcp'     => array(
-			'label'        => 'Remote MCP',
+			// 2026.10.4 audit: AI > MCP Clients calls this worker the remote
+			// door; the Systems chip and the Deploy Status row say the same.
+			'label'        => 'Remote door',
 			'repo'         => 'juanlentino/sn-remote-mcp-worker',
 			'probe_url'    => 'https://juanlentino.com/_sn/remote-mcp/status',
 			// versioned-contract phase 2: /status.contract_version is compared

@@ -69,11 +69,14 @@ ok( array( 'redirect_add' ) === snt_leaf_actions( $kit ), '...the default paint 
 // 2026-10-12 (edit in place): the add form stays while a rule is open, so editing offers all three.
 ok( array( 'redirect_add', 'redirect_delete', 'redirect_update' ) === snt_leaf_actions( $kit_ed ), '...the editing paint offers update and delete, and add still: ' . implode( ',', snt_leaf_actions( $kit_ed ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ) && ! styled( $kit ) && ! styled( $kit_ed ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, '<p class="snt-prose">' ) && false !== strpos( $kit, '<os-code>/new-page</os-code>' ) && false !== strpos( $kit, '<strong>Site → Broken links</strong>' ) && false === strpos( $kit, 'sidebar' ), 'the intro survives as prose with inline code, and names where the 404 log lives now' );
+ok( false !== strpos( $kit, '<p class="snt-prose">' ) && false !== strpos( $kit, '<os-code>/new-page</os-code>' ) && false !== strpos( $kit, '<os-button variant="link" os-action="go" os-arg-sub="broken-links">Site → Broken links</os-button>' ) && false === strpos( $kit, '<strong>' ) && false === strpos( $kit, 'sidebar' ), 'the intro survives as prose with inline code, and links where the 404 log lives now (2026.10.4: it was bold text)' );
+ok( false !== strpos( $classic, '<a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&#038;tab=site&#038;sub=broken-links">Site &rarr; Broken links</a>' ) || false !== strpos( $classic, 'tab=site&amp;sub=broken-links">Site &rarr; Broken links</a>' ) || false !== strpos( $classic, 'tab=site&sub=broken-links">Site &rarr; Broken links</a>' ), 'the classic intro links it too' );
 
 // The reading: tiles, then one finding sentence built from the data.
-ok( false !== strpos( $kit, '<os-stat value="2" label="Rules"' ) && false !== strpos( $kit, '<os-stat value="1" label="Permanent" caption="301"' ) && false !== strpos( $kit, '<os-stat value="1" label="Temporary" caption="302"' ), 'the tiles read 2 rules: 1 permanent, 1 temporary' );
-ok( false !== strpos( $kit, '<p class="snt-prose">1 of the 2 rules sends readers to another site; the rest stay on this one.</p>' ), 'the finding counts the rules that leave the site' );
+// 2026.10.4 audit (batch 4): a "Rules" tile repeated Permanent + Temporary.
+ok( false === strpos( $kit, 'label="Rules"' ) && false !== strpos( $kit, '<os-stat value="1" label="Permanent" caption="301"' ) && false !== strpos( $kit, '<os-stat value="1" label="Temporary" caption="302"' ), 'the tiles read 1 permanent, 1 temporary, and no Rules tile repeating their sum' );
+ok( false !== strpos( $kit, '<p class="snt-prose">2 rules: 1 sends readers to another site; the rest stay on this one.</p>' ), 'the finding counts the rules, and those that leave the site' );
+ok( false !== strpos( $classic, '<p class="sn-prose">2 rules: 1 sends readers to another site; the rest stay on this one.</p>' ), 'the classic twin says the same finding (it said nothing)' );
 ok( false !== strpos( $kit, 'heading="Redirect rules"' ) && before( $kit, '<os-stat', '<os-table' ), 'reading before ledger, in one section' );
 
 // The ledger: one table, newest first, every figure the fold used to hold.
@@ -125,7 +128,8 @@ fixture( array(), array() );
 $classic = snt_leaf_classic_html( 'sn_admin_render_redirects_section' );
 $kit     = snt_leaf_paint( 'site', 'redirects' );
 ok( array( 'redirect_add' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'empty: only redirect_add is offered, with the same names as the classic leaf' );
-ok( false !== strpos( $kit, '<p class="snt-prose">No redirect rules yet; add the first one below.</p>' ) && false === strpos( $kit, '<os-table' ), 'empty: one sentence, no empty table' );
+ok( false !== strpos( $kit, '<p class="snt-prose">No redirect rules yet; add the first one in Add a redirect.</p>' ) && false === strpos( $kit, '<os-table' ) && false === strpos( $kit, 'below' ), 'empty: one sentence naming the box, not a position, and no empty table' );
+ok( false !== strpos( $classic, 'No redirect rules yet; add the first one in Add a redirect.' ), 'empty: the classic twin says the same sentence' );
 ok( false === strpos( $kit, 'No broken links' ), 'empty: the 404 status belongs to the other leaf now' );
 ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_classic_markers( $kit ) && ! styled( $kit ), 'no fold and no wp-admin markup (empty)' );
 
@@ -142,7 +146,7 @@ ok( 60 === count( $many ), 'sanity: the fixture built 60 redirect rules -- ' . c
 ok( SN_REDIRECT_LIST_CAP === count( $table['data'] ) && SN_REDIRECT_LIST_CAP === substr_count( $kit, 'os-arg-sn_edit="/rule-' ), 'exactly SN_REDIRECT_LIST_CAP (' . SN_REDIRECT_LIST_CAP . ') rules are listed of 60 -- listed ' . count( $table['data'] ) );
 ok( '/rule-0060' === ( $table['data'][0]['from'] ?? '' ) && ! in_array( '/rule-0001', array_column( $table['data'], 'from' ), true ), '...NEWEST first: the most recent rules are kept, the settled tail is dropped' );
 ok( false !== strpos( $kit, '<p class="snt-hint snt-ledger-more">+10 older rules are not listed. Showing the 50 most recent of 60 redirects.</p>' ), '...and the "+N more" line states the true total' );
-ok( false !== strpos( $kit, '<os-stat value="60" label="Rules"' ), '...the tile counts every rule, not the listed ones' );
+ok( false !== strpos( $kit, '60 rules, every one sending readers to a path on this site.' ) && false !== strpos( $kit, '<os-stat value="60" label="Permanent"' ), '...the finding and the tile count every rule, not the listed ones' );
 ok( false !== strpos( $classic, 'Showing the 50 most recent of 60 redirects' ), '...and the classic leaf caps identically' );
 ok( in_array( 'redirect_add', snt_leaf_actions( $kit ), true ) && false !== strpos( $kit, 'Add a redirect' ), 'the add form is still reachable below a capped list' );
 
@@ -177,7 +181,7 @@ fixture( $live, array() );
 $kit    = snt_leaf_paint( 'site', 'redirects' );
 $kit_ed = editing( '/talks/aes-2024' );
 ok( 39 === count( $live ) && 39 === count( rules_table( $kit )['data'] ) && false === strpos( $kit, 'snt-ledger-more' ), 'live-shaped: 39 rules, all listed, no "+N more" under the cap' );
-ok( false !== strpos( $kit, '<os-stat value="39" label="Rules"' ) && false !== strpos( $kit, '<os-stat value="29" label="Permanent"' ) && false !== strpos( $kit, '<os-stat value="10" label="Temporary"' ) && false !== strpos( $kit, '6 of the 39 rules send readers to another site' ), 'live-shaped: the tiles and the finding read 39 = 29 + 10, 6 off site' );
+ok( false !== strpos( $kit, '<os-stat value="29" label="Permanent"' ) && false !== strpos( $kit, '<os-stat value="10" label="Temporary"' ) && false !== strpos( $kit, '39 rules: 6 send readers to another site' ), 'live-shaped: the tiles and the finding read 39 = 29 + 10, 6 off site' );
 ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) && 1 === substr_count( $kit_ed, 'submit-label="Save changes"' ) && false !== strpos( $kit_ed, 'heading="Editing /talks/aes-2024"' ) && 1 === substr_count( $kit_ed, 'submit-label="Delete"' ) && 0 === slot_forms( $kit ), 'live-shaped: fold-free, no form in any row, and editing paints ONE region (update + delete)' );
 snt_leaf_preview( 'site-redirects', $kit );
 snt_leaf_preview( 'site-redirects-editing', $kit_ed );

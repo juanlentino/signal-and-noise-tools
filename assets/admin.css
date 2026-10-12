@@ -1290,8 +1290,12 @@
 .sn-attention-strip__lead {
 	margin: 0;
 }
-.sn-attention-strip a {
-	white-space: nowrap;
+/* 2026.10.4 audit: one sentence per problem, as a list (the native Needs
+   attention says the same sentences). A sentence wraps; nowrap was for the
+   old dot-joined fragments. */
+.sn-attention-strip__list {
+	margin: 0.25em 0 0 1.25em;
+	list-style: disc;
 }
 
 /* ─── Dashboard lower row: two columns (Phase 1) ─────────────────────────
@@ -1352,18 +1356,16 @@
 
 /* ─── Override details (Dashboard diagnostics) ───────────────────────────
    Tightened from the previous inline-styled <details> block. */
-.sn-override-details {
-	margin: 0.75em 0 0;
-	font-size: 13px;
+/* A date that must not break across lines (Broken links' last hit, 2026.10.4). */
+.sn-nowrap {
+	white-space: nowrap;
 }
-.sn-override-details summary {
-	cursor: pointer;
-	color: #2271b1;
-	font-size: 0.85em;
-	padding: 4px 0;
-}
-.sn-override-details ul {
+
+/* The override names, open under their heading (2026.10.4 audit: the fold
+   said "click to expand" on a box that was already open). */
+.sn-override-list {
 	margin: 8px 0 0 1.5em;
+	font-size: 13px;
 }
 
 /* ─── Link cards (Links tab) ─────────────────────────────────────────────

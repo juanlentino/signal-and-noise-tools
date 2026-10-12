@@ -46,7 +46,7 @@ function performance_intro_html() {
 		. \snt_kit_link( __( 'Speculation Rules', 'signal-and-noise-tools' ), 'https://developer.chrome.com/docs/web-platform/prerender-pages' )
 		. ' ' . \snt_kit_esc( __( '(default:', 'signal-and-noise-tools' ) ) . ' '
 		. \snt_kit_code( 'auto', false ) . '/' . \snt_kit_code( 'auto', false ) . '). '
-		. \snt_kit_esc( __( 'Enabling this opts the site into a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. The profile and exclusions are summarized alongside.', 'signal-and-noise-tools' ) )
+		. \snt_kit_esc( __( 'Enabling this opts the site into a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. The Profile box lists the profile and what it leaves out.', 'signal-and-noise-tools' ) )
 		. '</p>';
 }
 
@@ -63,7 +63,7 @@ function performance_form_html( array $s ) {
 		'os-field-row',
 		array(
 			'label' => __( 'Status', 'signal-and-noise-tools' ),
-			'hint'  => __( 'Turning this off disables speculative loading entirely (core emits no speculation rules).', 'signal-and-noise-tools' ),
+			'hint'  => __( 'Turning this off disables speculative loading entirely: WordPress then adds no speculation rules to any page.', 'signal-and-noise-tools' ),
 		),
 		\snt_kit_field( 'checkbox', 'speculative_loading', __( 'Enabled: prerender the pages a visitor is likely to open next', 'signal-and-noise-tools' ), $s['enabled'] )
 	);
@@ -71,20 +71,16 @@ function performance_form_html( array $s ) {
 }
 
 /**
- * The rail's status box: on (success) or off (warning), with the pill.
+ * The rail's status: one sentence, on (success) or off (warning). 2026.10.4
+ * audit: a bold lead-in, an "On" pill and "Enabled" said the state three ways.
  *
  * @param array $s From performance_state().
  * @return string
  */
 function performance_status_html( array $s ) {
-	$kind = $s['enabled'] ? 'ok' : 'warn';
-	$body = $s['enabled'] ? __( 'Enabled', 'signal-and-noise-tools' ) : __( 'Disabled', 'signal-and-noise-tools' );
-	$pill = $s['enabled']
-		? \snt_kit_badge( 'ok', __( 'On', 'signal-and-noise-tools' ) )
-		: \snt_kit_badge( '', __( 'Off', 'signal-and-noise-tools' ) );
 	return \snt_kit_notice(
-		$kind,
-		'<b>' . \snt_kit_esc( __( 'Speculative loading', 'signal-and-noise-tools' ) ) . '</b> ' . $pill . '<br>' . \snt_kit_esc( $body )
+		$s['enabled'] ? 'ok' : 'warn',
+		\snt_kit_esc( $s['enabled'] ? __( 'Speculative loading is on.', 'signal-and-noise-tools' ) : __( 'Speculative loading is off.', 'signal-and-noise-tools' ) )
 	);
 }
 
@@ -94,25 +90,35 @@ function performance_status_html( array $s ) {
  * @return string
  */
 function performance_profile_html() {
-	$mode = '<p class="snt-hint">'
-		. \snt_kit_esc( __( 'Mode', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'prerender', false ) . ', '
-		. \snt_kit_esc( __( 'eagerness', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'moderate', false ) . ': '
-		. \snt_kit_esc( __( "more aggressive than core's", 'signal-and-noise-tools' ) ) . ' '
-		. \snt_kit_code( 'auto', false ) . '/' . \snt_kit_code( 'auto', false ) . '.'
-		. '</p>';
-	$excluded = '<p class="snt-hint"><strong>' . \snt_kit_esc( __( 'Excluded automatically:', 'signal-and-noise-tools' ) ) . '</strong> '
-		. \snt_kit_esc( __( 'the custom login URL and', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/contact/*', false ) . '.'
-		. '</p>';
-	$support = '<p class="snt-hint"><strong>' . \snt_kit_esc( __( 'Support:', 'signal-and-noise-tools' ) ) . '</strong> '
-		. \snt_kit_esc( __( 'only modern Chromium browsers act on speculation rules; others safely ignore them.', 'signal-and-noise-tools' ) )
-		. '</p>';
-	return \snt_kit_section( __( 'Profile', 'signal-and-noise-tools' ), $mode . $excluded . $support );
+	// 2026.10.4 audit: each fact under its own label, not a bold lead-in.
+	return \snt_kit_section(
+		__( 'Profile', 'signal-and-noise-tools' ),
+		\snt_kit_kv(
+			array(
+				array(
+					'label' => __( 'Mode', 'signal-and-noise-tools' ),
+					'value' => \snt_kit_code( 'prerender', false ) . ', ' . \snt_kit_esc( __( 'eagerness', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'moderate', false ) . ': '
+						. \snt_kit_esc( __( "more aggressive than core's", 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'auto', false ) . '/' . \snt_kit_code( 'auto', false ) . '.',
+					'html'  => true,
+				),
+				array(
+					'label' => __( 'Excluded automatically', 'signal-and-noise-tools' ),
+					'value' => \snt_kit_esc( __( 'the custom login URL and', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/contact/*', false ) . '.',
+					'html'  => true,
+				),
+				array(
+					'label' => __( 'Browser support', 'signal-and-noise-tools' ),
+					'value' => __( 'only modern Chromium browsers act on speculation rules; others safely ignore them.', 'signal-and-noise-tools' ),
+				),
+			)
+		)
+	);
 }
 
 /**
  * The leaf: the form column, then the status rail — the classic shell's
  * two columns as the app's column grid, the rail keeping its landmark name;
- * then, at full width, the slow admin requests ledger (the parts file).
+ * then, at full width, the outbound calls from admin pages (the parts file).
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
