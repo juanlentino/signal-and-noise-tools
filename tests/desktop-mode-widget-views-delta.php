@@ -113,13 +113,16 @@ if ( '' === $node ) {
 	ok( false === strpos( $text, 'Engaged readers' ), 'the north star row no longer says "readers": SN Reading\'s "of views engaged" is another figure' );
 
 	// The forecast: one line under the change line, absent when there is none.
-	$fc = array( 'value' => 20.4, 'interval' => array( 'low' => 15.3, 'high' => 25.5 ), 'confidence' => 'high', 'direction' => 'flat', 'horizon' => 7 );
+	// 2026-10-12: the band is not symmetric (quantiles of past misses), so the
+	// card prints its own ends, never a ±%: 13 a day with a band of 5 to 38.5
+	// read "±129%" for a band running from -62% to +196%.
+	$fc = array( 'value' => 13.0, 'interval' => array( 'low' => 5.0, 'high' => 38.5 ), 'confidence' => 'high', 'horizon' => 7 );
 	$tf = $render( array( 'delta_pct' => 10, 'forecast' => $fc ) );
 	$tft = implode( ' | ', array_keys( $tf ) );
-	ok( isset( $tf['In 7 days: about 20 views a day (estimate, ±25%)'] ), 'forecast high confidence: "In 7 days: about 20 views a day (estimate, ±25%)": ' . $tft );
+	ok( isset( $tf['In 7 days: about 13 views a day (estimate, 5 to 39)'] ) && false === strpos( $tft, '±' ), 'forecast high confidence: the band\'s own ends, "In 7 days: about 13 views a day (estimate, 5 to 39)": ' . $tft );
 	ok( strpos( $tft, 'vs. prior 14 days' ) < strpos( $tft, 'In 7 days' ), 'the forecast line sits under the change line' );
 	$tl = $render( array( 'forecast' => array( 'confidence' => 'low' ) + $fc ) );
-	ok( isset( $tl['In 7 days: about 20 views a day (estimate)'] ), 'a low-confidence forecast says no spread: "usually" would not be true' );
+	ok( isset( $tl['In 7 days: about 13 views a day (estimate)'] ), 'a low-confidence forecast says no spread: "usually" would not be true' );
 	ok( 0 === preg_match( '/Next \d+ days/', implode( ' | ', array_keys( $render( array( 'forecast' => null ) ) ) ) ), 'forecast null: no forecast line, never a guessed number' );
 
 	// The live surge line: present, hidden until live-now.js reads a surge.

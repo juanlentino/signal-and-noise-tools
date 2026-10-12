@@ -243,7 +243,7 @@ ok( 0 === $GLOBALS['__ai_calls'], 'no-signals path makes zero AI-client calls' )
 echo "\nGroup: v9.64.2 voice contract: digest system instruction (P1a + P2)\n";
 list( , $vs ) = sn_analytics_digest_ai_prompt( $honest_summary, $signals, '' );
 ok( false !== strpos( $vs, 'NO markdown: no asterisks, no underscores, no headings, no bullet lists, no emojis' ), 'digest system: forbids markdown entirely (P1a)' );
-ok( false !== strpos( $vs, 'never write sigma, σ, backtest, interval, robust, confidence, or point estimate' ), 'digest system: bans the stats-appendix jargon: the chips carry that machinery (P2)' );
+ok( false !== strpos( $vs, 'never write sigma, σ, backtest, interval, band, checks, robust, confidence, or point estimate' ), 'digest system: bans the stats-appendix jargon: the chips carry that machinery (P2)' );
 ok( false !== strpos( $vs, 'at most 4-5 short plain-English sentences' ), 'digest system: sentence budget for a phone-glance summary' );
 ok( false !== strpos( $vs, '"Worth a look:"' ), 'digest system: the optional Worth-a-look closer' );
 ok( false !== strpos( $vs, 'State numbers plainly (47 views, 40 visits)' ), 'digest system: numbers stated plainly, no interval dressing' );
@@ -255,7 +255,7 @@ ok( false !== strpos( $vs, 'never to be called "visits"' ), 'digest system: v9.6
 echo "\nGroup: v9.64.2 voice contract: narrate system instruction\n";
 list( , $vns ) = sn_analytics_narrate_ai_prompt( $signals );
 ok( false !== strpos( $vns, 'NO markdown: no asterisks, no underscores, no headings, no bullet lists, no emojis' ), 'narrate system: forbids markdown entirely' );
-ok( false !== strpos( $vns, 'never write sigma, σ, backtest, interval, robust, confidence, or point estimate' ), 'narrate system: bans the stats-appendix jargon' );
+ok( false !== strpos( $vns, 'never write sigma, σ, backtest, interval, band, checks, robust, confidence, or point estimate' ), 'narrate system: bans the stats-appendix jargon' );
 ok( false !== strpos( $vns, 'unique visitor-days' ) && false !== strpos( $vns, 'never an anomaly' ), 'narrate system: v9.64.1 vocabulary + structural rules kept intact' );
 
 echo "\nGroup: v9.64.2: an instruction change busts the AI cache key (P3)\n";

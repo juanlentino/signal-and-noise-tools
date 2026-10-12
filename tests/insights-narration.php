@@ -264,7 +264,7 @@ ok( false !== stripos( $sys7b, 'never call' ) || false !== stripos( $sys7b, 'nev
 // ── Test 7c: v9.64.2 plain-prose voice contract in the instruction ──
 echo "\nTest 7c: v9.64.2 voice contract pins (P1a + P2)\n";
 $sys7c = snt_narration_system_instruction();
-ok( false !== strpos( $sys7c, 'never write sigma, σ, backtest, interval, robust, confidence, or point estimate' ), 'instruction bans the stats-appendix jargon (P2)' );
+ok( false !== strpos( $sys7c, 'never write sigma, σ, backtest, interval, band, checks, robust, confidence, or point estimate' ), 'instruction bans the stats-appendix jargon (P2)' );
 ok( false !== strpos( $sys7c, 'NO MARKDOWN' ), 'instruction forbids markdown (P1a)' );
 ok( false !== strpos( $sys7c, 'no asterisks, no underscores' ), 'markdown ban names the emphasis marks' );
 ok( false !== strpos( $sys7c, 'no emojis' ), 'markdown ban covers emojis' );

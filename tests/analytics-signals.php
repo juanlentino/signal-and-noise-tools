@@ -130,6 +130,7 @@ ok( 13.5 === sn_analytics_forecast_point( $ramp ), 'point: the median of the las
 ok( null === sn_analytics_forecast_point( array() ), 'point: no history → null' );
 ok( 1.0 === sn_analytics_stat_quantile( array( 5, 1, 3, 2, 4 ), 0.0 ) && 5.0 === sn_analytics_stat_quantile( array( 5, 1, 3, 2, 4 ), 1.0 ) && 3.0 === sn_analytics_stat_quantile( array( 5, 1, 3, 2, 4 ), 0.5 ), 'quantile: nearest rank on the sorted list' );
 ok( null === sn_analytics_stat_quantile( array(), 0.5 ), 'quantile: empty → null' );
+ok( 3.0 === sn_analytics_stat_quantile( range( 1, 20 ), 0.1 ), 'quantile: q=0.1 of 20 items is index round(1.9) = 2 (nearest rank, not floor)' );
 
 echo "\nGroup: backtest harness\n";
 // A stationary noisy series: the median beats "tomorrow equals today".
@@ -221,11 +222,27 @@ foreach ( array( 'human_views' => 0.25, 'human_visits' => 0.25, 'crawler_total' 
 	$rb = sn_analytics_forecast_backtest( $real[ $name ], 7, 30 );
 	ok( is_array( $rb ) && $rb['skill'] > $floor, sprintf( '%s: the forecaster beats persistence by %.3f (floor %.2f) over %d checks', $name, (float) $rb['skill'], $floor, (int) $rb['checks'] ) );
 	ok( null !== $rb['coverage'] && $rb['coverage'] >= 0.5, sprintf( '%s: its 80%% band held on %.0f%% of out-of-sample checks', $name, 100 * (float) $rb['coverage'] ) );
+	// 2026-10-12 review: exact values from an independent brute-force version;
+	// an in-sample band (0.815) or a day of lookahead (798 checks) moves them.
+	$want = array( 'human_views' => array( 791, 0.781290 ), 'crawler_ai_training' => array( 259, 0.509653 ) );
+	if ( isset( $want[ $name ] ) ) {
+		ok( $want[ $name ][0] === $rb['band_checks'] && abs( $rb['coverage'] - $want[ $name ][1] ) < 1e-6, sprintf( '%s: out-of-sample band, exactly %d checks at %.6f', $name, $want[ $name ][0], $want[ $name ][1] ) );
+	}
 	$hb = sn_analytics_forecast_backtest( $real[ $name ], 7, 30, 'holt' );
 	ok( $hb['skill'] < $rb['skill'], sprintf( '%s: Holt alone scores %.3f here, below the median: the reason the median is the default', $name, (float) $hb['skill'] ) );
 	$picked = sn_analytics_forecast_of( 'x', $name, array_map( static function ( $v ) { return array( 'views' => $v ); }, array_slice( $real[ $name ], -90 ) ), 'a', 'b' );
 	ok( 'rolling_median' === ( $picked['stat'] ?? '' ) && ! isset( $picked['direction'] ), sprintf( '%s: the per-series pick is the median, with no direction', $name ) );
 }
+
+// Confidence against the band's own 80% target: a band that held 78% of 791
+// checks is high; one that held 71% is medium (the old cutoffs, built for a
+// 95% interval, made high unreachable: 63 of 63 real windows read medium).
+$conf_of = static function ( $name ) use ( $real ) {
+	return sn_analytics_forecast_of( 'x', $name, array_map( static function ( $v ) { return array( 'views' => $v ); }, $real[ $name ] ), 'a', 'b', array( 'min_points' => 21 ) );
+};
+ok( 'high' === sn_analytics_forecast_confidence( 0.781290, 791 ), 'a band that held 78% of 791 checks (real views) is high' );
+ok( 'medium' === sn_analytics_forecast_confidence( 0.71, 791 ) && 'medium' === sn_analytics_forecast_confidence( 0.78, 30 ), '71% is medium, and so is 78% over only 30 checks' );
+ok( 'low' === sn_analytics_forecast_confidence( null, 0 ) && 'low' === sn_analytics_forecast_confidence( 0.4, 500 ), 'unmeasured or under half is low' );
 
 echo "\nGroup: forecast signal composer\n";
 $stat_rows = array_map( static function ( $v ) { return array( 'views' => $v ); }, $stat30 );
@@ -233,16 +250,17 @@ $fs = sn_analytics_forecast_of( 'views', 'Views', $stat_rows, '2026-06-13', '202
 ok( is_array( $fs ) && 'forecast' === $fs['kind'] && 'rolling_median' === $fs['stat'] && 'predictive' === $fs['tier'] && 'forecast:views:2026-07-12+7d' === $fs['id'], 'forecast: kind/stat/tier/id shaped per §5.1' );
 ok( ! array_key_exists( 'direction', $fs ) && 1 === $fs['severity'], 'forecast: a level, never a direction (the trend tier says which way)' );
 ok( (float) sn_analytics_forecast_point( $stat30 ) === $fs['value'], 'forecast: the value is the trailing 14-day median' );
-ok( is_array( $fs['interval'] ) && $fs['interval']['low'] <= $fs['value'] && $fs['value'] <= $fs['interval']['high'], 'forecast: ALWAYS carries a band around the point' );
+ok( is_array( $fs['interval'] ) && $fs['interval']['low'] <= $fs['value'] && $fs['value'] <= $fs['interval']['high'] && $fs['interval']['high'] > $fs['interval']['low'], 'forecast: ALWAYS carries a band of real width around the point' );
 ok( false !== strpos( $fs['plain_label'], '80% band' ) && false !== strpos( $fs['plain_label'], 'held on' ) && false === strpos( $fs['plain_label'], '–' ), 'forecast: plain_label names the band and how often it held (and no en dash)' );
 $f21 = sn_analytics_forecast_of( 'views', 'Views', array_slice( $stat_rows, 0, 21 ), '2026-06-13', '2026-07-03', array( 'horizon' => 1 ) );
 ok( is_array( $f21 ) && 'low' === $f21['confidence'] && false !== strpos( $f21['plain_label'], 'band not yet measured' ), 'forecast: an unmeasured band says so and is low confidence, never "0% held"' );
 $flat_rows = array_fill( 0, 30, array( 'views' => 50 ) );
 $ff = sn_analytics_forecast_of( 'visits', 'Visits', $flat_rows, '2026-06-13', '2026-07-12' );
 ok( is_array( $ff ) && 50.0 === $ff['value'], 'forecast: flat series → its level' );
-$low_rows = array(); for ( $i = 0; $i < 30; $i++ ) { $low_rows[] = array( 'views' => ( 0 === $i % 3 ) ? 9 : 1 ); }
-$fl = sn_analytics_forecast_of( 'path:/notes/x', '/notes/x', $low_rows, '2026-06-13', '2026-07-12' );
-ok( is_array( $fl ) && ( 'forecast_withheld' === $fl['kind'] || 0.0 <= $fl['interval']['low'] ), 'forecast: a band below zero clamps to 0 (views cannot go negative)' );
+// A fading series: past misses run below the current level, so the band's floor would be negative.
+$drop_rows = array(); for ( $i = 0; $i < 90; $i++ ) { $drop_rows[] = array( 'views' => max( 0, 2 - 2 * $i / 120 + 2 * ( ( ( $i * 7 ) % 11 ) - 5 ) / 5 ) ); }
+$fl = sn_analytics_forecast_of( 'path:/notes/x', '/notes/x', $drop_rows, '2026-04-14', '2026-07-12' );
+ok( is_array( $fl ) && 'forecast' === $fl['kind'] && 0.0 === $fl['interval']['low'], 'forecast: a band below zero clamps to 0 (views cannot go negative)' );
 ok( null === sn_analytics_forecast_of( 'visits', 'Visits', array_fill( 0, 30, array( 'views' => 0 ) ), '2026-06-13', '2026-07-12' ), 'forecast: all-zero series → suppressed (nothing to forecast honestly)' );
 ok( null === sn_analytics_forecast_of( 'views', 'Views', array_slice( $stat_rows, 0, 10 ), '2026-07-03', '2026-07-12' ), 'forecast: below min-sample floor → suppressed' );
 $dec_rows = array(); for ( $i = 0; $i < 30; $i++ ) { $dec_rows[] = array( 'views' => 70 - 2 * $i + ( ( $i % 2 ) ? 1 : -1 ) ); }

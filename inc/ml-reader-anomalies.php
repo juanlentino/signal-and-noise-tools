@@ -3,7 +3,7 @@
  * reader-anomalies — the machine-reader subsystem's first ML consumer.
  *
  * Adds no statistics. It supplies a DENSER INPUT to the analytics signal engine
- * (I1-I6), which is complete and starved: Theil-Sen and Holt currently run over
+ * (I1-I6), which is complete and starved: Theil-Sen and the forecasters run over
  * a few visits a day, while the crawler ledger carries ~500x that volume
  * (69,833 machine requests in 30 days against ~130 human visits, measured
  * 2026-09-02).

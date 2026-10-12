@@ -20,7 +20,7 @@ ok( false !== stripos( $src, 'structural' ), 'instruction names the views-vs-vis
 ok( false !== strpos( $src, 'integrity_violation' ), 'genuine-anomaly branch is scoped to integrity_violation only' );
 
 echo "\nGroup: plain-prose voice contract (v9.64.2)\n";
-ok( false !== strpos( $src, 'never write sigma, σ, backtest, interval, robust, confidence, or point estimate' ), 'jargon ban present in the instruction source' );
+ok( false !== strpos( $src, 'never write sigma, σ, backtest, interval, band, checks, robust, confidence, or point estimate' ), 'jargon ban present in the instruction source' );
 ok( false !== strpos( $src, 'NO MARKDOWN' ), 'markdown ban present in the instruction source' );
 
 echo "\nGroup: narrator anomaly-flags wiring\n";
