@@ -170,11 +170,36 @@ function sn_indexnow_submit( $urls ) {
 	if ( is_wp_error( $response ) ) {
 		$result['error'] = $response->get_error_message();
 	} else {
-		$result['code'] = (int) wp_remote_retrieve_response_code( $response );
+		$result['code']  = (int) wp_remote_retrieve_response_code( $response );
+		$result['error'] = sn_indexnow_result_problem( $result );
 	}
 	update_option( SN_INDEXNOW_RESULT_OPT, $result, false );
 }
 add_action( SN_INDEXNOW_CRON_HOOK, 'sn_indexnow_submit' );
+
+/**
+ * What went wrong with a stored submission, or '' when IndexNow took it.
+ * Only 200 and 202 mean accepted: a 403 (key not verified), 422 (wrong host)
+ * or 429 (throttled) used to paint the green "Active" box (2026-10-12 audit).
+ * Read at render time too, so a result stored before this fix reads right.
+ *
+ * @param array<string,mixed> $result The stored result.
+ * @return string
+ */
+function sn_indexnow_result_problem( array $result ) {
+	if ( '' !== (string) ( $result['error'] ?? '' ) ) {
+		return (string) $result['error'];
+	}
+	if ( empty( $result['time'] ) ) {
+		return '';
+	}
+	$code = (int) ( $result['code'] ?? 0 );
+	if ( 0 === $code ) {
+		return __( 'IndexNow gave no HTTP response.', 'signal-and-noise-tools' );
+	}
+	/* translators: %d: HTTP status code. */
+	return in_array( $code, array( 200, 202 ), true ) ? '' : sprintf( __( 'IndexNow refused the submission (HTTP %d).', 'signal-and-noise-tools' ), $code );
+}
 
 /**
  * The URL set to submit when a published post/page changes: its permalink

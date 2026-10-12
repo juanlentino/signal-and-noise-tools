@@ -149,6 +149,7 @@ ok( 1 === preg_match( '/<os-empty-state[^>]*heading="Your desk is clear"/', $emp
 ok( false !== strpos( $empty, 'Start something new and it will be waiting here when you return.' ), '...carrying the same description' );
 ok( false === strpos( $empty, 'snt-home__all-clear' ), '...and the .snt-home__work block carries no all-clear row' );
 $css = (string) file_get_contents( __DIR__ . '/../apps/sn-dashboard/sn-dashboard.css' );
+ok( 1 === preg_match( '/\.snt-ns-hero__weeks li:last-child strong \{ color: var\( --os-ui-accent-strong/', $css ), "this week's figure is the link pink (about 9:1), not the admin accent (red here, 4.4:1)" );
 ok( 1 === preg_match( '/\.snt-home__work os-empty-state\s*\{[^}]*min-block-size/', preg_replace( '#/\*.*?\*/#s', '', $css ) ), 'the sheet carries the Station Home twin for the empty state (.snt-home__work os-empty-state, min-block-size)' );
 
 // 17.9.0: os-button forwards a host aria-label to its inner button since

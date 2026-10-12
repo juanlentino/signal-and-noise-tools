@@ -130,5 +130,15 @@ ok( false !== strpos( $src, "\$current['collector_url'] ?? \$defaults['collector
 ok( false === strpos( $src, "name=\"collector_url\"" ),
 	'the RSS form no longer renders a collector_url input (single write surface)' );
 
+echo "\nGroup: a reset of the RSS settings keeps the collector (2026-10-12 audit)\n";
+// The shipped function itself, lifted from the module (it pulls in the DB layer).
+ok( 1 === preg_match( '/function sn_rss_tracker_reset_settings\(\) \{.*?\n\}/s', $src, $__reset ), 'the module defines sn_rss_tracker_reset_settings()' );
+if ( ! function_exists( 'sn_rss_tracker_reset_settings' ) && isset( $__reset[0] ) ) { eval( $__reset[0] ); } // phpcs:ignore Squiz.PHP.Eval
+update_option( SN_RSS_TRACKER_SETTINGS_OPT, array( 'enabled' => false, 'collector_url' => 'https://sn-px.workers.dev/_sn/px', 'event_name' => 'X', 'log_retention_days' => 30 ) );
+if ( function_exists( 'sn_rss_tracker_reset_settings' ) ) { sn_rss_tracker_reset_settings(); }
+$after = sn_rss_tracker_settings();
+ok( 'https://sn-px.workers.dev/_sn/px' === $after['collector_url'] && true === $after['enabled'] && 'RSS Feed Request' === $after['event_name'] && 90 === (int) $after['log_retention_days'], 'Reset to Defaults restores the RSS settings and KEEPS the custom collector endpoint' );
+ok( false === strpos( $src, 'delete_option( SN_RSS_TRACKER_SETTINGS_OPT );' . "\n\t\t\$flash = 'reset';" ), 'the reset branch no longer deletes the option outright' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

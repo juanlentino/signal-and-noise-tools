@@ -41,7 +41,7 @@ if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; 
 if ( ! function_exists( 'wp_next_scheduled' ) ) { function wp_next_scheduled() { return true; } }
 function get_terms( $a = array() ) { return $GLOBALS['__alltags']; }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
-class WP_Error {}
+class WP_Error { public function get_error_message() { return 'The canonical tag cannot also be a source tag.'; } }
 
 // AI + cleanup seams.
 $GLOBALS['__ai']       = false;
@@ -102,6 +102,11 @@ $_GET['sn_tag_preview'] = '1'; $_GET['sn_tag_from'] = array(); $_GET['sn_tag_int
 ob_start(); sn_admin_render_tag_cleanup_section(); $h_empty = ob_get_clean();
 ok( strpos( $h_empty, 'Nothing to merge' ) !== false, 'fixture: the empty-preview path really renders "Nothing to merge" (so this pin cannot be vacuous)' );
 ok( substr_count( $h_empty, '<div' ) === substr_count( $h_empty, '</div>' ), '#1228: the "Nothing to merge" panel has balanced div tags (no stray extra </div>)' );
+// 2026-10-12 audit: the panel names the refusal (it said "no longer valid"
+// for a tag picked on both sides), and the picker starts unchosen.
+ok( false !== strpos( $h_empty, 'Nothing to merge: The canonical tag cannot also be a source tag.' ), 'a refused preview says why, not that the tags vanished' );
+ob_start(); sn_admin_tag_render_manual_picker(); $h_pick = ob_get_clean();
+ok( 2 === substr_count( $h_pick, '<option value="" disabled selected>Choose a tag</option>' ) && 2 === substr_count( $h_pick, ' required>' ), 'both picker selects start on Choose a tag and require a choice' );
 unset( $_GET['sn_tag_preview'], $_GET['sn_tag_from'], $_GET['sn_tag_into'] );
 
 // recent merges

@@ -290,6 +290,8 @@ $sn_dashboard = App::define( APP_ID )
 			'params' => array(),     // The `sn_*` query params that ARE state on the classic page.
 			'post'   => array(),     // ONE paint's $_POST, for the form its own leaf handles.
 			'filter' => '',          // A leaf's text filter (the Cron leaf's #sn-cron-filter twin, #1604), written by os-bind through the built-in `set`.
+			'saved'  => false,       // 2026-10-12: a save went through; rides ONE paint (paint_effect()), so the host drops that form's drafts.
+			'answered' => '',        // 2026-10-12: the action that save or refusal answers (a form's `action`/`sn_action`); rides the same ONE paint.
 		)
 	)
 	->title_bar_button(
@@ -327,6 +329,9 @@ $sn_dashboard = App::define( APP_ID )
 				return;
 			}
 			$values = posted_values( $args );
+			// The answer names its form: the host keeps every form's drafts but
+			// the one this save or refusal is about (two quick submits queue).
+			$state->set( 'answered', (string) ( $values['action'] ?? $values['sn_action'] ?? '' ) );
 			$pipeline = isset( $args['pipeline'] ) && is_scalar( $args['pipeline'] ) ? (string) $args['pipeline'] : '';
 			$tab      = current_tab( $os );
 			$params   = $state->get( 'params' );
@@ -337,8 +342,11 @@ $sn_dashboard = App::define( APP_ID )
 			if ( empty( $result['ok'] ) ) {
 				$reason = (string) $result['reason'];
 				$detail = (string) $result['detail'];
-				$died = 'died' === $reason && '' !== $detail;
-				$state->set( 'notice', $died ? array( 'error', $detail ) : null )
+				// 2026-10-12 audit: every refusal stays on the page, not only in a
+				// 3.5-second toast, and its error tone tells the host to keep what
+				// was typed (paint_effect()'s `refused`).
+				$state->set( 'notice', array( 'error', \snt_kit_esc( refusal_text( $reason, $detail ) ) ) )
+					->set( 'saved', false )
 					->set( 'flash', '' )
 					->set( 'post', array() );
 				$os->toast( refusal_text( $reason, $detail ) );
@@ -347,7 +355,8 @@ $sn_dashboard = App::define( APP_ID )
 			if ( 'inline' === (string) $result['pipeline'] ) {
 				$state->set( 'post', (array) $result['post'] )
 					->set( 'notice', null )
-					->set( 'flash', '' );
+					->set( 'flash', '' )
+					->set( 'saved', true );
 				$os->badge( badge_count() );
 				return;
 			}
@@ -360,7 +369,10 @@ $sn_dashboard = App::define( APP_ID )
 				->set( 'flash', (string) $result['flash'] )
 				->set( 'post', array() );
 			$notice = \snt_os_host_notice( (string) $result['flash'] );
-			$state->set( 'notice', $notice );
+			// An error flash is the handler refusing (an empty slug, a half
+			// card): that paint reports `refused`, not `saved`.
+			$state->set( 'notice', $notice )
+				->set( 'saved', ! ( is_array( $notice ) && 'error' === (string) ( $notice[0] ?? '' ) ) );
 			if ( null !== $notice ) {
 				$os->toast( \snt_os_host_toast_text( $notice ) );
 			}

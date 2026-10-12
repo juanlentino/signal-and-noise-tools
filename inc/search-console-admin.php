@@ -150,7 +150,7 @@ function snt_gsc_render_property_form() {
 
 	$sites = ( is_array( $last ) && ! empty( $last['ok'] ) ) ? (array) ( $last['sites'] ?? array() ) : array();
 	if ( empty( $sites ) ) {
-		echo '<p class="description">' . esc_html__( 'Run Test connection above to list the properties this service account can read.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Run Test connection to list the properties this service account can read.', 'signal-and-noise-tools' ) . '</p>';
 		if ( '' !== $current ) {
 			/* translators: %s: the stored property string. */
 			echo '<p>' . sprintf( esc_html__( 'Currently reading: %s', 'signal-and-noise-tools' ), '<code>' . esc_html( $current ) . '</code>' ) . '</p>';

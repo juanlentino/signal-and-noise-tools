@@ -298,3 +298,41 @@ function snt_block_fp_apply( $args ) {
 		'new_content' => $new_content,
 	);
 }
+
+/**
+ * Drop one dismissed candidate from a user's cached scan, keeping the rest.
+ *
+ * 2026-10-12 audit: every dismiss path deleted the whole scan transient, so
+ * dismissing one candidate turned the page back to "no scan yet" and every
+ * other candidate vanished until the next scan. The dropped candidate's type
+ * count goes down by one (its key is the type with `_` for `-`, the
+ * envelopes' own convention), posts_affected is recounted from what is left,
+ * any other count (corpus integrity's corrections) is kept, and the cache
+ * keeps its original expiry. A cache that is not a scan envelope is deleted,
+ * as before.
+ *
+ * @param string $tkey        The user's scan transient key.
+ * @param int    $post_id     The candidate's post.
+ * @param string $type_field  'pattern_type', 'migration_type' or 'check'.
+ * @param string $type        The candidate type (e.g. 'pull-quote').
+ * @param string $fingerprint The candidate's block fingerprint.
+ * @param int    $ttl         The scan cache's TTL in seconds.
+ * @return void
+ */
+function snt_block_fp_cache_drop( $tkey, $post_id, $type_field, $type, $fingerprint, $ttl ) {
+	$scan = get_transient( $tkey );
+	if ( ! is_array( $scan ) || ! isset( $scan['candidates'] ) || ! is_array( $scan['candidates'] ) ) {
+		delete_transient( $tkey );
+		return;
+	}
+	$match = static fn( $c ) => (int) ( $c['post_id'] ?? 0 ) === (int) $post_id && (string) ( $c[ $type_field ] ?? '' ) === (string) $type && (string) ( $c['block_fingerprint'] ?? '' ) === (string) $fingerprint;
+	$kept  = array_values( array_filter( $scan['candidates'], static fn( $c ) => ! $match( $c ) ) );
+	$k     = str_replace( '-', '_', (string) $type );
+	if ( isset( $scan['counts'][ $k ] ) ) {
+		$scan['counts'][ $k ] = max( 0, (int) $scan['counts'][ $k ] - ( count( $scan['candidates'] ) - count( $kept ) ) );
+	}
+	$scan['counts']['posts_affected'] = count( array_unique( array_map( static fn( $c ) => (int) ( $c['post_id'] ?? 0 ), $kept ) ) );
+	$scan['candidates']               = $kept;
+	$age                              = time() - (int) ( $scan['scanned_at'] ?? time() );
+	set_transient( $tkey, $scan, max( 60, (int) $ttl - $age ) );
+}

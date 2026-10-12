@@ -172,9 +172,11 @@ function tags_picker_html() {
 			$options[ (string) $t->term_id ] = (string) $t->name . ' (' . (int) $t->count . ')';
 		}
 	}
-	$first  = array() !== $options ? (string) array_key_first( $options ) : '';
-	$inner  = \snt_kit_field( 'select', 'sn_tag_from[]', __( 'Fold', 'signal-and-noise-tools' ), $first, array( 'options' => $options ) )
-		. \snt_kit_field( 'select', 'sn_tag_into', __( 'into', 'signal-and-noise-tools' ), $first, array( 'options' => $options ) );
+	// Both start unchosen: preselecting the first tag on both sides made the
+	// default preview a refusal (a tag cannot fold into itself).
+	$pick   = array( 'options' => $options, 'placeholder' => __( 'Choose a tag', 'signal-and-noise-tools' ), 'required' => true );
+	$inner  = \snt_kit_field( 'select', 'sn_tag_from[]', __( 'Fold', 'signal-and-noise-tools' ), '', $pick )
+		. \snt_kit_field( 'select', 'sn_tag_into', __( 'into', 'signal-and-noise-tools' ), '', $pick );
 	$hidden = '';
 	foreach ( tags_page_hidden() as $name => $value ) {
 		$hidden .= \snt_kit_field( 'hidden', $name, '', $value );
@@ -203,7 +205,7 @@ function tags_confirm_html( $pv, array $from, $into, $tab ) {
 	if ( ! is_array( $pv ) || empty( $pv['from'] ) ) {
 		return \snt_kit_section(
 			$heading,
-			\snt_kit_empty( __( 'Nothing to merge (the selected tags are no longer valid).', 'signal-and-noise-tools' ) )
+			\snt_kit_empty( \sn_tag_merge_refusal( $pv ) )
 			. \snt_kit_go( __( 'Back', 'signal-and-noise-tools' ), $back, array( 'variant' => 'secondary' ) )
 		);
 	}

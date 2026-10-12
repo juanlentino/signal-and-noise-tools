@@ -683,7 +683,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		echo '<div class="sn-status-box sn-status-box--warn">';
 		echo '<div>';
 		echo '<p class="sn-status-box-title">Not configured</p>';
-		echo '<p class="sn-status-box-body">Auto-purge disabled. Set both the API token and zone ID in the main column to activate.</p>';
+		echo '<p class="sn-status-box-body">Auto-purge disabled. Set both the API token and zone ID under Credentials to activate.</p>';
 		echo '</div>';
 		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
 		echo '</div>';

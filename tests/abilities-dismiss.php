@@ -69,6 +69,14 @@ function snt_pattern_adoption_dismiss_impl( $post_id, $pattern_type, $fingerprin
 }
 
 // ─── Load the SUT + fire registrations ───────────────────────────────
+// 2026-10-12: a dismiss drops one candidate from the cached scan through the
+// fingerprint engine's snt_block_fp_cache_drop(); with no cached scan it
+// deletes the transient, which is what the assertions below read.
+if ( ! function_exists( 'get_transient' ) ) { function get_transient( $key ) { return false; } }
+if ( ! function_exists( 'set_transient' ) ) { function set_transient( $key, $val, $ttl = 0 ) { return true; } }
+if ( ! defined( 'SNT_BLOCK_MIGRATIONS_TRANSIENT_TTL' ) ) { define( 'SNT_BLOCK_MIGRATIONS_TRANSIENT_TTL', 3600 ); }
+if ( ! defined( 'SNT_PATTERN_ADOPTION_TRANSIENT_TTL' ) ) { define( 'SNT_PATTERN_ADOPTION_TRANSIENT_TTL', 3600 ); }
+require_once __DIR__ . '/../inc/block-fingerprint-engine.php';
 $dep_helper = __DIR__ . '/../inc/abilities-deprecations.php';
 if ( file_exists( $dep_helper ) ) {
 	require_once $dep_helper;

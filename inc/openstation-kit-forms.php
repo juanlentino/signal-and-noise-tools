@@ -127,7 +127,11 @@ function snt_kit_field( $type, $name, $label, $value = '', array $opts = array()
 			foreach ( (array) ( $opts['options'] ?? array() ) as $option_value => $option_label ) {
 				$options .= snt_kit_tag( 'os-option', array( 'value' => (string) $option_value ), snt_kit_esc( $option_label ) );
 			}
-			$control = snt_kit_tag( 'os-select', $common + array( 'value' => (string) $value, 'placeholder' => $opts['placeholder'] ?? null ), $options );
+			// A value that matches no option paints an empty box (2026-10-12: the
+			// Credentials picker read as "no credentials"); say what to do instead.
+			$listed      = array_map( 'strval', array_keys( (array) ( $opts['options'] ?? array() ) ) );
+			$placeholder = $opts['placeholder'] ?? ( '' !== $options && ! in_array( (string) $value, $listed, true ) ? __( 'Choose one', 'signal-and-noise-tools' ) : null );
+			$control     = snt_kit_tag( 'os-select', $common + array( 'value' => (string) $value, 'placeholder' => $placeholder ), $options );
 			break;
 		case 'switch':
 			return snt_kit_tag( 'os-switch', $common + array( 'value' => '1', 'checked' => (bool) $value, 'label' => (string) $label, 'description' => $opts['description'] ?? $opts['hint'] ?? null ) );

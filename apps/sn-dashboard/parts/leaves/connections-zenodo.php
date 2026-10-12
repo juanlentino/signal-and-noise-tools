@@ -34,7 +34,7 @@ function zenodo_main_html( array $d ) {
 				'sandbox'    => __( 'Sandbox (sandbox.zenodo.org): test DOIs, never public', 'signal-and-noise-tools' ),
 				'production' => __( 'Production (zenodo.org)', 'signal-and-noise-tools' ),
 			),
-			'help'    => __( 'Each environment reads its own token from Credentials.', 'signal-and-noise-tools' ),
+			'hint'    => __( 'Each environment reads its own token from Connections › Credentials.', 'signal-and-noise-tools' ),
 		)
 	);
 	$doi_field = \snt_kit_field(
@@ -44,7 +44,7 @@ function zenodo_main_html( array $d ) {
 		(string) ( $d['ledger'] ?? '' ),
 		array(
 			'placeholder' => '10.5281/zenodo.NNNNNNN',
-			'help'        => __( 'The DOI Zenodo minted for the ledger repository (the concept DOI). Every deposit names it as the record it is part of. Empty until the first snapshot release.', 'signal-and-noise-tools' ),
+			'hint'        => __( 'The DOI Zenodo minted for the ledger repository\'s monthly snapshot (the concept DOI, which resolves to the latest snapshot). Every deposit names it as the record it is part of. Empty until the first snapshot release.', 'signal-and-noise-tools' ),
 		)
 	);
 	$env = \snt_kit_section(
@@ -53,7 +53,7 @@ function zenodo_main_html( array $d ) {
 	);
 	$deposit = \snt_kit_section(
 		__( 'Deposit', 'signal-and-noise-tools' ),
-		\snt_kit_tag( 'os-cluster', array( 'gap' => '8' ), \snt_kit_action_button( __( 'Deposit the next batch', 'signal-and-noise-tools' ), 'zenodo_deposit_batch', array( 'disabled' => ! $d['enabled'] ) ) ),
+		\snt_kit_tag( 'os-cluster', array( 'gap' => '8' ), \snt_kit_action_button( __( 'Deposit the next batch', 'signal-and-noise-tools' ), 'zenodo_deposit_batch', array( 'disabled' => ! $d['enabled'], 'confirm' => \sn_zenodo_deposit_confirm( (string) $d['env'] ), 'confirm_title' => __( 'Deposit the next batch', 'signal-and-noise-tools' ), 'confirm_label' => __( 'Deposit', 'signal-and-noise-tools' ) ) ) ),
 		sprintf(
 			/* translators: %d: documents per pass */
 			__( 'Runs one pass now: up to %d confirmed documents without a DOI. The hourly pass does the same on its own.', 'signal-and-noise-tools' ),
@@ -111,7 +111,7 @@ function zenodo_rail_html( array $d ) {
 		$rows[] = array( 'label' => \sn_zenodo_state_label( $state ), 'value' => (string) (int) $n );
 	}
 	if ( ! empty( $d['batch'] ) ) {
-		$rows[] = array( 'label' => __( 'Last pass', 'signal-and-noise-tools' ), 'value' => sprintf( '%1$d published, %2$d failed, of %3$d', (int) ( $d['batch']['published'] ?? 0 ), (int) ( $d['batch']['failed'] ?? 0 ), (int) ( $d['batch']['attempted'] ?? 0 ) ) );
+		$rows[] = array( 'label' => __( 'Last pass', 'signal-and-noise-tools' ), 'value' => sprintf( /* translators: 1: published, 2: failed, 3: attempted */ __( '%1$d published, %2$d failed, of %3$d attempted', 'signal-and-noise-tools' ), (int) ( $d['batch']['published'] ?? 0 ), (int) ( $d['batch']['failed'] ?? 0 ), (int) ( $d['batch']['attempted'] ?? 0 ) ) );
 	}
 	return \snt_kit_tag(
 		'aside',

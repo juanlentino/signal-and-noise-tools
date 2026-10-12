@@ -147,8 +147,10 @@ function scheduled_content_op_form( $row_id, $sn_action, $label ) {
 		$sn_action,
 		'',
 		array(
-			'submit' => $label,
-			'hidden' => array( 'row_id' => (string) (int) $row_id ),
+			'submit'  => $label,
+			'hidden'  => array( 'row_id' => (string) (int) $row_id ),
+			// Run now changes the public site; Re-purge only refreshes the cache.
+			'confirm' => 'schedule_run_now' === $sn_action ? __( 'Run this scheduled change now instead of at its time? It reaches the public site immediately.', 'signal-and-noise-tools' ) : null,
 		)
 	);
 }
@@ -234,8 +236,9 @@ function scheduled_content_swap_row_html( array $pair ) {
 			'schedule_swap_run_now',
 			'',
 			array(
-				'submit' => __( 'Run swap now', 'signal-and-noise-tools' ),
-				'hidden' => array( 'hide_id' => (string) $hide_id, 'show_id' => (string) $show_id ),
+				'submit'  => __( 'Run swap now', 'signal-and-noise-tools' ),
+				'hidden'  => array( 'hide_id' => (string) $hide_id, 'show_id' => (string) $show_id ),
+				'confirm' => __( 'Run this swap now instead of at its time? The old version comes down and the new one goes live on the public site immediately.', 'signal-and-noise-tools' ),
 			)
 		);
 	}

@@ -242,9 +242,8 @@ function snt_block_migrations_dismiss_impl( $post_id, $fingerprint, $migration_t
 		update_post_meta( $post_id, '_snt_block_migrations_dismissed', $existing );
 	}
 
-	// Invalidate the user's scan transient.
-	$tkey = 'snt_block_migrations_candidates_' . (int) get_current_user_id();
-	delete_transient( $tkey );
+	// Drop just this candidate from the user's cached scan; the rest stay listed.
+	snt_block_fp_cache_drop( 'snt_block_migrations_candidates_' . (int) get_current_user_id(), $post_id, 'migration_type', $migration_type, $fingerprint, SNT_BLOCK_MIGRATIONS_TRANSIENT_TTL );
 
 	return array( 'ok' => true, 'message' => __( 'Candidate dismissed.', 'signal-and-noise-tools' ) );
 }

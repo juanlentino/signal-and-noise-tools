@@ -34,6 +34,7 @@ ok( isset( $url[1] ) && false !== strpos( $url[1], '--os-ui-font-mono' ) && fals
 ok( 1 === preg_match( '/\na\.snt-link \{\s*font-weight: 500;/', $css ), 'an anchor link matches a door link\'s weight (500, set in os-button\'s shadow)' );
 $row = snt_kit_list( array( array( 'label' => '/resume', 'href' => 'https://other.example/x' ) ) );
 ok( false !== strpos( $row, 'class="snt-list__label"' ) && false === strpos( $row, 'snt-link' ), 'a list row whose label is an address still swaps to the list label class (no snt-link class left behind)' );
+ok( 1 === preg_match( '/\.snt-app \.snt-leaf a:not\( \[class\] \) \{\s*color: var\( --os-ui-accent-strong/', $css ), 'a bare link a builder paints takes the link pink, not wp-admin\'s red' );
 ok( 1 === preg_match( '/\.snt-app os-button\[variant="link"\] \{\s*--os-ui-button-fg: var\( --os-ui-accent-strong/', $css ), 'door and go links take the link pink, not the admin accent (red here, 4.4:1, fails AA)' );
 $dash = (string) file_get_contents( dirname( __DIR__ ) . '/apps/sn-dashboard/sn-dashboard.css' );
 foreach ( array( '.snt-home__view-all {', '.snt-home__attention-action {' ) as $sel ) {

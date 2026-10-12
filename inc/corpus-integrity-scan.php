@@ -450,7 +450,7 @@ function snt_corpus_integrity_run_scan() {
 
 /**
  * Dismiss one corpus-integrity finding: append "<check>:<fingerprint>" to
- * the post's dismiss meta and drop the user's cached scan. Mirrors
+ * the post's dismiss meta and drop that finding from the user's cached scan. Mirrors
  * snt_block_migrations_dismiss_impl() including the phantom-empty-entry
  * filter (get_post_meta returns '' when unset; (array)'' is array('')).
  *
@@ -481,7 +481,8 @@ function snt_corpus_integrity_dismiss_impl( $post_id, $fingerprint, $check ) {
 		update_post_meta( $post_id, SNT_CORPUS_INTEGRITY_DISMISS_META, $existing );
 	}
 
-	delete_transient( 'snt_corpus_integrity_candidates_' . (int) get_current_user_id() );
+	// Drop just this finding from the user's cached scan; the rest stay listed.
+	snt_block_fp_cache_drop( 'snt_corpus_integrity_candidates_' . (int) get_current_user_id(), $post_id, 'check', $check, $fingerprint, SNT_CORPUS_INTEGRITY_TRANSIENT_TTL );
 
 	return array( 'ok' => true, 'message' => __( 'Finding dismissed.', 'signal-and-noise-tools' ) );
 }

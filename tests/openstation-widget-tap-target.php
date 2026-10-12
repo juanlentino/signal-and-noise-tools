@@ -47,7 +47,8 @@ function snt_tap_doorway_links( $js ) {
 		// The arrow moved into an aria-hidden span on most of them, so a link
 		// painted on the accent token is a doorway too.
 		preg_match( '/style:\s*[\'"]([^\'"]*)[\'"]/', $body, $s );
-		$accent = isset( $s[1] ) && false !== strpos( $s[1], 'color:var(--os-ui-color-accent' );
+		// 2026-10-12: links read the link pink first, the accent as fallback.
+		$accent = isset( $s[1] ) && ( false !== strpos( $s[1], 'color:var(--os-ui-color-accent' ) || false !== strpos( $s[1], 'color:var(--os-ui-accent-strong' ) );
 		if ( ! preg_match( '/text:\s*[\'"]\s*([^\'"]*?→)\s*[\'"]/u', $body, $t ) && ! ( $accent && preg_match( '/text:\s*[\'"]([^\'"]*)[\'"]/u', $body, $t ) ) ) {
 			continue;
 		}

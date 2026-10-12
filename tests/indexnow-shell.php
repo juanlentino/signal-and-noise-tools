@@ -1,4 +1,5 @@
 <?php
+if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n, $d = null ) { return 1 === (int) $n ? $s : $p; } }
 /**
  * Standalone test: IndexNow sub-tab two-column shell contract (v6.42.0).
  *
@@ -37,6 +38,7 @@ require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/admin-shell.php';
 require_once __DIR__ . '/../inc/admin-forms/indexnow.php';
 
+if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 function in_assert( $cond, $msg ) {
 	global $pass, $fail;
 	if ( $cond ) { $pass++; echo "  PASS: $msg\n"; }

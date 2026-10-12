@@ -75,7 +75,8 @@ function cron_run_button( array $row ) {
 	$why_not = '';
 	if ( empty( $row['has_handler'] ) ) {
 		$why_not = __( 'No handler: the schedule fires to nothing', 'signal-and-noise-tools' );
-	} elseif ( str_starts_with( $hook, 'sn_' ) ) {
+	} elseif ( ! empty( $row['is_sn_owned'] ) ) {
+		// The flag run-cron-event refuses by (snt_cron_is_sn_owned()), not a name prefix.
 		$why_not = __( 'Not runnable here: dispatched on its own schedule', 'signal-and-noise-tools' );
 	}
 	return \snt_kit_button(
