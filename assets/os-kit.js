@@ -99,6 +99,26 @@
 	}, true );
 
 	/*
+	 * A second Save of one <os-form> (2026-10-12). The form's own submit sits
+	 * in its shadow footer, at the foot of everything; a long form (Content >
+	 * Workflow) puts a Save beside each group of fields instead. Such a button
+	 * is `data-snt-form-submit` with no os-action, so the runtime ignores it,
+	 * and this submits its enclosing form down the same path as the footer
+	 * button: required-field checks, then `os-form-submit`, which the runtime
+	 * dispatches. One form, so every save posts everything typed.
+	 */
+	document.addEventListener( 'click', function ( event ) {
+		var target = event.target;
+		var button = target && target.closest ? target.closest( '[data-snt-form-submit]' ) : null;
+		var form = button ? button.closest( 'os-form' ) : null;
+		if ( ! form || typeof form.submit !== 'function' || button.hasAttribute( 'disabled' ) ) {
+			return;
+		}
+		event.preventDefault();
+		form.submit();
+	} );
+
+	/*
 	 * Enter/Space on a link the host un-hrefed. snt_os_host_unhref() gives
 	 * every rewritten anchor `tabindex="0" role="link"`, which makes it
 	 * focusable and announces it -- but an `<a>` with no href does not fire a
@@ -160,5 +180,58 @@
 			args.sn_to = String( state.to || '' );
 		}
 		apps.dispatch( 'sn-analytics', 'go', args, next );
+	} );
+
+	/*
+	 * 2026-10-12: a deep link shows its tab. A link from a desktop widget, the
+	 * palette or another window opens the window with the classic URL's params
+	 * (assets/os-settings-tab.js), and every tab's session reads them; the one
+	 * the link names lands on its leaf and queues `snt-land` (read_params() in
+	 * each app). The server cannot switch the window's tabs, so this does,
+	 * through the shell (`Window.activateTab()`). The analytics view is noted
+	 * first so the carry-over above does not re-apply the old view's window
+	 * over the link's own.
+	 *
+	 * Once per link. The shell keeps a window's params across a reload but
+	 * not its tab, so a restored window lands again with the same stamp. The
+	 * last stamp shown is remembered per window id (one key each, so two in
+	 * all) in localStorage, which a reload, a new browser tab and a restart
+	 * of the installed app all keep: a restore opens on Dashboard or Overview
+	 * as it always did. Storage that throws (a private window, blocked site
+	 * data) only costs that memory.
+	 */
+	function shownBefore( windowId, stamp ) {
+		if ( ! stamp ) {
+			return false;
+		}
+		try {
+			var key = 'snt-land:' + windowId;
+			if ( window.localStorage.getItem( key ) === stamp ) {
+				return true;
+			}
+			window.localStorage.setItem( key, stamp );
+		} catch ( e ) {
+			return false;
+		}
+		return false;
+	}
+
+	document.addEventListener( 'os-app-effect', function ( event ) {
+		var detail = event.detail || {};
+		if ( ! detail.effect || 'snt-land' !== detail.effect.type || ! APPS.hasOwnProperty( detail.appId ) ) {
+			return;
+		}
+		if ( shownBefore( String( detail.windowId || '' ), String( detail.effect.land || '' ) ) ) {
+			return;
+		}
+		var view = String( detail.view || 'main' );
+		if ( 'sn-analytics' === detail.appId ) {
+			lastAnalyticsView = view;
+		}
+		var manager = window.wp && wp.os && wp.os.windowManager;
+		var win = manager && manager.getById ? manager.getById( detail.windowId ) : null;
+		if ( win && typeof win.activateTab === 'function' ) {
+			win.activateTab( view );
+		}
 	} );
 } )();

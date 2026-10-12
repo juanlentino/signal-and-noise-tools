@@ -24,6 +24,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/cloudflare-posture-words.php'; // a drift and a firewall action in words (2026-10-12).
+
 const SN_CF_POSTURE_OPT = 'sn_cf_posture';
 
 /**
@@ -269,7 +271,7 @@ function sn_cf_posture_findings( array $record ) {
  * the same thing.
  *
  * @param array<string,mixed>|null $record
- * @return array{state:string,checks:array<int,array{label:string,value:string,ok:bool}>,also:array<int,array{label:string,value:string}>,rules:array<int,array{name:string,action:string,enabled:bool}>,refused:array<int,string>}
+ * @return array{state:string,checks:array<int,array{label:string,value:string,ok:bool,expected:string}>,also:array<int,array{label:string,value:string}>,rules:array<int,array{name:string,action:string,enabled:bool}>,refused:array<int,string>}
  */
 function sn_cf_posture_model( $record = null ) {
 	$record = null === $record ? sn_cf_posture_read() : $record;
@@ -319,7 +321,9 @@ function sn_cf_posture_model( $record = null ) {
 			$raw  = (string) $values[ $id ];
 			$word = $words[ $raw ] ?? ( 'min_tls_version' === $id ? 'TLS ' . $raw : ( 'challenge_ttl' === $id ? human_time_diff( 0, (int) $raw ) : $raw ) );
 			if ( null !== $expected ) {
-				$out['checks'][] = array( 'label' => $labels[ $id ], 'value' => $word, 'ok' => empty( $drift[ $id ] ) );
+				// 2026-10-12 audit: the verdict in words, not a dot's color alone.
+				$want            = $words[ $expected ] ?? ( 'min_tls_version' === $id ? sprintf( /* translators: %s: TLS version. */ __( 'TLS %s or later', 'signal-and-noise-tools' ), $expected ) : $expected );
+				$out['checks'][] = array( 'label' => $labels[ $id ], 'value' => $word, 'ok' => empty( $drift[ $id ] ), 'expected' => $want );
 			} else {
 				if ( 'always_online' === $id && 'on' === $raw && sn_cf_posture_stale_headers_sent() ) {
 					$word = __( 'on, so Cloudflare ignores stale-while-revalidate and stale-if-error; the edge lifetime still applies', 'signal-and-noise-tools' );
@@ -329,7 +333,7 @@ function sn_cf_posture_model( $record = null ) {
 		}
 	}
 	if ( ! empty( $record['dnssec']['available'] ) ) {
-		$out['checks'][] = array( 'label' => __( 'DNSSEC', 'signal-and-noise-tools' ), 'value' => (string) $record['dnssec']['status'], 'ok' => empty( $drift['dnssec'] ) );
+		$out['checks'][] = array( 'label' => __( 'DNSSEC', 'signal-and-noise-tools' ), 'value' => (string) $record['dnssec']['status'], 'ok' => empty( $drift['dnssec'] ), 'expected' => __( 'active', 'signal-and-noise-tools' ) );
 	}
 	foreach ( (array) ( $record['rules']['rules'] ?? array() ) as $r ) {
 		$out['rules'][] = array( 'name' => '' !== (string) $r['description'] ? (string) $r['description'] : (string) $r['id'], 'action' => (string) $r['action'], 'enabled' => ! empty( $r['enabled'] ) );

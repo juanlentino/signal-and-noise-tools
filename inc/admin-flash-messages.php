@@ -206,6 +206,7 @@ function sn_admin_flash_messages() {
 		'mcp_rw_bound'                => array( 'success', 'Write-door credential bound. <code>/mcp-rw</code> now accepts calls authenticated with that Application Password.' ),
 		'mcp_rw_unbound'              => array( 'info', 'Write-door credential unbound: every call to <code>/mcp-rw</code> is denied until you bind one again.' ),
 		'mcp_rw_bind_invalid'         => array( 'error', 'Could not bind that Application Password: it doesn&rsquo;t belong to your account, or no longer exists.' ),
+		'mcp_rw_bind_choose'          => array( 'error', 'Nothing changed: choose an Application Password to bind. To unbind the write door, use Unbind.' ),
 		// v9.85.0 (Session 3): Machine Readers sensor settings.
 		'machine_readers_saved'       => array( 'success', 'Machine Readers sensor settings saved. The panels read with the new credentials on the next load.' ),
 		'gsc_credential_saved'        => array( 'success', 'Search Console credential saved. The private key is never displayed; Search Console credential shows which key is stored.' ),

@@ -297,9 +297,9 @@ namespace {
 		'the same title, the same shield and the same dock placement the manual item had' );
 	ok( array( 'manage_options' ) === $app->caps, 'gated on manage_options, the capability the classic page wp_die()s without' );
 	ok( array( 1180, 820 ) === $app->size && array( 360, 360 ) === $app->min, 'keeps the desktop opening size while allowing narrow and short 360x360 windows' );
-	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post', 'filter', 'saved', 'answered' ) === array_keys( $app->state )
-		&& '' === $app->state['sub'] && null === $app->state['notice'] && array() === $app->state['params'] && array() === $app->state['post'] && '' === $app->state['filter'] && false === $app->state['saved'] && '' === $app->state['answered'],
-		'state has NO tab: the tab is the session (the framework`s); only the leaf, the anchor, the last write, a leaf`s text filter (#1604) and a one-paint "saved" (2026-10-12) are state' );
+	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post', 'filter', 'saved', 'answered', 'landed' ) === array_keys( $app->state )
+		&& '' === $app->state['sub'] && null === $app->state['notice'] && array() === $app->state['params'] && array() === $app->state['post'] && '' === $app->state['filter'] && false === $app->state['saved'] && '' === $app->state['answered'] && '' === $app->state['landed'],
+		'state has NO tab: the tab is the session (the framework`s); only the leaf, the anchor, the last write, a leaf`s text filter (#1604), a one-paint "saved" and the params last read (2026-10-12) are state' );
 	ok( array( 'go', 'post', 'door', 'refresh', 'reopen', 'poll', 'cron_run', 'cron_unschedule' ) === array_keys( $app->actions ),
 		'eight actions: go, post, door, refresh, the reopen lifecycle, the os-poll tick (#1607) and the Cron leaf`s two controls (#1604)' );
 	ok( isset( $app->buttons['refresh'] ) && 'refresh' === $app->buttons['refresh']['action'], 'a Refresh button in the title bar' );
@@ -321,7 +321,9 @@ namespace {
 	echo "\nGroup 3: mount and reopen read the open-time params\n";
 	$os = new \OpenStation\App\Os();
 	$os->view   = 'monitoring';
-	$os->params = array( 'sub' => 'health' );
+	// The params a link carries name its tab (assets/os-settings-tab.js passes
+	// the classic URL's `tab`); a link that names none is the Dashboard's.
+	$os->params = array( 'tab' => 'monitoring', 'sub' => 'health' );
 	$st = new \OpenStation\App\State( $app->state );
 	call_user_func( $app->mount, $st, $os );
 	ok( 'health' === $st->get( 'sub' ), 'a deep link opens on its leaf; the tab is the session' );
@@ -329,7 +331,7 @@ namespace {
 	ok( array() === $os->menus, '   ...and never pops a context menu: $os->menu() opens one AT THE POINTER, which is not a window menu' );
 
 	$os->view   = 'connections';
-	$os->params = array( 'sub' => 'cloudflare' );
+	$os->params = array( 'tab' => 'connections', 'sub' => 'cloudflare' );
 	$app->actions['reopen']( $st, $os, array() );
 	ok( 'cloudflare' === $st->get( 'sub' ),
 		'reopen retargets a live window onto the leaf the params name' );
@@ -338,6 +340,73 @@ namespace {
 	$app->actions['reopen']( $st, $os, array() );
 	ok( 0 === end( $os->badges ), 'the badge follows the function, not a remembered number' );
 	$GLOBALS['__badge'] = 2;
+
+	echo "\nGroup 3b: a link lands its tab, once (2026-10-12)\n";
+	// Measured live: every tab's session reads the params, nothing showed the
+	// tab they named, and a dock click (a reopen that hands back the LAST
+	// params) snapped every tab to the last link's leaf.
+	$land = static function ( $os ) {
+		return count( array_filter( $os->effects->all(), static function ( $e ) { return 'snt-land' === $e['type']; } ) );
+	};
+	$link = array( 'tab' => 'monitoring', 'sub' => 'health', 'land' => 'a1' );
+	$sessions = array();
+	foreach ( array( 'main', 'monitoring', 'connections' ) as $view ) {
+		$o = new \OpenStation\App\Os();
+		$o->view   = $view;
+		$o->params = $link;
+		$s = new \OpenStation\App\State( $app->state );
+		call_user_func( $app->mount, $s, $o );
+		$sessions[ $view ] = array( $s, $o );
+	}
+	ok( 'health' === $sessions['monitoring'][0]->get( 'sub' ) && 1 === $land( $sessions['monitoring'][1] ),
+		'a cold open lands the named tab`s session on its leaf and queues ONE snt-land, which assets/os-kit.js turns into the visible tab' );
+	ok( 0 === $land( $sessions['main'][1] ) && 0 === $land( $sessions['connections'][1] ) && 'credentials' === $sessions['connections'][0]->get( 'sub' ),
+		'   ...every other tab opens on its first leaf and queues nothing, so only one tab asks to be shown' );
+
+	list( $s, $o ) = $sessions['connections'];
+	$s->set( 'sub', 'cron' );
+	$o->params = array( 'tab' => 'monitoring', 'sub' => 'health', 'land' => 'b2' );
+	$app->actions['reopen']( $s, $o, array() );
+	ok( 'cron' === $s->get( 'sub' ) && 0 === $land( $o ),
+		'a link to another tab leaves this tab on the leaf the reader chose (it used to reset every tab to its first leaf)' );
+
+	list( $s, $o ) = $sessions['monitoring'];
+	$s->set( 'sub', 'rss' );
+	$o->effects = new \OpenStation\App\Effects();
+	$app->actions['reopen']( $s, $o, array() );
+	ok( 'rss' === $s->get( 'sub' ) && 0 === $land( $o ),
+		'a dock click (a reopen carrying the params already read) moves nothing and shows nothing' );
+	$o->params = array( 'tab' => 'monitoring', 'sub' => 'health', 'land' => 'c3' );
+	$app->actions['reopen']( $s, $o, array() );
+	ok( 'health' === $s->get( 'sub' ) && 1 === $land( $o ),
+		'   ...while the same link clicked again (a new stamp) lands again and shows its tab' );
+
+	$o = new \OpenStation\App\Os();
+	$o->view   = 'main';
+	$o->params = array( 'land' => 'd4' );
+	call_user_func( $app->mount, new \OpenStation\App\State( $app->state ), $o );
+	$o2 = new \OpenStation\App\Os();
+	$o2->view   = 'monitoring';
+	$o2->params = array( 'land' => 'd4' );
+	call_user_func( $app->mount, new \OpenStation\App\State( $app->state ), $o2 );
+	ok( 1 === $land( $o ) && 0 === $land( $o2 ), 'a link that names no tab is the Dashboard`s, as on the classic page' );
+	$o = new \OpenStation\App\Os();
+	$o->view   = 'connections';
+	$o->params = array( 'tab' => 'cron', 'land' => 'e5' );
+	$s = new \OpenStation\App\State( $app->state );
+	call_user_func( $app->mount, $s, $o );
+	ok( 'cron' === $s->get( 'sub' ) && 1 === $land( $o ), 'a legacy tab lands where the classic 301 sends it (the retired Cron tab is Connections` Cron leaf)' );
+	ok( array( array( 'type' => 'snt-land', 'land' => 'e5' ) ) === array_values( array_filter( $o->effects->all(), static function ( $e ) { return 'snt-land' === $e['type']; } ) ),
+		'snt-land carries the link`s stamp, so assets/os-kit.js shows the tab once per link and a reload (the shell keeps the params, not the tab) does not pull the window back' );
+	$o = new \OpenStation\App\Os();
+	$o->view   = 'main';
+	$o->params = array( 'tab' => 'no-such-tab', 'land' => 'f6' );
+	call_user_func( $app->mount, new \OpenStation\App\State( $app->state ), $o );
+	$o2 = new \OpenStation\App\Os();
+	$o2->view   = 'monitoring';
+	$o2->params = array( 'tab' => 'no-such-tab', 'land' => 'f6' );
+	call_user_func( $app->mount, new \OpenStation\App\State( $app->state ), $o2 );
+	ok( 1 === $land( $o ) && 0 === $land( $o2 ), 'a tab the window does not have lands on the Dashboard, the classic page`s fallback' );
 
 	echo "\nGroup 4: go\n";
 	$os->view = 'monitoring';

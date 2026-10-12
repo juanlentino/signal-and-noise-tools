@@ -4,13 +4,13 @@
  *
  * A pure readout leaf (no forms, no sn_action, no side effects), the twin of
  * the classic `snt_trust_render_section()` (inc/integrity-trust-render.php):
- * four fixed health-check keys (provenance triangle, ledger CI, rights
+ * four fixed health-check keys (provenance integrity, ledger CI, rights
  * signals, rights anchoring) read out of the cached health scan, plus the
  * public-side links a reader can check without this admin at all.
  *
  * Reads top-down: one tile per check (the reading), the checks table beside
- * the public side, then one open section per check that needs a look or was
- * not measured (tools-trust-parts.php). Every reading comes from
+ * the public side, then a row of open sections, one per check that needs a
+ * look or was not measured (tools-trust-parts.php). Every reading comes from
  * snt_trust_reading(), shared with the classic leaf, so a skipped check reads
  * "not measured" with its reason on both, never "clear" (2026-10-11).
  *
@@ -89,7 +89,7 @@ function paint_tools_trust( array $ctx ) {
 
 	$checks = is_array( $scan ) && isset( $scan['checks'] ) ? (array) $scan['checks'] : array();
 	$rows   = array();
-	$detail = '';
+	$detail = array();
 	foreach ( \snt_trust_check_keys() as $key => $meta ) {
 		$reading = \snt_trust_reading( $checks[ $key ] ?? null );
 		$rows[]  = array(
@@ -97,7 +97,7 @@ function paint_tools_trust( array $ctx ) {
 			'proves'  => html_entity_decode( (string) $meta['blurb'], ENT_QUOTES, 'UTF-8' ),
 			'reading' => $reading['text'],
 		);
-		$detail .= trust_check_section( (string) $meta['label'], $reading, (array) ( $checks[ $key ]['findings'] ?? array() ), $tab );
+		$detail[] = trust_check_section( (string) $meta['label'], $reading, (array) ( $checks[ $key ]['findings'] ?? array() ), $tab );
 	}
 
 	$table = \snt_kit_table(
@@ -110,7 +110,9 @@ function paint_tools_trust( array $ctx ) {
 	);
 
 	// Siblings of a height: what the checks watch, and what the public sees of
-	// them. The per-check sections below can run long, so they stand alone.
+	// them. Then the per-check sections share a row too: each is capped at
+	// three findings (SNT_TRUST_FINDINGS_CAP) and a skipped one is a sentence,
+	// so stacked full width they were short boxes 1,300px wide (2026-10-12).
 	$out .= \snt_kit_grid(
 		array(
 			\snt_kit_section( __( 'What these four watch', 'signal-and-noise-tools' ), $intro . $table ),
@@ -118,7 +120,7 @@ function paint_tools_trust( array $ctx ) {
 		)
 	);
 
-	return $out . $detail;
+	return $out . \snt_kit_grid( $detail );
 }
 
 add_filter(

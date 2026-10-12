@@ -38,30 +38,25 @@ function vocabulary_years_html( array $years ) {
 }
 
 /**
- * One movement list as a column: a term/share table, or the em-dash when the
- * pair spoke and this direction had nothing.
+ * One movement list as a column: a term/share table, or "None" when the pair
+ * spoke and this direction had nothing (snt_ml_drift_share_text() and
+ * snt_ml_drift_copy(), the classic twin's words).
  *
  * @param string $title Column heading (already translated).
- * @param array  $rows  Kernel rows ({term, delta}|{term, after}|{term, before}).
- * @param string $kind  'delta' | 'after' | 'before' — which share to print.
+ * @param array  $rows  Kernel rows ({term, before, after, delta}|{term, after}|{term, before}).
+ * @param string $kind  'delta' | 'after' | 'before': which share to print.
  * @return string
  */
 function vocabulary_list_html( $title, array $rows, $kind ) {
-	if ( array() === $rows ) {
-		$inner = '<p class="snt-list__empty">' . \snt_kit_esc( __( 'None.', 'signal-and-noise-tools' ) ) . '</p>';
-	} else {
-		$data = array();
-		foreach ( $rows as $row ) {
-			if ( ! is_array( $row ) ) {
-				continue;
-			}
-			$share  = 'delta' === $kind ? (float) ( $row['delta'] ?? 0 ) : (float) ( $row[ $kind ] ?? 0 );
-			$data[] = array(
-				'term'  => (string) ( $row['term'] ?? '' ),
-				'share' => 'delta' === $kind ? sprintf( '%+.0f%%', $share * 100 ) : sprintf( '%.0f%%', $share * 100 ),
-			);
+	$data = array();
+	foreach ( $rows as $row ) {
+		if ( is_array( $row ) ) {
+			$data[] = array( 'term' => (string) ( $row['term'] ?? '' ), 'share' => \snt_ml_drift_share_text( $row, $kind ) );
 		}
-		$inner = \snt_kit_table(
+	}
+	$inner = array() === $data
+		? '<p class="snt-list__empty">' . \snt_kit_esc( \snt_ml_drift_copy( 'none' ) ) . '</p>'
+		: \snt_kit_table(
 			array(
 				array( 'key' => 'term', 'label' => __( 'Term', 'signal-and-noise-tools' ) ),
 				array( 'key' => 'share', 'label' => 'delta' === $kind ? __( 'Change', 'signal-and-noise-tools' ) : __( 'Share', 'signal-and-noise-tools' ), 'align' => 'end' ),
@@ -69,8 +64,26 @@ function vocabulary_list_html( $title, array $rows, $kind ) {
 			$data,
 			array( 'hover' => false )
 		);
-	}
 	return \snt_kit_tag( 'os-card', array(), '<h4 class="snt-col__h">' . \snt_kit_esc( $title ) . '</h4>' . $inner );
+}
+
+/**
+ * Whether a pair paints as one short line (thin, or held still): those pair
+ * up two to a row instead of each spanning the window.
+ *
+ * @param array<string,mixed> $pair The kernel's pair envelope.
+ * @return bool
+ */
+function vocabulary_pair_is_short( array $pair ) {
+	if ( 'thin' === (string) ( $pair['verdict'] ?? '' ) ) {
+		return true;
+	}
+	foreach ( array( 'risen', 'fallen', 'entered', 'silenced' ) as $key ) {
+		if ( array() !== (array) ( $pair[ $key ] ?? array() ) ) {
+			return false;
+		}
+	}
+	return true;
 }
 
 /**
@@ -83,14 +96,10 @@ function vocabulary_pair_html( array $pair ) {
 	$heading = sprintf( '%d → %d', (int) ( $pair['from'] ?? 0 ), (int) ( $pair['to'] ?? 0 ) );
 	if ( 'thin' === (string) ( $pair['verdict'] ?? '' ) ) {
 		// A distinct state, never "no movement": one side was too small to speak.
-		$text = sprintf(
-			/* translators: 1: earlier-year note count, 2: later-year note count, 3: minimum. */
-			__( 'Too few notes to speak (%1$d and %2$d; the mirror needs %3$d on each side). Not the same as "no drift" — this pair was not measured.', 'signal-and-noise-tools' ),
-			(int) ( $pair['docs']['before'] ?? 0 ),
-			(int) ( $pair['docs']['after'] ?? 0 ),
-			(int) SNT_ML_DRIFT_MIN_DOCS
-		);
-		return \snt_kit_section( $heading, \snt_kit_notice( 'warn', \snt_kit_badge( 'warn', __( 'Not measured', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( $text ) ) );
+		return \snt_kit_section( $heading, \snt_kit_notice( 'warn', \snt_kit_badge( 'warn', __( 'Not measured', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( \snt_ml_drift_thin_text( $pair ) ) ) );
+	}
+	if ( vocabulary_pair_is_short( $pair ) ) {
+		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( \snt_ml_drift_copy( 'still' ) ) . '</p>' );
 	}
 	$lists = array(
 		'risen'    => array( __( 'Rose', 'signal-and-noise-tools' ), 'delta' ),
@@ -98,22 +107,42 @@ function vocabulary_pair_html( array $pair ) {
 		'entered'  => array( __( 'Entered', 'signal-and-noise-tools' ), 'after' ),
 		'silenced' => array( __( 'Went silent', 'signal-and-noise-tools' ), 'before' ),
 	);
-	$still = true;
-	foreach ( array_keys( $lists ) as $key ) {
-		$still = $still && array() === (array) ( $pair[ $key ] ?? array() );
+	$boxes = array();
+	foreach ( $lists as $key => $spec ) {
+		$boxes[] = vocabulary_list_html( $spec[0], (array) ( $pair[ $key ] ?? array() ), $spec[1] );
 	}
-	if ( $still ) {
-		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'The vocabulary held still across this pair.', 'signal-and-noise-tools' ) ) . '</p>' );
-	}
-	$cols = '';
-	foreach ( array_chunk( $lists, 2, true ) as $row ) {
-		$boxes = array();
-		foreach ( $row as $key => $spec ) {
-			$boxes[] = vocabulary_list_html( $spec[0], (array) ( $pair[ $key ] ?? array() ), $spec[1] );
+	// 2026-10-12 audit: one row of four, as the classic's four-column grid
+	// (two rows of two at about 1,300px). 200px keeps a term and its two
+	// shares legible and fits four in a window of about 900px.
+	return \snt_kit_section( $heading, \snt_kit_grid( $boxes, 200 ) );
+}
+
+/**
+ * The pairs: a moved pair spans the window; consecutive short ones (thin, or
+ * held still) share a row two at a time.
+ *
+ * @param array $pairs The kernel's pairs.
+ * @return string
+ */
+function vocabulary_pairs_html( array $pairs ) {
+	$out = '';
+	$run = array();
+	foreach ( $pairs as $pair ) {
+		if ( ! is_array( $pair ) ) {
+			continue;
 		}
-		$cols .= \snt_kit_grid( $boxes );
+		if ( vocabulary_pair_is_short( $pair ) ) {
+			$run[] = vocabulary_pair_html( $pair );
+			if ( 2 === count( $run ) ) {
+				$out .= \snt_kit_grid( $run );
+				$run  = array();
+			}
+			continue;
+		}
+		$out .= \snt_kit_grid( $run ) . vocabulary_pair_html( $pair );
+		$run  = array();
 	}
-	return \snt_kit_section( $heading, $cols );
+	return $out . \snt_kit_grid( $run );
 }
 
 /**
@@ -125,7 +154,7 @@ function vocabulary_pair_html( array $pair ) {
 function paint_content_vocabulary( array $ctx ) {
 	unset( $ctx );
 	$heading = __( 'Vocabulary drift', 'signal-and-noise-tools' );
-	$intro   = __( 'How the published corpus\'s vocabulary moved between years: the share of notes each term appears in, compared per adjacent-year pair. Pure corpus statistics — no AI call, no reader data, and shown only here: this mirror faces the writer, never a model.', 'signal-and-noise-tools' );
+	$intro   = function_exists( 'snt_ml_drift_copy' ) ? \snt_ml_drift_copy( 'intro' ) : '';
 
 	if ( ! function_exists( 'snt_ml_drift_report' ) ) {
 		return \snt_kit_section( $heading, \snt_kit_empty( __( 'The drift module is not loaded.', 'signal-and-noise-tools' ) ), $intro );
@@ -135,20 +164,16 @@ function paint_content_vocabulary( array $ctx ) {
 	$pairs  = (array) ( $report['pairs'] ?? array() );
 
 	if ( array() === $years ) {
-		return \snt_kit_section( $heading, \snt_kit_empty( __( 'No published notes yet — the mirror has nothing to reflect.', 'signal-and-noise-tools' ) ), $intro );
+		return \snt_kit_section( $heading, \snt_kit_empty( \snt_ml_drift_copy( 'empty' ) ), $intro );
 	}
 	// The year ledger first: every verdict below is judged against these sizes.
-	$inner = vocabulary_years_html( $years );
+	$ledger = \snt_kit_section( $heading, vocabulary_years_html( $years ), $intro );
 	if ( array() === $pairs ) {
-		$inner .= \snt_kit_empty( __( 'Only one year holds published notes so far — drift needs two to compare.', 'signal-and-noise-tools' ) );
+		// 2026-10-12 audit: one year was one small box beside an empty window;
+		// the reason there is no drift yet pairs with the ledger.
+		return \snt_kit_grid( array( $ledger, \snt_kit_section( __( 'Year over year', 'signal-and-noise-tools' ), \snt_kit_empty( \snt_ml_drift_copy( 'one_year' ) ) ) ) );
 	}
-	$out = \snt_kit_section( $heading, $inner, $intro );
-	foreach ( $pairs as $pair ) {
-		if ( is_array( $pair ) ) {
-			$out .= vocabulary_pair_html( $pair );
-		}
-	}
-	return $out;
+	return $ledger . vocabulary_pairs_html( $pairs );
 }
 
 add_filter(

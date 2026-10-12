@@ -110,10 +110,15 @@ function snt_kit_static( $label, $value_html, $hint_html = '' ) {
  */
 function snt_kit_field( $type, $name, $label, $value = '', array $opts = array() ) {
 	$type   = (string) $type;
+	// `required` rides the control itself: os-form validates `[name][required]`
+	// hosts, and os-field-row mirrors `required` only onto a light-DOM input,
+	// select or [os-field-control], which no os-* host is (OpenStation 1.1.13).
+	// On the row alone it marked the label and enforced nothing (2026-10-12).
 	$common = array(
 		'name'     => (string) $name,
 		'disabled' => ! empty( $opts['disabled'] ),
 		'readonly' => ! empty( $opts['readonly'] ),
+		'required' => ! empty( $opts['required'] ),
 	);
 	switch ( $type ) {
 		case 'hidden':

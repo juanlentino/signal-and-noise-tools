@@ -70,7 +70,7 @@ function sn_admin_tag_by_tag_rows( array $wide ) {
 			$titles[] = sprintf( __( '%1$s (%2$s of 2, confidence %3$s)', 'signal-and-noise-tools' ), (string) $t['title'], number_format_i18n( (float) $t['score'], 2 ), number_format_i18n( (float) $t['confidence'], 2 ) );
 		}
 		$rows[] = array(
-			'tag'      => (string) $r['name'],
+			'tag'      => sn_tag_name( $r['name'] ), // stored escaped (inc/tag-consolidation-words.php).
 			'notes'    => (int) $r['notes'],
 			'mean'     => number_format_i18n( (float) $r['mean'], 2 ),
 			'touching' => count( $r['touching'] ),

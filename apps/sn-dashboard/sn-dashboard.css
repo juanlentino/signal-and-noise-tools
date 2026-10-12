@@ -213,6 +213,13 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 	margin-block-start: 0;
 }
 
+/* Content > Workflow (2026-10-12): ONE form whose Saves sit beside their
+   fields (`[data-snt-form-submit]`, assets/os-kit.js), one under the page
+   fields and one with Cancel under the open list. The footer's own Save would
+   be a third, at the foot of the ledger, far from both. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-form.snt-form--saves-inline::part( footer ) {
+	display: none;
+}
 /* The body's flex column is the kit's `stack` attribute (snt_kit_section()
    passes it); only the gap and the box are ours. */
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf os-section {
@@ -227,6 +234,33 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 
 .snt-app[data-os-app="sn-dashboard"] os-table {
 	--os-ui-table-max-height: 440px;
+}
+
+/* Integrity > Reports (2026-10-12): a paired row of report boxes reads as
+   one height. os-grid stretches each os-section host to the row, but the
+   painted card is its body part, which kept its own height (live: 304 vs
+   160px). The host becomes a column and the body takes the rest. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-grid.snt-reports-pair > os-section {
+	display: flex;
+	flex-direction: column;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf os-grid.snt-reports-pair > os-section::part( body ) {
+	flex: 1 1 auto;
+}
+
+/* Integrity > Links (2026-10-12): one title block per card header, stacked
+   (group, title, host), and the ↗ kept on the line with the host. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-links-card {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-links-card > * {
+	margin: 0;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-links-nowrap {
+	white-space: nowrap;
 }
 
 /* 2026-10-12: a list whose rows open an editor in place (Redirects, Broken
@@ -1115,3 +1149,68 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 .snt-provenance os-section > p {
 	margin-block: 0;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * AI and Security leaves: the live check on #2022 (1,300px window, 1,194px leaf)
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/* Agent tools: a document's reading (the bridge's, with when it was checked)
+   wraps instead of losing its end to an ellipsis. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-list--wrap .snt-list__value {
+	white-space: normal;
+	overflow: visible;
+	text-overflow: clip;
+	overflow-wrap: break-word;
+}
+
+/* Agent tools: a door's chips carry a count after the name; the kit's 220px
+   label cap clipped it ("remote-provenance-integrity-status · 15"). */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-door-chips os-chip {
+	--os-ui-chip-label-max: none;
+}
+
+/* MCP Clients: Save and Unbind share one row, each its own form. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-bind-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 8px;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-bind-row > os-form:first-child {
+	flex: 1 1 16rem;
+	min-width: 0;
+}
+/* The Unbind form keeps its button's width. The kit's .snt-form { width: 100% }
+   made it a full-row flex item, so it wrapped under Save (live re-measure on
+   #2022: Unbind's host measured 542px, the whole row). os-form is a
+   container (container-type: inline-size), so its content does not size it:
+   at width: auto it shrank to 0 and the button hung outside the card. The
+   floor is the button's width (live: Unbind at x 642-711, inside the card). */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-bind-row > os-form:last-child {
+	flex: 0 0 auto;
+	width: auto;
+	min-width: 5.5rem;
+}
+
+/* MCP Clients and Login defense: the boxes of a row stretch to the row, so
+   a pair or a row of three reads as one band, not boxes of 1.8x heights. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf:is( [data-snt-leaf="mcp-connect"], [data-snt-leaf="login-defense"] ) os-grid > os-section {
+	display: flex;
+	flex-direction: column;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf:is( [data-snt-leaf="mcp-connect"], [data-snt-leaf="login-defense"] ) os-grid > os-section::part( body ) {
+	flex: 1 1 auto;
+}
+
+/* Login defense, Breached passwords: the label column is capped and a value
+   never breaks inside a word ("0 of 1 checked accounts" broke across six
+   lines in a 29px column). */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="login-defense"] .snt-kv os-fact::part( label ) {
+	max-width: 14em;
+}
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="login-defense"] .snt-kv__v {
+	overflow-wrap: normal;
+	word-break: normal;
+	hyphens: none;
+}
+

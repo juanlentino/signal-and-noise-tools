@@ -34,6 +34,9 @@ function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (i
 // escapes the RESULT needs this, not esc_html__(), which would escape the
 // template before the values land in it.
 function __( $s, $d = null ) { return (string) $s; }
+function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function esc_attr__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function get_option( $k, $d = false ) { return $d; }
 // Real _n() shape: returns (never echoes) and selects on the COUNT. A stub
 // ignoring $n would green a renderer that says "1 logins" on the live site.
 function _n( $one, $many, $n, $d = null ) { return (string) ( 1 === (int) $n ? $one : $many ); }

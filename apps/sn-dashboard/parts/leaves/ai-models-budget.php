@@ -71,7 +71,7 @@ function models_budget_spend_html( array $d ) {
 		$pct_width = max( 0, min( 100, $pct_true ) );
 		// 17.4.1: a problem is a notice on top of its box.
 		if ( $spent >= $budget ) {
-			$out .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The cap is reached. AI features are paused until the next calendar month, or until you raise this number.', 'signal-and-noise-tools' ) ) . '</b>' );
+			$out .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The cap is reached. AI features except Copilot are paused until the next calendar month, or until you raise this number.', 'signal-and-noise-tools' ) ) . '</b>' );
 		}
 		$out .= '<p class="snt-prose">' . sprintf(
 			esc_html__( 'Spent this month: $%1$s of $%2$s (%3$s%%).', 'signal-and-noise-tools' ),
@@ -84,7 +84,6 @@ function models_budget_spend_html( array $d ) {
 			'max'   => '100',
 			'tone'  => $spent >= $budget ? 'danger' : 'default',
 		) );
-		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Set 0 to remove the cap.', 'signal-and-noise-tools' ) ) . '</p>';
 	} else {
 		$out .= '<p class="snt-prose">' . sprintf(
 			esc_html__( 'No cap set: AI features never pause on cost. Spent this month: $%s.', 'signal-and-noise-tools' ),
@@ -114,31 +113,11 @@ function models_budget_spend_html( array $d ) {
 	) ) );
 	$out     .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Copilot is priced at list rates from the tokens the station reports, with no prompt-cache discount, so it reads high on a warm cache.', 'signal-and-noise-tools' ) ) . '</p>';
 	if ( $unpriced > 0 ) {
-		$out .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( __( '%s Copilot turn(s) this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', 'signal-and-noise-tools' ), number_format_i18n( $unpriced ) ) ) . '</p>';
+		/* translators: %s: Copilot turns. */
+		$out .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( _n( '%s Copilot turn this month reported no usage, or a model with no list price on file, and is not in the dollar figure.', '%s Copilot turns this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', $unpriced, 'signal-and-noise-tools' ), number_format_i18n( $unpriced ) ) ) . '</p>';
 	}
 	// 17.4.1: one box, the total as its lead, so it can share a row with the form.
 	return \snt_kit_section( __( 'This month, by feature', 'signal-and-noise-tools' ), $out );
-}
-
-/**
- * The embeddings-token status pill (item 8 — Workers AI token for SHADOW
- * semantic embeddings). Absent entirely when the lane's check is unavailable,
- * matching the classic `function_exists()` guard.
- *
- * @param array $d From models_budget_data().
- * @return string
- */
-function models_budget_embed_status_html( array $d ) {
-	if ( ! $d['embed_has_check'] ) {
-		return '';
-	}
-	if ( $d['embed_configured'] ) {
-		return \snt_kit_notice( 'ok', \snt_kit_badge( 'ok', __( 'Configured', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( __( 'Embeddings run in SHADOW mode: they are computed and compared against the existing ranking, and nothing the site serves uses them yet.', 'signal-and-noise-tools' ) ) );
-	}
-	if ( '' === $d['embed_account_id'] ) {
-		return \snt_kit_notice( 'warn', \snt_kit_badge( 'warn', __( 'No Cloudflare account ID — set it under Connections › Credentials first.', 'signal-and-noise-tools' ) ) );
-	}
-	return \snt_kit_notice( 'info', \snt_kit_badge( '', __( 'Not configured.', 'signal-and-noise-tools' ) ) );
 }
 
 /** Divergent-pair rows painted before the "+N more" line. */
@@ -163,7 +142,7 @@ function models_budget_compare_html( array $d, $lead = '' ) {
 		$scope  = (array) ( $res['scope'] ?? array() );
 		if ( $scope ) {
 			$body .= '<p class="snt-prose">' . sprintf(
-				esc_html__( '%1$d notes embedded (%2$d published and scored; %3$d scheduled, counted in the centroid only — a scheduled note has no baseline artifact to diverge from).', 'signal-and-noise-tools' ),
+				esc_html__( '%1$d notes embedded (%2$d published and scored; %3$d scheduled, counted in the centroid only, since a scheduled note has no baseline artifact to diverge from).', 'signal-and-noise-tools' ),
 				(int) ( $scope['embedded_total'] ?? 0 ),
 				(int) ( $scope['scored_sources'] ?? 0 ),
 				(int) ( $scope['scheduled_in_centroid'] ?? 0 )
@@ -171,8 +150,8 @@ function models_budget_compare_html( array $d, $lead = '' ) {
 		}
 		$labels = array(
 			'raw'             => __( 'Raw cosine', 'signal-and-noise-tools' ),
-			'centered'        => __( 'Centred', 'signal-and-noise-tools' ),
-			'centered_mutual' => __( 'Centred + mutual', 'signal-and-noise-tools' ),
+			'centered'        => __( 'Centered', 'signal-and-noise-tools' ),
+			'centered_mutual' => __( 'Centered + mutual', 'signal-and-noise-tools' ),
 		);
 		$rows = array();
 		foreach ( $labels as $key => $label ) {
@@ -259,6 +238,7 @@ function paint_ai_models_budget( array $ctx ) {
 	$fields .= \snt_kit_field( 'number', 'theme_ai_monthly_budget', __( 'Monthly budget (USD)', 'signal-and-noise-tools' ), number_format( $d['budget'], 2, '.', '' ), array(
 		'min'  => 0,
 		'step' => 0.5,
+		'hint' => __( 'Set 0 to remove the cap.', 'signal-and-noise-tools' ),
 	) );
 	// 16.6.0: the Jev credit and its cycle day; the meter reads both.
 	$fields .= \snt_kit_field( 'number', 'theme_jev_credit', __( 'Jev monthly credit (USD)', 'signal-and-noise-tools' ), number_format( (float) sn_setting( 'theme.jev_credit', 5 ), 2, '.', '' ), array( 'min' => 0, 'step' => 0.5, 'hint' => __( 'TypeSafe\'s credit, as the console states it. A readout, not a cap.', 'signal-and-noise-tools' ) ) );
@@ -267,7 +247,7 @@ function paint_ai_models_budget( array $ctx ) {
 	// this leaf reads it and says so.
 	$fields .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Workers AI token (semantic embeddings):', 'signal-and-noise-tools' ) ) . ' ' . ( '' !== (string) $d['embed_token'] ? \snt_kit_badge( 'ok', __( 'set', 'signal-and-noise-tools' ) ) : \snt_kit_badge( 'warn', __( 'not set', 'signal-and-noise-tools' ) ) ) . ' ' . \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'monitoring' ) ) . '.</p>';
 
-	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here (drafts, insights, meta descriptions, alt text) draws on the same monthly budget.', 'signal-and-noise-tools' ) ) . '</p>';
+	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here except Copilot (drafts, insights, meta descriptions, alt text) draws on the same monthly budget.', 'signal-and-noise-tools' ) ) . '</p>';
 	$form  = \snt_kit_section(
 		__( 'Models & budget', 'signal-and-noise-tools' ),
 		\snt_kit_form( 'ai_settings_save', $fields, array( 'submit' => __( 'Save AI settings', 'signal-and-noise-tools' ), 'columns' => 'auto' ) ),
@@ -275,12 +255,13 @@ function paint_ai_models_budget( array $ctx ) {
 	);
 	// 17.4.1 (#1573): boxes on rows of comparable height. The form beside the
 	// two readouts it is read against; the Jev meter beside the comparison box
-	// while that box is short (configured, no result yet). A bare status
-	// notice, or a comparison carrying its result (a ledger), stands alone at
-	// full width under the Jev box rather than beside a hole.
-	$embed  = models_budget_embed_status_html( $d );
+	// while that box is short (configured, no result yet) or beside the
+	// Semantic embeddings box that says what is missing (2026-10-12 audit: a
+	// bare "Not configured." notice ended the page). A comparison carrying its
+	// result (a ledger) stands alone at full width under the Jev box.
+	$embed  = models_budget_embed_html( $d );
 	$right  = $d['embed_configured'] ? models_budget_compare_html( $d, $embed ) : $embed;
-	$beside = $d['embed_configured'] && ! ( is_array( $d['cmp'] ) && ! empty( $d['cmp']['ok'] ) );
+	$beside = ! ( $d['embed_configured'] && is_array( $d['cmp'] ) && ! empty( $d['cmp']['ok'] ) );
 	return $intro
 		. models_budget_pair( $form, models_budget_spend_html( $d ) . models_budget_platform_html( $d ) )
 		. models_budget_pair( models_budget_jev_html( $d ), $beside ? $right : '' )

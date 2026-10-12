@@ -36,6 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // renderer does not push this file past the house line cap. Required from
 // here — not only from the plugin loader — so every existing load site of
 // this file (tests included) keeps getting the whole renderer set.
+require_once __DIR__ . '/health-report-coverage.php';
 require_once __DIR__ . '/health-render-contrast.php';
 require_once __DIR__ . '/health-contrast-rendered.php';
 require_once __DIR__ . '/health-render-motion.php';
@@ -80,7 +81,7 @@ function sn_health_render_reports_section( $reports ) {
 	}
 
 	echo '<h2 class="sn-section-h">Reports</h2>';
-	echo '<p class="sn-health-reports__intro">Checks that measure and publish rather than flag. Nothing here is a defect list — read the coverage line before reading the numbers.</p>';
+	echo '<p class="sn-health-reports__intro">' . esc_html__( 'Checks that measure and publish rather than flag. Nothing here is a defect list: read the coverage line before reading the numbers.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<div class="sn-health-reports">';
 
 	$renderers = sn_health_report_renderers();
@@ -96,14 +97,16 @@ function sn_health_render_reports_section( $reports ) {
 		echo '<span class="sn-pill">report</span>';
 		echo '</h2>';
 
-		if ( ! empty( $report['coverage'] ) ) {
-			echo '<p class="sn-health-report__coverage"><strong>What this covers:</strong> ' . esc_html( (string) $report['coverage'] ) . '</p>';
+		// Looked up by key at paint time, never the copy the scan froze.
+		$coverage = sn_health_report_coverage( (string) $key, $report );
+		if ( '' !== $coverage ) {
+			echo '<p class="sn-health-report__coverage"><strong>What this covers:</strong> ' . esc_html( $coverage ) . '</p>';
 		}
 
 		if ( isset( $renderers[ $key ] ) && is_callable( $renderers[ $key ] ) ) {
 			call_user_func( $renderers[ $key ], $report, $check );
 		} else {
-			echo '<p class="sn-field-helper">This report has no detail view yet — its payload is available through the health-scan ability.</p>';
+			echo '<p class="sn-field-helper">' . esc_html__( 'This report has no detail view yet; its payload is available through the health-scan ability.', 'signal-and-noise-tools' ) . '</p>';
 		}
 
 		echo '</div>'; // .sn-fieldset
@@ -202,7 +205,7 @@ function sn_health_render_link_isolation_report( $report ) {
 		echo esc_html(
 			sprintf(
 				/* translators: 1: rows shown, 2: true total */
-				__( 'Showing %1$d of %2$d isolated notes — the list is capped, not complete.', 'signal-and-noise-tools' ),
+				__( 'Showing %1$d of %2$d isolated notes; the list is capped, not complete.', 'signal-and-noise-tools' ),
 				count( $rows ),
 				(int) $total
 			)

@@ -270,9 +270,12 @@ add_action( 'admin_enqueue_scripts', function() {
 			'insights'     => snt_desktop_admin_url( 'sn-insights' ),
 			'rss'          => snt_desktop_admin_url( 'sn-rss' ),
 			'reading_time' => snt_desktop_admin_url( 'sn-reading-time' ),
-			'analytics'    => snt_desktop_admin_url( 'sn-analytics' ),
+			// 2026-10-12: names its view, as every other link names its leaf
+			// (the bare URL carried no params, so an open S&N Analytics stayed
+			// on whatever view it showed).
+			'analytics'    => snt_analytics_page_url( array( 'sn_view' => 'overview' ) ),
 			// The readings live in S&N Analytics since the evidence-basis arc.
-			'machine_readers' => function_exists( 'snt_mr_analytics_view_url' ) ? snt_mr_analytics_view_url( 'machine-readers' ) : snt_desktop_admin_url( 'sn-analytics' ),
+			'machine_readers' => function_exists( 'snt_mr_analytics_view_url' ) ? snt_mr_analytics_view_url( 'machine-readers' ) : snt_analytics_page_url( array( 'sn_view' => 'machine-readers' ) ),
 			// 15.8.2: every "Open … →" lands on the LEAF where its reading lives,
 			// not on the Dashboard tab. Uptime and Deploy keep 'dashboard': that
 			// leaf is where those two readings are painted.
