@@ -110,7 +110,9 @@
 	// number prints unsigned ("▲ 3", never "▲ +3"). Colour only when the
 	// change is meaningful; otherwise the muted text colour, so a 4-to-3 wobble
 	// does not paint an alarm.
-	var UP = '#3fb950', DOWN = '#c9503f', MUTED = 'var(--os-ui-color-text-subtle, rgba(255,255,255,.6))';
+	// 2026-10-12 audit: DOWN is the cards' text red (#ff9d94, as SN Groups and
+	// SN Systems use); the chart red #c9503f is 4.0:1 as 11px text on the glass.
+	var UP = '#3fb950', DOWN = '#ff9d94', MUTED = 'var(--os-ui-color-text-subtle, rgba(255,255,255,.6))';
 	var MIN_ABS = 5, MIN_REL = 20, MIN_PTS = 5;
 
 	function deltaText( d, suffix ) {
@@ -134,7 +136,7 @@
 	function deltaLine( pct, total ) {
 		if ( pct === null || typeof pct === 'undefined' ) {
 			// No prior window to compare — say nothing rather than imply flat.
-			return el( 'div', { text: 'vs. prior 14 days: —', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+			return el( 'div', { text: 'vs. prior 14 days: not measured', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 		}
 		// Prior total recovered from the percentage, for the absolute floor.
 		var prior = typeof total === 'number' && pct > -100 ? total / ( 1 + pct / 100 ) : 0;
@@ -412,9 +414,9 @@
 			// Today so far and Reading now as one list. Additive: an older cached
 			// payload without `today` paints no Today row; a measured 0 renders.
 			// Reading now is filled and kept current by assets/live-now.js (a
-			// dependency of this script): "—" until read.
+			// dependency of this script): "not read" until read.
 			var nowRows = typeof payload.today === 'number' ? [ { label: 'Today so far', value: payload.today } ] : [];
-			nowRows.push( { label: 'Reading now', value: '—' } );
+			nowRows.push( { label: 'Reading now', value: 'not read' } );
 			var nowList = list( nowRows );
 			var nowVal  = lastCell( nowList.lastChild );
 			if ( nowVal ) {
@@ -425,7 +427,7 @@
 			// The last hour as small bars and the page most read right now. Both
 			// start hidden; live-now.js shows each only when it has something to
 			// say (a reader in the hour, a page being read), so a quiet card adds
-			// no empty strip and no "—" row.
+			// no empty strip and no unread row.
 			if ( document.createElementNS ) {
 				var barsBox = el( 'div' );
 				barsBox.hidden = true;
@@ -444,7 +446,7 @@
 				barsBox.appendChild( barsNote );
 				body.appendChild( barsBox );
 			}
-			var topList = list( [ { label: 'Top now', value: '—' } ] );
+			var topList = list( [ { label: 'Top now', value: 'not read' } ] );
 			topList.hidden = true;
 			topList.setAttribute( 'data-sn-live-hide-empty', '' );
 			var topVal = lastCell( topList.lastChild );

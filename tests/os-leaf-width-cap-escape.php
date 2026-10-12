@@ -197,7 +197,9 @@ foreach ( array( $css, $app_css ) as $sheet ) {
 		if ( ! preg_match( '/max-width:\s*\d+px/', $r[2] ) ) { continue; }
 		foreach ( explode( ',', $r[1] ) as $sel ) {
 			$sel = trim( $sel );
-			if ( false !== strpos( $sel, 'os-form' ) || 1 === preg_match( '/\.snt-form(?![-\w])/', $sel ) ) {
+			// The subject is the form itself: its last compound is os-form or .snt-form.
+			$subject = (string) preg_replace( '/^.*[\s>]/', '', (string) preg_replace( '/\([^()]*\)/', '', $sel ) );
+			if ( 1 === preg_match( '/^(os-form|[\w-]*\.snt-form)(?![-\w])/', $subject ) ) {
 				$form_caps[] = $sel;
 			}
 		}
@@ -205,7 +207,14 @@ foreach ( array( $css, $app_css ) as $sheet ) {
 }
 ok( array() === $form_caps, 'no rule caps a kit form at a pixel width' . ( $form_caps ? ' -- ' . implode( ', ', $form_caps ) : '' ) );
 ok( 1 === preg_match( '/\.snt-app \.snt-form--rows,\s*\.snt-app \.snt-form--stack \{[^}]*max-width: 760px/', $app_css ), 'the native rows and stack forms (no column engine) keep the 760px measure' );
-ok( 1 === preg_match( '/\.snt-app os-form > :not\( os-field-row \),\s*\.snt-app os-form > os-field-row:has\( os-textarea \),\s*\.snt-app os-form > os-field-row:has\( \+ \.snt-hint \) \{\s*grid-column: 1 \/ -1;/', $app_css ), 'only a labelled field shares a row: a textarea, a field with its hint after it, and anything that is not a field span the form' );
+$span = '';
+foreach ( preg_split( '/\}/', $app_css ) as $chunk ) {
+	if ( false !== strpos( $chunk, 'grid-column: 1 / -1' ) && false !== strpos( $chunk, 'os-form' ) ) { $span = $chunk; }
+}
+foreach ( array( 'os-form >', 'os-form os-section >' ) as $parent ) {
+	ok( false !== strpos( $span, '.snt-app ' . $parent . ' :not( os-field-row )' ) && false !== strpos( $span, '.snt-app ' . $parent . ' os-field-row:has( os-textarea )' ) && false !== strpos( $span, '.snt-app ' . $parent . ' os-field-row:has( + .snt-hint )' ), "only a labelled field shares a row ($parent): a textarea, a field with its hint after it, and anything that is not a field span it" );
+}
+ok( 1 === preg_match( '/\.snt-app os-form os-section:has\( > os-field-row \)::part\( body \) \{\s*display: grid;\s*grid-template-columns: repeat\( auto-fit, minmax\( min\( 100%, max\( 320px, calc\( \( 100% - 16px \) \/ 2 \) \) \), 1fr \) \);/', $app_css ), 'a box of fields inside a form pairs them, at most two columns and one under about 660px' );
 $raw = (string) file_get_contents( $css_path );
 ok( false === strpos( $raw, 'OpenStation caps' ) && false === strpos( $raw, 'os-form:has( os-grid )' ), 'the false comment is gone with the rule it defended (a form that paired its cards had to opt out of a cap that no longer exists)' );
 

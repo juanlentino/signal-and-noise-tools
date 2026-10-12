@@ -331,20 +331,38 @@ a.snt-link {
 /* A kit form fills its leaf (2026-10-12 audit). It was capped at 760px here,
    which left about 480px empty beside every lone form in a 1,300px window;
    os-form has no cap of its own (760 is its three-column breakpoint) and
-   pairs its fields from a 480px form up. Only a labelled field shares a row:
-   a textarea, a field whose hint paragraph follows it, and anything that is
-   not a field (a section, a notice, a switch, a hint) take the whole row. A
-   rule here reaches the slotted children and outranks the shadow's
-   ::slotted( [full-width] ). The native rows and stack forms have no column
-   engine, so they keep the measure. */
+   pairs its fields from a 480px form up. A box of fields inside a form pairs
+   them the same way: its body becomes a grid of at most two columns (one
+   under about 660px, so a box in a paired row stays one column). Only a
+   labelled field shares a row: a textarea, a field whose hint paragraph
+   follows it, and anything that is not a field (a section, a notice, a
+   switch, a hint) take the whole row, and a one-line field that spans for
+   its hint keeps a field's measure. A rule here reaches the slotted children
+   and outranks the shadow's ::slotted( [full-width] ) and the section's
+   `stack` column. The native rows and stack forms have no column engine, so
+   they keep the measure. */
 .snt-form {
 	width: 100%;
 }
 
+.snt-app os-form os-section:has( > os-field-row )::part( body ) {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( min( 100%, max( 320px, calc( ( 100% - 16px ) / 2 ) ) ), 1fr ) );
+	gap: 14px 16px;
+	align-items: start;
+}
+
 .snt-app os-form > :not( os-field-row ),
 .snt-app os-form > os-field-row:has( os-textarea ),
-.snt-app os-form > os-field-row:has( + .snt-hint ) {
+.snt-app os-form > os-field-row:has( + .snt-hint ),
+.snt-app os-form os-section > :not( os-field-row ),
+.snt-app os-form os-section > os-field-row:has( os-textarea ),
+.snt-app os-form os-section > os-field-row:has( + .snt-hint ) {
 	grid-column: 1 / -1;
+}
+
+.snt-app os-form os-field-row:has( + .snt-hint ):not( :has( os-textarea ) ) {
+	max-width: 720px;
 }
 
 .snt-app .snt-form--rows,

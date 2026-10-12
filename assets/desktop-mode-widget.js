@@ -22,6 +22,10 @@
 ( function() {
 	'use strict';
 
+	// 2026-10-12 audit: a failure says what happened in words, never a
+	// function name. snt-ability-run.js is the script that reads the site.
+	var NO_RUNNER = 'the S&N status reader did not load; reload the desktop';
+
 	// v9.52.0 — MOUNT CONTRACT FIX. PHP-declared widgets are mounted by
 	// desktop-mode's server-sync, which reads the callback off
 	// window.desktopModeWidgets[ id ]. This file previously called
@@ -186,7 +190,7 @@
 			if ( unchecked ) { glyph = { label: '–', color: 'var(--os-ui-color-text-subtle, rgba(255,255,255,.6))' }; }
 			versionRow( grid, { theme: 'Theme', plugin: 'Plugin', core: 'Core' }[ pkg ],
 				// Core names what is waiting: "behind (point)" / "behind (major)".
-				( info.current || '—' ) + ( pkg === 'core' && info.state === 'behind' && info.offer ? ' · behind (' + info.offer + ')' : '' ) + ( unchecked ? ' · update check not cached' : '' ),
+				( info.current || 'not read' ) + ( pkg === 'core' && info.state === 'behind' && info.offer ? ' · behind (' + info.offer + ')' : '' ) + ( unchecked ? ' · update check not cached' : '' ),
 				glyph, info.reason );
 		}
 
@@ -234,7 +238,7 @@
 					skews.push( ( w.label || w.id || 'worker' ) + ' contract ' + ( w.contract_live || '?' ) + '; this plugin expects ' + ( w.contract_expected || '?' ) + '.' );
 				}
 				versionRow( fleet.grid, w.label || w.id || 'worker',
-					( w.live && w.live !== 'unprobeable' ) ? w.live : '—',
+					( w.live && w.live !== 'unprobeable' ) ? w.live : 'not read',
 					stateGlyph( stale ? 'unknown' : ( mismatch ? 'behind' : ( w.state || 'unknown' ) ) ),
 					w.reason || ( mismatch ? 'The worker and this plugin disagree on the remote contract; deploy the side that is behind.' : '' ) || ( hasContract ? 'contract ' + w.contract_live + ' matches this plugin' : '' ) || ( w.live === 'unprobeable' ? 'no version route to probe' : '' ) );
 			} );
@@ -296,7 +300,7 @@
 			function say( message ) {
 				if ( ! shellToast( message ) ) { note.textContent = message; }
 			}
-			if ( typeof window.sntAbilityRun !== 'function' ) { say( 'sntAbilityRun unavailable' ); return; }
+			if ( typeof window.sntAbilityRun !== 'function' ) { say( 'Could not check: ' + NO_RUNNER + '.' ); return; }
 			btn.setAttribute( 'aria-busy', 'true' );
 			btn.textContent   = 'Checking…';
 			btn.style.opacity = '0.55';
@@ -320,7 +324,7 @@
 		if ( dashboardUrl ) {
 			var link  = el( 'a', {
 				style: 'display:inline-flex;align-items:center;gap:4px;min-height:24px;font-size:11px;color:var(--os-ui-accent-strong, var(--os-ui-color-accent, #4a9eff));text-decoration:none;',
-				text:  'Open Dashboard',
+				text:  'Open S&N Home',
 				href:  dashboardUrl,
 			} );
 			var arrow = el( 'span', { text: '→' } );
@@ -372,7 +376,7 @@
 			// Promise boundary also handles a missing runner or a synchronous throw.
 			Promise.resolve().then( function() {
 				if ( torn ) { return; }
-				if ( typeof window.sntAbilityRun !== 'function' ) { throw new Error( 'sntAbilityRun unavailable' ); }
+				if ( typeof window.sntAbilityRun !== 'function' ) { throw new Error( NO_RUNNER ); }
 				return window.sntAbilityRun( 'get-deploy-status', undefined, { signal: controller ? controller.signal : undefined, silent: true } );
 			} ).then( function( res ) {
 				if ( torn ) { return; }
@@ -381,7 +385,7 @@
 					return info && typeof info === 'object' && ! Array.isArray( info ) &&
 						typeof info.current === 'string' && typeof info.state === 'string' && info.state.length > 0;
 				} );
-				if ( ! validPackages ) { throw new Error( 'Invalid deploy status response' ); }
+				if ( ! validPackages ) { throw new Error( 'The site sent an incomplete deploy status' ); }
 				lastGood = res;
 				lastSuccess = new Date().toISOString();
 				failures = 0;

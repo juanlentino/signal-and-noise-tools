@@ -21,6 +21,10 @@
 ( function boot() {
 	'use strict';
 
+	// 2026-10-12 audit: a failure says what happened in words, never a
+	// function name. snt-ability-run.js is the script that reads the site.
+	var NO_RUNNER = 'the S&N status reader did not load; reload the desktop';
+
 	// v10.43.0 — OpenStation rename compat (REJECT #11 MEDIUM fix):
 	// SELF-SUFFICIENT, not order-dependent on the external
 	// assets/desktop-mode-os-compat.js prelude having run first.
@@ -147,7 +151,7 @@
 	 */
 	function callRest( action ) {
 		if ( ! window.sntAbilityRun ) {
-			toast( 'sntAbilityRun unavailable — SN command cannot dispatch.', 'error' );
+			toast( 'The command did not run: ' + NO_RUNNER + '.', 'error' );
 			return Promise.reject( new Error( 'no sntAbilityRun' ) );
 		}
 		return window.sntAbilityRun( CMD_ABILITY[ action ] || action, CMD_INPUT[ action ] );
@@ -202,9 +206,8 @@
 	function versionToast( pkg ) {
 		var label = pkg === 'theme' ? 'Theme' : 'Plugin';
 		var info = data[ pkg ] || {};
-		var current = info.current || '—';
 		var state = info.state || 'unknown';
-		var msg = label + ': v' + current;
+		var msg = label + ': ' + ( info.current ? 'v' + info.current : 'version not read' );
 		if ( state === 'ok' ) {
 			msg += ' (up to date)';
 		} else if ( state === 'available' ) {
@@ -304,7 +307,7 @@
 	} );
 
 	// Navigation. All aiCallable — pure navigation, no state change.
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-dashboard', label: 'SN: Open Dashboard',    aiCallable: true, run: function( args, ctx ) { navigate( pages.dashboard, ctx, 'Dashboard' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-dashboard', label: 'SN: Open S&N Home',    aiCallable: true, run: function( args, ctx ) { navigate( pages.dashboard, ctx, 'Dashboard' ); } } );
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-identity', label: 'SN: Open Identity',     aiCallable: true, run: function( args, ctx ) { navigate( pages.identity, ctx, 'Identity' ); } } );
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-login', label: 'SN: Open Login',        aiCallable: true, run: function( args, ctx ) { navigate( pages.login, ctx, 'Login' ); } } );
 	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-cloudflare', label: 'SN: Open Cloudflare',   aiCallable: true, run: function( args, ctx ) { navigate( pages.cloudflare, ctx, 'Cloudflare' ); } } );
@@ -367,7 +370,7 @@
 		aiCallable: true,
 		run: function() {
 			if ( ! window.sntAbilityRun ) {
-				return toast( 'sntAbilityRun unavailable.', 'error' );
+				return toast( 'Nothing ran: ' + NO_RUNNER + '.', 'error' );
 			}
 			// v7.7.0/v8.0.0: get-audit-summary was removed — same payload rides
 			// under get-audit-log's `summary` key. v7.7.2: GET via the runner.
@@ -398,7 +401,7 @@
 		aiCallable: true,
 		run: function() {
 			if ( ! window.sntAbilityRun ) {
-				return toast( 'sntAbilityRun unavailable.', 'error' );
+				return toast( 'Nothing ran: ' + NO_RUNNER + '.', 'error' );
 			}
 			// v7.7.0/v8.0.0: get-audit-login-successes was removed — the rows ride
 			// under get-audit-log's `logins` key. v7.7.2: GET via the runner.

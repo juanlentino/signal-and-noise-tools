@@ -61,7 +61,8 @@ if ( '' === $node ) {
 		foreach ( (array) ( $out['rows'] ?? array() ) as $r ) { $rows[ $r['text'] ] = $r['color']; }
 		return $rows;
 	};
-	$down = '#c9503f';
+	// 2026-10-12 audit: the down text is the cards' text red (4.0:1 was #c9503f).
+	$down = '#ff9d94';
 	$muted = function ( $c ) { return 0 === strpos( (string) $c, 'var(--os-ui-color-text-subtle' ); };
 
 	// Text: arrow present, no sign.
@@ -71,7 +72,9 @@ if ( '' === $node ) {
 	ok( isset( $r0['▲ 0% vs. prior 14 days'] ) && $muted( $r0['▲ 0% vs. prior 14 days'] ), 'zero: the flat views line is muted' );
 	$all = implode( ' ', array_keys( $r + $r0 ) );
 	ok( 0 === preg_match( '/[▲▼] [+\-−]/u', $all ), 'no sign follows any arrow' );
-	ok( $down === $r['▼ 41.3% vs. prior 14 days'], 'views -41.3% on 100 (abs 70): red' );
+	ok( $down === $r['▼ 41.3% vs. prior 14 days'], 'views -41.3% on 100 (abs 70): red, the cards\' text red (#ff9d94), not the 4.0:1 chart red' );
+	$rn = $render( array( 'delta_pct' => null ) );
+	ok( isset( $rn['vs. prior 14 days: not measured'] ), 'no prior window: the line says not measured, never an em dash' );
 
 	// SN Traffic: This week, the folded groups and the top pages paint.
 	$full = array(
