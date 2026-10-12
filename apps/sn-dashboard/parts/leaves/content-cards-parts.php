@@ -37,3 +37,18 @@ function snt_pair_cards( array $cards ) {
 	}
 	return $out;
 }
+
+/**
+ * The spare cards' keys after `$count` stored cards: the template's own key,
+ * and a second one when the stored count is even, so the spares fill their
+ * row and two can be added per save. The handlers never read the keys
+ * (sn_now_rows_to_text(), sn_uses_rows_to_text()) and prune a blank row.
+ *
+ * @param int    $count  Stored cards.
+ * @param string $first  The template's key (`__G__`).
+ * @param string $second The second spare's key.
+ * @return string[]
+ */
+function snt_spare_keys( $count, $first, $second ) {
+	return 0 === (int) $count % 2 ? array( (string) $first, (string) $second ) : array( (string) $first );
+}

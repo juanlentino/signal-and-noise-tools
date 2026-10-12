@@ -59,7 +59,7 @@ function sn_nuf_now_group_card( $prefix, $items_id, $section ) {
 	sn_rsm_input( $prefix . '[label]', (string) ( $section['label'] ?? '' ), 'Section label', 'Building' );
 	sn_rsm_controls();
 	echo '</div>';
-	echo '<label class="sn-field-label" for="' . esc_attr( $items_id ) . '">Items &mdash; one per line</label>';
+	echo '<label class="sn-field-label" for="' . esc_attr( $items_id ) . '">Items: one per line</label>';
 	echo '<textarea id="' . esc_attr( $items_id ) . '" name="' . esc_attr( $prefix ) . '[items]" rows="5" class="large-text sn-rsm-items" placeholder="One line about what you are doing&#10;Another line">' . esc_textarea( $value ) . '</textarea>';
 	echo '</div>';
 }
@@ -82,7 +82,7 @@ function sn_admin_render_now_section() {
 	if ( ! empty( $sections ) ) {
 		echo '<p class="sn-fieldset-intro">This form is the editor for the live <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page. Saving here regenerates it. Last saved: <code>' . esc_html( (string) $page['updated'] ) . '</code>.</p>';
 	} else {
-		echo '<p class="sn-fieldset-intro">This form is the editor for the <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page. Add sections below and save to publish it.</p>';
+		echo '<p class="sn-fieldset-intro">This form is the editor for the <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page. Fill in a card and save to publish it.</p>';
 	}
 	echo '<p class="sn-field-helper">Each card is one section on /now: a label, then its items one per line. Incomplete cards are refused at save (items need a label; a label needs at least one item). Removing every card clears the override: the page falls back to the theme\'s built-in content (it is never silently blanked).</p>';
 

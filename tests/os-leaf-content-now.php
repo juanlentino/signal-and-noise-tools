@@ -28,6 +28,8 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 
 /** Count the section cards in a kit paint. */
 function now_cards( $html ) { return substr_count( (string) $html, '<os-card' ); }
+/** The kit's names less the second spare (`__H__`), which the classic has no twin of: its "+ Add section" adds rows client-side. */
+function now_names_but_second_spare( $html ) { return array_values( array_filter( snt_leaf_names( $html ), static fn( $n ) => false === strpos( $n, '[__H__]' ) ) ); }
 
 /** The values the window would post from a kit paint: every named field's painted value, entity-decoded. */
 function now_posted_from( $html ) {
@@ -58,7 +60,7 @@ $GLOBALS['__options'][ SN_NOW_PAGE_OPTION ] = array( 'raw' => $raw, 'updated' =>
 $classic = snt_leaf_classic_html( 'sn_admin_render_now_section' );
 $kit     = snt_leaf_paint( 'content', 'now' );
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+ok( snt_leaf_names( $classic ) === now_names_but_second_spare( $kit ), 'field names match the classic form, the second spare aside: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( in_array( 'now[groups][__G__][label]', snt_leaf_names( $kit ), true ) && in_array( 'now[groups][1][items]', snt_leaf_names( $kit ), true ), 'the names cover both stored cards and the template card' );
 ok( array( 'now_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is now_save, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
@@ -71,9 +73,12 @@ ok( false !== strpos( $kit, 'never silently blanked' ) && false !== strpos( $kit
 ok( false !== strpos( $kit, '<os-text-field name="now[groups][0][label]" type="text" value="Building" placeholder="Building"' ), 'card 0: the label is a kit text field carrying "Building"' );
 ok( false !== strpos( $kit, '<os-textarea name="now[groups][0][items]" value="Thing one' . "\n" . 'Thing two" rows="5"' ), 'card 0: the items are a 5-row kit textarea, one item per line' );
 ok( false !== strpos( $kit, 'value="Reading"' ) && false !== strpos( $kit, '<os-textarea name="now[groups][1][items]" value="A book about signals" rows="5"' ), 'card 1: label and items are painted' );
-ok( false !== strpos( $kit, '<os-field-row label="Section label"' ) && false !== strpos( $kit, '<os-field-row label="Items — one per line"' ), 'both field labels read as the classic ones' );
+ok( false !== strpos( $kit, '<os-field-row label="Section label"' ) && false !== strpos( $kit, '<os-field-row label="Items: one per line"' ) && false !== strpos( $classic, '>Items: one per line</label>' ), 'both field labels read as the classic ones, with no em dash' );
 ok( false !== strpos( $kit, 'placeholder="One line about what you are doing' . "\n" . 'Another line"' ), 'the two-line items placeholder survives' );
-ok( 3 === now_cards( $kit ), 'two stored cards plus the one new card: ' . now_cards( $kit ) );
+// 2026-10-12 audit: after an even count one spare stood alone across the
+// window and only one section could be added per save; a second fills the row.
+ok( 4 === now_cards( $kit ) && 2 === substr_count( $kit, snt_leaf_row() ), 'two stored cards plus two new ones, two to a row (no lone spare): ' . now_cards( $kit ) );
+ok( false !== strpos( $kit, '<os-text-field name="now[groups][__H__][label]" type="text" value=""' ) && strpos( $kit, '[__G__][label]' ) < strpos( $kit, '[__H__][label]' ), 'the second new card is blank and follows the first' );
 ok( false !== strpos( $kit, '<os-text-field name="now[groups][__G__][label]" type="text" value="" placeholder="Building"' ) && false !== strpos( $kit, '<os-textarea name="now[groups][__G__][items]" value="" rows="5"' ), 'the new card is empty under the template names' );
 ok( false !== strpos( $kit, 'hint="New section: fill in a label' ), 'the new card explains itself where the "+ Add section" button was' );
 ok( false !== strpos( $kit, 'To remove a section, clear its label and its items' ), 'the row controls\' replacement is explained' );
@@ -84,8 +89,12 @@ ok( false === strpos( $kit, 'sn-rsm-' ) && false === strpos( $kit, '<template' )
 // document; the blank new card is pruned.
 $posted = snt_os_host_expand( now_posted_from( $kit ) );
 ok( 'sn_now_save' === ( $posted['action'] ?? '' ) && 'nonce-sn_now_save' === ( $posted['_wpnonce'] ?? '' ), 'the painted form posts action=sn_now_save and the nonce minted for it' );
-ok( isset( $posted['now']['groups']['0']['label'], $posted['now']['groups']['__G__']['items'] ) && 3 === count( $posted['now']['groups'] ), 'the kit names expand to the now[groups] shape the handler reads, string key included' );
-ok( $raw === sn_now_rows_to_text( now_groups_from( $posted ) ), 'saving the painted cards unchanged reproduces the stored document (the blank new card is pruned)' );
+ok( isset( $posted['now']['groups']['0']['label'], $posted['now']['groups']['__G__']['items'], $posted['now']['groups']['__H__']['items'] ) && 4 === count( $posted['now']['groups'] ), 'the kit names expand to the now[groups] shape the handler reads, string keys included' );
+ok( $raw === sn_now_rows_to_text( now_groups_from( $posted ) ), 'saving the painted cards unchanged reproduces the stored document (the blank new cards are pruned)' );
+$two = $posted;
+$two['now']['groups']['__G__'] = array( 'label' => 'Writing', 'items' => 'A third paper' );
+$two['now']['groups']['__H__'] = array( 'label' => 'Listening', 'items' => 'A record' );
+ok( $raw . "\n\n## Writing\n- A third paper\n\n## Listening\n- A record" === sn_now_rows_to_text( now_groups_from( $two ) ), 'both new cards filled: one save adds two sections, in order' );
 
 // ── Escaping: a hostile label and a hostile stamp never reach the markup raw.
 $GLOBALS['__options'][ SN_NOW_PAGE_OPTION ] = array( 'raw' => "## \"><script>x</script>\n- <img src=x onerror=1>", 'updated' => '<script>y</script>' );
@@ -97,17 +106,17 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'the hostile fixture carries n
 unset( $GLOBALS['__options'][ SN_NOW_PAGE_OPTION ] );
 $classic = snt_leaf_classic_html( 'sn_admin_render_now_section' );
 $kit     = snt_leaf_paint( 'content', 'now' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'empty: field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) );
+ok( snt_leaf_names( $classic ) === now_names_but_second_spare( $kit ), 'empty: field names match the classic form, the second spare aside: ' . implode( ',', snt_leaf_names( $kit ) ) );
 ok( array( 'now_save' ) === snt_leaf_actions( $kit ), 'empty: the save is still offered' );
-ok( false !== strpos( $kit, 'Add sections below and save to publish it' ) && false === strpos( $kit, 'Last saved' ) && false === strpos( $kit, 'editor for the live' ), 'empty: the intro is the unpublished one, with no stamp' );
-ok( 1 === now_cards( $kit ) && false !== strpos( $kit, 'name="now[groups][__G__][label]"' ), 'empty: only the new card is painted' );
+ok( false !== strpos( $kit, 'Fill in a card and save to publish it.' ) && false !== strpos( $classic, 'Fill in a card and save to publish it.' ) && false === strpos( $kit . $classic, 'below' ) && false === strpos( $kit, 'Last saved' ) && false === strpos( $kit, 'editor for the live' ), 'empty: the intro is the unpublished one, with no stamp and no positional word, on both surfaces' );
+ok( 2 === now_cards( $kit ) && 1 === substr_count( $kit, snt_leaf_row() ) && false !== strpos( $kit, 'name="now[groups][__G__][label]"' ), 'empty: only the two new cards are painted, side by side' );
 ok( '' === sn_now_rows_to_text( now_groups_from( snt_os_host_expand( now_posted_from( $kit ) ) ) ), 'empty: saving the untouched form serializes to nothing (the clear path), never a refusal' );
 
 // ── Stored but unparseable (no header line): the classic falls to the empty intro.
 $GLOBALS['__options'][ SN_NOW_PAGE_OPTION ] = array( 'raw' => 'just a line, no header', 'updated' => '2026-09-02' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_now_section' );
 $kit     = snt_leaf_paint( 'content', 'now' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 1 === now_cards( $kit ) && false === strpos( $kit, '2026-09-02' ), 'unparseable: paints as empty, as the classic does' );
+ok( snt_leaf_names( $classic ) === now_names_but_second_spare( $kit ) && 2 === now_cards( $kit ) && false === strpos( $kit, '2026-09-02' ), 'unparseable: paints as empty, as the classic does' );
 
 
 // ── The cards are SIBLINGS, so they pair. ──
