@@ -12,6 +12,13 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **A desktop theme, "Signal through noise", for the OpenStation desktop** (owner-approved 2026-10-12). One red signal line through gray noise is its only mark. It changes nothing until you pick it in OS Settings, Appearance (per browser), and it leaves your accent, wallpaper, widgets, dock, window corners and every other OS setting as they are.
+  - **App icons.** S&N Home (faders), Signal & Noise (a pulse) and S&N Analytics (a level meter) share one family: white strokes on charcoal, one red mark each, in the dock and on the desktop.
+  - **No more purple.** The meshes and holographic films OpenStation paints regardless of your accent go flat: Station Home's and S&N Home's rail turns charcoal with a thin red trace along its edge, a lit control's edge turns red, a resting edge turns a quiet gray, and a hovered row in a dock item's submenu gets a red marker. Step numbers, ribbons and progress bars turn light gray, and count badges red; their dark numbers stay readable (16:1 and 6:1). An off switch or checkbox keeps a 3:1 outline.
+  - **Window titles in Bebas Neue.** Body text, the clock and the big figures stay as they are.
+  - **Two wallpapers to pick, never applied for you:** Signal (faint gray noise and one red line with a pulse, drawn once as it loads, still if you have asked for less motion) and Quiet (the noise alone).
+
 ## [2026.10.4] - 2026-10-12 — the 2026.10.3 audit fixed: nothing typed is lost, focus and contrast pass, forecasts that measure
 
 ### Changed
