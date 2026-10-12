@@ -188,12 +188,16 @@ add_action( 'init', function() {
 			// next-up box with a three-line title, the stats row, three
 			// published and the link), chrome included: 573 at 265 wide (the
 			// stats row stacks there) and 549 at 312 (one line now, ~15 less);
-			// + ~10 of slack, rounded up to the next 10, as every card. The
+			// + ~10 of slack, rounded up to the next 10, as every card.
+			// #2040 review: + one cadence line, MEASURED the same way with the
+			// longest sentence ("Gap: no note Dec 20 to Jan 3, 2027 (16 days
+			// between notes)" and Planned): 627 at 265 (three text lines, 55px)
+			// and 585 at 312 (36px), so 640 shows one warning unscrolled. The
 			// busiest state (an overdue line, the gap line, three drafts and
 			// three Later rows, ~180px more) scrolls inside the card. Before:
 			// 780, budgeted for that busiest state. A SAVED layout keeps its
 			// own height.
-			'default_height' => 590,
+			'default_height' => 640,
 		) ) );
 
 		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(

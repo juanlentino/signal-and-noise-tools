@@ -29,9 +29,10 @@ const SN_CONTENT_QUEUE_GAP_DAYS = 7;
 /**
  * The cadence warnings, soonest first. PURE.
  *
- * Distances are whole calendar days in the site timezone. The walk starts at
- * the newest published note when there is one, so a quiet stretch starting
- * now is said too. A run of notes each under 2 days from the last is one
+ * Distances are whole calendar days in the site timezone. The newest
+ * published note joins the walk when there is one, so a quiet stretch between
+ * it and the next scheduled note is said too; with nothing scheduled there is
+ * no pair and no line. A run of notes each under 2 days from the last is one
  * cluster. A gap is the empty days between two notes; it is left out when a
  * planned range ("from|to", Y-m-d) contains it.
  *
@@ -44,10 +45,14 @@ const SN_CONTENT_QUEUE_GAP_DAYS = 7;
  */
 function sn_content_queue_cadence( $scheduled, $published, $now, DateTimeZone $tz, array $planned = array() ) {
 	$ts = array_map( 'intval', (array) $scheduled );
-	sort( $ts );
-	if ( null !== $published && ( array() === $ts || (int) $published <= $ts[0] ) ) {
-		array_unshift( $ts, (int) $published );
+	// The newest published note always joins the walk, in date order: an
+	// overdue scheduled note (its date passed, cron not yet fired) sorts
+	// before it rather than hiding it (review on #2040: a gap across a note
+	// published Oct 5 claimed no note from Oct 2).
+	if ( null !== $published ) {
+		$ts[] = (int) $published;
 	}
+	sort( $ts );
 	$today = ( new DateTimeImmutable( '@' . (int) $now ) )->setTimezone( $tz )->setTime( 0, 0, 0 );
 	$days  = array_map( static fn( $t ) => ( new DateTimeImmutable( '@' . $t ) )->setTimezone( $tz )->setTime( 0, 0, 0 ), $ts );
 	$label = static fn( DateTimeImmutable $d ) => sn_content_queue_day( $d, $today );
@@ -107,12 +112,12 @@ function sn_content_queue_cadence( $scheduled, $published, $now, DateTimeZone $t
  * @return string
  */
 function sn_content_queue_cadence_rule() {
-	return sprintf( 'Notes under %d days apart are a cluster; over %d days apart, a gap. Gaps marked Planned on the SN Queue card are left out.', SN_CONTENT_QUEUE_CLUSTER_DAYS, SN_CONTENT_QUEUE_GAP_DAYS );
+	return sprintf( 'From the latest published note through the scheduled ones, notes under %d days apart are a cluster; over %d days apart, a gap. Gaps marked Planned on the SN Queue card are left out.', SN_CONTENT_QUEUE_CLUSTER_DAYS, SN_CONTENT_QUEUE_GAP_DAYS );
 }
 
 /** What the twins say when the schedule has neither. */
 function sn_content_queue_cadence_clear() {
-	return 'No clusters or gaps in the scheduled notes.';
+	return 'No clusters or gaps from the latest published note through the scheduled ones.';
 }
 
 /**

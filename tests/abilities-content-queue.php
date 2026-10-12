@@ -186,6 +186,11 @@ ok( array( 'Cluster: 3 notes Oct 20 to Oct 21', 'Cluster: 2 notes Oct 24 and Oct
 ok( 'Cluster: 2 notes on Oct 20' === sn_content_queue_cadence( array( $day( '2026-10-20 09:00' ), $day( '2026-10-20 17:00' ) ), null, $cn, $NY )[0]['text'], 'two notes on one day are a cluster on that day' );
 $q = sn_content_queue_cadence( array( $day( '2026-10-30 09:00' ) ), $day( '2026-10-11 10:00' ), $cn, $NY );
 ok( 1 === count( $q ) && '2026-10-12' === $q[0]['from'] && 19 === $q[0]['days'], 'the walk starts at the newest published note, so a quiet stretch starting now is said' );
+// Review on #2040: an overdue scheduled note (its date passed, cron not yet
+// fired) must not push the newest published note out of the walk.
+$od = sn_content_queue_cadence( array( $day( '2026-10-01 09:00' ), $day( '2026-10-20 09:00' ) ), $day( '2026-10-05 09:00' ), $cn, $NY );
+ok( 1 === count( $od ) && '2026-10-06' === $od[0]['from'] && '2026-10-19' === $od[0]['to'] && 'Gap: no note Oct 6 to Oct 19 (15 days between notes)' === $od[0]['text'], 'an overdue scheduled note sorts before the note published Oct 5: the gap starts after Oct 5, never "no note Oct 2" across it' );
+ok( array() === sn_content_queue_cadence( array(), $day( '2026-10-05 09:00' ), $cn, $NY ), 'nothing scheduled: no pair, no line (the card\'s "Nothing scheduled" says it)' );
 ok( 22 === sn_content_queue_cadence( array( $day( '2026-10-11 23:30' ), $day( '2026-11-03 00:30' ) ), null, $cn, new DateTimeZone( 'UTC' ) )[0]['days'] && 23 === sn_content_queue_cadence( array( $day( '2026-10-11 23:30' ), $day( '2026-11-03 00:30' ) ), null, $cn, $NY )[0]['days'], 'days are counted in the site timezone' );
 ok( array() === sn_content_queue_cadence( array(), null, $cn, $NY ) && array() === sn_content_queue_cadence( array( $cn ), null, $cn, $NY ), 'no note or one note: nothing to measure' );
 ok( 'gap' === sn_content_queue_shape( $as_rows( array( $NOW + 86400, $NOW + 20 * 86400 ) ), 2, array(), $NOW, $TZ )['cadence'][0]['kind'], 'the shaper carries the warnings' );

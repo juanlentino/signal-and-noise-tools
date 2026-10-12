@@ -100,7 +100,7 @@ function scheduled_content_more_html( $remainder ) {
 
 /**
  * The Cadence box (2026-10-12, queue phase 2): every cluster and unplanned
- * gap in the scheduled notes, one sentence each with its word first, under
+ * gap from the latest published note through the scheduled ones, one sentence each with its word first, under
  * the rule. The classic twin says the same (sn_admin_render_queue_cadence()).
  *
  * @param array<int,array<string,mixed>> $warnings From sn_content_queue_cadence().

@@ -68,5 +68,14 @@ $kit     = $text( snt_leaf_paint( 'connections', 'scheduled-content' ) );
 $classic = $text( snt_leaf_classic_html( 'sn_admin_render_scheduled_content_section' ) );
 ok( false !== strpos( $kit, sn_content_queue_cadence_clear() ) && false !== strpos( $classic, sn_content_queue_cadence_clear() ), 'a steady schedule says so on both twins, never an empty box' );
 
+// Review on #2040: a sentence is text on both twins, never markup.
+$evil = array( array( 'kind' => 'gap', 'text' => 'Gap: <b>no</b> note' ) );
+ob_start();
+sn_admin_render_queue_cadence( $evil );
+$c_html = ob_get_clean();
+$k_html = \SignalNoise\OpenStationHost\Dashboard\Leaves\scheduled_content_cadence_html( $evil );
+ok( false === strpos( $c_html, '<b>' ) && false !== strpos( $c_html, '&lt;b&gt;no&lt;/b&gt;' ), 'the classic box escapes a warning sentence' );
+ok( false === strpos( $k_html, '<b>' ) && false !== strpos( $k_html, '&lt;b&gt;no&lt;/b&gt;' ), 'the native box escapes it too' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
