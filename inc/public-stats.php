@@ -388,6 +388,15 @@ function sn_public_stats_path_label( $path ) {
 				return $title;
 			}
 		}
+		// The posts page (/notes/) is not resolved by url_to_postid(), so it
+		// read as a raw path in Most read (live audit P2-7).
+		$posts_page = function_exists( 'get_option' ) && function_exists( 'get_permalink' ) ? (int) get_option( 'page_for_posts' ) : 0;
+		if ( $posts_page > 0 && rtrim( (string) wp_parse_url( (string) get_permalink( $posts_page ), PHP_URL_PATH ), '/' ) === rtrim( $path, '/' ) ) {
+			$title = (string) get_the_title( $posts_page );
+			if ( '' !== $title ) {
+				return $title;
+			}
+		}
 	}
 	return $path;
 }
@@ -443,7 +452,7 @@ function sn_public_stats_html() {
 		$out .= '</ol>';
 	}
 
-	$out .= '<p class="sn-public-stats__method">' . esc_html__( 'First-party, cookieless measurement at the edge. Aggregates only — the site can see that a page was read, never who read it. No consent banner because there is nothing to consent to.', 'signal-and-noise-tools' ) . '</p>';
+	$out .= '<p class="sn-public-stats__method">' . esc_html__( 'First-party, cookieless measurement at the edge. Aggregates only: the site can see that a page was read, never who read it. No consent banner: the measurement sets no cookies on readers and uses no local storage.', 'signal-and-noise-tools' ) . '</p>';
 
 	return $out . '</div>';
 }
