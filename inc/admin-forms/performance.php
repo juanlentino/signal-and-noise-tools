@@ -34,12 +34,12 @@ function sn_admin_render_performance_section() {
 	echo '<input type="hidden" name="action" value="sn_perf_save">';
 
 	echo '<h2 class="sn-fieldset-h">Speculative loading</h2>';
-	echo '<p class="sn-fieldset-intro">WordPress 7.0 ships native <a href="https://developer.chrome.com/docs/web-platform/prerender-pages" target="_blank" rel="noopener noreferrer">Speculation Rules</a> (default: <code>auto</code>/<code>auto</code>). Enabling this opts the site into a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. The profile and exclusions are summarized alongside.</p>';
+	echo '<p class="sn-fieldset-intro">WordPress 7.0 ships native <a href="https://developer.chrome.com/docs/web-platform/prerender-pages" target="_blank" rel="noopener noreferrer">Speculation Rules</a> (default: <code>auto</code>/<code>auto</code>). Enabling this opts the site into a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. The Profile box lists the profile and what it leaves out.</p>';
 
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label">Status</label>';
 	echo '<label><input type="checkbox" name="speculative_loading" value="1"' . checked( $spec_enabled, true, false ) . '> Enabled: prerender the pages a visitor is likely to open next</label>';
-	echo '<p class="sn-field-helper">Turning this off disables speculative loading entirely (core emits no speculation rules).</p>';
+	echo '<p class="sn-field-helper">Turning this off disables speculative loading entirely: WordPress then adds no speculation rules to any page.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-fieldset-actions">';
@@ -56,12 +56,12 @@ function sn_admin_render_performance_section() {
 
 	if ( $spec_enabled ) {
 		echo '<div class="sn-status-box">';
-		echo '<div><p class="sn-status-box-title">Speculative loading</p><p class="sn-status-box-body">Enabled</p></div>';
+		echo '<div><p class="sn-status-box-title">Speculative loading is on.</p></div>';
 		echo '<span class="sn-pill sn-pill--ok">On</span>';
 		echo '</div>';
 	} else {
 		echo '<div class="sn-status-box sn-status-box--warn">';
-		echo '<div><p class="sn-status-box-title">Speculative loading</p><p class="sn-status-box-body">Disabled</p></div>';
+		echo '<div><p class="sn-status-box-title">Speculative loading is off.</p></div>';
 		echo '<span class="sn-pill">Off</span>';
 		echo '</div>';
 	}
@@ -70,7 +70,7 @@ function sn_admin_render_performance_section() {
 	echo '<h2 class="sn-fieldset-h">Profile</h2>';
 	echo '<p class="sn-field-helper">Mode <code>prerender</code>, eagerness <code>moderate</code>: more aggressive than core\'s <code>auto</code>/<code>auto</code>.</p>';
 	echo '<p class="sn-field-helper"><strong>Excluded automatically:</strong> the custom login URL and <code>/contact/*</code>.</p>';
-	echo '<p class="sn-field-helper"><strong>Support:</strong> only modern Chromium browsers act on speculation rules; others safely ignore them.</p>';
+	echo '<p class="sn-field-helper"><strong>Browser support:</strong> only modern Chromium browsers act on speculation rules; others safely ignore them.</p>';
 	echo '</div>';
 
 	sn_admin_shell_close();

@@ -37,6 +37,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/dash-attention.php'; // what needs attention, said once on both twins (2026.10.4).
+
 const SNT_DEPLOY_REPOS = array(
 	'theme'  => 'juanlentino/signal-and-noise',
 	'plugin' => 'juanlentino/signal-and-noise-tools',
@@ -241,7 +243,10 @@ function snt_dashboard_tab_data() {
 	// NULL rather than an empty array: the panel still renders, saying it is
 	// not measured. A wall that quietly shrinks when a source dies looks
 	// complete on the one day it is not.
-	$from = gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS );
+	// 2026.10.4 audit: the same seven days as the Audience tiles and the
+	// "Audience detail, 7 days" eyebrow; a 30-day top page could outnumber the
+	// site's 7-day views painted over it.
+	$from = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS );
 	$to   = gmdate( 'Y-m-d', time() );
 	$ops_data = array( 'deploys' => is_array( $runs ) ? array_slice( $runs, 0, 6 ) : null );
 
@@ -488,7 +493,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 	// sorts last, defensively).
 	// Worker Deploy Status labels sit under Theme/Plugin; "Provenance edge" is
 	// the worker semver card (distinct from the "Provenance" anchor card).
-	$order = array( 'Theme', 'Plugin', 'Analytics', 'Provenance edge', 'Login guard', 'Remote MCP', 'Rights signals', 'Deploys', 'Provenance', 'Health', 'Cron', 'Views 7d', 'AI spend 30d' );
+	$order = array( 'Theme', 'Plugin', 'Analytics', 'Provenance edge', 'Login guard', 'Remote door', 'Rights signals', 'Deploys', 'Provenance', 'Health', 'Cron', 'Views 7d', 'AI spend 30d' );
 	$rank  = array_flip( $order );
 	usort( $cards, function ( $a, $b ) use ( $rank ) {
 		$ra = $rank[ is_array( $a ) ? ( $a['label'] ?? '' ) : '' ] ?? 999;
@@ -599,105 +604,8 @@ function snt_dashboard_delta_badge_html( $delta ) {
 		. '<span class="screen-reader-text">' . esc_html( $said . ', ' ) . '</span> ' . esc_html( $text . ' WoW' ) . '</span>';
 }
 
-/**
- * Conditional attention strip: a single warning row, shown ONLY when something
- * is off (health findings > 0, DB overrides > 0, cron orphans, stale health
- * scan, or a failed recent deploy), with a link to the relevant tab. Replaces
- * burying the override count in the bottom <details>.
- *
- * @since 6.43.0
- * @param array $runs           Merged deploy runs (to detect a failed deploy).
- * @param int   $override_count DB template/navigation override count.
- * @return array<int,array{text:string,href:string}>
- */
-function snt_dashboard_attention_items( $runs, $override_count ) {
-	$items = array();
-
-	// Health findings + staleness.
-	if ( function_exists( 'sn_health_last_scan' ) ) {
-		$scan = sn_health_last_scan();
-		if ( is_array( $scan ) ) {
-			$findings = sn_health_finding_total( $scan );
-			if ( $findings > 0 ) {
-				$items[] = array(
-					'text' => sprintf( '%d health finding%s', $findings, 1 === $findings ? '' : 's' ),
-					'href' => admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ),
-				);
-			}
-			$ttl = defined( 'SN_HEALTH_CACHE_TTL' ) ? (int) SN_HEALTH_CACHE_TTL : DAY_IN_SECONDS;
-			if ( ! empty( $scan['scanned_at'] ) && ( time() - (int) $scan['scanned_at'] ) > $ttl ) {
-				$items[] = array(
-					'text' => 'health scan is stale',
-					'href' => admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ),
-				);
-			}
-		} else {
-			$items[] = array(
-				'text' => 'no health scan has run',
-				'href' => admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ),
-			);
-		}
-	}
-
-	// DB overrides.
-	if ( (int) $override_count > 0 ) {
-		$items[] = array(
-			'text' => sprintf( '%d database override%s', (int) $override_count, 1 === (int) $override_count ? '' : 's' ),
-			'href' => admin_url( 'admin.php?page=sn-theme-options&tab=dashboard#sn-dash-diagnostics' ),
-		);
-	}
-
-	// Cron orphans.
-	if ( function_exists( 'snt_cron_summary_for_localize' ) ) {
-		$cron = snt_cron_summary_for_localize();
-		if ( (int) ( $cron['orphans'] ?? 0 ) > 0 ) {
-			$items[] = array(
-				'text' => sprintf( '%d orphan cron event%s', (int) $cron['orphans'], 1 === (int) $cron['orphans'] ? '' : 's' ),
-				'href' => admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=cron' ),
-			);
-		}
-	}
-
-	// Failed recent deploy (any non-success conclusion on a completed run).
-	foreach ( (array) $runs as $run ) {
-		$status     = (string) ( $run['status'] ?? '' );
-		$conclusion = (string) ( $run['conclusion'] ?? '' );
-		if ( 'completed' === $status && '' !== $conclusion
-			&& ! in_array( $conclusion, array( 'success', 'cancelled', 'skipped' ), true ) ) {
-			$items[] = array(
-				'text' => 'a recent deploy failed',
-				'href' => admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' ),
-			);
-			break;
-		}
-	}
-
-	return $items;
-}
-
-/**
- * The classic strip: one warning row, only when something is off.
- *
- * @param array $runs           Merged deploy runs.
- * @param int   $override_count Database overrides.
- * @return void
- */
-function snt_dashboard_render_attention_strip( $runs, $override_count ) {
-	$items = snt_dashboard_attention_items( $runs, $override_count );
-	if ( empty( $items ) ) {
-		return;
-	}
-
-	$links = array();
-	foreach ( $items as $item ) {
-		$links[] = '<a href="' . esc_url( $item['href'] ) . '">' . esc_html( $item['text'] ) . '</a>';
-	}
-	// The lead paragraph carries its own class, so the wrap is ours; wp_admin_notice() runs wp_kses_post on the whole.
-	wp_admin_notice(
-		'<p class="sn-attention-strip__lead"><strong>' . esc_html__( 'Needs attention:', 'signal-and-noise-tools' ) . '</strong> ' . implode( ' &middot; ', $links ) . '</p>',
-		array( 'type' => 'warning', 'additional_classes' => array( 'inline', 'sn-attention-strip' ), 'paragraph_wrap' => false )
-	);
-}
+// The attention items, the classic strip and the diagnostics block live in
+// inc/dash-attention.php (2026.10.4 audit, batch 4).
 
 /* ════════════════════════════════════════════════════════════════════════
  * RENDER HELPERS
@@ -734,14 +642,11 @@ add_action( 'admin_post_sn_force_update_check', function() {
 // only by history.
 
 /**
- * The override diagnostics fold.
- *
- * v11.29.0: extracted. Still renders nothing when there are no overrides — an
- * empty <details> is worse than no section. Re-queries rather than reading the
- * snapshot, which carries the COUNT only: the full post objects are needed by
- * nothing else on the page.
+ * The override names, `post_type/post_name` each, for both twins' Database
+ * overrides list (inc/dash-attention.php, dashboard-operations.php).
  *
  * @since 11.29.0
+ * @param array $overrides Override posts.
  * @return array<int,string>
  */
 function snt_dashboard_override_names( array $overrides ) {
@@ -752,32 +657,4 @@ function snt_dashboard_override_names( array $overrides ) {
 		}
 	}
 	return $names;
-}
-
-/**
- * The classic diagnostics block: the override list, when any exist.
- *
- * @return void
- */
-function snt_dashboard_render_diagnostics() {
-	$names = snt_dashboard_override_names(
-		get_posts(
-			array(
-				'post_type'      => snt_dashboard_override_post_types(),
-				'posts_per_page' => -1,
-				'post_status'    => 'any',
-			)
-		)
-	);
-	if ( ! empty( $names ) ) {
-		echo '<h2 class="sn-section-h" id="sn-dash-diagnostics">Diagnostics</h2>';
-		echo '<details class="sn-override-details" open>';
-		echo '<summary>' . esc_html( sprintf( '%d database override%s: click to expand', count( $names ), count( $names ) === 1 ? '' : 's' ) ) . '</summary>';
-		echo '<ul>';
-		foreach ( $names as $name ) {
-			echo '<li><code>' . esc_html( $name ) . '</code></li>';
-		}
-		echo '</ul>';
-		echo '</details>';
-	}
 }

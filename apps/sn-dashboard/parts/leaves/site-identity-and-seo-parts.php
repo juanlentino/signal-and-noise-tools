@@ -33,8 +33,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function identity_seo_field( $type, $name, $label, $value, array $opts = array(), $hint_html = '' ) {
-	return \snt_kit_field( $type, $name, $label, $value, $opts )
-		. ( '' !== $hint_html ? '<p class="snt-hint">' . $hint_html . '</p>' : '' );
+	// One grid cell: the field and its hint stay together in the two-up grid.
+	return '<div class="snt-site-field">' . \snt_kit_field( $type, $name, $label, $value, $opts )
+		. ( '' !== $hint_html ? '<p class="snt-hint">' . $hint_html . '</p>' : '' ) . '</div>';
 }
 
 /**
@@ -52,7 +53,9 @@ function identity_seo_field( $type, $name, $label, $value, array $opts = array()
  * @return string
  */
 function identity_seo_panel( $slug, $heading, $intro, $fields ) {
-	return \snt_kit_tag( 'os-tabpanel', array( 'for' => (string) $slug, 'id' => 'sn-sec-' . (string) $slug ), \snt_kit_section( $heading, $fields, $intro ) );
+	// 2026.10.4 audit: two fields to a row where the window is wide enough;
+	// one narrow column left two thirds of the window empty.
+	return \snt_kit_tag( 'os-tabpanel', array( 'for' => (string) $slug, 'id' => 'sn-sec-' . (string) $slug ), \snt_kit_section( $heading, '<div class="snt-site-fields">' . $fields . '</div>', $intro ) );
 }
 
 /** @return string The Identity section. */
@@ -82,7 +85,8 @@ function identity_seo_identity_panel() {
 			'identity_knows_about',
 			__( 'Knows about', 'signal-and-noise-tools' ),
 			implode( "\n", array_map( 'strval', $knows_about ) ),
-			array( 'rows' => 4 ),
+			// Tall enough for every topic and one more: it scrolled inside itself.
+			array( 'rows' => max( 4, count( $knows_about ) + 1 ) ),
 			\snt_kit_esc( __( 'One topic per line. Emitted as the ', 'signal-and-noise-tools' ) ) . \snt_kit_code( 'knowsAbout', false ) . \snt_kit_esc( __( ' array on the Person schema: domain expertise areas that signal to search engines what this person is about. Leave a line blank to omit the entry.', 'signal-and-noise-tools' ) )
 		)
 		. identity_seo_field(

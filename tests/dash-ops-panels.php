@@ -67,6 +67,8 @@ ok( in_array( 'Top queries', titles( $all ), true ),    'top queries' );
 // 15.3.2: each panel names its home; the query column names its unit.
 ok( 'ops' === by_title( $all, 'Recent deploys' )['group'] && 'ops' === by_title( $all, 'API limits' )['group'] && 'audience' === by_title( $all, 'Top pages' )['group'] && 'audience' === by_title( $all, 'Top sources' )['group'] && 'audience' === by_title( $all, 'Top queries' )['group'], 'deploys and API limits are ops; pages, sources and queries are audience' );
 ok( 'clicks, 28 days' === by_title( $all, 'Top queries' )['caption'], 'Top queries says its column is clicks over 28 days, so a list of zeros reads as what it is' );
+// 2026.10.4 audit (batch 4): every audience column names its unit and window.
+ok( 'views, 7 days' === ( by_title( $all, 'Top pages' )['caption'] ?? '' ) && 'visits, 7 days' === ( by_title( $all, 'Top sources' )['caption'] ?? '' ), 'Top pages and Top sources say their unit and their seven days' );
 ok( in_array( 'API limits', titles( $all ), true ),     'api limits' );
 
 $dep = by_title( $all, 'Recent deploys' );

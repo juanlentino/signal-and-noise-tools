@@ -78,7 +78,8 @@ ok( array() === snt_leaf_classic_markers( $kit ) && ! styled( $kit ) && ! styled
 // The reading: two tiles (broken, with attention; probes, without), then the finding.
 ok( false !== strpos( $kit, '<os-stat value="2" label="Broken paths" caption="9 hits; needs a look" swatch data-tone="warning">' ), 'the broken tile reads 2 paths, 9 hits, and says it needs a look in words, not only by the swatch (WCAG 1.4.1)' );
 ok( false !== strpos( $kit, '<os-stat value="30" label="Automated probes" caption="465 hits">' ), 'the probe tile reads 30 probes, 465 hits, without one' );
-ok( false !== strpos( $kit, '<p class="snt-prose">2 broken paths took 9 hits; the busiest, /notes/desing-tokens, took 7.</p>' ), 'the finding names the busiest path' );
+ok( false !== strpos( $kit, '<p class="snt-prose">2 broken paths took 9 hits; the busiest, /notes/desing-tokens, took 7 hits.</p>' ), 'the finding names the busiest path, and its unit (2026.10.4: "took 7")' );
+ok( false !== strpos( $classic, '2 broken paths took 9 hits; the busiest, /notes/desing-tokens, took 7 hits.' ) && false === strpos( $classic, 'below' ), 'the classic twin says the same finding, and no "Add a target below"' );
 ok( before( $kit, '<os-stat', 'heading="Broken paths"' ), 'reading before ledger' );
 
 // The ledger: one table, busiest first, every figure the per-path fold held.
@@ -108,7 +109,9 @@ $unknown = editing( '/nope' );
 ok( false === strpos( $unknown, 'Create redirect' ) && false === strpos( $unknown, 'submit-label="Dismiss"' ) && false === strpos( $unknown, 'Fixing' ) && array() === snt_leaf_folds( $unknown ), 'an unknown sn_edit paints no region' );
 
 // The probes: one finding, a capped ledger, the bulk dismiss. Open.
-ok( false !== strpos( $kit, '<p class="snt-prose">30 automated probes made 465 hits on paths that resemble nothing published here: scanner traffic, not broken links, so no action is needed.</p>' ) && false !== strpos( $kit, 'heading="Automated probes"' ), 'the probe section counts the probes and their hits in one sentence' );
+$probe_line = '30 automated probes made 465 hits on paths that resemble nothing published here and that nothing here links to: scanner traffic, not broken links, so no action is needed.';
+ok( false !== strpos( $kit, '<p class="snt-prose">' . $probe_line . '</p>' ) && false !== strpos( $kit, 'heading="Automated probes"' ), 'the probe section counts the probes and their hits in one sentence' );
+ok( false !== strpos( $classic, $probe_line ), 'the classic twin says the same probe sentence' );
 $probes = table_of( $kit, 2 );
 ok( array( 'Path', 'Hits' ) === array_column( $probes['columns'], 'label' ) && 25 === count( $probes['data'] ), 'the probe ledger lists 25 of 30 -- listed ' . count( $probes['data'] ) );
 $listed = array_column( $probes['data'], 'path' );
@@ -135,7 +138,9 @@ ok( array() === snt_leaf_folds( $kit ) && array() === snt_leaf_folds( $kit_ed ) 
 fixture( array(), array() );
 $kit     = snt_leaf_paint( 'site', 'broken-links' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_broken_links_section' );
-ok( false !== strpos( $kit, '<os-stat value="0" label="Broken paths" caption="clean">' ) && false !== strpos( $kit, '<p class="snt-prose">No broken links: a path lands here when it resembles a published URL.</p>' ), 'empty: the clean reading and its sentence paint' );
+$empty_line = 'No broken links. A path lands here when it resembles a published URL, or when something on this site links to it; automated probes are counted separately.';
+ok( false !== strpos( $kit, '<os-stat value="0" label="Broken paths" caption="clean">' ) && false !== strpos( $kit, '<p class="snt-prose">' . $empty_line . '</p>' ), 'empty: the clean reading and its sentence paint, "or something on this site links to it" restored to agree with the intro' );
+ok( false !== strpos( $classic, $empty_line ), 'empty: the classic twin says the same sentence' );
 ok( false === strpos( $kit, 'heading="Automated probes"' ) && false === strpos( $kit, '<os-table' ), '...with no probe section and no empty table' );
 ok( array() === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array() === snt_leaf_folds( $kit ), 'empty: no action is offered, the classic leaf agrees, no fold' );
 

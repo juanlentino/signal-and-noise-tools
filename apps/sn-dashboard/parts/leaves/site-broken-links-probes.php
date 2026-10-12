@@ -29,12 +29,7 @@ const REDIRECTS_PROBE_LIST_MAX = 25;
  */
 function broken_links_probes_html( array $probes, $hits ) {
 	$n       = count( $probes );
-	$finding = sprintf(
-		/* translators: 1: automated probes in the 404 log, 2: the hits they made ("465 hits"). */
-		_n( '%1$s automated probe made %2$s on paths that resemble nothing published here: scanner traffic, not broken links, so no action is needed.', '%1$s automated probes made %2$s on paths that resemble nothing published here: scanner traffic, not broken links, so no action is needed.', $n, 'signal-and-noise-tools' ),
-		number_format_i18n( $n ),
-		broken_links_hits( (int) $hits )
-	);
+	$finding = \sn_404_probe_sentence( $n, (int) $hits ); // the classic's sentence (inc/redirects-copy.php)
 	$rows = array();
 	foreach ( $probes as $path => $entry ) {
 		$rows[] = array(

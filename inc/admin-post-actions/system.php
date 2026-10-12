@@ -42,8 +42,40 @@ function sn_handle_full_reset( $post ) {
 }
 
 function sn_handle_save_identity( $post ) {
-	$saved = sn_settings_save( $post );
+	$before = sn_settings_snapshot();
+	$saved  = sn_settings_save( $post );
+	sn_settings_purge_if_changed( $before );
 	return $saved ? 'identity_saved' : 'identity_unchanged';
+}
+
+/**
+ * The stored settings, to tell a save that changed something from one that
+ * did not. Null where the settings store is not loaded.
+ *
+ * @return mixed
+ */
+function sn_settings_snapshot() {
+	return defined( 'SN_SETTINGS_OPTION' ) ? get_option( SN_SETTINGS_OPTION, array() ) : null;
+}
+
+/**
+ * Refresh the cached pages after a settings save that changed what they
+ * render (the site title, the OG tags, notes per page), so the save hint's
+ * promise holds: the live site shows the change on its next request.
+ * 2026.10.4 audit: the site caches HTML at the edge and only post saves
+ * purged it, so a saved title kept the old one live until the cache expired.
+ * The theme's chain clears every layer and writes the purge ledger; with no
+ * theme listening there is nothing to clear. An unchanged save purges nothing.
+ *
+ * @param mixed $before The settings option as it was before the save.
+ * @return bool Whether a purge was asked for.
+ */
+function sn_settings_purge_if_changed( $before ) {
+	if ( null === $before || $before === sn_settings_snapshot() || ! function_exists( 'has_filter' ) || ! has_filter( 'sn_purge_all_caches_result' ) ) {
+		return false;
+	}
+	apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false, 'object_cache' => false, 'trigger' => 'settings' ) );
+	return true;
 }
 
 function sn_handle_save_login( $post ) {

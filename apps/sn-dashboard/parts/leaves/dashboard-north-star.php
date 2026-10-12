@@ -100,6 +100,10 @@ function north_star_html( $tab ) {
 		return '';
 	}
 	$r = \snt_nsm_reading();
+	if ( ! empty( $r['read_failed'] ) ) {
+		// 2026.10.4 audit: a failed query is not missing credentials.
+		return \snt_kit_section( __( 'North star', 'signal-and-noise-tools' ), \snt_kit_empty( __( 'Not read: the analytics query failed.', 'signal-and-noise-tools' ), __( 'Refresh tries again.', 'signal-and-noise-tools' ) ) );
+	}
 	if ( empty( $r['configured'] ) ) {
 		return \snt_kit_section( __( 'North star', 'signal-and-noise-tools' ), \snt_kit_empty( __( 'Needs the analytics credentials.', 'signal-and-noise-tools' ) ) );
 	}

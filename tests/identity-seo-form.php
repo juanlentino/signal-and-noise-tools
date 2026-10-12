@@ -50,7 +50,8 @@ foreach ( array( 'sn-sec-identity', 'sn-sec-social', 'sn-sec-open-graph', 'sn-se
 // Each section is wrapped in a real .sn-fieldset card (the grid container).
 id_assert( 4 === substr_count( $html, 'class="sn-fieldset"' ), 'exactly four real .sn-fieldset section cards' );
 id_assert( false !== strpos( $html, 'name="identity_site_name"' ) && false !== strpos( $html, 'name="seo_provenance_description"' ), 'first + last fields render (form body intact)' );
-id_assert( false !== strpos( $html, 'Save Identity Settings' ), 'single sticky save button present' );
+id_assert( false !== strpos( $html, '>Save identity and SEO</button>' ), 'single sticky save button present, named for the four sections it saves (2026.10.4)' );
+id_assert( false !== strpos( $html, 'Saving a change refreshes the site&rsquo;s cached pages, so the live site shows it the next time a page loads.' ), 'the save hint is the native twin\'s sentence' );
 
 // ─── CSS-lock: the form's section cards are a full-width grid ────────────────
 echo "\nGroup: CSS — .sn-identity-form .sn-fieldset is a full-width grid\n";

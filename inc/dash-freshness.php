@@ -82,7 +82,7 @@ function sn_dash_freshness( array $readings, $now = null ) {
 
 		$budget = (int) ( $reading['stale_after'] ?? 0 );
 		if ( $budget > 0 && $age > $budget ) {
-			$stale[] = array( 'label' => $label, 'age' => $age, 'stale_after' => $budget );
+			$stale[] = array( 'label' => $label, 'age' => $age, 'stale_after' => $budget, 'href' => (string) ( $reading['href'] ?? '' ) );
 		}
 
 		if ( null === $oldest || $age > $oldest['age'] ) {
@@ -145,6 +145,8 @@ function sn_dash_freshness_cards( array $freshness ) {
 		}
 		$cards[] = array(
 			'label' => (string) ( $item['label'] ?? '' ),
+			// The screen that shows the source, so Needs attention can link it.
+			'href'  => (string) ( $item['href'] ?? '' ),
 			'value' => sprintf(
 				/* translators: %s human-readable age of an overdue reading */
 				__( 'last measured %s ago', 'signal-and-noise-tools' ),
@@ -176,7 +178,7 @@ function sn_dash_freshness_cards( array $freshness ) {
  * a daily rollup and twelve missed runs for a five-minute probe.
  *
  * @since 11.32.0
- * @return array<int,array{label:string,measured_at:int|null,stale_after:int}>
+ * @return array<int,array{label:string,href:string,measured_at:int|null,stale_after:int}>
  */
 function sn_dash_freshness_readings() {
 	if ( ! function_exists( 'snt_cron_last_fired_for' ) ) {
@@ -186,15 +188,19 @@ function sn_dash_freshness_readings() {
 	$readings = array();
 
 	if ( function_exists( 'sn_analytics_config' ) && sn_analytics_config() ) {
+		// 2026.10.4 audit: "Analytics rollup", not "Analytics", which is also
+		// the worker's card; "Fleet probes", not a system called "Fleet".
 		$readings[] = array(
-			'label'       => __( 'Analytics', 'signal-and-noise-tools' ),
+			'label'       => __( 'Analytics rollup', 'signal-and-noise-tools' ),
+			'href'        => admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=analytics' ),
 			'measured_at' => snt_cron_last_fired_for( 'sn_analytics_rollup_daily' ),
 			'stale_after' => 2 * DAY_IN_SECONDS, // daily cron, plus a day of slack.
 		);
 	}
 
 	$readings[] = array(
-		'label'       => __( 'Fleet', 'signal-and-noise-tools' ),
+		'label'       => __( 'Fleet probes', 'signal-and-noise-tools' ),
+		'href'        => admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=cron' ),
 		'measured_at' => snt_cron_last_fired_for( 'snt_deploy_workers_warm' ),
 		'stale_after' => HOUR_IN_SECONDS, // 5-minute warm; an hour is twelve missed runs.
 	);

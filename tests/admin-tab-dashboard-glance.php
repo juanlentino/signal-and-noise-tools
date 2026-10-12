@@ -394,5 +394,52 @@ $hot = snt_dashboard_worker_card( array(
 ) );
 dg_assert( ! isset( $hot['attention'] ) || false !== $hot['attention'], 'a probed card is untouched — the opt-out is scoped to the warming branch' );
 
+// ─── 2026.10.4 audit (batch 4): each problem once, as a sentence ───
+echo "\nattention items: the newest run per repo, sentences, both twins\n";
+$GLOBALS['__d']['health'] = array( 'scanned_at' => time() - 60, 'elapsed_ms' => 900, 'checks' => array( 'missing_alt' => array( 'count' => 0 ) ) );
+$GLOBALS['__d']['cron']['orphans'] = 0;
+$plug = 'juanlentino/signal-and-noise-tools';
+$fail_run = array( 'repo' => $plug, 'status' => 'completed', 'conclusion' => 'failure', 'html_url' => 'https://github.com/' . $plug . '/actions/runs/1', 'created_at' => '2026-10-10T10:00:00Z' );
+$ok_run   = array( 'repo' => $plug, 'status' => 'completed', 'conclusion' => 'success', 'html_url' => 'https://github.com/' . $plug . '/actions/runs/2', 'created_at' => '2026-10-11T10:00:00Z' );
+dg_assert( array() === snt_dashboard_attention_items( array( $ok_run, $fail_run ), 0 ), 'a failure a later success fixed raises nothing: only the newest run per repo counts' );
+$items = snt_dashboard_attention_items( array( $fail_run, $ok_run ), 0 );
+dg_assert( 1 === count( $items ) && 'Deploys' === $items[0]['label'] && 'The newest plugin deploy failed.' === $items[0]['text'], 'the newest run failed: one item, "The newest plugin deploy failed."' );
+dg_assert( 'https://github.com/' . $plug . '/actions/runs/1' === $items[0]['href'], 'it links the failed run, never back to the Dashboard' );
+$install = snt_dashboard_attention_items( array( array( 'repo' => $plug, 'status' => 'completed', 'conclusion' => 'timed_out' ) ), 0 );
+dg_assert( 'https://github.com/' . $plug . '/actions' === $install[0]['href'] && 'The newest plugin deploy did not succeed: timed out.' === $install[0]['text'], 'a run with no page links its repo\'s Actions list, and says how it ended in words' );
+$theme_fail = $fail_run;
+$theme_fail['repo'] = 'juanlentino/signal-and-noise';
+dg_assert( 2 === count( snt_dashboard_attention_items( array( $theme_fail, $fail_run ), 0 ) ), 'two repos whose newest run failed: two items' );
+ob_start();
+snt_dashboard_render_attention_strip( array( $fail_run ), 3 );
+$strip_list = ob_get_clean();
+dg_contains( $strip_list, '<li><a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=dashboard#sn-dash-diagnostics">3 theme items are served from the database, not from the theme files.</a></li>', 'the classic strip lists the same sentence Home prints for the overrides' );
+dg_contains( $strip_list, '<a href="https://github.com/' . $plug . '/actions/runs/1" target="_blank" rel="noopener noreferrer">The newest plugin deploy failed.</a>', 'the failed run opens on GitHub in a new tab' );
+$GLOBALS['__d']['cron']['orphans'] = 2;
+$GLOBALS['__d']['health'] = array( 'scanned_at' => time() - 3 * DAY_IN_SECONDS, 'elapsed_ms' => 900, 'checks' => array( 'missing_alt' => array( 'count' => 3 ) ) );
+$texts = array_column( snt_dashboard_attention_items( array(), 0 ), 'text', 'label' );
+$all   = array_column( snt_dashboard_attention_items( array(), 0 ), 'text' );
+dg_assert( in_array( '3 health findings in the last scan.', $all, true ) && in_array( 'The health scan is stale: it last ran 3 hours ago.', $all, true ) && '2 scheduled cron events have no handler, so nothing runs when they fire.' === ( $texts['Cron'] ?? '' ), 'each item is the problem as a sentence, and names its system (Health, Cron)' );
+$GLOBALS['__d']['cron']['orphans'] = 0;
+
+// The classic diagnostics: a heading, the sentence Home says, the names open.
+$GLOBALS['__d']['overrides_ids'] = array( (object) array( 'post_type' => 'wp_template', 'post_name' => 'home' ), (object) array( 'post_type' => 'wp_navigation', 'post_name' => 'navigation' ) );
+ob_start();
+snt_dashboard_render_diagnostics();
+$diag = ob_get_clean();
+$GLOBALS['__d']['overrides_ids'] = array();
+dg_assert( false === strpos( $diag, '<details' ) && false === strpos( $diag, 'click to expand' ), 'the classic overrides are no fold, and nothing says "click to expand" over an open box' );
+dg_contains( $diag, '<h2 class="sn-section-h" id="sn-dash-diagnostics">Database overrides</h2><p class="sn-prose">2 theme items are served from the database, not from the theme files.</p>', 'a heading and the same sentence as the native twin, the #sn-dash-diagnostics anchor kept' );
+dg_contains( $diag, '<li><code>wp_template/home</code></li>', 'every name listed, open' );
+
+// ─── the audience lists read the tiles' seven days ───
+echo "\naudience detail window\n";
+if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $c ) { return true; } }
+function sn_analytics_top_paths( $from, $to, $class, $n ) { $GLOBALS['__top_from'] = $from; return array(); }
+function sn_analytics_top_sources( $from, $to, $class, $n ) { $GLOBALS['__src_from'] = $from; return array(); }
+snt_dashboard_tab_data();
+$week = gmdate( 'Y-m-d', time() - 6 * DAY_IN_SECONDS );
+dg_assert( $week === ( $GLOBALS['__top_from'] ?? '' ) && $week === ( $GLOBALS['__src_from'] ?? '' ), 'Top pages and Top sources read the same seven days as the Audience tiles (was thirty)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

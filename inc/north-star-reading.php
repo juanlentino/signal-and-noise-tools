@@ -39,8 +39,13 @@ function snt_nsm_reading( $fresh = false ) {
 	$series = array_slice( $trend, 0, SNT_NSM_WEEKS );
 	$prior  = array_slice( $series, 1 );
 
+	// A failed read is not missing credentials (2026.10.4 audit): the session
+	// fetch says configured=false for both, so ask the config which it was.
+	$read_failed = ! $raw['configured'] && function_exists( 'sn_analytics_config' ) && (bool) sn_analytics_config();
+
 	$out = array(
 		'configured' => (bool) $raw['configured'],
+		'read_failed' => $read_failed,
 		'capped'     => (bool) $raw['capped'],
 		'value'      => (int) $series[0],
 		'previous'   => (int) $series[1],
@@ -59,7 +64,9 @@ function snt_nsm_reading( $fresh = false ) {
 			+ array( 'quality' => snt_nsm_quality( function_exists( 'sn_bot_signals_stored' ) ? sn_bot_signals_stored() : null ) ),
 		'as_of'      => gmdate( 'c', $now ),
 	);
-	set_transient( SNT_NSM_CACHE_KEY, $out, HOUR_IN_SECONDS );
+	// A failure is held a minute, not an hour: long enough that a burst of
+	// paints does not re-run a failing query, short enough to recover.
+	set_transient( SNT_NSM_CACHE_KEY, $out, $read_failed ? 60 : HOUR_IN_SECONDS );
 	return $out;
 }
 

@@ -35,7 +35,11 @@ function sanitize_title( $s ) { return strtolower( trim( preg_replace( '~[^a-z0-
 function esc_url_raw( $s ) { return $s; }
 function wp_unslash( $v ) { return $v; }
 function add_action( $hook, $cb = null, $p = 10, $a = 1 ) {}
-function apply_filters( $hook, $value, ...$args ) { return $value; }
+$GLOBALS['__applied'] = array();
+function apply_filters( $hook, $value, ...$args ) { $GLOBALS['__applied'][] = array( $hook, $args ); return $value; }
+// The theme's purge chain is listening (2026.10.4: a settings save that
+// changed something refreshes the cached pages).
+function has_filter( $hook ) { return 'sn_purge_all_caches_result' === $hook; }
 // Reason-surfacing task: sn_analytics_parse_funnels() (inc/analytics-sessions.php,
 // required below so sn_handle_analytics_funnels_save()'s real parse path — and
 // the flash-code encoding tests further down — are exercised, not stubbed)
@@ -156,6 +160,24 @@ echo "\nTest: sn_handle_save_identity()\n";
 pa_reset_store();
 pa_eq( 'identity_saved', sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) ), 'first save → identity_saved' );
 pa_eq( 'identity_unchanged', sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) ), 'identical re-save → identity_unchanged' );
+// 2026.10.4 audit (batch 4): the hint says the live site shows the change on
+// its next request; the edge caches HTML, so a changed save purges it.
+$purges = static fn() => array_values( array_filter( $GLOBALS['__applied'], static fn( $c ) => 'sn_purge_all_caches_result' === $c[0] ) );
+pa_reset_store();
+$GLOBALS['__applied'] = array();
+sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) );
+$p = $purges();
+pa_eq( 1, count( $p ), 'a save that changed the identity purges the cached pages once' );
+pa_eq( array( 'template_overrides' => false, 'object_cache' => false, 'trigger' => 'settings' ), $p[0][1][0] ?? null, '...through the theme chain, named "settings" in the purge ledger, never the overrides' );
+$GLOBALS['__applied'] = array();
+sn_handle_save_identity( array( 'identity_site_name' => 'Acme' ) );
+pa_eq( 0, count( $purges() ), 'an unchanged save purges nothing' );
+$GLOBALS['__applied'] = array();
+sn_handle_save_theme( array( 'theme_notes_per_page' => 30 ) );
+pa_eq( 1, count( $purges() ), 'a changed Front-End save purges too (notes per page is rendered)' );
+$GLOBALS['__applied'] = array();
+sn_handle_save_theme( array( 'theme_notes_per_page' => 30 ) );
+pa_eq( 0, count( $purges() ), '...and the same values again purge nothing' );
 
 echo "\nTest: sn_handle_music_save() — Muso profile; the Spotify creds are the keyring's now (15.3.1)\n";
 pa_reset_store();

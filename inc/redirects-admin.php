@@ -17,6 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/redirects-copy.php'; // the sentences both twins say (2026.10.4).
+
 add_action( 'sn_admin_redirects_tab', 'sn_redirects_render_admin_tab' );
 add_action( 'sn_admin_broken_links_tab', 'sn_redirects_render_broken_links_tab' );
 
@@ -32,7 +34,8 @@ function sn_redirects_render_admin_tab() {
 	// older, narrower filter) so the list stays broken-links-worth-fixing only.
 	$log       = sn_404_log_actionable();
 
-	echo '<p class="sn-prose">Send old or broken URLs to a new destination with a 301 (permanent) or 302 (temporary) redirect. Targets can be an on-site path (<code>/new-page</code>) or a full external URL (<code>https://…</code>). Paths visitors actually hit that don&rsquo;t exist are listed under <strong>Site &rarr; Broken links</strong>, where one click turns any of them into a redirect.</p>';
+	echo '<p class="sn-prose">Send old or broken URLs to a new destination with a 301 (permanent) or 302 (temporary) redirect. Targets can be an on-site path (<code>/new-page</code>) or a full external URL (<code>https://…</code>). Paths visitors actually hit that don&rsquo;t exist are listed under <a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=site&sub=broken-links' ) ) . '">Site &rarr; Broken links</a>, where one click turns any of them into a redirect.</p>';
+	echo '<p class="sn-prose">' . esc_html( sn_redirects_finding( $redirects ) ) . '</p>';
 
 	sn_admin_shell_open();
 
@@ -153,12 +156,14 @@ function sn_redirects_render_broken_links_tab() {
 
 	if ( 0 === $total ) {
 		echo '<div class="sn-status-box">';
-		echo '<div><p class="sn-status-box-title">No broken links</p><p class="sn-status-box-body">Paths that resemble a published URL, or that something on this site links to, appear here. Automated probes are counted separately.</p></div>';
+		echo '<div><p class="sn-status-box-body">' . esc_html( sn_404_empty_sentence() ) . '</p></div>';
 		echo '<span class="sn-pill sn-pill--ok">Clean</span>';
 		echo '</div>';
 	} else {
 		echo '<div class="sn-status-box sn-status-box--warn">';
-		echo '<div><p class="sn-status-box-title">' . esc_html( $total ) . ' broken path' . ( 1 === $total ? '' : 's' ) . '</p><p class="sn-status-box-body">Add a target below to redirect it: doing so also clears it from this list.</p></div>';
+		$sn_404_counts = array_map( static function ( $e ) { return (int) ( $e['count'] ?? 0 ); }, $log );
+		arsort( $sn_404_counts );
+		echo '<div><p class="sn-status-box-title">' . esc_html( sn_404_broken_finding( $sn_404_counts ) ) . '</p><p class="sn-status-box-body">' . esc_html__( 'Create redirect, or Dismiss, on a path clears it from this list.', 'signal-and-noise-tools' ) . '</p></div>';
 		echo '<span class="sn-pill sn-pill--warn">Attention</span>';
 		echo '</div>';
 	}
@@ -170,8 +175,7 @@ function sn_redirects_render_broken_links_tab() {
 	if ( ! empty( $sn_404_junk ) ) {
 		$sn_404_junk_hits = array_sum( array_map( function ( $e ) { return (int) ( $e['count'] ?? 0 ); }, $sn_404_junk ) );
 		echo '<div class="sn-status-box">';
-		echo '<div><p class="sn-status-box-title">' . esc_html( count( $sn_404_junk ) ) . ' automated probe' . ( 1 === count( $sn_404_junk ) ? '' : 's' ) . '</p>';
-		echo '<p class="sn-status-box-body">' . esc_html( $sn_404_junk_hits ) . ' hit' . ( 1 === $sn_404_junk_hits ? '' : 's' ) . ' on paths that match nothing published here and that nothing here links to: scanner traffic, not broken links. No action needed.</p></div>';
+		echo '<div><p class="sn-status-box-body">' . esc_html( sn_404_probe_sentence( count( $sn_404_junk ), $sn_404_junk_hits ) ) . '</p></div>';
 		echo '</div>';
 		echo '<details class="snt-mt-075"><summary>' . esc_html__( 'Show the probed paths', 'signal-and-noise-tools' ) . '</summary>';
 		echo '<ul class="sn-404-probe-list">';

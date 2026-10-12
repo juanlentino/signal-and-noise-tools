@@ -193,7 +193,9 @@ ob_start(); sn_dash_render_ops( array(
 	array( 'title' => 'Top queries', 'group' => 'audience', 'caption' => 'clicks, 28 days', 'rows' => array() ),
 	array( 'title' => 'API limits', 'rows' => array() ),
 ) ); $split = ob_get_clean();
-ok( 2 === substr_count( $split, 'sn-scr__detail' ) && false !== strpos( $split, 'Audience detail, 7 days' ) && false !== strpos( $split, 'Operations detail' ) && strpos( $split, 'Audience detail, 7 days' ) < strpos( $split, 'Operations detail' ), 'two detail blocks, audience before operations' );
+ok( 2 === substr_count( $split, 'sn-scr__detail' ) && false !== strpos( $split, '>Audience detail<' ) && false !== strpos( $split, 'Operations detail' ) && strpos( $split, 'Audience detail' ) < strpos( $split, 'Operations detail' ), 'two detail blocks, audience before operations' );
+// 2026.10.4 audit (batch 4): the eyebrow names no window; a 28-day queries column sat under "7 days".
+ok( false === strpos( $split, 'Audience detail, 7 days' ), 'the audience eyebrow claims no window its columns do not share' );
 ok( false !== strpos( $split, '>Top queries · clicks, 28 days</h2>' ) && strpos( $split, 'Top queries' ) < strpos( $split, 'Operations detail' ) && strpos( $split, 'API limits' ) > strpos( $split, 'Operations detail' ), 'queries sit in the audience block with their unit; a groupless panel is ops' );
 
 // ── THE CELL RENDERS WHAT THE CARD ACTUALLY CARRIES ─────────────────────────

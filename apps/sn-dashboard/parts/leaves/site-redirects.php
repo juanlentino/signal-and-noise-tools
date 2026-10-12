@@ -48,7 +48,8 @@ function redirects_intro_html() {
 		. \snt_kit_esc( __( ') or a full external URL (', 'signal-and-noise-tools' ) )
 		. \snt_kit_code( 'https://…', false )
 		. \snt_kit_esc( __( '). Paths visitors actually hit that don’t exist are listed under ', 'signal-and-noise-tools' ) )
-		. '<strong>' . \snt_kit_esc( __( 'Site → Broken links', 'signal-and-noise-tools' ) ) . '</strong>'
+		// 2026.10.4 audit: a link to the list it names, not bold text.
+		. \snt_kit_go( __( 'Site → Broken links', 'signal-and-noise-tools' ), array( 'tab' => 'site', 'sub' => 'broken-links' ) )
 		. \snt_kit_esc( __( ', where one click turns any of them into a redirect.', 'signal-and-noise-tools' ) )
 		. '</p>';
 }

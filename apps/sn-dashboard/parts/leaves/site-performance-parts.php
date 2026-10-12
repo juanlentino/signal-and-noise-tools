@@ -1,6 +1,6 @@
 <?php
 /**
- * S&N Dashboard: Site > Performance, the slow admin requests ledger.
+ * S&N Dashboard: Site > Performance, the outbound calls from admin pages.
  *
  * inc/http-diagnostics.php captures every outbound HTTP call made during a
  * wp-admin page view into the `snt_httpdiag_log` option and paints it on
@@ -28,7 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * row {screen, host, ms, when}, slowest first, capped at the module's
  * per-entry ceiling; plus the counts the notices need.
  *
- * @return array{rows:array,failed:int,failed_host:string,uncaptured:int,hidden:int,entries:int}
+ * @return array{rows:array,total:int,failed:int,failed_host:string,uncaptured:int,hidden:int,entries:int}
  */
 function performance_slow_calls() {
 	$log     = get_option( 'snt_httpdiag_log' );
@@ -49,7 +49,9 @@ function performance_slow_calls() {
 			if ( '' === $host ) {
 				$host = __( '(no host)', 'signal-and-noise-tools' );
 			}
-			if ( ! empty( $call['error'] ) || (int) ( $call['code'] ?? 0 ) >= 400 ) {
+			$code   = (int) ( $call['code'] ?? 0 );
+			$failed = ! empty( $call['error'] ) || $code >= 400;
+			if ( $failed ) {
 				++$out['failed'];
 				if ( $ms > $failed_ms ) {
 					$failed_ms          = $ms;
@@ -57,9 +59,15 @@ function performance_slow_calls() {
 				}
 			}
 			$out['rows'][] = array(
-				'screen' => (string) ( $entry['screen'] ?? '' ),
+				'screen' => performance_screen_name( (string) ( $entry['screen'] ?? '' ) ),
 				'host'   => $host,
 				'ms'     => $ms,
+				// 2026.10.4 audit: the failed calls the notice counts are marked
+				// in their own rows, in words and tone, not by the count alone.
+				'status' => array(
+					'html' => $failed ? \snt_kit_badge( 'err', $code >= 400 ? (string) $code : __( 'failed', 'signal-and-noise-tools' ) ) : \snt_kit_esc( $code > 0 ? (string) $code : __( 'no code', 'signal-and-noise-tools' ) ),
+					'text' => $failed ? ( $code >= 400 ? (string) $code : __( 'failed', 'signal-and-noise-tools' ) ) : (string) $code,
+				),
 				'when'   => \sn_httpdiag_format_age( $entry['t'] ?? null, $now ),
 			);
 		}
@@ -70,8 +78,49 @@ function performance_slow_calls() {
 			return $b['ms'] <=> $a['ms'];
 		}
 	);
-	$out['rows'] = array_slice( $out['rows'], 0, SN_HTTPDIAG_HTTP_MAX );
+	$out['total'] = count( $out['rows'] );
+	$out['rows']  = array_slice( $out['rows'], 0, SN_HTTPDIAG_HTTP_MAX );
 	return $out;
+}
+
+/**
+ * The screen a call was made from, by its name in the admin rather than its
+ * query string (2026.10.4 audit: the column read "admin.php?page=...&tab=...").
+ * Our own leaves are named from the tab registry; core screens by their menu
+ * name; anything else stays as logged.
+ *
+ * @param string $screen The logged screen (file plus page, tab, sub, sn_view).
+ * @return string
+ */
+function performance_screen_name( $screen ) {
+	$q    = array();
+	$file = (string) strtok( $screen, '?' );
+	parse_str( (string) wp_parse_url( $screen, PHP_URL_QUERY ), $q );
+	$page = (string) ( $q['page'] ?? '' );
+	if ( 'sn-analytics' === $page ) {
+		return __( 'S&N Analytics', 'signal-and-noise-tools' );
+	}
+	if ( 'sn-theme-options' === $page ) {
+		$names = array( __( 'Signal & Noise', 'signal-and-noise-tools' ) );
+		foreach ( function_exists( 'sn_admin_top_tabs' ) ? (array) \sn_admin_top_tabs() : array() as $top ) {
+			if ( (string) ( $q['tab'] ?? 'dashboard' ) === (string) ( $top['tab'] ?? '' ) ) {
+				$names[] = (string) ( $top['label'] ?? '' );
+				$names[] = (string) ( $top['sub_tabs'][ (string) ( $q['sub'] ?? '' ) ]['label'] ?? '' );
+			}
+		}
+		return implode( ' › ', array_filter( $names, 'strlen' ) );
+	}
+	$core = array(
+		'index.php'       => __( 'Dashboard', 'signal-and-noise-tools' ),
+		'edit.php'        => __( 'Posts', 'signal-and-noise-tools' ),
+		'post.php'        => __( 'Post editor', 'signal-and-noise-tools' ),
+		'post-new.php'    => __( 'New post', 'signal-and-noise-tools' ),
+		'upload.php'      => __( 'Media', 'signal-and-noise-tools' ),
+		'plugins.php'     => __( 'Plugins', 'signal-and-noise-tools' ),
+		'update-core.php' => __( 'Updates', 'signal-and-noise-tools' ),
+		'site-health.php' => __( 'Site Health', 'signal-and-noise-tools' ),
+	);
+	return '' === $page && isset( $core[ $file ] ) ? $core[ $file ] : $screen;
 }
 
 /**
@@ -83,12 +132,13 @@ function performance_slow_calls() {
  * @return string
  */
 function performance_slow_calls_html() {
-	$heading = __( 'Slow admin requests', 'signal-and-noise-tools' );
+	// 2026.10.4 audit: every outbound call is logged, not only slow ones.
+	$heading = __( 'Outbound calls from admin pages', 'signal-and-noise-tools' );
 	if ( ! function_exists( 'sn_httpdiag_visible' ) ) {
 		return \snt_kit_section( $heading, \snt_kit_empty( __( 'The HTTP diagnosis module is not loaded.', 'signal-and-noise-tools' ) ) );
 	}
 	$d     = performance_slow_calls();
-	$empty = __( 'No slow call was captured.', 'signal-and-noise-tools' );
+	$empty = __( 'No outbound call was captured.', 'signal-and-noise-tools' );
 	if ( 0 === $d['entries'] ) {
 		return \snt_kit_section( $heading, \snt_kit_empty( $empty ) );
 	}
@@ -114,14 +164,16 @@ function performance_slow_calls_html() {
 			array( 'key' => 'screen', 'label' => __( 'Screen', 'signal-and-noise-tools' ) ),
 			array( 'key' => 'host', 'label' => __( 'Host', 'signal-and-noise-tools' ) ),
 			array( 'key' => 'ms', 'label' => __( 'Duration (ms)', 'signal-and-noise-tools' ), 'align' => 'end' ),
+			array( 'key' => 'status', 'label' => __( 'Status', 'signal-and-noise-tools' ) ),
 			array( 'key' => 'when', 'label' => __( 'When', 'signal-and-noise-tools' ) ),
 		),
 		$d['rows'],
 		array( 'empty' => $empty )
 	);
-	$caption = '';
+	/* translators: %s: calls not listed. */
+	$caption = \snt_kit_more( $d['total'] - count( $d['rows'] ), __( '+%s quicker calls are not listed; the list is capped, not complete.', 'signal-and-noise-tools' ) );
 	if ( $d['hidden'] > 0 ) {
-		$caption = '<p class="snt-hint">' . \snt_kit_esc( sprintf(
+		$caption .= '<p class="snt-hint">' . \snt_kit_esc( sprintf(
 			/* translators: 1: number of entries older than the retention window, 2: the window in days */
 			_n( '%1$d older entry hidden (older than %2$d days).', '%1$d older entries hidden (older than %2$d days).', $d['hidden'], 'signal-and-noise-tools' ),
 			$d['hidden'],
@@ -131,6 +183,6 @@ function performance_slow_calls_html() {
 	return \snt_kit_section(
 		$heading,
 		$top . $table . $caption,
-		__( 'Outbound HTTP calls captured during wp-admin page loads, slowest first; the Site Health Info panel reads the same log.', 'signal-and-noise-tools' )
+		__( 'Every outbound HTTP call made while a wp-admin page loads, slowest first; the Site Health Info panel reads the same log.', 'signal-and-noise-tools' )
 	);
 }

@@ -46,6 +46,43 @@ function snt_dashboard_count_recent_runs( $runs, $window ) {
 	return $n;
 }
 
+/**
+ * The repos whose NEWEST run failed, one entry each. Only the newest run per
+ * repo counts, so a failure a later success fixed clears at once (2026.10.4
+ * audit: any failure among the last six runs held Home red until six more
+ * deploys landed), and a run still going raises nothing yet. The link is the
+ * run's own page; a wp-admin install row has none, so its repo's Actions list
+ * stands in.
+ *
+ * @param array $runs Merged runs, newest first (snt_deploy_history_merged()).
+ * @return array<int,array{repo:string,conclusion:string,href:string}>
+ */
+function snt_dashboard_failed_deploys( $runs ) {
+	$seen = array();
+	$out  = array();
+	foreach ( (array) $runs as $run ) {
+		if ( ! is_array( $run ) ) {
+			continue;
+		}
+		$repo = (string) ( $run['repo'] ?? '' );
+		if ( isset( $seen[ $repo ] ) ) {
+			continue;
+		}
+		$seen[ $repo ] = true;
+		$conclusion    = (string) ( $run['conclusion'] ?? '' );
+		if ( 'completed' !== (string) ( $run['status'] ?? '' ) || '' === $conclusion || in_array( $conclusion, array( 'success', 'cancelled', 'skipped' ), true ) ) {
+			continue;
+		}
+		$url   = (string) ( $run['html_url'] ?? '' );
+		$out[] = array(
+			'repo'       => $repo,
+			'conclusion' => $conclusion,
+			'href'       => '' !== $url ? $url : ( '' !== $repo ? 'https://github.com/' . $repo . '/actions' : '' ),
+		);
+	}
+	return $out;
+}
+
 function snt_dashboard_short_repo( $repo ) {
 	if ( str_ends_with( $repo, '-tools' ) ) {
 		return 'plugin';

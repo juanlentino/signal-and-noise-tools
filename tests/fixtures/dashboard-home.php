@@ -33,7 +33,7 @@ function snt_home_fixture( $calm = false ) {
 			$comp( 'Analytics', '3.2.0' ),
 			$comp( 'Provenance edge', '1.9.4' ),
 			$comp( 'Login guard', '2.1.0' ),
-			$comp( 'Remote MCP', $calm ? '1.4.0' : "\u{2014}" ),
+			$comp( 'Remote door', $calm ? '1.4.0' : "\u{2014}" ),
 			$comp( 'Rights signals', '1.3.0' ),
 		),
 		'panels'     => array(
@@ -41,9 +41,11 @@ function snt_home_fixture( $calm = false ) {
 			array( 'title' => 'Top sources', 'group' => 'audience', 'rows' => array( array( 'label' => 'linkedin.com', 'value' => '288' ), array( 'label' => 'google.com', 'value' => '201' ), array( 'label' => 'news.ycombinator.com', 'value' => '64' ) ) ),
 			array( 'title' => 'Top queries', 'group' => 'audience', 'caption' => 'clicks, 28 days', 'rows' => array( array( 'label' => 'provenance over detection', 'value' => '31' ), array( 'label' => 'juan lentino', 'value' => '27' ) ) ),
 		),
+		// inc/dash-attention.php's items, as the live site makes them (2026.10.4).
 		'attention'  => $calm ? array() : array(
-			array( 'text' => '3 health findings', 'href' => $url( 'tab=monitoring&sub=health' ) ),
-			array( 'text' => '3 database overrides', 'href' => $url( 'tab=dashboard#sn-dash-diagnostics' ) ),
+			array( 'label' => 'Health', 'text' => '3 health findings in the last scan.', 'href' => $url( 'tab=monitoring&sub=health' ) ),
+			array( 'label' => 'Database overrides', 'text' => '3 theme items are served from the database, not from the theme files.', 'href' => $url( 'tab=dashboard#sn-dash-diagnostics' ) ),
+			array( 'label' => 'Cron', 'text' => '2 scheduled cron events have no handler, so nothing runs when they fire.', 'href' => $url( 'tab=connections&sub=cron' ) ),
 		),
 		'overrides'  => $calm ? array() : array( 'wp_template/home', 'wp_template_part/header', 'wp_navigation/navigation' ),
 		'runs'       => array(),
@@ -76,6 +78,9 @@ function snt_home_signal_figures() {
 function snt_dashboard_tab_data() { return $GLOBALS['__home_data'] ?? snt_home_fixture(); }
 
 function snt_nsm_reading() {
+	if ( isset( $GLOBALS['__nsm'] ) ) {
+		return $GLOBALS['__nsm'];
+	}
 	$v = static fn( $n, $w = '7d' ) => array( 'value' => $n, 'window' => $w );
 	return array(
 		'configured' => true,
@@ -105,12 +110,17 @@ function snt_nsm_reading() {
 }
 
 // The pulse and the greeting read these when they exist.
+// `visits` is the deprecated ungated count (every visitor-day); Home reads the
+// gated `pageview_visits`, the Analytics app's Visits (2026.10.4 audit).
 function sn_analytics_period_deltas( $from, $to, $class = 'human' ) {
-	return array(
-		'views'  => array( 'current' => 1914, 'previous' => 1702, 'pct' => 12 ),
-		'visits' => array( 'current' => 812, 'previous' => 744, 'pct' => 9 ),
+	return $GLOBALS['__home_deltas'] ?? array(
+		'views'           => array( 'current' => 1914, 'previous' => 1702, 'pct' => 12 ),
+		'visits'          => array( 'current' => 1270, 'previous' => 1180, 'pct' => 8 ),
+		'pageview_visits' => array( 'current' => 812, 'previous' => 744, 'pct' => 9 ),
 	);
 }
+function sn_analytics_config() { return $GLOBALS['__home_analytics'] ?? true; }
+function wp_count_posts( $type = 'post' ) { return (object) array( 'publish' => 52, 'draft' => 4, 'pending' => 0, 'future' => 2, 'private' => 1, 'trash' => 9, 'auto-draft' => 3 ); }
 function sn_analytics_delta( $cur, $prev ) { return array( 'pct' => $prev > 0 ? (int) round( ( $cur - $prev ) / $prev * 100 ) : null ); }
 function snt_dashboard_measurement_data() { return array( 'search_clicks' => 212, 'search_clicks_days' => 28 ); }
 function get_bloginfo( $what = '' ) { return 'Signal & Noise'; }

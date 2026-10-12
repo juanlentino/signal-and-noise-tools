@@ -26,8 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function broken_links_hits( $n ) {
-	/* translators: %s: hits on a path. */
-	return sprintf( _n( '%s hit', '%s hits', (int) $n, 'signal-and-noise-tools' ), number_format_i18n( (int) $n ) );
+	return \sn_404_hits( (int) $n );
 }
 
 /**
@@ -106,16 +105,10 @@ function broken_links_paths_html( array $broken, $editing = '', $editor = '' ) {
 	$heading = __( 'Broken paths', 'signal-and-noise-tools' );
 	$n       = count( $broken );
 	if ( 0 === $n ) {
-		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'No broken links: a path lands here when it resembles a published URL.', 'signal-and-noise-tools' ) ) . '</p>' );
+		// The classic's sentence (inc/redirects-copy.php), "or something here links to it" kept.
+		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( \sn_404_empty_sentence() ) . '</p>' );
 	}
-	$hits = array_sum( array_map( static function ( $row ) { return (int) ( $row['entry']['count'] ?? 0 ); }, $broken ) );
-	$top  = (string) array_key_first( $broken );
-	$tops = (int) ( $broken[ $top ]['entry']['count'] ?? 0 );
-	$finding = 1 === $n
-		/* translators: 1: the path, 2: its hits ("7 hits"). */
-		? sprintf( __( 'One broken path, %1$s, took %2$s.', 'signal-and-noise-tools' ), $top, broken_links_hits( $tops ) )
-		/* translators: 1: "2 broken paths", 2: "9 hits", 3: the busiest path, 4: its hit count. */
-		: sprintf( __( '%1$s took %2$s; the busiest, %3$s, took %4$s.', 'signal-and-noise-tools' ), sprintf( _n( '%s broken path', '%s broken paths', $n, 'signal-and-noise-tools' ), number_format_i18n( $n ) ), broken_links_hits( $hits ), $top, number_format_i18n( $tops ) );
+	$finding = \sn_404_broken_finding( array_map( static function ( $row ) { return (int) ( $row['entry']['count'] ?? 0 ); }, $broken ) );
 	$rows = array();
 	$at   = -1;
 	foreach ( array_slice( $broken, 0, SN_404_LIST_CAP, true ) as $path => $row ) {
