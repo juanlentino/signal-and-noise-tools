@@ -122,7 +122,9 @@ ok( false === strpos( $body, 'sn-resume-pub","layout' ), 'no constrained layout 
 ok( false !== strpos( $body, 'INDEPENDENT PRACTICE' ) && false !== strpos( $body, 'PANACEA STUDIO' ), 'both experience orgs rendered' );
 ok( false !== strpos( $body, '<details class="wp-block-details sn-resume-fold"><summary>Earlier career &middot; 1997 - 2015</summary>' ) || false !== strpos( $body, '<summary>' . esc_html( 'Earlier career · 1997 - 2015' ) . '</summary>' ), 'earlier-career fold rendered as details/summary' );
 ok( false !== strpos( $body, 'OBRAS MET' ) && false !== strpos( $body, 'CINERGY STUDIOS' ), 'both earlier-career orgs inside the fold' );
-ok( false !== strpos( $body, 'roughly 110 releases since 2022</strong>' ), 'bullet emphasis HTML survives to the body' );
+ok( false !== strpos( $body, 'roughly 110 tracks since 2022</strong>' ), 'bullet emphasis HTML survives to the body' );
+// 2026-10-12 owner: the 110 figure counts tracks, matching the live resume and /music.
+ok( false !== strpos( $body, 'Tracks since 2022' ) && false === stripos( $body, 'releases since 2022' ), 'seed counts tracks, never releases' );
 ok( false !== strpos( $body, 'https://ssrn.com/abstract=6402298' ) && false !== strpos( $body, 'https://ssrn.com/abstract=6730343' ), 'both publication links rendered' );
 ok( false !== strpos( $body, 'rel="noopener"' ), 'publication links carry rel=noopener' );
 ok( 6 === substr_count( $body, '<tr><td>' ), 'six skills table rows' );

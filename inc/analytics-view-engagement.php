@@ -67,6 +67,9 @@ function snt_analytics_render_view_engagement( $from, $to, $class ) {
 	snt_analytics_render_distribution( __( 'INP (field)', 'signal-and-noise-tools' ), $inp_rows, $cwv_empty );
 	snt_analytics_render_distribution( __( 'CLS (field)', 'signal-and-noise-tools' ), $cls_rows, $cwv_empty );
 	echo '</div>';
+	if ( $cwv_has_data && function_exists( 'sn_analytics_vitals' ) ) {
+		snt_analytics_render_vitals_devices( sn_analytics_vitals_device_rows( sn_analytics_vitals( $from, $to, $class, 0 ) ) );
+	}
 	snt_analytics_render_anomalies( sn_analytics_engagement_anomalies( $from, $to, $class ) );
 	snt_an_flush_empty_fold();
 }

@@ -61,7 +61,7 @@ ok( false !== strpos( $html, 'name="resume[skills][5][items]"' ), 'sixth skills 
 
 // Seed content actually prefills.
 ok( false !== strpos( $html, 'PANACEA STUDIO' ), 'seed org prefilled' );
-ok( false !== strpos( $html, 'roughly 110 releases' ), 'seed bullet prefilled in its textarea' );
+ok( false !== strpos( $html, 'roughly 110 tracks' ), 'seed bullet prefilled in its textarea' );
 ok( false !== strpos( $html, 'https://ssrn.com/abstract=6730343' ), 'seed publication URL prefilled' );
 
 // Repeatable-list plumbing: every add button has a matching template and list.

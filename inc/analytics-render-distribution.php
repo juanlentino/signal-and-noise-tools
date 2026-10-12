@@ -196,3 +196,29 @@ function snt_analytics_render_percentiles( $title, $rows, $format = 'pct', $empt
 	echo '</div>';
 	snt_an_panel_close();
 }
+
+/**
+ * Core Web Vitals at p75 per device (theme audit idea 4): one row per device,
+ * the same rows and sentences as S&N Analytics' Engagement view.
+ *
+ * @param array|null $rows sn_analytics_vitals_device_rows(); null when the read failed.
+ * @return void
+ */
+function snt_analytics_render_vitals_devices( $rows ) {
+	$copy = sn_analytics_vitals_copy();
+	if ( null === $rows ) {
+		snt_an_note_empty( $copy['title'], $copy['failed'] );
+		return;
+	}
+	snt_an_panel_open( $copy['title'], array( 'inside_class' => 'inside inside-flush' ) );
+	echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Device', 'signal-and-noise-tools' ) . '</th>';
+	foreach ( array( 'LCP', 'INP', 'CLS' ) as $h ) {
+		echo '<th scope="col">' . esc_html( $h ) . '</th>';
+	}
+	echo '</tr></thead><tbody>';
+	foreach ( $rows as $r ) {
+		echo '<tr><th scope="row">' . esc_html( $r['device'] ) . '</th><td>' . esc_html( $r['lcp'] ) . '</td><td>' . esc_html( $r['inp'] ) . '</td><td>' . esc_html( $r['cls'] ) . '</td></tr>';
+	}
+	echo '</tbody></table><p class="sn-an-foot">' . esc_html( $copy['note'] ) . '</p>';
+	snt_an_panel_close();
+}

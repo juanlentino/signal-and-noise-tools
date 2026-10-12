@@ -35,7 +35,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-metrics', array(
 		'label'               => 'Batch-read readership metrics (consolidated)',
-		'description'         => 'One coherent answer to "how is the site being read?": a sectioned batch over the readership reads. analytics_summary (range totals with the honest-denominator semantics: prefer view_visit_ratio, engagement times are MILLISECONDS), analytics_events (top custom events), rss_stats (feed fetches; its own fixed 7d/30d windows), machine_readers, analytics_top_content (pages with visits, scroll, time, and Search Console impressions and position over search_window), 404_log, analytics_sources (labels with category), analytics_series (views and visits per day), analytics_geography (country), analytics_devices, analytics_journeys (entry and exit pages, human only), analytics_query (an allowlisted query: one or two dimensions, the second always day; see `query`), and analytics_rows (counted rows by path, referrer, country, device or day, the shape the remote door serves; see `rows`). Windows follow the site\'s own day. Sources, geography, devices, journeys and query fold rows under 3 visits into withheld, so rows plus withheld add up. `range` (default 30) and `class` (default human) apply as each section\'s description says. Each entry carries its source ability\'s exact payload. If a source refuses, that ONE section degrades to {error:"unavailable"}; the call fails as a whole only on invalid input (empty or unknown sections, or a bad query).',
+		'description'         => 'One coherent answer to "how is the site being read?": a sectioned batch over the readership reads. analytics_summary (range totals with the honest-denominator semantics: prefer view_visit_ratio, engagement times are MILLISECONDS), analytics_events (top custom events), rss_stats (feed fetches; its own fixed 7d/30d windows), machine_readers, analytics_top_content (pages with visits, scroll, time, and Search Console impressions and position over search_window), 404_log, analytics_sources (labels with category), analytics_series (views and visits per day), analytics_geography (country), analytics_devices, analytics_journeys (entry and exit pages, human only), analytics_query (an allowlisted query: one or two dimensions, the second always day; see `query`), analytics_rows (counted rows by path, referrer, country, device or day, the shape the remote door serves; see `rows`), and analytics_vitals (field Core Web Vitals: p75 and the good, needs improvement and poor shares for LCP, INP and CLS, site-wide, per device and for the top `limit` paths; samples 0 reads as null figures, never 0, and small_sample flags thin cells). Windows follow the site\'s own day. Sources, geography, devices, journeys and query fold rows under 3 visits into withheld, so rows plus withheld add up. `range` (default 30) and `class` (default human) apply as each section\'s description says. Each entry carries its source ability\'s exact payload. If a source refuses, that ONE section degrades to {error:"unavailable"}; the call fails as a whole only on invalid input (empty or unknown sections, or a bad query).',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_metrics',
@@ -65,7 +65,7 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'        => 'integer',
 					'minimum'     => 1,
 					'maximum'     => 500,
-					'description' => 'Rows for analytics_top_content (default 5, max 100), sources, geography, devices and journeys (default 25).',
+					'description' => 'Rows for analytics_top_content (default 5, max 100), sources, geography, devices and journeys (default 25), and the top paths analytics_vitals reads (default 25, max 50).',
 				),
 				'rows'     => array(
 					'type'        => 'object',
@@ -133,6 +133,8 @@ function snt_sn_metrics_map() {
 		// Owner brief 2026-10-10: counted rows by path, referrer, country,
 		// device or day; its twin is the remote door's one query tool.
 		'analytics_rows'      => 'signal-noise/analytics-rows',
+		// Theme audit idea 4 (2026-10-12): field Core Web Vitals at p75 by device and top path.
+		'analytics_vitals'    => 'signal-noise/get-analytics-vitals',
 	);
 }
 
@@ -213,6 +215,7 @@ function snt_ability_sn_metrics( $input ) {
 		'analytics_journeys'    => array_diff_key( $windowed, array( 'class' => 1 ) ),
 		'analytics_query'       => $query,
 		'analytics_rows'        => $rows,
+		'analytics_vitals'      => $windowed,
 	);
 
 	$out = array();
