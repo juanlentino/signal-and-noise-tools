@@ -188,7 +188,7 @@ ok( false !== strpos( $kit, '2 findings need a look.' ) && 1 === substr_count( $
 // ── The public-side links always print, in every state.
 ok( false !== strpos( $kit, 'Verification docket' ) && false !== strpos( $kit, home_url( '/verify/' ) ), 'the public verification docket link is printed' );
 ok( false !== strpos( $kit, 'github.com/juanlentino/signal-and-noise-provenance' ), 'the public ledger link is printed' );
-foreach ( array( 'Verification docket', 'Public ledger', 'TDM policy', 'RSL licence' ) as $label ) {
+foreach ( array( 'Verification docket', 'Public ledger', 'TDM policy', 'RSL license' ) as $label ) {
 	ok( false !== strpos( $classic, $label ) && false !== strpos( $kit, $label ), "public link $label printed by both" );
 }
 // 2026-10-11: each link is followed by a colon, not ". per-note ..." (a period

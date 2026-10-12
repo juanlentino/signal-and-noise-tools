@@ -130,7 +130,7 @@ if ( ! function_exists( 'snt_os_host_absolute_url' ) ) {
 
 /**
  * A same-origin URL that must stay a navigation: a file the browser saves
- * (the RSL licence XML, a CSV export). An iframe window cannot show it and
+ * (the RSL license XML, a CSV export). An iframe window cannot show it and
  * a download does not relaunch the PWA.
  *
  * @param string $url Absolute URL.

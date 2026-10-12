@@ -137,7 +137,7 @@ function snt_trust_render_section() {
 	echo '<li><a href="' . esc_url( home_url( '/verify/' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Verification docket', 'signal-and-noise-tools' ) . '</a>: ' . esc_html__( 'per-note signature, content hash, live match, and anchor, checked in the reader&rsquo;s own browser.', 'signal-and-noise-tools' ) . '</li>';
 	echo '<li><a href="https://github.com/juanlentino/signal-and-noise-provenance" target="_blank" rel="noopener">' . esc_html__( 'Public ledger', 'signal-and-noise-tools' ) . '</a>: ' . esc_html__( 'the signed records and their daily verify workflow.', 'signal-and-noise-tools' ) . '</li>';
 	echo '<li><a href="' . esc_url( home_url( '/tdm-policy/' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'TDM policy', 'signal-and-noise-tools' ) . '</a>: ' . esc_html__( 'the human-readable terms behind the reservation headers.', 'signal-and-noise-tools' ) . '</li>';
-	echo '<li><a href="' . esc_url( home_url( '/license.xml' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'RSL licence', 'signal-and-noise-tools' ) . '</a>: ' . esc_html__( 'machine-readable licensing terms.', 'signal-and-noise-tools' ) . '</li>';
+	echo '<li><a href="' . esc_url( home_url( '/license.xml' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'RSL license', 'signal-and-noise-tools' ) . '</a>: ' . esc_html__( 'machine-readable licensing terms.', 'signal-and-noise-tools' ) . '</li>';
 	echo '</ul>';
 	echo '</div>';
 }

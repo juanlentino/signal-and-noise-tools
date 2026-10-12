@@ -99,7 +99,7 @@
 }
 
 a.snt-list__label:hover,
-a.snt-link:hover { text-decoration: underline; }
+a.snt-link--url:hover { text-decoration: underline; }
 
 .snt-list__value {
 	/* 14.9.1: a value may shrink, and the label keeps a floor, so a long
@@ -263,11 +263,27 @@ a.snt-link:hover { text-decoration: underline; }
 	color: var( --os-ui-fg-muted, #b3afb5 );
 }
 
+/* A link in a sentence reads as one (2026-10-12, owner: "Fix the link style
+   too"): the sentence's own font and size, an underline, and the app's link
+   pink, about 9:1 on the window. The admin accent (pure red on this site) is
+   4.4:1 there and fails AA for text, so it is not a link color. A link whose
+   text IS an address (snt_kit_link_is_address()) keeps the code face. */
 .snt-link {
 	color: var( --os-ui-accent-strong, #ec9bff );
+	text-decoration: underline;
+	text-underline-offset: 3px;
+	overflow-wrap: anywhere;
+}
+.snt-link--url {
 	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
 	font-size: 12px;
-	overflow-wrap: anywhere;
+	text-decoration: none;
+}
+
+/* Door and go links (os-button variant=link) in the same pink: the kit's
+   default is the admin theme color, the same failing red. */
+.snt-app os-button[variant="link"] {
+	--os-ui-button-fg: var( --os-ui-accent-strong, #ec9bff );
 }
 
 /* ── Analytics: the view body ────────────────────────────────────────── */
