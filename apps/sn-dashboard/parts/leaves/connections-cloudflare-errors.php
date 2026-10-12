@@ -76,10 +76,15 @@ function cloudflare_edge_errors_html( $code_list = '' ) {
 	$missed  = '';
 	if ( '' !== (string) ( $query['error'] ?? '' ) ) {
 		// The last run's query failed for ITS day; the other days were read.
-		$day    = (string) ( $query['day'] ?? '' );
-		$day    = '' !== $day ? wp_date( (string) get_option( 'date_format', 'F j, Y' ), (int) strtotime( $day . ' 12:00:00 UTC' ) ) : __( 'the last day', 'signal-and-noise-tools' );
+		$day = (string) ( $query['day'] ?? '' );
+		$day = '' !== $day ? wp_date( (string) get_option( 'date_format', 'F j, Y' ), (int) strtotime( $day . ' 12:00:00 UTC' ) ) : __( 'the last day', 'signal-and-noise-tools' );
 		/* translators: 1: the day not read, 2: why the errors query failed. */
-		$missed = \snt_kit_notice( 'warning', \snt_kit_esc( sprintf( __( 'Who answered and which paths for %1$s were not read: %2$s. The lists hold the days that were read.', 'signal-and-noise-tools' ), $day, rtrim( (string) $query['error'], '.' ) ) ) );
+		$missed = sprintf( __( 'Who answered and which paths for %1$s were not read: %2$s.', 'signal-and-noise-tools' ), $day, rtrim( (string) $query['error'], '.' ) );
+		// Only when the lists paint does the notice point at them.
+		if ( 0 !== (int) $reading['total'] ) {
+			$missed .= ' ' . __( 'The lists hold the days that were read.', 'signal-and-noise-tools' );
+		}
+		$missed = \snt_kit_notice( 'warning', \snt_kit_esc( $missed ) );
 	}
 	if ( 0 === (int) $reading['total'] ) {
 		return $code_list . $missed;

@@ -432,6 +432,11 @@ snt_leaf_preview( 'monitoring-analytics-edge', $kit );
 $GLOBALS['__edge_errors']['query']['error'] = 'GraphQL: rate limited';
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( false !== strpos( $kit, 'Who answered and which paths for October 11, 2026 were not read: GraphQL: rate limited. The lists hold the days that were read.' ) && false !== strpos( $kit, 'responder 1' ) && false !== strpos( $kit, '/p1' ), 'PR #2025 review: a failed errors query names the day it missed and still paints the six days that were read' );
+// Re-review nit: with no 5xx stored, no list paints, so the notice does not
+// point at lists that are not there.
+$GLOBALS['__edge_errors'] = array_merge( $GLOBALS['__edge_errors'], array( 'total' => 0, 'sources' => array(), 'paths' => array() ) );
+$kit = snt_leaf_paint( 'monitoring', 'analytics' );
+ok( false !== strpos( $kit, 'Who answered and which paths for October 11, 2026 were not read: GraphQL: rate limited.' ) && false === strpos( $kit, 'The lists hold' ) && false === strpos( $kit, 'Which paths failed</h4>' ), 'a failed errors query over an empty rollup names the missed day and says nothing about lists that do not paint' );
 unset( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] );
 
 // ── The North star form (inc/north-star-settings.php) paints on this leaf only

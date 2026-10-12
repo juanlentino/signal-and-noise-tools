@@ -10,10 +10,10 @@
  * tables. Reuses the existing .sn-kpi-row / postbox / widefat treatments; no
  * new visual vocabulary.
  *
- * The Measurement › Analytics settings leaf is not settings-only: since 15.3.0
- * it also carries the Cloudflare monitor's compact "Edge, 7 days" report (the
- * five figures and the 5xx lists), and that placement is decided (PR #2025
- * review). This view is the full traffic report; that box is the glance.
+ * The Measurement › Analytics settings leaf is not settings-only: it carries
+ * the compact Edge, 7 days report (kept here 2026-10-12; S&N Analytics'
+ * Traffic & edge view has no 5xx breakdown). This view is the full traffic
+ * report; that box is the glance.
  *
  * @package SignalNoiseTools
  * @since 6.26.0
