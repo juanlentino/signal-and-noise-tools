@@ -44,7 +44,7 @@ function tools_reports_render_contrast( array $report ) {
 
 	// The tile counts the pairs too, never the stored figure (a pre-2026.10.3
 	// cache summed every palette and read "38 of 21").
-	$card  = tools_reports_contrast_tiles( $usage, $pairs, count( array_filter( $pairs, static fn( $r ) => empty( $r['aa_body'] ) ) ) );
+	$card  = tools_reports_contrast_tiles( $usage, $pairs, \sn_health_contrast_would_fail( $pairs ) );
 	$card .= function_exists( 'snt_contrast_rendered' ) ? snt_contrast_rendered_html( snt_contrast_rendered(), 'snt-hint' ) : '';
 
 	return array(
@@ -135,7 +135,7 @@ function tools_reports_contrast_arithmetic( array $report, array $pairs ) {
 			// Counted from the pairs it is printed against, never the stored
 			// figure: a report cached before 2026.10.3 summed every palette and
 			// read "38 of 21" until the next scan.
-			count( array_filter( $pairs, static fn( $r ) => empty( $r['aa_body'] ) ) ),
+			\sn_health_contrast_would_fail( $pairs ),
 			count( $pairs ),
 			$body,
 			count( $tokens )

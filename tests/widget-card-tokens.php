@@ -84,11 +84,18 @@ foreach ( $link_files as $name ) {
 }
 $red_links = array();
 foreach ( $code as $name => $js ) {
-	if ( preg_match( "/el\\( 'a'[^;]*?font-size:11px;color:var\\(--os-ui-color-accent/", $js ) ) { $red_links[] = $name; }
+	// A card link's style is `color:…;text-decoration:none`: one on the accent
+	// must lead with the link pink (a title link on `inherit` reads as its row).
+	// The 2026.10.3 guard anchored on `el( 'a'` and could not cross the first
+	// `;` of the style, so it matched nothing, ever.
+	preg_match_all( '/color:([^;]*);text-decoration:none/', $js, $link_colors );
+	foreach ( $link_colors[1] as $color ) {
+		if ( false !== strpos( $color, '--os-ui-color-accent' ) && 0 !== strpos( $color, 'var(--os-ui-accent-strong' ) ) { $red_links[] = $name; }
+	}
 }
 ok( empty( $red_links ), 'no card link paints straight in the accent' . ( $red_links ? ' [' . implode( ', ', $red_links ) . ']' : '' ) );
 $dimmed = array();
-foreach ( $code as $name => $js ) { if ( false !== strpos( $js, 'color:var(--os-ui-color-accent, #4a9eff);text-decoration:none;opacity' ) ) { $dimmed[] = $name; } }
+foreach ( $code as $name => $js ) { if ( false !== strpos( $js, 'text-decoration:none;opacity' ) ) { $dimmed[] = $name; } }
 ok( empty( $dimmed ), 'no link on the accent carries an opacity that would dim the pick' . ( $dimmed ? ' [' . implode( ', ', $dimmed ) . ']' : '' ) );
 ok( preg_match( '/color:var\(--os-ui-color-accent, #4a9eff\);margin:4px 0 6px;/', $code['desktop-mode-widget-views.js'] ) === 1, 'the views sparkline rides --os-ui-color-accent, not the window-links overlay colour' );
 $subtle = 0;

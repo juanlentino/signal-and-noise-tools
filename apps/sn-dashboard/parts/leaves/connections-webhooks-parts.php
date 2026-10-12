@@ -187,11 +187,12 @@ function webhooks_delete_form( $id ) {
 /**
  * The rail's status box: how many webhooks, how many enabled, and a pill.
  *
- * @param int $total   Configured webhooks.
- * @param int $enabled Enabled webhooks.
+ * @param int  $total    Configured webhooks.
+ * @param int  $enabled  Enabled webhooks.
+ * @param bool $watching Watching live (Add a webhook is hidden).
  * @return string
  */
-function webhooks_status_html( $total, $enabled ) {
+function webhooks_status_html( $total, $enabled, $watching = false ) {
 	if ( $total > 0 ) {
 		$kind  = $enabled > 0 ? 'ok' : 'warn';
 		/* translators: %d configured webhooks */
@@ -202,7 +203,10 @@ function webhooks_status_html( $total, $enabled ) {
 	} else {
 		$kind  = 'warn';
 		$title = __( 'No webhooks configured', 'signal-and-noise-tools' );
-		$body  = __( 'Add one under Add a webhook to start receiving signed post-publish notifications at your own endpoint.', 'signal-and-noise-tools' );
+		// Watching hides Add a webhook, so the notice names the step before it.
+		$body  = $watching
+			? __( 'Stop watching, then add one under Add a webhook to start receiving signed post-publish notifications at your own endpoint.', 'signal-and-noise-tools' )
+			: __( 'Add one under Add a webhook to start receiving signed post-publish notifications at your own endpoint.', 'signal-and-noise-tools' );
 		$pill  = __( 'Inactive', 'signal-and-noise-tools' );
 	}
 	return \snt_kit_notice( $kind, '<b>' . \snt_kit_esc( $title ) . '</b> ' . \snt_kit_badge( $kind, $pill ) . '<br>' . \snt_kit_esc( $body ) );

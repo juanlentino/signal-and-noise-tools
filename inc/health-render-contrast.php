@@ -95,6 +95,19 @@ function sn_health_contrast_format_threshold( $ratio ) {
 }
 
 /**
+ * The pairs that would fail body-text AA, counted from the pairs painted
+ * beside the figure and never read from the stored one (a pre-2026.10.3
+ * cache summed every palette: "38 of 21"). One count for both surfaces; a
+ * row that is not an array is not a pair.
+ *
+ * @param array $pairs The arithmetic pairs.
+ * @return int
+ */
+function sn_health_contrast_would_fail( array $pairs ) {
+	return count( array_filter( $pairs, static fn( $r ) => is_array( $r ) && empty( $r['aa_body'] ) ) );
+}
+
+/**
  * The contrast report: the usage tier leads the card, and the arithmetic pair
  * table sits COLLAPSED beneath it (owner decision, 2026-08-11, made after the
  * arithmetic count misled as a headline three separate times).
@@ -120,9 +133,7 @@ function sn_health_render_contrast_report( $report ) {
 	$thresholds = isset( $report['thresholds'] ) && is_array( $report['thresholds'] ) ? $report['thresholds'] : array();
 	$body_aa    = isset( $thresholds['aa_body'] ) ? (float) $thresholds['aa_body'] : 4.5;
 	$large_aa   = isset( $thresholds['aa_large'] ) ? (float) $thresholds['aa_large'] : 3.0;
-	// Counted from the pairs printed beside it, never the stored figure (a
-	// pre-2026.10.3 cache summed every palette: "38 of 21").
-	$would_fail = count( array_filter( (array) $pairs, static fn( $r ) => is_array( $r ) && empty( $r['aa_body'] ) ) );
+	$would_fail = sn_health_contrast_would_fail( $pairs );
 
 	// The rendered tier first: what the live pages show, so the stylesheet
 	// counts below read as the possibilities they are (2026-10-06).
@@ -142,7 +153,7 @@ function sn_health_render_contrast_report( $report ) {
 	echo '<summary>';
 	printf(
 		/* translators: 1: failing pair count, 2: total pair count */
-		esc_html__( 'Arithmetic tier — %1$d of %2$d token pairs would fail if rendered together (palette property, moves only when a token changes)', 'signal-and-noise-tools' ),
+		esc_html__( 'Arithmetic tier: %1$d of %2$d token pairs would fail if rendered together (palette property, moves only when a token changes)', 'signal-and-noise-tools' ),
 		(int) $would_fail,
 		count( $pairs )
 	);

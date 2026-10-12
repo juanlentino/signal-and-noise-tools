@@ -282,8 +282,8 @@ a.snt-link {
 	font-weight: 500;
 }
 
-/* A bare <a> a builder paints without the kit (the rendered-contrast line,
-   the Tags rows) takes the same pink and underline, not wp-admin's link color,
+/* A bare <a> a builder paints without the kit (a Tags row's note title, as
+   of 2026.10.3) takes the same pink and underline, not wp-admin's link color,
    which is the same failing red on this site. */
 .snt-app .snt-leaf a:not( [class] ) {
 	color: var( --os-ui-accent-strong, #ec9bff );
