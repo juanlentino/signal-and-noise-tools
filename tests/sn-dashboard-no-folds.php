@@ -72,6 +72,7 @@ require_once $root . '/inc/openstation-kit.php';
 require_once $root . '/inc/openstation-kit-display.php';
 $closed = snt_kit_fold( 'Setup', 'Two steps, both done', '<p>x</p>' );
 ok( 0 === strpos( $closed, '<os-disclosure heading="Setup" hint="Two steps, both done"' ) && 0 === preg_match( '/\sopen[\s=>]/', $closed ), 'a fold paints its summary and starts closed' );
+ok( false !== strpos( $closed, '<os-stack gap="12"><p>x</p></os-stack></os-disclosure>' ), 'a fold stacks its content with the gap an open section gives it' );
 ok( 1 === preg_match( '/<os-disclosure[^>]*\sopen[\s=>]/', snt_kit_fold( 'Setup', 'One step left', '<p>x</p>', true ) ), 'a fold that needs the reader paints open' );
 ok( false === strpos( snt_kit_fold( 'Setup', ' ', '<p>x</p>' ), 'os-disclosure' ), 'a fold with no summary paints its content open, as a section: closing may hide detail, never the only statement of a fact' );
 

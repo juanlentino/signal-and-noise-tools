@@ -44,6 +44,7 @@ function snt_kit_fold( $heading, $summary, $inner, $open = false ) {
 			'hint'    => (string) $summary,
 			'open'    => (bool) $open,
 		),
-		(string) $inner
+		// The same rhythm an open section's `stack` gives its children.
+		snt_kit_stack( (string) $inner, 12 )
 	);
 }
