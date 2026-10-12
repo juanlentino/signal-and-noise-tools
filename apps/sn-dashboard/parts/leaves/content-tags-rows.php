@@ -47,7 +47,10 @@ function tags_fit_html() {
 		foreach ( $row['remove'] as $t ) {
 			$boxes .= tags_check_row( 'remove[' . (int) $pid . '][]', (int) $t['id'], \snt_kit_esc( sprintf( /* translators: 1: tag, 2: score */ __( 'Remove "%1$s" (attached for reach, %2$s of 2)', 'signal-and-noise-tools' ), (string) $t['name'], number_format_i18n( (float) $t['score'], 2 ) ) ), false );
 		}
-		$inner .= '<p class="snt-prose"><strong><a href="' . esc_url( get_edit_post_link( (int) $pid ) ?: '' ) . '">' . \snt_kit_esc( $row['title'] ) . '</a></strong></p><ul class="snt-list">' . $boxes . '</ul>';
+		// The note is a sub-heading, and its link a door (2026-10-12 audit: a
+		// raw href left the S&N Home desktop for the classic editor).
+		$edit   = (string) ( get_edit_post_link( (int) $pid, 'raw' ) ?: '' );
+		$inner .= '<h4 class="snt-h">' . ( '' !== $edit ? \snt_kit_link( (string) $row['title'], $edit ) : \snt_kit_esc( $row['title'] ) ) . '</h4><ul class="snt-list">' . $boxes . '</ul>';
 	}
 	return \snt_kit_section(
 		$heading,

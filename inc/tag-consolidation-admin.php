@@ -149,9 +149,9 @@ function sn_admin_tag_render_manual_picker() {
 	echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
 	echo '<input type="hidden" name="page" value="sn-content"><input type="hidden" name="tab" value="content"><input type="hidden" name="sub" value="tags"><input type="hidden" name="sn_tag_preview" value="1">';
 	echo '<p>' . esc_html__( 'Fold', 'signal-and-noise-tools' ) . ' ';
-	echo '<select name="sn_tag_from[]">' . sn_admin_tag_options( $tags ) . '</select> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- options pre-escaped in sn_admin_tag_options.
+	echo '<select name="sn_tag_from[]" required>' . sn_admin_tag_options( $tags ) . '</select> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- options pre-escaped in sn_admin_tag_options.
 	echo esc_html__( 'into', 'signal-and-noise-tools' ) . ' ';
-	echo '<select name="sn_tag_into">' . sn_admin_tag_options( $tags ) . '</select> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- options pre-escaped in sn_admin_tag_options.
+	echo '<select name="sn_tag_into" required>' . sn_admin_tag_options( $tags ) . '</select> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- options pre-escaped in sn_admin_tag_options.
 	echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Preview merge', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form></div>';
 }
@@ -163,7 +163,9 @@ function sn_admin_tag_render_manual_picker() {
  * @return string
  */
 function sn_admin_tag_options( $tags ) {
-	$out = '';
+	// Unchosen first, as on the native leaf: a preselected first tag on both
+	// sides made the default preview a refusal.
+	$out = '<option value="" disabled selected>' . esc_html__( 'Choose a tag', 'signal-and-noise-tools' ) . '</option>';
 	foreach ( (array) $tags as $t ) {
 		$out .= '<option value="' . esc_attr( $t->term_id ) . '">' . esc_html( $t->name ) . ' (' . (int) $t->count . ')</option>';
 	}
@@ -182,7 +184,7 @@ function sn_admin_tag_options( $tags ) {
 function sn_admin_tag_render_confirm( $pv, $from, $into ) {
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Confirm merge', 'signal-and-noise-tools' ) . '</h2>';
 	if ( ! is_array( $pv ) || empty( $pv['from'] ) ) {
-		echo '<p>' . esc_html__( 'Nothing to merge (the selected tags are no longer valid).', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html( sn_tag_merge_refusal( $pv ) ) . '</p>';
 		// #1228: was '</p></div></div>' — a stray extra </div> against the one
 		// <div class="sn-fieldset"> opened above (the happy path below closes
 		// with a single </div>, matching).

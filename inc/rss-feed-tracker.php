@@ -60,6 +60,24 @@ function sn_rss_tracker_defaults() {
 	);
 }
 
+/**
+ * Reset the RSS tracker's own settings to their defaults, KEEPING the
+ * collector endpoint. It shares this option but belongs to Measurement ›
+ * Analytics since v10.46.0, and the Worker-version, salt-window and
+ * login-guard probes all read its base: deleting the option snapped a
+ * workers.dev override back to home_url( '/_sn/px' ) (2026-10-12 audit).
+ *
+ * @return void
+ */
+function sn_rss_tracker_reset_settings() {
+	$stored = get_option( SN_RSS_TRACKER_SETTINGS_OPT, array() );
+	$kept   = is_array( $stored ) ? (string) ( $stored['collector_url'] ?? '' ) : ''; // the stored one; the default needs no keeping
+	delete_option( SN_RSS_TRACKER_SETTINGS_OPT );
+	if ( '' !== $kept && home_url( '/_sn/px' ) !== $kept ) {
+		update_option( SN_RSS_TRACKER_SETTINGS_OPT, array( 'collector_url' => $kept ) );
+	}
+}
+
 function sn_rss_tracker_settings() {
 	$stored = get_option( SN_RSS_TRACKER_SETTINGS_OPT, array() );
 	return wp_parse_args( is_array( $stored ) ? $stored : array(), sn_rss_tracker_defaults() );
@@ -446,7 +464,7 @@ function sn_rss_tracker_handle_form() {
 			$flash = 'purged-' . (int) $result;
 		}
 	} elseif ( SN_RSS_TRACKER_ACTION_RESET === $action ) {
-		delete_option( SN_RSS_TRACKER_SETTINGS_OPT );
+		sn_rss_tracker_reset_settings();
 		$flash = 'reset';
 	}
 
@@ -568,7 +586,7 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<p class="submit">';
 	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_SAVE ) . '" class="button button-primary">Save Settings</button> ';
 	// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm.
-	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_RESET ) . '" class="button" data-snt-confirm="' . esc_attr__( 'All RSS tracker settings (window threshold, log retention, etc.) will be restored to defaults.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Reset', 'signal-and-noise-tools' ) . '">Reset to Defaults</button>';
+	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_RESET ) . '" class="button" data-snt-confirm="' . esc_attr__( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Measurement › Analytics is kept.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Reset', 'signal-and-noise-tools' ) . '">Reset to Defaults</button>';
 	echo '</p>';
 	echo '</form>';
 }
@@ -602,14 +620,14 @@ function sn_rss_tracker_render_maintenance_form( $settings ) {
 	echo '<h2 class="sn-section-h">Maintenance</h2>';
 	echo '<form method="post">';
 	wp_nonce_field( SN_RSS_TRACKER_NONCE );
-	echo '<p class="sn-field-helper">Delete rows older than the threshold below. First-party collector events are unaffected: only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
+	echo '<p class="sn-field-helper">Delete rows older than the number of days you enter. First-party collector events are unaffected: only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_rss_purge_days">Older than (days)</label>';
 	echo '<input type="number" id="sn_rss_purge_days" name="purge_days" class="small-text" min="7" max="365" value="' . esc_attr( (int) $settings['log_retention_days'] ) . '">';
 	echo '</div>';
 	echo '<p class="submit sn-submit--tight">';
 	// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm.
-	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_PURGE ) . '" class="button" data-snt-confirm="' . esc_attr__( 'Log entries older than the configured retention threshold will be permanently deleted.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Purge old log entries?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Purge', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Purge now</button>';
+	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_PURGE ) . '" class="button" data-snt-confirm="' . esc_attr__( 'Log entries older than the number of days in this box will be permanently deleted.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Purge old log entries?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Purge', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Purge now</button>';
 	echo '</p>';
 	echo '</form>';
 	echo '</div>';

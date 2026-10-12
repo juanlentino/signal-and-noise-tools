@@ -44,7 +44,7 @@ function sn_admin_render_indexnow_section() {
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'indexnow_ping_now' ) ) . '" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
 	echo '<strong>Maintenance</strong><p class="sn-helper">&ldquo;Submit recent content now&rdquo; backfills your existing published posts. &ldquo;Regenerate key&rdquo; rotates the key (search engines re-verify on the next submission).</p>';
 	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_ping_now' ) . ' class="button">Submit recent content now</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
-	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_regenerate' ) . ' class="button">Regenerate key</button></form>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_regenerate' ) . ' class="button" data-snt-confirm="' . esc_attr__( 'Regenerate the IndexNow key? The old key file stops answering at once; search engines verify the new key on the next submission.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Regenerate key', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Regenerate', 'signal-and-noise-tools' ) . '">Regenerate key</button></form>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 
 	echo '</div>'; // .sn-2up
 
@@ -54,8 +54,8 @@ function sn_admin_render_indexnow_section() {
 	// ── STATUS ──
 	if ( ! $enabled ) {
 		echo '<div class="sn-status-box sn-status-box--warn"><div><p class="sn-status-box-title">Disabled</p><p class="sn-status-box-body">Enable it under IndexNow to start notifying search engines.</p></div><span class="sn-pill sn-pill--warn">Off</span></div>';
-	} elseif ( ! empty( $result['error'] ) ) {
-		echo '<div class="sn-status-box sn-status-box--err"><div><p class="sn-status-box-title">Last submission failed</p><p class="sn-status-box-body"><code>' . esc_html( (string) $result['error'] ) . '</code></p></div><span class="sn-pill sn-pill--err">Error</span></div>';
+	} elseif ( '' !== ( $problem = function_exists( 'sn_indexnow_result_problem' ) ? sn_indexnow_result_problem( (array) $result ) : (string) ( $result['error'] ?? '' ) ) ) {
+		echo '<div class="sn-status-box sn-status-box--err"><div><p class="sn-status-box-title">Last submission failed</p><p class="sn-status-box-body">' . esc_html( $problem ) . '</p></div><span class="sn-pill sn-pill--err">Error</span></div>';
 	} else {
 		echo '<div class="sn-status-box"><div><p class="sn-status-box-title">Active</p><p class="sn-status-box-body">Changed URLs are submitted automatically.</p></div><span class="sn-pill sn-pill--ok">On</span></div>';
 	}
@@ -64,7 +64,7 @@ function sn_admin_render_indexnow_section() {
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Status</h2><table class="form-table sn-status-table sn-status-table--full"><tbody>';
 	echo '<tr><th>Key file</th><td>' . ( '' !== $key_url ? '<a href="' . esc_url( $key_url ) . '" target="_blank" rel="noopener"><code>' . esc_html( $key_url ) . '</code></a>' : '<em>not generated yet</em>' ) . '</td></tr>';
 	if ( ! empty( $result['time'] ) ) {
-		echo '<tr><th>Last submission</th><td>' . esc_html( human_time_diff( (int) $result['time'], time() ) ) . ' ago &mdash; HTTP ' . (int) ( $result['code'] ?? 0 ) . ', ' . (int) ( $result['count'] ?? 0 ) . ' URL(s)</td></tr>';
+		echo '<tr><th>Last submission</th><td>' . esc_html( human_time_diff( (int) $result['time'], time() ) ) . ' ago: ' . esc_html( (int) ( $result['code'] ?? 0 ) > 0 ? 'HTTP ' . (int) $result['code'] : __( 'no HTTP response', 'signal-and-noise-tools' ) ) . ', ' . (int) ( $result['count'] ?? 0 ) . ' ' . esc_html( _n( 'URL', 'URLs', (int) ( $result['count'] ?? 0 ), 'signal-and-noise-tools' ) ) . '</td></tr>';
 	}
 	echo '</tbody></table></div>';
 

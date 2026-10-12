@@ -106,6 +106,14 @@ ok( false !== strpos( $kit, 'in 1 hour' ), 'a pending boundary reads as a relati
 ok( false !== strpos( $kit, '&mdash;' ), 'a row with no pending boundary (both past) falls back to the dash placeholder' );
 
 ok( false !== strpos( $kit, 'name="row_id" value="201"' ) && false !== strpos( $kit, 'value="sn_schedule_run_now"' ) && false !== strpos( $kit, 'value="sn_schedule_repurge"' ), 'the fragment row carries its own row_id into both ops' );
+// 2026-10-12 audit: Run now and Run swap now change the public site at once
+// and asked nothing; they ask now, in the same words on both surfaces.
+// Re-purge only refreshes the cache and stays one click.
+foreach ( array( 'Run this scheduled change now', 'Run this swap now' ) as $q ) {
+	ok( 1 === preg_match( '/os-confirm="(' . preg_quote( $q, '/' ) . '[^"]*)"/', $kit, $m ) && false !== strpos( $classic, 'data-snt-confirm="' . $m[1] . '"' ), "asks first on both surfaces: $q" );
+}
+preg_match_all( '/<os-form\b[^>]*>(?:(?!<\/os-form>).)*value="sn_schedule_repurge"/s', $kit, $rp );
+ok( array() !== $rp[0] && array() === array_filter( $rp[0], static fn( $f ) => false !== strpos( $f, 'os-confirm' ) ), 'Re-purge still runs in one click' );
 
 // ── Escaping: a hostile action string never reaches the markup raw.
 $GLOBALS['__sched_fragments'][0]['action'] = '"><script>x</script>';

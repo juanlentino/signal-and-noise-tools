@@ -293,6 +293,167 @@
 		}
 	}
 
+	// ---------------------------------------------------------------- DRAFTS
+	// 2026-10-12 audit. The morph puts every control the reader is not in
+	// back to the value the server painted (openstation morph.ts
+	// syncAttributes()/syncFormValue() skip only the focused one), so text
+	// typed into one field was lost when the page repainted for anything
+	// else: a list's Edit on Workflow and Resume, a watch tick, a refused
+	// save. A draft is what the reader typed, kept per window against the
+	// value the server painted under it: it goes back after a paint that
+	// still paints that value, and is dropped when the server paints a new
+	// one, when the field leaves the leaf (Cancel closes an editor), when the
+	// window shows another leaf, or when the paint answering its form's submit
+	// says `saved` (an add form repaints blank after a save that took).
+	//
+	// Recorded on the BUBBLE: a kit field sets its own value in its input
+	// handler, so a capture listener read it one keystroke late. os-select
+	// reports a pick as `os-pick` only. A draft is keyed by its form (the
+	// form's action, then its place among forms with that action) and its
+	// place in that form, so an editor opening above an add form does not
+	// shift the add form's keys. Password fields are never kept.
+	var DRAFT_FIELDS = 'os-text-field[name], os-textarea[name], os-number-field[name], os-select[name], textarea[name], select[name], input[name]';
+	var DRAFT_SKIP = { hidden: 1, checkbox: 1, radio: 1, submit: 1, button: 1, reset: 1, image: 1, file: 1, password: 1 };
+	var drafts = new WeakMap();
+	var submitted = new WeakMap(); // root -> [ { scope, action } ] submitted and not yet answered
+
+	function formOf( el ) {
+		return el && el.closest ? el.closest( 'form, os-form' ) : null;
+	}
+
+	function formAction( form ) {
+		var a = form.querySelector( 'input[name="action"], input[name="sn_action"]' );
+		return ( a && a.value ) || form.getAttribute( 'os-action' ) || '';
+	}
+
+	function formKeys( root ) {
+		var keys = new Map();
+		var seen = {};
+		var forms = root.querySelectorAll( 'form, os-form' );
+		for ( var i = 0; i < forms.length; i++ ) {
+			var action = formAction( forms[ i ] );
+			seen[ action ] = ( seen[ action ] || 0 ) + 1;
+			keys.set( forms[ i ], action + '@' + seen[ action ] );
+		}
+		return keys;
+	}
+
+	function draftFields( root ) {
+		var out = [];
+		var seen = {};
+		var keys = formKeys( root );
+		var list = root.querySelectorAll( DRAFT_FIELDS );
+		for ( var i = 0; i < list.length; i++ ) {
+			var el = list[ i ];
+			var type = String( ( 'INPUT' === el.nodeName ? el.type : el.getAttribute( 'type' ) ) || '' ).toLowerCase();
+			if ( ( 'INPUT' === el.nodeName && DRAFT_SKIP[ type ] ) || ( 'OS-TEXT-FIELD' === el.nodeName && 'password' === type ) ) {
+				continue;
+			}
+			var form = formOf( el );
+			var scope = ( form && keys.get( form ) ) || '-';
+			var name = scope + '|' + el.getAttribute( 'name' );
+			seen[ name ] = ( seen[ name ] || 0 ) + 1;
+			out.push( { key: name + '#' + seen[ name ], scope: scope, el: el } );
+		}
+		return out;
+	}
+
+	function paintedValue( el ) {
+		// A kit control reflects its value into the attribute the morph sets;
+		// a native one holds it as the property the morph sets.
+		return 0 === el.nodeName.indexOf( 'OS-' ) ? ( el.getAttribute( 'value' ) || '' ) : String( el.value == null ? '' : el.value );
+	}
+
+	function leafOf( root ) {
+		var leaf = root.querySelector( '.snt-leaf' );
+		return leaf ? leaf.getAttribute( 'data-snt-leaf' ) || '' : '';
+	}
+
+	function rememberDraft( event ) {
+		var el = event.target;
+		var root = el && el.closest ? el.closest( ROOT_SELECTOR ) : null;
+		var memo = root ? drafts.get( root ) : null;
+		if ( ! memo ) {
+			return;
+		}
+		var picked = event.detail && Object.prototype.hasOwnProperty.call( event.detail, 'value' ) ? event.detail.value : el.value;
+		var fields = draftFields( root );
+		for ( var i = 0; i < fields.length; i++ ) {
+			if ( fields[ i ].el === el && Object.prototype.hasOwnProperty.call( memo.base, fields[ i ].key ) ) {
+				memo.typed[ fields[ i ].key ] = String( picked == null ? '' : picked );
+				return;
+			}
+		}
+	}
+
+	function rememberSubmit( event ) {
+		var form = event.target;
+		var root = form && form.closest ? form.closest( ROOT_SELECTOR ) : null;
+		if ( ! root || ! ( 'FORM' === form.nodeName || 'OS-FORM' === form.nodeName ) ) {
+			return;
+		}
+		var scope = formKeys( root ).get( form );
+		if ( scope ) {
+			// Every submit waits for the answer that names its action; two
+			// quick submits queue, and a confirm the reader cancelled is
+			// never answered, so its drafts stay.
+			var list = submitted.get( root ) || [];
+			list.push( { scope: scope, action: formAction( form ) } );
+			submitted.set( root, list );
+		}
+	}
+
+	function restoreDrafts( root, refused, saved, answered ) {
+		var memo = drafts.get( root );
+		var leaf = leafOf( root );
+		var same = !! memo && memo.leaf === leaf;
+		// Only the answer that names a form's action ends that form's submit:
+		// `saved` drops its drafts, `refused` keeps them; any other paint (a
+		// watch tick, another form's answer, a one-click action) leaves it
+		// pending.
+		var pending = submitted.get( root ) || [];
+		var dropped = [];
+		if ( answered && ( saved || refused ) ) {
+			pending = pending.filter( function ( p ) {
+				if ( p.action !== answered ) {
+					return true;
+				}
+				if ( saved ) {
+					dropped.push( p.scope );
+				}
+				return false;
+			} );
+			submitted.set( root, pending );
+		}
+		var next = { leaf: leaf, base: {}, typed: {} };
+		var active = document.activeElement;
+		var fields = draftFields( root );
+		for ( var i = 0; i < fields.length; i++ ) {
+			var key = fields[ i ].key;
+			var el = fields[ i ].el;
+			// A save that took ends its form's drafts; a refused one keeps them.
+			var had = same && Object.prototype.hasOwnProperty.call( memo.typed, key ) && -1 === dropped.indexOf( fields[ i ].scope );
+			if ( active && ( el === active || ( el.contains && el.contains( active ) ) ) ) {
+				// The morph left the reader's field alone: so does this.
+				next.base[ key ] = same && Object.prototype.hasOwnProperty.call( memo.base, key ) ? memo.base[ key ] : paintedValue( el );
+				if ( had ) {
+					next.typed[ key ] = memo.typed[ key ];
+				}
+				continue;
+			}
+			var painted = paintedValue( el );
+			next.base[ key ] = painted;
+			if ( had && memo.base[ key ] === painted ) {
+				if ( String( el.value == null ? '' : el.value ) !== memo.typed[ key ] ) {
+					el.value = memo.typed[ key ];
+				}
+				next.base[ key ] = memo.base[ key ];
+				next.typed[ key ] = memo.typed[ key ];
+			}
+		}
+		drafts.set( root, next );
+	}
+
 	/**
 	 * The runtime's own word that a paint landed.
 	 *
@@ -318,6 +479,7 @@
 			return;
 		}
 		restoreFolds( root );
+		restoreDrafts( root, !! effect.refused, !! effect.saved, String( effect.answered || '' ) );
 		schedule( root, String( effect.anchor || '' ) );
 	}
 
@@ -532,6 +694,12 @@
 		armSubmitter();
 		// Capture: the toggle is the reader's, wherever it bubbles or not.
 		document.addEventListener( 'os-disclosure-toggle', rememberFold, true );
+		// Bubble, not capture: a kit field has set its value by then.
+		document.addEventListener( 'input', rememberDraft );
+		document.addEventListener( 'change', rememberDraft );
+		document.addEventListener( 'os-pick', rememberDraft );
+		document.addEventListener( 'submit', rememberSubmit, true );
+		document.addEventListener( 'os-form-submit', rememberSubmit, true );
 		document.addEventListener( 'os-app-effect', onEffect );
 	}
 

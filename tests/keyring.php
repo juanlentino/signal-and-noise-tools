@@ -90,6 +90,16 @@ ok( 'keyring_saved' === $save( 'cf_zone', 'z' ) && $GLOBALS['__reset'] > 0, 'the
 $GLOBALS['__flushed'] = array();
 $save( 'betterstack_token', 'bs-2' ); $save( 'github_token', 'gh-2' ); $save( 'spotify_client_secret', 'sp-2' );
 ok( in_array( 'sn_uptime_status_snapshot', $GLOBALS['__flushed'], true ) && in_array( 'sn_uptime_availability', $GLOBALS['__flushed'], true ) && in_array( 'sn_spend_gh_usage', $GLOBALS['__flushed'], true ) && in_array( 'sn_spotify_token', $GLOBALS['__flushed'], true ), 'saving Better Stack, GitHub and Spotify rows drops their caches' );
+// 2026-10-12 audit: a save drops that row's verdict, never another row's.
+$GLOBALS['__opt']['sn_keyring_verdicts'] = array( 'cf_token' => array( 'status' => 'ok', 'detail' => '', 'at' => 1 ), 'cf_zone' => array( 'status' => 'ok', 'detail' => '', 'at' => 1 ) );
+$save( 'cf_token', 'clear' );
+ok( ! isset( $GLOBALS['__opt']['sn_keyring_verdicts']['cf_token'] ) && isset( $GLOBALS['__opt']['sn_keyring_verdicts']['cf_zone'] ), 'a saved or cleared row drops its stale verdict and keeps every other row\'s' );
+// PR #2014 review: the rows derived from the site secret were probed against the old one.
+$GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array( 'srv_token', 'bridge_token' );
+$GLOBALS['__opt']['sn_keyring_verdicts']  = array( 'site_secret' => array( 'status' => 'ok' ), 'srv_token' => array( 'status' => 'ok' ), 'bridge_token' => array( 'status' => 'ok' ), 'cf_zone' => array( 'status' => 'ok' ) );
+$save( 'site_secret', 'ss-rotated-2' );
+ok( array( 'cf_zone' ) === array_keys( $GLOBALS['__opt']['sn_keyring_verdicts'] ), 'rotating the site secret drops its verdict and every derived row\'s, and keeps the rest' );
+$GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array();
 $GLOBALS['__flushed'] = array();
 $save( 'bridge_token', 'site' );
 ok( array() === $GLOBALS['__flushed'], 'a row with nothing to flush flushes nothing' );

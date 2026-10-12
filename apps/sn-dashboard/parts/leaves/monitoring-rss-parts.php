@@ -184,7 +184,7 @@ function rss_reset_form_html() {
 		'',
 		array(
 			'submit'        => __( 'Reset to Defaults', 'signal-and-noise-tools' ),
-			'confirm'       => __( 'All RSS tracker settings (window threshold, log retention, etc.) will be restored to defaults.', 'signal-and-noise-tools' ),
+			'confirm'       => __( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Measurement › Analytics is kept.', 'signal-and-noise-tools' ),
 			'confirm_title' => __( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ),
 			'confirm_label' => __( 'Reset', 'signal-and-noise-tools' ),
 		)
@@ -207,7 +207,7 @@ function rss_maintenance_html( array $settings ) {
 		$fields,
 		array(
 			'submit'        => __( 'Purge now', 'signal-and-noise-tools' ),
-			'confirm'       => __( 'Log entries older than the configured retention threshold will be permanently deleted.', 'signal-and-noise-tools' ),
+			'confirm'       => __( 'Log entries older than the number of days in this box will be permanently deleted.', 'signal-and-noise-tools' ),
 			'confirm_title' => __( 'Purge old log entries?', 'signal-and-noise-tools' ),
 			'confirm_label' => __( 'Purge', 'signal-and-noise-tools' ),
 			'danger'        => true,
@@ -216,6 +216,6 @@ function rss_maintenance_html( array $settings ) {
 	$table  = isset( $GLOBALS['wpdb'] ) && defined( 'SN_RSS_TRACKER_TABLE' ) ? $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE : '';
 	return \snt_kit_section(
 		__( 'Maintenance', 'signal-and-noise-tools' ),
-		'<p class="snt-hint">' . \snt_kit_esc( __( 'Delete rows older than the threshold below. First-party collector events are unaffected: only the local', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( $table ) . '</os-code> ' . \snt_kit_esc( __( 'table is touched. The daily cron runs the same query against the configured retention setting.', 'signal-and-noise-tools' ) ) . '</p>' . $form
+		'<p class="snt-hint">' . \snt_kit_esc( __( 'Delete rows older than the number of days you enter. First-party collector events are unaffected: only the local', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( $table ) . '</os-code> ' . \snt_kit_esc( __( 'table is touched. The daily cron runs the same query against the configured retention setting.', 'signal-and-noise-tools' ) ) . '</p>' . $form
 	);
 }

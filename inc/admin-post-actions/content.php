@@ -226,7 +226,9 @@ function sn_handle_now_save( $post ) {
 		}
 		$raw = sn_now_rows_to_text( $groups );
 		if ( null === $raw ) {
-			return 'now_unparseable';
+			// A card editor refusal names the card problem, not the retired
+			// "## Label" textarea (2026-10-12 audit).
+			return 'now_incomplete';
 		}
 	} else {
 		$raw = isset( $post['now_content'] ) ? (string) wp_unslash( $post['now_content'] ) : '';
@@ -314,7 +316,7 @@ function sn_handle_uses_save( $post ) {
 		}
 		$raw = sn_uses_rows_to_text( $groups );
 		if ( null === $raw ) {
-			return 'uses_unparseable';
+			return 'uses_incomplete';
 		}
 	} else {
 		$raw   = isset( $post['uses_content'] ) ? (string) wp_unslash( $post['uses_content'] ) : '';

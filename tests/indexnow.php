@@ -12,6 +12,7 @@ define( 'ABSPATH', '/' );
 
 // ── In-memory option store ──────────────────────────────────────────
 $GLOBALS['__options'] = array();
+if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 function get_option( $name, $default = false ) {
 	return array_key_exists( $name, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $name ] : $default;
 }
@@ -143,6 +144,13 @@ sn_indexnow_submit( array( 'https://example.com/notes/x/' ) );
 $err = get_option( SN_INDEXNOW_RESULT_OPT );
 ok( 'boom' === $err['error'] && 0 === $err['code'], 'submit: WP_Error stores the message + code 0' );
 $GLOBALS['__remote_post_return'] = null; // restore default 200 for any later calls
+// 2026-10-12 audit: a 403 with no transport error is stored as a refusal, not a success.
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
+$GLOBALS['__remote_post_return'] = array( 'response' => array( 'code' => 403 ) );
+sn_indexnow_submit( array( 'https://example.com/notes/x/' ) );
+$ref = get_option( SN_INDEXNOW_RESULT_OPT );
+ok( 403 === $ref['code'] && 'IndexNow refused the submission (HTTP 403).' === $ref['error'], 'submit: a 403 stores the refusal as the error, not a silent success' );
+$GLOBALS['__remote_post_return'] = null;
 
 // ── Lifecycle: wp_after_insert_post (publish + update) ──────────────
 $GLOBALS['__settings']['indexnow.enabled'] = true;

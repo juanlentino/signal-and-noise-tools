@@ -259,7 +259,7 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 			echo '<input type="hidden" name="action" value="sn_schedule_swap_run_now">';
 			echo '<input type="hidden" name="hide_id" value="' . esc_attr( (string) $hide_id ) . '">';
 			echo '<input type="hidden" name="show_id" value="' . esc_attr( (string) $show_id ) . '">';
-			echo '<button type="submit" class="button button-small">' . esc_html__( 'Run swap now', 'signal-and-noise-tools' ) . '</button>';
+			echo '<button type="submit" class="button button-small" data-snt-confirm="' . esc_attr__( 'Run this swap now instead of at its time? The old version comes down and the new one goes live on the public site immediately.', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Run swap now', 'signal-and-noise-tools' ) . '">' . esc_html__( 'Run swap now', 'signal-and-noise-tools' ) . '</button>';
 			echo '</form>';
 		} else {
 			echo '<small>&mdash;</small>';
@@ -397,7 +397,9 @@ function sn_admin_render_schedule_op_button( $row_id, $action, $label ) {
 	wp_nonce_field( 'sn_' . $action );
 	echo '<input type="hidden" name="action" value="sn_' . esc_attr( $action ) . '">';
 	echo '<input type="hidden" name="row_id" value="' . esc_attr( (string) $row_id ) . '">';
-	echo '<button type="submit" class="button button-small">' . esc_html( $label ) . '</button>';
+	// Run now changes the public site; Re-purge only refreshes the cache.
+	$confirm = 'schedule_run_now' === $action ? ' data-snt-confirm="' . esc_attr__( 'Run this scheduled change now instead of at its time? It reaches the public site immediately.', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr( $label ) . '"' : '';
+	echo '<button type="submit" class="button button-small"' . $confirm . '>' . esc_html( $label ) . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $confirm is built from escaped parts.
 	echo '</form>';
 }
 

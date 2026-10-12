@@ -40,7 +40,8 @@ function get_terms( $args = array() ) {
 	if ( isset( $args['fields'] ) && 'count' === $args['fields'] ) { return (string) count( $GLOBALS['__alltags'] ); }
 	return $GLOBALS['__alltags'];
 }
-if ( ! class_exists( 'WP_Error' ) ) { class WP_Error {} }
+if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $x ) { return $x instanceof WP_Error; } }
+if ( ! class_exists( 'WP_Error' ) ) { class WP_Error { public function get_error_message() { return 'The canonical tag cannot also be a source tag.'; } } }
 
 require_once SNT_PATH . 'inc/admin-glance.php';
 require SNT_PATH . 'inc/tag-consolidation-admin.php';
@@ -109,6 +110,7 @@ ok( strpos( $kit, '>Preview merge</button>' ) < strpos( $kit, 'Pick the canonica
 // Picker: an os-form dispatching go with the two selects.
 ok( false !== strpos( $kit, 'heading="Merge any two tags"' ) && false !== strpos( $kit, '<os-form class="snt-form" os-action="go" submit-label="Preview merge"' ), 'picker: a kit form dispatches go' );
 ok( false !== strpos( $kit, '<os-select name="sn_tag_from[]"' ) && false !== strpos( $kit, '<os-select name="sn_tag_into"' ) && substr_count( $kit, '<os-option value="5">Jazz (4)</os-option>' ) === 2, 'picker: Fold/into selects list every tag with its count' );
+ok( 2 === preg_match_all( '/<os-select name="sn_tag_(?:from\[\]|into)"(?=[^>]* value="")(?=[^>]* placeholder="Choose a tag")[^>]*>/', $kit ), 'picker: both selects start unchosen on Choose a tag (a preselected first tag on both sides made the default preview a refusal)' );
 ok( false !== strpos( $kit, 'label="Fold"' ) && false !== strpos( $kit, 'label="into"' ), 'picker: the Fold/into labels the classic prints around the selects survive' );
 
 // Jev ready, no pass yet: the section explains the pass and offers Read tags now.
@@ -169,7 +171,7 @@ $classic = classic_tags();
 $kit     = kit_tags();
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'remove[7][]', snt_leaf_names( $kit ), true ) && ! array_filter( snt_leaf_names( $kit ), static fn( $n ) => str_starts_with( $n, 'assign' ) ), '16.9.2 review: field names match, remove[7][] included, no assign field anywhere: ' . names_line( $classic, $kit ) );
 ok( array( 'tag_fit_apply', 'tag_fit_run', 'tag_group_apply' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0/17.2.0 review: the writes are tag_fit_apply, tag_fit_run and tag_group_apply, same on both leaves; run, same on both leaves' );
-ok( false !== strpos( $kit, '>Untagged Note</a></strong>' ) && false !== strpos( $kit, 'name="remove[7][]" value="9"> Remove &quot;Empty&quot; (attached for reach, 0.30 of 2)' ) && false !== strpos( $kit, '>Apply selected</button>' ) && false !== strpos( $kit, '1 notes, read <os-relative-time datetime="' ) && false !== strpos( $kit, '>2 hours ago</os-relative-time>. A misfit' ), '16.9.0 review: the note links to its editor, the misfit unchecked with its score, Apply selected' );
+ok( 1 === preg_match( '#<h4 class="snt-h"><(?:a|os-button) class="snt-link"[^>]*>Untagged Note</(?:a|os-button)></h4>#', $kit ) && false === strpos( $kit, '<strong><a href=' ) && false !== strpos( $kit, 'name="remove[7][]" value="9"> Remove &quot;Empty&quot; (attached for reach, 0.30 of 2)' ) && false !== strpos( $kit, '>Apply selected</button>' ) && false !== strpos( $kit, '1 notes, read <os-relative-time datetime="' ) && false !== strpos( $kit, '>2 hours ago</os-relative-time>. A misfit' ), '16.9.0 review: the note links to its editor, the misfit unchecked with its score, Apply selected' );
 ok( false === strpos( $kit, 'Add &quot;' ) && false === strpos( $kit, 'name="remove[8][]"' ) && false === strpos( $kit, 'Umbrella' ) && false !== strpos( $kit, 'confidence 0.7 or better' ) && false !== strpos( $kit, 'Jev proposes no tags' ), '16.9.2 review: a stored 16.9.1 missing list paints no Add box, a 0.6-confidence misfit is no row, no umbrella section; the prose names the lines and says Jev proposes nothing' );
 // ── 17.1.0: the pass pivoted per tag, on both surfaces, no boxes. #1573: a ledger (a kit table), not a paragraph per tag.
 ok( false !== strpos( $kit, 'heading="Jev: by tag"' ) && false !== strpos( $kit, '2 tags in the last pass; 1 carry notes that only touch them: Empty.' ) && false === strpos( $kit, '<strong>Empty: 2 notes' ) && false === strpos( $kit, '<strong>Jazz: 1 notes' ), '17.1.0/17.2.1 by tag: the summary counts every tag and names the wide ones; no per-tag paragraph' );
@@ -239,6 +241,10 @@ ok( false === strpos( $kit, 'Tags total' ) && false === strpos( $kit, 'Possible 
 $GLOBALS['__preview'] = null;
 $kit = kit_tags( array( 'params' => $params ) );
 ok( false !== strpos( $kit, 'heading="Nothing to merge (the selected tags are no longer valid)."' ) && false !== strpos( $kit, 'os-action="go" os-arg-sub="tags">Back</os-button>' ) && array() === snt_leaf_actions( $kit ), 'confirm: an invalid selection paints Nothing to merge + Back, with no write offered' );
+// 2026-10-12 audit: a refusal names its reason, in the classic page's words.
+$_GET['sn_tag_into'] = '0';
+$kit = kit_tags( array( 'params' => array( 'sn_tag_preview' => '1', 'sn_tag_from' => array( '10' ), 'sn_tag_into' => '0' ) ) );
+ok( false !== strpos( $kit, 'Nothing to merge: The canonical tag cannot also be a source tag.' ), 'confirm: a refused preview says why, not that the tags vanished' );
 unset( $_GET['sn_tag_preview'], $_GET['sn_tag_from'], $_GET['sn_tag_into'] );
 
 // ── The capability gate.
