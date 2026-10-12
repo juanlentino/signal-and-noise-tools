@@ -29,18 +29,24 @@ function tools_reports_usage_selector( array $row ) {
 }
 
 /**
- * The four columns both usage tables share.
+ * The columns both usage tables share; the Palette column only when the
+ * rows span more than one palette (2026-10-12: "served (active style)"
+ * wrapped to three lines in every row of a one-palette list).
  *
- * @param string $pair Label of the pairing column.
+ * @param string $pair         Label of the pairing column.
+ * @param bool   $with_palette Whether the rows' palettes differ.
  * @return array<int,array<string,string>>
  */
-function tools_reports_usage_columns( $pair ) {
-	return array(
+function tools_reports_usage_columns( $pair, $with_palette = true ) {
+	$columns = array(
 		array( 'key' => 'selector', 'label' => __( 'Selector', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'pair', 'label' => $pair ),
 		array( 'key' => 'ratio', 'label' => __( 'Ratio', 'signal-and-noise-tools' ), 'align' => 'end' ),
-		array( 'key' => 'palette', 'label' => __( 'Palette', 'signal-and-noise-tools' ) ),
 	);
+	if ( $with_palette ) {
+		$columns[] = array( 'key' => 'palette', 'label' => __( 'Palette', 'signal-and-noise-tools' ) );
+	}
+	return $columns;
 }
 
 /**
@@ -111,13 +117,15 @@ function tools_reports_contrast_usage( array $usage ) {
 				'palette'  => (string) ( $row['palette'] ?? '' ),
 			);
 		}
+		$one    = tools_reports_one_palette( $failures );
 		$inner .= \snt_kit_ledger(
-			'',
-			tools_reports_usage_columns( __( 'Pairing', 'signal-and-noise-tools' ) ),
+			/* translators: %s: the one palette every listed pairing is scored under. */
+			'' !== $one ? sprintf( __( 'Every failing pairing is scored under the %s palette.', 'signal-and-noise-tools' ), $one ) : '',
+			tools_reports_usage_columns( __( 'Pairing', 'signal-and-noise-tools' ), '' === $one ),
 			$rows,
 			TOOLS_REPORTS_ROWS,
 			/* translators: %s: failing pairings not listed. */
-			array( 'more' => __( '+%s more failing pairings, sorted worst-first; the tail is the safe end.', 'signal-and-noise-tools' ) )
+			tools_reports_ledger_opts( __( '+%s more failing pairings, sorted worst-first; the tail is the safe end.', 'signal-and-noise-tools' ) )
 		);
 	}
 	return \snt_kit_section( $heading, $inner, $context );

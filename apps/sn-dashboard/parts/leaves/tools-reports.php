@@ -38,6 +38,31 @@ require_once __DIR__ . '/tools-reports-facts.php';
 const TOOLS_REPORTS_ROWS = 10;
 
 /**
+ * The ledger options every report table shares: capped and counted by the
+ * leaf, so the table shows every row it lists, never an inner scroller
+ * (`os-table.snt-table-full`; live 2026-10-12, ten wrapped rows ran 662px
+ * into a 440px scroll box).
+ *
+ * @param string $more The counted "+N more" sentence.
+ * @return array<string,string>
+ */
+function tools_reports_ledger_opts( $more ) {
+	return array( 'class' => 'snt-table-full', 'more' => (string) $more );
+}
+
+/**
+ * The palette a list's rows share, or '' when they differ. One palette is
+ * said once in the box's sentence, not in a column repeating it per row.
+ *
+ * @param array<int,array<string,mixed>> $rows Usage or conditional rows.
+ * @return string
+ */
+function tools_reports_one_palette( array $rows ) {
+	$palettes = array_values( array_unique( array_map( 'strval', array_column( $rows, 'palette' ) ) ) );
+	return 1 === count( $palettes ) ? $palettes[0] : '';
+}
+
+/**
  * The leaf's data: which of the three states, and the reports to paint.
  *
  * Mirrors `sn_admin_render_health_reports_section()` line for line — same
@@ -102,7 +127,7 @@ function paint_tools_reports( array $ctx ) {
 	$blocks = tools_reports_scan_blocks( $ctx );
 	$facts  = tools_reports_facts_html();
 	if ( '' !== $facts && 'motion_scan' === array_key_last( $blocks ) ) {
-		$blocks['motion_scan'] = \snt_kit_grid( array( $blocks['motion_scan'], $facts ) );
+		$blocks['motion_scan'] = \snt_kit_grid( array( $blocks['motion_scan'], $facts ), 290, 18, array( 'class' => 'snt-reports-pair' ) );
 		$facts                 = '';
 	}
 	return implode( '', $blocks ) . $facts;
@@ -158,7 +183,7 @@ function tools_reports_scan_blocks( array $ctx ) {
 		$first = array_shift( $parts );
 		if ( 'contrast_tokens' === $key && count( $parts ) >= 2 ) {
 			$pair    = array_splice( $parts, -2 );
-			$parts[] = \snt_kit_grid( $pair );
+			$parts[] = \snt_kit_grid( $pair, 290, 18, array( 'class' => 'snt-reports-pair' ) );
 		}
 		$out[ (string) $key ] = \snt_kit_section( $label, $body . $first ) . implode( '', $parts );
 	}

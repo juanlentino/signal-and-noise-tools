@@ -67,15 +67,29 @@ function links_card_html( $group_label, array $link ) {
 	$title = (string) ( $link['title'] ?? '' );
 	$href  = (string) ( $link['href'] ?? '' );
 	$host  = (string) \wp_parse_url( $href, PHP_URL_HOST );
+	// The ↗ never wraps onto a line of its own: it rides a nowrap span with
+	// the host's last word.
+	$cut  = strrpos( $host, ' ' );
+	$tail = false === $cut ? $host : substr( $host, $cut + 1 );
+	$host = ( false === $cut ? '' : \snt_kit_esc( substr( $host, 0, $cut + 1 ) ) )
+		. '<span class="snt-links-nowrap">' . \snt_kit_esc( $tail ) . ' <span aria-hidden="true">↗</span></span>';
+	// os-card lays its header out as a flex row (an icon, then a title
+	// block), so the three lines go in ONE title block and stack: group,
+	// title, host. As three row items the titles wrapped and the ↗ dropped
+	// to its own line (live 2026-10-12, Infrastructure cards).
 	return \snt_kit_tag(
 		'os-card',
 		array(),
 		\snt_kit_tag(
 			'header',
 			array(),
-			\snt_kit_tag( 'span', array( 'class' => 'snt-hint' ), \snt_kit_esc( $group_label ) )
-			. \snt_kit_tag( 'h3', array(), \snt_kit_link( $title, \esc_url( $href ) ) )
-			. \snt_kit_tag( 'p', array( 'class' => 'snt-hint' ), \snt_kit_esc( $host ) . ' <span aria-hidden="true">↗</span>' )
+			\snt_kit_tag(
+				'div',
+				array( 'class' => 'snt-links-card' ),
+				\snt_kit_tag( 'p', array( 'class' => 'snt-hint' ), \snt_kit_esc( $group_label ) )
+				. \snt_kit_tag( 'h3', array(), \snt_kit_link( $title, \esc_url( $href ) ) )
+				. \snt_kit_tag( 'p', array( 'class' => 'snt-hint' ), $host )
+			)
 		)
 	);
 }

@@ -153,7 +153,7 @@ function tools_reports_contrast_arithmetic( array $report, array $pairs ) {
 		$rows,
 		$cap,
 		/* translators: %%s: pairs not listed (filled later), %s: the lowest ratio still shown */
-		array( 'more' => sprintf( __( '+%%s more pairs, every one of them at %s:1 or better; the table is sorted worst-first, so the tail is the safe end.', 'signal-and-noise-tools' ), $floor ) )
+		tools_reports_ledger_opts( sprintf( __( '+%%s more pairs, every one of them at %s:1 or better; the table is sorted worst-first, so the tail is the safe end.', 'signal-and-noise-tools' ), $floor ) )
 	);
 	return \snt_kit_section( $heading, $inner, $context );
 }

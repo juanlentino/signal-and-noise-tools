@@ -71,6 +71,6 @@ function tools_reports_render_motion( array $report ) {
 		$rows,
 		TOOLS_REPORTS_ROWS,
 		/* translators: %s: uncovered declarations not listed. */
-		array( 'more' => __( '+%s more uncovered declarations; the list is capped, not complete.', 'signal-and-noise-tools' ) )
+		tools_reports_ledger_opts( __( '+%s more uncovered declarations; the list is capped, not complete.', 'signal-and-noise-tools' ) )
 	);
 }

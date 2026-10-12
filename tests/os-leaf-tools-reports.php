@@ -483,13 +483,42 @@ snt_leaf_preview( 'tools-reports', $kit );
 // arithmetic tiers share a row; usage and the card keep the full width.
 $__rk = snt_leaf_paint( 'tools', 'reports' );
 $__pl = strpos( $__rk, 'heading="Placement-dependent pairings"' );
-ok( false !== $__pl && strrpos( substr( $__rk, 0, $__pl ), snt_leaf_row() ) > strrpos( substr( $__rk, 0, $__pl ), 'heading="Usage tier"' ) && strpos( $__rk, 'heading="Arithmetic tier"' ) > $__pl, 'the placement-dependent and arithmetic tiers share one row, after the usage tier' );
+ok( false !== $__pl && strrpos( substr( $__rk, 0, $__pl ), rtrim( snt_leaf_row(), '>' ) ) > strrpos( substr( $__rk, 0, $__pl ), 'heading="Usage tier"' ) && strpos( $__rk, 'heading="Arithmetic tier"' ) > $__pl, 'the placement-dependent and arithmetic tiers share one row, after the usage tier' );
 
 // 2026-10-12, measured live (290px and 218px): when the motion report closes
 // the list, it and the Plugin environment box share a row.
 $__mo = strpos( $__rk, 'heading="Motion asks first' );
 $__pe = strpos( $__rk, 'heading="Plugin environment"' );
 ok( false !== $__mo && false !== $__pe && $__mo < $__pe && 1 === preg_match( '/<os-grid[^>]*>\s*<os-section[^>]*heading="Motion asks first[^"]*".*heading="Plugin environment"/s', substr( $__rk, (int) strrpos( substr( $__rk, 0, $__mo ), '<os-grid' ) ) ), 'the motion report and the Plugin environment box share one row' );
+// 2026-10-12 live (1,194px leaf): the painted cards of a pair were 304 and
+// 160px. Each paired row carries snt-reports-pair, whose rule makes the
+// section host a column and its body part fill the row.
+ok( 1 === preg_match( '/<os-grid[^>]*class="snt-reports-pair"[^>]*>\s*<os-section[^>]*heading="Motion asks first/', $__rk ) && 1 === preg_match( '/<os-grid[^>]*class="snt-reports-pair"[^>]*>\s*<os-section[^>]*heading="Placement-dependent pairings"/', $__rk ), 'both paired rows carry the fill class' );
+$__css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+ok( 1 === preg_match( '/os-grid\.snt-reports-pair > os-section \{\s*display: flex;\s*flex-direction: column;/', $__css ) && 1 === preg_match( '/os-grid\.snt-reports-pair > os-section::part\( body \) \{\s*flex: 1 1 auto;/', $__css ), 'and the stylesheet stretches each painted card to the row' );
+// 2026-10-12 live: "served (active style)" wrapped to three lines per row, so
+// ten rows ran 662px into the 440px scroll box. One palette is said once in
+// the sentence, the column goes, and a capped report table never scrolls.
+$GLOBALS['__scan'] = $live;
+foreach ( $GLOBALS['__scan']['checks']['contrast_tokens']['report']['usage']['conditional'] as $__i => $__r ) {
+	$GLOBALS['__scan']['checks']['contrast_tokens']['report']['usage']['conditional'][ $__i ]['palette'] = 'served (active style)';
+}
+$__one = snt_leaf_paint( 'tools', 'reports' );
+$__pd  = null;
+foreach ( snt_leaf_tables( $__one ) as $__t ) {
+	if ( in_array( 'Would be', array_column( (array) $__t['columns'], 'label' ), true ) ) {
+		$__pd = $__t;
+	}
+}
+ok( is_array( $__pd ) && ! in_array( 'Palette', array_column( $__pd['columns'], 'label' ), true ) && false !== strpos( $__one, 'Each is scored under the served (active style) palette.' ), 'one palette: the placement-dependent table drops its Palette column and the sentence names the palette once' );
+$__multi = null;
+foreach ( snt_leaf_tables( $__rk ) as $__t ) {
+	if ( in_array( 'Would be', array_column( (array) $__t['columns'], 'label' ), true ) ) {
+		$__multi = $__t;
+	}
+}
+ok( is_array( $__multi ) && in_array( 'Palette', array_column( $__multi['columns'], 'label' ), true ), 'rows across several palettes keep the Palette column' );
+ok( 4 === substr_count( $__one, '<os-table class="snt-table-full"' ), 'every capped report table shows all its rows, no inner scroller (usage, placement, arithmetic, motion)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

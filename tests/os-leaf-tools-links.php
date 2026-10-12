@@ -52,8 +52,8 @@ preg_match_all( '/<span class="sn-link-card__label">([^<]*)<\/span>/', $classic,
 ok( 6 === count( $classic_labels[1] ), 'classic markup carries 6 per-card group labels (sanity on the oracle itself)' );
 foreach ( array_unique( $classic_labels[1] ) as $classic_label ) {
 	ok(
-		2 === substr_count( $kit, '<span class="snt-hint">' . $classic_label . '</span>' ),
-		"per-card group label '$classic_label' (classic sn-link-card__label) appears on both its cards as a snt-hint span"
+		2 === substr_count( $kit, '<p class="snt-hint">' . $classic_label . '</p>' ),
+		"per-card group label '$classic_label' (classic sn-link-card__label) appears on both its cards as a snt-hint line"
 	);
 }
 
@@ -82,6 +82,13 @@ foreach ( $expected_links as $l ) {
 	}
 }
 ok( $titles_ok, 'all six link titles are painted once each, as the link itself' );
+// 2026-10-12 live: os-card lays its header out as a flex row, so three header
+// children sat side by side, the titles wrapped and the ↗ fell to its own
+// line. One title block stacks them, and the ↗ rides a nowrap span.
+ok( 6 === preg_match_all( '#<header><div class="snt-links-card"><p class="snt-hint">[^<]+</p><h3><a [^>]+>[^<]+</a></h3><p class="snt-hint">#', $kit ), 'each card header is ONE stacked title block: group, title, host' );
+ok( 1 === preg_match( '#<span class="snt-links-nowrap">dash\.cloudflare\.com <span aria-hidden="true">↗</span></span>#', $kit ), 'the ↗ is held on the line with the host' );
+$css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+ok( false !== strpos( $css, ".snt-links-nowrap {\n\twhite-space: nowrap;" ) && false !== strpos( $css, ".snt-links-card {\n\tdisplay: flex;\n\tflex-direction: column;" ), 'the stylesheet stacks the block and keeps the ↗ unbroken' );
 preg_match_all( '#<a [^>]*class="sn-link-card__title"[^>]*>([^<]*)</a>#', $classic, $cl_titles );
 ok( false !== strpos( $classic, '<h2 class="sn-fieldset-h">External shortcuts</h2>' ), 'classic: the same "External shortcuts" heading as the kit twin' );
 ok( 6 === count( $cl_titles[1] ) && false === strpos( $classic, 'sn-link-card__link' ) && false === strpos( $classic, '<span class="sn-link-card__title">' ), 'classic: the title is the link too, with no hidden second link of the same words' );
