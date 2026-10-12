@@ -1084,3 +1084,21 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 .snt-provenance os-section > p {
 	margin-block: 0;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * Connections and Measurement leaves (2026-10-12 audit, batch 7)
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/* Scheduled's version swaps: the ledger grid (os-app.css, #1604) with five
+   tracks, not seven: Target flexes, Swap at and Status share the rest, Next
+   transition and the Run swap now form take their own width. */
+.snt-list--ledger.snt-list--ledger-5 {
+	grid-template-columns: minmax( 8em, 2fr ) repeat( 2, minmax( 4em, 1fr ) ) max-content max-content;
+	min-width: 40em;
+}
+
+/* Cloudways' tile captions are sentences, not values: the systems tile's mono
+   caption read them as code. The wall's own tiles keep the mono. */
+.snt-sys--prose .snt-sys__meta {
+	font: 400 12px/1.45 var( --os-ui-font, system-ui, sans-serif );
+}

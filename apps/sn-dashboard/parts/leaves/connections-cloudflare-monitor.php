@@ -67,10 +67,17 @@ function cloudflare_token_html( array $d = array() ) {
 	if ( ! empty( $t['verified'] ) ) {
 		$exp_ts = '' !== (string) $t['expires_on'] ? strtotime( (string) $t['expires_on'] ) : 0;
 		$exp    = $exp_ts ? ( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d', $exp_ts ) : gmdate( 'Y-m-d', $exp_ts ) ) : __( 'never', 'signal-and-noise-tools' );
-		$tone   = 'active' === (string) $t['status'] ? ( $exp_ts && $exp_ts < $now + 14 * DAY_IN_SECONDS ? 'warn' : 'ok' ) : 'err';
+		$soon   = 'active' === (string) $t['status'] && $exp_ts && $exp_ts < $now + 14 * DAY_IN_SECONDS;
+		$tone   = 'active' === (string) $t['status'] ? ( $soon ? 'warn' : 'ok' ) : 'err';
 		$kind   = (string) ( $t['kind'] ?? '' );
+		$state  = (string) $t['status'] . ( '' !== $kind ? ' · ' . $kind : '' );
+		if ( $soon ) {
+			// The warning tone is never the only signal (2026-10-12 audit): say it.
+			/* translators: %s: time until the token expires, e.g. "9 days". */
+			$state .= ' · ' . sprintf( __( 'expires in %s', 'signal-and-noise-tools' ), human_time_diff( $now, $exp_ts ) );
+		}
 		$inner .= \snt_kit_kv( array(
-			array( 'label' => __( 'Token', 'signal-and-noise-tools' ), 'value' => (string) $t['status'] . ( '' !== $kind ? ' · ' . $kind : '' ), 'tone' => $tone ),
+			array( 'label' => __( 'Token', 'signal-and-noise-tools' ), 'value' => $state, 'tone' => $tone ),
 			array( 'label' => __( 'Expires', 'signal-and-noise-tools' ), 'value' => $exp ),
 			array( 'label' => __( 'Verified', 'signal-and-noise-tools' ), 'value' => cloudflare_monitor_when( $record ) ),
 		) );
@@ -78,7 +85,8 @@ function cloudflare_token_html( array $d = array() ) {
 		$inner .= \snt_kit_notice( 'error', \snt_kit_esc( sprintf( /* translators: %s: reason. */ __( 'Token could not be verified: %s', 'signal-and-noise-tools' ), (string) ( $t['error'] ?: $t['status'] ) ) ) );
 	}
 
-	$inner .= cloudflare_monitor_footer_html( $d, $record );
+	// The Verified row already says when; the footer does not say it twice.
+	$inner .= cloudflare_monitor_footer_html( $d, $record, empty( $t['verified'] ) );
 	return \snt_kit_section( __( 'Token', 'signal-and-noise-tools' ), $inner, __( 'As Cloudflare reports it, read daily with the monitor.', 'signal-and-noise-tools' ) );
 }
 
@@ -278,16 +286,21 @@ function cloudflare_firewall_parts( array $d ) {
  * The Refresh footer: when the readings were taken, the button, and the
  * rate-limit note the Dashboard's API row rests on.
  *
- * @param array<string,mixed>      $d      From cloudflare_data().
- * @param array<string,mixed>|null $record The stored record, or null.
+ * @param array<string,mixed>      $d         From cloudflare_data().
+ * @param array<string,mixed>|null $record    The stored record, or null.
+ * @param bool                     $with_time Whether to say when the record was read (the Token box's Verified row already does).
  * @return string
  */
-function cloudflare_monitor_footer_html( array $d, $record ) {
+function cloudflare_monitor_footer_html( array $d, $record, $with_time = true ) {
 	$out = '';
 	if ( is_array( $record ) && ! empty( $record['configured'] ) ) {
-		$out .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( /* translators: %s: time. */ __( 'Read %s. Refresh reads the token, the edge and the firewall again.', 'signal-and-noise-tools' ), cloudflare_monitor_when( $record ) ) ) . '</p>';
+		$out .= '<p class="snt-hint">' . \snt_kit_esc(
+			$with_time
+				? sprintf( /* translators: %s: time. */ __( 'Read %s. Refresh reads the token, the edge and the firewall again.', 'signal-and-noise-tools' ), cloudflare_monitor_when( $record ) )
+				: __( 'Refresh reads the token, the edge and the firewall again.', 'signal-and-noise-tools' )
+		) . '</p>';
 	}
-	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Cloudflare publishes no rate-limit headers; its 1,200-per-five-minutes limit answers 429 when crossed. The API row on the Dashboard reads this monitor instead.', 'signal-and-noise-tools' ) ) . '</p>';
+	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Cloudflare does not say how much of its API allowance is left; past 1,200 calls in five minutes it turns calls away for a while. The Dashboard\'s API row reads this monitor instead.', 'signal-and-noise-tools' ) ) . '</p>';
 	$out .= '<footer>' . \snt_kit_action_button( __( 'Refresh now', 'signal-and-noise-tools' ), 'cf_monitor_refresh', array( 'disabled' => empty( $d['is_configured'] ) ) ) . '</footer>';
 	return $out;
 }

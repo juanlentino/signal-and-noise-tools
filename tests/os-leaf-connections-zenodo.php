@@ -50,6 +50,37 @@ ok( 1 === preg_match( '/<os-table[^>]*os-prop-columns=/', $kit ) && false !== st
 ok( false !== strpos( $kit, 'Anchor pending' ) && false !== strpos( $kit, 'Sandbox' ) && false !== strpos( $kit, '1 minted of 3 documents.' ), 'the rail names the environment and the minted count; states are labelled' );
 ok( false !== strpos( $kit, '1 published, 1 failed, of 2 attempted' ) && false !== strpos( $classic, '1 published, 1 failed, of 2 attempted' ), 'the last pass is reported, in the same words on both surfaces' );
 ok( false !== strpos( $kit, 'The papers stay with SSRN' ) && false !== strpos( $kit, 'never reach a public surface' ), 'the prose says what is deposited and what a sandbox DOI is' );
+// 2026-10-12 audit: the ledger was a 58-row wall of "Minted" with no sentence,
+// the DOI plain text, raw ISO times and an always-empty error column.
+ok( false !== strpos( $kit, '<p class="snt-prose">1 of 3 minted; 2 not yet: 1 Ready, 1 Anchor pending.</p>' ) && false !== strpos( $classic, '1 of 3 minted; 2 not yet: 1 Ready, 1 Anchor pending.' ), 'the ledger leads with one finding from its rows, on both surfaces' );
+preg_match( '/os-prop-data="([^"]*)"/', $kit, $dm );
+$zdata = json_decode( html_entity_decode( $dm[1] ?? '', ENT_QUOTES, 'UTF-8' ), true );
+ok( is_array( $zdata ) && 'The pen is not the notary' === $zdata[0]['title']['text'] && 'Two kinds of provenance' === $zdata[2]['title']['text'], 'the rows still waiting come first, the minted after' );
+ok( false !== strpos( $kit, 'href="https://doi.org/10.5281%2Fzenodo.42"' ) && false !== strpos( $kit, 'os-arg-url="https://example.test/wp-admin/post.php?post=7&amp;action=edit"' ), 'a minted DOI opens doi.org in a new tab; the document opens its editor in a window' );
+ok( 'September 18, 2026 1:00 am' === $zdata[2]['at'] && 'not deposited' === $zdata[0]['at'] && false === strpos( $kit, '2026-09-18T01:00:00' ) && false !== strpos( $classic, 'September 18, 2026 1:00 am' ) && false === strpos( $classic, '2026-09-18T01:00:00' ), 'Deposited reads in the site\'s format on both surfaces, never the raw ISO stamp; a row not deposited says so' );
+ok( false !== strpos( $kit, '&quot;key&quot;:&quot;error&quot;' ), 'a row with an error keeps the Last error column' );
+$GLOBALS['__zl']['rows'] = array();
+for ( $i = 1; $i <= 13; $i++ ) {
+	$GLOBALS['__zl']['rows'][] = array( 'id' => 100 + $i, 'title' => 'Note ' . $i, 'kind' => 'note', 'state' => 13 === $i ? 'ready' : 'minted', 'doi' => 13 === $i ? '' : '10.5281/zenodo.' . $i, 'env' => 'production', 'at' => 13 === $i ? '' : '2026-09-18T01:00:00+00:00', 'error' => '' );
+}
+$big = snt_leaf_paint( 'connections', 'zenodo' );
+preg_match( '/os-prop-data="([^"]*)"/', $big, $bm );
+$bdata = json_decode( html_entity_decode( $bm[1] ?? '', ENT_QUOTES, 'UTF-8' ), true );
+ok( is_array( $bdata ) && 10 === count( $bdata ) && 'Note 13' === $bdata[0]['title']['text'] && false !== strpos( $big, '+3 more; the list is capped, not complete.' ) && false !== strpos( $big, '12 of 13 minted; 1 not yet: 1 Ready.' ), 'thirteen documents: the waiting one first, ten rows, "+3 more"' );
+ok( false === strpos( $big, '&quot;key&quot;:&quot;error&quot;' ), 'no row has an error: no Last error column' );
+$GLOBALS['__zl']['rows'] = array_fill( 0, 3, array( 'id' => 5, 'title' => 'N', 'kind' => 'note', 'state' => 'minted', 'doi' => '10.5281/zenodo.5', 'env' => 'production', 'at' => '2026-09-18T01:00:00+00:00', 'error' => '' ) );
+ok( false !== strpos( snt_leaf_paint( 'connections', 'zenodo' ), '3 of 3 minted; none waiting.' ), 'everything minted: "none waiting"' );
+$GLOBALS['__zl']['rows'] = array(
+	array( 'id' => 7, 'title' => 'Two kinds of provenance', 'kind' => 'note', 'state' => 'minted', 'doi' => '10.5281/zenodo.42', 'env' => 'production', 'at' => '2026-09-18T01:00:00+00:00', 'error' => '' ),
+	array( 'id' => 9, 'title' => 'The pen is not the notary', 'kind' => 'note', 'state' => 'ready', 'doi' => '', 'env' => '', 'at' => '', 'error' => 'publish: down' ),
+	array( 'id' => 11, 'title' => 'Provenance Over Detection', 'kind' => 'page', 'state' => 'anchor-pending', 'doi' => '', 'env' => '', 'at' => '', 'error' => '' ),
+);
+// The hourly pass records itself too, with its time (only the button did).
+$GLOBALS['__transients']['sn_zenodo_last_batch'] = array( 'attempted' => 0, 'published' => 0, 'failed' => 0, 'at' => time() - 3600 );
+ok( false !== strpos( snt_leaf_paint( 'connections', 'zenodo' ), '1 hour ago: nothing waiting' ) && false !== strpos( snt_leaf_classic_html( 'sn_admin_render_zenodo_section' ), '1 hour ago: nothing waiting' ), 'a recorded pass says how long ago and what it did, on both surfaces' );
+$pass_src = (string) file_get_contents( SNT_PATH . 'inc/zenodo-records.php' );
+ok( 1 === preg_match( '/function sn_zenodo_backfill_pass\(\).*?set_transient\( \'sn_zenodo_last_batch\', \$out \+ array\( \'at\' => time\(\) \)/s', $pass_src ) && false === strpos( (string) file_get_contents( SNT_PATH . 'inc/admin-post-actions/zenodo.php' ), "set_transient( 'sn_zenodo_last_batch'" ), 'the pass itself records the last pass (hourly and manual alike); the button no longer does' );
+$GLOBALS['__transients']['sn_zenodo_last_batch'] = array( 'attempted' => 2, 'published' => 1, 'failed' => 1 );
 ok( false !== strpos( $kit, 'col="4" aria-label="Zenodo status"' ) && false !== strpos( $kit, '<os-row gap="16"' ), 'the rail keeps its landmark; the two-column shell survives' );
 // 16.2.2: the tile reads the keyring's verdict. A stored token the keyring REFUSED is not On.
 $GLOBALS['__zl']['verdict'] = array( 'status' => 'refused', 'detail' => 'Zenodo sandbox refused to create a draft (HTTP 403: Permission denied.).', 'at' => 1 );

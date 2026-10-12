@@ -40,6 +40,8 @@ function esc_html( $s ) {
 }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } } // 15.3.1: the Spotify block links to the keyring
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } } // 2026-10-12: the shared status sentences are translatable
+if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n, $d = null ) { return 1 === (int) $n ? $s : $p; } }
 function esc_attr( $s ) {
 	return htmlspecialchars( (string) $s, ENT_QUOTES );
 }

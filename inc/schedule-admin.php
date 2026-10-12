@@ -88,12 +88,9 @@ const SN_SCHEDULE_DISPLAY_CAP = 25;
 function snt_schedule_glance_cards( $fragments, $posts ) {
 	$frag = is_array( $fragments ) ? count( $fragments ) : 0;
 	$post = is_array( $posts ) ? count( $posts ) : 0;
+	// 2026-10-12 audit: a third "Scheduled" tile was the sum of these two, so
+	// with no fragments it read "Scheduled 25" beside "Future posts 25".
 	return array(
-		array(
-			'label'     => 'Scheduled',
-			'value'     => (string) ( $frag + $post ),
-			'meta_html' => esc_html( 'awaiting transition' ),
-		),
 		array(
 			'label'     => 'Fragments',
 			'value'     => (string) $frag,
@@ -183,7 +180,7 @@ function sn_admin_render_scheduled_content_section() {
 		echo '<p class="sn-field-helper sn-schedule-remainder">';
 		printf(
 			/* translators: %d: hidden row count */
-			esc_html( _n( '+%d more scheduled item, sorted soonest-first — the tail is the furthest out.', '+%d more scheduled items, sorted soonest-first — the tail is the furthest out.', $remainder, 'signal-and-noise-tools' ) ),
+			esc_html( _n( '+%d more scheduled item, sorted soonest-first; the tail is the furthest out.', '+%d more scheduled items, sorted soonest-first; the tail is the furthest out.', $remainder, 'signal-and-noise-tools' ) ),
 			(int) $remainder
 		);
 		echo '</p>';
@@ -249,7 +246,7 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 
 		// Relative time to the swap instant (blank once past).
 		$next = sn_admin_schedule_next_transition( $pair['swap_at'] ?? null, null );
-		echo '<td data-colname="Next transition">' . ( '' !== $next ? esc_html( $next ) : '&mdash;' ) . '</td>';
+		echo '<td data-colname="Next transition">' . esc_html( '' !== $next ? $next : sn_admin_schedule_nothing_pending() ) . '</td>';
 
 		// One op: run the whole swap now.
 		echo '<td data-colname="Actions">';
@@ -262,7 +259,7 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 			echo '<button type="submit" class="button button-small" data-snt-confirm="' . esc_attr__( 'Run this swap now instead of at its time? The old version comes down and the new one goes live on the public site immediately.', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Run swap now', 'signal-and-noise-tools' ) . '">' . esc_html__( 'Run swap now', 'signal-and-noise-tools' ) . '</button>';
 			echo '</form>';
 		} else {
-			echo '<small>&mdash;</small>';
+			echo '<small>' . esc_html__( 'none', 'signal-and-noise-tools' ) . '</small>';
 		}
 		echo '</td>';
 
@@ -314,7 +311,7 @@ function sn_admin_render_schedule_fragment_row( array $row ) {
 
 	// Next transition: relative time to the soonest FUTURE boundary, if any.
 	$next_frag = sn_admin_schedule_next_transition( $row['starts_at'] ?? null, $row['ends_at'] ?? null );
-	echo '<td data-colname="Next transition">' . ( '' !== $next_frag ? esc_html( $next_frag ) : '&mdash;' ) . '</td>';
+	echo '<td data-colname="Next transition">' . esc_html( '' !== $next_frag ? $next_frag : sn_admin_schedule_nothing_pending() ) . '</td>';
 
 	// Actions: two tiny POST forms. Cap + nonce are enforced by the dispatcher.
 	echo '<td data-colname="Actions">';
@@ -323,7 +320,7 @@ function sn_admin_render_schedule_fragment_row( array $row ) {
 		echo ' ';
 		sn_admin_render_schedule_op_button( $row_id, 'schedule_repurge', __( 'Re-purge', 'signal-and-noise-tools' ) );
 	} else {
-		echo '<small>&mdash;</small>';
+		echo '<small>' . esc_html__( 'none', 'signal-and-noise-tools' ) . '</small>';
 	}
 	echo '</td>';
 
@@ -373,7 +370,7 @@ function sn_admin_render_schedule_future_post_row( array $post ) {
 
 	// Next transition: relative to the publish instant.
 	$next_post = sn_admin_schedule_next_transition( $gmt, null );
-	echo '<td data-colname="Next transition">' . ( '' !== $next_post ? esc_html( $next_post ) : '&mdash;' ) . '</td>';
+	echo '<td data-colname="Next transition">' . esc_html( '' !== $next_post ? $next_post : sn_admin_schedule_nothing_pending() ) . '</td>';
 
 	// Actions: none; native posts are core-managed.
 	echo '<td data-colname="Actions"><small>' . esc_html__( 'native', 'signal-and-noise-tools' ) . '</small></td>';
@@ -437,6 +434,17 @@ function sn_admin_schedule_fmt_gmt( $gmt ) {
 		return '';
 	}
 	return (string) get_date_from_gmt( $gmt, 'Y-m-d H:i' );
+}
+
+/**
+ * The Next transition cell when no boundary is still ahead (both passed, or
+ * none set), the same words on both surfaces (2026-10-12 audit: it was an em
+ * dash, which reads as "not known").
+ *
+ * @return string
+ */
+function sn_admin_schedule_nothing_pending() {
+	return __( 'nothing pending', 'signal-and-noise-tools' );
 }
 
 /**

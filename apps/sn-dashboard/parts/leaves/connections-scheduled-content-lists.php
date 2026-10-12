@@ -32,7 +32,7 @@ function scheduled_content_posts_html( array $post_rows, $total ) {
 		_n( '%s post or page waits to auto-publish', '%s posts and pages wait to auto-publish', (int) $total, 'signal-and-noise-tools' ),
 		number_format_i18n( (int) $total )
 	);
-	if ( '' !== $soonest && "\u{2014}" !== $soonest ) { // the row's "nothing pending" placeholder.
+	if ( '' !== $soonest && \sn_admin_schedule_nothing_pending() !== $soonest ) {
 		/* translators: %s: when the (soonest) one publishes, e.g. "in 3 hours". */
 		$finding .= sprintf( _n( '; it publishes %s', '; the soonest publishes %s', (int) $total, 'signal-and-noise-tools' ), $soonest );
 	}
@@ -79,7 +79,7 @@ function scheduled_content_fragments_html( array $fragments, $rows_html ) {
 	return \snt_kit_section(
 		__( 'Scheduled fragments', 'signal-and-noise-tools' ),
 		'<p class="snt-prose">' . \snt_kit_esc( $finding ) . '</p>'
-			. '<ul class="snt-list">' . scheduled_content_row_head_html() . $rows_html . '</ul>'
+			. '<div class="snt-ledger"><ul class="snt-list snt-list--ledger">' . scheduled_content_row_head_html() . $rows_html . '</ul></div>'
 	);
 }
 

@@ -507,6 +507,16 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 }, 30, 4 );
 
 /**
+ * The Cache box's sentence, the same on both surfaces (2026-10-12 audit: it
+ * pointed at docs/CACHING.md, a file in the repository, not on this site).
+ *
+ * @return string
+ */
+function sn_cf_caching_sentence() {
+	return __( "Auto-purges Cloudflare's edge cache when content changes. A purge only matters once a Cache Rule in the Cloudflare dashboard caches HTML at the edge; without one, origin pages are not cached there and a purge clears nothing useful.", 'signal-and-noise-tools' );
+}
+
+/**
  * Admin UI for the Cloudflare tab. Lets the user save the API token +
  * zone ID and trigger a manual full-zone purge.
  *
@@ -534,7 +544,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	$acct_const_set   = defined( 'SN_CF_ACCOUNT_ID' ) && '' !== (string) constant( 'SN_CF_ACCOUNT_ID' );
 	$acct_value       = function_exists( 'sn_cf_get_account_id' ) ? (string) sn_cf_get_account_id() : '';
 
-	echo '<p class="sn-prose">Auto-purges Cloudflare\'s edge cache when content changes. See <code>docs/CACHING.md</code> for the dashboard-side Cache Rule that turns on HTML caching to begin with: without that, this module purges nothing useful (origin pages aren\'t cached at the edge).</p>';
+	echo '<p class="sn-prose">' . esc_html( sn_cf_caching_sentence() ) . '</p>';
 
 	// Phase 3 (v6.45.0): full-width two-column shell — credentials (the work) in
 	// the main column, the module status + manual-purge action in the rail.
@@ -545,7 +555,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	// this leaf reads them and says where each comes from.
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Credentials</h2>';
-	echo '<p class="sn-field-helper">Set under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=connections&sub=credentials' ) ) . '">Connections › Credentials</a>, with every other key. This leaf only reads them.</p>';
+	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=connections&sub=credentials' ) ) . '">Connections › Credentials</a>.</p>';
 	$sources = array(
 		'API token'  => $token_const_set ? 'locked by SN_CLOUDFLARE_API_TOKEN' : ( '' !== $token ? 'saved (' . $token_obscured . ')' : 'not set' ),
 		'Zone ID'    => $zone_const_set ? 'locked by SN_CLOUDFLARE_ZONE_ID' : ( '' !== $zone ? $zone : 'not set' ),
@@ -624,7 +634,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		$probe_retired = function_exists( 'snt_cf_probe_retired_note' ) ? snt_cf_probe_retired_note( $probe_log ) : '';
 		echo '<p class="sn-fieldset-intro">' . ( '' !== $probe_retired ? esc_html( $probe_retired ) . ' ' : '' ) . 'Each row is one check of the page a reader would actually get, '
 			. (int) SN_CF_PROBE_DELAY . ' seconds after its purge. A stale row escalated to a full zone purge at the time,'
-			. ' so it records a purge that needed a second attempt — not a page still stale now.</p>';
+			. ' so it records a purge that needed a second attempt, not a page still stale now.</p>';
 		echo '<table class="widefat striped"><thead><tr>';
 		echo '<th scope="col" class="manage-column column-primary">When</th><th scope="col">Result</th><th scope="col">Page</th>';
 		echo '</tr></thead><tbody>';
@@ -646,11 +656,11 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 			$r_path = '' !== $r_url ? (string) wp_parse_url( $r_url, PHP_URL_PATH ) : '';
 			if ( '' === $r_path ) {
 				// A manual zone purge names no single page; say which purge it was.
-				$r_path = '' !== (string) ( $row['source'] ?? '' ) ? (string) $row['source'] : '—';
+				$r_path = '' !== (string) ( $row['source'] ?? '' ) ? (string) $row['source'] : 'not recorded';
 			}
 			$r_old = defined( 'SN_CF_PROBE_ALGO' ) && (int) ( $row['algo'] ?? 1 ) < SN_CF_PROBE_ALGO;
 			echo '<tr>';
-			echo '<td class="column-primary">' . esc_html( $r_time ? human_time_diff( $r_time, time() ) . ' ago' : '—' ) . '</td>';
+			echo '<td class="column-primary">' . esc_html( $r_time ? human_time_diff( $r_time, time() ) . ' ago' : 'not recorded' ) . '</td>';
 			echo '<td data-colname="Result"><span class="' . esc_attr( $r_pill ) . '">' . esc_html( $r_label ) . '</span>'
 				. ( $r_old ? ' <span class="sn-pill sn-pill--muted">retired detector</span>' : '' ) . '</td>';
 			echo '<td data-colname="Page"><code>' . esc_html( $r_path ) . '</code></td>';
@@ -667,7 +677,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		$last_line = '';
 		if ( ! empty( $last_purge['time'] ) ) {
 			$ago       = human_time_diff( (int) $last_purge['time'], time() );
-			$kind      = ( ( $last_purge['kind'] ?? '' ) === 'all' ) ? 'full zone' : ( (int) ( $last_purge['count'] ?? 0 ) ) . ' URL(s)';
+			$kind      = ( ( $last_purge['kind'] ?? '' ) === 'all' ) ? 'full zone' : sprintf( /* translators: %d: URLs purged */ _n( '%d URL', '%d URLs', (int) ( $last_purge['count'] ?? 0 ), 'signal-and-noise-tools' ), (int) ( $last_purge['count'] ?? 0 ) );
 			$last_line = ' Last purge: ' . esc_html( $ago ) . ' ago (' . esc_html( $kind ) . ').';
 		}
 		echo '<div class="sn-status-box">';
@@ -709,31 +719,24 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	// purge (e.g. a Cloudways API 422 field-validation error) is visible right
 	// next to the rest of the pipeline instead of a silent ok:false in an option
 	// no screen ever read.
-	if ( function_exists( 'sn_cloudways_is_configured' ) && sn_cloudways_is_configured() ) {
-		$cw_last      = defined( 'SNT_CW_LAST_PURGE_OPT' ) ? get_option( SNT_CW_LAST_PURGE_OPT, array() ) : array();
-		$cw_attempted = ! empty( $cw_last['time'] );
-		$cw_ok        = ! empty( $cw_last['ok'] );
-		$cw_warn      = $cw_attempted && ! $cw_ok;
-		$cw_line      = '';
-		if ( $cw_attempted ) {
-			$cw_line = ' Last attempt: ' . esc_html( human_time_diff( (int) $cw_last['time'], time() ) ) . ' ago.';
-			if ( $cw_warn ) {
-				$cw_line .= ' HTTP ' . esc_html( (string) ( $cw_last['http'] ?? 0 ) );
-				if ( '' !== trim( (string) ( $cw_last['error'] ?? '' ) ) ) {
-					// $cw_last['error'] is already wp_strip_all_tags()+300-char bounded
-					// at capture time (inc/cloudways-purge.php); esc_html() here is the
-					// output-context escape, not a second sanitize pass.
-					$cw_line .= ': ' . esc_html( (string) $cw_last['error'] );
-				}
-			}
+	if ( function_exists( 'sn_cloudways_is_configured' ) && sn_cloudways_is_configured() && function_exists( 'sn_admin_cloudways_leg' ) ) {
+		// 2026-10-12 audit: the Cloudways leaf's own verdict (sn_admin_cloudways_leg()),
+		// so the two leaves call one record by one name.
+		$cw_last = defined( 'SNT_CW_LAST_PURGE_OPT' ) ? get_option( SNT_CW_LAST_PURGE_OPT, array() ) : array();
+		$cw_leg  = sn_admin_cloudways_leg( is_array( $cw_last ) ? $cw_last : array() );
+		$cw_line = '' !== $cw_leg['value'] ? esc_html( $cw_leg['value'] ) . '.' : '';
+		if ( $cw_leg['time'] > 0 ) {
+			$cw_line .= ' Last attempt: ' . esc_html( human_time_diff( $cw_leg['time'], time() ) ) . ' ago.';
 		}
-		echo '<div class="sn-status-box' . ( $cw_warn ? ' sn-status-box--warn' : '' ) . '">';
+		$cw_line .= ' ' . wp_kses_post( $cw_leg['meta'] );
+		$cw_mod   = 'ok' === $cw_leg['kind'] ? '' : ' sn-status-box--' . ( 'err' === $cw_leg['kind'] ? 'err' : 'warn' );
+		echo '<div class="sn-status-box' . esc_attr( $cw_mod ) . '">';
 		echo '<div>';
 		echo '<p class="sn-status-box-title">Cloudways purge</p>';
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $cw_line is static text plus esc_html()-escaped values.
-		echo '<p class="sn-status-box-body">Rides the same purge chain (Varnish leg).' . $cw_line . '</p>';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $cw_line is esc_html()-escaped values plus the builder's kses-filtered meta.
+		echo '<p class="sn-status-box-body">' . trim( $cw_line ) . '</p>';
 		echo '</div>';
-		echo '<span class="sn-pill sn-pill--' . ( $cw_warn ? 'warn' : 'ok' ) . '">' . ( $cw_warn ? 'Error' : ( $cw_attempted ? 'OK' : 'Active' ) ) . '</span>';
+		echo '<span class="sn-pill sn-pill--' . esc_attr( $cw_leg['kind'] ) . '">' . esc_html( $cw_leg['text'] ) . '</span>';
 		echo '</div>';
 	}
 

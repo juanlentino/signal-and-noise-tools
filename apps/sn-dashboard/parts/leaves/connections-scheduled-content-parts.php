@@ -8,7 +8,9 @@
  * table can become an `<os-table>` here: every row carries one or two live
  * `<form>` ops (Run now / Re-purge / Run swap now), and os-table's `data` is
  * JSON — it cannot carry a form. Each row instead paints as an
- * `<li class="snt-list__row">` inside `<ul class="snt-list">` — the SAME
+ * `<li class="snt-list__row">` inside `<ul class="snt-list snt-list--ledger">`
+ * (2026-10-12 audit: a plain flex row never lines up under its header, the
+ * #1604 finding; the ledger grid gives each cell its header's column), the SAME
  * list vocabulary content-tags-parts.php's `tags_cluster_html()` uses for a
  * multi-column row (radio + checkbox + label + count), reusing only
  * `snt-list__label` (the one flexible, ellipsising cell — here the Target)
@@ -171,7 +173,7 @@ function scheduled_content_fragment_row_html( array $row ) {
 	$window = function_exists( 'sn_admin_schedule_window_html' ) ? \sn_admin_schedule_window_html( $row['starts_at'] ?? null, $row['ends_at'] ?? null ) : '';
 	$next   = function_exists( 'sn_admin_schedule_next_transition' ) ? \sn_admin_schedule_next_transition( $row['starts_at'] ?? null, $row['ends_at'] ?? null ) : '';
 
-	$actions = '<span class="snt-hint">&mdash;</span>';
+	$actions = '<span class="snt-hint">' . \snt_kit_esc( __( 'none', 'signal-and-noise-tools' ) ) . '</span>';
 	if ( $row_id > 0 ) {
 		$actions = '<os-cluster gap="8">'
 			. scheduled_content_op_form( $row_id, 'schedule_run_now', __( 'Run now', 'signal-and-noise-tools' ) )
@@ -185,7 +187,7 @@ function scheduled_content_fragment_row_html( array $row ) {
 		$action,
 		$window,
 		$status,
-		'' !== $next ? \snt_kit_esc( $next ) : '&mdash;',
+		\snt_kit_esc( '' !== $next ? $next : \sn_admin_schedule_nothing_pending() ),
 		$actions
 	);
 }
@@ -205,7 +207,7 @@ function scheduled_content_post_table_row( array $post ) {
 		'title'     => html_entity_decode( (string) ( $post['title'] ?? '' ), ENT_QUOTES, 'UTF-8' ),
 		'type'      => 'page' === ( $post['post_type'] ?? '' ) ? __( 'Page', 'signal-and-noise-tools' ) : __( 'Post', 'signal-and-noise-tools' ),
 		'publishes' => function_exists( 'sn_admin_schedule_fmt_gmt' ) ? (string) \sn_admin_schedule_fmt_gmt( $gmt ) : $gmt,
-		'in'        => '' !== $next ? $next : '—',
+		'in'        => '' !== $next ? $next : \sn_admin_schedule_nothing_pending(),
 		'id'        => (string) (int) ( $post['id'] ?? 0 ),
 	);
 }
@@ -230,7 +232,7 @@ function scheduled_content_swap_row_html( array $pair ) {
 	$status = \snt_kit_esc( (string) ( $hide['status'] ?? 'queued' ) . ' → ' . (string) ( $show['status'] ?? 'queued' ) );
 	$next   = function_exists( 'sn_admin_schedule_next_transition' ) ? \sn_admin_schedule_next_transition( $swap_at, null ) : '';
 
-	$actions = '<span class="snt-hint">&mdash;</span>';
+	$actions = '<span class="snt-hint">' . \snt_kit_esc( __( 'none', 'signal-and-noise-tools' ) ) . '</span>';
 	if ( $hide_id > 0 && $show_id > 0 ) {
 		$actions = \snt_kit_form(
 			'schedule_swap_run_now',
@@ -247,7 +249,7 @@ function scheduled_content_swap_row_html( array $pair ) {
 		. '<span class="snt-list__label">' . $target . '</span>'
 		. '<span class="snt-list__value">' . $window . '</span>'
 		. '<span class="snt-list__value">' . $status . '</span>'
-		. '<span class="snt-list__value">' . ( '' !== $next ? \snt_kit_esc( $next ) : '&mdash;' ) . '</span>'
+		. '<span class="snt-list__value">' . \snt_kit_esc( '' !== $next ? $next : \sn_admin_schedule_nothing_pending() ) . '</span>'
 		. '<span class="snt-list__value">' . $actions . '</span>'
 		. '</li>';
 }
@@ -271,7 +273,7 @@ function scheduled_content_swaps_html( array $pairs ) {
 	}
 	return \snt_kit_section(
 		__( 'Version swaps', 'signal-and-noise-tools' ),
-		'<ul class="snt-list">' . $rows . '</ul>',
+		'<div class="snt-ledger"><ul class="snt-list snt-list--ledger snt-list--ledger-5">' . $rows . '</ul></div>',
 		__( 'Two scheduled containers on the same page whose windows meet at one instant: the current version hides and the new version reveals together, with a single edge purge.', 'signal-and-noise-tools' )
 	);
 }

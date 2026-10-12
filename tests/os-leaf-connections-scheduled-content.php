@@ -80,7 +80,9 @@ ok(
 );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
-ok( false !== strpos( $kit, 'value="4"' ) && false !== strpos( $kit, 'label="Scheduled"' ), 'the glance total (4 = 3 fragments + 1 post) is shown' );
+// 2026-10-12 audit: the third tile was the sum of the other two ("Scheduled
+// 25" beside "Future posts 25"); it is gone, on both surfaces.
+ok( false === strpos( $kit, 'label="Scheduled"' ) && false === strpos( $classic, 'sn-glance-card__label">Scheduled<' ) && false !== strpos( $classic, 'sn-glance-card__label">Fragments<' ) && 2 === count( snt_schedule_glance_cards( array( 1 ), array( 1, 2 ) ) ), 'no total tile: the two producers are the glance' );
 ok( false !== strpos( $kit, 'value="3"' ) && false !== strpos( $kit, 'label="Fragments"' ) && false !== strpos( $kit, 'value="1"' ) && false !== strpos( $kit, 'label="Future posts"' ), 'the fragment/future-post glance split is shown' );
 
 ok( false !== strpos( $kit, 'Home page' ) && false !== strpos( $kit, 'os-arg-url="https://example.test/wp-admin/post.php?post=55&amp;action=edit"' ), 'the linked fragment target is a kit door to its editor, not a raw admin <a>' );
@@ -103,7 +105,13 @@ ok( false !== strpos( $kit, 'active → queued' ), 'the version-swap pair shows 
 ok( false !== strpos( $kit, 'Run swap now' ) && false !== strpos( $kit, 'name="hide_id" value="301"' ) && false !== strpos( $kit, 'name="show_id" value="302"' ), 'the swap row carries the same hide_id/show_id the classic op posts' );
 
 ok( false !== strpos( $kit, 'in 1 hour' ), 'a pending boundary reads as a relative "in …" time (fixture-fed human_time_diff)' );
-ok( false !== strpos( $kit, '&mdash;' ), 'a row with no pending boundary (both past) falls back to the dash placeholder' );
+ok( false !== strpos( $kit, '>nothing pending</span>' ) && false === strpos( $kit, '&mdash;' ) && false === strpos( $kit, '—' ) && false !== strpos( $classic, '>nothing pending</td>' ), 'a row with no pending boundary (both past) says "nothing pending" on both surfaces, never an em dash' );
+// 2026-10-12 audit: the fragment and swap lists were plain flex rows, so the
+// header words sat over the wrong cells (#1604); both are ledger grids now.
+ok( 1 === preg_match( '#<os-section heading="Scheduled fragments" stack><p class="snt-prose">[^<]*</p><div class="snt-ledger"><ul class="snt-list snt-list--ledger"><li class="snt-list__row"><span class="snt-list__label">Target</span>#', $kit ), 'the fragments list is a ledger grid whose first row is its header' );
+ok( false !== strpos( $kit, '<div class="snt-ledger"><ul class="snt-list snt-list--ledger snt-list--ledger-5"><li class="snt-list__row"><span class="snt-list__label">Target</span><span class="snt-list__value">Swap at</span>' ), 'the swaps list is a five-track ledger grid' );
+$css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+ok( 1 === preg_match( '/\.snt-list--ledger\.snt-list--ledger-5\s*\{[^}]*grid-template-columns:\s*minmax\( 8em, 2fr \) repeat\( 2,/', $css ), 'the five-track variant is defined' );
 
 ok( false !== strpos( $kit, 'name="row_id" value="201"' ) && false !== strpos( $kit, 'value="sn_schedule_run_now"' ) && false !== strpos( $kit, 'value="sn_schedule_repurge"' ), 'the fragment row carries its own row_id into both ops' );
 // 2026-10-12 audit: Run now and Run swap now change the public site at once

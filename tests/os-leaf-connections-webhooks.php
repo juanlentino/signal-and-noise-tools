@@ -27,6 +27,7 @@ require SNT_PATH . 'inc/spend-watch.php';
 require SNT_PATH . 'inc/admin-shell.php';
 require SNT_PATH . 'inc/admin-render-sections.php';
 require SNT_PATH . 'inc/keyring.php'; // 15.2.0: the monitoring block reads sources from the keyring
+require SNT_PATH . 'inc/keyring-admin.php'; // 2026-10-12: and says them in the keyring's words
 require SNT_PATH . 'inc/webhooks-admin.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-webhooks.php';
 
@@ -125,7 +126,13 @@ ok(
 ok( '<os-badge tone="warning">fail</os-badge>' === snt_leaf_cell_html( $wh_log[0], $wh_rows[1]['status'] ?? null ) && 'ok' === snt_leaf_cell_html( $wh_log[0], $wh_rows[0]['status'] ?? null ), 'a failed delivery is toned (a warning badge, as the classic pill); an ok one is plain' );
 ok( false === strpos( $kit, 'snt-ledger-more' ), 'two deliveries are under the cap: no "+N more" line' );
 ok( false !== strpos( $kit, '<b>2 webhooks configured</b> <os-badge tone="success">Active</os-badge><br>1 enabled, 1 disabled.' ), 'the status box counts configured and enabled webhooks with an Active pill' );
-ok( false === strpos( $kit, 'name="sn_betterstack_token"' ) && false === strpos( $kit, 'name="sn_spend_gh_token"' ) && false === strpos( $kit, 'ABCD7890' ) && false === strpos( $kit, '••••7890' ) && false !== strpos( $kit, 'label="Better Stack API token"' ) && false !== strpos( $kit, '>saved</span></os-fact>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.2.0: no token field and no value; the sources read saved and the section points to the keyring' );
+ok( false === strpos( $kit, 'name="sn_betterstack_token"' ) && false === strpos( $kit, 'name="sn_spend_gh_token"' ) && false === strpos( $kit, 'ABCD7890' ) && false === strpos( $kit, '••••7890' ) && false !== strpos( $kit, 'label="Better Stack API token"' ) && false !== strpos( $kit, '>Saved</span></os-fact>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.2.0: no token field and no value; the source reads Saved (the keyring\'s word) and the section points to the keyring' );
+// 2026-10-12 audit: the Uptime box listed the two spend credentials (not
+// uptime) under names the keyring does not use, and pointed at "the status
+// rail"; it names the Better Stack status box now, on both surfaces.
+ok( false === strpos( $kit, 'GitHub billing token' ) && false === strpos( $kit, 'Anthropic admin key' ) && false === strpos( $classic, 'GitHub billing token' ) && false === strpos( $classic, 'Anthropic admin key' ), 'the spend credentials are not on the Uptime box, on either surface' );
+ok( false === strpos( $kit, 'status rail' ) && false === strpos( $classic, 'status rail' ) && false !== strpos( $kit, 'powers the Better Stack status box on this tab' ) && false !== strpos( $classic, 'powers the Better Stack status box on this tab' ) && false !== strpos( $classic, '<th scope="row">Better Stack API token</th><td>Saved</td>' ), 'both surfaces name the box the token powers, with the keyring\'s words' );
+ok( false === strpos( $kit, 'Tick "Rotate" below' ) && false !== strpos( $kit, 'Tick &quot;Rotate secret on save&quot; and save' ) && false === strpos( $classic, '"Rotate" below' ) && false !== strpos( $classic, 'Tick "Rotate secret on save" and save' ), 'the rotate hint names the real checkbox, on both surfaces' );
 ok( false !== strpos( $kit, 'heading="Better Stack status"' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'with a token, the Better Stack mount is painted for the shell script to fill' );
 ok( false !== strpos( $kit, 'SignalNoiseTools/' . SNT_VERSION . ' webhook' ) && false !== strpos( $kit, '&quot;site&quot;: &quot;https://example.test/&quot;' ) && false !== strpos( $kit, 'POST &lt;your URL&gt; HTTP/1.1' ), 'the payload reference names the version, the site and the request line' );
 ok( false !== strpos( $kit, '<os-row gap="16"><os-stack col="8" gap="12">' ) && false !== strpos( $kit, '<aside col="4" aria-label="Status &amp; reference">' ), 'the two-column shell is an os-row: the work, then the status and reference rail' );
@@ -220,7 +227,7 @@ ok( false !== strpos( $kit, '<b>1 webhook configured</b> <os-badge tone="warning
 // ── No Better Stack token: no panel, an empty token field.
 fixture( array( 'sn_betterstack_api_token' => '' ) );
 $kit = snt_leaf_paint( 'connections', 'webhooks' );
-ok( false === strpos( $kit, 'data-sn-uptime-status' ) && false !== strpos( $kit, '>not set</span></os-fact>' ), 'unconfigured: no Better Stack panel, the token source reads not set' );
+ok( false === strpos( $kit, 'data-sn-uptime-status' ) && false !== strpos( $kit, '>Not set</span></os-fact>' ), 'unconfigured: no Better Stack panel, the token source reads Not set' );
 ok( array() === snt_leaf_folds( $kit ), 'unconfigured: no fold' );
 
 // ── Constant-locked token: no name on the field, the lock is explained, the panel is up.
@@ -229,7 +236,7 @@ fixture();
 $classic = snt_leaf_classic_html( 'sn_admin_render_webhooks_section' );
 $kit     = snt_leaf_paint( 'connections', 'webhooks' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && ! in_array( 'sn_betterstack_token', snt_leaf_names( $kit ), true ), 'locked: neither form carries sn_betterstack_token: ' . implode( ',', snt_leaf_names( $kit ) ) );
-ok( false !== strpos( $kit, '>locked in wp-config.php</span></os-fact>' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'locked: the source says wp-config and the Better Stack panel is painted' );
+ok( false !== strpos( $kit, '>wp-config (SN_BETTERSTACK_API_TOKEN)</span></os-fact>' ) && false !== strpos( $kit, 'data-sn-uptime-status' ), 'locked: the source names its constant as Credentials does, and the Better Stack panel is painted' );
 ok( array() === snt_leaf_folds( $kit ), 'locked: no fold' );
 webhooks_test_prose_oracle( $classic, $kit, 'constant-locked fixture' );
 

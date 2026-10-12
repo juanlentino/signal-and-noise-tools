@@ -20,6 +20,27 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 add_action( 'sn_admin_webhooks_tab', 'sn_webhooks_render_admin_tab' );
 
+/**
+ * The Uptime monitoring box, the same on both surfaces (2026-10-12 audit: it
+ * listed the two spend credentials, which are not uptime, under names the
+ * keyring does not use, and pointed at "the status rail"). The Better Stack
+ * token only, by its keyring label and source words.
+ *
+ * @return array{about:string,rows:array<int,array{label:string,value:string,unset:bool}>}
+ */
+function sn_webhooks_uptime_box() {
+	$rows = array();
+	$ring = function_exists( 'sn_keyring' ) ? sn_keyring() : array();
+	if ( isset( $ring['betterstack_token'] ) && function_exists( 'sn_keyring_source' ) && function_exists( 'sn_keyring_source_text' ) ) {
+		$src    = sn_keyring_source( 'betterstack_token' );
+		$rows[] = array( 'label' => (string) $ring['betterstack_token']['label'], 'value' => sn_keyring_source_text( $src, $ring['betterstack_token'] ), 'unset' => '' === $src );
+	}
+	return array(
+		'about' => __( 'Better Stack polls this site from outside and reports here. Its read-scope Uptime API token powers the Better Stack status box on this tab and the S&N Uptime dashboard widget.', 'signal-and-noise-tools' ),
+		'rows'  => $rows,
+	);
+}
+
 function sn_webhooks_render_admin_tab() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
@@ -95,7 +116,7 @@ function sn_webhooks_render_admin_tab() {
 			echo '<p class="sn-field-helper"><strong>Copy this now</strong>: it will not be shown again. Receivers compute <code>HMAC_SHA256(secret, raw_body)</code> and compare against the <code>X-SN-Signature</code> header.</p>';
 		} else {
 			echo '<input type="text" readonly value="' . esc_attr( sn_mask_secret( $wh['secret'] ) ) . '" class="sn-mono" disabled>';
-			echo '<p class="sn-field-helper">Last 4 chars shown. Tick "Rotate" below + save to generate a new secret (invalidates the current one).</p>';
+			echo '<p class="sn-field-helper">Last 4 chars shown. Tick "Rotate secret on save" and save to generate a new secret (invalidates the current one).</p>';
 			echo '<label class="snt-checkbox-row"><input type="checkbox" name="rotate_secret" value="1"> Rotate secret on save</label>';
 		}
 		echo '</div>';
@@ -189,14 +210,14 @@ function sn_webhooks_render_admin_tab() {
 	// 15.2.0: the three monitoring credentials (Better Stack, the GitHub
 	// billing token, the Anthropic admin key) are rows on the keyring; this
 	// fieldset reads them and says where each comes from.
+	$uptime = sn_webhooks_uptime_box();
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Uptime monitoring</h2>';
-	echo '<p class="sn-fieldset-intro">Better Stack polls this site from outside and reports here. Its read-scope Uptime API token powers the status rail on this tab and the S&amp;N Uptime dashboard widget.</p>';
-	if ( function_exists( 'sn_keyring_source' ) ) {
+	echo '<p class="sn-fieldset-intro">' . esc_html( $uptime['about'] ) . '</p>';
+	if ( array() !== $uptime['rows'] ) {
 		echo '<table class="widefat"><tbody>';
-		foreach ( array( 'betterstack_token' => 'Better Stack API token', 'github_token' => 'GitHub billing token', 'anthropic_admin_key' => 'Anthropic admin key' ) as $id => $label ) {
-			$src = sn_keyring_source( $id );
-			echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>' . esc_html( 'constant' === $src ? 'locked in wp-config.php' : ( '' !== $src ? 'saved' : 'not set' ) ) . '</td></tr>';
+		foreach ( $uptime['rows'] as $row ) {
+			echo '<tr><th scope="row">' . esc_html( $row['label'] ) . '</th><td>' . esc_html( $row['value'] ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 	}

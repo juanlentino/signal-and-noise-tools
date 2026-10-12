@@ -58,54 +58,58 @@ ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic forms: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'music_save', 'music_sync' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the two actions are music_save and music_sync, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( 2 === substr_count( $kit, '<os-form' ) && 2 === substr_count( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'both forms are os-forms dispatching post through the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
-ok( false !== strpos( $kit, 'submit-label="Save settings"' ) && false !== strpos( $kit, 'submit-label="Sync now"' ), 'the submits are labelled Save settings and Sync now, as the classic buttons are' );
-ok( 2 === substr_count( $kit, 'name="tab" value="content"' ) && 2 === substr_count( $kit, 'name="sub" value="music"' ) && 2 === substr_count( $classic, 'name="sub" value="music"' ), 'both forms carry the classic hidden tab=content / sub=music pair (the classic carries it twice too)' );
+ok( 3 === substr_count( $kit, '<os-form' ) && 3 === substr_count( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the three forms (profile, featured release, Sync now) are os-forms dispatching post through the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
+ok( 2 === substr_count( $kit, 'submit-label="Save settings"' ) && false !== strpos( $kit, 'submit-label="Sync now"' ), 'the submits are labelled Save settings and Sync now, as the classic buttons are' );
+ok( 3 === substr_count( $kit, 'name="tab" value="content"' ) && 3 === substr_count( $kit, 'name="sub" value="music"' ) && 2 === substr_count( $classic, 'name="sub" value="music"' ), 'every form carries the classic hidden tab=content / sub=music pair' );
 $target = sn_admin_post_redirect_target( 'content', 'music' );
 ok( 'connections' === $target['tab'] && 'music' === $target['sub'], 'the stale pair still lands home: the shared pipeline resolves content/music to ' . $target['tab'] . '/' . $target['sub'] );
 ok( false === strpos( $kit, 'name="sn_spotify_id"' ) && false === strpos( $kit, 'name="sn_spotify_secret"' ) && false === strpos( $kit, '••••ntid' ) && false === strpos( $kit, '••••9999' ) && false !== strpos( $kit, 'label="Client ID"' ) && false !== strpos( $kit, '>Saved</span></os-fact>' ), '15.3.1: no credential field and no masked value; the Spotify block reads the sources as facts' );
 ok( false === strpos( $kit, 'topsecretvalue9999' ) && false === strpos( $kit, 'abc123clientid' ), 'neither raw credential reaches the markup' );
 ok( false !== strpos( $kit, '<os-text-field name="sn_muso_profile" type="text" value="' . SN_MUSO_DEFAULT_PROFILE . '"' ), 'the Muso profile field carries the default profile id' );
 ok( false !== strpos( $kit, '<os-text-field name="sn_music_featured" type="text" value="https://open.spotify.com/album/4aawyAB9vmqN3uQ7FjRGTy" placeholder="https://open.spotify.com/album/…"' ) && false !== strpos( $kit, 'Currently featuring a <strong>album</strong>.' ), 'the featured field carries the stored open URL and the helper names the type' );
-ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, '<b>Synced</b> <os-badge tone="success">Synced</os-badge><br>2 release(s) cached. The /music timeline + MusicAlbum schema are live.' ), 'the synced state paints a success notice: Synced / 2 release(s) cached / pill Synced' );
-ok( false !== strpos( $classic, 'sn-pill--ok' ) && false !== strpos( $classic, '2 release(s) cached' ), 'the classic oracle really paints the ok pill and the count (the control is not vacuous)' );
-ok( false !== strpos( $kit, 'heading="Spotify (optional)"' ) && false !== strpos( $kit, 'heading="Muso.AI profile"' ) && false !== strpos( $kit, 'heading="Featured release"' ) && false !== strpos( $kit, 'heading="Status"' ) && false !== strpos( $kit, 'heading="Sync now"' ), 'the three fieldsets and the two rail cards are sections with the classic headings' );
+ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, '<b>Synced</b> <os-badge tone="success">Synced</os-badge><br>2 releases cached. The /music timeline + MusicAlbum schema are live.' ), 'the synced state paints a success notice: Synced / 2 releases cached / pill Synced' );
+ok( false !== strpos( $classic, 'sn-pill--ok' ) && false !== strpos( $classic, '2 releases cached. The /music timeline' ), 'the classic oracle paints the ok pill and the same sentence (the control is not vacuous)' );
+ok( false !== strpos( $kit, 'heading="Spotify (optional)"' ) && false !== strpos( $kit, 'heading="Muso.AI profile"' ) && false !== strpos( $kit, 'heading="Featured release"' ) && false !== strpos( $kit, 'heading="Status"' ) && false === strpos( $kit, 'heading="Sync now"' ), 'the three fieldsets and Status are sections with the classic headings; Sync now rides Status (2026-10-12 audit: an empty box with one button)' );
 ok( false !== strpos( $kit, '<os-code>MusicAlbum</os-code>' ) && false !== strpos( $kit, '<em>developer.spotify.com</em>' ) && false !== strpos( $kit, 'Connections › Credentials' ) && false !== strpos( $kit, 'Type <os-code>clear</os-code> to revert to the default profile.' ), 'the intros keep their inline code and emphasis; the Spotify block points to the keyring' );
 ok( false !== strpos( $kit, '<os-fact label="Last sync"><span class="snt-kv__v"><os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time></span></os-fact>' ) && false !== strpos( $kit, '<os-fact label="Releases cached"><span class="snt-kv__v">2</span></os-fact>' ), 'the Status facts: last sync ago, releases cached' );
 ok( false !== strpos( $kit, 'Muso.AI profile <os-code>' . SN_MUSO_DEFAULT_PROFILE . '</os-code> <os-badge tone="success">no credential</os-badge>' ), 'the Data source fact names the profile as code and the credential-free pill' );
-ok( false !== strpos( $kit, '<os-badge tone="success">Configured</os-badge> — album embeds + artwork enrichment active' ) && false === strpos( $kit, 'Last error' ), 'Spotify media reads Configured; no Last error row when there is none' );
-ok( false !== strpos( $kit, 'description="Runs the full Muso → Spotify → store pass immediately. Keeps the last-good discography if a source fails."' ), 'the Sync now helper survives as the section description' );
-// 17.4.1 (#1573): the composition. The form (906px live) no longer shares a
-// row with the 349px rail; the two short boxes share one, the form stands alone.
-$row = strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2" role="complementary" aria-label="Sync status">' );
-ok( false !== $row && 0 === substr_count( $kit, '<os-card' ) && 1 === substr_count( $kit, '<os-grid' ), 'the Status row: Status and Sync now share one os-grid row carrying the landmark name; no column cards, no other row' );
-$order = array( strpos( $kit, '<p class="snt-prose">' ), strpos( $kit, '<os-notice' ), $row, strpos( $kit, 'heading="Status"' ), strpos( $kit, 'heading="Sync now"' ), strpos( $kit, '</os-grid>' ), strpos( $kit, 'heading="Spotify (optional)"' ) );
+ok( false !== strpos( $kit, '<os-badge tone="success">Configured</os-badge>: album embeds + artwork enrichment active' ) && false === strpos( $kit, 'Last error' ), 'Spotify media reads Configured; no Last error row when there is none' );
+ok( false !== strpos( $kit, '<p class="snt-hint">Sync now runs the full Muso → Spotify → store pass immediately. It keeps the last-good discography if a source fails.</p>' ) && false !== strpos( $classic, 'Sync now runs the full Muso &rarr; Spotify &rarr; store pass immediately.' ), 'the Sync now helper says what the button does, on both surfaces' );
+// 2026-10-12 audit: the form stood alone at 760px beside 540px of nothing and
+// Sync now was an empty box. Two rows of paired boxes: Status (Sync now at its
+// foot) beside Spotify, then the profile beside the featured release.
+$row1 = strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2" role="complementary" aria-label="Sync status">' );
+$row2 = strpos( $kit, snt_leaf_row( 2 ), (int) $row1 + 1 );
+ok( false !== $row1 && false !== $row2 && 2 === substr_count( $kit, '<os-grid' ) && 0 === substr_count( $kit, '<os-card' ), 'two rows of paired boxes, the first carrying the landmark name' );
+$order = array( strpos( $kit, '<p class="snt-prose">' ), strpos( $kit, '<os-notice' ), $row1, strpos( $kit, 'heading="Status"' ), strpos( $kit, 'value="sn_music_sync"' ), strpos( $kit, 'heading="Spotify (optional)"' ), $row2, strpos( $kit, 'heading="Muso.AI profile"' ), strpos( $kit, 'heading="Featured release"' ) );
 $sorted = $order;
 sort( $sorted );
-ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: intro, the sync notice, the Status row (Status then Sync now), then the form alone under it: ' . implode( ' < ', $order ) );
-ok( strpos( $kit, 'value="sn_music_sync"' ) < strpos( $kit, '</os-grid>' ) && strpos( $kit, 'value="sn_music_save"' ) > strpos( $kit, '</os-grid>' ), 'the sync form is inside the row, the save form after it' );
+ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: intro, the sync notice, Status with Sync now then Spotify, then the profile then the featured release: ' . implode( ' < ', $order ) );
+ok( 1 === preg_match( '#<os-form[^>]*>(?:(?!</os-form>).)*name="sn_muso_profile"(?:(?!</os-form>).)*</os-form>#s', $kit, $mf ) && false === strpos( $mf[0], 'sn_music_featured' ), 'the profile saves on its own form, without the featured field' );
+ok( false === strpos( $kit, '<os-section heading="Spotify (optional)" stack><os-form' ) && 1 === preg_match( '#heading="Spotify \(optional\)"(?:(?!</os-section>).)*</os-section>#s', $kit, $sp ) && false === strpos( $sp[0], '<os-form' ), 'the read-only Spotify facts are no longer inside a form' );
 
 // ── Stale state: releases cached but the last sync failed.
 music_fixture( array( 'store' => array( 'last_error' => 'Muso: HTTP 502' ) ) );
 $kit = snt_leaf_paint( 'connections', 'music' );
-ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>Showing last-good data</b> <os-badge tone="warning">Stale</os-badge><br>2 release(s) still cached' ), 'stale: a warning notice — Showing last-good data / pill Stale' );
+ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>Showing last-good data</b> <os-badge tone="warning">Stale</os-badge><br>2 releases still cached, but the last sync failed. The page never blanks: check the error, then press Sync now.' ) && false === strpos( $kit, 'Sync status row' ), 'stale: a warning notice, Showing last-good data / pill Stale, naming the button, not a position' );
 ok( false !== strpos( $kit, '<os-fact label="Last error"><span class="snt-kv__v"><os-code>Muso: HTTP 502</os-code></span></os-fact>' ), 'stale: the Last error fact appears as code' );
 
 // ── Failed state: an error and nothing cached.
 music_fixture( array( 'store' => array( 'count' => 0, 'last_synced' => 0, 'last_error' => 'Muso: HTTP 502' ) ) );
 $kit = snt_leaf_paint( 'connections', 'music' );
-ok( false !== strpos( $kit, 'tone="danger"' ) && false !== strpos( $kit, '<b>Sync failed — no data yet</b> <os-badge tone="danger">Failed</os-badge>' ), 'failed: a danger notice — Sync failed / pill Failed' );
+ok( false !== strpos( $kit, 'tone="danger"' ) && false !== strpos( $kit, '<b>Sync failed: no data yet</b> <os-badge tone="danger">Failed</os-badge>' ), 'failed: a danger notice, Sync failed / pill Failed, no em dash' );
 
 // ── Pending state: nothing stored at all, no credentials, no featured pick.
 $GLOBALS['__options'] = array();
 $classic = snt_leaf_classic_html( 'sn_admin_render_music_section' );
 $kit     = snt_leaf_paint( 'connections', 'music' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'music_save', 'music_sync' ) === snt_leaf_actions( $kit ), 'pending: field names and both actions still match the classic forms' );
-ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>Not yet synced</b> <os-badge tone="warning">Pending</os-badge><br>Hit “Sync now”' ), 'pending: a warning notice — Not yet synced / pill Pending' );
-ok( false === strpos( $kit, 'on the right' ), 'the notice no longer points right: the row is below it' );
+ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>Not yet synced</b> <os-badge tone="warning">Pending</os-badge><br>Press Sync now to populate the discography.' ), 'pending: a warning notice, Not yet synced / pill Pending' );
+ok( false === strpos( $kit, 'on the right' ) && false === strpos( $kit, 'below' ) && false === strpos( $classic, 'on the right' ) && false !== strpos( $classic, 'Press Sync now to populate the discography.' ), 'neither surface points at a position; both name the button' );
 ok( false !== strpos( $kit, '<span class="snt-kv__v"><em>never</em></span></os-fact>' ) && false !== strpos( $kit, '<os-fact label="Releases cached"><span class="snt-kv__v">0</span></os-fact>' ), 'pending: last sync never, 0 releases cached' );
-ok( false !== strpos( $kit, '<os-badge tone="warning">Not configured</os-badge> — Muso artwork only, no embeds (optional)' ), 'pending: Spotify media reads Not configured' );
-ok( false !== strpos( $kit, '>Not set</span></os-fact>' ) && false !== strpos( $kit, 'name="sn_music_featured" type="text" value=""' ) && false !== strpos( $kit, 'No manual pick — <os-code>/music</os-code> auto-features your newest release.' ), 'pending: the Spotify sources read Not set, the featured field is empty, the auto-feature helper paints' );
+ok( false !== strpos( $kit, '<os-badge tone="warning">Not configured</os-badge>: Muso artwork only, no embeds (optional)' ), 'pending: Spotify media reads Not configured' );
+ok( false === strpos( $kit, '—' ) && false === strpos( $classic, '&mdash;' ), 'no em dash in either surface\'s text' );
+ok( false !== strpos( $kit, '>Not set</span></os-fact>' ) && false !== strpos( $kit, 'name="sn_music_featured" type="text" value=""' ) && false !== strpos( $kit, 'No manual pick: <os-code>/music</os-code> auto-features your newest release.' ), 'pending: the Spotify sources read Not set, the featured field is empty, the auto-feature helper paints' );
 
 // ── Escaping: hostile stored values never reach the markup raw.
 music_fixture( array( 'store' => array( 'last_error' => '<script>alert(1)</script>' ), 'options' => array( SN_MUSO_PROFILE_OPT => '"><script>x</script>', SN_MUSIC_FEATURED_OPT => array( 'type' => '<script>t</script>', 'id' => 'x' ) ) ) );
