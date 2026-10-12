@@ -781,6 +781,8 @@ namespace {
 	$bare->params = array( 'land' => 'd4' );
 	call_user_func( $app->mount, st( $app ), $bare );
 	ok( 1 === $land( $bare ), 'a link that names no view is Overview`s, as on the classic page' );
+	ok( array( array( 'type' => 'snt-land', 'land' => 'd4' ) ) === array_values( array_filter( $bare->effects->all(), static function ( $e ) { return 'snt-land' === $e['type']; } ) ),
+		'snt-land carries the link`s stamp (assets/os-kit.js shows a view once per link, never again on a reload)' );
 	$state = st( $app, array( 'notice' => array( 'success', 'Saved.' ) ) );
 	$app->actions['refresh']( $state, new \OpenStation\App\Os(), array() );
 	ok( null === $state->get( 'notice' ), 'refresh drops the notice -- a notice is a one-shot on the classic page too' );

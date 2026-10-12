@@ -33,9 +33,9 @@ function badge_count() {
 }
 
 /**
- * The tab a deep link names, as the classic page reads it: no `tab` is the
- * Dashboard, and a legacy tab or a moved leaf resolves through the same map
- * the 301 uses.
+ * The tab a deep link names, as the classic page reads it: no `tab`, or one
+ * the window does not have, is the Dashboard, and a legacy tab or a moved leaf
+ * resolves through the same map the 301 uses.
  *
  * @param Os $os Host handle.
  * @return array{0:string,1:string,2:string} Tab, leaf, anchor.
@@ -51,6 +51,10 @@ function landing( Os $os ) {
 		$sub    = (string) ( $dest['sub'] ?? '' );
 		$anchor = ( '' === $anchor && ! empty( $dest['anchor'] ) ) ? 'sn-sec-' . $dest['anchor'] : $anchor;
 	}
+	// A tab the window does not have is the Dashboard, the classic page's fallback.
+	if ( function_exists( 'sn_admin_top_tabs' ) && ! in_array( $tab, array_column( \sn_admin_top_tabs(), 'tab' ), true ) ) {
+		$tab = 'dashboard';
+	}
 	return array( $tab, $sub, $anchor );
 }
 
@@ -59,8 +63,10 @@ function landing( Os $os ) {
  *
  * Shared by `mount` and `reopen`. Each tab is its own session and every one
  * of them receives the params, so only the session of the tab the link names
- * lands, and says so with the `snt-land` effect (assets/os-kit.js shows that
- * tab: a server action cannot switch the window's tabs). The others open on
+ * lands, and says so with the `snt-land` effect, carrying the link's stamp
+ * (assets/os-kit.js shows that tab once per stamp: a server action cannot
+ * switch the window's tabs, and a reload keeps the params but not the tab, so
+ * the same stamp must not pull the window back). The others open on
  * their first leaf, or keep the leaf they are on when the window was already
  * open.
  *
@@ -98,7 +104,7 @@ function read_params( State $state, Os $os, $reopen = false ) {
 		->set( 'post', array() )
 		->set( 'notice', null );
 	if ( isset( $os->effects ) && method_exists( $os->effects, 'add' ) ) {
-		$os->effects->add( 'snt-land' );
+		$os->effects->add( 'snt-land', array( 'land' => (string) $os->param( 'land', '' ) ) );
 	}
 }
 

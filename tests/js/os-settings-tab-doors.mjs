@@ -53,7 +53,7 @@ function boot( prefs, openReturns = true ) {
  * assets/os-kit.js in a fake shell: one window per id whose activateTab()
  * fires the strip's own os-window-tab-change, as the shell's does.
  */
-function bootKit() {
+function bootKit( storage = new Map() ) {
 	const listeners = {};
 	const shown = [];
 	const dispatched = [];
@@ -66,6 +66,11 @@ function bootKit() {
 	} );
 	const ctx = {
 		console,
+		// The tab's sessionStorage, which a reload keeps; `null` stands for one
+		// that throws (a private window, blocked site data).
+		sessionStorage: null === storage
+			? { getItem() { throw new Error( 'blocked' ); }, setItem() { throw new Error( 'blocked' ); } }
+			: { getItem: ( k ) => ( storage.has( k ) ? storage.get( k ) : null ), setItem: ( k, v ) => { storage.set( k, String( v ) ); } },
 		document: { addEventListener: ( type, cb ) => { ( listeners[ type ] = listeners[ type ] || [] ).push( cb ); } },
 		wp: { os: {
 			windowManager: { getById: windowFor, getAll: () => Object.values( windows ) },
@@ -78,7 +83,7 @@ function bootKit() {
 	ctx.window = ctx;
 	vm.createContext( ctx );
 	vm.runInContext( readFileSync( join( HERE, '../../assets/os-kit.js' ), 'utf8' ), ctx );
-	const land = ( appId, view, type = 'snt-land' ) => fire( 'os-app-effect', { detail: { appId, windowId: appId, view, effect: { type } } } );
+	const land = ( appId, view, type = 'snt-land', stamp = '' ) => fire( 'os-app-effect', { detail: { appId, windowId: appId, view, effect: { type, land: stamp } } } );
 	return { land, shown, dispatched };
 }
 
@@ -199,6 +204,24 @@ scenario( 'an analytics landing does not carry the old view over the link', () =
 	const { land, shown, dispatched } = bootKit();
 	land( 'sn-analytics', 'machine-readers' );
 	return { pass: JSON.stringify( shown ) === JSON.stringify( [ [ 'sn-analytics', 'machine-readers' ] ] ) && dispatched.length === 0, detail: JSON.stringify( { shown, dispatched } ) };
+} );
+
+scenario( 'a reload does not re-land: a stamp already shown in this tab shows nothing, a new one does', () => {
+	const storage = new Map();
+	const first = bootKit( storage );
+	first.land( 'sn-dashboard', 'monitoring', 'snt-land', 's1' );
+	const reload = bootKit( storage ); // same tab, page reloaded: the shell restores the window with the same params
+	reload.land( 'sn-dashboard', 'monitoring', 'snt-land', 's1' );
+	reload.land( 'sn-dashboard', 'connections', 'snt-land', 's2' );
+	const ok = JSON.stringify( first.shown ) === JSON.stringify( [ [ 'sn-dashboard', 'monitoring' ] ] )
+		&& JSON.stringify( reload.shown ) === JSON.stringify( [ [ 'sn-dashboard', 'connections' ] ] );
+	return { pass: ok, detail: JSON.stringify( { first: first.shown, reload: reload.shown } ) };
+} );
+
+scenario( 'storage that throws still lands the link', () => {
+	const { land, shown } = bootKit( null );
+	land( 'sn-analytics', 'machine-readers', 'snt-land', 's1' );
+	return { pass: JSON.stringify( shown ) === JSON.stringify( [ [ 'sn-analytics', 'machine-readers' ] ] ), detail: JSON.stringify( shown ) };
 } );
 
 process.stdout.write( JSON.stringify( { results } ) + '\n' );

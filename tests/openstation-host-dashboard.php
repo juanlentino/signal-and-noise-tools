@@ -396,6 +396,17 @@ namespace {
 	$s = new \OpenStation\App\State( $app->state );
 	call_user_func( $app->mount, $s, $o );
 	ok( 'cron' === $s->get( 'sub' ) && 1 === $land( $o ), 'a legacy tab lands where the classic 301 sends it (the retired Cron tab is Connections` Cron leaf)' );
+	ok( array( array( 'type' => 'snt-land', 'land' => 'e5' ) ) === array_values( array_filter( $o->effects->all(), static function ( $e ) { return 'snt-land' === $e['type']; } ) ),
+		'snt-land carries the link`s stamp, so assets/os-kit.js shows the tab once per link and a reload (the shell keeps the params, not the tab) does not pull the window back' );
+	$o = new \OpenStation\App\Os();
+	$o->view   = 'main';
+	$o->params = array( 'tab' => 'no-such-tab', 'land' => 'f6' );
+	call_user_func( $app->mount, new \OpenStation\App\State( $app->state ), $o );
+	$o2 = new \OpenStation\App\Os();
+	$o2->view   = 'monitoring';
+	$o2->params = array( 'tab' => 'no-such-tab', 'land' => 'f6' );
+	call_user_func( $app->mount, new \OpenStation\App\State( $app->state ), $o2 );
+	ok( 1 === $land( $o ) && 0 === $land( $o2 ), 'a tab the window does not have lands on the Dashboard, the classic page`s fallback' );
 
 	echo "\nGroup 4: go\n";
 	$os->view = 'monitoring';

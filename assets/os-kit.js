@@ -171,10 +171,35 @@
 	 * through the shell (`Window.activateTab()`). The analytics view is noted
 	 * first so the carry-over above does not re-apply the old view's window
 	 * over the link's own.
+	 *
+	 * Once per link. The shell keeps a window's params across a reload but
+	 * not its tab, so a restored window lands again with the same stamp; the
+	 * stamps already shown in this browser tab are remembered, and a reload
+	 * opens on Dashboard or Overview as it always did. Storage that throws
+	 * (a private window, blocked site data) only costs that memory.
 	 */
+	function shownBefore( windowId, stamp ) {
+		if ( ! stamp ) {
+			return false;
+		}
+		try {
+			var key = 'snt-land:' + windowId;
+			if ( window.sessionStorage.getItem( key ) === stamp ) {
+				return true;
+			}
+			window.sessionStorage.setItem( key, stamp );
+		} catch ( e ) {
+			return false;
+		}
+		return false;
+	}
+
 	document.addEventListener( 'os-app-effect', function ( event ) {
 		var detail = event.detail || {};
 		if ( ! detail.effect || 'snt-land' !== detail.effect.type || ! APPS.hasOwnProperty( detail.appId ) ) {
+			return;
+		}
+		if ( shownBefore( String( detail.windowId || '' ), String( detail.effect.land || '' ) ) ) {
 			return;
 		}
 		var view = String( detail.view || 'main' );

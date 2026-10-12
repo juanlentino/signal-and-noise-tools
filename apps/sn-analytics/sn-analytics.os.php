@@ -114,8 +114,9 @@ function incoming( array $args ) {
  * URL's own names (`sn_view`, `sn_range`, …): one vocabulary for a link, a
  * form and a deep link, so no surface has to guess which spelling to use.
  *
- * The session of the view the link names says so with the `snt-land` effect
- * (assets/os-kit.js shows that tab; a server action cannot). On a reopen only
+ * The session of the view the link names says so with the `snt-land` effect,
+ * carrying the link's stamp (assets/os-kit.js shows that tab once per stamp;
+ * a server action cannot switch tabs). On a reopen only
  * that session moves, and only for params it has not read yet: a dock or icon
  * click reopens with none and the shell hands back the last ones, which used
  * to reset the range and class the reader had picked (the same guard as the
@@ -155,7 +156,7 @@ function read_params( State $state, Os $os, $reopen = false ) {
 	}
 	\snt_os_analytics_apply( $state, $args );
 	if ( $named === $here && isset( $os->effects ) && method_exists( $os->effects, 'add' ) ) {
-		$os->effects->add( 'snt-land' );
+		$os->effects->add( 'snt-land', array( 'land' => (string) $os->param( 'land', '' ) ) );
 	}
 }
 
