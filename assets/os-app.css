@@ -47,7 +47,12 @@
 /* The stat tile through its own tokens (kit-help Stat), the shape
    apps/sn-analytics/sn-analytics.css .snt-native-stat already uses; that
    sheet loads after this one and keeps its flat tile. */
+/* The value takes the foreground. The kit's default is the WordPress admin
+   theme color, red on this site, so "0 findings" and "Bridge ready" read as
+   alarms; every surface that noticed already overrode it (Provenance, S&N
+   Analytics, MCP Clients). A tile that is not fine keeps its toned swatch. */
 .snt-app os-stat {
+	--os-ui-stat-value-color: var( --os-ui-fg );
 	--os-ui-stat-padding: 12px 16px;
 	--os-ui-stat-border: var( --os-ui-border, #33303a );
 	--os-ui-stat-radius: 10px;

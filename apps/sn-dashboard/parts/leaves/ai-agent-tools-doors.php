@@ -96,8 +96,8 @@ function agent_tools_door_native_html( $slugs ) {
 	$body = '<p class="snt-prose">' . sprintf( /* translators: %s: manage_options, as <os-code>. */ \snt_kit_esc( __( 'A dependency-free JSON-RPC 2.0 endpoint this plugin hand-rolls. Every call needs a WordPress login with the %s capability, and the tool list below is the whole surface: nothing outside it is reachable, even by request.', 'signal-and-noise-tools' ) ), \snt_kit_code( 'manage_options', false ) ) . '</p>'
 		. '<p>' . \snt_kit_code( 'POST ' . $url, false ) . ' ' . \snt_kit_badge( 'ok', __( 'read-only', 'signal-and-noise-tools' ) ) . '</p>'
 		. ( null === $slugs ? '<p class="snt-prose">' . \snt_kit_esc( __( 'The read-door allowlist is not readable here (its reader is not loaded), so this door’s tools are not listed.', 'signal-and-noise-tools' ) ) . '</p>' : agent_tools_door_band( $slugs, __( 'read-only', 'signal-and-noise-tools' ) ) )
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'This door never mutates anything, by construction: see the write door below for actions.', 'signal-and-noise-tools' ) ) . '</p>';
-	return \snt_kit_section( __( 'Door 1: the native MCP server', 'signal-and-noise-tools' ), $body, __( 'since v9.22.0', 'signal-and-noise-tools' ) );
+		. '<p class="snt-hint">' . \snt_kit_esc( __( 'This door never mutates anything, by construction: the write door carries the actions.', 'signal-and-noise-tools' ) ) . '</p>';
+	return \snt_kit_section( __( 'Read door: the native MCP server', 'signal-and-noise-tools' ), $body );
 }
 
 /**
@@ -110,12 +110,12 @@ function agent_tools_door_native_html( $slugs ) {
  */
 function agent_tools_door_native_write_html( $slugs, $read_slugs ) {
 	$url  = ( function_exists( 'rest_url' ) && function_exists( 'sn_mcp_namespace' ) ) ? (string) rest_url( sn_mcp_namespace() . '/mcp-rw' ) : '';
-	$body = '<p class="snt-prose">' . sprintf( /* translators: %s: manage_options, as <os-code>. */ \snt_kit_esc( __( 'The exact same JSON-RPC 2.0 server, the same %s capability, and the same Application Password as the read door above: there is no separate write-only credential. What changes is the surface: most tools here can modify your content (posts, postmeta, taxonomy terms, scheduled cron events, cached files) or spend the AI budget configured on this site; a couple are read-only login-audit exports carrying plaintext usernames, gated behind this higher bar instead of the read door.', 'signal-and-noise-tools' ) ), \snt_kit_code( 'manage_options', false ) ) . '</p>'
+	$body = '<p class="snt-prose">' . sprintf( /* translators: %s: manage_options, as <os-code>. */ \snt_kit_esc( __( 'The exact same JSON-RPC 2.0 server, the same %s capability, and the same Application Password as the read door: there is no separate write-only credential. What changes is the surface: most tools here can modify your content (posts, postmeta, taxonomy terms, scheduled cron events, cached files) or spend the AI budget configured on this site; a couple are read-only login-audit exports carrying plaintext usernames, gated behind this higher bar instead of the read door.', 'signal-and-noise-tools' ) ), \snt_kit_code( 'manage_options', false ) ) . '</p>'
 		. '<p>' . \snt_kit_code( 'POST ' . $url, false ) . ' ' . \snt_kit_badge( 'warn', __( 'read-write', 'signal-and-noise-tools' ) ) . '</p>'
 		. ( null === $slugs ? '<p class="snt-prose">' . \snt_kit_esc( __( 'The write-door allowlist is not readable here (its reader is not loaded), so this door’s tools are not listed.', 'signal-and-noise-tools' ) ) . '</p>' : agent_tools_door_band( $slugs, __( 'read-write', 'signal-and-noise-tools' ) ) )
-		. ( null === $read_slugs ? '' : '<p class="snt-hint">' . sprintf( /* translators: %d: live read-door tool count. */ \snt_kit_esc( __( 'This door’s tools/list does not repeat the %d read-only tools above: if you only want to look, connect to the read door instead.', 'signal-and-noise-tools' ) ), count( $read_slugs ) ) . '</p>' )
+		. ( null === $read_slugs ? '' : '<p class="snt-hint">' . sprintf( /* translators: %d: live read-door tool count. */ \snt_kit_esc( __( 'This door’s tools/list does not repeat the read door’s %d read-only tools: if you only want to look, connect to the read door instead.', 'signal-and-noise-tools' ) ), count( $read_slugs ) ) . '</p>' )
 		. agent_tools_withheld_html();
-	return \snt_kit_section( __( 'Door 1b: the native write door', 'signal-and-noise-tools' ), $body, __( 'since v9.50.0', 'signal-and-noise-tools' ) );
+	return \snt_kit_section( __( 'Write door: the same server, read-write', 'signal-and-noise-tools' ), $body );
 }
 
 /**

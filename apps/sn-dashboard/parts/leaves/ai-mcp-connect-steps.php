@@ -1,10 +1,12 @@
 <?php
 /**
- * S&N Dashboard: AI › MCP Clients, the setup path: the three owner steps with
- * the copy-paste client configs, then the Claude desktop app steps as an open
- * section of their own. Moved from ai-mcp-connect-parts.php on 2026-10-11, when
- * the desktop-app steps came out of their fold (owner rule: no collapsible
- * sections).
+ * S&N Dashboard: AI › MCP Clients, how to connect a client.
+ *
+ * 2026-10-12 redesign: one section. The credential first (an Application
+ * Password, the only grant a client gets), the two door addresses a client
+ * points at, then Claude Code at full width, and the Claude desktop app's
+ * steps beside the config they paste. It was two sections that each pointed at
+ * the other ("the proxy config above", "Door 1 above") with names no card used.
  *
  * @package SignalNoiseTools
  */
@@ -16,23 +18,31 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The three owner steps + the copy-paste client config (proxy config, and
- * the Claude Code one-liner). The Claude desktop app steps follow as their
- * own section (mcp_connect_claude_app_html()).
+ * Connect a client.
  *
+ * @param array $state The status state (read_url, rw_url); [] when unreadable.
  * @return string
  */
-function mcp_connect_owner_steps_html() {
-	$native_url  = ( function_exists( 'rest_url' ) && function_exists( 'sn_mcp_namespace' ) ) ? (string) rest_url( sn_mcp_namespace() . '/mcp' ) : '';
+function mcp_connect_owner_steps_html( array $state = array() ) {
+	$native_url  = (string) ( $state['read_url'] ?? ( ( function_exists( 'rest_url' ) && function_exists( 'sn_mcp_namespace' ) ) ? rest_url( sn_mcp_namespace() . '/mcp' ) : '' ) );
+	$rw_url      = (string) ( $state['rw_url'] ?? '' );
 	$profile_url = function_exists( 'get_edit_profile_url' ) ? get_edit_profile_url() . '#application-passwords-section' : '';
 
-	$steps = \snt_kit_steps(
-		array(
-			sprintf( /* translators: %s: a door to the Application Passwords section. */ \snt_kit_esc( __( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.', 'signal-and-noise-tools' ) ), \snt_kit_door( __( 'Application Password', 'signal-and-noise-tools' ), $profile_url ) ),
-			\snt_kit_esc( __( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for abilities that opt in to the adapter (that is Door 1’s read allowlist).', 'signal-and-noise-tools' ) ),
-			\snt_kit_esc( __( 'Paste the client config below, swapping in your WordPress username and the Application Password you just created.', 'signal-and-noise-tools' ) ),
-		)
-	);
+	$lead = '<p class="snt-prose">' . sprintf( /* translators: %s: a door to the Application Passwords section. */ \snt_kit_esc( __( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.', 'signal-and-noise-tools' ) ), \snt_kit_door( __( 'Application Password', 'signal-and-noise-tools' ), $profile_url ) )
+		. ' ' . \snt_kit_esc( __( 'Use the read door’s address for a client that only reads, and the write door’s for one you trust to change things.', 'signal-and-noise-tools' ) ) . '</p>';
+	$addresses = \snt_kit_kv( array_filter( array(
+		array( 'label' => __( 'Read door', 'signal-and-noise-tools' ), 'value' => \snt_kit_code( $native_url, false ), 'html' => true ),
+		'' !== $rw_url ? array( 'label' => __( 'Write door', 'signal-and-noise-tools' ), 'value' => \snt_kit_code( $rw_url, false ), 'html' => true ) : null,
+	) ) );
+
+	// Claude Code takes the full width (its one command fits on one line); the
+	// desktop app's steps sit beside the config they paste. No step says
+	// "above" or "below": on a phone the pair stacks and either word would lie.
+	// Each client is a sub-heading, so a screen reader can move between them.
+	$h    = static fn( $t ) => '<h4 class="snt-h">' . \snt_kit_esc( $t ) . '</h4>';
+	$code = $h( __( 'Claude Code', 'signal-and-noise-tools' ) ) . '<p class="snt-prose">' . \snt_kit_esc( __( 'Claude Code connects straight over HTTP, with no config file:', 'signal-and-noise-tools' ) ) . '</p>'
+		. \snt_kit_code( 'claude mcp add --transport http signal-and-noise ' . $native_url . ' --header "Authorization: Basic <base64 admin-username:application-password>"', true );
+	$app  = $h( __( 'Claude desktop app', 'signal-and-noise-tools' ) ) . mcp_connect_claude_app_steps();
 
 	$config = '{
   "mcpServers": {
@@ -47,28 +57,29 @@ function mcp_connect_owner_steps_html() {
     }
   }
 }';
-	$body = $steps
-		. '<p class="snt-prose"><b>' . \snt_kit_esc( __( '@automattic/mcp-wordpress-remote config', 'signal-and-noise-tools' ) ) . '</b></p>'
-		. \snt_kit_code( $config, true )
-		. '<p class="snt-prose">' . \snt_kit_esc( __( 'Claude Code can skip the proxy and connect straight over HTTP:', 'signal-and-noise-tools' ) ) . '</p>'
-		. \snt_kit_code( 'claude mcp add --transport http signal-and-noise ' . $native_url . ' --header "Authorization: Basic <base64 admin-username:application-password>"', false );
+	$paste = $h( __( '@automattic/mcp-wordpress-remote config', 'signal-and-noise-tools' ) ) . '<p class="snt-prose">' . \snt_kit_esc( __( 'Swap in your WordPress username and the Application Password you just created.', 'signal-and-noise-tools' ) ) . '</p>'
+		. \snt_kit_code( $config, true );
+	// Each half is one grid item: loose siblings would each take a track.
+	$body = $lead . $addresses . $code . \snt_kit_grid( array( \snt_kit_stack( $app, 12 ), \snt_kit_stack( $paste, 12 ) ), 320, 24 );
 
-	return \snt_kit_section( __( 'Connect a client', 'signal-and-noise-tools' ), $body );
+	// An earned fold (inc/openstation-kit-fold.php): setup, done once per
+	// client. Closed, it says what is inside; it opens itself while this user
+	// has no Application Password, because then nothing can have connected.
+	$summary = __( 'Claude Code, the Claude desktop app, or any client through @automattic/mcp-wordpress-remote, with both door addresses', 'signal-and-noise-tools' );
+	$none    = class_exists( 'WP_Application_Passwords' ) && function_exists( 'get_current_user_id' ) && array() === (array) \WP_Application_Passwords::get_user_application_passwords( get_current_user_id() );
+	return \snt_kit_fold( __( 'Connect a client', 'signal-and-noise-tools' ), $summary, $body, $none );
 }
 
 /**
- * The Claude desktop app path, an open section of its own after the config it
- * pastes: the four local-config setup steps (the file and its two paths as
- * inline code, as the classic leaf paints them), then the explicit "do not use
- * the OAuth connector flow here" close. 2026-10-11: these were a fold inside
- * Connect a client (owner rule: no collapsible sections).
+ * The Claude desktop app's steps (the file and its two paths as inline code),
+ * then the explicit "do not use the OAuth connector flow here" close.
  *
  * @return string
  */
-function mcp_connect_claude_app_html() {
+function mcp_connect_claude_app_steps() {
 	$steps = \snt_kit_steps(
 		array(
-			\snt_kit_esc( __( 'Install Node.js if the machine does not have it: the proxy config above runs through npx.', 'signal-and-noise-tools' ) ),
+			\snt_kit_esc( __( 'Install Node.js if the machine does not have it: the config runs through npx.', 'signal-and-noise-tools' ) ),
 			sprintf(
 				/* translators: 1: the config filename, 2: macOS path, 3: Windows path, each as inline code. */
 				\snt_kit_esc( __( 'Open the app’s local MCP config file, %1$s: macOS: %2$s · Windows: %3$s (Claude → Settings → Developer → Edit Config opens it for you).', 'signal-and-noise-tools' ) ),
@@ -76,10 +87,9 @@ function mcp_connect_claude_app_html() {
 				\snt_kit_code( '~/Library/Application Support/Claude/', false ),
 				\snt_kit_code( '%APPDATA%\\Claude\\', false )
 			),
-			\snt_kit_esc( __( 'Paste the proxy config above into that file (merge into an existing "mcpServers" object if one is there), with your real username and Application Password swapped in.', 'signal-and-noise-tools' ) ),
+			\snt_kit_esc( __( 'Paste the config into that file (merge into an existing "mcpServers" object if one is there), with your real username and Application Password swapped in.', 'signal-and-noise-tools' ) ),
 			\snt_kit_esc( __( 'Fully restart the Claude app (quit, not just close the window). The site’s tools appear in the tools menu of a new chat.', 'signal-and-noise-tools' ) ),
 		)
 	);
-	$close = \snt_kit_notice( 'info', \snt_kit_esc( __( 'Do not use Settings → Connectors → “Add custom connector” for this endpoint: that flow is for remote servers reached from Anthropic’s own infrastructure and only supports OAuth: an application password will not work there.', 'signal-and-noise-tools' ) ) );
-	return \snt_kit_section( __( 'Claude desktop app', 'signal-and-noise-tools' ), $steps . $close );
+	return $steps . '<p class="snt-hint">' . \snt_kit_esc( __( 'Do not use Settings → Connectors → “Add custom connector” for this endpoint: that flow is for remote servers reached from Anthropic’s own infrastructure and only supports OAuth: an application password will not work there.', 'signal-and-noise-tools' ) ) . '</p>';
 }

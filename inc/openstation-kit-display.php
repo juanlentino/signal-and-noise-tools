@@ -12,6 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/openstation-kit-fold.php'; // the earned fold: a summary that answers, open when it needs you
+
 /**
  * `<os-stat>`: a value, a label, an optional caption, and a severity swatch
  * when the reading is not fine. The swatch reads the app tone contract

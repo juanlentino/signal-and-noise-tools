@@ -100,5 +100,26 @@ ok( false !== strpos( $coverage, 'not proof of a clean site' ), 'coverage still 
 ok( isset( $check['report']['thresholds']['aa_body'] ) && 4.5 === $check['report']['thresholds']['aa_body'], 'thresholds published with the data' );
 ok( false !== strpos( $check['fix_hint'], 'Report only' ), 'the fix hint says there is nothing to fix from here' );
 
+echo "\nGroup: the count matches the pairs it is printed against\n";
+// Live on 2026.10.2, Integrity > Reports: "38 of 21 token pairs would fall
+// below 4.5:1". The 21 pairs are the SERVED palette; the 38 summed failures
+// across every palette. The headline divides one by the other, so both must
+// describe the same palette (the per-palette counts stay in by_palette).
+// Declared inside a block so PHP defines them HERE, not hoisted above the
+// earlier groups, which read the WordPress fallback path.
+if ( ! function_exists( 'sn_theme_all_palettes' ) ) {
+function sn_theme_all_palettes() {
+	return array(
+		'default' => array( 'scheme' => 'light', 'source' => 'theme', 'colors' => array( 'void' => '#ffffff', 'bone' => '#000000', 'ash' => '#eeeeee' ) ),
+		'dark'    => array( 'scheme' => 'dark', 'source' => 'theme', 'colors' => array( 'void' => '#111111', 'bone' => '#222222', 'ash' => '#333333' ) ),
+	);
+}
+function sn_theme_served_palette_id() { return 'default'; }
+}
+$two  = sn_health_check_contrast_tokens()['report'];
+$fail_rows = count( array_filter( $two['pairs'], static fn( $r ) => ! $r['aa_body'] ) );
+ok( 3 === count( $two['pairs'] ) && 1 === $fail_rows && 1 === $two['would_fail_body'], 'two palettes: the headline count is the served palette\'s (1 of 3), not the sum across palettes (4) -- ' . $two['would_fail_body'] . ' of ' . count( $two['pairs'] ) );
+ok( 1 === $two['by_palette']['default']['would_fail_body'] && 3 === $two['by_palette']['dark']['would_fail_body'], 'each palette keeps its own count in by_palette' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

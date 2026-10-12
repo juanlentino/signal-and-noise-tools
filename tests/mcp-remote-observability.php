@@ -14,6 +14,7 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok  - $m\n"; } else { $fail++; echo "  FAIL - $m\n"; } }
 
 function __( $s, $d = null ) { return (string) $s; }
+if ( ! function_exists( '_n' ) ) { function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; } }
 // The module follows the WordPress timezone setting; these suites do not load
 // WordPress, so wp_date() is stubbed to the server's. What matters is that the
 // module CALLS wp_date and not gmdate — pinned below.
@@ -360,6 +361,11 @@ ok( false !== strpos( $text, '1 call' ), 'the dispatch count is rendered' );
 ok( false !== strpos( $text, '2 refused' ), 'THE PAIR PIN: the refusal count is rendered beside it' );
 ok( false === strpos( $text, 'UTC' ), 'and "today" carries no timezone label — buckets are in the site timezone, so the reader\'s "today" and the record\'s already agree' );
 ok( false === strpos( $text, 'Never used' ), 'and it no longer claims the door is unused' );
+// 2026-10-12: MCP Clients read "Last used 2026-10-11 19:07:30"; the use is said in words.
+if ( ! function_exists( 'wp_timezone' ) ) { function wp_timezone() { return new DateTimeZone( 'UTC' ); } }
+if ( ! function_exists( 'human_time_diff' ) ) { function human_time_diff( $from, $to = 0 ) { return max( 0, (int) ( ( ( $to ?: time() ) - $from ) / 60 ) ) . ' mins'; } }
+$text = sn_mcp_remote_log_summary_text();
+ok( 1 === preg_match( '/^Last used \d+ mins ago · 1 call today · 2 refused$/', $text ), 'the last use reads as a time ago, never a raw timestamp: ' . $text );
 
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-remote-observability.php\n"
