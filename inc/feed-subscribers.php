@@ -160,9 +160,21 @@ function snt_feed_subs_capture( $ua, $ua_hash, $feed_path ) {
  * @return array<int,array{label:string,value:int|null}>
  */
 function snt_feed_reach_tiles() {
+	// 2026-10-12 audit: the qualifier rode the label, so the tile label wrapped
+	// in capitals ("SUBSCRIBERS (REPORTED BY READERS, A CEILING)"); it is the
+	// tile's note now, the label one word.
 	return array(
-		array( 'label' => __( 'Subscribers (reported by readers, a ceiling)', 'signal-and-noise-tools' ), 'value' => (int) snt_feed_subs_stats()['estimate_7d'] ),
-		array( 'label' => __( 'Opens (at least; many readers block images)', 'signal-and-noise-tools' ), 'value' => function_exists( 'snt_feed_opens_stats' ) ? (int) snt_feed_opens_stats( 7 )['total'] : null ),
-		array( 'label' => __( 'Clicks (visits from feed links)', 'signal-and-noise-tools' ), 'value' => function_exists( 'snt_nsm_feed_clicks' ) ? snt_nsm_feed_clicks( time() ) : null ),
+		array( 'label' => __( 'Subscribers', 'signal-and-noise-tools' ), 'note' => __( 'reported by readers, a ceiling', 'signal-and-noise-tools' ), 'value' => (int) snt_feed_subs_stats()['estimate_7d'] ),
+		array( 'label' => __( 'Opens', 'signal-and-noise-tools' ), 'note' => __( 'at least; many readers block images', 'signal-and-noise-tools' ), 'value' => function_exists( 'snt_feed_opens_stats' ) ? (int) snt_feed_opens_stats( 7 )['total'] : null ),
+		array( 'label' => __( 'Clicks', 'signal-and-noise-tools' ), 'note' => __( 'visits from feed links', 'signal-and-noise-tools' ), 'value' => function_exists( 'snt_nsm_feed_clicks' ) ? snt_nsm_feed_clicks( time() ) : null ),
 	);
+}
+
+/**
+ * Feed reach's one paragraph, the same on both surfaces.
+ *
+ * @return string
+ */
+function snt_feed_reach_sentence() {
+	return __( 'Feed reach is three different measures, never added together. Subscribers: the counts aggregators such as Feedly report for this feed plus one per direct reader, the busiest day in 7 days, a ceiling. Opens: notes opened in a feed reader, counted by an image in the notes feed, a floor. Clicks: visits that arrived from a feed link. None of them moves the north star, which counts on-site reads only.', 'signal-and-noise-tools' );
 }

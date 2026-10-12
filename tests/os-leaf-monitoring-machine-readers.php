@@ -22,6 +22,14 @@ if ( ! function_exists( 'wp_http_validate_url' ) ) {
 if ( ! function_exists( 'set_transient' ) ) {
 	function set_transient( $k, $v, $e = 0 ) { return true; }
 }
+if ( ! function_exists( 'wp_verify_nonce' ) ) {
+	function wp_verify_nonce( $n, $a = -1 ) { return 'nonce-' . $a === $n ? 1 : false; }
+}
+// 2026-10-12: Re-read now drops the sensor's cached version reading first.
+$GLOBALS['__deleted_transients'] = array();
+if ( ! function_exists( 'delete_transient' ) ) {
+	function delete_transient( $k ) { $GLOBALS['__deleted_transients'][] = $k; return true; }
+}
 if ( ! function_exists( 'update_option' ) ) {
 	function update_option( $k, $v, $a = false ) { $GLOBALS['__options'][ $k ] = $v; return true; }
 }
@@ -150,6 +158,41 @@ foreach ( array( 'kit' => $kit, 'classic' => $classic ) as $twin => $h ) {
 	ok( false !== strpos( $h, 'sn_mr_worker_url' ), "$twin: the worker URL form is on the leaf" );
 }
 ok( false !== strpos( $kit, 'sn-rights-signals' ) && false !== strpos( $kit, 'v1.20.0' ), 'the edge-sensor readout names the deployed worker version' );
+// 2026-10-12 audit: the readout is facts rows, the deploy time in the site's
+// format; "purge caches to read it now" promised what no purge does.
+ok( false !== strpos( $kit, '<os-fact label="Worker"><span class="snt-kv__v">sn-rights-signals v1.20.0</span></os-fact>' ) && false !== strpos( $kit, '<os-fact label="Deployed"><span class="snt-kv__v">September 1, 2026 12:00 am</span></os-fact>' ) && false !== strpos( $classic, '<strong>Deployed:</strong> September 1, 2026 12:00 am' ), 'the edge readout is facts rows, the deploy time in the site\'s format, the same on both surfaces' );
+ok( false === strpos( $kit, 'purge caches' ) && false === strpos( $classic, 'purge caches' ) && false !== strpos( $kit, '<os-button variant="secondary" os-action="go" os-arg-sub="machine-readers" os-arg-sn_mr_reread="1">Re-read now</os-button>' ), 'Re-read now replaces the purge sentence; it is a go back to this leaf' );
+// PR #2025 review: the native box said "Re-read now asks it again" and the
+// classic box had no such button. Both have it now, in the same words.
+ok( false !== strpos( $classic, 'so a fresh deploy can take that long to appear here; Re-read now asks it again.' ) && 1 === preg_match( '#<a class="button" href="[^"]*sn_mr_reread=1[^"]*_wpnonce=nonce-sn_mr_reread">Re-read now</a>#', $classic ), 'the classic Edge sensor box has Re-read now too (a nonce link), and says so in the same words' );
+$GLOBALS['__deleted_transients'] = array();
+$_GET = array( 'sn_mr_reread' => '1', '_wpnonce' => 'nonce-sn_mr_reread' );
+snt_leaf_classic_html( 'snt_mr_render_tab' );
+ok( array( 'sn_mr_sensor_info' ) === $GLOBALS['__deleted_transients'], 'the classic Re-read drops the cached reading when its nonce verifies' );
+$GLOBALS['__deleted_transients'] = array();
+$_GET = array( 'sn_mr_reread' => '1', '_wpnonce' => 'forged' );
+snt_leaf_classic_html( 'snt_mr_render_tab' );
+ok( array() === $GLOBALS['__deleted_transients'], 'and keeps it when the nonce does not verify' );
+$_GET = array();
+$GLOBALS['__deleted_transients'] = array();
+// PR #2025 review: the flag rode the leaf's state, so every later Refresh
+// re-read live. One state across two paints: the first re-reads, the second
+// reads the cache, and the flag is gone from the params.
+$mr_state = new class( array( 'params' => array( 'sn_mr_reread' => '1', 'other' => 'kept' ) ) ) {
+	private $v;
+	public function __construct( array $v ) { $this->v = $v; }
+	public function get( $k ) { return $this->v[ $k ] ?? null; }
+	public function set( $k, $x ) { $this->v[ $k ] = $x; return $this; }
+};
+$mr_paint = \SignalNoise\OpenStationHost\Dashboard\painters()['monitoring/machine-readers'];
+$mr_paint( array( 'tab' => 'monitoring', 'sub' => 'machine-readers', 'state' => $mr_state, 'os' => null ) );
+ok( array( 'sn_mr_sensor_info' ) === $GLOBALS['__deleted_transients'], 'Re-read now drops the cached version reading before it reads' );
+$mr_paint( array( 'tab' => 'monitoring', 'sub' => 'machine-readers', 'state' => $mr_state, 'os' => null ) );
+ok( array( 'sn_mr_sensor_info' ) === $GLOBALS['__deleted_transients'] && array( 'other' => 'kept' ) === $mr_state->get( 'params' ), 'PR #2025 review: the re-read happens once; the next paint (a Refresh) reads the cache, and only the flag left the params' );
+$GLOBALS['__deleted_transients'] = array();
+snt_leaf_paint( 'monitoring', 'machine-readers' );
+ok( array() === $GLOBALS['__deleted_transients'], 'an ordinary paint keeps the cache' );
+ok( false === strpos( (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-evidence.php' ), "'<h3>'" ), 'rights evidence sub-blocks are snt-h headings, not a bare <h3>' );
 ok( false !== strpos( $kit, 'token set' ) && false !== strpos( $kit, '<os-text-field name="sn_mr_worker_url"' ), 'the settings section says "token set" and the worker-url field is present' );
 ok( false !== strpos( $kit, '✓ Sensor v1.20.0' ) || false !== strpos( $kit, '! ' ) || false !== strpos( $kit, '? ' ), 'pill state marks (✓/!/?) survive alongside the tone' );
 
@@ -160,6 +203,14 @@ $GLOBALS['__mr_fixtures']['crawler_status'] = null;
 $kit = snt_leaf_paint( 'monitoring', 'machine-readers' );
 ok( false !== strpos( $kit, 'Sensor unreachable' ), 'sensor-unreachable pill shown when the version endpoint fails' );
 ok( false !== strpos( $kit, 'Read token missing' ) && false !== strpos( $kit, 'tone="warning"' ), 'read-token-missing pill shown when no token is configured' );
+// 2026-10-12 audit: the pills pointed at a token field "below"/"above" that
+// moved to the keyring in 15.2.0, after an em dash.
+ok( false !== strpos( $kit, 'Read token missing: Set the read token under Connections › Credentials, or define SN_MR_READ_TOKEN in wp-config.php.' ) && false !== strpos( $kit, 'Not configured: The sensor cannot be read until the read token is set under Connections › Credentials.' ) && false === strpos( $kit, ' — ' ), 'the pill notes name the screen, after a colon' );
+$classic_nc = snt_leaf_classic_html( 'snt_mr_render_tab' );
+ok( false !== strpos( $classic_nc, 'Read token missing: Set the read token under Connections › Credentials' ) && false === strpos( $classic_nc, 'token below' ), 'the classic page says the same' );
+// The version endpoint did not answer: the Edge sensor box says not read,
+// instead of naming the Worker and its source as if it had read them.
+ok( false !== strpos( $kit, 'Not read: the version endpoint did not answer.' ) && false !== strpos( $classic_nc, 'Not read: the version endpoint did not answer.' ) && 1 === preg_match( '#heading="Edge sensor"(?:(?!</os-section>).)*</os-section>#s', $kit, $es ) && false === strpos( $es[0], 'sn-rights-signals' ), 'sensor unreachable: the Edge sensor box says not read, on both surfaces' );
 ok( false !== strpos( $kit, 'Not configured' ), 'not_configured pill shown when the read fails for lack of a token' );
 ok( false !== strpos( $kit, 'Crawler list unchecked' ), 'crawler-list-unchecked pill shown when the status endpoint fails' );
 ok( false !== strpos( $kit, 'not set' ), 'the settings snapshot says "not set" with no token' );

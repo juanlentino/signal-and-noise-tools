@@ -281,39 +281,73 @@ function sn_health_render_admin_tab() {
  * @return void Echoes.
  */
 function sn_health_render_elsewhere_section( $scan ) {
-	$groups = array(
-		'integrity' => array( 'Integrity → Trust checks and Reports', 'proof and measurement: they publish rather than flag' ),
-		'deploy'    => array( 'Deploy Status', 'facts about a repo or worker, not this site\'s content' ),
-		'worklist'  => array( 'the scan door and Analytics recommendations', 'opportunities that never resolve and never block — a queue, not a fault' ),
-	);
 	$rows = array();
-	foreach ( $groups as $surface => $meta ) {
-		$checks = sn_health_checks_for_surface( $scan, $surface );
-		if ( ! $checks ) {
-			continue;
+	foreach ( sn_health_elsewhere_index( $scan ) as $g ) {
+		$links = array();
+		foreach ( $g['links'] as $l ) {
+			$links[] = '<a href="' . esc_url( $l['url'] ) . '">' . esc_html( $l['label'] ) . '</a>';
 		}
-		$labels = array();
-		foreach ( $checks as $key => $check ) {
-			$n       = (int) ( $check['count'] ?? 0 );
-			$label   = (string) ( $check['label'] ?? $key );
-			$labels[] = $n > 0 ? sprintf( '%s (%s)', $label, number_format_i18n( $n ) ) : $label;
-		}
-		sort( $labels );
-		$rows[] = sprintf(
-			'<li><strong>%s</strong> — %s: %s</li>',
-			esc_html( $meta[0] ),
-			esc_html( $meta[1] ),
-			esc_html( implode( ', ', $labels ) )
-		);
+		$rows[] = '<li><strong>' . esc_html( $g['title'] ) . '</strong>: ' . esc_html( $g['why'] ) . '. ' . esc_html( implode( ', ', $g['labels'] ) ) . '. ' . implode( ' · ', $links ) . '</li>';
 	}
 	if ( ! $rows ) {
 		return;
 	}
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Also scanned, shown elsewhere', 'signal-and-noise-tools' ) . '</h2>';
-	echo '<p class="sn-fieldset-intro">' . esc_html__( 'These still run on every scan. They are not defects, so they do not belong to a number that should read zero — but nothing here is hidden.', 'signal-and-noise-tools' ) . '</p>';
-	echo '<ul class="sn-health-elsewhere">' . implode( '', $rows ) . '</ul>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each row assembled from esc_html() above.
+	echo '<p class="sn-fieldset-intro">' . esc_html( sn_health_elsewhere_intro() ) . '</p>';
+	echo '<ul class="sn-health-elsewhere">' . implode( '', $rows ) . '</ul>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each row assembled from esc_html()/esc_url() above.
 	echo '</div>';
+}
+
+/**
+ * The index's one sentence, the same on both surfaces.
+ *
+ * @return string
+ */
+function sn_health_elsewhere_intro() {
+	return __( 'These still run on every scan. They are not defects, so they do not belong to a number that should read zero, but nothing here is hidden.', 'signal-and-noise-tools' );
+}
+
+/**
+ * The checks that run but render on another screen, grouped by that screen,
+ * with the screens to open (2026-10-12 audit: "the scan door" named no screen
+ * the owner can open, "Deploy Status" is the classic name for Dashboard ›
+ * Systems, and the strings were untranslated). Shared by both surfaces; a
+ * link is `tab`/`sub` for S&N Home and a URL for the classic page.
+ *
+ * @param array|null $scan The last health scan.
+ * @return array<int,array{title:string,why:string,labels:string[],links:array<int,array{label:string,tab:string,sub:string,url:string}>}>
+ */
+function sn_health_elsewhere_index( $scan ) {
+	$classic = static fn( $tab, $sub ) => function_exists( 'admin_url' ) ? admin_url( 'admin.php?page=sn-theme-options&tab=' . $tab . ( '' !== $sub ? '&sub=' . $sub : '' ) ) : '';
+	$groups  = array(
+		'integrity' => array( __( 'Integrity › Trust checks and Reports', 'signal-and-noise-tools' ), __( 'proof and measurement: they publish rather than flag', 'signal-and-noise-tools' ), array( array( 'label' => __( 'Open Integrity › Reports', 'signal-and-noise-tools' ), 'tab' => 'tools', 'sub' => 'reports', 'url' => $classic( 'tools', 'reports' ) ) ) ),
+		'deploy'    => array( __( 'Dashboard › Systems', 'signal-and-noise-tools' ), __( "facts about a repo or worker, not this site's content", 'signal-and-noise-tools' ), array( array( 'label' => __( 'Open the Dashboard', 'signal-and-noise-tools' ), 'tab' => 'dashboard', 'sub' => '', 'url' => $classic( 'dashboard', '' ) ) ) ),
+		'worklist'  => array(
+			__( 'Work queues', 'signal-and-noise-tools' ),
+			__( 'opportunities that never resolve and never block: a queue, not a fault. Tag hygiene and tag fit are on Content › Tags; the link and content queues are S&N Analytics recommendations', 'signal-and-noise-tools' ),
+			array(
+				array( 'label' => __( 'Open Content › Tags', 'signal-and-noise-tools' ), 'tab' => 'content', 'sub' => 'tags', 'url' => $classic( 'content', 'tags' ) ),
+				array( 'label' => __( 'Open S&N Analytics', 'signal-and-noise-tools' ), 'tab' => '', 'sub' => '', 'url' => function_exists( 'snt_analytics_page_url' ) ? snt_analytics_page_url() : '' ),
+			),
+		),
+	);
+	$out = array();
+	foreach ( $groups as $surface => $meta ) {
+		$checks = function_exists( 'sn_health_checks_for_surface' ) ? sn_health_checks_for_surface( $scan, $surface ) : array();
+		if ( ! $checks ) {
+			continue;
+		}
+		$labels = array();
+		foreach ( $checks as $key => $check ) {
+			$n        = (int) ( $check['count'] ?? 0 );
+			$label    = (string) ( $check['label'] ?? $key );
+			$labels[] = $n > 0 ? sprintf( '%s (%s)', $label, number_format_i18n( $n ) ) : $label;
+		}
+		sort( $labels );
+		$out[] = array( 'title' => $meta[0], 'why' => $meta[1], 'labels' => $labels, 'links' => array_values( array_filter( $meta[2], static fn( $l ) => '' !== $l['tab'] || '' !== $l['url'] ) ) );
+	}
+	return $out;
 }
 
 /**

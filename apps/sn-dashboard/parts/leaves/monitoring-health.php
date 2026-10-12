@@ -69,27 +69,6 @@ function health_data() {
 		}
 	}
 
-	$elsewhere_groups = array(
-		'integrity' => array( 'Integrity → Trust checks and Reports', 'proof and measurement: they publish rather than flag' ),
-		'deploy'    => array( 'Deploy Status', "facts about a repo or worker, not this site's content" ),
-		'worklist'  => array( 'the scan door and Analytics recommendations', 'opportunities that never resolve and never block — a queue, not a fault' ),
-	);
-	$elsewhere = array();
-	foreach ( $elsewhere_groups as $surface => $meta ) {
-		$checks = function_exists( 'sn_health_checks_for_surface' ) ? sn_health_checks_for_surface( $last_scan, $surface ) : array();
-		if ( ! $checks ) {
-			continue;
-		}
-		$labels = array();
-		foreach ( $checks as $key => $check ) {
-			$n        = (int) ( $check['count'] ?? 0 );
-			$label    = (string) ( $check['label'] ?? $key );
-			$labels[] = $n > 0 ? sprintf( '%s (%s)', $label, number_format_i18n( $n ) ) : $label;
-		}
-		sort( $labels );
-		$elsewhere[] = array( 'title' => $meta[0], 'why' => $meta[1], 'labels' => $labels );
-	}
-
 	return array(
 		'scan'         => $health_scan,
 		'glance'       => $glance,
@@ -101,7 +80,7 @@ function health_data() {
 		'skipped'      => function_exists( 'sn_health_skipped_checks' ) ? sn_health_skipped_checks( $health_scan ) : array(),
 		'check_total'  => function_exists( 'sn_health_check_total' ) ? sn_health_check_total( $health_scan ) : 0,
 		'report_count' => function_exists( 'sn_health_report_checks' ) ? count( sn_health_report_checks( $health_scan ) ) : 0,
-		'elsewhere'    => $elsewhere,
+		'elsewhere'    => function_exists( 'sn_health_elsewhere_index' ) ? sn_health_elsewhere_index( $last_scan ) : array(),
 	);
 }
 

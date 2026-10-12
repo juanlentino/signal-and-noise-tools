@@ -438,6 +438,9 @@ function sn_zenodo_backfill_pass() {
 			}
 		}
 	}
+	// Every pass that ran says so, the hourly one too (2026-10-12 audit: only
+	// the manual button recorded one, so "Last pass" described the button).
+	set_transient( 'sn_zenodo_last_batch', $out + array( 'at' => time() ), DAY_IN_SECONDS );
 	return $out;
 }
 add_action( SN_ZENODO_PASS_HOOK, 'sn_zenodo_backfill_pass' );

@@ -230,7 +230,7 @@ function snt_analytics_render_exclusion() {
 		echo '<p class="sn-an-status">' . esc_html__( 'You are currently counted in analytics.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Your own visits are also dropped at the edge: the collector ignores any beacon that carries a logged-in WordPress cookie, so you are excluded even when the page was served from cache. The role list above adds per-role control on uncached requests: to extend that role filter to cached pages too, add a Cloudflare rule that bypasses cache when the request carries a wordpress_logged_in_ cookie.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Your own visits are also dropped at the edge: the collector ignores any beacon that carries a logged-in WordPress cookie, so you are excluded even when the page was served from cache. The role list adds per-role control on uncached requests: to extend that role filter to cached pages too, add a Cloudflare rule that bypasses cache when the request carries a wordpress_logged_in_ cookie.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<p><button type="submit" name="action" value="sn_analytics_exclude_save" class="button button-primary">' . esc_html__( 'Save exclusion', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
@@ -270,14 +270,14 @@ function snt_analytics_render_worker_setup() {
 	echo '<ol class="sn-an-steps">';
 	echo '<li><strong>' . esc_html__( 'Read token', 'signal-and-noise-tools' ) . '</strong> ';
 	/* translators: 1: the Cloudflare API-token permission scope, wrapped in <code>; 2: the Cloudflare dashboard URL pattern, wrapped in <code>. */
-	echo sprintf( esc_html__( '(for the fields above): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.', 'signal-and-noise-tools' ), '<code>Account · Analytics · Read</code>', '<code>dash.cloudflare.com/&lt;account_id&gt;</code>' ) . '</li>';
+	echo sprintf( esc_html__( '(set under Connections › Credentials): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.', 'signal-and-noise-tools' ), '<code>Account · Analytics · Read</code>', '<code>dash.cloudflare.com/&lt;account_id&gt;</code>' ) . '</li>';
 	echo '<li><strong>' . esc_html__( 'Deploy the edge Worker + its secrets', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( '(from the analytics-worker repo: this can’t be done from WordPress):', 'signal-and-noise-tools' ) . '<pre class="sn-an-pre">wrangler secret put SN_PX_TOKEN' . "\n" . 'wrangler secret put SN_PX_SALT_SEED' . "\n" . 'wrangler deploy</pre></li>';
 	echo '<li><strong>' . esc_html__( 'Theme beacon', 'signal-and-noise-tools' ) . '</strong>: ';
 	/* translators: 1: the beacon-token wp-config constant name, wrapped in <code>; 2: the wp-config file name, wrapped in <code>; 3: the worker’s token constant name, wrapped in <code>. */
 	echo sprintf( esc_html__( 'set %1$s in %2$s to the SAME value as the Worker’s %3$s so the front-end beacon is accepted.', 'signal-and-noise-tools' ), '<code>SN_BEACON_TOKEN</code>', '<code>wp-config.php</code>', '<code>SN_PX_TOKEN</code>' ) . '</li>';
 	echo '<li>';
 	/* translators: %s: the "Test connection" button label, wrapped in <strong>. */
-	echo sprintf( esc_html__( 'Hit %s above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.', 'signal-and-noise-tools' ), '<strong>' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</strong>' ) . '</li>';
+	echo sprintf( esc_html__( 'Press %s once the token and Account ID are set, to confirm the read side works. Pageview data appears within about 15 minutes.', 'signal-and-noise-tools' ), '<strong>' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</strong>' ) . '</li>';
 	echo '</ol></details>';
 }
 
@@ -336,7 +336,7 @@ function snt_analytics_pipeline_pills() {
 	$configured = function_exists( 'sn_analytics_config' ) && sn_analytics_config();
 	$pills[]    = $configured
 		? array( 'ok', __( 'Read credentials', 'signal-and-noise-tools' ), '' )
-		: array( 'warn', __( 'Read credentials missing', 'signal-and-noise-tools' ), __( 'The dashboard can’t read Analytics Engine: add the Cloudflare credentials below.', 'signal-and-noise-tools' ) );
+		: array( 'warn', __( 'Read credentials missing', 'signal-and-noise-tools' ), __( 'The dashboard can’t read Analytics Engine: set the Cloudflare API token and Account ID under Connections › Credentials.', 'signal-and-noise-tools' ) );
 
 	// 4. Server token — the */15 cron-refresh auth (fails CLOSED when unset,
 	// which today is completely invisible; this pill is that failure's only UI).
@@ -352,9 +352,9 @@ function snt_analytics_pipeline_pills() {
 	if ( '' !== $srv ) {
 		$pills[] = array( 'ok', __( 'Server token set', 'signal-and-noise-tools' ), '' );
 	} else {
-		$note = __( 'The */15 cron refresh is disabled (it fails closed). The analytics server token is not set: set it in Connections › Credentials (Analytics server token).', 'signal-and-noise-tools' );
+		$note = __( 'The 15-minute refresh is off: it does not run without the analytics server token. Set it under Connections › Credentials (Analytics server token).', 'signal-and-noise-tools' );
 		if ( '' === $rss_srv ) {
-			$note .= ' ' . __( 'RSS srv hits also lose their trusted class.', 'signal-and-noise-tools' );
+			$note .= ' ' . __( 'Feed requests the server reports are no longer marked as trusted either.', 'signal-and-noise-tools' );
 		}
 		$pills[] = array( 'warn', __( 'Server token missing', 'signal-and-noise-tools' ), $note );
 	}
@@ -370,7 +370,7 @@ function snt_analytics_pipeline_pills() {
 		: (string) get_option( 'sn_cf_zone_id', '' );
 	$pills[] = ( '' !== $zone )
 		? array( 'ok', __( 'Zone ID set', 'signal-and-noise-tools' ), '' )
-		: array( 'warn', __( 'Zone ID missing', 'signal-and-noise-tools' ), __( 'The Edge view stays dormant: configure the zone on Connections → Cloudflare.', 'signal-and-noise-tools' ) );
+		: array( 'warn', __( 'Zone ID missing', 'signal-and-noise-tools' ), __( 'The Edge view stays dormant: set the Zone ID under Connections › Credentials.', 'signal-and-noise-tools' ) );
 
 	return $pills;
 }
@@ -421,7 +421,7 @@ function snt_analytics_render_pipeline_status() {
 	echo '</div>';
 	foreach ( $pills as $p ) {
 		if ( 'warn' === $p[0] && '' !== $p[2] ) {
-			echo '<p class="sn-an-pipeline-warn">' . esc_html( $p[1] ) . ' — ' . esc_html( $p[2] ) . '</p>';
+			echo '<p class="sn-an-pipeline-warn">' . esc_html( $p[1] ) . ': ' . esc_html( $p[2] ) . '</p>';
 		}
 	}
 	echo '</div>';
@@ -466,7 +466,7 @@ function snt_analytics_render_engine_tuning() {
 
 	echo '<p><label for="sn_signal_baseline_days"><strong>' . esc_html__( 'Baseline window', 'signal-and-noise-tools' ) . '</strong></label><br>';
 	echo '<input type="number" id="sn_signal_baseline_days" name="sn_signal_baseline_days" value="' . esc_attr( (string) $baseline ) . '" min="14" max="90" step="1" class="small-text"> ' . esc_html__( 'days', 'signal-and-noise-tools' );
-	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'Days of history behind the anomaly baseline. 14–90; shorter reacts faster, longer is steadier.', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'Days of history behind the anomaly baseline. 14 to 90; shorter reacts faster, longer is steadier.', 'signal-and-noise-tools' ) . '</span></p>';
 
 	// T4-review a11y carry-over: the radios are a real <fieldset> with a <legend>
 	// (the exclusion card's grouping idiom), so screen readers announce the group.
@@ -526,18 +526,32 @@ function snt_analytics_render_funnels() {
 	// SN_ANALYTICS_FUNNELS_MAX, inc/analytics-sessions.php) so the copy can't
 	// drift from the parser again (T3 review: it shipped saying "2–10 steps"
 	// while the real step clamp was 8).
-	echo '<p class="sn-an-settings-help">' . esc_html( sprintf(
-		/* translators: 1: max steps per funnel, 2: max funnel count */
-		__( 'Named conversion paths for the Sessions view: one per line: "Name: /entry > /step > /goal" (2–%1$d steps, up to %2$d funnels). A bare path gets a leading slash added automatically.', 'signal-and-noise-tools' ),
-		SN_ANALYTICS_FUNNELS_MAX_STEPS,
-		SN_ANALYTICS_FUNNELS_MAX
-	) ) . '</p>';
+	$copy = snt_an_funnels_copy();
+	echo '<p class="sn-an-settings-help">' . esc_html( $copy['about'] ) . '</p>';
 	echo '<p><label for="sn_funnels" class="screen-reader-text">' . esc_html__( 'Session funnels, one per line', 'signal-and-noise-tools' ) . '</label>';
 	echo '<textarea id="sn_funnels" name="sn_funnels" rows="6" class="large-text code" placeholder="' . esc_attr__( 'Home flow: /entry > /step > /goal', 'signal-and-noise-tools' ) . '">' . esc_textarea( $text ) . '</textarea></p>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Saving any funnel here replaces the built-in defaults for the Sessions view: including their custom-event goals. Those defaults remain available via the sn_analytics_session_funnels filter, which always runs last and wins over whatever is saved here.', 'signal-and-noise-tools' ) . '</p>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Only exact-match path steps can be expressed here. Funnels this box can’t express (prefix matching, custom-event goals) are not shown above and are managed in code via the filter, which always wins last.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html( $copy['hint'] ) . '</p>';
 	echo '<p><button type="submit" name="action" value="sn_analytics_funnels_save" class="button button-primary">' . esc_html__( 'Save funnels', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
+}
+
+/**
+ * The Session funnels box's words, the same on both surfaces (2026-10-12
+ * audit: two paragraphs and a three-line hint, one sentence garbled by a
+ * colon swap; "not shown above" pointed at a box under it).
+ *
+ * @return array{about:string,hint:string}
+ */
+function snt_an_funnels_copy() {
+	return array(
+		'about' => __( 'Saving here replaces the Sessions view’s built-in funnels; funnels with prefix steps or custom-event goals live in code, through the sn_analytics_session_funnels filter, which always wins.', 'signal-and-noise-tools' ),
+		'hint'  => sprintf(
+			/* translators: 1: max steps per funnel; 2: max funnel count. */
+			__( 'One per line, as "Name: /entry > /step > /goal": 2 to %1$d steps, up to %2$d funnels. A bare path gets a leading slash.', 'signal-and-noise-tools' ),
+			defined( 'SN_ANALYTICS_FUNNELS_MAX_STEPS' ) ? (int) SN_ANALYTICS_FUNNELS_MAX_STEPS : 8,
+			defined( 'SN_ANALYTICS_FUNNELS_MAX' ) ? (int) SN_ANALYTICS_FUNNELS_MAX : 10
+		),
+	);
 }
 
 /**

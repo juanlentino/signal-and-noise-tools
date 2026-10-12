@@ -104,7 +104,7 @@ ok( strlen( serialize( $big ) ) * SNT_FEED_SUBS_DAYS < 4 * 1024 * 1024, 'ninety 
 // Three labelled numbers, never summed.
 $GLOBALS['fo_opts'][ SNT_FEED_SUBS_OPT ] = $y;
 $labels = array_column( snt_feed_reach_tiles(), 'label' );
-ok( array( 'Subscribers (reported by readers, a ceiling)', 'Opens (at least; many readers block images)', 'Clicks (visits from feed links)' ) === $labels, 'feed reach is three separately labelled numbers' );
+ok( array( 'Subscribers', 'Opens', 'Clicks' ) === $labels && array( 'reported by readers, a ceiling', 'at least; many readers block images', 'visits from feed links' ) === array_column( snt_feed_reach_tiles(), 'note' ), 'feed reach is three separately labelled numbers, each label one word and its qualifier a note (2026-10-12 audit: the caps label wrapped)' );
 
 // North star pin: subscribers are an input beside the star, never in it.
 $t  = time();

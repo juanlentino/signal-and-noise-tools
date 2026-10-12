@@ -92,13 +92,16 @@ function machine_readers_rights_evidence_retract_html() {
 	if ( ! $rows ) {
 		return '';
 	}
-	$out = '<h3>' . \snt_kit_esc( __( 'Retractions', 'signal-and-noise-tools' ) ) . '</h3><p class="snt-hint">' . \snt_kit_esc( \SN_RIGHTS_EVIDENCE_RETRACT_NOTE ) . '</p>';
+	// 2026-10-12 audit: real sub-headings and a facts list, not a bare <h3> and
+	// bold-paragraph labels.
+	$out = '<h4 class="snt-h">' . \snt_kit_esc( __( 'Retractions', 'signal-and-noise-tools' ) ) . '</h4><p class="snt-hint">' . \snt_kit_esc( \SN_RIGHTS_EVIDENCE_RETRACT_NOTE ) . '</p>';
 	foreach ( $rows as $r ) {
 		$label = gmdate( 'F Y', (int) strtotime( $r['month'] . '-01T00:00:00Z' ) ) . ', ' . $r['family'];
-		$out  .= '<p class="snt-prose"><strong>' . \snt_kit_esc( $label ) . '</strong>: <code>' . \snt_kit_esc( (string) $r['entry']['ledger_path'] ) . '</code></p>';
+		$facts = array( array( 'label' => __( 'Ledger path', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_code( (string) $r['entry']['ledger_path'], false ) ) );
 		foreach ( \SN_RIGHTS_EVIDENCE_RETRACT_LABELS as $key => $name ) {
-			$out .= '<p class="snt-prose"><strong>' . \snt_kit_esc( $name ) . ':</strong> ' . \snt_kit_esc( (string) $r['text'][ $key ] ) . '</p>';
+			$facts[] = array( 'label' => (string) $name, 'value' => (string) $r['text'][ $key ] );
 		}
+		$out .= '<h4 class="snt-h">' . \snt_kit_esc( $label ) . '</h4>' . \snt_kit_kv( $facts );
 		$out .= \snt_kit_form(
 			'rights_evidence_retract',
 			'',

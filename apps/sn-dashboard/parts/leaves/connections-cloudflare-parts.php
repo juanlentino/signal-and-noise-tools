@@ -43,11 +43,12 @@ function cloudflare_probe_row( array $row ) {
 	$path = '' !== $url ? (string) wp_parse_url( $url, PHP_URL_PATH ) : '';
 	if ( '' === $path ) {
 		// A manual zone purge names no single page; say which purge it was.
-		$path = '' !== (string) ( $row['source'] ?? '' ) ? (string) $row['source'] : '—';
+		// Unknown is never an em dash (2026-10-12 audit).
+		$path = '' !== (string) ( $row['source'] ?? '' ) ? (string) $row['source'] : __( 'not recorded', 'signal-and-noise-tools' );
 	}
 	return array(
 		/* translators: %s: how long ago */
-		'when'   => $time ? sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( $time, time() ) ) : '—',
+		'when'   => $time ? sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( $time, time() ) ) : __( 'not recorded', 'signal-and-noise-tools' ),
 		'result' => $label,
 		'page'   => $path,
 	);
@@ -124,7 +125,7 @@ function cloudflare_status_html( array $d ) {
 		$kind = ( 'all' === (string) ( $last['kind'] ?? '' ) )
 			? __( 'full zone', 'signal-and-noise-tools' )
 			/* translators: %d: URLs purged */
-			: sprintf( __( '%d URL(s)', 'signal-and-noise-tools' ), (int) ( $last['count'] ?? 0 ) );
+			: sprintf( _n( '%d URL', '%d URLs', (int) ( $last['count'] ?? 0 ), 'signal-and-noise-tools' ), (int) ( $last['count'] ?? 0 ) );
 		/* translators: 1: relative time element, 2: what was purged */
 		$when = sprintf( \snt_kit_esc( __( '%1$s (%2$s)', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $last['time'] ), \snt_kit_esc( $kind ) );
 	}
@@ -145,29 +146,25 @@ function cloudflare_status_html( array $d ) {
 }
 
 /**
- * The Cloudways leg as one facts row, when that module is configured: it
- * rides the same purge chain, so a failed leg is visible next to the rest.
+ * The Cloudways purge as one facts row, when that module is configured: it
+ * fires with the same post saves and theme updates, so a failed purge is
+ * visible next to the rest. The verdict is the Cloudways leaf's own
+ * (sn_admin_cloudways_leg(), 2026-10-12 audit: the two leaves called one
+ * record by different names).
  *
  * @param array<string,mixed>|null $cw SNT_CW_LAST_PURGE_OPT, or null when Cloudways is not configured.
  * @return array<string,mixed>|null
  */
 function cloudflare_cloudways_row( $cw ) {
-	if ( ! is_array( $cw ) ) {
+	if ( ! is_array( $cw ) || ! function_exists( 'sn_admin_cloudways_leg' ) ) {
 		return null;
 	}
-	$attempted = ! empty( $cw['time'] );
-	$warn      = $attempted && empty( $cw['ok'] );
-	$line      = \snt_kit_esc( __( 'Varnish leg of the same chain.', 'signal-and-noise-tools' ) );
-	if ( $attempted ) {
+	$leg  = \sn_admin_cloudways_leg( $cw );
+	$line = '' !== $leg['value'] ? \snt_kit_esc( $leg['value'] ) . '.' : '';
+	if ( $leg['time'] > 0 ) {
 		/* translators: %s: relative time element */
-		$line .= ' ' . sprintf( \snt_kit_esc( __( 'Last attempt: %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $cw['time'] ) );
-		if ( $warn ) {
-			$line .= ' HTTP ' . (int) ( $cw['http'] ?? 0 );
-			if ( '' !== trim( (string) ( $cw['error'] ?? '' ) ) ) {
-				$line .= ': ' . \snt_kit_esc( (string) $cw['error'] );
-			}
-		}
+		$line .= ' ' . sprintf( \snt_kit_esc( __( 'Last attempt: %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( $leg['time'] ) );
 	}
-	$pill = $warn ? __( 'Error', 'signal-and-noise-tools' ) : ( $attempted ? __( 'OK', 'signal-and-noise-tools' ) : __( 'Active', 'signal-and-noise-tools' ) );
-	return array( 'label' => __( 'Cloudways purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( $warn ? 'warn' : 'ok', $pill ) . ' ' . $line, 'tone' => $warn ? 'warn' : '' );
+	$line .= ' ' . str_replace( array( '<code>', '</code>' ), array( '<os-code>', '</os-code>' ), \wp_kses_post( $leg['meta'] ) );
+	return array( 'label' => __( 'Cloudways purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( $leg['kind'], $leg['text'] ) . ' ' . trim( $line ), 'tone' => 'ok' !== $leg['kind'] ? 'warn' : '' );
 }

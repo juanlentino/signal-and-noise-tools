@@ -95,7 +95,7 @@ function sn_admin_cloudways_outcome( $last ) {
 			'value' => 'Inconclusive',
 			'kind'  => 'warn',
 			'text'  => 'Unknown',
-			'meta'  => 'The request timed out or the connection failed, so we never heard back. That is NOT evidence the purge did not happen — a previous one was found still running afterwards. '
+			'meta'  => 'The request timed out or the connection failed, so we never heard back. That is NOT evidence the purge did not happen: a previous one was found still running afterwards. '
 				. ( '' !== $err ? '<br>' . esc_html( $err ) : '' ) . $suffix,
 		);
 	}
@@ -136,6 +136,27 @@ function sn_admin_cloudways_outcome( $last ) {
 }
 
 /**
+ * PURE: the Cloudways purge as one line of the Cloudflare leaf's Cache box,
+ * on both surfaces: the same verdict the Cloudways leaf's Result card gives
+ * (2026-10-12 audit: a timeout read "Error · HTTP 0" there and "Inconclusive"
+ * here, a re-authed success "OK" there and "Check credential" here, a purge
+ * that never ran "Active" there and "Never run" here).
+ *
+ * @param array|null $last Record from SNT_CW_LAST_PURGE_OPT, or null.
+ * @return array{kind:string,text:string,value:string,meta:string,time:int} The badge kind and text, the verdict when it says more than the badge ('' when not), the escaped meta line, the attempt time (0 when never).
+ */
+function sn_admin_cloudways_leg( $last ) {
+	$o = sn_admin_cloudways_outcome( $last );
+	return array(
+		'kind'  => $o['kind'],
+		'text'  => $o['text'],
+		'value' => $o['value'] !== $o['text'] ? $o['value'] : '',
+		'meta'  => $o['meta'],
+		'time'  => is_array( $last ) ? (int) ( $last['time'] ?? 0 ) : 0,
+	);
+}
+
+/**
  * PURE: the three glance cards.
  *
  * @param array $state {
@@ -161,7 +182,7 @@ function sn_admin_cloudways_cards( array $state ) {
 		foreach ( $missing as $m ) {
 			$names[] = '<code>' . esc_html( (string) $m ) . '</code>';
 		}
-		$conn_meta = 'Missing: ' . ( $names ? implode( ', ', $names ) : '—' )
+		$conn_meta = 'Missing: ' . ( $names ? implode( ', ', $names ) : 'none' )
 			. '. Add them to <code>wp-config.php</code>; the purge no-ops silently until all four are present.';
 	}
 
@@ -235,8 +256,8 @@ function sn_admin_cloudways_render() {
 	}
 
 	echo '<p class="sn-field-helper">';
-	echo 'Cloudways holds the origin cache (Breeze / Varnish). This leaf reports it; it never edits it. ';
-	echo 'Credentials live in <code>wp-config.php</code> only — an account-wide API key is deliberately kept out of the database.';
+	echo 'Cloudways holds the origin cache (Breeze / Varnish). This screen reports it and never changes it. ';
+	echo 'Credentials live in <code>wp-config.php</code> only: an account-wide API key is deliberately kept out of the database.';
 	echo '</p>';
 }
 

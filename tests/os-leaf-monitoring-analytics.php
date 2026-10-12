@@ -143,13 +143,17 @@ function an_live_previews() {
 	ok( true === sn_analytics_pipeline_complete(), 'live-shaped: the fixture really is a complete pipeline (every pill ok)' );
 	$kit = snt_leaf_paint( 'monitoring', 'analytics' );
 	ok( array() === snt_leaf_folds( $kit ) && false === strpos( $kit, 'heading="Cloudflare Worker setup"' ), 'live-shaped: no fold, and no setup steps on a complete pipeline' );
-	ok( false !== strpos( $kit, '<os-section heading="Credentials" description="Configured" stack>' ) && false === strpos( $kit, 'locked by' ) && false === strpos( $kit, 'override is in force' ) && false === strpos( $kit, 'No token anywhere' ) && false !== strpos( $kit, 'the Cloudflare API token</span>' ), 'live-shaped: credentials read as the live site has them: configured, read with the Cloudflare API token, no lock, no override' );
+	ok( false !== strpos( $kit, '<os-fact label="Reads with"><span class="snt-kv__v">the Cloudflare API token</span></os-fact>' ) && false === strpos( $kit, 'locked by' ) && false === strpos( $kit, 'override is in force' ) && false === strpos( $kit, 'No token anywhere' ), 'live-shaped: the reads read as the live site has them: the Cloudflare API token, no lock, no override' );
+	// 2026-10-12 audit: the colon swaps had garbled the salt sentences.
+	ok( false !== strpos( $kit, 'Today’s salt (2026-10-11) rotates at midnight (America/New_York). Yesterday’s salt (2026-10-10) expires ' ) && false === strpos( $kit, 'Today’s salt: ' ), 'live-shaped: the salt window reads as plain sentences' );
 	ok( false !== strpos( $kit, 'description="2 roles excluded"' ) && false !== strpos( $kit, 'description="45-day baseline · Relaxed: fewer flags (≈2.5σ)"' ) && false !== strpos( $kit, 'description="3 funnels"' ) && false !== strpos( $kit, 'description="Counts Notes, Provenance, Resume, About; a read is 50% scroll or 30 s on the page."' ), 'live-shaped: each section names its current state in one line' );
 	snt_leaf_preview( 'monitoring-analytics', $kit );
 	$GLOBALS['__configured'] = false;
 	$kit = snt_leaf_paint( 'monitoring', 'analytics' );
 	ok( array() === snt_leaf_folds( $kit ) && 1 === substr_count( $kit, 'heading="Cloudflare Worker setup"' ) && 4 === substr_count( $kit, '<os-step>' ), 'live-shaped setup: no fold; the four setup steps show, open, while the pipeline is incomplete' );
 	snt_leaf_preview( 'monitoring-analytics-setup', $kit );
+	// PR #2025 review: the classic page has no Pipeline box, so the step names the button alone, the same on both.
+	ok( false !== strpos( $kit, 'Press Test connection once the token and Account ID are set, to confirm the read side works.' ) && false === strpos( $kit, 'in Pipeline' ), 'the last setup step reads as the classic one: "Press Test connection once …", no box the classic page lacks' );
 }
 
 if ( getenv( 'SNT_AN_PREVIEW_CHILD' ) ) {
@@ -167,7 +171,30 @@ $classic = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
 $kit     = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( false !== strpos( $kit, snt_leaf_row( 2, 290, 24 ) ), 'the kit leaf arranges content into a two-up kit grid (#1622)' );
-ok( 2 === substr_count( $kit, '<os-stack gap="18">' ), 'the kit leaf has two os-stack columns' );
+// 2026-10-12 audit ("long rather than designed"): one Pipeline box at full
+// width, then rows of paired boxes; no two-column stacks.
+ok( 0 === substr_count( $kit, '<os-stack gap="18">' ), 'the kit leaf has no two-column stacks' );
+foreach ( array( 'Pipeline status', 'Edge worker', 'Identity salt window', 'Credentials' ) as $gone ) {
+	ok( false === strpos( $kit, 'heading="' . $gone . '"' ), "the $gone box is merged into Pipeline" );
+}
+ok( 1 === preg_match( '#<os-section heading="Pipeline" description="Beacon → worker → Analytics Engine → cron → edge\.[^"]*" stack><os-cluster gap="8">#', $kit ), 'Pipeline leads with the five pills' );
+ok( false !== strpos( $kit, '<os-fact label="Worker"><span class="snt-kv__v">sn-analytics v1.14.2</span></os-fact>' ) && false !== strpos( $kit, '<os-fact label="Identity salt">' ) && false !== strpos( $kit, '<os-fact label="Reads with">' ) && false !== strpos( $kit, '<os-fact label="Account ID">' ), 'one facts list: the Worker, the salt window, what the reads use' );
+// Re-check now repaints this leaf with a live probe; it was a door to the
+// classic page that opened wp-admin in another window.
+ok( false !== strpos( $kit, '<os-button variant="secondary" os-action="go" os-arg-sub="analytics" os-arg-sn_worker_recheck="1">Re-check now</os-button>' ) && false === strpos( $kit, 'sn_worker_recheck=1' ), 'Re-check now is a go back to this leaf, not a door to the classic page' );
+$an_state = static fn( array $v ) => new class( $v ) { private $v; public function __construct( array $v ) { $this->v = $v; } public function get( $k ) { return $this->v[ $k ] ?? null; } };
+ok( \SignalNoise\OpenStationHost\Dashboard\Leaves\analytics_recheck_requested( array( 'state' => $an_state( array( 'params' => array( 'sn_worker_recheck' => '1' ) ) ) ) ) && ! \SignalNoise\OpenStationHost\Dashboard\Leaves\analytics_recheck_requested( array( 'state' => $an_state( array() ) ) ), 'the leaf reads the re-check from its own params' );
+// PR #2025 review: the flag rode the leaf's state, so every later Refresh
+// probed live. It is taken on the paint that reads it.
+$an_live = new class( array( 'params' => array( 'sn_worker_recheck' => '1', 'other' => 'kept' ) ) ) {
+	private $v;
+	public function __construct( array $v ) { $this->v = $v; }
+	public function get( $k ) { return $this->v[ $k ] ?? null; }
+	public function set( $k, $x ) { $this->v[ $k ] = $x; return $this; }
+};
+$an_first  = \SignalNoise\OpenStationHost\Dashboard\Leaves\analytics_recheck_requested( array( 'state' => $an_live ) );
+$an_second = \SignalNoise\OpenStationHost\Dashboard\Leaves\analytics_recheck_requested( array( 'state' => $an_live ) );
+ok( $an_first && ! $an_second && array( 'other' => 'kept' ) === $an_live->get( 'params' ), 'the re-check runs on one paint; the next (a Refresh) reads the stored probe, and only the flag left the params' );
 
 // 17.4.4 (#1602): __configured is false here, so sn_analytics_pipeline_complete()
 // reads false (the read-credentials pill is not ok, the same seam
@@ -188,19 +215,20 @@ ok( false === strpos( $kit, '<ol' ), 'no browser ordered list survives on Analyt
 // ── 2026-10-11, owner rule: no folds. Each settings form is an open section
 // whose description is the one-line current state the fold's hint carried.
 ok( array() === snt_leaf_folds( $kit ), 'rich: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
-ok( false !== strpos( $kit, '<os-section heading="Credentials" description="Not configured" stack>' ), 'the Credentials state (was the fold hint) is the open section\'s description' );
+ok( false !== strpos( $kit, 'Read credentials missing</b> The dashboard can’t read Analytics Engine: set the Cloudflare API token and Account ID under Connections › Credentials.' ) && false === strpos( $kit, 'credentials below' ) && false === strpos( $classic, 'credentials below' ), 'the missing-credentials pill names the screen, not "below", on both surfaces' );
 ok( false !== strpos( $kit, '<os-section heading="Collector endpoint" description="This site (default)" stack>' ), 'the Collector endpoint state is the open section\'s description' );
 ok( false !== strpos( $kit, '<os-section heading="Exclude my own visits" description="Off" stack>' ), 'the exclusion state is the open section\'s description' );
 ok( false !== strpos( $kit, '<os-section heading="Engine tuning" description="30-day baseline · Standard: designed default (≈3.5σ)" stack>' ), 'the tuning state is the open section\'s description' );
 ok( false !== strpos( $kit, '<os-section heading="Session funnels" description="1 funnel" stack>' ), 'the funnels state is the open section\'s description' );
-// Open forms made the left column three times the right: the two definitions
-// (North star, Session funnels) moved to the right column, under the readings.
-$an_right = strpos( $kit, '<os-stack gap="18">', (int) strpos( $kit, '<os-stack gap="18">' ) + 1 );
-// 2026-10-12, measured live: the left column ran 3,094px against the right's
-// 2,059px. Exclusion and tuning leave it for a row of their own under both
-// columns, side by side (550px and 372px, within 1.5x).
-$an_pair = strpos( $kit, '</os-grid><os-grid' );
-ok( false !== $an_right && strpos( $kit, 'heading="Collector endpoint"' ) < $an_right && strpos( $kit, 'heading="Identity salt window"' ) > $an_right && strpos( $kit, 'heading="Session funnels"' ) > strpos( $kit, 'heading="Identity salt window"' ) && false !== $an_pair && strpos( $kit, 'heading="Exclude my own visits"' ) > $an_pair && strpos( $kit, 'heading="Engine tuning"' ) > strpos( $kit, 'heading="Exclude my own visits"' ), 'the left column ends with Collector endpoint; exclusion and tuning share a row under both columns' );
+$order = array( strpos( $kit, 'heading="Pipeline"' ), strpos( $kit, 'heading="Collector endpoint"' ), strpos( $kit, snt_leaf_row( 2, 290, 24 ) ), strpos( $kit, 'heading="Session funnels"' ), strpos( $kit, 'heading="Exclude my own visits"' ), strpos( $kit, 'heading="Engine tuning"' ), strpos( $kit, 'heading="Configured elsewhere"' ), strpos( $kit, 'heading="Cloudflare Worker setup"' ) );
+$sorted = $order;
+sort( $sorted );
+ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: Pipeline, Collector (with North star when loaded), then Funnels | Exclusion, Tuning | Configured elsewhere, then the setup steps: ' . implode( ' < ', array_map( 'strval', $order ) ) );
+ok( 2 === substr_count( $kit, snt_leaf_row( 2, 290, 24 ) ), 'two rows of paired boxes (the third pair waits for North star)' );
+// 2026-10-12 audit: garbled or positional sentences.
+ok( false !== strpos( $kit, 'Saving here replaces the Sessions view’s built-in funnels;' ) && false !== strpos( $classic, 'Saving here replaces the Sessions view’s built-in funnels;' ) && false === strpos( $kit, 'not shown above' ) && false === strpos( $classic, 'not shown above' ) && false === strpos( $kit, 'Sessions view: one per line' ), 'Session funnels says one sentence, the same on both surfaces' );
+ok( false === strpos( $kit, 'role list above' ) && false === strpos( $classic, 'role list above' ) && false === strpos( $kit, 'fields above' ) && false === strpos( $classic, 'fields above' ) && false === strpos( $kit, 'Test connection above' ) && false === strpos( $classic, 'Test connection</strong> above' ), 'no sentence points above at a box that moved, on either surface' );
+ok( false !== strpos( $kit, 'Developer filter seams</a>' ) && strpos( $kit, 'Developer filter seams' ) > strpos( $kit, 'heading="Engine tuning"' ) && strpos( $kit, 'Developer filter seams' ) < strpos( $kit, 'heading="Configured elsewhere"' ), 'the filter reference link sits inside Engine tuning' );
 // columns="auto": os-form goes two-up once the FORM is 480px wide and stays one
 // column below that (a forced "2" would squeeze two selects into a 290px column).
 ok( 2 === substr_count( $kit, 'columns="auto"' ) && 3 === substr_count( $kit, '<p class="snt-hint" full-width>' ), 'the two short-field forms (exclusion, tuning) go two-up when wide enough; their notes span the row' );
@@ -256,6 +284,7 @@ ok( false === strpos( $kit, 'name="sn_cf_account_id"' ) && false !== strpos( $ki
 ok( false !== strpos( $kit, 'zone-abc123' ), 'the Zone ID mirror shows the live zone' );
 ok( false !== strpos( $kit, 'sn-analytics' ) && false !== strpos( $kit, 'v1.14.2' ), 'the edge-worker card shows the live worker + version' );
 ok( false !== strpos( $kit, '2 salt keys at the edge' ), 'the salt-window card shows the live key count' );
+ok( false !== strpos( $kit, '2 salt keys at the edge. Checked 1 hour ago.</span>' ) && false !== strpos( $classic, 'Checked 1 hour ago.' ), 'PR #2025 review: the salt window keeps its own probe time on the Pipeline box, as the classic card prints it (the harness human_time_diff() reads "1 hour")' );
 ok( false !== strpos( $kit, 'Claude Sonnet 5' ) && false !== strpos( $kit, 'no monthly budget cap' ), 'the AI-model mirror shows the model and the no-budget note' );
 ok( false !== strpos( $kit, 'Home flow' ), 'the funnels textarea is prefilled from the current setting' );
 ok( false !== strpos( $kit, '<os-select name="sn_anomaly_sensitivity"' ), 'anomaly sensitivity is offered (mapped to a kit select, not a radio group)' );
@@ -297,6 +326,19 @@ ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'locked: kit acti
 ok( false !== strpos( $kit, 'locked by SN_CF_ACCOUNT_ID' ) && false !== strpos( $kit, 'the analytics token override' ), 'locked: the account source names its constant and the override reads as in force' );
 ok( normalize_exclude_names( snt_leaf_names( $classic ) ) === normalize_exclude_names( snt_leaf_names( $kit ) ), 'locked: kit field names still match the classic set (role list folded back to its shared name): ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 
+// ── 2026-10-12 audit: the classic box let an excluded user exclude this
+// device even when logged out; S&N Home had no such control.
+$GLOBALS['__device_flagged'] = false;
+if ( ! function_exists( 'sn_owner_device_flagged' ) ) { function sn_owner_device_flagged() { return $GLOBALS['__device_flagged']; } }
+$GLOBALS['__excluded_now'] = true;
+$dev = snt_leaf_paint( 'monitoring', 'analytics' );
+ok( false !== strpos( $dev, '<p class="snt-hint">This device is counted when logged out.</p>' ) && 1 === preg_match( '#<os-form[^>]*submit-label="Exclude this device"[^>]*>(?:(?!</os-form>).)*name="sn_owner_device" value="mark"(?:(?!</os-form>).)*value="sn_analytics_owner_device"#s', $dev ), 'excluded user: the device line and an Exclude this device form posting analytics_owner_device=mark' );
+$GLOBALS['__device_flagged'] = true;
+$dev = snt_leaf_paint( 'monitoring', 'analytics' );
+ok( false !== strpos( $dev, 'This device is excluded even when logged out.' ) && false !== strpos( $dev, 'submit-label="Count this device again"' ) && false !== strpos( $dev, 'name="sn_owner_device" value="forget"' ), 'a flagged device offers Count this device again (forget)' );
+$GLOBALS['__excluded_now'] = false;
+ok( false === strpos( snt_leaf_paint( 'monitoring', 'analytics' ), 'sn_owner_device' ), 'a counted user is offered no device control, as on the classic box' );
+
 // ── Worker unreachable: the warning branch, no Test-connection field noise.
 // Clear the last-good option first — otherwise the stale-fallback branch
 // (which a prior successful probe above just wrote) would mask this state.
@@ -305,7 +347,9 @@ $GLOBALS['__http_code'] = 500;
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( array() === snt_leaf_folds( $kit ), 'worker unreachable: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
 ok( false !== strpos( $kit, 'Worker version unknown.' ) && false !== strpos( $kit, 'tone="warning"' ), 'worker unreachable: the warning notice paints' );
-ok( false !== strpos( $kit, 'v1.4.0' ) && false !== strpos( $kit, 'hairpin' ), 'worker unreachable: the remedy sentence (version floor + hairpin workaround) prints' );
+ok( false !== strpos( $kit, 'v1.4.0' ) && false !== strpos( $kit, 'set the Collector endpoint on this screen to the Worker’s *.workers.dev URL' ) && false === strpos( $kit, 'Content → RSS' ) && false !== strpos( $kit, '<os-fact label="Worker"><span class="snt-kv__v" data-tone="warning">not read</span>' ), 'worker unreachable: the remedy sentence names this screen, not "Content → RSS"; the Worker row says not read' );
+$classic_down = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
+ok( false !== strpos( $classic_down, 'set the Collector endpoint on this screen to the Worker’s *.workers.dev URL' ) && false === strpos( $classic_down, 'Content &rarr; RSS' ), 'the classic page says the same sentence' );
 $GLOBALS['__http_code'] = 200;
 
 // ── AI budget > 0: the percent-used sentence AND the kit's own meter — the
@@ -341,7 +385,7 @@ $GLOBALS['__http_body'] = wp_json_encode(
 );
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( array() === snt_leaf_folds( $kit ), 'salt old-worker: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
-ok( false !== strpos( $kit, 'Worker predates the salt window readout (needs v1.14.0+).' ) && false === strpos( $kit, 'could not read the worker.' ), 'salt old-worker: the version-floor line prints, distinct from the unreachable copy' );
+ok( false !== strpos( $kit, 'Not read: the Worker predates the salt window readout (it needs v1.14.0+).' ) && false === strpos( $kit, 'did not answer' ), 'salt old-worker: the version-floor line prints, distinct from the unreachable copy' );
 
 // ── Salt window KV-FAILED: worker reachable, KV read failed at the edge —
 // also kept distinct from both old-worker and unreachable.
@@ -357,7 +401,7 @@ $GLOBALS['__http_body'] = wp_json_encode(
 );
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( array() === snt_leaf_folds( $kit ), 'salt kv-failed: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
-ok( false !== strpos( $kit, 'could not list its salt keys (KV read failed at the edge)' ) && false === strpos( $kit, 'could not read the worker.' ) && false === strpos( $kit, 'predates the salt window' ), 'salt kv-failed: its own copy prints, distinct from old-worker and unreachable' );
+ok( false !== strpos( $kit, 'Not read: the Worker answered, but it could not list its salt keys (a KV read failed at the edge).' ) && false === strpos( $kit, 'did not answer' ) && false === strpos( $kit, 'predates the salt window' ), 'salt kv-failed: its own copy prints, a sentence starting with a capital, distinct from old-worker and unreachable' );
 
 // ── 15.3.0: Edge, 7 days at the top, from the Cloudflare monitor's stored record; absent before it ran.
 ok( false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $classic, 'Edge, 7 days' ), 'no Edge section before the monitor ran, on either leaf' );
@@ -365,9 +409,59 @@ $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] = an_edge_record();
 $classic = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
 $kit     = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( array() === snt_leaf_folds( $kit ), 'edge record: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
-ok( false !== strpos( $kit, 'heading="Edge, 7 days"' ) && strpos( $kit, 'heading="Edge, 7 days"' ) > strpos( $kit, snt_leaf_row( 2, 290, 24 ) ) && strpos( $kit, 'heading="Edge, 7 days"' ) < strpos( $kit, 'heading="Credentials"' ) && false !== strpos( $kit, '166,684' ) && false !== strpos( $kit, '8.1%' ) && false !== strpos( $kit, '503 · answered by the origin' ) && false !== strpos( $kit, '4,314' ), '15.3.1: Edge, 7 days heads the left column, above the Credentials fold: the five figures and the 5xx split' );
+// 2026-10-12 audit: five tiles in a half column left one orphaned; the box
+// takes a full row of its own under Pipeline, its lists capped.
+ok( false !== strpos( $kit, 'heading="Edge, 7 days"' ) && strpos( $kit, 'heading="Edge, 7 days"' ) > strpos( $kit, 'heading="Pipeline"' ) && strpos( $kit, 'heading="Edge, 7 days"' ) < strpos( $kit, 'heading="Collector endpoint"' ) && false !== strpos( $kit, '166,684' ) && false !== strpos( $kit, '8.1%' ) && false !== strpos( $kit, '503 · answered by the origin' ) && false !== strpos( $kit, '4,314' ) && false !== strpos( $kit, '<h4 class="snt-h">5xx by status code</h4>' ), 'Edge, 7 days takes a full row under Pipeline: the five figures and the 5xx split' );
+ok( 1 === preg_match( '#heading="Edge, 7 days"[^>]*>(?:(?!</os-section>).)*?<os-grid min-item-width="160" gap="10" style="--snt-grid-items:5">#s', $kit ) && false === strpos( substr( $kit, (int) strpos( $kit, 'heading="Edge, 7 days"' ) - 200, 200 ), '<os-stack' ), 'the five figures share one grid in a full-width box, not a half column' );
 ok( false !== strpos( $classic, 'Edge, 7 days' ) && false !== strpos( $classic, '166,684' ) && false !== strpos( $classic, '<th scope="row">503</th><td>4,314</td>' ) && strpos( $classic, 'Edge, 7 days' ) > strpos( $classic, '<div class="sn-2up">' ) && strpos( $classic, 'Edge, 7 days' ) < strpos( $classic, 'Credentials' ), 'the classic hub paints the same card at the head of its left column' );
 ok( in_array( 'cf_monitor_refresh', snt_leaf_actions( $kit ), true ) && in_array( 'cf_monitor_refresh', snt_leaf_actions( $classic ), true ) && false === strpos( $kit, 'heading="Firewall, 24 hours"' ), 'the Edge section carries the monitor\'s Refresh on both leaves; no Firewall here' );
+// 2026-10-12 audit: the 5xx lists come from the edge rollup (UTC days through
+// today), not the zone total; they say their window, stop at five with
+// "+N more", and a failed errors query says "not read" instead of vanishing.
+$GLOBALS['__edge_errors'] = array( 'from' => '2026-10-05', 'to' => '2026-10-11', 'query' => array( 'at' => 1, 'day' => '2026-10-11', 'error' => '' ), 'total' => 40, 'sources' => array(), 'paths' => array() );
+for ( $i = 1; $i <= 7; $i++ ) {
+	$GLOBALS['__edge_errors']['sources'][] = array( 'label' => 'responder ' . $i, 'requests' => 10 - $i );
+	$GLOBALS['__edge_errors']['paths'][]   = array( 'value' => '/p' . $i, 'requests' => 10 - $i );
+}
+if ( ! function_exists( 'sn_edge_errors_reading' ) ) { function sn_edge_errors_reading( $days = 7 ) { return $GLOBALS['__edge_errors']; } }
+$kit = snt_leaf_paint( 'monitoring', 'analytics' );
+ok( false !== strpos( $kit, 'Who answered with the error and Which paths failed cover the UTC days October 5, 2026 to October 11, 2026, from the daily edge rollup; the five figures and 5xx by status code are the zone’s own seven days to its last read.' ) && false === strpos( $kit, 'These lists cover' ) && false !== strpos( $kit, '<h4 class="snt-h">Who answered with the error</h4>' ) && false !== strpos( $kit, '<h4 class="snt-h">Which paths failed</h4>' ), 'PR #2025 review: the window sentence names the two rollup lists; the status codes come from the zone record, with the five figures' );
+ok( false !== strpos( $kit, 'responder 5' ) && false === strpos( $kit, 'responder 6' ) && false !== strpos( $kit, '/p5' ) && false === strpos( $kit, '/p6' ) && 2 === substr_count( $kit, '+2 more; the list is capped, not complete.' ), 'each list stops at five with "+2 more"' );
+ok( false !== strpos( $kit, snt_leaf_row( 3, 240, 18 ) . '<div class="snt-edge-list"><h4 class="snt-h">5xx by status code</h4>' ) && strpos( $kit, '<h4 class="snt-h">Which paths failed</h4>' ) < strpos( $kit, 'Which paths failed cover the UTC days' ), 'the status codes, who answered and which paths share one row, the window under them' );
+snt_leaf_preview( 'monitoring-analytics-edge', $kit );
+// Live check (2026-10-12): the counts in Who answered clipped at a 1,300px
+// window ("3…"); the label ellipsizes, the count never does.
+$an_css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+ok( 1 === preg_match( '/\.snt-edge-list \.snt-list__value\s*\{[^}]*flex:\s*none;[^}]*max-width:\s*none;/', $an_css ), 'an Edge list count takes its own width (flex none, no 60% cap); only the label ellipsizes' );
+ok( 1 === preg_match( '/\.snt-edge-list \.snt-list__label\s*\{[^}]*white-space:\s*normal;/', $an_css ), 'a responder label wraps instead of ellipsizing (241 against 237px at 640)' );
+// Re-measure (2026-10-12): every Who answered label was cut ("(us…") and two
+// pairs carried the same words. Rows that read the same are one row (their
+// counts summed); the parentheticals are a one-line legend under the list.
+if ( file_exists( SNT_PATH . 'inc/edge-error-labels.php' ) ) { require_once SNT_PATH . 'inc/edge-error-labels.php'; }
+$an_sources_before = $GLOBALS['__edge_errors']['sources'];
+$GLOBALS['__edge_errors']['sources'] = array(
+	array( 'value' => 'src=edgeWorkerFetch edge=503 origin=503 cache=miss', 'label' => 'x', 'requests' => 38 ),
+	array( 'value' => 'edge=503 origin=- cache=miss', 'label' => 'x', 'requests' => 25 ),
+	array( 'value' => 'edge=503 origin=- cache=dynamic', 'label' => 'x', 'requests' => 16 ),
+	array( 'value' => 'src=edgeWorkerFetch edge=503 origin=503 cache=dynamic', 'label' => 'x', 'requests' => 15 ),
+	array( 'value' => 'src=eyeball edge=520 origin=- cache=dynamic', 'label' => 'x', 'requests' => 9 ),
+);
+$kit = snt_leaf_paint( 'monitoring', 'analytics' );
+preg_match( '#<h4 class="snt-h">Who answered with the error</h4>(.*?)</div>#s', $kit, $an_who );
+$an_who = $an_who[1] ?? '';
+ok( 3 === substr_count( $an_who, 'class="snt-list__row"' ) && false !== strpos( $an_who, '503 from the origin, through a Worker' ) && false !== strpos( $an_who, '503 from Cloudflare itself' ) && false !== strpos( $an_who, '520 from Cloudflare itself, asked by a visitor' ) && false === strpos( $an_who, '(' ), 'rows that read the same are one row; no label carries a parenthetical' );
+ok( 1 === preg_match( '#503 from the origin, through a Worker</span><span class="snt-list__value"[^>]*>53<#', $an_who ) && 1 === preg_match( '#503 from Cloudflare itself</span><span class="snt-list__value"[^>]*>41<#', $an_who ) && strpos( $an_who, '>53<' ) < strpos( $an_who, '>41<' ), 'merged rows sum their counts (38 + 15, 25 + 16), largest first' );
+ok( false !== strpos( $an_who, '<p class="snt-hint">From Cloudflare itself: the origin never answered. Through a Worker: usually a visitor’s request it forwarded.</p>' ), 'the parentheticals are one legend line under the list' );
+snt_leaf_preview( 'monitoring-analytics-edge-merged', $kit );
+$GLOBALS['__edge_errors']['sources'] = $an_sources_before;
+$GLOBALS['__edge_errors']['query']['error'] = 'GraphQL: rate limited';
+$kit = snt_leaf_paint( 'monitoring', 'analytics' );
+ok( false !== strpos( $kit, 'Who answered and which paths for October 11, 2026 were not read: GraphQL: rate limited. The lists hold the days that were read.' ) && false !== strpos( $kit, 'responder 1' ) && false !== strpos( $kit, '/p1' ), 'PR #2025 review: a failed errors query names the day it missed and still paints the six days that were read' );
+// Re-review nit: with no 5xx stored, no list paints, so the notice does not
+// point at lists that are not there.
+$GLOBALS['__edge_errors'] = array_merge( $GLOBALS['__edge_errors'], array( 'total' => 0, 'sources' => array(), 'paths' => array() ) );
+$kit = snt_leaf_paint( 'monitoring', 'analytics' );
+ok( false !== strpos( $kit, 'Who answered and which paths for October 11, 2026 were not read: GraphQL: rate limited.' ) && false === strpos( $kit, 'The lists hold' ) && false === strpos( $kit, 'Which paths failed</h4>' ), 'a failed errors query over an empty rollup names the missed day and says nothing about lists that do not paint' );
 unset( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] );
 
 // ── The North star form (inc/north-star-settings.php) paints on this leaf only
@@ -378,7 +472,8 @@ $GLOBALS['__settings']['north_star'] = array( 'sections' => array( 'notes', 'pro
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( array() === snt_leaf_folds( $kit ), 'north star: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
 ok( false !== strpos( $kit, '<os-section heading="North star" description="Counts Notes, Provenance; a read is 60% scroll or 45 s on the page." stack>' ), 'north star: an open section whose description is the current definition (was the "60% or 45 s" fold hint)' );
-ok( strpos( $kit, 'heading="North star"' ) > strpos( $kit, 'heading="Identity salt window"' ) && strpos( $kit, 'heading="North star"' ) < strpos( $kit, 'heading="Session funnels"' ), 'north star: in the right column, above Session funnels, the two definitions together' );
+ok( false !== strpos( $kit, 'heading="North star"' ) && strpos( $kit, 'heading="North star"' ) > strpos( $kit, 'heading="Collector endpoint"' ) && strpos( $kit, 'heading="North star"' ) < strpos( $kit, 'heading="Session funnels"' ) && 3 === substr_count( $kit, snt_leaf_row( 2, 290, 24 ) ), 'north star: beside Collector endpoint, the first of three paired rows' );
+ok( false === strpos( $kit, 'groups below' ) && false !== strpos( $kit, 'in the groups this box lists' ), 'north star: no position word' );
 ok( in_array( 'north_star_save', snt_leaf_actions( $kit ), true ) && array() === array_diff( array( 'sn_nsm_sections[0]', 'sn_nsm_sections[3]', 'sn_nsm_scroll', 'sn_nsm_dwell_s' ), snt_leaf_names( $kit ) ) && 3 === substr_count( $kit, 'columns="auto"' ), 'north star: the form keeps its action and fields, two-up when wide enough' );
 
 // ── Live-shaped previews, in a child run of this file (SNT_AN_PREVIEW_CHILD):

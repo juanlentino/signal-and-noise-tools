@@ -11,9 +11,8 @@
  * same handlers; the kit's parts (connections-music-parts.php) instead of wp-admin's.
  *
  * 17.4.1 (#1573): the classic's two columns paired the 906px form beside the
- * 349px rail, leaving the rail's column a hole. Now the intro and the sync
- * notice sit on top, the two short boxes (Status, Sync now) share one row,
- * and the form stands alone under them.
+ * 349px rail, leaving the rail's column a hole. 2026-10-12: two rows of
+ * paired boxes (see paint_connections_music()).
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -69,60 +68,24 @@ function music_hidden() {
 }
 
 /**
- * The status box: which of the classic's four states the sync is in.
+ * The status notice: which of the four states the sync is in, in the words
+ * the classic page says (sn_music_status_copy()).
  *
  * @param array<string,mixed> $s From music_state().
  * @return string
  */
 function music_status_html( array $s ) {
-	$count = (int) $s['count'];
-	if ( $count > 0 && '' === $s['last_error'] ) {
-		$kind  = 'ok';
-		$title = __( 'Synced', 'signal-and-noise-tools' );
-		$pill  = __( 'Synced', 'signal-and-noise-tools' );
-		/* translators: %d: cached releases */
-		$body = sprintf( __( '%d release(s) cached. The /music timeline + MusicAlbum schema are live.', 'signal-and-noise-tools' ), $count );
-	} elseif ( $count > 0 ) {
-		$kind  = 'warn';
-		$title = __( 'Showing last-good data', 'signal-and-noise-tools' );
-		$pill  = __( 'Stale', 'signal-and-noise-tools' );
-		/* translators: %d: cached releases */
-		$body = sprintf( __( '%d release(s) still cached, but the last sync failed. The page never blanks: check the error and re-sync from the Sync status row below.', 'signal-and-noise-tools' ), $count );
-	} elseif ( '' !== $s['last_error'] ) {
-		$kind  = 'err';
-		$title = __( 'Sync failed — no data yet', 'signal-and-noise-tools' );
-		$pill  = __( 'Failed', 'signal-and-noise-tools' );
-		$body  = __( 'The first sync hasn’t succeeded. The /music page falls back to its static content.', 'signal-and-noise-tools' );
-	} else {
-		$kind  = 'warn';
-		$title = __( 'Not yet synced', 'signal-and-noise-tools' );
-		$pill  = __( 'Pending', 'signal-and-noise-tools' );
-		$body  = __( 'Hit “Sync now” in the Sync status row below to populate the discography. The daily cron will keep it fresh after that.', 'signal-and-noise-tools' );
-	}
-	return \snt_kit_notice( $kind, '<b>' . \snt_kit_esc( $title ) . '</b> ' . \snt_kit_badge( $kind, $pill ) . '<br>' . \snt_kit_esc( $body ) );
+	$c = \sn_music_status_copy( (int) $s['count'], (string) $s['last_error'] );
+	return \snt_kit_notice( $c['kind'], '<b>' . \snt_kit_esc( $c['title'] ) . '</b> ' . \snt_kit_badge( $c['kind'], $c['pill'] ) . '<br>' . \snt_kit_esc( $c['body'] ) );
 }
 
 /**
- * The credentials form: the three fieldsets as sections inside ONE form
- * posting `music_save` through the shared handler table, the submit labelled
- * as the classic button is.
- *
- * @param array<string,mixed> $s From music_state().
- * @return string
- */
-function music_form_html( array $s ) {
-	return \snt_kit_form(
-		'music_save',
-		music_spotify_section( $s ) . music_muso_section( $s ) . music_featured_section( $s ),
-		array( 'submit' => __( 'Save settings', 'signal-and-noise-tools' ), 'hidden' => music_hidden() )
-	);
-}
-
-/**
- * The leaf: the intro, the sync notice, then the Status row (the Status facts
- * beside Sync now, both short, the rail's landmark name kept on the row), then
- * the form alone under them, at os-form's own 760px measure. The notice points
- * at "the Sync status row below", where the row now is.
+ * The leaf (2026-10-12 audit: the settings form stood alone at its 760px
+ * measure beside 540px of nothing, and Sync now was an empty box holding one
+ * button). Two rows of paired boxes of comparable height, measured: Status
+ * (with Sync now at its foot, 281px) beside the Featured release (217px);
+ * then the two sources, the Muso.AI profile (198px) beside the read-only
+ * Spotify facts (147px). Each form saves only its own field.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -135,8 +98,8 @@ function paint_connections_music( array $ctx ) {
 	$s = music_state();
 	return music_intro_html()
 		. music_status_html( $s )
-		. \snt_kit_grid( array( music_rail_status_html( $s ), music_sync_html() ), 290, 18, array( 'role' => 'complementary', 'aria-label' => __( 'Sync status', 'signal-and-noise-tools' ) ) )
-		. music_form_html( $s );
+		. \snt_kit_grid( array( music_rail_status_html( $s ), music_featured_section( $s ) ), 290, 18 )
+		. \snt_kit_grid( array( music_muso_section( $s ), music_spotify_section( $s ) ) );
 }
 
 add_filter(

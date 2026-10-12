@@ -407,7 +407,8 @@ function snt_desktop_credentials_shape( $keyring, $cf, $now ) {
 		$t      = $cf['token'];
 		$status = empty( $t['verified'] ) ? (string) ( $t['status'] ?? 'unverified' ) : (string) ( $t['status'] ?? '' );
 		$exp    = '' !== (string) ( $t['expires_on'] ?? '' ) ? (int) strtotime( (string) $t['expires_on'] ) : 0;
-		if ( 'active' !== $status || ( $exp > 0 && $exp < (int) $now + 14 * DAY_IN_SECONDS ) ) {
+		// "changed": saved after the last reading and not verified yet; no reading, not a fault.
+		if ( 'changed' !== $status && ( 'active' !== $status || ( $exp > 0 && $exp < (int) $now + 14 * DAY_IN_SECONDS ) ) ) {
 			$token = array( 'status' => $status, 'expires' => $exp > 0 ? gmdate( 'M j', $exp ) : '' );
 		}
 	}

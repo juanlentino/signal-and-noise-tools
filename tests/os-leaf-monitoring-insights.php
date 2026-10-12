@@ -101,13 +101,26 @@ $classic = snt_leaf_classic_html( 'snt_insights_render_admin_tab' );
 $kit     = snt_leaf_paint( 'monitoring', 'insights' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'force', snt_leaf_names( $kit ), true ), 'empty-recs state: field names match, force included: ' . names_line( $classic, $kit ) );
 ok( false !== strpos( $kit, 'No angle worth a note right now' ), 'empty-recs state: the "no angle" card is painted' );
-ok( false !== strpos( $kit, 'All caught up' ) && false !== strpos( $kit, 'tone="warning"' ), 'empty-recs state: the status box reads all caught up' );
+ok( false !== strpos( $kit, '<os-badge tone="info">All caught up</os-badge>' ) && false !== strpos( $kit, '0 questions: 0 open, 0 done, 0 dismissed, 0 snoozed.' ), 'empty-recs state: the status box reads all caught up, as information, not a warning (2026-10-12 audit)' );
+ok( false !== strpos( $classic, '0 questions: 0 open, 0 done, 0 dismissed, 0 snoozed.' ) && false !== strpos( $classic, '<span class="sn-pill sn-pill--info">All caught up</span>' ), 'empty-recs state: the classic box says the same, in the info tone the native badge uses (PR #2025 review)' );
+ok( 1 === preg_match( '/\.sn-pill--info\s*\{[^}]*background:\s*rgba\(34,113,177,0\.10\)/', (string) file_get_contents( SNT_PATH . 'assets/admin.css' ) ) && 1 === preg_match( '/\.sn-pill--info::before\s*\{[^}]*var\(--sn-link\)/', (string) file_get_contents( SNT_PATH . 'assets/admin.css' ) ), 'the classic stylesheet defines the info pill, so the tone is painted, not an unstyled class' );
+ok( false === strpos( $kit, 'Plausible' ) && false === strpos( $classic, 'Plausible' ) && false !== strpos( $kit, 'reads your first-party analytics' ), 'the intro names first-party analytics, on both surfaces' );
 
 // ── State 4: recommendations exist, but every one is dismissed. ──
 $GLOBALS['__transient']['recommendations'] = array( array( 'id' => 'r1', 'question' => 'Q1?' ) );
 $GLOBALS['__state']['dismissed_ids']       = array( 'r1' );
 $kit = snt_leaf_paint( 'monitoring', 'insights' );
 ok( false !== strpos( $kit, 'No active questions' ), 'all-dismissed state: the "no active questions" card is painted' );
+// 2026-10-12 audit: the counts were lifetime lists across every scan, done
+// cards counted as active, snoozed uncounted.
+$GLOBALS['__transient']['recommendations'] = array( array( 'id' => 'r1', 'question' => 'Q1?' ), array( 'id' => 'r2', 'question' => 'Q2?' ), array( 'id' => 'r3', 'question' => 'Q3?' ), array( 'id' => 'r4', 'question' => 'Q4?' ) );
+$GLOBALS['__state'] = array( 'dismissed_ids' => array( 'r1', 'old-a', 'old-b', 'old-c' ), 'snoozed_until' => array( 'r2' => time() + 86400 ), 'done_ids' => array( 'r3', 'r4', 'old-d' ) );
+$kit     = snt_leaf_paint( 'monitoring', 'insights' );
+$classic = snt_leaf_classic_html( 'snt_insights_render_admin_tab' );
+ok( false !== strpos( $kit, '4 questions: 0 open, 2 done, 1 dismissed, 1 snoozed.' ) && false !== strpos( $classic, '4 questions: 0 open, 2 done, 1 dismissed, 1 snoozed.' ) && false !== strpos( $kit, '<os-badge tone="info">All caught up</os-badge>' ) && false === strpos( $kit, 'Recommendations ready' ), 'the counts describe the last scan only, done is not open, snoozed is counted; every card handled reads all caught up, on both surfaces' );
+$GLOBALS['__state'] = array( 'dismissed_ids' => array( 'r1' ), 'snoozed_until' => array(), 'done_ids' => array() );
+$GLOBALS['__transient']['recommendations'] = array( array( 'id' => 'r1', 'question' => 'Q1?' ) );
+$kit = snt_leaf_paint( 'monitoring', 'insights' );
 ok( array( 'insights_run', 'save_insights_settings' ) === snt_leaf_actions( $kit ), 'all-dismissed state: no per-recommendation action is offered' );
 $GLOBALS['__state']['dismissed_ids'] = array();
 
@@ -166,6 +179,10 @@ $kit = snt_leaf_paint( 'monitoring', 'insights' );
 ok( false !== strpos( $kit, '34,567' ) && false !== strpos( $kit, '$1.23' ), 'usage section: the 30-day totals are printed with the real numbers' );
 ok( false !== strpos( $kit, '12 calls' ), 'usage section: the 30-day call count carries its unit label' );
 ok( false !== strpos( $kit, '$5.00' ) && false !== strpos( $kit, '50%' ), 'usage section: the monthly budget percentage is computed and shown' );
+$GLOBALS['__spend'] = 13.0;
+$over = snt_leaf_paint( 'monitoring', 'insights' );
+ok( false !== strpos( $over, '(130%): limit reached; AI features are paused until next month.' ), 'over budget: the real share (130%), as Analytics prints it, not a 100% cap (2026-10-12 audit)' );
+$GLOBALS['__spend'] = 5.0;
 ok( false !== strpos( $kit, 'insights' ), 'usage section: the by-feature table row is present' );
 ok( false !== strpos( $kit, 'no list price on file' ), 'usage section: the unpriced-calls footnote appears when cost_unpriced_calls > 0' );
 ok( false !== strpos( $kit, 'AI Request Logs' ) && substr_count( $kit, 'ai-wp-admin' ) >= 2, 'usage section: both Settings -> AI links survive (intro + list-price footnote)' );
@@ -183,12 +200,17 @@ $GLOBALS['__cache'] = array(
 	'models'  => array( array( 'model' => 'claude-x', 'calls' => 40, 'repeatable' => 2, 'max_prefix_bytes' => 9000, 'max_prefix_tokens' => 2000, 'floor' => 1024, 'may_clear_floor' => true, 'samples' => array() ) ),
 );
 $kit = snt_leaf_paint( 'monitoring', 'insights' );
-ok( false !== strpos( $kit, 'Caching would pay' ) && false !== strpos( $kit, 'tone="danger"' ), 'cache probe: the candidate state paints its title with a danger tone' );
+ok( 1 === preg_match( '#<os-notice tone="info"[^>]*><b>Caching would pay</b>#', $kit ) && false === strpos( $kit, 'tone="danger"' ), 'cache probe: the candidate state is an opportunity, painted as information, not danger red (2026-10-12 audit)' );
 ok( false !== strpos( $kit, 'claude-x' ) && false !== strpos( $kit, 'clears the floor' ), 'cache probe: the per-model row is printed' );
 ok( false === strpos( $kit, '&lt;os-' ) && false === strpos( $kit, '&lt;code' ), 'no component markup is smuggled into table cell data' );
 ok( false !== strpos( $kit, '2,000 tokens' ), 'cache probe: the per-model largest-prefix reading keeps its token figure alongside the byte count' );
 ok( false !== strpos( $kit, 'ai-provider-for-anthropic' ), 'cache probe: the upstream tracking-issue link survives' );
 ok( false !== strpos( $kit, 'Zero here means' ), 'cache probe: the cache-token footnote keeps its closing sentence' );
+// PR #2025 review: the minor models' sample times, in the site's format on both surfaces (the classic printed Y-m-d H:i:s T).
+$GLOBALS['__cache']['models'][] = array( 'model' => 'claude-y', 'calls' => 2, 'repeatable' => 0, 'max_prefix_bytes' => 100, 'max_prefix_tokens' => 20, 'floor' => 1024, 'may_clear_floor' => false, 'samples' => array( array( 'ts' => 1789500000, 'tools_count' => 1, 'sys_bytes' => 10, 'msg_count' => 2 ) ) );
+$kit     = snt_leaf_paint( 'monitoring', 'insights' );
+$classic = snt_leaf_classic_html( 'snt_insights_render_cache_probe_section' );
+ok( false !== strpos( $kit, gmdate( 'F j, Y g:i a', 1789500000 ) ) && false !== strpos( $classic, gmdate( 'F j, Y g:i a', 1789500000 ) ) && false === strpos( $classic, gmdate( 'Y-m-d H:i:s', 1789500000 ) ), 'a minor model\'s sample time prints in the site\'s date and time format on both surfaces' );
 $GLOBALS['__cache'] = array( 'state' => 'no_data', 'summary' => array(), 'best' => array(), 'models' => array() );
 $kit = snt_leaf_paint( 'monitoring', 'insights' );
 ok( false !== strpos( $kit, 'Nothing measured yet' ), 'cache probe: no_data state is painted when nothing has run' );

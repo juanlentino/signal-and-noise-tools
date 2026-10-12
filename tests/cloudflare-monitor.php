@@ -12,6 +12,7 @@ function __( $s, $d = null ) { return $s; }
 function add_action( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $h ] = $cb; }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opt'] ) ? $GLOBALS['__opt'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['__opt'][ $k ] = $v; return true; }
+function delete_option( $k ) { unset( $GLOBALS['__opt'][ $k ] ); return true; }
 function sn_cf_is_configured() { return ! empty( $GLOBALS['__configured'] ); }
 function sn_cf_get_token() { return 'tok'; }
 function sn_cf_get_zone() { return 'zone123'; }
@@ -181,6 +182,35 @@ ok( 'daily' === $GLOBALS['__scheduled'][1] && SN_CF_MONITOR_HOOK === $GLOBALS['_
 $GLOBALS['__configured'] = false; $GLOBALS['__calls'] = array();
 $r = sn_cf_monitor_refresh();
 ok( false === $r['configured'] && array() === $GLOBALS['__calls'], 'unconfigured: no request leaves the box, the record says so' );
+
+// ── PR #2025 review: a saved token is read, not painted as a failure. The
+// keyring's flush verifies the new token (one GET, no side effects) and stores
+// the real answer; only an unreachable verify leaves "changed", which no
+// reader counts as a fault.
+$GLOBALS['__configured'] = true; $GLOBALS['__acct'] = '';
+$stored = array( 'fetched_at' => $now, 'configured' => true, 'token' => array( 'verified' => true, 'status' => 'expired', 'expires_on' => '', 'not_before' => '', 'error' => '' ), 'zone' => array( 'available' => true ), 'firewall' => null );
+$GLOBALS['__opt'][ SN_CF_MONITOR_OPT ] = $stored;
+$GLOBALS['__http'] = array( SN_CF_API_BASE . '/user/tokens/verify' => $j( 200, array( 'success' => true, 'result' => array( 'status' => 'active', 'expires_on' => '' ) ) ) );
+$GLOBALS['__calls'] = array();
+sn_cf_monitor_forget_token();
+$after = sn_cf_monitor_read();
+ok( true === $after['token']['verified'] && 'active' === $after['token']['status'] && array( 'available' => true ) === $after['zone'] && 1 === count( $GLOBALS['__calls'] ) && 'GET' === $GLOBALS['__calls'][0][0], 'a saved token is verified on the spot (one GET): the record holds the new token\'s real status, the zone reading stays' );
+ok( 'token active' === sn_cf_monitor_api_row( $after, array(), $now )['value'], 'so the API row reads it as active, not as a failing token' );
+$GLOBALS['__opt'][ SN_CF_MONITOR_OPT ] = $stored;
+$GLOBALS['__http'] = array( SN_CF_API_BASE . '/user/tokens/verify' => new WP_Error( 'http', 'cURL error 28' ) );
+sn_cf_monitor_forget_token();
+$after = sn_cf_monitor_read();
+ok( 'changed' === $after['token']['status'] && 'cURL error 28' === $after['token']['error'], 'when the verify cannot reach Cloudflare, the token reads "changed" with the reason, never the old status' );
+$row = sn_cf_monitor_api_row( $after, array(), $now );
+ok( 'unknown' === $row['dot'] && 'token not read yet' === $row['value'], 'a changed token is no reading on the API row (unknown dot), not a red failure' );
+$GLOBALS['__opt'][ SN_CF_MONITOR_OPT ] = $stored;
+$GLOBALS['__configured'] = false; $GLOBALS['__calls'] = array();
+sn_cf_monitor_forget_token();
+ok( false === sn_cf_monitor_read()['configured'] && array() === $GLOBALS['__calls'], 'a cleared token: the record says not configured, and nothing is asked' );
+$GLOBALS['__opt'][ SN_CF_MONITOR_OPT ] = array( 'fetched_at' => $now, 'configured' => false, 'token' => null, 'zone' => null, 'firewall' => null );
+$GLOBALS['__configured'] = true;
+sn_cf_monitor_forget_token();
+ok( null === sn_cf_monitor_read(), 'a first token on a record that said "not configured": the record goes, so the screens say the monitor has not run (and Refresh is live)' );
 
 // ── The kit list's CSS keeps the label alive under a long value (14.9.1).
 $css = preg_replace( '~/\*.*?\*/~s', '', (string) file_get_contents( dirname( __DIR__ ) . '/assets/os-app.css' ) );

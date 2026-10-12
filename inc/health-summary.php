@@ -389,7 +389,7 @@ function sn_health_passed_meta( $scan ) {
 	if ( ! $parts ) {
 		return '';
 	}
-	return implode( ' · ', $parts ) . ' — not counted as passed';
+	return implode( ' · ', $parts ) . ': not counted as passed';
 }
 
 /**

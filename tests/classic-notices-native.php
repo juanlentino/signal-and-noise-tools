@@ -73,6 +73,7 @@ function wp_die( $m = '' ) { throw new RuntimeException( 'wp_die: ' . $m ); }
 function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['__meta'][ $id ][ $key ] ?? ''; }
 function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . ltrim( $p, '/' ); }
 function get_option( $k, $d = false ) { return $d; }
+if ( ! function_exists( 'wp_date' ) ) { function wp_date( $format, $timestamp = null, $timezone = null ) { return gmdate( $format, null === $timestamp ? time() : (int) $timestamp ); } } // 2026-10-12: times print in the site's format
 function sn_admin_flash_to_notice( $key ) { return 'purged' === $key ? array( 'success', 'Purged. <a href="https://example.test/log">See the log</a>.' ) : null; }
 
 require_once __DIR__ . '/lib/wp-admin-notice-stub.php';
@@ -185,7 +186,8 @@ ok( 'warning' === ( $args['type'] ?? '' ) && array( 'inline', 'sn-rss-not-instal
 echo "\nGroup: notice-alt inline readouts that return a string (inc/machine-readers-render.php)\n";
 $GLOBALS['__markup_seen'] = array();
 $html = snt_mr_render_edge_readout( array( 'version' => '1.21.0', 'deployed_at' => '2026-09-01T10:00:00Z', 'fetched_at' => time() - 300 ) );
-ok( 0 === strpos( $html, '<div class="notice notice-info notice-alt inline"><p><strong>Worker</strong> <code>sn-rights-signals</code> <code>v1.21.0</code></p>' ), 'the edge readout opens as the classic literal did: ' . substr( $html, 0, 120 ) );
+// 2026-10-12 audit: the readout's rows are the native leaf's, label: value (snt_mr_edge_readout()).
+ok( 0 === strpos( $html, '<div class="notice notice-info notice-alt inline"><p><strong>Worker:</strong> sn-rights-signals v1.21.0</p>' ), 'the edge readout opens with the Worker row, in the notice-alt shell: ' . substr( $html, 0, 120 ) );
 ok( '</p></div>' === substr( $html, -10 ) && false === strpos( $html, '<p><p>' ), 'paragraph_wrap is off: the readout keeps its own <p> tags, no double wrap' );
 ok( 1 === count( $GLOBALS['__markup_seen'] ) && $GLOBALS['__markup_seen'][0] === $html, 'the getter passed wp_admin_notice_markup once, and returned what the filter saw' );
 

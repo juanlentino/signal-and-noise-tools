@@ -30,6 +30,7 @@ if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlsp
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } } // 15.2.0: the monitoring block links to the keyring
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return (string) $s; } }
 if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
@@ -73,10 +74,10 @@ cf_assert( 'ok' === $cron_clean[2]['pill']['kind'], 'zero orphans pills ok' );
 // ─── 3. Scheduled glance helper ─────────────────────────────────────────────
 echo "\nGroup: snt_schedule_glance_cards()\n";
 $sch_cards = snt_schedule_glance_cards( array( 1, 2 ), array( 3 ) );
-cf_assert( 3 === count( $sch_cards ), 'emits 3 hero cards' );
-cf_assert( '3' === $sch_cards[0]['value'], 'total = fragments + posts (3)' );
-cf_assert( '2' === $sch_cards[1]['value'], 'fragments count (2)' );
-cf_assert( '1' === $sch_cards[2]['value'], 'future posts count (1)' );
+// 2026-10-12 audit: the total tile was the sum of the other two; it is gone.
+cf_assert( 2 === count( $sch_cards ), 'emits 2 hero cards (no sum tile)' );
+cf_assert( '2' === $sch_cards[0]['value'], 'fragments count (2)' );
+cf_assert( '1' === $sch_cards[1]['value'], 'future posts count (1)' );
 
 // ─── 4. Webhooks render: shell + payload reference in the rail ──────────────
 echo "\nGroup: webhooks render — shell with payload in the rail\n";

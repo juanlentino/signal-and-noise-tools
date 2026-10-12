@@ -21,10 +21,29 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_keyring_groups() {
 	return array(
-		'site'       => array( 'label' => __( 'Site secret and the workers', 'signal-and-noise-tools' ), 'about' => __( 'Shared passwords between this plugin and its workers. Each row can derive from the site secret; type "site" in a row to switch it, then run the command it prints so the worker carries the same value.', 'signal-and-noise-tools' ) ),
+		'site'       => array( 'label' => __( 'Site secret and the workers', 'signal-and-noise-tools' ), 'about' => __( 'Shared passwords between this plugin and its workers. Each row can derive from the site secret: pick the row under Set a credential and type "site", then run its command under Worker secrets so the worker carries the same value.', 'signal-and-noise-tools' ) ),
 		'cloudflare' => array( 'label' => __( 'Cloudflare', 'signal-and-noise-tools' ), 'about' => __( 'One token, one zone, one account. Everything Cloudflare reads with these.', 'signal-and-noise-tools' ) ),
 		'issued'     => array( 'label' => __( 'Issued by others', 'signal-and-noise-tools' ), 'about' => __( 'Tokens other services mint. They cannot share a value; each is its own row.', 'signal-and-noise-tools' ) ),
 	);
+}
+
+/**
+ * Where a row's value comes from, in the words every surface uses (15.2.1:
+ * table-cell length; the constant's name is the whole point of the cell).
+ * Webhooks' Uptime box says it the same way since 2026-10-12.
+ *
+ * @param string              $source sn_keyring_source(): constant, site, option or ''.
+ * @param array<string,mixed> $row    Registry row (its constant).
+ * @return string
+ */
+function sn_keyring_source_text( $source, array $row ) {
+	$sources = array(
+		'constant' => sprintf( /* translators: %s: constant name. */ __( 'wp-config (%s)', 'signal-and-noise-tools' ), (string) ( $row['constant'] ?? '' ) ),
+		'site'     => __( 'Site secret', 'signal-and-noise-tools' ),
+		'option'   => __( 'Saved', 'signal-and-noise-tools' ),
+		''         => __( 'Not set', 'signal-and-noise-tools' ),
+	);
+	return $sources[ (string) $source ] ?? '';
 }
 
 /**
@@ -40,13 +59,6 @@ function sn_keyring_row_model( $id, array $row ) {
 	$verdicts = function_exists( 'sn_keyring_verdicts' ) ? sn_keyring_verdicts() : array();
 	$verdict  = isset( $verdicts[ $id ] ) && is_array( $verdicts[ $id ] ) ? $verdicts[ $id ] : null;
 	$shown    = 'public' === ( $row['kind'] ?? '' ) || 'id' === ( $row['kind'] ?? '' ) ? $value : ( function_exists( 'sn_mask_secret' ) ? sn_mask_secret( $value ) : ( '' === $value ? '' : '••••' ) );
-	// 15.2.1: table-cell length; the constant's name is the whole point of the cell.
-	$sources  = array(
-		'constant' => sprintf( /* translators: %s: constant name. */ __( 'wp-config (%s)', 'signal-and-noise-tools' ), (string) ( $row['constant'] ?? '' ) ),
-		'site'     => __( 'Site secret', 'signal-and-noise-tools' ),
-		'option'   => __( 'Saved', 'signal-and-noise-tools' ),
-		''         => __( 'Not set', 'signal-and-noise-tools' ),
-	);
 	$hint = (string) ( $row['about'] ?? '' ) . ' ' . sprintf( /* translators: %s: what the credential feeds. */ __( 'Feeds: %s.', 'signal-and-noise-tools' ), (string) ( $row['feeds'] ?? '' ) );
 	if ( 'site' === ( $row['derive'] ?? '' ) && 'site' !== $source && 'constant' !== $source ) {
 		$hint .= ' ' . __( 'Type "site" to derive it from the site secret.', 'signal-and-noise-tools' );
@@ -57,7 +69,7 @@ function sn_keyring_row_model( $id, array $row ) {
 		'label'     => (string) $row['label'],
 		'group'     => (string) $row['group'],
 		'source'    => $source,
-		'source_text' => $sources[ $source ] ?? '',
+		'source_text' => sn_keyring_source_text( $source, $row ),
 		'shown'     => $shown,
 		// A row with no option and no setting is wp-config only: never a field.
 		'locked'    => 'constant' === $source || ( ! isset( $row['option'] ) && ! isset( $row['setting'] ) ),
@@ -172,6 +184,32 @@ function sn_keyring_worker_commands() {
 	return $out;
 }
 
+/**
+ * The leaf's own sentences, said the same on both surfaces (2026-10-12
+ * audit: three were native-only, and one pointed at "the ledger on the left").
+ *
+ * @return array{set:string,verify:string,never:string,workers:string}
+ */
+function sn_keyring_copy() {
+	return array(
+		'set'     => __( 'One value at a time; each group\'s table shows what is set.', 'signal-and-noise-tools' ),
+		'verify'  => __( 'Every credential with a probe asks the service that holds its other half; each verdict names the side to fix.', 'signal-and-noise-tools' ),
+		'never'   => __( 'Never verified.', 'signal-and-noise-tools' ),
+		'workers' => __( 'After changing a worker row here, set the same value on the worker.', 'signal-and-noise-tools' ),
+	);
+}
+
+/**
+ * "Last verified …" in the site's own date and time format and timezone.
+ *
+ * @param int $at Unix time of the last Verify all.
+ * @return string
+ */
+function sn_keyring_verified_text( $at ) {
+	/* translators: %s: date and time. */
+	return sprintf( __( 'Last verified %s.', 'signal-and-noise-tools' ), wp_date( get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i a' ), (int) $at ) );
+}
+
 /** The time of the last Verify all, 0 when never. */
 function sn_keyring_verified_at() {
 	$at = 0;
@@ -200,8 +238,10 @@ function sn_admin_keyring_render() {
 		}
 		echo '</tbody></table></div>';
 	}
+	$copy = sn_keyring_copy();
 	sn_admin_shell_rail( 'Set a credential' );
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'keyring_save' ) ) . '" class="sn-card">';
+	echo '<p class="sn-field-helper">' . esc_html( $copy['set'] ) . '</p>';
 	echo '<div class="sn-field"><label class="sn-field-label" for="key_id">Credential</label><select id="key_id" name="key_id">';
 	foreach ( sn_keyring_select_options() as $id => $label ) {
 		echo '<option value="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</option>';
@@ -211,12 +251,11 @@ function sn_admin_keyring_render() {
 	echo '<p class="sn-field-helper">Paste to set. Type <code>clear</code> to remove. On a worker row, type <code>site</code> to derive it from the site secret. Rows locked in wp-config.php are not listed.</p></div>';
 	echo '<button type="submit"' . sn_admin_post_button( 'keyring_save' ) . ' class="button button-primary">Save</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	echo '<button type="submit"' . sn_admin_post_button( 'keyring_verify' ) . ' class="button">Verify all</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+	echo '<p class="sn-field-helper">' . esc_html( $copy['verify'] ) . '</p>';
 	$at = sn_keyring_verified_at();
-	if ( $at > 0 ) {
-		echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Last verified %s.', wp_date( 'Y-m-d H:i T', $at ) ) ) . '</p>';
-	}
+	echo '<p class="sn-field-helper">' . esc_html( $at > 0 ? sn_keyring_verified_text( $at ) : $copy['never'] ) . '</p>';
 	echo '</form>';
-	echo '<div class="sn-card"><strong>Worker secrets</strong><p class="sn-field-helper">After changing a worker row here, set the same value on the worker:</p>';
+	echo '<div class="sn-card"><strong>Worker secrets</strong><p class="sn-field-helper">' . esc_html( $copy['workers'] ) . '</p>';
 	foreach ( sn_keyring_worker_commands() as $c ) {
 		echo '<p class="sn-field-helper">' . esc_html( $c['label'] ) . '<br><code>' . esc_html( $c['command'] ) . '</code></p>';
 	}

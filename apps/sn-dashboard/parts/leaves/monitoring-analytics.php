@@ -16,9 +16,8 @@
  * to keep this file to the assembly.
  *
  * 2026-10-11 (owner rule: no collapsible sections): every setting is an open
- * section whose description is its one-line current state. Open forms made
- * the left column three times the right one, so the two definitions (North
- * star, Session funnels) sit in the right column under the edge readings.
+ * section whose description is its one-line current state. 2026-10-12: one
+ * Pipeline box, then rows of paired boxes (see paint_monitoring_analytics()).
  *
  * @package SignalNoiseTools
  * @since 13.107.0
@@ -47,39 +46,31 @@ function paint_monitoring_analytics( array $ctx ) {
 	$tab = (string) ( $ctx['tab'] ?? 'monitoring' );
 
 	$dashboard_url = function_exists( '\snt_analytics_page_url' ) ? \snt_analytics_page_url() : '';
-	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'First-party analytics credentials. The comprehensive read-only dashboard has its own menu, S&N Analytics.', 'signal-and-noise-tools' ) ) . ' '
+	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'First-party analytics settings. The read-only dashboard has its own menu, S&N Analytics.', 'signal-and-noise-tools' ) ) . ' '
 		. ( '' !== $dashboard_url ? \snt_kit_door( __( 'View dashboard →', 'signal-and-noise-tools' ), $dashboard_url ) : '' )
 		. '</p>';
 
-	// 15.3.0: the edge's seven days, painted by the Connections leaf's part from the same stored record.
-	// Painted only once the monitor has a configured record, as the classic card is;
-	// a site without Cloudflare keeps the hub as it was.
+	// 15.3.0: the edge's seven days, painted by the Connections leaf's part from
+	// the same stored record, only once the monitor has a configured record (a
+	// site without Cloudflare keeps the hub as it was). 2026-10-12: a full row
+	// of its own, so its five figures share one row and its lists are capped.
 	$edge   = '';
 	$record = function_exists( __NAMESPACE__ . '\\cloudflare_monitor_record' ) ? cloudflare_monitor_record() : null;
 	if ( is_array( $record ) && ! empty( $record['configured'] ) && function_exists( __NAMESPACE__ . '\\cloudflare_edge_html' ) && function_exists( __NAMESPACE__ . '\\cloudflare_data' ) ) {
 		$edge = cloudflare_edge_html( cloudflare_data() );
 	}
-	// 15.3.1: the Edge, 7 days section heads the LEFT column, above the settings;
-	// as a full-width band it left five short folds over an empty half.
-	// 2026-10-12 (owner: "some of the settings became a scroll page"): measured
-	// live, the left column ran 3,094px against the right's 2,059px. Exclusion
-	// (550px) and tuning (372px) leave it for a row of their own under both
-	// columns, side by side, so the columns end within a box of each other.
-	$left  = $intro . $edge;
-	$left .= analytics_credentials_html();
-	$left .= analytics_collector_html();
 
-	$right  = analytics_worker_html();
-	$right .= analytics_salt_html();
-	$right .= function_exists( '\\snt_nsm_settings_html' ) ? \snt_nsm_settings_html() : '';
-	$right .= analytics_funnels_html();
-	$right .= analytics_mirrors_html( $tab );
-	$right .= analytics_filter_reference_html();
-	$right .= analytics_worker_setup_html();
-
-	return analytics_pipeline_html()
-		. \snt_kit_grid( array( \snt_kit_stack( $left ), \snt_kit_stack( $right ) ), 290, 24 )
-		. \snt_kit_grid( array( analytics_exclusion_html(), analytics_tuning_html() ), 290, 24 );
+	// 2026-10-12 (audit: "long rather than designed", ~2,755px): the four
+	// status boxes are one Pipeline box at full width; the settings pair up,
+	// boxes of comparable height on each row; the setup steps close the leaf
+	// only while the pipeline is incomplete.
+	return $intro
+		. analytics_pipeline_html( $ctx )
+		. $edge
+		. \snt_kit_grid( array( analytics_collector_html(), function_exists( '\\snt_nsm_settings_html' ) ? \snt_nsm_settings_html() : '' ), 290, 24 )
+		. \snt_kit_grid( array( analytics_funnels_html(), analytics_exclusion_html() ), 290, 24 )
+		. \snt_kit_grid( array( analytics_tuning_html(), analytics_mirrors_html( $tab ) ), 290, 24 )
+		. analytics_worker_setup_html();
 }
 
 add_filter(

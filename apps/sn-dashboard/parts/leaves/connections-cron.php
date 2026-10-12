@@ -22,10 +22,10 @@
  * The other two callbacks, `snt_morning_brief_render_settings()` (priority 20)
  * and `snt_scheduled_reads_render_settings()` (priority 30), each carry one
  * classic form and one `sn_action` (`morning_brief_save`, `scheduled_reads_save`).
- * They paint here with the same names through snt_kit_form(), one paired row
- * under the ledger: connections-cron-parts.php. Between the ledger and that
- * row sits the Action Scheduler backlog box (same file), the Site Health
- * reading on the leaf where scheduled jobs are asked about.
+ * They paint here with the same names through snt_kit_form(), one row under
+ * the ledger: connections-cron-parts.php. The Action Scheduler backlog box
+ * (same file), the Site Health reading on the leaf where scheduled jobs are
+ * asked about, is the third box on that row.
  *
  * Same readers as the classic leaf: `snt_cron_get_events_impl()` for the rows,
  * `snt_cron_glance_cards()` (inc/cron-dashboard-admin.php) for the hero.
@@ -90,6 +90,8 @@ function cron_run_button( array $row ) {
 			'confirm_label' => __( 'Run now', 'signal-and-noise-tools' ),
 			'disabled'      => '' !== $why_not,
 			'title'         => '' !== $why_not ? $why_not : null,
+			/* translators: %s: the cron hook name. */
+			'aria_label'    => sprintf( __( 'Run now: %s', 'signal-and-noise-tools' ), $hook ),
 		)
 	);
 }
@@ -116,6 +118,8 @@ function cron_unschedule_button( array $row ) {
 			'danger'        => true,
 			'disabled'      => $locked,
 			'title'         => $locked ? __( 'Locked: disable the owning module instead', 'signal-and-noise-tools' ) : null,
+			/* translators: %s: the cron hook name. */
+			'aria_label'    => sprintf( __( 'Unschedule: %s', 'signal-and-noise-tools' ), $hook ),
 		)
 	);
 }
@@ -185,10 +189,17 @@ function cron_row_data( array $row ) {
 		$recurrence = __( 'single event', 'signal-and-noise-tools' );
 	}
 
+	// The last fire is stored per HOOK, so a pending one-shot would inherit a
+	// fire of another event on its hook (every scheduled post read the same
+	// time): a single event still listed has not run (2026-10-12 audit).
 	$last_ts = (int) ( $row['last_fired_ts'] ?? 0 );
-	$last    = $last_ts ? \snt_kit_esc( wp_date( 'Y-m-d H:i:s', $last_ts ) ) . ' (' . \snt_kit_relative_time( $last_ts ) . ')' : '—';
+	if ( empty( $row['schedule'] ) ) {
+		$last = \snt_kit_esc( \snt_cron_last_fired_none( true ) );
+	} else {
+		$last = $last_ts ? \snt_kit_esc( wp_date( 'Y-m-d H:i:s', $last_ts ) ) . ' (' . \snt_kit_relative_time( $last_ts ) . ')' : \snt_kit_esc( \snt_cron_last_fired_none( false ) );
+	}
 
-	$args = ! empty( $row['args'] ) ? cron_args_summary( $row['args'] ) : '—';
+	$args = ! empty( $row['args'] ) ? cron_args_summary( $row['args'] ) : __( 'none', 'signal-and-noise-tools' );
 
 	return array(
 		'hook'       => $hook,
@@ -376,9 +387,9 @@ function paint_connections_cron( array $ctx ) {
 	// classic Heartbeat client (whose selectors the kit never paints).
 	$refresh = \snt_kit_watch_bar( 'cron', $watching, __( 'the ledger', 'signal-and-noise-tools' ) );
 	// do_action paints the two settings callbacks whether or not cron has rows;
-	// the backlog box sits above them on both branches. While watching, the
-	// settings forms are folded (see above).
-	$settings = cron_backlog_html() . ( $watching ? '' : cron_settings_row_html() );
+	// the backlog box shares their row on both branches. While watching, the
+	// settings forms are folded (see above) and the backlog stands alone.
+	$settings = cron_settings_row_html( $watching );
 
 	if ( empty( $rows ) ) {
 		// Classic runs this sentence through wp_kses_post() so the four hook
@@ -399,7 +410,7 @@ function paint_connections_cron( array $ctx ) {
 
 	$count  = count( $rows );
 	$hint   = '<p class="snt-hint">' . sprintf(
-		\snt_kit_esc( _n( '%s scheduled event. Signal & Noise–owned events pinned at top.', '%s scheduled events. Signal & Noise–owned events pinned at top.', $count, 'signal-and-noise-tools' ) ),
+		\snt_kit_esc( _n( '%s scheduled event. Signal & Noise-owned events pinned at top.', '%s scheduled events. Signal & Noise-owned events pinned at top.', $count, 'signal-and-noise-tools' ) ),
 		\snt_kit_esc( number_format_i18n( $count ) )
 	) . '</p>';
 	$filter = isset( $ctx['state'] ) && is_object( $ctx['state'] ) ? (string) $ctx['state']->get( 'filter' ) : '';

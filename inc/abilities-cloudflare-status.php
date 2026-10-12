@@ -55,7 +55,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'state'      => array( 'type' => 'string', 'enum' => array( 'never_run', 'unconfigured', 'recorded' ) ),
 				'fetched_at' => array( 'type' => array( 'integer', 'null' ) ),
 				'configured' => array( 'type' => array( 'boolean', 'null' ) ),
-				'token'      => array( 'type' => array( 'object', 'null' ), 'description' => 'verified, status (active|expired|disabled|invalid|unreachable), expires_on, not_before, error.' ),
+				'token'      => array( 'type' => array( 'object', 'null' ), 'description' => 'verified, status (active|expired|disabled|invalid|unreachable|changed; `changed` is a token saved after the last reading whose verify could not reach Cloudflare: no reading, not a fault), expires_on, not_before, error.' ),
 				'zone'       => array( 'type' => array( 'object', 'null' ), 'description' => 'available, needs_permission, error, days[], totals{requests,cached,bytes,cached_bytes,threats,status_4xx,status_5xx,cache_share}.' ),
 				'firewall'   => array( 'type' => array( 'object', 'null' ), 'description' => 'available, needs_permission, error, events, by_action{}, top_rules[], dataset (groups|raw), truncated, groups_refused.' ),
 				'posture'    => array( 'type' => array( 'object', 'null' ), 'description' => 'fetched_at; settings{available,needs_permission,error,values{id:value}}; dnssec{available,needs_permission,error,status}; rules{available,needs_permission,error,rules[{id,description,action,enabled,expression}]}.' ),

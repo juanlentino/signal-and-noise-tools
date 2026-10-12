@@ -148,6 +148,12 @@ ok( false !== strpos( $kit, '+2 more findings' ), 'rich scan: the 52-row table c
 ok( false !== strpos( $kit, 'Gamma check' ), 'rich scan: the zero-finding, non-skipped Gamma check appears in the passing disclosure' );
 ok( false !== strpos( $kit, 'heading="Could not run"' ) && false !== strpos( $kit, '1 check produced no evidence' ) && false !== strpos( $kit, 'Delta check' ) && false !== strpos( $kit, 'AI provider not configured' ), 'rich scan: the skipped Delta check names itself and its reason, under an open "Could not run" section that counts it (was the "1 check could not run" fold heading)' );
 ok( false !== strpos( $kit, 'Also scanned, shown elsewhere' ) && false !== strpos( $kit, 'Link opportunities (4)' ) && false !== strpos( $kit, 'Contrast tokens' ), 'rich scan: the elsewhere index names the worklist- and integrity-surfaced checks' );
+// 2026-10-12 audit: "the scan door" named no screen the owner can open, and
+// "Deploy Status" is the classic name; each group names a screen and opens it.
+ok( false === strpos( $kit, 'scan door' ) && false === strpos( $kit, 'Deploy Status' ) && false === strpos( $kit, ' — ' ), 'the index names no internal door, no classic-only name, and no em dash' );
+ok( false !== strpos( $kit, '<b>Work queues</b>: opportunities that never resolve and never block: a queue, not a fault. Tag hygiene and tag fit are on Content › Tags' ) && false !== strpos( $kit, 'data-snt-tab="content" data-snt-sub="tags"' ) && false !== strpos( $kit, '>Open Content › Tags</os-button>' ) && false !== strpos( $kit, 'data-snt-tab="tools" data-snt-sub="reports"' ), 'each group opens the screen it names, through the window' );
+$hc_classic = $classic;
+ok( false !== strpos( $hc_classic, '<strong>Work queues</strong>: opportunities that never resolve' ) && 1 === preg_match( '/tab=content(&amp;|&)sub=tags/', $hc_classic ) && false === strpos( $hc_classic, 'scan door' ), 'the classic page says the same and links the same screens' );
 ok( false === strpos( $kit, 'Findings') || ( false === strpos( $kit, 'Link opportunities') || strpos($kit, 'Link opportunities') > strpos($kit, 'Also scanned') ), 'rich scan: link_opportunities (worklist-surfaced) is not double-counted into the on-tab Findings section' );
 
 // ── 2026-10-11, owner rule: no folds. Every figure the passing and skipped

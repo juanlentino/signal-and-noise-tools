@@ -142,6 +142,16 @@
 .sn-pill--err  { background: rgba(214,54,56,0.10); color: #8b1a1a; }
 .sn-pill--err::before  { background: var(--sn-err); }
 
+/* PR #2025 re-measure: one unbreakable run inside a wrapping cell (a schedule
+ * window's date breaks at its arrow, never at a hyphen). */
+.sn-nowrap { white-space: nowrap; }
+
+/* PR #2025 review: information, neither good news nor a warning ("All caught
+ * up", "Caching would pay"), the tone the native badge uses. The label keeps
+ * the base --sn-text, which holds AA on the blue tint. */
+.sn-pill--info { background: rgba(34,113,177,0.10); }
+.sn-pill--info::before { background: var(--sn-link); }
+
 /* v13.38.0: a NEUTRAL pill, for facts that are neither good news nor a warning
  * — e.g. the signing-key row reporting that a value came from the shipped
  * default. The base .sn-pill is already neutral (rgba(0,0,0,0.04)) and its dot

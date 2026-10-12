@@ -150,7 +150,7 @@ function webhooks_secret_html( array $wh, $is_new ) {
 	return \snt_kit_static(
 		$label,
 		webhooks_code( \sn_mask_secret( (string) ( $wh['secret'] ?? '' ) ) ),
-		\snt_kit_esc( __( 'Last 4 chars shown. Tick "Rotate" below + save to generate a new secret (invalidates the current one).', 'signal-and-noise-tools' ) )
+		\snt_kit_esc( __( 'Last 4 chars shown. Tick "Rotate secret on save" and save to generate a new secret (invalidates the current one).', 'signal-and-noise-tools' ) )
 	) . webhooks_native_checkbox( 'rotate_secret', '1', false, \snt_kit_esc( __( 'Rotate secret on save', 'signal-and-noise-tools' ) ) );
 }
 

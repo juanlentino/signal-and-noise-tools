@@ -36,6 +36,7 @@ function snt_mr_classic_analytics_links() {
  *     @type string $sensor_status_html Rendered sensor pills.
  *     @type array  $verdicts           Site Health verdicts: heading => {status, summary}.
  *     @type string $edge_readout_html  Rendered worker-version notice.
+ *     @type string $reread_url         The Re-read now link (snt_mr_reread_url()), '' for none.
  *     @type string $settings_form_html Rendered settings form.
  * }
  * @return string
@@ -63,8 +64,13 @@ function snt_mr_compose_tab( $ctx ) {
 
 	$out .= '<div class="sn-2up sn-mr-2up">';
 	$out .= '<div class="sn-fieldset"><h3 class="sn-fieldset-h">' . esc_html__( 'Edge sensor', 'signal-and-noise-tools' ) . '</h3>';
-	$out .= '<p class="sn-an-settings-help">' . esc_html__( 'The deployed rights-signals Worker, from its version endpoint. Cached for up to 15 minutes, so a fresh deploy can take that long to appear here — purge caches to read it now.', 'signal-and-noise-tools' ) . '</p>';
-	$out .= (string) ( $ctx['edge_readout_html'] ?? '' ) . '</div>';
+	$out .= '<p class="sn-an-settings-help">' . esc_html__( 'The deployed rights-signals Worker, from its version endpoint. Cached for up to 15 minutes, so a fresh deploy can take that long to appear here; Re-read now asks it again.', 'signal-and-noise-tools' ) . '</p>';
+	$out .= (string) ( $ctx['edge_readout_html'] ?? '' );
+	// PR #2025 review: the native box's Re-read now, here too (a nonce link back to this page).
+	if ( '' !== (string) ( $ctx['reread_url'] ?? '' ) ) {
+		$out .= '<p><a class="button" href="' . esc_url( (string) $ctx['reread_url'] ) . '">' . esc_html__( 'Re-read now', 'signal-and-noise-tools' ) . '</a></p>';
+	}
+	$out .= '</div>';
 	$out .= '<div class="sn-fieldset"><h3 class="sn-fieldset-h">' . esc_html__( 'Sensor settings', 'signal-and-noise-tools' ) . '</h3>' . (string) ( $ctx['settings_form_html'] ?? '' ) . '</div>';
 	$out .= '</div>'; // .sn-2up
 

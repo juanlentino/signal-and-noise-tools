@@ -73,10 +73,11 @@ function rss_activity_html( array $stats ) {
 	$reach = array();
 	// Feed reach: three separate numbers that measure different things; never add them up.
 	foreach ( function_exists( 'snt_feed_reach_tiles' ) ? snt_feed_reach_tiles() : array() as $r ) {
-		$reach[] = \snt_kit_stat( null === $r['value'] ? 'n/a' : number_format_i18n( (int) $r['value'] ), $r['label'], __( '7 days', 'signal-and-noise-tools' ) );
+		/* translators: %s: what the figure is (a ceiling, a floor...). */
+		$reach[] = \snt_kit_stat( null === $r['value'] ? __( 'not read', 'signal-and-noise-tools' ) : number_format_i18n( (int) $r['value'] ), $r['label'], sprintf( __( '7 days · %s', 'signal-and-noise-tools' ), (string) ( $r['note'] ?? '' ) ) );
 	}
 	$out .= $reach ? \snt_kit_grid( $reach, 160, 10 ) : '';
-	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Feed reach is three different measures, never added together. Subscribers: the counts aggregators such as Feedly report for this feed plus one per direct reader, the busiest day in 7 days, a ceiling. Opens: notes opened in a feed reader, counted by an image in the notes feed, a floor. Clicks: visits that arrived from a feed link. None of them moves the north star, which counts on-site reads only.', 'signal-and-noise-tools' ) ) . '</p>';
+	$out .= function_exists( 'snt_feed_reach_sentence' ) ? '<p class="snt-hint">' . \snt_kit_esc( \snt_feed_reach_sentence() ) . '</p>' : '';
 	$out .= ! empty( $stats['most_recent'] )
 		? '<p class="snt-prose">' . \snt_kit_esc( __( 'Most recent feed request:', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( rss_local_stamp( (string) $stats['most_recent'] ) ) . '</os-code></p>'
 		: '<p class="snt-hint">' . \snt_kit_esc( __( 'No feed requests logged yet.', 'signal-and-noise-tools' ) ) . '</p>';
@@ -84,19 +85,15 @@ function rss_activity_html( array $stats ) {
 }
 
 /**
- * A MySQL UTC stamp as the site timezone reads it ("Y-m-d H:i:s T"), or the
- * input unchanged when it cannot be read. 14.7.4: the tracker stores UTC
- * (current_time( 'mysql', true )); the owner reads in Eastern time.
+ * A MySQL UTC stamp as the site reads it (sn_rss_tracker_local_time(), the
+ * classic page's own function since 2026-10-12), or the input unchanged when
+ * it cannot be read. 14.7.4: the tracker stores UTC; the owner reads local.
  *
  * @param string $utc
  * @return string
  */
 function rss_local_stamp( $utc ) {
-	$ts = strtotime( trim( (string) $utc ) . ' UTC' );
-	if ( false === $ts || $ts <= 0 ) {
-		return (string) $utc;
-	}
-	return function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d H:i:s T', $ts ) : (string) $utc . ' UTC';
+	return function_exists( 'sn_rss_tracker_local_time' ) ? \sn_rss_tracker_local_time( $utc ) : (string) $utc;
 }
 
 /**
@@ -126,7 +123,7 @@ function rss_recent_table_html( array $recent ) {
 			),
 			array(
 				'key'   => 'ua_hash',
-				'label' => __( 'Client', 'signal-and-noise-tools' ),
+				'label' => __( 'Client (hashed)', 'signal-and-noise-tools' ),
 			),
 		),
 		$rows,
@@ -144,7 +141,7 @@ function rss_recent_table_html( array $recent ) {
  * @return string
  */
 function rss_settings_form_html( array $settings, $tab ) {
-	$fields  = \snt_kit_field( 'switch', 'enabled', __( 'Enable feed-request tracking', 'signal-and-noise-tools' ), ! empty( $settings['enabled'] ), array( 'hint' => __( 'When off, the plugin still loads but skips all DB writes and collector POSTs.', 'signal-and-noise-tools' ) ) );
+	$fields  = \snt_kit_field( 'switch', 'enabled', __( 'Enable feed-request tracking', 'signal-and-noise-tools' ), ! empty( $settings['enabled'] ), array( 'hint' => __( 'When off, feed requests are neither logged nor sent to the collector.', 'signal-and-noise-tools' ) ) );
 	$fields .= '<p class="snt-prose">' . \snt_kit_esc( __( 'Collector endpoint:', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( (string) ( $settings['collector_url'] ?? '' ) ) . '</os-code></p>'
 		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Where this tracker POSTs feed requests. Configured on', 'signal-and-noise-tools' ) ) . ' '
 		. \snt_kit_go( __( 'Measurement → Analytics', 'signal-and-noise-tools' ), array(

@@ -150,17 +150,24 @@ function cron_backlog_html() {
 }
 
 /**
- * The two settings boxes on one row under the ledger (17.2.1: boxes share a
- * row). Each side paints only when its classic callback is loaded; a missing
- * side leaves the other at full width.
+ * The boxes under the ledger, on one row (17.2.1: boxes share a row): the two
+ * settings boxes and the Action Scheduler backlog, five short facts that stood
+ * alone across the full width above them (2026-10-12 audit). Each settings
+ * side paints only when its classic callback is loaded and only while not
+ * watching (its checkboxes cannot ride a poll); a missing box leaves the rest
+ * to share the row.
  *
+ * @param bool $watching Whether the leaf is watching live.
  * @return string
  */
-function cron_settings_row_html() {
-	$brief = function_exists( 'snt_morning_brief_render_settings' ) ? cron_morning_brief_html() : '';
-	$reads = function_exists( 'snt_scheduled_reads_render_settings' ) ? cron_scheduled_reads_html() : '';
-	if ( '' === $brief || '' === $reads ) {
-		return $brief . $reads;
+function cron_settings_row_html( $watching = false ) {
+	$brief = ! $watching && function_exists( 'snt_morning_brief_render_settings' ) ? cron_morning_brief_html() : '';
+	$reads = ! $watching && function_exists( 'snt_scheduled_reads_render_settings' ) ? cron_scheduled_reads_html() : '';
+	$boxes = array();
+	foreach ( array( $brief, $reads, cron_backlog_html() ) as $box ) {
+		if ( '' !== $box ) {
+			$boxes[] = \snt_kit_tag( 'os-card', array(), $box );
+		}
 	}
-	return \snt_kit_grid( array( \snt_kit_tag( 'os-card', array(), $brief ), \snt_kit_tag( 'os-card', array(), $reads ) ) );
+	return 1 === count( $boxes ) ? (string) preg_replace( '#^<os-card>(.*)</os-card>$#s', '$1', $boxes[0] ) : \snt_kit_grid( $boxes );
 }

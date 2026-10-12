@@ -178,6 +178,9 @@ function snt_mr_render_tab() {
 	// Configuration only: the sensor read serves its pills; every reading is
 	// an S&N Analytics view (inc/analytics-machine-views.php).
 	$result = snt_mr_fetch( 30 );
+	if ( snt_mr_reread_requested() ) {
+		delete_transient( 'sn_mr_sensor_info' );
+	}
 	$info   = snt_mr_sensor_info();
 	$status = snt_mr_crawler_list_status();
 
@@ -205,6 +208,7 @@ function snt_mr_render_tab() {
 		'sensor_status_html' => snt_mr_render_sensor_status( snt_mr_sensor_pills( $info, $status, $result ) ),
 		'verdicts'           => $verdicts,
 		'edge_readout_html'  => snt_mr_render_edge_readout( $info ),
+		'reread_url'         => snt_mr_reread_url(),
 		'settings_form_html' => $settings_html,
 	) );
 	// Unreleased: rights evidence (held months, their payloads, the lift).
@@ -241,4 +245,40 @@ function snt_mr_render_settings_fields( $url_locked, $token_locked, $stored_url,
 
 	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save sensor settings</button></div>';
 	echo '</form>';
+}
+
+/**
+ * Whether the classic Re-read now was pressed: a nonce-verified flag that drops
+ * the sensor's 15-minute version cache before the read (PR #2025 review; the
+ * native leaf's Re-read now is a `go` with the same param). Read-only effect.
+ *
+ * @return bool
+ */
+function snt_mr_reread_requested() {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- presence flag only; the nonce is verified on the next line before any effect.
+	if ( empty( $_GET['sn_mr_reread'] ) ) {
+		return false;
+	}
+	$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
+	return (bool) wp_verify_nonce( $nonce, 'sn_mr_reread' );
+}
+
+/**
+ * The classic Re-read now link: this page with the nonce-gated flag.
+ *
+ * @return string
+ */
+function snt_mr_reread_url() {
+	return wp_nonce_url(
+		add_query_arg(
+			array(
+				'page'         => 'sn-theme-options',
+				'tab'          => 'monitoring',
+				'sub'          => 'machine-readers',
+				'sn_mr_reread' => '1',
+			),
+			admin_url( 'admin.php' )
+		),
+		'sn_mr_reread'
+	);
 }

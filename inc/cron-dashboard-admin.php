@@ -63,6 +63,19 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 } );
 
 /**
+ * The Last fired cell when there is no time to print, the same words on both
+ * surfaces (2026-10-12 audit). The time is stored per hook, so a one-shot
+ * event that is still listed has not run, whatever its hook did for another
+ * event; a recurring hook with no record ran before tracking began or never.
+ *
+ * @param bool $single Whether the row is a single (one-shot) event.
+ * @return string
+ */
+function snt_cron_last_fired_none( $single ) {
+	return $single ? __( 'not yet: runs once', 'signal-and-noise-tools' ) : __( 'not recorded yet', 'signal-and-noise-tools' );
+}
+
+/**
  * Build the first-glance hero cards for the Cron tab from the event rows:
  * total events, the count Signal & Noise owns, and the orphan count (events with
  * no registered handler). Pure — takes the rows, returns sn_admin_glance_grid()
@@ -135,7 +148,7 @@ function snt_cron_render_admin_tab() {
 	echo '<p class="sn-field-helper">';
 	printf(
 		/* translators: %s is the number of scheduled cron events */
-		esc_html( _n( '%s scheduled event. Signal & Noise–owned events pinned at top.', '%s scheduled events. Signal & Noise–owned events pinned at top.', $count, 'signal-and-noise-tools' ) ),
+		esc_html( _n( '%s scheduled event. Signal & Noise-owned events pinned at top.', '%s scheduled events. Signal & Noise-owned events pinned at top.', $count, 'signal-and-noise-tools' ) ),
 		esc_html( number_format_i18n( $count ) )
 	);
 	echo '</p>';
@@ -164,7 +177,7 @@ function snt_cron_render_admin_tab() {
 		// Hook
 		echo '<th scope="row"><code>' . esc_html( $row['hook'] ) . '</code>';
 		if ( $row['is_sn_owned'] ) {
-			echo ' <span class="sn-badge" title="' . ( esc_attr__( 'Signal & Noise–owned event', 'signal-and-noise-tools' ) ) . '"><span class="screen-reader-text">' . esc_html__( 'Signal and Noise owned:', 'signal-and-noise-tools' ) . '</span>' . esc_html__( 'SN', 'signal-and-noise-tools' ) . '</span>';
+			echo ' <span class="sn-badge" title="' . ( esc_attr__( 'Signal & Noise-owned event', 'signal-and-noise-tools' ) ) . '"><span class="screen-reader-text">' . esc_html__( 'Signal and Noise owned:', 'signal-and-noise-tools' ) . '</span>' . esc_html__( 'SN', 'signal-and-noise-tools' ) . '</span>';
 		}
 		if ( ! $row['has_handler'] ) {
 			echo ' <span class="sn-badge sn-badge-warn" title="' . ( esc_attr__( 'No handler registered: schedule will fire to nothing', 'signal-and-noise-tools' ) ) . '"><span class="screen-reader-text">' . esc_html__( 'Warning:', 'signal-and-noise-tools' ) . '</span>' . esc_html__( 'orphan', 'signal-and-noise-tools' ) . '</span>';
@@ -198,7 +211,17 @@ function snt_cron_render_admin_tab() {
 			__( 'Show firing history for %s', 'signal-and-noise-tools' ),
 			$row['hook']
 		);
-		if ( $row['last_fired_ts'] ) {
+		if ( empty( $row['schedule'] ) || ! $row['last_fired_ts'] ) {
+			// A pending one-shot has not run (the stored time is its hook's, not its own).
+			echo '<td class="sn-cron-last-fired">' . esc_html( snt_cron_last_fired_none( empty( $row['schedule'] ) ) );
+			// v3.2.0: still allow the toggle: history can exist even
+			// without a last-fired record (manual one-shot dispatches
+			// land in history without updating the last-fired option
+			// during edge cases).
+			echo ' <button type="button" class="button-link sn-cron-history-toggle" aria-expanded="false" aria-label="' . esc_attr( $history_toggle_aria ) . '" title="' . esc_attr__( 'Show recent firings', 'signal-and-noise-tools' ) . '">' . esc_html__( 'history', 'signal-and-noise-tools' ) . '</button>';
+			echo '<div class="sn-cron-history-panel" hidden></div>';
+			echo '</td>';
+		} else {
 			$last_str = wp_date( 'Y-m-d H:i:s', $row['last_fired_ts'] );
 			$last_rel = human_time_diff( $row['last_fired_ts'], time() );
 			echo '<td class="sn-cron-last-fired">' . esc_html( $last_str ) . '<br><small>';
@@ -209,34 +232,26 @@ function snt_cron_render_admin_tab() {
 			echo ' <button type="button" class="button-link sn-cron-history-toggle" aria-expanded="false" aria-label="' . esc_attr( $history_toggle_aria ) . '" title="' . esc_attr__( 'Show recent firings', 'signal-and-noise-tools' ) . '">' . esc_html__( 'history', 'signal-and-noise-tools' ) . '</button>';
 			echo '<div class="sn-cron-history-panel" hidden></div>';
 			echo '</td>';
-		} else {
-			echo '<td class="sn-cron-last-fired">&mdash;';
-			// v3.2.0: still allow the toggle — history can exist even
-			// without a last-fired record (manual one-shot dispatches
-			// land in history without updating the last-fired option
-			// during edge cases).
-			echo ' <button type="button" class="button-link sn-cron-history-toggle" aria-expanded="false" aria-label="' . esc_attr( $history_toggle_aria ) . '" title="' . esc_attr__( 'Show recent firings', 'signal-and-noise-tools' ) . '">' . esc_html__( 'history', 'signal-and-noise-tools' ) . '</button>';
-			echo '<div class="sn-cron-history-panel" hidden></div>';
-			echo '</td>';
 		}
 
 		// Args
 		if ( ! empty( $row['args'] ) ) {
 			echo '<td><code>' . esc_html( wp_json_encode( $row['args'] ) ) . '</code></td>';
 		} else {
-			echo '<td><small>&mdash;</small></td>';
+			echo '<td><small>' . esc_html__( 'none', 'signal-and-noise-tools' ) . '</small></td>';
 		}
 
 		// Actions — aria-label disambiguates which hook each button targets
 		// for screen readers (visible labels are repeated per row).
+		// The name starts with the visible word (WCAG 2.5.3), as on S&N Home.
 		$run_aria = sprintf(
-			/* translators: %s is the cron hook name */
-			__( 'Run cron event %s now', 'signal-and-noise-tools' ),
+			/* translators: %s: the cron hook name. */
+			__( 'Run now: %s', 'signal-and-noise-tools' ),
 			$row['hook']
 		);
 		$unschedule_aria = sprintf(
-			/* translators: %s is the cron hook name */
-			__( 'Unschedule cron event %s', 'signal-and-noise-tools' ),
+			/* translators: %s: the cron hook name. */
+			__( 'Unschedule: %s', 'signal-and-noise-tools' ),
 			$row['hook']
 		);
 		// Encode the args array as a JSON data attribute so the JS can
@@ -264,7 +279,7 @@ function snt_cron_render_admin_tab() {
 		// rather than letting the user click into an error.
 		echo ' ';
 		if ( $row['is_sn_owned'] ) {
-			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $unschedule_aria ) . '" title="' . ( esc_attr__( 'Signal & Noise–owned: disable the owning module from its settings tab instead', 'signal-and-noise-tools' ) ) . '">' . esc_html__( 'Unschedule', 'signal-and-noise-tools' ) . '</button>';
+			echo '<button class="button button-small" type="button" disabled aria-label="' . esc_attr( $unschedule_aria ) . '" title="' . ( esc_attr__( 'Signal & Noise-owned: disable the owning module from its settings tab instead', 'signal-and-noise-tools' ) ) . '">' . esc_html__( 'Unschedule', 'signal-and-noise-tools' ) . '</button>';
 		} else {
 			echo '<button class="button button-small button-link-delete sn-cron-unschedule" type="button" aria-label="' . esc_attr( $unschedule_aria ) . '" data-args="' . esc_attr( $args_json ) . '">' . esc_html__( 'Unschedule', 'signal-and-noise-tools' ) . '</button>';
 		}

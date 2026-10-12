@@ -34,10 +34,10 @@ function music_helper_html( $inner ) {
 function music_intro_html() {
 	return '<p class="snt-prose">'
 		. \snt_kit_esc( __( 'A zero-touch on-site discography. A daily WP-Cron job mirrors Juan’s verified', 'signal-and-noise-tools' ) ) . ' <strong>Muso.AI</strong> '
-		. \snt_kit_esc( __( 'producer credits (no credential — the public credits endpoint), enriches each release with', 'signal-and-noise-tools' ) ) . ' <strong>Spotify</strong> '
+		. \snt_kit_esc( __( 'producer credits (no credential: the public credits endpoint), enriches each release with', 'signal-and-noise-tools' ) ) . ' <strong>Spotify</strong> '
 		. \snt_kit_esc( __( 'album media, caches it, emits', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'MusicAlbum', false ) . ' '
 		. \snt_kit_esc( __( 'schema, and renders the', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/music', false ) . ' '
-		. \snt_kit_esc( __( 'timeline. Pages serve entirely from the cache — no request-time API calls.', 'signal-and-noise-tools' ) )
+		. \snt_kit_esc( __( 'timeline. Pages serve entirely from the cache, with no request-time API calls.', 'signal-and-noise-tools' ) )
 		. '</p>';
 }
 
@@ -99,14 +99,26 @@ function music_spotify_section( array $s ) {
  */
 function music_muso_section( array $s ) {
 	$intro = '<p class="snt-prose">'
-		. \snt_kit_esc( __( 'The public profile whose credits are mirrored. Defaults to Juan’s. No credential — it’s the same id in the public credits URL. Lockable via', 'signal-and-noise-tools' ) ) . ' '
+		. \snt_kit_esc( __( 'The public profile whose credits are mirrored. Defaults to Juan’s. No credential: it’s the same id in the public credits URL. Lockable via', 'signal-and-noise-tools' ) ) . ' '
 		. \snt_kit_code( 'SN_MUSO_PROFILE_ID', false ) . '.'
 		. '</p>';
 	$field = $s['profile_const']
 		? music_locked_field( __( 'Profile ID', 'signal-and-noise-tools' ), $s['profile_id'], 'SN_MUSO_PROFILE_ID' )
 		: \snt_kit_field( 'text', 'sn_muso_profile', __( 'Profile ID', 'signal-and-noise-tools' ), $s['profile_id'] )
 			. music_helper_html( \snt_kit_esc( __( 'Type', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'clear', false ) . ' ' . \snt_kit_esc( __( 'to revert to the default profile.', 'signal-and-noise-tools' ) ) );
-	return \snt_kit_section( __( 'Muso.AI profile', 'signal-and-noise-tools' ), $intro . $field );
+	return \snt_kit_section( __( 'Muso.AI profile', 'signal-and-noise-tools' ), $intro . ( $s['profile_const'] ? $field : music_save_form( $field ) ) );
+}
+
+/**
+ * One settings box's own form (2026-10-12 audit): `music_save` with only
+ * that box's field, inside the box, so Save sits with what it saves. The
+ * handler leaves a field it is not sent alone.
+ *
+ * @param string $fields The box's field and helper.
+ * @return string
+ */
+function music_save_form( $fields ) {
+	return \snt_kit_form( 'music_save', $fields, array( 'submit' => __( 'Save settings', 'signal-and-noise-tools' ), 'hidden' => music_hidden() ) );
 }
 
 /**
@@ -120,18 +132,19 @@ function music_featured_section( array $s ) {
 		. \snt_kit_esc( __( 'The single “press play” player at the top of', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/music', false ) . '. '
 		. \snt_kit_esc( __( 'Paste any Spotify track, album, or playlist link; type', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'clear', false ) . ' '
 		. \snt_kit_esc( __( 'to remove it.', 'signal-and-noise-tools' ) ) . ' '
-		. '<strong>' . \snt_kit_esc( __( 'Leave it empty and', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/music', false ) . ' ' . \snt_kit_esc( __( 'auto-features your newest release', 'signal-and-noise-tools' ) ) . '</strong> — '
+		. '<strong>' . \snt_kit_esc( __( 'Leave it empty and', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/music', false ) . ' ' . \snt_kit_esc( __( 'auto-features your newest release', 'signal-and-noise-tools' ) ) . '</strong>, '
 		. \snt_kit_esc( __( 'so the page is never headerless. Renders through the theme’s', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '[sn_music_featured]', false ) . ' '
 		. \snt_kit_esc( __( 'shortcode.', 'signal-and-noise-tools' ) )
 		. '</p>';
 	$helper = ! empty( $s['featured'] )
 		? \snt_kit_esc( __( 'Currently featuring a', 'signal-and-noise-tools' ) ) . ' <strong>' . \snt_kit_esc( (string) ( $s['featured']['type'] ?? '' ) ) . '</strong>.'
-		: \snt_kit_esc( __( 'No manual pick —', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/music', false ) . ' ' . \snt_kit_esc( __( 'auto-features your newest release.', 'signal-and-noise-tools' ) );
+		: \snt_kit_esc( __( 'No manual pick:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/music', false ) . ' ' . \snt_kit_esc( __( 'auto-features your newest release.', 'signal-and-noise-tools' ) );
 	return \snt_kit_section(
 		__( 'Featured release', 'signal-and-noise-tools' ),
-		$intro
-		. \snt_kit_field( 'text', 'sn_music_featured', __( 'Spotify URL', 'signal-and-noise-tools' ), $s['featured_url'], array( 'placeholder' => 'https://open.spotify.com/album/…', 'autocomplete' => 'off' ) )
-		. music_helper_html( $helper )
+		$intro . music_save_form(
+			\snt_kit_field( 'text', 'sn_music_featured', __( 'Spotify URL', 'signal-and-noise-tools' ), $s['featured_url'], array( 'placeholder' => 'https://open.spotify.com/album/…', 'autocomplete' => 'off' ) )
+			. music_helper_html( $helper )
+		)
 	);
 }
 
@@ -161,26 +174,25 @@ function music_rail_status_html( array $s ) {
 			'label' => __( 'Spotify media', 'signal-and-noise-tools' ),
 			'html'  => true,
 			'value' => $s['spotify_on']
-				? \snt_kit_badge( 'ok', __( 'Configured', 'signal-and-noise-tools' ) ) . ' — ' . \snt_kit_esc( __( 'album embeds + artwork enrichment active', 'signal-and-noise-tools' ) )
-				: \snt_kit_badge( 'warn', __( 'Not configured', 'signal-and-noise-tools' ) ) . ' — ' . \snt_kit_esc( __( 'Muso artwork only, no embeds (optional)', 'signal-and-noise-tools' ) ),
+				? \snt_kit_badge( 'ok', __( 'Configured', 'signal-and-noise-tools' ) ) . ': ' . \snt_kit_esc( __( 'album embeds + artwork enrichment active', 'signal-and-noise-tools' ) )
+				: \snt_kit_badge( 'warn', __( 'Not configured', 'signal-and-noise-tools' ) ) . ': ' . \snt_kit_esc( __( 'Muso artwork only, no embeds (optional)', 'signal-and-noise-tools' ) ),
 		),
 	);
 	if ( '' !== $s['last_error'] ) {
 		$rows[] = array( 'label' => __( 'Last error', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_code( $s['last_error'], false ) );
 	}
-	return \snt_kit_section( __( 'Status', 'signal-and-noise-tools' ), \snt_kit_kv( $rows ) );
+	// The "Sync status" landmark is this box alone, not the row it shares.
+	return \snt_kit_section( __( 'Status', 'signal-and-noise-tools' ), \snt_kit_kv( $rows ) . music_sync_html(), '', array( 'role' => 'complementary', 'aria-label' => __( 'Sync status', 'signal-and-noise-tools' ) ) );
 }
 
 /**
- * Sync now: the classic card's title as the section heading, its helper as
- * the description, the one-button form posting `music_sync`.
+ * Sync now, at the foot of Status (2026-10-12 audit: as its own box it was an
+ * empty box with one button in its corner): the classic card's helper, then
+ * the one-button form posting `music_sync`.
  *
  * @return string
  */
 function music_sync_html() {
-	return \snt_kit_section(
-		__( 'Sync now', 'signal-and-noise-tools' ),
-		\snt_kit_form( 'music_sync', '', array( 'submit' => __( 'Sync now', 'signal-and-noise-tools' ), 'hidden' => music_hidden() ) ),
-		__( 'Runs the full Muso → Spotify → store pass immediately. Keeps the last-good discography if a source fails.', 'signal-and-noise-tools' )
-	);
+	return '<p class="snt-hint">' . \snt_kit_esc( __( 'Sync now runs the full Muso → Spotify → store pass immediately. It keeps the last-good discography if a source fails.', 'signal-and-noise-tools' ) ) . '</p>'
+		. \snt_kit_form( 'music_sync', '', array( 'submit' => __( 'Sync now', 'signal-and-noise-tools' ), 'hidden' => music_hidden() ) );
 }

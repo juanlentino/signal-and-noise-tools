@@ -311,8 +311,9 @@ namespace {
 	ok( false !== strpos( $css, '.snt-leaf:has( os-grid )' ), 'sn-dashboard.css uncaps .snt-leaf max-width for os-grid' );
 
 	$analytics_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-analytics.php' );
-	ok( false !== strpos( $analytics_src, 'snt_kit_grid( array( \\snt_kit_stack( $left ), \\snt_kit_stack( $right ) ), 290, 24 )' ), 'monitoring/analytics source paints two os-stack columns on the kit grid' );
-	ok( false !== strpos( $analytics_src, 'analytics_pipeline_html()' ), 'monitoring/analytics positions pipeline status above columns' );
+	// 2026-10-12 audit: one Pipeline box at full width, then rows of paired boxes.
+	ok( false === strpos( $analytics_src, 'snt_kit_stack' ) && 3 === substr_count( $analytics_src, '\\snt_kit_grid( array( analytics_' ), 'monitoring/analytics source paints rows of paired boxes, no two-up columns' );
+	ok( false !== strpos( $analytics_src, '. analytics_pipeline_html( $ctx )' ) && strpos( $analytics_src, 'analytics_pipeline_html( $ctx )' ) < strpos( $analytics_src, 'analytics_collector_html()' ), 'monitoring/analytics leads with the Pipeline box' );
 
 
 
@@ -338,7 +339,8 @@ namespace {
 	ok( false !== strpos( $insights_src, 'snt_kit_grid( array( $left, $right ) )' ) && false === strpos( $insights_src, 'snt_kit_stack' ), 'monitoring/insights paints paired rows, not a two-up column pair (#1573)' );
 
 	$gsc_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-search-console.php' );
-	ok( false !== strpos( $gsc_src, 'snt_kit_grid( array( $left, $right ) )' ) && false === strpos( $gsc_src, 'snt_kit_stack' ), 'monitoring/search-console pairs its readouts on one row (17.4.1, #1573), no two-up columns' );
+	// Live check 2026-10-12: the boxes share ONE row (readout, form, then Property over Sync as one cell), still no two-up columns.
+	ok( false !== strpos( $gsc_src, '\\snt_kit_grid( $row )' ) && false === strpos( $gsc_src, 'snt_kit_stack' ), 'monitoring/search-console lays its boxes on one row (17.4.1, #1573), no two-up columns' );
 
 	ok( false !== strpos( $css, '.snt-leaf os-row' ) && false !== strpos( $css, 'flex-direction: column' ), 'sn-dashboard.css collapses os-row under responsive containers' );
 

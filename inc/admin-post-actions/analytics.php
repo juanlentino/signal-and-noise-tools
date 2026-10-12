@@ -152,6 +152,24 @@ function sn_handle_analytics_exclude_save( $post ) {
 }
 
 /**
+ * 2026-10-12: S&N Home's "Exclude this device" / "Count this device again"
+ * (the classic box's nonce'd link, inc/beacon-owner-exclusion.php, as a form
+ * on the shared dispatcher, which checks the nonce first). Sets the same
+ * owner-device cookie; only for a user whose role is excluded, as the box
+ * offers it. The cookie rides the window's response like any other.
+ *
+ * @param array $post Posted fields: sn_owner_device = mark|forget.
+ * @return string Flash code: 'analytics_exclude_saved' | 'analytics_exclude_unchanged'.
+ */
+function sn_handle_analytics_owner_device( $post ) {
+	$want = isset( $post['sn_owner_device'] ) ? sanitize_key( wp_unslash( $post['sn_owner_device'] ) ) : '';
+	if ( ! in_array( $want, array( 'mark', 'forget' ), true ) || ! function_exists( 'sn_owner_cookie_write' ) || ! sn_beacon_owner_current_user_excluded() ) {
+		return 'analytics_exclude_unchanged';
+	}
+	return null !== sn_owner_cookie_write( 'mark' === $want ? '1' : '0' ) ? 'analytics_exclude_saved' : 'analytics_exclude_unchanged';
+}
+
+/**
  * v9.36.0 (settings hub): save the two predictive-engine tuning knobs
  * (Measurement → Analytics → Engine tuning). Baseline is clamped to [14,90]
  * (floor = the engine's SN_ANALYTICS_SIGNAL_FLOOR_DAYS); the sensitivity
