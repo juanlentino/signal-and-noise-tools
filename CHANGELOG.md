@@ -12,6 +12,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **What the 2026.10.3 audit found first** (owner: "a lot of things needing fixing ... figure it out"; every leaf swept live with real data and read by seven auditors):
+  - Seven sentences pointed at a box that sits elsewhere or at a button that does not exist ("see the reference in the right column", "Run Test connection above", "the manual button below", "in the main column" three times, "press Refresh"); each names its target now, on both surfaces. Provenance's empty Commits line says a new proof appears within 30 seconds, which is how often it polls.
+  - Connections › Credentials' picker painted an empty box that read as "no credentials"; it says "Choose a credential", and any kit select whose value matches no option shows a placeholder.
+  - Webhooks' "Add webhook" sat jammed against the last checkbox's label; the webhook forms stack, the button at the end.
+  - Integrity › Reports printed "38 of 21 token pairs" from a cached count; the tile and the sentence count the printed pairs on both surfaces, and its run-date link opens a new tab instead of replacing the whole desktop with GitHub.
+  - Six desktop-widget links (Open Dashboard and its siblings), Home's "this week" figure, and every link a builder paints without the kit used the admin accent, pure red here, 4.4:1 and failing AA for small text; they take the link pink.
+
 ## [2026.10.3] - 2026-10-12 — MCP Clients redesigned, boxes share rows, folds are earned, Edit opens under its row, links read as links
 
 ### Changed

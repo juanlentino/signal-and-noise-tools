@@ -42,7 +42,9 @@ function tools_reports_render_contrast( array $report ) {
 	$usage = isset( $report['usage'] ) && is_array( $report['usage'] ) ? $report['usage'] : array();
 	$pairs = isset( $report['pairs'] ) && is_array( $report['pairs'] ) ? $report['pairs'] : array();
 
-	$card  = tools_reports_contrast_tiles( $usage, $pairs, (int) ( $report['would_fail_body'] ?? 0 ) );
+	// The tile counts the pairs too, never the stored figure (a pre-2026.10.3
+	// cache summed every palette and read "38 of 21").
+	$card  = tools_reports_contrast_tiles( $usage, $pairs, count( array_filter( $pairs, static fn( $r ) => empty( $r['aa_body'] ) ) ) );
 	$card .= function_exists( 'snt_contrast_rendered' ) ? snt_contrast_rendered_html( snt_contrast_rendered(), 'snt-hint' ) : '';
 
 	return array(

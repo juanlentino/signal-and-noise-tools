@@ -639,7 +639,8 @@ os-button.snt-home__action:hover {
 	animation: snt-bar-rise 0.5s cubic-bezier( 0.16, 1, 0.3, 1 ) both;
 }
 
-.snt-ns-hero__weeks li:last-child strong { color: var( --os-ui-accent, #f252fc ); }
+/* The number is text: the link pink (the accent is #ff0000 here, 4.4:1 at 11px, failing AA); the bar keeps the accent. */
+.snt-ns-hero__weeks li:last-child strong { color: var( --os-ui-accent-strong, #ec9bff ); }
 .snt-ns-hero__weeks li:last-child .snt-ns-hero__bar { background: var( --os-ui-accent, #f252fc ); }
 
 .snt-ns-hero__axis {
