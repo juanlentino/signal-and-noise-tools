@@ -134,6 +134,11 @@ snt_purge_ledger_add( array( 'trigger' => 'update', 'edge' => true ) );
 $GLOBALS['opt'][ SNT_PURGE_LEDGER_OPTION ][0]['time'] = 1000;
 snt_purge_ledger_add( array( 'trigger' => 'cron:x', 'edge' => false ) );
 ok( 1000 === snt_purge_ledger_last_edge(), 'a newer purge that never reached the edge does not count' );
+snt_purge_ledger_add( array( 'trigger' => 'save', 'scope' => 'note', 'edge' => true ) );
+ok( 1000 === snt_purge_ledger_last_edge(), 'nor does a purge of one note\'s URLs: it refreshed that note, not the site (2026-10-13)' );
+snt_purge_ledger_add( array( 'trigger' => 'save', 'scope' => 'tag', 'edge' => true ) );
+$sum = snt_purge_ledger_summary( time() );
+ok( array( 'save:note' => 1, 'save:tag' => 1 ) == $sum['by_scope'] && 2 === $sum['by_trigger']['save'], 'the week splits save purges by scope: tag (every tagged page) and note (one note\'s URLs)' );
 
 echo "\nA full ring inside the week says its counts are a floor\n";
 $GLOBALS['opt'] = array();

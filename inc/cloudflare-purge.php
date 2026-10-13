@@ -55,6 +55,7 @@ const SN_CF_LAST_ZONE_PURGE_OPT = 'sn_cf_last_zone_purge';
 const SN_CF_API_BASE        = 'https://api.cloudflare.com/client/v4';
 
 require_once __DIR__ . '/cloudflare-purge-send.php'; // blocking send, retry, failure record (20.9.0).
+require_once __DIR__ . '/cloudflare-purge-save.php'; // a note save that changed no list purges by URL (2026-10-13).
 
 /**
  * Resolve the active token. Constant wins over option when set.
@@ -121,6 +122,8 @@ function sn_cf_purge_urls( $urls ) {
 		$confirmed = sn_cf_api_send( 'purge_cache', array( 'files' => $chunk ) ) && $confirmed;
 		$handled   = $handled && 'failed' !== sn_cf_send_last();
 	}
+	// The worst chunk speaks for the call, not the last one (a ledger row reads it).
+	$GLOBALS['sn_cf_send_last'] = $confirmed ? 'ok' : ( $handled ? 'queued' : 'failed' );
 	if ( ! $handled ) {
 		return false; // Cloudflare refused and nothing will retry: recorded for the alert.
 	}
@@ -442,7 +445,13 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 	// MISS). The sitemaps are core's and carry no tag, so they go by URL. The
 	// URL list, the first-publish zone purge and the post-save probe remain
 	// only as the path for an older theme.
+	// 2026-10-13: a note save that changed nothing another page lists purges
+	// that note by URL instead (inc/cloudflare-purge-save.php).
 	if ( sn_cf_tagged() ) {
+		if ( sn_cf_save_is_narrow( $post_id, $post, $post_before ) ) {
+			sn_cf_purge_note( $post_id, $post );
+			return;
+		}
 		sn_cf_purge_tag();
 		sn_cf_purge_urls( sn_cf_sitemap_urls( $is_published ? $post->post_type : $post_before->post_type ) );
 		return;

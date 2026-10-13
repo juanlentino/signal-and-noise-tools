@@ -72,7 +72,7 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'purges'    => array(
 					'type'        => 'object',
-					'description' => '20.7.0: the purge ledger. last_7_days and by_trigger (a floor when last_7_days_is_floor: the 50-row ring filled inside the week) (manual, update, rollover, styles, cron:<hook>), redis_flushes_7d (purges that emptied the whole object cache), whether Breeze\'s own update purge is hooked (should read removed) and whether its nightly purge is scheduled (should read off), and the last 20 rows, each with trigger, redis, pages, edge and the Cloudways answer. A healthy week is a handful of rows and zero redis flushes outside manual.',
+					'description' => '20.7.0: the purge ledger. last_7_days and by_trigger (a floor when last_7_days_is_floor: the 50-row ring filled inside the week) (manual, update, rollover, styles, save, cron:<hook>), by_scope (the same rows split by what they emptied: save:tag empties every tagged page, save:note purges the URLs of one note because the save changed nothing another page lists), redis_flushes_7d (purges that emptied the whole object cache), whether Breeze\'s own update purge is hooked (should read removed) and whether its nightly purge is scheduled (should read off), and the last 20 rows, each with trigger, scope when it has one, redis, pages, edge and the Cloudways answer. A healthy week is a handful of rows and zero redis flushes outside manual.',
 				),
 			),
 		),
