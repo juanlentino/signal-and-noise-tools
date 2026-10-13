@@ -181,6 +181,11 @@ function sn_cf_save_is_narrow( $post_id, $post, $post_before ) {
  * @return bool Handled (confirmed or queued to retry).
  */
 function sn_cf_purge_note( $post_id, $post ) {
+	// The theme owns the tag names; PHPStan reads a function_exists guard only
+	// in the function that holds it, so this one carries its own.
+	if ( ! function_exists( 'sn_edge_cache_note_tag' ) ) {
+		return sn_cf_purge_tag();
+	}
 	$tags      = array( (string) sn_edge_cache_note_tag( (int) $post_id ), (string) constant( 'SN_EDGE_CACHE_LIST_TAG' ) );
 	$confirmed = sn_cf_api_send( 'purge_cache', array( 'tags' => $tags ) );
 	$handled   = $confirmed || 'queued' === sn_cf_send_last();
