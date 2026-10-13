@@ -55,6 +55,7 @@ const SN_CF_LAST_ZONE_PURGE_OPT = 'sn_cf_last_zone_purge';
 const SN_CF_API_BASE        = 'https://api.cloudflare.com/client/v4';
 
 require_once __DIR__ . '/cloudflare-purge-send.php'; // blocking send, retry, failure record (20.9.0).
+require_once __DIR__ . '/cloudflare-purge-save.php'; // a note save that changed no list purges that note's tags (2026-10-13).
 
 /**
  * Resolve the active token. Constant wins over option when set.
@@ -442,7 +443,13 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 	// MISS). The sitemaps are core's and carry no tag, so they go by URL. The
 	// URL list, the first-publish zone purge and the post-save probe remain
 	// only as the path for an older theme.
+	// 2026-10-13: a note save that changed nothing another page lists purges
+	// that note's tag and the lists' tag instead (inc/cloudflare-purge-save.php).
 	if ( sn_cf_tagged() ) {
+		if ( sn_cf_save_is_narrow( $post_id, $post, $post_before ) ) {
+			sn_cf_purge_note( $post_id, $post );
+			return;
+		}
 		sn_cf_purge_tag();
 		sn_cf_purge_urls( sn_cf_sitemap_urls( $is_published ? $post->post_type : $post_before->post_type ) );
 		return;
@@ -496,15 +503,28 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 	// Schedule a probe that checks the URL a reader would actually get, and
 	// escalates once to a zone purge if it is still stale. Rescheduling is
 	// deliberate: three saves in ten minutes should probe once, after the last.
-	if ( function_exists( 'wp_schedule_single_event' ) && defined( 'SN_CF_PROBE_HOOK' ) ) {
-		$args = array( $post_id );
-		$next = wp_next_scheduled( SN_CF_PROBE_HOOK, $args );
-		if ( $next ) {
-			wp_unschedule_event( $next, SN_CF_PROBE_HOOK, $args );
-		}
-		wp_schedule_single_event( time() + SN_CF_PROBE_DELAY, SN_CF_PROBE_HOOK, $args );
-	}
+	sn_cf_schedule_probe( $post_id );
 }, 30, 4 );
+
+/**
+ * Check the note's page SN_CF_PROBE_DELAY seconds after its purge, once:
+ * three saves in ten minutes probe once, after the last (v11.10.0). Runs
+ * after the URL list of an older theme and after a note's tag purge.
+ *
+ * @param int $post_id Post ID.
+ * @return void
+ */
+function sn_cf_schedule_probe( $post_id ) {
+	if ( ! function_exists( 'wp_schedule_single_event' ) || ! defined( 'SN_CF_PROBE_HOOK' ) ) {
+		return;
+	}
+	$args = array( (int) $post_id );
+	$next = wp_next_scheduled( SN_CF_PROBE_HOOK, $args );
+	if ( $next ) {
+		wp_unschedule_event( $next, SN_CF_PROBE_HOOK, $args );
+	}
+	wp_schedule_single_event( time() + SN_CF_PROBE_DELAY, SN_CF_PROBE_HOOK, $args );
+}
 
 /**
  * The Cache box's sentence, the same on both surfaces (2026-10-12 audit: it

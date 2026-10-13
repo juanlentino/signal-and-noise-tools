@@ -12,6 +12,16 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **A note save that changes nothing another page shows no longer empties the whole edge cache.** Since #1850 every save of a published post purged the theme's whole Cloudflare cache tag, which empties every page on the site. In the week to Oct 13 that was 40 save purges, about 5.7 a day, in bursts of 3 to 6 within seconds.
+  - **What is compared.** Just before the save, the plugin records what other pages list of the note: title, slug, publish date, status, password, excerpt, the opening 60 words (as the link preview and the index excerpt each strip them), reading time, links to other notes (cited-by), tags and categories, featured image and sticky.
+  - **When none of it changed**, and the theme tags each note (juanlentino/signal-and-noise#530), the save purges two tags in one call: the note's own (`sn-note-<ID>`) and the lists' (`sn-lists`). Core's sitemaps still go by URL. A tag clears every copy of the note's page, including share and feed links with `?utm_source=` (each is its own copy at the edge), in every tier; a URL purge would not.
+  - **Anything else keeps the whole-tag purge:** a theme without per-note tags, a change to any listed field, a first publish, unpublishing or trashing, a page, or a save whose "before" was never seen (a scheduled note going live). If Cloudflare refuses the two tags outright, the whole tag goes instead.
+  - **The post-save probe runs again** after a note purge. Cloudflare's "Old per-URL purge path" note now appears only for a theme that does not tag each note.
+  - **Bursts of saves are not merged:** they are separate requests, and merging would mean skipping or delaying a purge.
+  - **Ledger:** the purge ledger records the narrow purge as trigger `save`, scope `note`. The `cache-freshness` reading gains `by_scope` (`save:tag` and `save:note`), so the `save` count in `by_trigger` now covers both kinds. A note purge does not move the desktop's "last full edge purge".
+  - Pinned by the new tests/cloudflare-purge-save.php and tests/purge-ledger.php.
+
 ## [2026.10.9] - 2026-10-13 — the queue fits and warns, and field vitals read
 
 ### Changed

@@ -64,13 +64,15 @@ function snt_purge_ledger_add( array $row ) {
 
 /**
  * When the edge was last purged (0 when never): the card's "refreshing"
- * window counts from a purge that cleared Cloudflare, not any purge.
+ * window counts from a purge that cleared Cloudflare, not any purge, and
+ * not a purge of one note's URLs.
  *
  * @return int
  */
 function snt_purge_ledger_last_edge() {
 	foreach ( snt_purge_ledger_rows() as $r ) {
-		if ( ! empty( $r['edge'] ) ) {
+		// One note's URLs (scope 'note') refresh that note, not the site.
+		if ( ! empty( $r['edge'] ) && 'note' !== ( $r['scope'] ?? '' ) ) {
 			return (int) ( $r['time'] ?? 0 );
 		}
 	}
@@ -300,9 +302,16 @@ function snt_purge_ledger_summary( $now = null ) {
 	$rows  = snt_purge_ledger_rows();
 	$week  = array_filter( $rows, static fn( $r ) => (int) ( $r['time'] ?? 0 ) >= $now - 7 * DAY_IN_SECONDS );
 	$count = array();
+	$scope = array();
 	foreach ( $week as $r ) {
 		$t           = (string) ( $r['trigger'] ?? '?' );
 		$count[ $t ] = ( $count[ $t ] ?? 0 ) + 1;
+		// A save purges the whole tag or one note's URLs (2026-10-13): the
+		// split is what shows whether saves still empty the site.
+		if ( isset( $r['scope'] ) ) {
+			$k           = $t . ':' . (string) $r['scope'];
+			$scope[ $k ] = ( $scope[ $k ] ?? 0 ) + 1;
+		}
 	}
 	// The ring holds SNT_PURGE_LEDGER_CAP rows. When it is full and its oldest
 	// row is inside the week, more purges happened than it kept: the counts
@@ -312,6 +321,7 @@ function snt_purge_ledger_summary( $now = null ) {
 		'last_7_days'         => count( $week ),
 		'last_7_days_is_floor' => count( $rows ) >= SNT_PURGE_LEDGER_CAP && $oldest >= $now - 7 * DAY_IN_SECONDS,
 		'by_trigger'          => $count,
+		'by_scope'            => $scope,
 		// 'unknown' (a Cloudways timeout) counts: undercounting is the worse error.
 		'redis_flushes_7d'    => count( array_filter( $week, static fn( $r ) => ! empty( $r['redis'] ) ) ),
 		'breeze_update_purge' => snt_purge_breeze_update_purge_hooked() ? 'hooked' : 'removed',
