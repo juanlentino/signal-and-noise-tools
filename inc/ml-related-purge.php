@@ -87,10 +87,15 @@ function snt_ml_related_purge_after() {
 	}
 	// The theme owns the tag names; PHPStan reads a function_exists guard only
 	// in the function that holds it, so this one carries its own.
-	$per_note  = function_exists( 'sn_edge_cache_note_tag' ) && count( $changed ) <= SNT_ML_RELATED_PURGE_MAX_TAGS;
-	$tags      = $per_note
-		? array_map( static fn( $id ) => (string) sn_edge_cache_note_tag( $id ), $changed )
-		: array( (string) constant( 'SN_EDGE_CACHE_TAG' ) );
+	$per_note = false;
+	$tags     = array( (string) constant( 'SN_EDGE_CACHE_TAG' ) );
+	if ( function_exists( 'sn_edge_cache_note_tag' ) && count( $changed ) <= SNT_ML_RELATED_PURGE_MAX_TAGS ) {
+		$per_note = true;
+		$tags     = array();
+		foreach ( $changed as $id ) {
+			$tags[] = (string) sn_edge_cache_note_tag( $id );
+		}
+	}
 	$confirmed = sn_cf_api_send( 'purge_cache', array( 'tags' => $tags ) );
 	if ( ( $confirmed || 'queued' === sn_cf_send_last() ) && function_exists( 'snt_purge_ledger_add' ) ) {
 		snt_purge_ledger_add( array( 'trigger' => 'related', 'scope' => $per_note ? 'note' : 'tag', 'redis' => false, 'pages' => false, 'edge' => $confirmed, 'cloudways' => 'not run' ) );
