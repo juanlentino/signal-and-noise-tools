@@ -31,7 +31,8 @@ function wp_is_post_autosave( $id ) { return false; }
 function get_permalink( $p ) { return 'https://example.test/notes/' . ( is_object( $p ) ? $p->post_name : 'x' ) . '/'; }
 function home_url( $path = '/' ) { return 'https://example.test' . $path; }
 function get_post( $id ) { return $GLOBALS['__db']; }
-function get_post_meta( $id, $key = '', $single = false ) { return '_thumbnail_id' === $key ? $GLOBALS['__thumb'] : ''; }
+// The stored reading time is whatever the test sets; '' when none is stored, core's shape.
+function get_post_meta( $id, $key = '', $single = false ) { return '_thumbnail_id' === $key ? $GLOBALS['__thumb'] : ( '_sn_reading_time_minutes' === $key ? $GLOBALS['__rt'] : '' ); }
 function is_sticky( $id = 0 ) { return $GLOBALS['__sticky']; }
 function wp_get_object_terms( $id, $tax, $args = array() ) { return $GLOBALS['__terms']; }
 // Core's shapes, reduced: script/style bodies go, then tags; shortcodes go;
@@ -75,13 +76,13 @@ $base = array( 'post_content' => $body );
  */
 function save( array $after = array(), array $before = array(), array $opt = array() ) {
 	global $after_insert, $capture, $base;
-	$opt += array( 'tb' => array( 3, 5 ), 'ta' => array( 3, 5 ), 'capture' => true, 'replies' => array( array( 200, true ) ), 'thumb' => array( 0, 0 ), 'sticky' => array( false, false ) );
+	$opt += array( 'tb' => array( 3, 5 ), 'ta' => array( 3, 5 ), 'capture' => true, 'replies' => array( array( 200, true ) ), 'thumb' => array( 0, 0 ), 'sticky' => array( false, false ), 'rt' => array( '', '' ) );
 	$GLOBALS['__http'] = array(); $GLOBALS['__ledger'] = array(); $GLOBALS['__sched'] = array(); $GLOBALS['__replies'] = $opt['replies'];
 	$old = new WP_Post( $before + $base );
 	$new = new WP_Post( $after + $base );
-	$GLOBALS['__db'] = $old; $GLOBALS['__terms'] = $opt['tb']; $GLOBALS['__thumb'] = $opt['thumb'][0]; $GLOBALS['__sticky'] = $opt['sticky'][0];
+	$GLOBALS['__db'] = $old; $GLOBALS['__terms'] = $opt['tb']; $GLOBALS['__thumb'] = $opt['thumb'][0]; $GLOBALS['__sticky'] = $opt['sticky'][0]; $GLOBALS['__rt'] = $opt['rt'][0];
 	if ( $opt['capture'] && is_callable( $capture ) ) { call_user_func( $capture, 7 ); }
-	$GLOBALS['__db'] = $new; $GLOBALS['__terms'] = $opt['ta']; $GLOBALS['__thumb'] = $opt['thumb'][1]; $GLOBALS['__sticky'] = $opt['sticky'][1];
+	$GLOBALS['__db'] = $new; $GLOBALS['__terms'] = $opt['ta']; $GLOBALS['__thumb'] = $opt['thumb'][1]; $GLOBALS['__sticky'] = $opt['sticky'][1]; $GLOBALS['__rt'] = $opt['rt'][1];
 	call_user_func( $after_insert, 7, $new, true, $old );
 	$tags = array(); $files = array();
 	foreach ( $GLOBALS['__http'] as $b ) {
@@ -139,6 +140,10 @@ ok( $whole( save( array(), array(), array( 'ta' => array( 3 ) ) ) ), 'a removed 
 ok( $whole( save( array(), array(), array( 'ta' => array( 3, 5, 9 ) ) ) ), 'an added tag sends the whole tag' );
 ok( $whole( save( array(), array(), array( 'thumb' => array( 0, 41 ) ) ) ), 'a new featured image sends the whole tag' );
 ok( $whole( save( array(), array(), array( 'sticky' => array( false, true ) ) ) ), 'making it sticky sends the whole tag' );
+// Pages show the stored minutes. The body reads 1 minute; a stored 9 is drift
+// this save's own recompute corrects, so other pages change from 9 to 1.
+ok( $whole( save( array(), array(), array( 'rt' => array( '9', '1' ) ) ) ), 'a stored reading time that drifted from the body sends the whole tag (the save rewrites it)' );
+ok( ! $whole( save( array(), array(), array( 'rt' => array( '1', '1' ) ) ) ), 'a stored reading time that matches the body stays narrow' );
 
 echo "\nGroup: when in doubt, the whole tag\n";
 ok( $whole( save( array(), array(), array( 'capture' => false ) ) ), 'no "before" captured in this request (a scheduled post going live)' );
