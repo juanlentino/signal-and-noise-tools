@@ -174,8 +174,15 @@ snt_purge_ledger_open( array( 'trigger' => 'update' ) );
 $before = count( snt_purge_ledger_rows() );
 sn_cf_purge_everything();
 ok( $before === count( snt_purge_ledger_rows() ) && ! empty( $GLOBALS['snt_purge_edge'] ), 'inside the chain it marks that row instead of adding one' );
-ok( 'purge_cache' === basename( $GLOBALS['cf_urls'][0] ) && 'purge_cache' === basename( (string) end( $GLOBALS['cf_urls'] ) ), 'a direct purge deletes, and so does an update: invalidate is held off' );
+ok( 'purge_cache' === basename( $GLOBALS['cf_urls'][0] ) && 'invalidate_cache' === basename( (string) end( $GLOBALS['cf_urls'] ) ), 'a direct purge deletes; an update marks the zone stale (2026-10-13)' );
+snt_purge_ledger_close();
+$row = snt_purge_ledger_rows()[0] ?? array();
+ok( 'update' === ( $row['trigger'] ?? '' ) && 'invalidate' === ( $row['scope'] ?? '' ) && true === ( $row['edge'] ?? null ), 'the update row says it marked the zone stale: scope invalidate (2026-10-13)' );
+ok( 'retired: Varnish is off for this app' === ( $row['cloudways'] ?? '' ), 'and names the Cloudways leg in words, not a missing note: retired, Varnish is off' );
 unset( $GLOBALS['snt_purge_current'], $GLOBALS['snt_purge_edge'] );
+sn_cf_purge_everything( 'probe' );
+$row = snt_purge_ledger_rows()[0] ?? array();
+ok( 'probe' === ( $row['trigger'] ?? '' ) && 'zone' === ( $row['scope'] ?? '' ) && 'purge_cache' === basename( (string) end( $GLOBALS['cf_urls'] ) ), "a probe's zone fallback is a hard purge and its row says probe, zone" );
 
 $cfsrc = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
 $vfn = substr( $cfsrc, (int) strpos( $cfsrc, 'function sn_cf_purge_everything_verified()' ), 1500 );

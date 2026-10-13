@@ -98,6 +98,15 @@ ok( empty( $GLOBALS['__http'] ), 'no HTTP call when not configured' );
 define( 'SN_CLOUDWAYS_APP_ID', '222' );
 echo "\nGroup: configured — token + purge\n";
 ok( true === sn_cloudways_is_configured(), 'is_configured true with all four constants' );
+
+echo "\nGroup: retired by default (2026-10-13: Varnish is off for this app)\n";
+$GLOBALS['__http'] = array();
+$GLOBALS['__opts'] = array();
+$GLOBALS['sn_cloudways_purge_done'] = false;
+ok( false === sn_cloudways_app_purge_on() && false === sn_cloudways_purge_app() && empty( $GLOBALS['__http'] ) && empty( $GLOBALS['__opts'] ), 'configured but not asked for: no call to Cloudways, no record written' );
+ok( 'retired: Varnish is off for this app' === sn_cloudways_not_run_label(), 'the ledger names it in words' );
+define( 'SN_CLOUDWAYS_APP_PURGE', true );
+ok( true === sn_cloudways_app_purge_on() && 'not run' === sn_cloudways_not_run_label(), 'SN_CLOUDWAYS_APP_PURGE true turns it back on' );
 $GLOBALS['__http'] = array();
 $GLOBALS['__opts'] = array();
 $GLOBALS['sn_cloudways_purge_done'] = false;

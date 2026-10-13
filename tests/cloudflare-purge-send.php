@@ -40,7 +40,8 @@ require_once __DIR__ . '/../inc/cloudflare-purge.php';
 
 echo "Group: pure rules\n";
 ok( sn_cf_retryable( 0 ) && sn_cf_retryable( 429 ) && sn_cf_retryable( 502 ) && ! sn_cf_retryable( 401 ) && ! sn_cf_retryable( 400 ) && ! sn_cf_retryable( 200 ), 'a transport error, a throttle and a 5xx are retried; a 4xx and an unconfirmed 200 are not' );
-ok( array() === SN_CF_SOFT_TRIGGERS && 'purge_cache' === sn_cf_edge_endpoint( 'update' ) && 'purge_cache' === sn_cf_edge_endpoint( 'rollover' ) && 'purge_cache' === sn_cf_edge_endpoint( 'publish' ) && 'purge_cache' === sn_cf_edge_endpoint( 'manual' ) && 'purge_cache' === sn_cf_edge_endpoint( '' ), 'every trigger purges: invalidate on a code update is built but held off (the origin answered its revalidation 304)' );
+ok( 'invalidate_cache' === sn_cf_edge_endpoint( 'update' ) && 'invalidate_cache' === sn_cf_edge_endpoint( 'rollover' ), 'a code update (update, rollover) marks the zone stale: invalidate, not delete (2026-10-13)' );
+ok( 'purge_cache' === sn_cf_edge_endpoint( 'publish' ) && 'purge_cache' === sn_cf_edge_endpoint( 'manual' ) && 'purge_cache' === sn_cf_edge_endpoint( 'styles' ) && 'purge_cache' === sn_cf_edge_endpoint( 'probe' ) && 'purge_cache' === sn_cf_edge_endpoint( '' ), 'every content change and the probe still delete' );
 
 echo "\nGroup: the answer is read\n";
 reset_all( array( array( 200, true ) ) );
@@ -145,6 +146,19 @@ ok( null === sn_cf_purge_failure(), 'the purge itself clears it' );
 unset( $GLOBALS['__opts']['sn_cf_last_purge'] );
 reset_all( array( array( 503, false ) ) );
 ok( true === sn_cf_purge_urls( array( 'https://x/q' ) ) && ! isset( $GLOBALS['__opts']['sn_cf_last_purge'] ), 'a URL purge waiting on a retry is handled but stamps no last purge' );
+$GLOBALS['__opts']['sn_cf_purge_failure'] = null;
+unset( $GLOBALS['__opts']['sn_cf_purge_failure'] );
+reset_all( array( array( 200, true ) ) );
+$hundred = array();
+for ( $i = 0; $i < 230; $i++ ) { $hundred[] = 'https://x/p' . $i; }
+sn_cf_purge_urls( $hundred );
+ok( 3 === count( $GLOBALS['__http'] ) && 100 === count( json_decode( $GLOBALS['__http'][0][1]['body'], true )['files'] ), 'URL purges go 100 to a call, the limit on every plan (was 30): 230 URLs are 3 calls' );
+reset_all( array( array( 200, true ) ) );
+sn_cf_api_send( 'invalidate_cache', array( 'purge_everything' => true ) );
+ok( 'invalidate_cache' === sn_cf_send_endpoint() && 'invalidate' === ( $GLOBALS['__opts']['sn_cf_last_purge']['mode'] ?? '' ), 'a confirmed invalidate says so: the endpoint it ended on, and the last purge reads mode invalidate' );
+reset_all( array( array( 400, false ), array( 200, true ) ) );
+sn_cf_api_send( 'invalidate_cache', array( 'purge_everything' => true ) );
+ok( 'purge_cache' === sn_cf_send_endpoint() && 'purge' === ( $GLOBALS['__opts']['sn_cf_last_purge']['mode'] ?? '' ), 'a refused invalidate that fell back to a purge says purge' );
 ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/mcp/mcp-rw-audit.php' ), "'flush_object_cache'," ), 'the write audit keeps flush_object_cache, so a Redis flush does not read like the page-only default' );
 
 echo "\nGroup: the theme's cache tag\n";
@@ -157,6 +171,20 @@ ok( 1 === count( $GLOBALS['__ledger'] ) && 'save' === $GLOBALS['__ledger'][0]['t
 reset_all( array( array( 400, false ) ) );
 $GLOBALS['__ledger'] = array();
 ok( false === sn_cf_purge_tag() && array() === $GLOBALS['__ledger'], 'a refused tag purge records nothing: nothing was emptied' );
+reset_all( array( array( 200, true ) ) );
+$GLOBALS['__ledger'] = array();
+sn_cf_purge_tag( 'probe' );
+ok( 'probe' === ( $GLOBALS['__ledger'][0]['trigger'] ?? '' ) && 'tag' === $GLOBALS['__ledger'][0]['scope'], 'a tag purge names who asked: a probe escalation is trigger probe, scope tag' );
+
+echo "\nGroup: a Site Editor save purges the whole-site tag (2026-10-13)\n";
+reset_all( array( array( 200, true ) ) );
+$GLOBALS['__ledger'] = array();
+$nav = (object) array( 'post_type' => 'wp_navigation', 'post_status' => 'publish' );
+ok( in_array( array( 'save_post_wp_navigation', 'sn_cf_purge_on_site_editor_save', 2 ), $GLOBALS['__actions'], true ) && in_array( array( 'save_post_wp_template', 'sn_cf_purge_on_site_editor_save', 2 ), $GLOBALS['__actions'], true ) && in_array( array( 'save_post_wp_template_part', 'sn_cf_purge_on_site_editor_save', 2 ), $GLOBALS['__actions'], true ), 'menus, templates and template parts are hooked' );
+ok( true === sn_cf_purge_on_site_editor_save( 5, $nav ) && '{"tags":["sn-render"]}' === $GLOBALS['__http'][0][1]['body'] && 'site-editor' === $GLOBALS['__ledger'][0]['trigger'], 'a published menu save purges the sn-render tag, ledger trigger site-editor' );
+ok( false === sn_cf_purge_on_site_editor_save( 6, (object) array( 'post_type' => 'wp_template', 'post_status' => 'publish' ) ) && 1 === count( $GLOBALS['__http'] ), 'once per request: the editor saving several entities sends one purge' );
+unset( $GLOBALS['sn_cf_site_editor_purged'] );
+ok( false === sn_cf_purge_on_site_editor_save( 7, (object) array( 'post_type' => 'wp_template_part', 'post_status' => 'auto-draft' ) ) && false === sn_cf_purge_on_site_editor_save( 8, (object) array( 'post_type' => 'post', 'post_status' => 'publish' ) ) && 1 === count( $GLOBALS['__http'] ), 'an unpublished part or another post type purges nothing here' );
 $purge_src = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
 ok( 1 === substr_count( $purge_src, "sn_cf_purge_tag();" ) && false !== strpos( $purge_src, 'if ( sn_cf_tagged() ) {' ), 'the save handler purges the tag in one place, ahead of the older-theme path' );
 

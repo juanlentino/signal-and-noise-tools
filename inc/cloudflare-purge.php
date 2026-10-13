@@ -56,6 +56,8 @@ const SN_CF_API_BASE        = 'https://api.cloudflare.com/client/v4';
 
 require_once __DIR__ . '/cloudflare-purge-send.php'; // blocking send, retry, failure record (20.9.0).
 require_once __DIR__ . '/cloudflare-purge-save.php'; // a note save that changed no list purges that note's tags (2026-10-13).
+require_once __DIR__ . '/cloudflare-purge-words.php'; // the Cache box's shared phrases (2026-10-13).
+require_once __DIR__ . '/cloudflare-purge-site-editor.php'; // a menu, template or template part save purges the whole-site tag (2026-10-13).
 
 /**
  * Resolve the active token. Constant wins over option when set.
@@ -114,8 +116,9 @@ function sn_cf_purge_urls( $urls ) {
 		return false;
 	}
 
-	// Cloudflare's cache purge endpoint accepts up to 30 URLs per call.
-	$chunks  = array_chunk( $urls, 30 );
+	// Cloudflare takes up to 100 URLs per single-file purge call on every plan
+	// (it was 30 when this was written).
+	$chunks  = array_chunk( $urls, 100 );
 	$handled   = true;
 	$confirmed = true;
 	foreach ( $chunks as $chunk ) {
@@ -142,9 +145,12 @@ function sn_cf_purge_urls( $urls ) {
  * Refresh the entire zone. A code update (trigger update or rollover)
  * marks it stale; every other caller deletes it (sn_cf_edge_endpoint).
  *
+ * @param string $trigger Ledger trigger for a call outside the theme's chain
+ *                        ('' asks snt_purge_trigger()); 'probe' marks a stale
+ *                        probe's fallback when the tag purge was refused.
  * @return bool true if handled (sent, or queued to retry), false if not configured.
  */
-function sn_cf_purge_everything() {
+function sn_cf_purge_everything( $trigger = '' ) {
 	if ( ! sn_cf_is_configured() ) {
 		return false;
 	}
@@ -163,8 +169,14 @@ function sn_cf_purge_everything() {
 	// a queued retry has not refreshed anything yet.
 	if ( isset( $GLOBALS['snt_purge_current'] ) ) {
 		$GLOBALS['snt_purge_edge'] = $confirmed;
+		// The chain's row says when the zone was marked stale, not deleted.
+		$GLOBALS['snt_purge_edge_call'] = sn_cf_send_endpoint();
 	} elseif ( function_exists( 'snt_purge_ledger_add' ) ) {
-		snt_purge_ledger_add( array( 'trigger' => snt_purge_trigger(), 'redis' => false, 'pages' => false, 'edge' => $confirmed, 'cloudways' => 'not run' ) );
+		$row = array( 'trigger' => '' !== (string) $trigger ? (string) $trigger : snt_purge_trigger(), 'redis' => false, 'pages' => false, 'edge' => $confirmed, 'cloudways' => 'not run' );
+		if ( '' !== (string) $trigger ) {
+			$row['scope'] = 'zone';
+		}
+		snt_purge_ledger_add( $row );
 	}
 
 	return true;
@@ -652,9 +664,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 				$probe_stale
 			) . ( function_exists( 'snt_cf_probe_status' ) && snt_cf_probe_status( $probe_log )['retired'] ? ' · ' . __( 'no longer runs', 'signal-and-noise-tools' ) : '' ) ) . '</span></summary>';
 		$probe_retired = function_exists( 'snt_cf_probe_retired_note' ) ? snt_cf_probe_retired_note( $probe_log ) : '';
-		echo '<p class="sn-fieldset-intro">' . ( '' !== $probe_retired ? esc_html( $probe_retired ) . ' ' : '' ) . 'Each row is one check of the page a reader would actually get, '
-			. (int) SN_CF_PROBE_DELAY . ' seconds after its purge. A stale row escalated to a full zone purge at the time,'
-			. ' so it records a purge that needed a second attempt, not a page still stale now.</p>';
+		echo '<p class="sn-fieldset-intro">' . ( '' !== $probe_retired ? esc_html( $probe_retired ) . ' ' : '' ) . esc_html( snt_cf_probe_intro( (int) SN_CF_PROBE_DELAY ) ) . '</p>';
 		echo '<table class="widefat striped"><thead><tr>';
 		echo '<th scope="col" class="manage-column column-primary">When</th><th scope="col">Result</th><th scope="col">Page</th>';
 		echo '</tr></thead><tbody>';
@@ -667,8 +677,9 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 			$r_stale = 'stale' === $r_res;
 			$r_pill  = $r_stale ? 'sn-pill sn-pill--warn' : ( 'fresh' === $r_res ? 'sn-pill sn-pill--ok' : 'sn-pill sn-pill--muted' );
 			$r_label = '' !== $r_res ? $r_res : 'unknown';
-			if ( $r_stale && ! empty( $row['escalated'] ) ) {
-				$r_label .= ' → zone purge';
+			$r_esc = snt_cf_probe_escalation_label( $row );
+			if ( '' !== $r_esc ) {
+				$r_label .= ' ' . $r_esc;
 			}
 			// The URL minus the host: twenty identical origins is twenty times
 			// the width and none of the information.
@@ -697,14 +708,15 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		$last_line = '';
 		if ( ! empty( $last_purge['time'] ) ) {
 			$ago       = human_time_diff( (int) $last_purge['time'], time() );
-			$kind      = ( ( $last_purge['kind'] ?? '' ) === 'all' ) ? 'full zone' : sprintf( /* translators: %d: URLs purged */ _n( '%d URL', '%d URLs', (int) ( $last_purge['count'] ?? 0 ), 'signal-and-noise-tools' ), (int) ( $last_purge['count'] ?? 0 ) );
+			$kind      = sn_cf_last_purge_kind( (array) $last_purge );
 			$last_line = ' Last purge: ' . esc_html( $ago ) . ' ago (' . esc_html( $kind ) . ').';
 		}
+		$last_line .= ' ' . esc_html__( 'Breeze page cache:', 'signal-and-noise-tools' ) . ' ' . esc_html( sn_cf_breeze_page_cache_words( get_option( 'sn_last_purge_report', array() ) ) ) . '.';
 		echo '<div class="sn-status-box">';
 		echo '<div>';
 		echo '<p class="sn-status-box-title">Configured: auto-purge active</p>';
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $last_line is static text plus esc_html()-escaped values.
-		echo '<p class="sn-status-box-body">Cache purges fire automatically on post save, theme update, and via the REST endpoint.' . $last_line . '</p>';
+		echo '<p class="sn-status-box-body">' . esc_html( __( 'Cache purges fire automatically', 'signal-and-noise-tools' ) . ' ' . sn_cf_auto_purge_when() . '.' ) . $last_line . '</p>';
 		echo '</div>';
 		echo '<span class="sn-pill sn-pill--ok">Active</span>';
 		echo '</div>';
@@ -734,8 +746,8 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	}
 
 	// ── CLOUDWAYS PURGE STATUS (render hardening FIX 3b) ──
-	// Cloudways purge rides this SAME purge chain (breeze_clear_varnish — see
-	// inc/cloudways-purge.php); surfaced here rather than invisible, so a failed
+	// Retired by default since 2026-10-13 (Varnish is off for this app; the
+	// row says so). When on, it runs on a manual purge; surfaced so a failed
 	// purge (e.g. a Cloudways API 422 field-validation error) is visible right
 	// next to the rest of the pipeline instead of a silent ok:false in an option
 	// no screen ever read.
@@ -743,13 +755,13 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		// 2026-10-12 audit: the Cloudways leaf's own verdict (sn_admin_cloudways_leg()),
 		// so the two leaves call one record by one name.
 		$cw_last = defined( 'SNT_CW_LAST_PURGE_OPT' ) ? get_option( SNT_CW_LAST_PURGE_OPT, array() ) : array();
-		$cw_leg  = sn_admin_cloudways_leg( is_array( $cw_last ) ? $cw_last : array() );
+		$cw_leg  = sn_admin_cloudways_leg( is_array( $cw_last ) ? $cw_last : array(), sn_admin_cloudways_on() );
 		$cw_line = '' !== $cw_leg['value'] ? esc_html( $cw_leg['value'] ) . '.' : '';
 		if ( $cw_leg['time'] > 0 ) {
 			$cw_line .= ' Last attempt: ' . esc_html( human_time_diff( $cw_leg['time'], time() ) ) . ' ago.';
 		}
 		$cw_line .= ' ' . wp_kses_post( $cw_leg['meta'] );
-		$cw_mod   = 'ok' === $cw_leg['kind'] ? '' : ' sn-status-box--' . ( 'err' === $cw_leg['kind'] ? 'err' : 'warn' );
+		$cw_mod   = in_array( $cw_leg['kind'], array( 'warn', 'err' ), true ) ? ' sn-status-box--' . $cw_leg['kind'] : '';
 		echo '<div class="sn-status-box' . esc_attr( $cw_mod ) . '">';
 		echo '<div>';
 		echo '<p class="sn-status-box-title">Cloudways purge</p>';

@@ -30,10 +30,10 @@ const CF_PROBE_ROWS = 8;
 function cloudflare_probe_row( array $row ) {
 	$time   = (int) ( $row['time'] ?? 0 );
 	$result = (string) ( $row['result'] ?? '' );
-	$stale  = 'stale' === $result;
 	$label  = '' !== $result ? $result : __( 'unknown', 'signal-and-noise-tools' );
-	if ( $stale && ! empty( $row['escalated'] ) ) {
-		$label .= ' ' . __( '→ zone purge', 'signal-and-noise-tools' );
+	$esc = function_exists( 'snt_cf_probe_escalation_label' ) ? \snt_cf_probe_escalation_label( $row ) : '';
+	if ( '' !== $esc ) {
+		$label .= ' ' . $esc;
 	}
 	if ( defined( 'SN_CF_PROBE_ALGO' ) && (int) ( $row['algo'] ?? 1 ) < SN_CF_PROBE_ALGO ) {
 		$label .= ' · ' . __( 'retired detector', 'signal-and-noise-tools' );
@@ -76,11 +76,7 @@ function cloudflare_probes_html( array $d ) {
 		}
 	}
 	$delay = defined( 'SN_CF_PROBE_DELAY' ) ? (int) SN_CF_PROBE_DELAY : 0;
-	$intro = sprintf(
-		/* translators: %d: seconds between a purge and its probe */
-		__( 'Each row is one check of the page a reader would actually get, %d seconds after its purge. A stale row escalated to a full zone purge at the time, so it records a purge that needed a second attempt, not a page still stale now.', 'signal-and-noise-tools' ),
-		$delay
-	);
+	$intro = function_exists( 'snt_cf_probe_intro' ) ? \snt_cf_probe_intro( $delay ) : '';
 	$retired = function_exists( 'snt_cf_probe_retired_note' ) ? snt_cf_probe_retired_note( $d['probe_log'] ) : '';
 	if ( '' !== $retired ) {
 		$intro = $retired . ' ' . $intro;
@@ -122,17 +118,18 @@ function cloudflare_status_html( array $d ) {
 	$last = (array) $d['last_purge'];
 	$when = \snt_kit_esc( __( 'never', 'signal-and-noise-tools' ) );
 	if ( ! empty( $last['time'] ) ) {
-		$kind = ( 'all' === (string) ( $last['kind'] ?? '' ) )
-			? __( 'full zone', 'signal-and-noise-tools' )
-			/* translators: %d: URLs purged */
-			: sprintf( _n( '%d URL', '%d URLs', (int) ( $last['count'] ?? 0 ), 'signal-and-noise-tools' ), (int) ( $last['count'] ?? 0 ) );
+		$kind = function_exists( 'sn_cf_last_purge_kind' ) ? \sn_cf_last_purge_kind( $last ) : '';
 		/* translators: 1: relative time element, 2: what was purged */
 		$when = sprintf( \snt_kit_esc( __( '%1$s (%2$s)', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $last['time'] ), \snt_kit_esc( $kind ) );
 	}
 	$rows = array(
-		array( 'label' => __( 'Auto-purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( 'ok', __( 'Active', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( __( 'on post save, theme update and the REST endpoint', 'signal-and-noise-tools' ) ) ),
+		array( 'label' => __( 'Auto-purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( 'ok', __( 'Active', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( function_exists( 'sn_cf_auto_purge_when' ) ? \sn_cf_auto_purge_when() : '' ) ),
 		array( 'label' => __( 'Last purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => $when ),
 	);
+	if ( function_exists( 'sn_cf_breeze_page_cache_words' ) ) {
+		$breeze = \sn_cf_breeze_page_cache_words( get_option( 'sn_last_purge_report', array() ) );
+		$rows[] = array( 'label' => __( 'Breeze page cache', 'signal-and-noise-tools' ), 'value' => $breeze, 'tone' => __( 'on', 'signal-and-noise-tools' ) === $breeze ? 'warn' : '' );
+	}
 	$cw = cloudflare_cloudways_row( $d['cloudways'] );
 	if ( null !== $cw ) {
 		$rows[] = $cw;
@@ -159,12 +156,12 @@ function cloudflare_cloudways_row( $cw ) {
 	if ( ! is_array( $cw ) || ! function_exists( 'sn_admin_cloudways_leg' ) ) {
 		return null;
 	}
-	$leg  = \sn_admin_cloudways_leg( $cw );
+	$leg  = \sn_admin_cloudways_leg( $cw, ! function_exists( 'sn_admin_cloudways_on' ) || \sn_admin_cloudways_on() );
 	$line = '' !== $leg['value'] ? \snt_kit_esc( $leg['value'] ) . '.' : '';
 	if ( $leg['time'] > 0 ) {
 		/* translators: %s: relative time element */
 		$line .= ' ' . sprintf( \snt_kit_esc( __( 'Last attempt: %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( $leg['time'] ) );
 	}
 	$line .= ' ' . str_replace( array( '<code>', '</code>' ), array( '<os-code>', '</os-code>' ), \wp_kses_post( $leg['meta'] ) );
-	return array( 'label' => __( 'Cloudways purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( $leg['kind'], $leg['text'] ) . ' ' . trim( $line ), 'tone' => 'ok' !== $leg['kind'] ? 'warn' : '' );
+	return array( 'label' => __( 'Cloudways purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( $leg['kind'], $leg['text'] ) . ' ' . trim( $line ), 'tone' => in_array( $leg['kind'], array( 'warn', 'err' ), true ) ? 'warn' : '' );
 }

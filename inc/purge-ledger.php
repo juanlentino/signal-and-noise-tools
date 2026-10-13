@@ -150,9 +150,15 @@ function snt_purge_ledger_close() {
 	if ( ! is_array( $row ) ) {
 		return;
 	}
-	$row['cloudways'] = $GLOBALS['snt_purge_cloudways'] ?? 'not run';
+	// An explicit label, never a missing one: since theme signal-and-noise#532
+	// the chain no longer fires breeze_clear_varnish, so nothing sets the global.
+	$row['cloudways'] = $GLOBALS['snt_purge_cloudways'] ?? ( function_exists( 'sn_cloudways_not_run_label' ) ? sn_cloudways_not_run_label() : 'not run' );
 	$row['edge']      = ! empty( $GLOBALS['snt_purge_edge'] );
-	unset( $GLOBALS['snt_purge_edge'] );
+	// 2026-10-13: a code update marks the zone stale rather than deleting it.
+	if ( 'invalidate_cache' === ( $GLOBALS['snt_purge_edge_call'] ?? '' ) ) {
+		$row['scope'] = 'invalidate';
+	}
+	unset( $GLOBALS['snt_purge_edge'], $GLOBALS['snt_purge_edge_call'] );
 	unset( $row['started'], $GLOBALS['snt_purge_cloudways'] );
 	snt_purge_ledger_add( $row );
 }

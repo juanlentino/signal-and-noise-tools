@@ -78,7 +78,7 @@ function paint_connections_cloudways( array $ctx ) {
 	// The classic grid emits nothing for empty input; so does this.
 	$out  = \snt_kit_grid( $cells, 190, 12 );
 	$out .= '<p class="snt-hint">'
-		. 'Cloudways holds the origin cache (Breeze / Varnish). This screen reports it and never changes it. '
+		. \snt_kit_esc( function_exists( 'sn_admin_cloudways_hint' ) ? \sn_admin_cloudways_hint() : '' ) . ' '
 		. 'Credentials live in <os-code>wp-config.php</os-code> only: an account-wide API key is deliberately kept out of the database.'
 		. '</p>';
 	return $out;

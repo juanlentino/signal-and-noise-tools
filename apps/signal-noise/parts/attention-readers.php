@@ -284,8 +284,12 @@ function attention_edge() {
 				? (string) \snt_cf_freshness_phrase( 'stale', $time, $now )
 				: '';
 			$subtitle = '' !== $phrase ? $headline . ', ' . $phrase : $headline;
-			if ( ! empty( $entry['escalated'] ) ) {
-				$subtitle .= ' ' . __( 'A zone purge was forced.', 'signal-and-noise-tools' );
+			// The shared words (whole-site tag or zone); a row with no field is a zone purge.
+			$esc = function_exists( 'snt_cf_probe_escalation_sentence' )
+				? (string) \snt_cf_probe_escalation_sentence( $entry )
+				: ( ! empty( $entry['escalated'] ) ? __( 'A zone purge was forced.', 'signal-and-noise-tools' ) : '' );
+			if ( '' !== $esc ) {
+				$subtitle .= ' ' . $esc;
 			}
 			$rows[] = attention_row( array(
 				'kind'       => 'edge',

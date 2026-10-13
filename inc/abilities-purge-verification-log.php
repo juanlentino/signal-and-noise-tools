@@ -88,7 +88,7 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'rows'                 => array(
 					'type'        => 'array',
-					'description' => 'Newest-first probe outcomes: time, time_iso, post_id, url, result, escalated, source, algo.',
+					'description' => 'Newest-first probe outcomes: time, time_iso, post_id, url, result, escalated, escalation (which purge a stale row ran: tag = the whole-site cache tag, the default since 2026-10-13; zone = the whole zone, when Cloudflare refused the tag call or the row predates that; none = neither was handled; empty when the row did not escalate), source, algo.',
 				),
 			),
 		),
@@ -163,6 +163,7 @@ function snt_ability_purge_verification_log( $input ) {
 			'url'       => (string) ( $entry['url'] ?? '' ),
 			'result'    => in_array( $result, array( 'fresh', 'stale' ), true ) ? $result : 'unknown',
 			'escalated' => ! empty( $entry['escalated'] ),
+			'escalation' => function_exists( 'snt_cf_probe_escalation' ) && '' !== snt_cf_probe_escalation( $entry ) ? snt_cf_probe_escalation( $entry ) : ( 'none' === ( $entry['escalation'] ?? '' ) ? 'none' : '' ),
 			// WHICH KIND OF ROW THIS IS — the field that makes the log
 			// readable, and which v13.86.0 dropped.
 			//
