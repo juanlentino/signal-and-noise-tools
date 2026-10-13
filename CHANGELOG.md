@@ -12,8 +12,6 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
-## [2026.10.9] - 2026-10-13 — the queue fits and warns, and field vitals read
-
 ### Changed
 - **A note save that changes nothing another page shows no longer empties the whole edge cache.** Since #1850 every save of a published post purged the theme's whole Cloudflare cache tag, which empties every page on the site. In the week to Oct 13 that was 40 save purges, about 5.7 a day, in bursts of 3 to 6 within seconds.
   - **What is compared.** Just before the save, the plugin records what other pages list of the note: title, slug, publish date, status, password, excerpt, the opening 60 words (as the link preview and the index excerpt each strip them), reading time, links to other notes (cited-by), tags and categories, featured image and sticky.
@@ -23,6 +21,10 @@ adds a bullet below. A release is a separate, deliberate act:
   - **Bursts of saves are not merged:** they are separate requests, and merging would mean skipping or delaying a purge.
   - **Ledger:** the purge ledger records the narrow purge as trigger `save`, scope `note`. The `cache-freshness` reading gains `by_scope` (`save:tag` and `save:note`), so the `save` count in `by_trigger` now covers both kinds. A note purge does not move the desktop's "last full edge purge".
   - Pinned by the new tests/cloudflare-purge-save.php and tests/purge-ledger.php.
+
+## [2026.10.9] - 2026-10-13 — the queue fits and warns, and field vitals read
+
+### Changed
 - **The README opens with what the plugin is, for someone landing cold.** It now says this is the plugin that runs one person's site, built in the open and not a product. Three things make it unusual: agents edit under rules, notes are signed, nothing is rented. A screenshot of the OpenStation desktop follows. The jargon in "What it does" is glossed (Jev, the read and write endpoints, the health scan), and the theme hooks table moved into In depth. Docs only.
 
 ### Added
