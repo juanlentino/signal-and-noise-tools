@@ -195,7 +195,9 @@ function snt_cf_probe_status( $log = null ) {
 		$last = max( $last, (int) ( $row['time'] ?? 0 ) );
 	}
 	return array(
-		'retired'  => function_exists( 'sn_cf_tagged' ) && sn_cf_tagged(),
+		// 2026-10-13: a theme that tags single notes gets the probe back after
+		// a note's own purge; only a theme that tags every page alike retires it.
+		'retired'  => function_exists( 'sn_cf_tagged' ) && sn_cf_tagged() && ! ( function_exists( 'sn_cf_note_tags_supported' ) && sn_cf_note_tags_supported() ),
 		'last_run' => $last,
 	);
 }
@@ -213,7 +215,7 @@ function snt_cf_probe_retired_note( $log = null ) {
 	}
 	$note = sprintf(
 		/* translators: %s: date of the last probe */
-		__( 'Old per-URL purge path, last run %s. A save now purges the cache tag, which empties every tagged page, and no probe runs after it; its post-save rows below are that path\'s history.', 'signal-and-noise-tools' ),
+		__( 'Probe last run %s. This theme version tags every page alike and not each note, so every save purges the whole cache tag and no probe runs after it; the post-save rows are history from before that. A theme that tags each note brings the probe back.', 'signal-and-noise-tools' ),
 		$st['last_run'] > 0 ? gmdate( 'M j', $st['last_run'] ) : __( 'never', 'signal-and-noise-tools' )
 	);
 	// Manual rows are a different writer: a check right after a manual zone

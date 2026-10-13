@@ -12,24 +12,26 @@
  * (title, date, excerpt, reading time, tags), related notes, link previews
  * (title, a summary, date, reading time) and cited-by (which note links to
  * which). A save that changed none of that changed the note's own page and
- * nothing else, so it purges by URL: the note, the lists and feeds, the
- * sitemaps, its tag and category archives and /notes/tags/.
+ * the feeds that carry its body, so it purges two tags in one call: the
+ * note's own (every copy of its page, whatever the query string, in every
+ * tier) and the lists' (home, /notes/, archives, /provenance/, feeds,
+ * llms.txt). Core's sitemaps carry no tag and go by URL, as before. The
+ * post-save probe checks the note's page afterward.
  *
- * Everything else keeps the tag purge: a change to any listed field, a first
- * publish, leaving publish, a page, or a save whose "before" this request
- * never captured (a scheduled post going live skips pre_post_update). When in
- * doubt, the tag.
+ * Not URLs: Cloudflare keys a cached copy by its query string, so a share or
+ * feed link (?utm_source=...) is its own copy a URL purge never names, and a
+ * URL purge has missed under Tiered Cache before (inc/cloudflare-purge-verify.php).
+ *
+ * Everything else keeps the whole tag: a theme without per-note tags, a
+ * change to any listed field, a first publish, leaving publish, a page, or a
+ * save whose "before" this request never captured (a scheduled post going
+ * live skips pre_post_update). When in doubt, the whole tag.
  *
  * NOT DEBOUNCED, on purpose. The bursts are separate HTTP requests (the block
  * editor's save, then its meta-box save). Coalescing across requests means
  * either skipping a purge ("one ran seconds ago"), which cannot tell a repeat
  * from a change made since, or deferring it to WP-Cron, which has no
- * seconds-level timing and can drop it. The fingerprint already makes the
- * repeats cheap: an unchanged save is a URL purge, not a tag purge.
- *
- * The .md copy of a note is not purged: the Worker stores no .md object at
- * the edge; it converts /notes/<slug>/, which this purges (theme
- * inc/note-markdown.php).
+ * seconds-level timing and can drop it.
  *
  * @package SignalNoiseTools
  */
@@ -45,6 +47,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_CF_LISTED_WORDS = 60;
 
 /**
+ * Does the theme tag single notes and the lists apart (the theme after 2026.10.1)?
+ * Without both, a save keeps the whole tag.
+ *
+ * @return bool
+ */
+function sn_cf_note_tags_supported() {
+	return sn_cf_tagged() && defined( 'SN_EDGE_CACHE_LIST_TAG' ) && '' !== (string) constant( 'SN_EDGE_CACHE_LIST_TAG' ) && function_exists( 'sn_edge_cache_note_tag' );
+}
+
+/**
  * What other pages show of a post. PURE over the post and what was read
  * beside it. Never the raw body or post_modified: those change on every save.
  *
@@ -54,12 +66,16 @@ const SN_CF_LISTED_WORDS = 60;
  */
 function sn_cf_listed_fields( $post, array $extra ) {
 	$content = (string) ( $post->post_content ?? '' );
-	preg_match_all( '#/notes/([a-z0-9-]+)#i', $content, $m );
+	// The theme's cited-by boundary (sn_cited_by_link_pattern): the slug ends
+	// at a slash, a quote, a query, a fragment or the end, so /notes/a.md is
+	// not a link to /notes/a/.
+	preg_match_all( '~/notes/([a-z0-9-]+)(?=[/"\'?#]|$)~i', $content, $m );
 	$links = array_values( array_unique( array_map( 'strtolower', $m[1] ) ) );
 	sort( $links );
-	// The index excerpt skips blocks an excerpt never shows; the link preview
-	// reads the stripped body as is. Both openings are compared.
+	// The link preview strips the body as is; the index excerpt drops blocks
+	// an excerpt never shows and shortcodes first. Both openings are compared.
 	$for_excerpt = function_exists( 'excerpt_remove_blocks' ) ? excerpt_remove_blocks( $content ) : $content;
+	$for_excerpt = function_exists( 'strip_shortcodes' ) ? strip_shortcodes( $for_excerpt ) : $for_excerpt;
 	return array(
 		'type'      => (string) ( $post->post_type ?? '' ),
 		'status'    => (string) ( $post->post_status ?? '' ),
@@ -67,8 +83,8 @@ function sn_cf_listed_fields( $post, array $extra ) {
 		'slug'      => (string) ( $post->post_name ?? '' ),
 		'date'      => (string) ( $post->post_date ?? '' ),
 		'password'  => (string) ( $post->post_password ?? '' ),
-		'parent'    => (int) ( $post->post_parent ?? 0 ),
-		'excerpt'   => trim( (string) ( $post->post_excerpt ?? '' ) ),
+		// Untrimmed: '' and ' ' differ (an excerpt of spaces still replaces the body's opening).
+		'excerpt'   => (string) ( $post->post_excerpt ?? '' ),
 		'opening'   => sn_cf_listed_opening( $content ),
 		'opening_x' => sn_cf_listed_opening( $for_excerpt ),
 		'minutes'   => function_exists( 'sn_calculate_reading_time' ) ? (int) sn_calculate_reading_time( $post ) : str_word_count( strip_tags( $content ) ),
@@ -77,13 +93,15 @@ function sn_cf_listed_fields( $post, array $extra ) {
 }
 
 /**
- * The first SN_CF_LISTED_WORDS words of a body, tags stripped. PURE.
+ * The first SN_CF_LISTED_WORDS words of a body, stripped as WordPress strips
+ * it (script and style bodies go too).
  *
  * @param string $html Body.
  * @return string
  */
 function sn_cf_listed_opening( $html ) {
-	$words = preg_split( '/\s+/u', trim( strip_tags( (string) $html ) ), SN_CF_LISTED_WORDS + 1, PREG_SPLIT_NO_EMPTY );
+	$text  = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( (string) $html ) : strip_tags( (string) $html );
+	$words = preg_split( '/\s+/u', trim( $text ), SN_CF_LISTED_WORDS + 1, PREG_SPLIT_NO_EMPTY );
 	return implode( ' ', array_slice( (array) $words, 0, SN_CF_LISTED_WORDS ) );
 }
 
@@ -126,10 +144,10 @@ function sn_cf_listed_snapshot( $post ) {
 function sn_cf_listed_capture( $post_id ) {
 	$post_id = (int) $post_id;
 	$post    = function_exists( 'get_post' ) ? get_post( $post_id ) : null;
-	// Only a published note on a tagging, configured install can take the
+	// Only a published note on a configured install whose theme tags notes can take the
 	// narrow path; anything else would read terms for nothing.
 	if ( is_object( $post ) && 'post' === $post->post_type && 'publish' === $post->post_status
-		&& sn_cf_tagged() && sn_cf_is_configured() && ! isset( $GLOBALS['sn_cf_listed_before'][ $post_id ] ) ) {
+		&& sn_cf_note_tags_supported() && sn_cf_is_configured() && ! isset( $GLOBALS['sn_cf_listed_before'][ $post_id ] ) ) {
 		$GLOBALS['sn_cf_listed_before'][ $post_id ] = sn_cf_listed_snapshot( $post );
 	}
 }
@@ -146,7 +164,7 @@ add_action( 'pre_post_update', 'sn_cf_listed_capture', 10, 1 );
 function sn_cf_save_is_narrow( $post_id, $post, $post_before ) {
 	$before = $GLOBALS['sn_cf_listed_before'][ (int) $post_id ] ?? null;
 	unset( $GLOBALS['sn_cf_listed_before'][ (int) $post_id ] );
-	if ( null === $before || ! is_object( $post_before ) || 'post' !== $post->post_type
+	if ( null === $before || ! sn_cf_note_tags_supported() || ! is_object( $post_before ) || 'post' !== $post->post_type
 		|| 'publish' !== $post->post_status || 'publish' !== $post_before->post_status ) {
 		return false;
 	}
@@ -154,27 +172,24 @@ function sn_cf_save_is_narrow( $post_id, $post, $post_before ) {
 }
 
 /**
- * Purge one note by URL and write its ledger row (scope 'note'). Within the
- * single-file limit: Cloudflare takes 100 URLs a call, sn_cf_purge_urls()
- * sends 30.
+ * Purge one note's tag and the lists' tag in one call, its sitemaps by URL,
+ * and schedule the post-save probe. A call Cloudflare refused outright falls
+ * back to the whole tag.
  *
  * @param int    $post_id Post ID.
  * @param object $post    The post as saved.
  * @return bool Handled (confirmed or queued to retry).
  */
 function sn_cf_purge_note( $post_id, $post ) {
-	$urls  = sn_cf_post_purge_urls( $post_id, $post );
-	$terms = wp_get_object_terms( (int) $post_id, array( 'post_tag', 'category' ) );
-	foreach ( is_wp_error( $terms ) ? array() : (array) $terms as $term ) {
-		$link = get_term_link( $term );
-		if ( is_string( $link ) ) {
-			$urls[] = $link;
-		}
+	$tags      = array( (string) sn_edge_cache_note_tag( (int) $post_id ), (string) constant( 'SN_EDGE_CACHE_LIST_TAG' ) );
+	$confirmed = sn_cf_api_send( 'purge_cache', array( 'tags' => $tags ) );
+	$handled   = $confirmed || 'queued' === sn_cf_send_last();
+	if ( ! $handled ) {
+		$handled = sn_cf_purge_tag();
+	} elseif ( function_exists( 'snt_purge_ledger_add' ) ) {
+		snt_purge_ledger_add( array( 'trigger' => 'save', 'scope' => 'note', 'redis' => false, 'pages' => false, 'edge' => $confirmed, 'cloudways' => 'not run' ) );
 	}
-	$urls[]  = home_url( '/notes/tags/' );
-	$handled = sn_cf_purge_urls( $urls );
-	if ( $handled && function_exists( 'snt_purge_ledger_add' ) ) {
-		snt_purge_ledger_add( array( 'trigger' => 'save', 'scope' => 'note', 'redis' => false, 'pages' => false, 'edge' => 'ok' === sn_cf_send_last(), 'cloudways' => 'not run' ) );
-	}
+	sn_cf_purge_urls( sn_cf_sitemap_urls( (string) $post->post_type ) );
+	sn_cf_schedule_probe( $post_id );
 	return $handled;
 }
