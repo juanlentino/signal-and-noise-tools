@@ -126,7 +126,10 @@ function sn_cf_listed_snapshot( $post ) {
 function sn_cf_listed_capture( $post_id ) {
 	$post_id = (int) $post_id;
 	$post    = function_exists( 'get_post' ) ? get_post( $post_id ) : null;
-	if ( is_object( $post ) && 'post' === $post->post_type && ! isset( $GLOBALS['sn_cf_listed_before'][ $post_id ] ) ) {
+	// Only a published note on a tagging, configured install can take the
+	// narrow path; anything else would read terms for nothing.
+	if ( is_object( $post ) && 'post' === $post->post_type && 'publish' === $post->post_status
+		&& sn_cf_tagged() && sn_cf_is_configured() && ! isset( $GLOBALS['sn_cf_listed_before'][ $post_id ] ) ) {
 		$GLOBALS['sn_cf_listed_before'][ $post_id ] = sn_cf_listed_snapshot( $post );
 	}
 }

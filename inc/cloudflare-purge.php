@@ -282,6 +282,8 @@ function sn_cf_purge_everything_verified() {
  * NOT ADDED, checked first: `/notes/tags/` is `cf-cache-status: BYPASS` with
  * `no-store, private`, so it cannot go stale; `/feed/` revalidates on every
  * request. Purging either would be motion without effect.
+ * (2026-10-13: the tagging theme's narrow save path, sn_cf_purge_note(), adds
+ * it, since that theme lets the edge hold HTML.)
  *
  * @since 13.96.2
  * @param int     $post_id Post ID.

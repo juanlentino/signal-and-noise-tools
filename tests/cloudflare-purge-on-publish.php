@@ -211,7 +211,8 @@ ok( ! $opted_out['everything'], 'returning false from the filter skips the zone 
 ok( in_array( 'https://example.test/notes/post-7/', $opted_out['urls'], true ), 'and falls back to the narrow URL list' );
 $GLOBALS['__filters'] = array();
 
-// 21.0.0: with a tagging theme, one tag purge replaces the URL list, the
+// 21.0.0: with a tagging theme (and no "before" captured, so never the
+// narrow path of tests/cloudflare-purge-save.php), one tag purge replaces the URL list, the
 // first-publish zone purge and the probe. LAST in the file: the constant
 // cannot be undefined again.
 echo "\nGroup: a tagging theme (15.2.0+)\n";

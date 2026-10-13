@@ -58,6 +58,10 @@ function sn_edge_cache_feed_paths() {
 	return $p;
 }
 
+// The plugin's own reading time (inc/reading-time.php, always loaded): whole
+// minutes at 200 words, so a short addition stays inside the same minute.
+function sn_calculate_reading_time( $post ) { return max( 1, (int) ceil( str_word_count( strip_tags( (string) $post->post_content ) ) / 200 ) ); }
+
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
@@ -101,6 +105,7 @@ foreach ( array( '/notes/a-note/', '/', '/notes/', '/notes/feed/', '/?feed=json'
 ok( ! in_array( 'https://example.test/notes/a-note.md', $r['files'], true ), 'not the .md copy: the Worker stores none at the edge' );
 ok( array( 'save', 'note', true ) === array( $r['ledger'][0]['trigger'] ?? '', $r['ledger'][0]['scope'] ?? '', $r['ledger'][0]['edge'] ?? null ) && 1 === count( $r['ledger'] ), 'one ledger row, scope note, edge confirmed' );
 ok( ! save()['tag'], 'a save that changed nothing at all is narrow too' );
+ok( ! save( array( 'post_content' => $body . ' five more words here now' ) )['tag'], 'a sentence added at the end, inside the same reading minute, is narrow' );
 
 echo "\nGroup: a change another page lists keeps the tag purge\n";
 $changed = array(
