@@ -190,3 +190,27 @@ if ( ! function_exists( 'snt_test_seo_src' ) ) {
 		return $src;
 	}
 }
+
+if ( ! function_exists( 'snt_test_sn_apply_block_edit_src' ) ) {
+	/**
+	 * The source of inc/sn-apply/block-edit.php AND its two parts files, for
+	 * suites that pin the module's text. Split 2026-10-14 (house line cap).
+	 * Named, not globbed: no other module shares the prefix today, and a future
+	 * one would not belong in the read. A missing file returns '' so every
+	 * presence pin goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_sn_apply_block_edit_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/sn-apply/';
+		$src = '';
+		foreach ( array( '', '-resolve-parts', '-compute-parts' ) as $suffix ) {
+			$file = $dir . 'block-edit' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
