@@ -105,6 +105,7 @@ function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = nul
 
 require SNT_PATH . 'inc/provenance-core.php';
 require SNT_PATH . 'inc/provenance-integrity.php';
+require_once __DIR__ . '/lib/inc-population.php'; // snt_test_provenance_integrity_src(): the shell and its parts (split 2026-10-14)
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok: $m\n"; } else { $fail++; echo "  FAIL: $m\n"; } }
@@ -451,7 +452,7 @@ $findings = sn_prov_integrity_findings( $state );
 // is exactly the one that will be missed, because the code path works and only
 // the prose is absent. Derived from the source, so a new code fails this
 // without anyone remembering to update a list.
-$pi_src   = (string) file_get_contents( SNT_PATH . 'inc/provenance-integrity.php' );
+$pi_src   = snt_test_provenance_integrity_src();
 // Single-quoted pattern on purpose: in a DOUBLE-quoted PHP string the
 // literal $failures interpolates and the pattern silently matches nothing.
 preg_match_all( '/\\$failures\\[\\] = \\x27([a-z_]+)\\x27/', $pi_src, $pi_m );
@@ -539,10 +540,10 @@ ok( false !== strpos( $loader_src, "inc/provenance-integrity.php" ), 'the plugin
 $scan_src = (string) file_get_contents( SNT_PATH . 'inc/health-checks.php' );
 ok( false !== strpos( $scan_src, "'provenance_integrity'" ) && false !== strpos( $scan_src, 'sn_health_check_provenance_integrity()' ),
 	'sn_health_run_scan() registers the provenance_integrity check (rides the existing scan cadence)' );
-$module_src = (string) file_get_contents( SNT_PATH . 'inc/provenance-integrity.php' );
-ok( false === strpos( $module_src, 'wp_schedule_event' ), 'no parallel cron invented — the sweep rides the health scan' );
-ok( false === strpos( $module_src, 'register_rest_route' ), 'no new bare REST route — the ability is the only new surface' );
-ok( false === strpos( $module_src, 'set_transient' ), 'durable state never rides flush-volatile transients' );
+$module_src = snt_test_provenance_integrity_src();
+ok( '' !== $module_src && false === strpos( $module_src, 'wp_schedule_event' ), 'no parallel cron invented — the sweep rides the health scan' );
+ok( '' !== $module_src && false === strpos( $module_src, 'register_rest_route' ), 'no new bare REST route — the ability is the only new surface' );
+ok( '' !== $module_src && false === strpos( $module_src, 'set_transient' ), 'durable state never rides flush-volatile transients' );
 
 // ── Group: v9.81.0 — persistent-404 escalation + malformed ledger record ────
 echo "\nGroup: v9.81.0 — a ledger record that EXISTS but lacks content_hash is a finding, not silence\n";

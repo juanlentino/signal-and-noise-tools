@@ -175,11 +175,12 @@ ok( 1 === $pl['provenance']['zenodo']['failed'] && is_int( $pl['at'] ) && $pl['a
 ok( isset( $GLOBALS['__set'][ SNT_DESKTOP_STATUS_EXTRA_KEY ] ), 'cached under the v2 key' );
 
 echo "\nLocal reads only\n";
-$src = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-status-extra.php' );
-ok( false === strpos( $src, 'wp_remote_' ) && false === strpos( $src, 'snt_mr_fetch' ) && false === strpos( $src, 'sn_uptime_status' ), 'no remote call: the payload rides a localize that runs on every wp-admin screen' );
+require_once __DIR__ . '/lib/inc-population.php';
+$src = snt_test_desktop_status_extra_src(); // the shell and its parts (split 2026-10-14)
+ok( '' !== $src && false === strpos( $src, 'wp_remote_' ) && false === strpos( $src, 'snt_mr_fetch' ) && false === strpos( $src, 'sn_uptime_status' ), 'no remote call: the payload rides a localize that runs on every wp-admin screen' );
 ok( false !== strpos( $src, 'set_transient( SNT_DESKTOP_STATUS_EXTRA_KEY, $out, 5 * MINUTE_IN_SECONDS )' ), 'and it is held five minutes' );
 ok( 'snt_desktop_status_extra_v2' === SNT_DESKTOP_STATUS_EXTRA_KEY, '2026-10-10: the shape changed, so the key moved: a v1 payload still cached is never served' );
-ok( false === strpos( $src, 'sn_analytics_v2_verify(' ) && false === strpos( $src, 'sn_analytics_v2_check(' ), 'the analytics 2.0 line reads the stored verdict, never the live check' );
+ok( '' !== $src && false === strpos( $src, 'sn_analytics_v2_verify(' ) && false === strpos( $src, 'sn_analytics_v2_check(' ), 'the analytics 2.0 line reads the stored verdict, never the live check' );
 $assets = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-assets.php' );
 ok( false !== strpos( $assets, "'credentials'     => snt_desktop_admin_url( 'sn-connections', 'credentials' )" ) && false !== strpos( $assets, "'zenodo'          => snt_desktop_admin_url( 'sn-connections', 'zenodo' )" ), 'the failing-credential and failed-deposit lines have pages to link to' );
 foreach ( array( "'analytics2'", "'watches'", "'credentials'", "'at'" ) as $k ) {
