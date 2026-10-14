@@ -174,7 +174,7 @@
 		// Red only when a monitor is down; a shortfall of paused, maintenance,
 		// pending or validating monitors is amber.
 		var anyDown = mons.some( function( m ) { return 'alert' === m.level; } );
-		var rows = [ { label: 'Monitors', value: [ upN + ' of ' + mons.length + ' up' ].concat( uptimeSummary( mons ) ).join( ' · ' ), tone: upN === mons.length ? '' : ( anyDown ? DANGER_FG : WARN_FG ) } ].concat( uptimeExtraRows( mons ) );
+		var rows = [ { label: 'Monitors', value: upN + ' of ' + mons.length + ' up', tone: upN === mons.length ? '' : ( anyDown ? DANGER_FG : WARN_FG ) } ].concat( uptimeFigureRows( mons ), uptimeExtraRows( mons ) );
 		// One line when all are up; each monitor only when one is not.
 		if ( upN !== mons.length ) {
 			var shown = 0;
@@ -203,23 +203,23 @@
 	}
 
 	/**
-	 * SN Uptime's per-monitor figures, condensed: the mean 30-day availability
-	 * and the 24-hour MEDIAN response time (2026-10-13, owner-approved: the
-	 * mean let a few checks near the timeout turn 21 ms into 282 ms). Several
-	 * monitors show their medians as a range; a mean of medians is not a
-	 * median. A figure no monitor reports is left out, never shown as 0.
+	 * SN Uptime's per-monitor figures, one row each (2026-10-14, owner: the
+	 * chained Monitors line was too long): the mean 30-day availability and
+	 * the 24-hour MEDIAN response time (2026-10-13: the mean let a few checks
+	 * near the timeout turn 21 ms into 282 ms). Several monitors show their
+	 * medians as a range; a mean of medians is not a median. A figure no
+	 * monitor reports says "not read", never 0.
 	 */
-	function uptimeSummary( mons ) {
-		var out = [];
-		var av  = mons.map( function( m ) { return figure( m.availability ); } ).filter( function( x ) { return null !== x; } );
-		var md  = mons.map( function( m ) { return figure( m.median_ms ); } ).filter( function( x ) { return null !== x; } );
-		if ( av.length ) { out.push( ( Math.round( av.reduce( function( a, b ) { return a + b; }, 0 ) / av.length * 100 ) / 100 ) + '% over 30 days' ); }
-		var lo  = md.length ? Math.min.apply( null, md ) : null;
-		var hi  = md.length ? Math.max.apply( null, md ) : null;
-		// Equal medians (or one monitor) print one value, never "120 ms to 120 ms".
-		if ( md.length && msText( lo ) === msText( hi ) ) { out.push( 'median ' + msText( lo ) + ' over 24 h' ); }
-		else if ( md.length ) { out.push( 'medians ' + msText( lo ) + ' to ' + msText( hi ) + ' over 24 h' ); }
-		return out;
+	function uptimeFigureRows( mons ) {
+		var av = mons.map( function( m ) { return figure( m.availability ); } ).filter( function( x ) { return null !== x; } );
+		var md = mons.map( function( m ) { return figure( m.median_ms ); } ).filter( function( x ) { return null !== x; } );
+		var lo = md.length ? msText( Math.min.apply( null, md ) ) : '';
+		var hi = md.length ? msText( Math.max.apply( null, md ) ) : '';
+		return [
+			{ label: 'Availability · 30 days', value: av.length ? ( Math.round( av.reduce( function( a, b ) { return a + b; }, 0 ) / av.length * 100 ) / 100 ) + '%' : 'not read' },
+			// Equal medians (or one monitor) print one value, never "120 ms to 120 ms".
+			{ label: 'Response · 24 h', value: ! md.length ? 'not read' : ( lo === hi ? 'median ' + lo : 'medians ' + lo + ' to ' + hi ) }
+		];
 	}
 
 	/**

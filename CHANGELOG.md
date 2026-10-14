@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **SN Systems (desktop), Uptime: one figure per row** (owner, 2026-10-14: the Monitors line was too long). "3 of 3 up · 100% over 30 days · medians 20 ms to 38 ms over 24 h" is now three rows: "Monitors 3 of 3 up", "Availability · 30 days 100%" and "Response · 24 h medians 20 ms to 38 ms" ("median 21 ms" for one monitor or equal medians). A figure no monitor reports now says "not read" in its row; before, it was left off the line. Incidents and Slowest are unchanged. The card's default height grows from 580 to 600 for the extra row. No figure removed.
+
 ## [2026.10.11] - 2026-10-14 — uptime reads as a median, with the slowest check named
 
 ### Changed
