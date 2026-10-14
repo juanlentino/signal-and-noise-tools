@@ -209,10 +209,11 @@ add_action( 'init', function() {
 			// clear): the verdict line, three sections at a hairline, a heading
 			// and one row (~52 each), the full-width button (~44), the link,
 			// chrome and padding = ~350. A flagged check or a down monitor adds
-			// ~20 a row and the body scrolls. + the uptime row's mean uptime and
-			// response time, which wraps it to a second line (~20).
+			// ~20 a row and the body scrolls. + the uptime figures, which wrapped
+			// the Monitors row to a second line (~20); since 2026-10-14 they are
+			// their own Availability and Response rows (+20 more).
 			// 21.9.1: +60 for the busiest state (2 checks, 2 could-not-run, 2 monitors down, each with "+N more").
-			'default_height' => 580, // 2026-10-05: + Edge and Cache sections, the cron-day row, incidents and slowest (~140).
+			'default_height' => 600, // 2026-10-05: + Edge and Cache sections, the cron-day row, incidents and slowest (~140); 2026-10-14: +20, one figure per uptime row.
 		) ) );
 
 		snt_os_register_widget( 'sn-deploy-status', array_merge( $sn_drag, array(

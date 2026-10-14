@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **SN Systems (desktop), Uptime: one figure per row** (owner, 2026-10-14: the Monitors line was too long). "3 of 3 up · 100% over 30 days · medians 20 ms to 38 ms over 24 h" is now three rows: "Monitors 3 of 3 up", "Availability · 30 days 100%" and "Response · 24 h medians 20 ms to 38 ms" ("median 21 ms" for one monitor or equal medians). A figure no monitor reports now says "not read" in its row; before, it was left off the line. Incidents and Slowest are unchanged. The card's default height grows from 580 to 600 for the extra row. No figure removed.
+
 ### Fixed
 - **An Analytics Engine failure is explained only by its own error, never by another read's.** The last error is stored once for the whole site and kept 5 minutes, so a failed read could quote an older, unrelated error as its reason. The rule the field vitals read got in 2026.10.10 now lives in `sn_analytics_last_error( $since )`, and every place that quotes the error uses it:
   - **S&N Analytics, Test connection (classic page and native window, one notice):** the failure notice quotes the error this test recorded, kept for the notice, or says "no error was recorded for this test" (it said "no diagnostic recorded", and could show another read's error recorded after the test).
