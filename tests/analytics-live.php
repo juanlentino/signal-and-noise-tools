@@ -21,8 +21,8 @@ function get_transient( $k ) { return $GLOBALS['t'][ $k ] ?? false; }
 function set_transient( $k, $v, $e = 0 ) { $GLOBALS['t'][ $k ] = $v; return true; }
 function get_option( $k, $d = false ) { return $GLOBALS['o'][ $k ] ?? $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['o'][ $k ] = $v; return true; }
-function wp_next_scheduled( $h ) { return in_array( $h, $GLOBALS['sched'], true ) ? time() + 100 : false; }
-function wp_schedule_single_event( $ts, $h ) { $GLOBALS['sched'][] = $h; return true; }
+function wp_next_scheduled( $h ) { return in_array( $h, $GLOBALS['sched'], true ) ? ( $GLOBALS['sched_ts'][ $h ] ?? time() + 100 ) : false; }
+function wp_schedule_single_event( $ts, $h ) { $GLOBALS['sched'][] = $h; $GLOBALS['sched_ts'][ $h ] = $ts; return true; }
 function spawn_cron() { $GLOBALS['spawned']++; }
 function current_user_can( $c ) { return (bool) $GLOBALS['cap']; }
 function wp_timezone() { return new DateTimeZone( 'UTC' ); }
@@ -63,7 +63,7 @@ require dirname( __DIR__ ) . '/inc/analytics-live.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
-function reset_all() { $GLOBALS['t'] = array(); $GLOBALS['o'] = array(); $GLOBALS['sched'] = array(); $GLOBALS['cap'] = false; $GLOBALS['cfg'] = true; $GLOBALS['spawned'] = 0; }
+function reset_all() { $GLOBALS['t'] = array(); $GLOBALS['o'] = array(); $GLOBALS['sched'] = array(); $GLOBALS['sched_ts'] = array(); $GLOBALS['cap'] = false; $GLOBALS['cfg'] = true; $GLOBALS['spawned'] = 0; }
 
 echo "Group: the payload keeps null and 0 apart\n";
 reset_all();
@@ -94,6 +94,33 @@ ok( array() === $GLOBALS['sched'], 'the admin warmer still refuses a caller with
 $GLOBALS['cap'] = true;
 sn_analytics_realtime_warm();
 ok( array( SN_ANALYTICS_REALTIME_HOOK ) === $GLOBALS['sched'], 'and still warms for one with it' );
+
+echo "\nGroup: a reader's poll runs the refresh, even one already queued and overdue\n";
+reset_all();
+sn_analytics_live_touch();
+ok( 1 === $GLOBALS['spawned'], 'cold: the poll queues one refresh and runs cron now' );
+// 2026.10.12 live: a plugin update purged the cache while a refresh sat queued
+// and overdue (its spawned run died in maintenance mode). Every poll saw
+// "already queued" and did nothing, so the card read "not read" until the
+// host's 5-minute system cron. An overdue queued refresh is run now.
+reset_all();
+$GLOBALS['sched'] = array( SN_ANALYTICS_REALTIME_HOOK );
+$GLOBALS['sched_ts'][ SN_ANALYTICS_REALTIME_HOOK ] = time() - 280;
+sn_analytics_live_touch();
+ok( 1 === $GLOBALS['spawned'] && 1 === count( $GLOBALS['sched'] ), 'cold with an overdue queued refresh: cron runs now, no second event' );
+reset_all();
+$GLOBALS['sched'] = array( SN_ANALYTICS_REALTIME_HOOK );
+$GLOBALS['sched_ts'][ SN_ANALYTICS_REALTIME_HOOK ] = time() + 100;
+sn_analytics_live_touch();
+ok( 0 === $GLOBALS['spawned'], 'a refresh queued for later is left to its time' );
+reset_all();
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array(), 'fetched' => time() );
+sn_analytics_live_touch();
+ok( 0 === $GLOBALS['spawned'], 'fresh: no cron spawned' );
+reset_all();
+$GLOBALS['cfg'] = false;
+sn_analytics_live_touch();
+ok( 0 === $GLOBALS['spawned'], 'unconfigured: no cron spawned' );
 
 echo "\nGroup: being read now\n";
 $sql = sn_analytics_live_pages_sql();

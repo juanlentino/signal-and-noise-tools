@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **SN Traffic (desktop) and every live figure: "Reading now" recovers on the next poll after a plugin update, not up to 5 minutes later.** An update clears the realtime cache, and the refresh already queued for it can lose its run to the update's maintenance mode. Each poll then saw "a refresh is already queued" and did nothing, so the card read "Reading now: not read" with no "Today so far" row until the host's next 5-minute system cron (seen live on 2026.10.12: cache purged at 08:02 UTC, refilled at 08:05). A poll that finds the cache stale and its queued refresh overdue now runs it at once (WordPress's own cron lock still allows one run at a time). No figure removed.
+
 ## [2026.10.12] - 2026-10-14 — drafts get a suggested date, and failures say which note and why
 
 ### Added

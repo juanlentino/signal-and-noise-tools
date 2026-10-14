@@ -298,6 +298,16 @@ function sn_analytics_realtime_warm() {
 }
 
 /**
+ * Seconds since the realtime cache was written; PHP_INT_MAX when it is cold.
+ *
+ * @return int
+ */
+function sn_analytics_realtime_age() {
+	$cached = get_transient( SN_ANALYTICS_REALTIME_KEY );
+	return ( is_array( $cached ) && isset( $cached['fetched'] ) ) ? ( time() - (int) $cached['fetched'] ) : PHP_INT_MAX;
+}
+
+/**
  * The throttle itself, with no capability check: one background refresh when
  * the cached pair is older than the 30 s target and none is already queued.
  * The admin warmer gates it on a capability; the public live route calls it
@@ -310,11 +320,7 @@ function sn_analytics_realtime_schedule_if_stale() {
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
 		return false;
 	}
-	$cached = get_transient( SN_ANALYTICS_REALTIME_KEY );
-	$age    = ( is_array( $cached ) && isset( $cached['fetched'] ) )
-		? ( time() - (int) $cached['fetched'] )
-		: PHP_INT_MAX;
-	if ( $age <= SN_ANALYTICS_REALTIME_TTL || wp_next_scheduled( SN_ANALYTICS_REALTIME_HOOK ) ) {
+	if ( sn_analytics_realtime_age() <= SN_ANALYTICS_REALTIME_TTL || wp_next_scheduled( SN_ANALYTICS_REALTIME_HOOK ) ) {
 		return false;
 	}
 	return (bool) wp_schedule_single_event( time(), SN_ANALYTICS_REALTIME_HOOK );
