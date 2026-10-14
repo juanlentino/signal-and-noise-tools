@@ -53,9 +53,9 @@ $GLOBALS['__q']['future'] = array( $post( 1, 2.2 ), $post( 2, 6.2 ), $post( 3, 1
 $GLOBALS['__q']['draft']  = array( $post( 8, 0, 'Draft <b>A</b>' ), $post( 9, 0, 'Draft B' ) );
 $read = sn_content_queue_slot_read();
 ok( 2 === count( $read['slots'] ) && null !== $read['slots'][0]['day'] && $read['slots'][0]['day'] !== $read['slots'][1]['day'], 'the reader gives each draft its own suggested day from the real queue rows' );
-ok( false !== strpos( $read['slots'][0]['text'], 'fills the' ), 'the first draft fills the 12-day hole' );
+ok( false !== strpos( $read['slots'][0]['text'], 'splits the' ), 'the first draft splits the 12-day hole' );
 $draft_q = array_values( array_filter( $GLOBALS['__args'], static fn( $a ) => 'draft' === $a['post_status'] ) )[0];
-ok( 'modified' === $draft_q['orderby'] && SN_CONTENT_QUEUE_DRAFTS === $draft_q['numberposts'], 'the twins read the same drafts as the card: newest edit first, capped' );
+ok( array( 'modified' => 'DESC', 'ID' => 'DESC' ) === $draft_q['orderby'] && SN_CONTENT_QUEUE_DRAFTS === $draft_q['numberposts'], 'the twins read the same drafts as the card: newest edit first, capped' );
 
 list( $kh, $ch ) = $both();
 $kit = $text( $kh ); $classic = $text( $ch );
@@ -82,7 +82,20 @@ ok( false !== strpos( $text( $kh ), 'No drafts, so no slot to suggest.' ) && fal
 $GLOBALS['__q']['draft']  = array( $post( 8, 0, 'Lonely' ) );
 $GLOBALS['__q']['future'] = array();
 list( $kh, $ch ) = $both();
-ok( false !== strpos( $text( $kh ), SN_CONTENT_QUEUE_SLOT_UNKNOWN ) && false !== strpos( $text( $ch ), SN_CONTENT_QUEUE_SLOT_UNKNOWN ), 'nothing scheduled: both twins say no slot can be read, never a guessed day' );
+ok( false !== strpos( $text( $kh ), SN_CONTENT_QUEUE_SLOT_NOTHING ) && false !== strpos( $text( $ch ), SN_CONTENT_QUEUE_SLOT_NOTHING ), 'nothing scheduled: both twins say no slot can be read, never a guessed day' );
+
+// Review on #2054: the classic box's title without an edit link is escaped
+// too, and one paint reads the schedule once for both boxes.
+ob_start();
+sn_admin_render_queue_slots( array( 'empty' => '', 'more' => null, 'slots' => array( array( 'title' => 'Bare <i>x</i>', 'edit_url' => '', 'text' => 'Suggested: <b>y</b>' ) ) ) );
+$bare = ob_get_clean();
+ok( false === strpos( $bare, '<i>' ) && false !== strpos( $bare, 'Bare &lt;i&gt;x&lt;/i&gt;: Suggested: &lt;b&gt;y&lt;/b&gt;' ) && false === strpos( $bare, '<a ' ), 'a title with no edit link is plain escaped text on the classic twin' );
+$k_bare = \SignalNoise\OpenStationHost\Dashboard\Leaves\scheduled_content_slots_html( array( 'empty' => '', 'more' => null, 'slots' => array( array( 'title' => 'Bare <i>x</i>', 'edit_url' => '', 'text' => 'Suggested: <b>y</b>' ) ) ) );
+ok( false === strpos( $k_bare, '<i>' ) && false !== strpos( $k_bare, 'Bare &lt;i&gt;x&lt;/i&gt;' ), 'and on the native leaf' );
+$GLOBALS['__args'] = array();
+$both();
+$counts = array_count_values( array_column( $GLOBALS['__args'], 'post_status' ) );
+ok( 2 === ( $counts['future'] ?? 0 ) && 2 === ( $counts['publish'] ?? 0 ), 'each twin reads the scheduled and published notes once for Cadence and Suggested slots together' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

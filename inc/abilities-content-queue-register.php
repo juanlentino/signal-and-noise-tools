@@ -32,7 +32,7 @@ function snt_abilities_content_queue_register() {
 	);
 	wp_register_ability( 'signal-noise/content-queue', array(
 		'label'               => 'Content queue',
-		'description'         => 'The scheduled queue at a glance: the next four scheduled posts in date order with a site-timezone label ("Tomorrow 9:38 AM", "Sat 11:38 AM", "Dec 27"), the scheduled count and the date the queue runs to, the draft count (null when unreadable), the first hole in the schedule by the publishing-cadence flag\'s own threshold (null when none or when the history is too thin to say), the last three published posts with a relative age, and for the calendar every scheduled post with its site-timezone day and time, today, the Monday of this week, the gaps marked planned, and the newest three drafts this user can edit, by title, and how many more there are (null when the user cannot see every draft), and the cadence warnings: every run of notes under 2 days apart (a cluster) and every stretch over 7 days between notes (a gap), from the latest published note through the scheduled ones, each with one sentence, gaps marked planned left out. Read-only; the reading behind the SN Queue desktop widget.',
+		'description'         => 'The scheduled queue at a glance: the next four scheduled posts in date order with a site-timezone label ("Tomorrow 9:38 AM", "Sat 11:38 AM", "Dec 27"), the scheduled count and the date the queue runs to, the draft count (null when unreadable), the first hole in the schedule by the publishing-cadence flag\'s own threshold (null when none or when the history is too thin to say), the last three published posts with a relative age, and for the calendar every scheduled post with its site-timezone day and time, today, the Monday of this week, the gaps marked planned, and the newest three drafts this user can edit, by title, each with `slot`, a suggested publishing day and time that keeps the cadence rule (day, time, label, reason, and one sentence in text; a suggestion only, nothing is scheduled; day and time null with the reason in text when the rhythm cannot be read), and how many more there are (null when the user cannot see every draft), and the cadence warnings: every run of notes under 2 days apart (a cluster) and every stretch over 7 days between notes (a gap), from the latest published note through the scheduled ones, each with one sentence, gaps marked planned left out. Read-only; the reading behind the SN Queue desktop widget.',
 		'category'            => 'content',
 		'permission_callback' => 'snt_ability_perm_edit_posts',
 		'execute_callback'    => 'snt_ability_content_queue',
@@ -79,7 +79,28 @@ function snt_abilities_content_queue_register() {
 						),
 					),
 				),
-				'draft_list'      => array( 'type' => 'array', 'items' => $row_schema ),
+				'draft_list'      => array(
+					'type'  => 'array',
+					'items' => array(
+						'type'       => 'object',
+						'properties' => array(
+							'id'       => array( 'type' => 'integer' ),
+							'title'    => array( 'type' => 'string' ),
+							'edit_url' => array( 'type' => 'string' ),
+							// 2026-10-13 (queue phase 2, item 2): a suggestion only.
+							'slot'     => array(
+								'type'       => 'object',
+								'properties' => array(
+									'day'    => array( 'type' => array( 'string', 'null' ) ),
+									'time'   => array( 'type' => array( 'string', 'null' ) ),
+									'label'  => array( 'type' => 'string' ),
+									'reason' => array( 'type' => 'string' ),
+									'text'   => array( 'type' => 'string' ),
+								),
+							),
+						),
+					),
+				),
 				'draft_more'      => array( 'type' => array( 'integer', 'null' ) ),
 				'cadence'         => array(
 					'type'  => 'array',

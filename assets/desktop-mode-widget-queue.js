@@ -259,13 +259,22 @@
 		if ( draftList.length ) {
 			wrap.appendChild( heading( 'Drafts' ) );
 			// Phase 2, item 2 (2026-10-13): each draft's suggested slot in
-			// words ("suggested: Thu, Oct 30"), never a scheduled time; the
-			// reason rides as the row's tooltip. An older payload paints none.
+			// words ("suggested: Thu, Oct 30"), never a scheduled time, on its
+			// own line under the title so the title keeps the whole row (review
+			// on #2054: beside it, at 265 wide the title shrank to a stub). The
+			// reason rides as the tooltip. An older payload paints no line.
 			draftList.forEach( function( item ) {
 				var slot = item && item.slot && typeof item.slot.label === 'string' ? item.slot : null;
-				var line = row( { title: item && item.title, edit_url: item && item.edit_url, when: slot ? slot.label : '' }, false );
-				if ( slot && typeof slot.text === 'string' ) { line.setAttribute( 'title', slot.text ); }
-				wrap.appendChild( line );
+				var line = row( { title: item && item.title, edit_url: item && item.edit_url }, false );
+				if ( ! slot ) {
+					wrap.appendChild( line );
+					return;
+				}
+				var box = el( 'div' );
+				if ( typeof slot.text === 'string' ) { box.setAttribute( 'title', slot.text ); }
+				box.appendChild( line );
+				box.appendChild( el( 'p', { style: 'margin:0 0 2px;font-size:11px;font-variant-numeric:tabular-nums;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));', text: slot.label } ) );
+				wrap.appendChild( box );
 			} );
 			if ( typeof data.draft_more === 'number' && data.draft_more > 0 ) {
 				wrap.appendChild( el( 'p', { style: 'margin:0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));', text: '+' + data.draft_more + ' more' } ) );

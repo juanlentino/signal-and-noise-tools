@@ -950,9 +950,12 @@ async function run() {
         {title: 'Old', edit_url: 'https://x.test/e/2'}]}); await flush();
       const rows = nodes(droot).filter(n => 'div' === n.tag && n.children.length === 2 && 'a' === n.children[0].tag && /\/e\/[12]$/.test(n.children[0].href));
       assert.equal(rows.length, 2, 'both drafts are listed, each a link to its editor');
-      assert.equal(rows[0].children[1].text, 'suggested: Mon, Oct 26', 'the slot is said in words beside the title');
-      assert.equal(rows[0].getAttribute('title'), text, 'the reason rides as the row\'s tooltip');
-      assert.equal(rows[1].children[1].text, '', 'a draft with no slot in the payload paints no slot text');
+      assert.equal(rows[0].children[1].text, '', 'the title row carries no slot: the title keeps the whole row');
+      const box = nodes(droot).find(n => 'div' === n.tag && n.getAttribute && n.getAttribute('title') === text);
+      assert.ok(box && box.children[0] === rows[0], 'the reason rides as the tooltip of the draft and its slot line');
+      assert.equal(box.children[1].tag, 'p'); assert.equal(box.children[1].text, 'suggested: Mon, Oct 26', 'the slot is said in words on its own line under the title');
+      assert.match(box.children[1].attrs.style, /font-size:11px/, 'at the 11px floor');
+      assert.ok(!nodes(droot).some(n => n.getAttribute && n.getAttribute('title') && n.children[0] === rows[1]), 'a draft with no slot in the payload gets no slot line');
       assert.doesNotMatch(droot.textContent, /scheduled for|Schedule/, 'never worded as done, and no control to schedule');
       dstop();
     }
