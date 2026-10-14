@@ -161,5 +161,51 @@ ok( abs( snt_ai_copilot_spend_this_month() - 0.0105 ) < 1e-9, 'the next turn reb
 do_action( 'openstation_ai_search_completed', $turn( array( 'model' => null ) ) );
 ok( 1 === snt_ai_copilot_unpriced_this_month(), 'the next unpriced turn rebuilds the count from the damaged value' );
 
+// ── The Agents bucket (OpenStation 1.1.14): `openstation_agent_completed`
+// carries `$result = { text, toolCalls, turns, usage, model }`, the same usage
+// and model shape as Copilot. Same pricing, a bucket of its own, outside the cap.
+$GLOBALS['__options'] = array();
+snt_os_compat_reset_seen_once();
+$run = static function ( array $over = array() ) {
+	return array_merge( array(
+		'text'      => 'done',
+		'toolCalls' => array(),
+		'turns'     => 2,
+		'usage'     => array( 'prompt' => 1000, 'completion' => 500, 'total' => 1500 ),
+		'model'     => array( 'id' => 'claude-sonnet-4-6', 'name' => 'Claude Sonnet 4.6' ),
+	), $over );
+};
+ok( function_exists( 'snt_ai_agents_spend_this_month' ) && function_exists( 'snt_ai_agents_unpriced_this_month' ), 'agents: the month readers exist' );
+if ( function_exists( 'snt_ai_agents_spend_this_month' ) ) {
+	ok( 0.0 === snt_ai_agents_spend_this_month() && 0 === snt_ai_agents_unpriced_this_month(), 'agents: before any run both read a recorded zero' );
+	do_action( 'openstation_agent_completed', 5, 'msg', $run(), array( 'source' => 'chat' ) );
+	ok( abs( snt_ai_agents_spend_this_month() - 0.0105 ) < 1e-9, 'agents: one Sonnet 4.6 run reads 0.0105 (got ' . snt_ai_agents_spend_this_month() . ')' );
+	ok( 0.0 === snt_ai_copilot_spend_this_month() && 0 === snt_ai_copilot_unpriced_this_month(), 'agents: the Copilot bucket did not move' );
+	ok( 0.0 === snt_ai_spend_this_month() && array() === snt_ai_spend_this_month_by_feature(), 'agents: the cap ledger did not move' );
+	// A pre-1.1.14 station: no usage, no model keys at all. The run happened.
+	do_action( 'openstation_agent_completed', 5, 'msg', array( 'text' => 'old', 'toolCalls' => array(), 'turns' => 1 ), array() );
+	ok( 1 === snt_ai_agents_unpriced_this_month() && abs( snt_ai_agents_spend_this_month() - 0.0105 ) < 1e-9, 'agents: a pre-1.1.14 result (no usage, no model) counts as unpriced, never $0' );
+	do_action( 'openstation_agent_completed', 5, 'msg', $run( array( 'usage' => null ) ), array() );
+	do_action( 'openstation_agent_completed', 5, 'msg', $run( array( 'model' => null ) ), array() );
+	do_action( 'openstation_agent_completed', 5, 'msg', $run( array( 'model' => array( 'id' => 'some-model-nobody-priced' ) ) ), array() );
+	do_action( 'openstation_agent_completed', 5, 'msg', $run( array( 'usage' => array( 'prompt' => 0, 'completion' => 0, 'total' => 0 ) ) ), array() );
+	ok( 5 === snt_ai_agents_unpriced_this_month(), 'agents: usage null, model null, an unpriced model id and zero tokens each count as unpriced' );
+	do_action( 'openstation_agent_completed', 5, 'msg', 'not an array', array() );
+	ok( 6 === snt_ai_agents_unpriced_this_month(), 'agents: a non-array result still counts: the hook fires only after a run' );
+	// The double-fire guard: the same result under both names is one run.
+	$before = snt_ai_agents_spend_this_month();
+	do_action( 'openstation_agent_completed', 5, 'msg', $run( array( 'text' => 'shadow' ) ), array() );
+	do_action( 'desktop_mode_agent_completed', 5, 'msg', $run( array( 'text' => 'shadow' ) ), array() );
+	ok( abs( snt_ai_agents_spend_this_month() - ( $before + 0.0105 ) ) < 1e-9, 'agents: the same result under both hook names records one run, not two' );
+	// Key distinct from mcp-telemetry-agents' 'agent_completed:' key: under the
+	// null-family fallback (a direct call) a shared key would drop this recorder.
+	$r = $run( array( 'text' => 'telemetry saw it first' ) );
+	snt_os_compat_seen_once( 'agent_completed:5:' . md5( serialize( $r ) ) );
+	$before = snt_ai_agents_spend_this_month();
+	snt_ai_agents_record_run( 5, 'msg', $r, array() );
+	ok( abs( snt_ai_agents_spend_this_month() - ( $before + 0.0105 ) ) < 1e-9, 'agents: the telemetry subscriber\'s seen_once key does not suppress the spend recorder' );
+	ok( 6 === ( $GLOBALS['__options'][ SN_AI_AGENTS_UNPRICED_OPT ][ snt_ai_spend_month_key() ] ?? null ), 'agents: the count lives in its own YYYY-MM option as an int' );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

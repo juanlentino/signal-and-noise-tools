@@ -1,6 +1,7 @@
 <?php
 /**
- * Signal & Noise Tools: the Copilot (Ask AI) month spend, a readout beside the cap.
+ * Signal & Noise Tools: the Copilot (Ask AI) and Agents month spend, two
+ * readouts beside the cap.
  *
  * The plugin's AI ledger (inc/ai-bootstrap/spend.php) sees its own
  * generate_text_result() calls only. A Copilot turn runs on the same connector
@@ -29,6 +30,13 @@
  * fresh input rate: an over-estimate on a warm prompt cache, hence "at list
  * rates" beside the figure on AI > Models & Budget.
  *
+ * Agents (OpenStation 1.1.14) price the same way, into buckets of their own:
+ * `openstation_agent_completed`'s `$result` now carries the same `usage` and
+ * `model` shape. `usage` is summed across every turn of the run and `model` is
+ * the LAST model it resolved, so a run that switched models prices every token
+ * at the last one's rate. A station older than 1.1.14 sends neither key, so
+ * every agent run there counts as unpriced: honest, never a fake $0.00.
+ *
  * @package SignalNoiseTools
  * @since 17.4.4
  */
@@ -39,6 +47,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'SN_AI_COPILOT_SPEND_OPT', 'sn_ai_copilot_spend_month' );
 define( 'SN_AI_COPILOT_UNPRICED_OPT', 'sn_ai_copilot_unpriced_month' );
+define( 'SN_AI_AGENTS_SPEND_OPT', 'sn_ai_agents_spend_month' );
+define( 'SN_AI_AGENTS_UNPRICED_OPT', 'sn_ai_agents_unpriced_month' );
 
 /**
  * Fold one figure into this month's bucket of a YYYY-MM option, pruned to
@@ -89,22 +99,59 @@ function snt_ai_copilot_record_turn( $payload ) {
 		&& snt_os_compat_seen_once( 'ai_search_completed:' . md5( serialize( $payload ) ) ) ) {
 		return;
 	}
+	snt_ai_station_price_run( $payload, SN_AI_COPILOT_SPEND_OPT, SN_AI_COPILOT_UNPRICED_OPT );
+}
+snt_os_compat_add_action( 'desktop_mode_ai_search_completed', 'openstation_ai_search_completed', 'snt_ai_copilot_record_turn' );
+
+/**
+ * Price one station run carrying `{ usage, model }` into a spend bucket, or
+ * count it in the unpriced bucket when it cannot be priced (usage or model
+ * null or absent, a model id the table lacks, zero tokens).
+ *
+ * @param array  $run          Anything with `usage` { prompt, completion } and `model` { id }.
+ * @param string $spend_opt    YYYY-MM option for the dollar figure.
+ * @param string $unpriced_opt YYYY-MM option for the unpriced count.
+ * @return void
+ */
+function snt_ai_station_price_run( array $run, $spend_opt, $unpriced_opt ) {
 	$cost  = 0.0;
-	$model = is_array( $payload['model'] ?? null ) ? (string) ( $payload['model']['id'] ?? '' ) : '';
-	if ( '' !== $model && is_array( $payload['usage'] ?? null ) && function_exists( 'snt_ai_estimate_cost' ) ) {
+	$model = is_array( $run['model'] ?? null ) ? (string) ( $run['model']['id'] ?? '' ) : '';
+	if ( '' !== $model && is_array( $run['usage'] ?? null ) && function_exists( 'snt_ai_estimate_cost' ) ) {
 		$cost = (float) snt_ai_estimate_cost(
 			$model,
-			(int) ( $payload['usage']['prompt'] ?? 0 ),
-			(int) ( $payload['usage']['completion'] ?? 0 )
+			(int) ( $run['usage']['prompt'] ?? 0 ),
+			(int) ( $run['usage']['completion'] ?? 0 )
 		);
 	}
 	if ( $cost > 0 ) {
-		snt_ai_copilot_bump_month( SN_AI_COPILOT_SPEND_OPT, $cost );
+		snt_ai_copilot_bump_month( $spend_opt, $cost );
 	} else {
-		snt_ai_copilot_bump_month( SN_AI_COPILOT_UNPRICED_OPT, 1 );
+		snt_ai_copilot_bump_month( $unpriced_opt, 1 );
 	}
 }
-snt_os_compat_add_action( 'desktop_mode_ai_search_completed', 'openstation_ai_search_completed', 'snt_ai_copilot_record_turn' );
+
+/**
+ * Price one finished agent run into this month's Agents bucket.
+ *
+ * Hooked on `openstation_agent_completed` (and its v0.9.8 name). The hook fires
+ * only after a successful invocation, so the run happened whatever `$result`
+ * looks like: a non-array result, or a pre-1.1.14 one with no usage, counts as
+ * unpriced. The seen_once key is distinct from mcp-telemetry-agents'
+ * 'agent_completed:' key, so neither subscriber can swallow the other.
+ *
+ * @param int   $agent_user_id Agent user ID.
+ * @param mixed $message       The submitted message (unused).
+ * @param mixed $result        { text, toolCalls, turns, usage, model }.
+ * @return void
+ */
+function snt_ai_agents_record_run( $agent_user_id, $message = '', $result = null ) {
+	if ( function_exists( 'snt_os_compat_seen_once' )
+		&& snt_os_compat_seen_once( 'agent_spend:' . (int) $agent_user_id . ':' . md5( serialize( $result ) ) ) ) {
+		return;
+	}
+	snt_ai_station_price_run( is_array( $result ) ? $result : array(), SN_AI_AGENTS_SPEND_OPT, SN_AI_AGENTS_UNPRICED_OPT );
+}
+snt_os_compat_add_action( 'desktop_mode_agent_completed', 'openstation_agent_completed', 'snt_ai_agents_record_run', 10, 3 );
 
 /**
  * This month's bucket of a YYYY-MM option, 0 when none or when the option is damaged.
@@ -144,4 +191,22 @@ function snt_ai_copilot_spend_this_month() {
  */
 function snt_ai_copilot_unpriced_this_month() {
 	return (int) snt_ai_copilot_month_bucket( SN_AI_COPILOT_UNPRICED_OPT );
+}
+
+/**
+ * This calendar month's agent spend in USD at list rates, 0.0 when none.
+ *
+ * @return float
+ */
+function snt_ai_agents_spend_this_month() {
+	return (float) snt_ai_copilot_month_bucket( SN_AI_AGENTS_SPEND_OPT );
+}
+
+/**
+ * This calendar month's agent runs that ran but could not be priced, 0 when none.
+ *
+ * @return int
+ */
+function snt_ai_agents_unpriced_this_month() {
+	return (int) snt_ai_copilot_month_bucket( SN_AI_AGENTS_UNPRICED_OPT );
 }
