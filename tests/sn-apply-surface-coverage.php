@@ -14,7 +14,7 @@
  *      fatal; zero is a silently missing surface. A parts file (house line
  *      cap, 2026-10-14) is required by its shell, a family file, so the
  *      packaged count walks from the loader through every file it reaches.
- *      Only real `require_once __DIR__ . '/...'` lines count, and only in
+ *      Only real `require(_once) __DIR__ . '/...'` lines count, and only in
  *      reachable files: two orphans requiring each other, or a commented-out
  *      require, still read as MISSING.
  *   2. snt_ability_sn_apply() is declared exactly once in the whole tree.
@@ -149,7 +149,7 @@ foreach ( array_merge( array( $loader ), (array) $family ) as $f ) {
 }
 
 /**
- * Packaged layout: how many real require_once lines reach each file, counted
+ * Packaged layout: how many real require(_once) lines reach each file, counted
  * only in files reachable from the loader. A real line is the house form,
  * `require_once __DIR__ . '/x.php';` at the start of a line (the loader writes
  * '/sn-apply/x.php'), so a `// require_once ...` comment is not one, and an
@@ -167,7 +167,7 @@ function sasc_reachable_require_counts( $start, array $texts ) {
 	$queue  = array( $start );
 	while ( $queue ) {
 		$from = array_shift( $queue );
-		preg_match_all( "/^\\s*require_once\\s+__DIR__\\s*\\.\\s*'\\/([a-z0-9\\/._-]+\\.php)'\\s*;/m", $texts[ $from ] ?? '', $m );
+		preg_match_all( "/^\\s*require(?:_once)?\\s+__DIR__\\s*\\.\\s*'\\/([a-z0-9\\/._-]+\\.php)'\\s*;/m", $texts[ $from ] ?? '', $m );
 		foreach ( $m[1] as $rel ) {
 			$to            = dirname( $from ) . '/' . $rel;
 			$counts[ $to ] = ( $counts[ $to ] ?? 0 ) + 1;
