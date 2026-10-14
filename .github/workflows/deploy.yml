@@ -189,7 +189,8 @@ jobs:
       - name: Purge caches via WP-CLI in-process (no App Password required)
         # v3.7.3 architecture change: replaces the HTTP REST-based purge that
         # required WP_DEPLOY_USER + WP_DEPLOY_APP_PASSWORD. The purge work
-        # (object cache + Breeze + Varnish + Cloudflare) lives in the theme's
+        # (object cache, transients and the Cloudflare edge; Breeze and Varnish
+        # until 2026-10-13) lives in the theme's
         # `sn_purge_all_caches_result` filter at inc/template-maintenance.php.
         # We invoke it via `wp eval` over the same SSH connection used above —
         # auth is the deploy SSH key (app-scoped sn-plugin user), so no HTTP

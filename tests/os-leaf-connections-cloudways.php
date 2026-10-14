@@ -112,5 +112,11 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && snt_leaf_actions( $
 ok( 0 === preg_match( '/snt-sys--(warn|err)/', $kit ) && false === strpos( $kit, 'data-tone=' ), 'a healthy leaf paints no tone stripe on any cell' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'configured: no wp-admin markup survives' );
 
+// ── Retired and unconfigured: missing credentials are not a fault, so the
+// native cell (painted from the same card) carries no warning badge or stripe.
+$un_card = sn_admin_cloudways_cards( array( 'configured' => false, 'missing' => sn_admin_cloudways_constants(), 'last' => null, 'ago' => '', 'on' => false ) )[0];
+$un_cell = \SignalNoise\OpenStationHost\Dashboard\Leaves\cloudways_card_html( $un_card );
+ok( false !== strpos( $un_cell, 'Not configured' ) && false === strpos( $un_cell, 'snt-sys--warn' ) && false === strpos( $un_cell, 'os-badge' ), 'retired and unconfigured: the native Connection cell reads Not configured with no warning badge or stripe' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

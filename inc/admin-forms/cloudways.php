@@ -227,9 +227,10 @@ function sn_admin_cloudways_cards( array $state ) {
 		array(
 			'label'     => 'Connection',
 			'value'     => $configured ? 'Configured' : 'Not configured',
+			// Retired: missing credentials are not a fault, so no warning tone.
 			'pill'      => array(
-				'kind' => $configured ? 'ok' : 'warn',
-				'text' => $configured ? 'Ready' : 'Inactive',
+				'kind' => $configured ? 'ok' : ( $on ? 'warn' : '' ),
+				'text' => $configured ? 'Ready' : ( $on ? 'Inactive' : '' ),
 			),
 			'meta_html' => $conn_meta,
 		),

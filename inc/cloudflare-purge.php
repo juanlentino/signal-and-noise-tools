@@ -749,11 +749,11 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	}
 
 	// ── CLOUDWAYS PURGE STATUS (render hardening FIX 3b) ──
-	// Retired by default since 2026-10-13 (Varnish is off for this app; the
-	// row says so). When on, it runs on a manual purge; surfaced so a failed
-	// purge (e.g. a Cloudways API 422 field-validation error) is visible right
-	// next to the rest of the pipeline instead of a silent ok:false in an option
-	// no screen ever read.
+	// Retired 2026-10-14 (Varnish is off for this app; the row says so). It
+	// was surfaced here so a failed purge (e.g. a Cloudways API 422
+	// field-validation error) showed next to the rest of the pipeline instead
+	// of a silent ok:false in an option no screen read; the row now reads
+	// Retired.
 	if ( function_exists( 'sn_cloudways_is_configured' ) && sn_cloudways_is_configured() && function_exists( 'sn_admin_cloudways_leg' ) ) {
 		// 2026-10-12 audit: the Cloudways leaf's own verdict (sn_admin_cloudways_leg()),
 		// so the two leaves call one record by one name.

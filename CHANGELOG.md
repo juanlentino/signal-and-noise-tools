@@ -20,7 +20,7 @@ adds a bullet below. A release is a separate, deliberate act:
 - **The Cloudways app purge.** It ran only on `breeze_clear_varnish`, which the theme stopped firing (signal-and-noise#532) and Breeze no longer fires, and Varnish is off for this app. The hook, the API call, its token cache and timeout filter, the `SN_CLOUDWAYS_APP_PURGE` switch and the ledger's gate for it (`snt_purge_wants_app_purge()`) are gone. Kept: the four credential readers and `sn_cloudways_last_purge`, which the Connections leaves still show as history. New ledger rows say "retired: Varnish is off for this app"; older rows keep the words they were written with.
 
 ### Fixed
-- **"SN: Purge all caches" says what it purges:** transients, page files and the Cloudflare edge, with Redis left alone. It said "Object cache + Breeze + Varnish + Cloudflare".
+- **"SN: Purge all caches" says what it purges:** transients and the Cloudflare edge, with Redis left alone. It said "Object cache + Breeze + Varnish + Cloudflare".
 - **Copy and comments no longer describe Breeze or the Cloudways purge as running:** the Cloudways leaf's hint and retired sentence (no switch to turn it back on), the Last purge caption, the keyring's Cloudways key row, the purge-all-caches and cache-freshness ability descriptions, and comments in the purge ledger, Core status, deploy history, the résumé PDF sync and three Redis notes.
 
 ## [2026.10.14] - 2026-10-14 — agent runs priced, the Pulse Monitor hears S&N, fourteen big files split

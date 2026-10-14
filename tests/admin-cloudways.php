@@ -110,6 +110,9 @@ $leg = sn_admin_cloudways_leg( array( 'time' => time() - 60, 'ok' => true ), fal
 ok( 'Retired' === $leg['text'] && 'muted' === $leg['kind'] && 0 === $leg['time'], 'the shared leg reads Retired, muted, with no attempt time to grow' );
 ok( 'Retired' !== sn_admin_cloudways_cards( array( 'configured' => true, 'missing' => array(), 'last' => array( 'time' => time(), 'ok' => true ), 'ago' => '1 min ago' ) )[1]['value'], 'a state without the flag stays on (fixtures, older callers)' );
 
+$un = sn_admin_cloudways_cards( array( 'configured' => false, 'missing' => sn_admin_cloudways_constants(), 'last' => null, 'ago' => '', 'on' => false ) );
+ok( '' === $un[0]['pill']['kind'] && 'Not configured' === $un[0]['value'], 'retired and unconfigured: the Connection card carries no warning tone' );
+ok( 'warn' === sn_admin_cloudways_cards( array( 'configured' => false, 'missing' => sn_admin_cloudways_constants(), 'last' => null, 'ago' => '' ) )[0]['pill']['kind'], 'control: a state without the retired flag still warns' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
 
