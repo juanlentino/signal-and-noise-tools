@@ -102,6 +102,31 @@ if ( ! function_exists( 'snt_test_mcp_telemetry_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_ml_kernel_src' ) ) {
+	/**
+	 * The source of inc/ml-kernel.php AND its four parts files, for suites that
+	 * pin the kernel's text (its purity pins are absence pins, so a read of the
+	 * shell alone would pass them vacuously). Split 2026-10-14 (house line cap).
+	 * Named, not globbed: a future ml-kernel-* module would not belong in the
+	 * read. A missing file returns '' so every presence pin goes red and every
+	 * guarded absence pin fails rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_ml_kernel_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-text-parts', '-graph-parts', '-cadence-parts', '-drift-parts' ) as $suffix ) {
+			$file = $dir . 'ml-kernel' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_analytics_view_overview_src' ) ) {
 	/**
 	 * The source of inc/analytics-view-overview.php AND its three parts files,
@@ -181,31 +206,6 @@ if ( ! function_exists( 'snt_test_insights_src' ) ) {
 		$src = '';
 		foreach ( array( '', '-signals-parts', '-ai-parts', '-state-parts' ) as $suffix ) {
 			$file = $dir . 'insights' . $suffix . '.php';
-			if ( ! is_file( $file ) ) {
-				return '';
-			}
-			$src .= file_get_contents( $file ) . "\n";
-		}
-		return $src;
-	}
-}
-
-if ( ! function_exists( 'snt_test_ml_kernel_src' ) ) {
-	/**
-	 * The source of inc/ml-kernel.php AND its four parts files, for suites that
-	 * pin the kernel's text (its purity pins are absence pins, so a read of the
-	 * shell alone would pass them vacuously). Split 2026-10-14 (house line cap).
-	 * Named, not globbed: a future ml-kernel-* module would not belong in the
-	 * read. A missing file returns '' so every presence pin goes red and every
-	 * guarded absence pin fails rather than passing on a partial read.
-	 *
-	 * @return string
-	 */
-	function snt_test_ml_kernel_src() {
-		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
-		$src = '';
-		foreach ( array( '', '-text-parts', '-graph-parts', '-cadence-parts', '-drift-parts' ) as $suffix ) {
-			$file = $dir . 'ml-kernel' . $suffix . '.php';
 			if ( ! is_file( $file ) ) {
 				return '';
 			}
