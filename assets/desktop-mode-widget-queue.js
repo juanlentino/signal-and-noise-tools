@@ -320,6 +320,12 @@
 		var lastData = null;
 		var lastReadMs = 0;
 		var lastJson = '';
+		// A brief miss (a 503, no answer; assets/snt-poll-cadence.js) keeps the
+		// card, says "Updating, retrying." and retries in seconds; `broken` is
+		// a miss that took the error path, after which none is brief until a good read.
+		var brief = 0;
+		var broken = false;
+		var retryTimer = 0;
 		// The selected calendar day, kept across the 60s repaints so a tap
 		// is not reset by the next poll.
 		var state = {};
@@ -336,6 +342,7 @@
 		}
 
 		function fail( message ) {
+			broken = true;
 			if ( ! lastData ) {
 				renderError( container, message );
 				return;
@@ -345,6 +352,15 @@
 			container.appendChild( el( 'p', {
 				style: 'margin:0;padding:0 16px 12px;font-size:11px;color:#d29922;',
 				text:  'Couldn\u2019t read the queue: ' + message + '; showing the ' + clock( lastReadMs ) + ' reading.',
+			} ) );
+		}
+
+		function quietMiss() {
+			if ( lastData ) { paint( lastData ); } else { renderLoading( container ); }
+			lastJson = ''; // the next good read repaints, dropping the line
+			container.appendChild( el( 'p', {
+				style: 'margin:0;padding:0 16px 12px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
+				text:  window.sntPollCadence.BRIEF_TEXT,
 			} ) );
 		}
 
@@ -370,6 +386,8 @@
 					// "empty response" over a perfect payload. Accept both.
 					var data = res && res.data && typeof res.data === 'object' ? res.data : res;
 					if ( data && typeof data === 'object' && ( Array.isArray( data.next ) || Array.isArray( data.published ) ) ) {
+						brief      = 0;
+						broken     = false;
 						lastData   = data;
 						lastReadMs = Date.now();
 						// The same reading is not repainted: a keyboard user's
@@ -384,6 +402,15 @@
 				} )
 				.catch( function( err ) {
 					if ( torn ) { return; }
+					var C    = window.sntPollCadence;
+					var soon = ! broken && C && C.briefWait ? C.briefWait( err, brief ) : 0;
+					if ( soon ) {
+						brief++;
+						quietMiss();
+						window.clearTimeout( retryTimer );
+						retryTimer = window.setTimeout( poll, soon );
+						return;
+					}
 					fail( why( err ) );
 				} );
 		}
@@ -396,6 +423,8 @@
 		var intervalId = null;
 		var lastRunMs = Date.now();
 		function poll() {
+			window.clearTimeout( retryTimer );
+			retryTimer = 0;
 			lastRunMs = Date.now();
 			refresh();
 		}
@@ -413,6 +442,8 @@
 		}
 		function stopPolling() {
 			if ( intervalId !== null ) { window.clearInterval( intervalId ); intervalId = null; }
+			window.clearTimeout( retryTimer );
+			retryTimer = 0;
 		}
 		function onVisibilityChange() {
 			if ( document.hidden ) { stopPolling(); return; }

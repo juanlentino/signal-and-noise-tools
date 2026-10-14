@@ -123,6 +123,13 @@
 		return node;
 	}
 
+	function briefWait( err, tries ) {
+		return window.sntPollCadence && window.sntPollCadence.briefWait ? window.sntPollCadence.briefWait( err, tries ) : 0;
+	}
+	function isBrief( err ) {
+		return !! ( window.sntPollCadence && window.sntPollCadence.brief && window.sntPollCadence.brief( err ) );
+	}
+
 	function clearChildren( node ) {
 		while ( node.firstChild ) { node.removeChild( node.firstChild ); }
 	}
@@ -565,10 +572,12 @@
 		var failures  = 0;
 		var uptime    = 'pending';
 		var stale     = ''; // why the last poll failed, while a good reading is kept
+		var brief     = 0;     // brief misses (a 503, no answer) since the last good read
+		var quiet     = false; // one is being retried: "Updating, retrying." under Uptime
 		// 2026-10-12 audit: the Health, Cron, Edge and Cache lines' re-read
 		// failed silently, so a kept reading passed for current. When they
 		// were read (the page-load localize, then each good re-read), and
-		// whether the latest re-read failed.
+		// whether the latest re-read failed (false, or its rejection).
 		var linesAt    = ( Number( data.statusExtra && data.statusExtra.at ) * 1000 ) || Date.now();
 		var linesStale = false;
 		var toastTimer = 0;
@@ -660,6 +669,11 @@
 				read( 'Health', function() { return readHealth( data.healthSummary, tally ); } ),
 				read( 'Cron', function() { return readCron( data.cronSummary, tally ); } ),
 			];
+			// A brief miss (assets/snt-poll-cadence.js) leaves the reading as it
+			// was, adds no fault, and says it is retrying, in the plain row tone.
+			if ( quiet && reads[0][1].rows ) {
+				reads[0][1].rows = reads[0][1].rows.concat( [ { label: window.sntPollCadence.BRIEF_TEXT, value: '', tone: '' } ] );
+			}
 			// Edge and Cache only when the owner payload came: without it (another
 			// role, an older build) there is no source to call unmeasured.
 			if ( data.statusExtra && data.statusExtra.systems ) {
@@ -683,7 +697,8 @@
 			// A failed re-read keeps the lines and says so under Health, the way
 			// a failed uptime check does under Uptime: the last answer, not a
 			// current one.
-			if ( linesStale ) {
+			// A brief miss rides the uptime poll's retry: quiet while that one is.
+			if ( linesStale && ! ( quiet && isBrief( linesStale ) ) ) {
 				tally.unknown++;
 				// Every line the re-read feeds that this paint shows (review on
 				// #2023: Analytics, Watches and Credentials come from it too).
@@ -735,7 +750,8 @@
 		function arm() {
 			window.clearTimeout( timer );
 			if ( torn || pending || document.hidden ) { return; }
-			nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );
+			// A brief miss's retry (under the period) is kept as it is.
+			nextAt = lastAt + ( lastDelay < REFRESH_MS ? lastDelay : Math.max( lastDelay, cadence( REFRESH_MS ) ) );
 			timer = window.setTimeout( refresh, Math.max( 0, nextAt - Date.now() ) );
 		}
 		function refresh() {
@@ -763,9 +779,9 @@
 						linesAt    = ( Number( lines.statusExtra && lines.statusExtra.at ) * 1000 ) || Date.now();
 						linesStale = false;
 						paint();
-					} ).catch( function() {
+					} ).catch( function( err ) {
 						if ( torn ) { return; }
-						linesStale = true;
+						linesStale = err || true;
 						paint();
 					} );
 				}
@@ -777,14 +793,25 @@
 				uptime   = res;
 				stale    = '';
 				failures = 0;
+				brief    = 0;
+				quiet    = false;
 			} ).catch( function( err ) {
 				if ( torn ) { return; }
+				var soon = failures ? 0 : briefWait( err, brief );
+				if ( soon ) {
+					brief++;
+					delay = soon;
+					quiet = true;
+					return;
+				}
+				quiet = false;
 				failures++;
 				delay = Math.min( 15 * 60 * 1000, REFRESH_MS * Math.pow( 2, Math.min( failures - 1, 4 ) ) );
 				// wp.apiFetch rejects with parsed WP_Error JSON, NOT a Response.
 				var retry = Number( err && err.data && err.data.retry_after );
 				// Reject malformed hints beyond the browser's signed 32-bit timer range.
-				if ( isFinite( retry ) && retry > 0 && retry <= 2147483 ) { delay = Math.max( delay, retry * 1000 ); }
+				// A brief miss's hint is never honored (maintenance says 600 s for seconds).
+				if ( ! isBrief( err ) && isFinite( retry ) && retry > 0 && retry <= 2147483 ) { delay = Math.max( delay, retry * 1000 ); }
 				var message = ( err && err.message ) || 'unknown error';
 				if ( uptime && 'pending' !== uptime && ! uptime.error ) {
 					stale = message;

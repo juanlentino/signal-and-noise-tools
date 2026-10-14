@@ -337,6 +337,20 @@
 		return box;
 	}
 
+	function briefWait( err, tries ) {
+		return window.sntPollCadence && window.sntPollCadence.briefWait ? window.sntPollCadence.briefWait( err, tries ) : 0;
+	}
+	function isBrief( err ) {
+		return !! ( window.sntPollCadence && window.sntPollCadence.brief && window.sntPollCadence.brief( err ) );
+	}
+	// In words, in the card's subtle text color: not an error, not a color cue.
+	function quietLine() {
+		return el( 'p', {
+			style: 'margin:0;padding:0 16px;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));',
+			text:  window.sntPollCadence.BRIEF_TEXT,
+		} );
+	}
+
 	function mount( container, ctx ) {
 		if ( ! container ) { return function() {}; }
 
@@ -351,6 +365,8 @@
 		var lastGood = null;
 		var lastSuccess = '';
 		var failures = 0;
+		var brief = 0;     // brief misses (a 503, no answer) since the last good read
+		var quiet = null;  // the "Updating, retrying." line while one is retried
 		// The polled reading repaints `region` on every refresh; the button
 		// sits outside it, so a repaint never drops its focus or its busy state.
 		var region = el( 'div' );
@@ -389,16 +405,30 @@
 				lastGood = res;
 				lastSuccess = new Date().toISOString();
 				failures = 0;
+				brief = 0;
+				quiet = null;
 				renderCard( region, res );
 				stale = renderRefreshStatus( region, lastSuccess );
 			} ).catch( function( err ) {
 				if ( torn ) { return; }
+				// A brief miss (assets/snt-poll-cadence.js) keeps the card exactly
+				// as it is, adds one quiet line, and retries in seconds.
+				var soon = failures ? 0 : briefWait( err, brief );
+				if ( soon ) {
+					brief++;
+					delay = soon;
+					stale = null;
+					if ( ! quiet ) { quiet = region.appendChild( quietLine() ); }
+					return;
+				}
+				quiet = null;
 				failures++;
 				delay = Math.min( 15 * 60 * 1000, REFRESH_MS * Math.pow( 2, Math.min( failures - 1, 4 ) ) );
 				// wp.apiFetch rejects with parsed WP_Error JSON, NOT a Response.
 				var retry = Number( err && err.data && err.data.retry_after );
 				// Reject malformed hints beyond the browser's signed 32-bit timer range.
-				if ( isFinite( retry ) && retry > 0 && retry <= 2147483 ) { delay = Math.max( delay, retry * 1000 ); }
+				// A brief miss's hint is never honored (maintenance says 600 s for seconds).
+				if ( ! isBrief( err ) && isFinite( retry ) && retry > 0 && retry <= 2147483 ) { delay = Math.max( delay, retry * 1000 ); }
 				var message = ( err && err.message ) || 'unknown error';
 				if ( lastGood ) {
 					renderCard( region, lastGood, true );
@@ -435,7 +465,8 @@
 		function arm() {
 			window.clearTimeout( timer );
 			if ( torn || pending || document.hidden ) { return; }
-			nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );
+			// A brief miss's retry (under the period) is kept as it is.
+			nextAt = lastAt + ( lastDelay < REFRESH_MS ? lastDelay : Math.max( lastDelay, cadence( REFRESH_MS ) ) );
 			timer = window.setTimeout( refresh, Math.max( 0, nextAt - Date.now() ) );
 		}
 		function onVisibilityChange() {
