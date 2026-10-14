@@ -556,7 +556,9 @@ ok( null === $row_success_code['error_code'], 'build_row: success forces error_c
 
 // The insert uses an EXPLICIT format array; a column added without its %s
 // silently misbinds every column after it.
-$sn_tel_src = file_get_contents( __DIR__ . '/../inc/mcp/mcp-telemetry.php' );
+// The module and its three parts files (split 2026-10-14, house line cap).
+require_once __DIR__ . '/lib/inc-population.php';
+$sn_tel_src = snt_test_mcp_telemetry_src();
 // Scope to the FUNCTION BODY first. An earlier cut of this assertion anchored
 // on /\$wpdb->insert\(/ against the whole file and matched the docblock mention
 // at line 27, so the span ran down to the real call and swallowed build_row's

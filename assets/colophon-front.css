@@ -17,7 +17,7 @@ main.is-layout-constrained:has(.sn-colophon)>*,.wp-block-post-content>.sn-coloph
 
 .sn-colophon-group{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:1rem 3rem;padding:3rem 0;border-top:2px solid currentColor}
 .sn-colophon-group h2{font-size:clamp(2rem,5vw,3.5rem);line-height:.95;letter-spacing:normal;margin:0}
-.sn-colophon-group h2::before{counter-increment:sn-col;content:counter(sn-col,decimal-leading-zero) / "";display:block;font-family:var(--wp--preset--font-family--body,'DM Mono',monospace);font-size:.75rem;letter-spacing:.18em;color:var(--sn-col-red);margin-bottom:.4rem}
+.sn-colophon-group h2::before{counter-increment:sn-col;content:counter(sn-col,decimal-leading-zero) / "";display:block;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.75rem;letter-spacing:.18em;color:var(--sn-col-red);margin-bottom:.4rem}
 
 .sn-colophon-items{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2rem 2.5rem}
 .sn-colophon-group--honest .sn-colophon-items{grid-template-columns:repeat(3,minmax(0,1fr))}
