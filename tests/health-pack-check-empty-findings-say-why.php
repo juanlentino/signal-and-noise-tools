@@ -92,7 +92,7 @@ ef_ok( 2 === count( $off ), 'fixture: exactly the two offenders are flagged (got
 ef_ok( 3 === ( $off[0]['line'] ?? 0 ) && 7 === ( $off[1]['line'] ?? 0 ), 'fixture: flagged at lines 3 and 7 -- the definition, the compliant calls and the variable-findings call are not' );
 
 echo "\nGroup: every health module\n";
-$files = array_merge( glob( dirname( __DIR__ ) . '/inc/health-*.php' ), glob( dirname( __DIR__ ) . '/inc/provenance-integrity.php' ) );
+$files = array_merge( glob( dirname( __DIR__ ) . '/inc/health-*.php' ), glob( dirname( __DIR__ ) . '/inc/provenance-integrity*.php' ) );
 sort( $files );
 ef_ok( count( $files ) >= 30, 'population: ' . count( $files ) . ' health modules scanned (a small number here would mean the glob broke)' );
 $calls = 0;
