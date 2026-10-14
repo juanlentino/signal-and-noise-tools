@@ -34,7 +34,7 @@
  *     queue says when its readers last looked.
  *
  * The composition is cached for sixty seconds and is user-neutral; the why
- * sits on attention_rows() and attention_visible_rows() below. (The guard
+ * sits on attention_rows() and attention_visible_rows(), in the parts files. (The guard
  * under the namespace must stay within the file's first fifty lines:
  * Plugin Check's direct-access regex reads no further, and its AST path
  * accepts only a bare exit, which the standalone-aware guard is not.)
