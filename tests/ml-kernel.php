@@ -204,16 +204,20 @@ ok( feq( snt_ml_related_score( 0.5, $signals, array( 'direct_link' => 0.45 ) ), 
 ok( feq( snt_ml_related_score( 0.0, array() ), 0.0 ), '(g) no signal at all → 0.0, absent signal keys tolerated' );
 
 echo "\nGroup (h): kernel purity — grep-pin the file text\n";
-$kernel_src = file_get_contents( __DIR__ . '/../inc/ml-kernel.php' );
+// ml-kernel.php is read with its four parts files (split 2026-10-14); every
+// pin here is an absence pin, so each carries a non-empty floor and a missed
+// read cannot pass it.
+require_once __DIR__ . '/lib/inc-population.php';
+$kernel_src = snt_test_ml_kernel_src();
 foreach ( array( 'apply_filters', 'get_posts', 'get_option', 'add_filter', 'add_action', 'do_action', 'get_transient', 'wp_cache' ) as $wp_fn ) {
-	ok( false === strpos( $kernel_src, $wp_fn ), "(h) kernel file text contains no '$wp_fn'" );
+	ok( '' !== $kernel_src && false === strpos( $kernel_src, $wp_fn ), "(h) kernel file text contains no '$wp_fn'" );
 }
 // PR #410 review: the name list above whitelists only 8 functions — a future
 // wp_json_encode()/esc_html() slip would pass it. Pin the whole wp_* CALL
 // namespace instead (the 'wp:' block-comment literal in the tokenizer's
 // docblock/regex is not a call and must not trip this).
-ok( 0 === preg_match( '/\bwp_\w+\s*\(/', $kernel_src ), '(h) no wp_*() call of ANY name in the kernel file' );
-ok( 0 === preg_match( '/\besc_\w+\s*\(/', $kernel_src ), '(h) no esc_*() call either — the kernel returns data, renderers escape' );
+ok( '' !== $kernel_src && 0 === preg_match( '/\bwp_\w+\s*\(/', $kernel_src ), '(h) no wp_*() call of ANY name in the kernel file' );
+ok( '' !== $kernel_src && 0 === preg_match( '/\besc_\w+\s*\(/', $kernel_src ), '(h) no esc_*() call either — the kernel returns data, renderers escape' );
 
 echo "\nGroup (i): pipeline registry — shipped map, unknown slug, filter seam\n";
 $map = snt_ml_pipelines();

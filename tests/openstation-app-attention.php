@@ -1025,6 +1025,8 @@ echo "\nGroup 8: the seam between the two halves\n";
 // file was split rather than merely made shorter.
 $composition = (string) file_get_contents( __DIR__ . '/../apps/signal-noise/parts/attention.php' );
 $readers     = snt_test_attention_readers_src();
+$composition = snt_test_attention_src();
+$readers     = (string) file_get_contents( __DIR__ . '/../apps/signal-noise/parts/attention-readers.php' );
 $called      = array();
 foreach ( array_keys( \SignalNoise\OpenStationApp\attention_kinds() ) as $kind ) {
 	if ( false !== strpos( $readers, 'function attention_' . $kind . '(' ) ) {
