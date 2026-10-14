@@ -117,16 +117,22 @@ from today to that day, both in the site timezone ("(today)" and "(1 day)" at
 the short end; the year only when it is not this one). Unknowns are said in
 words: "Not covered: nothing is scheduled." and, when every scheduled note is
 past its time and not yet published, "Not covered: the last scheduled note,
-Oct 12, is overdue." The ability carries it as `runway` (`through`, `days`,
+Oct 12, is overdue." Days are counted from the two dates, never the
+instants, so a midnight DST switch (Santiago, Cairo) does not lose one; the
+Cadence and Suggested slots counts use the same helper,
+`sn_content_queue_days_apart()`. The ability carries it as `runway` (`through`, `days`,
 `text`; the first two null for an unknown).
 
 On the card the sentence takes the old depth line's place ("26 scheduled · to
 Jan 25, 2027") in the same row, in the card's text color; the scheduled count
 and the draft count sit beside it in the muted color ("25 scheduled · 0
-drafts", or "Scheduled count not read"). The sentence may wrap; the counts
+drafts", or "Scheduled count not read"). An empty queue is said once: the
+headline's "Nothing scheduled" stands alone, with no runway line and no "0
+scheduled". The sentence may wrap; the counts
 keep to one line. A payload without `runway` (an older site) keeps the depth
 line. Connections › Scheduled has a **Runway** box on both twins, first of
-the queue boxes: the same sentence, with the count as its description.
+the queue boxes: the same sentence, with the count (from
+`wp_count_posts()`, as on the card) as its description.
 
 On the live queue (2026-10-14: 25 scheduled, the last on Jan 25, 2027) it
 reads "Covered through Jan 25, 2027 (103 days)".
@@ -161,8 +167,9 @@ busiest state (a missed note, three cadence lines and "+N more", three drafts wi
 three Later rows, about 180px more) scrolls inside the card. It was 780, sized
 for that busiest state, which left about 200px empty on an ordinary day. The
 runway sentence (2026-10-14, 218px at 11px) cannot share its row with the
-counts below about 360 wide, so the row is one line taller there (about 14px):
-the default went from 640 to 650, BUDGETED, not measured on the desk. The
+counts below about 360 wide, so the row is one line taller there: 19px with
+the row gap, measured in review. The default went from 640 to 650 (627 + 19 =
+646 at 265 wide, so one cadence line still shows unscrolled). The
 runway may wrap; the counts never break mid-phrase. The grid's
 seven columns are equal shares of the card's width, so they fit any width the
 desktop allows (at the 240 minimum a column is about 23px, targets 25px apart);

@@ -25,7 +25,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return array{through:?string,days:?int,text:string}
  */
 function sn_content_queue_runway( $scheduled, $now, DateTimeZone $tz ) {
-	$ts = array_map( 'intval', (array) $scheduled );
+	// A time that is not after 1970 is an unreadable date, never a note.
+	$ts = array_filter( array_map( 'intval', (array) $scheduled ), static fn( $t ) => $t > 0 );
 	if ( array() === $ts ) {
 		return array( 'through' => null, 'days' => null, 'text' => 'Not covered: nothing is scheduled.' );
 	}
@@ -38,7 +39,7 @@ function sn_content_queue_runway( $scheduled, $now, DateTimeZone $tz ) {
 	if ( $last < (int) $now ) {
 		return array( 'through' => null, 'days' => null, 'text' => sprintf( 'Not covered: the last scheduled note, %s, is overdue.', $label ) );
 	}
-	$days = (int) $today->diff( $day )->format( '%a' );
+	$days = sn_content_queue_days_apart( $today, $day );
 	return array(
 		'through' => $day->format( 'Y-m-d' ),
 		'days'    => $days,
@@ -58,7 +59,9 @@ function sn_content_queue_runway_count( $count ) {
 
 /**
  * The runway for the Connections › Scheduled twins, from the schedule both
- * twin boxes read, with its count.
+ * twin boxes read, with its count. The count is wp_count_posts()->future, the
+ * card's own source (falling back to the rows read, as the ability does), so
+ * the card and the twins never disagree on the number.
  *
  * @param array|null $schedule From sn_content_queue_schedule_read(), or null to read it.
  * @return array{through:?string,days:?int,text:string,count:string}
@@ -66,7 +69,9 @@ function sn_content_queue_runway_count( $count ) {
 function sn_content_queue_runway_read( $schedule = null ) {
 	$schedule = is_array( $schedule ) ? $schedule : sn_content_queue_schedule_read();
 	$future   = (array) $schedule['future'];
-	return sn_content_queue_runway( $future, time(), wp_timezone() ) + array( 'count' => sn_content_queue_runway_count( count( $future ) ) );
+	$counts   = wp_count_posts( 'post' );
+	$total    = is_object( $counts ) && isset( $counts->future ) ? (int) $counts->future : count( $future );
+	return sn_content_queue_runway( $future, time(), wp_timezone() ) + array( 'count' => sn_content_queue_runway_count( $total ) );
 }
 
 /**

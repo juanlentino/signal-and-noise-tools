@@ -889,6 +889,13 @@ async function run() {
       r.calls[1].resolve({...payload(null), drafts: null, scheduled_total: undefined, runway: {through: null, days: null, text: 'Not covered: nothing is scheduled.'}}); await flush();
       assert.match(rroot.textContent, /Not covered: nothing is scheduled\./, 'an empty queue is said in words');
       assert.match(rroot.textContent, /Scheduled count not read/, 'an unread count is said in words, never 0');
+      // Review on #2058: an empty queue is said once. The headline already
+      // says "Nothing scheduled", so no runway line and no "0 scheduled".
+      await r.tick(60000);
+      r.calls[2].resolve({next: [], published: [], scheduled_total: 0, drafts: 2, runway: {through: null, days: null, text: 'Not covered: nothing is scheduled.'}}); await flush();
+      assert.equal((rroot.textContent.match(/Nothing scheduled|nothing is scheduled/gi) || []).length, 1, 'nothing scheduled, said once (got: ' + rroot.textContent + ')');
+      assert.doesNotMatch(rroot.textContent, /0 scheduled/, 'and no "0 scheduled" beside it');
+      assert.match(rroot.textContent, /2 drafts/, 'the drafts count stays');
       rstop();
     }
     const gapLine = nodes(root).find(n => /^Gap: /.test(n.text));

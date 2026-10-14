@@ -16,7 +16,7 @@ if ( ! class_exists( 'WP_Post' ) ) {
 }
 $GLOBALS['__opts'] = array();
 function get_option( $k, $d = false ) { return $GLOBALS['__opts'][ $k ] ?? $d; }
-function wp_timezone() { return new DateTimeZone( 'America/New_York' ); }
+function wp_timezone() { return $GLOBALS['__tz'] ?? new DateTimeZone( 'America/New_York' ); }
 function get_the_title( $p = 0 ) { return is_object( $p ) ? $p->post_title : ''; }
 function get_edit_post_link( $p = 0, $c = 'display' ) { return 'https://example.test/wp-admin/post.php?post=' . ( is_object( $p ) ? $p->ID : (int) $p ); }
 function get_post_time( $f, $gmt, $p ) { return 0; }
@@ -24,7 +24,7 @@ function current_time( $type, $gmt = 0 ) { return time(); }
 function get_date_from_gmt( $s, $f = 'Y-m-d H:i:s' ) { return (string) $s; }
 $GLOBALS['__q'] = array( 'future' => array(), 'publish' => array() );
 function get_posts( $a ) { return $GLOBALS['__q'][ $a['post_status'] ] ?? array(); }
-function wp_count_posts( $t = 'post' ) { return (object) array( 'draft' => 0 ); }
+function wp_count_posts( $t = 'post' ) { return (object) ( array( 'draft' => 0 ) + ( isset( $GLOBALS['__future'] ) ? array( 'future' => $GLOBALS['__future'] ) : array() ) ); }
 function sn_schedule_all() { return array(); }
 function sn_schedule_future_posts() { return array(); }
 function sn_schedule_swap_pairs( $f ) { return array(); }
@@ -61,6 +61,11 @@ $none = sn_content_queue_runway( array(), $now, $tz );
 ok( 'Not covered: nothing is scheduled.' === $none['text'] && null === $none['through'] && null === $none['days'], 'nothing scheduled is said in words, never "0 days"' );
 $late = sn_content_queue_runway( array( $at( '2026-10-12 09:38' ) ), $now, $tz );
 ok( 'Not covered: the last scheduled note, Oct 12, is overdue.' === $late['text'] && null === $late['days'], 'an overdue last note is not counted as negative days' );
+// Review on #2058: Santiago's DST starts at midnight; Sep 6 to Sep 7 is a day.
+$scl = new DateTimeZone( 'America/Santiago' );
+$s6  = ( new DateTimeImmutable( '2026-09-06 12:00', $scl ) )->getTimestamp();
+ok( 'Covered through Sep 7 (1 day)' === sn_content_queue_runway( array( $s6 + 86400 ), $s6, $scl )['text'], 'a midnight DST switch does not lose a day (Santiago, Sep 6)' );
+ok( 'Not covered: nothing is scheduled.' === sn_content_queue_runway( array( 0, -5 ), $now, $tz )['text'] && 'Covered through Nov 2 (19 days)' === sn_content_queue_runway( array( 0, $at( '2026-11-02 09:00' ) ), $now, $tz )['text'], 'a time that is not after 1970 is dropped, never read as a note' );
 ok( '26 scheduled' === sn_content_queue_runway_count( 26 ) && 'Scheduled count not read' === sn_content_queue_runway_count( null ), 'the secondary count, and its unknown in words' );
 
 // The payload: the card reads the same sentence.
@@ -82,6 +87,29 @@ foreach ( array( $read['text'], '3 scheduled', 'Runway' ) as $s ) {
 ok( false === strpos( $kh, '<details' ) && false === strpos( $kh, 'snt-fold' ), 'the runway is status: open, never in a fold' );
 $box = static fn( $h ) => substr( $h, strpos( $h, 'Runway' ), 400 );
 ok( false === strpos( $box( $kh ), '<button' ) && false === strpos( $box( $ch ), '<form' ), 'read-only: no control in the box' );
+
+// The twins read the SITE timezone: a fixture where it differs from UTC. A
+// note 5.5 days out crosses midnight in some zones and not others; the reader
+// must match the site zone's reading, whichever zone that is.
+$GLOBALS['__q']['future'] = array( $post( 1, 5.5 ) );
+$last  = strtotime( $GLOBALS['__q']['future'][0]->post_date_gmt . ' UTC' );
+$utc   = sn_content_queue_runway( array( $last ), time(), new DateTimeZone( 'UTC' ) )['text'];
+$other = null;
+foreach ( array( 'Pacific/Pago_Pago', 'America/Los_Angeles', 'America/New_York', 'Asia/Kolkata', 'Asia/Tokyo', 'Pacific/Kiritimati' ) as $z ) {
+	if ( sn_content_queue_runway( array( $last ), time(), new DateTimeZone( $z ) )['text'] !== $utc ) {
+		$other = new DateTimeZone( $z );
+		break;
+	}
+}
+ok( null !== $other, 'the fixture finds a zone whose reading differs from UTC\'s' );
+$GLOBALS['__tz'] = $other;
+$read = sn_content_queue_runway_read();
+ok( $read['text'] === sn_content_queue_runway( array( $last ), time(), $other )['text'] && $read['text'] !== $utc, 'the twins\' reader counts in the site timezone, not UTC (' . ( $other ? $other->getName() : '?' ) . ': ' . $read['text'] . ')' );
+unset( $GLOBALS['__tz'] );
+// The twins count from the same source as the card: wp_count_posts()->future.
+$GLOBALS['__future'] = 7;
+ok( '7 scheduled' === sn_content_queue_runway_read()['count'], 'the twins\' count is wp_count_posts()->future, as on the card' );
+unset( $GLOBALS['__future'] );
 
 $GLOBALS['__q']['future'] = array();
 $kit = $text( snt_leaf_paint( 'connections', 'scheduled-content' ) );

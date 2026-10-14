@@ -200,9 +200,10 @@ add_action( 'init', function() {
 			// 2026-10-14 (phase 2, item 6): the runway sentence ("Covered
 			// through Jan 25, 2027 (103 days)", 218px at 11px) replaces the
 			// depth line in the same row, but it cannot share that row with
-			// "26 scheduled · 0 drafts" below about 360 wide, so the row is
-			// one line taller at 265 and 312 (~14px). BUDGETED, not measured
-			// on the desk: 627 + 14 at 265, rounded up to the next 10.
+			// "25 scheduled · 0 drafts" below about 360 wide, so the row is
+			// one line taller at 265 and 312: +19px with the pair's row gap,
+			// MEASURED in review on #2058. 627 + 19 = 646 at 265, so 650
+			// still shows one cadence line unscrolled.
 			'default_height' => 650,
 		) ) );
 

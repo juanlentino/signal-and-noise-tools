@@ -87,6 +87,24 @@ function sn_content_queue_day( DateTimeImmutable $at, DateTimeImmutable $today )
 }
 
 /**
+ * Whole calendar days between two days, unsigned. PURE.
+ *
+ * Read from their Y-m-d dates, never from the instants: where a DST switch
+ * happens at midnight (Santiago, Havana, Beirut, Cairo, the Azores) the day
+ * starts at 01:00, so setTime( 0, 0, 0 ) lands an hour late and an instant
+ * diff came up a day short (review on #2058).
+ *
+ * @since Unreleased (runway)
+ * @param DateTimeInterface $a One day, in the site timezone.
+ * @param DateTimeInterface $b The other.
+ * @return int
+ */
+function sn_content_queue_days_apart( DateTimeInterface $a, DateTimeInterface $b ) {
+	$utc = new DateTimeZone( 'UTC' );
+	return (int) ( new DateTimeImmutable( $a->format( 'Y-m-d' ), $utc ) )->diff( new DateTimeImmutable( $b->format( 'Y-m-d' ), $utc ) )->format( '%a' );
+}
+
+/**
  * Label a past time as "N ago", coarse. PURE.
  *
  * @since 15.8.0

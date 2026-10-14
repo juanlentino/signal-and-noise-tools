@@ -226,14 +226,22 @@
 		// place in the same row, in the card's text color; the count turns
 		// secondary, beside the drafts. An older payload keeps the depth line.
 		var runway = data.runway && typeof data.runway.text === 'string' ? data.runway.text : '';
-		var depth = runway
+		// Review on #2058: an empty queue is said once, by the headline (or the
+		// calendar's day box): no runway line and no "0 scheduled" under it.
+		var empty = !! runway && 0 === total;
+		var depth = empty ? null : runway
 			? el( 'p', { style: cell + 'color:inherit;', text: runway } )
 			: el( 'p', { style: cell, text: null === total ? count : count + ( total && runsTo ? ' · to ' + runsTo : '' ) } );
-		var drafts = runway
+		var drafts = runway && ! empty
 			? el( 'p', { style: cell, text: count + ( draftsText ? ' · ' + draftsText : '' ) } )
 			: draftsText ? el( 'p', { style: cell, text: draftsText } ) : null;
 		var kit = window.sntCardKit;
-		if ( drafts && kit && typeof kit.pair === 'function' ) {
+		if ( ! depth ) {
+			if ( drafts ) {
+				drafts.style.marginTop = '8px';
+				wrap.appendChild( drafts );
+			}
+		} else if ( drafts && kit && typeof kit.pair === 'function' ) {
 			wrap.appendChild( kit.pair( depth, drafts ) );
 			// 2026-10-12, seen live at about 265 wide: the pair's equal columns
 			// broke "26 scheduled · to Jan 25, 2027" over two lines beside

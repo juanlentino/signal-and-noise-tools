@@ -56,7 +56,7 @@ function sn_content_queue_cadence( $scheduled, $published, $now, DateTimeZone $t
 	$today = ( new DateTimeImmutable( '@' . (int) $now ) )->setTimezone( $tz )->setTime( 0, 0, 0 );
 	$days  = array_map( static fn( $t ) => ( new DateTimeImmutable( '@' . $t ) )->setTimezone( $tz )->setTime( 0, 0, 0 ), $ts );
 	$label = static fn( DateTimeImmutable $d ) => sn_content_queue_day( $d, $today );
-	$apart = static fn( DateTimeImmutable $a, DateTimeImmutable $b ) => (int) $a->diff( $b )->format( '%a' );
+	$apart = 'sn_content_queue_days_apart';
 
 	$out = array();
 	$run = null; // The open cluster: [first day, last day, notes].
