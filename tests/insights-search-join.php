@@ -61,7 +61,9 @@ ok( array( '/notes/foo' ) === array_keys( $map ), 'the map is keyed by the SHARE
 ok( 7.4 === $map['/notes/foo']['position'] && 120 === $map['/notes/foo']['impressions'], 'per-path metrics rounded to the display grain' );
 
 // ─── source pin: collect_signals keys BOTH sides through the shared key ───
-$src = (string) file_get_contents( __DIR__ . '/../inc/insights.php' );
+// The module and its three parts files (split 2026-10-14, house line cap).
+require_once __DIR__ . '/lib/inc-population.php';
+$src = snt_test_insights_src();
 $fn  = substr( $src, strpos( $src, 'function snt_insights_collect_signals()' ) );
 $fn  = substr( $fn, 0, strpos( $fn, "\n}\n" ) );
 ok( 1 === preg_match( '/\$views_map\[\s*\$path\s*\]/', $fn ) && 1 === preg_match( '/\$path = isset\( \$row\[\'path\'\] \) \? snt_insights_join_key\(/', $fn ), 'views_map is keyed through snt_insights_join_key' );

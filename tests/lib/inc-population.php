@@ -93,3 +93,27 @@ if ( ! function_exists( 'snt_test_cron_dashboard_src' ) ) {
 		return count( $files ) >= 4 ? implode( "\n", array_map( 'file_get_contents', $files ) ) : '';
 	}
 }
+
+if ( ! function_exists( 'snt_test_insights_src' ) ) {
+	/**
+	 * The source of inc/insights.php AND its three parts files, for suites that
+	 * pin the module's text. Split 2026-10-14 (house line cap). Named, not
+	 * globbed: insights-admin.php, insights-narration.php and the other
+	 * insights-*.php files are separate modules. A missing file returns '' so
+	 * every presence pin goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_insights_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-signals-parts', '-ai-parts', '-state-parts' ) as $suffix ) {
+			$file = $dir . 'insights' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
