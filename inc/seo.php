@@ -3,8 +3,6 @@
  * Signal & Noise — SEO + analytics delivery.
  *
  * - Meta description on front page and singular posts
- * - Breeze excludes so our perf-critical bundles aren't re-ordered by
- *   the Breeze cache plugin
  *
  * @package SignalNoise
  */

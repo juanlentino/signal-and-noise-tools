@@ -47,7 +47,7 @@ const SNT_DEPLOY_HISTORY_MAX_ROWS = 20;
 // The history option itself stays autoload=no.
 const SNT_DEPLOY_HISTORY_SENTINEL_OPTION = 'sn_deploy_history_current_versions';
 
-// (render hardening FIX 2): the version-change Breeze rollover used to
+// (render hardening FIX 2): the version-change page-cache rollover used to
 // fire the full CDN/Varnish purge chain synchronously on admin_init — blocking
 // the first admin view after every update on the whole chain. It now schedules
 // this single event (deduped via wp_next_scheduled) so the purge runs in cron
@@ -441,8 +441,9 @@ function snt_deploy_history_version_check() {
 		// autoload=true → small footprint, accessed per admin request.
 		update_option( SNT_DEPLOY_HISTORY_SENTINEL_OPTION, $sentinel, true );
 
-		// v4.8.1: on a real version change, roll over Breeze's HTML page cache
-		// (holds inlined critical CSS) — theme gotcha #28. Listener lives in the
+		// v4.8.1: on a real version change, roll over the HTML page caches
+		// (they hold inlined critical CSS), theme gotcha #28. Breeze's cache was
+		// one until 2026-10-13; now it is the Cloudflare edge. Listener lives in the
 		// theme (template-maintenance.php); template_overrides=false preserves
 		// Site Editor DB overrides (matches the dashboard "Purge All Caches").
 		//

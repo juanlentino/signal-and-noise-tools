@@ -8,10 +8,11 @@
  * emptying all of Redis, and there was no record of any of it. This module:
  *
  *   - keeps a ring of the last SNT_PURGE_LEDGER_CAP purges: when, what asked,
- *     what was cleared, and what Cloudways answered;
- *   - removes Breeze's own update purge (owner's call; the theme's update
- *     purge replaces it without a Redis flush, theme 14.10.0);
- *   - tells the Cloudways leg when to stand down (snt_purge_wants_app_purge()).
+ *     what was cleared, and (until 2026-10-14) what Cloudways answered;
+ *   - removes Breeze's own update purge and its timed purge if Breeze is ever
+ *     active again (owner's call; the theme's update purge replaces it without
+ *     a Redis flush, theme 14.10.0). Breeze is deactivated since 2026-10-13,
+ *     and the breeze_active health check goes red if it comes back.
  *
  * @package SignalNoiseTools
  * @since   20.7.0
@@ -91,7 +92,7 @@ function snt_purge_ledger_rows() {
 
 /**
  * What asked for a purge when the caller did not say: the theme passes
- * `trigger` since 14.10.0; an older theme, Breeze, or a cron leaves it out.
+ * `trigger` since 14.10.0; an older theme, a plugin, or a cron leaves it out.
  *
  * @param array $args The chain's args.
  * @return string
@@ -150,41 +151,23 @@ function snt_purge_ledger_close() {
 	if ( ! is_array( $row ) ) {
 		return;
 	}
-	// An explicit label, never a missing one: since theme signal-and-noise#532
-	// the chain no longer fires breeze_clear_varnish, so nothing sets the global.
-	$row['cloudways'] = $GLOBALS['snt_purge_cloudways'] ?? ( function_exists( 'sn_cloudways_not_run_label' ) ? sn_cloudways_not_run_label() : 'not run' );
+	// An explicit label, never a missing one: the Cloudways app purge is
+	// retired (2026-10-14), so every new row says so in words.
+	$row['cloudways'] = function_exists( 'sn_cloudways_not_run_label' ) ? sn_cloudways_not_run_label() : 'not run';
 	$row['edge']      = ! empty( $GLOBALS['snt_purge_edge'] );
 	// 2026-10-13: a code update marks the zone stale rather than deleting it.
 	if ( 'invalidate_cache' === ( $GLOBALS['snt_purge_edge_call'] ?? '' ) ) {
 		$row['scope'] = 'invalidate';
 	}
 	unset( $GLOBALS['snt_purge_edge'], $GLOBALS['snt_purge_edge_call'] );
-	unset( $row['started'], $GLOBALS['snt_purge_cloudways'] );
+	unset( $row['started'] );
 	snt_purge_ledger_add( $row );
 }
 add_action( 'sn_after_full_cache_flush', 'snt_purge_ledger_close', 99, 0 );
 
 /**
- * Whether the Cloudways app purge should run now. It clears Varnish AND all
- * of Redis, so only an explicit purge-everything asks for it: the manual
- * button, or a chain that flushes the object cache anyway. An update or a
- * styles save does not (Varnish never served this site's pages, measured
- * 2026-10-03: every repeat request read x-cache MISS). Breeze's nightly
- * purge never does: the owner turned it off, and if the setting comes back
- * this keeps it from emptying Redis every night.
- *
- * @return bool
- */
-function snt_purge_wants_app_purge() {
-	if ( function_exists( 'doing_action' ) && doing_action( 'breeze_purge_cache' ) ) {
-		return false;
-	}
-	$current = $GLOBALS['snt_purge_current'] ?? null;
-	return ! is_array( $current ) || ! empty( $current['redis'] );
-}
-
-/**
- * 5a (owner, 2026-10-03): remove Breeze's own update purge. Breeze 2.6.0
+ * 5a (owner, 2026-10-03): remove Breeze's own update purge when Breeze is
+ * active (deactivated since 2026-10-13; this no-ops without it). Breeze 2.6.0
  * hooks Breeze_Bulk_Update::breeze_after_plugin_bulk_upgrade on
  * upgrader_process_complete, and it fires breeze_clear_all_cache, which ends
  * in wp_cache_flush(). The instance is anonymous, so find it by class.
@@ -239,7 +222,8 @@ function snt_purge_unhook_by_class( $hook, $class, $method ) {
 }
 
 /**
- * 20.7.1 (owner, 2026-10-03): Breeze's timed purge goes. Its "Purge Cache
+ * 20.7.1 (owner, 2026-10-03): Breeze's timed purge goes, if Breeze is ever
+ * active again (deactivated since 2026-10-13; this no-ops without it). Its "Purge Cache
  * After" field will not take 0 (the form saved 1440, and 1 would purge
  * every minute), so the setting cannot turn it off. Pages purge themselves
  * on save and once per update, so the timed purge only emptied a cache that

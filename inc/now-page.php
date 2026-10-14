@@ -10,7 +10,7 @@
  *
  *   - one durable autoload=no OPTION (sn_now_page) holding the owner's raw
  *     plain-text document + the save-stamp (transients are flush-volatile
- *     under Breeze/Redis, so durable owner content never rides a transient);
+ *     under the Redis object cache, so durable owner content never rides a transient);
  *   - a tolerant parser: `## Label` opens a section, every other non-empty
  *     line is an item (leading `- ` / `* ` stripped). Fallback discipline:
  *     content that parses to zero sections is refused at save time, so a bad

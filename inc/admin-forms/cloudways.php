@@ -4,9 +4,9 @@
  *
  * DISPLAY-ONLY, AND THAT IS A SECURITY DECISION, NOT A SHORTCUT.
  *
- * inc/cloudways-purge.php reads its four credentials from wp-config constants
- * and has NO option fallback — it is the only integration here that works that
- * way. Its own docblock gives the reason: "The account-wide API key lives in
+ * inc/cloudways-purge.php read its four credentials from wp-config constants
+ * and had NO option fallback, the only integration here that worked that
+ * way. Its docblock gave the reason (the purge is retired since 2026-10-14): "The account-wide API key lives in
  * wp-config (never the database); a bearer minted from it grants the same
  * powers, so persisting one widens the blast radius of a DB dump."
  *
@@ -16,10 +16,11 @@
  * it contains, and it offers no way to set one. Adding an input here would put
  * an account-wide credential in wp_options and undo the sentence above.
  *
- * WHY IT EXISTS AT ALL: the purge already writes a full result record to
- * SNT_CW_LAST_PURGE_OPT on every attempt — success, failure, and the error
- * envelope — and until now nothing read it. A fire-and-forget purge that cannot
- * report that it failed is the defect this closes.
+ * WHY IT EXISTS AT ALL: the purge wrote a full result record to
+ * SNT_CW_LAST_PURGE_OPT on every attempt (success, failure, and the error
+ * envelope), and nothing read it. A fire-and-forget purge that cannot report
+ * that it failed is the defect this closed. The purge is retired (2026-10-14);
+ * the leaf now reads that record as history.
  *
  * Pure/live split follows inc/admin-forms/mcp-connect-status.php: the builders
  * take injected state and the gatherer does the WP reads, so the tests drive the
@@ -141,12 +142,12 @@ function sn_admin_cloudways_outcome( $last ) {
  * @return string
  */
 function sn_admin_cloudways_retired_sentence() {
-	return 'Retired: Varnish is off for this app, so no purge calls Cloudways, and the manual purge empties Redis itself. Define <code>SN_CLOUDWAYS_APP_PURGE</code> as true in <code>wp-config.php</code> to run it again.';
+	return 'Retired: Varnish is off for this app, so no purge calls Cloudways, and the manual purge empties Redis itself. The Cloudflare edge is the only page cache.';
 }
 
 /**
- * Whether the app purge runs (live read; on when the purge module is absent,
- * as in a fixture).
+ * Whether the app purge runs (live read: never since 2026-10-14; on when the
+ * purge module is absent, as in a fixture, so the record renders there).
  *
  * @return bool
  */
@@ -238,7 +239,7 @@ function sn_admin_cloudways_cards( array $state ) {
 			'value'     => ! $on ? 'Retired' : ( '' !== $ago ? $ago : 'Never' ),
 			'meta_html' => ! $on
 				? ( '' !== $ago ? 'Last called Cloudways ' . esc_html( $ago ) . ', before the app purge was retired. Varnish is off for this app.' : 'Varnish is off for this app, so no purge calls Cloudways.' )
-				: ( '' !== $ago ? 'Cache purge on the Cloudways application, run by a manual purge of every cache and by Breeze\'s Purge Varnish button.' : 'Nothing recorded yet.' ),
+				: ( '' !== $ago ? 'Cache purge on the Cloudways application.' : 'Nothing recorded yet.' ),
 		),
 		array(
 			'label'     => 'Result',
@@ -288,7 +289,7 @@ function sn_admin_cloudways_state() {
  * @return string
  */
 function sn_admin_cloudways_hint() {
-	return 'Cloudways hosts the origin; its app purge clears Varnish and empties Redis. This screen reports that purge and never changes it.';
+	return 'Cloudways hosts the origin. Its app purge (Varnish and Redis) is retired: Varnish is off for this app. This screen reports the last call and never changes it.';
 }
 
 /**

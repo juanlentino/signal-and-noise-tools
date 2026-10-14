@@ -6,7 +6,7 @@
  * read can be served from state the site already holds, so a reader's page never
  * waits on a sensor call." snt_mr_fetch() cannot meet it — it is a display
  * transient in front of an outbound wp_remote_get, so a cache MISS blocks the
- * render on a Cloudflare round-trip, and under Breeze/Redis the transient lives
+ * render on a Cloudflare round-trip, and with Redis the transient lives
  * in the object cache, where any flush evaporates it. (The health scan learned
  * exactly this in v6.47.2 and moved to a durable option; same move, same reason.)
  *

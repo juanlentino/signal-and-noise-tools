@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise Tools: SEO, delivery (the Breeze excludes, the singular Last-Modified and 304, the feed ETag and conditional GET).
+ * Signal & Noise Tools: SEO, delivery (the singular Last-Modified and 304, the feed ETag and conditional GET).
  *
  * Split from inc/seo.php (house line cap, 2026-10-14); a pure
  * move, no code changed. The file header there describes the module. Loaded
@@ -12,24 +12,6 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
-/**
- * Prevent Breeze from deferring the block navigation script.
- */
-add_filter( 'breeze_exclude_js', function( $excluded ) {
-	$excluded[] = 'wp-block-navigation-view';
-	$excluded[] = 'wp-block-navigation';
-	$excluded[] = 'signal-noise-sticky-header';
-	return $excluded;
-} );
-
-/**
- * Prevent Breeze from minifying critical inline CSS.
- */
-add_filter( 'breeze_exclude_css', function( $excluded ) {
-	$excluded[] = 'critical.css';
-	return $excluded;
-} );
 
 /**
  * Last-Modified header + If-Modified-Since 304 handling on singulars.

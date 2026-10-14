@@ -105,8 +105,8 @@ require_once SNT_PATH . 'inc/keyring-changes.php'; // 19.6.2: every keyring opti
 require_once SNT_PATH . 'inc/keyring-verify.php'; // 15.2.0: one probe per credential, verdicts stored; "Verify all".
 require_once SNT_PATH . 'inc/keyring-admin.php';  // 15.2.0: the row model both leaves paint; the classic Connections › Credentials leaf.
 require_once SNT_PATH . 'inc/cloudflare-readings-admin.php'; // 15.3.0: Edge (Measurement › Analytics) and Firewall (Security › Firewall), classic; the readings where their questions are asked.
-require_once SNT_PATH . 'inc/purge-ledger.php';      // 20.7.0: the purge ledger; keeps purges rare (Breeze update purge removed, Cloudways only on purge-everything)
-require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: Cloudways app purge via the API; retired unless SN_CLOUDWAYS_APP_PURGE (2026-10-13, Varnish is off)
+require_once SNT_PATH . 'inc/purge-ledger.php';      // 20.7.0: the purge ledger; keeps purges rare (Breeze update and nightly purges unhooked if Breeze returns)
+require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: Cloudways app purge, retired 2026-10-14 (Varnish is off); keeps the credential readers and the last record
 require_once SNT_PATH . 'inc/admin-forms/cloudways.php'; // v12.17.0: Connections → Cloudways status glance (display-only; reads SNT_CW_LAST_PURGE_OPT written by the purge above)
 require_once SNT_PATH . 'inc/provenance-settle.php'; // v11.10.0: settle window — one editing pass, one signed version (pure; loaded before core, which calls its predicate)
 require_once SNT_PATH . 'inc/provenance-core.php'; // Notes provenance: commit-chain core (Plan 1)
@@ -714,6 +714,7 @@ require_once SNT_PATH . 'inc/provenance-integrity.php'; // 13th check (v9.80.0):
 // BEFORE the tab that calls them.
 require_once SNT_PATH . 'inc/plugin-registry-probe.php'; // v13.96.6 (#1026): records an empty /wp/v2/plugins served with a 200 - the poisoning is transient and a scheduled check alone would miss it
 require_once SNT_PATH . 'inc/health-check-wp-cron-request-path.php'; // 24th check (v13.97.4): cron still spawned in-request - invisible in cron_disabled_constant, which is a problem flag rather than the constant's value
+require_once SNT_PATH . 'inc/health-check-breeze-active.php'; // 2026-10-14: a second page cache (Breeze) in front of the origin; the Cloudflare edge is the only one
 require_once SNT_PATH . 'inc/health-check-search-titles.php'; // 28th check (15.9.0): notes whose title tag is the aphorism alone; the Search Console pressure test's gap, kept from reopening.
 require_once SNT_PATH . 'inc/health-check-jev-notes.php'; // 30th check (16.3.0): notes Jev would not search for.
 require_once SNT_PATH . 'inc/health-check-jev-tags.php';  // 31st check (16.8.0): tags Jev reads as not fitting.
