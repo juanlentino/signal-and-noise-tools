@@ -266,14 +266,22 @@
 		// Every 5xx reaches the headline: most "through a Worker" rows are a
 		// visitor's request the rights Worker forwarded (inc/edge-rollup.php),
 		// so "who asked" cannot separate visitors from the Worker's own calls.
-		if ( total > 0 ) { tally.look++; }
+		// 2026-10-14: a day whose every 5xx the installs that day explain (a 503
+		// on a dashboard or REST path while WordPress was in maintenance, within
+		// three per install; inc/desktop-mode-status-extra.php) is said in words,
+		// in the text color, and is not something to look at.
+		var explained = total > 0 && true === e.explained && num( e.installs ) > 0;
+		if ( total > 0 && ! explained ) { tally.look++; }
 		// 2026-10-10: how many a visitor asked for directly, of all. A floor, not
 		// the whole answer: a visitor's request the Worker forwarded counts on
 		// the Worker's side. A day stored before who-asked has no visitor
 		// count, and none is painted (never a 0).
 		// Short rows, so Edge fits beside Cache on one line (2026-10-10): the
 		// count, the visitors among them when there were any, and the day before.
-		var rows = [ { label: '5xx · ' + String( e.day || 'yesterday' ), value: String( total ), tone: total > 0 ? WARN_FG : '' } ];
+		var installs = num( e.installs );
+		var rows = [ explained
+			? { label: '5xx · ' + String( e.day || 'yesterday' ), value: total + ' · ' + installs + ( 1 === installs ? ' install' : ' installs' ) + ' that day', tone: '' }
+			: { label: '5xx · ' + String( e.day || 'yesterday' ), value: String( total ), tone: total > 0 ? WARN_FG : '' } ];
 		if ( total > 0 && typeof e.visitor === 'number' ) {
 			rows.push( { label: 'Visitors, direct', value: String( Math.min( total, num( e.visitor ) ) ) } );
 		}
