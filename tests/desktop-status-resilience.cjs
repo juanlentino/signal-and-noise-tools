@@ -656,6 +656,22 @@ async function run() {
     m = await mount({edge: {day: 'Oct 9', total: 18, prior: 27}});
     assert.match(m.t, /5xx · Oct 9 18 Day before 27/, 'a day stored before who-asked paints no visitor count, never a 0');
     m.stop();
+    // 2026-10-14: a day whose every 5xx the installs that day explain (WordPress
+    // maintenance 503s on the owner's own open tabs) is said in words, in the
+    // text color, and is not something to look at.
+    m = await mount({edge: {day: 'Oct 13', total: 5, visitor: 3, prior: 20, installs: 2, explained: true}});
+    assert.match(m.t, /5xx · Oct 13 5 · 2 installs that day/, 'an explained day says the installs beside the count');
+    assert.doesNotMatch(String(valueOf(m.root, '5 · 2 installs that day').attrs.style), /#d29922/, 'in the text color, never amber');
+    assert.equal(m.verdict.text, 'All systems normal', 'and stays out of the headline');
+    m.stop();
+    m = await mount({edge: {day: 'Oct 13', total: 1, prior: 0, installs: 1, explained: true}});
+    assert.match(m.t, /5xx · Oct 13 1 · 1 install that day/, 'one install is singular');
+    m.stop();
+    m = await mount({edge: {day: 'Oct 13', total: 9, prior: 20, installs: 2, explained: false}});
+    assert.match(m.t, /5xx · Oct 13 9 Day before 20/, 'past the allowance (or a front-end page): the bare count, as before');
+    assert.match(String(valueOf(m.root, '9').attrs.style), /#d29922/, 'amber');
+    assert.match(m.verdict.text, /1 to look at/, 'and to look at');
+    m.stop();
   }
   // SN Provenance (2026-10-10): DOIs beside the Internet Archive, a failed
   // deposit, and the read time.

@@ -12,6 +12,10 @@ function sn_prov_integrity_is_outage( $c ) { return in_array( (string) $c, array
 $GLOBALS['__edge'] = array();
 function sn_edge_errors_range( $from, $to ) { return $GLOBALS['__edge'][ $from ] ?? array( 'query' => array( 'error' => 'no fixture' ) ); }
 function snt_purge_ledger_last_edge() { return 5000; }
+$GLOBALS['__deploys'] = array();
+$GLOBALS['__asker']   = array();
+function snt_deploy_history_get( $limit = null ) { return $GLOBALS['__deploys']; }
+function sn_edge_top_dim( $dim, $from, $to, $limit = 10 ) { return 'err_path_asker' === $dim ? ( $GLOBALS['__asker'][ $from ] ?? array() ) : array(); }
 function snt_cf_freshness_summary() { return array( 'last' => 'pending', 'last_time' => 1000, 'headline' => 'Purge dispatched, verifying' ); }
 require __DIR__ . '/../inc/desktop-mode-status-extra.php';
 
@@ -91,6 +95,29 @@ echo "\nEdge: a day stored before who-asked\n";
 $GLOBALS['__edge'] = array( $d1 => array( 'total' => 12, 'days' => array( array( 'day' => $d1, 'read' => 'read' ) ) ) );
 ok( null === snt_desktop_edge_yesterday()['visitor'], '2026-10-10: no visitor key on the day is unknown, never a 0 the card would paint' );
 $GLOBALS['__edge'] = array();
+
+echo "\nEdge: 5xx the installs that day explain (2026-10-14)\n";
+$r = static fn( $v, $n ) => array( 'value' => $v, 'requests' => $n );
+$maint = array( $r( 'visitor 503 - dynamic /wp-json/desktop-mode/v1/session', 2 ), $r( 'worker 503 503 dynamic /wp-admin/admin-ajax.php', 2 ), $r( 'visitor 503 - dynamic /openstation/sw.js', 1 ) );
+ok( true === snt_desktop_edge_install_explained( 5, $maint, 2 ), 'five maintenance 503s on the dashboard, two installs: explained' );
+ok( false === snt_desktop_edge_install_explained( 5, $maint, 1 ), 'past three per install: not explained' );
+ok( false === snt_desktop_edge_install_explained( 5, $maint, 0 ) && false === snt_desktop_edge_install_explained( 5, $maint, null ), 'no install that day, or none known: not explained' );
+ok( false === snt_desktop_edge_install_explained( 5, array( $r( 'visitor 503 - dynamic /wp-json/desktop-mode/v1/session', 4 ), $r( 'visitor 522 - dynamic /', 1 ) ), 2 ), 'a 522 on the home page stays amber' );
+ok( false === snt_desktop_edge_install_explained( 5, array( $r( 'visitor 503 - dynamic /wp-json/desktop-mode/v1/session', 4 ), $r( 'visitor 503 - dynamic /notes/a-note/', 1 ) ), 2 ), 'even a 503 on a front-end page stays amber' );
+ok( false === snt_desktop_edge_install_explained( 5, array( $r( 'worker 500 500 dynamic /wp-json/wp-abilities/v1/abilities/x/run', 5 ) ), 2 ), 'a 500 is not maintenance' );
+ok( false === snt_desktop_edge_install_explained( 5, array( $r( 'visitor 503 - dynamic /wp-admin/admin.php', 3 ) ), 2 ), 'rows that do not account for every 5xx: not explained' );
+ok( false === snt_desktop_edge_install_explained( 5, null, 2 ), 'a day stored before the per-path rows: not explained' );
+ok( false === snt_desktop_edge_install_explained( 0, array(), 2 ), 'no 5xx: nothing to explain' );
+ok( 2 === snt_desktop_edge_installs_on( '2026-10-13', array( array( 'created_at' => '2026-10-13T22:47:07Z' ), array( 'created_at' => '2026-10-13T23:00:39Z' ), array( 'created_at' => '2026-10-14T00:13:31Z' ), array( 'created_at' => '2026-10-12T23:59:59Z' ), 'junk' ) ), 'installs counted on the same UTC day the rollup stores' );
+$GLOBALS['__edge']    = array( $d1 => array( 'total' => 5, 'days' => array( array( 'day' => $d1, 'read' => 'read', 'visitor' => 3 ) ) ) );
+$GLOBALS['__asker']   = array( $d1 => $maint );
+$GLOBALS['__deploys'] = array( array( 'created_at' => $d1 . 'T22:47:07Z' ), array( 'created_at' => $d1 . 'T23:00:39Z' ) );
+$e = snt_desktop_edge_yesterday();
+ok( 2 === $e['installs'] && true === $e['explained'] && 5 === $e['total'], 'the card row carries the installs and the verdict, and the count stays whole' );
+$GLOBALS['__deploys'] = array();
+$e = snt_desktop_edge_yesterday();
+ok( 0 === $e['installs'] && false === $e['explained'], 'no install that day: not explained' );
+$GLOBALS['__edge'] = array(); $GLOBALS['__asker'] = array();
 
 echo "\nAnalytics 2.0 (the stored verdict)\n";
 $a2 = snt_desktop_analytics2_shape( array( 'ok' => true, 'day' => '2026-10-09', 'clean_from' => '2026-10-05', 'events_ok' => true, 'at' => 1, 'why' => '' ) );
