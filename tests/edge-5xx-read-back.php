@@ -18,6 +18,7 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
 $root = dirname( __DIR__ );
+require_once __DIR__ . '/lib/inc-population.php'; // edge-rollup.php is read with its four parts files (split 2026-10-14).
 
 // Stubs for what the extracted functions call.
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
@@ -54,7 +55,7 @@ function e5r_extract( $src, $name ) {
 }
 
 // 2026-10-12 re-measure: the two label functions live in inc/edge-error-labels.php.
-$roll = (string) file_get_contents( $root . '/inc/edge-rollup.php' ) . (string) file_get_contents( $root . '/inc/edge-error-labels.php' );
+$roll = snt_test_edge_rollup_src() . (string) file_get_contents( $root . '/inc/edge-error-labels.php' );
 foreach ( array( 'sn_edge_errors_dims', 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker_label', 'sn_edge_error_source_notes', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals', 'sn_edge_errors_days_annotate', 'sn_edge_errors_paths_by_day_shape', 'sn_edge_errors_paths_by_day' ) as $name ) {
 	$fn = e5r_extract( $roll, $name );
 	ok( '' !== $fn, "$name() was extracted; if empty, every assertion below is vacuous" );
@@ -135,7 +136,7 @@ ok( 1 === substr_count( $q_body, 'requestSource_neq:"earlyHintsCache"' ), 'the E
 ok( '504 from Cloudflare itself (the origin never answered), a Worker\'s cache lookup, no request made' === sn_edge_error_source_label( 'src=edgeWorkerCacheAPI edge=504 origin=- cache=miss' ), 'a Cache API row stored before 18.7.0 says what it was' );
 ok( 'asked by other' === sn_edge_error_asker_label( 'other' ), 'any other source is named as Cloudflare gave it' );
 ok( '504 from Cloudflare itself (the origin never answered)' === sn_edge_error_source_label( 'edge=504 origin=- cache=miss' ), 'a row stored before 17.9.3 (no src) reads as it did' );
-$roll_src = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
+$roll_src = snt_test_edge_rollup_src();
 ok( false !== strpos( $roll_src, 'update_option( SN_EDGE_ERRORS_QUERY_OPT' ) && false !== strpos( $roll_src, "'query'       => function_exists( 'get_option' ) ? get_option( SN_EDGE_ERRORS_QUERY_OPT" ), 'the query\'s outcome is kept and read back, so a refused query is "not read", never "no errors"' );
 
 echo "\nGroup 5: one row per day, and who asked (18.2.0)\n";
@@ -186,7 +187,7 @@ ok( 'read' === sn_edge_errors_days_annotate( $days6, array( '2026-09-23' => '' )
 ok( 0 === $ann[1]['total'] && 'read' === $ann[1]['read'], 'annotation never touches the counts' );
 $r6 = sn_edge_errors_range( '2026-09-17', '2026-09-23' );
 ok( isset( $r6['days'][0]['read'] ), 'the reading stamps every day row' );
-$roll6 = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
+$roll6 = snt_test_edge_rollup_src();
 ok( 1 === substr_count( $roll6, 'sn_edge_errors_mark_read( $snap, (string) $err_q );' ), 'the rollup marks the day it read, on every run, success or refusal' );
 
 // 2026-10-12 re-measure: the Measurement leaf reads SHORT labels (no
