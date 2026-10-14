@@ -1047,7 +1047,7 @@ foreach ( token_get_all( $composition ) as $token ) {
 	$stripped .= is_array( $token ) ? $token[1] : $token;
 }
 $seam = '/(?<![A-Za-z0-9_\\$>])\\\\?(sn_|snt_)(?!os_app_section\b|desktop_admin_url\b)[a-z0-9_]+\s*\(/';
-ok( 0 === preg_match( $seam, $stripped ), 'the composition half calls NO estate reader, qualified or not -- only the section registry and the admin-dock resolver, which are the app\'s own furniture' );
+ok( '' !== $composition && 0 === preg_match( $seam, $stripped ), 'the composition half calls NO estate reader, qualified or not -- only the section registry and the admin-dock resolver, which are the app\'s own furniture' );
 ok( '' !== $composition && '' !== $readers && false === strpos( $composition, 'function attention_integrity' ) && false === strpos( $readers, 'function attention_compose' ), 'and neither half holds the other\'s functions' );
 
 echo "\nGroup 9: the fleet-level key verdict is a queue row, filed under the sweep\n";
