@@ -24,6 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/abilities-content-queue-gaps.php';
 require_once __DIR__ . '/abilities-content-queue-cadence.php';
+require_once __DIR__ . '/abilities-content-queue-slot.php';
 require_once __DIR__ . '/abilities-content-queue-register.php';
 
 /** How many upcoming rows the payload carries: the headline plus three. */
@@ -211,6 +212,12 @@ function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone
 			$draft_rows[] = array_intersect_key( $shaped, array_flip( array( 'id', 'title', 'edit_url' ) ) );
 		}
 	}
+	// Phase 2, item 2 (2026-10-13): a suggested slot per draft, never
+	// scheduled; the same sentence the Scheduled twins print.
+	$newest = $stamps( array_slice( $published, 0, 1 ) )[0] ?? null;
+	foreach ( sn_content_queue_slots( $draft_rows, $stamps( $future ), $newest, $now, $tz, $planned ) as $i => $s ) {
+		$draft_rows[ $i ]['slot'] = array_intersect_key( $s, array_flip( array( 'day', 'time', 'label', 'reason', 'text' ) ) );
+	}
 
 	return array(
 		'next'            => $next,
@@ -233,7 +240,7 @@ function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone
 		'draft_more'      => null === $draft_more ? null : max( 0, (int) $draft_more ),
 		// Phase 2 (2026-10-12): every cluster and gap by the owner's rule
 		// (under 2 days, over 7), planned gaps left out, one sentence each.
-		'cadence'         => sn_content_queue_cadence( $stamps( $future ), $stamps( array_slice( $published, 0, 1 ) )[0] ?? null, $now, $tz, $planned ),
+		'cadence'         => sn_content_queue_cadence( $stamps( $future ), $newest, $now, $tz, $planned ),
 	);
 }
 
@@ -305,19 +312,14 @@ function snt_ability_content_queue( $input = null ) {
 
 	$queue = get_posts( $base + array( 'post_status' => 'future', 'order' => 'ASC', 'numberposts' => -1 ) );
 	$done  = get_posts( $base + array( 'post_status' => 'publish', 'order' => 'DESC', 'numberposts' => defined( 'SNT_ML_CADENCE_PUBLISH_DEPTH' ) ? SNT_ML_CADENCE_PUBLISH_DEPTH : 20 ) );
-	// The drafts by title for the card's list (2026-10-12): the newest edits
-	// first, capped. Only drafts this user can edit (review on #2031): a
-	// contributor reads their own, never a colleague's working title.
-	$others = current_user_can( 'edit_others_posts' );
-	$draft  = get_posts( array( 'orderby' => 'modified' ) + ( $others ? array() : array( 'author' => get_current_user_id() ) ) + $base + array( 'post_status' => 'draft', 'order' => 'DESC', 'numberposts' => SN_CONTENT_QUEUE_DRAFTS ) );
-	$draft  = array_filter( is_array( $draft ) ? $draft : array(), static fn( $p ) => $p instanceof WP_Post && current_user_can( 'edit_post', $p->ID ) );
+	// The drafts by title for the card's list (2026-10-12), only those this
+	// user can edit, read once for the card and the Scheduled twins.
+	$draft = sn_content_queue_draft_read();
 
-	$future     = array_values( array_filter( array_map( 'sn_content_queue_row', is_array( $queue ) ? $queue : array() ) ) );
-	$draft_rows = array_values( array_filter( array_map( 'sn_content_queue_row', $draft ) ) );
+	$future = array_values( array_filter( array_map( 'sn_content_queue_row', is_array( $queue ) ? $queue : array() ) ) );
 
 	$counts = wp_count_posts( 'post' );
 	$total  = is_object( $counts ) && isset( $counts->future ) ? (int) $counts->future : count( $future );
-	$drafts = is_object( $counts ) && isset( $counts->draft ) ? (int) $counts->draft : null;
 
 	return sn_content_queue_shape(
 		$future,
@@ -325,11 +327,9 @@ function snt_ability_content_queue( $input = null ) {
 		array_values( array_filter( array_map( 'sn_content_queue_row', is_array( $done ) ? $done : array() ) ) ),
 		time(),
 		wp_timezone(),
-		$drafts,
+		$draft['count'],
 		sn_content_queue_planned_gaps(),
-		$draft_rows,
-		// "+N more" is the site's count less the list, so it is said only to
-		// someone whose list could hold any draft; otherwise not read.
-		$others && null !== $drafts ? max( 0, $drafts - count( $draft_rows ) ) : null
+		$draft['rows'],
+		$draft['more']
 	);
 }

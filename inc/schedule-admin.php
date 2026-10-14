@@ -120,8 +120,12 @@ function sn_admin_render_scheduled_content_section() {
 
 	// 2026-10-12 (queue phase 2): clusters and gaps in the scheduled notes,
 	// the same sentences as the native leaf and the SN Queue card.
-	if ( function_exists( 'sn_content_queue_cadence_read' ) ) {
-		sn_admin_render_queue_cadence( sn_content_queue_cadence_read() );
+	// 2026-10-13 (item 2): a suggested slot per draft, the same sentences as
+	// the native leaf, from the same read.
+	if ( function_exists( 'sn_content_queue_schedule_read' ) ) {
+		$schedule = sn_content_queue_schedule_read();
+		sn_admin_render_queue_cadence( sn_content_queue_cadence_read( $schedule ) );
+		sn_admin_render_queue_slots( sn_content_queue_slot_read( $schedule ) );
 	}
 
 	// v8.0.0: version swaps — pairs DERIVED from the fragment rows (old

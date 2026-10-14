@@ -124,15 +124,12 @@ function sn_content_queue_cadence_clear() {
  * The warnings for the Connections › Scheduled twins: every scheduled note
  * and the newest published one, read the way the queue ability reads them.
  *
+ * @param array|null $schedule From sn_content_queue_schedule_read(), or null to read it.
  * @return array<int,array<string,mixed>>
  */
-function sn_content_queue_cadence_read() {
-	$base   = array( 'post_type' => 'post', 'suppress_filters' => false, 'orderby' => 'date', 'update_post_meta_cache' => false, 'update_post_term_cache' => false );
-	$queue  = get_posts( $base + array( 'post_status' => 'future', 'order' => 'ASC', 'numberposts' => -1 ) );
-	$last   = get_posts( $base + array( 'post_status' => 'publish', 'order' => 'DESC', 'numberposts' => 1 ) );
-	$future = array_values( array_filter( array_map( 'sn_content_queue_row', is_array( $queue ) ? $queue : array() ) ) );
-	$done   = array_values( array_filter( array_map( 'sn_content_queue_row', is_array( $last ) ? $last : array() ) ) );
-	return sn_content_queue_cadence( array_column( $future, 'ts' ), isset( $done[0]['ts'] ) ? (int) $done[0]['ts'] : null, time(), wp_timezone(), sn_content_queue_planned_gaps() );
+function sn_content_queue_cadence_read( $schedule = null ) {
+	$schedule = is_array( $schedule ) ? $schedule : sn_content_queue_schedule_read();
+	return sn_content_queue_cadence( $schedule['future'], $schedule['published'], time(), wp_timezone(), sn_content_queue_planned_gaps() );
 }
 
 /**

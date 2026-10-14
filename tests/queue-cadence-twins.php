@@ -22,6 +22,7 @@ function current_time( $type, $gmt = 0 ) { return time(); }
 function get_date_from_gmt( $s, $f = 'Y-m-d H:i:s' ) { return (string) $s; }
 $GLOBALS['__q'] = array( 'future' => array(), 'publish' => array() );
 function get_posts( $a ) { return $GLOBALS['__q'][ $a['post_status'] ] ?? array(); }
+function wp_count_posts( $t = 'post' ) { return (object) array( 'draft' => count( $GLOBALS['__q']['draft'] ?? array() ) ); }
 function sn_schedule_all() { return array(); }
 function sn_schedule_future_posts() { return array(); }
 function sn_schedule_swap_pairs( $f ) { return array(); }

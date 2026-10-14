@@ -65,8 +65,11 @@ function paint_connections_scheduled_content( array $ctx ) {
 	}
 
 	// 2026-10-12 (queue phase 2): clusters and gaps, as the classic twin.
-	if ( function_exists( 'sn_content_queue_cadence_read' ) ) {
-		$out .= scheduled_content_cadence_html( \sn_content_queue_cadence_read() );
+	// 2026-10-13 (item 2): a suggested slot per draft, from the same read.
+	if ( function_exists( 'sn_content_queue_schedule_read' ) ) {
+		$schedule = \sn_content_queue_schedule_read();
+		$out     .= scheduled_content_cadence_html( \sn_content_queue_cadence_read( $schedule ) );
+		$out     .= scheduled_content_slots_html( \sn_content_queue_slot_read( $schedule ) );
 	}
 
 	$out .= scheduled_content_swaps_html( $d['pairs'] );
