@@ -154,8 +154,8 @@ ok( false !== strpos( $purge, 'SN_CF_PROBE_HOOK' ), 'the per-post purge schedule
 ok( false !== strpos( $purge, 'wp_unschedule_event' ), 'a re-save replaces the pending probe instead of stacking one per save' );
 
 $probe = file_get_contents( __DIR__ . '/../inc/cloudflare-purge-probe.php' );
-ok( false !== strpos( $probe, 'sn_cf_purge_everything' ), 'a stale edge escalates to a zone purge' );
-ok( 1 === substr_count( $probe, 'sn_cf_purge_everything(' ), 'escalation is bounded to exactly one zone purge, never a retry loop' );
+ok( false !== strpos( $probe, 'sn_cf_purge_everything' ), 'a stale edge can still reach a zone purge: the fallback when Cloudflare refuses the tag call (2026-10-13)' );
+ok( 1 === substr_count( $probe, 'sn_cf_purge_everything(' ), 'escalation is bounded: at most one zone purge, never a retry loop' );
 ok( false !== strpos( $probe, 'sn-cache-probe' ), 'the origin is read through a cache-busting query' );
 
 $loader = file_get_contents( __DIR__ . '/../signal-and-noise-tools.php' );

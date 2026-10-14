@@ -136,6 +136,25 @@ function sn_admin_cloudways_outcome( $last ) {
 }
 
 /**
+ * The sentence for a retired app purge (2026-10-13), the same on every surface.
+ *
+ * @return string
+ */
+function sn_admin_cloudways_retired_sentence() {
+	return 'Retired: Varnish is off for this app, so no purge calls Cloudways, and the manual purge empties Redis itself. Define <code>SN_CLOUDWAYS_APP_PURGE</code> as true in <code>wp-config.php</code> to run it again.';
+}
+
+/**
+ * Whether the app purge runs (live read; on when the purge module is absent,
+ * as in a fixture).
+ *
+ * @return bool
+ */
+function sn_admin_cloudways_on() {
+	return ! function_exists( 'sn_cloudways_app_purge_on' ) || sn_cloudways_app_purge_on();
+}
+
+/**
  * PURE: the Cloudways purge as one line of the Cloudflare leaf's Cache box,
  * on both surfaces: the same verdict the Cloudways leaf's Result card gives
  * (2026-10-12 audit: a timeout read "Error · HTTP 0" there and "Inconclusive"
@@ -143,9 +162,20 @@ function sn_admin_cloudways_outcome( $last ) {
  * that never ran "Active" there and "Never run" here).
  *
  * @param array|null $last Record from SNT_CW_LAST_PURGE_OPT, or null.
+ * @param bool       $on   Whether the app purge runs (sn_admin_cloudways_on()).
  * @return array{kind:string,text:string,value:string,meta:string,time:int} The badge kind and text, the verdict when it says more than the badge ('' when not), the escaped meta line, the attempt time (0 when never).
  */
-function sn_admin_cloudways_leg( $last ) {
+function sn_admin_cloudways_leg( $last, $on = true ) {
+	if ( ! $on ) {
+		return array(
+			'kind'  => 'muted',
+			'text'  => 'Retired',
+			'value' => '',
+			'meta'  => sn_admin_cloudways_retired_sentence(),
+			// No "Last attempt": a time that only grows would read as a stall.
+			'time'  => 0,
+		);
+	}
 	$o = sn_admin_cloudways_outcome( $last );
 	return array(
 		'kind'  => $o['kind'],
@@ -172,8 +202,14 @@ function sn_admin_cloudways_cards( array $state ) {
 	$missing    = isset( $state['missing'] ) && is_array( $state['missing'] ) ? $state['missing'] : array();
 	$last       = isset( $state['last'] ) && is_array( $state['last'] ) ? $state['last'] : null;
 	$ago        = isset( $state['ago'] ) ? (string) $state['ago'] : '';
+	$on         = ! array_key_exists( 'on', $state ) || ! empty( $state['on'] );
 
-	$outcome = sn_admin_cloudways_outcome( $last );
+	$outcome = $on ? sn_admin_cloudways_outcome( $last ) : array(
+		'value' => 'Retired',
+		'kind'  => '',
+		'text'  => '',
+		'meta'  => sn_admin_cloudways_retired_sentence(),
+	);
 
 	if ( $configured ) {
 		$conn_meta = 'Set in <code>wp-config.php</code>. Display-only: this page cannot read or change these values.';
@@ -198,10 +234,11 @@ function sn_admin_cloudways_cards( array $state ) {
 		),
 		array(
 			'label'     => 'Last purge',
-			'value'     => '' !== $ago ? $ago : 'Never',
-			'meta_html' => '' !== $ago
-				? 'Cache purge on the Cloudways application, fired by post save and theme update.'
-				: 'Nothing recorded yet.',
+			// Retired: the value says so, so a growing age never reads as a stall.
+			'value'     => ! $on ? 'Retired' : ( '' !== $ago ? $ago : 'Never' ),
+			'meta_html' => ! $on
+				? ( '' !== $ago ? 'Last called Cloudways ' . esc_html( $ago ) . ', before the app purge was retired. Varnish is off for this app.' : 'Varnish is off for this app, so no purge calls Cloudways.' )
+				: ( '' !== $ago ? 'Cache purge on the Cloudways application, run by a manual purge of every cache and by Breeze\'s Purge Varnish button.' : 'Nothing recorded yet.' ),
 		),
 		array(
 			'label'     => 'Result',
@@ -241,7 +278,17 @@ function sn_admin_cloudways_state() {
 		'missing'    => $missing,
 		'last'       => $last,
 		'ago'        => $ago,
+		'on'         => sn_admin_cloudways_on(),
 	);
+}
+
+/**
+ * The helper line's first sentences, the same on both surfaces.
+ *
+ * @return string
+ */
+function sn_admin_cloudways_hint() {
+	return 'Cloudways hosts the origin; its app purge clears Varnish and empties Redis. This screen reports that purge and never changes it.';
 }
 
 /**
@@ -256,7 +303,7 @@ function sn_admin_cloudways_render() {
 	}
 
 	echo '<p class="sn-field-helper">';
-	echo 'Cloudways holds the origin cache (Breeze / Varnish). This screen reports it and never changes it. ';
+	echo esc_html( sn_admin_cloudways_hint() ) . ' ';
 	echo 'Credentials live in <code>wp-config.php</code> only: an account-wide API key is deliberately kept out of the database.';
 	echo '</p>';
 }

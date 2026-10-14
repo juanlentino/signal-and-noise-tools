@@ -645,6 +645,15 @@ $GLOBALS['__cf_purge_failure'] = null;
 $rows = \SignalNoise\OpenStationApp\attention_edge();
 ok( 1 === count( $rows['rows'] ) && 'purge-failure' !== $rows['rows'][0]['key'], '   ...and with no failure recorded the row is gone: the cache says nothing while the automation works' );
 
+// 2026-10-13: a later whole-HTML refresh (a probe's tag escalation, a save's
+// tag purge, an update's invalidate) retires the stale row, as a zone purge does.
+if ( ! defined( 'SN_CF_LAST_HTML_REFRESH_OPT' ) ) { define( 'SN_CF_LAST_HTML_REFRESH_OPT', 'sn_cf_last_html_refresh' ); }
+$GLOBALS['__options']['sn_cf_last_html_refresh'] = $now - 600 + 3;
+ok( 1 === count( \SignalNoise\OpenStationApp\attention_edge()['rows'] ), "edge: the stale row's own tag escalation, seconds after it, does not retire it" );
+$GLOBALS['__options']['sn_cf_last_html_refresh'] = $now - 60;
+ok( 0 === count( \SignalNoise\OpenStationApp\attention_edge()['rows'] ), '   ...a whole-site tag purge or zone invalidate nine minutes later does: every page was refreshed since that reading' );
+unset( $GLOBALS['__options']['sn_cf_last_html_refresh'] );
+
 $rows = \SignalNoise\OpenStationApp\attention_citations();
 ok( 2 === count( $rows['rows'] ), 'citations: never-checked and due are TWO rows -- one figure cannot say both' );
 ok( '3 citations have never been checked' === $rows['rows'][0]['subtitle'] && 'warning' === $rows['rows'][0]['tone'], '   ...never-checked warns: nobody has looked at those rows at all' );

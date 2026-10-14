@@ -59,7 +59,7 @@ ok( false !== strpos( $kit, '<span class="snt-sys__k">Last purge</span><span cla
 $cell = cw_result_cell( $kit );
 ok( false !== strpos( $cell, '<span class="snt-sys__v">Never run</span><os-badge tone="warning">No data</os-badge>' ) && false !== strpos( $cell, 'This is not a failure.' ) && false === strpos( $cell, 'danger' ), 'no record: Result reads Never run / No data as a WARNING, never as danger' );
 ok( false !== strpos( $kit, 'snt-sys--warn" data-tone="warning"' ) && false === strpos( $kit, 'snt-sys--err' ), 'unconfigured cells carry the warning stripe and none the danger stripe' );
-ok( false !== strpos( $kit, '<p class="snt-hint">Cloudways holds the origin cache (Breeze / Varnish). This screen reports it and never changes it. Credentials live in <os-code>wp-config.php</os-code> only: an account-wide API key is deliberately kept out of the database.</p>' ), 'the helper line survives as a hint, its <code> as inline os-code; plain words, no em dash (2026-10-12 audit)' );
+ok( false !== strpos( $kit, '<p class="snt-hint">Cloudways hosts the origin; its app purge clears Varnish and empties Redis. This screen reports that purge and never changes it. Credentials live in <os-code>wp-config.php</os-code> only: an account-wide API key is deliberately kept out of the database.</p>' ), 'the helper line survives as a hint, its <code> as inline os-code; plain words, no em dash (2026-10-12 audit)' );
 // 2026-10-12 audit: the captions are sentences but painted in the mono "value" face.
 ok( 3 === substr_count( $kit, 'class="snt-sys snt-sys--prose' ) && 1 === preg_match( '/\.snt-sys--prose \.snt-sys__meta\s*\{[^}]*font:\s*400 12px\/1\.45 var\( --os-ui-font,/', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ), 'the three Cloudways captions take the text face, not the mono value face' );
 ok( false === strpos( $kit, '<code>' ) && false !== strpos( $classic, '<code>' ), 'every classic inline <code> became inline <os-code>' );
@@ -70,7 +70,7 @@ $kit  = snt_leaf_paint( 'connections', 'cloudways' );
 $cell = cw_result_cell( $kit );
 ok( false !== strpos( $cell, '<span class="snt-sys__v">Failed</span><os-badge tone="danger">Failed</os-badge>' ) && false !== strpos( $cell, 'bad credential (stage <os-code>auth</os-code>, HTTP <os-code>401</os-code>)' ), 'failed: Result reads Failed / danger, the error envelope, stage and HTTP are shown' );
 ok( false !== strpos( $cell, 'class="snt-sys snt-sys--prose snt-sys--err" data-tone="danger"' ), 'failed: the Result cell carries the danger stripe' );
-ok( false !== strpos( $kit, '<span class="snt-sys__k">Last purge</span><span class="snt-sys__v">1 hour ago</span>' ) && false !== strpos( $kit, 'Cache purge on the Cloudways application, fired by post save and theme update.' ), 'a timed record: Last purge reads the relative time with its meta line' );
+ok( false !== strpos( $kit, '<span class="snt-sys__k">Last purge</span><span class="snt-sys__v">1 hour ago</span>' ) && false !== strpos( $kit, 'Cache purge on the Cloudways application, run by a manual purge of every cache and by Breeze\'s Purge Varnish button.' ), 'a timed record: Last purge reads the relative time with its meta line' );
 
 // ── Inconclusive: its own outcome, never a failure.
 cw_record( array( 'ok' => false, 'inconclusive' => true, 'error' => 'timeout' ) );

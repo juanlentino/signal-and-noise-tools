@@ -110,9 +110,10 @@ function sn_seo_feed_build_gmt( $posts, $now = null ) {
 }
 
 /**
- * get_feed_build_date filter: fold publish dates into the build date, so the
- * RSS lastBuildDate and the feed's Last-Modified and ETag (inc/seo.php) move
- * when a scheduled note goes live. Comment feeds keep core's value.
+ * get_feed_build_date filter: fold publish dates and the last render change
+ * (a deploy, a Styles save, a purge) into the build date, so the RSS
+ * lastBuildDate and the feed's Last-Modified and ETag (inc/seo.php) move when
+ * a scheduled note goes live or the code changes. Comment feeds keep core's value.
  *
  * @param string|int|false $value  Core's build date, in $format.
  * @param string           $format The requested date format.
@@ -126,7 +127,14 @@ function sn_seo_feed_build_date_filter( $value, $format ) {
 	if ( method_exists( $wp_query, 'is_comment_feed' ) && $wp_query->is_comment_feed() ) {
 		return $value;
 	}
+	// 2026-10-13: a code update now marks the edge stale and the edge
+	// revalidates with the feed's stored validators. Post dates alone would
+	// answer 304 and keep the old feed body until the next note, so the last
+	// render change counts, as it does for a singular.
 	$ts = sn_seo_feed_build_gmt( $wp_query->posts );
+	if ( $ts > 0 && function_exists( 'sn_seo_render_changed_gmt' ) ) {
+		$ts = max( $ts, min( sn_seo_render_changed_gmt(), time() ) );
+	}
 	return $ts > 0 ? gmdate( (string) $format, $ts ) : $value;
 }
 add_filter( 'get_feed_build_date', 'sn_seo_feed_build_date_filter', 10, 2 );

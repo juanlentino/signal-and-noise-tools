@@ -22,12 +22,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_CF_RETRY_HOOK    = 'sn_cf_purge_retry';
 const SN_CF_FAILURE_OPT   = 'sn_cf_purge_failure';
 const SN_CF_RETRY_DELAYS  = array( 60, 300, 900 ); // seconds before tries 2, 3 and 4.
-// HELD EMPTY (20.9.0). The plan was array( 'update', 'rollover' ): a code update
-// would invalidate, not purge. Measured before the cut: the origin answered a
-// revalidation 304 from the post's own date (inc/seo.php), so an invalidated
-// page would have kept its old markup. The 304 rule is fixed in this release;
-// invalidate stays off until an install shows the fix holding at the edge.
-const SN_CF_SOFT_TRIGGERS = array();
+// 2026-10-13: when every page's HTML was last refreshed by a confirmed call:
+// a zone purge or invalidate, or a purge or invalidate of the theme's
+// whole-site tag (a save, a Site Editor save, a probe escalation). Attention
+// reads it to retire a stale-probe row the refresh superseded. A note's own
+// tags (sn_cf_purge_note) cover one note, so they do not stamp it.
+const SN_CF_LAST_HTML_REFRESH_OPT = 'sn_cf_last_html_refresh';
+// A code update marks pages stale instead of deleting them (2026-10-13). Held
+// empty since 20.9.0 until an install showed the 304 fix holding at the edge:
+// notes now carry a Last-Modified equal to the update time (cache research,
+// 2026-10-13), so a revalidation fetches the new markup. Cloudflare serves the
+// old copy while it refreshes, and serves it if the new code fails. A content
+// change (a save, a manual purge) still deletes.
+const SN_CF_SOFT_TRIGGERS = array( 'update', 'rollover' );
 
 /**
  * Whether a failed call is worth another try. PURE. A transport error (0), a
@@ -70,10 +77,16 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 		return false;
 	}
 	$GLOBALS['sn_cf_send_last'] = 'failed';
+	// The endpoint this call ended on: a refused invalidate falls back to a
+	// purge below, and the recursive call overwrites this.
+	$GLOBALS['sn_cf_send_endpoint'] = $endpoint;
 	$r = sn_cf_api_post_blocking( '/zones/' . sn_cf_get_zone() . '/' . $endpoint, $body );
 	if ( ! empty( $r['cf_success'] ) ) {
 		$GLOBALS['sn_cf_send_last'] = 'ok';
 		sn_cf_purge_failure_clear( $body, $endpoint );
+		if ( sn_cf_body_refreshes_html( $body ) ) {
+			update_option( SN_CF_LAST_HTML_REFRESH_OPT, time(), false );
+		}
 		if ( isset( $body['purge_everything'] ) ) {
 			// Stamped on confirmation only (first try or a retry): the attention
 			// list reads the zone time as proof a refresh superseded older stale
@@ -83,11 +96,12 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 			if ( 'purge_cache' === $endpoint ) {
 				update_option( SN_CF_LAST_ZONE_PURGE_OPT, time(), false );
 			}
-			update_option( SN_CF_LAST_PURGE_OPT, array( 'time' => time(), 'kind' => 'all' ), false );
+			// 'mode' tells the two status boxes a mark-stale from a delete.
+			update_option( SN_CF_LAST_PURGE_OPT, array( 'time' => time(), 'kind' => 'all', 'mode' => 'purge_cache' === $endpoint ? 'purge' : 'invalidate' ), false );
 			// A retry has no open ledger row: the request that queued it wrote
 			// edge false. Its success is a row of its own.
 			if ( $attempt > 0 && function_exists( 'snt_purge_ledger_add' ) ) {
-				snt_purge_ledger_add( array( 'trigger' => 'cron:' . SN_CF_RETRY_HOOK, 'redis' => false, 'pages' => false, 'edge' => true, 'cloudways' => 'not run' ) );
+				snt_purge_ledger_add( array( 'trigger' => 'cron:' . SN_CF_RETRY_HOOK, 'redis' => false, 'pages' => false, 'edge' => true, 'cloudways' => 'not run' ) + ( 'invalidate_cache' === $endpoint ? array( 'scope' => 'invalidate' ) : array() ) );
 			}
 		}
 		return true;
@@ -125,6 +139,21 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 }
 if ( function_exists( 'add_action' ) ) {
 	add_action( SN_CF_RETRY_HOOK, 'sn_cf_api_send', 10, 3 );
+}
+
+/**
+ * Whether a call's body covers every page's HTML: the whole zone, or the
+ * theme's whole-site tag. PURE.
+ *
+ * @param array $body Request body.
+ * @return bool
+ */
+function sn_cf_body_refreshes_html( array $body ) {
+	if ( ! empty( $body['purge_everything'] ) ) {
+		return true;
+	}
+	return defined( 'SN_EDGE_CACHE_TAG' ) && '' !== (string) constant( 'SN_EDGE_CACHE_TAG' )
+		&& in_array( (string) constant( 'SN_EDGE_CACHE_TAG' ), array_map( 'strval', (array) ( $body['tags'] ?? array() ) ), true );
 }
 
 /**
@@ -168,6 +197,16 @@ function sn_cf_send_last() {
 }
 
 /**
+ * The endpoint the last send in this request ended on: `purge_cache` or
+ * `invalidate_cache` ('' before any send).
+ *
+ * @return string
+ */
+function sn_cf_send_endpoint() {
+	return (string) ( $GLOBALS['sn_cf_send_endpoint'] ?? '' );
+}
+
+/**
  * Does the theme tag its cached responses (theme 15.2.0+)?
  *
  * @return bool
@@ -181,9 +220,11 @@ function sn_cf_tagged() {
  * and machine file carries SN_EDGE_CACHE_TAG). One call covers every address
  * a save can touch. False when the theme does not tag yet.
  *
+ * @param string $trigger The ledger's trigger: 'save', 'probe' (a stale
+ *                        post-save probe escalating) or 'site-editor'.
  * @return bool
  */
-function sn_cf_purge_tag() {
+function sn_cf_purge_tag( $trigger = 'save' ) {
 	if ( ! sn_cf_tagged() ) {
 		return false;
 	}
@@ -194,7 +235,7 @@ function sn_cf_purge_tag() {
 	// recorded, and the week's count read low. Same rule as a zone purge:
 	// the edge leg is true only when Cloudflare confirmed it in this request.
 	if ( ( $confirmed || 'queued' === sn_cf_send_last() ) && function_exists( 'snt_purge_ledger_add' ) ) {
-		snt_purge_ledger_add( array( 'trigger' => 'save', 'scope' => 'tag', 'redis' => false, 'pages' => false, 'edge' => $confirmed, 'cloudways' => 'not run' ) );
+		snt_purge_ledger_add( array( 'trigger' => (string) $trigger, 'scope' => 'tag', 'redis' => false, 'pages' => false, 'edge' => $confirmed, 'cloudways' => 'not run' ) );
 	}
 	return $confirmed;
 }

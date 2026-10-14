@@ -21,7 +21,8 @@
  * ledger went red for it three times.
  *
  * This module closes the loop: after a per-post purge, check the URL a reader
- * would actually get, and escalate ONCE to a zone purge if it is still stale.
+ * would actually get, and escalate ONCE if it is still stale: to the theme's
+ * whole-site cache tag since 2026-10-13, the zone only if the tag call fails.
  *
  * The comparison lives in pure functions so it is testable without HTTP.
  *
@@ -31,6 +32,8 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+require_once __DIR__ . '/cloudflare-purge-probe-words.php'; // the escalation's words, shared by every surface (2026-10-13).
 
 /** Seconds to wait before probing. Long enough for a purge to propagate. */
 const SN_CF_PROBE_DELAY = 120;
@@ -133,7 +136,8 @@ function snt_cf_normalize_render( $html ) {
 		'/"nonce"\s*:\s*"[^"]*"/i',
 		'/\bnonce=[A-Za-z0-9]+/',
 		'/[?&]ver=[^"\'&\s]*/',
-		'/[?&]sn-cache-probe=1/',
+		// A random value per probe since 2026-10-13, raw, HTML-escaped or URL-encoded.
+		'/(?:[?&]|&amp;|&#038;|%3F|%26)sn-cache-probe(?:=|%3D)[^"\'&\s<]*/i',
 	) );
 	foreach ( $patterns as $pattern ) {
 		$html = preg_replace( $pattern, '', $html );

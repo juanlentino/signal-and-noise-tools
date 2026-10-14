@@ -257,6 +257,14 @@ function attention_edge() {
 		// ponytail: this retires on a purge, not on a re-probe; a live re-check
 		// per row is the upgrade if a zone purge ever stops clearing the edge.
 		$zone_purge = defined( 'SN_CF_LAST_ZONE_PURGE_OPT' ) ? (int) get_option( SN_CF_LAST_ZONE_PURGE_OPT, 0 ) : 0;
+		// 2026-10-13: a whole-site tag purge (a probe's escalation, a save) or a
+		// zone invalidate (an update) refreshes every page's HTML too, so it
+		// retires the reading the same way. The margin keeps a probe's own
+		// escalation from retiring its row when it lands at once. One that was
+		// throttled and confirmed on a retry minutes later does retire it: that
+		// purge did refresh every page after the reading, and the probe log
+		// still keeps the stale row.
+		$zone_purge = max( $zone_purge, defined( 'SN_CF_LAST_HTML_REFRESH_OPT' ) ? (int) get_option( SN_CF_LAST_HTML_REFRESH_OPT, 0 ) : 0 );
 		foreach ( $log as $entry ) {
 			if ( ! is_array( $entry ) || (int) ( $entry['algo'] ?? 1 ) < SN_CF_PROBE_ALGO ) {
 				continue;
@@ -284,8 +292,12 @@ function attention_edge() {
 				? (string) \snt_cf_freshness_phrase( 'stale', $time, $now )
 				: '';
 			$subtitle = '' !== $phrase ? $headline . ', ' . $phrase : $headline;
-			if ( ! empty( $entry['escalated'] ) ) {
-				$subtitle .= ' ' . __( 'A zone purge was forced.', 'signal-and-noise-tools' );
+			// The shared words (whole-site tag or zone); a row with no field is a zone purge.
+			$esc = function_exists( 'snt_cf_probe_escalation_sentence' )
+				? (string) \snt_cf_probe_escalation_sentence( $entry )
+				: ( ! empty( $entry['escalated'] ) ? __( 'A zone purge was forced.', 'signal-and-noise-tools' ) : '' );
+			if ( '' !== $esc ) {
+				$subtitle .= ' ' . $esc;
 			}
 			$rows[] = attention_row( array(
 				'kind'       => 'edge',

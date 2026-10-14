@@ -2,12 +2,16 @@
 /**
  * Signal & Noise Tools — Cloudways API cache/Varnish purge.
  *
- * The purge chain's Varnish leg (`do_action('breeze_clear_varnish')` in the theme)
- * silently no-ops on Cloudways — Breeze's PURGE is non-blocking + unconfirmable, so
- * stale Varnish objects survive and re-seed Cloudflare within seconds (curl-proven
- * 2026-07-03). This module rides that same action and clears the app's cache (incl.
- * Varnish) through the Cloudways API — the programmatic form of the panel's "Purge
- * Varnish" button — with a real `{status, operation_id}` confirmation.
+ * RETIRED BY DEFAULT since 2026-10-13: Varnish is off for this app (Cloudways API:
+ * app 5349211, varnish_enabled false), and the theme's chain no longer fires
+ * `breeze_clear_varnish` (signal-and-noise#532). The call runs only when
+ * wp-config.php defines SN_CLOUDWAYS_APP_PURGE as true, and then only from
+ * Breeze's own Purge Varnish button or another caller of that action.
+ *
+ * What it does when on: clears the app's cache (incl. Varnish, and all of Redis)
+ * through the Cloudways API, the programmatic form of the panel's "Purge Varnish"
+ * button, with a real `{status, operation_id}` confirmation. Breeze's own PURGE is
+ * non-blocking and unconfirmable (curl-proven 2026-07-03).
  *
  * Config (wp-config.php constants; the same four values as the CLOUDWAYS_* deploy
  * secrets, but the WP runtime can't read those so it needs its own copies):
@@ -103,6 +107,26 @@ function sn_cloudways_is_configured() {
 		&& '' !== sn_cloudways_cfg( 'SN_CLOUDWAYS_API_KEY' )
 		&& '' !== sn_cloudways_cfg( 'SN_CLOUDWAYS_SERVER_ID' )
 		&& '' !== sn_cloudways_cfg( 'SN_CLOUDWAYS_APP_ID' );
+}
+
+/**
+ * Whether the Cloudways app purge runs at all (2026-10-13: off by default,
+ * because Varnish is off for this app). `define( 'SN_CLOUDWAYS_APP_PURGE', true )`
+ * in wp-config.php turns it back on, for a server where Varnish serves pages.
+ *
+ * @return bool
+ */
+function sn_cloudways_app_purge_on() {
+	return defined( 'SN_CLOUDWAYS_APP_PURGE' ) && true === constant( 'SN_CLOUDWAYS_APP_PURGE' );
+}
+
+/**
+ * The ledger's Cloudways column for a purge that did not call Cloudways.
+ *
+ * @return string
+ */
+function sn_cloudways_not_run_label() {
+	return sn_cloudways_app_purge_on() ? 'not run' : 'retired: Varnish is off for this app';
 }
 
 /**
@@ -291,15 +315,21 @@ function sn_cloudways_get_token( $force_fresh = false ) {
 }
 
 /**
- * Purge the app's Cloudways cache (incl. Varnish). Once per request. Hooked to the
- * theme's breeze_clear_varnish action (the Varnish step of sn_purge_all_caches), so it
- * runs at the right point in the inner→outer order, before the Cloudflare purge — and
- * respects the origin_html flag (that gates the do_action). The guard is a GLOBAL (not
- * a static) so the standalone tests can reset it between scenarios.
+ * Purge the app's Cloudways cache (incl. Varnish). Once per request. Hooked to
+ * breeze_clear_varnish, which the theme's chain no longer fires (#532); Breeze's
+ * own button still does. Retired unless SN_CLOUDWAYS_APP_PURGE is true. The guard
+ * is a GLOBAL (not a static) so the standalone tests can reset it between scenarios.
  *
  * @return bool Whether Cloudways accepted the purge (HTTP 200 + status:true).
  */
 function sn_cloudways_purge_app() {
+	// 2026-10-13: retired unless asked for. Varnish is off for this app
+	// (Cloudways API: app 5349211, varnish_enabled false), so all this call
+	// still did was empty Redis, which the manual purge's own wp_cache_flush()
+	// already does, at a cost of up to 10 s of blocking API calls.
+	if ( ! sn_cloudways_app_purge_on() ) {
+		return false;
+	}
 	if ( ! empty( $GLOBALS['sn_cloudways_purge_done'] ) ) {
 		return false;
 	}

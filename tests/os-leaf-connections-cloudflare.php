@@ -91,7 +91,7 @@ $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( array() === cf_fields( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'configured: still no field, actions still match the classic leaf' );
 ok( false !== strpos( $kit, '>••••1234</span></os-fact>' ) && false === strpos( $kit, 'cf-token-abcdef1234' ) && false === strpos( $classic, 'cf-token-abcdef1234' ), 'the token source shows the obscured value, never raw, on either leaf' );
 ok( false !== strpos( $kit, '>zone0123456789abcdef</span></os-fact>' ), 'the zone id is shown as a fact' );
-ok( false === strpos( $kit, 'Configured: auto-purge active' ) && false !== strpos( $kit, 'label="Auto-purge"' ) && false !== strpos( $kit, '>Active</os-badge>' ) && false !== strpos( $kit, 'on post save, theme update and the REST endpoint' ), '15.1.0: the configured state is a facts row with the Active badge, not a notice' );
+ok( false === strpos( $kit, 'Configured: auto-purge active' ) && false !== strpos( $kit, 'label="Auto-purge"' ) && false !== strpos( $kit, '>Active</os-badge>' ) && false !== strpos( $kit, 'on post save, on a Site Editor menu, template or template part save, on a theme or plugin update (which marks pages stale so each refreshes on its next request) and through the REST endpoint' ), '15.1.0: the configured state is a facts row with the Active badge, not a notice' );
 ok( false !== strpos( $kit, 'label="Last purge"' ) && false !== strpos( $kit, '<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time> (full zone)' ), '#1596: the last full-zone purge is an os-relative-time with the server reading as its fallback' );
 ok( false === strpos( $kit, 'cf_purge_now' ) && false === strpos( $classic, 'cf_purge_now' ), 'and configuring adds no purge button: the Cache box is history only' );
 
@@ -160,6 +160,36 @@ cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => '
 $kit     = snt_leaf_paint( 'connections', 'cloudflare' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
 ok( false !== strpos( $kit, 'Cloudways purge' ) && false !== strpos( $kit, '<os-badge tone="warning">No data</os-badge> Never run.' ) && false === strpos( $kit, 'Last attempt' ) && false !== strpos( $classic, '>No data</span>' ) && false === strpos( $classic, '>Active</span></div>' . "\n" ), 'a configured Cloudways module that never purged reads Never run / No data, not Active' );
+
+// ── 2026-10-13: a stale probe escalates to the whole-site tag; both surfaces say which purge ran, in one sentence.
+$GLOBALS['__cw_configured'] = false;
+$tag_log = array(
+	array( 'time' => time() - 60, 'result' => 'stale', 'escalated' => true, 'escalation' => 'tag', 'algo' => 2, 'url' => 'https://example.test/notes/bar/' ),
+	array( 'time' => time() - 300, 'result' => 'stale', 'escalated' => true, 'escalation' => 'zone', 'algo' => 2, 'url' => 'https://example.test/notes/foo/' ),
+);
+cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cf_purge_probe_log' => $tag_log, 'sn_last_purge_report' => array( 'legs' => array( 'breeze_page_cache' => false ) ), 'sn_cf_last_purge' => array( 'time' => time() - 3600, 'kind' => 'all', 'mode' => 'invalidate' ) ) );
+$classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
+$kit     = snt_leaf_paint( 'connections', 'cloudflare' );
+$rows    = cf_table_prop( $kit, 'data' );
+ok( is_array( $rows ) && 'stale → whole-site tag purge' === $rows[0]['result'] && 'stale → zone purge' === $rows[1]['result'] && false !== strpos( $classic, 'stale → whole-site tag purge' ) && false !== strpos( $classic, 'stale → zone purge' ), 'a tag escalation reads "→ whole-site tag purge", a zone one "→ zone purge", on both surfaces' );
+$intro = esc_html( snt_cf_probe_intro( 120 ) );
+ok( false !== strpos( $classic, $intro ) && false !== strpos( $kit, $intro ) && false !== strpos( $intro, 'whole-site cache tag' ) && false === strpos( $intro, 'escalated to a full zone purge at the time' ), 'both surfaces carry the same intro, naming the tag first and the zone as the fallback' );
+ok( false !== strpos( $kit, '(full zone, marked stale)' ) && false !== strpos( $classic, '(full zone, marked stale)' ), 'a code update reads "full zone, marked stale" on both surfaces, not a plain full zone' );
+ok( false !== strpos( $kit, 'label="Breeze page cache"' ) && false !== strpos( $kit, '>off</span></os-fact>' ) && false !== strpos( $classic, 'Breeze page cache: off.' ), 'the theme report\'s Breeze page cache leg reads off on both surfaces' );
+cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef' ) );
+$classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
+$kit     = snt_leaf_paint( 'connections', 'cloudflare' );
+ok( false !== strpos( $kit, '>not read</span></os-fact>' ) && false !== strpos( $classic, 'Breeze page cache: not read.' ), 'no report: the Breeze page cache reads "not read", never off' );
+// Retired Cloudways leg: words, no growing "Last attempt" (Varnish is off for this app).
+if ( true ) { function sn_cloudways_app_purge_on() { return ! empty( $GLOBALS['__cw_on'] ); } }
+$GLOBALS['__cw_configured'] = true;
+cf_opts( array( 'sn_cf_api_token' => 'cf-token-abcdef1234', 'sn_cf_zone_id' => 'zone0123456789abcdef', 'sn_cloudways_last_purge' => array( 'time' => time() - 86400 * 9, 'ok' => true ) ) );
+$classic = snt_leaf_classic_html( 'sn_admin_render_cloudflare_section' );
+$kit     = snt_leaf_paint( 'connections', 'cloudflare' );
+ok( false !== strpos( $kit, '<os-badge tone="neutral">Retired</os-badge>' ) && false !== strpos( $kit, 'Varnish is off for this app' ) && false === strpos( $kit, 'Last attempt' ) && false !== strpos( $classic, '>Retired</span>' ) && false !== strpos( $classic, 'Varnish is off for this app' ) && false === strpos( $classic, 'Last attempt' ), 'a retired Cloudways purge says Retired, Varnish is off, on both surfaces, with no growing Last attempt' );
+$GLOBALS['__cw_on'] = true;
+$kit = snt_leaf_paint( 'connections', 'cloudflare' );
+ok( false !== strpos( $kit, '>OK</os-badge> Last attempt:' ), 'turned back on, it reads its last record again' );
 
 // ── Escaping: hostile values in the zone, a probe URL and the Cloudways error never reach the markup raw.
 cf_opts( array(
