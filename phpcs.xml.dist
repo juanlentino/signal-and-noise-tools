@@ -161,7 +161,9 @@
 		<exclude-pattern>*/inc/analytics-buckets.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-events.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-pageroles.php</exclude-pattern>
-		<exclude-pattern>*/inc/edge-rollup.php</exclude-pattern>
+		<exclude-pattern>*/inc/edge-rollup-upsert-parts.php</exclude-pattern>
+		<exclude-pattern>*/inc/edge-rollup-run-parts.php</exclude-pattern>
+		<exclude-pattern>*/inc/edge-rollup-errors-parts.php</exclude-pattern>
 		<exclude-pattern>*/inc/schedule-engine.php</exclude-pattern>
 	</rule>
 
