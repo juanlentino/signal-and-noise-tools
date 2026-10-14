@@ -136,7 +136,8 @@ function snt_cf_normalize_render( $html ) {
 		'/"nonce"\s*:\s*"[^"]*"/i',
 		'/\bnonce=[A-Za-z0-9]+/',
 		'/[?&]ver=[^"\'&\s]*/',
-		'/[?&]sn-cache-probe=[^"\'&\s<]*/', // a random value per probe since 2026-10-13.
+		// A random value per probe since 2026-10-13, raw, HTML-escaped or URL-encoded.
+		'/(?:[?&]|&amp;|&#038;|%3F|%26)sn-cache-probe(?:=|%3D)[^"\'&\s<]*/i',
 	) );
 	foreach ( $patterns as $pattern ) {
 		$html = preg_replace( $pattern, '', $html );

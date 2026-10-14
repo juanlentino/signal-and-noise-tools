@@ -197,9 +197,17 @@ $GLOBALS['__ledger'] = array();
 $nav = (object) array( 'post_type' => 'wp_navigation', 'post_status' => 'publish' );
 ok( in_array( array( 'save_post_wp_navigation', 'sn_cf_purge_on_site_editor_save', 2 ), $GLOBALS['__actions'], true ) && in_array( array( 'save_post_wp_template', 'sn_cf_purge_on_site_editor_save', 2 ), $GLOBALS['__actions'], true ) && in_array( array( 'save_post_wp_template_part', 'sn_cf_purge_on_site_editor_save', 2 ), $GLOBALS['__actions'], true ), 'menus, templates and template parts are hooked' );
 ok( true === sn_cf_purge_on_site_editor_save( 5, $nav ) && '{"tags":["sn-render"]}' === $GLOBALS['__http'][0][1]['body'] && 'site-editor' === $GLOBALS['__ledger'][0]['trigger'], 'a published menu save purges the sn-render tag, ledger trigger site-editor' );
-ok( false === sn_cf_purge_on_site_editor_save( 6, (object) array( 'post_type' => 'wp_template', 'post_status' => 'publish' ) ) && 1 === count( $GLOBALS['__http'] ), 'once per request: the editor saving several entities sends one purge' );
+ok( false === sn_cf_purge_on_site_editor_save( 6, (object) array( 'post_type' => 'wp_template', 'post_status' => 'publish' ) ) && 1 === count( $GLOBALS['__http'] ), 'once per request: a second entity changed in the same request sends no second purge (each Site Editor save is its own REST request, so each of those purges)' );
 unset( $GLOBALS['sn_cf_site_editor_purged'] );
 ok( false === sn_cf_purge_on_site_editor_save( 7, (object) array( 'post_type' => 'wp_template_part', 'post_status' => 'auto-draft' ) ) && false === sn_cf_purge_on_site_editor_save( 8, (object) array( 'post_type' => 'post', 'post_status' => 'publish' ) ) && 1 === count( $GLOBALS['__http'] ), 'an unpublished part or another post type purges nothing here' );
+unset( $GLOBALS['sn_cf_site_editor_purged'] );
+$tp = (object) array( 'ID' => 9, 'post_type' => 'wp_template_part', 'post_status' => 'trash' );
+ok( true === sn_cf_purge_on_site_editor_unpublish( 'trash', 'publish', $tp ) && 2 === count( $GLOBALS['__http'] ) && 'site-editor' === end( $GLOBALS['__ledger'] )['trigger'], 'trashing a published template part purges the tag' );
+unset( $GLOBALS['sn_cf_site_editor_purged'] );
+ok( false === sn_cf_purge_on_site_editor_unpublish( 'trash', 'draft', $tp ) && false === sn_cf_purge_on_site_editor_unpublish( 'publish', 'publish', (object) array( 'ID' => 9, 'post_type' => 'wp_template_part', 'post_status' => 'publish' ) ) && 2 === count( $GLOBALS['__http'] ), 'a draft trashed, or a publish-to-publish transition (the save hook has it), purges nothing here' );
+ok( true === sn_cf_purge_on_site_editor_delete( 10, (object) array( 'ID' => 10, 'post_type' => 'wp_template', 'post_status' => 'publish' ) ) && 3 === count( $GLOBALS['__http'] ), 'deleting a published template ("Clear customizations") purges the tag' );
+unset( $GLOBALS['sn_cf_site_editor_purged'] );
+ok( in_array( array( 'transition_post_status', 'sn_cf_purge_on_site_editor_unpublish', 3 ), $GLOBALS['__actions'], true ) && in_array( array( 'before_delete_post', 'sn_cf_purge_on_site_editor_delete', 2 ), $GLOBALS['__actions'], true ), 'the unpublish and delete hooks are registered' );
 $purge_src = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
 ok( 1 === substr_count( $purge_src, "sn_cf_purge_tag();" ) && false !== strpos( $purge_src, 'if ( sn_cf_tagged() ) {' ), 'the save handler purges the tag in one place, ahead of the older-theme path' );
 

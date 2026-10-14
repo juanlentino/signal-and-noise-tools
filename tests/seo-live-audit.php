@@ -144,6 +144,13 @@ if ( function_exists( 'sn_seo_feed_build_gmt' ) ) {
 	$wp_query->posts = array( $scheduled, $older );
 	ok( 'Sun, 11 Oct 2026 16:32:49 +0000' === sn_seo_feed_build_date_filter( 'Tue, 06 Oct 2026 17:17:04 +0000', 'r' ), 'lastBuildDate (format r) reads Oct 11' );
 	ok( (string) strtotime( '2026-10-11 16:32:49 UTC' ) === (string) sn_seo_feed_build_date_filter( '1791307024', 'U' ), 'the conditional-GET handler (format U) gets Oct 11, so Last-Modified and the ETag move' );
+	// 2026-10-13: an update now invalidates (marks the edge stale), and the edge
+	// revalidates with the stored validators: a deploy must move them too.
+	$GLOBALS['__opt']['sn_render_changed_gmt'] = strtotime( '2026-10-12 09:00:00 UTC' );
+	ok( (string) strtotime( '2026-10-12 09:00:00 UTC' ) === (string) sn_seo_feed_build_date_filter( '1', 'U' ), 'a deploy after the newest note moves the feed Last-Modified and ETag, so a revalidation gets the new body, not a 304' );
+	$GLOBALS['__opt']['sn_render_changed_gmt'] = strtotime( '2026-10-02 09:00:00 UTC' );
+	ok( (string) strtotime( '2026-10-11 16:32:49 UTC' ) === (string) sn_seo_feed_build_date_filter( '1', 'U' ), 'a deploy before the newest note: the note date, as before' );
+	$GLOBALS['__opt'] = array();
 	$wp_query = null;
 	ok( 'kept' === sn_seo_feed_build_date_filter( 'kept', 'r' ), 'no query: core value kept' );
 }

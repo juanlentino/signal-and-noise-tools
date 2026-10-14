@@ -83,6 +83,7 @@ $b   = $GLOBALS['__gets'][1] ?? '';
 ok( 'fresh' === $row['result'] && array() === $GLOBALS['__http'], 'a fresh page purges nothing' );
 ok( 1 === preg_match( '/sn-cache-probe=[0-9a-f]{12}$/', $a ) && $a !== $b && false === strpos( $a, 'sn-cache-probe=1' ), 'each probe sends a new random cache-buster, never the fixed =1 the edge had cached' );
 ok( false === snt_cf_probe_is_stale( '<link rel="canonical" href="https://x/a/?sn-cache-probe=9f3a2b7c1d0e"><p>Body</p>', '<link rel="canonical" href="https://x/a/"><p>Body</p>' ), 'a random cache-buster echoed into the markup is not staleness' );
+ok( false === snt_cf_probe_is_stale( '<a href="https://x/a/?p=1&amp;sn-cache-probe=9f3a2b7c1d0e">x</a><a href="https://x/s?u=https%3A%2F%2Fx%2Fa%2F%3Fsn-cache-probe%3D9f3a2b7c1d0e">s</a>', '<a href="https://x/a/?p=1">x</a><a href="https://x/s?u=https%3A%2F%2Fx%2Fa%2F">s</a>' ), 'the HTML-escaped (&amp;) and URL-encoded (%3F...%3D) forms are not staleness either' );
 
 echo "\nGroup: the words\n";
 ok( '→ whole-site tag purge' === snt_cf_probe_escalation_label( array( 'result' => 'stale', 'escalated' => true, 'escalation' => 'tag' ) ) && '→ zone purge' === snt_cf_probe_escalation_label( array( 'result' => 'stale', 'escalated' => true ) ) && '' === snt_cf_probe_escalation_label( array( 'result' => 'stale', 'escalated' => false, 'escalation' => 'none' ) ), 'tag, zone (and a row from before the field: zone), and nothing for none' );

@@ -259,7 +259,11 @@ function attention_edge() {
 		$zone_purge = defined( 'SN_CF_LAST_ZONE_PURGE_OPT' ) ? (int) get_option( SN_CF_LAST_ZONE_PURGE_OPT, 0 ) : 0;
 		// 2026-10-13: a whole-site tag purge (a probe's escalation, a save) or a
 		// zone invalidate (an update) refreshes every page's HTML too, so it
-		// retires the reading the same way. Same margin: never its own escalation.
+		// retires the reading the same way. The margin keeps a probe's own
+		// escalation from retiring its row when it lands at once. One that was
+		// throttled and confirmed on a retry minutes later does retire it: that
+		// purge did refresh every page after the reading, and the probe log
+		// still keeps the stale row.
 		$zone_purge = max( $zone_purge, defined( 'SN_CF_LAST_HTML_REFRESH_OPT' ) ? (int) get_option( SN_CF_LAST_HTML_REFRESH_OPT, 0 ) : 0 );
 		foreach ( $log as $entry ) {
 			if ( ! is_array( $entry ) || (int) ( $entry['algo'] ?? 1 ) < SN_CF_PROBE_ALGO ) {
