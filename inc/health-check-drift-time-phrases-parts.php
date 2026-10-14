@@ -31,18 +31,34 @@ function sn_health_drift_plain( $text ) {
 }
 
 /**
- * A provider message made safe to show: no URLs, no key-shaped tokens, 160 chars.
+ * A provider message made safe to show, cut to 160 characters.
+ *
+ * Removed: links (http(s), www. and domain/path), email addresses, credential
+ * header values (Authorization, x-api-key, api-key), Bearer and Basic tokens of
+ * any length, JWT-shaped a.b.c strings, sk-/pk-/key-/api-/org-/proj- ids and
+ * any opaque run of 32 or more characters. The message reaches both Health
+ * twins and the remote door, so it errs toward removing too much.
  *
  * @param string $message Raw WP_Error message.
  * @return string
  */
 function sn_health_drift_scrub_reason( $message ) {
+	$rules = array(
+		'#\bhttps?://\S+#i'                                                  => '[link]',
+		'/\b(authorization|x-api-key|api[-_]?key)\s*[:=]\s*(?:(?:Bearer|Basic)\s+)?\S+/i' => '$1: [redacted]',
+		'/\b(Bearer|Basic)\s+\S+/i'                                           => '$1 [redacted]',
+		'/\b[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/'       => '[redacted]',
+		'/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/'                     => '[email]',
+		'#\bwww\.\S+#i'                                                      => '[link]',
+		'#\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/\S*#i'                     => '[link]',
+		'/\b(?:sk|pk|key|api)[-_][A-Za-z0-9_-]{8,}|\b(?:org|proj)[-_][A-Za-z0-9_-]{4,}|\b[A-Za-z0-9_-]{32,}\b/i' => '[redacted]',
+	);
 	$text = trim( sn_health_drift_plain( $message ) );
-	$text = (string) preg_replace( '#\bhttps?://\S+#i', '[link]', $text );
-	// Anything that looks like a credential: sk-/key- prefixes or a long opaque run.
-	$text = (string) preg_replace( '/\b(?:sk|pk|key|api)[-_][A-Za-z0-9_-]{8,}|\b[A-Za-z0-9_-]{32,}\b/', '[redacted]', $text );
-	$text = trim( (string) preg_replace( '/\s+/', ' ', $text ) );
-	return substr( $text, 0, 160 );
+	foreach ( $rules as $pattern => $with ) {
+		$text = (string) preg_replace( $pattern, $with, $text );
+	}
+	$text = trim( (string) preg_replace( '/\s+/u', ' ', $text ) );
+	return function_exists( 'mb_substr' ) ? mb_substr( $text, 0, 160 ) : substr( $text, 0, 160 );
 }
 
 /**
@@ -102,6 +118,11 @@ function sn_health_drift_failure_reason( $raw, $text = '' ) {
 	if ( sn_health_drift_reply_is_truncated( $text ) ) {
 		return 'the answer was cut off at the answer limit';
 	}
+	// Valid JSON that is not a list of verdicts ("just a string", null).
+	json_decode( (string) $text );
+	if ( JSON_ERROR_NONE === json_last_error() ) {
+		return 'the answer was not the expected list';
+	}
 	return 'the answer was not valid JSON (it may have been cut off)';
 }
 
@@ -127,12 +148,13 @@ function sn_health_drift_failed_row( array $row, $reason ) {
  *
  * @param array $failed Rows from sn_health_drift_failed_row().
  * @param int   $total  How many calls failed (rows may be capped).
- * @return string E.g. `"A" (reason); "B" (reason), +2 more`; '' for no rows.
+ * @return string E.g. `“A” (reason); “B” (reason), +2 more`; '' for no rows.
  */
 function sn_health_drift_failed_names( array $failed, $total ) {
 	$named = array();
 	foreach ( array_slice( $failed, 0, SN_HEALTH_DRIFT_FAILED_NAMED ) as $f ) {
-		$named[] = sprintf( '"%s" (%s)', $f['title'], $f['reason'] );
+		// Typographic quotes, so a title holding straight quotes still reads cleanly.
+		$named[] = sprintf( "\u{201C}%s\u{201D} (%s)", $f['title'], $f['reason'] );
 	}
 	if ( empty( $named ) ) {
 		return '';

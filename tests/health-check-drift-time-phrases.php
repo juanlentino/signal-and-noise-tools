@@ -182,6 +182,32 @@ $GLOBALS['__rows'] = array( post( 1, '<p>Currently stable.</p>' ), post( 2, '<p>
 $r = run( new WP_Error( 'http', 'Your credit balance is too low to access the API.' ) );
 ok( 0 === strpos( (string) $r['skipped'], 'The AI provider refused the first 2 of 2 calls (Your credit balance is too low to access the API.), so no post was judged.' ), 'the breaker sentence is unchanged' );
 
+echo "\nGroup: review 2026-10-14: scrub, shape, quotes, breaker\n";
+$sn_scrub = sn_health_drift_scrub_reason( 'Denied. Authorization: Bearer abc.def x-api-key: k1 api-key=zz9 Basic dXNlcjpw mail ops@example.com, see www.example.com/help or status.example.com/incidents/7 org-AbC123 proj_xyz789 eyJhbGciOiJI.eyJzdWIiOiIx.SflKxwRJSMeK' );
+foreach ( array( 'abc.def', 'k1', 'zz9', 'dXNlcjpw', 'ops@example.com', 'www.example.com', 'status.example.com/incidents', 'org-AbC123', 'proj_xyz789', 'eyJhbGciOiJI' ) as $sn_leak ) {
+	ok( false === strpos( $sn_scrub, $sn_leak ), "scrub removes $sn_leak (got $sn_scrub)" );
+}
+ok( 0 === strpos( $sn_scrub, 'Denied.' ), 'scrub keeps the words around them' );
+ok( false !== strpos( $sn_scrub, 'x-api-key: [redacted]' ) && false !== strpos( $sn_scrub, 'api-key: [redacted]' ), 'header names survive, only their values go (got ' . $sn_scrub . ')' );
+$sn_ids = sn_health_drift_scrub_reason( 'Bad org-AbC123, proj_xyz789 and eyJhbGciOiJI.eyJzdWIiOiIx.SflKxwRJSMeK here' );
+ok( 'Bad [redacted], [redacted] and [redacted] here' === $sn_ids, 'org-/proj- ids and JWT-shaped strings go, inside the 160 cut (got ' . $sn_ids . ')' );
+$sn_long = sn_health_drift_scrub_reason( str_repeat( 'é', 200 ) );
+ok( 160 === mb_strlen( $sn_long ) && false !== mb_check_encoding( $sn_long, 'UTF-8' ), 'the 160 cut counts characters and never splits one' );
+
+$GLOBALS['__rows'] = array( post( 1, '<p>Currently stable.</p>' ), post( 2, '<p>Recently stable.</p>' ) );
+$r = run( function ( $n ) { return 1 === $n ? json_encode( array() ) : '"just a string"'; } );
+ok( false !== strpos( (string) $r['skipped'], 'the answer was not the expected list' ), 'valid JSON of the wrong shape reads "not the expected list" (got ' . var_export( $r['skipped'], true ) . ')' );
+$r = run( function ( $n ) { return 1 === $n ? json_encode( array() ) : 'null'; } );
+ok( false !== strpos( (string) $r['skipped'], 'the answer was not the expected list' ), 'a bare null reads "not the expected list"' );
+
+$GLOBALS['__rows'] = array( post( 1, '<p>Currently stable.</p>' ), array( 'ID' => 2, 'post_title' => 'A "q" title', 'post_content' => '<p>Recently stable.</p>', 'post_modified_gmt' => '2026-01-01 00:00:00' ) );
+$r = run( function ( $n ) { return 1 === $n ? json_encode( array() ) : 'nope'; } );
+ok( false !== strpos( (string) $r['skipped'], "\u{201C}A \"q\" title\u{201D}" ), 'titles sit in typographic quotes, so a title with straight quotes still reads cleanly (got ' . var_export( $r['skipped'], true ) . ')' );
+
+$GLOBALS['__rows'] = array( post( 1, '<p>Currently stable.</p>' ), post( 2, '<p>Recently stable.</p>' ), post( 3, '<p>Today stable.</p>' ) );
+$r = run( new WP_Error( 'http', 'Invalid key sk-ant-abcdefghijklmnop at https://api.example.test/v1 for ops@example.com' ) );
+ok( false === strpos( (string) $r['skipped'], 'sk-ant-' ) && false === strpos( (string) $r['skipped'], 'https://' ) && false === strpos( (string) $r['skipped'], 'ops@' ) && false !== strpos( (string) $r['skipped'], 'Invalid key' ), 'the breaker sentence is scrubbed too (got ' . var_export( $r['skipped'], true ) . ')' );
+
 echo "\nGroup: the answer limit fits a full candidate list\n";
 ok( SN_HEALTH_DRIFT_MAX_TOKENS === $GLOBALS['__ai_max'], 'the call passes SN_HEALTH_DRIFT_MAX_TOKENS, not a literal (got ' . var_export( $GLOBALS['__ai_max'], true ) . ')' );
 // One compact verdict with a one-sentence reason, measured at 3.5 chars per token.

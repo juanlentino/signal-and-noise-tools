@@ -77,7 +77,7 @@ add_action( 'wp_abilities_api_init', function() {
 							),
 							'failed'   => array(
 								'type'        => 'array',
-								'description' => 'The posts behind `partial`, one row each: post_id, title, reason in words. Capped at 20.',
+								'description' => 'The posts behind `partial`, one row each: post_id, title, reason in words. Capped at 20. Absent or empty when not tracked (scans before 2026-10-14).',
 								'items'       => array(
 									'type'       => 'object',
 									'properties' => array(

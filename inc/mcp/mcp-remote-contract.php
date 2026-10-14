@@ -126,7 +126,7 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	// RED-then-pin, 2026-10-13: the uptime row's median and slowest-check keys.
 	'17' => '9a44d64aa779d567e1fe8746d526107dafa18fd93117a6a783ccdd047def2a47',
 	// RED-then-pin, 2026-10-14: partial + failed[] on the health-scan twin's flagged rows.
-	'18' => '27a26077cd56fd820b823da3c9acc13cd4dfd38bdc810e78d17c7aa83a53aa62',
+	'18' => 'ec15e0e6b2544300a3d65a481f94648070a36f19f19420d6bb7fe3a3dc28c50a',
 );
 
 /**

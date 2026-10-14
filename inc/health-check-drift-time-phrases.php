@@ -210,7 +210,7 @@ function sn_health_check_drift_time_phrases() {
 				$ai_failures[] = sn_health_drift_failed_row( $r, sn_health_drift_failure_reason( $raw ) );
 				++$ai_err_run;
 				if ( '' === $ai_err_msg && is_wp_error( $raw ) ) {
-					$ai_err_msg = substr( trim( wp_strip_all_tags( (string) $raw->get_error_message() ) ), 0, 160 );
+					$ai_err_msg = sn_health_drift_scrub_reason( $raw->get_error_message() );
 				}
 				if ( 0 === $ai_ok && $ai_err_run >= SN_HEALTH_DRIFT_BREAKER_AFTER ) {
 					$ai_tripped = true;
