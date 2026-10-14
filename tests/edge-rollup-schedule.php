@@ -13,7 +13,8 @@ define( 'DAY_IN_SECONDS', 86400 );
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-$src = (string) file_get_contents( __DIR__ . '/../inc/edge-rollup.php' );
+require_once __DIR__ . '/lib/inc-population.php'; // edge-rollup.php is read with its four parts files (split 2026-10-14).
+$src = snt_test_edge_rollup_src();
 preg_match( "/const SN_EDGE_ROLLUP_AT = '([0-9:]+)';/", $src, $at );
 define( 'SN_EDGE_ROLLUP_AT', $at[1] ?? '' );
 define( 'SN_EDGE_ROLLUP_HOOK', 'sn_edge_rollup_cron' );
