@@ -33,8 +33,8 @@ What it shows, top to bottom:
 - **The cadence lines**, one per cluster or gap (see Cadence), up to three,
   then "+N more in Scheduled". Each gap line has a **Planned** button.
 - **Drafts**, the newest three the viewer can edit, by title, each linking to
-  its editor, with its suggested slot in words beside it ("suggested: Thu,
-  Oct 30"; the reason is the row's tooltip; see Suggested slots). An editor
+  its editor, with its suggested slot in words on a line under it
+  ("suggested: Thu, Oct 30"; the reason is the tooltip; see Suggested slots). An editor
   also sees "+N more"; a contributor sees only their own drafts and no
   site-wide count beside them.
 - **Just published**, the last three, and **Open Scheduled**.
@@ -75,26 +75,33 @@ the card and both Scheduled twins:
 
 - The day is the next open one after today: never under 2 days from a note
   (exactly 2 is allowed), never inside a planned gap.
-- The earliest unplanned gap over 7 days (the Cadence walk's own gap) is
-  filled first, at its first open day ("fills the Oct 25 to Nov 4 gap").
-- Otherwise the last note plus the median spacing between notes, held between
-  2 and 7 days ("the usual 4 days after the last note on Jan 25, 2027"; when
-  held, the reason says the usual would leave a gap or make a cluster), walked
-  forward past a planned or taken day ("moved to the next open day").
+- The earliest unplanned gap over 7 days (the Cadence walk's own gap) is split
+  first: cut into the fewest pieces of 7 days or less, as even as they can be,
+  and the draft takes the first cut (the open day nearest it): "splits the
+  Oct 25 to Nov 4 gap into 6 and 6 days". Several drafts aimed at one hole
+  spread across it (a 20-day hole: 7, 7 and 6 days), never packed at its start.
+- Otherwise the last note (or earlier suggestion) plus the median spacing
+  between notes, held between 2 and 7 days ("the usual 4 days after the last
+  note on Jan 25, 2027"; when held, the reason says the usual would leave a
+  gap or make a cluster), walked forward past a planned or taken day ("moved
+  to the next open day").
 - The time is the median time of day of the scheduled notes in the site
   timezone (the lower middle, so a time the site really uses).
-- Drafts are taken newest edit first; each suggestion counts as taken for the
-  next, so no two drafts share a day.
-- With nothing scheduled, or fewer than two notes to measure, the draft says
-  "No slot suggested: fewer than two notes to read the rhythm from." (on the
-  card: "no slot suggested").
+- Drafts are taken newest edit first (ties by ID); each suggestion joins the
+  walk for the next, so no two drafts share a day.
+- No slot, said in words (on the card: "no slot suggested"): "nothing
+  scheduled to read the rhythm from", "fewer than two notes to read the rhythm
+  from", or "no open day in the next year".
 
 The ability carries it as `slot` on each `draft_list` row (`day`, `time`,
-`label`, `reason`, `text`). Connections › Scheduled has a **Suggested slots**
-box on both twins: the rule, then each draft's title (a link to its editor)
-and the same sentence, "+N more drafts, not given a slot here." past the
-three, or "No drafts, so no slot to suggest." / "Drafts not read, so no slot
-is suggested."
+`label`, `reason`, `text`). On the card the slot is its own 11px line under
+the draft's title ("suggested: Fri, Jan 29, 2027", the year only when it is
+not this one), so the title keeps the whole row; the sentence is the tooltip.
+Connections › Scheduled has a **Suggested slots** box on both twins: the
+rule, then each draft's title (a link to its editor) and the same sentence,
+"+N more drafts, not given a slot here." past the three, or "No drafts, so no
+slot to suggest." / "Drafts not read, so no slot is suggested." Both boxes
+(Cadence and Suggested slots) share one read of the schedule.
 
 On the live queue (2026-10-13: 25 scheduled, every gap 4 days or less, the
 holiday pause planned) a first draft would be suggested Fri, Jan 29, 2027 at
@@ -123,8 +130,9 @@ with the real queue: 573 at 265 wide and 549 at 312, chrome included, plus
 about 10px of slack, then raised to 640 so one cadence line shows without a
 scrollbar (measured with the longest sentence and its Planned button: 627 at
 265 wide, where it wraps to three lines, and 585 at 312). A draft's suggested
-slot (2026-10-13) sits in its row's existing date column, so it adds no
-height; the title gives way with an ellipsis. The
+slot (2026-10-13) is one 11px line under its title, about 15px per listed
+draft (45px at the three-draft cap); the ordinary state measured for 640 had
+no drafts, so it holds, and a card with drafts and a cadence line scrolls. The
 busiest state (a missed note, three cadence lines and "+N more", three drafts with "+N more" and
 three Later rows, about 180px more) scrolls inside the card. It was 780, sized
 for that busiest state, which left about 200px empty on an ordinary day. The
