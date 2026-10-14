@@ -176,6 +176,21 @@ $GLOBALS['__ledger'] = array();
 sn_cf_purge_tag( 'probe' );
 ok( 'probe' === ( $GLOBALS['__ledger'][0]['trigger'] ?? '' ) && 'tag' === $GLOBALS['__ledger'][0]['scope'], 'a tag purge names who asked: a probe escalation is trigger probe, scope tag' );
 
+echo "\nGroup: the whole-HTML refresh time Attention reads (2026-10-13)\n";
+reset_all( array( array( 200, true ) ) );
+unset( $GLOBALS['__opts']['sn_cf_last_html_refresh'] );
+sn_cf_api_send( 'purge_cache', array( 'tags' => array( 'sn-note-5', 'sn-lists' ) ) );
+ok( ! isset( $GLOBALS['__opts']['sn_cf_last_html_refresh'] ), "a note's own tags do not stamp it: they refresh one note" );
+sn_cf_purge_tag( 'probe' );
+ok( isset( $GLOBALS['__opts']['sn_cf_last_html_refresh'] ) && abs( time() - $GLOBALS['__opts']['sn_cf_last_html_refresh'] ) < 5, "a probe's confirmed sn-render tag purge stamps it" );
+unset( $GLOBALS['__opts']['sn_cf_last_html_refresh'] );
+sn_cf_api_send( 'invalidate_cache', array( 'purge_everything' => true ) );
+ok( isset( $GLOBALS['__opts']['sn_cf_last_html_refresh'] ), "an update's confirmed zone invalidate stamps it" );
+unset( $GLOBALS['__opts']['sn_cf_last_html_refresh'] );
+reset_all( array( array( 503, false ) ) );
+sn_cf_purge_tag( 'probe' );
+ok( ! isset( $GLOBALS['__opts']['sn_cf_last_html_refresh'] ), 'a tag purge still waiting on a retry does not: nothing was refreshed yet' );
+
 echo "\nGroup: a Site Editor save purges the whole-site tag (2026-10-13)\n";
 reset_all( array( array( 200, true ) ) );
 $GLOBALS['__ledger'] = array();

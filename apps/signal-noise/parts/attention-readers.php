@@ -257,6 +257,10 @@ function attention_edge() {
 		// ponytail: this retires on a purge, not on a re-probe; a live re-check
 		// per row is the upgrade if a zone purge ever stops clearing the edge.
 		$zone_purge = defined( 'SN_CF_LAST_ZONE_PURGE_OPT' ) ? (int) get_option( SN_CF_LAST_ZONE_PURGE_OPT, 0 ) : 0;
+		// 2026-10-13: a whole-site tag purge (a probe's escalation, a save) or a
+		// zone invalidate (an update) refreshes every page's HTML too, so it
+		// retires the reading the same way. Same margin: never its own escalation.
+		$zone_purge = max( $zone_purge, defined( 'SN_CF_LAST_HTML_REFRESH_OPT' ) ? (int) get_option( SN_CF_LAST_HTML_REFRESH_OPT, 0 ) : 0 );
 		foreach ( $log as $entry ) {
 			if ( ! is_array( $entry ) || (int) ( $entry['algo'] ?? 1 ) < SN_CF_PROBE_ALGO ) {
 				continue;

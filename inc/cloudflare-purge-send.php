@@ -22,6 +22,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_CF_RETRY_HOOK    = 'sn_cf_purge_retry';
 const SN_CF_FAILURE_OPT   = 'sn_cf_purge_failure';
 const SN_CF_RETRY_DELAYS  = array( 60, 300, 900 ); // seconds before tries 2, 3 and 4.
+// 2026-10-13: when every page's HTML was last refreshed by a confirmed call:
+// a zone purge or invalidate, or a purge or invalidate of the theme's
+// whole-site tag (a save, a Site Editor save, a probe escalation). Attention
+// reads it to retire a stale-probe row the refresh superseded. A note's own
+// tags (sn_cf_purge_note) cover one note, so they do not stamp it.
+const SN_CF_LAST_HTML_REFRESH_OPT = 'sn_cf_last_html_refresh';
 // A code update marks pages stale instead of deleting them (2026-10-13). Held
 // empty since 20.9.0 until an install showed the 304 fix holding at the edge:
 // notes now carry a Last-Modified equal to the update time (cache research,
@@ -78,6 +84,9 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 	if ( ! empty( $r['cf_success'] ) ) {
 		$GLOBALS['sn_cf_send_last'] = 'ok';
 		sn_cf_purge_failure_clear( $body, $endpoint );
+		if ( sn_cf_body_refreshes_html( $body ) ) {
+			update_option( SN_CF_LAST_HTML_REFRESH_OPT, time(), false );
+		}
 		if ( isset( $body['purge_everything'] ) ) {
 			// Stamped on confirmation only (first try or a retry): the attention
 			// list reads the zone time as proof a refresh superseded older stale
@@ -130,6 +139,21 @@ function sn_cf_api_send( $endpoint, $body, $attempt = 0 ) {
 }
 if ( function_exists( 'add_action' ) ) {
 	add_action( SN_CF_RETRY_HOOK, 'sn_cf_api_send', 10, 3 );
+}
+
+/**
+ * Whether a call's body covers every page's HTML: the whole zone, or the
+ * theme's whole-site tag. PURE.
+ *
+ * @param array $body Request body.
+ * @return bool
+ */
+function sn_cf_body_refreshes_html( array $body ) {
+	if ( ! empty( $body['purge_everything'] ) ) {
+		return true;
+	}
+	return defined( 'SN_EDGE_CACHE_TAG' ) && '' !== (string) constant( 'SN_EDGE_CACHE_TAG' )
+		&& in_array( (string) constant( 'SN_EDGE_CACHE_TAG' ), array_map( 'strval', (array) ( $body['tags'] ?? array() ) ), true );
 }
 
 /**
