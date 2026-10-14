@@ -3,7 +3,7 @@
  * Signal & Noise app — the Attention queue's NINE READERS.
  *
  * THE SEAM: this file and its parts are the only half that calls the estate. Its
- * siblings -- parts/attention.php -- hold the vocabulary, the composition, the
+ * siblings -- parts/attention*.php -- hold the vocabulary, the composition, the
  * item shape and the descriptor, and touch no signal at all. Split at that
  * line, in that direction, because the two halves fail differently: a reader
  * breaks when the thing it reads changes shape, and the composition breaks
