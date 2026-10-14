@@ -144,7 +144,7 @@ function snt_mr_normalize_rows( $data ) {
  * validation, the resolve-then-range-check SSRF guard) with redirection=0 so a
  * validated host cannot redirect the Bearer token to an internal one. Non-200
  * and schema-invalid responses fail closed. Success is held in a short display
- * transient (volatile-OK under Breeze; nothing durable lives here).
+ * transient (volatile-OK under the Redis object cache; nothing durable lives here).
  *
  * @param int    $days Window, clamped 1..90.
  * @param string $view v10.79.0. 'aggregate' (default, the historic shape),

@@ -41,7 +41,9 @@ function sn_cf_last_purge_kind( array $last ) {
  * Breeze's page cache as the theme's last purge report read it (theme
  * signal-and-noise#532: legs.breeze_page_cache, true, false or null): 'on',
  * 'off' or 'not read'. On matters: a Breeze hit carries no cache tag, so a
- * tag purge cannot reach the copy the edge stored from it.
+ * tag purge cannot reach the copy the edge stored from it. Breeze is
+ * deactivated since 2026-10-13; the breeze_active health check goes red if
+ * it comes back.
  *
  * @param mixed $report sn_last_purge_report.
  * @return string

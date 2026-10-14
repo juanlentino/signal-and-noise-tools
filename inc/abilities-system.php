@@ -56,7 +56,7 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'flush_object_cache' => array(
 					'type'        => 'boolean',
-					'description' => 'Also empty Redis (the whole object cache). The Cloudways app purge no longer runs here: Varnish is off for this app, so it is retired unless wp-config.php sets SN_CLOUDWAYS_APP_PURGE (2026-10-13). Default false since 20.9.0: emptying Redis drops WordPress\'s update checks and every cached reading, and a stale page never needs it. include_template_overrides implies it (a full reset).',
+					'description' => 'Also empty Redis (the whole object cache). The Cloudways app purge is retired (2026-10-14): Varnish is off for this app. Default false since 20.9.0: emptying Redis drops WordPress\'s update checks and every cached reading, and a stale page never needs it. include_template_overrides implies it (a full reset).',
 					'default'     => false,
 				),
 			),

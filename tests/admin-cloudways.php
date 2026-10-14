@@ -105,11 +105,14 @@ $report = ob_get_clean(); echo $report;
 echo "\nRetired app purge (2026-10-13: Varnish is off for this app)\n";
 $ret = sn_admin_cloudways_cards( array( 'configured' => true, 'missing' => array(), 'last' => array( 'time' => time() - 86400 * 9, 'ok' => true ), 'ago' => '9 days ago', 'on' => false ) );
 ok( 'Retired' === $ret[1]['value'] && false !== strpos( $ret[1]['meta_html'], 'Last called Cloudways 9 days ago, before the app purge was retired.' ), 'Last purge reads Retired, the age only inside a sentence that says why it stopped' );
-ok( 'Retired' === $ret[2]['value'] && '' === $ret[2]['pill']['kind'] && false !== strpos( $ret[2]['meta_html'], 'Varnish is off for this app' ) && false !== strpos( $ret[2]['meta_html'], 'SN_CLOUDWAYS_APP_PURGE' ), 'Result reads Retired with no OK or warning badge, and says how to turn it back on' );
+ok( 'Retired' === $ret[2]['value'] && '' === $ret[2]['pill']['kind'] && false !== strpos( $ret[2]['meta_html'], 'Varnish is off for this app' ) && false === strpos( $ret[2]['meta_html'], 'SN_CLOUDWAYS_APP_PURGE' ), 'Result reads Retired with no OK or warning badge, and offers no switch that no longer exists' );
 $leg = sn_admin_cloudways_leg( array( 'time' => time() - 60, 'ok' => true ), false );
 ok( 'Retired' === $leg['text'] && 'muted' === $leg['kind'] && 0 === $leg['time'], 'the shared leg reads Retired, muted, with no attempt time to grow' );
 ok( 'Retired' !== sn_admin_cloudways_cards( array( 'configured' => true, 'missing' => array(), 'last' => array( 'time' => time(), 'ok' => true ), 'ago' => '1 min ago' ) )[1]['value'], 'a state without the flag stays on (fixtures, older callers)' );
 
+$un = sn_admin_cloudways_cards( array( 'configured' => false, 'missing' => sn_admin_cloudways_constants(), 'last' => null, 'ago' => '', 'on' => false ) );
+ok( '' === $un[0]['pill']['kind'] && 'Not configured' === $un[0]['value'], 'retired and unconfigured: the Connection card carries no warning tone' );
+ok( 'warn' === sn_admin_cloudways_cards( array( 'configured' => false, 'missing' => sn_admin_cloudways_constants(), 'last' => null, 'ago' => '' ) )[0]['pill']['kind'], 'control: a state without the retired flag still warns' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
 

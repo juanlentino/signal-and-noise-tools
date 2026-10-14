@@ -12,6 +12,17 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **A Health check goes red when a second page cache comes back.** The Cloudflare edge is the only page cache (owner, 2026-10-13), and Breeze is deactivated, but Cloudways can switch it back on. A Breeze page cache serves pages without Cache-Tag, so the tag purges cannot clear them. The new `breeze_active` check (Health surface, Other checks family) reports Breeze in `active_plugins`, or `WP_CACHE` true with a `wp-content/advanced-cache.php` drop-in, and its fix hint says to deactivate Breeze. One option read and one file stat; no network. The scan now runs one more check.
+
+### Removed
+- **The Breeze excludes.** `breeze_exclude_js` and `breeze_exclude_css` only told Breeze's minifier what to skip; Breeze is deactivated, so nothing read them.
+- **The Cloudways app purge.** It ran only on `breeze_clear_varnish`, which the theme stopped firing (signal-and-noise#532) and Breeze no longer fires, and Varnish is off for this app. The hook, the API call, its token cache and timeout filter, the `SN_CLOUDWAYS_APP_PURGE` switch and the ledger's gate for it (`snt_purge_wants_app_purge()`) are gone. Kept: the four credential readers and `sn_cloudways_last_purge`, which the Connections leaves still show as history. New ledger rows say "retired: Varnish is off for this app"; older rows keep the words they were written with.
+
+### Fixed
+- **"SN: Purge all caches" says what it purges:** transients and the Cloudflare edge, with Redis left alone. It said "Object cache + Breeze + Varnish + Cloudflare".
+- **Copy and comments no longer describe Breeze or the Cloudways purge as running:** the Cloudways leaf's hint and retired sentence (no switch to turn it back on), the Last purge caption, the keyring's Cloudways key row, the purge-all-caches and cache-freshness ability descriptions, and comments in the purge ledger, Core status, deploy history, the résumé PDF sync and three Redis notes.
+
 ## [2026.10.14] - 2026-10-14 — agent runs priced, the Pulse Monitor hears S&N, fourteen big files split
 
 ### Added

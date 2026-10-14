@@ -139,8 +139,7 @@ function sn_resume_pdf_generate() {
 	// The Download link carries ?v=<hash>: re-render /resume so it points at
 	// this version. That is an ordinary page save, and the save does the page's
 	// own purging: this plugin's per-URL Cloudflare purge (the /resume/
-	// permalink and its listings) and Breeze's save_post handler, which drops
-	// its stored copy of the page. Nothing here repeats either.
+	// permalink and its listings). Nothing here repeats it.
 	if ( function_exists( 'sn_resume_sync_page' ) ) {
 		sn_resume_sync_page();
 	}

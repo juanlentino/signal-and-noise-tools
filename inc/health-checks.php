@@ -45,9 +45,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // v6.47.2: the scan result is stored in a DURABLE option (autoload=no), not a
-// transient. On a site with a persistent object cache (e.g. Breeze/Redis on
-// Cloudways), transients live in the object cache, so the cache flush a caching
-// plugin fires on a plugin update wiped the last scan — the owner had to re-run
+// transient. On a site with a persistent object cache (Redis on Cloudways),
+// transients live in the object cache, so the cache flush a caching plugin
+// fired on a plugin update (Breeze, at the time) wiped the last scan; the owner had to re-run
 // it after every update. An option is a real wp_options row that survives object-
 // cache flushes, so the scan now persists until the next manual run. The KEY name
 // is unchanged (it does not collide: a transient was stored under the
@@ -146,6 +146,9 @@ function sn_health_run_scan() {
 			// payload is a versioned remote-MCP twin and a new field is a
 			// contract bump the worker has not been redeployed for.
 			'wp_cron_request_path' => sn_health_check_wp_cron_request_path(),
+			// 2026-10-14: Breeze (or any advanced-cache.php page cache) is back.
+			// Its pages carry no Cache-Tag, so the edge's tag purges cannot clear them.
+			'breeze_active'        => sn_health_check_breeze_active(),
 			// 28th check (15.9.0): notes whose title tag is the aphorism alone.
 			// Born from the Search Console pressure test: 40 of 43 without a
 			// query-shaped subtitle, 21 never shown. A defect that reaches zero.

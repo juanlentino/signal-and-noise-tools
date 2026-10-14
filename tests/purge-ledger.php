@@ -2,9 +2,8 @@
 /**
  * Guard: the purge ledger and the rules that keep purges rare (20.7.0).
  *
- * A row per purge, capped; the Cloudways app purge (it empties all of Redis)
- * runs only on a purge-everything; Breeze's own update purge is unhooked;
- * the rollover skips after an update purge.
+ * A row per purge, capped; Breeze's own update purge is unhooked if Breeze
+ * is ever active again; the rollover skips after an update purge.
  *
  * Run: php tests/purge-ledger.php
  */
@@ -36,11 +35,11 @@ require __DIR__ . '/../inc/purge-ledger.php';
 
 echo "A row per purge\n";
 snt_purge_ledger_open( array( 'object_cache' => false, 'trigger' => 'update' ) );
-$GLOBALS['snt_purge_cloudways'] = 'skipped: page-only purge';
+$GLOBALS['snt_purge_cloudways'] = 'skipped: page-only purge'; // A stale global from the retired leg is ignored.
 $GLOBALS['snt_purge_edge'] = true; // sn_cf_purge_everything() dispatched.
 snt_purge_ledger_close();
 $r = snt_purge_ledger_rows()[0];
-ok( 'update' === $r['trigger'] && false === $r['redis'] && true === $r['pages'] && true === $r['edge'] && 'skipped: page-only purge' === $r['cloudways'], 'an update row: no Redis flush, pages and edge cleared, Cloudways stood down' );
+ok( 'update' === $r['trigger'] && false === $r['redis'] && true === $r['pages'] && true === $r['edge'] && 'not run' === $r['cloudways'], 'an update row: no Redis flush, pages and edge cleared, and no Cloudways answer (the retired leg cannot write one)' );
 ok( ! isset( $GLOBALS['snt_purge_current'] ), 'the open row is closed' );
 snt_purge_ledger_open( array( 'trigger' => 'update' ) );
 snt_purge_ledger_close();
@@ -59,21 +58,6 @@ $GLOBALS['doing'] = array( 'snt_deploy_history_purge_rollover' ); $GLOBALS['cron
 ok( 'cron:snt_deploy_history_purge_rollover' === snt_purge_trigger(), 'a cron names its hook' );
 $GLOBALS['doing'] = array(); $GLOBALS['cron'] = false;
 ok( 'manual' === snt_purge_trigger(), 'otherwise manual' );
-
-echo "\nThe Cloudways app purge (it empties Redis) runs only on a purge-everything\n";
-snt_purge_ledger_open( array( 'object_cache' => false, 'trigger' => 'update' ) );
-ok( ! snt_purge_wants_app_purge(), 'an update stands it down' );
-snt_purge_ledger_open( array( 'trigger' => 'manual' ) );
-ok( snt_purge_wants_app_purge(), 'the manual purge-everything runs it' );
-unset( $GLOBALS['snt_purge_current'] );
-ok( snt_purge_wants_app_purge(), 'outside our chain (Breeze\'s Purge Varnish button) it runs' );
-$GLOBALS['doing'] = array( 'breeze_purge_cache' );
-ok( ! snt_purge_wants_app_purge(), 'Breeze\'s nightly purge never runs it' );
-$GLOBALS['doing'] = array();
-
-$cw = (string) file_get_contents( __DIR__ . '/../inc/cloudways-purge.php' );
-$gate = strpos( $cw, '! snt_purge_wants_app_purge()' );
-ok( false !== $gate && $gate < strpos( $cw, "'/app/cache/purge'" ), 'the Cloudways leg asks before it dispatches' );
 
 echo "\nBreeze's own update purge is unhooked (5a)\n";
 class Breeze_Bulk_Update { function breeze_after_plugin_bulk_upgrade() {} }
@@ -147,15 +131,15 @@ ok( true === snt_purge_ledger_summary()['last_7_days_is_floor'], '50 purges insi
 $GLOBALS['opt'][ SNT_PURGE_LEDGER_OPTION ][ SNT_PURGE_LEDGER_CAP - 1 ]['time'] = time() - 8 * DAY_IN_SECONDS;
 ok( false === snt_purge_ledger_summary()['last_7_days_is_floor'], 'control: the oldest row is older than the week, so the count is exact' );
 
-echo "\nCloudways on its own (Breeze's buttons) still writes a row\n";
+echo "\nRows the retired Cloudways leg wrote still read (retired 2026-10-14)\n";
 require __DIR__ . '/../inc/cloudways-purge.php';
 $GLOBALS['opt'] = array();
 unset( $GLOBALS['snt_purge_current'] );
-snt_cloudways_note( 'inconclusive http 0' );
-ok( 'unknown' === snt_purge_ledger_rows()[0]['redis'], 'a timeout may still have emptied Redis: unknown, never no' );
-snt_cloudways_note( 'not configured' );
-ok( 'not configured' === snt_purge_ledger_rows()[0]['cloudways'] && false === snt_purge_ledger_rows()[0]['redis'], 'unconfigured Cloudways still leaves a row' );
-ok( 1 === snt_purge_ledger_summary()['redis_flushes_7d'], 'the unknown one counts as a possible Redis flush' );
+snt_purge_ledger_add( array( 'trigger' => 'manual', 'redis' => 'unknown', 'pages' => true, 'edge' => false, 'cloudways' => 'inconclusive http 0' ) );
+snt_purge_ledger_add( array( 'trigger' => 'manual', 'redis' => false, 'pages' => true, 'edge' => false, 'cloudways' => 'not configured' ) );
+ok( 'not configured' === snt_purge_ledger_rows()[0]['cloudways'] && 'inconclusive http 0' === snt_purge_ledger_rows()[1]['cloudways'], 'an old row keeps the words it was written with' );
+ok( 1 === snt_purge_ledger_summary()['redis_flushes_7d'], 'an old timeout (redis unknown) still counts as a possible Redis flush' );
+ok( ! function_exists( 'snt_purge_wants_app_purge' ), 'the gate that told the Cloudways call when to stand down went with it' );
 
 echo "\nA Cloudflare zone purge on its own (admin bar, first publish, a schedule) is a row\n";
 function wp_remote_post( $url = '', $args = array() ) { $GLOBALS['cf_urls'][] = (string) $url; return array( 'response' => array( 'code' => 200 ), 'body' => '{"success":true}' ); }

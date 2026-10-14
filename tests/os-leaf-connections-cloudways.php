@@ -54,12 +54,12 @@ ok( 3 === substr_count( $kit, '<span class="snt-sys__k">' ) && 1 === substr_coun
 ok( false !== strpos( $kit, '<span class="snt-sys__k">Connection</span><span class="snt-sys__v">Not configured</span><os-badge tone="warning">Inactive</os-badge>' ), 'unconfigured: the Connection cell reads Not configured with an Inactive warning badge' );
 $named = true;
 foreach ( sn_admin_cloudways_constants() as $name ) { $named = $named && false !== strpos( $kit, '<os-code>' . $name . '</os-code>' ); }
-ok( $named && false !== strpos( $kit, 'the purge no-ops silently until all four are present' ), 'unconfigured: every missing constant is NAMED in inline os-code (the actionable part)' );
+ok( $named && false !== strpos( $kit, 'nothing needs them while the app purge is retired' ), 'unconfigured: every missing constant is NAMED in inline os-code (the actionable part)' );
 ok( false !== strpos( $kit, '<span class="snt-sys__k">Last purge</span><span class="snt-sys__v">Never</span>' ) && false !== strpos( $kit, 'Nothing recorded yet.' ), 'no record: Last purge reads Never with its meta line' );
 $cell = cw_result_cell( $kit );
 ok( false !== strpos( $cell, '<span class="snt-sys__v">Never run</span><os-badge tone="warning">No data</os-badge>' ) && false !== strpos( $cell, 'This is not a failure.' ) && false === strpos( $cell, 'danger' ), 'no record: Result reads Never run / No data as a WARNING, never as danger' );
 ok( false !== strpos( $kit, 'snt-sys--warn" data-tone="warning"' ) && false === strpos( $kit, 'snt-sys--err' ), 'unconfigured cells carry the warning stripe and none the danger stripe' );
-ok( false !== strpos( $kit, '<p class="snt-hint">Cloudways hosts the origin; its app purge clears Varnish and empties Redis. This screen reports that purge and never changes it. Credentials live in <os-code>wp-config.php</os-code> only: an account-wide API key is deliberately kept out of the database.</p>' ), 'the helper line survives as a hint, its <code> as inline os-code; plain words, no em dash (2026-10-12 audit)' );
+ok( false !== strpos( $kit, '<p class="snt-hint">Cloudways hosts the origin. Its app purge (Varnish and Redis) is retired: Varnish is off for this app. This screen reports the last call and never changes it. Credentials live in <os-code>wp-config.php</os-code> only: an account-wide API key is deliberately kept out of the database.</p>' ), 'the helper line survives as a hint, its <code> as inline os-code; plain words, no em dash (2026-10-12 audit)' );
 // 2026-10-12 audit: the captions are sentences but painted in the mono "value" face.
 ok( 3 === substr_count( $kit, 'class="snt-sys snt-sys--prose' ) && 1 === preg_match( '/\.snt-sys--prose \.snt-sys__meta\s*\{[^}]*font:\s*400 12px\/1\.45 var\( --os-ui-font,/', (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' ) ), 'the three Cloudways captions take the text face, not the mono value face' );
 ok( false === strpos( $kit, '<code>' ) && false !== strpos( $classic, '<code>' ), 'every classic inline <code> became inline <os-code>' );
@@ -70,7 +70,7 @@ $kit  = snt_leaf_paint( 'connections', 'cloudways' );
 $cell = cw_result_cell( $kit );
 ok( false !== strpos( $cell, '<span class="snt-sys__v">Failed</span><os-badge tone="danger">Failed</os-badge>' ) && false !== strpos( $cell, 'bad credential (stage <os-code>auth</os-code>, HTTP <os-code>401</os-code>)' ), 'failed: Result reads Failed / danger, the error envelope, stage and HTTP are shown' );
 ok( false !== strpos( $cell, 'class="snt-sys snt-sys--prose snt-sys--err" data-tone="danger"' ), 'failed: the Result cell carries the danger stripe' );
-ok( false !== strpos( $kit, '<span class="snt-sys__k">Last purge</span><span class="snt-sys__v">1 hour ago</span>' ) && false !== strpos( $kit, 'Cache purge on the Cloudways application, run by a manual purge of every cache and by Breeze\'s Purge Varnish button.' ), 'a timed record: Last purge reads the relative time with its meta line' );
+ok( false !== strpos( $kit, '<span class="snt-sys__k">Last purge</span><span class="snt-sys__v">1 hour ago</span>' ) && false !== strpos( $kit, 'Cache purge on the Cloudways application.' ), 'a timed record: Last purge reads the relative time with its meta line' );
 
 // ── Inconclusive: its own outcome, never a failure.
 cw_record( array( 'ok' => false, 'inconclusive' => true, 'error' => 'timeout' ) );
@@ -111,6 +111,12 @@ ok( false === strpos( $kit, 'super-secret-account-wide-key' ) && false === strpo
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array() === snt_leaf_names( $kit ), 'configured: still no field and no action on either leaf' );
 ok( 0 === preg_match( '/snt-sys--(warn|err)/', $kit ) && false === strpos( $kit, 'data-tone=' ), 'a healthy leaf paints no tone stripe on any cell' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'configured: no wp-admin markup survives' );
+
+// ── Retired and unconfigured: missing credentials are not a fault, so the
+// native cell (painted from the same card) carries no warning badge or stripe.
+$un_card = sn_admin_cloudways_cards( array( 'configured' => false, 'missing' => sn_admin_cloudways_constants(), 'last' => null, 'ago' => '', 'on' => false ) )[0];
+$un_cell = \SignalNoise\OpenStationHost\Dashboard\Leaves\cloudways_card_html( $un_card );
+ok( false !== strpos( $un_cell, 'Not configured' ) && false === strpos( $un_cell, 'snt-sys--warn' ) && false === strpos( $un_cell, 'os-badge' ), 'retired and unconfigured: the native Connection cell reads Not configured with no warning badge or stripe' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

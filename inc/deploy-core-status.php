@@ -84,9 +84,9 @@ function snt_core_status() {
 	$cached  = snt_core_cached_check();
 	if ( '' === $current || null === $cached ) {
 		// Object-cache flushes empty it: the theme's purge after an update (refilled
-		// by snt_core_refill_after_flush) and the nightly Breeze purge reaching the
-		// Cloudways app purge, documented to clear Redis too (refilled by
-		// snt_core_refill_guard). The reason states only the observation.
+		// by snt_core_refill_after_flush) and any other flush, such as a manual
+		// purge that empties Redis (refilled by snt_core_refill_guard). The
+		// reason states only the observation.
 		$row['reason'] = 'WordPress\'s core update check is not in the cache right now, so there is nothing to compare against. It reappears when WordPress next checks. Read only; nothing is fetched here.';
 		return $row;
 	}
@@ -166,17 +166,19 @@ add_action( 'snt_core_version_refill', 'snt_core_version_refill' );
  * The guard behind the refill: whatever emptied update_core, notice it.
  *
  * The purge hook above catches the theme's flush, but not every emptier says
- * so: Breeze's nightly purge (00:00 UTC) fires breeze_clear_varnish, which
- * reaches the Cloudways app purge (inc/cloudways-purge.php), and that clears
+ * so. Until 2026-10-13, Breeze's nightly purge (00:00 UTC) fired
+ * breeze_clear_varnish, which reached the Cloudways app purge, and that cleared
  * Redis too, per the Cloudways purge tool's documentation. Core then read "not
- * cached" from about 00:00 to the 10:50 UTC check (2026-10-02). Every emptier ends in the same state, so the 5-minute
+ * cached" from about 00:00 to the 10:50 UTC check (2026-10-02). Breeze is
+ * deactivated and the app purge is retired (2026-10-14), but a manual purge
+ * that empties Redis still ends in the same state. Every emptier ends in the same state, so the 5-minute
  * warm pass checks the state: update_core missing and no refill queued means
  * queue one, at most once an hour (24 wordpress.org calls a day at worst).
  * The stamp is an option, not a transient, so a Redis flush cannot reset it.
  * Hooked ahead of the worker probe (priority 5) so a slow probe cannot starve it.
  *
  * ponytail: a second flush inside the hour (Breeze fired twice on 2026-10-02,
- * 00:00:35 and 00:05:15) leaves Core blank until the hour passes; shorten the
+ * 00:00:35 and 00:05:15, before it was deactivated) leaves Core blank until the hour passes; shorten the
  * throttle if that shows up.
  *
  * @return void
