@@ -74,10 +74,18 @@ ok( true === $r['ok'] && '2026-10-05' === $r['first_full_day'] && array( 'sn_pag
 ok( 'sn_pageviews_v2' === SN_ANALYTICS_DATASET_PV_V2 && 'sn_events_v2' === SN_ANALYTICS_DATASET_EVENTS_V2, 'the names are the worker\'s (wrangler.toml, /_sn/version datasets)' );
 
 echo "\nA failed request\n";
-function sn_analytics_last_error() { return array( 'code' => 403, 'message' => 'no permission', 'url' => 'x', 'when' => 1 ); }
+// As inc/analytics-api.php: an error recorded before $since is another read's.
+function sn_analytics_last_error( $since = 0 ) { $e = $GLOBALS['__ae_err']; return (int) $e['when'] >= (int) $since ? $e : null; }
+$GLOBALS['__ae_err'] = array( 'code' => 403, 'message' => 'no permission', 'url' => 'https://api.cloudflare.com/client/v4/accounts/SECRETACCT/x', 'when' => time() );
 $GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $L, null, $E );
 $f = sn_analytics_v2_check( 4, '2026-10-05' );
 ok( false === $f['read'] && 'sn_pageviews_v2' === $f['failed'] && 'HTTP 403 no permission' === $f['error'], 'a failed request names its dataset and keeps its reason' );
+ok( false === strpos( (string) $f['error'], 'SECRETACCT' ), 'the reason never carries the request URL (it holds the account id)' );
+$GLOBALS['__ae_err']['when'] = time() - 120;
+$GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $L, null, $E );
+$f = sn_analytics_v2_check( 4, '2026-10-05' );
+ok( 'no error was recorded during this read' === $f['error'], 'an error recorded before the check began (another read\'s) is not quoted as its reason' );
+$GLOBALS['__ae_err']['when'] = time();
 ok( 2 === count( $GLOBALS['sql'] ), 'and nothing is asked after it, so a later success cannot clear that reason' );
 
 echo "\nThe same sample on both sides counts (owner rule 2026-10-05)\n";
@@ -219,6 +227,18 @@ $GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $Lh, $Ph, array(), $Dh['
 sn_analytics_v2_check( 4, '2026-10-05' );
 ok( 5 === count( $GLOBALS['sql'] ), 'without a complete over-cap list the figures are not read' );
 unset( $GLOBALS['cap'] );
+
+echo "\nThe dual-write ability's diagnostic quotes only its own error\n";
+// A sampled day sends the ability into its own read loop; every read after
+// the check's three fails here, so its first one does.
+$GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $Ls, $Ps, array() );
+$GLOBALS['__ae_err'] = array( 'code' => 500, 'message' => 'an older read', 'url' => 'u', 'when' => time() - 120 );
+$dw = snt_ability_analytics_dual_write( array( 'days' => 4 ) );
+ok( 'sn_pageviews' === ( $dw['sampled_visitors']['failed'] ?? null ) && 'no error was recorded during this read' === ( $dw['sampled_visitors']['error'] ?? null ), 'an error recorded before the diagnostic began (another read\'s) is not quoted as its reason' );
+$GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $Ls, $Ps, array() );
+$GLOBALS['__ae_err']['when'] = time();
+$dw = snt_ability_analytics_dual_write( array( 'days' => 4 ) );
+ok( 'HTTP 500 an older read' === ( $dw['sampled_visitors']['error'] ?? null ), 'control: an error recorded during the diagnostic is its reason' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

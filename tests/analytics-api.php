@@ -324,6 +324,11 @@ ok( strpos( (string) ( $err['message'] ?? '' ), 'connection timed out' ) !== fal
 echo "\nTest 15: last_error → null when no error in transient\n";
 ae_reset();
 ok( sn_analytics_last_error() === null, 'last_error: null when transient absent' );
+$GLOBALS['__ae_transients'][ SN_ANALYTICS_ERR_KEY ] = array( 'url' => 'u', 'code' => 500, 'message' => 'older', 'when' => time() - 120 );
+ok( is_array( sn_analytics_last_error() ), 'last_error: no $since quotes whatever is stored' );
+ok( null === sn_analytics_last_error( time() ), 'last_error: an error recorded before $since (another read\'s) is null' );
+ok( is_array( sn_analytics_last_error( time() - 120 ) ), 'last_error: an error recorded at $since is this read\'s' );
+ae_reset();
 
 // ── Test 16: 200 response clears any prior error transient ───────────────────
 echo "\nTest 16: successful 200 clears a prior error\n";

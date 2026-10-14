@@ -18,6 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/analytics-view-body.php';
+require_once __DIR__ . '/analytics-admin-error.php';
 
 const SN_ANALYTICS_RANGES = array( 7, 14, 30, 90, 365 );
 
@@ -480,7 +481,10 @@ function snt_analytics_render_dashboard() {
 	// pageview-only regions below (fetches, header render, post-switch empty hint).
 	$owns_chrome = snt_analytics_view_owns_chrome( $view );
 
-	snt_analytics_render_error(); // AE diagnostic (admins only) — always, every view.
+	// The AE diagnostic (admins only) leads every view but is decided after the
+	// view's reads: a read that succeeds clears the stored error, so a load whose
+	// reads all answered shows no old error above a report that loaded fine.
+	ob_start();
 
 	// ── v9.37.0 (D1): tabs lead the page on EVERY view — always-visible top
 	// navigation (core 5.2 link-tab semantics live in the renderer itself).
@@ -536,6 +540,9 @@ function snt_analytics_render_dashboard() {
 	if ( ! $owns_chrome && (int) ( $totals['views'] ?? 0 ) === 0 ) {
 		echo '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.', 'signal-and-noise-tools' ) . '</p>';
 	}
+	$report = (string) ob_get_clean();
+	snt_analytics_render_error();
+	echo $report; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped as it was rendered.
 }
 
 /**
@@ -686,26 +693,4 @@ function snt_analytics_render_empty() {
 		snt_analytics_settings_url(),
 		array( 'cta_primary' => true ) // first-run: the page's ONLY action keeps primary weight.
 	);
-}
-
-/**
- * Surface the last AE read error (admins only) so a blank dashboard is debuggable.
- */
-function snt_analytics_render_error() {
-	if ( ! current_user_can( 'manage_options' ) || ! function_exists( 'sn_analytics_last_error' ) ) {
-		return;
-	}
-	$err = sn_analytics_last_error();
-	if ( ! $err || ! is_array( $err ) ) {
-		return;
-	}
-	$code = isset( $err['code'] ) && (int) $err['code'] > 0 ? ( 'HTTP ' . (int) $err['code'] ) : 'Network error';
-	$body = '<strong>Analytics read failed.</strong> ' . esc_html( $code );
-	if ( ! empty( $err['url'] ) ) {
-		$body .= ' from <code>' . esc_html( (string) $err['url'] ) . '</code>';
-	}
-	if ( ! empty( $err['message'] ) ) {
-		$body .= '<br>' . esc_html( (string) $err['message'] );
-	}
-	wp_admin_notice( $body, array( 'type' => 'error', 'additional_classes' => array( 'notice-alt', 'inline' ) ) );
 }

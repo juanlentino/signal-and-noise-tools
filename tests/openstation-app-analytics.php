@@ -192,18 +192,19 @@ namespace {
 		&& strpos( $html, 'class="snt-report-scroll"' ) < strpos( $html, 'data-piece="chrome/controls"' )
 		&& substr_count( $html, '<div' ) === substr_count( $html, '</div>' ),
 		'configured reports wrap controls and body in one balanced responsive scroll region' );
-	ok( array( 'chrome/error', 'chrome/controls', 'chrome/insights', 'chrome/header', 'view/overview' ) === $painted, 'overview: diagnostic, fixed toolbar, then the scrolling report body -- no drill-down without a drill: ' . implode( ',', $painted ) );
+	ok( array( 'chrome/controls', 'chrome/insights', 'chrome/header', 'view/overview', 'chrome/error' ) === $painted, 'overview: fixed toolbar, the scrolling report body, then the diagnostic (decided after the reads, printed first) -- no drill-down without a drill: ' . implode( ',', $painted ) );
 	ok( 0 === strpos( $html, '<div class="snt-app os-app-list" data-os-app="sn-analytics" data-snt-view="overview" data-snt-query="' ) && false !== strpos( $html, '<os-notice tone="danger" role="alert">Broke.</os-notice>' ) && strpos( $html, '<os-notice' ) < strpos( $html, 'data-piece="chrome/error"' ), 'the root adopts the framework list scaffold, names the view and query, and paints the notice first' );
+	ok( strpos( $html, 'data-piece="chrome/error"' ) < strpos( $html, 'data-piece="chrome/controls"' ), 'the diagnostic, though decided after the reads, still leads the report on screen' );
 	$paint( 'overview', array( 'drill' => 'browser:Firefox' ) );
 	ok( in_array( 'chrome/drilldown', $painted, true ) && array_search( 'chrome/drilldown', $painted, true ) < array_search( 'view/overview', $painted, true ), 'a parsed drill paints the drill-down panel before the view' );
 	$paint( 'posts' );
-	ok( array( 'chrome/error', 'view/posts' ) === $painted, 'Posts paints its lifetime catalog without ineffective range controls or Overview chrome' );
+	ok( array( 'view/posts', 'chrome/error' ) === $painted, 'Posts paints its lifetime catalog without ineffective range controls or Overview chrome' );
 	$paint( 'edge' );
-	ok( array( 'chrome/error', 'chrome/controls', 'view/edge' ) === $painted, 'other focused reports follow the same compact composition' );
+	ok( array( 'chrome/controls', 'view/edge', 'chrome/error' ) === $painted, 'other focused reports follow the same compact composition' );
 	$paint( 'search' );
-	ok( array( 'chrome/error', 'view/search' ) === $painted, 'Search omits global controls that its scheduled Google window cannot honor' );
+	ok( array( 'view/search', 'chrome/error' ) === $painted, 'Search omits global controls that its scheduled Google window cannot honor' );
 	$paint( 'login-defense' );
-	ok( array( 'chrome/error', 'chrome/login-header', 'view/login-defense' ) === $painted, 'login-defense owns its chrome: its own header, no insights, no controls, no header region' );
+	ok( array( 'chrome/login-header', 'view/login-defense', 'chrome/error' ) === $painted, 'login-defense owns its chrome: its own header, no insights, no controls, no header region' );
 	$GLOBALS['__views'] = 0;
 	$html = $paint( 'overview' );
 	ok( false !== strpos( $html, 'No analytics data in this range yet' ), 'zero views in the window paint the classic empty note under the view' );

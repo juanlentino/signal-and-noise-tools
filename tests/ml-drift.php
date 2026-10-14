@@ -169,7 +169,8 @@ foreach ( $ability_files as $f ) {
 	}
 }
 ok( array() === $leaks, 'NO ability wraps the drift pipeline — the mirror faces the writer, never a model (leaked in: ' . implode( ', ', $leaks ) . ')' );
-$remote = (string) file_get_contents( $inc . 'abilities-remote-set.php' );
+// 2026-10-13: the remote set is split across abilities-remote-set*.php; read every part.
+$remote = (string) implode( "\n", array_map( 'file_get_contents', snt_test_inc_files( 'abilities-remote-set*.php' ) ) );
 // v13.52.0: this scanned the bare substring 'drift' and matched PROSE — a
 // schema description reading "cannot drift from them" tripped it, with zero
 // references to the drift pipeline in the file. The invariant is "no drift

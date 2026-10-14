@@ -65,6 +65,7 @@ $_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics';
 function wp_unslash( $v ) { return $v; }
 function sanitize_text_field( $v ) { return trim( (string) $v ); }
 function current_user_can( $c ) { return true; }
+if ( ! function_exists( 'human_time_diff' ) ) { function human_time_diff( $a, $b = 0 ) { return '3 mins'; } }
 
 // Option store seam for the settings form.
 $GLOBALS['__aa_opts'] = array();
@@ -106,7 +107,7 @@ function sn_analytics_range_totals( $from, $to, $class = 'human' ) { ++$GLOBALS[
 function sn_analytics_class_totals( $from, $to ) { ++$GLOBALS['__aa_calls']['class_totals']; return $GLOBALS['__aa']['class_totals']; }
 function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day' ) { ++$GLOBALS['__aa_calls']['daily_series']; return $GLOBALS['__aa']['series']; }
 function sn_analytics_granularity( $days ) { return ( (int) $days > 90 ) ? 'week' : 'day'; }
-function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { ++$GLOBALS['__aa_calls']['top_paths']; return $GLOBALS['__aa']['paths']; }
+function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { ++$GLOBALS['__aa_calls']['top_paths']; if ( ! empty( $GLOBALS['__aa_read_clears'] ) ) { $GLOBALS['__aa_error'] = null; } return $GLOBALS['__aa']['paths']; } // a successful read clears the stored error, as sn_analytics_query() does
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__aa']['dim']; }
 
 // Derived + buckets seams (the dashboard composes these; isolated here).
@@ -788,6 +789,20 @@ ok( strpos( capture( 'snt_analytics_render_dashboard' ), 'sn-overview' ) !== fal
 $_GET['sn_view']       = 'login-defense';
 $GLOBALS['__aa_error'] = array( 'code' => 500, 'message' => 'boom' );
 ok( strpos( capture( 'snt_analytics_render_dashboard' ), 'Analytics read failed.' ) !== false, 'render_error: AE diagnostic still fires on the login view' );
+// The notice belongs to no single read: it says how old the error is, and never prints the URL (it holds the account id).
+$GLOBALS['__aa_error'] = array( 'code' => 500, 'message' => 'boom', 'url' => 'https://api.cloudflare.com/client/v4/accounts/SECRETACCT/analytics_engine/sql', 'when' => time() - 180 );
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( false !== strpos( $html, 'Analytics read failed.</strong> HTTP 500, recorded 3 mins ago.' ) && false !== strpos( $html, 'boom' ), 'render_error: code, then how long ago it was recorded, then the message' );
+ok( false === strpos( $html, 'SECRETACCT' ), 'render_error: the request URL is never printed' );
+// Decided after the view's reads, printed first: a load whose reads succeed
+// (and so clear the stored error) shows no old error above a report that loaded fine.
+$_GET['sn_view'] = 'content';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( false !== strpos( $html, 'Analytics read failed.' ) && strpos( $html, 'Analytics read failed.' ) < strpos( $html, 'nav-tab' ), 'render_error: an error still stored after the reads leads the page, ahead of the tabs' );
+$GLOBALS['__aa_read_clears'] = true;
+ok( false === strpos( capture( 'snt_analytics_render_dashboard' ), 'Analytics read failed.' ), 'render_error: a read that succeeds during this load clears the error, and no old error is shown' );
+$GLOBALS['__aa_read_clears'] = false;
+$_GET['sn_view'] = 'login-defense';
 $GLOBALS['__aa_error'] = null;
 $_GET['sn_view']       = 'content';
 

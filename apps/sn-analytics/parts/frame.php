@@ -172,7 +172,10 @@ function tab_view( $view ) {
 			return;
 		}
 		echo '<div class="snt-report-scroll">';
-		echo paint_piece( 'chrome/error', $ctx )['html'];
+		// The diagnostic goes first on screen but is decided last: a read that
+		// succeeds clears the stored error, so a load whose reads all answered
+		// shows no old error above a report that loaded fine.
+		ob_start();
 		$totals = array();
 		if ( ! $ctx['owns_chrome'] ) {
 			// Search Console is a scheduled Google window. The global range,
@@ -214,6 +217,7 @@ function tab_view( $view ) {
 		if ( ! $ctx['owns_chrome'] && array() !== $totals && 0 === (int) ( $totals['views'] ?? 0 ) ) {
 			echo '<p class="snt-hint snt-empty-note">' . \snt_kit_esc( __( 'No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.', 'signal-and-noise-tools' ) ) . '</p>';
 		}
-		echo '</div></div>';
+		$report = (string) ob_get_clean();
+		echo paint_piece( 'chrome/error', $ctx )['html'] . $report . '</div></div>';
 	};
 }
