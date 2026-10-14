@@ -131,7 +131,8 @@ function sn_content_queue_slots( $drafts, $scheduled, $published, $now, DateTime
 			continue;
 		}
 
-		$pick = null;
+		$pick   = null;
+		$reason = '';
 		foreach ( sn_content_queue_cadence( array_merge( $sched, $taken ), $published, $now, $tz, $planned ) as $w ) {
 			if ( 'gap' !== $w['kind'] ) {
 				continue;
