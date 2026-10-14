@@ -166,6 +166,30 @@ if ( ! function_exists( 'snt_test_insights_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_desktop_status_extra_src' ) ) {
+	/**
+	 * The source of inc/desktop-mode-status-extra.php AND its three parts files,
+	 * for suites that pin the module's text. Split 2026-10-14 (house line cap).
+	 * Named, not globbed: the other desktop-mode-*.php files are separate
+	 * modules. A missing file returns '' so every presence pin goes red and
+	 * every guarded absence pin fails rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_desktop_status_extra_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-edge-parts', '-reads-parts', '-rows-parts' ) as $suffix ) {
+			$file = $dir . 'desktop-mode-status-extra' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_seo_src' ) ) {
 	/**
 	 * The source of inc/seo.php AND its four parts files, for suites that pin
