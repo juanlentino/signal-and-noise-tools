@@ -54,7 +54,7 @@ ok( 3 === substr_count( $kit, '<span class="snt-sys__k">' ) && 1 === substr_coun
 ok( false !== strpos( $kit, '<span class="snt-sys__k">Connection</span><span class="snt-sys__v">Not configured</span><os-badge tone="warning">Inactive</os-badge>' ), 'unconfigured: the Connection cell reads Not configured with an Inactive warning badge' );
 $named = true;
 foreach ( sn_admin_cloudways_constants() as $name ) { $named = $named && false !== strpos( $kit, '<os-code>' . $name . '</os-code>' ); }
-ok( $named && false !== strpos( $kit, 'the purge no-ops silently until all four are present' ), 'unconfigured: every missing constant is NAMED in inline os-code (the actionable part)' );
+ok( $named && false !== strpos( $kit, 'nothing needs them while the app purge is retired' ), 'unconfigured: every missing constant is NAMED in inline os-code (the actionable part)' );
 ok( false !== strpos( $kit, '<span class="snt-sys__k">Last purge</span><span class="snt-sys__v">Never</span>' ) && false !== strpos( $kit, 'Nothing recorded yet.' ), 'no record: Last purge reads Never with its meta line' );
 $cell = cw_result_cell( $kit );
 ok( false !== strpos( $cell, '<span class="snt-sys__v">Never run</span><os-badge tone="warning">No data</os-badge>' ) && false !== strpos( $cell, 'This is not a failure.' ) && false === strpos( $cell, 'danger' ), 'no record: Result reads Never run / No data as a WARNING, never as danger' );
