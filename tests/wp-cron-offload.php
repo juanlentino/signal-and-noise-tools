@@ -74,7 +74,8 @@ echo "\nGroup 5: the safety net it leans on still exists\n";
 // If the external cron ever disappears, nothing runs and nothing complains —
 // unless the overdue detector is there. This change is only defensible while
 // that is true, so the dependency is pinned rather than assumed.
-$cron_dash = (string) file_get_contents( dirname( __DIR__ ) . '/inc/cron-dashboard.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$cron_dash = snt_test_cron_dashboard_src(); // 2026-10-14: the health model moved to a parts file; read every part.
 ok( false !== strpos( $cron_dash, "'overdue'" ), 'cron health still models overdue hooks — the detector for "external cron went away"' );
 // This assertion used to say cron_disabled_constant "reports whether the
 // constant is set". It does not, and writing that down is how I came to read

@@ -124,7 +124,8 @@ snt_gsc_coverage_schedule();
 ok( 'weekly' === ( $GLOBALS['__sched'][ SNT_GSC_COVERAGE_HOOK ][1] ?? '' ), 'ready → scheduled weekly' );
 $GLOBALS['__ready'] = false; snt_gsc_coverage_schedule();
 ok( ! isset( $GLOBALS['__sched'][ SNT_GSC_COVERAGE_HOOK ] ), 'not ready → unscheduled (absence-when-false is correct, not missing)' );
-$cd = (string) file_get_contents( __DIR__ . '/../inc/cron-dashboard.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$cd = snt_test_cron_dashboard_src(); // 2026-10-14: the gate map moved to a parts file; read every part.
 ok( 1 === preg_match( "/'SNT_GSC_COVERAGE_HOOK',\s*'sn_gsc_coverage_weekly',\s*'snt_gsc_sync_is_ready'/", $cd ), 'the opt-in gate map pairs the hook with snt_gsc_sync_is_ready (cron_health must not call readiness-absence "missing")' );
 ok( 1 === preg_match( "/'SNT_GSC_COVERAGE_HOOK',\s*'sn_gsc_coverage_weekly'\s*\)/", $cd ), 'and it is on the SN-owned hooks list' );
 

@@ -100,7 +100,8 @@ ok( 'unconfirmed' === ( $GLOBALS['meta'][10]['_sn_archive_capture']['state'] ?? 
 $GLOBALS['keys'] = false;
 ok( false === sn_archive_confirm_enabled(), 'no keys: the pass is off, and the cron registry reads the same predicate' );
 $src = static fn( $f ) => (string) file_get_contents( __DIR__ . '/../' . $f );
-ok( false !== strpos( $src( 'inc/cron-dashboard.php' ), "'sn_archive_confirm_hourly', 'sn_archive_confirm_enabled'" ) && false !== strpos( $src( 'inc/cron-lifecycle.php' ), 'SN_ARCHIVE_CONFIRM_HOOK,' ), 'the hourly hook is in the opt-in gates and the deactivation list' );
+require_once __DIR__ . '/lib/inc-population.php';
+ok( false !== strpos( snt_test_cron_dashboard_src(), "'sn_archive_confirm_hourly', 'sn_archive_confirm_enabled'" ) && false !== strpos( $src( 'inc/cron-lifecycle.php' ), 'SN_ARCHIVE_CONFIRM_HOOK,' ), 'the hourly hook is in the opt-in gates and the deactivation list' );
 ok( false === strpos( $src( 'inc/archive-push-confirm.php' ), 'wp_update_post' ) && false === strpos( $src( 'inc/archive-push-confirm.php' ), 'Authorization' ), 'the module writes meta only and sends no key' );
 ok( false !== strpos( $src( 'inc/archive-push-confirm.php' ), 'microtime( true ) - $start > SN_ARCHIVE_CONFIRM_BUDGET' ) && 30 === SN_ARCHIVE_CONFIRM_BUDGET, 'a pass stops drawing notes after thirty seconds, so a slow Archive cannot hold the cron request' );
 
