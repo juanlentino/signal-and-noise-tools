@@ -13,7 +13,10 @@
  *      package exists, or by the bootstrap before that. Twice is a redeclare
  *      fatal; zero is a silently missing surface. A parts file (house line
  *      cap, 2026-10-14) is required by its shell, a family file, so the
- *      packaged requirer is the loader plus the family's own text.
+ *      packaged count walks from the loader through every file it reaches.
+ *      Only real `require_once __DIR__ . '/...'` lines count, and only in
+ *      reachable files: two orphans requiring each other, or a commented-out
+ *      require, still read as MISSING.
  *   2. snt_ability_sn_apply() is declared exactly once in the whole tree.
  *   3. The 86-function public surface is unchanged. Function names survive a
  *      move; that is the whole reason a move is safe, so it is asserted rather
@@ -136,11 +139,47 @@ ok( file_exists( $loader ), 'the public path inc/abilities-sn-apply.php still ex
 /* ── who requires the family? the loader once packaged, else the bootstrap ── */
 $requirer_path = $packaged ? $loader : ( $root . '/signal-and-noise-tools.php' );
 $requirer      = (string) file_get_contents( $requirer_path );
-if ( $packaged ) {
-	// A shell requires its parts; nothing else in the family requires a file.
-	$requirer .= "\n" . implode( "\n", array_map( 'file_get_contents', $family ) );
-}
 $requirer_name = str_replace( $root . '/', '', $requirer_path );
+
+// Packaged: path => source for the loader and every family file. A shell
+// requires its parts, so the walk below follows the loader into them.
+$texts = array();
+foreach ( array_merge( array( $loader ), (array) $family ) as $f ) {
+	$texts[ $f ] = (string) file_get_contents( $f );
+}
+
+/**
+ * Packaged layout: how many real require_once lines reach each file, counted
+ * only in files reachable from the loader. A real line is the house form,
+ * `require_once __DIR__ . '/x.php';` at the start of a line (the loader writes
+ * '/sn-apply/x.php'), so a `// require_once ...` comment is not one, and an
+ * orphan's require of another orphan is never read because no walk reaches it.
+ * ponytail: a require_once opening a line inside a block comment still counts;
+ * nothing in the family does that, so it is left as the known ceiling.
+ *
+ * @param string $start Absolute path of the loader.
+ * @param array  $texts Absolute path => source text.
+ * @return array Absolute path => count.
+ */
+function sasc_reachable_require_counts( $start, array $texts ) {
+	$counts = array();
+	$seen   = array( $start => true );
+	$queue  = array( $start );
+	while ( $queue ) {
+		$from = array_shift( $queue );
+		preg_match_all( "/^\\s*require_once\\s+__DIR__\\s*\\.\\s*'\\/([a-z0-9\\/._-]+\\.php)'\\s*;/m", $texts[ $from ] ?? '', $m );
+		foreach ( $m[1] as $rel ) {
+			$to            = dirname( $from ) . '/' . $rel;
+			$counts[ $to ] = ( $counts[ $to ] ?? 0 ) + 1;
+			if ( ! isset( $seen[ $to ] ) && isset( $texts[ $to ] ) ) {
+				$seen[ $to ] = true;
+				$queue[]     = $to;
+			}
+		}
+	}
+	return $counts;
+}
+$reach = $packaged ? sasc_reachable_require_counts( $loader, $texts ) : array();
 
 /**
  * Count how many times a family file is required by the given source text.
@@ -161,19 +200,36 @@ $missing = array();
 $dupes   = array();
 foreach ( $family as $f ) {
 	$b = basename( $f );
-	$n = sasc_require_count( $requirer, $b );
+	$n = $packaged ? ( $reach[ $f ] ?? 0 ) : sasc_require_count( $requirer, $b );
 	if ( 0 === $n ) { $missing[] = $b; }
 	if ( $n > 1 )   { $dupes[]   = $b . " (x$n)"; }
 }
-ok( array() === $missing, 'every family file is required by ' . $requirer_name . ( $packaged ? ' or by its shell' : '' ) . ( $missing ? ' - MISSING: ' . implode( ', ', $missing ) : '' ) );
+ok( array() === $missing, 'every family file is required by ' . $requirer_name . ( $packaged ? ' or by a shell it reaches, on a real require_once line' : '' ) . ( $missing ? ' - MISSING: ' . implode( ', ', $missing ) : '' ) );
 ok( array() === $dupes,   'and none is required twice (a second require_once is dead weight; a second require is a fatal)' . ( $dupes ? ' - ' . implode( ', ', $dupes ) : '' ) );
 
 /* ── NEGATIVE CONTROL: dropping one require must be detected ──────────────
    Simulated against the source text rather than by editing the repo, so the
    control runs on every sweep instead of once during development. */
 $victim  = basename( $family[0] );
-$broken  = preg_replace( '/^.*' . preg_quote( $victim, '/' ) . '.*$/m', '', $requirer );
-ok( 0 === sasc_require_count( $broken, $victim ), 'NEGATIVE CONTROL: with its require line removed, ' . $victim . ' reads as MISSING - the guard can fail' );
+$drop    = '/^.*' . preg_quote( $victim, '/' ) . '.*$/m';
+if ( $packaged ) {
+	$broken = sasc_reachable_require_counts( $loader, array_map( function ( $t ) use ( $drop ) { return preg_replace( $drop, '', $t ); }, $texts ) );
+	ok( 0 === ( $broken[ $family[0] ] ?? 0 ), 'NEGATIVE CONTROL: with its require line removed, ' . $victim . ' reads as MISSING - the guard can fail' );
+
+	// The two blind spots of a whole-text count: two orphans that require each
+	// other, and a require that is only a comment in a reachable file.
+	$dir   = dirname( $family[0] );
+	$plant = $texts;
+	$plant[ $dir . '/zz-a.php' ] = "<?php\nrequire_once __DIR__ . '/zz-b.php';\n";
+	$plant[ $dir . '/zz-b.php' ] = "<?php\nrequire_once __DIR__ . '/zz-a.php';\n";
+	$plant[ $dir . '/zz-c.php' ] = "<?php\n";
+	$plant[ $family[0] ]        .= "\n// require_once __DIR__ . '/zz-c.php';\n";
+	$planted = sasc_reachable_require_counts( $loader, $plant );
+	ok( ! isset( $planted[ $dir . '/zz-a.php' ] ) && ! isset( $planted[ $dir . '/zz-b.php' ] ) && ! isset( $planted[ $dir . '/zz-c.php' ] ), 'NEGATIVE CONTROL: two orphans requiring each other, and a commented-out require, all read as MISSING' );
+} else {
+	$broken = preg_replace( $drop, '', $requirer );
+	ok( 0 === sasc_require_count( $broken, $victim ), 'NEGATIVE CONTROL: with its require line removed, ' . $victim . ' reads as MISSING - the guard can fail' );
+}
 
 /* ── one declaration of the public entry point ─────────────────────────── */
 $decls = 0;
