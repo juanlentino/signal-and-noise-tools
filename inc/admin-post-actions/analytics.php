@@ -124,7 +124,18 @@ function sn_handle_analytics_test( $post ) {
 		return 'analytics_test_unconfigured';
 	}
 	delete_transient( SN_ANALYTICS_ERR_KEY ); // force-fresh: show THIS test's result, not a stale failure
-	return sn_analytics_probe() ? 'analytics_test_ok' : 'analytics_test_err';
+	delete_transient( 'sn_analytics_test_error' );
+	$started = time();
+	if ( sn_analytics_probe() ) {
+		return 'analytics_test_ok';
+	}
+	// The notice renders on the next request, when the site-wide error may
+	// already be another read's: keep this test's own error for it.
+	$err = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error( $started ) : null;
+	if ( is_array( $err ) ) {
+		set_transient( 'sn_analytics_test_error', array( 'code' => (int) ( $err['code'] ?? 0 ), 'message' => (string) ( $err['message'] ?? '' ) ), 5 * MINUTE_IN_SECONDS );
+	}
+	return 'analytics_test_err';
 }
 
 /**

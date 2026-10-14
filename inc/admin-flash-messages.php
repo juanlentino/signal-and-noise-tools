@@ -313,8 +313,10 @@ function sn_admin_flash_to_notice( $flash ) {
 		return array( 'success', '&#10003; Analytics API reachable: credentials valid.' );
 	}
 	if ( 'analytics_test_err' === $flash ) {
-		$err    = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error() : null;
-		$detail = $err ? 'HTTP ' . (int) $err['code'] . ' &middot; <code>' . esc_html( substr( (string) $err['message'], 0, 200 ) ) . '</code>' : 'no diagnostic recorded';
+		// The test's own error, kept by sn_handle_analytics_test(): the site-wide
+		// last error may by now belong to another read.
+		$err    = get_transient( 'sn_analytics_test_error' );
+		$detail = is_array( $err ) ? 'HTTP ' . (int) $err['code'] . ' &middot; <code>' . esc_html( substr( (string) $err['message'], 0, 200 ) ) . '</code>' : 'no error was recorded for this test';
 		return array( 'error', '&#10005; Analytics API call failed: ' . $detail );
 	}
 	// v7.0.1: surface the REAL insights-scan error (code + message) recorded by

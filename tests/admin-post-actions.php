@@ -259,6 +259,21 @@ $GLOBALS['__analytics_probe']  = true;
 pa_eq( 'analytics_test_ok', sn_handle_analytics_test( array() ), 'probe ok → analytics_test_ok' );
 $GLOBALS['__analytics_probe'] = false;
 pa_eq( 'analytics_test_err', sn_handle_analytics_test( array() ), 'probe err → analytics_test_err' );
+// The notice renders on the next request: the handler keeps this test's own
+// error (code and message only; the URL carries the account id).
+$GLOBALS['__ae_last_err'] = array( 'url' => 'https://api.cloudflare.com/client/v4/accounts/SECRETACCT/x', 'code' => 403, 'message' => 'no permission', 'when' => time() );
+if ( ! function_exists( 'sn_analytics_last_error' ) ) {
+	function sn_analytics_last_error( $since = 0 ) { $e = $GLOBALS['__ae_last_err']; return is_array( $e ) && (int) $e['when'] >= (int) $since ? $e : null; } // as inc/analytics-api.php
+}
+sn_handle_analytics_test( array() );
+pa_eq( array( 'code' => 403, 'message' => 'no permission' ), get_transient( 'sn_analytics_test_error' ), 'a failed test keeps its own error for the notice, without the URL' );
+$GLOBALS['__ae_last_err']['when'] = time() - 120;
+sn_handle_analytics_test( array() );
+pa_eq( false, get_transient( 'sn_analytics_test_error' ), 'an error recorded before the test began is not kept as the test\'s' );
+$GLOBALS['__analytics_probe'] = true;
+$GLOBALS['__ae_last_err']['when'] = time();
+sn_handle_analytics_test( array() );
+pa_eq( false, get_transient( 'sn_analytics_test_error' ), 'a passing test drops the previous test\'s error' );
 
 echo "\nTest: sn_handle_analytics_exclude_save (v6.23.0 owner/role exclusion)\n";
 $GLOBALS['__options']['sn_settings'] = array();

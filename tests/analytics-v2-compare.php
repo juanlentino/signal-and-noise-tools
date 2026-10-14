@@ -74,10 +74,18 @@ ok( true === $r['ok'] && '2026-10-05' === $r['first_full_day'] && array( 'sn_pag
 ok( 'sn_pageviews_v2' === SN_ANALYTICS_DATASET_PV_V2 && 'sn_events_v2' === SN_ANALYTICS_DATASET_EVENTS_V2, 'the names are the worker\'s (wrangler.toml, /_sn/version datasets)' );
 
 echo "\nA failed request\n";
-function sn_analytics_last_error() { return array( 'code' => 403, 'message' => 'no permission', 'url' => 'x', 'when' => 1 ); }
+// As inc/analytics-api.php: an error recorded before $since is another read's.
+function sn_analytics_last_error( $since = 0 ) { $e = $GLOBALS['__ae_err']; return (int) $e['when'] >= (int) $since ? $e : null; }
+$GLOBALS['__ae_err'] = array( 'code' => 403, 'message' => 'no permission', 'url' => 'https://api.cloudflare.com/client/v4/accounts/SECRETACCT/x', 'when' => time() );
 $GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $L, null, $E );
 $f = sn_analytics_v2_check( 4, '2026-10-05' );
 ok( false === $f['read'] && 'sn_pageviews_v2' === $f['failed'] && 'HTTP 403 no permission' === $f['error'], 'a failed request names its dataset and keeps its reason' );
+ok( false === strpos( (string) $f['error'], 'SECRETACCT' ), 'the reason never carries the request URL (it holds the account id)' );
+$GLOBALS['__ae_err']['when'] = time() - 120;
+$GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $L, null, $E );
+$f = sn_analytics_v2_check( 4, '2026-10-05' );
+ok( 'no error was recorded during this read' === $f['error'], 'an error recorded before the check began (another read\'s) is not quoted as its reason' );
+$GLOBALS['__ae_err']['when'] = time();
 ok( 2 === count( $GLOBALS['sql'] ), 'and nothing is asked after it, so a later success cannot clear that reason' );
 
 echo "\nThe same sample on both sides counts (owner rule 2026-10-05)\n";
