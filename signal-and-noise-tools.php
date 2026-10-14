@@ -81,6 +81,7 @@ require_once SNT_PATH . 'inc/openstation-desktop-theme.php'; // 2026.10.5: the "
 require_once SNT_PATH . 'inc/openstation-app.php';       // v13.98.0: the Signal & Noise window on the App Framework (apps/signal-noise), successor to the WP Explorer folder that 1.1.6 retired.
 require_once SNT_PATH . 'inc/openstation-host.php';      // #1074: the HOST seams -- capture, rewrite, replay, assets -- that let the classic admin page paint inside a window unchanged (apps/sn-dashboard).
 require_once SNT_PATH . 'inc/openstation-agent-output-budget.php'; // #1613: adaptive thinking + effort (Claude 5) and ceiling headroom on agent-run generations, on openstation_ai_model_config; inert while the agents feature is off
+require_once SNT_PATH . 'inc/openstation-pulse.php';        // OpenStation 1.1.14 Pulse Monitor: S&N's routes, bot verdict, uptime and two beats on the Experimental feed; inert without it.
 require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/config-drift.php'; // R6a: durable effective-settings baseline + unexplained-drift diff
 require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-style owner/role analytics exclusion (sn_beacon_enabled filter)

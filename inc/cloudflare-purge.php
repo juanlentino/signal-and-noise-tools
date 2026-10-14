@@ -157,6 +157,9 @@ function sn_cf_purge_everything( $trigger = '' ) {
 
 	// 20.9.0: a code update marks the zone stale; anything else deletes.
 	$confirmed = sn_cf_api_send( sn_cf_edge_endpoint( (string) ( $GLOBALS['snt_purge_current']['trigger'] ?? '' ) ), array( 'purge_everything' => true ) );
+	if ( function_exists( 'snt_pulse_beat' ) ) {
+		snt_pulse_beat( 'cache-purge', ! $confirmed ); // inc/openstation-pulse.php: a whole-zone purge beats; unconfirmed is a failed beat.
+	}
 	if ( ! $confirmed && 'queued' !== sn_cf_send_last() ) {
 		return false; // refused, nothing will retry: no purge to stamp, no edge leg to mark.
 	}
