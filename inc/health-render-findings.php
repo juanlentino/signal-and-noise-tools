@@ -127,6 +127,10 @@ function sn_health_render_finding_card( $key, $check, $ai_available, $suggest_ke
 	if ( ! empty( $check['fix_hint'] ) ) {
 		echo '<p class="sn-fieldset-intro">' . esc_html( (string) $check['fix_hint'] ) . '</p>';
 	}
+	$partial = function_exists( 'sn_health_check_partial_reason' ) ? sn_health_check_partial_reason( $check ) : '';
+	if ( '' !== $partial ) {
+		wp_admin_notice( esc_html( $partial ), array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
+	}
 
 	if ( $is_advisory ) {
 		echo '<details class="sn-health-advisory sn-disclosure"><summary>';

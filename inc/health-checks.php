@@ -63,9 +63,14 @@ define( 'SN_HEALTH_LINK_CACHE_TTL', DAY_IN_SECONDS );
 // transient holds the array of MISSING header names; an empty array means the
 // edge delivered all 5 delegated headers on the last probe.
 define( 'SN_HEALTH_CF_HEADERS_TTL', 6 * HOUR_IN_SECONDS );
-// v4.1.1 (B-10): cap candidates per post in drift-detection. AI max_tokens=600
-// budgets for ~25 verdicts; truncation mid-JSON would drop the post silently.
+// v4.1.1 (B-10): cap candidates per post in drift-detection.
 define( 'SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST', 25 );
+// The answer limit for one drift call. One verdict object with a one-sentence
+// reason measures about 44 tokens compact (closer to 55 when the model pretty
+// prints), so the old 600 fit about 13 verdicts and a post with more candidates
+// was cut off mid-JSON and counted as failed on every scan. 25 x 60 = 1500.
+// A cap is not spend: only replies that need more than 600 tokens pay more.
+define( 'SN_HEALTH_DRIFT_MAX_TOKENS', 1500 );
 // Drift detection stops after this many provider refusals in a row when no
 // call of the scan has succeeded: the rest would be refused too.
 define( 'SN_HEALTH_DRIFT_BREAKER_AFTER', 2 );

@@ -78,7 +78,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 // documented as the median (it was the mean). Additive keys; on the remote
 // twin (the light tier) every one is null. The worker's own CONTRACT_VERSION
 // bump is a separate PR.
-const SN_REMOTE_CONTRACT_VERSION = '17';
+// Contract 18 (owner-approved 2026-10-14, "add it to tomorrow's cut"): each
+// flagged row of the health-scan twin gains partial (why part of the check was
+// not judged, naming the posts) and failed[] (post_id, title, reason). Additive.
+// The worker's own CONTRACT_VERSION bump is a separate PR.
+const SN_REMOTE_CONTRACT_VERSION = '18';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -121,6 +125,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'16' => '14565a3580c11d62d93822a5bf6c0cf5eaeacdd6d49c97c17846b205dc663be8',
 	// RED-then-pin, 2026-10-13: the uptime row's median and slowest-check keys.
 	'17' => '9a44d64aa779d567e1fe8746d526107dafa18fd93117a6a783ccdd047def2a47',
+	// RED-then-pin, 2026-10-14: partial + failed[] on the health-scan twin's flagged rows.
+	'18' => '27a26077cd56fd820b823da3c9acc13cd4dfd38bdc810e78d17c7aa83a53aa62',
 );
 
 /**

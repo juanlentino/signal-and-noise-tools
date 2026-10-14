@@ -129,6 +129,11 @@ function health_finding_card_html( $key, array $check, $is_advisory, $ai_availab
 		: \snt_kit_badge( 'warn', sprintf( _n( '%d finding', '%d findings', $count, 'signal-and-noise-tools' ), $count ) );
 
 	$out  = '<header><h3>' . \snt_kit_esc( (string) ( $check['label'] ?? $key ) ) . '</h3>' . $badge . ( $show_ai ? health_suggest_all_html( $count ) : '' ) . '</header>';
+	$partial = function_exists( 'sn_health_check_partial_reason' ) ? sn_health_check_partial_reason( $check ) : '';
+	if ( '' !== $partial ) {
+		// Same sentence as the classic card: the posts this scan did not judge, and why.
+		$out .= \snt_kit_notice( 'warn', \snt_kit_esc( $partial ) );
+	}
 	$out .= health_finding_rows_html( $key, $check, $is_advisory, $show_ai );
 	return \snt_kit_tag( 'os-card', array( 'class' => 'snt-check' ), $out );
 }
