@@ -302,6 +302,18 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day,
 }
 
 /**
+ * Why a failed read failed, in words: the HTTP code and the start of the
+ * body (never the URL: it carries the account id), or that no error was
+ * recorded during the read.
+ *
+ * @param array|null $err sn_analytics_last_error( $started ).
+ * @return string
+ */
+function sn_analytics_v2_failure_reason( $err ) {
+	return is_array( $err ) ? 'HTTP ' . (int) ( $err['code'] ?? 0 ) . ' ' . substr( (string) ( $err['message'] ?? '' ), 0, 200 ) : 'no error was recorded during this read';
+}
+
+/**
  * Read the three datasets and compare. Three Analytics Engine requests; call
  * it on demand, never on a page load.
  *
@@ -311,15 +323,16 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day,
  */
 function sn_analytics_v2_check( $days = 4, $first_full_day = '2026-10-05' ) {
 	$sets = array( SN_ANALYTICS_DATASET, SN_ANALYTICS_DATASET_PV_V2, SN_ANALYTICS_DATASET_EVENTS_V2 );
-	$read = array();
-	$fail = array();
+	$read    = array();
+	$fail    = array();
+	$started = time();
 	foreach ( $sets as $i => $ds ) {
 		$rows = function_exists( 'sn_analytics_query' ) ? sn_analytics_query( sn_analytics_v2_count_sql( $ds, $days, $i > 0 ) ) : null;
 		if ( ! is_array( $rows ) ) {
 			// Stop at the first failure and keep its reason: the next successful
 			// request would clear the stored error and leave "not read" unexplained.
-			$err  = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error() : null;
-			$fail = array( 'failed' => $ds, 'error' => is_array( $err ) ? 'HTTP ' . (int) ( $err['code'] ?? 0 ) . ' ' . substr( (string) ( $err['message'] ?? '' ), 0, 200 ) : '' );
+			$err  = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error( $started ) : null;
+			$fail = array( 'failed' => $ds, 'error' => sn_analytics_v2_failure_reason( $err ) );
 			break;
 		}
 		$read[] = $rows;
@@ -465,14 +478,15 @@ function snt_ability_analytics_dual_write( $input = array() ) {
 		// The over-cap list first (it may query too), then the three reads, stopping
 		// at the first failure so its dataset and reason survive, as the check does.
 		$list = function_exists( 'sn_analytics_overcap_vdays' ) ? (array) sn_analytics_overcap_vdays() : array();
-		$by   = array();
-		$fail = array();
+		$by      = array();
+		$fail    = array();
+		$started = time();
 		foreach ( array( SN_ANALYTICS_DATASET, SN_ANALYTICS_DATASET_PV_V2, SN_ANALYTICS_DATASET_EVENTS_V2 ) as $ds ) {
 			$rows = function_exists( 'sn_analytics_query' ) ? sn_analytics_query( sn_analytics_v2_sampled_sql( $ds, $days ) ) : null;
 			$by[ $ds ] = $rows;
 			if ( ! is_array( $rows ) ) {
-				$err  = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error() : null;
-				$fail = array( 'failed' => $ds, 'error' => is_array( $err ) ? 'HTTP ' . (int) ( $err['code'] ?? 0 ) . ' ' . substr( (string) ( $err['message'] ?? '' ), 0, 200 ) : '' );
+				$err  = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error( $started ) : null;
+				$fail = array( 'failed' => $ds, 'error' => sn_analytics_v2_failure_reason( $err ) );
 				break;
 			}
 		}

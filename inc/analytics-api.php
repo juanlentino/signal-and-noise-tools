@@ -194,11 +194,17 @@ function sn_analytics_record_error( $url, $code, $message ) {
 /**
  * Read the most recently recorded Analytics Engine API error.
  *
+ * The stored error is site-wide and lives 5 minutes, so it can belong to
+ * another read. A caller quoting it as its own passes $since, the time its
+ * read started: an error recorded before then is not this read's, and the
+ * answer is null.
+ *
+ * @param int $since Unix time the caller's read started; 0 for any.
  * @return array{url: string, code: int, message: string, when: int}|null
  */
-function sn_analytics_last_error() {
+function sn_analytics_last_error( $since = 0 ) {
 	$err = get_transient( SN_ANALYTICS_ERR_KEY );
-	return is_array( $err ) ? $err : null;
+	return is_array( $err ) && (int) ( $err['when'] ?? 0 ) >= (int) $since ? $err : null;
 }
 
 /**

@@ -80,5 +80,13 @@ $GLOBALS['__sum'] = array( 'last' => 'unknown', 'last_time' => 0, 'headline' => 
 $r = snt_ability_cache_freshness( null );
 ok( null === $r['last_time'] && null === $r['last_iso'], 'a zero timestamp reports null, never 1970' );
 
+// --- the ledger description says what a healthy week looks like now -------
+// Since 2026.10.10 a note save writes two rows (save, then related when the
+// rebuild changes a list), so "a handful of rows" misread a busy week as a fault.
+$src = (string) file_get_contents( __DIR__ . '/../inc/abilities-cache-freshness.php' );
+ok( false === strpos( $src, 'handful of rows' ), 'the ledger description no longer calls a healthy week a handful of rows' );
+ok( false !== strpos( $src, 'last_7_days_is_floor reading true is then expected' ) && false !== strpos( $src, 'a related row after it' ),
+	'it says a save writes a save row then a related row, and the floor flag is expected on a busy week' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

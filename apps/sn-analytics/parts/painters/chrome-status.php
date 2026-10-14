@@ -3,14 +3,14 @@
  * S&N Analytics — chrome/empty (the unconfigured gate) and chrome/error (the
  * AE diagnostic notice), painted from the kit.
  *
- * Classic renderers, both inc/analytics-admin.php:
+ * Classic renderers, inc/analytics-admin.php and inc/analytics-admin-error.php:
  *  - snt_analytics_render_empty()  the snt_an_gate() unconfigured state, with
  *    its "Configure analytics →" door — the page's ONLY action while
  *    unconfigured, so it keeps the classic's button-primary weight.
  *  - snt_analytics_render_error()  the AE diagnostic notice (admins only),
- *    always painted, on every view. Split — behaviour-preserving — into
- *    snt_analytics_render_error_data() so this painter reads the SAME
- *    verdict the classic renderer echoes rather than re-deriving it.
+ *    always painted, on every view (inc/analytics-admin-error.php). This
+ *    painter reads the same snt_analytics_render_error_data() and prints
+ *    the same sentence, rather than re-deriving it.
  *
  * Same copy, same settings-door URL, same AE error shape; the kit's parts
  * instead of wp-admin's.
@@ -67,10 +67,8 @@ function paint_chrome_error( array $ctx ) {
 	if ( null === $data ) {
 		return '';
 	}
-	$inner = '<b>' . \snt_kit_esc( __( 'Analytics read failed.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( $data['code'] );
-	if ( '' !== $data['url'] ) {
-		$inner .= ' ' . \snt_kit_esc( __( 'from', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( $data['url'], false );
-	}
+	// The same sentence as the classic notice: code and age, never the URL.
+	$inner = '<b>' . \snt_kit_esc( __( 'Analytics read failed.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( $data['detail'] );
 	if ( '' !== $data['message'] ) {
 		$inner .= '<br>' . \snt_kit_esc( $data['message'] );
 	}

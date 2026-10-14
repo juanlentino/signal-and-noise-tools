@@ -88,6 +88,12 @@ echo "\nTest 5: unknown code returns null (renders no notice)\n";
 fm_eq( null, sn_admin_flash_to_notice( 'totally_unknown_code' ), 'unknown → null' );
 fm_eq( null, sn_admin_flash_to_notice( '' ), 'empty → null' );
 
+echo "\nTest 4z: analytics_test_err quotes the test's own error, never another read's\n";
+$GLOBALS['__transient'] = array( 'code' => 403, 'message' => 'no permission' );
+fm_eq( array( 'error', '&#10005; Analytics API call failed: HTTP 403 &middot; <code>no permission</code>' ), sn_admin_flash_to_notice( 'analytics_test_err' ), 'the error the test kept is quoted' );
+$GLOBALS['__transient'] = false;
+fm_eq( array( 'error', '&#10005; Analytics API call failed: no error was recorded for this test' ), sn_admin_flash_to_notice( 'analytics_test_err' ), 'nothing kept: says so in words' );
+
 echo "\nTest 5a: insights_failed surfaces the REAL error, not a blanket 'configure AI' (v7.0.1)\n";
 // The bug: a downstream, insights-specific failure (parse error, transport
 // timeout, empty response) rendered the misleading "Check that an AI provider is

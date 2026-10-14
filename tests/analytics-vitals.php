@@ -25,7 +25,7 @@ function sn_analytics_query( $sql ) { $GLOBALS['__q'][] = $sql; return false !==
 $GLOBALS['__top_calls'] = 0;
 function sn_analytics_top_paths( $from, $to, $class, $limit ) { ++$GLOBALS['__top_calls']; return array( array( 'path' => '/notes/a/' ), array( 'path' => '/' ), array( 'path' => "/x') OR 1=1 --" ) ); }
 $GLOBALS['__ae_err'] = null;
-function sn_analytics_last_error() { return $GLOBALS['__ae_err']; }
+function sn_analytics_last_error( $since = 0 ) { $e = $GLOBALS['__ae_err']; return is_array( $e ) && (int) $e['when'] >= (int) $since ? $e : null; } // as inc/analytics-api.php
 function sn_analytics_canonical_path( $p ) { $t = rtrim( (string) $p, '/' ); return '' === $t ? '/' : $t; }
 
 require_once __DIR__ . '/../inc/analytics-vitals.php';
