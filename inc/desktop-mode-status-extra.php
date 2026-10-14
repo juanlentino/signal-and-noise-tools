@@ -128,6 +128,13 @@ function snt_desktop_edge_yesterday() {
 const SNT_EDGE_5XX_PER_INSTALL = 3;
 
 /**
+ * The owner's own dashboard paths: wp-admin, the OpenStation shell and the
+ * REST routes its cards poll. One list, read by the dashboard split and the
+ * install verdict alike.
+ */
+const SNT_EDGE_DASHBOARD_PATH_RE = '#^/(wp-admin/|openstation/|wp-json/(desktop-mode|openstation|wp-abilities)/|wp-json/signal-noise/v1/desktop/)#';
+
+/**
  * Plugin and theme installs recorded on a UTC day (the rollup's day), from
  * the deploy history (inc/deploy-history.php). PURE.
  *
@@ -148,10 +155,15 @@ function snt_desktop_edge_installs_on( $day, array $history ) {
 /**
  * Whether that day's installs explain every one of its 5xx: at least one
  * install, no more than SNT_EDGE_5XX_PER_INSTALL each, and every 5xx a 503
- * (maintenance) on a path no reader loads as a page: wp-admin, the REST API,
- * OpenStation, wp-cron, wp-login or the favicon. A 500, a 522 or any 5xx on a
- * front-end page is never explained; neither is a day whose stored rows do
- * not account for the whole count. PURE.
+ * (maintenance) on the dashboard (SNT_EDGE_DASHBOARD_PATH_RE), the live poll,
+ * wp-cron, wp-login or the favicon. A 500, a 522, any 5xx on a front-end page
+ * or a public REST route is never explained; neither is a day whose stored
+ * rows do not account for the whole count. PURE.
+ *
+ * The origin status may be "-": a request the Worker forwarded has none.
+ * The deploy history's admin_init self-heal can record an install that never
+ * entered maintenance, or on a later UTC day than its 503s; that errs toward
+ * a looser allowance on the recorded day, or amber on the real one.
  *
  * ponytail: the rollup has no per-error time, so "during the install" is
  * "on the same UTC day"; an install just before midnight explains nothing
@@ -172,7 +184,10 @@ function snt_desktop_edge_install_explained( $total, $rows, $installs ) {
 		if ( ! preg_match( '/^\S+ (\d+) (?:\d+|-) \S+ (.+)$/', (string) ( is_array( $r ) ? ( $r['value'] ?? '' ) : '' ), $m ) ) {
 			return false;
 		}
-		if ( '503' !== $m[1] || ! preg_match( '#^/(wp-admin/|wp-json/|openstation/|wp-cron\.php|wp-login\.php|favicon\.ico$)#', $m[2] ) ) {
+		// Beyond the dashboard: the live poll, wp-cron, wp-login and the favicon
+		// (an open tab asks for it). A public REST route a reader loads is not.
+		$quiet = preg_match( SNT_EDGE_DASHBOARD_PATH_RE, $m[2] ) || preg_match( '#^/(wp-json/signal-noise/v1/live(/|$)|wp-cron\.php|wp-login\.php|favicon\.ico$)#', $m[2] );
+		if ( '503' !== $m[1] || ! $quiet ) {
 			return false;
 		}
 		$sum += (int) ( $r['requests'] ?? 0 );
@@ -197,7 +212,7 @@ function snt_desktop_edge_dashboard_count( $paths ) {
 	$n = 0;
 	foreach ( $paths as $p ) {
 		$path = (string) ( is_array( $p ) ? ( $p['value'] ?? '' ) : '' );
-		if ( preg_match( '#^/(wp-admin/|openstation/|wp-json/(desktop-mode|openstation|wp-abilities)/|wp-json/signal-noise/v1/desktop/)#', $path ) ) {
+		if ( preg_match( SNT_EDGE_DASHBOARD_PATH_RE, $path ) ) {
 			$n += (int) ( $p['requests'] ?? 0 );
 		}
 	}

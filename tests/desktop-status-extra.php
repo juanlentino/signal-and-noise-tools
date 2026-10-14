@@ -104,6 +104,8 @@ ok( false === snt_desktop_edge_install_explained( 5, $maint, 1 ), 'past three pe
 ok( false === snt_desktop_edge_install_explained( 5, $maint, 0 ) && false === snt_desktop_edge_install_explained( 5, $maint, null ), 'no install that day, or none known: not explained' );
 ok( false === snt_desktop_edge_install_explained( 5, array( $r( 'visitor 503 - dynamic /wp-json/desktop-mode/v1/session', 4 ), $r( 'visitor 522 - dynamic /', 1 ) ), 2 ), 'a 522 on the home page stays amber' );
 ok( false === snt_desktop_edge_install_explained( 5, array( $r( 'visitor 503 - dynamic /wp-json/desktop-mode/v1/session', 4 ), $r( 'visitor 503 - dynamic /notes/a-note/', 1 ) ), 2 ), 'even a 503 on a front-end page stays amber' );
+ok( false === snt_desktop_edge_install_explained( 2, array( $r( 'visitor 503 - dynamic /wp-json/signal-noise/v1/feed-open', 2 ) ), 2 ), 'a 503 on a public REST route a reader loads (the feed-open pixel) stays amber' );
+ok( true === snt_desktop_edge_install_explained( 3, array( $r( 'visitor 503 - dynamic /wp-json/signal-noise/v1/live', 1 ), $r( 'worker 503 503 bypass /wp-json/wp-abilities/v1/abilities', 1 ), $r( 'visitor 503 - dynamic /wp-cron.php', 1 ) ), 1 ), 'the live poll, the abilities list and wp-cron are explained' );
 ok( false === snt_desktop_edge_install_explained( 5, array( $r( 'worker 500 500 dynamic /wp-json/wp-abilities/v1/abilities/x/run', 5 ) ), 2 ), 'a 500 is not maintenance' );
 ok( false === snt_desktop_edge_install_explained( 5, array( $r( 'visitor 503 - dynamic /wp-admin/admin.php', 3 ) ), 2 ), 'rows that do not account for every 5xx: not explained' );
 ok( false === snt_desktop_edge_install_explained( 5, null, 2 ), 'a day stored before the per-path rows: not explained' );
