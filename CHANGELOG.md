@@ -2,7 +2,10 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-This file holds two things only: **`## [Unreleased]`**, the working log that
+This file holds two things only: **`## [Unreleased]`
+### Fixed
+- **The Colophon's numbered headings fall back to the theme's full body font stack** ('DM Mono', 'Courier New', monospace). The fallback had dropped 'Courier New' since #1935; tests/token-governance.php catches this only where the theme sits beside the plugin, which CI does not have. No visible change while DM Mono loads.
+**, the working log that
 accumulates across pull requests, and the **current release**. Everything older
 lives in [docs/changelog/](docs/changelog/).
 
