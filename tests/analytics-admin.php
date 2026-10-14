@@ -65,6 +65,7 @@ $_SERVER['REQUEST_URI'] = '/wp-admin/index.php?page=sn-analytics';
 function wp_unslash( $v ) { return $v; }
 function sanitize_text_field( $v ) { return trim( (string) $v ); }
 function current_user_can( $c ) { return true; }
+if ( ! function_exists( 'human_time_diff' ) ) { function human_time_diff( $a, $b = 0 ) { return '3 mins'; } }
 
 // Option store seam for the settings form.
 $GLOBALS['__aa_opts'] = array();
@@ -788,6 +789,11 @@ ok( strpos( capture( 'snt_analytics_render_dashboard' ), 'sn-overview' ) !== fal
 $_GET['sn_view']       = 'login-defense';
 $GLOBALS['__aa_error'] = array( 'code' => 500, 'message' => 'boom' );
 ok( strpos( capture( 'snt_analytics_render_dashboard' ), 'Analytics read failed.' ) !== false, 'render_error: AE diagnostic still fires on the login view' );
+// The notice belongs to no single read: it says how old the error is, and never prints the URL (it holds the account id).
+$GLOBALS['__aa_error'] = array( 'code' => 500, 'message' => 'boom', 'url' => 'https://api.cloudflare.com/client/v4/accounts/SECRETACCT/analytics_engine/sql', 'when' => time() - 180 );
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( false !== strpos( $html, 'Analytics read failed.</strong> HTTP 500, recorded 3 mins ago.' ) && false !== strpos( $html, 'boom' ), 'render_error: code, then how long ago it was recorded, then the message' );
+ok( false === strpos( $html, 'SECRETACCT' ), 'render_error: the request URL is never printed' );
 $GLOBALS['__aa_error'] = null;
 $_GET['sn_view']       = 'content';
 
