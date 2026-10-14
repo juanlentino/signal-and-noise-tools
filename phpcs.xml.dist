@@ -153,7 +153,8 @@
 		<exclude-pattern>*/inc/rss-feed-tracker.php</exclude-pattern>
 		<exclude-pattern>*/inc/insights.php</exclude-pattern>
 		<exclude-pattern>*/inc/insights-signals-parts.php</exclude-pattern>
-		<exclude-pattern>*/inc/analytics-rollup.php</exclude-pattern>
+		<exclude-pattern>*/inc/analytics-rollup-schema-parts.php</exclude-pattern>
+		<exclude-pattern>*/inc/analytics-rollup-run-parts.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-dims.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-utm.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-read.php</exclude-pattern>
