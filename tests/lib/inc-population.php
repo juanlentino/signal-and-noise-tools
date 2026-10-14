@@ -102,6 +102,30 @@ if ( ! function_exists( 'snt_test_mcp_telemetry_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_analytics_view_overview_src' ) ) {
+	/**
+	 * The source of inc/analytics-view-overview.php AND its three parts files,
+	 * for suites that pin the view's text. Split 2026-10-14 (house line cap).
+	 * Named, not globbed: no other module shares the prefix today, and a future
+	 * one would not belong in the read. A missing file returns '' so every
+	 * presence pin goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_analytics_view_overview_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-model-parts', '-panels-parts', '-render-parts' ) as $suffix ) {
+			$file = $dir . 'analytics-view-overview' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_cron_dashboard_src' ) ) {
 	/**
 	 * The source of inc/cron-dashboard.php AND its parts files, for suites that

@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Internal only: the Analytics Overview view's source is split into smaller files** (house line cap). `inc/analytics-view-overview.php` (1,003 lines) keeps its header, its three requires and both constants, then loads three parts files in the order the code always ran: `analytics-view-overview-model-parts.php` (the tab doorway, the prior-window note, row deltas, session KPIs, the weekly bounce, the guarded read), `-panels-parts.php` (the session quality and Right now panels) and `-render-parts.php` (`snt_analytics_render_view_overview()`, one 400-line function that cannot split without editing it). Code moved unchanged; the file registers no hooks. The two suites that read the view's source (`analytics-view-overview`, `analytics-live`) now read every part through `snt_test_analytics_view_overview_src()`. Nothing changes on screen and no figure is removed.
+
 ## [2026.10.13] - 2026-10-14 — the queue says how far it runs, and cards ride out installs
 
 ### Added
