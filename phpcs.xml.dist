@@ -117,7 +117,7 @@
 	-->
 	<rule ref="WordPress.Security.ValidatedSanitizedInput.InputNotSanitized">
 		<exclude-pattern>*/inc/login-hide.php</exclude-pattern>
-		<exclude-pattern>*/inc/seo.php</exclude-pattern>
+		<exclude-pattern>*/inc/seo-delivery-parts.php</exclude-pattern>
 		<exclude-pattern>*/inc/sitemap-redirect.php</exclude-pattern>
 		<exclude-pattern>*/inc/post-settings.php</exclude-pattern>
 		<exclude-pattern>*/inc/audit-log.php</exclude-pattern>

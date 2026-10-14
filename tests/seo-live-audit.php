@@ -83,7 +83,9 @@ require __DIR__ . '/../inc/seo.php';
 require __DIR__ . '/../inc/seo-schema.php';
 require __DIR__ . '/../inc/maturity-layout.php';
 
-$seo_src    = (string) file_get_contents( __DIR__ . '/../inc/seo.php' );
+// The module and its four parts files (split 2026-10-14, house line cap).
+require_once __DIR__ . '/lib/inc-population.php';
+$seo_src    = snt_test_seo_src();
 $schema_src = (string) file_get_contents( __DIR__ . '/../inc/seo-schema.php' );
 
 echo "P1-1: the singular validator moves with every render change\n";

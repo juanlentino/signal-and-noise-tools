@@ -165,3 +165,28 @@ if ( ! function_exists( 'snt_test_insights_src' ) ) {
 		return $src;
 	}
 }
+
+if ( ! function_exists( 'snt_test_seo_src' ) ) {
+	/**
+	 * The source of inc/seo.php AND its four parts files, for suites that pin
+	 * the module's text. Split 2026-10-14 (house line cap). Named, not globbed:
+	 * seo-schema.php, seo-schema-music.php and seo-validators.php are separate
+	 * modules (seo-live-audit.php counts a needle across seo AND schema, so a
+	 * glob would double it). A missing file returns '' so every presence pin
+	 * goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_seo_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-meta-parts', '-head-parts', '-og-parts', '-delivery-parts' ) as $suffix ) {
+			$file = $dir . 'seo' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
