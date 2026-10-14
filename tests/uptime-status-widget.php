@@ -161,6 +161,7 @@ uw_ok( false !== strpos( $js, 'data-sn-uptime-loaded' ), 'JS once-guards the det
 // slowest check; the mean ("averaged") is gone from both Analytics twins.
 uw_ok( false !== strpos( $js, 'row.median_ms' ) && false !== strpos( $js, 'row.max_ms' ) && false !== strpos( $js, 'row.max_region' ), 'detail table paints median_ms and the slowest check (max_ms, max_region)' );
 uw_ok( false !== strpos( $js, "'Median'" ) && false !== strpos( $js, "'Slowest'" ) && false === strpos( $js, "'Resp.'" ), 'column headers say Median and Slowest, not Resp.' );
+uw_ok( false === strpos( $js, 'sn-uw-wrap' ) && false === strpos( (string) file_get_contents( __DIR__ . '/../assets/uptime-status.css' ), 'sn-uw-wrap' ), 'the Slowest cell keeps nowrap (review of #2049): at phone width the scroll region carries it, it never wraps to five lines' );
 uw_ok( false === stripos( $js, 'averaged' ) && false !== strpos( $js, 'median and slowest response over 24 h' ), 'the footer says median and slowest, never averaged' );
 
 // v12.10.0: the Analytics page moved to a top-level menu, so its hook suffix

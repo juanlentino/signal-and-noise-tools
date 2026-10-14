@@ -32,13 +32,17 @@
 			return '';
 		}
 		var s = Math.max( 0, ( Date.now() - Date.parse( iso ) ) / 1000 );
+		if ( isNaN( s ) ) {
+			return ''; // an unparseable stamp says nothing, never "NaNh ago"
+		}
 		if ( s < 90 ) {
 			return 'checked ' + Math.round( s ) + 's ago';
 		}
 		if ( s < 5400 ) {
-			return 'checked ' + Math.round( s / 60 ) + 'm ago';
+			return 'checked ' + Math.floor( s / 60 ) + 'm ago';
 		}
-		return 'checked ' + Math.round( s / 3600 ) + 'h ago';
+		// Floored, as the SN Systems desktop card counts (2.9h is "2h ago").
+		return 'checked ' + Math.floor( s / 3600 ) + 'h ago';
 	}
 
 	// 30d availability: trim trailing zeros so 100 reads "100%", 99.98 stays.
@@ -159,8 +163,8 @@
 			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.availability_90d ? pct( row.availability_90d ) : 'not read' ) );
 			// The median, not the mean (owner-approved 2026-10-13): a few checks
 			// near the timeout made the mean 13x the typical check.
-			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.median_ms ? row.median_ms + ' ms' : 'not read' ) );
-			tr.appendChild( el( 'td', 'sn-uw-num sn-uw-wrap', slowest( row ) ) );
+			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.median_ms ? msText( row.median_ms ) : 'not read' ) );
+			tr.appendChild( el( 'td', 'sn-uw-num', slowest( row ) ) );
 			tr.appendChild( el( 'td', 'sn-uw-num sn-uw-quiet', ago( row.checked_at ).replace( 'checked ', '' ) || 'not read' ) );
 			tbody.appendChild( tr );
 		} );

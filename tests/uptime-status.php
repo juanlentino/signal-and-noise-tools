@@ -322,15 +322,19 @@ us_queue_sla_trio();
 us_queue_sla_trio();
 $skew = array( 'data' => array( 'id' => 'x', 'type' => 'monitor_response_times', 'attributes' => array( 'regions' => array(
 	array( 'region' => 'us', 'response_times' => array(
-		array( 'at' => '2026-10-12T01:00:00.000Z', 'response_time' => 0.020 ),
-		array( 'at' => '2026-10-12T02:00:00.000Z', 'response_time' => 0.021 ),
-		array( 'at' => '2026-10-12T03:00:00.000Z', 'response_time' => 0.022 ),
-		array( 'at' => '2026-10-12T04:00:00.000Z', 'response_time' => null ), // a failed check: no figure, never a 0
+		array( 'at' => '2026-10-12T01:00:00.000Z', 'response_time' => 0.030 ),
+		array( 'at' => '2026-10-12T02:00:00.000Z', 'response_time' => 0.031 ),
+		array( 'at' => '2026-10-12T03:00:00.000Z', 'response_time' => 0.032 ),
+		// Failed checks: no figure. Counted as 0 they would pull the median
+		// from 31 ms to 30 ms, which the assertion refuses.
+		array( 'at' => '2026-10-12T04:00:00.000Z', 'response_time' => null ),
+		array( 'at' => '2026-10-12T04:10:00.000Z', 'response_time' => null ),
+		array( 'at' => '2026-10-12T04:20:00.000Z', 'response_time' => null ),
 	) ),
 	array( 'region' => 'as', 'response_times' => array(
-		array( 'at' => '2026-10-12T05:00:00.000Z', 'response_time' => 0.019 ),
+		array( 'at' => '2026-10-12T05:00:00.000Z', 'response_time' => 0.029 ),
 		array( 'at' => '2026-10-12T06:30:00.000Z', 'response_time' => 28.4 ),
-		array( 'at' => '2026-10-12T07:00:00.000Z', 'response_time' => 0.021 ),
+		array( 'at' => '2026-10-12T07:00:00.000Z', 'response_time' => 0.031 ),
 	) ),
 ) ) ) );
 $GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => wp_json_encode_stub( $skew ) ); // m1: skewed
@@ -338,8 +342,9 @@ $GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => us_response_body( a
 $GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => us_incidents_body() );
 $detail = sn_uptime_status_detail();
 $m1     = $detail['rows'][0];
-us_eq( 21, $m1['response_ms'], 'response_ms is the MEDIAN now (21 ms), not the mean (4,751 ms)' );
-us_eq( 21, $m1['median_ms'] ?? 'missing', 'median_ms carries the same median' );
+us_eq( 31, $m1['response_ms'], 'response_ms is the MEDIAN now (31 ms), not the mean (4,759 ms), and the three failed checks are not counted as 0' );
+us_eq( 31, $m1['median_ms'] ?? 'missing', 'median_ms carries the same median' );
+us_eq( 6, sn_uptime_status_response_stats( $skew['data']['attributes']['regions'] )['samples'] ?? 'missing', 'six samples counted: the three without a figure are left out' );
 us_eq( 28400, $m1['max_ms'] ?? 'missing', 'max_ms is the slowest single check' );
 us_eq( 'Asia', $m1['max_region'] ?? 'missing', 'max_region names where the slowest check ran, in words' );
 us_eq( '2026-10-12T06:30:00.000Z', $m1['max_at'] ?? 'missing', 'max_at is the slow sample\'s own time, not any sample\'s' );
@@ -348,6 +353,9 @@ $hb_keys = array( 'response_ms', 'median_ms', 'max_ms', 'max_region', 'max_at' )
 us_eq( array_fill_keys( $hb_keys, null ), array_intersect_key( $detail['rows'][2], array_flip( $hb_keys ) ),
 	'a heartbeat carries every response key, each null (not read), never 0' );
 us_eq( 900, $GLOBALS['__transient_ttls']['sn_uptime_response_stats'] ?? 0, 'stats cached 15 min under a NEW key, so an old mean cache is never read as stats' );
+us_eq( null, sn_uptime_status_response_stats( array( array( 'region' => 'us', 'response_times' => array() ), array( 'region' => 'eu', 'response_times' => array( array( 'at' => 'x', 'response_time' => null ) ) ) ) ), 'a monitor with no samples (or only failed ones) has no stats, never 0 ms' );
+us_eq( array_fill_keys( $hb_keys, null ), sn_uptime_status_response_fields( sn_uptime_status_response_stats( array( array( 'region' => 'us', 'response_times' => array() ) ) ) ),
+	'no samples: every response key is null (not read)' );
 us_eq( 'jp', sn_uptime_status_region_label( 'jp' ), 'an undocumented region code is shown as given, never guessed' );
 us_eq( null, sn_uptime_status_region_label( '' ), 'no region is null, not a blank' );
 

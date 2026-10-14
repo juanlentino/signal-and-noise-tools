@@ -214,8 +214,11 @@
 		var av  = mons.map( function( m ) { return figure( m.availability ); } ).filter( function( x ) { return null !== x; } );
 		var md  = mons.map( function( m ) { return figure( m.median_ms ); } ).filter( function( x ) { return null !== x; } );
 		if ( av.length ) { out.push( ( Math.round( av.reduce( function( a, b ) { return a + b; }, 0 ) / av.length * 100 ) / 100 ) + '% over 30 days' ); }
-		if ( 1 === md.length ) { out.push( 'median ' + Math.round( md[0] ) + ' ms over 24 h' ); }
-		if ( md.length > 1 ) { out.push( 'medians ' + Math.round( Math.min.apply( null, md ) ) + ' to ' + Math.round( Math.max.apply( null, md ) ) + ' ms over 24 h' ); }
+		var lo  = md.length ? Math.min.apply( null, md ) : null;
+		var hi  = md.length ? Math.max.apply( null, md ) : null;
+		// Equal medians (or one monitor) print one value, never "120 ms to 120 ms".
+		if ( md.length && msText( lo ) === msText( hi ) ) { out.push( 'median ' + msText( lo ) + ' over 24 h' ); }
+		else if ( md.length ) { out.push( 'medians ' + msText( lo ) + ' to ' + msText( hi ) + ' over 24 h' ); }
 		return out;
 	}
 

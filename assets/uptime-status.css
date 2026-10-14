@@ -140,11 +140,6 @@
 	white-space: nowrap;
 }
 
-/* 2026-10-13: the Slowest cell ("28 s from Asia, 5h ago") may wrap in a narrow tile. */
-.sn-uw-table .sn-uw-wrap {
-	white-space: normal;
-}
-
 .sn-uw-quiet {
 	color: #646970;
 }
