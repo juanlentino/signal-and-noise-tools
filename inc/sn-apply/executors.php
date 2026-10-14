@@ -102,13 +102,13 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	// before/after an anchored top-level block (or at the end), or replace
 	// the whole top-level block containing the anchor. Live content_hash
 	// fingerprint, round-trip + registry markup gate, prose-delta reporting.
-	// See inc/sn-apply/block-edit.php.
+	// See inc/sn-apply/block-edit.php and its parts files.
 	'block_insert',
 	'block_replace',
 	// v13.5.0: the block edit family's remaining verbs — delete (removal was
 	// otherwise impossible through MCP) and move as a SINGLE operation (two
 	// individually-legal replaces can strand a caller mid-swap; see
-	// inc/sn-apply/block-edit.php's compute_move docblock). Both accept the
+	// inc/sn-apply/block-edit-compute-parts.php's compute_move docblock). Both accept the
 	// new block_path locator, the only way to reach a dynamic block whose
 	// text lives in its delimiter attributes.
 	'block_delete',

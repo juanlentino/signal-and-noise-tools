@@ -127,6 +127,31 @@ if ( ! function_exists( 'snt_test_mcp_telemetry_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_ml_kernel_src' ) ) {
+	/**
+	 * The source of inc/ml-kernel.php AND its four parts files, for suites that
+	 * pin the kernel's text (its purity pins are absence pins, so a read of the
+	 * shell alone would pass them vacuously). Split 2026-10-14 (house line cap).
+	 * Named, not globbed: a future ml-kernel-* module would not belong in the
+	 * read. A missing file returns '' so every presence pin goes red and every
+	 * guarded absence pin fails rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_ml_kernel_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-text-parts', '-graph-parts', '-cadence-parts', '-drift-parts' ) as $suffix ) {
+			$file = $dir . 'ml-kernel' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_analytics_view_overview_src' ) ) {
 	/**
 	 * The source of inc/analytics-view-overview.php AND its three parts files,
@@ -215,6 +240,32 @@ if ( ! function_exists( 'snt_test_analytics_rollup_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_attention_src' ) ) {
+	/**
+	 * The source of apps/signal-noise/parts/attention.php AND its four parts
+	 * files (an app, not inc/), for suites that pin the composition's text.
+	 * Split 2026-10-14 (house line cap). Named, not globbed: attention-*.php
+	 * also matches attention-readers.php and its parts, the other half of the
+	 * seam the attention suite measures. A missing file returns '' so every
+	 * presence pin goes red and every guarded absence pin fails rather than
+	 * passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_attention_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/apps/signal-noise/parts/';
+		$src = '';
+		foreach ( array( '', '-vocab-parts', '-shape-parts', '-compose-parts', '-items-parts' ) as $suffix ) {
+			$file = $dir . 'attention' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_insights_src' ) ) {
 	/**
 	 * The source of inc/insights.php AND its three parts files, for suites that
@@ -279,6 +330,30 @@ if ( ! function_exists( 'snt_test_seo_src' ) ) {
 		$src = '';
 		foreach ( array( '', '-meta-parts', '-head-parts', '-og-parts', '-delivery-parts' ) as $suffix ) {
 			$file = $dir . 'seo' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_sn_apply_block_edit_src' ) ) {
+	/**
+	 * The source of inc/sn-apply/block-edit.php AND its two parts files, for
+	 * suites that pin the module's text. Split 2026-10-14 (house line cap).
+	 * Named, not globbed: no other module shares the prefix today, and a future
+	 * one would not belong in the read. A missing file returns '' so every
+	 * presence pin goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_sn_apply_block_edit_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/sn-apply/';
+		$src = '';
+		foreach ( array( '', '-resolve-parts', '-compute-parts' ) as $suffix ) {
+			$file = $dir . 'block-edit' . $suffix . '.php';
 			if ( ! is_file( $file ) ) {
 				return '';
 			}
