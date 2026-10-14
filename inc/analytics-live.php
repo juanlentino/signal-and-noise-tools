@@ -83,9 +83,19 @@ function sn_analytics_live_can_read() {
  * @return void
  */
 function sn_analytics_live_touch() {
-	if ( sn_analytics_realtime_schedule_if_stale() && function_exists( 'spawn_cron' ) ) {
+	$due = sn_analytics_realtime_schedule_if_stale();
+	if ( ! $due && sn_analytics_realtime_age() > SN_ANALYTICS_REALTIME_TTL ) {
+		// A stale cache with a refresh already queued and overdue: the run
+		// spawned for it died (a plugin update's maintenance mode does that).
+		// Run it now; otherwise every poll sees "already queued" and the cache
+		// stays cold until the host's next system cron.
+		$next = wp_next_scheduled( SN_ANALYTICS_REALTIME_HOOK );
+		$due  = false !== $next && (int) $next <= time();
+	}
+	if ( $due && function_exists( 'spawn_cron' ) ) {
 		// Run it now rather than on the next origin request: behind the edge
-		// cache the next request may be a whole bucket away.
+		// cache the next request may be a whole bucket away. spawn_cron()
+		// keeps its own lock, so polls cannot stack runs.
 		spawn_cron();
 	}
 }
