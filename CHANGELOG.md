@@ -2,10 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-This file holds two things only: **`## [Unreleased]`
-### Fixed
-- **The Colophon's numbered headings fall back to the theme's full body font stack** ('DM Mono', 'Courier New', monospace). The fallback had dropped 'Courier New' since #1935; tests/token-governance.php catches this only where the theme sits beside the plugin, which CI does not have. No visible change while DM Mono loads.
-**, the working log that
+This file holds two things only: **`## [Unreleased]`**, the working log that
 accumulates across pull requests, and the **current release**. Everything older
 lives in [docs/changelog/](docs/changelog/).
 
@@ -19,6 +16,7 @@ adds a bullet below. A release is a separate, deliberate act:
 - **SN Queue (desktop) and Connections › Scheduled: the runway** (queue calendar phase 2, item 6; owner-approved 2026-10-14). How far ahead the schedule covers, in one sentence: "Covered through Jan 25, 2027 (103 days)". The date is the last scheduled note's day; the days are calendar days from today, both in the site timezone. Unknowns are said in words: "Not covered: nothing is scheduled." or "Not covered: the last scheduled note, Oct 12, is overdue." On the card the sentence replaces the depth line ("25 scheduled · to Jan 25, 2027") in the same row, and the scheduled count moves beside the drafts as secondary text ("25 scheduled · 0 drafts"). The count and the date are still on the card, so no figure is removed. The sentence cannot share its row below about 360px wide, so the card's default height goes from 640 to 650: the row is 19px taller with its row gap (measured in review), and 627 + 19 = 646 fits (a saved layout keeps its own size). An empty queue is said once: the card's "Nothing scheduled" stands alone, with no runway line and no "0 scheduled" under it. Both Scheduled twins gain a **Runway** box with the same sentence and the count. The `content-queue` ability gains `runway` (`through`, `days`, `text`) in its payload, description and schema. The twins count from `wp_count_posts()`, the card's own source. Days are counted from the dates, not the instants, so a timezone whose DST switch happens at midnight (Santiago, Havana, Beirut, Cairo, the Azores) no longer loses a day; the same fix applies to the Cadence lines (two notes 2 days apart there read as a cluster) and the Suggested slots (the usual spacing read a day short). Read-only; dates only. Live today: "Covered through Jan 25, 2027 (103 days)", 25 scheduled.
 
 ### Fixed
+- **The Colophon's numbered headings fall back to the theme's full body font stack** ('DM Mono', 'Courier New', monospace). The fallback had dropped 'Courier New' since #1935; tests/token-governance.php catches this only where the theme sits beside the plugin, which CI does not have. No visible change while DM Mono loads.
 - **SN Traffic (desktop) and every live figure: "Reading now" recovers on the next poll after a plugin update, not up to 5 minutes later.** An update clears the realtime cache, and the refresh already queued for it can lose its run to the update's maintenance mode. Each poll then saw "a refresh is already queued" and did nothing, so the card read "Reading now: not read" with no "Today so far" row until the host's next 5-minute system cron (seen live on 2026.10.12: cache purged at 08:02 UTC, refilled at 08:05). A poll that finds the cache stale and its queued refresh overdue now runs it at once (WordPress's own cron lock still allows one run at a time). No figure removed.
 
 ### Changed
