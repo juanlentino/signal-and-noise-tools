@@ -108,10 +108,18 @@ function sn_cf_listed_opening( $html ) {
 /**
  * The listed fields of a post as stored now, or null when they cannot be read.
  *
- * @param object $post Post object.
+ * Reading time: pages show the stored minutes (_sn_reading_time_minutes), not
+ * a fresh count, and the stored value can drift from the body (a WPM filter
+ * changed, a body edited outside a save). So the "before" takes the stored
+ * minutes, and the "after" takes what this save's own recompute writes
+ * (inc/reading-time.php, on wp_after_insert_post): a drifted value that the
+ * save corrects is a change other pages show, and takes the whole tag.
+ *
+ * @param object $post   Post object.
+ * @param bool   $stored Read the stored minutes (the "before").
  * @return array|null
  */
-function sn_cf_listed_snapshot( $post ) {
+function sn_cf_listed_snapshot( $post, $stored = false ) {
 	if ( ! is_object( $post ) || ! function_exists( 'wp_get_object_terms' ) || ! function_exists( 'get_post_meta' ) ) {
 		return null;
 	}
@@ -121,7 +129,7 @@ function sn_cf_listed_snapshot( $post ) {
 	}
 	$terms = array_map( 'intval', (array) $terms );
 	sort( $terms );
-	return sn_cf_listed_fields(
+	$fields = sn_cf_listed_fields(
 		$post,
 		array(
 			'terms'     => $terms,
@@ -129,6 +137,12 @@ function sn_cf_listed_snapshot( $post ) {
 			'sticky'    => function_exists( 'is_sticky' ) && is_sticky( (int) $post->ID ),
 		)
 	);
+	// The theme reads the stored minutes and counts afresh only when none are stored.
+	$minutes = $stored && function_exists( 'sn_calculate_reading_time' ) ? (int) get_post_meta( (int) $post->ID, '_sn_reading_time_minutes', true ) : 0;
+	if ( $minutes > 0 ) {
+		$fields['minutes'] = $minutes;
+	}
+	return $fields;
 }
 
 /**
@@ -148,7 +162,7 @@ function sn_cf_listed_capture( $post_id ) {
 	// narrow path; anything else would read terms for nothing.
 	if ( is_object( $post ) && 'post' === $post->post_type && 'publish' === $post->post_status
 		&& sn_cf_note_tags_supported() && sn_cf_is_configured() && ! isset( $GLOBALS['sn_cf_listed_before'][ $post_id ] ) ) {
-		$GLOBALS['sn_cf_listed_before'][ $post_id ] = sn_cf_listed_snapshot( $post );
+		$GLOBALS['sn_cf_listed_before'][ $post_id ] = sn_cf_listed_snapshot( $post, true );
 	}
 }
 add_action( 'pre_post_update', 'sn_cf_listed_capture', 10, 1 );

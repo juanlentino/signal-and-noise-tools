@@ -115,19 +115,28 @@ $GLOBALS['__path_rows'] = $saved;
 $GLOBALS['__t'] = array();
 $GLOBALS['wpdb'] = (object) array( 'last_error' => 'Table is marked as crashed' );
 ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ), 'a top-paths read that failed in the database is no answer, not an empty list' );
-ok( 0 === strpos( sn_analytics_vitals_failure(), 'the top-paths read' ) && false !== strpos( sn_analytics_vitals_failure(), 'marked as crashed' ), 'the reason names the top-paths leg and the database error' );
+ok( 'the daily analytics table could not be read' === sn_analytics_vitals_failure(), 'the reason is a fixed sentence naming the daily analytics table' );
+ok( false === strpos( sn_analytics_vitals_failure(), 'marked as crashed' ), 'the database\'s own words never reach the reason (they can name tables)' );
 unset( $GLOBALS['wpdb'] );
 
 $GLOBALS['__t'] = array();
 $GLOBALS['__dev_rows'] = null;
-$GLOBALS['__ae_err'] = array( 'url' => 'https://api.cloudflare.com/client/v4/accounts/SECRETACCT/analytics_engine/sql', 'code' => 422, 'message' => 'Input was invalid', 'when' => 0 );
+$GLOBALS['__ae_err'] = array( 'url' => 'https://api.cloudflare.com/client/v4/accounts/SECRETACCT/analytics_engine/sql', 'code' => 422, 'message' => 'Input was invalid', 'when' => time() );
 ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ), 'a failed read is null, never zeros' );
 $why = sn_analytics_vitals_failure();
 ok( 0 === strpos( $why, 'the by-device read failed' ) && false !== strpos( $why, 'HTTP 422: Input was invalid' ), 'the reason names the by-device leg and what Analytics Engine said' );
 ok( false === strpos( $why, 'SECRETACCT' ), 'the reason never carries the request URL (it holds the account id)' );
 sn_analytics_vitals_failure( '' );
 ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ) && $why === sn_analytics_vitals_failure(), 'a cached failure still says why, for its 5 minutes' );
+// An error from another read, recorded before this one began: never quoted.
+$GLOBALS['__t'] = array();
+$GLOBALS['__ae_err'] = array( 'url' => '', 'code' => 500, 'message' => 'Some older query', 'when' => time() - 120 );
+ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ), 'a failed read with only an older error stored is still null' );
+$why = sn_analytics_vitals_failure();
+ok( 'the by-device read failed (no error was recorded)' === $why, 'an older error (another read\'s) is not quoted: "no error was recorded"' );
 $GLOBALS['__ae_err'] = null;
+$GLOBALS['__t'] = array();
+ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ) && 'the by-device read failed (no error was recorded)' === sn_analytics_vitals_failure(), 'no error stored at all: "no error was recorded"' );
 $GLOBALS['__t'] = array();
 $GLOBALS['__dev_rows'] = array_fill( 0, 50, $rows[0] );
 ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ), 'a read at the row cap is a partial distribution: null' );
@@ -139,7 +148,7 @@ function is_wp_error( $x ) { return $x instanceof WP_Error; }
 function snt_metrics_args( $i ) { return array( array( 'from' => '2026-09-14', 'to' => '2026-10-11' ), 'human', 5 ); }
 $GLOBALS['__t'] = array();
 $GLOBALS['__dev_rows'] = null;
-$GLOBALS['__ae_err'] = array( 'url' => 'u', 'code' => 422, 'message' => 'bad', 'when' => 0 );
+$GLOBALS['__ae_err'] = array( 'url' => 'u', 'code' => 422, 'message' => 'bad', 'when' => time() );
 $e = snt_ability_get_analytics_vitals( array() );
 ok( $e instanceof WP_Error && 'The Core Web Vitals read failed: the by-device read failed (Analytics Engine said HTTP 422: bad).' === $e->m, 'the ability error names the leg and the reason' );
 
