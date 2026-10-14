@@ -82,7 +82,7 @@ $published = array(
 	array( 'id' => 4, 'title' => 'Too old for the card', 'ts' => $NOW - 9 * 86400, 'edit_url' => 'https://x.test/e/4' ),
 );
 $out = sn_content_queue_shape( $future, 26, $published, $NOW, $TZ );
-ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap', 'scheduled', 'today', 'week_start', 'planned', 'draft_list', 'draft_more', 'cadence' ) === array_keys( $out ), 'the payload carries exactly the thirteen keys (the six it had, the calendar\'s six, and the cadence warnings)' );
+ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap', 'scheduled', 'today', 'week_start', 'planned', 'draft_list', 'draft_more', 'cadence', 'runway' ) === array_keys( $out ), 'the payload carries exactly the fourteen keys (the six it had, the calendar\'s six, the cadence warnings and the runway)' );
 ok( null === $out['drafts'], 'drafts is null when the caller could not count them, never a guessed 0' );
 ok( 7 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 7 )['drafts'] && 0 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 0 )['drafts'], 'a counted draft total passes through, a real 0 included' );
 ok( 4 === count( $out['next'] ), 'next is capped at four (the headline plus three)' );
@@ -226,6 +226,13 @@ $out = sn_content_queue_slots( array( $d3[0] ), array_map( $day, array( '2026-10
 ok( null === $out[0]['day'] && SN_CONTENT_QUEUE_SLOT_NONE === $out[0]['text'], 'a walk that runs out of open days gives no slot, never a day inside a planned gap (review on #2054: it gave Oct 29, 2027)' );
 $tight = sn_content_queue_slots( array( $d3[0] ), array_map( $day, array( '2026-10-20 09:00', '2026-10-20 17:00', '2026-10-21 09:00' ) ), null, $sn, $NY );
 ok( '2026-10-23' === $tight[0]['day'] && '2 days after the last note on Oct 21 (the usual 0 would make a cluster)' === $tight[0]['reason'], 'a usual spacing under 2 days is held at 2, and the reason says why' );
+// Review on #2058: where DST starts at midnight (Santiago, Sep 6, 2026 begins
+// at 01:00), days are counted from the dates, never from the instants.
+$SCL = new DateTimeZone( 'America/Santiago' );
+$scl = static fn( $s ) => ( new DateTimeImmutable( $s, $SCL ) )->getTimestamp();
+ok( array() === sn_content_queue_cadence( array( $scl( '2026-09-06 10:00' ), $scl( '2026-09-08 10:00' ) ), null, $scl( '2026-08-31 12:00' ), $SCL ), 'cadence: Sep 6 to Sep 8 in Santiago is 2 days, not a cluster' );
+$dst = sn_content_queue_slots( array( $d3[0] ), array( $scl( '2026-09-06 10:00' ), $scl( '2026-09-09 10:00' ) ), null, $scl( '2026-08-31 12:00' ), $SCL );
+ok( '2026-09-12' === $dst[0]['day'] && 'the usual 3 days after the last note on Sep 9' === $dst[0]['reason'], 'slots: Sep 6 to Sep 9 in Santiago is the usual 3 days (got ' . $dst[0]['day'] . ', "' . $dst[0]['reason'] . '")' );
 $past = sn_content_queue_slots( array( $d3[0] ), array( $day( '2026-10-15 09:00' ) ), $day( '2026-09-30 09:00' ), $sn, $NY );
 ok( '2026-10-22' === $past[0]['day'], 'a gap whose open days are not after today cannot be filled: the slot goes after the last note' );
 ok( '7 days after the last note on Oct 15 (the usual 15 would leave a gap)' === $past[0]['reason'], 'a usual spacing over 7 days is held at 7, and the reason says why, never calling 7 the usual' );
@@ -275,6 +282,9 @@ ok( array( 'Fresh', 'Older', 'Oldest' ) === array_column( $res['published'], 'ti
 ok( null === $res['gap'], 'three published notes are too little history to call a gap: null, not a guess' );
 $props = $ab['output_schema']['properties'] ?? array();
 ok( array( 'integer', 'null' ) === ( $props['drafts']['type'] ?? null ) && array( 'object', 'null' ) === ( $props['gap']['type'] ?? null ), 'the output schema declares drafts and gap, both nullable' );
+$rw = $props['runway'] ?? array();
+ok( 'object' === ( $rw['type'] ?? null ) && array( 'string', 'null' ) === ( $rw['properties']['through']['type'] ?? null ) && array( 'integer', 'null' ) === ( $rw['properties']['days']['type'] ?? null ) && 'string' === ( $rw['properties']['text']['type'] ?? null ), 'the output schema declares runway: through and days nullable, text always' );
+ok( isset( $res['runway']['text'] ) && array( 'through', 'days', 'text' ) === array_keys( $res['runway'] ), 'and the ability returns exactly those keys' );
 ok( isset( $props['scheduled'], $props['today'], $props['week_start'], $props['planned'], $props['draft_list'] ) && isset( $props['scheduled']['items']['properties']['day'], $props['scheduled']['items']['properties']['time'] ), 'the output schema declares the calendar\'s keys and the rows\' day and time' );
 
 // Review on #2031: a contributor lists only their own drafts, and an escaped link.
