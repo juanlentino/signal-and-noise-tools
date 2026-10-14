@@ -65,7 +65,9 @@ ok( 'Real Page Title' === sn_seo_resolve_singular_title( $note ), 'a note withou
 // leaving sn_seo_title()'s ' — ' intact, producing exactly the divergence that branch was
 // written to prevent. Source assertions, per tests/keyboard-nav.php. Nowdoc needles so
 // the $base/$site in the pattern are literal, never interpolated.
-$sn_seo_src = file_get_contents( __DIR__ . '/../inc/seo.php' );
+// The module and its four parts files (split 2026-10-14, house line cap).
+require_once __DIR__ . '/lib/inc-population.php';
+$sn_seo_src = snt_test_seo_src();
 
 $sn_site_needle = <<<'SNSEP'
 $base . ' — ' . $site
