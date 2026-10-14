@@ -101,5 +101,44 @@
 		};
 	}
 
-	window.sntPollCadence = { IDLE_MS: IDLE_MS, state: state, wait: wait, onFocusChange: onFocusChange };
+	/*
+	 * A brief miss (2026-10-14). WordPress answers 503 for the seconds a plugin
+	 * or theme install holds it in maintenance mode, and a request that never
+	 * got an answer (offline, a dropped connection) is the same kind of miss.
+	 * A card keeps its reading, says "Updating, retrying." and tries again at
+	 * 5 s, 15 s and 30 s; only a fourth miss shows its error state. Maintenance
+	 * sends Retry-After: 600 as a header the cards never see; a brief miss
+	 * honors no hint either way.
+	 *
+	 * Brief: HTTP 503; wp.apiFetch's fetch_error (no answer); a page that is
+	 * not JSON with no status (an HTML 503 through wp.apiFetch, which drops the
+	 * status); the browser's own "Failed to fetch" family.
+	 */
+	var BRIEF_MS = [ 5000, 15000, 30000 ];
+
+	function brief( err ) {
+		if ( ! err ) {
+			return false;
+		}
+		var status = err.data ? Number( err.data.status ) || 0 : 0;
+		// Accepted: an HTML 403 or 429 through wp.apiFetch loses its status too,
+		// so it counts as brief (about 50 s more before its error, 3 extra requests).
+		if ( 503 === status || 'fetch_error' === err.code || ( 'invalid_json' === err.code && ! status ) ) {
+			return true;
+		}
+		return ! status && /failed to fetch|networkerror|load failed/i.test( String( err.message || '' ) );
+	}
+
+	/**
+	 * How long to wait after a miss, when it is brief and the ladder has a step left.
+	 *
+	 * @param {*}      err   The rejection.
+	 * @param {number} tries Brief misses since the last good read.
+	 * @return {number} ms, or 0: not brief (or the ladder is spent), take the error path.
+	 */
+	function briefWait( err, tries ) {
+		return brief( err ) && tries < BRIEF_MS.length ? BRIEF_MS[ tries ] : 0;
+	}
+
+	window.sntPollCadence = { IDLE_MS: IDLE_MS, BRIEF_TEXT: 'Updating, retrying.', state: state, wait: wait, onFocusChange: onFocusChange, brief: brief, briefWait: briefWait };
 }() );

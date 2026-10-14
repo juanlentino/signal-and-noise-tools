@@ -64,7 +64,7 @@ function harness(extraData, opts) {
   const context = vm.createContext({window, document, Date: Clock, Promise, Error, Math, Number, Array, Object, AbortController});
   // The card kit only where a fixture asks: its bars and dots are spans the
   // fake textContent joins with spaces, which would move every other regex.
-  for (const name of [...((opts && opts.kit) ? ['desktop-mode-card-kit.js'] : []), ...((opts && opts.calendar) ? ['desktop-mode-queue-calendar.js'] : []), 'snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
+  for (const name of [...((opts && opts.kit) ? ['desktop-mode-card-kit.js'] : []), ...((opts && opts.calendar) ? ['desktop-mode-queue-calendar.js'] : []), 'snt-poll-cadence.js', 'snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
     'desktop-mode-widget-queue.js', 'desktop-mode-widget-anchors.js', 'desktop-mode-widget-views.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../assets', name), 'utf8'), context, {filename: name});
   }
@@ -929,15 +929,20 @@ async function run() {
     assert.ok(open && open.text === 'Open Scheduled' && /gap:4px/.test(open.attrs.style) && open.children.some(c => '→' === c.text && 'true' === c.attrs['aria-hidden']), 'Open Scheduled is spaced from its arrow by the flex gap (a trailing space is dropped in a flex item), and the arrow is hidden from a screen reader');
     await x.tick(60000);
     x.calls[4].reject(new Error('Failed to fetch')); await flush();
+    // 2026-10-14: no answer is a brief miss first; the line below is the fourth.
+    assert.match(root.textContent, /Updating, retrying\./, 'no answer is retried quietly first');
+    await x.tick(5000); x.calls[5].reject(new Error('Failed to fetch')); await flush();
+    await x.tick(15000); x.calls[6].reject(new Error('Failed to fetch')); await flush();
+    await x.tick(30000); x.calls[7].reject(new Error('Failed to fetch')); await flush();
     assert.match(root.textContent, /Soon/, 'a failed poll keeps the last good card');
     assert.match(root.textContent, /Couldn.t read the queue: the site did not answer; showing the \d{1,2}:\d\d( [AP]M)? reading\./, 'and says it is the last reading, with its time and why');
     assert.doesNotMatch(root.textContent, /Queue read failed|Failed to fetch/, 'no developer words on the card');
     // Review on #2023: the line says the real failure, not a guess at it.
-    await x.tick(60000);
-    x.calls[5].reject({code: 'sn_mcp_read_rate_limited', message: 'Rate limited', data: {status: 429}}); await flush();
+    await x.tick(70000);
+    x.calls[8].reject({code: 'sn_mcp_read_rate_limited', message: 'Rate limited', data: {status: 429}}); await flush();
     assert.match(root.textContent, /Couldn.t read the queue: Rate limited \(HTTP 429\); showing the /, 'a refusal from the site is passed through in its own words, not "did not answer"');
     await x.tick(60000);
-    x.calls[6].resolve({next: [], published: [], drafts: 2}); await flush();
+    x.calls[9].resolve({next: [], published: [], drafts: 2}); await flush();
     assert.doesNotMatch(root.textContent, /0 scheduled|showing the/, 'a payload without a scheduled count is not painted as 0, and a good read clears the line');
     assert.match(root.textContent, /Scheduled count not read/);
     stop();
@@ -1093,6 +1098,9 @@ async function run() {
     assert.ok(x.document.activeElement !== oldFocus && x.document.activeElement === cellOf('Wed, Oct 21'), 'and focus is handed to the rebuilt cell, not lost');
     // A failure keeps the calendar with its words, and the focus.
     await x.tick(60000); x.calls[4].reject(new Error('Failed to fetch')); await flush();
+    assert.equal(cells().length, 42); assert.match(root.textContent, /Updating, retrying\./);
+    assert.equal(x.document.activeElement, cellOf('Wed, Oct 21'), 'a brief miss repaint gives focus back');
+    await x.tick(5000); x.calls[5].reject({code: 'internal_server_error', message: 'Internal error', data: {status: 500}}); await flush();
     assert.equal(cells().length, 42); assert.match(root.textContent, /showing the .* reading/);
     assert.equal(x.document.activeElement, cellOf('Wed, Oct 21'), 'the failure repaint gives focus back too');
     stop();
@@ -1141,6 +1149,203 @@ async function run() {
     btn.handlers.click(); await flush();
     assert.equal(btn.getAttribute('aria-busy'), null, 'a confirm that rejects clears the busy state, so the button works again');
     stop();
+  }
+  // 2026-10-14: WordPress maintenance mode (a plugin or theme install) answers
+  // 503 for a few seconds, and the owner's open desktop saw every card flip to
+  // its error state. A 503 or a request that never got an answer is brief: the
+  // card keeps its reading as it was, says "Updating, retrying." in words, and
+  // retries at 5 s, 15 s and 30 s. Only a fourth miss shows the error state, and
+  // the next try then waits the card's ordinary period, never Retry-After's 600 s.
+  {
+    const maint = {code: 'wp_die', message: 'Briefly unavailable for scheduled maintenance. Check back in a minute.', data: {status: 503}};
+    const offline = {code: 'fetch_error', message: 'You are probably offline.'};
+    const hinted = {...maint, data: {status: 503, retry_after: 600}};
+    // SN Deploy: the ladder, then the existing footer and cue.
+    {
+      const f = fixtures[0], x = harness(), root = new Element('div');
+      const stop = x.window.desktopModeWidgets[f.id](root); await flush();
+      x.calls[0].resolve(f.good); await flush();
+      const goodCard = view(root).firstChild, cardStyles = styles(goodCard);
+      await x.tick(f.period); x.calls[1].reject(maint); await flush();
+      assert.match(root.textContent, new RegExp(f.marker), 'a 503 keeps the reading');
+      assert.match(root.textContent, /Updating, retrying\./, 'a 503 says in words that it is retrying');
+      assert.doesNotMatch(root.textContent, /Last good reading|unavailable/i, 'a 503 is not the error state');
+      assert.equal(details(root), '', 'a 503 adds no failure cue');
+      assert.equal(view(root).firstChild, goodCard, 'a 503 does not repaint the card');
+      assert.equal(styles(goodCard), cardStyles, 'a 503 recolors nothing: the reading stays as it was');
+      const note = nodes(root).find(n => n.text === 'Updating, retrying.');
+      assert.doesNotMatch(note.attrs.style || '', /#d29922|#ff9d94|#c9503f|#f85149/, 'the note is not red or amber');
+      assert.equal(note.attrs.role, undefined, 'the note is not an alert');
+      await x.tick(4999); assert.equal(x.calls.length, 2, 'no retry before 5 s');
+      await x.tick(1); assert.equal(x.calls.length, 3, 'first retry at 5 s');
+      x.calls[2].reject(offline); await flush();
+      assert.match(root.textContent, /Updating, retrying\./, 'a network error is brief too');
+      await x.tick(14999); assert.equal(x.calls.length, 3);
+      await x.tick(1); assert.equal(x.calls.length, 4, 'second retry at 15 s');
+      x.calls[3].reject(maint); await flush();
+      await x.tick(29999); assert.equal(x.calls.length, 4);
+      await x.tick(1); assert.equal(x.calls.length, 5, 'third retry at 30 s');
+      x.calls[4].reject(hinted); await flush();
+      assert.match(root.textContent, /Last good reading (just now|\d+ min ago) · retrying/, 'a fourth miss shows the existing error state');
+      assert.match(details(root), /Current status unavailable: Briefly unavailable/);
+      assert.doesNotMatch(root.textContent, /Updating, retrying\./, 'the error state replaces the quiet note');
+      await x.tick(f.period - 1); assert.equal(x.calls.length, 5);
+      await x.tick(1); assert.equal(x.calls.length, 6, 'then the ordinary period, never Retry-After 600 s');
+      x.calls[5].resolve(f.good); await flush();
+      assert.doesNotMatch(root.textContent, /Updating|Last good reading/, 'success clears both');
+      await x.tick(f.period); x.calls[6].reject(maint); await flush();
+      await x.tick(5000); assert.equal(x.calls.length, 8, 'success resets the ladder');
+      stop(); assert.equal(x.timers.size, 0);
+      // A 503 before any reading keeps the loading line, never the error state.
+      const y = harness(), r2 = new Element('div');
+      const stop2 = y.window.desktopModeWidgets[f.id](r2); await flush();
+      y.calls[0].reject(maint); await flush();
+      assert.match(r2.textContent, /Loading deploy status… Updating, retrying\./);
+      assert.doesNotMatch(r2.textContent, /Status unavailable/);
+      stop2();
+    }
+    // SN Systems: the uptime rows stay as read, with the note as a plain row.
+    {
+      const f = systems, x = harness(), root = new Element('div');
+      const stop = x.window.desktopModeWidgets[f.id](root); await flush();
+      x.calls[0].resolve(f.good); await flush();
+      await x.tick(f.period); x.calls[1].reject(maint); await flush();
+      assert.match(root.textContent, /All systems normal/, 'a 503 is not a fault in the verdict');
+      assert.match(root.textContent, /Monitors 2 of 2 up/);
+      assert.match(root.textContent, /Updating, retrying\./);
+      assert.doesNotMatch(root.textContent, /Last check failed/);
+      await x.tick(4999); assert.equal(x.calls.length, 2);
+      await x.tick(1); assert.equal(x.calls.length, 3); x.calls[2].reject(offline); await flush();
+      await x.tick(15000); assert.equal(x.calls.length, 4); x.calls[3].reject(maint); await flush();
+      await x.tick(30000); assert.equal(x.calls.length, 5); x.calls[4].reject(hinted); await flush();
+      assert.match(root.textContent, /Last check failed: Briefly unavailable/, 'a fourth miss shows the existing error state');
+      assert.doesNotMatch(root.textContent, /Updating, retrying\./);
+      await x.tick(f.period - 1); assert.equal(x.calls.length, 5);
+      await x.tick(1); assert.equal(x.calls.length, 6, 'then the ordinary period');
+      x.calls[5].resolve(f.good); await flush();
+      assert.doesNotMatch(root.textContent, /Updating|Last check failed/);
+      stop();
+    }
+    // SN Traffic: the same figures, the note gone once a read answers the same.
+    {
+      const x = harness(), root = new Element('div');
+      const good = {days: [{date: 'd', views: 1}, {date: 'e', views: 2}], total: 100, delta_pct: null, groups: []};
+      const stop = x.window.desktopModeWidgets['sn-site-views'](root); await flush();
+      const traffic = () => x.calls.filter(c => c.opts.path.includes('site-views'));
+      traffic()[0].resolve(good); await flush();
+      await x.tick(5 * 60000); traffic()[1].reject(maint); await flush();
+      assert.match(root.textContent, /100/);
+      assert.match(root.textContent, /Updating, retrying\./);
+      await x.tick(4999); assert.equal(traffic().length, 2);
+      await x.tick(1); assert.equal(traffic().length, 3, 'first retry at 5 s, not the 5-minute period');
+      traffic()[2].resolve(good); await flush();
+      assert.doesNotMatch(root.textContent, /Updating/, 'an unchanged answer still clears the note');
+      stop();
+    }
+    // SN Queue (interval poller): the same ladder beside its tick.
+    {
+      const x = harness(), root = new Element('div');
+      const stop = x.window.desktopModeWidgets['sn-queue'](root); await flush();
+      x.calls[0].resolve({next: [{title: 'Soon', when: 'Tomorrow 9:38 AM'}], published: []}); await flush();
+      await x.tick(60000); assert.equal(x.calls.length, 2); x.calls[1].reject(maint); await flush();
+      assert.match(root.textContent, /Soon/);
+      assert.match(root.textContent, /Updating, retrying\./);
+      assert.doesNotMatch(root.textContent, /Couldn.t read/, 'a 503 is not the error state');
+      await x.tick(4999); assert.equal(x.calls.length, 2);
+      await x.tick(1); assert.equal(x.calls.length, 3); x.calls[2].reject(offline); await flush();
+      await x.tick(15000); assert.equal(x.calls.length, 4); x.calls[3].reject(maint); await flush();
+      await x.tick(30000); assert.equal(x.calls.length, 5); x.calls[4].reject(maint); await flush();
+      assert.match(root.textContent, /Couldn.t read the queue/, 'a fourth miss shows the existing error state');
+      assert.doesNotMatch(root.textContent, /Updating, retrying\./);
+      await x.tick(10000); assert.equal(x.calls.length, 5, 'no extra retry after the ladder');
+      await x.tick(60000); assert.equal(x.calls.length, 6, 'the ordinary tick reads again');
+      x.calls[5].resolve({next: [{title: 'Soon', when: 'Tomorrow 9:38 AM'}], published: []}); await flush();
+      assert.doesNotMatch(root.textContent, /Updating|Couldn.t read/);
+      stop(); assert.equal(x.timers.size, 0, 'teardown clears the retry timer');
+    }
+    // Review on #2060: SN Systems' lines re-read answering 503 before the uptime
+    // read must not paint "not re-read" and then take it back (the verdict is a
+    // live region: it would be announced twice). It waits for the uptime read.
+    {
+      const lines = {healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []}, cronSummary: {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}}, statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}}, provenance: {}}};
+      const x = harness({statusExtra: lines.statusExtra}), root = new Element('div');
+      const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+      x.side[0].resolve(lines); x.calls[0].resolve(systems.good); await flush();
+      const round = async (n, err) => { const shown = root.textContent; x.side[n].reject(err); await flush();
+        assert.equal(root.textContent, shown, 'a lines miss landing first paints nothing until the uptime read settles (round ' + n + ')');
+        x.calls[n].reject(err); await flush(); };
+      await x.tick(systems.period); await round(1, maint);
+      assert.match(root.textContent, /Updating, retrying\./);
+      assert.doesNotMatch(root.textContent, /not re-read/, 'a brief lines miss rides the uptime retry quietly');
+      await x.tick(5000); await round(2, maint);
+      await x.tick(15000); await round(3, maint);
+      await x.tick(30000); x.side[4].reject(maint); await flush(); x.calls[4].reject(maint); await flush();
+      assert.match(root.textContent, /not re-read/, 'once the ladder is spent the lines say they are the last reading');
+      assert.match(root.textContent, /Last check failed/);
+      stop();
+    }
+    // Review on #2060: the guards no other pin reaches.
+    {
+      const C = harness().window.sntPollCadence;
+      assert.equal(C.brief({code: 'invalid_json', message: 'The response is not a valid JSON response.'}), true, 'an HTML page through wp.apiFetch (no status) is brief');
+      assert.equal(C.brief({code: 'invalid_json', data: {status: 403}}), false, 'an HTML 403 whose status is known is not');
+      assert.equal(C.brief({code: 'sn_mcp_read_rate_limited', data: {status: 429, retry_after: 60}}), false, 'a 429 is not brief');
+      assert.equal(C.briefWait(maint, 3), 0, 'the ladder has three steps');
+    }
+    {
+      // SN Traffic: a spent ladder never honors the 600 s hint; after a hard
+      // failure a 503 is not brief until a good read.
+      const x = harness(), root = new Element('div');
+      const good = {days: [{date: 'd', views: 1}, {date: 'e', views: 2}], total: 100, delta_pct: null, groups: []};
+      const stop = x.window.desktopModeWidgets['sn-site-views'](root); await flush();
+      const traffic = () => x.calls.filter(c => c.opts.path.includes('site-views'));
+      traffic()[0].resolve(good); await flush();
+      await x.tick(5 * 60000); traffic()[1].reject(maint); await flush();
+      await x.tick(5000); traffic()[2].reject(maint); await flush();
+      await x.tick(15000); traffic()[3].reject(maint); await flush();
+      await x.tick(30000); traffic()[4].reject(hinted); await flush();
+      assert.doesNotMatch(root.textContent, /Updating/);
+      await x.tick(5 * 60000 - 1); assert.equal(traffic().length, 5);
+      await x.tick(1); assert.equal(traffic().length, 6, 'the period, not Retry-After 600 s');
+      traffic()[5].resolve(good); await flush();
+      await x.tick(5 * 60000); traffic()[6].reject({code: 'internal_server_error', message: 'Internal error', data: {status: 500}}); await flush();
+      await x.tick(5 * 60000); traffic()[7].reject(maint); await flush();
+      assert.doesNotMatch(root.textContent, /Updating/, 'a 503 after a hard failure is not brief');
+      await x.tick(30000); assert.equal(traffic().length, 8, 'and is not retried in seconds');
+      stop();
+    }
+    {
+      // SN Systems: the same after a hard failure.
+      const x = harness(), root = new Element('div');
+      const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+      x.calls[0].resolve(systems.good); await flush();
+      await x.tick(systems.period); x.calls[1].reject({code: 'internal_server_error', message: 'Internal error', data: {status: 500}}); await flush();
+      await x.tick(systems.period); x.calls[2].reject(maint); await flush();
+      assert.doesNotMatch(root.textContent, /Updating/, 'a 503 after a hard failure is not brief');
+      assert.match(root.textContent, /Last check failed: Briefly unavailable/);
+      await x.tick(30000); assert.equal(x.calls.length, 3, 'and is not retried in seconds');
+      stop();
+    }
+    {
+      // SN Queue: teardown mid-ladder drops the retry; a read that misses
+      // after the tab was hidden arms no retry while hidden.
+      const q = {next: [{title: 'Soon', when: 'Tomorrow 9:38 AM'}], published: []};
+      const x = harness(), root = new Element('div');
+      const stop = x.window.desktopModeWidgets['sn-queue'](root); await flush();
+      x.calls[0].resolve(q); await flush();
+      await x.tick(60000); x.calls[1].reject(maint); await flush();
+      stop(); assert.equal(x.timers.size, 0, 'teardown mid-ladder clears the pending retry');
+      await x.tick(60000); assert.equal(x.calls.length, 2);
+      const y = harness(), r2 = new Element('div');
+      const stop2 = y.window.desktopModeWidgets['sn-queue'](r2); await flush();
+      y.calls[0].resolve(q); await flush();
+      await y.tick(60000); assert.equal(y.calls.length, 2);
+      y.document.hidden = true; y.document.dispatch('visibilitychange');
+      y.calls[1].reject(maint); await flush();
+      assert.equal(y.timers.size, 0, 'a miss landing after hide arms no retry');
+      await y.tick(10 * 60000); assert.equal(y.calls.length, 2, 'a hidden tab reads nothing');
+      stop2();
+    }
   }
   console.log('PASS: runner and both widgets — stale/429/recovery/backoff, malformed data, cross-widget cadence, abort/cleanup/remount');
 }

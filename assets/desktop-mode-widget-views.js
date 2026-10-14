@@ -331,6 +331,8 @@
 		var lastDelay = REFRESH_MS;
 		var failures  = 0;
 		var shownJson = ''; // the payload on screen; an identical poll repaints nothing
+		var brief     = 0;    // brief misses (a 503, no answer) since the last good read
+		var quiet     = null; // the "Updating, retrying." line while one is retried
 
 		var wrap = el( 'div', { style: 'padding:10px 12px;' } );
 		var body = el( 'div', { text: 'Loading…', style: 'font-size:12px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
@@ -534,13 +536,31 @@
 			} ).then( function( res ) {
 				if ( aborted ) { return; }
 				failures = 0;
+				brief    = 0;
+				dropQuiet();
 				repaint( res || {} );
 			} ).catch( function( err ) {
 				if ( aborted ) { return; }
+				// A brief miss (assets/snt-poll-cadence.js): the figures stay as
+				// they are, one quiet line outside the live region, a retry in seconds.
+				var C    = window.sntPollCadence;
+				var soon = ! failures && C && C.briefWait ? C.briefWait( err, brief ) : 0;
+				if ( soon ) {
+					brief++;
+					delay = soon;
+					if ( ! quiet ) {
+						quiet = el( 'div', { text: C.BRIEF_TEXT, style: 'font-size:11px;margin-top:4px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+						wrap.insertBefore( quiet, body.nextSibling || null );
+					}
+					return;
+				}
+				dropQuiet();
 				failures++;
 				delay = Math.min( 15 * 60 * 1000, REFRESH_MS * Math.pow( 2, Math.min( failures - 1, 4 ) ) );
 				var retry = Number( err && err.data && err.data.retry_after );
-				if ( isFinite( retry ) && retry > 0 && retry <= 2147483 ) { delay = Math.max( delay, retry * 1000 ); }
+				// A brief miss's hint is never honored (maintenance says 600 s for seconds).
+				var isBrief = !! ( C && C.brief && C.brief( err ) );
+				if ( ! isBrief && isFinite( retry ) && retry > 0 && retry <= 2147483 ) { delay = Math.max( delay, retry * 1000 ); }
 				// The last good reading stays; only a card that never loaded says so.
 				if ( ! shownJson ) { fail(); }
 			} ).then( function() {
@@ -552,13 +572,18 @@
 			} );
 		}
 
+		function dropQuiet() {
+			if ( quiet ) { wrap.removeChild( quiet ); }
+			quiet = null;
+		}
 		function cadence( ms ) {
 			return window.sntPollCadence ? window.sntPollCadence.wait( ms ) : ms;
 		}
 		function arm() {
 			window.clearTimeout( timer );
 			if ( aborted || pending || document.hidden ) { return; }
-			var nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );
+			// A brief miss's retry (under the period) is kept as it is.
+			var nextAt = lastAt + ( lastDelay < REFRESH_MS ? lastDelay : Math.max( lastDelay, cadence( REFRESH_MS ) ) );
 			timer = window.setTimeout( refresh, Math.max( 0, nextAt - Date.now() ) );
 		}
 		function onVisibilityChange() {

@@ -134,7 +134,7 @@ foreach ( array( 'desktop-mode-widget.js', 'desktop-mode-widget-health.js', 'des
 	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.onFocusChange( onVisibilityChange ) : function() {}' ) && false !== strpos( $js, 'unwatchFocus();' ), "$name re-arms on focus change and drops the watcher at teardown" );
 	ok( false !== strpos( $js, 'window.sntPollCadence ? window.sntPollCadence.wait(' ), "$name asks the cadence for its wait, and keeps its fixed rate when the helper is absent" );
 }
-ok( false !== strpos( $code['desktop-mode-widget.js'], 'nextAt = lastAt + Math.max( lastDelay, cadence( REFRESH_MS ) );' ), 'the deploy card: a failure backoff still wins when longer than the cadence' );
+ok( false !== strpos( $code['desktop-mode-widget.js'], 'nextAt = lastAt + ( lastDelay < REFRESH_MS ? lastDelay : Math.max( lastDelay, cadence( REFRESH_MS ) ) );' ), 'the deploy card: a failure backoff still wins when longer than the cadence; only a brief miss\'s retry (under the period) is kept as it is (render pin: tests/desktop-status-resilience.cjs)' );
 $assets_php = (string) file_get_contents( dirname( __DIR__ ) . '/inc/desktop-mode-assets.php' );
 ok( 7 === preg_match_all( "/array\\([^)]*'snt-poll-cadence'/", $assets_php ), 'the six pollers (deploy, queue, systems, traffic, reading, provenance) and the pulse declare the cadence as a dependency' );
 ok( 5 === preg_match_all( "/array\\([^)]*'snt-card-kit'/", $assets_php ), 'the five cards that use the kit (traffic, reading and provenance draw share bars and pairs; systems pairs Edge and Cache, 2026-10-10; the queue pairs Scheduled and Drafts) declare it as a dependency' );
