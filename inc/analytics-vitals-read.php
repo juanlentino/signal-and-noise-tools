@@ -27,6 +27,7 @@ function sn_analytics_vitals_rows( $dim, $from, $to, $class, array $paths = arra
 		return array();
 	}
 	list( $lo, $hi ) = sn_analytics_local_day_bounds_utc( $from, $to );
+	$started         = time();
 	$sets            = sn_analytics_stitched_rows(
 		static fn( $source, $range ) => sn_analytics_vitals_sql( $dim, $from, $to, $class, $paths, $source, $range ),
 		substr( $lo, 0, 10 ),
@@ -35,9 +36,12 @@ function sn_analytics_vitals_rows( $dim, $from, $to, $class, array $paths = arra
 	$cap  = defined( 'SN_ANALYTICS_AE_ROW_CAP' ) ? SN_ANALYTICS_AE_ROW_CAP : 10000;
 	$what = 'path' === $dim ? 'the by-path read' : 'the by-device read';
 	if ( null === $sets ) {
+		// The stored error is site-wide and lives 5 minutes, so it can belong to
+		// another read: quote it only when it was recorded during this one.
 		$err = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error() : null;
+		$err = is_array( $err ) && (int) ( $err['when'] ?? 0 ) >= $started ? $err : null;
 		// The code and the body excerpt only: the URL carries the account id.
-		$why = is_array( $err ) ? ' (Analytics Engine said HTTP ' . (int) $err['code'] . ': ' . (string) $err['message'] . ')' : '';
+		$why = is_array( $err ) ? ' (Analytics Engine said HTTP ' . (int) $err['code'] . ': ' . (string) $err['message'] . ')' : ' (no error was recorded)';
 		sn_analytics_vitals_failure( $what . ' failed' . $why );
 		return null;
 	}
@@ -131,7 +135,8 @@ function sn_analytics_vitals( $from, $to, $class = 'human', $limit = 10 ) {
 function sn_analytics_vitals_top_paths( $from, $to, $class, $limit ) {
 	$top = sn_analytics_top_paths( $from, $to, $class, $limit );
 	if ( isset( $GLOBALS['wpdb'] ) && '' !== (string) ( $GLOBALS['wpdb']->last_error ?? '' ) ) {
-		sn_analytics_vitals_failure( 'the top-paths read (the daily analytics table) failed: ' . substr( (string) $GLOBALS['wpdb']->last_error, 0, 200 ) );
+		// A fixed sentence: the database's own words can name its tables.
+		sn_analytics_vitals_failure( 'the daily analytics table could not be read' );
 		return null;
 	}
 	$paths = array_map( static fn( $r ) => sn_analytics_canonical_path( (string) $r['path'] ), (array) $top );

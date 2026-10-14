@@ -595,6 +595,7 @@ require_once __DIR__ . '/inc/abilities-update-post-surfaces.php'; // v10.7.0: re
 require_once __DIR__ . '/inc/ml-kernel.php';           // v10.15.0: pure ML primitives (tokenizer, tf-idf, cosine, bm25, graph signals) — zero WP calls
 require_once __DIR__ . '/inc/ml-pipelines.php';        // v10.15.0: filterable slug=>callable pipeline registry + dispatcher over the kernel
 require_once __DIR__ . '/inc/ml-artifacts.php';        // v10.15.0: corpus build (per-post related meta + cron/publish triggers) + the contract reader (needs corpus-inspect.php above)
+require_once __DIR__ . '/inc/ml-related-purge.php';    // 2026-10-13: after a related rebuild, purge the notes whose "More on this" changed
 // 15.5.0 (WebMCP bridge v2, arc one): after the artifacts, whose hooks and reader they use.
 require_once __DIR__ . '/inc/ml-related-manifest.php';
 require_once __DIR__ . '/inc/site-map-json.php';

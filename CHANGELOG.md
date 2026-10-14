@@ -31,6 +31,13 @@ adds a bullet below. A release is a separate, deliberate act:
   - URL purges go 100 to a call (was 30), Cloudflare's limit on every plan.
   - Pinned by the new tests/cloudflare-purge-probe-escalate.php, and by tests/cloudflare-purge-send.php, tests/purge-ledger.php, tests/cloudways-purge.php, tests/admin-cloudways.php and tests/os-leaf-connections-cloudflare.php.
 
+### Fixed
+- **"More on this" on other notes refreshes after a related-notes rebuild, and two Core Web Vitals failure reasons say only what is true.**
+  - **Related notes lag.** About 30 seconds after a save, the related-notes rebuild can change the "More on this" list on OTHER notes. Since the narrow save purge, nothing refreshed those pages, so they kept the old list until the 2-hour edge expiry. Now the rebuild (the one after a save and the daily one) compares every note's related list before and after, and purges only the tags of the notes whose list changed, in one Cloudflare call. Over 100 changed notes, or with a theme that does not tag each note, it purges the whole tag instead. A rebuild that changed no list purges nothing. The purge ledger records it as trigger `related`, scope `note` (or `tag`). Pinned by the new tests/ml-related-purge.php.
+  - **Reading time drift.** The narrow save purge compared a freshly counted reading time on both sides, but pages show the stored minutes. Now the "before" is the stored value and the "after" is what the save writes, so a save that corrects a drifted reading time purges the whole tag (the index and link previews show it). Pinned in tests/cloudflare-purge-save.php.
+  - **Field vitals failure reason.** When a by-device or by-path read fails, the reason quoted the last Analytics Engine error stored site-wide, which could belong to another read up to 5 minutes old. It is now quoted only when it was recorded during this read; otherwise the reason says "no error was recorded".
+  - **Top-paths failure reason.** It quoted up to 200 characters of the database's own error, which can name tables. It now says "the daily analytics table could not be read". Pinned in tests/analytics-vitals.php.
+
 ## [2026.10.9] - 2026-10-13 — the queue fits and warns, and field vitals read
 
 ### Changed
