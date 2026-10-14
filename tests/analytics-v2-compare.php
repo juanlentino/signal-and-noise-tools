@@ -228,5 +228,17 @@ sn_analytics_v2_check( 4, '2026-10-05' );
 ok( 5 === count( $GLOBALS['sql'] ), 'without a complete over-cap list the figures are not read' );
 unset( $GLOBALS['cap'] );
 
+echo "\nThe dual-write ability's diagnostic quotes only its own error\n";
+// A sampled day sends the ability into its own read loop; every read after
+// the check's three fails here, so its first one does.
+$GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $Ls, $Ps, array() );
+$GLOBALS['__ae_err'] = array( 'code' => 500, 'message' => 'an older read', 'url' => 'u', 'when' => time() - 120 );
+$dw = snt_ability_analytics_dual_write( array( 'days' => 4 ) );
+ok( 'sn_pageviews' === ( $dw['sampled_visitors']['failed'] ?? null ) && 'no error was recorded during this read' === ( $dw['sampled_visitors']['error'] ?? null ), 'an error recorded before the diagnostic began (another read\'s) is not quoted as its reason' );
+$GLOBALS['sql'] = array(); $GLOBALS['answers'] = array( $Ls, $Ps, array() );
+$GLOBALS['__ae_err']['when'] = time();
+$dw = snt_ability_analytics_dual_write( array( 'days' => 4 ) );
+ok( 'HTTP 500 an older read' === ( $dw['sampled_visitors']['error'] ?? null ), 'control: an error recorded during the diagnostic is its reason' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

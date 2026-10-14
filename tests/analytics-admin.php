@@ -107,7 +107,7 @@ function sn_analytics_range_totals( $from, $to, $class = 'human' ) { ++$GLOBALS[
 function sn_analytics_class_totals( $from, $to ) { ++$GLOBALS['__aa_calls']['class_totals']; return $GLOBALS['__aa']['class_totals']; }
 function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day' ) { ++$GLOBALS['__aa_calls']['daily_series']; return $GLOBALS['__aa']['series']; }
 function sn_analytics_granularity( $days ) { return ( (int) $days > 90 ) ? 'week' : 'day'; }
-function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { ++$GLOBALS['__aa_calls']['top_paths']; return $GLOBALS['__aa']['paths']; }
+function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { ++$GLOBALS['__aa_calls']['top_paths']; if ( ! empty( $GLOBALS['__aa_read_clears'] ) ) { $GLOBALS['__aa_error'] = null; } return $GLOBALS['__aa']['paths']; } // a successful read clears the stored error, as sn_analytics_query() does
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) { return $GLOBALS['__aa']['dim']; }
 
 // Derived + buckets seams (the dashboard composes these; isolated here).
@@ -794,6 +794,15 @@ $GLOBALS['__aa_error'] = array( 'code' => 500, 'message' => 'boom', 'url' => 'ht
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( false !== strpos( $html, 'Analytics read failed.</strong> HTTP 500, recorded 3 mins ago.' ) && false !== strpos( $html, 'boom' ), 'render_error: code, then how long ago it was recorded, then the message' );
 ok( false === strpos( $html, 'SECRETACCT' ), 'render_error: the request URL is never printed' );
+// Decided after the view's reads, printed first: a load whose reads succeed
+// (and so clear the stored error) shows no old error above a report that loaded fine.
+$_GET['sn_view'] = 'content';
+$html = capture( 'snt_analytics_render_dashboard' );
+ok( false !== strpos( $html, 'Analytics read failed.' ) && strpos( $html, 'Analytics read failed.' ) < strpos( $html, 'nav-tab' ), 'render_error: an error still stored after the reads leads the page, ahead of the tabs' );
+$GLOBALS['__aa_read_clears'] = true;
+ok( false === strpos( capture( 'snt_analytics_render_dashboard' ), 'Analytics read failed.' ), 'render_error: a read that succeeds during this load clears the error, and no old error is shown' );
+$GLOBALS['__aa_read_clears'] = false;
+$_GET['sn_view'] = 'login-defense';
 $GLOBALS['__aa_error'] = null;
 $_GET['sn_view']       = 'content';
 

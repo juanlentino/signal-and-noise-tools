@@ -481,7 +481,10 @@ function snt_analytics_render_dashboard() {
 	// pageview-only regions below (fetches, header render, post-switch empty hint).
 	$owns_chrome = snt_analytics_view_owns_chrome( $view );
 
-	snt_analytics_render_error(); // AE diagnostic (admins only) — always, every view.
+	// The AE diagnostic (admins only) leads every view but is decided after the
+	// view's reads: a read that succeeds clears the stored error, so a load whose
+	// reads all answered shows no old error above a report that loaded fine.
+	ob_start();
 
 	// ── v9.37.0 (D1): tabs lead the page on EVERY view — always-visible top
 	// navigation (core 5.2 link-tab semantics live in the renderer itself).
@@ -537,6 +540,9 @@ function snt_analytics_render_dashboard() {
 	if ( ! $owns_chrome && (int) ( $totals['views'] ?? 0 ) === 0 ) {
 		echo '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.', 'signal-and-noise-tools' ) . '</p>';
 	}
+	$report = (string) ob_get_clean();
+	snt_analytics_render_error();
+	echo $report; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped as it was rendered.
 }
 
 /**

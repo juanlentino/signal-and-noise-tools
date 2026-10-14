@@ -34,15 +34,16 @@ function snt_analytics_render_error_data() {
 	}
 	$code = isset( $err['code'] ) && (int) $err['code'] > 0 ? 'HTTP ' . (int) $err['code'] : __( 'Network error', 'signal-and-noise-tools' );
 	$when = (int) ( $err['when'] ?? 0 );
-	$age  = $when > 0
-		/* translators: %s: how long ago, e.g. "3 mins". */
-		? sprintf( __( 'recorded %s ago', 'signal-and-noise-tools' ), human_time_diff( $when, time() ) )
-		: __( 'when it was recorded is not known', 'signal-and-noise-tools' );
+	$detail = $when > 0
+		/* translators: 1: "HTTP 500" or "Network error", 2: how long ago, e.g. "3 mins". */
+		? sprintf( __( '%1$s, recorded %2$s ago.', 'signal-and-noise-tools' ), $code, human_time_diff( $when, time() ) )
+		/* translators: %s: "HTTP 500" or "Network error". */
+		: sprintf( __( '%s, when it was recorded is not known.', 'signal-and-noise-tools' ), $code );
 	return array(
 		'code'    => $code,
 		'message' => (string) ( $err['message'] ?? '' ),
 		// The one sentence both twins print after "Analytics read failed.".
-		'detail'  => $code . ', ' . $age . '.',
+		'detail'  => $detail,
 	);
 }
 
