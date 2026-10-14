@@ -151,6 +151,30 @@ if ( ! function_exists( 'snt_test_analytics_view_overview_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_edge_rollup_src' ) ) {
+	/**
+	 * The source of inc/edge-rollup.php AND its four parts files, for suites
+	 * that pin or extract the module's text. Split 2026-10-14 (house line cap).
+	 * Named, not globbed: a future edge-rollup-* module would not belong in the
+	 * read. A missing file returns '' so every presence pin goes red rather
+	 * than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_edge_rollup_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-schema-parts', '-upsert-parts', '-run-parts', '-errors-parts' ) as $suffix ) {
+			$file = $dir . 'edge-rollup' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_cron_dashboard_src' ) ) {
 	/**
 	 * The source of inc/cron-dashboard.php AND its parts files, for suites that

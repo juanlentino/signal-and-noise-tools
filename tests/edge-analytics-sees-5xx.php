@@ -19,8 +19,9 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
 $root = dirname( __DIR__ );
+require_once __DIR__ . '/lib/inc-population.php'; // edge-rollup.php is read with its four parts files (split 2026-10-14).
 $ana  = (string) file_get_contents( $root . '/inc/edge-analytics.php' );
-$roll = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
+$roll = snt_test_edge_rollup_src();
 
 /** Source with comments stripped — prose about a rule is not the rule. */
 function e5_code( $php ) {
@@ -82,7 +83,7 @@ echo "\nGroup 5: the mapping itself, driven directly\n";
 
 // Extract ONE function by balanced braces rather than require the file, which
 // needs a WordPress boot. Same idiom as tests/editor-api-smoke-population.php.
-$rollup_src = (string) file_get_contents( $root . '/inc/edge-rollup.php' );
+$rollup_src = snt_test_edge_rollup_src();
 $toks = token_get_all( $rollup_src );
 $fn = '';
 for ( $i = 0, $n = count( $toks ); $i < $n; $i++ ) {
