@@ -1263,6 +1263,89 @@ async function run() {
       assert.doesNotMatch(root.textContent, /Updating|Couldn.t read/);
       stop(); assert.equal(x.timers.size, 0, 'teardown clears the retry timer');
     }
+    // Review on #2060: SN Systems' lines re-read answering 503 before the uptime
+    // read must not paint "not re-read" and then take it back (the verdict is a
+    // live region: it would be announced twice). It waits for the uptime read.
+    {
+      const lines = {healthSummary: {passed: 8, total: 8, all_passed: true, skipped: [], flagged: []}, cronSummary: {total: 85, sn_count: 30, orphans: 0, next: {hook: 'sn_queue_tick', in_s: 300}, health: {ok: true}}, statusExtra: {systems: {edge: {day: 'Oct 5', total: 4, visitor: 0, prior: 12}, cron: {fires: 41, failed: 0, failing: []}}, provenance: {}}};
+      const x = harness({statusExtra: lines.statusExtra}), root = new Element('div');
+      const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+      x.side[0].resolve(lines); x.calls[0].resolve(systems.good); await flush();
+      const round = async (n, err) => { const shown = root.textContent; x.side[n].reject(err); await flush();
+        assert.equal(root.textContent, shown, 'a lines miss landing first paints nothing until the uptime read settles (round ' + n + ')');
+        x.calls[n].reject(err); await flush(); };
+      await x.tick(systems.period); await round(1, maint);
+      assert.match(root.textContent, /Updating, retrying\./);
+      assert.doesNotMatch(root.textContent, /not re-read/, 'a brief lines miss rides the uptime retry quietly');
+      await x.tick(5000); await round(2, maint);
+      await x.tick(15000); await round(3, maint);
+      await x.tick(30000); x.side[4].reject(maint); await flush(); x.calls[4].reject(maint); await flush();
+      assert.match(root.textContent, /not re-read/, 'once the ladder is spent the lines say they are the last reading');
+      assert.match(root.textContent, /Last check failed/);
+      stop();
+    }
+    // Review on #2060: the guards no other pin reaches.
+    {
+      const C = harness().window.sntPollCadence;
+      assert.equal(C.brief({code: 'invalid_json', message: 'The response is not a valid JSON response.'}), true, 'an HTML page through wp.apiFetch (no status) is brief');
+      assert.equal(C.brief({code: 'invalid_json', data: {status: 403}}), false, 'an HTML 403 whose status is known is not');
+      assert.equal(C.brief({code: 'sn_mcp_read_rate_limited', data: {status: 429, retry_after: 60}}), false, 'a 429 is not brief');
+      assert.equal(C.briefWait(maint, 3), 0, 'the ladder has three steps');
+    }
+    {
+      // SN Traffic: a spent ladder never honors the 600 s hint; after a hard
+      // failure a 503 is not brief until a good read.
+      const x = harness(), root = new Element('div');
+      const good = {days: [{date: 'd', views: 1}, {date: 'e', views: 2}], total: 100, delta_pct: null, groups: []};
+      const stop = x.window.desktopModeWidgets['sn-site-views'](root); await flush();
+      const traffic = () => x.calls.filter(c => c.opts.path.includes('site-views'));
+      traffic()[0].resolve(good); await flush();
+      await x.tick(5 * 60000); traffic()[1].reject(maint); await flush();
+      await x.tick(5000); traffic()[2].reject(maint); await flush();
+      await x.tick(15000); traffic()[3].reject(maint); await flush();
+      await x.tick(30000); traffic()[4].reject(hinted); await flush();
+      assert.doesNotMatch(root.textContent, /Updating/);
+      await x.tick(5 * 60000 - 1); assert.equal(traffic().length, 5);
+      await x.tick(1); assert.equal(traffic().length, 6, 'the period, not Retry-After 600 s');
+      traffic()[5].resolve(good); await flush();
+      await x.tick(5 * 60000); traffic()[6].reject({code: 'internal_server_error', message: 'Internal error', data: {status: 500}}); await flush();
+      await x.tick(5 * 60000); traffic()[7].reject(maint); await flush();
+      assert.doesNotMatch(root.textContent, /Updating/, 'a 503 after a hard failure is not brief');
+      await x.tick(30000); assert.equal(traffic().length, 8, 'and is not retried in seconds');
+      stop();
+    }
+    {
+      // SN Systems: the same after a hard failure.
+      const x = harness(), root = new Element('div');
+      const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+      x.calls[0].resolve(systems.good); await flush();
+      await x.tick(systems.period); x.calls[1].reject({code: 'internal_server_error', message: 'Internal error', data: {status: 500}}); await flush();
+      await x.tick(systems.period); x.calls[2].reject(maint); await flush();
+      assert.doesNotMatch(root.textContent, /Updating/, 'a 503 after a hard failure is not brief');
+      assert.match(root.textContent, /Last check failed: Briefly unavailable/);
+      await x.tick(30000); assert.equal(x.calls.length, 3, 'and is not retried in seconds');
+      stop();
+    }
+    {
+      // SN Queue: teardown mid-ladder drops the retry; a read that misses
+      // after the tab was hidden arms no retry while hidden.
+      const q = {next: [{title: 'Soon', when: 'Tomorrow 9:38 AM'}], published: []};
+      const x = harness(), root = new Element('div');
+      const stop = x.window.desktopModeWidgets['sn-queue'](root); await flush();
+      x.calls[0].resolve(q); await flush();
+      await x.tick(60000); x.calls[1].reject(maint); await flush();
+      stop(); assert.equal(x.timers.size, 0, 'teardown mid-ladder clears the pending retry');
+      await x.tick(60000); assert.equal(x.calls.length, 2);
+      const y = harness(), r2 = new Element('div');
+      const stop2 = y.window.desktopModeWidgets['sn-queue'](r2); await flush();
+      y.calls[0].resolve(q); await flush();
+      await y.tick(60000); assert.equal(y.calls.length, 2);
+      y.document.hidden = true; y.document.dispatch('visibilitychange');
+      y.calls[1].reject(maint); await flush();
+      assert.equal(y.timers.size, 0, 'a miss landing after hide arms no retry');
+      await y.tick(10 * 60000); assert.equal(y.calls.length, 2, 'a hidden tab reads nothing');
+      stop2();
+    }
   }
   console.log('PASS: runner and both widgets — stale/429/recovery/backoff, malformed data, cross-widget cadence, abort/cleanup/remount');
 }

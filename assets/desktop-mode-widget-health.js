@@ -782,7 +782,10 @@
 					} ).catch( function( err ) {
 						if ( torn ) { return; }
 						linesStale = err || true;
-						paint();
+						// Painted once the uptime read settles (its .then paints): a
+						// brief miss landing first must not flash "not re-read" and
+						// then take it back in the live verdict (review on #2060).
+						if ( ! pending ) { paint(); }
 					} );
 				}
 				return window.sntAbilityRun( 'uptime-status', { detail: true }, { signal: controller ? controller.signal : undefined, silent: true } );

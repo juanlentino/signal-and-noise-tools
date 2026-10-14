@@ -431,6 +431,8 @@
 						brief++;
 						quietMiss();
 						window.clearTimeout( retryTimer );
+						// Hidden since the read went out: reveal reads again, no retry armed.
+						if ( document.hidden ) { return; }
 						retryTimer = window.setTimeout( poll, soon );
 						return;
 					}

@@ -121,6 +121,8 @@
 			return false;
 		}
 		var status = err.data ? Number( err.data.status ) || 0 : 0;
+		// Accepted: an HTML 403 or 429 through wp.apiFetch loses its status too,
+		// so it counts as brief (about 50 s more before its error, 3 extra requests).
 		if ( 503 === status || 'fetch_error' === err.code || ( 'invalid_json' === err.code && ! status ) ) {
 			return true;
 		}
