@@ -43,6 +43,8 @@ function models_budget_data() {
 		// and the turns that ran on an id the pricing table lacks, counted rather than dropped.
 		'copilot'          => function_exists( 'snt_ai_copilot_spend_this_month' ) ? (float) snt_ai_copilot_spend_this_month() : 0.0,
 		'copilot_unpriced' => function_exists( 'snt_ai_copilot_unpriced_this_month' ) ? (int) snt_ai_copilot_unpriced_this_month() : 0,
+		'agents'           => function_exists( 'snt_ai_agents_spend_this_month' ) ? (float) snt_ai_agents_spend_this_month() : 0.0, // OpenStation 1.1.14
+		'agents_unpriced'  => function_exists( 'snt_ai_agents_unpriced_this_month' ) ? (int) snt_ai_agents_unpriced_this_month() : 0,
 		'embed_token'      => function_exists( 'snt_ml_embed_token' ) ? snt_ml_embed_token() : '',
 		'embed_has_check'  => function_exists( 'snt_ml_embed_configured' ),
 		'embed_configured' => function_exists( 'snt_ml_embed_configured' ) && snt_ml_embed_configured(),
@@ -115,6 +117,13 @@ function models_budget_spend_html( array $d ) {
 	if ( $unpriced > 0 ) {
 		/* translators: %s: Copilot turns. */
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( _n( '%s Copilot turn this month reported no usage, or a model with no list price on file, and is not in the dollar figure.', '%s Copilot turns this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', $unpriced, 'signal-and-noise-tools' ), number_format_i18n( $unpriced ) ) ) . '</p>';
+	}
+	// OpenStation 1.1.14: agent runs, the same pricing in a bucket of their own; the words are the classic page's.
+	$agents = (float) ( $d['agents'] ?? 0 );
+	$out   .= \snt_kit_list( array( array( 'label' => __( 'Agents, not counted against the cap', 'signal-and-noise-tools' ), 'value' => '$' . number_format_i18n( $agents, $agents > 0 && $agents < 0.01 ? 4 : 2 ) ) ) );
+	$out   .= function_exists( 'sn_admin_ai_agents_note' ) ? '<p class="snt-hint">' . \snt_kit_esc( sn_admin_ai_agents_note() ) . '</p>' : '';
+	if ( (int) ( $d['agents_unpriced'] ?? 0 ) > 0 && function_exists( 'sn_admin_ai_agents_unpriced' ) ) {
+		$out .= '<p class="snt-hint">' . \snt_kit_esc( sn_admin_ai_agents_unpriced( (int) $d['agents_unpriced'] ) ) . '</p>';
 	}
 	// 17.4.1: one box, the total as its lead, so it can share a row with the form.
 	return \snt_kit_section( __( 'This month, by feature', 'signal-and-noise-tools' ), $out );

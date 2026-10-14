@@ -49,5 +49,33 @@ function sn_admin_ai_copilot_row() {
 		/* translators: %s: Copilot turns. */
 		echo '<p class="sn-field-helper">' . esc_html( sprintf( _n( '%s Copilot turn this month reported no usage, or a model with no list price on file, and is not in the dollar figure.', '%s Copilot turns this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', $unpriced, 'signal-and-noise-tools' ), number_format_i18n( $unpriced ) ) ) . '</p>';
 	}
+	// OpenStation 1.1.14: agent runs, the same pricing in a bucket of their own.
+	$agents   = function_exists( 'snt_ai_agents_spend_this_month' ) ? (float) snt_ai_agents_spend_this_month() : 0.0;
+	$unpriced = function_exists( 'snt_ai_agents_unpriced_this_month' ) ? (int) snt_ai_agents_unpriced_this_month() : 0;
+	echo '<p class="sn-field-helper">' . esc_html__( 'Agents, not counted against the cap', 'signal-and-noise-tools' ) . ': $' . esc_html( number_format_i18n( $agents, $agents > 0 && $agents < 0.01 ? 4 : 2 ) ) . '</p>';
+	echo '<p class="sn-field-helper">' . esc_html( sn_admin_ai_agents_note() ) . '</p>';
+	if ( $unpriced > 0 ) {
+		echo '<p class="sn-field-helper">' . esc_html( sn_admin_ai_agents_unpriced( $unpriced ) ) . '</p>';
+	}
 	echo '</div>';
+}
+
+/**
+ * The Agents pricing note, the same on both twins.
+ *
+ * @return string
+ */
+function sn_admin_ai_agents_note() {
+	return __( 'Agents are priced the same way, at list rates from the tokens each run reports. A station older than OpenStation 1.1.14 reports no usage for agent runs, so there every run counts as unpriced.', 'signal-and-noise-tools' );
+}
+
+/**
+ * The Agents unpriced-runs hint, the same on both twins.
+ *
+ * @param int $count Unpriced agent runs this month.
+ * @return string
+ */
+function sn_admin_ai_agents_unpriced( $count ) {
+	/* translators: %s: agent runs. */
+	return sprintf( _n( '%s agent run this month reported no usage, or a model with no list price on file, and is not in the dollar figure.', '%s agent runs this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', $count, 'signal-and-noise-tools' ), number_format_i18n( $count ) );
 }
