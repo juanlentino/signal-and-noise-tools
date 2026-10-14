@@ -95,7 +95,8 @@ echo "\nGroup: the rule is SHARED with the MCP path, not re-derived\n";
 $guard = (string) file_get_contents( __DIR__ . '/../inc/sn-apply/plan-changes.php' );
 ok( false !== strpos( $guard, 'snt_sn_apply_schedule_overdue' ), 'the MCP path still refuses the same boundary (409)' );
 ok( false !== strpos( $guard, 'MINUTE_IN_SECONDS' ), 'and still measures it in the same unit' );
-$mcp = (string) file_get_contents( __DIR__ . '/../inc/sn-apply/block-edit.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$mcp = snt_test_sn_apply_block_edit_src(); // the shell and its parts (split 2026-10-14)
 ok( false !== strpos( $mcp, 'snt_sn_apply_write_preserving_schedule(' ), 'THE CHAIN: the block-edit write path actually CALLS the shared guard' );
 $batch = (string) file_get_contents( __DIR__ . '/../inc/batch-schedule.php' );
 ok( false !== strpos( $batch, 'MINUTE_IN_SECONDS' ), 'the admin path uses the same unit rather than a hard-coded 60' );
