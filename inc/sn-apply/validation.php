@@ -4,7 +4,7 @@
  * validation). MCP consolidation session 6b.
  *
  * Split out of inc/sn-apply/executors.php purely for the 450-line file
- * budget — these three functions are still part of the same per-change-type
+ * budget — its parts files still belong to the same per-change-type
  * executor layer (inc/sn-apply/executors.php holds target resolution, the
  * mode-support matrix, and the write dispatch; inc/abilities-sn-apply.php
  * orchestrates all four gates in order).
