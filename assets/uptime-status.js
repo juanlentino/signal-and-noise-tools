@@ -101,6 +101,24 @@
 		return h + 'h ' + ( m < 10 ? '0' : '' ) + m + 'm';
 	}
 
+	// "21 ms", "4.2 s", "28 s": seconds once a check passes one.
+	function msText( ms ) {
+		if ( ms < 1000 ) {
+			return Math.round( ms ) + ' ms';
+		}
+		return ( ms < 10000 ? Math.round( ms / 100 ) / 10 : Math.round( ms / 1000 ) ) + ' s';
+	}
+
+	// The slowest check (2026-10-13): how long, where it ran, when; each
+	// piece left out when the read did not carry it, "not read" with none.
+	function slowest( row ) {
+		if ( 'number' !== typeof row.max_ms ) {
+			return 'not read';
+		}
+		var when = ago( row.max_at ).replace( 'checked ', '' );
+		return msText( row.max_ms ) + ( row.max_region ? ' from ' + row.max_region : '' ) + ( when ? ', ' + when : '' );
+	}
+
 	// The Analytics page monitor: per-resource table + incidents log (v8.4.0).
 	function paintDetail( mount, data ) {
 		mount.textContent = '';
@@ -117,7 +135,7 @@
 		var table = el( 'table', 'sn-uw-table' );
 		var thead = el( 'thead' );
 		var hr = el( 'tr' );
-		[ 'Monitor', 'Status', '30d', '90d', 'Resp.', 'Checked' ].forEach( function ( h, i ) {
+		[ 'Monitor', 'Status', '30d', '90d', 'Median', 'Slowest', 'Checked' ].forEach( function ( h, i ) {
 			hr.appendChild( el( 'th', i > 0 ? 'sn-uw-num' : '', h ) );
 		} );
 		thead.appendChild( hr );
@@ -139,7 +157,10 @@
 			}
 			tr.appendChild( t30 );
 			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.availability_90d ? pct( row.availability_90d ) : 'not read' ) );
-			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.response_ms ? row.response_ms + ' ms' : 'not read' ) );
+			// The median, not the mean (owner-approved 2026-10-13): a few checks
+			// near the timeout made the mean 13x the typical check.
+			tr.appendChild( el( 'td', 'sn-uw-num', 'number' === typeof row.median_ms ? row.median_ms + ' ms' : 'not read' ) );
+			tr.appendChild( el( 'td', 'sn-uw-num sn-uw-wrap', slowest( row ) ) );
 			tr.appendChild( el( 'td', 'sn-uw-num sn-uw-quiet', ago( row.checked_at ).replace( 'checked ', '' ) || 'not read' ) );
 			tbody.appendChild( tr );
 		} );
@@ -167,7 +188,7 @@
 			} );
 			mount.appendChild( log );
 		}
-		mount.appendChild( el( 'p', 'sn-uw-meta', 'Availability over 30/90 days · response averaged over 24h · Better Stack' ) );
+		mount.appendChild( el( 'p', 'sn-uw-meta', 'Availability over 30/90 days · median and slowest response over 24 h · Better Stack' ) );
 	}
 
 	// The paint guard. An ATTRIBUTE, deliberately: an OpenStation window's

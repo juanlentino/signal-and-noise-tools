@@ -30,8 +30,8 @@
  * Dashboard → Analytics page, owner call):
  *   - LIGHT (sn_uptime_status_fetch): statuses only, 2 calls, 90s cache.
  *     Feeds the Signal & Noise widget's Uptime section + the Webhooks rail.
- *   - DETAIL (sn_uptime_status_detail): + 30d/90d availability, avg
- *     response times (24h), and the incidents log. Feeds the Analytics
+ *   - DETAIL (sn_uptime_status_detail): + 30d/90d availability, median
+ *     and slowest response time (24h), and the incidents log. Feeds the Analytics
  *     page monitor. Every stat tier is independently cached, fails SOFT
  *     (null, never an exception), and circuit-breaks on first failure so
  *     a down summary API is neither waited on nor hammered.
@@ -52,11 +52,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// The 24h median + slowest-check read (and its transient key) lives here.
+require_once __DIR__ . '/uptime-status-response.php';
+
 define( 'SN_UPTIME_STATUS_TOKEN_OPT', 'sn_betterstack_api_token' );
 define( 'SN_UPTIME_STATUS_TRANSIENT', 'sn_uptime_status_snapshot' );
 define( 'SN_UPTIME_STATUS_AVAIL_TRANSIENT', 'sn_uptime_availability' );
 define( 'SN_UPTIME_STATUS_AVAIL_90D_TRANSIENT', 'sn_uptime_availability_90d' );
-define( 'SN_UPTIME_STATUS_RESPONSE_TRANSIENT', 'sn_uptime_response_times' );
 define( 'SN_UPTIME_STATUS_INCIDENTS_TRANSIENT', 'sn_uptime_incidents' );
 define( 'SN_UPTIME_STATUS_TTL', 90 );
 // 18.1.0 — the hourly 30d-availability warmer. Its TTL outlives the cadence so
@@ -258,59 +260,6 @@ function sn_uptime_status_availability_map( $rows, $days = 30, $transient = SN_U
 }
 
 /**
- * Average response time per MONITOR (heartbeats are inbound; they have no
- * response times) from the 24h response-times endpoint. The response nests
- * per-region sample arrays ({at, response_time} in SECONDS); the average
- * here is across every sample of every region, in whole milliseconds —
- * a glanceable number, not a percentile study (the Better Stack console
- * owns the charts). 15 min TTL; same circuit-break discipline as the
- * availability maps.
- *
- * @param array $rows Normalized snapshot rows.
- * @return array Map of "monitor:{id}" → int ms | null.
- */
-function sn_uptime_status_response_map( $rows ) {
-	$cached = get_transient( SN_UPTIME_STATUS_RESPONSE_TRANSIENT );
-	if ( is_array( $cached ) ) {
-		return $cached;
-	}
-
-	$map    = array();
-	$broken = false;
-
-	foreach ( $rows as $row ) {
-		if ( 'monitor' !== $row['kind'] || '' === $row['id'] ) {
-			continue;
-		}
-		$key = 'monitor:' . $row['id'];
-		if ( $broken ) {
-			$map[ $key ] = null;
-			continue;
-		}
-		$resp = sn_uptime_status_api_get( 'v2/monitors/' . rawurlencode( $row['id'] ) . '/response-times' );
-		if ( is_wp_error( $resp ) || ! isset( $resp['data']['attributes']['regions'] ) || ! is_array( $resp['data']['attributes']['regions'] ) ) {
-			$broken      = true;
-			$map[ $key ] = null;
-			continue;
-		}
-		$sum   = 0.0;
-		$count = 0;
-		foreach ( $resp['data']['attributes']['regions'] as $region ) {
-			foreach ( (array) ( $region['response_times'] ?? array() ) as $sample ) {
-				if ( isset( $sample['response_time'] ) && is_numeric( $sample['response_time'] ) ) {
-					$sum += (float) $sample['response_time'];
-					$count++;
-				}
-			}
-		}
-		$map[ $key ] = $count > 0 ? (int) round( 1000 * $sum / $count ) : null;
-	}
-
-	set_transient( SN_UPTIME_STATUS_RESPONSE_TRANSIENT, $map, $broken ? 600 : 900 );
-	return $map;
-}
-
-/**
  * Recent incidents (v3 endpoint — the one resource NOT on v2), normalized
  * and sorted newest first. resolved_at null = ongoing. 5 min TTL so an
  * active incident shows promptly; failures return null (renderers show an
@@ -414,8 +363,8 @@ function sn_uptime_status_fetch( $force = false ) {
 
 /**
  * The full monitor payload for the Analytics page (v8.4.0): status rows
- * enriched with 30d + 90d availability, incident counts, and average
- * response times, plus the recent-incidents log. Composes the independent
+ * enriched with 30d + 90d availability, incident counts, and the median
+ * and slowest response time (24h), plus the recent-incidents log. Composes the independent
  * cache tiers — each fails soft to null, so a partial Better Stack outage
  * degrades the table, never the page.
  *
@@ -440,7 +389,7 @@ function sn_uptime_status_detail( $force = false ) {
 		$rows[ $i ]['availability']      = $e30 ? $e30['availability'] : null;
 		$rows[ $i ]['incidents_30d']     = $e30 ? $e30['incidents'] : null;
 		$rows[ $i ]['availability_90d']  = $e90 ? $e90['availability'] : null;
-		$rows[ $i ]['response_ms']       = $rt[ $key ] ?? null;
+		$rows[ $i ] = array_merge( $rows[ $i ], sn_uptime_status_response_fields( $rt[ $key ] ?? null ) );
 	}
 
 	return array(
@@ -556,7 +505,7 @@ function snt_ability_uptime_status( $input = null ) {
 			$rows[ $i ]['availability']     = $e30 ? $e30['availability'] : null;
 			$rows[ $i ]['incidents_30d']    = $e30 ? $e30['incidents'] : null;
 			$rows[ $i ]['availability_90d'] = $e90 ? $e90['availability'] : null;
-			$rows[ $i ]['response_ms']      = null;
+			$rows[ $i ] = array_merge( $rows[ $i ], sn_uptime_status_response_fields( null ) );
 		}
 	}
 
@@ -575,7 +524,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/uptime-status', array(
 		'label'               => 'Get Better Stack uptime status',
-		'description'         => 'Returns the Better Stack monitor + heartbeat states (name, status, level) from a 90s server-side cache, plus 30d/90d availability and 30d incident counts when the warmer has the caches warm (never fetched on this path). Pass detail=true for the full monitor payload: 30d + 90d availability, incident counts, average response times (24h), and the recent-incidents log (independently cached tiers: 1h/6h/15min/5min). Pass force_refresh=true to bypass the status cache. Read-only; safe to call anytime. configured=false means no API token is saved yet (not an error); null stats mean that summary tier was unavailable (statuses are still authoritative).',
+		'description'         => 'Returns the Better Stack monitor + heartbeat states (name, status, level) from a 90s server-side cache, plus 30d/90d availability and 30d incident counts when the warmer has the caches warm (never fetched on this path). Pass detail=true for the full monitor payload: 30d + 90d availability, incident counts, the 24h response time as a median plus the slowest single check (its ms, region and time), and the recent-incidents log (independently cached tiers: 1h/6h/15min/5min). Pass force_refresh=true to bypass the status cache. Read-only; safe to call anytime. configured=false means no API token is saved yet (not an error); null stats mean that summary tier was unavailable (statuses are still authoritative).',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_uptime_status',
@@ -592,7 +541,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'detail'        => array(
 					'type'        => 'boolean',
 					'default'     => false,
-					'description' => 'Return the full monitor payload: availability windows, response times, and the incidents log (the Analytics page tier).',
+					'description' => 'Return the full monitor payload: availability windows, median and slowest response times, and the incidents log (the Analytics page tier).',
 				),
 			),
 			'additionalProperties' => false,
@@ -616,7 +565,11 @@ add_action( 'wp_abilities_api_init', function () {
 							'availability'  => array( 'type' => array( 'number', 'null' ), 'description' => '30-day availability percentage; on the light tier read from the hourly-warmed cache (null when cold); null whenever the summary endpoint was unavailable.' ),
 							'incidents_30d' => array( 'type' => array( 'integer', 'null' ) ),
 							'availability_90d' => array( 'type' => array( 'number', 'null' ) ),
-							'response_ms'   => array( 'type' => array( 'integer', 'null' ), 'description' => 'Average response time over the last 24h in ms (monitors only, detail tier).' ),
+							'response_ms'   => array( 'type' => array( 'integer', 'null' ), 'description' => 'MEDIAN response time over the last 24h in ms (monitors only, detail tier; null when not read). Until 2026-10-13 this was the mean, which a few checks near the timeout inflated; same value as median_ms.' ),
+							'median_ms'     => array( 'type' => array( 'integer', 'null' ), 'description' => 'Median response time over the last 24h in ms, across every region (monitors only, detail tier; null when not read).' ),
+							'max_ms'        => array( 'type' => array( 'integer', 'null' ), 'description' => 'The slowest single check over the last 24h in ms (monitors only, detail tier; null when not read).' ),
+							'max_region'    => array( 'type' => array( 'string', 'null' ), 'description' => 'Where the slowest check ran, in words (the US, Europe, Asia, Australia; an undocumented code as given); null when not read.' ),
+							'max_at'        => array( 'type' => array( 'string', 'null' ), 'description' => 'When the slowest check ran (ISO 8601, UTC, as Better Stack reports it); null when not read.' ),
 						),
 					),
 				),

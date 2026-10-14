@@ -87,7 +87,7 @@ const fixtures = [
 // painted as one verdict line, so it has its own block below rather than the
 // deploy card's footer-and-cue fixture loop.
 const systems = {id: 'sn-health', period: 120000, good: {configured: true, fetched_at: '2026-09-08T11:59:30Z',
-  rows: [{name: 'example.test', level: 'ok', status: 'up', availability: 100, response_ms: 106}, {name: 'heartbeat', level: 'ok', status: 'up', availability: 99.98, response_ms: null}]}};
+  rows: [{name: 'example.test', level: 'ok', status: 'up', availability: 100, response_ms: 106, median_ms: 106, max_ms: 28400, max_region: 'Asia', max_at: '2026-09-08T07:00:00Z'}, {name: 'heartbeat', kind: 'heartbeat', level: 'ok', status: 'up', availability: 99.98, response_ms: null, median_ms: null, max_ms: null}]}};
 const pollerPair = [fixtures[0], systems];
 // The deploy card paints its polled reading into its first child; the Check
 // for updates button (moved from Quick Actions) sits beside it, never repainted.
@@ -288,7 +288,9 @@ async function run() {
     assert.match(root.textContent, /Checking…/, 'the verdict waits for the uptime read');
     x.calls[0].resolve(f.good); await flush();
     assert.match(root.textContent, /All systems normal/);
-    assert.match(root.textContent, /2 of 2 up · 99\.99% over 30 days · average 106 ms/, 'the first uptime row condenses the monitors: mean 30-day uptime and mean response time');
+    assert.match(root.textContent, /2 of 2 up · 99\.99% over 30 days · median 106 ms over 24 h/, '2026-10-13: the response figure is the median over 24 hours, never the mean a few timeouts inflate');
+    assert.match(root.textContent, /Slowest 28 s from Asia · 5h ago/, 'the slowest single check, in words: how long, where it ran, when; one monitor needs no name');
+    assert.doesNotMatch(root.textContent, /average/, 'no mean is painted anywhere');
     assert.doesNotMatch(root.textContent, /▲|▼/, 'no change on the uptime row: the uptime data carries no prior period');
     assert.doesNotMatch(root.textContent, /example\.test|heartbeat/, 'all up: one line, no row per monitor');
     await x.tick(f.period); assert.equal(x.calls.length, 2);
@@ -378,10 +380,11 @@ async function run() {
       provenance: {integrity: {fleet: 50, checked: 40, clean: 39, failing: 1, keys: 'keys_missing'}, rights: {month: 'September', text: '8 waiting for a Bitcoin block', attention: false, last_posted: Date.parse('2026-09-05T12:00:00Z') / 1000}, zenodo: {minted: 7, total: 9}}}};
     const x = harness(extra), root = new Element('div');
     const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
-    x.calls[0].resolve({configured: true, rows: [{name: 'Home', level: 'ok', response_ms: 120, incidents_30d: 1}, {name: 'Feed', level: 'ok', response_ms: 340, incidents_30d: 0}]}); await flush();
+    x.calls[0].resolve({configured: true, rows: [{name: 'Home', level: 'ok', median_ms: 120, max_ms: 900, max_region: 'the US', incidents_30d: 1}, {name: 'Feed', level: 'ok', median_ms: 340, max_ms: 4200, max_region: 'Europe', incidents_30d: 0}]}); await flush();
     const t = root.textContent;
     assert.match(t, /Incidents · 30 days 1/, 'incidents over 30 days across the monitors');
-    assert.match(t, /Slowest Feed · 340 ms/, 'the slowest monitor, by name');
+    assert.match(t, /Slowest Feed · 4\.2 s from Europe/, 'the slowest check across monitors names its monitor; no time read, none painted');
+    assert.match(t, /medians 120 to 340 ms over 24 h/, 'several monitors: their medians as a range, never a mean of medians called a median');
     assert.match(t, /5xx · Oct 4 12 Visitors, direct 2 Day before 15/, 'edge 5xx: the count, the visitors among them and the day before, as short rows that fit beside Cache');
     assert.doesNotMatch(t, /Your dashboard/, 'no dashboard count from the payload: no split row');
     assert.match(t, /Last 24 hours 40 runs recorded · 2 failed/, 'cron runs recorded and recorded failures over 24 hours');
@@ -475,13 +478,13 @@ async function run() {
     vstop();
     const q = harness({statusExtra: {systems: {}, provenance: {}}}), qroot = new Element('div');
     const qstop = q.window.desktopModeWidgets['sn-health'](qroot); await flush();
-    q.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok', response_ms: 100}, {name: 'b', level: 'ok', response_ms: 300}, {name: 'c', level: 'ok', response_ms: null}]}); await flush();
-    assert.match(qroot.textContent, /Slowest b · 300 ms · 2 of 3 monitors timed/, 'Codex on 5aa3fce: the slowest of a partial read says how many were compared');
+    q.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok', median_ms: 100, max_ms: 150}, {name: 'b', level: 'ok', median_ms: 300, max_ms: 700}, {name: 'c', level: 'ok', median_ms: null, max_ms: null}]}); await flush();
+    assert.match(qroot.textContent, /Slowest b · 700 ms · 2 of 3 monitors timed/, 'Codex on 5aa3fce: the slowest of a partial read says how many were compared; no region read, none painted');
     qstop();
     const hb = harness({statusExtra: {systems: {edge: {day: 'Oct 4', failed: true}}, provenance: {}}}), hbroot = new Element('div');
     const hbstop = hb.window.desktopModeWidgets['sn-health'](hbroot); await flush();
-    hb.calls[0].resolve({configured: true, rows: [{name: 'a', kind: 'monitor', level: 'ok', response_ms: 100}, {name: 'b', kind: 'monitor', level: 'ok', response_ms: 300}, {name: 'beat', kind: 'heartbeat', level: 'ok', response_ms: null}]}); await flush();
-    assert.match(hbroot.textContent, /Slowest b · 300 ms/, 'the slowest of two timed monitors');
+    hb.calls[0].resolve({configured: true, rows: [{name: 'a', kind: 'monitor', level: 'ok', median_ms: 100, max_ms: 200}, {name: 'b', kind: 'monitor', level: 'ok', median_ms: 300, max_ms: 600}, {name: 'beat', kind: 'heartbeat', level: 'ok', median_ms: null, max_ms: null}]}); await flush();
+    assert.match(hbroot.textContent, /Slowest b · 600 ms/, 'the slowest check of two timed monitors');
     assert.doesNotMatch(hbroot.textContent, /of 3 monitors timed/, 'Codex on b872a9f: a heartbeat is not counted as an untimed monitor');
     assert.match(hbroot.textContent, /The 5xx read for Oct 4 failed/, 'Codex on b872a9f: a failed newest day is said, not replaced by an older one');
     assert.match(hbroot.textContent, /Last 24 hours could not be read/, 'Codex on b872a9f: a failed cron-history read is said');
@@ -678,9 +681,9 @@ async function run() {
   {
     const x = harness(), root = new Element('div');
     const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
-    x.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}, {name: 'b', level: 'ok', availability: null, response_ms: undefined}]}); await flush();
+    x.calls[0].resolve({configured: true, rows: [{name: 'a', level: 'ok'}, {name: 'b', level: 'ok', availability: null, response_ms: undefined, median_ms: null, max_ms: null}]}); await flush();
     assert.match(root.textContent, /Monitors 2 of 2 up /, 'no availability and no response time: the row is only the count');
-    assert.doesNotMatch(root.textContent, /over 30 days|average|0 ms|NaN/);
+    assert.doesNotMatch(root.textContent, /over 30 days|average|median|Slowest|0 ms|NaN/);
     stop();
   }
   // SN Provenance: the top crawler family's share, with its change in points

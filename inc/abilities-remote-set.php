@@ -261,6 +261,8 @@ add_action( 'wp_abilities_api_init', function () {
 			. 'Returns the Better Stack monitor + heartbeat states (name, status, '
 			. 'level) from the origin\'s cache, plus 30-day availability, incident counts '
 			. 'and (18.2.0) 90-day availability from the warmed caches (null when cold). '
+			. 'The 24h response keys (response_ms, median_ms, max_ms, max_region, max_at) '
+			. 'are always null here: only the admin detail tier reads them. '
 			. 'Served from the origin\'s cache; '
 			. 'there is no force_refresh remotely — no arguments are accepted. '
 			. 'configured=false means no API token is saved yet (not an error). '
@@ -302,7 +304,11 @@ add_action( 'wp_abilities_api_init', function () {
 							'availability'  => array( 'type' => array( 'number', 'null' ), 'description' => '30-day availability percentage; on the light tier read from the hourly-warmed cache (null when cold); null whenever the summary endpoint was unavailable.' ),
 							'incidents_30d' => array( 'type' => array( 'integer', 'null' ) ),
 							'availability_90d' => array( 'type' => array( 'number', 'null' ) ),
-							'response_ms'   => array( 'type' => array( 'integer', 'null' ), 'description' => 'Average response time over the last 24h in ms (monitors only, detail tier).' ),
+							'response_ms'   => array( 'type' => array( 'integer', 'null' ), 'description' => 'MEDIAN response time over the last 24h in ms (monitors only, detail tier; null when not read). Until 2026-10-13 this was the mean, which a few checks near the timeout inflated; same value as median_ms.' ),
+							'median_ms'     => array( 'type' => array( 'integer', 'null' ), 'description' => 'Median response time over the last 24h in ms, across every region (monitors only, detail tier; null when not read).' ),
+							'max_ms'        => array( 'type' => array( 'integer', 'null' ), 'description' => 'The slowest single check over the last 24h in ms (monitors only, detail tier; null when not read).' ),
+							'max_region'    => array( 'type' => array( 'string', 'null' ), 'description' => 'Where the slowest check ran, in words (the US, Europe, Asia, Australia; an undocumented code as given); null when not read.' ),
+							'max_at'        => array( 'type' => array( 'string', 'null' ), 'description' => 'When the slowest check ran (ISO 8601, UTC, as Better Stack reports it); null when not read.' ),
 						),
 					),
 				),

@@ -273,7 +273,7 @@ us_eq( array( 'Home', 'Status 500', false, 720 ),
 
 us_eq( 3600, $GLOBALS['__transient_ttls']['sn_uptime_availability'] ?? 0, '30d map cached 1h' );
 us_eq( 21600, $GLOBALS['__transient_ttls']['sn_uptime_availability_90d'] ?? 0, '90d map cached 6h' );
-us_eq( 900, $GLOBALS['__transient_ttls']['sn_uptime_response_times'] ?? 0, 'response map cached 15 min' );
+us_eq( 900, $GLOBALS['__transient_ttls']['sn_uptime_response_stats'] ?? 0, 'response map cached 15 min' );
 us_eq( 300, $GLOBALS['__transient_ttls']['sn_uptime_incidents'] ?? 0, 'incidents cached 5 min' );
 
 $before = count( $GLOBALS['__http_requests'] );
@@ -309,6 +309,47 @@ $detail = sn_uptime_status_detail();
 us_eq( null, $detail['incidents'], 'incidents failure yields null (renderers show unavailable), rows intact' );
 us_eq( 3, count( $detail['rows'] ), 'rows survive an incidents failure' );
 us_eq( false, get_transient( 'sn_uptime_incidents' ), 'failed incidents fetch is NOT cached' );
+
+// ─── Test 6b: 2026-10-13, the median and the slowest check, not a mean ─
+// The owner's case: a handful of checks near the 30 s timeout among hundreds
+// of quick ones. The mean (the old figure) was ~13x the typical check.
+echo "\nTest 6b: median + slowest check (owner-approved 2026-10-13)\n";
+us_clear_all_transients();
+$GLOBALS['__http_requests'] = array();
+$GLOBALS['__http_queue']    = array();
+us_queue_statuses();
+us_queue_sla_trio();
+us_queue_sla_trio();
+$skew = array( 'data' => array( 'id' => 'x', 'type' => 'monitor_response_times', 'attributes' => array( 'regions' => array(
+	array( 'region' => 'us', 'response_times' => array(
+		array( 'at' => '2026-10-12T01:00:00.000Z', 'response_time' => 0.020 ),
+		array( 'at' => '2026-10-12T02:00:00.000Z', 'response_time' => 0.021 ),
+		array( 'at' => '2026-10-12T03:00:00.000Z', 'response_time' => 0.022 ),
+		array( 'at' => '2026-10-12T04:00:00.000Z', 'response_time' => null ), // a failed check: no figure, never a 0
+	) ),
+	array( 'region' => 'as', 'response_times' => array(
+		array( 'at' => '2026-10-12T05:00:00.000Z', 'response_time' => 0.019 ),
+		array( 'at' => '2026-10-12T06:30:00.000Z', 'response_time' => 28.4 ),
+		array( 'at' => '2026-10-12T07:00:00.000Z', 'response_time' => 0.021 ),
+	) ),
+) ) ) );
+$GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => wp_json_encode_stub( $skew ) ); // m1: skewed
+$GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => us_response_body( array( 'eu' => array( 0.2, 0.4 ) ) ) ); // m2: even count
+$GLOBALS['__http_queue'][] = array( 'code' => 200, 'body' => us_incidents_body() );
+$detail = sn_uptime_status_detail();
+$m1     = $detail['rows'][0];
+us_eq( 21, $m1['response_ms'], 'response_ms is the MEDIAN now (21 ms), not the mean (4,751 ms)' );
+us_eq( 21, $m1['median_ms'] ?? 'missing', 'median_ms carries the same median' );
+us_eq( 28400, $m1['max_ms'] ?? 'missing', 'max_ms is the slowest single check' );
+us_eq( 'Asia', $m1['max_region'] ?? 'missing', 'max_region names where the slowest check ran, in words' );
+us_eq( '2026-10-12T06:30:00.000Z', $m1['max_at'] ?? 'missing', 'max_at is the slow sample\'s own time, not any sample\'s' );
+us_eq( 300, $detail['rows'][1]['median_ms'] ?? 'missing', 'an even sample count takes the middle two (200 and 400 ms)' );
+$hb_keys = array( 'response_ms', 'median_ms', 'max_ms', 'max_region', 'max_at' );
+us_eq( array_fill_keys( $hb_keys, null ), array_intersect_key( $detail['rows'][2], array_flip( $hb_keys ) ),
+	'a heartbeat carries every response key, each null (not read), never 0' );
+us_eq( 900, $GLOBALS['__transient_ttls']['sn_uptime_response_stats'] ?? 0, 'stats cached 15 min under a NEW key, so an old mean cache is never read as stats' );
+us_eq( 'jp', sn_uptime_status_region_label( 'jp' ), 'an undocumented region code is shown as given, never guessed' );
+us_eq( null, sn_uptime_status_region_label( '' ), 'no region is null, not a blank' );
 
 // ─── Test 7: level map covers every documented status ────────────────
 echo "\nTest 7: level mapping\n";
