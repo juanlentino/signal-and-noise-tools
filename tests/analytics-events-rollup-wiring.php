@@ -19,7 +19,9 @@ $pos_evt = strpos( $bootstrap, "inc/analytics-events.php" );
 $pos_rup = strpos( $bootstrap, "inc/analytics-events-rollup.php" );
 ok( $pos_evt !== false && $pos_rup !== false && $pos_rup > $pos_evt, 'bootstrap: rollup required AFTER analytics-events.php (upsert dependency)' );
 
-$cron = (string) file_get_contents( $root . '/inc/analytics-rollup.php' );
+// The rollup module and its four parts files (split 2026-10-14, house line cap).
+require_once __DIR__ . '/lib/inc-population.php';
+$cron = snt_test_analytics_rollup_src();
 ok( strpos( $cron, "function_exists( 'sn_analytics_events_run_rollup' )" ) !== false, 'cron: guards the new runner with function_exists' );
 ok( strpos( $cron, 'sn_analytics_events_run_rollup();' ) !== false, 'cron: calls sn_analytics_events_run_rollup() in the rollup pass' );
 $run_fn = strstr( $cron, 'function sn_analytics_run_rollup()' );

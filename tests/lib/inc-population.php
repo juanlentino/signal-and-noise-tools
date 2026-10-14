@@ -167,6 +167,30 @@ if ( ! function_exists( 'snt_test_cron_dashboard_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_analytics_rollup_src' ) ) {
+	/**
+	 * The source of inc/analytics-rollup.php AND its four parts files, for
+	 * suites that pin the data layer's text. Split 2026-10-14 (house line cap).
+	 * Named, not globbed: a future analytics-rollup-* module would not belong
+	 * in the read. A missing file returns '' so every presence pin goes red and
+	 * every guarded absence pin fails rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_analytics_rollup_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-schema-parts', '-gated-parts', '-upsert-parts', '-run-parts' ) as $suffix ) {
+			$file = $dir . 'analytics-rollup' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_insights_src' ) ) {
 	/**
 	 * The source of inc/insights.php AND its three parts files, for suites that

@@ -67,10 +67,13 @@ $dir   = dirname( __DIR__ ) . '/inc';
 $files = array( 'analytics-api.php', 'analytics-realtime.php', 'analytics-rollup.php', 'analytics-dims.php', 'analytics-buckets.php', 'analytics-percentiles.php', 'analytics-drilldown.php', 'analytics-pageroles.php', 'analytics-events-rollup.php' );
 
 echo "Group: AE SQL dialect — no count() with arguments\n";
+// analytics-rollup.php is read with its four parts files (split 2026-10-14);
+// the absence pins carry a non-empty floor so a missed read cannot pass them.
+require_once __DIR__ . '/lib/inc-population.php';
 foreach ( $files as $f ) {
-	$code = dialect_code_only( file_get_contents( "$dir/$f" ) );
-	dq( ! dialect_bad_count_arg( $code ), "$f: no count(<arg>) — AE count() takes 0 args (count(*)/count(col) rejected)" );
-	dq( ! dialect_bad_count_distinct( $code ), "$f: no count(DISTINCT <expr>) — AE accepts DISTINCT of a bare column only" );
+	$code = dialect_code_only( 'analytics-rollup.php' === $f ? snt_test_analytics_rollup_src() : (string) file_get_contents( "$dir/$f" ) );
+	dq( '' !== $code && ! dialect_bad_count_arg( $code ), "$f: no count(<arg>) — AE count() takes 0 args (count(*)/count(col) rejected)" );
+	dq( '' !== $code && ! dialect_bad_count_distinct( $code ), "$f: no count(DISTINCT <expr>) — AE accepts DISTINCT of a bare column only" );
 }
 
 echo "\nGroup: AE SQL dialect — expected valid forms present\n";
@@ -80,7 +83,7 @@ dq( preg_match( '/SELECT\s+count\(\)\s+AS\s+n/i', $api ) === 1, 'probe: SELECT c
 $rt = dialect_code_only( file_get_contents( "$dir/analytics-realtime.php" ) );
 dq( strpos( $rt, 'count(DISTINCT index1)' ) !== false, 'realtime: count(DISTINCT index1) (plain column)' );
 
-$rollup = dialect_code_only( file_get_contents( "$dir/analytics-rollup.php" ) );
+$rollup = dialect_code_only( snt_test_analytics_rollup_src() );
 dq( strpos( $rollup, 'count(DISTINCT index1)' ) !== false, 'rollup: count(DISTINCT index1) (plain column)' );
 
 $dims = dialect_code_only( file_get_contents( "$dir/analytics-dims.php" ) );
