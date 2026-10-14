@@ -38,7 +38,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/purge-all-caches', array(
 		'label'               => 'Purge all caches',
-		'description'         => 'Emergency refresh of the page caches: transients, page files and the Cloudflare edge. NOT needed after a deploy or a post save; both refresh the caches on their own (20.9.0), and a failed refresh is mailed by the alert run. Use it only when a page is visibly wrong and stays wrong. Redis (the object cache) is left alone unless flush_object_cache is true. The response reports whether the Cloudflare zone purge was actually confirmed (v10.4.1); ok is false when the CF leg could not run or was rejected.',
+		'description'         => 'Emergency refresh of the page caches: transients and the Cloudflare edge. NOT needed after a deploy or a post save; both refresh the caches on their own (20.9.0), and a failed refresh is mailed by the alert run. Use it only when a page is visibly wrong and stays wrong. Redis (the object cache) is left alone unless flush_object_cache is true. The response reports whether the Cloudflare zone purge was actually confirmed (v10.4.1); ok is false when the CF leg could not run or was rejected.',
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_purge_all_caches',
