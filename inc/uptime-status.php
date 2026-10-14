@@ -449,6 +449,35 @@ function sn_uptime_status_warm_on_version_change() {
 	return true;
 }
 add_action( 'admin_init', 'sn_uptime_status_warm_on_version_change' );
+
+/**
+ * Refill right after the update purge. The theme's update purge
+ * clears the transient group, so the light tier read availability null until
+ * a queued run met a cron tick, which waited for the next admin load or the
+ * host's system cron. Queue the warmer due now and spawn cron, the way the
+ * live poll does for an overdue refresh (inc/analytics-live.php). Core refuses
+ * a second single event within 10 minutes, so purges in a row queue one run;
+ * spawn_cron() keeps its own lock. A purge that keeps the transients (a styles
+ * save) queues nothing.
+ *
+ * @param array $args The purge's parsed args (sn_after_full_cache_flush).
+ * @return bool True when a refill was queued.
+ */
+function sn_uptime_status_warm_after_flush( $args = array() ) {
+	$args    = is_array( $args ) ? $args : array();
+	$flushed = ! array_key_exists( 'object_cache', $args ) || ! empty( $args['object_cache'] )
+		|| ! array_key_exists( 'sn_transients', $args ) || ! empty( $args['sn_transients'] );
+	if ( ! $flushed || ! sn_uptime_status_configured() ) {
+		return false;
+	}
+	delete_transient( SN_UPTIME_STATUS_AVAIL_90D_WARMED ); // The 90d window refills too.
+	$queued = true === wp_schedule_single_event( time(), SN_UPTIME_STATUS_AVAIL_WARM_HOOK );
+	if ( function_exists( 'spawn_cron' ) ) {
+		spawn_cron();
+	}
+	return $queued;
+}
+add_action( 'sn_after_full_cache_flush', 'sn_uptime_status_warm_after_flush', 40, 1 );
 add_action( 'init', function () {
 	if ( sn_uptime_status_configured() && ! wp_next_scheduled( SN_UPTIME_STATUS_AVAIL_WARM_HOOK ) ) {
 		wp_schedule_event( time() + 300, 'hourly', SN_UPTIME_STATUS_AVAIL_WARM_HOOK );
