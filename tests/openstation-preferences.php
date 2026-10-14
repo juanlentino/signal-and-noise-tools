@@ -296,6 +296,7 @@ function snt_analytics_page_url( $args = array() ) {
 require_once SNT_PATH . 'inc/openstation-compat.php';
 require_once SNT_PATH . 'inc/openstation-preferences.php';
 require_once SNT_PATH . 'inc/desktop-mode-dock.php';
+require_once __DIR__ . '/lib/inc-population.php'; // snt_test_attention_src(), for the transient parity pins
 
 echo "openstation-preferences — Option B Unit Tests\n\n";
 
@@ -598,7 +599,7 @@ ok( 'https://example.test/wp-json/signal-noise/v1/openstation/attention' === ( $
 ok( false !== strpos( $pp_js, 'window.wp.os.fetch( cfg.attentionEndpoint' ) && false === strpos( $pp_js, 'X-WP-Nonce' ) && false === strpos( $pp_js, 'window.fetch(' ), 'attention pill: the read goes through wp.os.fetch, no hand-set X-WP-Nonce, no raw fetch (a load-time nonce 403s once the shell sits open past its window)' );
 $att_route = $GLOBALS['__rest_routes']['signal-noise/v1']['/openstation/attention'] ?? null;
 ok( is_array( $att_route ) && 'GET' === ( $att_route['methods'] ?? '' ) && 'snt_os_preferences_rest_permission' === ( $att_route['permission_callback'] ?? '' ), 'attention pill: GET /openstation/attention is registered behind the manage_options permission' );
-$att_src = file_get_contents( SNT_PATH . 'apps/signal-noise/parts/attention.php' );
+$att_src = snt_test_attention_src(); // the composition and its parts files, by name (split 2026-10-14)
 ok( 1 === preg_match( "/const ATTENTION_CACHE_KEY\s*=\s*'" . preg_quote( SNT_OS_ATTENTION_TRANSIENT, '/' ) . "'/", $att_src ), 'attention pill: reads the SAME transient the app writes (ATTENTION_CACHE_KEY parity)' );
 ok( 1 === preg_match( '/const ATTENTION_TTL\s*=\s*' . SNT_OS_ATTENTION_TTL . '\b/', $att_src ), 'attention pill: the staleness horizon is the app\'s own TTL (ATTENTION_TTL parity)' );
 $snap = snt_os_attention_snapshot( 5000 );

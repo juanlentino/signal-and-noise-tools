@@ -166,6 +166,32 @@ if ( ! function_exists( 'snt_test_analytics_rollup_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_attention_src' ) ) {
+	/**
+	 * The source of apps/signal-noise/parts/attention.php AND its four parts
+	 * files (an app, not inc/), for suites that pin the composition's text.
+	 * Split 2026-10-14 (house line cap). Named, not globbed: attention-*.php
+	 * also matches attention-readers.php and its parts, the other half of the
+	 * seam the attention suite measures. A missing file returns '' so every
+	 * presence pin goes red and every guarded absence pin fails rather than
+	 * passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_attention_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/apps/signal-noise/parts/';
+		$src = '';
+		foreach ( array( '', '-vocab-parts', '-shape-parts', '-compose-parts', '-items-parts' ) as $suffix ) {
+			$file = $dir . 'attention' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_insights_src' ) ) {
 	/**
 	 * The source of inc/insights.php AND its three parts files, for suites that
