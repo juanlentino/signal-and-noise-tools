@@ -98,7 +98,8 @@ ok( false !== strpos( $kit, 'value="claude-sonnet-5"' ), 'the stored prose-model
 // 2026-10-12 audit: "Set 0 to remove the cap." sat in the spend box; it is the
 // budget field's own hint now, on both twins, whatever the budget.
 ok( false !== strpos( $kit, '<os-field-row label="Monthly budget (USD)" hint="Set 0 to remove the cap."><os-number-field name="theme_ai_monthly_budget"' ) && 1 === substr_count( $kit, 'Set 0 to remove the cap.' ) && false !== strpos( $classic, 'name="theme_ai_monthly_budget" value="0.00"><p class="sn-field-helper">Set 0 to remove the cap.</p>' ), 'the remove-cap hint is the budget field\'s own, once, on both twins' );
-ok( false !== strpos( $kit, 'Every AI feature here except Copilot' ) && false !== strpos( $classic, 'Every AI feature here except Copilot' ), 'the intro no longer claims Copilot draws on the budget, beside the row that says it does not' );
+ok( false !== strpos( $kit, 'draws on the same monthly budget. Copilot and agents run outside it.' ) && false !== strpos( $classic, 'draws on the same monthly budget. Copilot and agents run outside it.' ), 'the intro says Copilot and agents run outside the budget, on both twins' );
+ok( false === strpos( $kit . $classic, 'except Copilot' ), 'no twin says "except Copilot": agents are outside the cap too' );
 // 17.4.1 (#1573): rows of comparable height, no 2up. The form beside the spend
 // box and the platform box stacked; nothing configured, the Jev box stands
 // alone at full width with the bare status notice under it, not beside it.
@@ -128,6 +129,8 @@ $GLOBALS['__spend'] = 50.0;
 $kit = snt_leaf_paint( 'ai', 'models-budget' );
 ok( false !== strpos( $kit, 'The cap is reached' ) && false !== strpos( $kit, 'tone="warning"' ), 'cap reached: the pause notice paints as a warning' );
 ok( strpos( $kit, 'The cap is reached' ) < strpos( $kit, 'Spent this month: $50.00' ) && strpos( $kit, 'The cap is reached' ) > strpos( $kit, 'heading="This month, by feature"' ), '17.4.1: the cap notice sits on top of its box, above the spend line' );
+ok( false !== strpos( $kit, 'The cap is reached. Copilot and agents run outside the cap; every other AI feature is paused' ), 'cap reached: the notice says Copilot and agents keep running' );
+ok( false !== strpos( snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' ), 'The cap is reached. Copilot and agents run outside the cap; every other AI feature is paused' ), 'classic, cap reached: the same notice' );
 ok( false !== strpos( $kit, '<os-progress-bar value="100" max="100" tone="danger"' ), 'the meter clamps at 100 and turns danger, as the classic clamped its width' );
 $GLOBALS['__spend']         = 0.0;
 $GLOBALS['__spend_by_feat'] = array();
