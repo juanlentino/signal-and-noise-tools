@@ -202,7 +202,9 @@ foreach ( array( 'data-sn-live-hour', 'data-sn-live-pages', 'data-sn-live-source
 	ok( false !== strpos( $html, $hook ), "the block carries $hook" );
 }
 $root = dirname( __DIR__ );
-ok( false !== strpos( (string) file_get_contents( "$root/inc/analytics-view-overview.php" ), 'sn_analytics_live_admin_html(' ), 'the classic Right now panel prints the block' );
+// The view and its three parts files (split 2026-10-14, house line cap).
+require_once __DIR__ . '/lib/inc-population.php';
+ok( false !== strpos( snt_test_analytics_view_overview_src(), 'sn_analytics_live_admin_html(' ), 'the classic Right now panel prints the block' );
 ok( false !== strpos( (string) file_get_contents( "$root/apps/sn-analytics/parts/painters/view-overview.php" ), 'sn_analytics_live_admin_html(' ), 'the native Overview prints the block' );
 $widget = (string) file_get_contents( "$root/assets/desktop-mode-widget-views.js" );
 ok( false !== strpos( $widget, 'data-sn-live-hour' ) && false !== strpos( $widget, 'data-sn-live-top' ), 'the Traffic widget carries the bars and the top page' );
@@ -223,7 +225,7 @@ ok( 'public, max-age=0, s-maxage=30' === SN_ANALYTICS_LIVE_CACHE_CONTROL, 'the p
 echo "\nGroup: every surface carries the live hooks\n";
 $root = dirname( __DIR__ );
 foreach ( array( 'apps/sn-analytics/parts/painters/chrome-header.php' => 'now', 'apps/sn-analytics/parts/painters/view-overview.php' => 'today', 'inc/analytics-view-overview.php' => 'today', 'inc/analytics-header-region.php' => 'now', 'inc/public-stats-live.php' => 'today' ) as $f => $kind ) {
-	$src = (string) @file_get_contents( "$root/$f" );
+	$src = 'inc/analytics-view-overview.php' === $f ? snt_test_analytics_view_overview_src() : (string) @file_get_contents( "$root/$f" );
 	ok( false !== strpos( $src, 'data-sn-live' ) && false !== strpos( $src, $kind ), "$f carries data-sn-live ($kind)" );
 }
 ok( file_exists( "$root/assets/live-now.js" ), 'the shared updater exists' );
