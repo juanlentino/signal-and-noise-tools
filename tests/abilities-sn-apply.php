@@ -712,7 +712,8 @@ ok( true === $sn_cron_g2_zero['passed'], 'gate 2: delay 0 is valid — it means 
 // clamps with HOUR_IN_SECONDS. Different expressions of one bound, so pin them
 // equal — otherwise a caller passes gate 2 and is silently clamped later.
 ok( 3600 === SNT_SN_APPLY_CRON_DELAY_MAX, 'the validation ceiling is 3600 seconds' );
-$sn_cron_src = (string) @file_get_contents( __DIR__ . '/../inc/cron-dashboard.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$sn_cron_src = snt_test_cron_dashboard_src(); // 2026-10-14: the module is split across parts files; read every part.
 ok( false !== strpos( $sn_cron_src, 'min( (int) $delay, HOUR_IN_SECONDS )' ), 'the impl clamps to HOUR_IN_SECONDS, which is the same 3600 — the two ceilings agree' );
 
 // THE BOUND ITSELF, and its polarity. snt_cron_sn_owned_hooks() is the SAME

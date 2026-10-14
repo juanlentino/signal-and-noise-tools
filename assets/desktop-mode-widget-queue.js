@@ -2,8 +2,9 @@
  * Signal & Noise Tools — desktop-mode "SN Queue" widget (15.8.0).
  *
  * "Is the queue fed, and what goes out next." The next scheduled note as the
- * headline with its site-timezone time, the depth of the schedule and the
- * date it runs to beside the draft count, each cluster or gap in the cadence
+ * headline with its site-timezone time, how far ahead the schedule covers
+ * (2026-10-14, "Covered through Jan 25, 2027 (103 days)") with the scheduled
+ * and draft counts beside it, each cluster or gap in the cadence
  * (2026-10-12), the calendar, the drafts with a suggested slot each
  * (2026-10-13, never scheduled), and the last three published. Core's
  * Activity box frames the same rows as activity; this site lives on a
@@ -218,18 +219,40 @@
 		// payload could not count it (or predates 23.8.0).
 		var runsTo = data.runs_to && typeof data.runs_to.label === 'string' ? data.runs_to.label : '';
 		var cell = 'margin:0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));font-variant-numeric:tabular-nums;';
-		var depth = el( 'p', { style: cell, text: null === total ? 'Scheduled count not read' : total + ' scheduled' + ( total && runsTo ? ' · to ' + runsTo : '' ) } );
-		var drafts = typeof data.drafts === 'number' ? el( 'p', { style: cell, text: data.drafts + ( 1 === data.drafts ? ' draft' : ' drafts' ) } ) : null;
+		var count = null === total ? 'Scheduled count not read' : total + ' scheduled';
+		var draftsText = typeof data.drafts === 'number' ? data.drafts + ( 1 === data.drafts ? ' draft' : ' drafts' ) : '';
+		// Phase 2, item 6 (2026-10-14): the runway sentence from the server
+		// ("Covered through Jan 25, 2027 (103 days)") takes the depth line's
+		// place in the same row, in the card's text color; the count turns
+		// secondary, beside the drafts. An older payload keeps the depth line.
+		var runway = data.runway && typeof data.runway.text === 'string' ? data.runway.text : '';
+		// Review on #2058: an empty queue is said once, by the headline (or the
+		// calendar's day box): no runway line and no "0 scheduled" under it.
+		var empty = !! runway && 0 === total;
+		var depth = empty ? null : runway
+			? el( 'p', { style: cell + 'color:inherit;', text: runway } )
+			: el( 'p', { style: cell, text: null === total ? count : count + ( total && runsTo ? ' · to ' + runsTo : '' ) } );
+		var drafts = runway && ! empty
+			? el( 'p', { style: cell, text: count + ( draftsText ? ' · ' + draftsText : '' ) } )
+			: draftsText ? el( 'p', { style: cell, text: draftsText } ) : null;
 		var kit = window.sntCardKit;
-		if ( drafts && kit && typeof kit.pair === 'function' ) {
+		if ( ! depth ) {
+			if ( drafts ) {
+				drafts.style.marginTop = '8px';
+				wrap.appendChild( drafts );
+			}
+		} else if ( drafts && kit && typeof kit.pair === 'function' ) {
 			wrap.appendChild( kit.pair( depth, drafts ) );
 			// 2026-10-12, seen live at about 265 wide: the pair's equal columns
 			// broke "26 scheduled · to Jan 25, 2027" over two lines beside
 			// "0 drafts". Each group now stays on one line at its own width:
 			// both on one row when they fit, else drafts drops to its own line.
+			// The runway sentence (218px at 11px) is wider than a 265 card's
+			// row, so it alone may wrap rather than spill past the edge.
 			depth.style.flex = '1 1 auto';
 			drafts.style.flex = '0 0 auto';
-			depth.style.whiteSpace = drafts.style.whiteSpace = 'nowrap';
+			depth.style.whiteSpace = runway ? 'normal' : 'nowrap';
+			drafts.style.whiteSpace = 'nowrap';
 			depth.style.minWidth = drafts.style.minWidth = '0';
 		} else {
 			depth.style.marginTop = '8px';

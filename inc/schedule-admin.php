@@ -124,6 +124,8 @@ function sn_admin_render_scheduled_content_section() {
 	// the native leaf, from the same read.
 	if ( function_exists( 'sn_content_queue_schedule_read' ) ) {
 		$schedule = sn_content_queue_schedule_read();
+		// 2026-10-14 (item 6): how far ahead the schedule covers.
+		sn_admin_render_queue_runway( sn_content_queue_runway_read( $schedule ) );
 		sn_admin_render_queue_cadence( sn_content_queue_cadence_read( $schedule ) );
 		sn_admin_render_queue_slots( sn_content_queue_slot_read( $schedule ) );
 	}

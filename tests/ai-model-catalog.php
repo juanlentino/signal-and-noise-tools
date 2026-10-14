@@ -21,6 +21,7 @@ function add_action() {}
 define( 'MINUTE_IN_SECONDS', 60 );
 require __DIR__ . '/../inc/ai-model-catalog.php';
 $src = static fn( $f ) => (string) file_get_contents( __DIR__ . '/../' . $f );
+require_once __DIR__ . '/lib/inc-population.php';
 
 echo "The lists\n";
 $prose = sn_ai_models( 'prose' ); $vision = sn_ai_models( 'vision' );
@@ -78,7 +79,7 @@ $GLOBALS['opt'][ SN_AI_MODELS_OPT ] = array( 'fetched' => 5, 'providers' => arra
 $st = sn_ai_models_refresh( $now );
 ok( $rows === $st['providers']['anthropic'] && array() === $st['at'] && 5 === $st['fetched'] && 'the WordPress AI Client is not loaded' === $st['errors']['google'], 'a provider that cannot be read keeps its last good rows, the time of the last good read, and records why' );
 ok( false !== strpos( sn_ai_models_status_line( $now ), 'anthropic: the WordPress AI Client is not loaded' ), 'and the screen names the reason' );
-ok( false !== strpos( $src( 'inc/ai-model-discovery.php' ), "add_action( SN_AI_MODELS_HOOK, 'sn_ai_models_refresh', 10, 0 );" ) && false !== strpos( $src( 'inc/cron-lifecycle.php' ), 'SN_AI_MODELS_HOOK,' ) && false !== strpos( $src( 'inc/cron-dashboard.php' ), "'SN_AI_MODELS_HOOK', 'snt_ai_models_refresh'" ), 'the read is a daily cron, cleared on deactivation and listed on the cron dashboard' );
+ok( false !== strpos( $src( 'inc/ai-model-discovery.php' ), "add_action( SN_AI_MODELS_HOOK, 'sn_ai_models_refresh', 10, 0 );" ) && false !== strpos( $src( 'inc/cron-lifecycle.php' ), 'SN_AI_MODELS_HOOK,' ) && false !== strpos( snt_test_cron_dashboard_src(), "'SN_AI_MODELS_HOOK', 'snt_ai_models_refresh'" ), 'the read is a daily cron, cleared on deactivation and listed on the cron dashboard' );
 ok( false === strpos( $src( 'inc/admin-forms/ai-settings.php' ), 'sn_ai_models_ask' ) && false === strpos( $src( 'apps/sn-dashboard/parts/leaves/ai-models-budget.php' ), 'sn_ai_models_refresh' ), 'no settings screen reads a provider while it renders' );
 
 echo "\nThe save\n";

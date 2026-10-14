@@ -865,12 +865,39 @@ async function run() {
     x.calls[0].resolve(payload({from: '2026-09-25', to: '2026-10-08', from_label: 'Sep 25', to_label: 'Oct 8'})); await flush();
     const pair = nodes(root).find(n => /border-top/.test(n.attrs.style || '') && n.children.length === 2);
     assert.ok(pair, 'Scheduled and Drafts share one card-kit row');
-    assert.equal(pair.children[0].textContent, '6 scheduled · to Nov 30');
+    assert.equal(pair.children[0].textContent, '6 scheduled · to Nov 30', 'a payload without a runway keeps the depth line');
     assert.equal(pair.children[1].textContent, '4 drafts');
     // 2026-10-12, seen live at about 265 wide: each group keeps to one line
     // at its own width (one row when both fit, else a clean stack).
     assert.deepEqual([pair.children[0].style.whiteSpace, pair.children[0].style.flex, pair.children[1].style.whiteSpace, pair.children[1].style.flex],
       ['nowrap', '1 1 auto', 'nowrap', '0 0 auto'], 'the depth line never breaks beside the drafts count');
+    // Phase 2, item 6 (2026-10-14): the runway sentence replaces the depth
+    // line (the same row, no new one), the count rides beside the drafts as
+    // the secondary text, and the sentence may wrap (at 265 wide it is wider
+    // than the card) while the counts keep to one line.
+    {
+      const r = harness({}, {kit: true}), rroot = new Element('div');
+      const rstop = r.window.desktopModeWidgets['sn-queue'](rroot); await flush();
+      r.calls[0].resolve({...payload(null), runway: {through: '2027-01-25', days: 103, text: 'Covered through Jan 25, 2027 (103 days)'}}); await flush();
+      const rp = nodes(rroot).find(n => /border-top/.test(n.attrs.style || '') && n.children.length === 2);
+      assert.equal(rp.children[0].textContent, 'Covered through Jan 25, 2027 (103 days)', 'the runway is the row\'s first group');
+      assert.equal(rp.children[1].textContent, '6 scheduled · 4 drafts', 'the count is secondary, beside the drafts');
+      assert.notEqual(rp.children[0].style.whiteSpace, 'nowrap', 'the sentence wraps rather than spill past a narrow card');
+      assert.equal(rp.children[1].style.whiteSpace, 'nowrap');
+      assert.doesNotMatch(rroot.textContent, /· to Nov 30/, 'one statement of how far the queue runs, not two');
+      await r.tick(60000);
+      r.calls[1].resolve({...payload(null), drafts: null, scheduled_total: undefined, runway: {through: null, days: null, text: 'Not covered: nothing is scheduled.'}}); await flush();
+      assert.match(rroot.textContent, /Not covered: nothing is scheduled\./, 'an empty queue is said in words');
+      assert.match(rroot.textContent, /Scheduled count not read/, 'an unread count is said in words, never 0');
+      // Review on #2058: an empty queue is said once. The headline already
+      // says "Nothing scheduled", so no runway line and no "0 scheduled".
+      await r.tick(60000);
+      r.calls[2].resolve({next: [], published: [], scheduled_total: 0, drafts: 2, runway: {through: null, days: null, text: 'Not covered: nothing is scheduled.'}}); await flush();
+      assert.equal((rroot.textContent.match(/Nothing scheduled|nothing is scheduled/gi) || []).length, 1, 'nothing scheduled, said once (got: ' + rroot.textContent + ')');
+      assert.doesNotMatch(rroot.textContent, /0 scheduled/, 'and no "0 scheduled" beside it');
+      assert.match(rroot.textContent, /2 drafts/, 'the drafts count stays');
+      rstop();
+    }
     const gapLine = nodes(root).find(n => /^Gap: /.test(n.text));
     assert.ok(gapLine, 'a gap paints its line');
     assert.equal(gapLine.text, 'Gap: no note Sep 25 to Oct 8');

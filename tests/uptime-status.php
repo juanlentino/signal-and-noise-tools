@@ -71,7 +71,21 @@ $GLOBALS['__scheduled'] = array();
 function wp_next_scheduled( $hook ) { return $GLOBALS['__scheduled'][ $hook ]['ts'] ?? false; }
 function wp_schedule_event( $ts, $rec, $hook ) { $GLOBALS['__scheduled'][ $hook ] = array( 'ts' => $ts, 'rec' => $rec ); return true; }
 $GLOBALS['__single'] = array();
-function wp_schedule_single_event( $ts, $hook ) { $GLOBALS['__single'][] = $hook; return true; }
+$GLOBALS['__single_ts'] = array();
+// Core's own guard: a single event within 10 minutes of a queued one for the
+// same hook and args is refused (the hourly event is not modeled here).
+function wp_schedule_single_event( $ts, $hook ) {
+	foreach ( $GLOBALS['__single_ts'][ $hook ] ?? array() as $queued ) {
+		if ( abs( $queued - $ts ) < 600 ) {
+			return false;
+		}
+	}
+	$GLOBALS['__single_ts'][ $hook ][] = $ts;
+	$GLOBALS['__single'][]             = $hook;
+	return true;
+}
+$GLOBALS['__spawned'] = 0;
+function spawn_cron() { ++$GLOBALS['__spawned']; return true; }
 
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
@@ -465,6 +479,29 @@ us_eq( 0, count( $GLOBALS['__http_requests'] ), 'nothing is fetched inline on ad
 us_ok( false === sn_uptime_status_warm_on_version_change(), 'the same version again: nothing queued' );
 us_eq( 1, count( $GLOBALS['__single'] ), 'still exactly one queued run' );
 us_ok( in_array( 'sn_uptime_status_warm_on_version_change', $GLOBALS['__actions']['admin_init'] ?? array(), true ), 'hooked on admin_init' );
+
+// ─── Test 8d: refill right after the update purge, not on the next cron ─
+echo "\nTest 8d: warm after the update purge\n";
+$GLOBALS['__single']    = array();
+$GLOBALS['__single_ts'] = array();
+$GLOBALS['__spawned']   = 0;
+$GLOBALS['__http_requests'] = array();
+us_ok( in_array( 'sn_uptime_status_warm_after_flush', $GLOBALS['__actions']['sn_after_full_cache_flush'] ?? array(), true ), 'hooked on the theme purge chain (sn_after_full_cache_flush)' );
+sn_uptime_status_warm_after_flush( array( 'object_cache' => false, 'sn_transients' => false, 'trigger' => 'styles' ) );
+us_eq( array( array(), 0 ), array( $GLOBALS['__single'], $GLOBALS['__spawned'] ), 'a purge that keeps the transients (a styles save): nothing queued, no spawn' );
+sn_uptime_status_warm_after_flush( array( 'object_cache' => false, 'sn_transients' => true, 'trigger' => 'update' ) );
+us_eq( array( 'sn_uptime_availability_hourly' ), $GLOBALS['__single'], 'the update purge queues ONE warmer run' );
+us_ok( (int) ( $GLOBALS['__single_ts']['sn_uptime_availability_hourly'][0] ?? PHP_INT_MAX ) <= time(), 'queued as due now, so a spawned cron runs it' );
+us_eq( 1, $GLOBALS['__spawned'], 'cron is spawned right away, not left for the next admin load or system cron' );
+us_eq( 0, count( $GLOBALS['__http_requests'] ), 'nothing is fetched inline in the purge request' );
+sn_uptime_status_warm_after_flush( array( 'trigger' => 'update' ) );
+us_eq( 1, count( $GLOBALS['__single'] ), 'a second purge in the same window: still one queued run' );
+$us_token_8d = get_option( 'sn_betterstack_api_token' );
+delete_option( 'sn_betterstack_api_token' );
+$GLOBALS['__single'] = array(); $GLOBALS['__single_ts'] = array(); $GLOBALS['__spawned'] = 0;
+sn_uptime_status_warm_after_flush( array( 'trigger' => 'update' ) );
+us_eq( array( array(), 0 ), array( $GLOBALS['__single'], $GLOBALS['__spawned'] ), 'Better Stack not configured: nothing queued, no spawn' );
+update_option( 'sn_betterstack_api_token', $us_token_8d );
 
 // ─── Test 9: HTML helpers — mount + token field (option path) ────────
 echo "\nTest 9: HTML helpers\n";

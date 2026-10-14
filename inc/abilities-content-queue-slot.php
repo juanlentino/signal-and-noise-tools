@@ -67,7 +67,7 @@ function sn_content_queue_slots( $drafts, $scheduled, $published, $now, DateTime
 	$sched = array_map( 'intval', (array) $scheduled );
 	$at    = static fn( $t ) => ( new DateTimeImmutable( '@' . (int) $t ) )->setTimezone( $tz );
 	$today = $at( $now )->setTime( 0, 0, 0 );
-	$apart = static fn( DateTimeImmutable $a, DateTimeImmutable $b ) => (int) $a->diff( $b )->format( '%a' );
+	$apart = 'sn_content_queue_days_apart';
 	$ymd   = static fn( $s ) => new DateTimeImmutable( $s, $tz );
 	$name  = static fn( DateTimeImmutable $d ) => sn_content_queue_day( $d, $today );
 
