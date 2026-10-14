@@ -77,3 +77,19 @@ if ( ! function_exists( 'snt_test_inc_packages' ) ) {
 		return $out;
 	}
 }
+
+if ( ! function_exists( 'snt_test_cron_dashboard_src' ) ) {
+	/**
+	 * The source of inc/cron-dashboard.php AND its parts files, for suites that
+	 * pin the module's text. Split 2026-10-14 (house line cap); reading the shell
+	 * alone would turn every pin on moved code red, and an absence pin vacuous.
+	 * Not cron-dashboard-admin.php, a separate module. Fewer than the four files
+	 * returns '' so every presence pin goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_cron_dashboard_src() {
+		$files = array_merge( snt_test_inc_files( 'cron-dashboard.php' ), snt_test_inc_files( 'cron-dashboard-*-parts.php' ) );
+		return count( $files ) >= 4 ? implode( "\n", array_map( 'file_get_contents', $files ) ) : '';
+	}
+}

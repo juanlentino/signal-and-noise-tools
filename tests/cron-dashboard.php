@@ -685,7 +685,8 @@ assert_true( ! in_array( 'sn_gsc_inspect_one', $sum['missing'], true ), 'an unsc
 // DERIVED: every owned hook whose registry comment calls it a single event
 // must be on-demand. Scans the list's own source so the next single event
 // cannot repeat this.
-$sn_owned_src = (string) file_get_contents( __DIR__ . '/../inc/cron-dashboard.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$sn_owned_src = snt_test_cron_dashboard_src(); // 2026-10-14: read every part of the split module.
 preg_match_all( "/array\( '[A-Z_]+', '([a-z_]+)' \),[^\n]*single event/", $sn_owned_src, $sn_single_m );
 assert_true( count( $sn_single_m[1] ) >= 2, 'vacuity: the scan found the single-event hooks in the registry (' . count( $sn_single_m[1] ) . ', floor 2)' );
 foreach ( $sn_single_m[1] as $sn_single_hook ) {
