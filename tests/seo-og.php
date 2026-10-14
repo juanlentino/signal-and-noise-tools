@@ -291,7 +291,9 @@ og_eq( true, sn_seo_singular_not_modified( 5000, $content, $deploy ), 'at or aft
 og_eq( true, sn_seo_singular_not_modified( 1000, $content, 0 ), 'no render change on record: the content date alone decides, as before' );
 og_eq( false, sn_seo_singular_not_modified( 999, $content, 0 ), 'older than the content: the page' );
 og_eq( false, sn_seo_singular_not_modified( 0, $content, 0 ), 'an unparseable date is never a 304' );
-$seo_src = (string) file_get_contents( __DIR__ . '/../inc/seo.php' );
+// The module and its four parts files (split 2026-10-14, house line cap).
+require_once __DIR__ . '/lib/inc-population.php';
+$seo_src = snt_test_seo_src();
 og_eq( true, false !== strpos( $seo_src, 'if ( sn_seo_singular_not_modified( (int) $client_since, $modified_gmt, sn_seo_render_changed_gmt() ) ) {' ) && false === strpos( $seo_src, 'if ( $client_since && $client_since >= $modified_gmt ) {' ), 'the handler decides through that rule, not the content date alone' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

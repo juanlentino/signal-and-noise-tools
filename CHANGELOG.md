@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Internal only: the SEO module's source is split into smaller files** (house line cap). `inc/seo.php` (1,065 lines) keeps its header, the validators require and The SEO Framework generator-pools filter, then loads four parts files in the order the code always ran: `seo-meta-parts.php` (the meta resolvers: the paged var, the singular title and description, the description store, the per-view meta, the tags glossary), `-head-parts.php` (the core canonical removal, the canonical, robots and description tags, the document title), `-og-parts.php` (Open Graph and Twitter: the image alt, path and dimensions, the head-view gate, the emitter, the article meta) and `-delivery-parts.php` (the Breeze excludes, the singular Last-Modified and 304, the feed ETag and conditional GET). Code moved unchanged; the same eleven hooks register in the same order with the same priorities. The delivery part inherits `seo.php`'s `InputNotSanitized` phpcs exclusion, since the `$_SERVER` validator reads moved with it. The four suites that read the module's source (`seo-description-for-post`, `seo-live-audit`, `seo-og`, `seo-title-override`) now read every part through `snt_test_seo_src()`. Nothing changes on screen and no figure is removed.
+
 ## [2026.10.13] - 2026-10-14 — the queue says how far it runs, and cards ride out installs
 
 ### Added

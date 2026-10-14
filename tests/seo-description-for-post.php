@@ -102,8 +102,10 @@ echo "\nGroup: v10.0.0 — the sn_seo_route_meta seam is removed\n";
 // postless-route seam had nothing left to answer. Pinned by absence: a
 // re-introduction would resurrect a seam with no producer.
 ok( ! function_exists( 'sn_seo_route_meta' ), 'sn_seo_route_meta() no longer exists' );
-$sn_seo_src = (string) file_get_contents( __DIR__ . '/../inc/seo.php' );
-ok( false === strpos( $sn_seo_src, "apply_filters( 'sn_seo_route_meta'" ), 'and the filter is not applied anywhere in seo.php' );
+// The module and its four parts files (split 2026-10-14, house line cap).
+require_once __DIR__ . '/lib/inc-population.php';
+$sn_seo_src = snt_test_seo_src();
+ok( '' !== $sn_seo_src && false === strpos( $sn_seo_src, "apply_filters( 'sn_seo_route_meta'" ), 'and the filter is not applied anywhere in seo.php' );
 
 echo "\nGroup: v13.109.3 — the route table is READABLE, so callers stop re-deriving it\n";
 // sn_validate graded _sn_meta_description on every post, including the three
