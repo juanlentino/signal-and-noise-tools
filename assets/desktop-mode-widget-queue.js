@@ -4,7 +4,8 @@
  * "Is the queue fed, and what goes out next." The next scheduled note as the
  * headline with its site-timezone time, the depth of the schedule and the
  * date it runs to beside the draft count, each cluster or gap in the cadence
- * (2026-10-12), the calendar, and the last three published. Core's
+ * (2026-10-12), the calendar, the drafts with a suggested slot each
+ * (2026-10-13, never scheduled), and the last three published. Core's
  * Activity box frames the same rows as activity; this site lives on a
  * scheduled queue, so the depth line is the reading.
  *
@@ -257,7 +258,15 @@
 		var draftList = asList( data.draft_list );
 		if ( draftList.length ) {
 			wrap.appendChild( heading( 'Drafts' ) );
-			draftList.forEach( function( item ) { wrap.appendChild( row( item, false ) ); } );
+			// Phase 2, item 2 (2026-10-13): each draft's suggested slot in
+			// words ("suggested: Thu, Oct 30"), never a scheduled time; the
+			// reason rides as the row's tooltip. An older payload paints none.
+			draftList.forEach( function( item ) {
+				var slot = item && item.slot && typeof item.slot.label === 'string' ? item.slot : null;
+				var line = row( { title: item && item.title, edit_url: item && item.edit_url, when: slot ? slot.label : '' }, false );
+				if ( slot && typeof slot.text === 'string' ) { line.setAttribute( 'title', slot.text ); }
+				wrap.appendChild( line );
+			} );
 			if ( typeof data.draft_more === 'number' && data.draft_more > 0 ) {
 				wrap.appendChild( el( 'p', { style: 'margin:0;font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));', text: '+' + data.draft_more + ' more' } ) );
 			}

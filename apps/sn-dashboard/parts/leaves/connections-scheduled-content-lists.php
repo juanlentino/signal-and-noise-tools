@@ -116,3 +116,30 @@ function scheduled_content_cadence_html( array $warnings ) {
 		: \snt_kit_list( $rows );
 	return \snt_kit_section( __( 'Cadence', 'signal-and-noise-tools' ), $inner, \sn_content_queue_cadence_rule() );
 }
+
+/**
+ * The Suggested slots box (2026-10-13, queue phase 2, item 2): one sentence
+ * per draft, the draft's title a door to its editor, under the rule. A
+ * suggestion only. The classic twin says the same (sn_admin_render_queue_slots()).
+ *
+ * @param array $read From sn_content_queue_slot_read().
+ * @return string
+ */
+function scheduled_content_slots_html( array $read ) {
+	$empty = (string) ( $read['empty'] ?? '' );
+	if ( '' !== $empty ) {
+		$inner = '<p class="snt-prose">' . \snt_kit_esc( $empty ) . '</p>';
+	} else {
+		$items = '';
+		foreach ( (array) ( $read['slots'] ?? array() ) as $s ) {
+			$title  = (string) ( $s['title'] ?? '' );
+			$url    = (string) ( $s['edit_url'] ?? '' );
+			$items .= '<li>' . ( '' !== $url ? \snt_kit_link( $title, $url ) : \snt_kit_esc( $title ) ) . ': ' . \snt_kit_esc( (string) ( $s['text'] ?? '' ) ) . '</li>';
+		}
+		$inner = '<ul class="snt-prose">' . $items . '</ul>';
+		if ( ! empty( $read['more'] ) ) {
+			$inner .= '<p class="snt-prose">' . \snt_kit_esc( \sn_content_queue_slot_more( (int) $read['more'] ) ) . '</p>';
+		}
+	}
+	return \snt_kit_section( __( 'Suggested slots', 'signal-and-noise-tools' ), $inner, \sn_content_queue_slot_rule() );
+}

@@ -68,6 +68,10 @@ function paint_connections_scheduled_content( array $ctx ) {
 	if ( function_exists( 'sn_content_queue_cadence_read' ) ) {
 		$out .= scheduled_content_cadence_html( \sn_content_queue_cadence_read() );
 	}
+	// 2026-10-13 (queue phase 2, item 2): a suggested slot per draft.
+	if ( function_exists( 'sn_content_queue_slot_read' ) ) {
+		$out .= scheduled_content_slots_html( \sn_content_queue_slot_read() );
+	}
 
 	$out .= scheduled_content_swaps_html( $d['pairs'] );
 

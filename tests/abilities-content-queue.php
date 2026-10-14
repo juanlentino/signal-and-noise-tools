@@ -112,7 +112,8 @@ ok( '2026-09-21' === $mad['today'] && '2026-09-21' === $mad['week_start'] && '20
 $pl = sn_content_queue_shape( array(), 0, array(), $NOW, $TZ, null, array( '2026-12-20|2027-01-03' ) );
 ok( array( array( 'from' => '2026-12-20', 'to' => '2027-01-03' ) ) === $pl['planned'], 'the planned gaps ride as ranges for the calendar\'s quiet mark' );
 $dl = sn_content_queue_shape( array(), 0, array(), $NOW, $TZ, 2, array(), array( array( 'id' => 8, 'title' => 'A draft', 'ts' => $NOW - 60, 'edit_url' => 'https://x.test/e/8' ), array( 'id' => 9, 'title' => '', 'ts' => 0 ), 'junk' ) );
-ok( array( array( 'id' => 8, 'title' => 'A draft', 'edit_url' => 'https://x.test/e/8' ), array( 'id' => 9, 'title' => '(untitled)', 'edit_url' => '' ) ) === $dl['draft_list'], 'drafts ride by title and edit link only (no date, no body); an empty title is (untitled); junk is dropped' );
+ok( array( array( 'id' => 8, 'title' => 'A draft', 'edit_url' => 'https://x.test/e/8' ), array( 'id' => 9, 'title' => '(untitled)', 'edit_url' => '' ) ) === array_map( static fn( $r ) => array_diff_key( $r, array( 'slot' => 1 ) ), $dl['draft_list'] ), 'drafts ride by title and edit link only (no date, no body); an empty title is (untitled); junk is dropped' );
+ok( array( 'day' => null, 'time' => null, 'label' => 'no slot suggested', 'reason' => '', 'text' => SN_CONTENT_QUEUE_SLOT_UNKNOWN ) === $dl['draft_list'][0]['slot'], 'each draft carries its slot; with nothing scheduled it says so in words, never a guessed day' );
 
 $empty = sn_content_queue_shape( array(), 0, array(), $NOW, $TZ );
 ok( array() === $empty['scheduled'] && array() === $empty['planned'] && array() === $empty['draft_list'], 'an empty site has empty calendar lists' );
@@ -195,6 +196,35 @@ ok( 22 === sn_content_queue_cadence( array( $day( '2026-10-11 23:30' ), $day( '2
 ok( array() === sn_content_queue_cadence( array(), null, $cn, $NY ) && array() === sn_content_queue_cadence( array( $cn ), null, $cn, $NY ), 'no note or one note: nothing to measure' );
 ok( 'gap' === sn_content_queue_shape( $as_rows( array( $NOW + 86400, $NOW + 20 * 86400 ) ), 2, array(), $NOW, $TZ )['cadence'][0]['kind'], 'the shaper carries the warnings' );
 ok( false !== strpos( sn_content_queue_cadence_rule(), 'under 2 days apart are a cluster; over 7 days apart, a gap' ), 'the rule the twins print names both thresholds' );
+
+echo "\nGroup C4: a suggested slot per draft (phase 2, item 2, 2026-10-13), never scheduled\n";
+$sn  = $day( '2026-10-13 12:00' );
+$d3  = array( array( 'id' => 1, 'title' => 'First', 'edit_url' => 'https://x.test/e/1' ), array( 'id' => 2, 'title' => 'Second' ), array( 'id' => 3, 'title' => '' ) );
+// The 25 notes scheduled live on 2026-10-13 (sn-posts, site-local times).
+$live25 = array_map( $day, array( '2026-10-16 14:08', '2026-10-20 10:36', '2026-10-22 11:28', '2026-10-24 13:06', '2026-10-28 12:46', '2026-11-01 10:51', '2026-11-05 10:33', '2026-11-09 14:22', '2026-11-13 15:10', '2026-11-17 12:59', '2026-11-21 11:04', '2026-11-25 16:40', '2026-11-29 14:21', '2026-12-03 11:37', '2026-12-07 10:33', '2026-12-11 16:35', '2026-12-15 14:34', '2026-12-19 15:17', '2027-01-04 17:24', '2027-01-07 15:13', '2027-01-11 10:47', '2027-01-14 11:13', '2027-01-18 09:05', '2027-01-21 11:17', '2027-01-25 10:48' ) );
+$ls = sn_content_queue_slots( $d3, $live25, null, $sn, $NY, array( '2026-12-20|2027-01-03' ) );
+ok( array( '2027-01-29', '2027-02-02', '2027-02-06' ) === array_column( $ls, 'day' ), 'the live queue (no unplanned gap): the usual 4 days after the last note, and each next draft 4 days on, never the same day' );
+ok( '12:46 PM' === $ls[0]['time'], 'at the median time of day of the scheduled notes, in the site timezone' );
+ok( 'suggested: Fri, Jan 29, 2027' === $ls[0]['label'], 'the card\'s words: "suggested:" and the weekday, the year when it is not this one' );
+ok( 'Suggested: Fri, Jan 29, 2027 at 12:46 PM; the usual 4 days after the last note on Jan 25, 2027. A suggestion only: nothing is scheduled.' === $ls[0]['text'], 'the twins\' sentence names the day, time and reason, and that nothing is scheduled' );
+ok( '(untitled)' === $ls[2]['title'] && 'https://x.test/e/1' === $ls[0]['edit_url'], 'an empty title is (untitled); the edit link rides through' );
+$hole = array_map( $day, array( '2026-10-20 09:00', '2026-10-24 09:00', '2026-11-05 11:00', '2026-11-09 09:00' ) );
+$gs = sn_content_queue_slots( $d3, $hole, null, $sn, $NY );
+ok( '2026-10-26' === $gs[0]['day'] && 'Suggested: Mon, Oct 26 at 9:00 AM; fills the Oct 25 to Nov 4 gap. A suggestion only: nothing is scheduled.' === $gs[0]['text'], 'the earliest gap over 7 days is filled first: its first day at least 2 days from the note before it' );
+ok( '2026-10-28' === $gs[1]['day'] && '2026-10-30' === $gs[2]['day'], 'the gap keeps being filled while it is over 7 days, each draft 2 days on (exactly 2 is the normal rhythm)' );
+$pg = sn_content_queue_slots( $d3, $hole, null, $sn, $NY, array( '2026-10-25|2026-11-04' ) );
+ok( '2026-11-13' === $pg[0]['day'] && false !== strpos( $pg[0]['reason'], 'usual 4 days after the last note on Nov 9' ), 'a gap marked planned is never filled' );
+$sk = sn_content_queue_slots( array( $d3[0] ), $hole, null, $sn, $NY, array( '2026-10-25|2026-11-04', '2026-11-12|2026-11-14' ) );
+ok( '2026-11-15' === $sk[0]['day'] && false !== strpos( $sk[0]['reason'], 'moved to the next open day' ), 'a day inside a planned range is skipped, and the reason says it moved' );
+$past = sn_content_queue_slots( array( $d3[0] ), array( $day( '2026-10-15 09:00' ) ), $day( '2026-09-30 09:00' ), $sn, $NY );
+ok( '2026-10-22' === $past[0]['day'], 'a gap whose open days are not after today cannot be filled: the slot goes after the last note' );
+ok( '7 days after the last note on Oct 15 (the usual 15 would leave a gap)' === $past[0]['reason'], 'a usual spacing over 7 days is held at 7, and the reason says why, never calling 7 the usual' );
+ok( SN_CONTENT_QUEUE_SLOT_UNKNOWN === sn_content_queue_slots( array( $d3[0] ), array( $sn + 86400 ), null, $sn, $NY )[0]['text'], 'one note and no published one: no spacing to read, said so' );
+ok( SN_CONTENT_QUEUE_SLOT_UNKNOWN === sn_content_queue_slots( array( $d3[0] ), array(), $day( '2026-10-05 09:00' ), $sn, $NY )[0]['text'], 'nothing scheduled: no publish time to read, said so' );
+ok( array() === sn_content_queue_slots( array(), $live25, null, $sn, $NY ) && array() === sn_content_queue_slots( 'nope', $live25, null, $sn, $NY ), 'no drafts, no slots' );
+ok( 'No drafts, so no slot to suggest.' === sn_content_queue_slot_empty( 0, 0 ) && 'Drafts not read, so no slot is suggested.' === sn_content_queue_slot_empty( null, 0 ) && '' === sn_content_queue_slot_empty( 3, 2 ), 'no drafts and unread drafts are said in words' );
+$sh = sn_content_queue_shape( $as_rows( $hole ), 4, array(), $sn, $NY, 1, array(), array( array( 'id' => 5, 'title' => 'D', 'edit_url' => 'https://x.test/e/5' ) ) );
+ok( '2026-10-26' === $sh['draft_list'][0]['slot']['day'] && $gs[0]['text'] === $sh['draft_list'][0]['slot']['text'], 'the shaper hands the card the same slot and sentence the twins print' );
 
 echo "\nGroup D: registration and the execute path\n";
 foreach ( $GLOBALS['__cq_actions']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }

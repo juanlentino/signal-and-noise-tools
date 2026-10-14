@@ -123,6 +123,11 @@ function sn_admin_render_scheduled_content_section() {
 	if ( function_exists( 'sn_content_queue_cadence_read' ) ) {
 		sn_admin_render_queue_cadence( sn_content_queue_cadence_read() );
 	}
+	// 2026-10-13 (queue phase 2, item 2): a suggested slot per draft, the
+	// same sentences as the native leaf.
+	if ( function_exists( 'sn_content_queue_slot_read' ) ) {
+		sn_admin_render_queue_slots( sn_content_queue_slot_read() );
+	}
 
 	// v8.0.0: version swaps — pairs DERIVED from the fragment rows (old
 	// container's until === new container's from, same host). Rendered above

@@ -938,6 +938,24 @@ async function run() {
       assert.equal(JSON.stringify(c.calls[1].opts.data), JSON.stringify({from: '2026-10-25', to: '2026-11-04'}), 'Planned records exactly that gap\'s empty days');
       cstop();
     }
+    // Phase 2, item 2 (2026-10-13): each draft row says its suggested slot
+    // in words, with the reason as the row's tooltip; an older payload
+    // (no slot) paints the title alone, never a 0 or a dash.
+    {
+      const d = harness({}, {kit: true}), droot = new Element('div');
+      const dstop = d.window.desktopModeWidgets['sn-queue'](droot); await flush();
+      const text = 'Suggested: Mon, Oct 26 at 9:00 AM; fills the Oct 25 to Nov 4 gap. A suggestion only: nothing is scheduled.';
+      d.calls[0].resolve({next: [], published: [], scheduled_total: 4, drafts: 2, draft_list: [
+        {title: 'Idea', edit_url: 'https://x.test/e/1', slot: {day: '2026-10-26', time: '9:00 AM', label: 'suggested: Mon, Oct 26', reason: 'fills the Oct 25 to Nov 4 gap', text}},
+        {title: 'Old', edit_url: 'https://x.test/e/2'}]}); await flush();
+      const rows = nodes(droot).filter(n => 'div' === n.tag && n.children.length === 2 && 'a' === n.children[0].tag && /\/e\/[12]$/.test(n.children[0].href));
+      assert.equal(rows.length, 2, 'both drafts are listed, each a link to its editor');
+      assert.equal(rows[0].children[1].text, 'suggested: Mon, Oct 26', 'the slot is said in words beside the title');
+      assert.equal(rows[0].getAttribute('title'), text, 'the reason rides as the row\'s tooltip');
+      assert.equal(rows[1].children[1].text, '', 'a draft with no slot in the payload paints no slot text');
+      assert.doesNotMatch(droot.textContent, /scheduled for|Schedule/, 'never worded as done, and no control to schedule');
+      dstop();
+    }
     // No good reading yet: the failure is a sentence, not a function name.
     const q = harness(), qroot = new Element('div');
     const runner = q.window.sntAbilityRun; delete q.window.sntAbilityRun;

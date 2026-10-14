@@ -179,7 +179,7 @@ add_action( 'init', function() {
 		// the content-queue ability; labels are the site timezone's.
 		snt_os_register_widget( 'sn-queue', array_merge( $sn_drag, array(
 			'label'          => 'SN Queue',
-			'description'    => 'The coming six weeks as a calendar with a dot per scheduled note, the selected day\'s notes (the next up first), how deep the queue runs, the drafts by title, any gap in the schedule, and the last three published.',
+			'description'    => 'The coming six weeks as a calendar with a dot per scheduled note, the selected day\'s notes (the next up first), how deep the queue runs, the drafts by title with a suggested slot each (never scheduled), any gap in the schedule, and the last three published.',
 			'icon'           => 'dashicons-calendar-alt',
 			'script'         => 'sn-desktop-mode-widget-queue',
 			// 2026-10-12, fit to content (the owner, seen live at about 265

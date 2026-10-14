@@ -33,8 +33,10 @@ What it shows, top to bottom:
 - **The cadence lines**, one per cluster or gap (see Cadence), up to three,
   then "+N more in Scheduled". Each gap line has a **Planned** button.
 - **Drafts**, the newest three the viewer can edit, by title, each linking to
-  its editor. An editor also sees "+N more"; a contributor sees only their own
-  drafts and no site-wide count beside them.
+  its editor, with its suggested slot in words beside it ("suggested: Thu,
+  Oct 30"; the reason is the row's tooltip; see Suggested slots). An editor
+  also sees "+N more"; a contributor sees only their own drafts and no
+  site-wide count beside them.
 - **Just published**, the last three, and **Open Scheduled**.
 
 ### Cadence
@@ -63,6 +65,41 @@ Connections › Scheduled shows the same rule and sentences in a **Cadence**
 box, open, on both the native leaf and the classic page, or "No clusters or
 gaps from the latest published note through the scheduled ones." Neither twin writes: Planned lives on the card.
 
+### Suggested slots
+
+Phase 2, item 2 (2026-10-13). Each listed draft gets a suggested day and time,
+a **suggestion only**: nothing is scheduled, and the only action is the
+draft's edit link. One pure function, `sn_content_queue_slots()` in
+`inc/abilities-content-queue-slot.php`, builds the day and the sentence for
+the card and both Scheduled twins:
+
+- The day is the next open one after today: never under 2 days from a note
+  (exactly 2 is allowed), never inside a planned gap.
+- The earliest unplanned gap over 7 days (the Cadence walk's own gap) is
+  filled first, at its first open day ("fills the Oct 25 to Nov 4 gap").
+- Otherwise the last note plus the median spacing between notes, held between
+  2 and 7 days ("the usual 4 days after the last note on Jan 25, 2027"; when
+  held, the reason says the usual would leave a gap or make a cluster), walked
+  forward past a planned or taken day ("moved to the next open day").
+- The time is the median time of day of the scheduled notes in the site
+  timezone (the lower middle, so a time the site really uses).
+- Drafts are taken newest edit first; each suggestion counts as taken for the
+  next, so no two drafts share a day.
+- With nothing scheduled, or fewer than two notes to measure, the draft says
+  "No slot suggested: fewer than two notes to read the rhythm from." (on the
+  card: "no slot suggested").
+
+The ability carries it as `slot` on each `draft_list` row (`day`, `time`,
+`label`, `reason`, `text`). Connections › Scheduled has a **Suggested slots**
+box on both twins: the rule, then each draft's title (a link to its editor)
+and the same sentence, "+N more drafts, not given a slot here." past the
+three, or "No drafts, so no slot to suggest." / "Drafts not read, so no slot
+is suggested."
+
+On the live queue (2026-10-13: 25 scheduled, every gap 4 days or less, the
+holiday pause planned) a first draft would be suggested Fri, Jan 29, 2027 at
+12:46 PM; there are no drafts today, so the twins say so.
+
 ### Planned gaps
 
 A gap can be on purpose (the holidays). **Planned** on a gap line records it
@@ -85,7 +122,9 @@ Default 312 × 640, fit to the ordinary card plus one cadence line, and measured
 with the real queue: 573 at 265 wide and 549 at 312, chrome included, plus
 about 10px of slack, then raised to 640 so one cadence line shows without a
 scrollbar (measured with the longest sentence and its Planned button: 627 at
-265 wide, where it wraps to three lines, and 585 at 312). The
+265 wide, where it wraps to three lines, and 585 at 312). A draft's suggested
+slot (2026-10-13) sits in its row's existing date column, so it adds no
+height; the title gives way with an ellipsis. The
 busiest state (a missed note, three cadence lines and "+N more", three drafts with "+N more" and
 three Later rows, about 180px more) scrolls inside the card. It was 780, sized
 for that busiest state, which left about 200px empty on an ordinary day. The
