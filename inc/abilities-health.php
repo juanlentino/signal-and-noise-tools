@@ -71,6 +71,22 @@ add_action( 'wp_abilities_api_init', function() {
 							'label'    => array( 'type' => 'string' ),
 							'count'    => array( 'type' => 'integer' ),
 							'fix_hint' => array( 'type' => 'string' ),
+							'partial'  => array(
+								'type'        => 'string',
+								'description' => 'Why part of this check was not judged this scan, naming the posts (drift: failed AI calls); empty when every post was judged.',
+							),
+							'failed'   => array(
+								'type'        => 'array',
+								'description' => 'The posts behind `partial`, one row each: post_id, title, reason in words. Capped at 20. Absent or empty when not tracked (scans before 2026-10-14).',
+								'items'       => array(
+									'type'       => 'object',
+									'properties' => array(
+										'post_id' => array( 'type' => 'integer' ),
+										'title'   => array( 'type' => 'string' ),
+										'reason'  => array( 'type' => 'string' ),
+									),
+								),
+							),
 						),
 					),
 				),
@@ -131,6 +147,10 @@ function snt_ability_get_health_scan( $input ) {
 			'label'    => (string) ( $check['label'] ?? $key ),
 			'count'    => (int) ( $check['count'] ?? 0 ),
 			'fix_hint' => (string) ( $check['fix_hint'] ?? '' ),
+			// Part of the check was not judged (drift: failed AI calls): the
+			// sentence, and the structured rows behind it when the check keeps them.
+			'partial'  => sn_health_check_partial_reason( $check ),
+			'failed'   => array_values( (array) ( $check['failed'] ?? array() ) ),
 		);
 	}
 	$partition = sn_health_check_partition( $scan );

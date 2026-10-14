@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/health-check-drift-time-phrases-parts.php';
+
 /**
  * Pattern set for time-relative phrases that decay deterministically.
  *
@@ -155,6 +157,7 @@ function sn_health_check_drift_time_phrases() {
 	$ai_err_run  = 0;
 	$ai_err_msg  = '';
 	$ai_tripped  = false;
+	$ai_failures = array(); // One row per post not judged: title and reason in words.
 	$findings = array();
 	foreach ( $rows as $r ) {
 		$candidates = sn_health_extract_time_phrase_candidates( (string) $r['post_content'] );
@@ -201,12 +204,13 @@ function sn_health_check_drift_time_phrases() {
 		// "nothing stale" for a post nobody ever checked.
 		if ( null === $verdicts ) {
 			++$ai_calls;
-			$raw = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SYSTEM, 600, 'drift_detect' );
+			$raw = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SYSTEM, SN_HEALTH_DRIFT_MAX_TOKENS, 'drift_detect' );
 			if ( is_wp_error( $raw ) || ! is_string( $raw ) ) {
 				++$ai_failed;
+				$ai_failures[] = sn_health_drift_failed_row( $r, sn_health_drift_failure_reason( $raw ) );
 				++$ai_err_run;
 				if ( '' === $ai_err_msg && is_wp_error( $raw ) ) {
-					$ai_err_msg = substr( trim( wp_strip_all_tags( (string) $raw->get_error_message() ) ), 0, 160 );
+					$ai_err_msg = sn_health_drift_scrub_reason( $raw->get_error_message() );
 				}
 				if ( 0 === $ai_ok && $ai_err_run >= SN_HEALTH_DRIFT_BREAKER_AFTER ) {
 					$ai_tripped = true;
@@ -221,6 +225,7 @@ function sn_health_check_drift_time_phrases() {
 			$verdicts = json_decode( $text, true );
 			if ( ! is_array( $verdicts ) ) {
 				++$ai_failed;
+				$ai_failures[] = sn_health_drift_failed_row( $r, sn_health_drift_failure_reason( $raw, $text ) );
 				continue;  // Malformed — skip this post, but COUNT it.
 			}
 
@@ -274,10 +279,15 @@ function sn_health_check_drift_time_phrases() {
 			'' !== $ai_err_msg ? ' (' . $ai_err_msg . ')' : ''
 		);
 	} elseif ( $ai_calls > 0 && $ai_failed === $ai_calls ) {
-		$skipped = sprintf( 'Every AI call failed (%d of %d), so no post was judged. The check retries on the next scan.', $ai_failed, $ai_calls );
+		$skipped = sprintf( 'Every AI call failed (%d of %d), so no post was judged: %s. The check retries on the next scan.', $ai_failed, $ai_calls, sn_health_drift_failed_names( $ai_failures, $ai_failed ) );
 	} elseif ( $ai_failed > 0 ) {
-		$skipped = sprintf( '%d of %d AI calls failed; those posts were not judged this scan.', $ai_failed, $ai_calls );
+		$skipped = sprintf( '%d of %d AI calls failed; those posts were not judged this scan: %s.', $ai_failed, $ai_calls, sn_health_drift_failed_names( $ai_failures, $ai_failed ) );
 	}
 
-	return sn_health_pack_check( $label, $findings, $fix_hint, $skipped );
+	$check = sn_health_pack_check( $label, $findings, $fix_hint, $skipped );
+	if ( ! empty( $ai_failures ) ) {
+		// Structured twin of the sentence, for the MCP payload. Capped: the scan is one option row.
+		$check['failed'] = array_slice( $ai_failures, 0, SN_HEALTH_DRIFT_FAILED_KEPT );
+	}
+	return $check;
 }

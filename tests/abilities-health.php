@@ -94,6 +94,17 @@ ok( 'broken_links' === $s['flagged'][0]['check'] && 7 === $s['flagged'][0]['coun
 ok( 'Broken internal links' === $s['flagged'][0]['label'] && 'fix Broken internal links' === $s['flagged'][0]['fix_hint'], 'flagged carries label + fix_hint' );
 ok( 1700 === $s['scanned_at'] && 42 === $s['elapsed_ms'], 'metadata passed through' );
 ok( array() === ( $s['skipped'] ?? null ), 'a scan with nothing skipped reports skipped: [] (measured, none), never a missing key' );
+ok( '' === $s['flagged'][0]['partial'] && array() === $s['flagged'][0]['failed'], 'a fully judged flagged check reads partial "" and failed []' );
+
+// ── a partial failure WITH findings: the reason reaches the payload (was dropped) ──
+$sn_drift = mk_check( 2, 'Time-relative drift' );
+$sn_drift['skipped'] = '1 of 3 AI calls failed; those posts were not judged this scan: "Post 9" (the answer was cut off at the answer limit).';
+$sn_drift['failed']  = array( array( 'post_id' => 9, 'title' => 'Post 9', 'reason' => 'the answer was cut off at the answer limit' ) );
+$GLOBALS['__scan'] = array( 'scanned_at' => 1700, 'elapsed_ms' => 42, 'checks' => array( 'drift_time_phrases' => $sn_drift ) );
+$s = snt_ability_get_health_scan( null );
+ok( 1 === count( $s['flagged'] ) && false !== strpos( $s['flagged'][0]['partial'], '"Post 9" (the answer was cut off' ), 'flagged carries the partial sentence naming the post' );
+ok( 9 === $s['flagged'][0]['failed'][0]['post_id'] && array() === $s['skipped'], 'and the structured failed row; it is still flagged, not skipped' );
+ok( isset( $reg['output_schema']['properties']['flagged']['items']['properties']['partial'], $reg['output_schema']['properties']['flagged']['items']['properties']['failed'] ), 'output schema declares partial and failed' );
 
 // ── v11.16.2 regression: the parity bug the fixture above cannot catch ──────
 // Every check above is a `health`-surface check, so a scoped numerator and a

@@ -100,6 +100,7 @@ $GLOBALS['__health_scan'] = array(
 		'test_beta_check'  => array(
 			'label'  => 'Beta check',
 			'count'  => 1,
+			'skipped' => '1 of 2 AI calls failed; those posts were not judged this scan: Post 9 (the answer was cut off at the answer limit).',
 			'findings' => array(
 				array( 'subject_label' => 'Malicious <b>title</b>', 'note' => '"><script>x</script>', 'edit_url' => '' ),
 			),
@@ -145,6 +146,10 @@ ok( false !== strpos( $kit, '55 findings' ), 'rich scan: the hero total is 55 fi
 ok( false !== strpos( $kit, '812ms' ), 'rich scan: the last-scan elapsed time is formatted (812ms)' );
 ok( false !== strpos( $kit, 'Alpha check' ) && false !== strpos( $kit, '52 findings' ), 'rich scan: the Alpha check card shows its label and its 52-finding count' );
 ok( false !== strpos( $kit, '+2 more findings' ), 'rich scan: the 52-row table caps at 50 and names the remainder' );
+$hx_partial = '1 of 2 AI calls failed; those posts were not judged this scan: Post 9 (the answer was cut off at the answer limit).';
+ok( false !== strpos( $kit, '<os-notice tone="warning" not-dismissible>' . $hx_partial . '</os-notice>' ), 'rich scan: a check with findings that was only partly judged says which posts and why on its card (was dropped)' );
+ok( false !== strpos( $classic, 'notice-warning' ) && false !== strpos( $classic, $hx_partial ), 'rich scan: the classic card says the same sentence' );
+ok( false === strpos( $kit, 'heading="Could not run"' ) || false === strpos( (string) strstr( $kit, 'heading="Could not run"' ), 'Beta check' ), 'rich scan: the partly judged Beta check is a finding card, not a "Could not run" row' );
 ok( false !== strpos( $kit, 'Gamma check' ), 'rich scan: the zero-finding, non-skipped Gamma check appears in the passing disclosure' );
 ok( false !== strpos( $kit, 'heading="Could not run"' ) && false !== strpos( $kit, '1 check produced no evidence' ) && false !== strpos( $kit, 'Delta check' ) && false !== strpos( $kit, 'AI provider not configured' ), 'rich scan: the skipped Delta check names itself and its reason, under an open "Could not run" section that counts it (was the "1 check could not run" fold heading)' );
 ok( false !== strpos( $kit, 'Also scanned, shown elsewhere' ) && false !== strpos( $kit, 'Link opportunities (4)' ) && false !== strpos( $kit, 'Contrast tokens' ), 'rich scan: the elsewhere index names the worklist- and integrity-surfaced checks' );

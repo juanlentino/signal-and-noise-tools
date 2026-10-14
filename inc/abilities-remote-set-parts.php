@@ -261,6 +261,22 @@ add_action( 'wp_abilities_api_init', function () {
 							'label'    => array( 'type' => 'string' ),
 							'count'    => array( 'type' => 'integer' ),
 							'fix_hint' => array( 'type' => 'string' ),
+							'partial'  => array(
+								'type'        => 'string',
+								'description' => 'Why part of this check was not judged this scan, naming the posts (drift: failed AI calls); empty when every post was judged.',
+							),
+							'failed'   => array(
+								'type'        => 'array',
+								'description' => 'The posts behind `partial`, one row each: post_id, title, reason in words. Capped at 20. Absent or empty when not tracked (scans before 2026-10-14).',
+								'items'       => array(
+									'type'       => 'object',
+									'properties' => array(
+										'post_id' => array( 'type' => 'integer' ),
+										'title'   => array( 'type' => 'string' ),
+										'reason'  => array( 'type' => 'string' ),
+									),
+								),
+							),
 						),
 					),
 				),

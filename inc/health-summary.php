@@ -209,6 +209,25 @@ function sn_health_check_is_skipped( $check ) {
 }
 
 /**
+ * Why part of a check that DID produce findings was not judged, or ''.
+ *
+ * The other half of sn_health_check_is_skipped(): a check with findings and a
+ * `skipped` reason ran partially (drift: some AI calls failed). That reason
+ * used to reach no surface at all; the finding cards on both Health twins and
+ * the MCP `flagged` rows now read it from here.
+ *
+ * @param array $check Packed check.
+ * @return string
+ */
+function sn_health_check_partial_reason( $check ) {
+	if ( ! is_array( $check ) || 0 === (int) ( $check['count'] ?? 0 ) ) {
+		return '';
+	}
+	$reason = $check['skipped'] ?? null;
+	return is_string( $reason ) ? trim( $reason ) : '';
+}
+
+/**
  * The checks that could not run this scan, keyed as they are in the scan.
  *
  * A count alone tells a reader that something is missing without telling them
