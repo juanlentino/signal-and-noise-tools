@@ -82,7 +82,7 @@ $published = array(
 	array( 'id' => 4, 'title' => 'Too old for the card', 'ts' => $NOW - 9 * 86400, 'edit_url' => 'https://x.test/e/4' ),
 );
 $out = sn_content_queue_shape( $future, 26, $published, $NOW, $TZ );
-ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap', 'scheduled', 'today', 'week_start', 'planned', 'draft_list', 'draft_more', 'cadence' ) === array_keys( $out ), 'the payload carries exactly the thirteen keys (the six it had, the calendar\'s six, and the cadence warnings)' );
+ok( array( 'next', 'scheduled_total', 'runs_to', 'published', 'drafts', 'gap', 'scheduled', 'today', 'week_start', 'planned', 'draft_list', 'draft_more', 'cadence', 'runway' ) === array_keys( $out ), 'the payload carries exactly the fourteen keys (the six it had, the calendar\'s six, the cadence warnings and the runway)' );
 ok( null === $out['drafts'], 'drafts is null when the caller could not count them, never a guessed 0' );
 ok( 7 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 7 )['drafts'] && 0 === sn_content_queue_shape( $future, 26, $published, $NOW, $TZ, 0 )['drafts'], 'a counted draft total passes through, a real 0 included' );
 ok( 4 === count( $out['next'] ), 'next is capped at four (the headline plus three)' );

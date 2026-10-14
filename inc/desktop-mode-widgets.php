@@ -179,7 +179,7 @@ add_action( 'init', function() {
 		// the content-queue ability; labels are the site timezone's.
 		snt_os_register_widget( 'sn-queue', array_merge( $sn_drag, array(
 			'label'          => 'SN Queue',
-			'description'    => 'The coming six weeks as a calendar with a dot per scheduled note, the selected day\'s notes (the next up first), how deep the queue runs, the drafts by title with a suggested slot each (never scheduled), any gap in the schedule, and the last three published.',
+			'description'    => 'The coming six weeks as a calendar with a dot per scheduled note, the selected day\'s notes (the next up first), how far ahead the queue covers ("Covered through Jan 25, 2027 (103 days)") with the scheduled count, the drafts by title with a suggested slot each (never scheduled), any gap in the schedule, and the last three published.',
 			'icon'           => 'dashicons-calendar-alt',
 			'script'         => 'sn-desktop-mode-widget-queue',
 			// 2026-10-12, fit to content (the owner, seen live at about 265
@@ -197,7 +197,13 @@ add_action( 'init', function() {
 			// three Later rows, ~180px more) scrolls inside the card. Before:
 			// 780, budgeted for that busiest state. A SAVED layout keeps its
 			// own height.
-			'default_height' => 640,
+			// 2026-10-14 (phase 2, item 6): the runway sentence ("Covered
+			// through Jan 25, 2027 (103 days)", 218px at 11px) replaces the
+			// depth line in the same row, but it cannot share that row with
+			// "26 scheduled · 0 drafts" below about 360 wide, so the row is
+			// one line taller at 265 and 312 (~14px). BUDGETED, not measured
+			// on the desk: 627 + 14 at 265, rounded up to the next 10.
+			'default_height' => 650,
 		) ) );
 
 		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(

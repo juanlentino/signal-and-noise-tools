@@ -68,6 +68,8 @@ function paint_connections_scheduled_content( array $ctx ) {
 	// 2026-10-13 (item 2): a suggested slot per draft, from the same read.
 	if ( function_exists( 'sn_content_queue_schedule_read' ) ) {
 		$schedule = \sn_content_queue_schedule_read();
+		// 2026-10-14 (item 6): how far ahead the schedule covers.
+		$out     .= scheduled_content_runway_html( \sn_content_queue_runway_read( $schedule ) );
 		$out     .= scheduled_content_cadence_html( \sn_content_queue_cadence_read( $schedule ) );
 		$out     .= scheduled_content_slots_html( \sn_content_queue_slot_read( $schedule ) );
 	}

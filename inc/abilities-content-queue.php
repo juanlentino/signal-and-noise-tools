@@ -25,6 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/abilities-content-queue-gaps.php';
 require_once __DIR__ . '/abilities-content-queue-cadence.php';
 require_once __DIR__ . '/abilities-content-queue-slot.php';
+require_once __DIR__ . '/abilities-content-queue-runway.php';
 require_once __DIR__ . '/abilities-content-queue-register.php';
 
 /** How many upcoming rows the payload carries: the headline plus three. */
@@ -129,7 +130,8 @@ function sn_content_queue_ago( $ts, $now ) {
  * @param array        $draft_list Draft rows (titles and edit links only), newest edit first.
  * @param int|null     $draft_more Drafts left off the list, or null when not read for this user.
  * @since Unreleased (cadence warnings): `cadence`, every cluster and unplanned gap.
- * @return array{next:array,scheduled_total:int,runs_to:?array,published:array,drafts:?int,gap:?array,scheduled:array,today:string,week_start:string,planned:array,draft_list:array,draft_more:?int,cadence:array}
+ * @since Unreleased (runway): `runway`, how far ahead the schedule covers, in one sentence.
+ * @return array{next:array,scheduled_total:int,runs_to:?array,published:array,drafts:?int,gap:?array,scheduled:array,today:string,week_start:string,planned:array,draft_list:array,draft_more:?int,cadence:array,runway:array}
  */
 function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone $tz, $drafts = null, array $planned = array(), $draft_list = array(), $draft_more = null ) {
 	$future    = is_array( $future ) ? array_values( $future ) : array();
@@ -241,6 +243,9 @@ function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone
 		// Phase 2 (2026-10-12): every cluster and gap by the owner's rule
 		// (under 2 days, over 7), planned gaps left out, one sentence each.
 		'cadence'         => sn_content_queue_cadence( $stamps( $future ), $newest, $now, $tz, $planned ),
+		// Phase 2, item 6 (2026-10-14): "Covered through Jan 25, 2027 (103
+		// days)", the same sentence the Scheduled twins print.
+		'runway'          => sn_content_queue_runway( $stamps( $future ), $now, $tz ),
 	);
 }
 

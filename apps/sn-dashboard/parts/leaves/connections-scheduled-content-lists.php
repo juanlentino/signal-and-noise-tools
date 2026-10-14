@@ -99,6 +99,19 @@ function scheduled_content_more_html( $remainder ) {
 }
 
 /**
+ * The Runway box (2026-10-14, queue phase 2, item 6): how far ahead the
+ * schedule covers, the count under it. The classic twin says the same
+ * (sn_admin_render_queue_runway()).
+ *
+ * @param array $read From sn_content_queue_runway_read().
+ * @return string
+ */
+function scheduled_content_runway_html( array $read ) {
+	$inner = '<p class="snt-prose">' . \snt_kit_esc( (string) ( $read['text'] ?? '' ) ) . '</p>';
+	return \snt_kit_section( __( 'Runway', 'signal-and-noise-tools' ), $inner, (string) ( $read['count'] ?? '' ) );
+}
+
+/**
  * The Cadence box (2026-10-12, queue phase 2): every cluster and unplanned
  * gap from the latest published note through the scheduled ones, one sentence each with its word first, under
  * the rule. The classic twin says the same (sn_admin_render_queue_cadence()).

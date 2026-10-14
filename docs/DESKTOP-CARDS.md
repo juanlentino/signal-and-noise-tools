@@ -28,8 +28,8 @@ What it shows, top to bottom:
   ("Next up · Tue, Oct 13") and follows it as notes publish. A click or the
   arrow keys pick another day (one tab stop; Home and End go to the week's
   ends); a picked day stays picked through refreshes while it is on the grid.
-- **The figures.** How many notes are scheduled and the date the queue runs to,
-  beside the draft count.
+- **The runway** (see Runway): "Covered through Jan 25, 2027 (103 days)",
+  with the scheduled count and the draft count beside it as secondary text.
 - **The cadence lines**, one per cluster or gap (see Cadence), up to three,
   then "+N more in Scheduled". Each gap line has a **Planned** button.
 - **Drafts**, the newest three the viewer can edit, by title, each linking to
@@ -107,6 +107,30 @@ On the live queue (2026-10-13: 25 scheduled, every gap 4 days or less, the
 holiday pause planned) a first draft would be suggested Fri, Jan 29, 2027 at
 12:46 PM; there are no drafts today, so the twins say so.
 
+### Runway
+
+Phase 2, item 6 (2026-10-14). How far ahead the schedule covers, in one
+sentence built by `sn_content_queue_runway()` in
+`inc/abilities-content-queue-runway.php`: "Covered through Jan 25, 2027 (103
+days)". The date is the last scheduled note's day; the days are calendar days
+from today to that day, both in the site timezone ("(today)" and "(1 day)" at
+the short end; the year only when it is not this one). Unknowns are said in
+words: "Not covered: nothing is scheduled." and, when every scheduled note is
+past its time and not yet published, "Not covered: the last scheduled note,
+Oct 12, is overdue." The ability carries it as `runway` (`through`, `days`,
+`text`; the first two null for an unknown).
+
+On the card the sentence takes the old depth line's place ("26 scheduled · to
+Jan 25, 2027") in the same row, in the card's text color; the scheduled count
+and the draft count sit beside it in the muted color ("25 scheduled · 0
+drafts", or "Scheduled count not read"). The sentence may wrap; the counts
+keep to one line. A payload without `runway` (an older site) keeps the depth
+line. Connections › Scheduled has a **Runway** box on both twins, first of
+the queue boxes: the same sentence, with the count as its description.
+
+On the live queue (2026-10-14: 25 scheduled, the last on Jan 25, 2027) it
+reads "Covered through Jan 25, 2027 (103 days)".
+
 ### Planned gaps
 
 A gap can be on purpose (the holidays). **Planned** on a gap line records it
@@ -136,8 +160,10 @@ no drafts, so it holds, and a card with drafts and a cadence line scrolls. The
 busiest state (a missed note, three cadence lines and "+N more", three drafts with "+N more" and
 three Later rows, about 180px more) scrolls inside the card. It was 780, sized
 for that busiest state, which left about 200px empty on an ordinary day. The
-scheduled count and the drafts count share one row when both fit on a line
-each, and stack otherwise; neither breaks mid-phrase. The grid's
+runway sentence (2026-10-14, 218px at 11px) cannot share its row with the
+counts below about 360 wide, so the row is one line taller there (about 14px):
+the default went from 640 to 650, BUDGETED, not measured on the desk. The
+runway may wrap; the counts never break mid-phrase. The grid's
 seven columns are equal shares of the card's width, so they fit any width the
 desktop allows (at the 240 minimum a column is about 23px, targets 25px apart);
 rows grow a little with the card's width. A card the owner resized keeps its
