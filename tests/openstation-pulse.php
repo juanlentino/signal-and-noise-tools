@@ -120,6 +120,11 @@ ok( array( array( 'provenance', false ), array( 'provenance', true ), array( 'pr
 /* 6. The purge seam and privacy. */
 $purge = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
 ok( 1 === substr_count( $purge, "snt_pulse_beat( 'cache-purge'" ), 'sn_cf_purge_everything() beats once, guarded' );
+// The error flag itself: refused is a failed beat; confirmed, and queued for a retry, are not.
+ok( false === snt_pulse_purge_failed( true, '' ), 'a confirmed purge is a good beat' );
+ok( false === snt_pulse_purge_failed( false, 'queued' ), 'a purge Cloudflare queued for retry is not a failure' );
+ok( true === snt_pulse_purge_failed( false, 'refused' ), 'a refused purge is a failed beat' );
+ok( 1 === substr_count( $purge, "snt_pulse_beat( 'cache-purge', snt_pulse_purge_failed( \$confirmed, sn_cf_send_last() ) );" ), 'the purge seam passes the confirmation and the send outcome, uninverted' );
 $src = (string) file_get_contents( __DIR__ . '/../inc/openstation-pulse.php' );
 ok( false === strpos( $src, 'wp_remote_' . 'get' ) && false === strpos( $src, 'sn_uptime_status_' . 'fetch' ), 'no network call anywhere in the module' );
 ok( false === strpos( $src, 'REMOTE_' . 'ADDR' ), 'no IP is read' );

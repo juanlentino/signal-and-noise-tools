@@ -23,9 +23,10 @@
  *     as one failed request, read from the cached snapshot only.
  *   - openstation_pulse_record: two beats, 'provenance' (each signing dispatch
  *     to the provenance Worker, failed when it does not return 2xx) and
- *     'cache-purge' (sn_cf_purge_everything(), failed when Cloudflare did not
- *     confirm it). Upstream drops a listener's own requests, so a purge the
- *     owner clicks while watching does not beat; cron-driven ones do.
+ *     'cache-purge' (sn_cf_purge_everything(), failed when Cloudflare refused
+ *     it; a purge queued for a retry is not a failure). Upstream drops a
+ *     listener's own requests, so a purge the owner clicks while watching
+ *     does not beat; cron-driven ones do.
  *
  * Privacy: nothing here stores or relays a URL, an IP or a user agent. The UA
  * is classified in memory and the provenance URL only compared.
@@ -144,6 +145,19 @@ function snt_pulse_beat( $kind, $error = false ) {
 		return false;
 	}
 	return (bool) openstation_pulse_record( $kind, array( 'error' => (bool) $error ) );
+}
+
+/**
+ * Whether a whole-zone purge beats as failed. PURE. Only a refusal is a
+ * failure: a confirmed purge is good, and one Cloudflare queued for a retry
+ * (rate limited) has not failed yet.
+ *
+ * @param bool   $confirmed Cloudflare confirmed it in this request.
+ * @param string $send_last sn_cf_send_last(): 'queued' when a retry is queued.
+ * @return bool
+ */
+function snt_pulse_purge_failed( $confirmed, $send_last ) {
+	return ! $confirmed && 'queued' !== $send_last;
 }
 
 /**
