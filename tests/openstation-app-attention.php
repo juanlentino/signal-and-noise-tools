@@ -37,6 +37,7 @@ define( 'SN_MR_SNAPSHOT_STALE_AFTER', 6 * 3600 );
 
 // The clock. Everything below is relative to it.
 $GLOBALS['__now'] = strtotime( '2026-09-06 12:00:00 UTC' );
+require_once __DIR__ . '/lib/inc-population.php'; // 2026-10-14: the attention halves are split into parts files; their text is read by name
 require_once __DIR__ . '/lib/site-timezone-stub.php'; // 14.7.4: stamps print in the site's zone (America/New_York), so 12:00 UTC reads 08:00 EDT
 $GLOBALS['__signals'] = null; // v14.7.0: the search reader's source; set per pin in Group 1.
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
@@ -1023,7 +1024,7 @@ echo "\nGroup 8: the seam between the two halves\n";
 // a habit; measured, it is a property -- and the measurement is the reason the
 // file was split rather than merely made shorter.
 $composition = (string) file_get_contents( __DIR__ . '/../apps/signal-noise/parts/attention.php' );
-$readers     = (string) file_get_contents( __DIR__ . '/../apps/signal-noise/parts/attention-readers.php' );
+$readers     = snt_test_attention_readers_src();
 $called      = array();
 foreach ( array_keys( \SignalNoise\OpenStationApp\attention_kinds() ) as $kind ) {
 	if ( false !== strpos( $readers, 'function attention_' . $kind . '(' ) ) {
@@ -1047,7 +1048,7 @@ foreach ( token_get_all( $composition ) as $token ) {
 }
 $seam = '/(?<![A-Za-z0-9_\\$>])\\\\?(sn_|snt_)(?!os_app_section\b|desktop_admin_url\b)[a-z0-9_]+\s*\(/';
 ok( 0 === preg_match( $seam, $stripped ), 'the composition half calls NO estate reader, qualified or not -- only the section registry and the admin-dock resolver, which are the app\'s own furniture' );
-ok( false === strpos( $composition, 'function attention_integrity' ) && false === strpos( $readers, 'function attention_compose' ), 'and neither half holds the other\'s functions' );
+ok( '' !== $composition && '' !== $readers && false === strpos( $composition, 'function attention_integrity' ) && false === strpos( $readers, 'function attention_compose' ), 'and neither half holds the other\'s functions' );
 
 echo "\nGroup 9: the fleet-level key verdict is a queue row, filed under the sweep\n";
 $GLOBALS['__integrity_throws'] = false;
@@ -1062,7 +1063,7 @@ $GLOBALS['__integrity']['last_sweep']['keys'] = 'ok';
 $r = \SignalNoise\OpenStationApp\attention_integrity(); $keyrow = null; foreach ( $r['rows'] as $row ) { if ( 'keys' === ( $row['key'] ?? '' ) ) { $keyrow = $row; } }
 ok( null === $keyrow, 'an ok verdict makes no row' );
 $src_findings = file_get_contents( __DIR__ . '/../inc/provenance-integrity.php' );
-$src_reader   = file_get_contents( __DIR__ . '/../apps/signal-noise/parts/attention-readers.php' );
+$src_reader   = snt_test_attention_readers_src();
 $parity = true;
 // EACH PHRASE IS UNIQUE TO ITS FINDING, and counted rather than searched.
 // 'has 404ed for three consecutive sweeps' occurs TWICE in the source (the
