@@ -169,7 +169,9 @@ $ring = $src( 'inc/keyring.php' );
 ok( false !== strpos( $ring, "'constant' => 'SN_ARCHIVE_ACCESS_KEY'" ) && false !== strpos( $ring, "'constant' => 'SN_ARCHIVE_SECRET_KEY'" ), 'both keys are keyring rows read from wp-config constants' );
 $mod = $src( 'inc/archive-push.php' );
 ok( false === strpos( $mod, 'wp_update_post' ) && false === strpos( $mod, 'wp_insert_post' ) && false === strpos( $mod, 'error_log' ), 'the module never writes a post and never logs' );
-ok( false === strpos( $src( 'inc/abilities-remote-set.php' ), 'archive_push' ), 'no remote-twinned schema carries the result' );
+require_once __DIR__ . '/lib/inc-population.php';
+$remote_set = snt_test_inc_files( 'abilities-remote-set*.php' ); // 2026-10-13: split across parts files.
+ok( count( $remote_set ) >= 5 && false === strpos( implode( "\n", array_map( 'file_get_contents', $remote_set ) ), 'archive_push' ), 'no remote-twinned schema carries the result (every part of the remote set read)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

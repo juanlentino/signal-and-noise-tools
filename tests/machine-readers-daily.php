@@ -131,7 +131,9 @@ $off = $run( 'unconfigured', array( 'days' => 7, 'series' => 'day' ) );
 ok( false === $off['ok'] && ! array_key_exists( 'daily', $off ), 'a sensor that never answered returns no series, not a row of zeros' );
 
 echo "\nThe remote twin: same callback, same schema, door-checked\n";
-$set = (string) file_get_contents( __DIR__ . '/../inc/abilities-remote-set.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+// 2026-10-13: the remote set is split across abilities-remote-set*.php; read every part.
+$set = (string) implode( "\n", array_map( 'file_get_contents', snt_test_inc_files( 'abilities-remote-set*.php' ) ) );
 ok( 1 === preg_match( "/'signal-noise\/remote-machine-readers-summary'.*?'permission_callback'\s*=>\s*'([a-z_]+)'/s", $set, $m ) && false !== strpos( $set, "function {$m[1]}" ), 'the twin keeps its own remote door permission (door off: the bridge 404s, the standard error)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
