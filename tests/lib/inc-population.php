@@ -78,6 +78,31 @@ if ( ! function_exists( 'snt_test_inc_packages' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_provenance_integrity_src' ) ) {
+	/**
+	 * The source of inc/provenance-integrity.php AND its three parts files, for
+	 * suites that pin the module's text. Split 2026-10-14 (house line cap).
+	 * Named, not globbed: no other module shares the prefix today, and a future
+	 * one would not belong in the read. A missing file returns '' so every
+	 * presence pin goes red and every guarded absence pin fails rather than
+	 * passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_provenance_integrity_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-fetch-parts', '-sweep-parts', '-report-parts' ) as $suffix ) {
+			$file = $dir . 'provenance-integrity' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_mcp_telemetry_src' ) ) {
 	/**
 	 * The source of inc/mcp/mcp-telemetry.php AND its three parts files, for
@@ -117,6 +142,30 @@ if ( ! function_exists( 'snt_test_analytics_view_overview_src' ) ) {
 		$src = '';
 		foreach ( array( '', '-model-parts', '-panels-parts', '-render-parts' ) as $suffix ) {
 			$file = $dir . 'analytics-view-overview' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_edge_rollup_src' ) ) {
+	/**
+	 * The source of inc/edge-rollup.php AND its four parts files, for suites
+	 * that pin or extract the module's text. Split 2026-10-14 (house line cap).
+	 * Named, not globbed: a future edge-rollup-* module would not belong in the
+	 * read. A missing file returns '' so every presence pin goes red rather
+	 * than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_edge_rollup_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-schema-parts', '-upsert-parts', '-run-parts', '-errors-parts' ) as $suffix ) {
+			$file = $dir . 'edge-rollup' . $suffix . '.php';
 			if ( ! is_file( $file ) ) {
 				return '';
 			}
@@ -216,6 +265,30 @@ if ( ! function_exists( 'snt_test_insights_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_desktop_status_extra_src' ) ) {
+	/**
+	 * The source of inc/desktop-mode-status-extra.php AND its three parts files,
+	 * for suites that pin the module's text. Split 2026-10-14 (house line cap).
+	 * Named, not globbed: the other desktop-mode-*.php files are separate
+	 * modules. A missing file returns '' so every presence pin goes red and
+	 * every guarded absence pin fails rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_desktop_status_extra_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-edge-parts', '-reads-parts', '-rows-parts' ) as $suffix ) {
+			$file = $dir . 'desktop-mode-status-extra' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_seo_src' ) ) {
 	/**
 	 * The source of inc/seo.php AND its four parts files, for suites that pin
@@ -232,6 +305,30 @@ if ( ! function_exists( 'snt_test_seo_src' ) ) {
 		$src = '';
 		foreach ( array( '', '-meta-parts', '-head-parts', '-og-parts', '-delivery-parts' ) as $suffix ) {
 			$file = $dir . 'seo' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_sn_apply_block_edit_src' ) ) {
+	/**
+	 * The source of inc/sn-apply/block-edit.php AND its two parts files, for
+	 * suites that pin the module's text. Split 2026-10-14 (house line cap).
+	 * Named, not globbed: no other module shares the prefix today, and a future
+	 * one would not belong in the read. A missing file returns '' so every
+	 * presence pin goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_sn_apply_block_edit_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/sn-apply/';
+		$src = '';
+		foreach ( array( '', '-resolve-parts', '-compute-parts' ) as $suffix ) {
+			$file = $dir . 'block-edit' . $suffix . '.php';
 			if ( ! is_file( $file ) ) {
 				return '';
 			}

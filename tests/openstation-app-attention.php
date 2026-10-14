@@ -1062,7 +1062,8 @@ ok( is_array( $keyrow ) && 'warning' === $keyrow['tone'] && false !== strpos( $k
 $GLOBALS['__integrity']['last_sweep']['keys'] = 'ok';
 $r = \SignalNoise\OpenStationApp\attention_integrity(); $keyrow = null; foreach ( $r['rows'] as $row ) { if ( 'keys' === ( $row['key'] ?? '' ) ) { $keyrow = $row; } }
 ok( null === $keyrow, 'an ok verdict makes no row' );
-$src_findings = file_get_contents( __DIR__ . '/../inc/provenance-integrity.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$src_findings = snt_test_provenance_integrity_src(); // the shell and its parts (split 2026-10-14)
 $src_reader   = file_get_contents( __DIR__ . '/../apps/signal-noise/parts/attention-readers.php' );
 $parity = true;
 // EACH PHRASE IS UNIQUE TO ITS FINDING, and counted rather than searched.
