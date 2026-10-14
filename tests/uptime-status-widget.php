@@ -157,6 +157,12 @@ uw_ok( false !== strpos( $js, "addEventListener( 'toggle'" ) && false !== strpos
 uw_ok( false !== strpos( $js, 'sn-an-panel-open' ), 'JS keeps the legacy panel-open path (for a future collapsible-panel producer — none ship today)' );
 uw_ok( false !== strpos( $js, "closest( 'summary' )" ) && false !== strpos( $js, "setAttribute( 'aria-label'" ), 'JS swaps the summary accessible name to the status meta after paint' );
 uw_ok( false !== strpos( $js, 'data-sn-uptime-loaded' ), 'JS once-guards the detail fetch' );
+// 2026-10-13 (owner-approved): the detail table reads the median and the
+// slowest check; the mean ("averaged") is gone from both Analytics twins.
+uw_ok( false !== strpos( $js, 'row.median_ms' ) && false !== strpos( $js, 'row.max_ms' ) && false !== strpos( $js, 'row.max_region' ), 'detail table paints median_ms and the slowest check (max_ms, max_region)' );
+uw_ok( false !== strpos( $js, "'Median'" ) && false !== strpos( $js, "'Slowest'" ) && false === strpos( $js, "'Resp.'" ), 'column headers say Median and Slowest, not Resp.' );
+uw_ok( false === strpos( $js, 'sn-uw-wrap' ) && false === strpos( (string) file_get_contents( __DIR__ . '/../assets/uptime-status.css' ), 'sn-uw-wrap' ), 'the Slowest cell keeps nowrap (review of #2049): at phone width the scroll region carries it, it never wraps to five lines' );
+uw_ok( false === stripos( $js, 'averaged' ) && false !== strpos( $js, 'median and slowest response over 24 h' ), 'the footer says median and slowest, never averaged' );
 
 // v12.10.0: the Analytics page moved to a top-level menu, so its hook suffix
 // changed. The widget now reads snt_analytics_page_hook() rather than a literal.

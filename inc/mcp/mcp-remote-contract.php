@@ -73,7 +73,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 // first_party and identity (signed is not verified); the analytics summary
 // twin gains likely_automated and basis. Additive. The worker's own
 // CONTRACT_VERSION bump is a separate PR after this one.
-const SN_REMOTE_CONTRACT_VERSION = '16';
+// Contract 17 (owner-approved 2026-10-13, "Yes, show the median"): each uptime
+// row gains median_ms, max_ms, max_region and max_at, and response_ms is
+// documented as the median (it was the mean). Additive keys; on the remote
+// twin (the light tier) every one is null. The worker's own CONTRACT_VERSION
+// bump is a separate PR.
+const SN_REMOTE_CONTRACT_VERSION = '17';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -114,6 +119,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'15' => '3158c41d6236a25c6e9f1a0c87904b5e03096b3c6e86b701fd3421be2856e2ec',
 	// RED-then-pin, 2026-10-11: evidence basis on the machine-readers and analytics summary twins.
 	'16' => '14565a3580c11d62d93822a5bf6c0cf5eaeacdd6d49c97c17846b205dc663be8',
+	// RED-then-pin, 2026-10-13: the uptime row's median and slowest-check keys.
+	'17' => '9a44d64aa779d567e1fe8746d526107dafa18fd93117a6a783ccdd047def2a47',
 );
 
 /**

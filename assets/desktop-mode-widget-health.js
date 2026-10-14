@@ -191,29 +191,42 @@
 		return { rows: rows };
 	}
 
+	/** A figure the read carries, as a number; null when it was not read (never a 0). */
+	function figure( v ) {
+		return null === v || undefined === v || '' === v || isNaN( Number( v ) ) ? null : Number( v );
+	}
+
+	/** "21 ms", "4.2 s", "28 s": seconds once a check passes one. */
+	function msText( ms ) {
+		if ( ms < 1000 ) { return Math.round( ms ) + ' ms'; }
+		return ( ms < 10000 ? Math.round( ms / 100 ) / 10 : Math.round( ms / 1000 ) ) + ' s';
+	}
+
 	/**
 	 * SN Uptime's per-monitor figures, condensed: the mean 30-day availability
-	 * and the mean response time across the monitors that report them. A
-	 * figure no monitor reports is left out, never shown as 0. No change is
-	 * shown: the uptime data carries no prior period to compare against.
+	 * and the 24-hour MEDIAN response time (2026-10-13, owner-approved: the
+	 * mean let a few checks near the timeout turn 21 ms into 282 ms). Several
+	 * monitors show their medians as a range; a mean of medians is not a
+	 * median. A figure no monitor reports is left out, never shown as 0.
 	 */
 	function uptimeSummary( mons ) {
-		var mean = function( key ) {
-			var v = mons.map( function( m ) { return m[ key ]; } ).filter( function( x ) { return x !== null && x !== undefined && x !== '' && ! isNaN( Number( x ) ); } ).map( Number );
-			return v.length ? v.reduce( function( a, b ) { return a + b; }, 0 ) / v.length : null;
-		};
 		var out = [];
-		var a   = mean( 'availability' );
-		var r   = mean( 'response_ms' );
-		if ( null !== a ) { out.push( ( Math.round( a * 100 ) / 100 ) + '% over 30 days' ); }
-		if ( null !== r ) { out.push( 'average ' + Math.round( r ) + ' ms' ); }
+		var av  = mons.map( function( m ) { return figure( m.availability ); } ).filter( function( x ) { return null !== x; } );
+		var md  = mons.map( function( m ) { return figure( m.median_ms ); } ).filter( function( x ) { return null !== x; } );
+		if ( av.length ) { out.push( ( Math.round( av.reduce( function( a, b ) { return a + b; }, 0 ) / av.length * 100 ) / 100 ) + '% over 30 days' ); }
+		var lo  = md.length ? Math.min.apply( null, md ) : null;
+		var hi  = md.length ? Math.max.apply( null, md ) : null;
+		// Equal medians (or one monitor) print one value, never "120 ms to 120 ms".
+		if ( md.length && msText( lo ) === msText( hi ) ) { out.push( 'median ' + msText( lo ) + ' over 24 h' ); }
+		else if ( md.length ) { out.push( 'medians ' + msText( lo ) + ' to ' + msText( hi ) + ' over 24 h' ); }
 		return out;
 	}
 
 	/**
 	 * Two figures the uptime read already carries (2026-10-05): incidents over
-	 * 30 days across the monitors that report them, and the slowest monitor
-	 * when there are two or more to compare. Left out when no monitor reports.
+	 * 30 days across the monitors that report them, and the slowest single
+	 * check over 24 hours (2026-10-13): how long, where it ran and when, each
+	 * piece left out when the read did not carry it. Left out when no monitor reports.
 	 */
 	function uptimeExtraRows( mons ) {
 		var rows = [];
@@ -223,12 +236,17 @@
 			var sum = inc.reduce( function( a, m ) { return a + Number( m.incidents_30d ); }, 0 );
 			rows.push( { label: 'Incidents · 30 days', value: String( sum ) + ( inc.length < mons.length ? ' · ' + inc.length + ' of ' + mons.length + ' monitors read' : '' ) } );
 		}
-		var timed = mons.filter( function( m ) { return m.response_ms !== null && m.response_ms !== undefined && m.response_ms !== '' && ! isNaN( Number( m.response_ms ) ); } );
+		var timed = mons.filter( function( m ) { return null !== figure( m.max_ms ); } );
 		// Heartbeats never carry a response time: they are not in the denominator.
 		var timeable = mons.filter( function( m ) { return ! m.kind || 'monitor' === m.kind; } ).length;
-		if ( timed.length > 1 ) {
-			var slow = timed.reduce( function( a, b ) { return Number( b.response_ms ) > Number( a.response_ms ) ? b : a; } );
-			rows.push( { label: 'Slowest', value: String( slow.name || 'monitor' ) + ' · ' + Math.round( Number( slow.response_ms ) ) + ' ms' + ( timed.length < timeable ? ' · ' + timed.length + ' of ' + timeable + ' monitors timed' : '' ) } );
+		if ( timed.length ) {
+			var slow  = timed.reduce( function( a, b ) { return figure( b.max_ms ) > figure( a.max_ms ) ? b : a; } );
+			var at    = slow.max_at ? Date.parse( slow.max_at ) : NaN;
+			var parts = timeable > 1 ? [ String( slow.name || 'monitor' ) ] : [];
+			parts.push( msText( figure( slow.max_ms ) ) + ( slow.max_region ? ' from ' + String( slow.max_region ) : '' ) );
+			if ( ! isNaN( at ) && ago( at / 1000 ) ) { parts.push( ago( at / 1000 ) ); }
+			if ( timed.length < timeable ) { parts.push( timed.length + ' of ' + timeable + ' monitors timed' ); }
+			rows.push( { label: 'Slowest', value: parts.join( ' · ' ) } );
 		}
 		return rows;
 	}
