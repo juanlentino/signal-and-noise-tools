@@ -5,9 +5,9 @@
  * The phone's first screen (position 5, first at the root). Nine READERS over
  * signals something else already computed, composed into one queue of rows.
  *
- * THIS FILE IS THE COMPOSITION and touches no signal: the vocabulary (the
+ * THIS FILE AND ITS PARTS ARE THE COMPOSITION and touches no signal: the vocabulary (the
  * kinds, the stamps, the doors), the ordering, the cache, the item shape and
- * the descriptor. The ten readers live in parts/attention-readers.php, which
+ * the descriptor. The ten readers live in parts/attention-readers*.php, which
  * is the only half that calls the estate. The two fail differently -- a reader
  * breaks when the thing it reads changes shape, this breaks when the queue's
  * own contract changes -- and the suite pins the seam by name, so a tenth
