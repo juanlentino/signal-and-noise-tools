@@ -216,6 +216,31 @@ if ( ! function_exists( 'snt_test_cron_dashboard_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_attention_readers_src' ) ) {
+	/**
+	 * The source of apps/signal-noise/parts/attention-readers.php AND its four
+	 * parts files (an app, not inc/), for suites that pin the readers' text.
+	 * Split 2026-10-14 (house line cap). Named, not globbed: attention-*.php
+	 * also matches the composition half, which the seam pin must keep out of
+	 * this read. A missing file returns '' so every presence pin goes red and
+	 * every guarded absence pin fails rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_attention_readers_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/apps/signal-noise/parts/';
+		$src = '';
+		foreach ( array( '', '-integrity-parts', '-edge-parts', '-schedule-parts', '-search-parts' ) as $suffix ) {
+			$file = $dir . 'attention-readers' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_analytics_rollup_src' ) ) {
 	/**
 	 * The source of inc/analytics-rollup.php AND its four parts files, for

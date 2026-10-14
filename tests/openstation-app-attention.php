@@ -1023,8 +1023,8 @@ echo "\nGroup 8: the seam between the two halves\n";
 // The readers are the only half that calls the estate. Stated as a rule it is
 // a habit; measured, it is a property -- and the measurement is the reason the
 // file was split rather than merely made shorter.
+$readers     = snt_test_attention_readers_src();
 $composition = snt_test_attention_src();
-$readers     = (string) file_get_contents( __DIR__ . '/../apps/signal-noise/parts/attention-readers.php' );
 $called      = array();
 foreach ( array_keys( \SignalNoise\OpenStationApp\attention_kinds() ) as $kind ) {
 	if ( false !== strpos( $readers, 'function attention_' . $kind . '(' ) ) {
@@ -1064,7 +1064,7 @@ $r = \SignalNoise\OpenStationApp\attention_integrity(); $keyrow = null; foreach 
 ok( null === $keyrow, 'an ok verdict makes no row' );
 require_once __DIR__ . '/lib/inc-population.php';
 $src_findings = snt_test_provenance_integrity_src(); // the shell and its parts (split 2026-10-14)
-$src_reader   = file_get_contents( __DIR__ . '/../apps/signal-noise/parts/attention-readers.php' );
+$src_reader   = snt_test_attention_readers_src();
 $parity = true;
 // EACH PHRASE IS UNIQUE TO ITS FINDING, and counted rather than searched.
 // 'has 404ed for three consecutive sweeps' occurs TWICE in the source (the
