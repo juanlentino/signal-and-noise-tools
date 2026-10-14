@@ -38,7 +38,7 @@
  * "partial" on surfaces is intentionally not a clean yes/no: the TYPE
  * supports revision mode (the gate lets the mode through), but the response
  * itself documents which sub-fields staged vs which side effect (card
- * regen) was skipped — see snt_sn_apply_write_surfaces() below.
+ * regen) was skipped — see snt_sn_apply_write_surfaces() in executors-diff-parts.php.
  *
  * @package SignalNoiseTools
  * @since 10.40.0
