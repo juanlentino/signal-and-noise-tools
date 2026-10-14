@@ -571,10 +571,12 @@ ok( strpos( $html_sun, 'latest 61.4%' ) !== false && strpos( $html_sun, '(partia
 	'sunday: a complete trailing ISO week carries NO partial annotation' );
 
 echo "\nGroup: source pins: the graduated file carries no flag machinery\n";
-$src_file = (string) file_get_contents( __DIR__ . '/../inc/analytics-view-overview.php' );
-ok( strpos( $src_file, 'landing_preview' ) === false, 'source: no flag machinery in the wired view' );
-ok( strpos( $src_file, 'sn-an-lab-badge' ) === false && strpos( $src_file, 'PREVIEW' ) === false, 'source: no preview badge markup' );
-ok( strpos( $src_file, 'sn_analytics_fetch_session_events' ) === false && strpos( $src_file, 'sn_analytics_query' ) === false,
+// The view and its three parts files (split 2026-10-14, house line cap).
+require_once __DIR__ . '/lib/inc-population.php';
+$src_file = snt_test_analytics_view_overview_src();
+ok( '' !== $src_file && strpos( $src_file, 'landing_preview' ) === false, 'source: no flag machinery in the wired view' );
+ok( '' !== $src_file && strpos( $src_file, 'sn-an-lab-badge' ) === false && strpos( $src_file, 'PREVIEW' ) === false, 'source: no preview badge markup' );
+ok( '' !== $src_file && strpos( $src_file, 'sn_analytics_fetch_session_events' ) === false && strpos( $src_file, 'sn_analytics_query' ) === false,
 	'source: the live-AE call names never appear in the view (load-cost rule, enforced at the source level too)' );
 
 echo "\nGroup: styles: the bento + compact classes exist in the enqueued stylesheet\n";
@@ -735,7 +737,7 @@ echo "\nGroup: doorway base. ONE reset list shared with the tab strip (review 2,
 ok( function_exists( 'snt_analytics_view_reset_params' )
 	&& array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_event_prop', 'sn_lg_range' ) === snt_analytics_view_reset_params(),
 	'reset params: the shared helper returns the tab strip\'s exact 8-param strip list (sn_compare deliberately absent: compare rides along)' );
-$rp_view_src = (string) file_get_contents( __DIR__ . '/../inc/analytics-view-overview.php' );
+$rp_view_src = snt_test_analytics_view_overview_src();
 $rp_adm_src  = (string) file_get_contents( __DIR__ . '/../inc/analytics-admin.php' );
 ok( strpos( $rp_view_src, 'remove_query_arg( snt_analytics_view_reset_params(), add_query_arg( array() ) )' ) !== false,
 	'parity: the doorway builder consumes the shared helper (source pin)' );
@@ -1164,7 +1166,7 @@ ok( strpos( $css, '.sn-an-overview-bento > .sn-an-bento-col:only-child' ) !== fa
 	'css: a lone bento column spans the full row: no half-empty right column (review r1 F3)' );
 
 echo "\nGroup: REVIEW R1 F4: the view threads the prior depth cap into every table signal\n";
-$rr_src = (string) file_get_contents( __DIR__ . '/../inc/analytics-view-overview.php' );
+$rr_src = snt_test_analytics_view_overview_src();
 preg_match_all( '/snt_analytics_attn_resolve_table\( [^)]*SN_OVERVIEW_PRIOR_LIMIT \)/', $rr_src, $m_rr );
 ok( 6 === count( $m_rr[0] ),
 	'source: all six resolve calls pass SN_OVERVIEW_PRIOR_LIMIT: the truncated-prior bound is live wherever the prior read is depth-capped' );
@@ -1210,7 +1212,7 @@ echo "\nGroup: PART C: attention styles + module wiring (source pins)\n";
 ok( strpos( $css, '.sn-an-attn-chip' ) !== false, 'css: the amber chip rule exists in the enqueued stylesheet' );
 ok( strpos( $css, '.sn-an-attn-strip' ) !== false, 'css: the strip rule exists' );
 ok( strpos( $css, '.sn-an-attn-anchor' ) !== false, 'css: the anchor rule exists (scroll offset under the admin bar)' );
-ok( strpos( (string) file_get_contents( __DIR__ . '/../inc/analytics-view-overview.php' ), 'analytics-overview-attention.php' ) !== false,
+ok( strpos( snt_test_analytics_view_overview_src(), 'analytics-overview-attention.php' ) !== false,
 	'source: the view loads the attention module' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

@@ -11,7 +11,9 @@
  *
  *   1. Every family file is required EXACTLY ONCE, by the loader once the
  *      package exists, or by the bootstrap before that. Twice is a redeclare
- *      fatal; zero is a silently missing surface.
+ *      fatal; zero is a silently missing surface. A parts file (house line
+ *      cap, 2026-10-14) is required by its shell, a family file, so the
+ *      packaged requirer is the loader plus the family's own text.
  *   2. snt_ability_sn_apply() is declared exactly once in the whole tree.
  *   3. The 86-function public surface is unchanged. Function names survive a
  *      move; that is the whole reason a move is safe, so it is asserted rather
@@ -134,6 +136,10 @@ ok( file_exists( $loader ), 'the public path inc/abilities-sn-apply.php still ex
 /* ── who requires the family? the loader once packaged, else the bootstrap ── */
 $requirer_path = $packaged ? $loader : ( $root . '/signal-and-noise-tools.php' );
 $requirer      = (string) file_get_contents( $requirer_path );
+if ( $packaged ) {
+	// A shell requires its parts; nothing else in the family requires a file.
+	$requirer .= "\n" . implode( "\n", array_map( 'file_get_contents', $family ) );
+}
 $requirer_name = str_replace( $root . '/', '', $requirer_path );
 
 /**
@@ -159,7 +165,7 @@ foreach ( $family as $f ) {
 	if ( 0 === $n ) { $missing[] = $b; }
 	if ( $n > 1 )   { $dupes[]   = $b . " (x$n)"; }
 }
-ok( array() === $missing, 'every family file is required by ' . $requirer_name . ( $missing ? ' - MISSING: ' . implode( ', ', $missing ) : '' ) );
+ok( array() === $missing, 'every family file is required by ' . $requirer_name . ( $packaged ? ' or by its shell' : '' ) . ( $missing ? ' - MISSING: ' . implode( ', ', $missing ) : '' ) );
 ok( array() === $dupes,   'and none is required twice (a second require_once is dead weight; a second require is a fatal)' . ( $dupes ? ' - ' . implode( ', ', $dupes ) : '' ) );
 
 /* ── NEGATIVE CONTROL: dropping one require must be detected ──────────────
