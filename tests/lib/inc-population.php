@@ -103,6 +103,31 @@ if ( ! function_exists( 'snt_test_provenance_integrity_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_wp_update_integration_src' ) ) {
+	/**
+	 * The source of inc/wp-update-integration.php AND its three parts files, for
+	 * suites that pin the self-updater's text. Split 2026-10-15 (house line cap).
+	 * Named, not globbed: a future wp-update-integration-* module would not
+	 * belong in the read. A missing file returns '' so every presence pin goes
+	 * red and every guarded absence pin fails rather than passing on a partial
+	 * read.
+	 *
+	 * @return string
+	 */
+	function snt_test_wp_update_integration_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-fetch-parts', '-offer-parts', '-install-parts' ) as $suffix ) {
+			$file = $dir . 'wp-update-integration' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_mcp_telemetry_src' ) ) {
 	/**
 	 * The source of inc/mcp/mcp-telemetry.php AND its three parts files, for
@@ -143,6 +168,32 @@ if ( ! function_exists( 'snt_test_ml_kernel_src' ) ) {
 		$src = '';
 		foreach ( array( '', '-text-parts', '-graph-parts', '-cadence-parts', '-drift-parts' ) as $suffix ) {
 			$file = $dir . 'ml-kernel' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_cloudflare_purge_src' ) ) {
+	/**
+	 * The source of inc/cloudflare-purge.php AND its three parts files, for
+	 * suites that pin the purge module's text (the Cloudflare tab, the save
+	 * hook, the API calls). Split 2026-10-15 (house line cap). Named, not
+	 * globbed: cloudflare-purge-send.php, -save.php, -words.php, -probe.php and
+	 * the rest share the prefix and are separate modules with their own reads.
+	 * A missing file returns '' so every presence pin goes red and every
+	 * guarded absence pin fails rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_cloudflare_purge_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-api-parts', '-post-parts', '-tab-parts' ) as $suffix ) {
+			$file = $dir . 'cloudflare-purge' . $suffix . '.php';
 			if ( ! is_file( $file ) ) {
 				return '';
 			}
@@ -232,6 +283,30 @@ if ( ! function_exists( 'snt_test_attention_readers_src' ) ) {
 		$src = '';
 		foreach ( array( '', '-integrity-parts', '-edge-parts', '-schedule-parts', '-search-parts' ) as $suffix ) {
 			$file = $dir . 'attention-readers' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_sn_scan_adapters_src' ) ) {
+	/**
+	 * The source of inc/sn-scan-adapters.php AND its three parts files, for
+	 * suites that pin the adapters' text. Split 2026-10-15 (house line cap).
+	 * Named, not globbed: a future sn-scan-adapters-* module would not belong in
+	 * the read. A missing file returns '' so every presence pin goes red rather
+	 * than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_sn_scan_adapters_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-structure-parts', '-links-media-parts', '-emdash-tags-parts' ) as $suffix ) {
+			$file = $dir . 'sn-scan-adapters' . $suffix . '.php';
 			if ( ! is_file( $file ) ) {
 				return '';
 			}

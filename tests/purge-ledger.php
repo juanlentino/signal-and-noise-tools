@@ -168,7 +168,8 @@ sn_cf_purge_everything( 'probe' );
 $row = snt_purge_ledger_rows()[0] ?? array();
 ok( 'probe' === ( $row['trigger'] ?? '' ) && 'zone' === ( $row['scope'] ?? '' ) && 'purge_cache' === basename( (string) end( $GLOBALS['cf_urls'] ) ), "a probe's zone fallback is a hard purge and its row says probe, zone" );
 
-$cfsrc = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$cfsrc = snt_test_cloudflare_purge_src(); // the module and its parts files (split 2026-10-15)
 $vfn = substr( $cfsrc, (int) strpos( $cfsrc, 'function sn_cf_purge_everything_verified()' ), 1500 );
 ok( false !== strpos( $vfn, "if ( ! empty( \$out['cf_success'] ) && isset( \$GLOBALS['snt_purge_current'] ) ) {" ) && false !== strpos( $vfn, "\$GLOBALS['snt_purge_edge'] = true;" ), 'the manual (verified) purge marks its row\'s edge when Cloudflare confirms' );
 

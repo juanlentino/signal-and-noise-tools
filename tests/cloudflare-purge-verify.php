@@ -149,7 +149,8 @@ $noisy_fresh = '<form><input name="_wpnonce" value="zzz" /><p>NEW SENTENCE</p></
 ok( true === snt_cf_probe_is_stale( $noisy_stale, $noisy_fresh ), 'content differs under differing nonces: still stale' );
 
 echo "\nGroup: wiring\n";
-$purge = file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$purge = snt_test_cloudflare_purge_src(); // the module and its parts files (split 2026-10-15)
 ok( false !== strpos( $purge, 'SN_CF_PROBE_HOOK' ), 'the per-post purge schedules the probe' );
 ok( false !== strpos( $purge, 'wp_unschedule_event' ), 'a re-save replaces the pending probe instead of stacking one per save' );
 
@@ -331,7 +332,7 @@ $plog2 = array_merge( array( array( 'time' => gmmktime( 9, 0, 0, 10, 5, 2026 ), 
 ok( gmmktime( 20, 45, 0, 10, 3, 2026 ) === snt_cf_probe_status( $plog2 )['last_run'], 'Codex on #1930: a newer manual zone-purge row is not a run of the retired post-save path' );
 if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n ) { return 1 === (int) $n ? $s : $p; } }
 ok( false !== strpos( snt_cf_probe_retired_note( $plog2 ), '1 row is a check run right after a manual purge' ) && false === strpos( snt_cf_probe_retired_note( $plog ), 'manual purge' ), 'Codex on #1930: manual rows are said apart, and only when there are some' );
-$cfp = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
+$cfp = snt_test_cloudflare_purge_src(); // the module and its parts files (split 2026-10-15)
 ok( 1 === preg_match( "/<\\/span><\\/summary>/", $cfp ) && false !== strpos( $cfp, "snt_cf_probe_status( \$probe_log )['retired'] ? ' · ' . __( 'no longer runs'" ), 'Codex on #1930: the classic tab\'s collapsed summary says the probe no longer runs' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
