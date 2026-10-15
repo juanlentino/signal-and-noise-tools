@@ -241,6 +241,30 @@ if ( ! function_exists( 'snt_test_attention_readers_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_sn_scan_adapters_src' ) ) {
+	/**
+	 * The source of inc/sn-scan-adapters.php AND its three parts files, for
+	 * suites that pin the adapters' text. Split 2026-10-15 (house line cap).
+	 * Named, not globbed: a future sn-scan-adapters-* module would not belong in
+	 * the read. A missing file returns '' so every presence pin goes red rather
+	 * than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_sn_scan_adapters_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-structure-parts', '-links-media-parts', '-emdash-tags-parts' ) as $suffix ) {
+			$file = $dir . 'sn-scan-adapters' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_analytics_rollup_src' ) ) {
 	/**
 	 * The source of inc/analytics-rollup.php AND its four parts files, for
