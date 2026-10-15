@@ -78,7 +78,7 @@ function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false, 
 	$dompdf = new \Dompdf\Dompdf( $options );
 	$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts', (bool) $include_phone, (string) $site_url ), 'UTF-8' );
 	$dompdf->setPaper( 'letter', 'portrait' );
-	$dompdf->addInfo( 'Title', $name . ' — Resume' );
+	$dompdf->addInfo( 'Title', $name . ' — ' . ( function_exists( 'sn_resume_l' ) ? sn_resume_l( 'Resume', 'Curriculum vitae' ) : 'Resume' ) );
 	$dompdf->addInfo( 'Author', $name );
 	$dompdf->render();
 
@@ -150,6 +150,8 @@ function sn_resume_pdf_generate() {
 	if ( function_exists( 'sn_cf_purge_urls' ) ) {
 		sn_cf_purge_urls( sn_resume_pdf_purge_urls( $meta, $issued ) );
 	}
+	// The Spanish CV follows: same contact details, its own file (inc/resume-es.php).
+	do_action( 'sn_resume_pdf_generated' );
 	return $meta;
 }
 

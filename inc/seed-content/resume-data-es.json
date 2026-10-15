@@ -1,0 +1,181 @@
+{
+	"hero": {
+		"summary": "Fundador y ejecutivo de la industria musical con más de 15 años construyendo un estudio rentable, desarrollando artistas y cerrando acuerdos internacionales entre Estados Unidos y América Latina. De la sala de control a la mesa de directorio, el trabajo siempre fue el mismo: convertir el trabajo creativo en un negocio que dure.",
+		"chips": [
+			"Miembro votante, Academia de la Grabación",
+			"Miembro votante, Academia Latina de la Grabación",
+			"MBA · Inteligencia Artificial Aplicada a los Negocios",
+			"Investigador en procedencia musical"
+		],
+		"contact_line": "Orlando, FL | Disponible para reubicarme",
+		"linkedin": "",
+		"pdf_url": ""
+	},
+	"stats": [
+		{ "n": "15+", "label": "Años en la industria" },
+		{ "n": "110", "label": "Temas desde 2022" },
+		{ "n": "90%", "label": "Retención de clientes" },
+		{ "n": "50+", "label": "Clientes en toda América" }
+	],
+	"experience": [
+		{
+			"org": "TRABAJO INDEPENDIENTE",
+			"dates": "sep. 2018 - actualidad",
+			"location": "Remoto",
+			"roles": [
+				{
+					"title": "Consultor en desarrollo de artistas y estrategia · sep. 2018 - actualidad",
+					"bullets": [
+						"Trabajo con más de 50 clientes en toda América y entregué <strong>unos 110 temas desde 2022</strong> para artistas y sellos independientes. Cada cliente llegó por recomendación, por contacto directo o por una relación previa, nunca a través de plataformas de freelancers.",
+						"Asesoro a estudios, sellos y empresas creativas en precios, modelo operativo y adopción de flujos de trabajo con IA, una línea de negocio separada del trabajo con artistas.",
+						"Oriento a artistas y equipos de sellos en estrategia de lanzamientos, dirección sonora y posicionamiento, con foco en proyectos que se mueven entre los mercados de América Latina y Estados Unidos.",
+						"<strong>Dupliqué el volumen de proyectos sin sumar personal</strong> con flujos de producción y entrega asistidos por IA en Pro Tools, Logic Pro X y Ableton Live."
+					]
+				}
+			]
+		},
+		{
+			"org": "INVESTIGACIÓN INDEPENDIENTE",
+			"dates": "ene. 2025 - actualidad",
+			"location": "Remoto",
+			"roles": [
+				{
+					"title": "Investigador, procedencia y atribución musical · ene. 2025 - actualidad",
+					"bullets": [
+						"Publiqué <strong>tres working papers en SSRN</strong> sobre procedencia criptográfica e identidad de colaboradores para la infraestructura de derechos y regalías musicales; Provenance as Substrate está <strong>en revisión en el Journal of the Audio Engineering Society</strong>.",
+						"Soy <strong>revisor de LAMIR 2026</strong>, el workshop latinoamericano de Music Information Retrieval.",
+						"Publico notas de investigación en juanlentino.com/notes sobre procedencia, atribución e infraestructura de derechos."
+					]
+				}
+			]
+		},
+		{
+			"org": "PANACEA STUDIO",
+			"dates": "ene. 2016 - actualidad",
+			"location": "Buenos Aires, Argentina",
+			"roles": [
+				{
+					"title": "Fundador · ene. 2016 - actualidad",
+					"bullets": [
+						"Fundé una productora y estudio de grabación integral y lo llevé de cero a una rentabilidad sostenida sin capital externo, con <strong>unas 80 sesiones al año</strong> entre América Latina y Estados Unidos.",
+						"Reformulé los precios en dólares para <strong>proteger los ingresos de la volatilidad del peso</strong>, una decisión que mantuvo los márgenes estables durante una década de inestabilidad macroeconómica argentina.",
+						"Negocié <strong>siete alianzas internacionales</strong> de distribución, coproducción y derivación de clientes con marcas, que abrieron acceso a lanzamientos en Colombia, México y Estados Unidos.",
+						"Al mudarme a Estados Unidos sumé tres socios y <strong>me retiré de la operación diaria</strong>: conservo la propiedad y la dirección estratégica mientras la sociedad gestiona el negocio."
+					]
+				},
+				{
+					"title": "Director general, ingeniero principal y supervisor de producción · ene. 2016 - abr. 2021",
+					"bullets": [
+						"Estuve a cargo de los resultados (P&L), los precios y el desarrollo de clientes al frente de un equipo de cuatro personas, con una <strong>retención de clientes del 90%</strong> sobre unos 25 clientes activos por año.",
+						"Estandaricé los sistemas de producción y la infraestructura técnica del estudio para que <strong>el resultado fuera el mismo sin importar quién estuviera en la sala</strong>.",
+						"Dirigí <strong>más de 100 proyectos de grabación, mezcla y producción</strong> para 70 artistas y 10 sellos independientes, entre ellos artistas del rock argentino con reconocimiento internacional.",
+						"Supervisé flujos de grabación completos, de la ingeniería de sesión y la mezcla al trabajo con los artistas, en entornos de Pro Tools y Ableton Live.",
+						"Acompañé a artistas en identidad sonora y estrategia de lanzamientos en 20 proyectos de desarrollo, <strong>varios de los cuales superaron los 10.000 oyentes mensuales en Spotify</strong>."
+					]
+				}
+			]
+		}
+	],
+	"earlier": {
+		"label": "Trayectoria anterior · 1997 - 2015",
+		"entries": [
+			{
+				"org": "INDEPENDIENTE · BUENOS AIRES, ARGENTINA",
+				"roles": [
+					{
+						"title": "Productor e ingeniero independiente · ene. 2005 - dic. 2015",
+						"bullets": [
+							"Produje y grabé de forma continua en paralelo a un puesto de marketing de tiempo completo, con artistas y sellos independientes de Buenos Aires, siempre por relación y no por contratación formal.",
+							"Trabajé en un mercado donde ni el crédito ni el empleo quedaban registrados formalmente, una condición de la economía argentina tanto como de su industria musical. Esa brecha es el tema de la investigación sobre procedencia que figura más abajo.",
+							"Construí las relaciones con clientes y sellos de Buenos Aires sobre las que se fundó Panacea Studio en 2016."
+						]
+					}
+				]
+			},
+			{
+				"org": "OBRAS METÁLICAS S.A. · BUENOS AIRES, ARGENTINA",
+				"roles": [
+					{
+						"title": "Responsable de marketing y redes · ene. 2005 - dic. 2015",
+						"bullets": [
+							"<strong>Hice crecer la base de contactos de la industria de 600 a 850</strong> y dupliqué la participación en ferias comerciales en tres años, a cargo del marketing B2B de un fabricante industrial: newsletters, ferias, catálogos y web.",
+							"Sostuve los estándares de marca en unas 60 piezas de marketing por año, entre catálogos, fichas de producto, materiales para ferias y web, dentro de un área de marketing interna reducida."
+						]
+					}
+				]
+			},
+			{
+				"org": "CINERGY STUDIOS · BUENOS AIRES, ARGENTINA",
+				"roles": [
+					{
+						"title": "Jefe de producción · ene. 2001 - dic. 2003",
+						"bullets": [
+							"Dirigí la producción multimedia y de video en unas 20 producciones por año con un equipo central de seis personas, sosteniendo plazos de entrega y condiciones con proveedores durante la crisis económica argentina posterior a 2001."
+						]
+					},
+					{
+						"title": "Asistente de producción · nov. 1997 - dic. 2000",
+						"bullets": [
+							"Coordiné la logística y el seguimiento presupuestario de unas 50 producciones por año, con un presupuesto operativo del área equivalente a USD 80.000 y el circuito de órdenes de compra a proveedores."
+						]
+					}
+				]
+			}
+		]
+	},
+	"education": [
+		{
+			"title": "MBA, Inteligencia Artificial Aplicada a los Negocios",
+			"lines": [ "Westcliff University · Celebration, FL", "agosto de 2026" ]
+		},
+		{
+			"title": "B.S. en Producción Musical",
+			"lines": [ "Full Sail University · Winter Park, FL", "diciembre de 2022", "Valedictorian (mejor promedio de la promoción) · Advanced Achiever Award" ]
+		}
+	],
+	"affiliations": [
+		{ "title": "Revisor, Latin American Music Information Retrieval (LAMIR)", "lines": [ "junio de 2026 - actualidad" ] },
+		{ "title": "Miembro votante, Academia de la Grabación (The Recording Academy)", "lines": [ "septiembre de 2025 - actualidad" ] },
+		{ "title": "Miembro votante, Academia Latina de la Grabación (The Latin Recording Academy)", "lines": [ "septiembre de 2025 - actualidad" ] },
+		{ "title": "Google Project Management Certificate", "lines": [ "mayo de 2025" ] },
+		{ "title": "Spatial Audio with Dolby Atmos in Logic Pro X", "lines": [ "octubre de 2022" ] }
+	],
+	"publications": [
+		{ "meta": "Working paper en SSRN · abril de 2026", "title": "Provenance Over Detection: A Cryptographic Framework for Human Authorship Verification in Music Distribution", "url": "https://ssrn.com/abstract=6402298" },
+		{ "meta": "Working paper en SSRN · mayo de 2026 · En revisión, Journal of the Audio Engineering Society", "title": "Provenance as Substrate: A Cryptographic Identifier Framework for Music Rights and Royalty Infrastructure", "url": "https://ssrn.com/abstract=6730343" },
+		{ "meta": "Working paper en SSRN · septiembre de 2026", "title": "Provenance Without Institutions: A Weighted Identity Framework for Music Contributors", "url": "https://ssrn.com/abstract=7456638" }
+	],
+	"skills": [
+		{ "category": "Liderazgo y operaciones", "items": "Responsabilidad de P&L, planificación estratégica, estrategia de precios, diseño de modelo operativo, expansión de mercado, liderazgo de equipos, operaciones distribuidas, gestión de riesgo cambiario, gestión de proveedores, relación con socios e interesados" },
+		{ "category": "Alianzas y desarrollo de negocios", "items": "Alianzas estratégicas, negociación de contratos, acuerdos de distribución, acuerdos de coproducción, licencias, gestión de socios, desarrollo de negocios internacional, captación de clientes, retención de clientes" },
+		{ "category": "Relación con artistas y sellos", "items": "Desarrollo de artistas, A&R, estrategia de lanzamientos, estrategia de salida al mercado, dirección creativa, identidad sonora, relación con sellos" },
+		{ "category": "Mercados", "items": "Mercados de América Latina, mercado de Estados Unidos, circuitos de lanzamiento internacionales" },
+		{ "category": "Derechos y procedencia", "items": "Procedencia y atribución musical, identificadores criptográficos, hashing y sellado de tiempo de contenidos, infraestructura de derechos y regalías, identidad y créditos de colaboradores, estándares de procedencia de contenidos (C2PA, TDMRep, RSL)" },
+		{ "category": "Estrategia y políticas de IA", "items": "Estrategia de IA aplicada, diseño y adopción de flujos de trabajo con IA, gestión del cambio, herramientas de LLM (Claude, MCP), cumplimiento de la Ley de IA de la UE y opt-out de TDM, panorama de derechos de autor e IA, gobernanza de crawlers de IA" },
+		{ "category": "Técnico", "items": "Desarrollo de temas y plugins de WordPress, PHP, CI y automatización de pruebas, Cloudflare, automatización con n8n, Git y GitHub, analítica web y Search Console" },
+		{ "category": "Investigación y escritura", "items": "Investigación académica (SSRN), revisión de pares (LAMIR), escritura técnica, divulgación" },
+		{ "category": "Producción", "items": "Pro Tools, Logic Pro X, Ableton Live, mezcla, masterización, diseño sonoro, Dolby Atmos, audio espacial" },
+		{ "category": "Idiomas", "items": "Inglés (fluido), español (nativo)" }
+	],
+	"pdf": {
+		"headline": "FUNDADOR Y EJECUTIVO MUSICAL",
+		"tagline": "Relación con artistas | Alianzas | Derechos | IA",
+		"summary": "Fundador y director con más de 15 años construyendo negocios musicales entre Estados Unidos y América Latina. Llevó Panacea Studio de cero a una rentabilidad sostenida en Buenos Aires, condujo sus precios y su estrategia a través de una inestabilidad cambiaria constante y negoció las alianzas internacionales que llevaron a sus artistas a Colombia, México y Estados Unidos. Estuvo a cargo de los resultados, estuvo en el estudio y cerró los acuerdos, muchas veces en la misma semana. Miembro votante de la Academia de la Grabación y de la Academia Latina de la Grabación; investigador publicado en procedencia musical y en la infraestructura de derechos de la que hoy depende la IA generativa.",
+		"location": "Orlando, FL",
+		"competencies": [
+			"P&L y estrategia de precios",
+			"Planificación estratégica y modelo operativo",
+			"Expansión en América Latina y EE. UU.",
+			"Alianzas estratégicas y negociación",
+			"Acuerdos de distribución y coproducción",
+			"Desarrollo de artistas y A&R",
+			"Lanzamientos y salida al mercado",
+			"Relación con sellos y socios",
+			"Infraestructura de derechos y regalías",
+			"Estrategia de IA y flujos de trabajo",
+			"Liderazgo y operaciones distribuidas",
+			"Bilingüe: inglés / español (nativo)"
+		],
+		"toolkit": [ "Pro Tools", "Logic Pro X", "Ableton Live", "Dolby Atmos", "Mezcla y masterización", "Diseño sonoro", "Distribución digital", "Flujos de producción asistidos por IA" ]
+	}
+}

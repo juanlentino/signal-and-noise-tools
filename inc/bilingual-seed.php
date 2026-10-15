@@ -17,7 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_LANG_SEED_OPT = 'sn_spanish_pages_seeded_v1';
+const SN_LANG_SEED_OPT  = 'sn_spanish_pages_seeded_v1';
+const SN_LANG_SEED_LOCK = 'sn_spanish_pages_seed_lock';
 
 /**
  * Spanish slug => [ Spanish title, English page path ('' = the front page) ].
@@ -30,28 +31,43 @@ function sn_lang_seed_map() {
 		'sobre-mi'  => array( 'Sobre mí', 'about' ),
 		'musica'    => array( 'Música', 'music' ),
 		'servicios' => array( 'Servicios', 'services' ),
+		'cv'        => array( 'Curriculum vitae', 'resume' ), // 2026-10-15: the owner's call, "CV" as Argentines say it.
 	);
 }
 
 add_action( 'admin_init', 'sn_lang_seed_pages' );
 
 /**
- * Create the missing Spanish drafts. Idempotent behind SN_LANG_SEED_OPT.
+ * Create the Spanish drafts not yet handled. SN_LANG_SEED_OPT records every
+ * slug created or skipped, so a slug added to the map later (cv, 2026-10-15)
+ * is seeded on the next admin load and the others are never retried.
  */
 function sn_lang_seed_pages() {
-	if ( get_option( SN_LANG_SEED_OPT ) || ! current_user_can( 'publish_pages' ) ) {
+	$prev = get_option( SN_LANG_SEED_OPT );
+	$prev = is_array( $prev ) ? $prev : array();
+	$done = array_keys( (array) ( $prev['created'] ?? array() ) + (array) ( $prev['skipped'] ?? array() ) );
+	$todo = array_diff( array_keys( sn_lang_seed_map() ), $done );
+	if ( ! $todo || ! current_user_can( 'publish_pages' ) ) {
 		return;
 	}
 	// A lock first: two admin requests at once (heartbeat beside a page load)
-	// must not both insert. add_option() is false when the row already exists.
-	if ( ! add_option( SN_LANG_SEED_OPT, array( 'running' => time() ), '', false ) ) {
+	// must not both insert. add_option() is false when the row already exists;
+	// a lock older than ten minutes is a crashed run and is taken over.
+	$lock = (int) get_option( SN_LANG_SEED_LOCK, 0 );
+	if ( $lock ) {
+		if ( $lock > time() - 600 ) {
+			return;
+		}
+		delete_option( SN_LANG_SEED_LOCK );
+	}
+	if ( ! add_option( SN_LANG_SEED_LOCK, time(), '', false ) ) {
 		return;
 	}
 	$result = array(
-		'created' => array(),
-		'skipped' => array(),
+		'created' => (array) ( $prev['created'] ?? array() ),
+		'skipped' => (array) ( $prev['skipped'] ?? array() ),
 	);
-	foreach ( sn_lang_seed_map() as $slug => $spec ) {
+	foreach ( array_intersect_key( sn_lang_seed_map(), array_flip( $todo ) ) as $slug => $spec ) {
 		$en = '' === $spec[1] ? (int) get_option( 'page_on_front' ) : (int) ( get_page_by_path( $spec[1] )->ID ?? 0 );
 		if ( $en < 1 ) {
 			$result['skipped'][ $slug ] = 'no English page';
@@ -86,4 +102,5 @@ function sn_lang_seed_pages() {
 		$result['created'][ $slug ] = (int) $id;
 	}
 	update_option( SN_LANG_SEED_OPT, $result + array( 'at' => time() ), false );
+	delete_option( SN_LANG_SEED_LOCK );
 }

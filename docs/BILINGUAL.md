@@ -8,6 +8,7 @@ Four storefront pages have Spanish versions, so managers, artists and labels in 
 | `/about/` | `/sobre-mi/` |
 | `/music/` | `/musica/` |
 | `/services/` | `/servicios/` |
+| `/resume/` | `/cv/` (since 2026-10-15) |
 
 No plugin does this. It is built into the companion plugin (`inc/bilingual*.php`) and the theme (`inc/lang-toggle.php`).
 
@@ -66,6 +67,15 @@ The toggle is the `signal-noise/lang-toggle` block in the theme's header. It ren
 - **Analytics.** The cookieless beacon records `location.pathname`. `/musica` is stored as its own path, separate from `/music`, with no change. The North Star sections and the session funnels group by English path prefixes, so they do not count the Spanish pages yet. Add their paths there if you want them counted.
 - **Integrity reports.** The motion check reads stylesheets, so it is unaffected. The rendered contrast check walks every URL in the sitemap, so published Spanish pages are covered automatically.
 - **Out of scope:** `llms.txt` (left English by owner decision), the Markdown twins (notes only) and the header navigation labels (still English on Spanish pages).
+
+## /cv/ and the Spanish PDF come from one file
+
+/resume is generated from the structured résumé editor (S&N → Content → Résumé). /cv/ and `JuanLentino_CV.pdf` are generated from **one Spanish file**, `inc/seed-content/resume-data-es.json`, in the same shape. The same page builder and the same PDF template render it, with their fixed headings in Spanish (`inc/resume-lang.php`, `inc/resume-es.php`). There is no Spanish screen in the settings (owner, 2026-10-15).
+
+- **Contact details** (LinkedIn, email, phone, website, and whether the phone is public) always come from the live English résumé, so the file holds none and the phone never reaches the repo.
+- **/cv/ is rendered** on the next admin load after the file or the English contact details change. Its PDF is rendered with it, and again every time the English PDF is generated (action `sn_resume_pdf_generated`).
+- **The page's status is never touched:** the owner publishes /cv/.
+- **The English wording does not flow into the Spanish file.** When the English résumé changes, update `resume-data-es.json` and release.
 
 ## Adding another page to the bilingual set
 

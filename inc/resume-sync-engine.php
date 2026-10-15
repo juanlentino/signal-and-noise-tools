@@ -31,6 +31,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/resume-lang.php';
+
 /**
  * A constrained content band: the wp:group wrapper the page design uses.
  * Spacing values are theme spacing-preset slugs; padding order in the inline
@@ -115,7 +117,7 @@ function sn_resume_hero_blocks( $hero ) {
 	// columns start on the same line — title cap left, ledger top rule
 	// right (the in-column eyebrow pushed the ledger above the title).
 	$left  = '<!-- wp:heading {"level":1,"style":{"typography":{"fontSize":"clamp(3rem, 8vw, 7rem)","lineHeight":"0.95"}}} -->' . "\n"
-		. '<h1 class="wp-block-heading" style="font-size:clamp(3rem, 8vw, 7rem);line-height:0.95">RESUME</h1>' . "\n"
+		. '<h1 class="wp-block-heading" style="font-size:clamp(3rem, 8vw, 7rem);line-height:0.95">' . sn_resume_l( 'RESUME', 'CURRICULUM VITAE' ) . '</h1>' . "\n"
 		. '<!-- /wp:heading -->' . "\n\n";
 
 	// v10.37.3 (owner direction): the summary reads under the title in the
@@ -142,14 +144,15 @@ function sn_resume_hero_blocks( $hero ) {
 
 	// The generated PDF (inc/resume-pdf/generate.php) wins once it exists, with
 	// ?v=<hash> for cache busting; until then the hand-set URL from the form.
-	$pdf_href = function_exists( 'sn_resume_pdf_link' ) ? sn_resume_pdf_link( $hero['pdf_url'] ) : $hero['pdf_url'];
+	// The Spanish render brings its own PDF URL (inc/resume-es.php).
+	$pdf_href = ( 'en' === sn_resume_lang() && function_exists( 'sn_resume_pdf_link' ) ) ? sn_resume_pdf_link( $hero['pdf_url'] ) : $hero['pdf_url'];
 	if ( '' !== $pdf_href ) {
 		// Button only (owner, 2026-09-25): the filename link beside it repeated
 		// the page's own RESUME title. core/file saves no filename anchor and
 		// no aria-describedby when fileName is empty, so this is its valid shape.
 		$url    = esc_url( $pdf_href );
 		$right .= '<!-- wp:file {"href":"' . $url . '","className":"sn-resume-download"} -->' . "\n"
-			. '<div class="wp-block-file sn-resume-download"><a href="' . $url . '" class="wp-block-file__button wp-element-button" download>Download PDF</a></div>' . "\n"
+			. '<div class="wp-block-file sn-resume-download"><a href="' . $url . '" class="wp-block-file__button wp-element-button" download>' . sn_resume_l( 'Download PDF', 'Descargar PDF' ) . '</a></div>' . "\n"
 			. '<!-- /wp:file -->' . "\n\n";
 	}
 
@@ -157,7 +160,7 @@ function sn_resume_hero_blocks( $hero ) {
 	// block; bottom alignment sank the title to the column floor and left a
 	// hole above it on the live page. /notes and /now keep bottom alignment
 	// — their side columns are short enough to sit on the title baseline.
-	$inner = sn_resume_para( 'sn-catalog-eyebrow', 'Dossier · Background' )
+	$inner = sn_resume_para( 'sn-catalog-eyebrow', sn_resume_l( 'Dossier · Background', 'Dossier · Trayectoria' ) )
 		. '<!-- wp:columns {"verticalAlignment":"top","className":"sn-resume-hero-split"} -->' . "\n"
 		. '<div class="wp-block-columns are-vertically-aligned-top sn-resume-hero-split">' . "\n"
 		. '<!-- wp:column {"verticalAlignment":"top","width":"55%"} -->' . "\n"
@@ -217,7 +220,7 @@ function sn_resume_experience_blocks( $experience, $earlier ) {
 	if ( empty( $experience ) && empty( $earlier['entries'] ) ) {
 		return '';
 	}
-	$inner  = sn_resume_section_head( '01 · Professional Experience', 'EXPERIENCE' );
+	$inner  = sn_resume_section_head( sn_resume_l( '01 · Professional Experience', '01 · Experiencia profesional' ), sn_resume_l( 'EXPERIENCE', 'EXPERIENCIA' ) );
 	$blocks = array();
 	foreach ( $experience as $entry ) {
 		$blocks[] = sn_resume_employer_blocks( $entry );
@@ -226,7 +229,7 @@ function sn_resume_experience_blocks( $experience, $earlier ) {
 	$inner    .= implode( $separator, $blocks );
 
 	if ( ! empty( $earlier['entries'] ) ) {
-		$label  = '' !== $earlier['label'] ? $earlier['label'] : 'Earlier career';
+		$label  = '' !== $earlier['label'] ? $earlier['label'] : sn_resume_l( 'Earlier career', 'Trayectoria anterior' );
 		$inner .= '<!-- wp:details {"className":"sn-resume-fold"} -->' . "\n"
 			. '<details class="wp-block-details sn-resume-fold"><summary>' . esc_html( $label ) . '</summary>' . "\n";
 		foreach ( $earlier['entries'] as $entry ) {
@@ -261,10 +264,10 @@ function sn_resume_credentials_blocks( $education, $affiliations ) {
 	if ( empty( $education ) && empty( $affiliations ) ) {
 		return '';
 	}
-	$inner = sn_resume_section_head( '02 · Education & Credentials', 'CREDENTIALS' )
+	$inner = sn_resume_section_head( sn_resume_l( '02 · Education & Credentials', '02 · Formación y credenciales' ), sn_resume_l( 'CREDENTIALS', 'CREDENCIALES' ) )
 		. '<!-- wp:columns -->' . "\n" . '<div class="wp-block-columns">' . "\n"
-		. sn_resume_titled_lines_blocks( 'Education', $education )
-		. sn_resume_titled_lines_blocks( 'Affiliations & Certifications', $affiliations )
+		. sn_resume_titled_lines_blocks( sn_resume_l( 'Education', 'Formación' ), $education )
+		. sn_resume_titled_lines_blocks( sn_resume_l( 'Affiliations & Certifications', 'Afiliaciones y certificaciones' ), $affiliations )
 		. '</div>' . "\n" . '<!-- /wp:columns -->' . "\n\n";
 	return sn_resume_band( '1320px', '40', '40', $inner );
 }
@@ -274,7 +277,7 @@ function sn_resume_publications_blocks( $publications ) {
 	if ( empty( $publications ) ) {
 		return '';
 	}
-	$inner = sn_resume_section_head( '03 · Research', 'PUBLICATIONS' );
+	$inner = sn_resume_section_head( sn_resume_l( '03 · Research', '03 · Investigación' ), sn_resume_l( 'PUBLICATIONS', 'PUBLICACIONES' ) );
 	foreach ( $publications as $pub ) {
 		$title = '' !== $pub['url']
 			? '<a href="' . esc_url( $pub['url'] ) . '" rel="noopener">' . esc_html( $pub['title'] ) . '</a>'
@@ -299,7 +302,7 @@ function sn_resume_skills_blocks( $skills ) {
 	foreach ( $skills as $row ) {
 		$rows .= '<tr><td>' . esc_html( $row['category'] ) . '</td><td>' . esc_html( $row['items'] ) . '</td></tr>';
 	}
-	$inner = sn_resume_section_head( '04 · Capabilities', 'SKILLS' )
+	$inner = sn_resume_section_head( sn_resume_l( '04 · Capabilities', '04 · Capacidades' ), sn_resume_l( 'SKILLS', 'HABILIDADES' ) )
 		. '<!-- wp:table {"hasFixedLayout":false,"className":"sn-resume-skills"} -->' . "\n"
 		. '<figure class="wp-block-table sn-resume-skills"><table><tbody>' . $rows . '</tbody></table></figure>' . "\n"
 		. '<!-- /wp:table -->' . "\n\n";
