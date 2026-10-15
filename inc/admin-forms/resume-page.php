@@ -201,6 +201,11 @@ function sn_admin_render_resume_section() {
 	$doc   = is_array( $draft ) ? $draft : $live;
 	$saved = '' !== (string) ( $live['updated'] ?? '' );
 
+	// 2026-10-15: the Spanish CV behind the English (inc/resume-es-stale.php).
+	$es_stale = function_exists( 'sn_resume_es_stale' ) ? sn_resume_es_stale_html( sn_resume_es_stale() ) : '';
+	if ( '' !== $es_stale ) {
+		wp_admin_notice( $es_stale, array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
+	}
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-rsm-form">';
 	wp_nonce_field( 'sn_resume_draft_save' );
 	echo '<div class="sn-fieldset">';

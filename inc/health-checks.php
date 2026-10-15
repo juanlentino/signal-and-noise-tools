@@ -149,6 +149,8 @@ function sn_health_run_scan() {
 			// 2026-10-14: Breeze (or any advanced-cache.php page cache) is back.
 			// Its pages carry no Cache-Tag, so the edge's tag purges cannot clear them.
 			'breeze_active'        => sn_health_check_breeze_active(),
+			// 2026-10-15: the Spanish CV (/cv/) behind the English résumé.
+			'resume_es_stale'      => sn_health_check_resume_es_stale(),
 			// 28th check (15.9.0): notes whose title tag is the aphorism alone.
 			// Born from the Search Console pressure test: 40 of 43 without a
 			// query-shaped subtitle, 21 never shown. A defect that reaches zero.

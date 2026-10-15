@@ -71,6 +71,7 @@ function sn_health_check_surface_map() {
 		// 2026-10-14: a second page cache. A defect (tag purges cannot clear
 		// it), reaches zero by deactivating Breeze, unowned elsewhere.
 		'breeze_active'         => 'health',
+		'resume_es_stale'       => 'health',
 		// 28th (15.9.0): a note's title tag without a query-shaped subtitle. A
 		// defect (nobody searches the aphorism), reaches zero one line at a
 		// time, unowned elsewhere.
