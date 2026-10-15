@@ -64,7 +64,9 @@ function sn_lang_content_fallback( $html, $block, $instance = null ) {
 		return $html;
 	}
 	$en = sn_lang_en_counterpart( $id );
-	if ( ! $en || '' !== trim( (string) get_post_field( 'post_content', $id ) ) ) {
+	// Only a public English page lends its body: never a draft, private or
+	// password-protected one, even if someone pairs to it.
+	if ( ! $en || '' !== trim( (string) get_post_field( 'post_content', $id ) ) || 'publish' !== get_post_status( $en ) || post_password_required( $en ) ) {
 		return $html;
 	}
 	$body = (string) apply_filters( 'the_content', str_replace( ']]>', ']]&gt;', (string) get_post_field( 'post_content', $en ) ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core hook

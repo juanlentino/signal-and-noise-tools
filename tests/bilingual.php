@@ -42,6 +42,7 @@ function get_permalink( $id ) { return 'https://x.test/' . $GLOBALS['names'][ $i
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
 function sn_setting( $k, $d = '' ) { return $d; }
+function post_password_required( $id ) { return ! empty( $GLOBALS['pw'][ $id ] ); }
 function apply_filters( $t, $v ) { return 'the_content' === $t ? '<p>' . $v . '</p>' : $v; }
 
 require __DIR__ . '/../inc/bilingual.php';
@@ -93,6 +94,11 @@ $GLOBALS['content'][21] = 'Cuerpo';
 ok( 'X' === sn_lang_content_fallback( 'X', array() ), 'a written Spanish body renders as itself' );
 $GLOBALS['content'][21] = '';
 ok( 'X' === sn_lang_content_fallback( 'X', array(), (object) array( 'context' => array( 'postId' => 999 ) ) ), 'a post-content block for another post (a query loop) is left alone' );
+$GLOBALS['status'][11] = 'private';
+ok( 'X' === sn_lang_content_fallback( 'X', array() ), 'a private English page lends no body' );
+$GLOBALS['status'][11] = 'publish'; $GLOBALS['pw'][11] = true;
+ok( 'X' === sn_lang_content_fallback( 'X', array() ), 'a password-protected English page lends no body' );
+$GLOBALS['pw'] = array();
 $GLOBALS['q'] = 11;
 ok( 'X' === sn_lang_content_fallback( 'X', array() ), 'an English page never falls back' );
 
