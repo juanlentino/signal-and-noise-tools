@@ -23,7 +23,8 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m
 echo "sn-scan apply_hint targets are reachable\n\n";
 
 $doors = array_merge( sn_mcp_allowlist(), sn_mcp_rw_allowlist() );
-$src   = file_get_contents( __DIR__ . '/../inc/sn-scan-adapters.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$src   = snt_test_sn_scan_adapters_src(); // the adapters and their parts files (split 2026-10-15)
 
 // Every tool named in an apply_hint, read out of the shipped source.
 preg_match_all( "/'tool'\s*=>\s*'([^']+)'/", $src, $m );
