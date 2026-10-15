@@ -8,6 +8,7 @@ Four storefront pages have Spanish versions, so managers, artists and labels in 
 | `/about/` | `/sobre-mi/` |
 | `/music/` | `/musica/` |
 | `/services/` | `/servicios/` |
+| `/resume/` | `/cv/` (since 2026-10-15) |
 
 No plugin does this. It is built into the companion plugin (`inc/bilingual*.php`) and the theme (`inc/lang-toggle.php`).
 
@@ -66,6 +67,10 @@ The toggle is the `signal-noise/lang-toggle` block in the theme's header. It ren
 - **Analytics.** The cookieless beacon records `location.pathname`. `/musica` is stored as its own path, separate from `/music`, with no change. The North Star sections and the session funnels group by English path prefixes, so they do not count the Spanish pages yet. Add their paths there if you want them counted.
 - **Integrity reports.** The motion check reads stylesheets, so it is unaffected. The rendered contrast check walks every URL in the sitemap, so published Spanish pages are covered automatically.
 - **Out of scope:** `llms.txt` (left English by owner decision), the Markdown twins (notes only) and the header navigation labels (still English on Spanish pages).
+
+## /cv/ is a plain page, not a second résumé
+
+/resume is generated from the structured résumé editor (S&N → Content → Résumé). /cv/ is not: it is an ordinary Spanish page whose body was written once, in the same blocks /resume renders. When the English résumé changes, /cv/ does not follow on its own; update it by hand, or ask for a refresh. This is deliberate (owner, 2026-10-15: no second résumé system in the settings). Its Download button points to the English PDF and says so.
 
 ## Adding another page to the bilingual set
 

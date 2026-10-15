@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **/cv/, the Spanish résumé, as a fifth Spanish page** paired to /resume (owner, 2026-10-15: one more page, not a second résumé system). The Spanish pages seed now records each slug it has created or skipped, so a slug added to the list later is seeded on the next admin load and the earlier ones are never retried. A ten-minute lock (`sn_spanish_pages_seed_lock`) replaces the run-once flag, and a stale lock from a crashed run is taken over. /cv/ is filled by hand, like the other four, and does not regenerate from the résumé editor. `docs/BILINGUAL.md` covers it.
+
 ## [2026.10.16] - 2026-10-15 — Spanish storefront pages and release notes
 
 ### Added

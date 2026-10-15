@@ -103,11 +103,12 @@ $GLOBALS['q'] = 11;
 ok( 'X' === sn_lang_content_fallback( 'X', array() ), 'an English page never falls back' );
 
 echo "\nGroup: seed map\n";
-ok( array( 'inicio', 'sobre-mi', 'musica', 'servicios' ) === array_keys( sn_lang_seed_map() ), 'the four Spanish slugs' );
-ok( array( '', 'about', 'music', 'services' ) === array_column( sn_lang_seed_map(), 1 ), 'paired to home, about, music, services' );
+ok( array( 'inicio', 'sobre-mi', 'musica', 'servicios', 'cv' ) === array_keys( sn_lang_seed_map() ), 'the five Spanish slugs' );
+ok( array( '', 'about', 'music', 'services', 'resume' ) === array_column( sn_lang_seed_map(), 1 ), 'paired to home, about, music, services, resume' );
 $src = (string) file_get_contents( __DIR__ . '/../inc/bilingual-seed.php' );
 ok( false !== strpos( $src, "'post_status'  => 'draft'" ), 'seeded as drafts: nothing goes public until the owner publishes' );
-ok( false !== strpos( $src, 'add_option( SN_LANG_SEED_OPT' ) && strpos( $src, 'add_option( SN_LANG_SEED_OPT' ) < strpos( $src, 'wp_insert_post' ), 'a lock is taken before any insert: two admin requests at once cannot both seed' );
+ok( false !== strpos( $src, 'add_option( SN_LANG_SEED_LOCK' ) && strpos( $src, 'add_option( SN_LANG_SEED_LOCK' ) < strpos( $src, 'wp_insert_post' ), 'a lock is taken before any insert: two admin requests at once cannot both seed' );
+ok( false !== strpos( $src, 'array_diff( array_keys( sn_lang_seed_map() ), $done )' ), 'a slug added to the map later is seeded; handled slugs are never retried' );
 ok( false !== strpos( $src, "'slug taken'" ) && false !== strpos( $src, "'redirect exists'" ), 'a taken slug or a redirect is skipped, never overwritten' );
 
 echo "\n$pass passed, $fail failed\n";
