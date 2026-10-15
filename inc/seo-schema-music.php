@@ -196,7 +196,7 @@ function sn_music_schema_jsonld() {
 add_action(
 	'wp_head',
 	function () {
-		if ( ! is_page( 'music' ) ) {
+		if ( ! ( function_exists( 'sn_lang_is_page' ) ? sn_lang_is_page( 'music' ) : is_page( 'music' ) ) ) {
 			return;
 		}
 		// sn_music_schema_jsonld() returns a pre-encoded, structurally-safe

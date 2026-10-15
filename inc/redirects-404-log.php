@@ -144,8 +144,9 @@ function sn_404_should_capture( $path ) {
 			return false;
 		}
 	}
-	// v13.109.9: a two-letter language prefix. This site is single-locale and
-	// publishes nothing under one, so /es/about is recon or a translation-plugin
+	// v13.109.9: a two-letter language prefix. This site publishes nothing
+	// under one (its Spanish pages live at their own slugs, /musica/ and the
+	// like, never under /es/: inc/bilingual.php), so /es/about is recon or a translation-plugin
 	// scan, never a link an owner fixes. Observed live 2026-09-10: eight of the
 	// twenty-five actionable rows were /es/, /en/ or /nl/ variants of real pages,
 	// each demanding its own redirect decision.

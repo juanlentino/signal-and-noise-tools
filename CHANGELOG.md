@@ -12,6 +12,19 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Spanish versions of the storefront pages: `/inicio/`, `/sobre-mi/`, `/musica/`, `/servicios/`.** Built into the plugin, with no translation plugin. A Spanish page is an ordinary Page whose one new meta row, `_sn_en_counterpart`, names its English page. The block editor sets it with a **Spanish version of** picker in the Signal & Noise panel. From that row the page gets:
+  - `<html lang="es-AR">` (the copy is Argentine Spanish, voseo);
+  - reciprocal hreflang links (`en`, `es`, and `x-default` pointing to English) on both pages of the pair;
+  - `og:locale` `es_AR` and WebPage `inLanguage` `es-AR`;
+  - its English page's template (`page_template_hierarchy`);
+  - the English page's slug gates through `sn_lang_is_page()` (the music schema, the services schema, the ProfilePage type);
+  - the English body, marked `lang="en"`, while its own body is empty;
+  - the English meta description while its own is empty.
+
+  English URLs did not change, and there is no `/es/` prefix. The four pages are seeded once as **drafts** with empty bodies (`sn_spanish_pages_seeded_v1`), skipping any slug already taken by a page or a redirect. A draft shows no toggle and no hreflang, so nothing is public until the owner publishes each page with its Spanish copy. Published Spanish pages are in the core sitemap and purge with every Page save. The cookieless analytics record `/musica` as its own path. How it works, and how to add a page: `docs/BILINGUAL.md`. The theme's EN / ES toggle ships in signal-and-noise alongside this. Pinned in `tests/bilingual.php`.
+- **Release notes on /music (Connections › Discography › Release notes).** This is a short line under a release's roles, in English and Spanish, for what Muso.AI cannot say. The Richter releases get "Stage manager (listed on Muso.AI as Manager)." once, after the store has synced; the Spanish line is left for the owner. The notes are kept in their own option, `sn_discography_notes`, keyed by release id, because the daily sync rewrites the store. They are merged at the `sn_discography_entries` filter. Saving purges the page cache. The classic leaf and the dashboard twin both have the box, and each box saves only its own fields. Pinned in `tests/discography-notes.php`.
+
 ## [2026.10.15] - 2026-10-15 — Breeze retired with a guard, 15+ years in the seeds, four more files split
 
 ### Added

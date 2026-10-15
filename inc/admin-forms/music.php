@@ -133,6 +133,11 @@ function sn_admin_render_music_section() {
 	echo '</div>'; // .sn-fieldset (Featured)
 	echo '</form>';
 
+	// ── Release notes: the line under a release's roles (EN + ES). ──
+	if ( function_exists( 'sn_discography_notes_render_classic' ) ) {
+		sn_discography_notes_render_classic();
+	}
+
 	// ── RAIL: sync status detail + Sync-now (v6.42.0) ──
 	sn_admin_shell_rail( 'Sync status' );
 

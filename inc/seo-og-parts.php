@@ -154,7 +154,7 @@ add_action( 'wp_head', function() {
 	$default_og = sn_setting( 'og.default_image_url', '' );
 	$og_image   = apply_filters( 'sn_og_image_url', $default_og );
 
-	$locale = sn_setting( 'identity.locale', 'en_US' );
+	$locale = function_exists( 'sn_lang_og_locale' ) ? sn_lang_og_locale() : sn_setting( 'identity.locale', 'en_US' );
 	echo '<meta property="og:type" content="' . ( $is_article ? 'article' : 'website' ) . '">' . "\n";
 	echo '<meta property="og:locale" content="' . esc_attr( $locale ) . '">' . "\n";
 	if ( $title ) {

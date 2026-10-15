@@ -86,6 +86,7 @@ require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/config-drift.php'; // R6a: durable effective-settings baseline + unexplained-drift diff
 require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-style owner/role analytics exclusion (sn_beacon_enabled filter)
 require_once SNT_PATH . 'inc/seo.php';
+require_once SNT_PATH . 'inc/bilingual.php'; // English/Spanish storefront pairs: _sn_en_counterpart, hreflang, lang, toggle data, English fallback (docs/BILINGUAL.md)
 require_once SNT_PATH . 'inc/robots-txt.php'; // v6.53.0: robots.txt AI-crawler policy (filterable allow/deny) + idempotent Sitemap pointer
 require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/core-fingerprint.php';   // CVE-2026-87902 follow-up: no core version in ver, no admin emoji, no generator.
@@ -646,6 +647,7 @@ require_once __DIR__ . '/inc/discography-store.php';   // v4.13.0: Music Identit
 require_once __DIR__ . '/inc/muso-api.php';            // v4.13.0: Music Identity — Muso public credits client + album grouper
 require_once __DIR__ . '/inc/spotify-api.php';         // v4.13.0: Music Identity — Spotify album resolver (track id → album)
 require_once __DIR__ . '/inc/discography-sync.php';    // v4.13.0: Music Identity — cron sync orchestrator + sn_discography_entries filter
+require_once __DIR__ . '/inc/discography-notes.php';   // Owner notes on releases (EN/ES), e.g. the Richter stage-manager line; merged at sn_discography_entries
 require_once __DIR__ . '/inc/seo-schema-music.php';    // v4.13.0: Music Identity — MusicAlbum/MusicRecording JSON-LD on /music
 require_once __DIR__ . '/inc/music-featured.php';      // v4.14.0: settings-driven featured release (sn_music_featured filter)
 require_once __DIR__ . '/inc/post-settings.php';
