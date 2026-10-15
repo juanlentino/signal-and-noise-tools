@@ -192,7 +192,7 @@ function sn_post_settings_enqueue_panel() {
 	wp_register_script(
 		'snt-post-settings-panel',
 		plugins_url( 'assets/post-settings-panel.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-plugins', 'wp-editor', 'wp-core-data', 'wp-components', 'wp-data', 'wp-element', 'wp-i18n' ),
+		array( 'wp-plugins', 'wp-editor', 'wp-core-data', 'wp-components', 'wp-data', 'wp-element', 'wp-i18n', 'wp-html-entities' ),
 		SNT_VERSION,
 		true
 	);

@@ -87,10 +87,14 @@ function sn_handle_music_save( $post ) {
 		}
 	}
 
+	// The release-notes box (inc/discography-notes.php) posts here too; it
+	// acts only when its own marker is present.
+	$notes_changed = function_exists( 'sn_discography_notes_save' ) && sn_discography_notes_save( $post );
+
 	if ( $changed && function_exists( 'sn_spotify_invalidate_token' ) ) {
 		sn_spotify_invalidate_token(); // creds changed → force re-auth next sync.
 	}
-	return $changed ? 'music_saved' : 'music_unchanged';
+	return ( $changed || $notes_changed ) ? 'music_saved' : 'music_unchanged';
 }
 
 /**

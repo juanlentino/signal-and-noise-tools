@@ -421,7 +421,7 @@ function sn_schema_webpage() {
 		'@id'        => $permalink,
 		'url'        => $permalink,
 		'name'       => $name,
-		'inLanguage' => str_replace( '_', '-', sn_setting( 'identity.locale', 'en_US' ) ),
+		'inLanguage' => function_exists( 'sn_lang_schema_language' ) ? sn_lang_schema_language() : str_replace( '_', '-', sn_setting( 'identity.locale', 'en_US' ) ),
 		'isPartOf'   => array(
 			'@id' => home_url( '/' ) . '#/schema/WebSite',
 		),
@@ -449,7 +449,7 @@ function sn_schema_webpage() {
 	// rather than a generic WebPage (additions A1; uses is a sibling of about, v9.20.0).
 	// Filterable slug list.
 	$profile_slugs = (array) apply_filters( 'sn_schema_profile_page_slugs', array( 'about', 'resume', 'services', 'uses' ) );
-	$slug          = isset( $post->post_name ) ? (string) $post->post_name : '';
+	$slug          = function_exists( 'sn_lang_effective_slug' ) ? sn_lang_effective_slug( $post ) : ( isset( $post->post_name ) ? (string) $post->post_name : '' );
 	if ( in_array( $slug, $profile_slugs, true ) ) {
 		$webpage['@type']      = 'ProfilePage';
 		$webpage['mainEntity'] = array( '@id' => home_url( '/' ) . '#/schema/Person' );
@@ -466,7 +466,7 @@ function sn_schema_webpage() {
  * @return array<string,mixed>|null
  */
 function sn_schema_professional_service() {
-	if ( ! is_page( 'services' ) ) {
+	if ( ! ( function_exists( 'sn_lang_is_page' ) ? sn_lang_is_page( 'services' ) : is_page( 'services' ) ) ) {
 		return null;
 	}
 	$home      = home_url( '/' );

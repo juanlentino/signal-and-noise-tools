@@ -113,7 +113,11 @@ function sn_seo_resolve_singular_description( $post ) {
 	if ( ! empty( $post->post_excerpt ) ) {
 		return wp_strip_all_tags( $post->post_excerpt );
 	}
-	return (string) apply_filters( 'sn_seo_singular_description', '', $post );
+	$filtered = (string) apply_filters( 'sn_seo_singular_description', '', $post );
+	// A Spanish page with no description of its own takes its English page's
+	// (docs/BILINGUAL.md: an empty Spanish field falls back to English).
+	$en = ( '' === $filtered && function_exists( 'sn_lang_en_counterpart' ) ) ? sn_lang_en_counterpart( (int) ( $post->ID ?? 0 ) ) : 0;
+	return $en ? sn_seo_description_for_post( get_post( $en ) ) : $filtered;
 }
 
 /**

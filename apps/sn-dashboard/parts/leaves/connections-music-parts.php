@@ -196,3 +196,20 @@ function music_sync_html() {
 	return '<p class="snt-hint">' . \snt_kit_esc( __( 'Sync now runs the full Muso → Spotify → store pass immediately. It keeps the last-good discography if a source fails.', 'signal-and-noise-tools' ) ) . '</p>'
 		. \snt_kit_form( 'music_sync', '', array( 'submit' => __( 'Sync now', 'signal-and-noise-tools' ), 'hidden' => music_hidden() ) );
 }
+
+/**
+ * Release notes: the line under a release's roles on /music and /musica,
+ * the same rows the classic leaf paints (inc/discography-notes-form.php).
+ *
+ * @return string
+ */
+function music_notes_section() {
+	if ( ! function_exists( 'sn_discography_notes_fields_html' ) ) {
+		return '';
+	}
+	return \snt_kit_section(
+		__( 'Release notes', 'signal-and-noise-tools' ),
+		'<p class="snt-prose">' . \snt_kit_esc( \sn_discography_notes_intro() ) . '</p>'
+		. music_save_form( \sn_discography_notes_fields_html() )
+	);
+}

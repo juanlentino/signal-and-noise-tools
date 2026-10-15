@@ -73,6 +73,8 @@
 			help: __( 'Overrides the featured image or auto-generated card for OG and Twitter shares. Empty falls back to default resolution.', 'signal-noise-tools' ) },
 		{ key: '_sn_og_card_title', kind: 'textarea', rows: 2, label: __( 'OG card title', 'signal-noise-tools' ),
 			help: __( 'Replaces the post title in the social-share card image only: the og:title HTML meta still uses the real title. Empty falls back to the post title. The card fits 3 lines of Bebas across 1040px and steps 88, 74, 62px to make room, then cuts with an ellipsis. One line holds about 24 characters at full size. Aim for one full-size line: ~24 characters.', 'signal-noise-tools' ) },
+		{ key: '_sn_en_counterpart', kind: 'page', page: true, label: __( 'Spanish version of', 'signal-noise-tools' ),
+			help: __( 'Pick the English page this page translates. That makes this page Spanish: it gets lang="es", the EN/ES toggle, hreflang links, and the English page\u2019s template. While its body is empty it shows the English body. Leave as None on every English page.', 'signal-noise-tools' ) },
 		{ key: '_sn_pillar', kind: 'flag', page: true, label: __( 'Feature as a pillar essay', 'signal-noise-tools' ),
 			help: __( 'Surfaces this Page in the theme’s pillar essay rail.', 'signal-noise-tools' ) },
 		{ key: '_sn_pillar_designation', kind: 'text', page: true, placeholder: '1.01', label: __( 'Pillar designation', 'signal-noise-tools' ),
@@ -87,6 +89,10 @@
 	function normalize( next ) {
 		OWN_KEYS.forEach( function( k ) {
 			if ( '' === next[ k ] || false === next[ k ] ) {
+				next[ k ] = null;
+			}
+			// The page picker's default is 0 (an English page): same rule.
+			if ( 0 === next[ k ] ) {
 				next[ k ] = null;
 			}
 		} );
@@ -135,6 +141,13 @@
 				checked: !! value,
 				onChange: function( v ) { props.set( f.key, v ? true : null ); }
 			} ) );
+		} else if ( 'page' === f.kind ) {
+			control = el( C.SelectControl, Object.assign( common, {
+				__next40pxDefaultSize: true,
+				value: String( value || 0 ),
+				options: [ { label: __( 'None (this page is English)', 'signal-noise-tools' ), value: '0' } ].concat( props.pages ),
+				onChange: function( v ) { var n = parseInt( v, 10 ); props.set( f.key, n > 0 ? n : null ); }
+			} ) );
 		} else if ( 'textarea' === f.kind ) {
 			control = el( C.TextareaControl, Object.assign( common, {
 				rows: f.rows, value: value || '',
@@ -163,7 +176,10 @@
 				postType: e.getCurrentPostType(),
 				postId: e.getCurrentPostId(),
 				title: e.getEditedPostAttribute( 'title' ),
-				permalink: e.getPermalink()
+				permalink: e.getPermalink(),
+				pages: 'page' === e.getCurrentPostType()
+					? ( select( 'core' ).getEntityRecords( 'postType', 'page', { per_page: 100, status: 'publish', _fields: 'id,title' } ) || [] )
+					: []
 			};
 		}, [] );
 		var entity = useEntityProp( 'postType', editor.postType, 'meta' );
@@ -176,8 +192,12 @@
 		}
 		var isPage = 'page' === editor.postType;
 		var placeholders = { title: String( editor.title || '' ), permalink: editor.permalink || 'https://...' };
+		var pages = editor.pages.filter( function( p ) { return p.id !== editor.postId; } ).map( function( p ) {
+			var t = ( p.title && p.title.rendered ) || ( '#' + p.id );
+			return { label: wp.htmlEntities ? wp.htmlEntities.decodeEntities( t ) : t, value: String( p.id ) };
+		} );
 		var fields = FIELDS.filter( function( f ) { return ! f.page || isPage; } ).map( function( f ) {
-			return el( Field, { key: f.key, field: f, meta: meta, set: set, postId: editor.postId, placeholders: placeholders } );
+			return el( Field, { key: f.key, field: f, meta: meta, set: set, postId: editor.postId, placeholders: placeholders, pages: pages } );
 		} );
 		var loose = actions().filter( function( a ) { return ! a.field; } ).map( function( a ) {
 			return el( 'div', { key: a.id, className: 'snt-post-settings-field' },

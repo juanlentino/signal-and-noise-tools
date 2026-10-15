@@ -99,7 +99,8 @@ function paint_connections_music( array $ctx ) {
 	return music_intro_html()
 		. music_status_html( $s )
 		. \snt_kit_grid( array( music_rail_status_html( $s ), music_featured_section( $s ) ), 290, 18 )
-		. \snt_kit_grid( array( music_muso_section( $s ), music_spotify_section( $s ) ) );
+		. \snt_kit_grid( array( music_muso_section( $s ), music_spotify_section( $s ) ) )
+		. music_notes_section();
 }
 
 add_filter(
