@@ -110,6 +110,7 @@ function sn_health_check_family_map() {
 		'plugin_registry'      => 'other',
 		'wp_cron_request_path' => 'other',
 		'breeze_active'        => 'other',
+		'resume_es_stale'      => 'other',
 		// v13.98.0: the dataset behind the machine-readers sensor is an edge
 		// concern; theme.json presets are the site's own configuration.
 		'machine_reader_liveness' => 'edge',
