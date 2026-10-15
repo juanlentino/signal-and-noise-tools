@@ -38,12 +38,15 @@ mf_check( isset( $v[1] ) && version_compare( $v[1], '5.0.0', '>=' ), 'plugin Ver
 // plugin; the transient filter in inc/wp-update-integration.php still runs.
 mf_check( 1 === preg_match( '/^ \* Update URI:\s*https:\/\/github\.com\/juanlentino\/signal-and-noise-tools\s*$/m', $header ), 'plugin header carries Update URI on the github.com hostname, the repo the updater reads tags from' );
 
-$updater = (string) file_get_contents( $root . '/inc/wp-update-integration.php' );
-mf_check( false === strpos( $updater, "'6.4'" ), 'self-updater requires mirrors no longer report 6.4' );
+// The updater is read with its three parts files (split 2026-10-15); the two
+// absence pins carry a non-empty floor so a missed read cannot pass them.
+require_once __DIR__ . '/lib/inc-population.php';
+$updater = snt_test_wp_update_integration_src();
+mf_check( '' !== $updater && false === strpos( $updater, "'6.4'" ), 'self-updater requires mirrors no longer report 6.4' );
 // v14.5.1: the updater reads the header, never a literal. Two literals said
 // tested 7.0 while the header said 7.1, and the Updates page read
 // "Compatibility with WordPress 7.1: Not tested" on a 7.1 site.
-mf_check( 0 === preg_match( "/->(tested|requires|requires_php)\s*=\s*'[0-9.]+'/", $updater ), 'self-updater assigns NO compatibility literal — every value comes from sn_gh_plugin_compat()' );
+mf_check( '' !== $updater && 0 === preg_match( "/->(tested|requires|requires_php)\s*=\s*'[0-9.]+'/", $updater ), 'self-updater assigns NO compatibility literal — every value comes from sn_gh_plugin_compat()' );
 mf_check( 2 === substr_count( $updater, '= sn_gh_plugin_compat()' ), 'both surfaces (update transient, View details modal) read the header helper' );
 if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', $root . '/' ); }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
