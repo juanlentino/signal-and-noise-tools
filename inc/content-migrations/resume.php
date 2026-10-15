@@ -98,7 +98,7 @@ function sn_migrate_resume_body() {
 	// Only seed the excerpt when it's genuinely empty — never clobber an
 	// owner-written excerpt.
 	if ( '' === trim( (string) $page->post_excerpt ) ) {
-		$update['post_excerpt'] = '20+ years building studios, developing artists, and scaling creative businesses across the U.S. and Latin America: production, strategy, and mentorship. GRAMMY and Latin GRAMMY voting member.';
+		$update['post_excerpt'] = '15+ years building studios, developing artists, and scaling creative businesses across the U.S. and Latin America: production, strategy, and mentorship. GRAMMY and Latin GRAMMY voting member.';
 	}
 
 	wp_update_post( wp_slash( $update ) );
