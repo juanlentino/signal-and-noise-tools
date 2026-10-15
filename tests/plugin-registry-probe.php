@@ -159,7 +159,8 @@ echo "\nGroup 7: the dependency cannot silently disappear\n";
 $boot = (string) file_get_contents( dirname( __DIR__ ) . '/signal-and-noise-tools.php' );
 ok( false !== strpos( $boot, "inc/plugin-registry-probe.php" ), 'the probe is required by the plugin bootstrap' );
 ok( false !== strpos( $boot, "inc/wp-update-integration.php" ), 'the update watchdog is required by the plugin bootstrap' );
-$watchdog = (string) file_get_contents( dirname( __DIR__ ) . '/inc/wp-update-integration.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$watchdog = snt_test_wp_update_integration_src(); // the module and its parts files (split 2026-10-15)
 ok( false !== strpos( $watchdog, 'snt_plugin_registry_repair' ), 'the watchdog calls the repair after clearing the plugin cache' );
 
 echo sprintf( "\nResult: %d passed, %d failed.\n", $pass, $fail );

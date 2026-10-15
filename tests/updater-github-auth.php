@@ -89,7 +89,8 @@ ok( isset( $h['User-Agent'] ),                            'User-Agent header pre
 // Can't undefine a constant mid-process, so this is asserted structurally:
 // the source guards the header with `if ( defined( 'SNT_GITHUB_TOKEN' ) && ... )`,
 // proven by Case 1 + the source-grep assertion below.
-$src = file_get_contents( __DIR__ . '/../inc/wp-update-integration.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$src = snt_test_wp_update_integration_src(); // the module and its parts files (split 2026-10-15)
 ok( strpos( $src, "defined( 'SNT_GITHUB_TOKEN' )" ) !== false, 'token application is guarded by defined() (graceful unauth fallback)' );
 ok( preg_match( '/Authorization.*Bearer.*SNT_GITHUB_TOKEN/s', $src ) === 1, 'Authorization built from SNT_GITHUB_TOKEN' );
 
