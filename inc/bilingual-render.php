@@ -70,6 +70,9 @@ function sn_lang_content_fallback( $html, $block, $instance = null ) {
 		return $html;
 	}
 	$body = (string) apply_filters( 'the_content', str_replace( ']]>', ']]&gt;', (string) get_post_field( 'post_content', $en ) ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core hook
-	return '' === trim( $body ) ? $html : '<div lang="en">' . $body . '</div>';
+	// Core's post-content block renders '' for an empty body, dropping its own
+	// wrapper; put the same wrapper back so the page keeps its layout track
+	// (the theme's .entry-content rules), as the English page renders it.
+	return '' === trim( $body ) ? $html : '<div class="entry-content wp-block-post-content is-layout-flow wp-block-post-content-is-layout-flow" lang="en">' . $body . '</div>';
 }
 add_filter( 'render_block_core/post-content', 'sn_lang_content_fallback', 9, 3 );

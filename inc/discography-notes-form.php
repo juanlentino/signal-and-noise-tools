@@ -44,6 +44,11 @@ function sn_discography_notes_fields_html() {
 			$label = trim( (string) ( $entry['title'] ?? '' ) . ', ' . (string) ( $entry['artist'] ?? '' ) . ( ! empty( $entry['year'] ) ? ' (' . (int) $entry['year'] . ')' : '' ) );
 			$opts .= '<option value="' . esc_attr( (string) $entry['id'] ) . '"' . selected( (string) $entry['id'], (string) $id, false ) . '>' . esc_html( $label ) . '</option>';
 		}
+		// A note whose release left the latest sync keeps its row: without an
+		// option for it, the select would post '' and the save would drop it.
+		if ( '' !== (string) $id && false === strpos( $opts, 'value="' . esc_attr( (string) $id ) . '"' ) ) {
+			$opts .= '<option value="' . esc_attr( (string) $id ) . '" selected="selected">' . esc_html__( '(not in the current sync)', 'signal-and-noise-tools' ) . '</option>';
+		}
 		$legend = '' === (string) $id ? __( 'Add a note', 'signal-and-noise-tools' ) : sprintf( /* translators: %d: row number */ __( 'Note %d', 'signal-and-noise-tools' ), $n );
 		$out   .= '<fieldset style="margin:0 0 16px;padding:0;border:0">'
 			. '<legend style="font-weight:600;margin-bottom:6px">' . esc_html( $legend ) . '</legend>'

@@ -42,6 +42,11 @@ function sn_lang_seed_pages() {
 	if ( get_option( SN_LANG_SEED_OPT ) || ! current_user_can( 'publish_pages' ) ) {
 		return;
 	}
+	// A lock first: two admin requests at once (heartbeat beside a page load)
+	// must not both insert. add_option() is false when the row already exists.
+	if ( ! add_option( SN_LANG_SEED_OPT, array( 'running' => time() ), '', false ) ) {
+		return;
+	}
 	$result = array(
 		'created' => array(),
 		'skipped' => array(),

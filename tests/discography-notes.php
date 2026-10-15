@@ -58,5 +58,17 @@ $GLOBALS['opts'][ SN_DISCO_NOTES_OPT ]['r1']['en'] = 'Edited';
 sn_discography_notes_seed_richter();
 ok( 'Edited' === $GLOBALS['opts'][ SN_DISCO_NOTES_OPT ]['r1']['en'], 'it runs once: an edited note is never re-seeded' );
 
+echo "\nGroup: the form keeps a note whose release left the sync\n";
+function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function esc_html__( $s ) { return esc_html( $s ); }
+function __( $s ) { return $s; }
+function selected( $a, $b, $echo ) { return $a === $b ? ' selected="selected"' : ''; }
+$GLOBALS['store'] = array( 'entries' => array( array( 'id' => 'live', 'title' => 'T', 'artist' => 'A' ) ) );
+$GLOBALS['opts'][ SN_DISCO_NOTES_OPT ] = array( 'gone' => array( 'en' => 'Old note', 'es' => '' ) );
+$html = sn_discography_notes_fields_html();
+ok( false !== strpos( $html, '<option value="gone" selected="selected">(not in the current sync)</option>' ), 'an orphaned note keeps a selected option, so the next save does not drop it' );
+ok( substr_count( $html, 'value="live"' ) >= 1, 'live releases are still listed' );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail ? 1 : 0 );

@@ -89,7 +89,7 @@ ok( array( 'page-music.php', 'page.php' ) === sn_lang_page_template_hierarchy( a
 
 echo "\nGroup: English fallback\n";
 $GLOBALS['q'] = 21; $GLOBALS['content'] = array( 11 => 'English body', 21 => '' );
-ok( '<div lang="en"><p>English body</p></div>' === sn_lang_content_fallback( '', array() ), 'an empty Spanish page shows the English body, marked lang="en"' );
+ok( '<div class="entry-content wp-block-post-content is-layout-flow wp-block-post-content-is-layout-flow" lang="en"><p>English body</p></div>' === sn_lang_content_fallback( '', array() ), 'an empty Spanish page shows the English body in core\'s post-content wrapper, marked lang="en"' );
 $GLOBALS['content'][21] = 'Cuerpo';
 ok( 'X' === sn_lang_content_fallback( 'X', array() ), 'a written Spanish body renders as itself' );
 $GLOBALS['content'][21] = '';
@@ -107,6 +107,7 @@ ok( array( 'inicio', 'sobre-mi', 'musica', 'servicios' ) === array_keys( sn_lang
 ok( array( '', 'about', 'music', 'services' ) === array_column( sn_lang_seed_map(), 1 ), 'paired to home, about, music, services' );
 $src = (string) file_get_contents( __DIR__ . '/../inc/bilingual-seed.php' );
 ok( false !== strpos( $src, "'post_status'  => 'draft'" ), 'seeded as drafts: nothing goes public until the owner publishes' );
+ok( false !== strpos( $src, 'add_option( SN_LANG_SEED_OPT' ) && strpos( $src, 'add_option( SN_LANG_SEED_OPT' ) < strpos( $src, 'wp_insert_post' ), 'a lock is taken before any insert: two admin requests at once cannot both seed' );
 ok( false !== strpos( $src, "'slug taken'" ) && false !== strpos( $src, "'redirect exists'" ), 'a taken slug or a redirect is skipped, never overwritten' );
 
 echo "\n$pass passed, $fail failed\n";
