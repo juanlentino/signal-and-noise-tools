@@ -259,6 +259,7 @@ require_once SNT_PATH . 'inc/resume-draft.php';              // Unreleased: /res
 require_once SNT_PATH . 'inc/resume-pdf/template.php';       // Resume PDF (docs/RESUME-PDF.md): the ONE template the generator renders
 require_once SNT_PATH . 'inc/resume-pdf/engine-status.php';  // 20.6.0: Dompdf installed/patched/latest, and the bump watch
 require_once SNT_PATH . 'inc/resume-pdf/generate.php';       // Resume PDF: Dompdf (lib/pdf) -> uploads/resume, hash option, Download link
+require_once SNT_PATH . 'inc/resume-es.php';                 // The Spanish résumé: /cv/ and JuanLentino_CV.pdf from seed-content/resume-data-es.json (no settings screen)
 require_once SNT_PATH . 'inc/admin-forms/resume-page.php';   // v10.33.0: Content → Resume Page structured editor form (repeatable rows, not a text box)
 require_once SNT_PATH . 'inc/admin-forms/rights-evidence.php'; // Unreleased: rights evidence on Machine Readers (view payloads, lift hold)
 require_once SNT_PATH . 'inc/admin-forms/resume-draft.php';  // Unreleased: the draft controls (previews, publish, discard, revert)

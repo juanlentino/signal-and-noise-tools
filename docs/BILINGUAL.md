@@ -68,9 +68,14 @@ The toggle is the `signal-noise/lang-toggle` block in the theme's header. It ren
 - **Integrity reports.** The motion check reads stylesheets, so it is unaffected. The rendered contrast check walks every URL in the sitemap, so published Spanish pages are covered automatically.
 - **Out of scope:** `llms.txt` (left English by owner decision), the Markdown twins (notes only) and the header navigation labels (still English on Spanish pages).
 
-## /cv/ is a plain page, not a second résumé
+## /cv/ and the Spanish PDF come from one file
 
-/resume is generated from the structured résumé editor (S&N → Content → Résumé). /cv/ is not: it is an ordinary Spanish page whose body was written once, in the same blocks /resume renders. When the English résumé changes, /cv/ does not follow on its own; update it by hand, or ask for a refresh. This is deliberate (owner, 2026-10-15: no second résumé system in the settings). Its Download button points to the English PDF and says so.
+/resume is generated from the structured résumé editor (S&N → Content → Résumé). /cv/ and `JuanLentino_CV.pdf` are generated from **one Spanish file**, `inc/seed-content/resume-data-es.json`, in the same shape. The same page builder and the same PDF template render it, with their fixed headings in Spanish (`inc/resume-lang.php`, `inc/resume-es.php`). There is no Spanish screen in the settings (owner, 2026-10-15).
+
+- **Contact details** (LinkedIn, email, phone, website, and whether the phone is public) always come from the live English résumé, so the file holds none and the phone never reaches the repo.
+- **/cv/ is rendered** on the next admin load after the file or the English contact details change. Its PDF is rendered with it, and again every time the English PDF is generated (action `sn_resume_pdf_generated`).
+- **The page's status is never touched:** the owner publishes /cv/.
+- **The English wording does not flow into the Spanish file.** When the English résumé changes, update `resume-data-es.json` and release.
 
 ## Adding another page to the bilingual set
 

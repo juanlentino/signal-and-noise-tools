@@ -13,7 +13,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Added
-- **/cv/, the Spanish résumé, as a fifth Spanish page** paired to /resume (owner, 2026-10-15: one more page, not a second résumé system). The Spanish pages seed now records each slug it has created or skipped, so a slug added to the list later is seeded on the next admin load and the earlier ones are never retried. A ten-minute lock (`sn_spanish_pages_seed_lock`) replaces the run-once flag, and a stale lock from a crashed run is taken over. /cv/ is filled by hand, like the other four, and does not regenerate from the résumé editor. `docs/BILINGUAL.md` covers it.
+- **/cv/ and `JuanLentino_CV.pdf`, the Spanish résumé** (owner, 2026-10-15: a PDF too, and no second résumé system in the settings). One Spanish file, `inc/seed-content/resume-data-es.json`, renders both through the same page builder and PDF template as /resume, with their fixed headings in Spanish (`inc/resume-lang.php`); English output is byte for byte unchanged. Contact details come from the live English résumé, so the phone never reaches the repo. /cv/ re-renders on the next admin load after the file or the contact details change, and its PDF re-renders every time the English PDF is generated. /cv/ is a fifth Spanish page paired to /resume. The Spanish pages seed now records each slug it handled, so a slug added later is seeded on the next admin load. A lock (`sn_spanish_pages_seed_lock`, taken over after ten minutes) replaces the run-once flag. Pinned in `tests/resume-es.php` and `tests/bilingual.php`.
 
 ## [2026.10.16] - 2026-10-15 — Spanish storefront pages and release notes
 
