@@ -142,14 +142,21 @@ function sn_resume_es_maybe_sync() {
 	if ( ! current_user_can( 'publish_pages' ) || ! get_page_by_path( SN_RESUME_ES_SLUG, OBJECT, 'page' ) ) {
 		return;
 	}
-	$en    = function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : array();
-	$state = md5( (string) file_get_contents( __DIR__ . '/seed-content/resume-data-es.json' ) . wp_json_encode( array( $en['hero']['linkedin'] ?? '', $en['pdf'] ?? array() ) ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.
-	if ( get_option( SN_RESUME_ES_SYNC_OPT ) === $state ) {
+	$en      = function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : array();
+	$contact = array( $en['hero']['linkedin'] ?? '' );
+	foreach ( array( 'email', 'phone', 'phone_public', 'website' ) as $k ) {
+		$contact[] = $en['pdf'][ $k ] ?? ''; // Only what sn_resume_es_merge() takes.
+	}
+	$state = md5( (string) file_get_contents( __DIR__ . '/seed-content/resume-data-es.json' ) . wp_json_encode( $contact ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.
+	if ( get_option( SN_RESUME_ES_SYNC_OPT ) === $state || get_transient( 'sn_resume_es_backoff' ) ) {
 		return;
 	}
-	// Recorded only on success, so a failed render is retried on the next load.
+	// Recorded only on success, so a failed render is retried; a failure backs
+	// off ten minutes so heartbeat and admin-ajax do not re-run Dompdf.
 	if ( sn_resume_es_pdf_generate() || sn_resume_es_sync_page() ) {
 		update_option( SN_RESUME_ES_SYNC_OPT, $state, false );
+	} else {
+		set_transient( 'sn_resume_es_backoff', 1, 10 * MINUTE_IN_SECONDS );
 	}
 }
 add_action( 'admin_init', 'sn_resume_es_maybe_sync', 20 );

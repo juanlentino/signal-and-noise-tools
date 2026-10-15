@@ -18,48 +18,60 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string Plain text.
  */
 function sn_discography_notes_intro() {
-	return __( 'A short line shown under a release’s roles on /music (English) and /musica (Spanish), for what Muso.AI cannot say. Empty Spanish falls back to English. Clear both to remove a note.', 'signal-and-noise-tools' );
+	return __( 'A line under a release’s roles on /music and /musica. Empty Spanish shows the English. Clear both to remove a note.', 'signal-and-noise-tools' );
 }
 
 /**
- * The rows: release picker + English note + Spanish note, and the marker that
- * tells sn_discography_notes_save() this box was posted. Every value escaped.
+ * One compact row: what the release is, then the two notes side by side.
+ * Labels are aria-labels so the row stays one line. Every value escaped.
+ *
+ * @param string $release The release cell (a name, or the picker for the add row).
+ * @param string $name    Accessible name of the release, for the inputs' labels.
+ * @param array  $note    {en, es}.
+ * @return string
+ */
+function sn_discography_notes_row_html( $release, $name, $note ) {
+	$grid = 'display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:center;margin:0 0 8px';
+	return '<div style="' . $grid . '">' . $release
+		/* translators: %s: release title */
+		. '<input type="text" name="sn_disco_note_en[]" maxlength="' . (int) SN_DISCO_NOTE_MAX . '" placeholder="' . esc_attr__( 'English', 'signal-and-noise-tools' ) . '" aria-label="' . esc_attr( sprintf( __( 'English note for %s', 'signal-and-noise-tools' ), $name ) ) . '" value="' . esc_attr( (string) ( $note['en'] ?? '' ) ) . '">'
+		/* translators: %s: release title */
+		. '<input type="text" name="sn_disco_note_es[]" lang="es" maxlength="' . (int) SN_DISCO_NOTE_MAX . '" placeholder="' . esc_attr__( 'Español', 'signal-and-noise-tools' ) . '" aria-label="' . esc_attr( sprintf( __( 'Spanish note for %s', 'signal-and-noise-tools' ), $name ) ) . '" value="' . esc_attr( (string) ( $note['es'] ?? '' ) ) . '">'
+		. '</div>';
+}
+
+/**
+ * The rows: one compact line per saved note, and "Add a note" folded into a
+ * single line until it is opened (owner, 2026-10-15: keep the settings small).
+ * The marker tells sn_discography_notes_save() this box was posted.
  *
  * @return string HTML (no <form>; each surface wraps its own).
  */
 function sn_discography_notes_fields_html() {
 	$entries = function_exists( 'sn_discography_get' ) ? (array) ( sn_discography_get()['entries'] ?? array() ) : array();
-	$rows    = sn_discography_notes_get();
-	$rows[''] = array( 'en' => '', 'es' => '' ); // The add row.
+	$titles  = array();
+	foreach ( $entries as $entry ) {
+		if ( is_array( $entry ) && ! empty( $entry['id'] ) ) {
+			$titles[ (string) $entry['id'] ] = trim( (string) ( $entry['title'] ?? '' ) . ', ' . (string) ( $entry['artist'] ?? '' ) . ( ! empty( $entry['year'] ) ? ' (' . (int) $entry['year'] . ')' : '' ) );
+		}
+	}
 
 	$out = '<input type="hidden" name="sn_disco_notes_form" value="1">';
-	$n   = 0;
-	foreach ( $rows as $id => $note ) {
-		++$n;
-		$opts = '<option value="">' . esc_html__( 'Choose a release…', 'signal-and-noise-tools' ) . '</option>';
-		foreach ( $entries as $entry ) {
-			if ( ! is_array( $entry ) || empty( $entry['id'] ) ) {
-				continue;
-			}
-			$label = trim( (string) ( $entry['title'] ?? '' ) . ', ' . (string) ( $entry['artist'] ?? '' ) . ( ! empty( $entry['year'] ) ? ' (' . (int) $entry['year'] . ')' : '' ) );
-			$opts .= '<option value="' . esc_attr( (string) $entry['id'] ) . '"' . selected( (string) $entry['id'], (string) $id, false ) . '>' . esc_html( $label ) . '</option>';
-		}
-		// A note whose release left the latest sync keeps its row: without an
-		// option for it, the select would post '' and the save would drop it.
-		if ( '' !== (string) $id && false === strpos( $opts, 'value="' . esc_attr( (string) $id ) . '"' ) ) {
-			$opts .= '<option value="' . esc_attr( (string) $id ) . '" selected="selected">' . esc_html__( '(not in the current sync)', 'signal-and-noise-tools' ) . '</option>';
-		}
-		$legend = '' === (string) $id ? __( 'Add a note', 'signal-and-noise-tools' ) : sprintf( /* translators: %d: row number */ __( 'Note %d', 'signal-and-noise-tools' ), $n );
-		$out   .= '<fieldset style="margin:0 0 16px;padding:0;border:0">'
-			. '<legend style="font-weight:600;margin-bottom:6px">' . esc_html( $legend ) . '</legend>'
-			. '<p><label for="sn-disco-note-id-' . $n . '">' . esc_html__( 'Release', 'signal-and-noise-tools' ) . '</label><br>'
-			. '<select id="sn-disco-note-id-' . $n . '" name="sn_disco_note_id[]" style="max-width:100%">' . $opts . '</select></p>'
-			. '<p><label for="sn-disco-note-en-' . $n . '">' . esc_html__( 'Note (English)', 'signal-and-noise-tools' ) . '</label><br>'
-			. '<input type="text" class="large-text" id="sn-disco-note-en-' . $n . '" name="sn_disco_note_en[]" maxlength="' . (int) SN_DISCO_NOTE_MAX . '" value="' . esc_attr( (string) ( $note['en'] ?? '' ) ) . '"></p>'
-			. '<p><label for="sn-disco-note-es-' . $n . '">' . esc_html__( 'Note (Spanish)', 'signal-and-noise-tools' ) . '</label><br>'
-			. '<input type="text" class="large-text" id="sn-disco-note-es-' . $n . '" name="sn_disco_note_es[]" lang="es" maxlength="' . (int) SN_DISCO_NOTE_MAX . '" value="' . esc_attr( (string) ( $note['es'] ?? '' ) ) . '"></p>'
-			. '</fieldset>';
+	foreach ( sn_discography_notes_get() as $id => $note ) {
+		// A note whose release left the latest sync keeps its row and its id.
+		$name    = $titles[ (string) $id ] ?? __( '(not in the current sync)', 'signal-and-noise-tools' );
+		$release = '<span><input type="hidden" name="sn_disco_note_id[]" value="' . esc_attr( (string) $id ) . '">' . esc_html( $name ) . '</span>';
+		$out    .= sn_discography_notes_row_html( $release, $name, $note );
 	}
+
+	$opts = '<option value="">' . esc_html__( 'Choose a release…', 'signal-and-noise-tools' ) . '</option>';
+	foreach ( $titles as $id => $title ) {
+		$opts .= '<option value="' . esc_attr( (string) $id ) . '">' . esc_html( $title ) . '</option>';
+	}
+	$picker = '<select name="sn_disco_note_id[]" aria-label="' . esc_attr__( 'Release', 'signal-and-noise-tools' ) . '" style="max-width:100%">' . $opts . '</select>';
+	$out   .= '<details><summary>' . esc_html__( 'Add a note', 'signal-and-noise-tools' ) . '</summary><div style="margin-top:8px">'
+		. sn_discography_notes_row_html( $picker, __( 'the chosen release', 'signal-and-noise-tools' ), array() )
+		. '</div></details>';
 	return $out;
 }
 
