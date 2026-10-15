@@ -150,7 +150,7 @@ function snt_ability_get_analytics_vitals( $input ) {
 	list( $win, $class, $limit ) = $a;
 	$v = sn_analytics_vitals( $win['from'], $win['to'], $class, min( 50, $limit ) );
 	if ( null === $v ) {
-		return new WP_Error( 'snt_metrics_read', 'The Core Web Vitals read failed: ' . sn_analytics_vitals_failure() . '.' );
+		return new WP_Error( 'snt_metrics_read', 'The Core Web Vitals read failed: ' . sn_analytics_vitals_failure() . '.', array( 'status' => 502 ) );
 	}
 	return $win + array( 'class' => $class ) + $v;
 }

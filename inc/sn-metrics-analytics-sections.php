@@ -87,7 +87,7 @@ function snt_metrics_floor( array $rows, $limit ) {
  */
 function snt_metrics_floored_payload( array $win, $class, $rows, $limit ) {
 	if ( null === $rows ) {
-		return new WP_Error( 'snt_metrics_read', 'The analytics read failed.' );
+		return new WP_Error( 'snt_metrics_read', 'The analytics read failed.', array( 'status' => 502 ) );
 	}
 	$f = snt_metrics_floor( (array) $rows, $limit );
 	return $win + array( 'class' => $class, 'floor' => SNT_METRICS_FLOOR, 'rows' => $f['rows'], 'withheld' => $f['withheld'] );
@@ -155,7 +155,7 @@ function snt_ability_get_analytics_journeys( $input ) {
 	$entry = snt_metrics_floored_payload( $win, 'human', sn_analytics_top_entry_pages( $win['from'], $win['to'], SNT_METRICS_WIDE ), $limit );
 	$exit  = snt_metrics_floored_payload( $win, 'human', sn_analytics_top_exit_pages( $win['from'], $win['to'], SNT_METRICS_WIDE ), $limit );
 	if ( is_wp_error( $entry ) || is_wp_error( $exit ) ) {
-		return new WP_Error( 'snt_metrics_read', 'The journeys read failed.' );
+		return new WP_Error( 'snt_metrics_read', 'The journeys read failed.', array( 'status' => 502 ) );
 	}
 	return $win + array( 'class_applied' => 'human', 'note' => 'Entry and exit pages are recorded for human traffic only; class is not applied.', 'floor' => SNT_METRICS_FLOOR, 'entry' => array( 'rows' => $entry['rows'], 'withheld' => $entry['withheld'] ), 'exit' => array( 'rows' => $exit['rows'], 'withheld' => $exit['withheld'] ) );
 }

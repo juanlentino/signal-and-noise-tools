@@ -143,7 +143,7 @@ ok( null === sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 ), 'a 
 ok( false !== strpos( sn_analytics_vitals_failure(), 'row cap' ), 'the reason says the row cap, not a failure' );
 
 echo "\nGroup: the ability says which leg failed\n";
-class WP_Error { public $m; function __construct( $c, $m ) { $this->m = $m; } }
+class WP_Error { public $m; public $data; function __construct( $c, $m, $d = null ) { $this->m = $m; $this->data = $d; } }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
 function snt_metrics_args( $i ) { return array( array( 'from' => '2026-09-14', 'to' => '2026-10-11' ), 'human', 5 ); }
 $GLOBALS['__t'] = array();
@@ -151,6 +151,7 @@ $GLOBALS['__dev_rows'] = null;
 $GLOBALS['__ae_err'] = array( 'url' => 'u', 'code' => 422, 'message' => 'bad', 'when' => time() );
 $e = snt_ability_get_analytics_vitals( array() );
 ok( $e instanceof WP_Error && 'The Core Web Vitals read failed: the by-device read failed (Analytics Engine said HTTP 422: bad).' === $e->m, 'the ability error names the leg and the reason' );
+ok( 502 === ( $e->data['status'] ?? null ), 'a failed vitals read is a 502 (an upstream read failed), not a bare 500' );
 
 echo "\nGroup: the two Engagement twins say the same sentences\n";
 $classic = (string) file_get_contents( __DIR__ . '/../inc/analytics-render-distribution.php' );

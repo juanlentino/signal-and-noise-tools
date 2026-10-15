@@ -90,7 +90,7 @@ function snt_ability_analytics_query( $input ) {
 	$class = snt_metrics_class( $input );
 	$cur   = snt_mq_grouped( $spec, $win['from'], $win['to'], $class );
 	if ( null === $cur ) {
-		return new WP_Error( 'snt_metrics_read', 'The analytics read failed.' );
+		return new WP_Error( 'snt_metrics_read', 'The analytics read failed.', array( 'status' => 502 ) );
 	}
 	$total    = array_sum( array_column( $cur, 'views' ) );
 	$floored  = array( 'day' ) !== $spec['dims'];
@@ -106,7 +106,7 @@ function snt_ability_analytics_query( $input ) {
 		$prior = array_combine( array( 'from', 'to' ), sn_analytics_prior_window( $win['from'], $win['to'] ) );
 		$prev  = snt_mq_grouped( $spec, $prior['from'], $prior['to'], $class );
 		if ( null === $prev ) {
-			return new WP_Error( 'snt_metrics_read', 'The previous window read failed.' );
+			return new WP_Error( 'snt_metrics_read', 'The previous window read failed.', array( 'status' => 502 ) );
 		}
 	}
 	$rows = array();

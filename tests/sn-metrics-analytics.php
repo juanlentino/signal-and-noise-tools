@@ -53,6 +53,9 @@ class Fake_WPDB {
 	function prepare( $sql, ...$a ) { return array( $sql, $a ); }
 	function get_results( $q ) {
 		list( $sql, $a ) = $q;
+		// A failed read: every window, or only the one starting on __fail_from.
+		$this->last_error = ! empty( $GLOBALS['__fail_all'] ) || ( $GLOBALS['__fail_from'] ?? null ) === $a[0] ? 'boom' : '';
+		if ( '' !== $this->last_error ) { return array(); }
 		$dims = false !== strpos( $sql, 'sn_analytics_dims' );
 		$path = false !== strpos( $sql, 'day, path' );
 		$out  = array();
@@ -67,6 +70,9 @@ class Fake_WPDB {
 	}
 }
 $GLOBALS['wpdb'] = new Fake_WPDB();
+function sn_analytics_top_entry_pages( $f, $t, $l = 25 ) { return null; } // a failed read
+function sn_analytics_top_exit_pages( $f, $t, $l = 25 ) { return null; }
+function sn_analytics_top_dimension( ...$a ) { return null; }
 
 require __DIR__ . '/../inc/sn-metrics-analytics-sections.php';
 require __DIR__ . '/../inc/sn-metrics-analytics-fetch.php';
@@ -107,6 +113,19 @@ ok( 'US' === $us['country'] && 30 === $us['previous']['views'] && 30 === $us['de
 $q = snt_ability_analytics_query( array( 'range' => 'all', 'dimensions' => array( 'day' ), 'compare' => 'previous' ) );
 ok( isset( $q['compare']['reason'] ) && null === $q['floor'] && ! isset( $q['rows'][0]['delta'] ), 'range all has no previous window: it says so; a day series is not floored' );
 ok( is_wp_error( snt_ability_analytics_query( array( 'range' => 60, 'dimensions' => array( 'day' ) ) ) ), 'a range outside the vocabulary refuses' );
+
+echo "\nA failed upstream read is a 502, a bad input stays 422\n";
+$is502 = static fn( $e ) => is_wp_error( $e ) && 'snt_metrics_read' === $e->code && 502 === ( $e->data['status'] ?? null );
+$GLOBALS['__fail_all'] = true;
+ok( $is502( snt_ability_analytics_query( array( 'range' => 7, 'dimensions' => array( 'country' ) ) ) ), 'query: the window read failing is a 502, not a bare 500' );
+ok( $is502( snt_ability_get_analytics_geography( array( 'range' => 7 ) ) ), 'a floored section (geography) whose read failed is a 502' );
+ok( $is502( snt_ability_get_analytics_journeys( array( 'range' => 7 ) ) ), 'journeys whose entry and exit reads failed is a 502' );
+$GLOBALS['__fail_all'] = false;
+$GLOBALS['__fail_from'] = '2026-01-01';
+ok( $is502( snt_ability_analytics_query( array( 'range' => 7, 'dimensions' => array( 'country' ), 'compare' => 'previous' ) ) ), 'query: the previous window read failing is a 502' );
+$GLOBALS['__fail_from'] = null;
+$bad = snt_ability_analytics_query( array( 'range' => 60, 'dimensions' => array( 'day' ) ) );
+ok( 422 === ( $bad->data['status'] ?? null ), 'a caller-input error keeps its 422, never a 502' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
