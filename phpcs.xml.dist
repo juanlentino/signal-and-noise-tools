@@ -87,7 +87,6 @@
 		<exclude-pattern>*/apps/sn-analytics/parts/frame.php</exclude-pattern>
 		<exclude-pattern>*/inc/cron-dashboard-admin.php</exclude-pattern>
 		<exclude-pattern>*/inc/health-checks-admin.php</exclude-pattern>
-		<exclude-pattern>*/inc/cloudflare-purge.php</exclude-pattern>
 	</rule>
 	<!--
 		sn_admin_post_button() (inc/admin-post-handler.php) returns a submit

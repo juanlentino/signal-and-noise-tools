@@ -77,7 +77,8 @@ ok( array() === array_filter( snt_dwx_ops_signals(), static function ( $cell ) {
 	'and the signals the box paints name no purge' );
 
 // ─── the history has somewhere to live ──────────────────────────────────────
-$cf = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$cf = snt_test_cloudflare_purge_src(); // the module and its parts files (split 2026-10-15)
 ok( false !== strpos( $cf, 'Post-purge probes' ), 'the Cloudflare tab renders the individual rows, so "why were 9 stale?" is answerable' );
 ok( false !== strpos( $cf, 'retired detector' ), 'and a row from the pre-v11.29.1 detector is LABELLED as such — it could only ever say stale, so mixing it in silently would re-tell that lie' );
 
