@@ -76,7 +76,7 @@ The toggle is the `signal-noise/lang-toggle` block in the theme's header. It ren
 - **/cv/ is rendered** on the next admin load after the file or the English contact details change. Its PDF is rendered with it, and again every time the English PDF is generated (action `sn_resume_pdf_generated`).
 - **The page's status is never touched:** the owner publishes /cv/.
 - **The English wording does not flow into the Spanish file.** When the English résumé changes, update `resume-data-es.json` and release.
-- **You are told when that happens.** The Résumé screen and the `resume_es_stale` Health check list the English lines changed since the translation (`inc/resume-es-stale.php`). The baseline re-captures itself when the Spanish file changes, so the alert clears on its own after the update ships.
+- **You are told when that happens.** The Résumé screen and the `resume_es_stale` Health check list the English lines changed since the translation (`inc/resume-es-stale.php`). The alert also shows an **English version** code. When updating the Spanish file, set its `translated_from` field to that code: the baseline moves only when the file names the live English, so a typo fix or a partial update cannot clear an alert whose lines are still untranslated. The alert then clears on its own after the update ships.
 
 ## Adding another page to the bilingual set
 

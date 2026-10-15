@@ -93,6 +93,45 @@ function sn_resume_es_diff( $baseline, $current ) {
 }
 
 /**
+ * A short code for a set of English lines: the "English version" the alert
+ * shows, which the translator writes into the Spanish file as
+ * translated_from. Pure.
+ *
+ * @param string[] $lines English lines.
+ * @return string
+ */
+function sn_resume_lines_hash( $lines ) {
+	$lines = array_values( (array) $lines );
+	sort( $lines );
+	return substr( md5( implode( "\n", $lines ) ), 0, 12 );
+}
+
+/**
+ * Whether to (re)capture the baseline from the live English. Pure.
+ *
+ * First run: yes. Unchanged Spanish file: no. Changed Spanish file: only when
+ * it says which English it translates (translated_from) and that is the live
+ * English, so a typo fix or a partial update cannot clear an alert whose
+ * lines are still untranslated. A file without the field (the first
+ * translation) is trusted.
+ *
+ * @param mixed  $saved           The stored baseline.
+ * @param string $es_hash         The Spanish file's hash now.
+ * @param string $translated_from The file's translated_from, '' when absent.
+ * @param string $live_hash       sn_resume_lines_hash() of the live English.
+ * @return bool
+ */
+function sn_resume_es_should_capture( $saved, $es_hash, $translated_from, $live_hash ) {
+	if ( ! is_array( $saved ) ) {
+		return true;
+	}
+	if ( ( $saved['es_hash'] ?? '' ) === $es_hash ) {
+		return false;
+	}
+	return '' === $translated_from || $translated_from === $live_hash;
+}
+
+/**
  * The live diff. Captures the baseline the first time, and again whenever the
  * Spanish file has changed since it was captured.
  *
@@ -103,11 +142,11 @@ function sn_resume_es_stale() {
 	if ( ! is_readable( $file ) || ! function_exists( 'sn_resume_doc_get' ) ) {
 		return null;
 	}
-	$hash    = md5( (string) file_get_contents( $file ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.
+	$raw     = (string) file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.
 	$current = sn_resume_lines( sn_resume_doc_get() );
 	$saved   = get_option( SN_RESUME_ES_SOURCE_OPT );
-	if ( ! is_array( $saved ) || ( $saved['es_hash'] ?? '' ) !== $hash ) {
-		$saved = array( 'es_hash' => $hash, 'lines' => $current );
+	if ( sn_resume_es_should_capture( $saved, md5( $raw ), (string) ( json_decode( $raw, true )['translated_from'] ?? '' ), sn_resume_lines_hash( $current ) ) ) {
+		$saved = array( 'es_hash' => md5( $raw ), 'lines' => $current );
 		update_option( SN_RESUME_ES_SOURCE_OPT, $saved, false );
 	}
 	return sn_resume_es_diff( (array) $saved['lines'], $current );
@@ -124,15 +163,17 @@ function sn_resume_es_stale_html( $stale ) {
 		return '';
 	}
 	$list = static function ( $lines ) {
-		return '<ul style="margin:4px 0 8px 18px;list-style:disc">' . implode( '', array_map( static fn( $l ) => '<li>' . esc_html( $l ) . '</li>', $lines ) ) . '</ul>';
+		return '<ul style="margin:4px 0 8px 18px;list-style-type:disc">' . implode( '', array_map( static fn( $l ) => '<li>' . esc_html( $l ) . '</li>', $lines ) ) . '</ul>';
 	};
-	$out = '<strong>' . esc_html__( 'The Spanish CV (/cv/) is out of date.', 'signal-and-noise-tools' ) . '</strong> '
-		. esc_html__( 'These English lines changed since it was translated; send this list to have the Spanish updated.', 'signal-and-noise-tools' );
+	$out = '<p><strong>' . esc_html__( 'The Spanish CV (/cv/) is out of date.', 'signal-and-noise-tools' ) . '</strong> '
+		. esc_html__( 'These English lines changed since it was translated; send this list to have the Spanish updated.', 'signal-and-noise-tools' )
+		/* translators: %s: short code of the current English version */
+		. ' ' . esc_html( sprintf( __( 'English version: %s.', 'signal-and-noise-tools' ), sn_resume_lines_hash( function_exists( 'sn_resume_doc_get' ) ? sn_resume_lines( sn_resume_doc_get() ) : array() ) ) ) . '</p>';
 	if ( $stale['changed'] ) {
-		$out .= '<br>' . esc_html__( 'New or changed:', 'signal-and-noise-tools' ) . $list( $stale['changed'] );
+		$out .= '<p>' . esc_html__( 'New or changed:', 'signal-and-noise-tools' ) . '</p>' . $list( $stale['changed'] );
 	}
 	if ( $stale['removed'] ) {
-		$out .= esc_html__( 'Removed:', 'signal-and-noise-tools' ) . $list( $stale['removed'] );
+		$out .= '<p>' . esc_html__( 'Removed:', 'signal-and-noise-tools' ) . '</p>' . $list( $stale['removed'] );
 	}
 	return $out;
 }
@@ -160,5 +201,5 @@ function sn_health_check_resume_es_stale() {
 			);
 		}
 	}
-	return sn_health_pack_check( 'Spanish CV up to date', $findings, 'Update inc/seed-content/resume-data-es.json for these lines and release; the check clears on its own.' );
+	return sn_health_pack_check( 'Spanish CV up to date', $findings, 'Update inc/seed-content/resume-data-es.json for these lines, set its translated_from to the English version shown on the Résumé screen, and release; the check clears on its own.' );
 }

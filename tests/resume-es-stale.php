@@ -13,6 +13,7 @@ if ( ! function_exists( 'wp_kses' ) ) { function wp_kses( $s, $a ) { return stri
 function wp_strip_all_tags( $s ) { return strip_tags( (string) $s ); }
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_html__( $s ) { return esc_html( $s ); }
+function __( $s ) { return $s; }
 function sanitize_email( $s ) { return (string) $s; }
 function home_url( $p = '' ) { return 'https://x.test' . $p; }
 $GLOBALS['__options'] = array();
@@ -47,8 +48,15 @@ ok( false !== strpos( $html, 'The Spanish CV (/cv/) is out of date.' ) && false 
 $check = sn_health_check_resume_es_stale();
 ok( $check['count'] === count( $stale['changed'] ) + count( $stale['removed'] ) && 'resume_line' === $check['findings'][0]['subject_type'], 'the Health check has one finding per line' );
 
-$GLOBALS['__options'][ SN_RESUME_ES_SOURCE_OPT ]['es_hash'] = 'an older translation';
-ok( array( 'changed' => array(), 'removed' => array() ) === sn_resume_es_stale(), 'a new Spanish file re-captures the baseline: the alert clears on its own' );
+echo "\nTest: when the baseline moves\n";
+ok( true === sn_resume_es_should_capture( false, 'h1', '', 'live' ), 'first run: capture' );
+ok( false === sn_resume_es_should_capture( array( 'es_hash' => 'h1' ), 'h1', '', 'live' ), 'same Spanish file: keep the baseline' );
+ok( false === sn_resume_es_should_capture( array( 'es_hash' => 'h1' ), 'h2', 'older', 'live' ), 'a Spanish edit that names an older English (a typo fix, a partial update) keeps the alert' );
+ok( true === sn_resume_es_should_capture( array( 'es_hash' => 'h1' ), 'h2', 'live', 'live' ), 'a Spanish update that names the live English clears it' );
+ok( 12 === strlen( sn_resume_lines_hash( array( 'b', 'a' ) ) ) && sn_resume_lines_hash( array( 'a', 'b' ) ) === sn_resume_lines_hash( array( 'b', 'a' ) ), 'the English version code is short and order-free' );
+ok( false !== strpos( sn_resume_es_stale_html( array( 'changed' => array( 'x' ), 'removed' => array() ) ), 'English version: ' ), 'the notice shows the code to copy into translated_from' );
+$only_removed = sn_resume_es_stale_html( array( 'changed' => array(), 'removed' => array( 'y' ) ) );
+ok( substr_count( $only_removed, '<p>' ) === substr_count( $only_removed, '</p>' ), 'paragraphs are balanced when only removed lines are listed' );
 
 $GLOBALS['__doc']['skills'][0]['items'] = '<script>x</script>alert';
 $html = sn_resume_es_stale_html( sn_resume_es_stale() );
