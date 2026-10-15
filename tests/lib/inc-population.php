@@ -152,6 +152,32 @@ if ( ! function_exists( 'snt_test_ml_kernel_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_cloudflare_purge_src' ) ) {
+	/**
+	 * The source of inc/cloudflare-purge.php AND its three parts files, for
+	 * suites that pin the purge module's text (the Cloudflare tab, the save
+	 * hook, the API calls). Split 2026-10-15 (house line cap). Named, not
+	 * globbed: cloudflare-purge-send.php, -save.php, -words.php, -probe.php and
+	 * the rest share the prefix and are separate modules with their own reads.
+	 * A missing file returns '' so every presence pin goes red and every
+	 * guarded absence pin fails rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_cloudflare_purge_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-api-parts', '-post-parts', '-tab-parts' ) as $suffix ) {
+			$file = $dir . 'cloudflare-purge' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_analytics_view_overview_src' ) ) {
 	/**
 	 * The source of inc/analytics-view-overview.php AND its three parts files,

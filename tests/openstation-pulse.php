@@ -118,7 +118,8 @@ snt_pulse_on_http( array( 'response' => array( 'code' => 200 ) ), 'response', 'R
 ok( array( array( 'provenance', false ), array( 'provenance', true ), array( 'provenance', true ) ) === $GLOBALS['__recorded'], 'a signing dispatch beats; a non-2xx or transport error is a failed beat; the sweep and other hosts do not beat' );
 
 /* 6. The purge seam and privacy. */
-$purge = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$purge = snt_test_cloudflare_purge_src(); // the module and its parts files (split 2026-10-15)
 ok( 1 === substr_count( $purge, "snt_pulse_beat( 'cache-purge'" ), 'sn_cf_purge_everything() beats once, guarded' );
 // The error flag itself: refused is a failed beat; confirmed, and queued for a retry, are not.
 ok( false === snt_pulse_purge_failed( true, '' ), 'a confirmed purge is a good beat' );

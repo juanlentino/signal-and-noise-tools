@@ -48,7 +48,9 @@ reset_all( array( array( 200, true ) ) );
 ok( true === sn_cf_api_send( 'purge_cache', array( 'files' => array( 'https://x/' ) ) ) && 1 === count( $GLOBALS['__http'] ) && true === $GLOBALS['__http'][0][1]['blocking'], 'a confirmed call is one blocking request' );
 ok( array() === $GLOBALS['__sched'] && null === sn_cf_purge_failure(), 'and leaves nothing scheduled, nothing recorded' );
 ok( true === sn_cf_purge_urls( array( 'https://x/' ) ) && true === $GLOBALS['__http'][1][1]['blocking'], 'the post-save URL purge goes through it: blocking, no fire-and-forget left' );
-ok( false === strpos( (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' ), "'blocking' => false" ), 'no non-blocking Cloudflare call remains in the purge module' );
+require_once __DIR__ . '/lib/inc-population.php';
+$purge_src = snt_test_cloudflare_purge_src(); // the module and its parts files (split 2026-10-15)
+ok( '' !== $purge_src && false === strpos( $purge_src, "'blocking' => false" ), 'no non-blocking Cloudflare call remains in the purge module' );
 
 echo "\nGroup: a transient failure retries, then is recorded\n";
 reset_all( array( array( 429, false ) ) );
@@ -208,7 +210,6 @@ ok( false === sn_cf_purge_on_site_editor_unpublish( 'trash', 'draft', $tp ) && f
 ok( true === sn_cf_purge_on_site_editor_delete( 10, (object) array( 'ID' => 10, 'post_type' => 'wp_template', 'post_status' => 'publish' ) ) && 3 === count( $GLOBALS['__http'] ), 'deleting a published template ("Clear customizations") purges the tag' );
 unset( $GLOBALS['sn_cf_site_editor_purged'] );
 ok( in_array( array( 'transition_post_status', 'sn_cf_purge_on_site_editor_unpublish', 3 ), $GLOBALS['__actions'], true ) && in_array( array( 'before_delete_post', 'sn_cf_purge_on_site_editor_delete', 2 ), $GLOBALS['__actions'], true ), 'the unpublish and delete hooks are registered' );
-$purge_src = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
 ok( 1 === substr_count( $purge_src, "sn_cf_purge_tag();" ) && false !== strpos( $purge_src, 'if ( sn_cf_tagged() ) {' ), 'the save handler purges the tag in one place, ahead of the older-theme path' );
 
 echo "\nGroup: not configured\n";

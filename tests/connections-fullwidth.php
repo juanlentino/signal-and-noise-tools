@@ -98,7 +98,8 @@ cf_assert( 1 === substr_count( $wh, '</aside>' ), 'webhooks rail aside closes ex
 
 // ─── 5. Source wiring: cloudflare uses the shell; cron renders the glance hero
 echo "\nGroup: source wiring (cloudflare shell, cron glance)\n";
-$cf_src = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$cf_src = snt_test_cloudflare_purge_src(); // the module and its parts files (split 2026-10-15)
 cf_assert(
 	1 === substr_count( $cf_src, 'sn_admin_shell_open()' )
 	&& 1 === substr_count( $cf_src, 'sn_admin_shell_rail(' )

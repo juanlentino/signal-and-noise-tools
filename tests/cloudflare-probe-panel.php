@@ -16,7 +16,8 @@
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-$src = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$src = snt_test_cloudflare_purge_src(); // the module and its parts files (split 2026-10-15)
 $css = '';
 foreach ( (array) glob( __DIR__ . '/../assets/*.css' ) as $f ) { $css .= (string) file_get_contents( $f ); }
 
@@ -48,7 +49,7 @@ ok( array() === $missing, 'every sn- class this tab uses is DECLARED in a styles
 
 // The three that shipped unstyled, named so the regression is specific.
 foreach ( array( 'sn-table', 'sn-rail-h', 'sn-rail-note' ) as $invented ) {
-	ok( false === strpos( $src, 'class="' . $invented . '"' ), "REGRESSION: .$invented is gone — it was invented for a surface that already had a component" );
+	ok( '' !== $src && false === strpos( $src, 'class="' . $invented . '"' ), "REGRESSION: .$invented is gone — it was invented for a surface that already had a component" );
 }
 
 // ─── it renders with wp-admin's own table, not a new one ───────────────────
@@ -58,7 +59,7 @@ ok( 1 === preg_match( '/<th scope="col"[^>]*>When<\/th>/', $src ), 'headers carr
 ok( 1 === preg_match( '/<th scope="col"[^>]*class="[^"]*column-primary[^"]*">When/', $src ), 'the When header is the primary column, so the row stacks under 782px (#1015)' );
 // The PRIMARY cell must NOT label itself: core's ::before is absolutely
 // positioned over it, with no left padding to move out of the way (#1021).
-ok( false === strpos( $src, 'data-colname="When"' ), 'the primary cell does NOT label itself - that label would paint over its own text' );
+ok( '' !== $src && false === strpos( $src, 'data-colname="When"' ), 'the primary cell does NOT label itself - that label would paint over its own text' );
 ok( false !== strpos( $src, 'data-colname="Result"' ), 'non-primary body cells still carry their column label' );
 
 // ─── main column, not the rail ─────────────────────────────────────────────

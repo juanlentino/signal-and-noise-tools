@@ -1916,7 +1916,6 @@ $purge_free = array(
 	'apps/sn-dashboard/parts/leaves/connections-cloudflare-parts.php' => 'cf_purge_now',
 	'inc/dash-console.php'                                            => "sn_admin_post_button( 'purge_caches' )",
 	'inc/admin-tab-dashboard.php'                                     => "sn_admin_post_button( 'purge_caches' )",
-	'inc/cloudflare-purge.php'                                        => 'value="sn_cf_purge_now"',
 	'inc/admin-bar.php'                                               => 'sn-quick-purge-caches',
 	'inc/dash-widgets.php'                                            => 'signal-noise/purge-all-caches',
 	'assets/desktop-mode-widget-health.js'                            => 'Purge all caches', // Quick Actions' buttons live here now
@@ -1924,6 +1923,10 @@ $purge_free = array(
 foreach ( $purge_free as $purge_file => $purge_needle ) {
 	ok( false === strpos( (string) file_get_contents( __DIR__ . '/../' . $purge_file ), $purge_needle ), "$purge_file paints no purge button ($purge_needle)" );
 }
+// The Cloudflare tab is read with its parts files (split 2026-10-15), floored so
+// a missed read cannot pass this absence pin.
+$cf_purge_src = snt_test_cloudflare_purge_src();
+ok( '' !== $cf_purge_src && false === strpos( $cf_purge_src, 'value="sn_cf_purge_now"' ), 'inc/cloudflare-purge.php paints no purge button (value="sn_cf_purge_now")' );
 $purge_kept = array(
 	'assets/command-palette.js'      => "'SN: Purge all caches'",
 	'assets/desktop-mode.js'         => "slug: 'sn-cmd-purge-caches'",
@@ -1938,7 +1941,7 @@ foreach ( $purge_kept as $purge_file => $purge_needle ) {
 // removal above has destroyed evidence rather than relocated it.
 ok( file_exists( __DIR__ . '/../inc/abilities-purge-verification-log.php' ) && file_exists( __DIR__ . '/../inc/abilities-cache-freshness.php' ),
 	'the full series and the summary are still readable by machine, via signal-noise/purge-verification-log and signal-noise/cache-freshness' );
-ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' ), 'Post-purge probes' ),
+ok( false !== strpos( $cf_purge_src, 'Post-purge probes' ),
 	'and still rendered for a human on the Cloudflare tab' );
 
 // SN Cron folded into SN Systems (2026-10-04): the cron reading is its Cron section.
