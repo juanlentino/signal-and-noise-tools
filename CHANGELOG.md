@@ -14,9 +14,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Added
 - **Spanish versions of the storefront pages: `/inicio/`, `/sobre-mi/`, `/musica/`, `/servicios/`.** Built into the plugin, with no translation plugin. A Spanish page is an ordinary Page whose one new meta row, `_sn_en_counterpart`, names its English page. The block editor sets it with a **Spanish version of** picker in the Signal & Noise panel. From that row the page gets:
-  - `<html lang="es">`;
+  - `<html lang="es-AR">` (the copy is Argentine Spanish, voseo);
   - reciprocal hreflang links (`en`, `es`, and `x-default` pointing to English) on both pages of the pair;
-  - `og:locale` `es_419` and WebPage `inLanguage` `es`;
+  - `og:locale` `es_AR` and WebPage `inLanguage` `es-AR`;
   - its English page's template (`page_template_hierarchy`);
   - the English page's slug gates through `sn_lang_is_page()` (the music schema, the services schema, the ProfilePage type);
   - the English body, marked `lang="en"`, while its own body is empty;

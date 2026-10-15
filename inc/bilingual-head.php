@@ -12,8 +12,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** og:locale for Spanish pages: Latin American Spanish. */
-const SN_LANG_ES_OG_LOCALE = 'es_419';
+/**
+ * The Spanish pages are written in Argentine Spanish (voseo; owner, 2026-10-15),
+ * so og:locale, <html lang> and inLanguage say es-AR. hreflang stays the
+ * broad `es` so search offers them to every Spanish reader.
+ */
+const SN_LANG_ES_OG_LOCALE = 'es_AR';
+const SN_LANG_ES_TAG       = 'es-AR';
 
 /**
  * The slug a page gate should see: the English counterpart's slug on a Spanish
@@ -58,7 +63,7 @@ function sn_lang_og_locale() {
  * @return string
  */
 function sn_lang_schema_language() {
-	return 'es' === sn_lang_current() ? 'es' : str_replace( '_', '-', (string) sn_setting( 'identity.locale', 'en_US' ) );
+	return 'es' === sn_lang_current() ? SN_LANG_ES_TAG : str_replace( '_', '-', (string) sn_setting( 'identity.locale', 'en_US' ) );
 }
 
 /**
@@ -88,7 +93,7 @@ add_action(
 );
 
 /**
- * <html lang="es"> on a Spanish page. language_attributes() is what core's
+ * <html lang="es-AR"> on a Spanish page. language_attributes() is what core's
  * block template canvas prints; this rewrites only its lang value.
  *
  * @param string $output The attribute string, e.g. 'lang="en-US"'.
@@ -99,7 +104,7 @@ function sn_lang_language_attributes( $output ) {
 		return $output;
 	}
 	return preg_match( '/\blang="[^"]*"/', $output )
-		? (string) preg_replace( '/\blang="[^"]*"/', 'lang="es"', $output )
-		: trim( $output . ' lang="es"' );
+		? (string) preg_replace( '/\blang="[^"]*"/', 'lang="' . SN_LANG_ES_TAG . '"', $output )
+		: trim( $output . ' lang="' . SN_LANG_ES_TAG . '"' );
 }
 add_filter( 'language_attributes', 'sn_lang_language_attributes' );

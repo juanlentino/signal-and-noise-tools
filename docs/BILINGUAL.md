@@ -39,10 +39,10 @@ The pages are CMS pages, and their text is the Page body. **S&N → Content** ha
 
 | Surface | English page | Spanish page |
 |---|---|---|
-| `<html lang>` | the site language (`en-US`) | `es` (`language_attributes` filter) |
-| hreflang | `en`, `es`, `x-default` → English | the same three, reciprocal |
-| `og:locale` | `en_US` (`identity.locale`) | `es_419` |
-| schema `inLanguage` (WebPage) | `en-US` | `es` |
+| `<html lang>` | the site language (`en-US`) | `es-AR` (`language_attributes` filter; the copy is Argentine Spanish, voseo) |
+| hreflang | `en`, `es`, `x-default` → English | the same three, reciprocal (the broad `es`, so search offers the page to every Spanish reader) |
+| `og:locale` | `en_US` (`identity.locale`) | `es_AR` |
+| schema `inLanguage` (WebPage) | `en-US` | `es-AR` |
 | canonical | its own URL | its own URL |
 | template | its own | the English page's (`page_template_hierarchy`): `/musica/` renders through `page-music.html`, `/inicio/` through `front-page.html` |
 | slug gates | `is_page( 'music' )` | `sn_lang_is_page( 'music' )` is also true on `/musica/`, so the music schema, the services schema and the ProfilePage type follow |
