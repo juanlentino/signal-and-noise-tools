@@ -50,6 +50,13 @@ The pages are CMS pages, and their text is the Page body. **S&N → Content** ha
 
 The toggle is the `signal-noise/lang-toggle` block in the theme's header. It renders nothing on a page without a **published** counterpart, so other pages never show it. It is a plain link with `hreflang` and `lang`, and its accessible name keeps the visible "ES" or "EN". It uses no cookie and no storage, and it never redirects based on the browser's language (the site keeps zero device storage and shows no consent banner).
 
+**The header and footer follow the page** (theme `inc/lang-chrome.php`, since theme signal-and-noise#538):
+- **Header nav on a Spanish page:** Inicio, Sobre mí, Currículum, Música, Servicios, Notas, Contacto. Each link goes to the published Spanish page where one exists, and to the English page otherwise.
+- **Logo:** links to /inicio/.
+- **Labels:** the menu, search and theme-toggle labels are in Spanish.
+- **Footer meta-nav:** the labels are in Spanish, but the pages they reach (Now, Accessibility, Colophon, Stats, Privacy) stay English. Each label says "(en inglés)" and carries `hreflang="en"`.
+- **Site-wide language link:** the footer has one (the same block, `placement: footer`). Once /inicio/ is published, it reads "Español" on every English page, going to that page's translation or else /inicio/, and "English" on a Spanish page.
+
 **A draft translation is invisible.** Until the Spanish page is published, the English page shows no toggle and no hreflang. The four Spanish pages were seeded once as drafts with empty bodies (`sn_lang_seed_pages()`, flag `sn_spanish_pages_seeded_v1`, which also records any slug it skipped). Publish each one when its copy is ready.
 
 ## Sitemap, cache, analytics, integrity
