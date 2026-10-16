@@ -34,6 +34,8 @@ function sn_setting_update( $k, $v ) {}
 function delete_transient( $k ) { return true; }
 function sn_mask_secret( $v ) { $v = (string) $v; return '' === $v ? '' : ( strlen( $v ) <= 8 ? '••••••••' : '••••' . substr( $v, -4 ) ); }
 
+// The live site's zone (America/New_York), so Last seen is read on the owner's day.
+require_once __DIR__ . '/lib/site-timezone-stub.php';
 require_once __DIR__ . '/lib/os-leaf-harness.php';
 class WP_Error { public $code; public $data; public function __construct( $c, $m, $d ) { $this->code = $c; $this->data = $d; } }
 class WP_REST_Response { public $data; public $status; public $headers = array(); public function __construct( $d, $s ) { $this->data = $d; $this->status = $s; } public function header( $k, $v ) { $this->headers[ $k ] = $v; } }
@@ -266,6 +268,24 @@ $agent_about = sn_keyring()['owner_key']['about'];
 ok( false !== strpos( $agent_about, 'page.route limited to https://juanlentino.com/**' ) && false !== strpos( $agent_about, 'never extraHTTPHeaders' ) && false !== strpos( $agent_about, '-L' ) && false !== strpos( $agent_about, 'environment variable' ), 'the agent key\'s hint says how to carry the token safely' );
 $models = wp_json_encode( sn_keyring_models(), JSON_UNESCAPED_UNICODE );
 ok( false === strpos( $models, $dkey2 ) && false === strpos( $models, $akey ) && false !== strpos( $models, '••••' . substr( $akey, -4 ) ), 'the keyring paints the owner keys as last four only' );
+
+// ── 2026-10-16 live: enrolled at 11 pm New York (already tomorrow in UTC),
+// back at 8 am. The marker is from today's UTC day, so it needs no re-sign,
+// but Last seen still read yesterday. It now moves once per local day.
+$GLOBALS['__options']['sn_owner_devices'] = array();
+$GLOBALS['__options']['sn_owner_revoked'] = array();
+unset( $_COOKIE['sn_owner_dev'] );
+$GLOBALS['__is_admin'] = true; $GLOBALS['__can'] = true;
+$eve = 1792206000;  // 2026-10-16 03:00 UTC = 2026-10-15 23:00 New York
+ok( 'owner_device_enrolled' === sn_owner_device_enroll( 'Evening', $eve ), 'local-day: enrolled in the evening' );
+sn_owner_device_renew( $eve + 60 ); // confirmed that night
+$morning = $eve + 9 * 3600; // 12:00 UTC = 8 am New York, same UTC day
+$ck = $_COOKIE['sn_owner_dev'] ?? '';
+sn_owner_device_renew( $morning );
+ok( $morning === ( sn_owner_devices()[0]['last_seen'] ?? 0 ) && $ck === ( $_COOKIE['sn_owner_dev'] ?? '' ), 'local-day: the next morning moves Last seen without re-signing the marker' );
+$w = $GLOBALS['__options']['sn_owner_devices'];
+sn_owner_device_renew( $morning + 3600 );
+ok( $w === $GLOBALS['__options']['sn_owner_devices'], 'local-day: a second visit the same local day writes nothing' );
 
 $report = $out . "\n$pass passed, $fail failed\n";
 ob_end_clean();
