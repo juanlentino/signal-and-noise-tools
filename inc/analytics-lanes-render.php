@@ -19,6 +19,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return void
  */
 function sn_lanes_render_table( array $t ) {
+	$fold = (string) ( $t['fold'] ?? '' );
+	if ( '' !== $fold ) {
+		echo '<details class="sn-disclosure"><summary>' . esc_html( (string) $t['heading'] . ': ' . $fold ) . '</summary>';
+		sn_lanes_render_table( array( 'fold' => '' ) + $t );
+		echo '</details>';
+		return;
+	}
 	echo '<h2 class="sn-section-h">' . esc_html( (string) $t['heading'] ) . '</h2>';
 	echo '<p class="sn-field-helper">' . esc_html( (string) $t['description'] ) . '</p>';
 	if ( empty( $t['rows'] ) ) {
@@ -60,4 +67,9 @@ function sn_lanes_render_section( $view = null ) {
 	foreach ( $view['tables'] as $t ) {
 		sn_lanes_render_table( $t );
 	}
+	echo '<details class="sn-disclosure"><summary>' . esc_html( 'How the lanes are decided: ' . (string) $view['reference']['summary'] ) . '</summary><ul class="sn-prose">';
+	foreach ( $view['reference']['lines'] as $line ) {
+		echo '<li>' . esc_html( (string) $line ) . '</li>';
+	}
+	echo '</ul></details>';
 }

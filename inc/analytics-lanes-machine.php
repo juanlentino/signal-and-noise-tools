@@ -7,7 +7,8 @@
  *                         first_party, so this goes first)
  *   first_party           own_infra / first_party
  *   control token         claimed_bot / impersonation (never the vendor's
- *                         crawler, so it outranks every proof)
+ *                         crawler, so it outranks every proof; no family or
+ *                         purpose is kept, as snt_mr_impersonations credits none)
  *   signature valid       verified_bot / web_bot_auth (purpose kept)
  *   verified_matched      verified_bot / cf_verified (purpose kept)
  *   verified, no match    claimed_bot / category_mismatch (family, purpose)
@@ -43,7 +44,9 @@ function sn_lanes_machine_key( array $row ) {
 	if ( ! empty( $row['first_party'] ) ) {
 		$k = array( 'lane' => 'own_infra', 'reason' => 'first_party' ) + $k;
 	} elseif ( snt_mr_is_impersonation( $row ) ) {
-		$k = array( 'lane' => 'claimed_bot', 'reason' => 'impersonation', 'family' => $family, 'purpose' => $purpose ) + $k;
+		// Credited to no family and no purpose, as every house figure does
+		// (snt_mr_impersonations): no vendor crawls under a control token.
+		$k = array( 'lane' => 'claimed_bot', 'reason' => 'impersonation' ) + $k;
 	} elseif ( 'valid' === (string) ( $row['signed_agent'] ?? '' ) ) {
 		$k = array( 'lane' => 'verified_bot', 'reason' => 'web_bot_auth', 'purpose' => $purpose ) + $k;
 	} elseif ( snt_mr_row_verified_matched( $row ) ) {

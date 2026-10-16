@@ -26,6 +26,7 @@ $pass = 0; $fail = 0;
 $earned = array(
 	'apps/sn-dashboard/parts/leaves/ai-agent-tools-doors.php' => 'The read, write and remote doors (one call, agent_tools_door_fold()): reference, every tool a door exposes as a chip with its calls (the whole page measured 2,943px live with every list open, 2026-10-12 audit); the summary states the count, the largest category and the calls; open when a tool there cannot be projected',
 	'apps/sn-dashboard/parts/leaves/ai-mcp-connect-steps.php' => 'Connect a client: setup, done once per client; the summary names the clients; open while the user has no Application Password',
+	'apps/sn-dashboard/parts/leaves/tools-lanes.php'          => 'Integrity › Lanes: the reason split and the last 14 days are detail behind a counted summary (pairs, days stored), and how a lane is decided is reference; the by-lane tables, the invalid-token line and the notes paint open',
 	'apps/sn-dashboard/parts/leaves/connections-cron.php'     => 'Scheduled events: a reference list (91 events, 5,473px open); the summary counts events, overdue and unhandled; open when one is overdue or unhandled, when overdue cannot be read, or while a filter is typed',
 );
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }

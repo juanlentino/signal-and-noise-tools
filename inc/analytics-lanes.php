@@ -147,7 +147,7 @@ function sn_lanes_since( $sensor = '', $day = null ) {
  * Record a sensor's last run outcome, or read them all.
  *
  * @param string      $sensor  'beacon' | 'machine' | '' to read.
- * @param string|null $outcome wrote | not_written | read_failed | truncated | empty.
+ * @param string|null $outcome wrote | not_written | read_failed | truncated | empty | overcap_failed.
  * @return bool|array<string,array{at:int,outcome:string}> True for 'wrote' when recording.
  */
 function sn_lanes_last_run( $sensor = '', $outcome = null ) {
@@ -170,12 +170,14 @@ function sn_lanes_run_rollup() {
 		return;
 	}
 	// The human lane is read under the over-cap list, as every human reader is.
-	// A list that did not read would store over-cap visitor-days as human.
+	// A list that did not read would store over-cap visitor-days as human, so
+	// the beacon pass is skipped (and says so); the machine pass needs no list.
 	if ( empty( sn_analytics_overcap_vdays()['ok'] ) ) {
-		error_log( '[sn-lanes] skipped: the over-cap visitor-day list did not read; the stored days are kept' );
-		return;
+		error_log( '[sn-lanes] beacon skipped: the over-cap visitor-day list did not read; the stored days are kept' );
+		sn_lanes_last_run( 'beacon', 'overcap_failed' );
+	} else {
+		sn_lanes_beacon_run();
 	}
-	sn_lanes_beacon_run();
 	sn_lanes_machine_run();
 }
 if ( defined( 'SN_ANALYTICS_ROLLUP_DAILY_HOOK' ) ) {

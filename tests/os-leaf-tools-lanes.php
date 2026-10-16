@@ -60,7 +60,9 @@ foreach ( array( 'classic' => $classic, 'native' => $kit ) as $twin => $html ) {
 	ok( false !== strpos( $t, 'Today is pending: the lanes cover complete days only, through ' . $y . '.' ), "{$twin}: today pending" );
 	ok( false !== strpos( $t, 'Beacon (page views): lanes since 2026-10-16.' ) && false !== strpos( $t, 'Machine sensor (reads): lanes not seen yet' ), "{$twin}: both lanes_since states" );
 	ok( false !== strpos( $t, 'Rule version 1.' ), "{$twin}: the rule version" );
-	ok( false !== strpos( $t, 'Beacon (page views): the lanes rollup has not run yet.' ) && false !== strpos( $t, 'Machine sensor (reads): the last run (' . gmdate( 'Y-m-d H:i', 1792195200 ) . ' UTC) read a truncated result and wrote nothing.' ), "{$twin}: each sensor's last run, never mute" );
+	ok( false !== strpos( $t, 'Beacon (page views): lanes since 2026-10-16. The lanes rollup has not run yet.' ) && false !== strpos( $t, 'The last run (' . gmdate( 'Y-m-d H:i', 1792195200 ) . ' UTC) read a truncated result and wrote nothing.' ), "{$twin}: each sensor's last run, never mute" );
+	ok( false !== strpos( $t, "Human is the dashboard's human minus the visitor-days the bot-signal score marks; those are under suspected automation, reason bot_score." ), "{$twin}: the approved human-lane note" );
+	ok( false !== strpos( $t, 'credited to no family and no purpose, because no vendor crawls under a control token' ), "{$twin}: the reference says impersonation outranks every proof and credits no family or purpose" );
 	ok( false !== strpos( $t, 'Visitor-days are counted per lane and do not add up across lanes.' ), "{$twin}: visitor-days do not sum across lanes" );
 	ok( false !== strpos( $t, "Machine sensor days are the sensor's UTC dates." ), "{$twin}: the machine sensor's days are UTC" );
 	ok( false !== strpos( $t, 'Partial: 7 days, 30 days, 90 days start before lanes began' ), "{$twin}: a range before lanes_since says partial" );
@@ -70,7 +72,10 @@ foreach ( array( 'classic' => $classic, 'native' => $kit ) as $twin => $html ) {
 	ok( false === strpos( $html, $vid ) && false === strpos( $html, '0123456789abcdef' ) && false === strpos( $html, 'aaaaaaaaaaaaaaa1' ), "{$twin}: no visitor hash or device id on the page" );
 	ok( 0 === preg_match( '/v1\.[a-z0-9-]+\.\d+\./', $html ), "{$twin}: no token shape on the page" );
 	ok( array() === snt_leaf_names( $html ) && array() === snt_leaf_actions( $html ), "{$twin}: no form" );
-	ok( false === stripos( $html, '<details' ) && false === strpos( $html, '<os-disclosure' ), "{$twin}: no fold" );
+	$folds = 'native' === $twin ? substr_count( $html, '<os-disclosure' ) : substr_count( $html, '<details class="sn-disclosure">' );
+	ok( 5 === $folds, "{$twin}: five earned folds (reasons and days per sensor, and the reference), {$folds} painted" );
+	ok( 0 === preg_match( '/<(os-disclosure|details)[^>]*\sopen/', $html ), "{$twin}: every fold starts closed" );
+	ok( 1 === preg_match( '/(Invalid owner tokens[^<]*<\/strong>).*(by lane).*(<(os-disclosure|details))/s', $html ), "{$twin}: the invalid-token line and the by-lane tables come before any fold" );
 	ok( false === strpos( $t, '—' ), "{$twin}: no em dash" );
 }
 ok( false !== strpos( $classic, 'notice-warning' ) && false !== strpos( $kit, 'warning' ), 'an invalid token makes the line a warning on both, and its words say so' );

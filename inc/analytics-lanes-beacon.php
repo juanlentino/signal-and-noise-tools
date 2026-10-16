@@ -194,11 +194,11 @@ function sn_lanes_beacon_derive( array $public, array $owner, array $hashes ) {
 }
 
 /**
- * Run the public read: one dataset, or both halves of the split. Null when
- * any read failed or hit the row cap (a partial read never writes).
+ * Run the public read: one dataset, or both halves of the split. A partial
+ * read never writes: the answer is then 'read_failed' or 'truncated'.
  *
  * @param string $tz Zone.
- * @return array|null
+ * @return array|string Rows, or the outcome that stopped the read.
  */
 function sn_lanes_public_rows( $tz ) {
 	$from   = sn_analytics_trailing_from( SN_LANES_WINDOW_DAYS );
@@ -209,13 +209,27 @@ function sn_lanes_public_rows( $tz ) {
 	);
 	$rows = array();
 	foreach ( $parts as $p ) {
-		$got = sn_analytics_query( sn_lanes_public_sql( $p[0], $p[1], $tz ) );
-		if ( ! is_array( $got ) || ( function_exists( 'sn_analytics_last_result_truncated' ) && sn_analytics_last_result_truncated() ) ) {
-			return null;
+		$got = sn_lanes_read( sn_lanes_public_sql( $p[0], $p[1], $tz ) );
+		if ( ! is_array( $got ) ) {
+			return $got;
 		}
 		$rows = array_merge( $rows, $got );
 	}
 	return $rows;
+}
+
+/**
+ * One AE read: rows, or 'read_failed' / 'truncated'.
+ *
+ * @param string $sql Statement.
+ * @return array|string
+ */
+function sn_lanes_read( $sql ) {
+	$got = sn_analytics_query( $sql );
+	if ( ! is_array( $got ) ) {
+		return 'read_failed';
+	}
+	return function_exists( 'sn_analytics_last_result_truncated' ) && sn_analytics_last_result_truncated() ? 'truncated' : $got;
 }
 
 /**
@@ -226,9 +240,9 @@ function sn_lanes_public_rows( $tz ) {
 function sn_lanes_beacon_run() {
 	$tz     = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
 	$public = sn_lanes_public_rows( $tz );
-	if ( empty( $public ) ) {
+	if ( ! is_array( $public ) || array() === $public ) {
 		error_log( '[sn-lanes] beacon: the public read failed, was truncated or was empty; the stored days are kept' );
-		return sn_lanes_last_run( 'beacon', null === $public ? 'read_failed' : 'empty' );
+		return sn_lanes_last_run( 'beacon', is_array( $public ) ? 'empty' : $public );
 	}
 	if ( '' === sn_lanes_since( 'beacon' ) ) {
 		$first = sn_analytics_query( sn_lanes_beacon_since_sql( $tz ) );
@@ -236,18 +250,18 @@ function sn_lanes_beacon_run() {
 			sn_lanes_since( 'beacon', substr( (string) $first[0]['day'], 0, 10 ) );
 		}
 	}
-	$owner = sn_analytics_query( sn_lanes_owner_sql( $tz ) );
-	$cut   = function_exists( 'sn_analytics_last_result_truncated' ) && sn_analytics_last_result_truncated();
-	if ( ! is_array( $owner ) || $cut ) {
-		// Before the Worker writes it the owner dataset may not exist: the public
-		// lanes still roll. Once lanes are live, a failed owner read skips the run.
-		if ( '' !== sn_lanes_since( 'beacon' ) ) {
-			error_log( '[sn-lanes] beacon: the owner read failed; the stored days are kept' );
-			return sn_lanes_last_run( 'beacon', 'read_failed' );
+	// Until a public row carries a rule version the analytics Worker has not
+	// shipped owner routing, and sn_owner_hits may not exist: it is not read.
+	// From then on, an owner read that fails or truncates skips the run.
+	$owner = array();
+	if ( '' !== sn_lanes_since( 'beacon' ) ) {
+		$owner = sn_lanes_read( sn_lanes_owner_sql( $tz ) );
+		if ( ! is_array( $owner ) ) {
+			error_log( '[sn-lanes] beacon: the owner read ' . $owner . '; the stored days are kept' );
+			return sn_lanes_last_run( 'beacon', $owner );
 		}
-		$owner = array();
 	}
 	$derived = sn_lanes_beacon_derive( $public, $owner, sn_analytics_overcap_vdays()['hashes'] );
-	$ok = sn_lanes_store_days( 'beacon', sn_lanes_complete_days( $tz ), $derived );
+	$ok      = sn_lanes_store_days( 'beacon', sn_lanes_complete_days( $tz ), $derived );
 	return sn_lanes_last_run( 'beacon', $ok ? 'wrote' : 'not_written' );
 }

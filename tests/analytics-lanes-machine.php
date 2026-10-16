@@ -84,6 +84,8 @@ $stored = static fn( $lane, $reason ) => array_sum( array_map( static fn( $r ) =
 ok( 5 === $stored( 'owner_agent', 'owner_token' ) && in_array( 'claude-code', array_column( $db->rows, 'agent' ), true ), 'code 2 is owner_agent with its label, ahead of first_party' );
 ok( 7 === $stored( 'own_infra', 'first_party' ), 'first_party is own_infra' );
 ok( 3 === $stored( 'claimed_bot', 'impersonation' ), 'a control token is impersonation even when signed and verified' );
+$imp = array_values( array_filter( $db->rows, static fn( $r ) => 'impersonation' === $r['reason'] ) );
+ok( 1 === count( $imp ) && '' === $imp[0]['family'] && '' === $imp[0]['purpose'], 'an impersonation is credited to no family and no purpose (google-ai/train dropped)' );
 ok( 4 === $stored( 'verified_bot', 'web_bot_auth' ), 'a valid signature is verified_bot / web_bot_auth' );
 ok( 6 === $stored( 'verified_bot', 'cf_verified' ), 'a category that fits the purpose is verified_bot / cf_verified' );
 ok( 2 === $stored( 'claimed_bot', 'category_mismatch' ), 'a category that does not fit is claimed_bot / category_mismatch' );
