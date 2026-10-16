@@ -96,13 +96,15 @@ function performance_slow_calls() {
  * The screen a call was made from, by its name in the admin rather than its
  * query string (2026.10.4 audit: the column read "admin.php?page=...&tab=...").
  * Our own leaves are named from the tab registry; core screens by their menu
- * name; anything else stays as logged.
+ * name; anything else stays as logged, its file's dot restored when an
+ * entry from before 2026-10-16 lost it (sn_httpdiag_screen_display()).
  *
  * @param string $screen The logged screen (file plus page, tab, sub, sn_view).
  * @return string
  */
 function performance_screen_name( $screen ) {
-	$q    = array();
+	$screen = \sn_httpdiag_screen_display( $screen );
+	$q      = array();
 	$file = (string) strtok( $screen, '?' );
 	parse_str( (string) wp_parse_url( $screen, PHP_URL_QUERY ), $q );
 	$page = (string) ( $q['page'] ?? '' );
