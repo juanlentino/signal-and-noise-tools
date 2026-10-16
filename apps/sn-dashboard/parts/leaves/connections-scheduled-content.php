@@ -69,11 +69,12 @@ function paint_connections_scheduled_content( array $ctx ) {
 	if ( function_exists( 'sn_content_queue_schedule_read' ) ) {
 		$schedule = \sn_content_queue_schedule_read();
 		// 2026-10-14 (item 6): how far ahead the schedule covers.
-		// 2026-10-16: the three queue reads share one row (snt_kit_grid(),
-		// one column on a phone); the grid drops a side that paints ''.
+		$out     .= scheduled_content_runway_html( \sn_content_queue_runway_read( $schedule ) );
+		// 2026-10-16: Cadence and Suggested slots share one row (both grow
+		// with the queue); Runway is one sentence, so it stays a full-width
+		// line above them rather than a short box beside two tall ones.
 		$out     .= \snt_kit_grid(
 			array(
-				scheduled_content_runway_html( \sn_content_queue_runway_read( $schedule ) ),
 				scheduled_content_cadence_html( \sn_content_queue_cadence_read( $schedule ) ),
 				scheduled_content_slots_html( \sn_content_queue_slot_read( $schedule ) ),
 			)

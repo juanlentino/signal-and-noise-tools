@@ -185,5 +185,27 @@ $kitL = snt_leaf_paint( 'connections', 'scheduled-content' );
 ok( array() === snt_leaf_folds( $kitL ) && false !== strpos( $kitL, '3 posts and pages wait to auto-publish' ) && false !== strpos( $kitL, '5 scheduled fragments: 2 active, 2 queued, 1 done.' ) && false === strpos( $kitL, 'snt-ledger-more' ), 'live-shaped: both findings, no fold, nothing capped' );
 snt_leaf_preview( 'connections-scheduled-content', $kitL );
 
+// ── 2026-10-16: Cadence and Suggested slots share one row; Runway (one
+// sentence) stays a full-width line above them, never a short box beside
+// two tall ones. Queue readers defined only now, so the cases above paint
+// without them.
+if ( ! function_exists( 'sn_content_queue_schedule_read' ) ) {
+	function sn_content_queue_schedule_read() { return array(); }
+	function sn_content_queue_runway_read( $s ) { return array( 'text' => 'RUNWAY-LINE', 'count' => '' ); }
+	function sn_content_queue_cadence_read( $s ) { return array( array( 'text' => 'CADENCE-LINE' ) ); }
+	function sn_content_queue_cadence_clear() { return 'clear'; }
+	function sn_content_queue_cadence_rule() { return 'rule'; }
+	function sn_content_queue_slot_rule() { return 'rule'; }
+	function sn_content_queue_slot_more( $n = 0 ) { return ''; }
+	function sn_content_queue_slot_read( $s ) { return array( 'empty' => 'SLOTS-LINE' ); }
+}
+$kitQ = snt_leaf_paint( 'connections', 'scheduled-content' );
+$gq   = (int) strrpos( substr( $kitQ, 0, (int) strpos( $kitQ, 'CADENCE-LINE' ) ), '<os-grid' );
+$gend = (int) strpos( $kitQ, '</os-grid>', $gq );
+$row  = $gq > 0 ? substr( $kitQ, $gq, $gend - $gq ) : '';
+$rw   = (int) strpos( $kitQ, 'RUNWAY-LINE' );
+ok( '' !== $row && false !== strpos( $row, 'CADENCE-LINE' ) && false !== strpos( $row, 'SLOTS-LINE' ) && strpos( $row, 'CADENCE-LINE' ) < strpos( $row, 'SLOTS-LINE' ), 'Cadence and Suggested slots share one row, in that order' );
+ok( $rw > 0 && false === strpos( $row, 'RUNWAY-LINE' ) && $rw < $gq, 'Runway paints full width above the row, not inside it' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
