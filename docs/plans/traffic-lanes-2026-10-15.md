@@ -220,3 +220,20 @@ Four independent reviewers, none of whom wrote the code. No critical findings. E
 **Accepted as is, with reason:** revocation latency of one cron tick plus a 5-minute isolate cache (security L3, documented); `SN_SRV_TOKEN` reused for the revoked route (privacy P3-6: the route returns only ids of dead markers); the keyring change log's last-four characters (security L8, existing pattern for every row); the owner property rows (`cp`) not stored in `sn_owner_hits` (data P3: owner custom-event properties are not needed for lanes); Worker version numbers move at the release cut, not in these PRs.
 **Deploy order** (compatibility P2-3, data P2-3): plugin, then the four secrets, then the analytics Worker, then the rights-signals Worker, then devices enrolled, then the theme. The theme PR body says so; it is the only order that never counts an owner view as human.
 **Note:** merging the analytics Worker deploys it through Cloudflare Workers Builds (its `deploy.yml` is manual only), so the secrets are set before that merge.
+
+## Advisor checkpoint 3 (lanes table, rollup, migration)
+
+Asked: what goes wrong in the lanes table and rollup during and after the deploy. Every point adopted into the contract:
+
+1. **No relabeling on re-roll.** `wp_sn_analytics_lanes` stores `rule_version` per row. The trailing re-roll skips any day whose stored `rule_version` differs from the current `lane_rule_version`; days before a bump freeze. Tested with a planted bump.
+2. **`lanes_since` per sensor.** Beacon: the first public v2 row with `double16 >= 1` (the rule version is stamped on every row from the Worker deploy on; double14 is always 0 on public rows after the routing fix). Machine: the first row where blob14 is present. A range is `lanes_partial` if it starts before either sensor's date; responses carry both dates.
+3. **Code 3 has a lane.** Codes 3, 4 and 5 → `unverified_owner` (reasons `owner_token_invalid`, `logged_in`, `owner_legacy`). On the machine sensor, a recorded code-3 read keeps its family's lane with reason `owner_token_invalid` beside it (it is never force-recorded).
+4. **Key columns are `NOT NULL DEFAULT ''`.** MySQL treats NULLs in a unique key as distinct; `family`, `purpose`, `agent`, `reason` use `''` for "none". Figures keep NULL for "never measured".
+5. **Site-local days**, as `wp_sn_analytics_daily`: the visitor hash rotates at America/New_York midnight. Score and over-cap are computed inside the lanes query per site-local day (the UTC `sn_bot_signals_by_day` is not read).
+6. **Visitor-days are per lane row** (distinct `index1` inside that row) and do not sum across lanes; "lanes sum to the total" is asserted on views (beacon) and reads (machine). The report says so.
+7. **Complete days only.** The lanes rollup runs on `sn_analytics_rollup_daily` at priority 30 (after bot signals at 20), covers the trailing 7 complete site-local days, never writes today; the report says "today pending".
+8. **`human` reuses the house rule** (`sn_analytics_counted_condition()` and the network SQL), never a parallel copy, so lane `human` equals the dashboard's human figure by construction (pinned by a test).
+9. **Machine side needs the sensor endpoint.** The rights-signals read endpoint gains blob14 and blob15 in the aggregate view's grouping, in #89 (additive; other views' shapes unchanged, tested), so the owner deploys that Worker once. The plugin's machine derivation reads them.
+10. **The Lanes report is its own sub-tab** (`lanes`, beside `reports` under Integrity) with a native painter `tools/lanes`, reading only the table. Not a health check (the scan already takes about 19 seconds).
+
+**Process:** the plugin lanes PR stacks on `feat/owner-identity` and merges after #2101. #2101 gets a live screen check on a local WordPress 7.1 (wp-now) with OpenStation before the gate, exercising enroll, revoke and revoke all on both screens; the native revoke form inside a table cell is the likeliest failure.
