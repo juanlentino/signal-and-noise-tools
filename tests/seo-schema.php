@@ -437,8 +437,9 @@ echo "\nGroup: v10.0.0 — the virtual-route schema branch is removed\n";
 // sn_schema_route_meta()/sn_seo_route_meta() are gone with the pages-to-CMS
 // flip; real Pages take the is_singular() branch. Pinned by absence.
 ss_true( ! function_exists( 'sn_schema_route_meta' ), 'sn_schema_route_meta() no longer exists' );
-$sn_schema_src = (string) file_get_contents( __DIR__ . '/../inc/seo-schema.php' );
-ss_true( false === strpos( $sn_schema_src, 'sn_schema_route_meta()' ), 'no call site remains in seo-schema.php' );
+require_once __DIR__ . '/lib/inc-population.php'; // the module and its three parts files (split 2026-10-16)
+$sn_schema_src = snt_test_seo_schema_src();
+ss_true( '' !== $sn_schema_src && false === strpos( $sn_schema_src, 'sn_schema_route_meta()' ), 'no call site remains in seo-schema.php' );
 
 
 // ─── v10.62.1: the breadcrumb REFERENCE tracks the breadcrumb NODE ───

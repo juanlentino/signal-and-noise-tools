@@ -545,7 +545,8 @@ namespace {
 		'a link`s os-arg-tab/sub/anchor -- which the shared rewrite adds to every own-page link -- changes nothing here and adds no key to the state' );
 
 	echo "\nGroup 5: the \$_GET the page reads is the \$_GET the host emits\n";
-	$admin_src  = (string) file_get_contents( __DIR__ . '/../inc/analytics-admin.php' );
+	require_once __DIR__ . '/lib/inc-population.php'; // the module and its three parts files (split 2026-10-16)
+	$admin_src  = snt_test_analytics_admin_src();
 	$events_src = (string) file_get_contents( __DIR__ . '/../inc/analytics-view-events.php' );
 	$login_src  = (string) file_get_contents( __DIR__ . '/../inc/login-defense-analytics.php' );
 	$readers    = array(

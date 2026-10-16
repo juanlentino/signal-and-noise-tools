@@ -722,7 +722,9 @@ ok( false !== $mirrors && false !== $filters && false !== $setup && $mirrors < $
 ok( $funnels < $mirrors, 'hub: the writable column (funnels last) precedes the reference column\'s first marker' );
 
 echo "\nGroup: the v5.3.0 Dashboard-tab hook is reverted (no auto-render on the plugin Dashboard tab)\n";
-ok( strpos( file_get_contents( __DIR__ . '/../inc/analytics-admin.php' ), "add_action( 'sn_admin_dashboard_extras', 'snt_analytics_render" ) === false, 'revert: analytics no longer hooks sn_admin_dashboard_extras' );
+require_once __DIR__ . '/lib/inc-population.php'; // the module and its three parts files (split 2026-10-16)
+$snt_admin_src = snt_test_analytics_admin_src();
+ok( '' !== $snt_admin_src && strpos( $snt_admin_src, "add_action( 'sn_admin_dashboard_extras', 'snt_analytics_render" ) === false,'revert: analytics no longer hooks sn_admin_dashboard_extras' );
 
 echo "\nGroup: dashboard: date-range presets + custom window\n";
 aa_fill_data();
