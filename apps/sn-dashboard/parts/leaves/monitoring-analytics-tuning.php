@@ -1,12 +1,10 @@
 <?php
 /**
  * S&N Dashboard, Monitoring > Analytics: engine tuning, session funnels and
- * the Worker setup steps, open.
+ * the Worker setup steps.
  *
- * Moved out of monitoring-analytics-parts.php when the folds came out
- * (2026-10-11, owner rule: no collapsible sections). The two settings are
- * open sections whose description is the classic fold's one-line snapshot;
- * the setup steps are an open `<os-steps>` under a short heading, painted
+ * The two settings are Setup folds (2026-10-16) whose summary is the classic
+ * fold's one-line snapshot; the setup steps are an open `<os-steps>` under a short heading, painted
  * only while the pipeline is incomplete, as before.
  *
  * @package SignalNoiseTools
@@ -38,7 +36,7 @@ function analytics_tuning_html() {
 	$body  = '<p class="snt-prose">' . \snt_kit_esc( __( 'How the anomaly detectors read your history. Trend and forecast signals aren’t tunable here. Developers can override more via the sn_analytics_signal_config filter:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_link( __( 'Developer filter seams', 'signal-and-noise-tools' ), 'https://github.com/juanlentino/signal-and-noise-tools/blob/main/docs/FILTERS.md' ) . '.</p>';
 	$body .= \snt_kit_form( 'analytics_tuning_save', $fields, array( 'submit' => __( 'Save tuning', 'signal-and-noise-tools' ), 'columns' => 'auto' ) );
 
-	return \snt_kit_section( __( 'Engine tuning', 'signal-and-noise-tools' ), $body, \snt_an_tuning_snapshot() );
+	return analytics_fold( __( 'Engine tuning', 'signal-and-noise-tools' ), \snt_an_tuning_snapshot(), $body );
 }
 
 /**
@@ -67,7 +65,7 @@ function analytics_funnels_html() {
 	$body  = '<p class="snt-prose">' . \snt_kit_esc( $copy['about'] ) . '</p>';
 	$body .= \snt_kit_form( 'analytics_funnels_save', $fields, array( 'submit' => __( 'Save funnels', 'signal-and-noise-tools' ) ) );
 
-	return \snt_kit_section( __( 'Session funnels', 'signal-and-noise-tools' ), $body, \snt_an_funnels_snapshot() );
+	return analytics_fold( __( 'Session funnels', 'signal-and-noise-tools' ), \snt_an_funnels_snapshot(), $body );
 }
 
 /**

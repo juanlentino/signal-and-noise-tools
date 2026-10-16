@@ -1,8 +1,9 @@
 <?php
 /**
  * S&N Dashboard, Monitoring > Analytics: the collector and exclusion
- * settings, open. (The credentials readout joined the Pipeline box,
- * monitoring-analytics-parts.php, 2026-10-12.)
+ * settings, folds in the Setup card since 2026-10-16 (the summary is the
+ * classic fold's snapshot), and the This device control the Your devices
+ * card paints.
  *
  * Moved out of monitoring-analytics-parts.php when the folds came out
  * (2026-10-11, owner rule: no collapsible sections). Each setting is an open
@@ -49,11 +50,12 @@ function analytics_collector_html() {
 	$body  = '<p class="snt-prose">' . \snt_kit_esc( sprintf( __( 'Where every first-party beacon on this site posts: the Cloudflare Worker’s %1$s route. Authenticated with the shared %2$s constant from wp-config.php.', 'signal-and-noise-tools' ), '/_sn/px', 'SN_BEACON_TOKEN' ) ) . '</p>';
 	$body .= \snt_kit_form( 'analytics_collector_save', $fields, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
 
-	return \snt_kit_section( __( 'Collector endpoint', 'signal-and-noise-tools' ), $body, \snt_an_collector_snapshot() );
+	// Opens while unset, as the classic fold does.
+	return analytics_fold( __( 'Collector endpoint', 'signal-and-noise-tools' ), \snt_an_collector_snapshot(), $body, '' === $collector );
 }
 
 /**
- * Exclude my own visits: a role allow-list.
+ * Roles kept out (the classic "Exclude my own visits"): a role allow-list.
  *
  * A shared `sn_exclude_roles[]` name per checkbox (the classic markup) is
  * silent by construction in the runtime: OsForm.getValues() keys by name, so
@@ -69,12 +71,12 @@ function analytics_collector_html() {
 function analytics_exclusion_html() {
 	$roles    = function_exists( '\sn_beacon_excludable_roles' ) ? \sn_beacon_excludable_roles() : array();
 	$excluded = (array) ( function_exists( '\sn_setting' ) ? \sn_setting( 'analytics.exclude_roles', array() ) : array() );
-	$heading  = __( 'Exclude my own visits', 'signal-and-noise-tools' );
+	$heading  = __( 'Roles kept out', 'signal-and-noise-tools' );
 
 	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Logged-in visits never count as readers, whatever the role: the collector keeps them out at the edge. The roles you select here get one more thing: when they log in, their browser is marked as the owner’s, so their visits after logging out are kept out too. Forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	if ( empty( $roles ) ) {
-		return \snt_kit_section( $heading, $intro . '<p class="snt-hint">' . \snt_kit_esc( __( 'No roles available on this site.', 'signal-and-noise-tools' ) ) . '</p>', \snt_an_exclusion_snapshot() );
+		return analytics_fold( $heading, \snt_an_exclusion_snapshot(), $intro . '<p class="snt-hint">' . \snt_kit_esc( __( 'No roles available on this site.', 'signal-and-noise-tools' ) ) . '</p>' );
 	}
 
 	$fields = '';
@@ -96,10 +98,10 @@ function analytics_exclusion_html() {
 	$status = ( function_exists( '\sn_beacon_owner_current_user_excluded' ) && \sn_beacon_owner_current_user_excluded() )
 		? '<p class="snt-hint" full-width><b>' . \snt_kit_esc( __( 'Your role is selected: your logged-in visits are kept out, and this browser is marked as yours when you log in.', 'signal-and-noise-tools' ) ) . '</b></p>'
 		: '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your role is not selected: your logged-in visits are still kept out, but this browser is not marked for your logged-out visits.', 'signal-and-noise-tools' ) ) . '</p>';
-	$footnote = '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Owner devices.', 'signal-and-noise-tools' ) ) . '</p>';
+	$footnote = '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Your devices.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	$form = \snt_kit_form( 'analytics_exclude_save', $fields . $status . $footnote, array( 'submit' => __( 'Save exclusion', 'signal-and-noise-tools' ), 'columns' => 'auto' ) );
-	return \snt_kit_section( $heading, $intro . $form . analytics_device_html(), \snt_an_exclusion_snapshot() );
+	return analytics_fold( $heading, \snt_an_exclusion_snapshot(), $intro . $form );
 }
 
 /**

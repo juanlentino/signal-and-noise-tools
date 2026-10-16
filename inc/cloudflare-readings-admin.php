@@ -72,7 +72,8 @@ function sn_cf_edge_card_render() {
 		}
 		$codes = (array) ( $tt['status_5xx_codes'] ?? array() );
 		if ( array() !== $codes ) {
-			echo '<table class="widefat"><tbody>';
+			// 2026-10-16 (owner: an unlabeled wall of codes): the columns say what they are.
+			echo '<table class="widefat" style="width:auto;min-width:16em"><caption class="screen-reader-text">' . esc_html__( '5xx by status code', 'signal-and-noise-tools' ) . '</caption><thead><tr><th scope="col">' . esc_html__( 'Status', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Count', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 			foreach ( $codes as $code => $n ) {
 				echo '<tr><th scope="row">' . esc_html( (string) $code ) . '</th><td>' . esc_html( number_format_i18n( (int) $n ) ) . '</td></tr>';
 			}
