@@ -17,6 +17,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Fixed
 - **Connections › Scheduled: Cadence and Suggested slots share one row** (owner rule 2026-10-16: rows of related boxes, three across only where three belong). Both are per-item reads that grow with the queue, so they sit side by side and stack to one column on a phone; Runway is one sentence and stays a full-width line above them. Layout only: every sentence, link and figure still paints, in the same order.
+- **Measurement › Insights puts three boxes on a row where three belong together.** Run Analysis, Scan status and Settings now share the first row (Scan status stood alone at full width under the other two), and the recommendation cards fit three across on a wide screen instead of a fixed two columns; both rows collapse on a narrow screen. Layout only: every figure, link, button and form still renders. The other Measurement and Tools leaves were already grouped, or hold one section or wide tables, so they keep their layout. Pinned in `tests/os-leaf-monitoring-insights.php`.
+- **Content › Vocabulary drift: short year pairs sit three to a row.** A run of pairs that were not measured or held still shared a row two at a time, so a wide window stacked them in long half-empty rows. They now share a row three at a time; a leftover one or two still share theirs, and a pair with movement still spans the window. Layout only: every pair, figure and sentence still renders, in the same order. The other Content and AI leaves were already grouped or are wide tables and forms, so they are unchanged. Pinned in `tests/os-leaf-content-vocabulary.php`.
 
 ## [2026.10.18] - 2026-10-16 — owner identity and traffic lanes, the refresh answers before it rolls up, Automated counts every bot
 
