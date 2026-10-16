@@ -58,7 +58,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'state'       => array( 'type' => 'string', 'enum' => array( 'unavailable', 'never_verified', 'verified' ) ),
 				'verified_at' => array( 'type' => array( 'integer', 'null' ) ),
 				'rows'        => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'description' => 'id, group, source, set, derives, verdict, detail; never a value.' ) ),
-				'changes'     => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'description' => 'The last 50 keyring option writes, oldest first: at, row, verb (set|clear), last4, source (keyring_save|cron|rest|cli|admin|other), user; never a value.' ) ),
+				'changes'     => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'description' => 'The last 50 keyring option writes, oldest first: at, row, verb (set|clear), last4, source (keyring_save|keyring_generate|cron|rest|cli|admin|other), user; never a value.' ) ),
 			),
 		),
 		'meta'                => array(

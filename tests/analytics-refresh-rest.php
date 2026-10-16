@@ -22,6 +22,12 @@ class WP_Error {
 	public $code; public $data;
 	public function __construct( $c = '', $m = '', $d = array() ) { $this->code = $c; $this->data = $d; }
 }
+class WP_REST_Response {
+	public $data; public $status;
+	public function __construct( $d = null, $s = 200 ) { $this->data = $d; $this->status = $s; }
+	public function get_data() { return $this->data; }
+	public function get_status() { return $this->status; }
+}
 class WP_REST_Request {
 	private $h;
 	public function __construct( $h = array() ) { $this->h = $h; }
@@ -32,7 +38,11 @@ $GLOBALS['__routes'] = array();
 function register_rest_route( $ns, $route, $args ) { $GLOBALS['__routes'][ $ns . $route ] = $args; }
 
 $GLOBALS['__rest_cb'] = null;
-function add_action( $h, $c = null, $p = 10, $a = 1 ) { if ( 'rest_api_init' === $h ) { $GLOBALS['__rest_cb'] = $c; } }
+$GLOBALS['__shutdown'] = array();
+function add_action( $h, $c = null, $p = 10, $a = 1 ) {
+	if ( 'rest_api_init' === $h ) { $GLOBALS['__rest_cb'] = $c; }
+	if ( 'shutdown' === $h ) { $GLOBALS['__shutdown'][] = $c; }
+}
 
 // Secret override seam: production reads SN_SRV_TOKEN then applies this filter, so
 // the test can toggle set / unset / rotated without redefining a constant.
@@ -84,13 +94,18 @@ $GLOBALS['__refresh_secret'] = '';
 $empty = sn_analytics_refresh_permission( new WP_REST_Request( array( 'x_sn_refresh_key' => '' ) ) );
 ok( $empty instanceof WP_Error, 'perm: empty secret + empty key → still rejected' );
 
-echo "\nGroup: callback runs BOTH triggers\n";
-$GLOBALS['__ran'] = array();
+echo "\nGroup: callback answers first, runs BOTH triggers after the response\n";
+// 2026-10-16: the rollup takes 8 to 35 s and the Worker aborts at 15 s, so the
+// request must answer before the work runs (the cron record read "error", null).
+$GLOBALS['__ran'] = array(); $GLOBALS['__shutdown'] = array();
 $res = sn_analytics_refresh_run( new WP_REST_Request( array() ) );
-ok( in_array( 'rollup', $GLOBALS['__ran'], true ), 'callback: runs the durable rollup' );
-ok( in_array( 'realtime', $GLOBALS['__ran'], true ), 'callback: runs the realtime refresh' );
-ok( is_array( $res ) && ! empty( $res['ok'] ) && in_array( 'rollup', $res['ran'], true ) && in_array( 'realtime', $res['ran'], true ),
-	'callback: returns {ok:true, ran:[rollup,realtime]}' );
+ok( array() === $GLOBALS['__ran'], 'callback: runs nothing inside the request' );
+ok( $res instanceof WP_REST_Response && 202 === $res->get_status(), 'callback: answers 202 Accepted' );
+ok( $res instanceof WP_REST_Response && ! empty( $res->get_data()['ok'] ) && array( 'rollup', 'realtime' ) === $res->get_data()['queued'],
+	'callback: returns {ok:true, queued:[rollup,realtime]}' );
+ok( array( 'sn_analytics_refresh_after_response' ) === $GLOBALS['__shutdown'], 'callback: queues the work on shutdown, once' );
+foreach ( $GLOBALS['__shutdown'] as $cb ) { call_user_func( $cb ); }
+ok( array( 'rollup', 'realtime' ) === $GLOBALS['__ran'], 'shutdown: runs the durable rollup, then the realtime refresh' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

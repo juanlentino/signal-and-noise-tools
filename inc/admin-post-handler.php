@@ -43,6 +43,7 @@ function sn_admin_post_handlers() {
 		// actions replace all four. Their handlers stay, deprecated, one release.
 		'keyring_save'               => 'sn_handle_keyring_save',   // 15.2.0
 		'keyring_verify'             => 'sn_handle_keyring_verify', // 15.2.0
+		'keyring_generate'           => 'sn_handle_keyring_generate', // Unreleased: the owner identity keys (SN Traffic Lanes)
 		'health_scan'                => 'sn_handle_health_scan',
 		'remote_toggle'              => 'sn_handle_remote_toggle',
 		'webhook_add'                => 'sn_handle_webhook_add',
@@ -98,6 +99,9 @@ function sn_admin_post_handlers() {
 		'zenodo_deposit_batch'       => 'sn_handle_zenodo_deposit_batch',
 		'zenodo_deposit_one'         => 'sn_handle_zenodo_deposit_one',
 		'analytics_exclude_save'     => 'sn_handle_analytics_exclude_save',
+		'owner_device_enroll'        => 'sn_handle_owner_device_enroll',     // Unreleased (SN Traffic Lanes): the signed owner marker
+		'owner_device_revoke'        => 'sn_handle_owner_device_revoke',
+		'owner_device_revoke_all'    => 'sn_handle_owner_device_revoke_all',
 		'analytics_owner_device'     => 'sn_handle_analytics_owner_device', // 2026-10-12: S&N Home's "Exclude this device" (the classic page keeps its link)
 		'analytics_test'             => 'sn_handle_analytics_test',
 		'analytics_recompute'        => 'sn_handle_analytics_recompute', // re-roll 90 days under the current human rule
