@@ -46,16 +46,11 @@ function sn_maturity_roadmap_static_board() {
 	$board = array(
 		__( 'Analytics', 'signal-and-noise-tools' )           => array(
 			'done'        => array(
-				// v13.20.0: GRADUATED planned -> done. The section was built against this
-				// row's own words and the row was never moved -- tests/insights-narration.php
-				// Test 8b quotes the contract ("assembled from the ledger already kept, no
-				// new collection") back at itself. It took the slot the AI-referral row
-				// vacated one release earlier, which is exactly what that headroom was for.
-				// The two disciplines ride INSIDE the sentence because they are what makes
-				// the claim honest, not implementation detail: the ledger's own window is
-				// cited rather than blended into the digest's week, and a window that
-				// measured nothing stays silent instead of narrating a zero.
-				__( 'AI attention in the weekly digest: which crawler families read the site, and how many of those reads landed on the published terms rather than the prose, from the ledger snapshot the site already holds, no new collection. The ledger\'s own thirty-day window is cited, never blended into the digest\'s week, and a window that measured nothing stays silent (a thread shared with Machine readability)', 'signal-and-noise-tools' ),
+				// 2026-10-16: the AI-attention-in-the-digest row (done since v13.20.0)
+				// GRADUATED onto /maturity/analytics/ as a shipped item. It was the oldest
+				// row in this column, and the two Search Console rows below moved planned ->
+				// done in the same door write, which would have put the column past the
+				// five-row cap. Graduation, not deletion: that page now states the claim.
 				// 2026-08-12: the founding measurement row RETIRED to the
 				// Analytics family maturity page (the done-column ceiling at
 				// work — graduation off the hub is not deletion; that page
@@ -100,15 +95,13 @@ function sn_maturity_roadmap_static_board() {
 				// measured population says otherwise -- the signers are search and testing
 				// tools, the AI crawlers sign nothing. A done row carries its limit inside it.
 				__( 'Verified versus claimed: crawler request signatures checked at the edge and recorded in the ledger, so a cryptographic signature can be told from a user-agent costume, with the honest reading beside it, because the crawlers that actually sign are search and testing tools while the AI crawlers sign nothing at all (a thread shared with Machine readability)', 'signal-and-noise-tools' ),
+				// 2026-10-16: both planned rows GRADUATED planned -> done, reworded to what
+				// shipped (Unanswered searches in #2131; coverage history retained per run).
+				__( 'The questions search asked that the corpus doesn\'t answer: queries with impressions and no clicks over the synced 28-day window, each with the page search showed for it, derived from the Search Console rows already synced and read by the owner\'s eyes, never by a model', 'signal-and-noise-tools' ),
+				__( 'Coverage history kept rather than overwritten: the weekly index check now retains each run\'s summary for two years, so a change in how often Google crawls can be read backwards, run against run', 'signal-and-noise-tools' ),
 			),
-			'planned'     => array(
-				__( 'The questions search asked that the corpus doesn\'t answer: queries with impressions and no clicks, derived from the Search Console rows already synced (read by the owner\'s eyes, never by a model), landing once the daily sync has accrued a full month to speak from', 'signal-and-noise-tools' ),
-				// 2026-09-08: gate NAMED — two runs of the weekly check must accrue before there is
-				// anything to compare. The defect is real and was measured today: the coverage run
-				// stores one option and overwrites it, so the crawl-frequency question cannot be
-				// asked backwards. A baseline was captured by hand to make one comparison possible.
-				__( 'Coverage history kept rather than overwritten: the weekly index check retains its earlier readings, so a change in how often Google crawls can be seen at all. Today each run replaces the last, so the question cannot be asked backwards. It lands once two runs have accrued to compare', 'signal-and-noise-tools' ),
-			),
+			// 2026-10-16: empty after both rows moved to done (see above).
+			'planned'     => array(),
 			'considering' => array(
 				__( 'Where readers leave to: outbound clicks on citations counted as their own aggregate event, the first idea in this family to require new collection, named as such, and it ships only if the counting stays as blunt as the rest of the ledger', 'signal-and-noise-tools' ),
 				__( 'A year told as a page: the deterministic narrator pointed at twelve months instead of a week (what rose, what faded, what the corpus became), computed from the rollups already kept, no new collection', 'signal-and-noise-tools' ),
@@ -204,6 +197,9 @@ function sn_maturity_roadmap_static_board() {
 				// ledger, and the done claim says so rather than inheriting a
 				// promise the shipped thing deliberately does not make.
 				__( 'Spend with an address: the AI bill itemized by feature beside the monthly total, each call priced into a named bucket as it lands, so a rising bill names its cause before any statement arrives; the itemization is the site\'s own priced ledger, read beside, never inside, the platform-reported spend watch (a thread shared with Operations)', 'signal-and-noise-tools' ),
+				// 2026-10-16: GRADUATED considering -> done (shipped in #2129), reworded to
+				// what shipped: counts per rule over seven and thirty days, counts only.
+				__( 'The refusals, counted: every write a door declines, tallied by the rule that declined it over seven and thirty days, read from decisions the gates already reach and stored as counts only, so a refusal can be audited rather than assumed', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Move the operative AI channel to the desktop platform\'s native agents, once that runner is stable enough to trust with the same fences', 'signal-and-noise-tools' ),
@@ -219,7 +215,7 @@ function sn_maturity_roadmap_static_board() {
 				// asks for new collection, and both clear the denied perimeter in
 				// proposals/2026-08-27-roadmap-brainstorm.md. The first is the deliberate
 				// companion to the shipped spend ledger in this family's done column.
-				__( 'The refusals, counted: every write a door declines, set against the rule that declined it: the gates already reach these verdicts in private, and a refusal nobody can audit is a decision nobody can check. Read from decisions already made, never new collection, and the companion to the spend ledger: what it cost beside what it would not do', 'signal-and-noise-tools' ),
+				// 2026-10-16: "The refusals, counted" shipped and moved to done.
 				__( 'The hand on the edit, named: an accepted change carries whether a machine proposed it and a person accepted, inside the version the chain already re-anchors; custody is untouched, the author still signs (a thread shared with Proof of origin)', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
