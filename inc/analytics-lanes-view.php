@@ -61,6 +61,17 @@ function sn_lanes_view( array $report ) {
 	);
 }
 
+/**
+ * A figure as both twins print it: with thousands separators (live
+ * 2026-10-16, the native table read 27840 where the classic read 27,840).
+ *
+ * @param int $n Figure.
+ * @return string
+ */
+function sn_lanes_num( $n ) {
+	return function_exists( 'number_format_i18n' ) ? (string) number_format_i18n( (int) $n ) : number_format( (int) $n );
+}
+
 /** The approved human-lane sentence (owner review, 2026-10-16). */
 const SN_LANES_HUMAN_NOTE = 'Human is the dashboard\'s human minus the visitor-days the bot-signal score marks; those are under suspected automation, reason bot_score.';
 
@@ -106,7 +117,7 @@ function sn_lanes_view_windows( array $report, $sensor ) {
 		$row = array( 'lane' => 'total' === $lane ? 'All lanes' : sn_lanes_label( $lane ) );
 		foreach ( $report['windows'] as $n => $w ) {
 			$s              = $w['sensors'][ $sensor ];
-			$row[ 'd' . $n ] = 'total' === $lane ? (int) $s['total'] : (int) ( $s['lanes'][ $lane ] ?? 0 );
+			$row[ 'd' . $n ] = sn_lanes_num( 'total' === $lane ? (int) $s['total'] : (int) ( $s['lanes'][ $lane ] ?? 0 ) );
 		}
 		$rows[] = $row;
 	}
@@ -130,7 +141,7 @@ function sn_lanes_view_reasons( array $report, $sensor ) {
 	foreach ( array_keys( (array) $report['windows'][90]['sensors'][ $sensor ]['reasons'] ) as $rk ) {
 		$row = array( 'reason' => (string) $rk );
 		foreach ( $report['windows'] as $n => $w ) {
-			$row[ 'd' . $n ] = (int) ( $w['sensors'][ $sensor ]['reasons'][ $rk ] ?? 0 );
+			$row[ 'd' . $n ] = sn_lanes_num( (int) ( $w['sensors'][ $sensor ]['reasons'][ $rk ] ?? 0 ) );
 		}
 		$rows[] = $row;
 	}
@@ -156,7 +167,7 @@ function sn_lanes_view_daily( array $report, $sensor ) {
 		}
 		$row = array( 'day' => (string) $day );
 		foreach ( SN_LANES_BY_SENSOR[ $sensor ] as $lane ) {
-			$row[ $lane ] = (int) ( $by[ $sensor ][ $lane ] ?? 0 );
+			$row[ $lane ] = sn_lanes_num( (int) ( $by[ $sensor ][ $lane ] ?? 0 ) );
 		}
 		$rows[] = $row;
 	}

@@ -95,7 +95,7 @@ function sn_lanes_report( array $rows, $yesterday, array $since ) {
 			}
 			$cell = &$windows[ $n ]['sensors'][ $sensor ];
 			$cell['lanes'][ $lane ] = (int) ( $cell['lanes'][ $lane ] ?? 0 ) + $hits;
-			$rk                     = $lane . ' / ' . (string) ( $r['reason'] ?? '' );
+			$rk                     = sn_lanes_label( $lane ) . ' (' . (string) ( $r['reason'] ?? '' ) . ')';
 			$cell['reasons'][ $rk ] = (int) ( $cell['reasons'][ $rk ] ?? 0 ) + $hits;
 			$cell['total']         += $hits;
 			unset( $cell );

@@ -22,11 +22,13 @@ function sn_lanes_render_table( array $t ) {
 	$fold = (string) ( $t['fold'] ?? '' );
 	if ( '' !== $fold ) {
 		echo '<details class="sn-disclosure"><summary>' . esc_html( (string) $t['heading'] . ': ' . $fold ) . '</summary>';
-		sn_lanes_render_table( array( 'fold' => '' ) + $t );
+		sn_lanes_render_table( array( 'fold' => '', 'heading' => '' ) + $t );
 		echo '</details>';
 		return;
 	}
-	echo '<h2 class="sn-section-h">' . esc_html( (string) $t['heading'] ) . '</h2>';
+	if ( '' !== (string) $t['heading'] ) { // a folded table's heading is its summary line, said once.
+		echo '<h2 class="sn-section-h">' . esc_html( (string) $t['heading'] ) . '</h2>';
+	}
 	echo '<p class="sn-field-helper">' . esc_html( (string) $t['description'] ) . '</p>';
 	if ( empty( $t['rows'] ) ) {
 		echo '<p class="sn-field-helper">' . esc_html__( 'Nothing stored yet.', 'signal-and-noise-tools' ) . '</p>';

@@ -46,9 +46,11 @@ function paint_tools_lanes( array $ctx ) {
 	$items = array( \snt_kit_notice( 'warning' === $view['alert']['kind'] ? 'warning' : 'info', '<strong>' . \snt_kit_esc( (string) $view['alert']['text'] ) . '</strong>' ) );
 	$notes = '';
 	foreach ( $view['notes'] as $note ) {
-		$notes .= \snt_kit_tag( 'p', array(), \snt_kit_esc( (string) $note ) );
+		$notes .= \snt_kit_tag( 'p', array( 'class' => 'snt-prose' ), \snt_kit_esc( (string) $note ) );
 	}
-	$items[] = \snt_kit_section( __( 'How to read the lanes', 'signal-and-noise-tools' ), $notes );
+	// One stacked block of margin-free prose: as bare paragraphs each line
+	// took a full section gap plus its margins (live 2026-10-16, 160px for four lines).
+	$items[] = \snt_kit_section( __( 'Where the lanes stand', 'signal-and-noise-tools' ), \snt_kit_stack( $notes, 6 ) );
 	foreach ( $view['tables'] as $t ) {
 		$table = \snt_kit_table( $t['columns'], $t['rows'], array( 'empty' => __( 'Nothing stored yet.', 'signal-and-noise-tools' ), 'class' => 'snt-table-full' ) );
 		$items[] = '' === (string) ( $t['fold'] ?? '' )
@@ -57,7 +59,7 @@ function paint_tools_lanes( array $ctx ) {
 	}
 	$ref = '';
 	foreach ( $view['reference']['lines'] as $line ) {
-		$ref .= \snt_kit_tag( 'p', array(), \snt_kit_esc( (string) $line ) );
+		$ref .= \snt_kit_tag( 'p', array( 'class' => 'snt-prose' ), \snt_kit_esc( (string) $line ) );
 	}
 	$items[] = lanes_fold( __( 'How the lanes are decided', 'signal-and-noise-tools' ), (string) $view['reference']['summary'], $ref );
 	return \snt_kit_stack( implode( '', $items ) );

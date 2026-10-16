@@ -66,7 +66,7 @@ foreach ( array( 'classic' => $classic, 'native' => $kit ) as $twin => $html ) {
 	ok( false !== strpos( $t, 'Visitor-days are counted per lane and do not add up across lanes.' ), "{$twin}: visitor-days do not sum across lanes" );
 	ok( false !== strpos( $t, "Machine sensor days are the sensor's UTC dates." ), "{$twin}: the machine sensor's days are UTC" );
 	ok( false !== strpos( $t, 'Partial: 7 days, 30 days, 90 days start before lanes began' ), "{$twin}: a range before lanes_since says partial" );
-	foreach ( array( 'unverified_owner / owner_token_invalid', 'human / remainder', 'suspected_automation / ua_list', 'owner / owner_device', 'claimed_bot / owner_token_invalid' ) as $reason ) {
+	foreach ( array( 'Owner signal, not verified (owner_token_invalid)', 'Human (remainder)', 'Suspected automation (ua_list)', 'Owner, enrolled device (owner_device)', 'Claimed bot, not proven (owner_token_invalid)' ) as $reason ) {
 		ok( false !== strpos( $t, $reason ), "{$twin}: reason split row {$reason}" );
 	}
 	ok( false === strpos( $html, $vid ) && false === strpos( $html, '0123456789abcdef' ) && false === strpos( $html, 'aaaaaaaaaaaaaaa1' ), "{$twin}: no visitor hash or device id on the page" );
@@ -75,6 +75,7 @@ foreach ( array( 'classic' => $classic, 'native' => $kit ) as $twin => $html ) {
 	$folds = 'native' === $twin ? substr_count( $html, '<os-disclosure' ) : substr_count( $html, '<details class="sn-disclosure">' );
 	ok( 5 === $folds, "{$twin}: five earned folds (reasons and days per sensor, and the reference), {$folds} painted" );
 	ok( 0 === preg_match( '/<(os-disclosure|details)[^>]*\sopen/', $html ), "{$twin}: every fold starts closed" );
+	ok( 1 === substr_count( $t, 'Beacon (page views), by reason' ), "{$twin}: a folded table's heading is said once (its summary line)" );
 	ok( 1 === preg_match( '/(Invalid owner tokens[^<]*<\/strong>).*(by lane).*(<(os-disclosure|details))/s', $html ), "{$twin}: the invalid-token line and the by-lane tables come before any fold" );
 	ok( false === strpos( $t, '—' ), "{$twin}: no em dash" );
 }
@@ -86,12 +87,14 @@ $tables = snt_leaf_tables( $kit );
 ok( 6 === count( $tables ), 'six tables per twin: lanes, reasons and days, per sensor' );
 $beacon = $tables[0]['data'];
 $by     = array_column( $beacon, null, 'lane' );
-ok( 12 === $by['Human']['d7'] && 4 === $by['Suspected automation']['d7'] && 3 === $by['Owner, enrolled device']['d7'] && 21 === $by['All lanes']['d90'], 'native beacon lanes: human 12, automation 4, owner 3, all 21' );
+ok( '12' === $by['Human']['d7'] && '4' === $by['Suspected automation']['d7'] && '3' === $by['Owner, enrolled device']['d7'] && '21' === $by['All lanes']['d90'], 'native beacon lanes: human 12, automation 4, owner 3, all 21' );
+$fmt = sn_lanes_view_windows( array( 'windows' => array( 7 => array( 'sensors' => array( 'machine' => array( 'lanes' => array( 'own_infra' => 27840 ), 'total' => 27840, 'partial' => false ) ) ) ) ), 'machine' );
+ok( '27,840' === $fmt['rows'][3]['d7'] && '27,840' === end( $fmt['rows'] )['d7'], 'a large figure reads with a thousands separator on both twins' );
 preg_match_all( '#<td>([^<]*)</td>#', $classic, $cells );
 foreach ( array( 'Human', '12', 'All lanes', '21', 'Owner, enrolled device' ) as $cell ) {
 	ok( in_array( $cell, $cells[1], true ), "classic table carries {$cell}" );
 }
-ok( $y === $tables[4]['data'][0]['day'] && 12 === $tables[4]['data'][0]['human'], 'native daily view: the last complete day, by lane' );
+ok( $y === $tables[4]['data'][0]['day'] && '12' === $tables[4]['data'][0]['human'], 'native daily view: the last complete day, by lane' );
 
 echo "\n{$pass} passed, {$fail} failed\n";
 exit( $fail > 0 ? 1 : 0 );
