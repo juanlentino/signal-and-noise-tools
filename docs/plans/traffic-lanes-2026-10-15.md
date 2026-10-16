@@ -237,3 +237,12 @@ Asked: what goes wrong in the lanes table and rollup during and after the deploy
 10. **The Lanes report is its own sub-tab** (`lanes`, beside `reports` under Integrity) with a native painter `tools/lanes`, reading only the table. Not a health check (the scan already takes about 19 seconds).
 
 **Process:** the plugin lanes PR stacks on `feat/owner-identity` and merges after #2101. #2101 gets a live screen check on a local WordPress 7.1 (wp-now) with OpenStation before the gate, exercising enroll, revoke and revoke all on both screens; the native revoke form inside a table cell is the likeliest failure.
+
+## Owner decision: one key (2026-10-15)
+
+"Do the one-key version." The device marker and the agent token share ONE key:
+- Worker secret `SN_OWNER_KEY` (and the optional `SN_OWNER_KEY_PREVIOUS`, set only during a rotation), on both the analytics Worker and the rights-signals Worker. The four `SN_OWNER_DEVICE_KEY[_PREVIOUS]` / `SN_OWNER_AGENT_KEY[_PREVIOUS]` secrets are gone.
+- Plugin keyring rows `owner_key` and `owner_key_previous` replace the four rows; Generate makes one 64-hex key; the hint shows the two `wrangler secret put SN_OWNER_KEY` commands (one per Worker, same value).
+- Signed messages keep their domain separation (`v1|dev|...` vs `v1|agent|...`), so one key cannot turn a marker into a token or back. The test vectors are unchanged (they already used one key for both).
+- `/_sn/version` booleans: `owner_key_set` replaces `owner_device_key_set` and `owner_agent_key_set`; the plugin's collector-status ignore list follows.
+- Agent tokens become optional: nothing in Phase 1 requires minting one. Owner setup is: generate one key, paste it into two Workers, enroll devices.
