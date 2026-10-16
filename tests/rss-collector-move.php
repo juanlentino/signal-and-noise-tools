@@ -124,10 +124,11 @@ ok( home_url( '/_sn/px' ) !== $after['collector_url'],
 
 // Pin that the shipped source really uses the stored-value fallback, so this
 // cannot regress by someone "simplifying" the expression back to $defaults.
-$src = (string) file_get_contents( __DIR__ . '/../inc/rss-feed-tracker.php' );
+require_once __DIR__ . '/lib/inc-population.php'; // the module and its three parts files (split 2026-10-16)
+$src = snt_test_rss_feed_tracker_src();
 ok( false !== strpos( $src, "\$current['collector_url'] ?? \$defaults['collector_url']" ),
 	'inc/rss-feed-tracker.php falls back to the STORED collector_url, not the default' );
-ok( false === strpos( $src, "name=\"collector_url\"" ),
+ok( '' !== $src && false === strpos( $src, "name=\"collector_url\"" ),
 	'the RSS form no longer renders a collector_url input (single write surface)' );
 
 echo "\nGroup: a reset of the RSS settings keeps the collector (2026-10-12 audit)\n";

@@ -254,8 +254,11 @@ $contract = array(
 		"esc_html__( 'Press %s once the token and Account ID are set, to confirm the read side works. Pageview data appears within about 15 minutes.', 'signal-and-noise-tools' )",
 	),
 );
+// inc/analytics-admin.php is a shell plus three parts files (split 2026-10-16,
+// house line cap); its key reads the whole module through the by-name helper.
+require_once __DIR__ . '/lib/inc-population.php';
 foreach ( $contract as $file => $needles ) {
-	$src = (string) file_get_contents( __DIR__ . '/../' . $file );
+	$src = 'inc/analytics-admin.php' === $file ? snt_test_analytics_admin_src() : (string) file_get_contents( __DIR__ . '/../' . $file );
 	foreach ( $needles as $needle ) {
 		ok( false !== strpos( $src, $needle ), $file . ' pins ' . substr( $needle, 0, 60 ) . '…' );
 	}

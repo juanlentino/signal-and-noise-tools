@@ -86,7 +86,7 @@ require __DIR__ . '/../inc/maturity-layout.php';
 // The module and its four parts files (split 2026-10-14, house line cap).
 require_once __DIR__ . '/lib/inc-population.php';
 $seo_src    = snt_test_seo_src();
-$schema_src = (string) file_get_contents( __DIR__ . '/../inc/seo-schema.php' );
+$schema_src = snt_test_seo_schema_src(); // the module and its three parts files (split 2026-10-16)
 
 echo "P1-1: the singular validator moves with every render change\n";
 ok( function_exists( 'sn_seo_singular_validator_gmt' ), 'the validator rule is a named function' );

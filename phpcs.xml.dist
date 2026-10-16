@@ -120,7 +120,8 @@
 		<exclude-pattern>*/inc/sitemap-redirect.php</exclude-pattern>
 		<exclude-pattern>*/inc/post-settings.php</exclude-pattern>
 		<exclude-pattern>*/inc/audit-log.php</exclude-pattern>
-		<exclude-pattern>*/inc/rss-feed-tracker.php</exclude-pattern>
+		<exclude-pattern>*/inc/rss-feed-tracker-capture-parts.php</exclude-pattern>
+		<exclude-pattern>*/inc/rss-feed-tracker-form-parts.php</exclude-pattern>
 		<exclude-pattern>*/inc/mcp/mcp-rw-audit.php</exclude-pattern>
 	</rule>
 
@@ -149,7 +150,8 @@
 	-->
 	<rule ref="WordPress.DB.PreparedSQL">
 		<exclude-pattern>*/inc/cron-history.php</exclude-pattern>
-		<exclude-pattern>*/inc/rss-feed-tracker.php</exclude-pattern>
+		<exclude-pattern>*/inc/rss-feed-tracker-capture-parts.php</exclude-pattern>
+		<exclude-pattern>*/inc/rss-feed-tracker-form-parts.php</exclude-pattern>
 		<exclude-pattern>*/inc/insights.php</exclude-pattern>
 		<exclude-pattern>*/inc/insights-signals-parts.php</exclude-pattern>
 		<exclude-pattern>*/inc/analytics-rollup-schema-parts.php</exclude-pattern>

@@ -738,7 +738,7 @@ ok( function_exists( 'snt_analytics_view_reset_params' )
 	&& array( 'sn_view', 'sn_range', 'sn_class', 'sn_from', 'sn_to', 'sn_drill', 'sn_event_prop', 'sn_lg_range' ) === snt_analytics_view_reset_params(),
 	'reset params: the shared helper returns the tab strip\'s exact 8-param strip list (sn_compare deliberately absent: compare rides along)' );
 $rp_view_src = snt_test_analytics_view_overview_src();
-$rp_adm_src  = (string) file_get_contents( __DIR__ . '/../inc/analytics-admin.php' );
+$rp_adm_src  = snt_test_analytics_admin_src(); // the module and its three parts files (split 2026-10-16)
 ok( strpos( $rp_view_src, 'remove_query_arg( snt_analytics_view_reset_params(), add_query_arg( array() ) )' ) !== false,
 	'parity: the doorway builder consumes the shared helper (source pin)' );
 ok( strpos( $rp_adm_src, 'remove_query_arg( snt_analytics_view_reset_params(), add_query_arg( array() ) )' ) !== false,

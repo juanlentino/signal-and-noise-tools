@@ -535,3 +535,100 @@ if ( ! function_exists( 'snt_test_settings_src' ) ) {
 		return $src;
 	}
 }
+
+if ( ! function_exists( 'snt_test_seo_schema_src' ) ) {
+	/**
+	 * The source of inc/seo-schema.php AND its three parts files, for suites
+	 * that pin the module's text. Split 2026-10-16 (house line cap). Named, not
+	 * globbed: seo-schema-music.php is a separate module (seo-live-audit.php
+	 * counts a needle across seo AND schema, so a glob could inflate it). A
+	 * missing file returns '' so every presence pin goes red rather than
+	 * passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_seo_schema_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-identity-parts', '-pages-parts', '-archive-parts' ) as $suffix ) {
+			$file = $dir . 'seo-schema' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_analytics_admin_src' ) ) {
+	/**
+	 * The source of inc/analytics-admin.php AND its three parts files, for
+	 * suites that pin the module's text. Split 2026-10-16 (house line cap).
+	 * Named, not globbed: analytics-admin-error.php and
+	 * analytics-admin-render.php are separate modules. A missing file returns
+	 * '' so every presence pin goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_analytics_admin_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-resolve-parts', '-dashboard-parts', '-settings-parts' ) as $suffix ) {
+			$file = $dir . 'analytics-admin' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_mcp_tools_src' ) ) {
+	/**
+	 * The source of inc/mcp/mcp-tools.php AND its three parts files, for suites
+	 * that pin the module's text. Split 2026-10-16 (house line cap). Named, not
+	 * globbed: no other module shares the prefix today, and a future one would
+	 * not belong in the read. A missing file returns '' so every presence pin
+	 * goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_mcp_tools_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/mcp/';
+		$src = '';
+		foreach ( array( '', '-schema-parts', '-project-parts', '-call-parts' ) as $suffix ) {
+			$file = $dir . 'mcp-tools' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_rss_feed_tracker_src' ) ) {
+	/**
+	 * The source of inc/rss-feed-tracker.php AND its three parts files, for
+	 * suites that pin the module's text. Split 2026-10-16 (house line cap).
+	 * Named, not globbed: no other module shares the prefix today, and a
+	 * future one would not belong in the read. A missing file returns '' so
+	 * every presence pin goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_rss_feed_tracker_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-capture-parts', '-form-parts', '-render-parts' ) as $suffix ) {
+			$file = $dir . 'rss-feed-tracker' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}

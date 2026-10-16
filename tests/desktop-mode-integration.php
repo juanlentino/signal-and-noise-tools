@@ -1408,7 +1408,7 @@ $sn_tabs = array();
 foreach ( sn_admin_top_tabs() as $sn_top ) {
 	$sn_tabs[ $sn_top['tab'] ] = array_keys( (array) ( $sn_top['sub_tabs'] ?? array() ) );
 }
-$sn_views_src = (string) file_get_contents( __DIR__ . '/../inc/analytics-admin.php' );
+$sn_views_src = snt_test_analytics_admin_src(); // the module and its three parts files (split 2026-10-16)
 preg_match( '/const SN_ANALYTICS_VIEWS = array\((.*?)\n\);/s', $sn_views_src, $sn_vm );
 preg_match_all( "/^\s*'([a-z-]+)'\s*=>/m", (string) ( $sn_vm[1] ?? '' ), $sn_vk );
 $sn_views = $sn_vk[1] ?? array();
