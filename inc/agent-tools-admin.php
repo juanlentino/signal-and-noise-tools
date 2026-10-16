@@ -41,6 +41,9 @@ function sn_admin_render_agent_tools_section() {
 	if ( function_exists( 'sn_admin_render_mcp_usage' ) ) {
 		sn_admin_render_mcp_usage( $usage );
 	}
+	if ( function_exists( 'sn_admin_render_door_refusals' ) ) {
+		sn_admin_render_door_refusals();
+	}
 	echo '<details class="sn-disclosure"><summary>The doors, and what each exposes</summary>';
 	sn_admin_render_mcp_door_native( $usage );
 	sn_admin_render_mcp_door_native_write( $usage );
