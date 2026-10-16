@@ -87,10 +87,14 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match th
 ok( array( 'tag_fit_run', 'tag_group_apply', 'tag_prune_unused' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '16.9.0/17.2.0: the list view offers tag_fit_run, tag_group_apply and tag_prune_unused, as the classic leaf does: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
-// Glance: the same three cards, pill text as caption, warn kind as a swatch.
-ok( false !== strpos( $kit, 'label="Tags total"' ) && false !== strpos( $kit, 'value="3" label="Tags total"' ), 'glance: Tags total reads 3' );
-ok( false !== strpos( $kit, 'value="1" label="Duplicate clusters" caption="review" swatch data-tone="warning"' ), 'glance: Duplicate clusters reads 1, pill "review", warning swatch' );
-ok( false !== strpos( $kit, 'value="1" label="Unused tags" caption="prune" swatch data-tone="warning"' ), 'glance: Unused tags reads 1, pill "prune", warning swatch' );
+// Glance (2026-10-16 leaf anatomy): the same three cards as ONE status line in
+// the leaf's first card, each value, label and pill text on its chip, the
+// pill's kind its tone. No stat tiles: three tiles were scattered status.
+ok( 0 === strpos( $kit, '<os-section heading="Tags at a glance" stack><div class="snt-status-line"><os-cluster gap="8">' ) && false === strpos( $kit, '<os-stat' ), 'glance: one status line leads the leaf, in place of three stat tiles' );
+ok( false !== strpos( $kit, '<os-chip>Tags total: 3</os-chip>' ), 'glance: Tags total reads 3, a neutral chip' );
+ok( false !== strpos( $kit, '<os-badge tone="warning">Duplicate clusters: 1 · review</os-badge>' ), 'glance: Duplicate clusters reads 1, pill "review", warning tone' );
+ok( false !== strpos( $kit, '<os-badge tone="warning">Unused tags: 1 · prune</os-badge>' ), 'glance: Unused tags reads 1, pill "prune", warning tone' );
+ok( 1 === preg_match( '#<os-section heading="Jev: tag fit" stack>.*?<os-form class="snt-form snt-form--inline"[^>]*submit-label="Read tags now"#s', $kit ) || false === strpos( $kit, 'submit-label="Read tags now"' ), 'Read tags now, where it paints, is a compact inline form, not a full-width row' );
 
 // Cluster: a native GET form dispatching go, radio on the suggested term, checkbox on the other.
 ok( false !== strpos( $kit, '<form class="snt-form snt-form--native" method="get" os-action="go">' ), 'cluster: a native GET form dispatches go (the window\'s reading of the classic GET navigation)' );
@@ -116,7 +120,7 @@ ok( 2 === preg_match_all( '/<os-select name="sn_tag_(?:from\[\]|into)"(?=[^>]* v
 ok( false !== strpos( $kit, 'label="Fold"' ) && false !== strpos( $kit, 'label="into"' ), 'picker: the Fold/into labels the classic prints around the selects survive' );
 
 // Jev ready, no pass yet: the section explains the pass and offers Read tags now.
-ok( false !== strpos( $kit, 'heading="Jev: tag fit"' ) && false !== strpos( $kit, 'is listed for removal. One request per note that carries a tag: at most 70 now.' ) && false === strpos( $kit, 'seventy' ) && false !== strpos( $kit, 'submit-label="Read tags now"' ), '16.9.0: Jev ready, no pass: the explainer, its request count from today\'s notes (2026-10-12: a hard-coded "About seventy requests"), and the Read tags now form' );
+ok( false !== strpos( $kit, 'heading="Jev: tag fit"' ) && false !== strpos( $kit, 'is listed for removal. One request per note that carries a tag: at most 70 now.' ) && false === strpos( $kit, 'seventy' ) && false !== strpos( $kit, 'snt-form--inline" os-action="post" submit-label="Read tags now"' ), '16.9.0: Jev ready, no pass: the explainer, its request count from today\'s notes (2026-10-12: a hard-coded "About seventy requests"), and the Read tags now form' );
 ok( false !== strpos( $classic, 'One request per note that carries a tag: at most 70 now.' ), 'no pass: the classic twin says the same' );
 
 // Unused: a native POST form with the checked term, confirmed and marked dangerous as the classic onsubmit confirm.
@@ -181,7 +185,7 @@ ok( false !== strpos( $kit, 'heading="Duplicate tags"' ) && false !== strpos( $k
 ok( false !== strpos( $kit, 'heading="No unused tags."' ), 'empty view: No unused tags' );
 ok( false !== strpos( $kit, 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.' ), '16.9.0: empty view, no key: the section names the connector' );
 ok( false === strpos( $kit, 'Recent tag operations' ), 'empty view: no history, no Recent section' );
-ok( false !== strpos( $kit, 'caption="clean"' ) && false === strpos( $kit, 'swatch' ), 'empty view: the glance pills read clean with no swatch' );
+ok( false !== strpos( $kit, '<os-badge tone="success">Duplicate clusters: 0 · clean</os-badge>' ) && false !== strpos( $kit, '<os-badge tone="success">Unused tags: 0 · clean</os-badge>' ) && false === strpos( $kit, 'tone="warning">Duplicate' ), 'empty view: the glance chips read clean in the ok tone' );
 
 // ── Jev ready, a pass with nothing flagged.
 $GLOBALS['__ai'] = true; $GLOBALS['__jev'] = true;

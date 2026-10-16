@@ -13,6 +13,10 @@
  * port map this is given its own distinct os-action here rather than reusing
  * the name, since FormData has no equivalent to "last value on the wire wins").
  *
+ * 2026-10-16 (the leaf anatomy, docs/kit-leaf-anatomy.md): a status line
+ * leads (ai-models-budget-status.php), the readings follow in rows, and the
+ * settings form is the Setup card's fold (ai-models-budget-setup.php).
+ *
  * @package SignalNoiseTools
  * @since 13.106.0
  */
@@ -26,6 +30,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once dirname( __DIR__, 4 ) . '/inc/ai-model-catalog.php'; // the model defaults and lists (21.0.0).
 
 require_once __DIR__ . '/ai-models-budget-parts.php';
+require_once __DIR__ . '/ai-models-budget-status.php'; // the status line, How this works
+require_once __DIR__ . '/ai-models-budget-setup.php'; // the Setup card, the settings form
 
 /**
  * State, read the way the classic leaf reads it.
@@ -230,51 +236,23 @@ function models_budget_compare_html( array $d, $lead = '' ) {
 function paint_ai_models_budget( array $ctx ) {
 	unset( $ctx );
 	$d = models_budget_data();
-
-	$fields  = \snt_kit_field( 'select', 'theme_ai_model', __( 'Prose model', 'signal-and-noise-tools' ), $d['model'], array(
-		'options' => sn_theme_ai_models(),
-		'hint'    => __( 'Used for AI-assisted prose features (drafts, insights, meta descriptions).', 'signal-and-noise-tools' ),
-	) );
-	$fields .= \snt_kit_field( 'select', 'theme_ai_alt_model', __( 'Vision model (alt text)', 'signal-and-noise-tools' ), $d['alt_model'], array(
-		'options' => sn_theme_ai_vision_models(),
-	) );
-	$fields .= '<p class="snt-hint">' . sprintf(
-		/* translators: %s: the alt-text model filter name, wrapped in <code>. */
-		\snt_kit_esc( __( 'Used to LOOK at images when suggesting alt text. The %s filter still overrides this for code-level pins.', 'signal-and-noise-tools' ) ),
-		\snt_kit_code( 'snt_ai_alt_text_model', false )
-	) . '</p>';
-	$fields .= '<p class="snt-hint">' . \snt_kit_esc( \sn_ai_models_status_line() . ' ' . \sn_ai_prices_status_line() ) . '</p>';
-	$fields .= \snt_kit_field( 'number', 'theme_ai_monthly_budget', __( 'Monthly budget (USD)', 'signal-and-noise-tools' ), number_format( $d['budget'], 2, '.', '' ), array(
-		'min'  => 0,
-		'step' => 0.5,
-		'hint' => __( 'Set 0 to remove the cap.', 'signal-and-noise-tools' ),
-	) );
-	// 16.6.0: the Jev credit and its cycle day; the meter reads both.
-	$fields .= \snt_kit_field( 'number', 'theme_jev_credit', __( 'Jev monthly credit (USD)', 'signal-and-noise-tools' ), number_format( (float) sn_setting( 'theme.jev_credit', 5 ), 2, '.', '' ), array( 'min' => 0, 'step' => 0.5, 'hint' => __( 'TypeSafe\'s credit, as the console states it. A readout, not a cap.', 'signal-and-noise-tools' ) ) );
-	$fields .= \snt_kit_field( 'number', 'theme_jev_cycle_day', __( 'Jev credit renews on day', 'signal-and-noise-tools' ), (string) (int) sn_setting( 'theme.jev_cycle_day', 17 ), array( 'min' => 1, 'max' => 28, 'step' => 1 ) );
-	// 15.3.1: the Workers AI token is a keyring row (Connections › Credentials);
-	// this leaf reads it and says so.
-	$fields .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Workers AI token (semantic embeddings):', 'signal-and-noise-tools' ) ) . ' ' . ( '' !== (string) $d['embed_token'] ? \snt_kit_badge( 'ok', __( 'set', 'signal-and-noise-tools' ) ) : \snt_kit_badge( 'warn', __( 'not set', 'signal-and-noise-tools' ) ) ) . ' ' . \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'monitoring' ) ) . '.</p>';
-
-	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here (drafts, insights, meta descriptions, alt text) draws on the same monthly budget. Copilot and agents run outside it.', 'signal-and-noise-tools' ) ) . '</p>';
-	$form  = \snt_kit_section(
-		__( 'Models & budget', 'signal-and-noise-tools' ),
-		\snt_kit_form( 'ai_settings_save', $fields, array( 'submit' => __( 'Save AI settings', 'signal-and-noise-tools' ), 'columns' => 'auto' ) ),
-		__( 'Model changes apply to the next AI call. The budget is evaluated per calendar month.', 'signal-and-noise-tools' )
-	);
-	// 17.4.1 (#1573): boxes on rows of comparable height. The form beside the
-	// two readouts it is read against; the Jev meter beside the comparison box
-	// while that box is short (configured, no result yet) or beside the
-	// Semantic embeddings box that says what is missing (2026-10-12 audit: a
-	// bare "Not configured." notice ended the page). A comparison carrying its
-	// result (a ledger) stands alone at full width under the Jev box.
+	// 17.4.1 (#1573): boxes on rows of comparable height. 2026-10-16 (the leaf
+	// anatomy, docs/kit-leaf-anatomy.md): the status line leads, then the
+	// readings: the plugin's estimate beside what the platforms billed; the
+	// Jev meter beside the comparison box while that box is short
+	// (configured, no result yet) or beside the Semantic embeddings box that
+	// says what is missing (2026-10-12 audit: a bare "Not configured." notice
+	// ended the page). A comparison carrying its result (a ledger) stands
+	// alone at full width under the Jev box. The settings form closes the
+	// leaf in the Setup card (ai-models-budget-setup.php).
 	$embed  = models_budget_embed_html( $d );
 	$right  = $d['embed_configured'] ? models_budget_compare_html( $d, $embed ) : $embed;
 	$beside = ! ( $d['embed_configured'] && is_array( $d['cmp'] ) && ! empty( $d['cmp']['ok'] ) );
-	return $intro
-		. models_budget_pair( $form, models_budget_spend_html( $d ) . models_budget_platform_html( $d ) )
+	return models_budget_status_html( $d )
+		. models_budget_pair( models_budget_spend_html( $d ), models_budget_platform_html( $d ) )
 		. models_budget_pair( models_budget_jev_html( $d ), $beside ? $right : '' )
-		. ( $beside ? '' : $right );
+		. ( $beside ? '' : $right )
+		. models_budget_setup_html( $d );
 }
 
 /**

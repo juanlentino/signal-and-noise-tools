@@ -34,7 +34,8 @@ function tags_fit_html() {
 	}
 	$data  = function_exists( 'sn_jev_tags_data' ) ? \sn_jev_tags_data() : null;
 	$rows  = null === $data ? array() : \sn_jev_tags_rows( $data );
-	$run   = \snt_kit_form( 'tag_fit_run', '', array( 'submit' => __( 'Read tags now', 'signal-and-noise-tools' ) ) );
+	// 2026-10-16: a lone button, so the compact inline form (docs/kit-leaf-anatomy.md).
+	$run   = \snt_kit_form( 'tag_fit_run', '', array( 'submit' => __( 'Read tags now', 'signal-and-noise-tools' ), 'inline' => true ) );
 	$about = '<p class="snt-prose">' . \snt_kit_esc( \sn_tag_fit_about() ) . '</p>';
 	if ( null === $data ) {
 		return \snt_kit_section( $heading, $about . $run );
