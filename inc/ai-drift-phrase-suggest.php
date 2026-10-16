@@ -29,6 +29,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/sn-apply/active-content.php'; // snt_sn_apply_splice_active_error(), used by the apply below.
+
 // v4.2.0 PROMPT DESIGN (D-09): paired with inc/health-checks.php's
 // SNT_AI_DRIFT_SYSTEM detection prompt. This prompt generates replacement
 // suggestions for positions identified by the detection pass.
@@ -396,6 +398,12 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
 
 	// Splice at the resolved raw-content position.
 	$new_content = substr_replace( $current_content, $replacement, $raw_position, strlen( $phrase ) );
+	// A plain-text replacement spliced inside an attribute value can still close
+	// the value and add a handler; refuse what the splice adds (sn-apply/active-content.php).
+	$spliced = snt_sn_apply_splice_active_error( $current_content, $new_content, 'payload.replacement' );
+	if ( is_wp_error( $spliced ) ) {
+		return $spliced;
+	}
 
 	if ( is_callable( $write_callback ) ) {
 		$result = call_user_func( $write_callback, $post_id, $new_content );

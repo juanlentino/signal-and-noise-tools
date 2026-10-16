@@ -24,30 +24,10 @@
  * @since 17.4.4
  */
 if ( ! function_exists( 'wp_kses_post' ) ) {
-	$snt_kses_api = '';
-	foreach ( array( (string) getenv( 'SNT_WP_HTML_API' ), dirname( __DIR__, 5 ) . '/wp-includes/html-api' ) as $snt_kses_dir ) {
-		$snt_kses_dir = rtrim( $snt_kses_dir, '/' );
-		if ( '' !== $snt_kses_dir && is_file( $snt_kses_dir . '/class-wp-html-tag-processor.php' ) && is_file( dirname( $snt_kses_dir ) . '/kses.php' ) ) {
-			$snt_kses_api = $snt_kses_dir;
-			break;
-		}
-	}
-	if ( '' !== $snt_kses_api ) {
-		// The two functions wp_kses_post() reaches outside kses.php and the HTML API.
-		if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $hook, $value ) { return $value; } }
-		if ( ! function_exists( 'wp_allowed_protocols' ) ) { function wp_allowed_protocols() { return array( 'http', 'https', 'ftp', 'ftps', 'mailto', 'news', 'irc', 'irc6', 'ircs', 'gopher', 'nntp', 'feed', 'telnet', 'mms', 'rtsp', 'sms', 'svn', 'tel', 'fax', 'xmpp', 'webcal', 'urn' ); } }
-		if ( ! class_exists( 'WP_HTML_Tag_Processor' ) ) {
-			require_once dirname( $snt_kses_api ) . '/class-wp-token-map.php';
-			foreach ( array( 'class-wp-html-span', 'class-wp-html-text-replacement', 'class-wp-html-attribute-token', 'html5-named-character-references', 'class-wp-html-decoder', 'class-wp-html-tag-processor' ) as $snt_kses_part ) {
-				require_once $snt_kses_api . '/' . $snt_kses_part . '.php';
-			}
-		}
-		require_once dirname( $snt_kses_api ) . '/kses.php';
-	} else {
+	require_once __DIR__ . '/wp-core-kses.php';
+	if ( ! function_exists( 'wp_kses_post' ) ) {
 		function wp_kses_post( $s ) { return (string) $s; }
 	}
-	define( 'SNT_KSES_IS_CORE', '' !== $snt_kses_api );
-	unset( $snt_kses_api, $snt_kses_dir, $snt_kses_part );
 }
 if ( ! defined( 'SNT_KSES_IS_CORE' ) ) {
 	define( 'SNT_KSES_IS_CORE', false ); // The suite brought its own wp_kses_post().

@@ -5,7 +5,12 @@
  * path is exercised through its own validator, so the old code (which had
  * no such check on blocks or draft content) fails here.
  *
- * Run: php tests/sn-apply-active-content.php
+ * The detector stands on core (WP_HTML_Tag_Processor, wp_kses_allowed_html,
+ * wp_kses_bad_protocol), loaded from the SNT_WP_HTML_API seam CI fetches. A
+ * machine without it FAILS rather than skips: the suite would otherwise
+ * assert nothing about the code that runs.
+ *
+ * Run: SNT_WP_HTML_API=<wp>/wp-includes/html-api php tests/sn-apply-active-content.php
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
@@ -35,6 +40,19 @@ function snt_ai_drift_normalize_replacement( $r, $p = false ) { return (string) 
 function snt_ai_drift_replacement_error( $r, $p = false ) { return true; }
 function snt_ai_drift_locate_in_raw( $c, $p, $x = '' ) { $i = strpos( $c, $p ); return false === $i ? -1 : $i; }
 function snt_ai_drift_fingerprint( $c, $p, $i ) { return 'not-f'; }
+// The single sentence_replace path's reads.
+function current_user_can( $cap, $id = 0 ) { return true; }
+function get_post( $id ) { return $GLOBALS['__post'] ?? null; }
+function snt_corpus_content_hash( $c ) { return md5( (string) $c ); }
+
+function add_action( $h, $c, $p = 10, $a = 1 ) { return true; }
+function add_filter( $h, $c, $p = 10, $a = 1 ) { return true; }
+require_once __DIR__ . '/lib/wp-core-kses.php'; // Core's HTML API and kses, off SNT_WP_HTML_API.
+if ( ! SNT_KSES_IS_CORE ) {
+	echo "FAIL: core's HTML API and kses.php are not on this machine. Set SNT_WP_HTML_API=<wp>/wp-includes/html-api with kses.php beside it.\n";
+	echo "\nResult: 0 passed, 1 failed.\n";
+	exit( 1 );
+}
 
 require_once __DIR__ . '/../inc/sn-apply/active-content.php';
 require_once __DIR__ . '/../inc/sn-apply/sentence-replace.php';
@@ -62,6 +80,25 @@ $cases = array(
 	'<a href="&#106;avascript:alert(1)">x</a>'          => 'javascript:',
 	'<a href="java&#9;script:alert(1)">x</a>'           => 'javascript:',
 	'<!-- wp:button {"url":"javascript:alert(1)"} /-->' => 'javascript:',
+	// Built on core: cases the old regexes read differently or not at all.
+	'<form action="javascript:alert(1)"><button>x</button></form>'       => 'javascript:',
+	'<form action="https://e.example/collect"><button>x</button></form>' => '<form',
+	'<button formaction="javascript:alert(1)">x</button>'                => 'javascript:',
+	'<p ONCLICK="alert(1)">x</p>'                                        => 'onclick=',
+	'<a href=" javascript:alert(1)">x</a>'                               => 'javascript:',
+	'<a href="&#106avascript:alert(1)">x</a>'                            => 'javascript:',
+	'<a href="vbscript:msgbox(1)">x</a>'                                 => 'vbscript:',
+	'<a href="data:text/html,x">x</a>'                                   => 'data:',
+	'<svg><a xlink:href="javascript:alert(1)"><text>x</text></a></svg>'  => 'javascript:',
+	'<img src=x"y onerror=alert(1)>'                                     => 'onerror=',
+	'<style>body{background:url(//e.example/t)}</style>'                 => '<style',
+	'<link rel="stylesheet" href="https://e.example/x.css">'             => '<link',
+	'<meta http-equiv="refresh" content="0;url=https://e.example">'      => '<meta',
+	'<base href="https://e.example/">'                                   => '<base',
+	'<noscript><p title="</noscript><img src=x onerror=alert(1)>"></p></noscript>' => '<noscript',
+	'<math><title><img src=x onerror=alert(1)></title></math>'           => 'onerror=',
+	'<math><xmp><img src=x onerror=alert(1)></xmp></math>'               => '<xmp',
+	'<p>Fine.</p><img src=x onerror=alert(1)'                            => 'onerror=',
 );
 foreach ( $cases as $frag => $want ) {
 	ok( in_array( $want, snt_sn_apply_active_constructs( $frag ), true ), "detects $want in: $frag" );
@@ -70,6 +107,10 @@ foreach ( array(
 	'<!-- wp:paragraph --><p>Plain prose about JavaScript: the good parts, and one = two.</p><!-- /wp:paragraph -->',
 	'<!-- wp:paragraph --><p>The <a href="https://example.com/online">online</a> archive, <em>once</em> more.</p><!-- /wp:paragraph -->',
 	'A sentence that says "one" and someone=fine.',
+	'<!-- wp:image {"id":12,"sizeSlug":"large"} --><figure class="wp-block-image size-large"><img src="https://example.com/a.jpg" alt="An alt, with &quot;quotes&quot;" class="wp-image-12"/><figcaption class="wp-element-caption">A caption with <a href="/notes/?a=b:c#x">a relative link</a>.</figcaption></figure><!-- /wp:image -->',
+	'<!-- wp:list --><ul class="wp-block-list"><!-- wp:list-item --><li><a href="mailto:a@example.com">mail</a> and <a href="#top">top</a></li><!-- /wp:list-item --></ul><!-- /wp:list -->',
+	'<!-- wp:quote --><blockquote class="wp-block-quote"><!-- wp:paragraph --><p>Said <code>onclick=</code> in prose, and <strong>once</strong>.</p><!-- /wp:paragraph --></blockquote><!-- /wp:quote -->',
+	'<!-- wp:table --><figure class="wp-block-table"><table><tbody><tr><td>a</td><td><em>b</em></td></tr></tbody></table></figure><!-- /wp:table -->',
 ) as $clean ) {
 	ok( array() === snt_sn_apply_active_constructs( $clean ), "clean prose and markup pass: $clean" );
 }
@@ -101,6 +142,34 @@ $r = snt_sn_apply_plan_batch_edits( $content, 'sentence_replace', array( array( 
 ok( 'snt_sn_apply_active_content' === code_of( $r ) && false !== strpos( $r->get_error_message(), 'edit 1' ), 'a sentence_replace batch member is refused by name, naming the edit' );
 $r = snt_sn_apply_plan_batch_edits( $content, 'drift_replace', array( array( 'phrase' => 'beta', 'replacement' => '<embed src=x>', 'fingerprint' => 'f' ) ) );
 ok( 'snt_sn_apply_active_content' === code_of( $r ), 'a drift_replace batch member is refused by name' );
+
+// ── A plain-prose splice inside an attribute value cannot break out of it.
+// No `<` in the replacement, so the fragment check passes it; the splice check
+// reads the post before and after and refuses what the splice added.
+$alt_post = '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="A long alt text phrase that is twenty plus chars" title="Another long title phrase of twenty plus chars"/></figure><!-- /wp:image -->';
+$GLOBALS['__post'] = (object) array( 'post_content' => $alt_post );
+$GLOBALS['__written'] = null;
+$capture = static function ( $id, $c ) { $GLOBALS['__written'] = $c; return $id; };
+foreach ( array(
+	array( 'A long alt text phrase that is twenty plus chars', '" onmouseover="alert(1)', 'onmouseover=' ),
+	array( 'Another long title phrase of twenty plus chars', 'x" autofocus onfocus="a', 'onfocus=' ),
+) as $breakout ) {
+	list( $in, $with, $want ) = $breakout;
+	$r = snt_sn_apply_sentence_replace_impl( 1, $in, $with, md5( $alt_post ), '', $capture );
+	ok( 'snt_sn_apply_active_content' === code_of( $r ) && in_array( $want, $r->data['constructs'], true ) && null === $GLOBALS['__written'], "sentence_replace refuses a breakout spliced into an attribute ($with), writing nothing" );
+	$r = snt_sn_apply_plan_batch_edits( $alt_post, 'sentence_replace', array( array( 'phrase' => $in, 'replacement' => $with ) ) );
+	ok( 'snt_sn_apply_active_content' === code_of( $r ) && in_array( $want, $r->data['constructs'], true ), "a payload.edits sentence_replace member refuses the same breakout ($with)" );
+	$r = snt_sn_apply_plan_batch_edits( $alt_post, 'drift_replace', array( array( 'phrase' => $in, 'replacement' => $with, 'fingerprint' => 'not-f' ) ) );
+	ok( 'snt_sn_apply_active_content' === code_of( $r ) && in_array( $want, $r->data['constructs'], true ), "a drift_replace batch member refuses the same breakout ($with)" );
+}
+// Control: a handler the post ALREADY carries is not the agent's doing, so an
+// unrelated sentence edit elsewhere in the same post still goes through.
+$old_handler = '<!-- wp:html --><button onclick="toggle()">Menu</button><!-- /wp:html --><!-- wp:paragraph --><p>This sentence is long enough to be replaced safely.</p><!-- /wp:paragraph -->';
+$GLOBALS['__post'] = (object) array( 'post_content' => $old_handler );
+$r = snt_sn_apply_sentence_replace_impl( 1, 'This sentence is long enough to be replaced safely.', 'This sentence was replaced, and nothing else moved.', md5( $old_handler ), '', $capture );
+ok( is_array( $r ) && false !== strpos( (string) $GLOBALS['__written'], 'nothing else moved' ), 'control: an onclick already in the post does not block an unrelated sentence edit' );
+$r = snt_sn_apply_plan_batch_edits( $old_handler, 'sentence_replace', array( array( 'phrase' => 'This sentence is long enough to be replaced safely.', 'replacement' => 'Changed " onclick="x()' ) ) );
+ok( 'snt_sn_apply_active_content' !== code_of( $r ), 'control: a quote in prose (outside any tag) adds no construct, even beside an existing onclick' );
 
 // ── create_draft: gate 2 finding, and the write refuses alone.
 $g = snt_sn_apply_gate2_create_draft( array( 'title' => 'T', 'content' => '<!-- wp:paragraph --><p>x</p><!-- /wp:paragraph --><script>1</script>' ) );

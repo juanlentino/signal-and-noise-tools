@@ -90,6 +90,7 @@ if ( ! function_exists( 'wp_get_post_terms' ) ) {
 
 $GLOBALS['wpdb'] = new stdClass(); // unused by these impls; satisfies file-scope expectations.
 
+require_once __DIR__ . '/lib/wp-core-kses.php'; // The splice check reads the post with core's HTML API and kses.
 require_once __DIR__ . '/../inc/health-checks.php';           // sn_health_contains_note_link
 require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php'; // locator + fingerprint (reused)
 require_once __DIR__ . '/../inc/ai-link-suggest.php';         // apply impl (integration case) + anchor max const

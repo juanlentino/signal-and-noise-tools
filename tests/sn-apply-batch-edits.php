@@ -55,6 +55,7 @@ function __( $s, $d = null ) { return $s; }
 function wp_strip_all_tags( $t, $remove_breaks = false ) { return trim( strip_tags( (string) $t ) ); }
 function strip_shortcodes( $t ) { return $t; }
 
+require_once __DIR__ . '/lib/wp-core-kses.php'; // The splice check reads the post with core's HTML API and kses.
 require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
 require_once __DIR__ . '/../inc/sn-apply/sentence-replace.php';
 require_once __DIR__ . '/../inc/sn-apply/batch-edits.php';

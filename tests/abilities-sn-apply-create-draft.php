@@ -226,6 +226,7 @@ if ( ! function_exists( 'sn_mcp_rw_audit_record' ) ) {
 /* ════════════════════════════════════════════════════════════════════════
  * Load the SUT
  * ════════════════════════════════════════════════════════════════════════ */
+require_once __DIR__ . '/lib/wp-core-kses.php'; // The active-content refusal reads markup with core's HTML API and kses.
 require __DIR__ . '/../inc/corpus-inspect.php';
 require __DIR__ . '/../inc/word-count.php';
 require __DIR__ . '/../inc/sn-validate-checks.php';

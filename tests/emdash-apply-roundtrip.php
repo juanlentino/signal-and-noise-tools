@@ -83,6 +83,7 @@ if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 
+require_once __DIR__ . '/lib/wp-core-kses.php'; // The splice check reads the post with core's HTML API and kses.
 require_once __DIR__ . '/../inc/emdash-scan.php';
 require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
 require_once __DIR__ . '/../inc/sn-apply/active-content.php'; // the batch refuses added active content (2026-10-16 audit)

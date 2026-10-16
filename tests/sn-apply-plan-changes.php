@@ -122,6 +122,7 @@ if ( ! class_exists( 'WP_Block_Type_Registry' ) ) {
 	}
 }
 
+require_once __DIR__ . '/lib/wp-core-kses.php'; // The active-content refusal reads markup with core's HTML API and kses.
 require __DIR__ . '/../inc/sn-apply/block-edit.php';
 require __DIR__ . '/../inc/sn-apply/sentence-replace.php';
 require __DIR__ . '/../inc/sn-apply/plan-changes.php';

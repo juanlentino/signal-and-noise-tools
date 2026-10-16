@@ -425,6 +425,10 @@ function snt_sn_apply_plan_changes( $content, $changes ) {
 	foreach ( $ordered as $c ) {
 		$new_content = substr_replace( $new_content, $c['replacement'], $c['start'], $c['length'] );
 	}
+	$spliced = snt_sn_apply_splice_active_error( $content, $new_content, 'payload.changes' );
+	if ( is_wp_error( $spliced ) ) {
+		return $spliced;
+	}
 
 	return array(
 		'new_content' => $new_content,

@@ -184,6 +184,10 @@ function snt_sn_apply_link_reshape_compute( $content, array $match, $current_anc
 	if ( snt_sn_apply_link_prose_normalize( $content ) !== snt_sn_apply_link_prose_normalize( $new_content ) ) {
 		return new WP_Error( 'snt_sn_apply_identity_violation', __( 'Post-splice assertion failed: the reshape would change rendered prose. Nothing was written — this indicates a bug in link_reshape itself, not a caller error.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
+	$spliced = snt_sn_apply_splice_active_error( $content, $new_content, 'payload.new_anchor' );
+	if ( is_wp_error( $spliced ) ) {
+		return $spliced;
+	}
 
 	return $new_content;
 }
@@ -329,6 +333,10 @@ function snt_sn_apply_unlink_compute( $content, array $match, $anchor_text ) {
 
 	if ( snt_sn_apply_link_prose_normalize( $content ) !== snt_sn_apply_link_prose_normalize( $new_content ) ) {
 		return new WP_Error( 'snt_sn_apply_identity_violation', __( 'Post-splice assertion failed: the unlink would change rendered prose. Nothing was written — this indicates a bug in unlink itself, not a caller error.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
+	}
+	$spliced = snt_sn_apply_splice_active_error( $content, $new_content, 'payload.anchor_text' );
+	if ( is_wp_error( $spliced ) ) {
+		return $spliced;
 	}
 
 	return $new_content;

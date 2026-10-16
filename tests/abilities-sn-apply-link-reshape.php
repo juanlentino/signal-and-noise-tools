@@ -57,6 +57,8 @@ function tf_post( $id, $content ) {
 }
 
 require __DIR__ . '/../inc/corpus-inspect.php';
+require_once __DIR__ . '/lib/wp-core-kses.php'; // The splice check reads the post with core's HTML API and kses.
+require_once __DIR__ . '/../inc/sn-apply/active-content.php'; // In production the loader brings it in via sentence-replace.php.
 require __DIR__ . '/../inc/sn-apply/link-reshape.php';
 
 $V = 'snt_sn_apply_link_reshape_pair_error';

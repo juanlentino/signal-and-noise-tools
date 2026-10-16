@@ -145,6 +145,7 @@ if ( ! function_exists( 'parse_blocks' ) ) {
 }
 if ( ! function_exists( 'serialize_block' ) )  { function serialize_block( $b ) { return json_encode( $b ); } }
 if ( ! function_exists( 'serialize_blocks' ) ) { function serialize_blocks( $t ) { return json_encode( $t ); } }
+require_once __DIR__ . '/lib/wp-core-kses.php'; // The active-content refusal reads markup with core's HTML API and kses.
 if ( ! function_exists( 'wp_kses_post' ) )     { function wp_kses_post( $h ) { return $h; } }
 if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); } }
 if ( ! function_exists( 'esc_url' ) )          { function esc_url( $u ) { return $u; } }
