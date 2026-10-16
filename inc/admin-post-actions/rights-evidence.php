@@ -13,7 +13,7 @@
  * the waiting months, so no other value reaches an action.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

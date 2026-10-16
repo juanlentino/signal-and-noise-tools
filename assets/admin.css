@@ -1474,12 +1474,6 @@ a.sn-link-card__title::after {
 	padding-top: 0;
 }
 
-/* Inline notice spacing for warnings that need vertical margin without
-   the box-shadow / extra padding of a top-of-page notice. */
-.sn-notice-spacing {
-	margin: 1em 0;
-}
-
 /* Bottom margin for the page-level nav-tab-wrapper. WP's default has
    no bottom margin; we want breathing room before tab content. */
 .sn-nav-tabs {
@@ -1554,13 +1548,6 @@ a.sn-link-card__title::after {
    top spacing so they don't visually fuse to the previous input. */
 .sn-sameas-extra {
 	margin-top: 6px;
-}
-
-/* Match snippets — small muted lines under each err pill in the Matches table. */
-.sn-rt-snippet {
-	color: var(--sn-text-muted, #646970);
-	display: inline-block;
-	margin-top: 2px;
 }
 
 /* Match-table ID column — narrow numeric column. */

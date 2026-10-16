@@ -11,7 +11,7 @@
  * draft controls with a draft, Revert with a previous version.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 19.9.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

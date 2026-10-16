@@ -229,7 +229,7 @@ function sn_ability_get_analytics_summary( $input ) {
 	// internal consumers (the Dashboard widget renders all three, and
 	// annotations gate on visits), so no owner-facing surface changes.
 	unset( $totals['visits'], $totals['scroll_avg'], $totals['time_avg'] );
-	// Unreleased: beside the totals, never subtracted from them. Read from the
+	// 2026.10.1: beside the totals, never subtracted from them. Read from the
 	// nightly per-day store (inc/analytics-likely-automated.php): this call
 	// never queries Analytics Engine.
 	$totals['likely_automated'] = function_exists( 'sn_analytics_likely_automated' ) ? sn_analytics_likely_automated( $from, $to, $class ) : null;

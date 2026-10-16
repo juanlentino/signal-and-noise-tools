@@ -11,7 +11,7 @@
  * Nothing is read from the request here; the target is built with admin_url().
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 17.7.3
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

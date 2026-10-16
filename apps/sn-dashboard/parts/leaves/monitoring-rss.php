@@ -2,13 +2,13 @@
 /**
  * S&N Dashboard — Monitoring → RSS, painted from the kit.
  *
- * The classic leaf (`sn_rss_tracker_render_admin_tab()`, inc/rss-feed-tracker.php:608,
+ * The classic leaf (`sn_rss_tracker_render_admin_tab()`, in inc/rss-feed-tracker-render-parts.php,
  * hooked to `sn_admin_rss_tab` and wrapped by `sn_admin_render_rss_section()`,
- * inc/admin-render-sections.php:131) is the ONE leaf on this tab that bypasses
+ * inc/admin-render-sections.php) is the ONE leaf on this tab that bypasses
  * the estate's admin-post.php `action` + `sn_<action>` nonce pipeline entirely: its form
  * field is `sn_rss_action`, its nonce action is `SN_RSS_TRACKER_NONCE`
  * (`sn_rss_tracker_action`), and its flash query arg is `sn_rss_ok` — read
- * directly at inc/rss-feed-tracker.php:615, bypassing the shared `?sn_flash=`
+ * directly in that function, bypassing the shared `?sn_flash=`
  * pipeline. `snt_kit_form()` bakes in the shared field name and nonce, so this
  * leaf paints its own `rss_form()` wrapper carrying the RIGHT field name and
  * nonce action instead; the host's `rss` write pipeline

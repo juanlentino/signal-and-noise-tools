@@ -48,7 +48,7 @@ function snt_ml_reader_anomalies( $now = null ) {
 	if ( empty( $fetched['ok'] ) ) {
 		return snt_ml_reader_unavailable( (string) ( $fetched['error'] ?? 'fetch_failed' ), $from, $to );
 	}
-	// Unreleased: first-party reads (the sensor's first_party flag: this site's
+	// 2026.10.1: first-party reads (the sensor's first_party flag: this site's
 	// own probes, ledger verifier and uptime monitor) are not readership and
 	// leave every series. Live 2026-10-05: unclassified-machine flagged at
 	// 13.1 sigma, and the spike was the site's own ledger verifier.
@@ -93,7 +93,7 @@ function snt_ml_reader_anomalies( $now = null ) {
 		) + ( function_exists( 'snt_ml_reader_verification_split' ) ? array( 'by_verification' => snt_ml_reader_verification_split( $rows, $family, $from, $to ) ) : array() );
 	}
 
-	// Unreleased: three or more families deviating the same day on unverified
+	// 2026.10.1: three or more families deviating the same day on unverified
 	// reads from one network are one finding (inc/ml-reader-anomalies-split.php).
 	$co_movement = array();
 	if ( function_exists( 'snt_ml_reader_co_movement' ) ) {

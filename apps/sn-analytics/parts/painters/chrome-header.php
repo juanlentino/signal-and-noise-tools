@@ -52,7 +52,7 @@ function paint_chrome_header( array $ctx ) {
 		}
 	}
 
-	// Unreleased: in the stats row beside the presumed-human figures, the likely
+	// 2026.10.1: in the stats row beside the presumed-human figures, the likely
 	// automated tile (class human only; inferred, never subtracted; "not
 	// measured", never 0), the same card the classic Overview paints.
 	$la = function_exists( 'sn_analytics_likely_automated' ) && function_exists( 'snt_analytics_likely_automated_card' ) ? \snt_analytics_likely_automated_card( \sn_analytics_likely_automated( $from, $to, $class ) ) : null;

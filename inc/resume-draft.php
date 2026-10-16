@@ -14,7 +14,7 @@
  * (tests/resume-draft.php) runs this file without WordPress.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 19.9.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

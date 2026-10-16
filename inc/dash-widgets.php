@@ -153,7 +153,7 @@ function snt_dwx_boxes() {
 							'delta' => array( 'label' => __( 'prior 30d', 'signal-and-noise-tools' ) ),
 						),
 						array(
-							// Unreleased: the purpose figure, claimed, with the part
+							// 2026.10.1: the purpose figure, claimed, with the part
 							// Cloudflare verified (the legacy family figure is the
 							// Machine readers view's "counted both ways" band).
 							'path'    => 'ai_training_by_purpose',

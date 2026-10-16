@@ -22,7 +22,7 @@
  * confirm still states it before anything is revoked.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 2026.10.18
  */
 
 namespace SignalNoise\OpenStationHost\Dashboard\Leaves;

@@ -11,7 +11,7 @@
  * eligible; a retracted record is final (the F5 refresh never re-reads it).
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.1.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

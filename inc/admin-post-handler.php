@@ -43,7 +43,7 @@ function sn_admin_post_handlers() {
 		// actions replace all four. Their handlers stay, deprecated, one release.
 		'keyring_save'               => 'sn_handle_keyring_save',   // 15.2.0
 		'keyring_verify'             => 'sn_handle_keyring_verify', // 15.2.0
-		'keyring_generate'           => 'sn_handle_keyring_generate', // Unreleased: the owner identity keys (SN Traffic Lanes)
+		'keyring_generate'           => 'sn_handle_keyring_generate', // 2026.10.18: the owner identity keys (SN Traffic Lanes)
 		'health_scan'                => 'sn_handle_health_scan',
 		'remote_toggle'              => 'sn_handle_remote_toggle',
 		'webhook_add'                => 'sn_handle_webhook_add',
@@ -67,10 +67,10 @@ function sn_admin_post_handlers() {
 		'scheduled_reads_save'       => 'sn_handle_scheduled_reads_save',
 		'now_save'                   => 'sn_handle_now_save',
 		'uses_save'                  => 'sn_handle_uses_save',
-		'workflow_save'              => 'sn_handle_workflow_save', // Unreleased: Content > Workflow (/workflow)
+		'workflow_save'              => 'sn_handle_workflow_save', // 21.7.0: Content > Workflow (/workflow)
 		'resume_pdf_generate'        => 'sn_handle_resume_pdf_generate',
 		'resume_pdf_private'         => 'sn_handle_resume_pdf_private',
-		// Unreleased: /resume drafts. Save never goes live; these do.
+		// 19.9.0: /resume drafts. Save never goes live; these do.
 		'resume_draft_save'          => 'sn_handle_resume_draft_save',
 		'resume_preview_page'        => 'sn_handle_resume_preview_page',
 		'resume_preview_pdf'         => 'sn_handle_resume_preview_pdf',
@@ -99,7 +99,7 @@ function sn_admin_post_handlers() {
 		'zenodo_deposit_batch'       => 'sn_handle_zenodo_deposit_batch',
 		'zenodo_deposit_one'         => 'sn_handle_zenodo_deposit_one',
 		'analytics_exclude_save'     => 'sn_handle_analytics_exclude_save',
-		'owner_device_enroll'        => 'sn_handle_owner_device_enroll',     // Unreleased (SN Traffic Lanes): the signed owner marker
+		'owner_device_enroll'        => 'sn_handle_owner_device_enroll',     // 2026.10.18 (SN Traffic Lanes): the signed owner marker
 		'owner_device_revoke'        => 'sn_handle_owner_device_revoke',
 		'owner_device_revoke_all'    => 'sn_handle_owner_device_revoke_all',
 		'analytics_owner_device'     => 'sn_handle_analytics_owner_device', // 2026-10-12: S&N Home's "Exclude this device" (the classic page keeps its link)
@@ -125,7 +125,7 @@ function sn_admin_post_handlers() {
 		'gsc_test'                   => 'sn_handle_gsc_test',
 		'gsc_property_save'          => 'sn_handle_gsc_property_save',
 		'gsc_sync'                   => 'sn_handle_gsc_sync',
-		// Unreleased: rights evidence, Monitoring > Machine Readers (inc/admin-post-actions/rights-evidence.php).
+		// 20.0.0: rights evidence, Monitoring > Machine Readers (inc/admin-post-actions/rights-evidence.php).
 		'rights_evidence_view'       => 'sn_handle_rights_evidence_view', // GET door: a held month's dry run as JSON
 		'rights_evidence_lift'       => 'sn_handle_rights_evidence_lift', // one month off the hold; never runs the pass
 		'rights_evidence_retract'    => 'sn_handle_rights_evidence_retract', // one signed retraction per click (inc/admin-post-actions/rights-evidence-retract.php)

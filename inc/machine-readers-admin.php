@@ -211,7 +211,7 @@ function snt_mr_render_tab() {
 		'reread_url'         => snt_mr_reread_url(),
 		'settings_form_html' => $settings_html,
 	) );
-	// Unreleased: rights evidence (held months, their payloads, the lift).
+	// 20.0.0: rights evidence (held months, their payloads, the lift).
 	if ( function_exists( 'sn_admin_render_rights_evidence' ) ) {
 		sn_admin_render_rights_evidence();
 	}

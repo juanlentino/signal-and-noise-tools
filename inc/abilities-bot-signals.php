@@ -44,7 +44,7 @@ function sn_bot_signals_refresh() {
 
 /**
  * The same score per UTC day, so get-analytics-summary can say how many of a
- * range's human visitor-days scored likely automated (Unreleased).
+ * range's human visitor-days scored likely automated (2026.10.1).
  * Best-effort and separate from the readout: a failed, capped or empty read
  * keeps the stored days, and the capped and empty cases are logged.
  *

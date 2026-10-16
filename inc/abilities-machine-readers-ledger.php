@@ -163,7 +163,7 @@ function snt_ability_get_machine_readers_crosstab( $input, $with_unnamed = true 
  * read is null (not measured), never [] (which says every read matched).
  * Each sample is sanitised again here; one that sanitises to '' is dropped.
  *
- * Unreleased: each sample also carries verified_hits, not_measured and its top
+ * 2026.10.1: each sample also carries verified_hits, not_measured and its top
  * networks, the agent_networks shape. The read asks for the unknown view with
  * detail=network (rights-signals 1.30.0: rows split by verified_bot and
  * network, capped at 10,000), so rows are folded by sample BEFORE the cut. A

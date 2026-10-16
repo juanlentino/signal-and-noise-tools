@@ -335,7 +335,7 @@ function sn_resume_body_html( $doc ) {
  * Create-or-update the /resume Page with the given body. Replaces
  * post_content on the existing Page (the form is the canonical editor);
  * creates the Page bound to the resume slug + template when absent. It no
- * longer seeds an Excerpt (Unreleased): the seed said "twenty years ... then
+ * longer seeds an Excerpt (20.4.0): the seed said "twenty years ... then
  * twenty more" beside a resume that says 15+, and the page's description
  * and share card now read the meta description instead. Returns the Page ID, or 0 on
  * failure / empty body.

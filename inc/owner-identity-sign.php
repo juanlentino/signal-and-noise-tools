@@ -19,7 +19,7 @@
  * the Workers' vectors pin it standalone.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 2026.10.18
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

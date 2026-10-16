@@ -9,7 +9,7 @@
  * inc/owner-devices.php, which holds the cookie and the actions.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 2026.10.18
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

@@ -110,7 +110,7 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_bot_signals',
 		),
-		// Unreleased: monthly rights evidence posts itself once its review window passes.
+		// 20.3.0: monthly rights evidence posts itself once its review window passes.
 		array(
 			'id'        => 'rights_evidence_review',
 			'label'     => 'rights evidence: a month waits to post, or a rule held one',
@@ -130,7 +130,7 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_dompdf',
 		),
-		// Unreleased: the agent-readable twin of the alert email.
+		// 20.8.0: the agent-readable twin of the alert email.
 		array(
 			'id'        => 'alerts_fired',
 			'label'     => 'an alert fired: a page spiked or broke',
@@ -140,7 +140,7 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_alerts',
 		),
-		// Unreleased: a first publish is pushed to the Internet Archive.
+		// 20.8.0: a first publish is pushed to the Internet Archive.
 		array(
 			'id'        => 'archive_push_failed',
 			'label'     => 'Internet Archive push failed',
@@ -150,7 +150,7 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_archive_push',
 		),
-		// Unreleased: analytics 2.0 stops the legacy write; the verdict freezes.
+		// 22.3.0: analytics 2.0 stops the legacy write; the verdict freezes.
 		array(
 			'id'        => 'analytics_v2_frozen_bad',
 			'label'     => 'analytics 2.0: the legacy write stopped on a bad verdict',
@@ -160,7 +160,7 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_analytics_v2_freeze',
 		),
-		// Unreleased: /stats reads machine figures from an hourly snapshot.
+		// 22.1.0: /stats reads machine figures from an hourly snapshot.
 		array(
 			'id'        => 'public_stats_machines',
 			'label'     => '/stats machine figures not refreshing',

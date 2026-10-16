@@ -160,7 +160,7 @@ function sn_analytics_canonical_source( $host, $self_hosts = null ) {
 	if ( null === $self_hosts ) {
 		$self_hosts = function_exists( 'sn_analytics_self_hosts' ) ? sn_analytics_self_hosts() : array();
 	}
-	// Unreleased: an internal click (worker 1.23.0, double10 = 1) keeps its own
+	// 20.8.0: an internal click (worker 1.23.0, double10 = 1) keeps its own
 	// label. It is not a source and it is not "(direct)"; the folds below skip it.
 	if ( SN_ANALYTICS_INTERNAL_REFERRER === $h ) {
 		return SN_ANALYTICS_INTERNAL_REFERRER;

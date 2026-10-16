@@ -94,7 +94,7 @@ function snt_analytics_render_settings_section() {
 			'snt_analytics_render_exclusion'
 		);
 	}
-	// Unreleased (SN Traffic Lanes): the signed owner marker, beside the exclusion.
+	// 2026.10.18 (SN Traffic Lanes): the signed owner marker, beside the exclusion.
 	if ( function_exists( 'snt_analytics_render_owner_devices' ) ) {
 		snt_an_settings_fold(
 			__( 'Owner devices', 'signal-and-noise-tools' ),

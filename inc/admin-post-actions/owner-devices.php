@@ -8,7 +8,7 @@
  * nonce and manage_options; revoke also checks its per-row nonce.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 2026.10.18
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
