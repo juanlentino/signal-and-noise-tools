@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.10.26] - 2026-10-16 — security hardening from the audit: webmention limits, no draft titles on /stats, agent writes refuse active content
+
 ### Security
 Fixes from the 2026-10-16 plugin audit, each with a test that fails against the old code.
 - **Webmention inbox: flood limits.** `POST /signal-noise/v1/webmention` now allows 10 claims per IP per hour and 20 per source host per day, refusing past either with a named 429 (`sn_cit_rate_limited_ip`, `sn_cit_rate_limited_host`). The IP is `REMOTE_ADDR`, as login defense reads it, so the per-IP limit is per client only where the host restores the visitor address behind Cloudflare. The store holds at most 2,000 `unverified` rows; past that a new claim is a 429 (`sn_cit_inbox_full`) and the refusal is logged. The verification fetch stays behind the SSRF guard.
@@ -25,9 +27,4 @@ Fixes from the 2026-10-16 plugin audit, each with a test that fails against the 
 - **/live does not spawn cron for anonymous readers.** Only the authenticated `/live/admin` read runs a due refresh now; the public route still schedules one, and the host's system cron runs it, so with no admin reading the public figure can lag by up to that interval (5 minutes).
 - **Music JSON-LD** is encoded with `JSON_HEX_TAG`, so a stored string cannot close its script element.
 - **Dependabot** now watches the bundled PDF library (`/lib/pdf`).
-
-## [2026.10.25] - 2026-10-16 — Which machines send a reader back joins the Analytics principles; roadmap board in sync
-
-### Changed
-- **Roadmap board: the static floor resynced to the third live write of 2026-10-16.** Analytics: "A quiet week explained…" moves planned to done, reworded as shipped in 2026.10.24 (the pages and sources that fell furthest against their own usual weeks, or a drop spread thin). The five-row done cap dropped the oldest done row, "Which machines send a reader back", which graduates onto the Analytics maturity page as its seventeenth principle with its "not a ratio" decline intact; the test guarding that decline moved with it. The md5 pin moves to `95715684be34e8e4b8d77acf53cd4f10`, verified against the live page.
 
