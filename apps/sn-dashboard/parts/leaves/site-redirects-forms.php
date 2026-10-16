@@ -42,6 +42,8 @@ function redirects_edit_html( $source, array $r ) {
 			'confirm_title' => __( 'Delete this redirect?', 'signal-and-noise-tools' ),
 			'confirm_label' => __( 'Delete', 'signal-and-noise-tools' ),
 			'danger'        => true,
+			// 2026-10-16: the lone Delete is the compact one-button form, a danger outline.
+			'inline'        => true,
 		)
 	);
 	// Cancel sits beside Save in the form's own action row (os-form footer-leading, as on Résumé).

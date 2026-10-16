@@ -33,6 +33,9 @@ $earned = array(
 	'apps/sn-dashboard/parts/leaves/monitoring-analytics-setup.php' => 'Measurement › Analytics (one call, snt_kit_setup_card()): the Setup card\'s settings (credentials, collector, roles kept out, tuning, funnels, the Worker and salt, configured elsewhere) are setup or reference, changed once in a while; each summary is the setting\'s current state; credentials open while the pipeline is incomplete, the collector while unset, the Worker while its version or salt was not read. Warnings stay open on the Pipeline card',
 	'apps/sn-dashboard/parts/leaves/monitoring-analytics-owner.php' => 'Your devices\' How this works (snt_kit_how_fold()): reference, the marker explained and what Revoke all leaves to do; its summary states the mechanism; Revoke all\'s confirm repeats the hint before anything is revoked',
 	'inc/openstation-kit-anatomy.php' => 'The leaf anatomy helpers (2 calls: snt_kit_setup_card() folds each setting, snt_kit_how_fold() folds explanatory prose): they only paint folds a leaf asks for, and every leaf that calls one is listed here on its own line',
+	'apps/sn-dashboard/parts/leaves/security-login.php'       => 'Security › Login URL (2 calls): How this works folds the module explained (reference; the state is the status line, a dormant or bypassed module keeps its open warning), and the Setup card\'s Emergency unlock folds the wp-config.php constants (reference for a lockout; its summary names the constant that is set, open while one is)',
+	'apps/sn-dashboard/parts/leaves/site-performance.php'     => 'Site › Performance (2 calls): How this works folds the Speculation Rules intro; the Setup card folds the setting (summary On or Off, changed once in a while) and the Profile reference (summary its mode). The state is the status line; failed outbound calls stay an open warning on the ledger',
+	'apps/sn-dashboard/parts/leaves/security-audit-log.php'   => 'Security › Audit log: the Setup card\'s Retention folds the one setting (summary the window in days, changed once in a while); the glance, the counter timeline, the logins ledger, lockouts and Prune now stay open',
 	'apps/sn-dashboard/parts/leaves/connections-cron.php'     => 'Scheduled events: a reference list (91 events, 5,473px open); the summary counts events, overdue and unhandled; open when one is overdue or unhandled, when overdue cannot be read, or while a filter is typed',
 );
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -40,7 +43,11 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 $root  = dirname( __DIR__ );
 $files = array( $root . '/inc/north-star-settings.php', $root . '/inc/openstation-kit-anatomy.php' );
 // How many fold calls a file may make: one, unless named here.
-$calls = array( 'inc/openstation-kit-anatomy.php' => 2 );
+$calls = array(
+	'inc/openstation-kit-anatomy.php'                     => 2,
+	'apps/sn-dashboard/parts/leaves/security-login.php'   => 2,
+	'apps/sn-dashboard/parts/leaves/site-performance.php' => 2,
+);
 $it    = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/apps/sn-dashboard', FilesystemIterator::SKIP_DOTS ) );
 foreach ( $it as $file ) {
 	if ( 'php' === $file->getExtension() ) {

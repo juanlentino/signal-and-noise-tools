@@ -45,10 +45,16 @@ ok( false !== strpos( $kit, '<os-field-row label="Status" hint="Turning this off
 // 2026.10.4 audit (batch 4): "summarized alongside" pointed at a position.
 ok( false !== strpos( $kit, 'The Profile box lists the profile and what it leaves out.' ) && false !== strpos( $classic, 'The Profile box lists the profile and what it leaves out.' ) && false === strpos( $kit . $classic, 'alongside' ), 'the intro names the Profile box, on both twins' );
 ok( false !== strpos( $kit, 'heading="Speculative loading"' ) && false !== strpos( $kit, 'href="https://developer.chrome.com/docs/web-platform/prerender-pages"' ) && false !== strpos( $kit, '>Speculation Rules</a>' ) && false !== strpos( $kit, '<os-code>auto</os-code>/<os-code>auto</os-code>' ), 'the intro keeps the Speculation Rules link and the auto/auto default as inline code' );
-ok( false !== strpos( $kit, '<os-notice tone="success" not-dismissible>Speculative loading is on.</os-notice>' ) && false === strpos( $kit, '<b>' ) && false !== strpos( $classic, 'Speculative loading is on.' ), 'the on state is one sentence in a success notice, no bold lead-in, no state said three ways' );
-ok( false !== strpos( $kit, 'aria-label="Speculative loading status"' ), 'the rail keeps its landmark name' );
+// 2026-10-16, the leaf anatomy (docs/kit-leaf-anatomy.md): the state is the
+// status line's first chip, the intro a How this works fold, the setting and
+// its Profile two folds of one Setup card under the outbound-call ledger.
+$line = strpos( $kit, '<div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success">Speculative loading is on</os-badge>' );
+ok( false !== $line && false === strpos( $kit, '<os-notice tone="success"' ) && false === strpos( $kit, '<b>' ) && false !== strpos( $classic, 'Speculative loading is on.' ), 'the on state is one chip on the status line that leads the leaf, no notice box, no bold lead-in' );
+$how = strpos( $kit, '<os-disclosure heading="How this works" hint="Speculation Rules prerender the pages a visitor is likely to open next."' );
+ok( false !== $how && $line < $how && $how < strpos( $kit, 'WordPress 7.0 ships native' ) && false === strpos( $kit, 'aria-label="Speculative loading status"' ), 'the intro is a How this works fold under the status line; the classic rail is gone' );
+ok( false !== strpos( $kit, '<os-disclosure heading="Speculative loading" hint="On"' ) && false !== strpos( $kit, '<os-disclosure heading="Profile" hint="prerender, moderate eagerness"' ) && 1 === substr_count( $kit, 'heading="Setup"' ) && strpos( $kit, 'heading="Setup"' ) < strpos( $kit, 'heading="Speculative loading"' ), 'one Setup card holds the setting (summary On) and the Profile (summary its mode), each a closed fold' );
 ok( false !== strpos( $kit, 'heading="Profile"' ) && false !== strpos( $kit, '<os-fact label="Mode"><span class="snt-kv__v"><os-code>prerender</os-code>, eagerness <os-code>moderate</os-code>' ) && false !== strpos( $kit, '<os-fact label="Excluded automatically"><span class="snt-kv__v">the custom login URL and <os-code>/contact/*</os-code>.</span>' ) && false !== strpos( $kit, '<os-fact label="Browser support"><span class="snt-kv__v">only modern Chromium browsers act on speculation rules; others safely ignore them.</span>' ) && false === strpos( $kit, '<strong>' ), 'the Profile reference survives as labeled facts, not bold lead-ins: mode, eagerness, exclusions, support' );
-ok( 2 === substr_count( $kit, '<os-card' ) && false !== strpos( $kit, snt_leaf_row() . '<os-card><os-section' ) && false !== strpos( $kit, '<os-card role="complementary" aria-label="Speculative loading status">' ), 'the two-column shell becomes the app column grid: form column, then the rail, each an os-card, the rail keeping its landmark' );
+ok( 0 === substr_count( $kit, '<os-card' ) && false === strpos( $kit, snt_leaf_row() ), 'no two-column shell left: status card, ledger, Setup card, each at full width' );
 
 // ── Disabled state: unchecked, warning box, plain Off pill; parity holds.
 $GLOBALS['__settings'] = array( 'perf.speculative_loading' => false );
@@ -56,7 +62,7 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_performance_section' );
 $kit     = snt_leaf_paint( 'site', 'performance' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'perf_save' ) === snt_leaf_actions( $kit ), 'off: field names and the action still match the classic form' );
 ok( false !== strpos( $kit, '<os-checkbox-label name="speculative_loading" value="1" label="Enabled:' ) && false === strpos( $kit, ' checked ' ), 'off: the checkbox is unchecked' );
-ok( false !== strpos( $kit, '<os-notice tone="warning" not-dismissible>Speculative loading is off.</os-notice>' ) && false === strpos( $kit, 'tone="success"' ), 'off: one sentence in a warning notice' );
+ok( false !== strpos( $kit, '<div class="snt-status-line"><os-cluster gap="8"><os-badge tone="warning">Speculative loading is off</os-badge>' ) && false !== strpos( $kit, '<os-disclosure heading="Speculative loading" hint="Off"' ) && false === strpos( $kit, 'tone="success"' ), 'off: an amber chip on the status line, and the setting\'s fold says Off' );
 ok( false !== strpos( $classic, 'sn-status-box--warn' ) && false !== strpos( $classic, '<span class="sn-pill">Off</span>' ), 'off: the classic oracle really paints the warn box and the plain pill (the control is not vacuous)' );
 
 // ── Default state: no stored value reads as on, as sn_setting's default does.
@@ -98,8 +104,10 @@ $GLOBALS['__options']['snt_httpdiag_log'] = $fixture;
 $classic = snt_leaf_classic_html( 'sn_admin_render_performance_section' );
 $kit     = snt_leaf_paint( 'site', 'performance' );
 snt_leaf_preview( 'site-performance', $kit );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'perf_save' ) === snt_leaf_actions( $kit ) && array() === snt_leaf_classic_markers( $kit ) && 2 === substr_count( $kit, '<os-card' ), 'with a log: names, the one action, no classic markers and the two-column row are unchanged' );
-ok( strrpos( $kit, '</os-grid>' ) < strpos( $kit, 'heading="Outbound calls from admin pages"' ), 'the ledger section sits after the paired row, at full width' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'perf_save' ) === snt_leaf_actions( $kit ) && array() === snt_leaf_classic_markers( $kit ), 'with a log: names, the one action and no classic markers are unchanged' );
+$ledger = strpos( $kit, 'heading="Outbound calls from admin pages"' );
+ok( false !== $ledger && strpos( $kit, 'class="snt-status-line"' ) < $ledger && $ledger < strpos( $kit, 'heading="Setup"' ), 'the ledger is the working content: after the status line, before the Setup card' );
+ok( false !== strpos( $kit, '<os-badge tone="warning">2 failed outbound calls</os-badge>' ) && false !== strpos( $kit, '2 failed calls; the slowest was slow.example.com.' ), 'the status line counts the failed calls in amber, and the ledger keeps its open warning naming the host' );
 preg_match( '/<os-table[^>]* os-prop-columns="([^"]*)"[^>]* os-prop-data="([^"]*)"/', $kit, $m );
 $cols = json_decode( html_entity_decode( $m[1] ?? '', ENT_QUOTES, 'UTF-8' ), true );
 $rows = json_decode( html_entity_decode( $m[2] ?? '', ENT_QUOTES, 'UTF-8' ), true );
