@@ -1023,14 +1023,16 @@ echo "\nTest 7c: cadence_flags attach when the kernel module is present (additiv
 ins_true( ! isset( $signals['cadence_flags'] ), '7c: absent while snt_ml_cadence_flags is undefined — no fabricated section' );
 if ( ! function_exists( 'snt_ml_cadence_flags' ) ) { // block-wrapped: a bare declaration would HOIST and break the absence assert above
 	function snt_ml_cadence_flags( $now = null ) {
-		return array( 'ok' => true, 'flags' => array( array( 'kind' => 'cron', 'subject' => 'sn_demo_hook', 'z' => 8.18701, 'ewma' => 99.46, 'current_gap' => 300.0, 'last_at' => 400 ) ), 'watched_hooks' => 2, 'cron_skipped' => false );
+		return array( 'ok' => true, 'flags' => array( array( 'kind' => 'cron', 'subject' => 'sn_demo_hook', 'z' => 8.18701, 'ewma' => 99.46, 'current_gap' => 300.0, 'last_at' => 400 ), array( 'kind' => 'views', 'subject' => 'Reading rhythm', 'z' => 9.1, 'movers' => array( 'paths' => array( 'top' => array( array( 'key' => '/a/', 'current' => 7, 'usual' => 77, 'shortfall' => 70 ) ) ), 'sources' => null ) ) ), 'watched_hooks' => 2, 'cron_skipped' => false );
 	}
 }
 $signals_cad = snt_insights_collect_signals();
-ins_true( isset( $signals_cad['cadence_flags'] ) && 1 === count( $signals_cad['cadence_flags']['flags'] ), '7c: one cadence flag rides the bundle' );
+ins_true( isset( $signals_cad['cadence_flags'] ) && 2 === count( $signals_cad['cadence_flags']['flags'] ), '7c: both cadence flags ride the bundle' );
 ins_eq( 8.19, $signals_cad['cadence_flags']['flags'][0]['z'], '7c: z rounded to 2dp for the prompt' );
 ins_eq( 'sn_demo_hook', $signals_cad['cadence_flags']['flags'][0]['subject'], '7c: subject carried' );
 ins_true( false === $signals_cad['cadence_flags']['cron_skipped'], '7c: the partial-answer marker rides along' );
+ins_eq( 70, $signals_cad['cadence_flags']['flags'][1]['movers']['paths']['top'][0]['shortfall'] ?? null, '7c: a quiet week reaches the advisor explained: the movers ride with the views flag' );
+ins_true( ! isset( $signals_cad['cadence_flags']['flags'][0]['movers'] ), '7c: a flag without movers gains no key' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
