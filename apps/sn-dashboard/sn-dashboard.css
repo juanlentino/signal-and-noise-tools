@@ -1373,17 +1373,9 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 
 
 /* Measurement › Analytics (2026-10-16, owner: "a mess. Design, design,
-   design."): the Pipeline card's one status line, chips on the left and the
-   View dashboard door on the right, wrapping as one block on a narrow
-   window; and the leaf's prose reads the card's full width instead of the
-   72ch cap (490px inside a 700px card on the desktop PWA). */
-.snt-app[data-os-app="sn-dashboard"] .snt-an-status {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px 16px;
-}
+   design."): the leaf's prose reads the card's full width instead of the
+   72ch cap (490px inside a 700px card on the desktop PWA). Its status line
+   is the kit's `.snt-status-line` now (assets/os-app.css). */
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="analytics"] .snt-prose {
 	max-width: none;
 }

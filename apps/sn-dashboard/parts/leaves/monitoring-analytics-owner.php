@@ -11,7 +11,15 @@
  * 2026-10-16: the Your devices card, open (a control in regular use, never a
  * fold): this browser, who is kept out while logged in, the devices with a
  * Revoke each, enroll, This device and Revoke all; the long explanation sits
- * under a small How this works fold.
+ * under a small How this works fold (snt_kit_how_fold()).
+ *
+ * Live check (owner, desktop PWA, 2026-10-16): each Revoke sat alone on a
+ * full-width row with its form's footer rule, so the card stood twice its
+ * neighbors' height. Every action here is a compact one-button form
+ * (snt_kit_form( ..., array( 'inline' => true ) )): the revokes and Revoke
+ * all in one wrapping row under the table, danger outlines, and This device
+ * beside its own line. Revoke all's long hint moved into How this works; its
+ * confirm still states it before anything is revoked.
  *
  * @package SignalNoiseTools
  * @since Unreleased
@@ -23,7 +31,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-require_once __DIR__ . '/monitoring-analytics-setup.php'; // analytics_fold()
 require_once __DIR__ . '/monitoring-analytics-settings.php'; // analytics_device_html()
 
 /**
@@ -59,9 +66,10 @@ function analytics_owner_devices_html() {
 				'owner_device_revoke',
 				\snt_kit_field( 'hidden', 'sn_owner_row', '', (string) $r['index'] ) . \snt_kit_field( 'hidden', 'sn_owner_row_nonce', '', $r['nonce'] ),
 				/* translators: %s: device label. */
-				array( 'submit' => sprintf( __( 'Revoke "%s"', 'signal-and-noise-tools' ), $r['label'] ), 'confirm' => sprintf( __( 'Revoke "%s"? Its visits will no longer be marked as yours.', 'signal-and-noise-tools' ), $r['label'] ), 'danger' => true )
+				array( 'submit' => sprintf( __( 'Revoke "%s"', 'signal-and-noise-tools' ), $r['label'] ), 'confirm' => sprintf( __( 'Revoke "%s"? Its visits will no longer be marked as yours.', 'signal-and-noise-tools' ), $r['label'] ), 'danger' => true, 'inline' => true )
 			);
 		}
+		$revokes .= \snt_kit_form( 'owner_device_revoke_all', '', array( 'submit' => $copy['all'], 'confirm' => $copy['all_hint'], 'danger' => true, 'inline' => true ) );
 		$body .= \snt_kit_table(
 			array(
 				array( 'key' => 'device', 'label' => __( 'Device', 'signal-and-noise-tools' ) ),
@@ -70,18 +78,16 @@ function analytics_owner_devices_html() {
 			),
 			$rows,
 			array( 'compact' => true )
-		) . '<os-cluster gap="8">' . $revokes . '</os-cluster>';
+		) . '<os-cluster gap="8" class="snt-actions">' . $revokes . '</os-cluster>';
 	}
 
 	$body .= $view['mine'] ? '' : ( $view['key_ready']
 		? \snt_kit_form( 'owner_device_enroll', \snt_kit_field( 'text', 'sn_owner_device_label', $copy['label'], '', array( 'required' => true, 'maxlength' => SN_OWNER_LABEL_MAX ) ), array( 'submit' => $copy['enroll'] ) )
 		: '<p class="snt-hint">' . \snt_kit_esc( $copy['no_key'] ) . '</p>' );
 	$body .= $device;
-	if ( array() !== $view['rows'] ) {
-		$body .= \snt_kit_form( 'owner_device_revoke_all', '<p class="snt-hint">' . \snt_kit_esc( $copy['all_hint'] ) . '</p>', array( 'submit' => $copy['all'], 'confirm' => $copy['all_hint'], 'danger' => true ) );
-	}
-	$how   = '<p class="snt-prose">' . \snt_kit_esc( $copy['intro'] ) . '</p><p class="snt-hint">' . \snt_kit_esc( $copy['last_seen'] ) . '</p>';
-	$body .= analytics_fold( __( 'How this works', 'signal-and-noise-tools' ), __( 'A signed owner marker on each enrolled browser; readers get no cookie.', 'signal-and-noise-tools' ), $how );
+	$how   = '<p class="snt-prose">' . \snt_kit_esc( $copy['intro'] ) . '</p><p class="snt-hint">' . \snt_kit_esc( $copy['last_seen'] ) . '</p>'
+		. ( array() !== $view['rows'] ? '<p class="snt-hint">' . \snt_kit_esc( $copy['all_hint'] ) . '</p>' : '' );
+	$body .= \snt_kit_how_fold( __( 'A signed owner marker on each enrolled browser; readers get no cookie.', 'signal-and-noise-tools' ), $how );
 	return \snt_kit_section( __( 'Your devices', 'signal-and-noise-tools' ), $body, \sn_owner_devices_snapshot() );
 }
 

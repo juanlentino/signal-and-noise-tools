@@ -153,7 +153,7 @@ function analytics_reads_notice() {
  * fold whose summary names all three (2026-10-16).
  *
  * @param string $tab The painting tab (for same-tab go targets).
- * @return string
+ * @return array<string,mixed> A Setup fold (snt_kit_setup_card()).
  */
 function analytics_mirrors_html( $tab ) {
 	$model  = (string) ( function_exists( '\sn_setting' ) ? \sn_setting( 'theme.ai_model', \sn_ai_default_model() ) : \sn_ai_default_model() );
@@ -206,5 +206,5 @@ function analytics_mirrors_html( $tab ) {
 
 	/* translators: 1: the AI model; 2: On or Off; 3: set or not set. */
 	$summary = sprintf( __( '%1$s · weekly insights %2$s · Zone ID %3$s', 'signal-and-noise-tools' ), $label, $cron_on ? __( 'on', 'signal-and-noise-tools' ) : __( 'off', 'signal-and-noise-tools' ), '' !== $zone ? __( 'set', 'signal-and-noise-tools' ) : __( 'not set', 'signal-and-noise-tools' ) );
-	return analytics_fold( __( 'Configured elsewhere', 'signal-and-noise-tools' ), $summary, $out );
+	return array( 'title' => __( 'Configured elsewhere', 'signal-and-noise-tools' ), 'summary' => $summary, 'body' => $out );
 }
