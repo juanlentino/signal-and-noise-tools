@@ -19,6 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/provenance-signed-headers.php';
+
 const SN_RIGHTS_EVIDENCE_OPTION = 'sn_rights_evidence';
 const SN_RIGHTS_EVIDENCE_HOOK   = 'sn_rights_evidence_daily';
 
@@ -74,7 +76,7 @@ function sn_rights_evidence_post( $uuid, $canonical ) {
 
 /**
  * POST a JSON body to a worker endpoint, HMAC-signed over the exact bytes
- * (X-SN-Signature), no redirects, behind the outbound gate. Shared by the
+ * (v2 envelope plus v1, sn_prov_signed_headers), no redirects, behind the outbound gate. Shared by the
  * record post and the retraction (inc/rights-evidence-retract.php).
  *
  * @param string $url    The endpoint, gated as given.
@@ -90,10 +92,7 @@ function sn_rights_evidence_signed_post( $url, array $fields ) {
 	$response = wp_remote_post( $url, array(
 		'timeout'     => 20,
 		'redirection' => 0,
-		'headers'     => array(
-			'Content-Type'   => 'application/json',
-			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
-		),
+		'headers'     => sn_prov_signed_headers( $body, $secret ),
 		'body'        => $body,
 	) );
 	if ( is_wp_error( $response ) ) {

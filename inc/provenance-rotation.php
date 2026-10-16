@@ -33,6 +33,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/provenance-signed-headers.php';
+
 require_once __DIR__ . '/provenance-rotation-notice.php';
 
 /**
@@ -239,10 +241,7 @@ function sn_prov_fetch_next_key() {
 	$response = wp_remote_post( rtrim( $base, '/' ) . '/next-key', array(
 		'timeout'     => 15,
 		'redirection' => 0,
-		'headers'     => array(
-			'Content-Type'   => 'application/json',
-			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
-		),
+		'headers'     => sn_prov_signed_headers( $body, $secret ),
 		'body'        => $body,
 	) );
 	if ( is_wp_error( $response ) ) {
@@ -318,10 +317,7 @@ function sn_prov_publish_rotation_to_ledger( $key_id, $when ) {
 	$response = wp_remote_post( rtrim( $base, '/' ) . '/publish-rotation', array(
 		'timeout'     => 30,
 		'redirection' => 0,
-		'headers'     => array(
-			'Content-Type'   => 'application/json',
-			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
-		),
+		'headers'     => sn_prov_signed_headers( $body, $secret ),
 		'body'        => $body,
 	) );
 	if ( is_wp_error( $response ) ) {

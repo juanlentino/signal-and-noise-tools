@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **Security: requests to the provenance Worker carry the v2 signed envelope.** Every POST the plugin sends to the Worker (the commit webhook, `/sweep`, `/next-key`, `/publish-rotation`, the genesis snapshot, rights evidence and its retraction) now signs `v2|<ts>|<nonce>|<sha256(body)>` with the shared secret in `X-SN-Sig`, beside `X-SN-Sig-Ts` and a fresh random `X-SN-Sig-Nonce`, so a captured request can no longer be replayed (Worker 1.26.0 refuses a timestamp more than 300 seconds off and a nonce it has already seen). One helper, `sn_prov_signed_headers()` in `inc/provenance-signed-headers.php`, builds the headers for every one of them. The old body-only `X-SN-Signature` is still sent alongside for the transition: Worker 1.26.0 checks only v2 when any v2 header is present, so v1 matters only to an older deploy. Once this release is live and the Worker logs show no v1 use, `SN_PROV_ACCEPT_V1` can be set to `0`; a later change drops the v1 header.
+
 ## [2026.10.26] - 2026-10-16 — security hardening from the audit: webmention limits, no draft titles on /stats, agent writes refuse active content
 
 ### Security
