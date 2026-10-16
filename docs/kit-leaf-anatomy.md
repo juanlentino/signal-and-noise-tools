@@ -47,6 +47,7 @@ The Analytics leaf is: the status card, a full-width card if one is wide
 Three across is a design decision, not a quota: put three on a row only when
 the three are read together. Two that belong together share a row; a lone
 wide table takes the row.
+When a leaf has both a status card and a Setup card, they share the first row; the working content follows.
 
 ## Rules that come with it
 

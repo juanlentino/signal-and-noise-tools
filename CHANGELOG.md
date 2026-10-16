@@ -15,6 +15,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **Measurement › Health: the scan's other readings share one row** (owner, live 2026-10-16). Passing checks and "Also scanned, shown elsewhere" stood one full-width box each; they are both what else the scan covered, of a height, so they sit side by side, with "Could not run" leading the row when a check could not. Layout only: every check, chip and link still paints.
+- **AI › Models & budget and Connections › Zenodo: the status sits beside its Setup** (live desktop audit, 2026-10-16). Each leaf opened on a thin full-width status strip and kept its Setup card at the very bottom, far from the state it sets. The status card and the Setup card now share the first row; the working content follows (on Models & budget the spend readouts, Jev and the embeddings comparison; on Zenodo the ledger at full width). `docs/kit-leaf-anatomy.md` states the rule. Layout only: every figure, field, action and open warning still paints.
 
 ## [2026.10.21] - 2026-10-16 — Last seen on Your devices moves on the owner's day
 
