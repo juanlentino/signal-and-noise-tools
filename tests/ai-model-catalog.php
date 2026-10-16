@@ -119,8 +119,12 @@ ok( '' !== sn_ai_prices_refresh( $now + 86400 )['error'] && 5 === count( sn_ai_p
 ok( array() === sn_ai_prices_read( $now + SN_AI_PRICES_STALE + 10 ) && false !== strpos( sn_ai_prices_status_line( $now + SN_AI_PRICES_STALE + 10 ), 'the built-in table' ) && false !== strpos( sn_ai_prices_status_line( $now ), "LiteLLM's public price list (5 models)" ), 'a read older than two weeks is not used, and the screen says which prices are in force' );
 
 echo "\nThe forms and the prices\n";
-// 2026-10-16: the native leaf's fields live in its Setup card's file (ai-models-budget-setup.php).
-foreach ( array( 'inc/admin-forms/ai-settings.php', 'apps/sn-dashboard/parts/leaves/ai-models-budget-setup.php' ) as $f ) {
+// 2026-10-16: the native leaf's fields live in its Setup card's file
+// (ai-models-budget-setup.php); where the lists came from reads on the open
+// status card (ai-models-budget-status.php), since it can name a failed read.
+ok( false === strpos( $src( 'apps/sn-dashboard/parts/leaves/ai-models-budget-setup.php' ), '_model_other' ) && false === strpos( $src( 'apps/sn-dashboard/parts/leaves/ai-models-budget-setup.php' ), 'sn_ai_models_status_line()' ), 'native: the Setup fold carries no typed-id field and no read status' );
+ok( false !== strpos( $src( 'apps/sn-dashboard/parts/leaves/ai-models-budget-status.php' ), 'sn_ai_models_status_line()' ) && false !== strpos( $src( 'apps/sn-dashboard/parts/leaves/ai-models-budget-status.php' ), 'sn_ai_prices_status_line()' ), 'native: the open status card says where the lists and prices came from' );
+foreach ( array( 'inc/admin-forms/ai-settings.php' ) as $f ) {
 	ok( false !== strpos( $src( $f ), 'sn_ai_models_status_line()' ) && false === strpos( $src( $f ), '_model_other' ), "$f says where the lists came from, and carries no typed-id field" );
 }
 function apply_filters( $h, $v ) { return $v; }

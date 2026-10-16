@@ -42,7 +42,7 @@ function models_budget_status_html( array $d ) {
 		__( 'One monthly budget for every AI feature here; Copilot and agents run outside it.', 'signal-and-noise-tools' ),
 		'<p class="snt-prose">' . \snt_kit_esc( __( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here (drafts, insights, meta descriptions, alt text) draws on the same monthly budget. Copilot and agents run outside it.', 'signal-and-noise-tools' ) ) . '</p>'
 	);
-	return \snt_kit_section( __( 'AI budget', 'signal-and-noise-tools' ), \snt_kit_status_line( $chips ) . $how );
+	return \snt_kit_section( __( 'AI budget', 'signal-and-noise-tools' ), \snt_kit_status_line( $chips ) . models_budget_reads_html() . $how );
 }
 
 /**
@@ -64,4 +64,18 @@ function models_budget_cap_chip( array $d ) {
 	}
 	/* translators: 1: spent USD, 2: the cap in USD, 3: percent of the cap. */
 	return array( 'tone' => 'ok', 'label' => sprintf( __( '$%1$s of $%2$s used (%3$s%%)', 'signal-and-noise-tools' ), number_format_i18n( $spent, 2 ), number_format_i18n( $budget, 2 ), number_format_i18n( (int) round( ( $spent / $budget ) * 100 ) ) ) );
+}
+
+/**
+ * When the model lists and prices were last read, or why they were not.
+ * Review of #2120: this can say a read failed, so it stays on the open
+ * status card, never inside the closed Models and budget fold.
+ *
+ * @return string
+ */
+function models_budget_reads_html() {
+	if ( ! function_exists( '\\sn_ai_models_status_line' ) || ! function_exists( '\\sn_ai_prices_status_line' ) ) {
+		return '';
+	}
+	return '<p class="snt-hint">' . \snt_kit_esc( \sn_ai_models_status_line() . ' ' . \sn_ai_prices_status_line() ) . '</p>';
 }
