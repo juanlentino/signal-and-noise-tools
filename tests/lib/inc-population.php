@@ -103,6 +103,30 @@ if ( ! function_exists( 'snt_test_provenance_integrity_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_provenance_core_src' ) ) {
+	/**
+	 * The source of inc/provenance-core.php AND its four parts files, for suites
+	 * that pin the module's text. Split 2026-10-15 (house line cap). Named, not
+	 * globbed: no other module shares the prefix today, and a future one would
+	 * not belong in the read. A missing file returns '' so every presence pin
+	 * goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_provenance_core_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-normalize-parts', '-chain-parts', '-record-parts', '-subject-parts' ) as $suffix ) {
+			$file = $dir . 'provenance-core' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_wp_update_integration_src' ) ) {
 	/**
 	 * The source of inc/wp-update-integration.php AND its three parts files, for
@@ -283,6 +307,31 @@ if ( ! function_exists( 'snt_test_attention_readers_src' ) ) {
 		$src = '';
 		foreach ( array( '', '-integrity-parts', '-edge-parts', '-schedule-parts', '-search-parts' ) as $suffix ) {
 			$file = $dir . 'attention-readers' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_maturity_roadmap_shortcode_src' ) ) {
+	/**
+	 * The source of inc/maturity-roadmap-shortcode.php AND its three parts files,
+	 * for suites that pin the module's text. Split 2026-10-15 (house line cap).
+	 * Named, not globbed: maturity-roadmap-merge.php and the other maturity-*.php
+	 * files are separate modules. A missing file returns '' so every presence pin
+	 * goes red and every guarded absence pin fails rather than passing on a
+	 * partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_maturity_roadmap_shortcode_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-board-parts', '-gate-parts', '-render-parts' ) as $suffix ) {
+			$file = $dir . 'maturity-roadmap-shortcode' . $suffix . '.php';
 			if ( ! is_file( $file ) ) {
 				return '';
 			}

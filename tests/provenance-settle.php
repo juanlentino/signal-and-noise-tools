@@ -63,7 +63,8 @@ ok( false === sn_prov_commit_is_supersedable( $private, 1 ), 'a truthy non-bool 
 ok( false === sn_prov_commit_is_supersedable( $private, 'yes' ), 'a truthy string pending flag does not pass' );
 
 echo "\nGroup: wiring\n";
-$core = file_get_contents( __DIR__ . '/../inc/provenance-core.php' );
+require_once __DIR__ . '/lib/inc-population.php'; // snt_test_provenance_core_src(): the shell and its parts (split 2026-10-15)
+$core = snt_test_provenance_core_src();
 ok( false !== strpos( $core, 'sn_prov_commit_is_supersedable' ), 'the recorder consults the supersede gate' );
 ok( false !== strpos( $core, 'sn_prov_replace_head_commit' ), 'the recorder can replace the head in place' );
 ok( false !== strpos( $core, "\$version      = \$supersede ? \$last_version : \$last_version + 1;" ), 'superseding reuses the head version instead of incrementing' );
