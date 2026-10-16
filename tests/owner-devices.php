@@ -124,8 +124,19 @@ foreach ( array( 'classic' => $c, 'native' => $n ) as $where => $html ) {
 	foreach ( array_merge( $ids, array( $marker, $phone_marker, $dkey, $dkey2, $akey, substr( $marker, -43 ) ) ) as $secret ) { $leak = $leak || false !== strpos( $html, $secret ); }
 	ok( ! $leak, "$where: no device id, marker, signature or key in the markup" );
 	ok( false !== strpos( $html, 'then clear the previous owner key there' ), "$where: Revoke all names the Generate-then-clear-previous step (security M3)" );
-	ok( false !== strpos( $html, 'owner_device_revoke' ) && false !== strpos( $html, 'owner_device_enroll' ) && false !== strpos( $html, 'owner_device_revoke_all' ) && false !== strpos( $html, 'sn_owner_row' ), "$where: enroll, revoke by row and revoke all" );
+	ok( false !== strpos( $html, 'owner_device_revoke' ) && false !== strpos( $html, 'owner_device_revoke_all' ) && false !== strpos( $html, 'sn_owner_row' ), "$where: revoke by row and revoke all" );
+	ok( false === strpos( $html, 'owner_device_enroll' ) && false === strpos( $html, 'name="sn_owner_device_label"' ), "$where: an enrolled browser is offered no enroll form (live check 2026-10-15)" );
 }
+
+// Live check 2026-10-15: the native revoke is one <os-form> per device stacked
+// under the table, never inside a table cell (it painted "[object Object]").
+$tables = snt_leaf_tables( $n );
+ok( 1 === count( $tables ) && array( 'device', 'enrolled', 'last_seen' ) === array_column( $tables[0]['columns'], 'key' ) && array() === $tables[0]['slots'], 'native: the table has no action column and no slot cell' );
+ok( 2 === substr_count( $n, 'value="sn_owner_device_revoke"' ) && false !== strpos( $n, 'submit-label="Revoke &quot;Phone Safari&quot;"' ), 'native: one revoke form per device, labelled with its device, under the table' );
+ok( false !== strpos( $c, '>Revoke &quot;Phone Safari&quot;</button>' ) && false !== strpos( $c, '>Revoke &quot;Laptop Chrome&quot;</button>' ), 'classic: each revoke button names its device, so no two buttons share an accessible name' );
+$saved_cookie = $_COOKIE; unset( $_COOKIE['sn_owner_dev'] );
+ok( false !== strpos( analytics_owner_devices_html(), 'owner_device_enroll' ) && false !== strpos( $classic(), 'name="sn_owner_device_label"' ), 'a browser that is not enrolled gets the enroll form on both surfaces' );
+$_COOKIE = $saved_cookie;
 
 // ── Revoke by row index and its nonce; a stale nonce revokes nothing.
 ok( 'owner_device_list_changed' === sn_handle_owner_device_revoke( array( 'sn_owner_row' => 1, 'sn_owner_row_nonce' => wp_create_nonce( sn_owner_row_nonce_action( 0, $ids[0] ) ) ) ) && 2 === count( sn_owner_devices() ), 'a nonce minted for another row revokes nothing' );

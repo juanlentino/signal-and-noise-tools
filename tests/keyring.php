@@ -114,6 +114,10 @@ ok( 'keyring_duplicate' === $save( 'bridge_token', 'own-site-secret' ), 'the sit
 ok( 'keyring_saved' === $save( 'bridge_token', 'site' ) && 'keyring_saved' === $save( 'cf_token', 'clear' ), '"site" and "clear" pass the guard untouched' );
 ok( 'keyring_saved' === $save( 'github_token', 'gh-own-3' ), 'a value no other row holds saves' );
 
+// ── Fixed (Unreleased): the bridge token's other half is the remote MCP
+//    Worker (env.SN_BRIDGE_TOKEN, src/bridge.mjs), never the login guard.
+ok( 'Remote MCP bridge token' === $rows['bridge_token']['label'] && 'sn-remote-mcp-worker' === $rows['bridge_token']['other_half']['repo'] && 'cd ~/Projects/sn-remote-mcp-worker && npx wrangler secret put SN_BRIDGE_TOKEN' === sn_keyring_other_half_command( $rows['bridge_token'] ) && false === stripos( json_encode( $rows['bridge_token'] ), 'login' ), 'the bridge token names the remote MCP Worker and prints its wrangler command' );
+
 // ── Unreleased (SN Traffic Lanes; owner decision: one key). Generated, never
 //    derived, never pasted; Generate rolls the current key to previous.
 foreach ( array( 'owner_key', 'owner_key_previous' ) as $id ) {

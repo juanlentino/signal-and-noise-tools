@@ -41,7 +41,7 @@ function sn_owner_devices_copy() {
  * The view model. Never carries an id, a marker or a key.
  *
  * @param int $now Unix time.
- * @return array{key_ready:bool,this:string,rows:array<int,array<string,mixed>>}
+ * @return array{key_ready:bool,this:string,rows:array<int,array<string,mixed>>,mine:bool}
  */
 function sn_owner_devices_view( $now ) {
 	$mine   = sn_owner_this_device( $now );
@@ -62,6 +62,7 @@ function sn_owner_devices_view( $now ) {
 		/* translators: %s: device label. */
 		'this'      => null !== $mine ? sprintf( __( 'This browser is enrolled as "%s".', 'signal-and-noise-tools' ), (string) $mine['device']['label'] ) : __( 'This browser is not enrolled.', 'signal-and-noise-tools' ),
 		'rows'      => $rows,
+		'mine'      => null !== $mine,
 	);
 }
 
@@ -95,15 +96,16 @@ function snt_analytics_render_owner_devices() {
 		foreach ( $view['rows'] as $r ) {
 			echo '<tr><td>' . esc_html( $r['label'] ) . ( $r['this'] ? ' ' . esc_html__( '(this browser)', 'signal-and-noise-tools' ) : '' ) . '</td><td>' . esc_html( $r['enrolled'] ) . '</td><td>' . esc_html( $r['last_seen'] ) . '</td><td>';
 			/* translators: %s: device label. */
-			sn_owner_devices_classic_form( 'owner_device_revoke', '<input type="hidden" name="sn_owner_row" value="' . esc_attr( (string) $r['index'] ) . '"><input type="hidden" name="sn_owner_row_nonce" value="' . esc_attr( $r['nonce'] ) . '">', $copy['revoke'], sprintf( __( 'Revoke "%s"? Its visits will no longer be marked as yours.', 'signal-and-noise-tools' ), $r['label'] ) );
+			sn_owner_devices_classic_form( 'owner_device_revoke', '<input type="hidden" name="sn_owner_row" value="' . esc_attr( (string) $r['index'] ) . '"><input type="hidden" name="sn_owner_row_nonce" value="' . esc_attr( $r['nonce'] ) . '">', sprintf( __( 'Revoke "%s"', 'signal-and-noise-tools' ), $r['label'] ), sprintf( __( 'Revoke "%s"? Its visits will no longer be marked as yours.', 'signal-and-noise-tools' ), $r['label'] ) );
 			echo '</td></tr>';
 		}
 		echo '</tbody></table>';
 	}
 	echo '<p class="sn-an-settings-help">' . esc_html( $copy['last_seen'] ) . '</p>';
-	if ( ! $view['key_ready'] ) {
+	// An enrolled browser has nothing to enroll: no form, only its status line.
+	if ( ! $view['mine'] && ! $view['key_ready'] ) {
 		echo '<p class="sn-an-status">' . esc_html( $copy['no_key'] ) . '</p>';
-	} else {
+	} elseif ( ! $view['mine'] ) {
 		sn_owner_devices_classic_form( 'owner_device_enroll', '<p><label for="sn_owner_device_label">' . esc_html( $copy['label'] ) . '</label><br><input type="text" id="sn_owner_device_label" name="sn_owner_device_label" maxlength="' . esc_attr( (string) SN_OWNER_LABEL_MAX ) . '" required></p>', $copy['enroll'] );
 	}
 	if ( array() !== $view['rows'] ) {

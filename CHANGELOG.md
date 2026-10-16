@@ -24,6 +24,9 @@ adds a bullet below. A release is a separate, deliberate act:
   - One signer for both formats (`inc/owner-identity-sign.php`), pinned byte for byte to the contract's test vectors, with tampered, expired, too-far-ahead, too-old, non-canonical and previous-key cases. Pinned in `tests/owner-identity-sign.php`, `tests/owner-devices.php` and `tests/keyring.php`.
 - **A stale-CV alert.** /cv/ is a translation and does not follow the English résumé on its own. When the English résumé changes, the Résumé screen (classic and dashboard) and a new Health check (`resume_es_stale`, Other checks family) say "The Spanish CV (/cv/) is out of date" and list the English lines added, changed or removed since the translation. The baseline is captured from the live English résumé on the first run. After that it moves only when the Spanish file's `translated_from` names the live English (the "English version" code the alert shows), so a typo fix or a partial Spanish update cannot clear an alert whose lines are still untranslated. No AI, no network. The scan now runs one more check. Pinned in `tests/resume-es-stale.php`.
 
+### Fixed
+- **The keyring's bridge token names the right Worker.** The row said "Login guard bridge token" and printed a `wrangler secret put` command for the login-guard Worker, but the Worker that presents `SN_BRIDGE_TOKEN` on the bridge route is the remote MCP Worker. The row is now "Remote MCP bridge token" and prints `cd ~/Projects/sn-remote-mcp-worker && npx wrangler secret put SN_BRIDGE_TOKEN`. Pinned in `tests/keyring.php`.
+
 ## [2026.10.17] - 2026-10-15 — The Spanish résumé (/cv/ and its PDF), and a compact Release notes box
 
 ### Added
