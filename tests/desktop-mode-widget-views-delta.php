@@ -76,6 +76,20 @@ if ( '' === $node ) {
 	$rn = $render( array( 'delta_pct' => null ) );
 	ok( isset( $rn['vs. prior 14 days: not measured'] ), 'no prior window: the line says not measured, never an em dash' );
 
+	// 2026-10-16 (owner): a change mostly likely automated is not good news.
+	$up = '#3fb950';
+	$la = function ( $auto, $scored ) { return array( 'visitor_days' => $auto, 'scored_visitor_days' => $scored, 'measured_days' => 14, 'unmeasured_days' => 0 ); };
+	$rb = $render( array( 'delta_pct' => 99.3, 'total' => 400, 'likely_automated' => $la( 96, 204 ) ) );
+	ok( isset( $rb['▲ 99.3% vs. prior 14 days'] ) && $muted( $rb['▲ 99.3% vs. prior 14 days'] ), 'up 99.3% with 96 of 204 visitor-days likely automated: arrow and figure kept, painted muted, not green' );
+	$rt = $render( array( 'delta_pct' => 99.3, 'total' => 400, 'likely_automated' => $la( 51, 204 ) ) );
+	ok( $muted( $rt['▲ 99.3% vs. prior 14 days'] ?? '' ), 'exactly 25% likely automated: muted (the threshold is inclusive)' );
+	$rd = $render( array( 'delta_pct' => -41.3, 'likely_automated' => $la( 96, 204 ) ) );
+	ok( $muted( $rd['▼ 41.3% vs. prior 14 days'] ?? '' ), 'a fall mostly likely automated is muted too, not red' );
+	$rh = $render( array( 'delta_pct' => 99.3, 'total' => 400, 'likely_automated' => $la( 10, 204 ) ) );
+	ok( $up === ( $rh['▲ 99.3% vs. prior 14 days'] ?? '' ), 'under 25% likely automated: the existing rule stands, green' );
+	$ru = $render( array( 'delta_pct' => 99.3, 'total' => 400, 'likely_automated' => array( 'visitor_days' => null, 'scored_visitor_days' => 0, 'measured_days' => 0, 'unmeasured_days' => 14 ) ) );
+	ok( $up === ( $ru['▲ 99.3% vs. prior 14 days'] ?? '' ), 'likely automated not measured: the existing rule stands' );
+
 	// SN Traffic: This week, the folded groups and the top pages paint.
 	$full = array(
 		'today'      => 7,
