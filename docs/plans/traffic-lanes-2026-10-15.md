@@ -200,7 +200,7 @@ Asked: attack the token format, HMAC construction, rotation and revocation befor
 - agent message `v1|agent|claude-code|1792140000` → sig `jJwzmWAzlHun5v56fuqtWUyTbzVfAVozM01-OHUd0Lg` → header `v1.claude-code.1792140000.jJwzmWAzlHun5v56fuqtWUyTbzVfAVozM01-OHUd0Lg`
 - tampered: same cookie with device_id `0123456789abcdee` must fail; expired: the agent header checked at now = 1792140001 must fail (code 3); a future exp more than 12h05m ahead must fail.
 
-**Deployment facts for the PR descriptions:** merging the analytics Worker PR deploys it (GitHub Actions), so the owner sets the four secrets first; with them unset, the Worker assigns code 0 and nothing changes. The rights-signals Worker has only a test workflow; the owner deploys it by hand.
+**Deployment facts for the PR descriptions (corrected 2026-10-16):** merging either Worker PR deploys it through Cloudflare Workers Builds (both repos' `deploy.yml`/test workflows are not the deploy path). The owner sets `SN_OWNER_KEY` before each merge; with it unset, no public figure moves (logged-in beacons go to `sn_owner_hits`, machine rows gain "0","0").
 
 ## Review round 1 (security, data integrity, privacy, compatibility): contract amendments
 
