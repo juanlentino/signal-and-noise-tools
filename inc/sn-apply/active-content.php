@@ -48,9 +48,10 @@ const SNT_SN_APPLY_CLOSE_ANY = '"\'>--></script></style></textarea></title></xmp
  * is not yet an attribute.
  *
  * @param string $fragment Markup or prose the change adds.
+ * @param bool   $every    True for one entry per occurrence (for counting), false for each name once.
  * @return string[] Construct names, e.g. array( '<script', 'onerror=' ). Empty when clean.
  */
-function snt_sn_apply_active_constructs( $fragment ) {
+function snt_sn_apply_active_constructs( $fragment, $every = false ) {
 	$fragment = (string) $fragment;
 	if ( false === strpos( $fragment, '<' ) ) {
 		return snt_sn_apply_text_script_url( html_entity_decode( $fragment, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
@@ -88,15 +89,15 @@ function snt_sn_apply_active_constructs( $fragment ) {
 		// TITLE and TEXTAREA hold their contents as text, but inside SVG or MathML a
 		// browser parses those contents as markup, so read them as markup too.
 		if ( 'title' === $tag || 'textarea' === $tag ) {
-			$found = array_merge( $found, snt_sn_apply_active_constructs( $p->get_modifiable_text() ) );
+			$found = array_merge( $found, snt_sn_apply_active_constructs( $p->get_modifiable_text(), true ) );
 		}
 	}
 	// A fragment cut off mid-token (`<img src=x onerror=f()` with no `>`) is closed by
-	// whatever follows it in the post, so read it once more with every opener closed.
+	// whatever follows it in the post, so read it again whole with every opener closed.
 	if ( $p->paused_at_incomplete_token() && ! str_ends_with( $fragment, SNT_SN_APPLY_CLOSE_ANY ) ) {
-		$found = array_merge( $found, snt_sn_apply_active_constructs( $fragment . SNT_SN_APPLY_CLOSE_ANY ) );
+		$found = snt_sn_apply_active_constructs( $fragment . SNT_SN_APPLY_CLOSE_ANY, true );
 	}
-	return array_values( array_unique( $found ) );
+	return $every ? $found : array_values( array_unique( $found ) );
 }
 
 /**
@@ -120,7 +121,43 @@ function snt_sn_apply_text_script_url( $text ) {
  * @return true|WP_Error snt_sn_apply_active_content (422), data.constructs listing what was found.
  */
 function snt_sn_apply_active_content_error( $fragment, $field ) {
-	$found = snt_sn_apply_active_constructs( $fragment );
+	return snt_sn_apply_active_refusal( snt_sn_apply_active_constructs( $fragment ), $field );
+}
+
+/**
+ * The named 422 when a splice into existing content ADDS active content, or true.
+ *
+ * A plain-prose replacement has no `<`, so the fragment check passes it, yet
+ * spliced inside an attribute value (an alt, a title) a `"` closes the value
+ * and the rest becomes attributes: `" onmouseover="alert(1)`. So the whole
+ * post is read before and after the splice, and any construct that occurs
+ * more often after is refused. One the post already carried is not the
+ * agent's doing and never blocks an unrelated edit.
+ *
+ * @param string $before The post content before the splice.
+ * @param string $after  The post content after it.
+ * @param string $field  Where the spliced text came from, for the message.
+ * @return true|WP_Error snt_sn_apply_active_content (422), data.constructs listing what the splice added.
+ */
+function snt_sn_apply_splice_active_error( $before, $after, $field ) {
+	$was   = array_count_values( snt_sn_apply_active_constructs( $before, true ) );
+	$added = array();
+	foreach ( array_count_values( snt_sn_apply_active_constructs( $after, true ) ) as $name => $n ) {
+		if ( $n > ( $was[ $name ] ?? 0 ) ) {
+			$added[] = (string) $name;
+		}
+	}
+	return snt_sn_apply_active_refusal( $added, $field . ' (as spliced into the post)' );
+}
+
+/**
+ * The named 422 for constructs found, or true when there are none.
+ *
+ * @param string[] $found Construct names.
+ * @param string   $field Where they came from, for the message.
+ * @return true|WP_Error
+ */
+function snt_sn_apply_active_refusal( array $found, $field ) {
 	if ( array() === $found ) {
 		return true;
 	}

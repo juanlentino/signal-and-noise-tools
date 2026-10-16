@@ -256,6 +256,10 @@ function snt_sn_apply_plan_batch_edits( $content, $type, $edits ) {
 	foreach ( $planned as $p ) {
 		$new_content = substr_replace( $new_content, $p['replacement'], $p['position'], $p['length'] );
 	}
+	$spliced = snt_sn_apply_splice_active_error( $content, $new_content, 'payload.edits[].replacement' );
+	if ( is_wp_error( $spliced ) ) {
+		return $spliced;
+	}
 
 	// Report in the caller's own order, not the internal splice order.
 	usort(

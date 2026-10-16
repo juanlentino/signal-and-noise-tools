@@ -40,6 +40,10 @@ function snt_ai_drift_normalize_replacement( $r, $p = false ) { return (string) 
 function snt_ai_drift_replacement_error( $r, $p = false ) { return true; }
 function snt_ai_drift_locate_in_raw( $c, $p, $x = '' ) { $i = strpos( $c, $p ); return false === $i ? -1 : $i; }
 function snt_ai_drift_fingerprint( $c, $p, $i ) { return 'not-f'; }
+// The single sentence_replace path's reads.
+function current_user_can( $cap, $id = 0 ) { return true; }
+function get_post( $id ) { return $GLOBALS['__post'] ?? null; }
+function snt_corpus_content_hash( $c ) { return md5( (string) $c ); }
 
 function add_action( $h, $c, $p = 10, $a = 1 ) { return true; }
 function add_filter( $h, $c, $p = 10, $a = 1 ) { return true; }
@@ -138,6 +142,34 @@ $r = snt_sn_apply_plan_batch_edits( $content, 'sentence_replace', array( array( 
 ok( 'snt_sn_apply_active_content' === code_of( $r ) && false !== strpos( $r->get_error_message(), 'edit 1' ), 'a sentence_replace batch member is refused by name, naming the edit' );
 $r = snt_sn_apply_plan_batch_edits( $content, 'drift_replace', array( array( 'phrase' => 'beta', 'replacement' => '<embed src=x>', 'fingerprint' => 'f' ) ) );
 ok( 'snt_sn_apply_active_content' === code_of( $r ), 'a drift_replace batch member is refused by name' );
+
+// ── A plain-prose splice inside an attribute value cannot break out of it.
+// No `<` in the replacement, so the fragment check passes it; the splice check
+// reads the post before and after and refuses what the splice added.
+$alt_post = '<!-- wp:image --><figure class="wp-block-image"><img src="https://example.com/a.jpg" alt="A long alt text phrase that is twenty plus chars" title="Another long title phrase of twenty plus chars"/></figure><!-- /wp:image -->';
+$GLOBALS['__post'] = (object) array( 'post_content' => $alt_post );
+$GLOBALS['__written'] = null;
+$capture = static function ( $id, $c ) { $GLOBALS['__written'] = $c; return $id; };
+foreach ( array(
+	array( 'A long alt text phrase that is twenty plus chars', '" onmouseover="alert(1)', 'onmouseover=' ),
+	array( 'Another long title phrase of twenty plus chars', 'x" autofocus onfocus="a', 'onfocus=' ),
+) as $breakout ) {
+	list( $in, $with, $want ) = $breakout;
+	$r = snt_sn_apply_sentence_replace_impl( 1, $in, $with, md5( $alt_post ), '', $capture );
+	ok( 'snt_sn_apply_active_content' === code_of( $r ) && in_array( $want, $r->data['constructs'], true ) && null === $GLOBALS['__written'], "sentence_replace refuses a breakout spliced into an attribute ($with), writing nothing" );
+	$r = snt_sn_apply_plan_batch_edits( $alt_post, 'sentence_replace', array( array( 'phrase' => $in, 'replacement' => $with ) ) );
+	ok( 'snt_sn_apply_active_content' === code_of( $r ) && in_array( $want, $r->data['constructs'], true ), "a payload.edits sentence_replace member refuses the same breakout ($with)" );
+	$r = snt_sn_apply_plan_batch_edits( $alt_post, 'drift_replace', array( array( 'phrase' => $in, 'replacement' => $with, 'fingerprint' => 'not-f' ) ) );
+	ok( 'snt_sn_apply_active_content' === code_of( $r ) && in_array( $want, $r->data['constructs'], true ), "a drift_replace batch member refuses the same breakout ($with)" );
+}
+// Control: a handler the post ALREADY carries is not the agent's doing, so an
+// unrelated sentence edit elsewhere in the same post still goes through.
+$old_handler = '<!-- wp:html --><button onclick="toggle()">Menu</button><!-- /wp:html --><!-- wp:paragraph --><p>This sentence is long enough to be replaced safely.</p><!-- /wp:paragraph -->';
+$GLOBALS['__post'] = (object) array( 'post_content' => $old_handler );
+$r = snt_sn_apply_sentence_replace_impl( 1, 'This sentence is long enough to be replaced safely.', 'This sentence was replaced, and nothing else moved.', md5( $old_handler ), '', $capture );
+ok( is_array( $r ) && false !== strpos( (string) $GLOBALS['__written'], 'nothing else moved' ), 'control: an onclick already in the post does not block an unrelated sentence edit' );
+$r = snt_sn_apply_plan_batch_edits( $old_handler, 'sentence_replace', array( array( 'phrase' => 'This sentence is long enough to be replaced safely.', 'replacement' => 'Changed " onclick="x()' ) ) );
+ok( 'snt_sn_apply_active_content' !== code_of( $r ), 'control: a quote in prose (outside any tag) adds no construct, even beside an existing onclick' );
 
 // ── create_draft: gate 2 finding, and the write refuses alone.
 $g = snt_sn_apply_gate2_create_draft( array( 'title' => 'T', 'content' => '<!-- wp:paragraph --><p>x</p><!-- /wp:paragraph --><script>1</script>' ) );

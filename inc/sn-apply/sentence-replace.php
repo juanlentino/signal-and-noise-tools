@@ -147,6 +147,10 @@ function snt_sn_apply_sentence_replace_impl( $post_id, $phrase, $replacement, $f
 	}
 
 	$new_content = substr_replace( $current_content, $replacement, $raw_position, strlen( $phrase ) );
+	$spliced     = snt_sn_apply_splice_active_error( $current_content, $new_content, 'payload.replacement' );
+	if ( is_wp_error( $spliced ) ) {
+		return $spliced;
+	}
 
 	if ( is_callable( $write_callback ) ) {
 		$result = call_user_func( $write_callback, $post_id, $new_content );

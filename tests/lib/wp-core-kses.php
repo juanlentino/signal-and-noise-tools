@@ -23,6 +23,9 @@ if ( ! defined( 'SNT_KSES_IS_CORE' ) ) {
 	if ( '' !== $snt_kses_api ) {
 		// The two functions kses.php reaches outside itself and the HTML API.
 		if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $hook, $value ) { return $value; } }
+		// Core's compat.php polyfill: kses.php calls array_any(), native only from PHP 8.4,
+		// and production loads compat.php before it. CI's lane runs PHP 8.3.
+		if ( ! function_exists( 'array_any' ) ) { function array_any( array $a, callable $f ) { foreach ( $a as $k => $v ) { if ( $f( $v, $k ) ) { return true; } } return false; } }
 		if ( ! function_exists( 'wp_allowed_protocols' ) ) { function wp_allowed_protocols() { return array( 'http', 'https', 'ftp', 'ftps', 'mailto', 'news', 'irc', 'irc6', 'ircs', 'gopher', 'nntp', 'feed', 'telnet', 'mms', 'rtsp', 'sms', 'svn', 'tel', 'fax', 'xmpp', 'webcal', 'urn' ); } }
 		if ( ! class_exists( 'WP_HTML_Tag_Processor' ) ) {
 			require_once dirname( $snt_kses_api ) . '/class-wp-token-map.php';
