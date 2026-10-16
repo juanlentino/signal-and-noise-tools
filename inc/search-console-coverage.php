@@ -243,6 +243,9 @@ function snt_gsc_coverage_sync( $force = false ) {
 		$payload = $write( false ); // after EVERY inspection: an interrupted run keeps what it got.
 	}
 	$payload  = $write( true );
+	if ( function_exists( 'snt_gsc_coverage_history_record' ) ) {
+		snt_gsc_coverage_history_record( $payload ); // the run's reading is kept, not overwritten.
+	}
 	$finished = time();
 	update_option( SNT_GSC_COVERAGE_STATUS, array( 'started_at' => $started, 'finished_at' => $finished, 'elapsed' => $finished - $started, 'ok' => true, 'targets' => count( $targets ), 'inspected' => count( $entries ), 'errors' => $errors, 'skipped' => $skipped ), false );
 	return $payload;
