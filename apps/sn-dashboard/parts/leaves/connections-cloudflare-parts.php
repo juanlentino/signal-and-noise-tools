@@ -224,7 +224,7 @@ function cloudflare_token_chip( $record ) {
 	if ( empty( $t['verified'] ) ) {
 		return array( 'tone' => 'bad', 'label' => __( 'Token not verified', 'signal-and-noise-tools' ) );
 	}
-	if ( 'active' !== (string) $t['status'] ) {
+	if ( 'active' !== (string) ( $t['status'] ?? '' ) ) {
 		/* translators: %s: the token's status as Cloudflare reports it. */
 		return array( 'tone' => 'bad', 'label' => sprintf( __( 'Token %s', 'signal-and-noise-tools' ), (string) $t['status'] ) );
 	}
