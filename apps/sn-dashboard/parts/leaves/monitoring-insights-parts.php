@@ -159,14 +159,15 @@ function insights_recommendations_html( $last ) {
 		);
 	}
 	$done_flip = array_flip( (array) ( $state['done_ids'] ?? array() ) );
-	$cards     = '';
+	$cards     = array();
 	foreach ( $active as $rec ) {
 		if ( ! is_array( $rec ) ) {
 			continue;
 		}
-		$cards .= insights_rec_card_html( $rec, isset( $done_flip[ (string) ( $rec['id'] ?? '' ) ] ) );
+		$cards[] = insights_rec_card_html( $rec, isset( $done_flip[ (string) ( $rec['id'] ?? '' ) ] ) );
 	}
-	return \snt_kit_tag( 'os-grid', array( 'columns' => '2', 'gap' => '8' ), $cards );
+	// 2026-10-16: three across where they fit (was a fixed two columns).
+	return \snt_kit_grid( $cards, 290, 18, array( 'class' => 'snt-insights-cards' ) );
 }
 
 /**
