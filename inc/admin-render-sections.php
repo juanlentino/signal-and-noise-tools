@@ -125,6 +125,17 @@ function sn_admin_render_health_reports_section() {
 }
 
 /**
+ * Integrity → Lanes (SN Traffic Lanes, Phase 1): every page view and machine
+ * read in one lane per day, read from the lanes table alone. Its body is
+ * inc/analytics-lanes-render.php; its native twin is tools/lanes.
+ */
+function sn_admin_render_lanes_section() {
+	if ( function_exists( 'sn_lanes_render_section' ) ) {
+		sn_lanes_render_section();
+	}
+}
+
+/**
  * Content → Pattern Adoption (v10.46.0).
  *
  * Was not a leaf at all until now: the Opportunities card rendered inline in

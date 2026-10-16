@@ -121,7 +121,7 @@ function snt_mr_normalize_signed_agent( $value ) {
  * older Worker, which is a different answer from a measured zero.
  *
  * @param array $row Raw row from the sensor.
- * @return array{vendor:string,purpose:string,taxonomy_version:string,training_corpus_source:bool,first_party:bool,ua_sample:string}
+ * @return array<string,mixed> vendor, agent, purpose, taxonomy_version, training_corpus_source, first_party, ua_sample, markdown_requested, signed_agent, verified_bot, network, owner_identity, owner_agent.
  */
 function snt_mr_normalize_taxonomy_fields( $row ) {
 	$purposes = snt_mr_valid_purposes();
@@ -158,7 +158,24 @@ function snt_mr_normalize_taxonomy_fields( $row ) {
 		// whoever owns the IP block, so untrusted: letters, digits and plain
 		// punctuation only, capped. '' is not measured (rows before v1.28.0).
 		'network'                => mb_substr( trim( (string) preg_replace( '/[^\p{L}\p{N} .,&()\/\-_]/u', '', (string) ( $row['network'] ?? '' ) ) ), 0, 128 ),
+		// Traffic Lanes (rights-signals #89): blob14 and blob15 as the owner
+		// identity and agent codes. null is "not measured" (an older Worker, or
+		// a row written before the sensor stamped them), never code 0.
+		'owner_identity'         => snt_mr_normalize_code( $row['owner_identity'] ?? null ),
+		'owner_agent'            => snt_mr_normalize_code( $row['owner_agent'] ?? null ),
 	);
+}
+
+/**
+ * A small decimal code from the sensor: an int for a digit string, null for
+ * an absent field or ''. PURE.
+ *
+ * @param mixed $v Raw value.
+ * @return int|null
+ */
+function snt_mr_normalize_code( $v ) {
+	$v = is_int( $v ) ? (string) $v : ( is_string( $v ) ? $v : '' );
+	return 1 === preg_match( '/^\d{1,3}$/', $v ) ? (int) $v : null;
 }
 
 /**

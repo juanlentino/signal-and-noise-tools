@@ -177,6 +177,8 @@ require_once SNT_PATH . 'inc/analytics-view-geography.php';  // v8.5.0 extractio
 require_once SNT_PATH . 'inc/analytics-view-engagement.php'; // v8.5.0 extraction
 require_once SNT_PATH . 'inc/analytics-view-quality.php';    // v8.5.0 extraction
 require_once SNT_PATH . 'inc/analytics-bot-signals.php';    // beacon bot signals, observe-only: nightly reading per cohort (never subtracts)
+require_once SNT_PATH . 'inc/analytics-lanes.php';          // SN Traffic Lanes: the lanes table, its nightly rollup and report reads
+require_once SNT_PATH . 'inc/analytics-lanes-render.php';   // SN Traffic Lanes: the classic Integrity › Lanes leaf
 require_once SNT_PATH . 'inc/analytics-render-signals.php'; // its Quality-tab panel
 require_once SNT_PATH . 'inc/abilities-bot-signals.php';    // its reader, sn-status{bot_signals}; local only
 require_once SNT_PATH . 'inc/analytics-view-events.php';     // v8.5.0 extraction
