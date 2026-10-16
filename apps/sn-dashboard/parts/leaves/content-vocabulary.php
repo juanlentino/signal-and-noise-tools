@@ -68,8 +68,8 @@ function vocabulary_list_html( $title, array $rows, $kind ) {
 }
 
 /**
- * Whether a pair paints as one short line (thin, or held still): those pair
- * up two to a row instead of each spanning the window.
+ * Whether a pair paints as one short line (thin, or held still): those share
+ * a row three at a time instead of each spanning the window.
  *
  * @param array<string,mixed> $pair The kernel's pair envelope.
  * @return bool
@@ -119,7 +119,8 @@ function vocabulary_pair_html( array $pair ) {
 
 /**
  * The pairs: a moved pair spans the window; consecutive short ones (thin, or
- * held still) share a row two at a time.
+ * held still) share a row three at a time (2026-10-16, owner: three across
+ * wherever three belong together; a run of two still shares its row).
  *
  * @param array $pairs The kernel's pairs.
  * @return string
@@ -133,7 +134,7 @@ function vocabulary_pairs_html( array $pairs ) {
 		}
 		if ( vocabulary_pair_is_short( $pair ) ) {
 			$run[] = vocabulary_pair_html( $pair );
-			if ( 2 === count( $run ) ) {
+			if ( 3 === count( $run ) ) {
 				$out .= \snt_kit_grid( $run );
 				$run  = array();
 			}

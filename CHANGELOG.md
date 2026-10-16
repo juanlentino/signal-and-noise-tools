@@ -15,6 +15,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Changed
 - **Internal only: the settings module's source is split into smaller files** (house line cap). `inc/settings.php` (729 lines) keeps its header, `sn_note_reply_aliases()` and its three constants, then loads three parts files in the order the code always ran, so the `init` hook keeps its place: `settings-defaults-parts.php` (the credential mask, `sn_settings_defaults()`), `-accessors-parts.php` (the `register_setting()` call on `init`, the whole-tree sanitizer, `sn_setting()`, the cache reset, `sn_setting_update()`) and `-save-parts.php` (`sn_settings_save()`, the legacy seed, the lazy migration check). Code moved unchanged; the two long functions (`sn_settings_defaults()`, `sn_settings_save()`) move whole. Five suites that read the module's text now read it through `snt_test_settings_src()` in `tests/lib/inc-population.php`. Nothing changes on screen, every setting reads and saves the same, and no figure is removed.
 
+### Fixed
+- **Content › Vocabulary drift: short year pairs sit three to a row.** A run of pairs that were not measured or held still shared a row two at a time, so a wide window stacked them in long half-empty rows. They now share a row three at a time; a leftover one or two still share theirs, and a pair with movement still spans the window. Layout only: every pair, figure and sentence still renders, in the same order. The other Content and AI leaves were already grouped or are wide tables and forms, so they are unchanged. Pinned in `tests/os-leaf-content-vocabulary.php`.
+
 ## [2026.10.18] - 2026-10-16 — owner identity and traffic lanes, the refresh answers before it rolls up, Automated counts every bot
 
 ### Changed

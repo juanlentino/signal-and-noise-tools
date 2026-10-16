@@ -146,7 +146,7 @@ $small['pairs'][1]['risen'] = array( array( 'term' => 'mirror', 'before' => 0.10
 $GLOBALS['__drift'] = $small;
 ok( false !== strpos( html_entity_decode( snt_leaf_paint( 'content', 'vocabulary' ), ENT_QUOTES, 'UTF-8' ), '{"term":"mirror","share":"10.2% → 10.4%"}' ) && false !== strpos( snt_leaf_classic_html( 'sn_admin_render_drift_section' ), '>10.2% → 10.4%<' ), 'a small move shows one decimal on both surfaces, never "+0%"' );
 
-// ── Short pairs (thin, held still) share a row two at a time; a moved pair spans it.
+// ── Short pairs (thin, held still) share a row three at a time (2026-10-16); a moved pair spans it.
 $mixed = $rich;
 $mixed['pairs'] = array(
 	array( 'from' => 2022, 'to' => 2023, 'verdict' => 'thin', 'docs' => array( 'before' => 2, 'after' => 3 ), 'risen' => array(), 'fallen' => array(), 'entered' => array(), 'silenced' => array() ),
@@ -156,6 +156,16 @@ $mixed['pairs'] = array(
 $GLOBALS['__drift'] = $mixed;
 $kit = snt_leaf_paint( 'content', 'vocabulary' );
 ok( false !== strpos( $kit, snt_leaf_row() . '<os-section heading="2022 → 2023" stack>' ) && 1 === preg_match( '#heading="2022 → 2023".*?</os-section><os-section heading="2023 → 2024" stack><p class="snt-prose">The vocabulary held still#s', $kit ) && false !== strpos( $kit, '</os-grid><os-section heading="2024 → 2025" stack>' ), 'consecutive short pairs share one row; the moved pair after them spans the window' );
+// 2026-10-16 (owner: three across wherever three belong together): four
+// short pairs in a run fill a row of three, and the fourth stands alone.
+$still4 = $rich;
+$still4['pairs'] = array();
+foreach ( array( 2020, 2021, 2022, 2023 ) as $y ) {
+	$still4['pairs'][] = array( 'from' => $y, 'to' => $y + 1, 'verdict' => 'ok', 'docs' => array( 'before' => 7, 'after' => 7 ), 'risen' => array(), 'fallen' => array(), 'entered' => array(), 'silenced' => array() );
+}
+$GLOBALS['__drift'] = $still4;
+$kit = snt_leaf_paint( 'content', 'vocabulary' );
+ok( 1 === substr_count( $kit, snt_leaf_row( 3 ) . '<os-section heading="2020 → 2021" stack>' ) && 1 === substr_count( $kit, '<os-grid' ) - substr_count( $kit, '<os-grid min-item-width="160"' ) && 1 === preg_match( '#heading="2022 → 2023".*?</os-section></os-grid><os-section heading="2023 → 2024" stack>#s', $kit ), 'four short pairs: three share one row, the fourth stands alone at full width' );
 
 // ── Escaping: a hostile term never reaches the markup raw.
 $hostile = $rich;
