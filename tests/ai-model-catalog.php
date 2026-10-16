@@ -31,7 +31,7 @@ ok( array_key_first( $vision ) === sn_ai_default_vision_model() && isset( $visio
 
 echo "\nOne default, not eight\n";
 ok( false !== strpos( $src( 'inc/ai-bootstrap.php' ), "define( 'SN_AI_DEFAULT_MODEL',  '" . sn_ai_default_model() . "' );" ), 'SN_AI_DEFAULT_MODEL equals the catalog default' );
-ok( false !== strpos( $src( 'inc/settings.php' ), "'ai_model'               => '" . sn_ai_default_model() . "'," ), 'the stored-settings default equals it too' );
+ok( false !== strpos( snt_test_settings_src(), "'ai_model'               => '" . sn_ai_default_model() . "'," ), 'the stored-settings default equals it too' );
 $stray = array();
 require_once __DIR__ . '/lib/inc-population.php';
 foreach ( array_merge( snt_test_inc_files(), glob( __DIR__ . '/../apps/*/parts/leaves/*.php' ) ) as $f ) {

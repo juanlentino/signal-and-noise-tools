@@ -18,7 +18,8 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 $root = dirname( __DIR__ );
 $art  = (string) file_get_contents( $root . '/inc/ml-artifacts.php' );
 $page = (string) file_get_contents( $root . '/inc/ml-maturity-page.php' );
-$set  = (string) file_get_contents( $root . '/inc/settings.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$set  = snt_test_settings_src();
 
 echo "Group: the fallback is ALL-OR-NOTHING\n";
 // Embedding cosine and TF-IDF cosine have different distributions. A ranking

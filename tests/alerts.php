@@ -223,7 +223,7 @@ $src = static fn( $f ) => (string) file_get_contents( __DIR__ . '/../' . $f );
 require_once __DIR__ . '/lib/inc-population.php';
 ok( false !== strpos( $src( 'inc/watches.php' ), "'ripe'      => 'snt_watch_ripe_alerts'" ), 'the watch is registered' );
 ok( false !== strpos( $src( 'inc/cron-lifecycle.php' ), 'SNT_ALERTS_HOOK,' ) && false !== strpos( snt_test_cron_dashboard_src(), "array( 'SNT_ALERTS_HOOK', 'snt_alerts_hourly' )" ), 'the hook is in the deactivation list and the SN-owned list' );
-ok( false !== strpos( $src( 'inc/settings.php' ), "'alerts_enabled'          => true," ), 'the stored default is ON' );
+ok( false !== strpos( snt_test_settings_src(), "'alerts_enabled'          => true," ), 'the stored default is ON' );
 ok( false === strpos( $src( 'inc/alerts-cron.php' ) . $src( 'inc/alerts.php' ), 'set_transient' ) && false === strpos( $src( 'inc/alerts-cron.php' ) . $src( 'inc/alerts.php' ), 'wp_remote_' ), 'no transient holds a stamp, and the module makes no outside call' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
