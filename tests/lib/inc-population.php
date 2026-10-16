@@ -103,6 +103,30 @@ if ( ! function_exists( 'snt_test_provenance_integrity_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_provenance_core_src' ) ) {
+	/**
+	 * The source of inc/provenance-core.php AND its four parts files, for suites
+	 * that pin the module's text. Split 2026-10-15 (house line cap). Named, not
+	 * globbed: no other module shares the prefix today, and a future one would
+	 * not belong in the read. A missing file returns '' so every presence pin
+	 * goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_provenance_core_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-normalize-parts', '-chain-parts', '-record-parts', '-subject-parts' ) as $suffix ) {
+			$file = $dir . 'provenance-core' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_wp_update_integration_src' ) ) {
 	/**
 	 * The source of inc/wp-update-integration.php AND its three parts files, for

@@ -15,6 +15,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Added
 - **A stale-CV alert.** /cv/ is a translation and does not follow the English résumé on its own. When the English résumé changes, the Résumé screen (classic and dashboard) and a new Health check (`resume_es_stale`, Other checks family) say "The Spanish CV (/cv/) is out of date" and list the English lines added, changed or removed since the translation. The baseline is captured from the live English résumé on the first run. After that it moves only when the Spanish file's `translated_from` names the live English (the "English version" code the alert shows), so a typo fix or a partial Spanish update cannot clear an alert whose lines are still untranslated. No AI, no network. The scan now runs one more check. Pinned in `tests/resume-es-stale.php`.
 
+### Changed
+- **Internal only: the Notes provenance core's source is split into smaller files** (house line cap). `inc/provenance-core.php` (750 lines) keeps its header and its five leading constants, then loads four parts files in the order the code always ran, so both hooks keep their place: `provenance-core-normalize-parts.php` (the active check, the note UID, normalize v1 and v2, the canonical JSON), `-chain-parts.php` (the payload, the content hash, the chain reads and writes, the freshness stamp), `-record-parts.php` (`sn_prov_record()`, the Note test) and `-subject-parts.php` (the page sign meta, the subject kind, the ledger folder, the save hook, the twin's `content_signed` filter). Code moved unchanged. Two suites that read the module's text now read all five files through a new `snt_test_provenance_core_src()`. Nothing changes on screen, the signed payload is byte for byte the same, and no figure is removed.
+
 ## [2026.10.17] - 2026-10-15 — The Spanish résumé (/cv/ and its PDF), and a compact Release notes box
 
 ### Added
