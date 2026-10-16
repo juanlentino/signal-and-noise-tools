@@ -16,6 +16,11 @@
  * unfocused field, so the leaf polls only while the forms are put away. The
  * logs are open sections on both paints (connections-webhooks-log.php).
  *
+ * 2026-10-16 (leaf anatomy, docs/kit-leaf-anatomy.md): a Status card leads
+ * (one status line, a problem's notice, the intro as How this works); the
+ * rail is the Better Stack status and one Setup card (Uptime monitoring, the
+ * payload reference). The editors, Add a webhook and the logs stay open.
+ *
  * @package SignalNoiseTools
  * @since 13.106.0
  */
@@ -83,36 +88,56 @@ function webhooks_add_html() {
 }
 
 /**
- * The monitoring section, read-only since 15.2.0: where the Better Stack
- * token comes from (sn_webhooks_uptime_box(), shared with the classic page),
- * and the door to the keyring where it is set.
+ * The monitoring fold, read-only since 15.2.0: where the Better Stack token
+ * comes from (sn_webhooks_uptime_box(), shared with the classic page), and
+ * the door to the keyring where it is set. A Setup fold since 2026-10-16:
+ * the closed summary is each token's source, and it opens while one is unset.
  *
- * @return string
+ * @param array{about:string,rows:array<int,array<string,mixed>>} $box sn_webhooks_uptime_box().
+ * @return array<string,mixed> A Setup fold.
  */
-function webhooks_monitoring_html() {
-	$box  = \sn_webhooks_uptime_box();
-	$rows = array();
+function webhooks_monitoring_fold( array $box ) {
+	$rows    = array();
+	$summary = array();
+	$unset   = false;
 	foreach ( $box['rows'] as $row ) {
-		$rows[] = array( 'label' => $row['label'], 'value' => $row['value'], 'tone' => $row['unset'] ? 'warn' : '' );
+		$rows[]    = array( 'label' => $row['label'], 'value' => $row['value'], 'tone' => $row['unset'] ? 'warn' : '' );
+		$summary[] = $row['label'] . ': ' . $row['value'];
+		$unset     = $unset || ! empty( $row['unset'] );
 	}
-	$inner = ( array() !== $rows ? \snt_kit_kv( $rows ) : '' )
+	$inner = '<p class="snt-prose">' . \snt_kit_esc( $box['about'] ) . '</p>'
+		. ( array() !== $rows ? \snt_kit_kv( $rows ) : '' )
 		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'connections' ) ) . '.</p>';
-	return \snt_kit_section( __( 'Uptime monitoring', 'signal-and-noise-tools' ), $inner, $box['about'] );
+	return array( 'title' => __( 'Uptime monitoring', 'signal-and-noise-tools' ), 'summary' => implode( ' · ', $summary ), 'body' => $inner, 'open' => $unset );
 }
 
 /**
- * The payload reference: headers, body, and the verification hint.
+ * The payload reference: headers, body, and the verification hint. A Setup
+ * fold since 2026-10-16: reference a receiver is built against once.
  *
- * @return string
+ * @return array<string,mixed> A Setup fold.
  */
-function webhooks_payload_html() {
+function webhooks_payload_fold() {
 	$sample = "POST <your URL> HTTP/1.1\nContent-Type: application/json\nX-SN-Event: post.published\nX-SN-Delivery: del_…\nX-SN-Attempt: 1\nX-SN-Signature: sha256=<HMAC_SHA256(secret, body)>\nUser-Agent: SignalNoiseTools/" . ( defined( 'SNT_VERSION' ) ? SNT_VERSION : '?' ) . " webhook\n\n"
 		. "{\n  \"event\": \"post.published\",\n  \"delivery_id\": \"del_…\",\n  \"delivered_at\": 1234567890,\n  \"site\": \"" . home_url( '/' ) . "\",\n  \"post\": {\n    \"id\": 123,\n    \"title\": \"…\",\n    \"slug\": \"…\",\n    \"url\": \"…\",\n    \"author_id\": 1,\n    \"published_at\": 1234567890,\n    \"type\": \"post\"\n  }\n}";
 	$intro  = '<p class="snt-prose">' . \snt_kit_esc( __( 'Every delivery is a POST with these headers and a JSON body. The ', 'signal-and-noise-tools' ) ) . webhooks_code( 'X-SN-Event' ) . \snt_kit_esc( __( ' header and the body’s ', 'signal-and-noise-tools' ) ) . webhooks_code( 'event' ) . \snt_kit_esc( __( ' field are one of ', 'signal-and-noise-tools' ) )
 		. webhooks_code( 'post.published' ) . ', ' . webhooks_code( 'post.updated' ) . ', ' . webhooks_code( 'post.unpublished' ) . \snt_kit_esc( __( ', or ', 'signal-and-noise-tools' ) ) . webhooks_code( 'post.deleted' )
 		. \snt_kit_esc( __( '. For unpublished/deleted events the ', 'signal-and-noise-tools' ) ) . webhooks_code( 'post' ) . \snt_kit_esc( __( ' block is a snapshot captured at trigger time (the post may already be gone).', 'signal-and-noise-tools' ) ) . '</p>';
 	$hint   = '<p class="snt-hint">' . \snt_kit_esc( __( 'Receivers should verify ', 'signal-and-noise-tools' ) ) . webhooks_code( 'X-SN-Signature' ) . \snt_kit_esc( __( ' before trusting the body. Failures (network or HTTP 5xx) retry up to 3 times with 5-minute backoff; HTTP 4xx is a hard rejection.', 'signal-and-noise-tools' ) ) . '</p>';
-	return \snt_kit_section( __( 'Payload reference', 'signal-and-noise-tools' ), $intro . \snt_kit_code( $sample ) . $hint );
+	return array( 'title' => __( 'Payload reference', 'signal-and-noise-tools' ), 'summary' => __( 'A signed JSON POST, four events', 'signal-and-noise-tools' ), 'body' => $intro . \snt_kit_code( $sample ) . $hint );
+}
+
+/**
+ * The intro, the leaf's How this works fold (2026-10-16): what a delivery
+ * is and how a receiver trusts it, three sentences the leaf used to lead with.
+ *
+ * @return string
+ */
+function webhooks_how_html() {
+	return \snt_kit_how_fold(
+		__( 'Signed POSTs to your endpoints on post lifecycle events.', 'signal-and-noise-tools' ),
+		'<p class="snt-prose">' . \snt_kit_esc( __( 'POST a signed JSON payload to your own endpoints (n8n, Zapier, Pipedream, anything that accepts webhooks) on post/page lifecycle events: published, updated, unpublished, or deleted. Each webhook subscribes to the events you choose. Every delivery is HMAC-SHA256 signed; receivers should verify the ', 'signal-and-noise-tools' ) ) . webhooks_code( 'X-SN-Signature' ) . \snt_kit_esc( __( ' header before acting.', 'signal-and-noise-tools' ) ) . '</p>'
+	);
 }
 
 /**
@@ -135,16 +160,20 @@ function paint_connections_webhooks( array $ctx ) {
 		$enabled += empty( $wh['enabled'] ) ? 0 : 1;
 		$main    .= webhooks_entry_html( $wh, $new_id === (string) ( $wh['id'] ?? '' ), $watching );
 	}
-	$main .= ( $watching ? '' : webhooks_add_html() ) . webhooks_monitoring_html();
+	$main .= $watching ? '' : webhooks_add_html();
+	$box   = \sn_webhooks_uptime_box();
 
-	$rail = webhooks_status_html( count( $webhooks ), $enabled, $watching );
+	$rail = '';
 	if ( function_exists( 'sn_uptime_status_configured' ) && \sn_uptime_status_configured() && function_exists( 'sn_uptime_status_mount_html' ) ) {
 		// The same mount the classic paints; the shell ships assets/uptime-status.js, which fills it on `snt:paint`.
 		$rail .= \snt_kit_section( __( 'Better Stack status', 'signal-and-noise-tools' ), \sn_uptime_status_mount_html() );
 	}
-	$rail .= webhooks_payload_html();
+	$rail .= webhooks_setup_html( array( webhooks_monitoring_fold( $box ), webhooks_payload_fold() ) );
 
-	return '<p class="snt-prose">' . \snt_kit_esc( __( 'POST a signed JSON payload to your own endpoints (n8n, Zapier, Pipedream, anything that accepts webhooks) on post/page lifecycle events: published, updated, unpublished, or deleted. Each webhook subscribes to the events you choose. Every delivery is HMAC-SHA256 signed; receivers should verify the ', 'signal-and-noise-tools' ) ) . webhooks_code( 'X-SN-Signature' ) . \snt_kit_esc( __( ' header before acting.', 'signal-and-noise-tools' ) ) . '</p>'
+	// 2026-10-16 (leaf anatomy, docs/kit-leaf-anatomy.md): one Status card
+	// leads (the status line, a problem's notice, the intro as How this works),
+	// then the work beside the Better Stack status and the Setup card.
+	return webhooks_status_card_html( count( $webhooks ), $enabled, $watching, $box['rows'], webhooks_how_html() )
 		. \snt_kit_tag(
 			'os-row',
 			array( 'gap' => '16' ),

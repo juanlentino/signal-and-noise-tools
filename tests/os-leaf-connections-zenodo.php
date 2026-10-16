@@ -89,7 +89,18 @@ ok( false !== strpos( snt_leaf_paint( 'connections', 'zenodo' ), '1 hour ago: no
 $pass_src = (string) file_get_contents( SNT_PATH . 'inc/zenodo-records.php' );
 ok( 1 === preg_match( '/function sn_zenodo_backfill_pass\(\).*?set_transient\( \'sn_zenodo_last_batch\', \$out \+ array\( \'at\' => time\(\) \)/s', $pass_src ) && false === strpos( (string) file_get_contents( SNT_PATH . 'inc/admin-post-actions/zenodo.php' ), "set_transient( 'sn_zenodo_last_batch'" ), 'the pass itself records the last pass (hourly and manual alike); the button no longer does' );
 $GLOBALS['__transients']['sn_zenodo_last_batch'] = array( 'attempted' => 2, 'published' => 1, 'failed' => 1 );
-ok( false !== strpos( $kit, 'col="4" aria-label="Zenodo status"' ) && false !== strpos( $kit, '<os-row gap="16"' ), 'the rail keeps its landmark; the two-column shell survives' );
+// 2026-10-16 (leaf anatomy, docs/kit-leaf-anatomy.md): the rail is a Status
+// card leading the leaf (one status line, a problem's notice, the counts,
+// Deposit, the intro as How this works), then the ledger at full width, then
+// one Setup card whose Environment fold says the environment and ledger DOI.
+ok( 0 === strpos( $kit, '<os-section heading="Status" stack role="region" aria-label="Zenodo status"><div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success" title="1 minted of 3 documents.">On</os-badge><os-chip>Sandbox</os-chip></os-cluster></div><p class="snt-hint">1 minted of 3 documents.</p>' ), 'the leaf leads with the Status card: one status line (the token\'s verdict, the environment); an ok verdict paints no notice, its sentence a hint' );
+ok( false === strpos( $kit, '<os-row' ) && false === strpos( $kit, 'col="4"' ) && false === strpos( $kit, '<os-notice' ), 'no rail and no notice while the token is verified' );
+ok( 1 === preg_match( '#<os-disclosure heading="How this works" hint="[^"]+"[^>]*><os-stack gap="12"><p class="snt-prose">Every signed document#', $kit ) && 1 === substr_count( $kit, 'The papers stay with SSRN' ), 'the intro is the Status card\'s How this works fold, painted once' );
+$order = array( strpos( $kit, 'class="snt-status-line"' ), strpos( $kit, 'os-arg-action="sn_zenodo_deposit_batch"' ), strpos( $kit, 'heading="How this works"' ), strpos( $kit, 'heading="Ledger"' ), strpos( $kit, 'heading="Setup"' ) );
+$sorted = $order;
+sort( $sorted );
+ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: status line, Deposit, How this works, the ledger, Setup: ' . implode( ' < ', $order ) );
+ok( 1 === preg_match( '#<os-section heading="Setup" description="[^"]*" stack><os-disclosure heading="Environment" hint="Sandbox · ledger DOI not set"[^>]*data-snt-open="0"><os-stack gap="12"><os-form[^>]*submit-label="Save environment"#', $kit ), 'one Setup card: the Environment form is a fold whose summary is the environment and the ledger DOI, closed while a token is set' );
 // 16.2.2: the tile reads the keyring's verdict. A stored token the keyring REFUSED is not On.
 $GLOBALS['__zl']['verdict'] = array( 'status' => 'refused', 'detail' => 'Zenodo sandbox refused to create a draft (HTTP 403: Permission denied.).', 'at' => 1 );
 $kit = snt_leaf_paint( 'connections', 'zenodo' );
@@ -101,6 +112,7 @@ $GLOBALS['__zl']['verdict'] = array( 'status' => 'ok', 'detail' => 'creates a dr
 $GLOBALS['__zl']['enabled'] = false;
 $kit = snt_leaf_paint( 'connections', 'zenodo' );
 ok( false !== strpos( $kit, '<b>No token</b>' ) && false !== strpos( $kit, 'disabled' ), 'no token: the rail says so and the deposit button is disabled' );
+ok( false !== strpos( $kit, '<os-badge tone="warning" title="Add the sandbox token under Credentials.">Off</os-badge><os-chip>No token</os-chip>' ) && 1 === preg_match( '#<os-disclosure heading="Environment" hint="Sandbox · ledger DOI not set"[^>]*\sopen[\s=>]#', $kit ), 'no token: the status line says Off and No token, the notice stays open, and the Environment fold opens itself' );
 $GLOBALS['__zl']['rows'] = array();
 $kit = snt_leaf_paint( 'connections', 'zenodo' );
 ok( false !== strpos( $kit, 'No signed documents yet.' ), 'an empty ledger is honest' );

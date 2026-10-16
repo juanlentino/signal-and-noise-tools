@@ -4,8 +4,13 @@
  *
  * The same reads as the classic leaf (inc/admin-forms/zenodo.php,
  * `sn_admin_render_zenodo_section()`): the environment switch, one deposit
- * action, the ledger as the house table, the status rail. Tokens live in
+ * action, the ledger as the house table, the status. Tokens live in
  * Credentials.
+ *
+ * 2026-10-16 (leaf anatomy, docs/kit-leaf-anatomy.md): a Status card leads
+ * (one status line, a problem's notice, the states, Deposit, the intro as
+ * How this works), the ledger takes the full width, and the environment form
+ * is the one fold of a Setup card. Before: an 8/4 row with a status rail.
  *
  * @package SignalNoiseTools
  * @since 15.11.0
@@ -18,12 +23,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The environment form and the deposit action.
+ * The environment form as a Setup fold: the closed summary is the
+ * environment and the ledger DOI; it opens while no token is set, since the
+ * environment names which token to add.
  *
  * @param array<string,mixed> $d sn_zenodo_leaf_data().
- * @return string
+ * @return array<string,mixed> A Setup fold.
  */
-function zenodo_main_html( array $d ) {
+function zenodo_env_fold( array $d ) {
 	$env_field = \snt_kit_field(
 		'select',
 		'zenodo_env',
@@ -47,20 +54,32 @@ function zenodo_main_html( array $d ) {
 			'hint'        => __( 'The DOI Zenodo minted for the ledger repository\'s monthly snapshot (the concept DOI, which resolves to the latest snapshot). Every deposit names it as the record it is part of. Empty until the first snapshot release.', 'signal-and-noise-tools' ),
 		)
 	);
-	$env = \snt_kit_section(
-		__( 'Environment', 'signal-and-noise-tools' ),
-		\snt_kit_form( 'zenodo_env_save', $env_field . $doi_field, array( 'submit' => __( 'Save environment', 'signal-and-noise-tools' ), 'hidden' => array( 'tab' => 'connections', 'sub' => 'zenodo' ) ) )
+	$ledger  = (string) ( $d['ledger'] ?? '' );
+	$summary = ucfirst( (string) $d['env'] ) . ' · ' . ( '' !== $ledger
+		/* translators: %s: the ledger concept DOI. */
+		? sprintf( __( 'ledger DOI %s', 'signal-and-noise-tools' ), $ledger )
+		: __( 'ledger DOI not set', 'signal-and-noise-tools' ) );
+	return array(
+		'title'   => __( 'Environment', 'signal-and-noise-tools' ),
+		'summary' => $summary,
+		'body'    => \snt_kit_form( 'zenodo_env_save', $env_field . $doi_field, array( 'submit' => __( 'Save environment', 'signal-and-noise-tools' ), 'hidden' => array( 'tab' => 'connections', 'sub' => 'zenodo' ) ) ),
+		'open'    => empty( $d['enabled'] ),
 	);
-	$deposit = \snt_kit_section(
-		__( 'Deposit', 'signal-and-noise-tools' ),
-		\snt_kit_tag( 'os-cluster', array( 'gap' => '8' ), \snt_kit_action_button( __( 'Deposit the next batch', 'signal-and-noise-tools' ), 'zenodo_deposit_batch', array( 'disabled' => ! $d['enabled'], 'confirm' => \sn_zenodo_deposit_confirm( (string) $d['env'] ), 'confirm_title' => __( 'Deposit the next batch', 'signal-and-noise-tools' ), 'confirm_label' => __( 'Deposit', 'signal-and-noise-tools' ) ) ) ),
-		sprintf(
-			/* translators: %d: documents per pass */
-			__( 'Runs one pass now: up to %d confirmed documents without a DOI. The hourly pass does the same on its own.', 'signal-and-noise-tools' ),
-			(int) \SN_ZENODO_PASS_MAX
-		)
-	);
-	return \snt_kit_grid( array( \snt_kit_tag( 'os-card', array(), $env ), \snt_kit_tag( 'os-card', array(), $deposit ) ) );
+}
+
+/**
+ * The deposit action and what one pass does.
+ *
+ * @param array<string,mixed> $d sn_zenodo_leaf_data().
+ * @return string
+ */
+function zenodo_deposit_html( array $d ) {
+	return '<p class="snt-hint">' . \snt_kit_esc( sprintf(
+		/* translators: %d: documents per pass */
+		__( 'Runs one pass now: up to %d confirmed documents without a DOI. The hourly pass does the same on its own.', 'signal-and-noise-tools' ),
+		(int) \SN_ZENODO_PASS_MAX
+	) ) . '</p>'
+		. \snt_kit_tag( 'os-cluster', array( 'gap' => '8' ), \snt_kit_action_button( __( 'Deposit the next batch', 'signal-and-noise-tools' ), 'zenodo_deposit_batch', array( 'disabled' => ! $d['enabled'], 'confirm' => \sn_zenodo_deposit_confirm( (string) $d['env'] ), 'confirm_title' => __( 'Deposit the next batch', 'signal-and-noise-tools' ), 'confirm_label' => __( 'Deposit', 'signal-and-noise-tools' ) ) ) );
 }
 
 /** The ledger lists this many rows (the waiting ones first), then "+N more". */
@@ -115,15 +134,27 @@ function zenodo_ledger_html( array $d ) {
 }
 
 /**
- * The status rail.
+ * The Status card: one status line (the token's verdict, the environment),
+ * the verdict's notice while it is not ok (its sentence a hint while it is),
+ * the states with the last pass, Deposit, and the intro as How this works.
+ * The "Zenodo status" landmark the rail carried is this card.
  *
  * @param array<string,mixed> $d sn_zenodo_leaf_data().
  * @return string
  */
-function zenodo_rail_html( array $d ) {
+function zenodo_status_html( array $d ) {
 	// 16.2.2: the tile reads the keyring's verdict, not "a token is stored".
-	$tile   = \sn_zenodo_tile_state( $d['enabled'], $d['verdict'] ?? null, $d['env'], (int) ( $d['counts']['minted'] ?? 0 ), count( $d['rows'] ) );
-	$status = \snt_kit_notice( $tile['tone'], '<b>' . \snt_kit_esc( $d['enabled'] ? ucfirst( $d['env'] ) : __( 'No token', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_badge( $tile['tone'], $tile['badge'] ) . '<br>' . \snt_kit_esc( $tile['body'] ) );
+	$tile  = \sn_zenodo_tile_state( $d['enabled'], $d['verdict'] ?? null, $d['env'], (int) ( $d['counts']['minted'] ?? 0 ), count( $d['rows'] ) );
+	$where = $d['enabled'] ? ucfirst( $d['env'] ) : __( 'No token', 'signal-and-noise-tools' );
+	$line  = \snt_kit_status_line(
+		array(
+			array( 'tone' => 'error' === $tile['tone'] ? 'bad' : $tile['tone'], 'label' => $tile['badge'], 'title' => $tile['body'] ),
+			array( 'tone' => 'neutral', 'label' => $where ),
+		)
+	);
+	$under = 'ok' === $tile['tone']
+		? '<p class="snt-hint">' . \snt_kit_esc( $tile['body'] ) . '</p>'
+		: \snt_kit_notice( $tile['tone'], '<b>' . \snt_kit_esc( $where ) . '</b> ' . \snt_kit_badge( $tile['tone'], $tile['badge'] ) . '<br>' . \snt_kit_esc( $tile['body'] ) );
 	$rows = array();
 	foreach ( $d['counts'] as $state => $n ) {
 		$rows[] = array( 'label' => \sn_zenodo_state_label( $state ), 'value' => (string) (int) $n );
@@ -131,10 +162,15 @@ function zenodo_rail_html( array $d ) {
 	if ( ! empty( $d['batch'] ) ) {
 		$rows[] = array( 'label' => __( 'Last pass', 'signal-and-noise-tools' ), 'value' => \sn_zenodo_last_pass_text( $d['batch'] ) );
 	}
-	return \snt_kit_tag(
-		'aside',
-		array( 'col' => '4', 'aria-label' => __( 'Zenodo status', 'signal-and-noise-tools' ) ),
-		\snt_kit_tag( 'os-stack', array( 'gap' => '16' ), $status . \snt_kit_section( __( 'States', 'signal-and-noise-tools' ), \snt_kit_kv( $rows ) ) )
+	$how = \snt_kit_how_fold(
+		__( 'Signed documents get a DOI once their anchor is confirmed.', 'signal-and-noise-tools' ),
+		'<p class="snt-prose">' . \snt_kit_esc( __( 'Every signed document (the notes, the pillar essays) gets a DOI on Zenodo once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed with it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.', 'signal-and-noise-tools' ) ) . '</p>'
+	);
+	return \snt_kit_section(
+		__( 'Status', 'signal-and-noise-tools' ),
+		$line . $under . ( array() !== $rows ? \snt_kit_kv( $rows ) : '' ) . zenodo_deposit_html( $d ) . $how,
+		'',
+		array( 'role' => 'region', 'aria-label' => __( 'Zenodo status', 'signal-and-noise-tools' ) )
 	);
 }
 
@@ -152,14 +188,10 @@ function paint_connections_zenodo( array $ctx ) {
 	if ( ! function_exists( 'sn_zenodo_leaf_data' ) ) {
 		return \snt_kit_empty( __( 'Zenodo is not available.', 'signal-and-noise-tools' ) );
 	}
-	$d   = \sn_zenodo_leaf_data();
-	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'Every signed document (the notes, the pillar essays) gets a DOI on Zenodo once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed with it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.', 'signal-and-noise-tools' ) ) . '</p>';
-	$out .= \snt_kit_tag(
-		'os-row',
-		array( 'gap' => '16' ),
-		\snt_kit_tag( 'os-stack', array( 'col' => '8', 'gap' => '12' ), zenodo_main_html( $d ) . zenodo_ledger_html( $d ) ) . zenodo_rail_html( $d )
-	);
-	return $out;
+	$d = \sn_zenodo_leaf_data();
+	return zenodo_status_html( $d )
+		. zenodo_ledger_html( $d )
+		. \snt_kit_setup_card( __( 'Setup', 'signal-and-noise-tools' ), array( zenodo_env_fold( $d ) ), __( 'Set once; open it to change it.', 'signal-and-noise-tools' ) );
 }
 
 add_filter(

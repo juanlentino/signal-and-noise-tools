@@ -165,3 +165,73 @@ function cloudflare_cloudways_row( $cw ) {
 	$line .= ' ' . str_replace( array( '<code>', '</code>' ), array( '<os-code>', '</os-code>' ), \wp_kses_post( $leg['meta'] ) );
 	return array( 'label' => __( 'Cloudways purge', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_badge( $leg['kind'], $leg['text'] ) . ' ' . trim( $line ), 'tone' => in_array( $leg['kind'], array( 'warn', 'err' ), true ) ? 'warn' : '' );
 }
+
+/**
+ * The Status card (2026-10-16): one status line answering "is the cache
+ * wired?" (auto-purge, the last purge, the token as the monitor read it, the
+ * probes' stale count), and the analytics-token warning, which needs action
+ * and so is never folded with the keys.
+ *
+ * @param array<string,mixed> $d From cloudflare_data().
+ * @return string
+ */
+function cloudflare_status_card_html( array $d ) {
+	$on    = ! empty( $d['is_configured'] );
+	$last  = (array) $d['last_purge'];
+	$chips = array(
+		$on ? array( 'tone' => 'ok', 'label' => __( 'Auto-purge active', 'signal-and-noise-tools' ) ) : array( 'tone' => 'warn', 'label' => __( 'Not configured', 'signal-and-noise-tools' ) ),
+		array(
+			'tone'  => 'neutral',
+			'label' => ! empty( $last['time'] )
+				/* translators: %s: how long ago, e.g. "1 hour". */
+				? sprintf( __( 'Last purge: %s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $last['time'], time() ) )
+				: __( 'Last purge: never', 'signal-and-noise-tools' ),
+		),
+		cloudflare_token_chip( function_exists( __NAMESPACE__ . '\\cloudflare_monitor_record' ) ? cloudflare_monitor_record() : null ),
+	);
+	$log = (array) ( $d['probe_log'] ?? array() );
+	if ( $on && array() !== $log ) {
+		$stale   = count( array_filter( $log, static function ( $r ) { return 'stale' === (string) ( $r['result'] ?? '' ); } ) );
+		/* translators: 1: probes retained, 2: stale probes. */
+		$chips[] = array( 'tone' => $stale > 0 ? 'warn' : 'ok', 'label' => sprintf( __( 'Probes: %1$d retained, %2$d stale', 'signal-and-noise-tools' ), count( $log ), $stale ) );
+	}
+	$warn = '';
+	if ( '' !== (string) ( $d['analytics_override'] ?? '' ) ) {
+		$warn = \snt_kit_notice( 'warning', \snt_kit_esc( 'constant' === $d['analytics_override']
+			? __( 'Analytics still reads with the SN_CF_ANALYTICS_TOKEN constant, not this token. Remove the constant from wp-config.php to use one token.', 'signal-and-noise-tools' )
+			: __( 'Analytics still reads with a separate token saved under Measurement › Analytics › Credentials. Drop it there to use this one.', 'signal-and-noise-tools' ) ) );
+	}
+	return \snt_kit_section( __( 'Status', 'signal-and-noise-tools' ), \snt_kit_status_line( $chips ) . $warn );
+}
+
+/**
+ * The token as the monitor last read it, as one status-line chip.
+ *
+ * @param array<string,mixed>|null $record cloudflare_monitor_record().
+ * @return array<string,string> A status-line chip ('' label paints none).
+ */
+function cloudflare_token_chip( $record ) {
+	if ( ! is_array( $record ) ) {
+		return array( 'tone' => 'neutral', 'label' => __( 'Token not read yet', 'signal-and-noise-tools' ) );
+	}
+	if ( empty( $record['configured'] ) ) {
+		return array( 'label' => '' );
+	}
+	$t = is_array( $record['token'] ?? null ) ? $record['token'] : array();
+	if ( 'changed' === (string) ( $t['status'] ?? '' ) ) {
+		return array( 'tone' => 'warn', 'label' => __( 'Token changed, not read yet', 'signal-and-noise-tools' ) );
+	}
+	if ( empty( $t['verified'] ) ) {
+		return array( 'tone' => 'bad', 'label' => __( 'Token not verified', 'signal-and-noise-tools' ) );
+	}
+	if ( 'active' !== (string) $t['status'] ) {
+		/* translators: %s: the token's status as Cloudflare reports it. */
+		return array( 'tone' => 'bad', 'label' => sprintf( __( 'Token %s', 'signal-and-noise-tools' ), (string) $t['status'] ) );
+	}
+	$exp = '' !== (string) ( $t['expires_on'] ?? '' ) ? (int) strtotime( (string) $t['expires_on'] ) : 0;
+	if ( $exp && $exp < time() + 14 * DAY_IN_SECONDS ) {
+		/* translators: %s: time until the token expires. */
+		return array( 'tone' => 'warn', 'label' => sprintf( __( 'Token expires in %s', 'signal-and-noise-tools' ), human_time_diff( time(), $exp ) ) );
+	}
+	return array( 'tone' => 'ok', 'label' => __( 'Token active', 'signal-and-noise-tools' ) );
+}

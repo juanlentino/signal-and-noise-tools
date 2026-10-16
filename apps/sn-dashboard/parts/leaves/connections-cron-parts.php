@@ -13,7 +13,9 @@
  * `<os-form>` fires one event per submit and a one-click button drops extra
  * args (sn-dashboard.os.php posted_values), so each verb is its own kit form
  * with the differentiator as a hidden field: the security-login-defense.php
- * shape. Same readers, same field names, same actions.
+ * shape. Same readers, same field names, same actions. 2026-10-16 (leaf
+ * anatomy, docs/kit-leaf-anatomy.md): those secondary verbs are the compact
+ * inline forms, side by side under Save, not a full-width row each.
  *
  * @package SignalNoiseTools
  * @since 17.3.0
@@ -63,11 +65,12 @@ function cron_morning_brief_html() {
 		$inner .= \snt_kit_notice( 'err', '<b>' . \snt_kit_esc( __( 'Last send failed:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( (string) $last_error['message'] ) );
 	}
 
-	$out  = \snt_kit_form( 'morning_brief_save', $inner, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
-	$out .= \snt_kit_form( 'morning_brief_save', \snt_kit_field( 'hidden', 'snt_morning_brief_test', '', '1' ), array( 'submit' => __( 'Send test brief', 'signal-and-noise-tools' ) ) );
+	$verbs = \snt_kit_form( 'morning_brief_save', \snt_kit_field( 'hidden', 'snt_morning_brief_test', '', '1' ), array( 'submit' => __( 'Send test brief', 'signal-and-noise-tools' ), 'inline' => true ) );
 	if ( $has_drift ) {
-		$out .= \snt_kit_form( 'morning_brief_save', \snt_kit_field( 'hidden', 'snt_config_drift_acknowledge', '', '1' ), array( 'submit' => __( 'Acknowledge current settings', 'signal-and-noise-tools' ) ) );
+		$verbs .= \snt_kit_form( 'morning_brief_save', \snt_kit_field( 'hidden', 'snt_config_drift_acknowledge', '', '1' ), array( 'submit' => __( 'Acknowledge current settings', 'signal-and-noise-tools' ), 'inline' => true ) );
 	}
+	$out = \snt_kit_form( 'morning_brief_save', $inner, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) )
+		. \snt_kit_tag( 'os-cluster', array( 'gap' => '8' ), $verbs );
 	return \snt_kit_section( __( 'Morning operations brief', 'signal-and-noise-tools' ), $top . $out );
 }
 
@@ -96,7 +99,7 @@ function cron_scheduled_reads_html() {
 	}
 
 	$out  = \snt_kit_form( 'scheduled_reads_save', $inner, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
-	$out .= \snt_kit_form( 'scheduled_reads_save', \snt_kit_field( 'hidden', 'snt_scheduled_reads_now', '', '1' ), array( 'submit' => __( 'Run now', 'signal-and-noise-tools' ) ) );
+	$out .= \snt_kit_tag( 'os-cluster', array( 'gap' => '8' ), \snt_kit_form( 'scheduled_reads_save', \snt_kit_field( 'hidden', 'snt_scheduled_reads_now', '', '1' ), array( 'submit' => __( 'Run now', 'signal-and-noise-tools' ), 'inline' => true ) ) );
 	return \snt_kit_section( __( 'Scheduled read-only runs', 'signal-and-noise-tools' ), $out );
 }
 

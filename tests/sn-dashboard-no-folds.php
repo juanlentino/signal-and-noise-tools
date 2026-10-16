@@ -33,6 +33,12 @@ $earned = array(
 	'apps/sn-dashboard/parts/leaves/monitoring-analytics-setup.php' => 'Measurement › Analytics (one call, snt_kit_setup_card()): the Setup card\'s settings (credentials, collector, roles kept out, tuning, funnels, the Worker and salt, configured elsewhere) are setup or reference, changed once in a while; each summary is the setting\'s current state; credentials open while the pipeline is incomplete, the collector while unset, the Worker while its version or salt was not read. Warnings stay open on the Pipeline card',
 	'apps/sn-dashboard/parts/leaves/monitoring-analytics-owner.php' => 'Your devices\' How this works (snt_kit_how_fold()): reference, the marker explained and what Revoke all leaves to do; its summary states the mechanism; Revoke all\'s confirm repeats the hint before anything is revoked',
 	'inc/openstation-kit-anatomy.php' => 'The leaf anatomy helpers (2 calls: snt_kit_setup_card() folds each setting, snt_kit_how_fold() folds explanatory prose): they only paint folds a leaf asks for, and every leaf that calls one is listed here on its own line',
+	'apps/sn-dashboard/parts/leaves/connections-music.php' => 'Connections › Discography\'s How this works (snt_kit_how_fold()): the intro paragraph is reference (what the daily pass mirrors, where it renders); its summary states the mechanism; the sync state and its notice stay open on the Status card',
+	'apps/sn-dashboard/parts/leaves/connections-music-parts.php' => 'Connections › Discography\'s Setup card (one call, snt_kit_setup_card()): the Muso.AI profile and the Spotify sources are set once; each summary is the current value (the profile id and its lock, Spotify configured or not); the profile fold paints open while its id is empty. The Featured release and Release notes forms stay open',
+	'apps/sn-dashboard/parts/leaves/connections-webhooks.php' => 'Connections › Webhooks\' How this works (snt_kit_how_fold()): the intro is reference (what a delivery is, how a receiver trusts it); its summary states the mechanism; the status and its warning stay open on the Status card',
+	'apps/sn-dashboard/parts/leaves/connections-webhooks-parts.php' => 'Connections › Webhooks\' Setup card (one call, snt_kit_setup_card()): the uptime token\'s source and the payload reference are read-only reference; the summaries are the token\'s source and the payload\'s shape; Uptime monitoring opens while a token is unset. The editors, Add a webhook and every delivery log stay open',
+	'apps/sn-dashboard/parts/leaves/connections-zenodo.php' => 'Connections › Zenodo (2 calls): the Setup card\'s one fold, the environment form, is set once; its summary is the environment and the ledger DOI; it opens while no token is set. How this works holds the intro, reference; its summary states the mechanism. The token\'s verdict and its notice stay open on the Status card',
+	'apps/sn-dashboard/parts/leaves/connections-cloudflare.php' => 'Connections › Cloudflare\'s Setup card (one call, snt_kit_setup_card()): the keys\' sources and the grant list are read-only reference, set on the keyring; the summary says which key is set, locked or not set (never a value); it opens while the token or the zone is missing. The analytics-token warning and the not-configured notice stay open',
 	'apps/sn-dashboard/parts/leaves/connections-cron.php'     => 'Scheduled events: a reference list (91 events, 5,473px open); the summary counts events, overdue and unhandled; open when one is overdue or unhandled, when overdue cannot be read, or while a filter is typed',
 );
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -40,7 +46,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 $root  = dirname( __DIR__ );
 $files = array( $root . '/inc/north-star-settings.php', $root . '/inc/openstation-kit-anatomy.php' );
 // How many fold calls a file may make: one, unless named here.
-$calls = array( 'inc/openstation-kit-anatomy.php' => 2 );
+$calls = array( 'inc/openstation-kit-anatomy.php' => 2, 'apps/sn-dashboard/parts/leaves/connections-zenodo.php' => 2 );
 $it    = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/apps/sn-dashboard', FilesystemIterator::SKIP_DOTS ) );
 foreach ( $it as $file ) {
 	if ( 'php' === $file->getExtension() ) {

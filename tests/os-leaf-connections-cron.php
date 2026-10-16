@@ -405,6 +405,12 @@ ok( false !== strpos( $kit, 'Last run <os-relative-time datetime="' ) && false !
 ok( false !== strpos( $kit, 'Send test brief' ) && false !== strpos( $kit, 'name="snt_morning_brief_test"' ), 'Send test brief form carries its differentiator' );
 ok( false !== strpos( $kit, 'Run now</' ) || false !== strpos( $kit, 'submit-label="Run now"' ), 'Run now form paints' );
 ok( false !== strpos( $kit, 'name="snt_scheduled_reads_now"' ), 'Run now form carries its differentiator' );
+// 2026-10-16 (leaf anatomy, docs/kit-leaf-anatomy.md): the secondary verbs
+// were a full-width form row each; they are the compact inline forms now, side
+// by side under the Save they sit beside. Save keeps its full form.
+ok( 1 === preg_match( '#<os-cluster gap="8"><os-form class="snt-form snt-form--inline"[^>]*submit-label="Send test brief"[^>]*>.*?</os-form><os-form class="snt-form snt-form--inline"[^>]*submit-label="Acknowledge current settings"#s', $kit ), 'Send test brief and Acknowledge current settings are inline forms, side by side' );
+ok( 1 === preg_match( '#<os-cluster gap="8"><os-form class="snt-form snt-form--inline"[^>]*submit-label="Run now"[^>]*>(?:(?!</os-form>).)*name="snt_scheduled_reads_now"#s', $kit ), 'the scheduled reads\' Run now is an inline form' );
+ok( 2 === substr_count( $kit, '<os-form class="snt-form" os-action="post"' ) && 2 === substr_count( $kit, 'submit-label="Save"' ), 'each Save keeps its full form' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'the settings row carries no classic markers: ' . json_encode( snt_leaf_classic_markers( $kit ) ) );
 
 // 15) Round trip: painted OFF reads false and expands empty; ON reads true and expands non-empty.

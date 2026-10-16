@@ -350,7 +350,9 @@ namespace {
 	if ( isset( $painters['connections/cloudflare'] ) ) {
 		$cf_html = call_user_func( $painters['connections/cloudflare'], array( 'tab' => 'connections', 'sub' => 'cloudflare' ) );
 		// 17.4.1 (#1573): boxes on paired rows of comparable height, not two stacked columns.
-		ok( false !== strpos( $cf_html, snt_leaf_row() ) && false === strpos( $cf_html, '<os-stack' ), 'connections/cloudflare renders its boxes on a paired row, no two-up columns' );
+		// 2026-10-16: a Setup fold stacks its own content (snt_kit_fold()), so the
+		// check is for a column stack as a grid cell, the two-up shape.
+		ok( false !== strpos( $cf_html, snt_leaf_row() ) && 0 === preg_match( '/<os-grid[^>]*><os-stack|<\/os-stack><os-stack/', $cf_html ), 'connections/cloudflare renders its boxes on a paired row, no two-up columns' );
 	}
 
 	// #1217: two of the pulse tile links on S&N Home pointed at doors that do
