@@ -28,11 +28,11 @@ require_once __DIR__ . '/content-scan-parts.php';
  * The count pill: warn when there is work, ok at zero.
  *
  * @param array<string,mixed> $scan From snt_pattern_adoption_last_scan().
- * @return string
+ * @return array<string,string> A status-line chip (snt_kit_status_line()).
  */
-function pattern_adoption_count_badge( array $scan ) {
+function pattern_adoption_count_chip( array $scan ) {
 	$total = (int) ( $scan['counts']['pull_quote'] ?? 0 ) + (int) ( $scan['counts']['steps_enumerated'] ?? 0 );
-	return \snt_kit_badge( $total > 0 ? 'warn' : 'ok', \snt_content_scan_count( $total ) );
+	return array( 'tone' => $total > 0 ? 'warn' : 'ok', 'label' => \snt_content_scan_count( $total ) );
 }
 
 /**
@@ -60,12 +60,12 @@ function paint_content_pattern_adoption( array $ctx ) {
 	$form = \snt_kit_form(
 		'pattern_adoption_scan',
 		'',
-		array( 'submit' => $scanned ? __( 'Re-scan opportunities', 'signal-and-noise-tools' ) : __( 'Scan for opportunities', 'signal-and-noise-tools' ) )
+		array( 'submit' => $scanned ? __( 'Re-scan opportunities', 'signal-and-noise-tools' ) : __( 'Scan for opportunities', 'signal-and-noise-tools' ), 'inline' => true )
 	);
 	return content_scan_layout(
 		__( 'Pattern adoption', 'signal-and-noise-tools' ),
 		$scanned ? $scan : null,
-		$scanned ? pattern_adoption_count_badge( $scan ) : '',
+		$scanned ? pattern_adoption_count_chip( $scan ) : null,
 		$form,
 		\snt_kit_esc( \snt_pattern_adoption_intro() ),
 		$result

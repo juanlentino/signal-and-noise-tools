@@ -51,14 +51,21 @@ function resume_draft_controls() {
 			. \snt_kit_door( __( 'Preview PDF', 'signal-and-noise-tools' ), \sn_resume_action_url( 'resume_preview_pdf' ) )
 			. '</p>';
 	}
+	// 2026-10-16 (the leaf anatomy, docs/kit-leaf-anatomy.md): three lone
+	// buttons took a full row each; they are compact inline forms, side by
+	// side, each behind the same confirm.
+	$buttons = '';
 	if ( $has_draft ) {
-		$out .= \snt_kit_form( 'resume_publish', '', array( 'submit' => __( 'Publish', 'signal-and-noise-tools' ), 'confirm' => __( 'Publish the draft to the live /resume page?', 'signal-and-noise-tools' ) ) );
+		$buttons .= \snt_kit_form( 'resume_publish', '', array( 'submit' => __( 'Publish', 'signal-and-noise-tools' ), 'confirm' => __( 'Publish the draft to the live /resume page?', 'signal-and-noise-tools' ), 'inline' => true ) );
 	}
 	if ( $stored ) {
-		$out .= \snt_kit_form( 'resume_discard', '', array( 'submit' => __( 'Discard draft', 'signal-and-noise-tools' ), 'confirm' => __( 'Discard the draft? The live page is unchanged.', 'signal-and-noise-tools' ), 'danger' => true ) );
+		$buttons .= \snt_kit_form( 'resume_discard', '', array( 'submit' => __( 'Discard draft', 'signal-and-noise-tools' ), 'confirm' => __( 'Discard the draft? The live page is unchanged.', 'signal-and-noise-tools' ), 'danger' => true, 'inline' => true ) );
 	}
 	if ( $has_prev ) {
-		$out .= \snt_kit_form( 'resume_revert', '', array( 'submit' => __( 'Revert to previous', 'signal-and-noise-tools' ), 'confirm' => __( 'Make the previous version live again? Revert once more to undo.', 'signal-and-noise-tools' ) ) );
+		$buttons .= \snt_kit_form( 'resume_revert', '', array( 'submit' => __( 'Revert to previous', 'signal-and-noise-tools' ), 'confirm' => __( 'Make the previous version live again? Revert once more to undo.', 'signal-and-noise-tools' ), 'inline' => true ) );
+	}
+	if ( '' !== $buttons ) {
+		$out .= \snt_kit_tag( 'os-cluster', array( 'gap' => '8' ), $buttons );
 	}
 	return \snt_kit_section( __( 'Draft', 'signal-and-noise-tools' ), $out );
 }

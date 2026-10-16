@@ -431,6 +431,9 @@ foreach ( array( 'resume_preview_page', 'resume_preview_pdf', 'resume_pdf_privat
 	ok( false !== strpos( $kit_dec, 'os-action="door"' ) && false !== strpos( $kit_dec, $url ) && false !== strpos( html_entity_decode( $classic ), 'target="_blank" rel="noopener" href="https://example.test/wp-admin/' . $url ), $pv . ': a door (kit) and a new-tab link (classic) to admin-post.php with its own nonce and the Content page named' );
 }
 ok( 5 === substr_count( $kit_edit, '<os-form' ) && false !== strpos( $kit_edit, 'submit-label="Publish"' ) && false !== strpos( $kit_edit, 'os-confirm=' ), 'kit: Publish, Discard, Revert are one-button os-forms behind a confirm (5 os-forms with Save draft and Generate PDF)' );
+// 2026-10-16 leaf anatomy: three lone buttons took a full row each; they are
+// compact inline forms side by side in one os-cluster, Discard a danger outline.
+ok( 1 === preg_match( '#<os-cluster gap="8"><os-form class="snt-form snt-form--inline"[^>]*submit-label="Publish" show-reset="false" columns="auto" os-confirm="Publish the draft to the live /resume page\?">.*?</os-form><os-form class="snt-form snt-form--inline"[^>]*submit-label="Discard draft"[^>]*os-confirm-danger>.*?</os-form><os-form class="snt-form snt-form--inline"[^>]*submit-label="Revert to previous"[^>]*>.*?</os-form></os-cluster></os-section>#s', $kit ) && 3 === substr_count( $kit, 'snt-form--inline' ), 'kit: Publish, Discard and Revert sit side by side as inline forms in one cluster, closing the Draft box' );
 $GLOBALS['__resume_draft'] = null;
 $kit = snt_leaf_paint( 'content', 'resume' );
 ok( array( 'resume_draft_save', 'resume_pdf_generate', 'resume_revert' ) === snt_leaf_actions( $paint_edit( 'hero' ) ) && array( 'resume_pdf_generate', 'resume_revert' ) === snt_leaf_actions( $kit ) && false === strpos( $kit, 'resume_preview_page' ), 'previous version but no draft: only Revert joins; no preview, publish or discard' );

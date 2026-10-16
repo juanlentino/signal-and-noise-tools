@@ -48,11 +48,11 @@ function block_migrations_last_scan() {
  * The count pill: warn when there is anything to review, ok otherwise.
  *
  * @param array<string,mixed> $last_scan The envelope.
- * @return string
+ * @return array<string,string> A status-line chip (snt_kit_status_line()).
  */
-function block_migrations_count_badge( array $last_scan ) {
+function block_migrations_count_chip( array $last_scan ) {
 	$total = (int) ( $last_scan['counts']['heading_hierarchy_skip'] ?? 0 );
-	return \snt_kit_badge( $total > 0 ? 'warn' : 'ok', \snt_content_scan_count( $total ) );
+	return array( 'tone' => $total > 0 ? 'warn' : 'ok', 'label' => \snt_content_scan_count( $total ) );
 }
 
 /**
@@ -78,12 +78,12 @@ function paint_content_block_migrations( array $ctx ) {
 	$form = \snt_kit_form(
 		'block_migrations_scan',
 		'',
-		array( 'submit' => $scanned ? __( 'Re-scan', 'signal-and-noise-tools' ) : __( 'Scan for migrations', 'signal-and-noise-tools' ) )
+		array( 'submit' => $scanned ? __( 'Re-scan', 'signal-and-noise-tools' ) : __( 'Scan for migrations', 'signal-and-noise-tools' ), 'inline' => true )
 	);
 	return content_scan_layout(
 		__( 'Block migrations', 'signal-and-noise-tools' ),
 		$scanned ? $last_scan : null,
-		$scanned ? block_migrations_count_badge( $last_scan ) : '',
+		$scanned ? block_migrations_count_chip( $last_scan ) : null,
 		$form,
 		\snt_kit_esc( \snt_block_migrations_intro() ),
 		$result
