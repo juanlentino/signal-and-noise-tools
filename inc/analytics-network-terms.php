@@ -5,10 +5,15 @@
  * blob9 OS, blob12 ASN org) instead of trusting the class written at ingest. A classifier
  * change then applies to all retained history (~92 days), not only new hits.
  *
- * SOURCE OF TRUTH: signal-and-noise-analytics-worker src/index.js (branch
- * fix/relay-safari-apple-os 87447fb, worker 1.21.7): DC_ASN, RELAY_ASN, HOSTING_ASN. Changing a worker
+ * SOURCE OF TRUTH: signal-and-noise-analytics-worker src/index.js (main 1cbed6e,
+ * worker 1.25.0; the lists and classify() are unchanged since 1.21.7, 87447fb):
+ * DC_ASN, RELAY_ASN, HOSTING_ASN. Changing a worker
  * list means updating this mirror (the regex source AND its term list) and the
- * sha256 pins in tests/analytics-network-terms.php in the same arc.
+ * sha256 pins in tests/analytics-network-terms.php in the same arc. Drift check,
+ * run in the worker checkout; each hash must equal its pin in the test:
+ *   for re in DC_ASN RELAY_ASN HOSTING_ASN; do git show origin/main:src/index.js \
+ *     | grep -E "^export const $re = " | sed -E "s/^export const $re = \///; s/\/i;$//" \
+ *     | tr -d '\n' | shasum -a 256; done
  *
  * AE SQL has no regex (match() is refused), so each regex is mirrored as a list
  * of case-insensitive substrings for ILIKE. Alternations expand into terms
