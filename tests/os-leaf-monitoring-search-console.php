@@ -63,6 +63,10 @@ ok( false !== strpos( $kit, 'Not configured.' ) && false !== strpos( $kit, 'ENAB
 // 17.4.4 (#1602): the four credential steps are the kit's <os-steps>, not a browser <ol>.
 ok( 1 === substr_count( $kit, '<os-steps>' ) && 4 === substr_count( $kit, '<os-step>' ) && false !== strpos( $kit, '<os-step>In Google Cloud, ENABLE the &quot;Google Search Console API&quot;' ), 'not-configured: one <os-steps> of four <os-step>, the first carrying the ENABLE sentence -- ' . substr_count( $kit, '<os-steps>' ) . '/' . substr_count( $kit, '<os-step>' ) );
 ok( false === strpos( $kit, '<ol' ), 'not-configured: no browser ordered list survives' );
+// 2026-10-16 leaf anatomy (docs/kit-leaf-anatomy.md): the form that sets the
+// credential is a Setup fold whose closed line is the credential's state; it
+// opens itself until a key parses. The onboarding steps stay in the readout, open.
+ok( 1 === preg_match( '#<os-section heading="Setup"[^>]*><os-disclosure heading="Set the credential" hint="Not set"[^>]*\sopen[^>]*data-snt-open="1"[^>]*>.*<os-textarea name="sn_gsc_credential"#s', $kit ) && strpos( $kit, '<os-steps>' ) < strpos( $kit, 'heading="Setup"' ), 'anatomy: not configured, the credential fold is open (summary Not set); the steps stay in the readout box' );
 ok( false !== strpos( $kit, '<os-textarea name="sn_gsc_credential"' ), 'the credential textarea is a kit textarea carrying the classic field name' );
 ok( false === strpos( $kit, 'Property' ), 'not-configured: the Property section is not painted (no identity yet)' );
 // 2026-10-12 audit: the form stood alone at full width beside nothing; the
@@ -80,6 +84,7 @@ $GLOBALS['__gsc_raw'] = 'stored-value';
 // snt_gsc_credential_identity stays null (unparseable), stored becomes true.
 $kit = snt_leaf_paint( 'monitoring', 'search-console' );
 ok( false !== strpos( $kit, 'no longer parses as a service-account key' ), 'stored-but-unparseable: the warning pill is painted' );
+ok( 1 === preg_match( '#<os-disclosure heading="Set the credential" hint="Stored, but it does not parse"[^>]*\sopen#', $kit ), 'anatomy: stored but unparseable, the credential fold opens itself and says so' );
 $GLOBALS['__gsc_raw'] = '';
 
 // ── Escaping: a hostile value on a reader that IS painted (the identity card)
@@ -115,6 +120,7 @@ ok( false !== strpos( $kit, 'paste a whole new key file into Service-account JSO
 ok( false !== strpos( $kit, 'Run Test connection to list the properties' ) && false === strpos( $kit, 'Test connection above' ), 'configured: the Property section nudges toward Test connection (no sites yet)' );
 $row = strpos( $kit, snt_leaf_row() );
 ok( 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-2up' ) && $row < strpos( $kit, 'heading="Search Console credential"' ) && strpos( $kit, 'heading="Search Console credential"' ) < strpos( $kit, 'heading="Set the credential"' ) && strpos( $kit, 'heading="Set the credential"' ) < strpos( $kit, 'heading="Property"' ) && strpos( $kit, '</os-grid>' ) < strpos( $kit, 'heading="Property"' ), 'configured: the readout beside the form; Property alone under them until a property is chosen' );
+ok( 1 === preg_match( '#<os-disclosure heading="Set the credential" hint="Stored; paste a new key file to replace it"[^>]*data-snt-open="0"#', $kit ), 'anatomy: configured, the credential fold is closed and its summary says a key is stored' );
 $form = strpos( $kit, 'heading="Set the credential"' );
 ok( strpos( $kit, 'os-arg-action="sn_gsc_test"' ) < strpos( $kit, 'heading="Property"' ) && false !== $form && strpos( $kit, '<os-textarea name="sn_gsc_credential"' ) > $form, '17.4.1: Test connection sits in the readout box, before Property; the textarea sits in the form box' );
 

@@ -87,6 +87,12 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: 
 ok( false !== strpos( $kit, 'No scan run yet' ) && false !== strpos( $kit, 'tone="warning"' ), 'the status box says no scan run yet' );
 ok( false === strpos( $kit, 'name="force"' ), 'no-scan state: no force checkbox is offered yet' );
 ok( 1 === substr_count( $kit, snt_leaf_row( 3 ) ) && 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-insights-cards' ), '#1573 no-scan state: a row of three and a pair, no card grid between them' );
+// 2026-10-16 leaf anatomy (docs/kit-leaf-anatomy.md): the leaf opens on its
+// working row, the intro prose is a How this works fold at the foot of Run
+// Analysis, and the weekly scan is a Setup fold whose closed line is its value.
+ok( 0 === strpos( $kit, snt_leaf_row( 3 ) ), 'anatomy: the leaf opens on the row of three, no intro paragraph above it' );
+ok( 1 === preg_match( '/<os-disclosure heading="How this works" hint="[^"]+"[^>]*data-snt-open="0"[^>]*>.*reads your first-party analytics/s', $kit ) && strpos( $kit, 'heading="How this works"' ) < strpos( $kit, 'heading="Scan status"' ), 'anatomy: the intro is a closed How this works fold in the Run Analysis card' );
+ok( 1 === preg_match( '/<os-section heading="Setup"[^>]*>.*<os-disclosure heading="Weekly scan" hint="Off"[^>]*data-snt-open="0"[^>]*>.*name="insights_weekly_cron"/s', $kit ), 'anatomy: the weekly scan is a closed Setup fold whose summary is its value (Off)' );
 
 // ── State 2: AI unavailable — the setup-steps notice + gated form. ──
 $GLOBALS['__ai_ready'] = false;
@@ -148,10 +154,11 @@ ok( false !== strpos( $kit, 'os-confirm="It' ) || false !== strpos( $kit, "It wo
 $row1 = strpos( $kit, snt_leaf_row( 3 ) );
 $row2 = strpos( $kit, snt_leaf_row() );
 $grid = strpos( $kit, 'class="snt-insights-cards"' );
-$settings_at = strpos( $kit, 'heading="Settings"' );
+$settings_at = strpos( $kit, 'heading="Setup"' );
 $status_at   = strpos( $kit, 'heading="Scan status"' );
 ok( 1 === substr_count( $kit, snt_leaf_row( 3 ) ) && 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, snt_leaf_row( 2, 290, 24 ) ) && false === strpos( $kit, '<os-grid columns="2"' ), '#1573: a row of three and a pair, no two-up column pair, no fixed two-column card grid' );
-ok( false !== $row1 && $row1 < strpos( $kit, 'heading="Run Analysis"' ) && strpos( $kit, 'heading="Run Analysis"' ) < $status_at && $status_at < $settings_at && $settings_at < $grid, '#1573: row one is Run Analysis, Scan status and Settings, three across' );
+ok( false !== $row1 && $row1 < strpos( $kit, 'heading="Run Analysis"' ) && strpos( $kit, 'heading="Run Analysis"' ) < $status_at && $status_at < $settings_at && $settings_at < $grid, '#1573: row one is Run Analysis, Scan status and Setup, three across' );
+ok( 5 === substr_count( $kit, 'class="snt-form snt-form--inline' ) && false === strpos( $kit, 'snt-form--inline', strpos( $kit, 'heading="AI usage' ) ), 'anatomy: the triage buttons are compact inline forms (three on the open card, two on the done one), nothing else is' );
 ok( false !== $grid && 1 === preg_match( '/<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2" class="snt-insights-cards">/', $kit ) && false !== $row2 && $grid < $row2, '2026-10-16: the recommendation cards auto-fit (three across where they fit), at full width between the rows' );
 ok( false !== $row2 && strpos( $kit, 'heading="AI usage' ) > $row2 && strpos( $kit, 'heading="Prompt-cache probe"' ) > $row2, '#1573: row two is AI usage & spend beside the Prompt-cache probe' );
 $pair = '\\SignalNoise\\OpenStationHost\\Dashboard\\Leaves\\insights_pair';
@@ -236,6 +243,7 @@ foreach ( $cache_state_clauses as $cache_state => $clause ) {
 $GLOBALS['__cron_on'] = true;
 $kit = snt_leaf_paint( 'monitoring', 'insights' );
 ok( false !== strpos( $kit, 'name="insights_weekly_cron"' ) && false !== strpos( $kit, 'checked' ), 'settings: the weekly-cron checkbox reflects the enabled setting' );
+ok( false !== strpos( $kit, '<os-disclosure heading="Weekly scan" hint="On"' ), 'settings: the Setup fold\'s closed line reads On when the weekly scan is enabled' );
 $GLOBALS['__cron_on'] = false;
 
 // ── Escaping: a hostile question never reaches the markup raw. ──

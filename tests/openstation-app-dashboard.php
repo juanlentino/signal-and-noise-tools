@@ -324,15 +324,18 @@ namespace {
 	ok( false === strpos( $shared_css, '.snt-stats' ) && false !== strpos( $shared_css, '--os-ui-stat-padding' ), 'assets/os-app.css carries no .snt-stats grid; the stat tile is styled through its tokens' );
 
 	$mr_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers.php' );
-	// Configuration only since the evidence-basis arc: hero (pills and the links
-	// to the S&N Analytics views), the Site Health row, the worker readout beside
-	// the settings form, then the monthly rights evidence. No readings, no folds.
-	ok( false !== strpos( $mr_src, '. machine_readers_health_row_html()' ) && false !== strpos( $mr_src, '. \\snt_kit_grid( array( $edge, machine_readers_settings_html( $d ) ) )' ) && false !== strpos( $mr_src, '. machine_readers_rights_evidence_html();' ), 'monitoring/machine-readers paints hero, health row, readout beside settings, rights evidence' );
-	ok( false === strpos( $mr_src . (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-parts.php' ), 'os-disclosure' ), 'monitoring/machine-readers folds nothing' );
+	// Configuration only since the evidence-basis arc: hero (the status line
+	// and the links to the S&N Analytics views), the Site Health row, then the
+	// Setup card (worker readout and settings, folds) beside the monthly rights
+	// evidence. No readings. 2026-10-16 leaf anatomy: the only folds are the
+	// Setup card's, through snt_kit_setup_card().
+	ok( false !== strpos( $mr_src, '. machine_readers_health_row_html()' ) && false !== strpos( $mr_src, '. \\snt_kit_grid( array( machine_readers_setup_html( $d ), machine_readers_rights_evidence_html() ) );' ), 'monitoring/machine-readers paints hero, health row, then Setup beside rights evidence' );
+	$mr_setup_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-setup.php' );
+	ok( false === strpos( $mr_src . (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-parts.php' ) . $mr_setup_src, 'os-disclosure' ) && false !== strpos( $mr_setup_src, '\\snt_kit_setup_card(' ), 'monitoring/machine-readers folds only through the Setup card' );
 	ok( false === strpos( $mr_src, "'os-card'" ), 'monitoring/machine-readers keeps no redundant card wrappers' );
 
 	$mr_parts_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-parts.php' );
-	ok( false !== strpos( $mr_parts_src, '<os-cluster gap="8">' ), 'machine-readers-parts wraps sensor pills in os-cluster' );
+	ok( false !== strpos( $mr_parts_src, '\\snt_kit_status_line(' ), 'machine-readers-parts paints the sensor pills as the kit status line' );
 
 	$models_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-models-budget.php' );
 	// 17.4.1 (#1573): rows of comparable height, the tags_pair idiom, no 2up.

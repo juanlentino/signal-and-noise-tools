@@ -51,25 +51,32 @@ function machine_readers_data( $reread = false ) {
 	);
 }
 
-/** @param array $pills snt_mr_sensor_pills() output. @return string */
-function machine_readers_pills_html( array $pills ) {
+/**
+ * The sensor pills as the leaf's status line (2026-10-16 leaf anatomy,
+ * snt_kit_status_line()), each chip keeping its state mark (✓/!/?), the
+ * doors on its right; then, open under it, a warning notice for each pill
+ * that carries a note. A warning is never folded or reduced to a chip.
+ *
+ * @param array  $pills     snt_mr_sensor_pills() output.
+ * @param string $door_html Painted doors for the line's right, '' for none.
+ * @return string
+ */
+function machine_readers_pills_html( array $pills, $door_html = '' ) {
 	$marks = array(
 		'ok'      => '✓',
 		'warn'    => '!',
 		'unknown' => '?',
 	);
-	$badges = '';
-	foreach ( $pills as $p ) {
-		$state   = isset( $marks[ $p[0] ] ) ? $p[0] : 'unknown';
-		$badges .= \snt_kit_badge( $state, $marks[ $state ] . ' ' . (string) $p[1] );
-	}
+	$chips = array();
 	$warns = '';
 	foreach ( $pills as $p ) {
+		$state   = isset( $marks[ $p[0] ] ) ? $p[0] : 'unknown';
+		$chips[] = array( 'tone' => $state, 'label' => $marks[ $state ] . ' ' . (string) $p[1] );
 		if ( 'warn' === $p[0] && '' !== (string) ( $p[2] ?? '' ) ) {
 			$warns .= \snt_kit_notice( 'warn', \snt_kit_esc( $p[1] . ': ' . $p[2] ) );
 		}
 	}
-	return ( '' !== $badges ? '<os-cluster gap="8">' . $badges . '</os-cluster>' : '' ) . $warns;
+	return \snt_kit_status_line( $chips, $door_html ) . $warns;
 }
 
 /**
@@ -96,12 +103,26 @@ function machine_readers_edge_readout_html( $info ) {
 	return $out . '<footer>' . \snt_kit_button( __( 'Re-read now', 'signal-and-noise-tools' ), 'go', array( 'args' => array( 'sub' => 'machine-readers', 'sn_mr_reread' => '1' ) ) ) . '</footer>';
 }
 
-/** @param array<string,mixed> $d machine_readers_data() output. @return string */
-function machine_readers_settings_html( array $d ) {
-	$snapshot = $d['token_locked']
+/**
+ * The token state in three words: the Sensor settings fold's closed line.
+ *
+ * @param array<string,mixed> $d machine_readers_data() output.
+ * @return string
+ */
+function machine_readers_token_snapshot( array $d ) {
+	return $d['token_locked']
 		? __( 'token locked by constant', 'signal-and-noise-tools' )
 		: ( $d['has_token'] ? __( 'token set', 'signal-and-noise-tools' ) : __( 'no token yet', 'signal-and-noise-tools' ) );
+}
 
+/**
+ * The sensor settings form: the body of the Setup card's Sensor settings
+ * fold (monitoring-machine-readers-setup.php).
+ *
+ * @param array<string,mixed> $d machine_readers_data() output.
+ * @return string
+ */
+function machine_readers_settings_html( array $d ) {
 	$badge = $d['token_locked']
 		? \snt_kit_badge( 'info', __( 'constant', 'signal-and-noise-tools' ) )
 		: ( $d['has_token'] ? \snt_kit_badge( 'ok', __( 'set', 'signal-and-noise-tools' ) ) : \snt_kit_badge( 'warn', __( 'not set', 'signal-and-noise-tools' ) ) );
@@ -125,7 +146,7 @@ function machine_readers_settings_html( array $d ) {
 		? \snt_kit_esc( __( 'Locked by the SN_MR_READ_TOKEN constant in wp-config.php.', 'signal-and-noise-tools' ) )
 		: \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'monitoring' ) ) . ': ' . \snt_kit_esc( __( 'a shared secret with the sensor, the same value as the worker\'s SN_MR_READ_TOKEN. Not a Cloudflare token.', 'signal-and-noise-tools' ) ) ) . '</p>';
 
-	$form = \snt_kit_form(
+	return \snt_kit_form(
 		'machine_readers_save',
 		$fields,
 		array(
@@ -133,7 +154,4 @@ function machine_readers_settings_html( array $d ) {
 			'hidden' => array( 'tab' => 'monitoring', 'sub' => 'machine-readers' ),
 		)
 	);
-
-	// Open, never folded: this is the leaf's question now (configuration).
-	return \snt_kit_section( __( 'Sensor settings', 'signal-and-noise-tools' ), $form, $snapshot );
 }

@@ -184,12 +184,14 @@ function rss_reset_form_html() {
 			'confirm'       => __( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Measurement › Analytics is kept.', 'signal-and-noise-tools' ),
 			'confirm_title' => __( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ),
 			'confirm_label' => __( 'Reset', 'signal-and-noise-tools' ),
+			'inline'        => true,
 		)
 	);
 }
 
 /**
- * Maintenance: purge log entries older than a threshold.
+ * Maintenance: purge log entries older than a threshold. The body of the
+ * Setup card's Maintenance fold (monitoring-rss-setup.php).
  *
  * @param array $settings sn_rss_tracker_settings() result.
  * @return string
@@ -211,8 +213,5 @@ function rss_maintenance_html( array $settings ) {
 		)
 	);
 	$table  = isset( $GLOBALS['wpdb'] ) && defined( 'SN_RSS_TRACKER_TABLE' ) ? $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE : '';
-	return \snt_kit_section(
-		__( 'Maintenance', 'signal-and-noise-tools' ),
-		'<p class="snt-hint">' . \snt_kit_esc( __( 'Delete rows older than the number of days you enter. First-party collector events are unaffected: only the local', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( $table ) . '</os-code> ' . \snt_kit_esc( __( 'table is touched. The daily cron runs the same query against the configured retention setting.', 'signal-and-noise-tools' ) ) . '</p>' . $form
-	);
+	return '<p class="snt-hint">' . \snt_kit_esc( __( 'Delete rows older than the number of days you enter. First-party collector events are unaffected: only the local', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( $table ) . '</os-code> ' . \snt_kit_esc( __( 'table is touched. The daily cron runs the same query against the configured retention setting.', 'signal-and-noise-tools' ) ) . '</p>' . $form;
 }

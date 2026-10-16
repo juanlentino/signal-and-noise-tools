@@ -56,9 +56,10 @@ function insights_run_form_tag( $submit_label, $busy, $inner ) {
  *
  * @param array|null $last     From snt_insights_last_scan().
  * @param bool       $ai_ready From snt_ai_is_available().
+ * @param string     $foot     Painted HTML closing the card (the How this works fold), '' for none.
  * @return string
  */
-function insights_run_form_html( $last, $ai_ready ) {
+function insights_run_form_html( $last, $ai_ready, $foot = '' ) {
 	$fields = '';
 	if ( ! $ai_ready ) {
 		$fields .= \snt_kit_notice(
@@ -77,7 +78,7 @@ function insights_run_form_html( $last, $ai_ready ) {
 	$form = insights_run_form_tag( $last ? __( 'Re-run analysis', 'signal-and-noise-tools' ) : __( 'Run Analysis', 'signal-and-noise-tools' ), ! $ai_ready, $fields );
 	return \snt_kit_section(
 		__( 'Run Analysis', 'signal-and-noise-tools' ),
-		'<p class="snt-prose">' . \snt_kit_esc( __( 'Single AI call per scan. Returns zero or more unexplored open questions worth developing; "no angle worth a note right now" is a valid result. Re-runs within 7 days return the cached result unless you check "Force fresh scan".', 'signal-and-noise-tools' ) ) . '</p>' . $form
+		'<p class="snt-prose">' . \snt_kit_esc( __( 'Single AI call per scan. Returns zero or more unexplored open questions worth developing; "no angle worth a note right now" is a valid result. Re-runs within 7 days return the cached result unless you check "Force fresh scan".', 'signal-and-noise-tools' ) ) . '</p>' . $form . $foot
 	);
 }
 
@@ -114,9 +115,9 @@ function insights_rec_card_html( array $rec, $is_done ) {
 	$id_field = \snt_kit_field( 'hidden', 'rec_id', '', $id );
 	$actions  = '<os-cluster gap="8">';
 	if ( ! $is_done ) {
-		$actions .= \snt_kit_form( 'insights_mark_done', $id_field, array( 'submit' => __( 'Mark done', 'signal-and-noise-tools' ) ) );
+		$actions .= \snt_kit_form( 'insights_mark_done', $id_field, array( 'submit' => __( 'Mark done', 'signal-and-noise-tools' ), 'inline' => true ) );
 	}
-	$actions .= \snt_kit_form( 'insights_snooze', $id_field, array( 'submit' => __( 'Snooze 30d', 'signal-and-noise-tools' ) ) );
+	$actions .= \snt_kit_form( 'insights_snooze', $id_field, array( 'submit' => __( 'Snooze 30d', 'signal-and-noise-tools' ), 'inline' => true ) );
 	$actions .= \snt_kit_form(
 		'insights_dismiss',
 		$id_field,
@@ -124,6 +125,7 @@ function insights_rec_card_html( array $rec, $is_done ) {
 			'submit'  => __( 'Dismiss', 'signal-and-noise-tools' ),
 			'confirm' => __( "It won't appear again on this scan.", 'signal-and-noise-tools' ),
 			'danger'  => true,
+			'inline'  => true,
 		)
 	);
 	$actions .= '</os-cluster>';
@@ -375,19 +377,4 @@ function insights_status_html( $last ) {
 		\snt_kit_esc( function_exists( 'snt_insights_scan_timing_text' ) ? snt_insights_scan_timing_text( (array) $last ) : '' )
 	);
 	return \snt_kit_notice( $kind, \snt_kit_badge( $kind, $open ? __( 'Recommendations ready', 'signal-and-noise-tools' ) : __( 'All caught up', 'signal-and-noise-tools' ) ) . '<br>' . $body );
-}
-
-/**
- * The weekly-cron settings form: the same one checkbox, the same action.
- *
- * @return string
- */
-function insights_settings_html() {
-	$enabled = function_exists( 'snt_insights_weekly_cron_enabled' ) && snt_insights_weekly_cron_enabled();
-	$field   = \snt_kit_field( 'checkbox', 'insights_weekly_cron', __( 'Run a weekly scan automatically', 'signal-and-noise-tools' ), $enabled );
-	$form    = \snt_kit_form( 'save_insights_settings', $field, array( 'submit' => __( 'Save settings', 'signal-and-noise-tools' ) ) );
-	return \snt_kit_section(
-		__( 'Settings', 'signal-and-noise-tools' ),
-		'<p class="snt-prose">' . \snt_kit_esc( __( 'A weekly automated scan can be enabled here. Defaults off. When enabled, fires weekly. You can still click Run Analysis any time.', 'signal-and-noise-tools' ) ) . '</p>' . $form
-	);
 }

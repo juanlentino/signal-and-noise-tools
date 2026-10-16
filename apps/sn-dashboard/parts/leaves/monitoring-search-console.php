@@ -30,6 +30,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/monitoring-search-console-setup.php'; // the Setup card (the credential form, a fold)
+
 /**
  * The module's state, read the way the classic leaf reads it.
  *
@@ -215,7 +217,7 @@ function paint_monitoring_search_console( array $ctx ) {
 	$s    = search_console_state();
 	$row  = array(
 		\snt_kit_section( __( 'Search Console credential', 'signal-and-noise-tools' ), search_console_credential_html( $s ) ),
-		\snt_kit_section( __( 'Set the credential', 'signal-and-noise-tools' ), search_console_credential_form_html( $s ) ),
+		search_console_setup_html( $s ), // 2026-10-16: the form is a Setup fold, closed once a key parses.
 	);
 	if ( null === $s['identity'] ) {
 		return \snt_kit_grid( $row );
