@@ -48,7 +48,12 @@ function snt_kit_hook_action( $sn_action ) {
  * pipeline, or `sn_action=<action>` for a form the leaf handles itself
  * (`pipeline` => `inline`). An `action` field routes to admin-post with no
  * declaration (snt_os_host_pipeline_for()). Options: submit (label), columns
- * (auto|1|2|3), confirm (question), danger, pipeline (`rss`|`inline`), class.
+ * (auto|1|2|3), confirm (question), danger, pipeline (`rss`|`inline`), class,
+ * inline (true: the compact one-button form, `.snt-form--inline` in
+ * assets/os-app.css, sized to its button with no footer rule, a small
+ * secondary button, or a danger outline with `danger`; several sit side by
+ * side in an `<os-cluster>`. Never inside a table cell: a whole os-form is
+ * not a slot-cell control, tests/owner-devices.php).
  *
  * @param string              $sn_action The handler's action name.
  * @param string              $inner     Painted fields.
@@ -65,7 +70,7 @@ function snt_kit_form( $sn_action, $inner, array $opts = array() ) {
 	return snt_kit_tag(
 		'os-form',
 		array(
-			'class'             => trim( 'snt-form ' . (string) ( $opts['class'] ?? '' ) ),
+			'class'             => trim( 'snt-form ' . ( empty( $opts['inline'] ) ? '' : 'snt-form--inline ' ) . (string) ( $opts['class'] ?? '' ) ),
 			'os-action'         => 'post',
 			'os-arg-pipeline'   => isset( $opts['pipeline'] ) ? (string) $opts['pipeline'] : null,
 			'submit-label'      => (string) ( $opts['submit'] ?? __( 'Save', 'signal-and-noise-tools' ) ),

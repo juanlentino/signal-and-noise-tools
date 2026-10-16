@@ -13,6 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/openstation-kit-fold.php'; // the earned fold: a summary that answers, open when it needs you
+require_once __DIR__ . '/openstation-kit-anatomy.php'; // a leaf's status line, Setup card and How this works fold
 
 /**
  * `<os-stat>`: a value, a label, an optional caption, and a severity swatch

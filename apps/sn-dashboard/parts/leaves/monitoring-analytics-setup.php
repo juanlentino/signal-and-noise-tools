@@ -1,11 +1,11 @@
 <?php
 /**
- * S&N Dashboard, Monitoring > Analytics: the Setup card and the leaf's one
- * fold helper.
+ * S&N Dashboard, Monitoring > Analytics: the Setup card.
  *
  * 2026-10-16 (owner: "a mess. Design, design, design."): the settings are
  * setup, changed once in a while, so each is an earned fold in one Setup card
- * (inc/openstation-kit-fold.php): the closed summary is the setting's current
+ * (snt_kit_setup_card(), inc/openstation-kit-anatomy.php; each setting's
+ * helper returns its fold as an array): the closed summary is the setting's current
  * state, and a fold opens itself when something inside needs the reader
  * (credentials while the pipeline is incomplete, the collector while unset,
  * the Worker while its version or salt window was not read). Warnings stay
@@ -21,20 +21,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Every fold on this leaf goes through here (tests/sn-dashboard-no-folds.php
- * lists this file once, with the reason).
- *
- * @param string $heading The setting's heading.
- * @param string $summary Its current state, painted on the closed fold.
- * @param string $inner   The setting's body.
- * @param bool   $open    True when something inside needs the reader now.
- * @return string
- */
-function analytics_fold( $heading, $summary, $inner, $open = false ) {
-	return \snt_kit_fold( $heading, $summary, $inner, $open );
-}
-
-/**
  * The Setup card.
  *
  * @param array<string,mixed>                                      $ctx    Leaf context.
@@ -44,15 +30,17 @@ function analytics_fold( $heading, $summary, $inner, $open = false ) {
  */
 function analytics_setup_html( array $ctx, array $worker, $salt ) {
 	$tab = (string) ( $ctx['tab'] ?? 'monitoring' );
-	return \snt_kit_section(
+	return \snt_kit_setup_card(
 		__( 'Setup', 'signal-and-noise-tools' ),
-		analytics_credentials_html( $tab )
-			. analytics_collector_html()
-			. analytics_exclusion_html()
-			. analytics_tuning_html()
-			. analytics_funnels_html()
-			. analytics_edge_worker_html( $ctx, $worker, $salt )
-			. analytics_mirrors_html( $tab ),
+		array(
+			analytics_credentials_html( $tab ),
+			analytics_collector_html(),
+			analytics_exclusion_html(),
+			analytics_tuning_html(),
+			analytics_funnels_html(),
+			analytics_edge_worker_html( $ctx, $worker, $salt ),
+			analytics_mirrors_html( $tab ),
+		),
 		__( 'Each line is the setting as it stands; open one to change it.', 'signal-and-noise-tools' )
 	);
 }
@@ -62,7 +50,7 @@ function analytics_setup_html( array $ctx, array $worker, $salt ) {
  * Test connection. Open while the pipeline is incomplete, as on the classic page.
  *
  * @param string $tab The painting tab.
- * @return string
+ * @return array<string,mixed> A Setup fold.
  */
 function analytics_credentials_html( $tab ) {
 	$configured = function_exists( '\sn_analytics_config' ) && \sn_analytics_config();
@@ -71,7 +59,7 @@ function analytics_credentials_html( $tab ) {
 		. '<footer>' . \snt_kit_action_button( __( 'Test connection', 'signal-and-noise-tools' ), 'analytics_test', array( 'disabled' => ! $configured ) ) . '</footer>';
 	$summary    = function_exists( '\snt_an_credentials_snapshot' ) ? \snt_an_credentials_snapshot() : ( $configured ? __( 'Configured', 'signal-and-noise-tools' ) : __( 'Not configured', 'signal-and-noise-tools' ) );
 	$open       = function_exists( '\sn_analytics_pipeline_complete' ) && ! \sn_analytics_pipeline_complete();
-	return analytics_fold( __( 'Credentials', 'signal-and-noise-tools' ), $summary, $body, $open );
+	return array( 'title' => __( 'Credentials', 'signal-and-noise-tools' ), 'summary' => $summary, 'body' => $body, 'open' => $open );
 }
 
 /**
@@ -81,7 +69,7 @@ function analytics_credentials_html( $tab ) {
  * @param array<string,mixed>                                      $ctx    Leaf context.
  * @param array{0:array<int,array<string,mixed>>,1:string,2:string} $worker analytics_worker_rows().
  * @param array<string,mixed>|null                                  $salt   sn_salt_window_get(), or null.
- * @return string
+ * @return array<string,mixed> A Setup fold.
  */
 function analytics_edge_worker_html( array $ctx, array $worker, $salt ) {
 	$salt_ok = is_array( $salt ) && 'ok' === (string) ( $salt['state'] ?? '' );
@@ -89,5 +77,5 @@ function analytics_edge_worker_html( array $ctx, array $worker, $salt ) {
 	$body    = \snt_kit_kv( array_merge( (array) $worker[0], analytics_salt_rows( $salt ) ) )
 		. '<footer>' . \snt_kit_button( __( 'Re-check now', 'signal-and-noise-tools' ), 'go', array( 'args' => array( 'sub' => (string) ( $ctx['sub'] ?? 'analytics' ), 'sn_worker_recheck' => '1' ) ) ) . '</footer>';
 	$summary = (string) ( $worker[0][0]['value'] ?? '' ) . ' · ' . ( $salt_ok ? __( 'salt window read', 'signal-and-noise-tools' ) : __( 'salt window not read', 'signal-and-noise-tools' ) );
-	return analytics_fold( __( 'Edge worker and salt', 'signal-and-noise-tools' ), $summary, $body, 'ok' !== $state || ( null !== $salt && ! $salt_ok ) );
+	return array( 'title' => __( 'Edge worker and salt', 'signal-and-noise-tools' ), 'summary' => $summary, 'body' => $body, 'open' => 'ok' !== $state || ( null !== $salt && ! $salt_ok ) );
 }

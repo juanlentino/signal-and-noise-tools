@@ -19,8 +19,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+
 /**
- * The Pipeline card.
+ * The Pipeline card: its chips are the kit's status line
+ * (snt_kit_status_line(), inc/openstation-kit-anatomy.php).
  *
  * @param array{0:array<int,array<string,mixed>>,1:string,2:string} $worker analytics_worker_rows().
  * @param array<string,mixed>|null                                  $salt     sn_salt_window_get(), or null when not loaded.
@@ -28,11 +30,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function analytics_status_html( array $worker, $salt ) {
 	list( $presence, $notes ) = analytics_presence_chips();
-	$chips = $presence . analytics_worker_chip( $worker ) . analytics_salt_chip( $salt ) . analytics_devices_chip();
+	$chips = array_merge( $presence, array( analytics_worker_chip( $worker ), analytics_salt_chip( $salt ), analytics_devices_chip() ) );
 	$url   = function_exists( '\snt_analytics_page_url' ) ? (string) \snt_analytics_page_url() : '';
-	$row   = '<div class="snt-an-status"><os-cluster gap="8">' . $chips . '</os-cluster>'
-		. ( '' !== $url ? \snt_kit_door( __( 'View dashboard →', 'signal-and-noise-tools' ), $url ) : '' )
-		. '</div>';
+	$row   = \snt_kit_status_line( $chips, '' !== $url ? \snt_kit_door( __( 'View dashboard →', 'signal-and-noise-tools' ), $url ) : '' );
 	return \snt_kit_section(
 		__( 'Pipeline', 'signal-and-noise-tools' ),
 		$row . $notes . (string) ( $worker[1] ?? '' ) . analytics_reads_notice(),
@@ -45,16 +45,16 @@ function analytics_status_html( array $worker, $salt ) {
  * its title), an amber chip per check that is not ok, and the notes of the
  * ones that carry one.
  *
- * @return array{0:string,1:string} Chips, notices.
+ * @return array{0:array<int,array<string,string>>,1:string} Status-line chips, notices.
  */
 function analytics_presence_chips() {
 	if ( ! function_exists( '\snt_analytics_pipeline_pills' ) ) {
-		return array( '', '' );
+		return array( array(), '' );
 	}
 	$pills   = \snt_analytics_pipeline_pills();
 	$ok      = 0;
 	$labels  = array();
-	$missing = '';
+	$missing = array();
 	$notes   = '';
 	foreach ( $pills as $p ) {
 		$kind     = (string) ( $p[0] ?? '' );
@@ -63,15 +63,15 @@ function analytics_presence_chips() {
 			++$ok;
 			continue;
 		}
-		$missing .= \snt_kit_badge( 'warn', (string) ( $p[1] ?? '' ) );
+		$missing[] = array( 'tone' => 'warn', 'label' => (string) ( $p[1] ?? '' ) );
 		if ( '' !== (string) ( $p[2] ?? '' ) ) {
 			$notes .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( (string) $p[1] ) . '</b> ' . \snt_kit_esc( (string) $p[2] ) );
 		}
 	}
 	$all     = $ok === count( $pills );
 	/* translators: 1: checks that pass; 2: all checks. */
-	$summary = \snt_kit_tag( 'os-badge', array( 'tone' => \snt_kit_tone( $all ? 'ok' : 'warn' ), 'title' => implode( ' · ', $labels ) ), \snt_kit_esc( sprintf( __( '%1$d of %2$d set', 'signal-and-noise-tools' ), $ok, count( $pills ) ) ) );
-	return array( $summary . $missing, $notes );
+	$summary = array( 'tone' => $all ? 'ok' : 'warn', 'title' => implode( ' · ', $labels ), 'label' => sprintf( __( '%1$d of %2$d set', 'signal-and-noise-tools' ), $ok, count( $pills ) ) );
+	return array( array_merge( array( $summary ), $missing ), $notes );
 }
 
 /**
@@ -79,48 +79,48 @@ function analytics_presence_chips() {
  * read, is the last value reached, or is not reported.
  *
  * @param array{0:array<int,array<string,mixed>>,1:string,2:string} $worker analytics_worker_rows().
- * @return string
+ * @return array<string,string> A status-line chip.
  */
 function analytics_worker_chip( array $worker ) {
 	$state = (string) ( $worker[2] ?? '' );
 	if ( 'unread' === $state ) {
-		return \snt_kit_badge( 'warn', __( 'Worker version not read', 'signal-and-noise-tools' ) );
+		return array( 'tone' => 'warn', 'label' => __( 'Worker version not read', 'signal-and-noise-tools' ) );
 	}
 	if ( 'unreported' === $state ) {
-		return \snt_kit_badge( 'warn', __( 'Worker version not reported', 'signal-and-noise-tools' ) );
+		return array( 'tone' => 'warn', 'label' => __( 'Worker version not reported', 'signal-and-noise-tools' ) );
 	}
-	return \snt_kit_badge( 'stale' === $state ? 'warn' : 'ok', (string) ( $worker[0][0]['value'] ?? '' ) );
+	return array( 'tone' => 'stale' === $state ? 'warn' : 'ok', 'label' => (string) ( $worker[0][0]['value'] ?? '' ) );
 }
 
 /**
  * When today's identity salt rotates, or that its window was not read.
  *
  * @param array<string,mixed>|null $salt sn_salt_window_get().
- * @return string
+ * @return array<string,string> A status-line chip ('' label paints none).
  */
 function analytics_salt_chip( $salt ) {
 	if ( ! is_array( $salt ) ) {
-		return '';
+		return array( 'label' => '' );
 	}
 	$w = 'ok' === (string) ( $salt['state'] ?? '' ) && is_array( $salt['window'] ?? null ) ? (array) $salt['window'] : null;
 	if ( null === $w ) {
-		return \snt_kit_badge( 'warn', __( 'Salt window not read', 'signal-and-noise-tools' ) );
+		return array( 'tone' => 'warn', 'label' => __( 'Salt window not read', 'signal-and-noise-tools' ) );
 	}
 	$tz = '' !== (string) ( $w['rotate_tz'] ?? '' ) ? (string) $w['rotate_tz'] : 'UTC';
 	/* translators: %s: the rotation timezone. */
-	return \snt_kit_chip( sprintf( __( 'Salt rotates at midnight (%s)', 'signal-and-noise-tools' ), $tz ) );
+	return array( 'tone' => 'neutral', 'label' => sprintf( __( 'Salt rotates at midnight (%s)', 'signal-and-noise-tools' ), $tz ) );
 }
 
 /**
  * How many enrolled devices are yours.
  *
- * @return string
+ * @return array<string,string> A status-line chip ('' label paints none).
  */
 function analytics_devices_chip() {
 	if ( ! function_exists( '\sn_owner_devices' ) ) {
-		return '';
+		return array( 'label' => '' );
 	}
 	$n = count( (array) \sn_owner_devices() );
 	/* translators: %s: number of enrolled owner devices. */
-	return \snt_kit_chip( sprintf( _n( '%s device yours', '%s devices yours', $n, 'signal-and-noise-tools' ), \number_format_i18n( $n ) ) );
+	return array( 'tone' => 'neutral', 'label' => sprintf( _n( '%s device yours', '%s devices yours', $n, 'signal-and-noise-tools' ), \number_format_i18n( $n ) ) );
 }

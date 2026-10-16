@@ -510,6 +510,86 @@ a.snt-link {
 	border-color: var( --os-ui-accent, #f252fc );
 }
 
+/* ── Leaf anatomy (inc/openstation-kit-anatomy.php, 2026-10-16) ──────── */
+/* The status line (snt_kit_status_line()): chips on the left, the door on
+   the right, wrapping as one block on a narrow window. Was the Analytics
+   leaf's own `.snt-an-status` in sn-dashboard.css. */
+.snt-app .snt-status-line {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 16px;
+}
+
+/* A fold inside a card (the Setup card's settings, How this works) is a line
+   of that card, not a second card heading. os-disclosure paints its heading
+   at 20px, the same as os-section's, so live (desktop PWA, 1450px, dark)
+   "Credentials" read larger than its card's "Setup". Body size here, never
+   above the card's heading. A fold that IS the card (Scheduled events, the
+   Lanes and door folds, Connect a client: not inside an os-section) keeps
+   the component's 20px, which is why the rule is scoped to os-section.
+   The summary row is a grid, not the component's flex: the title keeps its
+   one line ("Configured elsewhere" no longer breaks in two), and the closed
+   summary (the hint, which has no part of its own) takes the rest of the
+   line, right-aligned, wrapping inside its column instead of running past
+   the card. The component's own focus ring on the summary button stays. */
+.snt-app os-section os-disclosure::part( summary ) {
+	display: grid;
+	grid-template-columns: auto minmax( 0, max-content ) minmax( 0, 1fr );
+	align-items: center;
+	column-gap: 10px;
+	text-align: end;
+	min-height: 24px;
+}
+.snt-app os-section os-disclosure::part( heading ) {
+	overflow: hidden;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1.4;
+	letter-spacing: 0;
+	text-align: start;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.snt-app os-section os-disclosure::part( body ) {
+	margin-block-start: 12px;
+}
+
+/* The compact one-button form (snt_kit_form( ..., array( 'inline' => true ) )):
+   a Revoke, an Exclude this device. Live (2026-10-16) each was a full-width
+   row with the form footer's rule and an accent-filled primary button, so
+   the Your devices card stood twice its neighbors' height. os-form is an
+   inline-size container, so it has no width from its content: sized to its
+   button here (the Scheduled ledger's fix, sn-dashboard.css), its empty
+   header and fields carry no margins, and the footer no rule. The submit is
+   os-form's own primary os-button, unreachable by ::part, so the look rides
+   the button's inherited custom properties: a quiet secondary fill, or a
+   danger outline when the form confirms as a danger. Its focus ring is the
+   button's own. Several sit side by side in an `<os-cluster>`. */
+.snt-app os-form.snt-form--inline {
+	container-type: normal;
+	width: max-content;
+	max-width: 100%;
+	--os-ui-button-bg: var( --os-ui-hover, rgba( 255, 255, 255, 0.08 ) );
+	--os-ui-button-bg-image: none;
+	--os-ui-button-fg: var( --os-ui-fg, #fffbff );
+	--os-ui-button-border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.16 ) );
+	--os-ui-button-padding: 4px 12px;
+}
+.snt-app os-form.snt-form--inline[os-confirm-danger] {
+	--os-ui-button-bg: transparent;
+	--os-ui-button-fg: var( --os-ui-danger, #ff6b67 );
+	--os-ui-button-border: 1px solid currentColor;
+}
+.snt-app os-form.snt-form--inline::part( header ),
+.snt-app os-form.snt-form--inline::part( fields ) {
+	margin: 0;
+}
+.snt-app os-form.snt-form--inline::part( footer ) {
+	border-top: 0;
+	padding-top: 0;
+}
 /* ── Mobile PWA responsiveness & Safe Areas ──────────────────────────── */
 @media ( max-width: 782px ) {
 	.snt-app input[type="text"],

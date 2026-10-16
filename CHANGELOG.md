@@ -12,6 +12,13 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The Analytics leaf's structure is a kit pattern other leaves can use.** Three helpers in `inc/openstation-kit-anatomy.php`: `snt_kit_status_line()` (one row of chips, a door on the right), `snt_kit_setup_card()` (one card of settings, each a fold whose closed line states its current value) and `snt_kit_how_fold()` (a small closed "How this works" for long explanations). Measurement › Analytics now paints through them, and `docs/kit-leaf-anatomy.md` says when to use each and when not to. The fold guard (`tests/sn-dashboard-no-folds.php`) counts calls to the two folding helpers, so no leaf can fold through them unlisted. `snt_kit_form()` takes `inline` for a compact one-button form.
+
+### Fixed
+- **A fold inside a card no longer titles larger than the card.** In the Setup card, "Credentials" painted at 20px under the card's own "Setup". A fold inside any card now titles at 14px, weight 500, on one line ("Configured elsewhere" no longer breaks in two), with its closed summary on the rest of that line, right-aligned, wrapping inside its column instead of running past the card. A fold that is the card itself (Scheduled events, the Lanes and door folds, Connect a client) keeps its size.
+- **Your devices is compact.** Each Revoke sat alone on a full-width row with a rule above it as a solid accent button, so the card stood twice its neighbors' height. The Revokes and Revoke all now sit in one wrapping row of small danger-outline buttons under the table, and "This device is counted when logged out." shares its line with its button (now a quiet secondary). Revoke all's long hint moved into How this works; its confirm still states it before anything is revoked. Every form, field name, nonce and action is unchanged.
+
 ## [2026.10.19] - 2026-10-16 — Analytics in S&N Home is one status line, an edge card and a row of cards; rows of related boxes across S&N Home
 
 ### Changed

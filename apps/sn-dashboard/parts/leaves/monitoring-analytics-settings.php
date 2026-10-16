@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Collector endpoint (v10.46.0 on the classic leaf): where every beacon posts.
  *
- * @return string
+ * @return array<string,mixed> A Setup fold (snt_kit_setup_card()).
  */
 function analytics_collector_html() {
 	$rss       = function_exists( '\sn_rss_tracker_settings' ) ? (array) \sn_rss_tracker_settings() : array();
@@ -51,7 +51,7 @@ function analytics_collector_html() {
 	$body .= \snt_kit_form( 'analytics_collector_save', $fields, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
 
 	// Opens while unset, as the classic fold does.
-	return analytics_fold( __( 'Collector endpoint', 'signal-and-noise-tools' ), \snt_an_collector_snapshot(), $body, '' === $collector );
+	return array( 'title' => __( 'Collector endpoint', 'signal-and-noise-tools' ), 'summary' => \snt_an_collector_snapshot(), 'body' => $body, 'open' => '' === $collector );
 }
 
 /**
@@ -66,7 +66,7 @@ function analytics_collector_html() {
  * `sn_exclude_roles => array( 'subscriber', ... )`, the shape
  * sn_handle_analytics_exclude_save() expects.
  *
- * @return string
+ * @return array<string,mixed> A Setup fold (snt_kit_setup_card()).
  */
 function analytics_exclusion_html() {
 	$roles    = function_exists( '\sn_beacon_excludable_roles' ) ? \sn_beacon_excludable_roles() : array();
@@ -76,7 +76,7 @@ function analytics_exclusion_html() {
 	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Logged-in visits never count as readers, whatever the role: the collector keeps them out at the edge. The roles you select here get one more thing: when they log in, their browser is marked as the owner’s, so their visits after logging out are kept out too. Forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	if ( empty( $roles ) ) {
-		return analytics_fold( $heading, \snt_an_exclusion_snapshot(), $intro . '<p class="snt-hint">' . \snt_kit_esc( __( 'No roles available on this site.', 'signal-and-noise-tools' ) ) . '</p>' );
+		return array( 'title' => $heading, 'summary' => \snt_an_exclusion_snapshot(), 'body' => $intro . '<p class="snt-hint">' . \snt_kit_esc( __( 'No roles available on this site.', 'signal-and-noise-tools' ) ) . '</p>' );
 	}
 
 	$fields = '';
@@ -101,7 +101,7 @@ function analytics_exclusion_html() {
 	$footnote = '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Your devices.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	$form = \snt_kit_form( 'analytics_exclude_save', $fields . $status . $footnote, array( 'submit' => __( 'Save exclusion', 'signal-and-noise-tools' ), 'columns' => 'auto' ) );
-	return analytics_fold( $heading, \snt_an_exclusion_snapshot(), $intro . $form );
+	return array( 'title' => $heading, 'summary' => \snt_an_exclusion_snapshot(), 'body' => $intro . $form );
 }
 
 /**
@@ -119,10 +119,11 @@ function analytics_device_html() {
 		return '';
 	}
 	$flagged = \sn_owner_device_flagged();
-	return '<p class="snt-hint">' . \snt_kit_esc( $flagged ? __( 'This device is excluded even when logged out.', 'signal-and-noise-tools' ) : __( 'This device is counted when logged out.', 'signal-and-noise-tools' ) ) . '</p>'
+	// One line: the state, then its compact button beside it (2026-10-16).
+	return '<os-cluster gap="8" class="snt-actions"><p class="snt-hint">' . \snt_kit_esc( $flagged ? __( 'This device is excluded even when logged out.', 'signal-and-noise-tools' ) : __( 'This device is counted when logged out.', 'signal-and-noise-tools' ) ) . '</p>'
 		. \snt_kit_form(
 			'analytics_owner_device',
 			\snt_kit_field( 'hidden', 'sn_owner_device', '', $flagged ? 'forget' : 'mark' ),
-			array( 'submit' => $flagged ? __( 'Count this device again', 'signal-and-noise-tools' ) : __( 'Exclude this device', 'signal-and-noise-tools' ) )
-		);
+			array( 'submit' => $flagged ? __( 'Count this device again', 'signal-and-noise-tools' ) : __( 'Exclude this device', 'signal-and-noise-tools' ), 'inline' => true )
+		) . '</os-cluster>';
 }

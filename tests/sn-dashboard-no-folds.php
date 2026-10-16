@@ -7,8 +7,11 @@
  * A source-level guard over every painter of the dashboard app
  * (apps/sn-dashboard/**.php) and the North star form it paints
  * (inc/north-star-settings.php): no raw `os-disclosure`, `<details` or
- * `sn-disclosure` in CODE, and every `snt_kit_fold(` call is in $earned below
- * with the reason it earns the fold (inc/openstation-kit-fold.php has the
+ * `sn-disclosure` in CODE, and every fold call is in $earned below with the
+ * reason it earns the fold. A fold call is `snt_kit_fold(` or one of the leaf
+ * anatomy helpers that paint folds (`snt_kit_setup_card(`, `snt_kit_how_fold(`,
+ * inc/openstation-kit-anatomy.php), so a leaf cannot fold through a helper
+ * unlisted; the helper file itself is read too (inc/openstation-kit-fold.php has the
  * three tests: reference or setup, a summary that answers, open when it needs
  * you). Comments are stripped first (PHP tokenizer), so a docblock may still
  * name the fold it replaced.
@@ -27,13 +30,17 @@ $earned = array(
 	'apps/sn-dashboard/parts/leaves/ai-agent-tools-doors.php' => 'The read, write and remote doors (one call, agent_tools_door_fold()): reference, every tool a door exposes as a chip with its calls (the whole page measured 2,943px live with every list open, 2026-10-12 audit); the summary states the count, the largest category and the calls; open when a tool there cannot be projected',
 	'apps/sn-dashboard/parts/leaves/ai-mcp-connect-steps.php' => 'Connect a client: setup, done once per client; the summary names the clients; open while the user has no Application Password',
 	'apps/sn-dashboard/parts/leaves/tools-lanes.php'          => 'Integrity › Lanes: the reason split and the last 14 days are detail behind a counted summary (pairs, days stored), and how a lane is decided is reference; the by-lane tables, the invalid-token line and the notes paint open',
-	'apps/sn-dashboard/parts/leaves/monitoring-analytics-setup.php' => 'Measurement › Analytics (one call, analytics_fold()): the Setup card\'s settings (credentials, collector, roles kept out, tuning, funnels, the Worker and salt, configured elsewhere) and Your devices\' How this works are setup or reference, changed once in a while; each summary is the setting\'s current state; credentials open while the pipeline is incomplete, the collector while unset, the Worker while its version or salt was not read. Warnings stay open on the Pipeline card',
+	'apps/sn-dashboard/parts/leaves/monitoring-analytics-setup.php' => 'Measurement › Analytics (one call, snt_kit_setup_card()): the Setup card\'s settings (credentials, collector, roles kept out, tuning, funnels, the Worker and salt, configured elsewhere) are setup or reference, changed once in a while; each summary is the setting\'s current state; credentials open while the pipeline is incomplete, the collector while unset, the Worker while its version or salt was not read. Warnings stay open on the Pipeline card',
+	'apps/sn-dashboard/parts/leaves/monitoring-analytics-owner.php' => 'Your devices\' How this works (snt_kit_how_fold()): reference, the marker explained and what Revoke all leaves to do; its summary states the mechanism; Revoke all\'s confirm repeats the hint before anything is revoked',
+	'inc/openstation-kit-anatomy.php' => 'The leaf anatomy helpers (2 calls: snt_kit_setup_card() folds each setting, snt_kit_how_fold() folds explanatory prose): they only paint folds a leaf asks for, and every leaf that calls one is listed here on its own line',
 	'apps/sn-dashboard/parts/leaves/connections-cron.php'     => 'Scheduled events: a reference list (91 events, 5,473px open); the summary counts events, overdue and unhandled; open when one is overdue or unhandled, when overdue cannot be read, or while a filter is typed',
 );
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
 $root  = dirname( __DIR__ );
-$files = array( $root . '/inc/north-star-settings.php' );
+$files = array( $root . '/inc/north-star-settings.php', $root . '/inc/openstation-kit-anatomy.php' );
+// How many fold calls a file may make: one, unless named here.
+$calls = array( 'inc/openstation-kit-anatomy.php' => 2 );
 $it    = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/apps/sn-dashboard', FilesystemIterator::SKIP_DOTS ) );
 foreach ( $it as $file ) {
 	if ( 'php' === $file->getExtension() ) {
@@ -53,7 +60,12 @@ foreach ( $files as $path ) {
 		}
 		$code .= is_array( $token ) ? $token[1] : $token;
 	}
-	$n = substr_count( $code, 'snt_kit_fold(' );
+	$n = 0;
+	foreach ( array( 'snt_kit_fold(', 'snt_kit_setup_card(', 'snt_kit_how_fold(' ) as $call ) {
+		$n += substr_count( $code, $call );
+	}
+	// The anatomy file's declarations are not calls.
+	$n -= preg_match_all( '/function\s+(?:snt_kit_fold|snt_kit_setup_card|snt_kit_how_fold)\(/', $code );
 	if ( $n > 0 ) {
 		$folds[ str_replace( $root . '/', '', $path ) ] = $n;
 	}
@@ -68,7 +80,7 @@ ok( array() === $offenders, 'no raw fold markup anywhere on S&N Home (a fold goe
 $unlisted = array_diff_key( $folds, $earned );
 ok( array() === $unlisted, 'every fold on S&N Home is listed with the reason it is earned: ' . ( $unlisted ? implode( ', ', array_keys( $unlisted ) ) : 'none unlisted' ) );
 $stale = array_diff_key( $earned, $folds );
-ok( array() === $stale && array() === array_filter( $folds, static fn( $n ) => 1 !== $n ), 'each listed fold is painted, once: ' . json_encode( $folds ) );
+ok( array() === $stale && array() === array_filter( $folds, static fn( $n, $f ) => ( $calls[ $f ] ?? 1 ) !== $n, ARRAY_FILTER_USE_BOTH ), 'each listed fold is painted, once (the anatomy helpers twice, one call each): ' . json_encode( $folds ) );
 
 // The helper's own contract: no summary, no fold; open only when asked.
 define( 'ABSPATH', $root . '/' );
