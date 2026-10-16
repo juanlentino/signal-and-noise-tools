@@ -126,7 +126,6 @@ function snt_gsc_unanswered( $data, $is_index = null ) {
 			'impressions' => $a['impressions'],
 			'position'    => round( $a['weighted'] / $a['impressions'], 1 ),
 			'page'        => $a['page'],
-			'no_note'     => is_callable( $is_index ) && (bool) call_user_func( $is_index, $a['page'] ),
 		);
 	}
 	usort( $rows, static function ( $x, $y ) {
@@ -135,6 +134,10 @@ function snt_gsc_unanswered( $data, $is_index = null ) {
 
 	$out['total'] = count( $rows );
 	$out['rows']  = array_slice( $rows, 0, SNT_GSC_UNANSWERED_CAP );
+	// The predicate walks the rewrite rules, so it runs on the shown rows only.
+	foreach ( $out['rows'] as $i => $r ) {
+		$out['rows'][ $i ]['no_note'] = is_callable( $is_index ) && (bool) call_user_func( $is_index, $r['page'] );
+	}
 	$out['more']  = max( 0, $out['total'] - SNT_GSC_UNANSWERED_CAP );
 	$notes        = array( 0 === $out['total'] ? 'No query with impressions and no clicks in the window.' : '' );
 	if ( $out['more'] > 0 ) {

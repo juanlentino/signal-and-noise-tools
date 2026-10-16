@@ -94,6 +94,9 @@ for ( $i = 0; $i < 30; $i++ ) {
 $c = snt_gsc_unanswered( data_with( $many ) );
 ok( 25 === count( $c['rows'] ) && 30 === $c['total'] && 5 === $c['more'] && 25 === $c['cap'], 'capped at 25, total 30, more 5' );
 ok( false !== strpos( $c['note'], '+5 more; the list is capped, not complete.' ), 'the cap line says so: ' . $c['note'] );
+$GLOBALS['__pred'] = 0;
+snt_gsc_unanswered( data_with( $many ), static function ( $p ) { $GLOBALS['__pred']++; return false; } );
+ok( 25 === $GLOBALS['__pred'], 'the index predicate (a rewrite-rule walk) runs on the 25 shown rows only, not all 30: ' . $GLOBALS['__pred'] );
 $exact = snt_gsc_unanswered( data_with( array_slice( $many, 0, 25 ) ) );
 ok( 0 === $exact['more'] && false === strpos( $exact['note'], 'capped' ), 'exactly 25: no cap line' );
 $fc = snt_gsc_unanswered( data_with( array_slice( $many, 0, 2 ), array( 'query_pages_capped' => true ) ) );
