@@ -71,7 +71,7 @@ function analytics_exclusion_html() {
 	$excluded = (array) ( function_exists( '\sn_setting' ) ? \sn_setting( 'analytics.exclude_roles', array() ) : array() );
 	$heading  = __( 'Exclude my own visits', 'signal-and-noise-tools' );
 
-	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Keep logged-in users in the selected roles out of the reader counts. Their browsers also carry an owner flag, so their logged-out views on cached pages are not counted as readers either. Forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) ) . '</p>';
+	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Logged-in visits never count as readers, whatever the role: the collector keeps them out at the edge. The roles you select here get one more thing: when they log in, their browser is marked as the owner’s, so their visits after logging out are kept out too. Forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	if ( empty( $roles ) ) {
 		return \snt_kit_section( $heading, $intro . '<p class="snt-hint">' . \snt_kit_esc( __( 'No roles available on this site.', 'signal-and-noise-tools' ) ) . '</p>', \snt_an_exclusion_snapshot() );

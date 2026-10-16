@@ -205,7 +205,7 @@ function snt_analytics_render_exclusion() {
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-exclude">';
 	wp_nonce_field( 'sn_analytics_exclude_save' );
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Exclude my own visits', 'signal-and-noise-tools' ) . '</h3>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Keep logged-in users in the selected roles out of the reader counts. Their browsers also carry an owner flag, so their logged-out views on cached pages are not counted as readers either. Forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Logged-in visits never count as readers, whatever the role: the collector keeps them out at the edge. The roles you select here get one more thing: when they log in, their browser is marked as the owner’s, so their visits after logging out are kept out too. Forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) . '</p>';
 
 	if ( empty( $roles ) ) {
 		echo '<p class="sn-an-empty">' . esc_html__( 'No roles available on this site.', 'signal-and-noise-tools' ) . '</p></form>';

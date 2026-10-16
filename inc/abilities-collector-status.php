@@ -7,7 +7,8 @@
  * inc/worker-version.php probes — no second URL to keep in sync) and
  * evaluating NAMED invariants instead of dumping raw JSON:
  *
- *   config_bindings  — every self-reported config boolean is true (a false
+ *   config_bindings  — every self-reported config boolean is true, the three
+ *                      optional owner flags skipped (a false
  *                      one, e.g. px_token_set, is a silent-zero-data mode);
  *   salt_window      — the daily identity-salt window is sane: today's salt
  *                      is present (worker v1.14.0+ "salt" object);
@@ -159,7 +160,7 @@ function snt_abilities_collector_status_register() {
 
 	wp_register_ability( 'signal-noise/get-collector-status', array(
 		'label'               => 'Analytics collector health',
-		'description'         => 'Fetches the analytics worker\'s public /_sn/version endpoint and evaluates named invariants: config_bindings (every self-reported binding true), salt_window (today\'s rotating identity salt present), version_present (deployed semver reported), cron_fresh (scheduled refresh ok within ~2h). Returns {healthy, worker, invariants:[{name, ok, detail}]} plus, when the deployed worker reports one (v1.19.0+), a sanitized `rejects` passthrough {scope:"isolate", since, total, by_reason}. INFORMATIONAL, never an invariant: counts reset on isolate eviction/deploy, so they answer "is something being rejected right now and why", not "how healthy are we". A worker v1.23.0+ also carries `accepted` {scope:"isolate", since, total}: Analytics Engine rows written by the same isolate, under the same caveat (one isolate, reset on deploy or eviction, never a site total). Both zero is a quiet isolate; rejects with accepted 0 is one that is rejecting everything. Read-only; the optional worker input (default "analytics") reserves room for sibling workers.',
+		'description'         => 'Fetches the analytics worker\'s public /_sn/version endpoint and evaluates named invariants: config_bindings (every self-reported binding true, skipping the three optional owner flags ae_owner_bound, owner_device_key_set and owner_agent_key_set), salt_window (today\'s rotating identity salt present), version_present (deployed semver reported), cron_fresh (scheduled refresh ok within ~2h). Returns {healthy, worker, invariants:[{name, ok, detail}]} plus, when the deployed worker reports one (v1.19.0+), a sanitized `rejects` passthrough {scope:"isolate", since, total, by_reason}. INFORMATIONAL, never an invariant: counts reset on isolate eviction/deploy, so they answer "is something being rejected right now and why", not "how healthy are we". A worker v1.23.0+ also carries `accepted` {scope:"isolate", since, total}: Analytics Engine rows written by the same isolate, under the same caveat (one isolate, reset on deploy or eviction, never a site total). Both zero is a quiet isolate; rejects with accepted 0 is one that is rejecting everything. Read-only; the optional worker input (default "analytics") reserves room for sibling workers.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_collector_status',

@@ -76,6 +76,7 @@ ok( strpos( $h, 'sn_owner_device=forget' ) !== false && strpos( $h, '_wpnonce=sn
 // SN Traffic Lanes review round 1: the edge keeps logged-in views out on cached
 // pages too, so the card no longer asks for a cache-bypass rule; it points at
 // Owner devices for logged-out views instead.
+ok( false !== strpos( $h, 'Logged-in visits never count as readers, whatever the role' ) && false !== strpos( $h, 'their browser is marked as the owner’s' ) && false === strpos( $h, 'selected roles out of the reader counts' ), 'intro: every logged-in visit is kept out whatever the role; the role list only marks the browser (round 2)' );
 ok( false !== strpos( $h, 'recognizes the WordPress login cookie, even on a page served from cache' ) && false !== strpos( $h, 'enroll it under Owner devices' ) && false === strpos( $h, 'Cloudflare rule' ) && false === strpos( $h, 'never printed' ), 'edge note: true before and after the Workers ship; no stale suppression or bypass-rule copy' );
 ok( strpos( $h, 'value="sn_analytics_exclude_save"' ) !== false, 'save button posts the exclude action' );
 ok( strpos( $h, 'name="_wpnonce"' ) !== false, 'nonce field present' );
