@@ -14,9 +14,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** Execute callback: signal-noise/posts-signals. */
+/**
+ * Execute callback: signal-noise/posts-signals. With no argument the answer
+ * is the Posts tab's rows, unchanged; `publish_window` (a note id) adds that
+ * note's publish window (inc/publish-window.php), read on demand.
+ *
+ * @param array|null $input { publish_window? }.
+ * @return array|WP_Error
+ */
 function snt_ability_posts_signals( $input ) {
-	unset( $input );
 	if ( ! function_exists( 'sn_analytics_posts_signals' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', __( 'Posts signals module not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
@@ -45,13 +51,21 @@ function snt_ability_posts_signals( $input ) {
 			'flags'           => $r['flags'],
 		);
 	}
-	return array(
+	$out = array(
 		'ok'     => true,
 		'rows'   => $rows,
 		'counts' => $s['counts'],
 		'strip'  => $s['strip'],
 		'note'   => 'Every field is {value, why}: value null means the signal is absent for that note and why says why (not shown by Google in this window, not inspected in the last run, never crawled, unsigned, not in the kernel yet). Never read a null as zero. flags are the three binaries the Posts tab derives once: not_indexed (coverage indexed === false), stale_crawl (last crawl before the last BODY change: the newest signed commit, or post_modified when unsigned), orphaned (inbound links <= 1). A gap never raises a flag. strip.machine_reads is SITE-WIDE: the crawler sensor keeps no document paths, so it cannot be split per note; do not estimate one.',
 	);
+	if ( is_array( $input ) && array_key_exists( 'publish_window', $input ) ) {
+		$id = filter_var( $input['publish_window'], FILTER_VALIDATE_INT, array( 'options' => array( 'min_range' => 1 ) ) );
+		if ( false === $id || ! function_exists( 'sn_publish_window_report' ) || ! function_exists( 'get_post_type' ) || 'post' !== get_post_type( $id ) ) {
+			return new WP_Error( 'snt_publish_window_not_a_note', __( 'publish_window must be the id of a note.', 'signal-and-noise-tools' ), array( 'status' => 400 ) );
+		}
+		$out['publish_window'] = array( 'post_id' => (int) $id ) + sn_publish_window_report( $id );
+	}
+	return $out;
 }
 
 add_action( 'wp_abilities_api_init', function () {
@@ -61,13 +75,15 @@ add_action( 'wp_abilities_api_init', function () {
 	$field = array( 'type' => 'object', 'properties' => array( 'value' => array(), 'why' => array( 'type' => 'string' ) ) );
 	wp_register_ability( 'signal-noise/posts-signals', array(
 		'label'               => 'Per-note signals (the Posts tab as data)',
-		'description'         => 'One row per published note over the dense signals the site already syncs, exactly as the S&N Analytics Posts tab paints them: Search Console impressions/clicks/position for the stored window, URL Inspection coverage with coverage_state verbatim and the last crawl, inbound internal links from the live link graph, the anchored provenance version and block (and whether the followed key signed it), the ML kernel\'s related-note count and top score, and lifetime human views as a RAW number with no verdict. Every field is {value, why}: a null value is an ABSENT signal with its reason, never a zero. flags carries the three binaries derived in one place (not_indexed, stale_crawl, orphaned); read them rather than re-deriving from search-coverage + inbound-pass. counts are counts of binaries over the rows. strip carries the site-wide context every row is read against, including machine reads, which are site-wide ONLY by the sensor\'s privacy contract. Read-only over stored syncs; never inspects, syncs or probes. Sample sizes: there is no decay shape here on purpose; the site\'s highest lifetime view count is in the teens.',
+		'description'         => 'One row per published note over the dense signals the site already syncs, exactly as the S&N Analytics Posts tab paints them: Search Console impressions/clicks/position for the stored window, URL Inspection coverage with coverage_state verbatim and the last crawl, inbound internal links from the live link graph, the anchored provenance version and block (and whether the followed key signed it), the ML kernel\'s related-note count and top score, and lifetime human views as a RAW number with no verdict. Every field is {value, why}: a null value is an ABSENT signal with its reason, never a zero. flags carries the three binaries derived in one place (not_indexed, stale_crawl, orphaned); read them rather than re-deriving from search-coverage + inbound-pass. counts are counts of binaries over the rows. strip carries the site-wide context every row is read against, including machine reads, which are site-wide ONLY by the sensor\'s privacy contract. Read-only over stored syncs; never inspects, syncs or probes. Sample sizes: there is no decay shape here on purpose; the site\'s highest lifetime view count is in the teens. Optional publish_window (a note id) adds `publish_window`: that note\'s first minutes after going live and everything after, each split by SN Traffic Lane, read from Analytics Engine on demand (a label beside the lanes, not a lane); without it the answer is unchanged.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_posts_signals',
 		'input_schema'        => array(
 			'type'                 => array( 'object', 'null' ),
-			'properties'           => array(),
+			'properties'           => array(
+				'publish_window' => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'A note id: add that note\'s publish window, its first minutes after going live (analytics.publish_window_minutes, default 60) and everything after, each by lane, read from Analytics Engine on demand.' ),
+			),
 			'additionalProperties' => false,
 		),
 		'output_schema'       => array(
@@ -104,6 +120,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'counts' => array( 'type' => 'object' ),
 				'strip'  => array( 'type' => 'object' ),
 				'note'   => array( 'type' => 'string' ),
+				'publish_window' => array( 'type' => 'object', 'description' => 'Only with the publish_window argument: { post_id, state (none: published before publish windows existed; open; closed; unread: a read failed, came back truncated or ran without the over-cap list, `why` says which), why, published_at, minutes, ends_at, minutes_left (open only), window and after ({ lane: { hits, visits } }; the window is [published_at, ends_at), a hit at exactly ends_at is after; window + after is the total for hits, not visits), sources (human, inside the window), cached }. Lead with after.human: the window is the launch burst.' ),
 			),
 		),
 		'meta'                => array(

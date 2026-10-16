@@ -20,3 +20,14 @@
 .sn-live-admin__surge{font-size:13px;margin:10px 0 0;min-height:1em}
 .sn-live-admin__surge.is-surge{font-weight:600}
 .sn-live-admin__surge.is-surge::before{content:"";display:inline-block;width:8px;height:8px;margin-right:6px;background:#d63638}
+/* The last 24 hours (inc/analytics-live-slots-admin.php): an hour per row, a
+   5-minute slot per cell, each stored cell a link to its detail. */
+.sn-live-admin__past{margin-top:16px;padding-top:12px;border-top:1px solid var(--os-ui-color-border,#dcdcde)}
+.sn-live-admin__grid{display:grid;gap:2px;max-height:280px;overflow-y:auto}
+.sn-live-admin__row{display:grid;grid-template-columns:44px repeat(12,minmax(24px,1fr));gap:2px;align-items:stretch}
+.sn-live-admin__hr{font-size:11px;color:var(--os-ui-color-text-subtle,#646970);font-variant-numeric:tabular-nums;align-self:center}
+.sn-live-admin__cell{display:block;min-height:24px;line-height:24px;text-align:center;font-size:11px;font-variant-numeric:tabular-nums;color:inherit;text-decoration:none;border:1px solid var(--os-ui-color-border,#dcdcde)}
+.sn-live-admin__cell.is-missing{border-style:dashed}
+a.sn-live-admin__cell:hover,a.sn-live-admin__cell:focus-visible{border-color:currentColor}
+a.sn-live-admin__cell.is-on{font-weight:600;border:2px solid currentColor}
+.sn-live-admin__slot{margin-top:12px}

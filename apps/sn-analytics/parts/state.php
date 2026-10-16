@@ -3,9 +3,9 @@
  * S&N Analytics host — the state, and the `$_GET` it lends the page.
  *
  * THE URL WAS THE STATE. The classic Analytics screen changes nothing: every
- * control on it is a GET link or a GET form, and the nine `sn_*` params in the
+ * control on it is a GET link or a GET form, and the ten `sn_*` params in the
  * address bar are the whole of what a reader has chosen. A window has no
- * address bar, so those nine params ARE the window's state — named as the page
+ * address bar (since 2026-10-16 with `sn_slot`, the past live slot), so those ten params ARE the window's state — named as the page
  * names them, minus the `sn_` prefix — and a bookmarkable classic URL and a
  * window state stay the same fact.
  *
@@ -77,6 +77,9 @@ function snt_os_analytics_defaults() {
 		'drill'      => '',
 		'event_prop' => '',
 		'lg_range'   => snt_os_analytics_lg_range( '' ),
+		// The past live slot the Overview shows (inc/analytics-live-slots-admin.php):
+		// a slot start as a string, '' for none. A string for the same reason as range.
+		'slot'       => '',
 		// The classic page's `?sn_flash` notice, as `[ severity, html ]`.
 		'notice'     => null,
 	);
@@ -172,7 +175,7 @@ function snt_os_analytics_lg_range( $raw ) {
  * drill-down`, the Events property `Clear`, the movers' bare deep link -- is
  * the page saying "default". So a `go` (a rewritten own-page link, the
  * custom-date form, the brush's carrier, an open-time param set) is applied
- * WHOLESALE: every one of the nine params absent from the args takes the
+ * WHOLESALE: every one of the ten params absent from the args takes the
  * page's own default, exactly as the classic dispatcher reads an absent
  * `$_GET` key. The first build merged instead ("absent keeps the value it
  * had"), and every clear/off control on the page was dead in the window --
@@ -209,6 +212,8 @@ function snt_os_analytics_apply( $state, array $args ) {
 	// call, at the same boundary.
 	$state->set( 'event_prop', function_exists( 'sanitize_text_field' ) ? sanitize_text_field( $prop ) : $prop );
 	$state->set( 'lg_range', snt_os_analytics_lg_range( $read( 'sn_lg_range' ) ) );
+	$slot = function_exists( 'sn_analytics_live_slot_param' ) ? sn_analytics_live_slot_param( snt_os_host_last( $read( 'sn_slot' ) ) ) : 0;
+	$state->set( 'slot', $slot > 0 ? (string) $slot : '' );
 }
 
 /**
@@ -236,6 +241,7 @@ function snt_os_analytics_get( $state ) {
 		'sn_drill'      => (string) $state->get( 'drill' ),
 		'sn_event_prop' => (string) $state->get( 'event_prop' ),
 		'sn_lg_range'   => (string) $state->get( 'lg_range' ),
+		'sn_slot'       => (string) $state->get( 'slot' ),
 	);
 }
 

@@ -158,6 +158,8 @@ require_once SNT_PATH . 'inc/analytics-realtime.php';
 require_once SNT_PATH . 'inc/analytics-live-pages.php'; // being read now: readers per public page, top five
 require_once SNT_PATH . 'inc/analytics-live-hour.php'; // the last hour behind Reading now, twelve 5-minute slots
 require_once SNT_PATH . 'inc/analytics-live-sources.php'; // admin only: where current readers arrived from
+require_once SNT_PATH . 'inc/analytics-live-slots.php'; // rolling live snapshots: each completed 5-minute slot, kept 24 hours
+require_once SNT_PATH . 'inc/analytics-live-slots-admin.php'; // the past-slot picker under the admin Right now block
 require_once SNT_PATH . 'inc/analytics-live-admin.php'; // the admin Right now block (classic and native)
 require_once SNT_PATH . 'inc/analytics-live.php'; // the live pair: public /live (human) and gated /live/admin
 require_once SNT_PATH . 'inc/analytics-read.php';   // path read accessors (dashboard + widgets)
@@ -179,6 +181,8 @@ require_once SNT_PATH . 'inc/analytics-view-quality.php';    // v8.5.0 extractio
 require_once SNT_PATH . 'inc/analytics-bot-signals.php';    // beacon bot signals, observe-only: nightly reading per cohort (never subtracts)
 require_once SNT_PATH . 'inc/analytics-lanes.php';          // SN Traffic Lanes: the lanes table, its nightly rollup and report reads
 require_once SNT_PATH . 'inc/analytics-lanes-render.php';   // SN Traffic Lanes: the classic Integrity › Lanes leaf
+require_once SNT_PATH . 'inc/publish-window.php';           // publish windows: _sn_published_at and the first-hour split by lane, read on demand
+require_once SNT_PATH . 'inc/publish-window-settings.php';  // its one setting, the window length: handler, classic form, native Setup fold
 require_once SNT_PATH . 'inc/analytics-render-signals.php'; // its Quality-tab panel
 require_once SNT_PATH . 'inc/abilities-bot-signals.php';    // its reader, sn-status{bot_signals}; local only
 require_once SNT_PATH . 'inc/analytics-view-events.php';     // v8.5.0 extraction
@@ -621,6 +625,7 @@ require_once __DIR__ . '/inc/notes-search-ranking.php'; // v14.0.0: notes search
 require_once __DIR__ . '/inc/note-dossier.php';            // v13.100.0: the note dossier vocabulary + composer (needs nothing at load)
 require_once __DIR__ . '/inc/note-dossier-trust.php';      // trust: ledger record, signer, citations, the re-check (readers guarded)
 require_once __DIR__ . '/inc/note-dossier-numbers.php';    // numbers: analytics window, Search Console, machine reads
+require_once __DIR__ . '/inc/note-dossier-publish-window.php'; // numbers: the publish window ("First hour"), read on open
 require_once __DIR__ . '/inc/note-dossier-state.php';      // state: edge verdict, coverage, sitemap, schedule
 require_once __DIR__ . '/inc/note-dossier-editorial.php';  // editorial: tags, reading time, words, excerpt, related
 require_once __DIR__ . '/inc/ml-related-render.php';   // v10.15.0: reader-facing "Related notes" aside (the_content @20, zero JS, render-time stylesheet)

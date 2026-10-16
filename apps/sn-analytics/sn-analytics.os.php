@@ -9,7 +9,7 @@
  * continues to render its own presentation outside this scoped capture.
  *
  * THE PAGE HAS NO WRITES. Every control on it is a GET link or a GET form, and
- * the nine `sn_*` params are its whole state — which is why this window has one
+ * the ten `sn_*` params are its whole state — which is why this window has one
  * navigation action where the Dashboard host has a write pipeline:
  *
  *   go      A view, a window, a class, a compare mode, a drill. Everything the

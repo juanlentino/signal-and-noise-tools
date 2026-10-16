@@ -106,6 +106,7 @@ function sn_admin_post_handlers() {
 		'analytics_test'             => 'sn_handle_analytics_test',
 		'analytics_recompute'        => 'sn_handle_analytics_recompute', // re-roll 90 days under the current human rule
 		'analytics_tuning_save'      => 'sn_handle_analytics_tuning_save',
+		'analytics_publish_window_save' => 'sn_handle_analytics_publish_window_save', // 2026-10-16: the publish window's length (inc/publish-window-settings.php)
 		'north_star_save'            => 'sn_handle_north_star_save',
 		'analytics_funnels_save'     => 'sn_handle_analytics_funnels_save',
 		'analytics_export'           => 'sn_handle_analytics_export',

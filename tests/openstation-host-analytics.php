@@ -247,6 +247,8 @@ namespace {
 	require_once __DIR__ . '/../inc/analytics-admin.php';         // the resolvers + the dispatcher
 	require_once __DIR__ . '/../inc/analytics-dashboard-page.php'; // SNT_ANALYTICS_PAGE_SLUG, snt_analytics_page_url()
 	require_once __DIR__ . '/../inc/login-defense-analytics.php'; // sn_login_defense_resolve_days()
+	require_once __DIR__ . '/../inc/analytics-live-hour.php';     // SN_ANALYTICS_LIVE_HOUR_SLOT
+	require_once __DIR__ . '/../inc/analytics-live-slots-admin.php'; // sn_analytics_live_slot_param()
 	require_once __DIR__ . '/../inc/admin-post-handler.php';      // sn_admin_post_handlers(), the table the keep list is checked against
 	// The SN admin registry. Not this window's page at all — loaded because the
 	// rewrite calls sn_admin_page_tab_for_slug() and sn_admin_canonical_destination()
@@ -384,8 +386,8 @@ namespace {
 		'the same title the classic menu has, on the dock, wearing its own S&N Analytics icon (assets/icons, not a theme slot)' );
 	ok( array( 'manage_options' ) === $app->caps, 'gated on manage_options, the capability the classic page wp_die()s without' );
 	ok( array( 1280, 860 ) === $app->size, 'opens at 1280x860 -- the report is wide' );
-	ok( array( 'view', 'range', 'from', 'to', 'class', 'compare', 'drill', 'event_prop', 'lg_range', 'notice', 'landed' ) === array_keys( $app->state ) && '' === $app->state['landed'],
-		'state is the page`s nine URL params, named as the page names them minus the `sn_` prefix, plus the notice and the params last read (2026-10-12)' );
+	ok( array( 'view', 'range', 'from', 'to', 'class', 'compare', 'drill', 'event_prop', 'lg_range', 'slot', 'notice', 'landed' ) === array_keys( $app->state ) && '' === $app->state['landed'] && '' === $app->state['slot'],
+		'state is the page`s ten URL params (2026-10-16: `slot`, the past live slot the Overview shows), named as the page names them minus the `sn_` prefix, plus the notice and the params last read (2026-10-12)' );
 	ok( snt_analytics_resolve_view( '' ) === $app->state['view']
 		&& snt_analytics_resolve_class( '' ) === $app->state['class']
 		&& snt_analytics_resolve_compare( '' ) === $app->state['compare']
@@ -505,6 +507,14 @@ namespace {
 	$app->actions['go']( $state, $os, array( 'sn_lg_range' => '5' ) );
 	ok( 7 === $state->get( 'lg_range' ) && 7 === snt_os_analytics_lg_range( '5' ),
 		'   ...and clamps an unsupported one to 7 through sn_login_defense_resolve_days() itself -- the clamp is lent $_GET, never retyped' );
+	$app->actions['go']( $state, $os, array( 'sn_slot' => '1791489900' ) );
+	ok( '1791489900' === $state->get( 'slot' ) && '1791489900' === snt_os_analytics_get( $state )['sn_slot'],
+		'a past live slot (sn_slot) is window state, lent back to the Overview as $_GET[sn_slot] (2026-10-16)' );
+	$app->actions['go']( $state, $os, array( 'sn_slot' => '1791489901' ) );
+	ok( '' === $state->get( 'slot' ), '   ...and a value off a 5-minute boundary is dropped, through sn_analytics_live_slot_param()' );
+	$app->actions['go']( $state, $os, array( 'sn_slot' => '1791489900' ) );
+	$app->actions['go']( $state, $os, array( 'sn_view' => 'overview' ) );
+	ok( '' === $state->get( 'slot' ), '   ...and a navigation that does not carry it clears it, as every param' );
 	$_GET = array( 'sentinel' => 'yes' );
 	snt_os_analytics_lg_range( '90' );
 	ok( array( 'sentinel' => 'yes' ) === $_GET, '   ...and the borrowed $_GET is given back' );
@@ -574,6 +584,7 @@ namespace {
 		'sn_drill'      => 'country:US',
 		'sn_event_prop' => 'plan',
 		'sn_lg_range'   => '30',
+		'sn_slot'       => '',
 	) === snt_os_analytics_get( $state ), 'a full state is the full query, every value a string, in the page`s own names' );
 	ok( '' === snt_os_analytics_get( st( $app ) )['sn_drill'] && array_key_exists( 'sn_drill', snt_os_analytics_get( st( $app ) ) ),
 		'an unset param is emitted EMPTY, not dropped: `` and absent are the same answer to every reader, while a missing key is the shape in which a param stops arriving' );

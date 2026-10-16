@@ -37,6 +37,7 @@ function analytics_setup_html( array $ctx, array $worker, $salt ) {
 			analytics_collector_html(),
 			analytics_exclusion_html(),
 			analytics_tuning_html(),
+			function_exists( '\sn_publish_window_setup_fold' ) ? \sn_publish_window_setup_fold() : null,
 			analytics_funnels_html(),
 			analytics_edge_worker_html( $ctx, $worker, $salt ),
 			analytics_mirrors_html( $tab ),

@@ -246,6 +246,8 @@ function sn_note_dossier_compose( $post_id, $days, $fetcher = null ) {
 	$runs   = array(
 		'trust'     => array( 'sn_note_dossier_trust', array( $post->ID, $fetcher ), __( 'Trust', 'signal-and-noise-tools' ), __( 'the ledger or the citation graph', 'signal-and-noise-tools' ) ),
 		'numbers'   => array( 'sn_note_dossier_numbers', array( $post->ID, $days ), __( 'Numbers', 'signal-and-noise-tools' ), __( 'the analytics table, the Search Console sync or the snapshot', 'signal-and-noise-tools' ) ),
+		// 2026-10-16: the publish window (inc/note-dossier-publish-window.php), painted with the numbers.
+		'publish_window' => array( 'sn_note_dossier_publish_window', array( $post->ID ), __( 'First hour', 'signal-and-noise-tools' ), __( 'Analytics Engine', 'signal-and-noise-tools' ), 'numbers' ),
 		'state'     => array( 'sn_note_dossier_state', array( $post->ID ), __( 'Operating state', 'signal-and-noise-tools' ), __( 'the probe log, the coverage map or the schedule', 'signal-and-noise-tools' ) ),
 		'editorial' => array( 'sn_note_dossier_editorial', array( $post->ID ), __( 'Editorial', 'signal-and-noise-tools' ), __( 'the post itself', 'signal-and-noise-tools' ) ),
 	);
@@ -262,7 +264,7 @@ function sn_note_dossier_compose( $post_id, $days, $fetcher = null ) {
 				}
 			}
 		} catch ( \Throwable $e ) {
-			$blocks[] = sn_note_dossier_unreadable( $group, $heading, $source_name . ' (' . $group . ')' );
+			$blocks[] = sn_note_dossier_unreadable( $run[4] ?? $group, $heading, $source_name . ' (' . ( $run[4] ?? $group ) . ')' );
 		}
 	}
 	return array(

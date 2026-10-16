@@ -76,32 +76,48 @@ function sn_lanes_feed_event() {
  * Public page views per site-local day, visitor-day, read-time class and
  * feed flag, with the signal bits. PURE.
  *
- * @param string $source Dataset.
- * @param string $range  One side of the split, or ''.
- * @param string $tz     Zone.
+ * `$scope` narrows the read for another caller of the same derivation (the
+ * publish windows, inc/publish-window-parts.php): `where` replaces the
+ * trailing-days window, `part` adds a labelled column the derive keys its
+ * cells on. Built by the caller from validated values only. Empty: the
+ * nightly read, unchanged.
+ *
+ * @param string                           $source Dataset.
+ * @param string                           $range  One side of the split, or ''.
+ * @param string                           $tz     Zone.
+ * @param array{where?:string,part?:string} $scope  Optional narrowing.
  * @return string
  */
-function sn_lanes_public_sql( $source, $range, $tz ) {
+function sn_lanes_public_sql( $source, $range, $tz, array $scope = array() ) {
 	list( $day_col, $window ) = sn_lanes_window_sql( $tz );
-	$range = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
-	$ce    = sn_analytics_col( 'blob16', $source );
-	$cols  = array( "{$day_col} AS day", 'index1 AS vid', sn_analytics_class_select() . ' AS class', "if(blob1 = 'ce' AND {$ce} = '" . sn_lanes_feed_event() . "', 1, 0) AS feed", "sum(if(blob1 = 'pv', _sample_interval, 0)) AS views" );
+	$window = isset( $scope['where'] ) ? (string) $scope['where'] : $window;
+	$range  = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
+	$ce     = sn_analytics_col( 'blob16', $source );
+	$cols   = array( "{$day_col} AS day", 'index1 AS vid', sn_analytics_class_select() . ' AS class', "if(blob1 = 'ce' AND {$ce} = '" . sn_lanes_feed_event() . "', 1, 0) AS feed", "sum(if(blob1 = 'pv', _sample_interval, 0)) AS views" );
 	foreach ( SNT_BOT_SIGNAL_BITS as $bit => $name ) {
 		$cols[] = "max(bitAnd(toUInt32(double8), {$bit})) AS {$name}";
 	}
-	return 'SELECT ' . implode( ', ', $cols ) . ' FROM ' . $source . ' WHERE ' . $window . $range . sn_analytics_excluded_path_sql() . ' GROUP BY day, vid, class, feed';
+	$group = 'day, vid, class, feed';
+	if ( isset( $scope['part'] ) ) {
+		$cols[] = (string) $scope['part'] . ' AS part';
+		$group .= ', part';
+	}
+	return 'SELECT ' . implode( ', ', $cols ) . ' FROM ' . $source . ' WHERE ' . $window . $range . sn_analytics_excluded_path_sql() . ' GROUP BY ' . $group;
 }
 
 /**
  * Owner-routed page views per site-local day, visitor-day, identity and agent. PURE.
  *
- * @param string $tz Zone.
+ * @param string                           $tz    Zone.
+ * @param array{where?:string,part?:string} $scope As sn_lanes_public_sql().
  * @return string
  */
-function sn_lanes_owner_sql( $tz ) {
+function sn_lanes_owner_sql( $tz, array $scope = array() ) {
 	list( $day_col, $window ) = sn_lanes_window_sql( $tz );
-	return "SELECT {$day_col} AS day, index1 AS vid, toUInt32(double14) AS identity, toUInt32(double15) AS agent, sum(if(blob1 = 'pv', _sample_interval, 0)) AS views FROM " . SN_LANES_OWNER_DATASET
-		. ' WHERE ' . $window . sn_analytics_excluded_path_sql() . ' GROUP BY day, vid, identity, agent';
+	$window = isset( $scope['where'] ) ? (string) $scope['where'] : $window;
+	$part   = isset( $scope['part'] ) ? ', ' . (string) $scope['part'] . ' AS part' : '';
+	return "SELECT {$day_col} AS day, index1 AS vid, toUInt32(double14) AS identity, toUInt32(double15) AS agent, sum(if(blob1 = 'pv', _sample_interval, 0)) AS views{$part} FROM " . SN_LANES_OWNER_DATASET
+		. ' WHERE ' . $window . sn_analytics_excluded_path_sql() . ' GROUP BY day, vid, identity, agent' . ( '' !== $part ? ', part' : '' );
 }
 
 /**
@@ -158,6 +174,10 @@ function sn_lanes_beacon_derive( array $public, array $owner, array $hashes ) {
 		}
 	}
 	$out = array();
+	// A row that carries a `part` (a publish window's 'window' or 'after')
+	// lands in that part's cells; the bot score stays per site-local
+	// visitor-day either way, so a part never changes a row's lane.
+	$cell = static fn( array $r ) => isset( $r['part'] ) ? (string) $r['part'] : substr( (string) ( $r['day'] ?? '' ), 0, 10 );
 	foreach ( $public as $r ) {
 		$r     = (array) $r;
 		$day   = substr( (string) ( $r['day'] ?? '' ), 0, 10 );
@@ -176,13 +196,13 @@ function sn_lanes_beacon_derive( array $public, array $owner, array $hashes ) {
 		} else {
 			$key = array( 'human', 'remainder' );
 		}
-		$out = sn_lanes_beacon_add( $out, $day, array( $key[0], $key[1], '' ), $vid, (int) round( (float) ( $r['views'] ?? 0 ) ) );
+		$out = sn_lanes_beacon_add( $out, $cell( $r ), array( $key[0], $key[1], '' ), $vid, (int) round( (float) ( $r['views'] ?? 0 ) ) );
 	}
 	foreach ( $owner as $r ) {
 		$r   = (array) $r;
 		$id  = (int) ( $r['identity'] ?? 0 );
 		$key = SN_LANES_IDENTITY[ $id ] ?? array( 'unverified_owner', 'unknown_code' );
-		$out = sn_lanes_beacon_add( $out, substr( (string) ( $r['day'] ?? '' ), 0, 10 ), array( $key[0], $key[1], sn_lanes_agent_label( $r['agent'] ?? 0 ) ), strtolower( (string) ( $r['vid'] ?? '' ) ), (int) round( (float) ( $r['views'] ?? 0 ) ) );
+		$out = sn_lanes_beacon_add( $out, $cell( $r ), array( $key[0], $key[1], sn_lanes_agent_label( $r['agent'] ?? 0 ) ), strtolower( (string) ( $r['vid'] ?? '' ) ), (int) round( (float) ( $r['views'] ?? 0 ) ) );
 	}
 	$rows = array();
 	foreach ( $out as $day => $cells ) {

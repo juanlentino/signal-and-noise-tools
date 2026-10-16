@@ -95,7 +95,7 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/list-cron-events` | List Cron Events | diagnostics | READ |
 | `signal-noise/list-posts` | List corpus metadata for every post | tools | — |
 | `signal-noise/list-template-overrides` | List database template overrides | diagnostics | — |
-| `signal-noise/live-now` | What the site looks like right now (23.2.0; the `sn-status{live}` source; local only) | diagnostics | READ |
+| `signal-noise/live-now` | What the site looks like right now (23.2.0; the `sn-status{live}` source; local only; optional `hours_back` adds the stored 5-minute slots, see below) | diagnostics | READ |
 | `signal-noise/login-defense-ipv6-criterion` | Login defense: IPv6 criterion | analytics | READ |
 | `signal-noise/merge-tags` | Merge duplicate post tags | content | — |
 | `signal-noise/near-duplicate-scan` | Scan the corpus for near-duplicate (cousin) post pairs | tools | — |
@@ -103,7 +103,7 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/pattern-adoption-apply` | Apply a v9.2.0 pattern upgrade to a post | ai-generation | — |
 | `signal-noise/pattern-adoption-scan` | Scan posts for v9.2.0 pattern-adoption opportunities | tools | — |
 | `signal-noise/pattern-adoption-suggest` | Suggest a v9.2.0 pattern upgrade for a structural block | ai-generation | — |
-| `signal-noise/posts-signals` | Per-note signals (the Posts tab as data) | diagnostics | READ |
+| `signal-noise/posts-signals` | Per-note signals (the Posts tab as data; optional `publish_window` adds one note's publish window, see below) | diagnostics | READ |
 | `signal-noise/provenance-integrity-status` | Provenance integrity sweep status | diagnostics | READ |
 | `signal-noise/prune-unused-tags` | Delete unused (zero-post) tags | content | RW |
 | `signal-noise/purge-all-caches` | Purge all caches | maintenance | RW |
@@ -240,6 +240,24 @@ What the numbers are:
 - **No `ai_training_status`.** The rights-signals worker records a crawler read before the response exists, so no response status is stored. Capturing it is a worker change (record after the response, one new field); it is not built and would count only from its deploy.
 
 Counts only: no user agents, IPs, paths or networks in the series. The remote door rules are unchanged; door off, the bridge answers the standard 404.
+
+## Live snapshots and publish windows (2026-10-16, local only)
+
+Two optional arguments. Without them both tools answer exactly what they did before (pinned by `tests/analytics-live-slots.php` and `tests/publish-window.php`). Neither is on the remote door: `live` stays local-only, and `sn_remote_analytics_query` has no publish-window filter (the owner deferred that contract bump).
+
+**`signal-noise/live-now` `hours_back`** (integer, 1 to 24) adds `slots`: the stored rolling snapshots of the last N hours, oldest first, one per COMPLETED 5-minute slot.
+
+| Field | Meaning |
+|---|---|
+| `t` | Slot start, unix seconds |
+| `readers` | Human readers, the same figure as that slot's bar in `hour` |
+| `classes` | `{ human, suspect, bot }`, Reading now's per-class count for the slot |
+| `pages` | Top five published, indexable notes and pages, `{ label, url, readers }`, as `pages` |
+| `sources` | Top five sources, `{ label, readers }`, in the dashboard's source names, as `sources` |
+
+A slot is stored by the first realtime refresh after it completes and kept 24 hours (`sn_live_slot_detail`, not autoloaded). A slot no refresh saw is absent, never 0. No withholding floor, as live has none. Aggregates only: never a visitor id, IP, user agent, cookie or request text.
+
+**`signal-noise/posts-signals` `publish_window`** (a note id) adds `publish_window`: `{ post_id, state, why, published_at, minutes, ends_at, minutes_left, window, after, sources, cached }`. `state` is `none` (published before publish windows existed), `open`, `closed` or `unread` (a read failed; never zeros). `window` and `after` are `{ lane: { hits, visits } }` from the SN Traffic Lanes beacon derivation on that note's path alone; the window is `[published_at, ends_at)`, so a hit at exactly `ends_at` is after, and window + after is the total page views (hits) per lane; visits can count a visitor-day that straddles the end in both parts. `unread` carries `why` (`read_failed`, `truncated`, `overcap_unread`, `path_unreadable`). Lead with `after.human`: the window is the launch burst. `own_infra` comes from the machine sensor, which keeps no paths, so it never appears per note. See `docs/TRAFFIC-LANES.md`.
 
 ## Detailed reference (selected abilities)
 
