@@ -192,6 +192,19 @@
 	 * with no rows, is left alone. Upstream watch: OpenStation (os-table renders once
 	 * before late props), beside #808/#809.
 	 *
+	 * Kept after OpenStation 1.1.15 (#1000/#1001), which is a different bug.
+	 * #1001 replays a prop assigned BEFORE the tag was defined (an own
+	 * property shadowing the class setter, the cold-open Credentials tables
+	 * that os-kit.js repaired until 1.1.15). This race is on a table whose tag
+	 * is already defined: Re-run scan re-paints a leaf already open in its
+	 * window (in 16.3.1 the same check's table was on screen before the scan),
+	 * so the runtime's os-prop-data assignment reaches the setter and the rows
+	 * are stored; the render that should follow does not. The nudge below proves
+	 * the point: `t.data = t.data.slice()` is a plain property write, which on
+	 * a shadowing own property would land on that property and never reach
+	 * the setter, so it could only ever have fixed a setter-routed table.
+	 * Remove it only after Health > Re-run scan paints its rows without it.
+	 *
 	 * @param {Element} root App root.
 	 */
 	function renudgeTables( root ) {
@@ -229,7 +242,7 @@
 	 * would sit dead until the tab was looked at. The `pending` latch is what
 	 * makes the loser a no-op, and it is one-shot: the effect that set it is
 	 * the paint the pass answers. The deferral itself stays because 16.3.1's
-	 * renudgeTables() reads a component that may still be upgrading.
+	 * renudgeTables() reads a table whose render may still be pending.
 	 *
 	 * @param {Element} root   App root.
 	 * @param {string}  anchor Element id to land on, or ''.

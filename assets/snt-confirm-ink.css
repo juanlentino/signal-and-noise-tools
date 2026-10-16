@@ -14,6 +14,8 @@
  * rule from that fill gives it black (6.9:1). Set on the marked dialog only,
  * so the shell's other readers of that token keep theirs. Loaded on the shell
  * with S&N's commands (inc/desktop-mode-assets.php).
+ *
+ * Still needed on OpenStation 1.1.15: upstream #997 moved the picker's accent-ink crossover to 0.184 on <body> but leaves the danger label's --os-ui-fg-on-accent (white on red) untouched.
  */
 @supports ( color: color( from red srgb-linear clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) clamp( 0, ( 0.1791 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) * 100000000, 1 ) ) ) {
 	os-confirm-dialog[data-snt-dialog] {

@@ -110,15 +110,24 @@ add_action( 'init', function() {
 		// three different widths in the screenshot.
 		//
 		// default_height is the measured natural height rounded up to the next
-		// 10 with ~10px of slack, so a longer relative timestamp or one extra
-		// source row doesn't immediately push the body into a scroll.
+		// 10 with ~10px of slack: the size a card starts at the first time it
+		// floats.
 		//
 		// Sized for the TYPICAL state, deliberately. Health measures 279 with
 		// four flagged checks + a remainder + advisories, and Anchors 194 with
-		// two pending notes — but both idle at the measured figure above (18/18
-		// today, 30 of 30 anchored), the body scrolls rather than truncating,
-		// and every card is resizable. Sizing for the worst day would mean dead
+		// two pending notes, but both idle at the measured figure above (18/18
+		// today, 30 of 30 anchored). Sizing for the worst day would mean dead
 		// space on every ordinary one.
+		//
+		// fit_content (OpenStation 1.1.15, WordPress/openstation #988/#989):
+		// when the content needs more room than the card's height, a floating
+		// card grows to fit it, capped at the smaller of max_height and the
+		// bottom of the work area (20px of air); SN sets no max_height, so the
+		// work area is the cap. When the content shrinks it shrinks back, never
+		// below the height the owner saved (or default_height on a card never
+		// resized). Past the cap the body scrolls. Width and position never
+		// change, and only a vertical pull sets a new saved height; a pull
+		// shorter than the content grows back on release.
 		//
 		// min_* are FLOORS, not targets: 240 × 120 keeps a `label … value` row
 		// legible and leaves room for chrome + padding + a headline. They are a
@@ -129,6 +138,7 @@ add_action( 'init', function() {
 			'min_width'     => 240,
 			'min_height'    => 120,
 			'default_width' => 312,
+			'fit_content'   => true,
 		);
 
 		// 2026-10-04: TWELVE CARDS FOLDED TO SIX, owner-approved. Three cards
@@ -139,9 +149,9 @@ add_action( 'init', function() {
 		// is SN Provenance (+ SN Machine Readers). Deploy Status took Quick
 		// Actions' Check for updates. Retired ids: sn-audience,
 		// sn-rss-subscribers, sn-uptime, sn-cron, sn-quick-actions,
-		// sn-machine-readers. A SAVED LAYOUT KEEPS THE OLD HEIGHT: the three
-		// merged cards need one resize by hand; default_height applies only to a
-		// card placed fresh.
+		// sn-machine-readers. A saved layout keeps its old height as the floor;
+		// since OpenStation 1.1.15 (fit_content above) a merged card grows to
+		// its content from there, so none needs a resize by hand.
 		snt_os_register_widget( 'sn-site-views', array_merge( $sn_drag, array(
 			'label'          => 'SN Traffic',
 			'description'    => 'Views over 14 days with the trend, then who came and from where: countries, devices, sources, Hacker News, search, feed subscribers, top pages.',
@@ -152,7 +162,7 @@ add_action( 'init', function() {
 			// pages, link) plus four groups at a hairline and a heading (~36)
 			// each and ~20px a row (3 countries, 4 sources, 1 Hacker News story
 			// at up to two lines, 3 one-line rows for devices, search and feed).
-			// The body scrolls past it; measure live before trimming.
+			// The card grows past it to fit (fit_content); measure live before trimming.
 			// + This week (2026-10-04, the owner's pick: engaged visitor-days, DOI
 			// downloads, inquiries): a hairline, a heading and three rows, ~96.
 			// A Campaigns group adds ~100 only when a tagged link was followed.
@@ -192,9 +202,9 @@ add_action( 'init', function() {
 			// #2040 review: + one cadence line, MEASURED the same way with the
 			// longest sentence ("Gap: no note Dec 20 to Jan 3, 2027 (16 days
 			// between notes)" and Planned): 627 at 265 (three text lines, 55px)
-			// and 585 at 312 (36px), so 640 shows one warning unscrolled. The
-			// busiest state (an overdue line, the gap line, three drafts and
-			// three Later rows, ~180px more) scrolls inside the card. Before:
+			// and 585 at 312 (36px), so 640 shows one warning. The busiest
+			// state (an overdue line, the gap line, three drafts and three
+			// Later rows, ~180px more) grows the card to fit (fit_content). Before:
 			// 780, budgeted for that busiest state. A SAVED layout keeps its
 			// own height.
 			// 2026-10-14 (phase 2, item 6): the runway sentence ("Covered
@@ -203,7 +213,7 @@ add_action( 'init', function() {
 			// "25 scheduled · 0 drafts" below about 360 wide, so the row is
 			// one line taller at 265 and 312: +19px with the pair's row gap,
 			// MEASURED in review on #2058. 627 + 19 = 646 at 265, so 650
-			// still shows one cadence line unscrolled.
+			// still starts with one cadence line in view.
 			'default_height' => 650,
 		) ) );
 
@@ -216,7 +226,7 @@ add_action( 'init', function() {
 			// clear): the verdict line, three sections at a hairline, a heading
 			// and one row (~52 each), the full-width button (~44), the link,
 			// chrome and padding = ~350. A flagged check or a down monitor adds
-			// ~20 a row and the body scrolls. + the uptime figures, which wrapped
+			// ~20 a row and the card grows to fit. + the uptime figures, which wrapped
 			// the Monitors row to a second line (~20); since 2026-10-14 they are
 			// their own Availability and Response rows (+20 more).
 			// 21.9.1: +60 for the busiest state (2 checks, 2 could-not-run, 2 monitors down, each with "+N more").

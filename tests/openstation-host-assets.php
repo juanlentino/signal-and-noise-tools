@@ -174,6 +174,8 @@ ok( '' !== $start && false !== strpos( $start, "document.addEventListener( 'os-a
 ok( false === strpos( $host_code, 'MutationObserver' ), 'os-host.js constructs NO MutationObserver: the root is named by the event, never discovered, so the 15.9.0 class of miss (a root that earns its class by attribute morph) cannot recur' );
 ok( false === strpos( snt_js_code( $kit ), 'MutationObserver' ), 'os-kit.js constructs NO MutationObserver either: its anchor watch (an addedNodes-only scroll with behavior smooth) is gone, so one save scrolls once' );
 ok( false === strpos( $kit, 'scrollToAnchor' ) && false === strpos( $kit, "behavior: 'smooth'" ), 'os-kit.js no longer scrolls: the anchor is the host script\'s, off the effect' );
+// 2026.10.6's prop repair is upstream's since OpenStation 1.1.15 (#1000/#1001): the kit's base Component lifts an own property assigned before the upgrade and replays it through the accessor on connect.
+ok( false === strpos( snt_js_code( $kit ), 'reassignProps' ) && false === strpos( snt_js_code( $kit ), 'whenDefined' ) && false === strpos( snt_js_code( $kit ), "'snt:paint'" ), 'os-kit.js carries no prop repair: no reassignProps, no whenDefined wait, no snt:paint listener (OpenStation 1.1.15 replays a pre-upgrade os-prop-* itself)' );
 ok( false === strpos( $host_code, 'function host(' ) && false === strpos( $host_code, 'function scan(' ), 'host() and scan() are gone with the observers they fed' );
 $effect_fn = snt_region( $host, 'function onEffect(' );
 ok( '' !== $effect_fn && false !== strpos( $effect_fn, "'snt-paint' !== effect.type" ), 'VACUITY+PIN: onEffect() is extracted and answers only the snt-paint effect type; any other os-app-effect is another app\'s' );

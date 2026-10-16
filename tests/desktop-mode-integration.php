@@ -456,6 +456,10 @@ echo "\n── v9.52.2: drag-and-drop + sizing ──\n";
 // drag collapsing a card into an unreadable sliver.
 foreach ( $widgets as $id => $args ) {
 	ok( ( $args['movable'] ?? false ) === true,   "$id is movable (drag out of the column)" );
+	// OpenStation 1.1.15 (#988/#989): the card grows to its content up to the
+	// work-area bottom (SN sets no max_height), never below the saved height,
+	// and the body scrolls only past that cap.
+	ok( ( $args['fit_content'] ?? false ) === true, "$id carries fit_content, so a floating card grows to its content instead of scrolling below a stale height" );
 	ok( ( $args['resizable'] ?? false ) === true, "$id is resizable" );
 	ok( ( $args['min_width'] ?? 0 ) > 0 && ( $args['min_height'] ?? 0 ) > 0,
 		"$id declares a min size (a drag can't collapse it to a sliver)" );
@@ -480,12 +484,13 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 // site payloads — then rounded up to the next 10 with ~10px of slack.
 //
 // Changing a card's content SHOULD fail this test. Re-measure, don't re-guess.
-// 2026-10-04: the three merged cards are BUDGETED, not measured, and a saved
-// layout keeps its old height: the owner resizes each once.
+// 2026-10-04: the three merged cards are BUDGETED, not measured. A saved
+// layout keeps its old height as the floor; since OpenStation 1.1.15
+// (fit_content, pinned above) the card grows to its content from there.
 $expected_height = array(
 	'sn-site-views'       => 1010, // SN Traffic, BUDGETED (+60 busiest state, 21.9.1): 760 + This week (~96) + the reach row (~30); +60 (2026-10-10): forecast line, Read at foot, surge line
 	'sn-reading'          => 575, // BUDGETED: 555 + the opening figure and age line, less the two rows it replaced
-	'sn-queue'            => 650, // 2026-10-14 (runway): +19 MEASURED in review on #2058 (one line plus the pair's row gap; the runway sentence cannot share its row with the counts below ~360 wide), 627 + 19 = 646 fits; #2040: + one cadence line at its longest, measured live 627 at 265 and 585 at 312; 2026-10-12, fit to content: MEASURED live with the real queue, 573 at 265 wide and 549 at 312 (chrome included), + ~10 slack rounded up; the busiest state (overdue, gap, three drafts, three Later rows, ~180 more) scrolls. Before: 780, budgeted for that busiest state, which left ~200px empty on an ordinary day
+	'sn-queue'            => 650, // 2026-10-14 (runway): +19 MEASURED in review on #2058 (one line plus the pair's row gap; the runway sentence cannot share its row with the counts below ~360 wide), 627 + 19 = 646 fits; #2040: + one cadence line at its longest, measured live 627 at 265 and 585 at 312; 2026-10-12, fit to content: MEASURED live with the real queue, 573 at 265 wide and 549 at 312 (chrome included), + ~10 slack rounded up; the busiest state (overdue, gap, three drafts, three Later rows, ~180 more) grows the card (fit_content). Before: 780, budgeted for that busiest state, which left ~200px empty on an ordinary day
 	'sn-health'           => 600, // SN Systems, +20 (2026-10-14: the Monitors line's chained figures became Availability and Response rows, three rows where one wrapped to two), +140 (2026-10-05: Edge and Cache sections, cron-day row, incidents and slowest); BUDGETED (+60 busiest state, 21.9.1): the verdict line, three one-row sections (~52 each), the uptime row's second line (~20), the button (~44), the link
 	'sn-deploy-status'    => 470, // v11.11.2 budgeted 310 + the Check for updates button (~40); 23.3.1 + groups and the workers' deploy line (~110, measured ~450)
 	'sn-anchors'          => 620, // SN Provenance, +100 (2026-10-05: signatures, rights evidence, last posted, DOIs); BUDGETED (+60 busiest state, 21.9.1): 250 + the machine readers (~136) + the rights-files and top-family rows (~40) + the wrapped action row (~28)
