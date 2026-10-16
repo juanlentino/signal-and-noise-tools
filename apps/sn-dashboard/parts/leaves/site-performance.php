@@ -13,7 +13,8 @@
  * 2026-10-16 (the leaf anatomy, docs/kit-leaf-anatomy.md): one status line
  * (speculative loading, the outbound calls' failures), the intro in How this
  * works, the outbound-call ledger as the working content, and the setting and
- * its Profile as two folds of one Setup card.
+ * its Profile as two folds of one Setup card. Since 2026-10-16 the status card
+ * and the Setup card share one row above the ledger.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -143,8 +144,9 @@ function performance_setup_html( array $s ) {
 }
 
 /**
- * The leaf: the status card, the outbound calls from admin pages at full
- * width (the parts file), then the Setup card.
+ * The leaf: the status card and the Setup card side by side in one row (the
+ * state and the settings that set it, together), then the outbound calls
+ * from admin pages at full width (the parts file).
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -153,7 +155,7 @@ function paint_site_performance( array $ctx ) {
 	unset( $ctx );
 	$s = performance_state();
 	$d = function_exists( 'sn_httpdiag_visible' ) ? performance_slow_calls() : null;
-	return performance_status_html( $s, $d ) . performance_slow_calls_html( $d ) . performance_setup_html( $s );
+	return \snt_kit_grid( array( performance_status_html( $s, $d ), performance_setup_html( $s ) ) ) . performance_slow_calls_html( $d );
 }
 
 add_filter(
