@@ -74,6 +74,9 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no scan: no wp-admin markup s
 ok( false !== strpos( $kit, 'no scan' ) && false !== strpos( $kit, 'Run scan' ), 'no scan: the hero reads "no scan" and the button reads "Run scan"' );
 ok( false === strpos( $kit, 'Findings' ) && false === strpos( $kit, 'Also scanned' ), 'no scan: no section below the form renders (mirrors the classic early return)' );
 ok( array() === snt_leaf_folds( $kit ), 'no scan: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+// 2026-10-16 leaf anatomy (docs/kit-leaf-anatomy.md): the one-button scan
+// form is the compact inline form, not a full-width row with a footer rule.
+ok( 1 === preg_match( '/<os-section heading="Run scan"[^>]*><p class="snt-prose">[^<]*<\/p><os-form class="snt-form snt-form--inline"[^>]*submit-label="Run scan"/', $kit ), 'anatomy: Run scan is a compact inline form under its sentence' );
 
 // ── State 2: a rich scan. Two health-surfaced faults (one with a hidden-row
 // remainder), one health-surfaced passing check, one skipped check, plus one

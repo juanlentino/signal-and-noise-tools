@@ -32,6 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/monitoring-machine-readers-parts.php';
 require_once __DIR__ . '/monitoring-machine-readers-health.php';
 require_once __DIR__ . '/monitoring-machine-readers-evidence.php';
+require_once __DIR__ . '/monitoring-machine-readers-setup.php'; // Edge sensor and Sensor settings, Setup folds
 
 /**
  * The way to the readings, in S&N Analytics, with visible text.
@@ -47,7 +48,8 @@ function machine_readers_analytics_links() {
 }
 
 /**
- * The hero: the sensor pipeline pills, then the way to the readings.
+ * The hero: the sensor pipeline pills as one status line, the way to the
+ * readings on its right.
  *
  * @param array<string,mixed> $d machine_readers_data() output.
  * @return string
@@ -55,13 +57,13 @@ function machine_readers_analytics_links() {
 function machine_readers_hero_html( array $d ) {
 	$pills = function_exists( '\snt_mr_sensor_pills' ) ? \snt_mr_sensor_pills( $d['info'], $d['status'], $d['result'] ) : array();
 	$out   = '<p class="snt-hint">' . \snt_kit_esc( __( 'Edge sensor → Analytics Engine → S&N Analytics. Presence checks only, secret values are never shown. Who reads, for what, and how each count is known are read in S&N Analytics.', 'signal-and-noise-tools' ) ) . '</p>';
-	return \snt_kit_section( __( 'Sensor status', 'signal-and-noise-tools' ), $out . machine_readers_pills_html( $pills ) . machine_readers_analytics_links() );
+	return \snt_kit_section( __( 'Sensor status', 'signal-and-noise-tools' ), $out . machine_readers_pills_html( $pills, machine_readers_analytics_links() ) );
 }
 
 /**
  * The leaf: configuration only. The sensor's status, the two Site Health
- * verdicts, the worker readout beside the settings form, and the monthly
- * rights evidence (it posts its own forms).
+ * verdicts, the Setup card (worker readout, settings form) beside the
+ * monthly rights evidence (it posts its own forms).
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -75,16 +77,14 @@ function paint_monitoring_machine_readers( array $ctx ) {
 		unset( $params['sn_mr_reread'] );
 		$state->set( 'params', $params );
 	}
-	$d      = machine_readers_data( $reread );
-	$edge   = \snt_kit_section(
-		__( 'Edge sensor', 'signal-and-noise-tools' ),
-		machine_readers_edge_readout_html( $d['info'] ),
-		__( 'The deployed rights-signals Worker, from its version endpoint. Cached for up to 15 minutes, so a fresh deploy can take that long to appear here; Re-read now asks it again.', 'signal-and-noise-tools' )
-	);
+	$d = machine_readers_data( $reread );
+	// 2026-10-16 leaf anatomy (docs/kit-leaf-anatomy.md): the status line
+	// leads, then the two verdicts, then the Setup card (the worker readout
+	// and the settings, folds that open while unread or tokenless) beside the
+	// monthly rights evidence, whose month buttons are compact forms.
 	return machine_readers_hero_html( $d )
 		. machine_readers_health_row_html()
-		. \snt_kit_grid( array( $edge, machine_readers_settings_html( $d ) ) )
-		. machine_readers_rights_evidence_html();
+		. \snt_kit_grid( array( machine_readers_setup_html( $d ), machine_readers_rights_evidence_html() ) );
 }
 
 add_filter(

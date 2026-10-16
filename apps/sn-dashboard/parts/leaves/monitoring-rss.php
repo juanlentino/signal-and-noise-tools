@@ -30,6 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/monitoring-rss-parts.php';
+require_once __DIR__ . '/monitoring-rss-setup.php'; // the status line and the Setup card
 
 /**
  * This leaf's own form: hidden `sn_rss_action` + the RSS module's own nonce —
@@ -38,7 +39,7 @@ require_once __DIR__ . '/monitoring-rss-parts.php';
  *
  * @param string              $sn_rss_action The handler's action name.
  * @param string              $inner         Painted fields.
- * @param array<string,mixed> $opts          submit, confirm, danger.
+ * @param array<string,mixed> $opts          submit, confirm, confirm_title, confirm_label, danger, inline (the compact one-button form, `.snt-form--inline`).
  * @return string
  */
 function rss_form( $sn_rss_action, $inner, array $opts = array() ) {
@@ -48,7 +49,7 @@ function rss_form( $sn_rss_action, $inner, array $opts = array() ) {
 	return \snt_kit_tag(
 		'os-form',
 		array(
-			'class'             => 'snt-form',
+			'class'             => empty( $opts['inline'] ) ? 'snt-form' : 'snt-form snt-form--inline',
 			'os-action'         => 'post',
 			'os-arg-pipeline'   => 'rss',
 			'submit-label'      => (string) ( $opts['submit'] ?? __( 'Save', 'signal-and-noise-tools' ) ),
@@ -99,20 +100,17 @@ function paint_monitoring_rss( array $ctx ) {
 	$params = is_array( $params ) ? $params : array();
 	$flash  = isset( $params['sn_rss_ok'] ) ? (string) $params['sn_rss_ok'] : '';
 
-	// Two rows, paired by height (#1573, live at 1581px: Activity 189,
-	// Maintenance 177, Settings 507, Recent requests 507). Activity's three
-	// age windows sit beside the purge-older-than-days form, both age-windowed
-	// views of the same log; the settings form sits beside the ledger it is
-	// read against: flip the switch and watch rows land, the event name is the
-	// one the rows post under, retention against the oldest stamp. Settings
-	// beside Maintenance (507 vs 177) left a hole under the purge form.
+	// 2026-10-16 leaf anatomy (docs/kit-leaf-anatomy.md): one row. Activity
+	// leads with the status line, the Setup card (Settings and Maintenance,
+	// each a fold whose closed line is the setting) under it, beside the
+	// Recent requests ledger they are read against (#1573: the ledger
+	// measured 507px live, the settings form beside it the same).
 	$out  = rss_flash_html( $flash );
 	$out .= rss_pair(
-		\snt_kit_section( __( 'Activity', 'signal-and-noise-tools' ), rss_activity_html( $state['stats'] ) ),
-		rss_maintenance_html( $state['settings'] )
-	);
-	$out .= rss_pair(
-		\snt_kit_section( __( 'Settings', 'signal-and-noise-tools' ), rss_settings_form_html( $state['settings'], $tab ) . rss_reset_form_html() ),
+		\snt_kit_stack(
+			\snt_kit_section( __( 'Activity', 'signal-and-noise-tools' ), rss_status_html( $state['settings'] ) . rss_activity_html( $state['stats'] ) )
+			. rss_setup_html( $state['settings'], $tab )
+		),
 		\snt_kit_section( __( 'Recent requests', 'signal-and-noise-tools' ), rss_recent_table_html( $state['recent'] ) )
 	);
 	return $out;

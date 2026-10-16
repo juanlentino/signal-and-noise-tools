@@ -46,6 +46,14 @@ ok( false !== strpos( $kit, 'https://example.test/my-door' ), 'the current login
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, 'Module active' ), 'the active state paints a success notice' );
 ok( false !== strpos( $kit, '<os-code' ) && false !== strpos( $kit, 'SN_LOGIN_BYPASS' ), 'the emergency unlock callout survives as kit code' );
 
+// ── 2026-10-16, the leaf anatomy (docs/kit-leaf-anatomy.md).
+$line = strpos( $kit, '<div class="snt-status-line">' );
+ok( false !== $line && 1 === preg_match( '/<div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success" title="Module active">Active<\/os-badge>/', $kit ), 'the leaf leads with one status line: the module state as a chip, its title the classic status title' );
+$how = strpos( $kit, '<os-disclosure heading="How this works" hint="A custom slug stands in for /wp-login.php."' );
+ok( false !== $how && $line < $how && false !== strpos( substr( $kit, $how ), 'Designed to mask the WordPress login surface' ) && false === strpos( substr( $kit, 0, $how ), 'Designed to mask' ), 'the module explained is a How this works fold under the status line, not the leaf\'s lead paragraph' );
+ok( false !== strpos( $kit, '<os-disclosure heading="Emergency unlock" hint="No unlock constant set"' ) && false !== strpos( $kit, 'data-snt-fold="emergency-unlock" data-snt-open="0"' ), 'Emergency unlock is a Setup fold whose closed summary says no constant is set, and it starts closed' );
+ok( false === strpos( $kit, 'tone="success"><b>Module active' ), 'the active state is no longer a success notice box (its sentence is the hint under the line)' );
+
 // ── Escaping: a hostile slug never reaches the markup raw.
 $GLOBALS['__slug'] = '"><script>x</script>';
 $kit = snt_leaf_paint( 'security', 'login' );
@@ -77,12 +85,14 @@ ok( false !== strpos( $kit, 'disabled' ) && 1 === substr_count( $kit, 'SN_LOGIN_
 ok( false !== strpos( $kit, 'value="pinned" disabled' ) && false !== strpos( $classic, 'value="pinned" disabled' ) && false !== strpos( $kit, 'https://example.test/pinned' ), 'locked: both surfaces show the constant\'s slug and its URL, not the saved setting (PR #2015 review)' );
 ok( false !== strpos( $kit, '<div class="snt-form snt-form--rows"><os-field-row label="Slug">' ) && 1 === preg_match( '/\.snt-app \.snt-form--rows \{\s*display: grid;\s*gap: 14px;/', (string) file_get_contents( SNT_PATH . 'assets/os-app.css' ) ), 'locked: the rows keep the form\'s width and its 14px gap without a form' );
 ok( 1 === preg_match( '/<os-field-row label="Slug"><os-text-field type="text" value="[^"]*" disabled><\/os-text-field><\/os-field-row><p class="snt-hint">Locked\./', $kit ) && false !== strpos( $kit, '<os-field-row label="Current login URL"><os-button class="snt-link snt-link--url" variant="link" os-action="door"' ) && false === strpos( $kit, 'snt-field-static' ), '#1600: the locked slug and the login URL are os-field-rows (the music leaf\'s locked-field shape), no hand-rolled .snt-field-static div' );
+ok( false !== strpos( $kit, '<os-disclosure heading="Emergency unlock" hint="SN_LOGIN_SLUG is set"' ) && false !== strpos( $kit, 'data-snt-fold="emergency-unlock" data-snt-open="1"' ) && false !== strpos( $kit, '>Slug pinned in wp-config.php<' ), 'locked: the unlock fold opens and names the constant, and the status line says the slug is pinned' );
 ok( false !== strpos( $kit, 'Option 2: disable' ) && false !== strpos( $kit, 'Restores /wp-login.php' ) && false !== strpos( $kit, 'SN_LOGIN_SLUG' ), 'both emergency-unlock options survive, labeled' );
 
 // ── Bypassed state (SN_LOGIN_BYPASS constant set — one-way, so it must run last).
 define( 'SN_LOGIN_BYPASS', true );
 $kit = snt_leaf_paint( 'security', 'login' );
 ok( false !== strpos( $kit, 'Module bypassed' ) && false !== strpos( $kit, '>Bypassed<' ) && false !== strpos( $kit, 'tone="warning"' ), 'the bypassed state paints a warning notice with the Bypassed badge' );
+ok( 1 === preg_match( '/<div class="snt-status-line"><os-cluster gap="8"><os-badge tone="warning" title="Module bypassed">Bypassed<\/os-badge>/', $kit ) && false !== strpos( $kit, '<os-notice tone="warning"' ) && false !== strpos( $kit, 'hint="SN_LOGIN_BYPASS is set"' ) && false !== strpos( $kit, 'data-snt-fold="emergency-unlock" data-snt-open="1"' ), 'bypassed: the warning stays an open notice under an amber chip, and the unlock fold opens naming the bypass' );
 $classicB = snt_leaf_classic_html( 'sn_admin_render_login_section' );
 ok( false !== strpos( $kit, 'https://example.test/wp-login.php' ) && false === strpos( $kit, 'https://example.test/pinned' ) && false !== strpos( $classicB, 'https://example.test/wp-login.php' ) && false === strpos( $classicB, 'Bookmark this URL' ), 'bypassed: both surfaces give /wp-login.php, the URL that works, not the slug (PR #2015 review)' );
 

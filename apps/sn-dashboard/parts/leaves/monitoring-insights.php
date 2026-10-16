@@ -24,6 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/monitoring-insights-parts.php';
+require_once __DIR__ . '/monitoring-insights-setup.php'; // the Setup card (weekly scan)
 
 /**
  * Two boxes on one row, the tags_pair() shape (content-tags-parts.php): a
@@ -52,23 +53,28 @@ function paint_monitoring_insights( array $ctx ) {
 	$last     = snt_insights_last_scan();
 	$ai_ready = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
 
-	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Cross-system synthesis: reads your first-party analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.', 'signal-and-noise-tools' ) ) . '</p>';
+	// 2026-10-16 leaf anatomy (docs/kit-leaf-anatomy.md): the leaf opens on
+	// its working row; the intro prose closes the Run Analysis card as a How
+	// this works fold, and Settings is a Setup card of one fold.
+	$how = \snt_kit_how_fold(
+		__( 'One AI call reads four systems and returns open questions, or none.', 'signal-and-noise-tools' ),
+		'<p class="snt-prose">' . \snt_kit_esc( __( 'Cross-system synthesis: reads your first-party analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.', 'signal-and-noise-tools' ) ) . '</p>'
+	);
 	// #1573: rows of comparable height, measured live at 1581px. Two columns
 	// stacked the three readouts to 1170 against 393 on the left. Row one is
 	// the manual scan, its status and the weekly one: Run Analysis (223),
-	// Scan status (129, 15.3.1) and Settings (222) three across (2026-10-16:
-	// as a pair, Scan status stood alone at full width under it). The
-	// recommendation cards take the full width; AI usage & spend (494) sits
-	// beside the Prompt-cache probe (371), the spend beside what caching
+	// Scan status (129, 15.3.1) and Setup (was Settings, 222) three across
+	// (2026-10-16: as a pair, Scan status stood alone at full width under it).
+	// The recommendation cards take the full width; AI usage & spend (494)
+	// sits beside the Prompt-cache probe (371), the spend beside what caching
 	// would do to it.
-	return $intro
-		. \snt_kit_grid(
-			array(
-				insights_run_form_html( $last, $ai_ready ),
-				\snt_kit_section( __( 'Scan status', 'signal-and-noise-tools' ), insights_status_html( $last ) ),
-				insights_settings_html(),
-			)
+	return \snt_kit_grid(
+		array(
+			insights_run_form_html( $last, $ai_ready, $how ),
+			\snt_kit_section( __( 'Scan status', 'signal-and-noise-tools' ), insights_status_html( $last ) ),
+			insights_settings_html(),
 		)
+	)
 		. insights_recommendations_html( $last )
 		. insights_pair( insights_usage_html(), insights_cache_probe_html() );
 }

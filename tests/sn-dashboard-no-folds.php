@@ -35,7 +35,15 @@ $earned = array(
 	'apps/sn-dashboard/parts/leaves/content-scan-parts.php' => 'Content › Block migrations and Pattern adoption, How this works (snt_kit_how_fold(), 2026-10-16 anatomy): what the scanner looks for, reference that was a box of its own beside the status; its summary states the mechanism (structural, no AI, reviewed per row). The count, the scan button, when it ran, the queue and how a row is worked (the queue\'s description, beside Dismiss) stay open',
 	'apps/sn-dashboard/parts/leaves/ai-models-budget-status.php' => 'AI › Models & budget, How this works (snt_kit_how_fold(), 2026-10-16 anatomy): the leaf\'s intro paragraph, reference; its summary states the rule (one budget, Copilot and agents outside it). The cap notice and the billing notice stay open on their boxes, and the status line repeats them',
 	'apps/sn-dashboard/parts/leaves/ai-models-budget-setup.php' => 'AI › Models & budget, Setup (snt_kit_setup_card(), 2026-10-16 anatomy): the whole ai_settings_save form (models, budget, Jev credit) is setup, changed once in a while; its summary states the models and the cap. The Workers AI token fold (a keyring row this leaf only reads) opens while it is not set',
-	'inc/openstation-kit-anatomy.php' =>'The leaf anatomy helpers (2 calls: snt_kit_setup_card() folds each setting, snt_kit_how_fold() folds explanatory prose): they only paint folds a leaf asks for, and every leaf that calls one is listed here on its own line',
+	'apps/sn-dashboard/parts/leaves/monitoring-insights.php' => 'Measurement › Insights\' How this works (snt_kit_how_fold()): reference, what one scan reads and returns; its summary states it in a sentence; the no-scan warning, the AI-unavailable notice and the scan status stay open in their cards',
+	'apps/sn-dashboard/parts/leaves/monitoring-insights-setup.php' => 'Measurement › Insights\' Setup card (snt_kit_setup_card(), one fold): the weekly scan is a setting changed once in a while; its summary is its value, On or Off',
+	'apps/sn-dashboard/parts/leaves/monitoring-rss-setup.php' => 'Measurement › RSS\' Setup card (snt_kit_setup_card()): Settings and Maintenance are setup, changed once in a while; Settings\' summary is tracking, event and retention, Maintenance\'s the daily prune; Settings opens while its required event name is empty. Tracking off is a warning chip on the open status line',
+	'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-setup.php' => 'Measurement › Machine readers\' Setup card (snt_kit_setup_card()): the worker readout is reference and the sensor settings setup; summaries are the worker version and the token state; each opens while unread or tokenless. Every pill and its warning stay open on the status line',
+	'apps/sn-dashboard/parts/leaves/monitoring-search-console-setup.php' => 'Measurement › Search Console\'s Setup card (snt_kit_setup_card(), one fold): the credential form is used once per key; its summary is the credential\'s state; open until a key parses. The onboarding steps and the "no longer parses" warning stay open in the readout box',
+	'inc/openstation-kit-anatomy.php' => 'The leaf anatomy helpers (2 calls: snt_kit_setup_card() folds each setting, snt_kit_how_fold() folds explanatory prose): they only paint folds a leaf asks for, and every leaf that calls one is listed here on its own line',
+	'apps/sn-dashboard/parts/leaves/security-login.php'       => 'Security › Login URL (2 calls): How this works folds the module explained (reference; the state is the status line, a dormant or bypassed module keeps its open warning), and the Setup card\'s Emergency unlock folds the wp-config.php constants (reference for a lockout; its summary names the constant that is set, open while one is)',
+	'apps/sn-dashboard/parts/leaves/site-performance.php'     => 'Site › Performance (2 calls): How this works folds the Speculation Rules intro; the Setup card folds the setting (summary On or Off, changed once in a while) and the Profile reference (summary its mode). The state is the status line; failed outbound calls stay an open warning on the ledger',
+	'apps/sn-dashboard/parts/leaves/security-audit-log.php'   => 'Security › Audit log: the Setup card\'s Retention folds the one setting (summary the window in days, changed once in a while); the glance, the counter timeline, the logins ledger, lockouts and Prune now stay open',
 	'apps/sn-dashboard/parts/leaves/connections-cron.php'     => 'Scheduled events: a reference list (91 events, 5,473px open); the summary counts events, overdue and unhandled; open when one is overdue or unhandled, when overdue cannot be read, or while a filter is typed',
 );
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -43,7 +51,11 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 $root  = dirname( __DIR__ );
 $files = array( $root . '/inc/north-star-settings.php', $root . '/inc/openstation-kit-anatomy.php' );
 // How many fold calls a file may make: one, unless named here.
-$calls = array( 'inc/openstation-kit-anatomy.php' => 2 );
+$calls = array(
+	'inc/openstation-kit-anatomy.php'                     => 2,
+	'apps/sn-dashboard/parts/leaves/security-login.php'   => 2,
+	'apps/sn-dashboard/parts/leaves/site-performance.php' => 2,
+);
 $it    = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/apps/sn-dashboard', FilesystemIterator::SKIP_DOTS ) );
 foreach ( $it as $file ) {
 	if ( 'php' === $file->getExtension() ) {
