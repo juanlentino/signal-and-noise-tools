@@ -8,7 +8,7 @@
  * with array_replace_recursive(), which keeps a present-but-empty key
  * rather than falling through to the caller's default — so
  * sn_setting('identity.job_title', 'Music Producer') returned '' forever
- * after one accidental blank save (inc/seo-schema.php:74-83 then emits
+ * after one accidental blank save (`sn_schema_person()` then emits
  * "jobTitle": "" / "knowsAbout": [] into the Person schema).
  *
  * Fix: sn_settings_save() omits these two keys from the identity subtree

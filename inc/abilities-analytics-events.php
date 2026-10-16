@@ -49,7 +49,7 @@ function snt_ability_get_analytics_top_content( $input ) {
 		}
 		list( $range, $from, $to ) = snt_analytics_resolve_window( (string) $input['range'] );
 	} else {
-		// The site's own day, like the dashboard (was UTC until Unreleased).
+		// The site's own day, like the dashboard (was UTC until 20.4.0).
 		list( $from, $to ) = snt_analytics_range_dates( $days );
 	}
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * Likely automated over an analytics range (Unreleased): the reader of the
+ * Likely automated over an analytics range (2026.10.1): the reader of the
  * nightly per-day bot-signal store (inc/analytics-bot-signals-by-day.php) and
  * the schema get-analytics-summary and its remote twin share. OBSERVE-ONLY:
  * nothing is subtracted from any count, and the basis is `inferred`.

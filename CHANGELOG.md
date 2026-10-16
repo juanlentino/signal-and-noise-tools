@@ -14,6 +14,12 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **Six more large modules split under the house line cap** (internal only; nothing changes on screen or in behavior). `inc/schedule-engine.php`, `inc/openstation-host.php`, `inc/provenance-admin.php`, `inc/admin-bar.php`, `inc/abilities-system.php` and `inc/admin-tab-dashboard.php` each become a shell plus three `*-parts.php` files, a pure move: the shell's original lines plus each part minus its header rebuild the old file byte for byte, hooks keep their order, and every function is still declared once. Source-reading tests read through five new by-name helpers in `tests/lib/inc-population.php`, the absence pins among them now fail on an empty read, and the `PreparedSQL` exclusion that named `inc/schedule-engine.php` now names the two parts that need it.
+- **Internal only: dead code and stale comments cleared.** Two uncalled helpers removed (`snt_ev_rights_size()`, `snt_mr_strip_figures()`), two unused `admin.css` rules (`.sn-notice-spacing`, `.sn-rt-snippet`), comments that cited a line number now name the function, and `Unreleased` markers on long-released code now carry the version that shipped it. No behavior, markup or copy changes.
+
+### Fixed
+
+- SN Traffic: the change against the prior 14 days no longer paints green (or red) when 25% or more of the window's scored visitor-days are likely automated. It keeps its arrow and figure in the muted text color, so a rise that is half likely automated no longer reads as good news. Under 25%, or when likely automated is not measured, the existing rule stands. The payload carries no human-only change, so the tone follows the share.
+- SN Systems: the headline now names what to look at beside the count, using the amber row's own words ("1 to look at: 5xx Oct 15"). With two or more it names the first and adds "+N more".
 
 ## [2026.10.23] - 2026-10-16 — Widgets grow to fit their content, roadmap board kept in sync, OpenStation 1.1.15 adopted
 

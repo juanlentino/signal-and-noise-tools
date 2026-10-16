@@ -15,7 +15,7 @@
  * top_content lists published pages, so neither is floored.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.4.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

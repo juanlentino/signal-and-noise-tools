@@ -196,7 +196,7 @@ function sn_og_image_url_for_post( $post ) {
  * @return string
  */
 function sn_og_card_dek_source( $post ) {
-	// Unreleased: a PAGE's card says what its meta description says
+	// 20.4.0: a PAGE's card says what its meta description says
 	// (override, then excerpt, then the route copy), so the two can never
 	// disagree. The resume card printed a stale "Twenty-plus years" excerpt
 	// under a "15+ years" title while the description, an override, said 15+.
@@ -243,7 +243,7 @@ function sn_og_card_dek_source( $post ) {
 /**
  * The card's footer line: reading time for a note, nothing for a page. A
  * resume or a landing page is not read start to finish, and "6 MIN READ" on
- * the resume card read as a typo (Unreleased).
+ * the resume card read as a typo (2026.10.18).
  *
  * @param object $post
  * @return string

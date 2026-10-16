@@ -7,7 +7,7 @@
  * nothing else reaches the worker; it never composes.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.3.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

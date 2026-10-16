@@ -8,7 +8,7 @@
  * functions it calls (inc/rights-evidence-dry-run.php) cannot.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

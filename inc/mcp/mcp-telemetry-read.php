@@ -199,7 +199,7 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 			$earliest = $first;
 		}
 
-		// Schema-error rows carry an EMPTY tool_name (mcp-tools.php:436): the
+		// Schema-error rows carry an EMPTY tool_name (the `schema_error` branch of the tools/call handler, inc/mcp/mcp-tools-call-parts.php): the
 		// call never resolved to a tool. Real traffic, counted in the total,
 		// never attributed to a tool (that would invent a caller).
 		if ( '' === $name ) {

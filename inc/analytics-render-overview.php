@@ -147,7 +147,7 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 	if ( is_array( $engaged ) && null !== ( $engaged['current'] ?? null ) ) {
 		$cards[] = array( 'l' => 'Engaged', 'n' => (int) $engaged['current'] . '%', 'delta' => ( isset( $engaged['dir'] ) ? $engaged : null ) );
 	}
-	// Unreleased: beside the presumed-human figures, the beacon's likely
+	// 2026.10.1: beside the presumed-human figures, the beacon's likely
 	// automated score (inferred, never subtracted); "not measured", never 0.
 	$la = function_exists( 'snt_analytics_likely_automated_card' ) ? snt_analytics_likely_automated_card( $totals['likely_automated'] ?? null ) : null;
 	if ( null !== $la ) {

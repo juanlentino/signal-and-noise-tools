@@ -214,7 +214,7 @@ add_action( 'wp_abilities_api_init', function() {
 					),
 				),
 				'error'          => array( 'type' => array( 'string', 'null' ) ),
-				// Unreleased: present ONLY when the call passed series: "day".
+				// 23.5.0: present ONLY when the call passed series: "day".
 				'daily'                  => array(
 					'type'        => 'array',
 					'description' => 'Present only with series: "day". One entry per UTC date in the window, oldest first, zero-filled: a date with no reads is zeros and empty lists, not a gap. The window is rolling (now minus `days`), so it touches days+1 dates and the first and last carry partial: true. Each field sums to its window figure. Dates before the sensor held data also read zero; days_covered says how many dates it holds. When `truncated` is true the per-day breakdowns may be partial, and the aggregate keeps its oldest rows first, so the newest days lose rows first. No response status is recorded by the sensor, so there is no per-status split.',

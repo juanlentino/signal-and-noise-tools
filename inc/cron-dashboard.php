@@ -87,8 +87,8 @@ function snt_cron_sn_owned_hooks() {
 		array( 'SN_ARCHIVE_CONFIRM_HOOK', 'sn_archive_confirm_hourly' ), // hourly: did the Internet Archive capture what it was asked to.
 		array( 'SN_AI_MODELS_HOOK', 'snt_ai_models_refresh' ), // 21.0.0: daily read of what the AI providers serve, for the model pickers.
 		array( 'SNT_PDF_ENGINE_HOOK', 'snt_pdf_engine_check' ), // 20.6.0: daily latest-Dompdf read the watch consumes.
-		array( 'SNT_ALERTS_HOOK', 'snt_alerts_hourly' ), // Unreleased: hourly spike and break alerts; always scheduled, the toggle is read in the callback.
-		array( 'SN_PUBLIC_STATS_MACHINES_HOOK', 'sn_public_stats_machines_refresh' ), // Unreleased: hourly /stats machine-reads snapshot, off the render path.
+		array( 'SNT_ALERTS_HOOK', 'snt_alerts_hourly' ), // 20.8.0: hourly spike and break alerts; always scheduled, the toggle is read in the callback.
+		array( 'SN_PUBLIC_STATS_MACHINES_HOOK', 'sn_public_stats_machines_refresh' ), // 22.0.0: hourly /stats machine-reads snapshot, off the render path.
 		// v13.68.0 — daily inbound-link pass for freshly published notes. Always-on.
 		array( 'SN_INBOUND_PASS_HOOK', 'sn_inbound_pass_daily' ),
 		array( 'SN_INBOUND_PASS_PUBLISH_HOOK', 'sn_inbound_pass_after_publish' ), // v13.69.0 — single event after a publish; on-demand.

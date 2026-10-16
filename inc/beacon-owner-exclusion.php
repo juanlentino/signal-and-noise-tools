@@ -32,7 +32,7 @@ function sn_beacon_owner_excluded( $user_roles, $exclude_roles ) {
 	return (bool) array_intersect( (array) $user_roles, $exclude_roles );
 }
 
-// SN Traffic Lanes (Unreleased, review round 1): the `sn_beacon_enabled`
+// SN Traffic Lanes (2026.10.18, review round 1): the `sn_beacon_enabled`
 // suppression for excluded roles is gone. Logged-in owner views now reach the
 // edge, where the analytics Worker keeps them out of every reader figure.
 

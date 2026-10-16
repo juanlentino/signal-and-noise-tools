@@ -14,7 +14,7 @@
  * left out on purpose (no section exists; the others narrow too far).
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.4.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

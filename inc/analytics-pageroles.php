@@ -267,7 +267,7 @@ function sn_analytics_top_exit_pages( $from, $to, $limit = 25 ) {
  * unproven AE shape in this module. Stubbed tests cannot catch a 422 — the owner
  * MUST run this query once against live AE after deploy (v5.3.0 lesson).
  *
- * Unreleased: the worker folds a self-referral to blob3 = '', so that clause
+ * 20.8.0: the worker folds a self-referral to blob3 = '', so that clause
  * counted every internal click as a landing. sn_analytics_not_internal_click_sql()
  * drops them from the worker 1.23.0 cutover on (double10 = 1); earlier rows
  * cannot be told apart and count as before. The same live-AE gate applies to

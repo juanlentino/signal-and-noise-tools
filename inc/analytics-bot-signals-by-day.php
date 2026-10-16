@@ -1,7 +1,7 @@
 <?php
 /**
  * Beacon bot signals per UTC day, the store behind the "likely automated"
- * count for any analytics range (Unreleased; its reader and schema are in
+ * count for any analytics range (2026.10.1; its reader and schema are in
  * inc/analytics-likely-automated.php).
  *
  * The nightly readout (inc/analytics-bot-signals.php) is one 14-day figure;

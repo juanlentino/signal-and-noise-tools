@@ -3,7 +3,7 @@
  * S&N Dashboard — Monitoring → Analytics, painted from the kit.
  *
  * The classic leaf (`snt_analytics_render_settings_section()`,
- * inc/analytics-admin.php:584, assembled from the small renderers in
+ * in inc/analytics-admin-settings-parts.php, assembled from the small renderers in
  * inc/analytics-render-settings.php) is a settings hub: a five-pill pipeline
  * status strip, five writable settings (Credentials, Collector endpoint,
  * Exclude my own visits, Engine tuning, Session funnels: each a native

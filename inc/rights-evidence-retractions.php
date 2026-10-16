@@ -9,7 +9,7 @@
  * published; tests/rights-evidence.php pins the whole map by hash.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.1.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

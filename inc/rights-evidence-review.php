@@ -13,7 +13,7 @@
  * (inc/rights-evidence-post-now.php). Nothing here fetches or posts.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.3.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

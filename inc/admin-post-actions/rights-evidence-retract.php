@@ -7,7 +7,7 @@
  * the worker; the text is fixed in code, never posted by the form.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.1.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
