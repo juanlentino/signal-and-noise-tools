@@ -166,7 +166,8 @@
 		<exclude-pattern>*/inc/edge-rollup-upsert-parts.php</exclude-pattern>
 		<exclude-pattern>*/inc/edge-rollup-run-parts.php</exclude-pattern>
 		<exclude-pattern>*/inc/edge-rollup-errors-parts.php</exclude-pattern>
-		<exclude-pattern>*/inc/schedule-engine.php</exclude-pattern>
+		<exclude-pattern>*/inc/schedule-engine-store-parts.php</exclude-pattern>
+		<exclude-pattern>*/inc/schedule-engine-query-parts.php</exclude-pattern>
 	</rule>
 
 	<!--

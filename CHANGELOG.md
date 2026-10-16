@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Six more large modules split under the house line cap** (internal only; nothing changes on screen or in behavior). `inc/schedule-engine.php`, `inc/openstation-host.php`, `inc/provenance-admin.php`, `inc/admin-bar.php`, `inc/abilities-system.php` and `inc/admin-tab-dashboard.php` each become a shell plus three `*-parts.php` files, a pure move: the shell's original lines plus each part minus its header rebuild the old file byte for byte, hooks keep their order, and every function is still declared once. Source-reading tests read through five new by-name helpers in `tests/lib/inc-population.php`, the absence pins among them now fail on an empty read, and the `PreparedSQL` exclusion that named `inc/schedule-engine.php` now names the two parts that need it.
+
 ## [2026.10.23] - 2026-10-16 — Widgets grow to fit their content, roadmap board kept in sync, OpenStation 1.1.15 adopted
 
 ### Changed

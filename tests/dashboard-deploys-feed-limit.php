@@ -29,7 +29,8 @@ $pass = 0;
 $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
 
-$src = (string) file_get_contents( __DIR__ . '/../inc/admin-tab-dashboard.php' );
+require_once __DIR__ . '/lib/inc-population.php'; // the module and its three parts files (split 2026-10-16)
+$src = snt_test_admin_tab_dashboard_src();
 
 echo "admin-tab-dashboard.php — runs feed limit vs. downstream slice (#1208)\n";
 

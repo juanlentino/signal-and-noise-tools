@@ -1925,8 +1925,20 @@ $purge_free = array(
 	'inc/dash-widgets.php'                                            => 'signal-noise/purge-all-caches',
 	'assets/desktop-mode-widget-health.js'                            => 'Purge all caches', // Quick Actions' buttons live here now
 );
+// Three modules are a shell plus three parts files (split 2026-10-16): each is
+// read whole through its by-name helper, and every read is floored so a missed
+// file cannot pass an absence pin.
+$purge_read = static function ( $file ) {
+	$split = array(
+		'inc/admin-tab-dashboard.php' => 'snt_test_admin_tab_dashboard_src',
+		'inc/admin-bar.php'           => 'snt_test_admin_bar_src',
+		'inc/abilities-system.php'    => 'snt_test_abilities_system_src',
+	);
+	return isset( $split[ $file ] ) ? $split[ $file ]() : (string) file_get_contents( __DIR__ . '/../' . $file );
+};
 foreach ( $purge_free as $purge_file => $purge_needle ) {
-	ok( false === strpos( (string) file_get_contents( __DIR__ . '/../' . $purge_file ), $purge_needle ), "$purge_file paints no purge button ($purge_needle)" );
+	$purge_src = $purge_read( $purge_file );
+	ok( '' !== $purge_src && false === strpos( $purge_src, $purge_needle ), "$purge_file paints no purge button ($purge_needle)" );
 }
 // The Cloudflare tab is read with its parts files (split 2026-10-15), floored so
 // a missed read cannot pass this absence pin.
@@ -1940,7 +1952,7 @@ $purge_kept = array(
 	'inc/admin-post-handler.php'     => "'purge_caches'               => 'sn_handle_purge_caches'",
 );
 foreach ( $purge_kept as $purge_file => $purge_needle ) {
-	ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../' . $purge_file ), $purge_needle ), "$purge_file still carries the purge command ($purge_needle)" );
+	ok( false !== strpos( $purge_read( $purge_file ), $purge_needle ), "$purge_file still carries the purge command ($purge_needle)" );
 }
 // The series is not lost, it is elsewhere. If these stop being true the
 // removal above has destroyed evidence rather than relocated it.
