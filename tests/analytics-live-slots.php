@@ -128,6 +128,15 @@ $aged = sn_analytics_live_slots_window( $store, 24, $cur + 86400 );
 ok( array() === array_filter( $aged, static fn( $s ) => $s['t'] < $cur ), 'a day later every one of them is gone on read, even before a write prunes it' );
 ok( 1 === count( sn_analytics_live_slots_window( array( $cur - 7300 => array(), $cur - 3500 => array() ), 1, $cur ) ), 'hours_back 1 is the last hour only' );
 
+echo "\nGroup: a slot is stored once, and expires at rest\n";
+$GLOBALS['o'][ SN_ANALYTICS_LIVE_SLOTS_OPT ] = array( $last => array( 'readers' => 2, 'classes' => array( 'human' => 2, 'suspect' => 0, 'bot' => 99 ), 'pages' => array(), 'sources' => array() ) );
+sn_analytics_live_slots_step( $hour );
+ok( 99 === $GLOBALS['o'][ SN_ANALYTICS_LIVE_SLOTS_OPT ][ $last ]['classes']['bot'] && isset( $GLOBALS['o'][ SN_ANALYTICS_LIVE_SLOTS_OPT ][ $cur - 600 ] ), 'a slot already stored is never overwritten by a later read; the new ones are added' );
+$GLOBALS['o'][ SN_ANALYTICS_LIVE_SLOTS_OPT ] = array( time() - 86400 - 300 => array( 'readers' => 1 ), time() - 600 => array( 'readers' => 3 ) );
+$read = sn_analytics_live_slots( 24 );
+ok( 1 === count( $read ) && 1 === count( $GLOBALS['o'][ SN_ANALYTICS_LIVE_SLOTS_OPT ] ) && 3 === reset( $GLOBALS['o'][ SN_ANALYTICS_LIVE_SLOTS_OPT ] )['readers'], 'a read deletes a slot past the day from the option, not only hides it, even with no refresh since' );
+sn_analytics_live_slots_step( $hour );
+
 echo "\nGroup: live-now with no argument is exactly the live answer\n";
 $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array( 'human' => 3, 'bot' => 1 ), 'views_today' => 4, 'fetched' => 99, 'pages' => array(), 'hour' => $hour, 'sources' => array(), 'surge' => null );
 $plain = sn_analytics_live_payload( true );

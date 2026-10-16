@@ -47,7 +47,7 @@ Part 2: `_sn_published_at` written once at the first transition to publish
 from `time()`, kept on updates and republish, reset when `post_date_gmt` moves
 past it; no backfill; a length setting (default 60) with its native Setup fold
 and classic twin; on-demand reads with the lanes beacon derivation, half-open
-window, window + after = total per lane; closed windows cached in
+window, window + after = total per lane (hits only, see below); closed windows cached in
 `sn_publish_window_cache`, bounded by AE's 90 days; `publish_window` a label,
 not a lane; per-note readout leading with the after-window human figure;
 remote door and `sn_remote_analytics_query` unchanged.
@@ -92,6 +92,45 @@ republish; the path filter dropped; the cache cap dropped; the partial slot
 stored; raw rows stored (identifiers); the derive ignoring `part` (window +
 after against the total); `posts-signals`' default gaining a key; no gating
 (reads on every refresh); the native `slot` state dropped.
+
+## Reviewer findings and dispositions
+
+Both reviewers said MERGE.
+
+Privacy (low notes):
+- At-rest expiry: slots were pruned only on write, so with no refresh for a
+  day they stayed in `sn_live_slot_detail`. **Fixed**: every read writes the
+  pruned set back (`sn_analytics_live_slots()`); pinned.
+- The dossier's First hour block is gated on `edit_post`: **accepted**. A
+  single-owner site; it carries lane names and counts only.
+- No uninstall cleanup of the two options and the meta: **deferred**; the
+  slots expire on their own, the window cache is bounded.
+- Possible double-encoding of the slot links: **checked, not real**. Values
+  are `rawurlencode()`d once and handed to `add_query_arg()`, which does not
+  encode (the same pattern as `snt_os_analytics_request_uri()`); `esc_url()`
+  keeps the `%XX`. `country:US` reaches the link as `country%3AUS`, once.
+
+Data integrity:
+- M1, slots overwritten on merge: a 5-minute boundary between the hour read
+  and the slot reads could cut the oldest slot short and overwrite a good
+  copy. **Fixed**: a slot is stored once, never overwritten; pinned.
+- M2, silent undercount: `sn_publish_window_read()` ignored a truncated
+  answer and the over-cap list's `ok`. **Fixed**: every read goes through
+  `sn_lanes_read()` (truncated is a failure), an unread over-cap list is a
+  failure, and the report is `unread` with `why` (`read_failed`, `truncated`,
+  `overcap_unread`, `path_unreadable`); the dossier says which; pinned.
+- M3, the "window + after = total" claim: **fixed in the docs**. It holds for
+  hits only. Visits and visitor-days count a visitor-day that straddles the
+  window's end in both parts, and once the window is cached the after half is
+  read alone, so a visitor-day's bot-score maximum there can differ from the
+  window's read and a row near the end can change lane. Qualified in
+  `docs/TRAFFIC-LANES.md`, the header of `inc/publish-window-parts.php` and the
+  catalog.
+- The new AE SQL shapes (`GROUP BY slot, class`, `ORDER BY slot, readers
+  DESC`) need a live check after deploy: **owed post-install**. A refusal
+  shows as `[sn-live-slots]` in the error log and an empty store.
+
+Each fix was broken back and its suite watched go red (4 of 4).
 
 ## What's left
 

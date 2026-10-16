@@ -139,7 +139,10 @@ function sn_analytics_live_slots_from_rows( array $hour, array $classes, array $
 }
 
 /**
- * Merge new slots into the store and drop anything older than a day. PURE.
+ * Merge new slots into the store and drop anything older than a day. A slot
+ * already stored is never overwritten: a 5-minute boundary passing between
+ * the hour read and the slot reads can leave the oldest slot of a later read
+ * cut short, and the first complete copy must survive it. PURE.
  *
  * @param array $store slot start => slot.
  * @param array $fresh slot start => slot.
@@ -148,7 +151,9 @@ function sn_analytics_live_slots_from_rows( array $hour, array $classes, array $
  */
 function sn_analytics_live_slots_merge( array $store, array $fresh, $now ) {
 	foreach ( $fresh as $t => $slot ) {
-		$store[ (int) $t ] = $slot;
+		if ( ! isset( $store[ (int) $t ] ) ) {
+			$store[ (int) $t ] = $slot;
+		}
 	}
 	foreach ( array_keys( $store ) as $t ) {
 		if ( (int) $t < (int) $now - SN_ANALYTICS_LIVE_SLOTS_KEEP ) {

@@ -120,7 +120,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'counts' => array( 'type' => 'object' ),
 				'strip'  => array( 'type' => 'object' ),
 				'note'   => array( 'type' => 'string' ),
-				'publish_window' => array( 'type' => 'object', 'description' => 'Only with the publish_window argument: { post_id, state (none: published before publish windows existed; open; closed; unread: a read failed), published_at, minutes, ends_at, minutes_left (open only), window and after ({ lane: { hits, visits } }; the window is [published_at, ends_at), a hit at exactly ends_at is after), sources (human, inside the window), cached }. Lead with after.human: the window is the launch burst.' ),
+				'publish_window' => array( 'type' => 'object', 'description' => 'Only with the publish_window argument: { post_id, state (none: published before publish windows existed; open; closed; unread: a read failed, came back truncated or ran without the over-cap list, `why` says which), why, published_at, minutes, ends_at, minutes_left (open only), window and after ({ lane: { hits, visits } }; the window is [published_at, ends_at), a hit at exactly ends_at is after; window + after is the total for hits, not visits), sources (human, inside the window), cached }. Lead with after.human: the window is the launch burst.' ),
 			),
 		),
 		'meta'                => array(

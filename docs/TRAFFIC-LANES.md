@@ -28,7 +28,11 @@ every completed slot of the hour. A refresh inside the same 5 minutes reads
 nothing. The live answer's own queries are unchanged.
 
 **How long.** 24 hours, in the non-autoloaded option `sn_live_slot_detail`.
-Older slots are pruned on every write and never returned on read.
+Older slots are deleted on every write and on every read (the read writes the
+pruned set back), so they leave the option even when no refresh has run. A
+slot is stored once: a later read of the same slot never overwrites it, since
+a 5-minute boundary passing between the hour read and the slot reads can cut
+the oldest slot of that later read short.
 
 **What a snapshot never contains.** A visitor id, an IP, a user agent, a
 cookie, a query string or any other request text. Pages are labels and URLs
@@ -69,11 +73,21 @@ re-reads closed windows on their next report.
 Lanes beacon derivation (`sn_lanes_public_sql()`, `sn_lanes_owner_sql()`,
 `sn_lanes_beacon_derive()`) runs on that note's path alone, from
 `published_at`, with a `part` column that labels each row `window` or `after`.
-Every row lands in exactly one part, so window + after is the total, lane by
-lane. Once the window has closed its figures and its top sources are cached in
+Every row lands in exactly one part, so window + after is the total page
+views (hits), lane by lane. That holds for hits only: visits and visitor-days
+count a visitor-day that straddles the window's end once in each part, so
+their window + after can exceed the total. And once the window is cached the
+after half is read on its own, so the bot-score maximum per visitor-day there
+can differ from the one the window was read with; a visitor-day active on both
+sides of the end can then sit in different lanes in the two halves. Once the window has closed its figures and its top sources are cached in
 `sn_publish_window_cache` (not autoloaded; entries older than Analytics
 Engine's 90 days are dropped, and at most 200 are kept); after that only the
 after-window half is read, from the window's end to now.
+
+**Never a short count.** A read that fails, comes back truncated, or runs
+while the over-cap visitor list cannot be read (so the human cap would not
+apply) is `unread`, with `why` saying which (`read_failed`, `truncated`,
+`overcap_unread`, `path_unreadable`); the dossier says so in words.
 
 **A label, not a lane.** `publish_window` sits beside the lanes. There is no
 ninth lane.

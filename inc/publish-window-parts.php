@@ -8,7 +8,12 @@
  * is AFTER the window. The figures are the SN Traffic Lanes beacon
  * derivation (inc/analytics-lanes-beacon.php) run on one note's path, with a
  * `part` column that labels each row 'window' or 'after'; every row lands in
- * exactly one part, so window + after is the total, lane by lane.
+ * exactly one part, so window + after is the total HITS (page views), lane by
+ * lane. Not visits or visitor-days: a visitor-day that straddles the window
+ * end is counted once in each part. And once the window is cached, the after
+ * half is read alone, so a visitor-day's bot-score maximum there can differ
+ * from the one the window was read with, and a row near the end can change
+ * lane between the two reads.
  * `publish_window` is a label beside the lanes, never a ninth lane.
  *
  * @package SignalNoiseTools

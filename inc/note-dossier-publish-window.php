@@ -59,7 +59,12 @@ function sn_note_dossier_publish_window( $post_id ) {
 		return array( sn_note_dossier_status( 'numbers', $heading, 'neutral', __( 'Published before publish windows existed.', 'signal-and-noise-tools' ), __( 'A window starts at a note\'s first publish from 2026-10-16 on; older notes are not backfilled.', 'signal-and-noise-tools' ) ) );
 	}
 	if ( 'unread' === $r['state'] ) {
-		return array( sn_note_dossier_unreadable( 'numbers', $heading, __( 'Analytics Engine', 'signal-and-noise-tools' ) ) );
+		$why = array(
+			'truncated'       => __( 'Analytics Engine returned a truncated answer, so the counts would be short; nothing is shown rather than an undercount.', 'signal-and-noise-tools' ),
+			'overcap_unread'  => __( 'The over-cap visitor list could not be read, so the human count would include capped visitor-days; nothing is shown rather than an overcount.', 'signal-and-noise-tools' ),
+			'path_unreadable' => __( 'The note\'s path is not a plain URL path, so it is never read.', 'signal-and-noise-tools' ),
+		);
+		return array( isset( $why[ $r['why'] ] ) ? sn_note_dossier_status( 'numbers', $heading, 'warning', __( 'Not read.', 'signal-and-noise-tools' ), $why[ $r['why'] ] ) : sn_note_dossier_unreadable( 'numbers', $heading, __( 'Analytics Engine', 'signal-and-noise-tools' ) ) );
 	}
 	$win   = (array) $r['window'];
 	$after = (array) $r['after'];

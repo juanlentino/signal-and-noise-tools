@@ -82,14 +82,15 @@ function sn_publish_window_minutes() {
  *
  * @param int      $post_id Note id.
  * @param int|null $now     Unix time (tests).
- * @return array{state:string,published_at:int|null,minutes:int,ends_at:int|null,minutes_left:int|null,window:array|null,after:array|null,sources:array|null,cached:bool}
- *         state: none (no stamp), open, closed, unread (a read failed).
+ * @return array{state:string,why:string,published_at:int|null,minutes:int,ends_at:int|null,minutes_left:int|null,window:array|null,after:array|null,sources:array|null,cached:bool}
+ *         state: none (no stamp), open, closed, unread (a read failed, came back
+ *         truncated, or the over-cap list could not be read; `why` says which).
  */
 function sn_publish_window_report( $post_id, $now = null ) {
 	$now     = null === $now ? time() : (int) $now;
 	$stamp   = (int) get_post_meta( (int) $post_id, SN_PUBLISH_WINDOW_META, true );
 	$minutes = sn_publish_window_minutes();
-	$out     = array( 'state' => 'none', 'published_at' => null, 'minutes' => $minutes, 'ends_at' => null, 'minutes_left' => null, 'window' => null, 'after' => null, 'sources' => null, 'cached' => false );
+	$out     = array( 'state' => 'none', 'why' => '', 'published_at' => null, 'minutes' => $minutes, 'ends_at' => null, 'minutes_left' => null, 'window' => null, 'after' => null, 'sources' => null, 'cached' => false );
 	if ( $stamp < 1 ) {
 		return $out;
 	}
@@ -102,8 +103,9 @@ function sn_publish_window_report( $post_id, $now = null ) {
 	$open  = $now < $end;
 	$out   = array_merge( $out, array( 'state' => $open ? 'open' : 'closed', 'published_at' => $stamp, 'ends_at' => $end, 'minutes_left' => $open ? (int) ceil( ( $end - $now ) / 60 ) : null ) );
 	$read  = sn_publish_window_read( sn_analytics_post_path_or_empty( $post_id ), null !== $hit ? $end : $stamp, $end, null === $hit );
-	if ( null === $read ) {
+	if ( ! is_array( $read ) ) {
 		$out['state'] = 'unread';
+		$out['why']   = (string) $read;
 		return $out;
 	}
 	$out['after']   = $read['after'];
@@ -128,32 +130,41 @@ function sn_analytics_post_path_or_empty( $post_id ) {
 
 /**
  * The reads: the lanes per part from `$from`, and the window's sources when
- * asked. Null when any read failed or the path is not readable.
+ * asked. A reason instead of figures when the path is not readable, a read
+ * failed or came back truncated (sn_lanes_read()'s rule), or the over-cap
+ * list could not be read: a partial count is never shown as a count.
  *
  * @param string $path         Note path.
  * @param int    $from         First instant.
  * @param int    $end          Window end.
  * @param bool   $with_sources Read the window's sources too.
- * @return array{window:array,after:array,sources:array|null}|null
+ * @return array{window:array,after:array,sources:array|null}|string 'path_unreadable', 'read_failed', 'truncated' or 'overcap_unread'.
  */
 function sn_publish_window_read( $path, $from, $end, $with_sources ) {
 	$scope = sn_publish_window_scope( $path, $from, $end );
-	if ( null === $scope || ! function_exists( 'sn_lanes_public_sql' ) || ! function_exists( 'sn_analytics_query' ) ) {
-		return null;
+	if ( null === $scope || ! function_exists( 'sn_lanes_public_sql' ) || ! function_exists( 'sn_lanes_read' ) ) {
+		return 'path_unreadable';
+	}
+	$overcap = sn_analytics_overcap_vdays();
+	if ( empty( $overcap['ok'] ) ) {
+		return 'overcap_unread'; // the cap was not applied: humans would be over-counted.
 	}
 	$tz     = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
 	$source = sn_analytics_source( gmdate( 'Y-m-d', (int) $from - 86400 ) );
-	$public = sn_analytics_query( sn_lanes_public_sql( $source, '', $tz, $scope ) );
-	$owner  = '' !== sn_lanes_since( 'beacon' ) ? sn_analytics_query( sn_lanes_owner_sql( $tz, $scope ) ) : array();
-	if ( ! is_array( $public ) || ! is_array( $owner ) ) {
-		return null;
+	$public = sn_lanes_read( sn_lanes_public_sql( $source, '', $tz, $scope ) );
+	if ( ! is_array( $public ) ) {
+		return $public;
 	}
-	$parts   = sn_publish_window_collapse( sn_lanes_beacon_derive( $public, $owner, sn_analytics_overcap_vdays()['hashes'] ) );
+	$owner = '' !== sn_lanes_since( 'beacon' ) ? sn_lanes_read( sn_lanes_owner_sql( $tz, $scope ) ) : array();
+	if ( ! is_array( $owner ) ) {
+		return $owner;
+	}
+	$parts   = sn_publish_window_collapse( sn_lanes_beacon_derive( $public, $owner, $overcap['hashes'] ) );
 	$sources = null;
 	if ( $with_sources ) {
-		$rows = sn_analytics_query( sn_publish_window_sources_sql( $source, $path, $from, $end ) );
+		$rows = sn_lanes_read( sn_publish_window_sources_sql( $source, $path, $from, $end ) );
 		if ( ! is_array( $rows ) ) {
-			return null;
+			return $rows;
 		}
 		$sources = function_exists( 'sn_analytics_live_sources_from_rows' ) ? sn_analytics_live_sources_from_rows( $rows ) : array();
 	}

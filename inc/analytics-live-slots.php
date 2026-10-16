@@ -67,12 +67,20 @@ function sn_analytics_live_slots_step( $hour ) {
 }
 
 /**
- * The stored slots of the last `$hours`, oldest first.
+ * The stored slots of the last `$hours`, oldest first. A read also deletes
+ * what is past the day, so a slot is gone 24 hours on even when no refresh
+ * has run since (at-rest expiry, not only hidden).
  *
  * @param int $hours 1 to 24.
  * @return array<int,array<string,mixed>>
  */
 function sn_analytics_live_slots( $hours ) {
-	$store = get_option( SN_ANALYTICS_LIVE_SLOTS_OPT, array() );
-	return sn_analytics_live_slots_window( is_array( $store ) ? $store : array(), $hours, time() );
+	$now    = time();
+	$store  = get_option( SN_ANALYTICS_LIVE_SLOTS_OPT, array() );
+	$store  = is_array( $store ) ? $store : array();
+	$pruned = sn_analytics_live_slots_merge( $store, array(), $now );
+	if ( count( $pruned ) !== count( $store ) ) {
+		update_option( SN_ANALYTICS_LIVE_SLOTS_OPT, $pruned, false );
+	}
+	return sn_analytics_live_slots_window( $pruned, $hours, $now );
 }

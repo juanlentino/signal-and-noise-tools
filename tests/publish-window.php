@@ -26,7 +26,9 @@ function add_action( $h, $cb = null, $p = 10, $a = 1 ) { $GLOBALS['__hooks'][] =
 function add_filter( $h, $cb = null, $p = 10, $a = 1 ) {}
 function get_option( $k, $d = false ) { return $GLOBALS['__opt'][ $k ] ?? $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['__opt'][ $k ] = $v; $GLOBALS['__autoload'][ $k ] = $a; return true; }
-function get_transient( $k ) { return SNT_ANALYTICS_VDAY_CACHE_KEY === $k ? array( 'hashes' => array(), 'ok' => true, 'truncated' => false ) : false; }
+$GLOBALS['__capok'] = true; $GLOBALS['__trunc'] = false;
+function get_transient( $k ) { return SNT_ANALYTICS_VDAY_CACHE_KEY === $k ? array( 'hashes' => array(), 'ok' => $GLOBALS['__capok'], 'truncated' => false ) : false; }
+function sn_analytics_last_result_truncated( $set = null ) { return $GLOBALS['__trunc']; }
 function set_transient( $k, $v, $e = 0 ) { return true; }
 function dbDelta( $sql ) { return array(); }
 function sn_analytics_query( $sql ) { $GLOBALS['__q'][] = $sql; return is_callable( $GLOBALS['__answer'] ) ? ( $GLOBALS['__answer'] )( $sql ) : $GLOBALS['__answer']; }
@@ -146,6 +148,17 @@ $GLOBALS['__answer'] = null;
 ok( 'unread' === sn_publish_window_report( 7, $t0 + 7200 )['state'], 'a failed read is "unread", never zeros, even with the window cached' );
 $GLOBALS['__opt'] = array();
 ok( 'unread' === sn_publish_window_report( 7, $t0 + 7200 )['state'], '   ...with no cache to fall back on, too' );
+
+// Only the lanes read comes back truncated; the sources read after it is whole.
+$GLOBALS['__answer'] = static function ( $sql ) { $GLOBALS['__trunc'] = false !== strpos( $sql, ' AS part' ); return array(); };
+$r = sn_publish_window_report( 7, $t0 + 7200 );
+ok( 'unread' === $r['state'] && 'truncated' === $r['why'] && null === $r['window'], 'a truncated answer is "unread" (truncated), never a short count' );
+$GLOBALS['__trunc'] = false; $GLOBALS['__capok'] = false;
+$r = sn_publish_window_report( 7, $t0 + 7200 );
+ok( 'unread' === $r['state'] && 'overcap_unread' === $r['why'], 'an unread over-cap list is "unread" (overcap_unread): humans are never counted without the cap' );
+$b = sn_note_dossier_publish_window( 7 );
+ok( 'warning' === $b[0]['tone'] && false !== strpos( $b[0]['meta'], 'over-cap' ), '   ...and the dossier says why' );
+$GLOBALS['__capok'] = true;
 
 echo "\nGroup: the cache is bounded\n";
 $now   = 1800000000;
