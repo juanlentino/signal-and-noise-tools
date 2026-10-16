@@ -7,7 +7,7 @@
  * (a) The regex sources are pinned by sha256. DC_ASN's pin is the SAME value
  *     the worker's test/classifier-fingerprint.spec.js pins; RELAY_ASN and
  *     HOSTING_ASN were computed from the worker's 1.21.7 source (fix/relay-safari-apple-os
- *     87447fb) and re-verified against 1.25.0 (main 1cbed6e), where all three
+ *     87447fb) and re-verified against 1.26.0 (main 66de8e6), where all three
  *     lists and classify() are unchanged. The 1.21.7 OS check lives in classify(), not in a list.
  *     A worker list change means updating the mirror and these pins together.
  * (b) Every term list agrees with its regex on every ASN org seen in 90 days
@@ -30,7 +30,7 @@ ok( count( $orgs ) > 100, 'fixture: ' . count( $orgs ) . ' real ASN orgs from 90
 echo "\nGroup: pinned regex sources\n";
 ok( 'a74dd752caa9899f5147b760ddab089136daad48a18c81130ca0d65c65f18e50' === hash( 'sha256', SNT_ANALYTICS_DC_ASN_SOURCE ), 'DC_ASN source matches the worker fingerprint pin' );
 ok( 'c8855b5860ac58eeb55183890039d9b9bfd890273c80d8ac1ecdac0b9cd60b19' === hash( 'sha256', SNT_ANALYTICS_RELAY_ASN_SOURCE ), 'RELAY_ASN source pinned (unchanged since worker 1.21.5)' );
-ok( 'ceb3aed5fb1f3f0fbfca2d17c005891c00f4ecfd4196ff6b274deec8d9817b7c' === hash( 'sha256', SNT_ANALYTICS_HOSTING_ASN_SOURCE ), 'HOSTING_ASN source pinned (worker 1.21.7, unchanged through 1.25.0)' );
+ok( 'ceb3aed5fb1f3f0fbfca2d17c005891c00f4ecfd4196ff6b274deec8d9817b7c' === hash( 'sha256', SNT_ANALYTICS_HOSTING_ASN_SOURCE ), 'HOSTING_ASN source pinned (worker 1.21.7, unchanged through 1.26.0 / 66de8e6)' );
 
 echo "\nGroup: terms are safe inside ILIKE '%...%'\n";
 $terms = sn_analytics_network_terms();

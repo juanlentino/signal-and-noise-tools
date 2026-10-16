@@ -5,8 +5,9 @@
  * blob9 OS, blob12 ASN org) instead of trusting the class written at ingest. A classifier
  * change then applies to all retained history (~92 days), not only new hits.
  *
- * SOURCE OF TRUTH: signal-and-noise-analytics-worker src/index.js (main 1cbed6e,
- * worker 1.25.0; the lists and classify() are unchanged since 1.21.7, 87447fb):
+ * SOURCE OF TRUTH: signal-and-noise-analytics-worker src/index.js (main 66de8e6,
+ * worker 1.26.0; the lists and classify() are unchanged from 1.21.7, 87447fb,
+ * through 1.26.0 / 66de8e6):
  * DC_ASN, RELAY_ASN, HOSTING_ASN. Changing a worker
  * list means updating this mirror (the regex source AND its term list) and the
  * sha256 pins in tests/analytics-network-terms.php in the same arc. Drift check,
