@@ -23,6 +23,7 @@ require_once __DIR__ . '/ai-mcp-connect-parts.php';
 require_once __DIR__ . '/ai-agent-tools-usage.php';
 require_once __DIR__ . '/ai-agent-tools-doors.php';
 require_once __DIR__ . '/ai-agent-tools-adapter.php';
+require_once __DIR__ . '/ai-agent-tools-refusals.php';
 
 /**
  * On the page: the bridge's tools and outcomes, and what they read.
@@ -84,6 +85,7 @@ function agent_tools_mcp_html() {
 	$usage = function_exists( 'sn_mcp_telemetry_usage' ) ? sn_mcp_telemetry_usage() : null;
 	$setup = '<p>' . \snt_kit_go( __( 'Connect a client: MCP Clients', 'signal-and-noise-tools' ), array( 'sub' => 'mcp-connect' ) ) . '</p>';
 	return \snt_kit_section( __( 'Through MCP', 'signal-and-noise-tools' ), agent_tools_usage_html( $usage ) . $setup, __( 'The read and write doors behind an Application Password, the remote door behind the bridge secret; the call log records every call through them.', 'signal-and-noise-tools' ) )
+		. agent_tools_refusals_html()
 		. agent_tools_doors_html( $usage );
 }
 

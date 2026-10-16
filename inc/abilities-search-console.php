@@ -221,6 +221,7 @@ function snt_ability_search_coverage( $input ) {
 	return array_merge( array( 'ok' => true ), $s, array(
 		'entries' => is_array( $d ) ? (array) $d['entries'] : array(),
 		'status'  => function_exists( 'snt_gsc_coverage_last_status' ) ? snt_gsc_coverage_last_status() : null, // v13.64.0: the last run's timing.
+		'history' => function_exists( 'snt_gsc_coverage_history' ) ? snt_gsc_coverage_history() : array(), // one reading per completed weekly run, oldest first.
 	) );
 }
 
@@ -321,6 +322,7 @@ function snt_search_console_abilities() {
 					'canonical_mismatch' => array( 'type' => 'array' ),
 					'entries'            => array( 'type' => array( 'object', 'array' ) ),
 					'status'             => array( 'type' => array( 'object', 'null' ) ),
+					'history'            => array( 'type' => 'array', 'description' => 'One summary reading per completed weekly run, oldest first, at most 104 (two years): synced_at, inspected, indexed, not_indexed, crawled_not_indexed, unknown, errors, median_crawl_age_days (null when no entry reported a crawl time), crawl_times. [] before the first run completes.' ),
 				),
 			),
 		),

@@ -16,7 +16,10 @@ class WP_Error { public $code; public $message; public function __construct( $c 
 function is_wp_error( $t ) { return $t instanceof WP_Error; }
 
 // The real helpers the module calls, lifted out of their files.
-$src = static fn( $f ) => (string) file_get_contents( __DIR__ . '/../inc/' . $f );
+// analytics-admin.php is a shell plus three parts files (split 2026-10-16, house
+// line cap), so it reads through the by-name helper.
+require_once __DIR__ . '/lib/inc-population.php';
+$src = static fn( $f ) => 'analytics-admin.php' === $f ? snt_test_analytics_admin_src() : (string) file_get_contents( __DIR__ . '/../inc/' . $f );
 // Brace-counted from the declaration, so an inner block cannot end it early.
 $lift = static function ( $code, $name ) {
 	$at = strpos( $code, 'function ' . $name . '(' );

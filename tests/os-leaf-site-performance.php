@@ -54,7 +54,11 @@ $how = strpos( $kit, '<os-disclosure heading="How this works" hint="Speculation 
 ok( false !== $how && $line < $how && $how < strpos( $kit, 'WordPress 7.0 ships native' ) && false === strpos( $kit, 'aria-label="Speculative loading status"' ), 'the intro is a How this works fold under the status line; the classic rail is gone' );
 ok( false !== strpos( $kit, '<os-disclosure heading="Speculative loading" hint="On"' ) && false !== strpos( $kit, '<os-disclosure heading="Profile" hint="prerender, moderate eagerness"' ) && 1 === substr_count( $kit, 'heading="Setup"' ) && strpos( $kit, 'heading="Setup"' ) < strpos( $kit, 'heading="Speculative loading"' ), 'one Setup card holds the setting (summary On) and the Profile (summary its mode), each a closed fold' );
 ok( false !== strpos( $kit, 'heading="Profile"' ) && false !== strpos( $kit, '<os-fact label="Mode"><span class="snt-kv__v"><os-code>prerender</os-code>, eagerness <os-code>moderate</os-code>' ) && false !== strpos( $kit, '<os-fact label="Excluded automatically"><span class="snt-kv__v">the custom login URL and <os-code>/contact/*</os-code>.</span>' ) && false !== strpos( $kit, '<os-fact label="Browser support"><span class="snt-kv__v">only modern Chromium browsers act on speculation rules; others safely ignore them.</span>' ) && false === strpos( $kit, '<strong>' ), 'the Profile reference survives as labeled facts, not bold lead-ins: mode, eagerness, exclusions, support' );
-ok( 0 === substr_count( $kit, '<os-card' ) && false === strpos( $kit, snt_leaf_row() ), 'no two-column shell left: status card, ledger, Setup card, each at full width' );
+ok( 0 === substr_count( $kit, '<os-card' ) && false === strpos( $kit, 'aria-label="Speculative loading status"' ), 'no classic rail card left' );
+// 2026-10-16: the status and its settings belong together. One grid row holds
+// [status card | Setup card], in that order, and closes before the ledger.
+$grid = strpos( $kit, snt_leaf_row() );
+ok( 0 === $grid && 1 === substr_count( $kit, '<os-grid' ) && $grid < strpos( $kit, 'heading="Performance"' ) && strpos( $kit, 'heading="Performance"' ) < strpos( $kit, 'heading="Setup"' ) && strpos( $kit, 'heading="Setup"' ) < strpos( $kit, '</os-grid>' ), 'the leaf opens on one row of two: the Performance status card, then the Setup card' );
 
 // ── Disabled state: unchecked, warning box, plain Off pill; parity holds.
 $GLOBALS['__settings'] = array( 'perf.speculative_loading' => false );
@@ -106,7 +110,7 @@ $kit     = snt_leaf_paint( 'site', 'performance' );
 snt_leaf_preview( 'site-performance', $kit );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'perf_save' ) === snt_leaf_actions( $kit ) && array() === snt_leaf_classic_markers( $kit ), 'with a log: names, the one action and no classic markers are unchanged' );
 $ledger = strpos( $kit, 'heading="Outbound calls from admin pages"' );
-ok( false !== $ledger && strpos( $kit, 'class="snt-status-line"' ) < $ledger && $ledger < strpos( $kit, 'heading="Setup"' ), 'the ledger is the working content: after the status line, before the Setup card' );
+ok( false !== $ledger && strpos( $kit, 'heading="Setup"' ) < strpos( $kit, '</os-grid>' ) && strpos( $kit, '</os-grid>' ) < $ledger, 'the ledger is the working content at full width: under the [status | Setup] row, outside its grid' );
 ok( false !== strpos( $kit, '<os-badge tone="warning">2 failed outbound calls</os-badge>' ) && false !== strpos( $kit, '2 failed calls; the slowest was slow.example.com.' ), 'the status line counts the failed calls in amber, and the ledger keeps its open warning naming the host' );
 preg_match( '/<os-table[^>]* os-prop-columns="([^"]*)"[^>]* os-prop-data="([^"]*)"/', $kit, $m );
 $cols = json_decode( html_entity_decode( $m[1] ?? '', ENT_QUOTES, 'UTF-8' ), true );
@@ -132,6 +136,20 @@ foreach ( $panel['snt_httpdiag']['fields'] as $key => $field ) {
 	foreach ( explode( ' | ', $field['value'] ) as $call ) { $panel_hosts[] = (string) wp_parse_url( substr( $call, 0, (int) strpos( $call, '. ' ) ), PHP_URL_HOST ); }
 }
 ok( 4 === count( $panel_hosts ) && array() === array_diff( $panel_hosts, array_column( (array) $rows, 'host' ) ), 'parity: every host the Site Health panel paints is in the ledger (' . implode( ',', $panel_hosts ) . ')' );
+unset( $GLOBALS['__options']['snt_httpdiag_log'] );
+
+// 2026-10-16, live: entries written before the pagenow kept its dot were
+// stored as "adminphp" and "updatephp". They read back with the dot restored;
+// a core screen is named again; a label that already has its dot is untouched.
+$GLOBALS['__options']['snt_httpdiag_log'] = array(
+	array( 't' => $now - 10, 'screen' => 'adminphp?page=mailpoet-settings', 'wall_s' => 1.0, 'http' => array( array( 'url' => 'https://a.example.com/', 'ms' => 30, 'code' => 200, 'error' => false ) ) ),
+	array( 't' => $now - 20, 'screen' => 'updatephp', 'wall_s' => 1.0, 'http' => array( array( 'url' => 'https://b.example.com/', 'ms' => 20, 'code' => 200, 'error' => false ) ) ),
+	array( 't' => $now - 30, 'screen' => 'indexphp', 'wall_s' => 1.0, 'http' => array( array( 'url' => 'https://c.example.com/', 'ms' => 10, 'code' => 200, 'error' => false ) ) ),
+);
+$kit = snt_leaf_paint( 'site', 'performance' );
+preg_match( '/<os-table[^>]* os-prop-data="([^"]*)"/', $kit, $m );
+$rows = json_decode( html_entity_decode( $m[1] ?? '', ENT_QUOTES, 'UTF-8' ), true );
+ok( array( 'admin.php?page=mailpoet-settings', 'update.php', 'Dashboard' ) === array_column( (array) $rows, 'screen' ) && false === strpos( $kit, 'adminphp' ) && false === strpos( $kit, 'updatephp' ), 'old rows read back with the dot restored: admin.php?page=mailpoet-settings, update.php, and indexphp named Dashboard again' );
 unset( $GLOBALS['__options']['snt_httpdiag_log'] );
 
 // A stored url of '' (the sanitizer's answer to a URL with no parseable host)

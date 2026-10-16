@@ -648,7 +648,8 @@ ok( is_wp_error( $sn_probe ), 'the harness validator itself rejects undeclared k
 // `SN_MCP_DOOR_RW === $door && function_exists( ... )`, which names a FILE for
 // what is a property of BEHAVIOUR, and would have gone red on a pure rename.
 // It is now driven through the dispatcher on both doors instead (#986).
-$sn_src = file_get_contents( __DIR__ . '/../inc/mcp/mcp-tools.php' );
+require_once __DIR__ . '/lib/inc-population.php'; // the module and its three parts files (split 2026-10-16)
+$sn_src = snt_test_mcp_tools_src();
 $sn_gate = strpos( $sn_src, 'sn_mcp_input_schema_violation(' . "\n" );
 $sn_exec = strpos( $sn_src, '$ability->execute( $args )' );
 ok( false !== $sn_gate && false !== $sn_exec && $sn_gate < $sn_exec, 'the gate runs BEFORE execute(), so a rejected call mutates nothing' );

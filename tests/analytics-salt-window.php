@@ -529,7 +529,8 @@ sw_true( false !== strpos( $html, 'Not read: the Worker predates the salt window
 // ─── Group E: wiring — mount + loader source contracts ────────────────
 echo "\nGroup E: wiring: settings-column mount + loader require\n";
 
-$admin_src = file_get_contents( __DIR__ . '/../inc/analytics-admin.php' );
+require_once __DIR__ . '/lib/inc-population.php'; // the module and its three parts files (split 2026-10-16)
+$admin_src = snt_test_analytics_admin_src();
 sw_true( false !== strpos( $admin_src, "function_exists( 'sn_salt_window_render_card' )" ), 'mount: settings section calls the readout behind a function_exists guard' );
 $wv_at = strpos( $admin_src, 'sn_worker_version_render_card' );
 $sw_at = strpos( $admin_src, 'sn_salt_window_render_card' );

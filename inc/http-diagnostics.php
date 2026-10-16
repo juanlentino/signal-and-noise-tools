@@ -29,7 +29,9 @@
  * token could reach storage. The same discipline applies to the "screen"
  * label: only a hardcoded whitelist of query keys (page/tab/sub/sn_view —
  * the same keys inc/admin-page.php and inc/admin-tabs.php already read to
- * route the request) is read, and every value is sanitize_key()'d.
+ * route the request) is read, and every value is sanitize_key()'d. The
+ * pagenow itself keeps its dot (sn_httpdiag_sanitize_pagenow()): sanitize_key()
+ * strips it, which stored "admin.php" as "adminphp" until 2026-10-16.
  *
  * SCOPE: this module never itself performs an HTTP request — it only reacts
  * to hooks WP already fires for calls other code makes, plus one bounded
@@ -135,9 +137,42 @@ function sn_httpdiag_query_value( $key, $override ) {
 }
 
 /**
- * Build the sanitized "screen" label for one logged entry: $pagenow plus
- * whichever of SN_HTTPDIAG_SCREEN_QUERY_KEYS are present, each
- * sanitize_key()'d. Every OTHER query key is dropped outright — a hostile
+ * Reduce $pagenow to the characters a wp-admin script basename uses:
+ * sanitize_key()'s set (a-z, 0-9, _ and -) plus the dot, so "admin.php"
+ * stays "admin.php". A slash never survives, so no path reaches the log.
+ *
+ * @param string $pagenow The raw $pagenow.
+ * @return string e.g. "admin.php"
+ */
+function sn_httpdiag_sanitize_pagenow( $pagenow ) {
+	return (string) preg_replace( '/[^a-z0-9._-]/', '', strtolower( (string) $pagenow ) );
+}
+
+/**
+ * A stored "screen" label as it should read. Entries written before
+ * 2026-10-16 ran $pagenow through sanitize_key(), which drops the dot:
+ * "admin.php" was stored as "adminphp". Every wp-admin $pagenow is a
+ * "*.php" basename, so a file part ending in "php" with no dot in it can only
+ * be one of those, and the dot goes back in front of that "php". Nothing else
+ * is changed; a label already carrying a dot is returned as is.
+ *
+ * @param string $screen A stored label, e.g. "adminphp?page=mailpoet-settings".
+ * @return string e.g. "admin.php?page=mailpoet-settings"
+ */
+function sn_httpdiag_screen_display( $screen ) {
+	$screen = (string) $screen;
+	$cut    = strpos( $screen, '?' );
+	$file   = false === $cut ? $screen : substr( $screen, 0, $cut );
+	if ( ! preg_match( '/^([a-z0-9_-]+)php$/', $file, $m ) ) {
+		return $screen;
+	}
+	return $m[1] . '.php' . ( false === $cut ? '' : substr( $screen, $cut ) );
+}
+
+/**
+ * Build the sanitized "screen" label for one logged entry: $pagenow
+ * (sn_httpdiag_sanitize_pagenow(), dot kept) plus whichever of
+ * SN_HTTPDIAG_SCREEN_QUERY_KEYS are present, each sanitize_key()'d. Every OTHER query key is dropped outright — a hostile
  * or unexpected key/value can never reach the stored log.
  *
  * @param string|null $pagenow_override Test-only; defaults to the global.
@@ -146,7 +181,7 @@ function sn_httpdiag_query_value( $key, $override ) {
  */
 function sn_httpdiag_screen_label( $pagenow_override = null, $query_override = null ) {
 	$pagenow = null !== $pagenow_override ? $pagenow_override : sn_httpdiag_current_pagenow();
-	$label   = sanitize_key( (string) $pagenow );
+	$label   = sn_httpdiag_sanitize_pagenow( $pagenow );
 
 	$parts = array();
 	foreach ( SN_HTTPDIAG_SCREEN_QUERY_KEYS as $key ) {
@@ -457,7 +492,7 @@ if ( function_exists( 'add_action' ) ) {
 
 				$label = sprintf(
 					'%s — %ss',
-					(string) ( $entry['screen'] ?? '' ),
+					sn_httpdiag_screen_display( (string) ( $entry['screen'] ?? '' ) ),
 					number_format( (float) ( $entry['wall_s'] ?? 0 ), 2 )
 				);
 				$age = sn_httpdiag_format_age( $entry['t'] ?? null, $now );
