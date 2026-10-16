@@ -138,15 +138,16 @@ function performance_screen_name( $screen ) {
  * captured), then the ledger, then the retention caption. Empty when the
  * module is not loaded (says so) or nothing is in the window.
  *
+ * @param array|null $d performance_slow_calls(), read once per paint by the leaf (the status line counts the same failures); null reads it here.
  * @return string
  */
-function performance_slow_calls_html() {
+function performance_slow_calls_html( $d = null ) {
 	// 2026.10.4 audit: every outbound call is logged, not only slow ones.
 	$heading = __( 'Outbound calls from admin pages', 'signal-and-noise-tools' );
 	if ( ! function_exists( 'sn_httpdiag_visible' ) ) {
 		return \snt_kit_section( $heading, \snt_kit_empty( __( 'The HTTP diagnosis module is not loaded.', 'signal-and-noise-tools' ) ) );
 	}
-	$d     = performance_slow_calls();
+	$d     = is_array( $d ) ? $d : performance_slow_calls();
 	$empty = __( 'No outbound call was captured.', 'signal-and-noise-tools' );
 	if ( 0 === $d['entries'] ) {
 		return \snt_kit_section( $heading, \snt_kit_empty( $empty ) );

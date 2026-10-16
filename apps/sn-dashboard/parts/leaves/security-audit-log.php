@@ -98,11 +98,13 @@ function audit_log_lla_html( array $lla ) {
 }
 
 /**
- * The retention-days form. Same field, same handler, same PRG pipeline.
+ * The Setup card: the retention-days form as a fold whose closed summary is
+ * the window (docs/kit-leaf-anatomy.md: a setting changed once in a while).
+ * Same field, same handler, same PRG pipeline.
  *
  * @return string
  */
-function audit_log_retention_form_html() {
+function audit_log_setup_html() {
 	$retention = (int) sn_setting( 'audit.retention_days', 90 );
 	$field     = \snt_kit_field(
 		'number',
@@ -115,9 +117,16 @@ function audit_log_retention_form_html() {
 			'hint' => __( 'How long to keep the daily counts and the successful-login records, 7 to 365 days. A daily cleanup deletes anything older.', 'signal-and-noise-tools' ),
 		)
 	);
-	return \snt_kit_section(
-		__( 'Retention', 'signal-and-noise-tools' ),
-		\snt_kit_form( 'audit_save_retention', $field, array( 'submit' => __( 'Save retention', 'signal-and-noise-tools' ) ) )
+	return \snt_kit_setup_card(
+		__( 'Setup', 'signal-and-noise-tools' ),
+		array(
+			array(
+				'title'   => __( 'Retention', 'signal-and-noise-tools' ),
+				/* translators: %s: retention days. */
+				'summary' => sprintf( _n( '%s day', '%s days', $retention, 'signal-and-noise-tools' ), number_format_i18n( $retention ) ),
+				'body'    => \snt_kit_form( 'audit_save_retention', $field, array( 'submit' => __( 'Save retention', 'signal-and-noise-tools' ) ) ),
+			),
+		)
 	);
 }
 
@@ -129,23 +138,27 @@ function audit_log_retention_form_html() {
  */
 function audit_log_maintenance_html() {
 	$retention_days = (int) sn_setting( 'audit.retention_days', 90 );
-	$form           = \snt_kit_form(
-		'audit_prune_now',
-		'<p class="snt-prose">' . \snt_kit_esc(
-			sprintf(
-				/* translators: %s: retention days. */
-				__( 'Run the daily cleanup now: it deletes the daily counts and the successful-login records older than %s days, and checks Limit Login Attempts for new lockouts.', 'signal-and-noise-tools' ),
-				number_format_i18n( $retention_days )
-			)
-		) . '</p>',
-		array(
-			'submit'   => __( 'Prune now', 'signal-and-noise-tools' ),
-			'pipeline' => 'inline',
-			// 2026-10-12 audit: it deletes rows, and asked nothing first on either twin.
-			'confirm'  => function_exists( 'snt_audit_prune_confirm_text' ) ? snt_audit_prune_confirm_text( $retention_days ) : null,
-			'danger'   => true,
+	// 2026-10-16: the lone Prune now is the kit's compact one-button form, its
+	// sentence above it rather than inside a full-width form row.
+	$form           = '<p class="snt-prose">' . \snt_kit_esc(
+		sprintf(
+			/* translators: %s: retention days. */
+			__( 'Run the daily cleanup now: it deletes the daily counts and the successful-login records older than %s days, and checks Limit Login Attempts for new lockouts.', 'signal-and-noise-tools' ),
+			number_format_i18n( $retention_days )
 		)
-	);
+	) . '</p>'
+		. \snt_kit_form(
+			'audit_prune_now',
+			'',
+			array(
+				'submit'   => __( 'Prune now', 'signal-and-noise-tools' ),
+				'pipeline' => 'inline',
+				// 2026-10-12 audit: it deletes rows, and asked nothing first on either twin.
+				'confirm'  => function_exists( 'snt_audit_prune_confirm_text' ) ? snt_audit_prune_confirm_text( $retention_days ) : null,
+				'danger'   => true,
+				'inline'   => true,
+			)
+		);
 
 	$export_json_url = wp_nonce_url( admin_url( 'admin-post.php?action=sn_audit_export&format=json' ), 'sn_audit_export', 'sn_audit_export_nonce' );
 	$export_csv_url  = wp_nonce_url( admin_url( 'admin-post.php?action=sn_audit_export&format=csv' ), 'sn_audit_export', 'sn_audit_export_nonce' );
@@ -206,7 +219,7 @@ function paint_security_audit_log( array $ctx ) {
 	// box stood alone at full width with two rows in it; it shares one row
 	// with the two controls, three short boxes of a height.
 	$out .= audit_log_logins_html( $logins );
-	$out .= \snt_kit_grid( array( audit_log_lla_html( (array) $summary['lla'] ), audit_log_retention_form_html(), audit_log_maintenance_html() ), 260 );
+	$out .= \snt_kit_grid( array( audit_log_lla_html( (array) $summary['lla'] ), audit_log_setup_html(), audit_log_maintenance_html() ), 260 );
 	return $out;
 }
 

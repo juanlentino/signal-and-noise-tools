@@ -121,12 +121,17 @@ function login_defense_digest_html( array $d ) {
 		array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) )
 	);
 	// 2026-10-12 audit: the second button floated under Save with nothing to
-	// say what it does; it carries its own line now.
-	$test_form = \snt_kit_form(
-		'security_digest_save',
-		'<p class="snt-hint">' . \snt_kit_esc( __( 'Sends this week’s digest to the admin address now, whether or not the weekly email is on.', 'signal-and-noise-tools' ) ) . '</p>' . \snt_kit_field( 'hidden', 'sn_digest_test', '', '1' ),
-		array( 'submit' => __( 'Send test digest', 'signal-and-noise-tools' ) )
-	);
+	// say what it does; it carries its own line now. 2026-10-16: the line,
+	// then the button as the kit's compact one-button form, not a form row.
+	$test_form = '<p class="snt-hint">' . \snt_kit_esc( __( 'Sends this week’s digest to the admin address now, whether or not the weekly email is on.', 'signal-and-noise-tools' ) ) . '</p>'
+		. \snt_kit_form(
+			'security_digest_save',
+			\snt_kit_field( 'hidden', 'sn_digest_test', '', '1' ),
+			array(
+				'submit' => __( 'Send test digest', 'signal-and-noise-tools' ),
+				'inline' => true,
+			)
+		);
 
 	return \snt_kit_section(
 		__( 'Weekly security digest', 'signal-and-noise-tools' ),
