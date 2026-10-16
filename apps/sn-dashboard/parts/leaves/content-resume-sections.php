@@ -65,7 +65,7 @@ function resume_section_map( array $doc ) {
 			'hint'  => __( 'The numbers strip under the hero.', 'signal-and-noise-tools' ),
 			'count' => count( $stats ),
 			'first' => trim( resume_first( $stats, 'n' ) . ' ' . resume_first( $stats, 'label' ) ),
-			'paint' => static function () use ( $stats, $ns ) { return resume_list( $stats, $ns . '\resume_stat_row', 'resume[stats]', '__S__', __( '+ Add stat', 'signal-and-noise-tools' ), __( 'stat', 'signal-and-noise-tools' ) ); },
+			'paint' => static function () use ( $stats, $ns ) { return resume_list( $stats, $ns . '\resume_stat_row', 'resume[stats]', '__S__', __( '+ Add stat', 'signal-and-noise-tools' ), __( 'stat', 'signal-and-noise-tools' ), array(), 'label' ); },
 		),
 		'experience'   => array(
 			'title' => __( 'Experience', 'signal-and-noise-tools' ),
@@ -74,7 +74,7 @@ function resume_section_map( array $doc ) {
 			'first' => resume_first( $exp, 'org' ),
 			'paint' => static function () use ( $exp, $blank ) {
 				$card = static function ( $prefix, array $entry ) { return resume_employer_card( $prefix, '__R__', $entry, true ); };
-				return resume_list( $exp, $card, 'resume[experience]', '__E__', __( '+ Add employer', 'signal-and-noise-tools' ), __( 'employer', 'signal-and-noise-tools' ), $blank );
+				return resume_list( $exp, $card, 'resume[experience]', '__E__', __( '+ Add employer', 'signal-and-noise-tools' ), __( 'employer', 'signal-and-noise-tools' ), $blank, 'org' );
 			},
 		),
 		'earlier'      => array(
@@ -85,7 +85,7 @@ function resume_section_map( array $doc ) {
 			'paint' => static function () use ( $earlier, $entries, $blank ) {
 				$card = static function ( $prefix, array $entry ) { return resume_employer_card( $prefix, '__Y__', $entry, false ); };
 				return resume_text( 'resume[earlier][label]', __( 'Fold label', 'signal-and-noise-tools' ), $earlier['label'] ?? '', 'Earlier career · 1997 - 2015' )
-					. resume_list( $entries, $card, 'resume[earlier][entries]', '__X__', __( '+ Add earlier employer', 'signal-and-noise-tools' ), __( 'employer', 'signal-and-noise-tools' ), $blank );
+					. resume_list( $entries, $card, 'resume[earlier][entries]', '__X__', __( '+ Add earlier employer', 'signal-and-noise-tools' ), __( 'employer', 'signal-and-noise-tools' ), $blank, 'org' );
 			},
 		),
 		'education'    => array(
@@ -93,28 +93,28 @@ function resume_section_map( array $doc ) {
 			'hint'  => '',
 			'count' => count( $edu ),
 			'first' => resume_first( $edu, 'title' ),
-			'paint' => static function () use ( $edu, $ns ) { return resume_list( $edu, $ns . '\resume_titled_lines_row', 'resume[education]', '__D__', __( '+ Add education', 'signal-and-noise-tools' ), __( 'education entry', 'signal-and-noise-tools' ) ); },
+			'paint' => static function () use ( $edu, $ns ) { return resume_list( $edu, $ns . '\resume_titled_lines_row', 'resume[education]', '__D__', __( '+ Add education', 'signal-and-noise-tools' ), __( 'education entry', 'signal-and-noise-tools' ), array(), 'title' ); },
 		),
 		'affiliations' => array(
 			'title' => __( 'Affiliations & Certifications', 'signal-and-noise-tools' ),
 			'hint'  => '',
 			'count' => count( $aff ),
 			'first' => resume_first( $aff, 'title' ),
-			'paint' => static function () use ( $aff, $ns ) { return resume_list( $aff, $ns . '\resume_titled_lines_row', 'resume[affiliations]', '__A__', __( '+ Add affiliation', 'signal-and-noise-tools' ), __( 'affiliation', 'signal-and-noise-tools' ) ); },
+			'paint' => static function () use ( $aff, $ns ) { return resume_list( $aff, $ns . '\resume_titled_lines_row', 'resume[affiliations]', '__A__', __( '+ Add affiliation', 'signal-and-noise-tools' ), __( 'affiliation', 'signal-and-noise-tools' ), array(), 'title' ); },
 		),
 		'publications' => array(
 			'title' => __( 'Publications', 'signal-and-noise-tools' ),
 			'hint'  => __( 'A new paper is one row: venue line, title, and link.', 'signal-and-noise-tools' ),
 			'count' => count( $pubs ),
 			'first' => resume_first( $pubs, 'title' ),
-			'paint' => static function () use ( $pubs, $ns ) { return resume_list( $pubs, $ns . '\resume_publication_row', 'resume[publications]', '__P__', __( '+ Add publication', 'signal-and-noise-tools' ), __( 'publication', 'signal-and-noise-tools' ) ); },
+			'paint' => static function () use ( $pubs, $ns ) { return resume_list( $pubs, $ns . '\resume_publication_row', 'resume[publications]', '__P__', __( '+ Add publication', 'signal-and-noise-tools' ), __( 'publication', 'signal-and-noise-tools' ), array(), 'title' ); },
 		),
 		'skills'       => array(
 			'title' => __( 'Skills', 'signal-and-noise-tools' ),
 			'hint'  => __( 'One table row per category; items is the comma-separated cell.', 'signal-and-noise-tools' ),
 			'count' => count( $skills ),
 			'first' => resume_first( $skills, 'category' ),
-			'paint' => static function () use ( $skills, $ns ) { return resume_list( $skills, $ns . '\resume_skills_row', 'resume[skills]', '__K__', __( '+ Add skills row', 'signal-and-noise-tools' ), __( 'skills row', 'signal-and-noise-tools' ) ); },
+			'paint' => static function () use ( $skills, $ns ) { return resume_list( $skills, $ns . '\resume_skills_row', 'resume[skills]', '__K__', __( '+ Add skills row', 'signal-and-noise-tools' ), __( 'skills row', 'signal-and-noise-tools' ), array(), 'category' ); },
 		),
 		'pdf'          => array(
 			'title' => __( 'PDF only', 'signal-and-noise-tools' ),

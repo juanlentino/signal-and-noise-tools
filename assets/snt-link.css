@@ -21,6 +21,8 @@
  * consumers fall back to `--os-ui-accent-strong`. Enqueued with S&N's desktop
  * commands (inc/desktop-mode-assets.php), so the widget cards get it with no
  * S&N window open.
+ *
+ * Still needed on OpenStation 1.1.15: upstream #997 writes `--os-link` from the pick only when no desktop theme is worn, and the owner wears one.
  */
 @supports ( color: color( from red srgb-linear calc( 1 - ( 1 - r ) * min( 1, 0.68 / max( 0.001, 1 - ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) ) ) ) g b ) ) {
 	body,

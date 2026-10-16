@@ -329,8 +329,24 @@ ok( $n_rows > 20 && count( $reps[0] ) === substr_count( $classic, 'sn-rsm-add' )
 foreach ( $adds as $add => $noun ) {
 	ok( count( preg_grep( '/ add-label="' . preg_quote( $add, '/' ) . '" row-label="' . preg_quote( $noun, '/' ) . '" /', $reps[0] ) ) > 0, 'the classic add button is the repeater\'s add-label, the row noun its row-label: ' . $add . ' / ' . $noun );
 }
-ok( false !== strpos( $edits['stats'], '<os-repeater os-key="resume[stats]" reorderable add-label="+ Add stat" row-label="stat" empty-text="No rows yet." os-prop-keys="[&quot;0&quot;,&quot;1&quot;,&quot;2&quot;,&quot;3&quot;]">' ), 'the Stats repeater names its four rows 0..3 in os-prop-keys (the runtime assigns keys after every render)' );
+ok( false !== strpos( $edits['stats'], '<os-repeater os-key="resume[stats]" reorderable add-label="+ Add stat" row-label="stat" row-label-from="label" empty-text="No rows yet." os-prop-keys="[&quot;0&quot;,&quot;1&quot;,&quot;2&quot;,&quot;3&quot;]">' ), 'the Stats repeater names its four rows 0..3 in os-prop-keys (the runtime assigns keys after every render)' );
 ok( preg_match( '/<os-repeater os-key="resume\[experience\]\[0\]\[roles\]" [^>]*row-label="role"[^>]*os-prop-keys="\[&quot;0&quot;(,&quot;1&quot;)?\]"/', $edits['experience'] ) === 1, 'the roles under an employer are a nested repeater keyed on the employer prefix' );
+// OpenStation 1.1.15 (#946/#976): `row-label-from` names a row's buttons from a
+// field's value ("Remove <its value> (1 of 3)"). The repeater matches name,
+// data-field or id by EXACT value, and every classic name carries its row index
+// (resume[stats][0][label] vs [1][label]), so a name could only ever match one
+// row; each list's labeling field carries a shared data-field instead, in the
+// live rows and the template alike. row-label stays the fallback for an empty field.
+$from = array( 'resume[stats]' => 'label', 'resume[experience]' => 'org', 'resume[earlier][entries]' => 'org', 'resume[education]' => 'title', 'resume[affiliations]' => 'title', 'resume[publications]' => 'title', 'resume[skills]' => 'category' );
+ok( count( $reps[0] ) === count( preg_grep( '/ row-label="[^"]+" row-label-from="(label|org|title|category)" /', $reps[0] ) ), 'every repeater names its rows from a field (row-label-from) and keeps row-label as the fallback (' . count( $reps[0] ) . ')' );
+foreach ( $from as $base => $field ) {
+	ok( 1 === preg_match( '/<os-repeater os-key="' . preg_quote( $base, '/' ) . '" [^>]*row-label-from="' . $field . '"/', $kit_all ), "$base names its rows from data-field=\"$field\"" );
+	$named = preg_match_all( '/<os-text-field data-field="' . $field . '" name="' . preg_quote( $base, '/' ) . '\[([^\]]+)\]\[' . $field . '\]"/', $kit_all, $nm );
+	$rows  = preg_match_all( '/<os-card os-key="' . preg_quote( $base, '/' ) . '\[([^\]]+)\]"/', $kit_all );
+	ok( $rows > 0 && $named === $rows && in_array( '__' , array_map( static fn( $k ) => substr( $k, 0, 2 ), $nm[1] ), true ), "$base: every row, the template's blank row included, carries data-field=\"$field\" on its $field field ($named of $rows)" );
+}
+ok( preg_match_all( '/<os-repeater os-key="resume\[(?:experience|earlier\]\[entries)\]\[[^\]]+\]\[roles\]" [^>]*row-label-from="title"/', $kit_all ) === substr_count( $kit_all, '[roles]" reorderable' ) && preg_match_all( '/<os-text-field data-field="title" name="[^"]*\[roles\]\[[^\]]+\]\[title\]"/', $kit_all ) === preg_match_all( '/<os-card os-key="[^"]*\[roles\]\[[^\]]+\]"/', $kit_all ), 'every roles repeater names a role by its title, and every role row carries data-field="title"' );
+ok( false === strpos( $kit_all, 'data-field="title" name="resume[experience][0][org]"' ) && 1 === preg_match( '/<os-text-field data-field="org" name="resume\[experience\]\[0\]\[org\]"/', $kit_all ), 'an employer card carries data-field="org" on its org field, so the outer repeater never names an employer from a nested role\'s title' );
 ok( $n_rows === substr_count( $kit_live, ' slot="row-' ) && 0 === substr_count( $kit_live, ' slot="row-__' ) && $n_rows === preg_match_all( '/<os-card os-key="([^"]*\[(\d+)\])" slot="row-\2"/', $kit_live ), 'every live classic row is a kit card slotted under its own index, slot row-N matching the os-key\'s last segment, no token slot outside a template (' . $n_rows . ')' );
 ok( preg_match_all( '/<template data-rsm-tpl data-rsm-token="(__[A-Z]__)">(?:(?!<\/template>).)*? slot="row-\1"/s', $kit_all ) === count( $reps[0] ) && substr_count( $kit_all, '<template data-rsm-tpl data-rsm-token="__R__">' ) === count( $seed['experience'] ) + 1, 'each repeater ends in the classic template, its blank row slotted under the token, one __R__ template per employer plus the one inside the __E__ employer template' );
 ok( count( $reps[0] ) === substr_count( $kit_all, '</template></os-repeater>' ), 'the template is the repeater\'s LAST child, so an added row inserted before it keeps DOM order equal to display order' );
@@ -474,7 +490,7 @@ $kit     = snt_leaf_paint( 'content', 'resume' );
 $edits   = $paint_all();
 ok( snt_leaf_names( $classic ) === snt_leaf_names( implode( '', $edits ) ), 'bare: field names across the editing paints still match (' . count( snt_leaf_names( implode( '', $edits ) ) ) . ' names)' );
 ok( '0' === ( snt_leaf_tables( $kit )[0]['data'][1]['entries'] ?? '' ) && false !== strpos( $edits['stats'], 'name="resume[stats][__S__][n]"' ), 'bare: an empty list says 0 (a stored count, measured) and, edited, still carries its template' );
-ok( false !== strpos( $edits['stats'], '<os-repeater os-key="resume[stats]" reorderable add-label="+ Add stat" row-label="stat" empty-text="No rows yet." os-prop-keys="[]">' ), 'bare: an empty list paints os-prop-keys="[]", never a phantom "0" row around nothing' );
+ok( false !== strpos( $edits['stats'], '<os-repeater os-key="resume[stats]" reorderable add-label="+ Add stat" row-label="stat" row-label-from="label" empty-text="No rows yet." os-prop-keys="[]">' ), 'bare: an empty list paints os-prop-keys="[]", never a phantom "0" row around nothing' );
 ok( array() === $folds_in( array( 'default' => $kit ) + $edits ), 'bare: fold-free on every paint' );
 
 // ── The hard failure state: no document, no seed — no form.

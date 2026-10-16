@@ -25,9 +25,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/** One labelled text field, sn_rsm_input(). @param string $name @param string $label @param mixed $value @param string $ph @return string */
-function resume_text( $name, $label, $value, $ph = '' ) {
-	return \snt_kit_field( 'text', $name, $label, (string) $value, array( 'placeholder' => '' !== $ph ? $ph : null ) );
+/**
+ * One labelled text field, sn_rsm_input(). `$field` stamps `data-field` on the
+ * control: the name every row of a list shares, which the row's
+ * `<os-repeater row-label-from>` matches (OpenStation 1.1.15, #946/#976). The
+ * repeater matches name, data-field or id by exact value, and the classic
+ * names carry the row index (`resume[stats][0][label]`), so no one name
+ * matches every row; data-field does.
+ *
+ * @param string $name  Field name.
+ * @param string $label Label.
+ * @param mixed  $value Value.
+ * @param string $ph    Placeholder.
+ * @param string $field data-field for row-label-from, '' for none.
+ * @return string
+ */
+function resume_text( $name, $label, $value, $ph = '', $field = '' ) {
+	$html = \snt_kit_field( 'text', $name, $label, (string) $value, array( 'placeholder' => '' !== $ph ? $ph : null ) );
+	$at   = strpos( $html, '<os-text-field' );
+	return '' === $field || false === $at ? $html : substr_replace( $html, \snt_kit_attr( array( 'data-field' => $field ) ), $at + strlen( '<os-text-field' ), 0 );
 }
 
 /** A plain string list as one textarea, one entry per line, sn_rsm_lines(). @param string $name (no []) @param mixed $items @param string $label @param string $ph @param int $rows @return string */
@@ -80,25 +96,27 @@ function resume_row_key( $prefix ) {
  * os-form collects fields in light-DOM order and the handler saves the
  * order posted.
  *
- * @param string $base      Name prefix of the list (e.g. resume[stats]).
- * @param string $rows      The painted rows.
- * @param int    $count     Row count.
- * @param string $token     The classic template token.
- * @param string $add_label The classic "+ Add ..." label.
- * @param string $row_label The singular noun the repeater names its buttons with ("Remove stat").
- * @param string $blank     The blank row the classic template carries.
+ * @param string $base       Name prefix of the list (e.g. resume[stats]).
+ * @param string $rows       The painted rows.
+ * @param int    $count      Row count.
+ * @param string $token      The classic template token.
+ * @param string $add_label  The classic "+ Add ..." label.
+ * @param string $row_label  The singular noun the repeater names its buttons with ("Remove stat").
+ * @param string $blank      The blank row the classic template carries.
+ * @param string $label_from The data-field whose value names a row ("Remove <its value> (1 of 3)"), '' for the noun alone. An empty field falls back to `row-label`.
  * @return string
  */
-function resume_repeater( $base, $rows, $count, $token, $add_label, $row_label, $blank ) {
+function resume_repeater( $base, $rows, $count, $token, $add_label, $row_label, $blank, $label_from = '' ) {
 	return \snt_kit_tag(
 		'os-repeater',
 		array(
-			'os-key'       => (string) $base,
-			'reorderable'  => true,
-			'add-label'    => (string) $add_label,
-			'row-label'    => (string) $row_label,
-			'empty-text'   => __( 'No rows yet.', 'signal-and-noise-tools' ),
-			'os-prop-keys' => $count > 0 ? array_map( 'strval', range( 0, $count - 1 ) ) : array(),
+			'os-key'         => (string) $base,
+			'reorderable'    => true,
+			'add-label'      => (string) $add_label,
+			'row-label'      => (string) $row_label,
+			'row-label-from' => '' !== $label_from ? (string) $label_from : null,
+			'empty-text'     => __( 'No rows yet.', 'signal-and-noise-tools' ),
+			'os-prop-keys'   => $count > 0 ? array_map( 'strval', range( 0, $count - 1 ) ) : array(),
 		),
 		$rows . \snt_kit_tag( 'template', array( 'data-rsm-tpl' => true, 'data-rsm-token' => (string) $token ), $blank )
 	);
@@ -108,7 +126,7 @@ function resume_repeater( $base, $rows, $count, $token, $add_label, $row_label, 
 function resume_role_row( $prefix, array $role ) {
 	return resume_card(
 		$prefix,
-		resume_text( $prefix . '[title]', __( 'Role title · dates', 'signal-and-noise-tools' ), $role['title'] ?? '', 'Role · Jan 2020 - Present' )
+		resume_text( $prefix . '[title]', __( 'Role title · dates', 'signal-and-noise-tools' ), $role['title'] ?? '', 'Role · Jan 2020 - Present', 'title' )
 		. resume_lines( $prefix . '[bullets]', $role['bullets'] ?? array(), __( 'Bullets: one per line', 'signal-and-noise-tools' ), __( 'What you did, one line each', 'signal-and-noise-tools' ), 4 ),
 		true
 	);
@@ -129,7 +147,7 @@ function resume_roles_list( $prefix, array $roles, $token ) {
 		$out .= resume_role_row( $prefix . '[roles][' . $i . ']', (array) $role );
 		$i++;
 	}
-	return resume_repeater( $prefix . '[roles]', $out, $i, $token, __( '+ Add role', 'signal-and-noise-tools' ), __( 'role', 'signal-and-noise-tools' ), resume_role_row( $prefix . '[roles][' . $token . ']', array() ) );
+	return resume_repeater( $prefix . '[roles]', $out, $i, $token, __( '+ Add role', 'signal-and-noise-tools' ), __( 'role', 'signal-and-noise-tools' ), resume_role_row( $prefix . '[roles][' . $token . ']', array() ), 'title' );
 }
 
 /**
@@ -142,7 +160,7 @@ function resume_roles_list( $prefix, array $roles, $token ) {
  * @return string
  */
 function resume_employer_card( $prefix, $role_token, array $entry, $with_meta ) {
-	$inner = resume_text( $prefix . '[org]', __( 'Organization', 'signal-and-noise-tools' ), $entry['org'] ?? '', 'ORGANIZATION NAME' );
+	$inner = resume_text( $prefix . '[org]', __( 'Organization', 'signal-and-noise-tools' ), $entry['org'] ?? '', 'ORGANIZATION NAME', 'org' );
 	if ( $with_meta ) {
 		$inner .= resume_pair(
 			resume_text( $prefix . '[dates]', __( 'Dates', 'signal-and-noise-tools' ), $entry['dates'] ?? '', 'Jan 2020 - Present' ),
@@ -156,7 +174,7 @@ function resume_employer_card( $prefix, $role_token, array $entry, $with_meta ) 
 function resume_titled_lines_row( $prefix, array $entry ) {
 	return resume_card(
 		$prefix,
-		resume_text( $prefix . '[title]', __( 'Title', 'signal-and-noise-tools' ), $entry['title'] ?? '', __( 'Degree, membership, or certificate', 'signal-and-noise-tools' ) )
+		resume_text( $prefix . '[title]', __( 'Title', 'signal-and-noise-tools' ), $entry['title'] ?? '', __( 'Degree, membership, or certificate', 'signal-and-noise-tools' ), 'title' )
 		. resume_lines( $prefix . '[lines]', $entry['lines'] ?? array(), __( 'Detail lines: one per line', 'signal-and-noise-tools' ), 'Institution · Place · Date', 3 ),
 		true
 	);
@@ -168,7 +186,7 @@ function resume_stat_row( $prefix, array $stat ) {
 		$prefix,
 		resume_pair(
 			resume_text( $prefix . '[n]', __( 'Number', 'signal-and-noise-tools' ), $stat['n'] ?? '', '20+' ),
-			resume_text( $prefix . '[label]', __( 'Label', 'signal-and-noise-tools' ), $stat['label'] ?? '', __( 'Years in the industry', 'signal-and-noise-tools' ) )
+			resume_text( $prefix . '[label]', __( 'Label', 'signal-and-noise-tools' ), $stat['label'] ?? '', __( 'Years in the industry', 'signal-and-noise-tools' ), 'label' )
 		),
 		true
 	);
@@ -178,7 +196,7 @@ function resume_stat_row( $prefix, array $stat ) {
 function resume_publication_row( $prefix, array $pub ) {
 	return resume_card(
 		$prefix,
-		resume_text( $prefix . '[title]', __( 'Title', 'signal-and-noise-tools' ), $pub['title'] ?? '', __( 'Paper title', 'signal-and-noise-tools' ) )
+		resume_text( $prefix . '[title]', __( 'Title', 'signal-and-noise-tools' ), $pub['title'] ?? '', __( 'Paper title', 'signal-and-noise-tools' ), 'title' )
 		. resume_pair(
 			resume_text( $prefix . '[meta]', __( 'Venue · date', 'signal-and-noise-tools' ), $pub['meta'] ?? '', 'SSRN Working Paper · April 2026' ),
 			resume_text( $prefix . '[url]', __( 'URL', 'signal-and-noise-tools' ), $pub['url'] ?? '', 'https://ssrn.com/abstract=…' )
@@ -191,7 +209,7 @@ function resume_publication_row( $prefix, array $pub ) {
 function resume_skills_row( $prefix, array $row ) {
 	return resume_card(
 		$prefix,
-		resume_text( $prefix . '[category]', __( 'Category', 'signal-and-noise-tools' ), $row['category'] ?? '', __( 'Production', 'signal-and-noise-tools' ) )
+		resume_text( $prefix . '[category]', __( 'Category', 'signal-and-noise-tools' ), $row['category'] ?? '', __( 'Production', 'signal-and-noise-tools' ), 'category' )
 		. \snt_kit_field( 'textarea', $prefix . '[items]', __( 'Items', 'signal-and-noise-tools' ), (string) ( $row['items'] ?? '' ), array( 'rows' => 2 ) ),
 		true
 	);
@@ -208,14 +226,15 @@ function resume_skills_row( $prefix, array $row ) {
  * @param string   $add_label The classic "+ Add ..." label.
  * @param string   $row_label The singular noun for the row buttons.
  * @param array    $blank     The blank row the classic template carries.
+ * @param string   $label_from The row's data-field that names it (resume_repeater()).
  * @return string
  */
-function resume_list( array $items, callable $painter, $base, $token, $add_label, $row_label, array $blank = array() ) {
+function resume_list( array $items, callable $painter, $base, $token, $add_label, $row_label, array $blank = array(), $label_from = '' ) {
 	$out = '';
 	$i   = 0;
 	foreach ( $items as $row ) {
 		$out .= call_user_func( $painter, $base . '[' . $i . ']', (array) $row );
 		$i++;
 	}
-	return resume_repeater( $base, $out, $i, $token, $add_label, $row_label, call_user_func( $painter, $base . '[' . $token . ']', $blank ) );
+	return resume_repeater( $base, $out, $i, $token, $add_label, $row_label, call_user_func( $painter, $base . '[' . $token . ']', $blank ), $label_from );
 }
