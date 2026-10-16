@@ -62,6 +62,7 @@ $calls = array(
 	'inc/openstation-kit-anatomy.php'                     => 2,
 	'apps/sn-dashboard/parts/leaves/security-login.php'   => 2,
 	'apps/sn-dashboard/parts/leaves/site-performance.php' => 2,
+	'apps/sn-dashboard/parts/leaves/connections-zenodo.php' => 2,
 );
 $it    = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/apps/sn-dashboard', FilesystemIterator::SKIP_DOTS ) );
 foreach ( $it as $file ) {
