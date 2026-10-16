@@ -161,10 +161,13 @@ add_action( 'init', 'sn_analytics_daily_maybe_install' );
  * query, so it must never carry attacker/string input (it doesn't; callers
  * pass a constant, but the cast is defence in depth).
  *
- * @param int $days Trailing window in days (floored to >= 1).
+ * @param int    $days Trailing window in days (floored to >= 1).
+ * @param string $tz   Optional IANA zone ('' = UTC days).
+ * @param bool   $fold Fold over-cap visitor-days into bot (false: the pre-fold shape, sn_analytics_rollup_class_parts()).
  * @return string AE SQL.
  */
-function sn_analytics_rollup_sql( $days, $tz = '' ) {
+function sn_analytics_rollup_sql( $days, $tz = '', $fold = true ) {
+	list( $class, $cap ) = sn_analytics_rollup_class_parts( $fold );
 	list( $day_col, $lower ) = sn_analytics_rollup_window_exprs( $days, $tz );
 
 	// The four weighted engagement columns beside the kept avgIf pair are the
@@ -181,7 +184,7 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 	return implode( ' ', array(
 		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
-		sn_analytics_class_select() . ' AS class,',
+		$class . ' AS class,',
 		"sumIf(_sample_interval, blob1 = 'pv') AS views,",
 		'count(DISTINCT index1) AS visits,',
 		"avgIf(double1, blob1 = 'sc') AS scroll_avg,",
@@ -191,7 +194,7 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 		"sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_sum,",
 		"sumIf(_sample_interval, blob1 = 'tm') AS time_events",
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
-		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . sn_analytics_overcap_where(),
+		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . $cap,
 		'GROUP BY day, path, class',
 		'ORDER BY day DESC, views DESC',
 	) );

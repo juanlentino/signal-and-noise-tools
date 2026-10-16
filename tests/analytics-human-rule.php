@@ -155,8 +155,13 @@ $built = array(
 	'rollup:sn_analytics_rollup_gated_sql'              => sn_analytics_rollup_gated_sql( 7 ),
 	'utm:sn_analytics_utm_rollup_sql'                   => sn_analytics_utm_rollup_sql( 7 ),
 );
+$folds = array( 'rollup:sn_analytics_rollup_sql', 'rollup:sn_analytics_rollup_gated_sql' ); // the daily table: over-cap lands in its bot row, as the readers count it
 foreach ( $built as $name => $sql ) {
-	ok( false !== strpos( $sql, $not ), "$name excludes over-cap visitor-days" );
+	if ( in_array( $name, $folds, true ) ) {
+		ok( false === strpos( $sql, 'NOT IN' ) && false !== strpos( $sql, sn_analytics_counted_class_select( array( 'c70545e0be2a6240' ) ) . ' AS class' ), "$name folds over-cap visitor-days into bot" );
+	} else {
+		ok( false !== strpos( $sql, $not ), "$name excludes over-cap visitor-days" );
+	}
 	ok( array() === $ae_clause_fns( $sql ), "$name: no function in GROUP BY / HAVING / ORDER BY" );
 }
 $GLOBALS['__q'] = array();
@@ -195,7 +200,8 @@ foreach ( $built as $name => $sql ) {
 echo "\nGroup: group-by builders select the read-time class and group by the alias\n";
 foreach ( array( 'buckets:sn_analytics_buckets_hour_sql', 'buckets:sn_analytics_buckets_dist_sql', 'dims:sn_analytics_dims_rollup_sql', 'rollup:sn_analytics_rollup_sql', 'rollup:sn_analytics_rollup_gated_sql', 'utm:sn_analytics_utm_rollup_sql', 'realtime:sn_analytics_realtime_sql' ) as $name ) {
 	$sql = $built[ $name ];
-	ok( false !== strpos( $sql, sn_analytics_class_select() . ' AS class' ), "$name selects the read-time class AS class" );
+	$cls = in_array( $name, $folds, true ) ? sn_analytics_counted_class_select( array( 'c70545e0be2a6240' ) ) : sn_analytics_class_select();
+	ok( false !== strpos( $sql, $cls . ' AS class' ), "$name selects the read-time class AS class" );
 	ok( false === strpos( $sql, 'blob7 AS class' ), "$name no longer selects the stored class" );
 	ok( 1 === preg_match( '/GROUP BY [a-z_, ]*\bclass\b/', $sql ), "$name groups by the class alias" );
 }
