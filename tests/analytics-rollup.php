@@ -1300,6 +1300,49 @@ foreach ( $GLOBALS['wpdb']->queries as $q ) {
 ok( 2 === $v6_retry_updates, 'v6 repair retry: the next init re-runs the repair UPDATE (fixed point — retry is safe)' );
 ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '6', 'v6 repair retry: success stamps db version 6' );
 
+// ── Over-cap visitor-days fold into the bot row (the readers' rule) ─────────
+// The /stats Automated tile sums suspect+bot from the daily table. Before
+// this, both rollup queries dropped an over-cap visitor-day from EVERY class
+// (index1 NOT IN in WHERE), while the AE readers count it as bot
+// (sn_analytics_counted_condition('bot')), so the tile undercounted.
+echo "\nGroup: over-cap visitor-days roll into bot\n";
+ar_reset();
+$oc_h = 'abcdef0123456789';
+$GLOBALS['__ar_overcap'] = array( 'hashes' => array( $oc_h ), 'ok' => true, 'truncated' => false );
+// One fixture day: a reader (10 views), an over-cap visitor-day on a human network (60), a stored bot (5).
+$oc_rows = array(
+	array( 'vid' => '1111222233334444', 'blob7' => 'human', 'views' => 10 ),
+	array( 'vid' => $oc_h,              'blob7' => 'human', 'views' => 60 ),
+	array( 'vid' => '5555666677778888', 'blob7' => 'bot',   'views' => 5 ),
+);
+/**
+ * Evaluate the bot-condition forms the rule emits (blob7 = 'bot', index1 IN / NOT IN, OR) for one row.
+ */
+function oc_eval( $cond, array $r ) {
+	$php = preg_replace_callback( "/index1 (NOT )?IN \\(([^)]*)\\)/", static function ( $m ) {
+		return ( $m[1] ? '!' : '' ) . 'in_array($r[\'vid\'], array(' . $m[2] . '), true)';
+	}, $cond );
+	$php = str_replace( array( "blob7 = 'bot'", ' OR ', ' AND ' ), array( "(\$r['blob7'] === 'bot')", ' || ', ' && ' ), $php );
+	return (bool) eval( 'return ' . $php . ';' );
+}
+$oc_reader = 0;
+foreach ( $oc_rows as $r ) {
+	$oc_reader += oc_eval( sn_analytics_counted_condition( 'bot', array( $oc_h ) ), $r ) ? $r['views'] : 0;
+}
+ok( 65 === $oc_reader, 'fixture: the AE reader counts 65 bot views (stored bot + over-cap)' );
+foreach ( array( 'rollup_sql' => sn_analytics_rollup_sql( 7 ), 'gated_sql' => sn_analytics_rollup_gated_sql( 7 ) ) as $oc_name => $oc_sql ) {
+	$oc_where = preg_match( '/index1 NOT IN \([^)]*\)/', $oc_sql, $m ) ? $m[0] : '';
+	$oc_bot   = preg_match( "/AS path, if\\((.*?), 'bot', if\\(/", $oc_sql, $m ) ? $m[1] : 'false';
+	$oc_daily = 0;
+	foreach ( $oc_rows as $r ) {
+		$oc_daily += ( ( '' === $oc_where || oc_eval( $oc_where, $r ) ) && oc_eval( $oc_bot, $r ) ) ? $r['views'] : 0;
+	}
+	ok( $oc_reader === $oc_daily, "{$oc_name}: daily-table bot ({$oc_daily}) == AE-reader bot ({$oc_reader})" );
+	ok( false === strpos( $oc_sql, 'NOT IN' ), "{$oc_name}: no over-cap row is dropped from the query" );
+}
+ok( sn_analytics_class_select() === sn_analytics_counted_class_select( array() ), 'counted_class_select: no hashes is exactly the plain class select' );
+$GLOBALS['__ar_overcap'] = null;
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

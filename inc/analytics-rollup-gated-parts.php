@@ -37,10 +37,10 @@ function sn_analytics_rollup_gated_sql( $days, $tz = '' ) {
 	return implode( ' ', array(
 		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
-		sn_analytics_class_select() . ' AS class,',
+		sn_analytics_counted_class_select( sn_analytics_overcap_vdays()['hashes'] ) . ' AS class,',
 		'count(DISTINCT index1) AS pageview_visits',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
-		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . sn_analytics_overcap_where(),
+		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
 		"AND blob1 = 'pv'",
 		'GROUP BY day, path, class',
 		'ORDER BY day DESC, pageview_visits DESC',

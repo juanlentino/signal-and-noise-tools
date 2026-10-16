@@ -177,6 +177,19 @@ function sn_analytics_counted_condition( $class, array $hashes ) {
 }
 
 /**
+ * The read-time class as a SELECT expression under the rule, for builders that
+ * group by class: an over-cap visitor-day lands in the bot row (the same bot
+ * condition the readers use), never dropped. With no hashes it is exactly
+ * sn_analytics_class_select(). PURE.
+ *
+ * @param array $hashes Over-cap hashes.
+ * @return string
+ */
+function sn_analytics_counted_class_select( array $hashes ) {
+	return 'if(' . sn_analytics_counted_condition( 'bot', $hashes ) . ", 'bot', if(" . sn_analytics_network_human_sql() . ", 'human', 'suspect'))";
+}
+
+/**
  * The live condition for a class (reads the cached over-cap list).
  *
  * @param string $class Traffic class.

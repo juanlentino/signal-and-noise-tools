@@ -181,7 +181,7 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 	return implode( ' ', array(
 		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
-		sn_analytics_class_select() . ' AS class,',
+		sn_analytics_counted_class_select( sn_analytics_overcap_vdays()['hashes'] ) . ' AS class,',
 		"sumIf(_sample_interval, blob1 = 'pv') AS views,",
 		'count(DISTINCT index1) AS visits,',
 		"avgIf(double1, blob1 = 'sc') AS scroll_avg,",
@@ -191,7 +191,7 @@ function sn_analytics_rollup_sql( $days, $tz = '' ) {
 		"sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_sum,",
 		"sumIf(_sample_interval, blob1 = 'tm') AS time_events",
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
-		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . sn_analytics_overcap_where(),
+		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, path, class',
 		'ORDER BY day DESC, views DESC',
 	) );
