@@ -100,14 +100,23 @@ ok( false !== strpos( $kit, 'value="claude-sonnet-5"' ), 'the stored prose-model
 ok( false !== strpos( $kit, '<os-field-row label="Monthly budget (USD)" hint="Set 0 to remove the cap."><os-number-field name="theme_ai_monthly_budget"' ) && 1 === substr_count( $kit, 'Set 0 to remove the cap.' ) && false !== strpos( $classic, 'name="theme_ai_monthly_budget" value="0.00"><p class="sn-field-helper">Set 0 to remove the cap.</p>' ), 'the remove-cap hint is the budget field\'s own, once, on both twins' );
 ok( false !== strpos( $kit, 'draws on the same monthly budget. Copilot and agents run outside it.' ) && false !== strpos( $classic, 'draws on the same monthly budget. Copilot and agents run outside it.' ), 'the intro says Copilot and agents run outside the budget, on both twins' );
 ok( false === strpos( $kit . $classic, 'except Copilot' ), 'no twin says "except Copilot": agents are outside the cap too' );
+// 2026-10-16 leaf anatomy (docs/kit-leaf-anatomy.md): a status line leads,
+// the intro is the How this works fold on that card, and the settings form is
+// a Setup card of folds at the foot, each summary the setting as it stands.
+$prose_label = 'Claude Sonnet 5'; // the catalog's label, its parenthetical note left to the select
+ok( 0 === strpos( $kit, '<os-section heading="AI budget" stack><div class="snt-status-line"><os-cluster gap="8"><os-chip>No monthly cap</os-chip><os-badge tone="warning">Workers AI token not set</os-badge>' ), 'anatomy: one status line leads the leaf: no cap (neutral), the Workers AI token not set (amber)' );
+ok( 1 === preg_match( '#^<os-section heading="AI budget" stack>.*?<os-disclosure heading="How this works" hint="One monthly budget for every AI feature here; Copilot and agents run outside it\."[^>]*>.*?draws on the same monthly budget\. Copilot and agents run outside it\..*?</os-disclosure></os-section>#s', $kit ), 'anatomy: the intro paragraph is the closed How this works fold on the status card' );
+$setup = (string) substr( $kit, (int) strpos( $kit, '<os-section heading="Setup"' ) );
+ok( false !== strpos( $kit, '<os-section heading="Setup"' ) && str_ends_with( $kit, '</os-section>' ) && 1 === preg_match( '#^<os-section heading="Setup" description="Model changes apply to the next AI call\. The budget is evaluated per calendar month\." stack><os-disclosure heading="Models and budget" hint="Prose ' . preg_quote( $prose_label, '#' ) . '; vision [^";]+; no cap" data-snt-fold="models-and-budget" data-snt-open="0">.*?<os-form[^>]*submit-label="Save AI settings".*?name="theme_ai_model".*?name="theme_jev_cycle_day".*?</os-form>.*?</os-disclosure><os-disclosure heading="Workers AI token" hint="Not set" open #s', $setup ), 'anatomy: the Setup card closes the leaf; Models and budget folds the whole form (one form, one Save) with its current values as the summary; the Workers AI token fold opens while it is not set' );
+ok( false === strpos( (string) substr( $kit, 0, (int) strpos( $kit, '<os-section heading="Setup"' ) ), 'name="theme_ai_model"' ), 'anatomy: no setting field paints before the Setup card; the readings lead' );
 // 17.4.1 (#1573): rows of comparable height, no 2up. The form beside the spend
 // box and the platform box stacked; nothing configured, the Jev box stands
 // alone at full width with the bare status notice under it, not beside it.
-ok( 2 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-2up' ), '17.4.1: nothing configured, two rows (the form and its readouts; Jev beside Semantic embeddings), no .snt-2up' );
+ok( 2 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-2up' ), '17.4.1: nothing configured, two rows (the two spend readouts; Jev beside Semantic embeddings), no .snt-2up' );
 ok( false !== strpos( $kit, 'heading="This month, by feature"' ) && strpos( $kit, 'heading="This month, by feature"' ) < strpos( $kit, 'No cap set' ), '17.4.1: the spend line is the lead of the by-feature box, which paints even with no feature rows' );
 // The row closes as </os-card></os-grid>.
 $row1 = preg_match( '#' . preg_quote( snt_leaf_row(), '#' ) . '.*?</os-card></os-grid>#s', $kit, $m ) ? $m[0] : '';
-ok( false !== strpos( $row1, 'heading="Models &amp; budget"' ) && false !== strpos( $row1, 'heading="This month, by feature"' ) && false !== strpos( $row1, 'heading="Platform-reported, this month"' ) && false === strpos( $row1, 'heading="Jev' ) && strpos( $kit, 'heading="Jev' ) > strpos( $kit, $row1 ) + strlen( $row1 ), '17.4.1: row one is the form beside the two spend readouts; Jev is under the row' );
+ok( false !== strpos( $row1, 'heading="This month, by feature"' ) && false !== strpos( $row1, 'heading="Platform-reported, this month"' ) && false === strpos( $row1, 'heading="Models' ) && false === strpos( $row1, 'heading="Jev' ) && strpos( $kit, 'heading="Jev' ) > strpos( $kit, $row1 ) + strlen( $row1 ), '2026-10-16: row one is the two spend readouts (the plugin estimate beside what the platforms billed); the form is in Setup, Jev under the row' );
 // 2026-10-12 audit: the page ended on a bare "Not configured." notice. Now a
 // titled box says what is missing and links to where it is set, beside Jev.
 ok( 1 === preg_match( '#<os-card><os-section heading="Jev"#', $kit ) && 1 === preg_match( '#<os-card><os-section heading="Semantic embeddings"[^>]*><p class="snt-prose">Not configured: no Cloudflare account ID is set, so nothing is embedded\. Set it under <os-button class="snt-go" variant="link" data-snt-tab="connections" data-snt-sub="credentials"[^>]*>Connections › Credentials</os-button>\.</p></os-section></os-card></os-grid>#', $kit ), 'nothing configured: Semantic embeddings says what is missing, with the door to where it is set, beside the Jev box' );
@@ -122,6 +131,7 @@ ok( false !== strpos( $kit, 'Spent this month: $12.50 of $50.00 (25%)' ), 'the s
 ok( false !== strpos( $kit, 'drafts' ) && false !== strpos( $kit, '$9.00' ) && false !== strpos( $kit, 'alt-text' ) && false !== strpos( $kit, '$3.50' ), 'the by-feature breakdown lists both features and their costs' );
 ok( false === strpos( $kit, 'The cap is reached' ), 'under cap: no cap-reached notice' );
 ok( false !== strpos( $kit, '<os-progress-bar value="25" max="100" tone="default"' ), 'the spend meter paints at the classic width' );
+ok( false !== strpos( $kit, '<os-badge tone="success">$12.50 of $50.00 used (25%)</os-badge>' ) && 1 === preg_match( '#<os-disclosure heading="Models and budget" hint="Prose [^"]+; \$50\.00 a month"#', $kit ), 'anatomy, under cap: the status chip reads the spend against the cap in the ok tone; the fold summary states the cap' );
 ok( false !== strpos( $kit, 'Set 0 to remove the cap.' ) && false !== strpos( $kit, 'This month, by feature' ), 'the capped branch carries the classic hint and the by-feature heading' );
 
 // ── Cap reached.
@@ -132,6 +142,7 @@ ok( strpos( $kit, 'The cap is reached' ) < strpos( $kit, 'Spent this month: $50.
 ok( false !== strpos( $kit, 'The cap is reached. Copilot and agents run outside the cap; every other AI feature is paused' ), 'cap reached: the notice says Copilot and agents keep running' );
 ok( false !== strpos( snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' ), 'The cap is reached. Copilot and agents run outside the cap; every other AI feature is paused' ), 'classic, cap reached: the same notice' );
 ok( false !== strpos( $kit, '<os-progress-bar value="100" max="100" tone="danger"' ), 'the meter clamps at 100 and turns danger, as the classic clamped its width' );
+ok( false !== strpos( $kit, '<os-badge tone="danger">Cap reached: $50.00 of $50.00</os-badge>' ), 'anatomy, cap reached: the status chip says so in the danger tone (the notice stays open on the spend box)' );
 $GLOBALS['__spend']         = 0.0;
 $GLOBALS['__spend_by_feat'] = array();
 $GLOBALS['__settings']['theme.ai_monthly_budget'] = 0;
@@ -156,6 +167,7 @@ ok( array( 'ai_settings_save', 'ml_embed_compare' ) === snt_leaf_actions( $kit )
 ok( false !== strpos( $kit, 'Not run yet' ) && false !== strpos( $kit, 'Run comparison' ), 'configured, not run yet: the runner prompt and button paint' );
 ok( false === strpos( $kit, 'a-real-token-value' ) && false !== strpos( $kit, '>set</os-badge>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.3.1: the token is never on the leaf; a set badge and the door to the keyring are' );
 ok( false !== strpos( $kit, 'Configured' ), 'the embeddings-token status pill reads Configured' );
+ok( false !== strpos( $kit, '<os-badge tone="success">Workers AI token set</os-badge>' ) && 1 === preg_match( '#<os-disclosure heading="Workers AI token" hint="Set" data-snt-fold#', $kit ), 'anatomy, token set: the chip reads set and its Setup fold stays closed' );
 $__shadow = 'Embeddings run in SHADOW mode: they are computed and compared against the existing ranking, and nothing the site serves uses them yet.';
 ok( false !== strpos( $kit, $__shadow ) && false !== strpos( $classic, $__shadow ), 'configured: one embeddings sentence on both twins (#23: the classic said "never shown to a reader")' );
 ok( strpos( $kit, '>Configured</os-badge>' ) > strpos( $kit, 'heading="TF-IDF vs embeddings"' ) && strpos( $kit, '>Configured</os-badge>' ) < strpos( $kit, 'Not run yet' ), '17.4.1: configured, the status notice is the lead of the comparison box' );
@@ -209,7 +221,7 @@ $GLOBALS['__transients']['snt_ml_embed_compare'] = array(
 );
 $kit = snt_leaf_paint( 'ai', 'models-budget' );
 ok( false !== strpos( $kit, '40 notes embedded' ) && false !== strpos( $kit, 'Centered (recommended)' ), 'a successful comparison shows the scope line and marks the recommended variant' );
-ok( false === strpos( $kit, '<os-disclosure' ) && false !== strpos( $kit, 'note has a pair TF-IDF does not find' ) && false !== strpos( $kit, 'Found only by embeddings' ) && false === strpos( $kit, 'more, the list is capped' ), '17.4.1: the divergent pairs are a ledger under their count line, no fold, no "+N more" under the cap' );
+ok( false === strpos( (string) substr( $kit, (int) strpos( $kit, 'heading="TF-IDF vs embeddings"' ), (int) strpos( $kit, '<os-section heading="Setup"' ) - (int) strpos( $kit, 'heading="TF-IDF vs embeddings"' ) ), '<os-disclosure' ) && false !== strpos( $kit, 'note has a pair TF-IDF does not find' ) && false !== strpos( $kit, 'Found only by embeddings' ) && false === strpos( $kit, 'more, the list is capped' ), '17.4.1: the divergent pairs are a ledger under their count line, no fold, no "+N more" under the cap' );
 // 27 divergent notes: the table holds 25, the line says +2 more.
 $GLOBALS['__transients']['snt_ml_embed_compare']['result']['divergent'] = array_fill( 0, 27, array( 'title' => 'Note A', 'only_embedding' => array( array( 'title' => 'Note B' ) ) ) );
 $kit = snt_leaf_paint( 'ai', 'models-budget' );

@@ -9,6 +9,10 @@
  * (sn_login_module_state()), same sentences (sn_login_status_copy()), same
  * field, same handler; the kit's parts instead of wp-admin's.
  *
+ * 2026-10-16 (the leaf anatomy, docs/kit-leaf-anatomy.md): the state leads
+ * as a status line, the module's explanation is a How this works fold, and
+ * the emergency-unlock reference is a Setup fold beside the slug form.
+ *
  * @package SignalNoiseTools
  * @since 13.106.0
  */
@@ -20,17 +24,57 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The status card: which state the module is in, in the classic page's
- * words (sn_login_status_copy(), inc/admin-forms/login.php).
+ * The status card: the module's state on the leaf's status line, in the
+ * classic page's words (sn_login_status_copy(), inc/admin-forms/login.php).
+ * A state that needs the owner keeps its open notice; the active state's
+ * sentence is a hint. How this works sits at the card's foot.
  *
  * @param array $s From sn_login_module_state().
  * @return string
  */
 function login_status_html( array $s ) {
-	$c = \sn_login_status_copy( $s['state'] );
-	return \snt_kit_notice(
-		$c['kind'],
-		'<b>' . \snt_kit_esc( $c['title'] ) . '</b> ' . \snt_kit_badge( $c['kind'], $c['pill'] ) . '<br>' . \snt_kit_esc( $c['body'] )
+	$c     = \sn_login_status_copy( $s['state'] );
+	$chips = array( array( 'tone' => $c['kind'], 'label' => $c['pill'], 'title' => $c['title'] ) );
+	if ( $s['locked'] ) {
+		$chips[] = array( 'tone' => 'neutral', 'label' => __( 'Slug pinned in wp-config.php', 'signal-and-noise-tools' ) );
+	}
+	$body = 'ok' === $c['kind']
+		? '<p class="snt-hint"><b>' . \snt_kit_esc( $c['title'] ) . '.</b> ' . \snt_kit_esc( $c['body'] ) . '</p>'
+		: \snt_kit_notice( $c['kind'], '<b>' . \snt_kit_esc( $c['title'] ) . '</b> ' . \snt_kit_badge( $c['kind'], $c['pill'] ) . '<br>' . \snt_kit_esc( $c['body'] ) );
+	return \snt_kit_section(
+		__( 'Login URL', 'signal-and-noise-tools' ),
+		\snt_kit_status_line( $chips ) . $body
+		. \snt_kit_how_fold(
+			__( 'A custom slug stands in for /wp-login.php.', 'signal-and-noise-tools' ),
+			'<p class="snt-prose">' . \snt_kit_esc( __( 'Custom login URL module: replaces /wp-login.php with a configurable slug. Designed to mask the WordPress login surface from automated bots without changing real user flows (password-reset emails, logout redirects, etc. are rewritten automatically).', 'signal-and-noise-tools' ) ) . '</p>'
+		)
+	);
+}
+
+/**
+ * The Setup card: Emergency unlock, the two wp-config.php constants, as one
+ * fold whose summary says which one is set. Open while one is set: the
+ * classic copy asks to remove it once access is back.
+ *
+ * @param array $s From sn_login_module_state().
+ * @return string
+ */
+function login_setup_html( array $s ) {
+	$bypass  = 'bypassed' === $s['state'];
+	$summary = $bypass ? __( 'SN_LOGIN_BYPASS is set', 'signal-and-noise-tools' ) : ( $s['locked'] ? __( 'SN_LOGIN_SLUG is set', 'signal-and-noise-tools' ) : __( 'No unlock constant set', 'signal-and-noise-tools' ) );
+	$body    = '<p class="snt-prose">' . \snt_kit_esc( __( "If you ever lock yourself out (forgot the slug, can't reach the login form), add either of these constants to wp-config.php via SSH or your host's file manager:", 'signal-and-noise-tools' ) ) . '</p>'
+		. \snt_kit_code( "// Option 1: pin the slug. Reachable at /<slug-here>.\ndefine( 'SN_LOGIN_SLUG', 'your-fallback-slug' );\n\n// Option 2: disable the module entirely. Restores /wp-login.php.\ndefine( 'SN_LOGIN_BYPASS', true );" )
+		. '<p class="snt-prose">' . \snt_kit_esc( __( "The constants take priority over the setting and persist across plugin updates. Remove them once you've regained access.", 'signal-and-noise-tools' ) ) . '</p>';
+	return \snt_kit_setup_card(
+		__( 'Setup', 'signal-and-noise-tools' ),
+		array(
+			array(
+				'title'   => __( 'Emergency unlock', 'signal-and-noise-tools' ),
+				'summary' => $summary,
+				'body'    => $body,
+				'open'    => $bypass || $s['locked'],
+			),
+		)
 	);
 }
 
@@ -42,9 +86,7 @@ function login_status_html( array $s ) {
  */
 function paint_security_login( array $ctx ) {
 	unset( $ctx );
-	$s   = \sn_login_module_state();
-	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'Custom login URL module: replaces /wp-login.php with a configurable slug. Designed to mask the WordPress login surface from automated bots without changing real user flows (password-reset emails, logout redirects, etc. are rewritten automatically).', 'signal-and-noise-tools' ) ) . '</p>';
-	$out .= login_status_html( $s );
+	$s = \sn_login_module_state();
 
 	$slug_row = $s['locked']
 		? \snt_kit_static(
@@ -62,23 +104,13 @@ function paint_security_login( array $ctx ) {
 	// (it posted no slug and answered "Login slug cannot be empty").
 	$form = $s['locked'] ? \snt_kit_tag( 'div', array( 'class' => 'snt-form snt-form--rows' ), $slug_row . $url_row ) : \snt_kit_form( 'save_login', $slug_row . $url_row, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
 	// Siblings: both are how the login surface is reached -- one sets the door,
-	// the other is the way back in when you lose it. Paired, the leaf also trips
-	// the width-cap escape, so each gets ~850px instead of a 760px form column.
-	$pair   = array();
-	$pair[] = \snt_kit_section(
+	// the other is the way back in when you lose it.
+	$slug = \snt_kit_section(
 		__( 'Custom login slug', 'signal-and-noise-tools' ),
 		$form,
 		__( 'The path segment used in place of wp-login.php.', 'signal-and-noise-tools' )
 	);
-
-	$pair[] = \snt_kit_section(
-		__( 'Emergency unlock', 'signal-and-noise-tools' ),
-		'<p class="snt-prose">' . \snt_kit_esc( __( "If you ever lock yourself out (forgot the slug, can't reach the login form), add either of these constants to wp-config.php via SSH or your host's file manager:", 'signal-and-noise-tools' ) ) . '</p>'
-		. \snt_kit_code( "// Option 1: pin the slug. Reachable at /<slug-here>.\ndefine( 'SN_LOGIN_SLUG', 'your-fallback-slug' );\n\n// Option 2: disable the module entirely. Restores /wp-login.php.\ndefine( 'SN_LOGIN_BYPASS', true );" )
-		. '<p class="snt-prose">' . \snt_kit_esc( __( "The constants take priority over the setting and persist across plugin updates. Remove them once you've regained access.", 'signal-and-noise-tools' ) ) . '</p>'
-	);
-	$out .= \snt_kit_grid( $pair );
-	return $out;
+	return login_status_html( $s ) . \snt_kit_grid( array( $slug, login_setup_html( $s ) ) );
 }
 
 add_filter(

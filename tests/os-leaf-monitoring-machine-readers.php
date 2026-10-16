@@ -154,7 +154,12 @@ foreach ( array( 'kit' => $kit, 'classic' => $classic ) as $twin => $h ) {
 	foreach ( array( 'machine reads, 30d', 'top family', 'GPTBot/1.0', 'SomeCrawlerBot', 'By purpose', 'By crawler family', 'Declared-crawler compliance', 'Feed fetches per window', 'Reads (claimed)' ) as $reading ) {
 		ok( false === strpos( $h, $reading ), "$twin: no reading left on the leaf ($reading)" );
 	}
-	ok( false === strpos( $h, 'os-disclosure' ) && false === strpos( $h, 'sn-disclosure' ) && false === strpos( $h, '<details' ), "$twin: nothing folded, the settings form included" );
+	if ( 'classic' === $twin ) {
+		ok( false === strpos( $h, 'os-disclosure' ) && false === strpos( $h, 'sn-disclosure' ) && false === strpos( $h, '<details' ), "$twin: nothing folded, the settings form included" );
+	} else {
+		preg_match_all( '/<os-disclosure heading="([^"]+)"/', $h, $folds );
+		ok( array( 'Edge sensor', 'Sensor settings' ) === $folds[1] && false === strpos( $h, 'sn-disclosure' ) && false === strpos( $h, '<details' ), "$twin: the only folds are the Setup card's Edge sensor and Sensor settings (2026-10-16 leaf anatomy) -- " . implode( ',', $folds[1] ) );
+	}
 	ok( false !== strpos( $h, 'sn_mr_worker_url' ), "$twin: the worker URL form is on the leaf" );
 }
 ok( false !== strpos( $kit, 'sn-rights-signals' ) && false !== strpos( $kit, 'v1.20.0' ), 'the edge-sensor readout names the deployed worker version' );
@@ -195,6 +200,11 @@ ok( array() === $GLOBALS['__deleted_transients'], 'an ordinary paint keeps the c
 ok( false === strpos( (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-evidence.php' ), "'<h3>'" ), 'rights evidence sub-blocks are snt-h headings, not a bare <h3>' );
 ok( false !== strpos( $kit, 'token set' ) && false !== strpos( $kit, '<os-text-field name="sn_mr_worker_url"' ), 'the settings section says "token set" and the worker-url field is present' );
 ok( false !== strpos( $kit, '✓ Sensor v1.20.0' ) || false !== strpos( $kit, '! ' ) || false !== strpos( $kit, '? ' ), 'pill state marks (✓/!/?) survive alongside the tone' );
+// 2026-10-16 leaf anatomy (docs/kit-leaf-anatomy.md): the pills are the
+// status line, the two doors on its right; the readout and the settings are
+// Setup folds, closed while they answer; the rights-evidence buttons are compact.
+ok( 1 === preg_match( '#<os-section heading="Sensor status"[^>]*>.*?<div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success">✓ Sensor v1.20.0</os-badge>.*?</os-cluster><os-cluster gap="8"><os-button[^>]*>Machine readers in S&amp;N Analytics#s', $kit ), 'anatomy: the sensor pills are one status line, the doors to S&N Analytics on its right' );
+ok( 1 === preg_match( '#<os-section heading="Setup"[^>]*>.*<os-disclosure heading="Edge sensor" hint="sn-rights-signals v1.20.0"[^>]*data-snt-open="0".*<os-disclosure heading="Sensor settings" hint="token set"[^>]*data-snt-open="0"[^>]*>.*name="sn_mr_worker_url"#s', $kit ), 'anatomy: Edge sensor and Sensor settings are closed Setup folds whose summaries are the worker version and the token state' );
 
 // ── not_configured: no token, sensor unreachable, crawler check unmeasured.
 $GLOBALS['__sn_settings'] = array();
@@ -214,6 +224,7 @@ ok( false !== strpos( $kit, 'Not read: the version endpoint did not answer.' ) &
 ok( false !== strpos( $kit, 'Not configured' ), 'not_configured pill shown when the read fails for lack of a token' );
 ok( false !== strpos( $kit, 'Crawler list unchecked' ), 'crawler-list-unchecked pill shown when the status endpoint fails' );
 ok( false !== strpos( $kit, 'not set' ), 'the settings snapshot says "not set" with no token' );
+ok( 1 === preg_match( '#<os-disclosure heading="Edge sensor" hint="Not read"[^>]*\sopen[^>]*data-snt-open="1"#', $kit ) && 1 === preg_match( '#<os-disclosure heading="Sensor settings" hint="no token yet"[^>]*\sopen[^>]*data-snt-open="1"#', $kit ), 'anatomy: unread and tokenless, both Setup folds open themselves' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'still no wp-admin markup in the empty state' );
 
 // ── Truncated read: the caveat is shown and qualifies the headline.

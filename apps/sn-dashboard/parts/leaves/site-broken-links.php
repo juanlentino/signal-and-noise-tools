@@ -80,7 +80,8 @@ function broken_links_create_html( $path, array $e, $suggested ) {
 		// Cancel sits beside Create in the form's own action row (os-form footer-leading, as on Résumé).
 		\snt_kit_form( 'redirect_add', $fields . \snt_kit_tag( 'span', array( 'slot' => 'footer-leading' ), \snt_kit_button( __( 'Cancel', 'signal-and-noise-tools' ), 'go', array( 'variant' => 'ghost', 'args' => array( 'sub' => 'broken-links', 'anchor' => \snt_kit_row_anchor( $path ) ) ) ) ), array( 'submit' => __( 'Create redirect', 'signal-and-noise-tools' ) ) )
 			. '<p class="snt-hint">' . \snt_kit_esc( __( 'Dismiss removes the path from the log without a redirect.', 'signal-and-noise-tools' ) ) . '</p>'
-			. \snt_kit_form( 'redirect_404_delete', \snt_kit_field( 'hidden', 'source', '', $path ), array( 'submit' => __( 'Dismiss', 'signal-and-noise-tools' ) ) ),
+			// 2026-10-16: the lone Dismiss is the kit's compact one-button form.
+			. \snt_kit_form( 'redirect_404_delete', \snt_kit_field( 'hidden', 'source', '', $path ), array( 'submit' => __( 'Dismiss', 'signal-and-noise-tools' ), 'inline' => true ) ),
 		sprintf(
 			/* translators: 1: "7 hits", 2: date of the latest hit (the site's date format), 3: "from <host>" or "no referrer recorded". */
 			__( '%1$s, last %2$s, %3$s.', 'signal-and-noise-tools' ),

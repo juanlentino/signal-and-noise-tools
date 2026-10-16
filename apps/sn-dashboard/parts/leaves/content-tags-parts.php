@@ -96,8 +96,13 @@ function tags_check_row( $name, $value, $label, $checked = true ) {
 }
 
 /**
- * The glance: the same three cards (`snt_tags_glance_cards()`) as stats; the
- * pill's text is the caption, its kind the swatch.
+ * The glance: the same three cards (`snt_tags_glance_cards()`) as one status
+ * line (snt_kit_status_line(), inc/openstation-kit-anatomy.php) in the
+ * leaf's first card. Each chip carries the card's label, its value and its
+ * pill's text; the pill's kind is the chip's tone, so a count with no pill
+ * (Tags total) is a neutral chip. 2026-10-16 (owner: the Analytics anatomy
+ * "throughout the plugin, in some form or shape"): three stat tiles were
+ * status scattered over a row.
  *
  * @param array $clusters Duplicate clusters.
  * @param array $unused   Unused terms.
@@ -108,12 +113,17 @@ function tags_glance_html( $clusters, $unused, $total ) {
 	if ( ! function_exists( 'snt_tags_glance_cards' ) ) {
 		return '';
 	}
-	$out = array();
+	$chips = array();
 	foreach ( \snt_tags_glance_cards( $clusters, $unused, $total ) as $card ) {
 		$pill = isset( $card['pill'] ) && is_array( $card['pill'] ) ? $card['pill'] : array();
-		$out[] = \snt_kit_stat( (string) ( $card['value'] ?? '' ), (string) ( $card['label'] ?? '' ), (string) ( $pill['text'] ?? '' ), (string) ( $pill['kind'] ?? '' ) );
+		/* translators: 1: what is counted ("Unused tags"), 2: the count. */
+		$label = sprintf( __( '%1$s: %2$s', 'signal-and-noise-tools' ), (string) ( $card['label'] ?? '' ), (string) ( $card['value'] ?? '' ) );
+		if ( '' !== (string) ( $pill['text'] ?? '' ) ) {
+			$label .= ' · ' . (string) $pill['text'];
+		}
+		$chips[] = array( 'tone' => '' !== (string) ( $pill['kind'] ?? '' ) ? (string) $pill['kind'] : 'neutral', 'label' => $label );
 	}
-	return \snt_kit_tag( 'section', array( 'aria-label' => __( 'Tags at a glance', 'signal-and-noise-tools' ) ), \snt_kit_grid( $out, 160, 10 ) );
+	return \snt_kit_section( __( 'Tags at a glance', 'signal-and-noise-tools' ), \snt_kit_status_line( $chips ) );
 }
 
 /**

@@ -45,7 +45,10 @@ function health_hero_html( array $glance ) {
 }
 
 /**
- * The "Run scan" card: one form, no fields, `sn_action=health_scan`.
+ * The "Run scan" card: its sentence, then one form, no fields,
+ * `sn_action=health_scan`. 2026-10-16 leaf anatomy: a one-button form is the
+ * compact inline form (docs/kit-leaf-anatomy.md), so the sentence sits
+ * above it rather than inside a full-width form with a footer rule.
  *
  * @param bool $has_scan Whether a scan already exists (relabels the submit).
  * @return string
@@ -54,7 +57,14 @@ function health_scan_form_html( $has_scan ) {
 	$body = '<p class="snt-prose">' . \snt_kit_esc( __( 'Sweeps posts, media, and links for content issues; AI-assisted fixes appear inline when a provider is configured. Results persist until the next scan.', 'signal-and-noise-tools' ) ) . '</p>';
 	return \snt_kit_section(
 		__( 'Run scan', 'signal-and-noise-tools' ),
-		\snt_kit_form( 'health_scan', $body, array( 'submit' => $has_scan ? __( 'Re-run scan', 'signal-and-noise-tools' ) : __( 'Run scan', 'signal-and-noise-tools' ) ) )
+		$body . \snt_kit_form(
+			'health_scan',
+			'',
+			array(
+				'submit' => $has_scan ? __( 'Re-run scan', 'signal-and-noise-tools' ) : __( 'Run scan', 'signal-and-noise-tools' ),
+				'inline' => true,
+			)
+		)
 	);
 }
 

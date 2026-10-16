@@ -178,21 +178,25 @@ $kit = snt_leaf_paint( 'monitoring', 'rss', array( 'params' => array( 'sn_rss_ok
 ok( false !== strpos( $kit, 'Purged' ) && false !== strpos( $kit, '12' ), 'the purged-N flash reports the count' );
 
 
-// ── Boxes pair by height (#1573). ──
-// Measured live 2026-09-20 at 1581px; see the painter for the per-box numbers.
+// ── Leaf anatomy (2026-10-16, docs/kit-leaf-anatomy.md). ──
+// One row: Activity (the status line on top) over the Setup card, beside
+// the Recent requests ledger it is read against. Settings and Maintenance
+// are Setup folds whose closed lines state the setting; Reset is compact.
+$GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ]['enabled'] = true;
 $kitP = snt_leaf_paint( 'monitoring', 'rss' );
-ok(
-	2 === substr_count( $kitP, snt_leaf_row() ),
-	'the four boxes are painted in 2 paired rows -- ' . substr_count( $kitP, snt_leaf_row() )
-);
-// A row is read up to the next row (the Activity box holds a tile grid of its own).
-preg_match_all( '/' . preg_quote( snt_leaf_row(), '/' ) . '(.*?)(?=' . preg_quote( snt_leaf_row(), '/' ) . '|$)/s', $kitP, $rowsP );
-$rowP = static function ( $i ) use ( $rowsP ) {
-	preg_match_all( '/<os-section heading="([^"]+)"/', (string) ( $rowsP[1][ $i ] ?? '' ), $h );
-	return $h[1];
-};
-ok( array( 'Activity', 'Maintenance' ) === $rowP( 0 ), '#1573: row one pairs Activity (189) with Maintenance (177) -- ' . implode( ' | ', $rowP( 0 ) ) );
-ok( array( 'Settings', 'Recent requests' ) === $rowP( 1 ), '#1573: row two pairs the Settings form (507) with the Recent requests ledger it is read against (507) -- ' . implode( ' | ', $rowP( 1 ) ) );
-ok( substr_count( $kitP, '<os-section heading=' ) === count( $rowP( 0 ) ) + count( $rowP( 1 ) ), '#1573: every box sits in a row; none stands alone above or below them -- ' . substr_count( $kitP, '<os-section heading=' ) . ' boxes, ' . ( count( $rowP( 0 ) ) + count( $rowP( 1 ) ) ) . ' in rows' );
+ok( 1 === substr_count( $kitP, snt_leaf_row() ), 'anatomy: one paired row -- ' . substr_count( $kitP, snt_leaf_row() ) );
+preg_match_all( '/<os-section heading="([^"]+)"/', $kitP, $h );
+ok( array( 'Activity', 'Setup', 'Recent requests' ) === $h[1], 'anatomy: Activity, then Setup under it, beside Recent requests -- ' . implode( ' | ', $h[1] ) );
+ok( 1 === preg_match( '/^' . preg_quote( snt_leaf_row(), '/' ) . '<os-stack gap="18"><os-section heading="Activity"[^>]*><div class="snt-status-line">.*?Tracking on.*?Keeps 45 days/s', $kitP ), 'anatomy: the leaf opens on the row, Activity leads with the status line (tracking on, retention)' );
+ok( 1 === preg_match( '/<os-disclosure heading="Settings" hint="On · RSS Feed Request · 45 days"[^>]*data-snt-open="0"[^>]*>.*name="event_name".*name="log_retention_days"/s', $kitP ), 'anatomy: Settings is a closed Setup fold whose summary is tracking, event and retention' );
+ok( 1 === preg_match( '/<os-disclosure heading="Maintenance" hint="[^"]*45 days[^"]*"[^>]*data-snt-open="0"[^>]*>.*name="purge_days"/s', $kitP ), 'anatomy: Maintenance (the purge form) is a closed Setup fold that names the daily prune' );
+ok( 1 === preg_match( '/<os-form class="snt-form snt-form--inline"[^>]*submit-label="Reset to Defaults"/', $kitP ) && 1 === substr_count( $kitP, 'snt-form--inline' ), 'anatomy: Reset to Defaults is the one compact inline form' );
+$GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ]['enabled'] = false;
+$kitP = snt_leaf_paint( 'monitoring', 'rss' );
+ok( 1 === preg_match( '/<div class="snt-status-line"><os-cluster gap="8"><os-badge tone="warning"[^>]*>Tracking off<\/os-badge>/', $kitP ) && false !== strpos( $kitP, 'hint="Off · RSS Feed Request · 45 days"' ), 'anatomy: tracking off is a warning chip on the status line, and the Settings fold says Off' );
+$GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ]['event_name'] = '';
+$kitP = snt_leaf_paint( 'monitoring', 'rss' );
+ok( 1 === preg_match( '/<os-disclosure heading="Settings"[^>]*\sopen[^>]*data-snt-open="1"/', $kitP ), 'anatomy: the Settings fold opens itself while the required event name is empty' );
+$GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ]['event_name'] = 'RSS Feed Request';
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -123,6 +123,7 @@ ok( isset( $toggle_tag[0] ) && false !== strpos( $toggle_tag[0], ' checked' ), '
 ok( false !== strpos( $kit, '1 hour' ), 'the last-sent readout survives (human_time_diff stub)' );
 ok( false !== strpos( $kit, 'Save' ) && false !== strpos( $kit, 'Send test digest' ), 'both digest buttons survive' );
 ok( false !== strpos( $kit, 'name="sn_digest_test"' ), 'the test button carries its differentiator field' );
+ok( 1 === preg_match( '/<p class="snt-hint">Sends this week’s digest[^<]*<\/p><os-form class="snt-form snt-form--inline"[^>]*submit-label="Send test digest"[^>]*><input type="hidden" name="sn_digest_test" value="1">/', $kit ), '2026-10-16: Send test digest is the compact one-button form under its line, its differentiator inside' );
 
 // ── Escaping: a hostile worker string / error message never reaches the markup raw.
 $GLOBALS['__lg_remote']['deployed_at'] = '"><script>x</script>';

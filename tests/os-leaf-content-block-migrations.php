@@ -25,6 +25,13 @@ require SNT_PATH . 'inc/block-migrations-admin.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/content-block-migrations.php';
 
 $pass = 0; $fail = 0;
+/**
+ * 2026-10-16 leaf anatomy: the one fold on this leaf is How this works (what
+ * the scanner looks for); the count, the age, Re-scan and the queue stay open.
+ */
+function scan_how_only( $html ) {
+	return 1 === substr_count( (string) $html, '<os-disclosure' ) && 1 === substr_count( (string) $html, '<os-disclosure heading="How this works"' ) && false === strpos( (string) $html, '<os-disclosure heading="How this works" hint="Structural detection with no AI; each candidate is reviewed before it is applied." open' );
+}
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
 /** @return array<string,mixed> A scan envelope shaped as snt_block_migrations_compute() shapes it. */
@@ -71,7 +78,7 @@ foreach ( array( 'no scan yet' => null, 'empty envelope' => array(), 'clean scan
 	ok( array() === snt_leaf_classic_markers( $kit ), "$label: no wp-admin markup survives: " . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 	ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false !== strpos( $kit, 'name="action" value="sn_block_migrations_scan"' ), "$label: the scan form is an os-form dispatching post with the hidden sn_action" );
 	ok( false !== strpos( $kit, 'Scans published and scheduled posts for structural issues' ) && false !== strpos( $kit, 'heading="Block migrations"' ), "$label: the section heading and the intro survive" );
-	ok( array() === snt_leaf_folds( $kit ), "$label: no fold: " . implode( ',', snt_leaf_folds( $kit ) ) );
+	ok( scan_how_only( $kit ), "$label: the one fold is How this works: " . implode( ',', snt_leaf_folds( $kit ) ) );
 }
 
 // ── No scan yet: the first-run button label, and nothing to count or review.
@@ -96,12 +103,13 @@ ok( false !== strpos( $kit, '<os-empty-state heading="No heading skips found: no
 $classic = snt_leaf_classic_html( 'sn_admin_render_block_migrations_section' );
 ok( false !== strpos( $classic, 'No heading skips found: no post has an h3 or h4 before its first h2.' ) && false === strpos( $classic, 'valid hierarchy' ), 'clean scan: the classic twin says the same' );
 ok( false !== strpos( $kit, '<p class="snt-prose">Scanned <os-relative-time datetime="2025-09-06T08:00:00Z">1 hour ago</os-relative-time>. A scan&#039;s list is kept for an hour; Re-scan lists what is left.</p>' ) && false !== strpos( $classic, 'Scanned 1 hour ago. A scan&#039;s list is kept for an hour; Re-scan lists what is left.' ), 'a scan says when it ran and how long its list is kept, on both surfaces' );
-ok( 0 === strpos( $kit, snt_leaf_row() . '<os-section heading="Block migrations" stack>' ) && false !== strpos( $kit, '<os-section heading="What it looks for" stack><p class="snt-prose">Scans published and scheduled posts' ) && 1 === preg_match( '#</os-grid><os-section heading="Candidates" stack><os-empty-state#', $kit ), 'layout: the status box pairs with What it looks for; the clean note sits under the pair' );
+ok( 0 === strpos( $kit, '<os-section heading="Block migrations" stack><div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success">0 candidates</os-badge></os-cluster><os-form class="snt-form snt-form--inline"' ) && 1 === preg_match( '#<os-disclosure heading="How this works" hint="Structural detection with no AI; each candidate is reviewed before it is applied."[^>]*><os-stack gap="12"><p class="snt-prose">Scans published and scheduled posts.*?</os-disclosure></os-section><os-section heading="Candidates" stack><os-empty-state#s', $kit ) && false === strpos( $kit, 'What it looks for' ) && false === strpos( $kit, '<os-grid' ), 'layout (2026-10-16 anatomy): the status line leads (the count chip, Re-scan beside it), what it looks for folds into How this works, the clean note sits under the card' );
 
 // ── Candidates: the pill in the warn tone, the collapsed queue, every row's readouts.
 $GLOBALS['__last_scan'] = $rich;
 $classic = snt_leaf_classic_html( 'sn_admin_render_block_migrations_section' );
 $kit     = snt_leaf_paint( 'content', 'block-migrations' );
+ok( false !== strpos( $kit, '<os-section heading="Candidates" description="On each row, Suggest drafts the upgraded block for you to review, Apply writes it after a preview, and Dismiss keeps that block out of later scans." stack>' ) && 1 === substr_count( $kit, 'On each row, Suggest drafts' ), 'candidates: how a row is worked is the queue\'s own description, beside Dismiss, never in the fold' );
 ok( false !== strpos( $kit, '<os-badge tone="warning">2 candidates</os-badge>' ), 'candidates: the count pill says 2 candidates in the warn tone' );
 // 2026-10-11 (owner rule, no folds): the queue is open; the count its closed
 // "Review 2 candidates" heading carried is the finding sentence over the table.
@@ -134,7 +142,7 @@ $GLOBALS['__last_scan'] = bm_envelope( $rich['candidates'], 5 );
 $classic = snt_leaf_classic_html( 'sn_admin_render_block_migrations_section' );
 $kit     = snt_leaf_paint( 'content', 'block-migrations' );
 ok( false !== strpos( $classic, '5 candidates' ) && false !== strpos( $classic, '2 candidates in 2 posts' ) && false !== strpos( $kit, '>5 candidates<' ) && false !== strpos( $kit, '<p class="snt-prose">2 candidates in 2 posts' ), 'the pill counts from counts.heading_hierarchy_skip and the queue finding from the rows, same two sources as the classic leaf' );
-ok( array() === snt_leaf_folds( $kit ), 'two-sources paint: no fold' );
+ok( scan_how_only( $kit ), 'two-sources paint: only the How this works fold' );
 
 // ── Escaping: a hostile candidate never reaches the markup raw.
 $GLOBALS['__last_scan'] = bm_envelope( array( bm_candidate( 7, '"><script>x</script>', 'https://example.test/?q="><script>y</script>', 3, '"><b>z' ) ) );
@@ -142,12 +150,12 @@ $kit = snt_leaf_paint( 'content', 'block-migrations' );
 ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '<os-code>&quot;&gt;&lt;script&gt;x&lt;/script&gt;</os-code>' ), 'a hostile post title is escaped' );
 ok( false !== strpos( $kit, 'os-arg-url="https://example.test/?q=&quot;&gt;&lt;script&gt;y&lt;/script&gt;"' ) && false === strpos( $kit, '<script>' ), 'a hostile permalink is escaped in the attribute (now the door arg)' );
 ok( false !== strpos( $kit, 'data-fingerprint="&quot;&gt;&lt;b&gt;z"' ) && false === strpos( $kit, 'data-fingerprint=""><b>z' ), 'a hostile fingerprint is escaped in the button data contract' );
-ok( array() === snt_leaf_classic_markers( $kit ) && array() === snt_leaf_folds( $kit ), 'hostile: no wp-admin markup survives, no fold: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
+ok( array() === snt_leaf_classic_markers( $kit ) && scan_how_only( $kit ), 'hostile: no wp-admin markup survives, only the How this works fold: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 // ── A disallowed-scheme permalink: classic's esc_url() blanks it; the kit leaf must too.
 $GLOBALS['__last_scan'] = bm_envelope( array( bm_candidate( 9, 'Scheme candidate', 'javascript:alert(1)', 3, str_repeat( 'c', 32 ) ) ) );
 $kit = snt_leaf_paint( 'content', 'block-migrations' );
-ok( false === strpos( $kit, 'href="javascript:' ) && false === strpos( $kit, 'class="snt-link' ) && array() === snt_leaf_folds( $kit ), 'a javascript: permalink is blanked, not linked, matching esc_url(); no fold' );
+ok( false === strpos( $kit, 'href="javascript:' ) && false === strpos( $kit, 'class="snt-link' ) && scan_how_only( $kit ), 'a javascript: permalink is blanked, not linked, matching esc_url(); only the How this works fold' );
 
 // ── The cap: 25 rows painted, the rest counted; at the cap, no "+N more".
 /** @return array<string,mixed> An envelope of $n candidates over ceil($n/2) posts, h3 and h4 alternating. */
@@ -160,18 +168,18 @@ function bm_many( $n ) {
 }
 $GLOBALS['__last_scan'] = bm_many( 25 );
 $kit = snt_leaf_paint( 'content', 'block-migrations' );
-ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && false === strpos( $kit, 'snt-ledger-more' ) && array() === snt_leaf_folds( $kit ), 'exactly 25 candidates: every row painted, no "+N more" line, no fold' );
+ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && false === strpos( $kit, 'snt-ledger-more' ) && scan_how_only( $kit ), 'exactly 25 candidates: every row painted, no "+N more" line, only the How this works fold' );
 $GLOBALS['__last_scan'] = bm_many( 30 );
 $kit = snt_leaf_paint( 'content', 'block-migrations' );
 ok( 25 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && 25 === substr_count( $kit, 'data-snt-suggest="1"' ) && false !== strpos( $kit, '<p class="snt-hint snt-ledger-more">+5 more candidates; the list is capped, not complete. Work these, then re-scan to list the rest.</p>' ), '30 candidates: 25 rows, each with its Suggest, and "+5 more" said out loud' );
-ok( false !== strpos( $kit, '30 candidates in 15 posts: 15 h3 → h2, 15 h4 → h2.' ) && array() === snt_leaf_folds( $kit ), '30 candidates: the finding counts all 30, not the 25 painted; no fold' );
+ok( false !== strpos( $kit, '30 candidates in 15 posts: 15 h3 → h2, 15 h4 → h2.' ) && scan_how_only( $kit ), '30 candidates: the finding counts all 30, not the 25 painted; only the How this works fold' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_block_migrations_section' );
 ok( 25 === substr_count( $classic, 'data-snt-suggest="1"' ) && false !== strpos( $classic, '+5 more candidates; the list is capped, not complete. Work these, then re-scan to list the rest.' ) && false !== strpos( $classic, '30 candidates in 15 posts' ), 'classic twin: the same finding, 25 rows and the same "+5 more" line' );
 
 // ── Live-shaped preview: ~20 heading skips over a dozen posts.
 $GLOBALS['__last_scan'] = bm_many( 20 );
 $kit = snt_leaf_paint( 'content', 'block-migrations' );
-ok( 20 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && false === strpos( $kit, 'snt-ledger-more' ) && array() === snt_leaf_folds( $kit ) && false !== strpos( $kit, '20 candidates in 10 posts' ), 'live-shaped: 20 candidates, all painted under the cap, no fold' );
+ok( 20 === count( snt_leaf_tables( $kit )[0]['data'] ?? array() ) && false === strpos( $kit, 'snt-ledger-more' ) && scan_how_only( $kit ) && false !== strpos( $kit, '20 candidates in 10 posts' ), 'live-shaped: 20 candidates, all painted under the cap, only the How this works fold' );
 snt_leaf_preview( 'content-block-migrations', $kit );
 
 echo "\nResult: $pass passed, $fail failed.\n";

@@ -59,7 +59,8 @@ function machine_readers_rights_evidence_html() {
 }
 
 /**
- * One month button: a one-button form posting the month, behind a confirm.
+ * One month button: a compact one-button form (2026-10-16 leaf anatomy)
+ * posting the month, behind a confirm.
  *
  * @param string $action  Handler action.
  * @param string $ym      YYYY-MM.
@@ -76,6 +77,7 @@ function machine_readers_rights_evidence_button( $action, $ym, $text, $confirm, 
 			'submit'  => $text,
 			'confirm' => $confirm,
 			'danger'  => $danger,
+			'inline'  => true,
 			'hidden'  => array( 'tab' => 'monitoring', 'sub' => 'machine-readers', 'month' => $ym ),
 		)
 	);
@@ -109,6 +111,7 @@ function machine_readers_rights_evidence_retract_html() {
 				'submit'  => 'Retract ' . $label,
 				'confirm' => \sn_rights_evidence_retract_confirm( $label ),
 				'danger'  => true,
+				'inline'  => true,
 				'hidden'  => array( 'tab' => 'monitoring', 'sub' => 'machine-readers', 'month' => $r['month'], 'family' => $r['family'] ),
 			)
 		);
