@@ -137,3 +137,45 @@ Answers, and what was done:
 8. The Privacy Policy is not in any repo and is not to be edited by an agent. **Done:** noted in the wording table.
 
 The advisor agreed with the recommendation (Phase 1 = owner identity plus read-time lanes) and with the arrival vs read-time split. No disagreement with the brief on a hard limit beyond those already listed as decisions.
+
+## Owner decisions (2026-10-15)
+
+"Go with your recommendations, allow the theme change." So:
+1. Theme change allowed (decision 1a). The theme stops skipping on the unsigned `sn_owner` cookie; the `Claude/\d` user-agent skip stays (removing it would also count other people's Claude desktop panes, and the owner's pane can be enrolled later).
+2. Logged in, not enrolled: stored under its own `logged_in` code, never human (2c).
+3. `sn_owner`: the proposed wording is the approved text. The theme's `/llms.txt` and the `gpc.json` comment change in the theme PR; the Privacy Policy text is handed to the owner to paste.
+4. Phasing: Phase 1 now (identity at the edge, lanes derived at read time, lanes table and report). Phase 2 later (opt-in MCP surfaces, contract 19, `/stats`, the "Exclude my own visits" repurpose).
+5. Arrival vs read time: the split as proposed.
+6. `/stats`: Phase 2.
+Small questions, as recommended: the new reason codes `ua_list`, `network`, `over_cap`, `logged_in` are added; `srv:1` server beacons stay `human` with reason `feed_server` (no change to today's counts); the local MCP server sends the owner token (lane `owner_agent`, label `mcp-local`).
+
+## Phase 1 build contract (shared by all four repos)
+
+**Identity codes** (one integer per hit): 0 none, 1 `owner_device`, 2 `owner_token`, 3 `owner_token_invalid`, 4 `logged_in` (WordPress auth cookie present, no valid marker), 5 `owner_legacy` (unsigned `sn_owner=1` present, no valid marker). Precedence at the edge: 1, then 2, then 3, then 4, then 5, then 0.
+**Agent codes**: 0 none, 1 `browser`, 2 `chrome-extension`, 3 `claude-code`, 4 `playwright`, 5 `script`, 6 `mcp-local`, 7 `other`. Lane 1 stores 1 (browser) unless a valid token is also present, then the token's agent.
+**`lane_rule_version`**: integer, starts at 1.
+
+**Device marker** cookie `sn_owner_dev` = `v1.<device_id>.<issued_day>.<sig>`; `device_id` 16 lowercase hex, `issued_day` YYYYMMDD (UTC), `sig` = base64url (no padding) of HMAC-SHA256(key, `v1|dev|<device_id>|<issued_day>`). `Secure; HttpOnly; SameSite=Lax; Path=/`, host-only, Max-Age 400 days. Set ONLY on wp-admin responses (enroll action, and renewal on any `is_admin()` request from an enrolled device), never on a front-end render.
+**Agent token** header `SN-Owner-Agent: v1.<agent>.<exp>.<sig>`; `agent` from the agent allowlist (string), `exp` unix seconds, `sig` = base64url HMAC-SHA256(key, `v1|agent|<agent>|<exp>`). Valid iff signature matches AND now < exp AND exp - now <= 43200 + 300.
+**Keys**: Worker secrets `SN_OWNER_DEVICE_KEY` and `SN_OWNER_AGENT_KEY`, each with an optional `_PREVIOUS` twin accepted during an overlap; constant-time comparison. The plugin holds the same values in keyring rows `owner_device_key`, `owner_device_key_previous`, `owner_agent_key`, `owner_agent_key_previous`; the keyring prints the `wrangler secret put` command, the owner sets the secrets by hand (no plugin push).
+**Revocation (device only)**: plugin route `GET /wp-json/signal-noise/v1/owner/revoked` (Bearer `SN_SRV_TOKEN`, the existing shared secret) returns `{revoked:[device_id...], at}`. The analytics Worker caches it in KV `SN_SALT` under `owner:revoked` on its existing cron and treats a listed id as invalid (falls to code 4 or 5 or 0). "Revoke all" = rotate the device key. Agent tokens are revoked by expiry or key rotation.
+
+**Analytics Worker (beacon)**:
+- Stops dropping logged-in beacons. Any beacon with identity 1, 4 or 5 is written ONLY to a new dataset `sn_owner_hits` (binding `SN_AE_OWNER`), never to `sn_pageviews`, `sn_pageviews_v2` or `sn_events_v2`. These hits were never stored before, so every existing figure stays byte-identical.
+- Beacons with identity 2 or 3, or 0, go where they go today; in v2 rows only, append double14 identity, double15 agent, double16 rule version. The legacy row is unchanged, so the dual-write check is unaffected.
+- `sn_owner_hits` row: same blob layout as the v2 pageview row plus double14-16.
+- Strips nothing the beacon sends (it is a POST to the Worker, never forwarded).
+**Rights-signals Worker (machine reads)**:
+- Verifies `SN-Owner-Agent` (codes 2 and 3 only; no device marker on machine reads), strips it before forwarding to the origin.
+- A request carrying the header is ALWAYS recorded (family `unclassified-machine` if nothing matches).
+- Appends blob14 identity code and blob15 agent code (as decimal strings) to `sn_machine_readers`. Append only.
+**Plugin**:
+- Enroll, revoke, revoke all (admin-post, `manage_options`), device list option `sn_owner_devices` (id, label, enrolled, last_seen; no secrets), classic card + native twin under Measurement › Analytics beside "Exclude my own visits".
+- The revoked-list route.
+- `wp sn owner-token --agent=<label> [--ttl=<seconds>]` (max 43200), prints the header line; never logs the token.
+- Keyring rows above.
+- `lanes_since` option (set when the lanes rollup first runs after deploy), table `wp_sn_analytics_lanes` (day, sensor, lane, reason, agent, views, visits, visitor_days; unique on day, sensor, lane, reason, agent), filled by the daily rollup from v2 + `sn_owner_hits` (beacon sensor) and from the live machine sensor (machine sensor).
+- Lane derivation as in the mapping table, pinned by `lane_rule_version`.
+- Lanes report under Integrity → Reports (classic + native), showing 7/30/90 days, a daily view, `lanes_since`, the rule version, the reason split, and `owner_token_invalid` prominently.
+**Theme**: `sn-beacon.js` drops the `sn_owner` skip (keeps the DNT/GPC and `Claude/\d` skips); `/llms.txt` and the `gpc.json` comment take the approved wording.
+**Deploy order** (owner actions marked): plugin first (keyring rows, enrollment, route; nothing reads the new fields yet) → owner sets the four Worker secrets → analytics Worker → rights-signals Worker (owner deploys) → owner enrolls each device → theme last.
