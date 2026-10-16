@@ -5,7 +5,8 @@
  * `keyring_save`: one row per save. `key_id` names the row; `key_value` is
  * the verb: '' or an obscured value → nothing; 'clear' → remove; 'site' →
  * derive from the site secret (rows that can); anything else → save it and
- * stop deriving (an owner key row takes only 64 hex). A row a constant sets, or one with no home, is never written.
+ * stop deriving (an owner key row takes only 64 hex). A row a constant sets,
+ * or one with no home, is never written.
  * `keyring_verify`: run every probe, store the verdicts.
  *
  * @package SignalNoiseTools

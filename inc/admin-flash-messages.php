@@ -114,7 +114,7 @@ function sn_admin_flash_messages() {
 		'keyring_issued_as_shared'  => array( 'error', 'That is a token another service issued (it is already on the keyring); a site secret or worker secret must be its own value. Mint one: openssl rand -hex 32.' ),
 		'keyring_generated'         => array( 'success', 'A new key was generated. Set it on both Workers right away (the commands are under Worker secrets): your enrolled devices are re-signed with it on your next wp-admin visit. The old key stays valid as the previous key until you clear that row.' ),
 		'keyring_generate_refused'  => array( 'error', 'Only the owner key can be generated here.' ),
-		'keyring_owner_key_shape'   => array( 'error', 'Paste the 64-character key from `openssl rand -hex 32`. Nothing was saved.' ),
+		'keyring_owner_key_shape'   => array( 'error', 'Paste the 64-character key from openssl rand -hex 32. To go back to the previous key, clear the previous row first. Nothing was saved.' ),
 		'owner_device_enrolled'     => array( 'success', 'This browser is enrolled. Its visits are stored as yours once both Workers carry the owner key.' ),
 		'owner_device_no_key'       => array( 'error', 'No owner key yet. Make one in Terminal with openssl rand -hex 32, paste it as the owner key in Connections &rsaquo; Credentials, then set the same value on both Workers.' ),
 		'owner_device_no_label'     => array( 'error', 'Give this browser a label, such as Laptop Chrome.' ),
