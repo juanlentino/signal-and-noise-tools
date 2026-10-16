@@ -10,7 +10,7 @@
  * run can compose), Hold and Post now for a waiting one. None runs the pass.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.0.0
  */
 
 namespace SignalNoise\OpenStationHost\Dashboard\Leaves;

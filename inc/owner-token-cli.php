@@ -17,7 +17,7 @@
  * carry the header to wherever a redirect points.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 2026.10.18
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

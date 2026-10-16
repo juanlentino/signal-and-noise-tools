@@ -85,7 +85,7 @@ function snt_mr_summary_payload( $days, $series = null ) {
 	// reads zero until the bridge ships is not worth a contract bump and a
 	// worker redeploy. It joins in bridge v2 arc two, with a number.
 
-	// Unreleased: a hit presenting a robots.txt control token (Google-Extended,
+	// 2026.10.1: a hit presenting a robots.txt control token (Google-Extended,
 	// Applebot-Extended) is never the vendor's crawler, so it is credited to no
 	// family and no purpose; `impersonations` carries it and `total` still
 	// counts it, because it was a read. Every breakdown below reads $credited.
@@ -244,16 +244,16 @@ function snt_mr_summary_payload( $days, $series = null ) {
 		'sensor_version' => ( is_array( $info ) && isset( $info['version'] ) ) ? (string) $info['version'] : null,
 		'crawler_list'   => $verdict,
 	);
-	// Unreleased: additive. Where each attributed count came from.
+	// 2026.10.1: additive. Where each attributed count came from.
 	if ( function_exists( 'snt_mr_evidence' ) ) {
 		$payload += snt_mr_evidence( $rows );
 	}
-	// Unreleased: who reads, ranked without this site's own tools or the
+	// 2026.10.1: who reads, ranked without this site's own tools or the
 	// control tokens, so a top family is a reader, never the site's probes.
 	if ( function_exists( 'snt_mr_who_reads' ) ) {
 		$payload['reader_families'] = array_map( static fn( $f ) => array( 'family' => $f['family'], 'hits' => (int) $f['split']['claimed'], 'verified' => (int) $f['split']['verified'] ), array_slice( snt_mr_who_reads( $rows )['rows'], 0, SN_MR_TOP_FAMILIES ) );
 	}
-	// Unreleased: appended, never interleaved, so a call without `series` is
+	// 23.5.0: appended, never interleaved, so a call without `series` is
 	// byte-identical to the response before the series existed.
 	if ( 'day' === $series && function_exists( 'snt_mr_summary_daily' ) ) {
 		// The daily breakdowns skip the control-token rows themselves

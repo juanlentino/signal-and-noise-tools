@@ -10,7 +10,7 @@
  * without ?input=), like its analytics siblings.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.4.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

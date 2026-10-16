@@ -194,7 +194,7 @@ function snt_abilities_collector_status_register() {
 						),
 					),
 				),
-				// Unreleased: both blocks declared. `rejects` has been in the
+				// 20.8.0: both blocks declared. `rejects` has been in the
 				// payload since 10.62.0 without a schema entry, and a field the
 				// schema does not mention is one no agent can know exists.
 				// Absent (not zero) when the deployed worker does not report it.

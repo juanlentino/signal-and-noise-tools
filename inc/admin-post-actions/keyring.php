@@ -103,7 +103,7 @@ function sn_handle_keyring_save( $post ) {
 }
 
 /**
- * Generate an owner identity key (Unreleased, SN Traffic Lanes): 32 random
+ * Generate an owner identity key (2026.10.18, SN Traffic Lanes): 32 random
  * bytes as 64 hex. The current value moves to the row's previous twin first,
  * so the Workers accept both until the new one is set on them.
  *

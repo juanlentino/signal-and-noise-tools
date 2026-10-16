@@ -10,7 +10,7 @@
  * previous values, deltas and each row's share of the window's views.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.4.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

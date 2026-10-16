@@ -17,7 +17,7 @@
  * would never run.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 17.8.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

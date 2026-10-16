@@ -66,8 +66,8 @@ function sn_cron_hooks() {
 		SNT_PDF_ENGINE_HOOK, // 20.6.0: daily latest-Dompdf read.
 		SN_ARCHIVE_CONFIRM_HOOK, // hourly Internet Archive capture confirmation.
 		SN_AI_MODELS_HOOK,   // 21.0.0: daily AI model-list read.
-		SNT_ALERTS_HOOK, // Unreleased: hourly spike and break alerts.
-		SN_PUBLIC_STATS_MACHINES_HOOK, // Unreleased: hourly /stats machine-reads snapshot.
+		SNT_ALERTS_HOOK, // 20.8.0: hourly spike and break alerts.
+		SN_PUBLIC_STATS_MACHINES_HOOK, // 22.0.0: hourly /stats machine-reads snapshot.
 		// Single events, some with arguments.
 		SN_ARCHIVE_PUSH_HOOK, // one Internet Archive capture after a first publish.
 		SN_ARCHIVE_EXISTING_HOOK, // 21.1.0: one tick of the owner-started run over older notes.
