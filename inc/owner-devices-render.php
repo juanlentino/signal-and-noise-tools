@@ -27,7 +27,7 @@ function sn_owner_devices_copy() {
 		'heading'   => __( 'Owner devices', 'signal-and-noise-tools' ),
 		'intro'     => __( 'Enroll each browser you read the site with. It carries a signed owner marker, so its visits are stored as yours and never counted as readers, even on pages served from cache. Readers get no cookie.', 'signal-and-noise-tools' ),
 		'no_key'    => __( 'No owner key yet. In Terminal, run openssl rand -hex 32, paste it as the owner key in Connections › Credentials, and set the same value on both Workers (the commands are there).', 'signal-and-noise-tools' ),
-		'last_seen' => __( 'Last seen is the last wp-admin visit that renewed the marker, at most once a day.', 'signal-and-noise-tools' ),
+		'last_seen' => __( 'Last seen is this browser\'s first wp-admin visit of the day (the site\'s day), updated at most once a day.', 'signal-and-noise-tools' ),
 		'none'      => __( 'No devices enrolled.', 'signal-and-noise-tools' ),
 		'unconfirmed' => __( 'No browser has shown this marker yet; revoke and enroll again.', 'signal-and-noise-tools' ),
 		'label'     => __( 'Label for this browser', 'signal-and-noise-tools' ),

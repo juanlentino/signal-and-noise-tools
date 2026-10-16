@@ -237,18 +237,23 @@ function sn_owner_device_renew( $now ) {
 	$id      = $mine['marker']['id'];
 	$resign  = $mine['marker']['day'] < $today || 'current' !== $mine['marker']['key'];
 	$confirm = ! sn_owner_device_confirmed( $mine['device'] );
-	if ( ! $resign && ! $confirm ) {
+	// 2026-10-16: Last seen follows the site's day, not the marker's UTC day.
+	// Enrolled on an evening (already tomorrow in UTC), the marker needs no
+	// re-sign the next morning, but the owner was seen: move last_seen on the
+	// first wp-admin visit of each local day. Still one write a day at most.
+	$touch = sn_owner_local_day( (int) ( $mine['device']['last_seen'] ?? 0 ) ) < sn_owner_local_day( (int) $now );
+	if ( ! $resign && ! $confirm && ! $touch ) {
 		return false;
 	}
 	// Renewal is best effort on every wp-admin load: a busy lock just waits
 	// for the next one.
-	return true === sn_owner_devices_locked( static function () use ( $id, $now, $key, $today, $resign ) {
+	return true === sn_owner_devices_locked( static function () use ( $id, $now, $key, $today, $resign, $touch ) {
 		$renewed = $resign && null !== sn_owner_dev_cookie_write( sn_owner_device_marker( $key, $id, $today ), $now );
-		sn_owner_devices_change( static function ( array $devices ) use ( $id, $now, $renewed ) {
+		sn_owner_devices_change( static function ( array $devices ) use ( $id, $now, $renewed, $touch ) {
 			foreach ( $devices as $i => $d ) {
 				if ( (string) ( $d['id'] ?? '' ) === $id ) {
 					$devices[ $i ]['confirmed'] = true;
-					if ( $renewed ) {
+					if ( $renewed || $touch ) {
 						$devices[ $i ]['last_seen'] = (int) $now;
 					}
 				}
@@ -257,6 +262,16 @@ function sn_owner_device_renew( $now ) {
 		} );
 		return $renewed;
 	} );
+}
+
+/**
+ * A Unix time's day in the site's timezone (Settings › General), as Ymd.
+ *
+ * @param int $ts Unix time.
+ * @return string
+ */
+function sn_owner_local_day( $ts ) {
+	return function_exists( 'wp_date' ) ? (string) wp_date( 'Ymd', (int) $ts ) : gmdate( 'Ymd', (int) $ts );
 }
 
 /** admin_init only: wp-admin requests, never a front-end render. */
