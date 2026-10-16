@@ -220,14 +220,14 @@ function snt_analytics_render_exclusion() {
 	echo '</fieldset>';
 
 	if ( function_exists( 'sn_beacon_owner_current_user_excluded' ) && sn_beacon_owner_current_user_excluded() ) {
-		echo '<p class="sn-an-status"><strong>' . esc_html__( 'You are currently excluded from analytics.', 'signal-and-noise-tools' ) . '</strong></p>';
+		echo '<p class="sn-an-status"><strong>' . esc_html__( 'Your role is selected: your logged-in visits are kept out, and this browser is marked as yours when you log in.', 'signal-and-noise-tools' ) . '</strong></p>';
 		$flagged = sn_owner_device_flagged();
 		$link    = wp_nonce_url( add_query_arg( 'sn_owner_device', $flagged ? 'forget' : 'mark' ), 'sn_owner_device' );
 		$line    = $flagged ? esc_html__( 'This device is excluded even when logged out.', 'signal-and-noise-tools' ) : esc_html__( 'This device is counted when logged out.', 'signal-and-noise-tools' );
 		$label   = $flagged ? esc_html__( 'Count this device again', 'signal-and-noise-tools' ) : esc_html__( 'Exclude this device', 'signal-and-noise-tools' );
 		echo '<p class="sn-an-status">' . $line . ' <a href="' . esc_url( $link ) . '">' . $label . '</a></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- both pre-escaped above.
 	} else {
-		echo '<p class="sn-an-status">' . esc_html__( 'You are currently counted in analytics.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-an-status">' . esc_html__( 'Your role is not selected: your logged-in visits are still kept out, but this browser is not marked for your logged-out visits.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Owner devices.', 'signal-and-noise-tools' ) . '</p>';

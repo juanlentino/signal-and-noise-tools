@@ -26,50 +26,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/owner-devices-store.php'; // the two options, the lock, the fresh-read writes
+
 const SN_OWNER_DEVICES_OPT   = 'sn_owner_devices';
 const SN_OWNER_REVOKED_OPT   = 'sn_owner_revoked';
 const SN_OWNER_DEV_COOKIE    = 'sn_owner_dev';
 const SN_OWNER_DEV_TTL       = 34560000; // 400 days, the browser cap.
 const SN_OWNER_LABEL_MAX     = 60;
 const SN_OWNER_REVOKED_MAX   = 1000; // the newest ids kept and served, as the Worker keeps them
-
-/** @return array<int,array{id:string,label:string,enrolled:int,last_seen:int}> */
-function sn_owner_devices() {
-	$list = get_option( SN_OWNER_DEVICES_OPT, array() );
-	return is_array( $list ) ? array_values( array_filter( $list, 'is_array' ) ) : array();
-}
-
-/** @return array{ids:array<int,string>,at:int} */
-function sn_owner_revoked() {
-	$r = get_option( SN_OWNER_REVOKED_OPT, array() );
-	$r = is_array( $r ) ? $r : array();
-	return array( 'ids' => array_values( array_map( 'strval', (array) ( $r['ids'] ?? array() ) ) ), 'at' => (int) ( $r['at'] ?? 0 ) );
-}
-
-/**
- * @param array<int,array<string,mixed>> $devices Devices.
- * @return void
- */
-function sn_owner_devices_save( array $devices ) {
-	update_option( SN_OWNER_DEVICES_OPT, array_values( $devices ), false );
-}
-
-/**
- * Add ids to the revoked list.
- *
- * @param array<int,string> $ids Ids.
- * @param int               $now Unix time.
- * @return void
- */
-function sn_owner_revoke_ids( array $ids, $now ) {
-	$r = sn_owner_revoked();
-	update_option( SN_OWNER_REVOKED_OPT, array( 'ids' => array_slice( array_values( array_unique( array_merge( $r['ids'], $ids ) ) ), -SN_OWNER_REVOKED_MAX ), 'at' => (int) $now ), false );
-}
-
-/** @return array<int,string> The owner keys: current, previous. */
-function sn_owner_keys() {
-	return array( sn_credential( 'owner_key' ), sn_credential( 'owner_key_previous' ) );
-}
 
 /**
  * The enrolled, non-revoked device THIS browser's marker names, or null.
@@ -107,6 +71,15 @@ function sn_owner_dev_cookie_allowed() {
 }
 
 /**
+ * headers_sent(), behind a filter so a test can say "yes".
+ *
+ * @return bool
+ */
+function sn_owner_headers_sent() {
+	return (bool) apply_filters( 'sn_owner_headers_sent', headers_sent() );
+}
+
+/**
  * The ONE writer of `sn_owner_dev`. '' expires it.
  *
  * @param string $value Marker, or '' to expire.
@@ -114,14 +87,14 @@ function sn_owner_dev_cookie_allowed() {
  * @return array<string,mixed>|null The setcookie() options, or null when refused.
  */
 function sn_owner_dev_cookie_write( $value, $now ) {
-	if ( ! sn_owner_dev_cookie_allowed() ) {
+	// Output already started: no Set-Cookie can follow, so refuse instead of
+	// reporting a marker the browser never received (final review P2).
+	if ( ! sn_owner_dev_cookie_allowed() || sn_owner_headers_sent() ) {
 		return null;
 	}
 	// Host-only: no `domain`. Read by the Worker, never by page JS.
 	$opts = array( 'expires' => '' === $value ? 1 : (int) $now + SN_OWNER_DEV_TTL, 'path' => '/', 'secure' => true, 'httponly' => true, 'samesite' => 'Lax' );
-	if ( ! headers_sent() ) {
-		setcookie( SN_OWNER_DEV_COOKIE, (string) $value, $opts );
-	}
+	setcookie( SN_OWNER_DEV_COOKIE, (string) $value, $opts );
 	if ( '' === $value ) {
 		unset( $_COOKIE[ SN_OWNER_DEV_COOKIE ] );
 	} else {
@@ -149,14 +122,24 @@ function sn_owner_device_enroll( $label, $now ) {
 	if ( null !== sn_owner_this_device( $now ) ) {
 		return 'owner_device_already';
 	}
-	$id = bin2hex( random_bytes( 8 ) );
-	if ( null === sn_owner_dev_cookie_write( sn_owner_device_marker( $key, $id, gmdate( 'Ymd', (int) $now ) ), $now ) ) {
+	if ( ! sn_owner_dev_cookie_allowed() ) {
 		return 'owner_device_not_admin';
 	}
-	$devices   = sn_owner_devices();
-	$devices[] = array( 'id' => $id, 'label' => function_exists( 'mb_substr' ) ? mb_substr( $label, 0, SN_OWNER_LABEL_MAX ) : substr( $label, 0, SN_OWNER_LABEL_MAX ), 'enrolled' => (int) $now, 'last_seen' => (int) $now );
-	sn_owner_devices_save( $devices );
-	return 'owner_device_enrolled';
+	// The lock is taken BEFORE the cookie: a marker never leaves without its row.
+	$done = sn_owner_devices_locked( static function () use ( $key, $label, $now ) {
+		$id = bin2hex( random_bytes( 8 ) );
+		if ( null === sn_owner_dev_cookie_write( sn_owner_device_marker( $key, $id, gmdate( 'Ymd', (int) $now ) ), $now ) ) {
+			return 'owner_device_headers_sent';
+		}
+		// Unconfirmed until the marker comes back on a wp-admin request (renewal).
+		$row = array( 'id' => $id, 'label' => function_exists( 'mb_substr' ) ? mb_substr( $label, 0, SN_OWNER_LABEL_MAX ) : substr( $label, 0, SN_OWNER_LABEL_MAX ), 'enrolled' => (int) $now, 'last_seen' => (int) $now, 'confirmed' => false );
+		sn_owner_devices_change( static function ( array $devices ) use ( $row ) {
+			$devices[] = $row;
+			return $devices;
+		} );
+		return 'owner_device_enrolled';
+	} );
+	return null === $done ? 'owner_device_busy' : (string) $done;
 }
 
 /**
@@ -186,9 +169,16 @@ function sn_owner_device_revoke( $index, $nonce, $now ) {
 		return 'owner_device_list_changed';
 	}
 	$this_device = sn_owner_this_device( $now );
-	sn_owner_revoke_ids( array( $id ), $now );
-	unset( $devices[ (int) $index ] );
-	sn_owner_devices_save( $devices );
+	$done        = sn_owner_devices_locked( static function () use ( $id, $now ) {
+		sn_owner_revoke_ids( array( $id ), $now );
+		sn_owner_devices_change( static function ( array $devices ) use ( $id ) {
+			return array_filter( $devices, static function ( $d ) use ( $id ) { return (string) ( $d['id'] ?? '' ) !== $id; } );
+		} );
+		return true;
+	} );
+	if ( null === $done ) {
+		return 'owner_device_busy';
+	}
 	if ( null !== $this_device && $this_device['marker']['id'] === $id ) {
 		sn_owner_dev_cookie_write( '', $now );
 	}
@@ -208,8 +198,16 @@ function sn_owner_device_revoke_all( $now ) {
 		return 'owner_device_none';
 	}
 	$this_device = sn_owner_this_device( $now );
-	sn_owner_revoke_ids( $ids, $now );
-	sn_owner_devices_save( array() );
+	$done        = sn_owner_devices_locked( static function () use ( $ids, $now ) {
+		sn_owner_revoke_ids( $ids, $now );
+		sn_owner_devices_change( static function ( array $devices ) use ( $ids ) {
+			return array_filter( $devices, static function ( $d ) use ( $ids ) { return ! in_array( (string) ( $d['id'] ?? '' ), $ids, true ); } );
+		} );
+		return true;
+	} );
+	if ( null === $done ) {
+		return 'owner_device_busy';
+	}
 	if ( null !== $this_device ) {
 		sn_owner_dev_cookie_write( '', $now );
 	}
@@ -220,6 +218,7 @@ function sn_owner_device_revoke_all( $now ) {
  * Renewal: an enrolled, non-revoked device whose marker is from an earlier
  * day, or was signed with the previous key, is re-signed with the current
  * key today; last_seen moves with it. At most one write a day per device.
+ * The first time a marker comes back at all, its row is confirmed.
  *
  * @param int $now Unix time.
  * @return bool Whether a marker was renewed.
@@ -235,16 +234,29 @@ function sn_owner_device_renew( $now ) {
 	if ( null === $mine || ! sn_owner_key_ok( $key ) || ! current_user_can( 'manage_options' ) ) {
 		return false;
 	}
-	if ( $mine['marker']['day'] >= $today && 'current' === $mine['marker']['key'] ) {
+	$id      = $mine['marker']['id'];
+	$resign  = $mine['marker']['day'] < $today || 'current' !== $mine['marker']['key'];
+	$confirm = ! sn_owner_device_confirmed( $mine['device'] );
+	if ( ! $resign && ! $confirm ) {
 		return false;
 	}
-	if ( null === sn_owner_dev_cookie_write( sn_owner_device_marker( $key, $mine['marker']['id'], $today ), $now ) ) {
-		return false;
-	}
-	$devices                                  = sn_owner_devices();
-	$devices[ $mine['index'] ]['last_seen'] = (int) $now;
-	sn_owner_devices_save( $devices );
-	return true;
+	// Renewal is best effort on every wp-admin load: a busy lock just waits
+	// for the next one.
+	return true === sn_owner_devices_locked( static function () use ( $id, $now, $key, $today, $resign ) {
+		$renewed = $resign && null !== sn_owner_dev_cookie_write( sn_owner_device_marker( $key, $id, $today ), $now );
+		sn_owner_devices_change( static function ( array $devices ) use ( $id, $now, $renewed ) {
+			foreach ( $devices as $i => $d ) {
+				if ( (string) ( $d['id'] ?? '' ) === $id ) {
+					$devices[ $i ]['confirmed'] = true;
+					if ( $renewed ) {
+						$devices[ $i ]['last_seen'] = (int) $now;
+					}
+				}
+			}
+			return $devices;
+		} );
+		return $renewed;
+	} );
 }
 
 /** admin_init only: wp-admin requests, never a front-end render. */

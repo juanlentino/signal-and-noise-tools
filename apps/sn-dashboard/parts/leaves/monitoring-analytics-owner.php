@@ -37,7 +37,7 @@ function analytics_owner_devices_html() {
 		$revokes = '';
 		foreach ( $view['rows'] as $r ) {
 			$rows[] = array(
-				'device'    => $r['label'] . ( $r['this'] ? ' ' . __( '(this browser)', 'signal-and-noise-tools' ) : '' ),
+				'device'    => $r['label'] . ( $r['this'] ? ' ' . __( '(this browser)', 'signal-and-noise-tools' ) : '' ) . ( $r['confirmed'] ? '' : ' ' . $copy['unconfirmed'] ),
 				'enrolled'  => $r['enrolled'],
 				'last_seen' => $r['last_seen'],
 			);

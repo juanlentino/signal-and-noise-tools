@@ -14,9 +14,16 @@ function wp_verify_nonce( $n, $a = -1 ) { return hash_equals( wp_create_nonce( $
 function wp_nonce_field( $a = -1, $n = '_wpnonce', $r = true, $echo = true ) { $h = '<input type="hidden" name="' . $n . '" value="' . wp_create_nonce( $a ) . '">'; if ( $echo ) { echo $h; } return $h; }
 $GLOBALS['__options'] = array();
 $GLOBALS['__reads'] = 0;
-function get_option( $k, $d = false ) { $GLOBALS['__reads']++; return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
+function get_option( $k, $d = false ) {
+	$GLOBALS['__reads']++;
+	$v = array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d;
+	// A concurrent request that writes right AFTER this read (lost-update tests).
+	if ( isset( $GLOBALS['__after_read'][ $k ] ) ) { $f = $GLOBALS['__after_read'][ $k ]; unset( $GLOBALS['__after_read'][ $k ] ); $f(); }
+	return $v;
+}
 function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; $GLOBALS['__autoload'][ $k ] = $a; return true; }
 function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; }
+function add_option( $k, $v = '', $dep = '', $a = null ) { if ( array_key_exists( $k, $GLOBALS['__options'] ) ) { return false; } $GLOBALS['__options'][ $k ] = $v; return true; }
 $GLOBALS['__is_admin'] = true; $GLOBALS['__can'] = true; $GLOBALS['__logs'] = array();
 function is_admin() { return $GLOBALS['__is_admin']; }
 function current_user_can( $c ) { return $GLOBALS['__can']; }
@@ -36,6 +43,7 @@ function register_rest_route( $ns, $r, $a ) { $GLOBALS['__routes'][ $ns . $r ] =
 require SNT_PATH . 'inc/keyring.php';
 require SNT_PATH . 'inc/admin-post-actions/keyring.php';
 require SNT_PATH . 'inc/keyring-admin.php';
+require_once SNT_PATH . 'inc/admin-flash-messages.php';
 require SNT_PATH . 'inc/owner-identity-sign.php';
 require SNT_PATH . 'inc/owner-devices.php';
 require SNT_PATH . 'inc/owner-revoked-route.php';
@@ -81,11 +89,20 @@ ok( 1 === substr_count( $src, 'setcookie( SN_OWNER_DEV_COOKIE' ) && 0 === preg_m
 // ── Enroll.
 ok( 'owner_device_no_label' === sn_handle_owner_device_enroll( array( 'sn_owner_device_label' => '  ' ) ), 'a blank label is refused' );
 $opts = null;
+// Final review P2: output already started means no Set-Cookie can follow. The
+// writer refuses, $_COOKIE is untouched, and enroll writes no row.
+add_filter( 'sn_owner_headers_sent', $hs = static function () { return true; } );
+ok( null === sn_owner_dev_cookie_write( 'v1.x', $now ) && ! isset( $_COOKIE['sn_owner_dev'] ), 'headers already sent: the writer refuses and never touches $_COOKIE' );
+ok( 'owner_device_headers_sent' === sn_owner_device_enroll( 'Laptop Chrome', $now ) && array() === sn_owner_devices(), 'headers already sent: enroll refuses with its own code and writes no row' );
+ok( false !== strpos( (string) ( sn_admin_flash_to_notice( 'owner_device_headers_sent' )[1] ?? '' ), 'Nothing was saved' ), 'that refusal has a flash that says nothing was saved' );
+$GLOBALS['__filters']['sn_owner_headers_sent'] = array();
 ok( 'owner_device_enrolled' === sn_owner_device_enroll( 'Laptop Chrome', $now ), 'enroll with a key and a label succeeds' );
 $devs   = sn_owner_devices();
 $marker = (string) $_COOKIE['sn_owner_dev'];
 $id     = $devs[0]['id'];
-ok( 1 === count( $devs ) && 1 === preg_match( '/^[0-9a-f]{16}$/', $id ) && 'Laptop Chrome' === $devs[0]['label'] && $now === $devs[0]['enrolled'] && $now === $devs[0]['last_seen'] && array( 'id', 'label', 'enrolled', 'last_seen' ) === array_keys( $devs[0] ), 'the device row is {id, label, enrolled, last_seen}, the id 16 lowercase hex' );
+ok( 1 === count( $devs ) && 1 === preg_match( '/^[0-9a-f]{16}$/', $id ) && 'Laptop Chrome' === $devs[0]['label'] && $now === $devs[0]['enrolled'] && $now === $devs[0]['last_seen'] && array( 'id', 'label', 'enrolled', 'last_seen', 'confirmed' ) === array_keys( $devs[0] ) && false === $devs[0]['confirmed'], 'the device row is {id, label, enrolled, last_seen, confirmed:false}, the id 16 lowercase hex' );
+$view_unconfirmed = $classic() . analytics_owner_devices_html();
+ok( 2 === substr_count( $view_unconfirmed, 'No browser has shown this marker yet; revoke and enroll again.' ), 'both twins say an unconfirmed row has not come back from any browser' );
 ok( false === $GLOBALS['__autoload']['sn_owner_devices'], 'sn_owner_devices is not autoloaded' );
 ok( sn_owner_device_marker( $dkey, $id, $today ) === $marker && is_array( sn_owner_device_verify( $marker, array( $dkey ), $today ) ), 'the cookie is the contract marker for that id and today, under the current key' );
 $o = sn_owner_dev_cookie_write( $marker, $now );
@@ -93,7 +110,10 @@ ok( array( 'expires' => $now + 34560000, 'path' => '/', 'secure' => true, 'httpo
 ok( 'owner_device_already' === sn_owner_device_enroll( 'Again', $now ) && 1 === count( sn_owner_devices() ), 'an enrolled browser is not enrolled twice' );
 
 // ── Renewal: same day and current key, nothing; next day, re-signed.
-ok( false === sn_owner_device_renew( $now + 60 ), 'same day, current key: no renewal, no write' );
+ok( false === sn_owner_device_renew( $now + 60 ) && true === sn_owner_devices()[0]['confirmed'], 'the marker coming back on a wp-admin request confirms the row (no re-sign the same day)' );
+ok( false === strpos( $classic() . analytics_owner_devices_html(), 'No browser has shown this marker yet' ), 'a confirmed row no longer carries the warning' );
+$GLOBALS['__reads'] = 0; $before = $GLOBALS['__options']['sn_owner_devices'];
+ok( false === sn_owner_device_renew( $now + 60 ) && $before === $GLOBALS['__options']['sn_owner_devices'], 'same day, current key, confirmed: no renewal, no write' );
 $GLOBALS['__is_admin'] = false;
 ok( false === sn_owner_device_renew( $now + 86400 ) && $marker === $_COOKIE['sn_owner_dev'], 'off wp-admin, never renewed' );
 $GLOBALS['__is_admin'] = true;
@@ -137,6 +157,32 @@ ok( false !== strpos( $c, '>Revoke &quot;Phone Safari&quot;</button>' ) && false
 $saved_cookie = $_COOKIE; unset( $_COOKIE['sn_owner_dev'] );
 ok( false !== strpos( analytics_owner_devices_html(), 'owner_device_enroll' ) && false !== strpos( $classic(), 'name="sn_owner_device_label"' ), 'a browser that is not enrolled gets the enroll form on both surfaces' );
 $_COOKIE = $saved_cookie;
+
+// ── Final review P3: a row another request writes between our read and our
+//    write survives enroll, renew and revoke.
+$ghost = array( 'id' => 'f00df00df00df00d', 'label' => 'Concurrent', 'enrolled' => $now, 'last_seen' => $now, 'confirmed' => true );
+$inject = static function () use ( $ghost ) { $GLOBALS['__options']['sn_owner_devices'][] = $ghost; };
+$has_ghost = static function () { return in_array( 'f00df00df00df00d', array_column( sn_owner_devices(), 'id' ), true ); };
+$drop_ghost = static function () { $GLOBALS['__options']['sn_owner_devices'] = array_values( array_filter( $GLOBALS['__options']['sn_owner_devices'], static function ( $d ) { return 'f00df00df00df00d' !== $d['id']; } ) ); };
+$saved_cookie = $_COOKIE; unset( $_COOKIE['sn_owner_dev'] );
+// Enroll has no earlier read to go stale: its guard is the lock. Another
+// request holding it means refuse, set no cookie and write no row.
+$GLOBALS['__options']['sn_owner_devices_lock'] = (string) time();
+$rows_before = $GLOBALS['__options']['sn_owner_devices'];
+ok( 'owner_device_busy' === sn_owner_device_enroll( 'Tablet', $now ) && $rows_before === $GLOBALS['__options']['sn_owner_devices'] && ! isset( $_COOKIE['sn_owner_dev'] ) && false !== strpos( (string) ( sn_admin_flash_to_notice( 'owner_device_busy' )[1] ?? '' ), 'Nothing changed' ), 'a held lock: enroll refuses, sets no cookie, writes no row, and says so' );
+$GLOBALS['__options']['sn_owner_devices_lock'] = (string) ( time() - 60 );
+ok( 'owner_device_enrolled' === sn_owner_device_enroll( 'Tablet', $now ) && ! isset( $GLOBALS['__options']['sn_owner_devices_lock'] ), 'a lock a dead request left behind is broken, and the lock is released after the write' );
+$tablet_cookie = $_COOKIE['sn_owner_dev'];
+$GLOBALS['__after_read']['sn_owner_devices'] = $inject;
+ok( true === sn_owner_device_renew( $now + 2 * 86400 ) && $has_ghost(), 'renew keeps a row written concurrently' );
+$drop_ghost();
+$tablet_index = array_search( 'Tablet', array_column( sn_owner_devices(), 'label' ), true );
+$tablet_id    = sn_owner_devices()[ $tablet_index ]['id'];
+$GLOBALS['__after_read']['sn_owner_devices'] = $inject;
+ok( 'owner_device_revoked' === sn_owner_device_revoke( $tablet_index, wp_create_nonce( sn_owner_row_nonce_action( $tablet_index, $tablet_id ) ), $now ) && $has_ghost() && ! in_array( $tablet_id, array_column( sn_owner_devices(), 'id' ), true ), 'revoke removes its row by id and keeps a row written concurrently' );
+$drop_ghost();
+$_COOKIE = $saved_cookie;
+$GLOBALS['__options']['sn_owner_revoked'] = array( 'ids' => array(), 'at' => 0 );
 
 // ── Revoke by row index and its nonce; a stale nonce revokes nothing.
 ok( 'owner_device_list_changed' === sn_handle_owner_device_revoke( array( 'sn_owner_row' => 1, 'sn_owner_row_nonce' => wp_create_nonce( sn_owner_row_nonce_action( 0, $ids[0] ) ) ) ) && 2 === count( sn_owner_devices() ), 'a nonce minted for another row revokes nothing' );
@@ -208,6 +254,7 @@ foreach ( array_merge( $ids, array( $marker, $phone_marker, substr( $marker, -43
 	if ( false !== strpos( $dump, $secret ) ) { $leaks[] = $secret; }
 }
 ok( array() === $leaks, 'no marker, token or device id in any option dump, log line, keyring model or view model' );
+ok( false !== strpos( sn_keyring_copy()['generate'], 'Set it on both Workers right away: your enrolled devices are re-signed with it on your next wp-admin visit' ) && false !== strpos( (string) ( sn_admin_flash_to_notice( 'keyring_generated' )[1] ?? '' ), 'Set it on both Workers right away' ), 'rotation copy: set the new key on both Workers right away, because devices re-sign on the next wp-admin visit (final review)' );
 ok( false !== strpos( sn_keyring_copy()['generate'], 'stays valid there' ) && false !== strpos( sn_keyring_copy()['generate'], 'until you clear that row' ), 'Generate says the old key stays valid as the previous key until it is cleared' );
 $agent_about = sn_keyring()['owner_key']['about'];
 ok( false !== strpos( $agent_about, 'page.route limited to https://juanlentino.com/**' ) && false !== strpos( $agent_about, 'never extraHTTPHeaders' ) && false !== strpos( $agent_about, '-L' ) && false !== strpos( $agent_about, 'environment variable' ), 'the agent key\'s hint says how to carry the token safely' );

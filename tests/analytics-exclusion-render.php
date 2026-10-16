@@ -70,7 +70,7 @@ ok( strpos( $h, 'name="sn_exclude_roles[]" value="editor"' ) !== false, 'editor 
 ok( strpos( $h, 'name="sn_exclude_roles[]" value="subscriber"' ) !== false, 'subscriber checkbox present' );
 ok( preg_match( '/value="administrator"\s+checked/', $h ) === 1, 'configured role (administrator) is pre-checked' );
 ok( preg_match( '/value="editor"\s+checked/', $h ) === 0, 'unconfigured role (editor) is NOT checked' );
-ok( strpos( $h, 'currently excluded from analytics' ) !== false, 'status line reflects excluded viewer' );
+ok( strpos( $h, 'Your role is selected: your logged-in visits are kept out' ) !== false && strpos( $h, 'currently excluded' ) === false, 'status line reflects a selected role, and no longer claims the role decides counting (final review)' );
 ok( strpos( $h, 'excluded even when logged out' ) !== false && strpos( $h, 'Count this device again' ) !== false, 'device line: flagged device offers "Count this device again"' );
 ok( strpos( $h, 'sn_owner_device=forget' ) !== false && strpos( $h, '_wpnonce=sn_owner_device' ) !== false, 'device line: forget link carries a nonce' );
 // SN Traffic Lanes review round 1: the edge keeps logged-in views out on cached
@@ -86,7 +86,7 @@ $GLOBALS['__viewer_excluded'] = false;
 ob_start();
 snt_analytics_render_exclusion();
 $h2 = ob_get_clean();
-ok( strpos( $h2, 'currently counted in analytics' ) !== false, 'status line reflects counted viewer' );
+ok( strpos( $h2, 'your logged-in visits are still kept out' ) !== false && strpos( $h2, 'currently counted' ) === false, 'status line for an unselected role agrees with the intro: logged-in visits never count (final review)' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

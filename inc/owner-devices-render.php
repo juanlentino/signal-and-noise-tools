@@ -29,6 +29,7 @@ function sn_owner_devices_copy() {
 		'no_key'    => __( 'Generate the owner key in Connections › Credentials first, and set the same value on both Workers.', 'signal-and-noise-tools' ),
 		'last_seen' => __( 'Last seen is the last wp-admin visit that renewed the marker, at most once a day.', 'signal-and-noise-tools' ),
 		'none'      => __( 'No devices enrolled.', 'signal-and-noise-tools' ),
+		'unconfirmed' => __( 'No browser has shown this marker yet; revoke and enroll again.', 'signal-and-noise-tools' ),
 		'label'     => __( 'Label for this browser', 'signal-and-noise-tools' ),
 		'enroll'    => __( 'Enroll this browser', 'signal-and-noise-tools' ),
 		'revoke'    => __( 'Revoke', 'signal-and-noise-tools' ),
@@ -55,6 +56,7 @@ function sn_owner_devices_view( $now ) {
 			'enrolled'  => wp_date( $format, (int) ( $d['enrolled'] ?? 0 ) ),
 			'last_seen' => wp_date( $format, (int) ( $d['last_seen'] ?? 0 ) ),
 			'this'      => null !== $mine && $mine['index'] === $i,
+			'confirmed' => sn_owner_device_confirmed( $d ),
 		);
 	}
 	return array(
@@ -92,9 +94,9 @@ function snt_analytics_render_owner_devices() {
 	if ( array() === $view['rows'] ) {
 		echo '<p class="sn-an-empty">' . esc_html( $copy['none'] ) . '</p>';
 	} else {
-		echo '<table class="widefat striped"><thead><tr><th>Device</th><th>Enrolled</th><th>Last seen</th><th><span class="screen-reader-text">Action</span></th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Device', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Enrolled', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Last seen', 'signal-and-noise-tools' ) . '</th><th><span class="screen-reader-text">' . esc_html__( 'Action', 'signal-and-noise-tools' ) . '</span></th></tr></thead><tbody>';
 		foreach ( $view['rows'] as $r ) {
-			echo '<tr><td>' . esc_html( $r['label'] ) . ( $r['this'] ? ' ' . esc_html__( '(this browser)', 'signal-and-noise-tools' ) : '' ) . '</td><td>' . esc_html( $r['enrolled'] ) . '</td><td>' . esc_html( $r['last_seen'] ) . '</td><td>';
+			echo '<tr><td>' . esc_html( $r['label'] ) . ( $r['this'] ? ' ' . esc_html__( '(this browser)', 'signal-and-noise-tools' ) : '' ) . ( $r['confirmed'] ? '' : '<br><span class="sn-an-status">' . esc_html( $copy['unconfirmed'] ) . '</span>' ) . '</td><td>' . esc_html( $r['enrolled'] ) . '</td><td>' . esc_html( $r['last_seen'] ) . '</td><td>';
 			/* translators: %s: device label. */
 			sn_owner_devices_classic_form( 'owner_device_revoke', '<input type="hidden" name="sn_owner_row" value="' . esc_attr( (string) $r['index'] ) . '"><input type="hidden" name="sn_owner_row_nonce" value="' . esc_attr( $r['nonce'] ) . '">', sprintf( __( 'Revoke "%s"', 'signal-and-noise-tools' ), $r['label'] ), sprintf( __( 'Revoke "%s"? Its visits will no longer be marked as yours.', 'signal-and-noise-tools' ), $r['label'] ) );
 			echo '</td></tr>';
