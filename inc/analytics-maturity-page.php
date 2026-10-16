@@ -70,9 +70,12 @@ function sn_analytics_maturity_principles() {
 		// 23.2.0: the live figures behave like the rest. Phrased as a fact about the
 		// numbers. Count pin 14 -> 15 in tests/analytics-maturity-page.php.
 		__( 'Right now is judged the same way: a live surge is the last 5-minute slot against the same time of day on at least four earlier days, by median and MAD; with less history the answer is "still learning", never a guess.', 'signal-and-noise-tools' ),
-			// 2026-10-16: GRADUATED off the board's Analytics done column (the five-row cap).
-			// Count pin 15 -> 16 in tests/analytics-maturity-page.php.
-			__( 'AI attention in the weekly digest comes from the crawl ledger the site already holds, no new collection: which crawler families read the site, and how many reads landed on the published terms rather than the prose. The ledger\'s own thirty-day window is cited, never blended into the digest\'s week, and a window that measured nothing stays silent.', 'signal-and-noise-tools' ),
+		// 2026-10-16: GRADUATED off the board's Analytics done column (the five-row cap).
+		// Count pin 15 -> 16 in tests/analytics-maturity-page.php.
+		__( 'AI attention in the weekly digest comes from the crawl ledger the site already holds, no new collection: which crawler families read the site, and how many reads landed on the published terms rather than the prose. The ledger\'s own thirty-day window is cited, never blended into the digest\'s week, and a window that measured nothing stays silent.', 'signal-and-noise-tools' ),
+		// 2026-10-16: the give-back row GRADUATED off the board (the five-row cap), its
+		// 'not a ratio' decline kept. Count pin 16 -> 17 in tests/analytics-maturity-page.php.
+		__( 'Which machines send a reader back is stated per operator: the ledger\'s crawl counts beside that operator\'s referred human visits, a sentence each and not a ratio, because crawls are requests and visits are visitor-days. An operator that read the site hundreds of times and sent nobody back is the finding, so it is said in words, never left as a bare 0.', 'signal-and-noise-tools' ),
 	);
 }
 

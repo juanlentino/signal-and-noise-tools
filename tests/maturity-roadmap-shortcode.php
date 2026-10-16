@@ -318,8 +318,10 @@ ok( false === strpos( implode( ' | ', $floor['AI']['considering'] ), 'Reach the 
 // decline rides INSIDE the graduated sentence so the board records the shape the
 // answer took, not merely that an answer exists.
 ok( false === strpos( implode( ' | ', $floor['Analytics']['planned'] ), 'send a reader back' ), 'DR floor: the give-back row is NO LONGER promised as planned' );
-ok( false !== strpos( implode( ' | ', $floor['Analytics']['done'] ), 'Which machines send a reader back' ), 'DR floor: it sits in Analytics DONE (the per-operator statement shipped in v10.91.0)' );
-ok( false !== strpos( implode( ' | ', $floor['Analytics']['done'] ), 'not a ratio' ), 'DR floor: and the row NAMES what was declined, so "ratio" cannot quietly come back as an unmet promise' );
+// 2026-10-16 (third door write): the give-back row GRADUATED off the board onto the
+// Analytics maturity page as its seventeenth principle. The "not a ratio" guard moved
+// with it: tests/analytics-maturity-page.php pins the decline on that page now.
+ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'Which machines send a reader back' ), 'DR floor: the give-back row is in NO Analytics column — graduated onto the Analytics maturity page 2026-10-16, removal from the hub, not demotion within it' );
 ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'Give-back ratio per crawler' ), 'DR floor: no stale "Give-back ratio per crawler" phrasing survives in ANY Analytics column' );
 
 // The rights-read row moved PLANNED -> DONE on 2026-08-12. Its gate ("served
@@ -419,7 +421,7 @@ ok( false === strpos( $analytics_all, 'AI attention in the weekly digest' ), 'DR
 foreach ( array( 'The questions search asked', 'Coverage history kept' ) as $sc_row ) {
 	ok( 0 === count( array_filter( $floor['Analytics']['planned'], static fn( $r ) => 0 === strpos( $r, $sc_row ) ) ) && 1 === count( array_filter( $floor['Analytics']['done'], static fn( $r ) => 0 === strpos( $r, $sc_row ) ) ), "DR floor: '$sc_row' is GONE from planned and present ONCE in done — moved, not copied (2026-10-16)" );
 }
-ok( false === strpos( implode( ' | ', $floor['Analytics']['considering'] ), 'A quiet week explained' ) && 1 === count( array_filter( $floor['Analytics']['planned'], static fn( $r ) => 0 === strpos( $r, 'A quiet week explained' ) ) ), 'DR floor: the quiet-week row is GONE from considering and present ONCE in planned — moved, not copied (2026-10-16, second write)' );
+ok( false === strpos( implode( ' | ', $floor['Analytics']['considering'] ) . implode( ' | ', $floor['Analytics']['planned'] ), 'A quiet week explained' ) && 1 === count( array_filter( $floor['Analytics']['done'], static fn( $r ) => 0 === strpos( $r, 'A quiet week explained' ) ) ), 'DR floor: the quiet-week row is in NEITHER future column and present ONCE in done — shipped in 2026.10.24, moved, not copied (2026-10-16, third write)' );
 ok( false === strpos( $analytics_all, 'AI-referred humans as a channel' ), 'DR floor: the AI-referral row is in NO Analytics column — graduation is removal from the hub, not demotion within it' );
 ok( false === strpos( $analytics_all, 'lumping them hides the shift' ), 'DR floor: and no fragment of its sentence survives anywhere in the family' );
 
@@ -489,7 +491,7 @@ echo "\nGroup: static floor pinned to the live board (2026-10-16 sync)\n";
 // md5( json_encode( board ) ). The static floor must hash the same, so the floor
 // cannot drift from the live page silently. A deliberate board move updates this
 // pin in the same PR as the door write, after re-reading the live board.
-ok( '5989691e97733a88417641f0d37e0e65' === md5( json_encode( sn_maturity_roadmap_static_board() ) ), 'static floor equals the live board of 2026-10-16 (second door write), byte for byte (md5 of json_encode)' );
+ok( '95715684be34e8e4b8d77acf53cd4f10' === md5( json_encode( sn_maturity_roadmap_static_board() ) ), 'static floor equals the live board of 2026-10-16 (third door write), byte for byte (md5 of json_encode)' );
 ok( false === strpos( json_encode( sn_maturity_roadmap_static_board() ), 'AI attention in the weekly digest' ), 'the graduated AI-attention row is off the board (it lives on the Analytics maturity page now)' );
 
 echo "\nGroup: #1227 — length caps are mb_-safe (characters, not bytes)\n";

@@ -93,7 +93,8 @@ ok( false !== strpos( $html, 'never painted green' ), 'earned: honest chart colo
 // Analytics done column hit the ceiling. These two count pins are rendered-<li>
 // counts, which is why a grep for sn_analytics_maturity_principles() in tests/
 // finds nothing and wrongly reads as unpinned -- they guard the OUTPUT.
-ok( 16 === substr_count( $html, '<li>' ), 'exactly 16 principles — 13 kept, the live-surge row (23.2.0), the search-side row received 2026-09-08, plus the AI-attention digest row received 2026-10-16, each when the board\'s done column hit its cap (v13.19.0 moved it 12 -> 13 the same way)' );
+ok( 17 === substr_count( $html, '<li>' ), 'exactly 17 principles — 13 kept, the live-surge row (23.2.0), the search-side row received 2026-09-08, plus the AI-attention digest row and the give-back row received 2026-10-16, each when the board\'s done column hit its cap (v13.19.0 moved it 12 -> 13 the same way)' );
+ok( false !== strpos( $html, 'Which machines send a reader back is stated per operator' ) && false !== strpos( $html, 'not a ratio' ), 'GRADUATION 2026-10-16: the give-back claim renders here and still NAMES the declined ratio, so it cannot return as an unmet promise' );
 ok( false !== strpos( $html, 'AI attention in the weekly digest comes from the crawl ledger' ) && false !== strpos( $html, 'never blended into the digest&#039;s week' ), 'GRADUATION 2026-10-16: the AI-attention digest claim renders here, window discipline included, after leaving the board' );
 ok( false !== strpos( $html, 'AI-sent reader is a different signal' ), 'GRADUATION: the AI-referral claim renders here — it retired off the board, it did not vanish, and the feature it describes is untouched' );
 ok( false !== strpos( $html, 'keep them apart' ), 'GRADUATION: and it keeps the mechanism half — the rollups hold the segment separate, which is the whole claim' );
@@ -116,7 +117,7 @@ ok( false === strpos( $t, '<h2>' ) && false === strpos( $t, 'sn-maturity-princip
 echo "\nGroup: format=principles\n";
 $p = sn_analytics_maturity_shortcode( array( 'format' => 'principles' ) );
 ok( 0 === strpos( $p, '<div class="sn-maturity sn-maturity--principles">' ), 'root div carries sn-maturity--principles' );
-ok( false !== strpos( $p, 'sn-maturity-principles' ) && 16 === substr_count( $p, '<li>' ), 'principles variant renders the 16-item list' );
+ok( false !== strpos( $p, 'sn-maturity-principles' ) && 17 === substr_count( $p, '<li>' ), 'principles variant renders the 17-item list' );
 ok( false !== strpos( $p, '<h3>Honest by construction</h3>' ), 'principles variant keeps its heading' );
 ok( false === strpos( $p, 'sn-maturity-table' ) && false === strpos( $p, '<h2>' ), 'principles variant renders ONLY the principles section' );
 
