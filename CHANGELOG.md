@@ -15,6 +15,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Added
 - **A stale-CV alert.** /cv/ is a translation and does not follow the English résumé on its own. When the English résumé changes, the Résumé screen (classic and dashboard) and a new Health check (`resume_es_stale`, Other checks family) say "The Spanish CV (/cv/) is out of date" and list the English lines added, changed or removed since the translation. The baseline is captured from the live English résumé on the first run. After that it moves only when the Spanish file's `translated_from` names the live English (the "English version" code the alert shows), so a typo fix or a partial Spanish update cannot clear an alert whose lines are still untranslated. No AI, no network. The scan now runs one more check. Pinned in `tests/resume-es-stale.php`.
 
+### Changed
+- **Internal only: the OG card generator's source is split into smaller files** (house line cap). `inc/og-card-generator.php` (749 lines) keeps its header and its three leading constants, then loads three parts files in the order the code always ran, so every hook keeps its place: `og-card-generator-resolve-parts.php` (the upload folder, the eligibility test, the card delete, the image URL for a post, the dek, the footer, the title fit), `-render-parts.php` (`sn_generate_og_card()`, the `imagettfbbox` seam, the word wrap) and `-hooks-parts.php` (the save sync, the delete hook, the two one-time migrations, the image URL filter). Code moved unchanged. No suite reads the module's text, so no test changes. Nothing changes on screen, the cards render the same, and no figure is removed.
+
 ## [2026.10.17] - 2026-10-15 — The Spanish résumé (/cv/ and its PDF), and a compact Release notes box
 
 ### Added
