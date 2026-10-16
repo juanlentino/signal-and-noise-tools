@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/provenance-signed-headers.php';
+
 const SN_PROV_GENESIS_MIGR_OPT     = 'sn_prov_genesis_migrated';
 const SN_PROV_GENESIS_REANCHOR_OPT = 'sn_prov_genesis_reanchored_v1'; // one-shot re-anchor self-heal gate
 const SN_PROV_GENESIS_OPT          = 'sn_prov_genesis';        // {root, ledger_path, status, date}
@@ -281,10 +283,7 @@ function sn_prov_dispatch_manifest( $root, $manifest, $date ) {
 	$response = wp_remote_post( $url, array(
 		'timeout'     => 20,
 		'redirection' => 0,
-		'headers'     => array(
-			'Content-Type'   => 'application/json',
-			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
-		),
+		'headers'     => sn_prov_signed_headers( $body, $secret ),
 		'body'        => $body,
 	) );
 	if ( is_wp_error( $response ) ) {

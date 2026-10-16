@@ -295,6 +295,11 @@ $sent = $GLOBALS['__pv_http'][0];
 wh_eq( 'https://worker.example/', $sent[0], 'posted to the worker url' );
 $expected_sig = 'sha256=' . hash_hmac( 'sha256', $sent[1]['body'], 'shh' );
 wh_eq( $expected_sig, $sent[1]['headers']['X-SN-Signature'], 'HMAC signature over raw body' );
+// Worker 1.26.0 v2 envelope: HMAC over v2|ts|nonce|sha256(exact body sent).
+$v2_ts    = (string) ( $sent[1]['headers']['X-SN-Sig-Ts'] ?? '' );
+$v2_nonce = (string) ( $sent[1]['headers']['X-SN-Sig-Nonce'] ?? '' );
+wh_eq( true, 1 === preg_match( '/^[A-Za-z0-9_-]{16,128}$/', $v2_nonce ) && abs( time() - (int) $v2_ts ) <= 5, 'v2 ts is now and nonce passes the Worker regex' );
+wh_eq( hash_hmac( 'sha256', 'v2|' . $v2_ts . '|' . $v2_nonce . '|' . hash( 'sha256', $sent[1]['body'] ), 'shh' ), $sent[1]['headers']['X-SN-Sig'] ?? '', 'v2 envelope signature over the exact body sent' );
 $body = json_decode( $sent[1]['body'], true );
 wh_eq( 'u', $body['note_uid'], 'body carries note_uid' );
 

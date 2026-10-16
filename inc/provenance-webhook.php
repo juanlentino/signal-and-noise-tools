@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/provenance-signed-headers.php';
+
 const SN_PROV_CONFIRM_HOOK      = 'sn_prov_reconcile';
 const SN_PROV_CONFIRM_TS_WINDOW = 600; // seconds a signed confirm ts may be off from now.
 
@@ -200,10 +202,7 @@ function sn_prov_dispatch( $post_id, $commit, $canonical ) {
 	$response = wp_remote_post( $url, array(
 		'timeout'     => 15,
 		'redirection' => 0,
-		'headers'     => array(
-			'Content-Type'   => 'application/json',
-			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
-		),
+		'headers'     => sn_prov_signed_headers( $body, $secret ),
 		'body'        => $body,
 	) );
 	if ( is_wp_error( $response ) ) {
@@ -311,10 +310,7 @@ function sn_prov_run_sweep() {
 	$response = wp_remote_post( $endpoint, array(
 		'timeout'     => 20,
 		'redirection' => 0,
-		'headers'     => array(
-			'Content-Type'   => 'application/json',
-			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
-		),
+		'headers'     => sn_prov_signed_headers( $body, $secret ),
 		'body'        => $body,
 	) );
 	if ( is_wp_error( $response ) ) {
