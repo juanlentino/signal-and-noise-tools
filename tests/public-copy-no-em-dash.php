@@ -28,6 +28,8 @@ function ok( $c, $m ) {
 	}
 }
 
+require_once __DIR__ . '/lib/inc-population.php'; // snt_test_maturity_roadmap_shortcode_src(): the shell and its parts (split 2026-10-15)
+
 $root  = dirname( __DIR__ ) . '/inc/';
 $files = array_merge(
 	glob( $root . 'public-stats*.php' ),
@@ -38,22 +40,23 @@ ok( count( $files ) >= 12, 'the painters are found (' . count( $files ) . ' file
 
 foreach ( $files as $file ) {
 	$hits = array();
-	foreach ( token_get_all( (string) file_get_contents( $file ) ) as $t ) {
+	$src  = $root . 'maturity-roadmap-shortcode.php' === $file ? snt_test_maturity_roadmap_shortcode_src() : (string) file_get_contents( $file );
+	foreach ( token_get_all( $src ) as $t ) {
 		if ( is_array( $t ) && in_array( $t[0], array( T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE ), true )
 			&& preg_match( '/\x{2014}|\x{2013}|&mdash;|&ndash;/u', $t[1] ) ) {
 			$hits[] = $t[2];
 		}
 	}
-	ok( array() === $hits, basename( $file ) . ': no em or en dash in its strings' . ( $hits ? ' (lines ' . implode( ', ', $hits ) . ')' : '' ) );
+	ok( '' !== $src && array() === $hits, basename( $file ) . ': no em or en dash in its strings' . ( $hits ? ' (lines ' . implode( ', ', $hits ) . ')' : '' ) );
 }
 
 $stats = (string) file_get_contents( $root . 'public-stats.php' );
 ok( false === strpos( $stats, 'nothing to consent to' ), '/stats no longer says there is nothing to consent to' );
 ok( false !== strpos( $stats, 'No consent banner: the measurement sets no cookies on readers and uses no local storage.' ), '/stats says what the Privacy Policy says of the measurement' );
 
-$roadmap = (string) file_get_contents( $root . 'maturity-roadmap-shortcode.php' );
-ok( false === strpos( $roadmap, 'now reads views: a quiet week' ), 'the cadence line carries one colon, not two' );
-ok( false === strpos( $roadmap, 'seen at all; today each run replaces the last, and the question cannot be asked backwards; it lands' ), 'the coverage line is not a chain of semicolons' );
+$roadmap = snt_test_maturity_roadmap_shortcode_src();
+ok( '' !== $roadmap && false === strpos( $roadmap, 'now reads views: a quiet week' ), 'the cadence line carries one colon, not two' );
+ok( '' !== $roadmap && false === strpos( $roadmap, 'seen at all; today each run replaces the last, and the question cannot be asked backwards; it lands' ), 'the coverage line is not a chain of semicolons' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

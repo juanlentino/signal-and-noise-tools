@@ -292,6 +292,31 @@ if ( ! function_exists( 'snt_test_attention_readers_src' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_test_maturity_roadmap_shortcode_src' ) ) {
+	/**
+	 * The source of inc/maturity-roadmap-shortcode.php AND its three parts files,
+	 * for suites that pin the module's text. Split 2026-10-15 (house line cap).
+	 * Named, not globbed: maturity-roadmap-merge.php and the other maturity-*.php
+	 * files are separate modules. A missing file returns '' so every presence pin
+	 * goes red and every guarded absence pin fails rather than passing on a
+	 * partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_maturity_roadmap_shortcode_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-board-parts', '-gate-parts', '-render-parts' ) as $suffix ) {
+			$file = $dir . 'maturity-roadmap-shortcode' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
 if ( ! function_exists( 'snt_test_sn_scan_adapters_src' ) ) {
 	/**
 	 * The source of inc/sn-scan-adapters.php AND its three parts files, for
