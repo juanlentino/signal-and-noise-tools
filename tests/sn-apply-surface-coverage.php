@@ -18,7 +18,8 @@
  *      reachable files: two orphans requiring each other, or a commented-out
  *      require, still read as MISSING.
  *   2. snt_ability_sn_apply() is declared exactly once in the whole tree.
- *   3. The 86-function public surface is unchanged. Function names survive a
+ *   3. The 88-function public surface is unchanged (86 at the package move,
+ *      plus the two active-content functions of the 2026-10-16 audit). Function names survive a
  *      move; that is the whole reason a move is safe, so it is asserted rather
  *      than assumed.
  *
@@ -36,9 +37,11 @@ function eq( $e, $a, $m ) { ok( $e === $a, $m . ( $e === $a ? '' : ' (expected '
 
 $root = dirname( __DIR__ );
 
-/** The 86 functions this family declared before the package move. */
+/** The functions this family declares: 86 at the package move, plus two since. */
 $expected_surface = array(
 	'snt_ability_sn_apply',
+	'snt_sn_apply_active_constructs',      // 2026-10-16 audit: the active-content refusal.
+	'snt_sn_apply_active_content_error',
 	'snt_sn_apply_apply_one',
 	'snt_sn_apply_apply_staged_meta_for_post',
 	'snt_sn_apply_audit_enrichment',

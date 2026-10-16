@@ -232,6 +232,9 @@ function sn_prov_fetch_next_key() {
 	if ( '' === $base || '' === $secret ) {
 		return $fail( 'worker-not-configured' );
 	}
+	if ( ! sn_prov_url_allowed( $base ) ) {
+		return $fail( 'worker-url-refused' );
+	}
 	$body     = wp_json_encode( array() );
 	$response = wp_remote_post( rtrim( $base, '/' ) . '/next-key', array(
 		'timeout'     => 15,
@@ -307,6 +310,9 @@ function sn_prov_publish_rotation_to_ledger( $key_id, $when ) {
 	$secret = (string) sn_prov_hmac_secret();
 	if ( '' === $base || '' === $secret ) {
 		return array( 'ok' => false, 'code' => 'worker-not-configured' );
+	}
+	if ( ! sn_prov_url_allowed( $base ) ) {
+		return array( 'ok' => false, 'code' => 'worker-url-refused' );
 	}
 	$body     = wp_json_encode( array( 'key_id' => $key_id, 'rotated_at' => $when ) );
 	$response = wp_remote_post( rtrim( $base, '/' ) . '/publish-rotation', array(

@@ -239,6 +239,10 @@ function snt_sn_apply_block_edit_payload_error( $type, array $payload ) {
 	if ( '' === trim( $blocks ) ) {
 		return new WP_Error( 'snt_sn_apply_invalid_blocks', __( 'payload.blocks is empty — it must be serialized Gutenberg block markup.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
+	$active = snt_sn_apply_active_content_error( $blocks, 'payload.blocks' );
+	if ( is_wp_error( $active ) ) {
+		return $active;
+	}
 
 	$parsed = parse_blocks( $blocks );
 	// The freeform check MUST come before the round-trip check: a malformed

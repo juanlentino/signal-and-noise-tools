@@ -521,6 +521,25 @@ ok( array() === $GLOBALS['__ae_post_calls'], 'length: the over-cap statement is 
 $err = sn_analytics_last_error();
 ok( is_array( $err ) && false !== strpos( (string) ( $err['message'] ?? '' ), 'over the 10000 cap' ), 'length: the refusal is recorded with its reason' );
 
+// ── 2026-10-16 audit: the account id is a path segment, so it is encoded ─────
+// Declared late on purpose: sn_analytics_config() checks function_exists() per
+// call, so from here on it reads the shared credential module's account id.
+echo "\nTest: account id is rawurlencoded into the AE path\n";
+// Inside if(): a top-level function is hoisted to compile time and would
+// change every config test above.
+if ( ! function_exists( 'sn_cf_analytics_token' ) ) {
+	function sn_cf_analytics_token() { return 'tok'; }
+	function sn_cf_get_account_id() { return $GLOBALS['__acct']; }
+}
+$GLOBALS['__acct']           = 'acct/../../zones?x=1';
+$GLOBALS['__ae_wp_error_mode'] = false;
+$GLOBALS['__ae_mock_code']   = 200;
+$GLOBALS['__ae_mock_body']   = json_encode( array( 'data' => array(), 'meta' => array() ) );
+$GLOBALS['__ae_post_calls']  = array();
+sn_analytics_query( 'SELECT 1' );
+$sent = (string) ( end( $GLOBALS['__ae_post_calls'] )['url'] ?? '' );
+ok( 'https://api.cloudflare.com/client/v4/accounts/acct%2F..%2F..%2Fzones%3Fx%3D1/analytics_engine/sql' === $sent, "a hostile account id stays inside its path segment ($sent)" );
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

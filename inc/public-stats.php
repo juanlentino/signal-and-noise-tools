@@ -370,7 +370,9 @@ function sn_public_stats_data() {
 
 /**
  * A path's public label: the published page's own title when the path
- * resolves to one, the path itself otherwise — never a dead guess.
+ * resolves to one, the path itself otherwise — never a dead guess. '' when
+ * the path resolves to a post that is not publicly viewable (a draft, a
+ * private or a protected post), so the caller drops the row.
  *
  * @param string $path Site-relative path from the rollup row.
  * @return string
@@ -383,6 +385,12 @@ function sn_public_stats_path_label( $path ) {
 	if ( function_exists( 'url_to_postid' ) && function_exists( 'get_the_title' ) ) {
 		$post_id = url_to_postid( home_url( $path ) );
 		if ( $post_id > 0 ) {
+			// A draft, private or protected post must never surface on /stats:
+			// neither its title nor its path, which carries the slug. '' tells
+			// the render to drop the row.
+			if ( ! function_exists( 'is_post_publicly_viewable' ) || ! is_post_publicly_viewable( $post_id ) ) {
+				return '';
+			}
 			$title = (string) get_the_title( $post_id );
 			if ( '' !== $title ) {
 				return $title;
@@ -446,7 +454,11 @@ function sn_public_stats_html() {
 	if ( array() !== $data['top'] ) {
 		$out .= '<h2>' . esc_html__( 'Most read', 'signal-and-noise-tools' ) . '</h2><ol class="sn-public-stats__top">';
 		foreach ( $data['top'] as $path => $views ) {
-			$out .= '<li><a href="' . esc_url( home_url( (string) $path ) ) . '">' . esc_html( sn_public_stats_path_label( (string) $path ) ) . '</a>'
+			$label = sn_public_stats_path_label( (string) $path );
+			if ( '' === $label ) {
+				continue; // not a public URL: the row is dropped, never shown as a bare path.
+			}
+			$out .= '<li><a href="' . esc_url( home_url( (string) $path ) ) . '">' . esc_html( $label ) . '</a>'
 				. '<span class="sn-public-stats__views">' . esc_html( number_format_i18n( (int) $views ) ) . '</span></li>';
 		}
 		$out .= '</ol>';

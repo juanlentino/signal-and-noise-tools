@@ -13,7 +13,9 @@
  *
  * Either one schedules a refresh when the pair is older than 30 s, through
  * the same throttle the admin warmer uses, so at most one refresh is queued
- * however many readers poll. Cookieless as the beacon is: the counts are the
+ * however many readers poll. Only the authenticated admin read may also run
+ * it now with spawn_cron(); the public route never spawns a loopback request
+ * (2026-10-16 audit), so anonymous polling cannot drive origin work. Cookieless as the beacon is: the counts are the
  * daily visitor hashes the edge already keeps; nothing new is collected.
  *
  * Null and 0 stay apart: a cold cache answers null ("not measured"), a
@@ -80,9 +82,12 @@ function sn_analytics_live_can_read() {
 /**
  * Keep the pair warm for whoever is reading; one refresh at a time.
  *
+ * @param bool $may_spawn True only for the authenticated admin read: run a
+ *                        due refresh now with spawn_cron(). The public route
+ *                        passes false and leaves it to the scheduler.
  * @return void
  */
-function sn_analytics_live_touch() {
+function sn_analytics_live_touch( $may_spawn = false ) {
 	$due = sn_analytics_realtime_schedule_if_stale();
 	if ( ! $due && sn_analytics_realtime_age() > SN_ANALYTICS_REALTIME_TTL ) {
 		// A stale cache with a refresh already queued and overdue: the run
@@ -92,7 +97,7 @@ function sn_analytics_live_touch() {
 		$next = wp_next_scheduled( SN_ANALYTICS_REALTIME_HOOK );
 		$due  = false !== $next && (int) $next <= time();
 	}
-	if ( $due && function_exists( 'spawn_cron' ) ) {
+	if ( $may_spawn && $due && function_exists( 'spawn_cron' ) ) {
 		// Run it now rather than on the next origin request: behind the edge
 		// cache the next request may be a whole bucket away. spawn_cron()
 		// keeps its own lock, so polls cannot stack runs.
@@ -129,7 +134,7 @@ function sn_analytics_live_register_routes() {
 		'methods'             => 'GET',
 		'permission_callback' => 'sn_analytics_live_can_read',
 		'callback'            => static function () {
-			sn_analytics_live_touch();
+			sn_analytics_live_touch( true );
 			return sn_analytics_live_response( sn_analytics_live_payload( true ), 'private, no-store' );
 		},
 	) );

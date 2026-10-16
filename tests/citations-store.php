@@ -50,7 +50,8 @@ class Test_WPDB {
 	public function insert( $t, $r ) { $this->inserts[] = array( $t, $r ); return $this->insert_fails ? false : 1; }
 	public function update( $t, $r, $w ) { $this->updates[] = array( $t, $r, $w ); return 1; }
 	public function query( $s ) { $this->queries[] = $s; return 0; }
-	public function get_var( $s ) { $this->queries[] = $s; return $this->var; }
+	public $count = null; // what SELECT COUNT(*) answers; null falls back to $var.
+	public function get_var( $s ) { $this->queries[] = $s; return ( null !== $this->count && false !== stripos( $s, 'COUNT(*)' ) ) ? $this->count : $this->var; }
 	public function get_results( $s, $o = 'OBJECT' ) { $this->queries[] = $s; return $this->rows; }
 	public function get_charset_collate() { return ''; }
 
@@ -100,6 +101,19 @@ $GLOBALS['wpdb']->var          = null; // the SELECT found nothing
 $GLOBALS['wpdb']->insert_fails = true;  // ...but the UNIQUE key rejects the insert
 ok( sn_cit_record( 'https://example.com/race', 'https://juanlentino.com/notes/x/', 42 ) === 'exists', 'a race-losing insert reports "exists", never "created"' );
 $GLOBALS['wpdb']->insert_fails = false;
+
+// ── the unverified cap: a flood cannot grow the table without bound ────────
+reset_db();
+$GLOBALS['wpdb']->count = SN_CIT_UNVERIFIED_CAP;
+ok( sn_cit_record( 'https://example.com/flood', 'https://juanlentino.com/notes/x/', 42 ) === 'capped', 'at the unverified cap a NEW claim is refused as capped' );
+ok( count( $GLOBALS['wpdb']->inserts ) === 0, '...and nothing is inserted' );
+$GLOBALS['wpdb']->var = 7;
+ok( sn_cit_record( 'https://example.com/post', 'https://juanlentino.com/notes/x/', 42 ) === 'exists', '...while a re-ping of a known pair still answers exists' );
+reset_db();
+$GLOBALS['wpdb']->count = SN_CIT_UNVERIFIED_CAP - 1;
+ok( sn_cit_record( 'https://example.com/under', 'https://juanlentino.com/notes/x/', 42 ) === 'created', 'control: one under the cap is still recorded' );
+ok( 2000 === SN_CIT_UNVERIFIED_CAP, 'the cap is 2000 unverified rows' );
+$GLOBALS['wpdb']->count = null;
 
 // ── verdicts ────────────────────────────────────────────────────────────────
 reset_db();

@@ -95,9 +95,9 @@ $GLOBALS['cap'] = true;
 sn_analytics_realtime_warm();
 ok( array( SN_ANALYTICS_REALTIME_HOOK ) === $GLOBALS['sched'], 'and still warms for one with it' );
 
-echo "\nGroup: a reader's poll runs the refresh, even one already queued and overdue\n";
+echo "\nGroup: the admin read runs the refresh, even one already queued and overdue\n";
 reset_all();
-sn_analytics_live_touch();
+sn_analytics_live_touch( true );
 ok( 1 === $GLOBALS['spawned'], 'cold: the poll queues one refresh and runs cron now' );
 // 2026.10.12 live: a plugin update purged the cache while a refresh sat queued
 // and overdue (its spawned run died in maintenance mode). Every poll saw
@@ -106,21 +106,41 @@ ok( 1 === $GLOBALS['spawned'], 'cold: the poll queues one refresh and runs cron 
 reset_all();
 $GLOBALS['sched'] = array( SN_ANALYTICS_REALTIME_HOOK );
 $GLOBALS['sched_ts'][ SN_ANALYTICS_REALTIME_HOOK ] = time() - 280;
-sn_analytics_live_touch();
+sn_analytics_live_touch( true );
 ok( 1 === $GLOBALS['spawned'] && 1 === count( $GLOBALS['sched'] ), 'cold with an overdue queued refresh: cron runs now, no second event' );
 reset_all();
 $GLOBALS['sched'] = array( SN_ANALYTICS_REALTIME_HOOK );
 $GLOBALS['sched_ts'][ SN_ANALYTICS_REALTIME_HOOK ] = time() + 100;
-sn_analytics_live_touch();
+sn_analytics_live_touch( true );
 ok( 0 === $GLOBALS['spawned'], 'a refresh queued for later is left to its time' );
 reset_all();
 $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array(), 'fetched' => time() );
-sn_analytics_live_touch();
+sn_analytics_live_touch( true );
 ok( 0 === $GLOBALS['spawned'], 'fresh: no cron spawned' );
 reset_all();
 $GLOBALS['cfg'] = false;
-sn_analytics_live_touch();
+sn_analytics_live_touch( true );
 ok( 0 === $GLOBALS['spawned'], 'unconfigured: no cron spawned' );
+
+echo "\nGroup: the public route never spawns cron (2026-10-16 audit)\n";
+reset_all();
+sn_analytics_live_touch();
+ok( 0 === $GLOBALS['spawned'] && array( SN_ANALYTICS_REALTIME_HOOK ) === $GLOBALS['sched'], 'default touch on a cold cache: one refresh scheduled, no spawn_cron()' );
+if ( ! class_exists( 'WP_REST_Response' ) ) {
+	class WP_REST_Response { public $data; public $status; public function __construct( $d, $s ) { $this->data = $d; $this->status = $s; } public function header( $k, $v ) {} }
+}
+sn_analytics_live_register_routes();
+reset_all();
+call_user_func( $GLOBALS['routes']['signal-noise/v1/live']['callback'] );
+ok( 0 === $GLOBALS['spawned'] && 1 === count( $GLOBALS['sched'] ), 'GET /live (public) on a cold cache schedules but never spawns' );
+reset_all();
+$GLOBALS['sched'] = array( SN_ANALYTICS_REALTIME_HOOK );
+$GLOBALS['sched_ts'][ SN_ANALYTICS_REALTIME_HOOK ] = time() - 280;
+call_user_func( $GLOBALS['routes']['signal-noise/v1/live']['callback'] );
+ok( 0 === $GLOBALS['spawned'], 'GET /live with an overdue queued refresh still never spawns' );
+reset_all();
+call_user_func( $GLOBALS['routes']['signal-noise/v1/live/admin']['callback'] );
+ok( 1 === $GLOBALS['spawned'], 'GET /live/admin (authenticated) on a cold cache runs cron now' );
 
 echo "\nGroup: being read now\n";
 $sql = sn_analytics_live_pages_sql();

@@ -169,6 +169,14 @@ function snt_sn_apply_gate2_create_draft( array $payload ) {
 			strlen( $content ), '<=' . SNT_SN_APPLY_CREATE_DRAFT_CONTENT_MAX_BYTES . ' bytes', array(), 'create_draft|content|size'
 		);
 	} else {
+		$checks[] = 'active_content';
+		$active   = snt_sn_apply_active_content_error( $content, 'payload.content' );
+		if ( is_wp_error( $active ) ) {
+			$findings[] = snt_sn_validate_finding(
+				'create_draft', 'active_content', 'error', $active->get_error_message(),
+				implode( ', ', snt_sn_apply_active_constructs( $content ) ), null, array(), 'create_draft|active_content'
+			);
+		}
 		$checks[]  = 'block_pattern';
 		$findings  = array_merge( $findings, snt_sn_apply_block_delimiter_findings( $content ) );
 		if ( function_exists( 'snt_sn_validate_check_body' ) ) {
@@ -359,6 +367,12 @@ function snt_sn_apply_resolve_tag_ids( array $tag_names ) {
 function snt_sn_apply_write_create_draft( array $payload ) {
 	$title   = (string) ( $payload['title'] ?? '' );
 	$content = (string) ( $payload['content'] ?? '' );
+
+	// Defense in depth: gate 2 already refuses this, but the write must hold alone.
+	$active = snt_sn_apply_active_content_error( $content, 'payload.content' );
+	if ( is_wp_error( $active ) ) {
+		return $active;
+	}
 
 	$tag_ids = null;
 	if ( ! empty( $payload['tags'] ) ) {

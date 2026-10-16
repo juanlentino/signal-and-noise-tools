@@ -13,7 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_PROV_CONFIRM_HOOK = 'sn_prov_reconcile';
+const SN_PROV_CONFIRM_HOOK      = 'sn_prov_reconcile';
+const SN_PROV_CONFIRM_TS_WINDOW = 600; // seconds a signed confirm ts may be off from now.
 
 /**
  * Prefer a wp-config constant; fall back to an option. FOR SECRETS.
@@ -466,10 +467,12 @@ function sn_prov_apply_confirmation( $uid, $version, array $data ) {
 
 	// Integrity belt: a confirm must never flip an entry whose hash doesn't
 	// match what's already on the chain — resolve + compare before mutating.
+	$current = '';
 	foreach ( sn_prov_get_chain( $post_id ) as $entry ) {
 		if ( (int) ( $entry['version'] ?? 0 ) !== (int) $version ) {
 			continue;
 		}
+		$current = (string) ( $entry['status'] ?? '' );
 		// v9.88.0: UNCONDITIONAL. The Worker signs ledger payloads and confirm
 		// callbacks with one key and no domain separation, and a signed ledger
 		// payload is PUBLISHED publicly — so a replayed one verifies here. A
@@ -487,6 +490,13 @@ function sn_prov_apply_confirmation( $uid, $version, array $data ) {
 	$allowed_statuses = array( 'pending', 'confirmed', 'unanchored', 'genesis' );
 	$status           = (string) ( $data['status'] ?? '' );
 	if ( ! in_array( $status, $allowed_statuses, true ) ) {
+		return false;
+	}
+	// Monotonic (2026-10-16 audit): a Bitcoin confirmation is final, so a
+	// confirmed commit never moves back. Every confirm the Worker ever signed
+	// stays valid forever, and a replayed `pending` one would otherwise
+	// un-verify a note.
+	if ( 'confirmed' === $current && 'confirmed' !== $status ) {
 		return false;
 	}
 	$fields = array( 'status' => $status );
@@ -522,6 +532,33 @@ function sn_prov_apply_confirmation( $uid, $version, array $data ) {
 }
 
 /**
+ * Is the confirm's optional `ts` fresh? The body is what the Ed25519 signature
+ * covers, so a `ts` inside it is signed. A Worker that sends none is accepted
+ * (older Workers predate it); one that sends a `ts` older than 10 minutes, or
+ * more than 10 minutes ahead, or unreadable, is refused as a replay. Accepts
+ * unix seconds, unix milliseconds or an ISO 8601 string. PURE but for time().
+ *
+ * @param array $data Decoded confirm body.
+ * @return bool
+ */
+function sn_prov_confirm_ts_fresh( array $data ) {
+	if ( ! array_key_exists( 'ts', $data ) ) {
+		return true;
+	}
+	$ts = $data['ts'];
+	if ( is_int( $ts ) || is_float( $ts ) || ( is_string( $ts ) && ctype_digit( $ts ) ) ) {
+		$at = (int) $ts;
+		$at = $at > 100000000000 ? intdiv( $at, 1000 ) : $at; // milliseconds
+	} else {
+		$at = is_string( $ts ) ? strtotime( $ts ) : false;
+	}
+	if ( false === $at || $at <= 0 ) {
+		return false;
+	}
+	return abs( time() - $at ) <= SN_PROV_CONFIRM_TS_WINDOW;
+}
+
+/**
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
@@ -529,6 +566,9 @@ function sn_prov_confirm_handler( $request ) {
 	$data = json_decode( $request->get_body(), true );
 	if ( ! is_array( $data ) || empty( $data['note_uid'] ) ) {
 		return new WP_Error( 'sn_prov_bad_payload', 'Malformed payload.', array( 'status' => 400 ) );
+	}
+	if ( ! sn_prov_confirm_ts_fresh( $data ) ) {
+		return new WP_Error( 'sn_prov_stale', 'Confirmation timestamp is outside the accepted window.', array( 'status' => 403 ) );
 	}
 	// Genesis is a sentinel, not a Note post — apply its confirmation to the
 	// persisted genesis option directly. Routing it through

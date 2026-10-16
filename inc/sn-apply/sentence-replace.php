@@ -37,6 +37,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// The active-content refusal (inc/sn-apply/active-content.php) is shared by the
+// block edits, create_draft and the batches too. It is required here, once, as
+// the family's surface-coverage guard asks; the loader reaches it through this file.
+require_once __DIR__ . '/active-content.php';
+
 const SNT_SN_APPLY_SENTENCE_PHRASE_MIN     = 20;
 const SNT_SN_APPLY_SENTENCE_REPLACEMENT_MAX = 2000;
 
@@ -77,6 +82,12 @@ function snt_sn_apply_sentence_pair_error( $phrase, $replacement ) {
 			),
 			array( 'status' => 422 )
 		);
+	}
+	// Active content first, so a script or handler is refused by its own name
+	// rather than by the generic plain-prose rule below.
+	$active = snt_sn_apply_active_content_error( $replacement, 'payload.replacement' );
+	if ( is_wp_error( $active ) ) {
+		return $active;
 	}
 	// Tag-SHAPED sequences only ('<' followed by a letter, '/', '!' or '?'),
 	// not any '<' — a strip_tags()-equality check false-rejects ordinary

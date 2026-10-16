@@ -129,6 +129,18 @@ if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_rem
 if ( ! function_exists( 'wp_remote_retrieve_body' ) ) { function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; } }
 if ( ! function_exists( 'sn_prov_worker_url' ) ) { function sn_prov_worker_url() { return 'https://w.example'; } }
 if ( ! function_exists( 'sn_prov_hmac_secret' ) ) { function sn_prov_hmac_secret() { return 'shh'; } }
+// The shared Worker URL gate (inc/provenance-webhook.php), with a switch.
+$GLOBALS['__url_ok'] = true;
+if ( ! function_exists( 'sn_prov_url_allowed' ) ) { function sn_prov_url_allowed( $u ) { $GLOBALS['__gated'][] = $u; return $GLOBALS['__url_ok']; } }
+
+// 2026-10-16 audit: both Worker POSTs pass the same SSRF gate as every other Worker call.
+$GLOBALS['__http'] = array(); $GLOBALS['__gated'] = array(); $GLOBALS['__url_ok'] = false;
+$f = sn_prov_fetch_next_key();
+ok( false === $f['ok'] && 'worker-url-refused' === $f['code'] && array() === $GLOBALS['__http'], 'a refused Worker URL fetches no key and makes no request' );
+$p = sn_prov_publish_rotation_to_ledger( 'sn-ed25519-2027-03', '2027-03-14' );
+ok( false === $p['ok'] && 'worker-url-refused' === $p['code'] && array() === $GLOBALS['__http'], 'a refused Worker URL publishes nothing and makes no request' );
+ok( array( 'https://w.example', 'https://w.example' ) === $GLOBALS['__gated'], '...both calls asked the gate about the configured Worker URL' );
+$GLOBALS['__url_ok'] = true;
 
 // The id is DERIVED from the rotation date, not typed: a hand-typed id is one
 // more thing that can disagree with what every record will carry in pubkey_id.

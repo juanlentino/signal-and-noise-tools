@@ -22,6 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_CIT_TABLE          = 'sn_citations';
 const SN_CIT_DB_VERSION     = '1';
 const SN_CIT_DB_VERSION_OPT = 'sn_citations_db_version';
+const SN_CIT_UNVERIFIED_CAP = 2000; // the most unverified claims the public inbox may hold at once.
 
 /** @return string The prefixed table name. */
 function sn_cit_table() {
@@ -88,7 +89,7 @@ function sn_cit_maybe_install() {
  * @param string $source
  * @param string $target
  * @param int    $post_id
- * @return string 'created' | 'exists' | 'invalid'
+ * @return string 'created' | 'exists' | 'invalid' | 'capped'
  */
 function sn_cit_record( $source, $target, $post_id = 0 ) {
 	global $wpdb;
@@ -100,6 +101,14 @@ function sn_cit_record( $source, $target, $post_id = 0 ) {
 	$existing = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE pair_hash = %s", $hash ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	if ( $existing ) {
 		return 'exists';
+	}
+	// The public inbox can only add `unverified` rows, so their count is what a
+	// flood grows. Past the cap a NEW claim is refused (the endpoint answers 429);
+	// a re-ping of a known pair above still answers 'exists'.
+	$unverified = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE tier = 'unverified'" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+	if ( $unverified >= SN_CIT_UNVERIFIED_CAP ) {
+		error_log( '[sn-cit] unverified cap reached (' . $unverified . ' rows); refusing a new claim from ' . (string) wp_parse_url( $source, PHP_URL_HOST ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		return 'capped';
 	}
 	// #1226: SELECT-then-INSERT has a TOCTOU race — a concurrent request can
 	// insert the same pair_hash between the SELECT above and this INSERT. The

@@ -19,9 +19,11 @@ define( 'SN_REST_NAMESPACE', 'signal-noise/v1' );
 
 class WP_REST_Server { const READABLE = 'GET'; const CREATABLE = 'POST'; }
 class WP_Error {
-	public $code; public $data;
-	public function __construct( $c = '', $m = '', $d = array() ) { $this->code = $c; $this->data = $d; }
+	public $code; public $message; public $data;
+	public function __construct( $c = '', $m = '', $d = array() ) { $this->code = $c; $this->message = $m; $this->data = $d; }
 }
+$GLOBALS['__i18n_domains'] = array();
+function __( $s, $d = 'default' ) { $GLOBALS['__i18n_domains'][] = $d; return $s; }
 class WP_REST_Response {
 	public $data; public $status;
 	public function __construct( $d = null, $s = 200 ) { $this->data = $d; $this->status = $s; }
@@ -62,6 +64,7 @@ function sn_analytics_realtime_refresh() { $GLOBALS['__ran'][] = 'realtime'; }
 $pass = 0; $fail = 0;
 function ok( $cond, $msg ) { global $pass, $fail; if ( $cond ) { $pass++; echo "  ok: $msg\n"; } else { $fail++; echo "  FAIL: $msg\n"; } }
 
+require __DIR__ . '/../inc/rest-no-route.php';
 require __DIR__ . '/../inc/analytics-refresh-rest.php';
 call_user_func( $GLOBALS['__rest_cb'] ); // fire rest_api_init → registers the route
 
@@ -79,20 +82,28 @@ echo "\nGroup: permission gate (fails closed)\n";
 $GLOBALS['__refresh_secret'] = 'sekret';
 $ok = sn_analytics_refresh_permission( new WP_REST_Request( array( 'x_sn_refresh_key' => 'sekret' ) ) );
 ok( true === $ok, 'perm: correct key → true' );
-// Wrong key → 403.
+// 2026-10-16 audit: an unset token and a wrong key are indistinguishable from
+// outside, and both read exactly like a route that was never registered: core's
+// rest_no_route body (WP_REST_Server::dispatch()), in core's 'default' domain.
+$is_no_route = static function ( $e ) {
+	return $e instanceof WP_Error && 'rest_no_route' === $e->code
+		&& 'No route was found matching the URL and request method.' === $e->message
+		&& array( 'status' => 404 ) === $e->data;
+};
 $bad = sn_analytics_refresh_permission( new WP_REST_Request( array( 'x_sn_refresh_key' => 'nope' ) ) );
-ok( $bad instanceof WP_Error && 403 === ( $bad->data['status'] ?? 0 ), 'perm: wrong key → 403' );
-// Missing key → 403.
+ok( $is_no_route( $bad ), 'perm: wrong key → core rest_no_route 404' );
 $none = sn_analytics_refresh_permission( new WP_REST_Request( array() ) );
-ok( $none instanceof WP_Error && 403 === ( $none->data['status'] ?? 0 ), 'perm: missing key → 403' );
-// Unset secret → 503 (fail CLOSED, never runs open).
+ok( $is_no_route( $none ), 'perm: missing key → core rest_no_route 404' );
 $GLOBALS['__refresh_secret'] = '';
 $unset = sn_analytics_refresh_permission( new WP_REST_Request( array( 'x_sn_refresh_key' => 'anything' ) ) );
-ok( $unset instanceof WP_Error && 503 === ( $unset->data['status'] ?? 0 ), 'perm: unset secret → 503 (fail closed)' );
+ok( $is_no_route( $unset ), 'perm: unset secret → core rest_no_route 404 (fail closed, no 503 oracle)' );
+ok( $unset == $bad && $bad == $none, 'perm: unset, wrong and missing are the SAME error, field for field' );
+ok( 'default' === end( $GLOBALS['__i18n_domains'] ), 'perm: the message is translated in core\'s default domain, as core\'s is' );
 // An empty key must never satisfy an (impossible) empty secret.
 $GLOBALS['__refresh_secret'] = '';
 $empty = sn_analytics_refresh_permission( new WP_REST_Request( array( 'x_sn_refresh_key' => '' ) ) );
-ok( $empty instanceof WP_Error, 'perm: empty secret + empty key → still rejected' );
+ok( $is_no_route( $empty ), 'perm: empty secret + empty key → still rejected' );
+$GLOBALS['__refresh_secret'] = 'sekret';
 
 echo "\nGroup: callback answers first, runs BOTH triggers after the response\n";
 // 2026-10-16: the rollup takes 8 to 35 s and the Worker aborts at 15 s, so the

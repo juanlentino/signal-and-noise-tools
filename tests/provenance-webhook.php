@@ -625,5 +625,39 @@ wh_eq( false, sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'aa' 
 wh_eq( false, sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'bb', 'status' => 'confirmed' ) ), 'a payload whose content_hash disagrees is rejected' );
 wh_eq( false, sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'aa', 'status' => 'nonsense' ) ), 'an out-of-allowlist status is rejected, not coerced' );
 
+// ── 2026-10-16 audit: confirm replay ────────────────────────────────────────
+echo "\nAudit: a confirmed commit never moves back, and a signed ts bounds replay\n";
+update_post_meta( 42, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'aa', 'status' => 'confirmed', 'bitcoin_block' => 902417 ) ) );
+wh_eq( false, sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'aa', 'status' => 'pending', 'confirmations' => 1 ) ), 'a replayed pending confirm on a confirmed commit is refused' );
+$c = get_post_meta( 42, SN_PROV_CHAIN_META, true );
+wh_eq( 'confirmed', $c[0]['status'], 'the commit stays confirmed' );
+wh_eq( false, isset( $c[0]['confirmations'] ), '...and nothing from the replay was written' );
+wh_eq( false, sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'aa', 'status' => 'unanchored' ) ), 'confirmed never moves to unanchored either' );
+wh_eq( true, sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'aa', 'status' => 'confirmed', 'bitcoin_block' => 902417 ) ), 'a repeat of the confirmed state is still accepted (idempotent)' );
+update_post_meta( 42, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'aa', 'status' => 'unanchored' ) ) );
+wh_eq( true, sn_prov_apply_confirmation( 'u', 1, array( 'content_hash' => 'aa', 'status' => 'pending' ) ), 'control: unanchored still moves forward to pending' );
+
+$confirm = static function ( array $extra ) {
+	update_post_meta( 42, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'aa', 'status' => 'pending' ) ) );
+	$r = sn_prov_confirm_handler( new WP_REST_Request( array(), wp_json_encode( array( 'note_uid' => 'u', 'version' => 1, 'content_hash' => 'aa', 'status' => 'confirmed' ) + $extra ) ) );
+	return array( $r, get_post_meta( 42, SN_PROV_CHAIN_META, true )[0]['status'] );
+};
+list( $r, $st ) = $confirm( array( 'ts' => time() - 11 * 60 ) );
+wh_true( $r instanceof WP_Error && 'sn_prov_stale' === $r->code, 'a confirm whose signed ts is over 10 minutes old is refused by name' );
+wh_eq( 'pending', $st, '...and the commit is untouched' );
+list( $r, $st ) = $confirm( array( 'ts' => gmdate( 'c', time() - 3600 ) ) );
+wh_true( $r instanceof WP_Error, 'an ISO ts an hour old is refused too' );
+list( $r, $st ) = $confirm( array( 'ts' => ( time() + 3600 ) * 1000 ) );
+wh_true( $r instanceof WP_Error && 'pending' === $st, 'a ts an hour in the future (in ms) is refused: a future stamp would defeat the window' );
+list( $r, $st ) = $confirm( array( 'ts' => 'yesterday-ish' ) );
+wh_true( $r instanceof WP_Error, 'an unreadable ts is refused, not ignored' );
+list( $r, $st ) = $confirm( array( 'ts' => time() - 60 ) );
+wh_eq( 200, $r->status ?? null, 'a fresh ts (seconds) is accepted' );
+wh_eq( 'confirmed', $st, '...and applied' );
+list( $r, $st ) = $confirm( array( 'ts' => gmdate( 'Y-m-d\\TH:i:s\\Z' ) ) );
+wh_eq( 'confirmed', $st, 'a fresh ISO ts is accepted' );
+list( $r, $st ) = $confirm( array() );
+wh_eq( 'confirmed', $st, 'an older Worker that sends no ts still works' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

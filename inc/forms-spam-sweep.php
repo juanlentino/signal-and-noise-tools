@@ -27,8 +27,34 @@ function snt_fs_available() {
 }
 
 /**
+ * A masked hint of an entry's title, which is the submitter's name or email:
+ * `j***@domain.com` for an email, initials (`J. S.`) otherwise. The scan goes
+ * to an MCP caller, so it carries no personal data beyond this. PURE.
+ *
+ * @param string $title Entry title.
+ * @return string
+ */
+function snt_fs_mask_hint( $title ) {
+	$title = trim( (string) $title );
+	if ( 1 === preg_match( '/([^\s@<>"]+)@([a-z0-9.-]+\.[a-z]{2,})/i', $title, $m ) ) {
+		return mb_substr( $m[1], 0, 1 ) . '***@' . strtolower( $m[2] );
+	}
+	$initials = array();
+	foreach ( preg_split( '/\s+/u', $title, -1, PREG_SPLIT_NO_EMPTY ) as $word ) {
+		if ( 1 === preg_match( '/\p{L}/u', $word, $first ) ) {
+			$initials[] = mb_strtoupper( $first[0] ) . '.';
+		}
+		if ( 3 === count( $initials ) ) {
+			break;
+		}
+	}
+	return implode( ' ', $initials );
+}
+
+/**
  * Entries in the inbox (read or unread) the rules would mark spam, with each
- * form's spam settings.
+ * form's spam settings. Rows carry id, date, reason and a masked hint, never
+ * the entry title (2026-10-16 audit: no submitter PII to MCP).
  *
  * @return array
  */
@@ -58,7 +84,7 @@ function snt_fs_scan() {
 		$form   = (int) get_post_meta( $id, ALLTFO_META_FORM, true );
 		$reason = snt_fs_reason( snt_fs_signals( snt_fs_entry_values( get_post_meta( $id, ALLTFO_META_VALUES, true ) ), $schemas[ $form ] ?? array() ) );
 		if ( '' !== $reason ) {
-			$flagged[] = array( 'id' => (int) $id, 'form' => $form, 'title' => get_the_title( $id ), 'date' => get_post_time( 'c', true, $id ), 'reason' => $reason );
+			$flagged[] = array( 'id' => (int) $id, 'form' => $form, 'hint' => snt_fs_mask_hint( get_the_title( $id ) ), 'date' => get_post_time( 'c', true, $id ), 'reason' => $reason );
 		}
 	}
 	return array( 'available' => true, 'forms' => $forms, 'flagged' => $flagged, 'scanned' => count( $ids ), 'spam_folder' => snt_fs_spam_folder_check( $schemas ) );
@@ -79,7 +105,7 @@ function snt_fs_spam_folder_check( array $schemas ) {
 	foreach ( $ids as $id ) {
 		$form   = (int) get_post_meta( $id, ALLTFO_META_FORM, true );
 		$reason = snt_fs_reason( snt_fs_signals( snt_fs_entry_values( get_post_meta( $id, ALLTFO_META_VALUES, true ) ), $schemas[ $form ] ?? array() ) );
-		$row    = array( 'id' => (int) $id, 'title' => get_the_title( $id ), 'date' => get_post_time( 'c', true, $id ) );
+		$row    = array( 'id' => (int) $id, 'hint' => snt_fs_mask_hint( get_the_title( $id ) ), 'date' => get_post_time( 'c', true, $id ) );
 		if ( '' === $reason ) {
 			$missed[] = $row;
 		} else {
