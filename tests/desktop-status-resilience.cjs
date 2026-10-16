@@ -422,7 +422,7 @@ async function run() {
     assert.match(t, /\+1 more failed/, 'and the list is capped');
     assert.match(t, /Purged 3h ago/, 'the last full purge');
     assert.match(t, /Freshness 1 stale page/, 'edge freshness after the last check');
-    assert.match(t, /3 to look at/, 'a recorded cron failure, edge 5xx and a stale edge are each something to look at (Codex on 3104cf9: forwarded visitor 5xx read as Worker rows)');
+    assert.match(t, /3 to look at: queue_tick \+2 more/, 'a recorded cron failure, edge 5xx and a stale edge are each something to look at (Codex on 3104cf9: forwarded visitor 5xx read as Worker rows); the headline names the first by its amber row and counts the rest (2026-10-16)');
     stop();
     const y = harness(extra), proot = new Element('div');
     const pstop = y.window.desktopModeWidgets['sn-anchors'](proot); await flush();
@@ -526,7 +526,7 @@ async function run() {
     const ft = fxroot.textContent;
     assert.match(ft, /Time-relative drift paused: AI credit out/, 'a check refused for credit is said, as paused');
     assert.doesNotMatch(ft, /could not run/, 'and is not counted as a check that could not run');
-    assert.match(ft, /1 to look at · 1 verifying · 1 paused/, 'the 5xx stays to look at; a purge verifying within its window and a paused check are said apart');
+    assert.match(ft, /1 to look at: 5xx Oct 4 · 1 verifying · 1 paused/, 'the 5xx stays to look at; a purge verifying within its window and a paused check are said apart');
     assert.doesNotMatch(ft, /not measured/, 'a purge two minutes old is verifying, not unmeasured');
     const fl = links(fxroot);
     assert.ok(fl.includes('Open Cloudflare|/cf'), 'the 5xx line links to where the paths are');
@@ -615,7 +615,7 @@ async function run() {
     m.stop();
     m = await mount({analytics2: {ok: false, days: 0, since: 'Oct 5', reset: '', frozen: true, bad: true, why: 'stopped'}});
     assert.match(m.t, /Cutover check legacy write stopped on a bad verdict/, 'the frozen bad verdict is said');
-    assert.match(m.verdict.text, /1 to look at/, 'and is something to look at');
+    assert.match(m.verdict.text, /^1 to look at: Cutover check$/, 'and is something to look at, named');
     assert.ok(m.links.includes('Open Analytics|/an'), 'its amber line links to where it is read');
     m.stop();
     m = await mount({analytics2: null});
@@ -632,7 +632,7 @@ async function run() {
     m = await mount({credentials: {keyring: [{id: 'zenodo_token', verdict: 'refused'}], cloudflare: {status: 'active', expires: 'Oct 20'}}});
     assert.match(m.t, /Credential zenodo_token refused/, 'a failing credential is named, never its value');
     assert.match(m.t, /Cloudflare API token expires Oct 20/, 'a token expiring within 14 days is said');
-    assert.match(m.verdict.text, /2 to look at/, 'each is something to look at');
+    assert.match(m.verdict.text, /^2 to look at: Credential zenodo_token \+1 more$/, 'each is something to look at; the first named, the rest counted');
     assert.ok(m.links.includes('Open Credentials|/cr') && m.links.includes('Open Cloudflare|/cf'), 'each amber line links to its fix');
     m.stop();
     m = await mount({credentials: {keyring: [], cloudflare: {status: 'expired', expires: ''}}});
@@ -670,7 +670,8 @@ async function run() {
     m = await mount({edge: {day: 'Oct 13', total: 9, prior: 20, installs: 2, explained: false}});
     assert.match(m.t, /5xx · Oct 13 9 Day before 20/, 'past the allowance (or a front-end page): the bare count, as before');
     assert.match(String(valueOf(m.root, '9').attrs.style), /#d29922/, 'amber');
-    assert.match(m.verdict.text, /1 to look at/, 'and to look at');
+    assert.equal(m.verdict.text, '1 to look at: 5xx Oct 13', 'and to look at, named by the amber row\'s own label (2026-10-16, owner: "1 to look at" did not say what)');
+    assert.match(m.t, /5xx · Oct 13 9/, 'the row it names carries the same words');
     m.stop();
   }
   // SN Provenance (2026-10-10): DOIs beside the Internet Archive, a failed

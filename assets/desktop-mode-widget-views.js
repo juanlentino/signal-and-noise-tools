@@ -133,7 +133,22 @@
 
 	window.snSiteViewsDelta = { text: deltaText, color: deltaColor, rel: relOf };
 
-	function deltaLine( pct, total ) {
+	/**
+	 * 2026-10-16 (owner): a change is only good or bad news when it is mostly
+	 * people. When 25% or more of the window's scored visitor-days are likely
+	 * automated, the change paints in the muted text color, arrow and figure
+	 * kept: "▲ 99.3%" over 96 of 204 likely automated is not a doubling of
+	 * readers. The payload carries no human-only change to tone by instead.
+	 */
+	var AUTOMATED_SHARE = 0.25;
+
+	function mostlyAutomated( la ) {
+		if ( ! la || typeof la.visitor_days !== 'number' ) { return false; }
+		var scored = Number( la.scored_visitor_days ) || 0;
+		return scored > 0 && la.visitor_days / scored >= AUTOMATED_SHARE;
+	}
+
+	function deltaLine( pct, total, la ) {
 		if ( pct === null || typeof pct === 'undefined' ) {
 			// No prior window to compare — say nothing rather than imply flat.
 			return el( 'div', { text: 'vs. prior 14 days: not measured', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
@@ -142,7 +157,7 @@
 		var prior = typeof total === 'number' && pct > -100 ? total / ( 1 + pct / 100 ) : 0;
 		var node = el( 'div', {
 			text: deltaText( pct, '%' ) + ' vs. prior 14 days',
-			style: 'font-size:11px;font-weight:600;color:' + deltaColor( pct, total - prior, pct, false ) + ';'
+			style: 'font-size:11px;font-weight:600;color:' + ( mostlyAutomated( la ) ? MUTED : deltaColor( pct, total - prior, pct, false ) ) + ';'
 		} );
 		return node;
 	}
@@ -483,7 +498,7 @@
 			chart.appendChild( sparkline( payload.days ) );
 			body.appendChild( chart );
 
-			body.appendChild( deltaLine( payload.delta_pct, payload.total ) );
+			body.appendChild( deltaLine( payload.delta_pct, payload.total, payload.likely_automated ) );
 			var auto = automatedLine( payload.likely_automated );
 			if ( auto ) { body.appendChild( auto ); }
 			var next = forecastLine( payload.forecast );

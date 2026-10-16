@@ -14,6 +14,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Added
 - **A quiet week explained, not only flagged.** When the cadence watch's views flag fires, the flag now carries `movers`: the top 3 pages (from the path rollup the watch already read) and the top 3 sources (the referrer breakdown, one read per week of the same baseline) by absolute shortfall against their own median over the same trailing post-birth weeks, each as "this week N vs usual M". When the largest named mover is under a quarter of the site's shortfall, it says "No single page explains it: the shortfall is spread across N pages." A surface whose usual weekly visits sit under `SNT_METRICS_FLOOR` (3) is never named; it folds into one "(withheld)" bucket with summed figures. The gate is the usual visits, so a surface that collapsed to zero still explains the week. Deterministic, no model, no new collection, and nothing extra is read unless the flag fires. It rides everywhere the flag does: the Cadence deviations health finding's note, `sn-status{cadence}` (an added key inside the fired flag only; the envelope is byte-identical when nothing fires), and the Insights signal bundle. The remote door is unchanged (`cadence` stays local; `get-health-scan` ships no notes). New `inc/ml-cadence-movers.php`; pinned in `tests/ml-cadence-movers.php` (17 red against the old code) and `tests/insights.php`.
+### Fixed
+
+- SN Traffic: the change against the prior 14 days no longer paints green (or red) when 25% or more of the window's scored visitor-days are likely automated. It keeps its arrow and figure in the muted text color, so a rise that is half likely automated no longer reads as good news. Under 25%, or when likely automated is not measured, the existing rule stands. The payload carries no human-only change, so the tone follows the share.
+- SN Systems: the headline now names what to look at beside the count, using the amber row's own words ("1 to look at: 5xx Oct 15"). With two or more it names the first and adds "+N more".
 
 ## [2026.10.23] - 2026-10-16 — Widgets grow to fit their content, roadmap board kept in sync, OpenStation 1.1.15 adopted
 
