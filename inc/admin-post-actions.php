@@ -59,4 +59,5 @@ require_once __DIR__ . '/admin-post-actions/rights-evidence.php'; // Unreleased:
 require_once __DIR__ . '/admin-post-actions/rights-evidence-retract.php'; // Unreleased: post one signed retraction
 require_once __DIR__ . '/admin-post-actions/archive-push-existing.php'; // 21.1.0: start or resume the Internet Archive run over older notes
 require_once __DIR__ . '/admin-post-actions/citations.php'; // forget one citation claim that is shown to nobody
+require_once __DIR__ . '/admin-post-actions/owner-devices.php'; // Unreleased: enroll, revoke, revoke all (SN Traffic Lanes)
 require_once __DIR__ . '/admin-post-actions/rights-evidence-post-now.php'; // Unreleased: post a waiting month before its review window ends
