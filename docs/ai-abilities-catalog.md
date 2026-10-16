@@ -122,6 +122,7 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/search-crossexam` | Search Console x crawler ledger: do the instruments agree? | diagnostics | READ |
 | `signal-noise/search-drift` | Search Console: position drift | diagnostics | READ |
 | `signal-noise/search-performance` | Search Console: the stored window | diagnostics | READ |
+| `signal-noise/search-unanswered` | Search Console: searches the corpus does not answer | diagnostics | READ |
 | `signal-noise/shape-stability` | Payload Shape Stability | diagnostics | READ |
 | `signal-noise/sn-apply` | Apply a change to a post (consolidated write tool) | tools | RW |
 | `signal-noise/sn-metrics` | Batch-read readership metrics (consolidated) | analytics | READ |

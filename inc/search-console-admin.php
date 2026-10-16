@@ -123,6 +123,53 @@ function snt_gsc_render_settings_section() {
 
 	if ( null !== $identity ) {
 		snt_gsc_render_property_form();
+		if ( '' !== (string) sn_setting( 'search_console.property', '' ) ) {
+			snt_gsc_render_unanswered();
+		}
+	}
+}
+
+/**
+ * Unanswered searches, the twin of the native card
+ * (apps/sn-dashboard/parts/leaves/monitoring-search-console-unanswered.php).
+ *
+ * @param array|null $u From snt_gsc_unanswered(); null loads the live one.
+ */
+function snt_gsc_render_unanswered( $u = null ) {
+	if ( null === $u ) {
+		if ( ! function_exists( 'snt_gsc_unanswered_live' ) ) {
+			return;
+		}
+		$u = snt_gsc_unanswered_live();
+	}
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Unanswered searches', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<p class="description">' . esc_html( snt_gsc_unanswered_intro( $u ) ) . '</p>';
+	if ( 'measured' !== $u['state'] || array() === $u['rows'] ) {
+		$pill = 'fetch_failed' === $u['state'] ? 'sn-pill sn-pill--warn' : 'sn-pill';
+		echo '<p><span class="' . esc_attr( $pill ) . '">' . esc_html( (string) $u['note'] ) . '</span></p>';
+		return;
+	}
+	echo '<p>';
+	/* translators: 1: start date, 2: end date. */
+	printf( esc_html__( 'Window %1$s to %2$s', 'signal-and-noise-tools' ), esc_html( (string) ( $u['window']['start'] ?? '?' ) ), esc_html( (string) ( $u['window']['end'] ?? '?' ) ) );
+	echo ' &middot; ';
+	/* translators: %d: impression floor. */
+	printf( esc_html__( '%d+ impressions, 0 clicks', 'signal-and-noise-tools' ), (int) $u['floor'] );
+	echo ' &middot; ';
+	/* translators: 1: shown, 2: total. */
+	printf( esc_html__( '%1$d of %2$d queries', 'signal-and-noise-tools' ), count( $u['rows'] ), (int) $u['total'] );
+	echo '</p>';
+	echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Query', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Impressions', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Avg. position', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Page Google showed', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
+	foreach ( $u['rows'] as $r ) {
+		echo '<tr><td>' . esc_html( (string) $r['query'] ) . '</td><td>' . esc_html( (string) (int) $r['impressions'] ) . '</td><td>' . esc_html( (string) $r['position'] ) . '</td><td><code>' . esc_html( (string) $r['page'] ) . '</code>';
+		if ( ! empty( $r['no_note'] ) ) {
+			echo ' <span class="sn-pill sn-pill--warn">' . esc_html__( 'No note answers this', 'signal-and-noise-tools' ) . '</span>';
+		}
+		echo '</td></tr>';
+	}
+	echo '</tbody></table>';
+	if ( '' !== (string) $u['note'] ) {
+		echo '<p class="description">' . esc_html( (string) $u['note'] ) . '</p>';
 	}
 }
 

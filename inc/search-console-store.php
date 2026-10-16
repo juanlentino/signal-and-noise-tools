@@ -147,6 +147,14 @@ function snt_gsc_sync( $force = false ) {
 		'queries'      => array_slice( $queries, 0, 100 ),
 		'synced_at'    => time(),
 	);
+	// The query x page grain for the unanswered-searches list. Its failure
+	// keeps the window above (inc/search-console-unanswered.php).
+	if ( function_exists( 'snt_gsc_fetch_query_pages' ) ) {
+		$qp                            = snt_gsc_fetch_query_pages( $property, $window );
+		$payload['query_pages']        = $qp['rows'];
+		$payload['query_pages_capped'] = $qp['capped'];
+		$payload['query_pages_error']  = $qp['error'];
+	}
 	update_option( SNT_GSC_DATA_OPTION, $payload, false );
 	snt_gsc_history_append( $payload );
 	return $payload;
