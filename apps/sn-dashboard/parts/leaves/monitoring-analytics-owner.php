@@ -8,6 +8,11 @@
  * marker's Set-Cookie rides that response (sn_owner_dev_cookie_allowed()).
  * Renewal runs only on wp-admin page loads (`admin_init`).
  *
+ * 2026-10-16: the Your devices card, open (a control in regular use, never a
+ * fold): this browser, who is kept out while logged in, the devices with a
+ * Revoke each, enroll, This device and Revoke all; the long explanation sits
+ * under a small How this works fold.
+ *
  * @package SignalNoiseTools
  * @since Unreleased
  */
@@ -18,17 +23,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/monitoring-analytics-setup.php'; // analytics_fold()
+require_once __DIR__ . '/monitoring-analytics-settings.php'; // analytics_device_html()
+
 /**
+ * The Your devices card.
+ *
  * @return string
  */
 function analytics_owner_devices_html() {
+	$device = analytics_device_html();
 	if ( ! function_exists( '\sn_owner_devices_view' ) ) {
-		return '';
+		$who = analytics_kept_out_html();
+		return '' === $device . $who ? '' : \snt_kit_section( __( 'Your devices', 'signal-and-noise-tools' ), $who . $device );
 	}
 	$copy = \sn_owner_devices_copy();
 	$view = \sn_owner_devices_view( time() );
-	$body = '<p class="snt-prose">' . \snt_kit_esc( $copy['intro'] ) . '</p>'
-		. '<p class="snt-hint"><b>' . \snt_kit_esc( $view['this'] ) . '</b></p>';
+	$body = '<p class="snt-hint"><b>' . \snt_kit_esc( $view['this'] ) . '</b></p>' . analytics_kept_out_html();
 
 	if ( array() === $view['rows'] ) {
 		$body .= '<p class="snt-hint">' . \snt_kit_esc( $copy['none'] ) . '</p>';
@@ -41,7 +52,7 @@ function analytics_owner_devices_html() {
 				'enrolled'  => $r['enrolled'],
 				'last_seen' => $r['last_seen'],
 			);
-			// One form per device, stacked under the table rather than in a
+			// One form per device, in a row under the table rather than in a
 			// table cell: a whole <os-form> is not a slot-cell control, and the
 			// live check (2026-10-15) painted that cell as "[object Object]".
 			$revokes .= \snt_kit_form(
@@ -59,16 +70,36 @@ function analytics_owner_devices_html() {
 			),
 			$rows,
 			array( 'compact' => true )
-		) . $revokes;
+		) . '<os-cluster gap="8">' . $revokes . '</os-cluster>';
 	}
-	$body .= '<p class="snt-hint">' . \snt_kit_esc( $copy['last_seen'] ) . '</p>';
 
 	$body .= $view['mine'] ? '' : ( $view['key_ready']
 		? \snt_kit_form( 'owner_device_enroll', \snt_kit_field( 'text', 'sn_owner_device_label', $copy['label'], '', array( 'required' => true, 'maxlength' => SN_OWNER_LABEL_MAX ) ), array( 'submit' => $copy['enroll'] ) )
 		: '<p class="snt-hint">' . \snt_kit_esc( $copy['no_key'] ) . '</p>' );
-
+	$body .= $device;
 	if ( array() !== $view['rows'] ) {
 		$body .= \snt_kit_form( 'owner_device_revoke_all', '<p class="snt-hint">' . \snt_kit_esc( $copy['all_hint'] ) . '</p>', array( 'submit' => $copy['all'], 'confirm' => $copy['all_hint'], 'danger' => true ) );
 	}
-	return \snt_kit_section( $copy['heading'], $body, \sn_owner_devices_snapshot() );
+	$how   = '<p class="snt-prose">' . \snt_kit_esc( $copy['intro'] ) . '</p><p class="snt-hint">' . \snt_kit_esc( $copy['last_seen'] ) . '</p>';
+	$body .= analytics_fold( __( 'How this works', 'signal-and-noise-tools' ), __( 'A signed owner marker on each enrolled browser; readers get no cookie.', 'signal-and-noise-tools' ), $how );
+	return \snt_kit_section( __( 'Your devices', 'signal-and-noise-tools' ), $body, \sn_owner_devices_snapshot() );
+}
+
+/**
+ * "Logged in as <role>: kept out": logged-in visits never count as readers,
+ * whatever the role (the collector reads the login cookie at the edge).
+ *
+ * @return string
+ */
+function analytics_kept_out_html() {
+	if ( ! function_exists( '\wp_get_current_user' ) ) {
+		return '';
+	}
+	$user  = \wp_get_current_user();
+	$roles = is_object( $user ) && isset( $user->roles ) ? array_values( (array) $user->roles ) : array();
+	if ( array() === $roles ) {
+		return '';
+	}
+	/* translators: %s: the current user's role(s). */
+	return '<p class="snt-hint">' . \snt_kit_esc( sprintf( __( 'Logged in as %s: kept out.', 'signal-and-noise-tools' ), implode( ', ', array_map( 'strval', $roles ) ) ) ) . '</p>';
 }

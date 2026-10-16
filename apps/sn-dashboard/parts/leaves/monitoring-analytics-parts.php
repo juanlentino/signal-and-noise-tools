@@ -51,64 +51,26 @@ function analytics_recheck_requested( array $ctx ) {
 }
 
 /**
- * The Pipeline box (2026-10-12 audit: four boxes, Pipeline status, Edge
- * worker, Identity salt window and Credentials, answered one question, "is
- * the pipeline wired?", and two of them read the same probe). The five pills
- * and their notes, then one facts list: the Worker, the salt window, what
- * the reads use; then Re-check now and Test connection.
- *
- * @param array<string,mixed> $ctx Leaf context.
- * @return string
- */
-function analytics_pipeline_html( array $ctx ) {
-	$recheck = analytics_recheck_requested( $ctx );
-	$out     = '';
-	if ( function_exists( '\snt_analytics_pipeline_pills' ) ) {
-		$badges = '';
-		$warns  = '';
-		foreach ( \snt_analytics_pipeline_pills() as $p ) {
-			$kind    = (string) ( $p[0] ?? '' );
-			$badges .= \snt_kit_badge( $kind, (string) ( $p[1] ?? '' ) );
-			if ( 'warn' === $kind && '' !== (string) ( $p[2] ?? '' ) ) {
-				$warns .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( (string) $p[1] ) . '</b> ' . \snt_kit_esc( (string) $p[2] ) );
-			}
-		}
-		$out .= '<os-cluster gap="8">' . $badges . '</os-cluster>' . $warns;
-	}
-	list( $worker_rows, $worker_note ) = analytics_worker_rows( $recheck );
-	$out .= $worker_note . analytics_reads_notice();
-	$out .= \snt_kit_kv( array_merge( $worker_rows, analytics_salt_rows( $recheck ), analytics_reads_rows() ) );
-	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'The API token and the Account ID are set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => (string) ( $ctx['tab'] ?? 'monitoring' ) ) ) . '. ' . \snt_kit_esc( __( 'Analytics Engine reads use the Cloudflare API token (Account › Account Analytics › Read on it) unless an analytics token override is set there.', 'signal-and-noise-tools' ) ) . '</p>';
-	$configured = function_exists( '\sn_analytics_config' ) && \sn_analytics_config();
-	$out       .= '<footer><os-cluster gap="8">'
-		. \snt_kit_button( __( 'Re-check now', 'signal-and-noise-tools' ), 'go', array( 'args' => array( 'sub' => (string) ( $ctx['sub'] ?? 'analytics' ), 'sn_worker_recheck' => '1' ) ) )
-		. \snt_kit_action_button( __( 'Test connection', 'signal-and-noise-tools' ), 'analytics_test', array( 'disabled' => ! $configured ) )
-		. '</os-cluster></footer>';
-	return \snt_kit_section(
-		__( 'Pipeline', 'signal-and-noise-tools' ),
-		$out,
-		__( 'Beacon → worker → Analytics Engine → cron → edge. Presence checks only: secret values are never shown. Re-check now reads the Worker live; Test connection reads Analytics Engine.', 'signal-and-noise-tools' )
-	);
-}
-
-/**
  * The Worker's facts rows, from its /_sn/version probe: live, the last value
  * reached (when the live probe just failed), or not read, with the note that
  * goes above the facts.
  *
+ * The third element names the reading for the Pipeline chip: ok, stale,
+ * unreported or unread.
+ *
  * @param bool $recheck Probe live, bypassing the cache.
- * @return array{0:array<int,array<string,mixed>>,1:string} Rows, note.
+ * @return array{0:array<int,array<string,mixed>>,1:string,2:string} Rows, note, state.
  */
 function analytics_worker_rows( $recheck ) {
 	if ( ! function_exists( '\sn_worker_version_get' ) ) {
-		return array( array( array( 'label' => __( 'Worker', 'signal-and-noise-tools' ), 'value' => __( 'not read: the version probe is not loaded', 'signal-and-noise-tools' ) ) ), '' );
+		return array( array( array( 'label' => __( 'Worker', 'signal-and-noise-tools' ), 'value' => __( 'not read: the version probe is not loaded', 'signal-and-noise-tools' ) ) ), '', 'unread' );
 	}
 	$result    = \sn_worker_version_get( $recheck );
 	$last_good = \get_option( defined( 'SN_WORKER_VERSION_LASTGOOD' ) ? constant( 'SN_WORKER_VERSION_LASTGOOD' ) : 'sn_worker_version_last_good', array() );
 	$stale     = empty( $result['ok'] ) && is_array( $last_good ) && ! empty( $last_good['ok'] );
 	if ( empty( $result['ok'] ) && ! $stale ) {
 		$note = \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'Worker version unknown.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( function_exists( '\sn_worker_version_unknown_text' ) ? \sn_worker_version_unknown_text( (string) ( $result['url'] ?? '' ) ) : '' ) );
-		return array( array( array( 'label' => __( 'Worker', 'signal-and-noise-tools' ), 'value' => __( 'not read', 'signal-and-noise-tools' ), 'tone' => 'warn' ) ), $note );
+		return array( array( array( 'label' => __( 'Worker', 'signal-and-noise-tools' ), 'value' => __( 'not read', 'signal-and-noise-tools' ), 'tone' => 'warn' ) ), $note, 'unread' );
 	}
 	$read     = $stale ? (array) $last_good : (array) $result;
 	$data     = isset( $read['data'] ) && is_array( $read['data'] ) ? $read['data'] : array();
@@ -135,21 +97,21 @@ function analytics_worker_rows( $recheck ) {
 	if ( ! empty( $read['url'] ) ) {
 		$rows[] = array( 'label' => __( 'Source', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_code( (string) $read['url'], false ) );
 	}
-	return array( $rows, '' );
+	return array( $rows, '', $stale ? 'stale' : ( '' === $version ? 'unreported' : 'ok' ) );
 }
 
 /**
  * The identity salt window as one facts row, in the classic card's words
  * (sn_salt_window_lines()).
  *
- * @param bool $recheck Probe live, bypassing the cache.
+ * @param array<string,mixed>|null $salt sn_salt_window_get(), read once per paint; null when not loaded.
  * @return array<int,array<string,mixed>>
  */
-function analytics_salt_rows( $recheck ) {
-	if ( ! function_exists( '\sn_salt_window_get' ) || ! function_exists( '\sn_salt_window_lines' ) ) {
+function analytics_salt_rows( $salt ) {
+	if ( null === $salt || ! function_exists( '\sn_salt_window_lines' ) ) {
 		return array();
 	}
-	$said = \sn_salt_window_lines( \sn_salt_window_get( $recheck ) );
+	$said = \sn_salt_window_lines( $salt );
 	return array( array( 'label' => __( 'Identity salt', 'signal-and-noise-tools' ), 'value' => implode( ' ', $said['lines'] ) ) );
 }
 
@@ -187,7 +149,8 @@ function analytics_reads_notice() {
 
 /**
  * The "Configured elsewhere" read-only mirrors: AI model + budget, weekly
- * digest cron, Zone ID — each with a deep link to its real home.
+ * digest cron, Zone ID, each with a deep link to its real home: a Setup
+ * fold whose summary names all three (2026-10-16).
  *
  * @param string $tab The painting tab (for same-tab go targets).
  * @return string
@@ -241,5 +204,7 @@ function analytics_mirrors_html( $tab ) {
 		. \snt_kit_go( __( 'Connections → Credentials →', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => $tab ) ) // 15.3.1: the zone id is a keyring row
 		. '</os-cluster>';
 
-	return \snt_kit_section( __( 'Configured elsewhere', 'signal-and-noise-tools' ), $out );
+	/* translators: 1: the AI model; 2: On or Off; 3: set or not set. */
+	$summary = sprintf( __( '%1$s · weekly insights %2$s · Zone ID %3$s', 'signal-and-noise-tools' ), $label, $cron_on ? __( 'on', 'signal-and-noise-tools' ) : __( 'off', 'signal-and-noise-tools' ), '' !== $zone ? __( 'set', 'signal-and-noise-tools' ) : __( 'not set', 'signal-and-noise-tools' ) );
+	return analytics_fold( __( 'Configured elsewhere', 'signal-and-noise-tools' ), $summary, $out );
 }

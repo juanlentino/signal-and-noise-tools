@@ -131,20 +131,25 @@ function cloudflare_edge_html( array $d ) {
 	$z = is_array( $record['zone'] ) ? $record['zone'] : array();
 	if ( ! empty( $z['available'] ) ) {
 		$tt     = (array) $z['totals'];
+		$codes  = (array) ( $tt['status_5xx_codes'] ?? array() );
+		// 2026-10-16: the split sits in the 5xx tile itself ("503 40 · 500 16").
+		$split = array();
+		foreach ( $codes as $code => $n ) {
+			$split[] = (string) $code . ' ' . number_format_i18n( (int) $n );
+		}
 		$inner .= \snt_kit_grid(
 			array(
 				\snt_kit_stat( number_format_i18n( (int) $tt['requests'] ), __( 'Requests, 7 days', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( null === ( $tt['cache_share'] ?? null ) ? \snt_kit_unread() : number_format_i18n( (float) $tt['cache_share'], 1 ) . '%', __( 'Served from cache', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( size_format( (int) $tt['bytes'] ), __( 'Bytes', 'signal-and-noise-tools' ) ),
 				\snt_kit_stat( number_format_i18n( (int) $tt['threats'] ), __( 'Threats', 'signal-and-noise-tools' ) ),
-				\snt_kit_stat( number_format_i18n( (int) $tt['status_5xx'] ), __( '5xx at the edge', 'signal-and-noise-tools' ), '', (int) $tt['status_5xx'] > 0 ? 'warn' : '' ),
+				\snt_kit_stat( number_format_i18n( (int) $tt['status_5xx'] ), __( '5xx at the edge', 'signal-and-noise-tools' ), implode( ' · ', $split ), (int) $tt['status_5xx'] > 0 ? 'warn' : '' ),
 			),
 			160,
 			10
 		);
 		// 14.9.1: which 5xx. 520/522/524 are Cloudflare failing to reach or
 		// wait for the origin; 503 is the origin's own answer (Varnish).
-		$codes     = (array) ( $tt['status_5xx_codes'] ?? array() );
 		$code_list = '';
 		if ( array() !== $codes ) {
 			$code_rows = array();
@@ -314,16 +319,17 @@ function cloudflare_firewall_parts( array $d ) {
  * @return string
  */
 function cloudflare_monitor_footer_html( array $d, $record, $with_time = true ) {
-	$out = '';
+	$when = '';
 	if ( is_array( $record ) && ! empty( $record['configured'] ) ) {
-		$out .= '<p class="snt-hint">' . \snt_kit_esc(
+		$when = '<span class="snt-hint">' . \snt_kit_esc(
 			$with_time
 				? sprintf( /* translators: %s: time. */ __( 'Read %s. Refresh reads the token, the edge and the firewall again.', 'signal-and-noise-tools' ), cloudflare_monitor_when( $record ) )
 				: __( 'Refresh reads the token, the edge and the firewall again.', 'signal-and-noise-tools' )
-		) . '</p>';
+		) . '</span>';
 	}
-	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Cloudflare\'s replies do not say how much of its limit is left (1,200 calls every five minutes, refused past that), so the Dashboard\'s API row reads this daily monitor instead.', 'signal-and-noise-tools' ) ) . '</p>';
-	$out .= '<footer>' . \snt_kit_action_button( __( 'Refresh now', 'signal-and-noise-tools' ), 'cf_monitor_refresh', array( 'disabled' => empty( $d['is_configured'] ) ) ) . '</footer>';
-	return $out;
+	// 2026-10-16: when it was read sits beside Refresh, one footer row of the
+	// card, never a strip of its own.
+	return '<p class="snt-hint">' . \snt_kit_esc( __( 'Cloudflare\'s replies do not say how much of its limit is left (1,200 calls every five minutes, refused past that), so the Dashboard\'s API row reads this daily monitor instead.', 'signal-and-noise-tools' ) ) . '</p>'
+		. '<footer><os-cluster gap="8">' . \snt_kit_action_button( __( 'Refresh now', 'signal-and-noise-tools' ), 'cf_monitor_refresh', array( 'disabled' => empty( $d['is_configured'] ) ) ) . $when . '</os-cluster></footer>';
 }
 

@@ -236,7 +236,7 @@ ok( 1 === substr_count( $with_log, 'os-arg-action="sn_cf_monitor_refresh"' ) && 
 ok( array( 'cf_monitor_refresh' ) === snt_leaf_actions( $with_log ), 'still the one action' );
 // 2026-10-12 audit: the time printed twice (Verified, then "Read …" in the
 // footer), and "expires within 14 days" was carried by the warning color alone.
-ok( 1 === substr_count( $with_log, gmdate( 'F j, Y g:i a', time() ) ) && false !== strpos( $with_log, '<p class="snt-hint">Refresh reads the token, the edge and the firewall again.</p>' ), 'the Token box says when it was read once, in its Verified row, in the site\'s format' );
+ok( 1 === substr_count( $with_log, gmdate( 'F j, Y g:i a', time() ) ) && false !== strpos( $with_log, '<span class="snt-hint">Refresh reads the token, the edge and the firewall again.</span></os-cluster></footer>' ), 'the Token box says when it was read once, in its Verified row, in the site\'s format; the Refresh line shares the footer row with its button (2026-10-16)' );
 $GLOBALS['__options'][ SN_CF_MONITOR_OPT ]['token']['expires_on'] = gmdate( 'Y-m-d\TH:i:s\Z', time() + 9 * DAY_IN_SECONDS + 600 );
 $expiring = snt_leaf_paint( 'connections', 'cloudflare' );
 ok( 1 === preg_match( '#<span class="snt-kv__v" data-tone="warning">active · user · expires in 1 hour</span>#', $expiring ), 'a token expiring within 14 days says so in words beside the warning tone (the harness human_time_diff() reads "1 hour")' );

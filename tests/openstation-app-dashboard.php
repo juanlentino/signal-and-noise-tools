@@ -313,9 +313,10 @@ namespace {
 	ok( false !== strpos( $css, '.snt-leaf:has( os-grid )' ), 'sn-dashboard.css uncaps .snt-leaf max-width for os-grid' );
 
 	$analytics_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-analytics.php' );
-	// 2026-10-12 audit: one Pipeline box at full width, then rows of paired boxes.
-	ok( false === strpos( $analytics_src, 'snt_kit_stack' ) && 3 === substr_count( $analytics_src, '\\snt_kit_grid( array( analytics_' ), 'monitoring/analytics source paints rows of paired boxes, no two-up columns' );
-	ok( false !== strpos( $analytics_src, '. analytics_pipeline_html( $ctx )' ) && strpos( $analytics_src, 'analytics_pipeline_html( $ctx )' ) < strpos( $analytics_src, 'analytics_collector_html()' ), 'monitoring/analytics leads with the Pipeline box' );
+	// 2026-10-16 (owner: "a mess. Design, design, design."): one Pipeline status
+	// card, then one kit grid of cards (Your devices | Setup | North star).
+	ok( false === strpos( $analytics_src, 'snt_kit_stack' ) && 1 === substr_count( $analytics_src, '\\snt_kit_grid( array( analytics_owner_devices_html(), analytics_setup_html(' ), 'monitoring/analytics source paints one row of cards, no two-up columns' );
+	ok( false !== strpos( $analytics_src, 'return analytics_status_html( $worker, $salt )' ) && strpos( $analytics_src, 'analytics_status_html(' ) < strpos( $analytics_src, 'analytics_setup_html(' ), 'monitoring/analytics leads with the Pipeline card' );
 
 
 

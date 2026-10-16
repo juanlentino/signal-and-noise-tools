@@ -15,9 +15,10 @@
  * `.sn-2up` layout. Helpers live in the monitoring-analytics-*.php siblings
  * to keep this file to the assembly.
  *
- * 2026-10-11 (owner rule: no collapsible sections): every setting is an open
- * section whose description is its one-line current state. 2026-10-12: one
- * Pipeline box, then rows of paired boxes (see paint_monitoring_analytics()).
+ * 2026-10-16 (owner, desktop PWA: "a mess. Design, design, design."): one
+ * Pipeline status card, the Edge card, then three cards across: Your devices
+ * (open), Setup (each setting an earned fold whose summary answers) and North
+ * star; the Worker setup steps close the leaf while the pipeline is incomplete.
  *
  * @package SignalNoiseTools
  * @since 13.107.0
@@ -30,8 +31,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/monitoring-analytics-parts.php';
-require_once __DIR__ . '/monitoring-analytics-settings.php'; // credentials, collector, exclusion (2026-10-11: open, no folds)
-require_once __DIR__ . '/monitoring-analytics-owner.php'; // Unreleased: Owner devices (SN Traffic Lanes)
+require_once __DIR__ . '/monitoring-analytics-status.php'; // the Pipeline card
+require_once __DIR__ . '/monitoring-analytics-setup.php'; // the Setup card, analytics_fold()
+require_once __DIR__ . '/monitoring-analytics-settings.php'; // collector, roles kept out, this device
+require_once __DIR__ . '/monitoring-analytics-owner.php'; // Your devices (SN Traffic Lanes)
 require_once __DIR__ . '/monitoring-analytics-tuning.php'; // tuning, funnels, the Worker setup steps
 
 /**
@@ -44,12 +47,11 @@ function paint_monitoring_analytics( array $ctx ) {
 	if ( ! function_exists( '\snt_analytics_render_settings_section' ) ) {
 		return \snt_kit_empty( __( 'Analytics settings are not available.', 'signal-and-noise-tools' ) );
 	}
-	$tab = (string) ( $ctx['tab'] ?? 'monitoring' );
-
-	$dashboard_url = function_exists( '\snt_analytics_page_url' ) ? \snt_analytics_page_url() : '';
-	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'First-party analytics settings. The read-only dashboard has its own menu, S&N Analytics.', 'signal-and-noise-tools' ) ) . ' '
-		. ( '' !== $dashboard_url ? \snt_kit_door( __( 'View dashboard →', 'signal-and-noise-tools' ), $dashboard_url ) : '' )
-		. '</p>';
+	// One probe per paint: Re-check now reads the Worker and the salt live
+	// once, and the Pipeline chips and the Setup fold share that reading.
+	$recheck = analytics_recheck_requested( $ctx );
+	$worker  = analytics_worker_rows( $recheck );
+	$salt    = function_exists( '\\sn_salt_window_get' ) ? (array) \sn_salt_window_get( $recheck ) : null;
 
 	// 15.3.0: the edge's seven days, painted by the Connections leaf's part from
 	// the same stored record, only once the monitor has a configured record (a
@@ -61,17 +63,9 @@ function paint_monitoring_analytics( array $ctx ) {
 		$edge = cloudflare_edge_html( cloudflare_data() );
 	}
 
-	// 2026-10-12 (audit: "long rather than designed", ~2,755px): the four
-	// status boxes are one Pipeline box at full width; the settings pair up,
-	// boxes of comparable height on each row; the setup steps close the leaf
-	// only while the pipeline is incomplete.
-	return $intro
-		. analytics_pipeline_html( $ctx )
+	return analytics_status_html( $worker, $salt )
 		. $edge
-		. \snt_kit_grid( array( analytics_collector_html(), function_exists( '\\snt_nsm_settings_html' ) ? \snt_nsm_settings_html() : '' ), 290, 24 )
-		. \snt_kit_grid( array( analytics_funnels_html(), analytics_exclusion_html() ), 290, 24 )
-		. analytics_owner_devices_html()
-		. \snt_kit_grid( array( analytics_tuning_html(), analytics_mirrors_html( $tab ) ), 290, 24 )
+		. \snt_kit_grid( array( analytics_owner_devices_html(), analytics_setup_html( $ctx, $worker, $salt ), function_exists( '\\snt_nsm_settings_html' ) ? \snt_nsm_settings_html() : '' ), 290, 24 )
 		. analytics_worker_setup_html();
 }
 

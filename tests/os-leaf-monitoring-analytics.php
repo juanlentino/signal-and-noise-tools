@@ -110,6 +110,18 @@ require SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-analytics.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
+// 2026-10-16: the settings are earned folds in the Setup card (and Your
+// devices' How this works); nothing else on the leaf folds.
+function an_fold_headings( $html ) {
+	preg_match_all( '/<os-disclosure heading="([^"]+)"/', (string) $html, $m );
+	return $m[1];
+}
+function an_only_setup_folds( $html ) {
+	$earned = array( 'Credentials', 'Collector endpoint', 'Roles kept out', 'Engine tuning', 'Session funnels', 'Edge worker and salt', 'Configured elsewhere', 'How this works' );
+	$found  = an_fold_headings( $html );
+	return array() !== $found && array() === array_diff( $found, $earned ) && false === stripos( (string) $html, '<details' ) && substr_count( (string) $html, '<os-disclosure' ) === count( $found );
+}
+
 /** The Cloudflare monitor's stored record the Edge, 7 days section paints from (15.3.0). */
 function an_edge_record() {
 	return array( 'fetched_at' => time(), 'configured' => true, 'token' => array( 'verified' => true, 'status' => 'active', 'expires_on' => '', 'error' => '', 'kind' => 'user' ), 'zone' => array( 'available' => true, 'needs_permission' => false, 'error' => '', 'days' => array(), 'totals' => array( 'requests' => 166684, 'cached' => 13500, 'bytes' => 2000000000, 'cached_bytes' => 1, 'threats' => 12804, 'status_4xx' => 0, 'status_5xx' => 4473, 'cache_share' => 8.1, 'status_5xx_codes' => array( 503 => 4314, 520 => 132 ) ) ), 'firewall' => array( 'available' => false, 'needs_permission' => true, 'error' => 'x', 'events' => 0, 'by_action' => array(), 'top_rules' => array() ) );
@@ -142,15 +154,15 @@ function an_live_previews() {
 	$GLOBALS['__settings']['north_star']                     = array( 'sections' => array( 'notes', 'provenance', 'resume', 'about' ), 'scroll' => 50, 'dwell_s' => 30 );
 	ok( true === sn_analytics_pipeline_complete(), 'live-shaped: the fixture really is a complete pipeline (every pill ok)' );
 	$kit = snt_leaf_paint( 'monitoring', 'analytics' );
-	ok( array() === snt_leaf_folds( $kit ) && false === strpos( $kit, 'heading="Cloudflare Worker setup"' ), 'live-shaped: no fold, and no setup steps on a complete pipeline' );
+	ok( an_only_setup_folds( $kit ) && false === strpos( $kit, 'heading="Cloudflare Worker setup"' ) && false === strpos( $kit, 'heading="Credentials" hint="Configured" open' ), 'live-shaped: only the Setup folds, closed on a complete pipeline, and no setup steps' );
 	ok( false !== strpos( $kit, '<os-fact label="Reads with"><span class="snt-kv__v">the Cloudflare API token</span></os-fact>' ) && false === strpos( $kit, 'locked by' ) && false === strpos( $kit, 'override is in force' ) && false === strpos( $kit, 'No token anywhere' ), 'live-shaped: the reads read as the live site has them: the Cloudflare API token, no lock, no override' );
 	// 2026-10-12 audit: the colon swaps had garbled the salt sentences.
 	ok( false !== strpos( $kit, 'Today’s salt (2026-10-11) rotates at midnight (America/New_York). Yesterday’s salt (2026-10-10) expires ' ) && false === strpos( $kit, 'Today’s salt: ' ), 'live-shaped: the salt window reads as plain sentences' );
-	ok( false !== strpos( $kit, 'description="2 roles excluded"' ) && false !== strpos( $kit, 'description="45-day baseline · Relaxed: fewer flags (≈2.5σ)"' ) && false !== strpos( $kit, 'description="3 funnels"' ) && false !== strpos( $kit, 'description="Counts Notes, Provenance, Resume, About; a read is 50% scroll or 30 s on the page."' ), 'live-shaped: each section names its current state in one line' );
+	ok( false !== strpos( $kit, 'hint="2 roles excluded"' ) && false !== strpos( $kit, 'hint="45-day baseline · Relaxed: fewer flags (≈2.5σ)"' ) && false !== strpos( $kit, 'hint="3 funnels"' ) && false !== strpos( $kit, 'description="Counts Notes, Provenance, Resume, About; a read is 50% scroll or 30 s on the page."' ), 'live-shaped: each closed fold, and North star, names its current state in one line' );
 	snt_leaf_preview( 'monitoring-analytics', $kit );
 	$GLOBALS['__configured'] = false;
 	$kit = snt_leaf_paint( 'monitoring', 'analytics' );
-	ok( array() === snt_leaf_folds( $kit ) && 1 === substr_count( $kit, 'heading="Cloudflare Worker setup"' ) && 4 === substr_count( $kit, '<os-step>' ), 'live-shaped setup: no fold; the four setup steps show, open, while the pipeline is incomplete' );
+	ok( an_only_setup_folds( $kit ) && 1 === substr_count( $kit, 'heading="Cloudflare Worker setup"' ) && 4 === substr_count( $kit, '<os-step>' ) && 1 === preg_match( '/<os-disclosure heading="Credentials"[^>]*\sopen[\s>]/', $kit ), 'live-shaped setup: the Credentials fold opens itself and the four setup steps show, open, while the pipeline is incomplete' );
 	snt_leaf_preview( 'monitoring-analytics-setup', $kit );
 	// PR #2025 review: the classic page has no Pipeline box, so the step names the button alone, the same on both.
 	ok( false !== strpos( $kit, 'Press Test connection once the token and Account ID are set, to confirm the read side works.' ) && false === strpos( $kit, 'in Pipeline' ), 'the last setup step reads as the classic one: "Press Test connection once …", no box the classic page lacks' );
@@ -170,15 +182,15 @@ $GLOBALS['__settings']['analytics.funnels'] = array( array( 'name' => 'Home flow
 $classic = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
 $kit     = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( false !== strpos( $kit, snt_leaf_row( 2, 290, 24 ) ), 'the kit leaf arranges content into a two-up kit grid (#1622)' );
+ok( false === strpos( $kit, snt_leaf_row( 2, 290, 24 ) . '<os-section heading="Collector endpoint"' ), 'the settings are no longer paired boxes (#1622; 2026-10-16: one row of cards, pinned with Your devices and North star below)' );
 // 2026-10-12 audit ("long rather than designed"): one Pipeline box at full
 // width, then rows of paired boxes; no two-column stacks.
 ok( 0 === substr_count( $kit, '<os-stack gap="18">' ), 'the kit leaf has no two-column stacks' );
 foreach ( array( 'Pipeline status', 'Edge worker', 'Identity salt window', 'Credentials' ) as $gone ) {
-	ok( false === strpos( $kit, 'heading="' . $gone . '"' ), "the $gone box is merged into Pipeline" );
+	ok( false === strpos( $kit, '<os-section heading="' . $gone . '"' ), "the $gone box is not a card of its own" );
 }
-ok( 1 === preg_match( '#<os-section heading="Pipeline" description="Beacon → worker → Analytics Engine → cron → edge\.[^"]*" stack><os-cluster gap="8">#', $kit ), 'Pipeline leads with the five pills' );
-ok( false !== strpos( $kit, '<os-fact label="Worker"><span class="snt-kv__v">sn-analytics v1.14.2</span></os-fact>' ) && false !== strpos( $kit, '<os-fact label="Identity salt">' ) && false !== strpos( $kit, '<os-fact label="Reads with">' ) && false !== strpos( $kit, '<os-fact label="Account ID">' ), 'one facts list: the Worker, the salt window, what the reads use' );
+ok( 1 === preg_match( '#<os-section heading="Pipeline" description="First-party analytics settings;[^"]*Beacon → worker → Analytics Engine → cron → edge[^"]*" stack><div class="snt-an-status"><os-cluster gap="8"><os-badge tone="[a-z]+" title="Beacon token set · #', $kit ), 'Pipeline leads with the five checks as one chip' );
+ok( false !== strpos( $kit, '<os-fact label="Worker"><span class="snt-kv__v">sn-analytics v1.14.2</span></os-fact>' ) && false !== strpos( $kit, '<os-fact label="Identity salt">' ) && false !== strpos( $kit, '<os-fact label="Reads with">' ) && false !== strpos( $kit, '<os-fact label="Account ID">' ), 'the facts behind the chips: the Worker and the salt window, what the reads use' );
 // Re-check now repaints this leaf with a live probe; it was a door to the
 // classic page that opened wp-admin in another window.
 ok( false !== strpos( $kit, '<os-button variant="secondary" os-action="go" os-arg-sub="analytics" os-arg-sn_worker_recheck="1">Re-check now</os-button>' ) && false === strpos( $kit, 'sn_worker_recheck=1' ), 'Re-check now is a go back to this leaf, not a door to the classic page' );
@@ -214,19 +226,19 @@ ok( false === strpos( $kit, '<ol' ), 'no browser ordered list survives on Analyt
 
 // ── 2026-10-11, owner rule: no folds. Each settings form is an open section
 // whose description is the one-line current state the fold's hint carried.
-ok( array() === snt_leaf_folds( $kit ), 'rich: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'rich: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 ok( false !== strpos( $kit, 'Read credentials missing</b> The dashboard can’t read Analytics Engine: set the Cloudflare API token and Account ID under Connections › Credentials.' ) && false === strpos( $kit, 'credentials below' ) && false === strpos( $classic, 'credentials below' ), 'the missing-credentials pill names the screen, not "below", on both surfaces' );
-ok( false !== strpos( $kit, '<os-section heading="Collector endpoint" description="This site (default)" stack>' ), 'the Collector endpoint state is the open section\'s description' );
-ok( false !== strpos( $kit, '<os-section heading="Exclude my own visits" description="Off" stack>' ), 'the exclusion state is the open section\'s description' );
+ok( false !== strpos( $kit, '<os-disclosure heading="Collector endpoint" hint="This site (default)"' ), 'the Collector endpoint state is the closed fold\'s summary' );
+ok( false !== strpos( $kit, '<os-disclosure heading="Roles kept out" hint="Off"' ), 'the exclusion state is the closed fold\'s summary' );
 ok( false !== strpos( $kit, 'Logged-in visits never count as readers, whatever the role' ) && false !== strpos( $kit, 'their browser is marked as the owner’s' ) && false === strpos( $kit, 'selected roles out of the reader counts' ), 'native intro: every logged-in visit is kept out whatever the role; the role list only marks the browser (SN Traffic Lanes round 2)' );
 ok( false === strpos( $kit, 'You are currently counted in analytics' ) && false === strpos( $kit, 'You are currently excluded from analytics' ) && ( false !== strpos( $kit, 'your logged-in visits are still kept out' ) || false !== strpos( $kit, 'your logged-in visits are kept out' ) ), 'native status line agrees with the intro: logged-in visits never count (final review)' );
-ok( false !== strpos( $kit, '<os-section heading="Engine tuning" description="30-day baseline · Standard: designed default (≈3.5σ)" stack>' ), 'the tuning state is the open section\'s description' );
-ok( false !== strpos( $kit, '<os-section heading="Session funnels" description="1 funnel" stack>' ), 'the funnels state is the open section\'s description' );
-$order = array( strpos( $kit, 'heading="Pipeline"' ), strpos( $kit, 'heading="Collector endpoint"' ), strpos( $kit, snt_leaf_row( 2, 290, 24 ) ), strpos( $kit, 'heading="Session funnels"' ), strpos( $kit, 'heading="Exclude my own visits"' ), strpos( $kit, 'heading="Engine tuning"' ), strpos( $kit, 'heading="Configured elsewhere"' ), strpos( $kit, 'heading="Cloudflare Worker setup"' ) );
+ok( false !== strpos( $kit, '<os-disclosure heading="Engine tuning" hint="30-day baseline · Standard: designed default (≈3.5σ)"' ), 'the tuning state is the closed fold\'s summary' );
+ok( false !== strpos( $kit, '<os-disclosure heading="Session funnels" hint="1 funnel"' ), 'the funnels state is the closed fold\'s summary' );
+$order = array( strpos( $kit, 'heading="Pipeline"' ), strpos( $kit, 'heading="Setup"' ), strpos( $kit, 'heading="Credentials"' ), strpos( $kit, 'heading="Collector endpoint"' ), strpos( $kit, 'heading="Roles kept out"' ), strpos( $kit, 'heading="Engine tuning"' ), strpos( $kit, 'heading="Session funnels"' ), strpos( $kit, 'heading="Edge worker and salt"' ), strpos( $kit, 'heading="Configured elsewhere"' ), strpos( $kit, 'heading="Cloudflare Worker setup"' ) );
 $sorted = $order;
 sort( $sorted );
-ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: Pipeline, Collector (with North star when loaded), then Funnels | Exclusion, Tuning | Configured elsewhere, then the setup steps: ' . implode( ' < ', array_map( 'strval', $order ) ) );
-ok( 2 === substr_count( $kit, snt_leaf_row( 2, 290, 24 ) ), 'two rows of paired boxes (the third pair waits for North star)' );
+ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: Pipeline, then the Setup card (Credentials, Collector, Roles kept out, Tuning, Funnels, Edge worker and salt, Configured elsewhere), then the setup steps: ' . implode( ' < ', array_map( 'strval', $order ) ) );
+ok( 1 >= substr_count( $kit, '<os-grid min-item-width="290" gap="24"' ), 'at most one row of cards under Pipeline and Edge, never stacked pairs' );
 // 2026-10-12 audit: garbled or positional sentences.
 ok( false !== strpos( $kit, 'Saving here replaces the Sessions view’s built-in funnels;' ) && false !== strpos( $classic, 'Saving here replaces the Sessions view’s built-in funnels;' ) && false === strpos( $kit, 'not shown above' ) && false === strpos( $classic, 'not shown above' ) && false === strpos( $kit, 'Sessions view: one per line' ), 'Session funnels says one sentence, the same on both surfaces' );
 ok( false === strpos( $kit, 'role list above' ) && false === strpos( $classic, 'role list above' ) && false === strpos( $kit, 'fields above' ) && false === strpos( $classic, 'fields above' ) && false === strpos( $kit, 'Test connection above' ) && false === strpos( $classic, 'Test connection</strong> above' ), 'no sentence points above at a box that moved, on either surface' );
@@ -296,21 +308,21 @@ ok( false !== strpos( $kit, '<os-select name="sn_anomaly_sensitivity"' ), 'anoma
 // boolean — the actual wire shape sn_handle_analytics_exclude_save() reads.
 $GLOBALS['__settings']['analytics.exclude_roles'] = array( 'editor' );
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ), 'excluded role: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'excluded role: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 ok( false !== strpos( $kit, '<os-select name="sn_exclude_roles[1]" value="editor"' ), 'the excluded role’s slug is carried as the select’s value, not a checked flag' );
 $GLOBALS['__settings']['analytics.exclude_roles'] = array();
 
 // ── Escaping: a hostile role name never reaches the markup raw.
 $GLOBALS['__roles'] = array( 'hostile' => '"><script>x</script>' );
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ), 'hostile role: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'hostile role: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 ok( false === strpos( $kit, '<script>x</script>' ) && false !== strpos( $kit, '&lt;script&gt;' ), 'a hostile role name is escaped' );
 $GLOBALS['__roles'] = array( 'subscriber' => 'Subscriber', 'editor' => 'Editor' );
 
 // ── Empty-roles state: no checkboxes, no exclude action, an explanatory line.
 $GLOBALS['__roles'] = array();
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ), 'empty roles: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'empty roles: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 ok( array() === preg_grep( '/^sn_exclude_roles\[/', snt_leaf_names( $kit ) ), 'empty roles: no exclude checkboxes are offered' );
 ok( ! in_array( 'analytics_exclude_save', snt_leaf_actions( $kit ), true ), 'empty roles: no exclude_save action is offered' );
 ok( false !== strpos( $kit, 'No roles available on this site.' ), 'empty roles: the explanatory line prints' );
@@ -322,7 +334,7 @@ define( 'SN_CF_ACCOUNT_ID', 'locked-acct' );
 $GLOBALS['__configured'] = true;
 $classic = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
 $kit     = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ), 'locked: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'locked: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 ok( ! in_array( 'sn_cf_account_id', snt_leaf_names( $kit ), true ) && ! in_array( 'sn_cf_analytics_token', snt_leaf_names( $kit ), true ), 'locked: neither credential field is offered by name' );
 ok( ! in_array( 'analytics_save', snt_leaf_actions( $kit ), true ) && in_array( 'analytics_test', snt_leaf_actions( $kit ), true ), 'locked: no save action anywhere; the connection test stays (15.2.0: the constants configure, the test still proves)' );
 ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'locked: kit actions still match the classic actions set' );
@@ -348,7 +360,7 @@ ok( false === strpos( snt_leaf_paint( 'monitoring', 'analytics' ), 'sn_owner_dev
 unset( $GLOBALS['__options'][ SN_WORKER_VERSION_LASTGOOD ] );
 $GLOBALS['__http_code'] = 500;
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ), 'worker unreachable: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'worker unreachable: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 ok( false !== strpos( $kit, 'Worker version unknown.' ) && false !== strpos( $kit, 'tone="warning"' ), 'worker unreachable: the warning notice paints' );
 ok( false !== strpos( $kit, 'v1.4.0' ) && false !== strpos( $kit, 'set the Collector endpoint on this screen to the Worker’s *.workers.dev URL' ) && false === strpos( $kit, 'Content → RSS' ) && false !== strpos( $kit, '<os-fact label="Worker"><span class="snt-kv__v" data-tone="warning">not read</span>' ), 'worker unreachable: the remedy sentence names this screen, not "Content → RSS"; the Worker row says not read' );
 $classic_down = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
@@ -361,7 +373,7 @@ $GLOBALS['__http_code'] = 200;
 // budget = 0, so the whole budget>0 branch never ran).
 $GLOBALS['__settings']['theme.ai_monthly_budget'] = 20.0;
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ), 'AI budget: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'AI budget: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 ok( false !== strpos( $kit, '$4.20 of $20.00 budget this month (21%)' ) && false !== strpos( $kit, '<os-progress-bar' ), 'AI budget > 0: shows the percent sentence and the meter' );
 $GLOBALS['__settings']['theme.ai_monthly_budget'] = 0;
 
@@ -371,7 +383,7 @@ $GLOBALS['__http_code'] = 200;
 snt_leaf_paint( 'monitoring', 'analytics' ); // prime SN_WORKER_VERSION_LASTGOOD
 $GLOBALS['__http_code'] = 500;
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ), 'worker stale: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'worker stale: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, 'last value reached <os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>.' ), 'worker stale: the fallback names how stale the last-good reading is' );
 $GLOBALS['__http_code'] = 200;
 
@@ -387,7 +399,7 @@ $GLOBALS['__http_body'] = wp_json_encode(
 	)
 );
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ), 'salt old-worker: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'salt old-worker: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 ok( false !== strpos( $kit, 'Not read: the Worker predates the salt window readout (it needs v1.14.0+).' ) && false === strpos( $kit, 'did not answer' ), 'salt old-worker: the version-floor line prints, distinct from the unreachable copy' );
 
 // ── Salt window KV-FAILED: worker reachable, KV read failed at the edge —
@@ -403,7 +415,7 @@ $GLOBALS['__http_body'] = wp_json_encode(
 	)
 );
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ), 'salt kv-failed: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'salt kv-failed: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 ok( false !== strpos( $kit, 'Not read: the Worker answered, but it could not list its salt keys (a KV read failed at the edge).' ) && false === strpos( $kit, 'did not answer' ) && false === strpos( $kit, 'predates the salt window' ), 'salt kv-failed: its own copy prints, a sentence starting with a capital, distinct from old-worker and unreachable' );
 
 // ── 15.3.0: Edge, 7 days at the top, from the Cloudflare monitor's stored record; absent before it ran.
@@ -411,7 +423,7 @@ ok( false === strpos( $kit, 'heading="Edge, 7 days"' ) && false === strpos( $cla
 $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] = an_edge_record();
 $classic = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
 $kit     = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ), 'edge record: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'edge record: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 // 2026-10-12 audit: five tiles in a half column left one orphaned; the box
 // takes a full row of its own under Pipeline, its lists capped.
 ok( false !== strpos( $kit, 'heading="Edge, 7 days"' ) && strpos( $kit, 'heading="Edge, 7 days"' ) > strpos( $kit, 'heading="Pipeline"' ) && strpos( $kit, 'heading="Edge, 7 days"' ) < strpos( $kit, 'heading="Collector endpoint"' ) && false !== strpos( $kit, '166,684' ) && false !== strpos( $kit, '8.1%' ) && false !== strpos( $kit, '503 · answered by the origin' ) && false !== strpos( $kit, '4,314' ) && false !== strpos( $kit, '<h4 class="snt-h">5xx by status code</h4>' ), 'Edge, 7 days takes a full row under Pipeline: the five figures and the 5xx split' );
@@ -473,11 +485,31 @@ unset( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] );
 require_once SNT_PATH . 'inc/north-star.php';
 $GLOBALS['__settings']['north_star'] = array( 'sections' => array( 'notes', 'provenance' ), 'scroll' => 60, 'dwell_s' => 45 );
 $kit = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( array() === snt_leaf_folds( $kit ), 'north star: no fold: ' . implode( ',', snt_leaf_folds( $kit ) ) );
+ok( an_only_setup_folds( $kit ), 'north star: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
 ok( false !== strpos( $kit, '<os-section heading="North star" description="Counts Notes, Provenance; a read is 60% scroll or 45 s on the page." stack>' ), 'north star: an open section whose description is the current definition (was the "60% or 45 s" fold hint)' );
-ok( false !== strpos( $kit, 'heading="North star"' ) && strpos( $kit, 'heading="North star"' ) > strpos( $kit, 'heading="Collector endpoint"' ) && strpos( $kit, 'heading="North star"' ) < strpos( $kit, 'heading="Session funnels"' ) && 3 === substr_count( $kit, snt_leaf_row( 2, 290, 24 ) ), 'north star: beside Collector endpoint, the first of three paired rows' );
+ok( false !== strpos( $kit, 'heading="North star"' ) && strpos( $kit, 'heading="North star"' ) > strpos( $kit, 'heading="Configured elsewhere"' ) && strpos( $kit, '<os-grid min-item-width="290" gap="24"' ) < strpos( $kit, 'heading="Setup"' ) && 1 === substr_count( $kit, '<os-grid min-item-width="290" gap="24"' ), 'north star: a card on the Setup row, after Setup' );
 ok( false === strpos( $kit, 'groups below' ) && false !== strpos( $kit, 'in the groups this box lists' ), 'north star: no position word' );
 ok( in_array( 'north_star_save', snt_leaf_actions( $kit ), true ) && array() === array_diff( array( 'sn_nsm_sections[0]', 'sn_nsm_sections[3]', 'sn_nsm_scroll', 'sn_nsm_dwell_s' ), snt_leaf_names( $kit ) ) && 0 === substr_count( $kit, 'columns="1"' ), 'north star: the form keeps its action and fields, two-up when wide enough' );
+
+// ── 2026-10-16 (owner, desktop PWA: "a mess. Design, design, design."; then
+// "Wherever you can fit three that make sense, do it."): the leaf is ONE
+// Pipeline status card (the five checks as "N of 5 set", the Worker version,
+// the salt rotation, the devices, the door on the right), the Edge card with
+// the 5xx split in its tile and a labeled list, then Your devices (open) |
+// Setup (earned folds whose summaries answer) | North star three across.
+$GLOBALS['__options'][ SN_CF_MONITOR_OPT ] = an_edge_record();
+$GLOBALS['__excluded_now']                 = true;
+$kit = snt_leaf_paint( 'monitoring', 'analytics' );
+$an_pipe = (string) substr( $kit, (int) strpos( $kit, '<os-section heading="Pipeline"' ), (int) strpos( $kit, '</os-section>' ) - (int) strpos( $kit, '<os-section heading="Pipeline"' ) );
+ok( 0 === strpos( $kit, '<os-section heading="Pipeline"' ) && 1 === substr_count( $kit, '<os-section heading="Pipeline"' ) && 1 === preg_match( '#<div class="snt-an-status"><os-cluster gap="8"><os-badge tone="[a-z]+" title="[^"]+">\d of 5 set</os-badge>.*</os-cluster><os-button variant="link" os-action="door"[^>]*>View dashboard →</os-button></div>#s', $an_pipe ) && false !== strpos( $an_pipe, 'sn-analytics v1.14.2</os-badge>' ) && false === strpos( $an_pipe, '<os-disclosure' ) && false === strpos( $kit, '<p class="snt-prose">First-party analytics' ), 'layout: one Pipeline card leads, its chips on one line with the door on the right, the intro folded into it' );
+ok( 1 === preg_match( '#<os-stat value="4,473" label="5xx at the edge" caption="503 4,314 · 520 132"#', $kit ) && false !== strpos( $kit, '<h4 class="snt-h">5xx by status code</h4>' ) && false !== strpos( $kit, '<footer><os-cluster gap="8"><os-button variant="secondary" os-action="post"' ), 'layout: the 5xx split sits in the 5xx tile as one line, the list under it is labeled, and Refresh shares the card\'s footer row with the read time' );
+$an_row = snt_leaf_row( 3, 290, 24 );
+ok( false !== strpos( $kit, $an_row . '<os-section heading="Your devices"' ) && strpos( $kit, 'heading="Your devices"' ) < strpos( $kit, '<os-section heading="Setup"' ) && strpos( $kit, '<os-section heading="Setup"' ) < strpos( $kit, '<os-section heading="North star"' ), 'layout: Your devices | Setup | North star, three across in one kit grid that collapses on a narrow window' );
+$an_dev = (string) substr( $kit, (int) strpos( $kit, '<os-section heading="Your devices"' ), (int) strpos( $kit, '<os-section heading="Setup"' ) - (int) strpos( $kit, '<os-section heading="Your devices"' ) );
+ok( 1 === preg_match( '#<os-section heading="Your devices"[^>]*>(?:(?!<os-disclosure).)*submit-label="(?:Exclude this device|Count this device again)"#s', $an_dev ), 'layout: Your devices is an open card, its controls before any fold' );
+ok( array( 'Credentials', 'Collector endpoint', 'Roles kept out', 'Engine tuning', 'Session funnels', 'Edge worker and salt', 'Configured elsewhere' ) === an_fold_headings( (string) substr( $kit, (int) strpos( $kit, '<os-section heading="Setup"' ) ) ) && 0 === preg_match( '/<os-disclosure heading="[^"]+" hint=""/', $kit ), 'layout: Setup holds the seven setting folds, in order, each with a summary that answers when closed' );
+unset( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] );
+$GLOBALS['__excluded_now'] = false;
 
 // ── Live-shaped previews, in a child run of this file (SNT_AN_PREVIEW_CHILD):
 // the locked-credentials pins above define SN_CF_ANALYTICS_TOKEN and
