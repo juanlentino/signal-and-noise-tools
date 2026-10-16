@@ -39,7 +39,8 @@ function snt_sn_apply_active_constructs( $fragment ) {
 		}
 	}
 	// An on*= attribute inside a tag: `<img src=x onerror=...>`, `<svg/onload=...>`.
-	if ( preg_match_all( '#<[a-z][^>]*?[\s/"\']+(on[a-z]+)\s*=#i', $fragment, $m ) ) {
+	// A quoted value is one unit, so a `>` inside it (`title="x>y"`) cannot end the tag early.
+	if ( preg_match_all( '#<[a-z](?:"[^"]*"|\'[^\']*\'|[^>"\'])*?[\s/"\']+(on[a-z]+)\s*=#i', $fragment, $m ) ) {
 		foreach ( $m[1] as $attr ) {
 			$found[] = strtolower( $attr ) . '=';
 		}

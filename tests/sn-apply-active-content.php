@@ -57,6 +57,7 @@ $cases = array(
 	'<embed src="x.swf">'                               => '<embed',
 	'<img src=x onerror=alert(1)>'                      => 'onerror=',
 	'<svg/onload=alert(1)>'                             => 'onload=',
+	'<a title="x>y" onclick=alert(1)>z</a>'          => 'onclick=',
 	'<a href="javascript:alert(1)">x</a>'               => 'javascript:',
 	'<a href="&#106;avascript:alert(1)">x</a>'          => 'javascript:',
 	'<a href="java&#9;script:alert(1)">x</a>'           => 'javascript:',
