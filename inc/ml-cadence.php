@@ -71,6 +71,8 @@ const SNT_ML_CADENCE_AGREE_FACTOR = 0.5;    // A learned median at/above this mu
 const SNT_ML_RHYTHM_MIN_WEEKS = 4;  // Fewer complete weeks is thin history: unknown, never flagged.
 const SNT_ML_RHYTHM_MAX_WEEKS = 12; // Trailing complete weeks considered.
 
+require_once __DIR__ . '/ml-cadence-movers.php'; // A fired views flag carries its movers.
+
 /**
  * The pure rhythm statistic: is the current week's reading QUIET against the
  * trailing weeks? Median/MAD (breakdown point 50% — one viral week must not
@@ -175,12 +177,14 @@ function snt_ml_views_rhythm_section( $now ) {
 		return array( 'flag' => null, 'skipped' => false ); // The current week itself predates the sensor.
 	}
 	$history = array();
+	$starts  = array();
 	for ( $w = SNT_ML_RHYTHM_MAX_WEEKS; $w >= 1; $w-- ) {
 		$start = $current_start - 7 * $w * DAY_IN_SECONDS;
 		if ( $start < $birth_ts ) {
 			continue; // Pre-birth week: absence is not a zero.
 		}
 		$history[] = $week_total( $start );
+		$starts[]  = $start;
 	}
 
 	$dev = snt_ml_views_rhythm( $history, $week_total( $current_start ) );
@@ -195,6 +199,8 @@ function snt_ml_views_rhythm_section( $now ) {
 			'expected_views' => (int) $dev['median'],
 			'current_views'  => (int) $dev['current'],
 			'last_at'        => (int) ( $week_end - DAY_IN_SECONDS ),
+			// Which surfaces moved, against the same weeks (inc/ml-cadence-movers.php).
+			'movers'         => snt_ml_views_movers( $rows, $starts, $current_start, (int) $dev['median'] - (int) $dev['current'] ),
 		),
 		'skipped' => false,
 	);

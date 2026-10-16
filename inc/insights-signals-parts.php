@@ -318,11 +318,17 @@ function snt_insights_collect_signals() {
 		if ( is_array( $cad ) ) {
 			$out['cadence_flags'] = array(
 				'flags'        => array_map( static function ( $f ) {
-					return array(
+					$row = array(
 						'kind'    => (string) ( $f['kind'] ?? '' ),
 						'subject' => (string) ( $f['subject'] ?? '' ),
 						'z'       => round( (float) ( $f['z'] ?? 0 ), 2 ),
 					);
+					// A quiet week arrives explained: the movers are arithmetic
+					// from the rollups, so the advisor reads them, never derives them.
+					if ( isset( $f['movers'] ) ) {
+						$row['movers'] = $f['movers'];
+					}
+					return $row;
 				}, (array) ( $cad['flags'] ?? array() ) ),
 				'cron_skipped' => (bool) ( $cad['cron_skipped'] ?? false ),
 			);
