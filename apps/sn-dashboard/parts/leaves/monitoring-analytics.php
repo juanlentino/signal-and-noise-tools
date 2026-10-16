@@ -31,6 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/monitoring-analytics-parts.php';
 require_once __DIR__ . '/monitoring-analytics-settings.php'; // credentials, collector, exclusion (2026-10-11: open, no folds)
+require_once __DIR__ . '/monitoring-analytics-owner.php'; // Unreleased: Owner devices (SN Traffic Lanes)
 require_once __DIR__ . '/monitoring-analytics-tuning.php'; // tuning, funnels, the Worker setup steps
 
 /**
@@ -69,6 +70,7 @@ function paint_monitoring_analytics( array $ctx ) {
 		. $edge
 		. \snt_kit_grid( array( analytics_collector_html(), function_exists( '\\snt_nsm_settings_html' ) ? \snt_nsm_settings_html() : '' ), 290, 24 )
 		. \snt_kit_grid( array( analytics_funnels_html(), analytics_exclusion_html() ), 290, 24 )
+		. analytics_owner_devices_html()
 		. \snt_kit_grid( array( analytics_tuning_html(), analytics_mirrors_html( $tab ) ), 290, 24 )
 		. analytics_worker_setup_html();
 }

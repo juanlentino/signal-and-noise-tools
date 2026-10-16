@@ -2,18 +2,12 @@
 /**
  * Signal & Noise Tools — owner/role analytics exclusion (v6.23.0).
  *
- * Mirrors Plausible's "exclude user roles" setting. When a logged-in user holds
- * a role listed in sn_settings['analytics']['exclude_roles'], the companion
- * theme's front-end beacon is suppressed for that request via the theme's
- * `sn_beacon_enabled` filter — no pixel is printed, so nothing reaches the edge
- * collector. Excluded users also get a first-party sn_owner=1 cookie (see the
- * owner-device section below) so logged-out cached views stay excluded. Forward-only (visits already recorded are unaffected).
- *
- * CACHED PAGES: this server-side filter only fires on requests WordPress
- * renders. A page served from the full-page or CDN cache never reaches it; the
- * browser-side gate covers that case: sn-beacon.js sends nothing when the device
- * carries the sn_owner=1 cookie (see the owner-device section below), so an
- * excluded user's cached views stay excluded without any cache-bypass rule.
+ * The role list in sn_settings['analytics']['exclude_roles'] marks which
+ * logged-in users get the legacy first-party sn_owner=1 device cookie (the
+ * owner-device section below). Since SN Traffic Lanes the beacon is no longer
+ * suppressed server-side: owner views reach the edge, and the analytics Worker
+ * keeps a logged-in, enrolled or legacy-flagged view out of every reader
+ * figure (inc/owner-devices.php enrolls the signed marker).
  *
  * @package SignalNoiseTools
  * @since 6.23.0
@@ -38,31 +32,9 @@ function sn_beacon_owner_excluded( $user_roles, $exclude_roles ) {
 	return (bool) array_intersect( (array) $user_roles, $exclude_roles );
 }
 
-/**
- * `sn_beacon_enabled` filter: suppress the front-end beacon for excluded roles.
- *
- * Runs at wp_enqueue_scripts time (the theme calls it inside sn_beacon_enqueue,
- * priority 30) when the current user is resolved. Leaves an already-disabled
- * beacon disabled — it only ever suppresses, never re-enables.
- * Cache hits never reach this filter; the browser-side sn_owner cookie gate
- * in sn-beacon.js covers cached pages.
- *
- * @param bool $enabled Whether the beacon is currently enabled.
- * @return bool
- */
-function sn_beacon_owner_exclusion_filter( $enabled ) {
-	if ( ! $enabled || ! is_user_logged_in() ) {
-		return $enabled;
-	}
-	$exclude = (array) sn_setting( 'analytics.exclude_roles', array() );
-	if ( empty( $exclude ) ) {
-		return $enabled;
-	}
-	$user  = wp_get_current_user();
-	$roles = ( $user && isset( $user->roles ) ) ? (array) $user->roles : array();
-	return sn_beacon_owner_excluded( $roles, $exclude ) ? false : $enabled;
-}
-add_filter( 'sn_beacon_enabled', 'sn_beacon_owner_exclusion_filter' );
+// SN Traffic Lanes (Unreleased, review round 1): the `sn_beacon_enabled`
+// suppression for excluded roles is gone. Logged-in owner views now reach the
+// edge, where the analytics Worker keeps them out of every reader figure.
 
 /**
  * Whether the CURRENT viewer would be excluded — drives the settings-card status.
@@ -124,11 +96,12 @@ function sn_beacon_sanitize_exclude_roles( $submitted ) {
 }
 
 /*
- * Owner-device cookie. Logged-out visits are served from the edge cache, so the
- * server cannot suppress the beacon for them. Instead an excluded user's browser
- * carries sn_owner=1 (set at login, NOT cleared at logout) and the theme's
- * sn-beacon.js sends nothing when it sees it. sn_owner=0 means "count this
- * device again": it is persistent so the init backfill below does not re-mark it.
+ * Legacy owner-device cookie, unsigned. An excluded user's browser carries
+ * sn_owner=1 (set at login, NOT cleared at logout) so a logged-out view on a
+ * cached page is still known as the owner's: the theme or the analytics Worker
+ * reads it, whichever is current. sn_owner=0 means "count this device again":
+ * it is persistent so the init backfill below does not re-mark it. The signed
+ * marker (sn_owner_dev, inc/owner-devices.php) is what proves a device.
  */
 const SN_OWNER_COOKIE     = 'sn_owner';
 const SN_OWNER_COOKIE_TTL = 34560000; // 400 days, the browser cap on cookie lifetime.

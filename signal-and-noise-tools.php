@@ -84,7 +84,7 @@ require_once SNT_PATH . 'inc/openstation-agent-output-budget.php'; // #1613: ada
 require_once SNT_PATH . 'inc/openstation-pulse.php';        // OpenStation 1.1.14 Pulse Monitor: S&N's routes, bot verdict, uptime and two beats on the Experimental feed; inert without it.
 require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/config-drift.php'; // R6a: durable effective-settings baseline + unexplained-drift diff
-require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-style owner/role analytics exclusion (sn_beacon_enabled filter)
+require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: the excluded-role list and the legacy sn_owner=1 device cookie (beacon suppression removed for SN Traffic Lanes)
 require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/bilingual.php'; // English/Spanish storefront pairs: _sn_en_counterpart, hreflang, lang, toggle data, English fallback (docs/BILINGUAL.md)
 require_once SNT_PATH . 'inc/robots-txt.php'; // v6.53.0: robots.txt AI-crawler policy (filterable allow/deny) + idempotent Sitemap pointer
@@ -105,6 +105,9 @@ require_once SNT_PATH . 'inc/keyring.php';        // 15.2.0: every credential in
 require_once SNT_PATH . 'inc/keyring-changes.php'; // 19.6.2: every keyring option write logged (row, set/clear, last 4, source); never a value.
 require_once SNT_PATH . 'inc/keyring-verify.php'; // 15.2.0: one probe per credential, verdicts stored; "Verify all".
 require_once SNT_PATH . 'inc/keyring-admin.php';  // 15.2.0: the row model both leaves paint; the classic Connections › Credentials leaf.
+require_once SNT_PATH . 'inc/owner-identity-sign.php'; // Unreleased (SN Traffic Lanes): the device marker and agent token signer, pinned to the Workers' vectors.
+require_once SNT_PATH . 'inc/owner-devices.php';       // Unreleased: owner device enrollment, renewal on admin_init, revoke.
+require_once SNT_PATH . 'inc/owner-revoked-route.php'; // Unreleased: GET signal-noise/v1/owner/revoked for the analytics Worker.
 require_once SNT_PATH . 'inc/cloudflare-readings-admin.php'; // 15.3.0: Edge (Measurement › Analytics) and Firewall (Security › Firewall), classic; the readings where their questions are asked.
 require_once SNT_PATH . 'inc/purge-ledger.php';      // 20.7.0: the purge ledger; keeps purges rare (Breeze update and nightly purges unhooked if Breeze returns)
 require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: Cloudways app purge, retired 2026-10-14 (Varnish is off); keeps the credential readers and the last record
@@ -198,6 +201,7 @@ require_once SNT_PATH . 'inc/analytics-posts-lifecycle.php';       // v8.11.0 (A
 require_once SNT_PATH . 'inc/analytics-posts-signals.php';         // v14.6.0: the Posts tab's per-note signal rows + the three flags
 require_once SNT_PATH . 'inc/analytics-posts-signals-admin.php';   // v14.6.0: the Posts tab render
 require_once SNT_PATH . 'inc/analytics-admin.php';  // dashboard renderer + Monitoring → Analytics settings
+require_once SNT_PATH . 'inc/owner-devices-render.php'; // Unreleased: the Owner devices card (Measurement › Analytics).
 require_once SNT_PATH . 'inc/analytics-signals.php';   // v9.30.0: predictive signal engine
 require_once SNT_PATH . 'inc/ai-markdown-strip.php';   // v9.64.2: shared markdown stripper for AI prose (narrator + narration)
 require_once SNT_PATH . 'inc/analytics-narrator.php';  // v9.30.0: diagnostic/prescriptive narrator
@@ -402,6 +406,7 @@ require_once SNT_PATH . 'inc/rights-evidence.php';         // 17.0.0: the daily 
 require_once SNT_PATH . 'inc/rights-evidence-post-now.php'; // Unreleased: send stored bytes (the pass and Post now); a 422 holds.
 require_once SNT_PATH . 'inc/rights-evidence-retractions.php'; // Unreleased: the approved retraction text (pure data).
 require_once SNT_PATH . 'inc/rights-evidence-retract.php';   // Unreleased: one signed retraction per click, POST /retract.
+require_once SNT_PATH . 'inc/owner-token-cli.php';         // Unreleased: wp sn owner-token (WP-CLI only).
 require_once SNT_PATH . 'inc/rights-evidence-cli.php';     // Unreleased: wp sn rights-evidence dry-run (WP-CLI only).
 require_once SNT_PATH . 'inc/abilities-rights-evidence.php'; // 17.0.0: rights-evidence (read) + rights-evidence-now (rw).
 require_once SNT_PATH . 'inc/machine-readers-render.php';

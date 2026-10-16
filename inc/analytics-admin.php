@@ -625,6 +625,15 @@ function snt_analytics_render_settings_section() {
 			'snt_analytics_render_exclusion'
 		);
 	}
+	// Unreleased (SN Traffic Lanes): the signed owner marker, beside the exclusion.
+	if ( function_exists( 'snt_analytics_render_owner_devices' ) ) {
+		snt_an_settings_fold(
+			__( 'Owner devices', 'signal-and-noise-tools' ),
+			sn_owner_devices_snapshot(),
+			false,
+			'snt_analytics_render_owner_devices'
+		);
+	}
 	// v9.36.0: the two owner-tunable predictive-engine knobs.
 	if ( function_exists( 'snt_analytics_render_engine_tuning' ) ) {
 		snt_an_settings_fold(

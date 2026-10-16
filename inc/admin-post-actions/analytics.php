@@ -142,8 +142,8 @@ function sn_handle_analytics_test( $post ) {
  * v6.23.0: save the "Exclude my own visits" role allow-list (Monitoring →
  * Analytics). Sanitizes the submitted role slugs against the real role list
  * (sn_beacon_sanitize_exclude_roles) and persists them to the analytics subtree.
- * The theme's sn_beacon_enabled filter (inc/beacon-owner-exclusion.php) reads
- * this to suppress the front-end beacon for logged-in users in those roles.
+ * inc/beacon-owner-exclusion.php reads this to give logged-in users in those
+ * roles the legacy sn_owner=1 device cookie.
  *
  * @param array $post Raw $_POST.
  * @return string Flash code: 'analytics_exclude_saved' | 'analytics_exclude_unchanged'.
