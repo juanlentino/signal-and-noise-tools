@@ -94,7 +94,7 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 	if ( ! $annotations_after ) {
 		$annotations();
 	}
-	// Unreleased: the likely-automated tile beside the presumed-human figures
+	// 2026.10.1: the likely-automated tile beside the presumed-human figures
 	// (class human only; inferred, never subtracted).
 	$cards_totals = $totals + array( 'likely_automated' => function_exists( 'sn_analytics_likely_automated' ) ? sn_analytics_likely_automated( $from, $to, $class ) : null );
 	snt_analytics_render_cards( $now, $cards_totals, $deltas, $engaged, $basis_label, $class ); // data-sn-live: 'now' updates in place

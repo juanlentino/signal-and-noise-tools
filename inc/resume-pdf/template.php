@@ -15,7 +15,7 @@
  * sn_resume_doc_normalize() and keep their <strong>/<em>/<a>.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 17.7.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

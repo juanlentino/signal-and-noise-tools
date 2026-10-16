@@ -12,7 +12,7 @@
  * resume_publish, resume_discard, resume_revert
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 19.9.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

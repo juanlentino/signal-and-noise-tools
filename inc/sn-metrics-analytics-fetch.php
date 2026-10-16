@@ -9,7 +9,7 @@
  * sn_analytics_dimension_series(): prepared, null on a failed read.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.4.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

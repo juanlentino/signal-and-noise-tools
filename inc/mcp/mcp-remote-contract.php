@@ -51,16 +51,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 // (read / failed / pending / untracked), so a 0 is never ambiguous.
 // 18.4.0: '8' -> '9' — the health-scan twin gained skipped[] (check, label,
 // reason), so checks_skipped names what did not run and why.
-// Unreleased: '9' -> '10' — the 5xx twin gained paths_by_status (#1006),
+// 18.8.4: '9' -> '10' — the 5xx twin gained paths_by_status (#1006),
 // "<edge> <cache> <path>" per failing request, so a 520 names its URL.
-// Unreleased: '10' -> '11' — the rss-stats twin gained feed_opens (7d / 30d
+// 19.5.1: '10' -> '11' — the rss-stats twin gained feed_opens (7d / 30d
 // totals + top notes, labelled a floor). Additive.
-// Unreleased: '11' -> '12' — the rss-stats twin gained subscribers (the
+// 19.6.0: '11' -> '12' — the rss-stats twin gained subscribers (the
 // counts aggregators report in their fetcher UA, labelled a ceiling). Additive.
-// Unreleased: '12' -> '13' (2026-09-29) — the deploy-status twin gained core
+// 19.7.0: '12' -> '13' (2026-09-29) — the deploy-status twin gained core
 // (current, latest, state, auto_updates, reason) after CVE-2026-87902. Additive.
 // The admin ability also gained runtime; the twin does NOT carry it.
-// Unreleased: '13' -> '14' (2026-09-29, owner ruling) — two twins joined (17):
+// 19.8.0: '13' -> '14' (2026-09-29, owner ruling) — two twins joined (17):
 // remote-bot-signals (byte-identical, observe-only cohort rates) and
 // remote-machine-readers-networks (the crosstab's agent_networks alone).
 // Deploy runtime and the recompute status stay local.

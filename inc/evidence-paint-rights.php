@@ -64,15 +64,6 @@ function snt_ev_paint_rights( $rows, $surface = 'kit' ) {
 	return snt_ev_box( $surface, $title, $out );
 }
 
-/** The rights box's painted rows (external capped at 15, own checks at 5), for snt_ev_pair(). */
-function snt_ev_rights_size( $rows ) {
-	if ( ! is_array( $rows ) ) {
-		return 1;
-	}
-	$ours = count( array_filter( $rows, static fn( $r ) => 'signal-and-noise' === snt_mr_normalize_vendor( $r['vendor'] ?? '' ) ) );
-	return min( SN_EV_RIGHTS_ROWS, count( $rows ) - $ours ) + min( 5, $ours );
-}
-
 /**
  * Feed fetches per window.
  *

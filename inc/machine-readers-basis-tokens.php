@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise Tools: control tokens in the readings (Unreleased). The
+ * Signal & Noise Tools: control tokens in the readings (2026.10.1). The
  * reads that presented a robots.txt control token, listed apart; the purpose
  * label (unknown reads as unmapped); and the strip's figures with the tokens
  * and this site's own tools taken out. Uses the constants in
@@ -58,27 +58,4 @@ function snt_mr_impersonations( array $rows ) {
 function snt_mr_purpose_label( $purpose ) {
 	$purpose = (string) $purpose;
 	return ( '' === $purpose || 'unknown' === $purpose ) ? 'unmapped' : $purpose;
-}
-
-/**
- * The two strip figures that read differently from a family sum: AI-training
- * reads less the control-token hits (credited to no vendor, as in the
- * summary), and reads from this site's own tools. Shared by the classic and
- * native machine-readers strips.
- *
- * @param array $rows Aggregate rows.
- * @return array{ai:int,first_party:int}
- */
-function snt_mr_strip_figures( array $rows ) {
-	$ai_set = function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array();
-	$out    = array( 'ai' => 0, 'first_party' => 0 );
-	foreach ( $rows as $r ) {
-		$hits = is_array( $r ) ? max( 0, (int) ( $r['hits'] ?? 0 ) ) : 0;
-		if ( ! is_array( $r ) || snt_mr_is_impersonation( $r ) ) {
-			continue;
-		}
-		$out['ai']          += in_array( (string) ( $r['family'] ?? '' ), $ai_set, true ) ? $hits : 0;
-		$out['first_party'] += empty( $r['first_party'] ) ? 0 : $hits;
-	}
-	return $out;
 }

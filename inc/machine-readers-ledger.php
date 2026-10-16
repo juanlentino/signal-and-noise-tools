@@ -35,7 +35,7 @@ const SN_MR_AGENT_NETWORKS_TOP = 5;
  *
  * `days` is the number of distinct days the cell was seen on, `surfaces` the
  * cell's hits per surface class. A cell with purpose `unknown` is an unmapped
- * reader, not a reader with no purpose. Unreleased: each cell also splits its
+ * reader, not a reader with no purpose. 2026.10.1: each cell also splits its
  * hits by verification (claimed, verified, verified_matched, unverified,
  * unverifiable; inc/machine-readers-basis.php), says whether it is this site's
  * own tooling (`first_party_hits`, the exact part, and `first_party`, true when

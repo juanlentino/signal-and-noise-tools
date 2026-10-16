@@ -15,7 +15,7 @@
  * network, and a PDF renderer that fetches URLs is an SSRF surface.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 17.7.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

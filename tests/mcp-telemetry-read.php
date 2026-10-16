@@ -292,7 +292,7 @@ ok( 4 === ( $codes['snt_block_migration_candidate_not_found'] ?? null ) && 1 ===
 ok( 2 === count( $u['by_error_code'] ), 'error_code split: success rows (NULL code) produce no by_error_code line' );
 
 echo "\nGroup: schema-error rows carry an empty tool_name\n";
-// mcp-tools.php:436 records schema errors with tool_name '' — the call never
+// The tools/call handler (inc/mcp/mcp-tools-call-parts.php) records schema errors with tool_name '' — the call never
 // resolved to a tool. They are real traffic, but attributing them to a tool
 // would invent a caller.
 $wpdb->rows = array(

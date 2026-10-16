@@ -319,7 +319,7 @@ function sn_admin_flash_to_notice( $flash ) {
 		$login_url = home_url( '/' . $slug_now );
 		return array( 'success', 'Login slug saved. New URL: <a href="' . esc_url( $login_url ) . '">' . esc_html( $login_url ) . '</a>' );
 	}
-	// Unreleased: the worker's own words on a refused (409) or failed retraction.
+	// 20.1.0: the worker's own words on a refused (409) or failed retraction.
 	if ( 'rights_evidence_retract_refused' === $flash || 'rights_evidence_retract_failed' === $flash ) {
 		$err  = (string) get_transient( 'sn_rights_evidence_retract_error' );
 		$head = 'rights_evidence_retract_refused' === $flash ? 'Retraction refused by the worker; the record\'s status is unchanged.' : 'Retraction not posted: the worker could not be reached or answered with an error; the record\'s status is unchanged.';

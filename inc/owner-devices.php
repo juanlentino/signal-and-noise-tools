@@ -19,7 +19,7 @@
  * id: a row is revoked by its index, bound to its id by a per-row nonce.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 2026.10.18
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

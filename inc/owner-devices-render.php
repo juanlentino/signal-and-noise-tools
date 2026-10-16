@@ -10,7 +10,7 @@
  * and a nonce bound to the id stored there (sn_owner_row_nonce_action()).
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 2026.10.18
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

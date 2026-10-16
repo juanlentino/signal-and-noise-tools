@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Internal only: dead code and stale comments cleared.** Two uncalled helpers removed (`snt_ev_rights_size()`, `snt_mr_strip_figures()`), two unused `admin.css` rules (`.sn-notice-spacing`, `.sn-rt-snippet`), comments that cited a line number now name the function, and `Unreleased` markers on long-released code now carry the version that shipped it. No behavior, markup or copy changes.
+
 ### Fixed
 
 - SN Traffic: the change against the prior 14 days no longer paints green (or red) when 25% or more of the window's scored visitor-days are likely automated. It keeps its arrow and figure in the muted text color, so a rise that is half likely automated no longer reads as good news. Under 25%, or when likely automated is not measured, the existing rule stands. The payload carries no human-only change, so the tone follows the share.

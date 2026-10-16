@@ -10,7 +10,7 @@
  * A door opens the URL as its own shell window, where both work.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 19.9.0
  */
 
 namespace SignalNoise\OpenStationHost\Dashboard\Leaves;

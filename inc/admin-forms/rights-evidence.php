@@ -13,7 +13,7 @@
  * sits behind a confirm; none runs the pass.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 20.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

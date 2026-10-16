@@ -94,7 +94,7 @@ function sn_content_queue_day( DateTimeImmutable $at, DateTimeImmutable $today )
  * starts at 01:00, so setTime( 0, 0, 0 ) lands an hour late and an instant
  * diff came up a day short (review on #2058).
  *
- * @since Unreleased (runway)
+ * @since 2026.10.13 (runway)
  * @param DateTimeInterface $a One day, in the site timezone.
  * @param DateTimeInterface $b The other.
  * @return int
@@ -135,7 +135,7 @@ function sn_content_queue_ago( $ts, $now ) {
  * @since 15.8.0
  * @since 23.8.0 $drafts and the gap: every scheduled row and the published
  *               history ride in so the gap is computed here, purely.
- * @since Unreleased (the queue calendar): every scheduled row (`scheduled`), today and
+ * @since 2026.10.7 (the queue calendar): every scheduled row (`scheduled`), today and
  *               the Monday of this week, the planned gaps as ranges, and the
  *               drafts by title (`draft_list`); every row gains `day` and `time`.
  * @param array        $future    Scheduled rows, soonest first (the whole queue; the last is runs_to).
@@ -147,8 +147,8 @@ function sn_content_queue_ago( $ts, $now ) {
  * @param string[]     $planned   Gaps marked planned ("from|to"), skipped by the gap line.
  * @param array        $draft_list Draft rows (titles and edit links only), newest edit first.
  * @param int|null     $draft_more Drafts left off the list, or null when not read for this user.
- * @since Unreleased (cadence warnings): `cadence`, every cluster and unplanned gap.
- * @since Unreleased (runway): `runway`, how far ahead the schedule covers, in one sentence.
+ * @since 2026.10.9 (cadence warnings): `cadence`, every cluster and unplanned gap.
+ * @since 2026.10.13 (runway): `runway`, how far ahead the schedule covers, in one sentence.
  * @return array{next:array,scheduled_total:int,runs_to:?array,published:array,drafts:?int,gap:?array,scheduled:array,today:string,week_start:string,planned:array,draft_list:array,draft_more:?int,cadence:array,runway:array}
  */
 function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone $tz, $drafts = null, array $planned = array(), $draft_list = array(), $draft_more = null ) {
