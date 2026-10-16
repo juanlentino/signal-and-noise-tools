@@ -87,9 +87,9 @@ ok( 28 === substr_count( $html, 'sn-maturity-roadmap-board__cell ' ), 'exactly 7
 // (drift, reading paths) graduated to done in the v11.2.0/v11.3.0 pair. An
 // honestly empty cell beats a padded one; this pin moves whenever a cell
 // honestly empties or fills.
-// 2026-10-16: ONE empty cell again — Analytics planned emptied when both of its
-// rows (unanswered searches, coverage history) graduated to done in one door write.
-ok( 1 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'ONE empty cell on this board — Analytics planned, emptied 2026-10-16 when both of its rows graduated to done' );
+// 2026-10-16: Analytics planned emptied when both of its rows graduated to done,
+// then refilled the same day (quiet week up from considering, plus a new row).
+ok( 0 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'NO empty cell on this board — Analytics planned refilled 2026-10-16 the same day it emptied' );
 
 // v10.63.0 "fold the future": the legend trio + counts + folds.
 $counts = sn_maturity_roadmap_counts( sn_maturity_roadmap_effective_board() );
@@ -104,7 +104,7 @@ ok( false !== strpos( $html, 'sn-maturity-roadmap-badge__n' ), 'header badges ca
 // fold per cell, summaries carrying their counts. 7 families × up to 2
 // future cells, minus the 2 empties = 12 folds on the static board.
 ok( false === strpos( $html, 'cell--done" data-label="Done"><details' ), 'a done cell never folds' );
-ok( 20 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (20 on this board, 2026-10-16: 6 planned + 7 considering + 7 later — Analytics planned is empty)' );
+ok( 21 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (21 on this board, 2026-10-16: 7 planned + 7 considering + 7 later — no future cell is empty)' );
 
 // v10.71.1: no sentence may appear in two columns of the same family.
 // The static floor had the agent threat model in BOTH 'done' and
@@ -417,8 +417,9 @@ ok( SN_MATURITY_ROADMAP_MAX_DONE === count( $floor['Analytics']['done'] ), 'DR f
 $analytics_all = implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) );
 ok( false === strpos( $analytics_all, 'AI attention in the weekly digest' ), 'DR floor: the digest row is in NO Analytics column — graduated onto the Analytics maturity page 2026-10-16, removal from the hub, not demotion within it' );
 foreach ( array( 'The questions search asked', 'Coverage history kept' ) as $sc_row ) {
-	ok( array() === $floor['Analytics']['planned'] && 1 === count( array_filter( $floor['Analytics']['done'], static fn( $r ) => 0 === strpos( $r, $sc_row ) ) ), "DR floor: '$sc_row' is GONE from planned and present ONCE in done — moved, not copied (2026-10-16)" );
+	ok( 0 === count( array_filter( $floor['Analytics']['planned'], static fn( $r ) => 0 === strpos( $r, $sc_row ) ) ) && 1 === count( array_filter( $floor['Analytics']['done'], static fn( $r ) => 0 === strpos( $r, $sc_row ) ) ), "DR floor: '$sc_row' is GONE from planned and present ONCE in done — moved, not copied (2026-10-16)" );
 }
+ok( false === strpos( implode( ' | ', $floor['Analytics']['considering'] ), 'A quiet week explained' ) && 1 === count( array_filter( $floor['Analytics']['planned'], static fn( $r ) => 0 === strpos( $r, 'A quiet week explained' ) ) ), 'DR floor: the quiet-week row is GONE from considering and present ONCE in planned — moved, not copied (2026-10-16, second write)' );
 ok( false === strpos( $analytics_all, 'AI-referred humans as a channel' ), 'DR floor: the AI-referral row is in NO Analytics column — graduation is removal from the hub, not demotion within it' );
 ok( false === strpos( $analytics_all, 'lumping them hides the shift' ), 'DR floor: and no fragment of its sentence survives anywhere in the family' );
 
@@ -488,7 +489,7 @@ echo "\nGroup: static floor pinned to the live board (2026-10-16 sync)\n";
 // md5( json_encode( board ) ). The static floor must hash the same, so the floor
 // cannot drift from the live page silently. A deliberate board move updates this
 // pin in the same PR as the door write, after re-reading the live board.
-ok( 'd89246b35fae77f59cb739135e4a811c' === md5( json_encode( sn_maturity_roadmap_static_board() ) ), 'static floor equals the live board of 2026-10-16, byte for byte (md5 of json_encode)' );
+ok( '5989691e97733a88417641f0d37e0e65' === md5( json_encode( sn_maturity_roadmap_static_board() ) ), 'static floor equals the live board of 2026-10-16 (second door write), byte for byte (md5 of json_encode)' );
 ok( false === strpos( json_encode( sn_maturity_roadmap_static_board() ), 'AI attention in the weekly digest' ), 'the graduated AI-attention row is off the board (it lives on the Analytics maturity page now)' );
 
 echo "\nGroup: #1227 — length caps are mb_-safe (characters, not bytes)\n";

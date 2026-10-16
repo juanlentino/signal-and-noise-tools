@@ -14,6 +14,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **Roadmap board: the static floor resynced to the live board of 2026-10-16.** `sn_maturity_roadmap_static_board()` now equals the owner-approved live override byte for byte (md5 of `json_encode`, `d89246b35fae77f59cb739135e4a811c`), pinned by a new test so the floor cannot drift silently. Analytics: "The questions search asked…" and "Coverage history kept…" move planned to done, reworded to what shipped (Analytics planned is now empty); the oldest done row, "AI attention in the weekly digest", graduates onto the Analytics maturity page as its sixteenth principle (the five-row done cap). AI: "The refusals, counted" moves considering to done, reworded. Analytics and AI done now sit at the five-row ceiling, so the board's one-row headroom canary is relaxed to the validator's ceiling; the next done row in either family needs a graduation first.
+- **Roadmap board: the static floor resynced to the second live write of 2026-10-16.** Analytics: "A quiet week explained…" moves considering to planned, reworded with its gate (landing with the next cadence arc), and a new planned row, "An unanswered question, followed…", enters. Analytics planned is no longer empty. The md5 pin moves to `5989691e97733a88417641f0d37e0e65`, verified against the live page.
 
 ## [2026.10.22] - 2026-10-16 — Live snapshots kept 24 hours, publish windows per note, three roadmap items
 

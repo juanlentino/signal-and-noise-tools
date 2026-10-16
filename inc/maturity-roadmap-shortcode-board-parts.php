@@ -100,13 +100,18 @@ function sn_maturity_roadmap_static_board() {
 				__( 'The questions search asked that the corpus doesn\'t answer: queries with impressions and no clicks over the synced 28-day window, each with the page search showed for it, derived from the Search Console rows already synced and read by the owner\'s eyes, never by a model', 'signal-and-noise-tools' ),
 				__( 'Coverage history kept rather than overwritten: the weekly index check now retains each run\'s summary for two years, so a change in how often Google crawls can be read backwards, run against run', 'signal-and-noise-tools' ),
 			),
-			// 2026-10-16: empty after both rows moved to done (see above).
-			'planned'     => array(),
+			// 2026-10-16: emptied when both rows moved to done (see above), then refilled
+			// the same day by a second owner-approved door write: the quiet-week row moved
+			// up from considering (reworded, gate named), and the unanswered-question
+			// follow-up entered new.
+			'planned'     => array(
+				__( 'A quiet week explained, not only flagged: when the cadence watch fires, the same rollups say which surfaces moved, so a flag arrives carrying its own arithmetic, landing with the next cadence arc', 'signal-and-noise-tools' ),
+				__( 'An unanswered question, followed: when a note is written for a query search asked and nobody clicked, the synced rows show whether clicks follow over the next weeks, so the list of unanswered questions measures its own answers', 'signal-and-noise-tools' ),
+			),
 			'considering' => array(
 				__( 'Where readers leave to: outbound clicks on citations counted as their own aggregate event, the first idea in this family to require new collection, named as such, and it ships only if the counting stays as blunt as the rest of the ledger', 'signal-and-noise-tools' ),
 				__( 'A year told as a page: the deterministic narrator pointed at twelve months instead of a week (what rose, what faded, what the corpus became), computed from the rollups already kept, no new collection', 'signal-and-noise-tools' ),
-				// 2026-09-08: the cadence watch already fires; this is the sentence after the flag.
-				__( 'A quiet week explained, not only flagged: when the cadence watch fires, the same rollups say which surfaces moved, so a flag arrives carrying its own arithmetic instead of sending the reader back to the charts', 'signal-and-noise-tools' ),
+				// 2026-10-16: "A quiet week explained" moved considering -> planned.
 			),
 			'later'       => array(
 				// 2026-09-08: considering -> later. Reader-facing browser-local state with no
