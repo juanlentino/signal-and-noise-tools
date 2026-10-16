@@ -9,8 +9,9 @@
  *
  * 2026-10-16 (leaf anatomy, docs/kit-leaf-anatomy.md): a Status card leads
  * (one status line, a problem's notice, the states, Deposit, the intro as
- * How this works), the ledger takes the full width, and the environment form
- * is the one fold of a Setup card. Before: an 8/4 row with a status rail.
+ * How this works) beside a Setup card whose one fold is the environment form,
+ * one row; the ledger follows at full width. Before: an 8/4 row with a
+ * status rail.
  *
  * @package SignalNoiseTools
  * @since 15.11.0
@@ -189,9 +190,11 @@ function paint_connections_zenodo( array $ctx ) {
 		return \snt_kit_empty( __( 'Zenodo is not available.', 'signal-and-noise-tools' ) );
 	}
 	$d = \sn_zenodo_leaf_data();
-	return zenodo_status_html( $d )
-		. zenodo_ledger_html( $d )
-		. \snt_kit_setup_card( __( 'Setup', 'signal-and-noise-tools' ), array( zenodo_env_fold( $d ) ), __( 'Set once; open it to change it.', 'signal-and-noise-tools' ) );
+	// 2026-10-16 (live audit): the Status card and the Setup card share the
+	// first row, the state beside the setting that names its token; the
+	// ledger follows at full width.
+	return \snt_kit_grid( array( zenodo_status_html( $d ), \snt_kit_setup_card( __( 'Setup', 'signal-and-noise-tools' ), array( zenodo_env_fold( $d ) ), __( 'Set once; open it to change it.', 'signal-and-noise-tools' ) ) ) )
+		. zenodo_ledger_html( $d );
 }
 
 add_filter(

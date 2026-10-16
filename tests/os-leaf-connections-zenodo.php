@@ -91,15 +91,17 @@ ok( 1 === preg_match( '/function sn_zenodo_backfill_pass\(\).*?set_transient\( \
 $GLOBALS['__transients']['sn_zenodo_last_batch'] = array( 'attempted' => 2, 'published' => 1, 'failed' => 1 );
 // 2026-10-16 (leaf anatomy, docs/kit-leaf-anatomy.md): the rail is a Status
 // card leading the leaf (one status line, a problem's notice, the counts,
-// Deposit, the intro as How this works), then the ledger at full width, then
-// one Setup card whose Environment fold says the environment and ledger DOI.
-ok( 0 === strpos( $kit, '<os-section heading="Status" stack role="region" aria-label="Zenodo status"><div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success" title="1 minted of 3 documents.">On</os-badge><os-chip>Sandbox</os-chip></os-cluster></div><p class="snt-hint">1 minted of 3 documents.</p>' ), 'the leaf leads with the Status card: one status line (the token\'s verdict, the environment); an ok verdict paints no notice, its sentence a hint' );
+// Deposit, the intro as How this works) beside one Setup card whose
+// Environment fold says the environment and ledger DOI (one row, since the
+// live audit of 2026-10-16), then the ledger at full width.
+ok( 0 === strpos( $kit, snt_leaf_row() . '<os-section heading="Status" stack role="region" aria-label="Zenodo status"><div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success" title="1 minted of 3 documents.">On</os-badge><os-chip>Sandbox</os-chip></os-cluster></div><p class="snt-hint">1 minted of 3 documents.</p>' ), 'the leaf leads with the Status card: one status line (the token\'s verdict, the environment); an ok verdict paints no notice, its sentence a hint' );
 ok( false === strpos( $kit, '<os-row' ) && false === strpos( $kit, 'col="4"' ) && false === strpos( $kit, '<os-notice' ), 'no rail and no notice while the token is verified' );
 ok( 1 === preg_match( '#<os-disclosure heading="How this works" hint="[^"]+"[^>]*><os-stack gap="12"><p class="snt-prose">Every signed document#', $kit ) && 1 === substr_count( $kit, 'The papers stay with SSRN' ), 'the intro is the Status card\'s How this works fold, painted once' );
-$order = array( strpos( $kit, 'class="snt-status-line"' ), strpos( $kit, 'os-arg-action="sn_zenodo_deposit_batch"' ), strpos( $kit, 'heading="How this works"' ), strpos( $kit, 'heading="Ledger"' ), strpos( $kit, 'heading="Setup"' ) );
+$order = array( strpos( $kit, 'class="snt-status-line"' ), strpos( $kit, 'os-arg-action="sn_zenodo_deposit_batch"' ), strpos( $kit, 'heading="How this works"' ), strpos( $kit, 'heading="Setup"' ), strpos( $kit, '</os-grid>' ), strpos( $kit, 'heading="Ledger"' ) );
 $sorted = $order;
 sort( $sorted );
-ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: status line, Deposit, How this works, the ledger, Setup: ' . implode( ' < ', $order ) );
+ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: status line, Deposit, How this works, Setup (one row), then the ledger: ' . implode( ' < ', $order ) );
+ok( 1 === substr_count( $kit, snt_leaf_row() ) && 1 === preg_match( '#</os-section><os-section heading="Setup" description="[^"]*" stack>.*?</os-section></os-grid><os-section heading="Ledger"#s', $kit ), 'live audit 2026-10-16: the Status card and the Setup card share the first row; the ledger follows it at full width' );
 ok( 1 === preg_match( '#<os-section heading="Setup" description="[^"]*" stack><os-disclosure heading="Environment" hint="Sandbox · ledger DOI not set"[^>]*data-snt-open="0"><os-stack gap="12"><os-form[^>]*submit-label="Save environment"#', $kit ), 'one Setup card: the Environment form is a fold whose summary is the environment and the ledger DOI, closed while a token is set' );
 // 16.2.2: the tile reads the keyring's verdict. A stored token the keyring REFUSED is not On.
 $GLOBALS['__zl']['verdict'] = array( 'status' => 'refused', 'detail' => 'Zenodo sandbox refused to create a draft (HTTP 403: Permission denied.).', 'at' => 1 );
