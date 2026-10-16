@@ -14,8 +14,8 @@
  * the name, since FormData has no equivalent to "last value on the wire wins").
  *
  * 2026-10-16 (the leaf anatomy, docs/kit-leaf-anatomy.md): a status line
- * leads (ai-models-budget-status.php), the readings follow in rows, and the
- * settings form is the Setup card's fold (ai-models-budget-setup.php).
+ * leads (ai-models-budget-status.php) beside the Setup card whose fold is the
+ * settings form (ai-models-budget-setup.php), one row; the readings follow.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -243,16 +243,16 @@ function paint_ai_models_budget( array $ctx ) {
 	// (configured, no result yet) or beside the Semantic embeddings box that
 	// says what is missing (2026-10-12 audit: a bare "Not configured." notice
 	// ended the page). A comparison carrying its result (a ledger) stands
-	// alone at full width under the Jev box. The settings form closes the
-	// leaf in the Setup card (ai-models-budget-setup.php).
+	// alone at full width under the Jev box. Since 2026-10-16 (live audit) the
+	// status card and the Setup card (ai-models-budget-setup.php) share the
+	// first row, the state beside the settings that set it; the readings follow.
 	$embed  = models_budget_embed_html( $d );
 	$right  = $d['embed_configured'] ? models_budget_compare_html( $d, $embed ) : $embed;
 	$beside = ! ( $d['embed_configured'] && is_array( $d['cmp'] ) && ! empty( $d['cmp']['ok'] ) );
-	return models_budget_status_html( $d )
+	return \snt_kit_grid( array( models_budget_status_html( $d ), models_budget_setup_html( $d ) ) )
 		. models_budget_pair( models_budget_spend_html( $d ), models_budget_platform_html( $d ) )
 		. models_budget_pair( models_budget_jev_html( $d ), $beside ? $right : '' )
-		. ( $beside ? '' : $right )
-		. models_budget_setup_html( $d );
+		. ( $beside ? '' : $right );
 }
 
 /**

@@ -151,9 +151,8 @@ $hostile_query = array(
 	'token' => 'super-secret-value',
 );
 $label = sn_httpdiag_screen_label( 'admin.php', $hostile_query );
-// sanitize_key() strips '.' (faithful to WP core's own regex) — "admin.php"
-// becomes "adminphp". Less pretty, but still unambiguous and safe.
-ok( false !== strpos( $label, 'adminphp' ), 'pagenow present in the label (sanitize_key-normalized)' );
+// 2026-10-16: the pagenow keeps its dot. sanitize_key() stored "adminphp".
+ok( 0 === strpos( $label, 'admin.php?' ), 'pagenow present in the label with its dot: admin.php, never adminphp' );
 ok( false !== strpos( $label, 'page=sn-theme-options' ), 'whitelisted page key/value present' );
 ok( false === strpos( $label, 'evil' ), 'a non-whitelisted key never appears in the label' );
 ok( false === strpos( $label, 'token' ), 'a non-whitelisted "token" key never appears in the label' );
@@ -161,7 +160,19 @@ ok( false === strpos( $label, 'super-secret-value' ), 'a non-whitelisted VALUE n
 ok( false === strpos( $label, '<script>' ) && false === strpos( $label, '<img' ), 'raw hostile markup never survives sanitize_key()' );
 
 $empty_label = sn_httpdiag_screen_label( 'index.php', array() );
-ok( 'indexphp' === $empty_label, 'no query keys present -> label is just the sanitize_key()\'d pagenow' );
+ok( 'index.php' === $empty_label, 'no query keys present -> label is just the pagenow, dot kept' );
+ok( 'update.php' === sn_httpdiag_screen_label( 'update.php', array() ), 'update.php is stored as update.php' );
+ok( 'admin..bphpx' === sn_httpdiag_screen_label( 'Admin/../<b>php x', array() ), 'a hostile pagenow keeps only a-z, 0-9, dot, _ and -: no slash, no markup' );
+
+echo "\nGroup: sn_httpdiag_screen_display — rows stored before the dot was kept\n";
+ok( 'admin.php?page=mailpoet-settings' === sn_httpdiag_screen_display( 'adminphp?page=mailpoet-settings' ), 'adminphp?page=... reads admin.php?page=...' );
+ok( 'update.php' === sn_httpdiag_screen_display( 'updatephp' ), 'updatephp reads update.php' );
+ok( 'post-new.php' === sn_httpdiag_screen_display( 'post-newphp' ), 'post-newphp reads post-new.php' );
+ok( 'admin.php?page=x' === sn_httpdiag_screen_display( 'admin.php?page=x' ), 'a label that already has its dot is untouched' );
+ok( 'php' === sn_httpdiag_screen_display( 'php' ) && '' === sn_httpdiag_screen_display( '' ) && 'stale-page' === sn_httpdiag_screen_display( 'stale-page' ), 'nothing else is guessed: a bare "php", an empty label, a label not ending in php' );
+ok( 'index.php?tab=php' === sn_httpdiag_screen_display( 'indexphp?tab=php' ), 'only the file part is repaired, never the query' );
+$old_info = sn_httpdiag_debug_information( array(), array( array( 't' => 1, 'screen' => 'adminphp?page=mailpoet-settings', 'wall_s' => 2.5, 'http' => array() ) ), 100 );
+ok( 0 === strpos( $old_info['snt_httpdiag']['fields']['slow_0']['label'], 'admin.php?page=mailpoet-settings — 2.50s' ), 'the Site Health panel reads an old row with its dot restored' );
 
 // ═══════════════════════════════════════════════════════════════════════
 echo "\nGroup: sn_httpdiag_format_age — pure formatter, no WP calls (B1)\n";

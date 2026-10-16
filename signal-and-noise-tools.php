@@ -287,6 +287,7 @@ require_once SNT_PATH . 'inc/mcp/mcp-telemetry.php'; // v10.25.0: MCP Layer B te
 require_once SNT_PATH . 'inc/mcp/mcp-tools.php';
 require_once SNT_PATH . 'inc/mcp/mcp-telemetry-agents.php'; // v10.31.0: bridges Desktop Mode's per-tool agent filter into the same sn_tool_call table, door='agent'. Loaded after mcp-tools.php (reuses its slug→tool_name projection) and after mcp-telemetry.php (reuses its row builder/insert/classifier). Desktop Mode absent = the filter it hooks never fires.
 require_once SNT_PATH . 'inc/mcp/mcp-telemetry-read.php'; // the SELECT side of sn_tool_call, which had none until now — install/insert/prune and no reader, so the retirement gate ("nothing retires until usage justifies it") was unmeetable. Loaded after mcp-capabilities.php (allowlists) and mcp-tools.php (slug→tool_name projection + sn_mcp_project_tool for the reachability split); deliberately NOT an ability — a tool that reads the call log writes to the call log.
+require_once SNT_PATH . 'inc/mcp/mcp-door-refusals.php'; // the refusals, counted: the write door's own checks and the lifecycle guard's denials, which happen before the call log; plus the read that merges them with the log's refusals.
 require_once SNT_PATH . 'inc/mcp/mcp-rw-audit.php'; // v9.51.0: rw-door audit log + owner notification (lane SEC-B) — sn_mcp_call_tool()'s tail calls into this.
 require_once SNT_PATH . 'inc/mcp/mcp-resources.php'; // v9.50.0: resources/list + resources/read (lane PROTO)
 require_once SNT_PATH . 'inc/mcp/mcp-prompts.php';   // v9.50.0: prompts/list + prompts/get (lane PROTO)
@@ -308,6 +309,7 @@ require_once SNT_PATH . 'inc/agent-auth-md.php'; // v12.21.0: /auth.md — how a
 require_once SNT_PATH . 'inc/admin-forms/mcp-connect-status.php'; // IA M3: the status glance (pure cards + live gatherer)
 require_once SNT_PATH . 'inc/admin-forms/mcp-connect.php'; // v9.47.0: Tools → Connect an MCP client (read-only doc leaf; needs sn_mcp_allowlist() + sn_mcp_namespace() above)
 require_once SNT_PATH . 'inc/admin-forms/mcp-usage-block.php'; // the READOUT half of mcp-telemetry-read.php, folded into the MCP Clients tab. Shipping the accessor without a surface would have reproduced the very defect it fixes — a measurement that exists and a readout that does not.
+require_once SNT_PATH . 'inc/admin-forms/door-refusals-block.php'; // the refusals, counted: the words both Agent tools twins paint.
 
 // Shared outbound SSRF host-guard (resolve-then-range-check; blocks encoded-IP
 // metadata bypasses). Pure functions, no hooks — load it BEFORE every consumer:
@@ -424,6 +426,7 @@ require_once SNT_PATH . 'inc/search-console-store.php';
 require_once SNT_PATH . 'inc/search-console-sync.php';      // R6b close: the scheduled daily sync (one producer with the button).
 require_once SNT_PATH . 'inc/search-console-derive.php';    // Items 2+3: position drift + search interest by topic (derived, read-only).
 require_once SNT_PATH . 'inc/search-console-crossexam.php';
+require_once SNT_PATH . 'inc/search-console-coverage-history.php'; // one summary reading per weekly coverage run, capped at two years.
 require_once SNT_PATH . 'inc/search-console-coverage.php';  // v13.63.0: weekly URL Inspection per post — the indexed-vs-unseen discriminator; stored, never live.  // R6b: GSC x crawler-ledger agreement check.
 require_once SNT_PATH . 'inc/analytics-view-search.php';     // R6b: the Search analytics view (its own tab).      // R6b: the path-keyed rolling window the analytics views join against.
 require_once SNT_PATH . 'inc/search-console-admin.php';      // R6b: Measurement -> Search Console leaf.
