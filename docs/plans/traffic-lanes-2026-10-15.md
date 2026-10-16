@@ -179,3 +179,25 @@ Small questions, as recommended: the new reason codes `ua_list`, `network`, `ove
 - Lanes report under Integrity → Reports (classic + native), showing 7/30/90 days, a daily view, `lanes_since`, the rule version, the reason split, and `owner_token_invalid` prominently.
 **Theme**: `sn-beacon.js` drops the `sn_owner` skip (keeps the DNT/GPC and `Claude/\d` skips); `/llms.txt` and the `gpc.json` comment take the approved wording.
 **Deploy order** (owner actions marked): plugin first (keyring rows, enrollment, route; nothing reads the new fields yet) → owner sets the four Worker secrets → analytics Worker → rights-signals Worker (owner deploys) → owner enrolls each device → theme last.
+
+## Advisor checkpoint 2 (identity design), and the contract amendments
+
+Asked: attack the token format, HMAC construction, rotation and revocation before any identity code. Every point was adopted:
+
+1. **Ninth lane named.** Codes 4 and 5 both map to lane `unverified_owner` (reasons `logged_in`, `owner_legacy`): stored, never human. This replaces the bare `logged_in` slot above.
+2. **Key unset is not "invalid".** If a Worker's key secret is empty, it assigns code 0 (never 3) and logs `owner_key_unset` once per isolate. Same for an empty revoked list fetch failure: keep the last good list.
+3. **`lanes_since` from evidence.** Set by the plugin when it first sees identity data: the first `sn_owner_hits` row or the first v2 row with double14 > 0 (beacon), or the first machine row with blob14 > 0. Not at plugin install.
+4. **Lanes table keeps the sub-keys.** `wp_sn_analytics_lanes` gains nullable `family` and `purpose`, in the unique key. (Built after checkpoint 3.)
+5. **No device ids on screen.** The device list paints label, enrolled, last seen; revoke by a nonce-bound row index. `last_seen` is the last wp-admin renewal (the plugin never sees beacons).
+6. **Revoke all writes every enrolled id to the revoked list** (effective within one Worker cron tick). Key rotation is a separate hygiene step with its own keyring row.
+7. **Force-record scope.** On the machine sensor, a valid token (code 2) is force-recorded only on non-`asset` surfaces; an invalid token (code 3) is always recorded.
+8. **Marker age.** The Worker rejects an `issued_day` older than 400 days. Renewal re-signs with the current key, which is how a rotation drains `_PREVIOUS`.
+9. **Keys are generated** (`random_bytes(32)`, stored as 64 hex characters), never derived from the site secret. The HMAC key is the 32 raw bytes (hex-decoded), in PHP and in the Workers alike.
+
+**Test vectors** (every repo pins these bytes):
+- key (hex): `abababababababababababababababababababababababababababababababab`
+- device message `v1|dev|0123456789abcdef|20261015` → sig `anHSQ9ch5h07TmKcjtSoniVfPuP9aRaSNJ5UjEgtLpc` → cookie `v1.0123456789abcdef.20261015.anHSQ9ch5h07TmKcjtSoniVfPuP9aRaSNJ5UjEgtLpc`
+- agent message `v1|agent|claude-code|1792140000` → sig `jJwzmWAzlHun5v56fuqtWUyTbzVfAVozM01-OHUd0Lg` → header `v1.claude-code.1792140000.jJwzmWAzlHun5v56fuqtWUyTbzVfAVozM01-OHUd0Lg`
+- tampered: same cookie with device_id `0123456789abcdee` must fail; expired: the agent header checked at now = 1792140001 must fail (code 3); a future exp more than 12h05m ahead must fail.
+
+**Deployment facts for the PR descriptions:** merging the analytics Worker PR deploys it (GitHub Actions), so the owner sets the four secrets first; with them unset, the Worker assigns code 0 and nothing changes. The rights-signals Worker has only a test workflow; the owner deploys it by hand.
