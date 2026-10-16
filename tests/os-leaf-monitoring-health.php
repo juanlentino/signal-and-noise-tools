@@ -175,9 +175,13 @@ $hx_delta = preg_match( '#<os-fact label="Delta check">(.*?)</os-fact>#s', $kit,
 ok( false !== strpos( $hx_delta, 'not measured' ) && false !== strpos( $hx_delta, 'AI provider not configured' ) && false !== strpos( $hx_delta, 'Configure an AI provider.' ), 'rich scan: the skipped Delta check reads not measured, with its reason and its fix hint: ' . strip_tags( $hx_delta ) );
 ok( '' !== $hx_delta && false === stripos( $hx_delta, 'clear' ) && false === stripos( $hx_delta, 'holding' ) && 0 === preg_match( '/>\s*0\s*</', $hx_delta ) && false === strpos( $kit, '<os-chip>Delta check</os-chip>' ), 'rich scan: the skipped check never reads clear, holding or 0, and is not a passing chip' );
 ok( strpos( $kit, 'heading="Could not run"' ) < strpos( $kit, 'heading="Passing checks"' ), 'rich scan: the checks that could not run read before the passing ones' );
-// 2026-10-12, measured live (180px and 213px): the two short lists share a row; the passing chips keep the width.
-$__hr = strpos( $kit, snt_leaf_row() . '<os-section heading="Could not run"' );
-ok( false !== $__hr && strpos( $kit, 'heading="Also scanned, shown elsewhere"' ) > $__hr && strpos( $kit, 'heading="Also scanned, shown elsewhere"' ) < strpos( $kit, 'heading="Passing checks"' ), 'rich scan: "Could not run" and "Also scanned" share a row, above the passing checks' );
+// 2026-10-16 (owner, live): the scan's other readings share one row: Could
+// not run (when a check could not), then Passing checks, then Also scanned.
+$__hr  = strpos( $kit, snt_leaf_row( 3 ) . '<os-section heading="Could not run"' );
+$__end = false !== $__hr ? strpos( $kit, '</os-grid>', $__hr ) : false;
+$__pc  = strpos( $kit, 'heading="Passing checks"' );
+$__ae  = strpos( $kit, 'heading="Also scanned, shown elsewhere"' );
+ok( false !== $__hr && $__hr < $__pc && $__pc < $__ae && $__ae < $__end, 'rich scan: Could not run, Passing checks and Also scanned share one row, in that order' );
 ok( 1 === substr_count( $kit, 'class="snt-hint snt-ledger-more"' ), 'rich scan: exactly one "+N more" line, under the one capped table (Alpha, 52 rows); Beta (1) and Missing alt (2) carry none' );
 
 // ── The advisory card (unreachable from health_data(): every advisory key is

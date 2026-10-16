@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+
+### Changed
+- **Measurement › Health: the scan's other readings share one row** (owner, live 2026-10-16). Passing checks and "Also scanned, shown elsewhere" stood one full-width box each; they are both what else the scan covered, of a height, so they sit side by side, with "Could not run" leading the row when a check could not. Layout only: every check, chip and link still paints.
+
 ## [2026.10.21] - 2026-10-16 — Last seen on Your devices moves on the owner's day
 
 ### Fixed
