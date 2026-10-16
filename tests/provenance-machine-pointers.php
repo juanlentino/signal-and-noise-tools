@@ -200,7 +200,8 @@ $GLOBALS['__is_note'][911] = false;
 ok( null === sn_prov_machine_pointers_manifest( 911 ), 'a non-Note post emits NO manifest either' );
 
 // The stub must mirror the REAL producer, not this fixture's convenience.
-$core_src = file_get_contents( __DIR__ . '/../inc/provenance-core.php' );
+require_once __DIR__ . '/lib/inc-population.php'; // snt_test_provenance_core_src(): the shell and its parts (split 2026-10-15)
+$core_src = snt_test_provenance_core_src();
 ok( 1 === preg_match( "/function sn_prov_subject_kind\\(.*?return '';/s", $core_src ), 'the real sn_prov_subject_kind CAN return the empty string (the stub is not inventing a shape)' );
 
 // The resolver-absent branch cannot be driven from a fixture — PHP will not let
