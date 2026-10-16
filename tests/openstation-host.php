@@ -865,7 +865,7 @@ if ( ! function_exists( 'sn_setting_reset_cache' ) ) {
 if ( ! function_exists( 'snt_ai_reset_availability_cache' ) ) {
 	function snt_ai_reset_availability_cache() { $GLOBALS['__resets'][] = 'ai'; }
 }
-$settings_src = (string) file_get_contents( __DIR__ . '/../inc/settings.php' );
+$settings_src = snt_test_settings_src();
 ok( false !== strpos( $settings_src, 'static $merged = null;' ) && false === strpos( substr( $settings_src, strpos( $settings_src, 'function sn_settings_save' ) ), 'sn_setting_reset_cache' ), 'the hazard is real: sn_setting() memoises per request and sn_settings_save() does not reset it (if this pin goes red the reset below may be redundant -- keep it anyway, other memos exist)' );
 $before = $GLOBALS['__resets'];
 snt_os_host_after_write( array( 'ok' => true, 'flash' => 'identity_saved' ) );

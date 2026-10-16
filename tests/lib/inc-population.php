@@ -511,3 +511,27 @@ if ( ! function_exists( 'snt_test_sn_apply_block_edit_src' ) ) {
 		return $src;
 	}
 }
+
+if ( ! function_exists( 'snt_test_settings_src' ) ) {
+	/**
+	 * The source of inc/settings.php AND its three parts files, for suites that
+	 * pin the settings module's text. Split 2026-10-15 (house line cap). Named,
+	 * not globbed: inc/settings-*.php would match a future module that does not
+	 * belong in the read. A missing file returns '' so every presence pin goes red
+	 * rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_settings_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-defaults-parts', '-accessors-parts', '-save-parts' ) as $suffix ) {
+			$file = $dir . 'settings' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}

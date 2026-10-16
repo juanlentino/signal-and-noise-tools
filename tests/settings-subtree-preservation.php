@@ -42,12 +42,12 @@ $root = dirname( __DIR__ );
  * Tokenising is the fix — PHP's own lexer knows what is a comment and what is
  * a string.
  *
- * @param string $file Path to a PHP file.
+ * @param string $src PHP source.
  * @return string Code with T_COMMENT / T_DOC_COMMENT stripped.
  */
-function snt_code_only( $file ) {
+function snt_code_only( $src ) {
 	$out = '';
-	foreach ( token_get_all( (string) file_get_contents( $file ) ) as $token ) {
+	foreach ( token_get_all( (string) $src ) as $token ) {
 		if ( is_array( $token ) ) {
 			if ( T_COMMENT === $token[0] || T_DOC_COMMENT === $token[0] ) {
 				$out .= "\n";
@@ -66,8 +66,8 @@ function snt_code_only( $file ) {
  * sn_settings_save(). Read from the function body only, so a mention elsewhere
  * in settings.php cannot be mistaken for preservation.
  */
-function snt_preserved_subtrees( $settings_php ) {
-	$src = snt_code_only( $settings_php );
+function snt_preserved_subtrees( $settings_src ) {
+	$src = snt_code_only( $settings_src );
 	// The function body: from its signature to the first close-brace in column 0.
 	if ( ! preg_match( '/^function sn_settings_save\s*\(.*?^\}/ms', $src, $m ) ) {
 		return array();
@@ -86,7 +86,7 @@ function snt_used_subtrees( $dir, $main_file ) {
 	$files = array_merge( $files, glob( $dir . '/*/*.php' ), array( $main_file ) );
 	$found = array();
 	foreach ( $files as $file ) {
-		$src = snt_code_only( $file );
+		$src = snt_code_only( (string) file_get_contents( $file ) );
 		preg_match_all( "/sn_setting(?:_update)?\s*\(\s*'([a-z0-9_]+)\./", $src, $m );
 		foreach ( $m[1] as $key ) {
 			$found[ $key ] = true;
@@ -95,7 +95,8 @@ function snt_used_subtrees( $dir, $main_file ) {
 	return array_keys( $found );
 }
 
-$preserved = snt_preserved_subtrees( $root . '/inc/settings.php' );
+require_once __DIR__ . '/lib/inc-population.php';
+$preserved = snt_preserved_subtrees( snt_test_settings_src() );
 $used      = snt_used_subtrees( $root . '/inc', $root . '/signal-and-noise-tools.php' );
 
 echo "Group: the extractors are not vacuous\n";
