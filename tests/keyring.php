@@ -32,7 +32,7 @@ echo "keyring -- every credential in one place (15.2.0)\n";
 
 // ── Shape
 $rows = sn_keyring();
-ok( 26 === count( $rows ) && ! isset( $rows['typesafe_api_key'] ) && isset( $rows['archive_access_key'], $rows['archive_secret_key'], $rows['site_secret'], $rows['mr_read_token'], $rows['cf_token'], $rows['workers_ai_token'], $rows['betterstack_token'], $rows['cloudways_api_key'], $rows['zenodo_token'], $rows['zenodo_sandbox_token'], $rows['bing_webmaster_key'] ), '26 rows (Unreleased: + the four owner identity keys; Unreleased: + the two Internet Archive keys, wp-config only; 16.5.2: the TypeSafe key LEFT for Connector for TypeSafe Jev; 16.3.0: + the TypeSafe key; 16.2.0: + the Bing Webmaster key; 15.11.0: + the two Zenodo tokens; 15.3.1: + the Workers AI token), the site secret first among them' );
+ok( 24 === count( $rows ) && ! isset( $rows['typesafe_api_key'] ) && isset( $rows['archive_access_key'], $rows['archive_secret_key'], $rows['site_secret'], $rows['mr_read_token'], $rows['cf_token'], $rows['workers_ai_token'], $rows['betterstack_token'], $rows['cloudways_api_key'], $rows['zenodo_token'], $rows['zenodo_sandbox_token'], $rows['bing_webmaster_key'] ), '24 rows (Unreleased: + the owner key and its previous twin; Unreleased: + the two Internet Archive keys, wp-config only; 16.5.2: the TypeSafe key LEFT for Connector for TypeSafe Jev; 16.3.0: + the TypeSafe key; 16.2.0: + the Bing Webmaster key; 15.11.0: + the two Zenodo tokens; 15.3.1: + the Workers AI token), the site secret first among them' );
 foreach ( $rows as $id => $row ) {
 	ok( isset( $row['group'], $row['label'], $row['kind'], $row['about'], $row['feeds'] ) && in_array( $row['group'], array( 'site', 'cloudflare', 'issued' ), true ) && ( isset( $row['constant'] ) || isset( $row['option'] ) || isset( $row['setting'] ) ), "row $id carries group, label, kind, about, feeds and a home" );
 }
@@ -114,28 +114,30 @@ ok( 'keyring_duplicate' === $save( 'bridge_token', 'own-site-secret' ), 'the sit
 ok( 'keyring_saved' === $save( 'bridge_token', 'site' ) && 'keyring_saved' === $save( 'cf_token', 'clear' ), '"site" and "clear" pass the guard untouched' );
 ok( 'keyring_saved' === $save( 'github_token', 'gh-own-3' ), 'a value no other row holds saves' );
 
-// ── Unreleased (SN Traffic Lanes): the four owner identity keys. Generated,
-//    never derived, never pasted; Generate rolls the current key to previous.
-foreach ( array( 'owner_device_key', 'owner_device_key_previous', 'owner_agent_key', 'owner_agent_key_previous' ) as $id ) {
+// ── Unreleased (SN Traffic Lanes; owner decision: one key). Generated, never
+//    derived, never pasted; Generate rolls the current key to previous.
+foreach ( array( 'owner_key', 'owner_key_previous' ) as $id ) {
 	ok( isset( $rows[ $id ] ) && 'site' === $rows[ $id ]['group'] && 'secret' === $rows[ $id ]['kind'] && ! isset( $rows[ $id ]['derive'] ) && 'sn_' . $id === ( $rows[ $id ]['option'] ?? '' ), "$id: a secret in its own option, never derived from the site secret" );
 }
-ok( false !== strpos( sn_keyring_other_half_command( $rows['owner_device_key'] ), 'signal-and-noise-analytics-worker && npx wrangler secret put SN_OWNER_DEVICE_KEY' ) && false === strpos( sn_keyring_other_half_command( $rows['owner_device_key'] ), 'rights-signals' ), 'the device key prints one command: the analytics Worker' );
-ok( false !== strpos( sn_keyring_other_half_command( $rows['owner_device_key_previous'] ), 'secret put SN_OWNER_DEVICE_KEY_PREVIOUS' ), 'the previous device key prints its own _PREVIOUS command' );
-$agent_cmd = sn_keyring_other_half_command( $rows['owner_agent_key'] );
-ok( false !== strpos( $agent_cmd, 'signal-and-noise-analytics-worker && npx wrangler secret put SN_OWNER_AGENT_KEY' ) && false !== strpos( $agent_cmd, 'sn-rights-signals-worker && npx wrangler secret put SN_OWNER_AGENT_KEY' ), 'the agent key prints both Workers\' commands' );
-ok( false !== strpos( sn_keyring_other_half_command( $rows['owner_agent_key_previous'] ), 'sn-rights-signals-worker && npx wrangler secret put SN_OWNER_AGENT_KEY_PREVIOUS' ), 'the previous agent key prints both Workers\' _PREVIOUS commands' );
-ok( array( 'owner_device_key' => 'Owner device key', 'owner_agent_key' => 'Owner agent key' ) === sn_keyring_generate_options(), 'Generate offers the two current keys, never a previous row' );
+foreach ( array( 'owner_device_key', 'owner_device_key_previous', 'owner_agent_key', 'owner_agent_key_previous' ) as $gone ) {
+	ok( ! isset( $rows[ $gone ] ), "$gone is gone: one key signs both formats" );
+}
+$owner_cmd = sn_keyring_other_half_command( $rows['owner_key'] );
+ok( false !== strpos( $owner_cmd, 'signal-and-noise-analytics-worker && npx wrangler secret put SN_OWNER_KEY' ) && false !== strpos( $owner_cmd, 'sn-rights-signals-worker && npx wrangler secret put SN_OWNER_KEY' ) && 2 === substr_count( $owner_cmd, 'secret put SN_OWNER_KEY' ), 'the owner key prints two commands, one per Worker, the same secret' );
+ok( 2 === substr_count( sn_keyring_other_half_command( $rows['owner_key_previous'] ), 'secret put SN_OWNER_KEY_PREVIOUS' ), 'the previous owner key prints both Workers\' _PREVIOUS commands' );
+ok( false !== strpos( $rows['owner_key']['about'], 'generate this one key, paste the same value into both Workers' ) && false !== strpos( $rows['owner_key']['about'], 'nothing requires an agent token' ), 'the hint says the three-step setup and that agent tokens are optional' );
+ok( array( 'owner_key' => 'Owner key' ) === sn_keyring_generate_options(), 'Generate offers the one current key, never the previous row' );
 $GLOBALS['__opt'] = array(); $GLOBALS['__settings'] = array();
 $gen = static function ( $id ) { return sn_handle_keyring_generate( array( 'key_id' => $id ) ); };
-ok( 'keyring_generate_refused' === $gen( 'cf_token' ) && 'keyring_generate_refused' === $gen( 'owner_device_key_previous' ) && 'keyring_generate_refused' === $gen( '' ) && array() === $GLOBALS['__opt'], 'Generate refuses any row but the two current keys, and writes nothing' );
-ok( 'keyring_generated' === $gen( 'owner_device_key' ) && 1 === preg_match( '/^[0-9a-f]{64}$/', $GLOBALS['__opt']['sn_owner_device_key'] ) && false === $GLOBALS['__autoload']['sn_owner_device_key'] && ! isset( $GLOBALS['__opt']['sn_owner_device_key_previous'] ), 'the first Generate writes 64 hex, not autoloaded; there is no previous yet' );
-$first = $GLOBALS['__opt']['sn_owner_device_key'];
-$gen( 'owner_device_key' );
-ok( $first === $GLOBALS['__opt']['sn_owner_device_key_previous'] && $first !== $GLOBALS['__opt']['sn_owner_device_key'] && 1 === preg_match( '/^[0-9a-f]{64}$/', $GLOBALS['__opt']['sn_owner_device_key'] ), 'the second Generate moves the current key to previous and writes a new one' );
+ok( 'keyring_generate_refused' === $gen( 'cf_token' ) && 'keyring_generate_refused' === $gen( 'owner_key_previous' ) && 'keyring_generate_refused' === $gen( '' ) && array() === $GLOBALS['__opt'], 'Generate refuses any row but the owner key, and writes nothing' );
+ok( 'keyring_generated' === $gen( 'owner_key' ) && 1 === preg_match( '/^[0-9a-f]{64}$/', $GLOBALS['__opt']['sn_owner_key'] ) && false === $GLOBALS['__autoload']['sn_owner_key'] && ! isset( $GLOBALS['__opt']['sn_owner_key_previous'] ), 'the first Generate writes 64 hex, not autoloaded; there is no previous yet' );
+$first = $GLOBALS['__opt']['sn_owner_key'];
+$gen( 'owner_key' );
+ok( $first === $GLOBALS['__opt']['sn_owner_key_previous'] && $first !== $GLOBALS['__opt']['sn_owner_key'] && 1 === preg_match( '/^[0-9a-f]{64}$/', $GLOBALS['__opt']['sn_owner_key'] ), 'the second Generate moves the current key to previous and writes a new one' );
 $GLOBALS['__opt'][ SN_SITE_SECRET_OPT ] = 'derived-never';
-ok( 'keyring_generated' === $gen( 'owner_agent_key' ) && 'derived-never' !== sn_credential( 'owner_agent_key' ) && false === strpos( sn_credential( 'owner_agent_key' ), 'derived' ), 'a generated key is random bytes, never the site secret' );
-ok( 'keyring_generated_only' === $save( 'owner_device_key', 'pasted-value' ) && 'keyring_generated_only' === $save( 'owner_agent_key_previous', 'site' ) && $first !== sn_credential( 'owner_device_key' ), 'an owner key cannot be pasted or derived; only Generate writes one' );
-ok( 'keyring_saved' === $save( 'owner_device_key_previous', 'clear' ) && '' === sn_credential( 'owner_device_key_previous' ), '"clear" retires a previous key once the Workers carry the new one' );
+ok( 'derived-never' !== sn_credential( 'owner_key' ), 'a generated key is random bytes, never the site secret' );
+ok( 'keyring_generated_only' === $save( 'owner_key', 'pasted-value' ) && 'keyring_generated_only' === $save( 'owner_key_previous', 'site' ) && $first !== sn_credential( 'owner_key' ), 'the owner key cannot be pasted or derived; only Generate writes one' );
+ok( 'keyring_saved' === $save( 'owner_key_previous', 'clear' ) && '' === sn_credential( 'owner_key_previous' ), '"clear" retires the previous key once the Workers carry the new one' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -53,14 +53,13 @@ $today   = gmdate( 'Ymd', $now );
 
 // ── No key: enroll refuses, writes nothing, sets no cookie.
 ok( 'owner_device_no_key' === sn_owner_device_enroll( 'Laptop', $now ) && array() === sn_owner_devices() && ! isset( $_COOKIE['sn_owner_dev'] ), 'no device key: enroll refuses with a clear code and writes nothing' );
-ok( false !== strpos( $classic(), 'Generate the owner device key' ) && false === strpos( $classic(), 'name="sn_owner_device_label"' ), 'no device key: the card says to generate it and offers no enroll form' );
-$GLOBALS['__options']['sn_owner_device_key'] = 'site';
+ok( false !== strpos( $classic(), 'Generate the owner key' ) && false === strpos( $classic(), 'name="sn_owner_device_label"' ), 'no device key: the card says to generate it and offers no enroll form' );
+$GLOBALS['__options']['sn_owner_key'] = 'site';
 ok( 'owner_device_no_key' === sn_owner_device_enroll( 'Laptop', $now ), 'a key that is not 64 hex (the literal "site") counts as unset' );
 
-sn_handle_keyring_generate( array( 'key_id' => 'owner_device_key' ) );
-sn_handle_keyring_generate( array( 'key_id' => 'owner_agent_key' ) );
-$dkey = sn_credential( 'owner_device_key' );
-$akey = sn_credential( 'owner_agent_key' );
+sn_handle_keyring_generate( array( 'key_id' => 'owner_key' ) );
+$dkey = sn_credential( 'owner_key' );
+$akey = $dkey; // one key signs both formats (owner decision 2026-10-15)
 
 // ── The front-end gate: no cookie off wp-admin.
 $GLOBALS['__is_admin'] = false;
@@ -100,9 +99,10 @@ ok( false === sn_owner_device_renew( $now + 86400 ) && $marker === $_COOKIE['sn_
 $GLOBALS['__is_admin'] = true;
 ok( true === sn_owner_device_renew( $now + 86400 ) && sn_owner_device_marker( $dkey, $id, gmdate( 'Ymd', $now + 86400 ) ) === $_COOKIE['sn_owner_dev'] && $now + 86400 === sn_owner_devices()[0]['last_seen'], 'an older-day marker is re-signed for today and last_seen moves' );
 // Rotation: the previous key still verifies, and renewal re-signs with the new one the same day.
-sn_handle_keyring_generate( array( 'key_id' => 'owner_device_key' ) );
-$dkey2 = sn_credential( 'owner_device_key' );
-ok( $dkey === sn_credential( 'owner_device_key_previous' ) && null !== sn_owner_this_device( $now + 86400 ), 'after Generate, the marker still verifies under the previous key' );
+sn_handle_keyring_generate( array( 'key_id' => 'owner_key' ) );
+$dkey2 = sn_credential( 'owner_key' );
+$akey  = $dkey2;
+ok( $dkey === sn_credential( 'owner_key_previous' ) && null !== sn_owner_this_device( $now + 86400 ), 'after Generate, the marker still verifies under the previous key' );
 ok( true === sn_owner_device_renew( $now + 86400 ) && 'current' === sn_owner_device_verify( $_COOKIE['sn_owner_dev'], array( $dkey2, '' ), gmdate( 'Ymd', $now + 86400 ) )['key'], 'renewal drains the previous key: same day, re-signed with the current one' );
 $marker = (string) $_COOKIE['sn_owner_dev'];
 $GLOBALS['__options']['sn_owner_revoked'] = array( 'ids' => array( $id ), 'at' => 1 );
@@ -123,7 +123,7 @@ foreach ( array( 'classic' => $c, 'native' => $n ) as $where => $html ) {
 	$leak = false;
 	foreach ( array_merge( $ids, array( $marker, $phone_marker, $dkey, $dkey2, $akey, substr( $marker, -43 ) ) ) as $secret ) { $leak = $leak || false !== strpos( $html, $secret ); }
 	ok( ! $leak, "$where: no device id, marker, signature or key in the markup" );
-	ok( false !== strpos( $html, 'then clear the previous device key there' ), "$where: Revoke all names the Generate-then-clear-previous step (security M3)" );
+	ok( false !== strpos( $html, 'then clear the previous owner key there' ), "$where: Revoke all names the Generate-then-clear-previous step (security M3)" );
 	ok( false !== strpos( $html, 'owner_device_revoke' ) && false !== strpos( $html, 'owner_device_enroll' ) && false !== strpos( $html, 'owner_device_revoke_all' ) && false !== strpos( $html, 'sn_owner_row' ), "$where: enroll, revoke by row and revoke all" );
 }
 
@@ -178,6 +178,9 @@ ok( false === strpos( $nh, '<script>' ) && false === strpos( $nh, '"><' . 'scrip
 ok( false === strpos( $ch, '<script>' ) && false !== strpos( $ch, '&lt;script&gt;' ), 'classic: the label is escaped in the confirm and the table' );
 $GLOBALS['__options']['sn_owner_devices'] = array();
 
+// ── One key, two domains: a device marker never verifies as an agent token or back.
+ok( null === sn_owner_agent_verify( 'v1.claude-code.' . ( $now + 60 ) . '.' . sn_owner_sign( $akey, 'v1|dev|claude-code|' . ( $now + 60 ) ), array( $akey ), $now ) && null === sn_owner_device_verify( 'v1.0123456789abcdef.' . $today . '.' . sn_owner_sign( $akey, 'v1|agent|0123456789abcdef|' . $today ), array( $akey ), $today ), 'one key, domain-separated messages: a signature from one format never passes as the other' );
+
 // ── The token CLI.
 $m = sn_owner_token_mint( 'claude-code', 43200, $now, $akey );
 ok( $m['ok'] && 0 === strpos( $m['line'], 'SN-Owner-Agent: v1.claude-code.' . ( $now + 43200 ) . '.' ) && is_array( sn_owner_agent_verify( substr( $m['line'], 16 ), array( $akey ), $now ) ), 'mints a header line that verifies, default TTL 43200' );
@@ -195,7 +198,7 @@ foreach ( array_merge( $ids, array( $marker, $phone_marker, substr( $marker, -43
 }
 ok( array() === $leaks, 'no marker, token or device id in any option dump, log line, keyring model or view model' );
 ok( false !== strpos( sn_keyring_copy()['generate'], 'stays valid there' ) && false !== strpos( sn_keyring_copy()['generate'], 'until you clear that row' ), 'Generate says the old key stays valid as the previous key until it is cleared' );
-$agent_about = sn_keyring()['owner_agent_key']['about'];
+$agent_about = sn_keyring()['owner_key']['about'];
 ok( false !== strpos( $agent_about, 'page.route limited to https://juanlentino.com/**' ) && false !== strpos( $agent_about, 'never extraHTTPHeaders' ) && false !== strpos( $agent_about, '-L' ) && false !== strpos( $agent_about, 'environment variable' ), 'the agent key\'s hint says how to carry the token safely' );
 $models = wp_json_encode( sn_keyring_models(), JSON_UNESCAPED_UNICODE );
 ok( false === strpos( $models, $dkey2 ) && false === strpos( $models, $akey ) && false !== strpos( $models, '••••' . substr( $akey, -4 ) ), 'the keyring paints the owner keys as last four only' );

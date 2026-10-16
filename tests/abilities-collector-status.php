@@ -71,6 +71,9 @@ $nine['config'] = array( 'ae_bound' => true, 'ae_v2_bound' => true, 'ae_events_b
 $i = inv( sn_collector_status_invariants( $nine, $NOW ), 'config_bindings' );
 ok( true === $i['ok'] && 'All 9 config bindings report true.' === $i['detail'], 'every owner key unset: still ok, still "All 9 config bindings report true."' );
 $nine['config']['ae_owner_bound'] = true; $nine['config']['owner_device_key_set'] = true;
+ok( 'All 9 config bindings report true.' === inv( sn_collector_status_invariants( $nine, $NOW ), 'config_bindings' )['detail'], 'the earlier two-key flag names are still ignored' );
+unset( $nine['config']['owner_device_key_set'], $nine['config']['owner_agent_key_set'] ); $nine['config']['owner_key_set'] = false;
+ok( true === inv( sn_collector_status_invariants( $nine, $NOW ), 'config_bindings' )['ok'] && 'All 9 config bindings report true.' === inv( sn_collector_status_invariants( $nine, $NOW ), 'config_bindings' )['detail'], 'one-key shape: owner_key_set unset is ignored too' );
 ok( 'All 9 config bindings report true.' === inv( sn_collector_status_invariants( $nine, $NOW ), 'config_bindings' )['detail'], 'set owner flags do not change the count either' );
 $nine['config']['kv_bound'] = false;
 ok( false === inv( sn_collector_status_invariants( $nine, $NOW ), 'config_bindings' )['ok'], 'a required binding still fails beside the owner flags' );

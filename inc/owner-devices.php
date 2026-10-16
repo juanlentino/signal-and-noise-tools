@@ -66,9 +66,9 @@ function sn_owner_revoke_ids( array $ids, $now ) {
 	update_option( SN_OWNER_REVOKED_OPT, array( 'ids' => array_slice( array_values( array_unique( array_merge( $r['ids'], $ids ) ) ), -SN_OWNER_REVOKED_MAX ), 'at' => (int) $now ), false );
 }
 
-/** @return array<int,string> The device keys: current, previous. */
-function sn_owner_device_keys() {
-	return array( sn_credential( 'owner_device_key' ), sn_credential( 'owner_device_key_previous' ) );
+/** @return array<int,string> The owner keys: current, previous. */
+function sn_owner_keys() {
+	return array( sn_credential( 'owner_key' ), sn_credential( 'owner_key_previous' ) );
 }
 
 /**
@@ -79,7 +79,7 @@ function sn_owner_device_keys() {
  */
 function sn_owner_this_device( $now ) {
 	$raw    = isset( $_COOKIE[ SN_OWNER_DEV_COOKIE ] ) ? sanitize_text_field( wp_unslash( (string) $_COOKIE[ SN_OWNER_DEV_COOKIE ] ) ) : '';
-	$marker = '' === $raw ? null : sn_owner_device_verify( $raw, sn_owner_device_keys(), gmdate( 'Ymd', (int) $now ) );
+	$marker = '' === $raw ? null : sn_owner_device_verify( $raw, sn_owner_keys(), gmdate( 'Ymd', (int) $now ) );
 	if ( null === $marker || in_array( $marker['id'], sn_owner_revoked()['ids'], true ) ) {
 		return null;
 	}
@@ -139,7 +139,7 @@ function sn_owner_dev_cookie_write( $value, $now ) {
  */
 function sn_owner_device_enroll( $label, $now ) {
 	$label = trim( (string) $label );
-	$key   = sn_owner_device_keys()[0];
+	$key   = sn_owner_keys()[0];
 	if ( ! sn_owner_key_ok( $key ) ) {
 		return 'owner_device_no_key';
 	}
@@ -231,7 +231,7 @@ function sn_owner_device_renew( $now ) {
 	}
 	$today = gmdate( 'Ymd', (int) $now );
 	$mine  = sn_owner_this_device( $now );
-	$key   = sn_owner_device_keys()[0];
+	$key   = sn_owner_keys()[0];
 	if ( null === $mine || ! sn_owner_key_ok( $key ) || ! current_user_can( 'manage_options' ) ) {
 		return false;
 	}

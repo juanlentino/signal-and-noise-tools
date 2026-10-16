@@ -26,14 +26,14 @@ function sn_owner_devices_copy() {
 	return array(
 		'heading'   => __( 'Owner devices', 'signal-and-noise-tools' ),
 		'intro'     => __( 'Enroll each browser you read the site with. It carries a signed owner marker, so its visits are stored as yours and never counted as readers, even on pages served from cache. Readers get no cookie.', 'signal-and-noise-tools' ),
-		'no_key'    => __( 'Generate the owner device key in Connections › Credentials first, and set it on the analytics Worker.', 'signal-and-noise-tools' ),
+		'no_key'    => __( 'Generate the owner key in Connections › Credentials first, and set the same value on both Workers.', 'signal-and-noise-tools' ),
 		'last_seen' => __( 'Last seen is the last wp-admin visit that renewed the marker, at most once a day.', 'signal-and-noise-tools' ),
 		'none'      => __( 'No devices enrolled.', 'signal-and-noise-tools' ),
 		'label'     => __( 'Label for this browser', 'signal-and-noise-tools' ),
 		'enroll'    => __( 'Enroll this browser', 'signal-and-noise-tools' ),
 		'revoke'    => __( 'Revoke', 'signal-and-noise-tools' ),
 		'all'       => __( 'Revoke all devices', 'signal-and-noise-tools' ),
-		'all_hint'  => __( 'Every enrolled device stops counting as yours within one Worker refresh. To also retire the key: Generate a new device key in Connections › Credentials, set it on the analytics Worker, then clear the previous device key there. Until that last step the old key still verifies.', 'signal-and-noise-tools' ),
+		'all_hint'  => __( 'Every enrolled device stops counting as yours within one Worker refresh. To also retire the key: Generate a new owner key in Connections › Credentials, set it on both Workers, then clear the previous owner key there. Until that last step the old key still verifies.', 'signal-and-noise-tools' ),
 	);
 }
 
@@ -58,7 +58,7 @@ function sn_owner_devices_view( $now ) {
 		);
 	}
 	return array(
-		'key_ready' => sn_owner_key_ok( sn_owner_device_keys()[0] ),
+		'key_ready' => sn_owner_key_ok( sn_owner_keys()[0] ),
 		/* translators: %s: device label. */
 		'this'      => null !== $mine ? sprintf( __( 'This browser is enrolled as "%s".', 'signal-and-noise-tools' ), (string) $mine['device']['label'] ) : __( 'This browser is not enrolled.', 'signal-and-noise-tools' ),
 		'rows'      => $rows,
