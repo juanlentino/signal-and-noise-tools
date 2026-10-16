@@ -27,6 +27,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/sn-apply/active-content.php'; // snt_sn_apply_splice_active_error(), used by the apply below.
+
 // Paired with SNT_AI_DRIFT_SYSTEM's design split: detection is zero-AI
 // (health-checks.php); this prompt only judges whether one located mention
 // really refers to the target note.
@@ -586,6 +588,13 @@ function snt_ai_link_apply_impl( $post_id, $anchor, $context_snippet, $fingerpri
 
 	$link        = '<a href="' . esc_url( $target_url ) . '">' . $anchor . '</a>';
 	$new_content = substr_replace( $current_content, $link, $raw_position, strlen( $anchor ) );
+	// An anchor inside an attribute value (an alt, a title) would have the link's
+	// own quote close that value, and the URL's path become attributes
+	// (`/onclick=...`); refuse what the splice adds (sn-apply/active-content.php).
+	$spliced = snt_sn_apply_splice_active_error( $current_content, $new_content, 'payload.target_url' );
+	if ( is_wp_error( $spliced ) ) {
+		return $spliced;
+	}
 
 	if ( is_callable( $write_callback ) ) {
 		$result = call_user_func( $write_callback, $post_id, $new_content );

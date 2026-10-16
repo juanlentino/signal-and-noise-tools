@@ -91,6 +91,7 @@ function snt_ai_generate_with_constraints( $prompt, $system, $max_tokens = 256, 
 
 $GLOBALS['wpdb'] = new stdClass(); // unused by these impls; satisfies file-scope expectations.
 
+require_once __DIR__ . '/lib/wp-core-kses.php'; // The splice check reads the post with core's HTML API and kses.
 require_once __DIR__ . '/../inc/health-checks.php';          // sn_health_contains_note_link
 require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php'; // locator + fingerprint (reused)
 require_once __DIR__ . '/../inc/ai-link-suggest.php';
@@ -395,6 +396,28 @@ $GLOBALS['__posts'][1]->post_modified_gmt = '2026-07-03 01:00:00';
 $GLOBALS['__ai_response'] = 'Sure! {"verdict":"skip","reason":"Coincidental."} Done.';
 $res = snt_ai_link_suggest_impl( 1, 2 );
 ok( is_array( $res ) && 'skip' === ( $res['verdict'] ?? '' ), 'preamble-wrapped JSON parses via brace salvage' );
+
+echo "\nTest: link_insert cannot break out of an attribute value\n";
+// The anchor sits inside an alt and a title, so the link's own quote closes
+// the value and the URL's path becomes attributes: `/onclick=alert(1)` is a
+// real handler. The splice check reads the post before and after and refuses.
+foreach ( array(
+	30 => '<figure><img src="/a.jpg" alt="honesty has to be the cheap option"/></figure>',
+	31 => '<p><span title="honesty has to be the cheap option">x</span></p>',
+) as $id => $markup ) {
+	mk_post( $id, 'Attr source', 'attr-' . $id, $markup );
+	$GLOBALS['__updated'] = null;
+	$raw = $GLOBALS['__posts'][ $id ]->post_content;
+	$fpa = snt_ai_drift_fingerprint( $raw, 'honesty has to be the cheap option', strpos( $raw, 'honesty' ) );
+	$e   = snt_ai_link_apply_impl( $id, 'honesty has to be the cheap option', '', $fpa, 'https://x.test/onclick=alert(1)' );
+	ok( is_wp_error( $e ) && 'snt_sn_apply_active_content' === $e->get_error_code() && in_array( 'onclick=', $e->get_error_data()['constructs'] ?? array(), true ) && null === $GLOBALS['__updated'], "link_insert into an attribute value refuses the onclick its target_url adds, writing nothing (post $id)" );
+}
+// Control: the same target_url in a TEXT node is a harmless (odd) path, so it links.
+mk_post( 32, 'Text source', 'text-32', '<p>Plainly, honesty has to be the cheap option for everyone.</p>' );
+$raw32 = $GLOBALS['__posts'][32]->post_content;
+$fp32  = snt_ai_drift_fingerprint( $raw32, 'honesty has to be the cheap option', strpos( $raw32, 'honesty' ) );
+$out   = snt_ai_link_apply_impl( 32, 'honesty has to be the cheap option', '', $fp32, 'https://x.test/notes/cheap-option/' );
+ok( is_array( $out ) && false !== strpos( (string) $GLOBALS['__updated']['post_content'], '<a href="https://x.test/notes/cheap-option/">honesty has to be the cheap option</a>' ), 'control: a normal link_insert in a text node still writes the link' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
