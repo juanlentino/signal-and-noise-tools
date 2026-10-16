@@ -63,6 +63,7 @@ foreach ( array( 'classic' => $c, 'native' => $n ) as $twin => $h ) {
 	ok( str_contains( $h, 'Lift September 2026 hold' ) && str_contains( $h, 'sn_rights_evidence_lift' ) && str_contains( $h, 'append-only ledger' ), "B3 $twin: a Lift button behind a confirm that says what it publishes" );
 }
 ok( array( 'month', 'sub', 'tab' ) === array_values( array_diff( snt_leaf_names( $n ), array( 'action', '_wpnonce' ) ) ) && snt_leaf_names( $c ) === snt_leaf_names( $n ), 'B4 the native form posts the same names as the classic: ' . implode( ',', snt_leaf_names( $n ) ) );
+ok( 1 === preg_match( '/<os-form class="snt-form snt-form--inline"[^>]*submit-label="Lift September 2026 hold"/', $n ), 'B4b native: Lift is a compact inline one-button form (2026-10-16 leaf anatomy)' );
 ok( 0 === $GLOBALS['__re']['dry'], 'B5 painting never composes (no dry run, no sensor reads per family)' );
 $GLOBALS['__re']['sensor'] = null;
 ok( ! str_contains( $classic(), 'Lift September' ) && ! str_contains( $native(), 'Lift September' ) && str_contains( $native(), 'Lift appears once' ) && str_contains( $classic(), 'View September 2026 payloads' ), 'B6 sensor unreachable: no Lift on either twin, the hint says why, View stays' );
@@ -101,6 +102,9 @@ foreach ( array( 'classic' => $c, 'native' => $n ) as $twin => $h ) {
 	// 2026-10-12 audit: S&N Home paints the text as facts rows under a real
 	// heading; the classic keeps its bold labels. Same words either way.
 	$fact = static fn( $label, $text ) => str_contains( $h, $label . ':</strong> ' . $text ) || str_contains( $h, '<os-fact label="' . $label . '"><span class="snt-kv__v">' . $text . '</span></os-fact>' );
+	if ( 'native' === $twin ) {
+		ok( 1 === preg_match( '/<os-form class="snt-form snt-form--inline"[^>]*submit-label="Retract August 2026, openai"[^>]*os-confirm-danger/', $h ), 'E1b native: Retract is a compact inline form, a danger outline (2026-10-16 leaf anatomy)' );
+	}
 	ok( $fact( 'Claimed', $t['claimed'] ) && $fact( 'What was wrong', $t['what_was_wrong'] ) && $fact( 'Root cause', $t['root_cause'] ) && $fact( 'What changed', $t['what_changed'] ) && str_contains( $h, 'rights-evidence/u7/v1.json' ), "E2 $twin: the exact text that will be published is shown above the button" );
 	ok( str_contains( $h, "Post one, wait for the ledger's checks, then the next." ), "E3 $twin: the one-at-a-time note is visible" );
 	ok( 1 === substr_count( $h, 'Retract August 2026' ) && ! str_contains( $h, 'Retract August 2026, anthropic' ) && ! str_contains( $h, 'Retract August 2026, google-ai' ) && ! str_contains( $h, 'Retract August 2026, commoncrawl' ) && ! str_contains( $h, 'Retract August 2026, mistral' ), "E4 $twin: hidden for pending, no ledger path, retracted and no approved text" );
