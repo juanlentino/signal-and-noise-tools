@@ -8,6 +8,14 @@
  * seconds and may not exceed it. Nothing is stored or logged: the token
  * exists only on stdout.
  *
+ * Handling (review round 1, security M4): capture it, never echo it:
+ *   export SN_OWNER_AGENT="$(wp sn owner-token --agent=claude-code | cut -d' ' -f2)"
+ * Playwright: page.route( 'https://juanlentino.com/**', r => r.continue( {
+ *   headers: { ...r.request().headers(), 'sn-owner-agent': process.env.SN_OWNER_AGENT } } ) );
+ * never extraHTTPHeaders, which sends it to every host the page touches.
+ * curl: -H "SN-Owner-Agent: $SN_OWNER_AGENT" and never -L, which would
+ * carry the header to wherever a redirect points.
+ *
  * @package SignalNoiseTools
  * @since Unreleased
  */
@@ -53,7 +61,7 @@ if ( defined( 'WP_CLI' ) && WP_CLI && class_exists( 'WP_CLI' ) ) {
 			WP_CLI::line( $out['line'] );
 		},
 		array(
-			'shortdesc' => 'Print an SN-Owner-Agent header for an owner tool. Stores and logs nothing.',
+			'shortdesc' => 'Print an SN-Owner-Agent header for an owner tool. Stores and logs nothing. Capture it into an environment variable, never echo it; in Playwright use page.route limited to https://juanlentino.com/**, never extraHTTPHeaders; never curl -L with it.',
 			'synopsis'  => array(
 				array( 'type' => 'assoc', 'name' => 'agent', 'description' => 'One of: ' . implode( ', ', sn_owner_agents() ) ),
 				array( 'type' => 'assoc', 'name' => 'ttl', 'optional' => true, 'default' => '43200', 'description' => 'Seconds until it expires, 1 to 43200.' ),

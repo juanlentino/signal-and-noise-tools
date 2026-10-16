@@ -63,6 +63,18 @@ ok( false === $r['healthy'], 'a false binding makes the whole status unhealthy' 
 $i = inv( $r, 'config_bindings' );
 ok( false === $i['ok'] && false !== strpos( $i['detail'], 'px_token_set' ), 'the false binding is named in the detail' );
 
+// SN Traffic Lanes review round 1 (compatibility P1): the three owner flags
+// are optional. Unset owner keys are not silent data loss, so they never fail
+// config_bindings and never change its count.
+$nine = $GOOD;
+$nine['config'] = array( 'ae_bound' => true, 'ae_v2_bound' => true, 'ae_events_bound' => true, 'ae_sessions_bound' => true, 'kv_bound' => true, 'px_token_set' => true, 'srv_token_set' => true, 'refresh_url_set' => true, 'refresh_key_set' => true, 'ae_owner_bound' => false, 'owner_device_key_set' => false, 'owner_agent_key_set' => false );
+$i = inv( sn_collector_status_invariants( $nine, $NOW ), 'config_bindings' );
+ok( true === $i['ok'] && 'All 9 config bindings report true.' === $i['detail'], 'every owner key unset: still ok, still "All 9 config bindings report true."' );
+$nine['config']['ae_owner_bound'] = true; $nine['config']['owner_device_key_set'] = true;
+ok( 'All 9 config bindings report true.' === inv( sn_collector_status_invariants( $nine, $NOW ), 'config_bindings' )['detail'], 'set owner flags do not change the count either' );
+$nine['config']['kv_bound'] = false;
+ok( false === inv( sn_collector_status_invariants( $nine, $NOW ), 'config_bindings' )['ok'], 'a required binding still fails beside the owner flags' );
+
 // salt_window: today_present must be true.
 $bad = $GOOD; $bad['salt']['today_present'] = false;
 $i = inv( sn_collector_status_invariants( $bad, $NOW ), 'salt_window' );

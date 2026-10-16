@@ -33,7 +33,7 @@ function sn_owner_devices_copy() {
 		'enroll'    => __( 'Enroll this browser', 'signal-and-noise-tools' ),
 		'revoke'    => __( 'Revoke', 'signal-and-noise-tools' ),
 		'all'       => __( 'Revoke all devices', 'signal-and-noise-tools' ),
-		'all_hint'  => __( 'Every enrolled device stops counting as yours within one Worker refresh. To also retire the key, Generate a new one in Connections › Credentials.', 'signal-and-noise-tools' ),
+		'all_hint'  => __( 'Every enrolled device stops counting as yours within one Worker refresh. To also retire the key: Generate a new device key in Connections › Credentials, set it on the analytics Worker, then clear the previous device key there. Until that last step the old key still verifies.', 'signal-and-noise-tools' ),
 	);
 }
 

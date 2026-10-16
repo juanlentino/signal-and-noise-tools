@@ -3,7 +3,7 @@
  * Render test for snt_analytics_render_exclusion() — the Monitoring → Analytics
  * "Exclude my own visits" card (plugin v6.23.0). Asserts a checkbox per role, the
  * configured role pre-checked, the current-viewer status line (both branches),
- * the CDN logged-in-bypass note, the nonce, and the save button's action.
+ * the edge note, the nonce, and the save button's action.
  *
  * @since plugin v6.23.0
  */
@@ -73,7 +73,10 @@ ok( preg_match( '/value="editor"\s+checked/', $h ) === 0, 'unconfigured role (ed
 ok( strpos( $h, 'currently excluded from analytics' ) !== false, 'status line reflects excluded viewer' );
 ok( strpos( $h, 'excluded even when logged out' ) !== false && strpos( $h, 'Count this device again' ) !== false, 'device line: flagged device offers "Count this device again"' );
 ok( strpos( $h, 'sn_owner_device=forget' ) !== false && strpos( $h, '_wpnonce=sn_owner_device' ) !== false, 'device line: forget link carries a nonce' );
-ok( strpos( $h, 'wordpress_logged_in_' ) !== false, 'CDN logged-in-bypass note present' );
+// SN Traffic Lanes review round 1: the edge keeps logged-in views out on cached
+// pages too, so the card no longer asks for a cache-bypass rule; it points at
+// Owner devices for logged-out views instead.
+ok( false !== strpos( $h, 'recognizes the WordPress login cookie, even on a page served from cache' ) && false !== strpos( $h, 'enroll it under Owner devices' ) && false === strpos( $h, 'Cloudflare rule' ) && false === strpos( $h, 'never printed' ), 'edge note: true before and after the Workers ship; no stale suppression or bypass-rule copy' );
 ok( strpos( $h, 'value="sn_analytics_exclude_save"' ) !== false, 'save button posts the exclude action' );
 ok( strpos( $h, 'name="_wpnonce"' ) !== false, 'nonce field present' );
 

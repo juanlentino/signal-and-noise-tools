@@ -104,10 +104,10 @@ require_once SNT_PATH . 'inc/cloudflare-posture.php';         // 15.4.0: zone se
 require_once SNT_PATH . 'inc/keyring.php';        // 15.2.0: every credential in one registry; the site secret the handshakes derive from.
 require_once SNT_PATH . 'inc/keyring-changes.php'; // 19.6.2: every keyring option write logged (row, set/clear, last 4, source); never a value.
 require_once SNT_PATH . 'inc/keyring-verify.php'; // 15.2.0: one probe per credential, verdicts stored; "Verify all".
-require_once SNT_PATH . 'inc/keyring-admin.php';
+require_once SNT_PATH . 'inc/keyring-admin.php';  // 15.2.0: the row model both leaves paint; the classic Connections › Credentials leaf.
 require_once SNT_PATH . 'inc/owner-identity-sign.php'; // Unreleased (SN Traffic Lanes): the device marker and agent token signer, pinned to the Workers' vectors.
 require_once SNT_PATH . 'inc/owner-devices.php';       // Unreleased: owner device enrollment, renewal on admin_init, revoke.
-require_once SNT_PATH . 'inc/owner-revoked-route.php'; // Unreleased: GET signal-noise/v1/owner/revoked for the analytics Worker.  // 15.2.0: the row model both leaves paint; the classic Connections › Credentials leaf.
+require_once SNT_PATH . 'inc/owner-revoked-route.php'; // Unreleased: GET signal-noise/v1/owner/revoked for the analytics Worker.
 require_once SNT_PATH . 'inc/cloudflare-readings-admin.php'; // 15.3.0: Edge (Measurement › Analytics) and Firewall (Security › Firewall), classic; the readings where their questions are asked.
 require_once SNT_PATH . 'inc/purge-ledger.php';      // 20.7.0: the purge ledger; keeps purges rare (Breeze update and nightly purges unhooked if Breeze returns)
 require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: Cloudways app purge, retired 2026-10-14 (Varnish is off); keeps the credential readers and the last record
@@ -200,8 +200,8 @@ require_once SNT_PATH . 'inc/analytics-posts.php';       // v6.39.0: post-lifecy
 require_once SNT_PATH . 'inc/analytics-posts-lifecycle.php';       // v8.11.0 (A4): decay census, floored at v14.6.0; feeds signals + recommendations only
 require_once SNT_PATH . 'inc/analytics-posts-signals.php';         // v14.6.0: the Posts tab's per-note signal rows + the three flags
 require_once SNT_PATH . 'inc/analytics-posts-signals-admin.php';   // v14.6.0: the Posts tab render
-require_once SNT_PATH . 'inc/analytics-admin.php';
-require_once SNT_PATH . 'inc/owner-devices-render.php'; // Unreleased: the Owner devices card (Measurement › Analytics).  // dashboard renderer + Monitoring → Analytics settings
+require_once SNT_PATH . 'inc/analytics-admin.php';  // dashboard renderer + Monitoring → Analytics settings
+require_once SNT_PATH . 'inc/owner-devices-render.php'; // Unreleased: the Owner devices card (Measurement › Analytics).
 require_once SNT_PATH . 'inc/analytics-signals.php';   // v9.30.0: predictive signal engine
 require_once SNT_PATH . 'inc/ai-markdown-strip.php';   // v9.64.2: shared markdown stripper for AI prose (narrator + narration)
 require_once SNT_PATH . 'inc/analytics-narrator.php';  // v9.30.0: diagnostic/prescriptive narrator

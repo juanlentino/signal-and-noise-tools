@@ -178,9 +178,9 @@ function sn_settings_defaults() {
 			'alerts_enabled'          => true,
 		),
 		// v6.23.0: analytics owner/role exclusion (Plausible-style "exclude my
-		// own visits"). exclude_roles lists role slugs whose logged-in users are
-		// NOT counted — the theme's sn_beacon_enabled filter suppresses the
-		// front-end pixel for them. Default EMPTY (dormant): a non-empty default
+		// own visits"). exclude_roles lists role slugs whose logged-in users get
+		// the legacy sn_owner=1 device cookie (SN Traffic Lanes removed the
+		// server-side pixel suppression; the edge keeps owner views out). Default EMPTY (dormant): a non-empty default
 		// would resurface via array_replace_recursive's index-keyed merge, making
 		// "exclude nobody" impossible to store. Written via
 		// sn_setting_update('analytics.exclude_roles', …) by

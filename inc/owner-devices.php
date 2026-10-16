@@ -31,6 +31,7 @@ const SN_OWNER_REVOKED_OPT   = 'sn_owner_revoked';
 const SN_OWNER_DEV_COOKIE    = 'sn_owner_dev';
 const SN_OWNER_DEV_TTL       = 34560000; // 400 days, the browser cap.
 const SN_OWNER_LABEL_MAX     = 60;
+const SN_OWNER_REVOKED_MAX   = 1000; // the newest ids kept and served, as the Worker keeps them
 
 /** @return array<int,array{id:string,label:string,enrolled:int,last_seen:int}> */
 function sn_owner_devices() {
@@ -62,7 +63,7 @@ function sn_owner_devices_save( array $devices ) {
  */
 function sn_owner_revoke_ids( array $ids, $now ) {
 	$r = sn_owner_revoked();
-	update_option( SN_OWNER_REVOKED_OPT, array( 'ids' => array_values( array_unique( array_merge( $r['ids'], $ids ) ) ), 'at' => (int) $now ), false );
+	update_option( SN_OWNER_REVOKED_OPT, array( 'ids' => array_slice( array_values( array_unique( array_merge( $r['ids'], $ids ) ) ), -SN_OWNER_REVOKED_MAX ), 'at' => (int) $now ), false );
 }
 
 /** @return array<int,string> The device keys: current, previous. */
@@ -224,6 +225,10 @@ function sn_owner_device_revoke_all( $now ) {
  * @return bool Whether a marker was renewed.
  */
 function sn_owner_device_renew( $now ) {
+	// Every wp-admin request runs this: without a marker cookie, read nothing.
+	if ( empty( $_COOKIE[ SN_OWNER_DEV_COOKIE ] ) ) {
+		return false;
+	}
 	$today = gmdate( 'Ymd', (int) $now );
 	$mine  = sn_owner_this_device( $now );
 	$key   = sn_owner_device_keys()[0];

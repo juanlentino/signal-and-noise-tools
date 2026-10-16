@@ -196,7 +196,7 @@ function sn_keyring_copy() {
 		'verify'  => __( 'Every credential with a probe asks the service that holds its other half; each verdict names the side to fix.', 'signal-and-noise-tools' ),
 		'never'   => __( 'Never verified.', 'signal-and-noise-tools' ),
 		'workers' => __( 'After changing a worker row here, set the same value on the worker.', 'signal-and-noise-tools' ),
-		'generate' => __( 'Makes a new 64-character key and moves the current one to its previous row, so the Workers accept both until you set the new one on them. No screen shows the value.', 'signal-and-noise-tools' ),
+		'generate' => __( 'Makes a new 64-character key. The old key moves to its previous row and stays valid there, on this site and on the Workers, until you clear that row. Set the new key on the Workers, then clear the previous row when nothing still uses it. No screen shows either value.', 'signal-and-noise-tools' ),
 	);
 }
 

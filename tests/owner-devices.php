@@ -13,7 +13,8 @@ function wp_create_nonce( $a = -1 ) { return substr( hash( 'sha256', 'salt|' . $
 function wp_verify_nonce( $n, $a = -1 ) { return hash_equals( wp_create_nonce( $a ), (string) $n ) ? 1 : false; }
 function wp_nonce_field( $a = -1, $n = '_wpnonce', $r = true, $echo = true ) { $h = '<input type="hidden" name="' . $n . '" value="' . wp_create_nonce( $a ) . '">'; if ( $echo ) { echo $h; } return $h; }
 $GLOBALS['__options'] = array();
-function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
+$GLOBALS['__reads'] = 0;
+function get_option( $k, $d = false ) { $GLOBALS['__reads']++; return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; $GLOBALS['__autoload'][ $k ] = $a; return true; }
 function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; }
 $GLOBALS['__is_admin'] = true; $GLOBALS['__can'] = true; $GLOBALS['__logs'] = array();
@@ -122,6 +123,7 @@ foreach ( array( 'classic' => $c, 'native' => $n ) as $where => $html ) {
 	$leak = false;
 	foreach ( array_merge( $ids, array( $marker, $phone_marker, $dkey, $dkey2, $akey, substr( $marker, -43 ) ) ) as $secret ) { $leak = $leak || false !== strpos( $html, $secret ); }
 	ok( ! $leak, "$where: no device id, marker, signature or key in the markup" );
+	ok( false !== strpos( $html, 'then clear the previous device key there' ), "$where: Revoke all names the Generate-then-clear-previous step (security M3)" );
 	ok( false !== strpos( $html, 'owner_device_revoke' ) && false !== strpos( $html, 'owner_device_enroll' ) && false !== strpos( $html, 'owner_device_revoke_all' ) && false !== strpos( $html, 'sn_owner_row' ), "$where: enroll, revoke by row and revoke all" );
 }
 
@@ -154,6 +156,28 @@ ok( 'owner_device_none' === sn_handle_owner_device_revoke_all( array() ), 'revok
 $_COOKIE['sn_owner_dev'] = $marker;
 ok( null === sn_owner_this_device( $now + 86400 ) && false === sn_owner_device_renew( $now + 2 * 86400 ), 'a revoked marker is not this device and is never renewed' );
 
+// ── Review round 1: renewal reads no option without a marker cookie.
+$saved_cookie = $_COOKIE; unset( $_COOKIE['sn_owner_dev'] ); $GLOBALS['__reads'] = 0;
+ok( false === sn_owner_device_renew( $now ) && 0 === $GLOBALS['__reads'], 'no sn_owner_dev cookie: renewal reads no option at all' );
+$_COOKIE = $saved_cookie;
+
+// ── Review round 1: the revoked list keeps and serves the newest 1,000 ids.
+$many = array(); for ( $k = 0; $k < 1005; $k++ ) { $many[] = sprintf( '%016x', $k ); }
+$GLOBALS['__options']['sn_owner_revoked'] = array( 'ids' => array(), 'at' => 0 );
+sn_owner_revoke_ids( $many, $now );
+ok( 1000 === count( sn_owner_revoked()['ids'] ) && sprintf( '%016x', 1004 ) === end( sn_owner_revoked()['ids'] ) && sprintf( '%016x', 5 ) === sn_owner_revoked()['ids'][0], 'storage keeps the newest 1,000 ids' );
+$GLOBALS['__options']['sn_owner_revoked'] = array( 'ids' => $many, 'at' => 1 );
+$big = sn_owner_revoked_response()->data['revoked'];
+ok( 1000 === count( $big ) && sprintf( '%016x', 1004 ) === end( $big ) && sprintf( '%016x', 5 ) === $big[0], 'the route answers at most the newest 1,000, even over a longer stored list' );
+
+// ── Review round 1 (security L9): a label is escaped in every attribute and cell.
+$GLOBALS['__options']['sn_owner_devices'] = array( array( 'id' => 'aaaaaaaaaaaaaaaa', 'label' => '"><script>x</script>', 'enrolled' => $now, 'last_seen' => $now ) );
+$nh = analytics_owner_devices_html();
+$ch = $classic();
+ok( false === strpos( $nh, '<script>' ) && false === strpos( $nh, '"><' . 'script' ) && false !== strpos( $nh, '&lt;script&gt;' ), 'native: the label is escaped in the revoke confirm and the table' );
+ok( false === strpos( $ch, '<script>' ) && false !== strpos( $ch, '&lt;script&gt;' ), 'classic: the label is escaped in the confirm and the table' );
+$GLOBALS['__options']['sn_owner_devices'] = array();
+
 // ── The token CLI.
 $m = sn_owner_token_mint( 'claude-code', 43200, $now, $akey );
 ok( $m['ok'] && 0 === strpos( $m['line'], 'SN-Owner-Agent: v1.claude-code.' . ( $now + 43200 ) . '.' ) && is_array( sn_owner_agent_verify( substr( $m['line'], 16 ), array( $akey ), $now ) ), 'mints a header line that verifies, default TTL 43200' );
@@ -170,6 +194,9 @@ foreach ( array_merge( $ids, array( $marker, $phone_marker, substr( $marker, -43
 	if ( false !== strpos( $dump, $secret ) ) { $leaks[] = $secret; }
 }
 ok( array() === $leaks, 'no marker, token or device id in any option dump, log line, keyring model or view model' );
+ok( false !== strpos( sn_keyring_copy()['generate'], 'stays valid there' ) && false !== strpos( sn_keyring_copy()['generate'], 'until you clear that row' ), 'Generate says the old key stays valid as the previous key until it is cleared' );
+$agent_about = sn_keyring()['owner_agent_key']['about'];
+ok( false !== strpos( $agent_about, 'page.route limited to https://juanlentino.com/**' ) && false !== strpos( $agent_about, 'never extraHTTPHeaders' ) && false !== strpos( $agent_about, '-L' ) && false !== strpos( $agent_about, 'environment variable' ), 'the agent key\'s hint says how to carry the token safely' );
 $models = wp_json_encode( sn_keyring_models(), JSON_UNESCAPED_UNICODE );
 ok( false === strpos( $models, $dkey2 ) && false === strpos( $models, $akey ) && false !== strpos( $models, '••••' . substr( $akey, -4 ) ), 'the keyring paints the owner keys as last four only' );
 

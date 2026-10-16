@@ -7,7 +7,8 @@
  * Auth: `Authorization: Bearer <SN_SRV_TOKEN>`, the server token the Worker
  * already holds, compared in constant time (sn_owner_bearer_ok). Fails closed:
  * 503 when the token is unset, 403 when it does not match. Answers ids and
- * the time the list last changed; never a label, a marker or a key.
+ * the time the list last changed (the newest 1,000 ids at most); never a
+ * label, a marker or a key.
  *
  * @package SignalNoiseTools
  * @since Unreleased
@@ -52,7 +53,7 @@ function sn_owner_revoked_response() {
 	// The Worker refuses the whole list over one malformed id, so only the
 	// contract shape (16 lowercase hex) ever leaves here.
 	$ids      = array_values( array_filter( $r['ids'], static function ( $id ) { return 1 === preg_match( '/^[0-9a-f]{16}$/', (string) $id ); } ) );
-	$response = new WP_REST_Response( array( 'revoked' => $ids, 'at' => $r['at'] ), 200 );
+	$response = new WP_REST_Response( array( 'revoked' => array_slice( $ids, -SN_OWNER_REVOKED_MAX ), 'at' => $r['at'] ), 200 );
 	$response->header( 'Cache-Control', 'no-store' );
 	return $response;
 }

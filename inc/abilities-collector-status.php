@@ -58,6 +58,9 @@ function sn_collector_status_invariants( $json, $now ) {
 
 	// config_bindings: all self-reported presence booleans true.
 	$config = ( isset( $json['config'] ) && is_array( $json['config'] ) ) ? $json['config'] : array();
+	// SN Traffic Lanes: the owner flags are optional (an unset owner key just
+	// means no owner lane yet), so they never judge health or join the count.
+	$config = array_diff_key( $config, array_flip( array( 'ae_owner_bound', 'owner_device_key_set', 'owner_agent_key_set' ) ) );
 	$broken = array();
 	foreach ( $config as $key => $value ) {
 		if ( ! $value ) {
