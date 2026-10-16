@@ -15,6 +15,12 @@ if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; 
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_url_raw' ) ) { function esc_url_raw( $u ) { return (string) $u; } }
 if ( ! function_exists( 'headers_sent' ) ) { function headers_sent() { return false; } }
+if ( ! function_exists( 'sanitize_text_field' ) ) { function sanitize_text_field( $s ) { return trim( (string) $s ); } }
+if ( ! function_exists( 'wp_unslash' ) ) { function wp_unslash( $s ) { return $s; } }
+$GLOBALS['__transients'] = array();
+if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return $GLOBALS['__transients'][ $k ] ?? false; } }
+if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; } }
+$_SERVER['REMOTE_ADDR'] = '203.0.113.7';
 
 // site state, swappable per assertion
 $GLOBALS['__posts']     = array( 'https://juanlentino.com/notes/x' => 42 );
@@ -67,7 +73,7 @@ require __DIR__ . '/../inc/citations-endpoint.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
-function post( $source, $target ) { $GLOBALS['__recorded'] = array(); return sn_cit_handle_webmention( new Fake_Request( array( 'source' => $source, 'target' => $target ) ) ); }
+function post( $source, $target ) { $GLOBALS['__transients'] = array(); $GLOBALS['__recorded'] = array(); return sn_cit_handle_webmention( new Fake_Request( array( 'source' => $source, 'target' => $target ) ) ); }
 echo "citation graph — inbox + discovery — v11.27.0\n\n";
 
 $good_target = 'https://juanlentino.com/notes/x/';
@@ -245,6 +251,33 @@ ok( ! empty( $GLOBALS['__routes'][0]['args'] ), 'NEGATIVE CONTROL: the recorder 
 $fake = array( 'ns' => 'other/v2', 'route' => '/elsewhere', 'args' => array( 'methods' => 'GET, POST' ) );
 ok( 'signal-noise/v1' !== $fake['ns'] && false !== strpos( $fake['args']['methods'], 'GET' ),
 	'...and the same checks reject a moved route that also answers GET' );
+
+/* ── 2026-10-16 audit: the flood limits ───────────────────────────────────
+   10 claims per IP per hour, 20 per source host per day, and a 429 once the
+   store says the unverified inbox is full. burst() keeps the buckets between
+   calls, unlike post() above. */
+function burst( $source, $ip ) { $_SERVER['REMOTE_ADDR'] = $ip; return sn_cit_handle_webmention( new Fake_Request( array( 'source' => $source, 'target' => 'https://juanlentino.com/notes/x/' ) ) ); }
+$GLOBALS['__transients'] = array();
+$codes = array();
+for ( $i = 1; $i <= 11; $i++ ) { $codes[] = sn_status_of( burst( "https://ip-flood-$i.example/p", '198.51.100.1' ) ); }
+ok( array_fill( 0, 10, 202 ) === array_slice( $codes, 0, 10 ), 'ten claims from one IP in an hour are accepted' );
+$r = burst( 'https://ip-flood-12.example/p', '198.51.100.1' );
+ok( 429 === $codes[10] && 429 === sn_status_of( $r ) && 'sn_cit_rate_limited_ip' === $r->get_error_code(), 'the eleventh from that IP is a named 429' );
+ok( 202 === sn_status_of( burst( 'https://ip-flood-13.example/p', '198.51.100.2' ) ), 'a different IP is not affected' );
+$GLOBALS['__transients'] = array();
+$GLOBALS['__recorded']   = array();
+$ok = 0;
+for ( $i = 1; $i <= 21; $i++ ) { $r = burst( "https://spam.example/p$i", '192.0.2.' . $i ); $ok += 202 === sn_status_of( $r ) ? 1 : 0; }
+ok( 20 === $ok && 429 === sn_status_of( $r ) && 'sn_cit_rate_limited_host' === $r->get_error_code(), 'twenty claims from one source host in a day are accepted, the twenty-first is a named 429, from fresh IPs' );
+ok( 20 === count( $GLOBALS['__recorded'] ), '...and the refused one wrote nothing' );
+ok( 202 === sn_status_of( burst( 'https://SPAM2.example/p', '192.0.2.200' ) ), 'another source host is not affected' );
+$GLOBALS['__transients'] = array();
+$GLOBALS['__record_result'] = 'capped';
+$r = post( 'https://example.com/p', $good_target );
+ok( 429 === sn_status_of( $r ) && 'sn_cit_inbox_full' === $r->get_error_code(), 'a store at the unverified cap answers a named 429, not a 400 and not a false 202' );
+$GLOBALS['__record_result'] = 'created';
+$GLOBALS['__transients'] = array( 'sn_cit_rl_' . md5( 'ip|198.51.100.9' ) => array( 'n' => 10, 'until' => time() - 1 ) );
+ok( 202 === sn_status_of( burst( 'https://late.example/p', '198.51.100.9' ) ), 'an expired window lets the sender back in' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

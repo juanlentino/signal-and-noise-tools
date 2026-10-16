@@ -80,8 +80,13 @@ function snt_fs_signals( array $values, array $schema ) {
 	if ( 1 === preg_match( '#https?://|www\.|\b[a-z0-9-]+\.(com|org|net|ru|xyz|top)/#i', $name_text ) ) {
 		$strong[] = 'link_in_name';
 	}
-	if ( 1 === preg_match( '/\b(bitcoin|btc|crypto|usdt|cloud[- ]mining|new message|you have won|#H\d{3,})/i', $all ) ) {
+	if ( 1 === preg_match( '/\b(usdt|cloud[- ]mining|new message|you have won|#H\d{3,})/i', $all ) ) {
 		$strong[] = 'lure';
+	}
+	// Bitcoin, BTC or crypto alone is a research topic here (Bitcoin-anchored
+	// provenance), not a lure: weak, so it marks spam only beside another signal.
+	if ( 1 === preg_match( '/\b(bitcoin|btc|crypto)/i', $all ) ) {
+		$weak[] = 'crypto_word';
 	}
 	// "RobertBiB RonaldBiBGM", "NATREGTEGH475080NEHTYHYHTR": names no person has.
 	if ( 1 === preg_match( '/\b[A-Z][a-z]+[A-Z][a-zA-Z]*[A-Z]{2}\b|[A-Z]{5,}\d{3,}[A-Z]{3,}/', $name_text ) ) {

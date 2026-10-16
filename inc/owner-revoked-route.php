@@ -5,8 +5,9 @@
  * cron and caches them in KV; a listed id's marker counts as not valid.
  *
  * Auth: `Authorization: Bearer <SN_SRV_TOKEN>`, the server token the Worker
- * already holds, compared in constant time (sn_owner_bearer_ok). Fails closed:
- * 503 when the token is unset, 403 when it does not match. Answers ids and
+ * already holds, compared in constant time (sn_owner_bearer_ok). Fails closed,
+ * and the same way whether the token is unset or wrong: core's rest_no_route
+ * 404, byte for byte, so a prober cannot learn which. Answers ids and
  * the time the list last changed (the newest 1,000 ids at most); never a
  * label, a marker or a key.
  *
@@ -36,11 +37,9 @@ function sn_owner_bearer_ok( $header, $secret ) {
  */
 function sn_owner_revoked_permission( $request ) {
 	$secret = (string) apply_filters( 'sn_server_token', defined( 'SN_SRV_TOKEN' ) ? (string) SN_SRV_TOKEN : '' );
-	if ( '' === $secret ) {
-		return new WP_Error( 'sn_owner_revoked_unconfigured', 'The analytics server token is not set: set it in Connections › Credentials (Analytics server token).', array( 'status' => 503 ) );
-	}
+	// sn_owner_bearer_ok() refuses an unset secret, so one branch covers both.
 	if ( ! sn_owner_bearer_ok( (string) $request->get_header( 'authorization' ), $secret ) ) {
-		return new WP_Error( 'sn_owner_revoked_forbidden', 'Invalid server token.', array( 'status' => 403 ) );
+		return sn_rest_no_route_error();
 	}
 	return true;
 }

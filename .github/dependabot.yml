@@ -32,3 +32,15 @@ updates:
         patterns: ["*"]
     commit-message:
       prefix: "chore"
+
+  # The bundled PDF library (lib/pdf). Unlike the root entry this one is a
+  # RUNTIME dependency shipped inside the plugin, so its advisories matter most.
+  - package-ecosystem: "composer"
+    directory: "/lib/pdf"
+    schedule:
+      interval: "weekly"
+    groups:
+      composer-pdf:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore"

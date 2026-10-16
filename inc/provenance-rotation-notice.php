@@ -49,6 +49,7 @@ function sn_prov_rotation_notice( $flag ) {
 	$code    = substr( $flag, 2 );
 	$reasons = array(
 		'worker-not-configured' => __( 'The Worker URL or HMAC secret is not set, so the Worker could not be asked for its staged key.', 'signal-and-noise-tools' ),
+		'worker-url-refused'    => __( 'The Worker URL is refused: it must be https on a public host. No request was made.', 'signal-and-noise-tools' ),
 		'worker-unreachable'    => __( 'The Worker did not answer, or answered with an error.', 'signal-and-noise-tools' ),
 		'worker-unreadable'     => __( 'The Worker answered with something this site could not read.', 'signal-and-noise-tools' ),
 		'no-successor-staged'   => __( 'The Worker holds no staged successor key. Stage one on the Worker first, as the key-rotation runbook says.', 'signal-and-noise-tools' ),

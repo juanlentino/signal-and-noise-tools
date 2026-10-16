@@ -77,6 +77,16 @@ ok( '' === $reason( array( 'f1' => 'Sam McDonald', 'f2' => 's@gmail.com', 'f4' =
 ok( '' === $reason( array( 'f1' => 'Ana 🙂', 'f2' => 'ana@gmail.com', 'f6' => 'Loved the note on ISRC and ISWC.' ) ), 'one weak signal alone (an emoji in the name) passes' );
 ok( '' === $reason( array( 'f1' => 'Lee', 'f2' => 'lee@x.io', 'f3' => 'MIT', 'f4' => 'AES', 'f5' => 'JAES 2026' ) ), 'short real answers (MIT, AES) are not random tokens' );
 
+// 2026-10-16 audit: bitcoin, btc and crypto are weak on their own. This site
+// writes about Bitcoin-anchored provenance, so a researcher says "bitcoin".
+ok( '' === $reason( array( 'f1' => 'Dana Whitfield', 'f2' => 'dana@ucl.ac.uk', 'f3' => 'UCL', 'f6' => 'I am researching Bitcoin provenance for audio files and how OpenTimestamps anchors a hash in a BTC block. Could we talk about your crypto anchoring?' ) ), 'a genuine research inquiry about bitcoin provenance is NOT flagged' );
+$r = $reason( array( 'f1' => 'Mark', 'f2' => 'mark@emlpro.com', 'f6' => 'Earn bitcoin daily' ) );
+ok( '' !== $r && false !== strpos( $r, 'crypto_word' ) && false !== strpos( $r, 'throwaway_email' ), "bitcoin beside one other weak signal is still caught ($r)" );
+$r = $reason( array( 'f1' => 'Lucky', 'f2' => 'l@x.co', 'f6' => 'You have won 0.5 BTC, claim now' ) );
+ok( '' !== $r && false !== strpos( $r, 'lure' ), "classic crypto spam is still caught by its lure ($r)" );
+$r = $reason( array( 'f1' => 'Jo', 'f2' => 'jo@x.co', 'f6' => 'Your USDT wallet is ready, crypto bonus inside' ) );
+ok( '' !== $r && false !== strpos( $r, 'lure' ), "USDT stays a strong lure ($r)" );
+
 // Stored entries: Forms keeps values as a JSON string. The sweep must decode
 // it; reading the string as an array hands the rules nothing (18.8.0 scanned
 // 338 entries and flagged none).
@@ -92,6 +102,37 @@ ok( $own === $f( $own, $schema, array( 'f1' => 'María' ) ), "Forms' own spam ve
 $v = $f( array( 'spam' => false, 'reason' => '' ), $schema, array( 'f1' => 'RobertBiB RonaldBiBGM' ) );
 ok( true === $v['spam'] && 0 === strpos( $v['reason'], 'snt:' ), 'a clean Forms verdict on a bot name becomes spam, reason snt:*' );
 ok( array( 'spam' => false, 'reason' => '' ) === $f( array( 'spam' => false, 'reason' => '' ), $schema, array( 'f1' => 'María' ) ), 'a clean entry stays clean' );
+
+// 2026-10-16 audit: the scan goes to an MCP caller, so its rows carry no
+// submitter name or email, only a masked hint. The apply flow still works.
+ok( 'j***@example.com' === snt_fs_mask_hint( 'juan.lentino@Example.com' ), 'an email title masks to j***@domain' );
+ok( 'M. G.' === snt_fs_mask_hint( 'María García' ), 'a name masks to initials' );
+ok( '' === snt_fs_mask_hint( '' ), 'an empty title masks to nothing' );
+define( 'ALLTFO_ENTRY_TYPE', 'alltfo_entry' ); define( 'ALLTFO_FORM_TYPE', 'alltfo_form' ); define( 'ALLTFO_META_VALUES', '_v' ); define( 'ALLTFO_META_FORM', '_f' );
+define( 'ALLTFO_STATUS_UNREAD', 'unread' ); define( 'ALLTFO_STATUS_READ', 'read' ); define( 'ALLTFO_STATUS_SPAM', 'spam' );
+$GLOBALS['__entries'] = array( 11 => array( 'title' => 'RobertBiB RonaldBiBGM', 'v' => array( 'f1' => 'RobertBiB RonaldBiBGM' ), 'status' => 'unread' ), 12 => array( 'title' => 'spammer@emlpro.com', 'v' => array( 'f1' => 'NATREGTEGH475080NEHTYHYHTR', 'f2' => 'spammer@emlpro.com' ), 'status' => 'spam' ), 13 => array( 'title' => 'María García', 'v' => array( 'f1' => 'María García' ), 'status' => 'read' ) );
+$GLOBALS['__set'] = array();
+function alltfo_get_form_schema( $f ) { return $GLOBALS['schema_for_scan']; }
+function alltfo_set_entry_status( $id, $st ) { $GLOBALS['__set'][ $id ] = $st; return true; }
+function get_posts( $q ) {
+	if ( ALLTFO_FORM_TYPE === $q['post_type'] ) { return array( (object) array( 'ID' => 5, 'post_title' => 'Contact' ) ); }
+	return array_keys( array_filter( $GLOBALS['__entries'], static function ( $e ) use ( $q ) { return in_array( $e['status'], (array) $q['post_status'], true ); } ) );
+}
+function get_post_meta( $id, $k, $single = false ) { return ALLTFO_META_FORM === $k ? 5 : json_encode( $GLOBALS['__entries'][ $id ]['v'] ); }
+function get_the_title( $id ) { return $GLOBALS['__entries'][ $id ]['title']; }
+function get_post_time( $f, $gmt, $id ) { return '2026-10-16T00:00:00+00:00'; }
+function is_wp_error( $x ) { return false; }
+$GLOBALS['schema_for_scan'] = $schema;
+$scan = snt_fs_scan();
+$row  = $scan['flagged'][0] ?? array();
+ok( 1 === count( $scan['flagged'] ) && 11 === $row['id'], 'the scan flags the bot entry' );
+ok( array( 'id', 'form', 'hint', 'date', 'reason' ) === array_keys( $row ) && 'R. R.' === $row['hint'], 'a flagged row is id, form, hint, date and reason; no title' );
+$folder = $scan['spam_folder']['caught_rows'][0] ?? array();
+ok( ! isset( $folder['title'] ) && 's***@emlpro.com' === $folder['hint'], 'a Spam-folder row carries the masked hint, not the email' );
+$json = json_encode( $scan );
+ok( false === strpos( $json, 'RobertBiB' ) && false === strpos( $json, 'spammer@' ) && false === strpos( $json, 'Garc' ), 'no submitter name or email anywhere in the scan output' );
+$applied = snt_fs_apply( array( 'entry_ids' => array( 11, 13 ) ) );
+ok( array( 11 ) === $applied['marked'] && array( 13 ) === $applied['refused'] && array( 11 => 'spam' ) === $GLOBALS['__set'], 'forms-spam-apply still marks the flagged id and refuses the clean one' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

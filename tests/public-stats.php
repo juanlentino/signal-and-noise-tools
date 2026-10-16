@@ -42,6 +42,8 @@ function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); retur
 // back to the raw path (the "never a dead guess" contract).
 function url_to_postid( $url ) { return false !== strpos( (string) $url, '/notes/alpha/' ) ? 77 : 0; }
 function get_the_title( $id ) { return 77 === (int) $id ? 'Alpha & the <Signal>' : ( 12 === (int) $id ? 'Notes' : '' ); }
+$GLOBALS['__not_public'] = array();
+function is_post_publicly_viewable( $id ) { return ! in_array( (int) $id, $GLOBALS['__not_public'], true ); }
 function get_permalink( $id ) { return 12 === (int) $id ? 'https://example.com/notes/' : ''; }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 
@@ -172,6 +174,15 @@ $GLOBALS['__options']['page_for_posts'] = 12;
 ok( 'Notes' === sn_public_stats_path_label( '/notes/' ), 'the posts page (which url_to_postid does not resolve) reads by its title in Most read, not as a raw path (live audit P2-7)' );
 ok( '/gone/' === sn_public_stats_path_label( '/gone/' ), 'an unresolved path still reads as itself' );
 unset( $GLOBALS['__options']['page_for_posts'] );
+// 2026-10-16 audit: a path that resolves to a draft or private post must not
+// leak its title, and its path carries the slug, so the row is dropped.
+$GLOBALS['__not_public'] = array( 77 );
+ok( '' === sn_public_stats_path_label( '/notes/alpha/' ), 'a path resolving to a non-public post has no label (not its title, not its path)' );
+$hidden = sn_public_stats_html();
+ok( false === strpos( $hidden, 'Alpha &amp; the' ) && false === strpos( $hidden, '/notes/alpha/' ), 'the non-public post vanishes from Most read: neither its title nor its path renders' );
+ok( false !== strpos( $hidden, '/notes/beta/' ), '...while the other rows still render' );
+$GLOBALS['__not_public'] = array();
+ok( 'Alpha & the <Signal>' === sn_public_stats_path_label( '/notes/alpha/' ), 'control: once public, the title is the label again' );
 ok( false !== strpos( $html, '/notes/beta/' ), 'an unresolvable path falls back to the path itself' );
 ok( false !== strpos( $html, 'Home' ), 'the homepage path renders as Home' );
 ok( false === strpos( $html, 'wp-admin' ), 'no admin path anywhere in the public render' );

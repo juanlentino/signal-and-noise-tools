@@ -107,6 +107,11 @@ function sn_keyring_probe_sensor( array $row ) {
 	if ( '' === $url ) {
 		return sn_keyring_verdict( 'none', __( 'No sensor URL.', 'signal-and-noise-tools' ) );
 	}
+	// The URL is a setting, and the bearer below is a credential: it goes only
+	// to an https public host, through the same gate every Worker call uses.
+	if ( ! sn_prov_url_allowed( $url ) ) {
+		return sn_keyring_verdict( 'error', __( 'The sensor URL is refused: it must be https on a public host. No request was made.', 'signal-and-noise-tools' ) );
+	}
 	$resp = wp_remote_get( $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . 'days=1', array( 'timeout' => 6, 'redirection' => 0, 'sslverify' => true, 'headers' => array( 'Authorization' => 'Bearer ' . sn_credential( 'mr_read_token' ), 'Accept' => 'application/json' ) ) );
 	if ( is_wp_error( $resp ) ) {
 		return sn_keyring_verdict( 'error', $resp->get_error_message() );

@@ -184,7 +184,7 @@ function sn_music_schema_jsonld() {
 	);
 
 	return '<script type="application/ld+json">'
-		. wp_json_encode( $payload, JSON_UNESCAPED_UNICODE )
+		. wp_json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG )
 		. '</script>' . "\n";
 }
 

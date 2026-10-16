@@ -12,8 +12,10 @@
  *   POST signal-noise/v1/analytics/refresh
  *     Auth : X-SN-Refresh-Key header, constant-time-compared against SN_SRV_TOKEN —
  *            the PRIVATE server token already shared with the Worker (it also gates
- *            srv:1 beacons), so this adds NO new secret. Fails CLOSED (503) when
- *            SN_SRV_TOKEN is unset, so a misconfigured deploy never runs open.
+ *            srv:1 beacons), so this adds NO new secret. Fails CLOSED when
+ *            SN_SRV_TOKEN is unset, so a misconfigured deploy never runs open, and
+ *            answers an unset token exactly as a wrong key: core's rest_no_route
+ *            404, byte for byte (2026-10-16 audit), so a prober learns neither.
  *     Runs : answers 202, then sn_analytics_run_rollup() + sn_analytics_realtime_refresh()
  *            after the response (shutdown). Both are
  *            internally guarded (no-op without AE config) and idempotent, so a
@@ -42,29 +44,18 @@ function sn_analytics_refresh_secret() {
 
 /**
  * Permission gate: allow ONLY when a secret is configured AND the request presents
- * it in X-SN-Refresh-Key (constant-time compare). No secret → 503 (fail closed);
- * absent/wrong key → 403.
+ * it in X-SN-Refresh-Key (constant-time compare). No secret, or an absent or wrong
+ * key, answers the same rest_no_route 404 (sn_rest_no_route_error()).
  *
  * @param WP_REST_Request $request
  * @return true|WP_Error
  */
 function sn_analytics_refresh_permission( $request ) {
 	$secret = sn_analytics_refresh_secret();
-	if ( '' === $secret ) {
-		return new WP_Error(
-			'sn_refresh_unconfigured',
-			'The analytics server token is not set: set it in Connections › Credentials (Analytics server token).',
-			array( 'status' => 503 )
-		);
-	}
 	// WP normalizes the inbound header 'X-SN-Refresh-Key' to 'x_sn_refresh_key'.
 	$given = (string) $request->get_header( 'x_sn_refresh_key' );
-	if ( '' === $given || ! hash_equals( $secret, $given ) ) {
-		return new WP_Error(
-			'sn_refresh_forbidden',
-			'Invalid analytics refresh key.',
-			array( 'status' => 403 )
-		);
+	if ( '' === $secret || '' === $given || ! hash_equals( $secret, $given ) ) {
+		return sn_rest_no_route_error();
 	}
 	return true;
 }

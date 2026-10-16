@@ -212,6 +212,21 @@ ok(
 );
 ok( ! isset( $ida['isrcCode'] ), 'v6.24.0: an album does not get isrcCode (recording-only property)' );
 
+// ── 2026-10-16 audit: a stored string cannot close the script element ──────
+sn_discography_set( array(
+	sn_discography_normalize_entry( array(
+		'title'  => 'Evil</script><script>alert(1)</script>',
+		'artist' => 'X',
+		'year'   => 2021,
+		'type'   => 'album',
+	) ),
+), 1700000000, '' );
+$hex = sn_music_schema_jsonld();
+ok( 1 === substr_count( $hex, '</script>' ) && 1 === substr_count( strtolower( $hex ), '<script' ), 'a title carrying </script> cannot break out: the only tags are the wrapper\'s own' );
+ok( false !== strpos( $hex, 'Evil\u003C' ) && false !== strpos( $hex, 'script\u003E' ), '...because < and > inside the JSON are emitted as \u003C / \u003E (JSON_HEX_TAG)' );
+$back = json_decode( preg_replace( '#^.*?<script[^>]*>(.*)</script>.*$#s', '$1', $hex ), true );
+ok( 'Evil</script><script>alert(1)</script>' === ( $back['@graph'][0]['name'] ?? null ), '...and it still decodes to the exact title' );
+
 // ── empty store → emits nothing ──────────────────────────────────────
 $GLOBALS['__options'] = array();
 ok( sn_music_schema_jsonld() === '', 'emit: empty store → emits nothing' );

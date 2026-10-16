@@ -107,6 +107,7 @@ require_once SNT_PATH . 'inc/keyring-verify.php'; // 15.2.0: one probe per crede
 require_once SNT_PATH . 'inc/keyring-admin.php';  // 15.2.0: the row model both leaves paint; the classic Connections › Credentials leaf.
 require_once SNT_PATH . 'inc/owner-identity-sign.php'; // Unreleased (SN Traffic Lanes): the device marker and agent token signer, pinned to the Workers' vectors.
 require_once SNT_PATH . 'inc/owner-devices.php';       // Unreleased: owner device enrollment, renewal on admin_init, revoke.
+require_once SNT_PATH . 'inc/rest-no-route.php'; // 2026-10-16 audit: core's rest_no_route 404, byte for byte, for token-gated machine routes.
 require_once SNT_PATH . 'inc/owner-revoked-route.php'; // Unreleased: GET signal-noise/v1/owner/revoked for the analytics Worker.
 require_once SNT_PATH . 'inc/cloudflare-readings-admin.php'; // 15.3.0: Edge (Measurement › Analytics) and Firewall (Security › Firewall), classic; the readings where their questions are asked.
 require_once SNT_PATH . 'inc/purge-ledger.php';      // 20.7.0: the purge ledger; keeps purges rare (Breeze update and nightly purges unhooked if Breeze returns)

@@ -48,6 +48,7 @@ require SNT_PATH . 'inc/keyring-admin.php';
 require_once SNT_PATH . 'inc/admin-flash-messages.php';
 require SNT_PATH . 'inc/owner-identity-sign.php';
 require SNT_PATH . 'inc/owner-devices.php';
+require SNT_PATH . 'inc/rest-no-route.php';
 require SNT_PATH . 'inc/owner-revoked-route.php';
 require SNT_PATH . 'inc/owner-token-cli.php';
 require SNT_PATH . 'inc/owner-devices-render.php';
@@ -201,12 +202,14 @@ ok( false === $GLOBALS['__autoload']['sn_owner_revoked'] && sn_owner_revoked()['
 // ── The revoked route: Bearer SN_SRV_TOKEN, 200 {revoked, at}.
 ok( isset( $GLOBALS['__routes']['signal-noise/v1/owner/revoked'] ) || ( do_action( 'rest_api_init' ) || isset( $GLOBALS['__routes']['signal-noise/v1/owner/revoked'] ) ), 'the route registers on rest_api_init' );
 ok( 'GET' === $GLOBALS['__routes']['signal-noise/v1/owner/revoked']['methods'] && 'sn_owner_revoked_permission' === $GLOBALS['__routes']['signal-noise/v1/owner/revoked']['permission_callback'], 'GET, behind the server-token permission' );
+// 2026-10-16 audit: unset and wrong answer alike, as core's rest_no_route 404,
+// so a prober cannot tell whether the site has a server token at all.
 $perm = sn_owner_revoked_permission( new Req( 'Bearer anything' ) );
-ok( $perm instanceof WP_Error && 503 === $perm->data['status'], 'no server token: 503, closed' );
+ok( $perm instanceof WP_Error && 'rest_no_route' === $perm->code && 404 === $perm->data['status'], 'no server token: closed, as core rest_no_route 404 (no 503 oracle)' );
 add_filter( 'sn_server_token', static function ( $t ) { return 'srv-secret'; } );
 foreach ( array( '', 'srv-secret', 'Bearer srv-secre', 'Bearer srv-secret ', 'bearer srv-secret' ) as $h ) {
 	$p = sn_owner_revoked_permission( new Req( $h ) );
-	ok( $p instanceof WP_Error && 403 === $p->data['status'], "a wrong or malformed header is 403: '$h'" );
+	ok( $p instanceof WP_Error && 'rest_no_route' === $p->code && 404 === $p->data['status'] && $p == $perm, "a wrong or malformed header is the same rest_no_route 404 as an unset token: '$h'" );
 }
 ok( true === sn_owner_revoked_permission( new Req( 'Bearer srv-secret' ) ), 'the right Bearer passes' );
 $GLOBALS['__options']['sn_owner_revoked']['ids'][] = 'NOT-AN-ID';

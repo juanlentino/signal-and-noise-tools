@@ -151,6 +151,10 @@ function snt_sn_apply_plan_batch_edits( $content, $type, $edits ) {
 			}
 			$replacement = trim( (string) ( $edit['replacement'] ?? '' ) );
 		} else {
+			$active = snt_sn_apply_active_content_error( (string) ( $edit['replacement'] ?? '' ), 'payload.edits[].replacement' );
+			if ( is_wp_error( $active ) ) {
+				return snt_sn_apply_batch_edit_error( $n, $active );
+			}
 			$replacement       = snt_ai_drift_normalize_replacement( $edit['replacement'] ?? '', $preserve );
 			$replacement_error = snt_ai_drift_replacement_error( $replacement, $preserve );
 			if ( is_wp_error( $replacement_error ) ) {

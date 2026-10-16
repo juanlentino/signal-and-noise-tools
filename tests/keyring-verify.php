@@ -24,6 +24,8 @@ function sn_cf_monitor_verify( $z, $token = null ) { $GLOBALS['__cf_token'] = $t
 function sn_uptime_status_api_get( $r ) { return $GLOBALS['__bs']; }
 function sn_worker_version_get( $force = false ) { $GLOBALS['__wv_force'] = $force; return $GLOBALS['__wv']; }
 function sn_spotify_token() { return $GLOBALS['__spotify'] ?? ''; }
+// The shared Worker URL gate (inc/provenance-webhook.php): https on a public host.
+function sn_prov_url_allowed( $u ) { return 0 === strpos( (string) $u, 'https://' ) && false === strpos( (string) $u, '169.254.' ) && false === strpos( (string) $u, 'localhost' ); }
 
 require dirname( __DIR__ ) . '/inc/keyring.php';
 require dirname( __DIR__ ) . '/inc/keyring-verify.php';
@@ -53,6 +55,18 @@ foreach ( array( 200, 401, 502, 503 ) as $code ) { $GLOBALS['__http'][ SN_MR_DEF
 ok( 4 === count( array_unique( $titles ) ), 'four sensor answers, four different sentences' );
 $GLOBALS['__http'][ SN_MR_DEFAULT_ENDPOINT ] = new WP_Error( 'x', 'cURL error 28' );
 ok( 'error' === sn_keyring_probe( 'mr_read_token', $rows['mr_read_token'] )['status'], 'a transport failure is an error, not a refusal' );
+
+// ── 2026-10-16 audit: the sensor URL passes the shared SSRF gate before the bearer leaves.
+foreach ( array( 'http://sensor.example/mr', 'https://169.254.169.254/latest', 'https://localhost/mr' ) as $bad ) {
+	$GLOBALS['__settings']['machine_readers.worker_url'] = $bad;
+	$GLOBALS['__calls'] = array();
+	$v = sn_keyring_probe( 'mr_read_token', $rows['mr_read_token'] );
+	ok( 'error' === $v['status'] && false !== strpos( $v['detail'], 'refused' ) && array() === $GLOBALS['__calls'], "a disallowed sensor URL is refused and no request is made: $bad" );
+}
+unset( $GLOBALS['__settings']['machine_readers.worker_url'] );
+$GLOBALS['__http'][ SN_MR_DEFAULT_ENDPOINT ] = array( 'response' => array( 'code' => 200 ), 'body' => '{}' );
+$GLOBALS['__calls'] = array();
+ok( 'ok' === sn_keyring_probe( 'mr_read_token', $rows['mr_read_token'] )['status'] && 1 === count( $GLOBALS['__calls'] ), 'control: the default https sensor is still probed' );
 
 // ── Cloudflare: through the monitor's verify.
 $GLOBALS['__opt']['sn_cf_api_token'] = 'cf-1';

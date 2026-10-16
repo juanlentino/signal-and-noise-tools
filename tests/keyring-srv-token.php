@@ -3,7 +3,8 @@
  * The analytics server token resolves through the keyring on every reader:
  * with no SN_SRV_TOKEN constant and a value saved in Connections › Credentials,
  * the refresh route, the RSS tracker and the settings pill all use the saved
- * value; unset, the route's 503 names the keyring row, not wp-config.
+ * value; unset, the route answers core's rest_no_route 404 (2026-10-16 audit)
+ * and the settings pill names the keyring row, not wp-config.
  * Run: php tests/keyring-srv-token.php
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
@@ -26,6 +27,7 @@ function sn_analytics_config() { return array( 'account' => 'a' ); }
 function sn_cf_get_zone() { return 'z'; }
 
 require dirname( __DIR__ ) . '/inc/keyring.php';
+require dirname( __DIR__ ) . '/inc/rest-no-route.php';
 require dirname( __DIR__ ) . '/inc/analytics-refresh-rest.php';
 require dirname( __DIR__ ) . '/inc/rss-feed-tracker.php';
 require dirname( __DIR__ ) . '/inc/analytics-render-settings.php';
@@ -37,7 +39,7 @@ echo "keyring-srv-token -- every reader resolves through the keyring\n";
 
 ok( ! defined( 'SN_SRV_TOKEN' ), 'precondition: no SN_SRV_TOKEN constant' );
 $e = sn_analytics_refresh_permission( new Req() );
-ok( $e instanceof WP_Error && 503 === $e->d['status'] && false !== strpos( $e->m, 'set it in Connections › Credentials (Analytics server token)' ) && false === strpos( $e->m, 'SN_SRV_TOKEN' ), 'unset: 503 names the keyring row, not the constant' );
+ok( $e instanceof WP_Error && 'rest_no_route' === $e->c && 404 === $e->d['status'] && false === strpos( $e->m, 'SN_SRV_TOKEN' ), 'unset: the route reads as absent (rest_no_route 404); the pill below names the keyring row' );
 $h = pills();
 ok( false !== strpos( $h, 'Server token missing' ) && false !== strpos( $h, 'Connections › Credentials' ) && false === strpos( $h, 'wp-config' ), 'unset: the pill points at the keyring row' );
 
@@ -48,7 +50,7 @@ $GLOBALS['__hdr'] = 'saved-srv-42';
 ok( true === sn_analytics_refresh_permission( new Req() ), 'the route accepts the saved value' );
 $GLOBALS['__hdr'] = 'old-value';
 $e = sn_analytics_refresh_permission( new Req() );
-ok( $e instanceof WP_Error && 403 === $e->d['status'], 'a different value is 403' );
+ok( $e instanceof WP_Error && 'rest_no_route' === $e->c && 404 === $e->d['status'], 'a different value is the same rest_no_route 404' );
 $h = pills();
 ok( false !== strpos( $h, 'Server token set' ) && false === strpos( $h, 'missing' ) && false === strpos( $h, 'saved-srv-42' ), 'the pill says set from the saved value, and never echoes it' );
 

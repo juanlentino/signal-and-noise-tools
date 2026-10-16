@@ -291,7 +291,7 @@ function sn_analytics_query( $sql ) {
 		return null;
 	}
 
-	$url = 'https://api.cloudflare.com/client/v4/accounts/' . $cfg['account_id'] . '/analytics_engine/sql';
+	$url = 'https://api.cloudflare.com/client/v4/accounts/' . rawurlencode( (string) $cfg['account_id'] ) . '/analytics_engine/sql';
 
 	// AE refuses a statement over its character cap; fail closed with a named
 	// reason instead of sending it (the caller shows the number as unavailable).

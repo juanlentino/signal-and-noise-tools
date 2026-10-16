@@ -55,11 +55,53 @@ function sn_cit_resolve_target( $target ) {
 	return (int) $post_id;
 }
 
+const SN_CIT_RATE_IP_MAX      = 10; // claims per IP per hour.
+const SN_CIT_RATE_IP_WINDOW   = 3600;
+const SN_CIT_RATE_HOST_MAX    = 20; // claims per source host per day.
+const SN_CIT_RATE_HOST_WINDOW = 86400;
+
+/**
+ * Count one hit against a fixed-window bucket; false once the bucket is full.
+ * The window starts at the bucket's first hit and is not extended by later
+ * hits, so a sender that waits it out is let back in.
+ *
+ * @param string $bucket Bucket name (already hashed or short).
+ * @param int    $max    Hits allowed per window.
+ * @param int    $window Window in seconds.
+ * @return bool True when this hit is within the limit.
+ */
+function sn_cit_rate_hit( $bucket, $max, $window ) {
+	$key  = 'sn_cit_rl_' . md5( $bucket );
+	$now  = time();
+	$hits = get_transient( $key );
+	if ( ! is_array( $hits ) || (int) ( $hits['until'] ?? 0 ) <= $now ) {
+		$hits = array( 'n' => 0, 'until' => $now + $window );
+	}
+	if ( (int) $hits['n'] >= $max ) {
+		return false;
+	}
+	++$hits['n'];
+	set_transient( $key, $hits, max( 1, (int) $hits['until'] - $now ) );
+	return true;
+}
+
+/**
+ * The 429 a flooding sender sees.
+ *
+ * @param string $code Named refusal.
+ * @param string $why  Human-readable reason.
+ * @param int    $retry Seconds until a retry can succeed.
+ * @return WP_Error
+ */
+function sn_cit_too_many( $code, $why, $retry ) {
+	return new WP_Error( $code, $why, array( 'status' => 429, 'retry_after' => (int) $retry ) );
+}
+
 /**
  * Handle an inbound claim.
  *
  * @param WP_REST_Request $request
- * @return WP_REST_Response|WP_Error 202 on accept; WP_Error (status 400) on every refusal.
+ * @return WP_REST_Response|WP_Error 202 on accept; WP_Error 400 on a bad claim, 429 when rate limited or the inbox is full.
  */
 function sn_cit_handle_webmention( $request ) {
 	$source = (string) $request->get_param( 'source' );
@@ -83,6 +125,13 @@ function sn_cit_handle_webmention( $request ) {
 		return new WP_Error( $code, $why, array( 'status' => 400 ) );
 	};
 
+	// Every request counts against its IP, refusals included, before any
+	// parsing or DB work: the budget exists to bound what a flood costs.
+	$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+	if ( ! sn_cit_rate_hit( 'ip|' . $ip, SN_CIT_RATE_IP_MAX, SN_CIT_RATE_IP_WINDOW ) ) {
+		return sn_cit_too_many( 'sn_cit_rate_limited_ip', 'too many claims from this address; try again later', SN_CIT_RATE_IP_WINDOW );
+	}
+
 	if ( '' === $source || '' === $target ) {
 		return $reject( 'sn_cit_missing_params', 'source and target are both required' );
 	}
@@ -99,6 +148,9 @@ function sn_cit_handle_webmention( $request ) {
 	// Fail closed on an internal or unresolvable source BEFORE storing it, so the
 	// verifier is never handed a row it must refuse.
 	$host = wp_parse_url( $ns, PHP_URL_HOST );
+	if ( $host && ! sn_cit_rate_hit( 'host|' . strtolower( (string) $host ), SN_CIT_RATE_HOST_MAX, SN_CIT_RATE_HOST_WINDOW ) ) {
+		return sn_cit_too_many( 'sn_cit_rate_limited_host', 'too many claims from this source host today; try again tomorrow', SN_CIT_RATE_HOST_WINDOW );
+	}
 	if ( ! $host || sn_ssrf_host_blocked( $host ) ) {
 		return $reject( 'sn_cit_source_unreachable', 'source host is not reachable from this site' );
 	}
@@ -108,6 +160,9 @@ function sn_cit_handle_webmention( $request ) {
 	}
 
 	$result = sn_cit_record( $ns, $target, $post_id );
+	if ( 'capped' === $result ) {
+		return sn_cit_too_many( 'sn_cit_inbox_full', 'the citation inbox is full; try again later', SN_CIT_RATE_IP_WINDOW );
+	}
 	if ( 'invalid' === $result ) {
 		return $reject( 'sn_cit_not_recorded', 'the claim could not be recorded' );
 	}
