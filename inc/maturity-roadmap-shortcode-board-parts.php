@@ -77,7 +77,11 @@ function sn_maturity_roadmap_static_board() {
 				// unlike the stats-page row this one is not self-evidencing -- /stats/
 				// publishes only Reading rhythm and Most read. The FEATURE is untouched:
 				// inc/insights-narration.php still assembles the ai_referrals signal.
-				__( 'Which machines send a reader back: per operator, the ledger\'s crawl counts published beside that operator\'s referred human visits, stated as a sentence each, not a ratio, because crawls are requests and visits are visitor-days. An operator that read the site hundreds of times and sent nobody back is the finding, and a bare 0 would bury it (a thread shared with Machine readability)', 'signal-and-noise-tools' ),
+				// 2026-10-16 (third door write): the give-back row ('Which machines send a
+				// reader back', done since 2026-08-11) GRADUATED onto /maturity/analytics/ as
+				// its seventeenth principle, the oldest row when the quiet-week row arrived at
+				// the five-row cap. Its 'not a ratio' decline travels with it and is pinned
+				// there now, so the declined design still cannot return as an unmet promise.
 				__( 'Traffic rhythm flags: the cadence watch now reads views, so a quiet week flags against the site\'s own trailing weeks (robust to a viral spike and one-sided by design), read from the rollups already kept, never profiling a reader', 'signal-and-noise-tools' ),
 				// 2026-09-08: THIRD Analytics retirement, plus a graduation, in one move.
 				// RETIRED: 'Search-side metrics from Search Console'. Chosen because it is the
@@ -99,13 +103,16 @@ function sn_maturity_roadmap_static_board() {
 				// shipped (Unanswered searches in #2131; coverage history retained per run).
 				__( 'The questions search asked that the corpus doesn\'t answer: queries with impressions and no clicks over the synced 28-day window, each with the page search showed for it, derived from the Search Console rows already synced and read by the owner\'s eyes, never by a model', 'signal-and-noise-tools' ),
 				__( 'Coverage history kept rather than overwritten: the weekly index check now retains each run\'s summary for two years, so a change in how often Google crawls can be read backwards, run against run', 'signal-and-noise-tools' ),
+				// 2026-10-16 (third door write): GRADUATED planned -> done, shipped in
+				// 2026.10.24 (#2140), reworded to what shipped.
+				__( 'A quiet week explained, not only flagged: when the cadence watch fires, the same rollups name the pages and sources that fell furthest against their own usual weeks, or say the drop is spread thin, so a flag arrives carrying its own arithmetic', 'signal-and-noise-tools' ),
 			),
 			// 2026-10-16: emptied when both rows moved to done (see above), then refilled
 			// the same day by a second owner-approved door write: the quiet-week row moved
 			// up from considering (reworded, gate named), and the unanswered-question
 			// follow-up entered new.
 			'planned'     => array(
-				__( 'A quiet week explained, not only flagged: when the cadence watch fires, the same rollups say which surfaces moved, so a flag arrives carrying its own arithmetic, landing with the next cadence arc', 'signal-and-noise-tools' ),
+				// 2026-10-16 (third door write): the quiet-week row shipped and moved to done.
 				__( 'An unanswered question, followed: when a note is written for a query search asked and nobody clicked, the synced rows show whether clicks follow over the next weeks, so the list of unanswered questions measures its own answers', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(

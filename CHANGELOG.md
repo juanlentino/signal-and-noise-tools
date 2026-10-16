@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Roadmap board: the static floor resynced to the third live write of 2026-10-16.** Analytics: "A quiet week explained…" moves planned to done, reworded as shipped in 2026.10.24 (the pages and sources that fell furthest against their own usual weeks, or a drop spread thin). The five-row done cap dropped the oldest done row, "Which machines send a reader back", which graduates onto the Analytics maturity page as its seventeenth principle with its "not a ratio" decline intact; the test guarding that decline moved with it. The md5 pin moves to `95715684be34e8e4b8d77acf53cd4f10`, verified against the live page.
+
 ## [2026.10.24] - 2026-10-16 — A quiet week names what moved, widgets say what they flag, code cleaned and split
 
 ### Added
