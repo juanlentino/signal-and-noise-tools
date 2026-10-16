@@ -188,7 +188,7 @@ function sn_keyring_worker_commands() {
  * The leaf's own sentences, said the same on both surfaces (2026-10-12
  * audit: three were native-only, and one pointed at "the ledger on the left").
  *
- * @return array{set:string,verify:string,never:string,workers:string}
+ * @return array{set:string,verify:string,never:string,workers:string,generate:string}
  */
 function sn_keyring_copy() {
 	return array(
@@ -196,6 +196,7 @@ function sn_keyring_copy() {
 		'verify'  => __( 'Every credential with a probe asks the service that holds its other half; each verdict names the side to fix.', 'signal-and-noise-tools' ),
 		'never'   => __( 'Never verified.', 'signal-and-noise-tools' ),
 		'workers' => __( 'After changing a worker row here, set the same value on the worker.', 'signal-and-noise-tools' ),
+		'generate' => __( 'Makes a new 64-character key. Set it on both Workers right away: your enrolled devices are re-signed with it on your next wp-admin visit, and a Worker that does not hold it yet stops recognizing them. The old key moves to its previous row and stays valid there until you clear that row; clear it once nothing still uses it. No screen shows either value.', 'signal-and-noise-tools' ),
 	);
 }
 
@@ -255,6 +256,14 @@ function sn_admin_keyring_render() {
 	$at = sn_keyring_verified_at();
 	echo '<p class="sn-field-helper">' . esc_html( $at > 0 ? sn_keyring_verified_text( $at ) : $copy['never'] ) . '</p>';
 	echo '</form>';
+	// Unreleased (SN Traffic Lanes): the owner keys are generated, never pasted.
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-card"><strong>Generate an owner key</strong><p class="sn-field-helper">' . esc_html( $copy['generate'] ) . '</p>';
+	wp_nonce_field( 'sn_keyring_generate' );
+	echo '<div class="sn-field"><label class="sn-field-label" for="key_generate_id">Key</label><select id="key_generate_id" name="key_id">';
+	foreach ( sn_keyring_generate_options() as $id => $label ) {
+		echo '<option value="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</option>';
+	}
+	echo '</select></div><button type="submit" name="action" value="sn_keyring_generate" class="button" onclick="return confirm(\'Generate a new key? Set it on the Workers next.\');">Generate</button></form>';
 	echo '<div class="sn-card"><strong>Worker secrets</strong><p class="sn-field-helper">' . esc_html( $copy['workers'] ) . '</p>';
 	foreach ( sn_keyring_worker_commands() as $c ) {
 		echo '<p class="sn-field-helper">' . esc_html( $c['label'] ) . '<br><code>' . esc_html( $c['command'] ) . '</code></p>';

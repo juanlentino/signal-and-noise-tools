@@ -47,8 +47,17 @@ function sn_keyring() {
 		'site_secret'           => array( 'group' => 'site', 'label' => __( 'Site secret', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_SITE_SECRET', 'option' => SN_SITE_SECRET_OPT, 'about' => __( 'One value every plugin↔worker handshake in this group can derive from. Rotate it here, then run each derived row\'s command under Worker secrets.', 'signal-and-noise-tools' ), 'feeds' => __( 'the rows marked "from the site secret"', 'signal-and-noise-tools' ) ),
 		'mr_read_token'         => array( 'group' => 'site', 'label' => __( 'Machine Readers read token', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_MR_READ_TOKEN', 'setting' => 'machine_readers.read_token', 'derive' => 'site', 'about' => __( 'A shared password between this plugin and the rights-signals sensor. Not a Cloudflare token.', 'signal-and-noise-tools' ), 'feeds' => __( 'the Machine Readers tab and tile', 'signal-and-noise-tools' ), 'other_half' => array( 'repo' => 'sn-rights-signals-worker', 'secret' => 'SN_MR_READ_TOKEN' ), 'probe' => 'sensor', 'flush_fn' => 'snt_mr_cache_flush' ),
 		'srv_token'             => array( 'group' => 'site', 'label' => __( 'Analytics server token', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_SRV_TOKEN', 'option' => 'sn_srv_token', 'derive' => 'site', 'about' => __( 'The private token the origin sends the analytics worker so a server-side hit counts as human; also the refresh poke\'s secret.', 'signal-and-noise-tools' ), 'feeds' => __( 'the RSS tracker\'s collector POST; the analytics refresh route', 'signal-and-noise-tools' ), 'other_half' => array( 'repo' => 'signal-and-noise-analytics-worker', 'secret' => 'SN_SRV_TOKEN' ), 'probe' => 'srv' ),
-		'bridge_token'          => array( 'group' => 'site', 'label' => __( 'Login guard bridge token', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_BRIDGE_TOKEN', 'option' => 'sn_bridge_token', 'derive' => 'site', 'about' => __( 'The bearer the login-guard worker presents on the bridge route.', 'signal-and-noise-tools' ), 'feeds' => __( 'the MCP bridge route', 'signal-and-noise-tools' ), 'other_half' => array( 'repo' => 'signal-and-noise-login-guard-worker', 'secret' => 'SN_BRIDGE_TOKEN' ) ),
+		'bridge_token'          => array( 'group' => 'site', 'label' => __( 'Remote MCP bridge token', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_BRIDGE_TOKEN', 'option' => 'sn_bridge_token', 'derive' => 'site', 'about' => __( 'The bearer the remote MCP worker presents on the bridge route (env.SN_BRIDGE_TOKEN in its src/bridge.mjs).', 'signal-and-noise-tools' ), 'feeds' => __( 'the MCP bridge route', 'signal-and-noise-tools' ), 'other_half' => array( 'repo' => 'sn-remote-mcp-worker', 'secret' => 'SN_BRIDGE_TOKEN' ) ),
 		'prov_hmac_secret'      => array( 'group' => 'site', 'label' => __( 'Provenance webhook HMAC secret', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_PROV_HMAC_SECRET', 'option' => 'sn_prov_hmac_secret', 'derive' => 'site', 'about' => __( 'Signs the anchor webhook both ways between this site and the provenance worker.', 'signal-and-noise-tools' ), 'feeds' => __( 'the provenance webhook', 'signal-and-noise-tools' ), 'other_half' => array( 'repo' => 'sn-provenance-worker', 'secret' => 'SN_PROV_HMAC_SECRET' ) ),
+		// SN Traffic Lanes (Unreleased; owner decision 2026-10-15: one key). The
+		// owner key signs the device marker and the optional agent token; the
+		// signed messages stay domain-separated (v1|dev|... vs v1|agent|...).
+		// GENERATED here (random_bytes(32), 64 hex), never derived and never
+		// pasted; Generate rolls the current key to previous, which the Workers
+		// accept during the overlap. No screen shows it: on the server,
+		// `wp option get sn_owner_key` prints it for the wrangler prompt.
+		'owner_key'          => array( 'group' => 'site', 'label' => __( 'Owner key', 'signal-and-noise-tools' ), 'kind' => 'secret', 'option' => 'sn_owner_key', 'generated' => 'owner_key_previous', 'about' => __( 'Setup: generate this one key, paste the same value into both Workers (the two commands under Worker secrets), then enroll your devices under Measurement › Analytics. It signs the owner device marker (the sn_owner_dev cookie) and, optionally, the SN-Owner-Agent header that `wp sn owner-token` mints; nothing requires an agent token. On the server, wp option get sn_owner_key prints the value for the wrangler prompt. Use a token safely: put the output straight into an environment variable (TOKEN=$(wp sn owner-token --agent=script)), never echo it. In Playwright, attach it with page.route limited to https://juanlentino.com/**, never extraHTTPHeaders (that sends it to every host). With curl, never combine it with -L (a redirect would carry it elsewhere).', 'signal-and-noise-tools' ), 'feeds' => __( 'device enrollment (Measurement › Analytics); wp sn owner-token; both Workers\' owner lanes', 'signal-and-noise-tools' ), 'other_half' => array( 'repo' => 'signal-and-noise-analytics-worker', 'also' => 'sn-rights-signals-worker', 'secret' => 'SN_OWNER_KEY' ) ),
+		'owner_key_previous' => array( 'group' => 'site', 'label' => __( 'Owner key (previous)', 'signal-and-noise-tools' ), 'kind' => 'secret', 'option' => 'sn_owner_key_previous', 'generated' => '', 'about' => __( 'The owner key Generate replaced. It stays valid until you clear it: markers it signed keep verifying until a wp-admin visit re-signs them, and tokens it signed expire within 12 hours. Set it on both Workers only during a rotation; clear it here and on the Workers once every device has renewed.', 'signal-and-noise-tools' ), 'feeds' => __( 'marker and token verification during a rotation', 'signal-and-noise-tools' ), 'other_half' => array( 'repo' => 'signal-and-noise-analytics-worker', 'also' => 'sn-rights-signals-worker', 'secret' => 'SN_OWNER_KEY_PREVIOUS' ) ),
 		'cf_token'              => array( 'group' => 'cloudflare', 'label' => __( 'Cloudflare API token', 'signal-and-noise-tools' ), 'kind' => 'secret', 'constant' => 'SN_CLOUDFLARE_API_TOKEN', 'option' => 'sn_cf_api_token', 'about' => __( 'The ONE Cloudflare token: Zone › Cache Purge › Purge, Zone › Analytics › Read, Account › Account Analytics › Read.', 'signal-and-noise-tools' ), 'feeds' => __( 'edge purge, the monitor, the Edge view, S&N Analytics; the sensor\'s Analytics Engine reads', 'signal-and-noise-tools' ), 'probe' => 'cloudflare', 'other_half' => array( 'repo' => 'sn-rights-signals-worker', 'secret' => 'SN_MR_SQL_TOKEN' ), 'flush_fn' => 'sn_cf_monitor_forget_token' ),
 		'cf_zone'               => array( 'group' => 'cloudflare', 'label' => __( 'Cloudflare zone ID', 'signal-and-noise-tools' ), 'kind' => 'id', 'constant' => 'SN_CLOUDFLARE_ZONE_ID', 'option' => 'sn_cf_zone_id', 'about' => __( 'Dashboard → site overview → API.', 'signal-and-noise-tools' ), 'feeds' => __( 'every zone call', 'signal-and-noise-tools' ) ),
 		'cf_account'            => array( 'group' => 'cloudflare', 'label' => __( 'Cloudflare account ID', 'signal-and-noise-tools' ), 'kind' => 'id', 'constant' => 'SN_CF_ACCOUNT_ID', 'option' => 'sn_cf_account_id', 'about' => __( 'Dashboard → account home → the ID in the URL.', 'signal-and-noise-tools' ), 'feeds' => __( 'Analytics Engine reads; the Account-token verify route', 'signal-and-noise-tools' ) ),
@@ -180,7 +189,28 @@ function sn_keyring_other_half_command( array $row ) {
 	if ( empty( $row['other_half']['repo'] ) || empty( $row['other_half']['secret'] ) ) {
 		return '';
 	}
-	return 'cd ~/Projects/' . (string) $row['other_half']['repo'] . ' && npx wrangler secret put ' . (string) $row['other_half']['secret'];
+	$out = array();
+	foreach ( array_filter( array( $row['other_half']['repo'], $row['other_half']['also'] ?? '' ) ) as $repo ) {
+		$out[] = 'cd ~/Projects/' . (string) $repo . ' && npx wrangler secret put ' . (string) $row['other_half']['secret'];
+	}
+	// A secret two Workers carry (the owner key) prints both commands.
+	return implode( ' ; ', $out );
+}
+
+/**
+ * The rows Generate can write: each current owner key (a `generated` row that
+ * names its previous row). Never a previous row; never any other secret.
+ *
+ * @return array<string,string> id => label.
+ */
+function sn_keyring_generate_options() {
+	$out = array();
+	foreach ( sn_keyring() as $id => $row ) {
+		if ( '' !== (string) ( $row['generated'] ?? '' ) ) {
+			$out[ $id ] = (string) $row['label'];
+		}
+	}
+	return $out;
 }
 
 // The handshake accessors that were constant-only now fall back to the

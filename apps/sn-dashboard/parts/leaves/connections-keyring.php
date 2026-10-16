@@ -69,6 +69,16 @@ function paint_connections_keyring( array $ctx ) {
 		\snt_kit_form( 'keyring_save', $fields, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) ),
 		$copy['set']
 	);
+	// Unreleased (SN Traffic Lanes): the owner keys are generated, never pasted.
+	$right .= \snt_kit_section(
+		__( 'Generate an owner key', 'signal-and-noise-tools' ),
+		\snt_kit_form(
+			'keyring_generate',
+			\snt_kit_field( 'select', 'key_id', __( 'Key', 'signal-and-noise-tools' ), '', array( 'options' => sn_keyring_generate_options(), 'placeholder' => __( 'Choose a key', 'signal-and-noise-tools' ) ) ),
+			array( 'submit' => __( 'Generate', 'signal-and-noise-tools' ), 'confirm' => __( 'Generate a new key? Set it on the Workers next.', 'signal-and-noise-tools' ) )
+		),
+		$copy['generate']
+	);
 	$at     = sn_keyring_verified_at();
 	$right .= \snt_kit_section(
 		__( 'Verify', 'signal-and-noise-tools' ),

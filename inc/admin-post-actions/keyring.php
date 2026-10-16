@@ -38,6 +38,11 @@ function sn_handle_keyring_save( $post ) {
 	if ( '' === $value || 0 === strpos( $value, '••••' ) ) {
 		return 'keyring_unchanged';
 	}
+	// An owner identity key is generated, never pasted or derived; it can only
+	// be cleared here (Unreleased, SN Traffic Lanes).
+	if ( isset( $row['generated'] ) && 'clear' !== $value ) {
+		return 'keyring_generated_only';
+	}
 	// 15.2.2: a shared secret must be its own value. An issued token pasted
 	// into the site secret or a worker row is refused by name; the same value
 	// on two rows of any kind is refused too, because one leak then opens both.
@@ -83,6 +88,30 @@ function sn_handle_keyring_save( $post ) {
 		sn_setting_reset_cache();
 	}
 	return 'keyring_saved';
+}
+
+/**
+ * Generate an owner identity key (Unreleased, SN Traffic Lanes): 32 random
+ * bytes as 64 hex. The current value moves to the row's previous twin first,
+ * so the Workers accept both until the new one is set on them.
+ *
+ * @param array<string,mixed> $post
+ * @return string Flash code.
+ */
+function sn_handle_keyring_generate( $post ) {
+	$id   = isset( $post['key_id'] ) ? sanitize_key( (string) $post['key_id'] ) : '';
+	$rows = sn_keyring();
+	if ( ! isset( sn_keyring_generate_options()[ $id ] ) ) {
+		return 'keyring_generate_refused';
+	}
+	$GLOBALS['sn_keyring_write_source'] = 'keyring_generate';
+	$current = sn_keyring_stored( $id );
+	if ( '' !== $current ) {
+		sn_keyring_write( $rows[ (string) $rows[ $id ]['generated'] ], $current );
+	}
+	sn_keyring_write( $rows[ $id ], bin2hex( random_bytes( 32 ) ) );
+	unset( $GLOBALS['sn_keyring_write_source'] );
+	return 'keyring_generated';
 }
 
 /**

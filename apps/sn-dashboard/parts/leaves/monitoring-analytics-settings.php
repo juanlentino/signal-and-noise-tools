@@ -71,7 +71,7 @@ function analytics_exclusion_html() {
 	$excluded = (array) ( function_exists( '\sn_setting' ) ? \sn_setting( 'analytics.exclude_roles', array() ) : array() );
 	$heading  = __( 'Exclude my own visits', 'signal-and-noise-tools' );
 
-	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Stop counting logged-in users in the selected roles. The front-end beacon is never printed for them, so nothing reaches the collector. Cookieless and forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) ) . '</p>';
+	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Logged-in visits never count as readers, whatever the role: the collector keeps them out at the edge. The roles you select here get one more thing: when they log in, their browser is marked as the owner’s, so their visits after logging out are kept out too. Forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	if ( empty( $roles ) ) {
 		return \snt_kit_section( $heading, $intro . '<p class="snt-hint">' . \snt_kit_esc( __( 'No roles available on this site.', 'signal-and-noise-tools' ) ) . '</p>', \snt_an_exclusion_snapshot() );
@@ -94,9 +94,9 @@ function analytics_exclusion_html() {
 		);
 	}
 	$status = ( function_exists( '\sn_beacon_owner_current_user_excluded' ) && \sn_beacon_owner_current_user_excluded() )
-		? '<p class="snt-hint" full-width><b>' . \snt_kit_esc( __( 'You are currently excluded from analytics.', 'signal-and-noise-tools' ) ) . '</b></p>'
-		: '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'You are currently counted in analytics.', 'signal-and-noise-tools' ) ) . '</p>';
-	$footnote = '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your own visits are also dropped at the edge: the collector ignores any beacon that carries a logged-in WordPress cookie, so you are excluded even when the page was served from cache. The role list adds per-role control on uncached requests: to extend that role filter to cached pages too, add a Cloudflare rule that bypasses cache when the request carries a wordpress_logged_in_ cookie.', 'signal-and-noise-tools' ) ) . '</p>';
+		? '<p class="snt-hint" full-width><b>' . \snt_kit_esc( __( 'Your role is selected: your logged-in visits are kept out, and this browser is marked as yours when you log in.', 'signal-and-noise-tools' ) ) . '</b></p>'
+		: '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your role is not selected: your logged-in visits are still kept out, but this browser is not marked for your logged-out visits.', 'signal-and-noise-tools' ) ) . '</p>';
+	$footnote = '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Owner devices.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	$form = \snt_kit_form( 'analytics_exclude_save', $fields . $status . $footnote, array( 'submit' => __( 'Save exclusion', 'signal-and-noise-tools' ), 'columns' => 'auto' ) );
 	return \snt_kit_section( $heading, $intro . $form . analytics_device_html(), \snt_an_exclusion_snapshot() );

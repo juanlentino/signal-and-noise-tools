@@ -3,7 +3,7 @@
  * Render test for snt_analytics_render_exclusion() — the Monitoring → Analytics
  * "Exclude my own visits" card (plugin v6.23.0). Asserts a checkbox per role, the
  * configured role pre-checked, the current-viewer status line (both branches),
- * the CDN logged-in-bypass note, the nonce, and the save button's action.
+ * the edge note, the nonce, and the save button's action.
  *
  * @since plugin v6.23.0
  */
@@ -70,10 +70,14 @@ ok( strpos( $h, 'name="sn_exclude_roles[]" value="editor"' ) !== false, 'editor 
 ok( strpos( $h, 'name="sn_exclude_roles[]" value="subscriber"' ) !== false, 'subscriber checkbox present' );
 ok( preg_match( '/value="administrator"\s+checked/', $h ) === 1, 'configured role (administrator) is pre-checked' );
 ok( preg_match( '/value="editor"\s+checked/', $h ) === 0, 'unconfigured role (editor) is NOT checked' );
-ok( strpos( $h, 'currently excluded from analytics' ) !== false, 'status line reflects excluded viewer' );
+ok( strpos( $h, 'Your role is selected: your logged-in visits are kept out' ) !== false && strpos( $h, 'currently excluded' ) === false, 'status line reflects a selected role, and no longer claims the role decides counting (final review)' );
 ok( strpos( $h, 'excluded even when logged out' ) !== false && strpos( $h, 'Count this device again' ) !== false, 'device line: flagged device offers "Count this device again"' );
 ok( strpos( $h, 'sn_owner_device=forget' ) !== false && strpos( $h, '_wpnonce=sn_owner_device' ) !== false, 'device line: forget link carries a nonce' );
-ok( strpos( $h, 'wordpress_logged_in_' ) !== false, 'CDN logged-in-bypass note present' );
+// SN Traffic Lanes review round 1: the edge keeps logged-in views out on cached
+// pages too, so the card no longer asks for a cache-bypass rule; it points at
+// Owner devices for logged-out views instead.
+ok( false !== strpos( $h, 'Logged-in visits never count as readers, whatever the role' ) && false !== strpos( $h, 'their browser is marked as the owner’s' ) && false === strpos( $h, 'selected roles out of the reader counts' ), 'intro: every logged-in visit is kept out whatever the role; the role list only marks the browser (round 2)' );
+ok( false !== strpos( $h, 'recognizes the WordPress login cookie, even on a page served from cache' ) && false !== strpos( $h, 'enroll it under Owner devices' ) && false === strpos( $h, 'Cloudflare rule' ) && false === strpos( $h, 'never printed' ), 'edge note: true before and after the Workers ship; no stale suppression or bypass-rule copy' );
 ok( strpos( $h, 'value="sn_analytics_exclude_save"' ) !== false, 'save button posts the exclude action' );
 ok( strpos( $h, 'name="_wpnonce"' ) !== false, 'nonce field present' );
 
@@ -82,7 +86,7 @@ $GLOBALS['__viewer_excluded'] = false;
 ob_start();
 snt_analytics_render_exclusion();
 $h2 = ob_get_clean();
-ok( strpos( $h2, 'currently counted in analytics' ) !== false, 'status line reflects counted viewer' );
+ok( strpos( $h2, 'your logged-in visits are still kept out' ) !== false && strpos( $h2, 'currently counted' ) === false, 'status line for an unselected role agrees with the intro: logged-in visits never count (final review)' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -192,9 +192,9 @@ function snt_an_credentials_snapshot() {
 
 /**
  * The Measurement → Analytics "Exclude my own visits" card — a Plausible-style
- * role allow-list. Ticking a role stops the front-end beacon for its logged-in
- * users (the sn_beacon_enabled filter in inc/beacon-owner-exclusion.php suppresses
- * the pixel). Native wp-admin styling; one <form> POSTing analytics_exclude_save.
+ * role allow-list. Ticking a role gives its logged-in users the legacy owner
+ * flag (inc/beacon-owner-exclusion.php); the edge keeps their views out of the
+ * reader counts. Native wp-admin styling; one <form> POSTing analytics_exclude_save.
  *
  * @since 6.23.0
  */
@@ -205,7 +205,7 @@ function snt_analytics_render_exclusion() {
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-exclude">';
 	wp_nonce_field( 'sn_analytics_exclude_save' );
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Exclude my own visits', 'signal-and-noise-tools' ) . '</h3>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Stop counting logged-in users in the selected roles. The front-end beacon is never printed for them, so nothing reaches the collector. Cookieless and forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Logged-in visits never count as readers, whatever the role: the collector keeps them out at the edge. The roles you select here get one more thing: when they log in, their browser is marked as the owner’s, so their visits after logging out are kept out too. Forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) . '</p>';
 
 	if ( empty( $roles ) ) {
 		echo '<p class="sn-an-empty">' . esc_html__( 'No roles available on this site.', 'signal-and-noise-tools' ) . '</p></form>';
@@ -220,17 +220,17 @@ function snt_analytics_render_exclusion() {
 	echo '</fieldset>';
 
 	if ( function_exists( 'sn_beacon_owner_current_user_excluded' ) && sn_beacon_owner_current_user_excluded() ) {
-		echo '<p class="sn-an-status"><strong>' . esc_html__( 'You are currently excluded from analytics.', 'signal-and-noise-tools' ) . '</strong></p>';
+		echo '<p class="sn-an-status"><strong>' . esc_html__( 'Your role is selected: your logged-in visits are kept out, and this browser is marked as yours when you log in.', 'signal-and-noise-tools' ) . '</strong></p>';
 		$flagged = sn_owner_device_flagged();
 		$link    = wp_nonce_url( add_query_arg( 'sn_owner_device', $flagged ? 'forget' : 'mark' ), 'sn_owner_device' );
 		$line    = $flagged ? esc_html__( 'This device is excluded even when logged out.', 'signal-and-noise-tools' ) : esc_html__( 'This device is counted when logged out.', 'signal-and-noise-tools' );
 		$label   = $flagged ? esc_html__( 'Count this device again', 'signal-and-noise-tools' ) : esc_html__( 'Exclude this device', 'signal-and-noise-tools' );
 		echo '<p class="sn-an-status">' . $line . ' <a href="' . esc_url( $link ) . '">' . $label . '</a></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- both pre-escaped above.
 	} else {
-		echo '<p class="sn-an-status">' . esc_html__( 'You are currently counted in analytics.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-an-status">' . esc_html__( 'Your role is not selected: your logged-in visits are still kept out, but this browser is not marked for your logged-out visits.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Your own visits are also dropped at the edge: the collector ignores any beacon that carries a logged-in WordPress cookie, so you are excluded even when the page was served from cache. The role list adds per-role control on uncached requests: to extend that role filter to cached pages too, add a Cloudflare rule that bypasses cache when the request carries a wordpress_logged_in_ cookie.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Owner devices.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<p><button type="submit" name="action" value="sn_analytics_exclude_save" class="button button-primary">' . esc_html__( 'Save exclusion', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';

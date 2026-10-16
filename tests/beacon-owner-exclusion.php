@@ -110,28 +110,12 @@ ok( true === sn_beacon_owner_excluded( array( 'editor', 'author' ), array( 'auth
 ok( false === sn_beacon_owner_excluded( array( 'administrator' ), array() ), 'empty exclude set -> not excluded' );
 ok( false === sn_beacon_owner_excluded( array(), array( 'administrator' ) ), 'user with no roles -> not excluded' );
 
-// 2) The callback is registered on the theme-provided filter.
-ok( in_array( 'sn_beacon_owner_exclusion_filter', $GLOBALS['__filters']['sn_beacon_enabled'] ?? array(), true ), 'callback registered on sn_beacon_enabled filter' );
-
-// 3) Filter behaviour across login state / roles / prior value.
-$GLOBALS['__settings']['analytics']['exclude_roles'] = array( 'administrator' );
-
-$GLOBALS['__logged_in']     = false;
-$GLOBALS['__current_roles'] = array( 'administrator' );
-ok( true === sn_beacon_owner_exclusion_filter( true ), 'logged-out request -> beacon stays enabled (cannot identify owner)' );
-
-$GLOBALS['__logged_in']     = true;
-$GLOBALS['__current_roles'] = array( 'administrator' );
-ok( false === sn_beacon_owner_exclusion_filter( true ), 'logged-in administrator -> beacon suppressed' );
-
-$GLOBALS['__current_roles'] = array( 'subscriber' );
-ok( true === sn_beacon_owner_exclusion_filter( true ), 'logged-in subscriber -> beacon stays enabled' );
-
-$GLOBALS['__current_roles'] = array( 'administrator' );
-ok( false === sn_beacon_owner_exclusion_filter( false ), 'already-disabled beacon stays disabled (never re-enables)' );
-
-$GLOBALS['__settings']['analytics']['exclude_roles'] = array();
-ok( true === sn_beacon_owner_exclusion_filter( true ), 'empty exclude set -> beacon stays enabled even for admin' );
+// 2) SN Traffic Lanes review round 1 (data P3): the server-side suppression
+// is GONE. Logged-in owner views must reach the edge, where the analytics
+// Worker files them away from readers (sn_owner_hits). The live Worker drops
+// logged-in beacons today, so nothing reaches a reader count either way.
+ok( empty( $GLOBALS['__filters']['sn_beacon_enabled'] ), 'nothing hooks sn_beacon_enabled: the beacon is printed for excluded roles too' );
+ok( ! function_exists( 'sn_beacon_owner_exclusion_filter' ), 'the suppression callback no longer exists' );
 
 // 4) Current-viewer status helper (drives the settings-card status line).
 $GLOBALS['__settings']['analytics']['exclude_roles'] = array( 'administrator' );
