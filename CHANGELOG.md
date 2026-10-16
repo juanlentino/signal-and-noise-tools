@@ -15,6 +15,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Changed
 - **Internal only: the settings module's source is split into smaller files** (house line cap). `inc/settings.php` (729 lines) keeps its header, `sn_note_reply_aliases()` and its three constants, then loads three parts files in the order the code always ran, so the `init` hook keeps its place: `settings-defaults-parts.php` (the credential mask, `sn_settings_defaults()`), `-accessors-parts.php` (the `register_setting()` call on `init`, the whole-tree sanitizer, `sn_setting()`, the cache reset, `sn_setting_update()`) and `-save-parts.php` (`sn_settings_save()`, the legacy seed, the lazy migration check). Code moved unchanged; the two long functions (`sn_settings_defaults()`, `sn_settings_save()`) move whole. Five suites that read the module's text now read it through `snt_test_settings_src()` in `tests/lib/inc-population.php`. Nothing changes on screen, every setting reads and saves the same, and no figure is removed.
 
+### Fixed
+- **Measurement › Insights puts three boxes on a row where three belong together.** Run Analysis, Scan status and Settings now share the first row (Scan status stood alone at full width under the other two), and the recommendation cards fit three across on a wide screen instead of a fixed two columns; both rows collapse on a narrow screen. Layout only: every figure, link, button and form still renders. The other Measurement and Tools leaves were already grouped, or hold one section or wide tables, so they keep their layout. Pinned in `tests/os-leaf-monitoring-insights.php`.
+
 ## [2026.10.18] - 2026-10-16 — owner identity and traffic lanes, the refresh answers before it rolls up, Automated counts every bot
 
 ### Changed

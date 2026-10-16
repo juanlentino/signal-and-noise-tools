@@ -10,8 +10,8 @@
  * and a weekly-cron settings form. Same five sn_action values, same fields,
  * same handlers — the kit's parts instead of the classic .sn-fieldset shell.
  * Section builders live in monitoring-insights-parts.php to keep this file under ~200 lines.
- * The composition (#1573): boxes on rows of comparable height, Scan status
- * and the recommendation cards at full width between the rows.
+ * The composition (#1573): boxes on rows of comparable height, the
+ * recommendation cards at full width between the rows.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -54,15 +54,21 @@ function paint_monitoring_insights( array $ctx ) {
 
 	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Cross-system synthesis: reads your first-party analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.', 'signal-and-noise-tools' ) ) . '</p>';
 	// #1573: rows of comparable height, measured live at 1581px. Two columns
-	// stacked the three readouts to 1170 against 393 on the left. Now Run
-	// Analysis (223) sits beside Settings (222), the weekly scan read against
-	// the manual one; Scan status (129, 15.3.1) stands under the button that
-	// makes it at full width, not beside a hole; the recommendation cards take
-	// the full width; AI usage & spend (494) sits beside the Prompt-cache probe
-	// (371), the spend beside what caching would do to it.
+	// stacked the three readouts to 1170 against 393 on the left. Row one is
+	// the manual scan, its status and the weekly one: Run Analysis (223),
+	// Scan status (129, 15.3.1) and Settings (222) three across (2026-10-16:
+	// as a pair, Scan status stood alone at full width under it). The
+	// recommendation cards take the full width; AI usage & spend (494) sits
+	// beside the Prompt-cache probe (371), the spend beside what caching
+	// would do to it.
 	return $intro
-		. insights_pair( insights_run_form_html( $last, $ai_ready ), insights_settings_html() )
-		. \snt_kit_section( __( 'Scan status', 'signal-and-noise-tools' ), insights_status_html( $last ) )
+		. \snt_kit_grid(
+			array(
+				insights_run_form_html( $last, $ai_ready ),
+				\snt_kit_section( __( 'Scan status', 'signal-and-noise-tools' ), insights_status_html( $last ) ),
+				insights_settings_html(),
+			)
+		)
 		. insights_recommendations_html( $last )
 		. insights_pair( insights_usage_html(), insights_cache_probe_html() );
 }
