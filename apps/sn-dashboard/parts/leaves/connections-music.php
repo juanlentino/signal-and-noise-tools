@@ -12,7 +12,8 @@
  *
  * 17.4.1 (#1573): the classic's two columns paired the 906px form beside the
  * 349px rail, leaving the rail's column a hole. 2026-10-12: two rows of
- * paired boxes (see paint_connections_music()).
+ * paired boxes. 2026-10-16: a status line, a Setup card and a How this works
+ * fold (see paint_connections_music()).
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -80,12 +81,12 @@ function music_status_html( array $s ) {
 }
 
 /**
- * The leaf (2026-10-12 audit: the settings form stood alone at its 760px
- * measure beside 540px of nothing, and Sync now was an empty box holding one
- * button). Two rows of paired boxes of comparable height, measured: Status
- * (with Sync now at its foot, 281px) beside the Featured release (217px);
- * then the two sources, the Muso.AI profile (198px) beside the read-only
- * Spotify facts (147px). Each form saves only its own field.
+ * The leaf (2026-10-16, the leaf anatomy of docs/kit-leaf-anatomy.md): the
+ * Status card (one status line, the facts, Sync now inline, the intro as its
+ * How this works fold) beside the Featured release, the two things worked
+ * often; then the Setup card of the two sources, set once, beside Release
+ * notes when loaded. Each form saves only its own field. Before: the intro,
+ * a notice, two rows of paired boxes (2026-10-12 audit).
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -95,12 +96,10 @@ function paint_connections_music( array $ctx ) {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return \snt_kit_empty( __( 'This account cannot manage options.', 'signal-and-noise-tools' ) );
 	}
-	$s = music_state();
-	return music_intro_html()
-		. music_status_html( $s )
-		. \snt_kit_grid( array( music_rail_status_html( $s ), music_featured_section( $s ) ), 290, 18 )
-		. \snt_kit_grid( array( music_muso_section( $s ), music_spotify_section( $s ) ) )
-		. music_notes_section();
+	$s   = music_state();
+	$how = \snt_kit_how_fold( __( 'Muso.AI credits, mirrored daily, enriched by Spotify, served from cache.', 'signal-and-noise-tools' ), music_intro_html() );
+	return \snt_kit_grid( array( music_rail_status_html( $s, $how ), music_featured_section( $s ) ), 290, 18 )
+		. \snt_kit_grid( array( music_setup_html( $s ), music_notes_section() ) );
 }
 
 add_filter(

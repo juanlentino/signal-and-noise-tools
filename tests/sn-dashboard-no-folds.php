@@ -41,6 +41,12 @@ $earned = array(
 	'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-setup.php' => 'Measurement › Machine readers\' Setup card (snt_kit_setup_card()): the worker readout is reference and the sensor settings setup; summaries are the worker version and the token state; each opens while unread or tokenless. Every pill and its warning stay open on the status line',
 	'apps/sn-dashboard/parts/leaves/monitoring-search-console-setup.php' => 'Measurement › Search Console\'s Setup card (snt_kit_setup_card(), one fold): the credential form is used once per key; its summary is the credential\'s state; open until a key parses. The onboarding steps and the "no longer parses" warning stay open in the readout box',
 	'inc/openstation-kit-anatomy.php' => 'The leaf anatomy helpers (2 calls: snt_kit_setup_card() folds each setting, snt_kit_how_fold() folds explanatory prose): they only paint folds a leaf asks for, and every leaf that calls one is listed here on its own line',
+	'apps/sn-dashboard/parts/leaves/connections-music.php' => 'Connections › Discography\'s How this works (snt_kit_how_fold()): the intro paragraph is reference (what the daily pass mirrors, where it renders); its summary states the mechanism; the sync state and its notice stay open on the Status card',
+	'apps/sn-dashboard/parts/leaves/connections-music-parts.php' => 'Connections › Discography\'s Setup card (one call, snt_kit_setup_card()): the Muso.AI profile and the Spotify sources are set once; each summary is the current value (the profile id and its lock, Spotify configured or not); the profile fold paints open while its id is empty. The Featured release and Release notes forms stay open',
+	'apps/sn-dashboard/parts/leaves/connections-webhooks.php' => 'Connections › Webhooks\' How this works (snt_kit_how_fold()): the intro is reference (what a delivery is, how a receiver trusts it); its summary states the mechanism; the status and its warning stay open on the Status card',
+	'apps/sn-dashboard/parts/leaves/connections-webhooks-parts.php' => 'Connections › Webhooks\' Setup card (one call, snt_kit_setup_card()): the uptime token\'s source and the payload reference are read-only reference; the summaries are the token\'s source and the payload\'s shape; Uptime monitoring opens while a token is unset. The editors, Add a webhook and every delivery log stay open',
+	'apps/sn-dashboard/parts/leaves/connections-zenodo.php' => 'Connections › Zenodo (2 calls): the Setup card\'s one fold, the environment form, is set once; its summary is the environment and the ledger DOI; it opens while no token is set. How this works holds the intro, reference; its summary states the mechanism. The token\'s verdict and its notice stay open on the Status card',
+	'apps/sn-dashboard/parts/leaves/connections-cloudflare.php' => 'Connections › Cloudflare\'s Setup card (one call, snt_kit_setup_card()): the keys\' sources and the grant list are read-only reference, set on the keyring; the summary says which key is set, locked or not set (never a value); it opens while the token or the zone is missing. The analytics-token warning and the not-configured notice stay open',
 	'apps/sn-dashboard/parts/leaves/security-login.php'       => 'Security › Login URL (2 calls): How this works folds the module explained (reference; the state is the status line, a dormant or bypassed module keeps its open warning), and the Setup card\'s Emergency unlock folds the wp-config.php constants (reference for a lockout; its summary names the constant that is set, open while one is)',
 	'apps/sn-dashboard/parts/leaves/site-performance.php'     => 'Site › Performance (2 calls): How this works folds the Speculation Rules intro; the Setup card folds the setting (summary On or Off, changed once in a while) and the Profile reference (summary its mode). The state is the status line; failed outbound calls stay an open warning on the ledger',
 	'apps/sn-dashboard/parts/leaves/security-audit-log.php'   => 'Security › Audit log: the Setup card\'s Retention folds the one setting (summary the window in days, changed once in a while); the glance, the counter timeline, the logins ledger, lockouts and Prune now stay open',
@@ -51,10 +57,12 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 $root  = dirname( __DIR__ );
 $files = array( $root . '/inc/north-star-settings.php', $root . '/inc/openstation-kit-anatomy.php' );
 // How many fold calls a file may make: one, unless named here.
+$calls = array( 'inc/openstation-kit-anatomy.php' => 2, 'apps/sn-dashboard/parts/leaves/connections-zenodo.php' => 2 );
 $calls = array(
 	'inc/openstation-kit-anatomy.php'                     => 2,
 	'apps/sn-dashboard/parts/leaves/security-login.php'   => 2,
 	'apps/sn-dashboard/parts/leaves/site-performance.php' => 2,
+	'apps/sn-dashboard/parts/leaves/connections-zenodo.php' => 2,
 );
 $it    = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/apps/sn-dashboard', FilesystemIterator::SKIP_DOTS ) );
 foreach ( $it as $file ) {

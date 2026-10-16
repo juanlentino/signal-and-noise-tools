@@ -13,6 +13,11 @@
  * SNT_CW_LAST_PURGE_OPT), same forms, same handlers; the kit's parts instead
  * of wp-admin's, on two rows of paired boxes since 17.4.1 (#1573).
  *
+ * 2026-10-16 (leaf anatomy, docs/kit-leaf-anatomy.md): a Status card leads
+ * (one status line; the analytics-token warning hoisted out of Credentials),
+ * then Cache beside Token, then the probes ledger beside one Setup card whose
+ * fold holds the keys' sources and the grant list.
+ *
  * @package SignalNoiseTools
  * @since 13.106.0
  */
@@ -61,14 +66,16 @@ function cloudflare_data() {
 }
 
 /**
- * The Credentials section, read-only since 15.2.0: where each of the three
- * comes from, the grant list, and the door to Connections › Credentials,
- * where every key is set. This leaf never carries a field again.
+ * The keys, read-only since 15.2.0: where each of the three comes from, the
+ * grant list, and the door to Connections › Credentials, where every key is
+ * set. A Setup fold since 2026-10-16: the closed summary says which source is
+ * set (never a value, not even masked), and it opens while the token or the
+ * zone is missing. The analytics-token warning is the Status card's.
  *
  * @param array<string,mixed> $d From cloudflare_data().
- * @return string
+ * @return array<string,mixed> A Setup fold.
  */
-function cloudflare_credentials_html( array $d ) {
+function cloudflare_keys_fold( array $d ) {
 	$source = static function ( $const_set, $const, $value, $shown ) {
 		if ( $const_set ) {
 			/* translators: %s: constant name. */
@@ -90,15 +97,19 @@ function cloudflare_credentials_html( array $d ) {
 		}
 		$inner .= '<h4 class="snt-h">' . \snt_kit_esc( __( 'Grants this token needs', 'signal-and-noise-tools' ) ) . '</h4>' . \snt_kit_list( $rows );
 	}
-	if ( '' !== (string) ( $d['analytics_override'] ?? '' ) ) {
-		$inner .= \snt_kit_notice( 'warning', \snt_kit_esc( 'constant' === $d['analytics_override']
-			? __( 'Analytics still reads with the SN_CF_ANALYTICS_TOKEN constant, not this token. Remove the constant from wp-config.php to use one token.', 'signal-and-noise-tools' )
-			: __( 'Analytics still reads with a separate token saved under Measurement › Analytics › Credentials. Drop it there to use this one.', 'signal-and-noise-tools' ) ) );
+	$words = array();
+	foreach ( array(
+		__( 'API token', 'signal-and-noise-tools' )  => array( $d['token_const_set'], $d['token_obscured'] ),
+		__( 'Zone ID', 'signal-and-noise-tools' )    => array( $d['zone_const_set'], $d['zone'] ),
+		__( 'Account ID', 'signal-and-noise-tools' ) => array( ! empty( $d['account_const_set'] ), (string) ( $d['account'] ?? '' ) ),
+	) as $label => $src ) {
+		$words[] = $label . ' ' . ( $src[0] ? __( 'locked', 'signal-and-noise-tools' ) : ( '' !== (string) $src[1] ? __( 'set', 'signal-and-noise-tools' ) : __( 'not set', 'signal-and-noise-tools' ) ) );
 	}
-	return \snt_kit_section(
-		__( 'Credentials', 'signal-and-noise-tools' ),
-		$inner,
-		__( 'The one Cloudflare token, the zone and the account, for every Cloudflare call this plugin makes; set on the keyring.', 'signal-and-noise-tools' )
+	return array(
+		'title'   => __( 'Keys and grants', 'signal-and-noise-tools' ),
+		'summary' => implode( ' · ', $words ),
+		'body'    => '<p class="snt-prose">' . \snt_kit_esc( __( 'The one Cloudflare token, the zone and the account, for every Cloudflare call this plugin makes; set on the keyring.', 'signal-and-noise-tools' ) ) . '</p>' . $inner,
+		'open'    => empty( $d['is_configured'] ),
 	);
 }
 
@@ -139,8 +150,15 @@ function paint_connections_cloudflare( array $ctx ) {
 	// capped table. Before: Credentials + Token stacked to 860 beside Cache
 	// alone. 15.3.0 moved Edge and Firewall to the tabs that ask their questions.
 	$token = function_exists( 'sn_cf_monitor_read' ) ? cloudflare_token_html( $d ) : '';
-	return cloudflare_pair( cloudflare_credentials_html( $d ), $cache )
-		. cloudflare_pair( $token, cloudflare_probes_html( $d ) );
+	$setup = \snt_kit_setup_card( __( 'Setup', 'signal-and-noise-tools' ), array( cloudflare_keys_fold( $d ) ), __( 'Set on the keyring; open it to read the sources and the grants.', 'signal-and-noise-tools' ) );
+	// The boxes that paint, two to a row in this order: Cache beside Token,
+	// the probes beside Setup; one that is absent moves the next one up, so
+	// no box stands beside a hole and none is alone when it has a partner.
+	$out = cloudflare_status_card_html( $d );
+	foreach ( array_chunk( array_values( array_filter( array( $cache, $token, cloudflare_probes_html( $d ), $setup ), 'strlen' ) ), 2 ) as $pair ) {
+		$out .= cloudflare_pair( $pair[0], $pair[1] ?? '' );
+	}
+	return $out;
 }
 
 add_filter(

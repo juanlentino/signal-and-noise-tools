@@ -185,7 +185,44 @@ function webhooks_delete_form( $id ) {
 }
 
 /**
- * The rail's status box: how many webhooks, how many enabled, and a pill.
+ * The Status card (2026-10-16): one status line (the webhooks configured,
+ * how many enabled, each uptime token's source), then the status box while
+ * it warns or its sentence as a hint while active, then How this works.
+ *
+ * @param int                            $total    Configured webhooks.
+ * @param int                            $enabled  Enabled webhooks.
+ * @param bool                           $watching Watching live.
+ * @param array<int,array<string,mixed>> $tokens   sn_webhooks_uptime_box()['rows'].
+ * @param string                         $how      The How this works fold.
+ * @return string
+ */
+function webhooks_status_card_html( $total, $enabled, $watching, array $tokens, $how ) {
+	$state = webhooks_status_parts( $total, $enabled, $watching );
+	$chips = array( array( 'tone' => $state['kind'], 'label' => $state['pill'], 'title' => $state['body'] ), array( 'tone' => 'neutral', 'label' => $state['title'] ) );
+	if ( $total > 0 ) {
+		/* translators: 1: enabled webhooks, 2: disabled webhooks */
+		$chips[] = array( 'tone' => 'neutral', 'label' => sprintf( __( '%1$d enabled, %2$d disabled', 'signal-and-noise-tools' ), $enabled, $total - $enabled ) );
+	}
+	foreach ( $tokens as $row ) {
+		$chips[] = array( 'tone' => empty( $row['unset'] ) ? 'ok' : 'warn', 'label' => $row['label'] . ': ' . $row['value'] );
+	}
+	$under = 'ok' === $state['kind'] ? '<p class="snt-hint">' . \snt_kit_esc( $state['body'] ) . '</p>' : webhooks_status_html( $total, $enabled, $watching );
+	return \snt_kit_section( __( 'Status', 'signal-and-noise-tools' ), \snt_kit_status_line( $chips ) . $under . $how );
+}
+
+/**
+ * The Setup card: the uptime token's source and the payload reference,
+ * each a fold whose closed line answers (snt_kit_setup_card()).
+ *
+ * @param array<int,array<string,mixed>> $folds Setup folds.
+ * @return string
+ */
+function webhooks_setup_html( array $folds ) {
+	return \snt_kit_setup_card( __( 'Setup', 'signal-and-noise-tools' ), $folds, __( 'Reference, set once; open one to read it.', 'signal-and-noise-tools' ) );
+}
+
+/**
+ * The status box: how many webhooks, how many enabled, and a pill.
  *
  * @param int  $total    Configured webhooks.
  * @param int  $enabled  Enabled webhooks.
@@ -193,6 +230,19 @@ function webhooks_delete_form( $id ) {
  * @return string
  */
 function webhooks_status_html( $total, $enabled, $watching = false ) {
+	$p = webhooks_status_parts( $total, $enabled, $watching );
+	return \snt_kit_notice( $p['kind'], '<b>' . \snt_kit_esc( $p['title'] ) . '</b> ' . \snt_kit_badge( $p['kind'], $p['pill'] ) . '<br>' . \snt_kit_esc( $p['body'] ) );
+}
+
+/**
+ * The status's words: its kind, title, sentence and pill.
+ *
+ * @param int  $total    Configured webhooks.
+ * @param int  $enabled  Enabled webhooks.
+ * @param bool $watching Watching live (Add a webhook is hidden).
+ * @return array{kind:string,title:string,body:string,pill:string}
+ */
+function webhooks_status_parts( $total, $enabled, $watching = false ) {
 	if ( $total > 0 ) {
 		$kind  = $enabled > 0 ? 'ok' : 'warn';
 		/* translators: %d configured webhooks */
@@ -209,5 +259,5 @@ function webhooks_status_html( $total, $enabled, $watching = false ) {
 			: __( 'Add one under Add a webhook to start receiving signed post-publish notifications at your own endpoint.', 'signal-and-noise-tools' );
 		$pill  = __( 'Inactive', 'signal-and-noise-tools' );
 	}
-	return \snt_kit_notice( $kind, '<b>' . \snt_kit_esc( $title ) . '</b> ' . \snt_kit_badge( $kind, $pill ) . '<br>' . \snt_kit_esc( $body ) );
+	return array( 'kind' => $kind, 'title' => $title, 'body' => $body, 'pill' => $pill );
 }
