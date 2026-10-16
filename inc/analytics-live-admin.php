@@ -19,9 +19,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * @param array<string,mixed>|null $get The view params for the past-slot grid (null reads $_GET).
  * @return string Escaped HTML.
  */
-function sn_analytics_live_admin_html() {
+function sn_analytics_live_admin_html( $get = null ) {
 	$list = static function ( $hook, $heading, $sub, $empty ) {
 		return '<div class="sn-live-admin__col">'
 			. '<h3 class="sn-live-admin__h">' . esc_html( $heading ) . '</h3>'
@@ -48,5 +49,7 @@ function sn_analytics_live_admin_html() {
 		. '</div>'
 		/* translators: %s: the time of the last live read, e.g. 16:42. */
 		. '<p class="sn-live-admin__meta" data-sn-live-meta data-updated="' . esc_attr__( 'live · updated %s', 'signal-and-noise-tools' ) . '" data-unknown="' . esc_attr__( 'live · not read yet', 'signal-and-noise-tools' ) . '">' . esc_html__( 'live', 'signal-and-noise-tools' ) . '</p>'
+		// The stored 5-minute slots of the last day, each a link (inc/analytics-live-slots-admin.php).
+		. ( function_exists( 'sn_analytics_live_slots_html' ) ? sn_analytics_live_slots_html( $get ) : '' )
 		. '</div>';
 }

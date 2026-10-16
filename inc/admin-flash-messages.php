@@ -176,6 +176,8 @@ function sn_admin_flash_messages() {
 		'north_star_saved'           => array( 'success', 'North star saved. The reading recomputes on the next load.' ),
 		'north_star_unchanged'       => array( 'info', 'North star unchanged.' ),
 		'analytics_tuning_unchanged' => array( 'info', 'Engine tuning unchanged.' ),
+		'analytics_publish_window_saved'     => array( 'success', 'Publish window saved. Each note\'s report reads it on its next open.' ),
+		'analytics_publish_window_unchanged' => array( 'info', 'Publish window unchanged.' ),
 		// S2 §3 (v9.42.0 arc): owner-defined session funnels.
 		'analytics_funnels_saved'    => array( 'success', 'Session funnels saved. The Sessions view reflects them on the next load.' ),
 		'analytics_funnels_failed'   => array( 'error', 'Session funnels could not be saved: try again.' ),

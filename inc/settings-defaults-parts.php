@@ -192,6 +192,10 @@ function sn_settings_defaults() {
 			// already preserved by sn_settings_save()'s v6.23.0 block.
 			'signal_baseline_days' => 30,
 			'anomaly_sensitivity'  => 'standard',
+			// 2026-10-16: how long a note's publish window lasts, in minutes
+			// (inc/publish-window.php). Written by
+			// sn_handle_analytics_publish_window_save(), clamped 5 to 1440.
+			'publish_window_minutes' => 60,
 			// S2 §3 (v9.42.0 arc): owner-defined session funnels (Visits view).
 			// MUST default to an EMPTY array — same reasoning as exclude_roles
 			// above: a non-empty default would resurface via array_replace_recursive

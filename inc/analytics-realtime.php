@@ -270,6 +270,10 @@ function sn_analytics_realtime_refresh() {
 	$sources = function_exists( 'sn_analytics_live_sources_read' ) ? sn_analytics_live_sources_read() : null;
 	// The live-surge signal (inc/analytics-live-surge.php): log the hour's completed slots, judge the last one.
 	$surge = function_exists( 'sn_analytics_live_surge_step' ) ? sn_analytics_live_surge_step( $hour ) : null;
+	// Rolling snapshots (inc/analytics-live-slots.php): the hour's completed slots, kept a day. Reads AE only when a slot is new.
+	if ( function_exists( 'sn_analytics_live_slots_step' ) ) {
+		sn_analytics_live_slots_step( $hour );
+	}
 
 	set_transient( SN_ANALYTICS_REALTIME_KEY, array(
 		'counts'      => $counts,

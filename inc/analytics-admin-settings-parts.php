@@ -112,6 +112,15 @@ function snt_analytics_render_settings_section() {
 			'snt_analytics_render_engine_tuning'
 		);
 	}
+	// 2026-10-16: the publish window's length (inc/publish-window-settings.php).
+	if ( function_exists( 'snt_analytics_render_publish_window' ) ) {
+		snt_an_settings_fold(
+			__( 'Publish windows', 'signal-and-noise-tools' ),
+			sn_publish_window_snapshot(),
+			false,
+			'snt_analytics_render_publish_window'
+		);
+	}
 	// S2 §3 (v9.42.0 arc): owner-defined session funnels, after engine tuning —
 	// the writable column's last card.
 	if ( function_exists( 'snt_analytics_render_funnels' ) ) {
