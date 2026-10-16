@@ -177,6 +177,33 @@ function sn_analytics_counted_condition( $class, array $hashes ) {
 }
 
 /**
+ * The read-time class as a SELECT expression under the rule, for builders that
+ * group by class: an over-cap visitor-day lands in the bot row (the same bot
+ * condition the readers use), never dropped. With no hashes it is exactly
+ * sn_analytics_class_select(). PURE.
+ *
+ * @param array $hashes Over-cap hashes.
+ * @return string
+ */
+function sn_analytics_counted_class_select( array $hashes ) {
+	return 'if(' . sn_analytics_counted_condition( 'bot', $hashes ) . ", 'bot', if(" . sn_analytics_network_human_sql() . ", 'human', 'suspect'))";
+}
+
+/**
+ * The class column and over-cap WHERE tail for the daily rollup's two queries.
+ * Folded (default): over-cap visitor-days land in the bot row, no WHERE tail.
+ * Unfolded: the pre-fold shape (plain class select, over-cap dropped from every
+ * class), the fallback while the folded form is unproven on live AE.
+ *
+ * @param bool $fold Fold over-cap visitor-days into bot.
+ * @return array{0:string,1:string} [ class expression, WHERE tail ].
+ */
+function sn_analytics_rollup_class_parts( $fold = true ) {
+	$hashes = sn_analytics_overcap_vdays()['hashes'];
+	return $fold ? array( sn_analytics_counted_class_select( $hashes ), '' ) : array( sn_analytics_class_select(), sn_analytics_overcap_and( $hashes ) );
+}
+
+/**
  * The live condition for a class (reads the cached over-cap list).
  *
  * @param string $class Traffic class.

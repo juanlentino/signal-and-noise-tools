@@ -147,6 +147,9 @@ function sn_analytics_last_result_truncated( $set = null ) {
 function sn_analytics_query( $sql ) {
 	$GLOBALS['__ar_query_calls'][] = $sql;
 	sn_analytics_last_result_truncated( false ); // the real client resets per call.
+	if ( '' !== ( $GLOBALS['__ar_refuse'] ?? '' ) && false !== strpos( (string) $sql, $GLOBALS['__ar_refuse'] ) ) {
+		return null; // live AE refusing a form (HTTP 422)
+	}
 	$ret = ( false !== strpos( (string) $sql, 'AS pageview_visits' ) )
 		? $GLOBALS['__ar_gated_return']
 		: $GLOBALS['__ar_query_return'];
@@ -1017,7 +1020,7 @@ ar_reset();
 $GLOBALS['__ar_config_present'] = true;
 $GLOBALS['__ar_query_return']   = null;
 sn_analytics_run_rollup();
-ok( count( $GLOBALS['__ar_query_calls'] ) === 1, 'run_rollup: a configured failure still issued the AE query' );
+ok( count( $GLOBALS['__ar_query_calls'] ) === 2, 'run_rollup: a configured failure issued the folded read, then the pre-fold fallback once' );
 ok( count( $GLOBALS['wpdb']->queries ) === 0, 'run_rollup: AE failure (null) → no upsert' );
 ok( get_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY ) === false, 'run_rollup: AE failure (null) → NOT stamped fresh (warmer retries)' );
 
@@ -1299,6 +1302,98 @@ foreach ( $GLOBALS['wpdb']->queries as $q ) {
 }
 ok( 2 === $v6_retry_updates, 'v6 repair retry: the next init re-runs the repair UPDATE (fixed point — retry is safe)' );
 ok( get_option( SN_ANALYTICS_DAILY_DB_VERSION_OPT ) === '6', 'v6 repair retry: success stamps db version 6' );
+
+// ── Over-cap visitor-days fold into the bot row (the readers' rule) ─────────
+// The /stats Automated tile sums suspect+bot from the daily table. Before
+// this, both rollup queries dropped an over-cap visitor-day from EVERY class
+// (index1 NOT IN in WHERE), while the AE readers count it as bot
+// (sn_analytics_counted_condition('bot')), so the tile undercounted.
+echo "\nGroup: over-cap visitor-days roll into bot\n";
+ar_reset();
+$oc_h = 'abcdef0123456789';
+$GLOBALS['__ar_overcap'] = array( 'hashes' => array( $oc_h ), 'ok' => true, 'truncated' => false );
+// One fixture day: a reader (10 views), a data-centre visitor (7, the network rule reads suspect), an over-cap visitor-day on a human network (60), a stored bot (5).
+$oc_rows = array(
+	array( 'vid' => '1111222233334444', 'blob7' => 'human', 'net' => true,  'views' => 10 ),
+	array( 'vid' => '9999aaaabbbbcccc', 'blob7' => 'human', 'net' => false, 'views' => 7 ),
+	array( 'vid' => $oc_h,              'blob7' => 'human', 'net' => true,  'views' => 60 ),
+	array( 'vid' => '5555666677778888', 'blob7' => 'bot',   'net' => true,  'views' => 5 ),
+);
+/**
+ * Evaluate the bot-condition forms the rule emits (blob7 = 'bot', index1 IN / NOT IN, OR) for one row.
+ */
+function oc_eval( $cond, array $r ) {
+	$php = preg_replace_callback( "/index1 (NOT )?IN \\(([^)]*)\\)/", static function ( $m ) {
+		return ( $m[1] ? '!' : '' ) . 'in_array($r[\'vid\'], array(' . $m[2] . '), true)';
+	}, $cond );
+	$php = str_replace( array( "blob7 = 'bot'", ' OR ', ' AND ', 'NET' ), array( "(\$r['blob7'] === 'bot')", ' || ', ' && ', "\$r['net']" ), $php );
+	return (bool) eval( 'return ' . $php . ';' );
+}
+/**
+ * The readers' condition for a class, the network predicate stood in for by the row's 'net' flag (NET).
+ */
+function oc_reader_cond( $c, $h ) {
+	return str_replace( array( 'NOT (' . sn_analytics_network_human_sql() . ')', '(' . sn_analytics_network_human_sql() . ')', "blob7 != 'bot'" ), array( '!NET', 'NET', "!(blob7 = 'bot')" ), sn_analytics_counted_condition( $c, array( $h ) ) );
+}
+$oc_reader = 0;
+foreach ( $oc_rows as $r ) {
+	$oc_reader += oc_eval( sn_analytics_counted_condition( 'bot', array( $oc_h ) ), $r ) ? $r['views'] : 0;
+}
+$oc_reader_cls = array();
+foreach ( array( 'human', 'suspect' ) as $c ) {
+	$oc_reader_cls[ $c ] = 0;
+	foreach ( $oc_rows as $r ) {
+		$oc_reader_cls[ $c ] += oc_eval( oc_reader_cond( $c, $oc_h ), $r ) ? $r['views'] : 0;
+	}
+}
+ok( 65 === $oc_reader, 'fixture: the AE reader counts 65 bot views (stored bot + over-cap)' );
+ok( 10 === $oc_reader_cls['human'] && 7 === $oc_reader_cls['suspect'], 'fixture: the AE reader counts 10 human, 7 suspect' );
+foreach ( array( 'rollup_sql' => sn_analytics_rollup_sql( 7 ), 'gated_sql' => sn_analytics_rollup_gated_sql( 7 ) ) as $oc_name => $oc_sql ) {
+	$oc_where = preg_match( '/index1 NOT IN \([^)]*\)/', $oc_sql, $m ) ? $m[0] : '';
+	$oc_bot   = preg_match( "/AS path, if\\((.*?), 'bot', if\\(/", $oc_sql, $m ) ? $m[1] : 'false';
+	$oc_daily = 0;
+	foreach ( $oc_rows as $r ) {
+		$oc_daily += ( ( '' === $oc_where || oc_eval( $oc_where, $r ) ) && oc_eval( $oc_bot, $r ) ) ? $r['views'] : 0;
+	}
+	ok( $oc_reader === $oc_daily, "{$oc_name}: daily-table bot ({$oc_daily}) == AE-reader bot ({$oc_reader})" );
+	foreach ( array( 'human', 'suspect' ) as $c ) {
+		$oc_d = 0;
+		foreach ( $oc_rows as $r ) {
+			$in_bot = oc_eval( $oc_bot, $r );
+			$oc_d  += ( ( '' === $oc_where || oc_eval( $oc_where, $r ) ) && ! $in_bot && ( 'human' === $c ) === $r['net'] ) ? $r['views'] : 0; // the class select's inner if(): network human or suspect
+		}
+		ok( $oc_reader_cls[ $c ] === $oc_d, "{$oc_name}: daily-table {$c} ({$oc_d}) == AE-reader {$c} ({$oc_reader_cls[ $c ]})" );
+	}
+	ok( false === strpos( $oc_sql, 'NOT IN' ), "{$oc_name}: no over-cap row is dropped from the query" );
+}
+ok( sn_analytics_class_select() === sn_analytics_counted_class_select( array() ), 'counted_class_select: no hashes is exactly the plain class select' );
+
+// Live AE has not run the fold (index1 IN inside if() in a SELECT). If it is
+// refused (422 on the zoned and the UTC read), the run falls back once to the
+// pre-fold shape and still writes the day with the old figures; the shape that
+// ran is recorded.
+ar_reset();
+$GLOBALS['__ar_overcap']        = array( 'hashes' => array( $oc_h ), 'ok' => true, 'truncated' => false );
+$GLOBALS['__ar_config_present'] = true;
+$GLOBALS['__ar_refuse']         = "'bot' OR index1 IN (";
+$GLOBALS['__ar_query_return']   = array(
+	array( 'day' => '2026-06-11', 'path' => '/', 'class' => 'human', 'views' => 9, 'visits' => 7, 'scroll_avg' => 50, 'time_avg' => 3000 ),
+);
+sn_analytics_run_rollup();
+$oc_calls = $GLOBALS['__ar_query_calls'];
+ok( isset( $oc_calls[1] ) && false !== strpos( $oc_calls[0], $GLOBALS['__ar_refuse'] ) && false !== strpos( $oc_calls[1], "index1 NOT IN ('{$oc_h}')" ) && false === strpos( $oc_calls[1], $GLOBALS['__ar_refuse'] ), 'fallback: the refused folded read is followed by the pre-fold read' );
+ok( isset( $oc_calls[2] ) && false !== strpos( $oc_calls[2], 'AS pageview_visits' ) && false !== strpos( $oc_calls[2], 'NOT IN' ), 'fallback: the gated read runs in the same pre-fold shape (the merge keys agree)' );
+ok( 1 === count( $GLOBALS['wpdb']->queries ) && false !== strpos( $GLOBALS['wpdb']->queries[0], '2026-06-11' ), 'fallback: the day is still written' );
+ok( 'unfolded' === ( get_option( SN_ANALYTICS_ROLLUP_SHAPE_OPT )['shape'] ?? '' ), 'fallback: the run records the pre-fold shape' );
+ok( get_transient( SN_ANALYTICS_ROLLUP_FRESH_KEY ) !== false, 'fallback: the run is stamped fresh, not frozen' );
+$GLOBALS['__ar_refuse'] = '';
+ar_reset();
+$GLOBALS['__ar_overcap']        = array( 'hashes' => array( $oc_h ), 'ok' => true, 'truncated' => false );
+$GLOBALS['__ar_config_present'] = true;
+$GLOBALS['__ar_query_return']   = array( array( 'day' => '2026-06-11', 'path' => '/', 'class' => 'bot', 'views' => 9, 'visits' => 1, 'scroll_avg' => 0, 'time_avg' => 0 ) );
+sn_analytics_run_rollup();
+ok( 2 === count( $GLOBALS['__ar_query_calls'] ) && 'folded' === ( get_option( SN_ANALYTICS_ROLLUP_SHAPE_OPT )['shape'] ?? '' ), 'accepted fold: one main read, recorded folded' );
+$GLOBALS['__ar_overcap'] = null;
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";

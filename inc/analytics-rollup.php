@@ -112,6 +112,8 @@ const SN_ANALYTICS_ROLLUP_HOOK         = 'sn_analytics_rollup';        // on-dem
 const SN_ANALYTICS_ROLLUP_DAILY_HOOK   = 'sn_analytics_rollup_daily';  // recurring daily backstop
 const SN_ANALYTICS_ROLLUP_WINDOW_DAYS  = 7;                            // trailing window each run re-aggregates
 const SN_ANALYTICS_ROLLUP_FRESH_KEY    = 'sn_analytics_rollup_fresh';
+// The shape the last daily read ran with: {shape: folded|unfolded, at}. 'unfolded' means live AE refused the over-cap fold and the run fell back.
+const SN_ANALYTICS_ROLLUP_SHAPE_OPT    = 'sn_analytics_rollup_shape';
 const SN_ANALYTICS_ROLLUP_TTL          = 15 * MINUTE_IN_SECONDS;  // freshness target for the admin warmer
 const SN_ANALYTICS_ROLLUP_RETENTION    = DAY_IN_SECONDS;          // freshness stamp outlives the TTL
 const SN_ANALYTICS_CLASSES             = array( 'human', 'suspect', 'bot' );
