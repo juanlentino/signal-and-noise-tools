@@ -360,6 +360,9 @@ function snt_analytics_render_view_search() {
 				esc_html( human_time_diff( (int) $cov['synced_at'], time() ) )
 			);
 			echo '</p>';
+			if ( function_exists( 'snt_gsc_coverage_history_render_classic' ) ) {
+				snt_gsc_coverage_history_render_classic();
+			}
 			if ( ! empty( $cov['not_indexed_paths'] ) ) {
 				echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
 				echo '<th scope="col">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>';

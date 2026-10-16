@@ -80,6 +80,28 @@ function gsc_metric_table( $title, array $rows, $empty ) {
 }
 
 /**
+ * Index coverage history: what moved since the previous weekly run, then the
+ * last readings. The classic twin is snt_gsc_coverage_history_render_classic().
+ *
+ * @return string
+ */
+function gsc_coverage_history_section() {
+	if ( ! function_exists( 'snt_gsc_coverage_history_view' ) ) {
+		return '';
+	}
+	$v     = \snt_gsc_coverage_history_view( \snt_gsc_coverage_history() );
+	$inner = '<p class="snt-prose">' . \snt_kit_esc( $v['note'] ) . '</p>';
+	if ( array() !== $v['rows'] ) {
+		$cols = array();
+		foreach ( \snt_gsc_coverage_history_columns() as $key => $label ) {
+			$cols[] = 'run' === $key ? array( 'key' => $key, 'label' => $label, 'stack' => 'title' ) : array( 'key' => $key, 'label' => $label, 'align' => 'end' );
+		}
+		$inner .= \snt_kit_table( $cols, $v['rows'] );
+	}
+	return \snt_kit_section( __( 'Index coverage history', 'signal-and-noise-tools' ), $inner );
+}
+
+/**
  * @param array<string,mixed> $ctx Frame context.
  * @return string
  */
@@ -138,7 +160,8 @@ function paint_view_search( array $ctx ) {
 		. '<div class="snt-report-columns">'
 		. gsc_metric_table( __( 'Top queries', 'signal-and-noise-tools' ), $queries, __( 'No queries in this Search Console window.', 'signal-and-noise-tools' ) )
 		. gsc_metric_table( __( 'Top pages', 'signal-and-noise-tools' ), $pages, __( 'No pages in this Search Console window.', 'signal-and-noise-tools' ) )
-		. '</div>';
+		. '</div>'
+		. gsc_coverage_history_section();
 }
 
 add_filter(

@@ -424,6 +424,7 @@ require_once SNT_PATH . 'inc/search-console-store.php';
 require_once SNT_PATH . 'inc/search-console-sync.php';      // R6b close: the scheduled daily sync (one producer with the button).
 require_once SNT_PATH . 'inc/search-console-derive.php';    // Items 2+3: position drift + search interest by topic (derived, read-only).
 require_once SNT_PATH . 'inc/search-console-crossexam.php';
+require_once SNT_PATH . 'inc/search-console-coverage-history.php'; // one summary reading per weekly coverage run, capped at two years.
 require_once SNT_PATH . 'inc/search-console-coverage.php';  // v13.63.0: weekly URL Inspection per post — the indexed-vs-unseen discriminator; stored, never live.  // R6b: GSC x crawler-ledger agreement check.
 require_once SNT_PATH . 'inc/analytics-view-search.php';     // R6b: the Search analytics view (its own tab).      // R6b: the path-keyed rolling window the analytics views join against.
 require_once SNT_PATH . 'inc/search-console-admin.php';      // R6b: Measurement -> Search Console leaf.
