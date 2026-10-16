@@ -61,7 +61,7 @@ $today   = gmdate( 'Ymd', $now );
 
 // ── No key: enroll refuses, writes nothing, sets no cookie.
 ok( 'owner_device_no_key' === sn_owner_device_enroll( 'Laptop', $now ) && array() === sn_owner_devices() && ! isset( $_COOKIE['sn_owner_dev'] ), 'no device key: enroll refuses with a clear code and writes nothing' );
-ok( false !== strpos( $classic(), 'Generate the owner key' ) && false === strpos( $classic(), 'name="sn_owner_device_label"' ), 'no device key: the card says to generate it and offers no enroll form' );
+ok( false !== strpos( $classic(), 'openssl rand -hex 32' ) && false !== strpos( $classic(), 'paste it as the owner key' ) && false === strpos( $classic(), 'name="sn_owner_device_label"' ), 'no device key: the card says to make it in Terminal and paste it, and offers no enroll form' );
 $GLOBALS['__options']['sn_owner_key'] = 'site';
 ok( 'owner_device_no_key' === sn_owner_device_enroll( 'Laptop', $now ), 'a key that is not 64 hex (the literal "site") counts as unset' );
 
