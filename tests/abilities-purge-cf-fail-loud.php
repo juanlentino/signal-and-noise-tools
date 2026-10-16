@@ -168,7 +168,8 @@ ok( false === ( $GLOBALS['__purge_filter_args']['object_cache'] ?? null ), 'S7.5
 seed_report( array( 'accepted' => true, 'http' => 200, 'cf_success' => true ), true );
 snt_ability_purge_all_caches( array( 'flush_object_cache' => true ) );
 ok( true === ( $GLOBALS['__purge_filter_args']['object_cache'] ?? null ) && false === ( $GLOBALS['__purge_filter_args']['template_overrides'] ?? null ), 'S7.6 flush_object_cache is the explicit Redis flush, and clears no overrides' );
-$sys_src = (string) file_get_contents( __DIR__ . '/../inc/abilities-system.php' );
+require_once __DIR__ . '/lib/inc-population.php'; // the module and its three parts files (split 2026-10-16)
+$sys_src = snt_test_abilities_system_src();
 ok( false === strpos( $sys_src, 'Use after deploys' ) && false !== strpos( $sys_src, 'NOT needed after a deploy or a post save' ), 'S7.7 the description no longer tells an agent to purge after deploys' );
 $post_src = (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions/system.php' ) . (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions/cloudflare.php' );
 ok( 2 === substr_count( $post_src, "'template_overrides' => false, 'object_cache' => false, 'verified' => true" ), 'S7.8 a stale purge form post leaves Redis alone too' );

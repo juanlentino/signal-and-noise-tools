@@ -842,7 +842,7 @@ $other = apply_filters( 'openstation_app_window_args', array( 'styles' => array(
 ok( array( 'os-runtime' ) === $other['styles'], 'another app\'s window is left alone' );
 
 echo "\nGroup B: the admin library rides a REST dispatch\n";
-$host_src = (string) file_get_contents( __DIR__ . '/../inc/openstation-host.php' );
+$host_src = snt_test_openstation_host_src(); // the module and its three parts files (split 2026-10-16)
 ok( false !== strpos( $host_src, "function snt_os_host_admin_bootstrap()" ) && false !== strpos( $host_src, "ABSPATH . 'wp-admin/includes/admin.php'" ), 'capture loads wp-admin/includes/admin.php when submit_button() is absent -- a REST dispatch has no wp-admin, and MCP Clients answered 500 without it' );
 ok( false !== strpos( $host_src, "if ( function_exists( 'submit_button' ) || ! defined( 'ABSPATH' ) ) {" ), '...and only when it is absent: the classic page already has it, a standalone host has no ABSPATH' );
 $cap_at  = strpos( $host_src, 'function snt_os_host_capture(' );

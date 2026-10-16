@@ -20,9 +20,11 @@ $root = dirname( __DIR__ );
 
 echo "Group 1: no link to the nonce door remains\n";
 foreach ( array( 'inc/admin-tab-dashboard.php' ) as $f ) { // inc/dash-api-summary.php removed: no caller.
-	$src = (string) file_get_contents( $root . '/' . $f );
+	// The module is a shell plus three parts files (split 2026-10-16), read whole.
+	require_once __DIR__ . '/lib/inc-population.php';
+	$src = 'inc/admin-tab-dashboard.php' === $f ? snt_test_admin_tab_dashboard_src() : (string) file_get_contents( $root . '/' . $f );
 	// The handler's own registration and its check_admin_referer are allowed; a wp_nonce_url() LINK to it is not.
-	ok( 0 === preg_match( "/wp_nonce_url\\(\\s*admin_url\\(\\s*'admin-post\\.php\\?action=sn_force_update_check'/", $src ), "$f builds no nonce link to the force-check door" );
+	ok( '' !== $src && 0 === preg_match( "/wp_nonce_url\\(\\s*admin_url\\(\\s*'admin-post\\.php\\?action=sn_force_update_check'/", $src ), "$f builds no nonce link to the force-check door" );
 	ok( false !== strpos( $src, "update-core.php?force-check=1" ), "$f links to core's nonce-free force-check" );
 }
 

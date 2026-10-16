@@ -632,3 +632,123 @@ if ( ! function_exists( 'snt_test_rss_feed_tracker_src' ) ) {
 		return $src;
 	}
 }
+
+if ( ! function_exists( 'snt_test_openstation_host_src' ) ) {
+	/**
+	 * The source of inc/openstation-host.php AND its three parts files, for
+	 * suites that pin the module's text. Split 2026-10-16 (house line cap).
+	 * Named, not globbed: openstation-host-urls.php, -pipelines.php and
+	 * -assets.php are separate modules. A missing file returns '' so every
+	 * presence pin goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_openstation_host_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-rewrite-parts', '-tags-parts', '-params-parts' ) as $suffix ) {
+			$file = $dir . 'openstation-host' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_provenance_admin_src' ) ) {
+	/**
+	 * The source of inc/provenance-admin.php AND its three parts files, for
+	 * suites that pin the module's text. Split 2026-10-16 (house line cap).
+	 * Named, not globbed: provenance-admin-glance.php is a separate module. A
+	 * missing file returns '' so every presence pin goes red rather than
+	 * passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_provenance_admin_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-status-parts', '-render-parts', '-fieldsets-parts' ) as $suffix ) {
+			$file = $dir . 'provenance-admin' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_admin_bar_src' ) ) {
+	/**
+	 * The source of inc/admin-bar.php AND its three parts files, for suites
+	 * that pin the module's text. Split 2026-10-16 (house line cap). Named, not
+	 * globbed: no other module shares the prefix today, and a future one would
+	 * not belong in the read. A missing file returns '' so every presence pin
+	 * goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_admin_bar_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-items-parts', '-menu-parts', '-assets-parts' ) as $suffix ) {
+			$file = $dir . 'admin-bar' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_abilities_system_src' ) ) {
+	/**
+	 * The source of inc/abilities-system.php AND its three parts files, for
+	 * suites that pin the module's text. Split 2026-10-16 (house line cap).
+	 * Named, not globbed: no other module shares the prefix today, and a
+	 * future one would not belong in the read. A missing file returns '' so
+	 * every presence pin goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_abilities_system_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-register-parts', '-purge-parts', '-deploy-parts' ) as $suffix ) {
+			$file = $dir . 'abilities-system' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
+
+if ( ! function_exists( 'snt_test_admin_tab_dashboard_src' ) ) {
+	/**
+	 * The source of inc/admin-tab-dashboard.php AND its three parts files, for
+	 * suites that pin the module's text. Split 2026-10-16 (house line cap).
+	 * Named, not globbed: no other module shares the prefix today, and a
+	 * future one would not belong in the read. A missing file returns '' so
+	 * every presence pin goes red rather than passing on a partial read.
+	 *
+	 * @return string
+	 */
+	function snt_test_admin_tab_dashboard_src() {
+		$dir = dirname( dirname( __DIR__ ) ) . '/inc/';
+		$src = '';
+		foreach ( array( '', '-data-parts', '-cards-parts', '-actions-parts' ) as $suffix ) {
+			$file = $dir . 'admin-tab-dashboard' . $suffix . '.php';
+			if ( ! is_file( $file ) ) {
+				return '';
+			}
+			$src .= file_get_contents( $file ) . "\n";
+		}
+		return $src;
+	}
+}
