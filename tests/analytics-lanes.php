@@ -148,6 +148,7 @@ ok( '2026-10-14' === end( $utc ), 'UTC: the UTC today (10-15) is pending, 10-14 
 $edge = sn_lanes_complete_days( 'America/New_York', strtotime( '2026-10-15 04:02:00 UTC' ) ); // 00:02 local
 ok( '2026-10-13' === end( $edge ), 'two minutes past local midnight, the day that just ended is not yet written (clock skew guard)' );
 list( , $window ) = sn_lanes_window_sql( 'America/New_York' );
+ok( false !== strpos( $sql, ' WHERE timestamp >= ' ) && false !== strpos( sn_lanes_owner_sql( '' ), ' WHERE timestamp >= ' ) && false === strpos( $sql, '1 = 1' ), 'both reads open WHERE with the house shape (timestamp >= ...), no new dialect form' );
 ok( false !== strpos( $window, "timestamp < toStartOfInterval(now(), INTERVAL '1' DAY, 'America/New_York')" ), 'the read stops at the local start of today' );
 
 // --- AE limits -----------------------------------------------------------------

@@ -121,7 +121,7 @@ function snt_mr_normalize_signed_agent( $value ) {
  * older Worker, which is a different answer from a measured zero.
  *
  * @param array $row Raw row from the sensor.
- * @return array{vendor:string,purpose:string,taxonomy_version:string,training_corpus_source:bool,first_party:bool,ua_sample:string}
+ * @return array<string,mixed> vendor, agent, purpose, taxonomy_version, training_corpus_source, first_party, ua_sample, markdown_requested, signed_agent, verified_bot, network, owner_identity, owner_agent.
  */
 function snt_mr_normalize_taxonomy_fields( $row ) {
 	$purposes = snt_mr_valid_purposes();

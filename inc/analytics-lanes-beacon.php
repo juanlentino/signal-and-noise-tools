@@ -27,13 +27,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * the zone. PURE.
  *
  * @param string $tz IANA zone, '' for UTC.
- * @return array{0:string,1:string} [ day column, ' AND timestamp >= ... AND timestamp < ...' ].
+ * @return array{0:string,1:string} [ day column, 'timestamp >= ... AND timestamp < ...' ], the WHERE's opening shape every house builder uses.
  */
 function sn_lanes_window_sql( $tz ) {
 	list( $day_col, $lower ) = sn_analytics_rollup_window_exprs( SN_LANES_WINDOW_DAYS, $tz );
 	$tz    = ( '' !== $tz && preg_match( '#^[A-Za-z0-9_/+-]+$#', (string) $tz ) ) ? (string) $tz : '';
 	$upper = '' !== $tz ? "toStartOfInterval(now(), INTERVAL '1' DAY, '{$tz}')" : 'toStartOfDay(now())';
-	return array( $day_col, " AND timestamp >= {$lower} AND timestamp < {$upper}" );
+	return array( $day_col, "timestamp >= {$lower} AND timestamp < {$upper}" );
 }
 
 /**
@@ -67,7 +67,7 @@ function sn_lanes_complete_days( $tz, $now = null ) {
  * @return string
  */
 function sn_lanes_feed_event() {
-	$s    = function_exists( 'get_option' ) ? get_option( 'sn_rss_tracker_settings', array() ) : array();
+	$s    = function_exists( 'get_option' ) ? get_option( defined( 'SN_RSS_TRACKER_SETTINGS_OPT' ) ? SN_RSS_TRACKER_SETTINGS_OPT : 'sn_rss_tracker_settings', array() ) : array();
 	$name = is_array( $s ) && isset( $s['event_name'] ) ? (string) $s['event_name'] : 'RSS Feed Request';
 	return (string) preg_replace( '/[^A-Za-z0-9 _-]/', '', $name );
 }
@@ -89,7 +89,7 @@ function sn_lanes_public_sql( $source, $range, $tz ) {
 	foreach ( SNT_BOT_SIGNAL_BITS as $bit => $name ) {
 		$cols[] = "max(bitAnd(toUInt32(double8), {$bit})) AS {$name}";
 	}
-	return 'SELECT ' . implode( ', ', $cols ) . ' FROM ' . $source . ' WHERE 1 = 1' . $window . $range . sn_analytics_excluded_path_sql() . ' GROUP BY day, vid, class, feed';
+	return 'SELECT ' . implode( ', ', $cols ) . ' FROM ' . $source . ' WHERE ' . $window . $range . sn_analytics_excluded_path_sql() . ' GROUP BY day, vid, class, feed';
 }
 
 /**
@@ -101,7 +101,7 @@ function sn_lanes_public_sql( $source, $range, $tz ) {
 function sn_lanes_owner_sql( $tz ) {
 	list( $day_col, $window ) = sn_lanes_window_sql( $tz );
 	return "SELECT {$day_col} AS day, index1 AS vid, toUInt32(double14) AS identity, toUInt32(double15) AS agent, sum(if(blob1 = 'pv', _sample_interval, 0)) AS views FROM " . SN_LANES_OWNER_DATASET
-		. ' WHERE 1 = 1' . $window . sn_analytics_excluded_path_sql() . ' GROUP BY day, vid, identity, agent';
+		. ' WHERE ' . $window . sn_analytics_excluded_path_sql() . ' GROUP BY day, vid, identity, agent';
 }
 
 /**
@@ -228,7 +228,7 @@ function sn_lanes_beacon_run() {
 	$public = sn_lanes_public_rows( $tz );
 	if ( empty( $public ) ) {
 		error_log( '[sn-lanes] beacon: the public read failed, was truncated or was empty; the stored days are kept' );
-		return false;
+		return sn_lanes_last_run( 'beacon', null === $public ? 'read_failed' : 'empty' );
 	}
 	if ( '' === sn_lanes_since( 'beacon' ) ) {
 		$first = sn_analytics_query( sn_lanes_beacon_since_sql( $tz ) );
@@ -243,10 +243,11 @@ function sn_lanes_beacon_run() {
 		// lanes still roll. Once lanes are live, a failed owner read skips the run.
 		if ( '' !== sn_lanes_since( 'beacon' ) ) {
 			error_log( '[sn-lanes] beacon: the owner read failed; the stored days are kept' );
-			return false;
+			return sn_lanes_last_run( 'beacon', 'read_failed' );
 		}
 		$owner = array();
 	}
 	$derived = sn_lanes_beacon_derive( $public, $owner, sn_analytics_overcap_vdays()['hashes'] );
-	return sn_lanes_store_days( 'beacon', sn_lanes_complete_days( $tz ), $derived );
+	$ok = sn_lanes_store_days( 'beacon', sn_lanes_complete_days( $tz ), $derived );
+	return sn_lanes_last_run( 'beacon', $ok ? 'wrote' : 'not_written' );
 }

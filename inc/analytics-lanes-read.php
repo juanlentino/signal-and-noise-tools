@@ -122,6 +122,7 @@ function sn_lanes_report( array $rows, $yesterday, array $since ) {
 		'windows'       => $windows,
 		'daily'         => $daily,
 		'token_invalid' => $invalid,
+		'last_run'      => function_exists( 'sn_lanes_last_run' ) ? sn_lanes_last_run() : array(),
 	);
 }
 

@@ -33,6 +33,7 @@ const SN_LANES_DB_VERSION     = '1';
 const SN_LANES_DB_VERSION_OPT = 'sn_analytics_lanes_db_version';
 const SN_LANE_RULE_VERSION    = 1;
 const SN_LANES_SINCE_OPT      = 'sn_analytics_lanes_since'; // { beacon: Y-m-d, machine: Y-m-d }, set from evidence only.
+const SN_LANES_LAST_RUN_OPT   = 'sn_analytics_lanes_last_run'; // { sensor: { at, outcome } }: the report tells "never ran" from "nothing stored".
 const SN_LANES_OWNER_DATASET  = 'sn_owner_hits';            // the analytics Worker's DATASETS.owner.
 const SN_LANES_WINDOW_DAYS    = 7;                          // trailing complete days each run writes.
 const SN_LANES                = array( 'owner', 'owner_agent', 'unverified_owner', 'own_infra', 'verified_bot', 'claimed_bot', 'unknown_machine', 'suspected_automation', 'human' );
@@ -140,6 +141,24 @@ function sn_lanes_since( $sensor = '', $day = null ) {
 	}
 	$out = array( 'beacon' => (string) ( $s['beacon'] ?? '' ), 'machine' => (string) ( $s['machine'] ?? '' ) );
 	return '' === $sensor ? $out : ( $out[ $sensor ] ?? '' );
+}
+
+/**
+ * Record a sensor's last run outcome, or read them all.
+ *
+ * @param string      $sensor  'beacon' | 'machine' | '' to read.
+ * @param string|null $outcome wrote | not_written | read_failed | truncated | empty.
+ * @return bool|array<string,array{at:int,outcome:string}> True for 'wrote' when recording.
+ */
+function sn_lanes_last_run( $sensor = '', $outcome = null ) {
+	$all = get_option( SN_LANES_LAST_RUN_OPT, array() );
+	$all = is_array( $all ) ? $all : array();
+	if ( null === $outcome ) {
+		return $all;
+	}
+	$all[ (string) $sensor ] = array( 'at' => time(), 'outcome' => (string) $outcome );
+	update_option( SN_LANES_LAST_RUN_OPT, $all, false );
+	return 'wrote' === $outcome;
 }
 
 /**

@@ -12,7 +12,7 @@
  *
  * Run: php tests/os-leaf-tools-lanes.php
  */
-$GLOBALS['__options'] = array( 'sn_analytics_lanes_since' => array( 'beacon' => '2026-10-16' ) );
+$GLOBALS['__options'] = array( 'sn_analytics_lanes_since' => array( 'beacon' => '2026-10-16' ), 'sn_analytics_lanes_last_run' => array( 'machine' => array( 'at' => 1792195200, 'outcome' => 'truncated' ) ) );
 function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
 require_once __DIR__ . '/lib/os-leaf-harness.php';
 define( 'ARRAY_A', 'ARRAY_A' );
@@ -60,6 +60,7 @@ foreach ( array( 'classic' => $classic, 'native' => $kit ) as $twin => $html ) {
 	ok( false !== strpos( $t, 'Today is pending: the lanes cover complete days only, through ' . $y . '.' ), "{$twin}: today pending" );
 	ok( false !== strpos( $t, 'Beacon (page views): lanes since 2026-10-16.' ) && false !== strpos( $t, 'Machine sensor (reads): lanes not seen yet' ), "{$twin}: both lanes_since states" );
 	ok( false !== strpos( $t, 'Rule version 1.' ), "{$twin}: the rule version" );
+	ok( false !== strpos( $t, 'Beacon (page views): the lanes rollup has not run yet.' ) && false !== strpos( $t, 'Machine sensor (reads): the last run (' . gmdate( 'Y-m-d H:i', 1792195200 ) . ' UTC) read a truncated result and wrote nothing.' ), "{$twin}: each sensor's last run, never mute" );
 	ok( false !== strpos( $t, 'Visitor-days are counted per lane and do not add up across lanes.' ), "{$twin}: visitor-days do not sum across lanes" );
 	ok( false !== strpos( $t, "Machine sensor days are the sensor's UTC dates." ), "{$twin}: the machine sensor's days are UTC" );
 	ok( false !== strpos( $t, 'Partial: 7 days, 30 days, 90 days start before lanes began' ), "{$twin}: a range before lanes_since says partial" );

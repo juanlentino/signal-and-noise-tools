@@ -77,6 +77,7 @@ ok( array_sum( array_column( snt_mr_normalize_rows( $whole ), 'hits' ) ) === arr
 // --- the run, through the real fetch -----------------------------------------
 $GLOBALS['__body'] = json_encode( array( 'data' => $rows, 'rows' => count( $rows ), 'truncated' => false ) );
 ok( sn_lanes_machine_run(), 'the machine pass writes' );
+ok( 'wrote' === sn_lanes_last_run()['machine']['outcome'], 'the last run is recorded as wrote' );
 ok( false !== strpos( $GLOBALS['__url'], 'days=9' ) && false === strpos( $GLOBALS['__url'], 'view=' ), 'it reads nine days of the aggregate view' );
 $db     = $GLOBALS['wpdb'];
 $stored = static fn( $lane, $reason ) => array_sum( array_map( static fn( $r ) => $r['lane'] === $lane && $r['reason'] === $reason && $r['day'] === $d( 2 ) ? $r['hits'] : 0, $db->rows ) );
@@ -103,6 +104,7 @@ snt_mr_cache_flush();
 $GLOBALS['__body'] = json_encode( array( 'data' => array( $raw( 'search', 1 ) ), 'rows' => 10000, 'truncated' => true ) );
 $before            = $db->rows;
 ok( ! sn_lanes_machine_run() && $before === $db->rows, 'a truncated read keeps the stored days' );
+ok( 'truncated' === sn_lanes_last_run()['machine']['outcome'], 'and the last run says it was truncated, so the report is never mute' );
 
 echo "\n{$pass} passed, {$fail} failed\n";
 exit( $fail > 0 ? 1 : 0 );

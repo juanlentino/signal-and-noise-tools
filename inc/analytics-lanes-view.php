@@ -33,6 +33,13 @@ function sn_lanes_view( array $report ) {
 			? sprintf( '%s: lanes since %s.', $words, $since[ $sensor ] )
 			: sprintf( '%s: lanes not seen yet, so owner lanes are not measured on this sensor.', $words );
 	}
+	$words_run = array( 'wrote' => 'wrote its days', 'not_written' => 'read, but did not write (a database error, or every day frozen under an earlier rule)', 'read_failed' => 'could not read the sensor; the stored days are kept', 'truncated' => 'read a truncated result and wrote nothing', 'empty' => 'read nothing and wrote nothing' );
+	foreach ( SN_LANES_SENSOR_WORDS as $sensor => $words ) {
+		$run     = (array) ( $report['last_run'][ $sensor ] ?? array() );
+		$notes[] = isset( $run['outcome'], $words_run[ $run['outcome'] ] )
+			? sprintf( '%s: the last run (%s UTC) %s.', $words, gmdate( 'Y-m-d H:i', (int) ( $run['at'] ?? 0 ) ), $words_run[ $run['outcome'] ] )
+			: sprintf( '%s: the lanes rollup has not run yet.', $words );
+	}
 	$notes[] = 'Beacon days are site-local days. Machine sensor days are the sensor\'s UTC dates.';
 	$notes[] = 'Views (beacon) and reads (machine) add up across lanes to each sensor\'s total. Visitor-days are counted per lane and do not add up across lanes.';
 	$tables = array();

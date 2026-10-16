@@ -115,12 +115,13 @@ function sn_lanes_machine_run() {
 	$read = snt_mr_fetch( SN_LANES_WINDOW_DAYS + 2, 'aggregate' );
 	if ( empty( $read['ok'] ) || ! empty( $read['truncated'] ) || empty( $read['rows'] ) ) {
 		error_log( '[sn-lanes] machine: the sensor read failed, was truncated or was empty; the stored days are kept' );
-		return false;
+		return sn_lanes_last_run( 'machine', empty( $read['ok'] ) ? 'read_failed' : ( ! empty( $read['truncated'] ) ? 'truncated' : 'empty' ) );
 	}
 	$since = sn_lanes_machine_since( $read['rows'] );
 	if ( '' !== $since ) {
 		sn_lanes_since( 'machine', $since );
 	}
 	$days = sn_lanes_complete_days( '' );
-	return sn_lanes_store_days( 'machine', $days, sn_lanes_machine_derive( $read['rows'], $days ) );
+	$ok = sn_lanes_store_days( 'machine', $days, sn_lanes_machine_derive( $read['rows'], $days ) );
+	return sn_lanes_last_run( 'machine', $ok ? 'wrote' : 'not_written' );
 }
