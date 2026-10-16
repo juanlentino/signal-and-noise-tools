@@ -30,7 +30,19 @@ function sn_health_check_ml_cadence() {
 		return sn_health_pack_check( $label, array(), $fix_hint, 'The cadence module is not loaded, so nothing was scanned.' ); // Defensive; module loads with the plugin.
 	}
 
-	$env      = snt_ml_cadence_flags();
+	return sn_health_check_ml_cadence_for( snt_ml_cadence_flags() );
+}
+
+/**
+ * Pack a cadence envelope as the health check (split so a test can hand it a
+ * fixed-clock envelope).
+ *
+ * @param mixed $env The snt_ml_cadence_flags() envelope.
+ * @return array The sn_health_pack_check envelope.
+ */
+function sn_health_check_ml_cadence_for( $env ) {
+	$label    = __( 'Cadence deviations', 'signal-and-noise-tools' );
+	$fix_hint = __( 'A rhythm broke: the current gap is a statistical outlier against its own history. For a cron hook, check it still schedules and its last runs succeeded; for publishing, this is just the site noticing a quiet spell.', 'signal-and-noise-tools' );
 	$findings = array();
 	foreach ( (array) ( is_array( $env ) ? ( $env['flags'] ?? array() ) : array() ) as $flag ) {
 		if ( ! is_array( $flag ) || ! isset( $flag['subject'], $flag['z'] ) ) {
@@ -47,6 +59,9 @@ function sn_health_check_ml_cadence() {
 				number_format_i18n( (int) ( $flag['expected_views'] ?? 0 ) ),
 				number_format_i18n( (int) ( $flag['current_views'] ?? 0 ) )
 			);
+			// The flag carries its own arithmetic: which surfaces moved.
+			$why  = function_exists( 'snt_ml_views_movers_sentence' ) ? snt_ml_views_movers_sentence( $flag['movers'] ?? null ) : '';
+			$note = '' !== $why ? $note . '. ' . $why : $note;
 		} else {
 			$note = sprintf(
 				/* translators: 1: z-score, 2: expected gap, 3: current gap. */

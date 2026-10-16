@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **A quiet week explained, not only flagged.** When the cadence watch's views flag fires, the flag now carries `movers`: the top 3 pages (from the path rollup the watch already read) and the top 3 sources (the referrer breakdown, one read per week of the same baseline) by absolute shortfall against their own median over the same trailing post-birth weeks, each as "this week N vs usual M". When the largest named mover is under a quarter of the site's shortfall, it says "No single page explains it: the shortfall is spread across N pages." A surface whose usual weekly visits sit under `SNT_METRICS_FLOOR` (3) is never named; it folds into one "(withheld)" bucket with summed figures. The gate is the usual visits, so a surface that collapsed to zero still explains the week. Deterministic, no model, no new collection, and nothing extra is read unless the flag fires. It rides everywhere the flag does: the Cadence deviations health finding's note, `sn-status{cadence}` (an added key inside the fired flag only; the envelope is byte-identical when nothing fires), and the Insights signal bundle. The remote door is unchanged (`cadence` stays local; `get-health-scan` ships no notes). New `inc/ml-cadence-movers.php`; pinned in `tests/ml-cadence-movers.php` (17 red against the old code) and `tests/insights.php`.
+
 ## [2026.10.23] - 2026-10-16 — Widgets grow to fit their content, roadmap board kept in sync, OpenStation 1.1.15 adopted
 
 ### Changed
