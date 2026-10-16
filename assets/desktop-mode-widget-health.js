@@ -189,7 +189,7 @@
 			mons.slice().sort( function( a, b ) { return ( 'alert' === b.level ) - ( 'alert' === a.level ); } ).forEach( function( m ) {
 				var level = String( m.level || 'unknown' );
 				if ( 'ok' === level ) { return; } // the count above already says how many are up
-				if ( 'alert' === level ) { tally.down++; } else { tally.look++; }
+				if ( 'alert' === level ) { tally.down++; } else { lookAt( tally, String( m.name || 'monitor' ) ); }
 				if ( ++shown > LIST_CAP ) { return; } // counted in the verdict, named in the "+N more" row
 				rows.push( { label: String( m.name || 'monitor' ), value: LEVEL_TEXT[ level ] || 'Unknown', tone: 'ok' === level ? OK_FG : ( 'alert' === level ? DANGER_FG : WARN_FG ) } );
 			} );
@@ -271,7 +271,7 @@
 		// three per install; inc/desktop-mode-status-extra.php) is said in words,
 		// in the text color, and is not something to look at.
 		var explained = total > 0 && true === e.explained && num( e.installs ) > 0;
-		if ( total > 0 && ! explained ) { tally.look++; }
+		if ( total > 0 && ! explained ) { lookAt( tally, '5xx · ' + String( e.day || 'yesterday' ) ); }
 		// 2026-10-10: how many a visitor asked for directly, of all. A floor, not
 		// the whole answer: a visitor's request the Worker forwarded counts on
 		// the Worker's side. A day stored before who-asked has no visitor
@@ -310,8 +310,8 @@
 		// some were recorded.
 		var rows   = [ { label: 'Last 24 hours', value: num( d.fires ).toLocaleString( 'en-US' ) + ' runs recorded' + ( failed > 0 ? ' · ' + failed + ' failed' : '' ), tone: failed > 0 ? WARN_FG : '' } ];
 		if ( failed > 0 ) {
-			tally.look++;
 			var hooks = d.failing || [];
+			lookAt( tally, hooks.length ? String( hooks[0] ).replace( /^snt?_/, '' ) : 'Last 24 hours' );
 			hooks.slice( 0, LIST_CAP ).forEach( function( h ) { rows.push( { label: String( h ).replace( /^snt?_/, '' ), value: 'failed', tone: WARN_FG } ); } );
 			if ( hooks.length > LIST_CAP ) { rows.push( { label: '+' + ( hooks.length - LIST_CAP ) + ' more failed', value: '' } ); }
 		}
@@ -335,7 +335,7 @@
 		// A report from the future is broken timing, not a check in progress
 		// (Codex on #1925); SKEW_S allows the ordinary browser/server drift.
 		var checking = 'pending' === fresh && since >= -SKEW_S && since < VERIFY_S;
-		if ( 'stale' === fresh ) { tally.look++; } else if ( checking ) { tally.checking++; } else if ( 'fresh' !== fresh ) { tally.unknown++; }
+		if ( 'stale' === fresh ) { lookAt( tally, 'Freshness' ); } else if ( checking ) { tally.checking++; } else if ( 'fresh' !== fresh ) { tally.unknown++; }
 		rows.push( { label: 'Freshness', value: String( c.headline || ( 'unknown' === fresh ? 'not verified yet' : fresh ) ), tone: 'fresh' === fresh || checking ? '' : WARN_FG } );
 		return rows.length ? { rows: rows } : { empty: 'No purge recorded yet.' };
 	}
@@ -348,7 +348,7 @@
 	function readAnalytics2( a, tally ) {
 		if ( ! a ) { return { rows: [ { label: 'Cutover check', value: 'no verdict stored yet' } ] }; }
 		if ( a.bad ) {
-			tally.look++;
+			lookAt( tally, 'Cutover check' );
 			return { rows: [ { label: 'Cutover check', value: 'legacy write stopped on a bad verdict', tone: WARN_FG } ] };
 		}
 		// "clean since Oct 7 · last exact day Oct 8" (2026-10-10): a count of
@@ -373,10 +373,10 @@
 		var rows = [];
 		var fix  = [];
 		var keys = c.keyring || [];
-		keys.forEach( function( k ) { tally.look++; rows.push( { label: 'Credential ' + String( k.id ), value: String( k.verdict ), tone: WARN_FG } ); } );
+		keys.forEach( function( k ) { lookAt( tally, 'Credential ' + String( k.id ) ); rows.push( { label: 'Credential ' + String( k.id ), value: String( k.verdict ), tone: WARN_FG } ); } );
 		if ( keys.length ) { fix.push( pageFix( 'credentials', 'Open Credentials' ) ); }
 		if ( c.cloudflare ) {
-			tally.look++;
+			lookAt( tally, 'Cloudflare API token' );
 			rows.push( { label: 'Cloudflare API token', value: 'active' === c.cloudflare.status && c.cloudflare.expires ? 'expires ' + String( c.cloudflare.expires ) : String( c.cloudflare.status ), tone: WARN_FG } );
 			fix.push( pageFix( 'cloudflare', 'Open Cloudflare' ) );
 		}
@@ -390,7 +390,9 @@
 		var skipped = all.filter( function( s ) { return paused.indexOf( s ) < 0; } );
 		var lookN   = Math.max( 0, num( h.total ) - num( h.passed ) - all.length );
 		var age     = ago( h.scanned_at );
-		tally.look    += lookN;
+		// Named by the flagged rows below, in the order they paint.
+		var flaggedNames = ( h.flagged || [] ).map( function( f ) { return String( f.label ); } );
+		for ( var i = 0; i < lookN; i++ ) { lookAt( tally, flaggedNames[ i ] || 'Checks' ); }
 		tally.skipped += skipped.length;
 		tally.paused  += paused.length;
 		var rows = [ {
@@ -424,24 +426,35 @@
 		// 2026-10-10: the S&N jobs of every WP-cron event, when the count came.
 		var sn      = typeof c.sn_count === 'number' ? 'S&N jobs · ' + c.sn_count + ' of ' : '';
 		var row     = { label: sn + total + ' scheduled', value: next ? 'next: ' + String( next.hook ).replace( /^snt?_/, '' ) + ( late ? ' · ' + Math.round( lateS / 60 ) + ' min late' : '' ) : '' };
-		if ( late ) { row.tone = WARN_FG; tally.look++; }
+		if ( late ) { row.tone = WARN_FG; lookAt( tally, row.value ); }
 		var rows = [ row ].concat( cronDayRows( extra.cron, tally ) );
 		if ( orphans > 0 ) { tally.orphaned += orphans; rows.push( { label: 'Orphaned', value: String( orphans ), tone: WARN_FG } ); }
 		// The cron-health verdict, only when it is not ok: the counts cannot say
 		// "a recurring job is expected and not scheduled"; this can.
 		var health = c.health && typeof c.health === 'object' ? c.health : null;
 		if ( health && Object.prototype.hasOwnProperty.call( health, 'ok' ) && ! health.ok && health.summary ) {
-			tally.look++;
+			lookAt( tally, String( health.summary ) );
 			rows.push( { label: String( health.summary ), value: '', tone: WARN_FG } );
 		}
 		return { rows: rows };
 	}
 
-	/** "1 to look at · 1 could not run", or '' when there is nothing to say. */
+	/**
+	 * One thing to look at, counted and named by its amber row's own label
+	 * (2026-10-16, owner: "1 to look at" did not say what). The row's " · "
+	 * becomes a space here, where " · " already separates the headline's parts.
+	 */
+	function lookAt( tally, name ) {
+		tally.look++;
+		tally.lookNames.push( String( name ).replace( / · /g, ' ' ) );
+	}
+
+	/** "1 to look at: 5xx Oct 15 · 1 could not run", or '' when there is nothing to say. */
 	function headlineText( t ) {
 		var parts = [];
+		var named = t.lookNames && t.lookNames.length ? ': ' + t.lookNames[0] + ( t.look > 1 ? ' +' + ( t.look - 1 ) + ' more' : '' ) : '';
 		if ( t.down )     { parts.push( t.down + ' down' ); }
-		if ( t.look )     { parts.push( t.look + ' to look at' ); }
+		if ( t.look )     { parts.push( t.look + ' to look at' + named ); }
 		if ( t.orphaned ) { parts.push( t.orphaned + ' orphaned' ); }
 		if ( t.skipped )  { parts.push( t.skipped + ' could not run' ); }
 		if ( t.unknown )  { parts.push( t.unknown + ' not measured' ); }
@@ -452,7 +465,7 @@
 	}
 
 	function newTally() {
-		return { down: 0, look: 0, orphaned: 0, skipped: 0, unknown: 0, checking: 0, paused: 0, due: 0 };
+		return { down: 0, look: 0, lookNames: [], orphaned: 0, skipped: 0, unknown: 0, checking: 0, paused: 0, due: 0 };
 	}
 
 	/** The counts that make the dot amber (or red): everything but checking, paused and due. */

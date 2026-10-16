@@ -12,6 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+
+- SN Traffic: the change against the prior 14 days no longer paints green (or red) when 25% or more of the window's scored visitor-days are likely automated. It keeps its arrow and figure in the muted text color, so a rise that is half likely automated no longer reads as good news. Under 25%, or when likely automated is not measured, the existing rule stands. The payload carries no human-only change, so the tone follows the share.
+- SN Systems: the headline now names what to look at beside the count, using the amber row's own words ("1 to look at: 5xx Oct 15"). With two or more it names the first and adds "+N more".
+
 ## [2026.10.23] - 2026-10-16 — Widgets grow to fit their content, roadmap board kept in sync, OpenStation 1.1.15 adopted
 
 ### Changed
