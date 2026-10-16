@@ -250,6 +250,12 @@ function sn_ability_guard_filter_permission( $permission, $ability_name, $input 
 		sn_ability_guard_t0( $ability_name ); // Pop and discard: no execute_result will ever come to pop it.
 	}
 
+	// The refusals, counted (mcp-door-refusals.php): a write declined outside
+	// MCP never reaches the call log, so it is counted here. Observe only.
+	if ( true !== $result && function_exists( 'sn_door_refusals_observe' ) && 0 === sn_ability_guard_mcp_depth() && sn_ability_guard_is_ours( $ability_name ) && sn_ability_guard_is_write_class( $ability_name, $ability ) ) {
+		sn_door_refusals_observe( sn_ability_guard_door(), $result );
+	}
+
 	return $result;
 }
 
