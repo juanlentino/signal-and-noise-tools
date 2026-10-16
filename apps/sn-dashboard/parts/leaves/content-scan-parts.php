@@ -24,7 +24,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Both scanners' layout: one card, the status line (the count, the scan
  * button beside it as an inline form), when the scan ran, and what the
  * scanner looks for in a closed How this works fold; then the queue or the
- * clean note at full width. 2026-10-12 audit: one narrow box left two thirds
+ * clean note at full width, how a row is worked over the queue (a hint
+ * beside Dismiss, never folded). 2026-10-12 audit: one narrow box left two thirds
  * of the window empty, and the counts read as current with no age.
  * 2026-10-16 (owner: the Analytics anatomy "throughout the plugin, in some
  * form or shape"): the "What it looks for" box was reference beside the
@@ -36,16 +37,17 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string                    $form    The scan form (inline).
  * @param string                    $about   What it looks for (escaped prose).
  * @param string                    $result  The queue or the clean note ('' before the first scan).
+ * @param bool                      $rows    Whether $result is a queue (it then says how a row is worked).
  * @return string
  */
-function content_scan_layout( $heading, $scan, $chip, $form, $about, $result ) {
+function content_scan_layout( $heading, $scan, $chip, $form, $about, $result, $rows = false ) {
 	$age    = is_array( $scan ) && ! empty( $scan['scanned_at'] )
 		? sprintf( \snt_kit_esc( \snt_content_scan_age_format() ), \snt_kit_relative_time( (int) $scan['scanned_at'] ) )
 		: \snt_kit_esc( is_array( $scan ) ? __( 'Scanned (the time was not recorded).', 'signal-and-noise-tools' ) : __( 'Not scanned yet.', 'signal-and-noise-tools' ) );
 	$how    = \snt_kit_how_fold(
 		__( 'Structural detection with no AI; each candidate is reviewed before it is applied.', 'signal-and-noise-tools' ),
-		'<p class="snt-prose">' . $about . '</p><p class="snt-prose">' . \snt_kit_esc( \snt_content_scan_rows_line() ) . '</p>'
+		'<p class="snt-prose">' . $about . '</p>'
 	);
 	$status = \snt_kit_section( $heading, \snt_kit_status_line( null === $chip ? array() : array( $chip ), $form ) . '<p class="snt-prose">' . $age . '</p>' . $how );
-	return $status . ( '' !== $result ? \snt_kit_section( __( 'Candidates', 'signal-and-noise-tools' ), $result ) : '' );
+	return $status . ( '' !== $result ? \snt_kit_section( __( 'Candidates', 'signal-and-noise-tools' ), $result, $rows ? \snt_content_scan_rows_line() : '' ) : '' );
 }

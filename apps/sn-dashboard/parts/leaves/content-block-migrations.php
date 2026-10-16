@@ -86,7 +86,8 @@ function paint_content_block_migrations( array $ctx ) {
 		$scanned ? block_migrations_count_chip( $last_scan ) : null,
 		$form,
 		\snt_kit_esc( \snt_block_migrations_intro() ),
-		$result
+		$result,
+		$scanned && ! empty( $candidates )
 	);
 }
 

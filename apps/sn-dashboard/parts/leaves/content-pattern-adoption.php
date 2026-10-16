@@ -68,7 +68,8 @@ function paint_content_pattern_adoption( array $ctx ) {
 		$scanned ? pattern_adoption_count_chip( $scan ) : null,
 		$form,
 		\snt_kit_esc( \snt_pattern_adoption_intro() ),
-		$result
+		$result,
+		$scanned && ! empty( $candidates )
 	);
 }
 

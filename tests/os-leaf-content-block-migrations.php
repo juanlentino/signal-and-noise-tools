@@ -109,6 +109,7 @@ ok( 0 === strpos( $kit, '<os-section heading="Block migrations" stack><div class
 $GLOBALS['__last_scan'] = $rich;
 $classic = snt_leaf_classic_html( 'sn_admin_render_block_migrations_section' );
 $kit     = snt_leaf_paint( 'content', 'block-migrations' );
+ok( false !== strpos( $kit, '<os-section heading="Candidates" description="On each row, Suggest drafts the upgraded block for you to review, Apply writes it after a preview, and Dismiss keeps that block out of later scans." stack>' ) && 1 === substr_count( $kit, 'On each row, Suggest drafts' ), 'candidates: how a row is worked is the queue\'s own description, beside Dismiss, never in the fold' );
 ok( false !== strpos( $kit, '<os-badge tone="warning">2 candidates</os-badge>' ), 'candidates: the count pill says 2 candidates in the warn tone' );
 // 2026-10-11 (owner rule, no folds): the queue is open; the count its closed
 // "Review 2 candidates" heading carried is the finding sentence over the table.
