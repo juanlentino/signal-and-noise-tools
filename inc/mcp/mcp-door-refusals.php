@@ -150,6 +150,39 @@ function sn_door_refusals_observe( $door, $result ) {
 }
 
 /**
+ * Is an MCP door's REST request being served right now? sn_mcp_call_tool()
+ * runs an ability's check_permissions() before it opens the lifecycle guard's
+ * depth bracket, and core fires wp_ability_permission_result inside
+ * check_permissions(), so on WordPress 7.1 an MCP permission denial reaches the
+ * guard at depth 0. The call log already has it; this flag keeps the guard
+ * from counting it a second time under the wrong door.
+ *
+ * @param bool|null $set True or false to set, null to read.
+ * @return bool
+ */
+function sn_door_refusals_in_mcp_request( $set = null ) {
+	static $in = false;
+	if ( null !== $set ) {
+		$in = (bool) $set;
+	}
+	return $in;
+}
+
+/**
+ * rest_request_before_callbacks: mark a request on either MCP door.
+ *
+ * @param mixed $response
+ * @param mixed $handler
+ * @return mixed The same response.
+ */
+function sn_door_refusals_rest_mark( $response, $handler ) {
+	$cb = is_array( $handler ) ? ( $handler['permission_callback'] ?? null ) : null;
+	sn_door_refusals_in_mcp_request( in_array( $cb, array( 'sn_mcp_read_permission', 'sn_mcp_rw_permission' ), true ) );
+	return $response;
+}
+add_filter( 'rest_request_before_callbacks', 'sn_door_refusals_rest_mark', 10, 2 );
+
+/**
  * rest_request_after_callbacks: when the write door's permission_callback
  * declined, core has already put its error in $response. Count it under the
  * rule's own code (sn_mcp_rw_ prefix dropped; rest_forbidden is the
@@ -161,6 +194,7 @@ function sn_door_refusals_observe( $door, $result ) {
  * @return mixed The same response.
  */
 function sn_door_refusals_rest_observer( $response, $handler ) {
+	sn_door_refusals_in_mcp_request( false );
 	if ( ! is_array( $handler ) || 'sn_mcp_rw_permission' !== ( $handler['permission_callback'] ?? null ) ) {
 		return $response;
 	}

@@ -123,6 +123,15 @@ sn_ability_guard_mcp_depth( 1 );
 sn_ability_guard_filter_permission( false, 'signal-noise/sn-apply', array(), null );
 sn_ability_guard_mcp_depth( -1 );
 ok( array() === blob(), 'inside an MCP call the guard does not count (the call log has it)' );
+reset_store();
+sn_door_refusals_rest_mark( null, array( 'permission_callback' => 'sn_mcp_rw_permission' ) );
+$perm = sn_ability_guard_filter_permission( false, 'signal-noise/sn-apply', array(), null );
+ok( false === $perm && array() === blob(), 'an MCP door request: the permission check sn_mcp_call_tool() runs before its depth bracket is not counted twice' );
+sn_door_refusals_rest_observer( array(), array( 'permission_callback' => 'sn_mcp_rw_permission' ) );
+sn_door_refusals_rest_mark( null, array( 'permission_callback' => 'some_other_route' ) );
+sn_ability_guard_filter_permission( false, 'signal-noise/sn-apply', array(), null );
+ok( 1 === ( blob()['days'][ gmdate( 'Y-m-d' ) ]['direct|capability'] ?? 0 ), 'after the MCP request ends, a denial outside MCP counts again' );
+sn_door_refusals_in_mcp_request( false );
 function wp_json_encode_stub( $v ) { return json_encode( $v ); }
 
 // 5. The read.
