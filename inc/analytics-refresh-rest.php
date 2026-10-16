@@ -14,7 +14,8 @@
  *            the PRIVATE server token already shared with the Worker (it also gates
  *            srv:1 beacons), so this adds NO new secret. Fails CLOSED (503) when
  *            SN_SRV_TOKEN is unset, so a misconfigured deploy never runs open.
- *     Runs : sn_analytics_run_rollup() + sn_analytics_realtime_refresh(). Both are
+ *     Runs : answers 202, then sn_analytics_run_rollup() + sn_analytics_realtime_refresh()
+ *            after the response (shutdown). Both are
  *            internally guarded (no-op without AE config) and idempotent, so a
  *            re-poke never double-counts. Never manage_options — this is a machine
  *            caller (the Worker), not an admin session.
@@ -69,24 +70,41 @@ function sn_analytics_refresh_permission( $request ) {
 }
 
 /**
- * Run the durable rollup + realtime refresh. Both are internally guarded and
- * idempotent; a missing AE config no-ops rather than erroring. Returns a small
- * status envelope for the caller's observability.
+ * Answer the poke, then run the work after the response is sent.
+ *
+ * The rollup takes 8 to 35 s (cron history, 2026-10-14/15) and the Worker aborts
+ * its fetch at 15 s, so running it inside the request made every slow tick read
+ * as a thrown fetch (cron record "error", refresh_http null) and turned
+ * cron_fresh false. The work now runs on `shutdown`, after WordPress has written
+ * the 202; PHP-FPM closes the connection first (fastcgi_finish_request), so the
+ * Worker hears back in well under a second. No WP-Cron involved: this site runs
+ * DISABLE_WP_CRON, and the poke exists so freshness never waits on it.
  *
  * @param WP_REST_Request $request
- * @return array{ok:bool, ran:string[]}
+ * @return WP_REST_Response 202 {ok:true, queued:string[]}
  */
 function sn_analytics_refresh_run( $request ) {
-	$ran = array();
+	add_action( 'shutdown', 'sn_analytics_refresh_after_response' );
+	return new WP_REST_Response( array( 'ok' => true, 'queued' => array( 'rollup', 'realtime' ) ), 202 );
+}
+
+/**
+ * Shutdown callback: close the HTTP response, then run the durable rollup +
+ * realtime refresh. Both are internally guarded and idempotent; a missing AE
+ * config no-ops rather than erroring. Without PHP-FPM the client simply waits,
+ * as it did before.
+ */
+function sn_analytics_refresh_after_response() {
+	if ( function_exists( 'fastcgi_finish_request' ) ) {
+		fastcgi_finish_request();
+	}
+	ignore_user_abort( true ); // a client that hung up must not stop a half-written rollup.
 	if ( function_exists( 'sn_analytics_run_rollup' ) ) {
 		sn_analytics_run_rollup();
-		$ran[] = 'rollup';
 	}
 	if ( function_exists( 'sn_analytics_realtime_refresh' ) ) {
 		sn_analytics_realtime_refresh();
-		$ran[] = 'realtime';
 	}
-	return array( 'ok' => true, 'ran' => $ran );
 }
 
 add_action( 'rest_api_init', function () {
