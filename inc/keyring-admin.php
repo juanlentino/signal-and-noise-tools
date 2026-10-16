@@ -188,15 +188,20 @@ function sn_keyring_worker_commands() {
  * The leaf's own sentences, said the same on both surfaces (2026-10-12
  * audit: three were native-only, and one pointed at "the ledger on the left").
  *
- * @return array{set:string,verify:string,never:string,workers:string,generate:string}
+ * @return array{set:string,verify:string,never:string,workers:string,generate:string,owner:string}
  */
 function sn_keyring_copy() {
+	$rows = sn_keyring();
+	$cmds = explode( ' ; ', sn_keyring_other_half_command( $rows['owner_key'] ?? array() ) ) + array( '', '' );
 	return array(
 		'set'     => __( 'One value at a time; each group\'s table shows what is set.', 'signal-and-noise-tools' ),
 		'verify'  => __( 'Every credential with a probe asks the service that holds its other half; each verdict names the side to fix.', 'signal-and-noise-tools' ),
 		'never'   => __( 'Never verified.', 'signal-and-noise-tools' ),
 		'workers' => __( 'After changing a worker row here, set the same value on the worker.', 'signal-and-noise-tools' ),
-		'generate' => __( 'Makes a new 64-character key. Set it on both Workers right away: your enrolled devices are re-signed with it on your next wp-admin visit, and a Worker that does not hold it yet stops recognizing them. The old key moves to its previous row and stays valid there until you clear that row; clear it once nothing still uses it. No screen shows either value.', 'signal-and-noise-tools' ),
+		// Owner request 2026-10-15: his flow first, both Worker commands printed.
+		/* translators: 1: wrangler command for the analytics Worker, 2: for the rights Worker. */
+		'owner'    => sprintf( __( 'Setup: in Terminal, run openssl rand -hex 32. Paste the output under Set a credential as Owner key and Save; only 64 hexadecimal characters are taken. Set the same value on both Workers: %1$s, then %2$s. Then enroll your devices under Measurement › Analytics.', 'signal-and-noise-tools' ), $cmds[0], $cmds[1] ),
+		'generate' => __( 'Generate makes a new 64-character key here instead. Set it on both Workers right away: your enrolled devices are re-signed with it on your next wp-admin visit, and a Worker that does not hold it yet stops recognizing them. The old key moves to its previous row and stays valid there until you clear that row; clear it once nothing still uses it. No screen shows either value.', 'signal-and-noise-tools' ),
 	);
 }
 
@@ -256,8 +261,8 @@ function sn_admin_keyring_render() {
 	$at = sn_keyring_verified_at();
 	echo '<p class="sn-field-helper">' . esc_html( $at > 0 ? sn_keyring_verified_text( $at ) : $copy['never'] ) . '</p>';
 	echo '</form>';
-	// Unreleased (SN Traffic Lanes): the owner keys are generated, never pasted.
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-card"><strong>Generate an owner key</strong><p class="sn-field-helper">' . esc_html( $copy['generate'] ) . '</p>';
+	// Owner key: pasted from openssl (owner request 2026-10-15) or generated.
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-card"><strong>Owner key</strong><p class="sn-field-helper">' . esc_html( $copy['owner'] ) . '</p><p class="sn-field-helper">' . esc_html( $copy['generate'] ) . '</p>';
 	wp_nonce_field( 'sn_keyring_generate' );
 	echo '<div class="sn-field"><label class="sn-field-label" for="key_generate_id">Key</label><select id="key_generate_id" name="key_id">';
 	foreach ( sn_keyring_generate_options() as $id => $label ) {

@@ -129,7 +129,8 @@ foreach ( array( 'owner_device_key', 'owner_device_key_previous', 'owner_agent_k
 $owner_cmd = sn_keyring_other_half_command( $rows['owner_key'] );
 ok( false !== strpos( $owner_cmd, 'signal-and-noise-analytics-worker && npx wrangler secret put SN_OWNER_KEY' ) && false !== strpos( $owner_cmd, 'sn-rights-signals-worker && npx wrangler secret put SN_OWNER_KEY' ) && 2 === substr_count( $owner_cmd, 'secret put SN_OWNER_KEY' ), 'the owner key prints two commands, one per Worker, the same secret' );
 ok( 2 === substr_count( sn_keyring_other_half_command( $rows['owner_key_previous'] ), 'secret put SN_OWNER_KEY_PREVIOUS' ), 'the previous owner key prints both Workers\' _PREVIOUS commands' );
-ok( false !== strpos( $rows['owner_key']['about'], 'generate this one key, paste the same value into both Workers' ) && false !== strpos( $rows['owner_key']['about'], 'nothing requires an agent token' ), 'the hint says the three-step setup and that agent tokens are optional' );
+ok( false !== strpos( $rows['owner_key']['about'], 'openssl rand -hex 32' ) && false !== strpos( $rows['owner_key']['about'], 'paste it here' ) && 2 === substr_count( $rows['owner_key']['about'], 'npx wrangler secret put SN_OWNER_KEY' ) && false !== strpos( $rows['owner_key']['about'], 'enroll your devices' ) && false !== strpos( $rows['owner_key']['about'], 'nothing requires an agent token' ), 'the hint says the owner\'s flow: openssl in Terminal, paste here, both wrangler commands, enroll; agent tokens optional' );
+ok( false === strpos( $rows['owner_key']['about'] . $rows['owner_key_previous']['about'], '—' ), 'no em dashes in the owner hints' );
 ok( array( 'owner_key' => 'Owner key' ) === sn_keyring_generate_options(), 'Generate offers the one current key, never the previous row' );
 $GLOBALS['__opt'] = array(); $GLOBALS['__settings'] = array();
 $gen = static function ( $id ) { return sn_handle_keyring_generate( array( 'key_id' => $id ) ); };
@@ -140,7 +141,20 @@ $gen( 'owner_key' );
 ok( $first === $GLOBALS['__opt']['sn_owner_key_previous'] && $first !== $GLOBALS['__opt']['sn_owner_key'] && 1 === preg_match( '/^[0-9a-f]{64}$/', $GLOBALS['__opt']['sn_owner_key'] ), 'the second Generate moves the current key to previous and writes a new one' );
 $GLOBALS['__opt'][ SN_SITE_SECRET_OPT ] = 'derived-never';
 ok( 'derived-never' !== sn_credential( 'owner_key' ), 'a generated key is random bytes, never the site secret' );
-ok( 'keyring_generated_only' === $save( 'owner_key', 'pasted-value' ) && 'keyring_generated_only' === $save( 'owner_key_previous', 'site' ) && $first !== sn_credential( 'owner_key' ), 'the owner key cannot be pasted or derived; only Generate writes one' );
+// Owner request 2026-10-15: the owner makes the key in Terminal (openssl rand
+// -hex 32) and pastes it; only that exact shape is accepted, stored lowercase.
+$cur = sn_credential( 'owner_key' );
+foreach ( array( 'pasted-value', str_repeat( 'a', 63 ), str_repeat( 'a', 65 ), str_repeat( 'g', 64 ), 'site', str_repeat( 'ab', 31 ) . 'a z' ) as $bad ) {
+	ok( 'keyring_owner_key_shape' === $save( 'owner_key', $bad ) && $cur === sn_credential( 'owner_key' ), 'owner key refuses "' . substr( $bad, 0, 12 ) . '" (' . strlen( $bad ) . ' chars) and writes nothing' );
+	ok( 'keyring_owner_key_shape' === $save( 'owner_key_previous', $bad ) && $first === sn_credential( 'owner_key_previous' ), 'the previous row refuses "' . substr( $bad, 0, 12 ) . '" the same way' );
+}
+$pasted = str_repeat( 'AbCd', 16 );
+ok( 'keyring_saved' === $save( 'owner_key', '  ' . $pasted . "\n" ) && strtolower( $pasted ) === $GLOBALS['__opt']['sn_owner_key'] && false === $GLOBALS['__autoload']['sn_owner_key'], 'a pasted 64-hex key (mixed case, padded) is trimmed, stored lowercase, not autoloaded' );
+ok( $cur === sn_credential( 'owner_key_previous' ), 'pasting a new owner key moves the current one to previous, as Generate does' );
+ok( 'keyring_saved' === $save( 'owner_key', strtoupper( $pasted ) ) && $cur === sn_credential( 'owner_key_previous' ), 'pasting the same key again (any case) leaves previous alone' );
+$prev_paste = str_repeat( '0f', 32 );
+ok( 'keyring_saved' === $save( 'owner_key_previous', strtoupper( $prev_paste ) ) && $prev_paste === sn_credential( 'owner_key_previous' ) && strtolower( $pasted ) === sn_credential( 'owner_key' ), 'the previous row takes a 64-hex paste too, lowercase, and leaves the current key alone' );
+ok( 'keyring_duplicate' === $save( 'owner_key_previous', $pasted ), 'the previous row refuses the current key\'s value (same value on two rows)' );
 ok( 'keyring_saved' === $save( 'owner_key_previous', 'clear' ) && '' === sn_credential( 'owner_key_previous' ), '"clear" retires the previous key once the Workers carry the new one' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

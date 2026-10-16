@@ -5,7 +5,8 @@
  * `keyring_save`: one row per save. `key_id` names the row; `key_value` is
  * the verb: '' or an obscured value → nothing; 'clear' → remove; 'site' →
  * derive from the site secret (rows that can); anything else → save it and
- * stop deriving. A row a constant sets, or one with no home, is never written.
+ * stop deriving (an owner key row takes only 64 hex). A row a constant sets,
+ * or one with no home, is never written.
  * `keyring_verify`: run every probe, store the verdicts.
  *
  * @package SignalNoiseTools
@@ -38,10 +39,15 @@ function sn_handle_keyring_save( $post ) {
 	if ( '' === $value || 0 === strpos( $value, '••••' ) ) {
 		return 'keyring_unchanged';
 	}
-	// An owner identity key is generated, never pasted or derived; it can only
-	// be cleared here (Unreleased, SN Traffic Lanes).
-	if ( isset( $row['generated'] ) && 'clear' !== $value ) {
-		return 'keyring_generated_only';
+	// An owner identity key is never derived. Owner request 2026-10-15: he
+	// makes it in Terminal (openssl rand -hex 32) and pastes it here, so a paste
+	// is taken only in that exact shape, 64 hex, and stored lowercase.
+	$owner = isset( $row['generated'] );
+	if ( $owner && 'clear' !== $value ) {
+		$value = strtolower( trim( $value ) );
+		if ( 64 !== strlen( $value ) || ! ctype_xdigit( $value ) ) {
+			return 'keyring_owner_key_shape';
+		}
 	}
 	// 15.2.2: a shared secret must be its own value. An issued token pasted
 	// into the site secret or a worker row is refused by name; the same value
@@ -68,6 +74,12 @@ function sn_handle_keyring_save( $post ) {
 		}
 	} else {
 		$site_rows = array_values( array_diff( $site_rows, array( $id ) ) );
+		// A new pasted owner key retires the current one to its previous row,
+		// as Generate does, so markers it signed keep verifying meanwhile.
+		$current = $owner && 'clear' !== $value && '' !== (string) $row['generated'] ? sn_keyring_stored( $id ) : '';
+		if ( '' !== $current && ! hash_equals( $current, $value ) ) {
+			sn_keyring_write( $rows[ (string) $row['generated'] ], $current );
+		}
 		sn_keyring_write( $row, 'clear' === $value ? '' : $value );
 	}
 	update_option( SN_KEYRING_SITE_ROWS, $site_rows, false );
