@@ -10,6 +10,11 @@
  * exclusions, browser support). Same reading (`perf.speculative_loading`),
  * same form, same field, same handler; the kit's parts instead of wp-admin's.
  *
+ * 2026-10-16 (the leaf anatomy, docs/kit-leaf-anatomy.md): one status line
+ * (speculative loading, the outbound calls' failures), the intro in How this
+ * works, the outbound-call ledger as the working content, and the setting and
+ * its Profile as two folds of one Setup card.
+ *
  * @package SignalNoiseTools
  * @since 13.106.0
  */
@@ -67,58 +72,79 @@ function performance_form_html( array $s ) {
 		),
 		\snt_kit_field( 'checkbox', 'speculative_loading', __( 'Enabled: prerender the pages a visitor is likely to open next', 'signal-and-noise-tools' ), $s['enabled'] )
 	);
-	return \snt_kit_form( 'perf_save', performance_intro_html() . $row, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
+	return \snt_kit_form( 'perf_save', $row, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
 }
 
 /**
- * The rail's status: one sentence, on (success) or off (warning). 2026.10.4
- * audit: a bold lead-in, an "On" pill and "Enabled" said the state three ways.
+ * The status card: is speculative loading on, and did an outbound call from
+ * an admin page fail; the intro under it as How this works. The failure's
+ * own warning stays open on the ledger below.
+ *
+ * @param array      $s From performance_state().
+ * @param array|null $d From performance_slow_calls(), null when the module is not loaded.
+ * @return string
+ */
+function performance_status_html( array $s, $d ) {
+	$chips = array(
+		array(
+			'tone'  => $s['enabled'] ? 'ok' : 'warn',
+			'label' => $s['enabled'] ? __( 'Speculative loading is on', 'signal-and-noise-tools' ) : __( 'Speculative loading is off', 'signal-and-noise-tools' ),
+		),
+	);
+	if ( is_array( $d ) ) {
+		$failed  = (int) $d['failed'];
+		$chips[] = 0 === (int) $d['entries']
+			? array( 'tone' => 'neutral', 'label' => __( 'No outbound call captured', 'signal-and-noise-tools' ) )
+			/* translators: %s: failed outbound calls. */
+			: array( 'tone' => $failed > 0 ? 'warn' : 'ok', 'label' => $failed > 0 ? sprintf( _n( '%s failed outbound call', '%s failed outbound calls', $failed, 'signal-and-noise-tools' ), number_format_i18n( $failed ) ) : __( 'No failed outbound call', 'signal-and-noise-tools' ) );
+	}
+	return \snt_kit_section(
+		__( 'Performance', 'signal-and-noise-tools' ),
+		\snt_kit_status_line( $chips ) . \snt_kit_how_fold( __( 'Speculation Rules prerender the pages a visitor is likely to open next.', 'signal-and-noise-tools' ), performance_intro_html() )
+	);
+}
+
+/**
+ * The Setup card: the setting (its summary On or Off) and the Profile
+ * reference (mode, eagerness, exclusions, support), one fold each.
  *
  * @param array $s From performance_state().
  * @return string
  */
-function performance_status_html( array $s ) {
-	return \snt_kit_notice(
-		$s['enabled'] ? 'ok' : 'warn',
-		\snt_kit_esc( $s['enabled'] ? __( 'Speculative loading is on.', 'signal-and-noise-tools' ) : __( 'Speculative loading is off.', 'signal-and-noise-tools' ) )
-	);
-}
-
-/**
- * The rail's Profile reference: mode, eagerness, exclusions, support.
- *
- * @return string
- */
-function performance_profile_html() {
-	// 2026.10.4 audit: each fact under its own label, not a bold lead-in.
-	return \snt_kit_section(
-		__( 'Profile', 'signal-and-noise-tools' ),
-		\snt_kit_kv(
+function performance_setup_html( array $s ) {
+	// 2026.10.4 audit: each Profile fact under its own label, not a bold lead-in.
+	$profile = \snt_kit_kv(
+		array(
 			array(
-				array(
-					'label' => __( 'Mode', 'signal-and-noise-tools' ),
-					'value' => \snt_kit_code( 'prerender', false ) . ', ' . \snt_kit_esc( __( 'eagerness', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'moderate', false ) . ': '
-						. \snt_kit_esc( __( "more aggressive than core's", 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'auto', false ) . '/' . \snt_kit_code( 'auto', false ) . '.',
-					'html'  => true,
-				),
-				array(
-					'label' => __( 'Excluded automatically', 'signal-and-noise-tools' ),
-					'value' => \snt_kit_esc( __( 'the custom login URL and', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/contact/*', false ) . '.',
-					'html'  => true,
-				),
-				array(
-					'label' => __( 'Browser support', 'signal-and-noise-tools' ),
-					'value' => __( 'only modern Chromium browsers act on speculation rules; others safely ignore them.', 'signal-and-noise-tools' ),
-				),
-			)
+				'label' => __( 'Mode', 'signal-and-noise-tools' ),
+				'value' => \snt_kit_code( 'prerender', false ) . ', ' . \snt_kit_esc( __( 'eagerness', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'moderate', false ) . ': '
+					. \snt_kit_esc( __( "more aggressive than core's", 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'auto', false ) . '/' . \snt_kit_code( 'auto', false ) . '.',
+				'html'  => true,
+			),
+			array(
+				'label' => __( 'Excluded automatically', 'signal-and-noise-tools' ),
+				'value' => \snt_kit_esc( __( 'the custom login URL and', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/contact/*', false ) . '.',
+				'html'  => true,
+			),
+			array(
+				'label' => __( 'Browser support', 'signal-and-noise-tools' ),
+				'value' => __( 'only modern Chromium browsers act on speculation rules; others safely ignore them.', 'signal-and-noise-tools' ),
+			),
 		)
 	);
+	return \snt_kit_setup_card(
+		__( 'Setup', 'signal-and-noise-tools' ),
+		array(
+			array( 'title' => __( 'Speculative loading', 'signal-and-noise-tools' ), 'summary' => $s['enabled'] ? __( 'On', 'signal-and-noise-tools' ) : __( 'Off', 'signal-and-noise-tools' ), 'body' => performance_form_html( $s ) ),
+			array( 'title' => __( 'Profile', 'signal-and-noise-tools' ), 'summary' => __( 'prerender, moderate eagerness', 'signal-and-noise-tools' ), 'body' => $profile ),
+		),
+		__( 'Each line is the setting as it stands; open one to change it.', 'signal-and-noise-tools' )
+	);
 }
 
 /**
- * The leaf: the form column, then the status rail — the classic shell's
- * two columns as the app's column grid, the rail keeping its landmark name;
- * then, at full width, the outbound calls from admin pages (the parts file).
+ * The leaf: the status card, the outbound calls from admin pages at full
+ * width (the parts file), then the Setup card.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -126,12 +152,8 @@ function performance_profile_html() {
 function paint_site_performance( array $ctx ) {
 	unset( $ctx );
 	$s = performance_state();
-	return \snt_kit_grid(
-		array(
-			\snt_kit_tag( 'os-card', array(), \snt_kit_section( __( 'Speculative loading', 'signal-and-noise-tools' ), performance_form_html( $s ) ) ),
-			\snt_kit_tag( 'os-card', array( 'role' => 'complementary', 'aria-label' => __( 'Speculative loading status', 'signal-and-noise-tools' ) ), performance_status_html( $s ) . performance_profile_html() ),
-		)
-	) . performance_slow_calls_html();
+	$d = function_exists( 'sn_httpdiag_visible' ) ? performance_slow_calls() : null;
+	return performance_status_html( $s, $d ) . performance_slow_calls_html( $d ) . performance_setup_html( $s );
 }
 
 add_filter(
