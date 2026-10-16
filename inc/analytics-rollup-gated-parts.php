@@ -29,18 +29,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @param int    $days Trailing window in days (floored to >= 1).
  * @param string $tz   Optional IANA zone — MUST match the main query's zone.
+ * @param bool   $fold Fold over-cap visitor-days into bot (false: the pre-fold shape, sn_analytics_rollup_class_parts()).
  * @return string AE SQL.
  */
-function sn_analytics_rollup_gated_sql( $days, $tz = '' ) {
+function sn_analytics_rollup_gated_sql( $days, $tz = '', $fold = true ) {
+	list( $class, $cap ) = sn_analytics_rollup_class_parts( $fold );
 	list( $day_col, $lower ) = sn_analytics_rollup_window_exprs( $days, $tz );
 
 	return implode( ' ', array(
 		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
-		sn_analytics_counted_class_select( sn_analytics_overcap_vdays()['hashes'] ) . ' AS class,',
+		$class . ' AS class,',
 		'count(DISTINCT index1) AS pageview_visits',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
-		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
+		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . $cap,
 		"AND blob1 = 'pv'",
 		'GROUP BY day, path, class',
 		'ORDER BY day DESC, pageview_visits DESC',

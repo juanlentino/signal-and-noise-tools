@@ -97,15 +97,26 @@ function sn_analytics_pageviews_run_rollup() {
 	// never goes stale on account of the zone syntax alone — it degrades to the
 	// pre-v9.26.4 behaviour, no worse. A successful-but-empty zoned result is []
 	// (is_array), so the fallback only fires on a real failure.
-	$tz      = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
-	$used_tz = $tz;
-	$rows    = sn_analytics_query( sn_analytics_rollup_sql( sn_analytics_rollup_window()['days'], $tz ) );
-	if ( '' !== $tz && ! is_array( $rows ) ) {
-		$used_tz = '';
-		$rows    = sn_analytics_query( sn_analytics_rollup_sql( sn_analytics_rollup_window()['days'], '' ) );
+	// The over-cap fold (bot row) has not been proven on live AE: when both the
+	// zoned and the UTC read of it fail, run the pre-fold shape once more, so a
+	// refused form degrades to the old figures instead of freezing the table.
+	// The shape that ran is recorded (SN_ANALYTICS_ROLLUP_SHAPE_OPT).
+	$tz   = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
+	$days = sn_analytics_rollup_window()['days'];
+	foreach ( array( true, false ) as $fold ) {
+		foreach ( array_unique( array( $tz, '' ) ) as $used_tz ) {
+			$rows = sn_analytics_query( sn_analytics_rollup_sql( $days, $used_tz, $fold ) );
+			if ( is_array( $rows ) ) {
+				break 2;
+			}
+		}
 	}
 	if ( ! is_array( $rows ) ) {
 		return false; // transport / non-200 / parse failure — already captured by the read-client.
+	}
+	update_option( SN_ANALYTICS_ROLLUP_SHAPE_OPT, array( 'shape' => $fold ? 'folded' : 'unfolded', 'at' => time() ), false );
+	if ( ! $fold ) {
+		error_log( '[sn-analytics] rollup: the over-cap fold read failed; stored the pre-fold shape (over-cap dropped from every class)' );
 	}
 	// Judged NOW: the gated query below resets the truncation verdict. An
 	// empty window is breakage-shaped here, never a reason to clear history.
@@ -120,7 +131,7 @@ function sn_analytics_pageviews_run_rollup() {
 		// truncated result (the wrapper refuses those) — leaves pageview_visits
 		// absent (SQL NULL — "never measured"), never a fabricated 0; the main
 		// rows still write, so a flaky second query degrades, not corrupts.
-		$gated = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( sn_analytics_rollup_window()['days'], $used_tz ) );
+		$gated = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( $days, $used_tz, $fold ) );
 		$write = static function () use ( $rows, $gated ) {
 			sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $rows, $gated ) );
 		};
