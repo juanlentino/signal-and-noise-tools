@@ -5,7 +5,12 @@
  * path is exercised through its own validator, so the old code (which had
  * no such check on blocks or draft content) fails here.
  *
- * Run: php tests/sn-apply-active-content.php
+ * The detector stands on core (WP_HTML_Tag_Processor, wp_kses_allowed_html,
+ * wp_kses_bad_protocol), loaded from the SNT_WP_HTML_API seam CI fetches. A
+ * machine without it FAILS rather than skips: the suite would otherwise
+ * assert nothing about the code that runs.
+ *
+ * Run: SNT_WP_HTML_API=<wp>/wp-includes/html-api php tests/sn-apply-active-content.php
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
@@ -36,6 +41,15 @@ function snt_ai_drift_replacement_error( $r, $p = false ) { return true; }
 function snt_ai_drift_locate_in_raw( $c, $p, $x = '' ) { $i = strpos( $c, $p ); return false === $i ? -1 : $i; }
 function snt_ai_drift_fingerprint( $c, $p, $i ) { return 'not-f'; }
 
+function add_action( $h, $c, $p = 10, $a = 1 ) { return true; }
+function add_filter( $h, $c, $p = 10, $a = 1 ) { return true; }
+require_once __DIR__ . '/lib/wp-core-kses.php'; // Core's HTML API and kses, off SNT_WP_HTML_API.
+if ( ! SNT_KSES_IS_CORE ) {
+	echo "FAIL: core's HTML API and kses.php are not on this machine. Set SNT_WP_HTML_API=<wp>/wp-includes/html-api with kses.php beside it.\n";
+	echo "\nResult: 0 passed, 1 failed.\n";
+	exit( 1 );
+}
+
 require_once __DIR__ . '/../inc/sn-apply/active-content.php';
 require_once __DIR__ . '/../inc/sn-apply/sentence-replace.php';
 require __DIR__ . '/../inc/sn-apply/block-edit.php';
@@ -62,6 +76,25 @@ $cases = array(
 	'<a href="&#106;avascript:alert(1)">x</a>'          => 'javascript:',
 	'<a href="java&#9;script:alert(1)">x</a>'           => 'javascript:',
 	'<!-- wp:button {"url":"javascript:alert(1)"} /-->' => 'javascript:',
+	// Built on core: cases the old regexes read differently or not at all.
+	'<form action="javascript:alert(1)"><button>x</button></form>'       => 'javascript:',
+	'<form action="https://e.example/collect"><button>x</button></form>' => '<form',
+	'<button formaction="javascript:alert(1)">x</button>'                => 'javascript:',
+	'<p ONCLICK="alert(1)">x</p>'                                        => 'onclick=',
+	'<a href=" javascript:alert(1)">x</a>'                               => 'javascript:',
+	'<a href="&#106avascript:alert(1)">x</a>'                            => 'javascript:',
+	'<a href="vbscript:msgbox(1)">x</a>'                                 => 'vbscript:',
+	'<a href="data:text/html,x">x</a>'                                   => 'data:',
+	'<svg><a xlink:href="javascript:alert(1)"><text>x</text></a></svg>'  => 'javascript:',
+	'<img src=x"y onerror=alert(1)>'                                     => 'onerror=',
+	'<style>body{background:url(//e.example/t)}</style>'                 => '<style',
+	'<link rel="stylesheet" href="https://e.example/x.css">'             => '<link',
+	'<meta http-equiv="refresh" content="0;url=https://e.example">'      => '<meta',
+	'<base href="https://e.example/">'                                   => '<base',
+	'<noscript><p title="</noscript><img src=x onerror=alert(1)>"></p></noscript>' => '<noscript',
+	'<math><title><img src=x onerror=alert(1)></title></math>'           => 'onerror=',
+	'<math><xmp><img src=x onerror=alert(1)></xmp></math>'               => '<xmp',
+	'<p>Fine.</p><img src=x onerror=alert(1)'                            => 'onerror=',
 );
 foreach ( $cases as $frag => $want ) {
 	ok( in_array( $want, snt_sn_apply_active_constructs( $frag ), true ), "detects $want in: $frag" );
@@ -70,6 +103,10 @@ foreach ( array(
 	'<!-- wp:paragraph --><p>Plain prose about JavaScript: the good parts, and one = two.</p><!-- /wp:paragraph -->',
 	'<!-- wp:paragraph --><p>The <a href="https://example.com/online">online</a> archive, <em>once</em> more.</p><!-- /wp:paragraph -->',
 	'A sentence that says "one" and someone=fine.',
+	'<!-- wp:image {"id":12,"sizeSlug":"large"} --><figure class="wp-block-image size-large"><img src="https://example.com/a.jpg" alt="An alt, with &quot;quotes&quot;" class="wp-image-12"/><figcaption class="wp-element-caption">A caption with <a href="/notes/?a=b:c#x">a relative link</a>.</figcaption></figure><!-- /wp:image -->',
+	'<!-- wp:list --><ul class="wp-block-list"><!-- wp:list-item --><li><a href="mailto:a@example.com">mail</a> and <a href="#top">top</a></li><!-- /wp:list-item --></ul><!-- /wp:list -->',
+	'<!-- wp:quote --><blockquote class="wp-block-quote"><!-- wp:paragraph --><p>Said <code>onclick=</code> in prose, and <strong>once</strong>.</p><!-- /wp:paragraph --></blockquote><!-- /wp:quote -->',
+	'<!-- wp:table --><figure class="wp-block-table"><table><tbody><tr><td>a</td><td><em>b</em></td></tr></tbody></table></figure><!-- /wp:table -->',
 ) as $clean ) {
 	ok( array() === snt_sn_apply_active_constructs( $clean ), "clean prose and markup pass: $clean" );
 }

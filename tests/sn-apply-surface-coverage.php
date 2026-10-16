@@ -37,11 +37,12 @@ function eq( $e, $a, $m ) { ok( $e === $a, $m . ( $e === $a ? '' : ' (expected '
 
 $root = dirname( __DIR__ );
 
-/** The functions this family declares: 86 at the package move, plus two since. */
+/** The functions this family declares: 86 at the package move, plus three since. */
 $expected_surface = array(
 	'snt_ability_sn_apply',
 	'snt_sn_apply_active_constructs',      // 2026-10-16 audit: the active-content refusal.
 	'snt_sn_apply_active_content_error',
+	'snt_sn_apply_text_script_url',        // 2026-10-16: the refusal rebuilt on core keeps one text probe.
 	'snt_sn_apply_apply_one',
 	'snt_sn_apply_apply_staged_meta_for_post',
 	'snt_sn_apply_audit_enrichment',
