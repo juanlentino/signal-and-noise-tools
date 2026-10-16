@@ -365,6 +365,9 @@ function sn_admin_top_tabs() {
 				// a defect count was the wrong host. They join the trust checks
 				// that already moved here for the same reason in v10.47.0.
 				'reports'    => array( 'label' => 'Reports', 'render' => 'sn_admin_render_health_reports_section', 'wide' => true ),
+				// SN Traffic Lanes (Phase 1): every page view and machine read in one
+				// lane per day, read from its own table. A report, not a check.
+				'lanes'      => array( 'label' => 'Lanes', 'render' => 'sn_admin_render_lanes_section', 'wide' => true ),
 				// v11.27.0: the INBOUND half of the provenance story. Provenance proves
 				// what left this site; citations adjudicate who says they took it. The
 				// renderer brings its OWN .sn-card, so it takes plain 'wide' — which

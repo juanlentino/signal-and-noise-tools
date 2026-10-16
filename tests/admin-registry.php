@@ -165,8 +165,8 @@ ok( ! empty( $by_tab['ai']['sub_tabs']['agent-tools']['wide'] ),
 	'agent-tools leaf is wide (bare .sn-section — its renderers own their cards)' );
 
 ok( ( $by_tab['tools']['label'] ?? '' ) === 'Integrity', "tools relabelled 'Integrity' — KEY still 'tools' (v10.47.0)" );
-ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'provenance', 'trust', 'reports', 'citations', 'links' ),
-	'tools leaves: provenance, trust, reports, citations, links — v11.13.0: Reports joins them — the two report-only checks measure and publish rather than flag, so they left the defect-count page for the same reason the trust checks did in v10.47.0' );
+ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'provenance', 'trust', 'reports', 'lanes', 'citations', 'links' ),
+	'tools leaves: provenance, trust, reports, lanes, citations, links — v11.13.0: Reports joins them — the two report-only checks measure and publish rather than flag, so they left the defect-count page for the same reason the trust checks did in v10.47.0. Traffic Lanes (Phase 1) sits beside Reports, a report read from its own table' );
 ok( ! empty( $by_tab['tools']['sub_tabs']['trust']['wide'] ), 'trust leaf is wide (glance hero + full-width table)' );
 ok( ! empty( $by_tab['ai']['sub_tabs']['models-budget']['wide'] ),
 	'models-budget is wide (v10.47.0: it joins the Phase-4a field grid instead of sitting as a 620px card in a 1200px tab)' );
