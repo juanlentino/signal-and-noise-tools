@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Measurement › Search Console: Unanswered searches.** The queries Google showed the site for at least 5 times in the synced 28-day window that earned no click, most shown first, each with its impressions, average position and the page Google showed; a query shown on the home page or an index is marked "No note answers this". Capped at 25 with "+N more; the list is capped, not complete." Arithmetic only, no model reads it. The daily sync now also reads the query x page rows (500, stored compact beside the window; a failure there keeps the window), and a new read-only ability, `signal-noise/search-unanswered`, serves the list on the read door (a sibling, not a key on search-performance, whose remote twin's contract stays as it is). Painted on the native leaf and its classic twin, with honest empty states for no synced data and an empty window.
 
 ### Changed
 - **Measurement › Health: the scan's other readings share one row** (owner, live 2026-10-16). Passing checks and "Also scanned, shown elsewhere" stood one full-width box each; they are both what else the scan covered, of a height, so they sit side by side, with "Could not run" leading the row when a check could not. Layout only: every check, chip and link still paints.

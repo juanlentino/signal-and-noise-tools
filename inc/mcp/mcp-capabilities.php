@@ -216,6 +216,9 @@ function sn_mcp_allowlist() {
 		'signal-noise/live-now',
 		// v13.63.0 — stored index coverage per post; never inspects on read.
 		'signal-noise/search-coverage',
+		// 2026-10-16: queries with impressions and no clicks, arithmetic over
+		// the stored query x page rows; never a model. Read door 51 -> 52.
+		'signal-noise/search-unanswered',
 		// v13.68.0 — stored inbound-pass report; never calls the model on read.
 		'signal-noise/inbound-pass',
 		// v14.6.1 — the Posts tab as data: per-note signals + the three flags,

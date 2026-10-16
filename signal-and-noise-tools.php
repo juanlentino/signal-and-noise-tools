@@ -325,6 +325,7 @@ require_once SNT_PATH . 'inc/path-join-key.php';
 require_once SNT_PATH . 'inc/batch-schedule.php';
 require_once SNT_PATH . 'inc/batch-schedule-rest.php';
 require_once SNT_PATH . 'inc/abilities-search-console.php';
+require_once SNT_PATH . 'inc/abilities-search-unanswered.php'; // signal-noise/search-unanswered: the read door for the unanswered-searches list (local only).
 require_once SNT_PATH . 'inc/abilities-family-drift.php'; // v13.62.0: the family_drift sn-status source (stored report only). // v13.57.0: measurement weave Phase 1 — Search Console on the read door (sn-status sections).
 require_once SNT_PATH . 'inc/abilities-inbound-pass.php'; // v13.68.0: the inbound_pass sn-status source (stored report only).
 require_once SNT_PATH . 'inc/abilities-posts-signals.php'; // v14.6.1: the posts_signals sn-status source (the Posts tab as data).
@@ -421,6 +422,7 @@ require_once SNT_PATH . 'inc/machine-readers-admin.php';
 require_once SNT_PATH . 'inc/search-console-credential.php'; // R6b: the GSC service-account credential (storage + validation).
 require_once SNT_PATH . 'inc/search-console-client.php';     // R6b: JWT grant + Search Console API reads.
 require_once SNT_PATH . 'inc/search-console-store.php';
+require_once SNT_PATH . 'inc/search-console-unanswered.php'; // Queries with impressions and no clicks: arithmetic over the synced query x page rows.
 require_once SNT_PATH . 'inc/search-console-sync.php';      // R6b close: the scheduled daily sync (one producer with the button).
 require_once SNT_PATH . 'inc/search-console-derive.php';    // Items 2+3: position drift + search interest by topic (derived, read-only).
 require_once SNT_PATH . 'inc/search-console-crossexam.php';

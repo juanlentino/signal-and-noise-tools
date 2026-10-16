@@ -142,7 +142,7 @@ ok( 10 === substr_count( $cop_classic, 'sn-ai-usage__row' ) && false !== strpos(
 $GLOBALS['__options'][ SN_AI_TOOL_INVOCATIONS_OPT ] = array( 'search_posts' => array( 'n' => 12, 'first' => 50, 'last' => 300 ), 'export_audit_log' => array( 'n' => 7, 'first' => 100, 'last' => 200 ) );
 ok( false !== strpos( $kit, 'search_posts' ) && strpos( $kit, 'search_posts' ) < strpos( $kit, 'export_audit_log' ), 'Copilot tools ranked by count' );
 
-// ── Live-shaped preview: the live allowlists (51 read, 18 rw, the pinned door
+// ── Live-shaped preview: the live allowlists (52 read, 18 rw, the pinned door
 // manifest) with each ability's real category, and a call log of ~400 door
 // calls over 25 tools across 71 measured days of the 90-day window, so both
 // ledgers cap. The readers are declared HERE, at run time, so every state
@@ -203,7 +203,7 @@ $__write  = $__fold( 'Write door: the same server, read-write' );
 $__remote = $__fold( 'Remote door: through the Cloudflare Worker' );
 preg_match_all( '/<os-disclosure heading="([^"]+)"/', $kit, $__folds );
 ok( array( 'Read door: the native MCP server', 'Write door: the same server, read-write', 'Remote door: through the Cloudflare Worker' ) === $__folds[1] && array( '<os-disclosure' ) === snt_leaf_folds( $kit ), 'live-shaped preview: the three doors are the leaf\'s only folds, all through the kit: ' . implode( ',', $__folds[1] ) );
-ok( null !== $__read && 0 === strpos( $__read['hint'], '51 read-only tools across 3 categories; Diagnostics holds 40 of them. In this window 20 called through a door, 31 not. 1 cannot be projected, a bug.' ) && $__read['open'], 'the read door\'s closed summary states its count, its largest category and its calls, and it opens itself: a tool there cannot be projected' );
+ok( null !== $__read && 0 === strpos( $__read['hint'], '52 read-only tools across 3 categories; Diagnostics holds 41 of them. In this window 20 called through a door, 32 not. 1 cannot be projected, a bug.' ) && $__read['open'], 'the read door\'s closed summary states its count, its largest category and its calls, and it opens itself: a tool there cannot be projected' );
 ok( null !== $__write && false !== strpos( $__write['hint'], '4 abilities withheld from this door.' ), 'the write door\'s closed summary carries the withheld count, as the classic summary does (review on #2022)' );
 ok( null !== $__write && false === $__write['open'] && false !== strpos( $__write['hint'], '18 read-write tools across 4 categories' ) && null !== $__remote && false === $__remote['open'] && false !== strpos( $__remote['hint'], '18 read-only tools' ) && false !== strpos( $__remote['hint'], 'In this window 2 called through a door, 16 not.' ), 'the write and remote doors start closed, each summary carrying its count and its calls' );
 $__chip = static fn( $short, $text ) => false !== strpos( $kit, '>' . $short . ' · ' . $text . '</os-chip>' );
@@ -221,9 +221,9 @@ ok( false === stripos( $kit . $__classic_all, 'address below' ) && false === str
 $__css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
 ok( 1 === preg_match( '/\.snt-door-chips os-chip \{\s*--os-ui-chip-label-max: none;/', $__css ), 'the stylesheet lifts the chip label cap inside a door, so no count is clipped' );
 ok( false !== strpos( $kit, '<ul class="snt-list snt-list--wrap">' ) && 1 === preg_match( '/\.snt-list--wrap \.snt-list__value \{\s*white-space: normal;\s*overflow: visible;/', $__css ), 'What the tools read: its values wrap, so the bridge\'s "(checked 1 hour ago)" is never cut off' );
-ok( 1 === preg_match( '/<os-chip tone="danger">[^<]+ · cannot be projected<\/os-chip>/', $kit ) && 41 === preg_match_all( '/<os-chip tone="warning">[^<]+ · no calls<\/os-chip>/', $kit ) - 16 && 1 === preg_match_all( '/ · reachability unknown<\/os-chip>/', $kit ), 'the uncalled tools are marked on their own chips, in words: 1 cannot be projected (danger), 41 retirement candidates and the 16 quiet remote twins with no calls, 1 reachability unknown' );
-ok( 69 + 18 === substr_count( $kit, '<os-chip' ) - substr_count( substr( $kit, (int) strpos( $kit, 'heading="Through Copilot"' ) ), '<os-chip' ), 'all 87 door tools are chips: 51 read, 18 write, 18 remote' );
-ok( false === strpos( $kit, 'heading="No calls in this window"' ) && false !== strpos( $kit, '44 allowlisted tools had no call through a door: 1 cannot be projected; 1 with reachability unknown; 41 retirement candidates; 1 called only by the plugin itself.' ), 'no second section repeats the uncalled slugs; their count stays one sentence' );
+ok( 1 === preg_match( '/<os-chip tone="danger">[^<]+ · cannot be projected<\/os-chip>/', $kit ) && 42 === preg_match_all( '/<os-chip tone="warning">[^<]+ · no calls<\/os-chip>/', $kit ) - 16 && 1 === preg_match_all( '/ · reachability unknown<\/os-chip>/', $kit ), 'the uncalled tools are marked on their own chips, in words: 1 cannot be projected (danger), 42 retirement candidates and the 16 quiet remote twins with no calls, 1 reachability unknown' );
+ok( 70 + 18 === substr_count( $kit, '<os-chip' ) - substr_count( substr( $kit, (int) strpos( $kit, 'heading="Through Copilot"' ) ), '<os-chip' ), 'all 88 door tools are chips: 52 read, 18 write, 18 remote' );
+ok( false === strpos( $kit, 'heading="No calls in this window"' ) && false !== strpos( $kit, '45 allowlisted tools had no call through a door: 1 cannot be projected; 1 with reachability unknown; 42 retirement candidates; 1 called only by the plugin itself.' ), 'no second section repeats the uncalled slugs; their count stays one sentence' );
 // The ledger: door tools only, ten rows, the doors and times as the screen says them.
 $__ledger = array_values( array_filter( snt_leaf_tables( $kit ), static fn( $t ) => in_array( 'Last seen', array_column( $t['columns'], 'label' ), true ) ) )[0] ?? array( 'data' => array() );
 $__tools  = array_column( $__ledger['data'], 'tool' );
@@ -249,7 +249,7 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_agent_tools_section' );
 preg_match( '/<os-disclosure heading="Remote door: through the Cloudflare Worker" hint="([^"]*)"/', $kit, $__rh );
 ok( 16 === preg_match_all( '/<os-chip tone="neutral">[^<]+ · not measured<\/os-chip>/', $kit ) && 0 === preg_match_all( '/<os-chip[^>]*>remote-[^<]+ · no calls<\/os-chip>/', $kit ), 'remote door off: its 16 uncalled twins read "not measured" on neutral chips, never "no calls"' );
 ok( false !== strpos( html_entity_decode( $__rh[1] ?? '', ENT_QUOTES ), 'In this window 2 called through a door, 0 not. Not measured: the remote door is off now (16 tools).' ), 'the remote door\'s closed summary says, in plain words, why its zeros are not measured' );
-ok( false !== strpos( $kit, '60 allowlisted tools had no call through a door: 1 cannot be projected; 1 with reachability unknown; 16 not measured, their door closed; 41 retirement candidates; 1 called only by the plugin itself.' ), 'the count keeps the not-measured tools apart from the retirement candidates' );
+ok( false !== strpos( $kit, '61 allowlisted tools had no call through a door: 1 cannot be projected; 1 with reachability unknown; 16 not measured, their door closed; 42 retirement candidates; 1 called only by the plugin itself.' ), 'the count keeps the not-measured tools apart from the retirement candidates' );
 ok( false !== strpos( $classic, '<code>' . $__quiet[0] . '</code>: not measured, the remote door is off now</li>' ), 'classic: the same words beside each twin' );
 $GLOBALS['__usage']['zero_call'] = $zero;
 

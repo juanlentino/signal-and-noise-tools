@@ -31,6 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/monitoring-search-console-setup.php'; // the Setup card (the credential form, a fold)
+require_once __DIR__ . '/monitoring-search-console-unanswered.php'; // Unanswered searches, the row under Sync
 
 /**
  * The module's state, read the way the classic leaf reads it.
@@ -227,7 +228,9 @@ function paint_monitoring_search_console( array $ctx ) {
 		return \snt_kit_grid( $row ) . $property;
 	}
 	$row[] = \snt_kit_tag( 'os-stack', array( 'gap' => '18' ), $property . \snt_kit_section( __( 'Sync', 'signal-and-noise-tools' ), search_console_sync_html( $s ) ) );
-	return \snt_kit_grid( $row );
+	// 2026-10-16: Unanswered searches is a wide table, so it takes the next
+	// row alone (docs/kit-leaf-anatomy.md), under the Sync box whose window it reads.
+	return \snt_kit_grid( $row ) . search_console_unanswered_html();
 }
 
 add_filter(
