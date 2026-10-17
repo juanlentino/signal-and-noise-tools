@@ -1,14 +1,14 @@
 <?php
 /**
- * Signal & Noise — legacy 301s for the maturity family's old top-level URLs.
+ * Signal & Noise: legacy 301s for old page paths (first the maturity family's).
  *
  * 2026-07-30 the family re-parented under /maturity/, killing the previously
  * shared top-level URLs (/analytics/, /proof-of-origin/, /ai-maturity/) with
  * 404s — and general 404-slug-guessing is deliberately disabled site-wide,
  * so nothing caught them. This module is the NARROW exception: a fixed,
- * filterable map of old first-path-segments → page slugs, resolved through
+ * filterable map of old page paths → page slugs, resolved through
  * get_permalink() at request time (per the v10.11.2 rule: never hardcode a
- * page path). It fires only on a 404, only for mapped segments, and only
+ * page path). It fires only on a 404, only for mapped paths, and only
  * when the target resolves to a publicly viewable published page — no
  * generic guessing, no existence oracle beyond pages that are public anyway.
  *
