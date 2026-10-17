@@ -147,6 +147,14 @@ function sn_prov_credential( $post_id, $version = null ) {
 	// Set only when known. An empty id is worse than an absent one: it names
 	// nothing, and a reader cannot tell "signed before we published key ids"
 	// from "we lost it".
+	// 2026-10-17: the author's change class for this version, when given. It
+	// sits in evidence beside the other unsigned descriptors and never in the
+	// proof: the signature covers signedPayloadB64 only, and the class is not
+	// in those bytes. /verify shows it as the author's label, apart from the checks.
+	if ( function_exists( 'sn_prov_change_class_storable' ) && sn_prov_change_class_storable( $commit['change_class'] ?? '' ) ) {
+		$vc['evidence'][0]['changeClass'] = (string) $commit['change_class'];
+	}
+
 	$pubkey_id = (string) ( $commit['pubkey_id'] ?? '' );
 	if ( '' !== $pubkey_id ) {
 		$vc['proof']['pubkey_id'] = $pubkey_id;

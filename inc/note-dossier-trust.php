@@ -181,7 +181,50 @@ function sn_note_dossier_trust( $post_id, $fetcher = null ) {
 			function_exists( 'snt_desktop_admin_url' ) ? sn_note_dossier_door( __( 'Open Citations in S&N Dashboard', 'signal-and-noise-tools' ), snt_desktop_admin_url( 'sn-tools', 'citations' ) ) : null
 		);
 	}
+	$edits = sn_note_dossier_edits( $chain );
+	if ( $edits ) {
+		$blocks[] = $edits;
+	}
 	return $blocks;
+}
+
+/**
+ * The Edits table: each minted version with the author's change class
+ * (2026-10-17). Only when at least one version is classified; an
+ * unclassified version's cell is empty. The class is stored beside the
+ * signed payload, so the block is sourced as the author's label.
+ *
+ * @param array $chain
+ * @return array|null
+ */
+function sn_note_dossier_edits( array $chain ) {
+	if ( ! function_exists( 'sn_prov_change_class_label' ) ) {
+		return null;
+	}
+	$rows       = array();
+	$classified = false;
+	foreach ( array_reverse( $chain ) as $c ) {
+		if ( ! is_array( $c ) || (int) ( $c['version'] ?? 0 ) < 1 ) {
+			continue;
+		}
+		$label      = sn_prov_change_class_label( $c['change_class'] ?? '' );
+		$classified = $classified || '' !== $label;
+		$rows[]     = array(
+			'version'      => 'v' . (int) $c['version'],
+			'recorded'     => (string) ( $c['committed_at'] ?? '' ),
+			'change_class' => $label,
+		);
+	}
+	if ( ! $classified ) {
+		return null;
+	}
+	return sn_note_dossier_table(
+		'trust',
+		__( 'Edits', 'signal-and-noise-tools' ),
+		array( array( 'key' => 'version', 'label' => __( 'Version', 'signal-and-noise-tools' ) ), array( 'key' => 'recorded', 'label' => __( 'Recorded', 'signal-and-noise-tools' ) ), array( 'key' => 'change_class', 'label' => __( 'Change class', 'signal-and-noise-tools' ) ) ),
+		$rows,
+		__( 'local chain; the change class is the author\'s label, not signed', 'signal-and-noise-tools' )
+	);
 }
 
 /**

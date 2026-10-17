@@ -1082,6 +1082,24 @@
 		return /^https?:\/\//i.test( String( url ) );
 	}
 
+	/**
+	 * The author's change class for this version, as a sentence for the verdict
+	 * line, or '' when unclassified or unknown. The class rides in evidence
+	 * outside signedPayloadB64, so it is presented as the author's label and
+	 * never as part of what the checks verify (2026-10-17).
+	 */
+	var CHANGE_CLASS_PHRASES = {
+		reading_aid: 'a reading aid',
+		correction:  'a correction',
+		copy:        'a copy edit',
+		claim:       'a change to a claim'
+	};
+	function changeClassNote( cred ) {
+		var ev     = cred && cred.evidence && cred.evidence[ 0 ];
+		var phrase = ev && Object.prototype.hasOwnProperty.call( CHANGE_CLASS_PHRASES, ev.changeClass ) ? CHANGE_CLASS_PHRASES[ ev.changeClass ] : '';
+		return phrase ? 'the author labels this version ' + phrase + '; the label is not part of what is verified' : '';
+	}
+
 	return {
 		STATE:                    STATE,
 		UUID_SHAPE:               UUID_SHAPE,
@@ -1122,6 +1140,7 @@
 		pastedTwinUrl:            pastedTwinUrl,
 		resolveTwinRef:           resolveTwinRef,
 		ledgerLinkHref:           ledgerLinkHref,
-		isSafeExplorerUrl:        isSafeExplorerUrl
+		isSafeExplorerUrl:        isSafeExplorerUrl,
+		changeClassNote:          changeClassNote
 	};
 } );
