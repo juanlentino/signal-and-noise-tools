@@ -69,6 +69,7 @@ ok( 'https://example.com/inicio/' === sn_maturity_legacy_redirect_decision( '/es
 ok( 'https://example.com/sobre-mi/' === sn_maturity_legacy_redirect_decision( '/es/about/', true ), '/es/about/ 301s to /sobre-mi/ (about\'s hreflang es)' );
 ok( 'https://example.com/verify/?note=0b7c1d2e-3f40-4a5b-8c6d-7e8f90a1b2c3&v=2' === sn_maturity_legacy_redirect_decision( '/provenance/verify?note=0b7c1d2e-3f40-4a5b-8c6d-7e8f90a1b2c3&v=2', true ), 'an old verify link keeps its note and version' );
 ok( 'https://example.com/verify/?note=%3Cscript%3E%0D%0ALocation%3A+x' === sn_maturity_legacy_redirect_decision( '/provenance/verify/?note=%3Cscript%3E%0D%0ALocation:%20x', true ), 'a hostile query value is re-encoded, never passed through raw' );
+ok( 'https://example.com/verify/?a%26b=1' === sn_maturity_legacy_redirect_decision( '/provenance/verify/?a%26b=1', true ), 'a key carrying an encoded ampersand stays one key, never splits into two parameters' );
 ok( 'https://example.com/verify/' === sn_maturity_legacy_redirect_decision( '/provenance/verify/?', true ), 'an empty query adds nothing' );
 ok( '' === sn_maturity_legacy_redirect_decision( '/es/notes/', true ), '/es/notes/ stays a 404: /notes/ has no Spanish page' );
 ok( '' === sn_maturity_legacy_redirect_decision( '/verify/', false ), '/verify?note=&v= is a live page, never redirected' );

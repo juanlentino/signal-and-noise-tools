@@ -22,16 +22,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Is this request MailPoet's subscription or unsubscribe page? Either the query
- * resolved to its post type, or the request carries the parameter at all.
+ * Is this request MailPoet's subscription or unsubscribe page? Only when the
+ * query resolved to its post type (/?mailpoet_page=subscriptions does, live:
+ * body class single-mailpoet_page). The bare parameter is not enough: any URL
+ * with ?mailpoet_page= appended would otherwise go noindex and lose its
+ * canonical, a variant anyone could link to.
  *
  * @return bool
  */
 function sn_seo_is_mailpoet_request() {
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a read-only presence check, nothing is processed.
-	if ( isset( $_GET['mailpoet_page'] ) ) {
-		return true;
-	}
 	return function_exists( 'is_singular' ) && is_singular( 'mailpoet_page' );
 }
 

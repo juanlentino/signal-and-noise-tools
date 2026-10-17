@@ -65,8 +65,9 @@ ok( '' === $url, 'no canonical (was the query-string self-canonical)' );
 
 $GLOBALS['V'] = array( 'type' => '', 'feed' => false );
 $_GET['mailpoet_page'] = 'subscriptions';
-ok( in_array( 'noindex', sn_seo_robots_directives(), true ), 'a request carrying ?mailpoet_page is noindex even when it resolves to no post' );
-ok( 'X-Robots-Tag: noindex' === header_for_view(), 'and it gets the header' );
+$GLOBALS['V'] = array( 'type' => 'page', 'feed' => false );
+ok( ! in_array( 'noindex', sn_seo_robots_directives(), true ), 'any other URL with ?mailpoet_page= appended stays indexable (no outsider de-index)' );
+ok( '' === header_for_view(), 'and gets no X-Robots-Tag' );
 unset( $_GET['mailpoet_page'] );
 
 echo "\nGroup: feeds\n";

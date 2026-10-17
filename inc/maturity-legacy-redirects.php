@@ -107,7 +107,15 @@ function sn_maturity_legacy_redirect_decision( $request_path, $is_404 ) {
 		return $target;
 	}
 	parse_str( $query, $args );
-	return $args ? add_query_arg( urlencode_deep( $args ), $target ) : $target;
+	if ( ! $args ) {
+		return $target;
+	}
+	// Keys are encoded too: add_query_arg() leaves them raw, so a decoded `a&b` key would split.
+	$encoded = array();
+	foreach ( urlencode_deep( $args ) as $key => $value ) {
+		$encoded[ rawurlencode( (string) $key ) ] = $value;
+	}
+	return add_query_arg( $encoded, $target );
 }
 
 /**
