@@ -154,7 +154,8 @@ $GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( array(
 $GLOBALS['__options'] = array();
 $f = sn_prov_fetch_next_key();
 ok( true === $f['ok'] && $NEXT_B64 === $f['public_key_base64'], 'the successor is fetched from the Worker' );
-ok( 'sha256=' . hash_hmac( 'sha256', $GLOBALS['__http'][0][1]['body'], 'shh' ) === $GLOBALS['__http'][0][1]['headers']['X-SN-Signature'],
+$rh = $GLOBALS['__http'][0][1]['headers'];
+ok( hash_hmac( 'sha256', 'v2|' . ( $rh['X-SN-Sig-Ts'] ?? '' ) . '|' . ( $rh['X-SN-Sig-Nonce'] ?? '' ) . '|' . hash( 'sha256', $GLOBALS['__http'][0][1]['body'] ), 'shh' ) === ( $rh['X-SN-Sig'] ?? '' ),
 	'the request is HMAC-signed like every other Worker call' );
 ok( false !== strpos( $GLOBALS['__http'][0][0], '/next-key' ), 'and goes to the /next-key route' );
 

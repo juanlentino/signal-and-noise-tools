@@ -147,19 +147,10 @@ function sn_bridge_grant_capability( $allcaps ) {
  * body. Answering 404 instead of 401 (v11.0.0) closed the status half of that
  * oracle and left the body half open. This closes it.
  *
- * The literal is `WP_REST_Server::dispatch()`'s, verbatim:
- *
- *     return new WP_Error(
- *         'rest_no_route',
- *         __( 'No route was found matching the URL and request method.' ),
- *         array( 'status' => 404 )
- *     );
- *
- * THE `default` TEXT DOMAIN IS THE POINT, not an oversight. Core translates that
- * string in the `default` domain; ours must resolve through the same catalogue
- * or the two bodies diverge on every non-English site — which would rebuild the
- * oracle for exactly the installs least likely to notice. Do not "fix" it to
- * signal-and-noise-tools.
+ * The literal is core's own, built once by sn_rest_no_route_error() in
+ * inc/rest-no-route.php (which also explains why it uses the `default` text
+ * domain). The bridge returns that shared error rather than a copy, so the two
+ * bodies cannot drift.
  *
  * A caller who ALREADY HOLDS the secret is answered with sn_bridge_not_found
  * instead. That distinction is deliberate: they are authenticated, so telling
@@ -168,21 +159,7 @@ function sn_bridge_grant_capability( $allcaps ) {
  * @return WP_Error
  */
 function sn_bridge_absent_route_error() {
-	return new WP_Error(
-		'rest_no_route',
-		// phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- Deliberate: byte-parity with core's own rest_no_route body. See the docblock above.
-		// WHAT IS VERIFIED ABOUT THIS IGNORE, and what is not. Removing it leaves
-		// `composer lint` green — that sniff is not enabled in the local WPCS
-		// ruleset — so the ignore is NOT load-bearing there. It is kept for
-		// Plugin Check, which compares the domain against the plugin SLUG and
-		// would read 'default' as a mismatch. That second half is REASONED, not
-		// measured: CI has only ever run this file WITH the ignore present, and
-		// a pass in that state cannot tell "needed" from "harmless". If you ever
-		// want to know, drop the ignore on a throwaway branch and read Plugin
-		// Check — do not infer it from a green run that included it.
-		__( 'No route was found matching the URL and request method.', 'default' ),
-		array( 'status' => 404 )
-	);
+	return sn_rest_no_route_error();
 }
 
 /**

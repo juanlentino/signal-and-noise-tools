@@ -155,25 +155,19 @@ jobs:
           tools: none
       # The host's rewrite pins run WordPress's own HTML API
       # (WP_HTML_Tag_Processor), which a standalone sweep has no WordPress to
-      # load. Fetch the seven files from the core mirror at the version the
+      # load. Fetch the files from the core mirror at the version the
       # sandbox runs and point the suites at them; tests/openstation-host.php
       # FAILS under CI when the API is absent, so a broken fetch is loud rather
       # than a green skip. kses.php rides beside them: the classic-notice pins
       # (tests/classic-notices-native.php) run core's own wp_kses_post() over
       # every notice, and FAIL under CI without it for the same reason.
       - name: Fetch WordPress's HTML API and kses for the host and notice pins
+        # tools/fetch-wp-test-core.sh is the one list of core files the sweep
+        # needs, shared with a local sweep. Two lines, no pipe: the default
+        # run shell has no pipefail, so a failed fetch must not be masked.
         run: |
-          set -e
-          base="https://raw.githubusercontent.com/WordPress/wordpress-develop/7.1/src/wp-includes"
-          dest="$RUNNER_TEMP/wp-includes"
-          mkdir -p "$dest/html-api"
-          for f in class-wp-html-tag-processor.php class-wp-html-attribute-token.php class-wp-html-span.php class-wp-html-text-replacement.php class-wp-html-decoder.php html5-named-character-references.php; do
-            curl -sSfL "$base/html-api/$f" -o "$dest/html-api/$f"
-          done
-          curl -sSfL "$base/class-wp-token-map.php" -o "$dest/class-wp-token-map.php"
-          curl -sSfL "$base/kses.php" -o "$dest/kses.php"
-          curl -sSfL "$base/formatting.php" -o "$dest/formatting.php"
-          echo "SNT_WP_HTML_API=$dest/html-api" >> "$GITHUB_ENV"
+          bash tools/fetch-wp-test-core.sh "$RUNNER_TEMP"
+          echo "SNT_WP_HTML_API=$RUNNER_TEMP/wp-includes/html-api" >> "$GITHUB_ENV"
       # Standalone fixture tests — each stubs its own WP functions, so no WP
       # install or DB is needed. contracts-smoke.php is EXCLUDED: it requires a
       # live WP env (wp-load.php) and is a manual `wp eval-file` run only — in CI
@@ -269,7 +263,7 @@ jobs:
           exit $fail
       # The host's rewrite pins run WordPress's own HTML API
       # (WP_HTML_Tag_Processor), which a standalone sweep has no WordPress to
-      # load. Fetch the seven files from the core mirror at the version the
+      # load. Fetch the files from the core mirror at the version the
       # sandbox runs and point the suites at them; tests/openstation-host.php
       # FAILS under CI when the API is absent, so a broken fetch is loud rather
       # than a green skip. kses.php rides beside them: the classic-notice pins
@@ -277,18 +271,12 @@ jobs:
       # every notice, and FAIL under CI without it for the same reason.
       - name: Fetch WordPress's HTML API and kses for the host and notice pins
         continue-on-error: ${{ matrix.experimental }}
+        # tools/fetch-wp-test-core.sh is the one list of core files the sweep
+        # needs, shared with a local sweep. Two lines, no pipe: the default
+        # run shell has no pipefail, so a failed fetch must not be masked.
         run: |
-          set -e
-          base="https://raw.githubusercontent.com/WordPress/wordpress-develop/7.1/src/wp-includes"
-          dest="$RUNNER_TEMP/wp-includes"
-          mkdir -p "$dest/html-api"
-          for f in class-wp-html-tag-processor.php class-wp-html-attribute-token.php class-wp-html-span.php class-wp-html-text-replacement.php class-wp-html-decoder.php html5-named-character-references.php; do
-            curl -sSfL "$base/html-api/$f" -o "$dest/html-api/$f"
-          done
-          curl -sSfL "$base/class-wp-token-map.php" -o "$dest/class-wp-token-map.php"
-          curl -sSfL "$base/kses.php" -o "$dest/kses.php"
-          curl -sSfL "$base/formatting.php" -o "$dest/formatting.php"
-          echo "SNT_WP_HTML_API=$dest/html-api" >> "$GITHUB_ENV"
+          bash tools/fetch-wp-test-core.sh "$RUNNER_TEMP"
+          echo "SNT_WP_HTML_API=$RUNNER_TEMP/wp-includes/html-api" >> "$GITHUB_ENV"
       - name: Run standalone test sweep
         continue-on-error: ${{ matrix.experimental }}
         # The same committed tests/run.sh every other sweep uses, so a lane

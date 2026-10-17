@@ -655,7 +655,7 @@ require_once __DIR__ . '/inc/ops-maturity-page.php';     // v10.11.0: [sn_ops_ma
 require_once __DIR__ . '/inc/a11y-maturity-page.php';    // v10.11.0: [sn_a11y_maturity] — the /accessibility/ claims in the family skeleton
 require_once __DIR__ . '/inc/maturity-index-page.php';   // v10.11.0: [sn_maturity_index] — the family hub for /maturity/
 require_once __DIR__ . '/inc/maturity-layout.php';         // 2026-10-06: the maturity pages on the page track, spec-sheet bands
-require_once __DIR__ . '/inc/maturity-legacy-redirects.php'; // v10.12.0: narrow 301 map for the family's dead top-level URLs (post re-parenting)
+require_once __DIR__ . '/inc/legacy-page-redirects.php'; // v10.12.0: the one 404-only 301 map of old page paths (the maturity family's, then 2026-10 Search Console paths)
 require_once __DIR__ . '/inc/ml-maturity-page.php';       // v10.18.0: [sn_ml_maturity] — the ML-kernel explainer (three never badges; leak-proof by test contract)
 require_once __DIR__ . '/inc/ml-candidates-ui.php';       // v10.19.0: editor buttons for keyword/link candidates (pure kernel — no AI gate; posts only)
 require_once __DIR__ . '/inc/ml-cadence.php';             // v10.22.0: cadence flags (publish + cron rhythm deviations — ML pipeline #5)

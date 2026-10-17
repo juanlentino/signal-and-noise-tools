@@ -907,7 +907,7 @@ ok( 'sn_view=geography&sn_range=30&sn_class=human&sn_compare=yoy&sn_lg_range=7' 
 	$snt_ci = (string) getenv( 'CI' );
 	if ( $skip > 0 && '' !== $snt_ci && '0' !== $snt_ci && 'false' !== strtolower( $snt_ci ) ) {
 		echo "\nFAILED (counted into the summary below, which is what tests/run.sh reads): $skip pins were SKIPPED because WordPress's wp-includes/html-api is not on this machine.\n";
-		echo "Fix: fetch WordPress in the workflow and export SNT_WP_HTML_API=<checkout>/wp-includes/html-api.\n";
+		echo "Fix: bash tools/fetch-wp-test-core.sh <dir>, then export SNT_WP_HTML_API=<dir>/wp-includes/html-api.\n";
 	// tests/run.sh discards a suite's exit status and judges the summary line
 	// alone, so the skips must be counted where the runner looks.
 	$fail += $skip;
