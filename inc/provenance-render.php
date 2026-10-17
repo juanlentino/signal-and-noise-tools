@@ -699,5 +699,5 @@ function sn_prov_change_class_badge( $change_class ) {
 	if ( '' === $label ) {
 		return '';
 	}
-	return ' <span class="sn-prov-class" title="' . esc_attr( "The author's description of this edit, not part of what is signed or verified." ) . '">' . esc_html( $label ) . '</span>';
+	return ' <span class="sn-prov-class" title="' . esc_attr( "The author's description of this edit, not part of what is signed or verified." ) . '"><span class="screen-reader-text">' . esc_html( "Author's label, not verified: " ) . '</span>' . esc_html( $label ) . '</span>';
 }

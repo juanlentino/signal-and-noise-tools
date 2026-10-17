@@ -597,6 +597,7 @@ rp_eq( '', $vm_cc['versions'][0]['change_class'] ?? null, 'change class: an uncl
 $panel_cc = sn_prov_render_panel( 8 );
 rp_eq( 1, substr_count( $panel_cc, 'class="sn-prov-class"' ), 'change class: one label, for the one classified version (unclassified and unknown show nothing)' );
 rp_true( false !== strpos( $panel_cc, '>reading aid</span>' ), 'change class: the short label is shown' );
+rp_true( false !== strpos( $panel_cc, '<span class="screen-reader-text">Author&#039;s label, not verified: </span>reading aid' ) || false !== strpos( $panel_cc, "<span class=\"screen-reader-text\">Author's label, not verified: </span>reading aid" ), 'change class: a screen reader hears that it is the author\'s label, not verified (a title alone is mostly skipped)' );
 rp_true( false === strpos( $panel_cc, 'unclassified' ) && false === strpos( $panel_cc, 'wibble' ), 'change class: never the word unclassified, never an unknown value' );
 rp_true( 1 === preg_match( '/<span class="sn-prov-class" title="[^"]*not (?:part of what is |)(?:signed|verified)[^"]*">/', $panel_cc ), 'change class: the label says it is the author\'s description, not part of what is verified' );
 rp_true( strpos( $panel_cc, 'sn-prov-class' ) > strpos( $panel_cc, '<span class="sn-prov-n">002</span>' ) && strpos( $panel_cc, 'sn-prov-class' ) < strpos( $panel_cc, '<span class="sn-prov-n">001</span>' ), 'change class: on the v2 row' );
