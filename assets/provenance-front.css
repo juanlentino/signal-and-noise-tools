@@ -83,7 +83,18 @@
    same frame reads correctly inside the post-closing furniture. */
 .sn-prov-panel{border:2px solid currentColor;border-radius:0;box-shadow:4px 4px 0 currentColor;background:var(--wp--preset--color--void,#fff);padding:1.15rem 1.35rem;margin:2.25rem 0 6px;font-size:.82rem;line-height:1.6}
 .sn-prov-chain{list-style:none;margin:0 0 .7rem;padding:0}
-.sn-prov-ver{display:flex;gap:.6em;align-items:baseline;padding:.4em 0;border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
+.sn-prov-ver{display:flex;flex-wrap:wrap;gap:.3em .6em;align-items:baseline;padding:.4em 0;border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
+/* Edit list (2026-10-17): event, version, recorded time, block, hash in fixed
+   monospace columns, so the rows line up like an EDL; the hash fingerprint
+   runs underneath on its own line. Narrow screens wrap the same items. */
+.sn-prov-n{color:var(--wp--preset--color--rust,#666)}
+.sn-prov-t:empty{display:none}
+.sn-prov-fp{flex-basis:100%;display:block;width:192px;max-width:100%;height:16px;margin:.15em 0 .1em;color:var(--wp--preset--color--bone,#000)}
+@media (min-width:40rem){
+.sn-prov-ver{display:grid;grid-template-columns:3ch 3ch 21ch 14ch auto;column-gap:1.1em;row-gap:.25em;justify-content:start}
+.sn-prov-t:empty{display:block}
+.sn-prov-fp{grid-column:1/-1}
+}
 .sn-prov-ver:last-child{border-bottom:0}
 .sn-prov-ver > .sn-prov-v{font-weight:700}
 .sn-prov-meta{color:var(--wp--preset--color--rust,#666)} /* dimmed by the token, not opacity: at .6 the block link ran 2.5:1 (WCAG 1.4.3, sitewide audit 2026-10-06) */

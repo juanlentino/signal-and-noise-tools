@@ -547,5 +547,41 @@ rp_true( $lu_note !== $lu_page, 'and the two kinds never resolve to the same URL
 // "the ledger is missing this record" claim.
 rp_true( false !== strpos( sn_prov_ledger_note_url( 'aaaa-uid', 'wibble' ), '/notes/' ), 'an unrecognised kind falls back to notes/ for a LINK, deliberately and unlike the verification path' );
 
+// --- Fingerprint and edit list (2026-10-17): each version row is an edit-list
+// line (event, version, recorded time, block, hash) with its full SHA-256 drawn
+// beneath it as 64 bars, one per hex digit, so two versions visibly disagree.
+$h1 = '32f29da503ce641b1e57254530eacf16798a1583ca171affb7b975d53ecfbf82';
+$h2 = '89d84eff96567456a1eb094603ea90b1dac6d105089c353c6bacb67b50b3e43c';
+$fp = sn_prov_fingerprint_svg( $h2 );
+rp_eq( 64, substr_count( $fp, 'h2v' ), 'fingerprint: one bar per hex digit, 64 in all' );
+rp_true( false !== strpos( $fp, 'M0 7h2v9h-2z' ), 'fingerprint: bar height is the digit plus one (first digit 8 draws 9 units from the baseline)' );
+rp_true( false !== strpos( $fp, 'M189 ' ) && false !== strpos( $fp, 'viewBox="0 0 192 16"' ), 'fingerprint: 3 units a bar across a 192 x 16 box' );
+rp_true( false !== strpos( $fp, 'preserveAspectRatio="xMinYMid meet"' ), 'fingerprint: keeps its proportions and sits left when its row is wider (phones)' );
+rp_true( false !== strpos( $fp, 'aria-hidden="true"' ) && false !== strpos( $fp, 'focusable="false"' ), 'fingerprint: decorative, the hash text stays the accessible value' );
+rp_true( false !== strpos( $fp, 'fill="currentColor"' ) && false === strpos( $fp, 'style=' ), 'fingerprint: currentColor, no inline style (survives forced colors and print)' );
+rp_true( $fp !== sn_prov_fingerprint_svg( $h1 ), 'fingerprint: different hashes draw different strips' );
+foreach ( array( 'c1', strtoupper( $h2 ), substr( $h2, 1 ), $h2 . '0', str_repeat( 'g', 64 ), '<svg>' ) as $bad ) {
+	rp_eq( '', sn_prov_fingerprint_svg( $bad ), 'fingerprint: no strip for anything but 64 lowercase hex (' . substr( $bad, 0, 8 ) . ')' );
+}
+rp_eq( '<time datetime="2026-10-17T04:01:02Z">2026-10-17 04:01:02Z</time>', sn_prov_edl_time( '2026-10-17T04:01:02Z' ), 'edit list: the recorded time in UTC, machine-readable' );
+rp_eq( '<time datetime="2026-10-17T04:01:02Z">2026-10-17 04:01:02Z</time>', sn_prov_edl_time( '2026-10-17 04:01:02' ), 'edit list: a MySQL-style UTC stamp reads the same' );
+rp_eq( '', sn_prov_edl_time( 'garbage' ), 'edit list: an unreadable time shows nothing rather than a wrong one' );
+rp_eq( '', sn_prov_edl_time( '' ), 'edit list: no time, no column text' );
+
+update_post_meta( 8, SN_PROV_CHAIN_META, array(
+	array( 'version' => 1, 'content_hash' => $h1, 'status' => 'confirmed', 'bitcoin_block' => 971764, 'committed_at' => '2026-10-16T22:00:58Z' ),
+	array( 'version' => 2, 'content_hash' => $h2, 'status' => 'confirmed', 'bitcoin_block' => 971793, 'committed_at' => '2026-10-17T04:01:02Z' ),
+) );
+$panel_edl = sn_prov_render_panel( 8 );
+rp_true( false !== strpos( $panel_edl, '<span class="sn-prov-n">002</span>' ) && false !== strpos( $panel_edl, '<span class="sn-prov-n">001</span>' ), 'edit list: each row carries its event number' );
+rp_true( strpos( $panel_edl, '<span class="sn-prov-n">002</span>' ) < strpos( $panel_edl, '<span class="sn-prov-n">001</span>' ), 'edit list: newest first, as before' );
+rp_eq( 2, substr_count( $panel_edl, 'class="sn-prov-fp"' ), 'edit list: a fingerprint under every version' );
+rp_true( false !== strpos( $panel_edl, sn_prov_fingerprint_svg( $h2 ) ) && false !== strpos( $panel_edl, sn_prov_fingerprint_svg( $h1 ) ), 'edit list: each strip is its own version\'s hash' );
+rp_true( false !== strpos( $panel_edl, '<time datetime="2026-10-16T22:00:58Z">' ), 'edit list: the recorded time is shown' );
+rp_true( false !== strpos( $panel_edl, '<code>89d84eff9656</code>' ), 'edit list: the 12-character hash stays as text' );
+rp_eq( 1, substr_count( $panel_edl, 'mempool.space/block/971793' ), 'edit list: the lead block is still linked exactly once' );
+update_post_meta( 8, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'c1', 'status' => 'confirmed', 'bitcoin_block' => 957333 ) ) );
+rp_true( false === strpos( sn_prov_render_panel( 8 ), 'sn-prov-fp' ), 'edit list: a row without a full hash draws no strip' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
