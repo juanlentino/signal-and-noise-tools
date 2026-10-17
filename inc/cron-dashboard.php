@@ -124,6 +124,7 @@ function snt_cron_sn_owned_hooks() {
 		//     (sn-apply refuses on them because core early-publishes on any
 		//     write); stopping the reconciler makes that state common.
 		array( 'SN_PROV_CONFIRM_HOOK',          'sn_prov_reconcile' ),
+		array( 'SN_PROV_ORPHAN_HOOK',           'sn_prov_orphan_sweep' ),
 		array( 'SN_SCHEDULE_RECONCILE_HOOK',    'sn_schedule_reconcile' ),
 		array( 'SN_CIT_CRON_HOOK',              'sn_citations_verify_batch' ),
 		array( 'SN_SECURITY_DIGEST_CRON_HOOK',  'sn_security_digest_weekly' ),
