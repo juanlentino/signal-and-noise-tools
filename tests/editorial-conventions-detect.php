@@ -53,6 +53,30 @@ $f = snt_editorial_conventions_detect( parse_blocks( $moved ) );
 ok( array( 'correction:form' ) === ids( $f ) && 1 === $f[0]['evidence']['position'], 'a correction that is not the last block → a placement finding (no replacement: it is a move, not a class)' );
 ok( array() === snt_editorial_conventions_detect( parse_blocks( '<!-- wp:paragraph --><p>The word Correction inside prose.</p><!-- /wp:paragraph -->' ) ), 'the word "Correction" in prose is NOT a correction: the shape is the opener, not the word' );
 
+// A correction is recognized by its TEXT, whatever wraps it: the italic,
+// colon form on note 1514 (fixed by hand 2026-10-17) matched nothing before.
+$para  = static function ( $inner, $cls = '' ) { return '<!-- wp:paragraph' . ( $cls ? ' {"className":"' . $cls . '"}' : '' ) . " -->\n<p" . ( $cls ? ' class="' . $cls . '"' : '' ) . '>' . $inner . "</p>\n<!-- /wp:paragraph -->"; };
+$arg   = $para( 'Argument.' ) . "\n\n";
+$msgs  = static function ( $f ) { return implode( ' | ', array_column( (array) $f, 'message' ) ); };
+$f = snt_editorial_conventions_detect( parse_blocks( $arg . $para( '<em>Correction, October 1, 2026: An earlier version said X. Y is correct.</em>' ) ) );
+ok( array( 'correction:form', 'correction:form' ) === ids( $f ), 'an italic colon-form correction without the class → a missing-class finding AND a form finding, neither with a fix' );
+ok( '' === $f[0]['replacement'] && false !== strpos( $f[0]['message'], 'sn-correction class' ), '   ...the missing-class finding carries NO class-only replacement (adding it would leave the lead-in wrong)' );
+ok( '' === $f[1]['replacement'] && false !== strpos( $f[1]['message'], 'lead-in' ), '   ...the form finding names the lead-in and carries no replacement (signed prose: the owner applies it)' );
+$f = snt_editorial_conventions_detect( parse_blocks( $arg . $para( '<em>Correction, October 1, 2026: x</em>', 'sn-correction' ) ) );
+ok( array( 'correction:form' ) === ids( $f ) && false !== strpos( $f[0]['message'], 'lead-in' ), 'the class present but the lead-in italic and colon → one form finding' );
+ok( array( 'correction:form' ) === ids( snt_editorial_conventions_detect( parse_blocks( $arg . $para( '<strong>Correction, October 1, 2026:</strong> x', 'sn-correction' ) ) ) ), 'bold but a colon after the date → a form finding' );
+$f = snt_editorial_conventions_detect( parse_blocks( $arg . $para( '<strong>Correction, October 1, 2026.</strong> An earlier version said X.' ) ) );
+ok( array( 'correction:class' ) === ids( $f ) && false !== strpos( $f[0]['replacement'], 'class="sn-correction"' ), 'the house lead-in without the class → the class finding with its fix (unchanged)' );
+ok( array() === snt_editorial_conventions_detect( parse_blocks( $arg . $para( '<strong>Correction, October 1, 2026.</strong> x', 'sn-correction' ) ) ), 'house form with the class, last block → nothing' );
+$f = snt_editorial_conventions_detect( parse_blocks( $para( '<strong>Correction, October 1, 2026.</strong> x', 'sn-correction' ) . "\n\n" . $para( 'After.' ) ) );
+ok( array( 'correction:form' ) === ids( $f ) && isset( $f[0]['evidence']['position'] ), 'house form with the class, not last → the not-last finding only' );
+ok( array() === snt_editorial_conventions_detect( parse_blocks( $arg . $para( 'We ran a correction, October 1, 2026, on the figure.' ) ) ), 'a paragraph that mentions a correction mid-sentence → nothing' );
+ok( array() === snt_editorial_conventions_detect( parse_blocks( $arg . $para( 'See the <em>Correction, October 1, 2026.</em> below.' ) ) ), '"Correction," that does not OPEN the paragraph → nothing' );
+foreach ( array( 'b' => '<b>Correction, October 1, 2026.</b> x', 'i' => '<i>Correction, October 1, 2026.</i> x', 'none' => 'Correction, October 1, 2026. x', 'nested' => '<em><strong> Correction, October 1, 2026:</strong></em> x', 'lower' => '<strong>correction, October 1, 2026.</strong> x' ) as $k => $inner ) {
+	$f = snt_editorial_conventions_detect( parse_blocks( $arg . $para( $inner ) ) );
+	ok( in_array( 'correction:form', ids( $f ), true ) && false !== strpos( $msgs( $f ), 'sn-correction class' ) && false !== strpos( $msgs( $f ), 'lead-in' ), 'the "' . $k . '" variant is detected: missing class (no fix) + form' );
+}
+
 echo "\nGroup 3: references\n";
 $refs = "<!-- wp:heading {\"level\":2} -->\n<h2 class=\"wp-block-heading\">References</h2>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><li>Source.</li></ul>\n<!-- /wp:list -->";
 $f = snt_editorial_conventions_detect( parse_blocks( $refs ) );

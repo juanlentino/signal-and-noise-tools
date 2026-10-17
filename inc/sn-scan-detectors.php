@@ -150,7 +150,7 @@ function snt_sn_scan_detector_registry() {
 		),
 		// v14.7.0: shape-not-form drift against the theme's convention registry.
 		'editorial_conventions' => array(
-			array( 'id' => 'correction',       'triggers_on' => 'a core/paragraph opening "<strong>Correction," without className sn-correction, or one that is not the last block' ),
+			array( 'id' => 'correction',       'triggers_on' => 'a core/paragraph whose text opens "Correction," (any wrapper: <strong>, <em>, <b>, <i>, nested, or none) without className sn-correction (a class fix only when the lead-in is already the house form), not in the house lead-in <strong>Correction, Month D, YYYY.</strong> (a form finding, no fix: signed prose), or not the last block' ),
 			array( 'id' => 'references',       'triggers_on' => 'a core/list directly under an H2 "References" without className is-style-references' ),
 			array( 'id' => 'lead',             'triggers_on' => 'a FIRST-block core/paragraph set wholly in <em> without className sn-lead' ),
 			array( 'id' => 'steps-enumerated', 'triggers_on' => 'an ordered core/list with two or more <strong>Term.</strong> items not carrying sn-steps__list (unless every item is dated: see timeline), or a sn-pattern-steps-enumerated group nested inside another' ),
