@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **Search Console cleanup: MailPoet's page and the feeds leave the index, and five old paths 301.** A request carrying `mailpoet_page` (the subscription page) now gets `noindex` in the robots meta, an `X-Robots-Tag: noindex` header, and no canonical; the canonical was this plugin's own, printing the page's `?mailpoet_page=` permalink. Every feed (`/feed/`, `/notes/feed/`, tag and page feeds, `/feed/json/`) sends `X-Robots-Tag: noindex, follow` and keeps working, `<link rel="alternate">` tags included. `/provenance/verify` goes to `/verify/`, `/es/` to `/inicio/` and `/es/about/` to `/sobre-mi/` through the 404-only old-page-path map (`inc/maturity-legacy-redirects.php`, which now matches whole paths), and `/sitemap/` joins `/sitemap.xml` on its way to `/wp-sitemap.xml`. `/es/notes/` stays a 404; `/notes/` has no Spanish page.
+
 ## [2026.10.32] - 2026-10-17 — the correction detector reads every correction notice
 
 
