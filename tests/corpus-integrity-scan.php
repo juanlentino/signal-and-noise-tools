@@ -235,6 +235,22 @@ ci_true( ! snt_corpus_integrity_is_dated_notice( 'Correction, September 3, 2026,
 ci_true( ! snt_corpus_integrity_is_dated_notice( 'September 3, 2026.' ), 'Test 6b.8: a bare date is not a notice' );
 ci_true( ! snt_corpus_integrity_is_dated_notice( 'Spotify announced it on September 3, 2026.' ), 'Test 6b.9: ordinary prose is not a notice' );
 
+// The OLD form (note 1514 until 2026-10-17): the notice and its text in one
+// sentence, joined by a colon. The notice's own date is not drift; a later
+// date further along the same sentence is still judged.
+echo "\nTest 6c: a colon-form correction notice is counted, not flagged\n";
+_ci_reset();
+_ci_post( 108, array(
+	_ci_para( 'Detection scales the wrong way, and the reasons are structural.' ),
+	_ci_para( 'Correction, October 1, 2026: An earlier version said the figure was 40.' ),
+	_ci_para( 'Correction, October 2, 2026: An earlier version said the rule shipped in March 2027.' ),
+), 'publish', '2026-05-21 09:00:00' );
+$out   = snt_corpus_integrity_compute();
+$dates = _ci_by_check( $out['candidates'], 'date_coherence' );
+ci_eq( 1, count( $dates ), 'Test 6c.1: the two notice dates are not candidates; the later date inside the second notice still is' );
+ci_true( 'March 2027' === (string) ( $dates[0]['found_date'] ?? '' ), 'Test 6c.2: the surviving candidate is the date the notice CITES, not the notice date' );
+ci_eq( 2, $out['counts']['corrections'] ?? -1, 'Test 6c.3: counts.corrections = 2' );
+
 // ─── Test 7: status scope — publish, future, draft, pending ──────────
 echo "\nTest 7: status scope\n";
 _ci_reset();

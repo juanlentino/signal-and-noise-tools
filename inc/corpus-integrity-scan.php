@@ -267,7 +267,13 @@ function snt_corpus_integrity_find_date_issues( $text, $post_date ) {
 		// visible without being flagged. The shape is deliberately narrow:
 		// the notice word opens the sentence and the date is the whole rest
 		// of it; a sentence that merely CONTAINS "correction" is still judged.
-		if ( snt_corpus_integrity_is_dated_notice( $sentence ) ) {
+		// The older colon form ("Correction, October 1, 2026: An earlier
+		// version said …") holds notice and text in one sentence; test it
+		// cut just after THIS date, so only the notice's own date is spared
+		// and a later date the text cites is still judged.
+		$at     = strpos( $sentence, $raw );
+		$colon  = false !== $at && 1 === preg_match( '/^\s*:/', substr( $sentence, $at + strlen( $raw ) ) );
+		if ( snt_corpus_integrity_is_dated_notice( $sentence ) || ( $colon && snt_corpus_integrity_is_dated_notice( substr( $sentence, 0, $at + strlen( $raw ) ) ) ) ) {
 			$out[] = array(
 				'found_date' => $raw,
 				'sentence'   => $sentence,

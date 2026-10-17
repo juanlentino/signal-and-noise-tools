@@ -166,10 +166,21 @@ function snt_editorial_conventions_detect( array $tree ) {
 		$classes = snt_editorial_block_classes( $b );
 		$html    = (string) ( $b['innerHTML'] ?? '' );
 
-		// ── correction: opens "<strong>Correction," ─────────────────────
-		if ( isset( $reg['correction'] ) && 'core/paragraph' === $name && preg_match( '/<p[^>]*>\s*<strong>\s*Correction,/i', $html ) ) {
+		// ── correction: a paragraph whose TEXT opens "Correction," ─────
+		// Matched on text, not markup, so an <em>, <b>, <i> or bare notice is
+		// seen too (note 1514's italic colon form matched nothing before).
+		if ( isset( $reg['correction'] ) && 'core/paragraph' === $name && preg_match( '/^Correction,/i', snt_editorial_block_text( $b ) ) ) {
+			$house = (bool) preg_match( '/^\s*<p[^>]*>\s*<strong>\s*Correction, (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}\.\s*<\/strong>/', $html );
 			if ( ! in_array( 'sn-correction', $classes, true ) ) {
-				$findings[] = $finding( 'correction', $entry, $b, 'A dated correction notice without the sn-correction class: the house form is a core/paragraph carrying className "sn-correction" (convention id: correction).', 'class', serialize_block( snt_editorial_block_with_class( $b, 'sn-correction' ) ) );
+				// The class-only fix is offered only when the lead-in is already
+				// right: on any other form it would bless a wrong lead-in.
+				$findings[] = $house
+					? $finding( 'correction', $entry, $b, 'A dated correction notice without the sn-correction class: the house form is a core/paragraph carrying className "sn-correction" (convention id: correction).', 'class', serialize_block( snt_editorial_block_with_class( $b, 'sn-correction' ) ) )
+					: $finding( 'correction', $entry, $b, 'A correction notice without the sn-correction class, and not in the house lead-in either, so no class-only fix is offered: fix the lead-in and add className "sn-correction" by hand (convention id: correction).', 'form' );
+			}
+			if ( ! $house ) {
+				// No replacement: rewriting the lead-in changes signed prose.
+				$findings[] = $finding( 'correction', $entry, $b, 'A correction notice not in the house lead-in: the house form opens <strong>Correction, Month D, YYYY.</strong> (bold, a period after the date) followed by the text. The owner applies it by hand (convention id: correction).', 'form', '', array( 'opens' => mb_substr( snt_editorial_block_text( $b ), 0, 60 ) ) );
 			}
 			if ( $i !== $n - 1 ) {
 				$findings[] = $finding( 'correction', $entry, $b, 'A correction notice that is not the last block: the house placement is last, after References (convention id: correction).', 'form', '', array( 'position' => $i + 1, 'of' => $n ) );
