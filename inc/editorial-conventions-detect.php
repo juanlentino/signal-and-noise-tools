@@ -7,7 +7,10 @@
  * sn-correction class; a bibliography list under an H2 "References" without
  * is-style-references; a first-block <em> paragraph without sn-lead; an
  * ordered list of <strong>Term.</strong> items outside the steps group; an
- * inline SVG missing the accessible trio or painted in a frozen hex. All
+ * inline SVG missing the accessible trio or painted in a frozen hex; and,
+ * since 2026-10 (inc/editorial-conventions-detect-aids.php), a dated sequence
+ * set as steps, a steps or compare group nested in its own kind, and a table
+ * without the house style or without a header row. All
  * deterministic, all warning severity: a caller may be doing something new
  * on purpose, so the finding NAMES the convention and its id and stops there.
  *
@@ -29,6 +32,8 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+require_once __DIR__ . '/editorial-conventions-detect-aids.php';
 
 /**
  * The registry, keyed by id, or null when the theme does not provide it.
@@ -184,8 +189,47 @@ function snt_editorial_conventions_detect( array $tree ) {
 			$findings[] = $finding( 'lead', $entry, $b, 'An opening paragraph set wholly in <em> without the sn-lead class: the house form for a standfirst is a core/paragraph carrying className "sn-lead" (convention id: lead).', 'class', serialize_block( snt_editorial_block_with_class( $b, 'sn-lead' ) ) );
 		}
 
+		// ── timeline: an ordered list, or a steps group, whose EVERY item
+		// opens with a date. Checked before steps so a dated list gets one
+		// suggestion (timeline), not two that contradict each other.
+		$is_dated = false;
+		$steps_group = 'core/group' === $name && in_array( 'sn-pattern-steps-enumerated', $classes, true );
+		if ( isset( $reg['timeline'] ) && ( $steps_group || ( 'core/list' === $name && ! empty( $b['attrs']['ordered'] ) && ! in_array( 'sn-timeline__list', $classes, true ) ) ) ) {
+			$items = snt_editorial_list_item_openers( serialize_block( $b ) );
+			$dated = count( array_filter( $items, 'snt_editorial_is_date_opener' ) );
+			if ( count( $items ) >= 2 && count( $items ) === $dated ) {
+				$is_dated   = true;
+				$findings[] = $finding( 'timeline', $entry, $b, ( $steps_group ? 'An enumerated-steps group' : 'An ordered list' ) . ' whose every item opens with a date: a dated sequence is a timeline, not steps. The house form is a core/group "sn-pattern-timeline" holding a "sn-timeline__label" paragraph and an unordered list "sn-timeline__list", each item opening with the date in <strong> (convention id: timeline).', 'form', '', array( 'dated_items' => $dated ) );
+			}
+		}
+
+		// ── nesting: a steps or compare group inside a group of its own kind.
+		// It renders a panel inside a panel and numbers the inner list twice.
+		foreach ( array( 'steps-enumerated' => 'sn-pattern-steps-enumerated', 'compare-columns' => 'sn-pattern-compare-columns' ) as $cid => $ccls ) {
+			if ( ! isset( $reg[ $cid ] ) || 'core/group' !== $name ) {
+				continue;
+			}
+			$nested = snt_editorial_nested_same_class( serialize_block( $b ), $ccls );
+			if ( $nested > 0 ) {
+				$findings[] = $finding( $cid, $entry, $b, 'Malformed: a "' . $ccls . '" group nested inside another "' . $ccls . '" group. The house form is one group per sequence or comparison; unwrap the inner group so its contents sit directly in the outer one (convention id: ' . $cid . ').', 'form', '', array( 'nested' => $nested ) );
+			}
+		}
+
+		// ── table: the house style, and the header row it requires ─────────
+		if ( isset( $reg['table'] ) && 'core/table' === $name ) {
+			$head   = snt_editorial_table_header( $html );
+			$styled = in_array( 'is-style-sn-table', $classes, true );
+			if ( ! $head['thead'] ) {
+				$findings[] = $finding( 'table', $entry, $b, 'A table with no header row' . ( $styled ? '' : ' and without the comparison-table style' ) . ': the house form is core/table with className "is-style-sn-table" and a <thead> header row (the style adds scope="col" to its cells on render) (convention id: table).', 'form', '', $head );
+			} else {
+				if ( ! $styled ) {
+					$findings[] = $finding( 'table', $entry, $b, 'A table without the comparison-table style: the house form is core/table with className "is-style-sn-table" (convention id: table).', 'class', serialize_block( snt_editorial_block_with_class( $b, 'is-style-sn-table' ) ) );
+				}
+			}
+		}
+
 		// ── steps: an ordered list of <strong>Term.</strong> items outside the group
-		if ( isset( $reg['steps-enumerated'] ) && 'core/list' === $name && ! empty( $b['attrs']['ordered'] ) && ! in_array( 'sn-steps__list', $classes, true ) ) {
+		if ( ! $is_dated && isset( $reg['steps-enumerated'] ) && 'core/list' === $name && ! empty( $b['attrs']['ordered'] ) && ! in_array( 'sn-steps__list', $classes, true ) ) {
 			// Items live as innerBlocks under core's parser and as <li> markup
 			// under a flat one; count whichever the tree carries, never both.
 			$strong = 0;
