@@ -16,3 +16,19 @@
 .sn-maturity-index-card em{font-style:italic;font-size:.88rem;color:var(--wp--preset--color--rust,#666666)}
 .sn-maturity-index-card span{font-size:.88rem}
 .sn-maturity-index-card--unlinked{border-style:dashed;border-color:var(--wp--preset--color--rust,#666666);color:var(--wp--preset--color--rust,#666666)}
+
+/* LED ladder (2026.10): the family's roadmap mix, one segment per item, in the
+   board's own commitment gradient: solid done, dashed planned, dotted
+   considering, hollow later. The counts beside it are the readable value. */
+.sn-maturity-ladder{display:flex;flex-wrap:wrap;gap:3px;margin-top:.9em}
+.sn-maturity-ladder i{width:10px;height:10px;box-sizing:border-box;border:1px solid currentColor}
+.sn-maturity-ladder i.is-done{background:currentColor}
+.sn-maturity-ladder i.is-planned{border-style:dashed}
+.sn-maturity-ladder i.is-considering{border-style:dotted}
+.sn-maturity-ladder i.is-later{border-color:var(--wp--preset--color--concrete,#d9d9d9)}
+.sn-maturity-ladder-n{display:block;margin-top:.5em;font-family:"DM Mono","Courier New",monospace;font-size:11px;letter-spacing:.08em;color:var(--wp--preset--color--rust,#666)}
+@media (forced-colors:active){
+.sn-maturity-ladder i.is-done{forced-color-adjust:none;background:CanvasText}
+.sn-maturity-ladder i{border-color:CanvasText}
+}
+
