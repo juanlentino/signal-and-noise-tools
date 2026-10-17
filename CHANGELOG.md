@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **An update refreshes the cached feeds too.** A code update marks the Cloudflare zone stale instead of deleting it, so a stale feed was revalidated, and an unchanged feed answers 304, which let Cloudflare keep its pre-update copy and headers: after 2026.10.33, `/feed/` and `/notes/feed/` served without the new `X-Robots-Tag` until a manual purge. The update purge now also deletes the edge-cached feeds (`/feed/` and `/notes/feed/` in every format, `/llms.txt`, `/llms-full.txt`), so they come back fresh on the next request; pages keep the stale-safe refresh.
+
 ## [2026.10.33] - 2026-10-17 — Search Console cleanup: MailPoet and feeds noindexed, five old paths 301
 
 

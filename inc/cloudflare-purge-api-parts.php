@@ -110,7 +110,18 @@ function sn_cf_purge_everything( $trigger = '' ) {
 	}
 
 	// 20.9.0: a code update marks the zone stale; anything else deletes.
-	$confirmed = sn_cf_api_send( sn_cf_edge_endpoint( (string) ( $GLOBALS['snt_purge_current']['trigger'] ?? '' ) ), array( 'purge_everything' => true ) );
+	$endpoint  = sn_cf_edge_endpoint( (string) ( $GLOBALS['snt_purge_current']['trigger'] ?? '' ) );
+	$confirmed = sn_cf_api_send( $endpoint, array( 'purge_everything' => true ) );
+	// 2026-10-17: a stale feed is revalidated, and an unchanged feed answers
+	// 304, so Cloudflare kept 2026.10.33's pre-update headers (no X-Robots-Tag)
+	// until a manual purge. The edge-cached feeds are deleted outright instead;
+	// a deleted copy cannot be renewed. Pages keep the stale-safe invalidate.
+	if ( 'invalidate_cache' === $endpoint && function_exists( 'sn_cf_machine_urls' ) ) {
+		$feeds = sn_cf_machine_urls();
+		if ( $feeds ) {
+			sn_cf_api_send( 'purge_cache', array( 'files' => $feeds ) );
+		}
+	}
 	if ( function_exists( 'snt_pulse_beat' ) ) {
 		snt_pulse_beat( 'cache-purge', snt_pulse_purge_failed( $confirmed, sn_cf_send_last() ) ); // inc/openstation-pulse.php: a whole-zone purge beats; only a refusal is a failed beat.
 	}
