@@ -42,3 +42,4 @@ require_once __DIR__ . '/seo-meta-parts.php';
 require_once __DIR__ . '/seo-head-parts.php';
 require_once __DIR__ . '/seo-og-parts.php';
 require_once __DIR__ . '/seo-delivery-parts.php';
+require_once __DIR__ . '/seo-noindex-parts.php'; // 2026-10: feeds and MailPoet's page stay out of the index.

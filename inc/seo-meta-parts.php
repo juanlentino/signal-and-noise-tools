@@ -273,6 +273,12 @@ function sn_seo_meta_for_current_view() {
 		$url         = $post ? get_permalink( $post ) : '';
 	}
 
+	// 2026-10: MailPoet's subscription page is noindex and has no canonical
+	// (it printed its own ?mailpoet_page= URL). inc/seo-noindex-parts.php.
+	if ( function_exists( 'sn_seo_is_mailpoet_request' ) && sn_seo_is_mailpoet_request() ) {
+		$url = '';
+	}
+
 	return array( $title, $description, $url );
 }
 

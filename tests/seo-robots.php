@@ -24,7 +24,9 @@ $GLOBALS['__queried']  = null;
 $GLOBALS['__meta']     = array();
 $GLOBALS['__filters']  = array();
 
-function is_singular( $t = '' ) { return (bool) $GLOBALS['__singular']; }
+// The fixture's singular is an ordinary post, never MailPoet's page (that case
+// lives in tests/seo-noindex-requests.php).
+function is_singular( $t = '' ) { return (bool) $GLOBALS['__singular'] && 'mailpoet_page' !== $t; }
 function get_queried_object() { return $GLOBALS['__queried']; }
 function get_post_meta( $id, $key = '', $single = false ) { return $GLOBALS['__meta'][ $id ][ $key ] ?? ''; }
 function apply_filters( $tag, $value ) {

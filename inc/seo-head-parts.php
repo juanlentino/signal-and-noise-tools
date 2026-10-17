@@ -165,6 +165,12 @@ function sn_seo_robots_directives() {
 		}
 	}
 
+	// 2026-10: MailPoet's subscription page stays out of the index
+	// (inc/seo-noindex-parts.php sends the matching header).
+	if ( function_exists( 'sn_seo_is_mailpoet_request' ) && sn_seo_is_mailpoet_request() ) {
+		$directives[] = 'noindex';
+	}
+
 	$filtered = apply_filters( 'sn_seo_robots_directives', $directives );
 	if ( ! is_array( $filtered ) ) {
 		$filtered = $directives;
