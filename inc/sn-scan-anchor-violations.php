@@ -13,6 +13,9 @@
  *   2. heading_contains_link — any <a> inside an h1–h6 block. Headings are
  *      structure, never navigation.
  *
+ * Links inside a list carrying is-style-references are out of scope for
+ * rule 1: a citation ends with its link label by design (2026-10-17).
+ *
  * Both measured against the published corpus 2026-08-08: zero false
  * positives, and together they catch all 13 known violations. Pure
  * structural detection over raw post_content — zero AI, zero writes, the
@@ -119,11 +122,11 @@ function snt_anchor_violations_scan_content( $content ) {
 	// Heading spans first — rule 2, and an exclusion map for rule 1 (a
 	// heading wrapped entirely in a link would otherwise fire BOTH rules for
 	// one editorial defect; the heading rule owns it).
-	$heading_spans = array();
+	$excluded_spans = array();
 	if ( preg_match_all( '#<h([1-6])\b[^>]*>(.*?)</h\1>#is', $content, $headings, PREG_OFFSET_CAPTURE | PREG_SET_ORDER ) ) {
 		foreach ( $headings as $h ) {
 			$span_start      = $h[0][1];
-			$heading_spans[] = array( $span_start, $span_start + strlen( $h[0][0] ) );
+			$excluded_spans[] = array( $span_start, $span_start + strlen( $h[0][0] ) );
 			if ( preg_match( '/<a\b[^>]*>(.*?)<\/a>/is', $h[2][0], $a ) ) {
 				$violations[] = array(
 					'rule'          => 'heading_contains_link',
@@ -135,6 +138,16 @@ function snt_anchor_violations_scan_content( $content ) {
 		}
 	}
 
+	// A References list is the house citation form: each item ends
+	// "Source, date. <a>domain.com</a>", so the link label is a "sentence" of
+	// its own by construction. Its links are citations, not prose, and rule 1
+	// does not judge them (all 93 live findings on 2026-10-17 were this shape).
+	if ( preg_match_all( '#<(ul|ol)\b[^>]*\bclass="(?:[^"]*\s)?is-style-references(?:\s[^"]*)?"[^>]*>.*?</\1>#is', $content, $lists, PREG_OFFSET_CAPTURE ) ) {
+		foreach ( $lists[0] as $l ) {
+			$excluded_spans[] = array( $l[1], $l[1] + strlen( $l[0] ) );
+		}
+	}
+
 	if ( ! preg_match_all( '/<a\b[^>]*>.*?<\/a>/is', $content, $anchors, PREG_OFFSET_CAPTURE ) ) {
 		return $violations;
 	}
@@ -143,15 +156,15 @@ function snt_anchor_violations_scan_content( $content ) {
 		$anchor_html = $match[0];
 		$offset      = $match[1];
 
-		$in_heading = false;
-		foreach ( $heading_spans as $span ) {
+		$excluded = false;
+		foreach ( $excluded_spans as $span ) {
 			if ( $offset >= $span[0] && $offset < $span[1] ) {
-				$in_heading = true;
+				$excluded = true;
 				break;
 			}
 		}
-		if ( $in_heading ) {
-			continue; // Rule 2 already owns every anchor inside a heading.
+		if ( $excluded ) {
+			continue; // Rule 2 owns every anchor inside a heading; a References list is exempt.
 		}
 
 		$anchor_text = snt_anchor_violations_normalize( $anchor_html );

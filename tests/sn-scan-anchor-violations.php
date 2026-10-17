@@ -175,6 +175,23 @@ ok( 'The DAW signs the assembly' === snt_anchor_violations_normalize( 'The DAW s
 ok( 'coelacanth minutiae' . "\xC3\xA6" === snt_anchor_violations_normalize( 'coelacanth minutiae' . "\xC3\xA6" ), 'a trailing æ (whose 2nd byte collides with the ellipsis) survives intact' );
 ok( 'signs the assembly' === snt_anchor_violations_normalize( "signs the assembly\xE2\x80\xA6" ), 'a real trailing ellipsis is still stripped as a whole character' );
 
+// 2026-10-17: every one of the 93 live findings was the trailing link label of
+// a References item ('Source, date. <a>domain.com</a>'). The splitter ends
+// the sentence at the period before the link, so the label was its own
+// "sentence". A list carrying is-style-references is the house citation form,
+// so its links are out of scope; the rule still fires in prose and in an
+// ordinary list.
+echo "\nGroup: reference lists are citations, not prose (2026-10-17)\n";
+$refs = "<!-- wp:list {\"className\":\"is-style-references\"} -->\n<ul class=\"wp-block-list is-style-references\">\n\t<!-- wp:list-item -->\n\t<li>Zhao, H. \"Strategic Response.\" Working paper, 2026. <a href=\"https://arxiv.org/abs/2512.24968\">arxiv.org/abs/2512.24968</a></li>\n\t<!-- /wp:list-item -->\n\t<!-- wp:list-item -->\n\t<li>SOCAN. \"Collaboration.\" July 20, 2026. <a href=\"https://www.socan.com/x/\">socan.com</a></li>\n\t<!-- /wp:list-item -->\n</ul>\n<!-- /wp:list -->";
+ok( array() === snt_anchor_violations_scan_content( $refs ), 'a References list (is-style-references) reports nothing for its domain labels' );
+ok( array() === snt_anchor_violations_scan_content( str_replace( 'class="wp-block-list is-style-references"', 'class="is-style-references wp-block-list"', $refs ) ), '...whatever the class order' );
+$plain = str_replace( array( ' is-style-references', '{"className":"is-style-references"} ' ), '', $refs );
+ok( 2 === count( snt_anchor_violations_scan_content( $plain ) ), 'the same items in an ordinary list still fire: only the references style is exempt' );
+$mixed = '<p><a href="/x/">The whole sentence is the link</a>. Filler.</p>' . $refs;
+$v = snt_anchor_violations_scan_content( $mixed );
+ok( 1 === count( $v ) && 'The whole sentence is the link' === $v[0]['anchor_text'], 'a prose violation before a References list is still caught' );
+ok( 1 === count( snt_anchor_violations_scan_content( '<ul class="is-style-references-like"><li>A. <a href="/y/">y.org</a></li></ul>' ) ), 'a class that only starts with is-style-references is not exempt' );
+
 echo "\nGroup: no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], 'zero notices/warnings raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );
 
