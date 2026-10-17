@@ -145,7 +145,7 @@ function snt_sn_apply_write_change_class_backfill( array $change ) {
 	foreach ( $plan['rows'] as $r ) {
 		if ( ! sn_prov_set_change_class( $r['post_id'], $r['version'], $r['proposed_class'] ) ) {
 			foreach ( $snap as $pid => $chain ) {
-				update_post_meta( $pid, SN_PROV_CHAIN_META, wp_slash( $chain ) );
+				sn_prov_put_chain( $pid, $chain );
 			}
 			return new WP_Error( 'snt_sn_apply_backfill_write_failed', sprintf( 'Labeling post %d v%d failed; every label in this call was rolled back.', $r['post_id'], $r['version'] ), array( 'status' => 500 ) );
 		}

@@ -34,7 +34,14 @@ function get_post_meta( $post_id, $key, $single = false ) {
 	$v = $GLOBALS['__meta'][ (int) $post_id ][ $key ] ?? '';
 	return $single ? $v : ( '' === $v ? array() : array( $v ) );
 }
-function update_post_meta( $post_id, $key, $value ) { $GLOBALS['__meta'][ (int) $post_id ][ $key ] = $value; return true; }
+// Core's slash contract: update_post_meta() unslashes, so writers hand it slashed data.
+if ( ! function_exists( 'wp_slash' ) ) {
+	function wp_slash( $v ) { return is_array( $v ) ? array_map( 'wp_slash', $v ) : ( is_string( $v ) ? addslashes( $v ) : $v ); }
+}
+if ( ! function_exists( 'wp_unslash' ) ) {
+	function wp_unslash( $v ) { return is_array( $v ) ? array_map( 'wp_unslash', $v ) : ( is_string( $v ) ? stripslashes( $v ) : $v ); }
+}
+function update_post_meta( $post_id, $key, $value ) { $GLOBALS['__meta'][ (int) $post_id ][ $key ] = wp_unslash( $value ); return true; }
 function delete_post_meta( $post_id, $key ) { unset( $GLOBALS['__meta'][ (int) $post_id ][ $key ] ); return true; }
 function get_posts( $args = array() ) { return array(); }
 function get_option( $k, $d = false ) { return $d; }

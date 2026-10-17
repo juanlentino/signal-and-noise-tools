@@ -53,7 +53,14 @@ function get_post_meta( $post_id, $key, $single = false ) {
 	$v = $GLOBALS['__meta'][ (int) $post_id ][ $key ] ?? '';
 	return $single ? $v : ( '' === $v ? array() : array( $v ) );
 }
-function update_post_meta( $post_id, $key, $value ) { $GLOBALS['__meta'][ (int) $post_id ][ $key ] = $value; return true; }
+// Core's slash contract: update_post_meta() unslashes, so writers hand it slashed data.
+if ( ! function_exists( 'wp_slash' ) ) {
+	function wp_slash( $v ) { return is_array( $v ) ? array_map( 'wp_slash', $v ) : ( is_string( $v ) ? addslashes( $v ) : $v ); }
+}
+if ( ! function_exists( 'wp_unslash' ) ) {
+	function wp_unslash( $v ) { return is_array( $v ) ? array_map( 'wp_unslash', $v ) : ( is_string( $v ) ? stripslashes( $v ) : $v ); }
+}
+function update_post_meta( $post_id, $key, $value ) { $GLOBALS['__meta'][ (int) $post_id ][ $key ] = wp_unslash( $value ); return true; }
 
 $GLOBALS['__fleet'] = array();
 function get_posts( $args = array() ) { $GLOBALS['__get_posts_args'][] = $args; return $GLOBALS['__fleet']; }
@@ -345,6 +352,25 @@ $run_x = sn_prov_backfill_run( 'bf_fetcher' );
 ok( 0 === (int) ( $run_x['repaired'] ?? 0 ), 'a record that disagrees with the stored commit is NOT repaired' );
 ok( isset( $run_x['skipped']['repair_hash_mismatch'] ), 'and the refusal is counted by its own reason' );
 ok( ! isset( sn_prov_get_chain( 99 )[0]['signature'] ), 'the stored commit is left exactly as it was' );
+
+echo "\nGroup: a repaired payload carrying backslashes still re-hashes (2026-10-17)\n";
+// update_post_meta() unslashes (the stub above does, like core). The repair
+// write once handed it the chain raw, which stripped every backslash.
+$uid_s = 'ddddeeee-ffff-4000-8111-222233334444';
+$rec_s = bf_record( $uid_s );
+$rec_s['payload']['content'] = 'Body \\"q\\" a\\/b lone \\ end';
+$rec_s['content_hash']       = sn_prov_content_hash( sn_prov_canonical_json( $rec_s['payload'] ) );
+$unsigned_s                  = $unsigned;
+$unsigned_s['payload']       = $rec_s['payload'];
+$unsigned_s['content_hash']  = $rec_s['content_hash'];
+bf_reset( array( 77 => $uid_s ) );
+$GLOBALS['__meta'][77][ SN_PROV_CHAIN_META ] = array( $unsigned_s );
+$GLOBALS['__http'][ 'notes/' . $uid_s . '/v1.json' ] = array( 'code' => 200, 'body' => json_encode( $rec_s ) );
+$run_s   = sn_prov_backfill_run( 'bf_fetcher' );
+$chain_s = sn_prov_get_chain( 77 );
+ok( 1 === (int) ( $run_s['repaired'] ?? 0 ), 'the backslash payload is repaired' );
+ok( $rec_s['payload']['content'] === ( $chain_s[0]['payload']['content'] ?? null ), 'payload.content is stored byte-for-byte' );
+ok( $chain_s[0]['content_hash'] === sn_prov_content_hash( sn_prov_canonical_json( $chain_s[0]['payload'] ) ), 'the stored payload re-hashes to the stored content_hash' );
 
 echo "\nGroup: loader wiring\n";
 $loader = (string) file_get_contents( SNT_PATH . 'signal-and-noise-tools.php' );
