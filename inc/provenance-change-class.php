@@ -118,9 +118,7 @@ function sn_prov_set_change_class( $post_id, $version, $change_class ) {
 		if ( sn_prov_change_class_storable( $change_class ) ) {
 			$chain[ $i ]['change_class'] = (string) $change_class;
 		}
-		// Slashed, per core's contract: update_post_meta() unslashes, and an
-		// unslashed chain would lose every backslash in a signed payload.
-		update_post_meta( (int) $post_id, SN_PROV_CHAIN_META, wp_slash( $chain ) );
+		sn_prov_put_chain( $post_id, $chain );
 		return true;
 	}
 	return false;

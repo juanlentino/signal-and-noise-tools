@@ -330,7 +330,7 @@ function sn_prov_backfill_run( $fetcher = null ) {
 				$bump( 'repair_hash_mismatch' );
 				continue;
 			}
-			update_post_meta( $post_id, SN_PROV_CHAIN_META, sn_prov_backfill_repair_chain( $chain, $built['commit'] ) );
+			sn_prov_put_chain( $post_id, sn_prov_backfill_repair_chain( $chain, $built['commit'] ) );
 			$repaired++;
 			continue;
 		}

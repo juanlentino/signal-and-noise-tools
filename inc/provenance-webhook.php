@@ -381,7 +381,7 @@ function sn_prov_update_commit( $post_id, $version, array $fields ) {
 	foreach ( $chain as $i => $entry ) {
 		if ( (int) ( $entry['version'] ?? 0 ) === (int) $version ) {
 			$chain[ $i ] = array_merge( $entry, $fields );
-			update_post_meta( (int) $post_id, SN_PROV_CHAIN_META, $chain );
+			sn_prov_put_chain( $post_id, $chain );
 			return true;
 		}
 	}

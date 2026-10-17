@@ -40,9 +40,16 @@ if ( ! function_exists( 'get_post_meta' ) ) {
 		return $single ? ( null === $v ? '' : $v ) : ( null === $v ? array() : array( $v ) );
 	}
 }
+// Core's slash contract: update_post_meta() unslashes, so writers hand it slashed data.
+if ( ! function_exists( 'wp_slash' ) ) {
+	function wp_slash( $v ) { return is_array( $v ) ? array_map( 'wp_slash', $v ) : ( is_string( $v ) ? addslashes( $v ) : $v ); }
+}
+if ( ! function_exists( 'wp_unslash' ) ) {
+	function wp_unslash( $v ) { return is_array( $v ) ? array_map( 'wp_unslash', $v ) : ( is_string( $v ) ? stripslashes( $v ) : $v ); }
+}
 if ( ! function_exists( 'update_post_meta' ) ) {
 	function update_post_meta( $id, $k, $v ) {
-		$GLOBALS['__pv_meta'][ $id ][ $k ] = $v;
+		$GLOBALS['__pv_meta'][ $id ][ $k ] = wp_unslash( $v );
 		return true; }
 }
 if ( ! function_exists( 'wp_generate_uuid4' ) ) {

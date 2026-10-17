@@ -98,6 +98,20 @@ function sn_prov_get_chain( $post_id ) {
 }
 
 /**
+ * The ONE writer of the chain meta. update_post_meta() unslashes its value, so
+ * an unslashed chain loses every backslash in a signed payload and the stored
+ * payload stops matching its content_hash. Every write goes through here;
+ * tests/provenance-chain-slash.php fails if one does not.
+ *
+ * @param int   $post_id
+ * @param array $chain
+ * @return int|bool update_post_meta()'s result.
+ */
+function sn_prov_put_chain( $post_id, array $chain ) {
+	return update_post_meta( (int) $post_id, SN_PROV_CHAIN_META, wp_slash( $chain ) );
+}
+
+/**
  * The chain's newest `committed_at`, as a MySQL GMT datetime ('Y-m-d H:i:s').
  *
  * FORMAT IS LOAD-BEARING, not cosmetic. Commits store ISO-8601
@@ -171,7 +185,7 @@ function sn_prov_stamp_last_commit( $post_id, $chain ) {
 function sn_prov_append_commit( $post_id, array $commit ) {
 	$chain   = sn_prov_get_chain( $post_id );
 	$chain[] = $commit;
-	update_post_meta( (int) $post_id, SN_PROV_CHAIN_META, $chain );
+	sn_prov_put_chain( $post_id, $chain );
 	sn_prov_stamp_last_commit( (int) $post_id, $chain );
 	return $chain;
 }
@@ -197,7 +211,7 @@ function sn_prov_replace_head_commit( $post_id, array $commit ) {
 	}
 	array_pop( $chain );
 	$chain[] = $commit;
-	update_post_meta( (int) $post_id, SN_PROV_CHAIN_META, $chain );
+	sn_prov_put_chain( $post_id, $chain );
 	sn_prov_stamp_last_commit( (int) $post_id, $chain );
 	return $chain;
 }
