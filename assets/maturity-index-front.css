@@ -26,7 +26,7 @@
 .sn-maturity-ladder i.is-planned{border-style:dashed}
 .sn-maturity-ladder i.is-considering{border-style:dotted}
 .sn-maturity-ladder i.is-later{border-color:var(--wp--preset--color--concrete,#d9d9d9)}
-.sn-maturity-ladder-n{display:block;margin-top:.5em;font-family:"DM Mono","Courier New",monospace;font-size:11px;letter-spacing:.08em;color:var(--wp--preset--color--rust,#666)}
+.sn-maturity-ladder-n{display:block;margin-top:.5em;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:11px;letter-spacing:.08em;color:var(--wp--preset--color--rust,#666)}
 @media (forced-colors:active){
 .sn-maturity-ladder i.is-done{forced-color-adjust:none;background:CanvasText}
 .sn-maturity-ladder i{border-color:CanvasText}
