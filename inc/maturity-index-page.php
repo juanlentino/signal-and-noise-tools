@@ -77,7 +77,8 @@ function sn_maturity_index_enqueue() {
  */
 function sn_maturity_index_shortcode( $atts = array() ) {
 	sn_maturity_index_enqueue();
-	$out = '<div class="sn-maturity-index">'
+	$board = function_exists( 'sn_maturity_roadmap_board' ) ? (array) sn_maturity_roadmap_board() : array();
+	$out   = '<div class="sn-maturity-index">'
 		. '<p class="sn-maturity-index-intro">' . esc_html__( 'Each system this site runs on has a public page stating what it does, what it proves, and what it will never do. The pages update when the systems do.', 'signal-and-noise-tools' ) . '</p>'
 		. '<div class="sn-maturity-index-grid">';
 	foreach ( sn_maturity_index_items() as $slug => $it ) {
@@ -85,7 +86,8 @@ function sn_maturity_index_shortcode( $atts = array() ) {
 		$q     = esc_html( isset( $it[1] ) ? $it[1] : '' );
 		$line  = esc_html( isset( $it[2] ) ? $it[2] : '' );
 		$url   = sn_maturity_index_resolve_url( isset( $it[3] ) ? (string) $it[3] : '' );
-		$inner = '<strong>' . $label . '</strong><em>' . $q . '</em><span>' . $line . '</span>';
+		$inner = '<strong>' . $label . '</strong><em>' . $q . '</em><span>' . $line . '</span>'
+			. sn_maturity_index_ladder( $board[ isset( $it[0] ) ? (string) $it[0] : '' ] ?? null );
 		if ( '' !== $url ) {
 			$out .= '<a class="sn-maturity-index-card sn-maturity-index-card--' . esc_attr( $slug ) . '" href="' . esc_url( $url ) . '">' . $inner . '</a>';
 		} else {
@@ -95,3 +97,34 @@ function sn_maturity_index_shortcode( $atts = array() ) {
 	return $out . '</div></div>';
 }
 add_shortcode( 'sn_maturity_index', 'sn_maturity_index_shortcode' );
+
+/**
+ * A family's roadmap mix as an LED ladder (2026.10): one segment per roadmap
+ * item, solid for done, dashed for planned, dotted for considering, hollow for
+ * later, then the counts as text. Read from the live board, so the index never
+ * disagrees with /maturity/roadmap. Only counts leave the board, never item text.
+ *
+ * @param array|null $columns The family's board entry: status => sentences.
+ * @return string Markup, or '' when the family has no items.
+ */
+function sn_maturity_index_ladder( $columns ) {
+	if ( ! is_array( $columns ) ) {
+		return '';
+	}
+	$statuses = defined( 'SN_MATURITY_ROADMAP_STATUSES' ) ? SN_MATURITY_ROADMAP_STATUSES : array( 'done', 'planned', 'considering', 'later' );
+	$segments = '';
+	$parts    = array();
+	foreach ( $statuses as $status ) {
+		$n = isset( $columns[ $status ] ) && is_array( $columns[ $status ] ) ? count( $columns[ $status ] ) : 0;
+		if ( $n < 1 ) {
+			continue;
+		}
+		$segments .= str_repeat( '<i class="is-' . esc_attr( $status ) . '"></i>', $n );
+		$parts[]   = $n . ' ' . $status;
+	}
+	if ( '' === $segments ) {
+		return '';
+	}
+	return '<span class="sn-maturity-ladder" aria-hidden="true">' . $segments . '</span>'
+		. '<span class="sn-maturity-ladder-n">' . esc_html( implode( ' · ', $parts ) ) . '</span>';
+}

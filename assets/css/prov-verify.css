@@ -370,6 +370,19 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 .sn-verify-check[data-state="FAIL"] .sn-verify-check-state{border-color:var(--blood);color:var(--blood);border-width:3px}
 .sn-verify-check[data-state="NOTE"] .sn-verify-check-state{border-color:var(--rust);color:var(--rust)}
 .sn-verify-check[data-state="UNREACHABLE"] .sn-verify-check-state{border-style:dashed;border-color:var(--concrete-ink);color:var(--concrete-ink)}
+/* The lamp (2026.10): shape, not color alone, says the state. Solid for PASS,
+   solid blood for FAIL, a dashed ring for UNREACHABLE (a network failure must
+   never read as a failed check), half for NOTE, a dotted ring while pending. */
+.sn-verify-check-state::before{content:"";display:inline-block;width:.75em;height:.75em;margin-right:.6em;vertical-align:-.08em;box-sizing:border-box;border-radius:50%;border:1.5px solid currentColor}
+.sn-verify-check[data-state="pending"] .sn-verify-check-state::before{border-style:dotted}
+.sn-verify-check[data-state="PASS"] .sn-verify-check-state::before{background:currentColor}
+.sn-verify-check[data-state="FAIL"] .sn-verify-check-state::before{background:currentColor}
+.sn-verify-check[data-state="UNREACHABLE"] .sn-verify-check-state::before{border-style:dashed}
+.sn-verify-check[data-state="NOTE"] .sn-verify-check-state::before{background:linear-gradient(90deg,currentColor 50%,transparent 50%)}
+@media (forced-colors:active){
+.sn-verify-check[data-state="PASS"] .sn-verify-check-state::before,
+.sn-verify-check[data-state="FAIL"] .sn-verify-check-state::before{forced-color-adjust:none;background:CanvasText}
+}
 
 @keyframes sn-verify-stamp{
 	0%{transform:rotate(-9deg) scale(1.5);opacity:0}
