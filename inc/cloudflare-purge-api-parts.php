@@ -112,16 +112,6 @@ function sn_cf_purge_everything( $trigger = '' ) {
 	// 20.9.0: a code update marks the zone stale; anything else deletes.
 	$endpoint  = sn_cf_edge_endpoint( (string) ( $GLOBALS['snt_purge_current']['trigger'] ?? '' ) );
 	$confirmed = sn_cf_api_send( $endpoint, array( 'purge_everything' => true ) );
-	// 2026-10-17: a stale feed is revalidated, and an unchanged feed answers
-	// 304, so Cloudflare kept 2026.10.33's pre-update headers (no X-Robots-Tag)
-	// until a manual purge. The edge-cached feeds are deleted outright instead;
-	// a deleted copy cannot be renewed. Pages keep the stale-safe invalidate.
-	if ( 'invalidate_cache' === $endpoint && function_exists( 'sn_cf_machine_urls' ) ) {
-		$feeds = sn_cf_machine_urls();
-		if ( $feeds ) {
-			sn_cf_api_send( 'purge_cache', array( 'files' => $feeds ) );
-		}
-	}
 	if ( function_exists( 'snt_pulse_beat' ) ) {
 		snt_pulse_beat( 'cache-purge', snt_pulse_purge_failed( $confirmed, sn_cf_send_last() ) ); // inc/openstation-pulse.php: a whole-zone purge beats; only a refusal is a failed beat.
 	}
@@ -147,7 +137,37 @@ function sn_cf_purge_everything( $trigger = '' ) {
 		snt_purge_ledger_add( $row );
 	}
 
+	sn_cf_delete_edge_feeds_after_invalidate( $endpoint );
 	return true;
+}
+
+/**
+ * After a stale-marking update, delete the edge-cached feeds outright.
+ *
+ * 2026-10-17: after 2026.10.33, /feed/ and /notes/feed/ kept their pre-update
+ * headers (no X-Robots-Tag) for minutes: an invalidated feed is served stale
+ * while Cloudflare refetches it (stale-while-revalidate is 3600 s). Pages
+ * keep that stale-safe refresh; the feeds (about 15 URLs, the theme's
+ * edge-cached list) come back fresh on the next request instead. Runs after
+ * the zone call's outcome is read and restores it, so the ledger, the pulse
+ * and any caller reading sn_cf_send_last() still see the zone call.
+ *
+ * @param string $endpoint The endpoint the zone call used.
+ * @return void
+ */
+function sn_cf_delete_edge_feeds_after_invalidate( $endpoint ) {
+	if ( 'invalidate_cache' !== $endpoint || ! function_exists( 'sn_cf_machine_urls' ) ) {
+		return;
+	}
+	$feeds = sn_cf_machine_urls();
+	if ( ! $feeds ) {
+		return;
+	}
+	$last = $GLOBALS['sn_cf_send_last'] ?? null;
+	$used = $GLOBALS['sn_cf_send_endpoint'] ?? null;
+	sn_cf_api_send( 'purge_cache', array( 'files' => $feeds ) );
+	$GLOBALS['sn_cf_send_last']     = $last;
+	$GLOBALS['sn_cf_send_endpoint'] = $used;
 }
 
 /**
