@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **/now's Updated date is the list's own again.** The /now page regenerates on every save of the list, including re-saves of identical content. `sn_now_build_body()` stamped the day of the rebuild, so the visible "Updated" date could move while the list stayed exactly the same. That breaks the rule that the date belongs to the list (#1228 had fixed only the stored stamp). The body now reads the stored content-change stamp through `sn_now_updated_label()`, and falls back to today only when no list is stored or the stamp cannot be read. Found by a design-research pass. `tests/now-page-migration.php` pins it (red before: 1 failed).
+
 ## [2026.10.30] - 2026-10-17 — the provenance record as an edit list, with a fingerprint per version
 
 
