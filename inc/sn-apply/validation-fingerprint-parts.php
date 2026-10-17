@@ -500,6 +500,10 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 				'new_content' => null,
 			);
 
+		case 'change_class_backfill':
+			// The plan fingerprint (inc/sn-apply/change-class-backfill-parts.php).
+			return snt_sn_apply_gate1_change_class_backfill( $change );
+
 		case 'roadmap_board':
 			// The board-as-data type (inc/sn-apply/roadmap-board.php): a REAL
 			// fingerprint scheme binding to the CURRENT effective board's

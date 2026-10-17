@@ -290,6 +290,10 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 			// (before = the pre-write effective board).
 			return snt_sn_apply_write_roadmap_board( $payload );
 
+		case 'change_class_backfill':
+			// mode:publish only; the write re-plans and re-checks the fingerprint.
+			return snt_sn_apply_write_change_class_backfill( $change );
+
 		case 'merge_tags':
 			// mode:publish only. Routes to the REAL ability, never a
 			// re-implementation; gate 2 has already fenced the payload.

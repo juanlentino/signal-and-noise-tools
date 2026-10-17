@@ -317,6 +317,8 @@ require __DIR__ . '/../inc/maturity-roadmap-merge.php'; // sn_maturity_roadmap_e
 require __DIR__ . '/../inc/maturity-roadmap-shortcode.php'; // roadmap_board's board/validator/fingerprint helpers — the REAL impl, never restubbed here.
 require __DIR__ . '/../inc/sn-apply/roadmap-board.php';
 require __DIR__ . '/../inc/sn-apply/executors.php';
+if ( ! function_exists( 'add_filter' ) ) { function add_filter( $t, $c, $p = 10, $a = 1 ) { return true; } }
+require __DIR__ . '/../inc/provenance-core.php'; // change_class_backfill reads chains through the real sn_prov_get_chain().
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 
 if ( ! function_exists( 'get_edit_post_link' ) ) { function get_edit_post_link( $id, $ctx = 'display' ) { return 'https://example.test/wp-admin/post.php?post=' . (int) $id . '&action=edit'; } }
@@ -765,6 +767,13 @@ $be_blocks = json_encode( array( array(
 tf_post( 796, array( 'post_content' => "<!-- wp:paragraph --><p>First block of the two-block fixture, long enough to anchor.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>Second block of the two-block fixture, long enough to anchor.</p><!-- /wp:paragraph -->" ) );
 $bd_fp = snt_corpus_content_hash( $GLOBALS['__posts'][796]['post_content'] );
 
+// change_class_backfill fixture (2026-10-17): one chain with one version on
+// the window date, so the dry run plans a row; fingerprint from the real planner.
+tf_post( 797 );
+$GLOBALS['__post_meta'][797]['_sn_prov_chain'] = array( array( 'version' => 1, 'content_hash' => 'h', 'payload' => array(), 'committed_at' => '2026-10-16T12:00:00Z' ) );
+$cb_payload = array( 'window_dates' => array( '2026-10-16' ), 'labels' => array( array( 'post_id' => 797, 'change_class' => 'reading_aid' ) ) );
+$cb_fp      = snt_sn_apply_backfill_fingerprint( snt_sn_apply_backfill_plan( $cb_payload )['rows'] );
+
 echo "\nStructural sweep: every change type's dry_run path writes NOTHING\n";
 $sweep_calls = array(
 	'block_migration'  => array( 'target' => array( 'post_id' => 750 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_migration', 'fingerprint' => $bm_fp, 'payload' => array( 'migration_type' => 'heading-hierarchy-skip', 'replacement_markup' => $bm_replacement ) ) ),
@@ -842,6 +851,8 @@ $sweep_calls = array(
 	// the paragraphs sit at 0/0 and 0/2 with the whitespace separator at 0/1.
 	// The pin here is the family zero-writes property; splice geometry lives
 	// in the dedicated suite.
+	// change_class_backfill (2026-10-17): publish-only, scope-targeted, labels only.
+	'change_class_backfill' => array( 'target' => array( 'scope' => 'provenance_labels' ), 'mode' => 'publish', 'change' => array( 'type' => 'change_class_backfill', 'fingerprint' => $cb_fp, 'payload' => $cb_payload ) ),
 	'block_delete'     => array( 'target' => array( 'post_id' => 796 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_delete', 'fingerprint' => $bd_fp, 'payload' => array( 'block_path' => '0/2' ) ) ),
 	'block_move'       => array( 'target' => array( 'post_id' => 796 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_move', 'fingerprint' => $bd_fp, 'payload' => array( 'block_path' => '0/2', 'position' => 'before', 'to_block_path' => '0/0' ) ) ),
 );

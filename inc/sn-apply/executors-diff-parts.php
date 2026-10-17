@@ -243,6 +243,9 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 			// docblock: the observe step is a dry_run call itself).
 			return snt_sn_apply_roadmap_board_diff( $change );
 
+		case 'change_class_backfill':
+			return snt_sn_apply_change_class_backfill_diff( $change, $gate1 );
+
 		case 'delete_draft':
 			// Identity preview, not a content diff — "is this the draft I
 			// think it is" (inc/sn-apply/delete-draft.php).

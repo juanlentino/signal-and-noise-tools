@@ -55,6 +55,11 @@ function snt_sn_apply_mode_support( $type ) {
 				'modes'  => array( 'publish' ),
 				'reason' => 'roadmap_board writes the maturity roadmap\'s site-level board override: an option, not a post field. An option has no WordPress revision to stage — publish-only, the og_card/anchor_sweep posture; dry_run:true is the review step.',
 			);
+		case 'change_class_backfill':
+			return array(
+				'modes'  => array( 'publish' ),
+				'reason' => 'change_class_backfill labels existing provenance versions beside their signed payload: a chain-entry key, not a post field. A label on an existing version has no WordPress revision to stage. Publish-only; dry_run:true is the review step.',
+			);
 		case 'merge_tags':
 			return array(
 				'modes'  => array( 'publish' ),
@@ -136,6 +141,13 @@ function snt_sn_apply_resolve_target( $type, $target ) {
 			return new WP_Error( 'snt_sn_apply_bad_target', __( 'schedule_cron_event requires target.scope === "cron".', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 		}
 		return array( 'scope' => 'cron' );
+	}
+
+	if ( 'change_class_backfill' === $type ) {
+		if ( 'provenance_labels' !== ( $target['scope'] ?? '' ) ) {
+			return new WP_Error( 'snt_sn_apply_bad_target', __( 'change_class_backfill requires target.scope === "provenance_labels".', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		return array( 'scope' => 'provenance_labels' );
 	}
 
 	if ( 'roadmap_board' === $type ) {
