@@ -99,7 +99,15 @@ function sn_maturity_legacy_redirect_decision( $request_path, $is_404 ) {
 	if ( '' === $key || ! isset( $map[ $key ] ) ) {
 		return ''; // Exact paths only: a deeper path under a mapped one was never shared.
 	}
-	return sn_maturity_legacy_redirect_target( (string) $map[ $key ] );
+	$target = sn_maturity_legacy_redirect_target( (string) $map[ $key ] );
+	// 2026-10: the query rides along, so an old /provenance/verify?note=&v=
+	// link still verifies that note. Parsed and re-encoded, never raw.
+	$query = (string) wp_parse_url( $request_path, PHP_URL_QUERY );
+	if ( '' === $target || '' === $query ) {
+		return $target;
+	}
+	parse_str( $query, $args );
+	return $args ? add_query_arg( urlencode_deep( $args ), $target ) : $target;
 }
 
 /**

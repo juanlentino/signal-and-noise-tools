@@ -29,6 +29,15 @@ function get_permalink( $post ) {
 	return 'https://example.com/' . ( in_array( $post->post_name, $top, true ) ? '' : 'maturity/' ) . $post->post_name . '/';
 }
 function is_post_publicly_viewable( $post ) { return 'private-page' !== $post->post_name; }
+// Core's shapes: urlencode_deep encodes every value, add_query_arg appends.
+function urlencode_deep( $v ) { return is_array( $v ) ? array_map( 'urlencode_deep', $v ) : urlencode( (string) $v ); }
+function add_query_arg( $args, $url ) {
+	$pairs = array();
+	foreach ( $args as $k => $v ) {
+		$pairs[] = $k . '=' . $v;
+	}
+	return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . implode( '&', $pairs );
+}
 
 require __DIR__ . '/../inc/maturity-legacy-redirects.php';
 $pass = 0; $fail = 0;
@@ -36,7 +45,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 
 echo "Group: decision predicate\n";
 ok( 'https://example.com/maturity/analytics/' === sn_maturity_legacy_redirect_decision( '/analytics/', true ), 'dead /analytics/ 301s to its child-of-/maturity/ permalink' );
-ok( 'https://example.com/maturity/proof-of-origin/' === sn_maturity_legacy_redirect_decision( '/proof-of-origin/?utm_source=x', true ), 'query strings do not defeat the segment match' );
+ok( 'https://example.com/maturity/proof-of-origin/?utm_source=x' === sn_maturity_legacy_redirect_decision( '/proof-of-origin/?utm_source=x', true ), 'query strings do not defeat the path match, and ride along' );
 ok( '' === sn_maturity_legacy_redirect_decision( '/analytics/', false ), 'NOT a 404 → never redirects (a real page at that path always wins)' );
 ok( '' === sn_maturity_legacy_redirect_decision( '/some-random-post/', true ), 'unmapped segment → no redirect (this is a fixed map, not slug-guessing)' );
 ok( '' === sn_maturity_legacy_redirect_decision( '/maturity/analytics/extra/', true ), 'an unmapped multi-segment path never matches (the map is exact, not a prefix)' );
@@ -58,6 +67,9 @@ ok( 'https://example.com/verify/' === sn_maturity_legacy_redirect_decision( '/pr
 ok( 'https://example.com/verify/' === sn_maturity_legacy_redirect_decision( '/provenance/verify/', true ), '/provenance/verify/ 301s to /verify/' );
 ok( 'https://example.com/inicio/' === sn_maturity_legacy_redirect_decision( '/es/', true ), '/es/ 301s to /inicio/ (the home page\'s hreflang es)' );
 ok( 'https://example.com/sobre-mi/' === sn_maturity_legacy_redirect_decision( '/es/about/', true ), '/es/about/ 301s to /sobre-mi/ (about\'s hreflang es)' );
+ok( 'https://example.com/verify/?note=0b7c1d2e-3f40-4a5b-8c6d-7e8f90a1b2c3&v=2' === sn_maturity_legacy_redirect_decision( '/provenance/verify?note=0b7c1d2e-3f40-4a5b-8c6d-7e8f90a1b2c3&v=2', true ), 'an old verify link keeps its note and version' );
+ok( 'https://example.com/verify/?note=%3Cscript%3E%0D%0ALocation%3A+x' === sn_maturity_legacy_redirect_decision( '/provenance/verify/?note=%3Cscript%3E%0D%0ALocation:%20x', true ), 'a hostile query value is re-encoded, never passed through raw' );
+ok( 'https://example.com/verify/' === sn_maturity_legacy_redirect_decision( '/provenance/verify/?', true ), 'an empty query adds nothing' );
 ok( '' === sn_maturity_legacy_redirect_decision( '/es/notes/', true ), '/es/notes/ stays a 404: /notes/ has no Spanish page' );
 ok( '' === sn_maturity_legacy_redirect_decision( '/verify/', false ), '/verify?note=&v= is a live page, never redirected' );
 ok( '' === sn_maturity_legacy_redirect_decision( '/wp-content/plugins/x/readme.txt', true ), 'a scanner 404 stays a 404' );
