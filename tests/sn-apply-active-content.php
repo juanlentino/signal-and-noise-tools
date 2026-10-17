@@ -49,7 +49,7 @@ function add_action( $h, $c, $p = 10, $a = 1 ) { return true; }
 function add_filter( $h, $c, $p = 10, $a = 1 ) { return true; }
 require_once __DIR__ . '/lib/wp-core-kses.php'; // Core's HTML API and kses, off SNT_WP_HTML_API.
 if ( ! SNT_KSES_IS_CORE ) {
-	echo "FAIL: core's HTML API and kses.php are not on this machine. Set SNT_WP_HTML_API=<wp>/wp-includes/html-api with kses.php beside it.\n";
+	echo "FAIL: core's HTML API and kses.php are not on this machine. Run bash tools/fetch-wp-test-core.sh <dir>, then set SNT_WP_HTML_API=<dir>/wp-includes/html-api.\n";
 	echo "\nResult: 0 passed, 1 failed.\n";
 	exit( 1 );
 }

@@ -13,7 +13,7 @@
  * and batch members), the drift and em-dash batch members, and create_draft.
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 2026.10.26
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

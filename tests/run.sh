@@ -24,6 +24,11 @@
 # Usage:  bash tests/run.sh            # sweep everything
 #         bash tests/run.sh foo.php    # sweep one suite by basename
 #
+# Some suites run WordPress core's own code (HTML API, kses.php, formatting.php)
+# and FAIL under CI without it. Fetch it once, as CI does, and point the sweep at it:
+#         bash tools/fetch-wp-test-core.sh <dir>
+#         SNT_WP_HTML_API=<dir>/wp-includes/html-api bash tests/run.sh
+#
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 2
@@ -120,6 +125,10 @@ fi
 # human reads was not, and the sentence is what gets quoted.
 if [ "$fail" -gt 0 ]; then
 	echo "-- swept $total suites, $passed assertions passed, $fail SUITE(S) FAILED, $skipped skipped --"
+	if [ -z "${SNT_WP_HTML_API:-}" ]; then
+		echo "   SNT_WP_HTML_API is unset: suites that run core's HTML API or kses fail without it."
+		echo "   Fetch it with: bash tools/fetch-wp-test-core.sh <dir>, then SNT_WP_HTML_API=<dir>/wp-includes/html-api bash tests/run.sh"
+	fi
 	# Exit 1, not $fail: now that it is a count, exiting with it would report 3
 	# broken suites as status 3 — and anything above 125 wraps into the shell's
 	# signal range. The count belongs in the sentence, not the exit code.

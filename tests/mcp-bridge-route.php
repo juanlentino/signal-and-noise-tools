@@ -40,6 +40,7 @@ function is_wp_error( $t ) { return $t instanceof WP_Error; }
 $GLOBALS['__routes'] = array();
 function register_rest_route( $ns, $route, $args = array() ) { $GLOBALS['__routes'][ $ns . $route ] = $args; return true; }
 
+require __DIR__ . '/../inc/rest-no-route.php'; // the shared rest_no_route the bridge returns
 require __DIR__ . '/../inc/mcp/mcp-remote-guard.php';
 require __DIR__ . '/../inc/mcp/mcp-bridge-route.php';
 require __DIR__ . '/../inc/abilities-lifecycle-guard.php'; // the door the call log files a dispatch under

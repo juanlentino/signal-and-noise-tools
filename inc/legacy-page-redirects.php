@@ -34,7 +34,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @return array<string,string>
  */
-function sn_maturity_legacy_redirect_map() {
+function sn_legacy_page_redirect_map() {
 	$map = array(
 		'analytics'           => 'analytics',
 		'proof-of-origin'     => 'proof-of-origin',
@@ -48,13 +48,22 @@ function sn_maturity_legacy_redirect_map() {
 		'es/about'            => 'sobre-mi', // /about/'s hreflang es
 	);
 	/**
+	 * Deprecated alias of `sn_legacy_page_redirects`, from when the map held
+	 * only the maturity family's paths. Still applied (first), so an existing
+	 * callback keeps working; new code hooks `sn_legacy_page_redirects`.
+	 *
+	 * @deprecated Use sn_legacy_page_redirects.
+	 * @param array<string,string> $map
+	 */
+	$map = (array) apply_filters( 'sn_maturity_legacy_redirects', $map );
+	/**
 	 * Filter the legacy-redirect map. Keys are whole paths without the outer
 	 * slashes, matched exactly and ONLY on 404 responses; values are page
 	 * slugs (never paths).
 	 *
 	 * @param array<string,string> $map
 	 */
-	return (array) apply_filters( 'sn_maturity_legacy_redirects', $map );
+	return (array) apply_filters( 'sn_legacy_page_redirects', $map );
 }
 
 /**
@@ -64,7 +73,7 @@ function sn_maturity_legacy_redirect_map() {
  * @param string $slug Page slug.
  * @return string
  */
-function sn_maturity_legacy_redirect_target( $slug ) {
+function sn_legacy_page_redirect_target( $slug ) {
 	$pages = get_posts( array(
 		'post_type'      => 'page',
 		'post_status'    => 'publish',
@@ -90,16 +99,16 @@ function sn_maturity_legacy_redirect_target( $slug ) {
  * @param bool   $is_404       Whether WP resolved this request to a 404.
  * @return string Redirect URL, or '' for no redirect.
  */
-function sn_maturity_legacy_redirect_decision( $request_path, $is_404 ) {
+function sn_legacy_page_redirect_decision( $request_path, $is_404 ) {
 	if ( ! $is_404 ) {
 		return '';
 	}
 	$key = implode( '/', array_filter( explode( '/', (string) wp_parse_url( $request_path, PHP_URL_PATH ) ) ) );
-	$map = sn_maturity_legacy_redirect_map();
+	$map = sn_legacy_page_redirect_map();
 	if ( '' === $key || ! isset( $map[ $key ] ) ) {
 		return ''; // Exact paths only: a deeper path under a mapped one was never shared.
 	}
-	$target = sn_maturity_legacy_redirect_target( (string) $map[ $key ] );
+	$target = sn_legacy_page_redirect_target( (string) $map[ $key ] );
 	// 2026-10: the query rides along, so an old /provenance/verify?note=&v=
 	// link still verifies that note. Parsed and re-encoded, never raw.
 	$query = (string) wp_parse_url( $request_path, PHP_URL_QUERY );
@@ -112,8 +121,8 @@ function sn_maturity_legacy_redirect_decision( $request_path, $is_404 ) {
 	}
 	// Keys are encoded too: add_query_arg() leaves them raw, so a decoded `a&b` key would split.
 	$encoded = array();
-	foreach ( urlencode_deep( $args ) as $key => $value ) {
-		$encoded[ rawurlencode( (string) $key ) ] = $value;
+	foreach ( urlencode_deep( $args ) as $arg_key => $value ) {
+		$encoded[ rawurlencode( (string) $arg_key ) ] = $value;
 	}
 	return add_query_arg( $encoded, $target );
 }
@@ -121,18 +130,18 @@ function sn_maturity_legacy_redirect_decision( $request_path, $is_404 ) {
 /**
  * template_redirect handler: 301 the mapped legacy URLs to their pages.
  */
-function sn_maturity_legacy_redirect_handler() {
+function sn_legacy_page_redirect_handler() {
 	if ( ! is_404() ) {
 		return;
 	}
 	$request = isset( $_SERVER['REQUEST_URI'] )
 		? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
 		: '';
-	$target  = sn_maturity_legacy_redirect_decision( $request, true );
+	$target  = sn_legacy_page_redirect_decision( $request, true );
 	if ( '' === $target ) {
 		return;
 	}
 	wp_safe_redirect( $target, 301 );
 	exit;
 }
-add_action( 'template_redirect', 'sn_maturity_legacy_redirect_handler' );
+add_action( 'template_redirect', 'sn_legacy_page_redirect_handler' );

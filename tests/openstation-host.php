@@ -943,7 +943,7 @@ if ( $skip > 0 && '' !== $snt_ci && '0' !== $snt_ci && 'false' !== strtolower( $
 	echo "\nFAILED (counted into the summary below, which is what tests/run.sh reads): $skip pins were SKIPPED because WordPress's wp-includes/html-api is not on this machine,\n";
 	echo "and the rewrite pass is the single most load-bearing seam of this port. A lane that skips it prints OK\n";
 	echo "while every form still posts to a URL and every link still navigates the desktop away.\n";
-	echo "Fix: fetch WordPress in the workflow and export SNT_WP_HTML_API=<checkout>/wp-includes/html-api.\n";
+	echo "Fix: bash tools/fetch-wp-test-core.sh <dir>, then export SNT_WP_HTML_API=<dir>/wp-includes/html-api.\n";
 	// tests/run.sh discards a suite's exit status and judges the summary line
 	// alone, so the skips must be counted where the runner looks.
 	$fail += $skip;
