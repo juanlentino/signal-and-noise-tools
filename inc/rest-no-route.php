@@ -31,3 +31,29 @@ function sn_rest_no_route_error() {
 		array( 'status' => 404 )
 	);
 }
+
+/**
+ * Keep every rest_no_route answer out of shared caches.
+ *
+ * 2026-10-17 audit: Cloudflare cached the 404 (no Cache-Control on core's
+ * error response) and served it to the next request whatever its token, so
+ * the analytics Worker's authorized GET /owner/revoked could read a primed
+ * 404 and keep a stale revocation list. Applied to every rest_no_route, core's
+ * own included, so the refusal stays byte-identical to an absent route.
+ *
+ * @param WP_HTTP_Response|mixed $response The dispatched response.
+ * @return WP_HTTP_Response|mixed
+ */
+function sn_rest_no_route_no_store( $response ) {
+	if ( is_object( $response ) && method_exists( $response, 'get_data' ) && method_exists( $response, 'header' ) ) {
+		$data = $response->get_data();
+		if ( is_array( $data ) && 'rest_no_route' === ( $data['code'] ?? '' ) ) {
+			$response->header( 'Cache-Control', 'no-store' );
+			$response->header( 'Cloudflare-CDN-Cache-Control', 'no-store' );
+		}
+	}
+	return $response;
+}
+if ( function_exists( 'add_filter' ) ) {
+	add_filter( 'rest_post_dispatch', 'sn_rest_no_route_no_store' );
+}

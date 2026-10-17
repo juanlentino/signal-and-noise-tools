@@ -212,6 +212,25 @@ unset( $GLOBALS['sn_cf_site_editor_purged'] );
 ok( in_array( array( 'transition_post_status', 'sn_cf_purge_on_site_editor_unpublish', 3 ), $GLOBALS['__actions'], true ) && in_array( array( 'before_delete_post', 'sn_cf_purge_on_site_editor_delete', 2 ), $GLOBALS['__actions'], true ), 'the unpublish and delete hooks are registered' );
 ok( 1 === substr_count( $purge_src, "sn_cf_purge_tag();" ) && false !== strpos( $purge_src, 'if ( sn_cf_tagged() ) {' ), 'the save handler purges the tag in one place, ahead of the older-theme path' );
 
+echo "\nGroup: a code update deletes the edge-cached feeds (2026-10-17)\n";
+if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://example.com' . $p; } }
+if ( ! function_exists( 'sn_edge_cache_feed_paths' ) ) { function sn_edge_cache_feed_paths() { return array( '/feed/', '/notes/feed/' ); } }
+reset_all( array( array( 200, true ) ) );
+$GLOBALS['snt_purge_current'] = array( 'trigger' => 'update' );
+sn_cf_purge_everything();
+$calls = $GLOBALS['__http'];
+$files = json_decode( $calls[1][1]['body'] ?? '{}', true )['files'] ?? array();
+ok( array( 'invalidate_cache', 'purge_cache' ) === array_column( $calls, 0 ) && in_array( 'https://example.com/feed/', $files, true ) && in_array( 'https://example.com/notes/feed/', $files, true ), 'an update invalidates the zone, then deletes the edge-cached feeds' );
+ok( 'invalidate_cache' === ( $GLOBALS['snt_purge_edge_call'] ?? '' ) && 'invalidate_cache' === sn_cf_send_endpoint(), 'the ledger still reads the update as a mark-stale, not a delete' );
+reset_all( array( array( 503, false ), array( 200, true ) ) );
+$GLOBALS['snt_purge_current'] = array( 'trigger' => 'update' );
+ok( true === sn_cf_purge_everything() && 'queued' === sn_cf_send_last(), 'a queued zone call stays queued (handled), whatever the feed call answered' );
+reset_all( array( array( 200, true ) ) );
+$GLOBALS['snt_purge_current'] = array( 'trigger' => 'manual' );
+sn_cf_purge_everything();
+ok( array( 'purge_cache' ) === array_column( $GLOBALS['__http'], 0 ), 'a manual purge already deletes everything: one call, no extra feed purge' );
+unset( $GLOBALS['snt_purge_current'] );
+
 echo "\nGroup: not configured\n";
 $GLOBALS['__opts'] = array(); $GLOBALS['__http'] = array();
 ok( false === sn_cf_api_send( 'purge_cache', array( 'purge_everything' => true ) ) && array() === $GLOBALS['__http'], 'no token, no call, no record' );
