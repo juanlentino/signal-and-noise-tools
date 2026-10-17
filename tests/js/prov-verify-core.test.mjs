@@ -851,5 +851,16 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 	eq( 'FAIL', named.verdict && named.verdict.state, 'a record naming the author key fails by role' );
 }
 
+// 2026-10-17: the change class is the author's label for a version, carried in
+// evidence outside the signed bytes. /verify shows it as a label, never a check.
+{
+	eq( "the author labels this version a reading aid; the label is not part of what is verified", core.changeClassNote( { evidence: [ { changeClass: 'reading_aid' } ] } ), 'a classed version reads as the author\'s label, not a check' );
+	eq( "the author labels this version a correction; the label is not part of what is verified", core.changeClassNote( { evidence: [ { changeClass: 'correction' } ] } ), 'correction' );
+	eq( '', core.changeClassNote( { evidence: [ { changeClass: 'unclassified' } ] } ), 'unclassified shows nothing' );
+	eq( '', core.changeClassNote( { evidence: [ { changeClass: '<b>x</b>' } ] } ), 'an unknown value shows nothing' );
+	eq( '', core.changeClassNote( { evidence: [ {} ] } ), 'no class, nothing' );
+	eq( '', core.changeClassNote( null ), 'no credential, nothing' );
+}
+
 console.log( `\nResult: ${pass} passed, ${fail} failed.` );
 process.exit( fail > 0 ? 1 : 0 );

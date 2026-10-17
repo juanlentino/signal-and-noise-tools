@@ -583,5 +583,24 @@ rp_eq( 1, substr_count( $panel_edl, 'mempool.space/block/971793' ), 'edit list: 
 update_post_meta( 8, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'c1', 'status' => 'confirmed', 'bitcoin_block' => 957333 ) ) );
 rp_true( false === strpos( sn_prov_render_panel( 8 ), 'sn-prov-fp' ), 'edit list: a row without a full hash draws no strip' );
 
+// --- Change class (2026-10-17): the author's label beside a version, outside
+// what is verified. Shown only when classified; unknown values show nothing.
+require_once SNT_PATH . 'inc/provenance-change-class.php';
+update_post_meta( 8, SN_PROV_CHAIN_META, array(
+	array( 'version' => 1, 'content_hash' => $h1, 'status' => 'confirmed', 'bitcoin_block' => 971764, 'committed_at' => '2026-10-16T22:00:58Z' ),
+	array( 'version' => 2, 'content_hash' => $h2, 'status' => 'confirmed', 'bitcoin_block' => 971793, 'committed_at' => '2026-10-17T04:01:02Z', 'change_class' => 'reading_aid' ),
+	array( 'version' => 3, 'content_hash' => $h1, 'status' => 'confirmed', 'bitcoin_block' => 971800, 'committed_at' => '2026-10-17T05:00:00Z', 'change_class' => 'wibble' ),
+) );
+$vm_cc = sn_prov_view_data( 8 );
+rp_eq( 'reading_aid', $vm_cc['versions'][1]['change_class'] ?? null, 'change class: carried into the view data' );
+rp_eq( '', $vm_cc['versions'][0]['change_class'] ?? null, 'change class: an unclassified version carries an empty class' );
+$panel_cc = sn_prov_render_panel( 8 );
+rp_eq( 1, substr_count( $panel_cc, 'class="sn-prov-class"' ), 'change class: one label, for the one classified version (unclassified and unknown show nothing)' );
+rp_true( false !== strpos( $panel_cc, '>reading aid</span>' ), 'change class: the short label is shown' );
+rp_true( false !== strpos( $panel_cc, '<span class="screen-reader-text">Author&#039;s label, not verified: </span>reading aid' ) || false !== strpos( $panel_cc, "<span class=\"screen-reader-text\">Author's label, not verified: </span>reading aid" ), 'change class: a screen reader hears that it is the author\'s label, not verified (a title alone is mostly skipped)' );
+rp_true( false === strpos( $panel_cc, 'unclassified' ) && false === strpos( $panel_cc, 'wibble' ), 'change class: never the word unclassified, never an unknown value' );
+rp_true( 1 === preg_match( '/<span class="sn-prov-class" title="[^"]*not (?:part of what is |)(?:signed|verified)[^"]*">/', $panel_cc ), 'change class: the label says it is the author\'s description, not part of what is verified' );
+rp_true( strpos( $panel_cc, 'sn-prov-class' ) > strpos( $panel_cc, '<span class="sn-prov-n">002</span>' ) && strpos( $panel_cc, 'sn-prov-class' ) < strpos( $panel_cc, '<span class="sn-prov-n">001</span>' ), 'change class: on the v2 row' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

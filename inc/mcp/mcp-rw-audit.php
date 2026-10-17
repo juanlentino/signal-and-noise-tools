@@ -123,6 +123,7 @@ function sn_mcp_rw_audit_safe_arg_keys() {
 		'gate_validation_passed',
 		'gate_capability_passed',
 		'gate_idempotency_passed',
+		'change_class', // 2026-10-17: the author's label for the version a write mints.
 	);
 }
 

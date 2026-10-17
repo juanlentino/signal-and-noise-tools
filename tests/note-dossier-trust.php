@@ -69,6 +69,23 @@ ok( 'success' === $signer['tone'] && false !== strpos( $signer['text'], 'sn-ed25
 $cits = by_heading( $b, 'Citations received' );
 ok( 'table' === $cits['kind'] && 2 === count( $cits['rows'] ) && 'success' === $cits['rows'][0]['tier']['tone'] && 'A post' === $cits['rows'][0]['source'] && 'x.example.net' === $cits['rows'][1]['source'] && 'never' === $cits['rows'][1]['checked'], 'citations: tier as a toned cell, title or host, never vs a time' );
 
+// 2026-10-17: the author's change class per version, as its own block, set
+// apart from the anchor proof: a label, not something the signature covers.
+require_once __DIR__ . '/../inc/provenance-change-class.php';
+ok( null === by_heading( $b, 'Edits' ), 'no classified version, no Edits block' );
+$sn_cc_chain        = $GLOBALS['__chain'];
+$GLOBALS['__chain'] = array(
+	array( 'version' => 0, 'status' => 'genesis', 'content_hash' => 'ggg' ),
+	array( 'version' => 1, 'status' => 'confirmed', 'content_hash' => 'aaa', 'committed_at' => '2026-10-15T10:00:00Z' ),
+	array( 'version' => 2, 'status' => 'pending', 'content_hash' => 'bbb', 'committed_at' => '2026-10-16T22:00:58Z', 'change_class' => 'reading_aid' ),
+);
+$edits = by_heading( sn_note_dossier_trust( 7, $fetch ), 'Edits' );
+ok( is_array( $edits ) && 'table' === $edits['kind'] && 'trust' === $edits['group'], 'a classified version brings an Edits table in trust' );
+ok( is_array( $edits ) && 2 === count( $edits['rows'] ) && 'v2' === $edits['rows'][0]['version'] && 'v1' === $edits['rows'][1]['version'], 'one row per minted version, newest first, v0 left out' );
+ok( is_array( $edits ) && 'reading aid' === $edits['rows'][0]['change_class'] && '' === $edits['rows'][1]['change_class'], 'the label for a classified version, nothing for an unclassified one' );
+ok( is_array( $edits ) && false !== strpos( $edits['source'], 'not signed' ), 'the source says the label is the author\'s, not signed' );
+$GLOBALS['__chain'] = $sn_cc_chain;
+
 echo "\nthe gaps\n";
 $b = sn_note_dossier_trust( 7, fetcher( array( '/notes/u-7/v1.json' => array( 'code' => 0, 'body' => '' ) ) ) );
 $anchor = by_heading( $b, 'Anchor proof' );

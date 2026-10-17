@@ -107,6 +107,16 @@ function sn_prov_record( $post, $author ) {
 		'status'       => 'unanchored',
 		'committed_at' => gmdate( 'Y-m-d\TH:i:s\Z' ),
 	);
+	// 2026-10-17: the author's change class, held by sn-apply for this post,
+	// rides BESIDE the payload (never in it, so the hash is unmoved). Read and
+	// consumed here; absent means unclassified. See inc/provenance-change-class.php.
+	if ( function_exists( 'sn_prov_change_class_pending' ) ) {
+		$change_class = sn_prov_change_class_pending( $post->ID );
+		if ( '' !== $change_class ) {
+			$commit['change_class'] = $change_class;
+		}
+		sn_prov_change_class_clear_pending( $post->ID );
+	}
 
 	$full = $supersede
 		? sn_prov_replace_head_commit( $post->ID, $commit )

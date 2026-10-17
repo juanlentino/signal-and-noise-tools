@@ -56,6 +56,9 @@ function snt_prov_anchor_overview() {
 		// anchored" keeps its meaning; a page's in-flight version still lists
 		// under pending/recording, tagged type=page, because it is real work.
 		'pages'     => array( 'confirmed' => 0, 'total' => 0 ),
+		// 2026-10-17: every minted version (v0 genesis excluded) by the author's
+		// change class. Absent or unknown counts as unclassified.
+		'change_classes' => defined( 'SN_PROV_CHANGE_CLASSES' ) ? array_fill_keys( SN_PROV_CHANGE_CLASSES, 0 ) : array(),
 	);
 	if ( ! function_exists( 'get_posts' ) || ! function_exists( 'sn_prov_get_chain' ) || ! defined( 'SN_PROV_UID_META' ) ) {
 		return $out;
@@ -84,6 +87,11 @@ function snt_prov_anchor_overview() {
 		} else {
 			$out['total']++;
 		}
+		foreach ( $chain as $entry ) {
+			if ( (int) ( $entry['version'] ?? 0 ) >= 1 && $out['change_classes'] ) {
+				$out['change_classes'][ snt_prov_change_class_of( $entry ) ?: 'unclassified' ]++;
+			}
+		}
 		$latest = end( $chain );
 		$status = (string) ( $latest['status'] ?? 'unanchored' );
 		if ( 'confirmed' === $status ) {
@@ -100,7 +108,7 @@ function snt_prov_anchor_overview() {
 				'type'    => $type,
 				'title'   => function_exists( 'get_the_title' ) ? (string) get_the_title( (int) $post_id ) : '',
 				'version' => (int) ( $latest['version'] ?? 0 ),
-			);
+			) + snt_prov_change_class_field( $latest );
 			continue;
 		}
 		if ( 'pending' === $status ) {
@@ -113,10 +121,32 @@ function snt_prov_anchor_overview() {
 				// null, never 0: "no confirmation count recorded" is not
 				// "zero confirmations" — the widget renders the honest gap.
 				'confirmations' => isset( $latest['confirmations'] ) ? (int) $latest['confirmations'] : null,
-			);
+			) + snt_prov_change_class_field( $latest );
 		}
 	}
 	return $out;
+}
+
+/**
+ * A chain entry's stored change class, or '' when unclassified or unknown.
+ *
+ * @param array $entry
+ * @return string
+ */
+function snt_prov_change_class_of( $entry ) {
+	$class = $entry['change_class'] ?? '';
+	return function_exists( 'sn_prov_change_class_storable' ) && sn_prov_change_class_storable( $class ) ? (string) $class : '';
+}
+
+/**
+ * The change_class field for an in-flight row: present only when classified.
+ *
+ * @param array $entry
+ * @return array
+ */
+function snt_prov_change_class_field( $entry ) {
+	$class = snt_prov_change_class_of( $entry );
+	return '' === $class ? array() : array( 'change_class' => $class );
 }
 
 /**
@@ -158,6 +188,7 @@ function snt_abilities_provenance_register() {
 				'confirmed' => array( 'type' => 'integer' ),
 				'total'     => array( 'type' => 'integer' ),
 				'pages'     => array( 'type' => 'object', 'description' => '19.2.0: signed Pages, counted apart from Notes: {confirmed, total}. confirmed/total above are Notes only.' ),
+				'change_classes' => array( 'type' => 'object', 'description' => '2026-10-17: every minted version (notes and pages, v0 excluded) counted by the author\'s change class: {reading_aid, correction, copy, claim, unclassified}. The class is the author\'s label, stored beside the signed payload and not covered by the signature. pending/recording rows carry change_class when one was given.' ),
 			),
 		),
 		'meta'                => array(
