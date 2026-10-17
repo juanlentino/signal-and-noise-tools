@@ -4,6 +4,8 @@
 
 Read at: plugin origin/main 1aebd176, theme origin/main ff4c3f1, analytics Worker origin/main 1cbed6e (1.25.0, deployed), rights-signals Worker origin/main 39d6ca7 (1.31.0, deployed), remote MCP Worker origin/main 9c056b8 (2.4.0, contract 18). Three local Worker checkouts sit on stale branches; everything below is origin/main.
 
+**Status (2026-10-17):** Phase 1 shipped in plugin 2026.10.18: owner identity (#2101), the lanes table, nightly rollup and Integrity › Lanes report (#2104), the pasted owner key (#2109), and live snapshots and publish windows (#2132). Phase 2 (the opt-in MCP surfaces, the contract bump, `/stats` lanes) is not built. This file is kept as the design record; the decisions and contracts below are what Phase 1 was built against.
+
 ## Decisions for the owner
 
 1. **The theme.** (Also: the `Claude/\d` skip came from theme #533, because the Claude desktop app's browser pane counted as a visitor. If the skip goes, that pane must be enrolled, one wp-admin login, or its views land in `human`.) The beacon script is theme-owned (`assets/js/sn-beacon.js`, enqueued by `inc/beacon.php`). It sends nothing when the `sn_owner=1` cookie is present (`sn-beacon.js:40,267-271`) or the user agent matches `Claude/\d`. Those views never reach the edge, so they can never be stored as lane `owner`. Hard limit 4 ("nothing silently disappears") and "do not touch the theme" conflict. Options: (a) allow a one-file theme change so those views are sent and the Worker lanes them; (b) keep the theme as is and document "owner views from an enrolled device are not stored" as a known limit.
