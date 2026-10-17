@@ -471,12 +471,18 @@ function sn_prov_render_panel( $post_id ) {
 		} else {
 			$meta = esc_html( sn_prov_status_label( $v['status'] ) );
 		}
+		// An edit-list line: event, version, recorded time, block, hash, and the
+		// full hash drawn beneath it (sn_prov_fingerprint_svg). Both helpers
+		// return escaped markup or ''.
 		$rows .= sprintf(
-			'<li class="sn-prov-ver sn-prov-%s"><span class="sn-prov-v">v%d</span> <code>%s</code> <span class="sn-prov-meta">%s</span></li>',
+			'<li class="sn-prov-ver sn-prov-%s"><span class="sn-prov-n">%03d</span> <span class="sn-prov-v">v%d</span> <span class="sn-prov-t">%s</span> <span class="sn-prov-meta">%s</span> <code>%s</code>%s</li>',
 			esc_attr( $pres['state'] ),
 			(int) $v['version'],
+			(int) $v['version'],
+			sn_prov_edl_time( $v['committed_at'] ),
+			$meta,
 			esc_html( substr( $v['content_hash'], 0, 12 ) ),
-			$meta
+			sn_prov_fingerprint_svg( $v['content_hash'] )
 		);
 	}
 	// The caveat tracks the root: once the snapshot is Bitcoin-anchored it IS
@@ -634,3 +640,46 @@ function sn_prov_append_page_panel( $content ) {
 add_filter( 'the_content', 'sn_prov_append_page_panel', 20 );
 
 add_shortcode( 'sn_provenance_verify', 'sn_prov_verify_shortcode' );
+
+/**
+ * A version's SHA-256 drawn as 64 bars, one per hex digit, each as tall as the
+ * digit plus one (1 to 16 units). The strip is the hash itself: change one
+ * character of the signed text and every bar moves, so two versions of a note
+ * visibly disagree. Decorative (the hash text beside it is the accessible
+ * value), one path in currentColor with no inline style, so it follows the
+ * theme, prints, and survives forced colors.
+ *
+ * @param string $hash Full lowercase hex SHA-256.
+ * @return string SVG markup, or '' for anything that is not 64 lowercase hex.
+ */
+function sn_prov_fingerprint_svg( $hash ) {
+	$hash = (string) $hash;
+	if ( 1 !== preg_match( '/^[0-9a-f]{64}$/D', $hash ) ) {
+		return '';
+	}
+	$d = '';
+	foreach ( str_split( $hash ) as $i => $nibble ) {
+		$h  = hexdec( $nibble ) + 1;
+		$d .= 'M' . ( $i * 3 ) . ' ' . ( 16 - $h ) . 'h2v' . $h . 'h-2z';
+	}
+	return '<svg class="sn-prov-fp" viewBox="0 0 192 16" width="192" height="16" preserveAspectRatio="xMinYMid meet" aria-hidden="true" focusable="false"><path fill="currentColor" d="' . $d . '"/></svg>';
+}
+
+/**
+ * The recorded time of a version for the edit-list row, in UTC.
+ *
+ * @param string $committed_at When the version was recorded (ISO 8601 or a UTC MySQL datetime).
+ * @return string A <time> element, or '' when the value cannot be read.
+ */
+function sn_prov_edl_time( $committed_at ) {
+	$committed_at = trim( (string) $committed_at );
+	if ( '' === $committed_at ) {
+		return '';
+	}
+	$ts = strtotime( preg_match( '/[zZ]|[+-]\d\d:?\d\d$/', $committed_at ) ? $committed_at : $committed_at . ' UTC' );
+	if ( false === $ts || $ts <= 0 ) {
+		return '';
+	}
+	return '<time datetime="' . esc_attr( gmdate( 'Y-m-d\TH:i:s\Z', $ts ) ) . '">' . esc_html( gmdate( 'Y-m-d H:i:s', $ts ) ) . 'Z</time>';
+}
+
