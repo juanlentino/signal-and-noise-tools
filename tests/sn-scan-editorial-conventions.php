@@ -91,5 +91,20 @@ ok( 'sn-site-facts{editorial_conventions}' === $ec[0]['evidence']['read'] && '' 
 $f = snt_sn_validate_check_body( $GLOBALS['__posts'][13]->post_content, 13 );
 ok( array() === array_filter( $f, static function ( $x ) { return 'editorial_convention' === $x['check']; } ), 'the house form yields no convention finding' );
 
+echo "\nGroup 4: the 2026-10 reading aids\n";
+$reg  = snt_editorial_conventions_registry();
+$all4 = implode( "\n\n", array( $reg['timeline']['exemplar'], $reg['term']['exemplar'], $reg['checklist']['exemplar'], $reg['table']['exemplar'], $reg['steps-enumerated']['exemplar'], $reg['sidenote']['exemplar'] ) );
+$f    = snt_sn_validate_check_body( $all4, 31 );
+ok( array() === array_filter( $f, static function ( $x ) { return 'editorial_convention' === $x['check']; } ), 'sn-validate: a body holding all four aids plus steps and a sidenote, each in house form, yields no convention finding' );
+$bare_table = "<!-- wp:table -->\n<figure class=\"wp-block-table\"><table><thead><tr><th scope=\"col\">A</th><th scope=\"col\">B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table></figure>\n<!-- /wp:table -->";
+$GLOBALS['__posts'] = array(
+	41 => (object) array( 'ID' => 41, 'post_type' => 'post', 'post_name' => 't', 'post_title' => 'T', 'post_status' => 'publish', 'post_content' => $bare_table ),
+	42 => (object) array( 'ID' => 42, 'post_type' => 'page', 'post_name' => 'p', 'post_title' => 'P', 'post_status' => 'publish', 'post_content' => $bare_table ),
+);
+$r = snt_sn_scan_adapter_editorial_conventions( null );
+$keys = array_map( static function ( $c ) { return $c['target_identity'] . ':' . $c['evidence']['convention_id'] . ':' . $c['evidence']['fix']; }, $r['candidates'] );
+ok( array( '41:table:class' ) === $keys, 'an unstyled table is a class candidate on a NOTE and nothing on a PAGE (' . implode( ' ', $keys ) . ')' );
+ok( 'signal-noise/sn-apply' === $r['candidates'][0]['apply_hint']['tool'] && false !== strpos( $r['candidates'][0]['evidence']['replacement'], 'is-style-sn-table' ), '   ...applyable through block_replace with the styled replacement' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
