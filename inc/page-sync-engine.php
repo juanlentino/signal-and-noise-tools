@@ -106,15 +106,33 @@ function sn_now_dossier_html( $sections, $updated ) {
 /**
  * Build the /now Page body from parsed text-box sections. Returns '' when the
  * sections produce no usable content, so callers never blank the page. The
- * "Updated" line is stamped with the current site-timezone date at build time
- * (the automatic replacement for the old sn_now_updated stamp).
+ * "Updated" line is the list's own stamp (sn_now_updated_label()).
  *
  * @param array<int,array{label:string,items:array<int,string>}> $sections
  * @return string
  */
 function sn_now_build_body( $sections ) {
-	$updated = function_exists( 'wp_date' ) ? (string) wp_date( 'F j, Y' ) : gmdate( 'F j, Y' );
-	return sn_now_dossier_html( $sections, $updated );
+	return sn_now_dossier_html( $sections, sn_now_updated_label() );
+}
+
+/**
+ * The "Updated" date /now shows: the list's own content-change stamp, never the
+ * day the page was rebuilt. The page regenerates on every save, identical
+ * re-saves included (sn_now_page_save() keeps the stamp then, #1228), so a
+ * build-time date moved the visible date while the list stayed the same.
+ * Falls back to today only when no list is stored (the theme's file content)
+ * or the stamp cannot be read.
+ *
+ * @return string e.g. "September 2, 2026".
+ */
+function sn_now_updated_label() {
+	$opt   = get_option( defined( 'SN_NOW_PAGE_OPTION' ) ? SN_NOW_PAGE_OPTION : 'sn_now_page' );
+	$stamp = is_array( $opt ) ? (string) ( $opt['updated'] ?? '' ) : '';
+	$date  = '' !== $stamp ? DateTimeImmutable::createFromFormat( '!Y-m-d', $stamp ) : false;
+	if ( $date && $date->format( 'Y-m-d' ) === $stamp ) {
+		return $date->format( 'F j, Y' );
+	}
+	return function_exists( 'wp_date' ) ? (string) wp_date( 'F j, Y' ) : gmdate( 'F j, Y' );
 }
 
 /**

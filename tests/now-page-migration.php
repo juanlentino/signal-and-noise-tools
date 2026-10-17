@@ -121,5 +121,18 @@ $GLOBALS['__now_sections'] = array( array( 'label' => 'Building', 'items' => arr
 sn_migrate_now_page();
 ok( 0 === count( $GLOBALS['__ins'] ) && 0 === count( $GLOBALS['__upd'] ) && ! empty( $GLOBALS['__opt'][ SN_NOW_PAGE_MIGRATED_OPT ] ), 'existing non-empty Page -> no write, still flags' );
 
+echo "\nGroup: the Updated date is the list's own (2026-10-17)\n";
+// The page regenerates on every save, identical re-saves included. Stamping
+// today's date at build time moved the visible "Updated" date while the list
+// stayed the same; the date must be the option's own content-change stamp.
+$opt_key = defined( 'SN_NOW_PAGE_OPTION' ) ? SN_NOW_PAGE_OPTION : 'sn_now_page';
+$GLOBALS['__opt'][ $opt_key ] = array( 'raw' => "Building\n- x", 'updated' => '2026-09-02' );
+$b = sn_now_build_body( array( array( 'label' => 'B', 'items' => array( 'x' ) ) ) );
+ok( false !== strpos( $b, 'Updated September 2, 2026' ), 'the body carries the list\'s own stamp (2026-09-02), not the day it was rebuilt' );
+$GLOBALS['__opt'][ $opt_key ] = array( 'raw' => "Building\n- x", 'updated' => '2026-02-30-nonsense' );
+ok( 1 === preg_match( '/Updated [A-Z][a-z]+ \d{1,2}, \d{4}/', sn_now_build_body( array( array( 'label' => 'B', 'items' => array( 'x' ) ) ) ) ), 'an unreadable stamp falls back to a real date rather than garbage' );
+unset( $GLOBALS['__opt'][ $opt_key ] );
+ok( 1 === preg_match( '/Updated [A-Z][a-z]+ \d{1,2}, \d{4}/', sn_now_build_body( array( array( 'label' => 'B', 'items' => array( 'x' ) ) ) ) ), 'no stored list (theme file content) still gets a date' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
