@@ -90,6 +90,54 @@ ok( 'has-x sn-correction' === $r['attrs']['className'] && false !== strpos( $r['
 ok( snt_editorial_block_text( $b ) === snt_editorial_block_text( $r ), 'the text is byte-identical after the class add (so the ledger coalesces)' );
 ok( $r === snt_editorial_block_with_class( $r, 'sn-correction' ), 'adding a class already present is a no-op' );
 
+echo "\nGroup 7b: timeline -- a dated sequence set as steps\n";
+$li    = static function ( $inner ) { return "<!-- wp:list-item -->\n<li>$inner</li>\n<!-- /wp:list-item -->\n"; };
+$dated = "<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\">" . $li( '<strong>Dec 2015.</strong> Beta opens.' ) . $li( '<strong>Jan 2017.</strong> Chrome 56 warns.' ) . $li( '<strong>Jul 2018.</strong> Chrome 68 warns everywhere.' ) . "</ol>\n<!-- /wp:list -->";
+$f = snt_editorial_conventions_detect( parse_blocks( $dated ) );
+ok( array( 'timeline:form' ) === ids( $f ) && 3 === $f[0]['evidence']['dated_items'], 'an ordered list whose every item opens with a date → ONE timeline finding, and no steps finding on the same list (' . implode( ' ', ids( $f ) ) . ')' );
+ok( isset( $f[0] ) && false !== strpos( $f[0]['message'], 'convention id: timeline' ) && '' === $f[0]['replacement'], '   ...a form fix (a re-wrap) naming the convention id' );
+$mixed = str_replace( '<strong>Jul 2018.</strong>', '<strong>Later.</strong>', $dated );
+ok( array( 'steps-enumerated:form' ) === ids( snt_editorial_conventions_detect( parse_blocks( $mixed ) ) ), 'one undated item → not a timeline; the steps finding stands' );
+$years = "<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\">" . $li( '2019. The first registry.' ) . $li( 'March 2021: the second.' ) . "</ol>\n<!-- /wp:list -->";
+ok( array( 'timeline:form' ) === ids( snt_editorial_conventions_detect( parse_blocks( $years ) ) ), 'a bare year and a full month name both count as a date opener, with or without <strong>' );
+$in_steps = "<!-- wp:group {\"className\":\"sn-pattern-steps-enumerated\",\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group sn-pattern-steps-enumerated\"><!-- wp:paragraph {\"className\":\"sn-steps__label\"} -->\n<p class=\"sn-steps__label\">History</p>\n<!-- /wp:paragraph -->\n" . str_replace( '{"ordered":true}', '{"ordered":true,"className":"sn-steps__list"}', str_replace( '<ol class="wp-block-list">', '<ol class="wp-block-list sn-steps__list">', $dated ) ) . "</div>\n<!-- /wp:group -->";
+$f = snt_editorial_conventions_detect( parse_blocks( $in_steps ) );
+ok( array( 'timeline:form' ) === ids( $f ) && '0/0' === $f[0]['block_path'], 'a steps GROUP whose every item is dated → a timeline finding at the group' );
+ok( array() === snt_editorial_conventions_detect( parse_blocks( str_replace( array( '{"ordered":true}', '<ol class="wp-block-list">', '</ol>' ), array( '', '<ul class="wp-block-list">', '</ul>' ), $dated ) ) ), 'an UNORDERED plain list of dated items is left alone (prose lists of dates are not the shape)' );
+ok( array() === snt_editorial_conventions_detect( parse_blocks( "<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\">" . $li( '<strong>Dec 2015.</strong> Only one.' ) . "</ol>\n<!-- /wp:list -->" ) ), 'a single dated item is not a sequence' );
+ok( array() === snt_editorial_conventions_detect( parse_blocks( "<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\">" . $li( '1500 tracks a day.' ) . $li( 'Mayday is not a month.' ) . "</ol>\n<!-- /wp:list -->" ) ), 'a number that only looks like a year beside a word that only starts like a month: no finding' );
+
+echo "\nGroup 7c: a steps or compare group nested inside its own kind (malformed)\n";
+$steps_group = static function ( $inner ) { return "<!-- wp:group {\"className\":\"sn-pattern-steps-enumerated\",\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group sn-pattern-steps-enumerated\">$inner</div>\n<!-- /wp:group -->"; };
+$steps_list  = "<!-- wp:list {\"ordered\":true,\"className\":\"sn-steps__list\"} -->\n<ol class=\"wp-block-list sn-steps__list\">" . $li( '<strong>One.</strong> A.' ) . $li( '<strong>Two.</strong> B.' ) . "</ol>\n<!-- /wp:list -->";
+$f = snt_editorial_conventions_detect( parse_blocks( $steps_group( $steps_group( $steps_list ) ) ) );
+ok( array( 'steps-enumerated:form' ) === ids( $f ) && 1 === $f[0]['evidence']['nested'] && '0/0' === $f[0]['block_path'], 'steps-in-steps → ONE malformed finding at the outer group, nested:1' );
+ok( isset( $f[0] ) && false !== strpos( $f[0]['message'], 'nested' ) && false !== strpos( $f[0]['message'], 'convention id: steps-enumerated' ), '   ...saying it is nested, naming the convention id' );
+$wrapper = "<!-- wp:group {\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group\">" . $steps_group( $steps_group( $steps_list ) ) . "</div>\n<!-- /wp:group -->";
+ok( array( 'steps-enumerated:form' ) === ids( snt_editorial_conventions_detect( parse_blocks( $wrapper ) ) ), 'found when the malformed pair sits inside a plain group too' );
+ok( array() === snt_editorial_conventions_detect( parse_blocks( $steps_group( $steps_list ) . "\n\n" . $steps_group( $steps_list ) ) ), 'two steps groups side by side are fine' );
+$cmp = static function ( $inner ) { return "<!-- wp:group {\"className\":\"sn-pattern-compare-columns\",\"layout\":{\"type\":\"constrained\"}} -->\n<div class=\"wp-block-group sn-pattern-compare-columns\">$inner</div>\n<!-- /wp:group -->"; };
+$f = snt_editorial_conventions_detect( parse_blocks( $cmp( $cmp( '<!-- wp:paragraph --><p>x</p><!-- /wp:paragraph -->' ) ) ) );
+ok( array( 'compare-columns:form' ) === ids( $f ) && 1 === $f[0]['evidence']['nested'], 'compare-in-compare → one malformed finding' );
+ok( array() === snt_editorial_conventions_detect( parse_blocks( $cmp( $steps_group( $steps_list ) ) ) ), 'a steps group inside compare columns is two different conventions, not a nesting error' );
+ok( array() === snt_editorial_conventions_detect( parse_blocks( "<!-- wp:group {\"className\":\"sn-pattern-steps-enumerated-x\"} -->\n<div class=\"wp-block-group\">" . $steps_group( $steps_list ) . "</div>\n<!-- /wp:group -->" ) ), 'a class that merely starts with the name is not the class (whole token)' );
+
+echo "\nGroup 7d: table\n";
+$table = static function ( $cls, $head ) {
+	$attrs = '' === $cls ? '' : ' {"className":"' . $cls . '"}';
+	$fig   = trim( 'wp-block-table ' . $cls );
+	return "<!-- wp:table$attrs -->\n<figure class=\"$fig\"><table class=\"has-fixed-layout\">$head<tbody><tr><td>ISRC</td><td>Recording</td><td>Agency</td></tr></tbody></table></figure>\n<!-- /wp:table -->";
+};
+$head_ok  = '<thead><tr><th scope="col">Id</th><th scope="col">Names</th><th scope="col">Issuer</th></tr></thead>';
+$head_bad = '<thead><tr><th>Id</th><th>Names</th><th>Issuer</th></tr></thead>';
+$f = snt_editorial_conventions_detect( parse_blocks( $table( '', $head_ok ) ) );
+ok( array( 'table:class' ) === ids( $f ) && false !== strpos( $f[0]['replacement'], '{"className":"is-style-sn-table"}' ) && false !== strpos( $f[0]['replacement'], '<figure class="wp-block-table is-style-sn-table">' ), 'an unstyled table with a proper header → a CLASS fix adding the style to attrs and the figure' );
+$f = snt_editorial_conventions_detect( parse_blocks( $table( '', '' ) ) );
+ok( array( 'table:form' ) === ids( $f ) && false !== strpos( $f[0]['message'], 'header row' ), 'an unstyled table with NO header → a FORM fix (the style alone would dress up a table that breaks its own convention)' );
+$f = snt_editorial_conventions_detect( parse_blocks( $table( 'is-style-sn-table', $head_bad ) ) );
+ok( array() === ids( $f ), 'a styled table whose header cells lack scope="col" (what the editor writes) is the house form: the theme adds scope on render' );
+ok( array() === snt_editorial_conventions_detect( parse_blocks( $table( 'is-style-sn-table', $head_ok ) ) ), 'the house form yields nothing' );
+
 echo "\nGroup 8: ACCEPTANCE -- every exemplar the registry hands out comes back clean\n";
 // A session that has read no post bodies calls sn-site-facts{editorial_conventions},
 // pastes the exemplars, and sn-validate says nothing. If an exemplar trips its
@@ -99,13 +147,15 @@ foreach ( snt_editorial_conventions_registry() as $id => $row ) {
 	$f = snt_editorial_conventions_detect( parse_blocks( (string) $row['exemplar'] ) );
 	ok( array() === $f, 'exemplar "' . $id . '" yields no finding' . ( $f ? ' (' . implode( '; ', array_column( $f, 'message' ) ) . ')' : '' ) );
 }
-// ...and the five the task names, composed by hand WITHOUT the convention, each warn.
+// ...and the seven the tasks name, composed by hand WITHOUT the convention, each warn.
 $hand = array(
 	'correction'       => "<!-- wp:paragraph -->\n<p><strong>Correction, May 1, 2026.</strong> x</p>\n<!-- /wp:paragraph -->",
 	'references'       => "<!-- wp:heading {\"level\":2} -->\n<h2>References</h2>\n<!-- /wp:heading -->\n<!-- wp:list -->\n<ul><li>S.</li></ul>\n<!-- /wp:list -->",
 	'steps-enumerated' => "<!-- wp:list {\"ordered\":true} -->\n<ol><li><strong>A.</strong> x</li><li><strong>B.</strong> y</li></ol>\n<!-- /wp:list -->",
 	'svg-figure'       => "<!-- wp:html -->\n<svg><text>x</text></svg>\n<!-- /wp:html -->",
 	'lead'             => "<!-- wp:paragraph -->\n<p><em>Claim.</em></p>\n<!-- /wp:paragraph -->",
+	'timeline'         => "<!-- wp:list {\"ordered\":true} -->\n<ol><li><strong>Dec 2015.</strong> x</li><li><strong>Jul 2018.</strong> y</li></ol>\n<!-- /wp:list -->",
+	'table'            => "<!-- wp:table -->\n<figure class=\"wp-block-table\"><table><tbody><tr><td>a</td><td>b</td><td>c</td></tr></tbody></table></figure>\n<!-- /wp:table -->",
 );
 foreach ( $hand as $id => $markup ) {
 	$f = snt_editorial_conventions_detect( parse_blocks( $markup ) );

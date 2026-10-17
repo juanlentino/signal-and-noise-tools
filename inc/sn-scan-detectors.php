@@ -153,7 +153,10 @@ function snt_sn_scan_detector_registry() {
 			array( 'id' => 'correction',       'triggers_on' => 'a core/paragraph opening "<strong>Correction," without className sn-correction, or one that is not the last block' ),
 			array( 'id' => 'references',       'triggers_on' => 'a core/list directly under an H2 "References" without className is-style-references' ),
 			array( 'id' => 'lead',             'triggers_on' => 'a FIRST-block core/paragraph set wholly in <em> without className sn-lead' ),
-			array( 'id' => 'steps-enumerated', 'triggers_on' => 'an ordered core/list with two or more <strong>Term.</strong> items not carrying sn-steps__list' ),
+			array( 'id' => 'steps-enumerated', 'triggers_on' => 'an ordered core/list with two or more <strong>Term.</strong> items not carrying sn-steps__list (unless every item is dated: see timeline), or a sn-pattern-steps-enumerated group nested inside another' ),
+			array( 'id' => 'compare-columns',  'triggers_on' => 'a sn-pattern-compare-columns group nested inside another' ),
+			array( 'id' => 'timeline',         'triggers_on' => 'an ordered core/list or a steps group with two or more items, every one opening with a date (a month name or a year)' ),
+			array( 'id' => 'table',            'triggers_on' => 'a core/table (notes only) without className is-style-sn-table, or with no <thead> header row' ),
 			array( 'id' => 'svg-figure',       'triggers_on' => 'a core/html <svg> missing role="img", aria-labelledby, <title> or <desc>, or with fill/stroke in fixed hex' ),
 		),
 	);
