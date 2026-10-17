@@ -137,6 +137,9 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 		case 'dismiss':
 			return snt_sn_apply_gate2_dismiss( $change );
 
+		case 'change_class_backfill':
+			return snt_sn_apply_gate2_change_class_backfill( $change );
+
 		case 'merge_tags':
 			return snt_sn_apply_gate2_merge_tags( $change );
 

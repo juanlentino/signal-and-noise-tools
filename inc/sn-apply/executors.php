@@ -33,6 +33,7 @@
  * | block_replace     |   yes    |   yes   | v13.2.0: same module — the whole top-level block containing the anchor is replaced; diff reports the replaced block's serialized form. Same write/guard contract as block_insert. |
  * | block_delete      |   yes    |   yes   | v13.5.0: removes one top-level block (located by anchor OR block_path, exactly one); refuses to empty the post; diff reports removed_block. Same write/guard contract. |
  * | block_move        |   yes    |   yes   | v13.5.0: relocates one top-level block in a SINGLE call (source by block_path; destination before/after a block or end); diff reports moved_block. Same write/guard contract. |
+ * | change_class_backfill | NO |   yes   | 2026-10-17: labels existing provenance versions beside the signed payload (sn_prov_set_change_class()). A label on an existing version has no revision to stage. |
  * | restore_revision  |    NO    |   yes   | session 7 (the acceptance path — see inc/sn-apply/restore-revision.php's docblock): a restore IS the live write, so "staging a restore" would stage a revision of a revision. mode:"revision" refuses structurally, the exact mechanism og_card/anchor_sweep use. Publish-only means only the rw door's bound owner credential can ever execute it (gate 3's identity grant); a routine credential is refused there by construction, never by new identity code. Promotes a staged revision to live AND applies+clears any queued snt_sn_apply_stage_meta() rows for the same post — the queue's first application path. |
  *
  * "partial" on surfaces is intentionally not a clean yes/no: the TYPE
@@ -121,6 +122,9 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	// intended to publish and all three permanent. payload.changes is the
 	// ordered list; one fingerprint gates the whole batch; one write lands it.
 	'batch',
+	// 2026-10-17: label versions minted before change.change_class existed,
+	// through sn_prov_set_change_class(). See inc/sn-apply/change-class-backfill.php.
+	'change_class_backfill',
 );
 
 // The rest of the module lives in three parts files (house line cap, 2026-10-14),

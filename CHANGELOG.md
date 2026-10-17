@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **sn-apply can label provenance versions minted before the change class existed.** A new publish-only `change.type: "change_class_backfill"` (target `{scope: "provenance_labels"}`) takes `window_dates` (UTC days, matched against each chain entry's `committed_at`) and `labels: [{post_id, change_class}]`, plans the single version each listed post minted in the window, and refuses the whole call (422) when a post has none or several, naming every candidate. The dry run reports each row with its current and proposed label, a day-level audit match (the rw audit log does not record which version a write minted), and the would-be `change_classes` totals; the apply requires the plan fingerprint (409 when stale) and writes through `sn_prov_set_change_class()`, all or nothing, leaving every payload and hash untouched; `sn_prov_set_change_class()` now hands core a slashed chain, because `update_post_meta()` unslashes and a relabel would otherwise strip every backslash from the signed payloads it rewrites. This ships as code only: no version is labeled until the owner runs the backfill.
+
 ## [2026.10.34] - 2026-10-17 — update purges refresh the cached feeds; a refused REST route is never cached
 
 ### Fixed

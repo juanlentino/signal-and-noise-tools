@@ -217,7 +217,7 @@ foreach ( $consolidated_slugs as $slug ) {
  * fail HERE instead. ── */
 $apply_schema = $GLOBALS['__ab']['signal-noise/sn-apply']['input_schema'] ?? array();
 $scope_enum   = $apply_schema['properties']['target']['properties']['scope']['enum'] ?? array();
-foreach ( array( 'provenance_anchors', 'maturity_roadmap' ) as $runtime_scope ) {
+foreach ( array( 'provenance_anchors', 'maturity_roadmap', 'provenance_labels' ) as $runtime_scope ) {
 	ok( in_array( $runtime_scope, $scope_enum, true ), "sn-apply: declared target.scope enum covers runtime scope \"$runtime_scope\" (schema/resolver parity — a schema-validating client refuses what the enum omits)" );
 }
 
