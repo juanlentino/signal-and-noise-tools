@@ -47,8 +47,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * unbounded set turns one save into an unbounded number of API calls.
  *
  * NOT ADDED, checked first: `/notes/tags/` is `cf-cache-status: BYPASS` with
- * `no-store, private`, so it cannot go stale; `/feed/` revalidates on every
- * request. Purging either would be motion without effect.
+ * `no-store, private`, so it cannot go stale, and purging it would be motion
+ * without effect. The feeds the edge does hold are purged by
+ * sn_cf_machine_urls() below.
  *
  * @since 13.96.2
  * @param int     $post_id Post ID.
@@ -129,9 +130,8 @@ function sn_cf_archive_page_urls( $base, $post_type ) {
  * The feeds and the two llms files: what a reader or an agent polls for a
  * new note.
  *
- * The earlier note above ("/feed/ revalidates on every request") stopped being
- * true when the theme gave these five minutes at the edge with stale serving:
- * the edge now holds them, so a save has to purge them.
+ * The theme gives these five minutes at the edge with stale serving, so the
+ * edge holds them and a save has to purge them.
  *
  * THE THEME'S LIST, NOT A COPY OF IT. The theme caches a closed set of feed
  * addresses (sn_edge_cache_feed_paths(): every core format plus JSON at both

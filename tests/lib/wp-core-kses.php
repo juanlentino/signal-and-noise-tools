@@ -5,6 +5,9 @@
  * wp-includes/ above a normal plugin install). SNT_KSES_IS_CORE says whether
  * it found them, so a suite whose claim rests on core can FAIL without them.
  *
+ * No WordPress on this machine: `bash tools/fetch-wp-test-core.sh <dir>`, then
+ * SNT_WP_HTML_API=<dir>/wp-includes/html-api.
+ *
  * Require it AFTER the suite's own hook stubs (kses.php's helpers reach
  * apply_filters; a missing one is defined here as a pass-through) and BEFORE
  * any wp_kses_* stub of its own, which then stays unused.

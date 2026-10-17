@@ -157,6 +157,25 @@ controls are independent and fire at different points:
 belt-and-braces order working as intended, and it is why the route index at
 `/wp-json/` is the honest observable for the removal, not the status code.
 
+## Token-gated machine routes answer like an absent route
+
+`signal-noise/v1/owner/revoked` (the analytics Worker's revocation list) and
+`signal-noise/v1/analytics/refresh` are gated by `SN_SRV_TOKEN`. An unset
+token answers exactly like a wrong one: core's own `rest_no_route` 404, built
+by `sn_rest_no_route_error()` in `inc/rest-no-route.php`, byte for byte what
+WordPress returns for a route that was never registered. A 503 for "unset"
+beside a 403 for "wrong" would tell an anonymous prober whether the secret is
+configured; one answer for both leaves nothing to tell apart. The MCP bridge
+(`signal-noise/v1/bridge`) returns the same error to an unauthenticated caller.
+
+Every `rest_no_route` response, core's included, is sent with
+`Cache-Control: no-store` and `Cloudflare-CDN-Cache-Control: no-store`
+(`sn_rest_no_route_no_store()` on `rest_post_dispatch`). Core's error carries
+no cache header, so the edge once cached a 404 and served it to the next
+caller whatever its token, which let an authorized read of `/owner/revoked`
+get a stale refusal. Applying the header to every `rest_no_route` keeps the
+refusal identical to an absent route.
+
 ## Verification
 
 Status codes alone do not prove route removal. `GET /batch/v1` returns `404`

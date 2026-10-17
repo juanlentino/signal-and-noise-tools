@@ -65,7 +65,7 @@ cryptographic provenance for Notes: every publish/edit is Ed25519-signed, conten
 
 ### Citation graph
 
-a W3C Webmention receiver at `signal-noise/v1/webmention`, advertised both ways the spec allows (a `<link rel="webmention">` and a `Link:` header on every publicly viewable singular page). A webmention is treated as an **unverified claim**, never a fact: the public endpoint can only ever create an `unverified` row, and adjudication happens later on cron, which re-fetches each claim and sorts it by what can actually be checked. Claims whose link has gone, or that could not be reached, are kept but shown to nobody
+a W3C Webmention receiver at `signal-noise/v1/webmention`, advertised both ways the spec allows (a `<link rel="webmention">` and a `Link:` header on every publicly viewable singular page). A webmention is treated as an **unverified claim**, never a fact: the public endpoint can only ever create an `unverified` row, and adjudication happens later on cron, which re-fetches each claim and sorts it by what can actually be checked. Claims whose link has gone, or that could not be reached, are kept but shown to nobody. The receiver is rate limited: 10 claims per IP per hour (every request counts, refusals included) and 20 per source host per day, each refused with a named 429 (`sn_cit_rate_limited_ip`, `sn_cit_rate_limited_host`) and a `retry_after`. The inbox holds at most 2,000 unverified claims at once; past that a new claim gets `sn_cit_inbox_full`, also a 429, until cron works the queue down.
 
 ### Edge cache
 
@@ -137,7 +137,7 @@ Everything reachable without a credential, so nothing is public by accident. The
 
 | Surface | Who serves it | Why it is public |
 | --- | --- | --- |
-| `POST /wp-json/signal-noise/v1/webmention` | plugin | W3C receiver; can only ever create an `unverified` row |
+| `POST /wp-json/signal-noise/v1/webmention` | plugin | W3C receiver; can only ever create an `unverified` row. 10 claims per IP per hour, 20 per source host per day, 2,000 unverified at most; each limit answers its own named 429 |
 | `GET /wp-json/signal-noise/v1/live` | plugin | the Live strip on /stats: aggregate human counts only (readers in the last 5 minutes, views today, the last hour in 5-minute slots) and the top five published, indexable pages being read now, read from a transient; edge-cacheable for 30 s. Sources, the surge verdict and per-class counts never appear here: they ride `live/admin`, which needs `view_stats` (or `manage_options`) and is never cached |
 | `GET /wp-json/sn-prov/v1/credential/{uid}` | plugin | a verifiable credential exists to be verified by anyone |
 | `POST /wp-json/signal-noise/v1/bridge` | plugin | bearer-checked in its handler; not registered unless armed; hidden from the index |

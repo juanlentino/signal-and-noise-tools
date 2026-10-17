@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **Cleanup: provenance requests drop the v1 signature header, and smaller tidy-ups.** Requests to the provenance Worker no longer send the body-only `X-SN-Signature`; Worker 1.26.1 refuses v1 (`accept_v1: false` on `/_sn/version`), so the v2 `X-SN-Sig` envelope is the only one, and a test now fails if any provenance file sends the v1 header (the owner's own outbound webhooks keep it). The rest changes no behavior: the MCP bridge returns the shared `sn_rest_no_route_error()` instead of its own copy of core's literal; `inc/maturity-legacy-redirects.php` is now `inc/legacy-page-redirects.php` with `sn_legacy_page_redirect_*` functions and a new `sn_legacy_page_redirects` filter (the old `sn_maturity_legacy_redirects` still applies, as a deprecated alias); one script, `tools/fetch-wp-test-core.sh`, fetches the WordPress core files the standalone sweep needs, and both CI sweep jobs call it; stale comments and two `@since Unreleased` tags are corrected; the README states the webmention receiver's limits (10 per IP per hour, 20 per source host per day, 2,000 unverified, each a named 429) and `docs/REST-HARDENING.md` describes the token-gated routes' `rest_no_route` answer and its `no-store` header.
+
 ## [2026.10.34] - 2026-10-17 — update purges refresh the cached feeds; a refused REST route is never cached
 
 ### Fixed

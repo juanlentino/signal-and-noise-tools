@@ -9,11 +9,11 @@
  * cases answer this instead, so the route reads as absent either way. The
  * literal is WP_REST_Server::dispatch()'s, in core's `default` text domain on
  * purpose: a different domain would translate differently and rebuild the
- * oracle on non-English sites. The MCP bridge keeps its own copy of the same
- * literal (sn_bridge_absent_route_error() in inc/mcp/mcp-bridge-route.php).
+ * oracle on non-English sites. The MCP bridge answers with this same error
+ * (sn_bridge_absent_route_error() in inc/mcp/mcp-bridge-route.php).
  *
  * @package SignalNoiseTools
- * @since Unreleased
+ * @since 2026.10.26
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

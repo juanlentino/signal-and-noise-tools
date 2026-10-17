@@ -8,9 +8,8 @@
  *   X-SN-Sig:       hex HMAC-SHA256 over `v2|<ts>|<nonce>|<hex sha256(body)>`
  * The Worker refuses a ts more than 300s off and a nonce it has seen in 600s.
  *
- * The v1 body-only X-SN-Signature still rides along for the transition: a
- * Worker that sees any v2 header verifies v2 only, so v1 matters only to an
- * older deploy. Drop it once SN_PROV_ACCEPT_V1 is "0" on the Worker.
+ * v2 is the only envelope: Worker 1.26.1 refuses the old body-only v1 header
+ * (accept_v1 false on /_sn/version), so it is no longer sent.
  *
  * @package SignalNoiseTools
  */
@@ -38,7 +37,6 @@ if ( ! function_exists( 'sn_prov_signed_headers' ) ) {
 			'X-SN-Sig-Ts'    => $ts,
 			'X-SN-Sig-Nonce' => $nonce,
 			'X-SN-Sig'       => hash_hmac( 'sha256', $signed, $secret ),
-			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
 		);
 	}
 }
