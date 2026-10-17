@@ -49,6 +49,7 @@ function sn_cron_hooks() {
 		SN_INSIGHTS_CRON_HOOK,
 		SN_MR_SNAPSHOT_HOOK,
 		SN_PROV_CONFIRM_HOOK,
+		SN_PROV_ORPHAN_HOOK, // five-minute re-enqueue of a commit whose dispatch event was lost.
 		SN_RSS_TRACKER_CRON_HOOK,
 		SN_SCHEDULE_RECONCILE_HOOK,
 		SN_SECURITY_DIGEST_CRON_HOOK,

@@ -116,6 +116,7 @@ require_once SNT_PATH . 'inc/admin-forms/cloudways.php'; // v12.17.0: Connection
 require_once SNT_PATH . 'inc/provenance-settle.php'; // v11.10.0: settle window — one editing pass, one signed version (pure; loaded before core, which calls its predicate)
 require_once SNT_PATH . 'inc/provenance-core.php'; // Notes provenance: commit-chain core (Plan 1)
 require_once SNT_PATH . 'inc/provenance-webhook.php'; // Notes provenance: Worker glue (Plan 4)
+require_once SNT_PATH . 'inc/provenance-orphan-dispatch.php'; // re-enqueue a commit whose dispatch event the cron option lost (2430 v2, 2026-10-16)
 require_once SNT_PATH . 'inc/provenance-genesis.php'; // Notes provenance: genesis snapshot (Plan 5)
 require_once SNT_PATH . 'inc/provenance-render.php'; // Notes provenance: public surfaces (Plan 6)
 require_once SNT_PATH . 'inc/provenance-admin.php'; // Notes provenance: admin surface (Plan 6)
