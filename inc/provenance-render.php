@@ -37,6 +37,8 @@ function sn_prov_view_data( $post_id ) {
 			'confirmations' => isset( $c['confirmations'] ) ? (int) $c['confirmations'] : null,
 			'genesis'       => ! empty( $c['genesis'] ),
 			'committed_at'  => (string) ( $c['committed_at'] ?? '' ),
+			// 2026-10-17: the author's label for the edit, beside the signed payload.
+			'change_class'  => ( function_exists( 'sn_prov_change_class_storable' ) && sn_prov_change_class_storable( $c['change_class'] ?? '' ) ) ? (string) $c['change_class'] : '',
 		);
 	}
 	$genesis_only = ( 0 === (int) ( $latest['version'] ?? 0 ) );
@@ -475,13 +477,14 @@ function sn_prov_render_panel( $post_id ) {
 		// full hash drawn beneath it (sn_prov_fingerprint_svg). Both helpers
 		// return escaped markup or ''.
 		$rows .= sprintf(
-			'<li class="sn-prov-ver sn-prov-%s"><span class="sn-prov-n">%03d</span> <span class="sn-prov-v">v%d</span> <span class="sn-prov-t">%s</span> <span class="sn-prov-meta">%s</span> <code>%s</code>%s</li>',
+			'<li class="sn-prov-ver sn-prov-%s"><span class="sn-prov-n">%03d</span> <span class="sn-prov-v">v%d</span> <span class="sn-prov-t">%s</span> <span class="sn-prov-meta">%s</span> <code>%s</code>%s%s</li>',
 			esc_attr( $pres['state'] ),
 			(int) $v['version'],
 			(int) $v['version'],
 			sn_prov_edl_time( $v['committed_at'] ),
 			$meta,
 			esc_html( substr( $v['content_hash'], 0, 12 ) ),
+			sn_prov_change_class_badge( $v['change_class'] ?? '' ),
 			sn_prov_fingerprint_svg( $v['content_hash'] )
 		);
 	}
@@ -683,3 +686,18 @@ function sn_prov_edl_time( $committed_at ) {
 	return '<time datetime="' . esc_attr( gmdate( 'Y-m-d\TH:i:s\Z', $ts ) ) . '">' . esc_html( gmdate( 'Y-m-d H:i:s', $ts ) ) . 'Z</time>';
 }
 
+/**
+ * The change-class label for an edit-list row: the author's description of
+ * the edit, set apart from what the signature covers. '' when unclassified
+ * or unknown, so an unclassified version shows nothing.
+ *
+ * @param string $change_class
+ * @return string A leading space and the label span, or ''.
+ */
+function sn_prov_change_class_badge( $change_class ) {
+	$label = function_exists( 'sn_prov_change_class_label' ) ? sn_prov_change_class_label( $change_class ) : '';
+	if ( '' === $label ) {
+		return '';
+	}
+	return ' <span class="sn-prov-class" title="' . esc_attr( "The author's description of this edit, not part of what is signed or verified." ) . '">' . esc_html( $label ) . '</span>';
+}

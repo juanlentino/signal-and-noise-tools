@@ -87,6 +87,19 @@ $vc_nokey           = sn_prov_credential( 7, null );
 ok( is_array( $vc_nokey ) && ! array_key_exists( 'pubkey_id', $vc_nokey['proof'] ?? array() ), 'a commit with no key id omits proof.pubkey_id rather than publishing an empty one' );
 $GLOBALS['__chain'] = $sn_chain_orig;
 
+// 2026-10-17: the change class rides in evidence as the author's label, never
+// in the proof or the signed bytes; an unclassified version carries nothing.
+require_once __DIR__ . '/../inc/provenance-change-class.php';
+$sn_chain_orig      = $GLOBALS['__chain'];
+$GLOBALS['__chain'] = array( sn_test_commit( 1, 'confirmed', array( 'change_class' => 'reading_aid' ) ) );
+$vc_cc              = sn_prov_credential( 7, null );
+ok( 'reading_aid' === ( $vc_cc['evidence'][0]['changeClass'] ?? null ), 'a classed version names its change class in evidence' );
+ok( false === strpos( json_encode( $vc_cc['proof'] ?? array() ), 'reading_aid' ) && false === strpos( (string) base64_decode( (string) ( $vc_cc['proof']['signedPayloadB64'] ?? '' ) ), 'reading_aid' ), 'and nowhere in the proof or the signed bytes' );
+ok( ! array_key_exists( 'changeClass', $vc['evidence'][0] ?? array() ), 'an unclassified version carries no changeClass' );
+$GLOBALS['__chain'] = array( sn_test_commit( 1, 'confirmed', array( 'change_class' => 'wibble' ) ) );
+ok( ! array_key_exists( 'changeClass', sn_prov_credential( 7, null )['evidence'][0] ?? array() ), 'an unknown stored value is not published' );
+$GLOBALS['__chain'] = $sn_chain_orig;
+
 // confirmed version
 $vc1 = sn_prov_credential( 7, 1 );
 ok( ( $vc1['evidence'][0]['anchor']['status'] ?? '' ) === 'confirmed' && ( $vc1['evidence'][0]['anchor']['block'] ?? 0 ) === 861000, 'v=1 shows the confirmed block' );

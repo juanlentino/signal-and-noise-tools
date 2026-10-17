@@ -297,6 +297,8 @@ Cached Content-Health scan (all posts for link/attachment/formatting issues). Re
 
 Aggregates every Note's latest anchor state: pending anchors with their in-flight Bitcoin transaction and confirmation count, plus confirmed/total counts. Readonly, idempotent; input is the `[object,null]` union (GET run-path safe). On the **read door** since v9.82.0.
 
+Since 2026-10-17 it also reports the author's **change class**: `change_classes` counts every minted version by class (`reading_aid`, `correction`, `copy`, `claim`, `unclassified`), and a pending or recording row carries `change_class` when one was given. The class is a label stored beside the signed payload, not covered by the signature.
+
 #### `signal-noise/provenance-integrity-status`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object|null
 
@@ -571,7 +573,7 @@ These 4 abilities are NOT exposed on any MCP door:
 
 **READ door** (`/wp-json/signal-noise/v1/mcp`) — 49 tools, all advertising `readOnlyHint: true`, `manage_options` floor.
 
-**WRITE door** (`/wp-json/signal-noise/v1/mcp-rw`) — 16 tools: `ai-link-apply`, `ai-pair-suggest`, `prune-unused-tags`, `describe-tags`, `apply-tag-description`, `unschedule-cron-event`, `purge-all-caches`, `sn-apply`, `jev-pass-now`, `jev-collision-check`, `jev-lane-map`, `jev-fit-now`, `jev-tells-check`, `jev-tells-pass`, `jev-tags-now`, `rights-evidence-now`. `sn-apply` is the one tool for every content mutation, behind fingerprint, validation, capability and idempotency gates, with `dry_run` defaulting to true.
+**WRITE door** (`/wp-json/signal-noise/v1/mcp-rw`) — 16 tools: `ai-link-apply`, `ai-pair-suggest`, `prune-unused-tags`, `describe-tags`, `apply-tag-description`, `unschedule-cron-event`, `purge-all-caches`, `sn-apply`, `jev-pass-now`, `jev-collision-check`, `jev-lane-map`, `jev-fit-now`, `jev-tells-check`, `jev-tells-pass`, `jev-tags-now`, `rights-evidence-now`. `sn-apply` is the one tool for every content mutation, behind fingerprint, validation, capability and idempotency gates, with `dry_run` defaulting to true. An optional `change.change_class` (`reading_aid`, `correction`, `copy`, `claim`, `unclassified`) labels the provenance version the write mints; it is stored beside the signed payload, never in it. An unknown value is a 422 naming the valid ones, and a write that adds or replaces a correction notice cannot be classed `reading_aid` or `copy` (a gate-2 refusal).
 
 **REMOTE** — 15 twins through the sn-remote-mcp Worker's bearer-checked bridge, off until the wp-admin toggle is on.
 

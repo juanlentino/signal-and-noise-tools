@@ -733,6 +733,13 @@
 
 				var effectiveVersion = version || ( ( cred.evidence && cred.evidence[ 0 ] && cred.evidence[ 0 ].version ) || 0 );
 
+				// The author's change class, beside the version on the meta line:
+				// a label, not a fifth check (the signature does not cover it).
+				var classNote = Core.changeClassNote( cred );
+				if ( classNote && verdictMetaEl && isCurrent() ) {
+					verdictMetaEl.textContent = 'Note ' + uid + ( effectiveVersion ? ' · version ' + effectiveVersion : '' ) + ' · ' + classNote;
+				}
+
 				// Runs alongside the four checks, but it is not one of them: its
 				// result outranks the docket rather than joining it, so it lands
 				// in activeRetraction and repaints the band.

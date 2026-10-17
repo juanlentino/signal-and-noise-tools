@@ -133,6 +133,8 @@ if ( ! function_exists( 'wp_update_post' ) ) {
 		$id = (int) ( $args['ID'] ?? 0 );
 		if ( ! isset( $GLOBALS['__posts'][ $id ] ) ) { return $wp_error ? new WP_Error( 'invalid_post', 'no such post' ) : 0; }
 		foreach ( $args as $k => $v ) { if ( 'ID' !== $k ) { $GLOBALS['__posts'][ $id ][ $k ] = $v; } }
+		// The change class sn_prov_record() would read inside this save.
+		$GLOBALS['__class_at_write'][] = function_exists( 'sn_prov_change_class_pending' ) ? sn_prov_change_class_pending( $id ) : null;
 		// REAL core behavior (wp-includes/post.php, wp_insert_post's status
 		// resolution): an explicitly-passed 'future' whose post_date_gmt is
 		// within a minute of now silently resolves to 'publish'. Modeled
@@ -892,6 +894,64 @@ ok( $named, 'BATCH.17: ...with a severity-error finding carrying the planner rea
 
 ok( ! empty( $env['diff']['before'] ), 'BATCH.22: diff.before is still carried (roadmap_board reads it from a refusal to bootstrap its fingerprint)' );
 
+
+/* ════════════════════════════════════════════════════════════════════════
+ * 2026-10-17 — change.change_class: the author's label for the version a
+ * write mints. Validated up front, held for the post during the write (so
+ * sn_prov_record() reads it), cleared after, and refused when it cannot
+ * describe the edit.
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nCHANGE CLASS: the author's label for the minted version\n";
+require_once dirname( __DIR__ ) . '/inc/provenance-change-class.php';
+$cc_notice = '<!-- wp:paragraph {"className":"sn-correction"} --><p class="sn-correction"><strong>Correction, October 17, 2026.</strong> An earlier version gave the wrong figure.</p><!-- /wp:paragraph -->';
+$cc_table  = '<!-- wp:paragraph --><p>A short summary paragraph, added only to help a reader find the way through.</p><!-- /wp:paragraph -->';
+
+$GLOBALS['__posts'][900]['post_content'] = $body;
+tf_reset_writes();
+$r = be_call( 'block_insert', array( 'mode' => 'publish', 'change' => array( 'change_class' => 'wibble', 'payload' => array( 'blocks' => $cc_table ) ) ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_bad_change_class' === $r->get_error_code() && 422 === (int) ( $r->get_error_data()['status'] ?? 0 ), 'CC.1: an unknown change_class is a 422' );
+$cc_msg = is_wp_error( $r ) ? $r->get_error_message() : '';
+ok( false !== strpos( $cc_msg, 'reading_aid' ) && false !== strpos( $cc_msg, 'correction' ) && false !== strpos( $cc_msg, 'copy' ) && false !== strpos( $cc_msg, 'claim' ) && false !== strpos( $cc_msg, 'unclassified' ), 'CC.2: and it names the valid ones' );
+eq( 0, $GLOBALS['__write_calls']['wp_update_post'], 'CC.3: nothing written' );
+$r = be_call( 'block_insert', array( 'mode' => 'publish', 'target' => array( array( 'post_id' => 900 ), array( 'post_id' => 900 ) ), 'change' => array( 'change_class' => 'Reading_Aid', 'payload' => array( 'blocks' => $cc_table ) ) ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_bad_change_class' === $r->get_error_code(), 'CC.4: a batch of targets is refused the same way (and the match is exact)' );
+
+$r = be_call( 'block_insert', array( 'mode' => 'publish', 'dry_run' => true, 'change' => array( 'change_class' => 'reading_aid', 'payload' => array( 'blocks' => $cc_notice, 'anchor' => '__unset', 'position' => 'end' ) ) ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_validation_failed' === $r->get_error_code(), 'CC.5: reading_aid on a write that adds a correction notice refuses at gate 2, in a dry run too' );
+$cc_dec = is_wp_error( $r ) ? json_decode( $r->get_error_message(), true ) : array();
+$cc_hit = false;
+foreach ( (array) ( $cc_dec['gates']['validation']['findings'] ?? array() ) as $f ) {
+	if ( 'error' === ( $f['severity'] ?? '' ) && false !== strpos( wp_json_encode( $f ), 'correction notice' ) ) { $cc_hit = true; }
+}
+ok( $cc_hit, 'CC.6: the finding says why' );
+tf_reset_writes();
+$r = be_call( 'block_insert', array( 'mode' => 'publish', 'change' => array( 'change_class' => 'copy', 'payload' => array( 'blocks' => $cc_notice, 'anchor' => '__unset', 'position' => 'end' ) ) ) );
+ok( is_wp_error( $r ) && 0 === $GLOBALS['__write_calls']['wp_update_post'], 'CC.7: copy is refused the same way, and nothing is written' );
+
+$GLOBALS['__class_at_write'] = array();
+$r = be_call( 'block_insert', array( 'mode' => 'publish', 'change' => array( 'change_class' => 'reading_aid', 'payload' => array( 'blocks' => $cc_table ) ) ) );
+ok( ! is_wp_error( $r ) && true === ( $r['applied'] ?? null ), 'CC.8: a reading aid that adds no notice applies' );
+eq( array( 'reading_aid' ), $GLOBALS['__class_at_write'], 'CC.9: the class is held for the post during its one write' );
+eq( '', sn_prov_change_class_pending( 900 ), 'CC.10: and released after it' );
+
+$GLOBALS['__posts'][900]['post_content'] = $body;
+$GLOBALS['__class_at_write'] = array();
+$r = be_call( 'block_insert', array( 'mode' => 'publish', 'change' => array( 'change_class' => 'correction', 'payload' => array( 'blocks' => $cc_notice, 'anchor' => '__unset', 'position' => 'end' ) ) ) );
+ok( ! is_wp_error( $r ) && true === ( $r['applied'] ?? null ), 'CC.11: correction may add the notice' );
+eq( array( 'correction' ), $GLOBALS['__class_at_write'], 'CC.12: and is held for the write' );
+
+$GLOBALS['__posts'][900]['post_content'] = $body;
+$GLOBALS['__class_at_write'] = array();
+$r = be_call( 'block_insert', array( 'mode' => 'publish', 'idempotency_key' => 'cc-13', 'change' => array( 'payload' => array( 'blocks' => $cc_table ) ) ) );
+eq( array( '' ), $GLOBALS['__class_at_write'], 'CC.13: no class given, nothing held: the version is unclassified' );
+
+$GLOBALS['__posts'][900]['post_content'] = $body;
+$GLOBALS['__class_at_write'] = array();
+$r = be_call( 'batch', array( 'mode' => 'publish', 'change' => array( 'change_class' => 'reading_aid', 'payload' => array( 'blocks' => '__unset', 'anchor' => '__unset', 'changes' => array(
+	array( 'type' => 'block_insert', 'payload' => array( 'anchor' => $anchor1, 'position' => 'after', 'blocks' => $cc_table ) ),
+	array( 'type' => 'block_insert', 'payload' => array( 'position' => 'end', 'blocks' => $cc_notice ) ),
+) ) ) ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_validation_failed' === $r->get_error_code() && array() === $GLOBALS['__class_at_write'], 'CC.14: change.type batch is judged on its combined result: a notice inside it refuses reading_aid' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

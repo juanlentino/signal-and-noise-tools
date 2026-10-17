@@ -48,6 +48,7 @@ $expected_surface = array(
 	'snt_sn_apply_apply_one',
 	'snt_sn_apply_apply_staged_meta_for_post',
 	'snt_sn_apply_audit_enrichment',
+	'snt_sn_apply_change_class_gate', // 2026-10-17: the change-class rule as a gate-2 finding.
 	'snt_sn_apply_autokey_excluded_types',
 	'snt_sn_apply_batch_changes_impl',
 	'snt_sn_apply_batch_edit_error',

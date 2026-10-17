@@ -30,11 +30,12 @@ echo "abilities-provenance suite\n";
 $GLOBALS['__actions'] = array();
 function add_action( $tag, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $tag ][] = $cb; return true; }
 
+require __DIR__ . '/../inc/provenance-change-class.php';
 require __DIR__ . '/../inc/abilities-provenance.php';
 
 // ─── Group A: overview degrades to the empty shape without its seams ─────
 $empty = snt_prov_anchor_overview();
-ok( array( 'pending' => array(), 'recording' => array(), 'confirmed' => 0, 'total' => 0, 'pages' => array( 'confirmed' => 0, 'total' => 0 ) ) === $empty,
+ok( array( 'pending' => array(), 'recording' => array(), 'confirmed' => 0, 'total' => 0, 'pages' => array( 'confirmed' => 0, 'total' => 0 ), 'change_classes' => array( 'reading_aid' => 0, 'correction' => 0, 'copy' => 0, 'claim' => 0, 'unclassified' => 0 ) ) === $empty,
 	'overview returns the honest empty shape when WP seams are absent' );
 
 // ─── Group B: aggregation over a stubbed corpus ──────────────────────────
@@ -48,10 +49,10 @@ function sn_prov_get_chain( $id ) {
 		// 11: two entries; the LATEST (pending, with live tx data) must win.
 		11 => array(
 			array( 'version' => 1, 'status' => 'confirmed' ),
-			array( 'version' => 2, 'status' => 'pending', 'bitcoin_txid' => 'ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12', 'confirmations' => 3 ),
+			array( 'version' => 2, 'status' => 'pending', 'bitcoin_txid' => 'ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12', 'confirmations' => 3, 'change_class' => 'reading_aid' ),
 		),
 		// 22: confirmed only.
-		22 => array( array( 'version' => 1, 'status' => 'confirmed', 'bitcoin_block' => 957611 ) ),
+		22 => array( array( 'version' => 0, 'status' => 'genesis' ), array( 'version' => 1, 'status' => 'confirmed', 'bitcoin_block' => 957611, 'change_class' => 'correction' ) ),
 		// 33: pending with NO confirmation count recorded.
 		33 => array( array( 'version' => 1, 'status' => 'pending' ) ),
 		// 44: uid meta exists but no chain yet — must not be counted or listed.
@@ -61,7 +62,7 @@ function sn_prov_get_chain( $id ) {
 		// "no anchors pending". Neither confirmed nor pending: the THIRD state.
 		55 => array(
 			array( 'version' => 1, 'status' => 'confirmed', 'bitcoin_block' => 964812 ),
-			array( 'version' => 2, 'status' => 'unanchored' ),
+			array( 'version' => 2, 'status' => 'unanchored', 'change_class' => 'wibble' ),
 		),
 		66 => array( array( 'version' => 4, 'status' => 'confirmed' ), array( 'version' => 5, 'status' => 'unanchored' ) ),
 		77 => array( array( 'version' => 1, 'status' => 'confirmed' ) ),
@@ -87,6 +88,11 @@ ok( null !== $p33 && null === $p33['confirmations'], 'missing confirmation count
 ok( array( 'post_id' => 55, 'type' => 'post', 'title' => 'Note 55', 'version' => 2 ) === $ov['recording'][0], 'a minted-not-yet-dispatched version is a RECORDING row (post 55 v2), not "anchored" and not "pending"' );
 $notes_in_flight = count( array_filter( array_merge( $ov['pending'], $ov['recording'] ), static fn( $r ) => 'post' === $r['type'] ) );
 ok( 1 === $ov['confirmed'] && 4 === $ov['total'] && 1 + $notes_in_flight === $ov['total'], 'confirmed + pending + recording = total: no note falls between the lists' );
+// 2026-10-17: the author's change class rides on in-flight rows when given,
+// and every minted version (v0 genesis excluded) is tallied by class.
+ok( null !== $p11 && 'reading_aid' === ( $p11['change_class'] ?? null ), 'a pending row carries its change class' );
+ok( null !== $p33 && ! array_key_exists( 'change_class', $p33 ), 'an unclassified row carries no class key' );
+ok( array( 'reading_aid' => 1, 'correction' => 1, 'copy' => 0, 'claim' => 0, 'unclassified' => 7 ) === $ov['change_classes'], 'every version tallied by class; an unknown stored value counts as unclassified; v0 is not a version' );
 ok( array( 'confirmed' => 1, 'total' => 2 ) === $ov['pages'], 'signed pages count apart from notes (1 of 2), and never into the notes total' );
 ok( array( 'post_id' => 66, 'type' => 'page', 'title' => 'Note 66', 'version' => 5 ) === $ov['recording'][1], "a page's in-flight version lists under recording, tagged type=page" );
 

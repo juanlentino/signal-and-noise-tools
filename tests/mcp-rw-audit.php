@@ -278,5 +278,10 @@ ok( false === $threw_record, 'PROBE PIN: a third-party update_option() failure n
 ok( null === $record_result, 'a swallowed failure returns null (never a fatal, never a fabricated row)' );
 $GLOBALS['__force_update_option_throw'] = false;
 
+// 2026-10-17: the sn-apply call log carries the change class, so the label
+// on a minted version can be traced to the call that gave it.
+$cc_safe = sn_mcp_rw_audit_safe_args( 'signal-noise/sn-apply', array( 'change_class' => 'reading_aid', 'payload' => array( 'x' ) ) );
+ok( 'reading_aid' === ( $cc_safe['change_class'] ?? null ) && ! isset( $cc_safe['payload'] ), 'change_class survives redaction (scalar, allowlisted); the payload still does not' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
