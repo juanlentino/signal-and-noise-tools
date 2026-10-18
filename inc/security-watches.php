@@ -121,6 +121,17 @@ function snt_watch_ripe_guard_routes( $watch, $now ) {
 	return array( 'ripe' => false, 'note' => 'both guard routes in place' );
 }
 
+/**
+ * How a note names an account: display name and user ID, never the login
+ * username, which may be the secret half of a credential.
+ *
+ * @param object $u User with ID and display_name.
+ * @return string
+ */
+function snt_sec_account_label( $u ) {
+	return (string) $u->display_name . ' (user #' . (int) $u->ID . ')';
+}
+
 /** Watch: application passwords, read live from core. */
 function snt_watch_ripe_app_passwords( $watch, $now ) {
 	unset( $watch );
@@ -128,9 +139,9 @@ function snt_watch_ripe_app_passwords( $watch, $now ) {
 		return array( 'ripe' => false, 'note' => '' );
 	}
 	$rows = array();
-	foreach ( get_users( array( 'fields' => array( 'ID', 'user_login' ), 'number' => 200 ) ) as $u ) {
+	foreach ( get_users( array( 'fields' => array( 'ID', 'display_name' ), 'number' => 200 ) ) as $u ) {
 		foreach ( (array) WP_Application_Passwords::get_user_application_passwords( (int) $u->ID ) as $p ) {
-			$rows[] = array( 'user' => $u->user_login, 'name' => (string) $p['name'], 'created' => (int) $p['created'], 'last_used' => empty( $p['last_used'] ) ? null : (int) $p['last_used'] );
+			$rows[] = array( 'user' => snt_sec_account_label( $u ), 'name' => (string) $p['name'], 'created' => (int) $p['created'], 'last_used' => empty( $p['last_used'] ) ? null : (int) $p['last_used'] );
 		}
 	}
 	return snt_sec_app_passwords_verdict( $rows, $now );
@@ -144,7 +155,7 @@ function snt_watch_ripe_admin_2fa( $watch, $now ) {
 	}
 	$admins = array();
 	foreach ( get_users( array( 'role' => 'administrator' ) ) as $u ) {
-		$admins[ $u->user_login ] = array_keys( (array) Two_Factor_Core::get_enabled_providers_for_user( $u ) );
+		$admins[ snt_sec_account_label( $u ) ] = array_keys( (array) Two_Factor_Core::get_enabled_providers_for_user( $u ) );
 	}
 	return snt_sec_admin_2fa_verdict( $admins );
 }
