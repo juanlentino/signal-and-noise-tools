@@ -60,7 +60,7 @@ $GLOBALS['__filters']['sn_legacy_page_redirects'] = function ( $map ) {
 ok( '' === sn_legacy_page_redirect_decision( '/old-thing/', true ), 'mapped-but-unresolvable target → no redirect (silent 404, no oracle)' );
 ok( '' === sn_legacy_page_redirect_decision( '/old-secret/', true ), 'a non-publicly-viewable target never receives a redirect' );
 $GLOBALS['__filters'] = array();
-ok( 9 === count( sn_legacy_page_redirect_map() ), 'default map covers the six family slugs and the three 2026-10 Search Console paths' );
+ok( 12 === count( sn_legacy_page_redirect_map() ), 'default map covers the six family slugs, the three 2026-10 Search Console paths and the three Spanish notes paths' );
 
 echo "\nGroup: the deprecated filter name still works\n";
 $GLOBALS['__filters']['sn_maturity_legacy_redirects'] = function ( $map ) {
