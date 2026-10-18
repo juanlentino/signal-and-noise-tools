@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.10.41] - 2026-10-18 — BREAKING: audit abilities report the login guard, not LLAR; security watches, change log and file integrity
+
+
 - **Author archives answer 404 to visitors who are not signed in.** `/notes/author/<slug>/` answered 200 for the real author and 404 for a made-up one, so anyone could guess the author slug and have it confirmed, and that slug can be the login username. Nothing on the site links an author archive. Now a real one answers the same 404 as a fake one; signed-in users still see them, and the `sn_security_block_author_enum` filter switches this off along with the `?author=` guard.
 
 - **oEmbed no longer publishes the author archive link.** Every oEmbed response carried `author_url`, a link whose last segment is the author slug, and it was the one public surface on the site that published it; when that slug matches the login username, it is half of a login guess. The link is dropped; the display name, which every byline already shows, and the embed itself stay.
@@ -35,11 +38,5 @@ adds a bullet below. A release is a separate, deliberate act:
 - **The 404 a stranger gets at `/wp-admin/` now looks like every other 404.** It was rendered while WordPress still counted the request as admin, and in the admin core leaves out the block stylesheets: the header's navigation collapsed into its overlay menu at desktop width, and the page lacked the `error404` body class. The plugin now switches the request to front-end context before rendering the theme's 404 (`sn_login_front_context()`), so `/wp-admin/`, `/wp-login.php`, customize.php and a random dead link all answer with the same page. That also stops the admin routes from giving themselves away by looking different.
 
 - **The login-address leak check no longer reads a blind run as clean.** If most of the public pages it reads fail to load (for example when the server cannot reach itself), the `login_door_leak` watch now turns ripe and says how many pages it managed to read. Before, a run that read nothing reported clean.
-
-## [2026.10.40] - 2026-10-18 — the login door is published nowhere, and a daily check keeps it so
-
-
-- **A daily check that the login address is published nowhere.** The owner's rule: the masked login address gets out only if the owner hands it out. Once a day the plugin reads what a stranger reads (home, about, the newest note, a dead link's 404, the feed, the REST index, the sitemap, robots.txt and a search page), bodies and response headers alike, with no cookies and no redirects followed. If any of them contains the login address, the new `login_door_leak` watch turns ripe and names the pages, never the address; the stored result (`sn_login_door_leak_last`) never holds it either. A check that has not run for two days is ripe too, since silence is not a clean result. The job is in the cron dashboard registry and is cleared on deactivation.
-- **The browser speculation rules no longer publish the login door.** The plugin listed the masked login slug (bare and wildcard) in the rules' "do not prerender" paths, and those rules are printed into every public page, so the hidden door's address sat in the HTML of notes, essays, About, Contact, the 404 page and the Spanish pages (found live by loading every unknown path linked from public pages and checking for the login form). Nothing public links to the door, and speculation rules only act on links on the page, so the exclusion protected nothing; `/contact/*` stays. `tests/speculation-rules.php` and `tests/speculation-rules-unguarded-slug.php` now pin that the slug never appears (red before).
 
 
