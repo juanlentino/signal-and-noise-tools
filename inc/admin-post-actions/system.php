@@ -97,9 +97,23 @@ function sn_handle_save_login( $post ) {
 	if ( ! $slug ) {
 		return 'login_empty';
 	}
+	// 2026-10-18: the login guard (sn-login-guard worker) follows the slug.
+	// Its route for the new door is added and confirmed BEFORE the slug is
+	// stored, so the door is never unguarded; a guard Cloudflare cannot
+	// confirm refuses the save (inc/login-guard-routes.php).
+	if ( function_exists( 'sn_lg_guard_slug' ) ) {
+		$guard = sn_lg_guard_slug( $slug );
+		if ( ! $guard['ok'] ) {
+			set_transient( 'sn_login_guard_error', (string) $guard['error'], 300 );
+			return 'login_guard_failed';
+		}
+	}
 	// v4.2.0 (D-06): write via sn_setting_update() so the per-request static
 	// cache is busted — any sn_setting() call later in this request sees the
 	// new slug.
 	$ok = sn_setting_update( 'login.slug', $slug );
+	if ( $ok && function_exists( 'sn_lg_prune_doors' ) ) {
+		sn_lg_prune_doors( $slug ); // The old door's routes go only once the new slug is live.
+	}
 	return $ok ? 'login_saved' : 'login_failed';
 }

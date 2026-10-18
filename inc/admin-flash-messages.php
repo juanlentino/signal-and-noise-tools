@@ -319,6 +319,10 @@ function sn_admin_flash_to_notice( $flash ) {
 		$login_url = home_url( '/' . $slug_now );
 		return array( 'success', 'Login slug saved. New URL: <a href="' . esc_url( $login_url ) . '">' . esc_html( $login_url ) . '</a>' );
 	}
+	if ( 'login_guard_failed' === $flash ) {
+		$err = (string) get_transient( 'sn_login_guard_error' );
+		return array( 'error', 'Login slug NOT changed: the login guard could not be moved to the new address, so saving it would have left the door unguarded. Add Zone › Workers Routes › Edit to the Cloudflare token (Connections › Cloudflare) and save again.' . ( '' !== trim( $err ) ? ' <code>' . esc_html( substr( $err, 0, 300 ) ) . '</code>' : '' ) );
+	}
 	// 20.1.0: the worker's own words on a refused (409) or failed retraction.
 	if ( 'rights_evidence_retract_refused' === $flash || 'rights_evidence_retract_failed' === $flash ) {
 		$err  = (string) get_transient( 'sn_rights_evidence_retract_error' );
