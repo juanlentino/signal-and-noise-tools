@@ -364,6 +364,7 @@ ok( 1 === preg_match( '/Machine reads<\/span><span class="sn-public-stats__bar"[
 $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ]['machines'] += array(
 	'train'  => array( 'claimed' => 4760, 'verified' => 50, 'verified_matched' => 50, 'unverified' => 2665, 'unverifiable' => 2045 ),
 	'tokens' => array( array( 'token' => 'Google-Extended', 'hits' => 575 ) ),
+	'impostors' => 2107,
 );
 $ht = $fresh();
 ok( false !== strpos( $ht, '<section class="sn-public-stats__training"><h2>AI training, claimed against proof</h2>' ), 'AI training is its own section, the page\'s width' );
@@ -372,6 +373,8 @@ ok( false !== strpos( $ht, '<strong>4,760</strong> reads came from crawlers that
 ok( 1 === preg_match( '/<span class="sn-public-stats__proof" aria-hidden="true">(.*?)<\/span><\/span>/s', $ht, $pm ) && array( 'verified', 'claimed', 'before' ) === ( preg_match_all( '/data-part="(\w+)"/', $pm[1], $pp ) ? $pp[1] : array() ), 'one decorative bar, its parts in order: verified, named only, before verification' );
 ok( false !== strpos( $ht, '<li><span class="sn-public-stats__key-sw" data-part="verified"></span>Verified by Cloudflare <span class="sn-public-stats__key-n">50</span></li>' ) && false !== strpos( $ht, 'Named themselves, not verified <span class="sn-public-stats__key-n">2,665</span>' ) && false !== strpos( $ht, 'Before verification was recorded <span class="sn-public-stats__key-n">2,045</span>' ), 'the key carries every part as a count' );
 ok( false !== strpos( $ht, 'Google-Extended is a robots.txt token, not a crawler: 575 reads presented it as their name and are credited to no one.' ), 'the control-token reads, credited to no one' );
+ok( false !== strpos( $ht, "Claimed a known crawler but failed Cloudflare\u{2019}s check: 2,107 reads, counted and credited to no one." ), 'the impostor reads, their own plainly worded line' );
+ok( '' === sn_public_stats_impostors_html( null ) && '' === sn_public_stats_impostors_html( 0 ), 'an older snapshot, or none: no impostor line' );
 // Likely automated beside the presumed-human views, only once a day is measured.
 $GLOBALS['__la'] = array( 'visitor_days' => 3, 'scored_visitor_days' => 41, 'measured_days' => 9, 'unmeasured_days' => 21 );
 $hl2 = $fresh();
@@ -401,12 +404,14 @@ $agg2 = array( 'ok' => true, 'truncated' => false, 'rows' => array(
 	$__r( '2026-10-01', 40, array( 'verified_bot' => 'AI Crawler' ) ),
 	$__r( '2026-10-02', 60, array() ),
 	$__r( '2026-10-02', 7, array( 'family' => 'other-bot', 'purpose' => 'unknown', 'agent' => 'google-extended', 'vendor' => 'google' ) ),
+	$__r( '2026-10-02', 5, array( 'cf_verified' => true, 'network' => 'Google LLC' ) ), // an impostor
 	$__r( '2026-10-03', 999, array() ), // after the window
 ) );
-$tot2 = array( 'ok' => true, 'truncated' => false, 'rows' => array( array( 'day' => '2026-10-01', 'hits' => 40 ), array( 'day' => '2026-10-02', 'hits' => 67 ) ) );
+$tot2 = array( 'ok' => true, 'truncated' => false, 'rows' => array( array( 'day' => '2026-10-01', 'hits' => 40 ), array( 'day' => '2026-10-02', 'hits' => 72 ) ) );
 $m2   = sn_public_stats_machines( $tot2, $agg2, '2026-10-01', '2026-10-02' );
 ok( 100 === ( $m2['train']['claimed'] ?? null ) && 40 === $m2['train']['verified'] && 60 === $m2['train']['unverified'], 'the snapshot carries AI training claimed (100) against verified (40), the window only' );
 ok( array( array( 'token' => 'Google-Extended', 'hits' => 7 ) ) === ( $m2['tokens'] ?? null ), 'and the control-token reads, credited to no one' );
+ok( 5 === ( $m2['impostors'] ?? null ) && 112 === $m2['total'], 'and the impostor reads (5), out of the training claim, still in the total (112)' );
 ok( ! isset( sn_public_stats_machines( $tot2, array( 'ok' => true, 'truncated' => true, 'rows' => array() ), '2026-10-01', '2026-10-02' )['train'] ), 'a capped aggregate read carries no AI-training split' );
 // A partial session window is never summed as the whole.
 $cov = static fn( $days ) => sn_public_stats_session_coverage( array_map( static fn( $d ) => array( 'day' => $d ), $days ), '2026-08-01', '2026-08-03' );

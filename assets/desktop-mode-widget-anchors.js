@@ -149,6 +149,12 @@
 			var impHits = imp.reduce( function( n, i ) { return n + Number( i.hits ); }, 0 );
 			list.appendChild( listRow( 'Control tokens, credited to no one', grouped( impHits ) + ' \u00b7 ' + imp.map( function( i ) { return String( i.token || i.agent ); } ).join( ', ' ) ) );
 		}
+		// Reads that named a crawler Cloudflare verifies when genuine and
+		// failed its check: counted in the total, credited to no one.
+		var fake = Array.isArray( mr.impostors ) ? mr.impostors.reduce( function( n, i ) { return n + ( i ? Number( i.hits ) || 0 : 0 ); }, 0 ) : 0;
+		if ( fake > 0 ) {
+			list.appendChild( listRow( 'Claimed a known crawler but failed Cloudflare\u2019s check', grouped( fake ) ) );
+		}
 		if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
 			// A crawler that went looking for the declarations on purpose. The
 			// reservation rides every response, so 0 here is healthy, never an alarm.

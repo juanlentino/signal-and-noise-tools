@@ -40,7 +40,9 @@ const SN_MR_AGENT_NETWORKS_TOP = 5;
  * unverifiable; inc/machine-readers-basis.php), says whether it is this site's
  * own tooling (`first_party_hits`, the exact part, and `first_party`, true when
  * that part is above zero) or a robots.txt control token no crawler sends
- * (`impersonation`), and names its `basis`.
+ * (`impersonation`), how many of its hits are impostors (`impostor_hits`: a
+ * cf_verified agent Cloudflare did not verify, credited to no one), and names
+ * its `basis`.
  *
  * @param array $rows snt_mr_fetch() aggregate rows.
  * @return array{cells:array<int,array>,total:int,families:int}
@@ -50,6 +52,7 @@ function snt_mr_crosstab( $rows ) {
 	$days  = array();
 	$split = array();
 	$fp    = array();
+	$im    = array();
 	$total = 0;
 	foreach ( (array) $rows as $row ) {
 		if ( ! is_array( $row ) ) {
@@ -67,10 +70,12 @@ function snt_mr_crosstab( $rows ) {
 			$days[ $key ]  = array();
 			$split[ $key ] = function_exists( 'snt_mr_verification_zero' ) ? snt_mr_verification_zero() : null;
 			$fp[ $key ]    = 0;
+			$im[ $key ]    = 0;
 		}
 		$cells[ $key ]['hits'] += $hits;
 		$split[ $key ]          = null === $split[ $key ] ? null : snt_mr_verification_add( $split[ $key ], $row );
 		$fp[ $key ]            += empty( $row['first_party'] ) ? 0 : $hits;
+		$im[ $key ]            += function_exists( 'snt_mr_is_impostor' ) && snt_mr_is_impostor( $row ) ? $hits : 0;
 		if ( '' !== $surface ) {
 			$cells[ $key ]['surfaces'][ $surface ] = ( $cells[ $key ]['surfaces'][ $surface ] ?? 0 ) + $hits;
 		}
@@ -87,6 +92,7 @@ function snt_mr_crosstab( $rows ) {
 				'first_party'      => $fp[ $key ] > 0,
 				'first_party_hits' => $fp[ $key ],
 				'impersonation'    => snt_mr_is_impersonation( $cell ),
+				'impostor_hits'    => $im[ $key ],
 				'basis'            => 'claimed',
 			);
 		}

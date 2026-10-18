@@ -57,6 +57,8 @@ unset( $GLOBALS['__payload'] );
 // Live 30 days: other-bot 21,982, search 6,620, unclassified-machine 3,118.
 $top = snt_desktop_machine_readers_top_family( array( 'total' => 110313, 'first_party' => 65050, 'impersonations' => array( array( 'token' => 'Google-Extended', 'hits' => 575 ) ), 'reader_families' => array( array( 'family' => 'other-bot', 'hits' => 21982 ), array( 'family' => 'search', 'hits' => 6620 ), array( 'family' => 'unclassified-machine', 'hits' => 3118 ) ) ), null );
 ok( 'search' === ( $top['family'] ?? null ) && 15 === $top['share'], 'the catch-all buckets are skipped: search, 6,620 of 44,688 reader reads (15%)' );
+$top = snt_desktop_machine_readers_top_family( array( 'total' => 110313, 'first_party' => 65050, 'impersonations' => array( array( 'token' => 'Google-Extended', 'hits' => 575 ) ), 'impostors' => array( array( 'agent' => 'anthropic-claudebot', 'hits' => 22688 ) ), 'reader_families' => array( array( 'family' => 'search', 'hits' => 6620 ) ) ), null );
+ok( 30 === ( $top['share'] ?? null ), 'impostor reads leave the reader total too: 6,620 of 22,000 reader reads (30%)' );
 ok( null === snt_desktop_machine_readers_top_family( array( 'total' => 100, 'first_party' => 0, 'reader_families' => array( array( 'family' => 'other-bot', 'hits' => 60 ), array( 'family' => 'unclassified-machine', 'hits' => 40 ) ) ), null ), 'only catch-all buckets: no top family row, never a bucket named as one' );
 
 $GLOBALS['__reads'][60] = array( 'ok' => true, 'truncated' => false, 'rows' => prior_rows( 5 ) );

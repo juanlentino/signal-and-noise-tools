@@ -75,7 +75,7 @@ $before = json_decode( (string) file_get_contents( $fixture ), true );
 $legacy = static function ( $json ) {
 	$r = json_decode( $json, true );
 	if ( is_array( $r ) && ! empty( $r['ok'] ) ) {
-		unset( $r['impersonations'], $r['verification'], $r['basis'], $r['reader_families'] );
+		unset( $r['impersonations'], $r['impostors'], $r['verification'], $r['basis'], $r['reader_families'] );
 		$r['families'] = array_map( static fn( $f ) => array_diff_key( $f, array( 'first_party_hits' => 0 ) ), (array) $r['families'] );
 		ok( array_key_exists( 'verification', json_decode( $json, true ) ), 'the ok response carries the new verification field' );
 	}

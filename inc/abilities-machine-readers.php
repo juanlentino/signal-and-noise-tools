@@ -123,7 +123,7 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'families'       => array(
 					'type'        => 'array',
-					'description' => 'The top 3 families by reads. Basis claimed: the family is what the user agent said. first_party_hits is the part of a family that is this site\'s own tools (the sensor\'s first_party flag); unclassified-machine is mostly that. Hits presenting a robots.txt control token are credited to no family (see impersonations).',
+					'description' => 'The top 3 families by reads. Basis claimed: the family is what the user agent said. first_party_hits is the part of a family that is this site\'s own tools (the sensor\'s first_party flag); unclassified-machine is mostly that. Hits presenting a robots.txt control token are credited to no family (see impersonations), nor are impostor hits (see impostors).',
 					'items'       => array(
 						'type'       => 'object',
 						'properties' => array(
@@ -155,7 +155,7 @@ add_action( 'wp_abilities_api_init', function() {
 				// them changes no value; it stops the contract understating the payload.
 				'purposes'               => array(
 					'type'        => array( 'array', 'null' ),
-					'description' => 'Reads per declared purpose, highest first, basis claimed. First-party reads and control-token hits are left out. Purpose `unknown` is UNMAPPED: the taxonomy has no entry for the reader (displayed as "unmapped"). null when the taxonomy is unavailable — never an empty array, which would read as "measured zero".',
+					'description' => 'Reads per declared purpose, highest first, basis claimed. First-party reads, control-token hits and impostor hits are left out. Purpose `unknown` is UNMAPPED: the taxonomy has no entry for the reader (displayed as "unmapped"). null when the taxonomy is unavailable — never an empty array, which would read as "measured zero".',
 					'items'       => array(
 						'type'       => 'object',
 						'properties' => array(
@@ -184,6 +184,12 @@ add_action( 'wp_abilities_api_init', function() {
 					'description' => 'Hits presenting a robots.txt control token (Google-Extended, Applebot-Extended), which is never a crawler of its own, so they are credited to no vendor, family or purpose. {agent, token, hits, networks (top 5 {network, hits}), basis: claimed}. They still count in total. null when the taxonomy is unavailable.',
 					'items'       => array( 'type' => 'object' ),
 				),
+				// Contract 19: impostor reads, counted but not credited.
+				'impostors'              => array(
+					'type'        => array( 'array', 'null' ),
+					'description' => 'Hits that claimed an agent Cloudflare verifies when genuine (the taxonomy\'s cf_verified: listed in Cloudflare\'s verified-bots directory) that Cloudflare did not verify, on a day verification was recorded. Credited to no vendor, family or purpose, still counted in total. {agent, hits, networks (top 5 {network, hits}), basis: inferred}, hits descending. A verified hit is never one, whatever its network, nor is a read before the since date or one from this site\'s own tools. [] when none; null when the taxonomy is unavailable.',
+					'items'       => array( 'type' => 'object' ),
+				),
 				'verification'           => array(
 					'type'        => 'object',
 					'description' => 'Each attributed count split by Cloudflare\'s verified-bot category, the rights evidence\'s source and since date: {claimed, verified, verified_matched, unverified, unverifiable}, where claimed = verified + unverified + unverifiable. verified: the category was set; verified_matched: and it fits the claimed purpose (train: AI Crawler; search: Search Engine Crawler or AI Search; unknown and dev never match); unverifiable: a day before since, or the partial day it began. `families` is keyed by family (the rows `families` counts), `purposes` by purpose and `ai_training_by_purpose` is its train entry (the rows `purposes` counts, null without the taxonomy), `ai_training` the legacy family figure. Verified is not signed (see identity).',
@@ -203,7 +209,7 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'reader_families'        => array(
 					'type'        => 'array',
-					'description' => 'The top 3 families by reads from readers: this site\'s own tools and control-token hits left out, so the top family is a reader, never the site\'s own probes. {family, hits (claimed), verified (Cloudflare)}.',
+					'description' => 'The top 3 families by reads from readers: this site\'s own tools, control-token hits and impostor hits left out, so the top family is a reader, never the site\'s own probes. {family, hits (claimed), verified (Cloudflare)}.',
 					'items'       => array(
 						'type'       => 'object',
 						'properties' => array(

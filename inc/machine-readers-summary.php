@@ -88,9 +88,10 @@ function snt_mr_summary_payload( $days, $series = null ) {
 	// 2026.10.1: a hit presenting a robots.txt control token (Google-Extended,
 	// Applebot-Extended) is never the vendor's crawler, so it is credited to no
 	// family and no purpose; `impersonations` carries it and `total` still
-	// counts it, because it was a read. Every breakdown below reads $credited.
-	$is_imp   = function_exists( 'snt_mr_is_impersonation' ) ? 'snt_mr_is_impersonation' : static fn( $r ) => false;
-	$credited = array_values( array_filter( $rows, static fn( $r ) => ! $is_imp( $r ) ) );
+	// counts it, because it was a read. An impostor (a cf_verified agent
+	// Cloudflare did not verify) is left out the same way, in `impostors`.
+	// Every breakdown below reads $credited.
+	$credited = function_exists( 'snt_mr_is_credited' ) ? array_values( array_filter( $rows, 'snt_mr_is_credited' ) ) : $rows;
 
 	$totals  = function_exists( 'snt_mr_sum_hits_by' ) ? snt_mr_sum_hits_by( $credited, 'family' ) : array();
 	$ai_set  = function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array();

@@ -562,7 +562,7 @@ function snt_desktop_machine_readers_identity( array $rows ) {
  */
 function snt_desktop_machine_readers_top_family( array $payload, $prior_rows, $days = 30 ) {
 	// Unreleased: the top family among READERS (reader_families: this site's
-	// own tools and control tokens left out), its share of reader reads. An
+	// own tools, control tokens and impostors left out), its share of reader reads. An
 	// older payload without the field falls back to families over the total.
 	$readers = isset( $payload['reader_families'] ) && is_array( $payload['reader_families'] );
 	// 2026-10-11: other-bot and unclassified-machine are the buckets for bots
@@ -575,7 +575,7 @@ function snt_desktop_machine_readers_top_family( array $payload, $prior_rows, $d
 	// the field).
 	$named   = $readers ? array_values( array_filter( $payload['reader_families'], static fn( $f ) => is_array( $f ) && ! in_array( (string) ( $f['family'] ?? '' ), array( 'other-bot', 'unclassified-machine' ), true ) ) ) : array();
 	$top     = $readers ? ( $named[0] ?? null ) : ( $payload['families'][0] ?? null );
-	$tokens  = $readers ? array_sum( array_map( static fn( $i ) => (int) ( $i['hits'] ?? 0 ), (array) ( $payload['impersonations'] ?? array() ) ) ) : 0;
+	$tokens  = $readers ? array_sum( array_map( static fn( $i ) => (int) ( $i['hits'] ?? 0 ), array_merge( (array) ( $payload['impersonations'] ?? array() ), (array) ( $payload['impostors'] ?? array() ) ) ) ) : 0;
 	$total   = (int) ( $payload['total'] ?? 0 ) - ( $readers ? (int) ( $payload['first_party'] ?? 0 ) : 0 ) - $tokens;
 	if ( ! is_array( $top ) || '' === (string) ( $top['family'] ?? '' ) || $total < 1 ) {
 		return null;
@@ -591,7 +591,7 @@ function snt_desktop_machine_readers_top_family( array $payload, $prior_rows, $d
 	if ( is_array( $prior_rows ) && count( $covered ) >= max( 1, (int) $days ) ) {
 		$hits = array();
 		foreach ( $prior_rows as $r ) {
-			$own = $readers && ( ! empty( $r['first_party'] ) || ( function_exists( 'snt_mr_is_impersonation' ) && snt_mr_is_impersonation( $r ) ) );
+			$own = $readers && ( ! empty( $r['first_party'] ) || ( function_exists( 'snt_mr_is_credited' ) && ! snt_mr_is_credited( $r ) ) );
 			if ( is_array( $r ) && '' !== (string) ( $r['family'] ?? '' ) && ! $own ) {
 				$hits[ (string) $r['family'] ] = (int) ( $hits[ (string) $r['family'] ] ?? 0 ) + max( 0, (int) ( $r['hits'] ?? 0 ) );
 			}

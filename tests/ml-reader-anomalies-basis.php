@@ -79,6 +79,21 @@ $f = $by_family( $r );
 ok( 90 === ( $f['google-ai']['total'] ?? null ), 'google-ai counts its own agents (30 x 3), not the Google-Extended control token' );
 ok( array() === ( $r['co_movement'] ?? null ), 'a control token spiking beside two families does not make a third mover: no co-movement' );
 
+echo "\nGroup A3: impostors stay in the series (the detector that found them)\n";
+// cf_verified agents Cloudflare did not verify: credited to no family in the
+// summary, but the co-movement signal must still see them move.
+$FAKE = array( 'network' => 'Google LLC', 'cf_verified' => true );
+$GLOBALS['__fetch']['rows'] = array_merge(
+	mr_rows( 'anthropic', 10, $NOW, $FAKE + array( 'agent' => 'anthropic-claudebot' ), $spike ),
+	mr_rows( 'openai', 12, $NOW, $FAKE + array( 'agent' => 'openai-gptbot' ), $spike ),
+	mr_rows( 'amazon-ai', 9, $NOW, $FAKE + array( 'agent' => 'amazon-bot' ), $spike )
+);
+ok( function_exists( 'snt_mr_is_impostor' ) && snt_mr_is_impostor( $GLOBALS['__fetch']['rows'][0] ), 'the fixture rows are impostors by the summary\'s own rule' );
+$r = snt_ml_reader_anomalies( $NOW );
+$f = $by_family( $r );
+ok( 29 * 10 + 400 === ( $f['anthropic']['total'] ?? null ), 'anthropic\'s series keeps every impostor read (29 x 10 + 400)' );
+ok( 1 === count( $r['co_movement'] ?? array() ) && 'Google LLC' === ( $r['co_movement'][0]['network'] ?? null ), 'three impostor families spiking together from Google LLC still make one co-movement' );
+
 echo "\nGroup B: co-movement, one finding per network\n";
 $GLOBALS['__fetch']['rows'] = array_merge(
 	mr_rows( 'anthropic', 10, $NOW, $GOOGLE, $spike ),

@@ -155,6 +155,8 @@ function sn_public_stats_machines( $totals, $agg, $from, $to ) {
 		if ( is_array( $ev ) && null !== $ev['verification']['ai_training_by_purpose'] ) {
 			$out['train']  = (array) $ev['verification']['ai_training_by_purpose'];
 			$out['tokens'] = array_map( static fn( $i ) => array( 'token' => (string) $i['token'], 'hits' => (int) $i['hits'] ), (array) $ev['impersonations'] );
+			// Claimed a crawler Cloudflare verifies when genuine, failed its check.
+			$out['impostors'] = (int) snt_mr_impostor_total( $ev['impostors'] );
 		}
 	}
 	return $out + array( 'split' => $split );
