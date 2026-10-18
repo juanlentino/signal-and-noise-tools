@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **The 404 a stranger gets at `/wp-admin/` now looks like every other 404.** It was rendered while WordPress still counted the request as admin, and in the admin core leaves out the block stylesheets: the header's navigation collapsed into its overlay menu at desktop width, and the page lacked the `error404` body class. The plugin now switches the request to front-end context before rendering the theme's 404 (`sn_login_front_context()`), so `/wp-admin/`, `/wp-login.php`, customize.php and a random dead link all answer with the same page. That also stops the admin routes from giving themselves away by looking different.
+
 - **The login-address leak check no longer reads a blind run as clean.** If most of the public pages it reads fail to load (for example when the server cannot reach itself), the `login_door_leak` watch now turns ripe and says how many pages it managed to read. Before, a run that read nothing reported clean.
 
 ## [2026.10.40] - 2026-10-18 — the login door is published nowhere, and a daily check keeps it so

@@ -214,6 +214,31 @@ function sn_login_redirect_reveals_door( $location, $request_uri, $slug, $logged
 }
 
 /**
+ * Make the rest of this request read as the front end, so a 404 rendered from
+ * inside the admin bootstrap is the same page any dead link gets. is_admin()
+ * asks the current screen first and WP_ADMIN only when there is none; at
+ * wp_loaded no screen exists yet, so a stand-in that says "not admin" turns
+ * it false. Without this, core skipped the block stylesheets and the header's
+ * navigation collapsed into its overlay menu at desktop width (live
+ * 2026-10-18). Only for a request that is about to 404 and exit.
+ */
+function sn_login_front_context() {
+	$GLOBALS['current_screen'] = new class() { // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- the request is ending in a front-end 404; nothing admin runs after it.
+		public $id   = 'front';
+		public $base = 'front';
+		public function in_admin( $admin = null ) {
+			return false;
+		}
+		public function is_block_editor() {
+			return false;
+		}
+	};
+	if ( isset( $GLOBALS['wp_query'] ) && is_object( $GLOBALS['wp_query'] ) && method_exists( $GLOBALS['wp_query'], 'set_404' ) ) {
+		$GLOBALS['wp_query']->set_404();
+	}
+}
+
+/**
  * Answer 404 and stop: the theme's 404 template when WordPress can resolve
  * one, a bare page when it cannot. Inside the admin bootstrap (core's
  * auth_redirect() on customize.php) get_query_template( '404' ) is '', and
@@ -225,6 +250,7 @@ function sn_login_redirect_reveals_door( $location, $request_uri, $slug, $logged
 function sn_login_send_404() {
 	status_header( 404 );
 	nocache_headers();
+	sn_login_front_context();
 	$tpl = function_exists( 'get_query_template' ) ? (string) get_query_template( '404' ) : '';
 	if ( '' !== $tpl && is_readable( $tpl ) ) {
 		include $tpl;
