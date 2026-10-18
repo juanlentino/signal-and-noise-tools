@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The app error log holds days again, not about 4 hours.** Object Cache Pro prefetches a request's cache keys before plugins load, so the WordPress AI client's cached model objects (group `wp_ai_client`) came back as incomplete classes, and OCP logged "The cache key `ai_client_...` is incompatible with prefetching" on every request. On 2026-10-17 that notice was about 980 of the error log's last 1000 lines, so a fatal from earlier the same day was already gone when the edge-errors investigation looked. The plugin now registers `wp_ai_client` as non-prefetchable through OCP's own `wp_cache_add_non_prefetchable_groups()` at load (new `inc/object-cache-groups.php`); without OCP it does nothing. No wp-config change: OCP filters each request's stored prefetch list by these groups at shutdown, so lists stored earlier heal as each URL is visited again (flushing the object cache clears them at once). The one `transient`-group notice (a MailPoet key) is left alone. Pinned by the new tests/object-cache-groups.php.
+
 ## [2026.10.35] - 2026-10-17 — provenance chains keep their backslashes, a change-class backfill, and cleanup
 
 
