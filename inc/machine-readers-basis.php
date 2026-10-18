@@ -121,6 +121,23 @@ function snt_mr_row_vendor_verified( $row ) {
 }
 
 /**
+ * Whether the sensor measured vendor ranges in a window: some row carried the
+ * vendor_verified field ('1' or '0'; '' and absent are not measured). Until
+ * then no surface shows a "by the vendor's published ranges" figure, never 0.
+ *
+ * @param array $rows Aggregate rows.
+ * @return bool
+ */
+function snt_mr_vendor_ranges_measured( array $rows ) {
+	foreach ( $rows as $r ) {
+		if ( is_array( $r ) && '' !== (string) ( $r['vendor_verified'] ?? '' ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * Verified AND verified as the kind of client its purpose claims.
  *
  * @param array $row Aggregate row (day, verified_bot, purpose).

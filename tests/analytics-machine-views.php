@@ -180,8 +180,20 @@ namespace {
 	ok( false !== strpos( $ek, $signed ) && false !== strpos( $ec, $signed ) && 1 === preg_match( '/Top signers: anthropic-claudebot [\d,]+/', $ec ), 'Web Bot Auth valid, invalid and unknown key on the Signed tile, the top signers with their counts in the line (both surfaces)' );
 	$__nt = snt_ev_paint_evidence_tiles( array( 'claimed' => 0, 'verified' => 0, 'verified_matched' => 0, 'unverified' => 0, 'unverifiable' => 0 ), array( 'measured' => 4, 'valid' => 4, 'invalid' => 0, 'unknown_key' => 0, 'by_agent' => array() ), null, null, 'classic' );
 	ok( 1 === substr_count( $__nt, 'not measured' ) && 1 === preg_match( '/Control tokens<\/p><p class="sn-kpi-value">not measured<\/p><span class="sn-kpi-delta[^"]*">credited to no vendor/', $__nt ), 'control tokens with no taxonomy read not measured, never 0' );
-	$__it = snt_ev_paint_evidence_tiles( array( 'claimed' => 0, 'verified' => 0, 'verified_matched' => 0, 'unverified' => 0, 'unverifiable' => 0 ), null, 0, null, 'classic', 2107, array( 'cf_directory' => 1378, 'vendor_ranges' => 432, 'off_home_network' => 297 ) );
-	ok( false !== strpos( $__it, 'Claimed a known crawler but failed a check: 2,107 reads, counted in the total and credited to no vendor (1,378 failed Cloudflare’s check; 432 came from outside the vendor’s published IP ranges and network; 297 came from outside the vendor’s own network).' ) && false === strpos( $__nt, 'failed a check' ), 'impostor reads get one plain line with the reasons; not measured, no line' );
+	// 2026-10-18: impostor reads are a tile and a table of reasons, never a sentence in the lead.
+	$__z  = array( 'claimed' => 0, 'verified' => 0, 'verified_matched' => 0, 'vendor_verified' => 0, 'unverified' => 0, 'unverifiable' => 0 );
+	$__it = snt_ev_paint_evidence_tiles( array( 'verified' => 223, 'vendor_verified' => 140, 'verified_matched' => 83 ) + $__z, null, 0, null, 'classic', 11483, true );
+	ok( false === strpos( $__it, 'Claimed a known crawler' ) && 1 === preg_match( '/Failed a check<\/p><p class="sn-kpi-value">11,483<\/p><span class="sn-kpi-delta[^"]*">counted, credited to no vendor/', $__it ) && false === strpos( $__nt, 'Failed a check' ), 'impostor reads are their own tile, never a sentence in the lead; not measured, no tile' );
+	ok( 1 === preg_match( '/Verified<\/p><p class="sn-kpi-value">223<\/p><span class="sn-kpi-delta[^"]*">83 by Cloudflare, 140 by the vendor’s published ranges; 83 for the purpose they claimed/', $__it ), 'verified, by source, once vendor ranges are measured' );
+	ok( 1 === preg_match( '/Verified<\/p><p class="sn-kpi-value">0<\/p><span class="sn-kpi-delta[^"]*">0 by Cloudflare; 0 for the purpose they claimed/', $__nt ), 'vendor ranges not measured: no vendor part, never a 0' );
+	$__ib = snt_ev_paint_impostors( 11483, array( 'rotator_network' => 504, 'vendor_ranges' => 0, 'cf_directory' => 8892, 'off_home_network' => 2087 ), 'classic' );
+	preg_match_all( '/<tr><td>([^<]*)<\/td><td>([^<]*)<\/td><td class="num">([^<]*)<\/td><\/tr>/', $__ib, $__ir, PREG_SET_ORDER );
+	ok( array( 'Cloudflare’s check|8,892', 'Outside the vendor’s network|2,087', 'Network posing as many crawlers|504' ) === array_map( static fn( $x ) => $x[1] . '|' . $x[3], $__ir ), 'failed a check: one row per reason, ladder order, a zero reason hidden' );
+	ok( array( snt_mr_reader_labels()['cf_directory']['title'], snt_mr_reader_labels()['rotator_network']['title'] ) === array( $__ir[0][2], $__ir[2][2] ), 'each reason row carries its long description from the shared vocabulary' );
+	ok( false !== strpos( $__ib, 'Failed a check' ) && false !== strpos( $__ib, '11,483 reads' ), 'the box leads with the total' );
+	ok( '' === snt_ev_paint_impostors( null, null, 'classic' ) && false !== strpos( snt_ev_paint_impostors( 0, array(), 'classic' ), 'No read failed a check in this window.' ), 'not measured: no box; measured and none: said' );
+	$__ik = html_entity_decode( snt_ev_paint_impostors( 11483, array( 'rotator_network' => 504, 'cf_directory' => 8892, 'off_home_network' => 2087 ), 'kit' ), ENT_QUOTES );
+	ok( strpos( $__ik, 'Cloudflare’s check' ) < strpos( $__ik, 'Network posing as many crawlers' ) && false !== strpos( $__ik, '8,892' ) && false !== strpos( $__ik, snt_mr_reader_labels()['off_home_network']['title'] ), 'the kit twin says the same rows and words' );
 	$with_cards          = snt_mr_view_data( 7 );
 	$with_cards['cards'] = array( array( 'id' => 'mr_delta_openai', 'direction' => 'up', 'percent' => 40, 'current' => 420, 'prior' => 300 ) );
 	foreach ( array( 'kit', 'classic' ) as $s ) {
@@ -225,7 +237,7 @@ namespace {
 		}
 		return $out;
 	};
-	foreach ( array( 'machine-readers' => 7, 'reader-evidence' => 5 ) as $v => $tiles ) {
+	foreach ( array( 'machine-readers' => 7, 'reader-evidence' => 6 ) as $v => $tiles ) { // 2026-10-18: Failed a check is the sixth.
 		$k = $kids( $kit[ $v ], '//os-grid' );
 		$c = $kids( $classic[ $v ], "//div[contains(concat(' ', @class, ' '), ' sn-kpi-row ')]" );
 		ok( $tiles === count( $k ) && array() === array_filter( $k, static fn( $e ) => 'snt-ev-tile' !== $e->getAttribute( 'class' ) ), "$v (kit): the tile grid has $tiles children, each one tile element (" . count( $k ) . ')' );

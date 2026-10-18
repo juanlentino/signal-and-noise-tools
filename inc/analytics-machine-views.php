@@ -136,7 +136,8 @@ function snt_mr_view_reader_evidence_html( array $d, $surface, array $links ) {
 	$fams   = array_map( static fn( $f ) => array( 'label' => $f['family'], 'split' => $f['split'] ), array_slice( $who['rows'], 0, SN_MR_EVIDENCE_ROWS ) );
 	// 2026-10-11 redesign, from the owner-approved prototype: tiles, the
 	// verified share by purpose and by family, then the actors and signals.
-	return snt_ev_paint_evidence_tiles( $t, snt_mr_identity_breakdown( $d['rows'] ), $tokens, $since, $surface, snt_mr_impostor_total( $ev['impostors'] ), snt_mr_impostor_reasons( $ev['impostors'] ) )
+	$fakes  = snt_mr_impostor_total( $ev['impostors'] );
+	return snt_ev_paint_evidence_tiles( $t, snt_mr_identity_breakdown( $d['rows'] ), $tokens, $since, $surface, $fakes, snt_mr_vendor_ranges_measured( $d['rows'] ) )
 		. snt_ev_share_key()
 		. snt_ev_pair(
 			$surface,
@@ -145,6 +146,9 @@ function snt_mr_view_reader_evidence_html( array $d, $surface, array $links ) {
 			array( count( $purp ) + 2, count( $fams ) + 2 )
 		)
 		. snt_ev_pair( $surface, snt_ev_paint_agents( snt_mr_agent_exceptions( $d['rows'] ), $surface ), snt_ev_paint_unnamed( $d['unnamed'], $surface, ! empty( $d['unnamed_floor'] ) ) )
-		. snt_ev_pair( $surface, snt_ev_paint_tokens( (array) $disp['impersonations'], $surface ), snt_ev_paint_anomalies( snt_mr_verification_daily( $d['rows'], $from, gmdate( 'Y-m-d' ) ), $d['report'], $surface ) )
+		// 2026-10-18: what is credited to no one, side by side: the reads that
+		// failed a check, by reason, and the control tokens; then the anomalies.
+		. snt_ev_pair( $surface, snt_ev_paint_impostors( $fakes, snt_mr_impostor_reasons( $ev['impostors'] ), $surface ), snt_ev_paint_tokens( (array) $disp['impersonations'], $surface ) )
+		. snt_ev_paint_anomalies( snt_mr_verification_daily( $d['rows'], $from, gmdate( 'Y-m-d' ) ), $d['report'], $surface )
 		. ( $links['config'] ?? '' );
 }
