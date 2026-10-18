@@ -14,7 +14,7 @@
  *                                 impostor, vendor_ranges (an out-of-range IP
  *                                 alone is not enough: vendor lists are incomplete)
  *   off its home network          impostor, off_home_network
- *   a rotator network, vendor-claimed
+ *   a rotator network, vendor-claimed or an unnamed crawler
  *                                 impostor, rotator_network
  *   otherwise                     credited, basis claimed
  *
@@ -64,8 +64,24 @@ function snt_mr_credit_verdict( $row, array $ctx ) {
 	if ( $off_home ) {
 		return $v( 'impostor', '0' === (string) ( $row['vendor_verified'] ?? '' ) ? 'vendor_ranges' : 'off_home_network', 'inferred' );
 	}
-	if ( '' !== (string) ( $row['vendor'] ?? '' ) && snt_mr_on_rotator( $row, $ctx ) ) {
+	if ( ( '' !== (string) ( $row['vendor'] ?? '' ) || snt_mr_is_unnamed_crawler( $row ) ) && snt_mr_on_rotator( $row, $ctx ) ) {
 		return $v( 'impostor', 'rotator_network', 'inferred' );
 	}
 	return $v( 'credited', '', 'claimed' );
+}
+
+/**
+ * Whether a row is a crawler name no taxonomy entry knows: agent '' filed
+ * under other-bot. The aggregate row carries no user agent, but the frozen
+ * family classifier files a read there only when its user agent carries a
+ * crawler token (bot/, spider, crawler, scraper), and every dev-client token
+ * it also matches (curl/, wget/, java/ ...) has a taxonomy entry. Such a row is
+ * caught by a rotator network, and never counts toward making one
+ * (snt_mr_credit_context counts vendor agents only).
+ *
+ * @param array $row Aggregate row.
+ * @return bool
+ */
+function snt_mr_is_unnamed_crawler( array $row ) {
+	return '' === (string) ( $row['agent'] ?? '' ) && 'other-bot' === (string) ( $row['family'] ?? '' );
 }

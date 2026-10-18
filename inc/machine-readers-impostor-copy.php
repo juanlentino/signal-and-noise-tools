@@ -27,7 +27,7 @@ function snt_mr_reader_labels() {
 		'by_cloudflare'    => $w( __( 'by Cloudflare', 'signal-and-noise-tools' ), __( 'Cloudflare’s verified-bot check vouched for the client.', 'signal-and-noise-tools' ) ),
 		'by_vendor'        => $w( __( 'by the vendor’s published ranges', 'signal-and-noise-tools' ), __( 'The request came from inside the IP ranges the vendor publishes for its crawler.', 'signal-and-noise-tools' ) ),
 		'unverified'       => $w( __( 'Named themselves, not verified', 'signal-and-noise-tools' ), __( 'The user agent named a crawler, and no check vouched for it.', 'signal-and-noise-tools' ) ),
-		'failed_check'     => $w( __( 'failed a check', 'signal-and-noise-tools' ), __( 'Named a known crawler, and a check showed the claim false. Counted in the total, credited to no one.', 'signal-and-noise-tools' ) ),
+		'failed_check'     => $w( __( 'failed a check', 'signal-and-noise-tools' ), __( 'Named a crawler, and a check showed the claim false. Counted in the total, credited to no one.', 'signal-and-noise-tools' ) ),
 		'cf_directory'     => $w( __( 'Cloudflare’s check', 'signal-and-noise-tools' ), __( 'Named a crawler Cloudflare verifies when it is genuine, and Cloudflare did not verify the request.', 'signal-and-noise-tools' ) ),
 		'vendor_ranges'    => $w( __( 'outside the vendor’s published ranges', 'signal-and-noise-tools' ), __( 'Came from outside the IP ranges the vendor publishes, and from a network that is not the vendor’s.', 'signal-and-noise-tools' ) ),
 		'off_home_network' => $w( __( 'outside the vendor’s network', 'signal-and-noise-tools' ), __( 'Came from a network that is not the vendor’s own.', 'signal-and-noise-tools' ) ),
