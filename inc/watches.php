@@ -198,6 +198,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_login_door_leak',
 		),
+		// 2026-10-18: the theme's strict script-src pins inline-script hashes; core updates change them.
+		array(
+			'id'        => 'csp_hashes',
+			'label'     => 'the strict CSP lacks an inline script hash',
+			'why'       => 'Once a day the site reads home, /notes/, the newest note, /provenance/ and /index/ as a stranger, hashes every executable inline script (theme-init, the import map, the emoji module) and reads the strict script-src (the one without unsafe-inline) from the CSP and Report-Only headers. Ripe when that policy is deployed and lacks a hash a page carries (the note gives the script-src line to paste into the Cloudflare Transform Rule), when most pages could not be read, when no CSP header arrived, or when the check has not run for two days. Not ripe while no strict policy is deployed.',
+			'read'      => 'option sn_csp_hash_last; signal-noise/get-cron-history sn_csp_hash_check',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_csp_hashes',
+		),
 		// 2026-10-18: oEmbed publishes the author slug; core derives it from the login.
 		array(
 			'id'        => 'public_username',

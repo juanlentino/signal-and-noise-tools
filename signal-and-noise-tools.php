@@ -666,6 +666,9 @@ require_once __DIR__ . '/inc/abilities-provenance.php'; // v9.78.0: anchor-statu
 require_once __DIR__ . '/inc/login-hide.php';
 require_once __DIR__ . '/inc/login-guard-routes.php'; // 2026-10-18: saving the Login URL moves the sn-login-guard routes; a save the guard cannot confirm is refused.
 require_once __DIR__ . '/inc/login-door-leak-check.php'; // 2026-10-18: daily check that no public page publishes the login address.
+require_once __DIR__ . '/inc/csp-hash-parts.php'; // 2026-10-18: hashing, extraction and header parsing for the strict-CSP check.
+require_once __DIR__ . '/inc/csp-hash-check.php'; // 2026-10-18: daily check that the strict script-src pins every inline script's hash.
+require_once __DIR__ . '/inc/csp-hash-health.php'; // 2026-10-18: the csp_hashes watch and its Site Health test.
 require_once __DIR__ . '/inc/security-watches.php'; // 2026-10-18: app passwords, admin 2FA coverage, guard route drift (observe, never enforce).
 require_once __DIR__ . '/inc/security-public-username.php'; // 2026-10-18: watch + Site Health test: is an administrator's login username published as their author slug?
 require_once __DIR__ . '/inc/file-integrity.php'; // 2026-10-18: daily read-only compare of core and wordpress.org plugins with their checksums.
