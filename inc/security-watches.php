@@ -1,7 +1,7 @@
 <?php
 /**
  * Signal & Noise Tools: three security watches (2026-10-18). They observe and
- * never enforce; enforcement belongs to LLAR, Two Factor and Cloudflare.
+ * never enforce; enforcement belongs to the login guard, Two Factor and Cloudflare.
  *
  * - app_passwords: core's application passwords are the one standing
  *   credential that skips the masked login door, Two Factor and passkeys.

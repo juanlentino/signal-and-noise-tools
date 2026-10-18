@@ -160,7 +160,7 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_analytics_v2_freeze',
 		),
-		// 2026-10-18: three security watches; they observe, LLAR, Two Factor and Cloudflare enforce.
+		// 2026-10-18: three security watches; they observe; the login guard, Two Factor and Cloudflare enforce.
 		array(
 			'id'        => 'app_passwords',
 			'label'     => 'an application password is new or stale',

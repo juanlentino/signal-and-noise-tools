@@ -54,7 +54,7 @@ $GLOBALS['__audit_summary_fixture'] = array(
 	'last_24h'             => array( 'all_total' => 5, 'failed_total' => 2, 'recon_total' => 1 ),
 	'last_7d_vs_prior'     => array( 'pct_delta' => 12 ),
 	'unique_attackers_24h' => 3,
-	'lla'                  => array( 'active_lockouts' => 0 ),
+	'guard'                  => array( 'state' => 'ok', 'locked_out' => 0, 'throttled' => 0, 'account_throttled' => 0 ),
 );
 function snt_audit_get_summary_impl() { return $GLOBALS['__audit_summary_fixture']; }
 

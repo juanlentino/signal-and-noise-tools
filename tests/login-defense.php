@@ -132,7 +132,7 @@ ok( $series[0]['day'] === '2026-06-20' && $series[1]['views'] === 9, 'trend seri
 
 // --- A3: cached headline -----------------------------------------------------
 $GLOBALS['__lg_q'] = array(
-	array( array( 'decision' => 'block', 'hits' => 4 ), array( 'decision' => 'pass', 'hits' => 6 ) ),
+	array( array( 'decision' => 'block', 'hits' => 4 ), array( 'decision' => 'pass', 'hits' => 6 ), array( 'decision' => 'lockout', 'hits' => 2 ), array( 'decision' => 'throttle', 'hits' => 5 ), array( 'decision' => 'account_throttle', 'hits' => 3 ) ),
 	array( array( 'asorg' => 'BadNet', 'hits' => 4 ) ),
 	// v8.5.0: the headline also fetches + caches the 7d trend (third query).
 	array( array( 'day' => '2026-07-01', 'blocked' => 1, 'passed' => 3 ), array( 'day' => '2026-07-02', 'blocked' => 3, 'passed' => 3 ) ),
@@ -143,7 +143,9 @@ $GLOBALS['__t'] = array();
 function get_transient( $k ) { return $GLOBALS['__t'][ $k ] ?? false; }
 function set_transient( $k, $v, $ttl ) { $GLOBALS['__t'][ $k ] = $v; return true; }
 $h = sn_login_defense_headline();
-ok( $h['blocked'] === 4 && $h['block_rate'] === 40 && $h['top_network'] === 'BadNet', 'headline: blocked/rate/top-network' );
+ok( $h['blocked'] === 4 && $h['block_rate'] === 20 && $h['top_network'] === 'BadNet', 'headline: blocked/rate/top-network' );
+// 2026-10-18: the audit log and the digest read the guard's lockouts from this headline (LLAR is gone).
+ok( 2 === ( $h['locked_out'] ?? null ) && 5 === ( $h['throttled'] ?? null ) && 3 === ( $h['account_throttled'] ?? null ), 'headline: carries lockouts, throttles and account throttles' );
 ok( isset( $GLOBALS['__t']['sn_lg_headline'] ), 'headline: cached in transient' );
 // v8.5.0: the trend rides the SAME transient (one shared cache, no widget-side query).
 ok( isset( $h['trend'] ) && 2 === count( $h['trend'] ) && 3 === (int) $h['trend'][1]['views'], 'headline: carries the 7d blocked trend as a sparkline series (blocked -> views)' );
@@ -155,6 +157,11 @@ $GLOBALS['__lg_q'] = array( null, array(), array() );
 $hn = sn_login_defense_headline();
 ok( ! empty( $hn['configured'] ) && ! empty( $hn['unavailable'] ), 'headline: a failed decisions read is reported as unavailable, not as zeros (#1204)' );
 ok( ! isset( $GLOBALS['__t']['sn_lg_headline'] ), 'headline: the unavailable verdict is NOT cached — the next call reads again (#1204)' );
+// A headline cached before it carried lockouts is a miss, never a week of zero lockouts.
+$GLOBALS['__t']    = array( 'sn_lg_headline' => array( 'configured' => true, 'checked' => 9, 'blocked' => 1, 'block_rate' => 11, 'top_network' => '', 'trend' => array() ) );
+$GLOBALS['__lg_q'] = array( array( array( 'decision' => 'lockout', 'hits' => 7 ) ), array(), array() );
+$hs = sn_login_defense_headline();
+ok( 7 === ( $hs['locked_out'] ?? null ), 'headline: an old-shape cache without lockouts is read again, not served as zeros' );
 
 // --- D1: Security panel is status-only (no decisions KPI; links to analytics) -
 function esc_html( $s ) { return (string) $s; }

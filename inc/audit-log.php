@@ -2,14 +2,17 @@
 /**
  * Signal & Noise Tools — Login hardening audit log.
  *
- * Captures 6 login-related events:
+ * Captures 5 login-related events:
  *
  *   login_success         per-event row (timestamp + username; no IP)
  *   login_failed          day-bucketed counter
  *   wp_login_404          day-bucketed counter (from inc/login-hide.php)
  *   wp_admin_unauth_404   day-bucketed counter (from inc/login-hide.php)
- *   lockout_triggered     day-bucketed counter (polling fallback — LLA fires no hook)
  *   password_reset        day-bucketed counter
+ *
+ * Lockouts are the login guard's own decisions (inc/audit-log-guard.php). The
+ * retired `lockout_triggered` counter is no longer written; old buckets keep
+ * it, and the counters reader and the export still return it.
  *
  * MFA errors are additive fields within login_failed: mfa_failed,
  * mfa_throttled and mfa_other. Legacy buckets have no classification.
@@ -46,10 +49,8 @@ const SN_AUDIT_TRANSIENT_IPS  = 'sn_audit_today_ips';
 const SN_AUDIT_IPS_TTL        = 25 * HOUR_IN_SECONDS;
 const SN_AUDIT_LOGIN_SUCCESS_CAP = 500;
 const SN_AUDIT_PRUNE_HOOK     = 'sn_audit_log_prune';
-const SN_AUDIT_LLA_LAST_COUNT_OPT = 'sn_audit_lla_last_lockout_count';
-const SN_AUDIT_LLA_LAST_TOTAL_OPT = 'sn_audit_lla_last_lockouts_total';
 
-require_once __DIR__ . '/audit-log-lla.php'; // what Limit Login Attempts stores, read (2026-10-12).
+require_once __DIR__ . '/audit-log-guard.php'; // lockouts from the login guard's decisions (2026-10-18).
 
 // Subsets of login_failed, never additional events in summary totals.
 const SN_AUDIT_MFA_FAILURE_TYPES = array( 'mfa_failed', 'mfa_throttled', 'mfa_other' );
@@ -58,7 +59,6 @@ const SN_AUDIT_COUNTER_TYPES = array(
 	'login_failed',
 	'wp_login_404',
 	'wp_admin_unauth_404',
-	'lockout_triggered',
 	'password_reset',
 );
 
@@ -250,9 +250,9 @@ function snt_audit_get_login_successes_impl( $days = 30 ) {
 }
 
 /**
- * Build the hero-card summary: last 24h totals, last 7d trend, unique attackers 24h, LLA status.
+ * Build the hero-card summary: last 24h totals, last 7d trend, unique attackers 24h, guard lockouts (7d).
  *
- * @return array { last_24h: { failed_total, recon_total, all_total }, last_7d_vs_prior: { current, prior, pct_delta }, unique_attackers_24h: int, lla: array }
+ * @return array { last_24h: { failed_total, recon_total, all_total }, last_7d_vs_prior: { current, prior, pct_delta }, unique_attackers_24h: int, guard: array }
  */
 function snt_audit_get_summary_impl() {
 	$counters_7  = snt_audit_get_counters_impl( 7 );  // includes today
@@ -293,7 +293,7 @@ function snt_audit_get_summary_impl() {
 			'pct_delta' => $pct_delta,
 		),
 		'unique_attackers_24h' => (int) ( $today_row['unique_ips_count'] ?? 0 ),
-		'lla'                  => snt_audit_read_lla_summary_impl(),
+		'guard'                => snt_audit_guard_lockouts(),
 	);
 }
 
@@ -302,12 +302,7 @@ function snt_audit_get_summary_impl() {
  * retention (sn_setting('audit.retention_days'), default 90).
  * Returns prune stats.
  *
- * Also: implements the LLA polling fallback for lockout_triggered counter
- * (LLA fires no action hook — verified 2026-05-25). Reads current
- * `limit_login_lockouts` size; if greater than last-known, adds the delta
- * to today's lockout_triggered counter.
- *
- * @return array { counter_buckets_dropped: int, login_rows_dropped: int, lla_delta: int }
+ * @return array { counter_buckets_dropped: int, login_rows_dropped: int }
  */
 function snt_audit_prune_impl() {
 	$blob        = snt_audit_get_blob();
@@ -330,33 +325,16 @@ function snt_audit_prune_impl() {
 	} ) );
 	$dropped_rows = $before - count( $blob['login_success'] );
 
-	// LLA polling fallback for lockout_triggered (inc/audit-log-lla.php).
-	$lla_delta = snt_audit_lla_poll_delta();
-	if ( $lla_delta > 0 ) {
-		$today = snt_audit_today_key();
-		if ( ! isset( $blob['counters'][ $today ] ) ) {
-			$blob['counters'][ $today ] = array_fill_keys( SN_AUDIT_COUNTER_TYPES, 0 );
-			$blob['counters'][ $today ]['unique_ips_count'] = 0;
-		}
-		$blob['counters'][ $today ]['lockout_triggered'] = (int) ( $blob['counters'][ $today ]['lockout_triggered'] ?? 0 ) + $lla_delta;
-	}
-
 	update_option( SN_AUDIT_OPTION, $blob, true );
 
 	return array(
 		'counter_buckets_dropped' => $dropped_buckets,
 		'login_rows_dropped'      => $dropped_rows,
-		'lla_delta'               => $lla_delta,
 	);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
  * Event capture hook callbacks.
- *
- * NOTE: lockout_triggered uses a polling fallback (in snt_audit_prune_impl)
- * because LLA fires no action hook. Verified 2026-05-25 — only LLA
- * do_action calls in core are `llar_plugin_version_updated` and
- * `llar_mfa_generate_codes`. Polling kicks in via the daily prune tick.
  * ════════════════════════════════════════════════════════════════════════ */
 
 /**

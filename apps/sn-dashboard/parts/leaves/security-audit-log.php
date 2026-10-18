@@ -5,7 +5,7 @@
  * The classic leaf (inc/audit-log-admin.php, `snt_audit_log_render_tab()`)
  * paints a two-column sn_admin_shell: MAIN carries the intro prose, a 4-card
  * glance hero, the 7-column counter timeline and the recent-logins log; RAIL
- * carries the LLA status card, the retention form and the prune-now form plus
+ * carries the guard lockouts card, the retention form and the prune-now form plus
  * export links. The window has no shell equivalent, so every reading is
  * painted in one linear column (see the report's `changed` note) — nothing
  * is dropped. Same readers, same two forms, same handlers.
@@ -61,6 +61,7 @@ function audit_log_glance_html( array $summary ) {
 function audit_log_counter_table_html( array $counters ) {
 	foreach ( $counters as &$row ) {
 		$row['mfa_detail'] = (int) ( $row['mfa_failed'] ?? 0 ) . ' / ' . (int) ( $row['mfa_throttled'] ?? 0 ) . ' / ' . (int) ( $row['mfa_other'] ?? 0 );
+		unset( $row['lockout_triggered'] ); // retired 2026-10-18; old rows keep it in the export only.
 	}
 	unset( $row );
 	$columns = array(
@@ -69,7 +70,6 @@ function audit_log_counter_table_html( array $counters ) {
 		array( 'key' => 'mfa_detail', 'label' => __( 'MFA: rejected / limited / other', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'wp_login_404', 'label' => __( 'Login 404', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'wp_admin_unauth_404', 'label' => __( 'Admin 404', 'signal-and-noise-tools' ), 'align' => 'end' ),
-		array( 'key' => 'lockout_triggered', 'label' => __( 'Lockouts (polled daily)', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'password_reset', 'label' => __( 'Pwd reset', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'unique_ips_count', 'label' => __( 'Unique IPs', 'signal-and-noise-tools' ), 'align' => 'end' ),
 	);
@@ -81,20 +81,18 @@ function audit_log_counter_table_html( array $counters ) {
 }
 
 /**
- * The lockouts box: what Limit Login Attempts reports now, with a door to its
- * own screen (a foreign admin page, never a raw <a>). 2026-10-12 audit: it
- * was headed with the classic rail's leftover title and led by the plugin's
- * slug, alone at full width; now it is named for what it shows, in the row
- * with Retention and Maintenance, and the latest timestamp says it is an end.
+ * The lockouts box: the login guard's last 7 days (2026-10-18: its own
+ * lockouts and throttles replace the retired lockout plugin), the same rows
+ * as the classic rail, and a go to Security › Login defense in this window.
+ * In the row with Retention and Maintenance (2026-10-12 audit).
  *
- * @param array{active_lockouts:int,most_recent_lockout_ts:int|null} $lla From snt_audit_get_summary_impl()['lla'].
+ * @param array<string,mixed> $guard From snt_audit_get_summary_impl()['guard'].
  * @return string
  */
-function audit_log_lla_html( array $lla ) {
-	$body = '<p class="snt-prose">' . \snt_kit_esc( __( 'Read from the Limit Login Attempts Reloaded plugin, which locks an address out after repeated failures; its own screen manages them.', 'signal-and-noise-tools' ) ) . '</p>'
-		. \snt_kit_kv( function_exists( 'snt_audit_log_lla_rows' ) ? snt_audit_log_lla_rows( $lla ) : array() )
-		. \snt_kit_door( __( 'Manage in LLA', 'signal-and-noise-tools' ) . ' →', admin_url( 'admin.php?page=limit-login-attempts' ) );
-	return \snt_kit_section( __( 'Login lockouts (Limit Login Attempts)', 'signal-and-noise-tools' ), $body );
+function audit_log_guard_html( array $guard ) {
+	$body = \snt_kit_kv( function_exists( 'snt_audit_log_guard_rows' ) ? snt_audit_log_guard_rows( $guard ) : array() )
+		. \snt_kit_go( __( 'Open Login defense', 'signal-and-noise-tools' ) . ' →', array( 'tab' => 'security', 'sub' => 'login-defense', 'current' => 'security' ) );
+	return \snt_kit_section( __( 'Login lockouts (login guard)', 'signal-and-noise-tools' ), $body );
 }
 
 /**
@@ -140,13 +138,7 @@ function audit_log_maintenance_html() {
 	$retention_days = (int) sn_setting( 'audit.retention_days', 90 );
 	// 2026-10-16: the lone Prune now is the kit's compact one-button form, its
 	// sentence above it rather than inside a full-width form row.
-	$form           = '<p class="snt-prose">' . \snt_kit_esc(
-		sprintf(
-			/* translators: %s: retention days. */
-			__( 'Run the daily cleanup now: it deletes the daily counts and the successful-login records older than %s days, and checks Limit Login Attempts for new lockouts.', 'signal-and-noise-tools' ),
-			number_format_i18n( $retention_days )
-		)
-	) . '</p>'
+	$form           = '<p class="snt-prose">' . \snt_kit_esc( snt_audit_prune_lead_text( $retention_days ) ) . '</p>'
 		. \snt_kit_form(
 			'audit_prune_now',
 			'',
@@ -219,7 +211,7 @@ function paint_security_audit_log( array $ctx ) {
 	// box stood alone at full width with two rows in it; it shares one row
 	// with the two controls, three short boxes of a height.
 	$out .= audit_log_logins_html( $logins );
-	$out .= \snt_kit_grid( array( audit_log_lla_html( (array) $summary['lla'] ), audit_log_setup_html(), audit_log_maintenance_html() ), 260 );
+	$out .= \snt_kit_grid( array( audit_log_guard_html( (array) ( $summary['guard'] ?? array() ) ), audit_log_setup_html(), audit_log_maintenance_html() ), 260 );
 	return $out;
 }
 

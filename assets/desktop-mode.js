@@ -418,7 +418,7 @@
 			// under get-audit-log's `summary` key. v7.7.2: GET via the runner.
 			return window.sntAbilityRun( 'get-audit-log', { view: 'summary' } )
 				.then( function( res ) {
-					var s = ( res && res.summary ) || { last_24h: {}, last_7d_vs_prior: {}, lla: {} };
+					var s = ( res && res.summary ) || { last_24h: {}, last_7d_vs_prior: {}, guard: {} };
 					// v8.0.4: pct through a numeric fallback like every sibling
 					// field — bare pct_delta rendered "undefined%" on a
 					// degenerate payload (the v7.7.1 audit's noted fragility).
@@ -428,7 +428,8 @@
 						( s.last_24h.recon_total || 0 ) + ' recon). ' +
 						'7d trend: ' + ( pct >= 0 ? '+' : '' ) + pct + '%. ' +
 						'Unique IPs (24h): ' + ( s.unique_attackers_24h || 0 ) + '. ' +
-						'LLA lockouts: ' + ( s.lla.active_lockouts || 0 ) + '.';
+						// 2026-10-18: the login guard's lockouts; a failed read says so, never 0.
+						'Guard lockouts (7d): ' + ( s.guard && 'ok' === s.guard.state ? ( s.guard.locked_out || 0 ) : ( s.guard && 'unavailable' === s.guard.state ? 'unavailable' : 'not configured' ) ) + '.';
 					return toast( msg, 'info' );
 				} )
 				.catch( function( err ) {

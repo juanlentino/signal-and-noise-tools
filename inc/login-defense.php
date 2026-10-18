@@ -126,24 +126,28 @@ function sn_login_defense_trend_series( $rows ) {
 }
 
 /**
- * Cached at-a-glance headline (checked/blocked/block_rate + top network) shared
- * by the dashboard widget and the Analytics-dashboard Login defense view. Short
- * transient so opening both surfaces does not double-hit Analytics Engine.
+ * Cached at-a-glance headline (checked/blocked/block_rate + top network, and
+ * since 2026-10-18 the lockouts/throttles the audit log and digest print)
+ * shared by the dashboard widget and the Analytics-dashboard Login defense view.
+ * Short transient so opening both surfaces does not double-hit Analytics Engine.
  */
 function sn_login_defense_headline() {
 	$cached = get_transient( 'sn_lg_headline' );
-	if ( is_array( $cached ) ) {
+	// A headline cached before it carried lockouts is a miss: serving it would
+	// read as a week of zero lockouts.
+	if ( is_array( $cached ) && array_key_exists( 'locked_out', $cached ) ) {
 		return $cached;
 	}
+	$zeros = array( 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '', 'locked_out' => 0, 'throttled' => 0, 'account_throttled' => 0 );
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
-		return array( 'configured' => false, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '' );
+		return array( 'configured' => false ) + $zeros;
 	}
 	// A failed decisions read (null) is UNAVAILABLE, not zeros: the `?: array()`
 	// fold cached an outage for 600s as configured:true / checked 0 / blocked 0
 	// (#1204). Reported as such and never cached, so the next call reads again.
 	$dec = sn_analytics_query( sn_login_defense_decisions_sql( 7 ) );
 	if ( ! is_array( $dec ) ) {
-		return array( 'configured' => true, 'unavailable' => true, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '', 'trend' => array() );
+		return array( 'configured' => true, 'unavailable' => true, 'trend' => array() ) + $zeros;
 	}
 	$kpis = sn_login_defense_kpis_from_rows( $dec );
 	$asn  = sn_analytics_query( sn_login_defense_top_asn_sql( 7, 1 ) ) ?: array();
@@ -158,6 +162,9 @@ function sn_login_defense_headline() {
 		'block_rate'  => $kpis['block_rate'],
 		'top_network' => (string) ( $asn[0]['asorg'] ?? '' ),
 		'trend'       => $trend,
+		'locked_out'        => $kpis['locked_out'],
+		'throttled'         => $kpis['throttled'],
+		'account_throttled' => $kpis['account_throttled'],
 	);
 	set_transient( 'sn_lg_headline', $out, 600 );
 	return $out;
