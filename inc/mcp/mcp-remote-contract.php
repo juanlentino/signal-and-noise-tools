@@ -87,7 +87,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Cloudflare verifies when genuine and failed its check, credited to no one
 // (basis inferred). Additive. The worker's own CONTRACT_VERSION bump is a
 // separate PR.
-const SN_REMOTE_CONTRACT_VERSION = '19';
+// Contract 20 (owner-approved 2026-10-18, "If you recommend this, go for
+// it"): each impostors[] entry gains reasons (hits per reason: cf_directory,
+// vendor_ranges, off_home_network, rotator_network), and the verification
+// split gains vendor_verified, the part of verified that rests on the
+// vendor's published IP ranges (basis vendor_verified). Additive. The worker's
+// own CONTRACT_VERSION bump is a separate PR, merged after this cut installs.
+const SN_REMOTE_CONTRACT_VERSION = '20';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -134,6 +140,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'18' => 'ec15e0e6b2544300a3d65a481f94648070a36f19f19420d6bb7fe3a3dc28c50a',
 	// RED-then-pin, 2026-10-18: impostors on the machine-readers summary twin.
 	'19' => 'ddce832f49228f7710fb770c71fc3f9ff53fa72d97669b4304c1915e30e117b7',
+	// RED-then-pin, 2026-10-18: impostor reasons and vendor_verified on the machine-readers summary twin.
+	'20' => 'b33030216b11642e3dd162992bd90f01e056e437b3bfaff7f9e783a6f5b91d6b',
 );
 
 /**

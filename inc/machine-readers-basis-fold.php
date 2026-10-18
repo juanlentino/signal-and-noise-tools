@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 function snt_mr_evidence( array $rows ) {
 	$has_tax  = function_exists( 'snt_mr_taxonomy_absent' ) && ! snt_mr_taxonomy_absent( $rows );
 	$ai_set   = function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array();
-	$credited = array_values( array_filter( $rows, 'snt_mr_is_credited' ) );
+	$credited = snt_mr_credited_rows( $rows );
 	$ai       = snt_mr_verification_zero();
 	foreach ( $credited as $row ) {
 		if ( in_array( (string) ( $row['family'] ?? '' ), $ai_set, true ) ) {
@@ -38,13 +38,16 @@ function snt_mr_evidence( array $rows ) {
 		// null, not [], when the taxonomy is absent: rows then carry no agent
 		// id, so no impersonation could have been seen.
 		'impersonations' => $has_tax ? snt_mr_impersonations( $rows ) : null,
-		// Claimed a cf_verified agent, failed Cloudflare's check: counted in
-		// total, credited to nothing, basis inferred (a rule decided it).
+		// A rule shows the claim false (cf_directory, vendor_ranges,
+		// off_home_network, rotator_network; `reasons` per agent): counted in
+		// total, credited to nothing, basis inferred.
 		'impostors'      => $has_tax ? snt_mr_impostors( $rows ) : null,
 		'verification'   => array(
-			'source'                 => 'cloudflare verified bot category',
+			// verified includes vendor_verified: an IP inside the vendor's own
+			// published ranges (taxonomy 1.6.0), named apart in the split.
+			'source'                 => 'cloudflare verified bot category; vendor published ip ranges',
 			'since'                  => defined( 'SN_RIGHTS_EVIDENCE_VERIFIED_SINCE' ) ? SN_RIGHTS_EVIDENCE_VERIFIED_SINCE : null,
-			'basis'                  => array( 'claimed' => 'claimed', 'verified' => 'verified', 'verified_matched' => 'verified', 'unverified' => 'claimed', 'unverifiable' => 'unmeasured' ),
+			'basis'                  => array( 'claimed' => 'claimed', 'verified' => 'verified', 'verified_matched' => 'verified', 'vendor_verified' => 'vendor_verified', 'unverified' => 'claimed', 'unverifiable' => 'unmeasured' ),
 			'families'               => snt_mr_verification_by( $credited, 'family' ),
 			'purposes'               => $purposes,
 			'ai_training'            => $ai,
@@ -80,8 +83,9 @@ function snt_mr_basis_display( array $rows ) {
 	$ev    = snt_mr_evidence( $rows );
 	$v     = $ev['verification'];
 	$fp    = array();
+	$ctx   = snt_mr_credit_context( $rows );
 	foreach ( $rows as $r ) {
-		if ( ! empty( $r['first_party'] ) && snt_mr_is_credited( $r ) ) {
+		if ( ! empty( $r['first_party'] ) && snt_mr_is_credited( $r, $ctx ) ) {
 			$fp[ (string) ( $r['family'] ?? '' ) ] = ( $fp[ (string) ( $r['family'] ?? '' ) ] ?? 0 ) + max( 0, (int) ( $r['hits'] ?? 0 ) );
 		}
 	}

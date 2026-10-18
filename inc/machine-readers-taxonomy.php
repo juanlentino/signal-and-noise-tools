@@ -121,7 +121,7 @@ function snt_mr_normalize_signed_agent( $value ) {
  * older Worker, which is a different answer from a measured zero.
  *
  * @param array $row Raw row from the sensor.
- * @return array<string,mixed> vendor, agent, purpose, taxonomy_version, training_corpus_source, first_party, ua_sample, markdown_requested, signed_agent, verified_bot, network, owner_identity, owner_agent, cf_verified.
+ * @return array<string,mixed> vendor, agent, purpose, taxonomy_version, training_corpus_source, first_party, ua_sample, markdown_requested, signed_agent, verified_bot, network, owner_identity, owner_agent, cf_verified, vendor_verified, home_network.
  */
 function snt_mr_normalize_taxonomy_fields( $row ) {
 	$purposes = snt_mr_valid_purposes();
@@ -167,7 +167,25 @@ function snt_mr_normalize_taxonomy_fields( $row ) {
 		// genuine (stamped from the taxonomy at read time). Absent (an older
 		// Worker) reads false, and false never reclassifies a hit.
 		'cf_verified'            => true === ( $row['cf_verified'] ?? null ) || '1' === (string) ( $row['cf_verified'] ?? '' ),
+		// rights-signals taxonomy 1.6.0, THREE states each: '1', '0', or ''
+		// (not measured, absent, or anything else). '0' and '' must not collapse:
+		// only a measured '0' may reclassify a hit. vendor_verified is blob16
+		// (client IP in the vendor's published ranges); home_network is
+		// stamped at read time from the taxonomy's home_networks.
+		'vendor_verified'        => snt_mr_normalize_tristate( $row['vendor_verified'] ?? null ),
+		'home_network'           => snt_mr_normalize_tristate( $row['home_network'] ?? null ),
 	);
+}
+
+/**
+ * '1', '0' or '' (not measured) from a sensor flag. PURE.
+ *
+ * @param mixed $v Raw value.
+ * @return string
+ */
+function snt_mr_normalize_tristate( $v ) {
+	$v = is_int( $v ) || is_bool( $v ) ? (string) (int) $v : ( is_string( $v ) ? trim( $v ) : '' );
+	return in_array( $v, array( '1', '0' ), true ) ? $v : '';
 }
 
 /**

@@ -149,11 +149,20 @@
 			var impHits = imp.reduce( function( n, i ) { return n + Number( i.hits ); }, 0 );
 			list.appendChild( listRow( 'Control tokens, credited to no one', grouped( impHits ) + ' \u00b7 ' + imp.map( function( i ) { return String( i.token || i.agent ); } ).join( ', ' ) ) );
 		}
-		// Reads that named a crawler Cloudflare verifies when genuine and
-		// failed its check: counted in the total, credited to no one.
-		var fake = Array.isArray( mr.impostors ) ? mr.impostors.reduce( function( n, i ) { return n + ( i ? Number( i.hits ) || 0 : 0 ); }, 0 ) : 0;
+		// Reads that named a known crawler and failed a check: counted in the
+		// total, credited to no one. The total, then the count per reason, in
+		// the words of inc/machine-readers-impostor-copy.php (an older payload
+		// without reasons shows the total alone).
+		var fake = 0, why = {};
+		( Array.isArray( mr.impostors ) ? mr.impostors : [] ).forEach( function( i ) {
+			if ( ! i ) { return; }
+			fake += Number( i.hits ) || 0;
+			Object.keys( i.reasons || {} ).forEach( function( k ) { why[ k ] = ( why[ k ] || 0 ) + ( Number( i.reasons[ k ] ) || 0 ); } );
+		} );
 		if ( fake > 0 ) {
-			list.appendChild( listRow( 'Claimed a known crawler but failed Cloudflare\u2019s check', grouped( fake ) ) );
+			var said = { cf_directory: 'failed Cloudflare\u2019s check', vendor_ranges: 'came from outside the vendor\u2019s published IP ranges and network', off_home_network: 'came from outside the vendor\u2019s own network', rotator_network: 'came from a network posing as many crawlers' };
+			var parts = [ 'cf_directory', 'vendor_ranges', 'off_home_network', 'rotator_network' ].filter( function( k ) { return why[ k ] > 0; } ).map( function( k ) { return grouped( why[ k ] ) + ' ' + said[ k ]; } );
+			list.appendChild( listRow( 'Claimed a known crawler but failed a check', grouped( fake ) + ( parts.length ? ' \u00b7 ' + parts.join( '; ' ) : '' ) ) );
 		}
 		if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
 			// A crawler that went looking for the declarations on purpose. The

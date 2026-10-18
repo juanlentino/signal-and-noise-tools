@@ -88,11 +88,29 @@ $GLOBALS['__fetch']['rows'] = array_merge(
 	mr_rows( 'openai', 12, $NOW, $FAKE + array( 'agent' => 'openai-gptbot' ), $spike ),
 	mr_rows( 'amazon-ai', 9, $NOW, $FAKE + array( 'agent' => 'amazon-bot' ), $spike )
 );
-ok( function_exists( 'snt_mr_is_impostor' ) && snt_mr_is_impostor( $GLOBALS['__fetch']['rows'][0] ), 'the fixture rows are impostors by the summary\'s own rule' );
+ok( function_exists( 'snt_mr_is_impostor' ) && snt_mr_is_impostor( $GLOBALS['__fetch']['rows'][0], snt_mr_credit_context( $GLOBALS['__fetch']['rows'] ) ), 'the fixture rows are impostors by the summary\'s own rule' );
 $r = snt_ml_reader_anomalies( $NOW );
 $f = $by_family( $r );
 ok( 29 * 10 + 400 === ( $f['anthropic']['total'] ?? null ), 'anthropic\'s series keeps every impostor read (29 x 10 + 400)' );
 ok( 1 === count( $r['co_movement'] ?? array() ) && 'Google LLC' === ( $r['co_movement'][0]['network'] ?? null ), 'three impostor families spiking together from Google LLC still make one co-movement' );
+
+echo "\nGroup A4: rotator impostors stay in the series too\n";
+// Five vendors' agents from one network, none verified, none in Cloudflare's
+// directory: impostors by rotator_network, and still in every family series.
+$ROT = array( 'network' => 'Google LLC', 'cf_verified' => false );
+$GLOBALS['__fetch']['rows'] = array_merge(
+	mr_rows( 'anthropic', 10, $NOW, $ROT + array( 'agent' => 'cohere-ai', 'vendor' => 'cohere' ), $spike ),
+	mr_rows( 'openai', 12, $NOW, $ROT + array( 'agent' => 'mistral-user', 'vendor' => 'mistral' ), $spike ),
+	mr_rows( 'amazon-ai', 9, $NOW, $ROT + array( 'agent' => 'perplexity-user', 'vendor' => 'perplexity' ), $spike ),
+	mr_rows( 'bytedance', 9, $NOW, $ROT + array( 'agent' => 'openai-adsbot', 'vendor' => 'openai' ), array() ),
+	mr_rows( 'meta-ai', 9, $NOW, $ROT + array( 'agent' => 'meta-externalfetcher', 'vendor' => 'meta' ), array() )
+);
+$ctx = snt_mr_credit_context( $GLOBALS['__fetch']['rows'] );
+ok( 'rotator_network' === snt_mr_credit_verdict( $GLOBALS['__fetch']['rows'][0], $ctx )['reason'], 'the fixture rows are rotator impostors by the summary\'s own rule' );
+$r = snt_ml_reader_anomalies( $NOW );
+$f = $by_family( $r );
+ok( 29 * 10 + 400 === ( $f['anthropic']['total'] ?? null ), 'the series keeps every rotator impostor read (29 x 10 + 400)' );
+ok( 1 === count( $r['co_movement'] ?? array() ), 'and they still make the co-movement' );
 
 echo "\nGroup B: co-movement, one finding per network\n";
 $GLOBALS['__fetch']['rows'] = array_merge(

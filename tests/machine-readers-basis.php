@@ -75,7 +75,7 @@ $row = static function ( $family, $purpose, $agent, $day, $hits, $extra = array(
 };
 
 echo "Group A: the five basis values and the row classifier\n";
-ok( array( 'signed', 'verified', 'claimed', 'inferred', 'unmeasured' ) === SN_MR_BASIS_VALUES, 'five basis values, in order' );
+ok( array( 'signed', 'verified', 'vendor_verified', 'claimed', 'inferred', 'unmeasured' ) === SN_MR_BASIS_VALUES, 'six basis values, in order (vendor_verified: taxonomy 1.6.0)' );
 ok( array( 'google-extended', 'apple-bot-extended' ) === array_keys( SN_MR_CONTROL_TOKENS ), 'the two control tokens are listed by taxonomy id' );
 ok( snt_mr_is_impersonation( array( 'agent' => 'google-extended' ) ) && snt_mr_is_impersonation( array( 'agent' => 'apple-bot-extended' ) ), 'a hit presenting a control token is an impersonation' );
 ok( ! snt_mr_is_impersonation( array( 'agent' => 'google-bot' ) ) && ! snt_mr_is_impersonation( array() ), 'any other agent, or none, is not' );
@@ -134,15 +134,15 @@ $train = array_values( array_filter( (array) $s['purposes'], static fn( $p ) => 
 ok( 837 === ( $train['hits'] ?? null ) && 837 === $s['ai_training_by_purpose'], 'purposes.train and ai_training_by_purpose lose the 170 too: 837' );
 ok( array( array( 'agent' => 'google-extended', 'token' => 'Google-Extended', 'hits' => 170, 'networks' => array( array( 'network' => 'Google LLC', 'hits' => 170 ) ), 'basis' => 'claimed' ) ) === $s['impersonations'], 'impersonations lists the control token, its hits and networks, basis claimed' );
 $vt = $s['verification']['purposes']->train ?? null;
-ok( is_array( $vt ) && array( 'claimed' => 837, 'verified' => 29, 'verified_matched' => 25, 'unverified' => 798, 'unverifiable' => 10 ) === $vt, 'train: claimed 837 = verified 29 + unverified 798 + unverifiable 10; 25 verified for training' );
+ok( is_array( $vt ) && array( 'claimed' => 837, 'verified' => 29, 'verified_matched' => 25, 'vendor_verified' => 0, 'unverified' => 798, 'unverifiable' => 10 ) === $vt, 'train: claimed 837 = verified 29 + unverified 798 + unverifiable 10; 25 verified for training' );
 ok( $s['verification']['ai_training_by_purpose'] === $vt, 'ai_training_by_purpose carries the same split' );
 $pk = array_column( (array) $s['purposes'], 'hits', 'purpose' );
 $vp = (array) $s['verification']['purposes'];
 ksort( $pk );
 ksort( $vp );
 ok( array_keys( $pk ) === array_keys( $vp ) && array() === array_filter( array_keys( $pk ), static fn( $k ) => $vp[ $k ]['claimed'] !== $pk[ $k ] ), 'purposes[] and verification.purposes name the same purposes, and each split\'s claimed equals its purpose\'s hits (first-party reads out of both)' );
-ok( 'cloudflare verified bot category' === $s['verification']['source'] && SN_RIGHTS_EVIDENCE_VERIFIED_SINCE === $s['verification']['since'], 'the source and since are the rights evidence\'s' );
-ok( array( 'claimed' => 'claimed', 'verified' => 'verified', 'verified_matched' => 'verified', 'unverified' => 'claimed', 'unverifiable' => 'unmeasured' ) === $s['verification']['basis'], 'each part of the split names its basis' );
+ok( 'cloudflare verified bot category; vendor published ip ranges' === $s['verification']['source'] && SN_RIGHTS_EVIDENCE_VERIFIED_SINCE === $s['verification']['since'], 'the source and since are the rights evidence\'s' );
+ok( array( 'claimed' => 'claimed', 'verified' => 'verified', 'verified_matched' => 'verified', 'vendor_verified' => 'vendor_verified', 'unverified' => 'claimed', 'unverifiable' => 'unmeasured' ) === $s['verification']['basis'], 'each part of the split names its basis' );
 $vu = $s['verification']['purposes']->unknown ?? array();
 ok( 1 === ( $vu['verified'] ?? null ) && 0 === ( $vu['verified_matched'] ?? null ), 'an unmapped purpose can be verified but is never matched' );
 $fam = array_column( $s['families'], null, 'family' );
@@ -215,7 +215,7 @@ ok( null === snt_ability_get_machine_readers_crosstab( array( 'days' => 7 ) )['u
 echo "\nGroup G: the display rows both Machine Readers leaves paint\n";
 $disp = snt_mr_basis_display( snt_mr_normalize_rows( $rows ) );
 $dp   = array_column( $disp['purposes'], null, 'label' );
-ok( array( 'label' => 'train', 'claimed' => 837, 'verified' => 29, 'verified_matched' => 25, 'unverified' => 798, 'unverifiable' => 10 ) === $dp['train'], 'a purpose row: claimed, verified, verified for its purpose, unverified, unverifiable' );
+ok( array( 'label' => 'train', 'claimed' => 837, 'verified' => 29, 'verified_matched' => 25, 'vendor_verified' => 0, 'unverified' => 798, 'unverifiable' => 10 ) === $dp['train'], 'a purpose row: claimed, verified, verified for its purpose, unverified, unverifiable' );
 ok( isset( $dp['unmapped'] ) && ! isset( $dp['unknown'] ), 'purpose unknown is labeled unmapped' );
 ok( 'train' === $disp['purposes'][0]['label'], 'purpose rows run by claimed reads, largest first' );
 $df = array_column( $disp['families'], null, 'label' );

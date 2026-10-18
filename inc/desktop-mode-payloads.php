@@ -532,6 +532,8 @@ function snt_desktop_machine_readers_identity( array $rows ) {
 		$day = is_array( $row ) ? (string) ( $row['day'] ?? '' ) : '';
 		if ( function_exists( 'sn_rights_evidence_identity_class' ) && '' !== $day ) {
 			$class = sn_rights_evidence_identity_class( $day, $bot );
+			// Taxonomy 1.6.0: inside the vendor's published IP ranges is verified too.
+			$class = 'unverified' === $class && '1' === (string) ( $row['vendor_verified'] ?? '' ) ? 'verified' : $class;
 			$out[ 'unverifiable' === $class ? 'not_measured' : $class ] += $hits;
 		} elseif ( '' !== $bot ) {
 			$out['verified'] += $hits;
@@ -590,8 +592,9 @@ function snt_desktop_machine_readers_top_family( array $payload, $prior_rows, $d
 	}
 	if ( is_array( $prior_rows ) && count( $covered ) >= max( 1, (int) $days ) ) {
 		$hits = array();
+		$ctx  = function_exists( 'snt_mr_credit_context' ) ? snt_mr_credit_context( $prior_rows ) : null;
 		foreach ( $prior_rows as $r ) {
-			$own = $readers && ( ! empty( $r['first_party'] ) || ( function_exists( 'snt_mr_is_credited' ) && ! snt_mr_is_credited( $r ) ) );
+			$own = $readers && ( ! empty( $r['first_party'] ) || ( null !== $ctx && ! snt_mr_is_credited( $r, $ctx ) ) );
 			if ( is_array( $r ) && '' !== (string) ( $r['family'] ?? '' ) && ! $own ) {
 				$hits[ (string) $r['family'] ] = (int) ( $hits[ (string) $r['family'] ] ?? 0 ) + max( 0, (int) ( $r['hits'] ?? 0 ) );
 			}

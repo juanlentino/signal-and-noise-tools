@@ -40,8 +40,8 @@ const SN_MR_AGENT_NETWORKS_TOP = 5;
  * unverifiable; inc/machine-readers-basis.php), says whether it is this site's
  * own tooling (`first_party_hits`, the exact part, and `first_party`, true when
  * that part is above zero) or a robots.txt control token no crawler sends
- * (`impersonation`), how many of its hits are impostors (`impostor_hits`: a
- * cf_verified agent Cloudflare did not verify, credited to no one), and names
+ * (`impersonation`), how many of its hits are impostors (`impostor_hits`, by
+ * any reason of snt_mr_credit_verdict, credited to no one), and names
  * its `basis`.
  *
  * @param array $rows snt_mr_fetch() aggregate rows.
@@ -54,6 +54,7 @@ function snt_mr_crosstab( $rows ) {
 	$fp    = array();
 	$im    = array();
 	$total = 0;
+	$ctx   = function_exists( 'snt_mr_credit_context' ) ? snt_mr_credit_context( array_values( array_filter( (array) $rows, 'is_array' ) ) ) : null;
 	foreach ( (array) $rows as $row ) {
 		if ( ! is_array( $row ) ) {
 			continue;
@@ -75,7 +76,7 @@ function snt_mr_crosstab( $rows ) {
 		$cells[ $key ]['hits'] += $hits;
 		$split[ $key ]          = null === $split[ $key ] ? null : snt_mr_verification_add( $split[ $key ], $row );
 		$fp[ $key ]            += empty( $row['first_party'] ) ? 0 : $hits;
-		$im[ $key ]            += function_exists( 'snt_mr_is_impostor' ) && snt_mr_is_impostor( $row ) ? $hits : 0;
+		$im[ $key ]            += null !== $ctx && snt_mr_is_impostor( $row, $ctx ) ? $hits : 0;
 		if ( '' !== $surface ) {
 			$cells[ $key ]['surfaces'][ $surface ] = ( $cells[ $key ]['surfaces'][ $surface ] ?? 0 ) + $hits;
 		}
@@ -125,7 +126,8 @@ function snt_mr_agent_networks( $rows ) {
 		$net  = (string) ( $row['network'] ?? '' );
 		$a    = $agents[ $agent ] ?? array( 'agent' => $agent, 'hits' => 0, 'verified_hits' => 0, 'not_measured' => 0, 'networks' => array() );
 		$a['hits'] += $hits;
-		if ( '' !== (string) ( $row['verified_bot'] ?? '' ) ) {
+		// Verified by Cloudflare, or (taxonomy 1.6.0) by the vendor's own IP ranges.
+		if ( '' !== (string) ( $row['verified_bot'] ?? '' ) || '1' === (string) ( $row['vendor_verified'] ?? '' ) ) {
 			$a['verified_hits'] += $hits;
 		}
 		if ( '' === $net ) {
