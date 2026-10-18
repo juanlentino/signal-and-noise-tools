@@ -383,7 +383,7 @@ $sn_lists = array_column( $sn_mbox['lists'], null, 'path' );
 ok( 'verified' === ( $sn_lists['reader_families']['item']['sub'] ?? '' ) && ! isset( $sn_lists['families'] ), 'Top families lists readers (reader_families), each with its verified reads; this site\'s own tools are never the top family' );
 $sn_fields = array_column( $sn_mbox['sections'][0]['fields'], null, 'path' );
 ok( isset( $sn_fields['first_party'] ) && false !== strpos( $sn_fields['first_party']['label'], 'not readership' ), 'this site\'s own tools on a line of their own, not readership' );
-ok( isset( $sn_fields['ai_training_by_purpose'] ) && 'verification.ai_training_by_purpose.verified' === ( $sn_fields['ai_training_by_purpose']['compare']['path'] ?? '' ), 'the AI-training figure is the claimed purpose count with the verified part beside it' );
+ok( isset( $sn_fields['verification.ai_training_by_purpose.verified'] ) && 'ai_training_by_purpose' === ( $sn_fields['verification.ai_training_by_purpose.verified']['compare']['path'] ?? '' ), 'the AI-training figure is the verified part of the credited purpose count, with the claimed count beside it' );
 ok( array( 'unknown' => 'unmapped' ) === ( $sn_lists['purposes']['item']['label_map'] ?? null ), 'Reads by purpose shows unknown as unmapped' );
 $sn_dwx_js = (string) file_get_contents( __DIR__ . '/../assets/dash-widgets.js' );
 ok( false !== strpos( $sn_dwx_js, 'item.label_map' ) && false !== strpos( $sn_dwx_js, "item.sub_template.replace( '%s', format( entry[ item.sub ] ) )" ), 'the list applies label_map and groups the sub figure' );

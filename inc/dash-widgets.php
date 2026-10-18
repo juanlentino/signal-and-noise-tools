@@ -153,13 +153,14 @@ function snt_dwx_boxes() {
 							'delta' => array( 'label' => __( 'prior 30d', 'signal-and-noise-tools' ) ),
 						),
 						array(
-							// 2026.10.1: the purpose figure, claimed, with the part
-							// Cloudflare verified (the legacy family figure is the
-							// Machine readers view's "counted both ways" band).
-							'path'    => 'ai_training_by_purpose',
-							'label'   => __( 'AI-training, claimed', 'signal-and-noise-tools' ),
-							/* translators: %s: of them verified by Cloudflare */
-							'compare' => array( 'template' => __( '%s verified', 'signal-and-noise-tools' ), 'path' => 'verification.ai_training_by_purpose.verified' ),
+							// 2026-10-18: the credited purpose figure a check vouched
+							// for (Cloudflare or the vendor's published ranges), with
+							// the claimed figure beside it (the legacy family figure
+							// is the Machine readers view's "counted both ways" band).
+							'path'    => 'verification.ai_training_by_purpose.verified',
+							'label'   => __( 'AI-training, verified', 'signal-and-noise-tools' ),
+							/* translators: %s: AI-training reads claimed */
+							'compare' => array( 'template' => __( 'of %s claimed', 'signal-and-noise-tools' ), 'path' => 'ai_training_by_purpose' ),
 						),
 						array(
 							// Top family is the LIST's fact. This cell carries the

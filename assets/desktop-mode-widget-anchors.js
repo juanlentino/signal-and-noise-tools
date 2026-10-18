@@ -83,12 +83,19 @@
 		return ( Number( v ) || 0 ).toLocaleString( 'en-US' );
 	}
 
-	/** A label/value row as a listitem; `amber` tones the value; `extra` follows it. */
-	function listRow( label, value, amber, extra ) {
+	/**
+	 * A label/value row as a listitem; `amber` tones the value; `extra` follows
+	 * it. `depth` nests the row under the one above it: the label indented 18px (past the part's dot)
+	 * per level, the figure muted (same right edge). `title` is the row's long
+	 * description, said on hover.
+	 */
+	function listRow( label, value, amber, extra, depth, title ) {
 		var line = el( 'div', { style: 'display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;column-gap:8px;padding:2px 0;font-size:11px;' } );
 		line.setAttribute( 'role', 'listitem' );
-		line.appendChild( el( 'span', { text: label, style: 'min-width:0;' + SUBTLE } ) );
-		var val = el( 'span', { text: value, style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:break-word;text-align:right;' + ( amber ? 'color:#d29922;' : '' ) } );
+		if ( depth ) { line.setAttribute( 'data-depth', String( depth ) ); }
+		if ( title ) { line.setAttribute( 'title', title ); }
+		line.appendChild( el( 'span', { text: label, style: 'min-width:0;' + ( depth ? 'padding-left:' + ( 18 * depth ) + 'px;' : '' ) + SUBTLE } ) );
+		var val = el( 'span', { text: value, style: 'font-variant-numeric:tabular-nums;' + ( depth ? SUBTLE : 'font-weight:600;' ) + 'flex:0 1 auto;min-width:0;white-space:normal;overflow-wrap:break-word;text-align:right;' + ( amber ? 'color:#d29922;' : '' ) } );
 		if ( extra ) { val.appendChild( extra ); }
 		line.appendChild( val );
 		return line;
@@ -114,6 +121,33 @@
 		list.setAttribute( 'role', 'list' );
 		var reads = listRow( 'Machine reads', grouped( mr.total ) );
 		list.appendChild( reads );
+		// 2026-10-18: one short label and one figure per row, the words from the
+		// payload's one vocabulary (mr.labels, inc/machine-readers-impostor-copy.php),
+		// the long description in the row's title. A row whose words did not
+		// arrive is left out rather than named here.
+		var words = mr.labels || {};
+		function add( key, n, depth, label ) {
+			var w = words[ key ];
+			if ( ! w ) { return null; }
+			return list.appendChild( listRow( label || w.label, grouped( n ), false, null, depth, w.title ) );
+		}
+		// Reads that named a known crawler and failed a check, and reads that
+		// presented a robots.txt control token: counted, credited to no one. Both
+		// sit inside "Named themselves, not verified", so they nest under it.
+		var fake = ( Array.isArray( mr.impostors ) ? mr.impostors : [] ).reduce( function( n, i ) { return n + ( i ? Number( i.hits ) || 0 : 0 ); }, 0 );
+		var imp  = Array.isArray( mr.impersonations ) ? mr.impersonations.filter( function( i ) { return i && Number( i.hits ) > 0; } ) : [];
+		function creditedToNoOne( depth, tokens ) {
+			if ( fake > 0 ) {
+				add( 'failed_check', fake, depth );
+				( Array.isArray( mr.impostor_reasons ) ? mr.impostor_reasons : [] ).forEach( function( r ) {
+					if ( r && Number( r.hits ) > 0 ) { add( r.reason, r.hits, depth + 1 ); }
+				} );
+			}
+			if ( tokens > 0 && words.control_token ) {
+				add( 'control_token', tokens, depth, words.control_token.label + ' (' + imp.map( function( i ) { return String( i.token || i.agent ); } ).join( ', ' ) + ')' );
+			}
+		}
+		var impHits = imp.reduce( function( n, i ) { return n + Number( i.hits ); }, 0 );
 		// A user agent is a claim; only the verified share is vouched for by the edge.
 		var id = mr.edge_verified; // its own key: `identity` is the summary's signature evidence
 		var sum = id ? id.verified + id.unverified + id.not_measured + ( Number( id.first_party ) || 0 ) : 0;
@@ -122,47 +156,37 @@
 			// segment's dot (assets/desktop-mode-card-kit.js); without the kit, the rows alone.
 			// This site's own tools are a part of their own: not readers at all.
 			var kit   = window.sntCardKit;
-			var parts = [ [ 'Verified by Cloudflare', id.verified ], [ 'Named themselves, not verified', id.unverified ], [ 'Not measured', id.not_measured ], [ 'This site\u2019s own tools, not readership', Number( id.first_party ) || 0 ] ];
+			var parts = [ [ 'verified', id.verified ], [ 'unverified', id.unverified ], [ 'not_measured', id.not_measured ], [ 'first_party', Number( id.first_party ) || 0 ] ];
 			var bar   = kit ? kit.bar( parts.map( function( p ) { return 100 * p[1] / sum; } ) ) : null;
 			if ( bar ) { reads.appendChild( bar ); }
+			// Verified and Named themselves always show; the other two only with reads.
 			parts.forEach( function( p, i ) {
 				if ( i >= 2 && ! ( p[1] > 0 ) ) { return; }
-				var row = listRow( p[0], grouped( p[1] ) );
-				if ( bar ) { row.firstChild.insertBefore( kit.dot( i ), row.firstChild.firstChild ); }
-				list.appendChild( row );
+				var row = add( p[0], p[1], 0 );
+				if ( row && bar ) { row.firstChild.insertBefore( kit.dot( i ), row.firstChild.firstChild ); }
+				if ( 'verified' === p[0] ) {
+					// By source. The vendor's published ranges once the sensor measures
+					// them (null is not measured; 0 is then a real figure).
+					var vendor = typeof id.vendor_verified === 'number' ? id.vendor_verified : null;
+					add( 'by_cloudflare', p[1] - ( vendor || 0 ), 1 );
+					if ( null !== vendor ) { add( 'by_vendor', vendor, 1 ); }
+				}
+				if ( 'unverified' === p[0] ) {
+					creditedToNoOne( 1, typeof id.control_token === 'number' ? id.control_token : impHits );
+				}
 			} );
+		} else {
+			creditedToNoOne( 0, impHits ); // no split (a capped read): the same rows, one level up.
 		}
-		// null means "not measured", never painted as 0. Unreleased: the claimed
-		// AI-training figure (by purpose) with the part Cloudflare verified and
-		// a 6px evidence strip; an older payload keeps the legacy family figure.
+		// null means "not measured", never painted as 0. The credited AI-training
+		// figure (by purpose): the verified part is the row's figure, the claimed
+		// figure and its parts the title, with a 6px evidence strip; an older
+		// payload keeps the legacy family figure.
 		var aiv = mr.verification && mr.verification.ai_training_by_purpose;
-		if ( aiv && typeof mr.ai_training_by_purpose === 'number' ) {
-			list.appendChild( listRow( 'AI-training reads', grouped( aiv.claimed ) + ' claimed \u00b7 ' + grouped( aiv.verified ) + ' verified', false, evidenceStrip( aiv ) ) );
+		if ( aiv && typeof mr.ai_training_by_purpose === 'number' && words.ai_training ) {
+			list.appendChild( listRow( words.ai_training.label, grouped( aiv.verified ) + ' verified', false, evidenceStrip( aiv ), 0, mr.ai_training_title || words.ai_training.title ) );
 		} else if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
 			list.appendChild( listRow( 'Declared AI-training reads', grouped( mr.ai_training ) ) );
-		}
-		// Reads presenting a robots.txt control token (Google-Extended): no
-		// crawler of its own, so credited to no vendor and left out of the
-		// AI-training figure above. Absent or none: no row.
-		var imp = Array.isArray( mr.impersonations ) ? mr.impersonations.filter( function( i ) { return i && Number( i.hits ) > 0; } ) : [];
-		if ( imp.length ) {
-			var impHits = imp.reduce( function( n, i ) { return n + Number( i.hits ); }, 0 );
-			list.appendChild( listRow( 'Control tokens, credited to no one', grouped( impHits ) + ' \u00b7 ' + imp.map( function( i ) { return String( i.token || i.agent ); } ).join( ', ' ) ) );
-		}
-		// Reads that named a known crawler and failed a check: counted in the
-		// total, credited to no one. The total, then the count per reason, in
-		// the words of inc/machine-readers-impostor-copy.php (an older payload
-		// without reasons shows the total alone).
-		var fake = 0, why = {};
-		( Array.isArray( mr.impostors ) ? mr.impostors : [] ).forEach( function( i ) {
-			if ( ! i ) { return; }
-			fake += Number( i.hits ) || 0;
-			Object.keys( i.reasons || {} ).forEach( function( k ) { why[ k ] = ( why[ k ] || 0 ) + ( Number( i.reasons[ k ] ) || 0 ); } );
-		} );
-		if ( fake > 0 ) {
-			var said = { cf_directory: 'failed Cloudflare\u2019s check', vendor_ranges: 'came from outside the vendor\u2019s published IP ranges and network', off_home_network: 'came from outside the vendor\u2019s own network', rotator_network: 'came from a network posing as many crawlers' };
-			var parts = [ 'cf_directory', 'vendor_ranges', 'off_home_network', 'rotator_network' ].filter( function( k ) { return why[ k ] > 0; } ).map( function( k ) { return grouped( why[ k ] ) + ' ' + said[ k ]; } );
-			list.appendChild( listRow( 'Claimed a known crawler but failed a check', grouped( fake ) + ( parts.length ? ' \u00b7 ' + parts.join( '; ' ) : '' ) ) );
 		}
 		if ( mr.ai_training !== null && typeof mr.ai_training !== 'undefined' ) {
 			// A crawler that went looking for the declarations on purpose. The

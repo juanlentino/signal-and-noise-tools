@@ -178,6 +178,7 @@ function snt_mr_hero_figures( array $rows, $days, $feed_total = null, $tool_call
 		'first_party' => $who['first_party'],
 		'readers'     => $total - $who['first_party'],
 		'ai'          => $ev['verification']['ai_training_by_purpose'],
+		'vendor_measured' => snt_mr_vendor_ranges_measured( $rows ),
 		'identity'    => function_exists( 'snt_mr_identity_totals' ) ? snt_mr_identity_totals( $rows ) : null,
 		'feed_total'  => $feed_total,
 		'tool_calls'  => $tool_calls,

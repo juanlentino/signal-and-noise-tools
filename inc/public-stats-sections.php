@@ -288,7 +288,8 @@ function sn_public_stats_session_coverage( $rows, $from, $to ) {
 function sn_public_stats_bars_html( array $rows ) {
 	$out = '<ul class="sn-public-stats__bars">';
 	foreach ( $rows as $r ) {
-		$out .= '<li><span class="sn-public-stats__bar-label">' . esc_html( $r['label'] ) . '</span>'
+		// depth: a row nested in the one above it (Who the machines are), indented and dimmed.
+		$out .= '<li' . ( empty( $r['depth'] ) ? '' : ' data-depth="' . (int) $r['depth'] . '"' ) . '><span class="sn-public-stats__bar-label">' . esc_html( $r['label'] ) . '</span>'
 			. '<span class="sn-public-stats__bar" aria-hidden="true"><span style="width:' . rtrim( rtrim( number_format( max( 0.0, min( 100.0, (float) $r['pct'] ) ), 6, '.', '' ), '0' ), '.' ) . '%"></span></span>'
 			. '<span class="sn-public-stats__bar-value">' . esc_html( $r['text'] ) . '</span></li>';
 	}

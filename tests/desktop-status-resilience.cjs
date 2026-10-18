@@ -33,6 +33,8 @@ const focused = {el: null};
 const details = n => nodes(n).map(e => e.attrs['aria-label'] || '').filter(Boolean).join(' ');
 const styles = n => String(n.attrs.style || '') + n.children.map(styles).join(' ');
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+// The machine-reader vocabulary, read through PHP so fixtures carry the real words.
+const L = JSON.parse(require('node:child_process').execFileSync('php', ['-r', 'define("ABSPATH","/"); function __($s,$d=null){return $s;} function number_format_i18n($n){return number_format((float)$n);} require ' + JSON.stringify(path.join(__dirname, '../inc/machine-readers-impostor-copy.php')) + '; echo json_encode(snt_mr_reader_labels());']).toString());
 function harness(extraData, opts) {
   let now = Date.parse('2026-09-08T12:00:00Z'), nextId = 0;
   const timers = new Map(), calls = [], side = [];
@@ -745,24 +747,44 @@ async function run() {
     m = await mount({...base, families: [], total: 0});
     assert.doesNotMatch(m.root.textContent, /Top crawler family/, 'no reads: the row is left out, never 0%');
     m.stop();
-    // Unreleased: this site's own tools on their own line, never the top family;
-    // the AI-training figure claimed and verified, with a 6px evidence strip.
-    m = await mount({...base, top_family: {family: 'anthropic', share: 13, prior_share: null}, edge_verified: {verified: 4000, unverified: 9000, not_measured: 0, first_party: 23416}, ai_training_by_purpose: 1984, verification: {ai_training_by_purpose: {claimed: 1984, verified: 25, verified_matched: 25, unverified: 1959, unverifiable: 0}}});
-    assert.match(m.root.textContent, /Top crawler family anthropic, 13%/, 'the top family is a reader');
-    assert.match(m.root.textContent, /This site\u2019s own tools, not readership 23,416/, 'this site\'s own tools on their own line, grouped');
-    assert.match(m.root.textContent, /AI-training reads 1,984 claimed \u00b7 25 verified/, 'the AI-training figure says claimed and verified');
+    // 2026-10-18: the evidence as rows. Short labels from the payload's one
+    // vocabulary (inc/machine-readers-impostor-copy.php, read here through PHP
+    // so the fixture is the real words), nested parts indented under the part
+    // of the bar they sit in, the long description in the row's title.
+    const rows = r => nodes(r).filter(n => n.attrs.role === 'listitem').map(n => (n.attrs['data-depth'] || '0') + '|' + n.children[0].textContent.trim() + '|' + n.children[1].text);
+    const owner = {...base, total: 121968, labels: L, top_family: {family: 'anthropic', share: 17, prior_share: null},
+      edge_verified: {verified: 10260, unverified: 26359, not_measured: 15848, first_party: 69501, vendor_verified: 0, control_token: 524},
+      ai_training_by_purpose: 1719, verification: {ai_training_by_purpose: {claimed: 1719, verified: 83, verified_matched: 80, vendor_verified: 0, unverified: 1500, unverifiable: 136}},
+      ai_training_title: '1,719 claimed, credited to their vendor',
+      impersonations: [{agent: 'google-extended', token: 'Google-Extended', hits: 524}],
+      impostors: [{agent: 'anthropic-claudebot', hits: 8892, reasons: {cf_directory: 8892}}, {agent: 'bytedance-bytespider', hits: 2591, reasons: {off_home_network: 2087, rotator_network: 504}}],
+      impostor_reasons: [{reason: 'cf_directory', hits: 8892}, {reason: 'off_home_network', hits: 2087}, {reason: 'rotator_network', hits: 504}]};
+    m = await mount(owner);
+    assert.deepEqual(rows(m.root), ['0|Machine reads|121,968', '0|Verified|10,260', '1|by Cloudflare|10,260', '1|by the vendor’s published ranges|0',
+      '0|Named themselves, not verified|26,359', '1|failed a check|11,483', '2|Cloudflare’s check|8,892', '2|outside the vendor’s network|2,087', '2|network posing as many crawlers|504',
+      '1|control token (Google-Extended)|524', '0|Not measured|15,848', '0|This site’s own tools|69,501', '0|AI-training reads|83 verified',
+      '0|Fetched the rights files directly|19', '0|Top crawler family|anthropic, 17%'], 'one short label and one number per row, nested under the part of the bar each sits in');
+    const row = label => nodes(m.root).find(n => n.attrs.role === 'listitem' && n.children[0].textContent.trim() === label);
+    assert.equal(row('Cloudflare’s check').attrs.title, L.cf_directory.title, 'the full sentence is the row\'s title');
+    assert.equal(row('failed a check').attrs.title, L.failed_check.title);
+    assert.equal(row('AI-training reads').attrs.title, '1,719 claimed, credited to their vendor', 'the claimed figure moves to the title; the row says the verified figure');
+    assert.match(styles(row('network posing as many crawlers')), /padding-left:36px/, 'two levels in, indented twice');
+    assert.match(styles(row('by Cloudflare')), /padding-left:18px/, 'one level in, indented once');
+    assert.doesNotMatch(styles(row('by Cloudflare').children[1]), /font-weight:600/, 'a nested figure is muted, not bold');
+    assert.match(styles(row('Verified').children[1]), /font-weight:600/, 'a part of the bar stays bold');
     const strip = nodes(m.root).find(n => n.className === 'snt-evidence');
     assert.ok(strip && strip.attrs['aria-hidden'] === 'true', 'with a decorative evidence strip');
-    assert.deepEqual(strip.children.map(c => c.attrs['data-part']), ['verified_matched', 'unverified'], 'segments in order, zero parts dropped');
-    assert.doesNotMatch(m.root.textContent, /Control tokens/, 'no impersonations field: no control-token row');
+    assert.deepEqual(strip.children.map(c => c.attrs['data-part']), ['verified_matched', 'verified', 'unverified', 'unverifiable'], 'segments in order, zero parts dropped');
     m.stop();
-    // 2026-10-11: reads presenting a robots.txt control token are credited to
-    // no one, and the card says how many and which tokens; none is left out.
-    m = await mount({...base, impersonations: [{agent: 'google-extended', token: 'Google-Extended', hits: 170}, {agent: 'applebot-extended', token: 'Applebot-Extended', hits: 1200}]});
-    assert.match(m.root.textContent, /Control tokens, credited to no one 1,370 \u00b7 Google-Extended, Applebot-Extended/, 'the control-token reads, grouped, with their tokens');
+    // The zero rule: a part of the bar always shows; the vendor row once its
+    // field is measured (null is not measured); a zero reason, a zero token
+    // count and no impostors show nothing.
+    m = await mount({...owner, edge_verified: {...owner.edge_verified, vendor_verified: null, control_token: 0}, impostors: [], impostor_reasons: [], impersonations: []});
+    assert.deepEqual(rows(m.root).slice(0, 5), ['0|Machine reads|121,968', '0|Verified|10,260', '1|by Cloudflare|10,260', '0|Named themselves, not verified|26,359', '0|Not measured|15,848'], 'vendor ranges not measured, no impostors, no tokens: no rows for them');
     m.stop();
-    m = await mount({...base, impersonations: []});
-    assert.doesNotMatch(m.root.textContent, /Control tokens/, 'none presented: no row');
+    // No identity split (a capped read): the impostor and token rows stand on their own.
+    m = await mount({...owner, edge_verified: undefined});
+    assert.deepEqual(rows(m.root).slice(0, 6), ['0|Machine reads|121,968', '0|failed a check|11,483', '1|Cloudflare’s check|8,892', '1|outside the vendor’s network|2,087', '1|network posing as many crawlers|504', '0|control token (Google-Extended)|524'], 'without the split, the same rows one level up');
     m.stop();
   }
   // Codex round 2: an anchor read still pending is loading, not an error.
@@ -780,9 +802,9 @@ async function run() {
     {
       const big = harness(), broot = new Element('div');
       const bstop = big.window.desktopModeWidgets['sn-anchors'](broot); await flush();
-      big.calls.find(c => c.opts.path.includes('machine-readers')).resolve({ok: true, days: 30, total: 107882, families: [], edge_verified: {verified: 13447, unverified: 44156, not_measured: 50279}, ai_training: 8351, ai_rights: 1024}); await flush();
+      big.calls.find(c => c.opts.path.includes('machine-readers')).resolve({ok: true, days: 30, total: 107882, families: [], labels: L, edge_verified: {verified: 13447, unverified: 44156, not_measured: 50279}, ai_training: 8351, ai_rights: 1024}); await flush();
       assert.match(broot.textContent, /Machine reads 107,882/, 'the total is grouped');
-      assert.match(broot.textContent, /Verified by Cloudflare 13,447/, 'the parts are grouped');
+      assert.match(broot.textContent, /Verified 13,447/, 'the parts are grouped');
       assert.match(broot.textContent, /Declared AI-training reads 8,351/, 'AI-training reads are grouped');
       assert.match(broot.textContent, /Fetched the rights files directly 1,024/, 'rights fetches are grouped');
       bstop();

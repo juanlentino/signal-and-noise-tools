@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The hero's tile row: reads, readers, AI-training claimed (with its strip),
+ * The hero's tile row: reads, readers, AI-training verified of claimed (with its strip),
  * signatures, and the figures beside them. "not measured" for a null figure.
  *
  * @param array  $h       snt_mr_hero_figures().
@@ -28,13 +28,15 @@ function snt_ev_paint_hero_tiles( array $h, $surface = 'kit' ) {
 		snt_ev_stat( $surface, number_format_i18n( (int) $h['total'] ), sprintf( __( 'machine reads, %sd', 'signal-and-noise-tools' ), $days ) ),
 		/* translators: %s: reads from this site's own tools. */
 		snt_ev_stat( $surface, number_format_i18n( (int) $h['readers'] ), __( 'readers, not this site’s tools', 'signal-and-noise-tools' ), sprintf( __( '%s this site’s own tools, not readership', 'signal-and-noise-tools' ), number_format_i18n( (int) $h['first_party'] ) ) ),
+		// 2026-10-18: the credited figure that a check vouched for leads; the
+		// claimed figure and the verified part by source are its caption.
 		snt_ev_stat(
 			$surface,
-			is_array( $ai ) ? number_format_i18n( (int) $ai['claimed'] ) : __( 'not measured', 'signal-and-noise-tools' ),
-			__( 'AI-training reads, claimed', 'signal-and-noise-tools' ),
-			/* translators: %s: verified reads. */
-			is_array( $ai ) ? sprintf( __( '%s verified by Cloudflare', 'signal-and-noise-tools' ), number_format_i18n( (int) $ai['verified'] ) ) : '',
-			snt_basis_chip( 'claimed', $classic ),
+			is_array( $ai ) ? number_format_i18n( (int) $ai['verified'] ) : __( 'not measured', 'signal-and-noise-tools' ),
+			__( 'AI-training reads, verified', 'signal-and-noise-tools' ),
+			/* translators: 1: claimed reads, 2: verified by source. */
+			is_array( $ai ) ? sprintf( __( 'of %1$s claimed; %2$s', 'signal-and-noise-tools' ), number_format_i18n( (int) $ai['claimed'] ), snt_mr_verified_by( (int) $ai['verified'], (int) ( $ai['vendor_verified'] ?? 0 ), ! empty( $h['vendor_measured'] ) ) ) : '',
+			snt_basis_chip( 'verified', $classic ),
 			is_array( $ai ) ? snt_evidence_strip( $ai, array( 'size' => 'hero' ) ) : ''
 		),
 		snt_ev_stat(

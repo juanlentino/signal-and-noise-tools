@@ -85,7 +85,8 @@ $GLOBALS['__countries'] = array(
 );
 function sn_analytics_top_dimension( $dim, $from, $to, $class = 'human', $limit = 25 ) { return 'country' === $dim ? $GLOBALS['__countries'] : array(); }
 function snt_desktop_machine_readers_identity( array $rows ) {
-	$out = array( 'verified' => 0, 'unverified' => 0, 'not_measured' => 0 );
+	// The real shape (tests/machine-readers-evidence-rows.php pins the keys against it).
+	$out = array( 'verified' => 0, 'unverified' => 0, 'not_measured' => 0, 'first_party' => 0, 'vendor_verified' => null, 'control_token' => 0 );
 	foreach ( $rows as $r ) { $out[ $r['id'] ] += $r['hits']; }
 	return $out;
 }
@@ -331,7 +332,7 @@ ok( false === strpos( $__secsrc, "'Average depth reached'" ) && false === strpos
 ok( false !== strpos( $h, '>4,200<' ) && false !== strpos( $h, '>Presumed human views<' ), 'presumed human views against machine reads' );
 // Unreleased: the human class is presumed (not flagged as automated), and the page says so.
 ok( false !== strpos( $h, 'presumed human pageviews (not flagged as automated)' ), 'the Views tile says what human means' );
-ok( false !== strpos( $h, 'Verified by Cloudflare' ) && false !== strpos( $h, '>50%<' ) && false !== strpos( $h, 'Named themselves, not verified' ) && false !== strpos( $h, '>10%<' ), 'the identity split as shares of machine reads' );
+ok( false !== strpos( $h, '>Verified<' ) && false !== strpos( $h, '>by Cloudflare<' ) && false !== strpos( $h, '>50%<' ) && false !== strpos( $h, 'Named themselves, not verified' ) && false !== strpos( $h, '>10%<' ), 'the identity split as shares of machine reads' );
 ok( false !== strpos( $h, 'Automated counts bot pageviews that reached the tracker. Machine reads count every request the edge sensor saw. They are different measures.' ), 'the one line that keeps Automated and machine reads apart' );
 ok( false !== strpos( $h, '<a href="https://github.com/juanlentino/signal-and-noise-provenance">Public ledger</a>' ), 'the public ledger link' );
 
@@ -363,9 +364,10 @@ ok( 1 === preg_match( '/Machine reads<\/span><span class="sn-public-stats__bar"[
 // AI training, claimed against proof, and the control tokens credited to no one (live 30 days to 2026-10-11).
 $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ]['machines'] += array(
 	'train'  => array( 'claimed' => 4760, 'verified' => 50, 'verified_matched' => 50, 'unverified' => 2665, 'unverifiable' => 2045 ),
-	'tokens' => array( array( 'token' => 'Google-Extended', 'hits' => 575 ) ),
-	'impostors' => 2107,
-	'impostor_reasons' => array( 'cf_directory' => 1378, 'rotator_network' => 729 ),
+	// Inside the split's 500 named-only reads (2026-10-18: they nest there).
+	'tokens' => array( array( 'token' => 'Google-Extended', 'hits' => 75 ) ),
+	'impostors' => 300,
+	'impostor_reasons' => array( 'cf_directory' => 200, 'rotator_network' => 100 ),
 );
 $ht = $fresh();
 ok( false !== strpos( $ht, '<section class="sn-public-stats__training"><h2>AI training, claimed against proof</h2>' ), 'AI training is its own section, the page\'s width' );
@@ -373,10 +375,13 @@ ok( strpos( $ht, '</div><section class="sn-public-stats__training">' ) !== false
 ok( false !== strpos( $ht, '<strong>4,760</strong> reads came from crawlers that say they gather AI training data. Cloudflare verified <strong>50</strong> of them.' ), 'the claim and the proof, as text' );
 ok( 1 === preg_match( '/<span class="sn-public-stats__proof" aria-hidden="true">(.*?)<\/span><\/span>/s', $ht, $pm ) && array( 'verified', 'claimed', 'before' ) === ( preg_match_all( '/data-part="(\w+)"/', $pm[1], $pp ) ? $pp[1] : array() ), 'one decorative bar, its parts in order: verified, named only, before verification' );
 ok( false !== strpos( $ht, '<li><span class="sn-public-stats__key-sw" data-part="verified"></span>Verified by Cloudflare <span class="sn-public-stats__key-n">50</span></li>' ) && false !== strpos( $ht, 'Named themselves, not verified <span class="sn-public-stats__key-n">2,665</span>' ) && false !== strpos( $ht, 'Before verification was recorded <span class="sn-public-stats__key-n">2,045</span>' ), 'the key carries every part as a count' );
-ok( false !== strpos( $ht, 'Google-Extended is a robots.txt token, not a crawler: 575 reads presented it as their name and are credited to no one.' ), 'the control-token reads, credited to no one' );
-ok( false !== strpos( $ht, "Claimed a known crawler but failed a check: 2,107 reads, counted and credited to no one (1,378 failed Cloudflare\u{2019}s check; 729 came from a network posing as many crawlers)." ), 'the impostor reads, one plain line with the reasons' );
-ok( "<p class=\"sn-public-stats__note\">Claimed a known crawler but failed a check: 2,107 reads, counted and credited to no one.</p>" === sn_public_stats_impostors_html( 2107 ), 'an older snapshot without reasons: the total alone' );
-ok( '' === sn_public_stats_impostors_html( null ) && '' === sn_public_stats_impostors_html( 0 ), 'an older snapshot, or none: no impostor line' );
+// 2026-10-18: the control tokens and the reads that failed a check are rows
+// nested under "Named themselves, not verified", not sentences under the key.
+$__tr = substr( $ht, (int) strpos( $ht, '<section class="sn-public-stats__training">' ) );
+$__tr = substr( $__tr, 0, (int) strpos( $__tr, '</section>' ) );
+ok( '' !== $__tr && false === strpos( $__tr, 'robots.txt' ) && false === strpos( $__tr, 'Claimed a known crawler' ) && false === strpos( $ht, 'Claimed a known crawler' ), 'no run-on sentences in the AI-training section' );
+ok( 1 === preg_match( '/<li data-depth="1"><span class="sn-public-stats__bar-label">failed a check<\/span><span class="sn-public-stats__bar"[^>]*><span[^>]*><\/span><\/span><span class="sn-public-stats__bar-value">15%</', $ht ) && false !== strpos( $ht, '<li data-depth="2"><span class="sn-public-stats__bar-label">Cloudflare’s check</span>' ) && false !== strpos( $ht, '<li data-depth="2"><span class="sn-public-stats__bar-label">network posing as many crawlers</span>' ), 'the impostor reads: a nested row (300 of 2,000 machine reads), each reason a row under it' );
+ok( false !== strpos( $ht, '<li data-depth="1"><span class="sn-public-stats__bar-label">control token (Google-Extended)</span>' ), 'the control-token reads: a nested row naming the token' );
 // Likely automated beside the presumed-human views, only once a day is measured.
 $GLOBALS['__la'] = array( 'visitor_days' => 3, 'scored_visitor_days' => 41, 'measured_days' => 9, 'unmeasured_days' => 21 );
 $hl2 = $fresh();

@@ -481,6 +481,12 @@ function snt_desktop_machine_readers_payload() {
 		if ( ! empty( $read['ok'] ) && empty( $read['truncated'] ) ) {
 			$payload['edge_verified'] = snt_desktop_machine_readers_identity( (array) ( $read['rows'] ?? array() ) );
 		}
+		// 2026-10-18: the card's words (labels, reason rows, the AI-training
+		// description), from the one vocabulary. Desktop only: the summary
+		// ability, and so the remote contract, is unchanged.
+		if ( function_exists( 'snt_mr_reader_words' ) ) {
+			$payload += snt_mr_reader_words( $payload, null !== ( $payload['edge_verified']['vendor_verified'] ?? null ) );
+		}
 		// The prior 30 days, for the top family's share change: one sensor read
 		// of 60 days (cached per window length, as the Machine Readers leaf's
 		// delta cards read it), split locally. A capped or failed read gives no
@@ -517,13 +523,22 @@ function snt_desktop_machine_readers_payload() {
  * flag), a part of its own whatever Cloudflare says of them: they are not
  * readers, so they sit in none of the other three.
  *
- * @param array $rows Sensor rows { day, hits, verified_bot, network, first_party }.
- * @return array{verified:int,unverified:int,not_measured:int,first_party:int}
+ * 2026-10-18, two parts inside the four, for the rows nested under them:
+ * `vendor_verified` is the part of `verified` that rests on the vendor's
+ * published IP ranges (null when no row carried the field: not measured,
+ * never 0), and `control_token` the part of `unverified` that presented a
+ * robots.txt control token.
+ *
+ * @param array $rows Sensor rows { day, hits, verified_bot, vendor_verified, network, first_party, agent }.
+ * @return array{verified:int,unverified:int,not_measured:int,first_party:int,vendor_verified:int|null,control_token:int}
  */
 function snt_desktop_machine_readers_identity( array $rows ) {
-	$out = array( 'verified' => 0, 'unverified' => 0, 'not_measured' => 0, 'first_party' => 0 );
+	$out = array( 'verified' => 0, 'unverified' => 0, 'not_measured' => 0, 'first_party' => 0, 'vendor_verified' => null, 'control_token' => 0 );
 	foreach ( $rows as $row ) {
 		$hits = is_array( $row ) ? max( 0, (int) ( $row['hits'] ?? 0 ) ) : 0;
+		if ( is_array( $row ) && '' !== (string) ( $row['vendor_verified'] ?? '' ) ) {
+			$out['vendor_verified'] = (int) $out['vendor_verified']; // measured: from here on a count.
+		}
 		if ( is_array( $row ) && ! empty( $row['first_party'] ) ) {
 			$out['first_party'] += $hits;
 			continue;
@@ -533,8 +548,13 @@ function snt_desktop_machine_readers_identity( array $rows ) {
 		if ( function_exists( 'sn_rights_evidence_identity_class' ) && '' !== $day ) {
 			$class = sn_rights_evidence_identity_class( $day, $bot );
 			// Taxonomy 1.6.0: inside the vendor's published IP ranges is verified too.
-			$class = 'unverified' === $class && '1' === (string) ( $row['vendor_verified'] ?? '' ) ? 'verified' : $class;
+			$vendor = 'unverified' === $class && '1' === (string) ( $row['vendor_verified'] ?? '' );
+			$class  = $vendor ? 'verified' : $class;
 			$out[ 'unverifiable' === $class ? 'not_measured' : $class ] += $hits;
+			if ( $vendor ) {
+				$out['vendor_verified'] += $hits; // measured above: the row carried '1'.
+			}
+			$out['control_token']   += 'unverified' === $class && function_exists( 'snt_mr_is_impersonation' ) && snt_mr_is_impersonation( $row ) ? $hits : 0;
 		} elseif ( '' !== $bot ) {
 			$out['verified'] += $hits;
 		} elseif ( '' === (string) ( $row['network'] ?? '' ) ) {
