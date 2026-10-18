@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **`/notas/` goes to `/notes/` instead of a 404.** The notes are only in English, and a Spanish reader goes to them anyway; a browser translator covers the rest. `/es/notes/` and `/es/notas/` redirect there too. They are permanent redirects from the existing old-paths map, so they fire only when nothing else answers that address, and a deeper `/notas/<something>/` path stays a 404.
+
 ## [2026.10.46] - 2026-10-18 — a daily check keeps the strict CSP's script hashes current
 
 
