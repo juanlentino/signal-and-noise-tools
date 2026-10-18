@@ -666,6 +666,7 @@ require_once __DIR__ . '/inc/abilities-provenance.php'; // v9.78.0: anchor-statu
 require_once __DIR__ . '/inc/login-hide.php';
 require_once __DIR__ . '/inc/login-guard-routes.php'; // 2026-10-18: saving the Login URL moves the sn-login-guard routes; a save the guard cannot confirm is refused.
 require_once __DIR__ . '/inc/login-door-leak-check.php'; // 2026-10-18: daily check that no public page publishes the login address.
+require_once __DIR__ . '/inc/security-watches.php'; // 2026-10-18: app passwords, admin 2FA coverage, guard route drift (observe, never enforce).
 require_once __DIR__ . '/inc/seo-schema.php';
 require_once __DIR__ . '/inc/discography-store.php';   // v4.13.0: Music Identity — normalized release store (cron is sole writer)
 require_once __DIR__ . '/inc/muso-api.php';            // v4.13.0: Music Identity — Muso public credits client + album grouper
