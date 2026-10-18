@@ -208,6 +208,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_public_username',
 		),
+		// 2026-10-18: installed files against wordpress.org's checksums, read-only.
+		array(
+			'id'        => 'file_integrity',
+			'label'     => 'a core or plugin file differs from wordpress.org',
+			'why'       => 'Once a day the plugin compares core files with core\'s own checksums and wordpress.org plugins with the plugin checksums API; plugins not on wordpress.org count as not checkable. Ripe when a file is modified, an unexpected PHP file sits in wp-admin/ or wp-includes/, core checksums could not be fetched, the run ran out of budget inside core, or the check has not run for two days. Stores counts and relative paths, never contents.',
+			'read'      => 'option sn_file_integrity_last; signal-noise/get-cron-history sn_file_integrity_check',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_file_integrity',
+		),
 		// 22.1.0: /stats reads machine figures from an hourly snapshot.
 		array(
 			'id'        => 'public_stats_machines',

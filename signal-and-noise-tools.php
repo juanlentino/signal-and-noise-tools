@@ -668,6 +668,9 @@ require_once __DIR__ . '/inc/login-guard-routes.php'; // 2026-10-18: saving the 
 require_once __DIR__ . '/inc/login-door-leak-check.php'; // 2026-10-18: daily check that no public page publishes the login address.
 require_once __DIR__ . '/inc/security-watches.php'; // 2026-10-18: app passwords, admin 2FA coverage, guard route drift (observe, never enforce).
 require_once __DIR__ . '/inc/security-public-username.php'; // 2026-10-18: watch + Site Health test: is an administrator's login username published as their author slug?
+require_once __DIR__ . '/inc/file-integrity.php'; // 2026-10-18: daily read-only compare of core and wordpress.org plugins with their checksums.
+require_once __DIR__ . '/inc/file-integrity-plugins.php';
+require_once __DIR__ . '/inc/file-integrity-watch.php';
 require_once __DIR__ . '/inc/seo-schema.php';
 require_once __DIR__ . '/inc/discography-store.php';   // v4.13.0: Music Identity — normalized release store (cron is sole writer)
 require_once __DIR__ . '/inc/muso-api.php';            // v4.13.0: Music Identity — Muso public credits client + album grouper
