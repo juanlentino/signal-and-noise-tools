@@ -187,6 +187,60 @@ add_filter( 'network_site_url', 'sn_login_filter_url', 10, 2 );
 add_filter( 'wp_redirect', 'sn_login_filter_url', 10, 2 );
 
 /**
+ * Whether a redirect would hand the login door to a visitor who is not logged
+ * in. Every redirect to wp-login.php is rewritten to the masked slug above,
+ * so any code path that sends a stranger "to the login" gives the door away:
+ * core's auth_redirect() on /wp-admin/customize.php and the OpenStation
+ * launch URLs did, live, right after a slug change (2026-10-18). Requests
+ * already at the door (logout, lost password, the rest of wp-login.php's own
+ * flows) are left alone, and so is every logged-in user.
+ *
+ * @param string $location    Redirect target (absolute or relative).
+ * @param string $request_uri Current REQUEST_URI.
+ * @param string $slug        Login slug.
+ * @param bool   $logged_in   Whether the visitor is logged in.
+ * @return bool
+ */
+function sn_login_redirect_reveals_door( $location, $request_uri, $slug, $logged_in ) {
+	if ( $logged_in ) {
+		return false;
+	}
+	$door   = '/' . trim( (string) $slug, '/' );
+	$target = untrailingslashit( (string) wp_parse_url( (string) $location, PHP_URL_PATH ) );
+	if ( $target !== $door ) {
+		return false;
+	}
+	return untrailingslashit( sn_login_request_path( (string) $request_uri ) ) !== $door;
+}
+
+/**
+ * wp_redirect filter, after the slug rewrite: a redirect that would reveal
+ * the door to a stranger answers with the theme's 404 instead, the same
+ * answer /wp-login.php and /wp-admin/ give.
+ *
+ * @param string $location Redirect target.
+ * @param int    $status   HTTP status.
+ * @return string
+ */
+function sn_login_guard_redirect( $location, $status = 302 ) {
+	if ( ! isset( $_SERVER['REQUEST_URI'] ) || ! function_exists( 'is_user_logged_in' ) ) {
+		return $location;
+	}
+	$request_uri = (string) wp_unslash( $_SERVER['REQUEST_URI'] );
+	if ( ! sn_login_redirect_reveals_door( (string) $location, $request_uri, sn_login_get_slug(), is_user_logged_in() ) ) {
+		return $location;
+	}
+	if ( function_exists( 'snt_audit_increment_counter_impl' ) ) {
+		snt_audit_increment_counter_impl( 'wp_admin_unauth_404', isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : null );
+	}
+	status_header( 404 );
+	nocache_headers();
+	include get_query_template( '404' );
+	exit;
+}
+add_filter( 'wp_redirect', 'sn_login_guard_redirect', 99, 2 );
+
+/**
  * Keep core from handing out the door. wp_redirect_admin_locations() sends
  * /login to wp_login_url() (and /admin, /dashboard to /wp-admin/), and the
  * filter above rewrites that URL to the custom slug, so GET /login answered
