@@ -51,6 +51,7 @@ const SN_AUDIT_LOGIN_SUCCESS_CAP = 500;
 const SN_AUDIT_PRUNE_HOOK     = 'sn_audit_log_prune';
 
 require_once __DIR__ . '/audit-log-guard.php'; // lockouts from the login guard's decisions (2026-10-18).
+require_once __DIR__ . '/audit-log-changes.php'; // account and site setting changes (2026-10-18).
 
 // Subsets of login_failed, never additional events in summary totals.
 const SN_AUDIT_MFA_FAILURE_TYPES = array( 'mfa_failed', 'mfa_throttled', 'mfa_other' );
@@ -75,6 +76,7 @@ function snt_audit_get_blob() {
 			'created_at'     => time(),
 			'counters'       => array(),
 			'login_success'  => array(),
+			'changes'        => array(),
 		);
 	}
 	return $blob;
@@ -302,7 +304,9 @@ function snt_audit_get_summary_impl() {
  * retention (sn_setting('audit.retention_days'), default 90).
  * Returns prune stats.
  *
- * @return array { counter_buckets_dropped: int, login_rows_dropped: int }
+ * Also drops account and setting changes older than the window.
+ *
+ * @return array { counter_buckets_dropped: int, login_rows_dropped: int, change_rows_dropped: int }
  */
 function snt_audit_prune_impl() {
 	$blob        = snt_audit_get_blob();
@@ -325,11 +329,14 @@ function snt_audit_prune_impl() {
 	} ) );
 	$dropped_rows = $before - count( $blob['login_success'] );
 
+	list( $blob, $dropped_changes ) = snt_audit_prune_changes( $blob, $cutoff );
+
 	update_option( SN_AUDIT_OPTION, $blob, true );
 
 	return array(
 		'counter_buckets_dropped' => $dropped_buckets,
 		'login_rows_dropped'      => $dropped_rows,
+		'change_rows_dropped'     => $dropped_changes,
 	);
 }
 

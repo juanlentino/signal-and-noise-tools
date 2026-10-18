@@ -67,7 +67,7 @@ $rows = snt_audit_get_counters_impl( 7 );
 ok( 4 === $rows[2]['lockout_triggered'], 'an old day still reads its historical lockout_triggered count' );
 $GLOBALS['__reads'] = array();
 $stats = snt_audit_prune_impl();
-ok( array( 'counter_buckets_dropped', 'login_rows_dropped' ) === array_keys( $stats ), 'prune reports only what it deleted: ' . implode( ',', array_keys( $stats ) ) );
+ok( array( 'counter_buckets_dropped', 'login_rows_dropped', 'change_rows_dropped' ) === array_keys( $stats ), 'prune reports only what it deleted: ' . implode( ',', array_keys( $stats ) ) );
 ok( array() === preg_grep( '/^limit_login|lla/', $GLOBALS['__reads'] ), 'prune reads no option of the retired plugin: ' . implode( ',', $GLOBALS['__reads'] ) );
 
 echo "\nGroup: the summary carries the guard's 7-day decisions, unavailable never as zeros\n";

@@ -78,6 +78,30 @@ function sn_audit_export_redact_login_rows( array $rows, $include_pii ) {
 }
 
 /**
+ * Mask the people in change rows (the actor, and the account a user change
+ * touched) unless $include_pii; plugin, theme and setting names stay readable.
+ *
+ * @param array<int,array> $rows        snt_audit_get_changes_impl() rows.
+ * @param bool             $include_pii Caller opted in.
+ * @return array<int,array>
+ */
+function sn_audit_export_redact_change_rows( array $rows, $include_pii ) {
+	if ( (bool) $include_pii ) {
+		return $rows;
+	}
+	return array_map(
+		static function ( $row ) {
+			$row['actor'] = sn_audit_export_pii_mask_username( (string) ( $row['actor'] ?? '' ) );
+			if ( in_array( (string) ( $row['kind'] ?? '' ), array( 'user_created', 'role_set', 'role_added', 'role_removed', 'email_changed' ), true ) ) {
+				$row['subject'] = sn_audit_export_pii_mask_username( (string) ( $row['subject'] ?? '' ) );
+			}
+			return $row;
+		},
+		$rows
+	);
+}
+
+/**
  * Cap a rows array to at most $cap entries, keeping the FIRST N — the
  * login-successes source impl (inc/audit-log.php's
  * snt_audit_get_login_successes_impl()) already returns newest-first, so
@@ -108,6 +132,7 @@ function sn_audit_export_build_view() {
 		'days'            => $days,
 		'counters'        => function_exists( 'snt_audit_get_counters_impl' ) ? snt_audit_get_counters_impl( $days ) : array(),
 		'login_successes' => function_exists( 'snt_audit_get_login_successes_impl' ) ? snt_audit_get_login_successes_impl( $days ) : array(),
+		'changes'         => function_exists( 'snt_audit_get_changes_impl' ) ? snt_audit_get_changes_impl( $days ) : array(),
 	);
 }
 
@@ -127,6 +152,7 @@ function sn_audit_export_build_json( array $view ) {
 			'retention_days' => $days,
 			'counters'       => array_values( (array) ( $view['counters'] ?? array() ) ),
 			'login_successes' => array_values( (array) ( $view['login_successes'] ?? array() ) ),
+			'changes'         => array_values( (array) ( $view['changes'] ?? array() ) ),
 		)
 	);
 }
@@ -225,6 +251,18 @@ function sn_audit_export_build_csv( array $view ) {
 		sn_audit_export_fputcsv( $fh, $line );
 	}
 
+	// Section 3: account and site changes (2026-10-18).
+	fwrite( $fh, "\n# changes\n" );
+	$change_cols = array( 'ts', 'formatted', 'kind', 'subject', 'detail', 'actor', 'high' );
+	sn_audit_export_fputcsv( $fh, $change_cols );
+	foreach ( (array) ( $view['changes'] ?? array() ) as $row ) {
+		$line = array();
+		foreach ( $change_cols as $col ) {
+			$line[] = 'high' === $col ? ( empty( $row['high'] ) ? '0' : '1' ) : ( $row[ $col ] ?? '' );
+		}
+		sn_audit_export_fputcsv( $fh, $line );
+	}
+
 	rewind( $fh );
 	$csv = stream_get_contents( $fh );
 	fclose( $fh );
@@ -283,6 +321,7 @@ function snt_ability_export_audit_log( $input = null ) {
 	$view                     = sn_audit_export_build_view();
 	$view['login_successes'] = sn_audit_export_cap_rows( (array) ( $view['login_successes'] ?? array() ), SNT_AUDIT_EXPORT_LOGINS_PAGE_CAP );
 	$view['login_successes'] = sn_audit_export_redact_login_rows( $view['login_successes'], $include_pii );
+	$view['changes']         = sn_audit_export_redact_change_rows( (array) ( $view['changes'] ?? array() ), $include_pii );
 
 	return array(
 		'format'  => $format,

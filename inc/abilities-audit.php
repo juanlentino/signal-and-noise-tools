@@ -204,7 +204,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/run-audit-prune', array(
 		'label'               => 'Run audit log prune now',
-		'description'         => 'Manually drops counter buckets and login_success rows older than 90 days. Destructive of historical data and not idempotent — run only on an explicit operator request.',
+		'description'         => 'Manually drops counter buckets, login_success rows and account/site change rows older than the retention window (default 90 days). Destructive of historical data and not idempotent — run only on an explicit operator request.',
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_run_audit_prune',
@@ -218,6 +218,7 @@ add_action( 'wp_abilities_api_init', function() {
 			'properties' => array(
 				'counter_buckets_dropped' => array( 'type' => 'integer' ),
 				'login_rows_dropped'      => array( 'type' => 'integer' ),
+				'change_rows_dropped'     => array( 'type' => 'integer' ),
 			),
 		),
 		'meta'                => array(

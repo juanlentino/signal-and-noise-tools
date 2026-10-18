@@ -31,6 +31,7 @@ if ( ! defined( 'SN_AUDIT_LOGIN_DISPLAY_MAX' ) ) {
 
 require_once __DIR__ . '/audit-log-admin-logins.php'; // the open logins log and its finding (2026-10-11)
 require_once __DIR__ . '/audit-log-admin-parts.php'; // the words both twins print (2026-10-12)
+require_once __DIR__ . '/audit-log-admin-changes.php'; // account and site changes (2026-10-18)
 
 /**
  * Main render entrypoint for the Audit log sub-tab.
@@ -65,6 +66,7 @@ function snt_audit_log_render_tab() {
 	snt_audit_log_render_hero( $summary );
 	snt_audit_log_render_counter_table( $counters );
 	snt_audit_log_render_logins_table( $logins );
+	snt_audit_log_render_changes_table( function_exists( 'snt_audit_get_changes_impl' ) ? snt_audit_get_changes_impl( 30 ) : array() );
 
 	// ── RAIL: passive readouts + config ──
 	sn_admin_shell_rail( 'Lockouts, retention and maintenance' );
@@ -233,7 +235,7 @@ function snt_audit_log_render_prune_form() {
 		'sn_audit_export',
 		'sn_audit_export_nonce'
 	);
-	echo '<p class="sn-prose">Download the audit log (per-day counters + successful-login rows over the retention window). The export contains plaintext usernames.</p>';
+	echo '<p class="sn-prose">Download the audit log (per-day counters, successful-login rows and account and site changes over the retention window). The export contains plaintext usernames.</p>';
 	echo '<p>';
 	echo '<a class="button" href="' . esc_url( $export_json_url ) . '">Export JSON</a> ';
 	echo '<a class="button" href="' . esc_url( $export_csv_url ) . '">Export CSV</a>';
@@ -256,7 +258,7 @@ function snt_audit_log_render_retention_form() {
 	echo '<h2 class="sn-fieldset-h">Retention</h2>';
 	echo '<label class="sn-field-label" for="sn_audit_retention">Retention (days)</label>';
 	echo '<input type="number" id="sn_audit_retention" name="audit_retention_days" class="small-text" min="7" max="365" value="' . esc_attr( (string) $retention ) . '">';
-	echo '<p class="sn-field-helper">' . esc_html__( 'How long to keep the daily counts and the successful-login records, 7 to 365 days. A daily cleanup deletes anything older.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'How long to keep the daily counts, the successful-login records and the change records, 7 to 365 days. A daily cleanup deletes anything older.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save retention</button></div>';
 	echo '</form>';
 }

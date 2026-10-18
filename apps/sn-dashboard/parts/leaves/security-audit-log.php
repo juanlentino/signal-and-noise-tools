@@ -21,6 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/security-audit-log-logins.php';
+require_once __DIR__ . '/security-audit-log-changes.php';
 
 /**
  * The 4-card glance hero, from the classic leaf's own pure card builder
@@ -112,7 +113,7 @@ function audit_log_setup_html() {
 		array(
 			'min'  => 7,
 			'max'  => 365,
-			'hint' => __( 'How long to keep the daily counts and the successful-login records, 7 to 365 days. A daily cleanup deletes anything older.', 'signal-and-noise-tools' ),
+			'hint' => __( 'How long to keep the daily counts, the successful-login records and the change records, 7 to 365 days. A daily cleanup deletes anything older.', 'signal-and-noise-tools' ),
 		)
 	);
 	return \snt_kit_setup_card(
@@ -154,7 +155,7 @@ function audit_log_maintenance_html() {
 
 	$export_json_url = wp_nonce_url( admin_url( 'admin-post.php?action=sn_audit_export&format=json' ), 'sn_audit_export', 'sn_audit_export_nonce' );
 	$export_csv_url  = wp_nonce_url( admin_url( 'admin-post.php?action=sn_audit_export&format=csv' ), 'sn_audit_export', 'sn_audit_export_nonce' );
-	$exports         = '<p class="snt-prose">' . \snt_kit_esc( __( 'Download the audit log (per-day counters + successful-login rows over the retention window). The export contains plaintext usernames.', 'signal-and-noise-tools' ) ) . '</p>'
+	$exports         = '<p class="snt-prose">' . \snt_kit_esc( __( 'Download the audit log (per-day counters, successful-login rows and account and site changes over the retention window). The export contains plaintext usernames.', 'signal-and-noise-tools' ) ) . '</p>'
 		. '<os-cluster gap="8">' . \snt_kit_door( __( 'Export JSON', 'signal-and-noise-tools' ), $export_json_url ) . \snt_kit_door( __( 'Export CSV', 'signal-and-noise-tools' ), $export_csv_url ) . '</os-cluster>';
 
 	return \snt_kit_section( __( 'Maintenance', 'signal-and-noise-tools' ), $form . $exports );
@@ -211,6 +212,7 @@ function paint_security_audit_log( array $ctx ) {
 	// box stood alone at full width with two rows in it; it shares one row
 	// with the two controls, three short boxes of a height.
 	$out .= audit_log_logins_html( $logins );
+	$out .= audit_log_changes_html( function_exists( 'snt_audit_get_changes_impl' ) ? snt_audit_get_changes_impl( 30 ) : array() );
 	$out .= \snt_kit_grid( array( audit_log_guard_html( (array) ( $summary['guard'] ?? array() ) ), audit_log_setup_html(), audit_log_maintenance_html() ), 260 );
 	return $out;
 }

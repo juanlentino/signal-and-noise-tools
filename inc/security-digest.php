@@ -79,6 +79,12 @@ function snt_security_digest_collect() {
 			'mfa_7d'      => $mfa,
 			'recon_7d'    => $recon,
 		);
+		// 2026-10-18: account and site changes, the administrator ones counted out.
+		if ( function_exists( 'snt_audit_get_changes_impl' ) ) {
+			$changes                           = (array) snt_audit_get_changes_impl( 7 );
+			$data['audit']['changes_7d']       = count( $changes );
+			$data['audit']['admin_changes_7d'] = count( array_filter( array_column( $changes, 'high' ) ) );
+		}
 	}
 
 	// Guard side: the cached 7-day headline (+1 top-country query when active).
@@ -152,7 +158,7 @@ function snt_security_digest_compose( $data ) {
 	$status = isset( $data['status'] ) && is_array( $data['status'] ) ? $data['status'] : null;
 	$breach = isset( $data['breach'] ) && is_array( $data['breach'] ) ? $data['breach'] : null;
 
-	$quiet = ( null === $audit || ( 0 === $audit['events_7d'] && 0 === $audit['failed_7d'] && 0 === $audit['recon_7d'] ) )
+	$quiet = ( null === $audit || ( 0 === $audit['events_7d'] && 0 === $audit['failed_7d'] && 0 === $audit['recon_7d'] && 0 === (int) ( $audit['changes_7d'] ?? 0 ) ) )
 		&& ( null === $guard || ( 0 === $guard['blocked'] && 0 === (int) ( $guard['locked_out'] ?? 0 ) ) );
 
 	$lines   = array();
@@ -160,7 +166,7 @@ function snt_security_digest_compose( $data ) {
 	$lines[] = str_repeat( '=', 51 );
 	$lines[] = '';
 	if ( $quiet ) {
-		$lines[] = 'Quiet week: no failed logins, no recon probes, no guard blocks.';
+		$lines[] = 'Quiet week: no failed logins, no recon probes, no account or site changes, no guard blocks or lockouts.';
 		$lines[] = 'This email is the heartbeat: the pipeline is alive and watching.';
 		$lines[] = '';
 	}
@@ -177,6 +183,11 @@ function snt_security_digest_compose( $data ) {
 			$lines[] = '  Included MFA errors: ' . (int) $mfa['mfa_failed'] . ' rejected, ' . (int) $mfa['mfa_throttled'] . ' rate-limited, ' . (int) $mfa['mfa_other'] . ' other. Older failures are unclassified.';
 		}
 		$lines[] = '  Recon probes (login/admin 404s): ' . number_format_i18n( $audit['recon_7d'] );
+		if ( isset( $audit['changes_7d'] ) ) {
+			$admin   = (int) ( $audit['admin_changes_7d'] ?? 0 );
+			$lines[] = '  Account and site changes: ' . number_format_i18n( (int) $audit['changes_7d'] )
+				. ( $admin > 0 ? ' (' . number_format_i18n( $admin ) . ' involving administrator access)' : '' );
+		}
 		$lines[] = '  All audit events: ' . number_format_i18n( $audit['events_7d'] )
 			. ' (prior 7d: ' . number_format_i18n( $audit['prior_7d'] ) . ', ' . $sign . $audit['pct_delta'] . '%)';
 	}
@@ -329,7 +340,7 @@ function snt_security_digest_render_settings() {
 	echo '<label><input type="checkbox" name="sn_digest_enabled" value="1" ';
 	checked( snt_security_digest_enabled() );
 	echo ' /> ' . esc_html__( 'Email a weekly security digest to the admin address', 'signal-and-noise-tools' ) . '</label>';
-	echo '<p class="sn-field-helper">' . esc_html__( 'Failed logins, recon probes, lockouts, login-guard blocks, and denylist freshness for the last 7 days. Sends every week, including quiet weeks: the quiet email is the heartbeat.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'Failed logins, recon probes, account and site changes, lockouts, login-guard blocks, and denylist freshness for the last 7 days. Sends every week, including quiet weeks: the quiet email is the heartbeat.', 'signal-and-noise-tools' ) . '</p>';
 	if ( $last_sent > 0 ) {
 		echo '<p class="sn-field-helper">' . esc_html(
 			sprintf(

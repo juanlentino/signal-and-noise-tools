@@ -84,6 +84,11 @@ $GLOBALS['__options']['sn_audit_log_v1'] = array(
 		array( 'ts' => time() - 7200, 'user' => 'bob' ),
 		array( 'ts' => time() - 10800, 'user' => 'carol' ),
 	),
+	// 2026-10-18: account and site changes; the administrator grant is the high one.
+	'changes'        => array(
+		array( 'ts' => time() - 7200, 'kind' => 'plugin_activated', 'actor' => '', 'subject' => 'akismet/akismet.php', 'detail' => '', 'high' => false ),
+		array( 'ts' => time() - 3600, 'kind' => 'role_set', 'actor' => 'alice', 'subject' => 'bob', 'detail' => 'editor → administrator', 'high' => true ),
+	),
 );
 
 $classic = snt_leaf_classic_html( 'snt_audit_log_render_tab' );
@@ -106,6 +111,17 @@ ok( false !== strpos( $kit, '<os-fact label="Throttled (last 7 days)"><span clas
 ok( false === strpos( $kit . $classic, 'Lockouts (polled daily)' ) && false === strpos( $kit, 'lockout_triggered' ), 'the retired polled lockouts column is gone from both twins' );
 ok( false === strpos( $kit . $classic, 'Limit Login' ) && false === strpos( $kit . $classic, 'LLA' ) && false === strpos( $kit . $classic, 'limit-login-attempts' ), 'neither twin names or links the retired plugin' );
 ok( false === strpos( $kit . $classic, 'login_success' ) && false === strpos( $kit . $classic, 'counter bucket' ) && false === strpos( $kit . $classic, 'ephemeral transient' ), 'no developer words on either twin: no login_success, counter buckets, or ephemeral transient' );
+
+// ── Account and site changes: the same finding, rows and admin pill on both twins.
+$al_high_at = gmdate( 'Y-m-d H:i:s', $GLOBALS['__options']['sn_audit_log_v1']['changes'][1]['ts'] );
+$al_finding = '2 changes in the window; 1 involves administrator access, the newest at ' . $al_high_at . '.';
+ok( false !== strpos( $kit, '<os-section heading="Account and site changes (last 30 days)"' ) && false !== strpos( $classic, '<h2 class="sn-fieldset-h">Account and site changes (last 30 days)</h2>' ), 'both twins carry the changes section' );
+ok( false !== strpos( $kit, '<p class="snt-prose">' . $al_finding . '</p>' ) && false !== strpos( $classic, '<p class="sn-prose">' . $al_finding . '</p>' ), 'both twins lead with the same finding, administrator access first' );
+ok( false !== strpos( $kit, 'Role changed <os-badge tone="warning">admin access</os-badge>' ) && false !== strpos( $classic, 'Role changed <span class="sn-pill sn-pill--warn">admin access</span>' ), 'the administrator grant carries the warn pill on both twins' );
+ok( 1 === substr_count( $kit, 'admin access</os-badge>' ) && 1 === substr_count( $classic, 'admin access</span>' ), 'only the high row is pilled' );
+ok( false !== strpos( $kit, 'bob (editor → administrator)' ) && false !== strpos( $classic, '<td>bob (editor → administrator)</td>' ) && false !== strpos( $classic, '<td>alice</td>' ), 'the account, the role change and who made it, on both twins' );
+ok( false !== strpos( $kit, '&quot;actor&quot;:&quot;no one signed in&quot;' ) && false !== strpos( $classic, '<td>no one signed in</td>' ), 'a change with no signed-in user says so on both twins' );
+ok( false !== strpos( $kit, 'The store keeps at most 200 changes, dropping the oldest first.' ) && false !== strpos( $classic, 'The store keeps at most 200 changes, dropping the oldest first.' ), 'both twins name the store cap' );
 
 // ── Counter timeline table: the same day-bucket, the same counts.
 ok( false !== strpos( $kit, '&quot;mfa_detail&quot;:&quot;2 / 1 / 1&quot;' ), 'native audit renders populated MFA subsets' );
@@ -152,6 +168,14 @@ $GLOBALS['__options']['sn_audit_log_v1']['login_success'][2]['user'] = '"><scrip
 $kit = snt_leaf_paint( 'security', 'audit-log' );
 ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&lt;script&gt;' ) && array() === al_unearned_folds( $kit ), 'a hostile login username is escaped, and nothing folds' );
 $GLOBALS['__options']['sn_audit_log_v1']['login_success'][2]['user'] = 'carol';
+
+// ── Empty changes: the same sentence on both twins.
+$saved_changes = $GLOBALS['__options']['sn_audit_log_v1']['changes'];
+$GLOBALS['__options']['sn_audit_log_v1']['changes'] = array();
+$kit_e = snt_leaf_paint( 'security', 'audit-log' );
+$cls_e = snt_leaf_classic_html( 'snt_audit_log_render_tab' );
+ok( false !== strpos( $kit_e, 'No account or setting changes recorded in this window.' ) && false !== strpos( $cls_e, 'No account or setting changes recorded in this window.' ) && array() === al_unearned_folds( $kit_e ), 'no changes: the same empty sentence on both twins, no fold' );
+$GLOBALS['__options']['sn_audit_log_v1']['changes'] = $saved_changes;
 
 // ── Empty state: no successful logins in the window.
 $saved_logins = $GLOBALS['__options']['sn_audit_log_v1']['login_success'];
@@ -203,7 +227,7 @@ $GLOBALS['__lg_headline'] = $saved_lg;
 // ── The prune-now action, handled inline: paints the same stats notice the
 // classic leaf echoes, without ever going through the shared PRG.
 $kit = snt_leaf_paint( 'security', 'audit-log', array( 'post' => array( 'sn_action' => 'audit_prune_now' ) ) );
-ok( false !== strpos( $kit, 'Prune complete.' ) && false !== strpos( $kit, '0 days of counts deleted and 0 login records deleted.' ) && false !== strpos( $kit, 'tone="success"' ) && array() === al_unearned_folds( $kit ), 'the inline prune-now paints a success notice with the real stats in words, and nothing folds' );
+ok( false !== strpos( $kit, 'Prune complete.' ) && false !== strpos( $kit, '0 days of counts deleted, 0 login records deleted, and 0 change records deleted.' ) && false !== strpos( $kit, 'tone="success"' ) && array() === al_unearned_folds( $kit ), 'the inline prune-now paints a success notice with the real stats in words, and nothing folds' );
 
 // ── The inline pipeline must not re-fire the prune on a second paint of the
 // SAME state object — the state contract is ONE paint's $_POST. Reproduces
