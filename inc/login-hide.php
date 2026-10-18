@@ -194,7 +194,9 @@ add_filter( 'wp_redirect', 'sn_login_filter_url', 10, 2 );
  * 2026-10-17). Unhooked while the mask is active, those paths fall through to
  * the theme's 404 like /wp-login.php. Core registers it at priority 1000.
  */
-remove_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );
+if ( function_exists( 'remove_action' ) ) {
+	remove_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );
+}
 
 /**
  * Decide whether the current request should be routed to the wp-login.php
