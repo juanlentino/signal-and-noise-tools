@@ -187,6 +187,18 @@ add_filter( 'network_site_url', 'sn_login_filter_url', 10, 2 );
 add_filter( 'wp_redirect', 'sn_login_filter_url', 10, 2 );
 
 /**
+ * Keep core from handing out the door. wp_redirect_admin_locations() sends
+ * /login to wp_login_url() (and /admin, /dashboard to /wp-admin/), and the
+ * filter above rewrites that URL to the custom slug, so GET /login answered
+ * 302 /sn-login: anyone who typed /login was given the hidden URL (found live
+ * 2026-10-17). Unhooked while the mask is active, those paths fall through to
+ * the theme's 404 like /wp-login.php. Core registers it at priority 1000.
+ */
+if ( function_exists( 'remove_action' ) ) {
+	remove_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );
+}
+
+/**
  * Decide whether the current request should be routed to the wp-login.php
  * include path (custom slug match), or to the 404 path (direct
  * wp-login.php access). Mirrors wps-hide-login's plugins_loaded handler
