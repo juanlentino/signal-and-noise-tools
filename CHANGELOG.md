@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **`/wp-signup.php` and `/wp-activate.php` no longer point at the login door.** After the `/login` fix, two more core scripts still did: on a single site `wp-signup.php` redirects to `wp_registration_url()`, which the mask rewrites to the custom slug (`302 /sn-login?action=register` live on 2026-10-17), and `wp-activate.php` redirects to `wp-login.php?action=register`. Both now take the same direct-access 404 as `wp-login.php`, through one path-anchored, case-insensitive predicate, `sn_login_request_is_core_login_file()`; a query-string value never matches. `tests/login-admin-locations.php` gains 12 cases (red before).
+
 - **`/login` no longer hands out the hidden login URL.** WordPress core redirects `/login` to `wp_login_url()`, and the login mask rewrites that to the custom slug, so `GET /login` answered `302 /sn-login` on the live site: anyone who typed `/login` was given the secret door, defeating the point of masking it (the owner found it on 2026-10-17). `inc/login-hide.php` now unhooks core's `wp_redirect_admin_locations` while the mask is active, so `/login`, `/admin` and `/dashboard` 404 like `/wp-login.php` and `/wp-admin/`. The emergency bypass and the wps-hide-login stand-down still return first, leaving core's redirect in place when the mask is off. New `tests/login-admin-locations.php` (red before: 2 of 3 failed).
 
 ### Fixed

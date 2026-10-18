@@ -310,6 +310,29 @@ function sn_login_request_targets_wp_admin( $request_uri ) {
 	return '/wp-admin' === $path || str_starts_with( $path, '/wp-admin/' );
 }
 
+/**
+ * Whether a request names one of core's login-side scripts directly. Each
+ * 404s while the mask is active, because each hands the door out otherwise:
+ * wp-login.php is the door itself, and on a single site wp-signup.php
+ * redirects to wp_registration_url() (the masked slug, ?action=register)
+ * and wp-activate.php to wp-login.php?action=register. Live 2026-10-17:
+ * /wp-signup.php answered 302 /sn-login?action=register. PATH-anchored like
+ * the rest of this file (a query-string value never matches) and
+ * case-insensitive.
+ *
+ * @param string $request_uri Raw (unslashed) REQUEST_URI.
+ * @return bool
+ */
+function sn_login_request_is_core_login_file( $request_uri ) {
+	$path = strtolower( sn_login_request_path( $request_uri ) );
+	foreach ( array( '/wp-login.php', '/wp-signup.php', '/wp-activate.php' ) as $file ) {
+		if ( str_ends_with( $path, $file ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
 function sn_login_intercept_request() {
 	if ( ! isset( $_SERVER['REQUEST_URI'] ) ) {
 		return;
@@ -340,7 +363,7 @@ function sn_login_intercept_request() {
 	// hardened to match PATH-only; this branch kept the raw-URI substring
 	// test — the same query-string smuggle, re-opened on the block side) and
 	// shares sn_login_request_path() so the two normalize identically.
-	if ( str_ends_with( sn_login_request_path( $request_uri ), '/wp-login.php' ) && ! is_admin() ) {
+	if ( sn_login_request_is_core_login_file( $request_uri ) && ! is_admin() ) {
 		$GLOBALS['sn_login_block_wp_login'] = true;
 		return;
 	}
