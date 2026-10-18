@@ -168,7 +168,9 @@ function sn_cf_posture_from( array $settings_res, array $dnssec_res, array $rule
 				'description' => (string) ( $r['description'] ?? '' ),
 				'action'      => (string) ( $r['action'] ?? '' ),
 				'enabled'     => ! empty( $r['enabled'] ),
-				'expression'  => substr( (string) ( $r['expression'] ?? '' ), 0, 400 ),
+				// The expression itself is never stored: it can name the login address,
+				// and this record is read out through sn-status. Only what is asked of it.
+				'targets_abilities' => false !== stripos( (string) ( $r['expression'] ?? '' ), 'wp-abilities' ),
 			);
 		}
 	}
@@ -212,7 +214,18 @@ add_action( SN_CF_MONITOR_HOOK, 'sn_cf_posture_refresh', 30 );
  */
 function sn_cf_posture_read() {
 	$stored = get_option( SN_CF_POSTURE_OPT );
-	return is_array( $stored ) ? $stored : null;
+	if ( ! is_array( $stored ) ) {
+		return null;
+	}
+	// A record stored before 2026-10-18 still carries rule expressions: derive
+	// what is needed and drop them on read until the next refresh rewrites it.
+	foreach ( (array) ( $stored['rules']['rules'] ?? array() ) as $i => $r ) {
+		if ( is_array( $r ) && array_key_exists( 'expression', $r ) ) {
+			$stored['rules']['rules'][ $i ]['targets_abilities'] = false !== stripos( (string) $r['expression'], 'wp-abilities' );
+			unset( $stored['rules']['rules'][ $i ]['expression'] );
+		}
+	}
+	return $stored;
 }
 
 /**
@@ -245,7 +258,7 @@ function sn_cf_posture_abilities_rule( $record = null ) {
 		return null;
 	}
 	foreach ( (array) $record['rules']['rules'] as $r ) {
-		if ( false !== stripos( (string) $r['description'], SN_CF_FW_ABILITIES_RULE ) || false !== stripos( (string) $r['expression'], 'wp-abilities' ) ) {
+		if ( false !== stripos( (string) $r['description'], SN_CF_FW_ABILITIES_RULE ) || ! empty( $r['targets_abilities'] ) ) {
 			return $r;
 		}
 	}

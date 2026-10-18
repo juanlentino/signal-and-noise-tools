@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **The Cloudflare posture record no longer stores custom WAF rule expressions.** It kept the first 400 characters of each one and read them out through sn-status, and an expression can name the login address. It now keeps only what is asked of it (whether a rule targets the abilities API). A record stored before this change is cleaned on read until the next refresh rewrites it.
+
 - **The application-password and administrator-2FA watches name accounts by display name and user ID, not login username.** The login username can be the secret half of a credential, and watch notes travel through the MCP tools.
 
 - **A watch and a Site Health test for a published login username.** The site already locks the REST users list and the `?author=` scan, but oEmbed publishes each author's slug (`user_nicename`) in its author link, and that archive answers. Core derives the slug from the login username when a user is created, so unless someone changed it, the slug is the login. The new `public_username` watch and the "Signal & Noise public username check" row in Site Health compare the two core fields for every administrator, live, ignoring case and core's slugging. They name user IDs only, never either value. Core has no profile field for the slug (Nickname and "Display name publicly as" set other fields), so the note gives the WP-CLI command: `wp user update <ID> --user_nicename=<new-slug>`.

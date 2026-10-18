@@ -74,7 +74,14 @@ $byexpr = array( 'id' => 'x1', 'description' => 'Guard', 'action' => 'block', 'e
 $rec = sn_cf_posture_from( $settings(), $dnssec( 'active' ), $rules( array( $other, $byexpr ) ) );
 $r = sn_cf_posture_abilities_rule( $rec );
 ok( is_array( $r ) && 'x1' === $r['id'] && false === $r['enabled'], 'found by expression when the name says nothing; disabled is kept as a fact' );
+ok( ! array_key_exists( 'expression', $rec['rules']['rules'][0] ) && ! array_key_exists( 'expression', $rec['rules']['rules'][1] ), 'the stored record keeps no rule expression (an expression can name the login address, and the record is read out through sn-status)' );
 
+echo "\nGroup: a record stored with expressions is cleaned on read\n";
+$GLOBALS['__opt'][ SN_CF_POSTURE_OPT ] = array( 'rules' => array( 'available' => true, 'rules' => array( array( 'id' => 'old', 'description' => 'Guard', 'action' => 'block', 'enabled' => true, 'expression' => 'http.request.uri.path contains "wp-abilities" or http.request.uri.path eq "/door-k7"' ) ) ) );
+$__read = sn_cf_posture_read();
+ok( false === strpos( json_encode( $__read ), 'door-k7' ), 'a stored expression never leaves the read' );
+ok( is_array( sn_cf_posture_abilities_rule( $__read ) ) && 'old' === sn_cf_posture_abilities_rule( $__read )['id'], 'and the abilities rule is still found from it' );
+unset( $GLOBALS['__opt'][ SN_CF_POSTURE_OPT ] );
 echo "\nGroup: Always Online is information, never a finding\n";
 $note = 'on, so Cloudflare ignores stale-while-revalidate and stale-if-error; the edge lifetime still applies';
 $rec  = sn_cf_posture_from( $settings( array( 'always_online' => 'on' ) ), $dnssec( 'active' ), $rules( array() ) );
