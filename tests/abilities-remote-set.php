@@ -219,7 +219,6 @@ $pairs_output = array(
 	array( $REMOTE_SP, $ADMIN_SP ),
 	array( $REMOTE_SD, $ADMIN_SD ),
 	array( $REMOTE_SX, $ADMIN_SX ),
-	array( $REMOTE_EE, $ADMIN_EE ),
 	array( $REMOTE_BS, $ADMIN_BS ),
 	array( $REMOTE_AR, $ADMIN_AR ),
 );
@@ -348,10 +347,17 @@ $execute_pairs = array(
 	array( $REMOTE_PROV, $ADMIN_PROV ),
 	array( $REMOTE_MR, $ADMIN_MR ),
 	array( $REMOTE_CRON, $ADMIN_CRON ),
-	array( $REMOTE_EE, $ADMIN_EE ),
 	array( $REMOTE_BS, $ADMIN_BS ),
 	array( $REMOTE_AR, $ADMIN_AR ),
 );
+// 2026-10-17: edge-errors-summary's installs_by_day is local-door only. The
+// twin is the admin schema MINUS that key and runs the shared callback the
+// admin one wraps, so the remote contract does not move. Pinned as a strip.
+$sn_admin_ee_out = $GLOBALS['__abilities'][ $ADMIN_EE ]['output_schema'];
+ok( isset( $sn_admin_ee_out['properties']['installs_by_day'] ) && ! isset( $GLOBALS['__abilities'][ $REMOTE_EE ]['output_schema']['properties']['installs_by_day'] ), 'installs_by_day is local-door only: the remote contract shape does not move' );
+unset( $sn_admin_ee_out['properties']['installs_by_day'] );
+ok( $GLOBALS['__abilities'][ $REMOTE_EE ]['output_schema'] === $sn_admin_ee_out, "$REMOTE_EE output_schema === $ADMIN_EE's minus installs_by_day" );
+ok( 'snt_ability_edge_errors_summary' === $GLOBALS['__abilities'][ $REMOTE_EE ]['execute_callback'] && 'snt_ability_edge_errors_summary_local' === $GLOBALS['__abilities'][ $ADMIN_EE ]['execute_callback'], "$REMOTE_EE runs the shared callback; $ADMIN_EE runs the local wrapper over it" );
 foreach ( $execute_pairs as $pair ) {
 	list( $remote, $admin ) = $pair;
 	ok(
