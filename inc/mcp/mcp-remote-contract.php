@@ -82,7 +82,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 // flagged row of the health-scan twin gains partial (why part of the check was
 // not judged, naming the posts) and failed[] (post_id, title, reason). Additive.
 // The worker's own CONTRACT_VERSION bump is a separate PR.
-const SN_REMOTE_CONTRACT_VERSION = '18';
+// Contract 19 (owner brief 2026-10-18, "Keep the number, but filter it"): the
+// machine-readers summary twin gains impostors, reads that claimed an agent
+// Cloudflare verifies when genuine and failed its check, credited to no one
+// (basis inferred). Additive. The worker's own CONTRACT_VERSION bump is a
+// separate PR.
+const SN_REMOTE_CONTRACT_VERSION = '19';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -127,6 +132,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'17' => '9a44d64aa779d567e1fe8746d526107dafa18fd93117a6a783ccdd047def2a47',
 	// RED-then-pin, 2026-10-14: partial + failed[] on the health-scan twin's flagged rows.
 	'18' => 'ec15e0e6b2544300a3d65a481f94648070a36f19f19420d6bb7fe3a3dc28c50a',
+	// RED-then-pin, 2026-10-18: impostors on the machine-readers summary twin.
+	'19' => 'ddce832f49228f7710fb770c71fc3f9ff53fa72d97669b4304c1915e30e117b7',
 );
 
 /**

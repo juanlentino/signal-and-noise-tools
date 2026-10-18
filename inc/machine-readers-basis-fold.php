@@ -12,21 +12,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Impersonations, the verification split of every attributed count, and the
+ * Impersonations, impostors, the verification split of every attributed count, and the
  * basis of each, over a window's aggregate rows.
  *
  * Each split reads the rows its figure reads: `families` the credited rows
- * (control-token hits out, first-party in, as in `families`), `purposes` and
+ * (control-token and impostor hits out, first-party in, as in `families`), `purposes` and
  * `ai_training_by_purpose` the credited third-party rows (as in `purposes`),
  * `ai_training` the credited rows of the AI-training family set.
  *
  * @param array $rows Aggregate rows.
- * @return array{impersonations:array|null,verification:array,basis:array}
+ * @return array{impersonations:array|null,impostors:array|null,verification:array,basis:array}
  */
 function snt_mr_evidence( array $rows ) {
 	$has_tax  = function_exists( 'snt_mr_taxonomy_absent' ) && ! snt_mr_taxonomy_absent( $rows );
 	$ai_set   = function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array();
-	$credited = array_values( array_filter( $rows, static fn( $r ) => is_array( $r ) && ! snt_mr_is_impersonation( $r ) ) );
+	$credited = array_values( array_filter( $rows, 'snt_mr_is_credited' ) );
 	$ai       = snt_mr_verification_zero();
 	foreach ( $credited as $row ) {
 		if ( in_array( (string) ( $row['family'] ?? '' ), $ai_set, true ) ) {
@@ -38,6 +38,9 @@ function snt_mr_evidence( array $rows ) {
 		// null, not [], when the taxonomy is absent: rows then carry no agent
 		// id, so no impersonation could have been seen.
 		'impersonations' => $has_tax ? snt_mr_impersonations( $rows ) : null,
+		// Claimed a cf_verified agent, failed Cloudflare's check: counted in
+		// total, credited to nothing, basis inferred (a rule decided it).
+		'impostors'      => $has_tax ? snt_mr_impostors( $rows ) : null,
 		'verification'   => array(
 			'source'                 => 'cloudflare verified bot category',
 			'since'                  => defined( 'SN_RIGHTS_EVIDENCE_VERIFIED_SINCE' ) ? SN_RIGHTS_EVIDENCE_VERIFIED_SINCE : null,
@@ -58,25 +61,27 @@ function snt_mr_evidence( array $rows ) {
 			'identity'               => 'signed',
 			'verification'           => 'verified',
 			'impersonations'         => 'claimed',
+			'impostors'              => 'inferred',
 		),
 	);
 }
 
 /**
  * The rows both Machine Readers leaves paint in "How each count is known":
- * per purpose and per family, the two AI-training figures, the impersonations.
+ * per purpose and per family, the two AI-training figures, the impersonations
+ * and the impostors.
  * Rows run largest claimed first. `purposes` is null without the taxonomy, and
  * so is the purpose AI-training row's every figure: not measured, never zeros.
  *
  * @param array $rows Aggregate rows.
- * @return array{since:string|null,purposes:array|null,families:array,ai:array,impersonations:array}
+ * @return array{since:string|null,purposes:array|null,families:array,ai:array,impersonations:array,impostors:array}
  */
 function snt_mr_basis_display( array $rows ) {
 	$ev    = snt_mr_evidence( $rows );
 	$v     = $ev['verification'];
 	$fp    = array();
 	foreach ( $rows as $r ) {
-		if ( is_array( $r ) && ! empty( $r['first_party'] ) && ! snt_mr_is_impersonation( $r ) ) {
+		if ( ! empty( $r['first_party'] ) && snt_mr_is_credited( $r ) ) {
 			$fp[ (string) ( $r['family'] ?? '' ) ] = ( $fp[ (string) ( $r['family'] ?? '' ) ] ?? 0 ) + max( 0, (int) ( $r['hits'] ?? 0 ) );
 		}
 	}
@@ -102,6 +107,7 @@ function snt_mr_basis_display( array $rows ) {
 			array( 'label' => 'AI-training, by family (legacy)' ) + $v['ai_training'],
 		),
 		'impersonations' => (array) ( $ev['impersonations'] ?? array() ),
+		'impostors'      => (array) ( $ev['impostors'] ?? array() ),
 	);
 }
 
@@ -119,7 +125,7 @@ function snt_mr_basis_count( $n ) {
  * Top networks as one line ("Google LLC 200, xAI 110"); "not measured" when
  * the read could not say.
  *
- * @param array $u A snt_mr_unnamed_fold() or snt_mr_impersonations() entry.
+ * @param array $u A snt_mr_unnamed_fold(), snt_mr_impersonations() or snt_mr_impostors() entry.
  * @return string
  */
 function snt_mr_basis_networks( array $u ) {

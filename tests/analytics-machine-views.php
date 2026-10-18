@@ -176,6 +176,8 @@ namespace {
 	ok( false !== strpos( $ek, $signed ) && false !== strpos( $ec, $signed ) && 1 === preg_match( '/Top signers: anthropic-claudebot [\d,]+/', $ec ), 'Web Bot Auth valid, invalid and unknown key on the Signed tile, the top signers with their counts in the line (both surfaces)' );
 	$__nt = snt_ev_paint_evidence_tiles( array( 'claimed' => 0, 'verified' => 0, 'verified_matched' => 0, 'unverified' => 0, 'unverifiable' => 0 ), array( 'measured' => 4, 'valid' => 4, 'invalid' => 0, 'unknown_key' => 0, 'by_agent' => array() ), null, null, 'classic' );
 	ok( 1 === substr_count( $__nt, 'not measured' ) && 1 === preg_match( '/Control tokens<\/p><p class="sn-kpi-value">not measured<\/p><span class="sn-kpi-delta[^"]*">credited to no vendor/', $__nt ), 'control tokens with no taxonomy read not measured, never 0' );
+	$__it = snt_ev_paint_evidence_tiles( array( 'claimed' => 0, 'verified' => 0, 'verified_matched' => 0, 'unverified' => 0, 'unverifiable' => 0 ), null, 0, null, 'classic', 2107 );
+	ok( false !== strpos( $__it, 'Claimed a known crawler but failed Cloudflare’s check: 2,107 reads, counted in the total and credited to no vendor.' ) && false === strpos( $__nt, 'failed Cloudflare' ), 'impostor reads get their own plain line; not measured, no line' );
 	$with_cards          = snt_mr_view_data( 7 );
 	$with_cards['cards'] = array( array( 'id' => 'mr_delta_openai', 'direction' => 'up', 'percent' => 40, 'current' => 420, 'prior' => 300 ) );
 	foreach ( array( 'kit', 'classic' ) as $s ) {

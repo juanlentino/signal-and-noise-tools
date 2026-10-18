@@ -66,8 +66,8 @@ function snt_mr_view_data( $days, $evidence = false ) {
 	}
 	$feed         = function_exists( 'sn_rss_tracker_window_stats_multi' ) ? (array) sn_rss_tracker_window_stats_multi( array( 7, 30 ) ) : array();
 	$rights       = snt_mr_fetch( $days, 'rights' );
-	// Cards compare readers: this site's own tools and control tokens move none.
-	$win          = function_exists( 'snt_mr_split_windows' ) ? snt_mr_split_windows( snt_mr_reader_rows( $rows ), max( 1, intdiv( $days, 2 ) ), gmdate( 'Y-m-d' ) ) : null;
+	// Cards compare readers: this site's own tools, control tokens and impostors move none.
+	$win          = function_exists( 'snt_mr_split_windows' ) ? snt_mr_split_windows( snt_mr_credited_reader_rows( $rows ), max( 1, intdiv( $days, 2 ) ), gmdate( 'Y-m-d' ) ) : null;
 	$d['feed']    = $feed;
 	$d['rights']  = ! empty( $rights['ok'] ) ? (array) $rights['rows'] : null;
 	$d['cards']   = null !== $win && function_exists( 'snt_mr_family_delta_cards' ) ? snt_mr_family_delta_cards( $win['current'] ?? array(), $win['prior'] ?? array(), max( 1, intdiv( $days, 2 ) ) ) : array();
@@ -136,7 +136,7 @@ function snt_mr_view_reader_evidence_html( array $d, $surface, array $links ) {
 	$fams   = array_map( static fn( $f ) => array( 'label' => $f['family'], 'split' => $f['split'] ), array_slice( $who['rows'], 0, SN_MR_EVIDENCE_ROWS ) );
 	// 2026-10-11 redesign, from the owner-approved prototype: tiles, the
 	// verified share by purpose and by family, then the actors and signals.
-	return snt_ev_paint_evidence_tiles( $t, snt_mr_identity_breakdown( $d['rows'] ), $tokens, $since, $surface )
+	return snt_ev_paint_evidence_tiles( $t, snt_mr_identity_breakdown( $d['rows'] ), $tokens, $since, $surface, snt_mr_impostor_total( $ev['impostors'] ) )
 		. snt_ev_share_key()
 		. snt_ev_pair(
 			$surface,

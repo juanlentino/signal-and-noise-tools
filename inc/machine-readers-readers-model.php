@@ -15,7 +15,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Third-party rows credited to a vendor.
+ * Third-party rows that claim a vendor: control tokens out, impostors IN. The
+ * evidence tables read these (is this crawler real, the daily verified and
+ * unverified columns), because an impostor is exactly what they show.
  *
  * @param array $rows Aggregate rows.
  * @return array
@@ -25,8 +27,20 @@ function snt_mr_reader_rows( array $rows ) {
 }
 
 /**
+ * Third-party rows credited to a vendor: control tokens and impostors out.
+ * Every attributed figure (who reads, the AI-training finding) reads these.
+ *
+ * @param array $rows Aggregate rows.
+ * @return array
+ */
+function snt_mr_credited_reader_rows( array $rows ) {
+	return array_values( array_filter( snt_mr_reader_rows( $rows ), 'snt_mr_is_credited' ) );
+}
+
+/**
  * The AI-training finding in one sentence, built from the rows: what claimed
- * training, what a control token took out of it, and what Cloudflare verified.
+ * training, what control tokens and impostors took out of it, and what
+ * Cloudflare verified.
  *
  * @param array $rows Aggregate rows.
  * @return string '' when the window carries no taxonomy.
@@ -35,7 +49,8 @@ function snt_mr_ai_finding( array $rows ) {
 	if ( snt_mr_taxonomy_absent( $rows ) ) {
 		return '';
 	}
-	$train = array_filter( snt_mr_reader_rows( $rows ), static fn( $r ) => 'train' === (string) ( $r['purpose'] ?? '' ) );
+	$train = array_filter( snt_mr_credited_reader_rows( $rows ), static fn( $r ) => 'train' === (string) ( $r['purpose'] ?? '' ) );
+	$fakes = array_sum( array_map( static fn( $r ) => snt_mr_is_impostor( $r ) && 'train' === (string) ( $r['purpose'] ?? '' ) ? max( 0, (int) ( $r['hits'] ?? 0 ) ) : 0, snt_mr_reader_rows( $rows ) ) );
 	$t     = snt_mr_verification_zero();
 	$nets  = array();
 	foreach ( $train as $r ) {
@@ -53,13 +68,21 @@ function snt_mr_ai_finding( array $rows ) {
 			? sprintf( __( 'Cloudflare verified %1$s, all from %2$s.', 'signal-and-noise-tools' ), number_format_i18n( $t['verified'] ), (string) array_key_first( $nets ) )
 			/* translators: 1: verified reads, 2: networks. */
 			: sprintf( _n( 'Cloudflare verified %1$s, from %2$d network.', 'Cloudflare verified %1$s, from %2$d networks.', count( $nets ), 'signal-and-noise-tools' ), number_format_i18n( $t['verified'] ), count( $nets ) ) );
+	$out = array();
 	if ( $taken > 0 ) {
+		/* translators: 1: control-token reads, 2: the tokens. */
+		$out[] = sprintf( __( '%1$s presented %2$s, a control token credited to no vendor', 'signal-and-noise-tools' ), number_format_i18n( $taken ), implode( ', ', array_column( $tokens, 'token' ) ) );
+	}
+	if ( $fakes > 0 ) {
+		/* translators: %s: impostor reads. */
+		$out[] = sprintf( __( '%s claimed a known crawler but failed Cloudflare\'s check', 'signal-and-noise-tools' ), number_format_i18n( $fakes ) );
+	}
+	if ( array() !== $out ) {
 		return sprintf(
-			/* translators: 1: reads that claimed training, 2: control-token reads, 3: the tokens, 4: what is left, 5: the verification clause. */
-			__( '%1$s reads claimed AI training; %2$s presented %3$s, a control token credited to no vendor, leaving %4$s; %5$s', 'signal-and-noise-tools' ),
-			number_format_i18n( $t['claimed'] + $taken ),
-			number_format_i18n( $taken ),
-			implode( ', ', array_column( $tokens, 'token' ) ),
+			/* translators: 1: reads that claimed training, 2: what was credited to no vendor, 3: what is left, 4: the verification clause. */
+			__( '%1$s reads claimed AI training; %2$s, leaving %3$s; %4$s', 'signal-and-noise-tools' ),
+			number_format_i18n( $t['claimed'] + $taken + $fakes ),
+			implode( '; ', $out ),
 			number_format_i18n( $t['claimed'] ),
 			$proof
 		);
@@ -78,7 +101,7 @@ function snt_mr_ai_finding( array $rows ) {
 function snt_mr_who_reads( array $rows ) {
 	$by   = array();
 	$last = array();
-	foreach ( snt_mr_reader_rows( $rows ) as $r ) {
+	foreach ( snt_mr_credited_reader_rows( $rows ) as $r ) {
 		$f          = (string) ( $r['family'] ?? '' );
 		$by[ $f ]   = snt_mr_verification_add( $by[ $f ] ?? snt_mr_verification_zero(), $r );
 		$last[ $f ] = max( (string) ( $last[ $f ] ?? '' ), (string) ( $r['day'] ?? '' ) );
@@ -118,7 +141,7 @@ function snt_mr_what_for( array $rows ) {
 		'lead' => null === $top
 			? __( 'No third-party reads carry a purpose in this window.', 'signal-and-noise-tools' )
 			/* translators: 1: purposes, 2: the top purpose, 3: its reads. */
-			: sprintf( _n( '%1$d purpose, this site’s own tools and control tokens left out; %2$s leads with %3$s reads.', '%1$d purposes, this site’s own tools and control tokens left out; %2$s leads with %3$s reads.', count( $d['purposes'] ), 'signal-and-noise-tools' ), count( $d['purposes'] ), $top['label'], number_format_i18n( $top['claimed'] ) ),
+			: sprintf( _n( '%1$d purpose, this site’s own tools, control tokens and impostors left out; %2$s leads with %3$s reads.', '%1$d purposes, this site’s own tools, control tokens and impostors left out; %2$s leads with %3$s reads.', count( $d['purposes'] ), 'signal-and-noise-tools' ), count( $d['purposes'] ), $top['label'], number_format_i18n( $top['claimed'] ) ),
 	);
 }
 

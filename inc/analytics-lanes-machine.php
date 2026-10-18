@@ -16,7 +16,8 @@
  *   unclassified-machine  unknown_machine / no_claim
  * A code-3 read (invalid token) keeps its lane; its reason becomes
  * owner_token_invalid. Verification and impersonation are the plugin's own
- * helpers (snt_mr_row_verified_matched, snt_mr_is_impersonation), never a
+ * helpers (snt_mr_row_verified_matched, snt_mr_is_impersonation,
+ * snt_mr_is_impostor), never a
  * copy. WebMCP tool calls are not reads: snt_mr_fetch() splits them off.
  *
  * @package SignalNoiseTools
@@ -47,6 +48,10 @@ function sn_lanes_machine_key( array $row ) {
 		// Credited to no family and no purpose, as every house figure does
 		// (snt_mr_impersonations): no vendor crawls under a control token.
 		$k = array( 'lane' => 'claimed_bot', 'reason' => 'impersonation' ) + $k;
+	} elseif ( snt_mr_is_impostor( $row ) ) {
+		// Claimed an agent Cloudflare verifies when genuine and failed the
+		// check: credited to no family and no purpose (snt_mr_impostors).
+		$k = array( 'lane' => 'claimed_bot', 'reason' => 'impostor' ) + $k;
 	} elseif ( 'valid' === (string) ( $row['signed_agent'] ?? '' ) ) {
 		$k = array( 'lane' => 'verified_bot', 'reason' => 'web_bot_auth', 'purpose' => $purpose ) + $k;
 	} elseif ( snt_mr_row_verified_matched( $row ) ) {

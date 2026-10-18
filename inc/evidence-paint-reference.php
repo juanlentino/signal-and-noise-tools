@@ -29,7 +29,7 @@ function snt_ev_paint_reference( array $rows, $surface = 'kit' ) {
 	$rights = array();
 	$pairs  = array();
 	foreach ( $rows as $r ) {
-		if ( ! is_array( $r ) || snt_mr_is_impersonation( $r ) ) {
+		if ( ! snt_mr_is_credited( $r ) ) {
 			continue;
 		}
 		$fam  = (string) ( $r['family'] ?? '' );

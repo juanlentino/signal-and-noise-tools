@@ -99,7 +99,7 @@ function sn_public_stats_training_html( $data ) {
 	$lead = sprintf( esc_html__( '%1$s reads came from crawlers that say they gather AI training data. Cloudflare verified %2$s of them.', 'signal-and-noise-tools' ), '<strong>' . esc_html( number_format_i18n( $claimed ) ) . '</strong>', '<strong>' . esc_html( number_format_i18n( (int) ( $t['verified'] ?? 0 ) ) ) . '</strong>' );
 	return '<section class="sn-public-stats__training"><h2>' . esc_html__( 'AI training, claimed against proof', 'signal-and-noise-tools' ) . '</h2><p class="sn-public-stats__claim">' . $lead . '</p>'
 		. '<span class="sn-public-stats__proof" aria-hidden="true">' . $bar . '</span><ul class="sn-public-stats__key">' . $key . '</ul>'
-		. sn_public_stats_tokens_html( $m['tokens'] ?? null ) . '</section>';
+		. sn_public_stats_tokens_html( $m['tokens'] ?? null ) . sn_public_stats_impostors_html( $m['impostors'] ?? null ) . '</section>';
 }
 
 /**
@@ -122,6 +122,18 @@ function sn_public_stats_tokens_html( $tokens ) {
 		/* translators: 1: the tokens, 2: reads. */
 		: sprintf( __( '%1$s are robots.txt tokens, not crawlers: %2$s reads presented them as their name and are credited to no one.', 'signal-and-noise-tools' ), $names, $hits );
 	return '<p class="sn-public-stats__note">' . esc_html( $line ) . '</p>';
+}
+
+/**
+ * Reads that named a crawler Cloudflare verifies when genuine and failed its
+ * check: counted, credited to no one. '' when none or an older snapshot.
+ *
+ * @param int|null $n Impostor reads.
+ * @return string
+ */
+function sn_public_stats_impostors_html( $n ) {
+	/* translators: %s: reads. */
+	return (int) $n < 1 ? '' : '<p class="sn-public-stats__note">' . esc_html( sprintf( __( 'Claimed a known crawler but failed Cloudflare’s check: %s reads, counted and credited to no one.', 'signal-and-noise-tools' ), number_format_i18n( (int) $n ) ) ) . '</p>';
 }
 
 /**

@@ -332,8 +332,8 @@ Each row lists Cloudflare's legacy category string and the July 2026 behavior
 name, matched without regard to case, because the strings the edge stores could
 not be read back through any tool when the table was written. Crosstab cells
 carry the same split, plus `first_party_hits` (the exact part from this site's
-own tools; `first_party` is true when it is above zero), `impersonation` and
-`basis`. A read before the since date is unverifiable: the family and agent
+own tools; `first_party` is true when it is above zero), `impersonation`,
+`impostor_hits` and `basis`. A read before the since date is unverifiable: the family and agent
 exceptions in Reader evidence read each agent's whole split, so such a read
 never makes an agent or family "never verified".
 
@@ -348,6 +348,31 @@ listed in `impersonations` (`{agent, token, hits, networks, basis: claimed}`).
 The list mirrors the taxonomy's `observable: false` entries
 (`SN_MR_CONTROL_TOKENS`). Rights evidence still counts the google-ai family's
 hits, a decision left to the owner.
+
+### Impostors are counted, not credited
+
+An impostor is a hit that claims an agent Cloudflare verifies when genuine and
+that Cloudflare did not verify, on a day the sensor recorded verification. The
+rights-signals taxonomy (1.5.0) marks those agents `cf_verified: true`: the ones
+Cloudflare's verified-bots directory lists. The sensor stamps `cf_verified` on
+every aggregate row from its agent id at read time, so the rule is a pure
+function of the row (`snt_mr_is_impostor()`, `snt_mr_credit_class()`:
+`credited`, `control_token` or `impostor`). Like a control token, an impostor
+leaves `families`, `purposes`, `ai_training`, `ai_training_by_purpose` and
+`reader_families`, stays in `total`, and is listed apart in `impostors`
+(`{agent, hits, networks, basis: inferred}`): a rule decided it, so its basis
+is inferred, never claimed. Crosstab cells keep every hit and name the part in
+`impostor_hits`; lanes file it as `claimed_bot` / `impostor`.
+
+Never an impostor: a verified hit, whatever its network (Claude-User fetches
+from Google Cloud and Cloudflare verifies it); a hit before the since date
+(unverifiable); this site's own tools; an agent the directory does not list
+(PerplexityBot, CCBot, Bytespider, cohere-ai stay credited, unverified); a row
+from a sensor that sends no `cf_verified`. The reader-anomalies series keep
+impostor reads, because a co-movement of them is the signal that found them
+(2026-10-18: one "Google LLC" operator, about 30 crawler names, all
+unverified). The "is this crawler real" table and the daily verified and
+unverified columns keep them too: they are the evidence.
 
 ### First-party apart
 

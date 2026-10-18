@@ -155,3 +155,4 @@ function snt_mr_verification_by( array $rows, $field ) {
 }
 
 require_once __DIR__ . '/machine-readers-basis-tokens.php'; // control tokens in the readings, unmapped purposes, the strip figures.
+require_once __DIR__ . '/machine-readers-basis-impostors.php'; // impostor reads: counted, credited to no one.

@@ -15,13 +15,14 @@ const SN_MR_EVIDENCE_ROWS = 10;
 
 /**
  * Claim against proof: every read credited to a vendor (third parties), split.
+ * Impostors are not credited, so they are not here: they have their own line.
  *
  * @param array $rows Aggregate rows.
  * @return array A verification split.
  */
 function snt_mr_claim_proof( array $rows ) {
 	$t = snt_mr_verification_zero();
-	foreach ( snt_mr_reader_rows( $rows ) as $r ) {
+	foreach ( snt_mr_credited_reader_rows( $rows ) as $r ) {
 		$t = snt_mr_verification_add( $t, $r );
 	}
 	return $t;
