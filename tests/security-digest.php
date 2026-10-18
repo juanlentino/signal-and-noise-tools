@@ -66,6 +66,11 @@ if ( ! function_exists( 'snt_audit_get_summary_impl' ) ) {
 if ( ! function_exists( 'snt_audit_get_counters_impl' ) ) {
 	function snt_audit_get_counters_impl( $days ) { return $GLOBALS['__audit_days']; }
 }
+// 2026-10-18: account and site changes, value-toggled.
+$GLOBALS['__changes'] = array();
+if ( ! function_exists( 'snt_audit_get_changes_impl' ) ) {
+	function snt_audit_get_changes_impl( $days ) { return $GLOBALS['__changes']; }
+}
 $GLOBALS['__lg_headline'] = array( 'configured' => false, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '' );
 if ( ! function_exists( 'sn_login_defense_headline' ) ) {
 	function sn_login_defense_headline() { return $GLOBALS['__lg_headline']; }
@@ -93,7 +98,10 @@ $GLOBALS['__lg_headline']    = array( 'configured' => true, 'checked' => 500, 'b
 $GLOBALS['__lg_top_country'] = array( array( 'country' => 'CN', 'hits' => 300 ) );
 $GLOBALS['__lg_status']      = array( 'denylistCount' => 4200, 'ageHours' => 6, 'stale' => false, 'version' => '1.2.0', 'compiledAt' => '2026-07-01T04:07:00Z' );
 
+$GLOBALS['__changes'] = array( array( 'kind' => 'role_set', 'high' => true ), array( 'kind' => 'plugin_activated', 'high' => false ), array( 'kind' => 'theme_switched', 'high' => false ) );
 $data = snt_security_digest_collect();
+ok( 3 === ( $data['audit']['changes_7d'] ?? -1 ) && 1 === ( $data['audit']['admin_changes_7d'] ?? -1 ), 'collect: 3 account and site changes, 1 involving administrator access' );
+$GLOBALS['__changes'] = array();
 ok( 37 === ( $data['audit']['events_7d'] ?? -1 ), 'collect: audit events_7d' );
 ok( 8 === ( $data['audit']['failed_7d'] ?? -1 ), 'collect: failed_7d summed across days' );
 ok( 3 === ( $data['audit']['recon_7d'] ?? -1 ), 'collect: recon_7d summed across days' );
@@ -121,12 +129,13 @@ $GLOBALS['__lg_headline'] = array( 'configured' => false, 'checked' => 0, 'block
 echo "\nTest: composer\n";
 $active = array(
 	'window' => array( 'days' => 7 ),
-	'audit'  => array( 'events_7d' => 37, 'prior_7d' => 20, 'pct_delta' => 85, 'failed_7d' => 8, 'recon_7d' => 3 ),
+	'audit'  => array( 'events_7d' => 37, 'prior_7d' => 20, 'pct_delta' => 85, 'failed_7d' => 8, 'recon_7d' => 3, 'changes_7d' => 3, 'admin_changes_7d' => 1 ),
 	'guard'  => array( 'checked' => 500, 'blocked' => 412, 'block_rate' => 82, 'top_network' => 'EvilNet', 'top_country' => 'CN', 'locked_out' => 4, 'throttled' => 9, 'account_throttled' => 2 ),
 	'status' => array( 'denylist_count' => 4200, 'age_hours' => 6, 'stale' => false, 'version' => '1.2.0' ),
 );
 $body = snt_security_digest_compose( $active );
 ok( false !== strpos( $body, 'Failed logins: 8' ), 'compose: failed logins line' );
+ok( false !== strpos( $body, '  Account and site changes: 3 (1 involving administrator access)' ), 'compose: the changes line names the administrator ones' );
 ok( false !== strpos( $body, 'Blocked: 412' ), 'compose: guard blocked line' );
 ok( false !== strpos( $body, 'CN' ), 'compose: top country present' );
 ok( false !== strpos( $body, '4,200' ), 'compose: denylist freshness' );
@@ -139,7 +148,7 @@ ok( false === strpos( substr( $body, 0, $guard_at ), 'Lockouts' ), 'compose: the
 // ── composer: zero week (heartbeat) ──
 $zero = array(
 	'window' => array( 'days' => 7 ),
-	'audit'  => array( 'events_7d' => 0, 'prior_7d' => 0, 'pct_delta' => 0, 'failed_7d' => 0, 'recon_7d' => 0 ),
+	'audit'  => array( 'events_7d' => 0, 'prior_7d' => 0, 'pct_delta' => 0, 'failed_7d' => 0, 'recon_7d' => 0, 'changes_7d' => 0, 'admin_changes_7d' => 0 ),
 	'guard'  => array( 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '', 'top_country' => '', 'locked_out' => 0, 'throttled' => 0, 'account_throttled' => 0 ),
 	'status' => array( 'denylist_count' => 4200, 'age_hours' => 6, 'stale' => false, 'version' => '1.2.0' ),
 );
@@ -149,6 +158,11 @@ ok( false !== strpos( $body, '4,200' ), 'compose: zero week still shows guard al
 $lockweek = $zero;
 $lockweek['guard']['locked_out'] = 1;
 ok( false === strpos( snt_security_digest_compose( $lockweek ), 'Quiet week' ), 'compose: a week with a guard lockout is not quiet' );
+ok( false !== strpos( $body, '  Account and site changes: 0' ) && false === strpos( $body, 'involving administrator' ), 'compose: a zero week still prints the changes line, without the administrator clause' );
+$adminweek = $zero;
+$adminweek['audit']['changes_7d']       = 1;
+$adminweek['audit']['admin_changes_7d'] = 1;
+ok( false === strpos( snt_security_digest_compose( $adminweek ), 'Quiet week' ), 'compose: a week with an administrator change is not quiet' );
 
 // ── composer: sections degrade to unavailable lines ──
 $bare = array( 'window' => array( 'days' => 7 ), 'audit' => null, 'guard' => null, 'status' => null );

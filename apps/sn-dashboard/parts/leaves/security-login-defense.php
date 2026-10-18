@@ -95,7 +95,7 @@ function login_defense_digest_html( array $d ) {
 	// os-checkbox-label has no `description` prop (unlike os-switch), so the
 	// helper sentence is painted separately, mirroring the classic
 	// <p class="sn-field-helper"> at inc/security-digest.php:314.
-	$checkbox .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Failed logins, recon probes, lockouts, login-guard blocks, and denylist freshness for the last 7 days. Sends every week, including quiet weeks: the quiet email is the heartbeat.', 'signal-and-noise-tools' ) ) . '</p>';
+	$checkbox .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Failed logins, recon probes, account and site changes, lockouts, login-guard blocks, and denylist freshness for the last 7 days. Sends every week, including quiet weeks: the quiet email is the heartbeat.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	$hints = '';
 	if ( $d['last_sent'] > 0 ) {

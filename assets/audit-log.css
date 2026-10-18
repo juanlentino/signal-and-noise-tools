@@ -5,14 +5,17 @@
    sn_admin_glance_grid() → .sn-glance, matching every other tab's hero.) */
 
 .sn-audit-timeline,
-.sn-audit-logins {
+.sn-audit-logins,
+.sn-audit-changes {
 	margin: 8px 0 24px;
 }
 
 .sn-audit-timeline td,
 .sn-audit-timeline th,
 .sn-audit-logins td,
-.sn-audit-logins th {
+.sn-audit-logins th,
+.sn-audit-changes td,
+.sn-audit-changes th {
 	font-variant-numeric: tabular-nums;
 }
 

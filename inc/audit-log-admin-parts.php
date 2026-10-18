@@ -65,25 +65,28 @@ function snt_audit_log_login_defense_url() {
  */
 function snt_audit_log_intro_text( $days ) {
 	/* translators: %s: retention days. */
-	return sprintf( __( 'Records login events: successful logins, failed attempts, probes of /wp-login.php and of /wp-admin while signed out (answered 404), and password resets; lockouts and throttles come from the login guard at the edge. Kept %s days. Unique IPs are counted from hashes held for one day; no IP address, raw or hashed, is kept longer.', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) );
+	return sprintf( __( 'Records login events: successful logins, failed attempts, probes of /wp-login.php and of /wp-admin while signed out (answered 404), and password resets; lockouts and throttles come from the login guard at the edge. Also records account and site changes: new accounts, roles, account emails, registration and admin email settings, plugins and the theme. Kept %s days. Unique IPs are counted from hashes held for one day; no IP address, raw or hashed, is kept longer.', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) );
 }
 
 /**
  * What a prune did, in words (2026-10-12 audit: no "(s)").
  *
- * @param array{counter_buckets_dropped:int,login_rows_dropped:int} $stats snt_audit_prune_impl().
+ * @param array{counter_buckets_dropped:int,login_rows_dropped:int,change_rows_dropped:int} $stats snt_audit_prune_impl().
  * @return string
  */
 function snt_audit_prune_notice_text( $stats ) {
 	$days   = (int) ( $stats['counter_buckets_dropped'] ?? 0 );
 	$logins = (int) ( $stats['login_rows_dropped'] ?? 0 );
+	$changes = (int) ( $stats['change_rows_dropped'] ?? 0 );
 	return sprintf(
-		/* translators: 1: days of counts deleted, 2: login records deleted. */
-		__( '%1$s and %2$s.', 'signal-and-noise-tools' ),
+		/* translators: 1: days of counts deleted, 2: login records deleted, 3: change records deleted. */
+		__( '%1$s, %2$s, and %3$s.', 'signal-and-noise-tools' ),
 		/* translators: %s: days. */
 		sprintf( _n( '%s day of counts deleted', '%s days of counts deleted', $days, 'signal-and-noise-tools' ), number_format_i18n( $days ) ),
 		/* translators: %s: records. */
-		sprintf( _n( '%s login record deleted', '%s login records deleted', $logins, 'signal-and-noise-tools' ), number_format_i18n( $logins ) )
+		sprintf( _n( '%s login record deleted', '%s login records deleted', $logins, 'signal-and-noise-tools' ), number_format_i18n( $logins ) ),
+		/* translators: %s: records. */
+		sprintf( _n( '%s change record deleted', '%s change records deleted', $changes, 'signal-and-noise-tools' ), number_format_i18n( $changes ) )
 	);
 }
 
@@ -106,5 +109,5 @@ function snt_audit_prune_confirm_text( $days ) {
  */
 function snt_audit_prune_lead_text( $days ) {
 	/* translators: %s: retention days. */
-	return sprintf( __( 'Run the daily cleanup now: it deletes the daily counts and the successful-login records older than %s days.', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) );
+	return sprintf( __( 'Run the daily cleanup now: it deletes the daily counts, the successful-login records and the change records older than %s days.', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) );
 }

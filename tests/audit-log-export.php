@@ -128,6 +128,16 @@ if ( ! function_exists( 'snt_audit_get_login_successes_impl' ) ) {
 	}
 }
 
+// 2026-10-18: account and site changes ride the export.
+if ( ! function_exists( 'snt_audit_get_changes_impl' ) ) {
+	function snt_audit_get_changes_impl( $days = 30 ) {
+		return array(
+			array( 'ts' => 1748740000, 'kind' => 'role_set', 'actor' => 'juan', 'subject' => 'eve', 'detail' => 'editor → administrator', 'high' => true, 'formatted' => '2026-06-01 01:06:40' ),
+			array( 'ts' => 1748730000, 'kind' => 'plugin_activated', 'actor' => '', 'subject' => 'akismet/akismet.php', 'detail' => '', 'high' => false, 'formatted' => '2026-06-01 22:20:00' ),
+		);
+	}
+}
+
 // ─── Load the SUT ─────────────────────────────────────────────────────
 require __DIR__ . '/../inc/audit-log-export.php';
 
@@ -294,6 +304,21 @@ $capped_out     = snt_ability_export_audit_log( array( 'format' => 'json' ) );
 $capped_decoded = json_decode( $capped_out['content'], true );
 assertTrue( count( $capped_decoded['login_successes'] ?? array() ) === SNT_AUDIT_EXPORT_LOGINS_PAGE_CAP, 'PROBE PIN: export login_successes never exceeds the page-size cap, even when the source impl returns more rows than that' );
 $GLOBALS['__test_many_logins_mode'] = false;
+
+echo "\n-- 2026-10-18: account and site changes in the export --\n";
+$cv      = sn_audit_export_build_view();
+$cv_json = json_decode( sn_audit_export_build_json( $cv ), true );
+assertEq( 'role_set', $cv_json['changes'][0]['kind'] ?? null, 'JSON export carries the changes' );
+assertEq( true, $cv_json['changes'][0]['high'] ?? null, 'JSON export keeps the administrator flag' );
+$cv_csv = sn_audit_export_build_csv( $cv );
+assertTrue( false !== strpos( $cv_csv, "# changes\nts,formatted,kind,subject,detail,actor,high\n" ), 'CSV has a # changes section with its header' );
+assertTrue( strpos( $cv_csv, '# login_successes' ) < strpos( $cv_csv, '# changes' ), 'CSV changes section comes last' );
+$cv_ab = json_decode( snt_ability_export_audit_log( array( 'format' => 'json' ) )['content'], true );
+assertEq( 'j***', $cv_ab['changes'][0]['actor'] ?? null, 'default ability call masks the actor' );
+assertEq( 'e**', $cv_ab['changes'][0]['subject'] ?? null, 'default ability call masks an account subject' );
+assertEq( 'akismet/akismet.php', $cv_ab['changes'][1]['subject'] ?? null, 'a plugin subject is not a person and stays readable' );
+$cv_pii = json_decode( snt_ability_export_audit_log( array( 'format' => 'json', 'include_pii' => true ) )['content'], true );
+assertEq( 'eve', $cv_pii['changes'][0]['subject'] ?? null, 'include_pii:true returns the account subject' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
