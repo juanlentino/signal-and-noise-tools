@@ -19,13 +19,13 @@ function add_action( $tag, $cb ) { $GLOBALS['__actions'][ $tag ][] = $cb; }
 function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
 // Page store models the live hierarchy: children of /maturity/; one
 // non-public page proves the viewability gate.
-$GLOBALS['__pages'] = array( 'analytics', 'proof-of-origin', 'ai-maturity', 'machine-readability', 'ops-maturity', 'a11y-maturity', 'private-page', 'verify', 'inicio', 'sobre-mi' );
+$GLOBALS['__pages'] = array( 'analytics', 'proof-of-origin', 'ai-maturity', 'machine-readability', 'ops-maturity', 'a11y-maturity', 'private-page', 'verify', 'inicio', 'sobre-mi', 'notes' );
 function get_posts( $args ) {
 	$name = isset( $args['name'] ) ? (string) $args['name'] : '';
 	return in_array( $name, $GLOBALS['__pages'], true ) ? array( (object) array( 'post_name' => $name ) ) : array();
 }
 function get_permalink( $post ) {
-	$top = array( 'verify', 'inicio', 'sobre-mi' );
+	$top = array( 'verify', 'inicio', 'sobre-mi', 'notes' );
 	return 'https://example.com/' . ( in_array( $post->post_name, $top, true ) ? '' : 'maturity/' ) . $post->post_name . '/';
 }
 function is_post_publicly_viewable( $post ) { return 'private-page' !== $post->post_name; }
@@ -84,7 +84,11 @@ ok( 'https://example.com/verify/?note=0b7c1d2e-3f40-4a5b-8c6d-7e8f90a1b2c3&v=2' 
 ok( 'https://example.com/verify/?note=%3Cscript%3E%0D%0ALocation%3A+x' === sn_legacy_page_redirect_decision( '/provenance/verify/?note=%3Cscript%3E%0D%0ALocation:%20x', true ), 'a hostile query value is re-encoded, never passed through raw' );
 ok( 'https://example.com/verify/?a%26b=1' === sn_legacy_page_redirect_decision( '/provenance/verify/?a%26b=1', true ), 'a key carrying an encoded ampersand stays one key, never splits into two parameters' );
 ok( 'https://example.com/verify/' === sn_legacy_page_redirect_decision( '/provenance/verify/?', true ), 'an empty query adds nothing' );
-ok( '' === sn_legacy_page_redirect_decision( '/es/notes/', true ), '/es/notes/ stays a 404: /notes/ has no Spanish page' );
+ok( 'https://example.com/notes/' === sn_legacy_page_redirect_decision( '/notas/', true ), '/notas/ 301s to /notes/: the notes are only in English, and a Spanish reader goes there anyway (owner, 2026-10-18)' );
+ok( 'https://example.com/notes/' === sn_legacy_page_redirect_decision( '/es/notes/', true ), '/es/notes/ 301s to /notes/ too' );
+ok( 'https://example.com/notes/' === sn_legacy_page_redirect_decision( '/es/notas/', true ), '/es/notas/ 301s to /notes/ too' );
+ok( '' === sn_legacy_page_redirect_decision( '/notas/some-note/', true ), 'a deeper /notas/ path is still a 404 (exact paths only)' );
+ok( '' === sn_legacy_page_redirect_decision( '/notas/', false ), 'a real /notas/ page, if one is ever published, wins (only 404s redirect)' );
 ok( '' === sn_legacy_page_redirect_decision( '/verify/', false ), '/verify?note=&v= is a live page, never redirected' );
 ok( '' === sn_legacy_page_redirect_decision( '/wp-content/plugins/x/readme.txt', true ), 'a scanner 404 stays a 404' );
 ok( '' === sn_legacy_page_redirect_decision( '/provenance/verify/extra/', true ), 'a deeper path under a mapped one is not a match' );

@@ -17,7 +17,8 @@
  * (one segment or several), matched exactly, so a deeper path under a mapped
  * one is still a 404. The Spanish targets are the slugs the bilingual
  * pairing seeds for the English pages (inc/bilingual-seed.php), the same
- * pages hreflang es names; /es/notes/ has no Spanish page and stays a 404.
+ * pages hreflang es names. The notes have no Spanish page, so /notas/,
+ * /es/notes/ and /es/notas/ go to the English /notes/ (owner, 2026-10-18).
  *
  * @package SignalNoiseTools
  * @since 10.12.0
@@ -46,6 +47,11 @@ function sn_legacy_page_redirect_map() {
 		'provenance/verify'   => 'verify',
 		'es'                  => 'inicio',   // the home page's hreflang es
 		'es/about'            => 'sobre-mi', // /about/'s hreflang es
+		// 2026-10-18 (owner): the notes are only in English, and a Spanish
+		// reader goes to them anyway (a browser translator covers the rest).
+		'notas'               => 'notes',
+		'es/notes'            => 'notes',
+		'es/notas'            => 'notes',
 	);
 	/**
 	 * Deprecated alias of `sn_legacy_page_redirects`, from when the map held
