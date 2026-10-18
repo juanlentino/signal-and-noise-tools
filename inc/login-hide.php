@@ -220,7 +220,7 @@ function sn_login_redirect_reveals_door( $location, $request_uri, $slug, $logged
  * `include ''` threw a ValueError: a 500 where a 404 belonged (live
  * 2026-10-18).
  *
- * @return void
+ * @return never
  */
 function sn_login_send_404() {
 	status_header( 404 );
