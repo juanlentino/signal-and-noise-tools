@@ -18,7 +18,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 	http_response_code( 404 );
 	exit;
 }
-require __DIR__ . '/machine-readers-impostor-boot.php';
+require __DIR__ . '/lib/machine-readers-impostor-boot.php';
 
 $D  = '2026-10-05'; // after SN_RIGHTS_EVIDENCE_VERIFIED_SINCE.
 $G  = 'Google LLC';

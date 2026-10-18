@@ -1,7 +1,7 @@
 <?php
 /**
  * Shared bootstrap for the impostor suites: WordPress stubs, a fake snt_mr_fetch()
- * and the real row normalizer. Required by tests/machine-readers-impostor*.php.
+ * and the real row normalizer. Required by tests/machine-readers-impostor-reasons.php.
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	define( 'ABSPATH', '/' );
@@ -29,17 +29,17 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 function snt_mr_sensor_info() { return null; }
 function snt_mr_crawler_list_status() { return null; }
 
-require __DIR__ . '/../inc/machine-readers-taxonomy.php';
-require __DIR__ . '/../inc/rights-evidence-compose.php';
-require __DIR__ . '/../inc/machine-readers-render.php';
-require __DIR__ . '/../inc/machine-readers-basis.php';
-require __DIR__ . '/../inc/machine-readers-basis-fold.php';
-require __DIR__ . '/../inc/machine-readers-summary.php';
-require __DIR__ . '/../inc/machine-readers-daily.php';
-require __DIR__ . '/../inc/machine-readers-ledger.php';
-require __DIR__ . '/../inc/machine-readers-readers-model.php';
-require __DIR__ . '/../inc/machine-readers-evidence-model.php';
-require __DIR__ . '/../inc/analytics-lanes-machine.php';
+require __DIR__ . '/../../inc/machine-readers-taxonomy.php';
+require __DIR__ . '/../../inc/rights-evidence-compose.php';
+require __DIR__ . '/../../inc/machine-readers-render.php';
+require __DIR__ . '/../../inc/machine-readers-basis.php';
+require __DIR__ . '/../../inc/machine-readers-basis-fold.php';
+require __DIR__ . '/../../inc/machine-readers-summary.php';
+require __DIR__ . '/../../inc/machine-readers-daily.php';
+require __DIR__ . '/../../inc/machine-readers-ledger.php';
+require __DIR__ . '/../../inc/machine-readers-readers-model.php';
+require __DIR__ . '/../../inc/machine-readers-evidence-model.php';
+require __DIR__ . '/../../inc/analytics-lanes-machine.php';
 
 // The real field normalizer, as tests/machine-readers-basis.php uses it.
 function snt_mr_normalize_rows( $data ) {
