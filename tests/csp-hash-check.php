@@ -69,13 +69,13 @@ if ( '' === $api ) {
 } else {
 	$found = sn_csp_inline_scripts( $html );
 	$labels = array_column( $found, 'label' );
-	ok( array( 'theme-init', 'importmap', 'module', 'other' ) === $labels, 'theme-init, the import map, the module and a plain script are found, in page order: ' . implode( ',', $labels ) );
+	ok( array( 'theme-init', 'importmap', 'speculation', 'module', 'other' ) === $labels, 'theme-init, the import map, speculation rules, the module and a plain script are found, in page order: ' . implode( ',', $labels ) );
 	ok( 'sha256-6ylx2nk61t31O3rHPzQZfJJkryyz5Ldd+rHtiDdohm0=' === $found[0]['hash'], 'the theme-init hash is over the bytes between > and </script>' );
-	ok( sn_csp_hash( "\nimport('/e.js');\n" ) === $found[2]['hash'], 'the module hash is over its raw body' );
+	ok( sn_csp_hash( "\nimport('/e.js');\n" ) === $found[3]['hash'], 'the module hash is over its raw body' );
 	$all = implode( ' ', array_column( $found, 'hash' ) );
 	ok( false === strpos( $all, sn_csp_hash( '{"@type":"Person"}' ) ) && false === strpos( $all, sn_csp_hash( '{"a":1}' ) ), 'JSON islands (application/json, application/ld+json) are ignored' );
-	ok( false === strpos( $all, sn_csp_hash( '{"prefetch":[]}' ) ), 'speculation rules are ignored (inline-speculation-rules allows them)' );
-	ok( 4 === count( $found ), 'scripts with src, and a non-script type, are ignored' );
+	ok( false !== strpos( $all, sn_csp_hash( '{"prefetch":[]}' ) ), 'speculation rules are hashed: Chromium 152 still demanded their hash with inline-speculation-rules in the policy (live, 2026-10-18)' );
+	ok( 5 === count( $found ), 'scripts with src, and a non-script type, are ignored' );
 }
 
 echo "\nGroup 3: reading the strict policy from the headers\n";

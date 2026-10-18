@@ -26,8 +26,11 @@ function sn_csp_hash( $body ) {
 
 /**
  * Every executable inline script on a page, in page order. A script with src
- * is not inline; a type that is not JavaScript, a module or an import map is
- * a data block (JSON islands, speculation rules) and runs nothing.
+ * is not inline; a type that is not JavaScript, a module, an import map or
+ * speculation rules is a data block (JSON islands) and runs nothing.
+ * Speculation rules are hashed too: live on 2026-10-18, Chromium 152 still
+ * reported them under a policy carrying 'inline-speculation-rules' and named
+ * their hash, so the strict policy pins it like the others.
  *
  * @param string $html Page HTML.
  * @return array<int,array{label:string,hash:string}>
@@ -41,7 +44,7 @@ function sn_csp_inline_scripts( $html ) {
 		}
 		$type = $p->get_attribute( 'type' );
 		$type = is_string( $type ) ? strtolower( trim( $type ) ) : '';
-		if ( '' !== $type && 'module' !== $type && 'importmap' !== $type && ! preg_match( '#^(text|application)/(x-)?(java|ecma)script$#', $type ) ) {
+		if ( '' !== $type && 'module' !== $type && 'importmap' !== $type && 'speculationrules' !== $type && ! preg_match( '#^(text|application)/(x-)?(java|ecma)script$#', $type ) ) {
 			continue;
 		}
 		$label = 'other';
@@ -49,6 +52,8 @@ function sn_csp_inline_scripts( $html ) {
 			$label = 'theme-init';
 		} elseif ( 'importmap' === $type || 'module' === $type ) {
 			$label = $type;
+		} elseif ( 'speculationrules' === $type ) {
+			$label = 'speculation';
 		}
 		$out[] = array( 'label' => $label, 'hash' => sn_csp_hash( (string) $p->get_modifiable_text() ) );
 	}
