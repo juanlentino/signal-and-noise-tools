@@ -55,7 +55,7 @@ function snt_audit_log_render_tab() {
 	// v7.1.0: two-column sn_admin_shell, matching the other leaves (Insights /
 	// Health). Wide data (glance hero + the 7-column counter timeline + the
 	// logins table) belongs in the MAIN column; the passive readouts and config
-	// (LLA status, retention, maintenance + export) move to the narrower RAIL.
+	// (guard lockouts, retention, maintenance + export) move to the narrower RAIL.
 	// Contract: no early return between shell_open() and shell_close().
 	sn_admin_shell_open();
 
@@ -68,7 +68,7 @@ function snt_audit_log_render_tab() {
 
 	// ── RAIL: passive readouts + config ──
 	sn_admin_shell_rail( 'Lockouts, retention and maintenance' );
-	snt_audit_log_render_lla_card( $summary['lla'] );
+	snt_audit_log_render_guard_card( $summary['guard'] ?? array() );
 	snt_audit_log_render_retention_form();
 	snt_audit_log_render_prune_form();
 
@@ -87,7 +87,9 @@ function snt_audit_log_glance_cards( $summary ) {
 	$pct   = (int) $summary['last_7d_vs_prior']['pct_delta'];
 	$cur   = (int) $summary['last_7d_vs_prior']['current'];
 	$prior = (int) $summary['last_7d_vs_prior']['prior'];
-	$locks = (int) $summary['lla']['active_lockouts'];
+	$guard = (array) ( $summary['guard'] ?? array() );
+	$locks = (int) ( $guard['locked_out'] ?? 0 );
+	$ok    = 'ok' === ( $guard['state'] ?? '' );
 
 	if ( 0 === $prior && $cur > 0 ) {
 		$trend_pill = array( 'kind' => 'warn', 'text' => 'new' );
@@ -120,10 +122,13 @@ function snt_audit_log_glance_cards( $summary ) {
 			'meta_html' => 'hashed, not stored',
 		),
 		array(
-			'label'     => 'Lockouts now',
-			'value'     => number_format_i18n( $locks ),
-			'meta_html' => 'active, from Limit Login Attempts',
-			'pill'      => $locks > 0 ? array( 'kind' => 'warn', 'text' => 'locked' ) : array( 'kind' => 'ok', 'text' => 'clear' ),
+			// 2026-10-18: the login guard's own lockouts; a failed read has no pill.
+			'label'     => 'Lockouts (7 days)',
+			'value'     => snt_audit_log_guard_value( $guard, 'locked_out' ),
+			'meta_html' => $ok
+				? esc_html( snt_audit_log_guard_value( $guard, 'throttled' ) . ' throttled · ' . snt_audit_log_guard_value( $guard, 'account_throttled' ) . ' account throttled' )
+				: 'from the login guard',
+			'pill'      => $ok ? ( $locks > 0 ? array( 'kind' => 'warn', 'text' => 'locked' ) : array( 'kind' => 'ok', 'text' => 'clear' ) ) : null,
 		),
 	);
 }
@@ -160,13 +165,12 @@ function snt_audit_log_render_counter_table( $counters ) {
 	echo '<th scope="col">MFA: rejected / limited / other</th>';
 	echo '<th scope="col">Login 404</th>';
 	echo '<th scope="col">Admin 404</th>';
-	echo '<th scope="col">Lockouts (polled daily)</th>';
 	echo '<th scope="col">Pwd reset</th>';
 	echo '<th scope="col">Unique IPs</th>';
 	echo '</tr></thead>';
 	echo '<tbody>';
 	foreach ( $counters as $row ) {
-		$row_total = (int) $row['login_failed'] + (int) $row['wp_login_404'] + (int) $row['wp_admin_unauth_404'] + (int) $row['lockout_triggered'] + (int) $row['password_reset'];
+		$row_total = (int) $row['login_failed'] + (int) $row['wp_login_404'] + (int) $row['wp_admin_unauth_404'] + (int) $row['password_reset'];
 		$row_class = $row_total > 0 ? '' : ' sn-audit-row-empty';
 		echo '<tr class="' . esc_attr( trim( $row_class ) ) . '">';
 		echo '<td>' . esc_html( $row['date'] ) . '</td>';
@@ -174,7 +178,6 @@ function snt_audit_log_render_counter_table( $counters ) {
 		echo '<td>' . (int) ( $row['mfa_failed'] ?? 0 ) . ' / ' . (int) ( $row['mfa_throttled'] ?? 0 ) . ' / ' . (int) ( $row['mfa_other'] ?? 0 ) . '</td>';
 		echo '<td>' . (int) $row['wp_login_404'] . '</td>';
 		echo '<td>' . (int) $row['wp_admin_unauth_404'] . '</td>';
-		echo '<td>' . (int) $row['lockout_triggered'] . '</td>';
 		echo '<td>' . (int) $row['password_reset'] . '</td>';
 		echo '<td>' . (int) $row['unique_ips_count'] . '</td>';
 		echo '</tr>';
@@ -186,15 +189,18 @@ function snt_audit_log_render_counter_table( $counters ) {
 }
 
 /**
- * Render the small LLA summary card with a deep-link to LLA settings.
+ * Render the small lockouts card: the login guard's last 7 days, with a link
+ * to Security › Login defense.
+ *
+ * @param array $guard snt_audit_guard_lockouts().
  */
-function snt_audit_log_render_lla_card( $lla ) {
+function snt_audit_log_render_guard_card( $guard ) {
 	echo '<div class="sn-callout">';
-	echo '<p class="sn-callout-h">' . esc_html__( 'Login lockouts (Limit Login Attempts)', 'signal-and-noise-tools' ) . '</p>';
-	foreach ( snt_audit_log_lla_rows( $lla ) as $row ) {
+	echo '<p class="sn-callout-h">' . esc_html__( 'Login lockouts (login guard)', 'signal-and-noise-tools' ) . '</p>';
+	foreach ( snt_audit_log_guard_rows( $guard ) as $row ) {
 		echo '<p>' . esc_html( $row['label'] ) . ': <strong>' . esc_html( $row['value'] ) . '</strong>.</p>';
 	}
-	echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=limit-login-attempts' ) ) . '" class="button button-secondary">Manage in LLA →</a></p>';
+	echo '<p><a href="' . esc_url( snt_audit_log_login_defense_url() ) . '" class="button button-secondary">' . esc_html__( 'Open Login defense', 'signal-and-noise-tools' ) . ' →</a></p>';
 	echo '</div>';
 }
 
@@ -210,8 +216,7 @@ function snt_audit_log_render_prune_form() {
 	wp_nonce_field( 'sn_audit_prune_now' );
 	echo '<input type="hidden" name="sn_action" value="audit_prune_now">';
 	$retention_days = (int) sn_setting( 'audit.retention_days', 90 );
-	/* translators: %s: retention days. */
-	echo '<p class="sn-prose">' . esc_html( sprintf( __( 'Run the daily cleanup now: it deletes the daily counts and the successful-login records older than %s days, and checks Limit Login Attempts for new lockouts.', 'signal-and-noise-tools' ), number_format_i18n( $retention_days ) ) ) . '</p>';
+	echo '<p class="sn-prose">' . esc_html( snt_audit_prune_lead_text( $retention_days ) ) . '</p>';
 	echo '<p><button type="submit" class="button" data-snt-confirm="' . esc_attr( snt_audit_prune_confirm_text( $retention_days ) ) . '" data-snt-confirm-danger="1">Prune now</button></p>';
 	echo '</form>';
 

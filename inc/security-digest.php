@@ -5,8 +5,8 @@
  * The LLAR assessment's sanctioned build A2 (2026-06-17), upgraded with the
  * login-guard telemetry that shipped after it: a DETERMINISTIC (no AI) weekly
  * plain-text email summarizing the last 7 days of security activity — audit
- * events (failed logins, recon 404s, LLA-polled lockouts), login-guard edge
- * decisions, and guard denylist freshness. Sends every week including quiet
+ * events (failed logins, recon 404s), login-guard edge decisions (blocks,
+ * and since 2026-10-18 its lockouts and throttles), and guard denylist freshness. Sends every week including quiet
  * weeks: the zero week is the heartbeat that proves the pipeline is alive.
  *
  * Opt-in, default OFF (settings toggle on Security → Login defense), weekly
@@ -48,18 +48,18 @@ function snt_security_digest_collect() {
 		'window' => array( 'days' => 7 ),
 		'audit'  => null,
 		'guard'  => null,
+		'guard_unavailable' => false, // a failed guard read, said as such (never zero lockouts).
 		'status' => null,
 		'breach' => null, // v13.60.0: the breached-password check's own numbers.
 	);
 
-	// Audit side: 7d-vs-prior totals + per-type 7d sums (lockout_triggered is the
-	// LLA-polled counter, so LLA lockouts ride along without an LLA dependency).
+	// Audit side: 7d-vs-prior totals + per-type 7d sums. Lockouts are the login
+	// guard's (below); the retired lockout_triggered counter is not read.
 	if ( function_exists( 'snt_audit_get_summary_impl' ) && function_exists( 'snt_audit_get_counters_impl' ) ) {
 		$summary = snt_audit_get_summary_impl();
 		$days    = snt_audit_get_counters_impl( 7 );
 		$failed  = 0;
 		$recon   = 0;
-		$locked  = 0;
 		$mfa     = array( 'mfa_failed' => 0, 'mfa_throttled' => 0, 'mfa_other' => 0 );
 		foreach ( (array) $days as $row ) {
 			foreach ( $mfa as $key => $count ) {
@@ -67,7 +67,6 @@ function snt_security_digest_collect() {
 			}
 			$failed += (int) ( $row['login_failed'] ?? 0 );
 			$recon  += (int) ( $row['wp_login_404'] ?? 0 ) + (int) ( $row['wp_admin_unauth_404'] ?? 0 );
-			$locked += (int) ( $row['lockout_triggered'] ?? 0 );
 		}
 		$trend = isset( $summary['last_7d_vs_prior'] ) && is_array( $summary['last_7d_vs_prior'] )
 			? $summary['last_7d_vs_prior']
@@ -79,20 +78,23 @@ function snt_security_digest_collect() {
 			'failed_7d'   => $failed,
 			'mfa_7d'      => $mfa,
 			'recon_7d'    => $recon,
-			'lockouts_7d' => $locked,
 		);
 	}
 
 	// Guard side: the cached 7-day headline (+1 top-country query when active).
 	if ( function_exists( 'sn_login_defense_headline' ) ) {
 		$lg = sn_login_defense_headline();
+		$data['guard_unavailable'] = ! empty( $lg['configured'] ) && ! empty( $lg['unavailable'] );
 		if ( ! empty( $lg['configured'] ) && empty( $lg['unavailable'] ) ) { // #1204: a failed read is not zeros
 			$guard = array(
-				'checked'     => (int) ( $lg['checked'] ?? 0 ),
-				'blocked'     => (int) ( $lg['blocked'] ?? 0 ),
-				'block_rate'  => (int) ( $lg['block_rate'] ?? 0 ),
-				'top_network' => (string) ( $lg['top_network'] ?? '' ),
-				'top_country' => '',
+				'checked'           => (int) ( $lg['checked'] ?? 0 ),
+				'blocked'           => (int) ( $lg['blocked'] ?? 0 ),
+				'block_rate'        => (int) ( $lg['block_rate'] ?? 0 ),
+				'top_network'       => (string) ( $lg['top_network'] ?? '' ),
+				'top_country'       => '',
+				'locked_out'        => (int) ( $lg['locked_out'] ?? 0 ),
+				'throttled'         => (int) ( $lg['throttled'] ?? 0 ),
+				'account_throttled' => (int) ( $lg['account_throttled'] ?? 0 ),
 			);
 			if ( $guard['blocked'] > 0 && function_exists( 'sn_analytics_query' ) && function_exists( 'sn_login_defense_top_country_sql' ) ) {
 				$rows                 = sn_analytics_query( sn_login_defense_top_country_sql( 7, 1 ) );
@@ -151,7 +153,7 @@ function snt_security_digest_compose( $data ) {
 	$breach = isset( $data['breach'] ) && is_array( $data['breach'] ) ? $data['breach'] : null;
 
 	$quiet = ( null === $audit || ( 0 === $audit['events_7d'] && 0 === $audit['failed_7d'] && 0 === $audit['recon_7d'] ) )
-		&& ( null === $guard || 0 === $guard['blocked'] );
+		&& ( null === $guard || ( 0 === $guard['blocked'] && 0 === (int) ( $guard['locked_out'] ?? 0 ) ) );
 
 	$lines   = array();
 	$lines[] = 'Signal & Noise weekly security digest (last 7 days)';
@@ -175,19 +177,23 @@ function snt_security_digest_compose( $data ) {
 			$lines[] = '  Included MFA errors: ' . (int) $mfa['mfa_failed'] . ' rejected, ' . (int) $mfa['mfa_throttled'] . ' rate-limited, ' . (int) $mfa['mfa_other'] . ' other. Older failures are unclassified.';
 		}
 		$lines[] = '  Recon probes (login/admin 404s): ' . number_format_i18n( $audit['recon_7d'] );
-		$lines[] = '  Lockouts: ' . number_format_i18n( $audit['lockouts_7d'] );
 		$lines[] = '  All audit events: ' . number_format_i18n( $audit['events_7d'] )
 			. ' (prior 7d: ' . number_format_i18n( $audit['prior_7d'] ) . ', ' . $sign . $audit['pct_delta'] . '%)';
 	}
 	$lines[] = '';
 
 	// Guard section.
-	if ( null === $guard ) {
+	if ( null === $guard && ! empty( $data['guard_unavailable'] ) ) {
+		$lines[] = 'Login guard: unavailable (its log could not be read this week).';
+	} elseif ( null === $guard ) {
 		$lines[] = 'Login guard: not configured (Analytics Engine credentials absent).';
 	} else {
 		$lines[] = 'Login guard (edge layer)';
 		$lines[] = '  Checked: ' . number_format_i18n( $guard['checked'] );
 		$lines[] = '  Blocked: ' . number_format_i18n( $guard['blocked'] ) . ' (' . $guard['block_rate'] . '% of checked)';
+		$lines[] = '  Lockouts: ' . number_format_i18n( (int) ( $guard['locked_out'] ?? 0 ) );
+		$lines[] = '  Throttled: ' . number_format_i18n( (int) ( $guard['throttled'] ?? 0 ) );
+		$lines[] = '  Account throttled: ' . number_format_i18n( (int) ( $guard['account_throttled'] ?? 0 ) );
 		if ( '' !== $guard['top_network'] ) {
 			$lines[] = '  Top blocked network: ' . $guard['top_network'];
 		}

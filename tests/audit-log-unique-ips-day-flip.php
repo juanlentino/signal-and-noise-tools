@@ -79,7 +79,7 @@ $summary = array(
 	'last_24h'             => array( 'all_total' => 3, 'failed_total' => 3, 'recon_total' => 0 ),
 	'last_7d_vs_prior'     => array( 'current' => 3, 'prior' => 0, 'pct_delta' => 0 ),
 	'unique_attackers_24h' => 2,
-	'lla'                  => array( 'active_lockouts' => 0 ),
+	'guard'                  => array( 'state' => 'ok', 'locked_out' => 0, 'throttled' => 0, 'account_throttled' => 0 ),
 );
 $cards  = snt_audit_log_glance_cards( $summary );
 $labels = array_column( $cards, 'label' );

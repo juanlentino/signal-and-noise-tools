@@ -107,7 +107,7 @@ $summary = array(
 	'last_24h'         => array( 'all_total' => 12, 'failed_total' => 3, 'recon_total' => 2 ),
 	'last_7d_vs_prior' => array( 'pct_delta' => 5, 'current' => 40, 'prior' => 38 ),
 	'unique_attackers_24h' => 7,
-	'lla'              => array( 'active_lockouts' => 1 ),
+	'guard'              => array( 'state' => 'ok', 'locked_out' => 1, 'throttled' => 0, 'account_throttled' => 0 ),
 );
 $cards = snt_audit_log_glance_cards( $summary );
 ap_ok( count( $cards ) === 4, '#10 builds 4 glance cards' );

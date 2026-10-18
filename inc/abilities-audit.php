@@ -100,7 +100,7 @@ add_action( 'wp_abilities_api_init', function() {
 	// the payload.
 	wp_register_ability( 'signal-noise/get-audit-log', array(
 		'label'               => 'Get login-audit log (summary, counters, or logins)',
-		'description'         => 'Returns one view of the login-audit log. view=summary: last-24h totals + 7-day trend + unique attackers + LLA lockout status. view=counters: per-day event counters for the last N days. view=logins: recent successful login rows (timestamp + username, no IP). Exactly one of the summary/counters/logins output keys is non-null — the one matching the requested view. Read-only. Replaces get-audit-summary / get-audit-counters / get-audit-login-successes.',
+		'description'         => 'Returns one view of the login-audit log. view=summary: last-24h totals + 7-day trend + unique attackers + the login guard 7-day lockouts and throttles (guard.state ok, unavailable or unconfigured; a failed read is never zeros). view=counters: per-day event counters for the last N days. view=logins: recent successful login rows (timestamp + username, no IP). Exactly one of the summary/counters/logins output keys is non-null — the one matching the requested view. Read-only. Replaces get-audit-summary / get-audit-counters / get-audit-login-successes.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_audit_log',
@@ -134,7 +134,7 @@ add_action( 'wp_abilities_api_init', function() {
 				'view'     => array( 'type' => 'string', 'enum' => array( 'summary', 'counters', 'logins' ) ),
 				'summary'  => array(
 					'type'        => array( 'object', 'null' ),
-					'description' => 'Non-null only for view=summary: { last_24h, last_7d_vs_prior, unique_attackers_24h, lla }.',
+					'description' => 'Non-null only for view=summary: { last_24h, last_7d_vs_prior, unique_attackers_24h, guard }.',
 				),
 				'counters' => array(
 					'type'        => array( 'array', 'null' ),
@@ -204,7 +204,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/run-audit-prune', array(
 		'label'               => 'Run audit log prune now',
-		'description'         => 'Manually drops counter buckets and login_success rows older than 90 days. Also polls LLA for new lockouts. Destructive of historical data and not idempotent — run only on an explicit operator request.',
+		'description'         => 'Manually drops counter buckets and login_success rows older than 90 days. Destructive of historical data and not idempotent — run only on an explicit operator request.',
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_run_audit_prune',
@@ -218,7 +218,6 @@ add_action( 'wp_abilities_api_init', function() {
 			'properties' => array(
 				'counter_buckets_dropped' => array( 'type' => 'integer' ),
 				'login_rows_dropped'      => array( 'type' => 'integer' ),
-				'lla_delta'               => array( 'type' => 'integer' ),
 			),
 		),
 		'meta'                => array(

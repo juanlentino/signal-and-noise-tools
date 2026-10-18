@@ -89,7 +89,7 @@ $GLOBALS['__audit_days']    = array(
 	array( 'login_failed' => 5, 'wp_login_404' => 2, 'wp_admin_unauth_404' => 1, 'lockout_triggered' => 1 ),
 	array( 'login_failed' => 3, 'wp_login_404' => 0, 'wp_admin_unauth_404' => 0, 'lockout_triggered' => 0 ),
 );
-$GLOBALS['__lg_headline']    = array( 'configured' => true, 'checked' => 500, 'blocked' => 412, 'block_rate' => 82, 'top_network' => 'EvilNet' );
+$GLOBALS['__lg_headline']    = array( 'configured' => true, 'checked' => 500, 'blocked' => 412, 'block_rate' => 82, 'top_network' => 'EvilNet', 'locked_out' => 4, 'throttled' => 9, 'account_throttled' => 2 );
 $GLOBALS['__lg_top_country'] = array( array( 'country' => 'CN', 'hits' => 300 ) );
 $GLOBALS['__lg_status']      = array( 'denylistCount' => 4200, 'ageHours' => 6, 'stale' => false, 'version' => '1.2.0', 'compiledAt' => '2026-07-01T04:07:00Z' );
 
@@ -97,7 +97,8 @@ $data = snt_security_digest_collect();
 ok( 37 === ( $data['audit']['events_7d'] ?? -1 ), 'collect: audit events_7d' );
 ok( 8 === ( $data['audit']['failed_7d'] ?? -1 ), 'collect: failed_7d summed across days' );
 ok( 3 === ( $data['audit']['recon_7d'] ?? -1 ), 'collect: recon_7d summed across days' );
-ok( 1 === ( $data['audit']['lockouts_7d'] ?? -1 ), 'collect: lockouts_7d summed' );
+ok( ! array_key_exists( 'lockouts_7d', $data['audit'] ), 'collect: the audit side carries no lockouts (the retired counter is not read)' );
+ok( 4 === ( $data['guard']['locked_out'] ?? -1 ) && 9 === ( $data['guard']['throttled'] ?? -1 ) && 2 === ( $data['guard']['account_throttled'] ?? -1 ), 'collect: the guard carries lockouts, throttles and account throttles' );
 ok( 412 === ( $data['guard']['blocked'] ?? -1 ), 'collect: guard blocked' );
 ok( 'CN' === ( $data['guard']['top_country'] ?? '' ), 'collect: guard top country' );
 ok( false === ( $data['status']['stale'] ?? true ), 'collect: status stale flag' );
@@ -110,13 +111,18 @@ $GLOBALS['__lg_status']     = null;
 $data = snt_security_digest_collect();
 ok( null === $data['guard'], 'collect: unconfigured guard → null' );
 ok( null === $data['status'], 'collect: unreachable status → null' );
+// The guard now carries the lockouts, so an outage must not read as "not configured".
+$GLOBALS['__lg_headline'] = array( 'configured' => true, 'unavailable' => true, 'checked' => 0, 'blocked' => 0 );
+$data = snt_security_digest_collect();
+ok( null === $data['guard'] && false !== strpos( snt_security_digest_compose( $data ), 'Login guard: unavailable' ) && false === strpos( snt_security_digest_compose( $data ), 'Lockouts: 0' ), 'collect: a failed guard read composes as unavailable, never as zero lockouts' );
+$GLOBALS['__lg_headline'] = array( 'configured' => false, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '' );
 
 // ── composer: active week ──
 echo "\nTest: composer\n";
 $active = array(
 	'window' => array( 'days' => 7 ),
-	'audit'  => array( 'events_7d' => 37, 'prior_7d' => 20, 'pct_delta' => 85, 'failed_7d' => 8, 'recon_7d' => 3, 'lockouts_7d' => 1 ),
-	'guard'  => array( 'checked' => 500, 'blocked' => 412, 'block_rate' => 82, 'top_network' => 'EvilNet', 'top_country' => 'CN' ),
+	'audit'  => array( 'events_7d' => 37, 'prior_7d' => 20, 'pct_delta' => 85, 'failed_7d' => 8, 'recon_7d' => 3 ),
+	'guard'  => array( 'checked' => 500, 'blocked' => 412, 'block_rate' => 82, 'top_network' => 'EvilNet', 'top_country' => 'CN', 'locked_out' => 4, 'throttled' => 9, 'account_throttled' => 2 ),
 	'status' => array( 'denylist_count' => 4200, 'age_hours' => 6, 'stale' => false, 'version' => '1.2.0' ),
 );
 $body = snt_security_digest_compose( $active );
@@ -126,17 +132,23 @@ ok( false !== strpos( $body, 'CN' ), 'compose: top country present' );
 ok( false !== strpos( $body, '4,200' ), 'compose: denylist freshness' );
 ok( false !== strpos( $body, '+85%' ), 'compose: trend delta' );
 ok( false === strpos( $body, 'Quiet week' ), 'compose: no heartbeat wording on active week' );
+$guard_at = (int) strpos( $body, 'Login guard (edge layer)' );
+ok( false !== strpos( $body, '  Lockouts: 4', $guard_at ) && false !== strpos( $body, '  Throttled: 9', $guard_at ) && false !== strpos( $body, '  Account throttled: 2', $guard_at ), 'compose: lockouts, throttled and account throttled sit in the login guard section' );
+ok( false === strpos( substr( $body, 0, $guard_at ), 'Lockouts' ), 'compose: the audit section has no Lockouts line' );
 
 // ── composer: zero week (heartbeat) ──
 $zero = array(
 	'window' => array( 'days' => 7 ),
-	'audit'  => array( 'events_7d' => 0, 'prior_7d' => 0, 'pct_delta' => 0, 'failed_7d' => 0, 'recon_7d' => 0, 'lockouts_7d' => 0 ),
-	'guard'  => array( 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '', 'top_country' => '' ),
+	'audit'  => array( 'events_7d' => 0, 'prior_7d' => 0, 'pct_delta' => 0, 'failed_7d' => 0, 'recon_7d' => 0 ),
+	'guard'  => array( 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '', 'top_country' => '', 'locked_out' => 0, 'throttled' => 0, 'account_throttled' => 0 ),
 	'status' => array( 'denylist_count' => 4200, 'age_hours' => 6, 'stale' => false, 'version' => '1.2.0' ),
 );
 $body = snt_security_digest_compose( $zero );
 ok( false !== strpos( $body, 'Quiet week' ), 'compose: zero week says quiet' );
 ok( false !== strpos( $body, '4,200' ), 'compose: zero week still shows guard alive' );
+$lockweek = $zero;
+$lockweek['guard']['locked_out'] = 1;
+ok( false === strpos( snt_security_digest_compose( $lockweek ), 'Quiet week' ), 'compose: a week with a guard lockout is not quiet' );
 
 // ── composer: sections degrade to unavailable lines ──
 $bare = array( 'window' => array( 'days' => 7 ), 'audit' => null, 'guard' => null, 'status' => null );
