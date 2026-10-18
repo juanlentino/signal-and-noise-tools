@@ -57,6 +57,11 @@ if ( ! function_exists( 'home_url' ) ) {
 	function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; }
 }
 
+$GLOBALS['__test_is_author'] = false;
+if ( ! function_exists( 'is_author' ) ) {
+	function is_author() { return $GLOBALS['__test_is_author']; }
+}
+
 require_once __DIR__ . '/../inc/security-headers.php';
 
 $pass = 0;
@@ -112,6 +117,29 @@ foreach ( $GLOBALS['__test_actions'] as $reg ) {
 	}
 }
 sh_eq( 9, $enum_priority, 'sn_security_author_enum_guard on template_redirect at priority 9' );
+
+echo "\nTest: author archives are not a username oracle (2026-10-18)\n";
+// Live: /notes/author/<real slug>/ answered 200 and a made-up slug 404, so a
+// guessed slug was confirmed; nothing on the site links an author archive.
+sh_eq( true, function_exists( 'sn_security_author_archive_should_404' ), 'a decision for author archives exists' );
+if ( function_exists( 'sn_security_author_archive_should_404' ) ) {
+	$GLOBALS['__test_filters'] = array(); $GLOBALS['__test_logged_in'] = false; $GLOBALS['__test_is_author'] = true;
+	sh_eq( true, sn_security_author_archive_should_404(), 'a stranger on a real author archive gets the same 404 as a fake one' );
+	$GLOBALS['__test_logged_in'] = true;
+	sh_eq( false, sn_security_author_archive_should_404(), 'a signed-in user still sees it' );
+	$GLOBALS['__test_logged_in'] = false; $GLOBALS['__test_is_author'] = false;
+	sh_eq( false, sn_security_author_archive_should_404(), 'any other page is untouched' );
+	$GLOBALS['__test_is_author'] = true; $GLOBALS['__test_filters'] = array( 'sn_security_block_author_enum' => false );
+	sh_eq( false, sn_security_author_archive_should_404(), 'the same off switch as the ?author= guard' );
+	$GLOBALS['__test_filters'] = array(); $GLOBALS['__test_is_author'] = false;
+}
+$arch_priority = null;
+foreach ( (array) ( $GLOBALS['__test_actions'] ?? array() ) as $reg ) {
+	if ( 'template_redirect' === $reg[0] && 'sn_security_author_archive_guard' === $reg[1] ) {
+		$arch_priority = $reg[2];
+	}
+}
+sh_eq( 9, $arch_priority, 'the archive guard runs on template_redirect at priority 9, before core canonical redirects' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
