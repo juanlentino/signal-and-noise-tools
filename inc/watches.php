@@ -160,6 +160,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_analytics_v2_freeze',
 		),
+		// 2026-10-18: the login address gets out only if the owner hands it out.
+		array(
+			'id'        => 'login_door_leak',
+			'label'     => 'the login address is published somewhere',
+			'why'       => 'Once a day the site reads what a stranger reads (home, the newest note, a 404, feeds, the REST index, sitemaps, robots.txt), bodies and headers, with no cookies. Ripe when any of them contains the login address (the note names where, never the address), or when the check has not run for two days. Fix what prints it, then change the Login URL: one save moves the guard too.',
+			'read'      => 'option sn_login_door_leak_last; signal-noise/get-cron-history sn_login_door_leak_check',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_login_door_leak',
+		),
 		// 22.1.0: /stats reads machine figures from an hourly snapshot.
 		array(
 			'id'        => 'public_stats_machines',
