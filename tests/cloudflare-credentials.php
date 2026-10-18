@@ -39,8 +39,9 @@ ok( in_array( 'Zone › Cache Purge › Purge', $names, true ) && in_array( 'Zon
 foreach ( $grants as $g ) {
 	ok( in_array( $g['status'], array( 'documented', 'measured', 'candidate' ), true ), "{$g['grant']}: its status says how sure we are ({$g['status']})" );
 }
-ok( 6 === count( $grants ) && array() === array_filter( $grants, static function ( $g ) { return 'candidate' === $g['status']; } ), '15.4.0: six grants, no candidates: three measured, three the endpoints\' API reference names for the posture reads (the firewall still needs none: the plan decides its dataset)' );
-ok( array( 'Zone Settings › Read', 'Zone WAF › Read', 'DNS › Read' ) === array_column( array_slice( $grants, 3 ), 'grant' ) && array( 'measured', 'measured', 'measured' ) === array_column( array_slice( $grants, 3 ), 'status' ), '15.4.1: the three posture scopes, named as the endpoint docs name them, all measured (2026-09-16)' );
+ok( 7 === count( $grants ) && array() === array_filter( $grants, static function ( $g ) { return 'candidate' === $g['status']; } ), '15.4.0: seven grants since 2026-10-18 (Workers Routes for the login guard), no candidates (the firewall still needs none: the plan decides its dataset)' );
+ok( array( 'Zone Settings › Read', 'Zone WAF › Read', 'DNS › Read' ) === array_column( array_slice( $grants, 3, 3 ), 'grant' ) && array( 'measured', 'measured', 'measured' ) === array_column( array_slice( $grants, 3, 3 ), 'status' ), '15.4.1: the three posture scopes, named as the endpoint docs name them, all measured (2026-09-16)' );
+ok( 'Workers Routes › Edit' === ( $grants[6]['grant'] ?? '' ) && 'Zone' === ( $grants[6]['scope'] ?? '' ), '2026-10-18: Workers Routes › Edit, so saving the Login URL can move the login guard (inc/login-guard-routes.php)' );
 
 // ── Migration: once, only into an empty central token, never over a constant
 $GLOBALS['__opt'] = array( SN_CF_ANALYTICS_TOKEN_OPT => 'legacy-tok' ); $GLOBALS['__writes'] = array();

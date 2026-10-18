@@ -104,6 +104,8 @@ function sn_cf_required_grants() {
 		array( 'scope' => 'Zone', 'grant' => 'Zone Settings › Read', 'for' => __( 'the edge posture: SSL mode, minimum TLS, Always Use HTTPS, Development Mode (Security › Firewall)', 'signal-and-noise-tools' ), 'status' => 'measured' ),
 		array( 'scope' => 'Zone', 'grant' => 'Zone WAF › Read', 'for' => __( 'the custom firewall rules by name and state; the abilities rule\'s first witness', 'signal-and-noise-tools' ), 'status' => 'measured' ),
 		array( 'scope' => 'Zone', 'grant' => 'DNS › Read', 'for' => __( 'DNSSEC status', 'signal-and-noise-tools' ), 'status' => 'measured' ),
+		// 2026-10-18: the login guard follows the login slug (inc/login-guard-routes.php).
+		array( 'scope' => 'Zone', 'grant' => 'Workers Routes › Edit', 'for' => __( 'moving the login guard to a new login address when the Login URL is saved', 'signal-and-noise-tools' ), 'status' => 'documented' ),
 	);
 }
 
