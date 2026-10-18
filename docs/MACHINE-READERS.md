@@ -360,15 +360,50 @@ function of the row (`snt_mr_is_impostor()`, `snt_mr_credit_class()`:
 `credited`, `control_token` or `impostor`). Like a control token, an impostor
 leaves `families`, `purposes`, `ai_training`, `ai_training_by_purpose` and
 `reader_families`, stays in `total`, and is listed apart in `impostors`
-(`{agent, hits, networks, basis: inferred}`): a rule decided it, so its basis
+(`{agent, hits, reasons, networks, basis: inferred}`): a rule decided it, so its basis
 is inferred, never claimed. Crosstab cells keep every hit and name the part in
 `impostor_hits`; lanes file it as `claimed_bot` / `impostor`.
 
 Never an impostor: a verified hit, whatever its network (Claude-User fetches
 from Google Cloud and Cloudflare verifies it); a hit before the since date
-(unverifiable); this site's own tools; an agent the directory does not list
-(PerplexityBot, CCBot, Bytespider, cohere-ai stay credited, unverified); a row
-from a sensor that sends no `cf_verified`. The reader-anomalies series keep
+(unverifiable), by any rule; this site's own tools; a row from a sensor that
+sends none of the fields below.
+
+#### Reasons beyond Cloudflare's directory
+
+Cloudflare's directory does not list PerplexityBot, Perplexity-User, CCBot,
+Bytespider or cohere-ai, so `cf_verified` alone left about 2,400 of their reads
+in 14 days credited, mostly from "Google LLC". Three more signals, each with
+its own reason, decided in one ladder (`snt_mr_credit_verdict()`,
+`inc/machine-readers-basis-ladder.php`), first match wins:
+
+1. control token: `control_token`.
+2. first party, or unverifiable: credited.
+3. Cloudflare verified: credited, basis `verified`.
+4. `vendor_verified` `1` (rights-signals taxonomy 1.6.0, blob16: the client IP
+   is inside the vendor's own published ranges, Perplexity and Common Crawl):
+   credited, basis `vendor_verified`. It counts as verified everywhere verified
+   is shown, and the verification split names it (`vendor_verified`, a part of
+   `verified`).
+5. a `cf_verified` agent, unverified: impostor, `cf_directory`.
+6. `vendor_verified` `0` AND off the vendor's home network: impostor,
+   `vendor_ranges`. An out-of-range IP alone is not enough: vendor lists are
+   incomplete in practice.
+7. off the home network (`home_network` `0`, stamped at read time from the
+   taxonomy's `home_networks`; a row with no network is never off it):
+   impostor, `off_home_network`.
+8. a vendor claim from a rotator network: impostor, `rotator_network`. A
+   rotator network presents at least `SN_MR_ROTATOR_MIN_AGENTS` (5) distinct
+   vendor agents in the window being folded, each unverified from it.
+   First-party rows, control tokens and the vendorless dev agents do not count.
+   It is window-dependent, so `snt_mr_credit_context()` computes it once per
+   fold, and every per-row call (`snt_mr_credit_class()`,
+   `snt_mr_is_credited()`, `snt_mr_is_impostor()`, `sn_lanes_machine_key()`)
+   requires that context: a call site that forgets it fails loudly.
+9. otherwise credited, basis claimed.
+
+`impostors[]` gains `reasons` (per agent, hits per reason), and every surface
+that names impostors says the total, then the count per reason. The reader-anomalies series keep
 impostor reads, because a co-movement of them is the signal that found them
 (2026-10-18: one "Google LLC" operator, about 30 crawler names, all
 unverified). The "is this crawler real" table and the daily verified and

@@ -82,18 +82,19 @@ $raw = array(
 	'own_tool'     => $row( 'unclassified-machine', 'ops', 'self-ledger', $D, 500, '1', '', 'Microsoft Corporation', '1' ),
 );
 $n = array_combine( array_keys( $raw ), snt_mr_normalize_rows( array_values( $raw ) ) );
+$C = snt_mr_credit_context( array_values( $n ) ); // the fold's credit context
 
 echo "Group A: the credit class is a pure function of the row\n";
-ok( 'impostor' === snt_mr_credit_class( $n['fake_claude'] ), 'ClaudeBot, unverified, from Google LLC: impostor' );
-ok( 'credited' === snt_mr_credit_class( $n['real_claude'] ), 'ClaudeBot, verified, from Anthropic: credited' );
-ok( 'credited' === snt_mr_credit_class( $n['claude_user'] ), 'Claude-User, verified, from Google LLC: credited (verified is never an impostor, whatever the network)' );
-ok( 'unverifiable' === snt_mr_row_verification( $n['pre_since'] ) && 'credited' === snt_mr_credit_class( $n['pre_since'] ), 'a row before the since date is unverifiable and never reclassified' );
-ok( 'control_token' === snt_mr_credit_class( $n['token'] ), 'Google-Extended is still a control token' );
-ok( 'unverified' === snt_mr_row_verification( $n['cohere'] ) && 'credited' === snt_mr_credit_class( $n['cohere'] ), 'cohere-ai (cf_verified false), unverified: credited, not an impostor' );
+ok( 'impostor' === snt_mr_credit_class( $n['fake_claude'], $C ), 'ClaudeBot, unverified, from Google LLC: impostor' );
+ok( 'credited' === snt_mr_credit_class( $n['real_claude'], $C ), 'ClaudeBot, verified, from Anthropic: credited' );
+ok( 'credited' === snt_mr_credit_class( $n['claude_user'], $C ), 'Claude-User, verified, from Google LLC: credited (verified is never an impostor, whatever the network)' );
+ok( 'unverifiable' === snt_mr_row_verification( $n['pre_since'] ) && 'credited' === snt_mr_credit_class( $n['pre_since'], $C ), 'a row before the since date is unverifiable and never reclassified' );
+ok( 'control_token' === snt_mr_credit_class( $n['token'], $C ), 'Google-Extended is still a control token' );
+ok( 'unverified' === snt_mr_row_verification( $n['cohere'] ) && 'credited' === snt_mr_credit_class( $n['cohere'], $C ), 'cohere-ai (cf_verified false), unverified: credited, not an impostor' );
 $absent = $raw['fake_claude'];
 unset( $absent['cf_verified'] );
-ok( 'credited' === snt_mr_credit_class( snt_mr_normalize_rows( array( $absent ) )[0] ), 'a row from a sensor that sends no cf_verified reads it as false: credited' );
-ok( 'credited' === snt_mr_credit_class( $n['own_tool'] ), 'this site\'s own tools are never impostors' );
+ok( 'credited' === snt_mr_credit_class( snt_mr_normalize_rows( array( $absent ) )[0], $C ), 'a row from a sensor that sends no cf_verified reads it as false: credited' );
+ok( 'credited' === snt_mr_credit_class( $n['own_tool'], $C ), 'this site\'s own tools are never impostors' );
 ok( true === $n['fake_claude']['cf_verified'] && false === $n['cohere']['cf_verified'], 'the normalizer reads "1"/"0" as a boolean' );
 
 echo "\nGroup B: counted, not credited\n";
@@ -121,8 +122,8 @@ ok( 58 + 72 + 100 === $who['anthropic']['split']['claimed'], 'who reads: anthrop
 $cells = array_column( snt_mr_crosstab( array_values( $n ) )['cells'], null, 'agent' );
 ok( 1378 === ( $cells['anthropic-claudebot']['impostor_hits'] ?? null ) && 1536 === $cells['anthropic-claudebot']['hits'], 'a crosstab cell keeps every hit and names the impostor part (1,378 of 1,536)' );
 ok( 0 === ( $cells['anthropic-claude-user']['impostor_hits'] ?? null ), 'a cell with none says 0' );
-ok( array( 'claimed_bot', 'impostor' ) === array( sn_lanes_machine_key( $n['fake_claude'] )['lane'], sn_lanes_machine_key( $n['fake_claude'] )['reason'] ) && '' === sn_lanes_machine_key( $n['fake_claude'] )['family'], 'lanes: an impostor is a claimed bot, reason impostor, credited to no family' );
-ok( false !== strpos( snt_mr_ai_finding( array_values( $n ) ), '1,378 claimed a known crawler but failed Cloudflare\'s check' ), 'the AI-training sentence names the impostor reads: ' . snt_mr_ai_finding( array_values( $n ) ) );
+ok( array( 'claimed_bot', 'impostor' ) === array( sn_lanes_machine_key( $n['fake_claude'], $C )['lane'], sn_lanes_machine_key( $n['fake_claude'], $C )['reason'] ) && '' === sn_lanes_machine_key( $n['fake_claude'], $C )['family'], 'lanes: an impostor is a claimed bot, reason impostor, credited to no family' );
+ok( false !== strpos( snt_mr_ai_finding( array_values( $n ) ), '1,378 claimed a known crawler but failed a check (1,378 failed Cloudflare’s check)' ), 'the AI-training sentence names the impostor reads: ' . snt_mr_ai_finding( array_values( $n ) ) );
 $exc = array_column( snt_mr_agent_exceptions( array_values( $n ) )['rows'], null, 'agent' );
 ok( 1378 === ( $exc['anthropic-claudebot']['split']['unverified'] ?? null ), 'the "is this crawler real" table still shows the impostor reads (it is the evidence)' );
 

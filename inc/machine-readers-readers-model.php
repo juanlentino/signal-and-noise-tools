@@ -34,7 +34,8 @@ function snt_mr_reader_rows( array $rows ) {
  * @return array
  */
 function snt_mr_credited_reader_rows( array $rows ) {
-	return array_values( array_filter( snt_mr_reader_rows( $rows ), 'snt_mr_is_credited' ) );
+	// The context is the whole window's ($rows), built before the filter.
+	return snt_mr_credited_rows( snt_mr_reader_rows( $rows ), snt_mr_credit_context( $rows ) );
 }
 
 /**
@@ -50,7 +51,15 @@ function snt_mr_ai_finding( array $rows ) {
 		return '';
 	}
 	$train = array_filter( snt_mr_credited_reader_rows( $rows ), static fn( $r ) => 'train' === (string) ( $r['purpose'] ?? '' ) );
-	$fakes = array_sum( array_map( static fn( $r ) => snt_mr_is_impostor( $r ) && 'train' === (string) ( $r['purpose'] ?? '' ) ? max( 0, (int) ( $r['hits'] ?? 0 ) ) : 0, snt_mr_reader_rows( $rows ) ) );
+	$ctx   = snt_mr_credit_context( $rows );
+	$why   = array();
+	foreach ( snt_mr_reader_rows( $rows ) as $r ) {
+		$v = 'train' === (string) ( $r['purpose'] ?? '' ) ? snt_mr_credit_verdict( $r, $ctx ) : null;
+		if ( null !== $v && 'impostor' === $v['class'] ) {
+			$why[ $v['reason'] ] = ( $why[ $v['reason'] ] ?? 0 ) + max( 0, (int) ( $r['hits'] ?? 0 ) );
+		}
+	}
+	$fakes = array_sum( $why );
 	$t     = snt_mr_verification_zero();
 	$nets  = array();
 	foreach ( $train as $r ) {
@@ -74,8 +83,8 @@ function snt_mr_ai_finding( array $rows ) {
 		$out[] = sprintf( __( '%1$s presented %2$s, a control token credited to no vendor', 'signal-and-noise-tools' ), number_format_i18n( $taken ), implode( ', ', array_column( $tokens, 'token' ) ) );
 	}
 	if ( $fakes > 0 ) {
-		/* translators: %s: impostor reads. */
-		$out[] = sprintf( __( '%s claimed a known crawler but failed Cloudflare\'s check', 'signal-and-noise-tools' ), number_format_i18n( $fakes ) );
+		/* translators: 1: impostor reads, 2: reads per reason. */
+		$out[] = sprintf( __( '%1$s claimed a known crawler but failed a check (%2$s)', 'signal-and-noise-tools' ), number_format_i18n( $fakes ), snt_mr_impostor_breakdown( array_merge( array_intersect_key( array_fill_keys( SN_MR_IMPOSTOR_REASONS, 0 ), $why ), $why ) ) );
 	}
 	if ( array() !== $out ) {
 		return sprintf(

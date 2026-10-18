@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/machine-readers-impostor-copy.php'; // the impostor line, shared with the evidence lead.
+
 /**
  * Humans and machines, the third column. '' when no snapshot of this window.
  *
@@ -99,7 +101,7 @@ function sn_public_stats_training_html( $data ) {
 	$lead = sprintf( esc_html__( '%1$s reads came from crawlers that say they gather AI training data. Cloudflare verified %2$s of them.', 'signal-and-noise-tools' ), '<strong>' . esc_html( number_format_i18n( $claimed ) ) . '</strong>', '<strong>' . esc_html( number_format_i18n( (int) ( $t['verified'] ?? 0 ) ) ) . '</strong>' );
 	return '<section class="sn-public-stats__training"><h2>' . esc_html__( 'AI training, claimed against proof', 'signal-and-noise-tools' ) . '</h2><p class="sn-public-stats__claim">' . $lead . '</p>'
 		. '<span class="sn-public-stats__proof" aria-hidden="true">' . $bar . '</span><ul class="sn-public-stats__key">' . $key . '</ul>'
-		. sn_public_stats_tokens_html( $m['tokens'] ?? null ) . sn_public_stats_impostors_html( $m['impostors'] ?? null ) . '</section>';
+		. sn_public_stats_tokens_html( $m['tokens'] ?? null ) . sn_public_stats_impostors_html( $m['impostors'] ?? null, $m['impostor_reasons'] ?? null ) . '</section>';
 }
 
 /**
@@ -125,15 +127,16 @@ function sn_public_stats_tokens_html( $tokens ) {
 }
 
 /**
- * Reads that named a crawler Cloudflare verifies when genuine and failed its
- * check: counted, credited to no one. '' when none or an older snapshot.
+ * Reads that named a known crawler and failed a check (Cloudflare's, the
+ * vendor's IP ranges or network, or a rotating network): counted, credited to
+ * no one. '' when none; no breakdown from an older snapshot.
  *
- * @param int|null $n Impostor reads.
+ * @param int|null   $n       Impostor reads.
+ * @param array|null $reasons Reads per reason.
  * @return string
  */
-function sn_public_stats_impostors_html( $n ) {
-	/* translators: %s: reads. */
-	return (int) $n < 1 ? '' : '<p class="sn-public-stats__note">' . esc_html( sprintf( __( 'Claimed a known crawler but failed Cloudflare’s check: %s reads, counted and credited to no one.', 'signal-and-noise-tools' ), number_format_i18n( (int) $n ) ) ) . '</p>';
+function sn_public_stats_impostors_html( $n, $reasons = null ) {
+	return (int) $n < 1 ? '' : '<p class="sn-public-stats__note">' . esc_html( snt_mr_impostor_line( (int) $n, $reasons, __( 'counted and credited to no one', 'signal-and-noise-tools' ) ) ) . '</p>';
 }
 
 /**

@@ -212,15 +212,15 @@ add_action( 'wp_abilities_api_init', function () {
 					'description' => 'Hits presenting a robots.txt control token (Google-Extended, Applebot-Extended), which is never a crawler of its own, so they are credited to no vendor, family or purpose. {agent, token, hits, networks (top 5 {network, hits}), basis: claimed}. They still count in total. null when the taxonomy is unavailable.',
 					'items'       => array( 'type' => 'object' ),
 				),
-				// Contract 19: impostor reads, counted but not credited.
+				// Contract 19: impostor reads, counted but not credited. Contract 20: reasons.
 				'impostors'              => array(
 					'type'        => array( 'array', 'null' ),
-					'description' => 'Hits that claimed an agent Cloudflare verifies when genuine (the taxonomy\'s cf_verified: listed in Cloudflare\'s verified-bots directory) that Cloudflare did not verify, on a day verification was recorded. Credited to no vendor, family or purpose, still counted in total. {agent, hits, networks (top 5 {network, hits}), basis: inferred}, hits descending. A verified hit is never one, whatever its network, nor is a read before the since date or one from this site\'s own tools. [] when none; null when the taxonomy is unavailable.',
+					'description' => 'Unverified hits, on a day verification was recorded, that a rule shows are not the agent they claim, credited to no vendor, family or purpose and still counted in total. {agent, hits, reasons, networks (top 5 {network, hits}), basis: inferred}, hits descending. reasons maps each reason to its hits: cf_directory (Cloudflare\'s verified-bots directory lists the agent and Cloudflare did not verify it), vendor_ranges (the IP is outside the vendor\'s published ranges AND the network is not the vendor\'s), off_home_network (the network is not the vendor\'s), rotator_network (the network presents 5 or more vendors\' agents in the window, none verified). A verified hit (by Cloudflare or the vendor\'s published ranges) is never one, whatever its network, nor is a read before the since date or one from this site\'s own tools. [] when none; null when the taxonomy is unavailable.',
 					'items'       => array( 'type' => 'object' ),
 				),
 				'verification'           => array(
 					'type'        => 'object',
-					'description' => 'Each attributed count split by Cloudflare\'s verified-bot category, the rights evidence\'s source and since date: {claimed, verified, verified_matched, unverified, unverifiable}, where claimed = verified + unverified + unverifiable. verified: the category was set; verified_matched: and it fits the claimed purpose (train: AI Crawler; search: Search Engine Crawler or AI Search; unknown and dev never match); unverifiable: a day before since, or the partial day it began. `families` is keyed by family (the rows `families` counts), `purposes` by purpose and `ai_training_by_purpose` is its train entry (the rows `purposes` counts, null without the taxonomy), `ai_training` the legacy family figure. Verified is not signed (see identity).',
+					'description' => 'Each attributed count split by verification, with the rights evidence\'s since date: {claimed, verified, verified_matched, vendor_verified, unverified, unverifiable}, where claimed = verified + unverified + unverifiable. verified: Cloudflare\'s verified-bot category was set, or the client IP is inside the vendor\'s own published ranges; vendor_verified: the part of verified that rests on those ranges (basis vendor_verified); verified_matched: and it fits the claimed purpose (train: AI Crawler; search: Search Engine Crawler or AI Search; unknown and dev never match); unverifiable: a day before since, or the partial day it began. `families` is keyed by family (the rows `families` counts), `purposes` by purpose and `ai_training_by_purpose` is its train entry (the rows `purposes` counts, null without the taxonomy), `ai_training` the legacy family figure. Verified is not signed (see identity).',
 					'properties'  => array(
 						'source'                 => array( 'type' => 'string' ),
 						'since'                  => array( 'type' => array( 'string', 'null' ) ),
@@ -233,7 +233,7 @@ add_action( 'wp_abilities_api_init', function () {
 				),
 				'basis'                  => array(
 					'type'        => 'object',
-					'description' => 'The evidence basis of each attributed field: signed (a cryptographic signature checked out), verified (Cloudflare\'s verified-bot category), claimed (the user agent the client sent), inferred (a rule or a score), unmeasured (not recorded).',
+					'description' => 'The evidence basis of each attributed field: signed (a cryptographic signature checked out), verified (Cloudflare\'s verified-bot category), vendor_verified (an IP inside the vendor\'s published ranges), claimed (the user agent the client sent), inferred (a rule or a score), unmeasured (not recorded).',
 				),
 				'reader_families'        => array(
 					'type'        => 'array',

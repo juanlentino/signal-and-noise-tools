@@ -28,8 +28,9 @@ function snt_ev_paint_reference( array $rows, $surface = 'kit' ) {
 	$totals = array();
 	$rights = array();
 	$pairs  = array();
+	$ctx    = snt_mr_credit_context( $rows );
 	foreach ( $rows as $r ) {
-		if ( ! snt_mr_is_credited( $r ) ) {
+		if ( ! snt_mr_is_credited( $r, $ctx ) ) {
 			continue;
 		}
 		$fam  = (string) ( $r['family'] ?? '' );

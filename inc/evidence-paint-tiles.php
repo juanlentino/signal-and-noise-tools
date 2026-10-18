@@ -21,10 +21,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param int|null    $tokens  Reads that presented a control token; null when not measured.
  * @param string|null $since   SN_RIGHTS_EVIDENCE_VERIFIED_SINCE.
  * @param string      $surface   kit|classic.
- * @param int|null    $impostors Reads that claimed a cf_verified agent and failed Cloudflare's check; null when not measured.
+ * @param int|null    $impostors Impostor reads (any reason); null when not measured.
+ * @param array|null  $reasons   Impostor reads per reason (snt_mr_impostor_reasons()).
  * @return string
  */
-function snt_ev_paint_evidence_tiles( array $t, $sig, $tokens, $since, $surface = 'classic', $impostors = null ) {
+function snt_ev_paint_evidence_tiles( array $t, $sig, $tokens, $since, $surface = 'classic', $impostors = null, $reasons = null ) {
 	$n    = static fn( $v ) => number_format_i18n( (int) $v );
 	$sign = null === $sig || (int) $sig['measured'] < 1
 		? array( __( 'not measured', 'signal-and-noise-tools' ), __( 'no read carried a signature state', 'signal-and-noise-tools' ) )
@@ -45,8 +46,7 @@ function snt_ev_paint_evidence_tiles( array $t, $sig, $tokens, $since, $surface 
 	$when = null === $since ? __( 'an unknown time', 'signal-and-noise-tools' ) : gmdate( 'Y-m-d H:i', (int) strtotime( (string) $since ) ) . ' UTC';
 	/* translators: 1: when the category began to be recorded, 2: reads before it. */
 	$line = sprintf( __( 'Verified means Cloudflare’s verified-bot category, recorded since %1$s; %2$s reads before that are unverifiable. Signed is not verified: a signature proves who sent a request, the category says Cloudflare recognized the client.', 'signal-and-noise-tools' ), $when, $n( $t['unverifiable'] ) );
-	/* translators: %s: impostor reads. */
-	$line .= null === $impostors ? '' : ' ' . sprintf( __( 'Claimed a known crawler but failed Cloudflare’s check: %s reads, counted in the total and credited to no vendor.', 'signal-and-noise-tools' ), $n( $impostors ) );
+	$line .= null === $impostors ? '' : ' ' . snt_mr_impostor_line( $impostors, $reasons, __( 'counted in the total and credited to no vendor', 'signal-and-noise-tools' ) );
 	$top = array_map( static fn( $a ) => (string) $a['agent'] . ' ' . $n( $a['hits'] ), array_slice( null === $sig ? array() : (array) ( $sig['by_agent'] ?? array() ), 0, 3 ) );
 	/* translators: %s: up to three signers with their reads. */
 	$line .= array() === $top ? '' : ' ' . sprintf( __( 'Top signers: %s.', 'signal-and-noise-tools' ), implode( ', ', $top ) );

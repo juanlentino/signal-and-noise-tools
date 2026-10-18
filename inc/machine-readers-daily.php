@@ -27,6 +27,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function snt_mr_summary_daily( array $rows, $totals, $days, $now, $has_tax = true ) {
 	$ai_set = snt_mr_ai_training_families();
+	// One credit context for the whole window, never per day: a rotator is a
+	// window's pattern, and a day's rows alone would see less of it.
+	$ctx    = function_exists( 'snt_mr_credit_context' ) ? snt_mr_credit_context( $rows ) : null;
 	$by_day = array();
 	for ( $t = $now - (int) $days * DAY_IN_SECONDS; gmdate( 'Y-m-d', $t ) <= gmdate( 'Y-m-d', $now ); $t += DAY_IN_SECONDS ) {
 		$by_day[ gmdate( 'Y-m-d', $t ) ] = array( 'rows' => array(), 'total' => 0 );
@@ -65,7 +68,7 @@ function snt_mr_summary_daily( array $rows, $totals, $days, $now, $has_tax = tru
 			$hits = (int) ( $r['hits'] ?? 0 );
 			// A control-token or impostor hit counts in the day's total only, as
 			// in the window figures (snt_mr_summary_payload credits it to nothing).
-			if ( function_exists( 'snt_mr_is_credited' ) && ! snt_mr_is_credited( $r ) ) {
+			if ( null !== $ctx && ! snt_mr_is_credited( $r, $ctx ) ) {
 				continue;
 			}
 			if ( in_array( (string) ( $r['family'] ?? '' ), $ai_set, true ) ) {

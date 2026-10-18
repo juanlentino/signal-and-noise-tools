@@ -10,6 +10,10 @@
  *   verified    Cloudflare's verified-bot category is set on the hit
  *               (cf.verified_bot_category, the sensor's verified_bot field),
  *               on a day the sensor recorded it. Not a signature.
+ *   vendor_verified  the client IP is inside the vendor's own published IP
+ *               ranges (rights-signals blob16, taxonomy 1.6.0), for an agent
+ *               Cloudflare's directory does not list. Counted as verified
+ *               wherever verified is shown, and named apart where the basis is.
  *   claimed     the client said so: a user agent the taxonomy matched.
  *   inferred    a rule or a score decided it: the human/suspect/bot classes,
  *               the beacon's likely-automated score.
@@ -27,8 +31,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** The five evidence bases, strongest first. */
-const SN_MR_BASIS_VALUES = array( 'signed', 'verified', 'claimed', 'inferred', 'unmeasured' );
+/** The evidence bases, strongest first. */
+const SN_MR_BASIS_VALUES = array( 'signed', 'verified', 'vendor_verified', 'claimed', 'inferred', 'unmeasured' );
 
 /**
  * Taxonomy ids of robots.txt control tokens: names a vendor reads in robots.txt
@@ -95,7 +99,25 @@ function snt_mr_row_verification( $row ) {
 	if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) || ! function_exists( 'sn_rights_evidence_identity_class' ) ) {
 		return 'unverifiable';
 	}
-	return sn_rights_evidence_identity_class( $day, (string) ( $row['verified_bot'] ?? '' ) );
+	$class = sn_rights_evidence_identity_class( $day, (string) ( $row['verified_bot'] ?? '' ) );
+	// Taxonomy 1.6.0: an IP inside the vendor's published ranges is verified
+	// too, on a day the sensor could record it. Never before the since date.
+	return 'unverified' === $class && snt_mr_row_vendor_verified( $row ) ? 'verified' : $class;
+}
+
+/**
+ * Whether a row's client IP was inside its vendor's published ranges
+ * (vendor_verified '1') and Cloudflare did not verify it: the part of
+ * `verified` that rests on the vendor's list.
+ *
+ * @param array $row Aggregate row (day, verified_bot, vendor_verified).
+ * @return bool
+ */
+function snt_mr_row_vendor_verified( $row ) {
+	$day = is_array( $row ) ? (string) ( $row['day'] ?? '' ) : '';
+	return is_array( $row ) && '1' === (string) ( $row['vendor_verified'] ?? '' )
+		&& 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) && function_exists( 'sn_rights_evidence_identity_class' )
+		&& 'unverified' === sn_rights_evidence_identity_class( $day, (string) ( $row['verified_bot'] ?? '' ) );
 }
 
 /**
@@ -115,10 +137,13 @@ function snt_mr_row_verified_matched( $row ) {
 /**
  * The empty split.
  *
- * @return array{claimed:int,verified:int,verified_matched:int,unverified:int,unverifiable:int}
+ * vendor_verified is the part of verified that rests on the vendor's published
+ * IP ranges rather than Cloudflare (taxonomy 1.6.0).
+ *
+ * @return array{claimed:int,verified:int,verified_matched:int,vendor_verified:int,unverified:int,unverifiable:int}
  */
 function snt_mr_verification_zero() {
-	return array( 'claimed' => 0, 'verified' => 0, 'verified_matched' => 0, 'unverified' => 0, 'unverifiable' => 0 );
+	return array( 'claimed' => 0, 'verified' => 0, 'verified_matched' => 0, 'vendor_verified' => 0, 'unverified' => 0, 'unverifiable' => 0 );
 }
 
 /**
@@ -134,6 +159,7 @@ function snt_mr_verification_add( array $tally, $row ) {
 	$tally['claimed']     += $hits;
 	$tally[ snt_mr_row_verification( $row ) ] += $hits;
 	$tally['verified_matched'] += snt_mr_row_verified_matched( $row ) ? $hits : 0;
+	$tally['vendor_verified']  += snt_mr_row_vendor_verified( $row ) ? $hits : 0;
 	return $tally;
 }
 
@@ -155,4 +181,7 @@ function snt_mr_verification_by( array $rows, $field ) {
 }
 
 require_once __DIR__ . '/machine-readers-basis-tokens.php'; // control tokens in the readings, unmapped purposes, the strip figures.
+require_once __DIR__ . '/machine-readers-basis-rotator.php'; // the rotator networks of a fold, the credit context.
+require_once __DIR__ . '/machine-readers-basis-ladder.php'; // the one credit ladder: class, reason, basis.
 require_once __DIR__ . '/machine-readers-basis-impostors.php'; // impostor reads: counted, credited to no one.
+require_once __DIR__ . '/machine-readers-impostor-copy.php'; // the words for them, on every surface.

@@ -365,6 +365,7 @@ $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ]['machines'] += array(
 	'train'  => array( 'claimed' => 4760, 'verified' => 50, 'verified_matched' => 50, 'unverified' => 2665, 'unverifiable' => 2045 ),
 	'tokens' => array( array( 'token' => 'Google-Extended', 'hits' => 575 ) ),
 	'impostors' => 2107,
+	'impostor_reasons' => array( 'cf_directory' => 1378, 'rotator_network' => 729 ),
 );
 $ht = $fresh();
 ok( false !== strpos( $ht, '<section class="sn-public-stats__training"><h2>AI training, claimed against proof</h2>' ), 'AI training is its own section, the page\'s width' );
@@ -373,7 +374,8 @@ ok( false !== strpos( $ht, '<strong>4,760</strong> reads came from crawlers that
 ok( 1 === preg_match( '/<span class="sn-public-stats__proof" aria-hidden="true">(.*?)<\/span><\/span>/s', $ht, $pm ) && array( 'verified', 'claimed', 'before' ) === ( preg_match_all( '/data-part="(\w+)"/', $pm[1], $pp ) ? $pp[1] : array() ), 'one decorative bar, its parts in order: verified, named only, before verification' );
 ok( false !== strpos( $ht, '<li><span class="sn-public-stats__key-sw" data-part="verified"></span>Verified by Cloudflare <span class="sn-public-stats__key-n">50</span></li>' ) && false !== strpos( $ht, 'Named themselves, not verified <span class="sn-public-stats__key-n">2,665</span>' ) && false !== strpos( $ht, 'Before verification was recorded <span class="sn-public-stats__key-n">2,045</span>' ), 'the key carries every part as a count' );
 ok( false !== strpos( $ht, 'Google-Extended is a robots.txt token, not a crawler: 575 reads presented it as their name and are credited to no one.' ), 'the control-token reads, credited to no one' );
-ok( false !== strpos( $ht, "Claimed a known crawler but failed Cloudflare\u{2019}s check: 2,107 reads, counted and credited to no one." ), 'the impostor reads, their own plainly worded line' );
+ok( false !== strpos( $ht, "Claimed a known crawler but failed a check: 2,107 reads, counted and credited to no one (1,378 failed Cloudflare\u{2019}s check; 729 came from a network posing as many crawlers)." ), 'the impostor reads, one plain line with the reasons' );
+ok( "<p class=\"sn-public-stats__note\">Claimed a known crawler but failed a check: 2,107 reads, counted and credited to no one.</p>" === sn_public_stats_impostors_html( 2107 ), 'an older snapshot without reasons: the total alone' );
 ok( '' === sn_public_stats_impostors_html( null ) && '' === sn_public_stats_impostors_html( 0 ), 'an older snapshot, or none: no impostor line' );
 // Likely automated beside the presumed-human views, only once a day is measured.
 $GLOBALS['__la'] = array( 'visitor_days' => 3, 'scored_visitor_days' => 41, 'measured_days' => 9, 'unmeasured_days' => 21 );

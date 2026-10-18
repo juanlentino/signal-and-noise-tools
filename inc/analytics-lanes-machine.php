@@ -11,6 +11,7 @@
  *                         purpose is kept, as snt_mr_impersonations credits none)
  *   signature valid       verified_bot / web_bot_auth (purpose kept)
  *   verified_matched      verified_bot / cf_verified (purpose kept)
+ *   vendor ranges         verified_bot / vendor_verified (purpose kept)
  *   verified, no match    claimed_bot / category_mismatch (family, purpose)
  *   a taxonomy claim      claimed_bot / ua_claim (family, purpose)
  *   unclassified-machine  unknown_machine / no_claim
@@ -31,9 +32,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * One normalized aggregate row's lane key. PURE.
  *
  * @param array $row snt_mr_normalize_rows() row.
+ * @param array $ctx snt_mr_credit_context() of the window's rows.
  * @return array{lane:string,reason:string,agent:string,family:string,purpose:string}
  */
-function sn_lanes_machine_key( array $row ) {
+function sn_lanes_machine_key( array $row, array $ctx ) {
 	$id      = $row['owner_identity'] ?? null;
 	$family  = (string) ( $row['family'] ?? '' );
 	$purpose = (string) ( $row['purpose'] ?? '' );
@@ -48,14 +50,17 @@ function sn_lanes_machine_key( array $row ) {
 		// Credited to no family and no purpose, as every house figure does
 		// (snt_mr_impersonations): no vendor crawls under a control token.
 		$k = array( 'lane' => 'claimed_bot', 'reason' => 'impersonation' ) + $k;
-	} elseif ( snt_mr_is_impostor( $row ) ) {
-		// Claimed an agent Cloudflare verifies when genuine and failed the
-		// check: credited to no family and no purpose (snt_mr_impostors).
+	} elseif ( snt_mr_is_impostor( $row, $ctx ) ) {
+		// A rule shows it is not the agent it claims (any reason of
+		// snt_mr_credit_verdict): credited to no family and no purpose.
 		$k = array( 'lane' => 'claimed_bot', 'reason' => 'impostor' ) + $k;
 	} elseif ( 'valid' === (string) ( $row['signed_agent'] ?? '' ) ) {
 		$k = array( 'lane' => 'verified_bot', 'reason' => 'web_bot_auth', 'purpose' => $purpose ) + $k;
 	} elseif ( snt_mr_row_verified_matched( $row ) ) {
 		$k = array( 'lane' => 'verified_bot', 'reason' => 'cf_verified', 'purpose' => $purpose ) + $k;
+	} elseif ( snt_mr_row_vendor_verified( $row ) ) {
+		// Taxonomy 1.6.0: the IP is inside the vendor's published ranges.
+		$k = array( 'lane' => 'verified_bot', 'reason' => 'vendor_verified', 'purpose' => $purpose ) + $k;
 	} elseif ( 'verified' === snt_mr_row_verification( $row ) ) {
 		$k = array( 'lane' => 'claimed_bot', 'reason' => 'category_mismatch', 'family' => $family, 'purpose' => $purpose ) + $k;
 	} elseif ( 'unclassified-machine' !== $family ) {
@@ -79,12 +84,13 @@ function sn_lanes_machine_key( array $row ) {
 function sn_lanes_machine_derive( array $rows, array $days ) {
 	$keep = array_flip( $days );
 	$out  = array();
+	$ctx  = snt_mr_credit_context( $rows ); // the whole read, not one day
 	foreach ( $rows as $row ) {
 		$day = (string) ( $row['day'] ?? '' );
 		if ( ! isset( $keep[ $day ] ) ) {
 			continue;
 		}
-		$k = sn_lanes_machine_key( (array) $row );
+		$k = sn_lanes_machine_key( (array) $row, $ctx );
 		$i = implode( '|', $k );
 		$c = $out[ $day ][ $i ] ?? $k + array( 'hits' => 0, 'visits' => null, 'visitor_days' => null );
 		$c['hits']        += max( 0, (int) ( $row['hits'] ?? 0 ) );
