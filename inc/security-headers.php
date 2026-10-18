@@ -112,6 +112,37 @@ function sn_security_author_enum_guard() {
 add_action( 'template_redirect', 'sn_security_author_enum_guard', 9 );
 
 /**
+ * Author archives answer 404 to strangers, real author or not (2026-10-18).
+ * Live, /notes/author/<real slug>/ answered 200 and a made-up slug 404, so a
+ * guessed slug was confirmed, and the slug can be the login username. Nothing
+ * on the site links an author archive. Signed-in users still see them; the
+ * ?author= guard's filter switches both off.
+ *
+ * @return bool
+ */
+function sn_security_author_archive_should_404() {
+	if ( ! apply_filters( 'sn_security_block_author_enum', true ) || is_user_logged_in() ) {
+		return false;
+	}
+	return is_author();
+}
+
+/**
+ * Turn the request into the theme's own 404 (no redirect, no exit): the
+ * template loader then renders the same page any dead link gets.
+ */
+function sn_security_author_archive_guard() {
+	if ( ! sn_security_author_archive_should_404() ) {
+		return;
+	}
+	global $wp_query;
+	$wp_query->set_404();
+	status_header( 404 );
+	nocache_headers();
+}
+add_action( 'template_redirect', 'sn_security_author_archive_guard', 9 );
+
+/**
  * Lock down /wp-json/wp/v2/users for unauthenticated requests. The
  * default WP REST API exposes username + display name + slug to anyone,
  * which is a free pass for brute-force attackers. Authenticated requests
