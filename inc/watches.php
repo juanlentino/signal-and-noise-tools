@@ -160,6 +160,34 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_analytics_v2_freeze',
 		),
+		// 2026-10-18: three security watches; they observe, LLAR, Two Factor and Cloudflare enforce.
+		array(
+			'id'        => 'app_passwords',
+			'label'     => 'an application password is new or stale',
+			'why'       => 'Application passwords sign in to the REST API without the login address, Two Factor or a passkey. Ripe when one was created this week (was it you?) or has gone unused for 90 days (revoke it). The note names user and app, never the secret.',
+			'read'      => 'your WordPress profile page, Application Passwords section',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_app_passwords',
+		),
+		array(
+			'id'        => 'admin_2fa',
+			'label'     => 'an administrator without a passkey or authenticator app',
+			'why'       => 'Reads Two Factor, where the WebAuthn provider adds passkeys. Ripe when Two Factor is inactive or an administrator has nothing stronger than email or backup codes.',
+			'read'      => 'your WordPress profile page, Two-Factor Options section',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_admin_2fa',
+		),
+		array(
+			'id'        => 'guard_routes',
+			'label'     => 'the login guard routes drifted',
+			'why'       => 'Once a day the plugin reads the Cloudflare routes. Ripe when the routes for the login address no longer point at the guard, a route for a retired address is left over, Cloudflare cannot be read, or the check has not run for two days. Counts only, never patterns. Saving the Login URL again restores and prunes them.',
+			'read'      => 'option sn_security_guard_routes_last; signal-noise/get-cron-history sn_security_guard_routes_check',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_guard_routes',
+		),
 		// 2026-10-18: the login address gets out only if the owner hands it out.
 		array(
 			'id'        => 'login_door_leak',
