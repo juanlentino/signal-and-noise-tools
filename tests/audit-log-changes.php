@@ -78,9 +78,25 @@ ok( 'role_set' === last_change()['kind'] && 'ghost' === last_change()['subject']
 fire( 'set_user_role', 2, 'author', array( 'editor' ) );
 ok( false === last_change()['high'], 'editor to author is not high' );
 fire( 'add_user_role', 2, 'administrator' );
+fire( 'shutdown' );
 ok( 'role_added' === last_change()['kind'] && true === last_change()['high'], 'adding administrator as a second role is high' );
 fire( 'remove_user_role', 2, 'administrator' );
+fire( 'shutdown' );
 ok( 'role_removed' === last_change()['kind'] && 'administrator' === last_change()['detail'] && false === last_change()['high'], 'removing a role is logged, not high' );
+
+echo "\nGroup: the sequences core actually fires (WP_User::set_role fires remove, add, then set)\n";
+$n = change_count();
+fire( 'remove_user_role', 2, 'editor' );
+fire( 'add_user_role', 2, 'administrator' );
+fire( 'set_user_role', 2, 'administrator', array( 'editor' ) );
+fire( 'shutdown' );
+ok( $n + 1 === change_count() && 'role_set' === last_change()['kind'] && true === last_change()['high'], 'editor to administrator through set_role is ONE row, the role change, high' );
+$n = change_count();
+fire( 'add_user_role', 3, 'administrator' );
+fire( 'set_user_role', 3, 'administrator', array() );
+fire( 'user_register', 3, array() );
+fire( 'shutdown' );
+ok( $n + 1 === change_count() && 'user_created' === last_change()['kind'], 'a new administrator account is ONE row, the account' );
 
 echo "\nGroup: an account's email, never the address\n";
 $n = change_count();
