@@ -105,6 +105,23 @@ function snt_public_username_site_health_result() {
 	);
 }
 
+/**
+ * oEmbed answers every embed request with author_url, a link to the author
+ * archive whose last segment is the author slug: the one public surface on
+ * this site that published it (checked 2026-10-18). The display name stays;
+ * every byline shows it anyway.
+ *
+ * @param mixed $data oEmbed response data.
+ * @return mixed
+ */
+function snt_oembed_drop_author_url( $data ) {
+	if ( is_array( $data ) ) {
+		unset( $data['author_url'] );
+	}
+	return $data;
+}
+
 if ( ! defined( 'SN_PUBLIC_USERNAME_TEST' ) || ! SN_PUBLIC_USERNAME_TEST ) {
 	add_filter( 'site_status_tests', 'snt_public_username_register_site_health_test' );
+	add_filter( 'oembed_response_data', 'snt_oembed_drop_author_url', 20 );
 }
