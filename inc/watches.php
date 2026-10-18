@@ -198,6 +198,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_login_door_leak',
 		),
+		// 2026-10-18: oEmbed publishes the author slug; core derives it from the login.
+		array(
+			'id'        => 'public_username',
+			'label'     => 'an administrator\'s login username is public',
+			'why'       => 'oEmbed publishes each author\'s slug (user_nicename) in its author link, and core derives that slug from the login username. Read live: ripe when any administrator\'s slug equals their login, ignoring case and core\'s slugging. The note names user IDs only, never either value. Core has no profile field for the slug; change it with wp user update.',
+			'read'      => 'Site Health status, Signal & Noise public username check; wp user list --role=administrator',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_public_username',
+		),
 		// 22.1.0: /stats reads machine figures from an hourly snapshot.
 		array(
 			'id'        => 'public_stats_machines',
