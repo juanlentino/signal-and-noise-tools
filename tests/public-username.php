@@ -26,6 +26,17 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
 function leaks( $text, array $values ) { foreach ( $values as $v ) { if ( false !== stripos( (string) $text, $v ) ) { return true; } } return false; }
 
+// oEmbed: the one public surface that linked the author archive (2026-10-18).
+$__emb = array( 'version' => '1.0', 'title' => 'A note', 'author_name' => 'Juan Lentino', 'author_url' => 'https://site.test/notes/author/ownerx/', 'html' => '<iframe></iframe>' );
+ok( function_exists( 'snt_oembed_drop_author_url' ), 'an oEmbed filter exists' );
+if ( function_exists( 'snt_oembed_drop_author_url' ) ) {
+	$__out = snt_oembed_drop_author_url( $__emb );
+	ok( ! array_key_exists( 'author_url', $__out ), 'oEmbed no longer publishes the author archive link (it carries the author slug)' );
+	ok( 'Juan Lentino' === $__out['author_name'] && '<iframe></iframe>' === $__out['html'], 'the display name (already on every byline) and the embed itself stay' );
+	ok( 'x' === snt_oembed_drop_author_url( 'x' ), 'a non-array passes through untouched' );
+}
+ok( 1 === preg_match( "/add_filter\\( 'oembed_response_data', 'snt_oembed_drop_author_url'/", (string) file_get_contents( dirname( __DIR__ ) . '/inc/security-public-username.php' ) ), 'it is hooked on core oembed_response_data' );
+
 // The comparison.
 ok( snt_public_username_matches( 'ownerx', 'ownerx' ), 'a slug equal to the login is public' );
 ok( snt_public_username_matches( 'OwnerX', 'ownerx' ), 'case does not hide it' );
