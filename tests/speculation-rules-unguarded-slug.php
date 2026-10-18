@@ -30,8 +30,7 @@ require __DIR__ . '/../inc/speculation-rules.php';
 
 $result = sn_speculation_href_exclude_paths( array(), 'prerender' );
 ok( is_array( $result ), 'no fatal: the callback returns an array even with sn_login_get_slug() undeclared (#1229)' );
-ok( in_array( '/sn-login', $result, true ), 'falls back to sn_setting(\'login.slug\', \'sn-login\')  for the bare path' );
-ok( in_array( '/sn-login/*', $result, true ), 'and for the wildcard path' );
+ok( ! in_array( '/sn-login', $result, true ) && ! in_array( '/sn-login/*', $result, true ), 'the login slug is never published in the rules (2026-10-18), with or without sn_login_get_slug()' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

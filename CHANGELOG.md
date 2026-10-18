@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **The browser speculation rules no longer publish the login door.** The plugin listed the masked login slug (bare and wildcard) in the rules' "do not prerender" paths, and those rules are printed into every public page, so the hidden door's address sat in the HTML of notes, essays, About, Contact, the 404 page and the Spanish pages (found live by loading every unknown path linked from public pages and checking for the login form). Nothing public links to the door, and speculation rules only act on links on the page, so the exclusion protected nothing; `/contact/*` stays. `tests/speculation-rules.php` and `tests/speculation-rules-unguarded-slug.php` now pin that the slug never appears (red before).
+
 ## [2026.10.39] - 2026-10-18 — customize.php answers 404, not a fatal error
 
 
