@@ -133,6 +133,7 @@ function snt_cron_sn_owned_hooks() {
 		array( 'SNT_MORNING_BRIEF_CRON_HOOK',   'snt_morning_brief_daily' ),
 		array( 'SNT_SCHEDULED_READS_CRON_HOOK', 'snt_scheduled_reads_daily' ),
 		array( 'SNT_GSC_SYNC_HOOK',             'sn_gsc_sync_daily' ),
+		array( 'SN_DOOR_LEAK_HOOK',             'sn_login_door_leak_check' ),
 	);
 	$hooks = array();
 	foreach ( $owned as $pair ) {
