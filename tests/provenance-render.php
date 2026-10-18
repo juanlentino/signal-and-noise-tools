@@ -171,7 +171,7 @@ rp_eq( '', sn_prov_render_chip( 999 ), 'no chain -> empty chip' );
 $chip6 = sn_prov_render_chip( 6 ); // genesis-only fixture (post 6)
 rp_true( false !== strpos( $chip6, 'sn-prov-genesis' ), 'genesis-only chip carries the genesis class' );
 rp_true( false !== strpos( $chip6, 'Genesis' ), 'genesis-only chip shows the Genesis label' );
-rp_true( false === strpos( $chip6, '&middot;' ), 'genesis-only chip suppresses the middot separator' );
+rp_true( false === strpos( $chip6, '&middot;' ) && false === strpos( $chip6, '·' ), 'genesis-only chip suppresses the middot separator (entity or character)' );
 rp_true( false === strpos( $chip6, ' v0' ), 'genesis-only chip suppresses the v0 version suffix' );
 
 $panel = sn_prov_render_panel( 5 );
@@ -601,6 +601,61 @@ rp_true( false !== strpos( $panel_cc, '<span class="screen-reader-text">Author&#
 rp_true( false === strpos( $panel_cc, 'unclassified' ) && false === strpos( $panel_cc, 'wibble' ), 'change class: never the word unclassified, never an unknown value' );
 rp_true( 1 === preg_match( '/<span class="sn-prov-class" title="[^"]*not (?:part of what is |)(?:signed|verified)[^"]*">/', $panel_cc ), 'change class: the label says it is the author\'s description, not part of what is verified' );
 rp_true( strpos( $panel_cc, 'sn-prov-class' ) > strpos( $panel_cc, '<span class="sn-prov-n">002</span>' ) && strpos( $panel_cc, 'sn-prov-class' ) < strpos( $panel_cc, '<span class="sn-prov-n">001</span>' ), 'change class: on the v2 row' );
+
+echo "\nWCAG 2.5.3: the linked chip's accessible name starts with its visible text\n";
+// axe label-content-name-mismatch (sweep 2026-10-18): the chip read "VERIFIED · V3"
+// but was named "See it on the public Bitcoin ledger (mempool.space)", so a
+// speech-input user saying what they see could not reach it. Every LINKED state
+// is pinned here; the unlinked states carry no anchor and so no name to match.
+$GLOBALS['SN_PROV_RENDER_GUARD_OFF'] = true;
+$chip_name = static function ( $html ) {
+	preg_match( '/<a class="sn-prov-chip-link"[^>]*aria-label="([^"]*)"/', $html, $m );
+	return isset( $m[1] ) ? html_entity_decode( $m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' ) : null;
+};
+$chip_visible = static function ( $html ) {
+	if ( ! preg_match( '/<span class="sn-prov-chip [^>]*>(.*?)<\/span><\/a>/s', $html, $m ) ) {
+		return null;
+	}
+	$text = preg_replace( '/<span[^>]*aria-hidden="true"[^>]*>.*?<\/span>/s', '', $m[1] );
+	return trim( preg_replace( '/\s+/u', ' ', html_entity_decode( strip_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) );
+};
+$txid_n = str_repeat( 'ef', 32 );
+$cases  = array(
+	'verified v3'               => array( array( array( 'version' => 1, 'content_hash' => 'a', 'status' => 'confirmed', 'bitcoin_block' => 957000 ), array( 'version' => 2, 'content_hash' => 'b', 'status' => 'confirmed', 'bitcoin_block' => 957100 ), array( 'version' => 3, 'content_hash' => 'c', 'status' => 'confirmed', 'bitcoin_block' => 957333 ) ), 'Verified · v3', 'See it on the public Bitcoin ledger' ),
+	'pending in a tx, 2/6'      => array( array( array( 'version' => 1, 'content_hash' => 'a', 'status' => 'pending', 'bitcoin_txid' => $txid_n, 'confirmations' => 2 ) ), 'Pending · 2/6', 'Watch it confirm on the public Bitcoin ledger' ),
+	'pending in a tx, no count' => array( array( array( 'version' => 1, 'content_hash' => 'a', 'status' => 'pending', 'bitcoin_txid' => $txid_n ) ), 'Pending', 'Watch it confirm on the public Bitcoin ledger' ),
+	'genesis, root confirmed'   => array( array( array( 'version' => 0, 'content_hash' => 'g0', 'status' => 'genesis', 'genesis' => true ) ), 'Verified', 'See it on the public Bitcoin ledger' ),
+);
+$GLOBALS['__pv_options']['sn_prov_genesis'] = array( 'status' => 'confirmed', 'bitcoin_block' => 957359 );
+$pid = 90;
+foreach ( $cases as $label => $c ) {
+	update_post_meta( $pid, SN_PROV_UID_META, 'uidn' . $pid );
+	update_post_meta( $pid, SN_PROV_CHAIN_META, $c[0] );
+	$html    = sn_prov_render_chip( $pid );
+	$name    = $chip_name( $html );
+	$visible = $chip_visible( $html );
+	rp_eq( $c[1], $visible, "$label: the chip shows \"{$c[1]}\"" );
+	rp_true( is_string( $name ) && '' !== $visible && 0 === strpos( $name, (string) $visible ), "$label: the accessible name starts with the visible text (got \"$name\")" );
+	rp_true( is_string( $name ) && false !== stripos( $name, $c[2] . ' (mempool.space)' ), "$label: the name still says where the link goes" );
+	++$pid;
+}
+// Unlinked states: no anchor, so no aria-label to drift from the text.
+foreach ( array(
+	'pending, no tx'          => array( array( 'version' => 1, 'content_hash' => 'a', 'status' => 'pending' ) ),
+	'recording (unanchored)'  => array( array( 'version' => 1, 'content_hash' => 'a', 'status' => 'unanchored' ) ),
+) as $label => $chain ) {
+	update_post_meta( $pid, SN_PROV_UID_META, 'uidn' . $pid );
+	update_post_meta( $pid, SN_PROV_CHAIN_META, $chain );
+	$html = sn_prov_render_chip( $pid );
+	rp_true( '' !== $html && false === strpos( $html, '<a ' ) && false === strpos( $html, 'aria-label' ), "$label: plain chip, no link and no name to mismatch" );
+	++$pid;
+}
+$GLOBALS['__pv_options']['sn_prov_genesis'] = array( 'status' => 'pending', 'bitcoin_block' => 0 );
+update_post_meta( $pid, SN_PROV_UID_META, 'uidn' . $pid );
+update_post_meta( $pid, SN_PROV_CHAIN_META, array( array( 'version' => 0, 'content_hash' => 'g0', 'status' => 'genesis', 'genesis' => true ) ) );
+$html = sn_prov_render_chip( $pid );
+rp_true( false !== strpos( $html, 'Genesis' ) && false === strpos( $html, 'aria-label' ), 'genesis, root still anchoring: plain chip, no name to mismatch' );
+unset( $GLOBALS['SN_PROV_RENDER_GUARD_OFF'] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

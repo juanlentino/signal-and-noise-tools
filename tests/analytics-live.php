@@ -250,5 +250,20 @@ foreach ( array( 'apps/sn-analytics/parts/painters/chrome-header.php' => 'now', 
 }
 ok( file_exists( "$root/assets/live-now.js" ), 'the shared updater exists' );
 
+echo "\nGroup: the strip holds its height while it fills (CLS)\n";
+// Mobile /stats/ measured CLS 0.086 on 2026-10-18, all of it the strip filling
+// after paint: the hour note grows a line ("Peak N, ...") and the list grows
+// from its one "not read" line to up to SN_ANALYTICS_LIVE_PAGES_MAX rows. The
+// space is reserved in CSS, only where scripting runs (without JavaScript the
+// list never fills, so nothing is held open), and never with placeholder rows.
+$ps_css = (string) file_get_contents( "$root/assets/public-stats-front.css" );
+$scripted = preg_match( '/@media \(scripting:enabled\)\{(.*?)\}\s*\n/s', $ps_css, $sm ) ? $sm[1] : '';
+ok( '' !== $scripted, 'the reservation lives in an @media (scripting:enabled) block' );
+ok( defined( 'SN_ANALYTICS_LIVE_PAGES_MAX' ) && 1 === preg_match( '/\[data-sn-live-pages\]\{min-height:calc\(' . SN_ANALYTICS_LIVE_PAGES_MAX . ' \* \(1lh \+ 1\.1em\) \+ ' . ( SN_ANALYTICS_LIVE_PAGES_MAX - 1 ) . 'px\)\}/', $scripted ), 'the list reserves the height of its row cap (' . ( defined( 'SN_ANALYTICS_LIVE_PAGES_MAX' ) ? SN_ANALYTICS_LIVE_PAGES_MAX : '?' ) . ' rows: line, .55em padding twice, the rules between)' );
+ok( 1 === preg_match( '/\.sn-public-stats__top li\{[^}]*padding:\.55em 0;border-bottom:1px solid/', $ps_css ), 'the row the reservation is measured from is still .55em padding over a 1px rule' );
+ok( 1 === preg_match( '/\[data-sn-live-hour-note\]\{min-height:2lh\}/', $scripted ), 'the hour note holds two lines, the length of its filled "Peak ..." sentence' );
+$strip = (string) file_get_contents( "$root/inc/public-stats-live.php" );
+ok( 1 === substr_count( $strip, '<li' ), 'no placeholder rows: the server paints one "not read" line, never fake pages' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

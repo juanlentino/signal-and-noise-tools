@@ -285,10 +285,14 @@ function sn_prov_render_chip( $post_id ) {
 	// unlinked chip.
 	$explorer = sn_prov_primary_explorer( $vm, $root );
 	$href     = $explorer['href'];
-	$suffix   = $vm['is_genesis_only'] ? '' : ' &middot; v' . (int) $vm['version'];
+	$suffix   = $vm['is_genesis_only'] ? '' : ' · v' . (int) $vm['version'];
 	if ( 'tx' === $explorer['kind'] ) {
-		$suffix = null === $vm['confirmations'] ? '' : ' &middot; ' . max( 0, (int) $vm['confirmations'] ) . '/6';
+		$suffix = null === $vm['confirmations'] ? '' : ' · ' . max( 0, (int) $vm['confirmations'] ) . '/6';
 	}
+	// ONE plain string is the chip's visible text AND the start of the link's
+	// accessible name (WCAG 2.5.3, axe label-content-name-mismatch): a reader
+	// who says what they see ("Verified v3") must reach the link.
+	$visible  = $pres['label'] . $suffix;
 	// When linked, the chip announces itself as a way OUT to the ledger: a small
 	// ↗ glyph (a non-jargon "opens elsewhere" cue) plus a plain-language title +
 	// aria-label — so a reader who's never heard of mempool.space still knows what
@@ -296,13 +300,12 @@ function sn_prov_render_chip( $post_id ) {
 	$ext = '' === $href ? '' : ' <span class="sn-prov-chip-ext" aria-hidden="true">&#8599;</span>';
 
 	$chip = sprintf(
-		'<span class="sn-prov-chip sn-prov-%s%s" data-status="%s"%s>%s%s%s</span>',
+		'<span class="sn-prov-chip sn-prov-%s%s" data-status="%s"%s>%s%s</span>',
 		esc_attr( $pres['state'] ),
 		$genesis_class,
 		esc_attr( $pres['state'] ),
 		$genesis_attr,
-		esc_html( $pres['label'] ),
-		$suffix,
+		esc_html( $visible ),
 		$ext
 	);
 
@@ -332,8 +335,9 @@ function sn_prov_render_chip( $post_id ) {
 		// The Verify affordance appears once the chip itself is linkable.
 		return $chip;
 	}
-	$cta = sn_prov_explorer_cta( $explorer['kind'] ) . ' (mempool.space)';
-	return '<a class="sn-prov-chip-link" href="' . esc_url( $href ) . '" rel="nofollow noopener" target="_blank" title="' . esc_attr( $cta ) . '" aria-label="' . esc_attr( $cta ) . '">' . $chip . '</a>' . $verify_link;
+	$cta  = sn_prov_explorer_cta( $explorer['kind'] ) . ' (mempool.space)';
+	$name = $visible . ': ' . lcfirst( $cta );
+	return '<a class="sn-prov-chip-link" href="' . esc_url( $href ) . '" rel="nofollow noopener" target="_blank" title="' . esc_attr( $cta ) . '" aria-label="' . esc_attr( $name ) . '">' . $chip . '</a>' . $verify_link;
 }
 
 /**

@@ -124,6 +124,12 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
 .sn-public-stats__live-pages h3{margin-top:0}
 .sn-public-stats__top li.sn-public-stats__live-empty{color:var(--sn-ps-dim);counter-increment:none}
 .sn-public-stats__top li.sn-public-stats__live-empty::before{content:none}
+/* Hold the strip's filled height from first paint (mobile CLS was 0.086, all
+   of it this list): room for the row cap (SN_ANALYTICS_LIVE_PAGES_MAX, each a
+   line plus .55em padding twice, 1px rules between) and the hour note's
+   two-line "Peak ..." sentence. Empty space, never placeholder rows; only
+   where scripting runs, since without it the list never fills. */
+@media (scripting:enabled){.sn-public-stats__top[data-sn-live-pages]{min-height:calc(5 * (1lh + 1.1em) + 4px)}.sn-public-stats__sub[data-sn-live-hour-note]{min-height:2lh}}
 /* The last hour: flat bars in the text color, the current slot in red,
    the reading-rhythm chart's idiom at strip size. Redrawn, never animated. */
 .sn-public-stats__live-hour{display:block;width:100%;max-width:22rem;height:34px;margin-top:.7rem;border-bottom:1px solid var(--sn-ps-rule)}
