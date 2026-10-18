@@ -106,26 +106,27 @@ assertEq( null, sn_speculation_configuration( array( 'mode' => 'auto', 'eagernes
 sn_setting_update( 'perf.speculative_loading', true );
 sn_setting_reset_cache();
 
-// ── 4. Exclude-paths is ADDITIVE: keeps a pre-existing path, adds login slug + /contact/* ──
+// ── 4. Exclude-paths is ADDITIVE: keeps a pre-existing path, adds /contact/* ──
 $GLOBALS['__login_slug'] = 'sn-login';
 $existing = array( '/secret-area/*' );
 $result   = sn_speculation_href_exclude_paths( $existing, 'prerender' );
 assertContains( '/secret-area/*', $result, 'exclude-paths keeps the pre-existing path' );
-assertContains( '/sn-login/*', $result, 'exclude-paths adds the login slug path' );
 assertContains( '/contact/*', $result, 'exclude-paths adds /contact/*' );
-// #1229: wp_login_url() itself emits the BARE '/sn-login' (no trailing
-// segment) — '/sn-login/*' alone never matches that exact path.
-assertContains( '/sn-login', $result, 'exclude-paths also adds the bare login path (matches what wp_login_url() emits)' );
 
 // ── 5. Does NOT re-add core-owned exclusions (core already excludes these) ──
 assertNotContains( '/wp-admin/*', $result, 'exclude-paths does NOT re-add /wp-admin/*' );
 assertNotContains( '/wp-login.php', $result, 'exclude-paths does NOT re-add /wp-login.php' );
 
-// ── 6. Custom login slug is reflected ──
+// ── 6. The login slug is NEVER in the exclusions (2026-10-18) ──
+// The rules are printed into every public page, so listing the masked login
+// slug here published the door on every page (found live after a slug
+// change). Nothing public links to the door, and speculation rules only act
+// on links on the page, so the exclusion protected nothing.
 $GLOBALS['__login_slug'] = 'my-secret-login';
 $result_custom = sn_speculation_href_exclude_paths( array(), 'prerender' );
-assertContains( '/my-secret-login/*', $result_custom, 'custom login slug reflected in exclude-paths' );
-assertNotContains( '/sn-login/*', $result_custom, 'default slug NOT present when a custom slug is configured' );
+assertNotContains( '/my-secret-login', $result_custom, 'the bare login slug is not published in the rules' );
+assertNotContains( '/my-secret-login/*', $result_custom, 'nor its wildcard' );
+assertEq( 0, count( array_filter( $result_custom, static function ( $p ) { return false !== strpos( $p, 'my-secret-login' ); } ) ), 'no rule mentions the slug at all' );
 $GLOBALS['__login_slug'] = 'sn-login';
 
 // ── 7. Settings roundtrip: saving Identity preserves a pre-existing perf subtree ──

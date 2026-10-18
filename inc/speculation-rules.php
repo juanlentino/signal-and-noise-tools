@@ -13,7 +13,8 @@
  *   - wp_speculation_rules_configuration   — returning null DISABLES speculative
  *     loading entirely; otherwise we return mode=prerender / eagerness=moderate.
  *   - wp_speculation_rules_href_exclude_paths (10,2) — receives ($paths, $mode);
- *     we APPEND the custom login slug path + /contact/* so those never prerender.
+ *     we APPEND /contact/* so it never prerenders (never the login slug: these
+ *     rules are printed into every page, so it would publish the hidden door).
  *     Core already excludes /wp-admin/*, /wp-*.php (covers wp-login.php), and
  *     query-string URLs, so we do NOT re-add those.
  *
@@ -54,11 +55,14 @@ add_filter( 'wp_speculation_rules_configuration', 'sn_speculation_configuration'
 /**
  * Append SN-owned paths to the Speculation Rules href-exclude list.
  *
- * The custom login slug (so a prerender never silently hits the login form) and
- * /contact/* (a form page — prerendering a form is wasteful and can pre-fire
- * analytics/side effects). Core already excludes /wp-admin/*, /wp-*.php (which
- * covers /wp-login.php), and query-string URLs, so those are intentionally NOT
- * re-added here.
+ * /contact/* only: a form page, where a prerender is wasteful and can
+ * pre-fire analytics or side effects. Core already excludes /wp-admin/*,
+ * /wp-*.php (which covers /wp-login.php) and query-string URLs.
+ *
+ * The masked login slug is deliberately NOT listed (2026-10-18). These rules
+ * are printed into every public page, so listing it published the hidden door
+ * on every page; and nothing public links to the door, while speculation
+ * rules only act on links on the page, so the exclusion protected nothing.
  *
  * @param array  $paths Existing exclude paths (URL-path glob patterns).
  * @param string $mode  Speculation mode ('prefetch' or 'prerender'); unused but
@@ -66,18 +70,7 @@ add_filter( 'wp_speculation_rules_configuration', 'sn_speculation_configuration'
  * @return string[]
  */
 function sn_speculation_href_exclude_paths( $paths, $mode ) {
-	$paths = (array) $paths;
-	// #1229: sn_login_get_slug() is declared only when inc/login-hide.php
-	// does not return early (the SN_LOGIN_BYPASS constant, or wps-hide-login
-	// / rename-wp-login still active) — an unguarded call fatals every
-	// front-end render whenever perf.speculative_loading is on. Mirrors the
-	// existing guard in sn_login_module_state() (inc/admin-forms/login.php).
-	$slug = function_exists( 'sn_login_get_slug' ) ? sn_login_get_slug() : (string) sn_setting( 'login.slug', 'sn-login' );
-	$slug = ltrim( $slug, '/' );
-	// The bare '/sn-login' (no trailing segment) is what wp_login_url()
-	// itself emits; '/sn-login/*' alone never matches it.
-	$paths[] = '/' . $slug;
-	$paths[] = '/' . $slug . '/*';
+	$paths   = (array) $paths;
 	$paths[] = '/contact/*';
 	return array_values( array_unique( $paths ) );
 }
