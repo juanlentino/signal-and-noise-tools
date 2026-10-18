@@ -98,7 +98,8 @@ function snt_audit_change_set_role_cb( $user_id, $role, $old_roles = array() ) {
 	$old_roles = array_values( (array) $old_roles );
 	if ( array() === $old_roles ) {
 		$user  = get_userdata( (int) $user_id );
-		$start = (int) ( $_SERVER['REQUEST_TIME'] ?? time() );
+		// $timestart: core's request start (timer_start(), wp-settings.php).
+		$start = (int) ( $GLOBALS['timestart'] ?? time() );
 		if ( $user && strtotime( $user->user_registered . ' UTC' ) >= $start ) {
 			return;
 		}

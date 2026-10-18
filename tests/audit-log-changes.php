@@ -50,7 +50,7 @@ $GLOBALS['__current'] = 1;
 function get_userdata( $id ) { return $GLOBALS['__users'][ (int) $id ] ?? false; }
 function wp_get_current_user() { return $GLOBALS['__users'][ $GLOBALS['__current'] ] ?? (object) array( 'ID' => 0, 'user_login' => '' ); }
 $_SERVER['REMOTE_ADDR']  = '203.0.113.9';
-$_SERVER['REQUEST_TIME'] = time();
+$GLOBALS['timestart']    = microtime( true ); // core's request start
 
 require dirname( __DIR__ ) . '/inc/audit-log.php';
 
