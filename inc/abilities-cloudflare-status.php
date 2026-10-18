@@ -13,6 +13,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * The posture record as sn-status carries it: each read's facts, or null.
+ * The WAF reads (2026-10-18) are booleans, counts and actions only.
+ *
+ * @param array<string,mixed> $posture The stored posture record.
+ * @return array<string,mixed>
+ */
+function snt_ability_cloudflare_status_posture( array $posture ) {
+	$out = array( 'fetched_at' => (int) ( $posture['fetched_at'] ?? 0 ) );
+	foreach ( array( 'settings', 'dnssec', 'rules', 'managed', 'ratelimit', 'leaked' ) as $what ) {
+		$out[ $what ] = $posture[ $what ] ?? null;
+	}
+	return $out;
+}
+
+/**
  * @param mixed $input Unused.
  * @return array<string,mixed>
  */
@@ -33,7 +48,7 @@ function snt_ability_cloudflare_status( $input = null ) {
 		'token'      => $record['token'],
 		'zone'       => $record['zone'],
 		'firewall'   => $record['firewall'],
-		'posture'    => is_array( $posture ) ? array( 'fetched_at' => (int) ( $posture['fetched_at'] ?? 0 ), 'settings' => $posture['settings'] ?? null, 'dnssec' => $posture['dnssec'] ?? null, 'rules' => $posture['rules'] ?? null ) : null,
+		'posture'    => is_array( $posture ) ? snt_ability_cloudflare_status_posture( $posture ) : null,
 		'errors_5xx' => $errors,
 	);
 }
@@ -44,7 +59,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/cloudflare-status', array(
 		'label'               => 'Cloudflare Status',
-		'description'         => 'The Cloudflare monitor\'s last stored reading: the API token\'s status and expiry (GET /user/tokens/verify), the zone\'s last seven days from GraphQL httpRequests1dGroups (requests, cached share, bytes, threats, 4xx/5xx), and the firewall\'s last 24 hours from firewallEventsAdaptiveGroups, or from the raw firewallEventsAdaptive grouped locally when the plan lacks the grouped one (`dataset: raw`; events by action, top rules). READ `needs_permission: true` AS A GAP, never as zero: for the zone reading the token lacks Zone › Analytics › Read; for the firewall the zone\'s plan lacks both datasets, and no grant changes that. `state: never_run` means the daily monitor has not stored anything yet. Cloudflare publishes no rate-limit headers, which is why this reading exists instead of a quota row. Since 15.4.0 `posture` carries the daily REST reads of what the edge is SET TO: zone settings (SSL mode, min TLS, Always Use HTTPS, Development Mode and readings), DNSSEC status, and the custom WAF rules by name, action and enabled; each read says `needs_permission` with the scope it lacks (Zone Settings Read, DNS Read, Zone WAF Read). Since 17.8.1 `errors_5xx` names the last seven days of 5xx by path and by responder, from the daily edge rollup. Read-only; never fetches, never purges.',
+		'description'         => 'The Cloudflare monitor\'s last stored reading: the API token\'s status and expiry (GET /user/tokens/verify), the zone\'s last seven days from GraphQL httpRequests1dGroups (requests, cached share, bytes, threats, 4xx/5xx), and the firewall\'s last 24 hours from firewallEventsAdaptiveGroups, or from the raw firewallEventsAdaptive grouped locally when the plan lacks the grouped one (`dataset: raw`; events by action, top rules). READ `needs_permission: true` AS A GAP, never as zero: for the zone reading the token lacks Zone › Analytics › Read; for the firewall the zone\'s plan lacks both datasets, and no grant changes that. `state: never_run` means the daily monitor has not stored anything yet. Cloudflare publishes no rate-limit headers, which is why this reading exists instead of a quota row. Since 15.4.0 `posture` carries the daily REST reads of what the edge is SET TO: zone settings (SSL mode, min TLS, Always Use HTTPS, Development Mode and readings), DNSSEC status, and the custom WAF rules by name, action and enabled; each read says `needs_permission` with the scope it lacks (Zone Settings Read, DNS Read, Zone WAF Read). Since 2026-10-18 `posture` also reads, on Zone WAF Read: `managed` (deployed and enabled: a rule executing the Cloudflare Free Managed Ruleset, or the full Managed Ruleset that supersedes it), `ratelimit` (count, enabled, action, has_expression; the expression itself is never read out) and `leaked` (leaked credentials detection; `enabled: null` is unknown, never off). A refused one says `needs_permission` and reads unavailable, never off or zero. Since 17.8.1 `errors_5xx` names the last seven days of 5xx by path and by responder, from the daily edge rollup. Read-only; never fetches, never purges.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_cloudflare_status',
@@ -58,7 +73,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'token'      => array( 'type' => array( 'object', 'null' ), 'description' => 'verified, status (active|expired|disabled|invalid|unreachable|changed; `changed` is a token saved after the last reading whose verify could not reach Cloudflare: no reading, not a fault), expires_on, not_before, error.' ),
 				'zone'       => array( 'type' => array( 'object', 'null' ), 'description' => 'available, needs_permission, error, days[], totals{requests,cached,bytes,cached_bytes,threats,status_4xx,status_5xx,cache_share}.' ),
 				'firewall'   => array( 'type' => array( 'object', 'null' ), 'description' => 'available, needs_permission, error, events, by_action{}, top_rules[], dataset (groups|raw), truncated, groups_refused.' ),
-				'posture'    => array( 'type' => array( 'object', 'null' ), 'description' => 'fetched_at; settings{available,needs_permission,error,values{id:value}}; dnssec{available,needs_permission,error,status}; rules{available,needs_permission,error,rules[{id,description,action,enabled,expression}]}.' ),
+				'posture'    => array( 'type' => array( 'object', 'null' ), 'description' => 'fetched_at; settings{available,needs_permission,error,values{id:value}}; dnssec{available,needs_permission,error,status}; rules{available,needs_permission,error,rules[{id,description,action,enabled,expression}]}; since 2026-10-18 managed{available,needs_permission,error,deployed,enabled}; ratelimit{available,needs_permission,error,count,enabled,action,has_expression}; leaked{available,needs_permission,error,enabled}; each null on a record stored before.' ),
 				'errors_5xx' => array( 'type' => array( 'object', 'null' ), 'description' => 'Since 17.8.1, from the daily edge rollup (not the monitor): the last 7 days of 5xx, from, to, honest_from (17.9.1: sampled rows before this day were counted twice over; blank until the one-shot repair has run), total, paths[{value,requests}] (which URLs failed) and sources[{value,label,requests}] (who answered: `edge=503 origin=503` is the origin failing, `origin=-` is Cloudflare or a Worker answering by itself). Since the break-alert change, paths_by_day[{day, stored, paths[{path, edge, origin, cache, asker, requests}]}]: each day\'s top five failing paths with who asked (visitor, worker, other, unrecorded); `stored: false, paths: null` is a day recorded before who-asked was stored, not a clean day. Local only: the remote edge-errors twin keeps its week.' ),
 			),
 		),
