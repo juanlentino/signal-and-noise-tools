@@ -25,6 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/cloudflare-posture-words.php'; // a drift and a firewall action in words (2026-10-12).
+require_once __DIR__ . '/cloudflare-posture-waf.php';   // managed rules, the rate-limit rule, leaked credentials (2026-10-18).
 
 const SN_CF_POSTURE_OPT = 'sn_cf_posture';
 
@@ -74,16 +75,29 @@ function sn_cf_posture_stale_headers_sent() {
 /**
  * The documented scope each read needs.
  *
- * @param string $what settings|dnssec|rules
+ * @param string $what settings|dnssec|rules|managed|ratelimit|leaked
  * @return string
  */
 function sn_cf_posture_scope( $what ) {
 	$scopes = array(
-		'settings' => 'Zone › Zone Settings › Read',
-		'dnssec'   => 'Zone › DNS › Read',
-		'rules'    => 'Zone › Zone WAF › Read',
+		'settings'  => 'Zone › Zone Settings › Read',
+		'dnssec'    => 'Zone › DNS › Read',
+		'rules'     => 'Zone › Zone WAF › Read',
+		'managed'   => 'Zone › Zone WAF › Read',
+		'ratelimit' => 'Zone › Zone WAF › Read',
+		'leaked'    => 'Zone › Zone WAF › Read',
 	);
 	return $scopes[ $what ] ?? '';
+}
+
+/**
+ * Every read the record can carry, in order. A record stored before a read
+ * existed lacks its key; each loop skips what is absent.
+ *
+ * @return array<int,string>
+ */
+function sn_cf_posture_reads() {
+	return array_merge( array( 'settings', 'dnssec', 'rules' ), array_keys( sn_cf_posture_waf_paths() ) );
 }
 
 /**
@@ -112,14 +126,18 @@ function sn_cf_posture_read_of( array $res, $what ) {
 }
 
 /**
- * The reading, pure over the three answers.
+ * The reading, pure over the answers. The last three are the WAF reads
+ * (inc/cloudflare-posture-waf.php); left out, their keys are absent.
  *
- * @param array{http:int,body:array<string,mixed>,error:string} $settings_res
- * @param array{http:int,body:array<string,mixed>,error:string} $dnssec_res
- * @param array{http:int,body:array<string,mixed>,error:string} $rules_res
+ * @param array{http:int,body:array<string,mixed>,error:string}      $settings_res
+ * @param array{http:int,body:array<string,mixed>,error:string}      $dnssec_res
+ * @param array{http:int,body:array<string,mixed>,error:string}      $rules_res
+ * @param array{http:int,body:array<string,mixed>,error:string}|null $managed_res
+ * @param array{http:int,body:array<string,mixed>,error:string}|null $ratelimit_res
+ * @param array{http:int,body:array<string,mixed>,error:string}|null $leaked_res
  * @return array<string,mixed>
  */
-function sn_cf_posture_from( array $settings_res, array $dnssec_res, array $rules_res ) {
+function sn_cf_posture_from( array $settings_res, array $dnssec_res, array $rules_res, $managed_res = null, $ratelimit_res = null, $leaked_res = null ) {
 	$settings = sn_cf_posture_read_of( $settings_res, 'settings' );
 	$values   = array();
 	if ( $settings['available'] ) {
@@ -157,7 +175,11 @@ function sn_cf_posture_from( array $settings_res, array $dnssec_res, array $rule
 	unset( $rules['result'] );
 	$rules['rules'] = $list;
 
-	return array( 'settings' => $settings, 'dnssec' => $dnssec, 'rules' => $rules );
+	$out = array( 'settings' => $settings, 'dnssec' => $dnssec, 'rules' => $rules );
+	if ( is_array( $managed_res ) && is_array( $ratelimit_res ) && is_array( $leaked_res ) ) {
+		$out += sn_cf_posture_waf_from( $managed_res, $ratelimit_res, $leaked_res );
+	}
+	return $out;
 }
 
 /**
@@ -175,7 +197,8 @@ function sn_cf_posture_refresh() {
 	$record = array( 'fetched_at' => time(), 'configured' => true ) + sn_cf_posture_from(
 		sn_cf_api_get( $zone . '/settings' ),
 		sn_cf_api_get( $zone . '/dnssec' ),
-		sn_cf_api_get( $zone . '/rulesets/phases/http_request_firewall_custom/entrypoint' )
+		sn_cf_api_get( $zone . '/rulesets/phases/http_request_firewall_custom/entrypoint' ),
+		...array_values( array_map( static fn( $p ) => sn_cf_api_get( $zone . $p ), sn_cf_posture_waf_paths() ) )
 	);
 	update_option( SN_CF_POSTURE_OPT, $record, false );
 	return $record;
@@ -238,7 +261,7 @@ function sn_cf_posture_abilities_rule( $record = null ) {
  */
 function sn_cf_posture_findings( array $record ) {
 	$out = array();
-	foreach ( array( 'settings', 'dnssec', 'rules' ) as $what ) {
+	foreach ( array( 'settings', 'dnssec', 'rules' ) as $what ) { // The WAF reads say their own refusals (sn_cf_posture_waf_findings()).
 		if ( ! empty( $record[ $what ]['needs_permission'] ) ) {
 			$out[] = array( 'key' => $what, 'label' => $what . ': unread', 'value' => '', 'why' => 'the token lacks ' . sn_cf_posture_scope( $what ) . '; add it to the token and the next refresh reads it.' );
 		}
@@ -259,7 +282,7 @@ function sn_cf_posture_findings( array $record ) {
 	if ( ! empty( $record['dnssec']['available'] ) && 'active' !== (string) $record['dnssec']['status'] ) {
 		$out[] = array( 'key' => 'dnssec', 'label' => 'dnssec', 'value' => (string) $record['dnssec']['status'], 'why' => sprintf( 'DNSSEC is "%s", not active.', (string) $record['dnssec']['status'] ) );
 	}
-	return $out;
+	return array_merge( $out, sn_cf_posture_waf_findings( $record ) );
 }
 
 /**
@@ -305,7 +328,7 @@ function sn_cf_posture_model( $record = null ) {
 	foreach ( sn_cf_posture_findings( $record ) as $f ) {
 		$drift[ $f['key'] ] = true;
 	}
-	foreach ( array( 'settings', 'dnssec', 'rules' ) as $what ) {
+	foreach ( sn_cf_posture_reads() as $what ) {
 		if ( ! empty( $record[ $what ]['needs_permission'] ) ) {
 			$out['refused'][] = (string) $record[ $what ]['error'];
 		} elseif ( is_array( $record[ $what ] ?? null ) && empty( $record[ $what ]['available'] ) && '' !== (string) ( $record[ $what ]['error'] ?? '' ) ) {
@@ -334,6 +357,12 @@ function sn_cf_posture_model( $record = null ) {
 	}
 	if ( ! empty( $record['dnssec']['available'] ) ) {
 		$out['checks'][] = array( 'label' => __( 'DNSSEC', 'signal-and-noise-tools' ), 'value' => (string) $record['dnssec']['status'], 'ok' => empty( $drift['dnssec'] ), 'expected' => __( 'active', 'signal-and-noise-tools' ) );
+	}
+	foreach ( array_keys( sn_cf_posture_waf_paths() ) as $what ) {
+		$c = sn_cf_posture_waf_check( $record, $what );
+		if ( null !== $c ) {
+			$out['checks'][] = $c;
+		}
 	}
 	foreach ( (array) ( $record['rules']['rules'] ?? array() ) as $r ) {
 		$out['rules'][] = array( 'name' => '' !== (string) $r['description'] ? (string) $r['description'] : (string) $r['id'], 'action' => (string) $r['action'], 'enabled' => ! empty( $r['enabled'] ) );
