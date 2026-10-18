@@ -130,7 +130,7 @@
 /* The action row, in the established mono-action vocabulary (the same voice
    as .sn-prov-chip-verify): quiet uppercase red links with real hit areas,
    separated by a rule from the record above — actions, not chain rows. */
-.sn-prov-links{display:flex;flex-wrap:wrap;gap:.4em 1.4em;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:.9rem 0 0;padding-top:.8rem;border-top:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
+.sn-prov-links{display:flex;flex-wrap:wrap;gap:1em 1.4em;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:.9rem 0 0;padding-top:.8rem;border-top:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-prov-links a{color:var(--wp--preset--color--blood,#e00404);text-decoration:underline;text-underline-offset:3px;padding:.45em 0;margin:-.45em 0}
 /* Hover/focus gains emphasis: DARKER on a light ground, LIGHTER on a dark one (--sn-signal-ink, defined at the top of this file). The site's signal red (var(--wp--preset--color--signal,#ff4c47)) is
    established — but everywhere else it is a border, an outline, or a tabular
