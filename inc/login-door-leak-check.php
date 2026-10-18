@@ -108,8 +108,9 @@ function sn_door_leak_run( $fetch = null, $now = null ) {
 }
 
 /**
- * Watch callback: ripe when the last run found the door anywhere, or when the
- * check has gone quiet for over two days (silence is not a clean result).
+ * Watch callback: ripe when the last run found the door anywhere, when most
+ * surfaces could not be read, or when the check has gone quiet for over two
+ * days. Neither silence nor a blind run is a clean result.
  *
  * @param array $watch Watch row (unused).
  * @param int   $now   Unix time.
@@ -124,6 +125,9 @@ function snt_watch_ripe_login_door_leak( $watch, $now ) {
 	$found = (array) ( $last['found'] ?? array() );
 	if ( $found ) {
 		return array( 'ripe' => true, 'note' => 'the login address is published on: ' . implode( ', ', array_slice( $found, 0, 8 ) ) . '. Find what prints it, fix it, then change the Login URL (one save).' );
+	}
+	if ( 2 * (int) $last['errors'] > (int) $last['checked'] ) {
+		return array( 'ripe' => true, 'note' => sprintf( 'the last check could read only %d of %d surfaces, too few to call it clean', (int) $last['checked'] - (int) $last['errors'], (int) $last['checked'] ) );
 	}
 	if ( (int) $now - (int) $last['at'] > 2 * DAY_IN_SECONDS ) {
 		return array( 'ripe' => true, 'note' => 'the daily check has not run since ' . gmdate( 'Y-m-d H:i', (int) $last['at'] ) . ' UTC' );

@@ -63,6 +63,12 @@ $GLOBALS['__opt'][ SN_DOOR_LEAK_OPT ] = array( 'at' => 1000, 'found' => array(),
 ok( false === snt_watch_ripe_login_door_leak( array(), 2000 )['ripe'], 'quiet when the last run found nothing' );
 $GLOBALS['__opt'][ SN_DOOR_LEAK_OPT ] = array( 'at' => 1000, 'found' => array(), 'checked' => 9, 'errors' => 0 );
 ok( true === snt_watch_ripe_login_door_leak( array(), 1000 + 3 * DAY_IN_SECONDS )['ripe'], 'ripe when the check has not run for over two days (a silent check is not a clean one)' );
+$GLOBALS['__opt'][ SN_DOOR_LEAK_OPT ] = array( 'at' => 1000, 'found' => array(), 'checked' => 9, 'errors' => 9 );
+ok( true === snt_watch_ripe_login_door_leak( array(), 2000 )['ripe'], 'ripe when no surface could be read (a blind run is not a clean one)' );
+$GLOBALS['__opt'][ SN_DOOR_LEAK_OPT ] = array( 'at' => 1000, 'found' => array(), 'checked' => 9, 'errors' => 5 );
+ok( true === snt_watch_ripe_login_door_leak( array(), 2000 )['ripe'], 'ripe when most surfaces could not be read' );
+$GLOBALS['__opt'][ SN_DOOR_LEAK_OPT ] = array( 'at' => 1000, 'found' => array(), 'checked' => 9, 'errors' => 1 );
+ok( false === snt_watch_ripe_login_door_leak( array(), 2000 )['ripe'], 'one unreadable surface out of nine stays quiet' );
 unset( $GLOBALS['__opt'][ SN_DOOR_LEAK_OPT ] );
 ok( false === snt_watch_ripe_login_door_leak( array(), 2000 )['ripe'], 'not ripe before the first run' );
 

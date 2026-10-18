@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **The login-address leak check no longer reads a blind run as clean.** If most of the public pages it reads fail to load (for example when the server cannot reach itself), the `login_door_leak` watch now turns ripe and says how many pages it managed to read. Before, a run that read nothing reported clean.
+
 ## [2026.10.40] - 2026-10-18 — the login door is published nowhere, and a daily check keeps it so
 
 
