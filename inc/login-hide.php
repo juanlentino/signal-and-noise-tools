@@ -214,6 +214,30 @@ function sn_login_redirect_reveals_door( $location, $request_uri, $slug, $logged
 }
 
 /**
+ * Answer 404 and stop: the theme's 404 template when WordPress can resolve
+ * one, a bare page when it cannot. Inside the admin bootstrap (core's
+ * auth_redirect() on customize.php) get_query_template( '404' ) is '', and
+ * `include ''` threw a ValueError: a 500 where a 404 belonged (live
+ * 2026-10-18).
+ *
+ * @return never
+ */
+function sn_login_send_404() {
+	status_header( 404 );
+	nocache_headers();
+	$tpl = function_exists( 'get_query_template' ) ? (string) get_query_template( '404' ) : '';
+	if ( '' !== $tpl && is_readable( $tpl ) ) {
+		include $tpl;
+	} else {
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: text/html; charset=utf-8' );
+		}
+		echo '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="robots" content="noindex"><title>Not Found</title><h1>Not Found</h1></html>';
+	}
+	exit;
+}
+
+/**
  * wp_redirect filter, after the slug rewrite: a redirect that would reveal
  * the door to a stranger answers with the theme's 404 instead, the same
  * answer /wp-login.php and /wp-admin/ give.
@@ -233,10 +257,7 @@ function sn_login_guard_redirect( $location, $status = 302 ) {
 	if ( function_exists( 'snt_audit_increment_counter_impl' ) ) {
 		snt_audit_increment_counter_impl( 'wp_admin_unauth_404', isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : null );
 	}
-	status_header( 404 );
-	nocache_headers();
-	include get_query_template( '404' );
-	exit;
+	sn_login_send_404();
 }
 add_filter( 'wp_redirect', 'sn_login_guard_redirect', 99, 2 );
 
@@ -527,10 +548,7 @@ function sn_login_handle_request() {
 		if ( function_exists( 'snt_audit_increment_counter_impl' ) ) {
 			snt_audit_increment_counter_impl( 'wp_login_404', isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : null );
 		}
-		status_header( 404 );
-		nocache_headers();
-		include get_query_template( '404' );
-		exit;
+		sn_login_send_404();
 	}
 
 	// Branch 3: 404 unauthenticated /wp-admin requests.
@@ -568,10 +586,7 @@ function sn_login_handle_request() {
 		if ( function_exists( 'snt_audit_increment_counter_impl' ) ) {
 			snt_audit_increment_counter_impl( 'wp_admin_unauth_404', isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : null );
 		}
-		status_header( 404 );
-		nocache_headers();
-		include get_query_template( '404' );
-		exit;
+		sn_login_send_404();
 	}
 }
 add_action( 'wp_loaded', 'sn_login_handle_request' );

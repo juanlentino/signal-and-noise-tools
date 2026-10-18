@@ -37,7 +37,12 @@ if ( false !== strpos( $src, 'function sn_login_redirect_reveals_door(' ) ) {
 	ok( ! sn_login_redirect_reveals_door( 'https://site.test/door-k7-notes/', '/x', 'door-k7', false ), 'a path that merely starts like the door is not the door' );
 }
 ok( 1 === preg_match( "/add_filter\\( 'wp_redirect', 'sn_login_guard_redirect', (\\d+)/", $src, $p ) && (int) $p[1] > 10, 'it runs after the slug rewrite (which turns wp-login.php into the door at priority 10)' );
-ok( 1 === preg_match( '/function sn_login_guard_redirect\(.*?status_header\( 404 \).*?get_query_template\( .404. \).*?exit;/s', $src ), 'a refused redirect answers with the theme 404 and stops, like /wp-login.php' );
+ok( 1 === preg_match( '/function sn_login_guard_redirect\(.*?sn_login_send_404\(\)/s', $src ), 'a refused redirect answers with a 404 and stops, like /wp-login.php' );
+// Live 2026-10-18: inside the admin bootstrap (customize.php's auth_redirect)
+// get_query_template('404') is '' and `include ''` threw a ValueError: a 500
+// where a 404 belonged. The 404 sender falls back to a bare page.
+ok( 1 === preg_match( '/function sn_login_send_404\(\).*?get_query_template\( .404. \).*?if \( .. !== \$tpl/s', $src ), 'the 404 includes the theme template only when there is one' );
+ok( 0 === preg_match( '/include get_query_template\( .404. \)/', $src ), 'no bare include of get_query_template() is left anywhere in the file' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
