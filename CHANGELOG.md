@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **edge-errors-summary says, per day, how many installs there were and whether they explain the 5xx.** A new `installs_by_day` list (oldest first) gives each day's plugin and theme installs from the deploy history and `explained`: true when every 5xx that day is a 503 on the owner's dashboard paths, at most 3 per install, the same rule and the same functions the SN Systems card uses. `installs` is null without a deploy history (unknown, never 0), and `explained` is null for a day not read yet or with no 5xx. `sn-status{edge_errors}` carries it too, since it reads the same ability. Why: the 2026-10-12 to 10-18 investigation had to rebuild install times from git tags to see that 10-15 (58 errors against 7 installs) was over budget. Local door only, like get-deploy-status's `runtime`: the remote twin keeps the shared schema and callback, so the remote contract and the worker do not move. Pinned by the new tests/edge-errors-installs-by-day.php and a strip pin in tests/abilities-remote-set.php.
+
 ## [2026.10.35] - 2026-10-17 — provenance chains keep their backslashes, a change-class backfill, and cleanup
 
 

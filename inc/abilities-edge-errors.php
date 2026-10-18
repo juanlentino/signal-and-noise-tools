@@ -99,18 +99,20 @@ function snt_ability_edge_errors_summary( $input = null ) {
 	);
 }
 
+require_once __DIR__ . '/edge-errors-installs.php'; // 2026-10-17: installs per day, local door only.
+
 add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
 	}
 	wp_register_ability( 'signal-noise/edge-errors-summary', array(
 		'label'               => 'Edge 5xx summary',
-		'description'         => 'The last seven days of 5xx from the daily edge rollup: total, which paths failed, who answered (edge vs origin status, request source), and since 18.2.0 one row per day with who asked (visitor, worker, other, unrecorded; unrecorded rows predate 17.9.3 and are the pre-filter leftover). Cloudflare\'s own Early Hints cache lookups are excluded (17.9.3); they were ~98% of every stored 5xx and no visitor ever saw one. Read `query.error` before trusting a zero: a failed read is not a clean week. Same reader as cloudflare-status errors_5xx. Read-only; never fetches.',
+		'description'         => 'The last seven days of 5xx from the daily edge rollup: total, which paths failed, who answered (edge vs origin status, request source), and since 18.2.0 one row per day with who asked (visitor, worker, other, unrecorded; unrecorded rows predate 17.9.3 and are the pre-filter leftover). Cloudflare\'s own Early Hints cache lookups are excluded (17.9.3); they were ~98% of every stored 5xx and no visitor ever saw one. Read `query.error` before trusting a zero: a failed read is not a clean week. installs_by_day (local only) counts each day\'s plugin and theme installs and says whether WordPress maintenance during them explains that day\'s 5xx. Same reader as cloudflare-status errors_5xx. Read-only; never fetches.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
-		'execute_callback'    => 'snt_ability_edge_errors_summary',
+		'execute_callback'    => 'snt_ability_edge_errors_summary_local',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
-		'output_schema'       => snt_edge_errors_output_schema(),
+		'output_schema'       => snt_edge_errors_local_output_schema(),
 		'meta'                => array(
 			'show_in_rest' => true,
 			'mcp'          => array( 'public' => true, 'type' => 'tool' ),
