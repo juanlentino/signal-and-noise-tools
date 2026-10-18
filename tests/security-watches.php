@@ -70,6 +70,8 @@ ok( snt_watch_ripe_guard_routes( array(), $now + 3 * $d )['ripe'], 'ripe when th
 unset( $GLOBALS['__opt'][ SN_SEC_GUARD_ROUTES_OPT ] );
 ok( ! snt_watch_ripe_guard_routes( array(), $now )['ripe'], 'not ripe before the first run' );
 
+$__sw = (string) file_get_contents( dirname( __DIR__ ) . '/inc/security-watches.php' );
+ok( false === strpos( $__sw, 'user_login' ), 'watch notes never name an account by its login username (it may be the secret half of a credential)' );
 $root = dirname( __DIR__ );
 $watches = (string) file_get_contents( "$root/inc/watches.php" );
 foreach ( array( 'app_passwords', 'admin_2fa', 'guard_routes' ) as $id ) {
