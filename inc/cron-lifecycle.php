@@ -80,6 +80,7 @@ function sn_cron_hooks() {
 		SN_CF_PROBE_HOOK,
 		SN_CF_RETRY_HOOK,
 		SN_DOOR_LEAK_HOOK,
+		SN_CSP_HASH_HOOK, // daily strict-CSP inline-hash check.
 		SN_SEC_GUARD_ROUTES_HOOK,
 		SN_FI_HOOK,
 		SN_INBOUND_PASS_PUBLISH_HOOK,

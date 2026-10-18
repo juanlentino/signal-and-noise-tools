@@ -65,16 +65,16 @@ function sn_door_leak_contains( $text, $slug ) {
  * One fetch as a stranger: no cookies, no redirects followed.
  *
  * @param string $url Absolute URL.
- * @return array{ok:bool,body:string,headers:array}
+ * @return array{ok:bool,code:int,body:string,headers:array}
  */
 function sn_door_leak_fetch( $url ) {
 	$res = wp_remote_get( $url, array( 'timeout' => 10, 'redirection' => 0, 'cookies' => array(), 'user-agent' => 'sn-door-leak-check' ) );
 	if ( is_wp_error( $res ) ) {
-		return array( 'ok' => false, 'body' => '', 'headers' => array() );
+		return array( 'ok' => false, 'code' => 0, 'body' => '', 'headers' => array() );
 	}
 	$headers = wp_remote_retrieve_headers( $res );
 	$headers = is_object( $headers ) && method_exists( $headers, 'getAll' ) ? $headers->getAll() : (array) $headers;
-	return array( 'ok' => true, 'body' => (string) wp_remote_retrieve_body( $res ), 'headers' => $headers );
+	return array( 'ok' => true, 'code' => (int) wp_remote_retrieve_response_code( $res ), 'body' => (string) wp_remote_retrieve_body( $res ), 'headers' => $headers );
 }
 
 /**
