@@ -256,12 +256,16 @@ $fallback = sn_health_link_status( 'https://juanlentino.com/head_no' );
 hc_eq( 200, $fallback['code'], 'HEAD 405 falls back to GET 200' );
 hc_eq( true, $fallback['ok'], 'fallback 200 → ok=true' );
 
-// Network error → code=0, ok=false.
+// Network error → no answer is not a broken link: skipped, and never cached,
+// so the next scan asks again (2026-10-19: a live /servicios was flagged
+// "HTTP 0" for 24 hours after one failed request).
 $GLOBALS['__test_transients'] = array();
 $GLOBALS['__test_http_responses']['https://juanlentino.com/oops'] = new WP_Error( 'http_request_failed', 'connection refused' );
 $err = sn_health_link_status( 'https://juanlentino.com/oops' );
-hc_eq( false, $err['ok'], 'WP_Error → ok=false' );
+hc_eq( true, ! empty( $err['skipped'] ), 'WP_Error → skipped, not flagged' );
+hc_eq( 'no_answer', $err['reason'] ?? '', 'WP_Error → reason no_answer' );
 hc_eq( 0, $err['code'], 'WP_Error → code=0' );
+hc_eq( array(), $GLOBALS['__test_transients'], 'WP_Error → nothing cached, the next scan retries' );
 
 // ─── Test 3b: bot-challenge skip (v6.48.4) ────────────────────────────
 // A same-host link behind a Cloudflare challenge (403 + cf-mitigated:challenge)
