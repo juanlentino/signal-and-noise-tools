@@ -32,16 +32,30 @@ const SNT_EDGE_DASHBOARD_PATH_RE = '#^/(wp-admin/|openstation/|wp-json/(desktop-
  * Plugin and theme installs recorded on a UTC day (the rollup's day), from
  * the deploy history (inc/deploy-history.php). PURE.
  *
+ * The history keeps only the newest SNT_DEPLOY_HISTORY_MAX_ROWS installs. A
+ * full one does not reach back past its oldest row, and that row's own day may
+ * have lost rows to the cap, so any day up to it is unknown (null), never 0.
+ * Live 2026-10-19: 20 rows from 10-17 on, and 10-16 (about 12 releases) read 0.
+ *
  * @param string $day     YYYY-MM-DD.
  * @param array  $history Deploy history rows, each with an ISO `created_at`.
- * @return int
+ * @return int|null
  */
 function snt_desktop_edge_installs_on( $day, array $history ) {
-	$n = 0;
+	$n      = 0;
+	$oldest = '';
 	foreach ( $history as $row ) {
+		$at = is_array( $row ) ? substr( (string) ( $row['created_at'] ?? '' ), 0, 10 ) : '';
+		if ( '' !== $at && ( '' === $oldest || $at < $oldest ) ) {
+			$oldest = $at;
+		}
 		if ( is_array( $row ) && 0 === strpos( (string) ( $row['created_at'] ?? '' ), (string) $day ) ) {
 			++$n;
 		}
+	}
+	$cap = defined( 'SNT_DEPLOY_HISTORY_MAX_ROWS' ) ? (int) SNT_DEPLOY_HISTORY_MAX_ROWS : 20;
+	if ( count( $history ) >= $cap && '' !== $oldest && (string) $day <= $oldest ) {
+		return null;
 	}
 	return $n;
 }

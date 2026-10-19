@@ -60,7 +60,7 @@ function snt_edge_errors_local_output_schema() {
 			'type'       => 'object',
 			'properties' => array(
 				'day'       => array( 'type' => 'string' ),
-				'installs'  => array( 'type' => array( 'integer', 'null' ), 'description' => 'Plugin and theme installs recorded that UTC day (deploy history). Null: no history, unknown.' ),
+				'installs'  => array( 'type' => array( 'integer', 'null' ), 'description' => 'Plugin and theme installs recorded that UTC day (deploy history). Null: unknown, when there is no history or the day is not after the oldest row of a full (capped) one.' ),
 				'explained' => array( 'type' => array( 'boolean', 'null' ), 'description' => 'True when the installs account for every 5xx that day: each a 503 on the dashboard paths, at most ' . SNT_EDGE_5XX_PER_INSTALL . ' per install. Null when the day was not read or had none.' ),
 			),
 		),

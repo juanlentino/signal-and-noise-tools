@@ -65,6 +65,21 @@ $GLOBALS['__history'] = null;
 $out2 = snt_edge_errors_installs_by_day( sn_edge_errors_reading( 7 )['days'], null );
 ok( null === $out2[0]['installs'] && null === $out2[0]['explained'], 'without a history, installs and explained are null' );
 
+echo "\nGroup: a full deploy history does not reach back (2026-10-19)\n";
+// The history keeps the newest SNT_DEPLOY_HISTORY_MAX_ROWS (20) installs. Live
+// 2026-10-19: 1 + 13 + 6 rows filled it, and 10-16 (about 12 releases, and
+// every edit.php 500 of the week) read "0 installs" as a fact.
+$full = array();
+foreach ( array_merge( array( '2026-10-17T23:00:00Z' ), array_fill( 0, 13, '2026-10-18T12:00:00Z' ), array_fill( 0, 6, '2026-10-19T01:00:00Z' ) ) as $at ) {
+	$full[] = array( 'repo' => 'p', 'ref' => 'x', 'created_at' => $at );
+}
+ok( null === snt_desktop_edge_installs_on( '2026-10-16', $full ), 'a day before a full history\'s oldest row is unknown (null), not 0' );
+ok( null === snt_desktop_edge_installs_on( '2026-10-17', $full ), 'the oldest row\'s own day may have lost rows to the cap: unknown' );
+ok( 13 === snt_desktop_edge_installs_on( '2026-10-18', $full ), 'a day after the oldest row is whole: counted' );
+ok( 0 === snt_desktop_edge_installs_on( '2026-10-16', array_slice( $full, 0, 19 ) ), 'a history under the cap is complete, so 0 stays a real 0' );
+$rows = snt_edge_errors_installs_by_day( sn_edge_errors_reading( 7 )['days'], $full );
+ok( null === $rows[1]['installs'] && null === $rows[1]['explained'], 'installs_by_day: a day past the history reads null, with no verdict' );
+
 echo "\nGroup: local door only\n";
 $base  = snt_edge_errors_output_schema();
 $local = snt_edge_errors_local_output_schema();
