@@ -778,6 +778,7 @@ require_once SNT_PATH . 'inc/audit-log-export.php';  // v4.10.0: CSV/JSON export
 require_once SNT_PATH . 'inc/security-digest.php';   // v7.2.0: weekly security-digest email (LLAR A2) — deterministic, opt-in default OFF
 require_once SNT_PATH . 'inc/morning-brief.php';     // R6a: daily Operations brief over health, cron, uptime, deploys + drift
 require_once SNT_PATH . 'inc/alerts.php';            // Unreleased: what counts as a spike or a break, and the email (pure)
+require_once SNT_PATH . 'inc/alerts-automated.php';  // Unreleased: how much of a spiking path the beacon score marks likely automated (inferred, never subtracted)
 require_once SNT_PATH . 'inc/alerts-cron.php';       // Unreleased: the hourly evaluation over stored rows; mails once per alert per day
 require_once SNT_PATH . 'inc/alerts-watch.php';      // Unreleased: the alerts_fired watch, the agent-readable twin of the email
 require_once SNT_PATH . 'inc/alerts-notice.php';     // Unreleased: the alert headline for the app (wp.os.notify), and its REST read

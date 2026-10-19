@@ -23,7 +23,7 @@ function is_email( $e ) { return false !== strpos( $e, '@' ); }
 function get_bloginfo() { return 'Test Site'; }
 function wp_specialchars_decode( $v ) { return $v; }
 function admin_url() { return 'https://example.test/wp-admin/'; }
-$GLOBALS['ids'] = array( '/notes/a/' => 11, '/notes/b/' => 12, '/notes/draft/' => 13 );
+$GLOBALS['ids'] = array( '/notes/a/' => 11, '/notes/b/' => 12, '/notes/draft/' => 13, '/a/' => 21, '/b/' => 22, '/c/' => 23, '/d/' => 24 ); // a spike, like a break, needs a real page
 function apply_filters( $h, $v ) { return $v; }
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function url_to_postid( $u ) { return $GLOBALS['ids'][ substr( $u, 20 ) ] ?? 0; }
@@ -76,12 +76,12 @@ ok( 'snt_alerts_is_real_page' === snt_alerts_gather( 0 )['real'], 'the hourly ga
 echo "\nOnce per key per day\n";
 $sent = array( 'spike|/a/|2026-10-03' => 100 );
 ok( array() === $eval( array( 'views' => array( '/a/' => 30 ), 'history' => array(), 'sent' => $sent ) ), 'a key already sent today is not due again' );
-ok( array( 'spike|/a/|2026-10-04' ) === $keys( snt_alerts_evaluate( array( 'today' => '2026-10-04', 'views' => array( '/a/' => 30 ), 'sent' => $sent ), $T ) ), 'the same path on the next day is a new key' );
+ok( array( 'spike|/a/|2026-10-04' ) === $keys( snt_alerts_evaluate( array( 'today' => '2026-10-04', 'views' => array( '/a/' => 30 ), 'sent' => $sent, 'real' => '__return_true_t' ), $T ) ), 'the same path on the next day is a new key' );
 $now = strtotime( '2026-10-03 12:00:00 UTC' );
 ok( array( 'new' => $now - 13 * 86400 ) === snt_alerts_prune( array( 'old' => $now - 15 * 86400, 'new' => $now - 13 * 86400 ), $now ), 'stamps older than 14 days are dropped, so the option stays bounded' );
 
 echo "\nThe email\n";
-$msg = snt_alerts_compose( array_merge( $eval( array( 'views' => array( "/a/\r\nBcc: x@y" => 36 ), 'history' => array(), 'errors' => $errs ) ) ), sn_analytics_top_sources(), 'Test Site', 'https://example.test/wp-admin/admin.php?page=sn-analytics' );
+$msg = snt_alerts_compose( array_merge( $eval( array( 'views' => array( "/a/\r\nBcc: x@y" => 36 ), 'history' => array(), 'errors' => $errs, 'real' => static fn( $p ) => '/notes/b/' !== $p ) ) ), sn_analytics_top_sources(), 'Test Site', 'https://example.test/wp-admin/admin.php?page=sn-analytics' );
 ok( '[Test Site] Alert: 1 spike, 1 break' === $msg[0], 'the subject counts what fired' );
 ok( false !== strpos( $msg[1], 'has 36 human views today (2026-10-03). The prior 7-day mean is 0 a day; the alert line is more than 15.' ), 'a spike line carries the number, the baseline and the line' );
 ok( false !== strpos( $msg[1], 'BREAK: /notes/a/ answered a server error 3 times on 2026-10-02 (UTC)' ) && false !== strpos( $msg[1], 'Who asked was not stored per path for this day, so every error counted.' ), 'a break line carries the page, the count and the day; with no stored detail it says every error counted' );

@@ -69,7 +69,7 @@ ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/hn-mentions
 
 echo "\nThe alerts\n";
 $T    = snt_alerts_thresholds();
-$eval = static fn( $in ) => snt_alerts_evaluate( $in + array( 'today' => '2026-10-03', 'excluded' => null, 'real' => null, 'hn_since' => $now - 86400 ), $T );
+$eval = static fn( $in ) => snt_alerts_evaluate( $in + array( 'today' => '2026-10-03', 'excluded' => null, 'real' => static fn() => true, 'hn_since' => $now - 86400 ), $T );
 $new  = array( 'id' => 1, 'path' => '/notes/a/', 'title' => 'Story 1', 'created' => $now - 3600, 'first_seen' => $now, 'points' => 14, 'comments' => 3, 'rank' => 0 );
 $a    = $eval( array( 'hn' => array( 1 => $new ) ) );
 ok( array( 'hn_new|/notes/a/|hn1' ) === array_column( $a, 'key' ), 'a young story just found is news, keyed on its id' );

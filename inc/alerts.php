@@ -65,7 +65,7 @@ function snt_alerts_clean( $text ) {
  *     cache    array|null           A cache call nothing could retry (sn_cf_purge_failure()).
  *     hn       array                Hacker News stories for this site (sn_hn_refresh()).
  *     hn_since int                  A story first seen at or after this is news.
- *     real     callable|null        Whether a path is a real page (home, published content, a known archive). Without it no break fires.
+ *     real     callable|null        Whether a path is a real page (home, published content, a known archive). Without it no break and no path spike fires.
  * }
  * @param array<string,float> $t Thresholds, from snt_alerts_thresholds().
  * @return array<int,array<string,mixed>> Each: key, kind, path, day, value, baseline, line.
@@ -103,7 +103,10 @@ function snt_alerts_evaluate( array $in, array $t ) {
 		$total += (int) $n;
 		$mean   = (int) ( $history[ $path ] ?? 0 ) / SNT_ALERT_BASE_DAYS;
 		$line   = max( $t['path_floor'], $t['path_ratio'] * $mean );
-		if ( (int) $n > $line ) {
+		// Only a REAL page spikes, like a break below (2026-10-18: a 404 the
+		// owner's own sweep walked mailed a spike). Its views still count
+		// toward the site total above.
+		if ( (int) $n > $line && is_callable( $real ) && call_user_func( $real, $path ) ) {
 			$story = $hn_by_path[ '/' . trim( $path, '/' ) ] ?? null;
 			$add( 'spike', $path, $today, (int) $n, round( $mean, 1 ), $line, $story ? array( 'hn' => $story ) : array() );
 		}
@@ -281,6 +284,10 @@ function snt_alerts_compose( array $alerts, $sources, $site, $where ) {
 		++$spikes;
 		$lines[] = sprintf( 'SPIKE: %s has %d human views today (%s). The prior 7-day mean is %s a day; the alert line is more than %s.', 'spike_site' === $a['kind'] ? 'the whole site' : $path, $a['value'], $a['day'], $a['baseline'], round( $a['line'], 1 ) )
 			. ( ! empty( $a['hn'] ) && function_exists( 'sn_hn_line' ) ? ' On Hacker News: ' . sn_hn_line( (array) $a['hn'] ) . '.' : '' );
+		$auto = function_exists( 'snt_alerts_automated_line' ) ? snt_alerts_automated_line( $a ) : '';
+		if ( '' !== $auto ) {
+			$lines[] = $auto;
+		}
 	}
 	$body = "Signal & Noise alert\n\n" . implode( "\n", $lines ) . "\n";
 	if ( $spikes > 0 ) {
