@@ -84,6 +84,9 @@ function sn_cf_edge_card_render() {
 	} else {
 		wp_admin_notice( esc_html( 'Zone analytics could not be read: ' . (string) ( $z['error'] ?? '' ) ), array( 'type' => 'error', 'additional_classes' => array( 'inline' ) ) );
 	}
+	if ( function_exists( 'sn_cf_workers_card_render' ) ) {
+		sn_cf_workers_card_render( $record );
+	}
 	sn_cf_readings_refresh_form( $record );
 	echo '</div>';
 }
