@@ -16,7 +16,7 @@ namespace {
 	$GLOBALS['__report'] = null;
 	function snt_ml_reader_anomalies() { return $GLOBALS['__report']; }
 	function sn_edge_config() { return true; }
-	foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'machine-readers-insights', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-basis-fold', 'machine-readers-ledger', 'mr-series', 'ml-reader-anomalies-split', 'machine-readers-readers-model', 'machine-readers-evidence-model', 'evidence-kit', 'evidence-paint-surface', 'evidence-paint-readers', 'evidence-paint-charts', 'evidence-paint-tiles', 'analytics-panels', 'evidence-paint-actors', 'evidence-paint-anomalies', 'evidence-paint-reference', 'evidence-paint-rights', 'analytics-machine-views', 'analytics-view-machine-readers', 'analytics-view-reader-evidence', 'analytics-admin', 'analytics-likely-automated' ) as $f ) {
+	foreach ( array( 'machine-readers-taxonomy', 'machine-readers-render', 'machine-readers-insights', 'rights-evidence-compose', 'machine-readers-basis', 'machine-readers-basis-fold', 'machine-readers-ledger', 'mr-series', 'ml-reader-anomalies-split', 'machine-readers-readers-model', 'machine-readers-evidence-model', 'evidence-kit', 'evidence-paint-surface', 'evidence-paint-readers', 'evidence-paint-charts', 'evidence-paint-tiles', 'analytics-panels', 'evidence-paint-actors', 'evidence-paint-anomalies', 'evidence-paint-reference', 'evidence-paint-rights', 'machine-readers-resume', 'analytics-machine-views', 'analytics-view-machine-readers', 'analytics-view-reader-evidence', 'analytics-admin', 'analytics-likely-automated' ) as $f ) {
 		require_once SNT_PATH . "inc/$f.php";
 	}
 }
@@ -119,6 +119,7 @@ namespace {
 	$finding = '2,154 reads claimed AI training; 170 presented Google-Extended, a control token credited to no vendor, leaving 1,984; Cloudflare verified 25, all from Anthropic, PBC.';
 	ok( $finding === snt_mr_ai_finding( $rows ), 'the sentence: ' . snt_mr_ai_finding( $rows ) );
 	foreach ( $both( 'machine-readers' ) as $s => $h ) {
+		ok( false !== strpos( $h, 'No reader fetched the résumé in this window.' ) && false !== strpos( $h, 'People who downloaded the PDF: not measured.' ), "machine-readers ($s): the Résumé panel paints, machines and people" );
 		ok( false !== strpos( $h, esc_html( $finding ) ), "machine-readers ($s): the finding leads the view" );
 		ok( false !== strpos( $h, 'How each count is known: Reader evidence' ), "machine-readers ($s): a visible-text link to Reader evidence" );
 	}

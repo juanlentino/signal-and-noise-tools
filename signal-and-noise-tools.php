@@ -409,6 +409,7 @@ require_once SNT_PATH . 'inc/evidence-paint-reference.php';
 require_once SNT_PATH . 'inc/evidence-paint-rights.php';
 require_once SNT_PATH . 'inc/evidence-paint-charts.php'; // reads per day, verified-share bars (2026-10-11).
 require_once SNT_PATH . 'inc/evidence-paint-tiles.php'; // Reader evidence tiles, movers, control tokens.
+require_once SNT_PATH . 'inc/machine-readers-resume.php'; // The Résumé panel on Machine readers: reads per format (the sensor's resume surface), beside people who downloaded the PDF.
 require_once SNT_PATH . 'inc/analytics-machine-views.php'; // S&N Analytics: Machine readers and Reader evidence, composed for both surfaces.
 require_once SNT_PATH . 'inc/analytics-view-machine-readers.php';
 require_once SNT_PATH . 'inc/analytics-view-reader-evidence.php';

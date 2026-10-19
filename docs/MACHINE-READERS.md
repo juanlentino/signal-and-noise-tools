@@ -262,7 +262,7 @@ survives can carry markup even before escaping.
   Better Stack monitor was 6,403 of 17,463 reads (37%): the site measuring
   itself rather than readership. Purpose totals exclude it and say so.
 
-**11 surface classes** (`snt_mr_valid_surfaces()`), coarse on purpose so that no
+**12 surface classes** (`snt_mr_valid_surfaces()`), coarse on purpose so that no
 full path is ever stored:
 
 | Surface | Matches |
@@ -276,6 +276,7 @@ full path is ever stored:
 | `feed` | the feed routes |
 | `wp-json` | the REST surface |
 | `sitemap` | any path containing `sitemap` |
+| `resume` | the résumé's format files: `/resume.md`, `/cv.md`, `/resume/json-resume.json`, `/cv/json-resume.json`, `/resume/contact.vcf`, a PDF under `/wp-content/uploads/resume/`, and the `/resume.json` and `/cv.json` page twins. Not a rights surface. The format rides `resume_format` (blob17): `md`, `json`, `vcf`, `pdf`, `twin`, and `html` or `md` for a read of the `/resume/` or `/cv/` page, which stays `html`. The Machine readers view paints it as the Résumé panel, beside the people who downloaded the PDF |
 | `asset` | `/wp-content/`, `/wp-includes/` |
 | `html` | everything else |
 

@@ -83,7 +83,7 @@ ok( array_slice( $fams, 0, 18 ) === array(
 ), 'the 18 frozen families are byte-identical and in their original order' );
 ok( 'unclassified-machine' === $fams[18], 'the additive family is appended last' );
 $surf = snt_mr_valid_surfaces();
-ok( 11 === count( $surf ) && in_array( 'rights', $surf, true ) && in_array( 'html', $surf, true ), '11 surfaces incl rights + html' ); // v12.15.0: +agent-discovery
+ok( 12 === count( $surf ) && in_array( 'rights', $surf, true ) && in_array( 'html', $surf, true ), '12 surfaces incl rights + html' ); // v12.15.0: +agent-discovery; +resume
 ok( in_array( 'agent-discovery', $surf, true ) && ! in_array( 'agent-discovery', snt_mr_rights_surfaces(), true ), 'agent-discovery is a valid surface but NOT a rights surface' );
 
 echo "\nGroup: snt_mr_normalize_rows — worker values are untrusted\n";

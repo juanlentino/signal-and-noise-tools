@@ -88,7 +88,7 @@ function snt_nsm_is_core( $path, array $prefixes ) {
  * Tally visits into distinct visitor-days: readers, deep readers (two or more
  * core pages read), visitors who reached /resume or /contact, and visitors
  * who took a deliberate action (a tracked `download` or `outbound` event),
- * plus four named goals: a resume PDF download (a `download` on /resume), a
+ * plus four named goals: a resume PDF download (a `download` on /resume or /cv), a
  * feed subscribe click (`subscribe`) and a share (`share_copy` or
  * `share_native`, fired by the theme's share row), and a signature check
  * (`verify`, the note's provenance chip).
@@ -111,7 +111,7 @@ function snt_nsm_tally( array $visits, array $cfg ) {
 			if ( in_array( $ce, array( 'download', 'outbound' ), true ) ) {
 				$acted[ $vid ] = true;
 			}
-			if ( 'download' === $ce && 1 === preg_match( '#^/resume(/|$)#', $p ) ) {
+			if ( 'download' === $ce && 1 === preg_match( '#^/(resume|cv)(/|$)#', $p ) ) {
 				$goals['resume_downloads'][ $vid ] = true;
 			} elseif ( 'subscribe' === $ce ) {
 				$goals['subscribes'][ $vid ] = true;

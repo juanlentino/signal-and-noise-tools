@@ -174,6 +174,9 @@ function snt_mr_normalize_taxonomy_fields( $row ) {
 		// stamped at read time from the taxonomy's home_networks.
 		'vendor_verified'        => snt_mr_normalize_tristate( $row['vendor_verified'] ?? null ),
 		'home_network'           => snt_mr_normalize_tristate( $row['home_network'] ?? null ),
+		// rights-signals #100: blob17, which résumé format a read took. '' is
+		// not a résumé read, or a row from before the column existed.
+		'resume_format'          => in_array( $row['resume_format'] ?? null, array( 'html', 'md', 'json', 'vcf', 'pdf', 'twin' ), true ) ? $row['resume_format'] : '',
 	);
 }
 

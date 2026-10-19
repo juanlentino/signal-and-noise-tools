@@ -67,6 +67,8 @@ $g = snt_nsm_tally( array(
 	array( $ev( 'h', 'ce', '/notes/x/', array( 'ce' => 'share_copy' ) ), $ev( 'k', 'ce', '/notes/y/', array( 'ce' => 'share_native' ) ) ),
 ), $cfg );
 ok( 1 === $g['resume_downloads'], 'a download on /resume is a resume download, twice in a day counts once; a PDF elsewhere is not' );
+$cv = snt_nsm_tally( array( array( $ev( 'c', 'ce', '/cv/', array( 'ce' => 'download' ) ) ), array( $ev( 'd', 'ce', '/cvx/', array( 'ce' => 'download' ) ) ) ), $cfg );
+ok( 1 === $cv['resume_downloads'], 'a download on /cv, the Spanish résumé, is a resume download too; /cvx is not' );
 ok( 1 === $g['subscribes'], 'a subscribe click counts' );
 ok( 1 === $g['verifies'], 'a signature check from the provenance chip counts' );
 ok( 2 === $g['shares'], 'Copy link and the share sheet both count as shares' );
