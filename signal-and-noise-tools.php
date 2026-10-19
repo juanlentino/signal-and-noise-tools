@@ -439,6 +439,8 @@ require_once SNT_PATH . 'inc/search-console-sync.php';      // R6b close: the sc
 require_once SNT_PATH . 'inc/search-console-derive.php';    // Items 2+3: position drift + search interest by topic (derived, read-only).
 require_once SNT_PATH . 'inc/search-console-crossexam.php';
 require_once SNT_PATH . 'inc/search-console-coverage-history.php'; // one summary reading per weekly coverage run, capped at two years.
+require_once SNT_PATH . 'inc/search-console-sitemaps.php'; // the sitemaps report, read at the end of the weekly coverage run.
+require_once SNT_PATH . 'inc/search-console-index-watch.php'; // index_gap: a published note or page not indexed after 14 days.
 require_once SNT_PATH . 'inc/search-console-coverage.php';  // v13.63.0: weekly URL Inspection per post — the indexed-vs-unseen discriminator; stored, never live.  // R6b: GSC x crawler-ledger agreement check.
 require_once SNT_PATH . 'inc/analytics-view-search.php';     // R6b: the Search analytics view (its own tab).      // R6b: the path-keyed rolling window the analytics views join against.
 require_once SNT_PATH . 'inc/search-console-admin.php';      // R6b: Measurement -> Search Console leaf.
@@ -469,6 +471,7 @@ require_once SNT_PATH . 'inc/abilities-collector-status.php';
 require_once SNT_PATH . 'inc/abilities-content-queue.php'; // 15.8.0: the content_queue read behind the SN Queue widget.
 require_once SNT_PATH . 'inc/zenodo-client.php';   // 15.11.0: the Zenodo deposit API (bearer, two environments).
 require_once SNT_PATH . 'inc/bing-webmaster.php';  // 16.2.0: Bing Webmaster Tools (the key, the daily sync, the stored reading).
+require_once SNT_PATH . 'inc/bing-url-info.php';   // Bing's GetUrlInfo for the URLs Google has not indexed, weekly.
 require_once SNT_PATH . 'inc/abilities-bing.php';  // 16.2.0: bing-search-performance.
 require_once SNT_PATH . 'inc/analytics-view-search-bing.php'; // 16.2.0: the Bing panel of S&N Analytics › Search.
 require_once SNT_PATH . 'inc/analytics-view-search-fit.php';  // 16.5.0: the query-fit band of S&N Analytics › Search.

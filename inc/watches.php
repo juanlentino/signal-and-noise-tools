@@ -238,6 +238,16 @@ function snt_watches() {
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_public_stats_machines',
 		),
+		// 2026-10-19: a published note or page Google has not indexed past 14 days.
+		array(
+			'id'        => 'index_gap',
+			'label'     => 'a published note or page is not indexed after 14 days',
+			'why'       => 'Read from the weekly URL Inspection map, never a live inspection. 14 days is one weekly run past the day-10 single inspection, so Google has had its own second look. The note lists each path with Google\'s state, the days since publish, whether Bing crawled it (Google-only gap or both engines) and a direct URL Inspection link: the API cannot request indexing, so open the link and click Request indexing. Pages excluded by noindex and tag archives never count. Clears when the weekly run reads the page indexed.',
+			'read'      => 'signal-noise/search-coverage{not_indexed_paths}',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_index_gap',
+		),
 		array(
 			'id'        => 'wave4_telemetry',
 			'label'     => 'wave-4 tool retirement read',

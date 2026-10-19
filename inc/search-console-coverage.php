@@ -246,6 +246,12 @@ function snt_gsc_coverage_sync( $force = false ) {
 	if ( function_exists( 'snt_gsc_coverage_history_record' ) ) {
 		snt_gsc_coverage_history_record( $payload ); // the run's reading is kept, not overwritten.
 	}
+	if ( function_exists( 'snt_gsc_sitemaps_sync' ) ) {
+		snt_gsc_sitemaps_sync( $property ); // one sitemaps.list read per run.
+	}
+	if ( function_exists( 'sn_bing_url_info_sync' ) ) {
+		sn_bing_url_info_sync( $payload ); // Bing's view of the not-indexed set, bounded.
+	}
 	$finished = time();
 	update_option( SNT_GSC_COVERAGE_STATUS, array( 'started_at' => $started, 'finished_at' => $finished, 'elapsed' => $finished - $started, 'ok' => true, 'targets' => count( $targets ), 'inspected' => count( $entries ), 'errors' => $errors, 'skipped' => $skipped ), false );
 	return $payload;
@@ -278,9 +284,10 @@ function snt_gsc_coverage_for_path( $path ) {
  *
  * @param array|null $d       snt_gsc_coverage_data().
  * @param array|null $inbound v13.65.0: snt_ml_inbound_by_path(); null = not computed (rows carry inbound_links:null).
+ * @param array|null $bing    sn_bing_url_info_data(); rows carry `bing` in plain words, null when Bing was not asked.
  * @return array
  */
-function snt_gsc_coverage_summary( $d, $inbound = null ) {
+function snt_gsc_coverage_summary( $d, $inbound = null, $bing = null ) {
 	if ( ! is_array( $d ) ) {
 		return array( 'synced' => false, 'complete' => false, 'inspected' => 0, 'indexed' => 0, 'not_indexed' => 0, 'unknown' => 0, 'errors' => 0, 'by_coverage_state' => array(), 'not_indexed_paths' => array(), 'canonical_mismatch' => array() );
 	}
@@ -306,6 +313,8 @@ function snt_gsc_coverage_summary( $d, $inbound = null ) {
 				'verdict'         => (string) ( $e['verdict'] ?? '' ),
 				// v13.65.0: how many OTHER published notes link here. null = not computed.
 				'inbound_links'   => is_array( $inbound ) ? (int) ( $inbound[ (string) $path ]['inbound'] ?? 0 ) : null,
+				'url'             => (string) ( $e['url'] ?? '' ),
+				'bing'            => function_exists( 'sn_bing_url_info_label' ) ? sn_bing_url_info_label( is_array( $bing ) ? ( $bing[ (string) $path ] ?? null ) : null ) : null,
 			);
 		} else {
 			$unk++;

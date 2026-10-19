@@ -102,6 +102,23 @@ function gsc_coverage_history_section() {
 }
 
 /**
+ * The sitemaps report in plain words. Classic twin: snt_gsc_sitemaps_render_classic().
+ *
+ * @return string
+ */
+function gsc_sitemaps_section() {
+	if ( ! function_exists( 'snt_gsc_sitemaps_view' ) ) {
+		return '';
+	}
+	$v     = \snt_gsc_sitemaps_view( \snt_gsc_sitemaps_data() );
+	$inner = '<p class="snt-prose">' . \snt_kit_esc( $v['note'] ) . '</p>';
+	foreach ( $v['lines'] as $line ) {
+		$inner .= '<p class="snt-prose">' . \snt_kit_esc( $line ) . '</p>';
+	}
+	return \snt_kit_section( __( 'Sitemaps', 'signal-and-noise-tools' ), $inner );
+}
+
+/**
  * @param array<string,mixed> $ctx Frame context.
  * @return string
  */
@@ -161,7 +178,8 @@ function paint_view_search( array $ctx ) {
 		. gsc_metric_table( __( 'Top queries', 'signal-and-noise-tools' ), $queries, __( 'No queries in this Search Console window.', 'signal-and-noise-tools' ) )
 		. gsc_metric_table( __( 'Top pages', 'signal-and-noise-tools' ), $pages, __( 'No pages in this Search Console window.', 'signal-and-noise-tools' ) )
 		. '</div>'
-		. gsc_coverage_history_section();
+		. gsc_coverage_history_section()
+		. gsc_sitemaps_section();
 }
 
 add_filter(
