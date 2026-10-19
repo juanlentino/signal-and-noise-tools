@@ -56,7 +56,11 @@ function snt_mr_valid_surfaces() {
 	// standard agent-discovery documents (MCP server card, RFC 9727 api-catalog,
 	// ARD ai-catalog) out of the generic 'well-known' class. Mirror rule: this
 	// list must match src/machine-readers.mjs classifySurface() exactly.
-	return array( 'robots', 'rights', 'llms', 'agents-manifest', 'agent-discovery', 'well-known', 'feed', 'wp-json', 'sitemap', 'asset', 'html' );
+	// ADDITIVE: 'resume' — the Worker (rights-signals #100) split the résumé's
+	// format files (/resume.md, the JSON Resume, the vCard, the résumé PDF, the
+	// /resume.json and /cv.json twins) out of 'html' and 'asset'. Not a rights
+	// surface. Its format rides blob17, resume_format.
+	return array( 'robots', 'rights', 'llms', 'agents-manifest', 'agent-discovery', 'well-known', 'feed', 'wp-json', 'sitemap', 'resume', 'asset', 'html' );
 }
 
 /**

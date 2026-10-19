@@ -71,6 +71,10 @@ function snt_mr_view_data( $days, $evidence = false ) {
 	$d['feed']    = $feed;
 	$d['rights']  = ! empty( $rights['ok'] ) ? (array) $rights['rows'] : null;
 	$d['cards']   = null !== $win && function_exists( 'snt_mr_family_delta_cards' ) ? snt_mr_family_delta_cards( $win['current'] ?? array(), $win['prior'] ?? array(), max( 1, intdiv( $days, 2 ) ) ) : array();
+	// People beside the machines on the Résumé panel: the North Star's 7-day
+	// résumé PDF downloads (cached an hour), null when analytics is not read.
+	$nsm             = function_exists( 'snt_nsm_reading' ) ? snt_nsm_reading() : null;
+	$d['resume_people'] = is_array( $nsm ) && ! empty( $nsm['configured'] ) ? (int) ( $nsm['layers']['intent']['resume_downloads']['value'] ?? 0 ) : null;
 	$d['hero']    = snt_mr_hero_figures( $rows, $days, isset( $feed['windows'][30]['total'] ) ? (int) $feed['windows'][30]['total'] : null, isset( $read['webmcp']['calls'] ) ? (int) $read['webmcp']['calls'] : null );
 	return $d;
 }
@@ -107,6 +111,7 @@ function snt_mr_view_machine_readers_html( array $d, $surface, array $links ) {
 		. snt_ev_share_key()
 		. snt_ev_pair( $surface, snt_ev_paint_who_reads( $who, $surface ), snt_ev_paint_what_for( $what, $surface ), array( count( $who['rows'] ) + 1, count( (array) $what['rows'] ) ) )
 		. snt_ev_paint_rights( $d['rights'], $surface )
+		. ( function_exists( 'snt_mr_paint_resume' ) ? snt_mr_paint_resume( $d['rows'], $d['resume_people'] ?? null, $surface ) : '' )
 		. snt_ev_pair( $surface, snt_ev_paint_feeds( $d['feed'], $surface ), $ref['both'] )
 		. snt_ev_pair( $surface, $ref['observed'], $ref['surfaces'], array( $ref['rows']['observed'], $ref['rows']['surfaces'] ) )
 		. $ref['pairs'] . ( $links['config'] ?? '' );
