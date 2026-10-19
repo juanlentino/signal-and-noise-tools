@@ -189,6 +189,10 @@ $en3 = $en; $en3['pdf']['email'] = ''; $en3['pdf']['headline'] = '';
 $b3 = sn_jsonresume_build( $en3, $ctx )['basics'];
 ok( ! isset( $b3['email'] ) && ! isset( $b3['label'] ), 'blank fields are omitted, never empty strings' );
 ok( null === sn_jsonresume_build( null, $ctx ), 'no document, no résumé' );
+$en4 = $en; $en4['stats'] = array( array( 'n' => '15+', 'label' => 'years' ), array( 'n' => '', 'label' => 'blank' ), array( 'n' => '110', 'label' => 'tracks' ) );
+ok( array( array( 'n' => '15+', 'label' => 'years' ), array( 'n' => '110', 'label' => 'tracks' ) ) === ( sn_jsonresume_build( $en4, $ctx )['meta']['x-highlights'] ?? null ), 'meta: the stats strip as x-highlights, blank stats dropped' );
+$en5 = $en; $en5['stats'] = array();
+ok( ! isset( sn_jsonresume_build( $en5, $ctx )['meta']['x-highlights'] ), 'no stats, no x-highlights' );
 
 echo "\nTest: the Spanish résumé\n";
 $es  = sn_resume_lang( 'es' ) ? sn_resume_es_merge( json_decode( (string) file_get_contents( __DIR__ . '/../inc/seed-content/resume-data-es.json' ), true ), $en, '' ) : null;
