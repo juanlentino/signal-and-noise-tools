@@ -675,7 +675,8 @@
 			window.clearTimeout( timer );
 			if ( torn || document.hidden ) { return; }
 			var wait = window.sntPollCadence ? window.sntPollCadence.wait( REFRESH_MS ) : REFRESH_MS;
-			timer = window.setTimeout( background, Math.max( 0, lastLoadAt + wait - Date.now() ) );
+			var C = window.sntPollCadence, due = Math.max( 0, lastLoadAt + wait - Date.now() );
+			timer = window.setTimeout( background, C && C.jitter ? C.jitter( due ) : due );
 		}
 		function onVisibilityChange() {
 			if ( document.hidden ) { window.clearTimeout( timer ); return; }

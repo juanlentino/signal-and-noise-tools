@@ -12,7 +12,8 @@
  *   hidden   -> paused; back in view or in focus, read at once
  *
  * The first answer is the baseline and fires nothing. A failure doubles the
- * wait up to 5 min. No subscriber, no request.
+ * wait up to 5 min. A moved stamp wakes each subscriber after its own jitter
+ * (0 to 5 s). No subscriber, no request.
  *
  *   var off = window.sntPulse.on( 'content', refresh ); // off() unsubscribes
  *
@@ -50,11 +51,16 @@
 		timer = window.setTimeout( read, wait() );
 	}
 
+	// Each subscriber wakes after its own jitter, so a moved stamp does not
+	// send every widget's read to the origin in the same instant.
 	function fire( stamps ) {
+		var C = window.sntPollCadence;
 		Object.keys( subs ).forEach( function ( key ) {
 			if ( last && stamps[ key ] !== last[ key ] ) {
 				subs[ key ].slice().forEach( function ( cb ) {
-					try { cb(); } catch ( e ) {}
+					window.setTimeout( function () {
+						try { cb(); } catch ( e ) {}
+					}, C && C.jitter ? C.jitter( 0 ) : 0 );
 				} );
 			}
 		} );

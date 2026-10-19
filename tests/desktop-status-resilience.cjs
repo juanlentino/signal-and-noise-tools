@@ -63,7 +63,9 @@ function harness(extraData, opts) {
     removeEventListener(t, fn) { listeners.set(t, (listeners.get(t) || []).filter(f => f !== fn)); },
     dispatch(t) { (listeners.get(t) || []).forEach(fn => fn()); } };
   class Clock extends Date { constructor(...a) { super(...(a.length ? a : [now])); } static now() { return now; } }
-  const context = vm.createContext({window, document, Date: Clock, Promise, Error, Math, Number, Array, Object, AbortController});
+  // Zero jitter (assets/snt-poll-cadence.js): the fixtures pin exact waits.
+  const NoJitterMath = Object.create(Math); NoJitterMath.random = () => 0;
+  const context = vm.createContext({window, document, Date: Clock, Promise, Error, Math: NoJitterMath, Number, Array, Object, AbortController});
   // The card kit only where a fixture asks: its bars and dots are spans the
   // fake textContent joins with spaces, which would move every other regex.
   for (const name of [...((opts && opts.kit) ? ['desktop-mode-card-kit.js'] : []), ...((opts && opts.calendar) ? ['desktop-mode-queue-calendar.js'] : []), 'snt-poll-cadence.js', 'snt-ability-run.js', 'desktop-mode-widget.js', 'desktop-mode-widget-health.js',
@@ -980,6 +982,8 @@ async function run() {
     await x.tick(70000);
     x.calls[8].reject({code: 'sn_mcp_read_rate_limited', message: 'Rate limited', data: {status: 429}}); await flush();
     assert.match(root.textContent, /Couldn.t read the queue: Rate limited \(HTTP 429\); showing the /, 'a refusal from the site is passed through in its own words, not "did not answer"');
+    // 2026-10-19: a second failed read doubles the wait (120 s), as the siblings do.
+    await x.tick(60000); assert.equal(x.calls.length, 9, 'a second failure is not retried at the 60 s rate');
     await x.tick(60000);
     x.calls[9].resolve({next: [], published: [], drafts: 2}); await flush();
     assert.doesNotMatch(root.textContent, /0 scheduled|showing the/, 'a payload without a scheduled count is not painted as 0, and a good read clears the line');

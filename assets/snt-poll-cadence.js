@@ -140,5 +140,23 @@
 		return brief( err ) && tries < BRIEF_MS.length ? BRIEF_MS[ tries ] : 0;
 	}
 
-	window.sntPollCadence = { IDLE_MS: IDLE_MS, BRIEF_TEXT: 'Updating, retrying.', state: state, wait: wait, onFocusChange: onFocusChange, brief: brief, briefWait: briefWait };
+	/*
+	 * Jitter (2026-10-19). On reveal or focus return every stale widget used to
+	 * re-arm at 0 ms in the same tick, and the pulse woke its subscribers in one
+	 * call: the desktop reached the origin's small PHP pool all at once, and the
+	 * edge logged 503s on the pulse, the machine readers and the deploy and
+	 * anchor runs. Each wait now gets 0 to SPREAD_MS added. Added, not scaled:
+	 * the herd is the 0 ms wait.
+	 */
+	var SPREAD_MS = 5000;
+
+	/**
+	 * @param {number} ms
+	 * @return {number} ms plus 0 to SPREAD_MS.
+	 */
+	function jitter( ms ) {
+		return ms + Math.floor( Math.random() * SPREAD_MS );
+	}
+
+	window.sntPollCadence = { IDLE_MS: IDLE_MS, SPREAD_MS: SPREAD_MS, BRIEF_TEXT: 'Updating, retrying.', state: state, wait: wait, onFocusChange: onFocusChange, brief: brief, briefWait: briefWait, jitter: jitter };
 }() );

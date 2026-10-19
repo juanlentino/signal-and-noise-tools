@@ -115,7 +115,7 @@ foreach ( array( 'desktop-mode-widget-queue.js' ) as $name ) {
 	$js = $code[ $name ];
 	ok( false !== strpos( $js, "document.addEventListener( 'visibilitychange', onVisibilityChange )" ) && false !== strpos( $js, "document.removeEventListener( 'visibilitychange', onVisibilityChange )" ), "$name listens on visibilitychange and drops the listener at teardown" );
 	ok( false !== strpos( $js, 'if ( document.hidden ) { stopPolling(); return; }' ), "$name stops its interval when the tab hides" );
-	ok( false !== strpos( $js, 'if ( Date.now() - lastRunMs >= REFRESH_MS ) { poll(); }' ), "$name catches up on reveal only when the data went stale" );
+	ok( false !== strpos( $js, 'if ( Date.now() - lastRunMs >= backoff( REFRESH_MS ) && ! retryTimer ) {' ), "$name catches up on reveal only when the data went stale (and its backoff ran out)" );
 	ok( false === strpos( $js, 'window.setInterval( refresh, REFRESH_MS )' ), "$name runs no bare interval" );
 }
 ok( false === strpos( $code['desktop-mode-widget-queue.js'], "'focus'" ), 'the queue card no longer refreshes on every window focus (reveal-when-stale covers it)' );

@@ -348,6 +348,7 @@
 		// a miss that took the error path, after which none is brief until a good read.
 		var brief = 0;
 		var broken = false;
+		var failures = 0; // failed reads since the last good one: the wait doubles, capped at 15 min
 		var retryTimer = 0;
 		// The selected calendar day, kept across the 60s repaints so a tap
 		// is not reset by the next poll.
@@ -366,6 +367,7 @@
 
 		function fail( message ) {
 			broken = true;
+			failures++;
 			if ( ! lastData ) {
 				renderError( container, message );
 				return;
@@ -411,6 +413,7 @@
 					if ( data && typeof data === 'object' && ( Array.isArray( data.next ) || Array.isArray( data.published ) ) ) {
 						brief      = 0;
 						broken     = false;
+						failures   = 0;
 						lastData   = data;
 						lastReadMs = Date.now();
 						// The same reading is not repainted: a keyboard user's
@@ -458,8 +461,12 @@
 		// state has passed: the full rate focused, IDLE_MS when only visible.
 		// The second of slack absorbs timer drift so a 5-minute wait is not
 		// read as 4:59 and pushed a whole tick later.
+		// A failed read doubles the wait (capped at 15 min), as the siblings do.
+		function backoff( ms ) {
+			return failures ? Math.max( ms, Math.min( 15 * 60 * 1000, REFRESH_MS * Math.pow( 2, Math.min( failures - 1, 4 ) ) ) ) : ms;
+		}
 		function tick() {
-			var wait = window.sntPollCadence ? window.sntPollCadence.wait( REFRESH_MS ) : REFRESH_MS;
+			var wait = backoff( window.sntPollCadence ? window.sntPollCadence.wait( REFRESH_MS ) : REFRESH_MS );
 			if ( Date.now() - lastRunMs >= wait - 1000 ) { poll(); }
 		}
 		function startPolling() {
@@ -472,7 +479,11 @@
 		}
 		function onVisibilityChange() {
 			if ( document.hidden ) { stopPolling(); return; }
-			if ( Date.now() - lastRunMs >= REFRESH_MS ) { poll(); }
+			// Stale: read after the jitter, not in the same tick as every other widget.
+			if ( Date.now() - lastRunMs >= backoff( REFRESH_MS ) && ! retryTimer ) {
+				var C = window.sntPollCadence;
+				retryTimer = window.setTimeout( poll, C && C.jitter ? C.jitter( 0 ) : 0 );
+			}
 			startPolling();
 		}
 		document.addEventListener( 'visibilitychange', onVisibilityChange );

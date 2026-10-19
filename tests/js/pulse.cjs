@@ -15,7 +15,7 @@ const window = {
   setTimeout(fn, d) { const id = ++nextId; timers.set(id, { fn, at: now + d }); return id; },
   clearTimeout(id) { timers.delete(id); },
   wp: { apiFetch(o) { return new Promise((resolve, reject) => calls.push({ o, resolve, reject })); } },
-  sntPollCadence: { focused: true, wait(ms) { return this.focused ? ms : Math.max(ms, 300000); },
+  sntPollCadence: { focused: true, wait(ms) { return this.focused ? ms : Math.max(ms, 300000); }, jitter(ms) { return ms + 1000; },
     onFocusChange(cb) { focusL.push(cb); return () => focusL.splice(focusL.indexOf(cb), 1); } },
 };
 class Clock extends Date { static now() { return now; } }
@@ -46,7 +46,10 @@ const answer = async (stamps) => { calls[calls.length - 1].resolve(stamps); awai
   await tick(19999); assert.equal(calls.length, 1, 'focused: nothing before 20 s');
   await tick(1); assert.equal(calls.length, 2, 'focused: a read every 20 s');
   await answer({ content: 'b', deploy: 'x' });
-  assert.equal(content, 1, 'a moved content stamp fires the content subscribers');
+  await tick(999);
+  assert.equal(content, 0, 'a moved stamp does not wake its subscribers in the same call, but after the cadence jitter');
+  await tick(1);
+  assert.equal(content, 1, 'a moved content stamp fires the content subscribers, each after its own jitter');
   assert.equal(deploy, 0, 'and only them');
 
   window.sntPollCadence.focused = false;
@@ -57,6 +60,7 @@ const answer = async (stamps) => { calls[calls.length - 1].resolve(stamps); awai
   focusL.forEach(cb => cb()); await flush();
   assert.equal(calls.length, 3, 'back in focus: reads at once, so a change made elsewhere shows on return');
   await answer({ content: 'b', deploy: 'y' });
+  await tick(1000);
   assert.equal(deploy, 1, 'a moved deploy stamp fires the deploy subscribers');
   focusL.forEach(cb => cb()); await flush();
   assert.equal(calls.length, 3, 'focus moving again within 5 s does not read again (blur into an OpenStation frame)');
