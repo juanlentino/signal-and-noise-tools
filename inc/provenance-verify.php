@@ -165,7 +165,9 @@ function sn_prov_verify_send() {
 	header( 'Content-Type: text/html; charset=utf-8' );
 	?>
 <!DOCTYPE html>
-<html lang="en">
+<?php // The site's own language (en-US), as every theme page says it; a bare
+// "en" made this one route disagree. The fallback is for the test harness. ?>
+<html <?php if ( function_exists( 'language_attributes' ) ) { language_attributes(); } else { echo 'lang="en-US"'; } ?>>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -213,6 +215,9 @@ $sn_theme_key = preg_replace( '/[^A-Za-z0-9_-]/', '', defined( 'SN_THEME_STORAGE
 <?php endif; ?>
 </head>
 <body>
+<?php // A standalone document gets none of the theme's chrome, so it carries the
+// theme's skip link itself (styled to match in prov-verify.css). ?>
+<a class="sn-verify-skip" href="#sn-verify-main">Skip to content</a>
 <div class="sn-verify"
 	data-credential-base="<?php echo esc_attr( $credential_base ); ?>"
 	data-did-url="<?php echo esc_attr( $did_url ); ?>"
@@ -234,7 +239,7 @@ $sn_theme_key = preg_replace( '/[^A-Za-z0-9_-]/', '', defined( 'SN_THEME_STORAGE
 		// residual trust and the way out of it. ?>
 		<p class="sn-verify-lede">Four checks run right here, in your browser, against the public ledger and the Bitcoin chain. One honest caveat: the code running them was served by this site. If that is the trust you came to question, the section at the end of this page shows how to run the same checks without it.</p>
 	</header>
-	<main id="sn-verify-main">
+	<main id="sn-verify-main" tabindex="-1">
 
 	<?php // The verdict band leads the page in the DOM, not only on screen: it is
 	// hidden until a run starts, so an idle page opens on the form (the whole
@@ -295,9 +300,13 @@ $sn_theme_key = preg_replace( '/[^A-Za-z0-9_-]/', '', defined( 'SN_THEME_STORAGE
 	// Authored as a real WAI-ARIA tablist (roving tabindex + arrow keys are
 	// wired in assets/js/prov-verify-tabs.js). It degrades honestly: with no
 	// tab script the nav is inert and all three panels stay visible, which is
-	// the pre-v10.49.0 page — worse, never broken. ?>
-	<nav class="sn-verify-nav" aria-label="Verification sections">
-		<div class="sn-verify-nav-list" data-role="tablist" role="tablist">
+	// the pre-v10.49.0 page — worse, never broken.
+	//
+	// A div, not a nav element: the tabs switch panels of this page and navigate
+	// nowhere, so a navigation landmark misnamed them. The tablist carries the
+	// name the landmark had. ?>
+	<div class="sn-verify-nav">
+		<div class="sn-verify-nav-list" data-role="tablist" role="tablist" aria-label="Verification sections">
 			<button type="button" class="sn-verify-tab" role="tab" id="sn-tab-checks" aria-controls="sn-panel-checks" aria-selected="true" data-panel="checks">
 				<span class="sn-verify-tab-label">The four checks</span>
 				<span class="sn-verify-tab-badge" data-role="tab-badge" aria-hidden="true"></span>
@@ -309,7 +318,7 @@ $sn_theme_key = preg_replace( '/[^A-Za-z0-9_-]/', '', defined( 'SN_THEME_STORAGE
 				<span class="sn-verify-tab-label">Compare versions</span>
 			</button>
 		</div>
-	</nav>
+	</div>
 
 	<section class="sn-verify-docket" id="sn-panel-checks" role="tabpanel" aria-labelledby="sn-tab-checks" data-panel="checks" tabindex="0">
 		<p class="sn-verify-sec-lede">Each one runs against a different witness: this site, the independent git ledger, and the Bitcoin chain. Any of them can contradict the others.</p>
