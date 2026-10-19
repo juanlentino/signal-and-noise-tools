@@ -3,7 +3,9 @@
  * Signal & Noise Tools: alerts, the hourly half. Gathers what the site
  * already stores, asks inc/alerts.php what is due, mails it once.
  *
- * NO NEW OUTSIDE CALLS. Spikes read the daily analytics table (kept fresh by
+ * NO NEW OUTSIDE CALLS, with two named exceptions in the run below (Hacker
+ * News, and one Analytics Engine read per path that spiked, for how much of
+ * it looks automated). Spikes read the daily analytics table (kept fresh by
  * the rollup the analytics worker pokes); breaks read the stored edge 5xx
  * rollup, which files a day's errors after that day ends, so a break mails
  * the morning after, not within the hour. Sent stamps live in an OPTION:
@@ -149,6 +151,8 @@ function snt_alerts_run( $now = null ) {
 		$alerts = snt_alerts_evaluate( ( $in['failed'] ? array_intersect_key( $in, array( 'cache' => 1, 'hn' => 1, 'hn_since' => 1 ) ) : $in ) + array( 'sent' => $sent ), snt_alerts_thresholds() );
 		$last   = array( 'at' => $now, 'state' => $in['failed'] ? 'read_failed' : 'evaluated', 'fired' => array_slice( array_column( $alerts, 'key' ), 0, 20 ), 'mailed' => false, 'error' => $in['failed'] ? 'stored read failed: ' . implode( ', ', $in['failed'] ) : '', 'capped' => $in['capped'], 'unread' => $in['unread'] );
 		if ( $alerts ) {
+			// Only for a path that spiked: a quiet hour reads nothing (inc/alerts-automated.php).
+			$alerts  = function_exists( 'snt_alerts_automated_attach' ) ? snt_alerts_automated_attach( $alerts, $now ) : $alerts;
 			$email   = (string) get_option( 'admin_email' ); // the morning brief's recipient.
 			$spike   = (bool) array_filter( $alerts, static fn( $a ) => ! in_array( $a['kind'], array( 'break', 'cache', 'hn_new', 'hn_front' ), true ) );
 			// null is the reader's failed-read verdict: kept, so the mail says
