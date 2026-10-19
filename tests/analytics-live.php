@@ -218,6 +218,8 @@ ok( 'Google' === sn_analytics_live_payload( true )['sources'][0]['label'], 'the 
 
 echo "\nGroup: the admin Right now block\n";
 $html = sn_analytics_live_admin_html();
+ok( 1 === preg_match( '#^<div class="sn-live-admin"><div class="sn-live-admin__now">.*</div><div class="sn-live-admin__past"#s', $html ) || ! function_exists( 'sn_analytics_live_slots_html' ), 'the live block is one column and the 24-hour grid its sibling, so they share a row' );
+ok( false !== strpos( $html, '<div class="sn-live-admin__now">' ), 'the live block has its own column' );
 foreach ( array( 'data-sn-live-hour', 'data-sn-live-pages', 'data-sn-live-sources', 'data-sn-live-meta', 'data-updated=', 'data-empty=', 'data-sn-live-surge', 'data-learning=' ) as $hook ) {
 	ok( false !== strpos( $html, $hook ), "the block carries $hook" );
 }

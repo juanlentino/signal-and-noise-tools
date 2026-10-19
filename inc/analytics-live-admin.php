@@ -30,7 +30,10 @@ function sn_analytics_live_admin_html( $get = null ) {
 			. '<ol class="sn-live-admin__list" ' . $hook . ' data-empty="' . esc_attr( $empty ) . '"><li class="sn-live-admin__empty">' . esc_html__( 'not read', 'signal-and-noise-tools' ) . '</li></ol>'
 			. '</div>';
 	};
+	// Two columns that wrap: the live hour beside the 24-hour grid, which is
+	// only ~290px wide, so it never takes a row of its own on a wide panel.
 	return '<div class="sn-live-admin">'
+		. '<div class="sn-live-admin__now">'
 		. '<div class="sn-live-admin__hour">'
 		. '<svg class="sn-live-admin__bars" data-sn-live-hour viewBox="0 0 240 30" preserveAspectRatio="none" role="img" aria-label="' . esc_attr__( 'Human readers per 5 minutes over the last hour', 'signal-and-noise-tools' ) . '"></svg>'
 		. '<span class="sn-live-admin__ax" aria-hidden="true"><span>' . esc_html__( 'an hour ago', 'signal-and-noise-tools' ) . '</span><span>' . esc_html__( 'now', 'signal-and-noise-tools' ) . '</span></span>'
@@ -49,6 +52,7 @@ function sn_analytics_live_admin_html( $get = null ) {
 		. '</div>'
 		/* translators: %s: the time of the last live read, e.g. 16:42. */
 		. '<p class="sn-live-admin__meta" data-sn-live-meta data-updated="' . esc_attr__( 'live · updated %s', 'signal-and-noise-tools' ) . '" data-unknown="' . esc_attr__( 'live · not read yet', 'signal-and-noise-tools' ) . '">' . esc_html__( 'live', 'signal-and-noise-tools' ) . '</p>'
+		. '</div>'
 		// The stored 5-minute slots of the last day, each a link (inc/analytics-live-slots-admin.php).
 		. ( function_exists( 'sn_analytics_live_slots_html' ) ? sn_analytics_live_slots_html( $get ) : '' )
 		. '</div>';
