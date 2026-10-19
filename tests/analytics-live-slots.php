@@ -37,6 +37,7 @@ function sn_post_settings_get_noindex( $id ) { return false; }
 function get_the_title( $id ) { return 'Alpha'; }
 function get_permalink( $id ) { return 'https://x.test/notes/alpha/'; }
 function __( $s, $d = null ) { return $s; }
+function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; }
 function esc_html__( $s, $d = null ) { return htmlspecialchars( $s, ENT_QUOTES ); }
 function esc_attr__( $s, $d = null ) { return htmlspecialchars( $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
@@ -169,6 +170,37 @@ ok( false !== strpos( sn_analytics_live_slots_html( array() ), 'No slots stored 
 ok( false !== strpos( sn_analytics_live_admin_html( $get ), 'sn-live-admin__past' ), 'the admin Right now block carries the grid' );
 ok( false !== strpos( (string) file_get_contents( $root . '/apps/sn-analytics/parts/painters/view-overview.php' ), "sn_analytics_live_admin_html( (array) ( \$ctx['get']" ), 'the native Overview hands the block its window state' );
 ok( false !== strpos( (string) file_get_contents( $root . '/inc/analytics-realtime.php' ), 'sn_analytics_live_slots_step( $hour )' ), 'the realtime refresh runs the step on the hour it read' );
+
+echo "\nGroup: the past 24 hours as a compact heat grid\n";
+ok( 0 === sn_analytics_live_heat_step( 0, 10 ) && 1 === sn_analytics_live_heat_step( 1, 10 ) && 1 === sn_analytics_live_heat_step( 3, 10 ) && 3 === sn_analytics_live_heat_step( 10, 10 ), 'steps against a max of 10: 0 is empty, 1 and 3 the first step, 10 the top' );
+ok( 2 === sn_analytics_live_heat_step( 4, 10 ) && 3 === sn_analytics_live_heat_step( 7, 10 ) && 1 === sn_analytics_live_heat_step( 1, 1 ) && 2 === sn_analytics_live_heat_step( 2, 2 ), '   ...the scale is the window\'s own max, with no more steps than readers' );
+ok( '1-3 · 4-6 · 7-10' === implode( ' · ', array_column( sn_analytics_live_heat_steps( 10 ), 'label' ) ) && '1 · 2' === implode( ' · ', array_column( sn_analytics_live_heat_steps( 2 ), 'label' ) ), 'the legend names the real steps' );
+$now0  = intdiv( time(), 3600 ) * 3600 + 1800 + 60; // 30 minutes and a bit into an hour
+$cur0  = intdiv( $now0, 300 ) * 300;
+$seed  = array();
+for ( $t = intdiv( $now0, 3600 ) * 3600 - 23 * 3600; $t < $cur0; $t += 300 ) { $seed[ intdiv( $t, 300 ) * 300 ] = array( 'readers' => 0, 'classes' => array( 'human' => 0, 'suspect' => 0, 'bot' => 0 ), 'pages' => array(), 'sources' => array() ); }
+$busy = $cur0 - 3 * 3600;
+$seed[ $busy ]['readers'] = 8; $seed[ $busy - 300 ]['readers'] = 2; $seed[ $busy + 300 ]['readers'] = 8; $seed[ $cur0 - 600 ]['readers'] = 1;
+unset( $seed[ $cur0 - 7200 ] ); // a gap: never recorded
+$GLOBALS['o'][ SN_ANALYTICS_LIVE_SLOTS_OPT ] = $seed;
+$heat = sn_analytics_live_slots_html( array( 'sn_view' => 'overview', 'sn_slot' => (string) $busy ), $now0 );
+ok( 288 === preg_match_all( '/class="sn-live-admin__cell[ "]/', $heat ), '24 hours of 12 slots: 288 cells' );
+ok( 1 === preg_match_all( '/class="sn-live-admin__cell is-missing"/', $heat ) && 6 <= preg_match_all( '/class="sn-live-admin__cell is-future"/', $heat ), 'a slot never recorded and a slot still to come are their own states, not a zero' );
+$t8 = gmdate( 'H:i', $busy ); $t8e = gmdate( 'H:i', $busy + 300 );
+ok( false !== strpos( $heat, 'aria-label="' . $t8 . ' to ' . $t8e . ', 8 human readers"' ) && false !== strpos( $heat, 'aria-label="' . gmdate( 'H:i', $cur0 - 600 ) . ' to ' . gmdate( 'H:i', $cur0 - 300 ) . ', 1 human reader"' ), 'a cell\'s accessible name is its time range and its count' );
+ok( false !== strpos( $heat, 'data-hint="' . $t8 . ' to ' . $t8e . ', 8 human readers"' ) && 0 === preg_match( '/<a [^>]*\stitle=/', $heat ), 'hover and focus show the same text as a hint, with no native title' );
+ok( 0 === preg_match( '/class="sn-live-admin__cell[^"]*"[^>]*>[^<]/', $heat ), 'no number is painted inside a cell' );
+ok( false !== strpos( $heat, 'is-step-3' ) && false !== strpos( $heat, 'is-step-0' ), 'the color step is a class on the cell' );
+ok( false !== strpos( $heat, 'sn-live-admin__legend' ) && false !== strpos( $heat, '>0<' ) && false !== strpos( $heat, '>1-2<' ) && false !== strpos( $heat, '>3-5<' ) && false !== strpos( $heat, '>6-8<' ) && false !== strpos( $heat, 'not recorded' ), 'the legend shows 0, the real steps and the unrecorded state' );
+ok( false !== strpos( $heat, '>now<' ) && false !== strpos( $heat, '>' . gmdate( 'H', $now0 - 6 * 3600 ) . ':00<' ), 'the hour axis marks every 6 hours and now' );
+ok( false !== strpos( $heat, 'Busiest 5-minute slot: ' . $t8 . ', 8 human readers; 4 non-empty slots in 24 hours' ), 'a summary names the busiest slot (the earliest on a tie) and the non-empty count' );
+ok( 1 === preg_match( '/aria-describedby="([^"]+)"/', $heat, $m ) && false !== strpos( $heat, 'id="' . $m[1] . '"' ), '   ...and the grid is described by it' );
+ok( 1 === substr_count( $heat, 'aria-current="true"' ) && 1 === preg_match( '/<a class="sn-live-admin__cell[^"]*is-on[^"]*" href="[^"]*sn_slot=' . $busy . '/', $heat ) && false !== strpos( $heat, $t8 . ' to ' . $t8e . '</h4>' ), 'choosing a slot still links to it, marks it and paints its detail' );
+ok( false === strpos( $heat, '<script' ) && false === strpos( $heat, 'style="' ), 'no script and no inline style' );
+ok( false !== strpos( sn_analytics_live_admin_html( array( 'sn_slot' => (string) $busy ) ), 'sn-live-admin__heat' ) && false !== strpos( (string) file_get_contents( $root . '/inc/analytics-view-overview-panels-parts.php' ), 'echo sn_analytics_live_admin_html()' ), 'both twins paint the same grid: the classic page and the native Overview call the one block' );
+$css = (string) file_get_contents( $root . '/assets/analytics/live-admin.css' );
+ok( 0 === preg_match( '/overflow(-x|-y)?\s*:\s*(auto|scroll)/', $css ), 'the grid never scrolls: no scrolling overflow in the stylesheet' );
+ok( 1 === preg_match( '/\.sn-live-admin__heat\{[^}]*max-height:\s*1[0-4]\dpx/', $css ) && 1 === preg_match( '/\.sn-live-admin__heat\{[^}]*grid-auto-columns:\s*minmax\(0,/', $css ), '   ...its height is capped near 140px and its columns shrink to fit the panel' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

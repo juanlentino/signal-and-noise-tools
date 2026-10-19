@@ -20,14 +20,30 @@
 .sn-live-admin__surge{font-size:13px;margin:10px 0 0;min-height:1em}
 .sn-live-admin__surge.is-surge{font-weight:600}
 .sn-live-admin__surge.is-surge::before{content:"";display:inline-block;width:8px;height:8px;margin-right:6px;background:#d63638}
-/* The last 24 hours (inc/analytics-live-slots-admin.php): an hour per row, a
-   5-minute slot per cell, each stored cell a link to its detail. */
-.sn-live-admin__past{margin-top:16px;padding-top:12px;border-top:1px solid var(--os-ui-color-border,#dcdcde)}
-.sn-live-admin__grid{display:grid;gap:2px;max-height:280px;overflow-y:auto}
-.sn-live-admin__row{display:grid;grid-template-columns:44px repeat(12,minmax(24px,1fr));gap:2px;align-items:stretch}
-.sn-live-admin__hr{font-size:11px;color:var(--os-ui-color-text-subtle,#646970);font-variant-numeric:tabular-nums;align-self:center}
-.sn-live-admin__cell{display:block;min-height:24px;line-height:24px;text-align:center;font-size:11px;font-variant-numeric:tabular-nums;color:inherit;text-decoration:none;border:1px solid var(--os-ui-color-border,#dcdcde)}
-.sn-live-admin__cell.is-missing{border-style:dashed}
-a.sn-live-admin__cell:hover,a.sn-live-admin__cell:focus-visible{border-color:currentColor}
-a.sn-live-admin__cell.is-on{font-weight:600;border:2px solid currentColor}
+/* The last 24 hours (inc/analytics-live-slots-admin.php): a compact heat grid,
+   an hour per column (now at the right) and a 5-minute slot per row, colored
+   by human readers with no number in the cell. 10px cells at most, columns
+   shrink to the panel, never a scroller. Zero is the hairline gray; the steps
+   start at the accent and deepen toward the text color, so every non-empty
+   step has at least the accent's own contrast in both themes. */
+.sn-live-admin__past{margin-top:16px;padding-top:12px;border-top:1px solid var(--os-ui-color-border,#dcdcde);--sn-heat:var(--os-ui-color-accent,var(--sn-an-accent,#2271b1))}
+.sn-live-admin__heatbox{position:relative;padding-bottom:18px;max-width:286px}
+.sn-live-admin__heat{display:grid;grid-template-rows:repeat(12,10px);grid-auto-flow:column;grid-auto-columns:minmax(0,10px);gap:2px;max-height:142px}
+.sn-live-admin__heatax{display:grid;grid-template-columns:repeat(24,minmax(0,10px));column-gap:2px;margin-top:3px;font-size:11px;line-height:14px;color:var(--os-ui-color-text-subtle,#646970);font-variant-numeric:tabular-nums}
+.sn-live-admin__heatax span{white-space:nowrap;min-width:0}
+.sn-live-admin__heatax .is-now{justify-self:end}
+.sn-live-admin__cell{display:block;color:inherit;text-decoration:none}
+.sn-live-admin__swatch{display:inline-block;width:10px;height:10px}
+.sn-live-admin__past .is-step-0{background:var(--os-ui-color-border,#dcdcde)}
+.sn-live-admin__past .is-step-1{background:var(--sn-heat)}
+.sn-live-admin__past .is-step-2{background:color-mix(in srgb,var(--sn-heat) 50%,currentColor)}
+.sn-live-admin__past .is-step-3{background:currentColor}
+.sn-live-admin__past .is-missing{outline:1px dotted var(--os-ui-color-text-subtle,#646970);outline-offset:-1px}
+.sn-live-admin__cell.is-future{visibility:hidden}
+a.sn-live-admin__cell:hover{outline:1px solid currentColor;outline-offset:1px}
+a.sn-live-admin__cell.is-on{outline:2px solid currentColor;outline-offset:1px}
+a.sn-live-admin__cell:focus-visible{outline:2px solid var(--sn-heat);outline-offset:1px}
+.sn-live-admin__cell[data-hint]:hover::after,.sn-live-admin__cell[data-hint]:focus-visible::after{content:attr(data-hint);position:absolute;left:0;bottom:0;font-size:11px;line-height:14px;white-space:nowrap;pointer-events:none}
+.sn-live-admin__legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11px;margin:4px 0 0}
+.sn-live-admin__key{display:inline-flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}
 .sn-live-admin__slot{margin-top:12px}
