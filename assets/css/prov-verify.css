@@ -164,6 +164,15 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 
 .sn-verify{max-width:780px;margin:0 auto;padding:4rem 1.5rem 5rem}
 
+/* ---- skip link ------------------------------------------------------- */
+/* The theme's .sn-skip-link, in this file's tokens (no theme CSS loads here):
+   the inverted panel, Bebas Neue caps, off screen until focused, then at the
+   top with the blood outline. --bone/--void swap with the mode, so one rule
+   serves both. The main region it lands on takes focus without a ring. */
+.sn-verify-skip{position:absolute;top:-100%;left:1rem;z-index:999999;background:var(--bone);color:var(--void);padding:.75rem 1.5rem;font-family:'Bebas Neue',Impact,sans-serif;font-size:.85rem;letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
+.sn-verify-skip:focus{top:.5rem;outline:2px solid var(--blood);outline-offset:2px}
+#sn-verify-main:focus{outline:0}
+
 /* ---- masthead ------------------------------------------------------- */
 .sn-verify-head{margin:0 0 3rem}
 .sn-verify-kicker{font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.28em;color:var(--rust);margin:0 0 1.1rem;padding:0 0 .8rem;border-bottom:3px solid var(--bone)}
