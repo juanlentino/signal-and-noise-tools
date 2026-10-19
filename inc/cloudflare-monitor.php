@@ -42,6 +42,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/cloudflare-monitor-workers.php'; // the account's Workers, last day (workersInvocationsAdaptive).
+
 const SN_CF_MONITOR_OPT  = 'sn_cf_monitor';
 const SN_CF_MONITOR_HOOK = 'sn_cf_monitor_daily';
 const SN_CF_MONITOR_DAYS = 7;
@@ -328,6 +330,7 @@ function sn_cf_monitor_refresh() {
 		'token'      => sn_cf_monitor_verify( $zone_id ),
 		'zone'       => sn_cf_monitor_zone_from( sn_cf_graphql( $zone_q, array( 'zone' => $zone_id, 'since' => $since, 'until' => $until ) ) ),
 		'firewall'   => sn_cf_monitor_firewall_from( sn_cf_graphql( $fw_q, $fw_args ) ),
+		'workers'    => sn_cf_monitor_workers_read(),
 	);
 	// 15.0.1: "zone … does not have access to the path" is the PLAN, not a
 	// grant: the grouped dataset is not on Free zones, and every zone read
@@ -439,6 +442,10 @@ add_action( 'init', 'sn_cf_monitor_schedule' );
  */
 function sn_cf_monitor_permission_hint( $dataset = 'zone' ) {
 	// Zone analytics reads with Zone › Analytics › Read (measured).
+	if ( 'workers' === $dataset ) {
+		/* translators: %s: the permission to add. */
+		return sprintf( __( 'Worker analytics needs %s on the token. Edit the token in the Cloudflare dashboard and add it; until then the reading is a gap, never zero.', 'signal-and-noise-tools' ), SN_CF_WORKERS_SCOPE );
+	}
 	if ( 'firewall' === $dataset ) {
 		// 15.0.1: the refusal names the ZONE, and that is a plan limit. The
 		// grouped dataset is not on Free zones; measured refused under every
