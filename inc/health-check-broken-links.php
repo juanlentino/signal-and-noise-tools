@@ -107,7 +107,7 @@ function sn_health_extract_internal_links( $content, $site_host ) {
 
 /**
  * 24h-cached HEAD probe. Returns { ok: bool, code: int, skipped?: bool, reason?: string }.
- * Network errors are encoded as code = 0 + ok = false. A bot-challenge
+ * A network error (no answer) is skipped with reason no_answer and never cached. A bot-challenge
  * interstitial (a 403/503 carrying `cf-mitigated: challenge`, e.g. a same-host
  * path behind Cloudflare) is a LIVE page gating bots, not a broken link, so it is
  * marked skipped — the same treatment the external link-rot probe gives a
@@ -148,7 +148,10 @@ function sn_health_link_status( $url ) {
 	) );
 
 	if ( is_wp_error( $resp ) ) {
-		$result = array( 'ok' => false, 'code' => 0 );
+		// No answer (timeout, refused) says nothing about the link: the probe
+		// failed, not the page. Unverifiable, and not cached, so the next scan
+		// asks again instead of repeating one bad request for 24 hours.
+		return array( 'ok' => true, 'code' => 0, 'skipped' => true, 'reason' => 'no_answer' );
 	} else {
 		$final  = $resp;
 		$code   = (int) wp_remote_retrieve_response_code( $resp );
@@ -156,8 +159,7 @@ function sn_health_link_status( $url ) {
 		if ( 405 === $code || 501 === $code ) {
 			$resp2 = wp_remote_get( $url, array( 'timeout' => SN_HEALTH_LINK_TIMEOUT, 'redirection' => 0 ) );
 			if ( is_wp_error( $resp2 ) ) {
-				$final = null;
-				$code  = 0;
+				return array( 'ok' => true, 'code' => 0, 'skipped' => true, 'reason' => 'no_answer' );
 			} else {
 				$final = $resp2;
 				$code  = (int) wp_remote_retrieve_response_code( $resp2 );
