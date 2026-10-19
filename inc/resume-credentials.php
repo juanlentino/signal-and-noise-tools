@@ -9,7 +9,9 @@
  * `sn_schema_person_credentials` filter; memberOf (the Recording Academy and
  * the Latin Recording Academy) is already there and is left alone. These are
  * self-asserted claims, not issuer-signed credentials: a verifiable degree or
- * membership has to come from the university or the Academy.
+ * membership has to come from the university or the Academy, so an entry the
+ * owner gives a verification URL (the issuer's hosted page, e.g. the
+ * Parchment diploma) carries it as `url`.
  *
  * @package SignalNoiseTools
  */
@@ -37,15 +39,35 @@ function sn_resume_credentials( $doc ) {
 				'credentialCategory' => 'degree',
 				'recognizedBy'       => isset( $e['institution'] ) ? array( '@type' => 'CollegeOrUniversity', 'name' => $e['institution'] ) : null,
 				'dateCreated'        => $e['endDate'] ?? '',
+				'url'                => $e['x-credentialUrl'] ?? '',
 			)
 		);
 	}
-	foreach ( sn_jsonresume_affiliations( $doc )[1] as $c ) {
-		$out[] = array(
-			'@type'              => 'EducationalOccupationalCredential',
-			'name'               => $c['name'],
-			'credentialCategory' => 'certificate',
+	list( $memberships, $certs ) = sn_jsonresume_affiliations( $doc );
+	foreach ( $certs as $c ) {
+		$out[] = array_filter(
+			array(
+				'@type'              => 'EducationalOccupationalCredential',
+				'name'               => $c['name'],
+				'credentialCategory' => 'certificate',
+				'url'                => $c['url'] ?? '',
+			)
 		);
+	}
+	// A membership is memberOf already; it is a credential only once the
+	// owner gives the issuer's verification page.
+	foreach ( $memberships as $m ) {
+		if ( isset( $m['x-credentialUrl'] ) ) {
+			$out[] = array_filter(
+				array(
+					'@type'              => 'EducationalOccupationalCredential',
+					'name'               => $m['title'],
+					'credentialCategory' => 'membership',
+					'recognizedBy'       => isset( $m['awarder'] ) ? array( '@type' => 'Organization', 'name' => $m['awarder'] ) : null,
+					'url'                => $m['x-credentialUrl'],
+				)
+			);
+		}
 	}
 	return $out;
 }

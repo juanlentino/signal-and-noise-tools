@@ -34,6 +34,7 @@ function sn_resume_markdown_words( $lang ) {
 		'creds'    => $es ? 'Membresías y credenciales' : 'Memberships & Credentials',
 		'skills'   => $es ? 'Habilidades' : 'Skills',
 		'langs'    => $es ? 'Idiomas' : 'Languages',
+		'verify'   => $es ? 'Verificar:' : 'Verify:',
 		'to'       => $es ? 'a' : 'to',
 		'present'  => $es ? 'actualidad' : 'present',
 		'meaning'  => $es
@@ -107,6 +108,8 @@ function sn_resume_markdown_span( array $item, array $w ) {
  */
 function sn_resume_markdown( array $doc, array $resume, array $formats, $lang = 'en' ) {
 	$w   = sn_resume_markdown_words( $lang );
+	// The issuer's verification page, indented under its list item.
+	$verify = static fn( $u ) => '' !== (string) $u ? array( '  ' . $w['verify'] . ' ' . $u ) : array();
 	$b   = $resume['basics'] ?? array();
 	$out = sn_resume_markdown_front( $resume, $formats, $w );
 	$out = array_merge( $out, array( '', '# ' . ( $b['name'] ?? '' ) ), isset( $b['label'] ) ? array( '', $b['label'] ) : array() );
@@ -137,6 +140,7 @@ function sn_resume_markdown( array $doc, array $resume, array $formats, $lang = 
 	$out = array_merge( $out, array( '', '## ' . $w['edu'], '' ) );
 	foreach ( $resume['education'] ?? array() as $e ) {
 		$out[] = '- **' . implode( ', ', array_filter( array( $e['studyType'] ?? '', $e['area'] ?? '' ) ) ) . '** · ' . implode( ' · ', array_filter( array( $e['institution'] ?? '', $e['endDate'] ?? '' ) ) );
+		$out   = array_merge( $out, $verify( $e['x-credentialUrl'] ?? '' ) );
 	}
 	$out = array_merge( $out, array( '', '## ' . $w['creds'], '' ) );
 	foreach ( $resume['awards'] ?? array() as $a ) {
@@ -145,9 +149,11 @@ function sn_resume_markdown( array $doc, array $resume, array $formats, $lang = 
 		$when  = '' !== $start ? sn_resume_markdown_span( array_filter( array( 'startDate' => $start, 'endDate' => $end ) ), $w ) : ( $a['date'] ?? '' );
 		$by    = isset( $a['awarder'] ) && false === strpos( $a['title'], $a['awarder'] ) ? $a['awarder'] : '';
 		$out[] = '- ' . implode( ' · ', array_filter( array( $a['title'], $by, $when ) ) );
+		$out   = array_merge( $out, $verify( $a['x-credentialUrl'] ?? '' ) );
 	}
 	foreach ( $resume['certificates'] ?? array() as $c ) {
 		$out[] = '- ' . $c['name'];
+		$out   = array_merge( $out, $verify( $c['url'] ?? '' ) );
 	}
 	$out = array_merge( $out, array( '', '## ' . $w['skills'], '' ) );
 	foreach ( $resume['skills'] ?? array() as $s ) {

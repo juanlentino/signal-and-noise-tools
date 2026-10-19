@@ -69,6 +69,21 @@ function sn_resume_url( $v ) {
 }
 
 /**
+ * A credential's verification URL (the issuer's hosted page): https only,
+ * through esc_url_raw() when WordPress is loaded. '' otherwise.
+ *
+ * @param mixed $v
+ * @return string
+ */
+function sn_resume_https_url( $v ) {
+	$v = sn_resume_text( $v );
+	if ( function_exists( 'esc_url_raw' ) ) {
+		$v = (string) esc_url_raw( $v, array( 'https' ) );
+	}
+	return preg_match( '~^https://[^\s/]~i', $v ) ? $v : '';
+}
+
+/**
  * Normalize a bullet fragment: kses to strong/em/a, trimmed. @param mixed $v @return string */
 function sn_resume_bullet( $v ) {
 	$v = is_string( $v ) ? trim( $v ) : '';
@@ -147,7 +162,13 @@ function sn_resume_normalize_titled_lines( $entries ) {
 				$lines[] = $line;
 			}
 		}
-		$out[] = array( 'title' => $title, 'lines' => $lines );
+		$row = array( 'title' => $title, 'lines' => $lines );
+		// Optional; absent (not '') when blank, so an entry without one is unchanged.
+		$url = sn_resume_https_url( $entry['credential_url'] ?? '' );
+		if ( '' !== $url ) {
+			$row['credential_url'] = $url;
+		}
+		$out[] = $row;
 	}
 	return $out;
 }

@@ -171,6 +171,15 @@ $meta = $r['meta'] ?? array();
 ok( 'https://x.test/resume/' === ( $meta['canonical'] ?? '' ) && '2026-10-02T20:58:03-04:00' === ( $meta['lastModified'] ?? '' ) && '9.9.9' === ( $meta['version'] ?? '' ), 'meta: canonical, lastModified, version' );
 ok( array( 'verify_url' => 'https://x.test/verify?note=u1', 'note_uid' => 'u1' ) === ( $meta['x-provenance'] ?? null ), 'meta: the authorship proof pointer' );
 
+ok( 'https://www.parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5' === ( $r['education'][0]['x-credentialUrl'] ?? '' ) && ! isset( $r['education'][0]['url'] ), 'education: the MBA carries its issuer verification URL as an extension, not as the institution url' );
+ok( ! isset( $r['education'][1]['x-credentialUrl'] ), 'education: no URL, no key' );
+$en_c = $en; $en_c['affiliations'][2]['credential_url'] = 'https://example.org/cert'; $en_c['affiliations'][0]['credential_url'] = 'https://example.org/member';
+$r_c  = sn_jsonresume_build( $en_c, $ctx );
+ok( array() === jr_validate( $r_c, $schema, $schema ), 'still validates with credential URLs on a certificate and a membership' );
+ok( 'https://example.org/cert' === ( $r_c['certificates'][0]['url'] ?? '' ), 'certificates: the native url field' );
+$aw_c = array_column( $r_c['awards'], 'x-credentialUrl', 'title' );
+ok( 'https://example.org/member' === ( $aw_c['Voting Member, The Recording Academy'] ?? '' ), 'awards: a membership carries its URL as an extension' );
+
 echo "\nTest: what stays out\n";
 $ctx2 = $ctx; $ctx2['provenance'] = null;
 ok( ! isset( sn_jsonresume_build( $en, $ctx2 )['meta']['x-provenance'] ), 'no proof, no pointer: absence, not a stub' );
@@ -189,6 +198,7 @@ $errs = jr_validate( $res, $schema, $schema );
 ok( array() === $errs, 'validates against JSON Resume v1.0.0' . ( $errs ? ': ' . implode( '; ', $errs ) : '' ) );
 ok( '2018-09' === ( $res['work'][0]['startDate'] ?? '' ), 'work: Spanish month abbreviations parse' );
 ok( '2026-08' === ( $res['education'][0]['endDate'] ?? '' ), 'education: agosto de 2026' );
+ok( 'https://www.parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5' === ( $res['education'][0]['x-credentialUrl'] ?? '' ), 'education: the Spanish MBA verifies at the same URL' );
 ok( 'Inglés' === ( $res['languages'][0]['language'] ?? '' ) && 'nativo' === ( $res['languages'][1]['fluency'] ?? '' ), 'languages: from the Idiomas row' );
 ok( 'juan@example.com' === ( $res['basics']['email'] ?? '' ), 'contact comes from the English document' );
 

@@ -126,7 +126,8 @@
 	"education": [
 		{
 			"title": "MBA, Inteligencia Artificial Aplicada a los Negocios",
-			"lines": [ "Westcliff University · Celebration, FL", "agosto de 2026" ]
+			"lines": [ "Westcliff University · Celebration, FL", "agosto de 2026" ],
+			"credential_url": "https://www.parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5"
 		},
 		{
 			"title": "B.S. en Producción Musical",

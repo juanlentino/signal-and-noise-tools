@@ -110,5 +110,15 @@ $hostile = sn_resume_doc_get();
 ok( is_array( $hostile ), 'non-array stored value → seed fallback, no fatal' );
 $GLOBALS['__options'] = array();
 
+echo "\nTest: a credential's verification URL (https only)\n";
+$cu = static fn( $u ) => sn_resume_normalize_titled_lines( array( array( 'title' => 'MBA', 'lines' => array(), 'credential_url' => $u ) ) )[0];
+ok( 'https://www.parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5' === ( $cu( '  https://www.parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5 ' )['credential_url'] ?? '' ), 'an https issuer URL is kept, trimmed' );
+ok( ! isset( $cu( 'http://www.parchment.com/x' )['credential_url'] ), 'http is refused' );
+ok( ! isset( $cu( 'javascript:alert(1)' )['credential_url'] ) && ! isset( $cu( 'JAVASCRIPT://https://x' )['credential_url'] ), 'javascript: is refused' );
+ok( ! isset( $cu( 'data:text/html,x' )['credential_url'] ) && ! isset( $cu( '//www.parchment.com/x' )['credential_url'] ), 'data: and scheme-relative are refused' );
+ok( array( 'title' => 'MBA', 'lines' => array() ) === $cu( '' ), 'blank adds no key: the entry is what it was' );
+$seed_edu = sn_resume_doc_normalize( sn_resume_seed_doc() )['education'];
+ok( 'https://www.parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5' === ( $seed_edu[0]['credential_url'] ?? '' ) && 0 === strpos( $seed_edu[0]['lines'][0], 'Westcliff University' ) && ! isset( $seed_edu[1]['credential_url'] ), 'the seed MBA (Westcliff) carries the Parchment diploma, the B.S. nothing' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
