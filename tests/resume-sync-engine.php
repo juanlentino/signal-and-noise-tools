@@ -178,6 +178,17 @@ $GLOBALS['__page'] = (object) array( 'ID' => 1184, 'post_excerpt' => '  ' );
 sn_resume_upsert_page( $body );
 ok( ! isset( $GLOBALS['__updates'][1]['post_excerpt'] ), '(changed) a blank excerpt is left blank: the seed said "twenty more" beside a 15+ resume' );
 
+// 2026-10-18: an identical body is not rewritten. /resume is signed; a save
+// that changes only data the body does not render (a credential URL) must
+// not touch post_content, the same check the Spanish sync already makes.
+$GLOBALS['__updates'] = array();
+$GLOBALS['__page']    = (object) array( 'ID' => 1184, 'post_excerpt' => 'x', 'post_content' => $body );
+ok( 1184 === sn_resume_upsert_page( $body ), 'an identical body still answers the page ID' );
+ok( array() === $GLOBALS['__updates'], 'an identical body is never rewritten (no wp_update_post)' );
+$GLOBALS['__page'] = (object) array( 'ID' => 1184, 'post_excerpt' => 'x', 'post_content' => $body . 'changed' );
+sn_resume_upsert_page( $body );
+ok( 1 === count( $GLOBALS['__updates'] ), 'a changed body is still written' );
+
 $GLOBALS['__page'] = null;
 $GLOBALS['__inserts'] = array();
 ok( 777 === sn_resume_upsert_page( $body ), 'absent page → created' );

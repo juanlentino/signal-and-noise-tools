@@ -360,6 +360,12 @@ function sn_resume_upsert_page( $body ) {
 	$page    = get_page_by_path( $slug );
 
 	if ( $page ) {
+		// An identical body is never rewritten: /resume is signed, and a save
+		// that changes only data the body does not render (a credential URL)
+		// must not touch post_content. The Spanish sync makes the same check.
+		if ( isset( $page->post_content ) && (string) $page->post_content === (string) $body ) {
+			return (int) $page->ID;
+		}
 		wp_update_post( wp_slash( array(
 			'ID'           => $page->ID,
 			'post_content' => $body,

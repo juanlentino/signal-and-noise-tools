@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **Saving the résumé no longer rewrites an unchanged page.** The English résumé sync called `wp_update_post` on every save, even when the rendered body was identical. The page is signed, so a save that only changed data the page does not show (a credential's verification URL) could still touch it. It now skips an identical body, as the Spanish sync already did.
+
 ### Added
 - **The résumé as Markdown written for AI readers.** `/resume.md` (and `/cv.md`) is a purpose-built Markdown résumé instead of the generic page conversion, which began with "Skip to content", split each stat from its label and turned the footer icons into empty links. It opens with YAML front matter (name, headline, location, the page URL, the last change, the public email and profiles, every format, and the authorship proof with what it means), then Summary, Highlights, Experience, Research & Publications, Education, Memberships & Credentials, Skills and Languages, with ISO dates and no tables. It is built from the JSON Resume document, so the two cannot disagree on an employer or a date. `/resume/?output_format=markdown` now returns the same file, and the résumé page sends a `Link` header naming it so the edge can serve it to `Accept: text/markdown` readers too.
 - **A contact card.** `/resume/contact.vcf` is a vCard 3.0 with the name, headline, the public email, Orlando, FL, the site and the profiles, plus the résumé and verify links. It holds only what the résumé already publishes: no phone unless the owner made it public.
