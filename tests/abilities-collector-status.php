@@ -78,6 +78,18 @@ ok( 'All 9 config bindings report true.' === inv( sn_collector_status_invariants
 $nine['config']['kv_bound'] = false;
 ok( false === inv( sn_collector_status_invariants( $nine, $NOW ), 'config_bindings' )['ok'], 'a required binding still fails beside the owner flags' );
 
+// Analytics worker #55: first_party_token_set is optional too (the
+// x-sn-first-party header is off until the owner sets SN_FIRST_PARTY_TOKEN;
+// off is not data loss), so unset it neither fails nor joins the count.
+$fp = $GOOD; $fp['config']['first_party_token_set'] = false;
+$i  = inv( sn_collector_status_invariants( $fp, $NOW ), 'config_bindings' );
+ok( true === $i['ok'] && false === strpos( $i['detail'], 'first_party_token_set' ), 'first_party_token_set unset: config_bindings still ok, never named' );
+ok( true === sn_collector_status_invariants( $fp, $NOW )['healthy'], 'first_party_token_set unset: the collector still reads healthy' );
+$fp_on = $GOOD; $fp_on['config']['first_party_token_set'] = true;
+ok( inv( sn_collector_status_invariants( $GOOD, $NOW ), 'config_bindings' )['detail'] === inv( sn_collector_status_invariants( $fp_on, $NOW ), 'config_bindings' )['detail'], 'first_party_token_set set: the count does not change either' );
+$fp['config']['px_token_set'] = false;
+ok( false === inv( sn_collector_status_invariants( $fp, $NOW ), 'config_bindings' )['ok'], 'a required binding still fails beside first_party_token_set' );
+
 // salt_window: today_present must be true.
 $bad = $GOOD; $bad['salt']['today_present'] = false;
 $i = inv( sn_collector_status_invariants( $bad, $NOW ), 'salt_window' );
