@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **The JSON Resume carries the stats strip.** `meta.x-highlights` lists the page's highlights (`{n, label}`, blank ones dropped), so `/resume/json-resume.json` and `/cv/json-resume.json` hold every fact the page shows. JSON Resume's `meta` allows extra keys, and the `x-` prefix matches `x-provenance`. No stats, no key.
+
 ## [2026.10.49] - 2026-10-19 — a résumé panel in Machine readers; /cv PDF downloads counted
 
 ### Added

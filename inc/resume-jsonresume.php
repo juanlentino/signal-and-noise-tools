@@ -107,6 +107,18 @@ function sn_jsonresume_build( $doc, array $ctx ) {
 			'lastModified' => (string) ( $ctx['last_modified'] ?? '' ),
 		)
 	);
+	// The page's stats strip, so the JSON carries every fact the page shows.
+	$highlights = array();
+	foreach ( (array) ( $doc['stats'] ?? array() ) as $stat ) {
+		$n = trim( (string) ( $stat['n'] ?? '' ) );
+		$l = trim( (string) ( $stat['label'] ?? '' ) );
+		if ( '' !== $n && '' !== $l ) {
+			$highlights[] = array( 'n' => $n, 'label' => $l );
+		}
+	}
+	if ( $highlights ) {
+		$meta['x-highlights'] = $highlights;
+	}
 	$prov = $ctx['provenance'] ?? null;
 	if ( is_array( $prov ) && '' !== (string) ( $prov['note_uid'] ?? '' ) ) {
 		$meta['x-provenance'] = array( 'verify_url' => (string) ( $prov['verify_url'] ?? '' ), 'note_uid' => (string) $prov['note_uid'] );
