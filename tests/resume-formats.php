@@ -81,6 +81,12 @@ ok( false !== strpos( $md, '[Provenance Over Detection: A Cryptographic Framewor
 ok( false !== strpos( $md, 'Voting Member, The Recording Academy' ) && false !== strpos( $md, 'Google Project Management Certificate' ), 'memberships and credentials' );
 ok( false === strpos( $md, '<strong>' ) && false === strpos( $md, '—' ), 'plain text, no em dashes' );
 
+ok( false !== strpos( $md, "Westcliff University · 2026-08\n  Verify: https://www.parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5\n" ), 'Education: a Verify line under the MBA' );
+ok( 1 === substr_count( $md, 'Verify: ' ), 'Verify only where a URL is set' );
+$en_v = $en; $en_v['affiliations'][2]['credential_url'] = 'https://example.org/cert'; $en_v['affiliations'][0]['credential_url'] = 'https://example.org/member';
+$md_v = sn_resume_markdown( $en_v, sn_jsonresume_build( $en_v, $ctx ), $formats, 'en' );
+ok( false !== strpos( $md_v, "- Google Project Management Certificate\n  Verify: https://example.org/cert\n" ) && false !== strpos( $md_v, "  Verify: https://example.org/member\n" ), 'Memberships & Credentials: Verify lines too' );
+
 echo "\nTest: Markdown and JSON Resume agree\n";
 $agree = true;
 foreach ( $r['work'] as $w ) {
@@ -119,6 +125,14 @@ ok( array( '@type' => 'CollegeOrUniversity', 'name' => 'Westcliff University' ) 
 ok( 'certificate' === $cred[2]['credentialCategory'] && ! isset( $cred[2]['recognizedBy'] ), 'a certificate without an invented issuer' );
 $creds = sn_resume_person_credentials( array( 'memberOf' => array( 'x' ) ) );
 ok( array( 'x' ) === $creds['memberOf'] && ! empty( $creds['hasCredential'] ), 'the filter adds hasCredential and keeps memberOf' );
+
+ok( 'https://www.parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5' === ( $cred[0]['url'] ?? '' ), 'the MBA credential points to the issuer verification page' );
+ok( ! isset( $cred[1]['url'] ) && ! isset( $cred[2]['url'] ), 'no URL set, no url key' );
+$en_n = $en; unset( $en_n['education'][0]['credential_url'] );
+ok( ! isset( sn_resume_credentials( $en_n )[0]['url'] ), 'emptied, the url is gone' );
+$en_m = $en; $en_m['affiliations'][0]['credential_url'] = 'https://example.org/member';
+$cm   = sn_resume_credentials( $en_m );
+ok( 5 === count( $cm ) && 'membership' === ( $cm[4]['credentialCategory'] ?? '' ) && 'https://example.org/member' === ( $cm[4]['url'] ?? '' ), 'a membership with a verification URL becomes a credential; without one it stays memberOf only' );
 
 echo "\nTest: routes and discovery\n";
 ok( array( 'md', 'resume' ) === sn_resume_formats_route( '/resume.md' ) && array( 'md', 'cv' ) === sn_resume_formats_route( '/cv.md?x=1' ), '/resume.md and /cv.md' );

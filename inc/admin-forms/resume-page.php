@@ -159,6 +159,7 @@ function sn_rsm_titled_lines_row( $prefix, $lines_id, $entry ) {
 	echo '</div>';
 	unset( $lines_id );
 	sn_rsm_lines( $prefix . '[lines]', (array) ( $entry['lines'] ?? array() ), 'Detail lines: one per line', 'Institution · Place · Date', 3 );
+	sn_rsm_input( $prefix . '[credential_url]', (string) ( $entry['credential_url'] ?? '' ), 'Verification URL', 'https://…', "Optional. The issuer's own page that verifies this credential (https only)." );
 	echo '</div>';
 }
 

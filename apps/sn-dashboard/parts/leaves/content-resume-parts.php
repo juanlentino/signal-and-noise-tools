@@ -170,12 +170,13 @@ function resume_employer_card( $prefix, $role_token, array $entry, $with_meta ) 
 	return resume_card( $prefix, $inner . resume_roles_list( $prefix, (array) ( $entry['roles'] ?? array() ), $role_token ) );
 }
 
-/** One titled-lines row (Education / Affiliations), sn_rsm_titled_lines_row(). @param string $prefix @param array $entry {title,lines[]} @return string */
+/** One titled-lines row (Education / Affiliations), sn_rsm_titled_lines_row(). @param string $prefix @param array $entry {title,lines[],credential_url?} @return string */
 function resume_titled_lines_row( $prefix, array $entry ) {
 	return resume_card(
 		$prefix,
 		resume_text( $prefix . '[title]', __( 'Title', 'signal-and-noise-tools' ), $entry['title'] ?? '', __( 'Degree, membership, or certificate', 'signal-and-noise-tools' ), 'title' )
-		. resume_lines( $prefix . '[lines]', $entry['lines'] ?? array(), __( 'Detail lines: one per line', 'signal-and-noise-tools' ), 'Institution · Place · Date', 3 ),
+		. resume_lines( $prefix . '[lines]', $entry['lines'] ?? array(), __( 'Detail lines: one per line', 'signal-and-noise-tools' ), 'Institution · Place · Date', 3 )
+		. resume_text( $prefix . '[credential_url]', __( 'Verification URL', 'signal-and-noise-tools' ), $entry['credential_url'] ?? '', 'https://…' ),
 		true
 	);
 }

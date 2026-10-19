@@ -83,7 +83,9 @@ function sn_jsonresume_profiles( array $urls ) {
 }
 
 /**
- * Education, plus the honors its extra lines carry (as awards).
+ * Education, plus the honors its extra lines carry (as awards). A degree's
+ * verification URL rides as `x-credentialUrl`: the schema's education `url`
+ * is the institution's site, and the item allows extra properties.
  *
  * @param array $doc
  * @return array{0:array,1:array}
@@ -105,13 +107,15 @@ function sn_jsonresume_education( array $doc ) {
 				$honors[] = array_filter( array( 'title' => trim( $honor ), 'awarder' => $inst ) );
 			}
 		}
-		$edu[] = array_filter( array( 'institution' => $inst, 'studyType' => trim( $title[0] ), 'area' => trim( $title[1] ?? '' ), 'endDate' => $end ) );
+		$edu[] = array_filter( array( 'institution' => $inst, 'studyType' => trim( $title[0] ), 'area' => trim( $title[1] ?? '' ), 'endDate' => $end, 'x-credentialUrl' => $row['credential_url'] ?? '' ) );
 	}
 	return array( $edu, $honors );
 }
 
 /**
  * Affiliations: dated ranges (memberships) to awards, the rest to certificates.
+ * A verification URL is a certificate's own `url`, a membership's
+ * `x-credentialUrl` (awards have no url field).
  *
  * @param array $doc
  * @return array{0:array,1:array}
@@ -123,9 +127,9 @@ function sn_jsonresume_affiliations( array $doc ) {
 		$line = (string) ( $row['lines'][0] ?? '' );
 		if ( preg_match( '~\s[-–]\s~u', $line ) ) {
 			$by       = explode( ', ', $row['title'], 2 );
-			$awards[] = array_filter( array( 'title' => $row['title'], 'awarder' => trim( $by[1] ?? '' ), 'date' => sn_jsonresume_range( $line )[0], 'summary' => $line ) );
+			$awards[] = array_filter( array( 'title' => $row['title'], 'awarder' => trim( $by[1] ?? '' ), 'date' => sn_jsonresume_range( $line )[0], 'summary' => $line, 'x-credentialUrl' => $row['credential_url'] ?? '' ) );
 		} else {
-			$certs[] = array( 'name' => $row['title'] );
+			$certs[] = array_filter( array( 'name' => $row['title'], 'url' => $row['credential_url'] ?? '' ) );
 		}
 	}
 	return array( $awards, $certs );

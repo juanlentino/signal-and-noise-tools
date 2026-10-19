@@ -92,7 +92,7 @@
 		]
 	},
 	"education": [
-		{ "title": "MBA, Applied Artificial Intelligence in Business", "lines": [ "Westcliff University · Celebration, FL", "August 2026" ] },
+		{ "title": "MBA, Applied Artificial Intelligence in Business", "lines": [ "Westcliff University · Celebration, FL", "August 2026" ], "credential_url": "https://www.parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5" },
 		{ "title": "B.S. Music Production", "lines": [ "Full Sail University · Winter Park, FL", "December 2022", "Valedictorian · Advanced Achiever Award" ] }
 	],
 	"affiliations": [
