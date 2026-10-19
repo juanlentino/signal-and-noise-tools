@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **The résumé as JSON Resume.** `/resume/json-resume.json` (and `/cv/json-resume.json` for the Spanish résumé) serve the résumé in the open [JSON Resume v1.0.0](https://jsonresume.org/schema) format that résumé tools and themes read. It is built from the same document as the page and the PDF, so the three cannot disagree: work (one entry per role, earlier career included), education, the Recording Academy memberships and the Full Sail honors as awards, certificates, publications, skills, languages, and the profiles from the site's structured data. Dates are read in English and Spanish; a date that does not parse is left out, never guessed. Contact details are only the ones the public PDF already shows. `meta` carries the page URL, its last change and the page's own authorship proof (`x-provenance`: the verify link and note ID). The résumé pages advertise it with a `<link rel="alternate">`. The existing `/resume.json` page twin is unchanged. A new suite, `tests/resume-jsonresume.php`, validates both résumés against the official schema, vendored with its MIT license under `tests/fixtures/json-resume/`.
+
 ## [2026.10.47] - 2026-10-18 — /notas/ goes to the notes; provenance and stats accessibility fixes
 
 
