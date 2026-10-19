@@ -12,14 +12,18 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Which crawlers and agents read the résumé, and in which format.** The Machine readers view, classic and native, gains a Résumé panel: machine reads per format (HTML page, Markdown, JSON Resume, PDF, vCard, page JSON) with the top readers of each, from the rights-signals sensor's new `resume` surface class and `resume_format` column (sn-rights-signals-worker #100). Beside them, the people who downloaded the PDF in the last 7 days, from the North Star. The page links only the PDF, so the other formats count machines only, and the panel says so. `resume` joins the surface allowlist (12 classes); it is not a rights surface. This site's own tools, control tokens and impostors move no count, as on every card.
+
+### Fixed
+- **A PDF download on /cv now counts as a résumé download.** The North Star's résumé downloads matched `/resume` only, so the Spanish résumé's PDF never counted.
+
 ## [2026.10.48] - 2026-10-19 — the résumé in five formats, with its credentials and a verify link
 
 
 - **Saving the résumé no longer rewrites an unchanged page.** The English résumé sync called `wp_update_post` on every save, even when the rendered body was identical. The page is signed, so a save that only changed data the page does not show (a credential's verification URL) could still touch it. It now skips an identical body, as the Spanish sync already did.
-- **A PDF download on /cv now counts as a résumé download.** The North Star's résumé downloads matched `/resume` only, so the Spanish résumé's PDF never counted.
 
 ### Added
-- **Which crawlers and agents read the résumé, and in which format.** The Machine readers view, classic and native, gains a Résumé panel: machine reads per format (HTML page, Markdown, JSON Resume, PDF, vCard, page JSON) with the top readers of each, from the rights-signals sensor's new `resume` surface class and `resume_format` column (sn-rights-signals-worker #100). Beside them, the people who downloaded the PDF in the last 7 days, from the North Star. The page links only the PDF, so the other formats count machines only, and the panel says so. `resume` joins the surface allowlist (12 classes); it is not a rights surface. This site's own tools, control tokens and impostors move no count, as on every card.
 - **The résumé as Markdown written for AI readers.** `/resume.md` (and `/cv.md`) is a purpose-built Markdown résumé instead of the generic page conversion, which began with "Skip to content", split each stat from its label and turned the footer icons into empty links. It opens with YAML front matter (name, headline, location, the page URL, the last change, the public email and profiles, every format, and the authorship proof with what it means), then Summary, Highlights, Experience, Research & Publications, Education, Memberships & Credentials, Skills and Languages, with ISO dates and no tables. It is built from the JSON Resume document, so the two cannot disagree on an employer or a date. `/resume/?output_format=markdown` now returns the same file, and the résumé page sends a `Link` header naming it so the edge can serve it to `Accept: text/markdown` readers too.
 - **A contact card.** `/resume/contact.vcf` is a vCard 3.0 with the name, headline, the public email, Orlando, FL, the site and the profiles, plus the résumé and verify links. It holds only what the résumé already publishes: no phone unless the owner made it public.
 - **Degrees and certificates in the structured data.** The Person schema now lists each degree and certificate on the résumé as a schema.org `hasCredential` (`EducationalOccupationalCredential`, the university as `recognizedBy`), read from the résumé itself. The Recording Academy memberships were already there as `memberOf`.
