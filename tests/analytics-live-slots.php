@@ -201,6 +201,7 @@ ok( false === strpos( $heat, '<script' ) && false === strpos( $heat, 'style="' )
 ok( false !== strpos( sn_analytics_live_admin_html( array( 'sn_slot' => (string) $busy ) ), 'sn-live-admin__heat' ) && false !== strpos( (string) file_get_contents( $root . '/inc/analytics-view-overview-panels-parts.php' ), 'echo sn_analytics_live_admin_html()' ), 'both twins paint the same grid: the classic page and the native Overview call the one block' );
 $css = (string) file_get_contents( $root . '/assets/analytics/live-admin.css' );
 ok( 0 === preg_match( '/overflow(-x|-y)?\s*:\s*(auto|scroll)/', $css ), 'the grid never scrolls: no scrolling overflow in the stylesheet' );
+ok( 1 === preg_match( '/\.sn-live-admin\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap/', $css ) && 1 === preg_match( '/\.sn-live-admin__now\{[^}]*flex:/', $css ) && 1 === preg_match( '/\.sn-live-admin__past\{[^}]*flex:/', $css ), 'the grid sits beside the live block and wraps under it on a narrow panel' );
 ok( 1 === preg_match( '/\.sn-live-admin__heat\{[^}]*max-height:\s*1[0-4]\dpx/', $css ) && 1 === preg_match( '/\.sn-live-admin__heat\{[^}]*grid-auto-columns:\s*minmax\(0,/', $css ), '   ...its height is capped near 140px and its columns shrink to fit the panel' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

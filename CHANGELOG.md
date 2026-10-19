@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **The 24-hour grid sits beside the live block.** The grid is about 290px wide, so it no longer takes a row of its own: Right now is two columns that wrap, the last hour, its surge line and the live lists on the left, the grid with its chosen slot on the right. On a panel narrower than about 800px the grid drops under the live block as before. No scroller at any width.
+
 ## [2026.10.50] - 2026-10-19 — the 24-hour grid fits one glance; the JSON résumé carries its highlights
 
 
