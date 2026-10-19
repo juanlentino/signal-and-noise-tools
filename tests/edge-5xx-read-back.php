@@ -55,6 +55,13 @@ function e5r_extract( $src, $name ) {
 }
 
 // 2026-10-12 re-measure: the two label functions live in inc/edge-error-labels.php.
+// 2026-10-19: the probe split, self-contained, loaded whole.
+if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
+require_once $root . '/inc/edge-error-probes.php';
+// Its day reader asks the dims table; no probe rows here, so each day keeps its total.
+if ( ! defined( 'SN_EDGE_DIMS_TABLE' ) ) { define( 'SN_EDGE_DIMS_TABLE', 'sn_edge_dims' ); }
+if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
+$GLOBALS['wpdb'] = new class() { public $prefix = 'wp_'; public function prepare( $q ) { return $q; } public function get_results( $q ) { return array(); } };
 $roll = snt_test_edge_rollup_src() . (string) file_get_contents( $root . '/inc/edge-error-labels.php' );
 foreach ( array( 'sn_edge_errors_dims', 'sn_edge_errors_reading', 'sn_edge_errors_range', 'sn_edge_error_source_label', 'sn_edge_error_asker_label', 'sn_edge_error_source_notes', 'sn_edge_error_asker', 'sn_edge_errors_days_shape', 'sn_edge_errors_asked_by_totals', 'sn_edge_errors_days_annotate', 'sn_edge_errors_paths_by_day_shape', 'sn_edge_errors_paths_by_day' ) as $name ) {
 	$fn = e5r_extract( $roll, $name );

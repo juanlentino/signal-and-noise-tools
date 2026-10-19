@@ -35,12 +35,14 @@ function sn_edge_errors_reading( $days = 7, $today = null ) {
  *
  * @param string $from First day.
  * @param string $to   Last day.
- * @return array{from:string,to:string,total:int,paths:array,paths_by_status:array,sources:array,days:array,asked_by:array,paths_by_day:array}
+ * @return array{from:string,to:string,total:int,paths:array,probes:array,paths_by_status:array,sources:array,days:array,asked_by:array,paths_by_day:array}
  */
 function sn_edge_errors_range( $from, $to ) {
 	$from    = (string) $from;
 	$to      = (string) $to;
-	$paths   = sn_edge_top_dim( 'err_path', $from, $to, 10 );
+	// 2026-10-19: every stored path (the cap), so the probes split off before
+	// the top ten is cut (inc/edge-error-probes.php).
+	$split   = sn_edge_errors_split_probes( sn_edge_top_dim( 'err_path', $from, $to, 500 ) );
 	$sources = array();
 	foreach ( sn_edge_top_dim( 'err_source', $from, $to, 10 ) as $row ) {
 		$row['label'] = sn_edge_error_source_label( $row['value'] );
@@ -50,6 +52,8 @@ function sn_edge_errors_range( $from, $to ) {
 	// of averaged into the week, and the week's total is the full sum rather
 	// than the top ten sources' share of it.
 	$days     = function_exists( 'sn_edge_errors_days' ) ? sn_edge_errors_days( $from, $to ) : array();
+	// 2026-10-19: each day's probes, out of its total (asked-by keeps them).
+	$days     = $days ? sn_edge_errors_days_probes( $days, sn_edge_errors_path_days( $from, $to ) ) : $days;
 	// 18.3.0: each day says whether it was read, so a 0 is never ambiguous.
 	$days     = sn_edge_errors_days_annotate(
 		$days,
@@ -65,8 +69,10 @@ function sn_edge_errors_range( $from, $to ) {
 		// 17.9.3: the errors query's last outcome; a non-empty error means the
 		// window below was NOT read, which is not the same as no errors.
 		'query'       => function_exists( 'get_option' ) ? get_option( SN_EDGE_ERRORS_QUERY_OPT, null ) : null,
-		'total'       => $days ? (int) array_sum( array_column( $days, 'total' ) ) : (int) array_sum( array_column( $sources, 'requests' ) ),
-		'paths'       => $paths,
+		'total'       => $days ? (int) array_sum( array_column( $days, 'total' ) ) : max( 0, (int) array_sum( array_column( $sources, 'requests' ) ) - $split['probes']['total'] ),
+		'paths'       => $split['paths'],
+		// Scanner probes on core library files: counted, named, not in total.
+		'probes'      => $days ? array( 'total' => (int) array_sum( array_column( $days, 'probes' ) ), 'paths' => $split['probes']['paths'] ) : $split['probes'],
 		// #1006: path and status together, "520 dynamic /wp-json/...".
 		'paths_by_status' => sn_edge_top_dim( 'err_path_status', $from, $to, 10 ),
 		'sources'     => $sources,

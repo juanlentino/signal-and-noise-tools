@@ -93,7 +93,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 // split gains vendor_verified, the part of verified that rests on the
 // vendor's published IP ranges (basis vendor_verified). Additive. The worker's
 // own CONTRACT_VERSION bump is a separate PR, merged after this cut installs.
-const SN_REMOTE_CONTRACT_VERSION = '20';
+// Contract 21 (2026-10-19): the 5xx twin gains probes{total, paths}, scanner
+// requests to core library files counted apart, and total (window and per
+// day) leaves them out; each days[] row gains probes. Additive keys; total's
+// meaning narrows. The worker's own CONTRACT_VERSION bump is a separate PR.
+const SN_REMOTE_CONTRACT_VERSION = '21';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -142,6 +146,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'19' => 'ddce832f49228f7710fb770c71fc3f9ff53fa72d97669b4304c1915e30e117b7',
 	// RED-then-pin, 2026-10-18: impostor reasons and vendor_verified on the machine-readers summary twin.
 	'20' => 'b33030216b11642e3dd162992bd90f01e056e437b3bfaff7f9e783a6f5b91d6b',
+	// RED-then-pin, 2026-10-19: probes on the 5xx twin (window and per day).
+	'21' => '19f08c2ab0d0c3474707820e1ec0a4450728e147d54aeb918bda1228e99af860',
 );
 
 /**

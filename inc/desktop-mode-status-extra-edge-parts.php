@@ -19,6 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * meet it once or twice, counted again when the rights Worker forwarded them.
  * Oct 8-13 2026 measured about 2 to 2.5 per install.
  */
+require_once __DIR__ . '/edge-error-probes.php'; // The probe test the verdict skips.
+
 const SNT_EDGE_5XX_PER_INSTALL = 3;
 
 /**
@@ -91,6 +93,11 @@ function snt_desktop_edge_install_explained( $total, $rows, $installs ) {
 	foreach ( $rows as $r ) {
 		if ( ! preg_match( '/^\S+ (\d+) (?:\d+|-) \S+ (.+)$/', (string) ( is_array( $r ) ? ( $r['value'] ?? '' ) : '' ), $m ) ) {
 			return false;
+		}
+		// A scanner probe on a core library file is not a site failure and is
+		// already out of the day's total (inc/edge-error-probes.php).
+		if ( sn_edge_error_is_probe( $m[2] ) ) {
+			continue;
 		}
 		// Beyond the dashboard: the live poll, wp-cron, wp-login and the favicon
 		// (an open tab asks for it). A public REST route a reader loads is not.
