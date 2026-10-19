@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/keyring-probe-indexnow.php'; // the IndexNow key file, read at its public URL.
+
 const SN_KEYRING_VERDICTS_OPT = 'sn_keyring_verdicts';
 
 /**
@@ -73,6 +75,8 @@ function sn_keyring_probe( $id, array $row ) {
 			return sn_keyring_probe_bing();
 		case 'srv':
 			return sn_keyring_probe_srv( $row );
+		case 'indexnow':
+			return sn_keyring_probe_indexnow();
 	}
 	return sn_keyring_verdict( 'none', __( 'No probe for this credential; the tab that uses it is the witness.', 'signal-and-noise-tools' ) );
 }
