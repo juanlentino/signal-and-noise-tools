@@ -599,7 +599,8 @@
 			if ( aborted || pending || document.hidden ) { return; }
 			// A brief miss's retry (under the period) is kept as it is.
 			var nextAt = lastAt + ( lastDelay < REFRESH_MS ? lastDelay : Math.max( lastDelay, cadence( REFRESH_MS ) ) );
-			timer = window.setTimeout( refresh, Math.max( 0, nextAt - Date.now() ) );
+			var C = window.sntPollCadence, due = Math.max( 0, nextAt - Date.now() );
+			timer = window.setTimeout( refresh, C && C.jitter ? C.jitter( due ) : due );
 		}
 		function onVisibilityChange() {
 			if ( document.hidden ) { window.clearTimeout( timer ); return; }
