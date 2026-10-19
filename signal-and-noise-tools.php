@@ -162,6 +162,7 @@ require_once SNT_PATH . 'inc/analytics-live-hour.php'; // the last hour behind R
 require_once SNT_PATH . 'inc/analytics-live-sources.php'; // admin only: where current readers arrived from
 require_once SNT_PATH . 'inc/analytics-live-slots.php'; // rolling live snapshots: each completed 5-minute slot, kept 24 hours
 require_once SNT_PATH . 'inc/analytics-live-slots-admin.php'; // the past-slot picker under the admin Right now block
+require_once SNT_PATH . 'inc/analytics-live-heat.php'; // its heat cells, color steps and legend
 require_once SNT_PATH . 'inc/analytics-live-admin.php'; // the admin Right now block (classic and native)
 require_once SNT_PATH . 'inc/analytics-live.php'; // the live pair: public /live (human) and gated /live/admin
 require_once SNT_PATH . 'inc/analytics-read.php';   // path read accessors (dashboard + widgets)

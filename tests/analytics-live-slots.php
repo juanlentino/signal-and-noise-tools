@@ -56,6 +56,7 @@ require $root . '/inc/analytics-sources.php';
 require $root . '/inc/analytics-live-sources.php';
 require $root . '/inc/analytics-live-slots.php';
 require $root . '/inc/analytics-live-slots-admin.php';
+require $root . '/inc/analytics-live-heat.php';
 require $root . '/inc/analytics-live-admin.php';
 require $root . '/inc/analytics-live.php';
 require $root . '/inc/abilities-live-now.php';
