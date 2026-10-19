@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/cloudflare-posture-words.php'; // a drift and a firewall action in words (2026-10-12).
-require_once __DIR__ . '/cloudflare-posture-waf.php';   // managed rules, the rate-limit rule, leaked credentials (2026-10-18).
+require_once __DIR__ . '/cloudflare-posture-waf.php';   // the rate-limit rule, leaked credentials (2026-10-18).
 
 const SN_CF_POSTURE_OPT = 'sn_cf_posture';
 
@@ -75,7 +75,7 @@ function sn_cf_posture_stale_headers_sent() {
 /**
  * The documented scope each read needs.
  *
- * @param string $what settings|dnssec|rules|managed|ratelimit|leaked
+ * @param string $what settings|dnssec|rules|ratelimit|leaked
  * @return string
  */
 function sn_cf_posture_scope( $what ) {
@@ -83,7 +83,6 @@ function sn_cf_posture_scope( $what ) {
 		'settings'  => 'Zone › Zone Settings › Read',
 		'dnssec'    => 'Zone › DNS › Read',
 		'rules'     => 'Zone › Zone WAF › Read',
-		'managed'   => 'Zone › Zone WAF › Read',
 		'ratelimit' => 'Zone › Zone WAF › Read',
 		'leaked'    => 'Zone › Zone WAF › Read',
 	);
@@ -132,12 +131,11 @@ function sn_cf_posture_read_of( array $res, $what ) {
  * @param array{http:int,body:array<string,mixed>,error:string}      $settings_res
  * @param array{http:int,body:array<string,mixed>,error:string}      $dnssec_res
  * @param array{http:int,body:array<string,mixed>,error:string}      $rules_res
- * @param array{http:int,body:array<string,mixed>,error:string}|null $managed_res
  * @param array{http:int,body:array<string,mixed>,error:string}|null $ratelimit_res
  * @param array{http:int,body:array<string,mixed>,error:string}|null $leaked_res
  * @return array<string,mixed>
  */
-function sn_cf_posture_from( array $settings_res, array $dnssec_res, array $rules_res, $managed_res = null, $ratelimit_res = null, $leaked_res = null ) {
+function sn_cf_posture_from( array $settings_res, array $dnssec_res, array $rules_res, $ratelimit_res = null, $leaked_res = null ) {
 	$settings = sn_cf_posture_read_of( $settings_res, 'settings' );
 	$values   = array();
 	if ( $settings['available'] ) {
@@ -178,8 +176,8 @@ function sn_cf_posture_from( array $settings_res, array $dnssec_res, array $rule
 	$rules['rules'] = $list;
 
 	$out = array( 'settings' => $settings, 'dnssec' => $dnssec, 'rules' => $rules );
-	if ( is_array( $managed_res ) && is_array( $ratelimit_res ) && is_array( $leaked_res ) ) {
-		$out += sn_cf_posture_waf_from( $managed_res, $ratelimit_res, $leaked_res );
+	if ( is_array( $ratelimit_res ) && is_array( $leaked_res ) ) {
+		$out += sn_cf_posture_waf_from( $ratelimit_res, $leaked_res );
 	}
 	return $out;
 }

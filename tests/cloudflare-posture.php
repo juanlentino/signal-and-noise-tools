@@ -130,7 +130,7 @@ ok( array() === sn_cf_posture_findings( $rec ), 'a transport failure is not a dr
 echo "\nGroup: the refresh\n";
 $GLOBALS['__http'] = array( '/zones/zone123/settings' => $settings(), '/zones/zone123/dnssec' => $dnssec( 'active' ), '/zones/zone123/rulesets/phases/http_request_firewall_custom/entrypoint' => $rules( array( $abil ) ) );
 $stored = sn_cf_posture_refresh();
-ok( array( '/zones/zone123/settings', '/zones/zone123/dnssec', '/zones/zone123/rulesets/phases/http_request_firewall_custom/entrypoint' ) === array_slice( $GLOBALS['__calls'], 0, 3 ) && 6 === count( $GLOBALS['__calls'] ), 'the three documented endpoints first, in order (the three WAF reads follow, tests/cloudflare-posture-waf.php)' );
+ok( array( '/zones/zone123/settings', '/zones/zone123/dnssec', '/zones/zone123/rulesets/phases/http_request_firewall_custom/entrypoint' ) === array_slice( $GLOBALS['__calls'], 0, 3 ) && 5 === count( $GLOBALS['__calls'] ), 'the three documented endpoints first, in order (the two WAF reads follow, tests/cloudflare-posture-waf.php)' );
 ok( true === $stored['configured'] && $stored === get_option( 'sn_cf_posture' ) && false === $GLOBALS['__autoload']['sn_cf_posture'], 'stored in sn_cf_posture, never autoloaded' );
 ok( 'Block Basic-auth on abilities API' === sn_cf_posture_rule_name( '55a1a3' ) && '' === sn_cf_posture_rule_name( 'nope' ), 'rule names resolve from the stored read; unknown ids read empty' );
 $hooked = array_filter( $GLOBALS['__actions']['sn_cf_monitor_daily'] ?? array(), static fn( $h ) => 'sn_cf_posture_refresh' === $h[0] && 30 === $h[1] );

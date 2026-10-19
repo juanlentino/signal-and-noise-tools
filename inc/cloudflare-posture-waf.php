@@ -1,9 +1,8 @@
 <?php
 /**
  * Signal & Noise Tools: the posture's blind spots, split from
- * inc/cloudflare-posture.php (house line cap). Three more reads, all on the
+ * inc/cloudflare-posture.php (house line cap). Two more reads, both on the
  * scope the custom rules read already needs (Zone › Zone WAF › Read):
- *   - managed rules   GET /zones/{id}/rulesets/phases/http_request_firewall_managed/entrypoint
  *   - rate limit      GET /zones/{id}/rulesets/phases/http_ratelimit/entrypoint
  *   - leaked creds    GET /zones/{id}/leaked-credential-checks
  * A 404 entrypoint means nothing is deployed in that phase (missing, a
@@ -12,6 +11,11 @@
  * NEVER stored: it can carry the masked login path. Its description is not
  * stored either, for the same reason. Read-only.
  *
+ * No managed-rules read (removed 2026-10-19): on the Free plan Cloudflare
+ * runs the Free Managed Ruleset itself, it never appears in the zone's
+ * managed entrypoint and the dashboard offers no deploy, so the read could
+ * only report "not deployed", a false finding, and could never catch drift.
+ *
  * @package SignalNoiseTools
  */
 
@@ -19,17 +23,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** Rulesets that put the Free Managed Ruleset's rules in front of the zone (the full one supersedes it). */
-const SN_CF_FREE_MANAGED_IDS = array( '77454fe2d30c4220b5701f6fdfb893ba', 'efb7b8c949ac4650a09736fc376e9aee' );
-
 /**
- * The paths the three reads ask for, by key.
+ * The paths the two reads ask for, by key.
  *
  * @return array<string,string>
  */
 function sn_cf_posture_waf_paths() {
 	return array(
-		'managed'   => '/rulesets/phases/http_request_firewall_managed/entrypoint',
 		'ratelimit' => '/rulesets/phases/http_ratelimit/entrypoint',
 		'leaked'    => '/leaked-credential-checks',
 	);
@@ -40,7 +40,7 @@ function sn_cf_posture_waf_paths() {
  * "unavailable (needs the scope)".
  *
  * @param array{http:int,body:array<string,mixed>,error:string} $res
- * @param string                                                $what managed|ratelimit|leaked
+ * @param string                                                $what ratelimit|leaked
  * @return array<string,mixed>
  */
 function sn_cf_posture_waf_read_of( array $res, $what ) {
@@ -55,12 +55,11 @@ function sn_cf_posture_waf_read_of( array $res, $what ) {
 }
 
 /**
- * @param string $what managed|ratelimit|leaked
+ * @param string $what ratelimit|leaked
  * @return string
  */
 function sn_cf_posture_waf_label( $what ) {
 	$labels = array(
-		'managed'   => __( 'Free Managed Ruleset', 'signal-and-noise-tools' ),
 		'ratelimit' => __( 'Rate-limit rule', 'signal-and-noise-tools' ),
 		'leaked'    => __( 'Leaked credentials detection', 'signal-and-noise-tools' ),
 	);
@@ -68,26 +67,14 @@ function sn_cf_posture_waf_label( $what ) {
 }
 
 /**
- * The three readings as record keys, pure. Facts only: booleans, a count
+ * The two readings as record keys, pure. Facts only: booleans, a count
  * and an action, never an expression or a description.
  *
- * @param array $managed_res   Answer of the managed entrypoint read.
  * @param array $ratelimit_res Answer of the rate-limit entrypoint read.
  * @param array $leaked_res    Answer of the leaked-credential-checks read.
- * @return array{managed:array,ratelimit:array,leaked:array}
+ * @return array{ratelimit:array,leaked:array}
  */
-function sn_cf_posture_waf_from( array $managed_res, array $ratelimit_res, array $leaked_res ) {
-	$m     = sn_cf_posture_waf_read_of( $managed_res, 'managed' );
-	$found = null;
-	foreach ( (array) ( $m['result']['rules'] ?? array() ) as $r ) {
-		if ( is_array( $r ) && 'execute' === ( $r['action'] ?? '' ) && in_array( (string) ( $r['action_parameters']['id'] ?? '' ), SN_CF_FREE_MANAGED_IDS, true ) && ( null === $found || ! empty( $r['enabled'] ) ) ) {
-			$found = $r;
-		}
-	}
-	unset( $m['result'] );
-	$m['deployed'] = null !== $found;
-	$m['enabled']  = null !== $found && ! empty( $found['enabled'] );
-
+function sn_cf_posture_waf_from( array $ratelimit_res, array $leaked_res ) {
 	$rl    = sn_cf_posture_waf_read_of( $ratelimit_res, 'ratelimit' );
 	$list  = array_values( array_filter( (array) ( $rl['result']['rules'] ?? array() ), 'is_array' ) );
 	$first = $list[0] ?? array();
@@ -101,24 +88,20 @@ function sn_cf_posture_waf_from( array $managed_res, array $ratelimit_res, array
 	$lc['enabled'] = $lc['available'] && isset( $lc['result']['enabled'] ) ? (bool) $lc['result']['enabled'] : null;
 	unset( $lc['result'] );
 
-	return array( 'managed' => $m, 'ratelimit' => $rl, 'leaked' => $lc );
+	return array( 'ratelimit' => $rl, 'leaked' => $lc );
 }
 
 /**
  * Each read rendered as one judged row, or null when it was not read.
  *
  * @param array<string,mixed> $record
- * @param string              $what managed|ratelimit|leaked
+ * @param string              $what ratelimit|leaked
  * @return array{label:string,value:string,ok:bool,expected:string}|null
  */
 function sn_cf_posture_waf_check( array $record, $what ) {
 	$r = $record[ $what ] ?? null;
 	if ( ! is_array( $r ) || empty( $r['available'] ) ) {
 		return null;
-	}
-	if ( 'managed' === $what ) {
-		$value = ! $r['deployed'] ? __( 'not deployed', 'signal-and-noise-tools' ) : ( $r['enabled'] ? __( 'deployed', 'signal-and-noise-tools' ) : __( 'deployed, disabled', 'signal-and-noise-tools' ) );
-		return array( 'label' => sn_cf_posture_waf_label( $what ), 'value' => $value, 'ok' => $r['deployed'] && $r['enabled'], 'expected' => __( 'deployed and enabled', 'signal-and-noise-tools' ) );
 	}
 	if ( 'ratelimit' === $what ) {
 		if ( 0 === (int) $r['count'] ) {
@@ -141,7 +124,7 @@ function sn_cf_posture_waf_check( array $record, $what ) {
 }
 
 /**
- * The drifts among the three: a refusal (unavailable), missing, disabled,
+ * The drifts among the two: a refusal (unavailable), missing, disabled,
  * an empty expression, detection off. Pure.
  *
  * @param array<string,mixed> $record
