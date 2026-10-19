@@ -21,7 +21,8 @@ function sn_keyring_probe_indexnow() {
 	$key  = sn_credential( 'indexnow_key' );
 	$resp = wp_remote_get( home_url( '/' . rawurlencode( $key ) . '.txt' ), array( 'timeout' => 6, 'redirection' => 0, 'sslverify' => true ) );
 	if ( is_wp_error( $resp ) ) {
-		return sn_keyring_verdict( 'error', $resp->get_error_message() );
+		// The transport message can quote the request URL, which holds the key.
+		return sn_keyring_verdict( 'error', str_replace( $key, '[key]', $resp->get_error_message() ) );
 	}
 	$code = (int) wp_remote_retrieve_response_code( $resp );
 	if ( 200 === $code ) {

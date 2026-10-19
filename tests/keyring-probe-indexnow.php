@@ -43,6 +43,8 @@ ok( 'refused' === $v['status'] && false !== strpos( $v['detail'], 'HTTP 404' ), 
 ok( 'error' === $run( array( 'response' => array( 'code' => 503 ), 'body' => '' ) )['status'], 'a 5xx is an error, not a refusal' );
 $v = $run( new WP_Error( 'http', 'cURL error 28: timed out' ) );
 ok( 'error' === $v['status'] && false !== strpos( $v['detail'], 'timed out' ), 'a transport failure is an error with its message' );
+$v = $run( new WP_Error( 'http', 'cURL error 7: Failed to connect to https://example.test/' . $key . '.txt' ) );
+ok( 'error' === $v['status'] && false === strpos( $v['detail'], $key ) && false !== strpos( $v['detail'], 'Failed to connect' ), 'a transport message that quotes the URL keeps its words but never the key' );
 ok( array() === array_filter( $seen, static fn( $d ) => false !== strpos( $d, $key ) || false !== strpos( $d, 'f00ba4' ) ), 'no verdict carries the key or the body' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
