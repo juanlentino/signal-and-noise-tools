@@ -340,7 +340,7 @@ function snt_analytics_render_view_search() {
 	// v13.63.0: index coverage from the weekly URL Inspection sync — the
 	// discriminator for "zero impressions": not indexed, or indexed and unasked-for.
 	if ( function_exists( 'snt_gsc_coverage_summary' ) && function_exists( 'snt_gsc_coverage_data' ) ) {
-		$cov = snt_gsc_coverage_summary( snt_gsc_coverage_data(), function_exists( 'snt_ml_inbound_by_path' ) ? snt_ml_inbound_by_path() : null );
+		$cov = snt_gsc_coverage_summary( snt_gsc_coverage_data(), function_exists( 'snt_ml_inbound_by_path' ) ? snt_ml_inbound_by_path() : null, function_exists( 'sn_bing_url_info_data' ) ? sn_bing_url_info_data() : null );
 		if ( empty( $cov['synced'] ) ) {
 			snt_an_note_empty(
 				__( 'Index coverage', 'signal-and-noise-tools' ),
@@ -363,15 +363,24 @@ function snt_analytics_render_view_search() {
 			if ( function_exists( 'snt_gsc_coverage_history_render_classic' ) ) {
 				snt_gsc_coverage_history_render_classic();
 			}
+			if ( function_exists( 'snt_gsc_sitemaps_render_classic' ) ) {
+				snt_gsc_sitemaps_render_classic();
+			}
 			if ( ! empty( $cov['not_indexed_paths'] ) ) {
 				echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
 				echo '<th scope="col">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>';
 				echo '<th scope="col">' . esc_html__( 'Google says', 'signal-and-noise-tools' ) . '</th>';
 				echo '<th scope="col">' . esc_html__( 'Last crawl', 'signal-and-noise-tools' ) . '</th>';
 				echo '<th scope="col">' . esc_html__( 'Inbound links', 'signal-and-noise-tools' ) . '</th>';
+				echo '<th scope="col">' . esc_html__( 'Bing', 'signal-and-noise-tools' ) . '</th>';
 				echo '</tr></thead><tbody>';
+				$prop = (string) sn_setting( 'search_console.property', '' );
 				foreach ( array_slice( $cov['not_indexed_paths'], 0, 40 ) as $row ) {
-					echo '<tr><td><code>' . esc_html( $row['path'] ) . '</code></td><td>' . esc_html( $row['coverage_state'] ) . '</td><td>' . esc_html( '' === $row['last_crawl_time'] ? __( 'not reported', 'signal-and-noise-tools' ) : substr( $row['last_crawl_time'], 0, 10 ) ) . '</td><td>' . esc_html( null === $row['inbound_links'] ? __( 'not read', 'signal-and-noise-tools' ) : number_format_i18n( (int) $row['inbound_links'] ) ) . '</td></tr>';
+					// The path opens Google's own URL Inspection, where Request indexing lives (the API cannot ask).
+					$cell = ( '' !== $row['url'] && '' !== $prop && function_exists( 'snt_gsc_inspect_link' ) )
+						? '<a href="' . esc_url( snt_gsc_inspect_link( $prop, $row['url'] ) ) . '" target="_blank" rel="noopener noreferrer"><code>' . esc_html( $row['path'] ) . '</code></a>'
+						: '<code>' . esc_html( $row['path'] ) . '</code>';
+					echo '<tr><td>' . $cell . '</td><td>' . esc_html( $row['coverage_state'] ) . '</td><td>' . esc_html( '' === $row['last_crawl_time'] ? __( 'not reported', 'signal-and-noise-tools' ) : substr( $row['last_crawl_time'], 0, 10 ) ) . '</td><td>' . esc_html( null === $row['inbound_links'] ? __( 'not read', 'signal-and-noise-tools' ) : number_format_i18n( (int) $row['inbound_links'] ) ) . '</td><td>' . esc_html( null === $row['bing'] ? __( 'not read', 'signal-and-noise-tools' ) : $row['bing'] ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $cell is built from esc_url/esc_html above.
 				}
 				echo '</tbody></table></div>';
 			}

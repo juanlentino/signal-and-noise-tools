@@ -217,11 +217,12 @@ function snt_ability_search_coverage( $input ) {
 		return new WP_Error( 'snt_helper_unavailable', __( 'Search Console coverage not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
 	$d = snt_gsc_coverage_data();
-	$s = snt_gsc_coverage_summary( $d, function_exists( 'snt_ml_inbound_by_path' ) ? snt_ml_inbound_by_path() : null ); // v13.65.0: inbound_links per not-indexed row.
+	$s = snt_gsc_coverage_summary( $d, function_exists( 'snt_ml_inbound_by_path' ) ? snt_ml_inbound_by_path() : null, function_exists( 'sn_bing_url_info_data' ) ? sn_bing_url_info_data() : null ); // v13.65.0: inbound_links per not-indexed row; bing beside it.
 	return array_merge( array( 'ok' => true ), $s, array(
 		'entries' => is_array( $d ) ? (array) $d['entries'] : array(),
 		'status'  => function_exists( 'snt_gsc_coverage_last_status' ) ? snt_gsc_coverage_last_status() : null, // v13.64.0: the last run's timing.
 		'history' => function_exists( 'snt_gsc_coverage_history' ) ? snt_gsc_coverage_history() : array(), // one reading per completed weekly run, oldest first.
+		'sitemaps' => function_exists( 'snt_gsc_sitemaps_data' ) ? snt_gsc_sitemaps_data() : null, // the sitemaps report, read with the weekly run.
 	) );
 }
 
@@ -318,10 +319,11 @@ function snt_search_console_abilities() {
 					// admit both, or the door refuses the never-synced answer itself.
 					'by_coverage_state'  => array( 'type' => array( 'object', 'array' ) ),
 					'inbound_available'  => array( 'type' => 'boolean', 'description' => 'v13.65.0: not_indexed_paths[].inbound_links is computed (else null).' ),
-					'not_indexed_paths'  => array( 'type' => 'array' ),
+					'not_indexed_paths'  => array( 'type' => 'array', 'description' => 'Each row: path, url, coverage_state, last_crawl_time, verdict, inbound_links, and bing: Bing\'s GetUrlInfo answer in plain words ("Bing crawled 2026-10-01", "not known to Bing", "Bing not read (...)"), null when Bing was not asked. A crawl date is not an index verdict.' ),
 					'canonical_mismatch' => array( 'type' => 'array' ),
 					'entries'            => array( 'type' => array( 'object', 'array' ) ),
 					'status'             => array( 'type' => array( 'object', 'null' ) ),
+					'sitemaps'           => array( 'type' => array( 'object', 'null' ), 'description' => 'The Search Console sitemaps report, read at the end of each weekly run: synced_at, last_error, sitemaps[] (path, last_submitted, last_downloaded, is_pending, is_index, errors, warnings, submitted). null before the first read. Google\'s deprecated indexed count is not kept.' ),
 					'history'            => array( 'type' => 'array', 'description' => 'One summary reading per completed weekly run, oldest first, at most 104 (two years): synced_at, inspected, indexed, not_indexed, crawled_not_indexed, unknown, errors, median_crawl_age_days (null when no entry reported a crawl time), crawl_times. [] before the first run completes.' ),
 				),
 			),
