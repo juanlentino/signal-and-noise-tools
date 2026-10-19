@@ -44,6 +44,7 @@ const SN_LANES_IDENTITY = array(
 	3 => array( 'unverified_owner', 'owner_token_invalid' ),
 	4 => array( 'unverified_owner', 'logged_in' ),
 	5 => array( 'unverified_owner', 'owner_legacy' ),
+	6 => array( 'own_infra', 'first_party' ), // x-sn-first-party header (analytics worker, 2026-10-19).
 );
 
 require_once __DIR__ . '/analytics-lanes-beacon.php';

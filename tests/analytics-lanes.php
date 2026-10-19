@@ -76,6 +76,7 @@ $owner = array(
 	array( 'day' => '2026-10-14', 'vid' => $H( '3' ), 'identity' => '3', 'agent' => '4', 'views' => '1' ),
 	array( 'day' => '2026-10-14', 'vid' => $H( '4' ), 'identity' => '4', 'agent' => '0', 'views' => '2' ),
 	array( 'day' => '2026-10-14', 'vid' => $H( '5' ), 'identity' => '5', 'agent' => '0', 'views' => '1' ),
+	array( 'day' => '2026-10-14', 'vid' => $H( '6' ), 'identity' => '6', 'agent' => '0', 'views' => '4' ),
 );
 $over = array( $H( 'd' ), $H( 'b' ) );
 $out  = sn_lanes_beacon_derive( $public, $owner, $over );
@@ -116,6 +117,7 @@ ok( 2 === $cell( '2026-10-14', 'owner_agent', 'owner_token', 'claude-code' )['hi
 ok( 1 === $cell( '2026-10-14', 'unverified_owner', 'owner_token_invalid', 'playwright' )['hits'], 'identity 3: unverified_owner / owner_token_invalid' );
 ok( 2 === $cell( '2026-10-14', 'unverified_owner', 'logged_in' )['hits'], 'identity 4: unverified_owner / logged_in' );
 ok( 1 === $cell( '2026-10-14', 'unverified_owner', 'owner_legacy' )['hits'], 'identity 5: unverified_owner / owner_legacy' );
+ok( 4 === ( $cell( '2026-10-14', 'own_infra', 'first_party' )['hits'] ?? 0 ), 'identity 6: own_infra / first_party, the x-sn-first-party header (analytics worker #55), matching the machine side' );
 ok( 2 === $cell( '2026-10-14', 'human', 'remainder' )['visitor_days'], 'visitor-days are per lane row (a and e)' );
 
 // Human against the dashboard's rule: the daily table stores class human minus
