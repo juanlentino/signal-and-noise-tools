@@ -2,8 +2,9 @@
 /**
  * Signal & Noise Tools: the past 24 hours under the admin Right now block.
  *
- * The stored snapshots (inc/analytics-live-slots.php) as a grid, one row per
- * hour and one cell per 5-minute slot, each stored cell a link that names
+ * The stored snapshots (inc/analytics-live-slots.php) as a compact heat grid,
+ * one column per hour and one cell per 5-minute slot, colored by its human
+ * readers (no number in the cell), each stored cell a link that names
  * its slot (`sn_slot`). Following one paints that slot's class split, pages
  * and sources below the grid. No script: on the classic page the link is a
  * page load; in the native window the host rewrites an own-page link into a
@@ -82,45 +83,60 @@ function sn_analytics_live_slot_list_html( $heading, array $items, $empty ) {
 }
 
 /**
- * The past 24 hours: the grid and the chosen slot.
+ * The past 24 hours: a heat grid (an hour per column, a 5-minute slot per
+ * row, now at the right) and the chosen slot.
  *
  * @param array<string,mixed>|null $get The view params (null reads $_GET).
+ * @param int|null                 $now Unix time (null: now).
  * @return string Escaped HTML.
  */
-function sn_analytics_live_slots_html( $get = null ) {
+function sn_analytics_live_slots_html( $get = null, $now = null ) {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a read-only view param, validated by sn_analytics_live_slot_param().
 	$get   = is_array( $get ) ? $get : (array) wp_unslash( $_GET );
+	$now   = null === $now ? time() : (int) $now;
 	$slots = function_exists( 'sn_analytics_live_slots' ) ? sn_analytics_live_slots( 24 ) : array();
 	$pick  = sn_analytics_live_slot_param( $get['sn_slot'] ?? '' );
-	$out   = '<div class="sn-live-admin__past"><h3 class="sn-live-admin__h">' . esc_html__( 'The last 24 hours', 'signal-and-noise-tools' ) . '</h3>'
+	$out   = '<div class="sn-live-admin__past"><h3 class="sn-live-admin__h" id="sn-live-heat-h">' . esc_html__( 'The last 24 hours', 'signal-and-noise-tools' ) . '</h3>'
 		. '<p class="sn-live-admin__sub">' . esc_html__( 'human readers per 5 minutes; choose a slot to see its pages, sources and traffic classes', 'signal-and-noise-tools' ) . '</p>';
 	if ( array() === $slots ) {
 		return $out . '<p class="sn-live-admin__empty">' . esc_html__( 'No slots stored yet. A slot is kept for 24 hours once a refresh has seen it complete.', 'signal-and-noise-tools' ) . '</p></div>';
 	}
-	$by = array();
-	foreach ( $slots as $s ) {
-		$by[ intdiv( (int) $s['t'], 3600 ) * 3600 ][ (int) ( ( (int) $s['t'] % 3600 ) / SN_ANALYTICS_LIVE_HOUR_SLOT ) ] = $s;
-	}
-	krsort( $by );
-	$grid   = '';
+	$by     = array();
+	$max    = 0;
+	$busy   = null;
+	$filled = 0;
 	$chosen = null;
-	foreach ( $by as $hour => $cells ) {
-		$grid .= '<div class="sn-live-admin__row"><span class="sn-live-admin__hr">' . esc_html( sn_analytics_live_slot_clock( $hour ) ) . '</span>';
-		for ( $i = 0; $i < 12; $i++ ) {
-			$s = $cells[ $i ] ?? null;
-			if ( null === $s ) {
-				$grid .= '<span class="sn-live-admin__cell is-missing" aria-hidden="true"></span>';
-				continue;
-			}
-			$on     = $pick === (int) $s['t'];
-			$chosen = $on ? $s : $chosen;
-			/* translators: 1: slot start time, 2: human readers. */
-			$label  = sprintf( __( '%1$s, %2$s human readers', 'signal-and-noise-tools' ), sn_analytics_live_slot_clock( (int) $s['t'] ), number_format_i18n( (int) $s['readers'] ) );
-			$grid  .= '<a class="sn-live-admin__cell' . ( $on ? ' is-on' : '' ) . '" href="' . esc_url( sn_analytics_live_slot_url( $get, (int) $s['t'] ) ) . '" aria-label="' . esc_attr( $label ) . '"' . ( $on ? ' aria-current="true"' : '' ) . '>' . esc_html( number_format_i18n( (int) $s['readers'] ) ) . '</a>';
-		}
-		$grid .= '</div>';
+	foreach ( $slots as $s ) {
+		$t        = (int) $s['t'];
+		$by[ $t ] = $s;
+		$n        = (int) $s['readers'];
+		$filled  += $n > 0 ? 1 : 0;
+		$busy     = $n > $max ? $s : $busy;
+		$max      = max( $max, $n );
+		$chosen   = $pick === $t ? $s : $chosen;
 	}
-	$out .= '<div class="sn-live-admin__grid">' . $grid . '</div>';
+	$first = intdiv( $now, 3600 ) * 3600 - 23 * 3600;
+	$grid  = '';
+	$axis  = '';
+	for ( $h = 0; $h < 24; $h++ ) {
+		$hour = $first + $h * 3600;
+		for ( $i = 0; $i < 12; $i++ ) {
+			$t     = $hour + $i * SN_ANALYTICS_LIVE_HOUR_SLOT;
+			$grid .= sn_analytics_live_heat_cell( $by[ $t ] ?? null, $t, $t + SN_ANALYTICS_LIVE_HOUR_SLOT > $now, $max, $pick, $get );
+		}
+		$text  = 23 === $h ? __( 'now', 'signal-and-noise-tools' ) : ( 0 === ( 23 - $h ) % 6 ? sn_analytics_live_slot_clock( $hour ) : '' );
+		$axis .= '<span' . ( 23 === $h ? ' class="is-now"' : '' ) . '>' . esc_html( $text ) . '</span>';
+	}
+	$summary = null === $busy
+		? __( 'No human readers in the stored slots of the last 24 hours.', 'signal-and-noise-tools' )
+		/* translators: 1: busiest slot start, 2: its human readers, 3: slots with any. */
+		: sprintf( _n( 'Busiest 5-minute slot: %1$s, %2$s human readers; %3$s non-empty slot in 24 hours', 'Busiest 5-minute slot: %1$s, %2$s human readers; %3$s non-empty slots in 24 hours', $filled, 'signal-and-noise-tools' ), sn_analytics_live_slot_clock( (int) $busy['t'] ), number_format_i18n( (int) $busy['readers'] ), number_format_i18n( $filled ) );
+	$out .= '<div class="sn-live-admin__heatbox">'
+		. '<div class="sn-live-admin__heat" role="group" aria-labelledby="sn-live-heat-h" aria-describedby="sn-live-heat-sum">' . $grid . '</div>'
+		. '<div class="sn-live-admin__heatax" aria-hidden="true">' . $axis . '</div>'
+		. '</div>'
+		. sn_analytics_live_heat_legend( $max )
+		. '<p class="sn-live-admin__sub" id="sn-live-heat-sum">' . esc_html( $summary ) . '</p>';
 	return $out . sn_analytics_live_slot_detail_html( $chosen, $pick ) . '</div>';
 }
 
