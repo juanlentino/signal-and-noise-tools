@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **Removed: the Free Managed Ruleset row from Cloudflare edge posture.** On the Free plan Cloudflare runs that ruleset itself: it never appears in the zone's own managed entrypoint and the dashboard offers no deploy, so the read could only say "not deployed" (a false finding in Health) and could never catch a real change. The managed-entrypoint request, its row and the `managed` key in `sn-status`'s Cloudflare posture are gone; a record stored before this still carrying `managed` raises nothing. The rate-limit rule and leaked-credentials detection reads stay on the same Zone WAF Read scope.
+
 - **Fixed: a link the probe could not reach is no longer reported broken.** Health › Broken internal links flagged a live `/servicios` as "HTTP 0" and kept the finding for 24 hours, because one request that got no answer (timeout or refused) was cached as a broken link. A request with no answer is now skipped as unverifiable (reason `no_answer`) and never cached, so the next scan asks again. A real 404 still flags.
 - **The 24-hour grid sits beside the live block.** The grid is about 290px wide, so it no longer takes a row of its own: Right now is two columns that wrap, the last hour, its surge line and the live lists on the left, the grid with its chosen slot on the right. On a panel narrower than about 800px the grid drops under the live block as before. No scroller at any width.
 

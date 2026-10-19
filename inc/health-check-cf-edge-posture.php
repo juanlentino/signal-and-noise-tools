@@ -5,8 +5,8 @@
  * 15.4.0. Check 6 (cf security headers) reads what the edge sends; this one
  * reads what the edge is set to, from the daily posture record
  * (inc/cloudflare-posture.php): SSL mode, minimum TLS, Always Use HTTPS,
- * Development Mode, DNSSEC, and since 2026-10-18 the Free Managed Ruleset,
- * the rate-limit rule and leaked credentials detection. Never fetches; a record older than two days or
+ * Development Mode, DNSSEC, and since 2026-10-18 the rate-limit rule and
+ * leaked credentials detection. Never fetches; a record older than two days or
  * never written makes the check SKIPPED (a gap in evidence), and a refused
  * read is a FINDING that names the scope, never a pass.
  *

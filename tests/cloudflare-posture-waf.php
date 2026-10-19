@@ -2,8 +2,7 @@
 /**
  * inc/cloudflare-posture-waf.php: the posture's blind spots.
  *
- * Three more reads on the same Zone WAF Read scope: the Free Managed Ruleset
- * (deployed and enabled), the one rate-limit rule (exists, enabled, action,
+ * Two more reads on the same Zone WAF Read scope: the one rate-limit rule (exists, enabled, action,
  * and whether its expression is non-empty, never the expression itself), and
  * leaked credentials detection. A missing entrypoint (404) is "missing", a
  * refusal is "unavailable (needs Zone › Zone WAF › Read)", never off or zero;
@@ -44,23 +43,22 @@ $down     = array( 'http' => 0, 'body' => array(), 'error' => 'timeout' );
 $settings = $okres( array( array( 'id' => 'ssl', 'value' => 'strict' ), array( 'id' => 'min_tls_version', 'value' => '1.2' ), array( 'id' => 'always_use_https', 'value' => 'on' ), array( 'id' => 'development_mode', 'value' => 'off' ) ) );
 $dnssec   = $okres( array( 'status' => 'active' ) );
 $custom   = $okres( array( 'rules' => array() ) );
-$managed  = static function ( $enabled = true, $id = '77454fe2d30c4220b5701f6fdfb893ba' ) use ( $okres ) { return $okres( array( 'rules' => array( array( 'id' => 'm1', 'action' => 'execute', 'action_parameters' => array( 'id' => $id ), 'expression' => 'true', 'enabled' => $enabled ) ) ) ); };
 $rl       = static function ( $expr = '(http.request.uri.path eq "/door-k7" and cf.waf.credential_check.password_leaked)', $enabled = true, $action = 'block' ) use ( $okres ) { return $okres( array( 'rules' => array( array( 'id' => 'r1', 'description' => 'Leaked password on /door-k7', 'action' => $action, 'expression' => $expr, 'enabled' => $enabled, 'ratelimit' => array( 'period' => 10 ) ) ) ) ); };
 $lcc      = static function ( $on ) use ( $okres ) { return $okres( null === $on ? array() : array( 'enabled' => $on ) ); };
-$full     = static function ( $m, $r, $l ) use ( $settings, $dnssec, $custom ) { return array( 'fetched_at' => time(), 'configured' => true ) + sn_cf_posture_from( $settings, $dnssec, $custom, $m, $r, $l ); };
+$full     = static function ( $r, $l ) use ( $settings, $dnssec, $custom ) { return array( 'fetched_at' => time(), 'configured' => true ) + sn_cf_posture_from( $settings, $dnssec, $custom, $r, $l ); };
 $keys     = static function ( $rec ) { return array_column( sn_cf_posture_findings( $rec ), 'key' ); };
 $check    = static function ( $label ) { foreach ( sn_cf_posture_model()['checks'] as $c ) { if ( $label === $c['label'] ) { return $c; } } return null; };
 
-echo "Group: all three in place\n";
-$rec = $full( $managed(), $rl(), $lcc( true ) );
-ok( true === $rec['managed']['deployed'] && true === $rec['managed']['enabled'], 'the Free Managed Ruleset is deployed and enabled' );
+echo "Group: both in place\n";
+$rec = $full( $rl(), $lcc( true ) );
+ok( ! array_key_exists( 'managed', $rec ), 'no managed-rules read: on Free, Cloudflare runs the Free Managed Ruleset itself and the zone cannot deploy or turn it off' );
 ok( 1 === $rec['ratelimit']['count'] && true === $rec['ratelimit']['enabled'] && 'block' === $rec['ratelimit']['action'] && true === $rec['ratelimit']['has_expression'], 'the rate-limit rule: one, enabled, block, expression set' );
 ok( true === $rec['leaked']['enabled'], 'leaked credentials detection on' );
 ok( array() === sn_cf_posture_findings( $rec ), 'nothing to report' );
 $GLOBALS['__opt']['sn_cf_posture'] = $rec;
 $c = $check( 'Rate-limit rule' );
 ok( is_array( $c ) && true === $c['ok'] && false !== strpos( $c['value'], 'blocked' ), 'the model has a rate-limit row with the action in words: ' . ( $c['value'] ?? '' ) );
-ok( true === ( $check( 'Free Managed Ruleset' )['ok'] ?? null ) && 'on' === ( $check( 'Leaked credentials detection' )['value'] ?? null ), 'managed and leaked rows read ok' );
+ok( null === $check( 'Free Managed Ruleset' ) && 'on' === ( $check( 'Leaked credentials detection' )['value'] ?? null ), 'no managed row; the leaked row reads ok' );
 
 echo "\nGroup: the slug never leaves Cloudflare\n";
 ok( false === strpos( json_encode( $rec ), 'door-k7' ), 'the stored record carries neither the expression nor the description' );
@@ -68,45 +66,42 @@ ok( false === strpos( json_encode( sn_cf_posture_model() ), 'door-k7' ), 'the mo
 ok( false === strpos( json_encode( function_exists( "snt_ability_cloudflare_status_posture" ) ? snt_ability_cloudflare_status_posture( $rec ) : "door-k7" ), 'door-k7' ), 'the sn-status posture neither' );
 
 echo "\nGroup: off or missing is a finding\n";
-ok( array( 'managed' ) === $keys( $full( $okres( array( 'rules' => array() ) ), $rl(), $lcc( true ) ) ), 'no managed rule: a finding' );
-ok( array( 'managed' ) === $keys( $full( $managed( false ), $rl(), $lcc( true ) ) ), 'a disabled managed rule: a finding' );
-ok( array( 'managed' ) === $keys( $full( $managed( true, 'c2e184081120413c86c3ab7e14069605' ), $rl(), $lcc( true ) ) ), 'another managed ruleset is not the Free one' );
-ok( array() === $keys( $full( $managed( true, 'efb7b8c949ac4650a09736fc376e9aee' ), $rl(), $lcc( true ) ) ), 'the full Cloudflare Managed Ruleset covers it' );
-$rec = $full( $noentry, $noentry, $lcc( true ) );
-ok( true === $rec['managed']['available'] && false === $rec['managed']['needs_permission'] && false === $rec['managed']['deployed'], 'a 404 entrypoint (even with code 10001) is "none deployed", not a refusal' );
-ok( 0 === $rec['ratelimit']['count'] && array( 'managed', 'ratelimit' ) === $keys( $rec ), 'no rate-limit entrypoint: missing, a finding' );
-ok( array( 'ratelimit' ) === $keys( $full( $managed(), $rl( '(true)', false ), $lcc( true ) ) ), 'a disabled rate-limit rule: a finding' );
-$rec = $full( $managed(), $rl( '' ), $lcc( true ) );
+$rec = $full( $noentry, $lcc( true ) );
+ok( 0 === $rec['ratelimit']['count'] && false === $rec['ratelimit']['needs_permission'] && array( 'ratelimit' ) === $keys( $rec ), 'no rate-limit entrypoint (a 404, even with code 10001): missing, a finding, not a refusal' );
+ok( array( 'ratelimit' ) === $keys( $full( $rl( '(true)', false ), $lcc( true ) ) ), 'a disabled rate-limit rule: a finding' );
+$rec = $full( $rl( '' ), $lcc( true ) );
 ok( false === $rec['ratelimit']['has_expression'] && array( 'ratelimit' ) === $keys( $rec ), 'an empty expression (matched nothing until 2026-09-27): a finding' );
 $GLOBALS['__opt']['sn_cf_posture'] = $rec;
 ok( false === ( $check( 'Rate-limit rule' )['ok'] ?? true ) && false !== strpos( $check( 'Rate-limit rule' )['value'], 'matches nothing' ), 'and the row says it matches nothing' );
-ok( array( 'leaked' ) === $keys( $full( $managed(), $rl(), $lcc( false ) ) ), 'leaked credentials detection off: a finding' );
-ok( array() === $keys( $full( $managed(), $rl(), $lcc( null ) ) ), 'enabled absent (optional in the API): unknown, never "off"' );
+ok( array( 'leaked' ) === $keys( $full( $rl(), $lcc( false ) ) ), 'leaked credentials detection off: a finding' );
+ok( array() === $keys( $full( $rl(), $lcc( null ) ) ), 'enabled absent (optional in the API): unknown, never "off"' );
 
 echo "\nGroup: a refusal is unavailable, never off\n";
-$rec = $full( $refused, $refused, $refused );
-foreach ( array( 'managed', 'ratelimit', 'leaked' ) as $w ) {
+$rec = $full( $refused, $refused );
+foreach ( array( 'ratelimit', 'leaked' ) as $w ) {
 	ok( true === $rec[ $w ]['needs_permission'] && false !== strpos( $rec[ $w ]['error'], 'unavailable (needs Zone › Zone WAF › Read)' ), $w . ' 403 reads unavailable, naming Zone WAF Read' );
 }
-ok( array( 'managed', 'ratelimit', 'leaked' ) === $keys( $rec ), 'three refusals are three findings' );
+ok( array( 'ratelimit', 'leaked' ) === $keys( $rec ), 'two refusals are two findings' );
 $GLOBALS['__opt']['sn_cf_posture'] = $rec;
 $m = sn_cf_posture_model();
-ok( 3 === count( $m['refused'] ) && null === $check( 'Rate-limit rule' ), 'the model says unavailable three times and paints no on/off row' );
-$rec = $full( $down, $down, $down );
+ok( 2 === count( $m['refused'] ) && null === $check( 'Rate-limit rule' ), 'the model says unavailable twice and paints no on/off row' );
+$rec = $full( $down, $down );
 ok( array() === $keys( $rec ), 'a transport failure is not a finding' );
 
 echo "\nGroup: older records and the refresh\n";
 $old = array( 'fetched_at' => time(), 'configured' => true ) + sn_cf_posture_from( $settings, $dnssec, $custom );
+$stale = $full( $rl(), $lcc( true ) ) + array( 'managed' => array( 'available' => true, 'needs_permission' => false, 'error' => '', 'deployed' => false, 'enabled' => false ) );
+ok( array() === $keys( $stale ), 'a record stored before the removal, still carrying managed: not deployed, raises nothing' );
 ok( ! array_key_exists( 'managed', $old ) && array() === sn_cf_posture_findings( $old ), 'a record from before these reads raises nothing new' );
 $GLOBALS['__calls'] = array(); $GLOBALS['__http'] = array();
 sn_cf_posture_refresh();
-ok( array( '/zones/zone123/rulesets/phases/http_request_firewall_managed/entrypoint', '/zones/zone123/rulesets/phases/http_ratelimit/entrypoint', '/zones/zone123/leaked-credential-checks' ) === array_slice( $GLOBALS['__calls'], 3 ), 'the refresh reads the three documented endpoints after the first three' );
+ok( array( '/zones/zone123/rulesets/phases/http_ratelimit/entrypoint', '/zones/zone123/leaked-credential-checks' ) === array_slice( $GLOBALS['__calls'], 3 ), 'the refresh reads the two documented endpoints after the first three, and never the managed entrypoint' );
 
 echo "\nGroup: Site Health\n";
-$GLOBALS['__opt']['sn_cf_posture'] = $full( $managed(), $rl( '' ), $lcc( false ) );
+$GLOBALS['__opt']['sn_cf_posture'] = $full( $rl( '' ), $lcc( false ) );
 $c = sn_health_check_cf_edge_posture();
 ok( 2 === $c['count'] && null === $c['skipped'], 'the empty expression and detection off are Site Health findings' );
-$GLOBALS['__opt']['sn_cf_posture'] = array( 'fetched_at' => time(), 'configured' => true ) + sn_cf_posture_from( $down, $down, $down, $down, $down, $down );
+$GLOBALS['__opt']['sn_cf_posture'] = array( 'fetched_at' => time(), 'configured' => true ) + sn_cf_posture_from( $down, $down, $down, $down, $down );
 ok( null !== sn_health_check_cf_edge_posture()['skipped'], 'every read down: skipped, never a quiet pass' );
 
 echo "\n$pass passed, $fail failed\n";
