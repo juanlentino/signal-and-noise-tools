@@ -236,10 +236,11 @@ ok( 1 === preg_match( '/\bbody\{[^}]*background:var\(--void\)/', $css ), 'and so
 ok( 0 === preg_match( '/\bhtml\{background:#fff/', $css ), 'REGRESSION: the old hardcoded html ground is gone' );
 
 // The pre-paint replay of the site's own toggle.
-$pv_php = (string) file_get_contents( __DIR__ . '/../inc/provenance-verify.php' );
-ok( false !== strpos( $pv_php, 'SN_THEME_STORAGE_KEY' ), '/verify replays the THEME\'s storage key, resolved from the constant rather than a second copy of the string' );
-ok( strpos( $pv_php, "localStorage.getItem" ) < strpos( $pv_php, 'echo esc_url( $css_url )' ), 'the replay runs BEFORE the stylesheet link — a deferred stamp would land after first paint, which is the flash it exists to prevent' );
-ok( false !== strpos( $pv_php, 'catch(e){}' ), 'and it is wrapped: localStorage throws outright in some privacy modes' );
+$pv_php   = (string) file_get_contents( __DIR__ . '/../inc/provenance-verify.php' );
+$init_php = (string) @file_get_contents( __DIR__ . '/../inc/theme-init-script.php' );
+ok( false !== strpos( $init_php, 'SN_THEME_STORAGE_KEY' ), '/verify replays the THEME\'s storage key, resolved from the constant rather than a second copy of the string' );
+ok( false !== strpos( $pv_php, 'sn_theme_init_script()' ) && strpos( $pv_php, 'sn_theme_init_script()' ) < strpos( $pv_php, 'echo esc_url( $css_url )' ), 'the replay runs BEFORE the stylesheet link — a deferred stamp would land after first paint, which is the flash it exists to prevent' );
+ok( false !== strpos( $init_php, 'catch(e){}' ), 'and it is wrapped: localStorage throws outright in some privacy modes' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

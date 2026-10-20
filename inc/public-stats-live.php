@@ -56,12 +56,25 @@ function sn_public_stats_live_html() {
 
 /**
  * The updater, on the page that carries the shortcode: public route, 60 s.
+ * Its config rides in sn_public_stats_live_config_tag(), not
+ * wp_localize_script: localize prints an executing inline script whose bytes
+ * vary, which a strict script-src (no 'unsafe-inline') blocks (2026-10-20).
  *
  * @return void
  */
 function sn_public_stats_live_enqueue() {
 	wp_enqueue_script( 'sn-live-now' );
-	wp_localize_script( 'sn-live-now', 'snLiveNow', array(
+}
+
+/**
+ * The config for live-now.js as a JSON data block. A non-JavaScript type runs
+ * nothing, so CSP neither executes nor checks it; the deferred script reads
+ * it by id. JSON_HEX_TAG leaves no "<" that could close the element.
+ *
+ * @return string
+ */
+function sn_public_stats_live_config_tag() {
+	$cfg = array(
 		'url'      => rest_url( 'signal-noise/v1/live' ),
 		'interval' => 60,
 		/* translators: %s: the time the live figures were last read, e.g. 14:03. */
@@ -76,5 +89,6 @@ function sn_public_stats_live_enqueue() {
 		'agoMin'   => __( '%s minutes ago', 'signal-and-noise-tools' ),
 		'agoNow'   => __( 'in the last 5 minutes', 'signal-and-noise-tools' ),
 		'hourNone' => __( 'No readers in the last hour.', 'signal-and-noise-tools' ),
-	) );
+	);
+	return '<script type="application/json" id="sn-live-now-config">' . wp_json_encode( $cfg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES ) . '</script>';
 }

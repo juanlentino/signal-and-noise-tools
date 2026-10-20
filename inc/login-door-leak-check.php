@@ -67,8 +67,8 @@ function sn_door_leak_contains( $text, $slug ) {
  * @param string $url Absolute URL.
  * @return array{ok:bool,code:int,body:string,headers:array}
  */
-function sn_door_leak_fetch( $url ) {
-	$res = wp_remote_get( $url, array( 'timeout' => 10, 'redirection' => 0, 'cookies' => array(), 'user-agent' => 'sn-door-leak-check' ) );
+function sn_door_leak_fetch( $url, $headers = array() ) {
+	$res = wp_remote_get( $url, array( 'timeout' => 10, 'redirection' => 0, 'cookies' => array(), 'user-agent' => 'sn-door-leak-check', 'headers' => (array) $headers ) );
 	if ( is_wp_error( $res ) ) {
 		return array( 'ok' => false, 'code' => 0, 'body' => '', 'headers' => array() );
 	}

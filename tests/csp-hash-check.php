@@ -27,6 +27,8 @@ function get_permalink( $id ) { return 'https://site.test/notes/latest/'; }
 function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
 function __( $s, $d = null ) { return $s; }
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+// The real fetcher lives in inc/login-door-leak-check.php; this one records what the CSP check asks of it.
+function sn_door_leak_fetch( $url, $headers = array() ) { $GLOBALS['__fetch_headers'] = $headers; return array( 'ok' => false, 'code' => 0, 'body' => '', 'headers' => array() ); }
 
 $pass = 0; $fail = 0; $skip = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
@@ -105,7 +107,7 @@ ok( "script-src 'self' 'sha256-MOD=' https://x.test" === sn_csp_replacement_line
 echo "\nGroup 5: the run and the watch\n";
 $GLOBALS['__opt'] = array();
 $pages = sn_csp_hash_pages();
-foreach ( array( '/', '/notes/', '/notes/latest/', '/provenance/', '/index/' ) as $p ) {
+foreach ( array( '/', '/notes/', '/notes/latest/', '/provenance/', '/index/', '/resume/', '/verify/', '/stats/' ) as $p ) {
 	ok( in_array( 'https://site.test' . $p, $pages, true ), "it reads $p" );
 }
 ok( ! in_array( 'https://site.test/contact/', $pages, true ), '/contact/ is skipped (exempt by design)' );
@@ -119,10 +121,29 @@ $fetch  = static function ( $url ) use ( $body, $pinned ) {
 };
 if ( '' !== $api ) {
 	$r = sn_csp_hash_run( $fetch, 1000 );
-	ok( 1 === $r['errors'] && 5 === $r['checked'], 'a non-200 answer is unreadable, not read' );
+	ok( 1 === $r['errors'] && 8 === $r['checked'], 'a non-200 answer is unreadable, not read' );
 	ok( 'report-only' === $r['mode'] && array() === $r['missing'], 'the run records the strict header and nothing missing' );
-	ok( false === strpos( (string) json_encode( get_option( SN_CSP_HASH_OPT ) ), 'console.log' ), 'the stored result holds no page body' );
+	ok( false === strpos( (string) json_encode( get_option( SN_CSP_HASH_OPT ) ), 'console.log' ), 'the stored result holds no text of a pinned script' );
+	// 2026-10-20: /stats/ printed wp_localize_script's config as an executing
+	// script; its values change, so no hash can pin it. The run keeps the first
+	// 60 characters of an UNLISTED script only, so the note says what it is.
+	$dyn   = '<script id="sn-live-now-js-extra">' . "
+" . 'var snLiveNow = {"url":"https:\/\/site.test\/wp-json\/signal-noise\/v1\/live","interval":"60"};' . "
+" . '</script>';
+	$fetch2 = static function ( $url ) use ( $body, $dyn, $pinned ) {
+		return array( 'ok' => true, 'code' => 200, 'body' => $body . ( false !== strpos( $url, '/stats/' ) ? $dyn : '' ), 'headers' => array( 'Content-Security-Policy' => $pinned ) );
+	};
+	$r = sn_csp_hash_run( $fetch2, 1000 );
+	$h = $r['missing'][0] ?? '';
+	ok( 1 === count( $r['missing'] ) && array( '/stats/' ) === $r['seen'][ $h ]['pages'], 'the unlisted script is found on /stats/ only' );
+	ok( 'var snLiveNow = {"url":"https:\/\/site.test\/wp-json\/signal' === ( $r['seen'][ $h ]['head'] ?? '' ), 'it carries its first 60 characters: ' . ( $r['seen'][ $h ]['head'] ?? '(none)' ) );
+	$v = snt_csp_hash_verdict( $r, 2000 );
+	ok( $v['ripe'] && 'critical' === $v['status'] && false !== strpos( $v['note'], 'other on /stats/ ("var snLiveNow = {' ), 'the watch names the page and how the script begins: ' . substr( $v['note'], 0, 160 ) );
+	ok( false === strpos( (string) json_encode( $r['seen'] ), 'console.log' ), 'a pinned script still stores no text' );
 }
+$GLOBALS['__fetch_headers'] = null;
+sn_csp_hash_fetch( 'https://site.test/' );
+ok( array( 'Sec-GPC' => '1' ) === $GLOBALS['__fetch_headers'], 'the daily read sends Sec-GPC: 1, the same signal every probe of the site sends' );
 $base = array( 'at' => 1000, 'checked' => 5, 'errors' => 0, 'csp_seen' => true, 'mode' => 'none', 'sources' => array(), 'seen' => array(), 'missing' => array() );
 $v = snt_csp_hash_verdict( $base, 2000 );
 ok( false === $v['ripe'] && false !== strpos( $v['note'], 'strict policy not deployed' ) && 'critical' !== $v['status'], 'not deployed is not ripe, and never critical' );

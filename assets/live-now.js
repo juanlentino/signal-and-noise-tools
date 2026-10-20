@@ -3,7 +3,7 @@
  *
  * Finds [data-sn-live="now|today"] on each tick (rescanned, so a repainted
  * view or a widget's freshly built DOM is found) and fills it from the live
- * route (inc/analytics-live.php). Public pages pass window.snLiveNow and
+ * route (inc/analytics-live.php). Public pages pass a JSON config block and
  * read the cached public route; admin pages carry no config and read the
  * gated route through wp.apiFetch, which supplies the REST nonce.
  *
@@ -15,10 +15,22 @@
 ( function () {
 	'use strict';
 
-	var cfg     = window.snLiveNow || null;
+	// /stats prints its config as a JSON data block (a strict CSP blocks the
+	// executing script wp_localize_script would print); window.snLiveNow stays
+	// as a fallback. Admin pages carry neither and read the gated route.
+	var cfg     = window.snLiveNow || readConfig();
 	var admin   = ! cfg;
 	var seconds = admin ? 30 : Math.max( 30, Number( cfg.interval ) || 60 );
 	var BUCKET  = 30000; // the edge keeps /wp-json/ long: the query changes every 30 s
+
+	function readConfig() {
+		var el = document.getElementById ? document.getElementById( 'sn-live-now-config' ) : null;
+		try {
+			return el ? JSON.parse( el.textContent ) : null;
+		} catch ( e ) {
+			return null;
+		}
+	}
 
 	function format( n ) {
 		return typeof n === 'number' ? n.toLocaleString() : 'not read';
