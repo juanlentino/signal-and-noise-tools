@@ -21,6 +21,7 @@ function get_queried_object() { return sn_req( 'post' ); }
 function is_page( $slug = '' ) { return sn_req( 'page' ) === $slug; }
 function has_block( $name, $content ) { return false !== strpos( (string) $content, '<!-- wp:' . $name . ' ' ) || false !== strpos( (string) $content, '<!-- wp:' . $name . ' /-->' ); }
 function has_shortcode( $content, $tag ) { return false !== strpos( (string) $content, '[' . $tag ); }
+function wp_script_is( $h, $l ) { $GLOBALS['__asked'][] = array( $h, $l ); return (bool) sn_req( 'queued' ); }
 function wp_doing_ajax() { return (bool) sn_req( 'ajax' ); }
 
 $pass = 0; $fail = 0;
@@ -72,11 +73,25 @@ echo "\nGroup 3: the marker is sent once\n";
 ok( array( true, true ) === $marks, 'marking twice is one mark, and a second call is a no-op' );
 ok( 'X-SN-CSP: lax' === SN_CSP_LAX_HEADER, 'the header is exactly what the Cloudflare rule matches (x-sn-csp eq lax)' );
 
-echo "\nGroup 4: the hooks\n";
+echo "\nGroup 4: the form wherever it is placed\n";
+function asked( $fn ) { $GLOBALS['sn_csp_lax_asked'] = 0; $out = $fn(); return array( (int) $GLOBALS['sn_csp_lax_asked'], $out ); }
+ok( array( 1, '<form>' ) === asked( fn() => sn_csp_lax_form_rendered( '<form>' ) ), 'the form block rendering anywhere marks the page, HTML untouched' );
+ok( array( 1, 'y' ) === asked( fn() => sn_csp_lax_form_rendered( 'y', 'allterrain_form' ) ), 'the form shortcode marks the page' );
+ok( array( 0, 'x' ) === asked( fn() => sn_csp_lax_form_rendered( 'x', 'gallery' ) ), 'another shortcode does not' );
+$GLOBALS['__asked'] = array();
+$GLOBALS['__req']   = array( 'queued' => true );
+ok( 1 === asked( 'sn_csp_lax_form_queued' )[0], 'the form config script queued marks the page' );
+ok( array( array( 'allterrain-forms-config', 'enqueued' ) ) === $GLOBALS['__asked'], 'by its handle, allterrain-forms-config (the front script depends on it)' );
+$GLOBALS['__req'] = array();
+ok( 0 === asked( 'sn_csp_lax_form_queued' )[0], 'not queued, not marked' );
+echo "\nGroup 5: the hooks\n";
 $src = (string) file_get_contents( $file );
 ok( false !== strpos( $src, "add_action( 'template_redirect', 'sn_csp_lax_front', 1 )" ), 'front end decides at template_redirect, after the query (send_headers runs before it)' );
 ok( false !== strpos( $src, "add_action( 'login_init', 'sn_csp_mark_lax', 1 )" ), 'every login screen, the hidden door included, is marked at login_init' );
 ok( false !== strpos( $src, "add_action( 'admin_init', 'sn_csp_lax_admin', 1 )" ), 'wp-admin is marked' );
+ok( false !== strpos( $src, "add_filter( 'render_block_allterrain-forms/form', 'sn_csp_lax_form_rendered', 1, 1 )" ), 'the form block marks the page wherever it renders (template, pattern, post)' );
+ok( false !== strpos( $src, "add_filter( 'do_shortcode_tag', 'sn_csp_lax_form_rendered', 1, 2 )" ), 'so does the shortcode' );
+ok( false !== strpos( $src, "add_action( 'wp_head', 'sn_csp_lax_form_queued', 0 )" ), 'and the queued config script, checked before the head prints' );
 ok( false === strpos( $src, "'send_headers'" ) && false === strpos( $src, 'rest_' ), 'REST is not marked' );
 $main = (string) file_get_contents( "$root/signal-and-noise-tools.php" );
 ok( false !== strpos( $main, "inc/csp-lax-marker.php'" ), 'the module is loaded' );
