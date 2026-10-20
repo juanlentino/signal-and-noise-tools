@@ -33,7 +33,7 @@ function sn_csp_hash( $body ) {
  * their hash, so the strict policy pins it like the others.
  *
  * @param string $html Page HTML.
- * @return array<int,array{label:string,hash:string}>
+ * @return array<int,array{label:string,hash:string,head:string}>
  */
 function sn_csp_inline_scripts( $html ) {
 	$out = array();
@@ -55,7 +55,9 @@ function sn_csp_inline_scripts( $html ) {
 		} elseif ( 'speculationrules' === $type ) {
 			$label = 'speculation';
 		}
-		$out[] = array( 'label' => $label, 'hash' => sn_csp_hash( (string) $p->get_modifiable_text() ) );
+		$body  = (string) $p->get_modifiable_text();
+		// head: how the script begins, so a note can say what an unlisted one is.
+		$out[] = array( 'label' => $label, 'hash' => sn_csp_hash( $body ), 'head' => substr( (string) preg_replace( '/\s+/', ' ', trim( $body ) ), 0, 60 ) );
 	}
 	return $out;
 }

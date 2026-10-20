@@ -48,7 +48,8 @@ function snt_csp_hash_verdict( $last, $now ) {
 	$seen  = (array) $last['seen'];
 	$named = array();
 	foreach ( $missing as $h ) {
-		$named[] = ( $seen[ $h ]['label'] ?? 'other' ) . ' on ' . implode( ' ', array_slice( array_unique( (array) ( $seen[ $h ]['pages'] ?? array() ) ), 0, 5 ) );
+		$head    = (string) ( $seen[ $h ]['head'] ?? '' );
+		$named[] = ( $seen[ $h ]['label'] ?? 'other' ) . ' on ' . implode( ' ', array_slice( array_unique( (array) ( $seen[ $h ]['pages'] ?? array() ) ), 0, 5 ) ) . ( '' !== $head ? ' ("' . $head . '")' : '' );
 	}
 	$line = sn_csp_replacement_line( (array) $last['sources'], array_keys( $seen ) );
 	return array(

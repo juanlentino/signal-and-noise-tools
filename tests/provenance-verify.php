@@ -264,6 +264,14 @@ if ( vv_require_fn( 'sn_prov_verify_send' ) ) {
 		(bool) preg_match( '/<meta\s+name=["\']robots["\']\s+content=["\'][^"\']*noindex[^"\']*["\']/i', $html ),
 		'page carries a noindex robots meta tag'
 	);
+	// 2026-10-20: the strict CSP pins the theme's theme-init hash. /verify printed
+	// its own variant of that script, so its hash was in no policy and an enforced
+	// script-src would block it. It must print the THEME's bytes exactly: the
+	// sha256 below is the theme's SN_THEME_INIT_SHA256 (theme inc/dark-mode.php).
+	$vv_init = preg_match( '#<script id="sn-theme-init">(.*?)</script>#s', $html, $vv_m ) ? $vv_m[1] : null;
+	vv_eq( 'sha256-+aDIk0AQYDEK+tK47t/wNITT4nprLRPhL+LH2Hb8THs=', null === $vv_init ? 'absent' : 'sha256-' . base64_encode( hash( 'sha256', $vv_init, true ) ), '/verify prints the theme-init script byte for byte, so the policy\'s existing hash covers it' );
+	preg_match_all( '#<script\b(?![^>]*\bsrc=)(?![^>]*type="application/(?:ld\+)?json")[^>]*>#', $html, $vv_inline );
+	vv_eq( array( '<script id="sn-theme-init">' ), $vv_inline[0], 'and it is the only executing inline script on the page' );
 	// 16.2.4: a description and a self-canonical on the standalone document, so a site scanner sees one described page, not one row per note.
 	vv_true( (bool) preg_match( '/<meta\s+name=["\']description["\']\s+content=["\'][^"\']{60,}["\']/i', $html ), 'page carries a meta description (a scanner listed every ?note= variant without one)' );
 	vv_true( false !== strpos( $html, '<link rel="canonical" href="https://example.com/verify">' ), 'the canonical is the bare /verify on every variant' );

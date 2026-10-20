@@ -520,6 +520,6 @@ if ( function_exists( 'add_action' ) ) {
 function sn_public_stats_shortcode( $atts = array() ) {
 	sn_public_stats_enqueue();
 	sn_public_stats_live_enqueue();
-	return sn_public_stats_html();
+	return sn_public_stats_html() . sn_public_stats_live_config_tag();
 }
 add_shortcode( 'sn_public_stats', 'sn_public_stats_shortcode' );

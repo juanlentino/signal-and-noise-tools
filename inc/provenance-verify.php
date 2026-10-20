@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/theme-init-script.php';
+
 /**
  * Is this request for /verify? Pure (takes the path). A trailing slash and a
  * query string are both accepted; a path merely prefixed with "verify" (or
@@ -194,14 +196,9 @@ function sn_prov_verify_send() {
 // the stylesheet on purpose: a deferred script would stamp the attribute after
 // the first paint, which is the flash it exists to prevent. try/catch because
 // localStorage throws outright in some privacy modes. ?>
-<?php
-// SAFE BY CONSTRUCTION, not by escaper: the key is a slug, so it is filtered to
-// slug characters and can carry nothing that closes a JS string or a <script>.
-// (esc_js() would also work in WordPress and does NOT exist in the standalone
-// test harness, which turned this line into a fatal the first time it shipped.)
-$sn_theme_key = preg_replace( '/[^A-Za-z0-9_-]/', '', defined( 'SN_THEME_STORAGE_KEY' ) ? (string) SN_THEME_STORAGE_KEY : 'sn-theme' );
-?>
-<script>try{var t=localStorage.getItem('<?php echo $sn_theme_key; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- slug-filtered on the line above. ?>');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t)}}catch(e){}</script>
+<?php // 2026-10-20: the THEME's own theme-init bytes (inc/theme-init-script.php),
+// so the strict CSP's existing hash covers this page too.
+echo sn_theme_init_script() . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static script, key slug-filtered. ?>
 <link rel="stylesheet" href="<?php echo esc_url( $css_url ); ?>">
 <?php if ( '' !== $fonts_base ) : ?>
 <link rel="preload" href="<?php echo esc_url( $fonts_base . '/bebas-neue-latin.woff2' ); ?>" as="font" type="font/woff2" crossorigin>

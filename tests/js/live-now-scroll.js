@@ -2,8 +2,10 @@
 // carrying the scroll strings of inc/analytics-live-admin.php, answers its one
 // read with argv[2] (JSON), and prints each row as { text, depth }, depth
 // being the scroll line's text (null when the row has none). argv[3] 'public'
-// runs it as the /stats strip (window.snLiveNow set). Used by
-// tests/analytics-live-scroll.php.
+// runs it as the /stats strip (window.snLiveNow set); 'carrier' runs it as the
+// /stats strip reading its config from the JSON data block (argv[4]) the way
+// the page prints it since 2026-10-20. Used by tests/analytics-live-scroll.php
+// and tests/public-stats-live-config.php.
 'use strict';
 const path = require( 'path' );
 const answer = JSON.parse( process.argv[ 2 ] );
@@ -32,6 +34,7 @@ global.document = {
 	querySelectorAll: ( sel ) => ( '[data-sn-live-pages]' === sel ? [ list ] : [] ),
 	createElement: el,
 	addEventListener() {},
+	getElementById: ( id ) => ( 'carrier' === process.argv[ 3 ] && 'sn-live-now-config' === id ? { textContent: process.argv[ 4 ] } : null ),
 };
 global.window = { setInterval() {}, wp: { apiFetch: () => Promise.resolve( answer ) } };
 global.fetch = () => Promise.resolve( { ok: true, json: () => answer } );
