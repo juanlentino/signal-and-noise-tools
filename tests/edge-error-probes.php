@@ -58,10 +58,10 @@ function sn_edge_errors_paths_by_day( $f, $t ) { return array(); }
 
 echo "\nGroup 1: what is a probe\n";
 $is = function_exists( 'sn_edge_error_is_probe' ) ? 'sn_edge_error_is_probe' : static fn() => null;
-foreach ( array( '/wp-admin/includes/schema.php', '/wp-includes/customize/class-wp-customize-cropped-image-control.php', '/wp-includes/rss-functions.php', '/WP-Includes/x.PHP' ) as $p ) {
+foreach ( array( '/wp-admin/includes/schema.php', '/wp-includes/customize/class-wp-customize-cropped-image-control.php', '/wp-includes/rss-functions.php', '/WP-Includes/x.PHP', '/wp-settings.php', '/wp-load.php', '/wp-blog-header.php', '/wp-config.php', '/WP-Config-Sample.php' ) as $p ) {
 	ok( true === $is( $p ), "$p is a probe: a core library file, never a direct request" );
 }
-foreach ( array( '/wp-admin/customize.php', '/wp-admin/edit.php', '/wp-admin/admin-ajax.php', '/wp-login.php', '/wp-cron.php', '/wp-includes/js/jquery/jquery.min.js', '/wp-includes/', '/notes/wp-includes/a.php', '/', '/wp-includes/x.php.bak' ) as $p ) {
+foreach ( array( '/wp-admin/customize.php', '/wp-admin/edit.php', '/wp-admin/admin-ajax.php', '/wp-login.php', '/wp-cron.php', '/wp-includes/js/jquery/jquery.min.js', '/wp-includes/', '/notes/wp-includes/a.php', '/', '/wp-includes/x.php.bak', '/wp-comments-post.php', '/wp-signup.php', '/wp-settings.php.bak', '/notes/wp-load.php' ) as $p ) {
 	ok( false === $is( $p ), "$p is not a probe" );
 }
 
