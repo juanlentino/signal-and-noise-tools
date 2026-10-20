@@ -6,7 +6,8 @@
  * Ripe when the strict policy is deployed and lacks a hash a page carries
  * (the note gives the script-src line to paste into the Transform Rule), when
  * most pages could not be read, when no page carried any CSP header, or when
- * the check has not run for two days. No strict policy deployed is the
+ * the check has not run for two days, or when a page carried the X-SN-CSP:
+ * lax marker for a stranger. No strict policy deployed is the
  * expected state until rollout: not ripe, and never critical.
  *
  * @package SignalNoiseTools
@@ -33,6 +34,12 @@ function snt_csp_hash_verdict( $last, $now ) {
 	}
 	if ( 2 * (int) $last['errors'] > (int) $last['checked'] ) {
 		return array( 'ripe' => true, 'note' => sprintf( 'the last check could read only %d of %d pages, too few to call it clean', (int) $last['checked'] - (int) $last['errors'], (int) $last['checked'] ), 'status' => 'recommended' );
+	}
+	// Before the mode test: once the rule is live a marked page gets the loose
+	// policy, so a set marked by mistake reads as "not deployed" and hides it.
+	$lax = array_values( array_unique( (array) ( $last['lax'] ?? array() ) ) );
+	if ( $lax ) {
+		return array( 'ripe' => true, 'note' => sprintf( '%s answered a cookieless read with X-SN-CSP: lax, so Cloudflare leaves them on the loose policy; find what marks them (inc/csp-lax-marker.php)', implode( ' ', array_slice( $lax, 0, 5 ) ) ), 'status' => 'recommended' );
 	}
 	if ( empty( $last['csp_seen'] ) ) {
 		return array( 'ripe' => true, 'note' => 'no page carried a CSP header, so the check is not reading the site through Cloudflare and cannot see the policy', 'status' => 'recommended' );
