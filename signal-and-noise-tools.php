@@ -158,6 +158,7 @@ require_once SNT_PATH . 'inc/public-stats.php'; // v10.65.0: [sn_public_stats] �
 require_once SNT_PATH . 'inc/analytics-derive.php'; // Phase A pure derive layer (spec §4) — zero WP calls; consumed by the read layer
 require_once SNT_PATH . 'inc/analytics-realtime.php';
 require_once SNT_PATH . 'inc/analytics-live-pages.php'; // being read now: readers per public page, top five
+require_once SNT_PATH . 'inc/analytics-live-scroll.php'; // admin only: how far each of those pages' readers have scrolled
 require_once SNT_PATH . 'inc/analytics-live-hour.php'; // the last hour behind Reading now, twelve 5-minute slots
 require_once SNT_PATH . 'inc/analytics-live-sources.php'; // admin only: where current readers arrived from
 require_once SNT_PATH . 'inc/analytics-live-slots.php'; // rolling live snapshots: each completed 5-minute slot, kept 24 hours

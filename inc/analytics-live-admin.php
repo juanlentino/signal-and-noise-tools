@@ -47,7 +47,9 @@ function sn_analytics_live_admin_html( $get = null ) {
 		/* translators: 1: days of history so far, 2: days needed. */
 		. ' data-learning="' . esc_attr__( 'Learning what is usual: %1$s of %2$s days so far.', 'signal-and-noise-tools' ) . '"></p>'
 		. '<div class="sn-live-admin__cols">'
-		. $list( 'data-sn-live-pages', __( 'Being read now', 'signal-and-noise-tools' ), __( 'human readers, published pages', 'signal-and-noise-tools' ), __( 'Nobody on a page right now.', 'signal-and-noise-tools' ) )
+		// How far each page's readers have scrolled (inc/analytics-live-scroll.php), one line per row.
+		/* translators: %s: a number of readers. */
+		. $list( 'data-sn-live-pages data-scroll-none="' . esc_attr__( 'not scrolled yet', 'signal-and-noise-tools' ) . '" data-scroll-quarter="' . esc_attr__( '%s past a quarter', 'signal-and-noise-tools' ) . '" data-scroll-half="' . esc_attr__( '%s past halfway', 'signal-and-noise-tools' ) . '" data-scroll-end="' . esc_attr__( '%s at the end', 'signal-and-noise-tools' ) . '"', __( 'Being read now', 'signal-and-noise-tools' ), __( 'human readers, published pages', 'signal-and-noise-tools' ), __( 'Nobody on a page right now.', 'signal-and-noise-tools' ) )
 		. $list( 'data-sn-live-sources', __( 'Arrived from', 'signal-and-noise-tools' ), __( 'new pageviews, last 5 minutes', 'signal-and-noise-tools' ), __( 'No arrivals in the last 5 minutes.', 'signal-and-noise-tools' ) )
 		. '</div>'
 		/* translators: %s: the time of the last live read, e.g. 16:42. */

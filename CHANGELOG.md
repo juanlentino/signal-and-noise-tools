@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **Being read now says how far its readers have scrolled.** Under each page in the admin Right now block (classic and native), one quiet line in plain words, e.g. "1 past a quarter, 2 past halfway, 1 at the end", each reader said once at their deepest milestone, or "not scrolled yet" when the read came back with nobody past 25%; a failed read shows nothing (not measured is not 0). It comes from the beacon's 25/50/75/100 scroll events over the same 5-minute window, human rule and excluded paths as the list: one more grouped Analytics Engine query per realtime refresh (none when nobody is on a page), distinct readers per path and milestone, so no reader key leaves Analytics Engine. `live-now` pages gain `scroll { reached_25, reached_50, reached_75, reached_100, readers_with_scroll }` (local only; live-now has no remote twin, contract unchanged); the public /stats answer and the stored 5-minute slots do not carry it. New `tests/analytics-live-scroll.php` (25 checks, 21 red before) and `tests/js/live-now-scroll.js`.
+
 ## [2026.10.51] - 2026-10-19 — indexing in view, quieter alerts, and per-worker health
 
 

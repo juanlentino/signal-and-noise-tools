@@ -33,6 +33,18 @@ function sn_analytics_live_pages_sql() {
 }
 
 /**
+ * A row's path as the list keys it: no query, no fragment, one trailing
+ * slash. Null for anything that is not a site path.
+ *
+ * @param mixed $path Raw blob2.
+ * @return string|null
+ */
+function sn_analytics_live_pages_canon( $path ) {
+	$path = (string) preg_replace( '/[?#].*$/', '', (string) $path );
+	return ( '' === $path || '/' !== $path[0] ) ? null : rtrim( $path, '/' ) . '/';
+}
+
+/**
  * Rows to the public list. PURE given the resolver: canonical path (no query,
  * no fragment, trailing slash), counts summed per page, unresolved paths
  * dropped, top five by readers.
@@ -47,11 +59,10 @@ function sn_analytics_live_pages_from_rows( array $rows, callable $resolve ) {
 		if ( ! is_array( $row ) || ! isset( $row['path'], $row['readers'] ) ) {
 			continue;
 		}
-		$path = (string) preg_replace( '/[?#].*$/', '', (string) $row['path'] );
-		if ( '' === $path || '/' !== $path[0] ) {
+		$path = sn_analytics_live_pages_canon( $row['path'] );
+		if ( null === $path ) {
 			continue;
 		}
-		$path = rtrim( $path, '/' ) . '/';
 		$by[ $path ] = ( $by[ $path ] ?? 0 ) + max( 0, (int) $row['readers'] );
 	}
 	// Keyed by the page the path resolves to, not the path string: /About/
