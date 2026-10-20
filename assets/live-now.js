@@ -219,8 +219,28 @@
 			n.textContent = Number( p.readers ).toLocaleString() + ( cfg ? ' ' + String( Number( p.readers ) === 1 ? cfg.reader : cfg.readers ) : '' );
 			li.appendChild( name );
 			li.appendChild( n );
+			var d = linked && ! cfg ? depth( list, p.scroll ) : '';
+			if ( d ) {
+				var line = document.createElement( 'span' );
+				line.className = 'sn-live-admin__depth';
+				line.textContent = d;
+				li.appendChild( line );
+			}
 			list.appendChild( li );
 		} );
+	}
+	// How far a page's readers have scrolled, in words (admin only; the strings
+	// ride on the list). Each reader is said once, at their deepest milestone:
+	// "1 past a quarter, 2 past halfway, 1 at the end". Not read (null, or a
+	// cache from before the field) says nothing; read with nobody past a
+	// quarter says "not scrolled yet".
+	function depth( list, s ) {
+		if ( ! s || typeof s !== 'object' || ! list.getAttribute( 'data-scroll-none' ) ) {
+			return '';
+		}
+		var end = Number( s.reached_100 ) || 0, half = ( Number( s.reached_50 ) || 0 ) - end, quarter = ( Number( s.reached_25 ) || 0 ) - end - half;
+		var parts = [ [ quarter, 'data-scroll-quarter' ], [ half, 'data-scroll-half' ], [ end, 'data-scroll-end' ] ].filter( function ( x ) { return x[ 0 ] > 0; } );
+		return parts.length ? parts.map( function ( x ) { return list.getAttribute( x[ 1 ] ).replace( '%s', x[ 0 ].toLocaleString() ); } ).join( ', ' ) : list.getAttribute( 'data-scroll-none' );
 	}
 	function pages( list, data ) { rows( list, data.pages, true ); }
 

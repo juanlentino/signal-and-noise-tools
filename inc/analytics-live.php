@@ -46,6 +46,9 @@ function sn_analytics_live_payload( $all_classes ) {
 		'hour'    => is_array( $cached ) && isset( $cached['hour'] ) && is_array( $cached['hour'] ) ? array_values( $cached['hour'] ) : null,
 		'fetched' => $fetched,
 	);
+	if ( ! $all_classes && is_array( $out['pages'] ) ) { // Scroll depth is admin only: /stats keeps its shape.
+		$out['pages'] = array_map( static fn( $p ) => is_array( $p ) ? array_diff_key( $p, array( 'scroll' => 1 ) ) : $p, $out['pages'] );
+	}
 	if ( $all_classes ) {
 		// Admin only: the public answer never says where readers came from.
 		$out['surge']   = is_array( $cached ) && isset( $cached['surge'] ) && is_array( $cached['surge'] ) ? $cached['surge'] : null;

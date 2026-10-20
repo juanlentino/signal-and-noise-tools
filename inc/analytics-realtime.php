@@ -264,6 +264,10 @@ function sn_analytics_realtime_refresh() {
 	// Third read: the pages behind the live count (inc/analytics-live-pages.php).
 	// Null on failure, so the list is absent rather than falsely empty.
 	$pages = function_exists( 'sn_analytics_live_pages_read' ) ? sn_analytics_live_pages_read() : null;
+	// How far each listed page's readers have scrolled, admin only (inc/analytics-live-scroll.php). One more query.
+	if ( function_exists( 'sn_analytics_live_scroll_read' ) ) {
+		$pages = sn_analytics_live_scroll_read( $pages );
+	}
 	// Fourth: readers per 5-minute slot over the last hour (inc/analytics-live-hour.php).
 	$hour = function_exists( 'sn_analytics_live_hour_read' ) ? sn_analytics_live_hour_read() : null;
 	// Fifth, admin only: where current readers arrived from (inc/analytics-live-sources.php).
