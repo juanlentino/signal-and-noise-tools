@@ -23,8 +23,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** Core library files: never a legitimate direct request. */
-const SN_EDGE_PROBE_PATH_RE = '#^/(wp-includes|wp-admin/includes)/.*\.php$#i';
+/**
+ * Core library and bootstrap files: never a legitimate direct request. The
+ * root five are loaded by WordPress itself, never routed (wp-login.php,
+ * wp-cron.php, wp-comments-post.php and the like are entry points, not these).
+ */
+const SN_EDGE_PROBE_PATH_RE = '#^/((wp-includes|wp-admin/includes)/.*\.php|wp-(settings|load|blog-header|config|config-sample)\.php)$#i';
 
 /**
  * Whether a stored 5xx path is a scanner probe. PURE.
