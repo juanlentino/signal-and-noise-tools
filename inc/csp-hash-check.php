@@ -13,7 +13,9 @@
  * strict policy from the response headers and stores what is missing. It
  * stores hashes and sources, never page bodies; an unlisted script keeps its
  * first 60 characters so the note can say what it is. /contact/ is exempt by
- * design.
+ * design. It also records any page that answers with X-SN-CSP: lax, the
+ * marker that keeps a response on the loose policy: a cookieless read of
+ * these pages should never carry it.
  *
  * @package SignalNoiseTools
  */
@@ -59,12 +61,12 @@ function sn_csp_hash_fetch( $url ) {
  *
  * @param callable|null $fetch Fetcher (tests); defaults to sn_csp_hash_fetch.
  * @param int|null      $now   Unix time.
- * @return array{at:int,checked:int,errors:int,csp_seen:bool,mode:string,sources:string[],seen:array,missing:string[]}
+ * @return array{at:int,checked:int,errors:int,csp_seen:bool,mode:string,sources:string[],seen:array,missing:string[],lax:string[]}
  */
 function sn_csp_hash_run( $fetch = null, $now = null ) {
 	$fetch = is_callable( $fetch ) ? $fetch : 'sn_csp_hash_fetch';
 	$heads = array();
-	$out   = array( 'at' => null === $now ? time() : (int) $now, 'checked' => 0, 'errors' => 0, 'csp_seen' => false, 'mode' => 'none', 'sources' => array(), 'seen' => array(), 'missing' => array() );
+	$out   = array( 'at' => null === $now ? time() : (int) $now, 'checked' => 0, 'errors' => 0, 'csp_seen' => false, 'mode' => 'none', 'sources' => array(), 'seen' => array(), 'missing' => array(), 'lax' => array() );
 	$rank  = array( 'none' => 0, 'report-only' => 1, 'enforced' => 2 );
 	foreach ( sn_csp_hash_pages() as $url ) {
 		$r = call_user_func( $fetch, $url );
@@ -74,13 +76,19 @@ function sn_csp_hash_run( $fetch = null, $now = null ) {
 			++$out['errors'];
 			continue;
 		}
-		$strict = sn_csp_strict( array_change_key_case( (array) ( $r['headers'] ?? array() ), CASE_LOWER ) );
+		$lower  = array_change_key_case( (array) ( $r['headers'] ?? array() ), CASE_LOWER );
+		$strict = sn_csp_strict( $lower );
+		$path   = (string) wp_parse_url( $url, PHP_URL_PATH );
+		// 2026-10-20: X-SN-CSP: lax keeps a response on the loose policy at
+		// Cloudflare (inc/csp-lax-marker.php); a stranger's page never carries it.
+		if ( in_array( 'lax', array_map( 'strtolower', array_map( 'trim', (array) ( $lower['x-sn-csp'] ?? array() ) ) ), true ) ) {
+			$out['lax'][] = $path;
+		}
 		$out['csp_seen'] = $out['csp_seen'] || $strict['csp_seen'];
 		if ( $rank[ $strict['mode'] ] > $rank[ $out['mode'] ] ) {
 			$out['mode']    = $strict['mode'];
 			$out['sources'] = $strict['sources'];
 		}
-		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
 		foreach ( sn_csp_inline_scripts( (string) $r['body'] ) as $s ) {
 			$out['seen'][ $s['hash'] ]['label']   = $s['label'];
 			$out['seen'][ $s['hash'] ]['pages'][] = $path;

@@ -140,6 +140,21 @@ if ( '' !== $api ) {
 	$v = snt_csp_hash_verdict( $r, 2000 );
 	ok( $v['ripe'] && 'critical' === $v['status'] && false !== strpos( $v['note'], 'other on /stats/ ("var snLiveNow = {' ), 'the watch names the page and how the script begins: ' . substr( $v['note'], 0, 160 ) );
 	ok( false === strpos( (string) json_encode( $r['seen'] ), 'console.log' ), 'a pinned script still stores no text' );
+	// 2026-10-20: Cloudflare leaves a response on the loose policy when it
+	// carries X-SN-CSP: lax. A stranger's page in the set never should.
+	$fetch3 = static function ( $url ) use ( $body ) {
+		$h = array( 'Content-Security-Policy' => "script-src 'self' 'unsafe-inline'" );
+		if ( false !== strpos( $url, '/verify/' ) ) {
+			$h['X-Sn-Csp'] = array( ' LAX ' );
+		}
+		return array( 'ok' => true, 'code' => 200, 'body' => $body, 'headers' => $h );
+	};
+	$r = sn_csp_hash_run( $fetch3, 1000 );
+	ok( array( '/verify/' ) === ( $r['lax'] ?? null ), 'a page answering a cookieless read with X-SN-CSP: lax is recorded (any case, as an array)' );
+	$v = snt_csp_hash_verdict( $r, 2000 );
+	ok( $v['ripe'] && false !== strpos( $v['note'], '/verify/' ) && false !== strpos( $v['note'], 'X-SN-CSP: lax' ), 'it ripens the watch even though the policy then reads as not deployed: ' . substr( $v['note'], 0, 140 ) );
+	$r = sn_csp_hash_run( $fetch, 1000 );
+	ok( array() === $r['lax'], 'no marker, nothing recorded' );
 }
 $GLOBALS['__fetch_headers'] = null;
 sn_csp_hash_fetch( 'https://site.test/' );
@@ -158,6 +173,7 @@ ok( false === snt_csp_hash_verdict( array_merge( $base, array( 'errors' => 1 ) )
 ok( true === snt_csp_hash_verdict( $base, 1000 + 3 * DAY_IN_SECONDS )['ripe'], '2-day silence is ripe' );
 ok( true === snt_csp_hash_verdict( array_merge( $base, array( 'csp_seen' => false ) ), 2000 )['ripe'], 'no CSP header on any page is ripe (the check is not reading through Cloudflare)' );
 ok( false === snt_csp_hash_verdict( array(), 2000 )['ripe'], 'not ripe before the first run' );
+ok( false === snt_csp_hash_verdict( $base, 2000 )['ripe'], 'a run stored before the lax key existed reads as no marker' );
 $GLOBALS['__opt'][ SN_CSP_HASH_OPT ] = array_merge( $miss, array( 'at' => time() ) );
 ok( true === snt_watch_ripe_csp_hashes( array(), time() )['ripe'], 'the watch reads the stored run' );
 ok( 'critical' === snt_csp_hash_site_health_result()['status'], 'Site Health reads the stored run' );
