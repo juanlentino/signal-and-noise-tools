@@ -22,6 +22,25 @@ function sn_handle_zenodo_env_save( $post ) {
 	return 'zenodo_env_saved';
 }
 
+/**
+ * The DOI downloads line on /provenance (inc/provenance-doi-line.php): on or
+ * off, an optional lead label, the 30-day floor. An unchecked box posts
+ * nothing, so absence is off. Purges /provenance when the line changed.
+ */
+function sn_handle_zenodo_doi_line_save( $post ) {
+	$before = snt_prov_doi_line();
+	update_option(
+		SNT_PROV_DOI_OPT,
+		array(
+			'enabled' => ! empty( $post['zenodo_doi_line_enabled'] ),
+			'label'   => mb_substr( sanitize_text_field( wp_unslash( (string) ( $post['zenodo_doi_line_label'] ?? '' ) ) ), 0, 80 ),
+			'floor'   => max( 0, (int) ( $post['zenodo_doi_line_floor'] ?? 0 ) ),
+		)
+	);
+	snt_prov_doi_purge_if_changed( $before );
+	return 'zenodo_doi_line_saved';
+}
+
 /** One backfill pass, on demand (the same pass the hourly cron runs). */
 function sn_handle_zenodo_deposit_batch( $post ) {
 	unset( $post );
