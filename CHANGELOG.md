@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Documentation
+
+- `README.md`, `AI.md`: Connector for TypeSafe Jev links point at its renamed repo, `connector-for-typesafe-jev` (GitHub redirects the old URL).
+
 ## [2026.10.53] - 2026-10-20 — the strict CSP can switch on: pages that need the loose one say so
 
 
