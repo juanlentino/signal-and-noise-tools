@@ -102,6 +102,8 @@ $r = snt_prov_doi_reading( array( $day( 29 ) => $s( 112 ), $day( 0 ) => $s( 143 
 ok( null === $r['last_30'], '30 days absent: no snapshot exactly 30 days back' );
 $r = snt_prov_doi_reading( array( $day( 31 ) => $s( 100 ), $day( 1 ) => $s( 143 ) ), '2026-10-21', $cfg );
 ok( 43 === $r['last_30'], 'the window ends at the latest snapshot, not at today' );
+$r = snt_prov_doi_reading( array( $day( 30 ) => $s( 112, 61 ), $day( 0 ) => $s( 143 ) ), '2026-10-21', $cfg );
+ok( null === $r['last_30'] && 143 === $r['all_time'], '30 days hidden when the set of documents changed: a new deposit\'s lifetime downloads are not window downloads' );
 $r = snt_prov_doi_reading( array( $day( 30 ) => array( 'downloads' => 400, 'views' => 1, 'records' => 80 ), $day( 0 ) => $s( 143 ) ), '2026-10-21', $cfg );
 ok( null === $r['last_30'], '30 days absent: the back snapshot predates the site split, never read as zero' );
 $r = snt_prov_doi_reading( array( $day( 30 ) => $s( 150 ), $day( 0 ) => $s( 143 ) ), '2026-10-21', $cfg );

@@ -99,7 +99,9 @@ function snt_prov_doi_reading( array $snaps, $today, array $cfg ) {
 	}
 	$out  = array( 'documents' => (int) $latest['site_records'], 'all_time' => (int) $latest['site_downloads'], 'last_30' => null );
 	$back = gmdate( 'Y-m-d', $at - 30 * 86400 );
-	if ( isset( $snaps[ $back ]['site_downloads'] ) ) {
+	// Same documents on both days, or the difference would count a new
+	// document's lifetime downloads as if they happened in the window.
+	if ( isset( $snaps[ $back ]['site_downloads'], $snaps[ $back ]['site_records'] ) && (int) $snaps[ $back ]['site_records'] === $out['documents'] ) {
 		$diff = $out['all_time'] - (int) $snaps[ $back ]['site_downloads'];
 		// A drop is not a count of downloads; below the floor the owner chose, all time alone.
 		if ( $diff >= 0 && $diff >= (int) ( $cfg['floor'] ?? 0 ) ) {
