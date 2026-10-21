@@ -28,10 +28,17 @@ function snt_gsc_inspect_link( $property, $url ) {
 	return 'https://search.google.com/search-console/inspect?resource_id=' . rawurlencode( (string) $property ) . '&id=' . rawurlencode( (string) $url );
 }
 
-/** Is this entry a published note or page Google has not indexed (and not by noindex on purpose)? PURE. */
+/**
+ * Is this entry a published note or page Google has not indexed (and not by
+ * noindex on purpose)? Noindex is the plugin's own per-page decision
+ * (sn_post_settings_get_noindex, the flag the robots meta and the sitemap both
+ * read), not only Google's state: Google may never have fetched the page to
+ * see the tag, as with /call. Pure apart from that one post-meta read.
+ */
 function snt_gsc_index_gap_candidate( $e ) {
 	return is_array( $e ) && ! isset( $e['error'] ) && 'post' === ( $e['kind'] ?? 'post' ) && false === ( $e['indexed'] ?? null )
-		&& 0 !== stripos( (string) ( $e['coverage_state'] ?? '' ), 'excluded by' ) && (int) ( $e['post_id'] ?? 0 ) > 0;
+		&& 0 !== stripos( (string) ( $e['coverage_state'] ?? '' ), 'excluded by' ) && (int) ( $e['post_id'] ?? 0 ) > 0
+		&& ! ( function_exists( 'sn_post_settings_get_noindex' ) && sn_post_settings_get_noindex( (int) $e['post_id'] ) );
 }
 
 /**

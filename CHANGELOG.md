@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+
+- **The `index_gap` watch no longer lists pages the plugin marks noindex.** It skipped a page only when Google's own coverage state said "Excluded by noindex", so a page Google never fetched to see the tag (/call, flagged noindex and out of the sitemap) was counted as stuck. The candidate test now also asks `sn_post_settings_get_noindex()`, the same per-page flag the robots meta and the sitemap read (`inc/search-console-index-watch.php`, `tests/search-console-index-watch.php`).
+
 ### Documentation
 
 - `README.md`, `AI.md`: Connector for TypeSafe Jev links point at its renamed repo, `connector-for-typesafe-jev` (GitHub redirects the old URL).
