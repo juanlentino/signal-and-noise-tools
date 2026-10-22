@@ -288,6 +288,18 @@ $expected_sig = md5( serialize( array( 'post-id-42', 'some-arg' ) ) );
 $empty_sig    = md5( serialize( array() ) );
 ch_assert_eq( $expected_sig, $rows[0]['args_signature'] ?? null, 'args_signature reflects the REAL args the hook fired with' );
 ok_ne( $empty_sig, $rows[0]['args_signature'] ?? null, 'args_signature is NOT the always-empty-args hash (#1228)' );
+// ─── Test 12: a run that dies leaves a failed row, not nothing ──
+echo "\nTest 12: a hook that starts and never finishes is recorded as died mid-run\n";
+$GLOBALS['__test_current_action'] = 'sn_dies_hook';
+snt_cron_history_pre_cb();
+snt_cron_history_shutdown_cb(); // what PHP runs after a fatal or the time limit
+$died = snt_cron_history_for_hook( 'sn_dies_hook', 1 );
+ch_assert_true( isset( $died[0] ) && empty( $died[0]['success'] ) && 0 === strpos( (string) ( $died[0]['error_message'] ?? '' ), 'Died mid-run' ), 'a failed row naming the death' );
+$before = count( snt_cron_history_for_hook( 'sn_some_cron_hook', 100 ) );
+snt_cron_history_shutdown_cb();
+ch_assert_eq( $before, count( snt_cron_history_for_hook( 'sn_some_cron_hook', 100 ) ), 'a hook that finished is not recorded again at shutdown' );
+ch_assert_eq( 1, count( snt_cron_history_for_hook( 'sn_dies_hook', 100 ) ), 'the death is recorded once' );
+
 function ok_ne( $not_expected, $actual, $label ) {
 	global $pass, $fail;
 	if ( $not_expected !== $actual ) { $pass++; echo "PASS: $label\n"; }
