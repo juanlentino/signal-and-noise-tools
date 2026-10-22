@@ -46,6 +46,13 @@ function remove_filter( $h, $cb, $p = 10 ) { foreach ( $GLOBALS['F'][ $h ] ?? ar
 function apply_filters( $h, $v, ...$a ) { foreach ( $GLOBALS['F'][ $h ] ?? array() as $cb ) { $v = $cb( $v, ...$a ); } return $v; }
 function add_action( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS['A'][ $h ][] = $cb; }
 function do_action( $h ) { foreach ( $GLOBALS['A'][ $h ] ?? array() as $cb ) { $cb(); } }
+class SntDeps { public $queue = array(); }
+$GLOBALS['STYLES'] = new SntDeps(); $GLOBALS['SCRIPTS'] = new SntDeps();
+$GLOBALS['STYLES']->queue = array( 'admin-css' );
+function wp_styles() { return $GLOBALS['STYLES']; }
+function wp_scripts() { return $GLOBALS['SCRIPTS']; }
+function wp_enqueue_style( $h ) { $GLOBALS['STYLES']->queue[] = $h; }
+function wp_enqueue_script( $h ) { $GLOBALS['SCRIPTS']->queue[] = $h; }
 function setup_postdata( $p ) { $GLOBALS['SETUP'] = $p; return true; }
 function do_blocks( $c ) {
 	$id = (int) ( $GLOBALS['post']->ID ?? 0 );
@@ -55,6 +62,7 @@ function do_blocks( $c ) {
 	return str_replace( '<!-- wp:signal-noise/children /-->', '<ul><li><a href="/maturity/roadmap/">Roadmap</a></li><li><a href="/maturity/self-' . $id . '/">self</a></li></ul>', $c );
 }
 function do_shortcode( $c ) {
+	if ( false !== strpos( $c, '[sn_maturity_index]' ) ) { wp_enqueue_style( 'sn-maturity-index-front' ); wp_enqueue_script( 'sn-front-js' ); }
 	if ( false !== strpos( $c, '[http]' ) ) { $GLOBALS['HTTP_SEEN'][] = apply_filters( 'pre_http_request', false, array(), 'https://api.example/' ); }
 	return str_replace( array( '[sn_maturity_index]', '[http]' ), array( '<a class="card" href="https://example.test/maturity/ai-maturity/">AI</a>', '' ), $c );
 }
@@ -100,6 +108,9 @@ echo "\nGroup: no HTTP while rendering\n";
 ok( 1 === count( $GLOBALS['HTTP_SEEN'] ) && $GLOBALS['HTTP_SEEN'][0] instanceof WP_Error, 'a request a shortcode would make is short-circuited by pre_http_request' );
 ok( false === apply_filters( 'pre_http_request', false, array(), 'x' ), 'the short-circuit is removed once rendering ends' );
 
+echo "\nGroup: front-end assets a render enqueues do not leak\n";
+ok( array( 'admin-css' ) === $GLOBALS['STYLES']->queue && array() === $GLOBALS['SCRIPTS']->queue, 'the style and script queues are restored after rendering (a maturity shortcode\'s stylesheet never prints in admin)' );
+
 echo "\nGroup: the front page is a source, never a row\n";
 ok( in_array( '/', (array) ( $ib['/maturity/roadmap']['linked_from_paths'] ?? array() ), true ), 'a link in the home page body counts, named "/"' );
 ok( ! isset( $ib['/'] ), 'the front page is not a target row' );
@@ -107,18 +118,38 @@ ok( ! isset( $ib['/'] ), 'the front page is not a target row' );
 echo "\nGroup: cached per post\n";
 $n = count( $GLOBALS['RENDERED'] );
 snt_ml_inbound_by_path();
-ok( $n === count( $GLOBALS['RENDERED'] ), 'a second build renders nothing (every post served from the cache)' );
+ok( array( 2 ) === array_slice( $GLOBALS['RENDERED'], $n ), 'a second build renders only the post whose render failed (a failure is retried, never cached)' );
 $stats = snt_ml_render_stats();
-ok( 0 === $stats['rendered'] && 7 === $stats['cached'] && is_int( $stats['ms'] ), 'stats name what rendered, what came from the cache, and the time: ' . json_encode( $stats ) );
+ok( 0 === $stats['rendered'] && 6 === $stats['cached'] && 1 === $stats['failed'] && is_int( $stats['ms'] ) && false === $stats['budget_hit'] && 0 === $stats['remaining'], 'stats name what rendered, what came from the cache, what failed, the time and the budget: ' . json_encode( $stats ) );
+$n = count( $GLOBALS['RENDERED'] );
 $GLOBALS['POSTS']['page'][0]->post_modified_gmt = '2026-10-21 00:00:00';
 snt_ml_inbound_by_path();
-ok( array( 3 ) === array_slice( $GLOBALS['RENDERED'], $n ) && 1 === snt_ml_render_stats()['rendered'], 'an edited post re-renders, alone' );
+ok( array( 2, 3 ) === array_slice( $GLOBALS['RENDERED'], $n ) && 1 === snt_ml_render_stats()['rendered'], 'an edited post re-renders, beside the retried failure only' );
 $GLOBALS['THEME_V'] = '2026.10.10';
 $n = count( $GLOBALS['RENDERED'] );
 snt_ml_inbound_by_path();
 ok( count( $GLOBALS['RENDERED'] ) - $n >= 6, 'a theme update re-renders the corpus' );
 do_action( 'upgrader_process_complete' );
 ok( false === get_transient( SNT_ML_RENDER_CACHE ), 'an update clears the cache' );
+
+echo "\nGroup: a time budget; what rendered is kept, the next call continues\n";
+$GLOBALS['T'] = array();
+$all   = array_merge( $GLOBALS['POSTS']['post'], $GLOBALS['POSTS']['page'] );
+$tick  = 0.0;
+$clock = static function () use ( &$tick ) { $tick += 1.0; return $tick; }; // each read is one second later.
+$n     = count( $GLOBALS['RENDERED'] );
+$part  = snt_ml_rendered_links( $all, 'example.test', 3.5, $clock );
+$st    = snt_ml_render_stats();
+$done  = count( $GLOBALS['RENDERED'] ) - $n;
+ok( true === $st['budget_hit'] && $done > 0 && $done < 7 && $st['remaining'] === 7 - $done, 'the deadline stops rendering mid-corpus and says how many are left: ' . json_encode( $st ) );
+ok( count( array_filter( $part, 'is_null' ) ) === 7 - $done + ( in_array( 2, array_slice( $GLOBALS['RENDERED'], $n ), true ) ? 1 : 0 ), 'posts past the deadline read null, so the graph uses their raw bodies' );
+ok( $done - ( in_array( 2, array_slice( $GLOBALS['RENDERED'], $n ), true ) ? 1 : 0 ) === count( get_transient( SNT_ML_RENDER_CACHE )['posts'] ?? array() ), 'what rendered before the deadline is persisted' );
+$first = array_slice( $GLOBALS['RENDERED'], $n );
+$n     = count( $GLOBALS['RENDERED'] );
+snt_ml_rendered_links( $all, 'example.test' );
+$second = array_slice( $GLOBALS['RENDERED'], $n );
+ok( array() === array_intersect( array_diff( $first, array( 2 ) ), $second ) && 7 === count( array_unique( array_merge( $first, $second ) ) ) && false === snt_ml_render_stats()['budget_hit'], 'the next call renders only the rest: ' . implode( ',', $first ) . ' then ' . implode( ',', $second ) );
+ok( 20 === SNT_ML_RENDER_PERSIST_EVERY && 15.0 === (float) SNT_ML_RENDER_BUDGET, 'persisted every 20 renders, 15 seconds by default' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

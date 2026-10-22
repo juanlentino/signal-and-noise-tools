@@ -161,7 +161,7 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	// RED-then-pin, 2026-10-22: 19-twin map, remote-indexing-requests joined.
 	'22' => '46f5cd540427bc4bf8289ef44ba01c6e2cd610f2cbd46ef54a6da0bddecc9a9a',
 	// RED-then-pin, 2026-10-22: chrome, template, chrome_paths, template_paths, graph_render and inbound_source on the indexing-requests twin.
-	'23' => '5f9f7a66733b5852d6ad72260e1d774933d4a70498ad22227383ddd02284af15',
+	'23' => '974633d777835c34a1a7b1a7c9fec9040ac8769fab9cd3ec0b804bf09193dd80',
 );
 
 /**

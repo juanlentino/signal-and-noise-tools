@@ -382,7 +382,7 @@ function snt_search_console_abilities() {
 							'inbound_judged' => array( 'type' => 'boolean' ),
 							'chrome_paths'   => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'Paths the header and footer link (rendered through core, cached per theme and parts), plus the Spanish twins of those pages. A page here passes the inbound rule. Empty = the chrome was not read.' ),
 							'template_paths' => array( 'type' => 'object', 'description' => 'Paths the theme templates link outside the post content: post (single, from every indexed note), page (from every indexed page), home (front page, from the home page). Read from block markup, cached per theme.' ),
-							'graph_render'   => array( 'type' => 'object', 'description' => 'What building the link graph cost on this read: rendered (bodies rendered now), cached (served from the per-post cache), failed (render threw; raw body used), ms.' ),
+							'graph_render'   => array( 'type' => 'object', 'description' => 'What building the link graph cost on this read: rendered (bodies rendered now), cached (served from the per-post cache), failed (render threw; raw body used, retried next read), ms, budget_hit (the 15-second render budget ran out) and remaining (bodies read raw this time; the next read continues).' ),
 							'failures'       => array( 'type' => 'array', 'description' => 'Each row: path, url, post_type, inbound_indexed (body links from indexed pages, integer or null), inbound_source (chrome | template | body), template[], reasons[] of inbound | sitemap | canonical. The inbound rule counts body and template sources as one set.' ),
 						),
 					),
