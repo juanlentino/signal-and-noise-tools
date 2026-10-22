@@ -25,6 +25,10 @@ function get_option( $k, $d = false ) { return $d; }
 
 function add_action( $t, $c, $p = 10, $a = 1 ) { return true; }
 function __( $s, $d = null ) { return $s; }
+// Post meta: post 7 is /call, marked noindex by the plugin's own per-page flag.
+$GLOBALS['meta'] = array( 7 => array( '_sn_noindex' => '1' ) );
+function get_post_meta( $id, $k, $single = false ) { return $GLOBALS['meta'][ (int) $id ][ $k ] ?? ''; }
+require __DIR__ . '/../inc/post-settings.php';
 require __DIR__ . '/../inc/watches.php';
 require __DIR__ . '/../inc/bing-webmaster.php';
 require __DIR__ . '/../inc/bing-url-info.php';
@@ -48,8 +52,11 @@ $map = array( 'synced_at' => $now, 'entries' => array(
 	'/verify'         => $e( 'Excluded by ‘noindex’ tag', 'https://example.test/verify/', 'post', 5 ),
 	'/tag/x'          => $e( 'Discovered - currently not indexed', 'https://example.test/tag/x/', 'term', 0 ),
 	'/notes/err'      => array( 'error' => 'x', 'kind' => 'post', 'post_id' => 6 ),
+	// Google has not reported the noindex (it never fetched the page, or saw it
+	// before the flag), so only the plugin's own decision can keep it out.
+	'/call'           => $e( 'Crawled - currently not indexed', 'https://example.test/call/', 'post', 7 ),
 ) );
-$pub = array( 1 => $now - 400 * DAY_IN_SECONDS, 2 => $now - 5 * DAY_IN_SECONDS, 3 => $now - 15 * DAY_IN_SECONDS, 4 => $now - 90 * DAY_IN_SECONDS, 5 => $now - 90 * DAY_IN_SECONDS, 6 => $now - 90 * DAY_IN_SECONDS );
+$pub = array( 1 => $now - 400 * DAY_IN_SECONDS, 2 => $now - 5 * DAY_IN_SECONDS, 3 => $now - 15 * DAY_IN_SECONDS, 4 => $now - 90 * DAY_IN_SECONDS, 5 => $now - 90 * DAY_IN_SECONDS, 6 => $now - 90 * DAY_IN_SECONDS, 7 => $now - 90 * DAY_IN_SECONDS );
 
 $stuck = snt_gsc_index_stuck( $map['entries'], $pub, $now, SNT_GSC_INDEX_WATCH_DAYS );
 ok( array( '/about', '/notes/old' ) === array_column( $stuck, 'path' ), 'only published notes and pages past the line, oldest first: ' . implode( ',', array_column( $stuck, 'path' ) ) );
@@ -62,6 +69,8 @@ foreach ( array( '/about', 'Crawled - currently not indexed', '400 days', 'resou
 	ok( false !== strpos( $v['note'], $needle ), 'the note carries "' . $needle . '"' );
 }
 ok( false === strpos( $v['note'], '/notes/new' ) && false === strpos( $v['note'], '/tag/x' ) && false === strpos( $v['note'], '/verify' ), 'young notes, tag archives and noindex pages stay out of the note' );
+ok( false === strpos( $v['note'], '/call' ), 'a page the plugin marks noindex (_sn_noindex, as /call) stays out even when Google\'s state does not say noindex' );
+ok( false === snt_gsc_index_gap_candidate( $map['entries']['/call'] ) && true === snt_gsc_index_gap_candidate( $map['entries']['/about'] ), 'the candidate test asks the plugin\'s noindex decision; a normal unindexed page still counts' );
 
 // Clears as the weekly map sees them indexed.
 $map2 = $map;
