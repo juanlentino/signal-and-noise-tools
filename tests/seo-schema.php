@@ -431,6 +431,14 @@ $GLOBALS['__ss']['queried'] = (object) array( 'ID' => 10, 'post_title' => 'Rando
 $wpg = sn_schema_webpage();
 ss_eq( 'WebPage', $wpg['@type'] ?? null, 'non-identity page stays WebPage' );
 ss_true( ! isset( $wpg['mainEntity'] ), 'non-identity page has no mainEntity' );
+// 2026-10-22: pages carried no dateModified at all. Same clock as the Article
+// and the sitemap lastmod: the provenance commit, else post_modified.
+ss_eq( '2026-06-02T00:00:00+00:00', $wpg['dateModified'] ?? null, 'a WebPage carries dateModified (post_modified when no commit)' );
+ss_eq( '2026-06-02T00:00:00+00:00', $pp['dateModified'] ?? null, 'a ProfilePage carries dateModified too' );
+$GLOBALS['__ss']['meta'][10]['_sn_prov_last_commit_gmt'] = '2026-09-14 05:10:06';
+$wpg = sn_schema_webpage();
+ss_eq( '2026-09-14T05:10:06+00:00', $wpg['dateModified'] ?? null, 'a page with a provenance commit dates from the commit, as the sitemap lastmod does' );
+unset( $GLOBALS['__ss']['meta'][10]['_sn_prov_last_commit_gmt'] );
 
 // ─── T8: ProfessionalService + OfferCatalog on /services ───
 echo "\nGroup: v10.0.0 — the virtual-route schema branch is removed\n";

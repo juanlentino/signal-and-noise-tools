@@ -15,6 +15,9 @@ function update_option( $k, $v ) { $GLOBALS['__opts'][ $k ] = $v; return true; }
 function delete_option( $k ) { unset( $GLOBALS['__opts'][ $k ] ); return true; }
 function home_url( $p = '' ) { return 'https://x.test' . $p; }
 function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
+// Core's user_trailingslashit() under a trailing-slash permalink structure; off until a test turns it on.
+$GLOBALS['__slash'] = false;
+function user_trailingslashit( $s ) { return $GLOBALS['__slash'] ? rtrim( $s, '/' ) . '/' : $s; }
 
 require __DIR__ . '/../inc/redirects-store.php';
 
@@ -75,6 +78,20 @@ for ( $i = 0; $i < SN_REDIRECTS_MAX + 25; $i++ ) {
 $all = sn_redirects_all();
 ok( count( $all ) === SN_REDIRECTS_MAX, 'cap: map is bounded at SN_REDIRECTS_MAX' );
 ok( ! isset( $all['/p0'] ) && isset( $all['/p' . ( SN_REDIRECTS_MAX + 24 )] ), 'cap: FIFO drops the oldest entries' );
+
+// ── 2026-10-22: one hop. An internal target saved without its trailing slash
+// (/uses -> /about/uses) 301ed to a URL core then 301ed again (/about/uses/).
+$GLOBALS['__opts']  = array();
+$GLOBALS['__slash'] = true;
+sn_redirect_save( '/uses', '/about/uses', 301 );
+sn_redirect_save( '/feed-old', '/files/notes.pdf', 301 );
+sn_redirect_save( '/q', '/search?s=x#top', 301 );
+sn_redirect_save( '/ext2', 'https://example.com/page', 301 );
+ok( 'https://x.test/about/uses/' === sn_redirect_target( '/uses/' )['to'], 'resolve: a slashless internal target lands on its canonical trailing-slash URL in ONE hop' );
+ok( 'https://x.test/files/notes.pdf' === sn_redirect_target( '/feed-old' )['to'], 'resolve: a file target keeps its exact path (no slash after an extension)' );
+ok( 'https://x.test/search/?s=x#top' === sn_redirect_target( '/q' )['to'], 'resolve: the slash goes on the path, before the query and fragment' );
+ok( 'https://example.com/page' === sn_redirect_target( '/ext2' )['to'], 'resolve: an external target is still verbatim' );
+$GLOBALS['__slash'] = false;
 
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

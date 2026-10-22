@@ -91,6 +91,9 @@ function sn_mcp_remote_slugs() {
 		// after the Hacker News post" has a remote answer. Paths are an
 		// allowlist and referrers hostnames (inc/analytics-rows.php).
 		'signal-noise/remote-analytics-rows',
+		// Contract 22, owner-approved 2026-10-22 ("so I can ask for it from my
+		// phone"): the indexing guard's read, his own action list, read-only.
+		'signal-noise/remote-indexing-requests',
 	);
 }
 
@@ -145,7 +148,8 @@ function sn_mcp_remote_verdicts() {
 		// Read-only over public search data, so a twin is proposable later.
 		'search_performance'   => $out( true, 'Ratified 2026-09-01 (weave Phase 4): the paths it names are the ones Google already shows in public results, and the floor flag rides the wire. Byte-identical twin.', 'signal-noise/remote-search-performance' ),
 		'search_drift'         => $out( true, 'Ratified 2026-09-01 (weave Phase 4): same population as search_performance, positions only. Byte-identical twin.', 'signal-noise/remote-search-drift' ),
-		'search_coverage'      => $out( false, 'Names every post\'s index state and canonical, including pages Google declined to index — editorial state, not a public metric. Local until the search twins earn telemetry.' ),
+		'search_coverage'      => $out( false, 'Names every post\'s index state and canonical, including pages Google declined to index — editorial state, not a public metric. Local until the search twins earn telemetry. 2026-10-22: the narrow read the owner asks for from a phone split off as indexing_requests; this broad map stays local.' ),
+		'indexing_requests'    => $out( true, 'Owner 2026-10-22 (contract 22): the request list is his own action list, read-only. Published URLs only: no drafts, no private or password-protected pages, no tag archives (the request and stuck lists also leave out noindex pages; the publish check names a published note or core page the sitemap leaves out, which is its warning). It never inspects and cannot request indexing. Byte-identical twin.', 'signal-noise/remote-indexing-requests' ),
 		'family_drift'         => $out( false, 'Names the classifier\'s blind spots (families that match nothing, operators we do not recognise) — a map of what the sensor cannot see. Defence-adjacent; local only.' ),
 		'inbound_pass'         => $out( false, 'Lists AI anchor nominations into notes published hours ago and the older notes chosen to carry them — an editorial worklist, not a public metric. Local only.' ),
 		// v14.6.1 — per-note index verdicts, inbound counts, kernel scores and the

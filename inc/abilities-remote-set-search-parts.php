@@ -25,6 +25,10 @@ function snt_ability_perm_remote_search_drift() {
 function snt_ability_perm_remote_search_crossexam() {
 	return sn_remote_analytics_allows( 'signal-noise/remote-search-crossexam' );
 }
+// Contract 22, owner-approved 2026-10-22: the indexing guard's read.
+function snt_ability_perm_remote_indexing_requests() {
+	return sn_remote_analytics_allows( 'signal-noise/remote-indexing-requests' );
+}
 
 add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) || ! function_exists( 'snt_search_console_abilities' ) ) {
@@ -57,6 +61,13 @@ add_action( 'wp_abilities_api_init', function () {
 			'label' => 'Search Console x crawler ledger: do the instruments agree? (remote)',
 			'perm'  => 'snt_ability_perm_remote_search_crossexam',
 			'exec'  => 'snt_ability_search_crossexam',
+		),
+		// Contract 22: same table row, so the schema is byte-identical by construction.
+		'signal-noise/remote-indexing-requests'  => array(
+			'admin' => 'signal-noise/indexing-requests',
+			'label' => 'Search Console: URLs to request indexing for (remote)',
+			'perm'  => 'snt_ability_perm_remote_indexing_requests',
+			'exec'  => 'snt_ability_indexing_requests',
 		),
 	);
 	foreach ( $twins as $slug => $t ) {

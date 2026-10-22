@@ -97,7 +97,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 // requests to core library files counted apart, and total (window and per
 // day) leaves them out; each days[] row gains probes. Additive keys; total's
 // meaning narrows. The worker's own CONTRACT_VERSION bump is a separate PR.
-const SN_REMOTE_CONTRACT_VERSION = '21';
+// Contract 22 (owner-approved 2026-10-22, "so I can ask for it from my
+// phone"): a twentieth twin, remote-indexing-requests, the byte-identical twin
+// of signal-noise/indexing-requests (the request list, the 30-day stuck flag,
+// the publish check). The broad search-coverage map stays local. Additive: no
+// existing twin's shape moves. The worker's own CONTRACT_VERSION bump, its
+// BRIDGE_TOOLS entry and its plugin-slugs fixture are a separate PR.
+const SN_REMOTE_CONTRACT_VERSION = '22';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -148,6 +154,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'20' => 'b33030216b11642e3dd162992bd90f01e056e437b3bfaff7f9e783a6f5b91d6b',
 	// RED-then-pin, 2026-10-19: probes on the 5xx twin (window and per day).
 	'21' => '19f08c2ab0d0c3474707820e1ec0a4450728e147d54aeb918bda1228e99af860',
+	// RED-then-pin, 2026-10-22: 19-twin map, remote-indexing-requests joined.
+	'22' => '46f5cd540427bc4bf8289ef44ba01c6e2cd610f2cbd46ef54a6da0bddecc9a9a',
 );
 
 /**

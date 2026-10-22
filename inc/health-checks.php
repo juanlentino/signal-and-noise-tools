@@ -205,6 +205,13 @@ function sn_health_run_scan() {
 			// forever. This one compares the bytes being served right now
 			// against the newest ledger record.
 			'rights_anchored'      => snt_health_check_rights_anchored(),
+			// 2026-10-22 (report only): the indexing guard. The URLs to
+			// request in Search Console this week, the ones stuck past 30 days, and
+			// the notes and core pages a new page should not lack (two links from
+			// indexed pages, in the sitemap, self canonical). Listed before the
+			// contrast and motion reports so it leads the Reports leaf and the
+			// motion report still closes it (its pairing with the facts box).
+			'indexing'             => sn_health_check_indexing(),
 			// 19th check (v10.82.0): token-level contrast, REPORT ONLY — the
 			// Accessibility planned row's first half. Zero findings by design
 			// (fixes are a later step against pairs a reader actually sees);
@@ -293,6 +300,8 @@ require_once __DIR__ . '/health-contrast-usage.php';
 // Motion that asks first (report only): rides the contrast-usage parser and
 // sheet population. Loaded after it for the same reason as above.
 require_once __DIR__ . '/health-motion-scan.php';
+// 2026-10-22: the indexing guard (report only).
+require_once __DIR__ . '/health-indexing.php';
 // v13.98.0: two checks born from the 2026-09-05 audits -- the dataset that can
 // tell a dead sensor from a quiet day, and the live half of the theme's
 // declared-vs-served preset guard.

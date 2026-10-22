@@ -81,6 +81,7 @@ $FULL_SET = array(
 	'signal-noise/remote-bot-signals',              // contract 14
 	'signal-noise/remote-machine-readers-networks', // contract 14
 	'signal-noise/remote-analytics-rows',           // contract 15
+	'signal-noise/remote-indexing-requests',        // contract 22
 );
 $GLOBALS['__remote_slugs'] = $FULL_SET;
 
@@ -165,6 +166,7 @@ $REMOTE_EE = 'signal-noise/remote-edge-errors-summary';   $ADMIN_EE = 'signal-no
 $REMOTE_BS = 'signal-noise/remote-bot-signals';              $ADMIN_BS = 'signal-noise/bot-signals';                    // contract 14
 $REMOTE_AN = 'signal-noise/remote-machine-readers-networks'; $ADMIN_AN = 'signal-noise/get-machine-readers-crosstab'; // contract 14
 $REMOTE_AR = 'signal-noise/remote-analytics-rows';           $ADMIN_AR = 'signal-noise/analytics-rows';                 // contract 15
+$REMOTE_IR = 'signal-noise/remote-indexing-requests';        $ADMIN_IR = 'signal-noise/indexing-requests';              // contract 22
 $ADMIN_PROV  = 'signal-noise/provenance-integrity-status';
 $ADMIN_MR    = 'signal-noise/get-machine-readers-summary';
 $ADMIN_CRON  = 'signal-noise/cron-health-summary';
@@ -186,6 +188,7 @@ $MAP = array(
 	$REMOTE_BS        => 'snt_ability_perm_remote_bot_signals',
 	$REMOTE_AN        => 'snt_ability_perm_remote_agent_networks',
 	$REMOTE_AR        => 'snt_ability_perm_remote_analytics_rows',
+	$REMOTE_IR        => 'snt_ability_perm_remote_indexing_requests',
 );
 
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
@@ -221,6 +224,7 @@ $pairs_output = array(
 	array( $REMOTE_SX, $ADMIN_SX ),
 	array( $REMOTE_BS, $ADMIN_BS ),
 	array( $REMOTE_AR, $ADMIN_AR ),
+	array( $REMOTE_IR, $ADMIN_IR ), // contract 22
 );
 foreach ( $pairs_output as $pair ) {
 	list( $remote, $admin ) = $pair;
@@ -274,6 +278,7 @@ $empty_pairs = array(
 	array( $REMOTE_RSS, $ADMIN_RSS ),
 	array( $REMOTE_EE, $ADMIN_EE ),
 	array( $REMOTE_BS, $ADMIN_BS ),
+	array( $REMOTE_IR, $ADMIN_IR ),
 );
 foreach ( $empty_pairs as $pair ) {
 	list( $remote, $admin ) = $pair;

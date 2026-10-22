@@ -35,6 +35,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/abilities-indexing-requests.php'; // 2026-10-22: the indexing-requests callback (its row is in the table below).
+
 /** Near-ranking band: page 1 bottom through page 2. A filter over stored rows. */
 const SNT_SEARCH_OPPORTUNITY_POS_MIN = 8.0;
 const SNT_SEARCH_OPPORTUNITY_POS_MAX = 20.0;
@@ -243,6 +245,18 @@ function snt_search_console_abilities() {
 			'position'    => array( 'type' => 'number' ),
 		),
 	);
+	$ir_row = array(
+		'type'       => 'object',
+		'properties' => array(
+			'url'             => array( 'type' => 'string' ),
+			'path'            => array( 'type' => 'string' ),
+			'coverage_state'  => array( 'type' => 'string', 'description' => 'Google\'s coverage state, verbatim.' ),
+			'days'            => array( 'type' => 'integer', 'description' => 'Days since publish.' ),
+			'core'            => array( 'type' => 'boolean', 'description' => 'One of the core pages (about, resume, workflow, services, contact, now, uses, colophon, the maturity pages, provenance and its children) or a Spanish twin of one.' ),
+			'inbound_indexed' => array( 'type' => array( 'integer', 'null' ), 'description' => 'Body links to this URL from published notes and pages Google has indexed. null = the link graph holds no node for it (unknown, not zero).' ),
+			'inspect_url'     => array( 'type' => 'string', 'description' => 'Search Console URL Inspection for this URL: open it and click Request indexing.' ),
+		),
+	);
 	return array(
 		'signal-noise/search-performance' => array(
 			'label'       => 'Search Console: the stored window',
@@ -343,6 +357,32 @@ function snt_search_console_abilities() {
 					'reading' => array( 'type' => 'string' ),
 					'grain'   => array( 'type' => 'string', 'enum' => array( 'window' ) ),
 					'caveat'  => array( 'type' => 'string' ),
+				),
+			),
+		),
+		// 2026-10-22: the indexing guard's read (callback: inc/abilities-indexing-requests.php).
+		'signal-noise/indexing-requests' => array(
+			'label'       => 'Search Console: URLs to request indexing for (stored)',
+			'description' => 'The owner\'s weekly action list from the stored URL Inspection map, the internal link graph (notes and pages) and the post table. request_list: published notes and pages the sitemap lists that Google has not indexed 7 or more days after publish, ranked "Crawled - currently not indexed" first, then core pages, then the rest oldest first, at most 10 (request_total is the true count). stuck: the same at 30 days, at most 25 (stuck_total). publish_check: notes and core pages published 3 or more days ago with fewer than 2 links from indexed pages, out of the sitemap, or with a canonical elsewhere; reasons per row; inbound_judged:false before the inspection map exists. Tag archives, /verify and anything noindex never appear in request_list or stuck; publish_check may name a published note or core page the sitemap leaves out, which is its warning. coverage_run_at is when the inspection map last moved (null = never). Read-only: it never inspects, and nothing here can request indexing (open each inspect_url).',
+			'execute'     => 'snt_ability_indexing_requests',
+			'output'      => array(
+				'type'       => 'object',
+				'properties' => array(
+					'ok'              => array( 'type' => 'boolean' ),
+					'request_list'    => array( 'type' => 'array', 'items' => $ir_row ),
+					'request_total'   => array( 'type' => 'integer' ),
+					'stuck'           => array( 'type' => 'array', 'items' => $ir_row ),
+					'stuck_total'     => array( 'type' => 'integer' ),
+					'publish_check'   => array(
+						'type'       => 'object',
+						'properties' => array(
+							'checked'        => array( 'type' => 'integer' ),
+							'inbound_judged' => array( 'type' => 'boolean' ),
+							'failures'       => array( 'type' => 'array', 'description' => 'Each row: path, url, post_type, inbound_indexed (integer or null), reasons[] of inbound | sitemap | canonical.' ),
+						),
+					),
+					'generated_at'    => array( 'type' => 'integer' ),
+					'coverage_run_at' => array( 'type' => array( 'integer', 'null' ) ),
 				),
 			),
 		),

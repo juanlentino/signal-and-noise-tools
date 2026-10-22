@@ -148,5 +148,15 @@ foreach ( array( 'by_coverage_state', 'entries' ) as $k ) {
 }
 ok( isset( $GLOBALS['__registered']['signal-noise/search-coverage'] ) && 'snt_ability_search_coverage' === $GLOBALS['__registered']['signal-noise/search-coverage']['execute_callback'], 'search-coverage registers from the same table' );
 
+// ─── 2026-10-22: signal-noise/indexing-requests, the indexing guard's read ───
+$ir = $GLOBALS['__registered']['signal-noise/indexing-requests'] ?? null;
+ok( is_array( $ir ) && 'snt_ability_indexing_requests' === $ir['execute_callback'] && true === $ir['meta']['annotations']['readonly'], 'indexing-requests registers from the same table, read-only' );
+$ir_props = $ir['output_schema']['properties'] ?? array();
+ok( array( 'ok', 'request_list', 'request_total', 'stuck', 'stuck_total', 'publish_check', 'generated_at', 'coverage_run_at' ) === array_keys( $ir_props ), 'its shape: request_list, stuck, publish_check, generated_at, coverage_run_at (plus the true totals)' );
+ok( array( 'integer', 'null' ) === $ir_props['coverage_run_at']['type'] && array( 'integer', 'null' ) === $ir_props['request_list']['items']['properties']['inbound_indexed']['type'], 'unknown is null in the schema: coverage_run_at and inbound_indexed' );
+ok( false === strpos( $ir['description'], '—' ), 'no em dash in the description' );
+ok( is_wp_error( snt_ability_indexing_requests( null ) ), 'without the indexing guard loaded it is a WP_Error, never an empty list' );
+ok( in_array( 'signal-noise/indexing-requests', sn_mcp_allowlist(), true ), 'on the local read door' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

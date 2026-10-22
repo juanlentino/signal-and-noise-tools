@@ -54,8 +54,10 @@ function wp_json_encode( $d ) { return json_encode( $d ); }
 function get_permalink( $p ) {
 	if ( ! is_object( $p ) ) { return 'https://example.com/notes/p' . (int) $p . '/'; }
 	if ( 'publish' !== $p->post_status ) { return 'https://example.com/?p=' . (int) $p->ID; }
-	return 'https://example.com/notes/' . $p->post_name . '/';
+	return 'https://example.com/' . ( 'page' === ( $p->post_type ?? '' ) ? '' : 'notes/' ) . $p->post_name . '/';
 }
+$GLOBALS['__meta'] = array();
+function get_post_meta( $id, $k, $s = false ) { return $GLOBALS['__meta'][ (int) $id ][ $k ] ?? ''; } // 2026-10-22: the indexable predicate.
 function wp_is_post_revision( $id ) { return ! empty( $GLOBALS['__is_revision'] ); }
 function wp_is_post_autosave( $id ) { return ! empty( $GLOBALS['__is_autosave'] ); }
 function sn_in_test_post( $type, $status ) { $p = new stdClass(); $p->ID = 7; $p->post_type = $type; $p->post_status = $status; $p->post_name = 'trash' === $status ? 'p7__trashed' : 'p7'; return $p; }
@@ -175,6 +177,31 @@ $GLOBALS['__is_revision'] = false;
 $GLOBALS['__scheduled'] = array();
 sn_indexnow_on_insert( 7, sn_in_test_post( 'attachment', 'publish' ), true, null );
 ok( 0 === count( $GLOBALS['__scheduled'] ), 'insert: a non post/page type does NOT enqueue' );
+
+// ── 2026-10-22: the indexable predicate and the old permalink ──────
+$GLOBALS['__meta'][7]['_sn_noindex'] = '1';
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_insert( 7, sn_in_test_post( 'page', 'publish' ), true, null );
+ok( 0 === count( $GLOBALS['__scheduled'] ), 'insert: a page marked _sn_noindex is not pinged (the sitemap does not list it either)' );
+$GLOBALS['__meta'] = array();
+$sn_verify = sn_in_test_post( 'page', 'publish' );
+$sn_verify->post_name = 'verify';
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_insert( 7, $sn_verify, true, null );
+ok( 0 === count( $GLOBALS['__scheduled'] ), 'insert: a page on a path the plugin serves noindex (/verify) is not pinged' );
+$sn_before = sn_in_test_post( 'post', 'publish' );
+$sn_before->post_name = 'old-slug';
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_insert( 7, sn_in_test_post( 'post', 'publish' ), true, $sn_before );
+ok( in_array( 'https://example.com/notes/old-slug/', $GLOBALS['__scheduled'][0]['args'][0] ?? array(), true ) && in_array( 'https://example.com/notes/p7/', $GLOBALS['__scheduled'][0]['args'][0] ?? array(), true ), 'insert: a slug change on a published post pings the OLD permalink beside the new one, so the old URL is recrawled into its redirect' );
+$sn_draft_before = sn_in_test_post( 'post', 'draft' );
+$sn_draft_before->post_name = 'draft-slug';
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_insert( 7, sn_in_test_post( 'post', 'publish' ), true, $sn_draft_before );
+ok( 2 === count( $GLOBALS['__scheduled'][0]['args'][0] ?? array() ), 'insert: a first publish (the before-state was a draft) pings no old URL' );
+$GLOBALS['__scheduled'] = array();
+sn_indexnow_on_insert( 7, sn_in_test_post( 'post', 'publish' ), true, sn_in_test_post( 'post', 'publish' ) );
+ok( 2 === count( $GLOBALS['__scheduled'][0]['args'][0] ?? array() ), 'insert: an edit with the same slug pings the permalink and the listing only' );
 
 // ── Lifecycle: transition_post_status (unpublish/trash ONLY) ────────
 $GLOBALS['__scheduled'] = array();

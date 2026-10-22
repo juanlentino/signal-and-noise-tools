@@ -25,6 +25,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
+require_once __DIR__ . '/indexable.php'; // the one indexable predicate: what the sitemap lists is what the sweep inspects.
+
 const SNT_GSC_COVERAGE_HOOK     = 'sn_gsc_coverage_weekly';
 const SNT_GSC_COVERAGE_OPTION   = 'snt_gsc_coverage';
 const SNT_GSC_INSPECT_URL       = 'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect';
@@ -127,6 +129,12 @@ function snt_gsc_coverage_targets() {
 		// over.
 		$ids = (array) get_posts( array( 'post_type' => array( 'post', 'page' ), 'post_status' => 'publish', 'has_password' => false, 'posts_per_page' => SNT_GSC_COVERAGE_MAX_URLS, 'orderby' => 'ID', 'order' => 'ASC', 'fields' => 'ids' ) );
 		foreach ( $ids as $id ) {
+			// 2026-10-22: a singular the site keeps out of the index (/verify,
+			// served noindex by its route; /call, _sn_noindex) spent quota
+			// every week. The same predicate the sitemap asks.
+			if ( ! sn_post_is_indexable( (int) $id ) ) {
+				continue;
+			}
 			$url = (string) get_permalink( (int) $id );
 			if ( '' !== $url ) {
 				$out[ 'post:' . (int) $id ] = $url;
@@ -311,8 +319,10 @@ function snt_gsc_coverage_summary( $d, $inbound = null, $bing = null ) {
 				'coverage_state'  => $cs,
 				'last_crawl_time' => (string) ( $e['last_crawl_time'] ?? '' ),
 				'verdict'         => (string) ( $e['verdict'] ?? '' ),
-				// v13.65.0: how many OTHER published notes link here. null = not computed.
-				'inbound_links'   => is_array( $inbound ) ? (int) ( $inbound[ (string) $path ]['inbound'] ?? 0 ) : null,
+				// v13.65.0: how many OTHER published notes and pages link here
+				// (pages joined the graph 2026-10-22). null = not computed, or the
+				// path is not a graph node (a tag archive): unknown, never zero.
+				'inbound_links'   => is_array( $inbound ) && isset( $inbound[ (string) $path ] ) ? (int) ( $inbound[ (string) $path ]['inbound'] ?? 0 ) : null,
 				'url'             => (string) ( $e['url'] ?? '' ),
 				'bing'            => function_exists( 'sn_bing_url_info_label' ) ? sn_bing_url_info_label( is_array( $bing ) ? ( $bing[ (string) $path ] ?? null ) : null ) : null,
 			);
@@ -415,8 +425,8 @@ function snt_gsc_inspect_one( $post_id, $days = 0 ) {
 		return new WP_Error( 'snt_gsc_not_ready', 'Search Console is not configured.' );
 	}
 	$post = function_exists( 'get_post' ) ? get_post( (int) $post_id ) : null;
-	if ( ! is_object( $post ) || 'publish' !== (string) ( $post->post_status ?? '' ) || '' !== (string) ( $post->post_password ?? '' ) ) {
-		return null;
+	if ( ! is_object( $post ) || ! sn_post_is_indexable( $post ) ) {
+		return null; // unpublished, protected, or kept out of the index on purpose.
 	}
 	$url = (string) get_permalink( $post );
 	$key = function_exists( 'sn_path_join_key' ) ? sn_path_join_key( $url ) : $url;

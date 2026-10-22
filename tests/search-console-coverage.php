@@ -42,6 +42,12 @@ function sn_setting( $k, $d = null ) { return 'search_console.property' === $k ?
 $GLOBALS['__posts'] = array( 11 => 'https://example.test/notes/alpha/', 12 => 'https://example.test/notes/beta/', 13 => 'https://example.test/notes/gamma/' );
 function get_posts( $a ) { $GLOBALS['__get_posts_args'] = $a; return array_keys( $GLOBALS['__posts'] ); }
 function get_permalink( $id ) { $id = is_object( $id ) ? (int) $id->ID : $id; return $GLOBALS['__posts'][ $id ] ?? ''; }
+// 2026-10-22: targets ask sn_post_is_indexable(), which reads the post and its meta.
+foreach ( array_keys( $GLOBALS['__posts'] ) as $sn_id ) {
+	$GLOBALS['__post_objects'][ $sn_id ] = (object) array( 'ID' => $sn_id, 'post_type' => 'post', 'post_status' => 'publish', 'post_password' => '' );
+}
+$GLOBALS['__meta'] = array();
+function get_post_meta( $id, $k, $s = false ) { return $GLOBALS['__meta'][ (int) $id ][ $k ] ?? ''; }
 // The TAXONOMY seam (v13.109.0). Declared here, before the module loads, so
 // function_exists('get_terms') is TRUE — without these the tag branch is
 // skipped silently and every assertion about it passes vacuously.
@@ -165,7 +171,9 @@ ok( false === $s0['inbound_available'] && null === $s0['not_indexed_paths'][0]['
 $s1 = snt_gsc_coverage_summary( snt_gsc_coverage_data(), array( '/notes/beta' => array( 'inbound' => 3, 'linked_from' => array( 11, 12, 13 ) ) ) );
 ok( true === $s1['inbound_available'] && 3 === $s1['not_indexed_paths'][0]['inbound_links'], 'counts passed → the not-indexed row carries its inbound count' );
 $s2 = snt_gsc_coverage_summary( snt_gsc_coverage_data(), array() );
-ok( 0 === $s2['not_indexed_paths'][0]['inbound_links'], 'counts computed but the path absent → a real zero (nothing links here)' );
+ok( null === $s2['not_indexed_paths'][0]['inbound_links'], '2026-10-22: counts computed but the path absent → null: the graph holds every published note and page, so a path it lacks is not a node (unknown), never a zero' );
+$s3 = snt_gsc_coverage_summary( snt_gsc_coverage_data(), array( '/notes/beta' => array( 'inbound' => 0, 'linked_from' => array() ) ) );
+ok( 0 === $s3['not_indexed_paths'][0]['inbound_links'], '   ...and a node with no inbound links is a real zero' );
 
 
 /* ── TAG ARCHIVES + THE ID COLLISION (v13.109.0) ───────────────────────────
@@ -244,6 +252,19 @@ $GLOBALS['__opt'][ SNT_GSC_COVERAGE_OPTION ] = null;
 $e = snt_gsc_inspect_one( 900, 3 );
 $map = get_option( SNT_GSC_COVERAGE_OPTION );
 ok( is_array( $e ) && is_array( $map ) && false === $map['complete'] && 1 === count( $map['entries'] ), '   ...with NO map yet, one is started and marked incomplete: a single inspection is never mistaken for a full run' );
+
+echo "\nGroup: 2026-10-22, the sweep skips singulars the indexable predicate refuses\n";
+$GLOBALS['__posts'][14] = 'https://example.test/verify/';
+$GLOBALS['__posts'][15] = 'https://example.test/call/';
+$GLOBALS['__post_objects'][14] = (object) array( 'ID' => 14, 'post_type' => 'page', 'post_status' => 'publish', 'post_password' => '' );
+$GLOBALS['__post_objects'][15] = (object) array( 'ID' => 15, 'post_type' => 'page', 'post_status' => 'publish', 'post_password' => '' );
+$GLOBALS['__meta'][15]['_sn_noindex'] = '1';
+$tg = snt_gsc_coverage_targets();
+ok( ! in_array( 'https://example.test/verify/', $tg, true ) && ! in_array( 'https://example.test/call/', $tg, true ), '/verify (the route serves noindex) and /call (_sn_noindex) spend no quota' );
+ok( in_array( 'https://example.test/notes/alpha/', $tg, true ), '   ...an indexable note is still a target' );
+$GLOBALS['__opt'][ SNT_GSC_COVERAGE_OPTION ] = null;
+$GLOBALS['__posted'] = array();
+ok( null === snt_gsc_inspect_one( 14, 3 ) && array() === $GLOBALS['__posted'], '   ...and the single inspection skips /verify too' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

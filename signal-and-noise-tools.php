@@ -442,6 +442,7 @@ require_once SNT_PATH . 'inc/search-console-crossexam.php';
 require_once SNT_PATH . 'inc/search-console-coverage-history.php'; // one summary reading per weekly coverage run, capped at two years.
 require_once SNT_PATH . 'inc/search-console-sitemaps.php'; // the sitemaps report, read at the end of the weekly coverage run.
 require_once SNT_PATH . 'inc/search-console-index-watch.php'; // index_gap: a published note or page not indexed after 14 days.
+require_once SNT_PATH . 'inc/search-console-indexing-live.php'; // 2026-10-22: the indexing guard (request list, stuck flag, publish check); stored reads only.
 require_once SNT_PATH . 'inc/search-console-coverage.php';  // v13.63.0: weekly URL Inspection per post — the indexed-vs-unseen discriminator; stored, never live.  // R6b: GSC x crawler-ledger agreement check.
 require_once SNT_PATH . 'inc/analytics-view-search.php';     // R6b: the Search analytics view (its own tab).      // R6b: the path-keyed rolling window the analytics views join against.
 require_once SNT_PATH . 'inc/search-console-admin.php';      // R6b: Measurement -> Search Console leaf.

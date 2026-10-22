@@ -219,6 +219,9 @@ function sn_mcp_allowlist() {
 		// 2026-10-16: queries with impressions and no clicks, arithmetic over
 		// the stored query x page rows; never a model. Read door 51 -> 52.
 		'signal-noise/search-unanswered',
+		// 2026-10-22: the indexing guard (request list, stuck flag, publish
+		// check) over stored data; never inspects, never requests. Read door 52 -> 53.
+		'signal-noise/indexing-requests',
 		// v13.68.0 — stored inbound-pass report; never calls the model on read.
 		'signal-noise/inbound-pass',
 		// v14.6.1 — the Posts tab as data: per-note signals + the three flags,

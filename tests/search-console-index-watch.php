@@ -29,6 +29,11 @@ function __( $s, $d = null ) { return $s; }
 $GLOBALS['meta'] = array( 7 => array( '_sn_noindex' => '1' ) );
 function get_post_meta( $id, $k, $single = false ) { return $GLOBALS['meta'][ (int) $id ][ $k ] ?? ''; }
 require __DIR__ . '/../inc/post-settings.php';
+// 2026-10-22: the candidate asks the one indexable predicate, which reads the post.
+$GLOBALS['urls'] = array( 1 => '/about/', 2 => '/notes/new/', 3 => '/notes/old/', 4 => '/notes/fine/', 5 => '/verify/', 6 => '/notes/err/', 7 => '/call/', 8 => '/verify/' );
+function get_post( $id ) { return isset( $GLOBALS['urls'][ (int) $id ] ) ? (object) array( 'ID' => (int) $id, 'post_type' => 'page', 'post_status' => 'publish', 'post_password' => '' ) : null; }
+function get_permalink( $p ) { $id = is_object( $p ) ? (int) $p->ID : (int) $p; return 'https://example.test' . ( $GLOBALS['urls'][ $id ] ?? '' ); }
+require __DIR__ . '/../inc/indexable.php';
 require __DIR__ . '/../inc/watches.php';
 require __DIR__ . '/../inc/bing-webmaster.php';
 require __DIR__ . '/../inc/bing-url-info.php';
@@ -55,11 +60,16 @@ $map = array( 'synced_at' => $now, 'entries' => array(
 	// Google has not reported the noindex (it never fetched the page, or saw it
 	// before the flag), so only the plugin's own decision can keep it out.
 	'/call'           => $e( 'Crawled - currently not indexed', 'https://example.test/call/', 'post', 7 ),
+	// 2026-10-22: /verify as Google may report it before it reads the route's
+	// noindex. No _sn_noindex meta; the predicate's own route list keeps it out.
+	'/verify-early'   => $e( 'Crawled - currently not indexed', 'https://example.test/verify/', 'post', 8 ),
 ) );
-$pub = array( 1 => $now - 400 * DAY_IN_SECONDS, 2 => $now - 5 * DAY_IN_SECONDS, 3 => $now - 15 * DAY_IN_SECONDS, 4 => $now - 90 * DAY_IN_SECONDS, 5 => $now - 90 * DAY_IN_SECONDS, 6 => $now - 90 * DAY_IN_SECONDS, 7 => $now - 90 * DAY_IN_SECONDS );
+$pub = array( 1 => $now - 400 * DAY_IN_SECONDS, 2 => $now - 5 * DAY_IN_SECONDS, 3 => $now - 15 * DAY_IN_SECONDS, 4 => $now - 90 * DAY_IN_SECONDS, 5 => $now - 90 * DAY_IN_SECONDS, 6 => $now - 90 * DAY_IN_SECONDS, 7 => $now - 90 * DAY_IN_SECONDS, 8 => $now - 90 * DAY_IN_SECONDS );
 
 $stuck = snt_gsc_index_stuck( $map['entries'], $pub, $now, SNT_GSC_INDEX_WATCH_DAYS );
 ok( array( '/about', '/notes/old' ) === array_column( $stuck, 'path' ), 'only published notes and pages past the line, oldest first: ' . implode( ',', array_column( $stuck, 'path' ) ) );
+ok( false === snt_gsc_index_gap_candidate( $map['entries']['/verify-early'] ), '/verify stays out on the plugin\'s own route decision, even when Google reports it crawled' );
+ok( array( 1, 3 ) === array_column( $stuck, 'post_id' ), 'each stuck row carries its post_id, for the indexing report\'s joins' );
 ok( 14 === SNT_GSC_INDEX_WATCH_DAYS, 'the line is 14 days: one weekly run past the day-10 single inspection' );
 
 $bing = array( '/about' => array( 'state' => 'crawled', 'crawled' => '2026-10-01', 'discovered' => '', 'error' => '', 'checked_at' => $now ) );
