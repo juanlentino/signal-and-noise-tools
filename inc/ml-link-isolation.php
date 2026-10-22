@@ -186,11 +186,12 @@ function snt_ml_link_graph( $posts, $host ) {
 		} else {
 			$by_slug[ $slug ] = $key;
 		}
-		$bodies[ $key ] = (string) ( $post->post_content ?? '' );
+		// 2026-10-22: rendered outbound paths when the caller has them (sn_out_paths).
+		$bodies[ $key ] = is_array( $post->sn_out_paths ?? null ) ? $post->sn_out_paths : snt_ml_outbound_paths( (string) ( $post->post_content ?? '' ), $host );
 	}
-	foreach ( $bodies as $source => $content ) {
+	foreach ( $bodies as $source => $targets ) {
 		$seen = array();
-		foreach ( snt_ml_outbound_paths( $content, $host ) as $target_path ) {
+		foreach ( $targets as $target_path ) {
 			$parts  = explode( '/', $target_path );
 			$target = $by_path[ $target_path ] ?? ( $by_slug[ (string) end( $parts ) ] ?? null );
 			if ( null === $target || $target === $source || isset( $seen[ $target ] ) ) {

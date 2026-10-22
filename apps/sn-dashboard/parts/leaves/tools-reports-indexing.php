@@ -37,7 +37,7 @@ function tools_reports_indexing_list( array $rows, $total ) {
 			/* translators: %d: days since the page was published. */
 			. ' · ' . \snt_kit_esc( sprintf( __( '%d days since publish', 'signal-and-noise-tools' ), (int) ( $row['days'] ?? 0 ) ) )
 			/* translators: %s: link count, or "not in the link graph". */
-			. ' · ' . \snt_kit_esc( sprintf( __( 'links from indexed pages: %s', 'signal-and-noise-tools' ), \sn_indexing_inbound_words( $row['inbound_indexed'] ?? null ) ) )
+			. ' · ' . \snt_kit_esc( sprintf( __( 'links from indexed pages: %s', 'signal-and-noise-tools' ), \sn_indexing_row_inbound_words( $row ) ) )
 			. ' · ' . \snt_kit_link( __( 'Inspect in Search Console', 'signal-and-noise-tools' ), (string) ( $row['inspect_url'] ?? '' ) )
 			. '</li>';
 	}

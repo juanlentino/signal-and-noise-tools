@@ -28,6 +28,30 @@ function sn_indexing_inbound_words( $n ) {
 }
 
 /**
+ * A row's inbound figure plus what links it from every page (2026-10-22): the
+ * body count alone read "0" for a page the site nav links everywhere.
+ *
+ * @param array $row A request, stuck or failure row (chrome, template[]).
+ * @return string
+ */
+function sn_indexing_row_inbound_words( array $row ) {
+	$by    = ! empty( $row['chrome'] ) || 'chrome' === ( $row['inbound_source'] ?? '' ) ? array( __( 'the site header or footer', 'signal-and-noise-tools' ) ) : array();
+	$names = array(
+		'post' => __( 'every note\'s template', 'signal-and-noise-tools' ),
+		'page' => __( 'every page\'s template', 'signal-and-noise-tools' ),
+		'home' => __( 'the home page template', 'signal-and-noise-tools' ),
+	);
+	foreach ( (array) ( $row['template'] ?? array() ) as $type ) {
+		if ( isset( $names[ $type ] ) ) {
+			$by[] = $names[ $type ];
+		}
+	}
+	$n = sn_indexing_inbound_words( $row['inbound_indexed'] ?? null );
+	/* translators: 1: link count, 2: what links it from every page, e.g. "the site header or footer". */
+	return array() === $by ? $n : sprintf( __( '%1$s, and linked from %2$s', 'signal-and-noise-tools' ), $n, implode( __( ' and ', 'signal-and-noise-tools' ), $by ) );
+}
+
+/**
  * A publish-check failure's reasons in words.
  *
  * @param array $failure One failures[] row.
@@ -38,7 +62,7 @@ function sn_indexing_reason_words( array $failure ) {
 	foreach ( (array) ( $failure['reasons'] ?? array() ) as $reason ) {
 		if ( 'inbound' === $reason ) {
 			/* translators: 1: minimum links, 2: links found, or "not in the link graph". */
-			$words[] = sprintf( __( 'fewer than %1$d links from indexed pages (%2$s)', 'signal-and-noise-tools' ), SNT_INDEXING_MIN_INBOUND, sn_indexing_inbound_words( $failure['inbound_indexed'] ?? null ) );
+			$words[] = sprintf( __( 'fewer than %1$d links from indexed pages (%2$s)', 'signal-and-noise-tools' ), SNT_INDEXING_MIN_INBOUND, sn_indexing_row_inbound_words( $failure ) );
 		} elseif ( 'sitemap' === $reason ) {
 			$words[] = __( 'not in the sitemap (noindex, or a path the plugin serves noindex)', 'signal-and-noise-tools' );
 		} elseif ( 'canonical' === $reason ) {
@@ -89,7 +113,7 @@ function sn_health_render_indexing_table( $caption, array $rows, $total ) {
 		echo '<tr><td><a href="' . esc_url( (string) ( $row['url'] ?? '' ) ) . '"><code>' . esc_html( $path ) . '</code></a>' . ( ! empty( $row['core'] ) ? ' <span class="sn-badge">' . esc_html__( 'core', 'signal-and-noise-tools' ) . '</span>' : '' ) . '</td>';
 		echo '<td>' . esc_html( (string) ( $row['coverage_state'] ?? '' ) ) . '</td>';
 		echo '<td>' . esc_html( (string) (int) ( $row['days'] ?? 0 ) ) . '</td>';
-		echo '<td>' . esc_html( sn_indexing_inbound_words( $row['inbound_indexed'] ?? null ) ) . '</td>';
+		echo '<td>' . esc_html( sn_indexing_row_inbound_words( $row ) ) . '</td>';
 		/* translators: %s: the path to inspect. */
 		echo '<td><a class="button button-small" target="_blank" rel="noopener noreferrer" href="' . esc_url( (string) ( $row['inspect_url'] ?? '' ) ) . '" aria-label="' . esc_attr( sprintf( __( 'Inspect %s in Search Console (opens a new tab)', 'signal-and-noise-tools' ), $path ) ) . '">' . esc_html__( 'Inspect', 'signal-and-noise-tools' ) . '</a></td></tr>';
 	}

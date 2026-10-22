@@ -337,6 +337,17 @@ foreach ( array( '4 URLs to request (not indexed after 7 days), 1 stuck past 30 
 ok( false !== strpos( $kit, 'Showing 1 of 4' ) && false === strpos( $kit, 'This report has no detail view yet' ), 'indexing: the native leaf has its own view and states the cap' );
 ok( false !== strpos( $classic, 'aria-label="Inspect /notes/a in Search Console (opens a new tab)"' ) && false !== strpos( $classic, '<caption>' ), 'indexing: the classic table has a caption and the Inspect button says what it inspects' );
 ok( false === strpos( $kit, '—' ) && false === strpos( $classic, ' — ' ), 'indexing: no em dash on either surface' );
+// 2026-10-22: a row the site chrome or a template links says so on both surfaces, never a bare 0.
+$ix_site = $ix_scan;
+$ix_site['checks']['indexing']['report']['request_list'][0] = array_merge( $ix_site['checks']['indexing']['report']['request_list'][0], array( 'path' => '/now', 'inbound_indexed' => 0, 'chrome' => true, 'template' => array() ) );
+$ix_site['checks']['indexing']['report']['stuck'][0]        = array_merge( $ix_site['checks']['indexing']['report']['stuck'][0], array( 'path' => '/provenance/over-detection', 'inbound_indexed' => 1, 'chrome' => false, 'template' => array( 'post', 'home' ) ) );
+$ix_site['checks']['indexing']['report']['publish_check']['failures'][] = array( 'path' => '/workflow', 'url' => 'https://example.test/workflow/', 'post_type' => 'page', 'inbound_indexed' => 0, 'inbound_source' => 'template', 'template' => array( 'page' ), 'reasons' => array( 'inbound' ) );
+$GLOBALS['__scan'] = $ix_site;
+$classic = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
+$kit     = reports_paint();
+foreach ( array( '0, and linked from the site header or footer', '1, and linked from every note&#039;s template and the home page template', 'fewer than 2 links from indexed pages (0, and linked from every page&#039;s template)' ) as $needle ) {
+	ok( false !== strpos( $classic, $needle ) && false !== strpos( $kit, $needle ), 'indexing: both surfaces print "' . $needle . '"' );
+}
 $ix_scan['checks']['indexing']['report']['coverage_run_at'] = null;
 $GLOBALS['__scan'] = $ix_scan;
 ok( false !== strpos( snt_leaf_classic_html( 'sn_admin_render_health_reports_section' ), 'has not stored a map yet' ) && false !== strpos( reports_paint(), 'has not stored a map yet' ), 'indexing: before the first inspection run both say so instead of a zero' );
