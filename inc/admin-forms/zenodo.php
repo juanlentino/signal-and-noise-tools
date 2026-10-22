@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/zenodo-doi-line.php';
+
 /**
  * The deposit button's confirm, shared by both surfaces (2026-10-12 audit:
  * the button minted DOIs with no question asked). Production DOIs are
@@ -214,6 +216,20 @@ function sn_admin_render_zenodo_section() {
 	echo '<strong>Deposit</strong><p class="sn-helper">Runs one pass now: up to ' . (int) SN_ZENODO_PASS_MAX . ' confirmed documents without a DOI. The hourly pass does the same on its own.</p>';
 	echo '<button type="submit" name="action" value="sn_zenodo_deposit_batch" class="button" data-snt-confirm="' . esc_attr( sn_zenodo_deposit_confirm( $d['env'] ) ) . '" data-snt-confirm-title="' . esc_attr__( 'Deposit the next batch', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Deposit', 'signal-and-noise-tools' ) . '"' . ( $d['enabled'] ? '' : ' disabled' ) . '>Deposit the next batch</button></form>';
 	echo '</div>';
+
+	$line = snt_prov_doi_settings();
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';
+	wp_nonce_field( 'sn_zenodo_doi_line_save' );
+	echo '<input type="hidden" name="action" value="sn_zenodo_doi_line_save">';
+	echo '<h2 class="sn-fieldset-h">' . esc_html( sn_zenodo_doi_line_copy()['title'] ) . '</h2>';
+	echo '<p class="sn-helper">' . esc_html( sn_zenodo_doi_line_copy()['intro'] ) . '</p>';
+	echo '<div class="sn-field"><label><input type="checkbox" id="sn_zenodo_doi_line_enabled" name="zenodo_doi_line_enabled" value="1"' . checked( $line['enabled'], true, false ) . '> ' . esc_html( sn_zenodo_doi_line_copy()['enabled'] ) . '</label></div>';
+	echo '<div class="sn-field"><label for="sn_zenodo_doi_line_label">' . esc_html( sn_zenodo_doi_line_copy()['label'] ) . '</label><input type="text" id="sn_zenodo_doi_line_label" name="zenodo_doi_line_label" value="' . esc_attr( $line['label'] ) . '" maxlength="80" autocomplete="off"></div>';
+	echo '<p class="sn-helper">' . esc_html( sn_zenodo_doi_line_copy()['label_hint'] ) . '</p>';
+	echo '<div class="sn-field"><label for="sn_zenodo_doi_line_floor">' . esc_html( sn_zenodo_doi_line_copy()['floor'] ) . '</label><input type="number" id="sn_zenodo_doi_line_floor" name="zenodo_doi_line_floor" value="' . (int) $line['floor'] . '" min="0" step="1"></div>';
+	echo '<p class="sn-helper">' . esc_html( sn_zenodo_doi_line_copy()['floor_hint'] ) . '</p>';
+	echo '<p class="sn-helper">' . esc_html( sn_zenodo_doi_line_preview() ) . '</p>';
+	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">' . esc_html( sn_zenodo_doi_line_copy()['submit'] ) . '</button></div></form>';
 
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Ledger</h2>';
 	if ( array() === $d['rows'] ) {

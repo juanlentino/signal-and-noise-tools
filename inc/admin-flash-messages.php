@@ -206,6 +206,7 @@ function sn_admin_flash_messages() {
 		'indexnow_pinged'           => array( 'success', 'Recent content queued for IndexNow submission.' ),
 		'indexnow_disabled'         => array( 'error', 'Enable IndexNow first, then run the backfill.' ),
 		'zenodo_env_saved'          => array( 'success', 'Zenodo environment saved. Sandbox DOIs are test DOIs and never reach a public surface.' ),
+		'zenodo_doi_line_saved'     => array( 'success', 'Saved. The downloads line on /provenance follows the next page load; it stays hidden while the Zenodo snapshot is missing or more than two days old.' ),
 		'zenodo_no_token'           => array( 'error', 'No Zenodo token for this environment. Add it under Connections &rsaquo; Credentials first.' ),
 		'zenodo_batch_done'         => array( 'success', 'Deposited. The DOI is on the record and flows into the schema and the citation on the next paint.' ),
 		'zenodo_batch_failed'       => array( 'error', 'The deposit did not publish. The ledger names the step and Zenodo&rsquo;s answer; a draft, if one was created, resumes on the next pass.' ),

@@ -162,3 +162,13 @@
    (v9.74.0); fixed here because leaving one hover red compliant and its twin
    failing, in the same stylesheet, is worse than either. */
 .sn-prov-chip-verify:hover,.sn-prov-chip-verify:focus-visible{color:var(--sn-signal-ink,#b00303);text-decoration-thickness:2px}
+
+/* The DOI downloads line on /provenance (inc/provenance-doi-line.php, 2026-10-21):
+   a quiet proof line in the brow's color, in sentence case so a full sentence stays easy to read. Rust throughout, not blood:
+   blood measures 3.29:1 at this size, under AA with no large-text allowance;
+   the link turns the signal ink on hover and focus, as .sn-prov-links does.
+   The floor is 11px; no transition, so nothing moves. */
+.sn-doi-proof{margin:var(--wp--preset--spacing--40,2rem) 0 0;font-family:var(--wp--preset--font-family--body,inherit);font-size:max(.8rem,11px);line-height:1.6;letter-spacing:.02em;color:var(--wp--preset--color--rust,#666666)}
+.sn-doi-proof__label{font-weight:600;margin-right:.35em}
+.sn-doi-proof a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+.sn-doi-proof a:hover,.sn-doi-proof a:focus-visible{color:var(--sn-signal-ink,#b00303);text-decoration-thickness:2px}

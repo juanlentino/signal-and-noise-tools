@@ -21,19 +21,24 @@ const SNT_NSM_ZENODO_KEEP = 40; // days of snapshots kept.
 
 /**
  * Sum lifetime stats over every record by the author. Null when any page
- * fails: a partial sum would read as a drop.
+ * fails: a partial sum would read as a drop. `by_doi` keeps each record's
+ * lifetime unique downloads by DOI, for the site-only split
+ * (inc/provenance-doi-line.php). Pages come in one stable order and a record
+ * seen twice counts once, so a page boundary that shifts between requests can
+ * neither drop nor double a record.
  *
- * @return array{downloads:int,views:int,records:int}|null
+ * @return array{downloads:int,views:int,records:int,by_doi:array<string,int>}|null
  */
 function snt_nsm_zenodo_fetch() {
 	$orcid = defined( 'SN_ZENODO_ORCID' ) ? SN_ZENODO_ORCID : '';
 	if ( '' === $orcid ) {
 		return null;
 	}
-	$sum   = array( 'downloads' => 0, 'views' => 0, 'records' => 0 );
+	$sum   = array( 'downloads' => 0, 'views' => 0, 'records' => 0, 'by_doi' => array() );
+	$seen  = array();
 	$total = null;
 	for ( $page = 1; $page <= 20 && ( null === $total || $sum['records'] < $total ); $page++ ) {
-		$url  = 'https://zenodo.org/api/records?size=25&page=' . $page . '&q=' . rawurlencode( 'creators.orcid:"' . $orcid . '"' );
+		$url  = 'https://zenodo.org/api/records?size=25&sort=mostrecent&page=' . $page . '&q=' . rawurlencode( 'creators.orcid:"' . $orcid . '"' );
 		$resp = wp_remote_get( $url, array( 'timeout' => 15, 'headers' => array( 'Accept' => 'application/json', 'User-Agent' => 'SignalNoiseTools/' . ( defined( 'SNT_VERSION' ) ? SNT_VERSION : 'dev' ) . ' north-star' ) ) );
 		$body = is_wp_error( $resp ) || 200 !== (int) wp_remote_retrieve_response_code( $resp ) ? null : json_decode( wp_remote_retrieve_body( $resp ), true );
 		if ( ! is_array( $body ) || ! isset( $body['hits']['hits'] ) ) {
@@ -45,9 +50,18 @@ function snt_nsm_zenodo_fetch() {
 			break;
 		}
 		foreach ( $hits as $h ) {
-			$sum['downloads'] += (int) ( $h['stats']['unique_downloads'] ?? 0 );
+			$id = (string) ( $h['id'] ?? '' );
+			if ( '' !== $id && isset( $seen[ $id ] ) ) {
+				continue;
+			}
+			$seen[ $id ]       = true;
+			$n                 = (int) ( $h['stats']['unique_downloads'] ?? 0 );
+			$sum['downloads'] += $n;
 			$sum['views']     += (int) ( $h['stats']['unique_views'] ?? 0 );
 			++$sum['records'];
+			if ( '' !== (string) ( $h['doi'] ?? '' ) ) {
+				$sum['by_doi'][ (string) $h['doi'] ] = $n;
+			}
 		}
 	}
 	return $sum;
@@ -61,10 +75,17 @@ function snt_nsm_zenodo_snapshot() {
 	if ( null === $sum ) {
 		return;
 	}
-	$snaps                     = (array) get_option( SNT_NSM_ZENODO_OPT, array() );
-	$snaps[ gmdate( 'Y-m-d' ) ] = $sum;
+	$snaps  = (array) get_option( SNT_NSM_ZENODO_OPT, array() );
+	$before = snt_prov_doi_line();
+	// Per-record figures ride the latest day only (option size); every day
+	// keeps its site-only total, so a 30-day difference needs no per-record history.
+	foreach ( array_keys( $snaps ) as $date ) {
+		unset( $snaps[ $date ]['by_doi'] );
+	}
+	$snaps[ gmdate( 'Y-m-d' ) ] = snt_nsm_zenodo_with_site( $sum, snt_nsm_zenodo_site_dois() );
 	ksort( $snaps );
 	update_option( SNT_NSM_ZENODO_OPT, array_slice( $snaps, -SNT_NSM_ZENODO_KEEP, null, true ), false );
+	snt_prov_doi_purge_if_changed( $before );
 }
 add_action( SNT_NSM_ZENODO_HOOK, 'snt_nsm_zenodo_snapshot' );
 add_action(

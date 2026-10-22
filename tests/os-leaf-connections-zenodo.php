@@ -17,6 +17,7 @@ function sn_zenodo_ledger() { return $GLOBALS['__zl']['rows']; }
 if ( ! defined( 'SN_ZENODO_PASS_MAX' ) ) { define( 'SN_ZENODO_PASS_MAX', 5 ); }
 if ( ! function_exists( 'selected' ) ) { function selected( $a, $b, $echo = true ) { return $a === $b ? ' selected="selected"' : ''; } }
 require SNT_PATH . 'inc/admin-shell.php';
+require SNT_PATH . 'inc/provenance-doi-line.php';
 require SNT_PATH . 'inc/admin-forms/zenodo.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-zenodo.php';
 $pass = 0; $fail = 0;
@@ -42,7 +43,18 @@ ok( false !== strpos( $prod, 'permanent public DOI' ), 'on production the questi
 $GLOBALS['__zl']['env'] = 'sandbox';
 ok( false !== strpos( $kit, 'reads its own token from Connections › Credentials' ) && false !== strpos( $kit, 'Empty until the first snapshot release' ), 'the two field hints paint, in the classic page\'s words' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic forms: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( array( 'zenodo_deposit_batch', 'zenodo_env_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the two actions match the classic leaf: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( array( 'zenodo_deposit_batch', 'zenodo_doi_line_save', 'zenodo_env_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the three actions match the classic leaf: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+// 2026-10-21: the DOI downloads line on /provenance, a Setup fold here and a fieldset there, the same words.
+foreach ( array( 'zenodo_doi_line_enabled', 'zenodo_doi_line_label', 'zenodo_doi_line_floor' ) as $__n ) {
+	ok( in_array( $__n, snt_leaf_names( $kit ), true ) && in_array( $__n, snt_leaf_names( $classic ), true ), "the downloads line field $__n is on both surfaces" );
+}
+$__classic_text = html_entity_decode( strip_tags( $classic ), ENT_QUOTES, 'UTF-8' );
+foreach ( sn_zenodo_doi_line_copy() as $__k => $__line ) {
+	ok( false !== strpos( html_entity_decode( $kit, ENT_QUOTES, 'UTF-8' ), $__line ) && false !== strpos( $__classic_text, $__line ), "both surfaces say the $__k words" );
+}
+ok( false !== strpos( $kit, '<os-checkbox-label name="zenodo_doi_line_enabled" value="1" checked' ) && false !== strpos( $classic, 'name="zenodo_doi_line_enabled" value="1" checked="checked"' ), 'defaults: the line is on, on both surfaces' );
+ok( false !== strpos( $kit, 'Now hidden: no recent snapshot with the site split yet.' ) && false !== strpos( $__classic_text, 'Now hidden: no recent snapshot with the site split yet.' ), 'with no snapshot both surfaces say the line is hidden and why' );
+ok( 1 !== preg_match( '/\x{2014}|\x{2013}/u', implode( ' ', sn_zenodo_doi_line_copy() ) ), 'no em or en dash in the new words' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, '<os-select' ) && false !== strpos( $kit, 'name="zenodo_env"' ) && false !== strpos( $kit, '<os-option value="production">' ), 'the environment is a kit select with the two environments' );
 ok( false !== strpos( $kit, 'os-arg-action="sn_zenodo_deposit_batch"' ) && false !== strpos( $kit, '>Deposit the next batch</os-button>' ), 'Deposit the next batch is a one-click write' );
