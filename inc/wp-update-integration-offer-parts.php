@@ -129,6 +129,18 @@ function sn_plugin_update_force_refresh_requested() {
 }
 
 /**
+ * When core drops its update record, drop our cached tag with it. A refresh
+ * that is not core's Check Again (the Plugins screen's Refresh in the mobile
+ * app: wp_clean_plugins_cache() then wp_update_plugins()) otherwise rebuilt
+ * update_plugins from a tag cached for up to an hour, and core then kept that
+ * answer for 12h. Core fires this action before it deletes; the routine
+ * twice-daily check only sets the transient, so it never refetches GitHub.
+ * The theme key is the theme's own (see snt_cmd_impl_force_check()).
+ */
+add_action( 'delete_site_transient_update_plugins', static fn() => delete_site_transient( SN_GH_PLUGIN_CACHE_KEY ) );
+add_action( 'delete_site_transient_update_themes', static fn() => delete_site_transient( 'sn_gh_latest_theme' ) );
+
+/**
  * Register the plugin with WP's update transient. WP renders it on
  * wp-admin/update-core.php and Plugins → Installed Plugins from this data.
  *
