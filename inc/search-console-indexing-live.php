@@ -43,6 +43,7 @@ function sn_indexing_subjects() {
 			'indexable' => sn_post_is_indexable( $p ),
 			'canonical' => (string) get_post_meta( $id, '_sn_canonical_url', true ),
 			'core'      => 'page' === $p->post_type && sn_indexing_is_core( $url, $en > 0 ? (string) get_permalink( $en ) : '' ),
+			'en_path'   => $en > 0 ? sn_path_join_key( (string) get_permalink( $en ) ) : '',
 		);
 	}
 	return $out;
@@ -60,7 +61,7 @@ function sn_indexing_report() {
 	$inbound = function_exists( 'snt_ml_inbound_by_path' ) ? snt_ml_inbound_by_path() : null;
 	$prop    = function_exists( 'sn_setting' ) ? (string) sn_setting( 'search_console.property', '' ) : '';
 	return array_merge(
-		sn_indexing_build( $entries, sn_indexing_subjects(), $inbound, time(), $prop ),
+		sn_indexing_build( $entries, sn_indexing_subjects(), $inbound, time(), $prop, sn_indexing_chrome_paths() ),
 		array(
 			'generated_at'    => time(),
 			'coverage_run_at' => is_array( $d ) ? (int) $d['synced_at'] : null,

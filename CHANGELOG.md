@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **Fixed: the indexing publish check counts links from the site header and footer.** The link graph reads post bodies only, so pages the header nav and the footer meta-nav link from every page (/about, /resume, /services, /now, /colophon and the Spanish twins /sobre-mi, /cv, /servicios) were flagged for having almost no inbound links. The check now renders the active theme's header and footer template parts through core (no HTTP), reads their links with core's HTML API, and caches that set per theme, version and parts content, cleared on a theme switch, an update, a Customizer save, or a template part or navigation save; if rendering fails in cron it reads the parts' block markup instead. A page the chrome links passes the inbound rule and its failure rows say `inbound_source: chrome`; a Spanish page passes when its English page is chrome-linked, since the Spanish header links the twin. Request and stuck rows gain a `chrome` flag beside the unchanged body count, and `publish_check.chrome_paths` names the set used. Notes are still judged on body links only. Remote contract 23 (`inc/search-console-indexing-chrome.php`, `tests/search-console-indexing-chrome.php`).
+
 ## [2026.10.55] - 2026-10-22 — the indexing guard: a weekly request list, a stuck flag and a publish check
 
 ### Added

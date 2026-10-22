@@ -103,7 +103,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 // the publish check). The broad search-coverage map stays local. Additive: no
 // existing twin's shape moves. The worker's own CONTRACT_VERSION bump, its
 // BRIDGE_TOOLS entry and its plugin-slugs fixture are a separate PR.
-const SN_REMOTE_CONTRACT_VERSION = '22';
+// Contract 23 (2026-10-22): the indexing-requests twin reads the site chrome.
+// Request and stuck rows gain chrome (boolean); publish_check gains
+// chrome_paths and each failure an inbound_source (chrome | body). Additive
+// keys. The worker's own CONTRACT_VERSION bump is a separate PR.
+const SN_REMOTE_CONTRACT_VERSION = '23';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -156,6 +160,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'21' => '19f08c2ab0d0c3474707820e1ec0a4450728e147d54aeb918bda1228e99af860',
 	// RED-then-pin, 2026-10-22: 19-twin map, remote-indexing-requests joined.
 	'22' => '46f5cd540427bc4bf8289ef44ba01c6e2cd610f2cbd46ef54a6da0bddecc9a9a',
+	// RED-then-pin, 2026-10-22: chrome, chrome_paths and inbound_source on the indexing-requests twin.
+	'23' => 'db3e301e2e9be7acbe5d62afe0a73db151f76398a243a83fea221f98ac3c703a',
 );
 
 /**

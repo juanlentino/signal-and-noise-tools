@@ -254,6 +254,7 @@ function snt_search_console_abilities() {
 			'days'            => array( 'type' => 'integer', 'description' => 'Days since publish.' ),
 			'core'            => array( 'type' => 'boolean', 'description' => 'One of the core pages (about, resume, workflow, services, contact, now, uses, colophon, the maturity pages, provenance and its children) or a Spanish twin of one.' ),
 			'inbound_indexed' => array( 'type' => array( 'integer', 'null' ), 'description' => 'Body links to this URL from published notes and pages Google has indexed. null = the link graph holds no node for it (unknown, not zero).' ),
+			'chrome'          => array( 'type' => 'boolean', 'description' => 'The site header or footer links this page (or, for a Spanish twin, its English page), so every page links it. Never folded into inbound_indexed.' ),
 			'inspect_url'     => array( 'type' => 'string', 'description' => 'Search Console URL Inspection for this URL: open it and click Request indexing.' ),
 		),
 	);
@@ -363,7 +364,7 @@ function snt_search_console_abilities() {
 		// 2026-10-22: the indexing guard's read (callback: inc/abilities-indexing-requests.php).
 		'signal-noise/indexing-requests' => array(
 			'label'       => 'Search Console: URLs to request indexing for (stored)',
-			'description' => 'The owner\'s weekly action list from the stored URL Inspection map, the internal link graph (notes and pages) and the post table. request_list: published notes and pages the sitemap lists that Google has not indexed 7 or more days after publish, ranked "Crawled - currently not indexed" first, then core pages, then the rest oldest first, at most 10 (request_total is the true count). stuck: the same at 30 days, at most 25 (stuck_total). publish_check: notes and core pages published 3 or more days ago with fewer than 2 links from indexed pages, out of the sitemap, or with a canonical elsewhere; reasons per row; inbound_judged:false before the inspection map exists. Tag archives, /verify and anything noindex never appear in request_list or stuck; publish_check may name a published note or core page the sitemap leaves out, which is its warning. coverage_run_at is when the inspection map last moved (null = never). Read-only: it never inspects, and nothing here can request indexing (open each inspect_url).',
+			'description' => 'The owner\'s weekly action list from the stored URL Inspection map, the internal link graph (notes and pages) and the post table. request_list: published notes and pages the sitemap lists that Google has not indexed 7 or more days after publish, ranked "Crawled - currently not indexed" first, then core pages, then the rest oldest first, at most 10 (request_total is the true count). stuck: the same at 30 days, at most 25 (stuck_total). publish_check: notes and core pages published 3 or more days ago with fewer than 2 links from indexed pages (a page the site header or footer links passes: the chrome links it from every page; notes count body links only), out of the sitemap, or with a canonical elsewhere; reasons per row; inbound_judged:false before the inspection map exists. Tag archives, /verify and anything noindex never appear in request_list or stuck; publish_check may name a published note or core page the sitemap leaves out, which is its warning. coverage_run_at is when the inspection map last moved (null = never). Read-only: it never inspects, and nothing here can request indexing (open each inspect_url).',
 			'execute'     => 'snt_ability_indexing_requests',
 			'output'      => array(
 				'type'       => 'object',
@@ -378,7 +379,8 @@ function snt_search_console_abilities() {
 						'properties' => array(
 							'checked'        => array( 'type' => 'integer' ),
 							'inbound_judged' => array( 'type' => 'boolean' ),
-							'failures'       => array( 'type' => 'array', 'description' => 'Each row: path, url, post_type, inbound_indexed (integer or null), reasons[] of inbound | sitemap | canonical.' ),
+							'chrome_paths'   => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'Paths the header and footer link (rendered through core, cached per theme and parts), plus the Spanish twins of those pages. A page here passes the inbound rule. Empty = the chrome was not read.' ),
+							'failures'       => array( 'type' => 'array', 'description' => 'Each row: path, url, post_type, inbound_indexed (integer or null), inbound_source (chrome | body), reasons[] of inbound | sitemap | canonical.' ),
 						),
 					),
 					'generated_at'    => array( 'type' => 'integer' ),
