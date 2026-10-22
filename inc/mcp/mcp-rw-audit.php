@@ -405,6 +405,8 @@ function sn_mcp_rw_notify_valid_email( $email ) {
  */
 function sn_mcp_rw_notify_subject( $row ) {
 	$site = function_exists( 'get_bloginfo' ) ? (string) get_bloginfo( 'name' ) : '';
+	// A subject is plain text: "Signal &amp; Noise" would arrive literally.
+	$site = function_exists( 'wp_specialchars_decode' ) ? (string) wp_specialchars_decode( $site, ENT_QUOTES ) : $site;
 	return sprintf( '[%s] MCP write door: %s (%s)', $site, (string) ( $row['slug'] ?? '' ), (string) ( $row['outcome'] ?? '' ) );
 }
 
@@ -435,7 +437,9 @@ function sn_mcp_rw_notify_body( $row, $overflow_count ) {
 		$lines[] = sprintf( 'Plus %d more write-door call(s) since the last email (coalesced within a %ds window).', (int) $overflow_count, SN_MCP_RW_NOTIFY_COALESCE_WINDOW_SECONDS );
 		$lines[] = '';
 	}
-	$lines[] = "You're getting this because the MCP write-door notification setting is on. Toggle it off in Tools -> MCP.";
+	// 2026-10-22: the old line sent the reader to "Tools -> MCP", a screen that
+	// has no such toggle. The option has no screen yet; say how to turn it off.
+	$lines[] = "You're getting this because the MCP write-door notification setting is on (the sn_mcp_rw_notify option). No admin screen sets it yet: run `wp option update sn_mcp_rw_notify 0` to turn it off.";
 	return implode( "\n", $lines ) . "\n";
 }
 

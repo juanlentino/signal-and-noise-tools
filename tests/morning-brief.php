@@ -12,10 +12,16 @@ if ( ! function_exists( 'number_format_i18n' ) ) {
 	function number_format_i18n( $n, $dec = 0 ) { return number_format( (float) $n, (int) $dec ); }
 }
 
-function add_action() {}
+// Recording hooks: the send adds a phpmailer_init filter for the plain-text
+// part and must remove it, or it would leak into the next plugin's email.
+$GLOBALS['__hooks'] = array();
+function add_action( $hook = '', $cb = null ) { $GLOBALS['__hooks'][ $hook ][] = $cb; }
+function remove_action( $hook, $cb ) { $GLOBALS['__hooks'][ $hook ] = array_values( array_filter( $GLOBALS['__hooks'][ $hook ] ?? array(), static fn( $c ) => $c !== $cb ) ); return true; }
 function __( $s, $d = null ) { return $s; }
 function esc_html__( $s, $d = null ) { return $s; }
-function esc_html( $s ) { return $s; }
+function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); }
+function esc_url( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); }
+function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . $path; }
 function checked() {}
 function wp_nonce_field() {}
 function get_bloginfo( $key = '' ) { return 'Test Site'; }
@@ -37,7 +43,23 @@ function wp_schedule_event( $timestamp, $recurrence, $hook ) { $GLOBALS['__cron'
 function wp_unschedule_event( $timestamp, $hook ) { unset( $GLOBALS['__cron'][ $hook ] ); return true; }
 
 $GLOBALS['__mail'] = array();
-function wp_mail( $to, $subject, $body ) { $GLOBALS['__mail'][] = compact( 'to', 'subject', 'body' ); return true; }
+// Mirrors core: wp_mail fires phpmailer_init with the mailer, so a test can see
+// the AltBody the send set while it was in flight.
+function wp_mail( $to, $subject, $body, $headers = '' ) {
+	$mailer = new stdClass();
+	$mailer->AltBody = '';
+	foreach ( $GLOBALS['__hooks']['phpmailer_init'] ?? array() as $cb ) { $cb( $mailer ); }
+	$alt = $mailer->AltBody;
+	$GLOBALS['__mail'][] = compact( 'to', 'subject', 'body', 'headers', 'alt' );
+	return true;
+}
+// Ripe watches and the indexing report, driven by fixtures below.
+$GLOBALS['__ripe'] = array();
+function snt_watches_ripe() { return $GLOBALS['__ripe']; }
+$GLOBALS['__report'] = null;
+function sn_indexing_report() { return $GLOBALS['__report']; }
+function sn_bing_url_info_data() { return array( '/notes/a-note/' => array( 'state' => 'crawled', 'crawled' => '2026-10-01' ) ); }
+function sn_bing_url_info_label( $a ) { return is_array( $a ) ? 'Bing crawled ' . $a['crawled'] : null; }
 
 function sn_health_last_scan() { return array( 'scanned_at' => 100, 'checks' => array( 'links' => array(), 'seo' => array() ) ); }
 function sn_health_finding_total( $scan ) { return 2; }
@@ -178,13 +200,13 @@ $quiet = snt_morning_brief_compose( $base );
 // Asserting the MARKER alone was too narrow: a mutation adding "No watches are
 // due." passed, because that string does not contain "Watch due". The property
 // is that the brief says nothing about watches at all.
-ok( false === stripos( $quiet, 'watch' ),
+ok( false === stripos( $quiet, 'watch' ) && false === stripos( snt_morning_brief_compose_html( $base ), 'watch' ),
 	'NO ripe watches emits NOTHING about watches — silence is the signal, not a daily "nothing yet"' );
 
 $loud = snt_morning_brief_compose( array_merge( $base, array( 'watches' => array(
 	array( 'id' => 'x', 'label' => 'reader-anomalies remote twin', 'note' => 'unchanged across 26 readings over 7.4 days', 'read' => 'sn-status{shape_stability}' ),
 ) ) ) );
-ok( false !== strpos( $loud, 'Watch due — reader-anomalies remote twin' ), 'a ripe watch is named' );
+ok( false !== strpos( $loud, 'Watch due: reader-anomalies remote twin' ), 'a ripe watch is named' );
 ok( false !== strpos( $loud, '26 readings' ), 'with the evidence that ripened it, not a restatement of the label' );
 ok( false !== strpos( $loud, 'sn-status{shape_stability}' ), 'and WHERE to read it, so the mail is actionable without a lookup' );
 
@@ -193,13 +215,70 @@ $two = snt_morning_brief_compose( array_merge( $base, array( 'watches' => array(
 	array( 'id' => 'a', 'label' => 'first', 'note' => 'n1', 'read' => 'r1' ),
 	array( 'id' => 'b', 'label' => 'second', 'note' => 'n2', 'read' => 'r2' ),
 ) ) ) );
-ok( 2 === substr_count( $two, 'Watch due —' ), 'each ripe watch gets its own sentence' );
+ok( 2 === substr_count( $two, 'Watch due:' ), 'each ripe watch gets its own sentence' );
 
 // The subject line must reflect them, or a due watch arrives under a heading
 // that says nothing needs attention.
 $s_quiet = snt_morning_brief_subject( $base );
 $s_loud  = snt_morning_brief_subject( array_merge( $base, array( 'watches' => array( array( 'id' => 'a', 'label' => 'l', 'note' => 'n', 'read' => 'r' ) ) ) ) );
 ok( $s_quiet !== $s_loud, 'a ripe watch changes the SUBJECT — it must not arrive under "nothing needs attention"' );
+
+
+// ─── 2026-10-22: the index_gap watch reads as one line per page ───────────
+// Before: the watch note pasted verbatim, one paragraph of raw Search Console
+// URLs, ending "click Request indexing.. Read it with ...".
+$inspect = static fn( $p ) => 'https://search.google.com/search-console/inspect?resource_id=sc-domain%3Aexample.test&id=https%3A%2F%2Fexample.test' . rawurlencode( $p );
+$GLOBALS['__report'] = array(
+	'request_total' => 3,
+	'request_list'  => array(
+		array( 'path' => '/notes/a-note/', 'coverage_state' => 'Crawled - currently not indexed', 'days' => 21, 'inspect_url' => $inspect( '/notes/a-note/' ) ),
+		array( 'path' => '/about/', 'coverage_state' => 'Discovered - currently not indexed', 'days' => 16, 'inspect_url' => $inspect( '/about/' ) ),
+		array( 'path' => '/notes/<b>/', 'coverage_state' => 'URL is unknown to Google', 'days' => 9, 'inspect_url' => $inspect( '/notes/<b>/' ) ),
+	),
+);
+$gap_note = '2 published notes or pages not indexed after 14 days: /notes/a-note/ (Crawled - currently not indexed, 21 days since publish; Bing crawled 2026-10-01): ' . $inspect( '/notes/a-note/' ) . ' | /about/ (Discovered - currently not indexed, 16 days since publish; Bing not read yet): ' . $inspect( '/about/' ) . '. The API cannot request indexing: open each link and click Request indexing.';
+$GLOBALS['__ripe'] = array( array( 'id' => 'index_gap', 'label' => 'a published note or page is not indexed after 14 days', 'note' => $gap_note, 'read' => 'signal-noise/indexing-requests{request_list}' ) );
+$gdata = snt_morning_brief_collect();
+ok( 3 === count( $gdata['watches'][0]['rows'] ?? array() ) && 3 === ( $gdata['watches'][0]['rows_total'] ?? 0 ), 'collect attaches the ranked request list to a ripe index_gap watch' );
+ok( 'Bing crawled 2026-10-01' === ( $gdata['watches'][0]['rows'][0]['bing'] ?? '' ), 'and keeps the Bing state the old note carried' );
+
+$text  = snt_morning_brief_compose( $gdata );
+$lines = explode( "\n", $text );
+$page_lines = array_values( array_filter( $lines, static fn( $l ) => 0 === strpos( $l, '- /' ) ) );
+ok( 3 === count( $page_lines ), 'TEXT: one line per page' );
+ok( false !== strpos( $page_lines[0], '/notes/a-note/: Crawled - currently not indexed, 21 days since publish, Bing crawled 2026-10-01' ), 'TEXT: each line reads path, Google state, days, Bing' );
+$url_lines = array_values( array_filter( $lines, static fn( $l ) => false !== strpos( $l, 'https://' ) ) );
+ok( 3 === count( $url_lines ) && array() === array_filter( $url_lines, static fn( $l ) => 0 !== strpos( $l, '  Inspect: https://' ) ), 'TEXT: every URL sits on its own short "Inspect:" line, never mid-sentence' );
+ok( false === strpos( $text, '..' ), 'TEXT: no double period anywhere' );
+ok( false !== strpos( $text, 'Integrity › Reports' ), 'TEXT: points at the request list in Integrity › Reports' );
+ok( false === strpos( $text, ' | ' ), 'TEXT: the pasted note (pipe-joined) is gone' );
+
+$html = snt_morning_brief_compose_html( $gdata );
+ok( 3 === substr_count( $html, '<li>' ), 'HTML: one list item per page' );
+ok( 3 === substr_count( $html, '>Inspect</a>' ), 'HTML: each page has a short labeled Inspect link' );
+ok( false === strpos( strip_tags( $html ), 'https://' ), 'HTML: no raw URL shows as text' );
+ok( false !== strpos( $html, 'href="https://search.google.com/search-console/inspect?resource_id=sc-domain%3Aexample.test&amp;id=' ), 'HTML: the href is escaped' );
+ok( false !== strpos( $html, '/notes/&lt;b&gt;/' ) && false === strpos( $html, '/notes/<b>/' ), 'HTML: paths are escaped' );
+ok( false === strpos( $html, '..' ), 'HTML: no double period' );
+ok( false !== strpos( $html, '<html lang="en">' ), 'HTML: the document declares its language' );
+
+// Any other watch whose note carries a URL: the link moves off the sentence.
+$other = array_merge( $base, array( 'watches' => array(
+	array( 'id' => 'x', 'label' => 'a ticket moved', 'note' => 'see https://core.trac.wordpress.org/ticket/65551.', 'read' => 'https://core.trac.wordpress.org/ticket/65551' ),
+) ) );
+$ot = snt_morning_brief_compose( $other );
+ok( false === strpos( $ot, '..' ) && 0 === count( array_filter( explode( "\n", $ot ), static fn( $l ) => false !== strpos( $l, 'https://' ) && ! preg_match( '/^\s+\[\d+\] https:/', $l ) ) ), 'TEXT: a URL in any watch note or read moves to its own footnote line' );
+$oh = snt_morning_brief_compose_html( $other );
+ok( false !== strpos( $oh, '>core.trac.wordpress.org</a>' ) && false === strpos( strip_tags( $oh ), 'https://' ), 'HTML: and becomes a link labeled by its host' );
+
+// The send: HTML body, plain-text part via core's phpmailer_init, hook removed after.
+$GLOBALS['__mail'] = array();
+snt_morning_brief_send();
+$m = $GLOBALS['__mail'][0];
+ok( false !== stripos( implode( "\n", (array) $m['headers'] ), 'Content-Type: text/html' ), 'SEND: the body goes out as HTML' );
+ok( 0 === strpos( ltrim( $m['body'] ), '<!DOCTYPE html>' ) && false !== strpos( $m['alt'], '- /notes/a-note/:' ), 'SEND: the plain-text part rides along as the alternative' );
+ok( array() === ( $GLOBALS['__hooks']['phpmailer_init'] ?? array() ), 'SEND: the plain-text hook is removed, so it cannot leak into another email' );
+$GLOBALS['__ripe'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

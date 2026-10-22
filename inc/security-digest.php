@@ -189,7 +189,7 @@ function snt_security_digest_compose( $data ) {
 				. ( $admin > 0 ? ' (' . number_format_i18n( $admin ) . ' involving administrator access)' : '' );
 		}
 		$lines[] = '  All audit events: ' . number_format_i18n( $audit['events_7d'] )
-			. ' (prior 7d: ' . number_format_i18n( $audit['prior_7d'] ) . ', ' . $sign . $audit['pct_delta'] . '%)';
+			. ' (prior 7 days: ' . number_format_i18n( $audit['prior_7d'] ) . ', ' . $sign . $audit['pct_delta'] . '%)';
 	}
 	$lines[] = '';
 
@@ -218,10 +218,10 @@ function snt_security_digest_compose( $data ) {
 	if ( null === $status ) {
 		$lines[] = 'Guard denylist: status unavailable (worker unreachable from this host).';
 	} else {
-		$age     = null === $status['age_hours'] ? 'unknown age' : 'refreshed ' . $status['age_hours'] . 'h ago';
+		$age     = null === $status['age_hours'] ? 'unknown age' : 'refreshed ' . $status['age_hours'] . ( 1 === (int) $status['age_hours'] ? ' hour' : ' hours' ) . ' ago';
 		$size    = null === $status['denylist_count'] ? 'size not reported by the worker' : number_format_i18n( $status['denylist_count'] ) . ' ranges';
 		$lines[] = 'Guard denylist: ' . $size . ', ' . $age
-			. ( $status['stale'] ? '. STALE (older than 48h or empty; check the worker cron)' : '' )
+			. ( $status['stale'] ? '. STALE (older than 48 hours or empty; check the worker cron)' : '' )
 			. ( '' !== $status['version'] ? ' (worker v' . $status['version'] . ')' : '' );
 	}
 	$lines[] = '';
@@ -234,14 +234,14 @@ function snt_security_digest_compose( $data ) {
 		$lines[] = 'Breached-password check (' . ( 'good' === $breach['status'] ? 'ok' : 'ATTENTION' ) . ')';
 		$lines[] = '  Accounts flagged at login: ' . number_format_i18n( $breach['flagged'] ) . ' of ' . number_format_i18n( $breach['checked'] ) . ' checked';
 		$lines[] = '  Breached passwords refused at set-time: ' . number_format_i18n( $breach['set_breached'] );
-		$lines[] = '  Fail-closed rejections (API unreachable): ' . number_format_i18n( $breach['set_unavailable'] ) . ( $breach['unavailable_recent'] ? ' — RECENT: the API may be degrading' : '' );
+		$lines[] = '  Fail-closed rejections (API unreachable): ' . number_format_i18n( $breach['set_unavailable'] ) . ( $breach['unavailable_recent'] ? '. RECENT: the API may be degrading' : '' );
 		if ( 'good' !== $breach['status'] ) {
 			$lines[] = '  ' . $breach['summary'];
 		}
 	}
 	$lines[] = '';
 	$lines[] = 'Enforcement happens at the edge in real time; this digest is observability.';
-	$lines[] = 'Toggle it off under Security -> Login defense.';
+	$lines[] = 'Turn it off in Security › Login defense.';
 
 	return implode( "\n", $lines ) . "\n";
 }
