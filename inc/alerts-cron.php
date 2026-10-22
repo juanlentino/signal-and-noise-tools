@@ -21,6 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/mail-send.php'; // the one sender: HTML with a plain-text alternative.
+
 const SNT_ALERTS_HOOK     = 'snt_alerts_hourly';
 const SNT_ALERTS_SENT_OPT = 'snt_alerts_sent'; // key => unix time mailed, 14 days.
 const SNT_ALERTS_LAST_OPT = 'snt_alerts_last'; // the last evaluation: at, state, fired, mailed, error, capped.
@@ -167,7 +169,7 @@ function snt_alerts_run( $now = null ) {
 			}
 			if ( '' === $email || ! is_email( $email ) ) {
 				$last['error'] = 'admin_email missing or invalid';
-			} elseif ( wp_mail( $email, $mail[0], $mail[1] ) ) {
+			} elseif ( sn_mail_send_text( $email, $mail[0], $mail[1] ) ) { // HTML plus this text (inc/mail-send.php).
 				$last['mailed'] = true;
 				$sent          += array_fill_keys( array_column( $alerts, 'key' ), $now ); // every key mailed, not only the 20 the record keeps.
 			} else {

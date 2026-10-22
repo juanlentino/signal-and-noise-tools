@@ -15,6 +15,7 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 require_once __DIR__ . '/morning-brief-render.php'; // 2026-10-22: watch blocks, the HTML part, the shared mail text helpers.
+require_once __DIR__ . '/morning-brief-summary.php'; // labeled summary lines, the trust checks line, watch screens.
 
 define( 'SNT_MORNING_BRIEF_CRON_HOOK', 'snt_morning_brief_daily' );
 define( 'SNT_MORNING_BRIEF_LAST_SENT', 'snt_morning_brief_last_sent' );
@@ -26,9 +27,11 @@ function snt_morning_brief_enabled() {
 
 /** Collect cached/local readers behind the health, cron, uptime and deploy abilities. */
 function snt_morning_brief_collect() {
-	$data = array( 'health' => null, 'cron' => null, 'uptime' => null, 'deploy' => null, 'drift' => null, 'search' => null, 'watches' => array() );
+	$data = array( 'health' => null, 'trust' => null, 'cron' => null, 'uptime' => null, 'deploy' => null, 'drift' => null, 'search' => null, 'watches' => array() );
 	if ( function_exists( 'sn_health_last_scan' ) ) {
 		$scan = sn_health_last_scan();
+		// One read, both readings: the trust checks come out of the same scan.
+		$data['trust'] = snt_morning_brief_trust( $scan );
 		if ( is_array( $scan ) ) {
 			// v11.16.2: scoped accessor, so `checks` cannot outrun `findings` in an
 			// unattended email — the worst place for two numbers that disagree.
@@ -116,9 +119,15 @@ function snt_morning_brief_collect() {
 	return $data;
 }
 
-/** Pure prose: the operations paragraph's sentences, with drift silent when absent. */
+/**
+ * Pure prose: the summary's sentences grouped by label (one line each in the
+ * brief), with drift silent when absent.
+ *
+ * @return array<string,array<int,string>>
+ */
 function snt_morning_brief_sentences( $data ) {
 	$sentences = array();
+	$by        = array();
 	$h = is_array( $data['health'] ?? null ) ? $data['health'] : null;
 		$advisory_note = 1 === (int) ( $h['advisories'] ?? 0 ) ? ', with one advisory noted' : sprintf( ', with %d advisories noted', (int) ( $h['advisories'] ?? 0 ) );
 		$sentences[] = null === $h ? 'No cached health scan is available yet.' : ( (int) $h['findings'] > 0
@@ -129,26 +138,30 @@ function snt_morning_brief_sentences( $data ) {
 			(int) $h['advisories'] > 0 ? sprintf( ', with %d additional advisories', $h['advisories'] ) : ''
 		)
 		: sprintf( 'The latest health scan found no fault-tier issues across %d checks%s.', $h['checks'], (int) $h['advisories'] > 0 ? $advisory_note : '' ) );
+	$by['Health'] = $sentences;
+	$sentences    = array();
 	$c = is_array( $data['cron'] ?? null ) ? $data['cron'] : null;
-	$sentences[] = null === $c ? 'Cron state is unavailable.' : sprintf( 'WordPress has %d scheduled events, %d owned by Signal & Noise; %d have no handler, and %d of the %d recent owned firings checked here failed.', $c['total'], $c['owned'], $c['orphans'], $c['failed'], $c['history'] );
+	$by['Cron'] = array( null === $c ? 'Cron state is unavailable.' : sprintf( 'WordPress has %d scheduled events, %d owned by Signal & Noise; %d have no handler, and %d of the %d recent owned firings checked here failed.', $c['total'], $c['owned'], $c['orphans'], $c['failed'], $c['history'] ) );
 	$u = is_array( $data['uptime'] ?? null ) ? $data['uptime'] : null;
 	if ( null === $u ) { $sentences[] = 'Uptime status is unavailable.'; }
 	elseif ( empty( $u['configured'] ) ) { $sentences[] = 'Uptime monitoring is not configured.'; }
 	elseif ( ! empty( $u['error'] ) ) { $sentences[] = 'Uptime monitoring is configured, but its current status could not be read.'; }
 	else { $sentences[] = sprintf( 'Uptime reports %d of %d monitors and heartbeats up, with %d needing attention.', $u['up'], $u['total'], $u['attention'] ); }
+	$by['Uptime'] = $sentences;
+	$sentences    = array();
 	$d = is_array( $data['deploy'] ?? null ) ? $data['deploy'] : null;
-	if ( null === $d ) { $sentences[] = 'Deploy status is unavailable.'; }
+	if ( null === $d ) { $by['Versions'] = array( 'Deploy status is unavailable.' ); }
 	else {
 		$available = ( 'available' === ( $d['theme']['state'] ?? '' ) ? 1 : 0 ) + ( 'available' === ( $d['plugin']['state'] ?? '' ) ? 1 : 0 );
 		$unknown = ( 'unknown' === ( $d['theme']['state'] ?? '' ) ? 1 : 0 ) + ( 'unknown' === ( $d['plugin']['state'] ?? '' ) ? 1 : 0 );
-		$sentences[] = 0 === $available && 0 === $unknown ? 'The theme and plugin both match their latest known releases.' : sprintf( 'Deploy status shows %d update%s available and %d package%s with an unknown latest release.', $available, 1 === $available ? '' : 's', $unknown, 1 === $unknown ? '' : 's' );
+		$by['Versions'] = array( 0 === $available && 0 === $unknown ? 'The theme and plugin both match their latest known releases.' : sprintf( 'Deploy status shows %d update%s available and %d package%s with an unknown latest release.', $available, 1 === $available ? '' : 's', $unknown, 1 === $unknown ? '' : 's' ) );
 		if ( '' !== (string) ( $d['last_deploy'] ?? '' ) ) {
 			// v12.13.0: name the package. An age on its own invites the reader to
 			// assume it covers everything the brief just listed.
 			$deploy_what = (string) ( $d['last_deploy_component'] ?? '' );
-			$sentences[] = '' !== $deploy_what
+			$last_deploy = array( '' !== $deploy_what
 				? 'The last recorded deploy was the ' . strtolower( $deploy_what ) . ', ' . $d['last_deploy'] . '.'
-				: 'The last recorded deploy was ' . $d['last_deploy'] . '.';
+				: 'The last recorded deploy was ' . $d['last_deploy'] . '.' );
 		}
 	}
 	// R6b: search. Silent when nothing has synced — an operations brief that
@@ -178,13 +191,17 @@ function snt_morning_brief_sentences( $data ) {
 		if ( $age_days >= 3 ) {
 			$sentences[] = sprintf( 'That search window is %d days old and has not been re-synced.', $age_days );
 		}
+		$by[ 'Search (' . snt_morning_brief_window_label( (array) $sr['window'] ) . ')' ] = $sentences;
 	}
 
+	if ( isset( $last_deploy ) ) {
+		$by['Last deploy'] = $last_deploy; // after Search: the summary reads state first, then history.
+	}
 	$drift = is_array( $data['drift'] ?? null ) ? $data['drift'] : null;
 	if ( $drift && ! empty( $drift['has_drift'] ) ) {
-		$sentences[] = sprintf( 'Configuration drift is present in %d setting%s since the acknowledged snapshot: %d changed, %d added, and %d removed.', $drift['count'], 1 === (int) $drift['count'] ? '' : 's', count( $drift['changed'] ), count( $drift['added'] ), count( $drift['removed'] ) );
+		$by['Drift'] = array( sprintf( 'Configuration drift is present in %d setting%s since the acknowledged snapshot: %d changed, %d added, and %d removed.', $drift['count'], 1 === (int) $drift['count'] ? '' : 's', count( $drift['changed'] ), count( $drift['added'] ), count( $drift['removed'] ) ) );
 	}
-	return $sentences;
+	return $by;
 }
 
 /**
@@ -200,10 +217,10 @@ function snt_morning_brief_sentences( $data ) {
  */
 function snt_morning_brief_compose( $data ) {
 	$watches = is_array( $data['watches'] ?? null ) ? $data['watches'] : array();
-	return "Signal & Noise morning operations brief\n\n" . sn_mail_sentences( snt_morning_brief_sentences( $data ) ) . "\n" . snt_morning_brief_watches_text( $watches );
+	return "Signal & Noise morning operations brief\n\n" . snt_morning_brief_summary_text( $data ) . snt_morning_brief_watches_text( $watches );
 }
 function snt_morning_brief_subject( $data, $test = false ) {
-	$attention = (int) ( $data['health']['findings'] ?? 0 ) + (int) ( $data['cron']['orphans'] ?? 0 ) + (int) ( $data['cron']['failed'] ?? 0 ) + (int) ( $data['uptime']['attention'] ?? 0 ) + ( ! empty( $data['drift']['has_drift'] ) ? 1 : 0 ) + count( (array) ( $data['watches'] ?? array() ) );
+	$attention = (int) ( $data['health']['findings'] ?? 0 ) + (int) ( $data['cron']['orphans'] ?? 0 ) + (int) ( $data['cron']['failed'] ?? 0 ) + (int) ( $data['uptime']['attention'] ?? 0 ) + ( ! empty( $data['drift']['has_drift'] ) ? 1 : 0 ) + count( (array) ( $data['watches'] ?? array() ) ) + snt_morning_brief_trust_findings( $data['trust'] ?? null );
 	$unknown = ! is_array( $data['health'] ?? null ) || ! is_array( $data['cron'] ?? null ) || ! is_array( $data['uptime'] ?? null ) || ! empty( $data['uptime']['error'] ) || ! is_array( $data['deploy'] ?? null );
 	foreach ( array( 'theme', 'plugin' ) as $package ) { $attention += 'available' === ( $data['deploy'][ $package ]['state'] ?? '' ) ? 1 : 0; $unknown = $unknown || 'unknown' === ( $data['deploy'][ $package ]['state'] ?? '' ); }
 	$site = (string) wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
@@ -215,17 +232,8 @@ function snt_morning_brief_send( $test = false ) {
 	$email = (string) get_option( 'admin_email' );
 	if ( '' === $email || ! is_email( $email ) ) { update_option( SNT_MORNING_BRIEF_LAST_ERROR, array( 'message' => 'admin_email missing or invalid', 'at' => time() ), false ); return false; }
 	$data = snt_morning_brief_collect();
-	// HTML body plus a plain-text alternative, both through core's wp_mail():
-	// it has no alt-body argument, so phpmailer_init sets AltBody for this one
-	// send and the finally block removes it before any other email goes out.
-	$text = snt_morning_brief_compose( $data );
-	$alt  = static function ( $mailer ) use ( $text ) { $mailer->AltBody = $text; };
-	add_action( 'phpmailer_init', $alt );
-	try {
-		$sent = (bool) wp_mail( $email, snt_morning_brief_subject( $data, $test ), snt_morning_brief_compose_html( $data ), array( 'Content-Type: text/html; charset=UTF-8' ) );
-	} finally {
-		remove_action( 'phpmailer_init', $alt );
-	}
+	// HTML with a plain-text alternative, through the one sender (inc/mail-send.php).
+	$sent = sn_mail_send_html( $email, snt_morning_brief_subject( $data, $test ), snt_morning_brief_compose_html( $data ), snt_morning_brief_compose( $data ) );
 	update_option( $sent ? SNT_MORNING_BRIEF_LAST_SENT : SNT_MORNING_BRIEF_LAST_ERROR, $sent ? time() : array( 'message' => 'wp_mail returned false', 'at' => time() ), false );
 	if ( $sent ) { update_option( SNT_MORNING_BRIEF_LAST_ERROR, false, false ); }
 	return $sent;

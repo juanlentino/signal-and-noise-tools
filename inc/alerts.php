@@ -263,7 +263,9 @@ function snt_alerts_compose( array $alerts, $sources, $site, $where ) {
 			++$hns;
 			$row     = (array) ( $a['hn'] ?? array() );
 			$what    = 'hn_front' === $a['kind'] ? sprintf( 'is on the Hacker News front page at #%d', (int) $a['value'] ) : 'was posted to Hacker News';
-			$lines[] = sprintf( 'HACKER NEWS: "%s" (%s) %s: %s. https://news.ycombinator.com/item?id=%d', snt_alerts_clean( $row['title'] ?? '' ), $path, $what, function_exists( 'sn_hn_line' ) ? sn_hn_line( $row ) : '', (int) ( $row['id'] ?? 0 ) );
+			$lines[] = sprintf( 'HACKER NEWS: "%s" (%s) %s: %s.', snt_alerts_clean( $row['title'] ?? '' ), $path, $what, function_exists( 'sn_hn_line' ) ? sn_hn_line( $row ) : '' );
+			// The thread on its own labeled line: a link named "Hacker News thread" in HTML.
+			$lines[] = sprintf( '  Hacker News thread: https://news.ycombinator.com/item?id=%d', (int) ( $row['id'] ?? 0 ) );
 			continue;
 		}
 		if ( 'cache' === $a['kind'] ) {
@@ -299,7 +301,7 @@ function snt_alerts_compose( array $alerts, $sources, $site, $where ) {
 		$body .= "\n" . ( $top ? 'Top sources today, site-wide (views): ' . implode( ', ', $top ) . '.' : $none );
 		$body .= "\nVisits with no referrer (apps, RSS readers, privacy browsers) show as direct.\n";
 	}
-	$body .= "\nWhere to look: " . $where . "\nEach alert mails once for its day. Switch alerts off in Connections › Cron.\n";
+	$body .= "\nOpen the dashboard: " . $where . "\nEach alert mails once for its day. Switch alerts off in Connections › Cron.\n";
 	$breaks = count( $alerts ) - $spikes - $caches - $hns;
 	$what   = array_filter( array( $spikes ? $spikes . ( 1 === $spikes ? ' spike' : ' spikes' ) : '', $breaks ? $breaks . ( 1 === $breaks ? ' break' : ' breaks' ) : '', $caches ? 'cache refresh failed' : '', $hns ? 'Hacker News' : '' ) );
 	return array( sprintf( '[%s] Alert: %s', $site, implode( ', ', $what ) ), $body );

@@ -208,7 +208,7 @@ $loud = snt_morning_brief_compose( array_merge( $base, array( 'watches' => array
 ) ) ) );
 ok( false !== strpos( $loud, 'Watch due: reader-anomalies remote twin' ), 'a ripe watch is named' );
 ok( false !== strpos( $loud, '26 readings' ), 'with the evidence that ripened it, not a restatement of the label' );
-ok( false !== strpos( $loud, 'sn-status{shape_stability}' ), 'and WHERE to read it, so the mail is actionable without a lookup' );
+ok( false !== strpos( $loud, "\nFor agents: sn-status{shape_stability}" ) && false === strpos( $loud, 'Where to read it: sn-status' ), 'the tool slug rides on a "For agents" line, never in the human "Where to read it" line' );
 
 // One sentence per watch, so two ripe watches cannot collapse into one line.
 $two = snt_morning_brief_compose( array_merge( $base, array( 'watches' => array(
@@ -254,7 +254,9 @@ $page_lines = array_values( array_filter( $lines, static fn( $l ) => 0 === strpo
 ok( 3 === count( $page_lines ), 'TEXT: one line per page' );
 ok( false !== strpos( $page_lines[0], '/notes/a-note/: Crawled - currently not indexed, 21 days since publish, Bing crawled 2026-10-01' ), 'TEXT: each line reads path, Google state, days, Bing' );
 $url_lines = array_values( array_filter( $lines, static fn( $l ) => false !== strpos( $l, 'https://' ) ) );
-ok( 3 === count( $url_lines ) && array() === array_filter( $url_lines, static fn( $l ) => 0 !== strpos( $l, '  Inspect: https://' ) ), 'TEXT: every URL sits on its own short "Inspect:" line, never mid-sentence' );
+ok( 3 === count( array_filter( $url_lines, static fn( $l ) => false !== strpos( $l, 'search.google.com' ) ) ) && array() === array_filter( $url_lines, static fn( $l ) => ! preg_match( '/^(  Inspect|  Integrity › Trust checks|Integrity › Reports): https:\/\/\S+$/u', $l ) ), 'TEXT: every URL sits on its own short labeled line ("Inspect:", a screen name), never mid-sentence' );
+ok( in_array( 'Integrity › Reports: https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=tools&sub=reports', $lines, true ), 'TEXT: "where to read it" is the Integrity › Reports screen as "Integrity › Reports: <absolute URL>"' );
+ok( false === strpos( $text, 'Where to read it: signal-noise/' ) && in_array( 'For agents: signal-noise/indexing-requests{request_list}', $lines, true ), 'TEXT: the tool slug is out of the human line, kept on a "For agents" line' );
 ok( false === strpos( $text, '..' ), 'TEXT: no double period anywhere' );
 ok( false !== strpos( $text, 'Integrity › Reports' ), 'TEXT: points at the request list in Integrity › Reports' );
 ok( false === strpos( $text, ' | ' ), 'TEXT: the pasted note (pipe-joined) is gone' );
@@ -267,6 +269,8 @@ ok( false !== strpos( $html, 'href="https://search.google.com/search-console/ins
 ok( false !== strpos( $html, '/notes/&lt;b&gt;/' ) && false === strpos( $html, '/notes/<b>/' ), 'HTML: paths are escaped' );
 ok( false === strpos( $html, '..' ), 'HTML: no double period' );
 ok( false !== strpos( $html, '<html lang="en">' ), 'HTML: the document declares its language' );
+ok( false !== strpos( $html, '<p><a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&amp;tab=tools&amp;sub=reports">Integrity › Reports</a></p>' ), 'HTML: "where to read it" is a link to Integrity › Reports' );
+ok( false !== strpos( $html, 'For agents: <code>signal-noise/indexing-requests{request_list}</code>' ) && false === strpos( $html, 'Where to read it' ), 'HTML: the slug sits on the small agents line, not in a human line' );
 
 // Any other watch whose note carries a URL: the link moves off the sentence.
 $other = array_merge( $base, array( 'watches' => array(
@@ -285,6 +289,41 @@ ok( false !== stripos( implode( "\n", (array) $m['headers'] ), 'Content-Type: te
 ok( 0 === strpos( ltrim( $m['body'] ), '<!DOCTYPE html>' ) && false !== strpos( $m['alt'], '- /notes/a-note/:' ), 'SEND: the plain-text part rides along as the alternative' );
 ok( array() === ( $GLOBALS['__hooks']['phpmailer_init'] ?? array() ), 'SEND: the plain-text hook is removed, so it cannot leak into another email' );
 $GLOBALS['__ripe'] = array();
+
+// ─── 2026-10-22: the summary reads as short labeled lines ─────────────────
+// Owner: the opening paragraph packed everything into one block. Same facts,
+// same numbers, one line each; nothing is dropped.
+$sdata                        = $data;
+$sdata['search']['top_query'] = 'a <b> query';
+$stext   = snt_morning_brief_compose( $sdata );
+$slines  = explode( "\n", $stext );
+$labels  = array( 'Health', 'Trust checks', 'Cron', 'Uptime', 'Versions', 'Search (last 4 weeks)', 'Last deploy', 'Drift' );
+$missing = array_filter( $labels, static fn( $l ) => array() === array_filter( $slines, static fn( $x ) => 0 === strpos( $x, $l . ': ' ) ) );
+ok( array() === $missing, 'TEXT: one labeled line each: ' . implode( ', ', $labels ) . ( $missing ? ' (missing: ' . implode( ', ', $missing ) . ')' : '' ) );
+$every = array_merge( ...array_values( snt_morning_brief_sentences( $sdata ) ) );
+ok( count( $every ) >= 9 && array() === array_filter( $every, static fn( $x ) => false === strpos( $stext, $x ) ), 'TEXT: every sentence the paragraph carried is still there, word for word (nothing removed)' );
+ok( false !== strpos( $stext, 'Search (last 4 weeks): Google showed the site 4,200 times and sent 61 clicks over 2026-07-01 to 2026-07-28.' ), 'TEXT: the search label comes from the stored dates (28 days), the dates still named' );
+ok( strpos( $stext, 'Search (' ) < strpos( $stext, 'Last deploy: ' ), 'TEXT: state first, then the last deploy' );
+$shtml = snt_morning_brief_compose_html( $sdata );
+ok( count( $labels ) === substr_count( $shtml, '<th scope="row"' ) && false !== strpos( $shtml, '>Health</th>' ) && false !== strpos( $shtml, '>Trust checks</th>' ), 'HTML: a table, the label as each row\'s header' );
+ok( false !== strpos( $shtml, '&quot;a &lt;b&gt; query&quot;' ) && false === strpos( $shtml, '<b> query' ), 'HTML: summary values are escaped' );
+
+// ─── the trust checks line ────────────────────────────────────────────────
+// No reader loaded here (the real readings are in tests/morning-brief-trust.php):
+// unknown is "not read", never "clear".
+ok( null === $data['trust'] && in_array( 'Trust checks: not read: no stored health scan.', $slines, true ), 'TRUST: helpers absent reads "not read", never "all clear"' );
+ok( in_array( '  Integrity › Trust checks: https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=tools&sub=trust', $slines, true ), 'TRUST: the text line carries the Trust checks screen on its own line' );
+ok( false !== strpos( $shtml, '<a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&amp;tab=tools&amp;sub=trust">Integrity › Trust checks</a>' ), 'TRUST: and the HTML row links to it' );
+if ( ! function_exists( 'snt_trust_check_keys' ) ) {
+	function snt_trust_check_keys() { return array( 'provenance_integrity' => array( 'label' => 'Provenance integrity' ), 'ledger_ci' => array( 'label' => 'Ledger CI' ), 'rights_signals' => array( 'label' => 'Rights signals' ), 'rights_anchored' => array( 'label' => 'Rights anchoring' ) ); }
+	function snt_trust_reading( $c ) { $n = (int) ( $c['count'] ?? 0 ); return null === $c ? array( 'state' => 'not_run', 'count' => 0, 'text' => 'not run' ) : array( 'state' => $n ? 'findings' : 'clear', 'count' => $n, 'text' => $n ? $n . ' finding' : 'clear' ); }
+}
+$tscan = array( 'checks' => array( 'provenance_integrity' => array( 'count' => 0 ), 'ledger_ci' => array( 'count' => 1 ), 'rights_signals' => array( 'count' => 0 ), 'rights_anchored' => array( 'count' => 0 ) ) );
+$tdata = array_merge( $base, array( 'trust' => snt_morning_brief_trust( $tscan ) ) );
+ok( false !== strpos( snt_morning_brief_compose( $tdata ), "Trust checks: Ledger CI: 1 finding; the other 3 clear.\n" ), 'TRUST: a finding is named with its check' );
+ok( false !== strpos( snt_morning_brief_subject( $tdata ), ': 1 needs attention' ) && false === strpos( snt_morning_brief_subject( $base ), 'attention' ), 'TRUST: a trust finding counts in the subject, so it never arrives under "all clear"' );
+$tscan['checks']['ledger_ci']['count'] = 0;
+ok( false !== strpos( snt_morning_brief_compose( array_merge( $base, array( 'trust' => snt_morning_brief_trust( $tscan ) ) ) ), "Trust checks: all clear (4 of 4).\n" ), 'TRUST: four clear readings read "all clear"' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

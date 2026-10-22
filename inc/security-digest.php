@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/mail-send.php'; // the one sender: HTML with a plain-text alternative.
+
 define( 'SN_SECURITY_DIGEST_CRON_HOOK', 'sn_security_digest_weekly' );
 define( 'SN_SECURITY_DIGEST_LAST_SENT', 'sn_security_digest_last_sent' );
 define( 'SN_SECURITY_DIGEST_LAST_ERROR', 'sn_security_digest_last_error' );
@@ -277,7 +279,8 @@ function snt_security_digest_send( $test = false ) {
 		return false;
 	}
 	$data = snt_security_digest_collect();
-	$sent = (bool) wp_mail( $admin_email, snt_security_digest_subject( $data, $test ), snt_security_digest_compose( $data ) );
+	// HTML with a plain-text alternative, both from the same text (inc/mail-send.php).
+	$sent = sn_mail_send_text( $admin_email, snt_security_digest_subject( $data, $test ), snt_security_digest_compose( $data ) );
 	if ( $sent ) {
 		update_option( SN_SECURITY_DIGEST_LAST_SENT, time(), false );
 		update_option( SN_SECURITY_DIGEST_LAST_ERROR, false, false );
