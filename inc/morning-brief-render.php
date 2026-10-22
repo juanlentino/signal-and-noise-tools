@@ -31,7 +31,12 @@ function snt_morning_brief_watch_rows( array $watches ) {
 		if ( 'index_gap' !== ( $w['id'] ?? '' ) || ! function_exists( 'sn_indexing_report' ) ) {
 			continue;
 		}
-		$report = sn_indexing_report();
+		// The brief always sends: a failing report leaves the watch's own note.
+		try {
+			$report = sn_indexing_report();
+		} catch ( \Throwable $e ) {
+			$report = null;
+		}
 		if ( ! is_array( $report ) ) {
 			continue;
 		}

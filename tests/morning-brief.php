@@ -57,7 +57,7 @@ function wp_mail( $to, $subject, $body, $headers = '' ) {
 $GLOBALS['__ripe'] = array();
 function snt_watches_ripe() { return $GLOBALS['__ripe']; }
 $GLOBALS['__report'] = null;
-function sn_indexing_report() { return $GLOBALS['__report']; }
+function sn_indexing_report() { if ( 'throw' === $GLOBALS['__report'] ) { throw new RuntimeException( 'report failed' ); } return $GLOBALS['__report']; }
 function sn_bing_url_info_data() { return array( '/notes/a-note/' => array( 'state' => 'crawled', 'crawled' => '2026-10-01' ) ); }
 function sn_bing_url_info_label( $a ) { return is_array( $a ) ? 'Bing crawled ' . $a['crawled'] : null; }
 
@@ -241,6 +241,12 @@ $GLOBALS['__ripe'] = array( array( 'id' => 'index_gap', 'label' => 'a published 
 $gdata = snt_morning_brief_collect();
 ok( 3 === count( $gdata['watches'][0]['rows'] ?? array() ) && 3 === ( $gdata['watches'][0]['rows_total'] ?? 0 ), 'collect attaches the ranked request list to a ripe index_gap watch' );
 ok( 'Bing crawled 2026-10-01' === ( $gdata['watches'][0]['rows'][0]['bing'] ?? '' ), 'and keeps the Bing state the old note carried' );
+
+$saved = $GLOBALS['__report'];
+$GLOBALS['__report'] = 'throw';
+$tdata = snt_morning_brief_collect();
+ok( ! isset( $tdata['watches'][0]['rows'] ) && false !== strpos( snt_morning_brief_compose( $tdata ), 'a published note or page is not indexed after 14 days' ), 'a failing indexing report never stops the brief: the watch keeps its own note' );
+$GLOBALS['__report'] = $saved;
 
 $text  = snt_morning_brief_compose( $gdata );
 $lines = explode( "\n", $text );
