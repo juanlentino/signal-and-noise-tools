@@ -187,6 +187,35 @@ function snt_cron_history_pre_cb() {
 	}
 	$starts =& snt_cron_history_starts_ref();
 	$starts[ $hook ] = microtime( true );
+	// 2026-10-22: a run that dies (a fatal, the time limit) never reaches the
+	// post callback and used to leave no row at all; the weekly insights scan
+	// went seven weeks missing that way. Shutdown still runs after a fatal.
+	static $armed = false;
+	if ( ! $armed ) {
+		$armed = true;
+		register_shutdown_function( 'snt_cron_history_shutdown_cb' );
+	}
+}
+
+/**
+ * Shutdown: any hook still in the start map began and never finished.
+ * Record it as a failure, with PHP's last error when there is one.
+ *
+ * @return void
+ */
+function snt_cron_history_shutdown_cb() {
+	$starts =& snt_cron_history_starts_ref();
+	if ( ! $starts ) {
+		return;
+	}
+	$err = error_get_last();
+	$why = is_array( $err ) && in_array( $err['type'] ?? 0, array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR ), true )
+		? 'Died mid-run: ' . substr( (string) $err['message'], 0, 400 )
+		: 'Died mid-run: started and never finished.';
+	foreach ( $starts as $hook => $start ) {
+		snt_cron_history_record( (string) $hook, array(), ( microtime( true ) - (float) $start ) * 1000, false, $why );
+	}
+	$starts = array();
 }
 
 function snt_cron_history_post_cb() {
