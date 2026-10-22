@@ -33,6 +33,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/mail-send.php'; // the one sender: HTML with a plain-text alternative.
+
 const SNT_RATE_CACHE_KEY_PREFIX = 'sn_rate_limit_';
 const SNT_RATE_CACHE_TTL        = 5 * MINUTE_IN_SECONDS;
 const SNT_RATE_WARN_THRESHOLD   = 0.10; // 10% remaining triggers email.
@@ -206,5 +208,5 @@ function snt_rate_limit_maybe_warn( $host, $snapshot ) {
 		gmdate( 'Y-m-d H:i:s' )
 	);
 
-	wp_mail( $admin_email, $subject, $body );
+	sn_mail_send_text( $admin_email, $subject, $body ); // HTML plus this text (inc/mail-send.php).
 }

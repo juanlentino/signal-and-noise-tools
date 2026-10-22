@@ -16,7 +16,8 @@ if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return $s; } }
-if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return $s; } }
+if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); } }
+require __DIR__ . '/lib/mail-capture-stub.php'; // recording add_action/remove_action + the phpmailer_init AltBody.
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return $s; } }
 if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 if ( ! function_exists( 'checked' ) ) { function checked() {} }
@@ -51,8 +52,8 @@ if ( ! function_exists( 'wp_unschedule_event' ) ) { function wp_unschedule_event
 $GLOBALS['__mail']    = array();
 $GLOBALS['__mail_ok'] = true;
 if ( ! function_exists( 'wp_mail' ) ) {
-	function wp_mail( $to, $subject, $body ) {
-		$GLOBALS['__mail'][] = array( 'to' => $to, 'subject' => $subject, 'body' => $body );
+	function wp_mail( $to, $subject, $body, $headers = '' ) {
+		$GLOBALS['__mail'][] = array( 'to' => $to, 'subject' => $subject, 'body' => $body, 'headers' => $headers, 'alt' => snt_test_mail_alt() );
 		return $GLOBALS['__mail_ok'];
 	}
 }
@@ -201,6 +202,12 @@ ok( 1 === count( $GLOBALS['__mail'] ), 'send: one mail dispatched' );
 ok( 'owner@example.com' === $GLOBALS['__mail'][0]['to'], 'send: to admin_email' );
 ok( is_int( get_option( SN_SECURITY_DIGEST_LAST_SENT ) ), 'send: last-sent recorded' );
 ok( false === get_option( SN_SECURITY_DIGEST_LAST_ERROR ), 'send: last-error cleared' );
+// 2026-10-22: HTML with the same text as its plain-text alternative.
+$dm = $GLOBALS['__mail'][0];
+ok( in_array( 'Content-Type: text/html; charset=UTF-8', (array) $dm['headers'], true ) && 0 === strpos( $dm['body'], '<!DOCTYPE html><html lang="en">' ), 'send: the body is an HTML document in English' );
+ok( snt_security_digest_compose( snt_security_digest_collect() ) === $dm['alt'], 'send: the plain-text part is the digest text, unchanged' );
+ok( false !== strpos( $dm['body'], '>Signal &amp; Noise weekly security digest (last 7 days)</h1>' ) && false !== strpos( $dm['body'], '<th scope="row"' ), 'send: the HTML escapes the title and reads its "Label: value" lines as rows' );
+ok( array() === snt_test_mail_hooks(), 'send: the plain-text hook is removed, so it cannot leak into another email' );
 
 // ── sender: failure records last-error ──
 $GLOBALS['__mail_ok'] = false;

@@ -18,7 +18,9 @@ $GLOBALS['rows'] = array(); $GLOBALS['err'] = array();
 function get_option( $k, $d = false ) { return $GLOBALS['opt'][ $k ] ?? $d; }
 function update_option( $k, $v ) { $GLOBALS['opt'][ $k ] = $v; return true; }
 function sn_setting( $k, $d = null ) { return $GLOBALS['set'][ $k ] ?? $d; }
-function wp_mail( $to, $s, $b ) { $GLOBALS['mail'][] = compact( 'to', 's', 'b' ); return $GLOBALS['mail_ok']; }
+require __DIR__ . '/lib/mail-capture-stub.php'; // recording add_action/remove_action + the phpmailer_init AltBody.
+function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); }
+function wp_mail( $to, $s, $b, $h = '' ) { $alt = snt_test_mail_alt(); $GLOBALS['mail'][] = compact( 'to', 's', 'b', 'h', 'alt' ); return $GLOBALS['mail_ok']; }
 function is_email( $e ) { return false !== strpos( $e, '@' ); }
 function get_bloginfo() { return 'Test Site'; }
 function wp_specialchars_decode( $v ) { return $v; }
@@ -140,7 +142,7 @@ $GLOBALS['err']  = array( '2026-10-02' => array( array( 'value' => '/', 'request
 $GLOBALS['errx'] = array( 'err_path_asker' => array( '2026-10-02' => $ask ) );
 $last = snt_alerts_run( $now );
 ok( in_array( 'break|/|2026-10-02', $last['fired'], true ) && ! in_array( 'break|/notes/a/|2026-10-02', $last['fired'], true ), 'the line counts visitor errors only: 3 visitor 522s on / fire; 5 Worker 503s on a real page do not' );
-$body = end( $GLOBALS['mail'] )['b'];
+$body = end( $GLOBALS['mail'] )['alt'];
 ok( false !== strpos( $body, 'BREAK: / answered a server error to visitors 3 times on 2026-10-02 (UTC), in the stored edge 5xx rollup. All 4 on / that day: 3 x 522 (Cloudflare, origin never answered, visitor), 1 x 503 (origin, via Worker). The alert line is 3 visitor errors' ), 'the mail carries the day\'s breakdown for the path, the Worker error as context' );
 $GLOBALS['errx'] = array( 'err_path_asker' => array( '2026-10-02' => array( array( 'value' => 'visitor 522 - dynamic /', 'requests' => 2 ), array( 'value' => 'worker 503 503 bypass /', 'requests' => 2 ) ) ) );
 $GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array();
@@ -148,7 +150,7 @@ ok( ! in_array( 'break|/|2026-10-02', snt_alerts_run( $now )['fired'], true ), '
 $GLOBALS['errx'] = array( 'err_path_status' => array( '2026-10-02' => array( array( 'value' => '522 dynamic /', 'requests' => 3 ), array( 'value' => '503 bypass /', 'requests' => 1 ) ) ) );
 $GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array(); $GLOBALS['mail'] = array();
 $last = snt_alerts_run( $now );
-$body = end( $GLOBALS['mail'] )['b'];
+$body = end( $GLOBALS['mail'] )['alt'];
 ok( in_array( 'break|/|2026-10-02', $last['fired'], true ) && false !== strpos( $body, 'BREAK: / answered a server error 4 times on 2026-10-02 (UTC), in the stored edge 5xx rollup. By status: 3 x 522 (dynamic), 1 x 503 (bypass). Who asked was not stored per path for this day, so every error counted.' ), 'a day with no stored who-asked keeps every error and says so, with the status breakdown it does have' );
 $GLOBALS['err'] = array(); $GLOBALS['errx'] = array(); $GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array(); $GLOBALS['mail'] = array();
 
@@ -171,7 +173,7 @@ ok( in_array( "break|/notes/b/|$D2", snt_alerts_run( $now )['fired'], true ), 'a
 echo "\nA failed sources read is said, not shown as none\n";
 $GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array(); $GLOBALS['mail'] = array(); $GLOBALS['src_fail'] = true; $GLOBALS['err'] = array();
 $last = snt_alerts_run( $now );
-$body = $GLOBALS['mail'][0]['b'] ?? '';
+$body = $GLOBALS['mail'][0]['alt'] ?? '';
 ok( false !== strpos( $body, 'Top sources could not be read just now' ) && false === strpos( $body, 'No sources are stored' ) && 'read failed' === $last['sources'], 'the mail says the sources could not be read, and the record keeps the failed read' );
 ok( false !== strpos( snt_alerts_compose( $eval( array( 'views' => array( '/a/' => 16 ) ) ), array(), 'S', 'u' )[1], 'No sources are stored for today yet.' ), 'control: a read that answered with nothing still says none stored' );
 $GLOBALS['src_fail'] = false;
@@ -217,6 +219,22 @@ $GLOBALS['mail_ok'] = true;
 $njs = (string) file_get_contents( __DIR__ . '/../assets/snt-alert-notify.js' );
 ok( false !== strpos( $njs, '( function boot() {' ) && false !== strpos( $njs, 'window.wp.os.whenReady( boot )' ) && false !== strpos( $njs, "document.addEventListener( 'DOMContentLoaded', boot )" ) && false !== strpos( $njs, 'boot._retried' ), 'the shell bundle is deferred: a failed gate retries once on the shell\'s readiness, it does not give up' );
 ok( false !== strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) && strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) < strpos( $njs, 'window.setInterval' ) && false !== strpos( $njs, 'n.id <= seen()' ) && false !== strpos( $njs, "tag: 'signal-noise/alert'" ) && false !== strpos( $njs, 'os.openWindow( n.app, { params: { section: String( n.section ) } } )' ), 'the script runs only where wp.os.notify exists, shows a notice once per device, and collapses on one tag' );
+
+echo "\nHTML with a plain-text alternative (2026-10-22)\n";
+$hn = array( array( 'kind' => 'hn_new', 'path' => '/notes/a/', 'key' => 'hn_new|42', 'value' => 0, 'hn' => array( 'id' => 42, 'title' => 'A <b> title', 'points' => 5, 'comments' => 2 ) ) );
+$hm = snt_alerts_compose( $hn, array(), 'S', 'https://example.test/wp-admin/admin.php?page=sn-analytics&x=1' );
+$hl = explode( "\n", $hm[1] );
+ok( in_array( '  Hacker News thread: https://news.ycombinator.com/item?id=42', $hl, true ) && array() === array_filter( $hl, static fn( $l ) => false !== strpos( $l, 'https://' ) && ! preg_match( '/^\s*(Hacker News thread|Open the dashboard): https:\/\/\S+$/', $l ) ), 'TEXT: the Hacker News URL and the dashboard sit on their own labeled lines, never mid-sentence' );
+$hh = sn_mail_text_to_html( $hm[1] );
+ok( false !== strpos( $hh, '<a href="https://news.ycombinator.com/item?id=42">Hacker News thread</a>' ) && false !== strpos( $hh, '<a href="https://example.test/wp-admin/admin.php?page=sn-analytics&amp;x=1">Open the dashboard</a>' ), 'HTML: each is a labeled link' );
+ok( false !== strpos( $hh, 'A &lt;b&gt; title' ) && false === strpos( strip_tags( $hh ), 'https://' ), 'HTML: the title is escaped and no raw URL shows' );
+ok( 0 === strpos( snt_alerts_notice_build( $hn, $hm[0], $hm[1], 5 )['body'], 'HACKER NEWS: "A <b> title"' ), 'the app notice still reads the alert line' );
+$GLOBALS['set']['operations.alerts_enabled'] = true; $GLOBALS['cf_fail'] = $cf; $GLOBALS['mail'] = array(); $GLOBALS['mail_ok'] = true; $GLOBALS['opt'][ SNT_ALERTS_SENT_OPT ] = array();
+snt_alerts_run( $now + 7200 );
+$am = $GLOBALS['mail'][0] ?? array();
+ok( in_array( 'Content-Type: text/html; charset=UTF-8', (array) ( $am['h'] ?? array() ), true ) && 0 === strpos( (string) ( $am['b'] ?? '' ), '<!DOCTYPE html><html lang="en">' ) && false !== strpos( (string) ( $am['alt'] ?? '' ), 'CACHE: Cloudflare did not accept' ), 'SEND: the hourly run mails HTML with the alert text as its plain-text part' );
+ok( array() === snt_test_mail_hooks(), 'SEND: the plain-text hook is removed, so it cannot leak into another email' );
+$GLOBALS['cf_fail'] = null;
 
 echo "\nRegistration\n";
 $src = static fn( $f ) => (string) file_get_contents( __DIR__ . '/../' . $f );

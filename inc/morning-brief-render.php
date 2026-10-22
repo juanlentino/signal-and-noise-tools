@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-require_once __DIR__ . '/mail-text.php';
+require_once __DIR__ . '/morning-brief-pointers.php';
 
 /**
  * Attach the ranked request list to a ripe index_gap watch. Stored reads only
@@ -63,7 +63,10 @@ function snt_morning_brief_watch_rows( array $watches ) {
  * The words around a watch: heading, the lead-in to its rows, the closing line.
  *
  * @param array $w A ripe watch.
- * @return array{head:string,lead:string,close:string,read:string}
+ * `read` is the human pointer, `screen` the admin leaf as a link, `agents`
+ * the tool slugs kept out of the human lines (inc/morning-brief-summary.php).
+ *
+ * @return array{head:string,lead:string,close:string,read:string,screen:array|null,agents:string}
  */
 function snt_morning_brief_watch_words( array $w ) {
 	$rows  = (array) ( $w['rows'] ?? array() );
@@ -71,11 +74,23 @@ function snt_morning_brief_watch_words( array $w ) {
 	$days  = defined( 'SNT_INDEXING_REQUEST_DAYS' ) ? SNT_INDEXING_REQUEST_DAYS : 7;
 	$lead  = sprintf( '%d %s on the indexing request list in Integrity › Reports, not indexed %d or more days after publish', $total, 1 === $total ? 'page is' : 'pages are', $days );
 	$lead .= $total > count( $rows ) ? sprintf( '. The top %d, most urgent first:', count( $rows ) ) : '. Most urgent first:';
+	$split  = snt_morning_brief_read_split( (string) ( $w['read'] ?? '' ) );
+	$screen = snt_morning_brief_watch_screen( $w );
+	$human  = array();
+	foreach ( array_filter( explode( '; ', $split['human'] ), 'strlen' ) as $part ) {
+		if ( null !== $screen && 0 === strpos( $part, $screen['label'] ) ) {
+			$screen['label'] = $part; // the screen's own words, detail kept: "AI › MCP Clients (the Adapter card)".
+			continue;
+		}
+		$human[] = $part;
+	}
 	return array(
-		'head'  => sn_mail_sentence( 'Watch due: ' . (string) ( $w['label'] ?? $w['id'] ?? 'unnamed watch' ) ),
-		'lead'  => $lead,
-		'close' => 'Search Console\'s API cannot request indexing: open each Inspect link and click Request indexing.',
-		'read'  => '' !== (string) ( $w['read'] ?? '' ) ? sn_mail_sentence( 'Where to read it: ' . $w['read'] ) : '',
+		'head'   => sn_mail_sentence( 'Watch due: ' . (string) ( $w['label'] ?? $w['id'] ?? 'unnamed watch' ) ),
+		'lead'   => $lead,
+		'close'  => 'Search Console\'s API cannot request indexing: open each Inspect link and click Request indexing.',
+		'read'   => array() !== $human ? sn_mail_sentence( 'Where to read it: ' . implode( '; ', $human ) ) : '',
+		'screen' => $screen,
+		'agents' => $split['agents'],
 	);
 }
 
@@ -101,16 +116,16 @@ function snt_morning_brief_watches_text( array $watches ) {
 				$lines[] = '  Inspect: ' . $r['inspect_url'];
 			}
 			$lines[] = $t['close'];
-			$out    .= "\n" . implode( "\n", array_filter( array_merge( $lines, array( sn_mail_text_links( $t['read'] ) ) ), 'strlen' ) ) . "\n";
+			$out    .= "\n" . implode( "\n", array_filter( array_merge( $lines, array( sn_mail_text_links( $t['read'] ) ) ), 'strlen' ) ) . snt_morning_brief_pointers_text( $t ) . "\n";
 			continue;
 		}
-		$out .= "\n" . $t['head'] . "\n" . sn_mail_text_links( sn_mail_sentences( array( (string) ( $w['note'] ?? '' ) ) ) . ( '' !== $t['read'] ? "\n" . $t['read'] : '' ) ) . "\n";
+		$out .= "\n" . $t['head'] . "\n" . sn_mail_text_links( sn_mail_sentences( array( (string) ( $w['note'] ?? '' ) ) ) . ( '' !== $t['read'] ? "\n" . $t['read'] : '' ) ) . snt_morning_brief_pointers_text( $t ) . "\n";
 	}
 	return $out;
 }
 
 /**
- * The HTML part: the same sentences and watches, escaped, with short links.
+ * The HTML part: the same labeled lines and watches, escaped, with short links.
  *
  * @param array $data From snt_morning_brief_collect().
  * @return string
@@ -118,7 +133,7 @@ function snt_morning_brief_watches_text( array $watches ) {
 function snt_morning_brief_compose_html( $data ) {
 	$title = 'Signal & Noise morning operations brief';
 	$body  = '<h1 style="font-size:20px;margin:0 0 12px;">' . esc_html( $title ) . '</h1>'
-		. '<p>' . esc_html( sn_mail_sentences( snt_morning_brief_sentences( $data ) ) ) . '</p>';
+		. snt_morning_brief_summary_html( $data );
 	foreach ( (array) ( $data['watches'] ?? array() ) as $w ) {
 		$t     = snt_morning_brief_watch_words( (array) $w );
 		$body .= '<h2 style="font-size:17px;margin:20px 0 8px;">' . esc_html( $t['head'] ) . '</h2>';
@@ -131,9 +146,7 @@ function snt_morning_brief_compose_html( $data ) {
 		} else {
 			$body .= '<p>' . sn_mail_html_links( sn_mail_sentences( array( (string) ( $w['note'] ?? '' ) ) ) ) . '</p>';
 		}
-		$body .= '' !== $t['read'] ? '<p>' . sn_mail_html_links( $t['read'] ) . '</p>' : '';
+		$body .= ( '' !== $t['read'] ? '<p>' . sn_mail_html_links( $t['read'] ) . '</p>' : '' ) . snt_morning_brief_pointers_html( $t );
 	}
-	return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>' . esc_html( $title ) . '</title></head>'
-		. '<body style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#1a1a1a;max-width:40em;">'
-		. $body . "</body></html>\n";
+	return sn_mail_html_doc( $title, $body );
 }

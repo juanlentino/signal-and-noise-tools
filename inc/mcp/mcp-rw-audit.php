@@ -48,6 +48,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once dirname( __DIR__ ) . '/mail-send.php'; // the one sender: HTML with a plain-text alternative.
+
 const SN_MCP_RW_AUDIT_OPTION          = 'sn_mcp_rw_audit_log';
 const SN_MCP_RW_AUDIT_CAP             = 1000; // Rolling row cap — mirrors cron-history's per-hook magnitude (SNT_CRON_HISTORY_PER_HOOK_CAP).
 const SN_MCP_RW_AUDIT_RETENTION_DAYS  = 30;    // Age cutoff — mirrors cron-history's SNT_CRON_HISTORY_RETENTION_DAYS; this is a forensics window, not a permanent ledger.
@@ -488,7 +490,7 @@ function sn_mcp_rw_notify_maybe_send( $row ) {
 
 	$sent = false;
 	try {
-		$sent = (bool) wp_mail( $admin_email, sn_mcp_rw_notify_subject( $row ), sn_mcp_rw_notify_body( $row, $overflow_before_this ) );
+		$sent = sn_mail_send_text( $admin_email, sn_mcp_rw_notify_subject( $row ), sn_mcp_rw_notify_body( $row, $overflow_before_this ) ); // HTML plus this text (inc/mail-send.php).
 	} catch ( \Throwable $e ) {
 		$sent = false;
 	}

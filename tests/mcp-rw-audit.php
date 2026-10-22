@@ -55,15 +55,17 @@ if ( ! function_exists( 'get_bloginfo' ) ) { function get_bloginfo( $k ) { retur
 // wp_mail stub: records every call; a global toggle can force it to fail or throw.
 $GLOBALS['__mails_sent'] = array();
 $GLOBALS['__wp_mail_behavior'] = 'succeed'; // 'succeed' | 'fail' | 'throw'
+require __DIR__ . '/lib/mail-capture-stub.php'; // recording add_action/remove_action + the phpmailer_init AltBody.
+if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); } }
 if ( ! function_exists( 'wp_mail' ) ) {
-	function wp_mail( $to, $subject, $body ) {
+	function wp_mail( $to, $subject, $body, $headers = '' ) {
 		if ( 'throw' === $GLOBALS['__wp_mail_behavior'] ) {
 			throw new \RuntimeException( 'mailer exploded' );
 		}
 		if ( 'fail' === $GLOBALS['__wp_mail_behavior'] ) {
 			return false;
 		}
-		$GLOBALS['__mails_sent'][] = array( 'to' => $to, 'subject' => $subject, 'body' => $body );
+		$GLOBALS['__mails_sent'][] = array( 'to' => $to, 'subject' => $subject, 'body' => $body, 'headers' => $headers, 'alt' => snt_test_mail_alt() );
 		return true;
 	}
 }
@@ -210,7 +212,13 @@ $sent1 = sn_mcp_rw_notify_maybe_send( $row_a );
 ok( true === $sent1 && 1 === count( $GLOBALS['__mails_sent'] ), 'first call, enabled + valid admin_email -> sends immediately' );
 ok( false !== strpos( $GLOBALS['__mails_sent'][0]['subject'], 'purge-all-caches' ), 'subject names the tool' );
 ok( false !== strpos( $GLOBALS['__mails_sent'][0]['subject'], 'ok' ), 'subject names the outcome' );
-ok( false !== strpos( $GLOBALS['__mails_sent'][0]['body'], "you're getting this" ) || false !== stripos( $GLOBALS['__mails_sent'][0]['body'], 'notification setting is on' ), 'body includes the "why you got this" line' );
+ok( false !== stripos( $GLOBALS['__mails_sent'][0]['alt'], 'notification setting is on' ) && false !== stripos( $GLOBALS['__mails_sent'][0]['body'], 'notification setting is on' ), 'body includes the "why you got this" line, in both parts' );
+// 2026-10-22: HTML with the same text as its plain-text alternative.
+$rw = $GLOBALS['__mails_sent'][0];
+ok( in_array( 'Content-Type: text/html; charset=UTF-8', (array) $rw['headers'], true ) && 0 === strpos( $rw['body'], '<!DOCTYPE html><html lang="en">' ), 'the body is an HTML document in English' );
+ok( sn_mcp_rw_notify_body( $row_a, 0 ) === $rw['alt'], 'the plain-text part is the notification text, unchanged' );
+ok( false !== strpos( $rw['body'], '>Tool</th><td style="vertical-align:top;padding:2px 0;">signal-noise/purge-all-caches</td>' ) && false !== strpos( $rw['body'], 'You&#039;re getting this' ), 'the HTML reads "Tool: x" as a labeled row and escapes the text' );
+ok( array() === snt_test_mail_hooks(), 'the plain-text hook is removed, so it cannot leak into another email' );
 
 $row_b = array( 'slug' => 'signal-noise/run-audit-prune', 'outcome' => 'ok', 'user_id' => 1, 'app_pw_uuid' => 'u', 'args_redacted' => array() );
 $sent2 = sn_mcp_rw_notify_maybe_send( $row_b );
@@ -256,6 +264,7 @@ try {
 	$r3 = null;
 }
 ok( false === $threw, 'PROBE PIN: a wp_mail() that throws never propagates out of maybe_send (caught internally)' );
+ok( array() === snt_test_mail_hooks(), 'a throwing mailer still leaves no plain-text hook behind' );
 ok( false === $r3, 'a thrown mailer exception still resolves to a clean false return' );
 $GLOBALS['__wp_mail_behavior'] = 'succeed';
 
