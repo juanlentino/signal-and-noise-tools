@@ -26,7 +26,7 @@ $GLOBALS['__page'] = null;
 function get_page_by_path( $p, $o = OBJECT, $t = 'page' ) { return $GLOBALS['__page']; }
 function get_bloginfo( $k = '' ) { return 'Juan Lentino'; }
 function home_url( $p = '' ) { return 'https://x.test' . $p; }
-function is_singular() { return true; }
+function is_singular() { return $GLOBALS['__singular'] ?? true; }
 function get_queried_object() { return $GLOBALS['__queried']; }
 function get_permalink( $p = 0 ) { return 'https://x.test/resume/'; }
 function get_post_modified_time( $f = 'U', $gmt = false, $p = null ) { return '2026-10-02T20:58:03-04:00'; }
@@ -131,6 +131,9 @@ $creds = sn_resume_person_credentials( array( 'memberOf' => array( 'x' ) ) );
 ok( array( 'x' ) === $creds['memberOf'] && ! empty( $creds['hasCredential'] ), 'on a profile page the filter adds hasCredential and keeps memberOf' );
 $GLOBALS['__queried'] = (object) array( 'post_name' => 'a-note' );
 ok( array( 'memberOf' => array( 'x' ) ) === sn_resume_person_credentials( array( 'memberOf' => array( 'x' ) ) ), 'on a note the Person carries no hasCredential' );
+$GLOBALS['__queried'] = (object) array( 'post_name' => 'about' ); $GLOBALS['__singular'] = false;
+ok( ! isset( sn_resume_person_credentials( array() )['hasCredential'] ), 'off a singular view (an archive) no hasCredential' );
+$GLOBALS['__singular'] = true;
 
 ok( 'https://www.parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5' === ( $cred[0]['url'] ?? '' ), 'the MBA credential points to the issuer verification page' );
 ok( ! isset( $cred[1]['url'] ) && ! isset( $cred[2]['url'] ), 'no URL set, no url key' );
