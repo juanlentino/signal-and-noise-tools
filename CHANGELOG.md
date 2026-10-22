@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+- **Fixed: a refresh from the mobile app's Plugins screen finds a new release.** That Refresh clears core's update record and asks again, but it is not core's Check Again, so the plugin rebuilt the record from a GitHub tag cached for up to an hour and core then kept that answer for 12 hours. Now, whenever core deletes its `update_plugins` or `update_themes` record, the plugin's cached tag for the plugin or the theme is deleted with it, so the next check reads GitHub. The routine twice-daily check only sets those records, so it still uses the cache (`inc/wp-update-integration-offer-parts.php`, `tests/wp-update-cache-watchdog.php`).
+
 ## [2026.10.56] - 2026-10-22 — the indexing check counts links from the nav, templates and rendered blocks
 
 

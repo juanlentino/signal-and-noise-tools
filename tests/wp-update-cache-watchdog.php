@@ -45,8 +45,12 @@ function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ]
 $GLOBALS['__site_trans'] = array();
 $GLOBALS['__deleted']    = array();
 function get_site_transient( $k ) { return $GLOBALS['__site_trans'][ $k ] ?? false; }
-function set_site_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__site_trans'][ $k ] = $v; return true; }
-function delete_site_transient( $k ) { $GLOBALS['__deleted'][] = $k; unset( $GLOBALS['__site_trans'][ $k ] ); return true; }
+function set_site_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__site_trans'][ $k ] = $v; __fire( "set_site_transient_{$k}", $v ); return true; }
+// Core fires "delete_site_transient_{$k}" BEFORE it deletes, and
+// "set_site_transient_{$k}" after it sets (wp-includes/option.php); the stubs
+// run the registered callbacks the same way so the hooks under test are real.
+function __fire( $h, $arg ) { foreach ( $GLOBALS['__actions'][ $h ] ?? array() as $cb ) { $cb( $arg ); } }
+function delete_site_transient( $k ) { __fire( "delete_site_transient_{$k}", $k ); $GLOBALS['__deleted'][] = $k; unset( $GLOBALS['__site_trans'][ $k ] ); return true; }
 
 $GLOBALS['__clean_plugins_cache'] = 0;
 function wp_clean_plugins_cache( $clear_update_cache = true ) { $GLOBALS['__clean_plugins_cache']++; }
@@ -128,6 +132,26 @@ ok( sn_plugin_update_drop_stale( $real ) === $real, 'read guard: a real newer re
 ok( false === sn_plugin_update_drop_stale( false ), 'read guard: no record is passed through' );
 ok( in_array( 'sn_plugin_update_drop_stale', $GLOBALS['__filters']['site_transient_update_plugins'] ?? array(), true ), 'read guard: registered on every read of update_plugins' );
 
+// ── 6. Core's refresh clears our tag cache too (the phone's Plugins Refresh) ──
+// wp_clean_plugins_cache(true) deletes update_plugins, then wp_update_plugins()
+// rebuilds it through pre_set_site_transient_update_plugins. Without this the
+// rebuild read a tag cached for up to an hour and core then held it for 12h.
+$GLOBALS['__site_trans'] = array( SN_GH_PLUGIN_CACHE_KEY => 'v1.0.0', 'sn_gh_latest_theme' => 'v1.0.0' );
+delete_site_transient( 'update_plugins' );
+ok( false === get_site_transient( SN_GH_PLUGIN_CACHE_KEY ), 'deleting update_plugins clears the plugin tag cache' );
+ok( 'v1.0.0' === get_site_transient( 'sn_gh_latest_theme' ), 'deleting update_plugins leaves the theme tag cache alone' );
+
+$GLOBALS['__site_trans'] = array( SN_GH_PLUGIN_CACHE_KEY => 'v1.0.0', 'sn_gh_latest_theme' => 'v1.0.0' );
+delete_site_transient( 'update_themes' );
+ok( false === get_site_transient( 'sn_gh_latest_theme' ), 'deleting update_themes clears the theme tag cache' );
+ok( 'v1.0.0' === get_site_transient( SN_GH_PLUGIN_CACHE_KEY ), 'deleting update_themes leaves the plugin tag cache alone' );
+
+// The routine twice-daily check only SETS update_plugins; it must not refetch.
+$GLOBALS['__site_trans'] = array( SN_GH_PLUGIN_CACHE_KEY => 'v1.0.0', 'sn_gh_latest_theme' => 'v1.0.0' );
+set_site_transient( 'update_plugins', new stdClass() );
+set_site_transient( 'update_themes', new stdClass() );
+ok( 'v1.0.0' === get_site_transient( SN_GH_PLUGIN_CACHE_KEY ), 'setting update_plugins keeps the plugin tag cache' );
+ok( 'v1.0.0' === get_site_transient( 'sn_gh_latest_theme' ), 'setting update_themes keeps the theme tag cache' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
