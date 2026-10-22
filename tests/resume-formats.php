@@ -26,6 +26,8 @@ $GLOBALS['__page'] = null;
 function get_page_by_path( $p, $o = OBJECT, $t = 'page' ) { return $GLOBALS['__page']; }
 function get_bloginfo( $k = '' ) { return 'Juan Lentino'; }
 function home_url( $p = '' ) { return 'https://x.test' . $p; }
+function is_singular() { return $GLOBALS['__singular'] ?? true; }
+function get_queried_object() { return $GLOBALS['__queried']; }
 function get_permalink( $p = 0 ) { return 'https://x.test/resume/'; }
 function get_post_modified_time( $f = 'U', $gmt = false, $p = null ) { return '2026-10-02T20:58:03-04:00'; }
 
@@ -33,6 +35,7 @@ require_once __DIR__ . '/../inc/resume-page.php';
 require_once __DIR__ . '/../inc/resume-es.php';
 require_once __DIR__ . '/../inc/resume-jsonresume-route.php';
 require_once __DIR__ . '/../inc/resume-formats-route.php';
+require_once __DIR__ . '/../inc/seo-schema-pages-parts.php';
 
 $en = sn_resume_doc_normalize( json_decode( (string) file_get_contents( __DIR__ . '/../inc/seed-content/resume-data.json' ), true ) );
 $en['pdf']['email']    = 'juan@example.com';
@@ -123,8 +126,14 @@ ok( 4 === count( $cred ), 'one credential per degree and certificate (2 + 2)' );
 ok( 'EducationalOccupationalCredential' === $cred[0]['@type'] && 'degree' === $cred[0]['credentialCategory'] && 'MBA, Applied Artificial Intelligence in Business' === $cred[0]['name'], 'the MBA as a degree credential' );
 ok( array( '@type' => 'CollegeOrUniversity', 'name' => 'Westcliff University' ) === $cred[0]['recognizedBy'] && '2026-08' === $cred[0]['dateCreated'], 'recognized by the university, dated' );
 ok( 'certificate' === $cred[2]['credentialCategory'] && ! isset( $cred[2]['recognizedBy'] ), 'a certificate without an invented issuer' );
+$GLOBALS['__queried'] = (object) array( 'post_name' => 'about' );
 $creds = sn_resume_person_credentials( array( 'memberOf' => array( 'x' ) ) );
-ok( array( 'x' ) === $creds['memberOf'] && ! empty( $creds['hasCredential'] ), 'the filter adds hasCredential and keeps memberOf' );
+ok( array( 'x' ) === $creds['memberOf'] && ! empty( $creds['hasCredential'] ), 'on a profile page the filter adds hasCredential and keeps memberOf' );
+$GLOBALS['__queried'] = (object) array( 'post_name' => 'a-note' );
+ok( array( 'memberOf' => array( 'x' ) ) === sn_resume_person_credentials( array( 'memberOf' => array( 'x' ) ) ), 'on a note the Person carries no hasCredential' );
+$GLOBALS['__queried'] = (object) array( 'post_name' => 'about' ); $GLOBALS['__singular'] = false;
+ok( ! isset( sn_resume_person_credentials( array() )['hasCredential'] ), 'off a singular view (an archive) no hasCredential' );
+$GLOBALS['__singular'] = true;
 
 ok( 'https://www.parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5' === ( $cred[0]['url'] ?? '' ), 'the MBA credential points to the issuer verification page' );
 ok( ! isset( $cred[1]['url'] ) && ! isset( $cred[2]['url'] ), 'no URL set, no url key' );

@@ -214,14 +214,29 @@ function sn_schema_webpage() {
 	// the Person — so search + answer engines read them as "the page about this person"
 	// rather than a generic WebPage (additions A1; uses is a sibling of about, v9.20.0).
 	// Filterable slug list.
-	$profile_slugs = (array) apply_filters( 'sn_schema_profile_page_slugs', array( 'about', 'resume', 'services', 'uses' ) );
-	$slug          = function_exists( 'sn_lang_effective_slug' ) ? sn_lang_effective_slug( $post ) : ( isset( $post->post_name ) ? (string) $post->post_name : '' );
-	if ( in_array( $slug, $profile_slugs, true ) ) {
+	if ( sn_schema_is_profile_post( $post ) ) {
 		$webpage['@type']      = 'ProfilePage';
 		$webpage['mainEntity'] = array( '@id' => home_url( '/' ) . '#/schema/Person' );
 	}
 
 	return $webpage;
+}
+
+/**
+ * Whether a post is an identity page (about / resume / services / uses, and
+ * their Spanish twins through the effective slug): a ProfilePage, and the
+ * only pages whose Person node carries hasCredential (owner, 2026-10-22).
+ *
+ * @param mixed $post
+ * @return bool
+ */
+function sn_schema_is_profile_post( $post ) {
+	if ( ! is_object( $post ) ) {
+		return false;
+	}
+	$profile_slugs = (array) apply_filters( 'sn_schema_profile_page_slugs', array( 'about', 'resume', 'services', 'uses' ) );
+	$slug          = function_exists( 'sn_lang_effective_slug' ) ? sn_lang_effective_slug( $post ) : ( isset( $post->post_name ) ? (string) $post->post_name : '' );
+	return in_array( $slug, $profile_slugs, true );
 }
 
 /**
