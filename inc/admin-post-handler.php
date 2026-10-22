@@ -96,6 +96,7 @@ function sn_admin_post_handlers() {
 		'indexnow_ping_now'          => 'sn_handle_indexnow_ping_now',
 		// 15.11.0: Zenodo DOIs.
 		'zenodo_env_save'            => 'sn_handle_zenodo_env_save',
+		'zenodo_doi_line_save'       => 'sn_handle_zenodo_doi_line_save', // 2026-10-21: the DOI downloads line on /provenance
 		'zenodo_deposit_batch'       => 'sn_handle_zenodo_deposit_batch',
 		'zenodo_deposit_one'         => 'sn_handle_zenodo_deposit_one',
 		'analytics_exclude_save'     => 'sn_handle_analytics_exclude_save',

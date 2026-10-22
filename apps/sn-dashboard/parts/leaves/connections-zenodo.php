@@ -69,6 +69,28 @@ function zenodo_env_fold( array $d ) {
 }
 
 /**
+ * The DOI downloads line on /provenance as a Setup fold: the closed summary
+ * is what the line reads now, or why it is hidden; the classic leaf carries
+ * the same fields and words (sn_zenodo_doi_line_copy()).
+ *
+ * @return array<string,mixed> A Setup fold.
+ */
+function zenodo_doi_line_fold() {
+	$c    = \sn_zenodo_doi_line_copy();
+	$s    = \snt_prov_doi_settings();
+	$body = '<p class="snt-hint">' . \snt_kit_esc( $c['intro'] ) . '</p>'
+		. \snt_kit_field( 'checkbox', 'zenodo_doi_line_enabled', $c['enabled'], $s['enabled'] )
+		. \snt_kit_field( 'text', 'zenodo_doi_line_label', $c['label'], $s['label'], array( 'hint' => $c['label_hint'], 'maxlength' => 80 ) )
+		. \snt_kit_field( 'number', 'zenodo_doi_line_floor', $c['floor'], $s['floor'], array( 'hint' => $c['floor_hint'], 'min' => 0, 'step' => 1 ) );
+	return array(
+		'title'   => $c['title'],
+		'summary' => \sn_zenodo_doi_line_preview(),
+		'body'    => \snt_kit_form( 'zenodo_doi_line_save', $body, array( 'submit' => $c['submit'], 'hidden' => array( 'tab' => 'connections', 'sub' => 'zenodo' ) ) ),
+		'open'    => false,
+	);
+}
+
+/**
  * The deposit action and what one pass does.
  *
  * @param array<string,mixed> $d sn_zenodo_leaf_data().
@@ -193,7 +215,7 @@ function paint_connections_zenodo( array $ctx ) {
 	// 2026-10-16 (live audit): the Status card and the Setup card share the
 	// first row, the state beside the setting that names its token; the
 	// ledger follows at full width.
-	return \snt_kit_grid( array( zenodo_status_html( $d ), \snt_kit_setup_card( __( 'Setup', 'signal-and-noise-tools' ), array( zenodo_env_fold( $d ) ), __( 'Set once; open it to change it.', 'signal-and-noise-tools' ) ) ) )
+	return \snt_kit_grid( array( zenodo_status_html( $d ), \snt_kit_setup_card( __( 'Setup', 'signal-and-noise-tools' ), array( zenodo_env_fold( $d ), zenodo_doi_line_fold() ), __( 'Set once; open it to change it.', 'signal-and-noise-tools' ) ) ) )
 		. zenodo_ledger_html( $d );
 }
 
