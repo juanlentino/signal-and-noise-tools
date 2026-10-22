@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/ml-link-graph-render.php'; // 2026-10-22: sources are read rendered.
+
 /**
  * The lookup form of a path: the weave join key, lowercased and URL-decoded,
  * so `/About/Uses/` and `/about/uses` are one node. PURE.
@@ -55,23 +57,33 @@ function snt_ml_outbound_paths( $content, $our_host = null ) {
  * not a node (a tag archive): unknown, not zero. linked_from_paths names the
  * sources by the same join key, for joins against the coverage map.
  *
+ * 2026-10-22: each source is read RENDERED (inc/ml-link-graph-render.php),
+ * so a link a dynamic block or a shortcode prints counts; a render that
+ * fails falls back to the raw body. The front page is a SOURCE ("/") but
+ * never a row: nothing links to the root by path.
+ *
  * @return array<string,array{inbound:int,linked_from:int[],linked_from_paths:string[]}>
  */
 function snt_ml_inbound_by_path() {
 	if ( ! function_exists( 'snt_corpus_fetch_posts' ) ) {
 		return array();
 	}
-	$host  = (string) wp_parse_url( home_url(), PHP_URL_HOST );
-	$nodes = array();
-	$keys  = array(); // lookup path => the join key the coverage map uses.
-	foreach ( array_merge( snt_corpus_fetch_posts( 'publish', 'post' ), snt_corpus_fetch_posts( 'publish', 'page' ) ) as $post ) {
+	$host     = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	$posts    = array_merge( snt_corpus_fetch_posts( 'publish', 'post' ), snt_corpus_fetch_posts( 'publish', 'page' ) );
+	$rendered = snt_ml_rendered_links( $posts, $host );
+	$nodes    = array();
+	$keys     = array(); // lookup path => the join key the coverage map uses.
+	foreach ( $posts as $post ) {
 		$url = function_exists( 'get_permalink' ) ? (string) get_permalink( $post ) : '';
 		$key = '' !== $url && function_exists( 'sn_path_join_key' ) ? sn_path_join_key( $url ) : '/' . (string) ( $post->post_name ?? '' );
-		if ( '' === $key || '/' === $key ) {
-			continue; // the front page is never a body-link target here.
+		if ( '' === $key ) {
+			continue;
 		}
 		$node          = clone $post; // never mutate the corpus objects.
-		$node->sn_path = snt_ml_path_key( $key );
+		$node->sn_path = '/' === $key ? '/' : snt_ml_path_key( $key );
+		if ( is_array( $rendered[ (int) $post->ID ] ?? null ) ) {
+			$node->sn_out_paths = $rendered[ (int) $post->ID ];
+		}
 		$nodes[]       = $node;
 		$keys[ $node->sn_path ] = $key;
 	}
@@ -82,6 +94,9 @@ function snt_ml_inbound_by_path() {
 	}
 	$out = array();
 	foreach ( $graph as $lookup => $row ) {
+		if ( '/' === $lookup ) {
+			continue; // the front page links out; it is never a target row.
+		}
 		$out[ $keys[ $lookup ] ?? $lookup ] = array(
 			'inbound'           => (int) $row['inbound'],
 			'linked_from'       => $row['linked_from'],

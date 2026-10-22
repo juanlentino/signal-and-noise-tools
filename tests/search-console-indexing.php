@@ -90,8 +90,8 @@ echo "\nGroup: the publish check (warn, never block)\n";
 $GLOBALS['P'][20] = array( 'post', '/notes/linked/' );
 $GLOBALS['P'][21] = array( 'post', '/notes/elsewhere/' );
 $pc_sub = array( $sub( 20, 5 ), $sub( 21, 5, array( 'canonical' => 'https://other.test/x/' ) ), $sub( 6, 2 ), $sub( 5, 50 ), $sub( 8, 90, array( 'core' => true ) ) );
-$pc_in  = array( '/notes/linked' => array( 'inbound' => 2, 'linked_from' => array( 7, 7 ), 'linked_from_paths' => array( '/notes/fine', '/notes/fine' ) ), '/notes/elsewhere' => array( 'inbound' => 1, 'linked_from' => array( 7 ), 'linked_from_paths' => array( '/notes/fine' ) ) );
-$pc     = sn_indexing_publish_check( $pc_sub, $entries, $pc_in, $now );
+$pc_in  = array( '/notes/linked' => array( 'inbound' => 2, 'linked_from' => array( 7, 22 ), 'linked_from_paths' => array( '/notes/fine', '/notes/other' ) ), '/notes/elsewhere' => array( 'inbound' => 1, 'linked_from' => array( 7 ), 'linked_from_paths' => array( '/notes/fine' ) ) );
+$pc     = sn_indexing_publish_check( $pc_sub, $entries + array( '/notes/other' => array( 'indexed' => true ) ), $pc_in, $now ); // 2026-10-22: two DISTINCT indexed sources (a source counts once).
 $by     = array_column( $pc['failures'], 'reasons', 'path' );
 ok( 3 === $pc['checked'], 'notes and core pages 3+ days old are checked; a 2-day note and a non-core page are not' );
 ok( ! isset( $by['/notes/linked'] ), 'two inbound links from indexed pages, in the sitemap, self canonical: passes' );

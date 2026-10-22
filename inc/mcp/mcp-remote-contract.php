@@ -104,9 +104,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 // existing twin's shape moves. The worker's own CONTRACT_VERSION bump, its
 // BRIDGE_TOOLS entry and its plugin-slugs fixture are a separate PR.
 // Contract 23 (2026-10-22): the indexing-requests twin reads the site chrome.
-// Request and stuck rows gain chrome (boolean); publish_check gains
-// chrome_paths and each failure an inbound_source (chrome | body). Additive
-// keys. The worker's own CONTRACT_VERSION bump is a separate PR.
+// Request and stuck rows gain chrome (boolean) and template[]; publish_check
+// gains chrome_paths, template_paths and graph_render, and each failure an
+// inbound_source (chrome | template | body) and template[]. Additive keys. The worker's own CONTRACT_VERSION bump is a separate PR.
 const SN_REMOTE_CONTRACT_VERSION = '23';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
@@ -160,8 +160,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'21' => '19f08c2ab0d0c3474707820e1ec0a4450728e147d54aeb918bda1228e99af860',
 	// RED-then-pin, 2026-10-22: 19-twin map, remote-indexing-requests joined.
 	'22' => '46f5cd540427bc4bf8289ef44ba01c6e2cd610f2cbd46ef54a6da0bddecc9a9a',
-	// RED-then-pin, 2026-10-22: chrome, chrome_paths and inbound_source on the indexing-requests twin.
-	'23' => 'db3e301e2e9be7acbe5d62afe0a73db151f76398a243a83fea221f98ac3c703a',
+	// RED-then-pin, 2026-10-22: chrome, template, chrome_paths, template_paths, graph_render and inbound_source on the indexing-requests twin.
+	'23' => '5f9f7a66733b5852d6ad72260e1d774933d4a70498ad22227383ddd02284af15',
 );
 
 /**

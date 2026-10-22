@@ -102,10 +102,11 @@ function sn_indexing_inbound_indexed( $path, $inbound, $entries ) {
  * @param array|null $inbound  snt_ml_inbound_by_path().
  * @param array      $core     post_id => bool.
  * @param string     $property Search Console property.
- * @param string[]   $chrome   Chrome-linked lookup paths (sn_indexing_chrome_expand()).
+ * @param array      $site     sn_indexing_site_norm(), chrome widened (sn_indexing_chrome_expand()).
  * @return array<int,array>
  */
-function sn_indexing_rows( $stuck, $entries, $inbound, $core, $property, $chrome = array() ) {
+function sn_indexing_rows( $stuck, $entries, $inbound, $core, $property, $site = array() ) {
+	$site = sn_indexing_site_norm( $site );
 	$rows = array();
 	foreach ( (array) $stuck as $r ) {
 		$rows[] = array(
@@ -115,7 +116,8 @@ function sn_indexing_rows( $stuck, $entries, $inbound, $core, $property, $chrome
 			'days'            => (int) $r['days'],
 			'core'            => ! empty( $core[ (int) ( $r['post_id'] ?? 0 ) ] ),
 			'inbound_indexed' => sn_indexing_inbound_indexed( (string) $r['path'], $inbound, $entries ),
-			'chrome'          => sn_indexing_chrome_has( $chrome, (string) $r['path'] ),
+			'chrome'          => sn_indexing_chrome_has( $site['chrome'], (string) $r['path'] ),
+			'template'        => sn_indexing_template_types( $site, (string) $r['path'] ),
 			'inspect_url'     => snt_gsc_inspect_link( $property, (string) $r['url'] ),
 		);
 	}
@@ -136,17 +138,22 @@ function sn_indexing_rows( $stuck, $entries, $inbound, $core, $property, $chrome
  * indexable predicate refuses it), canonical (it points elsewhere). The
  * inbound leg is not judged before the coverage map exists. A PAGE the
  * header or footer links passes the inbound leg (inbound_source "chrome"):
- * the chrome links it from every page. Notes are judged on body links only.
+ * the chrome links it from every page; notes never borrow the chrome. A link
+ * in the single or page template counts once per indexed note or page, one
+ * in the front-page template once for the home page (inbound_source
+ * "template"), all as one set of sources with the body links.
  *
  * @param array      $subjects Rows {post_id, path, url, type, published, indexable, canonical, core}.
  * @param array      $entries  Coverage map entries.
  * @param array|null $inbound  snt_ml_inbound_by_path().
  * @param int        $now
- * @param string[]   $chrome   Chrome-linked lookup paths (sn_indexing_chrome_paths()).
- * @return array{checked:int,inbound_judged:bool,chrome_paths:string[],failures:array}
+ * @param array      $site     sn_indexing_site_links().
+ * @return array{checked:int,inbound_judged:bool,chrome_paths:string[],template_paths:array,failures:array}
  */
-function sn_indexing_publish_check( $subjects, $entries, $inbound, $now, $chrome = array() ) {
-	$chrome   = sn_indexing_chrome_expand( $chrome, $subjects );
+function sn_indexing_publish_check( $subjects, $entries, $inbound, $now, $site = array() ) {
+	$site     = sn_indexing_site_norm( $site );
+	$chrome   = sn_indexing_chrome_expand( $site['chrome'], $subjects );
+	$by_type  = sn_indexing_indexed_by_type( $subjects, (array) $entries );
 	$judged   = array() !== (array) $entries && is_array( $inbound );
 	$checked  = 0;
 	$failures = array();
@@ -157,8 +164,10 @@ function sn_indexing_publish_check( $subjects, $entries, $inbound, $now, $chrome
 		++$checked;
 		$in      = sn_indexing_inbound_indexed( (string) $s['path'], $inbound, (array) $entries );
 		$reasons = array();
-		$source  = 'post' !== $s['type'] && sn_indexing_chrome_has( $chrome, (string) $s['path'] ) ? 'chrome' : 'body';
-		if ( $judged && 'body' === $source && ( null === $in || $in < SNT_INDEXING_MIN_INBOUND ) ) {
+		$types   = sn_indexing_template_types( $site, (string) $s['path'] );
+		$total   = sn_indexing_inbound_total( (string) $s['path'], $inbound, (array) $entries, $types, $by_type );
+		$source  = 'post' !== $s['type'] && sn_indexing_chrome_has( $chrome, (string) $s['path'] ) ? 'chrome' : ( $types ? 'template' : 'body' );
+		if ( $judged && 'chrome' !== $source && ( null === $total || $total < SNT_INDEXING_MIN_INBOUND ) ) {
 			$reasons[] = 'inbound';
 		}
 		if ( empty( $s['indexable'] ) ) {
@@ -168,10 +177,11 @@ function sn_indexing_publish_check( $subjects, $entries, $inbound, $now, $chrome
 			$reasons[] = 'canonical';
 		}
 		if ( $reasons ) {
-			$failures[] = array( 'path' => (string) $s['path'], 'url' => (string) $s['url'], 'post_type' => (string) $s['type'], 'inbound_indexed' => $in, 'inbound_source' => $source, 'reasons' => $reasons );
+			$failures[] = array( 'path' => (string) $s['path'], 'url' => (string) $s['url'], 'post_type' => (string) $s['type'], 'inbound_indexed' => $in, 'inbound_source' => $source, 'template' => $types, 'reasons' => $reasons );
 		}
 	}
-	return array( 'checked' => $checked, 'inbound_judged' => $judged, 'chrome_paths' => $chrome, 'failures' => $failures );
+	$tpl = array( 'post' => $site['template']['post'], 'page' => $site['template']['page'], 'home' => $site['home'] );
+	return array( 'checked' => $checked, 'inbound_judged' => $judged, 'chrome_paths' => $chrome, 'template_paths' => $tpl, 'failures' => $failures );
 }
 
 /**
@@ -182,11 +192,12 @@ function sn_indexing_publish_check( $subjects, $entries, $inbound, $now, $chrome
  * @param array|null $inbound  snt_ml_inbound_by_path().
  * @param int        $now
  * @param string     $property Search Console property.
- * @param string[]   $chrome   Chrome-linked lookup paths (sn_indexing_chrome_paths()).
+ * @param array      $site     sn_indexing_site_links().
  * @return array
  */
-function sn_indexing_build( $entries, $subjects, $inbound, $now, $property, $chrome = array() ) {
-	$wide      = sn_indexing_chrome_expand( $chrome, $subjects );
+function sn_indexing_build( $entries, $subjects, $inbound, $now, $property, $site = array() ) {
+	$wide           = sn_indexing_site_norm( $site );
+	$wide['chrome'] = sn_indexing_chrome_expand( $wide['chrome'], $subjects );
 	$published = array();
 	$core      = array();
 	foreach ( (array) $subjects as $s ) {
@@ -200,6 +211,6 @@ function sn_indexing_build( $entries, $subjects, $inbound, $now, $property, $chr
 		'request_total' => count( $request ),
 		'stuck'         => array_slice( $stuck, 0, SNT_INDEXING_STUCK_CAP ),
 		'stuck_total'   => count( $stuck ),
-		'publish_check' => sn_indexing_publish_check( $subjects, $entries, $inbound, $now, $chrome ),
+		'publish_check' => sn_indexing_publish_check( $subjects, $entries, $inbound, $now, $site ),
 	);
 }

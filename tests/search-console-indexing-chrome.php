@@ -51,6 +51,7 @@ function get_block_template( $id, $type ) {
 }
 function do_blocks( $c ) { ++$GLOBALS['RENDS']; if ( $GLOBALS['THROW'] ) { echo '<a href="/leak">'; throw new RuntimeException( 'cron' ); } return (string) $c; }
 function parse_blocks( $c ) {
+	if ( isset( $GLOBALS['PARSED'][ $c ] ) ) { return $GLOBALS['PARSED'][ $c ]; }
 	return array( array( 'blockName' => 'core/navigation', 'attrs' => array(), 'innerBlocks' => array(
 		array( 'blockName' => 'core/navigation-link', 'attrs' => array( 'url' => '/services' ), 'innerBlocks' => array() ),
 	) ), array( 'blockName' => 'signal-noise/meta-nav', 'attrs' => array(), 'innerBlocks' => array() ) );
@@ -72,19 +73,19 @@ require __DIR__ . '/../inc/search-console-indexing.php';
 echo "indexing guard: the site chrome\n\n";
 
 echo "Group: hrefs from rendered chrome (core's HTML API)\n";
-$paths = sn_indexing_chrome_paths_from_html( $GLOBALS['PARTS']['header'] . $GLOBALS['PARTS']['footer'], 'example.test' );
+$paths = snt_ml_paths_from_html( $GLOBALS['PARTS']['header'] . $GLOBALS['PARTS']['footer'], 'example.test' );
 ok( array( '/about', '/colophon', '/resume' ) === $paths, 'internal paths only, normalized, sorted, unique (root, another host, mailto and a fragment are not links to a page): ' . implode( ',', $paths ) );
-ok( array( '/about' ) === sn_indexing_chrome_paths_from_html( '<A HREF=\'/About/\'>x</A><a title="href=/no">y</a><a href="/about#x">z</a>', 'example.test' ), 'attribute case, quoting and a fragment do not fool it, and a href inside another attribute is not a link' );
+ok( array( '/about' ) === snt_ml_paths_from_html( '<A HREF=\'/About/\'>x</A><a title="href=/no">y</a><a href="/about#x">z</a>', 'example.test' ), 'attribute case, quoting and a fragment do not fool it, and a href inside another attribute is not a link' );
 
 echo "\nGroup: the live read renders the parts once, then caches\n";
-$live = sn_indexing_chrome_paths();
+$live = sn_indexing_site_links()['chrome'];
 ok( array( '/about', '/colophon', '/resume' ) === $live && 2 === $GLOBALS['RENDS'], 'the header and footer render through core in one pass: ' . implode( ',', $live ) );
-sn_indexing_chrome_paths();
+sn_indexing_site_links()['chrome'];
 ok( 2 === $GLOBALS['RENDS'], 'a second read is served from the cache, no render' );
 $GLOBALS['PARTS']['footer'] .= '<a href="/now/">Now</a>';
-ok( in_array( '/now', sn_indexing_chrome_paths(), true ) && 4 === $GLOBALS['RENDS'], 'an edited part changes the cache key, so the set follows the parts' );
+ok( in_array( '/now', sn_indexing_site_links()['chrome'], true ) && 4 === $GLOBALS['RENDS'], 'an edited part changes the cache key, so the set follows the parts' );
 foreach ( array( 'switch_theme', 'upgrader_process_complete', 'customize_save_after', 'save_post_wp_template_part', 'save_post_wp_navigation' ) as $hook ) {
-	sn_indexing_chrome_paths();
+	sn_indexing_site_links()['chrome'];
 	do_action( $hook );
 	ok( false === get_transient( SN_INDEXING_CHROME_CACHE ), "$hook clears the cache" );
 }
@@ -94,14 +95,14 @@ echo "\nGroup: when rendering fails (cron), the block markup is the fallback\n";
 $GLOBALS['T'] = array();
 $GLOBALS['THROW'] = true;
 $level = ob_get_level();
-$fb = sn_indexing_chrome_paths();
+$fb = sn_indexing_site_links()['chrome'];
 ok( array( '/now', '/services' ) === $fb, 'navigation-link url attrs and the meta-nav block\'s own render: ' . implode( ',', $fb ) );
 ok( $level === ob_get_level() && ! in_array( '/leak', $fb, true ), 'a render that throws leaves no output buffer open and nothing half-rendered counted' );
 $GLOBALS['THROW'] = false;
 $GLOBALS['T'] = array();
 $saved = $GLOBALS['PARTS'];
 $GLOBALS['PARTS'] = array();
-ok( array() === sn_indexing_chrome_paths() && false === get_transient( SN_INDEXING_CHROME_CACHE ), 'no parts, no set, and an empty set is never cached' );
+ok( array() === sn_indexing_site_links()['chrome'] && false === get_transient( SN_INDEXING_CHROME_CACHE ), 'no parts, no set, and an empty set is never cached' );
 $GLOBALS['PARTS'] = $saved;
 
 echo "\nGroup: the publish check counts the chrome\n";
@@ -126,7 +127,7 @@ $subjects = array(
 	$sub( 6, 'post', '/about', array() ),
 	$sub( 7, 'page', '/resume', array( 'canonical' => 'https://other.test/' ) ),
 );
-$pc = sn_indexing_publish_check( $subjects, $entries, $inbound, $now, $chrome );
+$pc = sn_indexing_publish_check( $subjects, $entries, $inbound, $now, array( 'chrome' => $chrome ) );
 $by = array();
 foreach ( $pc['failures'] as $f ) { $by[ $f['post_type'] . ':' . $f['path'] ] = $f; }
 ok( ! isset( $by['page:/about'] ) && ! isset( $by['page:/Colophon'] ), 'a chrome-linked page with no body links passes the inbound rule (path spelling does not matter)' );
@@ -150,13 +151,70 @@ $ent = array(
 	'/workflow' => array( 'indexed' => false, 'coverage_state' => 'Discovered - currently not indexed', 'url' => 'https://example.test/workflow/', 'kind' => 'post', 'post_id' => 5 ),
 );
 if ( function_exists( 'snt_gsc_index_stuck' ) ) {
-	$r    = sn_indexing_build( $ent, array( $subjects[0], $subjects[3], $subjects[4] ), $inbound, $now, '', $chrome );
+	$r    = sn_indexing_build( $ent, array( $subjects[0], $subjects[3], $subjects[4] ), $inbound, $now, '', array( 'chrome' => $chrome ) );
 	$rows = array_column( $r['request_list'], null, 'path' );
 	ok( true === ( $rows['/about']['chrome'] ?? null ) && true === ( $rows['/sobre-mi']['chrome'] ?? null ) && false === ( $rows['/workflow']['chrome'] ?? null ), 'chrome is true for a chrome page and its Spanish twin, false otherwise' );
 	ok( 0 === $rows['/about']['inbound_indexed'], 'inbound_indexed stays the body count; the chrome is never folded into it' );
 } else {
 	ok( false, 'snt_gsc_index_stuck() is loaded with the indexing guard' );
 }
+
+echo "\nGroup: template links outside the post content (single, page, front page)\n";
+$b = static function ( $name, $html = '', $inner = array(), $attrs = array() ) { return array( 'blockName' => $name, 'attrs' => $attrs, 'innerHTML' => $html, 'innerBlocks' => $inner ); };
+$GLOBALS['PARTS']['single']       = 'SINGLE';
+$GLOBALS['PARTS']['page']         = 'PAGE';
+$GLOBALS['PARTS']['front-page']   = 'FRONT';
+$GLOBALS['PARTS']['post-closing'] = 'CLOSING';
+$GLOBALS['PARSED']['SINGLE']  = array( $b( 'core/group', '<div></div>', array(
+	$b( 'core/template-part', '', array(), array( 'slug' => 'header' ) ),
+	$b( 'core/post-content', '', array( $b( 'core/paragraph', '<p><a href="/in-the-body/">body</a></p>' ) ) ),
+	$b( 'core/paragraph', '<p><a href="/provenance/over-detection/">Start with the pillar</a></p>' ),
+	$b( 'signal-noise/related-notes' ),
+	$b( 'core/template-part', '', array(), array( 'slug' => 'post-closing' ) ),
+) ) );
+$GLOBALS['PARSED']['CLOSING'] = array( $b( 'core/paragraph', '<p><a href="/notes/">All notes</a></p>' ) );
+$GLOBALS['PARSED']['PAGE']    = array( $b( 'core/post-content' ), $b( 'core/paragraph', '<p><a href="/workflow/">Workflow</a></p>' ) );
+$GLOBALS['PARSED']['FRONT']   = array( $b( 'core/post-content' ), $b( 'core/html', '<a href="/provenance">Read essay</a>' ) );
+$GLOBALS['T'] = array();
+$rends = $GLOBALS['RENDS'];
+$site  = sn_indexing_site_links();
+ok( array( '/notes', '/provenance/over-detection' ) === $site['template']['post'], 'single: links outside core/post-content, through its own template parts; never the body, the header part, or a per-note dynamic block: ' . implode( ',', $site['template']['post'] ) );
+ok( array( '/workflow' ) === $site['template']['page'] && array( '/provenance' ) === $site['home'], 'the page and front-page templates read the same way' );
+ok( 2 === $GLOBALS['RENDS'] - $rends, 'only the header and footer render; templates are read from their block markup (a per-note block rendered without its note would count links that are not on every note)' );
+$GLOBALS['PARSED']['SINGLE2'] = $GLOBALS['PARSED']['SINGLE'];
+$GLOBALS['PARSED']['SINGLE2'][0]['innerBlocks'][2]['innerHTML'] .= '<a href="/now/">x</a>';
+$GLOBALS['PARTS']['single'] = 'SINGLE2';
+ok( in_array( '/now', sn_indexing_site_links()['template']['post'], true ), 'an edited template changes the cache key' );
+
+$tent = array(
+	'/notes/x' => array( 'indexed' => true ),
+	'/notes/y' => array( 'indexed' => true ),
+	'/notes/z' => array( 'indexed' => false ),
+	'/'        => array( 'indexed' => true ),
+	'/other'   => array( 'indexed' => true ),
+);
+$tsub = array(
+	$sub( 30, 'post', '/notes/x' ), $sub( 31, 'post', '/notes/y' ), $sub( 32, 'post', '/notes/z' ), $sub( 33, 'page', '/other' ),
+	$sub( 34, 'page', '/provenance/over-detection' ), $sub( 35, 'page', '/provenance' ), $sub( 36, 'page', '/workflow' ),
+);
+$none = array( 'inbound' => 0, 'linked_from' => array(), 'linked_from_paths' => array() );
+$tin  = array(
+	'/notes/x' => $none, '/notes/y' => $none, '/notes/z' => $none, '/provenance/over-detection' => $none, '/workflow' => $none,
+	'/provenance' => array( 'inbound' => 1, 'linked_from' => array( 30 ), 'linked_from_paths' => array( '/notes/x' ) ),
+);
+$tsite = array( 'chrome' => array(), 'template' => array( 'post' => array( '/provenance/over-detection' ), 'page' => array( '/workflow' ) ), 'home' => array( '/provenance' ) );
+$tpc   = sn_indexing_publish_check( $tsub, $tent, $tin, $now, $tsite );
+$tby   = array_column( $tpc['failures'], null, 'path' );
+ok( ! isset( $tby['/provenance/over-detection'] ), 'a page every note\'s template links passes: two indexed notes link it' );
+ok( ! isset( $tby['/provenance'] ), 'one body link from an indexed note plus the indexed home page\'s template is two' );
+ok( isset( $tby['/workflow'] ) && 'template' === $tby['/workflow']['inbound_source'] && array( 'page' ) === $tby['/workflow']['template'], 'the page template links /workflow from one other indexed page: still thin, and the row says the template was counted' );
+$solo = sn_indexing_publish_check( array( $sub( 30, 'post', '/notes/x' ), $sub( 34, 'page', '/provenance/over-detection' ) ), array( '/notes/x' => array( 'indexed' => true ) ), array( '/provenance/over-detection' => array( 'inbound' => 1, 'linked_from' => array( 30 ), 'linked_from_paths' => array( '/notes/x' ) ) ), $now, array( 'template' => array( 'post' => array( '/provenance/over-detection' ) ) ) );
+$sby = array_column( $solo['failures'], null, 'path' );
+ok( 1 === ( $sby['/provenance/over-detection']['inbound_indexed'] ?? null ) && in_array( 'inbound', $sby['/provenance/over-detection']['reasons'], true ), 'a body link and a template link from the one indexed note are one source, never two' );
+ok( array( 'post' => array( '/provenance/over-detection' ), 'page' => array( '/workflow' ), 'home' => array( '/provenance' ) ) === $tpc['template_paths'], 'the check names the template sets it used' );
+$GLOBALS['P'][34] = '/provenance/over-detection/';
+$tr = sn_indexing_build( array( '/provenance/over-detection' => array( 'indexed' => false, 'coverage_state' => 'Discovered - currently not indexed', 'url' => 'https://example.test/provenance/over-detection/', 'kind' => 'post', 'post_id' => 34 ) ), $tsub, $tin, $now, '', $tsite );
+ok( array( 'post' ) === ( $tr['request_list'][0]['template'] ?? null ) && false === $tr['request_list'][0]['chrome'], 'a request row names the templates that link it' );
 
 ok( 0 === $GLOBALS['HTTP'], 'nothing here fetched the site over HTTP' );
 ok( false === strpos( (string) file_get_contents( __DIR__ . '/../inc/search-console-indexing-chrome.php' ), 'wp_remote_' ), 'the chrome reader has no HTTP call in its source' );
