@@ -21,6 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/indexable.php';
+
 const SNT_GSC_INDEX_WATCH_DAYS = 14;
 
 /** A direct Search Console URL Inspection link. PURE. */
@@ -36,9 +38,16 @@ function snt_gsc_inspect_link( $property, $url ) {
  * see the tag, as with /call. Pure apart from that one post-meta read.
  */
 function snt_gsc_index_gap_candidate( $e ) {
-	return is_array( $e ) && ! isset( $e['error'] ) && 'post' === ( $e['kind'] ?? 'post' ) && false === ( $e['indexed'] ?? null )
-		&& 0 !== stripos( (string) ( $e['coverage_state'] ?? '' ), 'excluded by' ) && (int) ( $e['post_id'] ?? 0 ) > 0
-		&& ! ( function_exists( 'sn_post_settings_get_noindex' ) && sn_post_settings_get_noindex( (int) $e['post_id'] ) );
+	if ( ! is_array( $e ) || isset( $e['error'] ) || 'post' !== ( $e['kind'] ?? 'post' ) || false !== ( $e['indexed'] ?? null )
+		|| 0 === stripos( (string) ( $e['coverage_state'] ?? '' ), 'excluded by' ) || (int) ( $e['post_id'] ?? 0 ) <= 0 ) {
+		return false;
+	}
+	// 2026-10-22: the one indexable predicate (inc/indexable.php), so a page the
+	// plugin serves noindex by its route (/verify) is out as surely as _sn_noindex.
+	if ( function_exists( 'sn_post_is_indexable' ) ) {
+		return sn_post_is_indexable( (int) $e['post_id'] );
+	}
+	return ! ( function_exists( 'sn_post_settings_get_noindex' ) && sn_post_settings_get_noindex( (int) $e['post_id'] ) );
 }
 
 /**
@@ -57,7 +66,7 @@ function snt_gsc_index_stuck( $entries, $published, $now, $days ) {
 		if ( $at <= 0 || ( $now - $at ) < (int) $days * DAY_IN_SECONDS ) {
 			continue;
 		}
-		$out[] = array( 'path' => (string) $path, 'url' => (string) ( $e['url'] ?? '' ), 'state' => (string) $e['coverage_state'], 'days' => (int) floor( ( $now - $at ) / DAY_IN_SECONDS ) );
+		$out[] = array( 'path' => (string) $path, 'url' => (string) ( $e['url'] ?? '' ), 'state' => (string) $e['coverage_state'], 'days' => (int) floor( ( $now - $at ) / DAY_IN_SECONDS ), 'post_id' => (int) $e['post_id'] );
 	}
 	usort( $out, static function ( $a, $b ) {
 		return $b['days'] <=> $a['days'];

@@ -31,6 +31,8 @@ function sn_health_report_coverage( $key, array $report = array() ) {
 			return __( 'Arithmetic tier: every theme-token pair scored as if rendered together. A failing row here is a "would fail", not a live defect, because this tier cannot know which pairs meet on screen; the usage tier answers that for pairings declared in stylesheets. Colors inlined in block markup and the computed cascade still need a real render, so a clean sweep across both tiers is still not proof of a clean site.', 'signal-and-noise-tools' );
 		case 'motion_scan':
 			return __( 'Declared tier: every animation and transition in the scanned front stylesheets, checked for a reduced-motion counterpart: gated behind no-preference, or set to none under reduce (in the same sheet or a global reset; the kinds are separate claims). Script-driven motion (JS class toggles, Web Animations, scroll handlers) is invisible to a stylesheet reader, so a clean sweep here is not proof a reduced-motion visitor sees no motion.', 'signal-and-noise-tools' );
+		case 'indexing':
+			return __( 'Stored tier: the weekly URL Inspection map, the internal link graph (notes and pages, body links only) and the post table, read when the scan runs. Only published notes and pages the sitemap lists count; tag archives, /verify and anything marked noindex never do. Google can take weeks on a new URL, so a row here is a page to request, not a defect, and a URL inspected before its last edit can read stale until the next weekly run.', 'signal-and-noise-tools' );
 	}
 	return (string) ( $report['coverage'] ?? '' );
 }

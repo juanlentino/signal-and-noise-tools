@@ -61,7 +61,7 @@ echo "sn_status (consolidated) — plugin v13.1.0\n\n";
 
 // ─── Section map: ten sections, all plugin-namespace sources ───
 $map = snt_sn_status_map();
-ok( 30 === count( $map ), 'the section map has exactly 30 entries (23.2.0 ADDED live, the site right now with the live-surge signal; 19.8 ADDED bot_signals, the observe-only beacon readout; 19.4.3 ADDED recompute, the analytics history run: state, cursor, the unit it died in; 18.0.0 ADDED edge_errors, the 5xx rollup alone; 16.6.0 ADDED jev_spend, the Jev meter; 15.2.0 ADDED keyring, every credential\'s source and verdict; v14.9.0 ADDED cloudflare, the monitor: token, zone, firewall; v14.6.1 ADDED posts_signals, the Posts tab as data; v13.92.0 ADDED cache; v13.90.0 ADDED watches, the agent reader beside the morning brief; v13.88.0 ADDED shape_stability, the first reader the shape ledger has had; v13.68.0 ADDED inbound_pass; v13.63.0 ADDED search_coverage; v13.62.0 ADDED family_drift — weave Phase 5; v13.57.0 ADDED search_performance/search_drift/search_crossexam — weave Phase 1; v13.52.0 ADDED cron_health, the model over cron_scheduled/cron_history)' );
+ok( 31 === count( $map ), 'the section map has exactly 31 entries (2026-10-22 ADDED indexing_requests, the indexing guard; 23.2.0 ADDED live, the site right now with the live-surge signal; 19.8 ADDED bot_signals, the observe-only beacon readout; 19.4.3 ADDED recompute, the analytics history run: state, cursor, the unit it died in; 18.0.0 ADDED edge_errors, the 5xx rollup alone; 16.6.0 ADDED jev_spend, the Jev meter; 15.2.0 ADDED keyring, every credential\'s source and verdict; v14.9.0 ADDED cloudflare, the monitor: token, zone, firewall; v14.6.1 ADDED posts_signals, the Posts tab as data; v13.92.0 ADDED cache; v13.90.0 ADDED watches, the agent reader beside the morning brief; v13.88.0 ADDED shape_stability, the first reader the shape ledger has had; v13.68.0 ADDED inbound_pass; v13.63.0 ADDED search_coverage; v13.62.0 ADDED family_drift — weave Phase 5; v13.57.0 ADDED search_performance/search_drift/search_crossexam — weave Phase 1; v13.52.0 ADDED cron_health, the model over cron_scheduled/cron_history)' );
 $expected_map = array(
 	'uptime'               => 'signal-noise/uptime-status',
 	'deploy'               => 'signal-noise/get-deploy-status',
@@ -85,6 +85,7 @@ $expected_map = array(
 	'search_crossexam'     => 'signal-noise/search-crossexam',
 	'family_drift'         => 'signal-noise/family-drift', // v13.62.0
 	'search_coverage'      => 'signal-noise/search-coverage', // v13.63.0
+	'indexing_requests'    => 'signal-noise/indexing-requests', // 2026-10-22
 	'inbound_pass'         => 'signal-noise/inbound-pass',
 	'posts_signals'        => 'signal-noise/posts-signals', // v14.6.1
 	'shape_stability'      => 'signal-noise/shape-stability', // v13.68.0

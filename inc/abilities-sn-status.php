@@ -125,6 +125,8 @@ function snt_sn_status_map() {
 		'family_drift'         => 'signal-noise/family-drift',
 		// v13.63.0 — the stored URL Inspection map (weekly); never inspects on read.
 		'search_coverage'      => 'signal-noise/search-coverage',
+		// 2026-10-22: the indexing guard, the URLs to request, the stuck ones, the publish check.
+		'indexing_requests'    => 'signal-noise/indexing-requests',
 		'inbound_pass'         => 'signal-noise/inbound-pass', // v13.68.0
 		// v14.6.1 — the Posts tab as data: one row per note, three flags, gaps as gaps.
 		'posts_signals'        => 'signal-noise/posts-signals',

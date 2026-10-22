@@ -135,5 +135,43 @@ $sm_bad = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => 'https://jua
 sm_true( ! array_key_exists( 'lastmod', $sm_bad ), 'a post with no real modified time gets NO lastmod key — a fabricated date is the inconsistency Google ignores the field for' );
 sm_true( isset( $GLOBALS['__filters']['wp_sitemaps_posts_entry'] ), 'the wp_sitemaps_posts_entry filter is registered' );
 
+// ─── 2026-10-22: the posts provider asks the ONE indexable predicate ───
+echo "\nGroup: the sitemap excludes exactly what sn_post_is_indexable() refuses\n";
+$GLOBALS['sm_posts'] = array(
+	21 => (object) array( 'ID' => 21, 'post_type' => 'page', 'post_status' => 'publish', 'post_password' => '', 'url' => 'https://juanlentino.com/verify/' ),
+	22 => (object) array( 'ID' => 22, 'post_type' => 'page', 'post_status' => 'publish', 'post_password' => '', 'url' => 'https://juanlentino.com/about/' ),
+	23 => (object) array( 'ID' => 23, 'post_type' => 'page', 'post_status' => 'publish', 'post_password' => '', 'url' => 'https://juanlentino.com/call/' ),
+	24 => (object) array( 'ID' => 24, 'post_type' => 'post', 'post_status' => 'publish', 'post_password' => '', 'url' => 'https://juanlentino.com/notes/x/' ),
+);
+$GLOBALS['sm_meta'] = array( 23 => array( '_sn_noindex' => '1' ), 7 => array( '_sn_prov_last_commit_gmt' => '2026-09-14 05:10:06' ) );
+function get_posts( $args ) {
+	$out = array();
+	foreach ( $GLOBALS['sm_posts'] as $id => $p ) {
+		if ( $p->post_type === $args['post_type'] ) {
+			$out[] = $id;
+		}
+	}
+	return $out;
+}
+function get_post( $id ) { return $GLOBALS['sm_posts'][ (int) $id ] ?? null; }
+function get_post_meta( $id, $k, $s = false ) { return $GLOBALS['sm_meta'][ (int) $id ][ $k ] ?? ''; }
+function get_permalink( $p ) { $p = is_object( $p ) ? $p : get_post( $p ); return $p ? $p->url : ''; }
+function get_post_modified_time( $f, $gmt, $post ) {
+	$m = (string) ( $post->post_modified_gmt ?? '' );
+	return ( '' === $m || 0 === strpos( $m, '0000' ) ) ? false : gmdate( 'c', strtotime( $m . ' UTC' ) );
+}
+require_once __DIR__ . '/../inc/seo-schema-identity-parts.php';
+$qa = apply_filters( 'wp_sitemaps_posts_query_args', array( 'post__not_in' => array( 5 ) ), 'page' );
+sm_eq( array( 5, 21, 23 ), $qa['post__not_in'], '/verify (noindex by the virtual route) and /call (_sn_noindex) leave the page sitemap; an existing exclusion stays' );
+sm_true( ! isset( $qa['meta_query'] ), 'no second rule beside the predicate: the meta_query is gone' );
+$qa = apply_filters( 'wp_sitemaps_posts_query_args', array(), 'post' );
+sm_true( ! isset( $qa['post__not_in'] ), 'nothing excluded when every note is indexable' );
+
+echo "\nGroup: lastmod is the content-change clock the JSON-LD dateModified reads\n";
+$sm_c = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => 'https://juanlentino.com/provenance/as-substrate/' ), (object) array( 'ID' => 7, 'post_modified_gmt' => '2026-09-24 20:35:11' ), 'page' );
+sm_eq( '2026-09-14T05:10:06+00:00', $sm_c['lastmod'] ?? null, 'a provenance commit is the lastmod, as it is the dateModified (not the row\'s later save)' );
+$sm_bad = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => 'https://juanlentino.com/notes/y/' ), (object) array( 'ID' => 8, 'post_modified_gmt' => '0000-00-00 00:00:00' ), 'post' );
+sm_true( ! array_key_exists( 'lastmod', $sm_bad ), 'still no lastmod for a post with no real modified time and no commit' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

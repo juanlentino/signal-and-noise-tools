@@ -202,6 +202,14 @@ function sn_schema_webpage() {
 		$webpage['description'] = $description;
 	}
 
+	// 2026-10-22: pages carried no dateModified. The same clock the Article
+	// and the sitemap's lastmod read (the provenance commit, else post_modified),
+	// so all three name one date. Absent when the post has no real time.
+	$modified = sn_schema_date_modified( $post );
+	if ( is_string( $modified ) && '' !== $modified ) {
+		$webpage['dateModified'] = $modified;
+	}
+
 	// Identity pages (about / resume / services / uses) are ProfilePages whose mainEntity is
 	// the Person — so search + answer engines read them as "the page about this person"
 	// rather than a generic WebPage (additions A1; uses is a sibling of about, v9.20.0).

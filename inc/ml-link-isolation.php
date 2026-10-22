@@ -28,11 +28,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// 2026-10-22: the path half of the graph (pages as nodes), split out for the line cap.
+require_once __DIR__ . '/ml-link-graph-paths.php';
+
 /** Hard cap on reported rows, so one badly-connected corpus cannot flood a surface. */
 const SNT_ML_ISOLATION_MAX = 200;
 
 /**
- * The note slug an href points at, or '' when it points at no note of ours.
+ * The internal path an href points at, in lookup form (lowercased join key),
+ * or '' when it points nowhere of ours. 2026-10-22: the slug below is derived
+ * from it, and pages match by this whole path (snt_ml_link_graph()).
  *
  * THE WHOLE CORRECTNESS STORY LIVES HERE. `/notes/foo/`, `/notes/foo`,
  * `https://juanlentino.com/notes/foo/?utm=x#s` and the protocol-relative form
@@ -40,15 +45,15 @@ const SNT_ML_ISOLATION_MAX = 200;
  * none does. Both failures are silent, which is why this is a separate, pure,
  * directly-tested function rather than a regex inline in the walk.
  *
- * Matching is by final path SEGMENT rather than by full permalink, because the
- * permalink base is a site setting: hardcoding `/notes/` here would make the
- * whole measure wrong the day that changes, and quietly.
+ * Notes match by final path SEGMENT (the slug) rather than by full permalink,
+ * because the permalink base is a site setting: hardcoding `/notes/` would
+ * make the whole measure wrong the day that changes, and quietly.
  *
  * @param string $href     Raw href attribute value.
  * @param string $our_host Site host; defaults to home_url()'s.
- * @return string Lowercased slug, or '' for external / non-note / unusable hrefs.
+ * @return string Lowercased path, or '' for external / root / unusable hrefs.
  */
-function snt_ml_link_target_slug( $href, $our_host = null ) {
+function snt_ml_link_target_path( $href, $our_host = null ) {
 	$href = trim( (string) $href );
 	if ( '' === $href ) {
 		return '';
@@ -86,10 +91,20 @@ function snt_ml_link_target_slug( $href, $our_host = null ) {
 	if ( '' === $path ) {
 		return ''; // The site root is not a note.
 	}
-	$parts = explode( '/', $path );
-	$slug  = strtolower( urldecode( (string) end( $parts ) ) );
+	return snt_ml_path_key( '/' . $path );
+}
 
-	return $slug;
+/**
+ * The note slug an href points at: the last segment of its path, or ''.
+ *
+ * @param string $href     Raw href attribute value.
+ * @param string $our_host Site host; defaults to home_url()'s.
+ * @return string
+ */
+function snt_ml_link_target_slug( $href, $our_host = null ) {
+	$path  = snt_ml_link_target_path( $href, $our_host );
+	$parts = explode( '/', $path );
+	return '' === $path ? '' : (string) end( $parts );
 }
 
 /**
@@ -145,61 +160,49 @@ function snt_ml_outbound_slugs( $content, $our_host = null ) {
  * @return array<string,array>
  */
 function snt_ml_link_graph( $posts, $host ) {
-	$rows   = array();
-	$bodies = array();
+	$rows    = array();
+	$bodies  = array();
+	$by_path = array(); // lookup path => row key, for rows that carry `sn_path`.
+	$by_slug = array(); // slug => row key, for rows that do not (notes, as before).
 	foreach ( (array) $posts as $post ) {
 		$slug = strtolower( (string) ( $post->post_name ?? '' ) );
-		if ( '' === $slug ) {
-			continue; // No slug, no address: it cannot be a link target.
+		$path = (string) ( $post->sn_path ?? '' );
+		$key  = '' !== $path ? $path : $slug;
+		if ( '' === $key || isset( $rows[ $key ] ) ) {
+			continue; // No address, no target; a duplicate address is one node.
 		}
-		$rows[ $slug ] = array(
+		$rows[ $key ] = array(
 			'post_id'     => (int) $post->ID,
 			'title'       => (string) ( $post->post_title ?? '' ),
 			'slug'        => $slug,
 			'status'      => (string) ( $post->post_status ?? '' ),
+			'post_type'   => (string) ( $post->post_type ?? 'post' ),
 			'inbound'     => 0,
 			'outbound'    => 0,
 			'linked_from' => array(),
 		);
-		$bodies[ $slug ] = (string) ( $post->post_content ?? '' );
+		if ( '' !== $path ) {
+			$by_path[ snt_ml_path_key( $path ) ] = $key;
+		} else {
+			$by_slug[ $slug ] = $key;
+		}
+		$bodies[ $key ] = (string) ( $post->post_content ?? '' );
 	}
-	foreach ( $bodies as $source_slug => $content ) {
+	foreach ( $bodies as $source => $content ) {
 		$seen = array();
-		foreach ( snt_ml_outbound_slugs( $content, $host ) as $target ) {
-			if ( $target === $source_slug || ! isset( $rows[ $target ] ) || isset( $seen[ $target ] ) ) {
+		foreach ( snt_ml_outbound_paths( $content, $host ) as $target_path ) {
+			$parts  = explode( '/', $target_path );
+			$target = $by_path[ $target_path ] ?? ( $by_slug[ (string) end( $parts ) ] ?? null );
+			if ( null === $target || $target === $source || isset( $seen[ $target ] ) ) {
 				continue;
 			}
 			$seen[ $target ] = true;
 			++$rows[ $target ]['inbound'];
-			++$rows[ $source_slug ]['outbound'];
-			$rows[ $target ]['linked_from'][] = $rows[ $source_slug ]['post_id'];
+			++$rows[ $source ]['outbound'];
+			$rows[ $target ]['linked_from'][] = $rows[ $source ]['post_id'];
 		}
 	}
 	return $rows;
-}
-
-/**
- * Inbound counts keyed by the WEAVE join key (v13.65.0), so the coverage map
- * and the disagreement scan join without a third spelling. {inbound, linked_from}.
- *
- * @return array<string,array{inbound:int,linked_from:int[]}>
- */
-function snt_ml_inbound_by_path() {
-	if ( ! function_exists( 'snt_corpus_fetch_posts' ) ) {
-		return array();
-	}
-	$host  = (string) wp_parse_url( home_url(), PHP_URL_HOST );
-	$graph = snt_ml_link_graph( snt_corpus_fetch_posts( 'publish', 'post' ), $host );
-	$out   = array();
-	foreach ( $graph as $slug => $row ) {
-		$url = function_exists( 'get_permalink' ) ? (string) get_permalink( (int) $row['post_id'] ) : '';
-		$key = '' !== $url && function_exists( 'sn_path_join_key' ) ? sn_path_join_key( $url ) : '/' . $slug;
-		if ( '' === $key ) {
-			continue;
-		}
-		$out[ $key ] = array( 'inbound' => (int) $row['inbound'], 'linked_from' => $row['linked_from'] );
-	}
-	return $out;
 }
 
 function snt_ml_link_isolation( $limit = 50 ) {

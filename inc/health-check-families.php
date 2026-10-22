@@ -85,6 +85,8 @@ function sn_health_check_family_map() {
 		// it sits with analytics, not content: nothing on the site is wrong, the
 		// instrument reading it stopped being fed.
 		'gsc_history_stalled'  => 'analytics',
+		// 2026-10-22: the indexing guard reads the Search Console map, as above.
+		'indexing'             => 'analytics',
 
 		// Machine learning: the kernel's own watches.
 		'ml_cousins'           => 'ml',

@@ -21,6 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/theme-init-script.php';
+require_once __DIR__ . '/indexable.php'; // SN_PROV_VERIFY_PATH: this route and the indexable predicate read one path.
 
 /**
  * Is this request for /verify? Pure (takes the path). A trailing slash and a
@@ -37,8 +38,8 @@ function sn_prov_verify_is_request( $uri ) {
 	// (REQUEST_URI "/blog/verify") matches the same /verify the chip links
 	// point at via home_url( '/verify?…' ). Root installs reduce to '/verify'.
 	$home_path = ( function_exists( 'home_url' ) && function_exists( 'wp_parse_url' ) )
-		? (string) wp_parse_url( home_url( '/verify' ), PHP_URL_PATH )
-		: '/verify';
+		? (string) wp_parse_url( home_url( SN_PROV_VERIFY_PATH ), PHP_URL_PATH )
+		: SN_PROV_VERIFY_PATH;
 	$home_path = '/' . trim( $home_path, '/' );
 	return ( $path === $home_path );
 }
@@ -181,7 +182,8 @@ function sn_prov_verify_send() {
 // variants into one URL for any reader that honours it; the description
 // says what the page is. Neither changes the noindex. ?>
 <meta name="description" content="Verify a note from juanlentino.com: recompute its content hash, check the Ed25519 signature under the published key, and confirm the OpenTimestamps proof against the Bitcoin block. Client-side, no account.">
-<link rel="canonical" href="<?php echo esc_url( function_exists( 'home_url' ) ? home_url( '/verify' ) : '/verify' ); ?>">
+<?php // 2026-10-22: with the trailing slash. The bare /verify 301s to /verify/, so the canonical named a redirect. ?>
+<link rel="canonical" href="<?php echo esc_url( function_exists( 'home_url' ) ? home_url( SN_PROV_VERIFY_PATH . '/' ) : SN_PROV_VERIFY_PATH . '/' ); ?>">
 <?php // The &mdash; here is the site-wide DOCUMENT-TITLE separator, matching
 // inc/seo.php's "Page Name — Site Name" format, not prose. Deliberately left
 // by the em-dash sweep, the same exemption v10.48.2 applied across wp-admin.

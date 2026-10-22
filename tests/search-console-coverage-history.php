@@ -37,7 +37,8 @@ function sn_setting( $k, $d = null ) { return 'search_console.property' === $k ?
 $GLOBALS['__posts'] = array( 11 => 'https://example.test/notes/alpha/', 12 => 'https://example.test/notes/beta/', 13 => 'https://example.test/notes/gamma/' );
 function get_posts( $a ) { return array_keys( $GLOBALS['__posts'] ); }
 function get_permalink( $id ) { $id = is_object( $id ) ? (int) $id->ID : $id; return $GLOBALS['__posts'][ $id ] ?? ''; }
-function get_post( $id ) { return 900 === (int) $id ? (object) array( 'ID' => 900, 'post_status' => 'publish', 'post_password' => '', 'post_type' => 'post' ) : null; }
+function get_post( $id ) { return ( 900 === (int) $id || isset( $GLOBALS['__posts'][ (int) $id ] ) ) ? (object) array( 'ID' => (int) $id, 'post_status' => 'publish', 'post_password' => '', 'post_type' => 'post' ) : null; }
+function get_post_meta( $id, $k, $s = false ) { return ''; } // 2026-10-22: the indexable predicate reads _sn_noindex and _sn_canonical_url.
 $GLOBALS['__posts'][900] = 'https://example.test/notes/new-note/';
 $GLOBALS['__api'] = array();
 function snt_gsc_api_post( $url, $body, $timeout = 30 ) { return $GLOBALS['__api'][ $body['inspectionUrl'] ] ?? new WP_Error( 'snt_gsc_api_error' ); }

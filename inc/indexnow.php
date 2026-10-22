@@ -21,6 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/indexable.php';
+
 const SN_INDEXNOW_ENDPOINT   = 'https://api.indexnow.org/indexnow';
 const SN_INDEXNOW_KEY_OPT    = 'sn_indexnow_key';
 const SN_INDEXNOW_RESULT_OPT = 'sn_indexnow_last_result';
@@ -223,7 +225,21 @@ function sn_indexnow_on_insert( $post_id, $post, $update, $post_before ) {
 	if ( 'publish' !== $post->post_status ) {
 		return;
 	}
-	sn_indexnow_enqueue( sn_indexnow_urls_for_post( $post_id ) );
+	// 2026-10-22: the one indexable predicate (inc/indexable.php). A page the
+	// sitemap leaves out (noindex, canonical elsewhere, /verify) is not pinged.
+	if ( ! sn_post_is_indexable( $post ) ) {
+		return;
+	}
+	$urls = sn_indexnow_urls_for_post( $post_id );
+	// A slug or parent change on a post that was already live: the old URL is
+	// the one engines hold, so it is pinged too and recrawled into its redirect.
+	if ( is_object( $post_before ) && 'publish' === (string) ( $post_before->post_status ?? '' ) ) {
+		$old = (string) get_permalink( $post_before );
+		if ( '' !== $old && ! in_array( $old, $urls, true ) ) {
+			$urls[] = $old;
+		}
+	}
+	sn_indexnow_enqueue( $urls );
 }
 add_action( 'wp_after_insert_post', 'sn_indexnow_on_insert', 30, 4 );
 

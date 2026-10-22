@@ -73,6 +73,7 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/get-rights-reads` | Get Rights Reads | analytics | READ |
 | `signal-noise/get-rss-stats` | Get RSS feed activity statistics | diagnostics | READ |
 | `signal-noise/inbound-pass` | Inbound-link pass for new notes (stored report) | diagnostics | READ |
+| `signal-noise/indexing-requests` | Search Console: URLs to request indexing for (stored) | diagnostics | READ |
 | `signal-noise/jev-collision-check` | Jev: does this draft re-argue a published note? | maintenance | RW |
 | `signal-noise/jev-fit-now` | Jev: judge the queries Google sends to each note, now | maintenance | RW |
 | `signal-noise/jev-lane-map` | Jev: map the lanes the published notes share | maintenance | RW |
@@ -149,6 +150,7 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/remote-get-insights` | Get content insights (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-get-narration` | Get analytics narration (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-get-rss-stats` | Get RSS feed activity statistics (remote) | diagnostics | REMOTE |
+| `signal-noise/remote-indexing-requests` | Search Console: URLs to request indexing for (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-machine-readers-networks` | Machine readers: is this crawler real (remote) | analytics | REMOTE |
 | `signal-noise/remote-machine-readers-summary` | Get machine readers summary (remote) | analytics | REMOTE |
 | `signal-noise/remote-provenance-integrity-status` | Get provenance integrity status (remote) | diagnostics | REMOTE |

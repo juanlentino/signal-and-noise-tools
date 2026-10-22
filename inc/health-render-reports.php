@@ -40,6 +40,7 @@ require_once __DIR__ . '/health-report-coverage.php';
 require_once __DIR__ . '/health-render-contrast.php';
 require_once __DIR__ . '/health-contrast-rendered.php';
 require_once __DIR__ . '/health-render-motion.php';
+require_once __DIR__ . '/health-render-indexing.php'; // 2026-10-22: the indexing guard's report.
 
 /**
  * check key => renderer callable, taking ( array $report, array $check ).
@@ -61,6 +62,8 @@ function sn_health_report_renderers() {
 		// IA H3: the motion report's first detail view. The degrading fallback
 		// below stays for any OTHER unknown report — that path is the contract.
 		'motion_scan'     => 'sn_health_render_motion_report',
+		// 2026-10-22: the indexing guard (request list, stuck flag, publish check).
+		'indexing'        => 'sn_health_render_indexing_report',
 	);
 	if ( function_exists( 'apply_filters' ) ) {
 		$renderers = (array) apply_filters( 'sn_health_report_renderers', $renderers );

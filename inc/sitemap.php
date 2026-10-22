@@ -10,9 +10,9 @@
  *                             so this post shouldn't appear as a
  *                             discoverable URL in OUR sitemap)
  *
- * Both rules implemented via meta_query on the `wp_sitemaps_posts_query_args`
- * filter — applies before WP core runs the post-listing query for each
- * sitemap chunk.
+ * Since 2026-10-22 both rules (and the plugin's own noindex routes, /verify)
+ * come from sn_post_is_indexable() (inc/indexable.php), applied as
+ * post__not_in on the `wp_sitemaps_posts_query_args` filter.
  *
  * IMPORTANT: while The SEO Framework (TSF) is active, this filter is
  * effectively dormant — TSF deregisters WP core's sitemap and serves
@@ -30,67 +30,35 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/indexable.php';
+
 /**
- * Exclude per-post-overridden posts from WP core's sitemap output.
+ * Published ids of one type the indexable predicate refuses. 2026-10-22: the
+ * sitemap used its own meta_query (noindex, canonical) and so listed /verify,
+ * which the virtual route serves noindex. Now it asks sn_post_is_indexable(),
+ * the same question the URL Inspection targets and IndexNow ask.
  *
- * @param array  $args      WP_Query args for the sitemap post listing.
- * @param string $post_type Post type slug for this sitemap chunk.
- * @return array Modified args with an additional meta_query clause.
+ * @param string $post_type 'post' or 'page'.
+ * @return int[]
  */
+function sn_sitemap_excluded_ids( $post_type ) {
+	if ( ! function_exists( 'get_posts' ) ) {
+		return array();
+	}
+	$ids = (array) get_posts( array( 'post_type' => (string) $post_type, 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true ) );
+	return array_values( array_filter( array_map( 'intval', $ids ), static function ( $id ) {
+		return ! sn_post_is_indexable( $id );
+	} ) );
+}
+
 add_filter( 'wp_sitemaps_posts_query_args', function( $args, $post_type ) {
-	// Only restrict the post types we explicitly support overrides on
-	// (matches inc/post-settings.php's SN_POST_SETTINGS_POST_TYPES).
 	if ( ! in_array( $post_type, array( 'post', 'page' ), true ) ) {
 		return $args;
 	}
-
-	$existing_meta_query = isset( $args['meta_query'] ) && is_array( $args['meta_query'] )
-		? $args['meta_query']
-		: array();
-
-	// Combine our exclusion with any pre-existing meta_query via AND.
-	$sn_clause = array(
-		'relation' => 'AND',
-		// Exclude posts with _sn_noindex = '1' (meta exists OR is absent).
-		array(
-			'relation' => 'OR',
-			array(
-				'key'     => '_sn_noindex',
-				'compare' => 'NOT EXISTS',
-			),
-			array(
-				'key'     => '_sn_noindex',
-				'value'   => '1',
-				'compare' => '!=',
-			),
-		),
-		// Exclude posts with a non-empty _sn_canonical_url (canonical
-		// points elsewhere — this post shouldn't appear as the canonical
-		// URL in OUR sitemap).
-		array(
-			'relation' => 'OR',
-			array(
-				'key'     => '_sn_canonical_url',
-				'compare' => 'NOT EXISTS',
-			),
-			array(
-				'key'     => '_sn_canonical_url',
-				'value'   => '',
-				'compare' => '=',
-			),
-		),
-	);
-
-	if ( ! empty( $existing_meta_query ) ) {
-		$args['meta_query'] = array(
-			'relation' => 'AND',
-			$existing_meta_query,
-			$sn_clause,
-		);
-	} else {
-		$args['meta_query'] = $sn_clause;
+	$excluded = sn_sitemap_excluded_ids( $post_type );
+	if ( array() !== $excluded ) {
+		$args['post__not_in'] = array_values( array_unique( array_merge( array_map( 'intval', (array) ( $args['post__not_in'] ?? array() ) ), $excluded ) ) );
 	}
-
 	return $args;
 }, 10, 2 );
 
@@ -213,10 +181,32 @@ function sn_sitemap_lastmod( $modified_gmt ) {
 	return $dt->format( 'Y-m-d\TH:i:s+00:00' );
 }
 
+/**
+ * The lastmod for one post: the content-change clock the JSON-LD dateModified
+ * reads (sn_schema_date_modified(): the provenance commit, else
+ * post_modified), so the sitemap and the schema name one date. 2026-10-22:
+ * the sitemap read post_modified_gmt alone and said 2026-09-24 where the
+ * Article said 2026-09-14. Null when neither is a real time.
+ *
+ * @param object $post WP_Post-like.
+ * @return string|null
+ */
+function sn_sitemap_lastmod_for( $post ) {
+	if ( ! is_object( $post ) ) {
+		return null;
+	}
+	$c = function_exists( 'sn_schema_date_modified' ) ? sn_schema_date_modified( $post ) : false;
+	$t = is_string( $c ) && '' !== $c ? strtotime( $c ) : false;
+	if ( false !== $t && $t > 0 ) {
+		return gmdate( 'Y-m-d\TH:i:s+00:00', $t );
+	}
+	return sn_sitemap_lastmod( (string) ( $post->post_modified_gmt ?? '' ) );
+}
+
 add_filter(
 	'wp_sitemaps_posts_entry',
 	function ( $entry, $post ) {
-		$lastmod = sn_sitemap_lastmod( is_object( $post ) ? (string) ( $post->post_modified_gmt ?? '' ) : '' );
+		$lastmod = sn_sitemap_lastmod_for( $post );
 		if ( null !== $lastmod && is_array( $entry ) ) {
 			$entry['lastmod'] = $lastmod;
 		}

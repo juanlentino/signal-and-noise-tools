@@ -118,6 +118,27 @@ function sn_redirect_delete( $source ) {
 }
 
 /**
+ * An internal target in its canonical form: a leading slash, and the
+ * permalink structure's trailing slash on an extensionless path (via core's
+ * user_trailingslashit()), with any query and fragment kept after it.
+ * 2026-10-22: /uses was stored as /about/uses, so the redirect landed on a URL
+ * core's canonical redirect sent on again to /about/uses/: two hops for one.
+ *
+ * @param string $to Stored internal target.
+ * @return string Path (with query and fragment) for home_url().
+ */
+function sn_redirect_internal_target( $to ) {
+	$to   = '/' . ltrim( (string) $to, '/' );
+	$cut  = strcspn( $to, '?#' );
+	$path = substr( $to, 0, $cut );
+	$rest = substr( $to, $cut );
+	if ( '/' !== $path && '' === pathinfo( $path, PATHINFO_EXTENSION ) && function_exists( 'user_trailingslashit' ) ) {
+		$path = user_trailingslashit( $path );
+	}
+	return $path . $rest;
+}
+
+/**
  * Exit-free resolver: given a request URI, return the destination + status to
  * send, or an empty array for no match. Internal targets are expanded to an
  * absolute URL via home_url(); external (http[s]) targets pass through verbatim.
@@ -132,7 +153,7 @@ function sn_redirect_target( $uri ) {
 		return array();
 	}
 	$to  = (string) $map[ $path ]['to'];
-	$abs = preg_match( '#^https?://#i', $to ) ? $to : home_url( '/' . ltrim( $to, '/' ) );
+	$abs = preg_match( '#^https?://#i', $to ) ? $to : home_url( sn_redirect_internal_target( $to ) );
 	return array(
 		'to'     => $abs,
 		'status' => ( 302 === (int) $map[ $path ]['status'] ) ? 302 : 301,

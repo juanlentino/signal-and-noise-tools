@@ -213,6 +213,52 @@ ok( 0 === $dense['isolated_count'],
 	'a fully cross-linked corpus reports NOTHING isolated (guards the everything-looks-orphaned failure)' );
 
 /* ══════════════════════════════════════════════════════════════════
+ * 4b. 2026-10-22: PAGES JOIN THE GRAPH (inbound counts per URL)
+ * ══════════════════════════════════════════════════════════════════ */
+
+require_once __DIR__ . '/../inc/path-join-key.php';
+if ( ! function_exists( 'get_permalink' ) ) {
+	function get_permalink( $p ) {
+		if ( ! is_object( $p ) ) {
+			$id = (int) $p;
+			$p  = null;
+			foreach ( $GLOBALS['__posts'] as $q ) {
+				if ( (int) $q->ID === $id ) { $p = $q; }
+			}
+		}
+		if ( ! $p ) { return ''; }
+		return isset( $p->url ) ? $p->url : 'https://juanlentino.com/notes/' . $p->post_name . '/';
+	}
+}
+function tf_page( $id, $path, $content, $title = null ) {
+	$p = tf_post( $id, 'publish', basename( rtrim( $path, '/' ) ), $content, $title );
+	$p->post_type = 'page';
+	$p->url       = 'https://juanlentino.com' . $path;
+	return $p;
+}
+$GLOBALS['__posts'] = array(
+	// A note links the /about/uses page and a TAG archive whose last segment is also "uses".
+	1  => tf_post( 1, 'publish', 'gear', $link( '/about/uses/' ) . $link( '/tag/uses/' ) ),
+	// A note whose slug collides with a page's last segment: path matching keeps them apart.
+	2  => tf_post( 2, 'publish', 'now', '<p>none</p>' ),
+	3  => tf_post( 3, 'publish', 'linked-by-page', '<p>none</p>' ),
+	20 => tf_page( 20, '/about/uses/', '<p>none</p>' ),
+	21 => tf_page( 21, '/now/', $link( '/notes/linked-by-page/' ) . $link( 'https://juanlentino.com/provenance/as-substrate' ) ),
+	22 => tf_page( 22, '/provenance/as-substrate/', '<p>none</p>' ),
+	23 => tf_page( 23, '/sobre-mi/', $link( '/now/' ) ),
+	24 => tf_post( 24, 'draft', 'draft-src', $link( '/about/uses/' ) ),
+);
+$ib = snt_ml_inbound_by_path();
+ok( 1 === ( $ib['/about/uses']['inbound'] ?? null ) && array( 1 ) === ( $ib['/about/uses']['linked_from'] ?? null ), 'a page is a TARGET: /about/uses counts the note that links it, and a draft source does not count' );
+ok( 1 === ( $ib['/notes/linked-by-page']['inbound'] ?? null ) && array( '/now' ) === ( $ib['/notes/linked-by-page']['linked_from_paths'] ?? null ), 'a page is a SOURCE: a note linked only from /now has one inbound link, named by path' );
+ok( 1 === ( $ib['/provenance/as-substrate']['inbound'] ?? null ), 'a /provenance child is reached by its full path, absolute link without a slash' );
+ok( 1 === ( $ib['/now']['inbound'] ?? null ) && 0 === ( $ib['/notes/now']['inbound'] ?? null ), 'the page /now and the note /notes/now are two nodes: the Spanish twin\'s link lands on the page only' );
+ok( 0 === ( $ib['/notes/gear']['inbound'] ?? null ) && isset( $ib['/sobre-mi'] ), 'every published note and page is a node, a zero is a real zero' );
+ok( ! isset( $ib['/notes/draft-src'] ) && ! isset( $ib['/tag/uses'] ), 'drafts and tag archives are not nodes' );
+$iso = snt_ml_link_isolation();
+ok( 3 === $iso['posts_scanned'], 'the isolation report stays notes-only: pages never count toward its "of N published notes"' );
+
+/* ══════════════════════════════════════════════════════════════════
  * 5. PIPELINE + SURFACE
  * ══════════════════════════════════════════════════════════════════ */
 

@@ -315,6 +315,32 @@ $classic            = snt_leaf_classic_html( 'sn_admin_render_health_reports_sec
 $kit                = reports_paint();
 ok( false !== strpos( $classic, 'Every published note is reachable from at least one other note.' ) && false !== strpos( $kit, 'Every published note is reachable from at least one other note.' ), 'link_isolation with zero isolated rows: both leaves say every note is reachable' );
 
+// 2026-10-22: the indexing report paints on both surfaces from one payload.
+$ix_scan = array( 'checks' => array( 'indexing' => array(
+	'label'  => 'Indexing',
+	'report' => array(
+		'request_list'    => array( array( 'url' => 'https://example.test/notes/a/', 'path' => '/notes/a', 'coverage_state' => 'Crawled - currently not indexed', 'days' => 12, 'core' => false, 'inbound_indexed' => 1, 'inspect_url' => 'https://search.google.com/search-console/inspect?resource_id=x&id=y' ) ),
+		'request_total'   => 4,
+		'stuck'           => array( array( 'url' => 'https://example.test/about/', 'path' => '/about', 'coverage_state' => 'Discovered - currently not indexed', 'days' => 40, 'core' => true, 'inbound_indexed' => null, 'inspect_url' => 'https://search.google.com/search-console/inspect?resource_id=x&id=z' ) ),
+		'stuck_total'     => 1,
+		'publish_check'   => array( 'checked' => 9, 'inbound_judged' => true, 'failures' => array( array( 'path' => '/notes/b', 'url' => 'https://example.test/notes/b/', 'post_type' => 'post', 'inbound_indexed' => 0, 'reasons' => array( 'inbound', 'canonical' ) ) ) ),
+		'generated_at'    => 1792000000,
+		'coverage_run_at' => 1791900000,
+	),
+) ) );
+$GLOBALS['__scan'] = $ix_scan;
+$classic = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
+$kit     = reports_paint();
+foreach ( array( '4 URLs to request (not indexed after 7 days), 1 stuck past 30 days, 1 publish-check warnings.', '/notes/a', 'Crawled - currently not indexed', 'search-console/inspect?resource_id=x&', 'Stuck past 30 days', '/about', 'not in the link graph', 'Publish check: 1 of 9 notes and core pages need a look', 'fewer than 2 links from indexed pages (0); its canonical points elsewhere', 'Stored tier: the weekly URL Inspection map' ) as $needle ) {
+	ok( false !== strpos( $classic, $needle ) && false !== strpos( $kit, $needle ), 'indexing: both surfaces print "' . $needle . '"' );
+}
+ok( false !== strpos( $kit, 'Showing 1 of 4' ) && false === strpos( $kit, 'This report has no detail view yet' ), 'indexing: the native leaf has its own view and states the cap' );
+ok( false !== strpos( $classic, 'aria-label="Inspect /notes/a in Search Console (opens a new tab)"' ) && false !== strpos( $classic, '<caption>' ), 'indexing: the classic table has a caption and the Inspect button says what it inspects' );
+ok( false === strpos( $kit, '—' ) && false === strpos( $classic, ' — ' ), 'indexing: no em dash on either surface' );
+$ix_scan['checks']['indexing']['report']['coverage_run_at'] = null;
+$GLOBALS['__scan'] = $ix_scan;
+ok( false !== strpos( snt_leaf_classic_html( 'sn_admin_render_health_reports_section' ), 'has not stored a map yet' ) && false !== strpos( reports_paint(), 'has not stored a map yet' ), 'indexing: before the first inspection run both say so instead of a zero' );
+
 // link_isolation: truncated remainder line.
 $degenerate                                                          = $rich_scan;
 $degenerate['checks']['link_isolation']['report']['isolated_total']  = 9;
