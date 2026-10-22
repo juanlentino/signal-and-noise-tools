@@ -254,7 +254,7 @@ $page_lines = array_values( array_filter( $lines, static fn( $l ) => 0 === strpo
 ok( 3 === count( $page_lines ), 'TEXT: one line per page' );
 ok( false !== strpos( $page_lines[0], '/notes/a-note/: Crawled - currently not indexed, 21 days since publish, Bing crawled 2026-10-01' ), 'TEXT: each line reads path, Google state, days, Bing' );
 $url_lines = array_values( array_filter( $lines, static fn( $l ) => false !== strpos( $l, 'https://' ) ) );
-ok( 3 === count( array_filter( $url_lines, static fn( $l ) => false !== strpos( $l, 'search.google.com' ) ) ) && array() === array_filter( $url_lines, static fn( $l ) => ! preg_match( '/^(  Inspect|  Integrity › Trust checks|Integrity › Reports): https:\/\/\S+$/u', $l ) ), 'TEXT: every URL sits on its own short labeled line ("Inspect:", a screen name), never mid-sentence' );
+ok( 3 === count( array_filter( $url_lines, static fn( $l ) => false !== strpos( $l, 'search.google.com' ) ) ) && array() === array_filter( $url_lines, static fn( $l ) => ! preg_match( '/^(  Inspect|Integrity › Trust checks|Integrity › Reports): https:\/\/\S+$/u', $l ) ), 'TEXT: every URL sits on its own short labeled line ("Inspect:", a screen name), never mid-sentence' );
 ok( in_array( 'Integrity › Reports: https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=tools&sub=reports', $lines, true ), 'TEXT: "where to read it" is the Integrity › Reports screen as "Integrity › Reports: <absolute URL>"' );
 ok( false === strpos( $text, 'Where to read it: signal-noise/' ) && in_array( 'For agents: signal-noise/indexing-requests{request_list}', $lines, true ), 'TEXT: the tool slug is out of the human line, kept on a "For agents" line' );
 ok( false === strpos( $text, '..' ), 'TEXT: no double period anywhere' );
@@ -311,8 +311,8 @@ ok( false !== strpos( $shtml, '&quot;a &lt;b&gt; query&quot;' ) && false === str
 // ─── the trust checks line ────────────────────────────────────────────────
 // No reader loaded here (the real readings are in tests/morning-brief-trust.php):
 // unknown is "not read", never "clear".
-ok( null === $data['trust'] && in_array( 'Trust checks: not read: no stored health scan.', $slines, true ), 'TRUST: helpers absent reads "not read", never "all clear"' );
-ok( in_array( '  Integrity › Trust checks: https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=tools&sub=trust', $slines, true ), 'TRUST: the text line carries the Trust checks screen on its own line' );
+ok( null === $data['trust'] && in_array( 'Trust checks: not read.', $slines, true ), 'TRUST: helpers absent reads "not read", never "all clear"' );
+ok( in_array( 'Integrity › Trust checks: https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=tools&sub=trust', $slines, true ), 'TRUST: the text line carries the Trust checks screen on its own line' );
 ok( false !== strpos( $shtml, '<a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&amp;tab=tools&amp;sub=trust">Integrity › Trust checks</a>' ), 'TRUST: and the HTML row links to it' );
 if ( ! function_exists( 'snt_trust_check_keys' ) ) {
 	function snt_trust_check_keys() { return array( 'provenance_integrity' => array( 'label' => 'Provenance integrity' ), 'ledger_ci' => array( 'label' => 'Ledger CI' ), 'rights_signals' => array( 'label' => 'Rights signals' ), 'rights_anchored' => array( 'label' => 'Rights anchoring' ) ); }

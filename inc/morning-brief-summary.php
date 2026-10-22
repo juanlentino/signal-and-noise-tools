@@ -41,7 +41,7 @@ function snt_morning_brief_trust( $scan ) {
 /** The trust checks line's words: "all clear", "not read", or each check that is not clear. */
 function snt_morning_brief_trust_words( $trust ) {
 	if ( ! is_array( $trust ) ) {
-		return 'not read: no stored health scan.';
+		return 'not read.'; // no stored scan, or no trust reader loaded: unknown, never clear.
 	}
 	$off = array_values( array_filter( $trust, static fn( $t ) => 'clear' !== $t['state'] ) );
 	if ( array() === $off ) {
@@ -93,7 +93,7 @@ function snt_morning_brief_summary_rows( $data ) {
 function snt_morning_brief_summary_text( $data ) {
 	$out = '';
 	foreach ( snt_morning_brief_summary_rows( $data ) as $r ) {
-		$out .= $r[0] . ': ' . $r[1] . "\n" . ( isset( $r[2] ) ? '  ' . $r[2]['label'] . ': ' . $r[2]['url'] . "\n" : '' );
+		$out .= $r[0] . ': ' . $r[1] . "\n" . ( isset( $r[2] ) ? $r[2]['label'] . ': ' . $r[2]['url'] . "\n" : '' );
 	}
 	return $out;
 }
