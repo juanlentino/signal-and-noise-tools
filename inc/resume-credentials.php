@@ -73,12 +73,17 @@ function sn_resume_credentials( $doc ) {
 }
 
 /**
- * `sn_schema_person_credentials` filter: add hasCredential.
+ * `sn_schema_person_credentials` filter: add hasCredential, on profile pages only.
  *
  * @param array $creds
  * @return array
  */
 function sn_resume_person_credentials( $creds ) {
+	// The Person node rides every page's graph; the degrees belong on the
+	// identity pages only (owner, 2026-10-22), not on every note.
+	if ( ! is_singular() || ! function_exists( 'sn_schema_is_profile_post' ) || ! sn_schema_is_profile_post( get_queried_object() ) ) {
+		return $creds;
+	}
 	$list = sn_resume_credentials( function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null );
 	if ( $list ) {
 		$creds['hasCredential'] = $list;

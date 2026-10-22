@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The degree credential sits on the profile pages only.** The Person node rides every page's structured data, so the Parchment-verified MBA (`hasCredential`) appeared on every note. It now appears on /about, /resume, /services and /uses (and their Spanish twins), the same pages typed ProfilePage; one predicate, `sn_schema_is_profile_post()`, decides both.
+
 ## [2026.10.59] - 2026-10-22 — every plugin email goes out as HTML with a plain-text part, and the brief names the trust checks
 
 
