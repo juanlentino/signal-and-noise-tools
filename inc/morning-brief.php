@@ -14,6 +14,8 @@
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+require_once __DIR__ . '/morning-brief-render.php'; // 2026-10-22: watch blocks, the HTML part, the shared mail text helpers.
+
 define( 'SNT_MORNING_BRIEF_CRON_HOOK', 'snt_morning_brief_daily' );
 define( 'SNT_MORNING_BRIEF_LAST_SENT', 'snt_morning_brief_last_sent' );
 define( 'SNT_MORNING_BRIEF_LAST_ERROR', 'snt_morning_brief_last_error' );
@@ -110,12 +112,12 @@ function snt_morning_brief_collect() {
 	if ( function_exists( 'snt_config_drift_status' ) ) { $data['drift'] = snt_config_drift_status(); }
 	// v13.90.0: watches that have COME DUE. Only ripe ones — see inc/watches.php
 	// for why silence is the default rather than a daily "nothing yet".
-	if ( function_exists( 'snt_watches_ripe' ) ) { $data['watches'] = snt_watches_ripe(); }
+	if ( function_exists( 'snt_watches_ripe' ) ) { $data['watches'] = snt_morning_brief_watch_rows( (array) snt_watches_ripe() ); }
 	return $data;
 }
 
-/** Pure prose composition: one operations paragraph, with drift silent when absent. */
-function snt_morning_brief_compose( $data ) {
+/** Pure prose: the operations paragraph's sentences, with drift silent when absent. */
+function snt_morning_brief_sentences( $data ) {
 	$sentences = array();
 	$h = is_array( $data['health'] ?? null ) ? $data['health'] : null;
 		$advisory_note = 1 === (int) ( $h['advisories'] ?? 0 ) ? ', with one advisory noted' : sprintf( ', with %d advisories noted', (int) ( $h['advisories'] ?? 0 ) );
@@ -182,27 +184,24 @@ function snt_morning_brief_compose( $data ) {
 	if ( $drift && ! empty( $drift['has_drift'] ) ) {
 		$sentences[] = sprintf( 'Configuration drift is present in %d setting%s since the acknowledged snapshot: %d changed, %d added, and %d removed.', $drift['count'], 1 === (int) $drift['count'] ? '' : 's', count( $drift['changed'] ), count( $drift['added'] ), count( $drift['removed'] ) );
 	}
-	// v13.90.0 — WATCHES THAT HAVE COME DUE, and NOTHING when none have.
-	//
-	// Every other section above speaks on every send, including to say
-	// "unavailable", because its subject always exists. A watch is different:
-	// one that is not due has nothing to report, and a daily line saying so
-	// would train the reader to skip the paragraph it sits in. Silence is the
-	// signal — see inc/watches.php.
-	$watches = is_array( $data['watches'] ?? null ) ? $data['watches'] : array();
-	foreach ( $watches as $w ) {
-		$sentences[] = sprintf(
-			/* translators: 1: watch label, 2: its note, 3: where to read it */
-			'Watch due — %1$s: %2$s. Read it with %3$s.',
-			(string) ( $w['label'] ?? $w['id'] ?? 'unnamed watch' ),
-			(string) ( $w['note'] ?? '' ),
-			(string) ( $w['read'] ?? '' )
-		);
-	}
-
-	return "Signal & Noise morning operations brief\n\n" . implode( ' ', $sentences ) . "\n";
+	return $sentences;
 }
 
+/**
+ * The plain-text part: the paragraph, then one block per watch that has come
+ * due, and NOTHING about watches when none have.
+ *
+ * Every section in the paragraph speaks on every send, including to say
+ * "unavailable", because its subject always exists. A watch is different:
+ * one that is not due has nothing to report, and a daily line saying so
+ * would train the reader to skip the paragraph it sits in. Silence is the
+ * signal (inc/watches.php). Sentences join through sn_mail_sentences(), so a
+ * part that already ends in a stop never gets a second one.
+ */
+function snt_morning_brief_compose( $data ) {
+	$watches = is_array( $data['watches'] ?? null ) ? $data['watches'] : array();
+	return "Signal & Noise morning operations brief\n\n" . sn_mail_sentences( snt_morning_brief_sentences( $data ) ) . "\n" . snt_morning_brief_watches_text( $watches );
+}
 function snt_morning_brief_subject( $data, $test = false ) {
 	$attention = (int) ( $data['health']['findings'] ?? 0 ) + (int) ( $data['cron']['orphans'] ?? 0 ) + (int) ( $data['cron']['failed'] ?? 0 ) + (int) ( $data['uptime']['attention'] ?? 0 ) + ( ! empty( $data['drift']['has_drift'] ) ? 1 : 0 ) + count( (array) ( $data['watches'] ?? array() ) );
 	$unknown = ! is_array( $data['health'] ?? null ) || ! is_array( $data['cron'] ?? null ) || ! is_array( $data['uptime'] ?? null ) || ! empty( $data['uptime']['error'] ) || ! is_array( $data['deploy'] ?? null );
@@ -216,7 +215,17 @@ function snt_morning_brief_send( $test = false ) {
 	$email = (string) get_option( 'admin_email' );
 	if ( '' === $email || ! is_email( $email ) ) { update_option( SNT_MORNING_BRIEF_LAST_ERROR, array( 'message' => 'admin_email missing or invalid', 'at' => time() ), false ); return false; }
 	$data = snt_morning_brief_collect();
-	$sent = (bool) wp_mail( $email, snt_morning_brief_subject( $data, $test ), snt_morning_brief_compose( $data ) );
+	// HTML body plus a plain-text alternative, both through core's wp_mail():
+	// it has no alt-body argument, so phpmailer_init sets AltBody for this one
+	// send and the finally block removes it before any other email goes out.
+	$text = snt_morning_brief_compose( $data );
+	$alt  = static function ( $mailer ) use ( $text ) { $mailer->AltBody = $text; };
+	add_action( 'phpmailer_init', $alt );
+	try {
+		$sent = (bool) wp_mail( $email, snt_morning_brief_subject( $data, $test ), snt_morning_brief_compose_html( $data ), array( 'Content-Type: text/html; charset=UTF-8' ) );
+	} finally {
+		remove_action( 'phpmailer_init', $alt );
+	}
 	update_option( $sent ? SNT_MORNING_BRIEF_LAST_SENT : SNT_MORNING_BRIEF_LAST_ERROR, $sent ? time() : array( 'message' => 'wp_mail returned false', 'at' => time() ), false );
 	if ( $sent ) { update_option( SNT_MORNING_BRIEF_LAST_ERROR, false, false ); }
 	return $sent;

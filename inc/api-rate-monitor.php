@@ -193,9 +193,9 @@ function snt_rate_limit_maybe_warn( $host, $snapshot ) {
 		"Remaining: %d / %d (%d%%)\n" .
 		"Window resets in: %s\n" .
 		"Triggered at: %s UTC\n\n" .
-		"This is the daily-throttled warning. You will not receive another email for this host for 24h, even if remaining drops further.\n\n" .
+		"This is the daily-throttled warning. You will not receive another email for this host for 24 hours, even if remaining drops further.\n\n" .
 		"Mitigation:\n" .
-		"  - GitHub: define SNT_GITHUB_TOKEN in wp-config.php to raise the 60/h unauthenticated limit to 5000/h.\n" .
+		"  - GitHub: define SNT_GITHUB_TOKEN in wp-config.php to raise the unauthenticated limit of 60 requests an hour to 5,000 an hour.\n" .
 		"  - Cloudflare: investigate which caller is spending the budget; the deploy widget's API limits section shows recent activity.\n",
 		$snapshot['label'],
 		$host,

@@ -280,7 +280,7 @@ $d1 = snt_security_digest_collect();
 ok( 1 === ( $d1['breach']['flagged'] ?? -1 ) && 3 === ( $d1['breach']['set_breached'] ?? -1 ) && true === ( $d1['breach']['unavailable_recent'] ?? false ), 'collect: breach carries flagged/checked/set counts and the recent flag' );
 $b1 = snt_security_digest_compose( $d1 );
 ok( false !== strpos( $b1, 'Breached-password check (ATTENTION)' ) && false !== strpos( $b1, 'Accounts flagged at login: 1 of 2 checked' ) && false !== strpos( $b1, 'refused at set-time: 3' ), 'compose: ATTENTION header + the three count lines' );
-ok( false !== strpos( $b1, 'Fail-closed rejections (API unreachable): 2 — RECENT: the API may be degrading' ) && false !== strpos( $b1, '  THE SUMMARY' ), 'compose: recent fail-closed is called out, and a non-good verdict prints its summary' );
+ok( false !== strpos( $b1, 'Fail-closed rejections (API unreachable): 2. RECENT: the API may be degrading' ) && false !== strpos( $b1, '  THE SUMMARY' ), 'compose: recent fail-closed is called out, and a non-good verdict prints its summary' );
 $GLOBALS['__hibp_health'] = array( 'status' => 'good', 'summary' => 'FINE', 'flagged' => 0, 'checked' => 2, 'unavailable_recent' => false );
 $b2 = snt_security_digest_compose( snt_security_digest_collect() );
 ok( false !== strpos( $b2, 'Breached-password check (ok)' ) && false === strpos( $b2, 'RECENT' ) && false === strpos( $b2, 'FINE' ), 'compose: good → ok header, no RECENT tag, no summary line' );
