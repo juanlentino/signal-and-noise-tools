@@ -86,7 +86,7 @@ function snt_analytics_rows_description() {
 		. 'pageview_visits counts visitor-DAYS that viewed: an estimate, not a session count. views are sample-corrected. '
 		. 'truncated: true means the limit cut rows, so sums over the rows are a floor. '
 		. 'Referrers are hostnames only, with (direct), (internal) and (unknown) as stored; anything that is not a clean hostname is (invalid). Paths are returned only when they are the site\'s own content; scanner probes and other requests are (unmatched). '
-		. 'A value seen by fewer than 3 visitor-days is folded into (withheld), its counts kept so totals hold; on a quiet site most path-by-day rows are withheld, a busy day answers. '
+		. 'Every value is named, however small: a page seen by one visitor-day is its own row (no privacy floor on the owner\'s reads; the public /stats page keeps one). '
 		. 'Nothing is subtracted for bot signals: human is the stored class, presumed human (not flagged); judge how much of it is automated with likely_automated on the analytics summary or the bot-signals reading. '
 		. 'Untruncated, the views of a path query sum to the analytics summary\'s views for the same range and class. Read-only.';
 }

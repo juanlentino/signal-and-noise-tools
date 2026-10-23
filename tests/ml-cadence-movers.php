@@ -6,7 +6,8 @@
  *
  * Pins: the top movers in order with their arithmetic (this week N vs usual
  * M, shortfall M minus N); "spread thin" when no single page dominates; the
- * SNT_METRICS_FLOOR fold into "(withheld)"; no explanation and no extra read
+ * SNT_MOVERS_FLOOR fold into "(withheld)" (its own constant since the owner's
+ * analytics reads dropped their floor on 2026-10-23); no explanation and no extra read
  * when the watch does not fire; the health note carries the arithmetic.
  *
  * Run: php tests/ml-cadence-movers.php
@@ -115,6 +116,7 @@ $note  = (string) ( $check['findings'][0]['note'] ?? '' );
 ok( false !== strpos( $note, '/a/ (this week 7 vs usual 77)' ) && false !== strpos( $note, 'Google (this week 5 vs usual 40)' ), 'the health note carries the arithmetic: ' . $note );
 
 echo "\nGroup: the floor folds small surfaces into (withheld)\n";
+ok( 3 === SNT_MOVERS_FLOOR, 'the movers noise floor stays at 3' );
 $json = json_encode( $vf['movers'] ?? array() );
 ok( isset( $vf['movers'] ) && false === strpos( (string) $json, 'tiny-one' ) && false === strpos( (string) $json, 'tiny-two' ) && false === strpos( (string) $json, 'tiny-referrer' ), 'a page or source under 3 usual visits is never named' );
 ok( array( 'items' => 2, 'current' => 0, 'usual' => 4, 'shortfall' => 4 ) === ( $paths['withheld'] ?? null ), 'the two tiny pages fold into one (withheld) bucket: 2 items, this week 0 vs usual 4' );

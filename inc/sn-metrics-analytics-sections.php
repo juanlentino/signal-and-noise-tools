@@ -8,11 +8,10 @@
  * the Analytics leaf agree. A failed read returns WP_Error, which sn-metrics'
  * dispatch turns into that one section's {error:"unavailable"}.
  *
- * The floor: a row under SNT_METRICS_FLOOR visits is folded into `withheld`
- * (rows, views, visits) instead of being listed, so a country or a source
- * with one or two visits cannot single anyone out, and rows plus withheld
- * still add up to the window's total. Series is site-wide per day and
- * top_content lists published pages, so neither is floored.
+ * No floor (owner, 2026-10-23): these are the owner's own reads, so every row
+ * is named however small. Privacy floors belong to the audience: the public
+ * /stats page keeps SN_PUBLIC_STATS_MIN_GROUP. `withheld` stays in each
+ * payload for contract stability, always zero, and `floor` is null.
  *
  * @package SignalNoiseTools
  * @since 20.4.0
@@ -21,9 +20,6 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
-/** Rows with fewer visits than this are withheld, never listed (owner, 2026-10-02). */
-const SNT_METRICS_FLOOR = 3;
 
 /** Widest read a section folds before it slices; the read functions cap here too. */
 const SNT_METRICS_WIDE = 500;
@@ -53,31 +49,23 @@ function snt_metrics_class( array $input ) {
 	return snt_analytics_resolve_class( $input['class'] ?? 'human' );
 }
 
+/** The `withheld` every owner payload keeps for contract stability: nothing is withheld. */
+const SNT_METRICS_NONE_WITHHELD = array( 'rows' => 0, 'views' => 0, 'visits' => 0 );
+
 /**
- * Fold rows under the floor into one withheld total, then rank and slice.
+ * Rank by views and slice. Every row is listed by name.
  *
  * @param array $rows  Rows carrying views and visits.
  * @param int   $limit Rows to list.
- * @return array{rows:array,withheld:array{rows:int,views:int,visits:int}}
+ * @return array
  */
-function snt_metrics_floor( array $rows, $limit ) {
-	$kept     = array();
-	$withheld = array( 'rows' => 0, 'views' => 0, 'visits' => 0 );
-	foreach ( $rows as $r ) {
-		if ( (int) $r['visits'] < SNT_METRICS_FLOOR ) {
-			$withheld['rows']++;
-			$withheld['views']  += (int) $r['views'];
-			$withheld['visits'] += (int) $r['visits'];
-			continue;
-		}
-		$kept[] = $r;
-	}
-	usort( $kept, static fn( $a, $b ) => (int) $b['views'] <=> (int) $a['views'] );
-	return array( 'rows' => array_slice( $kept, 0, max( 1, (int) $limit ) ), 'withheld' => $withheld );
+function snt_metrics_rank( array $rows, $limit ) {
+	usort( $rows, static fn( $a, $b ) => (int) $b['views'] <=> (int) $a['views'] );
+	return array_slice( $rows, 0, max( 1, (int) $limit ) );
 }
 
 /**
- * The envelope every floored section shares.
+ * The envelope every listing section shares.
  *
  * @param array      $win    snt_metrics_window().
  * @param string     $class  Traffic class reported.
@@ -89,8 +77,7 @@ function snt_metrics_floored_payload( array $win, $class, $rows, $limit ) {
 	if ( null === $rows ) {
 		return new WP_Error( 'snt_metrics_read', 'The analytics read failed.' );
 	}
-	$f = snt_metrics_floor( (array) $rows, $limit );
-	return $win + array( 'class' => $class, 'floor' => SNT_METRICS_FLOOR, 'rows' => $f['rows'], 'withheld' => $f['withheld'] );
+	return $win + array( 'class' => $class, 'floor' => null, 'rows' => snt_metrics_rank( (array) $rows, $limit ), 'withheld' => SNT_METRICS_NONE_WITHHELD );
 }
 
 /**
@@ -157,5 +144,5 @@ function snt_ability_get_analytics_journeys( $input ) {
 	if ( is_wp_error( $entry ) || is_wp_error( $exit ) ) {
 		return new WP_Error( 'snt_metrics_read', 'The journeys read failed.' );
 	}
-	return $win + array( 'class_applied' => 'human', 'note' => 'Entry and exit pages are recorded for human traffic only; class is not applied.', 'floor' => SNT_METRICS_FLOOR, 'entry' => array( 'rows' => $entry['rows'], 'withheld' => $entry['withheld'] ), 'exit' => array( 'rows' => $exit['rows'], 'withheld' => $exit['withheld'] ) );
+	return $win + array( 'class_applied' => 'human', 'note' => 'Entry and exit pages are recorded for human traffic only; class is not applied.', 'floor' => null, 'entry' => array( 'rows' => $entry['rows'], 'withheld' => $entry['withheld'] ), 'exit' => array( 'rows' => $exit['rows'], 'withheld' => $exit['withheld'] ) );
 }

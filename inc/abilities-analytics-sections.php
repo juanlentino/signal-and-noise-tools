@@ -39,7 +39,7 @@ add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
 	}
-	$floor = ' Rows under 3 visits are folded into withheld {rows, views, visits}, so rows plus withheld add up to the window.';
+	$floor = ' Every row is named however small (no floor; floor is null and withheld {rows, views, visits} is always zero, kept for contract stability).';
 	$table = array(
 		'signal-noise/get-analytics-sources'   => array( 'Get traffic sources', 'snt_ability_get_analytics_sources', 'Referrer sources folded to labels, each with its category (search, ai, social, direct, other), views and visits.' . $floor ),
 		'signal-noise/get-analytics-series'    => array( 'Get daily series', 'snt_ability_get_analytics_series', 'Site-wide views and visits per day over the window. Not floored: these are whole-site totals.' ),

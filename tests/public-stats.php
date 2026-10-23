@@ -312,6 +312,10 @@ ok( false === strpos( $h, 'Iceland' ) && false === strpos( $h, '>IS<' ), 'a coun
 ok( 2 === substr_count( $h, '>Other<' ), 'withheld rows fold into an Other line (one per list)' );
 $fold = sn_public_stats_fold( array( array( 'value' => 'a', 'views' => 2 ), array( 'value' => 'b', 'views' => 98 ) ), 'strval' );
 ok( array( 'b', 'Other' ) === array_column( $fold, 'label' ) && 2 === $fold[1]['share'], 'without visits the threshold falls back to views; Other keeps its share' );
+// 2026-10-23: the owner's reads dropped their floor; the public page keeps its own.
+ok( 3 === SN_PUBLIC_STATS_MIN_GROUP, 'the public floor stays at 3' );
+$one = sn_public_stats_fold( array( array( 'value' => 'a', 'views' => 50, 'visits' => 1 ), array( 'value' => 'b', 'views' => 98, 'visits' => 40 ) ), 'strval' );
+ok( array( 'b', 'Other' ) === array_column( $one, 'label' ), 'a 1-visit group folds into Other however many views it has' );
 ok( false !== strpos( $h, '>United States<' ) || false !== strpos( $h, '>US<' ), 'a country renders by name (or its code without intl)' );
 ok( false !== strpos( $h, 'Sources and countries with fewer than 3 visits are grouped as Other.' ), 'the page says so' );
 ok( false !== strpos( $h, '>&lt;1%<' ), 'a folded group whose share rounds to zero reads <1%, never 0%' );
