@@ -23,7 +23,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SNT_AROWS_DIMENSIONS = array( 'path', 'referrer', 'country', 'device', 'day' );
 const SNT_AROWS_SORTS      = array( 'views', 'visits', 'time' );
-const SNT_AROWS_FLOOR      = 3;  // A row seen by fewer visitor-days is withheld (the local analytics-query floor).
 const SNT_AROWS_SENTINELS  = array( '(direct)', '(internal)', '(unknown)' ); // written by the analytics worker, not by visitors.
 
 /**
@@ -125,9 +124,8 @@ function snt_arows_clean( $dim, $value, array $real ) {
  * Stored rows into the answer. PURE. Each input row carries the dimension
  * values by name plus views, visits, pageview_visits, time_sum, time_events,
  * scroll_events (the engagement sums null where not stored). Rows are cleaned,
- * merged after cleaning, floored (a non-day value seen by fewer than three
- * visitor-days joins "(withheld)", its counts kept so the totals hold), sorted
- * and cut to the limit.
+ * merged after cleaning, sorted and cut to the limit. No floor (owner,
+ * 2026-10-23): a value seen once is named; the public /stats page keeps its own.
  *
  * @param array<int,array<string,mixed>> $rows  Stored rows.
  * @param array                          $q     From snt_arows_validate().
@@ -152,21 +150,6 @@ function snt_arows_shape( array $rows, array $q, array $real ) {
 		}
 		$keyed[ $id ] = $m;
 	}
-	$other = array_values( array_diff( $q['dims'], array( 'day' ) ) )[0] ?? null;
-	$out   = array();
-	foreach ( $keyed as $m ) {
-		if ( $other && ! in_array( $m['keys'][ $other ], array( '(unmatched)', '(invalid)' ), true ) && $m['visits'] < SNT_AROWS_FLOOR ) {
-			$m['keys'][ $other ] = '(withheld)';
-			$id                  = implode( "\n", $m['keys'] );
-			$w                   = $out[ $id ] ?? array( 'keys' => $m['keys'], 'views' => 0, 'visits' => 0, 'pv' => null, 'ts' => null, 'te' => null, 'se' => null );
-			$w['views']         += $m['views'];
-			$w['visits']        += $m['visits'];
-			$out[ $id ]          = $w; // engagement is not carried into the withheld row: it would describe the hidden pages.
-			continue;
-		}
-		$id         = implode( "\n", $m['keys'] );
-		$out[ $id ] = $m;
-	}
 	$rows = array_map( static function ( $m ) {
 		$v = (int) $m['views'];
 		return $m['keys'] + array(
@@ -175,7 +158,7 @@ function snt_arows_shape( array $rows, array $q, array $real ) {
 			'time_avg_per_view'   => null !== $m['ts'] && null !== $m['te'] && $v > 0 ? round( $m['ts'] / $v, 1 ) : null,
 			'scroll_avg_per_view' => null !== $m['se'] && $v > 0 ? round( 25 * $m['se'] / $v, 1 ) : null,
 		);
-	}, array_values( $out ) );
+	}, array_values( $keyed ) );
 	$by = array( 'views' => 'views', 'visits' => 'pageview_visits', 'time' => 'time_avg_per_view' )[ $q['sort'] ];
 	usort( $rows, static fn( $a, $b ) => ( (float) ( $b[ $by ] ?? 0 ) <=> (float) ( $a[ $by ] ?? 0 ) ) ?: strcmp( implode( "\n", array_intersect_key( $a, array_flip( $q['dims'] ) ) ), implode( "\n", array_intersect_key( $b, array_flip( $q['dims'] ) ) ) ) );
 	$n = count( $rows );

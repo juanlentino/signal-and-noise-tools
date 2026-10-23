@@ -3,9 +3,9 @@
  * Signal & Noise Tools: analytics_query, the executor.
  *
  * Validates (inc/sn-metrics-analytics-vocab.php), reads one base dimension per
- * day (inc/sn-metrics-analytics-fetch.php), then groups, filters, floors,
- * compares and orders in PHP. Rows under the floor fold into `withheld`
- * whenever a dimension other than day is grouped. compare:previous reads the
+ * day (inc/sn-metrics-analytics-fetch.php), then groups, filters,
+ * compares and orders in PHP. Every row is named (no floor since 2026-10-23;
+ * `withheld` stays, always zero). compare:previous reads the
  * adjacent window of the same length (sn_analytics_prior_window) and adds
  * previous values, deltas and each row's share of the window's views.
  *
@@ -92,14 +92,7 @@ function snt_ability_analytics_query( $input ) {
 	if ( null === $cur ) {
 		return new WP_Error( 'snt_metrics_read', 'The analytics read failed.' );
 	}
-	$total    = array_sum( array_column( $cur, 'views' ) );
-	$floored  = array( 'day' ) !== $spec['dims'];
-	$withheld = array( 'rows' => 0, 'views' => 0, 'visits' => 0 );
-	if ( $floored ) {
-		$f        = snt_metrics_floor( array_values( $cur ), SNT_MQ_MAX_ROWS );
-		$withheld = $f['withheld'];
-		$cur      = array_filter( $cur, static fn( $g ) => $g['visits'] >= SNT_METRICS_FLOOR );
-	}
+	$total = array_sum( array_column( $cur, 'views' ) );
 	$prior = null;
 	$prev  = array();
 	if ( 'previous' === $spec['compare'] && 'all' !== $win['range'] ) {
@@ -132,9 +125,9 @@ function snt_ability_analytics_query( $input ) {
 		'dimensions' => $spec['dims'],
 		'metrics'    => $spec['metrics'],
 		'compare'    => null === $prior ? ( 'previous' === $spec['compare'] ? array( 'reason' => 'range all has no previous window' ) : null ) : $prior,
-		'floor'      => $floored ? SNT_METRICS_FLOOR : null,
+		'floor'      => null,
 		'rows'       => array_slice( $rows, 0, $spec['limit'] ),
 		'rows_total' => count( $rows ),
-		'withheld'   => $withheld,
+		'withheld'   => SNT_METRICS_NONE_WITHHELD,
 	);
 }

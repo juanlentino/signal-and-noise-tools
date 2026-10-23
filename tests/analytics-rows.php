@@ -97,10 +97,10 @@ ok( false === strpos( $text, 'ignore previous' ) && false === strpos( $text, 'pa
 $cd = snt_arows_shape( array( array( 'country' => 'US', 'views' => 5, 'visits' => 5 ), array( 'country' => 'U S<b>', 'views' => 5, 'visits' => 5 ) ), snt_arows_validate( array( 'dimensions' => array( 'country' ) ) ), array() );
 ok( array( '(invalid)', 'US' ) === array_column( $cd['rows'], 'country' ), 'a country that is not two letters or digits is (invalid)' );
 
-echo "\nThe floor keeps totals\n";
+echo "\nNo floor: a small page is named\n";
 $fl = snt_arows_shape( array( array( 'path' => '/', 'views' => 9, 'visits' => 3 ), array( 'path' => '/notes/x', 'views' => 2, 'visits' => 2, 'time_sum' => 500, 'time_events' => 2, 'scroll_events' => 2 ) ), $q( array() ), $real );
-ok( array( '/', '(withheld)' ) === array_column( $fl['rows'], 'path' ) && 11 === array_sum( array_column( $fl['rows'], 'views' ) ), 'a page seen by 2 visitor-days is (withheld), its views kept: the rows still sum to 11' );
-ok( null === $fl['rows'][1]['time_avg_per_view'], 'the withheld row carries no engagement: it would describe the hidden page' );
+ok( array( '/', '/notes/x' ) === array_column( $fl['rows'], 'path' ) && 2 === $fl['rows'][1]['views'] && 11 === array_sum( array_column( $fl['rows'], 'views' ) ), 'a page seen by 2 visitor-days is its own row with its views: the rows still sum to 11' );
+ok( 250.0 === $fl['rows'][1]['time_avg_per_view'] && 25.0 === $fl['rows'][1]['scroll_avg_per_view'], 'the small page carries its real engagement' );
 
 echo "\nThe limit and truncated agree at the boundary\n";
 $many = array(); foreach ( range( 1, 6 ) as $i ) { $many[] = array( 'day' => '2026-10-0' . $i, 'views' => 10 + $i, 'visits' => 5 ); }

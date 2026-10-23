@@ -10,8 +10,9 @@
  * arrives carrying its own arithmetic. Deterministic: no model, no new
  * collection, and nothing is read until the flag fires.
  *
- * The floor: a surface whose usual weekly visits sit under SNT_METRICS_FLOOR
- * (3, the sn-metrics floor) is never named. It folds into one "(withheld)"
+ * The floor: a surface whose usual weekly visits sit under SNT_MOVERS_FLOOR
+ * is never named: a noise threshold, not privacy (the owner's analytics
+ * reads stopped flooring on 2026-10-23; movers kept the 3). It folds into one "(withheld)"
  * bucket with summed figures. The gate is the USUAL visits, not this week's,
  * because a surface that collapsed to zero is exactly the one that explains a
  * quiet week, and a this-week gate would withhold every one of them.
@@ -24,6 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SNT_ML_RHYTHM_MOVERS_TOP = 3; // Movers named per dimension.
+const SNT_MOVERS_FLOOR = 3;          // Usual weekly visits under this are noise, folded into (withheld).
 
 // ponytail: one fixed share. Under a quarter of the site's shortfall, the top
 // page is one of many rather than the cause; tune here if it reads wrong.
@@ -39,7 +41,7 @@ const SNT_ML_RHYTHM_DOMINANT_SHARE = 0.25;
  * @return array{top:array,withheld:array{items:int,current:int,usual:int,shortfall:int},falling:int,spread:bool}
  */
 function snt_ml_views_movers_rank( array $weekly, array $history_starts, $current_start, $site_shortfall ) {
-	$floor    = defined( 'SNT_METRICS_FLOOR' ) ? (int) SNT_METRICS_FLOOR : 3;
+	$floor    = SNT_MOVERS_FLOOR;
 	$named    = array();
 	$withheld = array( 'items' => 0, 'current' => 0, 'usual' => 0, 'shortfall' => 0 );
 	foreach ( $weekly as $key => $weeks ) {
