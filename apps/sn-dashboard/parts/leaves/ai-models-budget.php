@@ -81,7 +81,7 @@ function models_budget_spend_html( array $d ) {
 		$pct_width = max( 0, min( 100, $pct_true ) );
 		// 17.4.1: a problem is a notice on top of its box.
 		if ( $spent >= $budget ) {
-			$out .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The cap is reached. Copilot and agents run outside the cap; every other AI feature is paused until the next calendar month, or until you raise this number.', 'signal-and-noise-tools' ) ) . '</b>' );
+			$out .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The cap is reached. The AI features of this plugin pause until the next calendar month, or until you raise this number. Copilot, Agents and the AI plugin keep running; their spend is listed separately and not counted against the cap.', 'signal-and-noise-tools' ) ) . '</b>' );
 		}
 		$out .= '<p class="snt-prose">' . sprintf(
 			esc_html__( 'Spent this month: $%1$s of $%2$s (%3$s%%).', 'signal-and-noise-tools' ),

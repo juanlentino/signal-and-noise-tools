@@ -147,8 +147,13 @@ $GLOBALS['__spend'] = 50.0;
 $kit = snt_leaf_paint( 'ai', 'models-budget' );
 ok( false !== strpos( $kit, 'The cap is reached' ) && false !== strpos( $kit, 'tone="warning"' ), 'cap reached: the pause notice paints as a warning' );
 ok( strpos( $kit, 'The cap is reached' ) < strpos( $kit, 'Spent this month: $50.00' ) && strpos( $kit, 'The cap is reached' ) > strpos( $kit, 'heading="This month, by feature"' ), '17.4.1: the cap notice sits on top of its box, above the spend line' );
-ok( false !== strpos( $kit, 'The cap is reached. Copilot and agents run outside the cap; every other AI feature is paused' ), 'cap reached: the notice says Copilot and agents keep running' );
-ok( false !== strpos( snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' ), 'The cap is reached. Copilot and agents run outside the cap; every other AI feature is paused' ), 'classic, cap reached: the same notice' );
+// Owner call A (2026-10-24): the cap is plugin-only. It pauses the plugin's own
+// features; Copilot, Agents and the AI plugin keep running, listed separately.
+$cap_notice = 'The cap is reached. The AI features of this plugin pause until the next calendar month, or until you raise this number. Copilot, Agents and the AI plugin keep running; their spend is listed separately and not counted against the cap.';
+$__classic  = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
+ok( false !== strpos( $kit, $cap_notice ), 'cap reached: the notice says only the plugin pauses; Copilot, Agents and the AI plugin keep running, listed separately' );
+ok( false !== strpos( $__classic, $cap_notice ), 'classic, cap reached: the same notice' );
+ok( false === strpos( $kit . $__classic, 'every other AI feature is paused' ), 'cap reached: neither twin claims every other AI feature pauses (the AI plugin never did)' );
 ok( false !== strpos( $kit, '<os-progress-bar value="100" max="100" tone="danger"' ), 'the meter clamps at 100 and turns danger, as the classic clamped its width' );
 ok( false !== strpos( $kit, '<os-badge tone="danger">Cap reached: $50.00 of $50.00</os-badge>' ), 'anatomy, cap reached: the status chip says so in the danger tone (the notice stays open on the spend box)' );
 $GLOBALS['__spend']         = 0.0;
