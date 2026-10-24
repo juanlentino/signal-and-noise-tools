@@ -65,12 +65,13 @@ function sn_csp_hash_fetch( $url ) {
  *
  * @param callable|null $fetch Fetcher (tests); defaults to sn_csp_hash_fetch.
  * @param int|null      $now   Unix time.
- * @return array{at:int,checked:int,errors:int,csp_seen:bool,mode:string,sources:string[],seen:array,missing:string[],lax:string[]}
+ * @return array{at:int,checked:int,errors:int,covered:int,csp_seen:bool,mode:string,sources:string[],seen:array,missing:string[],lax:string[]}
  */
 function sn_csp_hash_run( $fetch = null, $now = null ) {
 	$fetch = is_callable( $fetch ) ? $fetch : 'sn_csp_hash_fetch';
 	$heads = array();
-	$out   = array( 'at' => null === $now ? time() : (int) $now, 'checked' => 0, 'errors' => 0, 'csp_seen' => false, 'mode' => 'none', 'sources' => array(), 'seen' => array(), 'missing' => array(), 'lax' => array() );
+	$read  = array();
+	$out   = array( 'at' => null === $now ? time() : (int) $now, 'checked' => 0, 'errors' => 0, 'covered' => 0, 'csp_seen' => false, 'mode' => 'none', 'sources' => array(), 'seen' => array(), 'missing' => array(), 'lax' => array() );
 	$rank  = array( 'none' => 0, 'report-only' => 1, 'enforced' => 2 );
 	foreach ( sn_csp_hash_pages() as $url ) {
 		$r = call_user_func( $fetch, $url );
@@ -93,12 +94,19 @@ function sn_csp_hash_run( $fetch = null, $now = null ) {
 			$out['mode']    = $strict['mode'];
 			$out['sources'] = $strict['sources'];
 		}
-		// A page Cloudflare keeps on a loose policy (an exempt path) blocks
-		// nothing, so its scripts are not the strict policy's to pin.
-		if ( 'none' === $strict['mode'] ) {
+		$read[] = array( $path, $strict['mode'], sn_csp_inline_scripts( (string) $r['body'] ) );
+	}
+	// 2026-10-24: a page counts only under the run's own mode. An exempt path
+	// (/contact/, /provhub at Cloudflare) enforces the loose policy and may
+	// still carry the strict Report-Only copy; once any page enforces, that
+	// page blocks nothing, so its scripts are not the strict policy's to pin.
+	// Decided after the loop: the run's mode depends on every page.
+	foreach ( $read as list( $path, $mode, $scripts ) ) {
+		if ( 'none' === $mode || $mode !== $out['mode'] ) {
 			continue;
 		}
-		foreach ( sn_csp_inline_scripts( (string) $r['body'] ) as $s ) {
+		++$out['covered'];
+		foreach ( $scripts as $s ) {
 			$out['seen'][ $s['hash'] ]['label']   = $s['label'];
 			$out['seen'][ $s['hash'] ]['pages'][] = $path;
 			$heads[ $s['hash'] ]                  = $s['head'];

@@ -13,7 +13,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Fixed
-- **The daily CSP check reads /provhub.** The /provhub family (/provhub/, /present/, /verify/, /resources/) are standalone HTML files on the server, not WordPress pages, and the check's page list never read them, so when the strict policy was enforced it blocked every inline script there without a word: the public verifier sat on "Fetching sample files", the QR overlay and copy button were dead, and the beacon never loaded. The check now reads those four, and it no longer counts the inline scripts of a page that carries no strict policy (an exempt path such as /contact/ or, once excluded at Cloudflare, /provhub), so an exemption does not raise a false alarm.
+- **The daily CSP check reads /provhub.** The /provhub family (/provhub/, /present/, /verify/, /resources/) are standalone HTML files on the server, not WordPress pages, and the check's page list never read them, so when the strict policy was enforced it blocked every inline script there without a word: the public verifier sat on "Fetching sample files", the QR overlay and copy button were dead, and the beacon never loaded. The check now reads those four, and a page counts only under the run's own mode: once any page enforces the strict policy, a page that enforces the loose one (an exempt path such as /contact/ or, once excluded at Cloudflare, /provhub) is not pinned even while it still carries the strict Report-Only copy, so an exemption does not raise a false alarm. Site Health's "pins every inline script on N pages" counts only those pages.
 
 ## [2026.10.61] - 2026-10-23 — the owner's analytics name every row
 

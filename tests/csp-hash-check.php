@@ -165,9 +165,21 @@ if ( '' !== $api ) {
 	$r = sn_csp_hash_run( $fetch4, 1000 );
 	$h = $r['missing'][0] ?? '';
 	ok( 1 === count( $r['missing'] ) && in_array( '/provhub/verify/', $r['seen'][ $h ]['pages'] ?? array(), true ), 'an inline script on the strict /provhub pages is missing' );
-	$GLOBALS['__hub_policy'] = "script-src 'self' 'unsafe-inline'";
-	$r = sn_csp_hash_run( $fetch4, 1000 );
-	ok( 'enforced' === $r['mode'] && array() === $r['missing'], 'once /provhub is exempt (a loose policy), its scripts are not the strict policy\'s to pin' );
+	// Cloudflare's real shape for an exempt page: the loose policy enforced
+	// AND the strict copy still sent as Report-Only.
+	$fetch5 = static function ( $url ) use ( $body, $hub, $pinned ) {
+		$is_hub = false !== strpos( $url, '/provhub/' );
+		$h      = $is_hub ? array( 'Content-Security-Policy' => "script-src 'self' 'unsafe-inline'", 'Content-Security-Policy-Report-Only' => $pinned ) : array( 'Content-Security-Policy' => $pinned, 'Content-Security-Policy-Report-Only' => $pinned );
+		return array( 'ok' => true, 'code' => 200, 'body' => $body . ( $is_hub ? $hub : '' ), 'headers' => $h );
+	};
+	$r = sn_csp_hash_run( $fetch5, 1000 );
+	ok( 'enforced' === $r['mode'] && array() === $r['missing'] && 8 === $r['covered'], 'once /provhub is exempt (loose enforced, strict Report-Only kept), its scripts are not pinned and it is not counted as covered' );
+	$fetch6 = static function ( $url ) use ( $body, $hub, $pinned ) {
+		$is_hub = false !== strpos( $url, '/provhub/' );
+		return array( 'ok' => true, 'code' => 200, 'body' => $body . ( $is_hub ? $hub : '' ), 'headers' => array( 'Content-Security-Policy' => "script-src 'self' 'unsafe-inline'", 'Content-Security-Policy-Report-Only' => $pinned ) );
+	};
+	$r = sn_csp_hash_run( $fetch6, 1000 );
+	ok( 'report-only' === $r['mode'] && 1 === count( $r['missing'] ), 'a Report-Only rollout (nothing enforced yet) still reads every page' );
 }
 $GLOBALS['__fetch_headers'] = null;
 sn_csp_hash_fetch( 'https://site.test/' );
