@@ -50,7 +50,7 @@ function snt_csp_hash_verdict( $last, $now ) {
 	$header  = 'enforced' === $last['mode'] ? 'Content-Security-Policy' : 'Content-Security-Policy-Report-Only';
 	$missing = (array) $last['missing'];
 	if ( ! $missing ) {
-		return array( 'ripe' => false, 'note' => sprintf( 'the strict %s pins every inline script on %d pages; checked %s', $header, (int) $last['checked'] - (int) $last['errors'], $at ), 'status' => 'good' );
+		return array( 'ripe' => false, 'note' => sprintf( 'the strict %s pins every inline script on %d pages; checked %s', $header, (int) ( $last['covered'] ?? (int) $last['checked'] - (int) $last['errors'] ), $at ), 'status' => 'good' );
 	}
 	$seen  = (array) $last['seen'];
 	$named = array();

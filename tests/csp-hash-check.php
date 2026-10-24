@@ -107,7 +107,7 @@ ok( "script-src 'self' 'sha256-MOD=' https://x.test" === sn_csp_replacement_line
 echo "\nGroup 5: the run and the watch\n";
 $GLOBALS['__opt'] = array();
 $pages = sn_csp_hash_pages();
-foreach ( array( '/', '/notes/', '/notes/latest/', '/provenance/', '/index/', '/resume/', '/verify/', '/stats/' ) as $p ) {
+foreach ( array( '/', '/notes/', '/notes/latest/', '/provenance/', '/index/', '/resume/', '/verify/', '/stats/', '/provhub/', '/provhub/present/', '/provhub/verify/', '/provhub/resources/' ) as $p ) {
 	ok( in_array( 'https://site.test' . $p, $pages, true ), "it reads $p" );
 }
 ok( ! in_array( 'https://site.test/contact/', $pages, true ), '/contact/ is skipped (exempt by design)' );
@@ -121,7 +121,7 @@ $fetch  = static function ( $url ) use ( $body, $pinned ) {
 };
 if ( '' !== $api ) {
 	$r = sn_csp_hash_run( $fetch, 1000 );
-	ok( 1 === $r['errors'] && 8 === $r['checked'], 'a non-200 answer is unreadable, not read' );
+	ok( 1 === $r['errors'] && 12 === $r['checked'], 'a non-200 answer is unreadable, not read' );
 	ok( 'report-only' === $r['mode'] && array() === $r['missing'], 'the run records the strict header and nothing missing' );
 	ok( false === strpos( (string) json_encode( get_option( SN_CSP_HASH_OPT ) ), 'console.log' ), 'the stored result holds no text of a pinned script' );
 	// 2026-10-20: /stats/ printed wp_localize_script's config as an executing
@@ -144,7 +144,7 @@ if ( '' !== $api ) {
 	// carries X-SN-CSP: lax. A stranger's page in the set never should.
 	$fetch3 = static function ( $url ) use ( $body ) {
 		$h = array( 'Content-Security-Policy' => "script-src 'self' 'unsafe-inline'" );
-		if ( false !== strpos( $url, '/verify/' ) ) {
+		if ( 'https://site.test/verify/' === $url ) {
 			$h['X-Sn-Csp'] = array( ' LAX ' );
 		}
 		return array( 'ok' => true, 'code' => 200, 'body' => $body, 'headers' => $h );
@@ -155,6 +155,31 @@ if ( '' !== $api ) {
 	ok( $v['ripe'] && false !== strpos( $v['note'], '/verify/' ) && false !== strpos( $v['note'], 'X-SN-CSP: lax' ), 'it ripens the watch even though the policy then reads as not deployed: ' . substr( $v['note'], 0, 140 ) );
 	$r = sn_csp_hash_run( $fetch, 1000 );
 	ok( array() === $r['lax'], 'no marker, nothing recorded' );
+	// 2026-10-24: the /provhub verifier's inline script, blocked while enforced.
+	$hub    = '<script>"use strict"; const ALG = {};</script>';
+	$fetch4 = static function ( $url ) use ( $body, $hub, $pinned ) {
+		$is_hub = false !== strpos( $url, '/provhub/' );
+		return array( 'ok' => true, 'code' => 200, 'body' => $body . ( $is_hub ? $hub : '' ), 'headers' => array( 'Content-Security-Policy' => $GLOBALS['__hub_policy'] && $is_hub ? $GLOBALS['__hub_policy'] : $pinned ) );
+	};
+	$GLOBALS['__hub_policy'] = null;
+	$r = sn_csp_hash_run( $fetch4, 1000 );
+	$h = $r['missing'][0] ?? '';
+	ok( 1 === count( $r['missing'] ) && in_array( '/provhub/verify/', $r['seen'][ $h ]['pages'] ?? array(), true ), 'an inline script on the strict /provhub pages is missing' );
+	// Cloudflare's real shape for an exempt page: the loose policy enforced
+	// AND the strict copy still sent as Report-Only.
+	$fetch5 = static function ( $url ) use ( $body, $hub, $pinned ) {
+		$is_hub = false !== strpos( $url, '/provhub/' );
+		$h      = $is_hub ? array( 'Content-Security-Policy' => "script-src 'self' 'unsafe-inline'", 'Content-Security-Policy-Report-Only' => $pinned ) : array( 'Content-Security-Policy' => $pinned, 'Content-Security-Policy-Report-Only' => $pinned );
+		return array( 'ok' => true, 'code' => 200, 'body' => $body . ( $is_hub ? $hub : '' ), 'headers' => $h );
+	};
+	$r = sn_csp_hash_run( $fetch5, 1000 );
+	ok( 'enforced' === $r['mode'] && array() === $r['missing'] && 8 === $r['covered'], 'once /provhub is exempt (loose enforced, strict Report-Only kept), its scripts are not pinned and it is not counted as covered' );
+	$fetch6 = static function ( $url ) use ( $body, $hub, $pinned ) {
+		$is_hub = false !== strpos( $url, '/provhub/' );
+		return array( 'ok' => true, 'code' => 200, 'body' => $body . ( $is_hub ? $hub : '' ), 'headers' => array( 'Content-Security-Policy' => "script-src 'self' 'unsafe-inline'", 'Content-Security-Policy-Report-Only' => $pinned ) );
+	};
+	$r = sn_csp_hash_run( $fetch6, 1000 );
+	ok( 'report-only' === $r['mode'] && 1 === count( $r['missing'] ), 'a Report-Only rollout (nothing enforced yet) still reads every page' );
 }
 $GLOBALS['__fetch_headers'] = null;
 sn_csp_hash_fetch( 'https://site.test/' );
