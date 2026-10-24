@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/template-override-scope.php';
+
 /**
  * Execute callback for signal-noise/get-deploy-status.
  */
@@ -172,15 +174,12 @@ function snt_ability_clear_template_overrides() {
 
 /**
  * Ability execute callback: signal-noise/list-template-overrides.
- * Read-only inspection of wp_template / wp_template_part / wp_navigation rows.
+ * Read-only inspection of this theme's wp_template / wp_template_part rows:
+ * the set clear-template-overrides removes (2026-10-24).
  * @since 3.7.5
  */
 function snt_ability_list_template_overrides() {
-	$rows = get_posts( array(
-		'post_type'      => array( 'wp_template', 'wp_template_part', 'wp_navigation' ),
-		'posts_per_page' => -1,
-		'post_status'    => 'any',
-	) );
+	$rows = get_posts( snt_template_override_query_args() );
 	$items = array();
 	foreach ( $rows as $row ) {
 		$items[] = array(

@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The attention items, in reading order.
  *
  * @param array $runs           Merged deploy runs, newest first.
- * @param int   $override_count DB template/navigation override count.
+ * @param int   $override_count DB template override count (this theme's templates and parts).
  * @return array<int,array{label:string,text:string,href:string,severity?:string}>
  */
 function snt_dashboard_attention_items( $runs, $override_count ) {
@@ -122,13 +122,7 @@ function snt_dashboard_render_attention_strip( $runs, $override_count ) {
  */
 function snt_dashboard_render_diagnostics() {
 	$names = snt_dashboard_override_names(
-		get_posts(
-			array(
-				'post_type'      => snt_dashboard_override_post_types(),
-				'posts_per_page' => -1,
-				'post_status'    => 'any',
-			)
-		)
+		get_posts( snt_template_override_query_args() )
 	);
 	$n = count( $names );
 	if ( 0 === $n ) {

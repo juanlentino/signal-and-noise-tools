@@ -34,7 +34,7 @@ add_action( 'wp_abilities_api_init', function() {
 			'properties'           => array(
 				'include_template_overrides' => array(
 					'type'        => 'boolean',
-					'description' => 'Also clear wp_template/wp_template_part/wp_navigation DB rows. Default false — overrides are typically intentional Site Editor changes.',
+					'description' => 'Also clear this theme\'s wp_template/wp_template_part DB rows (menus are kept). Default false — overrides are typically intentional Site Editor changes.',
 					'default'     => false,
 				),
 				'flush_object_cache' => array(
@@ -186,7 +186,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/clear-template-overrides', array(
 		'label'               => 'Clear database template overrides',
-		'description'         => 'Removes any wp_template, wp_template_part, or wp_navigation rows the Site Editor has saved that override the theme files. Returns the count cleared. Use this if Site Editor edits have introduced regressions.',
+		'description'         => 'Removes the active theme\'s wp_template and wp_template_part rows the Site Editor has saved that override the theme files (navigation menus and other themes\' rows are kept). Returns the count cleared. Use this if Site Editor edits have introduced regressions.',
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_clear_template_overrides',
@@ -219,7 +219,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/list-template-overrides', array(
 		'label'               => 'List database template overrides',
-		'description'         => 'Returns the slugs and post types of any wp_template / wp_template_part / wp_navigation rows currently overriding theme files. Read-only inspection before the destructive clear-template-overrides.',
+		'description'         => 'Returns the slugs and post types of the active theme\'s wp_template / wp_template_part rows currently overriding theme files (the set clear-template-overrides removes). Read-only inspection before the destructive clear-template-overrides.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_list_template_overrides',

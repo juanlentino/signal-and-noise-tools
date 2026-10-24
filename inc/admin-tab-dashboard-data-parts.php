@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/template-override-scope.php';
+
 /**
  * Normalized status struct for one package.
  *
@@ -65,19 +67,7 @@ function snt_deploy_status_for( $package ) {
 }
 
 /**
- * Post types treated as DB overrides on the Dashboard. Single source of
- * truth so the override-count helper + the diagnostics list query stay in
- * sync.
- *
- * @since 4.9.0
- * @return array<string>
- */
-function snt_dashboard_override_post_types() {
-	return array( 'wp_template', 'wp_template_part', 'wp_navigation' );
-}
-
-/**
- * Count of DB template/navigation overrides. Delegates to the same
+ * Count of DB template overrides (this theme's templates and parts). Delegates to the same
  * post-type set the Dashboard's diagnostics list queries. Used by both the
  * Site Health Info panel (Task 3) and exposable elsewhere.
  *
@@ -85,12 +75,7 @@ function snt_dashboard_override_post_types() {
  * @return int
  */
 function snt_dashboard_override_count() {
-	$ids = get_posts( array(
-		'post_type'      => snt_dashboard_override_post_types(),
-		'posts_per_page' => -1,
-		'post_status'    => 'any',
-		'fields'         => 'ids',
-	) );
+	$ids = get_posts( snt_template_override_query_args( array( 'fields' => 'ids' ) ) );
 	return is_array( $ids ) ? count( $ids ) : 0;
 }
 
@@ -125,11 +110,7 @@ function snt_dashboard_tab_data() {
 	$runs      = function_exists( 'snt_deploy_history_merged' )
 		? snt_deploy_history_merged( array_values( SNT_DEPLOY_REPOS ), 6 )
 		: array();
-	$overrides = get_posts( array(
-		'post_type'      => snt_dashboard_override_post_types(),
-		'posts_per_page' => -1,
-		'post_status'    => 'any',
-	) );
+	$overrides = get_posts( snt_template_override_query_args() );
 	$last_deploy_ago = snt_dashboard_last_deploy_label( $runs );
 
 	// ── 1. FIRST-GLANCE GRID ── full-width hero (versions, deploys, health,

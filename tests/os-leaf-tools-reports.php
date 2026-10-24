@@ -418,7 +418,7 @@ $kit = reports_paint();
 $box = reports_leaf_facts_box( $kit );
 ok( '' !== $box && strrpos( $kit, 'class="snt-cols"' ) < strpos( $kit, 'heading="Plugin environment"' ), 'the environment box paints under the last report row' );
 ok( false !== strpos( $box, '<os-fact label="WordPress JS packages served by"><span class="snt-kv__v">plugin:gutenberg' ) && false !== strpos( $box, 'plugin:gutenberg, 1 handle (wp-components)' ), 'the JS-package row names the plugin that serves the wp-* handles, as the Info panel does' );
-ok( false !== strpos( $box, '<os-fact label="Database template/navigation overrides"><span class="snt-kv__v">3</span></os-fact>' ), 'the override-count row carries the count' );
+ok( false !== strpos( $box, '<os-fact label="Database template overrides"><span class="snt-kv__v">3</span></os-fact>' ), 'the override-count row carries the count' );
 ok( (bool) preg_match( '#<os-fact label="Total plugin-directory size"><span class="snt-kv__v">[0-9.,]+ (B|KB|MB|GB)#', $box ), 'the footprint total is a formatted size' );
 ok( false !== strpos( $box, '<os-fact label="Last janitor sweep"><span class="snt-kv__v">freed 121 KB on v9.9.9</span></os-fact>' ), 'the sweep row is the Info panel\'s sentence from the same option' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup with the box painted' );

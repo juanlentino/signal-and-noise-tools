@@ -183,7 +183,7 @@ function sn_admin_mcp_withheld_slug_data() {
 		),
 		'signal-noise/clear-template-overrides' => array(
 			'badge'  => __( 'held', 'signal-and-noise-tools' ),
-			'reason' => __( 'deletes Site Editor template, part, and nav overrides: can regress the whole site design', 'signal-and-noise-tools' ),
+			'reason' => __( 'deletes the active theme Site Editor template and part overrides: can regress the whole site design', 'signal-and-noise-tools' ),
 		),
 	);
 }

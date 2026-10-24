@@ -618,7 +618,7 @@
 		wrap.appendChild( detail );
 
 		// Moved from SN Quick Actions: the same ability call, now behind a confirm
-		// (it deletes wp_template / wp_template_part / wp_navigation rows).
+		// (it deletes this theme's wp_template / wp_template_part rows; menus are kept).
 		var btn = el( 'button', {
 			text:  'Clear DB overrides',
 			// The cards' one button style (SN Provenance's Sweep now), on the link's line.
@@ -631,7 +631,7 @@
 			if ( typeof window.sntAbilityRun !== 'function' ) { toast( 'Could not clear: ' + NO_RUNNER + '.', false ); return; }
 			// Busy before the dialog: a second click while it is open must not open another.
 			btn.setAttribute( 'aria-busy', 'true' );
-			confirmAction( 'Remove the wp_template, wp_template_part and wp_navigation rows from the database, so the theme files are what renders?' ).then( function( yes ) {
+			confirmAction( 'Remove this theme\'s saved template overrides from the database, so the theme files are what renders? Menus are kept.' ).then( function( yes ) {
 				if ( ! yes || torn ) { btn.removeAttribute( 'aria-busy' ); return; }
 				btn.textContent   = 'Clearing…';
 				btn.style.opacity = '0.55';

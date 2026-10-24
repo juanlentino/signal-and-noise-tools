@@ -6,7 +6,7 @@
  * `snt_dashboard_debug_information()` (inc/dash-debug-info.php): which
  * plugin serves WordPress's own `wp-*` JS handles (the field
  * inc/script-package-origin.php bought with an incident) and the database
- * template and navigation override count. From
+ * template override count (this theme's templates and parts). From
  * `sn_footprint_debug_information()` (inc/plugin-footprint.php): the
  * plugin-directory size and the last janitor sweep. Here they are facts
  * rows in one box, from the same readers the panels call. The footprint's
@@ -83,7 +83,7 @@ function tools_reports_facts_html() {
 	}
 	if ( function_exists( 'snt_dashboard_override_count' ) ) {
 		$rows[] = array(
-			'label' => __( 'Database template/navigation overrides', 'signal-and-noise-tools' ),
+			'label' => __( 'Database template overrides', 'signal-and-noise-tools' ),
 			'value' => number_format_i18n( (int) \snt_dashboard_override_count() ),
 		);
 	}

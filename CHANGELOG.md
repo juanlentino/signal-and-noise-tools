@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The override count, list and confirm copy match what the clear removes.** Theme #604 scopes the template-override clear to the active theme's `wp_template` and `wp_template_part` rows, in every status core renders (auto-draft included), and keeps navigation posts (menus). The plugin still counted and listed every theme's rows plus menus, so the dashboard would keep reporting overrides after a clear and the list ability would disagree with the clear. One query, `snt_template_override_query_args()`, now feeds the dashboard count, the diagnostics list and `list-template-overrides`; the confirm dialog, command palette, admin bar and ability descriptions say menus are kept. Ships with the theme release carrying #604.
 ### Fixed (the core comparison, 2026-10-24)
 - **The weekly narration digest gets its 120 seconds.** Core's AI client (7.0) passes an explicit 30 s timeout on every request, which beats `http_request_timeout`, so the raise did nothing and the digest kept dying at 30 s: no run is recorded and the remote narration is empty. The raise now goes through core's own `wp_ai_client_default_request_timeout`, scoped to the one call as before.
 - **Logged-in visitors are not prerendered.** Core passes a null speculation configuration for a logged-in visitor (and a site without pretty permalinks); the plugin turned that back into prerender/moderate. Core's null now stays null; the toggle and the /contact/ exclusion are unchanged.
