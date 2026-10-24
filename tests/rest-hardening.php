@@ -132,6 +132,21 @@ foreach ( array( '/wp/v2/users', '/wp/v2/users/(?P<id>[\d]+)', '/wp/v2/comments'
 rh_check( ! isset( $anon['/wp/v2/users/me'] ), 'anon: /wp/v2/users/me removed by prefix match' );
 rh_check( ! isset( $anon['/wp/v2/comments/(?P<id>[\d]+)'] ), 'anon: single-comment route removed by prefix match' );
 
+// 2026-10-24: this is now the ONLY anonymous users lock (the security-headers
+// copy is retired). Core's WP_REST_Server::match_request_to_handler() tries each
+// remaining route as '@^' . $route . '$@i' against the request path; both URL
+// spellings (/wp-json/... and ?rest_route=...) arrive as the same path, so no
+// match here is core's rest_no_route 404 on either one.
+foreach ( array( '/wp/v2/users', '/wp/v2/users/1', '/wp/v2/users/me', '/WP/V2/Users', '/wp/v2/users/1/application-passwords' ) as $path ) {
+	$hit = '';
+	foreach ( array_keys( $anon ) as $route ) {
+		if ( preg_match( '@^' . $route . '$@i', $path ) ) {
+			$hit = $route;
+		}
+	}
+	rh_check( '' === $hit, "anon: core matches no route for $path, so it answers rest_no_route" . ( '' !== $hit ? " (matched $hit)" : '' ) );
+}
+
 // ---- 2. Anonymous: posts/pages and neighbours SURVIVE ----------------------
 foreach ( array( '/wp/v2/posts', '/wp/v2/posts/(?P<id>[\d]+)', '/wp/v2/pages', '/wp/v2/media', '/oembed/1.0/embed' ) as $kept ) {
 	rh_check( isset( $anon[ $kept ] ), "anon: $kept survives (stripped, not killed)" );

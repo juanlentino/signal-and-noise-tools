@@ -7,7 +7,7 @@
 #   1. Write routes reject anonymous callers        (expect 401/403)
 #   2. Write routes reject a Subscriber              (expect 403)
 #   3. Write routes succeed for the MCP admin app-pw (expect 200)
-#   4. /wp/v2/users is unavailable unauthenticated   (expect 401, route removed)
+#   4. /wp/v2/users is unavailable unauthenticated   (expect 404, route removed)
 #   5. TDM headers are present on /wp/v2/posts       (expect all three)
 #
 # This script is NOT run in CI and touches production — run it by hand.
@@ -63,8 +63,13 @@ else
 fi
 
 echo "== 4. /wp/v2/users unavailable unauthenticated =="
+# 2026-10-24: the route is removed for anonymous callers (inc/rest-hardening.php),
+# so core answers its own rest_no_route 404 on both spellings. The 401 that
+# used to answer first came from a retired second lock in security-headers.php.
 code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE/wp-json/wp/v2/users")
-check '40[13]' "$code" "anon → /wp/v2/users removed (401/403)"
+check '404' "$code" "anon → /wp-json/wp/v2/users removed (rest_no_route 404)"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE/?rest_route=/wp/v2/users/1")
+check '404' "$code" "anon → ?rest_route=/wp/v2/users/1 removed (rest_no_route 404)"
 
 echo "== 5. TDM headers on /wp/v2/posts =="
 hdrs=$(curl -s -D - -o /dev/null "$SITE/wp-json/wp/v2/posts")
