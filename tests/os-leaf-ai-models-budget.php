@@ -42,6 +42,11 @@ $GLOBALS['__agents']          = 0.0;
 $GLOBALS['__agents_unpriced'] = 0;
 function snt_ai_agents_spend_this_month() { return $GLOBALS['__agents']; }
 function snt_ai_agents_unpriced_this_month() { return $GLOBALS['__agents_unpriced']; }
+// Item 16: every other AI Client call, the same shape.
+$GLOBALS['__other']          = 0.0;
+$GLOBALS['__other_unpriced'] = 0;
+function snt_ai_other_spend_this_month() { return $GLOBALS['__other']; }
+function snt_ai_other_unpriced_this_month() { return $GLOBALS['__other_unpriced']; }
 
 $GLOBALS['__embed_token']      = '';
 $GLOBALS['__embed_configured'] = false;
@@ -294,13 +299,13 @@ ok( preg_match( '#Copilot \(Ask AI\), not counted against the cap</span><span cl
 ok( false !== strpos( $box, 'at list rates' ), '#1597: the figure says it is priced at list rates' );
 // 2026-10-12 audit (#23): the Copilot row and its pricing note were native-only.
 $__classic = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
-ok( false !== strpos( $__classic, 'Copilot (Ask AI), not counted against the cap: $0.00' ) && false !== strpos( $__classic, 'Copilot is priced at list rates from the tokens the station reports' ), 'classic: the same Copilot row and pricing note, outside the cap' );
+ok( false !== strpos( $__classic, 'Copilot (Ask AI), not counted against the cap: $0.00' ) && false !== strpos( $__classic, 'Copilot is priced at list rates from the tokens each AI Client call reports' ), 'classic: the same Copilot row and pricing note, outside the cap' );
 ok( false === strpos( $box, 'no list price on file' ), '#1597: with no unpriced turn the box carries no unpriced hint' );
 // (a2) turns ran on an id the table does not price: $0.00 stays, and one hint
 // separates it from "no Ask AI this month", the Insights leaf's wording.
 $GLOBALS['__copilot_unpriced'] = 3;
 $box = feature_box( snt_leaf_paint( 'ai', 'models-budget' ) );
-ok( false !== strpos( $box, '3 Copilot turns this month reported no usage, or a model with no list price on file, and are not in the dollar figure.' ), '#1597: unpriced turns paint as a count with the Insights wording, so a silent $0.00 cannot pass for no Ask AI' );
+ok( false !== strpos( $box, '3 Copilot calls this month reported no usage, or a model with no list price on file, and are not in the dollar figure.' ), '#1597: unpriced turns paint as a count with the Insights wording, so a silent $0.00 cannot pass for no Ask AI' );
 ok( preg_match( '#Copilot \(Ask AI\), not counted against the cap</span><span class="snt-list__value">\$0\.00</span>#', $box ) === 1, '#1597: the unpriced count leaves the dollar figure at $0.00' );
 $GLOBALS['__copilot_unpriced'] = 0;
 // (b) a priced turn: the figure on the Copilot row, the total and the meter exactly as before.
@@ -322,18 +327,33 @@ $GLOBALS['__copilot']          = 0.0;
 $GLOBALS['__copilot_unpriced'] = 0;
 $box = feature_box( snt_leaf_paint( 'ai', 'models-budget' ) );
 ok( preg_match( '#Agents, not counted against the cap</span><span class="snt-list__value">\$0\.00</span>#', $box ) === 1, 'agents: the row paints inside the by-feature box as a recorded $0.00, outside the cap' );
-ok( false !== strpos( $box, 'older than OpenStation 1.1.14' ), 'agents: the note says a pre-1.1.14 station reports no usage' );
+ok( false === strpos( $box, 'older than OpenStation 1.1.14' ) && false !== strpos( $box, 'land under Other AI' ), 'agents: the note no longer claims a pre-1.1.14 station is unpriced; it says where an unlabeled call goes' );
 ok( false === strpos( $box, 'this month reported no usage' ), 'agents: with no unpriced run the box carries no unpriced hint' );
 $GLOBALS['__agents']          = 0.0075;
 $GLOBALS['__agents_unpriced'] = 2;
 $box = feature_box( snt_leaf_paint( 'ai', 'models-budget' ) );
 ok( preg_match( '#Agents, not counted against the cap</span><span class="snt-list__value">\$0\.0075</span>#', $box ) === 1, 'agents: a sub-cent figure paints at four decimals' );
-ok( false !== strpos( $box, '2 agent runs this month reported no usage, or a model with no list price on file, and are not in the dollar figure.' ), 'agents: unpriced runs paint as a count' );
+ok( false !== strpos( $box, '2 agent calls this month reported no usage, or a model with no list price on file, and are not in the dollar figure.' ), 'agents: unpriced calls paint as a count' );
 ok( false !== strpos( $box, 'Spent this month: $12.50 of $50.00 (25%)' ), 'agents: the total does not move for an agent run' );
 $__classic = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
-ok( false !== strpos( $__classic, 'Agents, not counted against the cap: $0.0075' ) && false !== strpos( $__classic, 'older than OpenStation 1.1.14' ) && false !== strpos( $__classic, '2 agent runs this month reported no usage' ), 'classic: the same Agents row, note and unpriced count' );
+ok( false !== strpos( $__classic, 'Agents, not counted against the cap: $0.0075' ) && false !== strpos( $__classic, 'land under Other AI' ) && false !== strpos( $__classic, '2 agent calls this month reported no usage' ), 'classic: the same Agents row, note and unpriced count' );
 $GLOBALS['__agents']          = 0.0;
 $GLOBALS['__agents_unpriced'] = 0;
+// ── Item 16: the Other AI row, the calls nothing labels (the AI plugin's features), both twins.
+$box = feature_box( snt_leaf_paint( 'ai', 'models-budget' ) );
+ok( preg_match( '#Other AI, not counted against the cap</span><span class="snt-list__value">\$0\.00</span>#', $box ) === 1, 'other: the row paints inside the by-feature box as a recorded $0.00, outside the cap' );
+ok( false === strpos( $box, 'other AI calls this month' ) && false === strpos( $box, 'other AI call this month' ), 'other: with no unpriced call the box carries no unpriced hint' );
+$GLOBALS['__other']          = 0.0075;
+$GLOBALS['__other_unpriced'] = 4;
+$box = feature_box( snt_leaf_paint( 'ai', 'models-budget' ) );
+ok( preg_match( '#Other AI, not counted against the cap</span><span class="snt-list__value">\$0\.0075</span>#', $box ) === 1, 'other: a sub-cent figure paints at four decimals' );
+ok( false !== strpos( $box, 'the AI plugin' ), 'other: the note says what lands there' );
+ok( false !== strpos( $box, '4 other AI calls this month reported no usage, or a model with no list price on file, and are not in the dollar figure.' ), 'other: unpriced calls paint as a count' );
+ok( false !== strpos( $box, 'Spent this month: $12.50 of $50.00 (25%)' ), 'other: the total does not move for an Other call' );
+$__classic = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
+ok( false !== strpos( $__classic, 'Other AI, not counted against the cap: $0.0075' ) && false !== strpos( $__classic, 'the AI plugin' ) && false !== strpos( $__classic, '4 other AI calls this month reported no usage' ), 'classic: the same Other AI row, note and unpriced count' );
+$GLOBALS['__other']          = 0.0;
+$GLOBALS['__other_unpriced'] = 0;
 $GLOBALS['__copilot']          = 0.0;
 $GLOBALS['__copilot_unpriced'] = 0;
 $GLOBALS['__spend']            = 0.0;

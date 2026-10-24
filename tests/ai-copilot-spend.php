@@ -1,17 +1,18 @@
 <?php
 /**
- * Standalone fixture tests for inc/ai-copilot-spend.php: the Copilot (Ask AI)
- * month spend, a bucket beside the cap (#1597).
+ * Standalone fixture tests for inc/ai-copilot-spend.php: the Copilot (Ask AI),
+ * Agents and Other AI month spend, buckets beside the cap (#1597, item 16).
  *
- * The station fires `openstation_ai_search_completed` (Stable, OpenStation
- * 1.1.10) with `usage = { prompt, completion, total }` and `model = { id, name }`,
- * either possibly null. One subscriber prices the run with the plugin's own
- * snt_ai_estimate_cost() and folds it into SN_AI_COPILOT_SPEND_OPT, a YYYY-MM
- * option of its own, or counts the turn in SN_AI_COPILOT_UNPRICED_OPT when it
- * cannot price it. The cap's ledger (snt_ai_spend_this_month() and the
- * feature buckets) must not move: the station calls the model directly, so a
- * Copilot figure inside the cap would pause Suggest and Insights sooner
- * without ever pausing Ask AI.
+ * Core 7.0 fires `wp_ai_client_after_generate_result` after EVERY AI Client
+ * call with the result: the call's own token usage and the model actually
+ * served. The recorder prices each call with snt_ai_estimate_cost() into a
+ * YYYY-MM option of its own, or counts it as unpriced. Attribution rides
+ * OpenStation's `openstation_ai_model_config` filter, which names the
+ * `source` right before the station generates; a call nothing names lands
+ * in the Other bucket, never dropped. The plugin's own calls through
+ * snt_ai_generate_with_constraints() are already in the cap's ledger, so the
+ * recorder stands down for them. The cap's ledger never moves for a call
+ * the recorder prices.
  *
  * Run: php tests/ai-copilot-spend.php
  */
@@ -30,182 +31,181 @@ function ok( $cond, $label ) {
 	else { $fail++; echo "FAIL: $label\n"; }
 }
 
-// ── WP stubs: a real action table, an in-memory option store, and a
-// current_filter() stack the way WP keeps one, so the family-aware double-fire
-// guard (snt_os_compat_seen_once) can tell which hook name is dispatching.
-$GLOBALS['__actions']        = array();
-$GLOBALS['__current_filter'] = array();
+// ── WP stubs: real action and filter tables (the attribution test needs
+// `$context` to reach the filter callback), an in-memory option store.
+$GLOBALS['__actions'] = array();
+$GLOBALS['__filters'] = array();
 function add_action( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $hook ][] = $cb; return true; }
-function current_filter() { $c = $GLOBALS['__current_filter']; return empty( $c ) ? false : end( $c ); }
 function do_action( $hook ) {
 	$args = array_slice( func_get_args(), 1 );
-	$GLOBALS['__current_filter'][] = $hook;
 	foreach ( $GLOBALS['__actions'][ $hook ] ?? array() as $cb ) { call_user_func_array( $cb, $args ); }
-	array_pop( $GLOBALS['__current_filter'] );
 }
-function add_filter( $hook, $cb, $p = 10, $a = 1 ) { return true; }
-function apply_filters( $hook, $value ) { return $value; }
+function add_filter( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $hook ][] = $cb; return true; }
+function apply_filters( $hook, $value ) {
+	$args = array_slice( func_get_args(), 1 );
+	foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $cb ) { $args[0] = call_user_func_array( $cb, $args ); }
+	return $args[0];
+}
 $GLOBALS['__options'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
 function sn_setting( $key, $default = '' ) { return $default; }
+function __( $s, $d = null ) { return $s; }
+class WP_Error {
+	public function __construct( $c = '', $m = '', $d = array() ) {}
+	public function get_error_message() { return 'e'; }
+}
+function is_wp_error( $v ) { return $v instanceof WP_Error; }
+function snt_ai_is_available() { return true; }
 
-// The ledger layer's constants, as inc/ai-bootstrap.php defines them, then the
-// two files the subscriber reads (the month key, the price table) and the file
-// under test. Not the whole bootstrap: generate.php wants the AI client.
+// ── The SDK shapes the recorder reads, nothing more.
+class T_Usage {
+	public $p;
+	public $c;
+	public function __construct( $p, $c ) { $this->p = $p; $this->c = $c; }
+	public function getPromptTokens() { return $this->p; }
+	public function getCompletionTokens() { return $this->c; }
+	public function getTotalTokens() { return $this->p + $this->c; }
+}
+class T_Meta {
+	public $id;
+	public function __construct( $id ) { $this->id = $id; }
+	public function getId() { return $this->id; }
+}
+class T_Result {
+	public $u;
+	public $m;
+	public function __construct( $p, $c, $id ) { $this->u = new T_Usage( $p, $c ); $this->m = new T_Meta( $id ); }
+	public function getTokenUsage() { return $this->u; }
+	public function getModelMetadata() { return $this->m; }
+	public function toText() { return 'ok'; }
+}
+class T_Event {
+	public $r;
+	public function __construct( $r ) { $this->r = $r; }
+	public function getResult() { return $this->r; }
+}
+// What PromptBuilder::generateResult() does: Before, the provider call, After.
+$GLOBALS['__gen'] = array( 1000, 500, 'claude-sonnet-4-6' ); // $3/$15: 1000 in plus 500 out reads 0.0105.
+$sdk_call = static function () {
+	do_action( 'wp_ai_client_before_generate_result', new stdClass() );
+	$r = new T_Result( ...$GLOBALS['__gen'] );
+	do_action( 'wp_ai_client_after_generate_result', new T_Event( $r ) );
+	return $r;
+};
+// The plugin's own generation path, through the real helper.
+class T_Builder {
+	public function __call( $name, $args ) { return 'generate_text_result' === $name ? ( $GLOBALS['__sdk_call'] )() : $this; }
+}
+$GLOBALS['__sdk_call'] = $sdk_call;
+function wp_ai_client_prompt( $p = null ) { return new T_Builder(); }
+// OpenStation's openstation_ai_client_generate(): the filter names the source, then generate_result().
+$station = static function ( $source ) use ( $sdk_call ) {
+	apply_filters( 'openstation_ai_model_config', array(), array( 'user_id' => 1, 'request_id' => 'r', 'source' => $source, 'has_tools' => true, 'has_schema' => false ) );
+	return $sdk_call();
+};
+
 define( 'SN_AI_SPEND_ROLLUP_OPT', 'sn_ai_spend_month' );
 define( 'SN_AI_SPEND_FEATURE_OPT', 'sn_ai_spend_month_feature' );
 define( 'SN_AI_SPEND_MONTHS', 13 );
 define( 'SN_AI_CACHE_WRITE_MULT', 1.25 );
 define( 'SN_AI_CACHE_READ_MULT', 0.1 );
+define( 'SN_AI_USAGE_LOG_OPT', 'sn_ai_usage_log' );
+define( 'SN_AI_USAGE_LOG_CAP', 200 );
+define( 'SN_AI_DEFAULT_MODEL', 'claude-sonnet-4-6' );
+define( 'SN_AI_FALLBACK_MODEL', 'claude-sonnet-5' );
 require __DIR__ . '/../inc/ai-bootstrap/spend.php';
 require __DIR__ . '/../inc/ai-bootstrap/pricing.php';
-require __DIR__ . '/../inc/openstation-compat.php'; // snt_os_compat_add_action + snt_os_compat_seen_once
+require __DIR__ . '/../inc/ai-bootstrap/usage-log.php';
+require __DIR__ . '/../inc/ai-bootstrap/generate.php';
 require __DIR__ . '/../inc/ai-copilot-spend.php';
 
-$turn = static function ( array $over = array() ) {
-	return array_merge( array(
-		'query'       => 'how many notes were published this month',
-		'user_id'     => 1,
-		'request_id'  => 'r1',
-		'answer_type' => 'chat',
-		'iterations'  => 1,
-		'usage'       => array( 'prompt' => 1000, 'completion' => 500, 'total' => 1500 ),
-		'model'       => array( 'id' => 'claude-sonnet-4-6', 'name' => 'Claude Sonnet 4.6' ), // $3/$15; Sonnet 5 lists at $2/$10 since 21.0.0.
-	), $over );
-};
+$read = static function ( $fn ) { return function_exists( $fn ) ? $fn() : null; };
+$near = static function ( $a, $b ) { return null !== $a && abs( (float) $a - $b ) < 1e-9; };
+$reset = static function () { $GLOBALS['__options'] = array(); $GLOBALS['__gen'] = array( 1000, 500, 'claude-sonnet-4-6' ); };
 
-// ── The subscriber is bound, and the reader exists.
-ok( function_exists( 'snt_ai_copilot_spend_this_month' ), 'the Copilot month reader exists' );
-ok( in_array( 'snt_ai_copilot_record_turn', $GLOBALS['__actions']['openstation_ai_search_completed'] ?? array(), true ), 'the subscriber is bound to openstation_ai_search_completed at load' );
-ok( in_array( 'snt_ai_copilot_record_turn', $GLOBALS['__actions']['desktop_mode_ai_search_completed'] ?? array(), true ), 'the subscriber is bound to desktop_mode_ai_search_completed too: the v0.9.8 name, dual-registered like the rest of the table' );
-ok( 0.0 === snt_ai_copilot_spend_this_month(), 'before any turn the reader is a recorded 0.0' );
-ok( 0 === snt_ai_copilot_unpriced_this_month(), 'before any turn the unpriced count is 0' );
+// ── The recorder rides core's event, and the station's completion hooks are gone.
+ok( in_array( 'snt_ai_spend_record_call', $GLOBALS['__actions']['wp_ai_client_after_generate_result'] ?? array(), true ), 'the recorder is bound to core wp_ai_client_after_generate_result' );
+ok( in_array( 'snt_ai_spend_note_source', $GLOBALS['__filters']['openstation_ai_model_config'] ?? array(), true ), 'attribution reads the source off openstation_ai_model_config' );
+ok( empty( $GLOBALS['__actions']['openstation_ai_search_completed'] ) && empty( $GLOBALS['__actions']['desktop_mode_ai_search_completed'] ), 'nothing in this file listens to the station search-completed hook any more' );
+ok( empty( $GLOBALS['__actions']['openstation_agent_completed'] ) && empty( $GLOBALS['__actions']['desktop_mode_agent_completed'] ), 'nothing in this file listens to the station agent-completed hook any more' );
+ok( array( 'max_tokens' => 9 ) === apply_filters( 'openstation_ai_model_config', array( 'max_tokens' => 9 ), array( 'source' => 'agents/runner' ) ), 'the attribution filter hands the config back untouched' );
+$reset();
+ok( 0.0 === $read( 'snt_ai_copilot_spend_this_month' ) && 0.0 === $read( 'snt_ai_agents_spend_this_month' ) && 0.0 === $read( 'snt_ai_other_spend_this_month' ), 'before any call the three readers are a recorded 0.0' );
 
-// ── 1. One priced turn: 1000 in at $3/M plus 500 out at $15/M.
-do_action( 'openstation_ai_search_completed', $turn() );
-ok( abs( snt_ai_copilot_spend_this_month() - 0.0105 ) < 1e-9, 'one Sonnet 4.6 turn reads 0.0105 (got ' . snt_ai_copilot_spend_this_month() . ')' );
-ok( isset( $GLOBALS['__options'][ SN_AI_COPILOT_SPEND_OPT ][ snt_ai_spend_month_key() ] ), 'the figure lives in the Copilot option under this month\'s YYYY-MM key' );
+// ── 1. A Copilot call prices into Copilot; the cap's ledger does not move.
+$station( 'ai-copilot/search' );
+ok( $near( $read( 'snt_ai_copilot_spend_this_month' ), 0.0105 ), 'one Sonnet 4.6 Copilot call reads 0.0105 (got ' . var_export( $read( 'snt_ai_copilot_spend_this_month' ), true ) . ')' );
+ok( 0.0 === snt_ai_spend_this_month() && array() === snt_ai_spend_this_month_by_feature(), 'the cap ledger did not move for a Copilot call' );
+$station( 'ai-copilot/followup' );
+ok( $near( $read( 'snt_ai_copilot_spend_this_month' ), 0.021 ), 'the follow-up leg is Copilot too, and now it is priced: it reports its own usage' );
+// A run that switches models prices every call at its own rate, not the last one's.
+$GLOBALS['__gen'] = array( 1000, 500, 'claude-haiku-4-5' );
+$station( 'ai-copilot/search' );
+ok( $near( $read( 'snt_ai_copilot_spend_this_month' ), 0.0245 ), 'a Haiku call in the same run adds 0.0035 at the Haiku rate, reading 0.0245' );
 
-// ── 2. The cap's ledger did not move.
-ok( 0.0 === snt_ai_spend_this_month(), 'snt_ai_spend_this_month() is still 0.0: the cap never sees a Copilot turn' );
-ok( array() === snt_ai_spend_this_month_by_feature(), 'the feature ledger is still empty: no Copilot row inside the buckets that sum to the cap\'s total' );
-ok( ! isset( $GLOBALS['__options'][ SN_AI_SPEND_ROLLUP_OPT ] ) && ! isset( $GLOBALS['__options'][ SN_AI_SPEND_FEATURE_OPT ] ), 'neither ledger option was written' );
+// ── 2. An agent-runner call prices into Agents, and only there.
+$reset();
+$station( 'agents/runner' );
+ok( $near( $read( 'snt_ai_agents_spend_this_month' ), 0.0105 ), 'agents: one runner call reads 0.0105' );
+ok( 0.0 === $read( 'snt_ai_copilot_spend_this_month' ) && 0.0 === $read( 'snt_ai_other_spend_this_month' ), 'agents: neither Copilot nor Other moved' );
 
-// ── 3. usage null adds nothing to the figure and one to the unpriced count.
-do_action( 'openstation_ai_search_completed', $turn( array( 'usage' => null ) ) );
-ok( abs( snt_ai_copilot_spend_this_month() - 0.0105 ) < 1e-9, 'a payload with usage null leaves the reader at 0.0105' );
-ok( 1 === snt_ai_copilot_unpriced_this_month(), 'a payload with usage null counts as one unpriced turn' );
-// The follow-up leg (search.php:1965) carries neither key at all, yet it ran the model.
-do_action( 'openstation_ai_search_completed', array( 'query' => 'q', 'user_id' => 1, 'request_id' => 'r2', 'answer_type' => 'chat', 'iterations' => 1 ) );
-ok( abs( snt_ai_copilot_spend_this_month() - 0.0105 ) < 1e-9, 'a payload with no usage and no model keys (the follow-up leg) leaves the reader at 0.0105' );
-ok( 2 === snt_ai_copilot_unpriced_this_month(), 'the follow-up leg counts as an unpriced turn: it ran, it is not in the figure' );
+// ── 3. Anything nothing names is Other, never dropped: the AI plugin's
+// features, and the station sources outside Copilot and the runner.
+$reset();
+$sdk_call();
+ok( $near( $read( 'snt_ai_other_spend_this_month' ), 0.0105 ), 'other: an unlabeled call (the AI plugin) lands in Other' );
+foreach ( array( 'agents/draft', 'mio/window', 'widgets/drafts-suggestions', 'ai-copilot/comment-analysis' ) as $src ) { $station( $src ); }
+ok( $near( $read( 'snt_ai_other_spend_this_month' ), 0.0525 ), 'other: the four station sources outside Copilot and the runner land in Other too' );
+ok( 0.0 === $read( 'snt_ai_copilot_spend_this_month' ) && 0.0 === $read( 'snt_ai_agents_spend_this_month' ), 'other: Copilot and Agents did not move' );
 
-// ── 4. An unpriced model is counted, never dropped: the station picks its
-// model on its own side, so the first id the pricing table lacks must not
-// read as no Ask AI this month.
-do_action( 'openstation_ai_search_completed', $turn( array( 'model' => array( 'id' => 'some-model-nobody-priced', 'name' => 'x' ) ) ) );
-ok( abs( snt_ai_copilot_spend_this_month() - 0.0105 ) < 1e-9, 'an unpriced model.id leaves the reader at 0.0105' );
-ok( 3 === snt_ai_copilot_unpriced_this_month(), 'an unpriced model.id counts as an unpriced turn' );
-do_action( 'openstation_ai_search_completed', $turn( array( 'model' => null ) ) );
-ok( abs( snt_ai_copilot_spend_this_month() - 0.0105 ) < 1e-9, 'model null leaves the reader at 0.0105' );
-ok( 4 === snt_ai_copilot_unpriced_this_month(), 'model null counts as an unpriced turn' );
-do_action( 'openstation_ai_search_completed', $turn( array( 'usage' => array( 'prompt' => 0, 'completion' => 0, 'total' => 0 ) ) ) );
-ok( 5 === snt_ai_copilot_unpriced_this_month(), 'a zero-token usage (the provider reported none) counts as an unpriced turn' );
-do_action( 'openstation_ai_search_completed', 'not an array' );
-ok( abs( snt_ai_copilot_spend_this_month() - 0.0105 ) < 1e-9 && 5 === snt_ai_copilot_unpriced_this_month(), 'a non-array payload is not a turn: neither the reader nor the count moves' );
-ok( isset( $GLOBALS['__options'][ SN_AI_COPILOT_UNPRICED_OPT ][ snt_ai_spend_month_key() ] ) && 5 === $GLOBALS['__options'][ SN_AI_COPILOT_UNPRICED_OPT ][ snt_ai_spend_month_key() ], 'the count lives in its own YYYY-MM option as an int' );
+// ── 4. A labeled call that fails inside the provider (Before fired, After did
+// not) must not lend its label to the next, unlabeled call.
+$reset();
+apply_filters( 'openstation_ai_model_config', array(), array( 'source' => 'ai-copilot/search' ) );
+do_action( 'wp_ai_client_before_generate_result', new stdClass() ); // the provider throws here
+$sdk_call(); // then the AI plugin generates in the same request
+ok( 0.0 === $read( 'snt_ai_copilot_spend_this_month' ) && $near( $read( 'snt_ai_other_spend_this_month' ), 0.0105 ), 'a failed Copilot call does not leak its label: the next unlabeled call is Other' );
 
-// ── 5. The double-fire guard: the same payload dispatched under the old name
-// right after the new one is a shim's shadow, not a second turn. A same-family
-// repeat (two real turns with identical payloads) still counts every time.
-$before = snt_ai_copilot_spend_this_month();
-do_action( 'openstation_ai_search_completed', $turn( array( 'request_id' => 'shadow' ) ) );
-do_action( 'desktop_mode_ai_search_completed', $turn( array( 'request_id' => 'shadow' ) ) );
-ok( abs( snt_ai_copilot_spend_this_month() - ( $before + 0.0105 ) ) < 1e-9, 'the same payload under both hook names records one turn, not two' );
-do_action( 'openstation_ai_search_completed', $turn( array( 'request_id' => 'shadow' ) ) );
-ok( abs( snt_ai_copilot_spend_this_month() - ( $before + 0.021 ) ) < 1e-9, 'a same-family repeat of an identical payload is a second real turn and records again' );
-snt_os_compat_reset_seen_once();
-$GLOBALS['__options'][ SN_AI_COPILOT_SPEND_OPT ][ snt_ai_spend_month_key() ] = 0.0105;
+// ── 5. The plugin's own calls are in the cap's ledger already: no second record.
+$reset();
+$text = snt_ai_generate_with_constraints( 'p', 's', 64, 'drafts' );
+ok( 'ok' === $text && $near( snt_ai_spend_this_month(), 0.0105 ), 'own: the helper priced its call into the cap ledger' );
+ok( 0.0 === $read( 'snt_ai_other_spend_this_month' ) && 0.0 === $read( 'snt_ai_copilot_spend_this_month' ), 'own: the recorder stood down, so the call is not counted twice' );
+ok( function_exists( 'snt_ai_own_call_depth' ) && 0 === snt_ai_own_call_depth(), 'own: the depth counter is back to zero after the call' );
+$sdk_call();
+ok( $near( $read( 'snt_ai_other_spend_this_month' ), 0.0105 ), 'own: the next foreign call is recorded again' );
 
-// ── Turns accumulate; a second model prices at its own rate.
-do_action( 'openstation_ai_search_completed', $turn( array( 'model' => array( 'id' => 'claude-haiku-4-5', 'name' => 'Haiku' ) ) ) );
-ok( abs( snt_ai_copilot_spend_this_month() - 0.014 ) < 1e-9, 'a Haiku turn (1000 in at $1/M plus 500 out at $5/M) adds 0.0035, reading 0.014' );
+// ── 6. An unpriced call is counted, never a silent $0.00.
+$reset();
+$GLOBALS['__gen'] = array( 1000, 500, 'some-model-nobody-priced' );
+$station( 'ai-copilot/search' );
+$station( 'agents/runner' );
+$sdk_call();
+$GLOBALS['__gen'] = array( 0, 0, 'claude-sonnet-4-6' );
+$station( 'ai-copilot/search' );
+ok( 2 === $read( 'snt_ai_copilot_unpriced_this_month' ) && 0.0 === $read( 'snt_ai_copilot_spend_this_month' ), 'copilot: an unpriced id and a zero-token call each count as unpriced' );
+ok( 1 === $read( 'snt_ai_agents_unpriced_this_month' ) && 1 === $read( 'snt_ai_other_unpriced_this_month' ), 'agents and other count their unpriced calls in their own options' );
+do_action( 'wp_ai_client_after_generate_result', 'not an event' );
+ok( 1 === $read( 'snt_ai_other_unpriced_this_month' ), 'a value that is not an event moves nothing' );
+ok( 2 === ( $GLOBALS['__options'][ SN_AI_COPILOT_UNPRICED_OPT ][ snt_ai_spend_month_key() ] ?? null ), 'the count lives in its own YYYY-MM option as an int' );
 
-// ── The window: older months are pruned to SN_AI_SPEND_MONTHS, this month kept.
-// Synthetic keys, the sibling pin's shape (tests/ai-bootstrap.php): a seed
-// walked back with strtotime( "-N months" ) collapses two steps onto one key
-// whenever today's day-of-month overflows a shorter month (Sep 30 minus seven
-// months is "Feb 30", which PHP reads as Mar 2), so the seed comes up short
-// and the prune never runs on the 29th, 30th and 31st.
+// ── 7. The window: older months are pruned to SN_AI_SPEND_MONTHS. Synthetic
+// 2020-NN keys sort below any real month (a strtotime walk-back collapses
+// two steps onto one key on the 29th, 30th and 31st).
+$reset();
 $roll = array();
-for ( $i = 1; $i <= SN_AI_SPEND_MONTHS; $i++ ) {
-	$roll[ sprintf( '2020-%02d', $i ) ] = 1.0; // 2020-01 .. 2020-13: 13 keys that sort below any real month
-}
+for ( $i = 1; $i <= SN_AI_SPEND_MONTHS; $i++ ) { $roll[ sprintf( '2020-%02d', $i ) ] = 1.0; }
 $GLOBALS['__options'][ SN_AI_COPILOT_SPEND_OPT ] = $roll;
-do_action( 'openstation_ai_search_completed', $turn() );
+$station( 'ai-copilot/search' );
 $after = $GLOBALS['__options'][ SN_AI_COPILOT_SPEND_OPT ];
 ok( SN_AI_SPEND_MONTHS === count( $after ) && isset( $after[ snt_ai_spend_month_key() ] ) && ! isset( $after['2020-01'] ), 'the option keeps SN_AI_SPEND_MONTHS buckets: the oldest month drops, this month stays' );
-$GLOBALS['__options'][ SN_AI_COPILOT_UNPRICED_OPT ] = array_map( 'intval', $roll );
-do_action( 'openstation_ai_search_completed', $turn( array( 'model' => null ) ) );
-$after = $GLOBALS['__options'][ SN_AI_COPILOT_UNPRICED_OPT ];
-ok( SN_AI_SPEND_MONTHS === count( $after ) && 1 === ( $after[ snt_ai_spend_month_key() ] ?? 0 ) && ! isset( $after['2020-01'] ), 'the unpriced count keeps the same window: the oldest month drops, this month counts one' );
 
-// ── Shape damage reads as zero, never a fatal.
-$GLOBALS['__options'][ SN_AI_COPILOT_SPEND_OPT ]    = 'garbage';
-$GLOBALS['__options'][ SN_AI_COPILOT_UNPRICED_OPT ] = 'garbage';
-ok( 0.0 === snt_ai_copilot_spend_this_month(), 'a non-array option reads 0.0' );
-ok( 0 === snt_ai_copilot_unpriced_this_month(), 'a non-array unpriced option reads 0' );
-do_action( 'openstation_ai_search_completed', $turn() );
-ok( abs( snt_ai_copilot_spend_this_month() - 0.0105 ) < 1e-9, 'the next turn rebuilds the option from the damaged value' );
-do_action( 'openstation_ai_search_completed', $turn( array( 'model' => null ) ) );
-ok( 1 === snt_ai_copilot_unpriced_this_month(), 'the next unpriced turn rebuilds the count from the damaged value' );
-
-// ── The Agents bucket (OpenStation 1.1.14): `openstation_agent_completed`
-// carries `$result = { text, toolCalls, turns, usage, model }`, the same usage
-// and model shape as Copilot. Same pricing, a bucket of its own, outside the cap.
-$GLOBALS['__options'] = array();
-snt_os_compat_reset_seen_once();
-$run = static function ( array $over = array() ) {
-	return array_merge( array(
-		'text'      => 'done',
-		'toolCalls' => array(),
-		'turns'     => 2,
-		'usage'     => array( 'prompt' => 1000, 'completion' => 500, 'total' => 1500 ),
-		'model'     => array( 'id' => 'claude-sonnet-4-6', 'name' => 'Claude Sonnet 4.6' ),
-	), $over );
-};
-ok( function_exists( 'snt_ai_agents_spend_this_month' ) && function_exists( 'snt_ai_agents_unpriced_this_month' ), 'agents: the month readers exist' );
-if ( function_exists( 'snt_ai_agents_spend_this_month' ) ) {
-	ok( 0.0 === snt_ai_agents_spend_this_month() && 0 === snt_ai_agents_unpriced_this_month(), 'agents: before any run both read a recorded zero' );
-	do_action( 'openstation_agent_completed', 5, 'msg', $run(), array( 'source' => 'chat' ) );
-	ok( abs( snt_ai_agents_spend_this_month() - 0.0105 ) < 1e-9, 'agents: one Sonnet 4.6 run reads 0.0105 (got ' . snt_ai_agents_spend_this_month() . ')' );
-	ok( 0.0 === snt_ai_copilot_spend_this_month() && 0 === snt_ai_copilot_unpriced_this_month(), 'agents: the Copilot bucket did not move' );
-	ok( 0.0 === snt_ai_spend_this_month() && array() === snt_ai_spend_this_month_by_feature(), 'agents: the cap ledger did not move' );
-	// A pre-1.1.14 station: no usage, no model keys at all. The run happened.
-	do_action( 'openstation_agent_completed', 5, 'msg', array( 'text' => 'old', 'toolCalls' => array(), 'turns' => 1 ), array() );
-	ok( 1 === snt_ai_agents_unpriced_this_month() && abs( snt_ai_agents_spend_this_month() - 0.0105 ) < 1e-9, 'agents: a pre-1.1.14 result (no usage, no model) counts as unpriced, never $0' );
-	do_action( 'openstation_agent_completed', 5, 'msg', $run( array( 'usage' => null ) ), array() );
-	do_action( 'openstation_agent_completed', 5, 'msg', $run( array( 'model' => null ) ), array() );
-	do_action( 'openstation_agent_completed', 5, 'msg', $run( array( 'model' => array( 'id' => 'some-model-nobody-priced' ) ) ), array() );
-	do_action( 'openstation_agent_completed', 5, 'msg', $run( array( 'usage' => array( 'prompt' => 0, 'completion' => 0, 'total' => 0 ) ) ), array() );
-	ok( 5 === snt_ai_agents_unpriced_this_month(), 'agents: usage null, model null, an unpriced model id and zero tokens each count as unpriced' );
-	do_action( 'openstation_agent_completed', 5, 'msg', 'not an array', array() );
-	ok( 6 === snt_ai_agents_unpriced_this_month(), 'agents: a non-array result still counts: the hook fires only after a run' );
-	// The double-fire guard: the same result under both names is one run.
-	$before = snt_ai_agents_spend_this_month();
-	do_action( 'openstation_agent_completed', 5, 'msg', $run( array( 'text' => 'shadow' ) ), array() );
-	do_action( 'desktop_mode_agent_completed', 5, 'msg', $run( array( 'text' => 'shadow' ) ), array() );
-	ok( abs( snt_ai_agents_spend_this_month() - ( $before + 0.0105 ) ) < 1e-9, 'agents: the same result under both hook names records one run, not two' );
-	// Key distinct from mcp-telemetry-agents' 'agent_completed:' key: under the
-	// null-family fallback (a direct call) a shared key would drop this recorder.
-	$r = $run( array( 'text' => 'telemetry saw it first' ) );
-	snt_os_compat_seen_once( 'agent_completed:5:' . md5( serialize( $r ) ) );
-	$before = snt_ai_agents_spend_this_month();
-	snt_ai_agents_record_run( 5, 'msg', $r, array() );
-	ok( abs( snt_ai_agents_spend_this_month() - ( $before + 0.0105 ) ) < 1e-9, 'agents: the telemetry subscriber\'s seen_once key does not suppress the spend recorder' );
-	ok( 6 === ( $GLOBALS['__options'][ SN_AI_AGENTS_UNPRICED_OPT ][ snt_ai_spend_month_key() ] ?? null ), 'agents: the count lives in its own YYYY-MM option as an int' );
-}
+// ── 8. Shape damage reads as zero and the next call rebuilds it.
+$GLOBALS['__options']['sn_ai_other_spend_month'] = 'garbage';
+ok( 0.0 === $read( 'snt_ai_other_spend_this_month' ), 'a non-array option reads 0.0' );
+$sdk_call();
+ok( $near( $read( 'snt_ai_other_spend_this_month' ), 0.0105 ), 'the next call rebuilds the option from the damaged value' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

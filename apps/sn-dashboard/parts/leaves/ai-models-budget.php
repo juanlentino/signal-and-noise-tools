@@ -45,12 +45,14 @@ function models_budget_data() {
 		'budget'           => (float) sn_setting( 'theme.ai_monthly_budget', 0 ),
 		'spent'            => function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0,
 		'by_feature'       => function_exists( 'snt_ai_spend_this_month_by_feature' ) ? snt_ai_spend_this_month_by_feature() : array(),
-		// #1597: Copilot turns, priced from the station's completion hook into a bucket of their own (inc/ai-copilot-spend.php),
-		// and the turns that ran on an id the pricing table lacks, counted rather than dropped.
+		// #1597, item 16: Copilot, agent and other AI Client calls, priced from core's after-generate event into buckets
+		// of their own (inc/ai-copilot-spend.php), and the calls on an id the pricing table lacks, counted rather than dropped.
 		'copilot'          => function_exists( 'snt_ai_copilot_spend_this_month' ) ? (float) snt_ai_copilot_spend_this_month() : 0.0,
 		'copilot_unpriced' => function_exists( 'snt_ai_copilot_unpriced_this_month' ) ? (int) snt_ai_copilot_unpriced_this_month() : 0,
-		'agents'           => function_exists( 'snt_ai_agents_spend_this_month' ) ? (float) snt_ai_agents_spend_this_month() : 0.0, // OpenStation 1.1.14
+		'agents'           => function_exists( 'snt_ai_agents_spend_this_month' ) ? (float) snt_ai_agents_spend_this_month() : 0.0,
 		'agents_unpriced'  => function_exists( 'snt_ai_agents_unpriced_this_month' ) ? (int) snt_ai_agents_unpriced_this_month() : 0,
+		'other'            => function_exists( 'snt_ai_other_spend_this_month' ) ? (float) snt_ai_other_spend_this_month() : 0.0,
+		'other_unpriced'   => function_exists( 'snt_ai_other_unpriced_this_month' ) ? (int) snt_ai_other_unpriced_this_month() : 0,
 		'embed_token'      => function_exists( 'snt_ml_embed_token' ) ? snt_ml_embed_token() : '',
 		'embed_has_check'  => function_exists( 'snt_ml_embed_configured' ),
 		'embed_configured' => function_exists( 'snt_ml_embed_configured' ) && snt_ml_embed_configured(),
@@ -119,17 +121,23 @@ function models_budget_spend_html( array $d ) {
 		'label' => __( 'Copilot (Ask AI), not counted against the cap', 'signal-and-noise-tools' ),
 		'value' => '$' . number_format_i18n( $copilot, $copilot > 0 && $copilot < 0.01 ? 4 : 2 ),
 	) ) );
-	$out     .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Copilot is priced at list rates from the tokens the station reports, with no prompt-cache discount, so it reads high on a warm cache.', 'signal-and-noise-tools' ) ) . '</p>';
+	$out     .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Copilot is priced at list rates from the tokens each AI Client call reports, with no prompt-cache discount, so it reads high on a warm cache.', 'signal-and-noise-tools' ) ) . '</p>';
 	if ( $unpriced > 0 ) {
-		/* translators: %s: Copilot turns. */
-		$out .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( _n( '%s Copilot turn this month reported no usage, or a model with no list price on file, and is not in the dollar figure.', '%s Copilot turns this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', $unpriced, 'signal-and-noise-tools' ), number_format_i18n( $unpriced ) ) ) . '</p>';
+		/* translators: %s: Copilot calls. */
+		$out .= '<p class="snt-hint">' . \snt_kit_esc( sprintf( _n( '%s Copilot call this month reported no usage, or a model with no list price on file, and is not in the dollar figure.', '%s Copilot calls this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', $unpriced, 'signal-and-noise-tools' ), number_format_i18n( $unpriced ) ) ) . '</p>';
 	}
-	// OpenStation 1.1.14: agent runs, the same pricing in a bucket of their own; the words are the classic page's.
+	// Agent-runner calls, then every other AI Client call: the same pricing, buckets of their own; the words are the classic page's.
 	$agents = (float) ( $d['agents'] ?? 0 );
 	$out   .= \snt_kit_list( array( array( 'label' => __( 'Agents, not counted against the cap', 'signal-and-noise-tools' ), 'value' => '$' . number_format_i18n( $agents, $agents > 0 && $agents < 0.01 ? 4 : 2 ) ) ) );
 	$out   .= function_exists( 'sn_admin_ai_agents_note' ) ? '<p class="snt-hint">' . \snt_kit_esc( sn_admin_ai_agents_note() ) . '</p>' : '';
 	if ( (int) ( $d['agents_unpriced'] ?? 0 ) > 0 && function_exists( 'sn_admin_ai_agents_unpriced' ) ) {
 		$out .= '<p class="snt-hint">' . \snt_kit_esc( sn_admin_ai_agents_unpriced( (int) $d['agents_unpriced'] ) ) . '</p>';
+	}
+	$other = (float) ( $d['other'] ?? 0 );
+	$out  .= \snt_kit_list( array( array( 'label' => __( 'Other AI, not counted against the cap', 'signal-and-noise-tools' ), 'value' => '$' . number_format_i18n( $other, $other > 0 && $other < 0.01 ? 4 : 2 ) ) ) );
+	$out  .= function_exists( 'sn_admin_ai_other_note' ) ? '<p class="snt-hint">' . \snt_kit_esc( sn_admin_ai_other_note() ) . '</p>' : '';
+	if ( (int) ( $d['other_unpriced'] ?? 0 ) > 0 && function_exists( 'sn_admin_ai_other_unpriced' ) ) {
+		$out .= '<p class="snt-hint">' . \snt_kit_esc( sn_admin_ai_other_unpriced( (int) $d['other_unpriced'] ) ) . '</p>';
 	}
 	// 17.4.1: one box, the total as its lead, so it can share a row with the form.
 	return \snt_kit_section( __( 'This month, by feature', 'signal-and-noise-tools' ), $out );

@@ -136,6 +136,11 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	// text-only path stays byte-identical to pre-v6.48.0 when no image is passed.
 	$has_image = ( '' !== (string) $image_path && '' !== (string) $image_mime && is_readable( (string) $image_path ) );
 
+	// Core fires wp_ai_client_after_generate_result for this call too; the
+	// depth tells inc/ai-copilot-spend.php it is ours, already priced below.
+	if ( function_exists( 'snt_ai_own_call_depth' ) ) {
+		snt_ai_own_call_depth( 1 );
+	}
 	try {
 		$builder = wp_ai_client_prompt( (string) $prompt )
 			->using_model_preference( ...$model_list )
@@ -155,6 +160,10 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 			sprintf( __( 'AI runtime error: %s', 'signal-and-noise-tools' ), $e->getMessage() ),
 			array( 'status' => 500 )
 		);
+	} finally {
+		if ( function_exists( 'snt_ai_own_call_depth' ) ) {
+			snt_ai_own_call_depth( -1 );
+		}
 	}
 
 	if ( is_wp_error( $result ) ) {
