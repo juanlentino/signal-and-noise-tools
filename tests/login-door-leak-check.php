@@ -19,8 +19,8 @@ function home_url( $p = '' ) { return 'https://site.test' . $p; }
 function sn_login_get_slug() { return 'door-k7q'; }
 function get_option( $k, $d = false ) { return $GLOBALS['__opt'][ $k ] ?? $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['__opt'][ $k ] = $v; return true; }
-function get_posts( $a ) { return array( 42 ); }
-function get_permalink( $id ) { return 'https://site.test/notes/latest/'; }
+function get_posts( $a ) { if ( ! empty( $a['has_password'] ) ) { return $GLOBALS['__protected'] ?? array(); } return array( 42 ); }
+function get_permalink( $id ) { return 77 === (int) $id ? 'https://site.test/notes/protected/' : 'https://site.test/notes/latest/'; }
 require dirname( __DIR__ ) . '/inc/login-door-leak-check.php';
 
 $pass = 0; $fail = 0;
@@ -31,6 +31,10 @@ foreach ( array( 'https://site.test/', 'https://site.test/notes/latest/', 'https
 	ok( in_array( $u, $s, true ), "it reads $u" );
 }
 ok( 1 === count( array_filter( $s, static fn( $u ) => false !== strpos( $u, 'sn-door-check-' ) ) ), 'it reads one 404, where a stranger lands on a dead link' );
+ok( ! in_array( 'https://site.test/notes/protected/', $s, true ), 'no protected post published, none read' );
+$GLOBALS['__protected'] = array( 77 );
+ok( in_array( 'https://site.test/notes/protected/', sn_door_leak_surfaces(), true ), 'a published password-protected post is read: core\'s password form posts to the door' );
+$GLOBALS['__protected'] = array();
 
 ok( sn_door_leak_contains( '<script type="speculationrules">{"href_matches":"/door-k7q/*"}</script>', 'door-k7q' ), 'finds the door in a page body (the speculation-rules leak)' );
 ok( sn_door_leak_contains( "Location: https://site.test/door-k7q?redirect_to=x", 'door-k7q' ), 'finds it in a header line' );

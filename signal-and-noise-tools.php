@@ -87,7 +87,6 @@ require_once SNT_PATH . 'inc/config-drift.php'; // R6a: durable effective-settin
 require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: the excluded-role list and the legacy sn_owner=1 device cookie (beacon suppression removed for SN Traffic Lanes)
 require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/bilingual.php'; // English/Spanish storefront pairs: _sn_en_counterpart, hreflang, lang, toggle data, English fallback (docs/BILINGUAL.md)
-require_once SNT_PATH . 'inc/robots-txt.php'; // v6.53.0: robots.txt AI-crawler policy (filterable allow/deny) + idempotent Sitemap pointer
 require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/core-fingerprint.php';   // CVE-2026-87902 follow-up: no core version in ver, no admin emoji, no generator.
 require_once SNT_PATH . 'inc/deploy-core-status.php'; // core + runtime rows for get-deploy-status.

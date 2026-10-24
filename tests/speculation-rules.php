@@ -94,8 +94,10 @@ assertEq( true, sn_setting( 'perf.speculative_loading', 'SENTINEL' ), 'fresh ins
 
 // ── 2. Config filter ON: returns prerender/moderate ──
 sn_setting_reset_cache();
-$config_on = sn_speculation_configuration( null );
+$config_on = sn_speculation_configuration( array( 'mode' => 'auto', 'eagerness' => 'auto' ) );
 assertEq( array( 'mode' => 'prerender', 'eagerness' => 'moderate' ), $config_on, 'config ON returns prerender/moderate' );
+// 2026-10-24: core passes null for a logged-in visitor; that stays off.
+assertEq( null, sn_speculation_configuration( null ), 'core\'s null (a logged-in visitor) stays null: no prerender for the admin bar' );
 
 // ── 3. Config filter OFF: returns null (disables core feature) ──
 sn_setting_update( 'perf.speculative_loading', false );

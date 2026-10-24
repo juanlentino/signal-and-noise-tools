@@ -42,6 +42,15 @@ function sn_door_leak_surfaces() {
 	if ( ! empty( $latest[0] ) ) {
 		$urls[] = (string) get_permalink( (int) $latest[0] );
 	}
+	// 2026-10-24: a password-protected post or page. Core prints its password
+	// form at site_url( 'wp-login.php?action=postpass' ), which the door's URL
+	// filter rewrites to the hidden slug, so one published protected post
+	// would publish the door. None exist today; the newest one is read if one
+	// ever does.
+	$protected = get_posts( array( 'post_type' => array( 'post', 'page' ), 'post_status' => 'publish', 'has_password' => true, 'posts_per_page' => 1, 'fields' => 'ids', 'no_found_rows' => true ) );
+	if ( ! empty( $protected[0] ) ) {
+		$urls[] = (string) get_permalink( (int) $protected[0] );
+	}
 	return array_values( array_unique( $urls ) );
 }
 

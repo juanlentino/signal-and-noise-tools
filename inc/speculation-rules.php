@@ -38,11 +38,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  * feature outright (core honours a null configuration by emitting no rules).
  * Otherwise return the prerender/moderate profile.
  *
+ * A null coming IN is core's own "off" (2026-10-24): core passes null for a
+ * logged-in visitor and for a site without pretty permalinks, so a prerender
+ * never runs the admin bar's per-request work twice. That stays off; the
+ * profile only replaces core's default where core would load at all.
+ *
  * @param array|null $config Incoming configuration (array with mode + eagerness, or null).
  * @return array{mode:string,eagerness:string}|null
  */
 function sn_speculation_configuration( $config ) {
-	if ( ! sn_setting( 'perf.speculative_loading', true ) ) {
+	if ( null === $config || ! sn_setting( 'perf.speculative_loading', true ) ) {
 		return null;
 	}
 	return array(

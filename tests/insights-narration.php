@@ -511,16 +511,16 @@ $GLOBALS['__transients'] = array(); // no cache → generation must run
 snt_narration_cron_run( true );
 ok( $GLOBALS['__ai_calls'] >= 1, 'the cron handler drives a real generation (AI call fires cron-side)' );
 
-echo "\nTest: the AI call raises then removes the http_request_timeout (scoped, no leak)\n";
+echo "\nTest: the AI call raises then removes core's AI client timeout (scoped, no leak)\n";
 $GLOBALS['__filters_added'] = array();
 $GLOBALS['__filters_removed'] = array();
 snt_narration_call_ai( array( 'window' => array( 'days' => 7 ) ) );
 $added_timeout = null;
-foreach ( $GLOBALS['__filters_added'] as $f ) { if ( 'http_request_timeout' === $f[0] ) { $added_timeout = $f[1]; } }
-ok( null !== $added_timeout, 'http_request_timeout filter is added around the AI call' );
-ok( is_callable( $added_timeout ) && SN_NARRATION_HTTP_TIMEOUT === $added_timeout(), 'the added filter raises the timeout to SN_NARRATION_HTTP_TIMEOUT (120s)' );
+foreach ( $GLOBALS['__filters_added'] as $f ) { if ( 'wp_ai_client_default_request_timeout' === $f[0] ) { $added_timeout = $f[1]; } }
+ok( null !== $added_timeout, 'core\'s wp_ai_client_default_request_timeout is raised around the AI call (http_request_timeout loses to the explicit 30s core passes)' );
+ok( is_callable( $added_timeout ) && 120.0 === $added_timeout(), 'the added filter raises the timeout to SN_NARRATION_HTTP_TIMEOUT (120s, a float as core expects)' );
 $removed_same = false;
-foreach ( $GLOBALS['__filters_removed'] as $f ) { if ( 'http_request_timeout' === $f[0] && $f[1] === $added_timeout ) { $removed_same = true; } }
+foreach ( $GLOBALS['__filters_removed'] as $f ) { if ( 'wp_ai_client_default_request_timeout' === $f[0] && $f[1] === $added_timeout ) { $removed_same = true; } }
 ok( $removed_same, 'the SAME filter is removed after the call (never left registered → no leak onto other requests)' );
 
 // ── v9.68.1: a FAILED sources read degrades to [] in the prompt signals ──

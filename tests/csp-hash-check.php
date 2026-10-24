@@ -21,6 +21,8 @@ define( 'SN_CSP_HASH_TEST', true );
 const DAY_IN_SECONDS = 86400;
 function home_url( $p = '' ) { return 'https://site.test' . $p; }
 function get_option( $k, $d = false ) { return $GLOBALS['__opt'][ $k ] ?? $d; }
+function wp_next_scheduled( $h, $a = array() ) { foreach ( $GLOBALS['__sched'] ?? array() as $e ) { if ( $e[1] === $h && $e[2] === $a ) { return $e[0]; } } return false; }
+function wp_schedule_single_event( $t, $h, $a = array() ) { $GLOBALS['__sched'][] = array( $t, $h, $a ); return true; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['__opt'][ $k ] = $v; return true; }
 function get_posts( $a ) { return array( 42 ); }
 function get_permalink( $id ) { return 'https://site.test/notes/latest/'; }
@@ -215,5 +217,15 @@ if ( $skip > 0 && '' !== $ci && '0' !== $ci && 'false' !== strtolower( $ci ) ) {
 	echo "FAILED: $skip group(s) SKIPPED under CI because WordPress's html-api is missing; the extraction is the check's core.\n";
 	$fail += $skip;
 }
+echo "\nGroup: a read soon after an update (2026-10-24)\n";
+$GLOBALS['__sched'] = array(); $GLOBALS['__opt'] = array();
+ok( false === sn_csp_hash_version_changed( '7.1.3' ) && array() === $GLOBALS['__sched'], 'the first sighting of a core version only records it' );
+ok( false === sn_csp_hash_version_changed( '7.1.3' ), 'the same version queues nothing' );
+ok( true === sn_csp_hash_version_changed( '7.1.4' ) && 1 === count( $GLOBALS['__sched'] ) && SN_CSP_HASH_HOOK === $GLOBALS['__sched'][0][1], 'a changed core version (a host-side update) queues one read' );
+ok( '7.1.4' === get_option( SN_CSP_HASH_VERSION_OPT ), 'and records the new version' );
+ok( false === sn_csp_hash_queue_after_update( '7.1.4', 1000 ) && 1 === count( $GLOBALS['__sched'] ), 'a second update while one read is pending does not stack another' );
+$GLOBALS['__sched'] = array();
+ok( true === sn_csp_hash_queue_after_update( '7.1.4', 1000 ) && 1000 + SN_CSP_HASH_AFTER_UPDATE === $GLOBALS['__sched'][0][0], 'an update queues the read a few minutes out, after the purge chain' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
