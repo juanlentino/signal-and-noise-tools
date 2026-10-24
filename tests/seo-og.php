@@ -75,7 +75,7 @@ if ( ! function_exists( 'get_post_meta' ) ) {
 		if ( '_sn_head_touched' === $key ) {
 			return $GLOBALS['__og']['head_touched'] ?? '';
 		}
-		return '';
+		return $GLOBALS['__og']['meta'][ $id ][ $key ] ?? '';
 	}
 }
 if ( ! function_exists( 'sn_setting' ) ) {
@@ -157,6 +157,7 @@ if ( ! function_exists( 'wp_get_post_terms' ) ) {
 }
 
 require_once __DIR__ . '/../inc/seo.php';
+require_once __DIR__ . '/../inc/seo-schema-identity-parts.php'; // sn_schema_date_modified(), the shared modified clock.
 
 // ─── Harness ──────────────────────────────────────────────────────────
 $pass = 0;
@@ -234,6 +235,14 @@ $out = ob_get_clean();
 og_true( strpos( $out, '<meta property="article:published_time" content="2026-06-10T09:00:00+00:00">' ) !== false, 'emits article:published_time' );
 og_true( strpos( $out, '<meta property="article:modified_time" content="2026-06-12T10:00:00+00:00">' ) !== false, 'emits article:modified_time' );
 og_true( strpos( $out, '<meta property="article:author" content="https://example.test/">' ) !== false, 'A3: article:author = home_url("/") (matches JSON-LD Person.url/@id)' );
+// 2026-10-24: a provenance commit wins over post_modified, as in the JSON-LD
+// dateModified: a scheduled publish leaves post_modified days before publish.
+$GLOBALS['__og']['meta'][7]['_sn_prov_last_commit_gmt'] = '2026-06-20 08:30:00';
+ob_start();
+sn_seo_article_meta( $post );
+$out_commit = ob_get_clean();
+unset( $GLOBALS['__og']['meta'][7]['_sn_prov_last_commit_gmt'] );
+og_true( strpos( $out_commit, '<meta property="article:modified_time" content="2026-06-20T08:30:00+00:00">' ) !== false, 'article:modified_time reads the provenance commit, the same clock as the JSON-LD dateModified and the sitemap' );
 og_true( strpos( $out, '<meta property="article:section" content="Analysis">' ) !== false, 'article:section = FIRST category only (mirrors JSON-LD articleSection)' );
 og_true( strpos( $out, 'content="Secondary"' ) === false, 'article:section does NOT emit the second category' );
 og_eq( 2, substr_count( $out, '<meta property="article:tag"' ), 'article:tag = one repeated meta per tag (not comma-joined)' );

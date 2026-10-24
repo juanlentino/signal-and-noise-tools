@@ -356,15 +356,18 @@ function snt_narration_call_ai( $signals ) {
 		return new WP_Error( 'snt_narration_encode_failed', 'Failed to encode signals as JSON.' );
 	}
 
-	// v9.51.2: raise the provider HTTP timeout for THIS call only — the 1024-token
+	// v9.51.2: raise the provider timeout for THIS call only: the 1024-token
 	// digest overruns the 30s default. Added then removed (never left registered),
-	// so no other outbound request is affected. Best-effort: only takes when the
-	// AI client routes through the WP HTTP API; harmless otherwise. This runs
-	// cron-side (snt_narration_schedule), so a long wait blocks nothing.
-	$raise    = static function () { return SN_NARRATION_HTTP_TIMEOUT; };
+	// so no other request is affected. This runs cron-side (snt_narration_schedule),
+	// so a long wait blocks nothing.
+	// 2026-10-24: through core's own filter. Core's AI client (7.0) passes an
+	// explicit 30s timeout on every request, which beats http_request_timeout, so
+	// the old raise did nothing and the digest kept dying at 30s. The prompt
+	// builder reads this filter when it is created, inside the call below.
+	$raise    = static function () { return (float) SN_NARRATION_HTTP_TIMEOUT; };
 	$has_hook = function_exists( 'add_filter' ) && function_exists( 'remove_filter' );
 	if ( $has_hook ) {
-		add_filter( 'http_request_timeout', $raise, 100 );
+		add_filter( 'wp_ai_client_default_request_timeout', $raise, 100 );
 	}
 	try {
 		$result = snt_ai_generate_with_constraints( $prompt, snt_narration_system_instruction(), SN_NARRATION_MAX_TOKENS, 'insights_narration' );
@@ -372,7 +375,7 @@ function snt_narration_call_ai( $signals ) {
 		// finally, not a trailing remove — the raised timeout must NEVER outlive
 		// this one call, even if the generate path throws.
 		if ( $has_hook ) {
-			remove_filter( 'http_request_timeout', $raise, 100 );
+			remove_filter( 'wp_ai_client_default_request_timeout', $raise, 100 );
 		}
 	}
 	return $result;

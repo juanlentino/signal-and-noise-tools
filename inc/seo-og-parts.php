@@ -237,7 +237,10 @@ add_action( 'wp_head', function() {
  */
 function sn_seo_article_meta( $post ) {
 	$published = get_post_time( 'c', true, $post );
-	$modified  = get_post_modified_time( 'c', true, $post );
+	// 2026-10-24: the same clock as the JSON-LD dateModified and the sitemap
+	// lastmod (the provenance commit, else post_modified). post_modified alone
+	// is untouched by a scheduled publish, so it read days BEFORE published.
+	$modified  = function_exists( 'sn_schema_date_modified' ) ? sn_schema_date_modified( $post ) : get_post_modified_time( 'c', true, $post );
 	if ( $published ) {
 		echo '<meta property="article:published_time" content="' . esc_attr( $published ) . '">' . "\n";
 	}

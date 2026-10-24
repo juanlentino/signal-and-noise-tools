@@ -26,6 +26,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SN_CSP_HASH_HOOK = 'sn_csp_hash_check';
 const SN_CSP_HASH_OPT  = 'sn_csp_hash_last';
+const SN_CSP_HASH_VERSION_OPT = 'sn_csp_hash_core_version';
+// After an update, wait for the purge chain to refresh the edge before reading.
+const SN_CSP_HASH_AFTER_UPDATE = 5 * 60;
 
 /**
  * The public pages the strict policy covers (docs/CSP.md checklist).
@@ -123,8 +126,51 @@ function sn_csp_hash_run( $fetch = null, $now = null ) {
 	return $out;
 }
 
+/**
+ * Read again soon after an update (2026-10-24). The strict policy pins core's
+ * import map, which changes with every core update, and a plugin or theme
+ * update can add an inline script; enforced, a stale hash stops every script
+ * module, and the daily read alone could leave that up to a day. A core
+ * version that changed without an update screen (the host updated core) is
+ * caught by comparing the version this check last saw. One single event a few
+ * minutes out: core drops a duplicate inside ten minutes of an identical one.
+ *
+ * @param string     $version The running core version.
+ * @param int|null   $now     Unix time.
+ * @return bool Whether a read was queued.
+ */
+function sn_csp_hash_queue_after_update( $version = '', $now = null ) {
+	$now     = null === $now ? time() : (int) $now;
+	$version = (string) $version;
+	if ( '' !== $version ) {
+		update_option( SN_CSP_HASH_VERSION_OPT, $version, true );
+	}
+	if ( false !== wp_next_scheduled( SN_CSP_HASH_HOOK, array( 'after_update' ) ) ) {
+		return false;
+	}
+	return (bool) wp_schedule_single_event( $now + SN_CSP_HASH_AFTER_UPDATE, SN_CSP_HASH_HOOK, array( 'after_update' ) );
+}
+
+/**
+ * The init-time version compare: queue a read when core's version is not the
+ * one this check last saw. The first sighting only records it.
+ *
+ * @param string $version The running core version.
+ * @return bool Whether a read was queued.
+ */
+function sn_csp_hash_version_changed( $version ) {
+	$seen = (string) get_option( SN_CSP_HASH_VERSION_OPT, '' );
+	if ( '' === $seen ) {
+		update_option( SN_CSP_HASH_VERSION_OPT, (string) $version, true );
+		return false;
+	}
+	return $seen !== (string) $version ? sn_csp_hash_queue_after_update( $version ) : false;
+}
+
 if ( ! defined( 'SN_CSP_HASH_TEST' ) || ! SN_CSP_HASH_TEST ) {
 	add_action( SN_CSP_HASH_HOOK, 'sn_csp_hash_run', 10, 0 );
+	add_action( 'upgrader_process_complete', static fn() => sn_csp_hash_queue_after_update( (string) get_bloginfo( 'version' ) ), 99, 0 );
+	add_action( 'init', static fn() => sn_csp_hash_version_changed( (string) get_bloginfo( 'version' ) ), 20 );
 	add_action(
 		'init',
 		static function () {

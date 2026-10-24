@@ -12,6 +12,8 @@
  * Two core filters drive the behaviour:
  *   - wp_speculation_rules_configuration   — returning null DISABLES speculative
  *     loading entirely; otherwise we return mode=prerender / eagerness=moderate.
+ *     A null core passes in (a logged-in visitor, no pretty permalinks) stays
+ *     null (2026-10-24).
  *   - wp_speculation_rules_href_exclude_paths (10,2) — receives ($paths, $mode);
  *     we APPEND /contact/* so it never prerenders (never the login slug: these
  *     rules are printed into every page, so it would publish the hidden door).
@@ -38,11 +40,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  * feature outright (core honours a null configuration by emitting no rules).
  * Otherwise return the prerender/moderate profile.
  *
+ * A null coming IN is core's own "off" (2026-10-24): core passes null for a
+ * logged-in visitor and for a site without pretty permalinks, so a prerender
+ * never runs the admin bar's per-request work twice. That stays off; the
+ * profile only replaces core's default where core would load at all.
+ *
  * @param array|null $config Incoming configuration (array with mode + eagerness, or null).
  * @return array{mode:string,eagerness:string}|null
  */
 function sn_speculation_configuration( $config ) {
-	if ( ! sn_setting( 'perf.speculative_loading', true ) ) {
+	if ( null === $config || ! sn_setting( 'perf.speculative_loading', true ) ) {
 		return null;
 	}
 	return array(
