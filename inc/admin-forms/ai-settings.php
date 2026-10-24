@@ -122,7 +122,7 @@ function sn_admin_render_ai_settings_form() {
 		) . '</p>';
 		echo '<span class="sn-an-mirror-meter"><span style="width:' . esc_attr( (string) $pct_width ) . '%"></span></span>';
 		if ( $spent >= $budget ) {
-			echo '<p class="sn-field-helper"><strong>' . esc_html__( 'The cap is reached. Copilot and agents run outside the cap; every other AI feature is paused until the next calendar month, or until you raise this number.', 'signal-and-noise-tools' ) . '</strong></p>';
+			echo '<p class="sn-field-helper"><strong>' . esc_html__( 'The cap is reached. The AI features of this plugin pause until the next calendar month, or until you raise this number. Copilot, Agents and the AI plugin keep running; their spend is listed separately and not counted against the cap.', 'signal-and-noise-tools' ) . '</strong></p>';
 		}
 	} else {
 		echo '<p class="sn-field-helper">' . sprintf(
