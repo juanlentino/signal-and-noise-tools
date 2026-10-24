@@ -41,9 +41,15 @@ if ( 'child' === ( $argv[1] ?? '' ) ) {
 	}
 	function do_action( $tag ) { apply_filters( $tag, null ); }
 	function do_action_ref_array( $tag, $args ) { apply_filters( $tag, ...$args ); }
+	$GLOBALS['__opts'] = '' === $req['since'] ? array() : array( 'sn_rss_tracker_304_since' => $req['since'] );
 	function get_option( $k, $d = false ) {
-		$o = array( 'html_type' => 'text/html', 'blog_charset' => 'UTF-8', 'sn_render_changed_gmt' => $GLOBALS['req']['render_changed'] );
+		$o = array( 'html_type' => 'text/html', 'blog_charset' => 'UTF-8', 'sn_render_changed_gmt' => $GLOBALS['req']['render_changed'] ) + $GLOBALS['__opts'];
 		return $o[ $k ] ?? $d;
+	}
+	function add_option( $k, $v = '', $dep = '', $autoload = null ) {
+		if ( array_key_exists( $k, $GLOBALS['__opts'] ) ) { return false; }
+		$GLOBALS['__opts'][ $k ] = $v;
+		return true;
 	}
 	function home_url( $p = '' ) { return 'https://example.com' . $p; }
 	function wp_unslash( $v ) { return $v; }
@@ -85,7 +91,7 @@ if ( 'child' === ( $argv[1] ?? '' ) ) {
 	register_shutdown_function( static function () {
 		$e     = error_get_last();
 		$fatal = $e && in_array( $e['type'], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR ), true ) ? $e['message'] : '';
-		echo 'FCJSON:' . json_encode( array( 'status' => http_response_code(), 'tracked' => $GLOBALS['__tracked'], 'tr' => $GLOBALS['__tr'], 'hdr' => $GLOBALS['__hdr'], 'fatal' => $fatal ) ) . "\n";
+		echo 'FCJSON:' . json_encode( array( 'status' => http_response_code(), 'tracked' => $GLOBALS['__tracked'], 'tr' => $GLOBALS['__tr'], 'hdr' => $GLOBALS['__hdr'], 'fatal' => $fatal, 'since' => $GLOBALS['__opts']['sn_rss_tracker_304_since'] ?? null ) ) . "\n";
 	} );
 	$wp             = new snwp\WP();
 	$wp->query_vars = array( 'feed' => 'feed' );
@@ -127,7 +133,7 @@ $now  = time();
 $db   = array( 'modified' => gmdate( 'Y-m-d H:i:s', $now - 2 * 86400 ), 'date' => gmdate( 'Y-m-d H:i:s', $now - 3 * 86400 ) );
 $lm   = gmdate( 'D, d M Y H:i:s', $now - 2 * 86400 ) . ' GMT';
 $etag = '"' . md5( $lm ) . '"';
-$base = array( 'db' => $db, 'render_changed' => 0, 'ims' => '', 'inm' => '' );
+$base = array( 'db' => $db, 'render_changed' => 0, 'ims' => '', 'inm' => '', 'since' => '' );
 
 echo "Group: a reader revalidating an unchanged feed\n";
 $r = fc_request( 'matching validators', array( 'ims' => $lm, 'inm' => $etag ) + $base );
@@ -135,6 +141,11 @@ ok( 304 === $r['status'], 'core answers 304' );
 ok( 1 === $r['tracked'], 'the 304 is counted, once (it was lost when the tracker ran on template_redirect)' );
 ok( false === $r['tr'], 'template_redirect never ran: the count came before core exited' );
 ok( fc_has( $r, 'X-Robots-Tag: noindex, follow' ), 'the 304 carries the feed X-Robots-Tag' );
+
+echo "\nGroup: the change in counting is dated, once\n";
+ok( gmdate( 'Y-m-d' ) === $r['since'], 'the first counted request records the UTC day 304s began to count: ' . var_export( $r['since'], true ) );
+$r = fc_request( 'a later request', array( 'ims' => $lm, 'inm' => $etag, 'since' => '2026-10-24' ) + $base );
+ok( '2026-10-24' === $r['since'], 'a later request keeps the first day' );
 
 echo "\nGroup: a full fetch\n";
 $r = fc_request( 'no validators', $base );

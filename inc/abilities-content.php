@@ -68,7 +68,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'description'         => 'Returns the most recent RSS feed request timestamp + 24h / 7d / 30d totals + unique visitor counts, plus feed opens (7d / 30d totals and top notes, a floor: "at least"). Backed by the sn_rss_tracker module. Use to verify RSS feed traffic before changing feed structure or auditing crawler activity.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
-		'execute_callback'    => 'snt_ability_get_rss_stats',
+		'execute_callback'    => 'snt_ability_get_rss_stats_local',
 		'input_schema'        => array(
 			// v2.5.4: see purge-all-caches comment — null accepted because
 			// readonly abilities (GET) receive null when caller omits ?input=.
@@ -137,6 +137,10 @@ add_action( 'wp_abilities_api_init', function() {
 									'items'       => array( 'type' => 'string' ),
 								),
 							),
+						),
+						'counts_304_since'      => array(
+							'type'        => array( 'string', 'null' ),
+							'description' => 'Local door only (2026-10-24): the UTC day (Y-m-d) the request counts began to include conditional fetches (304), which core answers. A step up in total from that day is measurement, not growth. Null before the first count.',
 						),
 						'feed_opens'            => array(
 							'type'        => array( 'object', 'null' ),
@@ -352,6 +356,22 @@ function snt_ability_get_rss_stats() {
 		return new WP_Error( 'snt_helper_unavailable', 'RSS-stats helper unavailable.', array( 'status' => 500 ) );
 	}
 	return snt_cmd_impl_rss_stats();
+}
+
+/**
+ * Execute callback for signal-noise/get-rss-stats (the local door): the shared
+ * payload plus data.counts_304_since. The remote twin keeps
+ * snt_ability_get_rss_stats(), so its pinned contract does not move.
+ *
+ * @return array|WP_Error
+ */
+function snt_ability_get_rss_stats_local() {
+	$out = snt_ability_get_rss_stats();
+	if ( is_array( $out ) && isset( $out['data'] ) && is_array( $out['data'] ) ) {
+		$day                             = function_exists( 'sn_rss_tracker_counts_304_since' ) ? sn_rss_tracker_counts_304_since() : '';
+		$out['data']['counts_304_since'] = '' === $day ? null : $day;
+	}
+	return $out;
 }
 
 /**

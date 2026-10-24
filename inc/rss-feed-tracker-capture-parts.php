@@ -214,6 +214,9 @@ function sn_rss_tracker_capture() {
 	$feed_url    = home_url( $request_uri );
 	$ua_hash     = sn_rss_tracker_hash_ua( $ua );
 
+	// The first count under this method dates it, once (add_option never
+	// overwrites): every readout labels the step up from that day.
+	add_option( SN_RSS_TRACKER_304_SINCE_OPT, gmdate( 'Y-m-d' ), '', true );
 	sn_rss_tracker_log_request( $feed_url, $ua_hash );
 	if ( function_exists( 'snt_feed_subs_capture' ) ) {
 		snt_feed_subs_capture( $ua, $ua_hash, $request_uri ); // parsed fields only (inc/feed-subscribers.php)
@@ -229,8 +232,9 @@ function sn_rss_tracker_capture() {
  * 304 and exits before template_redirect, where the count used to run, so a
  * reader revalidating an unchanged feed would go uncounted. wp_headers is the
  * last hook before that exit, and the query is answered by then (is_feed()).
- * A 200 and a 304 are each counted once, as they were when the plugin answered
- * the 304 itself after the count (wave 2, 2026-10-24).
+ * A 200 and a 304 are each counted once (wave 2, 2026-10-24). Before, a 304
+ * core answered was never counted, so the count steps up from the day
+ * sn_rss_tracker_counts_304_since() reports.
  *
  * @param array $headers Core's headers, returned untouched.
  * @return array
@@ -240,6 +244,28 @@ function sn_rss_tracker_capture_headers( $headers ) {
 	return $headers;
 }
 add_filter( 'wp_headers', 'sn_rss_tracker_capture_headers', 1 );
+
+/**
+ * The UTC day the count began to include conditional fetches (304), or ''
+ * before the first count (or for a stored value that is not a date).
+ *
+ * @return string Y-m-d.
+ */
+function sn_rss_tracker_counts_304_since() {
+	$day = (string) get_option( SN_RSS_TRACKER_304_SINCE_OPT, '' );
+	return 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) ? $day : '';
+}
+
+/**
+ * The one line the RSS readouts carry about that change, or ''.
+ *
+ * @return string
+ */
+function sn_rss_tracker_counts_304_note() {
+	$day = sn_rss_tracker_counts_304_since();
+	/* translators: %s: a UTC date, Y-m-d. */
+	return '' === $day ? '' : sprintf( __( 'Conditional fetches (304) are counted since %s (UTC), so a step up from that day is measurement, not growth.', 'signal-and-noise-tools' ), $day );
+}
 
 function sn_rss_tracker_install() {
 	global $wpdb;

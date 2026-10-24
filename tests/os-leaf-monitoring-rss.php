@@ -136,6 +136,20 @@ ok( 1 === substr_count( $kit, 'os-confirm-danger' ), 'only the purge form (not r
 ok( false !== strpos( $kit, 'wp_rss_feed_log' ), 'the settings retention hint names the live log table' );
 ok( false !== strpos( $kit, '<os-code>wp_rss_feed_log</os-code>' ), 'the maintenance hint names the live log table via os-code' );
 
+// ── 2026-10-24: the change in counting is labeled on both surfaces. Core now
+// answers a feed's 304 and the tracker counts it, so a step up from that day
+// is measurement, not growth. No line before the first counted request.
+$sn_304_line = 'Conditional fetches (304) are counted since 2026-10-24 (UTC), so a step up from that day is measurement, not growth.';
+ok( false === strpos( $classic, 'Conditional fetches (304)' ) && false === strpos( $kit, 'Conditional fetches (304)' ), 'no 304 line before the first counted request' );
+$GLOBALS['__options']['sn_rss_tracker_304_since'] = '2026-10-24';
+$classic304 = snt_leaf_classic_html( 'sn_admin_render_rss_section' );
+$kit304     = snt_leaf_paint( 'monitoring', 'rss' );
+ok( false !== strpos( $classic304, $sn_304_line ), 'the wp-admin RSS view says since when 304s are counted' );
+ok( false !== strpos( $kit304, $sn_304_line ), 'the OpenStation twin says the same line' );
+$GLOBALS['__options']['sn_rss_tracker_304_since'] = 'not-a-date';
+ok( false === strpos( snt_leaf_paint( 'monitoring', 'rss' ), 'Conditional fetches (304)' ), 'a stored value that is not a date prints no line' );
+unset( $GLOBALS['__options']['sn_rss_tracker_304_since'] );
+
 // ── Load-bearing token oracle: any classic sentence/hint/code value the
 // classic leaf prints must survive the port, checked against BOTH sides so
 // the oracle stays honest if the classic itself changes.

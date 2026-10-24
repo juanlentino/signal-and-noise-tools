@@ -759,6 +759,7 @@ ap_eq( 'wp_template', $out['items'][0]['post_type'], 'list-template-overrides: f
 $out = wp_get_ability( 'signal-noise/get-rss-stats' )->execute( array() );
 ap_true( is_array( $out ) && isset( $out['ok'], $out['data'] ), 'get-rss-stats: required keys present' );
 ap_eq( 12, $out['data']['windows']['1']['total'], 'get-rss-stats: 24h total' );
+ap_true( array_key_exists( 'counts_304_since', $out['data'] ), 'get-rss-stats: the local payload says since when 304s are counted (null until the first count)' );
 
 // list-cron-events (no input)
 $out = wp_get_ability( 'signal-noise/list-cron-events' )->execute( array() );
