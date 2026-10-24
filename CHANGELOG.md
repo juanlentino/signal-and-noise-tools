@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A post save purges its Markdown twin too.** The WordPress AI plugin's Markdown Feeds experiment serves every post and page as Markdown at `?output_format=markdown`, and the edge caches that address under its query string (`cf-cache-status: HIT`), so an edit left agents reading the old text until the cache revalidated. `sn_cf_post_purge_urls()` now adds the permalink's `?output_format=markdown` beside it.
+
 ## [2026.10.62] - 2026-10-24 — the CSP check reads /provhub; the bot-signals readout accumulates
 
 ### Changed

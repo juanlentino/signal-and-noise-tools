@@ -78,6 +78,7 @@ function get_permalink( $p ) {
 	return 'https://example.test/notes/post-' . $id . '/';
 }
 function home_url( $path = '/' ) { return 'https://example.test' . $path; }
+function add_query_arg( $k, $v, $u ) { return $u . ( false === strpos( $u, '?' ) ? '?' : '&' ) . $k . '=' . $v; }
 
 $GLOBALS['__http'] = array();
 function wp_remote_post( $url, $args = array() ) {

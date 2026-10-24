@@ -68,6 +68,14 @@ function sn_cf_post_purge_urls( $post_id, $post ) {
 		home_url( '/notes/feed/' ),
 	);
 
+	// 2026-10-24: the post's Markdown twin. The WordPress AI plugin's Markdown
+	// Feeds experiment serves it at ?output_format=markdown, the edge caches it
+	// under that query string (cf-cache-status: HIT), and the rights-signals
+	// Worker hands it to every agent asking for Markdown, so an edit must not
+	// leave it on the old text. Purging an address the edge does not hold costs
+	// nothing.
+	$urls[] = add_query_arg( 'output_format', 'markdown', get_permalink( $post ) );
+
 	// If the saved post is a child page (e.g., /provenance/over-detection/),
 	// also purge the parent so its referring listings refresh.
 	$parent_id = (int) $post->post_parent;
