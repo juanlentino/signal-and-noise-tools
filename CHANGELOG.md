@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The daily CSP check reads /provhub.** The /provhub family (/provhub/, /present/, /verify/, /resources/) are standalone HTML files on the server, not WordPress pages, and the check's page list never read them, so when the strict policy was enforced it blocked every inline script there without a word: the public verifier sat on "Fetching sample files", the QR overlay and copy button were dead, and the beacon never loaded. The check now reads those four, and it no longer counts the inline scripts of a page that carries no strict policy (an exempt path such as /contact/ or, once excluded at Cloudflare, /provhub), so an exemption does not raise a false alarm.
+
 ## [2026.10.61] - 2026-10-23 — the owner's analytics name every row
 
 ### Changed

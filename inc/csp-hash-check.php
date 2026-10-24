@@ -36,7 +36,11 @@ function sn_csp_hash_pages() {
 	// 2026-10-20: /resume/, /verify/ and /stats/ too. /verify prints its own
 	// document and /stats a live config, the two pages a headless run found
 	// with an inline script the strict policy would block.
-	$urls   = array( home_url( '/' ), home_url( '/notes/' ), home_url( '/provenance/' ), home_url( '/index/' ), home_url( '/resume/' ), home_url( '/verify/' ), home_url( '/stats/' ) );
+	// 2026-10-24: and the /provhub family. Those are standalone HTML files on
+	// the server, not WordPress pages, and the enforced policy blocked every
+	// inline script on them (the verifier stuck on "Fetching sample files")
+	// while this list never read them.
+	$urls   = array( home_url( '/' ), home_url( '/notes/' ), home_url( '/provenance/' ), home_url( '/index/' ), home_url( '/resume/' ), home_url( '/verify/' ), home_url( '/stats/' ), home_url( '/provhub/' ), home_url( '/provhub/present/' ), home_url( '/provhub/verify/' ), home_url( '/provhub/resources/' ) );
 	$latest = get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'posts_per_page' => 1, 'fields' => 'ids', 'no_found_rows' => true ) );
 	if ( ! empty( $latest[0] ) ) {
 		$urls[] = (string) get_permalink( (int) $latest[0] );
@@ -88,6 +92,11 @@ function sn_csp_hash_run( $fetch = null, $now = null ) {
 		if ( $rank[ $strict['mode'] ] > $rank[ $out['mode'] ] ) {
 			$out['mode']    = $strict['mode'];
 			$out['sources'] = $strict['sources'];
+		}
+		// A page Cloudflare keeps on a loose policy (an exempt path) blocks
+		// nothing, so its scripts are not the strict policy's to pin.
+		if ( 'none' === $strict['mode'] ) {
+			continue;
 		}
 		foreach ( sn_csp_inline_scripts( (string) $r['body'] ) as $s ) {
 			$out['seen'][ $s['hash'] ]['label']   = $s['label'];
