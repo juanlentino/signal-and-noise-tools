@@ -8,7 +8,7 @@
  * get_permalink() of the mailpoet_page post). And every feed was indexable.
  *
  * Pins: a MailPoet request gets noindex in the robots meta (through
- * sn_seo_robots_directives, since the plugin removes core's wp_robots), an
+ * sn_seo_robots_directives, which core's wp_robots() prints), an
  * X-Robots-Tag: noindex header, and no canonical; a feed gets
  * X-Robots-Tag: noindex, follow; an ordinary page gets none of it.
  *
@@ -47,7 +47,7 @@ function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); }
 function apply_filters( $hook, $value, ...$args ) { return $value; }
 function apply_filters_deprecated( $tag, $args ) { return $args[0]; }
 function add_action( $tag, $cb, $prio = 10 ) { $GLOBALS['__actions'][ $tag ][] = array( $cb, $prio ); }
-function add_filter() {}
+function add_filter( $tag, $cb, $prio = 10 ) { $GLOBALS['__actions'][ $tag ][] = array( $cb, $prio ); }
 function remove_action() {}
 
 require __DIR__ . '/../inc/seo.php';
@@ -83,12 +83,14 @@ ok( 'https://example.com/about/' === $url, 'an ordinary page keeps its canonical
 
 echo "\nGroup: wiring\n";
 $hooked = false;
-foreach ( $GLOBALS['__actions']['template_redirect'] ?? array() as $h ) {
-	if ( 'sn_seo_send_robots_header' === $h[0] && $h[1] < 10 ) {
-		$hooked = true;
-	}
+foreach ( $GLOBALS['__actions']['wp_headers'] ?? array() as $h ) {
+	$hooked = $hooked || 'sn_seo_robots_header_filter' === $h[0];
 }
-ok( $hooked, 'the header is sent at template_redirect, before the feed 304 short-circuit at priority 10' );
+ok( $hooked, 'the header rides core wp_headers, so a feed 304 carries it too (tests/feed-conditional-get.php runs core)' );
+$GLOBALS['V'] = array( 'type' => '', 'feed' => true );
+ok( array( 'X-Robots-Tag' => 'noindex, follow' ) === sn_seo_robots_header_filter( array() ), 'the filter adds the feed header to core headers' );
+$GLOBALS['V'] = array( 'type' => 'page', 'feed' => false );
+ok( array( 'ETag' => '"x"' ) === sn_seo_robots_header_filter( array( 'ETag' => '"x"' ) ), 'an ordinary page: core headers untouched' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

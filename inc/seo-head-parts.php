@@ -1,10 +1,17 @@
 <?php
 /**
- * Signal & Noise Tools: SEO, the head emission (the core canonical removal, the canonical, robots and description tags, the document title).
+ * Signal & Noise Tools: SEO, the head emission (the canonical, what core's
+ * robots meta and canonical are fed, the description tag, the document title).
  *
- * Split from inc/seo.php (house line cap, 2026-10-14); a pure
- * move, no code changed. The file header there describes the module. Loaded
- * by require_once at the end of that file, in the order the code always ran.
+ * Split from inc/seo.php (house line cap, 2026-10-14). The file header there
+ * describes the module. Loaded by require_once at the end of that file, in the
+ * order the code always ran.
+ *
+ * Wave 2 (2026-10-24): core prints the robots meta (wp_robots(), wp_head:1)
+ * and the singular canonical (rel_canonical(), wp_head:10) again. The plugin
+ * removed both from v2.0.2 and printed its own; it now feeds them through the
+ * wp_robots and get_canonical_url filters, so core's blog_public, search,
+ * embed and replytocom noindex and its <!--nextpage--> canonical all run.
  *
  * @package SignalNoise
  */
@@ -14,75 +21,54 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Remove WP core's rel_canonical to avoid emitting two canonical tags.
- *
- * WP core's wp-includes/link-template.php registers rel_canonical()
- * on wp_head at priority 10. It fires on singular views (which
- * includes static front pages). Until Phase 13, TSF was the suppressor;
- * now that TSF is gone, our seo.php canonical at priority 1 would
- * race-emit alongside WP core's at priority 10, producing two
- * <link rel="canonical"> tags per page (caught in v2.0.1 cutover
- * verification).
- *
- * Gated on TSF — keeps the removal scoped to "when SN owns canonical
- * emission" so accidental TSF reactivation doesn't double-remove.
- *
- * Added in v2.0.2.
- */
-add_action( 'init', function() {
-	if ( ! function_exists( 'the_seo_framework' ) ) {
-		remove_action( 'wp_head', 'rel_canonical' );
-		// wp_robots() (WP 5.7+) is hooked on wp_head priority 1 and emits
-		// a competing <meta name="robots"> tag when blog_public=0
-		// ("Discourage search engines" in Settings > Reading). Today our
-		// production site has blog_public=1 so this is harmless, but a
-		// staging clone or accidental toggle would cause two robots tags
-		// with conflicting directives. Belt-and-suspenders removal so the
-		// plugin owns robots emission unconditionally. v2.0.4 hardening.
-		remove_action( 'wp_head', 'wp_robots', 1 );
-	}
-}, 1 );
-
-/**
- * SEO: Canonical URL.
- *
- * Emits <link rel="canonical"> on the front page, /notes, /provenance,
- * and any singular post/page. Migrated from The SEO Framework in
- * plugin v1.6.0 (Phase 10).
+ * SEO: Canonical URL on the views core prints none for: the posts page,
+ * /notes/tags/ and tag archives, each with its paged self-canonical. A
+ * singular view is rel_canonical()'s, fed by sn_seo_canonical_url() below.
  */
 add_action( 'wp_head', function() {
-	// v4.4.3: TSF coexistence defense-in-depth. If TSF is ever reactivated,
-	// let it own canonical emission; our emitter stands down. The init hook
-	// already gates the rel_canonical() REMOVAL on TSF absence, but the
-	// emitter itself was unconditional — would produce a duplicate tag.
-	if ( function_exists( 'the_seo_framework' ) ) {
+	if ( is_singular() ) {
 		return;
 	}
 
 	list( , , $url ) = sn_seo_meta_for_current_view();
-
-	// v1.10.2+: per-post _sn_canonical_url override wins for singulars.
-	// Use case: republished/syndicated content where the canonical lives
-	// at the original publisher's URL.
-	if ( is_singular() && function_exists( 'sn_post_settings_get_canonical_url' ) ) {
-		$post = get_queried_object();
-		if ( $post ) {
-			$override = sn_post_settings_get_canonical_url( $post->ID );
-			if ( '' !== $override ) {
-				$url = $override;
-			}
-		}
-	}
-
 	if ( $url ) {
 		echo '<link rel="canonical" href="' . esc_url( $url ) . '">' . "\n";
 	}
 }, 1 );
 
 /**
+ * get_canonical_url filter: what core's rel_canonical() prints for a post.
+ *
+ *   - the _sn_canonical_url override (v1.10.2: republished content whose
+ *     canonical lives at the original publisher);
+ *   - nothing on MailPoet's subscription page (inc/seo-noindex-parts.php);
+ *   - on the /notes/ Page, each page of the list self-canonicals with
+ *     ?paged=N (v5.1.0), a query var core's canonical does not read.
+ *
+ * Anything else keeps core's URL, pagination and comment pages included.
+ *
+ * @param string  $url  Core's canonical URL.
+ * @param WP_Post $post The post.
+ * @return string
+ */
+function sn_seo_canonical_url( $url, $post ) {
+	$override = function_exists( 'sn_post_settings_get_canonical_url' ) ? (string) sn_post_settings_get_canonical_url( $post->ID ) : '';
+	if ( '' !== $override ) {
+		return $override;
+	}
+	if ( 'mailpoet_page' === $post->post_type ) {
+		return '';
+	}
+	if ( (int) $post->ID === (int) get_queried_object_id() && is_page( 'notes' ) && sn_seo_current_paged() > 1 ) {
+		list( , , $url ) = sn_seo_meta_for_current_view();
+	}
+	return $url;
+}
+add_filter( 'get_canonical_url', 'sn_seo_canonical_url', 10, 2 );
+
+/**
  * SEO: Robots meta.
  *
- * Mirrors The SEO Framework's default "no restrictions" robots meta.
  * Honors per-post override flags for singulars (set via the post
  * settings meta box, added in v1.10.0 for noindex / v1.10.2 for
  * noarchive + noimageindex):
@@ -95,12 +81,12 @@ add_action( 'wp_head', function() {
  * Build the robots-meta directive list. Pure apart from its WP context reads,
  * so it is fixture-testable (tests/seo-robots.php).
  *
- * v9.88.0: the list passes through the `sn_seo_robots_directives` filter. The
- * plugin removes core's wp_robots and emits this tag itself, so a theme-side
- * `wp_robots` filter is DEAD CODE (the theme's v10.51.0 search-noindex hooked
- * exactly that and was live-verified inert). This is the seam a theme uses to
- * add directives for the routes it owns. Listener returns are normalized: a
- * non-array is ignored, duplicates collapse, the result stays list-shaped.
+ * v9.88.0: the list passes through the `sn_seo_robots_directives` filter, the
+ * seam the theme uses to add directives for the routes it owns (its notes
+ * search noindex). It stays the seam: sn_seo_wp_robots() hands the list to
+ * core's wp_robots filter, so a listener here still reaches the printed tag.
+ * Listener returns are normalized: a non-array is ignored, duplicates
+ * collapse, the result stays list-shaped.
  *
  * @return string[]
  */
@@ -149,7 +135,7 @@ function sn_seo_robots_directives() {
 		}
 	}
 
-	// Always-present permissive defaults (mirrors TSF's "no restrictions").
+	// Always-present permissive defaults ("no restrictions").
 	$directives[] = 'max-snippet:-1';
 	$directives[] = 'max-image-preview:large';
 	$directives[] = 'max-video-preview:-1';
@@ -184,29 +170,40 @@ function sn_seo_robots_directives() {
 	return array_values( array_unique( $clean ) );
 }
 
-add_action( 'wp_head', function() {
-	// v4.4.3: TSF coexistence defense-in-depth. TSF owns robots meta while
-	// active; our emitter defers. The init hook removes wp_robots() when TSF
-	// is inactive, but that removal only covers WP core's hook — without this
-	// gate, TSF + our emitter would both fire if TSF were reactivated.
-	if ( function_exists( 'the_seo_framework' ) ) {
-		return;
+/**
+ * wp_robots filter: fold the directive list into core's map, after core's own
+ * callbacks (priority 10). 'max-snippet:-1' becomes 'max-snippet' => '-1', a
+ * bare 'noindex' becomes 'noindex' => true.
+ *
+ * Only inside wp_head: core also calls wp_robots() on login_head, embed_head
+ * and from wp_die(), where the query may not exist (core strips its own
+ * query-dependent callbacks there) and the plugin never printed anything.
+ *
+ * @param array $robots Core's directives.
+ * @return array
+ */
+function sn_seo_wp_robots( $robots ) {
+	if ( ! doing_action( 'wp_head' ) ) {
+		return $robots;
 	}
-
-	echo '<meta name="robots" content="' . esc_attr( implode( ',', sn_seo_robots_directives() ) ) . '">' . "\n";
-}, 1 );
+	$robots = (array) $robots;
+	foreach ( sn_seo_robots_directives() as $directive ) {
+		$parts               = explode( ':', $directive, 2 );
+		$robots[ $parts[0] ] = $parts[1] ?? true;
+	}
+	// One answer on links: a nofollow (the post flag, core on a private site)
+	// outranks the follow core and the theme pair with a search noindex.
+	if ( ! empty( $robots['nofollow'] ) ) {
+		unset( $robots['follow'] );
+	}
+	return $robots;
+}
+add_filter( 'wp_robots', 'sn_seo_wp_robots', 20 );
 
 /**
  * SEO: Meta description tag.
  */
 add_action( 'wp_head', function() {
-	// v4.4.3: TSF coexistence defense-in-depth. TSF owns meta description
-	// while active; our emitter defers. Without this gate, reactivating TSF
-	// would produce a duplicate meta description tag in <head>.
-	if ( function_exists( 'the_seo_framework' ) ) {
-		return;
-	}
-
 	list( , $description, ) = sn_seo_meta_for_current_view();
 	if ( $description ) {
 		echo '<meta name="description" content="' . esc_attr( $description ) . '">' . "\n";
@@ -221,16 +218,9 @@ add_action( 'wp_head', function() {
  * Splits our pre-built "Page Name — Site Name" format from
  * sn_seo_meta_for_current_view() into the title/site parts WP expects.
  *
- * Gated on TSF: while TSF is active, TSF emits the <title> itself and
- * we let it. The instant TSF is deactivated, this filter takes over.
- *
  * Added in plugin v2.0.0 (Phase 13 TSF cutover).
  */
 add_filter( 'document_title_parts', function( $parts ) {
-	if ( function_exists( 'the_seo_framework' ) ) {
-		return $parts;
-	}
-
 	list( $title, , ) = sn_seo_meta_for_current_view();
 	if ( '' === $title ) {
 		// 404s carry no view meta, and WP's fallback joins with its default
@@ -250,4 +240,3 @@ add_filter( 'document_title_parts', function( $parts ) {
 	// rendered <title> becomes "X — Y — Z" with three segments.
 	return array( 'title' => $title );
 }, 10, 1 );
-

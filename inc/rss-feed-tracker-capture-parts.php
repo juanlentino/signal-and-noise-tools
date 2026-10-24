@@ -190,8 +190,7 @@ function sn_rss_tracker_log_request( $feed_url, $ua_hash ) {
 }
 
 /**
- * Priority 1 so we run before any feed-rendering shortcircuits (some
- * caching plugins hook template_redirect at the default 10).
+ * Count one human feed request. Runs from sn_rss_tracker_capture_headers().
  */
 function sn_rss_tracker_capture() {
 	if ( ! is_feed() ) {
@@ -222,7 +221,25 @@ function sn_rss_tracker_capture() {
 	// Local log stores the full URL; the collector event takes the path.
 	sn_rss_tracker_send_event( $settings, $request_uri );
 }
-add_action( 'template_redirect', 'sn_rss_tracker_capture', 1 );
+
+/**
+ * wp_headers filter: count the request while core assembles its headers.
+ *
+ * Core answers a feed's conditional GET itself: WP::send_headers() sends the
+ * 304 and exits before template_redirect, where the count used to run, so a
+ * reader revalidating an unchanged feed would go uncounted. wp_headers is the
+ * last hook before that exit, and the query is answered by then (is_feed()).
+ * A 200 and a 304 are each counted once, as they were when the plugin answered
+ * the 304 itself after the count (wave 2, 2026-10-24).
+ *
+ * @param array $headers Core's headers, returned untouched.
+ * @return array
+ */
+function sn_rss_tracker_capture_headers( $headers ) {
+	sn_rss_tracker_capture();
+	return $headers;
+}
+add_filter( 'wp_headers', 'sn_rss_tracker_capture_headers', 1 );
 
 function sn_rss_tracker_install() {
 	global $wpdb;
@@ -245,7 +262,7 @@ function sn_rss_tracker_install() {
 
 /**
  * Hooked on init (not admin_init) so the table exists before any front-
- * end feed request hits template_redirect on a cold install. The
+ * end feed request is counted (wp_headers) on a cold install. The
  * version-option gate keeps the steady-state cost to a single autoloaded
  * option compare per pageview.
  */

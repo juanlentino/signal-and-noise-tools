@@ -1,212 +1,163 @@
 <?php
 /**
- * Tests for the RSS feed conditional-GET decision helper (v4.8.1, T9).
+ * Tests: a feed's conditional GET is core's, and every answer is counted.
  *
- * sn_seo_feed_conditional_response( $modified_gmt, $ims, $inm, $etag ) is a
- * pure function returning the response the template_redirect wrapper should
- * emit: 304 when the client's validator is still fresh, else 200 + the
- * Last-Modified/ETag headers. The wrapper (header emission, is_feed gate,
- * status_header/exit) can't run headlessly, so this locks the decision logic.
+ * Wave 2, item 11. Core's WP::send_headers() sends a feed's Last-Modified and
+ * ETag and answers its 304 (class-wp.php), and that exit comes before
+ * template_redirect, so the RSS tracker counts on the wp_headers filter core
+ * applies just before it. The plugin's own feed validator (a second ETag, and
+ * a 304 on a mismatched ETag with a fresh If-Modified-Since, which RFC 9110
+ * 13.2.2 forbids) is gone; the last render change reaches core through the
+ * get_lastpostmodified filter.
  *
- * Also asserts the new action is registered on template_redirect at a priority
- * > 1 (so it never pre-empts sn_rss_tracker_capture at priority 1).
+ * Runs core's REAL send_headers() (class-wp.php beside SNT_WP_HTML_API, in a
+ * namespace so header() is recorded) and get_lastpostmodified() (post.php).
+ * A 304 exits, so each request is a child process that reports from shutdown.
  *
- * @since plugin v4.8.1
+ * @package SignalNoiseTools
  */
+if ( PHP_SAPI !== 'cli' ) { http_response_code( 404 ); exit; }
+if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
+date_default_timezone_set( 'UTC' );
 
-// SECURITY: Prevent web access. Test fixture, not a runtime module.
-if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
-	http_response_code( 404 );
+$fc_inc = getenv( 'SNT_WP_HTML_API' ) ? dirname( (string) getenv( 'SNT_WP_HTML_API' ) ) : '';
+
+if ( 'child' === ( $argv[1] ?? '' ) ) {
+	$req = json_decode( (string) $argv[2], true );
+	$GLOBALS['__h'] = array();
+	$GLOBALS['__hdr'] = array();
+	$GLOBALS['__tracked'] = 0;
+	$GLOBALS['__tr'] = false;
+	function add_filter( $tag, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__h'][ $tag ][ $prio ][] = array( $cb, $args ); return true; }
+	function add_action( $tag, $cb, $prio = 10, $args = 1 ) { return add_filter( $tag, $cb, $prio, $args ); }
+	function remove_action() {}
+	function apply_filters( $tag, $value, ...$args ) {
+		$hooks = $GLOBALS['__h'][ $tag ] ?? array();
+		ksort( $hooks );
+		foreach ( $hooks as $rows ) {
+			foreach ( $rows as $row ) { $value = call_user_func_array( $row[0], array_slice( array_merge( array( $value ), $args ), 0, max( 1, $row[1] ) ) ); }
+		}
+		return $value;
+	}
+	function do_action( $tag ) { apply_filters( $tag, null ); }
+	function do_action_ref_array( $tag, $args ) { apply_filters( $tag, ...$args ); }
+	function get_option( $k, $d = false ) {
+		$o = array( 'html_type' => 'text/html', 'blog_charset' => 'UTF-8', 'sn_render_changed_gmt' => $GLOBALS['req']['render_changed'] );
+		return $o[ $k ] ?? $d;
+	}
+	function home_url( $p = '' ) { return 'https://example.com' . $p; }
+	function wp_unslash( $v ) { return $v; }
+	function wp_parse_args( $a, $d = array() ) { return array_merge( (array) $d, (array) $a ); }
+	function current_time( $t, $gmt = 0 ) { return gmdate( 'Y-m-d H:i:s' ); }
+	function is_feed( $f = '' ) { return true; }
+	function is_singular( $t = '' ) { return false; }
+	function is_user_logged_in() { return false; }
+	function get_queried_object() { return null; }
+	function feed_content_type( $t = '' ) { return 'application/rss+xml'; }
+	function get_default_feed() { return 'rss2'; }
+	function mysql2date( $format, $date, $translate = true ) { return $date ? gmdate( $format, strtotime( $date . ' UTC' ) ) : false; }
+	function _get_last_post_time( $tz, $field, $type = 'any' ) { return $GLOBALS['req']['db'][ $field ]; }
+	function get_lastpostdate( $tz = 'server', $type = 'any' ) { return $GLOBALS['req']['db']['date']; }
+	function get_feed_build_date( $format ) { return (string) strtotime( $GLOBALS['req']['db']['modified'] . ' UTC' ); }
+	$GLOBALS['req'] = $req;
+	$GLOBALS['wpdb'] = new class() {
+		public $prefix = 'wp_';
+		public $last_error = '';
+		public function insert( $table, $row ) { $GLOBALS['__tracked']++; return 1; }
+	};
+	$post = (string) file_get_contents( "$fc_inc/post.php" );
+	preg_match( '/^function get_lastpostmodified\(.*?^\}/ms', $post, $m );
+	eval( $m[0] ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- core's own function, lifted.
+	eval( 'namespace snwp; function header( $h, $r = true, $c = 0 ) { $GLOBALS["__hdr"][] = $h; } function status_header( $c ) { \http_response_code( $c ); } function headers_sent() { return false; } function header_remove( $n = null ) {}' ); // phpcs:ignore Squiz.PHP.Eval.Discouraged
+	$wp_src = str_replace( '#[AllowDynamicProperties]', '#[\AllowDynamicProperties]', (string) file_get_contents( "$fc_inc/class-wp.php" ) );
+	eval( 'namespace snwp; ' . preg_replace( '/^<\?php/', '', $wp_src, 1 ) ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- core's WP class, namespaced.
+
+	require __DIR__ . '/../inc/rss-feed-tracker.php';
+	require __DIR__ . '/../inc/seo.php';
+	add_action( 'template_redirect', static function () { $GLOBALS['__tr'] = true; }, 1000 );
+
+	$_SERVER['REQUEST_URI']     = '/feed/';
+	$_SERVER['HTTP_USER_AGENT'] = 'Feedly/1.0 (+http://www.feedly.com/fetcher.html; 3 subscribers)';
+	foreach ( array( 'ims' => 'HTTP_IF_MODIFIED_SINCE', 'inm' => 'HTTP_IF_NONE_MATCH' ) as $k => $key ) {
+		if ( '' !== $req[ $k ] ) { $_SERVER[ $key ] = $req[ $k ]; }
+	}
+	http_response_code( 200 );
+	register_shutdown_function( static function () {
+		$e     = error_get_last();
+		$fatal = $e && in_array( $e['type'], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR ), true ) ? $e['message'] : '';
+		echo 'FCJSON:' . json_encode( array( 'status' => http_response_code(), 'tracked' => $GLOBALS['__tracked'], 'tr' => $GLOBALS['__tr'], 'hdr' => $GLOBALS['__hdr'], 'fatal' => $fatal ) ) . "\n";
+	} );
+	$wp             = new snwp\WP();
+	$wp->query_vars = array( 'feed' => 'feed' );
+	$wp->send_headers(); // A 304 exits in here, as it does in WordPress.
+	do_action( 'template_redirect' );
 	exit;
 }
 
-if ( ! defined( 'ABSPATH' ) ) {
-	define( 'ABSPATH', '/' );
-}
+$pass = 0; $fail = 0;
+function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-// ─── Action registry (capture template_redirect registrations) ────────
-$GLOBALS['__actions'] = array();
-if ( ! function_exists( 'add_action' ) ) {
-	function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
-		$GLOBALS['__actions'][ $hook ][] = array(
-			'callback' => $callback,
-			'priority' => $priority,
-		);
-		return true;
+if ( '' === $fc_inc || ! is_readable( "$fc_inc/class-wp.php" ) || ! is_readable( "$fc_inc/post.php" ) ) {
+	if ( getenv( 'CI' ) ) {
+		ok( false, 'core class-wp.php and post.php beside SNT_WP_HTML_API (tools/fetch-wp-test-core.sh)' );
+	} else {
+		echo "SKIP - no class-wp.php / post.php beside SNT_WP_HTML_API\n";
+		ok( true, 'skipped locally without core' );
 	}
-}
-if ( ! function_exists( 'add_filter' ) ) {
-	function add_filter( $hook, $cb = null, $priority = 10, $accepted_args = 1 ) {}
-}
-
-// ─── WP stubs seo.php references at parse/registration time ───────────
-if ( ! function_exists( 'sn_setting' ) ) {
-	function sn_setting( $key, $default = '' ) { return $default; }
-}
-if ( ! function_exists( 'get_bloginfo' ) ) {
-	function get_bloginfo( $what ) { return 'Example'; }
-}
-if ( ! function_exists( 'esc_attr' ) ) {
-	function esc_attr( $s ) { return (string) $s; }
-}
-if ( ! function_exists( 'esc_url' ) ) {
-	function esc_url( $u ) { return (string) $u; }
-}
-if ( ! function_exists( 'esc_html' ) ) {
-	function esc_html( $s ) { return (string) $s; }
-}
-if ( ! function_exists( 'wp_unslash' ) ) {
-	function wp_unslash( $v ) { return is_string( $v ) ? stripslashes( $v ) : $v; }
-}
-if ( ! function_exists( 'apply_filters' ) ) {
-	function apply_filters( $hook, $value, ...$args ) { return $value; }
-}
-if ( ! function_exists( 'is_singular' ) ) {
-	function is_singular( $t = '' ) { return false; }
-}
-if ( ! function_exists( 'is_front_page' ) ) {
-	function is_front_page() { return false; }
-}
-if ( ! function_exists( 'is_home' ) ) {
-	function is_home() { return false; }
-}
-if ( ! function_exists( 'is_feed' ) ) {
-	function is_feed() { return false; }
-}
-if ( ! function_exists( 'get_queried_object' ) ) {
-	function get_queried_object() { return null; }
+	echo "\nResult: $pass passed, $fail failed.\n";
+	exit( $fail > 0 ? 1 : 0 );
 }
 
-// Real class names so sn_seo_feed_etag()'s `instanceof WP_Term` /
-// `instanceof WP_Post_Type` checks resolve. Minimal — only the props the
-// helper reads (term_id/taxonomy, name).
-if ( ! class_exists( 'WP_Term' ) ) {
-	class WP_Term {
-		public $term_id;
-		public $taxonomy;
+/** One feed request through core, in a child process. */
+function fc_request( $label, array $req ) {
+	$out = (string) shell_exec( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( __FILE__ ) . ' child ' . escapeshellarg( (string) json_encode( $req ) ) . ' 2>&1' );
+	if ( ! preg_match( '/^FCJSON:(.*)$/m', $out, $m ) ) {
+		ok( false, "$label: the request ran (output: " . trim( substr( $out, -400 ) ) . ')' );
+		return array( 'status' => 0, 'tracked' => -1, 'tr' => null, 'hdr' => array() );
 	}
+	$r = json_decode( $m[1], true );
+	ok( '' === $r['fatal'], "$label: ran without a fatal " . $r['fatal'] );
+	echo "  $label: HTTP {$r['status']}, counted {$r['tracked']}, " . implode( ' | ', $r['hdr'] ) . "\n";
+	return $r;
 }
-if ( ! class_exists( 'WP_Post_Type' ) ) {
-	class WP_Post_Type {
-		public $name;
-	}
-}
+function fc_has( array $r, $line ) { return in_array( $line, $r['hdr'], true ); }
+function fc_count( array $r, $name ) { return count( array_filter( $r['hdr'], static function ( $h ) use ( $name ) { return 0 === stripos( $h, $name . ':' ); } ) ); }
 
-require_once __DIR__ . '/../inc/seo.php';
+$now  = time();
+$db   = array( 'modified' => gmdate( 'Y-m-d H:i:s', $now - 2 * 86400 ), 'date' => gmdate( 'Y-m-d H:i:s', $now - 3 * 86400 ) );
+$lm   = gmdate( 'D, d M Y H:i:s', $now - 2 * 86400 ) . ' GMT';
+$etag = '"' . md5( $lm ) . '"';
+$base = array( 'db' => $db, 'render_changed' => 0, 'ims' => '', 'inm' => '' );
 
-// ─── Harness ──────────────────────────────────────────────────────────
-$pass = 0;
-$fail = 0;
-function fc_eq( $e, $a, $msg ) {
-	global $pass, $fail;
-	if ( $e === $a ) { $pass++; echo "  PASS: $msg\n"; }
-	else { $fail++; echo "  FAIL: $msg\n    Expected: " . var_export( $e, true ) . "\n    Actual:   " . var_export( $a, true ) . "\n"; }
-}
-function fc_true( $c, $msg ) {
-	global $pass, $fail;
-	if ( $c ) { $pass++; echo "  PASS: $msg\n"; } else { $fail++; echo "  FAIL: $msg\n"; }
-}
+echo "Group: a reader revalidating an unchanged feed\n";
+$r = fc_request( 'matching validators', array( 'ims' => $lm, 'inm' => $etag ) + $base );
+ok( 304 === $r['status'], 'core answers 304' );
+ok( 1 === $r['tracked'], 'the 304 is counted, once (it was lost when the tracker ran on template_redirect)' );
+ok( false === $r['tr'], 'template_redirect never ran: the count came before core exited' );
+ok( fc_has( $r, 'X-Robots-Tag: noindex, follow' ), 'the 304 carries the feed X-Robots-Tag' );
 
-echo "feed conditional-GET helper suite — plugin v4.8.1\n";
+echo "\nGroup: a full fetch\n";
+$r = fc_request( 'no validators', $base );
+ok( 200 === $r['status'] && true === $r['tr'], 'a 200, and the request goes on to the template' );
+ok( 1 === $r['tracked'], 'counted exactly once (no second count on template_redirect)' );
+ok( 1 === fc_count( $r, 'ETag' ) && fc_has( $r, "ETag: $etag" ), 'one ETag, core computed' );
+ok( 1 === fc_count( $r, 'Last-Modified' ) && fc_has( $r, "Last-Modified: $lm" ), 'one Last-Modified, the newest post' );
+ok( fc_has( $r, 'X-Robots-Tag: noindex, follow' ), 'the X-Robots-Tag goes out with core headers' );
 
-fc_true( function_exists( 'sn_seo_feed_conditional_response' ), 'sn_seo_feed_conditional_response() is defined' );
+echo "\nGroup: RFC 9110 13.2.2, If-None-Match wins over If-Modified-Since\n";
+$r = fc_request( 'stale ETag, fresh date', array( 'ims' => gmdate( 'D, d M Y H:i:s', $now ) . ' GMT', 'inm' => '"stale"' ) + $base );
+ok( 200 === $r['status'], 'a mismatched ETag gets the feed, not a 304 (the plugin validator answered 304 here)' );
+ok( 1 === $r['tracked'], 'counted once' );
 
-$modified = strtotime( '2026-06-01 12:00:00 UTC' );
-$etag     = '"' . md5( gmdate( 'D, d M Y H:i:s', $modified ) . ' GMT' ) . '"';
-$expected_http = gmdate( 'D, d M Y H:i:s', $modified ) . ' GMT';
-
-// 1. IMS at-or-after modified → 304.
-$r = sn_seo_feed_conditional_response( $modified, gmdate( 'D, d M Y H:i:s', $modified + 60 ) . ' GMT', '', $etag );
-fc_eq( 304, $r['status'] ?? null, 'IMS >= modified → 304' );
-
-// 1b. IMS exactly equal → 304 (>=).
-$r = sn_seo_feed_conditional_response( $modified, gmdate( 'D, d M Y H:i:s', $modified ) . ' GMT', '', $etag );
-fc_eq( 304, $r['status'] ?? null, 'IMS == modified → 304' );
-
-// 2. IMS before modified → 200 + correct Last-Modified.
-$r = sn_seo_feed_conditional_response( $modified, gmdate( 'D, d M Y H:i:s', $modified - 3600 ) . ' GMT', '', $etag );
-fc_eq( 200, $r['status'] ?? null, 'IMS < modified → 200' );
-fc_eq( $expected_http, $r['headers']['Last-Modified'] ?? null, '200 carries correct Last-Modified header' );
-fc_eq( $etag, $r['headers']['ETag'] ?? null, '200 carries the ETag header' );
-
-// 3. Matching INM ETag → 304 (ETag wins regardless of IMS).
-$r = sn_seo_feed_conditional_response( $modified, '', $etag, $etag );
-fc_eq( 304, $r['status'] ?? null, 'matching INM ETag → 304' );
-
-// 3b. Mismatched INM ETag, no IMS → 200.
-$r = sn_seo_feed_conditional_response( $modified, '', '"different"', $etag );
-fc_eq( 200, $r['status'] ?? null, 'mismatched INM ETag, no IMS → 200' );
-
-// 4. No conditionals → 200 + both headers.
-$r = sn_seo_feed_conditional_response( $modified, '', '', $etag );
-fc_eq( 200, $r['status'] ?? null, 'no conditionals → 200' );
-fc_eq( $expected_http, $r['headers']['Last-Modified'] ?? null, '200 (no conditionals) carries Last-Modified' );
-fc_eq( $etag, $r['headers']['ETag'] ?? null, '200 (no conditionals) carries ETag' );
-
-// 5. modified_gmt = 0 → null (can't compute a validator).
-fc_eq( null, sn_seo_feed_conditional_response( 0, '', '', $etag ), 'modified_gmt = 0 → null' );
-
-// ─── Per-feed ETag uniqueness (v4.8.1 adversarial fix 4) ──────────────
-// The wrapper previously built $etag from md5($last_modified_http) ALONE, so
-// two different feeds (e.g. /feed/ and /notes/feed/) that share a build
-// timestamp collided on an identical ETag — a 304 false-positive across feeds.
-// sn_seo_feed_etag() folds feed identity in: taxonomy:term_id for a WP_Term,
-// post_type:name for a WP_Post_Type, '' for the main feed.
-echo "\nPer-feed ETag uniqueness (sn_seo_feed_etag)\n";
-fc_true( function_exists( 'sn_seo_feed_etag' ), 'sn_seo_feed_etag() is defined' );
-
-$lm = gmdate( 'D, d M Y H:i:s', $modified ) . ' GMT';
-
-// Two distinct taxonomy-term feeds sharing the SAME build timestamp.
-$term_a            = new WP_Term();
-$term_a->term_id  = 7;
-$term_a->taxonomy = 'category';
-$term_b            = new WP_Term();
-$term_b->term_id  = 12;
-$term_b->taxonomy = 'category';
-
-$etag_a = sn_seo_feed_etag( $lm, $term_a );
-$etag_b = sn_seo_feed_etag( $lm, $term_b );
-fc_true( $etag_a !== $etag_b, 'two different terms, same timestamp → DIFFERENT ETags' );
-
-// A post-type feed and the main feed also differ from each other + the terms.
-$pt        = new WP_Post_Type();
-$pt->name  = 'post';
-$etag_pt   = sn_seo_feed_etag( $lm, $pt );
-$etag_main = sn_seo_feed_etag( $lm, null );
-fc_true( $etag_pt !== $etag_main, 'post-type feed vs main feed → DIFFERENT ETags' );
-fc_true( $etag_pt !== $etag_a && $etag_main !== $etag_a, 'post-type + main differ from a term feed' );
-
-// Same identity + same timestamp → STABLE ETag (no request-varying input).
-$term_a2            = new WP_Term();
-$term_a2->term_id  = 7;
-$term_a2->taxonomy = 'category';
-fc_eq( $etag_a, sn_seo_feed_etag( $lm, $term_a2 ), 'same term + same timestamp → STABLE ETag across requests' );
-fc_eq( $etag_main, sn_seo_feed_etag( $lm, null ), 'main feed ETag is stable across requests' );
-
-// A different timestamp changes the ETag for the same feed (validator still tracks builds).
-$lm2 = gmdate( 'D, d M Y H:i:s', $modified + 3600 ) . ' GMT';
-fc_true( $etag_a !== sn_seo_feed_etag( $lm2, $term_a ), 'same term, different timestamp → different ETag (still validates builds)' );
-
-// ETag is a quoted strong validator.
-fc_true( '"' === $etag_a[0] && '"' === substr( $etag_a, -1 ), 'ETag is double-quoted (strong validator)' );
-
-// ─── Action registration ──────────────────────────────────────────────
-echo "\nAction registration: feed conditional-GET runs after RSS tracking (priority > 1)\n";
-$found = false;
-$priority = null;
-foreach ( $GLOBALS['__actions']['template_redirect'] ?? array() as $entry ) {
-	// The singular handler + the new feed handler are both closures; we can't
-	// match by name. Assert there's at least one template_redirect handler at
-	// priority > 1 (the feed handler), which never pre-empts the priority-1
-	// sn_rss_tracker_capture.
-	if ( $entry['priority'] > 1 ) {
-		$found = true;
-		$priority = $entry['priority'];
-	}
-}
-fc_true( $found, 'a template_redirect handler is registered at priority > 1' );
-fc_true( null !== $priority && $priority >= 10, 'feed handler priority >= 10 (runs after priority-1 RSS tracker)' );
+echo "\nGroup: a deploy after the newest post moves the validator\n";
+$changed = $now - 3600;
+$r = fc_request( 'validators from before the deploy', array( 'render_changed' => $changed, 'ims' => $lm, 'inm' => $etag ) + $base );
+ok( 200 === $r['status'], 'the old validators get the new body, not a 304' );
+ok( fc_has( $r, 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $changed ) . ' GMT' ), 'Last-Modified is the render change, through get_lastpostmodified' );
+$r = fc_request( 'a deploy before the newest post', array( 'render_changed' => $now - 4 * 86400 ) + $base );
+ok( fc_has( $r, "Last-Modified: $lm" ), 'an older render change leaves the post date' );
+$r = fc_request( 'a render change dated ahead', array( 'render_changed' => $now + 86400 ) + $base );
+ok( ! fc_has( $r, 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s', $now + 86400 ) . ' GMT' ), 'never a Last-Modified in the future' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

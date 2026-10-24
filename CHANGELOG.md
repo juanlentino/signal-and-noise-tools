@@ -12,6 +12,13 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed (discovery on core, 2026-10-24)
+- **Core prints the robots meta again.** The plugin removed `wp_robots()` and printed its own tag; it now hands the same directives to core through one `wp_robots` filter (`sn_seo_wp_robots()`), so core's own noindex runs again where the plugin had silenced it: a private site (`blog_public`), core search results, `?replytocom` and unapproved-comment previews. `sn_seo_robots_directives` stays the seam (the theme's notes-search noindex rides it). The tag now reads in core's format (`max-image-preview:large, max-snippet:-1, max-video-preview:-1`); the directive set is unchanged on every public page kind (home, a note, a page, tag archives, `/notes/` and its pages, `/notes/tags/`, the notes search, 404, MailPoet).
+- **Core prints the canonical on singular views.** `rel_canonical()` is no longer removed: the per-post `_sn_canonical_url` override, MailPoet's no-canonical and the paged `/notes/` self-canonical go through `get_canonical_url` (`sn_seo_canonical_url()`), and core adds what the plugin lacked: page 2 of a note split with `<!--nextpage-->` canonicalizes to its own `/2/` URL, not to page 1. The plugin still prints it where core prints none (the posts page, tag archives, `/notes/tags/`). One canonical per page kind, pinned with core's own printers in `tests/seo-head-on-core.php`.
+- **A feed's conditional GET is core's alone.** The plugin sent a second Last-Modified and ETag on top of core's `WP::send_headers()` and answered 304 to a mismatched ETag with a fresh If-Modified-Since (RFC 9110 says the ETag wins). Its validator is deleted; the last render change reaches core's through `get_lastpostmodified` (`sn_seo_feed_lastpostmodified()`), so a deploy still moves the feed validator. `get_feed_build_date` still dates `<lastBuildDate>`.
+- **A feed 304 is counted.** Core's 304 exits before `template_redirect`, so the RSS tracker now counts on `wp_headers`, the last hook before that exit: a 200 and a 304 are each counted once. The feed `X-Robots-Tag` moved to the same filter, so a 304 carries it too. `tests/feed-conditional-get.php` runs core's real `send_headers()`.
+- Dead The SEO Framework checks are gone from the touched files (TSF was removed 2026-05-17). `tools/fetch-wp-test-core.sh` also fetches `robots-template.php`, `link-template.php`, `class-wp.php` and `post.php` for the two suites.
+
 ## [2026.10.63] - 2026-10-24 — fixes from the core comparison
 
 ### Changed

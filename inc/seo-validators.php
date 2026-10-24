@@ -112,8 +112,9 @@ function sn_seo_feed_build_gmt( $posts, $now = null ) {
 /**
  * get_feed_build_date filter: fold publish dates and the last render change
  * (a deploy, a Styles save, a purge) into the build date, so the RSS
- * lastBuildDate and the feed's Last-Modified and ETag (inc/seo.php) move when
- * a scheduled note goes live or the code changes. Comment feeds keep core's value.
+ * lastBuildDate moves when a scheduled note goes live or the code changes.
+ * Comment feeds keep core's value. The feed's Last-Modified and ETag are
+ * core's (WP::send_headers()), moved by sn_seo_feed_lastpostmodified() below.
  *
  * @param string|int|false $value  Core's build date, in $format.
  * @param string           $format The requested date format.
@@ -138,3 +139,27 @@ function sn_seo_feed_build_date_filter( $value, $format ) {
 	return $ts > 0 ? gmdate( (string) $format, $ts ) : $value;
 }
 add_filter( 'get_feed_build_date', 'sn_seo_feed_build_date_filter', 10, 2 );
+
+/**
+ * get_lastpostmodified filter: core's feed validator. WP::send_headers()
+ * builds a feed's Last-Modified (and the ETag, an md5 of it) from
+ * get_lastpostmodified( 'GMT' ), which already takes the later of the last
+ * edit and the last publish. Fold in the last render change, so a deploy
+ * moves the validator and a revalidation gets the new body, not a 304.
+ *
+ * Feeds only, GMT only (the one timezone that call asks for); never later
+ * than now.
+ *
+ * @param string|false $date     Core's date, 'Y-m-d H:i:s'.
+ * @param string       $timezone The timezone asked for.
+ * @return string|false
+ */
+function sn_seo_feed_lastpostmodified( $date, $timezone ) {
+	if ( 'gmt' !== strtolower( (string) $timezone ) || ! is_feed() || ! function_exists( 'sn_seo_render_changed_gmt' ) ) {
+		return $date;
+	}
+	$changed = min( sn_seo_render_changed_gmt(), time() );
+	$core    = $date ? (int) strtotime( $date . ' UTC' ) : 0;
+	return $changed > $core ? gmdate( 'Y-m-d H:i:s', $changed ) : $date;
+}
+add_filter( 'get_lastpostmodified', 'sn_seo_feed_lastpostmodified', 10, 2 );

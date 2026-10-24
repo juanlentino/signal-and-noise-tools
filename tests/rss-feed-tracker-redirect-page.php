@@ -16,6 +16,7 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
 function add_action( $h, $cb = null, $p = 10, $a = 1 ) {}
+function add_filter( $h, $cb = null, $p = 10, $a = 1 ) {}
 function current_user_can( $c ) { return true; }
 function wp_verify_nonce( $n, $a ) { return true; }
 function sanitize_text_field( $s ) { return trim( (string) $s ); }
