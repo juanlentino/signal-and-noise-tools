@@ -32,6 +32,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SN_AUDIT_APP_PW_OPTION = 'sn_audit_app_passwords_v1';
 
+require_once __DIR__ . '/audit-log-app-passwords-lifecycle.php'; // created, renamed, revoked: change rows.
+
 /**
  * The day counts: { 'Y-m-d' => { ok:int, failed:int, codes:{ code:int } } }.
  *
@@ -97,9 +99,13 @@ function snt_audit_app_pw_failed_cb( $error ) {
 	$code = is_object( $error ) && method_exists( $error, 'get_error_code' ) ? (string) $error->get_error_code() : '';
 	$code = substr( (string) preg_replace( '/[^a-z0-9_-]/i', '', $code ), 0, 64 );
 	$code = '' !== $code ? $code : 'unknown';
-	if ( 1 === snt_audit_app_pw_bump( 'failed', $code ) ) {
-		snt_audit_record_change_impl( 'app_password_failed', $code, '', false, '' );
-	}
+	snt_audit_app_pw_once(
+		static function () use ( $code ) {
+			if ( 1 === snt_audit_app_pw_bump( 'failed', $code ) ) {
+				snt_audit_record_change_impl( 'app_password_failed', $code, '', false, '' );
+			}
+		}
+	);
 }
 add_action( 'application_password_failed_authentication', 'snt_audit_app_pw_failed_cb', 10, 1 );
 
@@ -107,52 +113,31 @@ add_action( 'application_password_failed_authentication', 'snt_audit_app_pw_fail
  * A successful app-password sign-in: counted, never a row.
  */
 function snt_audit_app_pw_ok_cb() {
-	snt_audit_app_pw_bump( 'ok' );
+	snt_audit_app_pw_once(
+		static function () {
+			snt_audit_app_pw_bump( 'ok' );
+		}
+	);
 }
 add_action( 'application_password_did_authenticate', 'snt_audit_app_pw_ok_cb', 10, 0 );
 
 /**
- * The password name, never anything else from the item.
+ * Run an auth-hook write unless one is already running. Our writes never ask
+ * who is signed in, but another plugin listening on updated_option might; that
+ * would re-enter determine_current_user, re-run the check and land back here.
+ * The nested pass is dropped (one lost count) instead of recursing.
  *
- * @param array $item Core's app-password item.
- * @return string
+ * @param callable $write The write.
  */
-function snt_audit_app_pw_name( $item ) {
-	return is_array( $item ) ? substr( (string) ( $item['name'] ?? '' ), 0, 100 ) : '';
+function snt_audit_app_pw_once( callable $write ) {
+	static $busy = false;
+	if ( $busy ) {
+		return;
+	}
+	$busy = true;
+	try {
+		$write();
+	} finally {
+		$busy = false;
+	}
 }
-
-/**
- * Created. Two arguments only: the new plaintext password is never passed in.
- *
- * @param int   $user_id Account ID.
- * @param array $item    The new item.
- */
-function snt_audit_app_pw_created_cb( $user_id, $item ) {
-	$user = get_userdata( (int) $user_id );
-	$high = $user && in_array( 'administrator', (array) $user->roles, true );
-	snt_audit_record_change_impl( 'app_password_created', snt_audit_change_login( $user_id ), snt_audit_app_pw_name( $item ), $high );
-}
-add_action( 'wp_create_application_password', 'snt_audit_app_pw_created_cb', 10, 2 );
-
-/**
- * Renamed (core updates only the name). Core fires this for a save with
- * the same name too, so a no-op rename is a row as well.
- *
- * @param int   $user_id Account ID.
- * @param array $item    The item after the update.
- */
-function snt_audit_app_pw_updated_cb( $user_id, $item ) {
-	snt_audit_record_change_impl( 'app_password_updated', snt_audit_change_login( $user_id ), snt_audit_app_pw_name( $item ) );
-}
-add_action( 'wp_update_application_password', 'snt_audit_app_pw_updated_cb', 10, 2 );
-
-/**
- * Revoked.
- *
- * @param int   $user_id Account ID.
- * @param array $item    The deleted item.
- */
-function snt_audit_app_pw_revoked_cb( $user_id, $item ) {
-	snt_audit_record_change_impl( 'app_password_revoked', snt_audit_change_login( $user_id ), snt_audit_app_pw_name( $item ) );
-}
-add_action( 'wp_delete_application_password', 'snt_audit_app_pw_revoked_cb', 10, 2 );

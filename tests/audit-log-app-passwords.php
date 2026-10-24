@@ -32,7 +32,12 @@ $GLOBALS['__hooks']   = array();
 $GLOBALS['__args']    = array();
 $GLOBALS['__whoami']  = 0;
 function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; }
-function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; $GLOBALS['__writes'][] = array( $k, $a ); return true; }
+$GLOBALS['__refire'] = 0; // > 0: a foreign updated_option listener that re-enters the auth hook this many times
+function update_option( $k, $v, $a = null ) {
+	$GLOBALS['__options'][ $k ] = $v; $GLOBALS['__writes'][] = array( $k, $a );
+	if ( $GLOBALS['__refire'] > 0 ) { $GLOBALS['__refire']--; fire( 'application_password_failed_authentication', new WP_Error( 'incorrect_password' ) ); }
+	return true;
+}
 function get_transient( $k ) { return false; }
 function set_transient( $k, $v, $t = 0 ) { return true; }
 function wp_date( $f, $ts = null ) { return gmdate( $f, null === $ts ? time() : (int) $ts ); }
@@ -94,6 +99,13 @@ ok( 2 === count( $failed ), 'thirty-five refusals for two reasons make two rows,
 ok( 'incorrect_password' === ( $failed[0]['subject'] ?? '' ) && '' === ( $failed[0]['actor'] ?? 'x' ), 'the row names the reason code and no one signed in' );
 ok( 35 === ( today_counts()['app_password_failed'] ?? null ), 'every refusal is counted: app_password_failed 35' );
 ok( 0 === $GLOBALS['__whoami'], 'the refusal hook never asks who the current user is (it runs inside determine_current_user)' );
+
+echo "\nGroup: a foreign listener that re-enters the auth hook does not recurse\n";
+$before = (int) ( today_counts()['app_password_failed'] ?? 0 );
+$GLOBALS['__refire'] = 50;
+fire( 'application_password_failed_authentication', new WP_Error( 'incorrect_password' ) );
+ok( $before + 1 === (int) ( today_counts()['app_password_failed'] ?? 0 ), 'one refusal is one count even when every write re-enters the hook (the nested pass is dropped)' );
+$GLOBALS['__refire'] = 0;
 
 echo "\nGroup: creating, renaming and revoking are rows on the account\n";
 fire( 'wp_create_application_password', 1, array( 'uuid' => 'uuid-secret-1', 'name' => 'Claude MCP', 'password' => '$generic$hash' ), 'NEWPLAINTEXTPW0123456789', array() );
