@@ -8,7 +8,7 @@
  * page AND from the front-end (when the admin bar is shown).
  *
  * Actions exposed:
- *   - Clear DB Overrides    (wp_template / wp_template_part / wp_navigation)
+ *   - Clear DB Overrides    (this theme's wp_template / wp_template_part)
  *                           DESTRUCTIVE: force-delete, no trash. Hidden in the
  *                           Site Editor — see sn_admin_bar_destructive_allowed().
  *   - Check for Updates     (re-poll GitHub for theme update)

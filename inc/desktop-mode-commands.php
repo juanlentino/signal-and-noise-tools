@@ -38,7 +38,7 @@ add_action( 'init', function() {
 		// Maintenance (REST → toast).
 		array( 'slug' => 'sn-cmd-force-check',     'label' => 'SN: Force-check updates',       'description' => 'Clear all GitHub + WordPress update transients.',           'icon' => 'dashicons-update' ),
 		array( 'slug' => 'sn-cmd-purge-caches',    'label' => 'SN: Purge all caches',          'description' => 'Transients and the Cloudflare edge. Redis stays.',              'icon' => 'dashicons-trash' ),
-		array( 'slug' => 'sn-cmd-clear-overrides', 'label' => 'SN: Clear template overrides',  'description' => 'Remove wp_template / wp_template_part / wp_navigation DB rows.', 'icon' => 'dashicons-editor-removeformatting' ),
+		array( 'slug' => 'sn-cmd-clear-overrides', 'label' => 'SN: Clear template overrides',  'description' => 'Remove this theme\'s wp_template / wp_template_part DB rows.', 'icon' => 'dashicons-editor-removeformatting' ),
 		// The JS run() dispatches purge-all-caches {include_template_overrides:true} (the full-reset ability was removed in v8.0.0).
 		array( 'slug' => 'sn-cmd-full-reset',      'label' => 'SN: Full reset',                'description' => 'Clear overrides AND purge every cache.',                  'icon' => 'dashicons-controls-repeat' ),
 

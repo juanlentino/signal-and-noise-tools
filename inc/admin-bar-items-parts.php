@@ -45,8 +45,8 @@ function sn_admin_bar_items() {
 			'action'  => 'sn_quick_clear_overrides',
 			'label'   => '⌫ Clear DB Overrides',
 			'ability' => 'clear-template-overrides',
-			// DESTRUCTIVE + CONTEXTUAL — force-deletes every wp_template /
-			// wp_template_part / wp_navigation with no trash and no undo. Hidden
+			// DESTRUCTIVE + CONTEXTUAL — force-deletes this theme's wp_template /
+			// wp_template_part rows with no trash and no undo. Hidden
 			// in the Site Editor, which WP 7.1 newly shows the toolbar in and
 			// which owns exactly those records. See the guard's docblock.
 			'guard'  => 'sn_admin_bar_destructive_allowed',
@@ -87,7 +87,8 @@ function sn_admin_bar_items() {
  * `sn_clear_template_overrides_result`, whose theme-side implementation
  * (signal-and-noise, inc/template-maintenance.php sn_clear_template_overrides)
  * runs `wp_delete_post( $id, true )` — FORCE delete, no trash, no undo — over
- * every `wp_template`, `wp_template_part` and `wp_navigation` in the database.
+ * this theme's `wp_template` and `wp_template_part` rows in the database
+ * (theme #604, 2026-10-24: navigation menus and other themes' rows are kept).
  * That is precisely the set the Site Editor writes. Before 7.1 the button could
  * not appear in the room it empties; from 7.1 it renders there, one click from
  * the canvas, with no confirmation step.

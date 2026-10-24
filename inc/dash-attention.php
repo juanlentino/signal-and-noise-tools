@@ -122,13 +122,7 @@ function snt_dashboard_render_attention_strip( $runs, $override_count ) {
  */
 function snt_dashboard_render_diagnostics() {
 	$names = snt_dashboard_override_names(
-		get_posts(
-			array(
-				'post_type'      => snt_dashboard_override_post_types(),
-				'posts_per_page' => -1,
-				'post_status'    => 'any',
-			)
-		)
+		get_posts( snt_template_override_query_args() )
 	);
 	$n = count( $names );
 	if ( 0 === $n ) {
