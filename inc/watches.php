@@ -104,7 +104,7 @@ function snt_watches() {
 		array(
 			'id'        => 'bot_signals_validation',
 			'label'     => 'beacon bot signals: validate, then decide',
-			'why'       => 'The five beacon signals are observe-only. Ripe when 14 days carry signal rows and the two known-human cohorts (relay readers, intent visitors) each have 20 visitor-days; stored bots, over-cap visitor-days and hosting suspects are reported at whatever count they reach (over-cap ran 2 in 92 days). Then: drop any signal that fires on relay readers or intent visitors, or does not fire on the other three, and bring the survivors and a threshold to the owner before anything subtracts.',
+			'why'       => 'The five beacon signals are observe-only. The readout accumulates up to 90 days (owner, 2026-10-24: 14 days held 4 relay readers and 1 intent visitor). Ripe when 14 days carry signal rows and the relay readers (the known-human cohort) reach 20 visitor-days; intent visitors (about one a fortnight), stored bots, over-cap visitor-days and hosting suspects are reported at whatever count they reach. Then: drop any signal that fires on relay readers or intent visitors, or does not fire on the other three, and bring the survivors and a threshold to the owner before anything subtracts.',
 			'read'      => 'sn-status{bot_signals}',
 			'date_only' => false,
 			'due'       => '',
@@ -263,8 +263,10 @@ function snt_watches() {
 }
 
 /**
- * Ripe when the stored bot-signals reading covers 14 days and the relay and
- * intent cohorts each have SNT_BOT_SIGNAL_MIN_N visitor-days. Reads the nightly record, never AE.
+ * Ripe when the stored bot-signals reading covers 14 days and the relay
+ * cohort has SNT_BOT_SIGNAL_MIN_N visitor-days (2026-10-24: intent, about one
+ * a fortnight, could not reach it inside Analytics Engine's ~90 days, so it is
+ * reported, not gated). Reads the nightly record, never AE.
  *
  * @param array    $watch  The watch row.
  * @param int      $now    Unix time (unused).
@@ -279,24 +281,24 @@ function snt_watch_ripe_bot_signals( $watch, $now, $stored = false ) {
 	}
 	$min  = defined( 'SNT_BOT_SIGNAL_MIN_N' ) ? SNT_BOT_SIGNAL_MIN_N : 20;
 	$days = (int) ( $r['days_present'] ?? 0 );
-	// Only the two known-human cohorts gate: over-cap ran 2 visitor-days in 92,
-	// so a floor on every cohort would never ripen. The rest are reported as-is.
+	// Only relay gates: over-cap ran 2 visitor-days in 92 and intent about one a
+	// fortnight, so a floor on either would never ripen. The rest are reported.
 	$c    = (array) ( $r['cohorts'] ?? array() );
 	$thin = array();
-	foreach ( array( 'relay', 'intent' ) as $k ) {
+	foreach ( array( 'relay' ) as $k ) {
 		if ( (int) ( $c[ $k ]['n'] ?? 0 ) < $min ) {
 			$thin[] = $k . ' ' . (int) ( $c[ $k ]['n'] ?? 0 );
 		}
 	}
 	$rest = array();
-	foreach ( array_diff( array_keys( $c ), array( 'relay', 'intent' ) ) as $k ) {
+	foreach ( array_diff( array_keys( $c ), array( 'relay' ) ) as $k ) {
 		$rest[] = $k . ' ' . (int) ( $c[ $k ]['n'] ?? 0 );
 	}
 	$others = $rest ? '; others: ' . implode( ', ', $rest ) : '';
 	if ( $days < 14 || array() !== $thin ) {
 		return array( 'ripe' => false, 'note' => $days . ' of 14 days' . ( $thin ? '; under ' . $min . ': ' . implode( ', ', $thin ) : '' ) . $others );
 	}
-	return array( 'ripe' => true, 'note' => $days . ' days, relay and intent at ' . $min . '+ visitor-days' . $others );
+	return array( 'ripe' => true, 'note' => $days . ' days, relay at ' . $min . '+ visitor-days' . $others );
 }
 
 /**

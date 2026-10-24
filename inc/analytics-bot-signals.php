@@ -32,6 +32,11 @@ const SNT_BOT_SIGNAL_WEIGHTS   = array( 'webdriver' => 3, 'no_input' => 2, 'ua_m
 const SNT_BOT_SIGNAL_THRESHOLD = 3;
 const SNT_BOT_SIGNAL_PRESENT   = 32;
 const SNT_BOT_SIGNAL_DAYS      = 14;
+// 2026-10-24 (owner, option A): the validation readout accumulates up to
+// Analytics Engine's ~90 days. Over 14 days the site sees 4 relay readers and
+// 1 intent visitor, so a 14-day window never reached the 20 the watch needs.
+// Rows before 2026-09-29 carry no presence bit and fall out on their own.
+const SNT_BOT_SIGNAL_READOUT_DAYS = 90;
 const SNT_BOT_SIGNAL_LIMIT     = 5000; // well under the AE 10,000-row cap that trips strict mode
 const SNT_BOT_SIGNAL_COHORTS   = array( 'relay', 'intent', 'stored_bot', 'over_cap', 'hosting' );
 const SNT_BOT_SIGNAL_MIN_N     = 20;
@@ -165,11 +170,14 @@ function sn_bot_signals_readout( array $rows, array $day_rows ) {
 			$cohorts[ $c ]['rate'][ $name ] = $v['n'] > 0 ? round( 100 * $f / $v['n'], 1 ) : null;
 		}
 	}
+	$present = count( array_filter( $day_rows, static fn( $d ) => (int) ( ( (array) $d )['n'] ?? 0 ) > 0 ) );
 	return array(
-		'window_days'  => SNT_BOT_SIGNAL_DAYS,
+		// The days the signals actually cover, never more than the read: the
+		// signals began 2026-09-29, so a 90-day label would overstate coverage.
+		'window_days'  => $present > 0 ? min( SNT_BOT_SIGNAL_READOUT_DAYS, $present ) : SNT_BOT_SIGNAL_READOUT_DAYS,
 		'visitor_days' => count( $rows ),
 		'truncated'    => count( $rows ) >= SNT_BOT_SIGNAL_LIMIT,
-		'days_present' => count( array_filter( $day_rows, static fn( $d ) => (int) ( ( (array) $d )['n'] ?? 0 ) > 0 ) ),
+		'days_present' => $present,
 		'human'        => $human,
 		'cohorts'      => $cohorts,
 		'weights'      => SNT_BOT_SIGNAL_WEIGHTS,

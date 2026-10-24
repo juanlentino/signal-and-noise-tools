@@ -25,10 +25,10 @@ function sn_bot_signals_refresh() {
 	// Analytics 2.0: across the clean day each generation is read for its side.
 	// A visitor-day lives on one side, so the rows join; the split day's
 	// signal count comes from both and is merged into one day.
-	$from = sn_analytics_trailing_from( SNT_BOT_SIGNAL_DAYS );
+	$from = sn_analytics_trailing_from( SNT_BOT_SIGNAL_READOUT_DAYS );
 	$now  = gmdate( 'Y-m-d H:i:s', sn_analytics_clock() );
-	$sets = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_sql( SNT_BOT_SIGNAL_DAYS, $s, $r ), $from, $now );
-	$dset = null === $sets ? null : sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_days_sql( SNT_BOT_SIGNAL_DAYS, $s, $r ), $from, $now );
+	$sets = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_sql( SNT_BOT_SIGNAL_READOUT_DAYS, $s, $r ), $from, $now );
+	$dset = null === $sets ? null : sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_days_sql( SNT_BOT_SIGNAL_READOUT_DAYS, $s, $r ), $from, $now );
 	if ( null === $sets || null === $dset ) {
 		return false;
 	}
@@ -38,7 +38,8 @@ function sn_bot_signals_refresh() {
 	// Truncated means a half reached its LIMIT, not that two halves add up past it.
 	$readout['truncated'] = array() !== array_filter( $sets, static fn( $set ) => count( $set ) >= SNT_BOT_SIGNAL_LIMIT );
 	update_option( SNT_BOT_SIGNAL_OPTION, $readout + array( 'measured_at' => time() ), false );
-	sn_bot_signals_by_day_refresh( $from, $now );
+	// The per-day store keeps its own 14-day read and merge.
+	sn_bot_signals_by_day_refresh( sn_analytics_trailing_from( SNT_BOT_SIGNAL_DAYS ), $now );
 	return true;
 }
 
@@ -130,7 +131,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/bot-signals', array(
 		'label'               => 'Beacon Bot Signals',
-		'description'         => 'Observe-only readout of the beacon bot signals over the last 14 days, per visitor-day that carried them: human.visitor_days (presumed human, not flagged) and human.likely_automated (score = sum of weights of fired bits >= threshold; NOT subtracted from any count), and per cohort (relay, intent, stored_bot, over_cap, hosting) n, fired and rate (percent of that cohort\'s visitor-days) for each signal: webdriver, no_input, ua_mismatch, headless, tz_mismatch. days_present counts UTC days carrying any signal row; truncated means the visitor-day list hit its row limit. measured:false means nothing has been stored yet. Read-only; stored nightly. Read it through sn-status{bot_signals}.',
+		'description'         => 'Observe-only readout of the beacon bot signals over the last 90 days (since the signals began on 2026-09-29, up to the Analytics Engine retention), per visitor-day that carried them: human.visitor_days (presumed human, not flagged) and human.likely_automated (score = sum of weights of fired bits >= threshold; NOT subtracted from any count), and per cohort (relay, intent, stored_bot, over_cap, hosting) n, fired and rate (percent of that cohort\'s visitor-days) for each signal: webdriver, no_input, ua_mismatch, headless, tz_mismatch. days_present counts UTC days carrying any signal row; truncated means the visitor-day list hit its row limit. measured:false means nothing has been stored yet. Read-only; stored nightly. Read it through sn-status{bot_signals}.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_bot_signals',
