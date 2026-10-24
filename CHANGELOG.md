@@ -12,6 +12,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed (content built on core, 2026-10-24)
+- **A tag merge hands the reassignment to core.** `sn_tag_merge()` re-implemented what core's `wp_delete_term()` already does with `default` and `force_default`: give every post carrying the old tag the canonical, then delete the old tag. It now makes that one call per source tag. `posts_moved` is still counted from `get_objects_in_term()` before each delete, since core returns no list; the history entry and the old-slug redirect map are recorded as before.
+- **A renamed or re-parented page keeps its old URL.** Core keeps a renamed post reachable but skips hierarchical types, so a page whose slug or parent changed, and every page under it, 404ed at its old path (the Search Console 404s that grew `inc/legacy-page-redirects.php`). A `post_updated` hook (`inc/page-rename-redirects.php`) now records a 301 from each retired path to the new one in the redirect store, where Site > Redirects lists it like any other entry. Published before and after only (no drafts, no unpublish, no trash); each published descendant moves at its own path; an old path another published page now holds is never recorded; a redirect sitting on a moved page's new path is removed (it would hide the page, and after a rename back it is half of a loop), owner entries included; entries aimed at an old path are repointed so every redirect stays one hop.
+- **Each provenance commit records the core revision saved with it.** `sn_prov_record()` stores the newest core revision id as `core_revision_id` beside the signed payload, the way `change_class` sits there: outside the hashed bytes, so no content hash, signature, Worker body or ledger record changes (a test proves the hash and canonical bytes are identical with and without it). anchor-status in-flight rows carry it, and the note dossier's Edits table (sn-posts `include_dossier`) gains a Core revision column. The id is a pointer, not evidence: core prunes revisions, so a stored id may name one that no longer exists, and the dossier says so. Revisions off for a post means no id.
+
+### Fixed (content built on core, 2026-10-24)
+- **The legacy page map no longer says 404 slug guessing is off.** Its header said general 404 slug guessing was "deliberately disabled site-wide". Nothing hooks `do_redirect_guess_404_permalink` (neither this plugin nor the theme ever has), so core's prefix guessing is on. The behavior is unchanged; whether to keep it is an open owner question.
+
 ## [2026.10.63] - 2026-10-24 — fixes from the core comparison
 
 ### Changed

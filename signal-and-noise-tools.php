@@ -540,6 +540,7 @@ require_once __DIR__ . '/inc/redirects-store.php';
 require_once __DIR__ . '/inc/redirects-404-log.php';
 require_once __DIR__ . '/inc/redirects-handler.php';
 require_once __DIR__ . '/inc/redirects-admin.php';
+require_once __DIR__ . '/inc/page-rename-redirects.php'; // 2026-10-24: a renamed or re-parented page records its old paths in the store (core skips hierarchical types)
 require_once __DIR__ . '/inc/og-card-generator.php';
 require_once __DIR__ . '/inc/og-card-provenance.php'; // v9.25.0: embed provenance in OG cards (machine-readability D2)
 require_once __DIR__ . '/inc/reading-time.php';

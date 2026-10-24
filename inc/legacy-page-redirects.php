@@ -4,8 +4,14 @@
  *
  * 2026-07-30 the family re-parented under /maturity/, killing the previously
  * shared top-level URLs (/analytics/, /proof-of-origin/, /ai-maturity/) with
- * 404s — and general 404-slug-guessing is deliberately disabled site-wide,
- * so nothing caught them. This module is the NARROW exception: a fixed,
+ * 404s, and nothing caught them. Core's old-slug redirect skips pages (they
+ * are hierarchical). Core's 404 slug guessing, redirect_guess_404_permalink(),
+ * is on: nothing hooks do_redirect_guess_404_permalink (this note used to say
+ * it was disabled site-wide; neither this plugin nor the theme has ever hooked
+ * it), and it did not catch these paths. Whether to keep it on is an open
+ * owner question. Since 2026-10-24 a page renamed or re-parented in place
+ * records its own 301 in the redirect store (inc/page-rename-redirects.php).
+ * This module is the NARROW exception for paths that predate that: a fixed,
  * filterable map of old page paths → page slugs, resolved through
  * get_permalink() at request time (per the v10.11.2 rule: never hardcode a
  * page path). It fires only on a 404, only for mapped paths, and only
