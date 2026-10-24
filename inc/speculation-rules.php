@@ -12,6 +12,8 @@
  * Two core filters drive the behaviour:
  *   - wp_speculation_rules_configuration   — returning null DISABLES speculative
  *     loading entirely; otherwise we return mode=prerender / eagerness=moderate.
+ *     A null core passes in (a logged-in visitor, no pretty permalinks) stays
+ *     null (2026-10-24).
  *   - wp_speculation_rules_href_exclude_paths (10,2) — receives ($paths, $mode);
  *     we APPEND /contact/* so it never prerenders (never the login slug: these
  *     rules are printed into every page, so it would publish the hidden door).
