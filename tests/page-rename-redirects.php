@@ -157,5 +157,20 @@ foreach ( snt_test_inc_files() as $f ) {
 }
 ok( ! $hooks_guess, 'and that stays true: no plugin file filters do_redirect_guess_404_permalink' );
 
+echo "\nA page published on a path a redirect holds takes it back\n";
+$GLOBALS['__opts'] = array();
+sn_redirect_save( '/services', '/work', 301 ); // left by an earlier rename away from /services
+page( 90, 'services', 0, 'publish' );
+sn_page_publish_reclaims_path( 'publish', 'draft', $GLOBALS['__pages'][90] );
+ok( ! isset( sn_redirects_all()['/services'] ), 'a new page published at /services removes the stale /services redirect, so the live page shows' );
+sn_redirect_save( '/services', '/work', 301 );
+sn_page_publish_reclaims_path( 'publish', 'publish', $GLOBALS['__pages'][90] );
+ok( isset( sn_redirects_all()['/services'] ), 'an ordinary update of a page already published leaves the store alone' );
+page( 91, 'services-note', 0, 'publish', 'post' );
+sn_redirect_save( '/services-note', '/x', 301 );
+sn_page_publish_reclaims_path( 'publish', 'draft', $GLOBALS['__pages'][91] );
+ok( isset( sn_redirects_all()['/services-note'] ), 'a post (not a page) does not touch the store: core redirects posts on its own' );
+ok( (bool) array_filter( $GLOBALS['__actions'], static function ( $a ) { return 'transition_post_status' === $a[0] && 'sn_page_publish_reclaims_path' === $a[1] && 3 === $a[3]; } ), 'hooked on transition_post_status with three arguments' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

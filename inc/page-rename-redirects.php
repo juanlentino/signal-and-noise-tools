@@ -98,3 +98,27 @@ function sn_page_rename_record( $post_id, $post_after, $post_before ) {
 	}
 }
 add_action( 'post_updated', 'sn_page_rename_record', 10, 3 );
+
+/**
+ * transition_post_status: a page that becomes published takes back its own
+ * path. The redirect handler runs before core resolves the page and has no
+ * 404 gate, so a store entry left on that path (a page renamed away from it
+ * earlier, then a new page published there, or one restored from the trash)
+ * would hide the live page. A live page wins over a redirect (owner,
+ * 2026-10-24), the same rule the rename itself applies to a moved page.
+ *
+ * @param string  $new_status New status.
+ * @param string  $old_status Old status.
+ * @param WP_Post $post       The post.
+ * @return void
+ */
+function sn_page_publish_reclaims_path( $new_status, $old_status, $post ) {
+	if ( 'publish' !== $new_status || 'publish' === $old_status || ! is_object( $post ) || 'page' !== ( $post->post_type ?? '' ) ) {
+		return;
+	}
+	if ( ! function_exists( 'sn_redirect_delete' ) || ! function_exists( 'sn_redirects_normalize_path' ) ) {
+		return;
+	}
+	sn_redirect_delete( sn_redirects_normalize_path( (string) get_page_uri( $post ) ) );
+}
+add_action( 'transition_post_status', 'sn_page_publish_reclaims_path', 10, 3 );
