@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The attention items, in reading order.
  *
  * @param array $runs           Merged deploy runs, newest first.
- * @param int   $override_count DB template/navigation override count.
+ * @param int   $override_count DB template override count (this theme's templates and parts).
  * @return array<int,array{label:string,text:string,href:string,severity?:string}>
  */
 function snt_dashboard_attention_items( $runs, $override_count ) {

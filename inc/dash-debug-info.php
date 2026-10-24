@@ -53,7 +53,7 @@ function snt_dashboard_debug_information( $info ) {
 
 	// DB override count (public).
 	$fields['db_overrides'] = array(
-		'label' => __( 'Database template/navigation overrides', 'signal-and-noise-tools' ),
+		'label' => __( 'Database template overrides', 'signal-and-noise-tools' ),
 		'value' => snt_dashboard_override_count(),
 	);
 

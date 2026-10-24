@@ -450,7 +450,7 @@ Scan for pattern-adoption candidates (cached). Pairs with `pattern-adoption-sugg
 #### `signal-noise/list-template-overrides`
 **Capability:** `manage_options`
 
-Lists any wp_template, wp_template_part, or wp_navigation DB rows overriding theme files. Inspect before calling `clear-template-overrides` (destructive).
+Lists the active theme's wp_template and wp_template_part DB rows overriding theme files (the set the clear removes; menus are kept). Inspect before calling `clear-template-overrides` (destructive).
 
 #### `signal-and-noise/get-seo-route-meta`
 **Capability:** `read`
@@ -567,7 +567,7 @@ These 4 abilities are NOT exposed on any MCP door:
 **Reason:** Sitewide term reassignment + deletion with large blast radius. Bounded to declared inputs but high consequence on error.
 
 #### `signal-noise/clear-template-overrides` ⛔
-**Reason:** Deletes wp_template/wp_template_part/wp_navigation DB rows. Can regress the Site Editor if run without inspection. Pair with `list-template-overrides` for manual review before deletion (not exposed automatically).
+**Reason:** Deletes the active theme's wp_template/wp_template_part DB rows (menus are kept). Can regress the Site Editor if run without inspection. Pair with `list-template-overrides` for manual review before deletion (not exposed automatically).
 
 ---
 
