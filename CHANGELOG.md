@@ -12,6 +12,18 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added (built on core hooks, 2026-10-24)
+- **App passwords reach the audit log.** An app password skips the login door, the edge guard and 2FA, and a refused Basic-auth sign-in never fires `wp_login_failed` (core calls `wp_authenticate_application_password()` straight from `determine_current_user`), so none of it was recorded. Core's `application_password_did_authenticate` and `application_password_failed_authentication` now count sign-ins per day (`app_password_ok`, `app_password_failed` beside the MFA fields in the counters view, the export and the weekly digest), in their own small option with autoload off so the MCP door, which signs in on every call, never rewrites the autoloaded audit blob. The first refusal of each reason code on a day is a change row, so a spray cannot push real changes out of the 200-row list. `wp_create_application_password`, `wp_update_application_password` and `wp_delete_application_password` are change rows on the account (an administrator account is marked high). Never stored: the attempted username, any password or hash, the uuid, an IP address. The auth callbacks never ask who is signed in, since that would re-enter `determine_current_user`.
+- **The last mail refusal, in the weekly digest.** Core's `wp_mail_failed` now keeps the time, the error code and the message (trimmed, any address taken out; the recipient, subject and body in the error data are never read), and `wp_mail_succeeded` counts. When the mail server refused a message in the last 7 days, the digest says so and how many it accepted, worded as a handover, not an inbox delivery.
+- **Core's cron errors in cron history.** `cron_reschedule_event_error` and `cron_unschedule_event_error` (wp-cron.php, since 6.1) are now failed rows for the event's hook with the step, code and message, so a recurring job that will not come back shows up beside its last run.
+
+### Changed (built on core, 2026-10-24)
+- **The auto-update readout asks core.** `get-deploy-status` core.auto_updates now reads `WP_Automatic_Updater::is_disabled()` (loaded on the read only) instead of a copy of it; the copy missed `wp_installing()`. The major/minor answer stays ours, from the same constant, option and filters.
+- **One lock on the anonymous users route, and it answers core's 404.** `inc/security-headers.php` also 401'd `/wp/v2/users` on `rest_authentication_errors` by a `REQUEST_URI` substring; it answered first and hid the route removal in `inc/rest-hardening.php`, and it was the weaker control (live, `/wp-json/WP/V2/Users` walked past it to the removal's 404). It is retired with its `sn_security_lock_rest_users` switch. Anonymous `/wp/v2/users`, `/wp/v2/users/{id}` and `/wp/v2/users/me` now answer `rest_no_route` 404 on both URL spellings; `docs/REST-HARDENING.md` and `docs/security/rest-audit-verification.sh` say so.
+
+### Fixed
+- The WP-Cron offload docblock said `spawn_cron()` reads `DISABLE_WP_CRON` during `init`; since 6.9 `wp_cron()` only queues `_wp_cron()` for `shutdown`, which is where the constant is read.
+
 ## [2026.10.63] - 2026-10-24 — fixes from the core comparison
 
 ### Changed

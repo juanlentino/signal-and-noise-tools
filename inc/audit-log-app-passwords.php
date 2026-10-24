@@ -44,6 +44,9 @@ function snt_audit_app_pw_days() {
 
 /**
  * Add one to today's count.
+ * ponytail: read-modify-write, like the login counters; two sign-ins in the
+ * same instant can drop one count. An atomic counter is the upgrade if exact
+ * numbers ever matter.
  *
  * @param string $field ok or failed.
  * @param string $code  The refusal reason, for failed.

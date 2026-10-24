@@ -49,7 +49,7 @@ function snt_mail_outcome_get() {
  */
 function snt_mail_outcome_clean_message( $message ) {
 	$text = strip_tags( (string) $message ); // phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags -- plain text in, plain text out; no WP dependency for the standalone harness.
-	$text = (string) preg_replace( '/[^\s<>()\[\]"\',;:]+@[^\s<>()\[\]"\',;:]+/', '[address]', $text );
+	$text = (string) preg_replace( '/[^\s<>()\[\]"\x27,;:]+@[^\s<>()\[\]"\x27,;:]+/', '[address]', $text ); // \x27: the single quote.
 	$text = trim( (string) preg_replace( '/\s+/', ' ', $text ) );
 	return function_exists( 'mb_substr' ) ? mb_substr( $text, 0, 200 ) : substr( $text, 0, 200 );
 }

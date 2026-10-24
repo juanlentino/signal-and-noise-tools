@@ -97,5 +97,11 @@ foreach ( array( 'offloaded', 'already_true', 'already_false', 'declined_filter'
 ok( 1 === preg_match( "/already_false.*declined_filter|declined_filter.*already_false/s", $src_off ),
 	'THE PIN: already_false and declined_filter are the two that still leave cron in the request path, and both are named together' );
 
+echo "\nGroup 7: the docblock names where core reads the constant (2026-10-24)\n";
+// Since 6.9 wp_cron() on init only queues _wp_cron() for shutdown (wp_loaded
+// under ALTERNATE_WP_CRON); _wp_cron() is what reads DISABLE_WP_CRON.
+ok( false === strpos( $src_off, 'reads the constant during `init`' ), 'the stale claim that spawn_cron() reads the constant during init is gone' );
+ok( false !== strpos( $src_off, '`_wp_cron()`' ) && false !== strpos( $src_off, '`shutdown`' ), 'it names _wp_cron() on shutdown' );
+
 echo sprintf( "\nResult: %d passed, %d failed.\n", $pass, $fail );
 exit( $fail > 0 ? 1 : 0 );
