@@ -72,7 +72,8 @@ $full['cohorts']['relay']['n'] = 20; $full['cohorts']['intent']['n'] = 3; $full[
 $w = snt_watch_ripe_bot_signals( array(), 0, $full );
 ok( true === $w['ripe'], '14 days with relay at 20 ripens; intent at 3 and over-cap at 2 do not hold it (owner, 2026-10-24)' );
 ok( false !== strpos( $w['note'], 'over_cap 2' ) && false !== strpos( $w['note'], 'intent 3' ), 'the other cohorts, intent among them, are reported at their count' );
-ok( 90 === SNT_BOT_SIGNAL_READOUT_DAYS && 90 === sn_bot_signals_stored()['window_days'], 'the readout accumulates 90 days' );
+$st = sn_bot_signals_stored();
+ok( 90 === SNT_BOT_SIGNAL_READOUT_DAYS && $st['days_present'] === $st['window_days'], 'the readout reads 90 days and labels only the days the signals cover' );
 $d13 = $full; $d13['days_present'] = 13;
 ok( false === snt_watch_ripe_bot_signals( array(), 0, $d13 )['ripe'], '13 days is not ripe' );
 $full['cohorts']['relay']['n'] = 19;

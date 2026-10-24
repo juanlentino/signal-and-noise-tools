@@ -170,11 +170,14 @@ function sn_bot_signals_readout( array $rows, array $day_rows ) {
 			$cohorts[ $c ]['rate'][ $name ] = $v['n'] > 0 ? round( 100 * $f / $v['n'], 1 ) : null;
 		}
 	}
+	$present = count( array_filter( $day_rows, static fn( $d ) => (int) ( ( (array) $d )['n'] ?? 0 ) > 0 ) );
 	return array(
-		'window_days'  => SNT_BOT_SIGNAL_READOUT_DAYS,
+		// The days the signals actually cover, never more than the read: the
+		// signals began 2026-09-29, so a 90-day label would overstate coverage.
+		'window_days'  => $present > 0 ? min( SNT_BOT_SIGNAL_READOUT_DAYS, $present ) : SNT_BOT_SIGNAL_READOUT_DAYS,
 		'visitor_days' => count( $rows ),
 		'truncated'    => count( $rows ) >= SNT_BOT_SIGNAL_LIMIT,
-		'days_present' => count( array_filter( $day_rows, static fn( $d ) => (int) ( ( (array) $d )['n'] ?? 0 ) > 0 ) ),
+		'days_present' => $present,
 		'human'        => $human,
 		'cohorts'      => $cohorts,
 		'weights'      => SNT_BOT_SIGNAL_WEIGHTS,
