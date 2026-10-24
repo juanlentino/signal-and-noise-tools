@@ -59,6 +59,18 @@ function snt_audit_record_change_impl( $kind, $subject, $detail = '', $high = fa
 }
 
 /**
+ * Is this row a change? A refused app-password sign-in rides the same list
+ * (inc/audit-log-app-passwords.php) but changed nothing; every count of
+ * "changes" (the admin finding on both twins, the digest) goes through here.
+ *
+ * @param array $row A changes row.
+ * @return bool
+ */
+function snt_audit_is_change_row( $row ) {
+	return is_array( $row ) && 'app_password_failed' !== ( $row['kind'] ?? '' );
+}
+
+/**
  * The last N days of changes, newest first.
  *
  * @param int $days Trailing days, clamped to the retention window.

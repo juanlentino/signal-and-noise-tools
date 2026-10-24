@@ -90,14 +90,9 @@ function snt_security_digest_collect() {
 			'app_password_failed_7d' => $apw['failed'],
 		);
 		// 2026-10-18: account and site changes, the administrator ones counted out.
-		if ( function_exists( 'snt_audit_get_changes_impl' ) ) {
+		if ( function_exists( 'snt_audit_get_changes_impl' ) && function_exists( 'snt_audit_is_change_row' ) ) {
 			// A refused app-password sign-in is a row in the same list, not a change.
-			$changes                           = array_filter(
-				(array) snt_audit_get_changes_impl( 7 ),
-				static function ( $row ) {
-					return 'app_password_failed' !== ( $row['kind'] ?? '' );
-				}
-			);
+			$changes                           = array_filter( (array) snt_audit_get_changes_impl( 7 ), 'snt_audit_is_change_row' );
 			$data['audit']['changes_7d']       = count( $changes );
 			$data['audit']['admin_changes_7d'] = count( array_filter( array_column( $changes, 'high' ) ) );
 		}

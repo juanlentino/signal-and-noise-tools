@@ -135,5 +135,23 @@ update_option( 'sn_audit_app_passwords_v1', $days, false );
 snt_audit_prune_impl();
 ok( ! isset( get_option( 'sn_audit_app_passwords_v1', array() )['2000-01-01'] ) && isset( get_option( 'sn_audit_app_passwords_v1', array() )[ gmdate( 'Y-m-d' ) ] ), 'prune drops day counts older than the retention window and keeps today' );
 
+echo "\nGroup: the admin finding counts changes, not refused sign-ins (both twins share it)\n";
+if ( ! function_exists( '_n' ) ) { function _n( $one, $many, $n, $d = null ) { return 1 === (int) $n ? $one : $many; } }
+if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n ) { return number_format( (float) $n ); } }
+require_once dirname( __DIR__ ) . '/inc/audit-log-admin-changes.php';
+$mixed = array(
+	array( 'kind' => 'app_password_failed', 'subject' => 'incorrect_password', 'high' => false, 'formatted' => '2026-10-24 09:00:00' ),
+	array( 'kind' => 'app_password_failed', 'subject' => 'invalid_username', 'high' => false, 'formatted' => '2026-10-24 08:00:00' ),
+	array( 'kind' => 'role_set', 'subject' => 'bob', 'high' => true, 'formatted' => '2026-10-23 12:00:00' ),
+	array( 'kind' => 'plugin_activated', 'subject' => 'x/x.php', 'high' => false, 'formatted' => '2026-10-22 12:00:00' ),
+);
+$finding = snt_audit_log_changes_finding( $mixed );
+ok( 0 === strpos( $finding, '2 changes in the window' ), 'two changes beside two refusal rows read as 2 changes: ' . $finding );
+$finding = snt_audit_log_changes_finding( array( $mixed[0], $mixed[3] ) );
+ok( false !== strpos( $finding, 'the newest at 2026-10-22 12:00:00' ), 'the newest change is a change, never a refused sign-in: ' . $finding );
+$finding = snt_audit_log_changes_finding( array( $mixed[0], $mixed[1] ) );
+ok( false === strpos( $finding, 'changes in the window' ) && false !== strpos( $finding, 'No account or site change' ), 'refusal rows alone are no changes: ' . $finding );
+ok( false === snt_audit_is_change_row( $mixed[0] ) && true === snt_audit_is_change_row( $mixed[2] ), 'one predicate says which rows are changes (the digest uses it too)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

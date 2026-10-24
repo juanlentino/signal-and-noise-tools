@@ -72,6 +72,11 @@ $GLOBALS['__changes'] = array();
 if ( ! function_exists( 'snt_audit_get_changes_impl' ) ) {
 	function snt_audit_get_changes_impl( $days ) { return $GLOBALS['__changes']; }
 }
+// The real predicate (inc/audit-log-changes.php) is pinned in tests/audit-log-app-passwords.php;
+// this stand-in keeps the same rule so the digest can be driven alone.
+if ( ! function_exists( 'snt_audit_is_change_row' ) ) {
+	function snt_audit_is_change_row( $row ) { return is_array( $row ) && 'app_password_failed' !== ( $row['kind'] ?? '' ); }
+}
 $GLOBALS['__lg_headline'] = array( 'configured' => false, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '' );
 if ( ! function_exists( 'sn_login_defense_headline' ) ) {
 	function sn_login_defense_headline() { return $GLOBALS['__lg_headline']; }
