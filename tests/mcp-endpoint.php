@@ -28,7 +28,8 @@ if ( ! function_exists( 'get_bloginfo' ) ) { function get_bloginfo( $k = '' ) { 
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $f = 0 ) { return json_encode( $d, $f ); } }
 if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; } }
 if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; } }
-if ( ! function_exists( 'add_filter' ) ) { function add_filter() { return true; } }
+$GLOBALS['__filters'] = array(); // recording add_filter() stub: proves which callback binds to which hook.
+if ( ! function_exists( 'add_filter' ) ) { function add_filter( $h, $cb = null ) { $GLOBALS['__filters'][ $h ][] = $cb; return true; } }
 $GLOBALS['__cap'] = true; // toggle current_user_can result
 if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $c ) { return $GLOBALS['__cap']; } }
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://juanlentino.com/wp-json/' . ltrim( (string) $p, '/' ); } }
@@ -296,6 +297,17 @@ $resp = sn_mcp_method_not_allowed();
 ok( $resp instanceof WP_REST_Response && 405 === $resp->status, 'v14.1.1: the handler answers 405' );
 ok( 'POST' === ( $resp->headers['Allow'] ?? '' ), 'v14.1.1: the 405 carries Allow: POST' );
 ok( 405 === ( $resp->data['data']['status'] ?? 0 ), 'v14.1.1: the body status matches the HTTP status (core error shape)' );
+
+// The official mcp-adapter (and the AI plugin's MCP Access experiment, which
+// installs it) gates its transport on `read` unless a filter raises it
+// (HttpTransport::check_permission). Our own doors require manage_options, so
+// the adapter's default server must not sit below them. Run every bound
+// callback the way apply_filters() would, on the adapter's own default.
+$floor = 'read';
+foreach ( $GLOBALS['__filters']['mcp_adapter_default_transport_permission_user_capability'] ?? array() as $cb ) {
+	$floor = is_callable( $cb ) ? call_user_func( $cb, $floor, null ) : $floor;
+}
+ok( 'manage_options' === $floor, 'mcp-adapter: its default transport capability is raised from read to manage_options, the floor our own doors hold (got ' . $floor . ')' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
