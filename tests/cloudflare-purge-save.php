@@ -30,6 +30,7 @@ function wp_is_post_revision( $id ) { return false; }
 function wp_is_post_autosave( $id ) { return false; }
 function get_permalink( $p ) { return 'https://example.test/notes/' . ( is_object( $p ) ? $p->post_name : 'x' ) . '/'; }
 function home_url( $path = '/' ) { return 'https://example.test' . $path; }
+function add_query_arg( $k, $v, $u ) { return $u . ( false === strpos( $u, '?' ) ? '?' : '&' ) . $k . '=' . $v; }
 function get_post( $id ) { return $GLOBALS['__db']; }
 // The stored reading time is whatever the test sets; '' when none is stored, core's shape.
 function get_post_meta( $id, $key = '', $single = false ) { return '_thumbnail_id' === $key ? $GLOBALS['__thumb'] : ( '_sn_reading_time_minutes' === $key ? $GLOBALS['__rt'] : '' ); }
@@ -106,7 +107,7 @@ if ( ! function_exists( 'sn_edge_cache_note_tag' ) ) {
 echo "\nGroup: a save that changed no list purges the note's tag and the lists' tag\n";
 $r = save( array( 'post_content' => str_replace( 'closing line.', 'closing lines.', $body ) ) );
 ok( array( 'sn-note-7', 'sn-lists' ) === $r['tags'], 'one call carrying the note\'s tag and the lists\' tag, never the whole tag: every ?utm_source= copy and every tier goes with them' );
-ok( array( 'https://example.test/wp-sitemap.xml' ) === $r['files'], 'the only URL sent is core\'s sitemap, which carries no tag' );
+ok( 'https://example.test/wp-sitemap.xml' === ( $r['files'][0] ?? '' ) && 2 === count( $r['files'] ) && 1 === preg_match( '#^https://example\.test/notes/[^/]+/\?output_format=markdown$#', (string) ( $r['files'][1] ?? '' ) ), 'the only URLs sent are core\'s sitemap and the note\'s Markdown twin, which carry no tag: ' . implode( ' ', (array) $r['files'] ) );
 ok( array( 'save', 'note', true ) === array( $r['ledger'][0]['trigger'] ?? '', $r['ledger'][0]['scope'] ?? '', $r['ledger'][0]['edge'] ?? null ) && 1 === count( $r['ledger'] ), 'one ledger row, scope note, edge confirmed' );
 ok( $r['probe'], 'the post-save probe is scheduled for the note' );
 ok( ! $whole( save() ), 'a save that changed nothing at all is narrow too' );

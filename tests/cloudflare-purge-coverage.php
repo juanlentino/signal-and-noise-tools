@@ -35,6 +35,7 @@ function apply_filters( $tag, $value ) { return $value; }
 function add_action() {}
 function add_filter() {}
 function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
+function add_query_arg( $k, $v, $u ) { return $u . ( false === strpos( $u, '?' ) ? '?' : '&' ) . $k . '=' . $v; }
 
 require_once __DIR__ . '/../inc/cloudflare-purge.php';
 
@@ -52,6 +53,8 @@ ok( ! in_array( 'https://example.test/notes/page/5/', $urls, true ), 'no page be
 ok( in_array( 'https://example.test/wp-sitemap.xml', $urls, true ), 'the sitemap index is purged' );
 ok( in_array( 'https://example.test/wp-sitemap-posts-post-1.xml', $urls, true ),
 	'the sub-sitemap listing this post type is purged — that is where a new note appears to a crawler' );
+
+ok( in_array( 'https://example.test/notes/post-7/?output_format=markdown', $urls, true ), 'the post\'s Markdown twin (the AI plugin\'s ?output_format=markdown) is purged with it' );
 
 echo "\nGroup 2: what it already did, unchanged\n";
 foreach ( array( '/notes/post-7/', '/', '/notes/', '/provenance/', '/notes/feed/' ) as $keep ) {

@@ -208,7 +208,7 @@ function sn_cf_purge_note( $post_id, $post ) {
 	} elseif ( function_exists( 'snt_purge_ledger_add' ) ) {
 		snt_purge_ledger_add( array( 'trigger' => 'save', 'scope' => 'note', 'redis' => false, 'pages' => false, 'edge' => $confirmed, 'cloudways' => 'not run' ) );
 	}
-	sn_cf_purge_urls( sn_cf_sitemap_urls( (string) $post->post_type ) );
+	sn_cf_purge_urls( array_merge( sn_cf_sitemap_urls( (string) $post->post_type ), function_exists( 'sn_cf_markdown_twin_urls' ) ? sn_cf_markdown_twin_urls( $post ) : array() ) );
 	sn_cf_schedule_probe( $post_id );
 	return $handled;
 }
