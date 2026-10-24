@@ -24,6 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/mail-send.php'; // the one sender: HTML with a plain-text alternative.
+require_once __DIR__ . '/mail-outcome.php'; // the last mail refusal and the accepted count, from core's wp_mail hooks (2026-10-24).
 
 define( 'SN_SECURITY_DIGEST_CRON_HOOK', 'sn_security_digest_weekly' );
 define( 'SN_SECURITY_DIGEST_LAST_SENT', 'sn_security_digest_last_sent' );
@@ -53,6 +54,7 @@ function snt_security_digest_collect() {
 		'guard_unavailable' => false, // a failed guard read, said as such (never zero lockouts).
 		'status' => null,
 		'breach' => null, // v13.60.0: the breached-password check's own numbers.
+		'mail'   => null, // 2026-10-24: the last mail refusal, only when it falls in the window.
 	);
 
 	// Audit side: 7d-vs-prior totals + per-type 7d sums. Lockouts are the login
@@ -63,7 +65,10 @@ function snt_security_digest_collect() {
 		$failed  = 0;
 		$recon   = 0;
 		$mfa     = array( 'mfa_failed' => 0, 'mfa_throttled' => 0, 'mfa_other' => 0 );
+		$apw     = array( 'ok' => 0, 'failed' => 0 );
 		foreach ( (array) $days as $row ) {
+			$apw['ok']     += (int) ( $row['app_password_ok'] ?? 0 );
+			$apw['failed'] += (int) ( $row['app_password_failed'] ?? 0 );
 			foreach ( $mfa as $key => $count ) {
 				$mfa[ $key ] += (int) ( $row[ $key ] ?? 0 );
 			}
@@ -80,10 +85,19 @@ function snt_security_digest_collect() {
 			'failed_7d'   => $failed,
 			'mfa_7d'      => $mfa,
 			'recon_7d'    => $recon,
+			// 2026-10-24: app-password sign-ins (inc/audit-log-app-passwords.php).
+			'app_password_ok_7d'     => $apw['ok'],
+			'app_password_failed_7d' => $apw['failed'],
 		);
 		// 2026-10-18: account and site changes, the administrator ones counted out.
 		if ( function_exists( 'snt_audit_get_changes_impl' ) ) {
-			$changes                           = (array) snt_audit_get_changes_impl( 7 );
+			// A refused app-password sign-in is a row in the same list, not a change.
+			$changes                           = array_filter(
+				(array) snt_audit_get_changes_impl( 7 ),
+				static function ( $row ) {
+					return 'app_password_failed' !== ( $row['kind'] ?? '' );
+				}
+			);
 			$data['audit']['changes_7d']       = count( $changes );
 			$data['audit']['admin_changes_7d'] = count( array_filter( array_column( $changes, 'high' ) ) );
 		}
@@ -142,6 +156,21 @@ function snt_security_digest_collect() {
 		);
 	}
 
+	// Mail (2026-10-24): core's wp_mail_failed, kept by inc/mail-outcome.php.
+	if ( function_exists( 'snt_mail_outcome_get' ) ) {
+		$mo = snt_mail_outcome_get();
+		$at = (int) ( $mo['last_failure']['at'] ?? 0 );
+		if ( $at >= time() - 7 * DAY_IN_SECONDS ) {
+			$data['mail'] = array(
+				'refused_at' => wp_date( 'Y-m-d H:i', $at ),
+				'code'       => (string) ( $mo['last_failure']['code'] ?? '' ),
+				'message'    => (string) ( $mo['last_failure']['message'] ?? '' ),
+				'accepted'   => (int) $mo['accepted'],
+				'since'      => $mo['since'] > 0 ? wp_date( 'Y-m-d', $mo['since'] ) : '',
+			);
+		}
+	}
+
 	return $data;
 }
 
@@ -160,7 +189,7 @@ function snt_security_digest_compose( $data ) {
 	$status = isset( $data['status'] ) && is_array( $data['status'] ) ? $data['status'] : null;
 	$breach = isset( $data['breach'] ) && is_array( $data['breach'] ) ? $data['breach'] : null;
 
-	$quiet = ( null === $audit || ( 0 === $audit['events_7d'] && 0 === $audit['failed_7d'] && 0 === $audit['recon_7d'] && 0 === (int) ( $audit['changes_7d'] ?? 0 ) ) )
+	$quiet = ( null === $audit || ( 0 === $audit['events_7d'] && 0 === $audit['failed_7d'] && 0 === $audit['recon_7d'] && 0 === (int) ( $audit['changes_7d'] ?? 0 ) && 0 === (int) ( $audit['app_password_failed_7d'] ?? 0 ) ) )
 		&& ( null === $guard || ( 0 === $guard['blocked'] && 0 === (int) ( $guard['locked_out'] ?? 0 ) ) );
 
 	$lines   = array();
@@ -189,6 +218,11 @@ function snt_security_digest_compose( $data ) {
 			$admin   = (int) ( $audit['admin_changes_7d'] ?? 0 );
 			$lines[] = '  Account and site changes: ' . number_format_i18n( (int) $audit['changes_7d'] )
 				. ( $admin > 0 ? ' (' . number_format_i18n( $admin ) . ' involving administrator access)' : '' );
+		}
+		$apw_ok     = (int) ( $audit['app_password_ok_7d'] ?? 0 );
+		$apw_failed = (int) ( $audit['app_password_failed_7d'] ?? 0 );
+		if ( $apw_ok + $apw_failed > 0 ) {
+			$lines[] = '  App password sign-ins: ' . number_format_i18n( $apw_ok ) . ' accepted, ' . number_format_i18n( $apw_failed ) . ' refused';
 		}
 		$lines[] = '  All audit events: ' . number_format_i18n( $audit['events_7d'] )
 			. ' (prior 7 days: ' . number_format_i18n( $audit['prior_7d'] ) . ', ' . $sign . $audit['pct_delta'] . '%)';
@@ -242,6 +276,14 @@ function snt_security_digest_compose( $data ) {
 		}
 	}
 	$lines[] = '';
+	// Mail (2026-10-24): only when the mail server refused something this week.
+	$mail = isset( $data['mail'] ) && is_array( $data['mail'] ) ? $data['mail'] : null;
+	if ( null !== $mail ) {
+		$lines[] = 'Mail';
+		$lines[] = '  Last refusal: the mail server refused a message at ' . $mail['refused_at'] . ' (' . $mail['code'] . ': ' . $mail['message'] . ')';
+		$lines[] = '  The mail server accepted ' . number_format_i18n( $mail['accepted'] ) . ' messages since ' . ( '' !== $mail['since'] ? $mail['since'] : 'counting began' ) . '; an acceptance is a handover, not a delivery to an inbox.';
+		$lines[] = '';
+	}
 	$lines[] = 'Enforcement happens at the edge in real time; this digest is observability.';
 	$lines[] = 'Turn it off in Security › Login defense.';
 
@@ -343,7 +385,7 @@ function snt_security_digest_render_settings() {
 	echo '<label><input type="checkbox" name="sn_digest_enabled" value="1" ';
 	checked( snt_security_digest_enabled() );
 	echo ' /> ' . esc_html__( 'Email a weekly security digest to the admin address', 'signal-and-noise-tools' ) . '</label>';
-	echo '<p class="sn-field-helper">' . esc_html__( 'Failed logins, recon probes, account and site changes, lockouts, login-guard blocks, and denylist freshness for the last 7 days. Sends every week, including quiet weeks: the quiet email is the heartbeat.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'Failed logins, recon probes, account and site changes, app-password sign-ins, lockouts, login-guard blocks, denylist freshness, and the last message the mail server refused, for the last 7 days. Sends every week, including quiet weeks: the quiet email is the heartbeat.', 'signal-and-noise-tools' ) . '</p>';
 	if ( $last_sent > 0 ) {
 		echo '<p class="sn-field-helper">' . esc_html(
 			sprintf(

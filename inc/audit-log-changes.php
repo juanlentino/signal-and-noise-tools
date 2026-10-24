@@ -34,16 +34,22 @@ require_once __DIR__ . '/audit-log-changes-site.php';
  * @param string $subject The account login, plugin file, theme name or setting.
  * @param string $detail  Role names or a short qualifier; never an address.
  * @param bool   $high    True when the change grants administrator access.
+ * @param ?string $actor  Who made it, when the caller knows. Null asks
+ *                        wp_get_current_user(), which a caller inside
+ *                        determine_current_user must never do (it recurses).
  */
-function snt_audit_record_change_impl( $kind, $subject, $detail = '', $high = false ) {
-	$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+function snt_audit_record_change_impl( $kind, $subject, $detail = '', $high = false, $actor = null ) {
+	if ( null === $actor ) {
+		$user  = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+		$actor = is_object( $user ) && ! empty( $user->ID ) ? (string) $user->user_login : '';
+	}
 	$blob = snt_audit_get_blob();
 	$rows = isset( $blob['changes'] ) && is_array( $blob['changes'] ) ? $blob['changes'] : array();
 
 	$rows[] = array(
 		'ts'      => time(),
 		'kind'    => (string) $kind,
-		'actor'   => is_object( $user ) && ! empty( $user->ID ) ? (string) $user->user_login : '',
+		'actor'   => (string) $actor,
 		'subject' => (string) $subject,
 		'detail'  => (string) $detail,
 		'high'    => (bool) $high,
@@ -127,6 +133,10 @@ function snt_audit_change_label( $kind ) {
 		'plugin_deactivated' => __( 'Plugin deactivated', 'signal-and-noise-tools' ),
 		'plugin_deleted'     => __( 'Plugin deleted', 'signal-and-noise-tools' ),
 		'theme_switched'     => __( 'Theme switched', 'signal-and-noise-tools' ),
+		'app_password_failed'  => __( 'App password sign-in refused (first of this reason today)', 'signal-and-noise-tools' ),
+		'app_password_created' => __( 'App password created', 'signal-and-noise-tools' ),
+		'app_password_updated' => __( 'App password renamed', 'signal-and-noise-tools' ),
+		'app_password_revoked' => __( 'App password revoked', 'signal-and-noise-tools' ),
 	);
 	return $labels[ $kind ] ?? (string) $kind;
 }

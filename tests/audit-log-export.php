@@ -320,5 +320,14 @@ assertEq( 'akismet/akismet.php', $cv_ab['changes'][1]['subject'] ?? null, 'a plu
 $cv_pii = json_decode( snt_ability_export_audit_log( array( 'format' => 'json', 'include_pii' => true ) )['content'], true );
 assertEq( 'eve', $cv_pii['changes'][0]['subject'] ?? null, 'include_pii:true returns the account subject' );
 
+echo "\n-- 2026-10-24: app passwords in the export --\n";
+foreach ( array( 'app_password_created', 'app_password_updated', 'app_password_revoked' ) as $apk ) {
+	$masked = sn_audit_export_redact_change_rows( array( array( 'kind' => $apk, 'subject' => 'alice', 'actor' => 'alice', 'detail' => 'Claude MCP' ) ), false );
+	assertEq( 'a****', $masked[0]['subject'] ?? null, "default export masks the account on $apk" );
+}
+$masked = sn_audit_export_redact_change_rows( array( array( 'kind' => 'app_password_failed', 'subject' => 'incorrect_password', 'actor' => '' ) ), false );
+assertEq( 'incorrect_password', $masked[0]['subject'] ?? null, 'a refusal row names a reason code, not a person, and stays readable' );
+assertTrue( false !== strpos( $cv_csv, 'mfa_other,app_password_ok,app_password_failed' ), 'CSV counters carry the app-password day counts' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
