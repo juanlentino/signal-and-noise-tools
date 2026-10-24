@@ -223,7 +223,7 @@ foreach ( array( 'an edit' => array( 'publish', 'publish' ), 'a first publish' =
 	$r = fire( $s[0], $s[1] );
 	$b = $bodies();
 	ok( array( 'tags' => array( 'sn-render' ) ) === $b[0] && ! $r['everything'], "$what: one tag purge, never the whole zone" );
-	ok( array( 'https://example.test/wp-sitemap.xml' ) === array_values( array_filter( $r['urls'], static fn( $u ) => false === strpos( $u, 'wp-sitemap-posts-' ) ) ) && ! in_array( 'https://example.test/notes/post-7/', $r['urls'], true ), "$what: the only URLs sent are core's sitemaps, which carry no tag" );
+	ok( array( 'https://example.test/wp-sitemap.xml', 'https://example.test/notes/post-7/?output_format=markdown' ) === array_values( array_filter( $r['urls'], static fn( $u ) => false === strpos( $u, 'wp-sitemap-posts-' ) ) ) && ! in_array( 'https://example.test/notes/post-7/', $r['urls'], true ), "$what: the only URLs sent are core's sitemaps and the post's Markdown twin, which carry no tag" );
 }
 
 echo "\nResult: $pass passed, $fail failed.\n";

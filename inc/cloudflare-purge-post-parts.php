@@ -68,13 +68,9 @@ function sn_cf_post_purge_urls( $post_id, $post ) {
 		home_url( '/notes/feed/' ),
 	);
 
-	// 2026-10-24: the post's Markdown twin. The WordPress AI plugin's Markdown
-	// Feeds experiment serves it at ?output_format=markdown, the edge caches it
-	// under that query string (cf-cache-status: HIT), and the rights-signals
-	// Worker hands it to every agent asking for Markdown, so an edit must not
-	// leave it on the old text. Purging an address the edge does not hold costs
-	// nothing.
-	$urls[] = add_query_arg( 'output_format', 'markdown', get_permalink( $post ) );
+	foreach ( sn_cf_markdown_twin_urls( $post ) as $twin ) {
+		$urls[] = $twin;
+	}
 
 	// If the saved post is a child page (e.g., /provenance/over-detection/),
 	// also purge the parent so its referring listings refresh.
@@ -95,6 +91,22 @@ function sn_cf_post_purge_urls( $post_id, $post ) {
 
 	/** This filter's contract is unchanged: it still sees the final set. */
 	return (array) apply_filters( 'sn_cf_purge_urls_for_post', $urls, $post_id, $post );
+}
+
+/**
+ * The post's Markdown twin (2026-10-24). The WordPress AI plugin's Markdown
+ * Feeds experiment serves it at ?output_format=markdown and answers before the
+ * theme tags the response, so the edge caches it untagged under that query
+ * string (cf-cache-status: HIT): a tag purge never reaches it, and every save
+ * path sends it by URL. Purging an address the edge does not hold costs
+ * nothing.
+ *
+ * @param WP_Post|object $post The post as the edge holds it (the pre-change post when leaving publish).
+ * @return string[] Zero or one absolute URL.
+ */
+function sn_cf_markdown_twin_urls( $post ) {
+	$link = get_permalink( $post );
+	return is_string( $link ) && '' !== $link ? array( add_query_arg( 'output_format', 'markdown', $link ) ) : array();
 }
 
 /** Hard ceiling on paginated archive URLs added per save. */
@@ -228,7 +240,7 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 			return;
 		}
 		sn_cf_purge_tag();
-		sn_cf_purge_urls( sn_cf_sitemap_urls( $is_published ? $post->post_type : $post_before->post_type ) );
+		sn_cf_purge_urls( array_merge( sn_cf_sitemap_urls( $is_published ? $post->post_type : $post_before->post_type ), sn_cf_markdown_twin_urls( $is_published ? $post : $post_before ) ) );
 		return;
 	}
 
