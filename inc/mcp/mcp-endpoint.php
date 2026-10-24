@@ -57,6 +57,24 @@ function sn_mcp_permission() {
 }
 
 /**
+ * The official mcp-adapter's transport floor, raised to ours. Its default
+ * server (which the AI plugin's MCP Access experiment installs) passes no
+ * permission callback, so HttpTransport::check_permission() falls back to
+ * this filter with a default of `read`: any logged-in subscriber reaches
+ * the transport, and each ability that opts in through meta.mcp.public
+ * stands on its own check alone. Our own doors hold manage_options; the
+ * adapter's door must not sit below them. Inert while the adapter is absent.
+ *
+ * @return string
+ */
+function sn_mcp_adapter_transport_floor() {
+	return 'manage_options';
+}
+if ( function_exists( 'add_filter' ) ) { // suites that require this file bare stub no hooks.
+	add_filter( 'mcp_adapter_default_transport_permission_user_capability', 'sn_mcp_adapter_transport_floor' );
+}
+
+/**
  * Rw-door permission floor (v9.51.0, lane SEC-A). Sequenced exactly per the
  * spec's R1/R2:
  *
