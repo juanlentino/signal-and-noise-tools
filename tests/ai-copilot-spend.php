@@ -139,10 +139,12 @@ ok( $near( $read( 'snt_ai_copilot_spend_this_month' ), 0.0105 ), 'one Sonnet 4.6
 ok( 0.0 === snt_ai_spend_this_month() && array() === snt_ai_spend_this_month_by_feature(), 'the cap ledger did not move for a Copilot call' );
 $station( 'ai-copilot/followup' );
 ok( $near( $read( 'snt_ai_copilot_spend_this_month' ), 0.021 ), 'the follow-up leg is Copilot too, and now it is priced: it reports its own usage' );
+$station( 'ai-copilot/search-wrap-up' );
+ok( $near( $read( 'snt_ai_copilot_spend_this_month' ), 0.0315 ) && 0.0 === $read( 'snt_ai_other_spend_this_month' ), 'the search wrap-up turn (the loop hit its cap) is Copilot, not Other' );
 // A run that switches models prices every call at its own rate, not the last one's.
 $GLOBALS['__gen'] = array( 1000, 500, 'claude-haiku-4-5' );
 $station( 'ai-copilot/search' );
-ok( $near( $read( 'snt_ai_copilot_spend_this_month' ), 0.0245 ), 'a Haiku call in the same run adds 0.0035 at the Haiku rate, reading 0.0245' );
+ok( $near( $read( 'snt_ai_copilot_spend_this_month' ), 0.035 ), 'a Haiku call in the same run adds 0.0035 at the Haiku rate, reading 0.035' );
 
 // ── 2. An agent-runner call prices into Agents, and only there.
 $reset();

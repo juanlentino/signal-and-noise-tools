@@ -167,6 +167,9 @@ function snt_ai_spend_record_call( $event ) {
 	$bucket = array(
 		'ai-copilot/search'   => array( SN_AI_COPILOT_SPEND_OPT, SN_AI_COPILOT_UNPRICED_OPT ),
 		'ai-copilot/followup' => array( SN_AI_COPILOT_SPEND_OPT, SN_AI_COPILOT_UNPRICED_OPT ),
+		// The search loop's final turn once it hits its iteration cap
+		// (OpenStation ai-copilot/search.php): still Copilot.
+		'ai-copilot/search-wrap-up' => array( SN_AI_COPILOT_SPEND_OPT, SN_AI_COPILOT_UNPRICED_OPT ),
 		'agents/runner'       => array( SN_AI_AGENTS_SPEND_OPT, SN_AI_AGENTS_UNPRICED_OPT ),
 	)[ $source ] ?? array( SN_AI_OTHER_SPEND_OPT, SN_AI_OTHER_UNPRICED_OPT );
 	snt_ai_station_price_run(
