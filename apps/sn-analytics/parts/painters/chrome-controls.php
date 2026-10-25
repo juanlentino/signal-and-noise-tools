@@ -4,7 +4,8 @@
  *
  * Classic: snt_analytics_render_controls() in inc/analytics-render-controls.php.
  * Picks are kit buttons that dispatch `go` as `{ key, value }`. Export stays a
- * real form with target=_blank — a download cannot be a window dispatch.
+ * real form, never a window dispatch: a download cannot be replayed (and no
+ * target, which would relaunch the PWA).
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -120,7 +121,11 @@ function paint_chrome_controls( array $ctx ) {
 		$export_hidden .= \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'sn_from', 'value' => $from ) )
 			. \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'sn_to', 'value' => $to ) );
 	}
-	$export = '<form class="snt-export" method="post" action="' . \snt_kit_esc( $admin ) . '" target="_blank" rel="noopener">'
+	// 2026-10-25: no target. A same-origin target="_blank" relaunches the
+	// installed PWA (14.7.5), so every export opened an empty app window behind
+	// the save dialog. The handler answers with an attachment, which a
+	// same-window submit downloads without leaving the desktop.
+	$export = '<form class="snt-export" method="post" action="' . \snt_kit_esc( $admin ) . '">'
 		. $export_hidden
 		. '<button type="submit" name="format" value="csv">CSV</button> '
 		. '<button type="submit" name="format" value="json">JSON</button></form>';

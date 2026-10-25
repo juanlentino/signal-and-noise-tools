@@ -503,8 +503,8 @@ if ( '' === $api ) {
 		'a form carrying a named action is marked with WHERE it posts -- the marker names the destination, so the rewrite needs no second list' );
 	ok( null === $keep_forms['f-export']['os-action'] && 'post' === $keep_forms['f-export']['method']
 		&& 'https://example.test/wp-admin/admin.php?page=sn-analytics' === $keep_forms['f-export']['action']
-		&& '_blank' === $keep_forms['f-export']['target'],
-		'   ...and comes out of the rewrite STILL A FORM: same method, an explicit action, and a new tab -- a download must be a navigation, and a window that dispatched it would exit mid-response' );
+		&& null === $keep_forms['f-export']['target'],
+		'   ...and comes out of the rewrite STILL A FORM: same method, an explicit action and NO target -- a download must be a navigation (a window that dispatched it would exit mid-response), and a same-origin target="_blank" relaunches the installed PWA (2026-10-25)' );
 	ok( null === $keep_forms['f-save']['data-snt-keep-form'] && 'post' === $keep_forms['f-save']['os-action'],
 		'a form that carries an UNNAMED action is a dispatch as before -- and the stray input BETWEEN the two forms belongs to neither: without that guard the save form was marked by its neighbour`s field' );
 	ok( $kept_out === snt_os_host_rewrite( snt_os_host_keep_forms( $kept_out, array( 'analytics_export' ), 'https://example.test/wp-admin/admin.php?page=sn-analytics' ), array( 'sn-theme-options' ) ),

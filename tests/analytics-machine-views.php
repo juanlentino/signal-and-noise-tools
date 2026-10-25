@@ -29,6 +29,7 @@ namespace SignalNoise\OpenStationHost\Analytics\Painters {
 	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/view-machine-readers.php';
 	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/view-reader-evidence.php';
 	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/chrome-header.php';
+	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/chrome-controls.php';
 	require_once SNT_PATH . 'apps/sn-analytics/parts/painters/view-edge.php';
 }
 namespace {
@@ -134,6 +135,11 @@ namespace {
 	$GLOBALS['__options'][ SNT_BOT_SIGNAL_BY_DAY_OPTION ] = array();
 	$head = call_user_func( $P . 'paint_chrome_header', array( 'from' => '2026-10-05', 'to' => '2026-10-11', 'class' => 'human' ) )['html'];
 	ok( 1 === substr_count( $head, 'not measured' ) && false === strpos( $head, 'of 0' ), 'native Overview: null reads "not measured" once, never 0 or "of 0"' );
+	// 2026-10-25: the export form has no target: a same-origin target="_blank"
+	// relaunched the installed PWA, an empty window behind every save dialog.
+	$ctl = (string) call_user_func( $P . 'paint_chrome_controls', array( 'range' => '7', 'class' => 'human' ) );
+	ok( 1 === preg_match( '#<form class="snt-export" method="post" action="[^"]*admin-post\.php">#', $ctl ), 'native toolbar: the export form posts to admin-post.php with no target' );
+	ok( false === strpos( $ctl, '_blank' ), 'native toolbar: nothing opens a new window' );
 
 	echo "\nGroup D: every figure that left a fold is painted\n";
 	$mk = $kit['machine-readers'];

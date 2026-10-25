@@ -28,7 +28,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * action alongside the form's values.
  *
  * A form the host marked `data-snt-keep-form` is the exception: it keeps its
- * method, GAINS the marked URL as its action and opens in a new tab. See
+ * method and GAINS the marked URL as its action, with no target: inside the
+ * installed PWA a same-origin new tab relaunches the app (2026-10-25). See
  * `snt_os_host_keep_forms()`.
  *
  * @param WP_HTML_Tag_Processor $tags Positioned on the tag.
@@ -45,9 +46,10 @@ function snt_os_host_rewrite_form( $tags ) {
 		if ( $keep !== $tags->get_attribute( 'action' ) ) {
 			$tags->set_attribute( 'action', $keep );
 		}
-		if ( null === $tags->get_attribute( 'target' ) ) {
-			$tags->set_attribute( 'target', '_blank' );
-		}
+		// 2026-10-25: no target. Inside the installed PWA a same-origin
+		// target="_blank" relaunches the app (14.7.5): every export opened an
+		// empty window behind the save dialog. The kept actions answer with an
+		// attachment, which a same-window submit downloads in place.
 		return;
 	}
 	$method = strtolower( trim( (string) $tags->get_attribute( 'method' ) ) );

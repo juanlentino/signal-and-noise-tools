@@ -900,8 +900,10 @@ waits for the doors program named in the proposal's Out of scope.
 about that fits a contract whose whole shape is "the callable echoes HTML
 and `View::capture()` collects it", and the framework has no effect that
 hands the browser a file. So the rewrite pass leaves that one form REAL: it
-keeps `method="post"`, keeps its `action` on the classic page URL, and
-gains `target="_blank"`, so the download is a navigation in a new tab. This
+keeps `method="post"` and keeps its `action` on the classic page URL, with no
+target, so the download is a navigation in the same window: an attachment
+never leaves the desktop, where `target="_blank"` relaunched the installed
+PWA as an empty window behind the save dialog (until 2026-10-25). This
 is the export's counterpart to host one's `sn_force_update_check` door:
 faithful means the destination still happens, not that the mechanism is
 identical.
@@ -962,7 +964,7 @@ help` blocks) and in the sandbox before a line was written:
   runtime's native-form path (a `FormData`, repeated names as arrays) is the
   only one that carries the group. Its `.snt-submit` and checkboxes paint on
   the shell's tokens in `assets/os-app.css`; the streaming export form is the
-  other native one, kept real with `target="_blank"`.
+  other native one, kept real (no target, so it downloads in place).
 - **`os-bind`** on the leaf bar's `<os-segmented>` / `<os-select>` twins
   (`snt_kit_tabs()`, the native list toolbar's status control since 17.4.3;
   an `<os-tabs>` strip before) and on a segmented
