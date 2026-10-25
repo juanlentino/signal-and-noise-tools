@@ -34,22 +34,67 @@ require_once __DIR__ . '/audit-log-changes-site.php';
  * @param string $subject The account login, plugin file, theme name or setting.
  * @param string $detail  Role names or a short qualifier; never an address.
  * @param bool   $high    True when the change grants administrator access.
+ * @param ?string $actor  Who made it, when the caller knows. Null asks
+ *                        wp_get_current_user(), which a caller inside
+ *                        determine_current_user must never do (it recurses).
  */
-function snt_audit_record_change_impl( $kind, $subject, $detail = '', $high = false ) {
-	$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+function snt_audit_record_change_impl( $kind, $subject, $detail = '', $high = false, $actor = null ) {
+	if ( null === $actor ) {
+		$user  = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+		$actor = is_object( $user ) && ! empty( $user->ID ) ? (string) $user->user_login : '';
+	}
 	$blob = snt_audit_get_blob();
 	$rows = isset( $blob['changes'] ) && is_array( $blob['changes'] ) ? $blob['changes'] : array();
 
 	$rows[] = array(
 		'ts'      => time(),
 		'kind'    => (string) $kind,
-		'actor'   => is_object( $user ) && ! empty( $user->ID ) ? (string) $user->user_login : '',
+		'actor'   => (string) $actor,
 		'subject' => (string) $subject,
 		'detail'  => (string) $detail,
 		'high'    => (bool) $high,
 	);
-	$blob['changes'] = array_slice( $rows, -SN_AUDIT_CHANGES_CAP );
+	$blob['changes'] = snt_audit_trim_changes( $rows, SN_AUDIT_CHANGES_CAP );
 	update_option( SN_AUDIT_OPTION, $blob, true );
+}
+
+/**
+ * Trim the list to the cap, oldest first, but refused app-password rows go
+ * before any real change does (2026-10-24): a spray of bad Basic-auth logins
+ * writes up to one row per reason per day, and must never push a genuine
+ * change out of the list. PURE.
+ *
+ * @param array $rows Rows, oldest first.
+ * @param int   $cap  Rows to keep.
+ * @return array
+ */
+function snt_audit_trim_changes( array $rows, $cap ) {
+	$over = count( $rows ) - (int) $cap;
+	if ( $over <= 0 ) {
+		return $rows;
+	}
+	foreach ( $rows as $i => $row ) {
+		if ( $over <= 0 ) {
+			break;
+		}
+		if ( ! snt_audit_is_change_row( $row ) ) {
+			unset( $rows[ $i ] );
+			--$over;
+		}
+	}
+	return array_slice( array_values( $rows ), -(int) $cap );
+}
+
+/**
+ * Is this row a change? A refused app-password sign-in rides the same list
+ * (inc/audit-log-app-passwords.php) but changed nothing; every count of
+ * "changes" (the admin finding on both twins, the digest) goes through here.
+ *
+ * @param array $row A changes row.
+ * @return bool
+ */
+function snt_audit_is_change_row( $row ) {
+	return is_array( $row ) && 'app_password_failed' !== ( $row['kind'] ?? '' );
 }
 
 /**
@@ -127,6 +172,10 @@ function snt_audit_change_label( $kind ) {
 		'plugin_deactivated' => __( 'Plugin deactivated', 'signal-and-noise-tools' ),
 		'plugin_deleted'     => __( 'Plugin deleted', 'signal-and-noise-tools' ),
 		'theme_switched'     => __( 'Theme switched', 'signal-and-noise-tools' ),
+		'app_password_failed'  => __( 'App password sign-in refused (first of this reason today)', 'signal-and-noise-tools' ),
+		'app_password_created' => __( 'App password created', 'signal-and-noise-tools' ),
+		'app_password_updated' => __( 'App password renamed', 'signal-and-noise-tools' ),
+		'app_password_revoked' => __( 'App password revoked', 'signal-and-noise-tools' ),
 	);
 	return $labels[ $kind ] ?? (string) $kind;
 }

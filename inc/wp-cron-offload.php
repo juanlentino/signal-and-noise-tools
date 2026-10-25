@@ -54,9 +54,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Whether to keep WP-Cron out of the request path.
  *
- * Runs at PLUGIN LOAD, before `init` - which is the only window that matters,
- * because `spawn_cron()` reads the constant during `init`. A filter added from
- * a theme's `functions.php` would be too late; a mu-plugin is the place.
+ * Runs at PLUGIN LOAD, well before core reads the constant: `wp_cron()` on
+ * `init` only queues `_wp_cron()` for `shutdown` (WordPress 6.9+; `wp_loaded`
+ * under ALTERNATE_WP_CRON), and `_wp_cron()` is what checks DISABLE_WP_CRON.
+ * The decision is made once, here, at load, so a filter added from a theme's
+ * `functions.php` would be too late; a mu-plugin is the place.
  *
  * @return bool
  */

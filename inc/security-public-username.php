@@ -2,8 +2,8 @@
 /**
  * Signal & Noise Tools: is an administrator's login username public? (2026-10-18)
  *
- * The site locks /wp-json/wp/v2/users and the ?author= scan
- * (inc/security-headers.php), but the oEmbed endpoint publishes author_url,
+ * The site locks /wp-json/wp/v2/users (inc/rest-hardening.php) and the ?author=
+ * scan (inc/security-headers.php), but the oEmbed endpoint publishes author_url,
  * /notes/author/<user_nicename>/, and that archive answers 200. Core derives
  * user_nicename from user_login when a user is created (sanitize_title of it)
  * and never changes it afterwards, so unless someone set it by hand the public

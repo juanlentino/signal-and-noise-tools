@@ -18,12 +18,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * WordPress's own updater, reduced to one word. Pure so it can be pinned: the
- * inputs are constants that cannot vary inside one PHP process.
+ * WordPress's own updater, reduced to one word. Pure so it can be pinned.
  * A major-only configuration still applies releases, so it reads 'all'.
  */
-function snt_core_auto_updates_mode( $file_mods_allowed, $updater_disabled, $allow_major, $allow_minor ) {
-	if ( ! $file_mods_allowed || $updater_disabled ) {
+function snt_core_auto_updates_mode( $updater_disabled, $allow_major, $allow_minor ) {
+	if ( $updater_disabled ) {
 		return 'off';
 	}
 	if ( $allow_major ) {
@@ -32,13 +31,19 @@ function snt_core_auto_updates_mode( $file_mods_allowed, $updater_disabled, $all
 	return $allow_minor ? 'minor' : 'off';
 }
 
-/** Resolve the inputs the way WP_Automatic_Updater does, filters included. */
+/**
+ * The readout. "Disabled" is core's own WP_Automatic_Updater::is_disabled()
+ * (file mods, wp_installing(), AUTOMATIC_UPDATER_DISABLED and its filter), so
+ * it cannot drift from what the updater does. The class file is a bare class
+ * definition, loaded here, on the read, and nowhere else. Core asks the
+ * major/minor question per offered version (should_update_to_version), so the
+ * branch-level answer below stays ours, from the same inputs and filters.
+ */
 function snt_core_auto_updates() {
-	$file_mods = ! ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS );
-	if ( function_exists( 'wp_is_file_mod_allowed' ) ) {
-		$file_mods = wp_is_file_mod_allowed( 'automatic_updater' );
+	if ( ! class_exists( 'WP_Automatic_Updater', false ) ) {
+		require_once ABSPATH . 'wp-admin/includes/class-wp-automatic-updater.php';
 	}
-	$disabled = (bool) apply_filters( 'automatic_updater_disabled', defined( 'AUTOMATIC_UPDATER_DISABLED' ) && AUTOMATIC_UPDATER_DISABLED );
+	$disabled = ( new WP_Automatic_Updater() )->is_disabled();
 	$major    = false;
 	$minor    = true;
 	if ( defined( 'WP_AUTO_UPDATE_CORE' ) ) {
@@ -50,7 +55,7 @@ function snt_core_auto_updates() {
 	}
 	$major = (bool) apply_filters( 'allow_major_auto_core_updates', $major );
 	$minor = (bool) apply_filters( 'allow_minor_auto_core_updates', $minor );
-	return snt_core_auto_updates_mode( $file_mods, $disabled, $major, $minor );
+	return snt_core_auto_updates_mode( (bool) $disabled, $major, $minor );
 }
 
 /** Reason text for a waiting point release. */

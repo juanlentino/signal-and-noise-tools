@@ -2,7 +2,8 @@
 /**
  * Standalone test: is an administrator's login username public? (2026-10-18)
  *
- * The site locks /wp-json/wp/v2/users and the ?author= scan, but the oEmbed
+ * The site locks /wp-json/wp/v2/users (inc/rest-hardening.php, core's 404) and
+ * the ?author= scan (inc/security-headers.php), but the oEmbed
  * endpoint publishes author_url = /notes/author/<user_nicename>/, and that
  * archive answers 200. Core derives user_nicename from user_login at creation
  * (sanitize_title of it), so unless someone changed it, the author slug IS the

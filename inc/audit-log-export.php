@@ -92,7 +92,7 @@ function sn_audit_export_redact_change_rows( array $rows, $include_pii ) {
 	return array_map(
 		static function ( $row ) {
 			$row['actor'] = sn_audit_export_pii_mask_username( (string) ( $row['actor'] ?? '' ) );
-			if ( in_array( (string) ( $row['kind'] ?? '' ), array( 'user_created', 'role_set', 'role_added', 'role_removed', 'email_changed' ), true ) ) {
+			if ( in_array( (string) ( $row['kind'] ?? '' ), array( 'user_created', 'role_set', 'role_added', 'role_removed', 'email_changed', 'app_password_created', 'app_password_updated', 'app_password_revoked' ), true ) ) {
 				$row['subject'] = sn_audit_export_pii_mask_username( (string) ( $row['subject'] ?? '' ) );
 			}
 			return $row;
@@ -227,6 +227,8 @@ function sn_audit_export_build_csv( array $view ) {
 		'mfa_failed',
 		'mfa_throttled',
 		'mfa_other',
+		'app_password_ok',
+		'app_password_failed',
 	);
 	sn_audit_export_fputcsv( $fh, $counter_cols );
 	foreach ( $counters as $row ) {

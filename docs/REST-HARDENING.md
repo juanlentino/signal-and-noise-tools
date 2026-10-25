@@ -149,13 +149,18 @@ explicitly tries.
 
 ## Relationship to `inc/security-headers.php`
 
-That module already 401s `/wp/v2/users` for anonymous callers via
-`rest_authentication_errors`, matching on `REQUEST_URI`. It stays. The two
-controls are independent and fire at different points:
-`rest_authentication_errors` runs before dispatch, so on `/wp/v2/users` the
-**401 is what you observe** — the route removal never gets a turn. That is the
-belt-and-braces order working as intended, and it is why the route index at
-`/wp-json/` is the honest observable for the removal, not the status code.
+Until 2026-10-24 that module also 401'd `/wp/v2/users` for anonymous callers
+via `rest_authentication_errors`, matching a substring of `REQUEST_URI`. It ran
+before dispatch, so its 401 answered first and hid the route removal. It was
+also the weaker control: the substring was case-sensitive, so
+`/wp-json/WP/V2/Users` walked past it (live, it answered core's 404 from the
+removal) and it never saw the internal `_embed` dispatch. It is retired; the
+route removal here is the one lock.
+
+Anonymous `/wp/v2/users`, `/wp/v2/users/{id}` and `/wp/v2/users/me` now answer
+core's own `rest_no_route` **404** on both spellings, the same answer as any
+route that does not exist. `tests/rest-hardening.php` runs core's match
+(`'@^' . $route . '$@i'`) over the anonymous route table to pin it.
 
 ## Token-gated machine routes answer like an absent route
 

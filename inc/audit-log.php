@@ -52,6 +52,7 @@ const SN_AUDIT_PRUNE_HOOK     = 'sn_audit_log_prune';
 
 require_once __DIR__ . '/audit-log-guard.php'; // lockouts from the login guard's decisions (2026-10-18).
 require_once __DIR__ . '/audit-log-changes.php'; // account and site setting changes (2026-10-18).
+require_once __DIR__ . '/audit-log-app-passwords.php'; // app-password sign-ins and lifecycle (2026-10-24).
 
 // Subsets of login_failed, never additional events in summary totals.
 const SN_AUDIT_MFA_FAILURE_TYPES = array( 'mfa_failed', 'mfa_throttled', 'mfa_other' );
@@ -197,12 +198,17 @@ function snt_audit_record_login_success_impl( $user_id, $username ) {
 function snt_audit_get_counters_impl( $days = 30 ) {
 	$days  = max( 1, min( (int) sn_setting( 'audit.retention_days', 90 ), (int) $days ) );
 	$blob  = snt_audit_get_blob();
+	$apw   = snt_audit_app_pw_days();
 	$out   = array();
 	$today = time();
 
 	for ( $i = 0; $i < $days; $i++ ) {
 		$date   = wp_date( 'Y-m-d', $today - $i * DAY_IN_SECONDS );
 		$bucket = $blob['counters'][ $date ] ?? array();
+		// App-password sign-ins: additive fields like the MFA ones, kept out of
+		// SN_AUDIT_COUNTER_TYPES so MCP traffic never inflates the totals.
+		$bucket['app_password_ok']     = (int) ( $apw[ $date ]['ok'] ?? 0 );
+		$bucket['app_password_failed'] = (int) ( $apw[ $date ]['failed'] ?? 0 );
 		$out[]  = array(
 			'date'                => $date,
 			'login_failed'        => (int) ( $bucket['login_failed']        ?? 0 ),
@@ -214,6 +220,8 @@ function snt_audit_get_counters_impl( $days = 30 ) {
 			'lockout_triggered'   => (int) ( $bucket['lockout_triggered']   ?? 0 ),
 			'password_reset'      => (int) ( $bucket['password_reset']      ?? 0 ),
 			'unique_ips_count'    => (int) ( $bucket['unique_ips_count']    ?? 0 ),
+			'app_password_ok'     => $bucket['app_password_ok'],
+			'app_password_failed' => $bucket['app_password_failed'],
 		);
 	}
 
@@ -332,6 +340,7 @@ function snt_audit_prune_impl() {
 	list( $blob, $dropped_changes ) = snt_audit_prune_changes( $blob, $cutoff );
 
 	update_option( SN_AUDIT_OPTION, $blob, true );
+	snt_audit_app_pw_prune( $cutoff_date );
 
 	return array(
 		'counter_buckets_dropped' => $dropped_buckets,

@@ -25,10 +25,12 @@
  *      locks features the site doesn't use (camera, mic, geolocation,
  *      payment, usb).
  *
- *   2. Locks down /wp-json/wp/v2/users for anonymous requests. Returns
- *      401 instead of leaking the username/slug list — confirmed leaking
- *      pre-fix on production. Authenticated callers (block editor, REST
- *      clients, Plausible widget proxy etc.) keep working.
+ *   2. (Retired 2026-10-24.) The anonymous /wp/v2/users lock is
+ *      inc/rest-hardening.php alone: it drops the routes from
+ *      rest_endpoints, so core answers rest_no_route (404) on both URL
+ *      spellings, any letter case, and inside _embed. The copy that lived
+ *      here (a REQUEST_URI substring on rest_authentication_errors, 401)
+ *      missed /wp-json/WP/V2/Users and only hid the real control.
  *
  *   3. Belt-and-suspenders: disables XML-RPC at the WP layer in case
  *      the edge rule is ever removed, and redirects ?author=N to home
@@ -39,7 +41,6 @@
  * Filterable so individual hardenings can be reverted without editing
  * this file:
  *   - sn_security_permissions_policy (default true)
- *   - sn_security_lock_rest_users    (default true)
  *   - sn_security_block_author_enum  (default true)
  *   - sn_security_disable_xmlrpc     (default true)
  *
@@ -141,39 +142,6 @@ function sn_security_author_archive_guard() {
 	nocache_headers();
 }
 add_action( 'template_redirect', 'sn_security_author_archive_guard', 9 );
-
-/**
- * Lock down /wp-json/wp/v2/users for unauthenticated requests. The
- * default WP REST API exposes username + display name + slug to anyone,
- * which is a free pass for brute-force attackers. Authenticated requests
- * (admins from the editor, etc.) still work.
- *
- * Implemented via `rest_authentication_errors` rather than removing the
- * route, so authenticated callers from the block editor or REST clients
- * keep working while anonymous callers get 401.
- */
-add_filter( 'rest_authentication_errors', function( $result ) {
-	if ( ! apply_filters( 'sn_security_lock_rest_users', true ) ) {
-		return $result;
-	}
-	// Already an error — let it through unchanged.
-	if ( is_wp_error( $result ) ) {
-		return $result;
-	}
-	if ( is_user_logged_in() ) {
-		return $result;
-	}
-	$path = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-	// Match both /wp-json/wp/v2/users and the rest-route query form.
-	if ( false !== strpos( $path, '/wp/v2/users' ) || false !== strpos( $path, 'rest_route=/wp/v2/users' ) ) {
-		return new WP_Error(
-			'rest_user_enum_blocked',
-			'Authentication required.',
-			array( 'status' => 401 )
-		);
-	}
-	return $result;
-}, 99 );
 
 /**
  * Disable XML-RPC entirely.
