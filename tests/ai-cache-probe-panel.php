@@ -114,6 +114,9 @@ echo "\nGroup: minimum cacheable prefix per model\n";
 hc_eq( 1024, snt_ai_cache_probe_min_prefix_tokens( 'claude-sonnet-5' ), 'Sonnet 5 floor is 1,024 tokens' );
 hc_eq( 4096, snt_ai_cache_probe_min_prefix_tokens( 'claude-haiku-4-5' ), 'Haiku 4.5 floor is 4,096 tokens (the economy tier is the HARDEST to cache)' );
 hc_eq( 512, snt_ai_cache_probe_min_prefix_tokens( 'claude-opus-5' ), 'Opus 5 floor is 512 tokens' );
+foreach ( array( 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-1', 'claude-mythos-5-1' ) as $m ) {
+	hc_eq( 512, snt_ai_cache_probe_min_prefix_tokens( $m ), "$m floor is 512 tokens (the model the site calls must never read as unknown)" );
+}
 hc_eq( 4096, snt_ai_cache_probe_min_prefix_tokens( 'claude-opus-4-6' ), 'Opus 4.6 floor is 4,096 — floors are NOT monotonic across generations' );
 hc_eq( null, snt_ai_cache_probe_min_prefix_tokens( 'claude-not-a-model' ), 'an unknown model returns null, never a guessed floor' );
 hc_eq( null, snt_ai_cache_probe_min_prefix_tokens( '' ), 'an empty model id returns null' );
