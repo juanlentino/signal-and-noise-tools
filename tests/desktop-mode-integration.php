@@ -187,7 +187,10 @@ function sn_analytics_movers( $from, $to, $class = 'human', $limit = 3, $cwin = 
 }
 function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = false ) {
 	$key = $from . '|' . $to;
-	return $GLOBALS['__totals'][ $key ] ?? ( $GLOBALS['__totals']['*'] ?? array( 'views' => 0, 'visits' => 0, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
+	$t   = $GLOBALS['__totals'][ $key ] ?? ( $GLOBALS['__totals']['*'] ?? array( 'views' => 0, 'visits' => 0, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
+	// The real reader's contract: a read that answered carries its honest fields,
+	// unique_visitor_days an integer (null only when the read failed).
+	return $t + array( 'unique_visitor_days' => (int) ( $t['visits'] ?? 0 ) );
 }
 // health: load the REAL summary helpers rather than stubbing them.
 // inc/health-summary.php is pure array logic (zero WP calls), so it loads
