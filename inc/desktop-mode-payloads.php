@@ -186,7 +186,7 @@ function snt_health_summary_for_localize() {
  * or simply no traffic in the window) returns days:[] / total:0 /
  * delta_pct:null — an honest empty state, never a warning or a hang.
  *
- * @return WP_REST_Response
+ * @return WP_REST_Response|WP_Error A failed analytics read is an error, never an empty window.
  */
 function snt_desktop_site_views_payload() {
 	$today = substr( (string) current_time( 'mysql' ), 0, 10 );
@@ -215,9 +215,16 @@ function snt_desktop_site_views_payload() {
 	$fit_days = defined( 'SN_ANALYTICS_FORECAST_HISTORY_DAYS' ) ? (int) SN_ANALYTICS_FORECAST_HISTORY_DAYS : 90;
 	$fit_from = gmdate( 'Y-m-d', strtotime( $today . ' -' . ( $fit_days - 1 ) . ' days' ) );
 
+	// 2026-10-25: the shared readers answer a FAILED query with [] or zeros
+	// (their contract), which this card painted as "No views" and cached for
+	// 15 minutes. Each read is followed by a look at the database's own error,
+	// as SN Reading and the audience rows already do.
+	$db_failed  = static fn() => function_exists( 'snt_desktop_db_failed' ) && snt_desktop_db_failed();
+	$failed     = false;
 	$fit_series = array();
 	if ( function_exists( 'sn_analytics_daily_series' ) ) {
-		$raw = sn_analytics_daily_series( $fit_from, $today, 'human', 'day' );
+		$raw    = sn_analytics_daily_series( $fit_from, $today, 'human', 'day' );
+		$failed = $db_failed();
 		if ( is_array( $raw ) ) {
 			$fit_series = $raw;
 		}
@@ -240,6 +247,7 @@ function snt_desktop_site_views_payload() {
 	$delta_pct = null;
 	if ( function_exists( 'sn_analytics_range_totals' ) ) {
 		$this_window = sn_analytics_range_totals( $from, $today, 'human' );
+		$failed      = $failed || $db_failed();
 		$total       = (int) ( $this_window['views'] ?? 0 );
 		$visits      = (int) ( $this_window['visits'] ?? 0 );
 
@@ -247,7 +255,13 @@ function snt_desktop_site_views_payload() {
 		$prior_to   = gmdate( 'Y-m-d', strtotime( $from . ' -1 day' ) );
 		$prior_from = gmdate( 'Y-m-d', strtotime( $from . ' -14 days' ) );
 		$prior      = sn_analytics_range_totals( $prior_from, $prior_to, 'human' );
+		$failed     = $failed || $db_failed();
 		$delta_pct  = snt_desktop_delta_pct( $total, (int) ( $prior['views'] ?? 0 ) );
+	}
+	if ( $failed ) {
+		// 500, never 503: Cloudflare replaces an origin 503 page. The card keeps
+		// its last reading and says so; nothing is cached.
+		return new WP_Error( 'snt_views_read_failed', __( 'The analytics read failed.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
 
 	$top_path  = null;

@@ -48,6 +48,20 @@ $res = snt_desktop_site_views_payload()->data;
 ok( 'Countries' === ( $res['groups'][0]['title'] ?? '' ) && array( 'from' => '2026-09-14', 'to' => '2026-09-27', 'days' => 14 ) === $res['groups'][0]['win'], 'the payload carries SN Traffic\'s groups, read over the same 14 days as the sparkline' );
 ok( isset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27_' . SNT_VERSION]['groups'] ), 'the groups ride the payload\'s own 15-minute cache' );
 
+// ── Hunt 2026-10-25: a failed read is an error, never "No views", and is not cached ──
+function sn_analytics_daily_series() { return array(); }
+function sn_analytics_range_totals() { return array( 'views' => 0, 'visits' => 0 ); }
+function snt_desktop_db_failed() { return ! empty( $GLOBALS['__dbfail'] ); }
+class WP_Error { public $code; public $data; public function __construct( $c = '', $m = '', $d = null ) { $this->code = $c; $this->data = $d; } public function get_error_data() { return $this->data; } }
+unset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27_' . SNT_VERSION] );
+$GLOBALS['__dbfail'] = true;
+$res = snt_desktop_site_views_payload();
+ok( $res instanceof WP_Error && 'snt_views_read_failed' === $res->code && 500 === ( $res->data['status'] ?? 0 ), 'a failed analytics read answers a 500 error, not an empty window' );
+ok( ! isset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27_' . SNT_VERSION] ), 'and nothing is cached, so the next poll reads again' );
+$GLOBALS['__dbfail'] = false;
+$res = snt_desktop_site_views_payload();
+ok( $res instanceof WP_REST_Response && 0 === ( $res->data['total'] ?? null ), 'a read that answered with no rows is still an honest empty window' );
+
 // ── The rendered rows (node, the real widget file) ──
 $node = trim( (string) shell_exec( 'command -v node' ) );
 if ( '' === $node ) {

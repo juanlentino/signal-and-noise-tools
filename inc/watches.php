@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Signal & Noise Tools — watches: the things that come due later.
  *
@@ -359,6 +360,24 @@ function snt_watch_ripe_ipv6_criterion( $watch, $now ) {
 }
 
 /**
+ * Midnight of a YYYY-MM-DD due date in the site's timezone, as a Unix time.
+ * UTC where WordPress's timezone is not loaded (tests, early boot).
+ *
+ * @param string $due YYYY-MM-DD.
+ * @return int
+ */
+function snt_watch_due_ts( $due ) {
+	if ( function_exists( 'wp_timezone' ) ) {
+		try {
+			return ( new DateTimeImmutable( $due . ' 00:00:00', wp_timezone() ) )->getTimestamp();
+		} catch ( Exception $e ) {
+			return PHP_INT_MAX; // an unreadable date never ripens
+		}
+	}
+	return (int) strtotime( $due . ' 00:00:00 UTC' );
+}
+
+/**
  * The watches that are ripe right now.
  *
  * @param int|null   $now  Unix time; null uses time(). Injectable for fixtures.
@@ -383,7 +402,9 @@ function snt_watches_ripe( $now = null, $rows = null ) {
 		// to test, so nothing can un-ripen it. It leaves the list when someone
 		// acts and removes the row.
 		if ( ! empty( $watch['date_only'] ) ) {
-			if ( '' === $due || $now < strtotime( $due . ' 00:00:00 UTC' ) ) {
+			// The site's midnight, not UTC's: a UTC midnight is 7 or 8 PM the
+			// evening before in New York (2026-10-25).
+			if ( '' === $due || $now < snt_watch_due_ts( $due ) ) {
 				continue;
 			}
 			$ripe[] = array_merge( $watch, array( 'note' => 'due ' . $due ) );
