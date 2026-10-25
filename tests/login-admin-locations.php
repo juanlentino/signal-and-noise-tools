@@ -37,6 +37,13 @@ if ( false !== strpos( $src, 'function sn_login_request_is_core_login_file(' ) )
 	foreach ( array( '/wp-login.php', '/wp-signup.php', '/wp-activate.php', '/wp-signup.php?blog=1', '//wp-signup.php', '/WP-SIGNUP.PHP' ) as $u ) {
 		ok( sn_login_request_is_core_login_file( $u ), "404s: $u" );
 	}
+	// Hunt 2026-10-25, live: these served the real login form (200) while /wp-login.php answered 404.
+	foreach ( array( '/wp-login%2ephp', '/wp-login%2Ephp', '/%77p-login.php', '/%77%70%2d%6c%6f%67%69%6e%2e%70%68%70', '/wp-%73ignup.php', '/%2fwp-login.php' ) as $u ) {
+		ok( sn_login_request_is_core_login_file( $u ), "404s once decoded: $u" );
+	}
+	foreach ( array( '/sn-login?redirect_to=%2Fwp-login.php', '/wp-login%3Fx', '/wp-login.php%2500' ) as $u ) {
+		ok( ! sn_login_request_is_core_login_file( $u ), "passes (an encoded query, ? or a double-encoded byte is not the file): $u" );
+	}
 	foreach ( array( '/sn-login', '/sn-login?redirect_to=/wp-signup.php', '/notes/wp-signup-php/', '/', '/wp-admin/admin-ajax.php' ) as $u ) {
 		ok( ! sn_login_request_is_core_login_file( $u ), "passes: $u" );
 	}

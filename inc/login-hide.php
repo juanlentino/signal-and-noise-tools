@@ -330,11 +330,17 @@ if ( function_exists( 'remove_action' ) ) {
  *
  * @since 4.14.4
  * @param string $request_uri Raw (unslashed) REQUEST_URI.
- * @return string Normalized path (may be '' if unparseable).
+ * @return string Normalized, percent-decoded path (may be '' if unparseable).
  */
 function sn_login_request_path( $request_uri ) {
 	$request_uri = '/' . ltrim( (string) $request_uri, '/' );
-	return (string) wp_parse_url( $request_uri, PHP_URL_PATH );
+	$path        = (string) wp_parse_url( $request_uri, PHP_URL_PATH );
+	// 2026-10-25: decode once, as the web server does before it maps a path to
+	// a file. /wp-login%2ephp and /%77p-login.php reached the real login form
+	// past every check here (live: 200 with the form, while /wp-login.php
+	// answered 404). Then merge the slashes a decoded %2F may have made. The
+	// path is decoded after parsing, so an encoded ? or # never moves the query.
+	return (string) preg_replace( '#/{2,}#', '/', rawurldecode( $path ) );
 }
 
 /**

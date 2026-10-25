@@ -233,6 +233,9 @@ assertEq( true,  sn_login_request_targets_wp_admin( '///wp-admin/x' ),      '///
 assertEq( false, sn_login_request_targets_wp_admin( '/notes/x' ),           '/notes/x does NOT target wp-admin' );
 assertEq( false, sn_login_request_targets_wp_admin( '/wp-administrator' ),  '/wp-administrator does NOT target wp-admin (segment-anchored, not prefix-substring)' );
 assertEq( false, sn_login_request_targets_wp_admin( '//notes/x' ),          '//notes/x does NOT target wp-admin' );
+assertEq( true,  sn_login_request_targets_wp_admin( '/%77p-admin/' ),       '/%77p-admin/ targets wp-admin once decoded (hunt 2026-10-25)' );
+assertEq( true,  sn_login_request_targets_wp_admin( '/wp%2Dadmin/edit.php' ), '/wp%2Dadmin/edit.php targets wp-admin once decoded' );
+assertEq( true,  sn_login_request_targets_wp_admin( '/%2Fwp-admin/' ),      '/%2Fwp-admin/ targets wp-admin: a decoded %2F merges like //' );
 
 // === Test 18: block branch is PATH-anchored — query-string 'wp-login.php' must NOT 404 the slug (v6.19.3) ===
 // The block branch previously did strpos($request_uri,'wp-login.php') on the RAW
