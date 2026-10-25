@@ -2,7 +2,8 @@
 /**
  * Signal & Noise Tools: AI › Models & Budget, the words both twins print,
  * split from inc/admin-forms/ai-settings.php (house line cap, review on
- * #2022): the semantic-embeddings sentence and the Copilot row.
+ * #2022): the semantic-embeddings sentence and the Copilot, Agents and
+ * Other AI rows.
  *
  * @package SignalNoiseTools
  */
@@ -44,18 +45,26 @@ function sn_admin_ai_copilot_row() {
 	$copilot  = (float) snt_ai_copilot_spend_this_month();
 	$unpriced = function_exists( 'snt_ai_copilot_unpriced_this_month' ) ? (int) snt_ai_copilot_unpriced_this_month() : 0;
 	echo '<div class="sn-field"><p class="sn-field-helper">' . esc_html__( 'Copilot (Ask AI), not counted against the cap', 'signal-and-noise-tools' ) . ': $' . esc_html( number_format_i18n( $copilot, $copilot > 0 && $copilot < 0.01 ? 4 : 2 ) ) . '</p>';
-	echo '<p class="sn-field-helper">' . esc_html__( 'Copilot is priced at list rates from the tokens the station reports, with no prompt-cache discount, so it reads high on a warm cache.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'Copilot is priced at list rates from the tokens each AI Client call reports, with no prompt-cache discount, so it reads high on a warm cache.', 'signal-and-noise-tools' ) . '</p>';
 	if ( $unpriced > 0 ) {
-		/* translators: %s: Copilot turns. */
-		echo '<p class="sn-field-helper">' . esc_html( sprintf( _n( '%s Copilot turn this month reported no usage, or a model with no list price on file, and is not in the dollar figure.', '%s Copilot turns this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', $unpriced, 'signal-and-noise-tools' ), number_format_i18n( $unpriced ) ) ) . '</p>';
+		/* translators: %s: Copilot calls. */
+		echo '<p class="sn-field-helper">' . esc_html( sprintf( _n( '%s Copilot call this month reported no usage, or a model with no list price on file, and is not in the dollar figure.', '%s Copilot calls this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', $unpriced, 'signal-and-noise-tools' ), number_format_i18n( $unpriced ) ) ) . '</p>';
 	}
-	// OpenStation 1.1.14: agent runs, the same pricing in a bucket of their own.
+	// Agent-runner calls, the same pricing in a bucket of their own.
 	$agents   = function_exists( 'snt_ai_agents_spend_this_month' ) ? (float) snt_ai_agents_spend_this_month() : 0.0;
 	$unpriced = function_exists( 'snt_ai_agents_unpriced_this_month' ) ? (int) snt_ai_agents_unpriced_this_month() : 0;
 	echo '<p class="sn-field-helper">' . esc_html__( 'Agents, not counted against the cap', 'signal-and-noise-tools' ) . ': $' . esc_html( number_format_i18n( $agents, $agents > 0 && $agents < 0.01 ? 4 : 2 ) ) . '</p>';
 	echo '<p class="sn-field-helper">' . esc_html( sn_admin_ai_agents_note() ) . '</p>';
 	if ( $unpriced > 0 ) {
 		echo '<p class="sn-field-helper">' . esc_html( sn_admin_ai_agents_unpriced( $unpriced ) ) . '</p>';
+	}
+	// Item 16: every other AI Client call, the AI plugin's features included.
+	$other    = function_exists( 'snt_ai_other_spend_this_month' ) ? (float) snt_ai_other_spend_this_month() : 0.0;
+	$unpriced = function_exists( 'snt_ai_other_unpriced_this_month' ) ? (int) snt_ai_other_unpriced_this_month() : 0;
+	echo '<p class="sn-field-helper">' . esc_html__( 'Other AI, not counted against the cap', 'signal-and-noise-tools' ) . ': $' . esc_html( number_format_i18n( $other, $other > 0 && $other < 0.01 ? 4 : 2 ) ) . '</p>';
+	echo '<p class="sn-field-helper">' . esc_html( sn_admin_ai_other_note() ) . '</p>';
+	if ( $unpriced > 0 ) {
+		echo '<p class="sn-field-helper">' . esc_html( sn_admin_ai_other_unpriced( $unpriced ) ) . '</p>';
 	}
 	echo '</div>';
 }
@@ -66,7 +75,7 @@ function sn_admin_ai_copilot_row() {
  * @return string
  */
 function sn_admin_ai_agents_note() {
-	return __( 'Agents are priced the same way, at list rates from the tokens each run reports. A station older than OpenStation 1.1.14 reports no usage for agent runs, so there every run counts as unpriced.', 'signal-and-noise-tools' );
+	return __( 'Agents are priced the same way, at list rates from the tokens each call reports. Calls OpenStation does not label as Copilot or an agent run (drafting a new agent, the MIO window, the Drafts widget) land under Other AI.', 'signal-and-noise-tools' );
 }
 
 /**
@@ -76,6 +85,26 @@ function sn_admin_ai_agents_note() {
  * @return string
  */
 function sn_admin_ai_agents_unpriced( $count ) {
-	/* translators: %s: agent runs. */
-	return sprintf( _n( '%s agent run this month reported no usage, or a model with no list price on file, and is not in the dollar figure.', '%s agent runs this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', $count, 'signal-and-noise-tools' ), number_format_i18n( $count ) );
+	/* translators: %s: agent calls. */
+	return sprintf( _n( '%s agent call this month reported no usage, or a model with no list price on file, and is not in the dollar figure.', '%s agent calls this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', $count, 'signal-and-noise-tools' ), number_format_i18n( $count ) );
+}
+
+/**
+ * The Other AI note, the same on both twins.
+ *
+ * @return string
+ */
+function sn_admin_ai_other_note() {
+	return __( 'Other AI is every other call through the WordPress AI Client on this site, such as the features of the AI plugin, priced the same way.', 'signal-and-noise-tools' );
+}
+
+/**
+ * The Other AI unpriced-calls hint, the same on both twins.
+ *
+ * @param int $count Unpriced Other AI calls this month.
+ * @return string
+ */
+function sn_admin_ai_other_unpriced( $count ) {
+	/* translators: %s: other AI calls. */
+	return sprintf( _n( '%s other AI call this month reported no usage, or a model with no list price on file, and is not in the dollar figure.', '%s other AI calls this month reported no usage, or a model with no list price on file, and are not in the dollar figure.', $count, 'signal-and-noise-tools' ), number_format_i18n( $count ) );
 }

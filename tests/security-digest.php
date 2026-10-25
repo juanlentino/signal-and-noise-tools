@@ -72,6 +72,11 @@ $GLOBALS['__changes'] = array();
 if ( ! function_exists( 'snt_audit_get_changes_impl' ) ) {
 	function snt_audit_get_changes_impl( $days ) { return $GLOBALS['__changes']; }
 }
+// The real predicate (inc/audit-log-changes.php) is pinned in tests/audit-log-app-passwords.php;
+// this stand-in keeps the same rule so the digest can be driven alone.
+if ( ! function_exists( 'snt_audit_is_change_row' ) ) {
+	function snt_audit_is_change_row( $row ) { return is_array( $row ) && 'app_password_failed' !== ( $row['kind'] ?? '' ); }
+}
 $GLOBALS['__lg_headline'] = array( 'configured' => false, 'checked' => 0, 'blocked' => 0, 'block_rate' => 0, 'top_network' => '' );
 if ( ! function_exists( 'sn_login_defense_headline' ) ) {
 	function sn_login_defense_headline() { return $GLOBALS['__lg_headline']; }
@@ -292,6 +297,37 @@ $GLOBALS['__hibp_health'] = array( 'status' => 'good', 'summary' => 'FINE', 'fla
 $b2 = snt_security_digest_compose( snt_security_digest_collect() );
 ok( false !== strpos( $b2, 'Breached-password check (ok)' ) && false === strpos( $b2, 'RECENT' ) && false === strpos( $b2, 'FINE' ), 'compose: good → ok header, no RECENT tag, no summary line' );
 ok( false === strpos( $b2, 'unavailable (module not loaded)' ), 'compose: the loaded module never prints the unavailable line' );
+
+// ── 2026-10-24: the last mail refusal, from core's wp_mail_failed ──
+echo "\nTest: mail outcome\n";
+if ( ! function_exists( 'wp_date' ) ) { function wp_date( $f, $ts = null ) { return gmdate( $f, null === $ts ? time() : (int) $ts ); } }
+$GLOBALS['__options']['sn_mail_outcome_v1'] = array( 'accepted' => 42, 'since' => time() - 30 * DAY_IN_SECONDS, 'last_failure' => array( 'at' => time() - 2 * DAY_IN_SECONDS, 'code' => 'wp_mail_failed', 'message' => 'SMTP Error: Could not authenticate.' ) );
+$dm = snt_security_digest_collect();
+ok( 'wp_mail_failed' === ( $dm['mail']['code'] ?? '' ) && 42 === ( $dm['mail']['accepted'] ?? -1 ), 'collect: a refusal inside the window is carried with the accepted count' );
+$bm = snt_security_digest_compose( $dm );
+ok( false !== strpos( $bm, 'the mail server refused a message' ) && false !== strpos( $bm, 'wp_mail_failed: SMTP Error: Could not authenticate.' ), 'compose: says the mail server refused, with the code and message' );
+ok( false !== strpos( $bm, 'accepted 42 messages since' ) && false !== strpos( $bm, 'not a delivery to an inbox' ), 'compose: accepted is counted and not called delivered' );
+$GLOBALS['__options']['sn_mail_outcome_v1']['last_failure']['at'] = time() - 8 * DAY_IN_SECONDS;
+$dq = snt_security_digest_collect();
+ok( array_key_exists( 'mail', $dq ) && null === $dq['mail'] && false === strpos( snt_security_digest_compose( $dq ), 'mail server' ), 'collect: a refusal older than the 7-day window prints nothing' );
+unset( $GLOBALS['__options']['sn_mail_outcome_v1'] );
+
+// ── 2026-10-24: app-password sign-ins (inc/audit-log-app-passwords.php) ──
+echo "\nTest: app-password sign-ins\n";
+$GLOBALS['__audit_summary'] = array( 'last_7d_vs_prior' => array( 'current' => 0, 'prior' => 0, 'pct_delta' => 0 ) );
+$GLOBALS['__audit_days']    = array( array( 'app_password_ok' => 100, 'app_password_failed' => 4 ), array( 'app_password_ok' => 20, 'app_password_failed' => 3 ) );
+$GLOBALS['__changes']       = array( array( 'kind' => 'app_password_failed', 'high' => false ), array( 'kind' => 'app_password_created', 'high' => true ) );
+$da = snt_security_digest_collect();
+ok( 120 === ( $da['audit']['app_password_ok_7d'] ?? -1 ) && 7 === ( $da['audit']['app_password_failed_7d'] ?? -1 ), 'collect: accepted and refused app-password sign-ins summed over the week' );
+ok( 1 === ( $da['audit']['changes_7d'] ?? -1 ), 'collect: a refused sign-in row is not counted as an account or site change' );
+ok( false !== strpos( snt_security_digest_compose( $da ), '  App password sign-ins: 120 accepted, 7 refused' ), 'compose: the app-password line' );
+$apw_quiet = $zero;
+$apw_quiet['audit']['app_password_ok_7d'] = 500;
+ok( false !== strpos( snt_security_digest_compose( $apw_quiet ), 'Quiet week' ), 'compose: accepted app-password sign-ins alone (the MCP door) keep a week quiet' );
+$apw_quiet['audit']['app_password_failed_7d'] = 1;
+ok( false === strpos( snt_security_digest_compose( $apw_quiet ), 'Quiet week' ), 'compose: a refused app-password sign-in is not a quiet week' );
+$GLOBALS['__audit_days'] = array(); $GLOBALS['__changes'] = array();
+ok( false === strpos( snt_security_digest_compose( snt_security_digest_collect() ), 'App password' ), 'compose: no app-password line in a week without any' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

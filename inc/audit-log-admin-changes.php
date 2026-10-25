@@ -25,6 +25,11 @@ function snt_audit_log_changes_finding( array $rows ) {
 	if ( array() === $rows ) {
 		return '';
 	}
+	// Refused app-password sign-ins are listed but are not changes.
+	$rows = array_values( array_filter( $rows, 'snt_audit_is_change_row' ) );
+	if ( array() === $rows ) {
+		return __( 'No account or site change in the window; the rows below are refused app password sign-ins, the first of each reason on a day.', 'signal-and-noise-tools' );
+	}
 	$total = count( $rows );
 	/* translators: %s: number of changes. */
 	$all  = sprintf( _n( '%s change', '%s changes', $total, 'signal-and-noise-tools' ), number_format_i18n( $total ) );

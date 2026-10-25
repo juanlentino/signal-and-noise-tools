@@ -39,6 +39,7 @@ function apply_filters( $h, $v, ...$args ) {
 	return $v;
 }
 function __return_false() { return false; }
+function __return_true() { return true; }
 function __return_empty_string() { return ''; }
 function wp_salt( $s = 'auth' ) { return 'test-salt-' . $s; }
 function get_site_transient( $k ) { return 'update_core' === $k ? $GLOBALS['__cf_transient'] : false; }
@@ -58,6 +59,23 @@ function snt_deploy_workers_status( $o = array() ) { return array(); }
 function sn_remote_analytics_allows( $s ) { return true; }
 function current_user_can( $c ) { return true; }
 class WP_Error { public function __construct( $c = '', $m = '', $d = array() ) {} }
+// Core's own updater decides "disabled" (file mods, wp_installing, the
+// constant and its filter). Real core class when the CI checkout is on disk,
+// else a stub with the same public method.
+$GLOBALS['__cf_file_mods']  = true;
+$GLOBALS['__cf_installing'] = false;
+function wp_is_file_mod_allowed( $c ) { return (bool) apply_filters( 'file_mod_allowed', $GLOBALS['__cf_file_mods'], $c ); }
+function wp_installing( $i = null ) { return $GLOBALS['__cf_installing']; }
+$cf_core_updater = getenv( 'SNT_WP_HTML_API' ) ? dirname( getenv( 'SNT_WP_HTML_API' ), 2 ) . '/wp-admin/includes/class-wp-automatic-updater.php' : '';
+if ( '' !== $cf_core_updater && is_readable( $cf_core_updater ) ) {
+	require $cf_core_updater;
+} else {
+	class WP_Automatic_Updater {
+		public function is_disabled() {
+			return ! wp_is_file_mod_allowed( 'automatic_updater' ) || wp_installing() || apply_filters( 'automatic_updater_disabled', false );
+		}
+	}
+}
 
 require_once __DIR__ . '/../inc/core-fingerprint.php';
 require __DIR__ . '/lib/core-fingerprint-emoji-stubs.php';
@@ -207,11 +225,23 @@ cf_ok( is_bool( $full['runtime']['register_argc_argv'] ?? null ), 'runtime.regis
 
 // auto_updates derivation: constants cannot vary in one process, so the pure
 // mapping is pinned directly.
-cf_ok( 'off' === snt_core_auto_updates_mode( false, false, true, true ), 'DISALLOW_FILE_MODS: off' );
-cf_ok( 'off' === snt_core_auto_updates_mode( true, true, true, true ), 'updater disabled: off' );
-cf_ok( 'all' === snt_core_auto_updates_mode( true, false, true, true ), 'major + minor: all' );
-cf_ok( 'minor' === snt_core_auto_updates_mode( true, false, false, true ), 'minor only: minor' );
-cf_ok( 'off' === snt_core_auto_updates_mode( true, false, false, false ), 'neither: off' );
+cf_ok( 'off' === snt_core_auto_updates_mode( true, true, true ), 'updater disabled: off' );
+cf_ok( 'all' === snt_core_auto_updates_mode( false, true, true ), 'major + minor: all' );
+cf_ok( 'minor' === snt_core_auto_updates_mode( false, false, true ), 'minor only: minor' );
+cf_ok( 'off' === snt_core_auto_updates_mode( false, false, false ), 'neither: off' );
+// 2026-10-24: "disabled" is core's WP_Automatic_Updater::is_disabled(), not a
+// copy. The copy missed wp_installing(), so mid-install it read minor.
+echo '  (updater class: ' . ( class_exists( 'WP_Automatic_Updater', false ) && ( new ReflectionClass( 'WP_Automatic_Updater' ) )->getFileName() === realpath( (string) $cf_core_updater ) ? 'core' : 'stub' ) . ")\n";
+cf_ok( 'minor' === snt_core_auto_updates(), 'stock: minor (core says enabled, minor allowed by default)' );
+$GLOBALS['__cf_installing'] = true;
+cf_ok( 'off' === snt_core_auto_updates(), 'wp_installing(): off, because core says the updater is disabled while installing' );
+$GLOBALS['__cf_installing'] = false;
+$GLOBALS['__cf_file_mods']  = false;
+cf_ok( 'off' === snt_core_auto_updates(), 'file mods not allowed: off (core reads wp_is_file_mod_allowed)' );
+$GLOBALS['__cf_file_mods'] = true;
+$GLOBALS['__cf_hooks']['automatic_updater_disabled'][] = array( '__return_true', 10 );
+cf_ok( 'off' === snt_core_auto_updates(), 'the automatic_updater_disabled filter: off' );
+array_pop( $GLOBALS['__cf_hooks']['automatic_updater_disabled'] );
 $GLOBALS['__cf_hooks']['allow_minor_auto_core_updates'][] = array( '__return_false', 10 );
 cf_ok( 'off' === snt_core_auto_updates(), 'the allow_minor_auto_core_updates filter is honoured' );
 

@@ -15,6 +15,7 @@ $GLOBALS['__objects'] = array(); // term_id => [post_id,...]
 $GLOBALS['__opts']    = array();
 $GLOBALS['__setcalls']= array(); // [ [post_id, term_ids, tax, append] ]
 $GLOBALS['__deleted'] = array(); // term_ids deleted
+$GLOBALS['__delargs'] = array(); // term_id => wp_delete_term args
 
 function get_terms( $args = array() ) {
 	if ( ( $args['taxonomy'] ?? '' ) !== 'post_tag' ) { return array(); }
@@ -23,7 +24,9 @@ function get_terms( $args = array() ) {
 function get_term( $id, $tax = '' ) { return $GLOBALS['__terms'][ (int) $id ] ?? null; }
 function get_objects_in_term( $id, $tax ) { return $GLOBALS['__objects'][ (int) $id ] ?? array(); }
 function wp_set_object_terms( $obj, $terms, $tax, $append = false ) { $GLOBALS['__setcalls'][] = array( $obj, $terms, $tax, $append ); return $terms; }
-function wp_delete_term( $id, $tax, $args = array() ) { $GLOBALS['__deleted'][] = (int) $id; unset( $GLOBALS['__terms'][ (int) $id ] ); return true; }
+// Like core: the term and its relationships are gone after the call, so a count
+// taken afterwards reads zero (posts_moved must be counted first).
+function wp_delete_term( $id, $tax, $args = array() ) { $GLOBALS['__deleted'][] = (int) $id; $GLOBALS['__delargs'][ (int) $id ] = $args; unset( $GLOBALS['__terms'][ (int) $id ], $GLOBALS['__objects'][ (int) $id ] ); return true; }
 function get_option( $k, $d = false ) { return $GLOBALS['__opts'][ $k ] ?? $d; }
 function update_option( $k, $v ) { $GLOBALS['__opts'][ $k ] = $v; return true; }
 function get_current_user_id() { return 1; }
@@ -89,8 +92,14 @@ $GLOBALS['__objects'] = array( 10 => array( 100, 101 ), 11 => array( 101, 102 ) 
 $GLOBALS['__setcalls'] = array(); $GLOBALS['__deleted'] = array(); $GLOBALS['__opts'] = array();
 $res = sn_tag_merge( array( 10, 11 ), 12 );
 ok( ! is_wp_error( $res ), 'merge: returns success (not WP_Error)' );
-ok( in_array( 12, $GLOBALS['__setcalls'][0][1], true ) && true === $GLOBALS['__setcalls'][0][3],
-	'merge: appends canonical (12) to affected posts (append=true)' );
+// 2026-10-24: core does the reassignment. wp_delete_term() with default +
+// force_default adds the canonical to every post carrying the old tag (and to a
+// post whose only tag it was), then deletes it; force_default is what keeps a
+// post with other tags from just losing the old one.
+$want = array( 'default' => 12, 'force_default' => true );
+ok( $want === ( $GLOBALS['__delargs'][10] ?? null ) && $want === ( $GLOBALS['__delargs'][11] ?? null ),
+	'merge: each source goes through core wp_delete_term with default=12, force_default=true' );
+ok( array() === $GLOBALS['__setcalls'], 'merge: no hand-rolled wp_set_object_terms reassignment beside core' );
 ok( in_array( 10, $GLOBALS['__deleted'], true ) && in_array( 11, $GLOBALS['__deleted'], true ),
 	'merge: deletes both source terms' );
 ok( $res['posts_moved'] === 3 && $res['into_slug'] === 'music', 'merge: reports 3 posts moved into music' );

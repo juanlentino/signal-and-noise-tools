@@ -31,6 +31,9 @@ $GLOBALS['__actions'] = array();
 function add_action( $tag, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $tag ][] = $cb; return true; }
 
 require __DIR__ . '/../inc/provenance-change-class.php';
+if ( file_exists( __DIR__ . '/../inc/provenance-core-revision.php' ) ) {
+	require __DIR__ . '/../inc/provenance-core-revision.php'; // 2026-10-24; guarded so the suite reports FAIL, not a fatal, without it
+}
 require __DIR__ . '/../inc/abilities-provenance.php';
 
 // ─── Group A: overview degrades to the empty shape without its seams ─────
@@ -49,7 +52,7 @@ function sn_prov_get_chain( $id ) {
 		// 11: two entries; the LATEST (pending, with live tx data) must win.
 		11 => array(
 			array( 'version' => 1, 'status' => 'confirmed' ),
-			array( 'version' => 2, 'status' => 'pending', 'bitcoin_txid' => 'ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12', 'confirmations' => 3, 'change_class' => 'reading_aid' ),
+			array( 'version' => 2, 'status' => 'pending', 'bitcoin_txid' => 'ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12', 'confirmations' => 3, 'change_class' => 'reading_aid', 'core_revision_id' => 9001 ),
 		),
 		// 22: confirmed only.
 		22 => array( array( 'version' => 0, 'status' => 'genesis' ), array( 'version' => 1, 'status' => 'confirmed', 'bitcoin_block' => 957611, 'change_class' => 'correction' ) ),
@@ -92,6 +95,9 @@ ok( 1 === $ov['confirmed'] && 4 === $ov['total'] && 1 + $notes_in_flight === $ov
 // and every minted version (v0 genesis excluded) is tallied by class.
 ok( null !== $p11 && 'reading_aid' === ( $p11['change_class'] ?? null ), 'a pending row carries its change class' );
 ok( null !== $p33 && ! array_key_exists( 'change_class', $p33 ), 'an unclassified row carries no class key' );
+// 2026-10-24: the core revision id rides beside it when the commit stored one.
+ok( null !== $p11 && 9001 === ( $p11['core_revision_id'] ?? null ), 'a pending row carries its core revision id' );
+ok( null !== $p33 && ! array_key_exists( 'core_revision_id', $p33 ), 'a commit without one carries no key' );
 ok( array( 'reading_aid' => 1, 'correction' => 1, 'copy' => 0, 'claim' => 0, 'unclassified' => 7 ) === $ov['change_classes'], 'every version tallied by class; an unknown stored value counts as unclassified; v0 is not a version' );
 ok( array( 'confirmed' => 1, 'total' => 2 ) === $ov['pages'], 'signed pages count apart from notes (1 of 2), and never into the notes total' );
 ok( array( 'post_id' => 66, 'type' => 'page', 'title' => 'Note 66', 'version' => 5 ) === $ov['recording'][1], "a page's in-flight version lists under recording, tagged type=page" );

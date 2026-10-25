@@ -540,6 +540,7 @@ require_once __DIR__ . '/inc/redirects-store.php';
 require_once __DIR__ . '/inc/redirects-404-log.php';
 require_once __DIR__ . '/inc/redirects-handler.php';
 require_once __DIR__ . '/inc/redirects-admin.php';
+require_once __DIR__ . '/inc/page-rename-redirects.php'; // 2026-10-24: a renamed or re-parented page records its old paths in the store (core skips hierarchical types)
 require_once __DIR__ . '/inc/og-card-generator.php';
 require_once __DIR__ . '/inc/og-card-provenance.php'; // v9.25.0: embed provenance in OG cards (machine-readability D2)
 require_once __DIR__ . '/inc/reading-time.php';
@@ -564,7 +565,7 @@ require_once __DIR__ . '/inc/ai-bootstrap.php';
 require_once __DIR__ . '/inc/object-cache-groups.php'; // 2026-10-17: wp_ai_client is non-prefetchable under Object Cache Pro (its notice filled the error log).
 require_once __DIR__ . '/inc/ai-cache-probe.php'; // v10.50.0: read-only http_response probe — the cache-token split the AI Client's TokenUsage DTO flattens away
 require_once __DIR__ . '/inc/ai-tool-invocation-log.php';
-require_once __DIR__ . '/inc/ai-copilot-spend.php'; // #1597: Copilot turns priced from openstation_ai_search_completed, a bucket beside the cap
+require_once __DIR__ . '/inc/ai-copilot-spend.php'; // #1597, item 16: Copilot, agent and other AI calls priced from core's wp_ai_client_after_generate_result, buckets beside the cap
 require_once __DIR__ . '/inc/ai-alt-text-suggest.php';   // primary: owns the shared SNT_AI_ALT_BASE_RULES — must load first
 require_once __DIR__ . '/inc/ai-alt-inline-suggest.php'; // sibling: composes its prompt from that base
 require_once __DIR__ . '/inc/emdash-scan.php'; // v10.50.0: prose-vs-structural em-dash classifier; feeds sn-scan 'emdash' + sn-apply 'emdash_replace'.

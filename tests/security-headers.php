@@ -39,7 +39,12 @@ if ( ! function_exists( 'add_action' ) ) {
 		$GLOBALS['__test_actions'][] = array( $hook, $callback, $priority );
 	}
 }
-if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
+$GLOBALS['__test_added_filters'] = array();
+if ( ! function_exists( 'add_filter' ) ) {
+	function add_filter( $hook = '', $callback = null, $priority = 10 ) {
+		$GLOBALS['__test_added_filters'][] = array( $hook, $callback, $priority );
+	}
+}
 $GLOBALS['__test_filters'] = array();
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $hook, $value ) {
@@ -140,6 +145,17 @@ foreach ( (array) ( $GLOBALS['__test_actions'] ?? array() ) as $reg ) {
 	}
 }
 sh_eq( 9, $arch_priority, 'the archive guard runs on template_redirect at priority 9, before core canonical redirects' );
+
+echo "\nTest: one lock on the users route, core's own 404 (2026-10-24)\n";
+// The anonymous /wp/v2/users lock lives in inc/rest-hardening.php alone: it
+// drops the routes from rest_endpoints, so core answers rest_no_route (404) on
+// both URL spellings, any letter case, and for _embed. This module used to add
+// a second, weaker copy on rest_authentication_errors (a REQUEST_URI substring,
+// 401) that answered first and hid the real control.
+$auth_errors = array_filter( $GLOBALS['__test_added_filters'], static function ( $reg ) { return 'rest_authentication_errors' === $reg[0]; } );
+sh_eq( 0, count( $auth_errors ), 'security-headers.php registers nothing on rest_authentication_errors' );
+sh_eq( false, strpos( $module_src, 'rest_user_enum_blocked' ) !== false, 'the 401 rest_user_enum_blocked answer is gone from the module' );
+sh_eq( false, strpos( $module_src, 'sn_security_lock_rest_users' ) !== false, 'its off switch is gone with it' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

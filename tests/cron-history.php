@@ -29,8 +29,11 @@ if ( ! defined( 'OBJECT_K' ) ) define( 'OBJECT_K', 'OBJECT_K' );
 if ( ! defined( 'ARRAY_A' )  ) define( 'ARRAY_A',  'ARRAY_A' );
 if ( ! defined( 'ARRAY_N' )  ) define( 'ARRAY_N',  'ARRAY_N' );
 
+$GLOBALS['__test_added_actions'] = array();
 if ( ! function_exists( 'add_action' ) ) {
-	function add_action( $hook, $cb = null, $priority = 10, $accepted_args = 1 ) {}
+	function add_action( $hook, $cb = null, $priority = 10, $accepted_args = 1 ) {
+		$GLOBALS['__test_added_actions'][ $hook ] = array( $cb, $accepted_args );
+	}
 }
 if ( ! function_exists( 'add_filter' ) ) {
 	function add_filter( $hook, $cb = null, $priority = 10, $accepted_args = 1 ) {}
@@ -58,6 +61,8 @@ function current_action() {
 class WP_Error {
 	public $code; public $message;
 	public function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; }
+	public function get_error_code() { return $this->code; }
+	public function get_error_message() { return $this->message; }
 }
 
 // ─── wpdb stub ────────────────────────────────────────────────────────
@@ -299,6 +304,32 @@ $before = count( snt_cron_history_for_hook( 'sn_some_cron_hook', 100 ) );
 snt_cron_history_shutdown_cb();
 ch_assert_eq( $before, count( snt_cron_history_for_hook( 'sn_some_cron_hook', 100 ) ), 'a hook that finished is not recorded again at shutdown' );
 ch_assert_eq( 1, count( snt_cron_history_for_hook( 'sn_dies_hook', 100 ) ), 'the death is recorded once' );
+
+// ─── Test 13: core's cron event errors (wp-cron.php, since 6.1) ──
+// wp-cron.php reschedules a recurring event, then unschedules it, then runs it.
+// Either step can fail (the cron option could not be saved, the schedule no
+// longer exists); core logs it and fires an action, and nothing listened.
+echo "\nTest 13: core's cron_reschedule_event_error and cron_unschedule_event_error are failed rows\n";
+foreach ( array( 'cron_reschedule_event_error', 'cron_unschedule_event_error' ) as $h ) {
+	$reg = $GLOBALS['__test_added_actions'][ $h ] ?? null;
+	ch_assert_true( is_array( $reg ) && is_callable( $reg[0] ) && 3 === $reg[1], "hooked with three arguments: $h" );
+}
+$reg = $GLOBALS['__test_added_actions']['cron_reschedule_event_error'] ?? null;
+if ( is_array( $reg ) && is_callable( $reg[0] ) ) {
+	$GLOBALS['__test_current_action'] = 'cron_reschedule_event_error';
+	call_user_func( $reg[0], new WP_Error( 'invalid_schedule', 'Event schedule does not exist.' ), 'sn_resched_hook', array( 'schedule' => 'gone', 'args' => array( 7 ), 'interval' => 60 ) );
+	$r = snt_cron_history_for_hook( 'sn_resched_hook', 1 );
+	ch_assert_true( isset( $r[0] ) && false === $r[0]['success'], 'a reschedule error is a failed row for the hook' );
+	ch_assert_true( false !== strpos( (string) ( $r[0]['error_message'] ?? '' ), 'invalid_schedule: Event schedule does not exist.' ) && false !== stripos( (string) ( $r[0]['error_message'] ?? '' ), 'reschedule' ), 'the row names the step, the code and the message' );
+	ch_assert_eq( md5( serialize( array( 7 ) ) ), $r[0]['args_signature'] ?? null, 'the row carries the event args signature, so it lines up with the dashboard row' );
+}
+$reg = $GLOBALS['__test_added_actions']['cron_unschedule_event_error'] ?? null;
+if ( is_array( $reg ) && is_callable( $reg[0] ) ) {
+	$GLOBALS['__test_current_action'] = 'cron_unschedule_event_error';
+	call_user_func( $reg[0], new WP_Error( 'could_not_set', 'The cron event list could not be saved.' ), 'sn_unsched_hook', array( 'schedule' => false, 'args' => array() ) );
+	$r = snt_cron_history_for_hook( 'sn_unsched_hook', 1 );
+	ch_assert_true( isset( $r[0] ) && false === $r[0]['success'] && false !== stripos( (string) $r[0]['error_message'], 'unschedule' ) && false !== strpos( (string) $r[0]['error_message'], 'could_not_set' ), 'an unschedule error is a failed row naming the step and the code' );
+}
 
 function ok_ne( $not_expected, $actual, $label ) {
 	global $pass, $fail;

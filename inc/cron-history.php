@@ -247,6 +247,30 @@ function snt_cron_history_post_cb() {
 }
 
 /**
+ * Core's own cron errors (wp-cron.php, since 6.1). Before a recurring event
+ * runs, wp-cron.php reschedules it and then unschedules the due copy; when
+ * either step fails (the cron option could not be saved, the schedule is
+ * gone) core error_log()s it and fires one of these actions. Recorded as a
+ * failed row for the event's hook, so a recurring job that will not come back
+ * shows up beside its last run. The run itself still records its own row
+ * right after this one.
+ *
+ * @param WP_Error $error Core's error.
+ * @param string   $hook  The event's hook.
+ * @param array    $event Core's event data; only its args are read.
+ */
+function snt_cron_history_event_error_cb( $error, $hook, $event = array() ) {
+	$step = 'cron_unschedule_event_error' === current_action() ? 'unschedule' : 'reschedule';
+	$what = is_object( $error ) && method_exists( $error, 'get_error_code' )
+		? $error->get_error_code() . ': ' . $error->get_error_message()
+		: 'no error detail';
+	$args = is_array( $event ) && isset( $event['args'] ) && is_array( $event['args'] ) ? $event['args'] : array();
+	snt_cron_history_record( (string) $hook, $args, null, false, 'WordPress could not ' . $step . ' this event (' . $what . ')' );
+}
+add_action( 'cron_reschedule_event_error', 'snt_cron_history_event_error_cb', 10, 3 );
+add_action( 'cron_unschedule_event_error', 'snt_cron_history_event_error_cb', 10, 3 );
+
+/**
  * Reference accessor for the static start-time map. Using a function-
  * scoped static allows multiple module loads (e.g., during tests) to
  * share state without globals leaking.

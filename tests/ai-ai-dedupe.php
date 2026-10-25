@@ -59,5 +59,15 @@ dd_true(
 	'ai/ai non-duplicated features (editorial-notes) are left untouched'
 );
 
+// The revisit trigger must not call an existing-vocab tag mode future: the AI
+// plugin's Content Classification has offered "Only suggest existing terms"
+// since it landed (read at the 0.7.0 and 1.0.2 tags). Docblock only; the two
+// filters above are the behavior and stay as they are.
+$dd_src = (string) file_get_contents( __DIR__ . '/../inc/ai-ai-dedupe.php' );
+dd_true(
+	false === strpos( $dd_src, 'or an existing-vocab tag mode, revisit' ) && false !== strpos( $dd_src, 'Only suggest existing terms' ),
+	'the docblock names the existing-terms strategy as shipped, not as a future revisit trigger'
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

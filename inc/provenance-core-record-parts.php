@@ -117,6 +117,12 @@ function sn_prov_record( $post, $author ) {
 		}
 		sn_prov_change_class_clear_pending( $post->ID );
 	}
+	// 2026-10-24: core's newest revision id, beside the payload the same way
+	// (inc/provenance-core-revision.php). It may dangle once core prunes it.
+	$core_revision = function_exists( 'sn_prov_core_revision_id' ) ? sn_prov_core_revision_id( $post->ID ) : 0;
+	if ( $core_revision > 0 ) {
+		$commit['core_revision_id'] = $core_revision;
+	}
 
 	$full = $supersede
 		? sn_prov_replace_head_commit( $post->ID, $commit )

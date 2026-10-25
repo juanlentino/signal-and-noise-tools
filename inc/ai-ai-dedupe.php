@@ -45,8 +45,12 @@
  *     never invents a term.
  * They live on separate surfaces (Health page / Content→Tags vs the editor), so
  * there is no double-button collision. Do NOT disable either side — that would
- * delete genuine distinct value. If a future ai/ai release adds a site-wide alt
- * audit or an existing-vocab tag mode, revisit.
+ * delete genuine distinct value. An existing-vocab tag mode is not future:
+ * ai/ai's Content Classification has offered "Only suggest existing terms"
+ * since it landed in 0.7.0 (read at the 0.7.0 and 1.0.2 tags). It suggests
+ * terms for one post in the editor; SN tag fit judges the tags a note
+ * already carries, so the surfaces still differ. If a future ai/ai release
+ * adds a site-wide alt audit or a site-wide review of attached tags, revisit.
  *
  * @package SignalNoiseTools
  * @since 4.8.0
