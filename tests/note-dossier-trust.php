@@ -84,6 +84,18 @@ ok( is_array( $edits ) && 'table' === $edits['kind'] && 'trust' === $edits['grou
 ok( is_array( $edits ) && 2 === count( $edits['rows'] ) && 'v2' === $edits['rows'][0]['version'] && 'v1' === $edits['rows'][1]['version'], 'one row per minted version, newest first, v0 left out' );
 ok( is_array( $edits ) && 'reading aid' === $edits['rows'][0]['change_class'] && '' === $edits['rows'][1]['change_class'], 'the label for a classified version, nothing for an unclassified one' );
 ok( is_array( $edits ) && false !== strpos( $edits['source'], 'not signed' ), 'the source says the label is the author\'s, not signed' );
+// 2026-10-24: the core revision id beside each version, when stored.
+if ( file_exists( __DIR__ . '/../inc/provenance-core-revision.php' ) ) {
+	require_once __DIR__ . '/../inc/provenance-core-revision.php';
+}
+$GLOBALS['__chain'][2]['core_revision_id'] = 4242;
+$edits = by_heading( sn_note_dossier_trust( 7, $fetch ), 'Edits' );
+ok( is_array( $edits ) && in_array( 'core_revision', array_column( $edits['columns'], 'key' ), true ), 'the Edits table has a core revision column' );
+ok( is_array( $edits ) && '4242' === $edits['rows'][0]['core_revision'] && '' === $edits['rows'][1]['core_revision'], 'the id for a version that stored one, nothing for one that did not' );
+ok( is_array( $edits ) && false !== strpos( $edits['source'], 'pruned' ), 'the source says a core revision id can name a pruned revision' );
+unset( $GLOBALS['__chain'][2]['change_class'] );
+$edits = by_heading( sn_note_dossier_trust( 7, $fetch ), 'Edits' );
+ok( is_array( $edits ) && '4242' === $edits['rows'][0]['core_revision'], 'a stored core revision alone brings the Edits table' );
 $GLOBALS['__chain'] = $sn_cc_chain;
 
 echo "\nthe gaps\n";

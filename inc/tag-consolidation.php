@@ -243,11 +243,14 @@ function sn_tag_validate_merge( array $from_ids, $into_id ) {
 }
 
 /**
- * Merge source tags into a canonical tag: append the canonical to every post that
- * carries any source tag (so no post is left tagless), then delete the source terms
- * (wp_delete_term detaches them from all posts). Records the old-slug -> canonical
- * redirect map and a history entry. Validates everything first; a bad id aborts with
- * zero mutation.
+ * Merge source tags into a canonical tag. Core does the reassignment:
+ * wp_delete_term() with `default` + `force_default` gives every post carrying a
+ * source tag the canonical (so no post is left tagless), then deletes the source
+ * (2026-10-24; this used to re-implement that loop with wp_set_object_terms).
+ * Core returns no list of the posts it touched, so posts_moved is counted from
+ * get_objects_in_term() before each delete. Records the old-slug -> canonical
+ * redirect map and a history entry. Validates everything first; a bad id aborts
+ * with zero mutation.
  *
  * @param array $from_ids Source term ids.
  * @param int   $into_id  Canonical term id.
@@ -270,10 +273,16 @@ function sn_tag_merge( array $from_ids, $into_id ) {
 		$t           = get_term( $id, 'post_tag' );
 		$old_slugs[] = (string) $t->slug;
 		foreach ( (array) get_objects_in_term( $id, 'post_tag' ) as $post_id ) {
-			wp_set_object_terms( (int) $post_id, array( $into_id ), 'post_tag', true );
 			$moved_posts[ (int) $post_id ] = true;
 		}
-		wp_delete_term( $id, 'post_tag' );
+		wp_delete_term(
+			$id,
+			'post_tag',
+			array(
+				'default'       => $into_id,
+				'force_default' => true,
+			)
+		);
 	}
 
 	sn_tag_redirects_record( $old_slugs, $into_slug );

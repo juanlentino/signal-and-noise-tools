@@ -108,7 +108,7 @@ function snt_prov_anchor_overview() {
 				'type'    => $type,
 				'title'   => function_exists( 'get_the_title' ) ? (string) get_the_title( (int) $post_id ) : '',
 				'version' => (int) ( $latest['version'] ?? 0 ),
-			) + snt_prov_change_class_field( $latest );
+			) + snt_prov_beside_payload_fields( $latest );
 			continue;
 		}
 		if ( 'pending' === $status ) {
@@ -121,7 +121,7 @@ function snt_prov_anchor_overview() {
 				// null, never 0: "no confirmation count recorded" is not
 				// "zero confirmations" — the widget renders the honest gap.
 				'confirmations' => isset( $latest['confirmations'] ) ? (int) $latest['confirmations'] : null,
-			) + snt_prov_change_class_field( $latest );
+			) + snt_prov_beside_payload_fields( $latest );
 		}
 	}
 	return $out;
@@ -139,14 +139,18 @@ function snt_prov_change_class_of( $entry ) {
 }
 
 /**
- * The change_class field for an in-flight row: present only when classified.
+ * The fields an in-flight row carries from beside the signed payload: the
+ * change_class when classified, and (2026-10-24) core_revision_id when the
+ * commit stored one (inc/provenance-core-revision.php; it may name a revision
+ * core has since pruned).
  *
  * @param array $entry
  * @return array
  */
-function snt_prov_change_class_field( $entry ) {
+function snt_prov_beside_payload_fields( $entry ) {
 	$class = snt_prov_change_class_of( $entry );
-	return '' === $class ? array() : array( 'change_class' => $class );
+	$field = '' === $class ? array() : array( 'change_class' => $class );
+	return $field + ( function_exists( 'sn_prov_core_revision_field' ) ? sn_prov_core_revision_field( $entry ) : array() );
 }
 
 /**
@@ -188,7 +192,7 @@ function snt_abilities_provenance_register() {
 				'confirmed' => array( 'type' => 'integer' ),
 				'total'     => array( 'type' => 'integer' ),
 				'pages'     => array( 'type' => 'object', 'description' => '19.2.0: signed Pages, counted apart from Notes: {confirmed, total}. confirmed/total above are Notes only.' ),
-				'change_classes' => array( 'type' => 'object', 'description' => '2026-10-17: every minted version (notes and pages, v0 excluded) counted by the author\'s change class: {reading_aid, correction, copy, claim, unclassified}. The class is the author\'s label, stored beside the signed payload and not covered by the signature. pending/recording rows carry change_class when one was given.' ),
+				'change_classes' => array( 'type' => 'object', 'description' => '2026-10-17: every minted version (notes and pages, v0 excluded) counted by the author\'s change class: {reading_aid, correction, copy, claim, unclassified}. The class is the author\'s label, stored beside the signed payload and not covered by the signature. pending/recording rows carry change_class when one was given, and core_revision_id (2026-10-24) when the commit stored the id of the WordPress revision saved with it; that id is a pointer outside the signature and may name a revision core has since pruned.' ),
 			),
 		),
 		'meta'                => array(
