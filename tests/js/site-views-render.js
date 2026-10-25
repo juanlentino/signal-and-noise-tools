@@ -48,5 +48,8 @@ let surge = null, readAt = null, hourNote = null;
 	if ( 'data-sn-live-hour-note' in n.attrs ) { const box = n.parentNode, bars = box ? box.children.find( ( c ) => 'data-sn-live-hour' in c.attrs ) : null; hourNote = { hideEmpty: !! ( box && 'data-sn-live-hide-empty' in box.attrs ), withBars: !! bars, baseline: !! ( bars && /border-bottom:1px solid/.test( bars.attrs.style || '' ) ), text: n.textContent }; }
 	n.children.forEach( walk );
 } )( root );
-process.stdout.write( JSON.stringify( { rows: out, helpers: Object.keys( window.snSiteViewsDelta || {} ), links: links.length, link, roles, srText, bodyRole: roles[ 0 ] || '', surge, readAt, hourNote } ) );
+// The sparkline's polylines, each as its points string (2026-10-25: a gap breaks the line).
+const lines = [];
+( function walk( n ) { if ( n.tag === 'polyline' ) { lines.push( n.attrs.points || '' ); } n.children.forEach( walk ); } )( root );
+process.stdout.write( JSON.stringify( { rows: out, helpers: Object.keys( window.snSiteViewsDelta || {} ), links: links.length, link, roles, srText, bodyRole: roles[ 0 ] || '', surge, readAt, hourNote, lines } ) );
 } );

@@ -143,6 +143,19 @@ async function run() {
     x.calls[3].resolve(f.good); await flush(); await x.tick(1000000);
     assert.equal(root.textContent, ''); assert.equal(x.timers.size, 0); assert.equal(x.calls.length, 4);
   }
+  // Hunt 2026-10-25: the deploy age is aged by the card from its time, so a
+  // kept reading after a failed poll never repaints a frozen "2 minutes ago".
+  {
+    const x = harness(), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-deploy-status'](root); await flush();
+    const at = new Date(Date.parse('2026-09-08T12:00:00Z') - 2 * 60000).toISOString();
+    x.calls[0].resolve({theme: {current: '1', state: 'ok'}, plugin: {current: '2', state: 'ok'}, last_deploy: '2 mins ago', last_deploy_component: 'Plugin', last_deploy_at: at}); await flush();
+    assert.match(root.textContent, /Last deploy: Plugin · 2 min ago/, 'the age comes from the time the site sent');
+    await x.tick(60000);
+    x.calls[1].reject(new Error('network')); await flush();
+    assert.match(root.textContent, /Last deploy: Plugin · 3 min ago/, 'a kept reading ages the line, it does not freeze it');
+    stop();
+  }
   // Contract 13: the Core row paints beside theme/plugin, same glyph vocabulary.
   {
     const x = harness(), root = new Element('div');
@@ -854,6 +867,26 @@ async function run() {
     };
     assert.match(await tone([{name: 'a', level: 'ok'}, {name: 'b', level: 'warn'}]), /color:#d29922/, 'a paused or maintenance shortfall is amber');
     assert.match(await tone([{name: 'a', level: 'alert'}, {name: 'b', level: 'warn'}]), /color:#ff9d94/, 'a down monitor is red');
+  }
+  // Hunt 2026-10-25: a failed quiet re-read says the reading is the last one.
+  {
+    const x = harness(), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-anchors'](root); await flush();
+    const status = () => x.calls.filter(c => c.opts.path.includes('anchor-status'));
+    status()[0].resolve({pending: [], recording: [], confirmed: 5, total: 5}); await flush();
+    assert.match(root.textContent, /All anchored/);
+    assert.doesNotMatch(root.textContent, /not re-read/, 'a fresh reading says nothing about itself');
+    await x.tick(5 * 60000); await flush();
+    assert.ok(status().length >= 2, 'the quiet re-read asked again');
+    status()[status().length - 1].reject(new Error('Failed to fetch')); await flush();
+    assert.match(root.textContent, /All anchored/, 'the last reading stays on screen');
+    assert.match(root.textContent, /Anchor status not re-read; showing the \d{1,2}:\d\d( [AP]M)? reading/, 'and says it is the last reading, with its time');
+    // Review on #2282: a sibling answer that lands after the failure repaints the card; the note stays.
+    const readers = x.calls.filter(c => c.opts.path.includes('machine-readers'));
+    readers[readers.length - 1].resolve({ok: true, days: 30, total: 3}); await flush();
+    assert.match(root.textContent, /Machine reads 3/, 'the sibling answer painted');
+    assert.match(root.textContent, /Anchor status not re-read/, 'and the stale note survived its repaint');
+    stop();
   }
   // Codex round 3: a read from before a Sweep never repaints over the newer one.
   {

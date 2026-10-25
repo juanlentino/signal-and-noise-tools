@@ -195,6 +195,10 @@ df_true( snt_deploy_history_record( 'plugin', '9.63.3' ), 'REAL snt_deploy_histo
 $out = snt_ability_get_deploy_status( array() );
 df_eq( '1 min ago', $out['last_deploy'] ?? null, 'last_deploy now reflects the just-installed wp-admin release (was frozen at the GHA run)' );
 df_eq( '30 days ago', $out['last_gha_run'] ?? null, 'last_gha_run still reports the stale GHA run — datum exposed, not dropped' );
+df_true( array_key_exists( 'last_deploy_at', $props ) && 'string' === ( $props['last_deploy_at']['type'] ?? '' ), 'output_schema declares last_deploy_at (2026-10-25)' );
+$at = strtotime( (string) ( $out['last_deploy_at'] ?? '' ) );
+df_true( false !== $at && abs( time() - $at ) < 300 && 1 === preg_match( '/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00$/', (string) $out['last_deploy_at'] ), 'last_deploy_at is the newest record\'s time, ISO 8601 UTC' );
+df_eq( '', snt_deploy_runs_at( array() ), 'no records: an empty time, never a guessed one' );
 
 // ─── 4. Transport-type honesty ────────────────────────────────────────
 // Both ride REST JSON to desktop-mode-widget.js ('Last deploy: ' +

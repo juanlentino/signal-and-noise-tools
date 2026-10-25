@@ -438,8 +438,9 @@ add_action( 'wp_abilities_api_init', function () {
 			'additionalProperties' => false,
 		),
 		// output_schema: copied BYTE-IDENTICAL from the admin registration in
-		// inc/abilities-system.php, MINUS `runtime` (contract 13) and
-		// `last_worker_deploy` (local door only, 2026-10-08): the parity
+		// inc/abilities-system.php, MINUS `runtime` (contract 13),
+		// `last_worker_deploy` (local door only, 2026-10-08) and
+		// `last_deploy_at` (local door only, 2026-10-25): the parity
 		// pin in tests enforces === against the admin schema with runtime removed.
 		'output_schema'       => array(
 			'type'       => 'object',
