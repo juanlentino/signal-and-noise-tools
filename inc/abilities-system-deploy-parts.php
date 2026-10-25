@@ -69,6 +69,7 @@ function snt_ability_get_deploy_status( $input = null ) {
 		$newest                = snt_deploy_history_merged( $repos, 1 );
 		$last_deploy           = snt_deploy_runs_age_label( $newest );
 		$last_deploy_component = snt_deploy_runs_source_label( $newest );
+		$last_deploy_at        = snt_deploy_runs_at( $newest );
 	} else {
 		// Degraded fallback (deploy-history module absent): the pre-v9.63.3
 		// GHA-only reading — stale-prone but better than nothing. It is labelled
@@ -76,6 +77,7 @@ function snt_ability_get_deploy_status( $input = null ) {
 		// healthy one rather than falling back to an anonymous age.
 		$last_deploy           = $last_gha_run;
 		$last_deploy_component = snt_deploy_runs_source_label( $last_gha_rows );
+		$last_deploy_at        = snt_deploy_runs_at( $last_gha_rows );
 	}
 
 	$workers = function_exists( 'snt_deploy_workers_status' )
@@ -90,6 +92,7 @@ function snt_ability_get_deploy_status( $input = null ) {
 		'plugin'                => snt_deploy_status_for( 'plugin' ),
 		'last_deploy'           => $last_deploy,
 		'last_deploy_component' => $last_deploy_component,
+		'last_deploy_at'        => $last_deploy_at,
 		'last_gha_run'          => $last_gha_run,
 		'workers'               => $workers,
 		// When the version probe last saw a worker change (inc/deploy-workers-seen.php):
@@ -153,6 +156,19 @@ function snt_deploy_runs_age_label( $runs ) {
 		}
 	}
 	return '';
+}
+
+/**
+ * When the newest record in a deploy-runs list happened, as an ISO 8601 UTC
+ * time, or '' when unknown. 2026-10-25: the card ages this itself, so a
+ * kept reading after a failed poll never repaints a frozen "2 minutes ago".
+ *
+ * @param array $runs Records in the snt_gh_recent_runs_merged() shape, newest first.
+ * @return string
+ */
+function snt_deploy_runs_at( $runs ) {
+	$t = is_array( $runs ) && ! empty( $runs[0]['created_at'] ) ? strtotime( (string) $runs[0]['created_at'] ) : false;
+	return $t ? gmdate( 'c', $t ) : '';
 }
 
 /**

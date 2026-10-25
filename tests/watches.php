@@ -78,6 +78,12 @@ $GLOBALS['__drift'] = array();
 $WAVE4_AFTER = strtotime( '2026-11-26 12:00:00 UTC' );
 ok( null === has_id( snt_watches_ripe( $AFTER ), 'wave4_telemetry' ), 'a date-only watch is quiet before its date' );
 ok( null === has_id( snt_watches_ripe( strtotime( '2026-10-26 12:00:00 UTC' ) ), 'wave4_telemetry' ), 'the old date no longer ripens it (moved to 2026-11-25 after the second read)' );
+// Hunt 2026-10-25: the site's midnight, not UTC's (UTC midnight is 7 PM the
+// evening before in New York).
+function wp_timezone() { return new DateTimeZone( 'America/New_York' ); }
+ok( null === has_id( snt_watches_ripe( strtotime( '2026-11-25 03:00:00 UTC' ) ), 'wave4_telemetry' ), 'quiet at 10 PM New York time on the 24th, though UTC already reads the 25th' );
+ok( null !== has_id( snt_watches_ripe( strtotime( '2026-11-25 05:30:00 UTC' ) ), 'wave4_telemetry' ), 'ripe after midnight New York time on the 25th' );
+ok( PHP_INT_MAX === snt_watch_due_ts( 'not-a-date' ), 'an unreadable due date never ripens' );
 $w = has_id( snt_watches_ripe( $WAVE4_AFTER ), 'wave4_telemetry' );
 ok( null !== $w && ! empty( $w['date_only'] ), 'and ripens after it, FLAGGED as date-only so a reader knows nothing was measured' );
 ok( null === has_id( snt_watches_ripe( $AFTER ), 'search_coverage_reread' ), 'search_coverage_reread is retired: its question was answered, a clock is not a finding' );
