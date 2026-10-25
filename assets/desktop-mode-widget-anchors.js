@@ -585,6 +585,7 @@
 		var sweeping = false; // survives repaints, so a rebuilt button stays busy
 		var readCtl  = null;  // the reader request in flight, aborted when superseded or torn down
 		var lastOverview = null; // the last anchor answer, kept on screen through a quiet re-read
+		var lastOverviewAt = 0;  // when that answer came, for the note a failed quiet re-read shows
 		var lastLoadAt   = 0;
 		var loud         = false; // a non-quiet read is in flight
 
@@ -638,6 +639,7 @@
 			window.sntAbilityRun( 'anchor-status', {}, { silent: true } ).then( function( overview ) {
 				if ( ! live() ) { return; }
 				lastOverview   = overview;
+				lastOverviewAt = Date.now();
 				loud           = false;
 				shown.overview = overview;
 				shown.waiting  = false;
@@ -649,7 +651,13 @@
 					}
 				} ).catch( function() {} );
 			} ).catch( function( err ) {
-				if ( ! live() || quiet ) { return; }
+				if ( ! live() ) { return; }
+				// 2026-10-25: a failed quiet re-read keeps the last reading and says
+				// so, as SN Systems does; it never passes for the current one.
+				if ( quiet ) {
+					render( lastOverview, 'Anchor status not re-read; showing the ' + new Date( lastOverviewAt ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) + ' reading' );
+					return;
+				}
 				loud          = false;
 				shown.note    = ( err && err.message ) || 'Could not load anchor status.';
 				shown.waiting = false;

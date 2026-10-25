@@ -855,6 +855,21 @@ async function run() {
     assert.match(await tone([{name: 'a', level: 'ok'}, {name: 'b', level: 'warn'}]), /color:#d29922/, 'a paused or maintenance shortfall is amber');
     assert.match(await tone([{name: 'a', level: 'alert'}, {name: 'b', level: 'warn'}]), /color:#ff9d94/, 'a down monitor is red');
   }
+  // Hunt 2026-10-25: a failed quiet re-read says the reading is the last one.
+  {
+    const x = harness(), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-anchors'](root); await flush();
+    const status = () => x.calls.filter(c => c.opts.path.includes('anchor-status'));
+    status()[0].resolve({pending: [], recording: [], confirmed: 5, total: 5}); await flush();
+    assert.match(root.textContent, /All anchored/);
+    assert.doesNotMatch(root.textContent, /not re-read/, 'a fresh reading says nothing about itself');
+    await x.tick(5 * 60000); await flush();
+    assert.ok(status().length >= 2, 'the quiet re-read asked again');
+    status()[status().length - 1].reject(new Error('Failed to fetch')); await flush();
+    assert.match(root.textContent, /All anchored/, 'the last reading stays on screen');
+    assert.match(root.textContent, /Anchor status not re-read; showing the \d{1,2}:\d\d( [AP]M)? reading/, 'and says it is the last reading, with its time');
+    stop();
+  }
   // Codex round 3: a read from before a Sweep never repaints over the newer one.
   {
     const x = harness(), root = new Element('div');
