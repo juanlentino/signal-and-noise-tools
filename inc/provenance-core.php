@@ -30,3 +30,4 @@ require_once __DIR__ . '/provenance-core-chain-parts.php';
 require_once __DIR__ . '/provenance-core-record-parts.php';
 require_once __DIR__ . '/provenance-core-subject-parts.php';
 require_once __DIR__ . '/provenance-change-class.php';
+require_once __DIR__ . '/provenance-core-revision.php'; // 2026-10-24: the core revision id beside each commit

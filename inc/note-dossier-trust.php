@@ -190,9 +190,11 @@ function sn_note_dossier_trust( $post_id, $fetcher = null ) {
 
 /**
  * The Edits table: each minted version with the author's change class
- * (2026-10-17). Only when at least one version is classified; an
- * unclassified version's cell is empty. The class is stored beside the
- * signed payload, so the block is sourced as the author's label.
+ * (2026-10-17) and, since 2026-10-24, the id of the core revision saved with
+ * it (inc/provenance-core-revision.php). Only when at least one version is
+ * classified or carries a core revision; an empty cell means none. Both are
+ * stored beside the signed payload, so the block is sourced as local labels,
+ * and a core revision id may name a revision core has since pruned.
  *
  * @param array $chain
  * @return array|null
@@ -203,28 +205,32 @@ function sn_note_dossier_edits( array $chain ) {
 	}
 	$rows       = array();
 	$classified = false;
+	$revisions  = false;
 	foreach ( array_reverse( $chain ) as $c ) {
 		if ( ! is_array( $c ) || (int) ( $c['version'] ?? 0 ) < 1 ) {
 			continue;
 		}
 		$label      = sn_prov_change_class_label( $c['change_class'] ?? '' );
+		$revision   = (int) ( $c['core_revision_id'] ?? 0 );
 		$classified = $classified || '' !== $label;
+		$revisions  = $revisions || $revision > 0;
 		$rows[]     = array(
-			'version'      => 'v' . (int) $c['version'],
-			'recorded'     => (string) ( $c['committed_at'] ?? '' ),
-			'change_class' => $label,
+			'version'       => 'v' . (int) $c['version'],
+			'recorded'      => (string) ( $c['committed_at'] ?? '' ),
+			'change_class'  => $label,
+			'core_revision' => $revision > 0 ? (string) $revision : '',
 		);
 	}
-	if ( ! $classified ) {
+	if ( ! $classified && ! $revisions ) {
 		return null;
 	}
-	return sn_note_dossier_table(
-		'trust',
-		__( 'Edits', 'signal-and-noise-tools' ),
-		array( array( 'key' => 'version', 'label' => __( 'Version', 'signal-and-noise-tools' ) ), array( 'key' => 'recorded', 'label' => __( 'Recorded', 'signal-and-noise-tools' ) ), array( 'key' => 'change_class', 'label' => __( 'Change class', 'signal-and-noise-tools' ) ) ),
-		$rows,
-		__( 'local chain; the change class is the author\'s label, not signed', 'signal-and-noise-tools' )
-	);
+	$columns = array( array( 'key' => 'version', 'label' => __( 'Version', 'signal-and-noise-tools' ) ), array( 'key' => 'recorded', 'label' => __( 'Recorded', 'signal-and-noise-tools' ) ), array( 'key' => 'change_class', 'label' => __( 'Change class', 'signal-and-noise-tools' ) ) );
+	$source  = __( 'local chain; the change class is the author\'s label, not signed', 'signal-and-noise-tools' );
+	if ( $revisions ) {
+		$columns[] = array( 'key' => 'core_revision', 'label' => __( 'Core revision', 'signal-and-noise-tools' ) );
+		$source    = __( 'local chain; the change class is a label from the author, not signed; a core revision id names the WordPress revision saved with that version and may point at one core has since pruned', 'signal-and-noise-tools' );
+	}
+	return sn_note_dossier_table( 'trust', __( 'Edits', 'signal-and-noise-tools' ), $columns, $rows, $source );
 }
 
 /**
