@@ -54,6 +54,7 @@ function update_option( $key, $value, $autoload = null ) {
 	return true;
 }
 
+function _get_cron_array() { return $GLOBALS['__test_cron'] ?? array(); }
 function current_action() {
 	return isset( $GLOBALS['__test_current_action'] ) ? $GLOBALS['__test_current_action'] : '';
 }
@@ -326,9 +327,42 @@ if ( is_array( $reg ) && is_callable( $reg[0] ) ) {
 $reg = $GLOBALS['__test_added_actions']['cron_unschedule_event_error'] ?? null;
 if ( is_array( $reg ) && is_callable( $reg[0] ) ) {
 	$GLOBALS['__test_current_action'] = 'cron_unschedule_event_error';
+	$GLOBALS['__test_cron'] = array( time() - 30 => array( 'sn_unsched_hook' => array( md5( serialize( array() ) ) => array() ) ) ); // the due copy is still there: the save really failed
 	call_user_func( $reg[0], new WP_Error( 'could_not_set', 'The cron event list could not be saved.' ), 'sn_unsched_hook', array( 'schedule' => false, 'args' => array() ) );
 	$r = snt_cron_history_for_hook( 'sn_unsched_hook', 1 );
 	ch_assert_true( isset( $r[0] ) && false === $r[0]['success'] && false !== stripos( (string) $r[0]['error_message'], 'unschedule' ) && false !== strpos( (string) $r[0]['error_message'], 'could_not_set' ), 'an unschedule error is a failed row naming the step and the code' );
+}
+
+// ─── Test 14: an overlapping runner's could_not_set is not a failure (2026-10-25) ──
+// Two cron runners overlapped during a plugin install; the second rescheduled
+// an event the first had already saved, update_option() saw no change, and
+// core reported could_not_set. The list was right; the row was a false alarm.
+echo "\nTest 14: could_not_set is a failure only when the list is not as the step wanted\n";
+$resched = $GLOBALS['__test_added_actions']['cron_reschedule_event_error'][0] ?? null;
+$unsched = $GLOBALS['__test_added_actions']['cron_unschedule_event_error'][0] ?? null;
+$sig     = md5( serialize( array() ) );
+$nset    = static fn() => new WP_Error( 'could_not_set', 'The cron event list could not be saved.' );
+$rows    = static fn( $h ) => count( snt_cron_history_for_hook( $h, 100 ) );
+if ( is_callable( $resched ) && is_callable( $unsched ) ) {
+	$GLOBALS['__test_current_action'] = 'cron_reschedule_event_error';
+	$GLOBALS['__test_cron'] = array( time() - 5 => array( 'sn_race_hook' => array( $sig => array() ) ), time() + 295 => array( 'sn_race_hook' => array( $sig => array() ) ) );
+	call_user_func( $resched, $nset(), 'sn_race_hook', array( 'schedule' => 'sn_five_minutes', 'args' => array(), 'interval' => 300 ) );
+	ch_assert_eq( 0, $rows( 'sn_race_hook' ), 'reschedule could_not_set with the next copy already in the list: no failed row' );
+
+	$GLOBALS['__test_current_action'] = 'cron_unschedule_event_error';
+	$GLOBALS['__test_cron'] = array( time() + 295 => array( 'sn_race_hook' => array( $sig => array() ) ) );
+	call_user_func( $unsched, $nset(), 'sn_race_hook', array( 'schedule' => 'sn_five_minutes', 'args' => array() ) );
+	ch_assert_eq( 0, $rows( 'sn_race_hook' ), 'unschedule could_not_set with the due copy already gone: no failed row' );
+
+	$GLOBALS['__test_current_action'] = 'cron_reschedule_event_error';
+	$GLOBALS['__test_cron'] = array( time() - 5 => array( 'sn_lost_hook' => array( $sig => array() ) ) );
+	call_user_func( $resched, $nset(), 'sn_lost_hook', array( 'schedule' => 'sn_five_minutes', 'args' => array(), 'interval' => 300 ) );
+	ch_assert_eq( 1, $rows( 'sn_lost_hook' ), 'reschedule could_not_set with no future copy: the job would not come back, so it IS a failed row' );
+
+	$GLOBALS['__test_cron'] = array( time() + 295 => array( 'sn_other_args' => array( md5( serialize( array( 9 ) ) ) => array() ) ) );
+	call_user_func( $resched, $nset(), 'sn_other_args', array( 'schedule' => 'sn_five_minutes', 'args' => array(), 'interval' => 300 ) );
+	ch_assert_eq( 1, $rows( 'sn_other_args' ), 'a future copy with other args does not settle it' );
+	$GLOBALS['__test_cron'] = array();
 }
 
 function ok_ne( $not_expected, $actual, $label ) {

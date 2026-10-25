@@ -265,7 +265,47 @@ function snt_cron_history_event_error_cb( $error, $hook, $event = array() ) {
 		? $error->get_error_code() . ': ' . $error->get_error_message()
 		: 'no error detail';
 	$args = is_array( $event ) && isset( $event['args'] ) && is_array( $event['args'] ) ? $event['args'] : array();
+	// 2026-10-25: two cron runners overlapping (seen during a plugin install)
+	// both reschedule the same event. The second computes the list the first
+	// already saved, update_option() reports no change, and core calls that
+	// could_not_set. The list is as the step wanted, so it is not a failure.
+	$code = is_object( $error ) && method_exists( $error, 'get_error_code' ) ? (string) $error->get_error_code() : '';
+	if ( 'could_not_set' === $code && snt_cron_history_event_settled( (string) $hook, $args, $step ) ) {
+		return;
+	}
 	snt_cron_history_record( (string) $hook, $args, null, false, 'WordPress could not ' . $step . ' this event (' . $what . ')' );
+}
+
+/**
+ * Whether the cron list already holds what a failed save meant to write:
+ * after a reschedule, a copy of the event in the future; after an
+ * unschedule, no due copy left. Read from this process's view of the list,
+ * which is the one update_option() compared against.
+ *
+ * @param string $hook The event's hook.
+ * @param array  $args The event's args.
+ * @param string $step 'reschedule' or 'unschedule'.
+ * @return bool
+ */
+function snt_cron_history_event_settled( $hook, array $args, $step ) {
+	if ( ! function_exists( '_get_cron_array' ) ) {
+		return false;
+	}
+	$key    = md5( serialize( $args ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- core's own event key
+	$now    = time();
+	$future = false;
+	$due    = false;
+	foreach ( (array) _get_cron_array() as $ts => $hooks ) {
+		if ( ! isset( $hooks[ $hook ][ $key ] ) ) {
+			continue;
+		}
+		if ( (int) $ts > $now ) {
+			$future = true;
+		} else {
+			$due = true;
+		}
+	}
+	return 'reschedule' === $step ? $future : ! $due;
 }
 add_action( 'cron_reschedule_event_error', 'snt_cron_history_event_error_cb', 10, 3 );
 add_action( 'cron_unschedule_event_error', 'snt_cron_history_event_error_cb', 10, 3 );
