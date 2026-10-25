@@ -31,9 +31,9 @@ function snt_desktop_cron_24h() {
 	}
 	$table = $wpdb->prefix . SNT_CRON_HISTORY_TABLE;
 	$since = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- the plugin's own history table; the value binds via prepare().
 	// last_ok_start: when the latest successful run STARTED (fired_at is
 	// written when a run ends, elapsed_ms is how long it took).
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- the plugin's own history table; the value binds via prepare().
 	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT hook, COUNT(*) AS fires, SUM(success = 0) AS failed, MAX(CASE WHEN success = 0 THEN fired_at END) AS last_failed, MAX(CASE WHEN success = 1 THEN fired_at - INTERVAL (COALESCE(elapsed_ms, 0) DIV 1000) SECOND END) AS last_ok_start FROM {$table} WHERE fired_at >= %s GROUP BY hook", $since ), ARRAY_A );
 	if ( ! is_array( $rows ) || '' !== (string) $wpdb->last_error ) {
 		return null;
