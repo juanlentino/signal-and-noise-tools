@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **An analytics export no longer opens an empty app window.** Both export forms, the native S&N Analytics toolbar's and the classic toolbar's as the OpenStation host keeps it, posted with `target="_blank"`. Inside the installed PWA a same-origin new-window target relaunches the app (the host recorded this for links in 14.7.5), so every export opened an empty window behind the save dialog. The forms now submit in the same window: the handler answers with an attachment, which downloads without leaving the desktop. If the form's security token has expired (a window left open over a day), WordPress's expiry page replaces the desktop for that one click; Back returns to it.
+
 ## [2026.10.67] - 2026-10-25 — a defect hunt: export, hidden login, /stats, honest widgets
 
 ### Fixed (analytics, /stats and login, a defect hunt on 2026-10-25)

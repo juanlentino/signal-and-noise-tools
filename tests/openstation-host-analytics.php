@@ -661,8 +661,8 @@ namespace {
 		}
 		ok( array() !== $export && array() !== $get, 'VACUITY: the real toolbar produced both forms (' . count( $forms ) . ' in all)' );
 		ok( null === $export['os-action'] && 'post' === $export['method']
-			&& admin_url( 'admin-post.php' ) === $export['action'] && '_blank' === $export['target'],
-			'the export form is NOT a dispatch: it keeps its method, posts to admin-post.php and opens in a new tab -- sn_handle_analytics_export() sends headers, echoes a file and exits, which no window can survive. THE RECORDED DEVIATION: a download must be a navigation' );
+			&& admin_url( 'admin-post.php' ) === $export['action'] && null === $export['target'],
+			'the export form is NOT a dispatch: it keeps its method and posts to admin-post.php in the same window -- sn_handle_analytics_export() sends headers, echoes a file and exits, which no window can survive. A download must be a navigation; with no target it downloads in place (2026-10-25: target="_blank" relaunched the PWA)' );
 		ok( 'go' === $get['os-action'] && 'get' === $get['method'],
 			'the custom-date form dispatches `go` -- its sn_from/sn_to arrive as args and go through the same resolver a range pill does' );
 		ok( false !== strpos( $toolbar, 'os-arg-sn_compare="yoy"' ) && false !== strpos( $toolbar, 'os-arg-sn_class="bot"' )

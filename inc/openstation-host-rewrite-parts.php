@@ -200,8 +200,9 @@ function snt_os_host_own_pages() {
  * returns a flash code and never renders. Replayed inside a dispatch it would
  * write a spreadsheet into the middle of a JSON response and kill the request.
  * So the host names those actions and this marks their forms; the rewrite pass
- * then leaves each a REAL form with an explicit action and `target="_blank"`.
- * A download must be a navigation; a new tab is the least a window can do.
+ * then leaves each a REAL form with an explicit action and no target.
+ * A download must be a navigation; a same-window one downloads in place,
+ * where `target="_blank"` relaunched the installed PWA (2026-10-25).
  *
  * TWO PASSES, because the `action` that identifies a form is a hidden input
  * INSIDE it — the marker cannot be decided at the moment the opening tag is
