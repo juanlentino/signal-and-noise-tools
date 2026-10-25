@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **sn-status takes the single tools' inputs.** The 2026-10-24 wave-4 read retired nothing: none of the eight absorbed singles had collapsed, and the reason was input, not habit. sn-status could not force a fresh deploy or uptime read, ask for uptime's full payload, filter the scheduled cron list, or size cron history, so a caller needing any of that fell back to `get-deploy-status`, `uptime-status`, `list-cron-events` or `get-cron-history`. It now takes `force_refresh` (deploy, uptime), `detail` (uptime), `sn_only` and `hook` (cron_scheduled) and `limit` (cron_history), each forwarded only to the source that declares it and only when set, so a bare request dispatches exactly as before. One behavior change: a request with `hook` that names cron_scheduled now gets that hook's events only. `get-analytics-events` was already off the door (19.3.0); its 2 calls in the window predate that. The `wave4_telemetry` watch moves to 2026-11-25.
+
 ## [2026.10.64] - 2026-10-25 — built on core: robots, canonical, feeds, app passwords, AI spend
 
 ### Changed (discovery on core, 2026-10-24)
