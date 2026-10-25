@@ -428,29 +428,7 @@ async function run() {
     assert.match(t, /Freshness 1 stale page/, 'edge freshness after the last check');
     assert.match(t, /3 to look at: queue_tick \+2 more/, 'a recorded cron failure, edge 5xx and a stale edge are each something to look at (Codex on 3104cf9: forwarded visitor 5xx read as Worker rows); the headline names the first by its amber row and counts the rest (2026-10-16)');
     stop();
-      // 2026-10-25: a job that failed once and has run fine since is said, not looked at.
-  {
-    const x = harness({statusExtra: {systems: {cron: {fires: 2924, failed: 2, failing: ['sn_still_bad'], recovered: ['sn_prov_orphan_sweep']}}, provenance: {}}}), root = new Element('div');
-    const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
-    x.calls[0].resolve({configured: true, rows: [{name: 'Home', level: 'ok', median_ms: 120, max_ms: 900, max_region: 'the US', incidents_30d: 0}]}); await flush();
-    const t = root.textContent;
-    assert.match(t, /Last 24 hours 2,924 runs recorded · 2 failed/, 'every recorded failure still counts in the day line');
-    assert.match(t, /prov_orphan_sweep failed, ran fine since/, 'a recovered job is named with what happened after');
-    assert.match(t, /still_bad failed/, 'a job still failing is named as failed');
-    assert.match(t, /to look at: still_bad/, 'and only the job still failing is something to look at');
-    assert.doesNotMatch(t, /to look at: prov_orphan_sweep/, 'the recovered job never leads the headline');
-    stop();
-  }
-  {
-    const x = harness({statusExtra: {systems: {cron: {fires: 2924, failed: 1, failing: [], recovered: ['sn_prov_orphan_sweep']}}, provenance: {}}}), root = new Element('div');
-    const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
-    x.calls[0].resolve({configured: true, rows: [{name: 'Home', level: 'ok', median_ms: 120, max_ms: 900, max_region: 'the US', incidents_30d: 0}]}); await flush();
-    const t = root.textContent;
-    assert.match(t, /prov_orphan_sweep failed, ran fine since/, 'only recovered jobs: said');
-    assert.doesNotMatch(t, /to look at: prov_orphan_sweep|to look at: Last 24 hours/, 'and nothing in cron is something to look at');
-    stop();
-  }
-const y = harness(extra), proot = new Element('div');
+    const y = harness(extra), proot = new Element('div');
     const pstop = y.window.desktopModeWidgets['sn-anchors'](proot); await flush();
     for (const c of y.calls) {
       if (c.opts.path.includes('anchor-status')) c.resolve({pending: [], recording: [], confirmed: 50, total: 50, pages: {confirmed: 6, total: 6}});
@@ -608,6 +586,28 @@ const y = harness(extra), proot = new Element('div');
     const ml = links(mixroot);
     assert.ok(ml.includes('Open Health|/h') && ml.some(l => l.startsWith('Open Anthropic billing')), 'Codex on #1925: a finding beside a paused check gets the Health link and keeps the billing link');
     mixstop();
+  }
+  // 2026-10-25: a job that failed once and has run fine since is said, not looked at.
+  {
+    const x = harness({statusExtra: {systems: {cron: {fires: 2924, failed: 2, failing: ['sn_still_bad'], recovered: ['sn_prov_orphan_sweep']}}, provenance: {}}}), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+    x.calls[0].resolve({configured: true, rows: [{name: 'Home', level: 'ok', median_ms: 120, max_ms: 900, max_region: 'the US', incidents_30d: 0}]}); await flush();
+    const t = root.textContent;
+    assert.match(t, /Last 24 hours 2,924 runs recorded · 2 failed/, 'every recorded failure still counts in the day line');
+    assert.match(t, /prov_orphan_sweep failed, ran fine since/, 'a recovered job is named with what happened after');
+    assert.match(t, /still_bad failed/, 'a job still failing is named as failed');
+    assert.match(t, /to look at: still_bad/, 'and only the job still failing is something to look at');
+    assert.doesNotMatch(t, /to look at: prov_orphan_sweep/, 'the recovered job never leads the headline');
+    stop();
+  }
+  {
+    const x = harness({statusExtra: {systems: {cron: {fires: 2924, failed: 1, failing: [], recovered: ['sn_prov_orphan_sweep']}}, provenance: {}}}), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-health'](root); await flush();
+    x.calls[0].resolve({configured: true, rows: [{name: 'Home', level: 'ok', median_ms: 120, max_ms: 900, max_region: 'the US', incidents_30d: 0}]}); await flush();
+    const t = root.textContent;
+    assert.match(t, /prov_orphan_sweep failed, ran fine since/, 'only recovered jobs: said');
+    assert.doesNotMatch(t, /to look at: prov_orphan_sweep|to look at: Last 24 hours/, 'and nothing in cron is something to look at');
+    stop();
   }
   // 2026-10-10: S&N jobs of all, the visitor 5xx, Edge beside Cache, the
   // analytics 2.0 verdict, watches due and failing credentials.

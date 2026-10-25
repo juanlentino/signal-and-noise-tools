@@ -32,9 +32,11 @@ function snt_desktop_cron_24h() {
 	$table = $wpdb->prefix . SNT_CRON_HISTORY_TABLE;
 	$since = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
 	// last_ok_start: when the latest successful run STARTED (fired_at is
-	// written when a run ends, elapsed_ms is how long it took).
+	// written when a run ends, elapsed_ms is how long it took). Per args too:
+	// one item's run (a Zenodo push, a scheduled fire) never vouches for
+	// another's.
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- the plugin's own history table; the value binds via prepare().
-	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT hook, COUNT(*) AS fires, SUM(success = 0) AS failed, MAX(CASE WHEN success = 0 THEN fired_at END) AS last_failed, MAX(CASE WHEN success = 1 THEN fired_at - INTERVAL (COALESCE(elapsed_ms, 0) DIV 1000) SECOND END) AS last_ok_start FROM {$table} WHERE fired_at >= %s GROUP BY hook", $since ), ARRAY_A );
+	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT hook, args_signature, COUNT(*) AS fires, SUM(success = 0) AS failed, MAX(CASE WHEN success = 0 THEN fired_at END) AS last_failed, MAX(CASE WHEN success = 1 THEN fired_at - INTERVAL (COALESCE(elapsed_ms, 0) DIV 1000) SECOND END) AS last_ok_start FROM {$table} WHERE fired_at >= %s GROUP BY hook, args_signature", $since ), ARRAY_A );
 	if ( ! is_array( $rows ) || '' !== (string) $wpdb->last_error ) {
 		return null;
 	}
@@ -54,14 +56,13 @@ const SNT_CRON_RECOVERED_AFTER_S = 5;
  * blip does not keep the Systems card amber for a day of clean runs. The
  * failures still count in `failed`. A row without the two times is failing.
  *
- * @param array $rows {hook, fires, failed, last_failed?, last_ok_start?} (UTC datetimes).
+ * @param array $rows {hook, args_signature?, fires, failed, last_failed?, last_ok_start?} (UTC datetimes), one per hook and args.
  * @return array{fires:int,failed:int,failing:string[],recovered:string[]}
  */
 function snt_desktop_cron_24h_shape( array $rows ) {
-	$fires     = 0;
-	$failed    = 0;
-	$failing   = array();
-	$recovered = array();
+	$fires  = 0;
+	$failed = 0;
+	$hooks  = array(); // hook => {failed, stuck}
 	foreach ( $rows as $r ) {
 		$fires += (int) ( $r['fires'] ?? 0 );
 		$f      = (int) ( $r['failed'] ?? 0 );
@@ -69,13 +70,23 @@ function snt_desktop_cron_24h_shape( array $rows ) {
 		if ( $f < 1 ) {
 			continue;
 		}
-		$bad  = strtotime( (string) ( $r['last_failed'] ?? '' ) . ' UTC' );
-		$good = strtotime( (string) ( $r['last_ok_start'] ?? '' ) . ' UTC' );
-		$hook = (string) ( $r['hook'] ?? '' );
-		if ( empty( $r['last_failed'] ) || empty( $r['last_ok_start'] ) || false === $bad || false === $good || $good < $bad + SNT_CRON_RECOVERED_AFTER_S ) {
-			$failing[ $hook ] = $f;
+		$hook  = (string) ( $r['hook'] ?? '' );
+		$bad   = strtotime( (string) ( $r['last_failed'] ?? '' ) . ' UTC' );
+		$good  = strtotime( (string) ( $r['last_ok_start'] ?? '' ) . ' UTC' );
+		$stuck = empty( $r['last_failed'] ) || empty( $r['last_ok_start'] ) || false === $bad || false === $good || $good < $bad + SNT_CRON_RECOVERED_AFTER_S;
+		// A hook is failing while ANY of its args signatures is.
+		$hooks[ $hook ] = array(
+			'failed' => ( $hooks[ $hook ]['failed'] ?? 0 ) + $f,
+			'stuck'  => ! empty( $hooks[ $hook ]['stuck'] ) || $stuck,
+		);
+	}
+	$failing   = array();
+	$recovered = array();
+	foreach ( $hooks as $hook => $h ) {
+		if ( $h['stuck'] ) {
+			$failing[ $hook ] = $h['failed'];
 		} else {
-			$recovered[ $hook ] = $f;
+			$recovered[ $hook ] = $h['failed'];
 		}
 	}
 	arsort( $failing );
