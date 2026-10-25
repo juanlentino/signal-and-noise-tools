@@ -175,6 +175,22 @@ function snt_sn_status_map() {
 }
 
 /**
+ * section => the optional inputs its source ability declares. A source that
+ * renames or drops one fails tests/sn-status-inputs-drift.php, which reads
+ * the real registrations.
+ *
+ * @return array<string,string[]>
+ */
+function snt_sn_status_takes() {
+	return array(
+		'deploy'         => array( 'force_refresh' ),
+		'uptime'         => array( 'force_refresh', 'detail' ),
+		'cron_scheduled' => array( 'hook', 'sn_only' ),
+		'cron_history'   => array( 'hook', 'limit' ),
+	);
+}
+
+/**
  * Ability execute callback: signal-noise/sn-status.
  *
  * @param array|null $input { sections: string[], hook?: string, limit?: int, sn_only?: bool, force_refresh?: bool, detail?: bool }.
@@ -222,12 +238,7 @@ function snt_ability_sn_status( $input ) {
 		),
 		static fn( $v ) => null !== $v
 	);
-	$takes = array(
-		'deploy'         => array( 'force_refresh' ),
-		'uptime'         => array( 'force_refresh', 'detail' ),
-		'cron_scheduled' => array( 'hook', 'sn_only' ),
-		'cron_history'   => array( 'hook', 'limit' ),
-	);
+	$takes = snt_sn_status_takes();
 
 	$out = array();
 	foreach ( $sections as $section ) {
