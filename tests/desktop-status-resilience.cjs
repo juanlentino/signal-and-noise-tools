@@ -881,6 +881,11 @@ async function run() {
     status()[status().length - 1].reject(new Error('Failed to fetch')); await flush();
     assert.match(root.textContent, /All anchored/, 'the last reading stays on screen');
     assert.match(root.textContent, /Anchor status not re-read; showing the \d{1,2}:\d\d( [AP]M)? reading/, 'and says it is the last reading, with its time');
+    // Review on #2282: a sibling answer that lands after the failure repaints the card; the note stays.
+    const readers = x.calls.filter(c => c.opts.path.includes('machine-readers'));
+    readers[readers.length - 1].resolve({ok: true, days: 30, total: 3}); await flush();
+    assert.match(root.textContent, /Machine reads 3/, 'the sibling answer painted');
+    assert.match(root.textContent, /Anchor status not re-read/, 'and the stale note survived its repaint');
     stop();
   }
   // Codex round 3: a read from before a Sweep never repaints over the newer one.

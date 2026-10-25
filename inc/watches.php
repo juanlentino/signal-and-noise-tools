@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Signal & Noise Tools — watches: the things that come due later.
  *

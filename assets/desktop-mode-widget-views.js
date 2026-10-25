@@ -166,13 +166,17 @@
 		return scored > 0 && la.visitor_days / scored >= AUTOMATED_SHARE;
 	}
 
-	function deltaLine( pct, total, la ) {
+	function deltaLine( pct, total, la, base ) {
 		if ( pct === null || typeof pct === 'undefined' ) {
 			// No prior window to compare — say nothing rather than imply flat.
 			return el( 'div', { text: 'vs. prior 14 days: not measured', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 		}
-		// Prior total recovered from the percentage, for the absolute floor.
-		var prior = typeof total === 'number' && pct > -100 ? total / ( 1 + pct / 100 ) : 0;
+		// The counts the delta compares (2026-10-25: full days, not the headline
+		// total). An older payload: the prior recovered from the percentage.
+		if ( base && typeof base.current === 'number' && typeof base.prior === 'number' ) {
+			total = base.current;
+		}
+		var prior = base && typeof base.prior === 'number' ? base.prior : ( typeof total === 'number' && pct > -100 ? total / ( 1 + pct / 100 ) : 0 );
 		var node = el( 'div', {
 			text: deltaText( pct, '%' ) + ' vs. prior 14 days',
 			// 2026-10-25: the delta compares full days, so today's partial count never pulls it down.
@@ -518,7 +522,7 @@
 			chart.appendChild( sparkline( payload.days, payload.window ) );
 			body.appendChild( chart );
 
-			body.appendChild( deltaLine( payload.delta_pct, payload.total, payload.likely_automated ) );
+			body.appendChild( deltaLine( payload.delta_pct, payload.total, payload.likely_automated, payload.delta_base ) );
 			var auto = automatedLine( payload.likely_automated );
 			if ( auto ) { body.appendChild( auto ); }
 			var next = forecastLine( payload.forecast );

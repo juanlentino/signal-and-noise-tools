@@ -182,9 +182,10 @@ function snt_health_summary_for_localize() {
  * shell and each calls this endpoint once, and the underlying rollup only
  * changes when the rollup cron runs.
  *
- * Fail-soft shape: an empty rollup (fresh install, table not yet created,
- * or simply no traffic in the window) returns days:[] / total:0 /
- * delta_pct:null — an honest empty state, never a warning or a hang.
+ * Fail-soft shape: an empty rollup (fresh install, or simply no traffic in
+ * the window) returns days:[] / total:0 / delta_pct:null, an honest empty
+ * state. A read that FAILED (a missing table included) is a 500, never an
+ * empty window, and is not cached (2026-10-25).
  *
  * @return WP_REST_Response|WP_Error A failed analytics read is an error, never an empty window.
  */
@@ -220,6 +221,11 @@ function snt_desktop_site_views_payload() {
 	// 15 minutes. Each read is followed by a look at the database's own error,
 	// as SN Reading and the audience rows already do.
 	$db_failed  = static fn() => function_exists( 'snt_desktop_db_failed' ) && snt_desktop_db_failed();
+	// A totals read says it failed in its own answer: the honest fields read
+	// null, and unique_visitor_days is an integer (0 included) on every read
+	// that answered. last_error alone can miss it: the reader looks up an
+	// option after its query, and on a cold cache that lookup clears it.
+	$totals_failed = static fn( $t ) => ! is_array( $t ) || null === ( $t['unique_visitor_days'] ?? null );
 	$failed     = false;
 	$fit_series = array();
 	if ( function_exists( 'sn_analytics_daily_series' ) ) {
@@ -242,12 +248,13 @@ function snt_desktop_site_views_payload() {
 		}
 	}
 
-	$total     = 0;
-	$visits    = 0;
-	$delta_pct = null;
+	$total      = 0;
+	$visits     = 0;
+	$delta_pct  = null;
+	$delta_base = null;
 	if ( function_exists( 'sn_analytics_range_totals' ) ) {
 		$this_window = sn_analytics_range_totals( $from, $today, 'human' );
-		$failed      = $failed || $db_failed();
+		$failed      = $failed || $db_failed() || $totals_failed( $this_window );
 		$total       = (int) ( $this_window['views'] ?? 0 );
 		$visits      = (int) ( $this_window['visits'] ?? 0 );
 
@@ -260,10 +267,13 @@ function snt_desktop_site_views_payload() {
 		$prior_to   = gmdate( 'Y-m-d', strtotime( $today . ' -15 days' ) );
 		$prior_from = gmdate( 'Y-m-d', strtotime( $today . ' -28 days' ) );
 		$full       = sn_analytics_range_totals( $full_from, $full_to, 'human' );
-		$failed     = $failed || $db_failed();
+		$failed     = $failed || $db_failed() || $totals_failed( $full );
 		$prior      = sn_analytics_range_totals( $prior_from, $prior_to, 'human' );
-		$failed     = $failed || $db_failed();
+		$failed     = $failed || $db_failed() || $totals_failed( $prior );
 		$delta_pct  = snt_desktop_delta_pct( (int) ( $full['views'] ?? 0 ), (int) ( $prior['views'] ?? 0 ) );
+		// The two counts the delta compares, so the card's "meaningful change"
+		// floor reads them rather than back-solving from the headline total.
+		$delta_base = array( 'current' => (int) ( $full['views'] ?? 0 ), 'prior' => (int) ( $prior['views'] ?? 0 ) );
 	}
 	if ( $failed ) {
 		// 500, never 503: Cloudflare replaces an origin 503 page. The card keeps
@@ -329,6 +339,7 @@ function snt_desktop_site_views_payload() {
 		'total'       => $total,
 		'visits'      => $visits,
 		'delta_pct'    => $delta_pct,
+		'delta_base'   => $delta_base,
 		'top_path'     => $top_path,
 		'top_paths'    => $top_paths,
 		'forecast'     => $forecast,

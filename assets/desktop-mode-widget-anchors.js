@@ -655,7 +655,12 @@
 				// 2026-10-25: a failed quiet re-read keeps the last reading and says
 				// so, as SN Systems does; it never passes for the current one.
 				if ( quiet ) {
-					render( lastOverview, 'Anchor status not re-read; showing the ' + new Date( lastOverviewAt ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) + ' reading' );
+					// Into `shown` too, so a sibling answer (machine readers, the
+					// systems re-read) that repaints after this keeps the note.
+					shown.overview = lastOverview;
+					shown.note     = 'Anchor status not re-read; showing the ' + new Date( lastOverviewAt ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } ) + ' reading';
+					shown.waiting  = false;
+					render( shown.overview, shown.note );
 					return;
 				}
 				loud          = false;
