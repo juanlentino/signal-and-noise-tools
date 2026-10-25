@@ -12,6 +12,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed (analytics, /stats and login, a defect hunt on 2026-10-25)
+- **The S&N Analytics export works again.** Its handler moved into `inc/admin-post-actions/` on 2026-08-23 and kept requiring `__DIR__ . '/analytics-export.php'`, a file that is one directory up, so every CSV or JSON export since then died on a missing file. The path is fixed, and `tests/no-dangling-requires.php` now resolves every plugin `require`/`include` against the file that holds it, so a dangling one fails the sweep.
+- **The hidden login page cannot be reached by percent-encoding its name.** `/wp-login.php` answered 404 as meant, but `/wp-login%2ephp` and `/%77p-login.php` served the real login form (checked live): the checks compared the raw path while the web server decodes it before mapping it to a file. `sn_login_request_path()` now decodes once and merges the slashes a decoded `%2F` makes, for every check that shares it (the door, the allowlist, wp-admin and core's login scripts). An encoded `?` never moves the query.
+- **/stats never lists the path of a note that is not public.** WordPress resolves only published posts from a URL, so a note unpublished, scheduled, made private or trashed resolved to nothing and its bare path, slug and all, could list under Most read. A path whose last segment names such a post or page is dropped; so is a password-protected post, which core counts as viewable.
+- **Machine readers: the feed figure is for the view's window.** The hero tile read "feed fetches, Nd" over the 30-day total at every window (7, 14, 30 and 90 days). It now reads the window it names.
+- **The remote door switch says what it did.** It answered enabled, disabled or locked by `SN_MCP_REMOTE_DISABLED`, and no notice showed any of them.
+- **SN Traffic's feed row says that 304s count since Oct 24** while its 30-day window still reaches back before that day, as the RSS screens already do; the note retires itself after 30 days.
+
 ### Changed
 - **A cron job that failed and has run fine since no longer turns the Systems card amber.** The card read every recorded failure in the last 24 hours as something to look at, so the one `prov_orphan_sweep` blip on 2026-10-25 kept it amber through hundreds of clean five-minute runs. A job whose last failure was followed by a successful run that started at least 5 seconds later now reads in the text color as "failed, ran fine since"; a job still failing stays amber and leads the headline. The 5-second margin exists because wp-cron.php records a reschedule error and then runs the job in the same request, so that run's own success proves nothing. Recovery is judged per job and its arguments, so for a per-item job (a Zenodo push, a scheduled fire) one item running fine never vouches for another that failed. The day's count of failed runs is unchanged.
 
