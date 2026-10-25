@@ -311,7 +311,10 @@ function sn_analytics_funnels_error_flash_code( array $errors_detail ) {
  */
 function sn_handle_analytics_export( $post ) {
 	if ( ! function_exists( 'sn_analytics_export_csv' ) ) {
-		require_once __DIR__ . '/analytics-export.php';
+		// inc/analytics-export.php, one directory up: this file moved into
+		// inc/admin-post-actions/ on 2026-08-23 and the path did not, so every
+		// export died on a missing file until 2026-10-25.
+		require_once dirname( __DIR__ ) . '/analytics-export.php';
 	}
 
 	$range_raw = isset( $post['sn_range'] ) ? sanitize_text_field( wp_unslash( $post['sn_range'] ) ) : '30';

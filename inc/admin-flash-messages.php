@@ -29,6 +29,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 function sn_admin_flash_messages() {
 	return array(
 		'identity_saved'            => array( 'success', 'Identity settings saved.' ),
+		// 2026-10-25: the remote door switch answered these and no notice said so.
+		'remote_enabled'            => array( 'success', 'Remote door enabled.' ),
+		'remote_disabled'           => array( 'success', 'Remote door disabled: its requests are refused until you enable it again.' ),
+		'remote_constant_locked'    => array( 'error', 'Nothing changed: SN_MCP_REMOTE_DISABLED in wp-config.php keeps the remote door off. Remove that line to use this switch.' ),
 		'digest_saved'              => array( 'success', 'Security digest settings saved.' ),
 		'digest_test_sent'          => array( 'success', 'Test digest sent to the admin email address.' ),
 		'digest_test_failed'        => array( 'error', 'Test digest failed to send: check the mail configuration (see the error note on the Login defense panel).' ),

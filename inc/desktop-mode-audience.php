@@ -147,12 +147,32 @@ function snt_desktop_traffic_groups( array $win ) {
 				// neither is the card's 14 days.
 				snt_desktop_traffic_fold( snt_desktop_traffic_search_label( $google, $bing, $gwin ), snt_desktop_audience_search_rows( $google, $bing, is_array( $gsc ) && empty( $gsc['ok'] ) ), static fn( $r ) => preg_replace( '/ · \d+d/', '', $r['label'] ) . ' ' . str_replace( ' impressions', ' impr', $r['value'] ) ),
 				// A feed table that cannot be read says so; it never reads as zero subscribers.
-				null === $rss ? array( 'label' => 'Feed', 'value' => 'could not be read' ) : snt_desktop_traffic_fold( 'Feed, unique 24h · 7d · 30d', snt_desktop_traffic_feed_rows( $rss ), static fn( $r ) => preg_replace( '/ unique · .*$/', '', $r['value'] ) ),
+				null === $rss ? array( 'label' => 'Feed', 'value' => 'could not be read' ) : snt_desktop_traffic_fold( snt_desktop_traffic_feed_label(), snt_desktop_traffic_feed_rows( $rss ), static fn( $r ) => preg_replace( '/ unique · .*$/', '', $r['value'] ) ),
 			) ) ),
 			'No views in this window.'
 		)
 	);
 	return $out;
+}
+
+/**
+ * The Feed row's label. 2026-10-25: since the day 304 replies began to count
+ * (2026-10-24, sn_rss_tracker_counts_304_since()) the figures step up, so
+ * while the 30-day window still reaches back before that day the label says
+ * so, as the RSS screens do; after that the change is in every window and
+ * the note retires itself.
+ *
+ * @param int|null $now Unix time (test seam).
+ * @return string
+ */
+function snt_desktop_traffic_feed_label( $now = null ) {
+	$label = 'Feed, unique 24h · 7d · 30d';
+	$day   = function_exists( 'sn_rss_tracker_counts_304_since' ) ? (string) sn_rss_tracker_counts_304_since() : '';
+	$since = '' === $day ? false : strtotime( $day . ' 00:00:00 UTC' );
+	if ( false === $since || ( null === $now ? time() : (int) $now ) - $since >= 30 * DAY_IN_SECONDS ) {
+		return $label;
+	}
+	return $label . ' (304s counted since ' . gmdate( 'M j', $since ) . ')';
 }
 
 /**

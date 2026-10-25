@@ -330,11 +330,38 @@ if ( function_exists( 'remove_action' ) ) {
  *
  * @since 4.14.4
  * @param string $request_uri Raw (unslashed) REQUEST_URI.
- * @return string Normalized path (may be '' if unparseable).
+ * @return string Normalized, percent-decoded path (may be '' if unparseable).
  */
 function sn_login_request_path( $request_uri ) {
 	$request_uri = '/' . ltrim( (string) $request_uri, '/' );
-	return (string) wp_parse_url( $request_uri, PHP_URL_PATH );
+	$path        = (string) wp_parse_url( $request_uri, PHP_URL_PATH );
+	// 2026-10-25: decode once, as the web server does before it maps a path to
+	// a file. /wp-login%2ephp and /%77p-login.php reached the real login form
+	// past every check here (live: 200 with the form, while /wp-login.php
+	// answered 404). Then merge the slashes a decoded %2F may have made. The
+	// path is decoded after parsing, so an encoded ? or # never moves the query.
+	if ( '' === $path ) {
+		return '';
+	}
+	$path = (string) preg_replace( '#/{2,}#', '/', rawurldecode( $path ) );
+	// Then resolve . and .. segments, as the server does: /wp-json/%2e%2e/wp-login.php
+	// was allowlisted for its /wp-json/ and served the login form (live, review on
+	// #2283). A .. never climbs above the root, so /../wp-login.php stays
+	// /wp-login.php and still 404s.
+	$out = array();
+	foreach ( explode( '/', $path ) as $seg ) {
+		if ( '..' === $seg ) {
+			if ( count( $out ) > 1 ) {
+				array_pop( $out );
+			}
+			continue;
+		}
+		if ( '.' !== $seg ) {
+			$out[] = $seg;
+		}
+	}
+	$path = implode( '/', $out );
+	return '' === $path || '/' !== $path[0] ? '/' . $path : $path;
 }
 
 /**

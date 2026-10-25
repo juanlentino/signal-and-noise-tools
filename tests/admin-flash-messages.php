@@ -290,5 +290,11 @@ foreach ( array( 'wh_added_7', 'wh_rotated_7', 'insights_failed' ) as $code ) {
 }
 fm_eq( 1, preg_match( '/Signing secret/', (string) ( sn_admin_flash_to_notice( 'wh_added_7' )[1] ?? '' ) ), 'a new webhook\'s notice names the field that holds its secret' );
 
+// Hunt 2026-10-25: every flash key the remote door switch returns has a notice.
+foreach ( array( 'remote_enabled' => 'success', 'remote_disabled' => 'success', 'remote_constant_locked' => 'error' ) as $k => $type ) {
+	$n = sn_admin_flash_to_notice( $k );
+	fm_eq( true, is_array( $n ) && $type === $n[0] && '' !== (string) $n[1], "the remote door switch's '$k' shows a $type notice" );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

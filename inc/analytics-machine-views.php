@@ -75,7 +75,11 @@ function snt_mr_view_data( $days, $evidence = false ) {
 	// résumé PDF downloads (cached an hour), null when analytics is not read.
 	$nsm             = function_exists( 'snt_nsm_reading' ) ? snt_nsm_reading() : null;
 	$d['resume_people'] = is_array( $nsm ) && ! empty( $nsm['configured'] ) ? (int) ( $nsm['layers']['intent']['resume_downloads']['value'] ?? 0 ) : null;
-	$d['hero']    = snt_mr_hero_figures( $rows, $days, isset( $feed['windows'][30]['total'] ) ? (int) $feed['windows'][30]['total'] : null, isset( $read['webmcp']['calls'] ) ? (int) $read['webmcp']['calls'] : null );
+	// The hero's feed figure is for the view's own window (2026-10-25): it was
+	// the 30-day total under a "feed fetches, Nd" label at every window. The
+	// feeds panel keeps its 7- and 30-day rows; 14 and 90 are read on their own.
+	$feed_win     = isset( $feed['windows'][ $days ] ) || ! function_exists( 'sn_rss_tracker_window_stats_multi' ) ? $feed : (array) sn_rss_tracker_window_stats_multi( array( $days ) );
+	$d['hero']    = snt_mr_hero_figures( $rows, $days, isset( $feed_win['windows'][ $days ]['total'] ) ? (int) $feed_win['windows'][ $days ]['total'] : null, isset( $read['webmcp']['calls'] ) ? (int) $read['webmcp']['calls'] : null );
 	return $d;
 }
 
