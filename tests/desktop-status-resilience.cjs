@@ -143,6 +143,19 @@ async function run() {
     x.calls[3].resolve(f.good); await flush(); await x.tick(1000000);
     assert.equal(root.textContent, ''); assert.equal(x.timers.size, 0); assert.equal(x.calls.length, 4);
   }
+  // Hunt 2026-10-25: the deploy age is aged by the card from its time, so a
+  // kept reading after a failed poll never repaints a frozen "2 minutes ago".
+  {
+    const x = harness(), root = new Element('div');
+    const stop = x.window.desktopModeWidgets['sn-deploy-status'](root); await flush();
+    const at = new Date(Date.parse('2026-09-08T12:00:00Z') - 2 * 60000).toISOString();
+    x.calls[0].resolve({theme: {current: '1', state: 'ok'}, plugin: {current: '2', state: 'ok'}, last_deploy: '2 mins ago', last_deploy_component: 'Plugin', last_deploy_at: at}); await flush();
+    assert.match(root.textContent, /Last deploy: Plugin · 2 min ago/, 'the age comes from the time the site sent');
+    await x.tick(60000);
+    x.calls[1].reject(new Error('network')); await flush();
+    assert.match(root.textContent, /Last deploy: Plugin · 3 min ago/, 'a kept reading ages the line, it does not freeze it');
+    stop();
+  }
   // Contract 13: the Core row paints beside theme/plugin, same glyph vocabulary.
   {
     const x = harness(), root = new Element('div');

@@ -215,7 +215,9 @@
 		} );
 		// v12.13.0: the line names its package. Theme and plugin only: they
 		// install through the WP upgrader and the feed behind it records them.
-		var deployAge  = status.last_deploy || 'unknown';
+		// 2026-10-25: aged here from its time when the site sends one, so a kept
+		// reading after a failed poll never shows a frozen "2 minutes ago".
+		var deployAge  = status.last_deploy_at && isFinite( Date.parse( status.last_deploy_at ) ) ? agoWords( status.last_deploy_at ) : ( status.last_deploy || 'unknown' );
 		var deployWhat = status.last_deploy_component || '';
 		deployLine( site.box, deployWhat ? 'Last deploy: ' + deployWhat + ' · ' + deployAge : 'Last deploy: ' + deployAge, 'Theme and plugin only, from the WordPress upgrader\'s record. The workers have their own line.' );
 
