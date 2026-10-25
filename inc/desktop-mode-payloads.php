@@ -251,12 +251,19 @@ function snt_desktop_site_views_payload() {
 		$total       = (int) ( $this_window['views'] ?? 0 );
 		$visits      = (int) ( $this_window['visits'] ?? 0 );
 
-		// Prior 14-day window, for the week-over-week style delta.
-		$prior_to   = gmdate( 'Y-m-d', strtotime( $from . ' -1 day' ) );
-		$prior_from = gmdate( 'Y-m-d', strtotime( $from . ' -14 days' ) );
+		// The delta compares FULL days (2026-10-25): the 14 days through
+		// yesterday against the 14 before. The headline window ends with today,
+		// still filling in, and set against 14 full days it read 4 to 7 percent
+		// low on flat traffic.
+		$full_to    = gmdate( 'Y-m-d', strtotime( $today . ' -1 day' ) );
+		$full_from  = gmdate( 'Y-m-d', strtotime( $today . ' -14 days' ) );
+		$prior_to   = gmdate( 'Y-m-d', strtotime( $today . ' -15 days' ) );
+		$prior_from = gmdate( 'Y-m-d', strtotime( $today . ' -28 days' ) );
+		$full       = sn_analytics_range_totals( $full_from, $full_to, 'human' );
+		$failed     = $failed || $db_failed();
 		$prior      = sn_analytics_range_totals( $prior_from, $prior_to, 'human' );
 		$failed     = $failed || $db_failed();
-		$delta_pct  = snt_desktop_delta_pct( $total, (int) ( $prior['views'] ?? 0 ) );
+		$delta_pct  = snt_desktop_delta_pct( (int) ( $full['views'] ?? 0 ), (int) ( $prior['views'] ?? 0 ) );
 	}
 	if ( $failed ) {
 		// 500, never 503: Cloudflare replaces an origin 503 page. The card keeps
@@ -316,6 +323,9 @@ function snt_desktop_site_views_payload() {
 
 	$payload = array(
 		'days'        => $days,
+		// The window the days fall in (2026-10-25): the card places each day at
+		// its date, so a day with no row reads as a gap, not as squeezed-out time.
+		'window'      => array( 'from' => $from, 'to' => $today ),
 		'total'       => $total,
 		'visits'      => $visits,
 		'delta_pct'    => $delta_pct,

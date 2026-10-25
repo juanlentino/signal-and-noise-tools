@@ -50,7 +50,7 @@ ok( isset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27_' . SNT_VERSION]['gro
 
 // ── Hunt 2026-10-25: a failed read is an error, never "No views", and is not cached ──
 function sn_analytics_daily_series() { return array(); }
-function sn_analytics_range_totals() { return array( 'views' => 0, 'visits' => 0 ); }
+function sn_analytics_range_totals( $from = '', $to = '' ) { return array( 'views' => (int) ( $GLOBALS['__totals'][ $from . '|' . $to ] ?? 0 ), 'visits' => 0 ); }
 function snt_desktop_db_failed() { return ! empty( $GLOBALS['__dbfail'] ); }
 class WP_Error { public $code; public $data; public function __construct( $c = '', $m = '', $d = null ) { $this->code = $c; $this->data = $d; } public function get_error_data() { return $this->data; } }
 unset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27_' . SNT_VERSION] );
@@ -61,6 +61,16 @@ ok( ! isset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27_' . SNT_VERSION] ),
 $GLOBALS['__dbfail'] = false;
 $res = snt_desktop_site_views_payload();
 ok( $res instanceof WP_REST_Response && 0 === ( $res->data['total'] ?? null ), 'a read that answered with no rows is still an honest empty window' );
+// The delta compares full days: 14 through yesterday against the 14 before.
+// Flat at 10 a day, with today at 5 so far: the headline window holds 135 and
+// the old comparison read it as 3.6 percent down.
+$GLOBALS['__totals'] = array( '2026-09-14|2026-09-27' => 135, '2026-09-13|2026-09-26' => 140, '2026-08-30|2026-09-12' => 140 );
+unset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27_' . SNT_VERSION] );
+$res = snt_desktop_site_views_payload()->data;
+ok( 135 === ( $res['total'] ?? null ), 'the headline is still the 14 days through today' );
+ok( 0.0 === (float) ( $res['delta_pct'] ?? -1 ), 'flat traffic reads flat: the delta compares 14 full days with the 14 before, not a partial today' );
+ok( array( 'from' => '2026-09-14', 'to' => '2026-09-27' ) === ( $res['window'] ?? null ), 'the payload names the window its days fall in' );
+$GLOBALS['__totals'] = array();
 
 // ── The rendered rows (node, the real widget file) ──
 $node = trim( (string) shell_exec( 'command -v node' ) );
@@ -200,6 +210,16 @@ if ( '' === $node ) {
 	ok( 1 === $out['links'] && 'Open Analytics' === $out['link']['text'] && 'Open Analytics, from the SN Traffic widget' === $out['link']['name'] && true === $out['link']['arrowHidden'], 'exactly one footer link, Open Analytics, its name starting with the visible words and the arrow hidden' );
 	ok( 'status' === $out['bodyRole'] && 4 === count( array_filter( $out['roles'], static fn( $r ) => 'heading' === $r ) ), 'the body is a status region and each group title (This week, two groups, Top pages) is a heading' );
 	ok( count( array_filter( $out['roles'], static fn( $r ) => 'list' === $r ) ) >= 3, 'rows are lists (today, each group with rows, top pages)' );
+
+	// Hunt 2026-10-25: each day sits at its date; a day with no row breaks the line.
+	$win  = array( 'from' => '2026-09-14', 'to' => '2026-09-27' );
+	$gap  = array( array( 'date' => '2026-09-14', 'views' => 4 ), array( 'date' => '2026-09-15', 'views' => 8 ), array( 'date' => '2026-09-17', 'views' => 6 ), array( 'date' => '2026-09-27', 'views' => 2 ) );
+	$l    = $render( array( 'days' => $gap, 'window' => $win ), true )['lines'] ?? array();
+	ok( 3 === count( $l ), 'a missing day breaks the line: three runs (14-15, 17, 27), never one line across the gaps' );
+	ok( isset( $l[2] ) && 0 === strpos( $l[2], '218.0,' ), 'the last day of the window sits at the right edge, by its date' );
+	ok( isset( $l[1] ) && 1 === preg_match( '/^(\S+) \1$/', $l[1] ), 'a lone day is drawn as a dot, not a zero-length line' );
+	$old  = $render( array( 'days' => $gap ), true )['lines'] ?? array();
+	ok( 1 === count( $old ), 'an older payload without the window keeps the one line spaced by position' );
 }
 
 echo "\n$pass passed, $fail failed\n";

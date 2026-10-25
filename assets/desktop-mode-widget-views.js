@@ -72,7 +72,7 @@
 	 * Inline SVG sparkline. Built with createElementNS (no innerHTML) so
 	 * nothing user-controlled can reach the DOM as markup.
 	 */
-	function sparkline( days ) {
+	function sparkline( days, win ) {
 		var W = 220, H = 40, PAD = 2;
 		var svg = document.createElementNS( 'http://www.w3.org/2000/svg', 'svg' );
 		svg.setAttribute( 'viewBox', '0 0 ' + W + ' ' + H );
@@ -87,22 +87,40 @@
 		// A flat-zero window would divide by zero below; bail to a baseline.
 		if ( max <= 0 || days.length < 2 ) { return svg; }
 
-		var step = ( W - PAD * 2 ) / ( days.length - 1 );
-		var pts  = [];
+		// 2026-10-25: with the window, each day sits at its date and a day with
+		// no row breaks the line (a gap stays a gap). Without it (an older
+		// payload), the days are spaced by position as before.
+		var DAY  = 86400000;
+		var from = win && win.from ? Date.parse( win.from + 'T00:00:00Z' ) : NaN;
+		var to   = win && win.to ? Date.parse( win.to + 'T00:00:00Z' ) : NaN;
+		var span = isFinite( from ) && isFinite( to ) && to > from ? Math.round( ( to - from ) / DAY ) : 0;
+		var slot = function( k ) {
+			if ( ! span ) { return k; }
+			var t = Date.parse( String( days[ k ].date ) + 'T00:00:00Z' );
+			return isFinite( t ) ? Math.round( ( t - from ) / DAY ) : -1;
+		};
+		var step = ( W - PAD * 2 ) / ( span || days.length - 1 );
+		var runs = [ [] ], prev = null;
 		for ( i = 0; i < days.length; i++ ) {
-			var x = PAD + i * step;
+			var at = slot( i );
+			if ( at < 0 || ( span && at > span ) ) { continue; }
+			if ( null !== prev && at !== prev + 1 && runs[ runs.length - 1 ].length ) { runs.push( [] ); }
+			prev = at;
 			var y = H - PAD - ( days[ i ].views / max ) * ( H - PAD * 2 );
-			pts.push( x.toFixed( 1 ) + ',' + y.toFixed( 1 ) );
+			runs[ runs.length - 1 ].push( ( PAD + at * step ).toFixed( 1 ) + ',' + y.toFixed( 1 ) );
 		}
-
-		var poly = document.createElementNS( 'http://www.w3.org/2000/svg', 'polyline' );
-		poly.setAttribute( 'points', pts.join( ' ' ) );
-		poly.setAttribute( 'fill', 'none' );
-		poly.setAttribute( 'stroke', 'currentColor' );
-		poly.setAttribute( 'stroke-width', '1.5' );
-		poly.setAttribute( 'stroke-linejoin', 'round' );
-		poly.setAttribute( 'stroke-linecap', 'round' );
-		svg.appendChild( poly );
+		runs.forEach( function( pts ) {
+			if ( ! pts.length ) { return; }
+			// A lone day between two gaps is a dot, not an invisible zero-length line.
+			var poly = document.createElementNS( 'http://www.w3.org/2000/svg', 'polyline' );
+			poly.setAttribute( 'points', 1 === pts.length ? pts[0] + ' ' + pts[0] : pts.join( ' ' ) );
+			poly.setAttribute( 'fill', 'none' );
+			poly.setAttribute( 'stroke', 'currentColor' );
+			poly.setAttribute( 'stroke-width', '1.5' );
+			poly.setAttribute( 'stroke-linejoin', 'round' );
+			poly.setAttribute( 'stroke-linecap', 'round' );
+			svg.appendChild( poly );
+		} );
 		return svg;
 	}
 
@@ -157,6 +175,8 @@
 		var prior = typeof total === 'number' && pct > -100 ? total / ( 1 + pct / 100 ) : 0;
 		var node = el( 'div', {
 			text: deltaText( pct, '%' ) + ' vs. prior 14 days',
+			// 2026-10-25: the delta compares full days, so today's partial count never pulls it down.
+			title: 'The 14 full days through yesterday against the 14 days before them. Today is still filling in, so it is left out of the comparison.',
 			style: 'font-size:11px;font-weight:600;color:' + ( mostlyAutomated( la ) ? MUTED : deltaColor( pct, total - prior, pct, false ) ) + ';'
 		} );
 		return node;
@@ -495,7 +515,7 @@
 			// to its own #3b82f6 (see the palette note in widget-health.js). The
 			// fallback is the plugin's own blue.
 			var chart = el( 'div', { style: 'color:var(--os-ui-color-accent, #4a9eff);margin:4px 0 6px;' } );
-			chart.appendChild( sparkline( payload.days ) );
+			chart.appendChild( sparkline( payload.days, payload.window ) );
 			body.appendChild( chart );
 
 			body.appendChild( deltaLine( payload.delta_pct, payload.total, payload.likely_automated ) );
