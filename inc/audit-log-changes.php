@@ -54,8 +54,35 @@ function snt_audit_record_change_impl( $kind, $subject, $detail = '', $high = fa
 		'detail'  => (string) $detail,
 		'high'    => (bool) $high,
 	);
-	$blob['changes'] = array_slice( $rows, -SN_AUDIT_CHANGES_CAP );
+	$blob['changes'] = snt_audit_trim_changes( $rows, SN_AUDIT_CHANGES_CAP );
 	update_option( SN_AUDIT_OPTION, $blob, true );
+}
+
+/**
+ * Trim the list to the cap, oldest first, but refused app-password rows go
+ * before any real change does (2026-10-24): a spray of bad Basic-auth logins
+ * writes up to one row per reason per day, and must never push a genuine
+ * change out of the list. PURE.
+ *
+ * @param array $rows Rows, oldest first.
+ * @param int   $cap  Rows to keep.
+ * @return array
+ */
+function snt_audit_trim_changes( array $rows, $cap ) {
+	$over = count( $rows ) - (int) $cap;
+	if ( $over <= 0 ) {
+		return $rows;
+	}
+	foreach ( $rows as $i => $row ) {
+		if ( $over <= 0 ) {
+			break;
+		}
+		if ( ! snt_audit_is_change_row( $row ) ) {
+			unset( $rows[ $i ] );
+			--$over;
+		}
+	}
+	return array_slice( array_values( $rows ), -(int) $cap );
 }
 
 /**

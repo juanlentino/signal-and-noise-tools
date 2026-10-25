@@ -153,5 +153,17 @@ $finding = snt_audit_log_changes_finding( array( $mixed[0], $mixed[1] ) );
 ok( false === strpos( $finding, 'changes in the window' ) && false !== strpos( $finding, 'No account or site change' ), 'refusal rows alone are no changes: ' . $finding );
 ok( false === snt_audit_is_change_row( $mixed[0] ) && true === snt_audit_is_change_row( $mixed[2] ), 'one predicate says which rows are changes (the digest uses it too)' );
 
+echo "\nOver the cap, refusal rows go first\n";
+$rows = array();
+for ( $n = 0; $n < 5; $n++ ) { $rows[] = array( 'ts' => $n, 'kind' => 'role_change', 'subject' => 'u' . $n ); }
+for ( $n = 0; $n < 4; $n++ ) { $rows[] = array( 'ts' => 10 + $n, 'kind' => 'app_password_failed', 'subject' => 'x' ); }
+$rows[] = array( 'ts' => 20, 'kind' => 'plugin_activated', 'subject' => 'p' );
+$kept = snt_audit_trim_changes( $rows, 7 );
+ok( 7 === count( $kept ), 'trims to the cap' );
+ok( 6 === count( array_filter( $kept, 'snt_audit_is_change_row' ) ), 'all six real changes survive; the three dropped rows are refusals' );
+ok( 0 === $kept[0]['ts'] && 20 === end( $kept )['ts'], 'order is kept: oldest change first, newest last' );
+$only = snt_audit_trim_changes( array_slice( $rows, 0, 5 ), 3 );
+ok( array( 2, 3, 4 ) === array_column( $only, 'ts' ), 'with no refusal rows to drop, the oldest changes go, as before' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
