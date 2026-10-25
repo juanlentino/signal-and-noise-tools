@@ -151,6 +151,28 @@ ok( array( 'hook' => 'sn_daily' ) === $hist->last_call_args(), 'cron_history dis
 $up = $GLOBALS['__abilities'][ $expected_map['uptime'] ];
 ok( array() === $up->last_call_args(), 'no-arg sections dispatch with an empty args array — hook never leaks into them' );
 
+// ─── The singles' inputs (2026-10-24): each reaches only the source that declares it ───
+foreach ( array( 'deploy', 'uptime', 'cron_scheduled', 'cron_history', 'anchor' ) as $s ) {
+	$GLOBALS['__abilities'][ $expected_map[ $s ] ] = new SN_Test_Fact_Ability( true, array( 's' => $s ) );
+}
+$all = array( 'sections' => array( 'deploy', 'uptime', 'cron_scheduled', 'cron_history', 'anchor' ), 'hook' => 'sn_daily', 'limit' => 50, 'sn_only' => true, 'force_refresh' => true, 'detail' => true );
+$r   = snt_ability_sn_status( $all );
+$got = static fn( $s ) => $GLOBALS['__abilities'][ $expected_map[ $s ] ]->last_call_args();
+ok( ! is_wp_error( $r ), 'a request carrying every optional input succeeds' );
+ok( array( 'force_refresh' => true ) === $got( 'deploy' ), 'deploy gets force_refresh alone (the get-deploy-status refresh)' );
+ok( array( 'force_refresh' => true, 'detail' => true ) === $got( 'uptime' ), 'uptime gets force_refresh and detail' );
+ok( array( 'hook' => 'sn_daily', 'sn_only' => true ) === $got( 'cron_scheduled' ), 'cron_scheduled gets hook and sn_only (the list-cron-events filters)' );
+ok( array( 'hook' => 'sn_daily', 'limit' => 50 ) === $got( 'cron_history' ), 'cron_history gets hook and limit' );
+ok( array() === $got( 'anchor' ), 'a section whose source takes no input gets none of them' );
+$r = snt_ability_sn_status( array( 'sections' => array( 'deploy', 'uptime', 'cron_scheduled' ) ) );
+ok( array() === $got( 'deploy' ) && array() === $got( 'uptime' ) && array() === $got( 'cron_scheduled' ), 'unset inputs are not forwarded: a bare request dispatches exactly as before' );
+$r = snt_ability_sn_status( array( 'sections' => array( 'deploy' ), 'force_refresh' => false ) );
+ok( array( 'force_refresh' => false ) === $got( 'deploy' ), 'an explicit false is forwarded as false, not dropped' );
+$reg_props = $GLOBALS['__registered']['signal-noise/sn-status']['input_schema']['properties'] ?? array();
+ok( array( 'sections', 'hook', 'force_refresh', 'detail', 'sn_only', 'limit' ) === array_keys( $reg_props ), 'the schema declares the five optional inputs beside sections' );
+ok( 1 === ( $reg_props['limit']['minimum'] ?? 0 ) && 100 === ( $reg_props['limit']['maximum'] ?? 0 ), 'limit carries the source\'s 1 to 100 bounds' );
+$GLOBALS['__abilities'][ $expected_map['uptime'] ] = $up; // the degradation pins below read its payload
+
 // ─── Degradation: one refused source degrades ONE section, the rest return ───
 $GLOBALS['__abilities'][ $expected_map['anchor'] ] = new SN_Test_Fact_Ability( false, array( 'x' => 1 ) );
 $GLOBALS['__abilities'][ $expected_map['cadence'] ] = new SN_Test_Fact_Ability( true, new WP_Error( 'boom', 'db gone' ) );

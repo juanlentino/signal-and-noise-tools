@@ -97,7 +97,8 @@ function sn_mcp_allowlist() {
 		// The 2026-09-27 read (sn-site-facts{tool_telemetry}, 30 days) found
 		// agents still on most singles, so only the four with 0-2 read-door
 		// calls go now; the other eight wait for the re-read (watch
-		// wave4_telemetry, due 2026-10-25) after the scheduled reads move.
+		// wave4_telemetry). The 2026-10-24 read retired none: sn-status
+		// lacked the singles' inputs until then; re-read due 2026-11-25.
 		//   ai-cache-probe-status -> sn-status{ai_cache_probe}   (0 calls)
 		//   cadence-flags         -> sn-status{cadence}          (1)
 		//   get-rss-stats         -> sn-metrics{rss_stats}       (1)

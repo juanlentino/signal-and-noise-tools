@@ -45,7 +45,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-status', array(
 		'label'               => 'Batch-read operational status (consolidated)',
-		'description'         => 'One coherent answer to "what is the site\'s operational state?" — a sectioned batch over the ten narrow status reads: uptime (Better Stack readout), deploy (worker/plugin/theme deploy state), health_scan (last cached content-health summary; null when no scan has run), anchor (provenance OTS anchoring state), provenance_integrity (ledger integrity readout), ipv6_criterion (the pre-committed login-defense gauge: share_pct, measured_days, window_complete, and a named decision), ai_cache_probe (whether Anthropic prompt caching would pay, from recorded calls), cadence (publish + cron rhythm deviations), cron_scheduled (currently scheduled cron events), and cron_history (recorded firings of ONE hook — `hook` is REQUIRED input when this section is requested, because the source ability has no all-hooks default; 400 if missing, ignored by every other section). The map also carries later sections, among them recompute (the analytics history recompute: state, stalled, cursor, the unit a partial run died in). Pass the subset you need in `sections`; each entry in the returned map carries its source ability\'s exact payload shape — this tool never reshapes, so answers match the narrow tools byte-for-byte. If a source is unregistered or refuses, that ONE section degrades to {error:"unavailable"} while the rest still return. The call only fails as a whole on invalid input (empty/unknown sections, or the missing cron_history hook).',
+		'description'         => 'One coherent answer to "what is the site\'s operational state?" — a sectioned batch over the ten narrow status reads: uptime (Better Stack readout), deploy (worker/plugin/theme deploy state), health_scan (last cached content-health summary; null when no scan has run), anchor (provenance OTS anchoring state), provenance_integrity (ledger integrity readout), ipv6_criterion (the pre-committed login-defense gauge: share_pct, measured_days, window_complete, and a named decision), ai_cache_probe (whether Anthropic prompt caching would pay, from recorded calls), cadence (publish + cron rhythm deviations), cron_scheduled (currently scheduled cron events), and cron_history (recorded firings of ONE hook — `hook` is REQUIRED input when this section is requested, because the source ability has no all-hooks default; 400 if missing). The narrow tools\' inputs reach their sections: force_refresh (deploy and uptime: refetch instead of the cached read), detail (uptime: the full monitor payload), hook (cron_history, and narrows cron_scheduled to that hook), sn_only (cron_scheduled: SN-owned hooks only) and limit (cron_history: rows, 1 to 100). Every other section ignores them. The map also carries later sections, among them recompute (the analytics history recompute: state, stalled, cursor, the unit a partial run died in). Pass the subset you need in `sections`; each entry in the returned map carries its source ability\'s exact payload shape — this tool never reshapes, so answers match the narrow tools byte-for-byte. If a source is unregistered or refuses, that ONE section degrades to {error:"unavailable"} while the rest still return. The call only fails as a whole on invalid input (empty/unknown sections, or the missing cron_history hook).',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_status',
@@ -53,7 +53,7 @@ add_action( 'wp_abilities_api_init', function() {
 			'type'                 => 'object', // 'sections' is required — no bodyless-GET null union (sn-site-facts precedent).
 			'required'             => array( 'sections' ),
 			'properties'           => array(
-				'sections' => array(
+				'sections'      => array(
 					'type'     => 'array',
 					'items'    => array(
 						'type' => 'string',
@@ -61,9 +61,28 @@ add_action( 'wp_abilities_api_init', function() {
 					),
 					'minItems' => 1,
 				),
-				'hook'     => array(
+				'hook'          => array(
 					'type'        => 'string',
-					'description' => 'Required when sections includes cron_history (400 if missing or blank). Ignored by every other section.',
+					'description' => 'Required when sections includes cron_history (400 if missing or blank). Also narrows cron_scheduled to this hook. Ignored by every other section.',
+				),
+				// 2026-10-24: the singles' own inputs, so a caller never falls back to one.
+				'force_refresh' => array(
+					'type'        => 'boolean',
+					'description' => 'deploy and uptime: clear their caches and read fresh, as get-deploy-status and uptime-status do. Ignored by every other section.',
+				),
+				'detail'        => array(
+					'type'        => 'boolean',
+					'description' => 'uptime: the full monitor payload (availability windows, response times, incidents). Ignored by every other section.',
+				),
+				'sn_only'       => array(
+					'type'        => 'boolean',
+					'description' => 'cron_scheduled: SN-owned hooks only. Ignored by every other section.',
+				),
+				'limit'         => array(
+					'type'        => 'integer',
+					'minimum'     => 1,
+					'maximum'     => 100,
+					'description' => 'cron_history: rows to return, newest first (the source defaults to 10). Ignored by every other section.',
 				),
 			),
 			'additionalProperties' => false,
@@ -158,7 +177,7 @@ function snt_sn_status_map() {
 /**
  * Ability execute callback: signal-noise/sn-status.
  *
- * @param array|null $input { sections: string[], hook?: string }.
+ * @param array|null $input { sections: string[], hook?: string, limit?: int, sn_only?: bool, force_refresh?: bool, detail?: bool }.
  * @return array{ok:bool,sections:array}|WP_Error
  */
 function snt_ability_sn_status( $input ) {
@@ -191,9 +210,28 @@ function snt_ability_sn_status( $input ) {
 		);
 	}
 
+	// Each input reaches only the sources whose schemas declare it, and only
+	// when the caller set it, so a bare request dispatches exactly as before.
+	$given = array_filter(
+		array(
+			'hook'          => '' !== $hook ? $hook : null,
+			'limit'         => isset( $input['limit'] ) ? (int) $input['limit'] : null,
+			'sn_only'       => isset( $input['sn_only'] ) ? (bool) $input['sn_only'] : null,
+			'force_refresh' => isset( $input['force_refresh'] ) ? (bool) $input['force_refresh'] : null,
+			'detail'        => isset( $input['detail'] ) ? (bool) $input['detail'] : null,
+		),
+		static fn( $v ) => null !== $v
+	);
+	$takes = array(
+		'deploy'         => array( 'force_refresh' ),
+		'uptime'         => array( 'force_refresh', 'detail' ),
+		'cron_scheduled' => array( 'hook', 'sn_only' ),
+		'cron_history'   => array( 'hook', 'limit' ),
+	);
+
 	$out = array();
 	foreach ( $sections as $section ) {
-		$args = ( 'cron_history' === $section ) ? array( 'hook' => $hook ) : array();
+		$args = array_intersect_key( $given, array_flip( $takes[ $section ] ?? array() ) );
 		$out[ $section ] = snt_sn_site_facts_dispatch( $map[ $section ], $args );
 	}
 
