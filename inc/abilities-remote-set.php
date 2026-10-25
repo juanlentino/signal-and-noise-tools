@@ -126,9 +126,10 @@ function snt_ability_perm_remote_rss_stats() {
 function snt_ability_remote_get_deploy_status( $input = null ) {
 	$out = snt_ability_get_deploy_status( null );
 	if ( is_array( $out ) ) {
-		// last_worker_deploy stays on the local door: adding it here would change
-		// the remote contract (and its pinned shape hash) for a field no device needs.
-		unset( $out['runtime'], $out['last_worker_deploy'] );
+		// last_worker_deploy and last_deploy_at (2026-10-25) stay on the local
+		// door: adding them here would change the remote contract (and its pinned
+		// shape hash) for fields no device needs.
+		unset( $out['runtime'], $out['last_worker_deploy'], $out['last_deploy_at'] );
 	}
 	return $out;
 }
