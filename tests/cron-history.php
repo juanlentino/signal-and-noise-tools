@@ -54,7 +54,12 @@ function update_option( $key, $value, $autoload = null ) {
 	return true;
 }
 
-function _get_cron_array() { return $GLOBALS['__test_cron'] ?? array(); }
+// The process cache, which the settled check must NOT trust: it can hold the
+// list from before the other runner saved. The stored row is __test_cron.
+function _get_cron_array() { return $GLOBALS['__test_cron_cache'] ?? array(); }
+if ( ! function_exists( 'maybe_unserialize' ) ) {
+	function maybe_unserialize( $v ) { return is_string( $v ) && '' !== $v ? @unserialize( $v ) : $v; }
+}
 function current_action() {
 	return isset( $GLOBALS['__test_current_action'] ) ? $GLOBALS['__test_current_action'] : '';
 }
@@ -69,6 +74,12 @@ class WP_Error {
 // ─── wpdb stub ────────────────────────────────────────────────────────
 class Stub_wpdb {
 	public $prefix = 'wp_';
+	public $options = 'wp_options';
+
+	public function get_var( $query ) {
+		// The stored cron row (the settled check reads it uncached).
+		return false !== strpos( $query, "option_name = 'cron'" ) ? serialize( $GLOBALS['__test_cron'] ?? array() ) : null;
+	}
 	public $last_error = '';
 	public $rows = array(); // table => array of row arrays
 	private $auto_id = 1;
@@ -362,6 +373,14 @@ if ( is_callable( $resched ) && is_callable( $unsched ) ) {
 	$GLOBALS['__test_cron'] = array( time() + 295 => array( 'sn_other_args' => array( md5( serialize( array( 9 ) ) ) => array() ) ) );
 	call_user_func( $resched, $nset(), 'sn_other_args', array( 'schedule' => 'sn_five_minutes', 'args' => array(), 'interval' => 300 ) );
 	ch_assert_eq( 1, $rows( 'sn_other_args' ), 'a future copy with other args does not settle it' );
+
+	// The reviewer's case: this runner cached the options before the other one
+	// saved, so its cache has no future copy while the stored row does.
+	$GLOBALS['__test_cron_cache'] = array( time() - 5 => array( 'sn_stale_cache' => array( $sig => array() ) ) );
+	$GLOBALS['__test_cron']       = array( time() + 295 => array( 'sn_stale_cache' => array( $sig => array() ) ) );
+	call_user_func( $resched, $nset(), 'sn_stale_cache', array( 'schedule' => 'sn_five_minutes', 'args' => array(), 'interval' => 300 ) );
+	ch_assert_eq( 0, $rows( 'sn_stale_cache' ), 'a stale process cache does not matter: the stored row decides' );
+	$GLOBALS['__test_cron_cache'] = array();
 	$GLOBALS['__test_cron'] = array();
 }
 

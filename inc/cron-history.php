@@ -279,8 +279,10 @@ function snt_cron_history_event_error_cb( $error, $hook, $event = array() ) {
 /**
  * Whether the cron list already holds what a failed save meant to write:
  * after a reschedule, a copy of the event in the future; after an
- * unschedule, no due copy left. Read from this process's view of the list,
- * which is the one update_option() compared against.
+ * unschedule, no due copy left. Read from the stored row, not this process's
+ * cache: a runner that cached the options before the other one saved would
+ * otherwise still see the old list, and a write that really failed leaves
+ * the old list in the row too.
  *
  * @param string $hook The event's hook.
  * @param array  $args The event's args.
@@ -288,15 +290,21 @@ function snt_cron_history_event_error_cb( $error, $hook, $event = array() ) {
  * @return bool
  */
 function snt_cron_history_event_settled( $hook, array $args, $step ) {
-	if ( ! function_exists( '_get_cron_array' ) ) {
+	global $wpdb;
+	if ( ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_var' ) ) {
+		return false;
+	}
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- the uncached row is the point
+	$list = maybe_unserialize( (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'cron' ) ) );
+	if ( ! is_array( $list ) ) {
 		return false;
 	}
 	$key    = md5( serialize( $args ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- core's own event key
 	$now    = time();
 	$future = false;
 	$due    = false;
-	foreach ( (array) _get_cron_array() as $ts => $hooks ) {
-		if ( ! isset( $hooks[ $hook ][ $key ] ) ) {
+	foreach ( $list as $ts => $hooks ) {
+		if ( ! is_array( $hooks ) || ! isset( $hooks[ $hook ][ $key ] ) ) {
 			continue;
 		}
 		if ( (int) $ts > $now ) {
