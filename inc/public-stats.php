@@ -369,6 +369,38 @@ function sn_public_stats_data() {
 }
 
 /**
+ * Whether a path's last segment is the slug of a post or page that is not
+ * public: a draft, pending, scheduled, private or trashed one (trash renames
+ * the slug to slug__trashed). Read with suppress_filters, so a plugin's query
+ * filter cannot hide one.
+ *
+ * @param string $path Site-relative path.
+ * @return bool
+ */
+function sn_public_stats_path_names_hidden_post( $path ) {
+	$slug = basename( rtrim( (string) $path, '/' ) );
+	if ( '' === $slug || ! function_exists( 'get_posts' ) ) {
+		return false;
+	}
+	foreach ( array( $slug, $slug . '__trashed' ) as $name ) {
+		$hit = get_posts(
+			array(
+				'name'             => $name,
+				'post_type'        => array( 'post', 'page' ),
+				'post_status'      => array( 'draft', 'pending', 'future', 'private', 'trash' ),
+				'numberposts'      => 1,
+				'fields'           => 'ids',
+				'suppress_filters' => true,
+			)
+		);
+		if ( ! empty( $hit ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * A path's public label: the published page's own title when the path
  * resolves to one, the path itself otherwise — never a dead guess. '' when
  * the path resolves to a post that is not publicly viewable (a draft, a
@@ -391,6 +423,11 @@ function sn_public_stats_path_label( $path ) {
 			if ( ! function_exists( 'is_post_publicly_viewable' ) || ! is_post_publicly_viewable( $post_id ) ) {
 				return '';
 			}
+			// Core counts a password-protected post as publicly viewable; this
+			// page does not (2026-10-25).
+			if ( function_exists( 'get_post_field' ) && '' !== (string) get_post_field( 'post_password', $post_id ) ) {
+				return '';
+			}
 			$title = (string) get_the_title( $post_id );
 			if ( '' !== $title ) {
 				return $title;
@@ -405,6 +442,13 @@ function sn_public_stats_path_label( $path ) {
 				return $title;
 			}
 		}
+	}
+	// 2026-10-25: url_to_postid() resolves published posts only, so a note
+	// unpublished, scheduled, made private or trashed resolved to 0 and its
+	// bare path, which carries the slug, fell through to the list. A path
+	// whose last segment names such a post is dropped.
+	if ( sn_public_stats_path_names_hidden_post( $path ) ) {
+		return '';
 	}
 	return $path;
 }

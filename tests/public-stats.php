@@ -46,6 +46,11 @@ function get_the_title( $id ) { return 77 === (int) $id ? 'Alpha & the <Signal>'
 $GLOBALS['__not_public'] = array();
 function is_post_publicly_viewable( $id ) { return ! in_array( (int) $id, $GLOBALS['__not_public'], true ); }
 function get_permalink( $id ) { return 12 === (int) $id ? 'https://example.com/notes/' : ''; }
+// Hunt 2026-10-25: non-public slugs (by name, as WP_Query matches) and post passwords.
+$GLOBALS['__hidden_slugs'] = array();
+$GLOBALS['__pw']           = array();
+function get_posts( $a ) { return in_array( (string) ( $a['name'] ?? '' ), $GLOBALS['__hidden_slugs'], true ) && array( 'draft', 'pending', 'future', 'private', 'trash' ) === ( $a['post_status'] ?? null ) && ! empty( $a['suppress_filters'] ) ? array( 99 ) : array(); }
+function get_post_field( $f, $id ) { return 'post_password' === $f ? (string) ( $GLOBALS['__pw'][ (int) $id ] ?? '' ) : ''; }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 
 // The rollup read layer — counting stubs, fixture-driven.
@@ -185,6 +190,21 @@ ok( false === strpos( $hidden, 'Alpha &amp; the' ) && false === strpos( $hidden,
 ok( false !== strpos( $hidden, '/notes/beta/' ), '...while the other rows still render' );
 $GLOBALS['__not_public'] = array();
 ok( 'Alpha & the <Signal>' === sn_public_stats_path_label( '/notes/alpha/' ), 'control: once public, the title is the label again' );
+// Hunt 2026-10-25: url_to_postid() resolves published posts only, so a note
+// taken out of publish resolved to 0 and its bare path, slug and all, listed.
+$GLOBALS['__hidden_slugs'] = array( 'beta' );
+ok( '' === sn_public_stats_path_label( '/notes/beta/' ), 'a path naming a draft, scheduled, private or pending post is dropped, not listed as its bare path' );
+$GLOBALS['__hidden_slugs'] = array( 'beta__trashed' );
+ok( '' === sn_public_stats_path_label( '/notes/beta/' ), 'a trashed post (slug renamed to slug__trashed) is dropped too' );
+$GLOBALS['__hidden_slugs'] = array( 'notes' );
+$GLOBALS['__options']['page_for_posts'] = 12;
+ok( 'Notes' === sn_public_stats_path_label( '/notes/' ), 'the posts page still reads by its title: the hidden-slug check runs after it' );
+unset( $GLOBALS['__options']['page_for_posts'] );
+$GLOBALS['__hidden_slugs'] = array();
+ok( '/notes/beta/' === sn_public_stats_path_label( '/notes/beta/' ), 'control: a path naming no hidden post still reads as itself' );
+$GLOBALS['__pw'] = array( 77 => 'secret' );
+ok( '' === sn_public_stats_path_label( '/notes/alpha/' ), 'a password-protected post is dropped: core calls it viewable, /stats does not' );
+$GLOBALS['__pw'] = array();
 ok( false !== strpos( $html, '/notes/beta/' ), 'an unresolvable path falls back to the path itself' );
 ok( false !== strpos( $html, 'Home' ), 'the homepage path renders as Home' );
 ok( false === strpos( $html, 'wp-admin' ), 'no admin path anywhere in the public render' );
