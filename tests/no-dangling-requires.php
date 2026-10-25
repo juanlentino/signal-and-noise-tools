@@ -27,7 +27,7 @@ foreach ( array( 'inc', 'apps' ) as $dir ) {
 	}
 }
 
-$re = '/\b(?:require|include)(?:_once)?\s*\(?\s*(__DIR__|dirname\(\s*__DIR__\s*\)|SNT_PATH)\s*\.\s*([\'"])([^\'"$]+)\2/';
+$re = '/\b(?:require|include)(?:_once)?\s*\(?\s*(__DIR__|dirname\(\s*__DIR__\s*(?:,\s*(\d+)\s*)?\)|SNT_PATH)\s*\.\s*([\'"])([^\'"$]+)\3/';
 $checked = 0;
 $missing = array();
 foreach ( $files as $file ) {
@@ -36,11 +36,12 @@ foreach ( $files as $file ) {
 		continue;
 	}
 	foreach ( $m as $hit ) {
-		$base = '__DIR__' === $hit[1] ? dirname( $file ) : ( 'SNT_PATH' === $hit[1] ? $root . '/' : dirname( $file, 2 ) );
-		$path = rtrim( $base, '/' ) . '/' . ltrim( $hit[3], '/' );
+		// dirname( __DIR__, N ) is N levels above the file's own directory.
+		$base = '__DIR__' === $hit[1] ? dirname( $file ) : ( 'SNT_PATH' === $hit[1] ? $root . '/' : dirname( $file, 1 + max( 1, (int) $hit[2] ) ) );
+		$path = rtrim( $base, '/' ) . '/' . ltrim( $hit[4], '/' );
 		++$checked;
 		if ( ! file_exists( $path ) ) {
-			$missing[] = substr( $file, strlen( $root ) + 1 ) . ' -> ' . $hit[1] . " . '" . $hit[3] . "'";
+			$missing[] = substr( $file, strlen( $root ) + 1 ) . ' -> ' . $hit[1] . " . '" . $hit[4] . "'";
 		}
 	}
 }

@@ -340,7 +340,28 @@ function sn_login_request_path( $request_uri ) {
 	// past every check here (live: 200 with the form, while /wp-login.php
 	// answered 404). Then merge the slashes a decoded %2F may have made. The
 	// path is decoded after parsing, so an encoded ? or # never moves the query.
-	return (string) preg_replace( '#/{2,}#', '/', rawurldecode( $path ) );
+	if ( '' === $path ) {
+		return '';
+	}
+	$path = (string) preg_replace( '#/{2,}#', '/', rawurldecode( $path ) );
+	// Then resolve . and .. segments, as the server does: /wp-json/%2e%2e/wp-login.php
+	// was allowlisted for its /wp-json/ and served the login form (live, review on
+	// #2283). A .. never climbs above the root, so /../wp-login.php stays
+	// /wp-login.php and still 404s.
+	$out = array();
+	foreach ( explode( '/', $path ) as $seg ) {
+		if ( '..' === $seg ) {
+			if ( count( $out ) > 1 ) {
+				array_pop( $out );
+			}
+			continue;
+		}
+		if ( '.' !== $seg ) {
+			$out[] = $seg;
+		}
+	}
+	$path = implode( '/', $out );
+	return '' === $path || '/' !== $path[0] ? '/' . $path : $path;
 }
 
 /**

@@ -382,22 +382,17 @@ function sn_public_stats_path_names_hidden_post( $path ) {
 	if ( '' === $slug || ! function_exists( 'get_posts' ) ) {
 		return false;
 	}
-	foreach ( array( $slug, $slug . '__trashed' ) as $name ) {
-		$hit = get_posts(
-			array(
-				'name'             => $name,
-				'post_type'        => array( 'post', 'page' ),
-				'post_status'      => array( 'draft', 'pending', 'future', 'private', 'trash' ),
-				'numberposts'      => 1,
-				'fields'           => 'ids',
-				'suppress_filters' => true,
-			)
-		);
-		if ( ! empty( $hit ) ) {
-			return true;
-		}
-	}
-	return false;
+	$hit = get_posts(
+		array(
+			'post_name__in'    => array( $slug, $slug . '__trashed' ),
+			'post_type'        => array( 'post', 'page' ),
+			'post_status'      => array( 'draft', 'pending', 'future', 'private', 'trash' ),
+			'numberposts'      => 1,
+			'fields'           => 'ids',
+			'suppress_filters' => true,
+		)
+	);
+	return ! empty( $hit );
 }
 
 /**

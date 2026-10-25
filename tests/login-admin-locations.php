@@ -38,7 +38,7 @@ if ( false !== strpos( $src, 'function sn_login_request_is_core_login_file(' ) )
 		ok( sn_login_request_is_core_login_file( $u ), "404s: $u" );
 	}
 	// Hunt 2026-10-25, live: these served the real login form (200) while /wp-login.php answered 404.
-	foreach ( array( '/wp-login%2ephp', '/wp-login%2Ephp', '/%77p-login.php', '/%77%70%2d%6c%6f%67%69%6e%2e%70%68%70', '/wp-%73ignup.php', '/%2fwp-login.php' ) as $u ) {
+	foreach ( array( '/wp-login%2ephp', '/wp-login%2Ephp', '/%77p-login.php', '/%77%70%2d%6c%6f%67%69%6e%2e%70%68%70', '/wp-%73ignup.php', '/%2fwp-login.php', '/wp-json/%2e%2e/wp-login.php', '/wp-json/..%2fwp-login.php', '/%2e%2e/wp-login.php', '/notes/./../wp-login.php' ) as $u ) {
 		ok( sn_login_request_is_core_login_file( $u ), "404s once decoded: $u" );
 	}
 	foreach ( array( '/sn-login?redirect_to=%2Fwp-login.php', '/wp-login%3Fx', '/wp-login.php%2500' ) as $u ) {

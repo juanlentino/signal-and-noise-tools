@@ -49,7 +49,7 @@ function get_permalink( $id ) { return 12 === (int) $id ? 'https://example.com/n
 // Hunt 2026-10-25: non-public slugs (by name, as WP_Query matches) and post passwords.
 $GLOBALS['__hidden_slugs'] = array();
 $GLOBALS['__pw']           = array();
-function get_posts( $a ) { return in_array( (string) ( $a['name'] ?? '' ), $GLOBALS['__hidden_slugs'], true ) && array( 'draft', 'pending', 'future', 'private', 'trash' ) === ( $a['post_status'] ?? null ) && ! empty( $a['suppress_filters'] ) ? array( 99 ) : array(); }
+function get_posts( $a ) { return array() !== array_intersect( (array) ( $a['post_name__in'] ?? array() ), $GLOBALS['__hidden_slugs'] ) && array( 'draft', 'pending', 'future', 'private', 'trash' ) === ( $a['post_status'] ?? null ) && ! empty( $a['suppress_filters'] ) ? array( 99 ) : array(); }
 function get_post_field( $f, $id ) { return 'post_password' === $f ? (string) ( $GLOBALS['__pw'][ (int) $id ] ?? '' ) : ''; }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 
