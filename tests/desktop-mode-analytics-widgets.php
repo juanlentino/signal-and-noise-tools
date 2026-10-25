@@ -113,6 +113,15 @@ $search = array_values( array_filter( $tg[3]['rows'], static fn( $r ) => 0 === s
 ok( 'Google 5 clicks · 478 impr · Bing 0 clicks · 0 impr' === ( $search[0]['value'] ?? '' ), 'search keeps impressions beside clicks per engine, on its one row (owner\'s pick, 2026-10-04): ' . ( $search[0]['value'] ?? '' ) );
 ok( 'Search · 28 days, Google to Sep 30, Bing to Oct 3' === ( $search[0]['label'] ?? '' ), 'the Search row is labeled with the engines\' windows, read from the stored readings: ' . ( $search[0]['label'] ?? '' ) );
 ok( array( 3, 4 ) === array( count( $tg[0]['rows'] ), count( $tg[1]['rows'] ) ) && 1 === preg_match( '/^device1 \d+% · device2 \d+%$/', $glance['Devices'] ?? '' ) && '1 · 2 · 3' === ( $glance['Feed, unique 24h · 7d · 30d'] ?? '' ), 'top 3 countries, top 4 sources; devices and the three feed windows each fold into one row' );
+// Hunt 2026-10-25: while the 30-day window still reaches back before the day 304s
+// began to count, the Feed row says so; after that it retires itself.
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+if ( ! function_exists( 'sn_rss_tracker_counts_304_since' ) ) { function sn_rss_tracker_counts_304_since() { return $GLOBALS['__304_since'] ?? ''; } }
+$GLOBALS['__304_since'] = '2026-10-24';
+ok( 'Feed, unique 24h · 7d · 30d (304s counted since Oct 24)' === snt_desktop_traffic_feed_label( strtotime( '2026-10-25 12:00:00 UTC' ) ), 'the day after 304s began to count, the Feed row says since when' );
+ok( 'Feed, unique 24h · 7d · 30d' === snt_desktop_traffic_feed_label( strtotime( '2026-11-23 00:00:00 UTC' ) ), 'thirty days on, every window is past the change and the note is gone' );
+$GLOBALS['__304_since'] = '';
+ok( 'Feed, unique 24h · 7d · 30d' === snt_desktop_traffic_feed_label( strtotime( '2026-10-25 12:00:00 UTC' ) ), 'no recorded day: the plain label' );
 function sn_analytics_top_utm_campaigns( $f, $t, $c, $l ) { return $GLOBALS['__camp'] ?? array(); }
 $GLOBALS['__camp'] = array( array( 'value' => '(none)', 'views' => 9 ), array( 'value' => 'spring', 'views' => 3 ) );
 $tgc = snt_desktop_traffic_groups( array( 'from' => '2026-09-20', 'to' => '2026-10-03', 'days' => 14 ) );
