@@ -278,7 +278,7 @@ $sn_analytics = App::define( APP_ID )
 				$os->toast(
 					sprintf(
 						/* translators: %s: the sn_action the form submitted. */
-						__( 'Nothing was saved: %s streams a file, so it downloads in a new tab instead.', 'signal-and-noise-tools' ),
+						__( 'Nothing was saved: %s streams a file, so its form downloads it directly instead.', 'signal-and-noise-tools' ),
 						$action
 					)
 				);

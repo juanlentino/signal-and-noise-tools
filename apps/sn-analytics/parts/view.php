@@ -63,7 +63,8 @@ function capture( array $get, ?callable $paint = null ) {
  *
  * `snt_os_host_keep_forms()` runs BEFORE the rewrite because the rewrite is
  * what reads the marker: the export form must come out of the pass still a
- * form, posting to admin-post.php in a new tab, and everything else must come
+ * form, posting to admin-post.php in the same window (a download never leaves
+ * the desktop; a new tab relaunched the PWA), and everything else must come
  * out a dispatch.
  *
  * The own-page list is exactly this page's slug. `sn-theme-options` is

@@ -691,7 +691,7 @@ namespace {
 	echo "\nGroup 9: what the actions refuse\n";
 	$os = new \OpenStation\App\Os();
 	$app->actions['post']( st( $app ), $os, array( 'values' => array( '_wpnonce' => 'test-nonce', 'action' => 'sn_analytics_export', 'format' => 'csv' ) ) );
-	ok( 1 === count( $os->toasts ) && false !== strpos( $os->toasts[0], 'analytics_export' ) && false !== strpos( $os->toasts[0], 'new tab' ),
+	ok( 1 === count( $os->toasts ) && false !== strpos( $os->toasts[0], 'analytics_export' ) && false !== strpos( $os->toasts[0], 'downloads it directly' ),
 		'an export that somehow arrived as a dispatch is refused BY NAME -- running it would echo a CSV into the middle of a JSON response and exit' );
 	$os = new \OpenStation\App\Os();
 	$app->actions['post']( st( $app ), $os, array( 'values' => array( '_wpnonce' => 'test-nonce', 'action' => 'sn_save_identity' ) ) );
