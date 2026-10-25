@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.10.67] - 2026-10-25 — a defect hunt: export, hidden login, /stats, honest widgets
+
 ### Fixed (analytics, /stats and login, a defect hunt on 2026-10-25)
 - **The S&N Analytics export works again.** Its handler moved into `inc/admin-post-actions/` on 2026-08-23 and kept requiring `__DIR__ . '/analytics-export.php'`, a file that is one directory up, so every CSV or JSON export since then died on a missing file. The path is fixed, and `tests/no-dangling-requires.php` now resolves every plugin `require`/`include` against the file that holds it, so a dangling one fails the sweep.
 - **The hidden login page cannot be reached by percent-encoding its name.** `/wp-login.php` answered 404 as meant, but `/wp-login%2ephp` and `/%77p-login.php` served the real login form (checked live): the checks compared the raw path while the web server decodes it before mapping it to a file. So did `/wp-json/%2e%2e/wp-login.php` (allowlisted for its `/wp-json/` while the server resolved the dot segment; found in review, checked live). `sn_login_request_path()` now decodes once, merges the slashes a decoded `%2F` makes and resolves `.` and `..` segments without climbing above the root, for every check that shares it (the door, the allowlist, wp-admin and core's login scripts). An encoded `?` never moves the query.
@@ -33,9 +35,4 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **A cron job that failed and has run fine since no longer turns the Systems card amber.** The card read every recorded failure in the last 24 hours as something to look at, so the one `prov_orphan_sweep` blip on 2026-10-25 kept it amber through hundreds of clean five-minute runs. A job whose last failure was followed by a successful run that started at least 5 seconds later now reads in the text color as "failed, ran fine since"; a job still failing stays amber and leads the headline. The 5-second margin exists because wp-cron.php records a reschedule error and then runs the job in the same request, so that run's own success proves nothing. Recovery is judged per job and its arguments, so for a per-item job (a Zenodo push, a scheduled fire) one item running fine never vouches for another that failed. The day's count of failed runs is unchanged.
-
-## [2026.10.66] - 2026-10-25 — overlapping cron runners are not a failed job
-
-### Fixed
-- **Overlapping cron runners no longer read as a failed job.** Since 2026.10.64 the plugin records core's cron errors, and on 2026-10-25 the Systems card showed `sn_prov_orphan_sweep` failed: three cron runners overlapped while 2026.10.65 was installing, the second rescheduled an event the first had already saved, `update_option()` saw no change and core reported `could_not_set`. The runs before and after succeeded and the event stayed on its five-minute schedule. A `could_not_set` is now recorded only when the cron list is not as the step meant to leave it: after a reschedule, no future copy of the event; after an unschedule, the due copy still there. The check reads the stored `cron` row, not the process cache, so a runner that cached the options before the other one saved still reads the saved list. Any other error code is recorded as before.
 
