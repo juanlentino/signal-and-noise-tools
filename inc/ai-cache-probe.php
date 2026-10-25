@@ -421,7 +421,15 @@ function snt_ai_cache_probe_summary( $log = null ) {
  * @return int|null Minimum cacheable prefix in tokens, or null if unknown.
  */
 function snt_ai_cache_probe_min_prefix_tokens( $model ) {
+	// 2026-10-25: the 5.5 family and Fable/Mythos 5.1, 512 per Anthropic's
+	// prompt-caching docs (Cache limitations). The site calls claude-sonnet-5-5,
+	// which read as "floor unknown" until then.
 	$floors = array(
+		'claude-opus-5-5'    => 512,
+		'claude-sonnet-5-5'  => 512,
+		'claude-haiku-5-5'   => 512,
+		'claude-fable-5-1'   => 512,
+		'claude-mythos-5-1'  => 512,
 		'claude-opus-5'      => 512,
 		'claude-fable-5'     => 512,
 		'claude-mythos-5'    => 512,
