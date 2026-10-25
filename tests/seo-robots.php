@@ -2,10 +2,11 @@
 /**
  * Tests: the robots-meta directive builder + its cross-package filter seam.
  *
- * v9.88.0. The plugin removes core's wp_robots (inc/seo.php) and emits its
- * own <meta name="robots">, so a theme-side wp_robots filter is DEAD CODE —
- * exactly the trap the theme's v10.51.0 search-noindex fell into (live-verified
- * inert). This fixture pins the seam that fixes it: sn_seo_robots_directives.
+ * v9.88.0 added the seam, sn_seo_robots_directives, while the plugin printed
+ * its own robots meta. Since wave 2 (2026-10-24) core's wp_robots() prints it
+ * and sn_seo_wp_robots() hands it this list, so the seam the theme's notes
+ * search noindex rides still reaches the tag. tests/seo-head-on-core.php runs
+ * core's printer; this fixture pins the list.
  *
  * @package SignalNoiseTools
  */
@@ -108,7 +109,7 @@ unset( $GLOBALS['__filters']['sn_seo_robots_directives'] );
 
 // 15.10.0: a thin tag archive is noindex; a hub tag is not. inc/sitemap.php
 // owns the line (three notes); this branch reads it.
-function is_tag() { return (bool) $GLOBALS['__is_tag']; }
+function is_tag() { return (bool) ( $GLOBALS['__is_tag'] ?? false ); }
 function sn_sitemap_tag_is_hub( $count ) { return (int) $count >= 3; }
 $GLOBALS['__singular'] = false; $GLOBALS['__is_tag'] = true;
 $GLOBALS['__queried'] = (object) array( 'count' => 2 );

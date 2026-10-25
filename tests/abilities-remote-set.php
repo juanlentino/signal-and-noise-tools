@@ -215,7 +215,6 @@ $pairs_output = array(
 	array( $REMOTE_NARRATION, $ADMIN_NARRATION ),
 	array( $REMOTE_UPTIME, $ADMIN_UPTIME ),
 	array( $REMOTE_HEALTH, $ADMIN_HEALTH ),
-	array( $REMOTE_RSS, $ADMIN_RSS ),
 	array( $REMOTE_PROV, $ADMIN_PROV ),
 	array( $REMOTE_MR, $ADMIN_MR ),
 	array( $REMOTE_CRON, $ADMIN_CRON ),
@@ -348,7 +347,6 @@ $execute_pairs = array(
 	array( $REMOTE_NARRATION, $ADMIN_NARRATION ),
 	array( $REMOTE_UPTIME, $ADMIN_UPTIME ),
 	array( $REMOTE_HEALTH, $ADMIN_HEALTH ),
-	array( $REMOTE_RSS, $ADMIN_RSS ),
 	array( $REMOTE_PROV, $ADMIN_PROV ),
 	array( $REMOTE_MR, $ADMIN_MR ),
 	array( $REMOTE_CRON, $ADMIN_CRON ),
@@ -363,6 +361,13 @@ ok( isset( $sn_admin_ee_out['properties']['installs_by_day'] ) && ! isset( $GLOB
 unset( $sn_admin_ee_out['properties']['installs_by_day'] );
 ok( $GLOBALS['__abilities'][ $REMOTE_EE ]['output_schema'] === $sn_admin_ee_out, "$REMOTE_EE output_schema === $ADMIN_EE's minus installs_by_day" );
 ok( 'snt_ability_edge_errors_summary' === $GLOBALS['__abilities'][ $REMOTE_EE ]['execute_callback'] && 'snt_ability_edge_errors_summary_local' === $GLOBALS['__abilities'][ $ADMIN_EE ]['execute_callback'], "$REMOTE_EE runs the shared callback; $ADMIN_EE runs the local wrapper over it" );
+// 2026-10-24: get-rss-stats' data.counts_304_since (the day 304s began to be
+// counted) is local-door only, the same strip, so the remote contract stays.
+$sn_admin_rss_out = $GLOBALS['__abilities'][ $ADMIN_RSS ]['output_schema'];
+ok( isset( $sn_admin_rss_out['properties']['data']['properties']['counts_304_since'] ) && ! isset( $GLOBALS['__abilities'][ $REMOTE_RSS ]['output_schema']['properties']['data']['properties']['counts_304_since'] ), 'counts_304_since is local-door only: the remote contract shape does not move' );
+unset( $sn_admin_rss_out['properties']['data']['properties']['counts_304_since'] );
+ok( $GLOBALS['__abilities'][ $REMOTE_RSS ]['output_schema'] === $sn_admin_rss_out, "$REMOTE_RSS output_schema === $ADMIN_RSS's minus counts_304_since" );
+ok( 'snt_ability_get_rss_stats' === $GLOBALS['__abilities'][ $REMOTE_RSS ]['execute_callback'] && 'snt_ability_get_rss_stats_local' === $GLOBALS['__abilities'][ $ADMIN_RSS ]['execute_callback'], "$REMOTE_RSS runs the shared callback; $ADMIN_RSS runs the local wrapper over it" );
 foreach ( $execute_pairs as $pair ) {
 	list( $remote, $admin ) = $pair;
 	ok(

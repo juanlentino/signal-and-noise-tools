@@ -40,6 +40,10 @@ function sn_rss_tracker_render_stats( $stats ) {
 	} else {
 		echo '<p class="sn-rss-meta"><em>No feed requests logged yet.</em></p>';
 	}
+	$note = sn_rss_tracker_counts_304_note();
+	if ( '' !== $note ) {
+		echo '<p class="sn-field-helper">' . esc_html( $note ) . '</p>';
+	}
 }
 
 function sn_rss_tracker_render_settings_form( $settings ) {

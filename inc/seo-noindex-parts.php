@@ -5,11 +5,11 @@
  *
  * Search Console, 2026-10. /?mailpoet_page=subscriptions served 200, indexable,
  * with a self-canonical carrying the query string. That canonical was this
- * plugin's own: core's rel_canonical is removed (seo-head-parts.php), and the
- * singular branch of sn_seo_meta_for_current_view() printed get_permalink() of
- * the mailpoet_page post. The robots half rides sn_seo_robots_directives(),
- * not core's wp_robots filter: the plugin removes wp_robots() and prints its
- * own meta, so a wp_robots filter never runs here.
+ * plugin's own, printed from get_permalink() of the mailpoet_page post. Since
+ * wave 2 (2026-10-24) core's rel_canonical() prints singular canonicals and
+ * sn_seo_canonical_url() returns none for this page; the robots half rides
+ * sn_seo_robots_directives(), which sn_seo_wp_robots() hands to core's
+ * wp_robots() (seo-head-parts.php).
  *
  * Feeds keep working and keep their <link rel="alternate"> tags; the header
  * only asks search engines not to list the feed itself as a result.
@@ -47,16 +47,20 @@ function sn_seo_robots_header() {
 }
 
 /**
- * Send it. template_redirect, where is_feed() is already answered (it is not
- * yet at send_headers) and nothing has been printed; priority 1 so it goes out
- * before the feed conditional-GET handler can 304 and exit at priority 10.
+ * wp_headers filter: send it with core's headers. WP::send_headers() applies
+ * wp_headers after the query (is_feed() is answered) and before it answers a
+ * feed's conditional GET with a 304 and exits, so a 304 carries it too; a
+ * template_redirect sender never ran on a 304.
  *
- * @return void
+ * @param array $headers Core's headers.
+ * @return array
  */
-function sn_seo_send_robots_header() {
+function sn_seo_robots_header_filter( $headers ) {
 	$line = sn_seo_robots_header();
-	if ( '' !== $line && ! headers_sent() ) {
-		header( $line );
+	if ( '' !== $line ) {
+		list( $name, $value ) = explode( ': ', $line, 2 );
+		$headers[ $name ]     = $value;
 	}
+	return $headers;
 }
-add_action( 'template_redirect', 'sn_seo_send_robots_header', 1 );
+add_filter( 'wp_headers', 'sn_seo_robots_header_filter' );

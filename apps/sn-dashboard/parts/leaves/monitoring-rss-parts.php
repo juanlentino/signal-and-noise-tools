@@ -81,6 +81,8 @@ function rss_activity_html( array $stats ) {
 	$out .= ! empty( $stats['most_recent'] )
 		? '<p class="snt-prose">' . \snt_kit_esc( __( 'Most recent feed request:', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( rss_local_stamp( (string) $stats['most_recent'] ) ) . '</os-code></p>'
 		: '<p class="snt-hint">' . \snt_kit_esc( __( 'No feed requests logged yet.', 'signal-and-noise-tools' ) ) . '</p>';
+	$note = function_exists( 'sn_rss_tracker_counts_304_note' ) ? \sn_rss_tracker_counts_304_note() : '';
+	$out .= '' !== $note ? '<p class="snt-hint">' . \snt_kit_esc( $note ) . '</p>' : '';
 	return $out;
 }
 

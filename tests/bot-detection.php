@@ -29,9 +29,10 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 // stub ABSPATH so the require_once below passes that gate.
 define( 'ABSPATH', '/' );
 
-// Top-level add_action() calls in the plugin will fatal without WP.
-// One trivial stub is all we need to load the file for function access.
+// Top-level add_action() / add_filter() calls in the plugin will fatal without
+// WP. Trivial stubs are all we need to load the file for function access.
 function add_action() {}
+function add_filter() {}
 
 require_once __DIR__ . '/../inc/rss-feed-tracker.php';
 

@@ -44,6 +44,7 @@ const SN_RSS_TRACKER_CRON_HOOK      = 'sn_rss_tracker_daily_prune';
 const SN_RSS_TRACKER_ACTION_SAVE    = 'save_settings';
 const SN_RSS_TRACKER_ACTION_PURGE   = 'purge_log';
 const SN_RSS_TRACKER_ACTION_RESET   = 'reset_defaults';
+const SN_RSS_TRACKER_304_SINCE_OPT  = 'sn_rss_tracker_304_since'; // UTC day the count began to include 304s.
 
 // The rest of the module lives in 3 parts files (house line cap, 2026-10-16),
 // loaded in the order it always ran so every hook keeps its place.

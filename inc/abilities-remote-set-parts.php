@@ -316,8 +316,9 @@ add_action( 'wp_abilities_api_init', function () {
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
-		// output_schema: copied BYTE-IDENTICAL from the admin registration in
-		// inc/abilities-content.php — the parity pin in tests enforces ===.
+		// output_schema: the admin registration in inc/abilities-content.php
+		// minus the local-door-only data.counts_304_since (2026-10-24); the
+		// strip pin in tests/abilities-remote-set.php enforces it.
 		'output_schema'       => array(
 			'type'       => 'object',
 			'properties' => array(
