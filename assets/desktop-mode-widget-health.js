@@ -305,15 +305,23 @@
 			return [];
 		}
 		var failed = num( d.failed );
+		var hooks  = d.failing || [];
+		// 2026-10-25: a job that failed and has run fine since is said in the
+		// text color and is not something to look at; one still failing is.
+		var healed = d.recovered || [];
+		var stuck  = failed > 0 && ( hooks.length > 0 || ! healed.length );
 		// Runs RECORDED: a scheduled run that dies fatally leaves no row, so "0
 		// failed" would claim more than the history knows. Failures only when
 		// some were recorded.
-		var rows   = [ { label: 'Last 24 hours', value: num( d.fires ).toLocaleString( 'en-US' ) + ' runs recorded' + ( failed > 0 ? ' · ' + failed + ' failed' : '' ), tone: failed > 0 ? WARN_FG : '' } ];
-		if ( failed > 0 ) {
-			var hooks = d.failing || [];
+		var rows   = [ { label: 'Last 24 hours', value: num( d.fires ).toLocaleString( 'en-US' ) + ' runs recorded' + ( failed > 0 ? ' · ' + failed + ' failed' : '' ), tone: stuck ? WARN_FG : '' } ];
+		if ( stuck ) {
 			lookAt( tally, hooks.length ? String( hooks[0] ).replace( /^snt?_/, '' ) : 'Last 24 hours' );
 			hooks.slice( 0, LIST_CAP ).forEach( function( h ) { rows.push( { label: String( h ).replace( /^snt?_/, '' ), value: 'failed', tone: WARN_FG } ); } );
 			if ( hooks.length > LIST_CAP ) { rows.push( { label: '+' + ( hooks.length - LIST_CAP ) + ' more failed', value: '' } ); }
+		}
+		if ( failed > 0 ) {
+			healed.slice( 0, LIST_CAP ).forEach( function( h ) { rows.push( { label: String( h ).replace( /^snt?_/, '' ), value: 'failed, ran fine since', tone: '' } ); } );
+			if ( healed.length > LIST_CAP ) { rows.push( { label: '+' + ( healed.length - LIST_CAP ) + ' more ran fine since', value: '' } ); }
 		}
 		return rows;
 	}

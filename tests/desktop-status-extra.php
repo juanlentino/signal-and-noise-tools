@@ -26,7 +26,17 @@ echo "\nCron over 24 hours\n";
 $c = snt_desktop_cron_24h_shape( array( array( 'hook' => 'a', 'fires' => '10', 'failed' => '0' ), array( 'hook' => 'b', 'fires' => 5, 'failed' => 1 ), array( 'hook' => 'c', 'fires' => 3, 'failed' => 3 ) ) );
 ok( 18 === $c['fires'] && 4 === $c['failed'], 'runs and failures add across hooks (numeric strings from wpdb included)' );
 ok( array( 'c', 'b' ) === $c['failing'], 'failing hooks, most failures first; a clean hook is not named' );
-ok( array( 'fires' => 0, 'failed' => 0, 'failing' => array() ) === snt_desktop_cron_24h_shape( array() ), 'no runs: zero runs and nothing failing (a read that answered, not a failed read)' );
+ok( array( 'fires' => 0, 'failed' => 0, 'failing' => array(), 'recovered' => array() ) === snt_desktop_cron_24h_shape( array() ), 'no runs: zero runs and nothing failing (a read that answered, not a failed read)' );
+// 2026-10-25: the overlapping-runner blip at 17:10:10, then a clean run every five minutes.
+$r = snt_desktop_cron_24h_shape( array(
+	array( 'hook' => 'sn_prov_orphan_sweep', 'fires' => 290, 'failed' => 1, 'last_failed' => '2026-10-25 17:10:10', 'last_ok_start' => '2026-10-25 18:09:30' ),
+	array( 'hook' => 'sn_same_request', 'fires' => 1, 'failed' => 1, 'last_failed' => '2026-10-25 17:10:10', 'last_ok_start' => '2026-10-25 17:10:11' ),
+	array( 'hook' => 'sn_never_again', 'fires' => 1, 'failed' => 1, 'last_failed' => '2026-10-25 17:10:10', 'last_ok_start' => null ),
+	array( 'hook' => 'sn_failed_last', 'fires' => 3, 'failed' => 1, 'last_failed' => '2026-10-25 18:00:00', 'last_ok_start' => '2026-10-25 17:00:00' ),
+) );
+ok( array( 'sn_prov_orphan_sweep' ) === $r['recovered'], 'a failure followed by a later successful run is recovered' );
+ok( 3 === count( $r['failing'] ) && array() === array_diff( array( 'sn_same_request', 'sn_never_again', 'sn_failed_last' ), $r['failing'] ), 'still failing: a success in the same request (under 5 s after), no success at all, a failure after the last success' );
+ok( 4 === $r['failed'], 'every failure still counts, recovered or not' );
 
 echo "\nCache\n";
 $cs = snt_desktop_cache_state();
