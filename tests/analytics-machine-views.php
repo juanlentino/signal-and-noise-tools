@@ -12,7 +12,10 @@ namespace {
 	if ( ! function_exists( 'remove_query_arg' ) ) { function remove_query_arg( $k, $u = '' ) { return 'admin.php?page=sn-analytics&sn_view=machine-readers'; } }
 	$GLOBALS['__fetch'] = array();
 	function snt_mr_fetch( $days = 30, $view = 'aggregate' ) { $GLOBALS['__fetch_days'][] = $days; return $GLOBALS['__fetch'][ $view ] ?? array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' ); }
-	function sn_rss_tracker_window_stats_multi( $w ) { return array( 'most_recent' => '2026-10-11 09:00:00', 'windows' => array( 7 => array( 'total' => 40, 'uniques' => 5 ), 30 => array( 'total' => 210, 'uniques' => 9 ) ) ); }
+	function sn_rss_tracker_window_stats_multi( $w ) {
+		$all = array( 7 => array( 'total' => 40, 'uniques' => 5 ), 14 => array( 'total' => 90, 'uniques' => 6 ), 30 => array( 'total' => 210, 'uniques' => 9 ), 90 => array( 'total' => 600, 'uniques' => 12 ) );
+		return array( 'most_recent' => '2026-10-11 09:00:00', 'windows' => array_intersect_key( $all, array_flip( (array) $w ) ) );
+	}
 	$GLOBALS['__report'] = null;
 	function snt_ml_reader_anomalies() { return $GLOBALS['__report']; }
 	function sn_edge_config() { return true; }
@@ -158,6 +161,11 @@ namespace {
 		ok( false !== strpos( html_entity_decode( $mc, ENT_QUOTES ), $needle ), "classic: $what" );
 	}
 	ok( false !== strpos( $mk, 'value="9" label="agent tool calls, 7d"' ) && false !== strpos( $mc, '<p class="sn-kpi-label">Agent tool calls, 7d</p><p class="sn-kpi-value">9</p>' ), 'agent tool calls (9) on both surfaces' );
+	// Hunt 2026-10-25: the hero's feed figure is the view's own window, never the 30-day total.
+	ok( false !== strpos( $mk, 'value="40" label="feed fetches, 7d"' ) && false !== strpos( $mc, '<p class="sn-kpi-label">Feed fetches, 7d</p><p class="sn-kpi-value">40</p>' ), 'feed fetches, 7d reads the 7-day total (40), not the 30-day one (210), on both surfaces' );
+	foreach ( array( 14 => 90, 30 => 210, 90 => 600 ) as $w => $total ) {
+		ok( $total === ( snt_mr_view_data( $w )['hero']['feed_total'] ?? null ), "the {$w}-day view's feed figure is the {$w}-day total ($total)" );
+	}
 	ok( false === strpos( $mk, '<script>alert' ) && false === strpos( $mc, '<script>alert' ), 'a hostile user agent in the rights log is escaped on both surfaces' );
 	$ek = html_entity_decode( $kit['reader-evidence'], ENT_QUOTES );
 	$ec = html_entity_decode( $classic['reader-evidence'], ENT_QUOTES );
