@@ -1,7 +1,7 @@
 <?php
 /**
  * The keyring change log (19.6.2): every write to a keyring option, by any
- * path, leaves row + set/clear + last 4 + source; never the value.
+ * path, leaves row + set/clear + fingerprint + source; never the value.
  * Run: php tests/keyring-changes.php
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
@@ -19,6 +19,7 @@ function sanitize_text_field( $s ) { return trim( (string) $s ); }
 function sanitize_key( $s ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $s ) ); }
 function wp_unslash( $s ) { return $s; }
 function delete_transient( $k ) { return true; }
+function wp_salt( $s = 'auth' ) { return 'test-salt-' . $s; }
 
 require dirname( __DIR__ ) . '/inc/keyring.php';
 require dirname( __DIR__ ) . '/inc/keyring-changes.php';
@@ -34,7 +35,8 @@ $log = array_values( array_filter( sn_keyring_changes(), static function ( $e ) 
 ok( 1 === count( $log ) && 'set' === $log[0]['verb'] && 1 === preg_match( '/^[0-9a-f]{8}$/', $log[0]['fp'] ) && 'keyring_save' === $log[0]['source'] && 7 === $log[0]['user'], 'a form save logs row, set, an 8-hex fingerprint, source keyring_save, user' );
 ok( false === strpos( serialize( sn_keyring_changes() ), 'abcdef' ), 'the value itself is never stored in the log' );
 // 2026-10-26 (N3): no part of the value either. The last four used to be stored and served.
-ok( ! array_key_exists( 'last4', $log[0] ) && false === strpos( serialize( $GLOBALS['__opt'][ SN_KEYRING_CHANGES_OPT ] ), '3d09' ) && $log[0]['fp'] !== substr( hash( 'sha256', $secret ), 0, 8 ), 'no last four in the stored line, and the fingerprint is keyed, not a plain hash of the value' );
+ok( ! array_key_exists( 'last4', $log[0] ) && false === strpos( serialize( $GLOBALS['__opt'][ SN_KEYRING_CHANGES_OPT ] ), '3d09' ), 'no last four in the stored line' );
+ok( substr( hash_hmac( 'sha256', $secret, 'sn-keyring-fp|test-salt-auth' ), 0, 8 ) === $log[0]['fp'] && substr( hash_hmac( 'sha256', $secret, 'sn-keyring-fp|' ), 0, 8 ) !== $log[0]['fp'] && substr( hash( 'sha256', $secret ), 0, 8 ) !== $log[0]['fp'], 'the fingerprint is keyed with the site salt: not a plain hash, not an unsalted HMAC' );
 
 sn_handle_keyring_save( array( 'key_id' => 'srv_token', 'key_value' => 'clear' ) );
 $last = sn_keyring_changes()[ count( sn_keyring_changes() ) - 1 ];
@@ -45,7 +47,8 @@ $last = sn_keyring_changes()[ count( sn_keyring_changes() ) - 1 ];
 ok( 'set' === $last['verb'] && 1 === preg_match( '/^[0-9a-f]{8}$/', $last['fp'] ) && $last['fp'] !== $log[0]['fp'] && 'keyring_save' !== $last['source'], 'a write that bypasses the form is logged too, with its own source; a different value, a different fingerprint' );
 // A line logged before 2026-10-26 still holds a last four: it is never read back, and the next write drops it from storage.
 $GLOBALS['__opt'][ SN_KEYRING_CHANGES_OPT ][] = array( 'at' => 1, 'row' => 'srv_token', 'verb' => 'set', 'last4' => 'q7x2', 'source' => 'other', 'user' => 0 );
-ok( false === strpos( serialize( sn_keyring_changes() ), 'q7x2' ), 'an old line\'s last four is never read back' );
+$__old = array_values( array_filter( sn_keyring_changes(), static function ( $e ) { return 1 === $e['at']; } ) );
+ok( false === strpos( serialize( sn_keyring_changes() ), 'q7x2' ) && isset( $__old[0] ) && '' === $__old[0]['fp'], 'an old line\'s last four is never read back, and it reads fp "" like any line without one' );
 update_option( 'sn_srv_token', 'another-value-after-the-old-line' );
 ok( false === strpos( serialize( $GLOBALS['__opt'][ SN_KEYRING_CHANGES_OPT ] ), 'q7x2' ), '...and the next write scrubs it from storage' );
 

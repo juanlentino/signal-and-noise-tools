@@ -119,13 +119,17 @@ function sn_keyring_record_change( $option, $old, $value ) {
  * Eight hex characters that tell two values apart and say nothing about
  * either: an HMAC-SHA256 keyed with the site's own salt (wp-config.php), so a
  * guess cannot be checked offline without it, unlike a plain hash of a weak
- * value. Equal values give equal fingerprints on this site.
+ * value. Equal values give equal fingerprints on this site until its salts
+ * are rotated. No salt, no fingerprint: an unkeyed one would be checkable.
  *
  * @param string $value The value written.
- * @return string
+ * @return string Eight hex characters, or '' when the site has no salt.
  */
 function sn_keyring_fingerprint( $value ) {
 	$key = function_exists( 'wp_salt' ) ? (string) wp_salt( 'auth' ) : '';
+	if ( '' === $key ) {
+		return '';
+	}
 	return substr( hash_hmac( 'sha256', (string) $value, 'sn-keyring-fp|' . $key ), 0, 8 );
 }
 
@@ -139,6 +143,7 @@ function sn_keyring_changes() {
 		static function ( $line ) {
 			if ( is_array( $line ) ) {
 				unset( $line['last4'] );
+				$line += array( 'fp' => '' );
 			}
 			return $line;
 		},
