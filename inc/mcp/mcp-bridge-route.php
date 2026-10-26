@@ -211,8 +211,50 @@ function sn_bridge_register_routes() {
 		)
 	);
 }
+/**
+ * A route that does not exist sends no Allow header and answers OPTIONS with
+ * an empty 200. Core gave /bridge both, `Allow: POST` on the bad-bearer 404
+ * (its permission callback is __return_true; the bearer is checked in the
+ * handler) and the route's description on OPTIONS: the "door is armed" oracle
+ * the 404 body was copied from core to close (2026-10-26 audit).
+ */
+const SN_BRIDGE_ROUTE = '/signal-noise/v1/bridge';
+
+/**
+ * rest_pre_dispatch, before core's OPTIONS handler: answer as an absent route.
+ *
+ * @param mixed       $response
+ * @param mixed       $server
+ * @param object|null $request
+ * @return mixed
+ */
+function sn_bridge_options_as_absent( $response, $server = null, $request = null ) {
+	if ( null !== $response || ! is_object( $request ) || 'OPTIONS' !== $request->get_method() || 0 !== strcasecmp( (string) $request->get_route(), SN_BRIDGE_ROUTE ) ) {
+		return $response;
+	}
+	return new WP_REST_Response( array() );
+}
+
+/**
+ * rest_post_dispatch, after core's rest_send_allow_header: drop Allow on /bridge.
+ *
+ * @param mixed $response
+ * @return mixed
+ */
+function sn_bridge_strip_allow( $response ) {
+	if ( ! is_object( $response ) || ! method_exists( $response, 'get_matched_route' ) || 0 !== strcasecmp( (string) $response->get_matched_route(), SN_BRIDGE_ROUTE ) ) {
+		return $response;
+	}
+	$headers = $response->get_headers();
+	unset( $headers['Allow'] );
+	$response->set_headers( $headers );
+	return $response;
+}
+
 if ( function_exists( 'add_action' ) ) {
 	add_action( 'rest_api_init', 'sn_bridge_register_routes' );
+	add_filter( 'rest_pre_dispatch', 'sn_bridge_options_as_absent', 9, 3 );
+	add_filter( 'rest_post_dispatch', 'sn_bridge_strip_allow', 11 );
 }
 
 /**

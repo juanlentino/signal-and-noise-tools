@@ -477,6 +477,39 @@ $sn_fn_body   = preg_match( '/function sn_bridge_secret\(\) \{(.*?)\n\}/s', $sn_
 ok( '' !== $sn_fn_body && false !== strpos( $sn_fn_body, 'SN_BRIDGE_TOKEN' ) && 0 === preg_match( '/apply_filters|get_option|sn_credential|sn_site_secret/', $sn_fn_body ),
 	'sn_bridge_secret() reads SN_BRIDGE_TOKEN and nothing else: no filter, no option, no keyring, no site secret (F5)' );
 
+echo "\nGroup: /bridge looks like an absent route to OPTIONS and in its headers (2026-10-26 audit)\n";
+if ( ! class_exists( 'WP_REST_Response' ) ) {
+	class WP_REST_Response {
+		public $data; private $headers = array(); private $route = '';
+		public function __construct( $d = null ) { $this->data = $d; }
+		public function get_headers() { return $this->headers; }
+		public function set_headers( $h ) { $this->headers = $h; }
+		public function header( $k, $v ) { $this->headers[ $k ] = $v; }
+		public function get_matched_route() { return $this->route; }
+		public function set_matched_route( $r ) { $this->route = $r; }
+	}
+}
+class BR_Req { private $m; private $r; public function __construct( $m, $r ) { $this->m = $m; $this->r = $r; } public function get_method() { return $this->m; } public function get_route() { return $this->r; } }
+ok( in_array( 'sn_bridge_options_as_absent', $GLOBALS['__filters']['rest_pre_dispatch'] ?? array(), true ) && in_array( 'sn_bridge_strip_allow', $GLOBALS['__filters']['rest_post_dispatch'] ?? array(), true ), 'both hooks are registered at load' );
+$opt = sn_bridge_options_as_absent( null, null, new BR_Req( 'OPTIONS', '/signal-noise/v1/bridge' ) );
+ok( $opt instanceof WP_REST_Response && array() === $opt->data && '' === $opt->get_matched_route(), 'OPTIONS on /bridge is the empty 200 an absent route gives, with no matched route for core to describe or Allow' );
+ok( sn_bridge_options_as_absent( null, null, new BR_Req( 'OPTIONS', '/Signal-Noise/V1/Bridge' ) ) instanceof WP_REST_Response, 'a differently cased path is the same route (core matches with the i flag)' );
+ok( null === sn_bridge_options_as_absent( null, null, new BR_Req( 'POST', '/signal-noise/v1/bridge' ) ), 'a POST is left to the handler' );
+ok( null === sn_bridge_options_as_absent( null, null, new BR_Req( 'OPTIONS', '/signal-noise/v1/mcp' ) ), 'OPTIONS on any other route is left to core' );
+$earlier = new WP_Error( 'x' );
+ok( $earlier === sn_bridge_options_as_absent( $earlier, null, new BR_Req( 'OPTIONS', '/signal-noise/v1/bridge' ) ), 'an earlier answer is never overridden' );
+$r = new WP_REST_Response( array( 'code' => 'rest_no_route' ) );
+$r->set_matched_route( '/signal-noise/v1/bridge' );
+$r->header( 'Allow', 'POST' );
+$r->header( 'X-Other', 'kept' );
+sn_bridge_strip_allow( $r );
+ok( array( 'X-Other' => 'kept' ) === $r->get_headers(), 'the bad-bearer 404 loses the Allow header core added, and keeps every other header' );
+$o = new WP_REST_Response( array() );
+$o->set_matched_route( '/signal-noise/v1/mcp' );
+$o->header( 'Allow', 'POST' );
+sn_bridge_strip_allow( $o );
+ok( array( 'Allow' => 'POST' ) === $o->get_headers(), 'another route keeps its Allow header' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-bridge-route.php\n";

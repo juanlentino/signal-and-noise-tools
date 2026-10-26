@@ -163,5 +163,14 @@ ok( 'keyring_saved' === $save( 'owner_key_previous', strtoupper( $prev_paste ) )
 ok( 'keyring_duplicate' === $save( 'owner_key_previous', $pasted ), 'the previous row refuses the current key\'s value (same value on two rows)' );
 ok( 'keyring_saved' === $save( 'owner_key_previous', 'clear' ) && '' === sn_credential( 'owner_key_previous' ), '"clear" retires the previous key once the Workers carry the new one' );
 
+echo "\nGroup: the dead bridge_token option is dropped (2026-10-26 audit, F5 follow-up)\n";
+$GLOBALS['__opt']['sn_bridge_token']      = 'stale-bearer';
+$GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array( 'mr_read_token', 'bridge_token', 'srv_token' );
+sn_keyring_drop_bridge_option();
+ok( ! array_key_exists( 'sn_bridge_token', $GLOBALS['__opt'] ), 'the option the old fallback could save is deleted' );
+ok( array( 'mr_read_token', 'srv_token' ) === sn_keyring_site_rows(), 'bridge_token leaves the site-secret rows; the others keep their order' );
+sn_keyring_drop_bridge_option();
+ok( array( 'mr_read_token', 'srv_token' ) === sn_keyring_site_rows(), 'a second run changes nothing' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
