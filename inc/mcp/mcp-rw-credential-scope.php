@@ -93,7 +93,7 @@ function sn_mcp_rw_credential_scope( $result, $server = null, $request = null ) 
 		// The read password is the lower-trust credential, and these refusals
 		// run before the read rate limit: tag them, and record at most
 		// SN_MCP_READ_SCOPE_AUDIT_PER_DAY a day. The rw audit log keeps 1,000
-		// rows for 30 days, so read refusals can fill at most 600 of them and
+		// rows for 30 days (31 UTC days at most), so read refusals can fill at most 620 and
 		// never roll the write door's rows out, nor mail the owner per request.
 		if ( ! sn_mcp_read_scope_audit_allowed() ) {
 			return $error;
