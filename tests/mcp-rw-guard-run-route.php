@@ -58,7 +58,7 @@ function wp_get_ability( $slug ) {
 
 // The audit sink: every row the guard writes lands here.
 $GLOBALS['__audit'] = array();
-function sn_mcp_rw_audit_record( $slug, $args, $outcome, $err = null ) { $GLOBALS['__audit'][] = array( $slug, $outcome ); return array(); }
+function sn_mcp_rw_audit_record( $slug, $args, $outcome, $err = null ) { $GLOBALS['__audit'][] = array( $slug, $outcome ); $GLOBALS['__audit_args'][] = $args; return array(); }
 
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 require __DIR__ . '/../inc/mcp/mcp-rw-guard.php';
@@ -190,6 +190,15 @@ echo "\nGroup: the outcome of an allowed call is recorded after the callbacks\n"
 reset_state( $BOUND, $BOUND );
 $out = sn_mcp_rw_guard_run_route_audit( array( 'ok' => true ), null, new RG_Req( run_route( $a_write ) ) );
 ok( array( 'ok' => true ) === $out && array( array( $a_write, 'ok' ) ) === $GLOBALS['__audit'], 'a successful response is returned untouched and logged as ok' );
+reset_state( $BOUND, $BOUND );
+$GLOBALS['__audit_args'] = array();
+sn_mcp_rw_guard_run_route_audit( array( 'ok' => true ), null, new RG_Req( run_route( $a_write ), array( 'input' => array( 'dry_run' => false, 'change_type' => 'x' ) ) ) );
+ok( array( array( 'dry_run' => false, 'change_type' => 'x' ) ) === $GLOBALS['__audit_args'], 'the row gets the ability\'s input, not the {input: …} envelope the redactor would drop whole' );
+class RG_Query_Req extends RG_Req { public function get_param( $k ) { return 'input' === $k ? array( 'dry_run' => true ) : null; } }
+$GLOBALS['__audit_args'] = array();
+sn_mcp_rw_guard_run_route_audit( array( 'ok' => true ), null, new RG_Query_Req( run_route( $a_write ) ) );
+ok( array( array( 'dry_run' => true ) ) === $GLOBALS['__audit_args'], 'a GET or DELETE run reads its input from the query string through get_param' );
+$GLOBALS['__audit'] = array();
 reset_state( $BOUND, $BOUND );
 $e = new WP_Error( 'snt_sn_apply_fingerprint_stale', 'x', array( 'status' => 409 ) );
 $out = sn_mcp_rw_guard_run_route_audit( $e, null, new RG_Req( run_route( $a_write ) ) );

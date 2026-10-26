@@ -161,12 +161,13 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
-			// Returns text only (caller writes post_excerpt) → readonly; but it is
-			// generative, so a retry returns different prose → not idempotent.
-			// Mirrors the draft-release-notes precedent exactly.
+			// Returns text only (the caller writes post_excerpt), but every run
+			// spends AI credit, so it is not readonly (2026-10-26 audit, N4): the
+			// run route takes it as POST and no client treats it as free to repeat.
+			// Generative, so a retry returns different prose → not idempotent.
 			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
 			'annotations'  => array(
-				'readonly'    => true,
+				'readonly'    => false,
 				'destructive' => false,
 				'idempotent'  => false,
 			),

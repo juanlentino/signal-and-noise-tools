@@ -74,6 +74,35 @@ function sn_mcp_adapter_transport_floor() {
 }
 if ( function_exists( 'add_filter' ) ) { // suites that require this file bare stub no hooks.
 	add_filter( 'mcp_adapter_default_transport_permission_user_capability', 'sn_mcp_adapter_transport_floor' );
+	add_filter( 'wp_register_ability_args', 'sn_mcp_adapter_public_floor', 10, 2 );
+}
+
+/**
+ * Only the read door's tools are public to the official MCP Adapter
+ * (2026-10-26 audit, N2). The adapter's execute tool runs ANY ability whose
+ * meta.mcp.public is true, with none of the write door's controls (no bound
+ * credential, no rate limit), and 50-odd registrations set the flag by hand:
+ * three write abilities and four retired reads among them. Enforced once, at
+ * registration, for this plugin's and the theme's namespaces; the read-door
+ * allowlist is the source of truth.
+ *
+ * @param array<string,mixed> $args Ability registration args.
+ * @param string              $name Ability name.
+ * @return array<string,mixed>
+ */
+function sn_mcp_adapter_public_floor( $args, $name ) {
+	$name = (string) $name;
+	if ( ! is_array( $args ) || empty( $args['meta']['mcp']['public'] ) ) {
+		return $args;
+	}
+	if ( 0 !== strpos( $name, 'signal-noise/' ) && 0 !== strpos( $name, 'signal-and-noise/' ) ) {
+		return $args;
+	}
+	if ( in_array( $name, sn_mcp_allowlist(), true ) ) {
+		return $args;
+	}
+	$args['meta']['mcp']['public'] = false;
+	return $args;
 }
 
 /**

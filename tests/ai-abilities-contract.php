@@ -33,7 +33,7 @@ echo "Group: generative writers are NOT idempotent\n";
 ok( false === ( ann( 'signal-noise/ai-generate-meta-description' )['idempotent'] ?? null ), 'meta-description: idempotent => false (generative + writes meta)' );
 ok( false === ( ann( 'signal-noise/ai-generate-og-card-title' )['idempotent'] ?? null ), 'og-card-title: idempotent => false (generative + writes meta + PNG)' );
 $ex = ann( 'signal-noise/ai-generate-excerpt' );
-ok( false === ( $ex['idempotent'] ?? null ) && true === ( $ex['readonly'] ?? null ), 'excerpt: readonly true + idempotent false (returns-only, generative)' );
+ok( false === ( $ex['idempotent'] ?? null ) && false === ( $ex['readonly'] ?? null ) && false === ( $ex['destructive'] ?? null ), 'excerpt: readonly false (spends AI credit) + idempotent false (generative) + not destructive, so the run route takes POST' );
 
 echo "\nGroup: dead `concise` contract dropped from og-card-title\n";
 ok( ! array_key_exists( 'concise', in_props( 'signal-noise/ai-generate-og-card-title' ) ), 'og-card-title input no longer declares the ignored `concise` field' );
