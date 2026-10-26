@@ -37,8 +37,8 @@ wrong, the audit record says so.
 - F1: code mode stays off. Recommended if it goes on:
   `BRIDGE_RATE_LIMIT_PER_MIN=30`, `RATE_LIMIT_PER_MIN=60`.
 - The portal's "Require user auth" setting, and who its Access policy admits.
-- N0: whether anything constrains an admin application password on `/wp/v2/*`.
-- N3: drop `last4` from `keyring-status`'s output (proposed, not built).
+- The audit's further findings, recorded privately while open (this
+  repository is public).
 - F3: the description trim (proposed; numbers in the audit record).
 - N6: branch protection on the Worker repo; whether the Workers Builds
   command runs the tests.
