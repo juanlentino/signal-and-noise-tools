@@ -83,7 +83,10 @@ foreach ( array(
 	'apply_staged_meta? (default true)',
 	'snt_sn_apply_locator_conflict / snt_sn_apply_locator_required',
 	'expected_counts? ({class: n} for the labels this call applies; a mismatch is a 422)',
-	'overlapping byte ranges are a 422',
+	'overlapping byte ranges are a 422, except in drift_replace and emdash_replace payload.edits',
+	'for a fingerprint the caller supplies, missing is a 422',
+	'a dry_run:true call also reports it as gates.fingerprint.observed',
+	'Candidate-driven types (drift_replace, emdash_replace, link_insert, block_migration, pattern_adoption)',
 	'so dry_run:true is the review step',
 	'block-migrations | pattern-adoption | corpus-integrity',
 ) as $rule ) {
@@ -97,17 +100,25 @@ require_once __DIR__ . '/../inc/sn-apply/executors.php';
 preg_match( '/PUBLISH-ONLY types,[^:]*:(.*?)\. REVISION-ONLY/s', $desc, $pm );
 preg_match( '/REVISION-ONLY types,[^:]*:(.*?);/s', $desc, $rm );
 $unadvertised = array( 'merge_tags', 'clear_template_overrides', 'schedule_cron_event' );
-$single       = 0;
+$code         = array( 'publish' => array(), 'revision' => array() );
 foreach ( SNT_SN_APPLY_CHANGE_TYPES as $t ) {
 	$modes = snt_sn_apply_mode_support( $t )['modes'];
-	if ( 1 !== count( $modes ) || in_array( $t, $unadvertised, true ) ) {
-		continue;
+	if ( 1 === count( $modes ) && ! in_array( $t, $unadvertised, true ) ) {
+		$code[ $modes[0] ][] = $t;
 	}
-	++$single;
-	$list = 'publish' === $modes[0] ? ( $pm[1] ?? '' ) : ( $rm[1] ?? '' );
-	ok( 1 === preg_match( '/\b' . $t . '\b/', $list ), strtoupper( $modes[0] ) . "-ONLY lists $t, as the code does" );
 }
-ok( $single >= 8, "the code's single-mode types were read ($single)" );
+// The types each list names, against the code's types for that mode: equal
+// both ways, so a type in the wrong list, an extra one or a missing one fails.
+$named = static function ( $list ) {
+	return array_values( array_intersect( SNT_SN_APPLY_CHANGE_TYPES, preg_split( '/[^a-z_]+/', (string) $list ) ) );
+};
+foreach ( array( 'publish' => $pm[1] ?? '', 'revision' => $rm[1] ?? '' ) as $mode => $list ) {
+	$want = $code[ $mode ];
+	$have = $named( $list );
+	sort( $want );
+	sort( $have );
+	ok( array() !== $want && $want === $have, strtoupper( $mode ) . '-ONLY names exactly the code\'s ' . $mode . '-only types (' . implode( ', ', $want ) . ')' . ( $want === $have ? '' : '; the text names ' . implode( ', ', $have ) ) );
+}
 
 echo "Left unadvertised (an owner decision whether to open them)\n";
 foreach ( $unadvertised as $t ) {
