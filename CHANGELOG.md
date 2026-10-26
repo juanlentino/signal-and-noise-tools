@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.10.71] - 2026-10-26 — the MCP doors audit: contract 24, compact results, constant-only bridge secret
+
+
 MCP doors audit, 2026-10-26 (docs/audits/2026-10-26-mcp-doors.md).
 
 ### Changed
@@ -24,9 +27,4 @@ MCP doors audit, 2026-10-26 (docs/audits/2026-10-26-mcp-doors.md).
 
 ### Docs
 - **Hard numbers that rotted now point at the tests that pin them (F7):** the README (51 tools, 17 twins, contract "14"), `docs/ai-abilities-catalog.md` (49/16/18/15; four retired tools still marked READ; four missing rows added), and the docblocks that said "read-door 25", "35 rw slugs", rate limit "per credential" (it is per user), remote ceiling "fail-OPEN" (closed since 13.50.0) and "three public routes". The threat model gains dated notes; `docs/FILTERS.md` drops the removed `sn_bridge_secret` filter.
-
-## [2026.10.70] - 2026-10-26 — the connector is Tribar Connector for TypeSafe Jev
-
-### Changed
-- **The connector is Tribar Connector for TypeSafe Jev now.** The WordPress.org directory review asked for a less generic name, so the connector's 0.4.6 renamed it (slug, text domain and folder `tribar-connector-for-typesafe-jev`; repo `juanlentino/tribar-connector-for-typesafe-jev`, GitHub redirects both older URLs). Its PHP API did not change (`JevConnector\ask()`, `Connector::get_api_key()`, the `typesafe` id, the setting names), and nothing here depends on its folder or slug, so only words and links move: every "Install … and add the key under Settings › Connectors" message (`SN_JEV_NOT_READY`, the tag-fit flash, the Tag consolidation and Search fit bands, the Dashboard's Jev budget and Content › Tags sections), the docblocks in `inc/typesafe-client.php`, and the links in `README.md` and `AI.md`. The two suites that pin the message and the connector stub's docblock follow.
 
