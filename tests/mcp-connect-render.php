@@ -453,12 +453,13 @@ $GLOBALS['__app_passwords'] = array(
 // door's kill-switch toggle. The rule's point is that no THIRD, unreviewed
 // write surface slips in unnoticed, so the count rises only alongside the
 // sn_action pins below that name each surface's action. ──
-ok( 2 === substr_count( $html, '<form' ), 'MIRROR RULE: exactly TWO <form>s on the whole leaf (R9 binding + remote toggle)' );
-ok( 2 === substr_count( $html, 'name="action"' ), 'MIRROR RULE: both forms declare an action, so neither is an unnamed write surface' );
+ok( 3 === substr_count( $html, '<form' ), 'MIRROR RULE: exactly THREE <form>s on the whole leaf (R9 binding, the read binding, remote toggle)' );
+ok( 3 === substr_count( $html, 'name="action"' ), 'MIRROR RULE: every form declares an action, so none is an unnamed write surface' );
 ok( 1 === substr_count( $html, 'value="sn_bind_mcp_rw_credential"' ), 'MIRROR RULE: exactly one form carries the credential-bind action' );
+ok( 1 === substr_count( $html, 'value="sn_bind_mcp_read_credential"' ), 'MIRROR RULE: exactly one form carries the read-door bind action (2026-10-26)' );
 ok( 1 === substr_count( $html, 'value="sn_remote_toggle"' ), 'MIRROR RULE: exactly one form carries the remote_toggle action' );
-ok( 1 === substr_count( $html, '<select' ), 'MIRROR RULE: exactly ONE <select> on the whole leaf' );
-ok( 2 === substr_count( $html, '<button' ), 'MIRROR RULE: exactly TWO <button>s on the whole leaf (one submit per form)' );
+ok( 2 === substr_count( $html, '<select' ), 'MIRROR RULE: exactly TWO <select>s on the whole leaf (one per binding)' );
+ok( 3 === substr_count( $html, '<button' ), 'MIRROR RULE: exactly THREE <button>s on the whole leaf (one submit per form)' );
 ok( false === strpos( $html, '<textarea' ), 'MIRROR RULE: still no <textarea> anywhere in the leaf' );
 
 // ── M1 (IA): bind form + Connect-a-client sit ABOVE both tool lists ──
@@ -557,7 +558,7 @@ ok( false === strpos( $nolist, '0 tools' ), 'M3: and never "0 tools" — unknown
 $present = sn_test_render_status_cards( array_merge( $base_state, array( 'adapter_active' => true ) ) );
 ok( stripos( $present, 'Present' ) !== false, 'M3: an installed adapter reads Present' );
 
-ok( 2 === substr_count( $html, '<form' ), 'M3: still exactly TWO forms after the glance landed' );
+ok( 3 === substr_count( $html, '<form' ), 'M3: still exactly THREE forms after the glance landed' );
 
 // ══════════════════════════════════════════════════════════════════════════
 // The remote door card + toggle (bridge half). The endpoint answers 404 for a
@@ -620,9 +621,9 @@ $oauth_at = strpos( $html, 'application password will not work there' );
 ok( is_int( $claude_fold_at ) && is_int( $oauth_at ) && is_int( $claude_fold_end )
 	&& $claude_fold_at < $oauth_at && $oauth_at < $claude_fold_end,
 	'M4: the OAuth warning is inside the same fold' );
-ok( 2 === substr_count( $html, '<form' ), 'M4 MIRROR RULE: still exactly TWO <form>s on the leaf' );
-ok( 1 === substr_count( $html, '<select' ), 'M4 MIRROR RULE: still exactly ONE <select> on the leaf' );
-ok( 2 === substr_count( $html, '<button' ), 'M4 MIRROR RULE: still exactly TWO <button>s on the leaf' );
+ok( 3 === substr_count( $html, '<form' ), 'M4 MIRROR RULE: still exactly THREE <form>s on the leaf' );
+ok( 2 === substr_count( $html, '<select' ), 'M4 MIRROR RULE: still exactly TWO <select>s on the leaf' );
+ok( 3 === substr_count( $html, '<button' ), 'M4 MIRROR RULE: still exactly THREE <button>s on the leaf' );
 ok( 1 === substr_count( $html, '<pre>' ), 'M4 MIRROR RULE: still exactly ONE <pre> on the leaf' );
 ok( false === strpos( $html, '<textarea' ), 'M4 MIRROR RULE: still no <textarea> on the leaf' );
 $admin_css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );

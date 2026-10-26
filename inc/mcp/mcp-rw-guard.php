@@ -216,6 +216,12 @@ function sn_mcp_set_rw_bound_uuid( $uuid ) {
 	if ( ! sn_mcp_rw_uuid_shape_valid( $uuid ) ) {
 		return false;
 	}
+	// 2026-10-26: never the read door's bound password. Each door's scope
+	// refuses the other door's routes, so one password on both would be refused
+	// on both. Read by option name: the door guards do not import each other.
+	if ( hash_equals( strtolower( (string) get_option( 'sn_mcp_read_app_password_uuid', '' ) ), strtolower( $uuid ) ) ) {
+		return false;
+	}
 	return update_option( SN_MCP_RW_BOUND_UUID_OPTION, strtolower( $uuid ) );
 }
 

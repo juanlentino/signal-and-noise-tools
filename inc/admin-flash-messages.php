@@ -228,6 +228,13 @@ function sn_admin_flash_messages() {
 		'mcp_rw_unbound'              => array( 'info', 'Write-door credential unbound: every call to <code>/mcp-rw</code> is denied until you bind one again.' ),
 		'mcp_rw_bind_invalid'         => array( 'error', 'Could not bind that Application Password: it doesn&rsquo;t belong to your account, or no longer exists.' ),
 		'mcp_rw_bind_choose'          => array( 'error', 'Nothing changed: choose an Application Password to bind. To unbind the write door, use Unbind.' ),
+		'mcp_rw_bind_same_as_read'    => array( 'error', 'Not bound: that Application Password is bound to the read door. Each door needs its own, or neither door would accept it.' ),
+		// 2026-10-26 audit N0: the read door's optional credential binding.
+		'mcp_read_bound'              => array( 'success', 'Read-door credential bound. That Application Password now works only on <code>/mcp</code> and the read door&rsquo;s tools.' ),
+		'mcp_read_unbound'            => array( 'info', 'Read-door credential unbound: that Application Password is no longer limited, and the read door works as before.' ),
+		'mcp_read_bind_invalid'       => array( 'error', 'Could not bind that Application Password: it doesn&rsquo;t belong to your account, or no longer exists.' ),
+		'mcp_read_bind_choose'        => array( 'error', 'Nothing changed: choose an Application Password to bind. To unbind the read door, use Unbind.' ),
+		'mcp_read_bind_same_as_write' => array( 'error', 'Not bound: that Application Password is bound to the write door. Each door needs its own, or neither door would accept it.' ),
 		// v9.85.0 (Session 3): Machine Readers sensor settings.
 		'machine_readers_saved'       => array( 'success', 'Machine Readers sensor settings saved. The panels read with the new credentials on the next load.' ),
 		'gsc_credential_saved'        => array( 'success', 'Search Console credential saved. The private key is never displayed; Search Console credential shows which key is stored.' ),

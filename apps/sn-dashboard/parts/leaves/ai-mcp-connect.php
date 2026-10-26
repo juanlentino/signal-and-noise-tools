@@ -28,6 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/ai-mcp-connect-parts.php';
+require_once __DIR__ . '/ai-mcp-connect-read-binding.php';
 require_once __DIR__ . '/ai-mcp-connect-steps.php';
 
 /**
@@ -100,11 +101,11 @@ function paint_ai_mcp_connect( array $ctx ) {
 	$status = mcp_connect_status();
 	if ( 4 === count( $status['cards'] ) ) {
 		$out .= mcp_connect_tiles_html( $status['state'], $status['cards'] );
-		// The two controls side by side: each sits with the door it changes.
+		// The three controls side by side, in door order: each sits with the door it changes.
 		$rw_state = (string) ( $status['state']['rw_state'] ?? '' );
-		$out     .= \snt_kit_grid( array( mcp_connect_rw_binding_html( $rw_state, sn_admin_mcp_status_off_reason( $status['state'] ) ), mcp_connect_remote_html( $status['cards'][3] ) ), 320, 18 );
+		$out     .= \snt_kit_grid( array_values( array_filter( array( mcp_connect_read_binding_html(), mcp_connect_rw_binding_html( $rw_state, sn_admin_mcp_status_off_reason( $status['state'] ) ), mcp_connect_remote_html( $status['cards'][3] ) ) ) ), 320, 18 );
 	} else {
-		$out .= mcp_connect_rw_binding_html();
+		$out .= mcp_connect_read_binding_html() . mcp_connect_rw_binding_html();
 	}
 	$out .= mcp_connect_owner_steps_html( $status['state'] );
 	$out .= mcp_connect_footer_html();

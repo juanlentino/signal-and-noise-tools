@@ -42,6 +42,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Required from here — not only from the plugin loader — so every load site of this file (tests included) stays whole.
 require_once __DIR__ . '/mcp-connect-status.php';
+require_once __DIR__ . '/mcp-connect-read-binding.php'; // 2026-10-26 audit N0: the read door's optional binding.
 
 /**
  * Tools → Connect an MCP client section body. Used as the
@@ -55,6 +56,7 @@ function sn_admin_render_mcp_connect_section() {
 	// M1 (IA): bind + connect sit above both tool-list doors so the returning
 	// owner's job and the first-run job are reachable without scrolling past
 	// the live slug inventories. No disclosure wrapping here — that is M2.
+	sn_admin_render_mcp_read_binding();
 	sn_admin_render_mcp_rw_binding();
 	sn_admin_render_mcp_owner_steps();
 	// 15.6.0: the door inventories and the call log moved to AI › Agent tools
@@ -84,7 +86,7 @@ function sn_admin_render_mcp_door_native( $usage = null ) {
 	echo '<p class="sn-callout-h">' . esc_html__( 'Read door: the native MCP server', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . sprintf(
 		/* translators: %s: the WordPress capability slug, wrapped in <code>. */
-		esc_html__( 'A dependency-free JSON-RPC 2.0 endpoint this plugin hand-rolls. Every call needs a WordPress login with the %s capability, and this door’s tool list is the whole surface: nothing outside it is reachable, even by request.', 'signal-and-noise-tools' ),
+		esc_html__( 'A dependency-free JSON-RPC 2.0 endpoint this plugin hand-rolls. Every call needs a WordPress login with the %s capability, and this door’s tool list is the whole surface: nothing outside it is reachable, even by request. Binding an Application Password to it in Tools -> MCP is optional and limits that one password to this door and its tools.', 'signal-and-noise-tools' ),
 		'<code>manage_options</code>'
 	) . '</p>';
 	echo '<p><code>POST ' . esc_url( $url ) . '</code> <span class="sn-badge">' . esc_html__( 'read-only', 'signal-and-noise-tools' ) . '</span></p>';

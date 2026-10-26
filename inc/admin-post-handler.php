@@ -119,6 +119,8 @@ function sn_admin_post_handlers() {
 		// R9 (v9.51.0, lane SEC-C): MCP write-door credential binding
 		// (handler body in inc/admin-post-actions/mcp.php).
 		'bind_mcp_rw_credential'     => 'sn_handle_bind_mcp_rw_credential',
+		// 2026-10-26 audit N0: the read door's optional credential binding.
+		'bind_mcp_read_credential'   => 'sn_handle_bind_mcp_read_credential',
 		// v9.85.0 (Session 3): Machine Readers sensor settings (worker URL +
 		// write-only read token under the machine_readers subtree).
 		'machine_readers_save'       => 'sn_handle_machine_readers_save',
