@@ -12,7 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A refused multi-edit in the drift family keeps its real status.** For `drift_replace` and `emdash_replace` with `payload.edits`, gate 1 dropped the planner's code and status, so an overlap, an ambiguous phrase or too many edits came back as a 409 `snt_sn_apply_fingerprint_stale` and sent the caller to re-scan for nothing. Gate 1 now carries the planner's own code and status, as `sentence_replace` has since v13.95.1. The planner's 409s stay the fingerprint's failure, now under their own codes (`snt_sn_apply_batch_phrase_not_found`, `snt_sn_apply_batch_fingerprint_stale`) rather than the generic `snt_sn_apply_fingerprint_stale`. Every other refusal is a payload conflict: a 422, reported as a validation finding. An overlap comes only after every per-edit fingerprint matched, so the fingerprint gate reports passed; every other refusal marks it `plan_refused`. `link_insert`, which takes no `payload.edits`, now gets the planner's 422 unsupported type instead of a 409. The description's exception for these two types is gone. Pinned in `tests/sn-apply-batch-edits.php`.
+
 ### Changed
+- **sn-apply's TARGETS rule says "a list of them", not "an array (batch)",** which read like the `batch` change type. The batch-scope check also gains tests for non-string scopes and a nested list (`tests/abilities-sn-apply-batch-and-rollback.php`).
 - **sn-apply's description says to make one call per post from clients that refuse a list.** A fresh Claude client reads `target` as an object only and refuses a list target before sending it ("expected object, received array"), so the description no longer leaves "an array (batch)" as the only guidance. Pinned in `tests/sn-apply-description.php`.
 
 ## [2026.10.74] - 2026-10-26 — sn-apply target keeps the order clients read

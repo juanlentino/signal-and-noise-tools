@@ -76,7 +76,35 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			if ( isset( $payload['edits'] ) ) {
 				$plan = snt_sn_apply_plan_batch_edits( $content, $type, $payload['edits'] );
 				if ( is_wp_error( $plan ) ) {
-					return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => $plan->get_error_message(), 'new_content' => null );
+					// 2026-10-26: the planner's own code and status, as sentence_replace
+					// has since v13.95.1. Its 409s (a moved phrase, a stale per-edit
+					// fingerprint) stay the fingerprint's failure; anything else is a
+					// payload conflict, reported as a validation finding with its 422.
+					// An overlap is refused only after every per-edit fingerprint matched,
+					// so the fingerprint gate passed. Every other refusal may come before a
+					// fingerprint is checked (active content is refused both per edit,
+					// before its fingerprint, and after the splice), so it is not reached.
+					$plan_data = (array) $plan->get_error_data();
+					$status    = (int) ( $plan_data['status'] ?? 422 );
+					$refusal   = array(
+						'passed'       => false,
+						'expected'     => $fingerprint,
+						'observed'     => null,
+						'skipped'      => null,
+						'detail'       => $plan->get_error_message(),
+						'new_content'  => null,
+						'error_code'   => $plan->get_error_code(),
+						'error_status' => $status,
+					);
+					if ( 409 !== $status ) {
+						$refusal['plan_error'] = $plan->get_error_message();
+						if ( 'snt_sn_apply_batch_overlap' === $plan->get_error_code() ) {
+							$refusal['fingerprint_ok'] = true;
+						} else {
+							$refusal['skipped'] = 'plan_refused';
+						}
+					}
+					return $refusal;
 				}
 				// Per-edit fingerprints were each verified inside the planner, so
 				// there is no single expected/observed pair to report here.
