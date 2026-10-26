@@ -47,6 +47,7 @@ class WP_Error {
 	public function __construct( $c = '', $m = '', $d = array() ) { $this->code = $c; $this->message = $m; $this->data = $d; }
 	public function get_error_message() { return $this->message; }
 	public function get_error_code() { return $this->code; }
+	public function get_error_data() { return $this->data; }
 }
 function __( $s, $d = null ) { return $s; }
 // Models REAL WordPress: wp_strip_all_tags() ends with `return trim( $text );`.
@@ -244,6 +245,32 @@ ok( ! is_wp_error( $srp ), 'sentence_replace accepts a batch without per-edit fi
 ok( ! is_wp_error( $srp ) && false !== strpos( $srp['new_content'], 'Sentence one runs' ) && false !== strpos( $srp['new_content'], 'Sentence two also runs' ), 'both sentence edits landed' );
 $short = snt_sn_apply_plan_batch_edits( $sr, 'sentence_replace', array( array( 'phrase' => 'short', 'replacement' => 'x' ) ) );
 ok( is_wp_error( $short ), 'sentence_replace still enforces its >= 20-char phrase floor inside a batch' );
+
+echo "\nGroup 9: gate 1 carries the planner's code and status for the drift family (2026-10-26)\n";
+require_once __DIR__ . '/../inc/sn-apply/validation-fingerprint-parts.php';
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $id ) { return 77 === (int) $id ? (object) array( 'post_content' => $GLOBALS['__gate_content'] ) : null; }
+}
+$GLOBALS['__gate_content'] = $real;
+$g_overlap = snt_sn_apply_gate1_fingerprint( 'emdash_replace', array( 'post_id' => 77 ), array(
+	'payload' => array( 'edits' => array(
+		edit_at( $real, 'supply chain — code signing', 'supply chain (code signing' ),
+		edit_at( $real, 'chain — code', 'chain: code' ),
+	) ),
+) );
+ok( false === $g_overlap['passed'] && 422 === ( $g_overlap['error_status'] ?? null ) && '' !== (string) ( $g_overlap['plan_error'] ?? '' ) && true === ( $g_overlap['fingerprint_ok'] ?? null ), 'an overlap reaches the response as its 422 and a validation finding, with the fingerprint gate passed (every per-edit fingerprint matched first)' );
+$g_many = snt_sn_apply_gate1_fingerprint( 'emdash_replace', array( 'post_id' => 77 ), array( 'payload' => array( 'edits' => array_fill( 0, 51, edit_at( $real, 'chain — code', 'chain (code' ) ) ) ) );
+ok( 422 === ( $g_many['error_status'] ?? null ) && 'plan_refused' === $g_many['skipped'] && ! isset( $g_many['fingerprint_ok'] ), 'a refusal before any fingerprint was checked (51 edits) marks the fingerprint gate not reached' );
+$active = edit_at( $real, 'chain — code', 'chain <script>x</script> code' );
+$active['fingerprint'] = 'stale';
+$g_active = snt_sn_apply_gate1_fingerprint( 'emdash_replace', array( 'post_id' => 77 ), array( 'payload' => array( 'edits' => array( $active ) ) ) );
+ok( 422 === ( $g_active['error_status'] ?? null ) && ! isset( $g_active['fingerprint_ok'] ) && 'plan_refused' === $g_active['skipped'], 'active content refused before its fingerprint is checked does not claim the fingerprint passed' );
+$g_link = snt_sn_apply_gate1_fingerprint( 'link_insert', array( 'post_id' => 77 ), array( 'payload' => array( 'edits' => array( edit_at( $real, 'chain — code', 'chain (code' ) ) ) ) );
+ok( 422 === ( $g_link['error_status'] ?? null ) && 'snt_sn_apply_batch_unsupported_type' === ( $g_link['error_code'] ?? null ), 'link_insert with payload.edits is the planner\'s 422 unsupported type, not a 409' );
+$stale = edit_at( $real, 'chain — code', 'chain (code' );
+$stale['fingerprint'] = 'not-the-live-one';
+$g_stale = snt_sn_apply_gate1_fingerprint( 'emdash_replace', array( 'post_id' => 77 ), array( 'payload' => array( 'edits' => array( $stale ) ) ) );
+ok( false === $g_stale['passed'] && 409 === ( $g_stale['error_status'] ?? null ) && 'snt_sn_apply_batch_fingerprint_stale' === ( $g_stale['error_code'] ?? null ) && ! isset( $g_stale['plan_error'] ), 'a stale per-edit fingerprint stays the 409, named by the planner\'s own code' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
