@@ -92,9 +92,9 @@ function sn_mcp_rw_credential_scope( $result, $server = null, $request = null ) 
 		);
 		// The read password is the lower-trust credential, and these refusals
 		// run before the read rate limit: tag them, and record at most
-		// SN_MCP_READ_SCOPE_AUDIT_PER_MINUTE a minute, so a flood from it can
-		// neither roll the write door's rows out of the shared rw audit log
-		// nor mail the owner once a request.
+		// SN_MCP_READ_SCOPE_AUDIT_PER_DAY a day. The rw audit log keeps 1,000
+		// rows for 30 days, so read refusals can fill at most 600 of them and
+		// never roll the write door's rows out, nor mail the owner per request.
 		if ( ! sn_mcp_read_scope_audit_allowed() ) {
 			return $error;
 		}
@@ -109,23 +109,23 @@ function sn_mcp_rw_credential_scope( $result, $server = null, $request = null ) 
 	return $error;
 }
 
-const SN_MCP_READ_SCOPE_AUDIT_PER_MINUTE = 10;
+const SN_MCP_READ_SCOPE_AUDIT_PER_DAY = 20;
 
 /**
- * Count one read-scope refusal against this minute's audit allowance.
+ * Count one read-scope refusal against today's audit allowance (UTC day).
  *
- * @return bool True while the minute has room left.
+ * @return bool True while the day has room left.
  */
 function sn_mcp_read_scope_audit_allowed() {
 	if ( ! function_exists( 'get_transient' ) || ! function_exists( 'set_transient' ) ) {
 		return true;
 	}
-	$key = 'sn_mcp_read_scope_audit_' . (int) floor( time() / 60 );
+	$key = 'sn_mcp_read_scope_audit_' . gmdate( 'Ymd' );
 	$n   = (int) get_transient( $key );
-	if ( $n >= SN_MCP_READ_SCOPE_AUDIT_PER_MINUTE ) {
+	if ( $n >= SN_MCP_READ_SCOPE_AUDIT_PER_DAY ) {
 		return false;
 	}
-	set_transient( $key, $n + 1, 120 );
+	set_transient( $key, $n + 1, 2 * 86400 );
 	return true;
 }
 

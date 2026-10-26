@@ -90,8 +90,9 @@ foreach ( array( '/signal-noise/v1/mcp-rw', '/wp/v2/settings', '/wp/v2/posts', $
 ok( in_array( array( 'read-route:/wp/v2/settings', 'denied' ), $GLOBALS['__audit'], true ), 'each refusal is audited, tagged as the read door\'s' );
 $GLOBALS['__audit'] = array();
 $GLOBALS['__transients'] = array();
-for ( $i = 0; $i < 25; $i++ ) { $last = $scope( '/wp/v2/posts' ); }
-ok( is_wp_error( $last ) && SN_MCP_READ_SCOPE_AUDIT_PER_MINUTE === count( $GLOBALS['__audit'] ), 'a flood is still refused every time, but writes at most ' . SN_MCP_READ_SCOPE_AUDIT_PER_MINUTE . ' audit rows a minute' );
+for ( $i = 0; $i < 60; $i++ ) { $last = $scope( '/wp/v2/posts' ); }
+ok( is_wp_error( $last ) && SN_MCP_READ_SCOPE_AUDIT_PER_DAY === count( $GLOBALS['__audit'] ), 'a flood is still refused every time, but writes at most ' . SN_MCP_READ_SCOPE_AUDIT_PER_DAY . ' audit rows a day' );
+ok( SN_MCP_READ_SCOPE_AUDIT_PER_DAY * 30 < 1000, 'over the rw audit log\'s 30-day window, read refusals fill less than its 1,000 rows' );
 $GLOBALS['__transients'] = array();
 $GLOBALS['__options'] = array( 'sn_mcp_rw_app_password_uuid' => $BOUND );
 ok( null === $scope( '/wp/v2/settings' ), 'unbound, the same password reaches everything, as before' );
