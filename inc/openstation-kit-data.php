@@ -42,6 +42,21 @@ function snt_kit_empty_text( array $opts, $empty, $kind ) {
 }
 
 /**
+ * Whether OpenStation stacks a server-painted table on a phone itself: the
+ * `stack-on-phone` attribute on `<os-table>`, from 1.1.16 (WordPress/openstation
+ * #981). Below that, or with OpenStation absent, the kit's shim does it.
+ *
+ * @param string|null $version An OpenStation version (test seam); OPENSTATION_VERSION by default.
+ * @return bool
+ */
+function snt_os_native_stack_on_phone( $version = null ) {
+	if ( null === $version ) {
+		$version = defined( 'OPENSTATION_VERSION' ) ? (string) OPENSTATION_VERSION : '';
+	}
+	return '' !== (string) $version && version_compare( (string) $version, '1.1.16', '>=' );
+}
+
+/**
  * `<os-table>` fed from markup. A column is `key` plus optional `label`,
  * `align` (start|center|end), `filter` (text|select), `sortable`, `stack`.
  *
@@ -53,8 +68,10 @@ function snt_kit_empty_text( array $opts, $empty, $kind ) {
  * it. The slot name is minted per row and column, so it is unique across the
  * table as the component requires; `text` is what the column sorts and
  * filters on. A row's optional `_key` names its slots by identity instead of
- * position (see below). `stack_on_phone` marks the table for
- * assets/os-kit-stack.js.
+ * position (see below). `stack_on_phone` asks for cards on a phone: the
+ * native `stack-on-phone` attribute from OpenStation 1.1.16 (upstream #981,
+ * which closed our #900), else `data-snt-stack-on-phone` for the
+ * assets/os-kit-stack.js shim on older versions.
  *
  * @param array<int,array<string,mixed>> $columns Column descriptors.
  * @param array<int,array<string,mixed>> $rows    Row objects keyed by column key.
@@ -114,7 +131,8 @@ function snt_kit_table( array $columns, array $rows, array $opts = array() ) {
 			'sticky-header'   => (bool) ( $opts['sticky_header'] ?? false ),
 			'selectable'      => $opts['selectable'] ?? null,
 			'empty'           => snt_kit_empty_text( $opts, array() === $rows, 'snt_kit_table' ),
-			'data-snt-stack-on-phone' => empty( $opts['stack_on_phone'] ) ? null : true,
+			'stack-on-phone'          => empty( $opts['stack_on_phone'] ) || ! snt_os_native_stack_on_phone() ? null : true,
+			'data-snt-stack-on-phone' => empty( $opts['stack_on_phone'] ) || snt_os_native_stack_on_phone() ? null : true,
 		),
 		$slotted
 	);

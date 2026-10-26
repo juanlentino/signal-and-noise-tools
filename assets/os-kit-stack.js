@@ -14,8 +14,10 @@
  * here. Setting it when it is already present changes nothing, so the observer
  * cannot loop.
  *
- * Delete this when OpenStation gives server-painted tables a declarative way
- * to ask for it: WordPress/openstation#900.
+ * Superseded from OpenStation 1.1.16, which shipped that declarative way
+ * (`<os-table stack-on-phone>`, WordPress/openstation#981 for our #900): the
+ * kit emits the native attribute there and this file is not loaded. Delete it
+ * once the plugin no longer supports OpenStation before 1.1.16.
  */
 ( function () {
 	'use strict';

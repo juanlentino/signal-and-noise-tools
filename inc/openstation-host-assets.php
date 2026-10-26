@@ -67,9 +67,14 @@ function snt_os_host_asset_handles( $id = 'sn-dashboard' ) {
 			'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit', 'snt-analytics-native-tables', 'sn-live-now-admin' ),
 		);
 	}
+	$scripts = array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'snt-health-suggest-actions', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit' );
+	// The phone-stacking shim only where OpenStation cannot do it (before 1.1.16).
+	if ( ! function_exists( 'snt_os_native_stack_on_phone' ) || ! snt_os_native_stack_on_phone() ) {
+		$scripts[] = 'snt-os-kit-stack';
+	}
 	return array(
 		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-os-app', 'snt-sn-dashboard-app' ),
-		'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'snt-health-suggest-actions', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit', 'snt-os-kit-stack' ),
+		'scripts' => $scripts,
 	);
 }
 
