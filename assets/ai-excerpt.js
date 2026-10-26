@@ -40,9 +40,9 @@
 		help: __( 'Generates a 50-75 word excerpt from the post content and writes it to the WordPress Excerpt field (Summary panel, Excerpt).', 'signal-noise-tools' ),
 		label: __( 'Generate excerpt with AI', 'signal-noise-tools' ),
 		run: function( postId ) {
-			// v7.7.2: via the shared runner. ai-generate-excerpt is annotated
-			// readonly (it returns text; the editor writes the field), so the
-			// controller requires GET; the old hardcoded POST 405'd.
+			// v7.7.2: via the shared runner, which takes the verb from the
+			// ability's annotations. Not readonly since the 2026-10-26 audit
+			// (every run spends AI credit), so the controller requires POST.
 			return window.sntAbilityRun( 'ai-generate-excerpt', { post_id: postId } )
 				.then( function( res ) {
 					if ( ! res || ! res.excerpt ) {

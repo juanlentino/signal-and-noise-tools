@@ -180,6 +180,25 @@ function sn_keyring_site_rows() {
 }
 
 /**
+ * The bridge secret is SN_BRIDGE_TOKEN or nothing since 2026.10.71 (audit F5),
+ * so a value the old option fallback saved is a dead copy of a live bearer in
+ * the database, and a site-secret switch for the row is inert. Both go; the
+ * reads cost nothing once they are gone.
+ */
+function sn_keyring_drop_bridge_option() {
+	if ( '' !== (string) get_option( 'sn_bridge_token', '' ) ) {
+		delete_option( 'sn_bridge_token' );
+	}
+	$rows = sn_keyring_site_rows();
+	if ( in_array( 'bridge_token', $rows, true ) ) {
+		update_option( SN_KEYRING_SITE_ROWS, array_values( array_diff( $rows, array( 'bridge_token' ) ) ) );
+	}
+}
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'admin_init', 'sn_keyring_drop_bridge_option' );
+}
+
+/**
  * The command that sets a row's other half, for the leaf to print.
  *
  * @param array<string,mixed> $row Registry row.
