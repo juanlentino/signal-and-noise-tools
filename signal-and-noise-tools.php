@@ -101,7 +101,7 @@ require_once SNT_PATH . 'inc/cloudflare-credentials.php'; // 14.10.0: ONE Cloudf
 require_once SNT_PATH . 'inc/cloudflare-firewall-events.php'; // 15.1.0: the raw firewall event log (open to every plan), read daily: the WAF witness from Cloudflare's side; top blocked paths and countries.
 require_once SNT_PATH . 'inc/cloudflare-posture.php';         // 15.4.0: zone settings, DNSSEC and the custom WAF rules, read daily: what the edge is SET TO, which a headers probe cannot see.
 require_once SNT_PATH . 'inc/keyring.php';        // 15.2.0: every credential in one registry; the site secret the handshakes derive from.
-require_once SNT_PATH . 'inc/keyring-changes.php'; // 19.6.2: every keyring option write logged (row, set/clear, last 4, source); never a value.
+require_once SNT_PATH . 'inc/keyring-changes.php'; // 19.6.2: every keyring option write logged (row, verb, a keyed fingerprint, source); never a value nor any part of one.
 require_once SNT_PATH . 'inc/keyring-verify.php'; // 15.2.0: one probe per credential, verdicts stored; "Verify all".
 require_once SNT_PATH . 'inc/keyring-admin.php';  // 15.2.0: the row model both leaves paint; the classic Connections › Credentials leaf.
 require_once SNT_PATH . 'inc/owner-identity-sign.php'; // Unreleased (SN Traffic Lanes): the device marker and agent token signer, pinned to the Workers' vectors.

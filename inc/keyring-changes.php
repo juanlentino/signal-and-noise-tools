@@ -3,9 +3,13 @@
  * Signal & Noise Tools — the keyring's change log (19.6.2).
  *
  * Every write to a keyring row's option, by ANY code path, leaves one line:
- * when, which row, set / clear / switch_site / switch_saved, the value's last four characters, and the
- * context that wrote it. Hooked on the option actions, not the save handler,
- * so a writer nobody expected is caught too. Never the value itself.
+ * when, which row, set / clear / switch_site / switch_saved, a fingerprint of
+ * the value written, and the context that wrote it. Hooked on the option
+ * actions, not the save handler, so a writer nobody expected is caught too.
+ * Never the value, nor any part of it: until 2026-10-26 each line carried the
+ * value's last four characters, which the read door then served to agents
+ * (docs/audits/2026-10-26-mcp-doors.md, N3). Lines from then are scrubbed on
+ * read and on the next write.
  * Read through `signal-noise/keyring-status` (`changes`).
  *
  * @package SignalNoiseTools
@@ -65,17 +69,16 @@ function sn_keyring_change_map() {
  *
  * @param string $row  Row id.
  * @param string $verb set | clear | switch_site | switch_saved.
- * @param string $tail Last 4, or ''.
+ * @param string $fp   sn_keyring_fingerprint() of the value written, or ''.
  * @return void
  */
-function sn_keyring_log_append( $row, $verb, $tail = '' ) {
-	$log   = get_option( SN_KEYRING_CHANGES_OPT, array() );
-	$log   = is_array( $log ) ? $log : array();
+function sn_keyring_log_append( $row, $verb, $fp = '' ) {
+	$log   = sn_keyring_changes(); // the older last-four lines leave storage here
 	$log[] = array(
 		'at'     => time(),
 		'row'    => (string) $row,
 		'verb'   => (string) $verb,
-		'last4'  => (string) $tail,
+		'fp'     => (string) $fp,
 		'source' => sn_keyring_change_source(),
 		'user'   => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0,
 	);
@@ -109,13 +112,43 @@ function sn_keyring_record_change( $option, $old, $value ) {
 		return;
 	}
 	$v = (string) $value;
-	sn_keyring_log_append( $map[ $option ][0], '' === $v ? 'clear' : 'set', strlen( $v ) >= 8 ? substr( $v, -4 ) : '' );
+	sn_keyring_log_append( $map[ $option ][0], '' === $v ? 'clear' : 'set', '' === $v ? '' : sn_keyring_fingerprint( $v ) );
 }
 
-/** @return array<int,array<string,mixed>> The log, oldest first. */
+/**
+ * Eight hex characters that tell two values apart and say nothing about
+ * either: an HMAC-SHA256 keyed with the site's own salt (wp-config.php), so a
+ * guess cannot be checked offline without it, unlike a plain hash of a weak
+ * value. Equal values give equal fingerprints on this site until its salts
+ * are rotated. No salt, no fingerprint: an unkeyed one would be checkable.
+ *
+ * @param string $value The value written.
+ * @return string Eight hex characters, or '' when the site has no salt.
+ */
+function sn_keyring_fingerprint( $value ) {
+	$key = function_exists( 'wp_salt' ) ? (string) wp_salt( 'auth' ) : '';
+	if ( '' === $key ) {
+		return '';
+	}
+	return substr( hash_hmac( 'sha256', (string) $value, 'sn-keyring-fp|' . $key ), 0, 8 );
+}
+
+/** @return array<int,array<string,mixed>> The log, oldest first; never a last-four. */
 function sn_keyring_changes() {
 	$log = get_option( SN_KEYRING_CHANGES_OPT, array() );
-	return is_array( $log ) ? $log : array();
+	if ( ! is_array( $log ) ) {
+		return array();
+	}
+	return array_map(
+		static function ( $line ) {
+			if ( is_array( $line ) ) {
+				unset( $line['last4'] );
+				$line += array( 'fp' => '' );
+			}
+			return $line;
+		},
+		$log
+	);
 }
 
 if ( function_exists( 'add_action' ) ) {
