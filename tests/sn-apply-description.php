@@ -4,7 +4,8 @@
  * an untyped object, so the description is the ONLY place the payload rules live.
  * 2026-10-26: rewritten so each shared rule is stated once (19,998 -> ~16,000
  * chars). This pins that every safety rule is still there, that the shared ones
- * are stated exactly once, and that it advertises only types the door can reach.
+ * are stated exactly once, that the mode lists match the code, and which types
+ * it leaves unadvertised.
  *
  * Run: php tests/sn-apply-description.php
  */
@@ -36,6 +37,7 @@ echo "Shared rules, stated exactly once\n";
 foreach ( array(
 	'dry_run defaults to TRUE',
 	'missing is a 422 caller error, stale is the 409 merge conflict',
+	'any mismatch, a missing one included, is the 409',
 	'ALL-OR-NOTHING',
 	'Maximum 50',
 	'Send the SAME key when retrying',
@@ -75,25 +77,41 @@ foreach ( array(
 	'cannot be classed reading_aid or copy',
 	'existing vocabulary only',
 	'one target failing never rolls back another',
+	// Review on #2297: these survived a mutation of the text unnoticed.
+	'post_date strictly for status "future" only',
+	'a foreign revision refuses 409 naming both ids',
+	'apply_staged_meta? (default true)',
+	'snt_sn_apply_locator_conflict / snt_sn_apply_locator_required',
+	'expected_counts? ({class: n} for the labels this call applies; a mismatch is a 422)',
+	'overlapping byte ranges are a 422',
+	'so dry_run:true is the review step',
+	'block-migrations | pattern-adoption | corpus-integrity',
 ) as $rule ) {
 	ok( false !== strpos( $desc, $rule ), "kept: $rule" );
 }
 
-echo "Mode lists\n";
+echo "Mode lists match snt_sn_apply_mode_support()\n";
+if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
+require_once __DIR__ . '/../inc/sn-apply/executors.php';
 preg_match( '/PUBLISH-ONLY types,[^:]*:(.*?)\. REVISION-ONLY/s', $desc, $pm );
-foreach ( array( 'og_card', 'anchor_sweep', 'restore_revision', 'roadmap_board', 'change_class_backfill', 'dismiss' ) as $t ) {
-	ok( isset( $pm[1] ) && false !== strpos( $pm[1], $t ), "PUBLISH-ONLY lists $t" );
-}
 preg_match( '/REVISION-ONLY types,[^:]*:(.*?);/s', $desc, $rm );
-ok( isset( $rm[1] ) && false !== strpos( $rm[1], 'create_draft' ) && false !== strpos( $rm[1], 'delete_draft' ), 'REVISION-ONLY lists create_draft and delete_draft' );
+$unadvertised = array( 'merge_tags', 'clear_template_overrides', 'schedule_cron_event' );
+$single       = 0;
+foreach ( SNT_SN_APPLY_CHANGE_TYPES as $t ) {
+	$modes = snt_sn_apply_mode_support( $t )['modes'];
+	if ( 1 !== count( $modes ) || in_array( $t, $unadvertised, true ) ) {
+		continue;
+	}
+	++$single;
+	$list = 'publish' === $modes[0] ? ( $pm[1] ?? '' ) : ( $rm[1] ?? '' );
+	ok( 1 === preg_match( '/\b' . $t . '\b/', $list ), strtoupper( $modes[0] ) . "-ONLY lists $t, as the code does" );
+}
+ok( $single >= 8, "the code's single-mode types were read ($single)" );
 
-echo "Only reachable types are advertised\n";
-// target.scope's enum (inc/abilities-sn-apply.php) admits no "tags",
-// "template_overrides" or "cron", so the write door's input validation refuses
-// merge_tags, clear_template_overrides and schedule_cron_event before execute().
-// Advertise them only once the enum admits them (an owner decision).
-foreach ( array( 'merge_tags', 'clear_template_overrides', 'schedule_cron_event' ) as $t ) {
-	ok( false === strpos( $desc, $t ), "not advertised while unreachable: $t" );
+echo "Left unadvertised (an owner decision whether to open them)\n";
+foreach ( $unadvertised as $t ) {
+	ok( false === strpos( $desc, $t ), "not advertised: $t" );
 }
 
 echo "House style\n";
