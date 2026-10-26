@@ -221,5 +221,21 @@ foreach ( array( 'provenance_anchors', 'maturity_roadmap', 'provenance_labels' )
 	ok( in_array( $runtime_scope, $scope_enum, true ), "sn-apply: declared target.scope enum covers runtime scope \"$runtime_scope\" (schema/resolver parity — a schema-validating client refuses what the enum omits)" );
 }
 
+/* ── 2026-10-26: a batch target is held to the same scope enum as a single
+ * one. `items` was a bare {type: object}, so target:[{"scope":"tags"}] passed
+ * validation and the resolver accepted it, reaching merge_tags,
+ * clear_template_overrides and schedule_cron_event, which the single-target
+ * enum shuts out and the description does not advertise. Closed (owner
+ * 2026-10-26); opening them is one deliberate edit to $target_props. ── */
+$item_props  = $apply_schema['properties']['target']['items']['properties'] ?? array();
+ok( ( $apply_schema['properties']['target']['properties'] ?? null ) === $item_props && array() !== $item_props, 'sn-apply: each batch target item declares the same properties as a single target' );
+ok( $scope_enum === ( $item_props['scope']['enum'] ?? null ), 'sn-apply: a batch target item carries the single target\'s scope enum' );
+// WordPress validates against the FIRST type that fits, and every PHP array
+// fits "object", so a list reaches `items` only when "array" comes first.
+ok( 'array' === ( $apply_schema['properties']['target']['type'][0] ?? null ), 'sn-apply: target lists "array" before "object", so core validates a list against items' );
+foreach ( array( 'tags', 'cron', 'template_overrides' ) as $closed_scope ) {
+	ok( ! in_array( $closed_scope, $scope_enum, true ), "sn-apply: scope \"$closed_scope\" stays closed on every target form" );
+}
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
