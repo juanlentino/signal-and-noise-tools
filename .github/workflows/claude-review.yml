@@ -48,7 +48,7 @@ jobs:
             cat .github/claude-review-prompt.md
             echo 'PROMPT_EOF'
           } >> "$GITHUB_OUTPUT"
-      - uses: anthropics/claude-code-action@f27be6b65a4652f08a2ba3cff79114829b588967
+      - uses: anthropics/claude-code-action@16f9f71ab9c490faf367f94dd294897edc25be33
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: ${{ steps.prompt.outputs.content }}
