@@ -77,6 +77,7 @@ foreach ( array(
 	'cannot be classed reading_aid or copy',
 	'existing vocabulary only',
 	'one target failing never rolls back another',
+	'from those, make one call per post',
 	// Review on #2297: these survived a mutation of the text unnoticed.
 	'post_date strictly for status "future" only',
 	'a foreign revision refuses 409 naming both ids',
