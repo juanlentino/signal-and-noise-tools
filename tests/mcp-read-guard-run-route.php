@@ -35,6 +35,10 @@ function add_filter( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $t ][] =
 $GLOBALS['__options'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
 function current_user_can( $c ) { return true; }
+// N1 (2026-10-26): an Application Password caller, and the abilities it may name.
+function rest_get_authenticated_app_password() { return $GLOBALS['__app_pw'] ?? null; }
+class RG_Ability { private $ro; public function __construct( $ro ) { $this->ro = $ro; } public function get_meta() { return array( 'annotations' => array( 'readonly' => $this->ro ) ); } }
+function wp_get_ability( $slug ) { return array_key_exists( $slug, $GLOBALS['__abil'] ?? array() ) ? new RG_Ability( $GLOBALS['__abil'][ $slug ] ) : null; }
 
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 require __DIR__ . '/../inc/mcp/mcp-read-guard.php';
@@ -102,6 +106,29 @@ foreach ( $rw_slugs as $slug ) {
 }
 ok( array() === $leaked, 'and none of the ' . count( $rw_slugs ) . ' write abilities is' . ( $leaked ? ' — LEAKED: ' . implode( ',', $leaked ) : '' ) );
 
+echo "\nGroup: N1, the switch also closes this plugin's other reads to an Application Password caller\n";
+$GLOBALS['__options']['sn_mcp_read_enabled'] = 0;
+$off_door_read = 'signal-noise/get-post-content'; // read-only, on neither door
+$theme_read    = 'signal-and-noise/some-theme-read';
+// $a_write is marked read-only on purpose, like describe-tags (read-only, on
+// the write door because it bills an AI call): only the rw-door exclusion can
+// keep it out of the read switch.
+$GLOBALS['__abil'] = array( $off_door_read => true, $theme_read => true, 'signal-noise/block-migrations-apply' => false, 'core/get-site-info' => true, $a_write => true );
+$run = static function ( $slug ) { return sn_mcp_read_guard_run_route( null, null, new RG_Req( '/wp-abilities/v1/abilities/' . $slug . '/run' ) ); };
+$GLOBALS['__app_pw'] = null;
+ok( ! in_array( $off_door_read, $read_slugs, true ) && null === $run( $off_door_read ), 'the owner\'s cookie session keeps an off-door read with the switch on (wp-admin uses them)' );
+$GLOBALS['__app_pw'] = '11111111-2222-4333-8444-555555555555';
+$m = $run( $off_door_read );
+ok( is_wp_error( $m ) && 'sn_mcp_read_disabled' === $m->get_error_code(), 'an Application Password caller is refused an off-door read, with the door\'s code' );
+ok( is_wp_error( $run( $theme_read ) ), 'the theme\'s reads are covered too' );
+ok( null === $run( 'signal-noise/block-migrations-apply' ), 'a write ability is never touched by the read switch' );
+ok( null === $run( $a_write ), 'nor is anything on the write door' );
+ok( null === $run( 'core/get-site-info' ), 'another plugin\'s ability is not this guard\'s business' );
+ok( null === $run( 'signal-noise/not-registered' ), 'an unregistered slug steps aside so core answers 404' );
+$GLOBALS['__options']['sn_mcp_read_enabled'] = 1;
+ok( null === $run( $off_door_read ), 'with the switch off, the same caller reads as before' );
+$GLOBALS['__app_pw'] = null;
+
 echo "\nGroup: the constant still wins, and still cannot be flipped by a leaked password\n";
 $GLOBALS['__options']['sn_mcp_read_enabled'] = 1;
 define( 'SN_MCP_READ_DISABLED', true );
@@ -136,6 +163,10 @@ ok(
 	'the read switch is engaged here BY THE CONSTANT, so the next assertion is not vacuous'
 );
 ok( null === sn_mcp_read_guard_run_route( null, null, new RG_Req( $remote_route ) ), 'THE NEGATIVE ONE: the READ kill switch does not darken a remote slug' );
+$GLOBALS['__abil'][ $remote_slug ] = true;
+$GLOBALS['__app_pw']               = '11111111-2222-4333-8444-555555555555';
+ok( null === sn_mcp_read_guard_run_route( null, null, new RG_Req( $remote_route ) ), 'nor for an Application Password caller: the remote guard owns its slugs (N1 keeps the isolation)' );
+$GLOBALS['__app_pw'] = null;
 ok( is_wp_error( sn_mcp_read_guard_run_route( null, null, new RG_Req( '/wp-abilities/v1/abilities/' . $a_read . '/run' ) ) ), 'while it still darkens a genuine read-allowlist slug' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
