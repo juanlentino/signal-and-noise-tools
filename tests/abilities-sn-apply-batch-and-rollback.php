@@ -341,6 +341,12 @@ $open = snt_ability_sn_apply( array(
 	'mode'   => 'revision', 'dry_run' => true,
 ) );
 ok( ! ( is_wp_error( $open ) && false !== strpos( $open->get_error_message(), '.scope must be one of' ) ), 'a list of post ids is not caught by the scope check' );
+foreach ( array( 0, 1, true, null, '', array( 'tags' ), 'TAGS' ) as $odd ) {
+	$r = snt_ability_sn_apply( array( 'target' => array( array( 'scope' => $odd ) ), 'change' => array( 'type' => 'merge_tags', 'payload' => array() ), 'mode' => 'publish', 'dry_run' => true ) );
+	ok( is_wp_error( $r ) && 'snt_sn_apply_bad_target' === $r->get_error_code(), 'a non-enum scope (' . var_export( $odd, true ) . ') in a list is refused by the strict check' );
+}
+$nested = snt_ability_sn_apply( array( 'target' => array( array( array( 'scope' => 'tags' ) ) ), 'change' => array( 'type' => 'merge_tags', 'payload' => array() ), 'mode' => 'publish', 'dry_run' => true ) );
+ok( is_array( $nested ) && false === ( $nested['results'][0]['applied'] ?? null ) && 'target_not_resolved' === ( $nested['results'][0]['gates']['capability']['reason'] ?? null ), 'a nested list reaches no scope: its inner list is a target the resolver cannot resolve' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
