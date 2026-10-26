@@ -199,6 +199,9 @@ class RG_Method_Req extends RG_Req {
 	public function __construct( $r, $m, $q, $b = array() ) { parent::__construct( $r, $b ); $this->m = $m; $this->q = $q; }
 	public function get_method() { return $this->m; }
 	public function get_query_params() { return $this->q; }
+	// Core's own order (JSON > POST > GET), so the POST case below would catch a
+	// regression to get_param().
+	public function get_param( $k ) { $j = $this->get_json_params(); return $j[ $k ] ?? ( $this->q[ $k ] ?? null ); }
 }
 $GLOBALS['__audit_args'] = array();
 sn_mcp_rw_guard_run_route_audit( array( 'ok' => true ), null, new RG_Method_Req( run_route( $a_write ), 'DELETE', array( 'input' => array( 'dry_run' => true ) ) ) );
