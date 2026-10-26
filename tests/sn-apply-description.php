@@ -83,7 +83,7 @@ foreach ( array(
 	'apply_staged_meta? (default true)',
 	'snt_sn_apply_locator_conflict / snt_sn_apply_locator_required',
 	'expected_counts? ({class: n} for the labels this call applies; a mismatch is a 422)',
-	'overlapping byte ranges are a 422, except in drift_replace and emdash_replace payload.edits',
+	'overlapping byte ranges are a 422, except in drift_replace and emdash_replace payload.edits, where every refusal reads as the 409',
 	'for a fingerprint the caller supplies, missing is a 422',
 	'a dry_run:true call also reports it as gates.fingerprint.observed',
 	'Candidate-driven types (drift_replace, emdash_replace, link_insert, block_migration, pattern_adoption)',
