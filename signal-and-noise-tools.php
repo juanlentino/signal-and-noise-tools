@@ -304,6 +304,7 @@ require_once SNT_PATH . 'inc/mcp/mcp-server.php';
 require_once SNT_PATH . 'inc/mcp/mcp-protocol-seen.php'; // which protocol version each door's clients announce: evidence before a generation is dropped.
 require_once SNT_PATH . 'inc/mcp/mcp-modern.php'; // v14.2.0: the 2026-07-28 revision, dual-era; after mcp-server.php because it reuses its envelope helpers and the same tool/resource/prompt handlers.
 require_once SNT_PATH . 'inc/mcp/mcp-rw-guard.php'; // v9.51.0: rw-door credential split + kill switch (lane SEC-A) — before mcp-endpoint.php, which calls it.
+require_once SNT_PATH . 'inc/mcp/mcp-rw-credential-scope.php'; // 2026-10-26 audit N5/N0: the write door's bound credential reaches /mcp-rw and its tools' run routes only.
 require_once SNT_PATH . 'inc/mcp/mcp-read-guard.php'; // v10.9.0: read-door kill switch (isolated from the rw guard by design) — before mcp-endpoint.php, which calls it.
 require_once SNT_PATH . 'inc/mcp/mcp-remote-guard.php'; // R3 §3D Increment 1: remote analytics kill switch (fail-CLOSED on absence) — isolated from the read/rw guards by design.
 require_once SNT_PATH . 'inc/mcp/mcp-bridge-route.php'; // R3 §3D Increment 1 bridge half: Worker→origin channel, registered only when the switch is on AND SN_BRIDGE_TOKEN is defined.

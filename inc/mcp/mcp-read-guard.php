@@ -338,6 +338,37 @@ function sn_mcp_read_rate_limit_current_identity() {
 }
 
 /**
+ * Is this a machine read the switch should also close: an Application
+ * Password caller, an ability of this plugin or the theme, read-only, and not
+ * on the write door? Unknown abilities answer false, so core answers 404.
+ *
+ * @param string $slug
+ * @return bool
+ */
+function sn_mcp_read_guard_machine_read( $slug ) {
+	if ( ! function_exists( 'rest_get_authenticated_app_password' ) || '' === (string) rest_get_authenticated_app_password() ) {
+		return false;
+	}
+	if ( 0 !== strpos( $slug, 'signal-noise/' ) && 0 !== strpos( $slug, 'signal-and-noise/' ) ) {
+		return false;
+	}
+	if ( function_exists( 'sn_mcp_rw_allowlist' ) && in_array( $slug, sn_mcp_rw_allowlist(), true ) ) {
+		return false;
+	}
+	// The remote door's slugs answer to the remote guard's own switch on this
+	// route; the read switch never darkens them (see the remote group in tests).
+	if ( function_exists( 'sn_mcp_remote_slugs' ) && in_array( $slug, sn_mcp_remote_slugs(), true ) ) {
+		return false;
+	}
+	$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $slug ) : null;
+	if ( ! $ability || ! method_exists( $ability, 'get_meta' ) ) {
+		return false;
+	}
+	$meta = (array) $ability->get_meta();
+	return ! empty( $meta['annotations']['readonly'] );
+}
+
+/**
  * Make the read kill switch cover the READ PATH, not one route on it.
  *
  * THE BUG THIS CLOSES (F2, found while writing §8 of the agent-surface threat
@@ -354,11 +385,15 @@ function sn_mcp_read_rate_limit_current_identity() {
  * own merits, rather than bundled with the trust boundary that would make its
  * absence matter.
  *
- * SCOPE, and it is deliberately narrow: only slugs on the READ allowlist. The
- * two doors' guards are isolated by design (see this file's header) and the two
- * allowlists are disjoint — a read kill that also killed writes would be a worse
- * bug than the one it replaces. A slug on neither list is not this guard's
- * business.
+ * SCOPE: every slug on the READ allowlist, for any caller; and, for a caller
+ * authenticated by an Application Password, every other read-only ability of
+ * this plugin or the theme that is not on the write door (2026-10-26 audit, N1:
+ * about two dozen such reads, get-post-content and the audit-log reads among
+ * them, answered machine callers with the switch off). The owner's own
+ * cookie-authenticated wp-admin keeps those reads, and writes are never touched:
+ * the two doors' guards are isolated by design (see this file's header), and a
+ * read kill that also killed writes would be a worse bug than the one it
+ * replaces.
  *
  * @param mixed  $result  Pre-dispatch result; non-null means someone already answered.
  * @param mixed  $server  Unused.
@@ -378,7 +413,7 @@ function sn_mcp_read_guard_run_route( $result, $server = null, $request = null )
 	if ( '' === $slug || ! function_exists( 'sn_mcp_allowlist' ) ) {
 		return $result;
 	}
-	if ( ! in_array( $slug, sn_mcp_allowlist(), true ) ) {
+	if ( ! in_array( $slug, sn_mcp_allowlist(), true ) && ! sn_mcp_read_guard_machine_read( $slug ) ) {
 		return $result;
 	}
 	return new WP_Error(
