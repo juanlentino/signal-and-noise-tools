@@ -221,18 +221,21 @@ foreach ( array( 'provenance_anchors', 'maturity_roadmap', 'provenance_labels' )
 	ok( in_array( $runtime_scope, $scope_enum, true ), "sn-apply: declared target.scope enum covers runtime scope \"$runtime_scope\" (schema/resolver parity — a schema-validating client refuses what the enum omits)" );
 }
 
-/* ── 2026-10-26: a batch target is held to the same scope enum as a single
- * one. `items` was a bare {type: object}, so target:[{"scope":"tags"}] passed
- * validation and the resolver accepted it, reaching merge_tags,
- * clear_template_overrides and schedule_cron_event, which the single-target
- * enum shuts out and the description does not advertise. Closed (owner
- * 2026-10-26); opening them is one deliberate edit to $target_props. ── */
+/* ── 2026-10-26: a batch target is described with the same scope enum as a
+ * single one, and held to it at runtime (snt_sn_apply_batch_scope_error()):
+ * target:[{"scope":"tags"}] once reached merge_tags, clear_template_overrides
+ * and schedule_cron_event, which the single-target enum shuts out and the
+ * description does not advertise. Closed (owner 2026-10-26); opening them is
+ * one deliberate edit to snt_sn_apply_target_props(). ── */
 $item_props  = $apply_schema['properties']['target']['items']['properties'] ?? array();
 ok( ( $apply_schema['properties']['target']['properties'] ?? null ) === $item_props && array() !== $item_props, 'sn-apply: each batch target item declares the same properties as a single target' );
 ok( $scope_enum === ( $item_props['scope']['enum'] ?? null ), 'sn-apply: a batch target item carries the single target\'s scope enum' );
-// WordPress validates against the FIRST type that fits, and every PHP array
-// fits "object", so a list reaches `items` only when "array" comes first.
-ok( 'array' === ( $apply_schema['properties']['target']['type'][0] ?? null ), 'sn-apply: target lists "array" before "object", so core validates a list against items' );
+// "object" stays FIRST: an MCP client reads this type list as its first type
+// (it collapsed ["object","array"] to object), so array-first would refuse
+// every single-target call client-side. 2026.10.73 shipped array-first; this
+// pin is the hotfix's. The list's scope is enforced at runtime instead
+// (tests/abilities-sn-apply-batch-and-rollback.php).
+ok( array( 'object', 'array' ) === ( $apply_schema['properties']['target']['type'] ?? null ), 'sn-apply: target stays ["object", "array"], the order clients already read' );
 foreach ( array( 'tags', 'cron', 'template_overrides' ) as $closed_scope ) {
 	ok( ! in_array( $closed_scope, $scope_enum, true ), "sn-apply: scope \"$closed_scope\" stays closed on every target form" );
 }

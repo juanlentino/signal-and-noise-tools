@@ -109,6 +109,8 @@ $expected_surface = array(
 	'snt_sn_apply_idempotency_record',
 	'snt_sn_apply_idempotency_store_key',
 	'snt_sn_apply_is_batch_target',
+	'snt_sn_apply_target_props',     // 2026-10-26: one target property list for the schema and the batch check
+	'snt_sn_apply_batch_scope_error', // 2026-10-26: a list item is held to the single target's scope enum
 	'snt_sn_apply_is_owner_credential',
 	'snt_sn_apply_link_prose_normalize',
 	'snt_sn_apply_link_reshape_compute',
