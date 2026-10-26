@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Security
+- **`keyring-status` no longer serves any part of a secret.** The keyring's change log stored, and the read door's `keyring-status` returned, the last four characters of every value written to a keyring option (the Cloudflare token, the Anthropic admin key, the site secret, the owner key), against the tool's own "never a value". Each line now carries `fp` instead: an 8-hex HMAC-SHA256 of the value keyed with the site's own salt, so two values can still be told apart while no part of either is shown and a guess cannot be checked offline. Older lines are stripped on read and scrubbed from storage on the next write. Pinned in `tests/keyring-changes.php`. (2026-10-26 MCP doors audit, N3.)
+
 ## [2026.10.71] - 2026-10-26 — the MCP doors audit: contract 24, compact results, constant-only bridge secret
 
 

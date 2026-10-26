@@ -31,8 +31,10 @@ echo "keyring-changes -- every keyring write leaves a line (19.6.2)\n";
 $secret = 'abcdef0123456789srvtoken3d09';
 sn_handle_keyring_save( array( 'key_id' => 'srv_token', 'key_value' => $secret ) );
 $log = array_values( array_filter( sn_keyring_changes(), static function ( $e ) { return 'srv_token' === $e['row']; } ) );
-ok( 1 === count( $log ) && 'set' === $log[0]['verb'] && '3d09' === $log[0]['last4'] && 'keyring_save' === $log[0]['source'] && 7 === $log[0]['user'], 'a form save logs row, set, last 4, source keyring_save, user' );
+ok( 1 === count( $log ) && 'set' === $log[0]['verb'] && 1 === preg_match( '/^[0-9a-f]{8}$/', $log[0]['fp'] ) && 'keyring_save' === $log[0]['source'] && 7 === $log[0]['user'], 'a form save logs row, set, an 8-hex fingerprint, source keyring_save, user' );
 ok( false === strpos( serialize( sn_keyring_changes() ), 'abcdef' ), 'the value itself is never stored in the log' );
+// 2026-10-26 (N3): no part of the value either. The last four used to be stored and served.
+ok( ! array_key_exists( 'last4', $log[0] ) && false === strpos( serialize( $GLOBALS['__opt'][ SN_KEYRING_CHANGES_OPT ] ), '3d09' ) && $log[0]['fp'] !== substr( hash( 'sha256', $secret ), 0, 8 ), 'no last four in the stored line, and the fingerprint is keyed, not a plain hash of the value' );
 
 sn_handle_keyring_save( array( 'key_id' => 'srv_token', 'key_value' => 'clear' ) );
 $last = sn_keyring_changes()[ count( sn_keyring_changes() ) - 1 ];
@@ -40,7 +42,12 @@ ok( 'srv_token' === $last['row'] && 'clear' === $last['verb'] && 'keyring_save' 
 
 update_option( 'sn_srv_token', 'written-elsewhere-zz99' );
 $last = sn_keyring_changes()[ count( sn_keyring_changes() ) - 1 ];
-ok( 'set' === $last['verb'] && 'zz99' === $last['last4'] && 'keyring_save' !== $last['source'], 'a write that bypasses the form is logged too, with its own source' );
+ok( 'set' === $last['verb'] && 1 === preg_match( '/^[0-9a-f]{8}$/', $last['fp'] ) && $last['fp'] !== $log[0]['fp'] && 'keyring_save' !== $last['source'], 'a write that bypasses the form is logged too, with its own source; a different value, a different fingerprint' );
+// A line logged before 2026-10-26 still holds a last four: it is never read back, and the next write drops it from storage.
+$GLOBALS['__opt'][ SN_KEYRING_CHANGES_OPT ][] = array( 'at' => 1, 'row' => 'srv_token', 'verb' => 'set', 'last4' => 'q7x2', 'source' => 'other', 'user' => 0 );
+ok( false === strpos( serialize( sn_keyring_changes() ), 'q7x2' ), 'an old line\'s last four is never read back' );
+update_option( 'sn_srv_token', 'another-value-after-the-old-line' );
+ok( false === strpos( serialize( $GLOBALS['__opt'][ SN_KEYRING_CHANGES_OPT ] ), 'q7x2' ), '...and the next write scrubs it from storage' );
 
 $n = count( sn_keyring_changes() ); $w = $GLOBALS['__writes'][ SN_KEYRING_CHANGES_OPT ];
 update_option( 'blogname', 'x' ); update_option( 'cron', array( 1 ) ); delete_option( 'blogname' );
