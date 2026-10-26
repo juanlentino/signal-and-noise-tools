@@ -469,6 +469,14 @@ ok(
 	'while the RECORD tells them apart — the shut call recorded refused_shut, the anon call (unreset) appended refused_auth, and the two differ'
 );
 
+// F5 (2026-10-26): the secret is the constant or nothing. This harness's
+// apply_filters ignores registrations, so a re-added filter would pass every
+// behavioral check above; the source itself is pinned instead.
+$sn_route_src = (string) file_get_contents( __DIR__ . '/../inc/mcp/mcp-bridge-route.php' );
+$sn_fn_body   = preg_match( '/function sn_bridge_secret\(\) \{(.*?)\n\}/s', $sn_route_src, $sn_fm ) ? $sn_fm[1] : '';
+ok( '' !== $sn_fn_body && false !== strpos( $sn_fn_body, 'SN_BRIDGE_TOKEN' ) && 0 === preg_match( '/apply_filters|get_option|sn_credential|sn_site_secret/', $sn_fn_body ),
+	'sn_bridge_secret() reads SN_BRIDGE_TOKEN and nothing else: no filter, no option, no keyring, no site secret (F5)' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-bridge-route.php\n";

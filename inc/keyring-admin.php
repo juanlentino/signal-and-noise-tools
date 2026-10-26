@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_keyring_groups() {
 	return array(
-		'site'       => array( 'label' => __( 'Site secret and the workers', 'signal-and-noise-tools' ), 'about' => __( 'Shared passwords between this plugin and its workers. Each row can derive from the site secret: pick the row under Set a credential and type "site", then run its command under Worker secrets so the worker carries the same value.', 'signal-and-noise-tools' ) ),
+		'site'       => array( 'label' => __( 'Site secret and the workers', 'signal-and-noise-tools' ), 'about' => __( 'Shared passwords between this plugin and its workers. Most rows can derive from the site secret: pick the row under Set a credential and type "site", then run its command under Worker secrets so the worker carries the same value. The remote MCP bridge token is wp-config only.', 'signal-and-noise-tools' ) ),
 		'cloudflare' => array( 'label' => __( 'Cloudflare', 'signal-and-noise-tools' ), 'about' => __( 'One token, one zone, one account. Everything Cloudflare reads with these.', 'signal-and-noise-tools' ) ),
 		'issued'     => array( 'label' => __( 'Issued by others', 'signal-and-noise-tools' ), 'about' => __( 'Tokens other services mint. They cannot share a value; each is its own row.', 'signal-and-noise-tools' ) ),
 	);
