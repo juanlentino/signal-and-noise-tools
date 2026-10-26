@@ -80,9 +80,10 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 					// has since v13.95.1. Its 409s (a moved phrase, a stale per-edit
 					// fingerprint) stay the fingerprint's failure; anything else is a
 					// payload conflict, reported as a validation finding with its 422.
-					// An overlap or an active-content splice is refused only after every
-					// per-edit fingerprint matched, so the fingerprint gate passed;
-					// the earlier refusals (shape, count, ambiguity) never reached it.
+					// An overlap is refused only after every per-edit fingerprint matched,
+					// so the fingerprint gate passed. Every other refusal may come before a
+					// fingerprint is checked (active content is refused both per edit,
+					// before its fingerprint, and after the splice), so it is not reached.
 					$plan_data = (array) $plan->get_error_data();
 					$status    = (int) ( $plan_data['status'] ?? 422 );
 					$refusal   = array(
@@ -97,7 +98,7 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 					);
 					if ( 409 !== $status ) {
 						$refusal['plan_error'] = $plan->get_error_message();
-						if ( in_array( $plan->get_error_code(), array( 'snt_sn_apply_batch_overlap', 'snt_sn_apply_active_content' ), true ) ) {
+						if ( 'snt_sn_apply_batch_overlap' === $plan->get_error_code() ) {
 							$refusal['fingerprint_ok'] = true;
 						} else {
 							$refusal['skipped'] = 'plan_refused';

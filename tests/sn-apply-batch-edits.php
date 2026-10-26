@@ -261,6 +261,10 @@ $g_overlap = snt_sn_apply_gate1_fingerprint( 'emdash_replace', array( 'post_id' 
 ok( false === $g_overlap['passed'] && 422 === ( $g_overlap['error_status'] ?? null ) && '' !== (string) ( $g_overlap['plan_error'] ?? '' ) && true === ( $g_overlap['fingerprint_ok'] ?? null ), 'an overlap reaches the response as its 422 and a validation finding, with the fingerprint gate passed (every per-edit fingerprint matched first)' );
 $g_many = snt_sn_apply_gate1_fingerprint( 'emdash_replace', array( 'post_id' => 77 ), array( 'payload' => array( 'edits' => array_fill( 0, 51, edit_at( $real, 'chain — code', 'chain (code' ) ) ) ) );
 ok( 422 === ( $g_many['error_status'] ?? null ) && 'plan_refused' === $g_many['skipped'] && ! isset( $g_many['fingerprint_ok'] ), 'a refusal before any fingerprint was checked (51 edits) marks the fingerprint gate not reached' );
+$active = edit_at( $real, 'chain — code', 'chain <script>x</script> code' );
+$active['fingerprint'] = 'stale';
+$g_active = snt_sn_apply_gate1_fingerprint( 'emdash_replace', array( 'post_id' => 77 ), array( 'payload' => array( 'edits' => array( $active ) ) ) );
+ok( 422 === ( $g_active['error_status'] ?? null ) && ! isset( $g_active['fingerprint_ok'] ) && 'plan_refused' === $g_active['skipped'], 'active content refused before its fingerprint is checked does not claim the fingerprint passed' );
 $g_link = snt_sn_apply_gate1_fingerprint( 'link_insert', array( 'post_id' => 77 ), array( 'payload' => array( 'edits' => array( edit_at( $real, 'chain — code', 'chain (code' ) ) ) ) );
 ok( 422 === ( $g_link['error_status'] ?? null ) && 'snt_sn_apply_batch_unsupported_type' === ( $g_link['error_code'] ?? null ), 'link_insert with payload.edits is the planner\'s 422 unsupported type, not a 409' );
 $stale = edit_at( $real, 'chain — code', 'chain (code' );
