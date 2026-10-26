@@ -26,10 +26,13 @@ function add_filter( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $t ][ $c
 function add_action( $t, $c, $p = 10, $a = 1 ) { return true; }
 function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; }
 function rest_get_authenticated_app_password() { return $GLOBALS['__app_pw'] ?? null; }
+function get_transient( $k ) { return $GLOBALS['__transients'][ $k ] ?? false; }
+function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; }
 function sn_mcp_rw_audit_record( $slug, $args, $outcome, $err = null ) { $GLOBALS['__audit'][] = array( $slug, $outcome ); return array(); }
 
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 require __DIR__ . '/../inc/mcp/mcp-rw-guard.php';
+require __DIR__ . '/../inc/mcp/mcp-read-binding.php';
 require __DIR__ . '/../inc/mcp/mcp-rw-credential-scope.php';
 
 class SC_Req { private $r; public function __construct( $r ) { $this->r = $r; } public function get_route() { return $this->r; } }
@@ -71,9 +74,34 @@ $GLOBALS['__options'] = array( 'sn_mcp_rw_app_password_uuid' => $BOUND );
 $prior = new WP_Error( 'earlier', 'x' );
 ok( $prior === sn_mcp_rw_credential_scope( $prior, null, new SC_Req( '/wp/v2/posts' ) ), 'an earlier answer is never overridden' );
 
+echo "\nThe read door's bound credential (2026-10-26, N0's read half)\n";
+$READ = 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff';
+$GLOBALS['__options'] = array( 'sn_mcp_rw_app_password_uuid' => $BOUND, 'sn_mcp_read_app_password_uuid' => $READ );
+$GLOBALS['__app_pw']  = $READ;
+$GLOBALS['__audit']   = array();
+$rdoor = sn_mcp_allowlist();
+ok( null === $scope( '/signal-noise/v1/mcp' ) && null === $scope( '/Signal-Noise/V1/MCP/' ), 'reaches the read door, any case, trailing slash or not' );
+$rmissed = array_filter( $rdoor, static function ( $s ) use ( $scope, $run ) { return null !== $scope( $run( $s ) ); } );
+ok( count( $rdoor ) > 10 && array() === $rmissed, 'reaches every read-door tool\'s run route (' . count( $rdoor ) . ' checked), where the read switch then decides' );
+foreach ( array( '/signal-noise/v1/mcp-rw', '/wp/v2/settings', '/wp/v2/posts', $run( $door[0] ), $run( 'signal-noise/merge-tags' ) ) as $out ) {
+	$r = $scope( $out );
+	ok( is_wp_error( $r ) && 'sn_mcp_read_credential_out_of_scope' === $r->get_error_code() && 403 === $r->data['status'], "is refused $out" );
+}
+ok( in_array( array( 'read-route:/wp/v2/settings', 'denied' ), $GLOBALS['__audit'], true ), 'each refusal is audited, tagged as the read door\'s' );
+$GLOBALS['__audit'] = array();
+$GLOBALS['__transients'] = array();
+for ( $i = 0; $i < 60; $i++ ) { $last = $scope( '/wp/v2/posts' ); }
+ok( is_wp_error( $last ) && SN_MCP_READ_SCOPE_AUDIT_PER_DAY === count( $GLOBALS['__audit'] ), 'a flood is still refused every time, but writes at most ' . SN_MCP_READ_SCOPE_AUDIT_PER_DAY . ' audit rows a day' );
+ok( SN_MCP_READ_SCOPE_AUDIT_PER_DAY * 30 < 1000, 'over the rw audit log\'s 30-day window, read refusals fill less than its 1,000 rows' );
+$GLOBALS['__transients'] = array();
+$GLOBALS['__options'] = array( 'sn_mcp_rw_app_password_uuid' => $BOUND );
+ok( null === $scope( '/wp/v2/settings' ), 'unbound, the same password reaches everything, as before' );
+$GLOBALS['__options'] = array( 'sn_mcp_rw_app_password_uuid' => $BOUND );
+
 echo "\nWiring and bounds\n";
 $boot = (string) file_get_contents( __DIR__ . '/../signal-and-noise-tools.php' );
 $at   = strpos( $boot, "inc/mcp/mcp-rw-credential-scope.php'" );
+ok( false !== strpos( $boot, "inc/mcp/mcp-read-binding.php'" ) && strpos( $boot, "inc/mcp/mcp-read-binding.php'" ) < $at, 'the plugin loads the read binding before the scope' );
 ok( false !== $at && $at > (int) strpos( $boot, "inc/mcp/mcp-rw-guard.php'" ), 'the plugin loads the scope, after the rw guard it calls into' );
 $GLOBALS['__app_pw'] = $BOUND;
 $GLOBALS['__audit']  = array();

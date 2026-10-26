@@ -8,7 +8,7 @@
  * a ?sn_flash=… code, and sn_admin_post_handlers() in inc/admin-post-handler.php
  * still reaches it BY NAME, which is why the move is invisible to dispatch.
  *
- * Actions served: bind_mcp_rw_credential, remote_toggle
+ * Actions served: bind_mcp_rw_credential, bind_mcp_read_credential, remote_toggle
  *
  * @package SignalNoiseTools
  * @since 12.21.2
@@ -75,24 +75,70 @@ function sn_handle_bind_mcp_rw_credential( $post ) {
 		if ( empty( $post['sn_mcp_rw_unbind'] ) && function_exists( 'sn_mcp_rw_bound_uuid' ) && '' !== sn_mcp_rw_bound_uuid() ) {
 			return 'mcp_rw_bind_choose';
 		}
-		return sn_mcp_set_rw_bound_uuid( '' ) ? 'mcp_rw_unbound' : 'mcp_rw_bind_invalid';
+		return ( sn_mcp_set_rw_bound_uuid( '' ) || '' === sn_mcp_rw_bound_uuid() ) ? 'mcp_rw_unbound' : 'mcp_rw_bind_invalid';
 	}
 
-	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
-		return 'mcp_rw_bind_invalid';
-	}
-	$owned = false;
-	foreach ( (array) WP_Application_Passwords::get_user_application_passwords( get_current_user_id() ) as $pw ) {
-		if ( is_array( $pw ) && ! empty( $pw['uuid'] ) && hash_equals( (string) $pw['uuid'], $uuid ) ) {
-			$owned = true;
-			break;
-		}
-	}
-	if ( ! $owned ) {
+	if ( ! sn_mcp_app_password_owned( $uuid ) ) {
 		return 'mcp_rw_bind_invalid'; // never bind a UUID this user doesn't hold.
 	}
+	if ( function_exists( 'sn_mcp_read_bound_uuid' ) && hash_equals( strtolower( sn_mcp_read_bound_uuid() ), strtolower( $uuid ) ) ) {
+		return 'mcp_rw_bind_same_as_read';
+	}
 
-	return sn_mcp_set_rw_bound_uuid( $uuid ) ? 'mcp_rw_bound' : 'mcp_rw_bind_invalid';
+	return ( sn_mcp_set_rw_bound_uuid( $uuid ) || strtolower( $uuid ) === sn_mcp_rw_bound_uuid() ) ? 'mcp_rw_bound' : 'mcp_rw_bind_invalid';
+}
+
+/**
+ * Does the CURRENT user hold an Application Password with this UUID? The
+ * ownership check both binding handlers rest on: get_user_application_passwords()
+ * is scoped to one user id, so nothing here trusts the POSTed value beyond
+ * membership.
+ *
+ * @param string $uuid
+ * @return bool
+ */
+function sn_mcp_app_password_owned( $uuid ) {
+	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
+		return false;
+	}
+	foreach ( (array) WP_Application_Passwords::get_user_application_passwords( get_current_user_id() ) as $pw ) {
+		if ( is_array( $pw ) && ! empty( $pw['uuid'] ) && hash_equals( (string) $pw['uuid'], (string) $uuid ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Bind (or unbind) the read door's optional credential (2026-10-26 audit, N0's
+ * read half; inc/mcp/mcp-read-binding.php). Same contract as the write door's
+ * handler above: the ownership check, Unbind as its own confirmed button, and
+ * one difference: a password already bound to the write door is refused by
+ * name, since each door's scope refuses the other door's routes.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code.
+ */
+function sn_handle_bind_mcp_read_credential( $post ) {
+	if ( ! current_user_can( 'manage_options' ) || ! function_exists( 'sn_mcp_set_read_bound_uuid' ) ) {
+		return 'mcp_read_bind_invalid';
+	}
+	$raw  = isset( $post['sn_mcp_read_uuid'] ) && is_string( $post['sn_mcp_read_uuid'] ) ? $post['sn_mcp_read_uuid'] : '';
+	$uuid = trim( sanitize_text_field( wp_unslash( $raw ) ) );
+	if ( '' === $uuid ) {
+		if ( empty( $post['sn_mcp_read_unbind'] ) && '' !== sn_mcp_read_bound_uuid() ) {
+			return 'mcp_read_bind_choose';
+		}
+		// update_option() answers false for an unchanged value: already clear is cleared.
+		return ( sn_mcp_set_read_bound_uuid( '' ) || '' === sn_mcp_read_bound_uuid() ) ? 'mcp_read_unbound' : 'mcp_read_bind_invalid';
+	}
+	if ( ! sn_mcp_app_password_owned( $uuid ) ) {
+		return 'mcp_read_bind_invalid';
+	}
+	if ( function_exists( 'sn_mcp_rw_bound_uuid' ) && hash_equals( strtolower( sn_mcp_rw_bound_uuid() ), strtolower( $uuid ) ) ) {
+		return 'mcp_read_bind_same_as_write';
+	}
+	return ( sn_mcp_set_read_bound_uuid( $uuid ) || strtolower( $uuid ) === sn_mcp_read_bound_uuid() ) ? 'mcp_read_bound' : 'mcp_read_bind_invalid';
 }
 
 /**

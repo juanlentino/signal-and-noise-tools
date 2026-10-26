@@ -349,7 +349,8 @@ ok( false !== strpos( $mcp, 'Four MCP doors can answer for this site' ) && false
 ok( 4 === substr_count( $mcp, '<os-stat ' ) && false !== strpos( $mcp, 'label="Read door"' ) && false !== strpos( $mcp, 'label="Write door"' ) && false !== strpos( $mcp, 'label="Remote door"' ) && false !== strpos( $mcp, 'label="Core MCP adapter"' ), 'the four doors are four tiles' );
 $ctl = strpos( $mcp, '<os-section heading="Write-door credential"' );
 $rem = strpos( $mcp, '<os-section heading="Remote door"' );
-ok( false !== strpos( $mcp, snt_leaf_row( 2, 320, 18 ) . '<os-section heading="Write-door credential"' ) && false !== $rem && $rem > $ctl && false === strpos( substr( $mcp, $ctl, $rem - $ctl ), '</os-grid>' ), 'the write-door credential and the remote door share one row' );
+$rd = strpos( $mcp, '<os-section heading="Read-door credential (optional)"' );
+ok( false !== strpos( $mcp, snt_leaf_row( 3, 320, 18 ) . '<os-section heading="Read-door credential (optional)"' ) && false !== $rd && $rd < $ctl && false !== $rem && $rem > $ctl && false === strpos( substr( $mcp, $rd, $rem - $rd ), '</os-grid>' ), 'the read-door credential, the write-door credential and the remote door share one row, in door order' );
 ok( false !== strpos( substr( $mcp, (int) $rem ), 'name="sn_remote_enabled"' ) && strpos( $mcp, 'name="sn_remote_enabled"' ) > $rem, 'the remote switch sits inside the Remote door, not floating under the tiles' );
 $con = strpos( $mcp, '<os-disclosure heading="Connect a client"' );
 $con_html = false !== $con ? substr( $mcp, $con ) : '';
