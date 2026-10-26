@@ -23,7 +23,7 @@
  *
  * Redaction is DEFAULT-DROP: sn_mcp_rw_audit_safe_args() keeps ONLY an
  * explicit allowlist of known-safe scalar keys gathered by reading every one
- * of the 34 rw-door abilities' real input_schema (inc/abilities-*.php) —
+ * of the rw-door abilities' real input_schema (inc/abilities-*.php) —
  * post_id, view, format, hook, etc. Anything else — an ability's actual
  * content payload (ai-alt-apply's `alt_text`, draft-release-notes'
  * `changelog_delta`, block-migrations/pattern-adoption's
@@ -31,7 +31,7 @@
  * value even under a safe-looking key name — is dropped, never logged. This
  * file has NO per-slug special-casing in v1: the $slug parameter is threaded
  * through for a future narrower per-slug override, but the allowlist today is
- * one global list applied identically regardless of which of the 34 tools
+ * one global list applied identically regardless of which rw-door tool
  * was called.
  *
  * Independent of inc/mcp/mcp-rw-guard.php (lane SEC-A) on purpose: this file

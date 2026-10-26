@@ -219,6 +219,8 @@ owner does not administer and cannot rotate from wp-admin.
    new trust boundary where its absence would be load-bearing.
 2. **Give the read door a rate limit — DONE 2026-08-11, §8.7 — and then make it
    fail CLOSED**, which it does not yet. The ceiling exists; the boundary does not.
+   *(2026-10-26: on the remote path it fails closed since 13.50.0, pinned in
+   `tests/mcp-read-rate-limit.php`.)*
 3. **Decide what the edge holds**, in writing, before building it. A broker that holds
    no long-lived secret — exchanging a short-lived token per session — is a materially
    different object from one that stores an application password.
@@ -269,7 +271,8 @@ asserts that negative directly, and mutating the guard to include the write allo
 reds it.
 
 Coverage is asserted over the **whole allowlist, not a sample**: all 38 read abilities
-refuse, all 36 write abilities do not. `SN_MCP_READ_DISABLED` still wins over the
+refuse, all 36 write abilities do not *(counts as of 2026-08-11; `tests/mcp-capabilities.php`
+pins today's lists)*. `SN_MCP_READ_DISABLED` still wins over the
 option, and fail-open-on-absence is unchanged — an untouched switch still means the
 owner never turned it off.
 

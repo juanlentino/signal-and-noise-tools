@@ -73,7 +73,8 @@ const SN_MCP_READ_RATE_LIMIT_WINDOW_SECONDS = 60;
 const SN_MCP_READ_RATE_LIMIT_CACHE_GROUP    = 'sn_mcp_read_rate';
 
 /**
- * Bucket a caller. A bound credential names them; failing that the IP hash does;
+ * Bucket a caller. A signed-in user names them (`user<ID>`, so every credential
+ * and session of one user shares one bucket); failing that the IP hash does;
  * failing both, an EXPLICIT unknown bucket — never an empty key, which would
  * pool every anonymous caller into one counter and let any of them exhaust it
  * for the rest.

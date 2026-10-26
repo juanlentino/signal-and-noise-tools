@@ -1,0 +1,1843 @@
+{
+    "contract_version": "24",
+    "shape_hash": "ed3e4ee3fd4ec7bda98127da1480887538b712009a871154c50d9d87cbf3d714",
+    "tools": {
+        "signal-noise/remote-analytics-rows": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path": {
+                                    "type": "string"
+                                },
+                                "referrer": {
+                                    "type": "string"
+                                },
+                                "country": {
+                                    "type": "string"
+                                },
+                                "device": {
+                                    "type": "string"
+                                },
+                                "day": {
+                                    "type": "string"
+                                },
+                                "views": {
+                                    "type": "integer"
+                                },
+                                "pageview_visits": {
+                                    "type": "integer"
+                                },
+                                "time_avg_per_view": {
+                                    "type": [
+                                        "number",
+                                        "null"
+                                    ]
+                                },
+                                "scroll_avg_per_view": {
+                                    "type": [
+                                        "number",
+                                        "null"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "row_count": {
+                        "type": "integer"
+                    },
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "range": {
+                        "type": [
+                            "string",
+                            "integer"
+                        ]
+                    },
+                    "class": {
+                        "type": "string"
+                    },
+                    "exact_metrics_since": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-bot-signals": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "measured": {
+                        "type": "boolean"
+                    },
+                    "window_days": {
+                        "type": "integer"
+                    },
+                    "visitor_days": {
+                        "type": "integer"
+                    },
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "days_present": {
+                        "type": "integer"
+                    },
+                    "human": {
+                        "type": "object",
+                        "properties": {
+                            "visitor_days": {
+                                "type": "integer"
+                            },
+                            "likely_automated": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    "cohorts": {
+                        "type": "object"
+                    },
+                    "weights": {
+                        "type": "object"
+                    },
+                    "threshold": {
+                        "type": "integer"
+                    },
+                    "subtracted": {
+                        "type": "boolean"
+                    },
+                    "measured_at": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-cron-health-summary": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "good",
+                            "recommended",
+                            "critical"
+                        ]
+                    },
+                    "checked_at": {
+                        "type": "integer"
+                    },
+                    "recurring": {
+                        "type": "integer",
+                        "description": "Recurring jobs the dashboard expects to fire."
+                    },
+                    "on_schedule": {
+                        "type": "integer"
+                    },
+                    "overdue": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "job": {
+                                    "type": "string"
+                                },
+                                "cadence": {
+                                    "type": "integer",
+                                    "description": "Seconds between expected firings."
+                                },
+                                "overdue_by": {
+                                    "type": "integer",
+                                    "description": "Seconds past the expected firing."
+                                }
+                            }
+                        }
+                    },
+                    "missing": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Expected recurring jobs with no schedule at all."
+                    },
+                    "cron_disabled_constant": {
+                        "type": "boolean"
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "Derived from the counts above in the same function; cannot drift from them."
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-edge-errors-summary": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "recorded",
+                            "unavailable"
+                        ],
+                        "description": "unavailable means the edge rollup is not loaded on this install: NOT zero errors."
+                    },
+                    "from": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "First day of the window, YYYY-MM-DD (UTC)."
+                    },
+                    "to": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Last day of the window, YYYY-MM-DD (UTC). Today is partial."
+                    },
+                    "honest_from": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "17.9.1: sampled rows before this day were counted twice over. Blank until the one-shot repair has run."
+                    },
+                    "query": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "The errors query's last outcome: at (unix), day, error. A non-empty error means the window was NOT read, which is not the same as no errors."
+                    },
+                    "total": {
+                        "type": "integer",
+                        "description": "5xx over the window, Early Hints cache lookups excluded (17.9.3), scanner probes excluded (2026-10-19; see probes): the count that means the site failed."
+                    },
+                    "probes": {
+                        "type": "object",
+                        "properties": {
+                            "total": {
+                                "type": "integer"
+                            },
+                            "paths": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "value": {
+                                            "type": "string"
+                                        },
+                                        "requests": {
+                                            "type": "integer"
+                                        },
+                                        "bytes": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "description": "2026-10-19: 5xx on direct requests to core library files (a .php under /wp-includes/ or /wp-admin/includes/), which fatal when opened on their own and which WordPress never routes a request to: scanners, not the site failing. Counted and named (top 10) here, left out of total and paths. The /wp-admin/*.php screens (edit.php, customize.php) are NOT probes and stay in total. Same rows as total, so a window that was not read has 0 probes for the same reason it has 0 total."
+                    },
+                    "paths": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "value": {
+                                    "type": "string"
+                                },
+                                "requests": {
+                                    "type": "integer"
+                                },
+                                "bytes": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "description": "Which URLs failed, most first (top 10)."
+                    },
+                    "paths_by_status": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "value": {
+                                    "type": "string"
+                                },
+                                "requests": {
+                                    "type": "integer"
+                                },
+                                "bytes": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "description": "Which URL got which status, most first (top 10): value is \"<edge status> <cache status> <path>\", e.g. \"520 dynamic /wp-json/wp/v2/posts\" (#1006). Recorded only from the release that added it (#1006) on, so earlier days have none: empty is \"not recorded yet\", not \"no errors\"."
+                    },
+                    "sources": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "value": {
+                                    "type": "string"
+                                },
+                                "requests": {
+                                    "type": "integer"
+                                },
+                                "bytes": {
+                                    "type": "integer"
+                                },
+                                "label": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "Who answered, most first (top 10). `origin=-` is Cloudflare or a Worker answering by itself; a matching origin status is the origin failing."
+                    },
+                    "days": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "day": {
+                                    "type": "string"
+                                },
+                                "total": {
+                                    "type": "integer",
+                                    "description": "The day's 5xx, probes excluded."
+                                },
+                                "probes": {
+                                    "type": "integer",
+                                    "description": "2026-10-19: the day's scanner probes on core library files, out of total. Read with `read`: on a failed or pending day a 0 here is not read either. The who-asked counts still include them: visitor + worker + other + unrecorded = total + probes."
+                                },
+                                "read": {
+                                    "type": "string",
+                                    "enum": [
+                                        "read",
+                                        "failed",
+                                        "pending",
+                                        "untracked"
+                                    ],
+                                    "description": "18.3.0: read = the errors query answered for this day; failed = it was refused, so a 0 means NOT read; pending = no rollup has covered it yet (today, or yesterday before the daily run), so a 0 means not yet; untracked = stored before this bookkeeping."
+                                },
+                                "visitor": {
+                                    "type": "integer",
+                                    "description": "Asked by a visitor (requestSource eyeball)."
+                                },
+                                "worker": {
+                                    "type": "integer",
+                                    "description": "Asked by a Worker subrequest (edgeWorker*)."
+                                },
+                                "other": {
+                                    "type": "integer",
+                                    "description": "Any other Cloudflare request source."
+                                },
+                                "unrecorded": {
+                                    "type": "integer",
+                                    "description": "Stored before the query carried requestSource (17.9.3): in a window spanning that change, the pre-filter leftover."
+                                }
+                            }
+                        },
+                        "description": "18.2.0: one row per day of the window, oldest first, zero-filled: total and who asked. Read the day a filter changed here instead of inferring it from the week."
+                    },
+                    "asked_by": {
+                        "type": "object",
+                        "properties": {
+                            "visitor": {
+                                "type": "integer",
+                                "description": "Asked by a visitor (requestSource eyeball)."
+                            },
+                            "worker": {
+                                "type": "integer",
+                                "description": "Asked by a Worker subrequest (edgeWorker*)."
+                            },
+                            "other": {
+                                "type": "integer",
+                                "description": "Any other Cloudflare request source."
+                            },
+                            "unrecorded": {
+                                "type": "integer",
+                                "description": "Stored before the query carried requestSource (17.9.3): in a window spanning that change, the pre-filter leftover."
+                            }
+                        },
+                        "description": "18.2.0: the window's 5xx by who asked, summed from days."
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-get-analytics-events": {
+            "wrap": true,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "result": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    }
+                },
+                "required": [
+                    "result"
+                ]
+            }
+        },
+        "signal-noise/remote-get-analytics-summary": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "views": {
+                        "type": "integer"
+                    },
+                    "unique_visitor_days": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "pageview_visits": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "viewless_visits": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "view_visit_ratio": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "pageviews_per_visitor_day": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "scroll_avg_per_view": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "time_avg_per_view": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "scroll_avg_per_visit": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "time_avg_per_visit": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "integrity_violation": {
+                        "type": "boolean"
+                    },
+                    "exact_metrics_since": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "likely_automated": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "Class human only (null otherwise). Presumed-human visitor-days the beacon bot-signal score marks likely automated, beside the totals, never subtracted. Summed over the UTC days the range covers (the store is kept per UTC day), so an edge of a site-local range can differ by a day; measured_days and unmeasured_days are UTC days. Basis inferred: a heuristic.",
+                        "properties": {
+                            "visitor_days": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "scored_visitor_days": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "measured_days": {
+                                "type": "integer"
+                            },
+                            "unmeasured_days": {
+                                "type": "integer"
+                            },
+                            "basis": {
+                                "type": "string",
+                                "enum": [
+                                    "inferred"
+                                ]
+                            },
+                            "subtracted": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "basis": {
+                        "type": "string",
+                        "enum": [
+                            "inferred"
+                        ]
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-get-deploy-status": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "theme": {
+                        "type": "object",
+                        "properties": {
+                            "current": {
+                                "type": "string"
+                            },
+                            "latest": {
+                                "type": "string"
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": [
+                                    "ok",
+                                    "available",
+                                    "unknown"
+                                ]
+                            }
+                        }
+                    },
+                    "plugin": {
+                        "type": "object",
+                        "properties": {
+                            "current": {
+                                "type": "string"
+                            },
+                            "latest": {
+                                "type": "string"
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": [
+                                    "ok",
+                                    "available",
+                                    "unknown"
+                                ]
+                            }
+                        }
+                    },
+                    "last_deploy": {
+                        "type": "string",
+                        "description": "Relative time of the most recent deploy across both repos (e.g. \"3 hours ago\") from the MERGED feed \u2014 wp-admin Updates installs + deploy GHA runs, the same source as the admin Dashboard. Empty string if unknown. Added v6.55.0; reads the merged feed since v9.63.3 (GHA-only before, which froze once deploy.yml went workflow_dispatch-only)."
+                    },
+                    "last_deploy_component": {
+                        "type": "string",
+                        "description": "Which package last_deploy refers to: \"Theme\", \"Plugin\", or \"\" when unknown. Added v12.13.0 because last_deploy is an age with no subject, and the Deploy Status card renders it under seven independently versioned rows \u2014 theme, plugin and five workers \u2014 so a bare age read as though it covered all of them. It never did: the workers do not install through the WP upgrader and have no records in this feed at all, so this field is the scope disclosure as much as the name."
+                    },
+                    "last_gha_run": {
+                        "type": "string",
+                        "description": "Relative time of the most recent deploy GHA workflow run across both repos \u2014 the pre-v9.63.3 last_deploy reading, kept as a clearly-labeled secondary field. deploy.yml is the workflow_dispatch-only emergency fallback, so this moves only on manual dispatches. Empty string if unknown. Added v9.63.3."
+                    },
+                    "core": {
+                        "type": "object",
+                        "description": "WordPress core. current is $wp_version; latest is the highest version the CACHED update_core transient offers (never a live check); state ok|behind|unknown; offer says what kind of release is waiting: point (a same-branch point release, response autoupdate; WordPress ships security fixes as point releases but does not flag them), major (only an upgrade offer), or empty when ok or unknown; point wins when both exist; auto_updates is WordPress's own updater (minor|all|off); reason says why when not ok.",
+                        "properties": {
+                            "current": {
+                                "type": "string"
+                            },
+                            "latest": {
+                                "type": "string"
+                            },
+                            "state": {
+                                "type": "string",
+                                "enum": [
+                                    "ok",
+                                    "behind",
+                                    "unknown"
+                                ]
+                            },
+                            "offer": {
+                                "type": "string",
+                                "enum": [
+                                    "point",
+                                    "major",
+                                    ""
+                                ]
+                            },
+                            "auto_updates": {
+                                "type": "string",
+                                "enum": [
+                                    "minor",
+                                    "all",
+                                    "off"
+                                ]
+                            },
+                            "reason": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "workers": {
+                        "type": "array",
+                        "description": "Deploy status for the five owned Cloudflare workers (analytics, provenance, login-guard, remote-mcp, rights-signals). Each row: id, label, live (probed version or \"unprobeable\"), latest (highest GitHub tag), state (ok|behind|unknown), repo. Rows with no probe route or a failed probe stay present as unknown \u2014 never omitted. Added with the Deploy Status worker surface.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "live": {
+                                    "type": "string"
+                                },
+                                "latest": {
+                                    "type": "string"
+                                },
+                                "state": {
+                                    "type": "string",
+                                    "enum": [
+                                        "ok",
+                                        "behind",
+                                        "unknown"
+                                    ]
+                                },
+                                "repo": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-get-health-scan": {
+            "wrap": true,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "result": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "scanned_at": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "elapsed_ms": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "finding_total": {
+                                "type": "integer",
+                                "description": "Fault-tier findings only, narrowed to the health surface. Advisory-tier counts live in advisory_total."
+                            },
+                            "advisory_total": {
+                                "type": "integer",
+                                "description": "Advisory-tier findings (external link rot, link opportunities, evergreen stale posts) counted across EVERY surface. These render on the worklist, not the Health tab, so this number is deliberately not the one the Health surface shows."
+                            },
+                            "checks_total": {
+                                "type": "integer"
+                            },
+                            "checks_passed": {
+                                "type": "integer",
+                                "description": "Checks that RAN and found nothing. A check that could not run (absent AI provider, unavailable theme palette, non-Cloudflare hosting) is NOT counted here \u2014 it is in checks_skipped. passed + skipped + flagged === total."
+                            },
+                            "checks_skipped": {
+                                "type": "integer",
+                                "description": "Checks that could not run this scan, so produced no evidence either way. Never folded into checks_passed: zero findings from a check that never executed is not a pass."
+                            },
+                            "flagged": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "check": {
+                                            "type": "string"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "count": {
+                                            "type": "integer"
+                                        },
+                                        "fix_hint": {
+                                            "type": "string"
+                                        },
+                                        "partial": {
+                                            "type": "string",
+                                            "description": "Why part of this check was not judged this scan, naming the posts (drift: failed AI calls); empty when every post was judged."
+                                        },
+                                        "failed": {
+                                            "type": "array",
+                                            "description": "The posts behind `partial`, one row each: post_id, title, reason in words. Capped at 20. Absent or empty when not tracked (scans before 2026-10-14).",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "post_id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "title": {
+                                                        "type": "string"
+                                                    },
+                                                    "reason": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "skipped": {
+                                "type": "array",
+                                "description": "The checks counted in checks_skipped, each with the reason it could not run (a missing token, a sandbox environment, failed AI calls). One entry per skipped check, so count( skipped ) === checks_skipped.",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "check": {
+                                            "type": "string"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "reason": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "result"
+                ]
+            }
+        },
+        "signal-noise/remote-get-insights": {
+            "wrap": true,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "result": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "scanned_at": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "elapsed_ms": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "signal_summary": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ]
+                            },
+                            "recommendations": {
+                                "type": "array"
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "result"
+                ]
+            }
+        },
+        "signal-noise/remote-get-narration": {
+            "wrap": true,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "result": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "state": {
+                                "type": "string",
+                                "enum": [
+                                    "ready",
+                                    "unavailable"
+                                ]
+                            },
+                            "reason": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "message": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "failed_at": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "generated_at": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "elapsed_ms": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "headline": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "paragraphs": {
+                                "type": "array"
+                            },
+                            "highlights": {
+                                "type": "array"
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "result"
+                ]
+            }
+        },
+        "signal-noise/remote-get-rss-stats": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "data": {
+                        "type": "object",
+                        "description": "Stats payload from sn_rss_tracker_window_stats_multi().",
+                        "properties": {
+                            "last_request": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "UTC timestamp of the most recent RSS feed request (Y-m-d H:i:s), or null if no requests recorded."
+                            },
+                            "last_request_relative": {
+                                "type": "string",
+                                "description": "Human-readable relative time (e.g. \"3 hours ago\"). Empty string when no last_request."
+                            },
+                            "windows": {
+                                "type": "object",
+                                "description": "Per-window aggregate counts. Keys are day-counts (1, 7, 30). Each value has total request count + count of distinct ua_hash values.",
+                                "additionalProperties": {
+                                    "type": "object",
+                                    "properties": {
+                                        "total": {
+                                            "type": "integer",
+                                            "description": "Total RSS feed requests in this window.",
+                                            "minimum": 0
+                                        },
+                                        "uniques": {
+                                            "type": "integer",
+                                            "description": "Distinct ua_hash count in this window (proxy for unique subscriber clients).",
+                                            "minimum": 0
+                                        }
+                                    }
+                                }
+                            },
+                            "subscribers": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "description": "Subscribers as reported by the readers (inc/feed-subscribers.php). A CEILING: per day, each aggregator fetcher's max self-reported count per feed, plus 1 per direct reader (distinct UA with no count); estimate_7d is the busiest day in the last 7. Never add it to feed_opens or feed clicks. Null when the module is not loaded.",
+                                "properties": {
+                                    "basis": {
+                                        "type": "string",
+                                        "enum": [
+                                            "ceiling"
+                                        ]
+                                    },
+                                    "window": {
+                                        "type": "string",
+                                        "enum": [
+                                            "max_day_7d"
+                                        ]
+                                    },
+                                    "note": {
+                                        "type": "string"
+                                    },
+                                    "estimate_7d": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                    },
+                                    "peak_day": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "aggregators": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "fetcher": {
+                                                    "type": "string"
+                                                },
+                                                "subscribers": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "direct_readers": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                    },
+                                    "flagged": {
+                                        "type": "array",
+                                        "description": "Fetchers whose claim exceeded 1,000,000 and was capped: likely spoofed.",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "feed_opens": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ],
+                                "description": "Feed opens from the pixel in each full-text feed item (inc/feed-opens.php). A FLOOR, read as \"at least\": readers that block images never load it. Null when the module is not loaded.",
+                                "properties": {
+                                    "basis": {
+                                        "type": "string",
+                                        "enum": [
+                                            "floor"
+                                        ]
+                                    },
+                                    "note": {
+                                        "type": "string"
+                                    },
+                                    "total_7d": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                    },
+                                    "total_30d": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                    },
+                                    "top_30d": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "post_id": {
+                                                    "type": "integer"
+                                                },
+                                                "title": {
+                                                    "type": "string"
+                                                },
+                                                "opens": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-indexing-requests": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "request_list": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "url": {
+                                    "type": "string"
+                                },
+                                "path": {
+                                    "type": "string"
+                                },
+                                "coverage_state": {
+                                    "type": "string",
+                                    "description": "Google's coverage state, verbatim."
+                                },
+                                "days": {
+                                    "type": "integer",
+                                    "description": "Days since publish."
+                                },
+                                "core": {
+                                    "type": "boolean",
+                                    "description": "One of the core pages (about, resume, workflow, services, contact, now, uses, colophon, the maturity pages, provenance and its children) or a Spanish twin of one."
+                                },
+                                "inbound_indexed": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "description": "Body links to this URL from published notes and pages Google has indexed. null = the link graph holds no node for it (unknown, not zero)."
+                                },
+                                "chrome": {
+                                    "type": "boolean",
+                                    "description": "The site header or footer links this page (or, for a Spanish twin, its English page), so every page links it. Never folded into inbound_indexed."
+                                },
+                                "template": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "description": "Templates that link this URL outside the post content: post (every note), page (every page), home (the front page). Never folded into inbound_indexed."
+                                },
+                                "inspect_url": {
+                                    "type": "string",
+                                    "description": "Search Console URL Inspection for this URL: open it and click Request indexing."
+                                }
+                            }
+                        }
+                    },
+                    "request_total": {
+                        "type": "integer"
+                    },
+                    "stuck": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "url": {
+                                    "type": "string"
+                                },
+                                "path": {
+                                    "type": "string"
+                                },
+                                "coverage_state": {
+                                    "type": "string",
+                                    "description": "Google's coverage state, verbatim."
+                                },
+                                "days": {
+                                    "type": "integer",
+                                    "description": "Days since publish."
+                                },
+                                "core": {
+                                    "type": "boolean",
+                                    "description": "One of the core pages (about, resume, workflow, services, contact, now, uses, colophon, the maturity pages, provenance and its children) or a Spanish twin of one."
+                                },
+                                "inbound_indexed": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "description": "Body links to this URL from published notes and pages Google has indexed. null = the link graph holds no node for it (unknown, not zero)."
+                                },
+                                "chrome": {
+                                    "type": "boolean",
+                                    "description": "The site header or footer links this page (or, for a Spanish twin, its English page), so every page links it. Never folded into inbound_indexed."
+                                },
+                                "template": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "description": "Templates that link this URL outside the post content: post (every note), page (every page), home (the front page). Never folded into inbound_indexed."
+                                },
+                                "inspect_url": {
+                                    "type": "string",
+                                    "description": "Search Console URL Inspection for this URL: open it and click Request indexing."
+                                }
+                            }
+                        }
+                    },
+                    "stuck_total": {
+                        "type": "integer"
+                    },
+                    "publish_check": {
+                        "type": "object",
+                        "properties": {
+                            "checked": {
+                                "type": "integer"
+                            },
+                            "inbound_judged": {
+                                "type": "boolean"
+                            },
+                            "chrome_paths": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "description": "Paths the header and footer link (rendered through core, cached per theme and parts), plus the Spanish twins of those pages. A page here passes the inbound rule. Empty = the chrome was not read."
+                            },
+                            "template_paths": {
+                                "type": "object",
+                                "description": "Paths the theme templates link outside the post content: post (single, from every indexed note), page (from every indexed page), home (front page, from the home page). Read from block markup, cached per theme."
+                            },
+                            "graph_render": {
+                                "type": "object",
+                                "description": "What building the link graph cost on this read: rendered (bodies rendered now), cached (served from the per-post cache), failed (render threw; raw body used, retried next read), ms, budget_hit (the 15-second render budget ran out) and remaining (bodies read raw this time; the next read continues)."
+                            },
+                            "failures": {
+                                "type": "array",
+                                "description": "Each row: path, url, post_type, inbound_indexed (body links from indexed pages, integer or null), inbound_source (chrome | template | body), template[], reasons[] of inbound | sitemap | canonical. The inbound rule counts body and template sources as one set."
+                            }
+                        }
+                    },
+                    "generated_at": {
+                        "type": "integer"
+                    },
+                    "coverage_run_at": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-machine-readers-networks": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "days": {
+                        "type": "integer"
+                    },
+                    "agent_networks": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "error": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-machine-readers-summary": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "days": {
+                        "type": "integer"
+                    },
+                    "total": {
+                        "type": "integer"
+                    },
+                    "truncated": {
+                        "type": "boolean",
+                        "description": "True when the edge reports the aggregate read hit its row cap. The BREAKDOWNS below may then be partial even when `total` is exact."
+                    },
+                    "total_exact": {
+                        "type": "boolean",
+                        "description": "True when `total` came from the edge's day-only totals view, which cannot truncate. False means it was summed from the aggregate and is a floor, not a count."
+                    },
+                    "days_covered": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Days the sensor actually holds data for in this window, counted from the day-rows the totals view returned. LESS than `days` means the window reaches past the start of the data, and any period-over-period comparison across it is an artifact of when the sensor started rather than a change in traffic. null when the edge cannot answer."
+                    },
+                    "identity": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "Signature verification folded against the dimensions it shares a row with. `measured` is reads carrying a real state; `valid` / `invalid` / `unknown_key` / `unsigned` split it. `by_agent` and `by_surface` list VERIFIED reads only, `{agent|surface, hits}` descending \u2014 an agent whose signature failed never appears there, because listing it beside one that passed would read as proof of the opposite. null, NOT a block of zeros, when no read in the window carried a signature state at all: that is \"never measured\", which is a different claim from \"measured, none verified\" (which reports valid 0 with empty leaderboards). Use by_agent to tell an ecosystem from a single signer, and by_surface to tell genuine adoption from traffic to a newly-served endpoint. Basis: signed (a Web Bot Auth signature checked out). Signed is not verified: `verification` is Cloudflare's verified-bot category, a different source."
+                    },
+                    "families": {
+                        "type": "array",
+                        "description": "The top 3 families by reads. Basis claimed: the family is what the user agent said. first_party_hits is the part of a family that is this site's own tools (the sensor's first_party flag); unclassified-machine is mostly that. Hits presenting a robots.txt control token are credited to no family (see impersonations), nor are impostor hits (see impostors).",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "family": {
+                                    "type": "string"
+                                },
+                                "hits": {
+                                    "type": "integer"
+                                },
+                                "first_party_hits": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "ai_training": {
+                        "type": "integer",
+                        "description": "LEGACY, family-based: reads from the hand-curated AI-training family set (openai, anthropic, google-ai, commoncrawl, bytedance, apple-ai, meta-ai, mistral, cohere, allen-ai) whatever each agent read for, so it counts search, user and unmapped agents inside those families (openai-searchbot, openai-chatgpt-user, mistral-user, cohere-ai, google-other) and misses training agents outside them (amazon-bot). Kept because a published figure used it; prefer ai_training_by_purpose. Control-token hits are not counted. Basis claimed."
+                    },
+                    "ai_rights": {
+                        "type": "integer"
+                    },
+                    "ai_surfaces": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "surface": {
+                                    "type": "string"
+                                },
+                                "hits": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "purposes": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "Reads per declared purpose, highest first, basis claimed. First-party reads, control-token hits and impostor hits are left out. Purpose `unknown` is UNMAPPED: the taxonomy has no entry for the reader (displayed as \"unmapped\"). null when the taxonomy is unavailable \u2014 never an empty array, which would read as \"measured zero\".",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "purpose": {
+                                    "type": "string"
+                                },
+                                "hits": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "ai_training_by_purpose": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "AI-training reads counted on the PURPOSE axis: purpose train, first-party reads and control-token hits left out, basis claimed. verification.ai_training_by_purpose says how much of it Cloudflare verified. Reported beside ai_training rather than replacing it: the frozen families over-count, and the gap between the two is the over-count made visible."
+                    },
+                    "first_party": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Reads from this site's own tools (the sensor's first_party flag, basis claimed). Not readership: left out of purposes and ai_training_by_purpose; counted in total and in families, where first_party_hits shows it."
+                    },
+                    "taxonomy": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Version of the published cohort definition the counts were derived under."
+                    },
+                    "sensor_version": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "crawler_list": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "impersonations": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "Hits presenting a robots.txt control token (Google-Extended, Applebot-Extended), which is never a crawler of its own, so they are credited to no vendor, family or purpose. {agent, token, hits, networks (top 5 {network, hits}), basis: claimed}. They still count in total. null when the taxonomy is unavailable.",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "impostors": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "Unverified hits, on a day verification was recorded, that a rule shows are not the agent they claim, credited to no vendor, family or purpose and still counted in total. {agent, hits, reasons, networks (top 5 {network, hits}), basis: inferred}, hits descending. reasons maps each reason to its hits: cf_directory (Cloudflare's verified-bots directory lists the agent and Cloudflare did not verify it), vendor_ranges (the IP is outside the vendor's published ranges AND the network is not the vendor's), off_home_network (the network is not the vendor's), rotator_network (the network presents 5 or more vendors' agents in the window, none verified). A verified hit (by Cloudflare or the vendor's published ranges) is never one, whatever its network, nor is a read before the since date or one from this site's own tools. [] when none; null when the taxonomy is unavailable.",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "verification": {
+                        "type": "object",
+                        "description": "Each attributed count split by verification, with the rights evidence's since date: {claimed, verified, verified_matched, vendor_verified, unverified, unverifiable}, where claimed = verified + unverified + unverifiable. verified: Cloudflare's verified-bot category was set, or the client IP is inside the vendor's own published ranges; vendor_verified: the part of verified that rests on those ranges (basis vendor_verified); verified_matched: and it fits the claimed purpose (train: AI Crawler; search: Search Engine Crawler or AI Search; unknown and dev never match); unverifiable: a day before since, or the partial day it began. `families` is keyed by family (the rows `families` counts), `purposes` by purpose and `ai_training_by_purpose` is its train entry (the rows `purposes` counts, null without the taxonomy), `ai_training` the legacy family figure. Verified is not signed (see identity).",
+                        "properties": {
+                            "source": {
+                                "type": "string"
+                            },
+                            "since": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "basis": {
+                                "type": "object"
+                            },
+                            "families": {
+                                "type": "object"
+                            },
+                            "purposes": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ]
+                            },
+                            "ai_training": {
+                                "type": "object"
+                            },
+                            "ai_training_by_purpose": {
+                                "type": [
+                                    "object",
+                                    "null"
+                                ]
+                            }
+                        }
+                    },
+                    "basis": {
+                        "type": "object",
+                        "description": "The evidence basis of each attributed field: signed (a cryptographic signature checked out), verified (Cloudflare's verified-bot category), vendor_verified (an IP inside the vendor's published ranges), claimed (the user agent the client sent), inferred (a rule or a score), unmeasured (not recorded)."
+                    },
+                    "reader_families": {
+                        "type": "array",
+                        "description": "The top 3 families by reads from readers: this site's own tools, control-token hits and impostor hits left out, so the top family is a reader, never the site's own probes. {family, hits (claimed), verified (Cloudflare)}.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "family": {
+                                    "type": "string"
+                                },
+                                "hits": {
+                                    "type": "integer"
+                                },
+                                "verified": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "error": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "daily": {
+                        "type": "array",
+                        "description": "Present only with series: \"day\". One entry per UTC date in the window, oldest first, zero-filled: a date with no reads is zeros and empty lists, not a gap. The window is rolling (now minus `days`), so it touches days+1 dates and the first and last carry partial: true. Each field sums to its window figure. Dates before the sensor held data also read zero; days_covered says how many dates it holds. When `truncated` is true the per-day breakdowns may be partial, and the aggregate keeps its oldest rows first, so the newest days lose rows first. No response status is recorded by the sensor, so there is no per-status split.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "day": {
+                                    "type": "string"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                },
+                                "first_party": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ]
+                                },
+                                "ai_training": {
+                                    "type": "integer"
+                                },
+                                "purposes": {
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ]
+                                },
+                                "ai_surfaces": {
+                                    "type": "array"
+                                },
+                                "partial": {
+                                    "type": "boolean"
+                                }
+                            }
+                        }
+                    },
+                    "daily_total_exact": {
+                        "type": "boolean",
+                        "description": "Present only with series: \"day\". True when each day's total comes from the exact day-only totals view; false when it was summed from the aggregate and is a floor."
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-provenance-integrity-status": {
+            "wrap": true,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "result": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "swept_at": {
+                                "type": "integer"
+                            },
+                            "fleet": {
+                                "type": "integer"
+                            },
+                            "checked": {
+                                "type": "integer"
+                            },
+                            "clean": {
+                                "type": "integer"
+                            },
+                            "failed": {
+                                "type": "integer"
+                            },
+                            "unreachable": {
+                                "type": "integer"
+                            },
+                            "keys": {
+                                "type": "string"
+                            },
+                            "failing": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "post_id": {
+                                            "type": "integer"
+                                        },
+                                        "uid": {
+                                            "type": "string"
+                                        },
+                                        "title": {
+                                            "type": "string"
+                                        },
+                                        "url": {
+                                            "type": "string"
+                                        },
+                                        "version": {
+                                            "type": "integer"
+                                        },
+                                        "failures": {
+                                            "type": "array"
+                                        },
+                                        "last_checked": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "result"
+                ]
+            }
+        },
+        "signal-noise/remote-search-crossexam": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "reason": {
+                        "type": "string"
+                    },
+                    "verdict": {
+                        "type": "string"
+                    },
+                    "gsc": {
+                        "type": "object"
+                    },
+                    "ledger": {
+                        "type": "object"
+                    },
+                    "reading": {
+                        "type": "string"
+                    },
+                    "grain": {
+                        "type": "string",
+                        "enum": [
+                            "window"
+                        ]
+                    },
+                    "caveat": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-search-drift": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "accruing",
+                            "measured"
+                        ]
+                    },
+                    "drifting": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path": {
+                                    "type": "string"
+                                },
+                                "from": {
+                                    "type": "number"
+                                },
+                                "to": {
+                                    "type": "number"
+                                },
+                                "drift": {
+                                    "type": "number"
+                                },
+                                "impressions": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "note": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-search-performance": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "synced": {
+                        "type": "boolean"
+                    },
+                    "property": {
+                        "type": "string"
+                    },
+                    "window": {
+                        "type": [
+                            "object",
+                            "null"
+                        ]
+                    },
+                    "synced_at": {
+                        "type": "integer"
+                    },
+                    "pages": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path": {
+                                    "type": "string"
+                                },
+                                "clicks": {
+                                    "type": "integer"
+                                },
+                                "impressions": {
+                                    "type": "integer"
+                                },
+                                "ctr": {
+                                    "type": "number"
+                                },
+                                "position": {
+                                    "type": "number"
+                                }
+                            }
+                        }
+                    },
+                    "queries": {
+                        "type": "array"
+                    },
+                    "opportunities": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path": {
+                                    "type": "string"
+                                },
+                                "clicks": {
+                                    "type": "integer"
+                                },
+                                "impressions": {
+                                    "type": "integer"
+                                },
+                                "ctr": {
+                                    "type": "number"
+                                },
+                                "position": {
+                                    "type": "number"
+                                }
+                            }
+                        }
+                    },
+                    "totals": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "clicks": {
+                                "type": "integer"
+                            },
+                            "impressions": {
+                                "type": "integer"
+                            },
+                            "days": {
+                                "type": "integer"
+                            },
+                            "capped": {
+                                "type": "boolean",
+                                "description": "TRUE = the sums are a floor (page rows hit the sync limit)."
+                            }
+                        }
+                    },
+                    "note": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "signal-noise/remote-uptime-status": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "configured": {
+                        "type": "boolean"
+                    },
+                    "fetched_at": {
+                        "type": "integer"
+                    },
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                        "monitor",
+                                        "heartbeat"
+                                    ]
+                                },
+                                "id": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                },
+                                "level": {
+                                    "type": "string",
+                                    "enum": [
+                                        "ok",
+                                        "warn",
+                                        "alert"
+                                    ]
+                                },
+                                "checked_at": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                },
+                                "availability": {
+                                    "type": [
+                                        "number",
+                                        "null"
+                                    ],
+                                    "description": "30-day availability percentage; on the light tier read from the hourly-warmed cache (null when cold); null whenever the summary endpoint was unavailable."
+                                },
+                                "incidents_30d": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ]
+                                },
+                                "availability_90d": {
+                                    "type": [
+                                        "number",
+                                        "null"
+                                    ]
+                                },
+                                "response_ms": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "description": "MEDIAN response time over the last 24h in ms (monitors only, detail tier; null when not read). Until 2026-10-13 this was the mean, which a few checks near the timeout inflated; same value as median_ms."
+                                },
+                                "median_ms": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "description": "Median response time over the last 24h in ms, across every region (monitors only, detail tier; null when not read)."
+                                },
+                                "max_ms": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "description": "The slowest single check over the last 24h in ms (monitors only, detail tier; null when not read)."
+                                },
+                                "max_region": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "description": "Where the slowest check ran, in words (the US, Europe, Asia, Australia; an undocumented code as given); null when not read."
+                                },
+                                "max_at": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "description": "When the slowest check ran (ISO 8601, UTC, as Better Stack reports it); null when not read."
+                                }
+                            }
+                        }
+                    },
+                    "incidents": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "Recent incidents, newest first (detail tier only; null on the light tier or when the incidents endpoint was unavailable).",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "cause": {
+                                    "type": "string"
+                                },
+                                "started_at": {
+                                    "type": "string"
+                                },
+                                "resolved_at": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                },
+                                "ongoing": {
+                                    "type": "boolean"
+                                },
+                                "duration_s": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "error": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }
+}

@@ -24,7 +24,8 @@
  * WHAT THIS FILE DOES NOT DO: it does not rate limit. The remote path's F1
  * ceiling is the edge Durable Object, which is Worker-side and belongs to the
  * increment that builds the bridge. The origin's run-route ceiling is the
- * existing fail-OPEN one in mcp-read-guard.php, extended to cover remote slugs.
+ * one in mcp-read-guard.php, extended to cover remote slugs; on the remote
+ * path it fails CLOSED since 13.50.0 (tests/mcp-read-rate-limit.php).
  * Do not read this increment as closing F1 — it closes the kill switch.
  *
  * @package SignalNoiseTools

@@ -48,7 +48,7 @@ function mcp_connect_owner_steps_html( array $state = array() ) {
   "mcpServers": {
     "signal-and-noise": {
       "command": "npx",
-      "args": ["-y", "@automattic/mcp-wordpress-remote@latest"],
+      "args": ["-y", "@automattic/mcp-wordpress-remote@0.5.4"],
       "env": {
         "WP_API_URL": "' . $native_url . '",
         "WP_API_USERNAME": "<admin-username>",
@@ -58,7 +58,9 @@ function mcp_connect_owner_steps_html( array $state = array() ) {
   }
 }';
 	$paste = $h( __( '@automattic/mcp-wordpress-remote config', 'signal-and-noise-tools' ) ) . '<p class="snt-prose">' . \snt_kit_esc( __( 'Swap in your WordPress username and the Application Password you just created.', 'signal-and-noise-tools' ) ) . '</p>'
-		. \snt_kit_code( $config, true );
+		. \snt_kit_code( $config, true )
+		// 2026-10-26 (docs/audits/2026-10-26-mcp-doors.md, F6): never @latest.
+		. '<p class="snt-prose">' . \snt_kit_esc( __( 'Pinned to an exact version on purpose: this package runs with your admin Application Password in its environment, so a launch must never fetch code you have not reviewed. Upgrade it deliberately, after reading what changed.', 'signal-and-noise-tools' ) ) . '</p>';
 	// Each half is one grid item: loose siblings would each take a track.
 	$body = $lead . $addresses . $code . \snt_kit_grid( array( \snt_kit_stack( $app, 12 ), \snt_kit_stack( $paste, 12 ) ), 320, 24 );
 

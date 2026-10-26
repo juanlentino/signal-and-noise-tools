@@ -47,8 +47,10 @@ function sn_mcp_namespace() {
 }
 
 /**
- * Auth floor: only an administrator (authenticated via application password) may
- * reach any MCP method. This sits ABOVE each ability's own check_permissions().
+ * Auth floor: only an administrator (manage_options) may reach any MCP method.
+ * It is a capability check, so an application password or a cookie-and-nonce
+ * session both pass; only the write door also binds one application password
+ * (mcp-rw-guard.php). This sits ABOVE each ability's own check_permissions().
  *
  * @return bool
  */
@@ -310,7 +312,7 @@ function sn_mcp_method_not_allowed() {
  * twin. mcp-remote sends the Authorization header on the GET probe too, so an
  * authenticated client gets the 405 it needs; an unauthenticated probe gets
  * the door's ordinary refusal and learns nothing. The plugin's public REST
- * surface (tests/rest-routes.php) therefore stays at exactly three routes.
+ * surface therefore gains no route from this (tests/rest-routes.php pins the count).
  *
  * Two literal calls rather than a loop: the census parser reads the route
  * argument as written in source.

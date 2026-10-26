@@ -235,6 +235,10 @@ ok( array_key_exists( 'result', $nc['result']['structuredContent'] ?? array() ) 
 // --- P4: empty-array structuredContent must encode {} not [] ---
 $empty_result = sn_mcp_success_result( array() );
 ok( is_object( $empty_result['structuredContent'] ), 'sn_mcp_success_result: empty-array structuredContent is cast to an object' );
+// F4 (2026-10-26): the text block is compact JSON, slashes unescaped. Pretty
+// printing was pure token cost; structuredContent carries the same data.
+$compact = sn_mcp_success_result( array( 'path' => '/notes/a/', 'rows' => array( array( 'n' => 1 ) ) ) );
+ok( '{"path":"/notes/a/","rows":[{"n":1}]}' === $compact['content'][0]['text'], 'sn_mcp_success_result: the text block is compact JSON with unescaped slashes' );
 ok( '{}' === wp_json_encode( $empty_result['structuredContent'] ), 'empty structuredContent encodes as {} not []' );
 ok( '[]' === $empty_result['content'][0]['text'], 'the text content block still shows [] (only structuredContent gets the object-cast belt)' );
 

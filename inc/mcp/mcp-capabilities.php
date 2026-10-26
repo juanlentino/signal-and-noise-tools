@@ -259,7 +259,8 @@ function sn_mcp_allowlist() {
  * audit-log reads the owner chose to gate behind the rw door instead of the
  * read door (plaintext usernames — see the audit's PII flags on
  * get-audit-log/export-audit-log). Widened to 35 in v9.82.0 by anchor-sweep
- * (30 plugin + 5 theme); the read-door 25 are never duplicated in here — a
+ * (30 plugin + 5 theme, since narrowed: tests/mcp-capabilities.php pins the
+ * current list); the read door's tools are never duplicated in here — a
  * client wanting reads uses the read door. Widened 35 -> 36 in v10.40.0 by
  * sn-apply (MCP consolidation session 6b) — the fifth CONSOLIDATED tool,
  * registered NEW alongside every ability it absorbs (block-migrations-apply,
@@ -409,7 +410,7 @@ function sn_mcp_rw_allowlist() {
 		'signal-noise/jev-tells-pass', // 16.7.0: the anti-tell pass over the corpus
 		'signal-noise/jev-tags-now', // 16.8.0: the tag-fit pass now
 		'signal-noise/rights-evidence-now', // 17.0.0: compose and post the last month now (publishes to the ledger)
-		// Theme (signal-and-noise/) — 5, all AI-billed + return-only.
+		// Theme (signal-and-noise/): none today (tests/mcp-capabilities.php pins 0).
 	);
 
 	/**

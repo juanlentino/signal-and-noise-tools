@@ -1,6 +1,6 @@
 # Signal & Noise AI Abilities Catalog
 
-The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abilities, 18 remote twins of them, and 16 theme abilities. They are consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, the plugin's two MCP doors, and (for the twins) the remote MCP Worker.
+The reference for the Signal & Noise WordPress Abilities: the plugin's abilities, the remote twins of some of them, and the theme's. Counts are not repeated here, because they rot: `tests/mcp-capabilities.php` pins both doors' lists and `tests/mcp-remote-guard.php` the twins, and the `sn://abilities-catalog` resource is the live registry. They are consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, the plugin's two MCP doors, and (for the twins) the remote MCP Worker.
 
 **Machine-readable source:** the live registry is an MCP resource, `sn://abilities-catalog`, on both doors. Query it for schemas; this document is the human map.
 
@@ -16,7 +16,7 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/ai-alt-apply` | Apply alt text to an attachment | ai-generation | — |
 | `signal-noise/ai-alt-inline-suggest` | Suggest alt text for an inline &lt;img&gt; in a post body | ai-generation | — |
 | `signal-noise/ai-alt-suggest` | Suggest alt text for an attachment | ai-generation | — |
-| `signal-noise/ai-cache-probe-status` | AI Prompt-Cache Probe Status | diagnostics | READ |
+| `signal-noise/ai-cache-probe-status` | AI Prompt-Cache Probe Status | diagnostics | — |
 | `signal-noise/ai-drift-apply` | Apply replacement for a drifted time-phrase | ai-generation | — |
 | `signal-noise/ai-drift-suggest` | Suggest replacement for a drifted time-phrase | ai-generation | — |
 | `signal-noise/ai-generate-excerpt` | Generate post excerpt with AI | ai-generation | — |
@@ -27,6 +27,7 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/ai-orphan-apply` | Delete an orphan attachment | ai-generation | — |
 | `signal-noise/ai-orphan-suggest` | Suggest orphan-media verdict for an attachment | ai-generation | — |
 | `signal-noise/ai-pair-suggest` | Suggest whether two related notes should link | ai-generation | RW |
+| `signal-noise/analytics-dual-write` | Analytics: do the new datasets hold what the old one holds? | diagnostics | READ |
 | `signal-noise/analytics-query` | Query analytics (via sn-metrics{analytics_query}) | analytics | — |
 | `signal-noise/analytics-rows` | Analytics rows (via sn-metrics{analytics_rows}; twin below) | analytics | — |
 | `signal-noise/anchor-status` | Provenance anchor overview | diagnostics | READ |
@@ -37,7 +38,7 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/block-migrations-scan` | Scan all posts for block-migration candidates | tools | — |
 | `signal-noise/block-migrations-suggest` | Generate a block-migration suggestion preview | tools | — |
 | `signal-noise/cache-freshness` | Edge Cache Freshness | diagnostics | READ |
-| `signal-noise/cadence-flags` | Scan operational rhythms for cadence deviations | tools | READ |
+| `signal-noise/cadence-flags` | Scan operational rhythms for cadence deviations | tools | — |
 | `signal-noise/clear-template-overrides` | Clear database template overrides | maintenance | — |
 | `signal-noise/cloudflare-status` | Cloudflare Status | diagnostics | READ |
 | `signal-noise/content-queue` | Content queue | content | — |
@@ -51,9 +52,11 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/edge-sampling-probe` | Edge Sampling Probe | diagnostics | READ |
 | `signal-noise/export-audit-log` | Export login-audit log | diagnostics | — |
 | `signal-noise/family-drift` | Crawler-family enum drift (stored report) | diagnostics | READ |
+| `signal-noise/forms-spam-apply` | Forms spam apply | content | WRITE |
+| `signal-noise/forms-spam-scan` | Forms spam scan | diagnostics | READ |
 | `signal-noise/get-404-log` | Recent front-end 404 log | diagnostics | — |
 | `signal-noise/get-analytics-devices` | Get devices (via sn-metrics{analytics_devices}) | analytics | — |
-| `signal-noise/get-analytics-events` | Get custom events | analytics | READ |
+| `signal-noise/get-analytics-events` | Get custom events | analytics | — |
 | `signal-noise/get-analytics-geography` | Get geography (via sn-metrics{analytics_geography}) | analytics | — |
 | `signal-noise/get-analytics-journeys` | Get entry and exit pages (via sn-metrics{analytics_journeys}) | analytics | — |
 | `signal-noise/get-analytics-series` | Get daily series (via sn-metrics{analytics_series}) | analytics | — |
@@ -71,7 +74,7 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/get-narration` | Get Weekly Analytics Digest | diagnostics | — |
 | `signal-noise/get-post-content` | Fetch full bodies for a bounded set of posts | tools | — |
 | `signal-noise/get-rights-reads` | Get Rights Reads | analytics | READ |
-| `signal-noise/get-rss-stats` | Get RSS feed activity statistics | diagnostics | READ |
+| `signal-noise/get-rss-stats` | Get RSS feed activity statistics | diagnostics | — |
 | `signal-noise/inbound-pass` | Inbound-link pass for new notes (stored report) | diagnostics | READ |
 | `signal-noise/indexing-requests` | Search Console: URLs to request indexing for (stored) | diagnostics | READ |
 | `signal-noise/jev-collision-check` | Jev: does this draft re-argue a published note? | maintenance | RW |
@@ -100,6 +103,7 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-noise/login-defense-ipv6-criterion` | Login defense: IPv6 criterion | analytics | READ |
 | `signal-noise/merge-tags` | Merge duplicate post tags | content | — |
 | `signal-noise/near-duplicate-scan` | Scan the corpus for near-duplicate (cousin) post pairs | tools | — |
+| `signal-noise/north-star` | North star | diagnostics | READ |
 | `signal-noise/note-dossier` | Note dossier | content | — |
 | `signal-noise/pattern-adoption-apply` | Apply a v9.2.0 pattern upgrade to a post | ai-generation | — |
 | `signal-noise/pattern-adoption-scan` | Scan posts for v9.2.0 pattern-adoption opportunities | tools | — |
@@ -176,7 +180,7 @@ The reference for the 147 Signal & Noise WordPress Abilities: 113 plugin abiliti
 | `signal-and-noise/get-theme-version` | Get theme + WP version | diagnostics | — |
 | `signal-and-noise/list-block-patterns` | List block patterns | content | — |
 
-**Totals:** 113 plugin abilities + 18 remote twins + 16 theme = 147. **49** on the read door, **16** on the write door, 0 on both, **48** plugin abilities on neither. Theme abilities are on no door by design: `sn-site-facts` dispatches to them, so the read door carries zero theme slugs. Each remote twin shares its admin ability's output schema byte for byte, except three named strips (deploy status without `runtime`, and the machine-readers networks slice, which carries the crosstab's `agent_networks` alone; both run a wrapper); remote contract version 15.
+**Totals:** see the pinning tests (`tests/mcp-capabilities.php`, `tests/mcp-remote-guard.php`); no ability is on both doors. Theme abilities are on no door by design: `sn-site-facts` dispatches to them, so the read door carries zero theme slugs. Each remote twin shares its admin ability's output schema byte for byte, except three named strips (deploy status without `runtime`, and the machine-readers networks slice, which carries the crosstab's `agent_networks` alone; both run a wrapper); remote contract version 15.
 
 ## How to use this catalog
 
@@ -188,7 +192,7 @@ wp ability run <slug> --input='{"post_id": 42}'
 
 **REST API** — POST to `/wp-json/wp-abilities/v1/abilities/<slug>/run` with `wordpress_logged_in_*` session cookie and `X-WP-Nonce` header for write operations. The MCP doors expose subsets of these abilities via their respective allowlists.
 
-**MCP client** — Query the `sn://abilities-catalog` resource on either door for the live registry snapshot. The read door offers 49 tools (read-only); the write door offers 16 (state-modifying, behind a kill switch, a bound application password, a rate limit and its own audit log).
+**MCP client** — Query the `sn://abilities-catalog` resource on either door for the live registry snapshot. The read door's tools are read-only; the write door's are state-modifying ( behind a kill switch, a bound application password, a rate limit and its own audit log).
 
 ## Analytics rows: the remote query tool (contract 15)
 
@@ -573,11 +577,11 @@ These 4 abilities are NOT exposed on any MCP door:
 
 ## Per-door visibility
 
-**READ door** (`/wp-json/signal-noise/v1/mcp`) — 49 tools, all advertising `readOnlyHint: true`, `manage_options` floor.
+**READ door** (`/wp-json/signal-noise/v1/mcp`) — the tools pinned in `tests/mcp-capabilities.php`, all advertising `readOnlyHint: true`, `manage_options` floor.
 
-**WRITE door** (`/wp-json/signal-noise/v1/mcp-rw`) — 16 tools: `ai-link-apply`, `ai-pair-suggest`, `prune-unused-tags`, `describe-tags`, `apply-tag-description`, `unschedule-cron-event`, `purge-all-caches`, `sn-apply`, `jev-pass-now`, `jev-collision-check`, `jev-lane-map`, `jev-fit-now`, `jev-tells-check`, `jev-tells-pass`, `jev-tags-now`, `rights-evidence-now`. `sn-apply` is the one tool for every content mutation, behind fingerprint, validation, capability and idempotency gates, with `dry_run` defaulting to true. An optional `change.change_class` (`reading_aid`, `correction`, `copy`, `claim`, `unclassified`) labels the provenance version the write mints; it is stored beside the signed payload, never in it. An unknown value is a 422 naming the valid ones, and a write that adds or replaces a correction notice cannot be classed `reading_aid` or `copy` (a gate-2 refusal). Versions minted before that label existed are labeled with `change.type: "change_class_backfill"` (publish-only, target `{scope: "provenance_labels"}`, payload `{window_dates, labels: [{post_id, change_class}], expected_counts?}`): each listed post must have exactly one version whose `committed_at` falls on a window date (UTC days, v0 excluded) or the whole call refuses naming every candidate; the fingerprint binds the planned rows (dry run first, read `gates.fingerprint.observed`); the write goes through `sn_prov_set_change_class()` and touches no payload or hash. The audit cross-check is day-level, because the rw audit log does not record which post or version a write minted.
+**WRITE door** (`/wp-json/signal-noise/v1/mcp-rw`) — the tools pinned in `tests/mcp-capabilities.php` (the rows marked WRITE above).
 
-**REMOTE** — 15 twins through the sn-remote-mcp Worker's bearer-checked bridge, off until the wp-admin toggle is on.
+**REMOTE** — the twins pinned in `tests/mcp-remote-guard.php`, through the sn-remote-mcp Worker's bearer-checked bridge, off until the wp-admin toggle is on.
 
 Both plugin doors share the same JSON-RPC plumbing, wrap rule and envelope contract. The door context is resolved per request and flows through dispatch, never global state.
 

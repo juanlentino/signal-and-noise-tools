@@ -81,7 +81,7 @@ function sn_mcp_rw_annotation_destructive_overrides() {
  *
  * Precedence per key:
  *   - readOnlyHint: the ability's own 'readonly' if declared, else false
- *     (MCP's own default — nothing to override here across the 35 rw slugs).
+ *     (MCP's own default — nothing to override here across the rw slugs).
  *   - idempotentHint: the ability's own 'idempotent' if declared, else false
  *     (MCP's own default — every rw-door ability in this codebase declares
  *     one, but the fallback exists for a future addition that doesn't).
@@ -157,7 +157,7 @@ function sn_mcp_project_tool( $ability, $door = SN_MCP_DOOR_READ ) {
 /**
  * Build the tools/list result: project every allowlisted ability (for the
  * given door) that resolves. The rw door's tools/list is the rw allowlist
- * ONLY — the read-door 25 are never duplicated into it; a client wanting
+ * ONLY — the read door's tools are never duplicated into it; a client wanting
  * reads uses the read door.
  *
  * @param string $door SN_MCP_DOOR_READ (default) or SN_MCP_DOOR_RW.
@@ -180,7 +180,12 @@ function sn_mcp_list_tools( $door = SN_MCP_DOOR_READ ) {
  *
  * MCP requires structuredContent to be a JSON object: a PHP empty array encodes
  * to [] via wp_json_encode, so it must be cast to an object here to encode as
- * {}. The text block is unaffected — it stays the plain JSON-encoded $data.
+ * {}. The text block is unaffected: it stays the JSON-encoded $data, compact.
+ *
+ * Compact since 2026-10-26 (docs/audits/2026-10-26-mcp-doors.md, F4): pretty
+ * printing cost 28-34% of every text block in tokens (sn-posts 80,475 B →
+ * 57,670 B) and structuredContent already carries the same data. Slashes stay
+ * unescaped so paths and URLs read as written.
  *
  * @param mixed $data
  * @return array<string,mixed>
@@ -189,7 +194,7 @@ function sn_mcp_success_result( $data ) {
 	$structured = ( is_array( $data ) && empty( $data ) ) ? (object) array() : $data;
 	return array(
 		'content'           => array(
-			array( 'type' => 'text', 'text' => (string) wp_json_encode( $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) ),
+			array( 'type' => 'text', 'text' => (string) wp_json_encode( $data, JSON_UNESCAPED_SLASHES ) ),
 		),
 		'structuredContent' => $structured,
 		'isError'           => false,
