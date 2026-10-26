@@ -92,7 +92,10 @@ if ( function_exists( 'add_filter' ) ) { // suites that require this file bare s
  */
 function sn_mcp_adapter_public_floor( $args, $name ) {
 	$name = (string) $name;
-	if ( ! is_array( $args ) || empty( $args['meta']['mcp']['public'] ) ) {
+	// The adapter reads meta.mcp.public when it is set and falls back to
+	// core's meta.public otherwise, so either flag counts, and the answer is
+	// an explicit meta.mcp.public false, which wins over the fallback.
+	if ( ! is_array( $args ) || ( empty( $args['meta']['mcp']['public'] ) && empty( $args['meta']['public'] ) ) ) {
 		return $args;
 	}
 	if ( 0 !== strpos( $name, 'signal-noise/' ) && 0 !== strpos( $name, 'signal-and-noise/' ) ) {

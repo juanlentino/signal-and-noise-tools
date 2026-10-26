@@ -194,10 +194,18 @@ reset_state( $BOUND, $BOUND );
 $GLOBALS['__audit_args'] = array();
 sn_mcp_rw_guard_run_route_audit( array( 'ok' => true ), null, new RG_Req( run_route( $a_write ), array( 'input' => array( 'dry_run' => false, 'change_type' => 'x' ) ) ) );
 ok( array( array( 'dry_run' => false, 'change_type' => 'x' ) ) === $GLOBALS['__audit_args'], 'the row gets the ability\'s input, not the {input: …} envelope the redactor would drop whole' );
-class RG_Query_Req extends RG_Req { public function get_param( $k ) { return 'input' === $k ? array( 'dry_run' => true ) : null; } }
+class RG_Method_Req extends RG_Req {
+	private $m; private $q;
+	public function __construct( $r, $m, $q, $b = array() ) { parent::__construct( $r, $b ); $this->m = $m; $this->q = $q; }
+	public function get_method() { return $this->m; }
+	public function get_query_params() { return $this->q; }
+}
 $GLOBALS['__audit_args'] = array();
-sn_mcp_rw_guard_run_route_audit( array( 'ok' => true ), null, new RG_Query_Req( run_route( $a_write ) ) );
-ok( array( array( 'dry_run' => true ) ) === $GLOBALS['__audit_args'], 'a GET or DELETE run reads its input from the query string through get_param' );
+sn_mcp_rw_guard_run_route_audit( array( 'ok' => true ), null, new RG_Method_Req( run_route( $a_write ), 'DELETE', array( 'input' => array( 'dry_run' => true ) ) ) );
+ok( array( array( 'dry_run' => true ) ) === $GLOBALS['__audit_args'], 'a GET or DELETE run reads its input from the query string, as core does' );
+$GLOBALS['__audit_args'] = array();
+sn_mcp_rw_guard_run_route_audit( array( 'ok' => true ), null, new RG_Method_Req( run_route( $a_write ), 'POST', array( 'input' => array( 'dry_run' => true ) ), array() ) );
+ok( array( array() ) === $GLOBALS['__audit_args'], 'a POST logs only its JSON body\'s input: a query-string input core never executes is not recorded' );
 $GLOBALS['__audit'] = array();
 reset_state( $BOUND, $BOUND );
 $e = new WP_Error( 'snt_sn_apply_fingerprint_stale', 'x', array( 'status' => 409 ) );

@@ -18,7 +18,7 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok  - $m\n"; } else { $fail++; echo "  FAIL - $m\n"; } }
 
 function __( $s, $d = null ) { return (string) $s; }
-function add_filter( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $t ][] = $c; return true; }
+function add_filter( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $t ][] = $c; $GLOBALS['__prio'][ $t ][ is_string( $c ) ? $c : '' ] = $p; return true; }
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $t, $v ) { return $v; } } // 15.2.0: the bridge secret passes a filter
 function remove_filter( $t, $c, $p = 10 ) { $GLOBALS['__removed'][] = $t; return true; }
 function add_action( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $t ][] = $c; return true; }
@@ -491,6 +491,8 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
 }
 class BR_Req { private $m; private $r; public function __construct( $m, $r ) { $this->m = $m; $this->r = $r; } public function get_method() { return $this->m; } public function get_route() { return $this->r; } }
 ok( in_array( 'sn_bridge_options_as_absent', $GLOBALS['__filters']['rest_pre_dispatch'] ?? array(), true ) && in_array( 'sn_bridge_strip_allow', $GLOBALS['__filters']['rest_post_dispatch'] ?? array(), true ), 'both hooks are registered at load' );
+ok( ( $GLOBALS['__prio']['rest_pre_dispatch']['sn_bridge_options_as_absent'] ?? 10 ) < 10, 'the OPTIONS answer runs before core\'s rest_handle_options_request (priority 10)' );
+ok( ( $GLOBALS['__prio']['rest_post_dispatch']['sn_bridge_strip_allow'] ?? 10 ) > 10, 'the Allow strip runs after core\'s rest_send_allow_header (priority 10)' );
 $opt = sn_bridge_options_as_absent( null, null, new BR_Req( 'OPTIONS', '/signal-noise/v1/bridge' ) );
 ok( $opt instanceof WP_REST_Response && array() === $opt->data && '' === $opt->get_matched_route(), 'OPTIONS on /bridge is the empty 200 an absent route gives, with no matched route for core to describe or Allow' );
 ok( sn_bridge_options_as_absent( null, null, new BR_Req( 'OPTIONS', '/Signal-Noise/V1/Bridge' ) ) instanceof WP_REST_Response, 'a differently cased path is the same route (core matches with the i flag)' );

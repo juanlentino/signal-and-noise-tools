@@ -44,6 +44,11 @@ $leaked = array_filter( $rw, static function ( $slug ) use ( $public ) {
 } );
 ok( count( $rw ) > 5 && array() === $leaked, 'no write-door tool stays public (' . count( $rw ) . ' checked)' . ( $leaked ? ': ' . implode( ', ', $leaked ) : '' ) );
 
+$core_flag = sn_mcp_adapter_public_floor( array( 'meta' => array( 'public' => true ) ), 'signal-noise/sn-apply' );
+ok( false === ( $core_flag['meta']['mcp']['public'] ?? null ), 'core\'s top-level meta.public, which the adapter falls back to, is answered with an explicit meta.mcp.public false' );
+$core_read = sn_mcp_adapter_public_floor( array( 'meta' => array( 'public' => true ) ), $read[0] );
+ok( ! isset( $core_read['meta']['mcp'] ), 'a read-door tool flagged only by meta.public is left alone' );
+
 $other = sn_mcp_adapter_public_floor( $public(), 'core/get-site-info' );
 ok( true === $other['meta']['mcp']['public'], 'another plugin\'s ability is never touched' );
 $private = array( 'meta' => array( 'mcp' => array( 'public' => false ) ) );
