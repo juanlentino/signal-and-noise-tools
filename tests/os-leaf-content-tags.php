@@ -183,7 +183,7 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'empty view: field na
 ok( array( 'tag_group_apply' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'empty view: the one write is filing the tags that exist (17.2.0); nothing else' );
 ok( false !== strpos( $kit, 'heading="Duplicate tags"' ) && false !== strpos( $kit, 'heading="No duplicate tags detected."' ), 'empty view: No duplicate tags detected' );
 ok( false !== strpos( $kit, 'heading="No unused tags."' ), 'empty view: No unused tags' );
-ok( false !== strpos( $kit, 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.' ), '16.9.0: empty view, no key: the section names the connector' );
+ok( false !== strpos( $kit, 'Install Tribar Connector for TypeSafe Jev and add the key under Settings › Connectors.' ), '16.9.0: empty view, no key: the section names the connector' );
 ok( false === strpos( $kit, 'Recent tag operations' ), 'empty view: no history, no Recent section' );
 ok( false !== strpos( $kit, '<os-badge tone="success">Duplicate clusters: 0 · clean</os-badge>' ) && false !== strpos( $kit, '<os-badge tone="success">Unused tags: 0 · clean</os-badge>' ) && false === strpos( $kit, 'tone="warning">Duplicate' ), 'empty view: the glance chips read clean in the ok tone' );
 

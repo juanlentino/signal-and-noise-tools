@@ -233,7 +233,7 @@ function sn_admin_tag_render_recent_merges() {
 function sn_admin_tag_render_fit_section() {
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Jev: tag fit', 'signal-and-noise-tools' ) . '</h2>';
 	if ( ! function_exists( 'sn_jev_is_ready' ) || ! sn_jev_is_ready() ) {
-		echo '<p>' . esc_html__( 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) . '</p></div>';
+		echo '<p>' . esc_html__( 'Install Tribar Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) . '</p></div>';
 		return;
 	}
 	$action = admin_url( 'admin-post.php?page=sn-content&tab=content&sub=tags' );

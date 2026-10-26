@@ -22,7 +22,7 @@ Cloudflare Workers AI (`@cf/baai/bge-base-en-v1.5`) turns each note into a vecto
 
 ### Jev judges
 
-TypeSafe's System One model (Jev) answers typed questions with a probability, a position on a rubric, or a choice, plus a confidence; it produces no prose, so it cannot be asked to write and cannot drift into the notes' voice. It reaches the site through [Connector for TypeSafe Jev](https://github.com/juanlentino/connector-for-typesafe-jev), which registers `typesafe` with Core's Connectors API (Settings › Connectors owns the key; this plugin holds none). Six readings, each one request per note and each a list for a human:
+TypeSafe's System One model (Jev) answers typed questions with a probability, a position on a rubric, or a choice, plus a confidence; it produces no prose, so it cannot be asked to write and cannot drift into the notes' voice. It reaches the site through [Tribar Connector for TypeSafe Jev](https://github.com/juanlentino/tribar-connector-for-typesafe-jev), which registers `typesafe` with Core's Connectors API (Settings › Connectors owns the key; this plugin holds none). Six readings, each one request per note and each a list for a human:
 
 - **Check 30, daily.** Is the search title the words a person would type, and does the description say what the note argues? A position below level one ("names the subject") on a 0..2 rubric is a finding whatever the confidence; under 0.5 confidence the finding says "Jev is unsure; read it yourself". The pass is `jev-pass-now`, the reading `jev-notes`.
 - **The collision gate, on every save of a draft.** One Noul per published note: does this draft make the same central argument, so a reader of that note would learn nothing new? Stored on the post; the pre-publish panel warns per note at or above 0.6 and names the irreversibility. The lane map (`jev-lane-map`, `jev-lanes`) runs the same question across the whole published corpus and keeps the pairs at or above 0.5.
@@ -44,7 +44,7 @@ The site is also something models fetch, and the plugin treats that as a first-c
 | Anthropic (text) | WordPress AI Client | Settings › Connectors (Core's `ai_provider` card) |
 | Google (alt text, vision) | WordPress AI Client | Settings › Connectors (Core's `ai_provider` card) |
 | Cloudflare Workers AI (embeddings) | this plugin's keyring | S&N › Connections › Credentials (`workers_ai_token`) |
-| TypeSafe (Jev) | Connector for TypeSafe Jev | Settings › Connectors (`typesafe`, type `ai_decision`) |
+| TypeSafe (Jev) | Tribar Connector for TypeSafe Jev | Settings › Connectors (`typesafe`, type `ai_decision`) |
 
 The connector does not register as an `ai_provider` yet: on save, Core checks each `ai_provider` key against the AI Client provider class registered under the same id and clears it when there is none, and Jev has no provider class because the AI Client has no capability for decision models ([php-ai-client#296](https://github.com/WordPress/php-ai-client/issues/296)). Its `CLAUDE.md` records that decision and the others that look like bugs until you know why they are there.
 

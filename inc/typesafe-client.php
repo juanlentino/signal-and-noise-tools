@@ -2,12 +2,12 @@
 /**
  * Signal & Noise Tools — TypeSafe Jev client (System One).
  *
- * One documented request, sent by Connector for TypeSafe Jev (16.5.3):
+ * One documented request, sent by Tribar Connector for TypeSafe Jev (16.5.3):
  * `{state, model, questions}`; the answer is a map keyed like the
  * questions, each a typed value (noul 0..1; score with probabilities and
  * confidence; choice with probabilities and confidence) plus usage. Jev
  * generates nothing; it decides. The key is the connector's (16.5.2:
- * Connector for TypeSafe Jev registers `typesafe` with Core's Connectors
+ * Tribar Connector for TypeSafe Jev registers `typesafe` with Core's Connectors
  * API; Settings › Connectors holds it) and is redacted from every error string.
  *
  * Read against docs.typesafe.ai on 2026-09-18: api.md, models.md (jev-1.13,
@@ -27,12 +27,12 @@ const SN_JEV_CONFIDENCE_FLOOR = 0.9;
 
 const SN_JEV_CONNECTOR_CLASS  = 'JevConnector\\Connector';
 const SN_JEV_LEGACY_OPTION    = 'sn_typesafe_api_key';
-const SN_JEV_NOT_READY        = 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.';
+const SN_JEV_NOT_READY        = 'Install Tribar Connector for TypeSafe Jev and add the key under Settings › Connectors.';
 
 /**
  * The key, from the connector; '' when the connector is absent or empty.
  *
- * 16.5.2: the keyring row is gone. Connector for TypeSafe Jev resolves env,
+ * 16.5.2: the keyring row is gone. Tribar Connector for TypeSafe Jev resolves env,
  * then constant, then Core's `connectors_typesafe_api_key`; this plugin
  * holds no second path.
  */
@@ -74,7 +74,7 @@ function sn_jev_migrate_legacy_key() {
 add_action( 'plugins_loaded', 'sn_jev_migrate_legacy_key', 20 );
 
 /**
- * One request, through Connector for TypeSafe Jev (16.5.3). Returns
+ * One request, through Tribar Connector for TypeSafe Jev (16.5.3). Returns
  * {ok, code, answers, usage, error} and never throws. The connector owns the
  * transport (three attempts, Retry-After honoured, a one-hour cache keyed on
  * the payload, per-status messages); this plugin owns the questions and the
