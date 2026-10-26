@@ -124,7 +124,7 @@ $GLOBALS['__cap'] = true;
 $GLOBALS['__clusters'] = array(); $GLOBALS['__hist'] = array();
 $GLOBALS['__ai'] = false; $GLOBALS['__jev'] = false;
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();
-ok( strpos( $h, 'Install Connector for TypeSafe Jev' ) !== false && strpos( $h, 'tag_fit_run' ) === false, 'Jev: no key: the section names the connector and offers no run' );
+ok( strpos( $h, 'Install Tribar Connector for TypeSafe Jev' ) !== false && strpos( $h, 'tag_fit_run' ) === false, 'Jev: no key: the section names the connector and offers no run' );
 
 $GLOBALS['__ai'] = true; $GLOBALS['__jev'] = true; $GLOBALS['__fit'] = false;
 ob_start(); sn_admin_render_tag_cleanup_section(); $h = ob_get_clean();

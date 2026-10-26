@@ -1,9 +1,10 @@
 <?php
 /**
- * A stub of Connector for TypeSafe Jev (juanlentino/jev-connector) for the
- * plugin's tests: the key reads a test switch, ask() records the call and
- * answers from $GLOBALS['__j']['answer'] the way the connector would (a
- * WP_Error carrying the HTTP status in its data, or a Response).
+ * A stub of Tribar Connector for TypeSafe Jev
+ * (juanlentino/tribar-connector-for-typesafe-jev) for the plugin's tests: the
+ * key reads a test switch, ask() records the call and answers from
+ * $GLOBALS['__j']['answer'] the way the connector would (a WP_Error carrying
+ * the HTTP status in its data, or a Response).
  */
 namespace JevConnector;
 

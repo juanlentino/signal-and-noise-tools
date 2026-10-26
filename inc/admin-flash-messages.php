@@ -95,7 +95,7 @@ function sn_admin_flash_messages() {
 		'tag_merge_error'           => array( 'error', 'Tag merge failed: one or more tags were no longer valid.' ),
 		'tag_fit_read'              => array( 'success', 'Jev read every note against the tags it carries: review its picks in Jev: tag fit.' ),
 		'tag_fit_failed'            => array( 'error', 'The tag-fit pass failed; the Jev meter and the connector say why.' ),
-		'tag_fit_unavailable'       => array( 'error', 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.' ),
+		'tag_fit_unavailable'       => array( 'error', 'Install Tribar Connector for TypeSafe Jev and add the key under Settings › Connectors.' ),
 		'tag_fit_applied'           => array( 'success', 'Tags removed; the next pass re-reads the notes.' ),
 		'tag_fit_nothing'           => array( 'warning', 'Nothing applied: no checked row was one Jev listed.' ),
 		'tag_group_applied'         => array( 'success', 'Filed; /notes/tags reads the new groups now.' ),

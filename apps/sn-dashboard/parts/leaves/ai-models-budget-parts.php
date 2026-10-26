@@ -31,7 +31,7 @@ function models_budget_jev_html( array $d ) {
 	}
 	$j = $d['jev'];
 	if ( ! $d['jev_ready'] ) {
-		return \snt_kit_section( __( 'Jev', 'signal-and-noise-tools' ), '<p class="snt-prose">' . \snt_kit_esc( __( 'Not connected. Install Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) ) . '</p>' );
+		return \snt_kit_section( __( 'Jev', 'signal-and-noise-tools' ), '<p class="snt-prose">' . \snt_kit_esc( __( 'Not connected. Install Tribar Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) ) . '</p>' );
 	}
 	$out = '<p class="snt-prose">' . sprintf(
 		/* translators: 1: spent USD, 2: credit USD, 3: cycle start, 4: cycle end, 5: days left. */

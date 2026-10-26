@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 function tags_fit_html() {
 	$heading = __( 'Jev: tag fit', 'signal-and-noise-tools' );
 	if ( ! function_exists( 'sn_jev_is_ready' ) || ! \sn_jev_is_ready() ) {
-		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'Install Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) ) . '</p>' );
+		return \snt_kit_section( $heading, '<p class="snt-prose">' . \snt_kit_esc( __( 'Install Tribar Connector for TypeSafe Jev and add the key under Settings › Connectors.', 'signal-and-noise-tools' ) ) . '</p>' );
 	}
 	$data  = function_exists( 'sn_jev_tags_data' ) ? \sn_jev_tags_data() : null;
 	$rows  = null === $data ? array() : \sn_jev_tags_rows( $data );
