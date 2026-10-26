@@ -73,12 +73,14 @@ require_once __DIR__ . '/sn-apply/roadmap-board.php';
 require_once __DIR__ . '/sn-apply/change-class-backfill.php'; // labels for versions minted before change_class (2026-10-17)
 require_once __DIR__ . '/sn-apply/executors.php';
 
-add_action( 'wp_abilities_api_init', function() {
-	if ( ! function_exists( 'wp_register_ability' ) ) {
-		return;
-	}
-
-	$target_props = array(
+/**
+ * A target's properties, for the schema's object branch, each batch item, and
+ * the runtime check on a batch (snt_sn_apply_batch_scope_error()).
+ *
+ * @return array<string,array>
+ */
+function snt_sn_apply_target_props() {
+	return array(
 		'post_id'       => array( 'type' => 'integer', 'minimum' => 1 ),
 		'attachment_id' => array( 'type' => 'integer', 'minimum' => 1 ),
 		'scope'         => array( 'type' => 'string', 'enum' => array( 'provenance_anchors', 'maturity_roadmap', 'provenance_labels' ) ),
@@ -87,6 +89,37 @@ add_action( 'wp_abilities_api_init', function() {
 		// truthy) in snt_sn_apply_resolve_target(), same posture as scope's enum above.
 		'new_post'      => array( 'type' => 'boolean' ),
 	);
+}
+
+/**
+ * A batch item naming a scope the single-target enum refuses, as a 422 naming
+ * its 0-based index; null when every item passes. WordPress validates a list
+ * against `target` as an object (its first type that fits), so the schema's
+ * `items` never run, and the scope enum is enforced here instead (2026-10-26).
+ *
+ * @param array $targets A list target.
+ * @return WP_Error|null
+ */
+function snt_sn_apply_batch_scope_error( array $targets ) {
+	$scopes = snt_sn_apply_target_props()['scope']['enum'];
+	foreach ( $targets as $i => $item ) {
+		if ( is_array( $item ) && array_key_exists( 'scope', $item ) && ! in_array( $item['scope'], $scopes, true ) ) {
+			return new WP_Error(
+				'snt_sn_apply_bad_target',
+				sprintf( 'target[%d].scope must be one of: %s.', (int) $i, implode( ', ', $scopes ) ),
+				array( 'status' => 422 )
+			);
+		}
+	}
+	return null;
+}
+
+add_action( 'wp_abilities_api_init', function() {
+	if ( ! function_exists( 'wp_register_ability' ) ) {
+		return;
+	}
+
+	$target_props = snt_sn_apply_target_props();
 
 	wp_register_ability( 'signal-noise/sn-apply', array(
 		'label'               => 'Apply a change to a post (consolidated write tool)',
@@ -118,16 +151,18 @@ add_action( 'wp_abilities_api_init', function() {
 					// array branch side by side (JSON Schema ignores whichever doesn't
 					// match the instance's actual type). Runtime enforcement is unchanged
 					// -- see snt_sn_apply_resolve_target() / snt_sn_apply_is_batch_target().
-					// 2026-10-26: "array" FIRST. WordPress's validator does not try each
-					// type; rest_get_best_type_for_value() takes the first that fits, and
-					// every PHP array fits "object", so with object first a list was
-					// checked as an object with keys 0, 1, ... and `items` never ran.
-					'type'       => array( 'array', 'object' ),
+					// "object" FIRST, and it stays first. 2026.10.73 put "array" first so
+					// WordPress's first-fit validator would reach `items`, but an MCP
+					// client reads this type list as its FIRST type (it collapsed
+					// ["object","array"] to object), so array-first would refuse every
+					// single-target call client-side. A list is held to the scope enum
+					// at runtime instead: snt_sn_apply_batch_scope_error().
+					'type'       => array( 'object', 'array' ),
 					'properties' => $target_props,
-					// 2026-10-26: each batch target carries the SAME properties, scope's
-					// enum included, so a list cannot name a scope a single target
-					// cannot ("tags", "cron", "template_overrides"; the resolver accepts
-					// them, and the three unadvertised types sit behind them).
+					// 2026-10-26: each batch item is described with the SAME properties,
+					// scope's enum included, for a client that reads `items`. WordPress
+					// never runs them (it checks a list as the object above), so the
+					// scope enum on a list is enforced by snt_sn_apply_batch_scope_error().
 					'items'      => array( 'type' => 'object', 'properties' => $target_props ),
 				),
 				'change'          => array(
@@ -247,7 +282,13 @@ function snt_ability_sn_apply( $input ) {
 
 	$dry_run = array_key_exists( 'dry_run', $input ) ? (bool) $input['dry_run'] : true;
 
-	$raw_target       = $input['target'] ?? array();
+	$raw_target = $input['target'] ?? array();
+	if ( snt_sn_apply_is_batch_target( $raw_target ) ) {
+		$scope_error = snt_sn_apply_batch_scope_error( $raw_target );
+		if ( null !== $scope_error ) {
+			return $scope_error;
+		}
+	}
 	$canonical_target = snt_sn_apply_canonical_target( $raw_target, $change );
 
 	// v11.5.0: replay protection stops being opt-in. A keyless MUTATING call

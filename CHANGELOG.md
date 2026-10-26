@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **sn-apply's `target` keeps the type order clients read.** 2026.10.73 listed `array` before `object` so WordPress's first-fit validator would check a list's items. But an MCP client reads this type list as its first type: it already collapsed `["object","array"]` to an object. Once a client reloaded its schema, array-first would have refused every single-target call, the write door's main use. The order is `["object","array"]` again. A list stays closed to the three unadvertised types: `snt_sn_apply_batch_scope_error()` holds every item to the single target's scope enum at runtime, before anything resolves, and refuses with a 422 naming the item. The schema still describes each item with the same properties. Pinned in `tests/abilities-sn-apply-batch-and-rollback.php` (red with the check disabled) and `tests/mcp-projection-schema-types.php`.
+
 ## [2026.10.73] - 2026-10-26 — the MCP doors hardening
 
 

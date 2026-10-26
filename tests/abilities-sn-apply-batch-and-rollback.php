@@ -322,5 +322,25 @@ foreach ( $applied_results as $r ) {
 	eq( 'A red bicycle leaning against a brick wall', $GLOBALS['__post_meta'][ $aid ]['_wp_attachment_image_alt'] ?? null, "Test 7.11.$aid: attachment $aid actually received the write" );
 }
 
+echo "\nA list target is held to the single target's scope enum (2026-10-26)\n";
+$closed = snt_ability_sn_apply( array(
+	'target' => array( array( 'scope' => 'tags' ) ),
+	'change' => array( 'type' => 'merge_tags', 'payload' => array( 'from_slugs' => array( 'a' ), 'into_slug' => 'b' ) ),
+	'mode'   => 'publish', 'dry_run' => true,
+) );
+ok( is_wp_error( $closed ) && 'snt_sn_apply_bad_target' === $closed->get_error_code() && 422 === ( $closed->get_error_data()['status'] ?? null ) && false !== strpos( $closed->get_error_message(), 'target[0].scope' ), 'a list naming scope "tags" is refused 422 before anything resolves, naming the item' );
+$mixed = snt_ability_sn_apply( array(
+	'target' => array( array( 'post_id' => 500 ), array( 'scope' => 'cron' ) ),
+	'change' => array( 'type' => 'schedule_cron_event', 'payload' => array() ),
+	'mode'   => 'publish', 'dry_run' => true,
+) );
+ok( is_wp_error( $mixed ) && false !== strpos( $mixed->get_error_message(), 'target[1].scope' ), 'one closed scope anywhere in the list refuses the whole call, naming its index' );
+$open = snt_ability_sn_apply( array(
+	'target' => array( array( 'post_id' => 500 ) ),
+	'change' => array( 'type' => 'block_migration', 'fingerprint' => 'x', 'candidate_id' => 'c', 'payload' => array() ),
+	'mode'   => 'revision', 'dry_run' => true,
+) );
+ok( ! ( is_wp_error( $open ) && false !== strpos( $open->get_error_message(), '.scope must be one of' ) ), 'a list of post ids is not caught by the scope check' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
