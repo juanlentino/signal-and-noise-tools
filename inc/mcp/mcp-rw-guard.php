@@ -622,10 +622,33 @@ function sn_mcp_rw_guard_run_route( $result, $server = null, $request = null ) {
 	}
 
 	if ( function_exists( 'sn_mcp_rw_audit_record' ) ) {
-		$args = ( is_object( $request ) && method_exists( $request, 'get_json_params' ) ) ? (array) $request->get_json_params() : array();
+		$args = sn_mcp_rw_guard_run_route_args( $request );
 		sn_mcp_rw_audit_record( $slug, $args, 'denied', $error );
 	}
 	return $error;
+}
+
+/**
+ * The ability's arguments on a run route, for the audit row, read from the
+ * same place core's run controller reads them (get_input_from_request): the
+ * query string for GET and DELETE, the JSON body otherwise. The envelope's only
+ * key is `input`, and the allowlist redactor dropped it whole: run-route rows
+ * recorded no arguments (2026-10-26 audit). Not get_param(), whose JSON > POST
+ * > GET order would log a query-string input core never executes.
+ *
+ * @param object|null $request
+ * @return array
+ */
+function sn_mcp_rw_guard_run_route_args( $request ) {
+	if ( ! is_object( $request ) ) {
+		return array();
+	}
+	$by_query = method_exists( $request, 'get_method' ) && in_array( $request->get_method(), array( 'GET', 'DELETE' ), true );
+	$source   = $by_query
+		? ( method_exists( $request, 'get_query_params' ) ? (array) $request->get_query_params() : array() )
+		: ( method_exists( $request, 'get_json_params' ) ? (array) $request->get_json_params() : array() );
+	$input    = $source['input'] ?? null;
+	return is_array( $input ) ? $input : array();
 }
 
 /**
@@ -673,7 +696,7 @@ function sn_mcp_rw_guard_run_route_audit( $response, $handler = null, $request =
 	if ( ! function_exists( 'sn_mcp_rw_audit_record' ) ) {
 		return $response;
 	}
-	$args = ( is_object( $request ) && method_exists( $request, 'get_json_params' ) ) ? (array) $request->get_json_params() : array();
+	$args = sn_mcp_rw_guard_run_route_args( $request );
 	if ( is_wp_error( $response ) ) {
 		sn_mcp_rw_audit_record( $slug, $args, 'error', $response );
 	} else {
