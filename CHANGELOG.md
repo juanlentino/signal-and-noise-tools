@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **sn-apply's description states each rule once.** The write door's one content-mutating tool carried a 19,998-character description (about 5k tokens, half the write door's `tools/list`) in which the fingerprint rule appeared five times and all-or-nothing, the 50-change limit and the scheduled-post guarantee twice each. It now opens with RULES FOR EVERY TYPE (gates, dry run, modes and the publish-only and revision-only lists, fingerprint, targets, idempotency, change class, prose delta, scheduled posts, multi-change) and gives each type only what differs: 16,406 characters, every gate, refusal and "never" kept. It also names `dismiss` (publish-only), which it accepted but never described. `merge_tags`, `clear_template_overrides` and `schedule_cron_event` stay unadvertised (an owner decision whether to open them). The fingerprint rule now says which types answer a missing fingerprint with 422 (the ones whose fingerprint the caller supplies) and which with 409 (the five candidate-driven ones), and `dismiss` names the three surfaces that have a dismissal store. Pinned in `tests/sn-apply-description.php`: every safety rule present, the shared ones exactly once, the publish-only and revision-only lists derived from `snt_sn_apply_mode_support()`.
+
 ## [2026.10.72] - 2026-10-26 — keyring-status never serves part of a secret
 
 ### Security
