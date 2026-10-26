@@ -75,7 +75,7 @@ function sn_handle_bind_mcp_rw_credential( $post ) {
 		if ( empty( $post['sn_mcp_rw_unbind'] ) && function_exists( 'sn_mcp_rw_bound_uuid' ) && '' !== sn_mcp_rw_bound_uuid() ) {
 			return 'mcp_rw_bind_choose';
 		}
-		return sn_mcp_set_rw_bound_uuid( '' ) ? 'mcp_rw_unbound' : 'mcp_rw_bind_invalid';
+		return ( sn_mcp_set_rw_bound_uuid( '' ) || '' === sn_mcp_rw_bound_uuid() ) ? 'mcp_rw_unbound' : 'mcp_rw_bind_invalid';
 	}
 
 	if ( ! sn_mcp_app_password_owned( $uuid ) ) {
@@ -85,7 +85,7 @@ function sn_handle_bind_mcp_rw_credential( $post ) {
 		return 'mcp_rw_bind_same_as_read';
 	}
 
-	return sn_mcp_set_rw_bound_uuid( $uuid ) ? 'mcp_rw_bound' : 'mcp_rw_bind_invalid';
+	return ( sn_mcp_set_rw_bound_uuid( $uuid ) || strtolower( $uuid ) === sn_mcp_rw_bound_uuid() ) ? 'mcp_rw_bound' : 'mcp_rw_bind_invalid';
 }
 
 /**
@@ -129,7 +129,8 @@ function sn_handle_bind_mcp_read_credential( $post ) {
 		if ( empty( $post['sn_mcp_read_unbind'] ) && '' !== sn_mcp_read_bound_uuid() ) {
 			return 'mcp_read_bind_choose';
 		}
-		return sn_mcp_set_read_bound_uuid( '' ) ? 'mcp_read_unbound' : 'mcp_read_bind_invalid';
+		// update_option() answers false for an unchanged value: already clear is cleared.
+		return ( sn_mcp_set_read_bound_uuid( '' ) || '' === sn_mcp_read_bound_uuid() ) ? 'mcp_read_unbound' : 'mcp_read_bind_invalid';
 	}
 	if ( ! sn_mcp_app_password_owned( $uuid ) ) {
 		return 'mcp_read_bind_invalid';
@@ -137,7 +138,7 @@ function sn_handle_bind_mcp_read_credential( $post ) {
 	if ( function_exists( 'sn_mcp_rw_bound_uuid' ) && hash_equals( strtolower( sn_mcp_rw_bound_uuid() ), strtolower( $uuid ) ) ) {
 		return 'mcp_read_bind_same_as_write';
 	}
-	return sn_mcp_set_read_bound_uuid( $uuid ) ? 'mcp_read_bound' : 'mcp_read_bind_invalid';
+	return ( sn_mcp_set_read_bound_uuid( $uuid ) || strtolower( $uuid ) === sn_mcp_read_bound_uuid() ) ? 'mcp_read_bound' : 'mcp_read_bind_invalid';
 }
 
 /**

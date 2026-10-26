@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function mcp_connect_read_binding_html() {
-	if ( ! function_exists( 'sn_admin_mcp_read_binding_state' ) ) {
+	if ( ! function_exists( 'sn_admin_mcp_read_binding_state' ) || ! function_exists( 'sn_admin_mcp_rw_options' ) ) {
 		return '';
 	}
 	$s      = sn_admin_mcp_read_binding_state();

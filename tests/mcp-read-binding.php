@@ -14,7 +14,8 @@ if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 
 $GLOBALS['__opts'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opts'] ) ? $GLOBALS['__opts'][ $k ] : $d; }
-function update_option( $k, $v, $a = null ) { $GLOBALS['__opts'][ $k ] = $v; return true; }
+// Core's contract: false when the value is unchanged (wp-includes/option.php).
+function update_option( $k, $v, $a = null ) { if ( array_key_exists( $k, $GLOBALS['__opts'] ) && $GLOBALS['__opts'][ $k ] === $v ) { return false; } $GLOBALS['__opts'][ $k ] = $v; return true; }
 $GLOBALS['__can'] = true;
 function current_user_can( $cap, $id = 0 ) { return 'manage_options' === $cap ? $GLOBALS['__can'] : true; }
 function get_current_user_id() { return 7; }
@@ -57,8 +58,10 @@ ok( 'mcp_read_bind_invalid' === sn_handle_bind_mcp_read_credential( array( 'sn_m
 $GLOBALS['__can'] = true;
 ok( 'mcp_read_bind_invalid' === sn_handle_bind_mcp_read_credential( array( 'sn_mcp_read_uuid' => $NOT ) ) && '' === sn_mcp_read_bound_uuid(), 'a UUID this user does not hold is refused' );
 ok( 'mcp_read_bound' === sn_handle_bind_mcp_read_credential( array( 'sn_mcp_read_uuid' => $READ ) ) && $READ === sn_mcp_read_bound_uuid(), 'an owned password binds' );
+ok( 'mcp_read_bound' === sn_handle_bind_mcp_read_credential( array( 'sn_mcp_read_uuid' => $READ ) ), 're-saving the bound password says bound, not "doesn\'t belong to your account"' );
 ok( 'mcp_read_bind_choose' === sn_handle_bind_mcp_read_credential( array( 'sn_mcp_read_uuid' => '' ) ) && $READ === sn_mcp_read_bound_uuid(), 'an empty Save is not an unbind' );
 ok( 'mcp_read_unbound' === sn_handle_bind_mcp_read_credential( array( 'sn_mcp_read_uuid' => '', 'sn_mcp_read_unbind' => '1' ) ) && '' === sn_mcp_read_bound_uuid(), 'Unbind, its own button, clears it' );
+ok( 'mcp_read_unbound' === sn_handle_bind_mcp_read_credential( array( 'sn_mcp_read_uuid' => '', 'sn_mcp_read_unbind' => '1' ) ), 'and unbinding what is already unbound says unbound' );
 sn_mcp_set_rw_bound_uuid( $WRITE );
 ok( 'mcp_read_bind_same_as_write' === sn_handle_bind_mcp_read_credential( array( 'sn_mcp_read_uuid' => $WRITE ) ) && '' === sn_mcp_read_bound_uuid(), 'the write door\'s password is refused by name' );
 sn_mcp_set_rw_bound_uuid( '' );

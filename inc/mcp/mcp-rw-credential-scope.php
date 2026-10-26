@@ -90,14 +90,43 @@ function sn_mcp_rw_credential_scope( $result, $server = null, $request = null ) 
 			__( 'The MCP read door\'s Application Password works only on the read door and its tools.', 'signal-and-noise-tools' ),
 			array( 'status' => 403 )
 		);
+		// The read password is the lower-trust credential, and these refusals
+		// run before the read rate limit: tag them, and record at most
+		// SN_MCP_READ_SCOPE_AUDIT_PER_MINUTE a minute, so a flood from it can
+		// neither roll the write door's rows out of the shared rw audit log
+		// nor mail the owner once a request.
+		if ( ! sn_mcp_read_scope_audit_allowed() ) {
+			return $error;
+		}
+		$tag = 'read-route:';
 	} else {
 		return $result;
 	}
 	if ( function_exists( 'sn_mcp_rw_audit_record' ) ) {
 		// Truncated: the route is caller-chosen, and the row is stored as is.
-		sn_mcp_rw_audit_record( 'route:' . substr( $route, 0, 120 ), array(), 'denied', $error );
+		sn_mcp_rw_audit_record( ( $tag ?? 'route:' ) . substr( $route, 0, 120 ), array(), 'denied', $error );
 	}
 	return $error;
+}
+
+const SN_MCP_READ_SCOPE_AUDIT_PER_MINUTE = 10;
+
+/**
+ * Count one read-scope refusal against this minute's audit allowance.
+ *
+ * @return bool True while the minute has room left.
+ */
+function sn_mcp_read_scope_audit_allowed() {
+	if ( ! function_exists( 'get_transient' ) || ! function_exists( 'set_transient' ) ) {
+		return true;
+	}
+	$key = 'sn_mcp_read_scope_audit_' . (int) floor( time() / 60 );
+	$n   = (int) get_transient( $key );
+	if ( $n >= SN_MCP_READ_SCOPE_AUDIT_PER_MINUTE ) {
+		return false;
+	}
+	set_transient( $key, $n + 1, 120 );
+	return true;
 }
 
 if ( function_exists( 'add_filter' ) ) {

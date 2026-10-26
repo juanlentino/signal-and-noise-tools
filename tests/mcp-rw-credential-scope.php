@@ -26,6 +26,8 @@ function add_filter( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $t ][ $c
 function add_action( $t, $c, $p = 10, $a = 1 ) { return true; }
 function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; }
 function rest_get_authenticated_app_password() { return $GLOBALS['__app_pw'] ?? null; }
+function get_transient( $k ) { return $GLOBALS['__transients'][ $k ] ?? false; }
+function set_transient( $k, $v, $t = 0 ) { $GLOBALS['__transients'][ $k ] = $v; return true; }
 function sn_mcp_rw_audit_record( $slug, $args, $outcome, $err = null ) { $GLOBALS['__audit'][] = array( $slug, $outcome ); return array(); }
 
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
@@ -85,7 +87,12 @@ foreach ( array( '/signal-noise/v1/mcp-rw', '/wp/v2/settings', '/wp/v2/posts', $
 	$r = $scope( $out );
 	ok( is_wp_error( $r ) && 'sn_mcp_read_credential_out_of_scope' === $r->get_error_code() && 403 === $r->data['status'], "is refused $out" );
 }
-ok( in_array( array( 'route:/wp/v2/settings', 'denied' ), $GLOBALS['__audit'], true ), 'each refusal is audited' );
+ok( in_array( array( 'read-route:/wp/v2/settings', 'denied' ), $GLOBALS['__audit'], true ), 'each refusal is audited, tagged as the read door\'s' );
+$GLOBALS['__audit'] = array();
+$GLOBALS['__transients'] = array();
+for ( $i = 0; $i < 25; $i++ ) { $last = $scope( '/wp/v2/posts' ); }
+ok( is_wp_error( $last ) && SN_MCP_READ_SCOPE_AUDIT_PER_MINUTE === count( $GLOBALS['__audit'] ), 'a flood is still refused every time, but writes at most ' . SN_MCP_READ_SCOPE_AUDIT_PER_MINUTE . ' audit rows a minute' );
+$GLOBALS['__transients'] = array();
 $GLOBALS['__options'] = array( 'sn_mcp_rw_app_password_uuid' => $BOUND );
 ok( null === $scope( '/wp/v2/settings' ), 'unbound, the same password reaches everything, as before' );
 $GLOBALS['__options'] = array( 'sn_mcp_rw_app_password_uuid' => $BOUND );
