@@ -68,10 +68,11 @@ function snt_os_native_stack_on_phone( $version = null ) {
  * it. The slot name is minted per row and column, so it is unique across the
  * table as the component requires; `text` is what the column sorts and
  * filters on. A row's optional `_key` names its slots by identity instead of
- * position (see below). `stack_on_phone` asks for cards on a phone: the
- * native `stack-on-phone` attribute from OpenStation 1.1.16 (upstream #981,
- * which closed our #900), else `data-snt-stack-on-phone` for the
- * assets/os-kit-stack.js shim on older versions.
+ * position (see below). A table is cards on a phone: the native
+ * `stack-on-phone` attribute from OpenStation 1.1.16 (upstream #981, which
+ * closed our #900), else `data-snt-stack-on-phone` for the
+ * assets/os-kit-stack.js shim on older versions. Default on since
+ * 2026-10-25 (a grid crams a phone); `'stack_on_phone' => false` keeps the grid.
  *
  * @param array<int,array<string,mixed>> $columns Column descriptors.
  * @param array<int,array<string,mixed>> $rows    Row objects keyed by column key.
@@ -117,6 +118,7 @@ function snt_kit_table( array $columns, array $rows, array $opts = array() ) {
 		}
 		$data[] = $row;
 	}
+	$stack = false !== ( $opts['stack_on_phone'] ?? true );
 	return snt_kit_tag(
 		'os-table',
 		array(
@@ -131,8 +133,8 @@ function snt_kit_table( array $columns, array $rows, array $opts = array() ) {
 			'sticky-header'   => (bool) ( $opts['sticky_header'] ?? false ),
 			'selectable'      => $opts['selectable'] ?? null,
 			'empty'           => snt_kit_empty_text( $opts, array() === $rows, 'snt_kit_table' ),
-			'stack-on-phone'          => empty( $opts['stack_on_phone'] ) || ! snt_os_native_stack_on_phone() ? null : true,
-			'data-snt-stack-on-phone' => empty( $opts['stack_on_phone'] ) || snt_os_native_stack_on_phone() ? null : true,
+			'stack-on-phone'          => ! $stack || ! snt_os_native_stack_on_phone() ? null : true,
+			'data-snt-stack-on-phone' => ! $stack || snt_os_native_stack_on_phone() ? null : true,
 		),
 		$slotted
 	);

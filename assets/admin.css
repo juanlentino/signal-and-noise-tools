@@ -122,6 +122,10 @@
 	background: rgba(0,0,0,0.04);
 	color: var(--sn-text);
 	border: 1px solid transparent;
+	/* A narrow cell's overflow-wrap: anywhere broke "Not indexed" a letter
+	   per line on a phone (2026-10-25). A pill wraps at spaces only, so a
+	   sentence-long pill (the Search Console credential notes) still wraps. */
+	overflow-wrap: normal;
 }
 
 .sn-pill::before {

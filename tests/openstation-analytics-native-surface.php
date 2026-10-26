@@ -77,6 +77,16 @@ namespace {
 	ok( str_contains( $percentiles, '<os-stat' ) && str_contains( $percentiles, 'label="P50"' ) && ! str_contains( $percentiles, 'sn-an-pctl-chip' ), 'percentile values use native stats after shared time formatting' );
 	$missing = \SignalNoise\OpenStationHost\Analytics\native_stats( array( array( 'l' => 'Unavailable', 'n' => '—', 'sub' => '0' ) ), array() );
 	ok( str_contains( $missing, 'value="—"' ) && str_contains( $missing, 'caption="0"' ), 'unknown readings and zero captions remain exact' );
+	// 2026-10-25, the owner on a phone: report tables crammed text. A chart's
+	// screen-reader companion stays hidden, never a visible native table...
+	$sr = \SignalNoise\OpenStationHost\Analytics\native_tables( '<table class="screen-reader-text"><caption>c</caption><tr><td>1</td></tr></table><table class="widefat"><tr><td>2</td></tr></table>' );
+	ok( 1 === substr_count( $sr, '<snt-analytics-table>' ) && str_starts_with( $sr, '<table class="screen-reader-text">' ), 'a screen-reader-text table is left alone; a report table is still wrapped' );
+	// ...and the os-table the host builds is cards on a phone.
+	$js = (string) file_get_contents( dirname( __DIR__ ) . '/apps/sn-analytics/native-tables.js' );
+	ok( 1 === preg_match( "/createElement\\( 'os-table' \\);(?:(?!cloneNode)[\\s\\S])*?output\\.setAttribute\\( 'stack-on-phone', '' \\)/", $js ), 'native-tables.js marks the os-table it builds stack-on-phone (not the matrix clone)' );
+	// The pill that broke "Not indexed" a letter per line is one label.
+	$css = (string) file_get_contents( dirname( __DIR__ ) . '/assets/admin.css' );
+	ok( 1 === preg_match( '/\n\.sn-pill \{[^}]*overflow-wrap: normal;/', $css ), '.sn-pill never breaks inside a word (a cell\'s overflow-wrap: anywhere stops at the pill)' );
 	echo "Result: $pass passed, $fail failed.\n";
 	exit( $fail ? 1 : 0 );
 }

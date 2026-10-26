@@ -31,8 +31,10 @@ $cols = array( array( 'key' => 'name', 'label' => 'Name' ) );
 $on   = snt_kit_table( $cols, array( array( 'name' => 'a' ) ), array( 'stack_on_phone' => true ) );
 ok( 1 === preg_match( '/<os-table\b[^>]*\sstack-on-phone(?:[\s=>])/', $on ), 'stack_on_phone emits the native attribute' );
 ok( false === strpos( $on, 'data-snt-stack-on-phone' ), '...and not the shim marker' );
-$off = snt_kit_table( $cols, array( array( 'name' => 'a' ) ) );
-ok( false === strpos( $off, 'stack-on-phone' ), 'a table that does not ask for it carries neither' );
+$bare = snt_kit_table( $cols, array( array( 'name' => 'a' ) ) );
+ok( 1 === preg_match( '/<os-table\b[^>]*\sstack-on-phone(?:[\s=>])/', $bare ), 'a table that does not say is cards on a phone too (the default, 2026-10-25)' );
+$off = snt_kit_table( $cols, array( array( 'name' => 'a' ) ), array( 'stack_on_phone' => false ) );
+ok( false === strpos( $off, 'stack-on-phone' ), "'stack_on_phone' => false keeps the grid: neither marker" );
 
 echo "\nThe dashboard's scripts on 1.1.16 or newer\n";
 $scripts = snt_os_host_asset_handles( 'sn-dashboard' )['scripts'] ?? array();
