@@ -22,7 +22,7 @@ Hardening from the 2026-10-26 MCP doors audit.
 ### Fixed
 - **Run-route audit rows record their arguments.** The run route's body is `{input: {...}}`, and the allowlist redactor dropped the envelope whole, so every app-password write through `/wp-abilities/v1/abilities/<slug>/run` logged no arguments. The row now gets the ability's `input`, read where core's run controller reads it: the query string for GET and DELETE, the JSON body otherwise. Pinned in `tests/mcp-rw-guard-run-route.php`.
 - **`ai-generate-excerpt` is not annotated read-only.** Every run spends AI credit, so it is `readonly: false` and the run route takes it as POST; the editor's button follows through the localized verb map. Like `ai-generate-meta-description`, it is now write-class to the lifecycle guard: a run writes an rw audit row and is refused while the rw kill switch is engaged. Pinned in `tests/ai-abilities-contract.php`.
-- **Dependabot resolves composer again.** `roave/security-advisories` now conflicts with PHP 8.3 below 8.3.36, and Dependabot resolved against a bare 8.3, so every composer update failed. `config.platform.php` is 8.3.36, the patched release of the line CI runs.
+- **Dependabot resolves composer again.** `roave/security-advisories` now conflicts with PHP 8.3 below 8.3.36, and Dependabot resolved against a bare 8.3, so every composer update failed. `config.platform.php``config.platform.php` is 8.3.36, the patched release of the line CI runs. When roave raises the 8.3 floor past it, bump the pin: Dependabot will not.
 
 ## [2026.10.72] - 2026-10-26 — keyring-status never serves part of a secret
 
