@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Tables are cards on a phone, everywhere.** The owner opened S&N Analytics › Posts on a phone: three columns crammed into 375px, and the "Not indexed" pill broke a letter per line. Three causes, one fix each. Every report table S&N Analytics builds (`apps/sn-analytics/native-tables.js`, all 15 tabs) now carries OpenStation's `stack-on-phone`, so each row is a card with its first column as the title and the rest as labelled lines (OpenStation 1.1.16+; older versions ignore the attribute and keep the grid). `snt_kit_table()` makes the same choice by default, so the 32 Dashboard tables that never asked for it now stack too; `'stack_on_phone' => false` keeps a grid. `.sn-pill` never wraps inside its label. And the hour heatmap's screen-reader companion (and the reader-evidence charts') stays hidden: the native wrapper had turned it into a visible 25-column grid.
+
 ## [2026.10.68] - 2026-10-26 — exports download in place; tables stack through OpenStation
 
 ### Changed

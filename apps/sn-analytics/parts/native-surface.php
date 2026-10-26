@@ -146,6 +146,11 @@ function native_tables( $html ) {
 	return (string) preg_replace_callback(
 		'~<table\b[^>]*>.*?</table>~s',
 		static function ( $match ) {
+			// A chart's screen-reader companion stays hidden: wrapped, it
+			// painted a visible 25-column grid under the hour heatmap.
+			if ( preg_match( '~^<table\b[^>]*\bclass="[^"]*\bscreen-reader-text\b~', $match[0] ) ) {
+				return $match[0];
+			}
 			return '<snt-analytics-table><template>' . $match[0] . '</template></snt-analytics-table>';
 		},
 		$html

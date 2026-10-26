@@ -122,6 +122,9 @@
 	background: rgba(0,0,0,0.04);
 	color: var(--sn-text);
 	border: 1px solid transparent;
+	/* A pill is one label: a narrow cell (overflow-wrap: anywhere) broke
+	   "Not indexed" a letter per line on a phone (2026-10-25). */
+	white-space: nowrap;
 }
 
 .sn-pill::before {

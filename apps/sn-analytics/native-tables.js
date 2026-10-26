@@ -74,6 +74,9 @@
 				output = document.createElement( 'os-table' );
 				output.setAttribute( 'compact', '' );
 				output.setAttribute( 'hover', '' );
+				// A card per row on a phone (OpenStation 1.1.16+; older
+				// versions ignore the attribute and keep the grid).
+				output.setAttribute( 'stack-on-phone', '' );
 				const columns = Array.from( headers[0].cells ).map( ( cell, index ) => ( {
 					key: 'c' + index,
 					label: cell.textContent.trim(),

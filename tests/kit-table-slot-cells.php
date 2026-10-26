@@ -51,7 +51,8 @@ ok( $dup['data'][0]['go']['slot'] !== $dup['data'][1]['go']['slot'] && 'same' ==
 
 echo "\nGroup 4: phone\n";
 ok( false !== strpos( snt_kit_table( $cols, array(), array( 'stack_on_phone' => true ) ), 'data-snt-stack-on-phone' ), 'stack_on_phone marks the table' );
-ok( false === strpos( snt_kit_table( $cols, array() ), 'data-snt-stack-on-phone' ), 'and nothing else does' );
+ok( false !== strpos( snt_kit_table( $cols, array() ), 'data-snt-stack-on-phone' ), 'so does a table that does not say (the default since 2026-10-25)' );
+ok( false === strpos( snt_kit_table( $cols, array(), array( 'stack_on_phone' => false ) ), 'data-snt-stack-on-phone' ), "only 'stack_on_phone' => false keeps the grid" );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
