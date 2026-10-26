@@ -308,7 +308,10 @@ ok( false !== strpos( $html, 'read-write' ), 'write door carries a read-write ba
 ok( sn_i18n_seen( 'Write door: the same server, read-write' ), 'write door heading translatable' );
 
 // ── Write-door honesty: same credentials, content mutation, AI budget ──
-ok( stripos( $html, 'same Application Password' ) !== false, 'write door states it uses the SAME Application Password as the read door' );
+// 2026-10-26 (#2305): the bound password works only on the write door, so a
+// shared one would close the read door. The copy said the opposite until then.
+ok( stripos( $html, 'with its own Application Password' ) !== false && stripos( $html, 'the read door needs a different one' ) !== false, 'write door states it has its OWN Application Password and the read door needs a different one' );
+ok( stripos( $html, 'same Application Password' ) === false, 'and no longer says the two doors share one' );
 ok( stripos( $html, 'modify your content' ) !== false, 'write door states it can modify content' );
 ok( stripos( $html, 'spend the AI budget' ) !== false, 'write door states it can spend the AI budget' );
 // The rw allowlist USED to include two PURE-READ, PII-flagged tools
