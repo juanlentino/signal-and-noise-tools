@@ -61,6 +61,7 @@ function sn_remote_analytics_allows( $slug ) { return true; }
 // suite reads schemas, it never executes) — declared so nothing fatals if a
 // registration is ever eagerly resolved.
 require_once __DIR__ . '/../inc/mcp/mcp-remote-contract.php';
+require_once __DIR__ . '/../inc/mcp/mcp-tools-schema-parts.php'; // contract 24: the wire projection.
 require_once __DIR__ . '/../inc/abilities-remote-analytics.php';
 if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = null ) { return $d; } }
 require_once __DIR__ . '/../inc/search-console-store.php';
@@ -95,13 +96,16 @@ foreach ( array(
 	'signal-noise/remote-get-insights',
 	'signal-noise/remote-get-narration',
 	'signal-noise/remote-get-health-scan',
+	'signal-noise/remote-provenance-integrity-status', // null before the first sweep; missing here until 2026-10-26
 ) as $slug ) {
 	$type = $schemas[ $slug ]['type'] ?? null;
 	ok( is_array( $type ) && in_array( 'null', $type, true ), "$slug output type still includes 'null'" );
 }
 
 echo "\nGroup: the (version, hash) pair moves together\n";
-$computed = sn_remote_contract_shape_hash( $schemas );
+// Contract 24 on: the hash covers the wire schemas (what a client validates).
+$wire     = sn_remote_contract_wire_schemas( $schemas );
+$computed = sn_remote_contract_shape_hash( $wire );
 $declared = SN_REMOTE_CONTRACT_VERSION_HASHES[ SN_REMOTE_CONTRACT_VERSION ] ?? '(version missing from map)';
 ok( array_key_exists( SN_REMOTE_CONTRACT_VERSION, SN_REMOTE_CONTRACT_VERSION_HASHES ),
 	'SN_REMOTE_CONTRACT_VERSION has an entry in the hash map' );
@@ -111,6 +115,34 @@ ok( $computed === $declared,
 ok( count( SN_REMOTE_CONTRACT_VERSION_HASHES ) === count( array_unique( SN_REMOTE_CONTRACT_VERSION_HASHES ) ),
 	'every contract version maps to a DISTINCT hash (a bump without a shape change is refused)' );
 ok( 1 === preg_match( '/^[0-9a-f]{64}$/', $computed ), 'computed hash is 64-char lowercase hex' );
+
+echo "\nGroup: the Worker's schema file is this projection, byte for byte (F2)\n";
+function sn_test_sorted( array $a ) { sort( $a ); return $a; }
+// tests/fixtures/remote-output-schemas.json is copied into sn-remote-mcp-worker,
+// which re-checks shape_hash over it. One source: regenerate it here with
+//   php tests/remote-contract-shapes.php --write
+// and copy it to the Worker; never hand-edit either copy.
+$wraps = array();
+foreach ( $schemas as $slug => $schema ) {
+	$wraps[ $slug ] = sn_mcp_schema_needs_wrap( $schema );
+	ok( 'object' === ( $wire[ $slug ]['type'] ?? null ), "$slug: the wire schema's root is an object (MCP requires it)" );
+}
+ok( array( 'signal-noise/remote-get-analytics-events', 'signal-noise/remote-get-health-scan', 'signal-noise/remote-get-insights', 'signal-noise/remote-get-narration', 'signal-noise/remote-provenance-integrity-status' ) === sn_test_sorted( array_keys( array_filter( $wraps ) ) ),
+	'exactly the five list-or-null twins wrap as {result: …}' );
+$tools = array();
+foreach ( $wire as $slug => $schema ) {
+	$tools[ $slug ] = array( 'wrap' => $wraps[ $slug ], 'outputSchema' => $schema );
+}
+ksort( $tools );
+$fixture_doc  = array( 'contract_version' => SN_REMOTE_CONTRACT_VERSION, 'shape_hash' => $computed, 'tools' => $tools );
+$fixture_path = __DIR__ . '/fixtures/remote-output-schemas.json';
+$fixture_json = json_encode( $fixture_doc, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n";
+if ( in_array( '--write', $argv ?? array(), true ) ) {
+	file_put_contents( $fixture_path, $fixture_json );
+	echo "  wrote $fixture_path\n";
+}
+ok( is_readable( $fixture_path ) && file_get_contents( $fixture_path ) === $fixture_json,
+	'tests/fixtures/remote-output-schemas.json matches the live projection (regenerate with --write, then copy it to the Worker)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

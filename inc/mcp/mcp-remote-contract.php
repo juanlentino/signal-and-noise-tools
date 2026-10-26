@@ -8,7 +8,7 @@
  * `initialize` (`_meta["sn/contractVersion"]`) and on `/status`
  * (`contract_version`). This file is the origin's half — the worker is a
  * pass-through and cannot see payload shapes, so the shapes are pinned where
- * they are authored: every remote twin ability's `output_schema` (15 twins at contract version 10), which the
+ * they are authored: every remote twin ability's `output_schema` (tests/mcp-remote-guard.php pins the count), which the
  * parity suite already holds byte-identical to their admin registrations.
  *
  * THE COUPLING (design doc: sn-remote-mcp-worker
@@ -98,7 +98,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // day) leaves them out; each days[] row gains probes. Additive keys; total's
 // meaning narrows. The worker's own CONTRACT_VERSION bump is a separate PR.
 // Contract 22 (owner-approved 2026-10-22, "so I can ask for it from my
-// phone"): a twentieth twin, remote-indexing-requests, the byte-identical twin
+// phone"): a nineteenth twin, remote-indexing-requests, the byte-identical twin
 // of signal-noise/indexing-requests (the request list, the 30-day stuck flag,
 // the publish check). The broad search-coverage map stays local. Additive: no
 // existing twin's shape moves. The worker's own CONTRACT_VERSION bump, its
@@ -107,7 +107,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Request and stuck rows gain chrome (boolean) and template[]; publish_check
 // gains chrome_paths, template_paths and graph_render, and each failure an
 // inbound_source (chrome | template | body) and template[]. Additive keys. The worker's own CONTRACT_VERSION bump is a separate PR.
-const SN_REMOTE_CONTRACT_VERSION = '23';
+// Contract 24 (2026-10-26, docs/audits/2026-10-26-mcp-doors.md F2): the Worker
+// declares every bridge tool's outputSchema, so structuredContent changes shape:
+// the five twins whose root is not exactly an object (analytics-events' list,
+// the four nullable reports) arrive wrapped as {result: …}, the laptop doors'
+// own convention (sn_mcp_project_output_schema). The raw schemas did not
+// change, so from 24 the hash covers the WIRE schemas
+// (sn_remote_contract_wire_schemas), which is what a client validates. The
+// Worker carries tests/fixtures/remote-output-schemas.json and re-checks this
+// hash. The worker's own CONTRACT_VERSION bump ships with it.
+const SN_REMOTE_CONTRACT_VERSION = '24';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -162,7 +171,28 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'22' => '46f5cd540427bc4bf8289ef44ba01c6e2cd610f2cbd46ef54a6da0bddecc9a9a',
 	// RED-then-pin, 2026-10-22: chrome, template, chrome_paths, template_paths, graph_render and inbound_source on the indexing-requests twin.
 	'23' => '974633d777835c34a1a7b1a7c9fec9040ac8769fab9cd3ec0b804bf09193dd80',
+	// RED-then-pin, 2026-10-26: from 24 the hash is over the wire (projected) schemas.
+	'24' => 'ed3e4ee3fd4ec7bda98127da1480887538b712009a871154c50d9d87cbf3d714',
 );
+
+/**
+ * The twins' output schemas as a client sees them, contract 24 on: each one
+ * through sn_mcp_project_output_schema(), so the remote door wraps exactly as
+ * the laptop doors do ({result: …} for any root that is not exactly an
+ * object). Pure function of its input. Never simplify the wrap away: a
+ * declared outputSchema makes structuredContent required and an object, and
+ * five twins can answer a list or null.
+ *
+ * @param array<string,array> $schemas Map of ability slug => raw output_schema.
+ * @return array<string,array> Map of ability slug => projected outputSchema.
+ */
+function sn_remote_contract_wire_schemas( $schemas ) {
+	$out = array();
+	foreach ( (array) $schemas as $slug => $schema ) {
+		$out[ $slug ] = sn_mcp_project_output_schema( $schema );
+	}
+	return $out;
+}
 
 /**
  * Test seam only: tests/remote-contract-shapes.php pins SN_REMOTE_CONTRACT_VERSION_HASHES with it.

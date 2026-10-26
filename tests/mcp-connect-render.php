@@ -279,7 +279,9 @@ ok( sn_i18n_seen( 'More' ), 'deep-links heading translatable' );
 // ── The <pre> config block is code — untranslated ──
 ok( ! sn_i18n_seen( 'mcpServers' ) && ! sn_i18n_seen( 'WP_API_URL' ), 'the JSON config keys never route through i18n' );
 ok( false !== strpos( $html, '"command": "npx"' ), 'config block renders the literal proxy shape' );
-ok( false !== strpos( $html, '@automattic/mcp-wordpress-remote@latest' ), 'config block names the proxy package' );
+ok( false !== strpos( $html, '@automattic/mcp-wordpress-remote@0.5.4' ), 'config block names the proxy package' );
+// F6 (2026-10-26): the proxy holds the admin Application Password, so it is pinned.
+ok( false === strpos( $html, '@latest' ) && 1 === preg_match( '#@automattic/mcp-wordpress-remote@\d+\.\d+\.\d+"#', $html ) && false !== strpos( $html, 'Pinned to an exact version on purpose' ), 'the proxy is pinned to an exact version, never @latest, and the page says why' );
 ok( false !== strpos( $html, 'claude mcp add --transport http' ), 'the Claude Code one-liner is present' );
 // Review fold (v9.47.0): current CLI syntax requires a server-NAME positional
 // between the transport and the URL — the v9.22.0 CHANGELOG precedent is

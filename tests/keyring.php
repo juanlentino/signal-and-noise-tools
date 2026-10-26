@@ -37,7 +37,8 @@ foreach ( $rows as $id => $row ) {
 	ok( isset( $row['group'], $row['label'], $row['kind'], $row['about'], $row['feeds'] ) && in_array( $row['group'], array( 'site', 'cloudflare', 'issued' ), true ) && ( isset( $row['constant'] ) || isset( $row['option'] ) || isset( $row['setting'] ) ), "row $id carries group, label, kind, about, feeds and a home" );
 }
 $derived = array_keys( array_filter( $rows, static function ( $r ) { return 'site' === ( $r['derive'] ?? '' ); } ) );
-ok( array( 'mr_read_token', 'srv_token', 'bridge_token', 'prov_hmac_secret' ) === $derived, 'exactly four handshakes can derive from the site secret; never the beacon token (public), never an issued token' );
+ok( array( 'mr_read_token', 'srv_token', 'prov_hmac_secret' ) === $derived, 'exactly three handshakes can derive from the site secret; never the beacon token (public), never an issued token, never the bridge token (wp-config only, F5)' );
+ok( ! isset( $rows['bridge_token']['option'] ) && ! isset( $rows['bridge_token']['setting'] ) && ! isset( $rows['bridge_token']['derive'] ) && 'SN_BRIDGE_TOKEN' === $rows['bridge_token']['constant'], 'the bridge token has one home, the SN_BRIDGE_TOKEN constant: no option, no setting, no site derivation (F5)' );
 foreach ( $derived as $id ) {
 	ok( '' !== sn_keyring_other_half_command( $rows[ $id ] ) && false !== strpos( sn_keyring_other_half_command( $rows[ $id ] ), 'wrangler secret put ' . $rows[ $id ]['other_half']['secret'] ), "$id prints the wrangler command for its other half" );
 }
@@ -66,7 +67,11 @@ ok( '' === sn_credential( 'nope' ) && '' === sn_keyring_source( 'nope' ), 'an un
 
 // ── The filters fill an empty handshake; a non-empty input passes untouched.
 $GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array( 'srv_token', 'bridge_token', 'prov_hmac_secret' );
-ok( 'site-secret-1' === apply_filters( 'sn_server_token', '' ) && 'site-secret-1' === apply_filters( 'sn_analytics_refresh_secret', '' ) && 'site-secret-1' === apply_filters( 'sn_bridge_secret', '' ) && 'site-secret-1' === apply_filters( 'sn_prov_hmac_secret', '' ), 'the four handshake filters fill an empty value from the site secret when switched' );
+ok( 'site-secret-1' === apply_filters( 'sn_server_token', '' ) && 'site-secret-1' === apply_filters( 'sn_analytics_refresh_secret', '' ) && 'site-secret-1' === apply_filters( 'sn_prov_hmac_secret', '' ), 'the three handshake filters fill an empty value from the site secret when switched' );
+// F5: a stale "site" switch or a saved option never reaches the bridge secret.
+$GLOBALS['__opt']['sn_bridge_token'] = 'stale-bridge-option-value';
+ok( '' === apply_filters( 'sn_bridge_secret', '' ) && '' === sn_credential( 'bridge_token' ) && '' === sn_keyring_source( 'bridge_token' ), 'the bridge secret ignores the site secret and a saved option, even with a stale switch on record (F5)' );
+unset( $GLOBALS['__opt']['sn_bridge_token'] );
 ok( 'given' === apply_filters( 'sn_server_token', 'given' ) && 'given' === apply_filters( 'sn_mr_read_token', 'given' ), 'a value already present passes through the filter untouched' );
 $GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array();
 ok( '' === apply_filters( 'sn_server_token', '' ), 'not switched, nothing saved: the filter leaves it empty (fail closed stays closed)' );
@@ -95,14 +100,15 @@ $GLOBALS['__opt']['sn_keyring_verdicts'] = array( 'cf_token' => array( 'status' 
 $save( 'cf_token', 'clear' );
 ok( ! isset( $GLOBALS['__opt']['sn_keyring_verdicts']['cf_token'] ) && isset( $GLOBALS['__opt']['sn_keyring_verdicts']['cf_zone'] ), 'a saved or cleared row drops its stale verdict and keeps every other row\'s' );
 // PR #2014 review: the rows derived from the site secret were probed against the old one.
-$GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array( 'srv_token', 'bridge_token' );
-$GLOBALS['__opt']['sn_keyring_verdicts']  = array( 'site_secret' => array( 'status' => 'ok' ), 'srv_token' => array( 'status' => 'ok' ), 'bridge_token' => array( 'status' => 'ok' ), 'cf_zone' => array( 'status' => 'ok' ) );
+$GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array( 'srv_token', 'prov_hmac_secret' );
+$GLOBALS['__opt']['sn_keyring_verdicts']  = array( 'site_secret' => array( 'status' => 'ok' ), 'srv_token' => array( 'status' => 'ok' ), 'prov_hmac_secret' => array( 'status' => 'ok' ), 'cf_zone' => array( 'status' => 'ok' ) );
 $save( 'site_secret', 'ss-rotated-2' );
 ok( array( 'cf_zone' ) === array_keys( $GLOBALS['__opt']['sn_keyring_verdicts'] ), 'rotating the site secret drops its verdict and every derived row\'s, and keeps the rest' );
 $GLOBALS['__opt'][ SN_KEYRING_SITE_ROWS ] = array();
 $GLOBALS['__flushed'] = array();
-$save( 'bridge_token', 'site' );
+$save( 'srv_token', 'site' );
 ok( array() === $GLOBALS['__flushed'], 'a row with nothing to flush flushes nothing' );
+ok( 'keyring_locked' === $save( 'bridge_token', 'site' ) && 'keyring_locked' === $save( 'bridge_token', 'pasted-bridge-value' ) && ! isset( $GLOBALS['__opt']['sn_bridge_token'] ), 'the bridge token cannot be switched to the site secret or saved: locked, nothing written (F5)' );
 // 15.2.2: the guard. A shared row refuses an issued token; any row refuses a value another row holds.
 $GLOBALS['__opt']['sn_cf_api_token'] = 'cf-issued-token-value';
 ok( 'keyring_issued_as_shared' === $save( 'site_secret', 'cf-issued-token-value' ) && 'cf-issued-token-value' !== sn_site_secret(), 'the Cloudflare token pasted as the site secret is refused by name and not written' );
@@ -110,8 +116,8 @@ ok( 'keyring_issued_as_shared' === $save( 'mr_read_token', 'cf-issued-token-valu
 ok( 'keyring_duplicate' === $save( 'cf_analytics_override', 'cf-issued-token-value' ) && '' === sn_credential( 'cf_analytics_override' ), 'the API token pasted as the analytics override is a duplicate, refused' );
 ok( 'keyring_duplicate' === $save( 'github_token', 'cf-issued-token-value' ), 'an issued token pasted into another issued row is a duplicate' );
 $GLOBALS['__opt'][ SN_SITE_SECRET_OPT ] = 'own-site-secret';
-ok( 'keyring_duplicate' === $save( 'bridge_token', 'own-site-secret' ), 'the site secret\'s bytes pasted into a worker row is a duplicate (type site instead)' );
-ok( 'keyring_saved' === $save( 'bridge_token', 'site' ) && 'keyring_saved' === $save( 'cf_token', 'clear' ), '"site" and "clear" pass the guard untouched' );
+ok( 'keyring_duplicate' === $save( 'srv_token', 'own-site-secret' ), 'the site secret\'s bytes pasted into a worker row is a duplicate (type site instead)' );
+ok( 'keyring_saved' === $save( 'srv_token', 'site' ) && 'keyring_saved' === $save( 'cf_token', 'clear' ), '"site" and "clear" pass the guard untouched' );
 ok( 'keyring_saved' === $save( 'github_token', 'gh-own-3' ), 'a value no other row holds saves' );
 
 // ── Fixed (Unreleased): the bridge token's other half is the remote MCP

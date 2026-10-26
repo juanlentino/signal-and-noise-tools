@@ -51,10 +51,10 @@ ok( $n + 1 === count( sn_keyring_changes() ) && $w + 1 === $GLOBALS['__writes'][
 
 // Source switches write sn_keyring_site_rows, not the row option.
 $GLOBALS['__opt']['sn_site_secret'] = 'site-secret-value-1';
-sn_handle_keyring_save( array( 'key_id' => 'bridge_token', 'key_value' => 'site' ) );
+sn_handle_keyring_save( array( 'key_id' => 'srv_token', 'key_value' => 'site' ) );
 $last = sn_keyring_changes()[ count( sn_keyring_changes() ) - 1 ];
-ok( 'bridge_token' === $last['row'] && 'switch_site' === $last['verb'] && 'keyring_save' === $last['source'] && 7 === $last['user'], 'a switch to the site secret is logged as switch_site' );
-sn_handle_keyring_save( array( 'key_id' => 'bridge_token', 'key_value' => 'own-bridge-value-77' ) );
+ok( 'srv_token' === $last['row'] && 'switch_site' === $last['verb'] && 'keyring_save' === $last['source'] && 7 === $last['user'], 'a switch to the site secret is logged as switch_site' );
+sn_handle_keyring_save( array( 'key_id' => 'srv_token', 'key_value' => 'own-srv-value-77' ) );
 $verbs = array_column( array_slice( sn_keyring_changes(), -2 ), 'verb' );
 ok( in_array( 'switch_saved', $verbs, true ) && in_array( 'set', $verbs, true ), 'pasting a value logs switch_saved and the set' );
 

@@ -274,7 +274,7 @@ function sn_admin_render_mcp_owner_steps() {
   "mcpServers": {
     "signal-and-noise": {
       "command": "npx",
-      "args": ["-y", "@automattic/mcp-wordpress-remote@latest"],
+      "args": ["-y", "@automattic/mcp-wordpress-remote@0.5.4"],
       "env": {
         "WP_API_URL": "' . esc_url( $native_url ) . '",
         "WP_API_USERNAME": "&lt;admin-username&gt;",
@@ -283,6 +283,8 @@ function sn_admin_render_mcp_owner_steps() {
     }
   }
 }</pre>';
+	// 2026-10-26 (docs/audits/2026-10-26-mcp-doors.md, F6): never @latest.
+	echo '<p>' . esc_html__( 'Pinned to an exact version on purpose: this package runs with your admin Application Password in its environment, so a launch must never fetch code you have not reviewed. Upgrade it deliberately, after reading what changed.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . esc_html__( 'Claude Code connects straight over HTTP, with no config file:', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p><code>claude mcp add --transport http signal-and-noise ' . esc_url( $native_url ) . ' --header "Authorization: Basic &lt;base64 admin-username:application-password&gt;"</code></p>';
 	echo '</div>';

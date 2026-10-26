@@ -104,6 +104,7 @@ renders a stale number immediately after a revoke.
 If you are reading this because something felt wrong, check whether anything was ever open:
 
 - `SN_BRIDGE_TOKEN` is defined in **no** committed file. Absent means the route never registers.
+- `SN_BRIDGE_TOKEN` is the **only** source of the bridge secret. From 15.2.0 until 2026-10-26 the keyring could fill an empty constant from the `sn_bridge_token` option or the site secret, so step 4 did not revoke while either held a value. That fallback and the `sn_bridge_secret` filter are gone (docs/audits/2026-10-26-mcp-doors.md, F5); step 4 revokes.
 - `sn_mcp_remote_enabled` is **absent by default**, and absent means **off** — this switch
   inverts the read door's semantics deliberately.
 - **No role holds** `sn_read_remote_analytics`. There are zero `add_cap` / `add_role` calls in

@@ -21,7 +21,10 @@
  * awkward: an option is readable by anything that reaches the database — an
  * admin-level compromise, a plugin vulnerability, a leaked SQL dump — while
  * wp-config.php is readable by no web request. Same reasoning as
- * SN_MCP_READ_DISABLED and SN_MCP_REMOTE_DISABLED.
+ * SN_MCP_READ_DISABLED and SN_MCP_REMOTE_DISABLED. 15.2.0 let the keyring fill
+ * an empty constant from an option or the site secret, against this rule;
+ * 2026-10-26 took that back (docs/audits/2026-10-26-mcp-doors.md, F5). Do not
+ * re-add a filter or a fallback here: a database read must not open the bridge.
  *
  * Prior art for verifying an INBOUND Worker credential is
  * inc/analytics-refresh-rest.php, which compares SN_SRV_TOKEN with hash_equals().
@@ -45,11 +48,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function sn_bridge_secret() {
-	$token = ( defined( 'SN_BRIDGE_TOKEN' ) && '' !== (string) SN_BRIDGE_TOKEN )
+	// The constant, or nothing. No filter: see the file docblock.
+	return ( defined( 'SN_BRIDGE_TOKEN' ) && '' !== (string) SN_BRIDGE_TOKEN )
 		? (string) SN_BRIDGE_TOKEN
 		: '';
-	// 15.2.0: the keyring fills an empty constant (a saved row or the site secret).
-	return (string) apply_filters( 'sn_bridge_secret', $token );
 }
 
 /**
