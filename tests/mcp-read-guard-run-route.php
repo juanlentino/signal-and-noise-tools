@@ -110,7 +110,10 @@ echo "\nGroup: N1, the switch also closes this plugin's other reads to an Applic
 $GLOBALS['__options']['sn_mcp_read_enabled'] = 0;
 $off_door_read = 'signal-noise/get-post-content'; // read-only, on neither door
 $theme_read    = 'signal-and-noise/some-theme-read';
-$GLOBALS['__abil'] = array( $off_door_read => true, $theme_read => true, 'signal-noise/block-migrations-apply' => false, 'core/get-site-info' => true, $a_write => false );
+// $a_write is marked read-only on purpose, like describe-tags (read-only, on
+// the write door because it bills an AI call): only the rw-door exclusion can
+// keep it out of the read switch.
+$GLOBALS['__abil'] = array( $off_door_read => true, $theme_read => true, 'signal-noise/block-migrations-apply' => false, 'core/get-site-info' => true, $a_write => true );
 $run = static function ( $slug ) { return sn_mcp_read_guard_run_route( null, null, new RG_Req( '/wp-abilities/v1/abilities/' . $slug . '/run' ) ); };
 $GLOBALS['__app_pw'] = null;
 ok( ! in_array( $off_door_read, $read_slugs, true ) && null === $run( $off_door_read ), 'the owner\'s cookie session keeps an off-door read with the switch on (wp-admin uses them)' );

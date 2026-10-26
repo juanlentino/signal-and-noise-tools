@@ -74,7 +74,8 @@ function sn_mcp_rw_credential_scope( $result, $server = null, $request = null ) 
 		array( 'status' => 403 )
 	);
 	if ( function_exists( 'sn_mcp_rw_audit_record' ) ) {
-		sn_mcp_rw_audit_record( 'route:' . $route, array(), 'denied', $error );
+		// Truncated: the route is caller-chosen, and the row is stored as is.
+		sn_mcp_rw_audit_record( 'route:' . substr( $route, 0, 120 ), array(), 'denied', $error );
 	}
 	return $error;
 }

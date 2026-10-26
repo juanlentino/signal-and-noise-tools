@@ -71,5 +71,14 @@ $GLOBALS['__options'] = array( 'sn_mcp_rw_app_password_uuid' => $BOUND );
 $prior = new WP_Error( 'earlier', 'x' );
 ok( $prior === sn_mcp_rw_credential_scope( $prior, null, new SC_Req( '/wp/v2/posts' ) ), 'an earlier answer is never overridden' );
 
+echo "\nWiring and bounds\n";
+$boot = (string) file_get_contents( __DIR__ . '/../signal-and-noise-tools.php' );
+$at   = strpos( $boot, "inc/mcp/mcp-rw-credential-scope.php'" );
+ok( false !== $at && $at > (int) strpos( $boot, "inc/mcp/mcp-rw-guard.php'" ), 'the plugin loads the scope, after the rw guard it calls into' );
+$GLOBALS['__app_pw'] = $BOUND;
+$GLOBALS['__audit']  = array();
+$scope( '/wp/v2/' . str_repeat( 'x', 5000 ) );
+ok( strlen( $GLOBALS['__audit'][0][0] ?? '' ) <= 126, 'a caller-chosen route is truncated before it is stored in the audit row' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );
