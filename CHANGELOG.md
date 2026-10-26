@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.10.73] - 2026-10-26 — the MCP doors hardening
+
+
 Hardening from the 2026-10-26 MCP doors audit.
 
 ### Security
@@ -27,9 +30,4 @@ Hardening from the 2026-10-26 MCP doors audit.
 - **Run-route audit rows record their arguments.** The run route's body is `{input: {...}}`, and the allowlist redactor dropped the envelope whole, so every app-password write through `/wp-abilities/v1/abilities/<slug>/run` logged no arguments. The row now gets the ability's `input`, read where core's run controller reads it: the query string for GET and DELETE, the JSON body otherwise. Pinned in `tests/mcp-rw-guard-run-route.php`.
 - **`ai-generate-excerpt` is not annotated read-only.** Every run spends AI credit, so it is `readonly: false` and the run route takes it as POST; the editor's button follows through the localized verb map. Like `ai-generate-meta-description`, it is now write-class to the lifecycle guard: a run writes an rw audit row and is refused while the rw kill switch is engaged. Pinned in `tests/ai-abilities-contract.php`.
 - **Dependabot resolves composer again.** `roave/security-advisories` now conflicts with PHP 8.3 below 8.3.36, and Dependabot resolved against a bare 8.3, so every composer update failed. `config.platform.php` is 8.3.36, the patched release of the line CI runs. When roave raises the 8.3 floor past it, bump the pin: Dependabot will not.
-
-## [2026.10.72] - 2026-10-26 — keyring-status never serves part of a secret
-
-### Security
-- **`keyring-status` no longer serves any part of a secret.** The keyring's change log stored, and the read door's `keyring-status` returned, the last four characters of every value written to a keyring option (the Cloudflare token, the Anthropic admin key, the site secret, the owner key), against the tool's own "never a value". Each line now carries `fp` instead: an 8-hex HMAC-SHA256 of the value keyed with the site's own salt, so two values can still be told apart while no part of either is shown and a guess cannot be checked offline. Older lines are stripped on read and scrubbed from storage on the next write. Pinned in `tests/keyring-changes.php`. (2026-10-26 MCP doors audit, N3.)
 
