@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/../surface-fields.php';
+
 /**
  * Gate 2 input: which sn_validate check family (if any) applies to this
  * change type, and what `proposed` shape to hand its INTERNAL check
@@ -67,6 +69,23 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 				$checks[]  = 'og_card_title';
 				$title     = $post ? (string) $post->post_title : '';
 				$findings  = array_merge( $findings, snt_sn_validate_check_og_card_title( (string) $payload['og_card_title'], $post_id, $title ) );
+			}
+			// Every field this type writes, seo_title and focus_keyword too:
+			// a drafting label pasted in with the value is refused (2026-10-29).
+			$fields = array_intersect( array_merge( array( 'excerpt' ), array_keys( snt_surface_meta_keys() ) ), array_keys( $payload ) );
+			if ( ! empty( $fields ) && function_exists( 'snt_sn_validate_finding' ) ) {
+				$checks[] = 'field_label';
+				foreach ( $fields as $field ) {
+					$label = snt_surface_leaked_label( (string) $payload[ $field ] );
+					if ( '' !== $label ) {
+						$findings[] = snt_sn_validate_finding(
+							$field, 'field_label', 'error',
+							/* translators: %s: the label found in the value, e.g. "FOCUS KEYWORD". */
+							sprintf( __( 'The value carries a field label ("%s:"). Remove the label and keep only the text.', 'signal-and-noise-tools' ), $label ),
+							$label, '', array(), $post_id . '|' . (string) $payload[ $field ]
+						);
+					}
+				}
 			}
 			return array( 'checks' => $checks, 'findings' => $findings );
 
