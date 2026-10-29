@@ -19,6 +19,7 @@ function snt_sn_validate_finding( $surface, $check, $severity, $message, $observ
 }
 
 require __DIR__ . '/../inc/sn-apply/validation-gate2-parts.php';
+require __DIR__ . '/../inc/sn-apply/create-draft.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
@@ -31,6 +32,12 @@ foreach ( array(
 	'og-card-title: A remix inherits nothing'                        => 'og-card-title',
 	'OG title: x'                                                    => 'OG title',
 	'Excerpt: the first line'                                        => 'Excerpt',
+	"A line of copy.\nfocus keyword: provenance"                     => 'focus keyword',
+	'_sn_meta_description: pasted from a staged-meta row'            => 'meta_description',
+	'post_excerpt: pasted from a revision'                           => 'excerpt',
+	'Focus keyphrase: credit'                                        => 'Focus keyphrase',
+	'Open Graph title: x'                                            => 'Open Graph title',
+	'Meta title: x'                                                  => 'Meta title',
 ) as $value => $want ) {
 	ok( $want === snt_surface_leaked_label( $value ), "\"$want:\" is caught" );
 }
@@ -39,6 +46,10 @@ foreach ( array(
 	'The meta description of a track is not its credit.',
 	'Keyword search fails here: the credit was never written down.',
 	'Title: the word alone is not a field label we write.',
+	'An excerpt: the first bars of the take, unedited.',
+	'Liner notes, short excerpt: "recorded live in one pass".',
+	'The OG title: Doggystyle, credited to no one on the sleeve.',
+	'Why the SEO title: matters less than the credit.',
 	'',
 ) as $value ) {
 	ok( '' === snt_surface_leaked_label( $value ), 'prose passes: "' . $value . '"' );
@@ -56,6 +67,12 @@ $g = snt_sn_apply_gate2_validation( 'surfaces', array( 'post_id' => 1 ), array( 
 ok( array( 'seo_title', 'focus_keyword' ) === array_column( $g['findings'], 'surface' ), 'seo_title and focus_keyword are checked too, though no length check covers them' );
 $g = snt_sn_apply_gate2_validation( 'surfaces', array( 'post_id' => 1 ), array( 'payload' => array( 'seo_title' => 'A clean title' ) ) );
 ok( array( 'field_label' ) === $g['checks'] && array() === $g['findings'], 'a clean seo_title is checked and passes, so the gate no longer reports no_applicable_checks' );
+
+echo "\ncreate_draft\n";
+$g      = snt_sn_apply_gate2_create_draft( array( 'title' => 'T', 'content' => '', 'meta_description' => 'A note. SEO description: x', 'excerpt' => 'Clean.' ) );
+$labels = array_values( array_filter( $g['findings'], fn( $f ) => 'field_label' === $f['check'] ) );
+ok( in_array( 'field_label', $g['checks'], true ), 'a new draft runs the same label check' );
+ok( 1 === count( $labels ) && 'meta_description' === $labels[0]['surface'] && 'error' === $labels[0]['severity'], 'and refuses the leaked description, only that field' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

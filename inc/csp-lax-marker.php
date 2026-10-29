@@ -13,7 +13,7 @@
  *   - every login screen: login_init fires inside wp-login.php for the hidden
  *     door and for every action (lost password, reset, logout, 2FA, passkey);
  *   - any page carrying the AllTerrain Forms form, wherever it is placed: its
- *     block or shortcode in the post content (decided at template_redirect),
+ *     block or shortcode in the post content (decided on `wp`),
  *     its block or shortcode rendering anywhere, or its config script
  *     (allterrain-forms-config, inline with a nonce) queued; plus /contact/
  *     by slug as a belt.
@@ -22,8 +22,10 @@
  * page loose, so the rule errs toward marking. Ordinary public pages for a
  * stranger are never marked; the daily CSP check (inc/csp-hash-check.php)
  * reads them without cookies and raises the csp_hashes watch if one is.
- * REST and admin-ajax are not marked: they are not HTML, and REST exits at
- * parse_request, before `wp`.
+ * REST is never marked: it exits at parse_request, before `wp`. admin-ajax
+ * is not marked by admin_init; the one ajax call that runs wp() (a list
+ * table refresh) is signed in, so marking its JSON loosens nothing that
+ * matters.
  *
  * @package SignalNoiseTools
  */
