@@ -32,7 +32,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/surface-fields.php';
+
 const SNT_SN_POSTS_DEFAULT_MAX = 100;
+/**
+ * 2026-10-29: the search surfaces a row carries, read through
+ * snt_surface_value() (the reader sn-apply's surfaces diff uses). focus_keyword
+ * is written there too but is not a search surface, so it is not listed.
+ */
+const SNT_SN_POSTS_SURFACE_FIELDS = array( 'seo_title', 'meta_description', 'og_card_title' );
 const SNT_SN_POSTS_MAX_CAP     = 100;
 /**
  * v13.108.0 — the dossier cap, deliberately FIVE where include_content's is 20.
@@ -50,7 +58,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-posts', array(
 		'label'               => 'List or fetch corpus posts (consolidated)',
-		'description'         => 'Consolidated post query, absorbing list-posts (metadata), get-post-content (bodies) and note-dossier (the per-note dossier) into one record: each is an opt-in FIELD, not a different shape. scope selects the target set: {kind:"all"} (default) walks every non-trash post of scope.post_type (default "post"); {kind:"post_ids", post_ids:[...]} fetches a bounded ID set, unknown/trashed IDs reported in `missing` rather than silently dropped; {kind:"modified_since", modified_since:"<date>"} walks posts modified at/after that date, newest-modified first; {kind:"post_type", post_type:"<type>"} walks one specific registered+public type. include_content:true attaches full post_content per row but is REJECTED (422, never silently truncated) when the resolved scope exceeds 20 posts — narrow the scope instead. status:[\'future\',...] narrows to those post statuses (publish/future/draft/pending/private; default all five) and is applied BEFORE pagination, so count and cursor describe the set actually returned. fields:[\'post_date\',...] returns only those row keys - post_id is ALWAYS included whether asked for or not, because a row nobody can identify is not a smaller answer. An unknown field name is a 422 naming it and listing the valid ones, never a silently full row. \'content\' is selectable only with include_content:true. include_dossier:true attaches the full note dossier per row and REQUIRES scope.kind \"post_ids\" (a dossier is several subsystem reads per post, so it is not available across a corpus walk); it is capped at 5 posts and REJECTS (422) above that rather than truncating, and \'dossier\' is selectable in fields only with include_dossier:true. dossier_days in {7,30,90} (default 30) sets the window for its analytics tiles; Search Console keeps its own. A dossier that cannot be composed arrives as an error block ON the row, never omitted. Paginated via an opaque cursor (max default/cap 100 per page); the post_ids scope always returns its whole bounded set in one page. Same visibility as list-posts/get-post-content: all five non-trash statuses (publish/future/draft/pending/private) across registered public types, gated by manage_options + the MCP door\'s own auth.',
+		'description'         => 'Consolidated post query, absorbing list-posts (metadata), get-post-content (bodies) and note-dossier (the per-note dossier) into one record: each is an opt-in FIELD, not a different shape. scope selects the target set: {kind:"all"} (default) walks every non-trash post of scope.post_type (default "post"); {kind:"post_ids", post_ids:[...]} fetches a bounded ID set, unknown/trashed IDs reported in `missing` rather than silently dropped; {kind:"modified_since", modified_since:"<date>"} walks posts modified at/after that date, newest-modified first; {kind:"post_type", post_type:"<type>"} walks one specific registered+public type. include_content:true attaches full post_content per row but is REJECTED (422, never silently truncated) when the resolved scope exceeds 20 posts — narrow the scope instead. status:[\'future\',...] narrows to those post statuses (publish/future/draft/pending/private; default all five) and is applied BEFORE pagination, so count and cursor describe the set actually returned. fields:[\'post_date\',...] returns only those row keys - post_id is ALWAYS included whether asked for or not, because a row nobody can identify is not a smaller answer. An unknown field name is a 422 naming it and listing the valid ones, never a silently full row. \'content\' is selectable only with include_content:true. include_dossier:true attaches the full note dossier per row and REQUIRES scope.kind \"post_ids\" (a dossier is several subsystem reads per post, so it is not available across a corpus walk); it is capped at 5 posts and REJECTS (422) above that rather than truncating, and \'dossier\' is selectable in fields only with include_dossier:true. dossier_days in {7,30,90} (default 30) sets the window for its analytics tiles; Search Console keeps its own. A dossier that cannot be composed arrives as an error block ON the row, never omitted. seo_title, meta_description and og_card_title (the search surfaces sn-apply\'s surfaces type writes) are row keys under every scope, outside include_content\'s cap, read through the same accessor as that type\'s dry-run `before`; an unset one is "", never omitted or null. include_surface_checks:true attaches surface_checks per row: meta_description and seo_title each as {length, status} with status ok, short, long or empty, graded by sn-validate\'s description guideline range and the search-title health check\'s ceiling (seo_title has no floor, so it is never short). Informational only; \'surface_checks\' is selectable in fields only with that flag. Paginated via an opaque cursor (max default/cap 100 per page); the post_ids scope always returns its whole bounded set in one page. Same visibility as list-posts/get-post-content: all five non-trash statuses (publish/future/draft/pending/private) across registered public types, gated by manage_options + the MCP door\'s own auth.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_sn_posts',
@@ -77,6 +85,7 @@ add_action( 'wp_abilities_api_init', function() {
 				'include_content' => array( 'type' => 'boolean', 'default' => false ),
 				'include_dossier' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Attach the full note dossier per row. scope.kind must be "post_ids" and the set is capped at ' . SNT_SN_POSTS_MAX_DOSSIER_IDS . '.' ),
 				'dossier_days'    => array( 'type' => 'integer', 'enum' => array( 7, 30, 90 ), 'default' => 30, 'description' => 'Window for the dossier\'s analytics tiles. Search Console keeps its own window.' ),
+				'include_surface_checks' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Attach surface_checks per row: length and status (ok, short, long, empty) for meta_description and seo_title.' ),
 				// Both default to "everything", so a caller who omits them sees
 				// byte-identical output to before these existed.
 				'status'          => array(
@@ -182,7 +191,7 @@ function snt_sn_posts_scope_error( $message ) {
  * @param bool  $include_content
  * @return array|WP_Error
  */
-function snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields = null, $statuses = null, $include_dossier = false, $dossier_days = 30 ) {
+function snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields = null, $statuses = null, $include_dossier = false, $dossier_days = 30, $include_surface_checks = false ) {
 	$ids = isset( $scope['post_ids'] ) ? array_values( array_unique( array_map( 'intval', (array) $scope['post_ids'] ) ) ) : array();
 	if ( empty( $ids ) ) {
 		return snt_sn_posts_scope_error( __( 'scope.kind "post_ids" requires a non-empty scope.post_ids array.', 'signal-and-noise-tools' ) );
@@ -231,7 +240,7 @@ function snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields = null
 			$filtered[] = (int) $id;
 			continue;
 		}
-		$row = snt_corpus_post_row( $post );
+		$row = snt_sn_posts_attach_surfaces( snt_corpus_post_row( $post ), $include_surface_checks );
 		if ( $include_content ) {
 			$row['content'] = (string) ( $post->post_content ?? '' );
 		}
@@ -274,7 +283,7 @@ function snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields = null
  * @param int    $max
  * @return array|WP_Error
  */
-function snt_sn_posts_resolve_walk( $kind, $scope, $include_content, $offset, $max, $fields = null, $statuses = null ) {
+function snt_sn_posts_resolve_walk( $kind, $scope, $include_content, $offset, $max, $fields = null, $statuses = null, $include_surface_checks = false ) {
 	$post_type = isset( $scope['post_type'] ) && '' !== trim( (string) $scope['post_type'] ) ? (string) $scope['post_type'] : 'post';
 	if ( 'post_type' === $kind && ( ! isset( $scope['post_type'] ) || '' === trim( (string) $scope['post_type'] ) ) ) {
 		return snt_sn_posts_scope_error( __( 'scope.kind "post_type" requires a non-empty scope.post_type.', 'signal-and-noise-tools' ) );
@@ -342,7 +351,7 @@ function snt_sn_posts_resolve_walk( $kind, $scope, $include_content, $offset, $m
 	$page = array_slice( $posts, max( 0, $offset ), $max );
 	$rows = array();
 	foreach ( $page as $p ) {
-		$row = snt_corpus_post_row( $p );
+		$row = snt_sn_posts_attach_surfaces( snt_corpus_post_row( $p ), $include_surface_checks );
 		if ( $include_content ) {
 			$row['content'] = (string) ( $p->post_content ?? '' );
 		}
@@ -385,9 +394,31 @@ function snt_sn_posts_field_names() {
 		// not the values. A hardcoded list here would be a second source of
 		// truth that silently loses a key the day the row gains one.
 		$probe = (object) array( 'ID' => 0 );
-		$keys  = array_keys( (array) snt_corpus_post_row( $probe ) );
+		$keys  = array_keys( snt_sn_posts_attach_surfaces( (array) snt_corpus_post_row( $probe ), false ) );
 	}
 	return $keys;
+}
+
+/**
+ * Attach the search surfaces, and on request their length checks, to one row.
+ * get_posts() primes the meta cache for a walk, so this costs no query per
+ * row there; the bounded post_ids path pays at most one per post.
+ *
+ * @param array $row
+ * @param bool  $include_checks
+ * @return array
+ */
+function snt_sn_posts_attach_surfaces( array $row, $include_checks ) {
+	foreach ( SNT_SN_POSTS_SURFACE_FIELDS as $field ) {
+		$row[ $field ] = snt_surface_value( $row['post_id'], $field );
+	}
+	if ( $include_checks ) {
+		$row['surface_checks'] = array(
+			'meta_description' => snt_surface_length_check( 'meta_description', $row['meta_description'] ),
+			'seo_title'        => snt_surface_length_check( 'seo_title', $row['seo_title'] ),
+		);
+	}
+	return $row;
 }
 
 /**
@@ -401,7 +432,7 @@ function snt_sn_posts_field_names() {
  * @param bool  $include_content Whether content is available to select.
  * @return string[]|WP_Error|null Null when unset (return the full row).
  */
-function snt_sn_posts_resolve_fields( $raw, $include_content, $include_dossier = false ) {
+function snt_sn_posts_resolve_fields( $raw, $include_content, $include_dossier = false, $include_surface_checks = false ) {
 	if ( null === $raw || ( is_array( $raw ) && array() === $raw ) ) {
 		return null; // unset - full row, unchanged behaviour
 	}
@@ -416,6 +447,9 @@ function snt_sn_posts_resolve_fields( $raw, $include_content, $include_dossier =
 	if ( $include_dossier ) {
 		$valid[] = 'dossier';
 	}
+	if ( $include_surface_checks ) {
+		$valid[] = 'surface_checks';
+	}
 
 	$out = array( 'post_id' );
 	foreach ( $raw as $f ) {
@@ -424,6 +458,13 @@ function snt_sn_posts_resolve_fields( $raw, $include_content, $include_dossier =
 			return new WP_Error(
 				'snt_posts_bad_fields',
 				__( 'fields names "content", which is only available with include_content:true. Set that flag, or drop the field.', 'signal-and-noise-tools' ),
+				array( 'status' => 422 )
+			);
+		}
+		if ( 'surface_checks' === $f && ! $include_surface_checks ) {
+			return new WP_Error(
+				'snt_posts_bad_fields',
+				__( 'fields names "surface_checks", which is only available with include_surface_checks:true. Set that flag, or drop the field.', 'signal-and-noise-tools' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -519,6 +560,12 @@ function snt_ability_sn_posts( $input ) {
 	$dossier_days    = isset( $input['dossier_days'] ) && in_array( (int) $input['dossier_days'], array( 7, 30, 90 ), true )
 		? (int) $input['dossier_days']
 		: 30;
+	$include_surface_checks = ! empty( $input['include_surface_checks'] );
+	// The checks read thresholds owned by two later-loaded files; refuse by
+	// name rather than grade against a missing constant.
+	if ( $include_surface_checks && ( ! defined( 'SNT_SN_VALIDATE_META_DESC_SOFT_MIN' ) || ! defined( 'SN_HEALTH_SEARCH_TITLE_MAX' ) || ! function_exists( 'sn_health_search_title_length' ) ) ) {
+		return new WP_Error( 'snt_helper_unavailable', __( 'Surface check thresholds not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
+	}
 
 	// The dossier is a per-note deep read, so it is bound to a BOUNDED scope.
 	// Refusing here names the fix; allowing it on a walk would invite a caller to
@@ -527,7 +574,7 @@ function snt_ability_sn_posts( $input ) {
 		return snt_sn_posts_scope_error( __( 'include_dossier:true requires scope.kind "post_ids" — a dossier is several subsystem reads per post and is not available across a corpus walk.', 'signal-and-noise-tools' ) );
 	}
 
-	$fields = snt_sn_posts_resolve_fields( $input['fields'] ?? null, $include_content, $include_dossier );
+	$fields = snt_sn_posts_resolve_fields( $input['fields'] ?? null, $include_content, $include_dossier, $include_surface_checks );
 	if ( is_wp_error( $fields ) ) {
 		return $fields;
 	}
@@ -545,7 +592,7 @@ function snt_ability_sn_posts( $input ) {
 	$max = max( 1, min( $max, SNT_SN_POSTS_MAX_CAP ) ); // Clamp, never reject — only include_content's cap rejects.
 
 	if ( 'post_ids' === $kind ) {
-		return snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields, $statuses, $include_dossier, $dossier_days );
+		return snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields, $statuses, $include_dossier, $dossier_days, $include_surface_checks );
 	}
-	return snt_sn_posts_resolve_walk( $kind, $scope, $include_content, $offset, $max, $fields, $statuses );
+	return snt_sn_posts_resolve_walk( $kind, $scope, $include_content, $offset, $max, $fields, $statuses, $include_surface_checks );
 }

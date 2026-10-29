@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/../surface-fields.php';
+
 /**
  * surfaces' write step is split across content (post_excerpt — a real
  * revision-stageable field) and postmeta (meta_description/og_card_title/
@@ -54,10 +56,9 @@ function snt_sn_apply_write_surfaces( $post_id, array $payload, $mode, $fingerpr
 		$revision_id = (int) $staged['revision_id'];
 		unset( $cb, $before );
 	}
-	foreach ( array( 'meta_description', 'og_card_title', 'seo_title', 'focus_keyword' ) as $meta_field ) {
+	foreach ( snt_surface_meta_keys() as $meta_field => $meta_key ) {
 		if ( array_key_exists( $meta_field, $payload ) ) {
-			$meta_key = 'meta_description' === $meta_field ? '_sn_meta_description' : ( 'og_card_title' === $meta_field ? '_sn_og_card_title' : ( 'seo_title' === $meta_field ? '_sn_seo_title' : '_sn_focus_keyword' ) );
-			$staged   = snt_sn_apply_stage_meta( $post_id, $meta_key, (string) $payload[ $meta_field ], $fingerprint );
+			$staged = snt_sn_apply_stage_meta( $post_id, $meta_key, (string) $payload[ $meta_field ], $fingerprint );
 			if ( is_wp_error( $staged ) ) {
 				return $staged;
 			}
@@ -193,14 +194,15 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 			$post    = get_post( $post_id );
 			$before  = array();
 			$after   = array();
-			$meta_map = array( 'meta_description' => '_sn_meta_description', 'og_card_title' => '_sn_og_card_title', 'seo_title' => '_sn_seo_title', 'focus_keyword' => '_sn_focus_keyword' );
 			if ( array_key_exists( 'excerpt', $payload ) ) {
 				$before['excerpt'] = $post ? (string) $post->post_excerpt : '';
 				$after['excerpt']  = (string) $payload['excerpt'];
 			}
-			foreach ( $meta_map as $field => $meta_key ) {
+			// sn-posts reads the same fields through snt_surface_value(), so its
+			// row and this `before` cannot disagree.
+			foreach ( array_keys( snt_surface_meta_keys() ) as $field ) {
 				if ( array_key_exists( $field, $payload ) ) {
-					$before[ $field ] = (string) get_post_meta( $post_id, $meta_key, true );
+					$before[ $field ] = snt_surface_value( $post_id, $field );
 					$after[ $field ]  = (string) $payload[ $field ];
 				}
 			}

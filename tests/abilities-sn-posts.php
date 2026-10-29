@@ -102,8 +102,18 @@ if ( ! function_exists( 'wp_trim_words' ) ) {
 	function wp_trim_words( $text, $num = 55, $more = '&hellip;' ) { return (string) $text; }
 }
 
+// 2026-10-29: the search surfaces are postmeta, read through
+// inc/surface-fields.php. Keyed by post id, then meta key, as core stores them.
+$GLOBALS['__meta'] = array();
+if ( ! function_exists( 'get_post_meta' ) ) {
+	function get_post_meta( $id, $key = '', $single = false ) { return $GLOBALS['__meta'][ (int) $id ][ $key ] ?? ''; }
+}
+
 require __DIR__ . '/../inc/corpus-inspect.php';
 require __DIR__ . '/../inc/abilities-sn-posts.php';
+// The thresholds surface_checks grades by, loaded the way production loads them.
+require __DIR__ . '/../inc/sn-validate-checks.php';
+require __DIR__ . '/../inc/health-check-search-titles.php';
 
 // ─── Telemetry wiring assert: pull in the real telemetry classifier + a wpdb
 //     stand-in so one test proves a schema violation records outcome
@@ -314,7 +324,7 @@ ok( is_wp_error( $gated ) && false !== strpos( $gated->get_error_message(), 'inc
 
 // the field list is DERIVED from the row builder, not hardcoded.
 $derived = snt_sn_posts_field_names();
-eq( array_keys( snt_corpus_post_row( (object) array( 'ID' => 0 ) ) ), $derived, 'FILT.18: the valid-field list is derived from the row builder, so the two cannot drift' );
+eq( array_keys( snt_sn_posts_attach_surfaces( snt_corpus_post_row( (object) array( 'ID' => 0 ) ), false ) ), $derived, 'FILT.18: the valid-field list is derived from the row builder (the corpus row plus the search surfaces), so the two cannot drift' );
 
 
 /* ── v13.108.0 — note-dossier ABSORBED as an opt-in field ──────────────────
@@ -367,6 +377,53 @@ $r = snt_ability_sn_posts( array( 'include_dossier' => true, 'scope' => array( '
 ok( ! is_wp_error( $r ) && isset( $r['posts'][0]['dossier']['error'] ) && 'snt_dossier_boom' === $r['posts'][0]['dossier']['error'],
 	'a dossier that cannot be composed becomes an ERROR BLOCK on the row — never omitted, never a zero' );
 unset( $GLOBALS['__posts'][999] );
+
+echo "\nSearch surfaces (2026-10-29)\n";
+$GLOBALS['__meta'] = array(
+	1 => array( '_sn_seo_title' => str_repeat( 's', 57 ), '_sn_meta_description' => str_repeat( 'd', 152 ), '_sn_og_card_title' => 'Card one', '_sn_focus_keyword' => 'not a surface' ),
+	2 => array( '_sn_meta_description' => str_repeat( 'd', 161 ), '_sn_seo_title' => str_repeat( 's', 66 ) ),
+	3 => array( '_sn_meta_description' => str_repeat( 'd', 139 ) ),
+);
+$r   = snt_ability_sn_posts( array( 'fields' => array( 'seo_title', 'meta_description' ), 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( 1, 4 ) ) ) );
+$one = $r['posts'][0] ?? array();
+eq( array( 'post_id', 'seo_title', 'meta_description' ), array_keys( $one ), 'fields selects the surfaces like any row key, post_id first' );
+eq( str_repeat( 's', 57 ), $one['seo_title'] ?? null, 'seo_title is the stored _sn_seo_title' );
+eq( str_repeat( 'd', 152 ), $one['meta_description'] ?? null, 'meta_description is the stored _sn_meta_description' );
+eq( '', $r['posts'][1]['meta_description'] ?? null, 'an unset surface is "", not null and not absent' );
+
+$full = snt_ability_sn_posts( array( 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( 1 ) ) ) )['posts'][0];
+eq( 'Card one', $full['og_card_title'] ?? null, 'the full row (no fields) carries og_card_title too' );
+ok( ! array_key_exists( 'focus_keyword', $full ), 'focus_keyword is written by surfaces but is not a search surface, so the row leaves it out' );
+ok( ! array_key_exists( 'surface_checks', $full ), 'surface_checks is opt-in: absent without the flag' );
+
+$walk = snt_ability_sn_posts( array( 'fields' => array( 'meta_description' ), 'max' => 100 ) );
+ok( ! is_wp_error( $walk ) && $walk['count'] > SNT_CORPUS_MAX_CONTENT_IDS, 'the surfaces ride a corpus walk past include_content\'s cap: postmeta, not bodies' );
+
+$typo = snt_ability_sn_posts( array( 'fields' => array( 'seo_titel' ) ) );
+ok( is_wp_error( $typo ) && 422 === ( $typo->get_error_data()['status'] ?? 0 ) && false !== strpos( $typo->get_error_message(), 'seo_title' ),
+	'a misspelled surface is a 422 whose valid-key list names seo_title' );
+
+$gated = snt_ability_sn_posts( array( 'fields' => array( 'surface_checks' ) ) );
+ok( is_wp_error( $gated ) && false !== strpos( $gated->get_error_message(), 'include_surface_checks:true' ), "'surface_checks' is selectable only with include_surface_checks:true, and the refusal says so" );
+
+$c    = snt_ability_sn_posts( array( 'include_surface_checks' => true, 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( 1, 2, 3, 4 ) ) ) );
+$chk  = array_column( array_map( static fn( $row ) => array( 'id' => $row['post_id'], 'c' => $row['surface_checks'] ), $c['posts'] ), 'c', 'id' );
+eq( array( 'length' => 152, 'status' => 'ok' ), $chk[1]['meta_description'], '152 characters is inside the validator\'s range: ok' );
+eq( array( 'length' => 57, 'status' => 'ok' ), $chk[1]['seo_title'], 'a 57-character title is ok' );
+eq( 'long', $chk[2]['meta_description']['status'], '161 characters is long' );
+eq( 'long', $chk[2]['seo_title']['status'], 'a 66-character title is past the health check\'s ceiling: long' );
+eq( 'short', $chk[3]['meta_description']['status'], '139 characters is short' );
+eq( array( 'length' => 0, 'status' => 'empty' ), $chk[4]['meta_description'], 'an unset description is empty, length 0' );
+eq( 'empty', $chk[3]['seo_title']['status'], 'an unset title is empty, never short: seo_title has no floor' );
+eq( 'short', snt_surface_length_check( 'meta_description', str_repeat( 'd', SNT_SN_VALIDATE_META_DESC_SOFT_MIN - 1 ) )['status'], 'the floor is the validator\'s constant: one under it is short' );
+eq( 'ok', snt_surface_length_check( 'meta_description', str_repeat( 'd', SNT_SN_VALIDATE_META_DESC_SOFT_MAX ) )['status'], 'and its ceiling is inclusive, as the validator\'s is' );
+eq( 'ok', snt_surface_length_check( 'seo_title', str_repeat( 's', SN_HEALTH_SEARCH_TITLE_MAX ) )['status'], 'the title ceiling is the health check\'s constant, inclusive' );
+
+$src = (string) file_get_contents( __DIR__ . '/../inc/surface-fields.php' ) . (string) file_get_contents( __DIR__ . '/../inc/abilities-sn-posts.php' );
+ok( 0 === preg_match( '/\\b(140|160|65)\\b/', $src ), 'no threshold is restated: neither file carries 140, 160 or 65 as a literal' );
+$diff = (string) file_get_contents( __DIR__ . '/../inc/sn-apply/executors-diff-parts.php' );
+ok( 0 === preg_match( "/'_sn_(meta_description|seo_title|og_card_title|focus_keyword)'/", $diff ), 'sn-apply\'s surfaces diff and revision write spell no meta key of their own: one map, in inc/surface-fields.php' );
+$GLOBALS['__meta'] = array();
 
 
 echo "\nResult: $pass passed, $fail failed.\n";
