@@ -553,7 +553,6 @@ require_once __DIR__ . '/inc/reading-time.php';
 // file's docblock for the safety net if that ever goes away.
 require_once __DIR__ . '/inc/wp-cron-offload.php';
 require_once __DIR__ . '/inc/wp-update-integration.php';
-require_once __DIR__ . '/inc/wp-update-git-preservation.php';
 require_once __DIR__ . '/inc/github-actions-api.php';
 require_once __DIR__ . '/inc/deploy-history.php';
 require_once __DIR__ . '/inc/deploy-workers.php'; // Deploy Status: five Cloudflare workers beside theme/plugin

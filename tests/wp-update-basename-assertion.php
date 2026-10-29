@@ -8,8 +8,7 @@
  *
  * SN_GH_PLUGIN_BASENAME is a hardcoded constant. Every update entry we write
  * into WP's `update_plugins` transient is keyed by it, and the
- * upgrader_source_selection / upgrader_pre_install / upgrader_post_install
- * filters all gate on it. If the plugin is ever installed to a directory with
+ * upgrader_source_selection filter gates on it. If the plugin is ever installed to a directory with
  * a different name, that constant names a plugin WordPress does not have:
  *
  *   - the update row appears NOWHERE, because WP looks entries up by the

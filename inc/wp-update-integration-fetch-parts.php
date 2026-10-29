@@ -19,8 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * WHY THIS EXISTS (v12.25.0, 2026-08-24)
  *
  * SN_GH_PLUGIN_BASENAME is hardcoded, and everything in this file keys off it:
- * the entry we write into WP's `update_plugins` transient, and the gates on
- * upgrader_source_selection / upgrader_pre_install / upgrader_post_install.
+ * the entry we write into WP's `update_plugins` transient, and the gate on
+ * upgrader_source_selection.
  * There are therefore two identities that must agree — the directory WordPress
  * actually loaded us from, and the basename we CLAIM — and WP core never
  * reconciles them.

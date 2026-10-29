@@ -23,11 +23,10 @@
  * v1.10.1 moves to WP-UI-driven updates and disables the tag-push
  * auto-deploy (see .github/workflows/deploy.yml). v1.11.1 fixed the
  * 12h cache that was hiding new tags from the WP updater. v1.11.2
- * adds inc/wp-update-git-preservation.php which backs up + restores
- * the .git directory through the install — closing the footgun where
- * WP's clear_destination() would otherwise destroy the .git checkout
- * that the canonical workflow_dispatch deploy depends on. Both install
- * paths (gh workflow run AND wp-admin Update Now) now coexist safely.
+ * added a module that parked the plugin's .git under wp-content/upgrade/
+ * through an install, for the old git-checkout deploy. Both deploy paths
+ * now ship a tag archive and production carries no .git, so the module
+ * was removed on 2026-10-29.
  *
  * @package SignalNoiseTools
  */
