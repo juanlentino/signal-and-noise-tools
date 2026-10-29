@@ -13,7 +13,8 @@
  * Deliberately THIN: every query/row primitive is reused verbatim from
  * inc/corpus-inspect.php (snt_corpus_fetch_posts, snt_corpus_post_row,
  * snt_corpus_post_type_allowed, snt_corpus_post_type_error,
- * SNT_CORPUS_STATUSES, SNT_CORPUS_MAX_CONTENT_IDS) — this file adds only the
+ * SNT_CORPUS_STATUSES, SNT_CORPUS_MAX_CONTENT_IDS), and the search surfaces
+ * through inc/surface-fields.php (2026-10-29). This file adds only the
  * scope-union dispatch, cursor pagination, and the reject-never-truncate
  * content cap on top of them. Same visibility as the tools it absorbs: all
  * five non-trash statuses (pre-publish collision checking is the point),

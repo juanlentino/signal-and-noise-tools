@@ -4,10 +4,13 @@
  *
  * The surfaces change type writes four postmeta fields. Their meta keys used
  * to be spelled out twice inside sn-apply (the dry-run diff and the revision
- * write), and sn-posts needed a third copy to read them back. This file is
- * the one map all three read, so a read and the write it describes cannot
- * point at different keys. No hooks, no dependencies: loaded by require_once
- * from inc/sn-apply/executors-diff-parts.php and inc/abilities-sn-posts.php.
+ * write), and sn-posts needed a third copy to read them back. Those three now
+ * read this map. The publish-mode write (snt_ability_update_post_surfaces()),
+ * create_draft and the front-end readers in post-settings.php still spell the
+ * keys themselves; tests/abilities-sn-posts.php pins this map to the publish
+ * write's keys. No hooks: loaded by require_once from
+ * inc/sn-apply/executors-diff-parts.php and inc/abilities-sn-posts.php. The
+ * length check reads two later-loaded files' thresholds at call time.
  *
  * @package SignalNoiseTools
  */

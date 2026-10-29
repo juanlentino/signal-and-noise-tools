@@ -254,6 +254,9 @@ ok( is_array( $a ), 'signal-noise/sn-posts is registered' );
 ok( 'snt_ability_perm_read_corpus' === ( $a['permission_callback'] ?? '' ), 'sn-posts gates on edit_others_posts (corpus READ tier)' );
 ok( true === ( $a['meta']['annotations']['readonly'] ?? false ) && false === ( $a['meta']['annotations']['destructive'] ?? true ) && true === ( $a['meta']['annotations']['idempotent'] ?? false ), 'sn-posts is annotated readonly + non-destructive + idempotent' );
 ok( array( 'object', 'null' ) === ( $a['input_schema']['type'] ?? null ), 'sn-posts input schema is bodyless-GET-safe (no required fields)' );
+// additionalProperties:false: an undeclared or misspelled flag is refused over MCP
+// before the callback runs, so every direct call above would stay green.
+ok( 'boolean' === ( $a['input_schema']['properties']['include_surface_checks']['type'] ?? null ), 'the schema declares include_surface_checks, so MCP does not refuse the flag' );
 
 // ─── Telemetry wiring: a REAL sn-posts schema violation, run through the
 //     ACTUAL Layer B classifier (inc/mcp/mcp-telemetry.php's status-first
@@ -398,6 +401,11 @@ ok( ! array_key_exists( 'surface_checks', $full ), 'surface_checks is opt-in: ab
 
 $walk = snt_ability_sn_posts( array( 'fields' => array( 'meta_description' ), 'max' => 100 ) );
 ok( ! is_wp_error( $walk ) && $walk['count'] > SNT_CORPUS_MAX_CONTENT_IDS, 'the surfaces ride a corpus walk past include_content\'s cap: postmeta, not bodies' );
+$by_id = array_column( $walk['posts'] ?? array(), null, 'post_id' );
+eq( str_repeat( 'd', 152 ), $by_id[1]['meta_description'] ?? null, 'the walk path reads the stored value, not just the post_ids path' );
+eq( '', $by_id[5]['meta_description'] ?? null, 'and reports an unset one on the walk as ""' );
+$walk_c = array_column( snt_ability_sn_posts( array( 'include_surface_checks' => true, 'max' => 100 ) )['posts'] ?? array(), null, 'post_id' );
+eq( 'long', $walk_c[2]['surface_checks']['meta_description']['status'] ?? null, 'include_surface_checks grades the walk too' );
 
 $typo = snt_ability_sn_posts( array( 'fields' => array( 'seo_titel' ) ) );
 ok( is_wp_error( $typo ) && 422 === ( $typo->get_error_data()['status'] ?? 0 ) && false !== strpos( $typo->get_error_message(), 'seo_title' ),
@@ -418,6 +426,11 @@ eq( 'empty', $chk[3]['seo_title']['status'], 'an unset title is empty, never sho
 eq( 'short', snt_surface_length_check( 'meta_description', str_repeat( 'd', SNT_SN_VALIDATE_META_DESC_SOFT_MIN - 1 ) )['status'], 'the floor is the validator\'s constant: one under it is short' );
 eq( 'ok', snt_surface_length_check( 'meta_description', str_repeat( 'd', SNT_SN_VALIDATE_META_DESC_SOFT_MAX ) )['status'], 'and its ceiling is inclusive, as the validator\'s is' );
 eq( 'ok', snt_surface_length_check( 'seo_title', str_repeat( 's', SN_HEALTH_SEARCH_TITLE_MAX ) )['status'], 'the title ceiling is the health check\'s constant, inclusive' );
+eq( 'ok', snt_surface_length_check( 'seo_title', str_repeat( 's', SN_HEALTH_SEARCH_TITLE_MAX ) . ' ' )['status'], 'the title is measured trimmed, as the health check measures it' );
+eq( array( 'length' => 3, 'status' => 'empty' ), snt_surface_length_check( 'meta_description', '   ' ), 'a whitespace-only description is empty; its length is untrimmed, as the validator counts' );
+eq( array( 'length' => 0, 'status' => 'empty' ), snt_surface_length_check( 'seo_title', '   ' ), 'a whitespace-only title is empty, length 0' );
+eq( array( 'meta_description' => '_sn_meta_description', 'og_card_title' => '_sn_og_card_title', 'seo_title' => '_sn_seo_title', 'focus_keyword' => '_sn_focus_keyword' ), snt_surface_meta_keys(),
+	'the map is exactly the four keys the publish write stores under (inc/abilities-update-post-surfaces.php), in sn-apply\'s order' );
 
 $src = (string) file_get_contents( __DIR__ . '/../inc/surface-fields.php' ) . (string) file_get_contents( __DIR__ . '/../inc/abilities-sn-posts.php' );
 ok( 0 === preg_match( '/\\b(140|160|65)\\b/', $src ), 'no threshold is restated: neither file carries 140, 160 or 65 as a literal' );
