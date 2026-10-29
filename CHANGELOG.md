@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Removed
+- **The `.git` preservation module.** `inc/wp-update-git-preservation.php` moved the plugin's `.git` to a fixed path, `wp-content/upgrade/sn-signal-and-noise-tools-git-backup`, for the length of a WP UI install, then moved it back. It existed for the old deploy that ran `git checkout` inside the live plugin directory. That deploy has shipped a tag archive since v9.54.2, the footprint janitor deletes `.git`, and the module returned early on a missing `.git`, so on production it did nothing. Kept, it would have parked a `.git` at a predictable name in the web-served directory WordPress 7.1.4 just hardened against exactly that (it now gives its own working directory an unguessable name). No behavior changes on the live site.
+
 ## [2026.10.77] - 2026-10-29 — sn-posts reads the search surfaces
 
 ### Added
