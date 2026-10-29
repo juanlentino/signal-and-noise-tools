@@ -9,8 +9,9 @@
  * create_draft and the front-end readers in post-settings.php still spell the
  * keys themselves; tests/abilities-sn-posts.php pins this map to the publish
  * write's keys. No hooks: loaded by require_once from
- * inc/sn-apply/executors-diff-parts.php and inc/abilities-sn-posts.php. The
- * length check reads two later-loaded files' thresholds at call time.
+ * inc/sn-apply/executors-diff-parts.php, inc/sn-apply/validation-gate2-parts.php
+ * and inc/abilities-sn-posts.php. The length check reads two later-loaded
+ * files' thresholds at call time.
  *
  * @package SignalNoiseTools
  */
@@ -78,4 +79,22 @@ function snt_surface_length_check( $field, $value ) {
 		$status = 'ok';
 	}
 	return array( 'length' => $len, 'status' => $status );
+}
+
+/**
+ * A drafting label left in a surfaces value, such as "FOCUS KEYWORD:" or
+ * "_sn_meta_description:", or '' when there is none. A drafting note once
+ * reached a live description this way (post 2467, 2026-10-29). A label counts
+ * only where a label sits: at the start of the value, a line or a sentence,
+ * followed by a colon. Prose that uses the words mid-sentence ("An excerpt:
+ * the first bars") passes, since any finding refuses the write. PURE.
+ *
+ * @param string $value
+ * @return string The label as written, without its colon.
+ */
+function snt_surface_leaked_label( $value ) {
+	$s     = '[\s_-]*';
+	$label = 'focus' . $s . 'key(?:word|phrase)|(?:meta|seo)' . $s . '(?:description|title)|(?:og|open' . $s . 'graph)' . $s . '(?:card' . $s . ')?title|excerpt';
+	$re    = '/(?:^|[.!?])\s*(?:_?sn_|post_)?(' . $label . ')\s*:/im';
+	return 1 === preg_match( $re, (string) $value, $m ) ? $m[1] : '';
 }

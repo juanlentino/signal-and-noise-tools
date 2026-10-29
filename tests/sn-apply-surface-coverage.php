@@ -142,6 +142,8 @@ $expected_surface = array(
 	'snt_sn_apply_write_restore_revision',
 	'snt_sn_apply_write_roadmap_board',
 	'snt_sn_apply_write_surfaces',
+	'snt_sn_apply_surfaces_diff',
+	'snt_sn_apply_field_label_findings',
 );
 
 /* ── layout detection ──────────────────────────────────────────────────── */

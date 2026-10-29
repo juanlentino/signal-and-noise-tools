@@ -32,6 +32,9 @@ require_once __DIR__ . '/../surface-fields.php';
  * @return array|WP_Error
  */
 function snt_sn_apply_write_surfaces( $post_id, array $payload, $mode, $fingerprint ) {
+	// Read before writing, so the response carries what the write replaced,
+	// the same {before, after} the dry run previews (2026-10-29).
+	$diff = snt_sn_apply_surfaces_diff( $post_id, $payload );
 	if ( 'publish' === $mode ) {
 		$input           = $payload;
 		$input['post_id'] = $post_id;
@@ -39,22 +42,18 @@ function snt_sn_apply_write_surfaces( $post_id, array $payload, $mode, $fingerpr
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
-		return array( 'ok' => true, 'diff' => array( 'before' => null, 'after' => $payload, 'blocks_touched' => 0 ), 'revision_id' => null, 'write_result' => $result );
+		return array( 'ok' => true, 'diff' => $diff, 'revision_id' => null, 'write_result' => $result );
 	}
 
 	// mode: revision.
 	$revision_id = null;
 	$staged_meta = array();
 	if ( array_key_exists( 'excerpt', $payload ) ) {
-		$cb      = snt_sn_apply_revision_write_callback( $revision_id );
-		$post    = get_post( $post_id );
-		$before  = $post ? (string) $post->post_excerpt : '';
-		$staged  = snt_sn_apply_stage_revision( $post_id, array( 'post_excerpt' => (string) $payload['excerpt'] ) );
+		$staged = snt_sn_apply_stage_revision( $post_id, array( 'post_excerpt' => (string) $payload['excerpt'] ) );
 		if ( is_wp_error( $staged ) ) {
 			return $staged;
 		}
 		$revision_id = (int) $staged['revision_id'];
-		unset( $cb, $before );
 	}
 	foreach ( snt_surface_meta_keys() as $meta_field => $meta_key ) {
 		if ( array_key_exists( $meta_field, $payload ) ) {
@@ -68,10 +67,38 @@ function snt_sn_apply_write_surfaces( $post_id, array $payload, $mode, $fingerpr
 
 	return array(
 		'ok'           => true,
-		'diff'         => array( 'before' => null, 'after' => $payload, 'blocks_touched' => 0 ),
+		'diff'         => $diff,
 		'revision_id'  => $revision_id,
 		'write_result' => array( 'ok' => true, 'card_regenerated' => false, 'staged_meta' => $staged_meta ),
 	);
+}
+
+/**
+ * surfaces' {before, after}: the stored value of every field the payload
+ * names, beside the value it asks for. One reader for the dry run and both
+ * write modes, so a preview and the write it approves report the same thing.
+ * sn-posts reads the meta fields through snt_surface_value() too, so its row
+ * and this `before` cannot disagree.
+ *
+ * @param int   $post_id
+ * @param array $payload
+ * @return array{before:array,after:array,blocks_touched:int}
+ */
+function snt_sn_apply_surfaces_diff( $post_id, array $payload ) {
+	$before = array();
+	$after  = array();
+	if ( array_key_exists( 'excerpt', $payload ) ) {
+		$post              = get_post( $post_id );
+		$before['excerpt'] = $post ? (string) $post->post_excerpt : '';
+		$after['excerpt']  = (string) $payload['excerpt'];
+	}
+	foreach ( array_keys( snt_surface_meta_keys() ) as $field ) {
+		if ( array_key_exists( $field, $payload ) ) {
+			$before[ $field ] = snt_surface_value( $post_id, $field );
+			$after[ $field ]  = (string) $payload[ $field ];
+		}
+	}
+	return array( 'before' => $before, 'after' => $after, 'blocks_touched' => 0 );
 }
 
 /**
@@ -190,23 +217,7 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 			);
 
 		case 'surfaces':
-			$post_id = $resolved['post_id'] ?? 0;
-			$post    = get_post( $post_id );
-			$before  = array();
-			$after   = array();
-			if ( array_key_exists( 'excerpt', $payload ) ) {
-				$before['excerpt'] = $post ? (string) $post->post_excerpt : '';
-				$after['excerpt']  = (string) $payload['excerpt'];
-			}
-			// sn-posts reads the same fields through snt_surface_value(), so its
-			// row and this `before` cannot disagree.
-			foreach ( array_keys( snt_surface_meta_keys() ) as $field ) {
-				if ( array_key_exists( $field, $payload ) ) {
-					$before[ $field ] = snt_surface_value( $post_id, $field );
-					$after[ $field ]  = (string) $payload[ $field ];
-				}
-			}
-			return array( 'before' => $before, 'after' => $after, 'blocks_touched' => 0 );
+			return snt_sn_apply_surfaces_diff( $resolved['post_id'] ?? 0, $payload );
 
 		case 'create_draft':
 			// {title, block_count, word_count} — not a before/after content

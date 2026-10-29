@@ -213,6 +213,14 @@ function snt_sn_apply_gate2_create_draft( array $payload ) {
 		$checks[]  = 'og_card_title';
 		$findings  = array_merge( $findings, snt_sn_validate_check_og_card_title( (string) $payload['og_card_title'], 0, $title ) );
 	}
+	// The same label check `surfaces` runs, over the three fields a draft takes.
+	if ( function_exists( 'snt_sn_apply_field_label_findings' ) ) {
+		$labels = snt_sn_apply_field_label_findings( 0, $payload, array( 'excerpt', 'meta_description', 'og_card_title' ) );
+		if ( $labels['checked'] ) {
+			$checks[] = 'field_label';
+			$findings = array_merge( $findings, $labels['findings'] );
+		}
+	}
 
 	return array( 'checks' => array_values( array_unique( $checks ) ), 'findings' => $findings );
 }

@@ -13,6 +13,39 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/../surface-fields.php';
+
+/**
+ * A drafting label pasted in with a value is refused (2026-10-29): one error
+ * finding per named field that carries one (snt_surface_leaked_label()).
+ * Shared by the surfaces and create_draft gates, the two that write these
+ * fields.
+ *
+ * @param int      $post_id 0 for a draft that does not exist yet.
+ * @param array    $payload
+ * @param string[] $fields  The fields this change type writes.
+ * @return array{checked:bool,findings:array} checked: a named field was present.
+ */
+function snt_sn_apply_field_label_findings( $post_id, array $payload, array $fields ) {
+	$fields   = array_intersect( $fields, array_keys( $payload ) );
+	$findings = array();
+	if ( empty( $fields ) || ! function_exists( 'snt_sn_validate_finding' ) ) {
+		return array( 'checked' => false, 'findings' => $findings );
+	}
+	foreach ( $fields as $field ) {
+		$label = snt_surface_leaked_label( (string) $payload[ $field ] );
+		if ( '' !== $label ) {
+			$findings[] = snt_sn_validate_finding(
+				$field, 'field_label', 'error',
+				/* translators: %s: the label found in the value, e.g. "FOCUS KEYWORD". */
+				sprintf( __( 'The value carries a field label ("%s:"). Remove the label and keep only the text.', 'signal-and-noise-tools' ), $label ),
+				$label, '', array(), $post_id . '|' . (string) $payload[ $field ]
+			);
+		}
+	}
+	return array( 'checked' => true, 'findings' => $findings );
+}
+
 /**
  * Gate 2 input: which sn_validate check family (if any) applies to this
  * change type, and what `proposed` shape to hand its INTERNAL check
@@ -67,6 +100,12 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 				$checks[]  = 'og_card_title';
 				$title     = $post ? (string) $post->post_title : '';
 				$findings  = array_merge( $findings, snt_sn_validate_check_og_card_title( (string) $payload['og_card_title'], $post_id, $title ) );
+			}
+			// Every field this type writes, seo_title and focus_keyword too.
+			$labels = snt_sn_apply_field_label_findings( $post_id, $payload, array_merge( array( 'excerpt' ), array_keys( snt_surface_meta_keys() ) ) );
+			if ( $labels['checked'] ) {
+				$checks[] = 'field_label';
+				$findings = array_merge( $findings, $labels['findings'] );
 			}
 			return array( 'checks' => $checks, 'findings' => $findings );
 

@@ -8,12 +8,12 @@
  * change per request, so no hash can pin them:
  *
  *   - any front-end request from a signed-in user (the admin bar and core
- *     print per-request inline scripts);
+ *     print per-request inline scripts), decided on `wp`;
  *   - wp-admin, outside admin-ajax (the dashboard is all inline scripts);
  *   - every login screen: login_init fires inside wp-login.php for the hidden
  *     door and for every action (lost password, reset, logout, 2FA, passkey);
  *   - any page carrying the AllTerrain Forms form, wherever it is placed: its
- *     block or shortcode in the post content (decided at template_redirect),
+ *     block or shortcode in the post content (decided on `wp`),
  *     its block or shortcode rendering anywhere, or its config script
  *     (allterrain-forms-config, inline with a nonce) queued; plus /contact/
  *     by slug as a belt.
@@ -22,8 +22,10 @@
  * page loose, so the rule errs toward marking. Ordinary public pages for a
  * stranger are never marked; the daily CSP check (inc/csp-hash-check.php)
  * reads them without cookies and raises the csp_hashes watch if one is.
- * REST and admin-ajax are not marked: they are not HTML, and REST never
- * reaches template_redirect.
+ * REST is never marked: it exits at parse_request, before `wp`. admin-ajax
+ * is not marked by admin_init; the one ajax call that runs wp() (a list
+ * table refresh) is signed in, so marking its JSON loosens nothing that
+ * matters.
  *
  * @package SignalNoiseTools
  */
@@ -74,7 +76,12 @@ function sn_csp_mark_lax() {
 	return $marked;
 }
 
-/** Front end: decide once the query is known, before any output. */
+/**
+ * Front end: decide on `wp`, once the query is known and before any
+ * template_redirect handler runs. The theme draws /notes, its tag pages and
+ * /index at template_redirect priority 0 and exits, so a marker there never
+ * reached those pages for a signed-in visitor (2026-10-29).
+ */
 function sn_csp_lax_front() {
 	if ( '' !== sn_csp_lax_reason() ) {
 		sn_csp_mark_lax();
@@ -114,7 +121,7 @@ function sn_csp_lax_admin() {
 }
 
 if ( ! defined( 'SN_CSP_LAX_TEST' ) || ! SN_CSP_LAX_TEST ) {
-	add_action( 'template_redirect', 'sn_csp_lax_front', 1 );
+	add_action( 'wp', 'sn_csp_lax_front', 1 );
 	add_action( 'login_init', 'sn_csp_mark_lax', 1 );
 	add_action( 'admin_init', 'sn_csp_lax_admin', 1 );
 	add_filter( 'render_block_allterrain-forms/form', 'sn_csp_lax_form_rendered', 1, 1 );
