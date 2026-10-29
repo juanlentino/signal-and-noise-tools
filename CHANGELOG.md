@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Signed-in archive pages keep the loose CSP again.** The `X-SN-CSP: lax` marker was decided at `template_redirect` priority 1, but the theme draws `/notes/`, its paged and tag views, and `/index/` at `template_redirect` priority 0 and exits. Those pages reached a signed-in visitor without the marker, so the strict policy blocked the per-request inline scripts there (the admin bar's `sntAbilityRunData`, and core's import map whenever its hash was stale). The marker now runs on `wp`, which fires after the query is set and before any `template_redirect` handler. Strangers are unaffected: their reason is still empty on every public page.
+
 ### Removed
 - **The `.git` preservation module.** `inc/wp-update-git-preservation.php` moved the plugin's `.git` to a fixed path, `wp-content/upgrade/sn-signal-and-noise-tools-git-backup`, for the length of a WP UI install, then moved it back. It existed for the old deploy that ran `git checkout` inside the live plugin directory. Production has had no `.git` since the owner removed it by hand on 2026-07-15 (it had survived every footprint-janitor sweep on file ownership), and nothing brings one back: `deploy.yml` rsyncs a `git archive` payload with `--delete`, and a WP UI install unpacks a tag archive. The module returned early when `.git` was absent, so on production it did nothing. Kept, it would park a `.git` under a predictable name in the web-served `wp-content/upgrade/`, the pattern WordPress 7.1.4 removed from core (`WP_Upgrader::get_working_dir_name()`, new in 7.1.4, names core's working directory with 16 random characters). No behavior changes on the live site. On a site that is still a git checkout, a WP UI update now replaces `.git` like any other file; deploy those with the archive path.
 
