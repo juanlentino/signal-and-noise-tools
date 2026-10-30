@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The queue twin suites no longer fail near a DST change.** `queue-cadence-twins`, `queue-runway-twins` and `queue-slot-twins` placed fixture notes at `time() + days × 86400`. Across a DST change a day is 23 or 25 hours, so two notes "one day apart" could land on one calendar day (Nov 1 2026, New York) or two, and `queue-cadence-twins` failed at some hours of the week before each change: 24 of 3,456 ten-minute instants across the 2026 and 2027 change weeks. The three suites now share one fixture, `tests/lib/queue-post.php`, which places each note at local noon a whole number of calendar days out; across the same instants it fails at none. Test-only: no plugin code changes.
+
 ## [2026.10.78] - 2026-10-29 — signed-in archives keep the loose CSP, and surfaces writes report what they replace
 
 ### Fixed

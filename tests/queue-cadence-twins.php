@@ -26,13 +26,8 @@ function wp_count_posts( $t = 'post' ) { return (object) array( 'draft' => count
 function sn_schedule_all() { return array(); }
 function sn_schedule_future_posts() { return array(); }
 function sn_schedule_swap_pairs( $f ) { return array(); }
-$post = static function ( $id, $days ) {
-	$p                = new WP_Post();
-	$p->ID            = $id;
-	$p->post_title    = "Note $id";
-	$p->post_date_gmt = gmdate( 'Y-m-d H:i:s', time() + (int) ( $days * 86400 ) );
-	return $p;
-};
+require_once __DIR__ . '/lib/queue-post.php';
+$post = 'snt_test_queue_post'; // Local noon, whole calendar days: DST-proof (tests/lib/queue-post.php).
 
 require SNT_PATH . 'inc/abilities-content-queue.php';
 require SNT_PATH . 'inc/admin-glance.php';
