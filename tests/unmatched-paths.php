@@ -94,5 +94,13 @@ ok( 'linkedin.com' === $joined['/blog/the-free-version-already-shipped']['referr
 ok( 404 === $joined['/old-name']['status'] && null === $joined['/old-name']['referrer'], 'no referrer logged reads null, never a guess' );
 ok( null === $joined['/old/{email}/x']['status'], 'a path the log does not hold keeps status null' );
 
+echo "\nThe suggester runs only for the people rows shown\n";
+$calls   = array();
+$counted = static function ( $c ) use ( &$calls, $suggest ) { $calls[] = $c; return $suggest( $c ); };
+$lim     = snt_unmatched_report_rows( $rows, $real, $counted, $is_probe, 1 );
+ok( array( $lim['people'][0]['path'] ) === $calls, 'with a limit of 1, the suggester runs once, for the top person row, and never for a probe or bot row' );
+$past = array_filter( array_slice( $lim['people'], 1 ), static fn( $p ) => ! $p['variant'] );
+ok( count( $past ) > 0 && array( null ) === array_values( array_unique( array_column( $past, 'suggest' ) ) ), 'every person row past the limit carries no suggestion unless it is a spelling of a page' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

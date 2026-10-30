@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/health-unmatched-paths.php'; // The words both twins share.
+
 /**
  * One table of rows.
  *

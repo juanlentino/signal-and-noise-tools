@@ -40,15 +40,16 @@ function snt_unmatched_stored_rows() {
  * the 404 log's own (inc/redirects-404-log.php), so the site keeps one probe
  * vocabulary and one way of guessing a redirect.
  *
+ * @param int $suggest_limit People rows that get a redirect suggestion.
  * @return array{people:array,automated:array,capped:bool}
  */
-function snt_unmatched_report() {
+function snt_unmatched_report( $suggest_limit = PHP_INT_MAX ) {
 	$real       = function_exists( 'snt_arows_real_paths' ) ? snt_arows_real_paths() : array( '/' => true );
 	$candidates = function_exists( 'sn_404_published_paths' ) ? sn_404_published_paths() : array();
 	$suggest    = static fn( $clean ) => function_exists( 'sn_404_suggest_target' ) ? sn_404_suggest_target( $clean, $candidates ) : '';
 	$is_probe   = static fn( $clean ) => function_exists( 'sn_404_should_capture' ) && ! sn_404_should_capture( $clean );
 	$read       = snt_unmatched_stored_rows();
-	$report     = snt_unmatched_report_rows( $read['rows'], $real, $suggest, $is_probe );
+	$report     = snt_unmatched_report_rows( $read['rows'], $real, $suggest, $is_probe, $suggest_limit );
 	$log        = function_exists( 'sn_404_log_all' ) ? sn_404_log_all() : array();
 	return array(
 		'people'    => snt_unmatched_join_404( $report['people'], $log ),

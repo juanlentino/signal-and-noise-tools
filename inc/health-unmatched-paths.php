@@ -7,7 +7,7 @@
  * from the stored analytics (inc/unmatched-paths-read.php) and joined to the
  * 404 log for status and referrer. Zero findings by design: the paths are the
  * deliverable, the fix is the owner's (a link at its source, or a redirect in
- * Site > Redirects), and nothing here creates one.
+ * Site › Redirects), and nothing here creates one.
  *
  * Kept out of every machine read on purpose: a report-only check has no
  * findings, so the health-scan tools (local and remote) name it and say it
@@ -35,10 +35,10 @@ function sn_health_check_unmatched_paths() {
 	$packed = sn_health_pack_check(
 		__( 'Unmatched paths: what visitors asked for that is not a note or page (report only)', 'signal-and-noise-tools' ),
 		array(), // Report-first: the paths are the deliverable.
-		__( 'Report only: fix the link where it lives, or add a redirect in Site > Redirects. Nothing here creates one.', 'signal-and-noise-tools' ),
+		__( 'Report only: fix the link where it lives, or add a redirect in Site › Redirects. Nothing here creates one.', 'signal-and-noise-tools' ),
 		null
 	);
-	$r = snt_unmatched_report();
+	$r = snt_unmatched_report( SN_UNMATCHED_REPORT_PEOPLE );
 	$packed['report'] = array(
 		'people'          => array_slice( $r['people'], 0, SN_UNMATCHED_REPORT_PEOPLE ),
 		'people_total'    => count( $r['people'] ),

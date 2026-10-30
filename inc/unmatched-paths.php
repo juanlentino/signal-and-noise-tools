@@ -37,9 +37,10 @@ require_once __DIR__ . '/unmatched-paths-clean.php';
  * @param array<string,bool>             $real     Canonical content paths.
  * @param callable                       $suggest  fn( string $clean ): string, a content path to redirect to, or ''.
  * @param callable                       $is_probe fn( string $clean ): bool.
+ * @param int                            $suggest_limit People rows that get a suggestion (the rows shown): the suggester compares against every page, so it runs after the sort, not per stored path.
  * @return array{people:array,automated:array}
  */
-function snt_unmatched_report_rows( array $rows, array $real, callable $suggest, callable $is_probe ) {
+function snt_unmatched_report_rows( array $rows, array $real, callable $suggest, callable $is_probe, $suggest_limit = PHP_INT_MAX ) {
 	$by = array();
 	foreach ( $rows as $r ) {
 		$stored = (string) ( $r['path'] ?? '' );
@@ -62,12 +63,10 @@ function snt_unmatched_report_rows( array $rows, array $real, callable $suggest,
 	foreach ( $by as $clean => $m ) {
 		$m['class']   = $m['human'] > 0 ? 'human' : ( $m['suspect'] > 0 ? 'suspect' : 'bot' );
 		$m['probe']   = (bool) $is_probe( $clean );
-		$hit          = $m['probe'] ? '' : (string) $suggest( $clean );
-		$m['suggest'] = '' === $hit ? null : $hit;
 		// A spelling of a page (capitals, doubled slashes): stored apart, the
 		// same page once cleaned. Said, so the row is not read as a broken link.
 		$m['variant'] = isset( $real[ $clean ] );
-		$m['suggest'] = $m['variant'] ? $clean : $m['suggest'];
+		$m['suggest'] = $m['variant'] ? $clean : null; // the rest, below, after the sort.
 		$m['status']  = null; // set by snt_unmatched_join_404() when the 404 log saw it.
 		$m['referrer'] = null;
 		if ( ! $m['probe'] && 'bot' !== $m['class'] ) {
@@ -78,6 +77,12 @@ function snt_unmatched_report_rows( array $rows, array $real, callable $suggest,
 	}
 	$order = static fn( $a, $b ) => ( $b['human'] <=> $a['human'] ) ?: ( strcmp( $b['last_seen'], $a['last_seen'] ) ?: strcmp( $a['path'], $b['path'] ) );
 	usort( $people, $order );
+	foreach ( array_slice( array_keys( $people ), 0, max( 0, (int) $suggest_limit ) ) as $i ) {
+		if ( ! $people[ $i ]['variant'] ) {
+			$hit                    = (string) $suggest( $people[ $i ]['path'] );
+			$people[ $i ]['suggest'] = '' === $hit ? null : $hit;
+		}
+	}
 	usort( $automated, static fn( $a, $b ) => ( ( $b['human'] + $b['suspect'] + $b['bot'] ) <=> ( $a['human'] + $a['suspect'] + $a['bot'] ) ) ?: strcmp( $a['path'], $b['path'] ) );
 	return array( 'people' => $people, 'automated' => $automated );
 }
