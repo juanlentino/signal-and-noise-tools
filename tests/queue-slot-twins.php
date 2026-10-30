@@ -28,13 +28,8 @@ function wp_count_posts( $t = 'post' ) { return (object) array( 'draft' => $GLOB
 function sn_schedule_all() { return array(); }
 function sn_schedule_future_posts() { return array(); }
 function sn_schedule_swap_pairs( $f ) { return array(); }
-$post = static function ( $id, $days, $title = null ) {
-	$p                = new WP_Post();
-	$p->ID            = $id;
-	$p->post_title    = $title ?? "Note $id";
-	$p->post_date_gmt = gmdate( 'Y-m-d H:i:s', time() + (int) ( $days * 86400 ) );
-	return $p;
-};
+require_once __DIR__ . '/lib/queue-post.php';
+$post = 'snt_test_queue_post'; // Local noon, whole calendar days: DST-proof (tests/lib/queue-post.php).
 
 require SNT_PATH . 'inc/abilities-content-queue.php';
 require SNT_PATH . 'inc/admin-glance.php';
@@ -49,7 +44,7 @@ $both = static function () use ( $text ) {
 };
 
 // A note every 4 days with a 12-day hole, and two drafts.
-$GLOBALS['__q']['future'] = array( $post( 1, 2.2 ), $post( 2, 6.2 ), $post( 3, 18.2 ), $post( 4, 22.2 ) );
+$GLOBALS['__q']['future'] = array( $post( 1, 2 ), $post( 2, 6 ), $post( 3, 18 ), $post( 4, 22 ) );
 $GLOBALS['__q']['draft']  = array( $post( 8, 0, 'Draft <b>A</b>' ), $post( 9, 0, 'Draft B' ) );
 $read = sn_content_queue_slot_read();
 ok( 2 === count( $read['slots'] ) && null !== $read['slots'][0]['day'] && $read['slots'][0]['day'] !== $read['slots'][1]['day'], 'the reader gives each draft its own suggested day from the real queue rows' );

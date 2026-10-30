@@ -26,13 +26,8 @@ function wp_count_posts( $t = 'post' ) { return (object) array( 'draft' => count
 function sn_schedule_all() { return array(); }
 function sn_schedule_future_posts() { return array(); }
 function sn_schedule_swap_pairs( $f ) { return array(); }
-$post = static function ( $id, $days ) {
-	$p                = new WP_Post();
-	$p->ID            = $id;
-	$p->post_title    = "Note $id";
-	$p->post_date_gmt = gmdate( 'Y-m-d H:i:s', time() + (int) ( $days * 86400 ) );
-	return $p;
-};
+require_once __DIR__ . '/lib/queue-post.php';
+$post = 'snt_test_queue_post'; // Local noon, whole calendar days: DST-proof (tests/lib/queue-post.php).
 
 require SNT_PATH . 'inc/abilities-content-queue.php';
 require SNT_PATH . 'inc/admin-glance.php';
@@ -47,7 +42,7 @@ $text = static fn( $h ) => trim( preg_replace( '/\s+/', ' ', html_entity_decode(
 
 // A cluster (two notes 1 day apart), then a 12-day gap, then a 16-day gap the
 // owner marked planned (the holiday shape).
-$GLOBALS['__q']['future'] = array( $post( 1, 2.2 ), $post( 2, 3.2 ), $post( 3, 6.2 ), $post( 4, 18.2 ), $post( 5, 22.2 ), $post( 6, 38.2 ) );
+$GLOBALS['__q']['future'] = array( $post( 1, 2 ), $post( 2, 3 ), $post( 3, 6 ), $post( 4, 18 ), $post( 5, 22 ), $post( 6, 38 ) );
 $warn  = sn_content_queue_cadence_read();
 ok( array( 'cluster', 'gap', 'gap' ) === array_column( $warn, 'kind' ), 'the reader finds the cluster and both gaps from the real queue rows' );
 $GLOBALS['__opts']['sn_content_queue_planned_gaps'] = array( $warn[2]['from'] . '|' . $warn[2]['to'] );
@@ -62,9 +57,10 @@ foreach ( array_merge( array( sn_content_queue_cadence_rule() ), array_column( $
 ok( false !== strpos( $kit, 'Cadence' ) && false !== strpos( $classic, 'Cadence' ), 'both twins head the box Cadence' );
 $kit_html = snt_leaf_paint( 'connections', 'scheduled-content' );
 ok( false === strpos( $kit_html, '<details' ) && false === strpos( $kit_html, 'snt-fold' ), 'the warnings are status: open, never in a fold' );
-ok( 1 === preg_match( '/Cluster: 2 notes [A-Z][a-z]{2} \d+ and [A-Z][a-z]{2} \d+/', $kit ), 'a warning names its kind in words, so it never rests on color' );
+// A label gains its year across New Year ("Jan 1, 2027"): Dec 30 and 31 failed without it.
+ok( 1 === preg_match( '/Cluster: 2 notes [A-Z][a-z]{2} \d+(?:, \d{4})? and [A-Z][a-z]{2} \d+/', $kit ), 'a warning names its kind in words, so it never rests on color' );
 
-$GLOBALS['__q']['future'] = array( $post( 1, 2.2 ), $post( 2, 5.2 ) );
+$GLOBALS['__q']['future'] = array( $post( 1, 2 ), $post( 2, 5 ) );
 $kit     = $text( snt_leaf_paint( 'connections', 'scheduled-content' ) );
 $classic = $text( snt_leaf_classic_html( 'sn_admin_render_scheduled_content_section' ) );
 ok( false !== strpos( $kit, sn_content_queue_cadence_clear() ) && false !== strpos( $classic, sn_content_queue_cadence_clear() ), 'a steady schedule says so on both twins, never an empty box' );
