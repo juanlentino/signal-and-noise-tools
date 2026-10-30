@@ -97,6 +97,8 @@ function sn_health_check_surface_map() {
 		// 2026-10-22: a list of URLs to request, not a defect count (Google
 		// moves on its own clock), so it is a report.
 		'indexing'              => 'integrity',
+		// 2026-10-29: paths to fix or redirect, not a defect count: a report.
+		'unmatched_paths'       => 'integrity',
 		// v13.89.1 — HEALTH, and v13.89.0 got this wrong. It was filed as
 		// `integrity` on the reasoning that "nothing on the SITE is wrong, a
 		// measurement stopped arriving". That misreads criterion 1 above: it

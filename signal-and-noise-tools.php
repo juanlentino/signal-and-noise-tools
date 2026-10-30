@@ -715,6 +715,7 @@ require_once SNT_PATH . 'inc/abilities-analytics-sections.php'; // sn-metrics' a
 require_once SNT_PATH . 'inc/abilities-login-defense.php';  // v12.11.0: read-only IPv6-criterion gauge (wp-admin only until now)
 require_once SNT_PATH . 'inc/analytics-rows.php';           // analytics rows, the pure half: validation, the path allowlist, the hostname rule.
 require_once SNT_PATH . 'inc/analytics-rows-fetch.php';     // analytics rows, the read half: the stored daily and dims tables.
+require_once SNT_PATH . 'inc/analytics-rows-unmatched.php';  // 2026-10-29: the local "(unmatched)" breakdown, by cleaned path.
 require_once SNT_PATH . 'inc/abilities-analytics-rows.php'; // signal-noise/analytics-rows and its remote twin (contract 15).
 require_once SNT_PATH . 'inc/abilities-remote-analytics.php'; // R3 §3D Increment 1: remote-scoped analytics ability, off the MCP allowlists by design.
 require_once SNT_PATH . 'inc/abilities-remote-set.php'; // R3 §3D Increment 2: the remote set widens 1 -> 8, same isolation pattern applied to seven more twins.

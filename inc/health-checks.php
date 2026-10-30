@@ -212,6 +212,10 @@ function sn_health_run_scan() {
 			// contrast and motion reports so it leads the Reports leaf and the
 			// motion report still closes it (its pairing with the facts box).
 			'indexing'             => sn_health_check_indexing(),
+			// 2026-10-29 (report only): the paths visitors reached that are not
+			// a note or page, named from the stored analytics and joined to the
+			// 404 log. Beside indexing: both are lists the owner acts on.
+			'unmatched_paths'      => sn_health_check_unmatched_paths(),
 			// 19th check (v10.82.0): token-level contrast, REPORT ONLY — the
 			// Accessibility planned row's first half. Zero findings by design
 			// (fixes are a later step against pairs a reader actually sees);
@@ -302,6 +306,8 @@ require_once __DIR__ . '/health-contrast-usage.php';
 require_once __DIR__ . '/health-motion-scan.php';
 // 2026-10-22: the indexing guard (report only).
 require_once __DIR__ . '/health-indexing.php';
+// 2026-10-29: the unmatched-paths report (report only).
+require_once __DIR__ . '/health-unmatched-paths.php';
 // v13.98.0: two checks born from the 2026-09-05 audits -- the dataset that can
 // tell a dead sensor from a quiet day, and the live half of the theme's
 // declared-vs-served preset guard.
