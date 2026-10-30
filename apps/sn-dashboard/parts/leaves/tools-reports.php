@@ -28,6 +28,7 @@ require_once __DIR__ . '/tools-reports-usage.php';
 require_once __DIR__ . '/tools-reports-placement.php';
 require_once __DIR__ . '/tools-reports-motion.php';
 require_once __DIR__ . '/tools-reports-indexing.php';
+require_once __DIR__ . '/tools-reports-unmatched.php';
 require_once __DIR__ . '/tools-reports-facts.php';
 
 /**
@@ -114,6 +115,7 @@ function tools_reports_renderers() {
 		'link_isolation'  => __NAMESPACE__ . '\\tools_reports_render_link_isolation',
 		'motion_scan'     => __NAMESPACE__ . '\\tools_reports_render_motion',
 		'indexing'        => __NAMESPACE__ . '\\tools_reports_render_indexing', // 2026-10-22.
+		'unmatched_paths' => __NAMESPACE__ . '\\tools_reports_render_unmatched', // 2026-10-29.
 	);
 }
 

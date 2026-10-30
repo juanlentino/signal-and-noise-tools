@@ -263,5 +263,12 @@ $broken = $reg['output_schema'];
 $broken['properties']['skipped']['items']['properties']['reason'] = array( 'type' => 'integer' );
 ok( array() !== sn_t_validate( $live_payload, $broken ), 'NEGATIVE CONTROL: a skipped item declared with the wrong type is DETECTED' );
 
+// 2026-10-29: a report-only check's rows stay off both doors. The unmatched-paths
+// report holds visitor paths for the owner's screen; this ability (and its remote
+// twin, which shares the callback) names the check and never carries its report.
+$GLOBALS['__scan'] = array( 'scanned_at' => 1700, 'elapsed_ms' => 1, 'checks' => array( 'unmatched_paths' => array( 'count' => 0, 'findings' => array(), 'label' => 'Unmatched paths', 'fix_hint' => 'Report only', 'report' => array( 'people' => array( array( 'path' => '/old/{email}/x', 'visitor_path' => '/old/{email}/x' ) ), 'people_total' => 1 ) ) ) );
+$sn_um = json_encode( snt_ability_get_health_scan( null ) );
+ok( false === strpos( $sn_um, '"report"' ) && false === strpos( $sn_um, 'people' ) && false === strpos( $sn_um, '/old/' ), 'a report-only check reaches the health scan without its report: no rows, no paths' );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );
