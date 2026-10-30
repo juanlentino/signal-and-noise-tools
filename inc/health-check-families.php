@@ -87,6 +87,8 @@ function sn_health_check_family_map() {
 		'gsc_history_stalled'  => 'analytics',
 		// 2026-10-22: the indexing guard reads the Search Console map, as above.
 		'indexing'             => 'analytics',
+		// 2026-10-29: read from the stored analytics, like the indexing guard.
+		'unmatched_paths'      => 'analytics',
 
 		// Machine learning: the kernel's own watches.
 		'ml_cousins'           => 'ml',

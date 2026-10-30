@@ -14,6 +14,14 @@
  * sentinels the analytics worker writes; everything else is "(invalid)".
  * Removing either rule lets a visitor write into the reader. Do not simplify.
  *
+ * THE ONE EXCEPTION (owner, 2026-10-29): on the local door only, path
+ * "(unmatched)" breaks that bucket down, and each row names its path in
+ * `visitor_path`, CLEANED first (inc/unmatched-paths-clean.php: lowercase
+ * words, every email, id, hash, number or token a placeholder, nothing outside
+ * [a-z0-9._~-], 200 characters at most). `path` itself still obeys the rule
+ * above. The remote twin refuses the breakdown (inc/analytics-rows-unmatched.php,
+ * pinned in tests/abilities-remote-set.php).
+ *
  * @package SignalNoiseTools
  */
 
@@ -59,8 +67,15 @@ function snt_arows_validate( $input ) {
 	if ( ! is_int( $limit ) || $limit < 1 || $limit > 500 ) {
 		return $bad( 'limit must be an integer from 1 to 500.' );
 	}
-	$path = null;
-	if ( isset( $in['path'] ) ) {
+	$path      = null;
+	$unmatched = false;
+	if ( isset( $in['path'] ) && '(unmatched)' === $in['path'] ) {
+		// 2026-10-29: break the bucket down by cleaned path (inc/analytics-rows-unmatched.php).
+		if ( ! in_array( 'path', $dims, true ) ) {
+			return $bad( 'path "(unmatched)" breaks the bucket down by path, so dimensions must include path.' );
+		}
+		$unmatched = true;
+	} elseif ( isset( $in['path'] ) ) {
 		$path = snt_arows_input_path( $in['path'] );
 		if ( null === $path || ! in_array( $other[0] ?? 'day', array( 'path', 'day' ), true ) ) {
 			return $bad( 'path must be a site path starting with "/", and only with path or day: other pairs are not stored per page.' );
@@ -69,11 +84,11 @@ function snt_arows_validate( $input ) {
 	$referrer = null;
 	if ( isset( $in['referrer'] ) ) {
 		$referrer = snt_arows_host( $in['referrer'] );
-		if ( '(invalid)' === $referrer || null !== $path || ! in_array( $other[0] ?? 'day', array( 'referrer', 'day' ), true ) ) {
+		if ( '(invalid)' === $referrer || null !== $path || $unmatched || ! in_array( $other[0] ?? 'day', array( 'referrer', 'day' ), true ) ) {
 			return $bad( 'referrer must be a hostname, and only with referrer or day and no path: referrers are not stored per page.' );
 		}
 	}
-	return array( 'dims' => $dims, 'range' => 'all' === (string) $range ? 'all' : (int) $range, 'class' => $class, 'path' => $path, 'referrer' => $referrer, 'sort' => $sort, 'limit' => $limit );
+	return array( 'dims' => $dims, 'range' => 'all' === (string) $range ? 'all' : (int) $range, 'class' => $class, 'path' => $path, 'referrer' => $referrer, 'sort' => $sort, 'limit' => $limit, 'unmatched' => $unmatched );
 }
 
 /** A caller's path filter: query and fragment stripped, canonical, or null. PURE. */

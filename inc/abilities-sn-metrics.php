@@ -69,7 +69,7 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'rows'     => array(
 					'type'        => 'object',
-					'description' => 'analytics_rows only: {dimensions, path, referrer, sort, limit}; range and class come from the top level. dimensions is one of path, referrer, country, device, day, or one of the first four with day. Paths outside site content read (unmatched), referrers are hostnames, every value is named however small. Out-of-set values fail the whole call.',
+					'description' => 'analytics_rows only: {dimensions, path, referrer, sort, limit}; range and class come from the top level. dimensions is one of path, referrer, country, device, day, or one of the first four with day. Paths outside site content read (unmatched); path "(unmatched)" breaks that bucket down by cleaned path (visitor_path, with probe, suggested_target, and status and referrer_host from the 404 log). Referrers are hostnames, every value is named however small. Out-of-set values fail the whole call.',
 				),
 				'series'   => array(
 					'type'        => 'string',

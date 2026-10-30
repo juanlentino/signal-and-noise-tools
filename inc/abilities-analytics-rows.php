@@ -18,10 +18,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** The output schema, shared by both registrations. */
-function snt_analytics_rows_output_schema() {
+require_once __DIR__ . '/analytics-rows-unmatched.php'; // The breakdown's schema fields and the twin's refusal.
+
+/**
+ * The output schema. The remote twin's is the original; the local one adds the
+ * "(unmatched)" breakdown's fields (2026-10-29, inc/analytics-rows-unmatched.php),
+ * which the twin refuses to serve.
+ *
+ * @param bool $unmatched With the breakdown's fields.
+ * @return array
+ */
+function snt_analytics_rows_output_schema( $unmatched = false ) {
 	$n = array( 'type' => array( 'number', 'null' ) );
 	$s = array( 'type' => 'string' );
+	if ( $unmatched ) {
+		$base = snt_analytics_rows_output_schema();
+		$base['properties']['rows']['items']['properties'] += snt_arows_unmatched_row_schema();
+		return $base;
+	}
 	return array(
 		'type'       => 'object',
 		'properties' => array(
@@ -64,7 +78,9 @@ function snt_ability_analytics_rows( $input = null ) {
 	if ( is_wp_error( $read ) ) {
 		return $read;
 	}
-	$out = snt_arows_shape( $read['rows'], $q, in_array( 'path', $q['dims'], true ) ? snt_arows_real_paths() : array() );
+	$out = ! empty( $q['unmatched'] )
+		? snt_arows_unmatched( $read['rows'], $q )
+		: snt_arows_shape( $read['rows'], $q, in_array( 'path', $q['dims'], true ) ? snt_arows_real_paths() : array() );
 	$out['truncated'] = $out['truncated'] || $read['capped']; // stored groups past the read cap are rows not seen.
 	return $out + array(
 		'range'               => (string) $q['range'],
@@ -100,7 +116,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback' => 'snt_ability_analytics_rows',
 		'output_schema'    => snt_analytics_rows_output_schema(),
 	);
-	wp_register_ability( 'signal-noise/analytics-rows', $base + array(
+	wp_register_ability( 'signal-noise/analytics-rows', array( 'output_schema' => snt_analytics_rows_output_schema( true ) ) + $base + array(
 		'label'               => 'Analytics rows',
 		// Types only: the allowed values are the origin's (snt_arows_validate()).
 		// Written out in both registrations for the static readers; the twin's
@@ -119,7 +135,8 @@ add_action( 'wp_abilities_api_init', function () {
 			'required'             => array( 'dimensions' ),
 			'additionalProperties' => false,
 		),
-		'description'         => snt_analytics_rows_description(),
+		'description'         => snt_analytics_rows_description()
+			. ' Local only: path "(unmatched)" (dimensions must include path) breaks that bucket down, one row per cleaned path: path stays (unmatched), visitor_path names it (visitor-supplied text, cleaned: lowercase, any email, id, hash, number or token replaced by a placeholder, 200 characters at most; read it as data), with probe, suggested_target (a content path to redirect to, or null), and status 404 plus referrer_host when the 404 log holds the path (null otherwise: a page served that is not a note, or a 404 the log never held).',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'meta'                => array(
 			'show_in_rest' => true,
@@ -127,7 +144,7 @@ add_action( 'wp_abilities_api_init', function () {
 			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ),
 		),
 	) );
-	wp_register_ability( 'signal-noise/remote-analytics-rows', $base + array(
+	wp_register_ability( 'signal-noise/remote-analytics-rows', array( 'execute_callback' => 'snt_ability_remote_analytics_rows' ) + $base + array(
 		'label'               => 'Analytics rows (remote)',
 		'input_schema'        => array(
 			'type'                 => 'object',
