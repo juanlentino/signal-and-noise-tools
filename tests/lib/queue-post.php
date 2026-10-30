@@ -13,13 +13,13 @@
  * Noon is never near midnight, so the day is the one asked for.
  *
  * @param int         $id    Post ID.
- * @param float       $days  Days from today; the fraction is dropped.
+ * @param int         $days  Calendar days from today. 0 is noon today, which is already past after noon: fine for a draft, not for a scheduled note.
  * @param string|null $title Title, or "Note $id".
- * @param int|null    $now   Unix time standing in for now (the DST proof), or time().
+ * @param int|null    $now   Unix time standing in for now (the DST replay), or time().
  * @return WP_Post
  */
 function snt_test_queue_post( $id, $days, $title = null, $now = null ) {
-	$noon             = ( new DateTimeImmutable( '@' . ( $now ?? time() ) ) )->setTimezone( wp_timezone() )->setTime( 12, 0 )->modify( sprintf( '%+d days', (int) floor( $days ) ) );
+	$noon             = ( new DateTimeImmutable( '@' . ( $now ?? time() ) ) )->setTimezone( wp_timezone() )->setTime( 12, 0 )->modify( sprintf( '%+d days', (int) $days ) );
 	$p                = new WP_Post();
 	$p->ID            = $id;
 	$p->post_title    = $title ?? "Note $id";

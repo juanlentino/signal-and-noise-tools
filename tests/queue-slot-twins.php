@@ -44,7 +44,7 @@ $both = static function () use ( $text ) {
 };
 
 // A note every 4 days with a 12-day hole, and two drafts.
-$GLOBALS['__q']['future'] = array( $post( 1, 2.2 ), $post( 2, 6.2 ), $post( 3, 18.2 ), $post( 4, 22.2 ) );
+$GLOBALS['__q']['future'] = array( $post( 1, 2 ), $post( 2, 6 ), $post( 3, 18 ), $post( 4, 22 ) );
 $GLOBALS['__q']['draft']  = array( $post( 8, 0, 'Draft <b>A</b>' ), $post( 9, 0, 'Draft B' ) );
 $read = sn_content_queue_slot_read();
 ok( 2 === count( $read['slots'] ) && null !== $read['slots'][0]['day'] && $read['slots'][0]['day'] !== $read['slots'][1]['day'], 'the reader gives each draft its own suggested day from the real queue rows' );

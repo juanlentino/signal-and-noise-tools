@@ -68,7 +68,7 @@ $shape = sn_content_queue_shape( array( array( 'id' => 1, 'title' => 'A', 'ts' =
 ok( isset( $shape['runway']['text'] ) && 'Covered through Jan 25, 2027 (103 days)' === $shape['runway']['text'], 'the content-queue payload carries the runway sentence' );
 
 // Both twins, from the real queue reader.
-$GLOBALS['__q']['future'] = array( $post( 1, 2.2 ), $post( 2, 9.2 ), $post( 3, 40.2 ) );
+$GLOBALS['__q']['future'] = array( $post( 1, 2 ), $post( 2, 9 ), $post( 3, 40 ) );
 $read = sn_content_queue_runway_read();
 $mid  = static fn( $t ) => ( new DateTimeImmutable( '@' . $t ) )->setTimezone( $tz )->setTime( 0, 0, 0 );
 $want = (int) $mid( time() )->diff( $mid( strtotime( $GLOBALS['__q']['future'][2]->post_date_gmt . ' UTC' ) ) )->format( '%a' );
@@ -84,9 +84,9 @@ $box = static fn( $h ) => substr( $h, strpos( $h, 'Runway' ), 400 );
 ok( false === strpos( $box( $kh ), '<button' ) && false === strpos( $box( $ch ), '<form' ), 'read-only: no control in the box' );
 
 // The twins read the SITE timezone: a fixture where it differs from UTC. A
-// note 5.5 days out crosses midnight in some zones and not others; the reader
-// must match the site zone's reading, whichever zone that is.
-$GLOBALS['__q']['future'] = array( $post( 1, 5.5 ) );
+// note at noon New York reads as the next day in zones far ahead of UTC; the
+// reader must match the site zone's reading, whichever zone that is.
+$GLOBALS['__q']['future'] = array( $post( 1, 5 ) );
 $last  = strtotime( $GLOBALS['__q']['future'][0]->post_date_gmt . ' UTC' );
 $utc   = sn_content_queue_runway( array( $last ), time(), new DateTimeZone( 'UTC' ) )['text'];
 $other = null;
