@@ -12,6 +12,12 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Unmatched paths: what the site serves or already redirects sits apart.** The first live read (2026-10-30) put pages the site serves at the top of the people list: `/provhub` (26 views), `/notes/tags` (17), `/index`, the feeds. It also listed paths a redirect already handles, such as `/provenance/verify` to `/verify` and `/proof-of-origin`, and suggested redirects for them. The scan now checks the 50 most viewed people paths live, with the broken-links check's own probe (`sn_health_link_status()`: same host, HEAD, no redirect followed, cached a day, a Cloudflare challenge read as no answer). A 2xx or 3xx moves the path to a new "Served by the site" list on both twins, with its status ("served (200)", "redirects (301)"). A live 404 stays with the people rows, with its status. A path the check could not ask about (a placeholder in it), or that did not answer, keeps what the 404 log said. No list of theme routes is kept: the site's own answer decides, so a new route never needs registering. The breakdown on the local door makes no request and is unchanged. Pinned in `tests/unmatched-paths.php`, `tests/unmatched-paths-read.php` and `tests/os-leaf-tools-reports-unmatched.php`.
+
+### Fixed
+- **The "(unmatched)" breakdown's sums, stated as they are.** The catalog said the breakdown's rows sum to the default answer's `(unmatched)` row. Views do: 114 both ways, live. Visitor-days do not: 102 against 76. A stored row from before visitor-days were recorded (2026-07-11) reads its visits instead, and that fallback applies per row, so a path whose whole history predates it counts in the breakdown and not inside the merged bucket. The docs now say so, and `tests/analytics-rows-unmatched.php` pins the difference. The default answer is unchanged.
+
 ## [2026.10.79] - 2026-10-30 — unmatched paths named for the owner, and DST-proof queue tests
 
 ### Added

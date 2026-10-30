@@ -115,5 +115,26 @@ ok( array( $lim['people'][0]['path'] ) === $calls, 'with a limit of 1, the sugge
 $past = array_filter( array_slice( $lim['people'], 1 ), static fn( $p ) => ! $p['variant'] );
 ok( count( $past ) > 0 && array( null ) === array_values( array_unique( array_column( $past, 'suggest' ) ) ), 'every person row past the limit carries no suggestion unless it is a spelling of a page' );
 
+echo "\nThe live check\n";
+$live  = array( '/provhub' => 200, '/notes/subscribe' => 301, '/tools' => 404, '/quiet' => null );
+$asked = array();
+$check = static function ( $c ) use ( &$asked, $live ) { $asked[] = $c; return $live[ $c ] ?? null; };
+$rows  = array(
+	array( 'path' => '/old/{email}/x', 'variant' => false, 'status' => 404 ),
+	array( 'path' => '/notes/x', 'variant' => true, 'status' => null ),
+	array( 'path' => '/provhub', 'variant' => false, 'status' => null ),
+	array( 'path' => '/notes/subscribe', 'variant' => false, 'status' => null ),
+	array( 'path' => '/tools', 'variant' => false, 'status' => null ),
+	array( 'path' => '/quiet', 'variant' => false, 'status' => 404 ),
+	array( 'path' => '/past-the-limit', 'variant' => false, 'status' => null ),
+);
+$out = array_column( snt_unmatched_check_live( $rows, $check, 4 ), null, 'path' );
+ok( array( '/provhub', '/notes/subscribe', '/tools', '/quiet' ) === $asked, 'it asks about the first rows up to the limit, never a placeholder path or another spelling of a page' );
+ok( 'page' === $out['/provhub']['served'] && 200 === $out['/provhub']['status'], 'a 2xx is served by the site' );
+ok( 'redirect' === $out['/notes/subscribe']['served'] && 301 === $out['/notes/subscribe']['status'], 'a 3xx is a redirect that already sends it on' );
+ok( null === $out['/tools']['served'] && 404 === $out['/tools']['status'], 'a 404 stays a broken link, with the status it got' );
+ok( null === $out['/quiet']['served'] && 404 === $out['/quiet']['status'], 'no answer keeps what the 404 log said' );
+ok( null === $out['/past-the-limit']['served'] && null === $out['/past-the-limit']['status'], 'a row past the limit is not asked about' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

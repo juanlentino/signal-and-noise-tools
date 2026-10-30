@@ -25,6 +25,7 @@ require_once __DIR__ . '/unmatched-paths-read.php';
 
 const SN_UNMATCHED_REPORT_PEOPLE    = 100; // Rows the scan stores for people; the true total rides beside them.
 const SN_UNMATCHED_REPORT_AUTOMATED = 30;
+const SN_UNMATCHED_REPORT_SERVED    = 30;
 
 /**
  * The check.
@@ -46,6 +47,8 @@ function sn_health_check_unmatched_paths() {
 		'people'          => array_slice( $r['people'], 0, SN_UNMATCHED_REPORT_PEOPLE ),
 		'people_total'    => count( $r['people'] ),
 		'human_views'     => array_sum( array_column( $r['people'], 'human' ) ),
+		'served'          => array_slice( $r['served'], 0, SN_UNMATCHED_REPORT_SERVED ),
+		'served_total'    => count( $r['served'] ),
 		'automated'       => array_slice( $r['automated'], 0, SN_UNMATCHED_REPORT_AUTOMATED ),
 		'automated_total' => count( $r['automated'] ),
 		'capped'          => (bool) $r['capped'],
@@ -94,13 +97,23 @@ function sn_unmatched_seen_words( array $row ) {
 	return $first === $last ? $last : sprintf( __( '%1$s to %2$s', 'signal-and-noise-tools' ), $first, $last );
 }
 
-/** What the 404 log saw: "404 · from linkedin.com", "404", or "not in the 404 log" (plain text). */
+/**
+ * The status: what the live check got ("served (200)", "redirects (301)",
+ * "404"), else what the 404 log saw, with the referring host when the log has
+ * one, else "not in the 404 log" (plain text).
+ */
 function sn_unmatched_status_words( array $row ) {
-	if ( 404 !== ( $row['status'] ?? null ) ) {
+	$code = $row['status'] ?? null;
+	if ( null === $code ) {
 		return __( 'not in the 404 log', 'signal-and-noise-tools' );
 	}
-	/* translators: %s: referring hostname. */
-	return null === ( $row['referrer'] ?? null ) ? '404' : sprintf( __( '404 · from %s', 'signal-and-noise-tools' ), (string) $row['referrer'] );
+	$code = (int) $code;
+	if ( $code < 400 ) {
+		/* translators: %d: HTTP status code. */
+		return sprintf( $code < 300 ? __( 'served (%d)', 'signal-and-noise-tools' ) : __( 'redirects (%d)', 'signal-and-noise-tools' ), $code );
+	}
+	/* translators: 1: HTTP status code, 2: referring hostname. */
+	return null === ( $row['referrer'] ?? null ) ? (string) $code : sprintf( __( '%1$d · from %2$s', 'signal-and-noise-tools' ), $code, (string) $row['referrer'] );
 }
 
 /** The suggested fix (plain text). */

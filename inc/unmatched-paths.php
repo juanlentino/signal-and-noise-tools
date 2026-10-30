@@ -119,3 +119,34 @@ function snt_unmatched_join_404( array $rows, array $log ) {
 	}
 	return $rows;
 }
+
+/**
+ * What the site answers for the top rows, checked live: status is the code
+ * the request got, and `served` says a 2xx (the site serves it: a theme route,
+ * a feed) or a 3xx (a redirect already sends it on: Site › Redirects, the
+ * theme or WordPress's own guess). PURE given the probe. A row the probe
+ * cannot ask about (a placeholder in it, or another spelling of a page) or that
+ * did not answer keeps what the 404 log said.
+ *
+ * @param array<int,array<string,mixed>> $rows  Report rows, best first.
+ * @param callable                       $probe fn( string $clean ): ?int, the status code or null.
+ * @param int                            $limit Rows asked about.
+ * @return array<int,array<string,mixed>>
+ */
+function snt_unmatched_check_live( array $rows, callable $probe, $limit ) {
+	$asked = 0;
+	foreach ( $rows as $i => $row ) {
+		$rows[ $i ]['served'] = null;
+		if ( $asked >= $limit || ! empty( $row['variant'] ) || false !== strpos( (string) $row['path'], '{' ) ) {
+			continue;
+		}
+		++$asked;
+		$code = $probe( (string) $row['path'] );
+		if ( ! is_int( $code ) || $code < 200 ) {
+			continue;
+		}
+		$rows[ $i ]['status'] = $code;
+		$rows[ $i ]['served'] = $code < 300 ? 'page' : ( $code < 400 ? 'redirect' : null );
+	}
+	return $rows;
+}

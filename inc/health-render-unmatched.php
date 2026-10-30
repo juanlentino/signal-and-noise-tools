@@ -21,9 +21,9 @@ require_once __DIR__ . '/health-unmatched-paths.php'; // The words both twins sh
  * @param string $caption Caption.
  * @param array  $rows    Rows shown.
  * @param int    $total   The true total.
- * @param bool   $people  People columns, or the scanners' short ones.
+ * @param string $kind    'people' (status and fix), 'served' (status) or 'automated'.
  */
-function sn_health_render_unmatched_table( $caption, array $rows, $total, $people ) {
+function sn_health_render_unmatched_table( $caption, array $rows, $total, $kind ) {
 	if ( empty( $rows ) ) {
 		echo '<p class="sn-field-helper">' . esc_html( $caption ) . ': ' . esc_html__( 'none.', 'signal-and-noise-tools' ) . '</p>';
 		return;
@@ -32,9 +32,13 @@ function sn_health_render_unmatched_table( $caption, array $rows, $total, $peopl
 	echo '<div class="snt-scroll-table"><table class="widefat striped snt-mt-half">';
 	/* translators: 1: caption, 2: rows shown, 3: total. */
 	echo '<caption>' . esc_html( sprintf( __( '%1$s (%2$d of %3$d)', 'signal-and-noise-tools' ), $caption, count( $rows ), (int) $total ) ) . '</caption><thead><tr>';
-	$heads = $people
-		? array( __( 'Path', 'signal-and-noise-tools' ), __( 'Views', 'signal-and-noise-tools' ), __( 'Seen', 'signal-and-noise-tools' ), __( 'Status', 'signal-and-noise-tools' ), __( 'Suggested fix', 'signal-and-noise-tools' ) )
-		: array( __( 'Path', 'signal-and-noise-tools' ), __( 'Views', 'signal-and-noise-tools' ), __( 'Seen', 'signal-and-noise-tools' ) );
+	$heads = array( __( 'Path', 'signal-and-noise-tools' ), __( 'Views', 'signal-and-noise-tools' ), __( 'Seen', 'signal-and-noise-tools' ) );
+	if ( 'automated' !== $kind ) {
+		$heads[] = __( 'Status', 'signal-and-noise-tools' );
+	}
+	if ( 'people' === $kind ) {
+		$heads[] = __( 'Suggested fix', 'signal-and-noise-tools' );
+	}
 	foreach ( $heads as $h ) {
 		echo '<th scope="col">' . esc_html( $h ) . '</th>';
 	}
@@ -43,8 +47,10 @@ function sn_health_render_unmatched_table( $caption, array $rows, $total, $peopl
 		echo '<tr><td><code>' . esc_html( (string) ( $row['path'] ?? '' ) ) . '</code></td>';
 		echo '<td>' . esc_html( sn_unmatched_visits_words( $row ) ) . '</td>';
 		echo '<td>' . esc_html( sn_unmatched_seen_words( $row ) ) . '</td>';
-		if ( $people ) {
+		if ( 'automated' !== $kind ) {
 			echo '<td>' . esc_html( sn_unmatched_status_words( $row ) ) . '</td>';
+		}
+		if ( 'people' === $kind ) {
 			echo '<td>' . esc_html( sn_unmatched_fix_words( $row ) ) . '</td>';
 		}
 		echo '</tr>';
@@ -53,13 +59,15 @@ function sn_health_render_unmatched_table( $caption, array $rows, $total, $peopl
 }
 
 /**
- * The report: people first, then scanners and bots.
+ * The report: people first, then the paths the site serves or already
+ * redirects, then scanners and bots.
  *
  * @param array $report The check's report payload.
  */
 function sn_health_render_unmatched_report( $report ) {
 	$report = (array) $report;
 	echo '<p class="sn-health-report__headline">' . esc_html( sn_unmatched_headline( $report ) ) . '</p>';
-	sn_health_render_unmatched_table( __( 'People', 'signal-and-noise-tools' ), (array) ( $report['people'] ?? array() ), (int) ( $report['people_total'] ?? 0 ), true );
-	sn_health_render_unmatched_table( __( 'Scanners and bots', 'signal-and-noise-tools' ), (array) ( $report['automated'] ?? array() ), (int) ( $report['automated_total'] ?? 0 ), false );
+	sn_health_render_unmatched_table( __( 'People', 'signal-and-noise-tools' ), (array) ( $report['people'] ?? array() ), (int) ( $report['people_total'] ?? 0 ), 'people' );
+	sn_health_render_unmatched_table( __( 'Served by the site', 'signal-and-noise-tools' ), (array) ( $report['served'] ?? array() ), (int) ( $report['served_total'] ?? 0 ), 'served' );
+	sn_health_render_unmatched_table( __( 'Scanners and bots', 'signal-and-noise-tools' ), (array) ( $report['automated'] ?? array() ), (int) ( $report['automated_total'] ?? 0 ), 'automated' );
 }

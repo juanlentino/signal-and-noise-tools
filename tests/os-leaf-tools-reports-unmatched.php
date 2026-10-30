@@ -88,6 +88,8 @@ $report = array(
 	),
 	'people_total'    => 3,
 	'human_views'     => 9,
+	'served'          => array( $row( '/provhub', array( 'status' => 200, 'served' => 'page' ) ), $row( '/notes/subscribe', array( 'status' => 301, 'served' => 'redirect' ) ) ),
+	'served_total'    => 2,
 	'automated'       => array( $row( '/wp-login.php', array( 'human' => 0, 'bot' => 6 ) ) ),
 	'automated_total' => 1,
 	'capped'          => false,
@@ -109,6 +111,10 @@ foreach ( array(
 	'Same page, another spelling',
 	'not in the 404 log',
 	'No close match',
+	'Served by the site',
+	'/provhub',
+	'served (200)',
+	'redirects (301)',
 	'Scanners and bots',
 	'/wp-login.php',
 	'6 bot',
@@ -116,6 +122,8 @@ foreach ( array(
 	ok( false !== strpos( $classic, $needle ) && false !== strpos( $kit, $needle ), "both twins say: $needle" );
 }
 ok( false === strpos( $classic, '<b>y' ) && false === strpos( $kit, '<b>y' ) && false !== strpos( $classic, '/x&lt;b&gt;y' ) && false !== strpos( $kit, '/x&lt;b&gt;y' ), 'a path with markup is escaped by each renderer on its own' );
+$between = static fn( $h ) => (string) strstr( substr( $h, (int) strrpos( $h, 'Served by the site' ) ), 'Scanners and bots', true ); // the last mention: the coverage line names it too.
+ok( '' !== $between( $classic ) && '' !== $between( $kit ) && false === strpos( $between( $classic ), 'No close match' ) && false === strpos( $between( $kit ), 'No close match' ), 'the served list carries a status and no suggested fix, on both twins' );
 ok( array() === snt_leaf_folds( $kit ) && false === strpos( $classic, '<details' ), 'no fold on either twin' );
 ok( false === strpos( $kit, 'This report has no detail view yet' ), 'the native leaf has its own view for this report' );
 ok( false === strpos( $kit, '—' ) && false === strpos( $classic, ' — ' ), 'no em dash on either twin' );

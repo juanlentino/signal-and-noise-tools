@@ -2,7 +2,8 @@
 /**
  * Guard: analytics rows' "(unmatched)" breakdown (2026-10-29, local door
  * only). The query is refused unless it can work; the default answer does not
- * move; the breakdown's rows sum to the default's "(unmatched)" row; every
+ * move; the breakdown's views sum to the default's "(unmatched)" row (its
+ * visitor-days can run higher, pinned below); every
  * visitor_path is cleaned (no email, token or instruction text survives); the
  * probe flag, suggestion and 404-log join are the 404 log's own.
  *
@@ -77,6 +78,16 @@ ok( 404 === $by['/blog/the-free-version-already-shipped']['status'] && 'linkedin
 ok( 404 === $by['/old/{email}/x']['status'] && null === $by['/old/{email}/x']['referrer_host'], 'a logged path with no referrer reads status 404 and a null host' );
 ok( null === $by['/wp-login.php']['status'] && null === $by['/wp-login.php']['referrer_host'], 'a path the 404 log never held reads null, never a guess' );
 ok( array() === preg_grep( '/[^a-z0-9._~\/{}-]/', array_column( $out['rows'], 'visitor_path' ) ), 'every visitor_path is in the plain charset' );
+
+echo "\nVisitor-days before they were recorded\n";
+// Live 2026-10-30: 114 views both ways, 102 visitor-days against 76. A row with
+// no pageview_visits (history before exact_metrics_since) reads its visits, per
+// row: merged into the bucket beside rows that have them, it adds nothing.
+$mixed  = array( array( 'path' => '/a', 'views' => 3, 'visits' => 3, 'pageview_visits' => 3 ), array( 'path' => '/notes/feed', 'views' => 0, 'visits' => 17 ) );
+$split  = snt_arows_shape_unmatched( $mixed, $q, $real, static fn() => '', static fn() => false, array() );
+$merged = array_column( snt_arows_shape( $mixed, $v( array( 'dimensions' => array( 'path' ), 'limit' => 500 ) ), $real )['rows'], null, 'path' )['(unmatched)'];
+ok( 3 === $merged['views'] && 3 === array_sum( array_column( $split['rows'], 'views' ) ), 'views sum to the bucket either way' );
+ok( 3 === $merged['pageview_visits'] && 20 === array_sum( array_column( $split['rows'], 'pageview_visits' ) ), 'visitor-days do not: the old row reads its 17 visits on its own and nothing inside the bucket' );
 
 echo "\nLimit and day\n";
 $two = snt_arows_shape_unmatched( $rows, $v( array( 'dimensions' => array( 'path' ), 'path' => '(unmatched)', 'limit' => 2 ) ), $real, static fn() => '', static fn() => false, array() );

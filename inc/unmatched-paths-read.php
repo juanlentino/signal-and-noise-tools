@@ -16,6 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/unmatched-paths.php';
 
 const SNT_UNMATCHED_MAX_STORED = 20000; // Stored (path, class) groups read; past it the report says so.
+const SNT_UNMATCHED_PROBE_MAX  = 50;    // People rows checked live per scan, the most viewed first.
 
 /**
  * Every stored (path, class) group, all time, with its first and last day,
@@ -39,13 +40,31 @@ function snt_unmatched_stored_rows() {
 }
 
 /**
- * The whole report: people and automated rows, each joined to what the 404
- * log saw, and whether the read was cut. The probe test and the suggester are
- * the 404 log's own (inc/redirects-404-log.php), so the site keeps one probe
- * vocabulary and one way of guessing a redirect.
+ * The site's live answer for one cleaned path: the broken-links check's own
+ * probe (sn_health_link_status(): same host only, HEAD, no redirect followed,
+ * cached a day, a Cloudflare challenge read as no answer). Null when it did not
+ * answer, so the row keeps what the 404 log said.
+ *
+ * @param string $clean A cleaned path with no placeholder.
+ * @return int|null
+ */
+function snt_unmatched_live_status( $clean ) {
+	if ( ! function_exists( 'sn_health_link_status' ) ) {
+		return null;
+	}
+	$r = sn_health_link_status( home_url( user_trailingslashit( $clean ) ) );
+	return empty( $r['skipped'] ) && ! empty( $r['code'] ) ? (int) $r['code'] : null;
+}
+
+/**
+ * The whole report: people, the paths the site serves or already redirects,
+ * and automated rows, each joined to what the 404 log saw, the top people rows
+ * checked live, and whether the read was cut. The probe test and the suggester
+ * are the 404 log's own (inc/redirects-404-log.php), so the site keeps one
+ * probe vocabulary and one way of guessing a redirect.
  *
  * @param int $suggest_limit People rows that get a redirect suggestion.
- * @return array{people:array,automated:array,capped:bool,error:?string}
+ * @return array{people:array,served:array,automated:array,capped:bool,error:?string}
  */
 function snt_unmatched_report( $suggest_limit = PHP_INT_MAX ) {
 	$real       = function_exists( 'snt_arows_real_paths' ) ? snt_arows_real_paths() : array( '/' => true );
@@ -55,8 +74,11 @@ function snt_unmatched_report( $suggest_limit = PHP_INT_MAX ) {
 	$read       = snt_unmatched_stored_rows();
 	$report     = snt_unmatched_report_rows( $read['rows'], $real, $suggest, $is_probe, $suggest_limit );
 	$log        = function_exists( 'sn_404_log_all' ) ? sn_404_log_all() : array();
+	$people     = snt_unmatched_check_live( snt_unmatched_join_404( $report['people'], $log ), 'snt_unmatched_live_status', SNT_UNMATCHED_PROBE_MAX );
+	$is_served  = static fn( $row ) => null !== $row['served'];
 	return array(
-		'people'    => snt_unmatched_join_404( $report['people'], $log ),
+		'people'    => array_values( array_filter( $people, static fn( $row ) => ! $is_served( $row ) ) ),
+		'served'    => array_values( array_filter( $people, $is_served ) ),
 		'automated' => snt_unmatched_join_404( $report['automated'], $log ),
 		'capped'    => $read['capped'],
 		'error'     => $read['error'],
