@@ -33,7 +33,9 @@ const SN_UNMATCHED_REPORT_SERVED    = 30;
  * @return array
  */
 function sn_health_check_unmatched_paths() {
-	$r      = snt_unmatched_report( SN_UNMATCHED_REPORT_PEOPLE );
+	// Suggestions run before the live check moves served rows out, so they
+	// cover the rows shown after it: every row the check could move, and more.
+	$r      = snt_unmatched_report( SN_UNMATCHED_REPORT_PEOPLE + SNT_UNMATCHED_PROBE_MAX );
 	$packed = sn_health_pack_check(
 		__( 'Unmatched paths: what visitors asked for that is not a note or page (report only)', 'signal-and-noise-tools' ),
 		array(), // Report-first: the paths are the deliverable.
@@ -67,8 +69,12 @@ function sn_health_check_unmatched_paths() {
 function sn_unmatched_headline( array $report ) {
 	$n     = (int) ( $report['people_total'] ?? 0 );
 	$views = (int) ( $report['human_views'] ?? 0 );
+	$served = (int) ( $report['served_total'] ?? 0 );
 	if ( 0 === $n ) {
-		return __( 'No visitor reached a path that is not a note or page.', 'signal-and-noise-tools' );
+		return 0 === $served
+			? __( 'No visitor reached a path that is not a note or page.', 'signal-and-noise-tools' )
+			/* translators: %d: paths the site serves or already redirects. */
+			: sprintf( _n( 'None of these paths is broken: %d the site serves or already redirects is listed below.', 'None of these paths is broken: %d the site serves or already redirects are listed below.', $served, 'signal-and-noise-tools' ), $served );
 	}
 	/* translators: 1: paths, 2: human views. */
 	$line = sprintf( _n( '%1$d path visitors reached is not a note or page (%2$d human views in all).', '%1$d paths visitors reached are not a note or page (%2$d human views in all).', $n, 'signal-and-noise-tools' ), $n, $views );

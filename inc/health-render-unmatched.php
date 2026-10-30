@@ -22,10 +22,11 @@ require_once __DIR__ . '/health-unmatched-paths.php'; // The words both twins sh
  * @param array  $rows    Rows shown.
  * @param int    $total   The true total.
  * @param string $kind    'people' (status and fix), 'served' (status) or 'automated'.
+ * @param string $empty   What an empty list says.
  */
-function sn_health_render_unmatched_table( $caption, array $rows, $total, $kind ) {
+function sn_health_render_unmatched_table( $caption, array $rows, $total, $kind, $empty ) {
 	if ( empty( $rows ) ) {
-		echo '<p class="sn-field-helper">' . esc_html( $caption ) . ': ' . esc_html__( 'none.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-field-helper">' . esc_html( $caption ) . ': ' . esc_html( $empty ) . '</p>';
 		return;
 	}
 	$rows = array_slice( $rows, 0, SN_404_LIST_CAP );
@@ -67,7 +68,7 @@ function sn_health_render_unmatched_table( $caption, array $rows, $total, $kind 
 function sn_health_render_unmatched_report( $report ) {
 	$report = (array) $report;
 	echo '<p class="sn-health-report__headline">' . esc_html( sn_unmatched_headline( $report ) ) . '</p>';
-	sn_health_render_unmatched_table( __( 'People', 'signal-and-noise-tools' ), (array) ( $report['people'] ?? array() ), (int) ( $report['people_total'] ?? 0 ), 'people' );
-	sn_health_render_unmatched_table( __( 'Served by the site', 'signal-and-noise-tools' ), (array) ( $report['served'] ?? array() ), (int) ( $report['served_total'] ?? 0 ), 'served' );
-	sn_health_render_unmatched_table( __( 'Scanners and bots', 'signal-and-noise-tools' ), (array) ( $report['automated'] ?? array() ), (int) ( $report['automated_total'] ?? 0 ), 'automated' );
+	sn_health_render_unmatched_table( __( 'People', 'signal-and-noise-tools' ), (array) ( $report['people'] ?? array() ), (int) ( $report['people_total'] ?? 0 ), 'people', __( 'None.', 'signal-and-noise-tools' ) );
+	sn_health_render_unmatched_table( __( 'Served by the site', 'signal-and-noise-tools' ), (array) ( $report['served'] ?? array() ), (int) ( $report['served_total'] ?? 0 ), 'served', __( 'None among the paths checked.', 'signal-and-noise-tools' ) );
+	sn_health_render_unmatched_table( __( 'Scanners and bots', 'signal-and-noise-tools' ), (array) ( $report['automated'] ?? array() ), (int) ( $report['automated_total'] ?? 0 ), 'automated', __( 'None.', 'signal-and-noise-tools' ) );
 }

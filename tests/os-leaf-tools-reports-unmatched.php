@@ -134,10 +134,18 @@ $GLOBALS['__scan'] = $scan( array( 'people_total' => 250, 'automated_total' => 4
 $kit               = snt_leaf_paint( 'tools', 'reports' );
 ok( false !== strpos( $kit, '+247 more paths' ) && false !== strpos( $kit, '+39 more paths' ), 'the native "+N more" counts from people_total and automated_total' );
 
+// Review 2026-10-30: nothing broken, but served paths: the headline says so, not "no visitor".
+$GLOBALS['__scan'] = $scan( array( 'people' => array(), 'people_total' => 0, 'human_views' => 0 ) + $report );
+$classic           = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
+$kit               = snt_leaf_paint( 'tools', 'reports' );
+$none_broken       = 'None of these paths is broken: 2 the site serves or already redirects are listed below.';
+ok( false !== strpos( $classic, $none_broken ) && false !== strpos( $kit, $none_broken ) && false === strpos( $kit, 'No visitor reached' ), 'no broken path but served ones: both twins say so, never "No visitor reached"' );
+
 $GLOBALS['__scan'] = $scan( array( 'people' => array(), 'people_total' => 0, 'human_views' => 0, 'automated' => array(), 'automated_total' => 0, 'capped' => false, 'generated_at' => 1700000000, 'coverage' => 'x' ) );
 $classic           = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
 $kit               = snt_leaf_paint( 'tools', 'reports' );
 ok( false !== strpos( $classic, 'No visitor reached a path that is not a note or page.' ) && false !== strpos( $kit, 'No visitor reached a path that is not a note or page.' ), 'an empty report says so on both twins' );
+ok( false !== strpos( $classic, 'None among the paths checked.' ) && false !== strpos( $kit, 'None among the paths checked.' ), 'an empty served list says the same words on both twins' );
 
 echo ( 0 === $fail ) ? "\nOK ($pass passed, $fail failed): os-leaf-tools-reports-unmatched.php\n" : "\nFAILURES ($pass passed, $fail failed): os-leaf-tools-reports-unmatched.php\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -136,5 +136,14 @@ ok( null === $out['/tools']['served'] && 404 === $out['/tools']['status'], 'a 40
 ok( null === $out['/quiet']['served'] && 404 === $out['/quiet']['status'], 'no answer keeps what the 404 log said' );
 ok( null === $out['/past-the-limit']['served'] && null === $out['/past-the-limit']['status'], 'a row past the limit is not asked about' );
 
+echo "\nA stored spelling the cleaned path is not\n";
+$sp = static fn( $p ) => array( 'path' => $p, 'class' => 'human', 'first_day' => '2026-10-01', 'last_day' => '2026-10-01', 'views' => 1, 'visits' => 1 );
+$re = array_column( snt_unmatched_report_rows( array( $sp( '/Provhub' ), $sp( '/tools/' ), $sp( '//openstation' ), $sp( '/notes%2Fsubscribe' ) ), $real, static fn() => '', static fn() => false )['people'], null, 'path' );
+ok( true === $re['/provhub']['respelled'] && true === $re['/notes/subscribe']['respelled'], 'capitals or an encoded slash mark a row as stored in another spelling' );
+ok( false === $re['/tools']['respelled'] && false === $re['/openstation']['respelled'], 'a trailing or doubled slash does not (the site answers those the same)' );
+$asked = array();
+snt_unmatched_check_live( array_values( $re ), $check, 10 );
+ok( ! in_array( '/provhub', $asked, true ) && ! in_array( '/notes/subscribe', $asked, true ) && in_array( '/tools', $asked, true ), 'the live check never asks about the cleaned form of another spelling: /Provhub 404s where /provhub serves' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

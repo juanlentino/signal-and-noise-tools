@@ -100,6 +100,10 @@ $fixtures = array(
 	array( 'Akkoma',            'Akkoma 3.13.2; https://akkoma.example',                                                                                   true ),
 	array( 'Misskey',           'Misskey/2024.5.0 (https://misskey.io/)',                                                                                  true ),
 	array( 'Friendica',         'Friendica (Yellow Archangel) 2024.03-1547; https://friendica.example',                                                    true ),
+
+	// ─── The site's own probes (2026-10-30): the scan HEADs served feeds ─
+	array( 'SN health check',   'SignalNoiseTools/2026.10.80 health-check',                                                                                true ),
+	array( 'SN purge probe',    'SignalNoiseTools/2026.10.80 purge-probe',                                                                                 true ),
 );
 
 $pass = 0;

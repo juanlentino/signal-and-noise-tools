@@ -53,7 +53,11 @@ function snt_unmatched_report_rows( array $rows, array $real, callable $suggest,
 		}
 		$clean = snt_unmatched_clean_path( $stored );
 		$class = in_array( $r['class'] ?? '', array( 'human', 'suspect', 'bot' ), true ) ? $r['class'] : 'bot';
-		$m     = $by[ $clean ] ?? array( 'path' => $clean, 'human' => 0, 'suspect' => 0, 'bot' => 0, 'visits' => 0, 'first_seen' => '', 'last_seen' => '' );
+		$m     = $by[ $clean ] ?? array( 'path' => $clean, 'human' => 0, 'suspect' => 0, 'bot' => 0, 'visits' => 0, 'first_seen' => '', 'last_seen' => '', 'respelled' => false );
+		// Stored as something the cleaned path is not (capitals, an encoded
+		// slash): asking the site about the cleaned path would ask about a URL
+		// this visitor never requested (/Provhub 404s where /provhub serves).
+		$m['respelled'] = $m['respelled'] || preg_replace( '#/+#', '/', sn_analytics_canonical_path( (string) strtok( strtok( $stored, '?' ), '#' ) ) ) !== $clean;
 		$m[ $class ] += (int) ( $r['views'] ?? 0 );
 		$m['visits'] += (int) ( $r['visits'] ?? 0 );
 		$first = (string) ( $r['first_day'] ?? '' );
@@ -125,8 +129,9 @@ function snt_unmatched_join_404( array $rows, array $log ) {
  * the request got, and `served` says a 2xx (the site serves it: a theme route,
  * a feed) or a 3xx (a redirect already sends it on: Site › Redirects, the
  * theme or WordPress's own guess). PURE given the probe. A row the probe
- * cannot ask about (a placeholder in it, or another spelling of a page) or that
- * did not answer keeps what the 404 log said.
+ * cannot ask about honestly (a placeholder in it, another spelling of a page,
+ * or a stored spelling the cleaned path is not) or that did not answer keeps
+ * what the 404 log said. Where a redirect lands is not checked.
  *
  * @param array<int,array<string,mixed>> $rows  Report rows, best first.
  * @param callable                       $probe fn( string $clean ): ?int, the status code or null.
@@ -137,12 +142,12 @@ function snt_unmatched_check_live( array $rows, callable $probe, $limit ) {
 	$asked = 0;
 	foreach ( $rows as $i => $row ) {
 		$rows[ $i ]['served'] = null;
-		if ( $asked >= $limit || ! empty( $row['variant'] ) || false !== strpos( (string) $row['path'], '{' ) ) {
+		if ( $asked >= $limit || ! empty( $row['variant'] ) || ! empty( $row['respelled'] ) || false !== strpos( (string) $row['path'], '{' ) ) {
 			continue;
 		}
 		++$asked;
 		$code = $probe( (string) $row['path'] );
-		if ( ! is_int( $code ) || $code < 200 ) {
+		if ( ! is_int( $code ) ) {
 			continue;
 		}
 		$rows[ $i ]['status'] = $code;

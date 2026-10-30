@@ -57,7 +57,7 @@ function tools_reports_render_unmatched( array $report ) {
 		$body,
 		\snt_kit_section( __( 'Served by the site', 'signal-and-noise-tools' ), 0 === $served ? $none( __( 'None among the paths checked.', 'signal-and-noise-tools' ) ) : $ledger(
 			/* translators: %d: paths the site serves or already redirects. */
-			sprintf( _n( '%d path the site serves or already redirects: a theme route, a feed, or a redirect that sends it on. Not a broken link.', '%d paths the site serves or already redirects: theme routes, feeds, or redirects that send them on. Not broken links.', $served, 'signal-and-noise-tools' ), $served ),
+			sprintf( _n( '%d path the site serves or already redirects: a theme route, a feed, or a redirect that sends it on (where it lands is not checked).', '%d paths the site serves or already redirects: theme routes, feeds, or redirects that send them on (where they land is not checked).', $served, 'signal-and-noise-tools' ), $served ),
 			'served',
 			array( $status )
 		) ),

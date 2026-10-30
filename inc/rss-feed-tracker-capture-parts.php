@@ -101,7 +101,10 @@ function sn_rss_tracker_is_bot( $ua ) {
 	if ( '' === $ua ) {
 		return true;
 	}
-	$pattern = '/bot|crawl|spider|slurp|mediapartners|googlebot|bingbot|yandex|baidu|duckduckbot|facebookexternalhit|twitterbot|linkedinbot|pinterestbot|applebot|ahrefsbot|semrushbot|mj12bot|dotbot|petalbot|seznambot|uptimerobot|pingdom|statuscake|sitelock|mastodon|pleroma|akkoma|misskey|friendica|http\.rb\/|curl\/|wget\/|python-requests|go-http-client|httpie|java\//i';
+	// signalnoisetools: the site's own probes (health checks, purge and link
+	// checks) name themselves SignalNoiseTools/<version> <check>; a HEAD on a
+	// feed from one of them is the site asking itself, never a reader (2026-10-30).
+	$pattern = '/signalnoisetools|bot|crawl|spider|slurp|mediapartners|googlebot|bingbot|yandex|baidu|duckduckbot|facebookexternalhit|twitterbot|linkedinbot|pinterestbot|applebot|ahrefsbot|semrushbot|mj12bot|dotbot|petalbot|seznambot|uptimerobot|pingdom|statuscake|sitelock|mastodon|pleroma|akkoma|misskey|friendica|http\.rb\/|curl\/|wget\/|python-requests|go-http-client|httpie|java\//i';
 	return (bool) preg_match( $pattern, $ua );
 }
 
