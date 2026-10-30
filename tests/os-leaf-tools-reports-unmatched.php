@@ -88,6 +88,8 @@ $report = array(
 	),
 	'people_total'    => 3,
 	'human_views'     => 9,
+	'served'          => array( $row( '/provhub', array( 'status' => 200, 'served' => 'page' ) ), $row( '/notes/subscribe', array( 'status' => 301, 'served' => 'redirect' ) ) ),
+	'served_total'    => 2,
 	'automated'       => array( $row( '/wp-login.php', array( 'human' => 0, 'bot' => 6 ) ) ),
 	'automated_total' => 1,
 	'capped'          => false,
@@ -109,6 +111,10 @@ foreach ( array(
 	'Same page, another spelling',
 	'not in the 404 log',
 	'No close match',
+	'Served by the site',
+	'/provhub',
+	'served (200)',
+	'redirects (301)',
 	'Scanners and bots',
 	'/wp-login.php',
 	'6 bot',
@@ -116,6 +122,8 @@ foreach ( array(
 	ok( false !== strpos( $classic, $needle ) && false !== strpos( $kit, $needle ), "both twins say: $needle" );
 }
 ok( false === strpos( $classic, '<b>y' ) && false === strpos( $kit, '<b>y' ) && false !== strpos( $classic, '/x&lt;b&gt;y' ) && false !== strpos( $kit, '/x&lt;b&gt;y' ), 'a path with markup is escaped by each renderer on its own' );
+$between = static fn( $h ) => (string) strstr( substr( $h, (int) strrpos( $h, 'Served by the site' ) ), 'Scanners and bots', true ); // the last mention: the coverage line names it too.
+ok( '' !== $between( $classic ) && '' !== $between( $kit ) && false === strpos( $between( $classic ), 'No close match' ) && false === strpos( $between( $kit ), 'No close match' ), 'the served list carries a status and no suggested fix, on both twins' );
 ok( array() === snt_leaf_folds( $kit ) && false === strpos( $classic, '<details' ), 'no fold on either twin' );
 ok( false === strpos( $kit, 'This report has no detail view yet' ), 'the native leaf has its own view for this report' );
 ok( false === strpos( $kit, '—' ) && false === strpos( $classic, ' — ' ), 'no em dash on either twin' );
@@ -126,10 +134,18 @@ $GLOBALS['__scan'] = $scan( array( 'people_total' => 250, 'automated_total' => 4
 $kit               = snt_leaf_paint( 'tools', 'reports' );
 ok( false !== strpos( $kit, '+247 more paths' ) && false !== strpos( $kit, '+39 more paths' ), 'the native "+N more" counts from people_total and automated_total' );
 
+// Review 2026-10-30: nothing broken, but served paths: the headline says so, not "no visitor".
+$GLOBALS['__scan'] = $scan( array( 'people' => array(), 'people_total' => 0, 'human_views' => 0 ) + $report );
+$classic           = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
+$kit               = snt_leaf_paint( 'tools', 'reports' );
+$none_broken       = 'None of these paths answers with an error: the 2 paths the site serves or already redirects are listed below.';
+ok( false !== strpos( $classic, $none_broken ) && false !== strpos( $kit, $none_broken ) && false === strpos( $kit, 'No visitor reached' ), 'no broken path but served ones: both twins say so, never "No visitor reached"' );
+
 $GLOBALS['__scan'] = $scan( array( 'people' => array(), 'people_total' => 0, 'human_views' => 0, 'automated' => array(), 'automated_total' => 0, 'capped' => false, 'generated_at' => 1700000000, 'coverage' => 'x' ) );
 $classic           = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
 $kit               = snt_leaf_paint( 'tools', 'reports' );
 ok( false !== strpos( $classic, 'No visitor reached a path that is not a note or page.' ) && false !== strpos( $kit, 'No visitor reached a path that is not a note or page.' ), 'an empty report says so on both twins' );
+ok( false !== strpos( $classic, 'None among the paths checked.' ) && false !== strpos( $kit, 'None among the paths checked.' ), 'an empty served list says the same words on both twins' );
 
 echo ( 0 === $fail ) ? "\nOK ($pass passed, $fail failed): os-leaf-tools-reports-unmatched.php\n" : "\nFAILURES ($pass passed, $fail failed): os-leaf-tools-reports-unmatched.php\n";
 exit( $fail > 0 ? 1 : 0 );
