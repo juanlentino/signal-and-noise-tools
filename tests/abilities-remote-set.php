@@ -121,6 +121,7 @@ require __DIR__ . '/../inc/search-console-store.php';
 require __DIR__ . '/../inc/search-console-derive.php';
 require __DIR__ . '/../inc/abilities-search-console.php';
 require __DIR__ . '/../inc/abilities-edge-errors.php'; // 18.0.0
+require __DIR__ . '/../inc/analytics-rows.php'; // the validator, which refuses the local-only breakdown first.
 require __DIR__ . '/../inc/abilities-analytics-rows.php'; // contract 15: admin ability and twin in one file.
 // Contract 14: the bot-signals admin + the crosstab the networks twin slices.
 // The sensor read is stubbed so the wrapper runs over a fixed crosstab.
@@ -354,7 +355,7 @@ $execute_pairs = array(
 );
 // 2026-10-29: analytics-rows' "(unmatched)" breakdown is local-door only. The
 // twin is the admin schema MINUS the breakdown's five row fields, and runs a
-// wrapper that refuses the breakdown and otherwise calls the admin callback.
+// shared callback, which refuses the breakdown; the local one opts in (fails closed).
 $sn_ar_fields   = array( 'visitor_path', 'probe', 'suggested_target', 'status', 'referrer_host' );
 $sn_admin_ar_out = $GLOBALS['__abilities'][ $ADMIN_AR ]['output_schema'];
 foreach ( $sn_ar_fields as $k ) {
@@ -362,9 +363,9 @@ foreach ( $sn_ar_fields as $k ) {
 	unset( $sn_admin_ar_out['properties']['rows']['items']['properties'][ $k ] );
 }
 ok( $GLOBALS['__abilities'][ $REMOTE_AR ]['output_schema'] === $sn_admin_ar_out, "$REMOTE_AR output_schema === $ADMIN_AR's minus the breakdown's fields" );
-ok( 'snt_ability_remote_analytics_rows' === $GLOBALS['__abilities'][ $REMOTE_AR ]['execute_callback'] && 'snt_ability_analytics_rows' === $GLOBALS['__abilities'][ $ADMIN_AR ]['execute_callback'], "$REMOTE_AR runs the refusing wrapper; $ADMIN_AR runs the shared callback" );
-$sn_ar_refused = snt_ability_remote_analytics_rows( array( 'dimensions' => array( 'path' ), 'path' => '(unmatched)' ) );
-ok( is_wp_error( $sn_ar_refused ) && 400 === ( $sn_ar_refused->data['status'] ?? null ), "$REMOTE_AR refuses path \"(unmatched)\" with a 400, before any read" );
+ok( 'snt_ability_analytics_rows' === $GLOBALS['__abilities'][ $REMOTE_AR ]['execute_callback'] && 'snt_ability_analytics_rows_local' === $GLOBALS['__abilities'][ $ADMIN_AR ]['execute_callback'], "$REMOTE_AR runs the shared callback; $ADMIN_AR runs the local wrapper over it" );
+$sn_ar_refused = call_user_func( $GLOBALS['__abilities'][ $REMOTE_AR ]['execute_callback'], array( 'dimensions' => array( 'path' ), 'path' => '(unmatched)' ) );
+ok( is_wp_error( $sn_ar_refused ) && 400 === ( $sn_ar_refused->data['status'] ?? null ) && false !== strpos( (string) $sn_ar_refused->message, 'local door only' ), "$REMOTE_AR refuses path \"(unmatched)\" with a 400, before any read: the shared callback fails closed" );
 // 2026-10-17: edge-errors-summary's installs_by_day is local-door only. The
 // twin is the admin schema MINUS that key and runs the shared callback the
 // admin one wraps, so the remote contract does not move. Pinned as a strip.

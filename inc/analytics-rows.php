@@ -20,7 +20,8 @@
  * words, every email, id, hash, number or token a placeholder, nothing outside
  * [a-z0-9._~-], 200 characters at most). `path` itself still obeys the rule
  * above. The remote twin refuses the breakdown (inc/analytics-rows-unmatched.php,
- * pinned in tests/abilities-remote-set.php).
+ * the shared callback refuses it unless the local registration opts in; pinned
+ * in tests/abilities-remote-set.php).
  *
  * @package SignalNoiseTools
  */
@@ -36,12 +37,16 @@ const SNT_AROWS_SENTINELS  = array( '(direct)', '(internal)', '(unknown)' ); // 
 /**
  * A query, refused or normalized. PURE.
  *
- * @param mixed $input The ability input.
- * @return array|WP_Error {dims:string[], range:int|string, class:string, path:?string, referrer:?string, sort:string, limit:int}
+ * @param mixed $input           The ability input.
+ * @param bool  $allow_unmatched The "(unmatched)" breakdown: only the local door passes true; every other caller, the remote twin's included, is refused (fails closed).
+ * @return array|WP_Error {dims:string[], range:int|string, class:string, path:?string, referrer:?string, sort:string, limit:int, unmatched:bool}
  */
-function snt_arows_validate( $input ) {
+function snt_arows_validate( $input, $allow_unmatched = false ) {
 	$in   = is_array( $input ) ? $input : array();
 	$bad  = static fn( $m ) => new WP_Error( 'ability_invalid_input', $m, array( 'status' => 400 ) );
+	if ( ! $allow_unmatched && '(unmatched)' === ( $in['path'] ?? null ) ) {
+		return $bad( 'path "(unmatched)" is served on the local door only.' );
+	}
 	$dims = $in['dimensions'] ?? null;
 	if ( ! is_array( $dims ) || ! $dims || count( $dims ) > 2 || count( array_filter( $dims, 'is_string' ) ) !== count( $dims ) || array_diff( $dims, SNT_AROWS_DIMENSIONS ) || count( array_unique( $dims ) ) !== count( $dims ) ) {
 		return $bad( 'dimensions must be one or two different values of path, referrer, country, device, day.' );
@@ -69,7 +74,7 @@ function snt_arows_validate( $input ) {
 	}
 	$path      = null;
 	$unmatched = false;
-	if ( isset( $in['path'] ) && '(unmatched)' === $in['path'] ) {
+	if ( '(unmatched)' === ( $in['path'] ?? null ) ) {
 		// 2026-10-29: break the bucket down by cleaned path (inc/analytics-rows-unmatched.php).
 		if ( ! in_array( 'path', $dims, true ) ) {
 			return $bad( 'path "(unmatched)" breaks the bucket down by path, so dimensions must include path.' );

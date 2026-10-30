@@ -3,8 +3,8 @@
  * Signal & Noise Tools: unmatched paths, the read half (2026-10-29). Reads the
  * daily analytics table, which keeps the path every pageview reported, and
  * hands the rows to the pure half (inc/unmatched-paths.php). All history the
- * table holds counts; it has never stored the HTTP status or the referrer per
- * path, so those read "not recorded" until the beacon sends them.
+ * table holds counts. It has never stored the HTTP status or the referrer per
+ * path; those come from the 404 log (snt_unmatched_join_404()).
  *
  * @package SignalNoiseTools
  */
@@ -18,20 +18,24 @@ require_once __DIR__ . '/unmatched-paths.php';
 const SNT_UNMATCHED_MAX_STORED = 20000; // Stored (path, class) groups read; past it the report says so.
 
 /**
- * Every stored (path, class) group, all time, with its first and last day.
+ * Every stored (path, class) group, all time, with its first and last day,
+ * the most viewed first, so a cap drops the tail. A read that failed says so
+ * in `error`: an empty answer would read as "nothing to fix".
  *
- * @return array{rows:array,capped:bool}
+ * @return array{rows:array,capped:bool,error:?string}
  */
 function snt_unmatched_stored_rows() {
 	global $wpdb;
 	if ( ! isset( $wpdb ) || ! defined( 'SN_ANALYTICS_DAILY_TABLE' ) ) {
-		return array( 'rows' => array(), 'capped' => false );
+		return array( 'rows' => array(), 'capped' => false, 'error' => __( 'The analytics table is not available.', 'signal-and-noise-tools' ) );
 	}
 	$sql  = 'SELECT path, class, MIN(day) AS first_day, MAX(day) AS last_day, SUM(views) AS views, SUM(visits) AS visits FROM '
-		. $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE . ' GROUP BY path, class LIMIT %d';
+		. $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE . ' GROUP BY path, class ORDER BY SUM(views) DESC LIMIT %d';
 	$rows = $wpdb->get_results( $wpdb->prepare( $sql, SNT_UNMATCHED_MAX_STORED + 1 ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- the table name is the prefix and a constant; the cap is a placeholder.
-	$rows = is_array( $rows ) ? $rows : array();
-	return array( 'rows' => array_slice( $rows, 0, SNT_UNMATCHED_MAX_STORED ), 'capped' => count( $rows ) > SNT_UNMATCHED_MAX_STORED );
+	if ( '' !== (string) $wpdb->last_error || ! is_array( $rows ) ) {
+		return array( 'rows' => array(), 'capped' => false, 'error' => __( 'The analytics read failed, so the paths are not known.', 'signal-and-noise-tools' ) );
+	}
+	return array( 'rows' => array_slice( $rows, 0, SNT_UNMATCHED_MAX_STORED ), 'capped' => count( $rows ) > SNT_UNMATCHED_MAX_STORED, 'error' => null );
 }
 
 /**
@@ -41,7 +45,7 @@ function snt_unmatched_stored_rows() {
  * vocabulary and one way of guessing a redirect.
  *
  * @param int $suggest_limit People rows that get a redirect suggestion.
- * @return array{people:array,automated:array,capped:bool}
+ * @return array{people:array,automated:array,capped:bool,error:?string}
  */
 function snt_unmatched_report( $suggest_limit = PHP_INT_MAX ) {
 	$real       = function_exists( 'snt_arows_real_paths' ) ? snt_arows_real_paths() : array( '/' => true );
@@ -55,5 +59,6 @@ function snt_unmatched_report( $suggest_limit = PHP_INT_MAX ) {
 		'people'    => snt_unmatched_join_404( $report['people'], $log ),
 		'automated' => snt_unmatched_join_404( $report['automated'], $log ),
 		'capped'    => $read['capped'],
+		'error'     => $read['error'],
 	);
 }

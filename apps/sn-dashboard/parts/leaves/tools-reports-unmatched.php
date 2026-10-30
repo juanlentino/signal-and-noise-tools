@@ -38,6 +38,9 @@ function tools_reports_render_unmatched( array $report ) {
 		}
 		return $out;
 	};
+	// "+N more" counts from the true total, not the rows the scan kept.
+	/* translators: %s: paths not listed. */
+	$more    = static fn( $n ) => \snt_kit_more( $n, __( '+%s more paths; the list is capped, not complete.', 'signal-and-noise-tools' ) );
 	$columns = array(
 		array( 'key' => 'path', 'label' => __( 'Path', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'views', 'label' => __( 'Views', 'signal-and-noise-tools' ) ),
@@ -52,11 +55,10 @@ function tools_reports_render_unmatched( array $report ) {
 				array( 'key' => 'status', 'label' => __( 'Status', 'signal-and-noise-tools' ) ),
 				array( 'key' => 'fix', 'label' => __( 'Suggested fix', 'signal-and-noise-tools' ) ),
 			) ),
-			$cells( $people, true ),
+			$cells( array_slice( $people, 0, TOOLS_REPORTS_ROWS ), true ),
 			TOOLS_REPORTS_ROWS,
-			/* translators: %s: paths not listed. */
-			tools_reports_ledger_opts( __( '+%s more paths; the list is capped, not complete.', 'signal-and-noise-tools' ) )
-		);
+			tools_reports_ledger_opts( '' )
+		) . $more( (int) ( $report['people_total'] ?? 0 ) - min( count( $people ), TOOLS_REPORTS_ROWS ) );
 	$automated = (array) ( $report['automated'] ?? array() );
 	$inner     = empty( $automated )
 		? '<p class="snt-hint">' . \snt_kit_esc( __( 'None.', 'signal-and-noise-tools' ) ) . '</p>'
@@ -64,10 +66,9 @@ function tools_reports_render_unmatched( array $report ) {
 			/* translators: %d: probe-shaped or bot-only paths. */
 			sprintf( _n( '%d path only scanners or bots reached, kept apart so they never bury a real broken link.', '%d paths only scanners or bots reached, kept apart so they never bury a real broken link.', (int) ( $report['automated_total'] ?? 0 ), 'signal-and-noise-tools' ), (int) ( $report['automated_total'] ?? 0 ) ),
 			$columns,
-			$cells( $automated, false ),
+			$cells( array_slice( $automated, 0, TOOLS_REPORTS_ROWS ), false ),
 			TOOLS_REPORTS_ROWS,
-			/* translators: %s: paths not listed. */
-			tools_reports_ledger_opts( __( '+%s more paths; the list is capped, not complete.', 'signal-and-noise-tools' ) )
-		);
+			tools_reports_ledger_opts( '' )
+		) . $more( (int) ( $report['automated_total'] ?? 0 ) - min( count( $automated ), TOOLS_REPORTS_ROWS ) );
 	return array( $body, \snt_kit_section( __( 'Scanners and bots', 'signal-and-noise-tools' ), $inner ) );
 }

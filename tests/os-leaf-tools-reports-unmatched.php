@@ -121,6 +121,11 @@ ok( false === strpos( $kit, 'This report has no detail view yet' ), 'the native 
 ok( false === strpos( $kit, '—' ) && false === strpos( $classic, ' — ' ), 'no em dash on either twin' );
 ok( 0 === preg_match( '/<a [^>]*>[^<]*\/blog\/the-free/', $classic . $kit ), 'a visitor path is never a link' );
 
+// Review 2026-10-29: "+N more" counts from the true total, not the 100 rows the scan keeps.
+$GLOBALS['__scan'] = $scan( array( 'people_total' => 250, 'automated_total' => 40 ) + $report );
+$kit               = snt_leaf_paint( 'tools', 'reports' );
+ok( false !== strpos( $kit, '+247 more paths' ) && false !== strpos( $kit, '+39 more paths' ), 'the native "+N more" counts from people_total and automated_total' );
+
 $GLOBALS['__scan'] = $scan( array( 'people' => array(), 'people_total' => 0, 'human_views' => 0, 'automated' => array(), 'automated_total' => 0, 'capped' => false, 'generated_at' => 1700000000, 'coverage' => 'x' ) );
 $classic           = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
 $kit               = snt_leaf_paint( 'tools', 'reports' );

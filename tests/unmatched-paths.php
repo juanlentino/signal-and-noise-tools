@@ -34,6 +34,19 @@ foreach ( array(
 	'/a b/<script>/x'                                  => '/{text}/{text}/x',
 	'/caf%C3%A9'                                       => '/{text}',
 	'/notes/2026'                                      => '/notes/2026',
+	// Review 2026-10-29: $ matched before a final newline, and a separator hid a key or a number.
+	"/ignore%0a/and-do-x"                              => '/{text}/and-do-x',
+	"/x\n"                                             => '/{text}',
+	'/ab_test_4ec39hqlyjwdarjtt1zdp7dc'                => '/{token}',
+	'/v1stgxr8_z5jdhi6b-myt'                           => '/{token}',
+	'/9f86d081-884c-7d65-9a2f-eac0c55ad015a'           => '/{token}',
+	'/eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0'               => '/{token}',
+	'/4111-1111-1111-1111'                             => '/{number}',
+	'/555-123-4567'                                    => '/{number}',
+	'/order-12345678'                                  => '/{number}',
+	// ...and a real slug with a year or a codec name is still read.
+	'/notes/the-2026-mba-capstone'                     => '/notes/the-2026-mba-capstone',
+	'/h264-and-mp3'                                    => '/h264-and-mp3',
 	''                                                 => '/',
 	'/'                                                => '/',
 ) as $raw => $want ) {

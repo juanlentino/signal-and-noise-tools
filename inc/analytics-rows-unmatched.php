@@ -5,10 +5,12 @@
  * content come back one per cleaned path instead of collapsed: `path` stays
  * "(unmatched)", and the name is in `visitor_path`, a field named for what it
  * is. The owner decided (2026-10-29) that a cleaned path may reach a model's
- * context; the cleaner (inc/unmatched-paths-clean.php) is what makes that
- * safe: plain lowercase words, every email, id, hash, number or token a
- * placeholder, nothing outside [a-z0-9._~-], 200 characters at most. The remote
- * twin refuses the breakdown (snt_ability_remote_analytics_rows(), below).
+ * context; the cleaner (inc/unmatched-paths-clean.php) bounds it: lowercase,
+ * every email, id, hash, number or token a placeholder (judged by its parts
+ * too), nothing outside [a-z0-9._~-], 200 characters at most. Words survive,
+ * so a hyphenated sentence can: the field is named for what it is and read as
+ * data. The remote twin refuses it: the shared callback does, and only the
+ * local registration opts in (snt_ability_analytics_rows_local(), below).
  *
  * @package SignalNoiseTools
  */
@@ -104,16 +106,14 @@ function snt_arows_unmatched_row_schema() {
 }
 
 /**
- * The remote twin's execute: the local one, minus the breakdown, which stays
- * off the internet-facing door until the owner decides otherwise (2026-10-29,
- * phase C). Matches snt_arows_validate(), which reads only an array input.
+ * The local registration's execute: the shared callback with the breakdown
+ * allowed. The shared callback, which the remote twin runs, refuses it, so a
+ * door wired to it later fails closed (2026-10-29; the remote door stays off
+ * the breakdown until the owner decides otherwise, phase C).
  *
  * @param mixed $input The ability input.
  * @return array|WP_Error
  */
-function snt_ability_remote_analytics_rows( $input = null ) {
-	if ( is_array( $input ) && '(unmatched)' === ( $input['path'] ?? null ) ) {
-		return new WP_Error( 'ability_invalid_input', 'path "(unmatched)" is served on the local door only.', array( 'status' => 400 ) );
-	}
-	return snt_ability_analytics_rows( $input );
+function snt_ability_analytics_rows_local( $input = null ) {
+	return snt_ability_analytics_rows( $input, true );
 }

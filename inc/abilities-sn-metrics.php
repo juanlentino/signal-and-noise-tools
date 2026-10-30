@@ -184,7 +184,7 @@ function snt_ability_sn_metrics( $input ) {
 	}
 	$rows = array_merge( isset( $input['rows'] ) && is_array( $input['rows'] ) ? $input['rows'] : array(), array( 'range' => $range, 'class' => $class ) );
 	if ( in_array( 'analytics_rows', $sections, true ) && function_exists( 'snt_arows_validate' ) ) {
-		$valid = snt_arows_validate( $rows );
+		$valid = snt_arows_validate( $rows, true ); // The local door: the "(unmatched)" breakdown is allowed here.
 		if ( is_wp_error( $valid ) ) {
 			return $valid;
 		}

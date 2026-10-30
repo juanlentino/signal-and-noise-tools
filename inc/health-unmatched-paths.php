@@ -32,13 +32,16 @@ const SN_UNMATCHED_REPORT_AUTOMATED = 30;
  * @return array
  */
 function sn_health_check_unmatched_paths() {
+	$r      = snt_unmatched_report( SN_UNMATCHED_REPORT_PEOPLE );
 	$packed = sn_health_pack_check(
 		__( 'Unmatched paths: what visitors asked for that is not a note or page (report only)', 'signal-and-noise-tools' ),
 		array(), // Report-first: the paths are the deliverable.
 		__( 'Report only: fix the link where it lives, or add a redirect in Site › Redirects. Nothing here creates one.', 'signal-and-noise-tools' ),
-		null
+		$r['error'] // A failed read is skipped, never a clean report.
 	);
-	$r = snt_unmatched_report( SN_UNMATCHED_REPORT_PEOPLE );
+	if ( null !== $r['error'] ) {
+		return $packed;
+	}
 	$packed['report'] = array(
 		'people'          => array_slice( $r['people'], 0, SN_UNMATCHED_REPORT_PEOPLE ),
 		'people_total'    => count( $r['people'] ),

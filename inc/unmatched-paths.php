@@ -9,9 +9,13 @@
  *
  * A stored path is text a stranger chose, so it is CLEANED before anyone sees
  * it: lowercased, slashes collapsed, every segment that looks like an email,
- * an id, a hash, a number or a token replaced by a placeholder, anything
- * outside [a-z0-9._~-] replaced by {text}, and capped at 200 characters. What
- * survives is plain words, never an address, a secret or markup. The query
+ * an id, a hash, a number or a token (judged whole and by its parts, so a
+ * separator cannot hide one) replaced by a placeholder, anything outside
+ * [a-z0-9._~-] replaced by {text}, and capped at 200 characters. What
+ * survives is lowercase words, digits and the separators: no markup, line
+ * break or recognizable secret, but words are words, so a hyphenated sentence
+ * survives and is read as data. An address with no "@" (a dotted name) is
+ * not recognized. The query
  * string and fragment never reach storage (the beacon sends
  * location.pathname, the analytics Worker strips them again); they are
  * stripped here once more anyway.

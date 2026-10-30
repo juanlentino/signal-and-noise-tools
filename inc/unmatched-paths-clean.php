@@ -3,7 +3,9 @@
  * Signal & Noise Tools: unmatched paths, the cleaner (2026-10-29). A stored
  * path is text a stranger chose; this is the only form of it the owner's
  * report and the local analytics breakdown ever show. The rules are in
- * inc/unmatched-paths.php's header. PURE.
+ * inc/unmatched-paths.php's header. It removes punctuation and what looks
+ * like a secret or an address; it does not remove words, so a hyphenated
+ * sentence ("ignore-previous-instructions") survives as text. PURE.
  *
  * @package SignalNoiseTools
  */
@@ -21,26 +23,37 @@ const SNT_UNMATCHED_PATH_MAX = 200;
  * @return string
  */
 function snt_unmatched_clean_segment( $seg ) {
+	// Every pattern is anchored with \z, never $: $ also matches before a
+	// final newline, which let "/ignore%0a/next" through with its line break.
 	if ( false !== strpos( $seg, '@' ) ) {
 		return '{email}';
 	}
-	if ( preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $seg ) ) {
+	if ( preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/', $seg ) ) {
 		return '{id}';
 	}
-	if ( preg_match( '/^[0-9a-f]{16,}$/', $seg ) ) {
+	if ( preg_match( '/^[0-9a-f]{16,}\z/', $seg ) ) {
 		return '{hash}';
 	}
-	if ( preg_match( '/^\d{7,}$/', $seg ) ) {
+	// Judged by its parts too: a separator ("sk_live_…", "555-123-4567",
+	// "9f86d081-884c-…") must not hide a key, a phone or a card number.
+	$parts = preg_split( '/[._~-]+/', $seg, -1, PREG_SPLIT_NO_EMPTY );
+	if ( preg_match( '/^[0-9._~-]+\z/', $seg ) && preg_match_all( '/\d/', $seg ) >= 7 ) {
 		return '{number}';
 	}
-	// A JWT-shaped value, or a long run of letters and digits with no word
-	// break: what tokens, keys and session ids look like, never a slug.
-	if ( preg_match( '/^[a-z0-9_-]{8,}\.[a-z0-9_-]{8,}\.[a-z0-9_-]{8,}$/', $seg )
-		|| ( strlen( $seg ) >= 20 && preg_match( '/^[a-z0-9]+$/', $seg ) && preg_match( '/\d/', $seg ) )
-		|| strlen( $seg ) > 80 ) {
+	foreach ( $parts as $part ) {
+		if ( preg_match( '/^\d{7,}\z/', $part ) ) {
+			return '{number}';
+		}
+		// Letters and digits mixed in one 8+ character run: a key, a session
+		// id or a nanoid, never a word ("mp3", "h264" and a year stay).
+		if ( strlen( $part ) >= 8 && preg_match( '/^[a-z0-9]+\z/', $part ) && preg_match( '/\d/', $part ) && preg_match( '/[a-z]/', $part ) ) {
+			return '{token}';
+		}
+	}
+	if ( strlen( $seg ) > 80 || preg_match( '/^[a-z0-9_-]{8,}\.[a-z0-9_-]{8,}(\.[a-z0-9_-]{8,})?\z/', $seg ) ) {
 		return '{token}';
 	}
-	if ( ! preg_match( '/^[a-z0-9._~-]+$/', $seg ) ) {
+	if ( ! preg_match( '/^[a-z0-9._~-]+\z/', $seg ) ) {
 		return '{text}';
 	}
 	return $seg;
