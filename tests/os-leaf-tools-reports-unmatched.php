@@ -138,7 +138,7 @@ ok( false !== strpos( $kit, '+247 more paths' ) && false !== strpos( $kit, '+39 
 $GLOBALS['__scan'] = $scan( array( 'people' => array(), 'people_total' => 0, 'human_views' => 0 ) + $report );
 $classic           = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
 $kit               = snt_leaf_paint( 'tools', 'reports' );
-$none_broken       = 'None of these paths is broken: 2 the site serves or already redirects are listed below.';
+$none_broken       = 'None of these paths answers with an error: the 2 paths the site serves or already redirects are listed below.';
 ok( false !== strpos( $classic, $none_broken ) && false !== strpos( $kit, $none_broken ) && false === strpos( $kit, 'No visitor reached' ), 'no broken path but served ones: both twins say so, never "No visitor reached"' );
 
 $GLOBALS['__scan'] = $scan( array( 'people' => array(), 'people_total' => 0, 'human_views' => 0, 'automated' => array(), 'automated_total' => 0, 'capped' => false, 'generated_at' => 1700000000, 'coverage' => 'x' ) );

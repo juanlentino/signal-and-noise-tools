@@ -74,7 +74,7 @@ function sn_unmatched_headline( array $report ) {
 		return 0 === $served
 			? __( 'No visitor reached a path that is not a note or page.', 'signal-and-noise-tools' )
 			/* translators: %d: paths the site serves or already redirects. */
-			: sprintf( _n( 'None of these paths is broken: %d the site serves or already redirects is listed below.', 'None of these paths is broken: %d the site serves or already redirects are listed below.', $served, 'signal-and-noise-tools' ), $served );
+			: sprintf( _n( 'None of these paths answers with an error: the %d path the site serves or already redirects is listed below.', 'None of these paths answers with an error: the %d paths the site serves or already redirects are listed below.', $served, 'signal-and-noise-tools' ), $served );
 	}
 	/* translators: 1: paths, 2: human views. */
 	$line = sprintf( _n( '%1$d path visitors reached is not a note or page (%2$d human views in all).', '%1$d paths visitors reached are not a note or page (%2$d human views in all).', $n, 'signal-and-noise-tools' ), $n, $views );
