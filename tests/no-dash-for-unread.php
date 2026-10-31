@@ -67,15 +67,16 @@ require_once $root . '/inc/openstation-kit.php';
 ok( function_exists( 'snt_kit_unread' ) && 'not read' === snt_kit_unread(), 'the kit says an unread value in words: "not read"' );
 
 // The public /stats live strip (owner, 2026-10-12: "Yes, say 'not read'"):
-// both figures and the Being read now list read "not read" until
-// live-now.js answers, and stay so when it cannot.
+// both figures and the Being read now list say "not read" to a reader
+// without script (in <noscript>) and wherever live-now.js cannot read them;
+// with script they wait empty, no display-type flash (2026-10-31).
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'sn_analytics_live_attrs' ) ) { function sn_analytics_live_attrs( $k, $c ) { return array( 'data-sn-live' => $k ); } }
 require_once $root . '/inc/public-stats-live.php';
 $strip = sn_public_stats_live_html();
-ok( 2 === substr_count( $strip, 'sn-public-stats__live-n" data-sn-live="' ) && 2 === preg_match_all( '/data-sn-live="(now|today)">not read</', $strip ) && false !== strpos( $strip, '<li class="sn-public-stats__live-empty">not read</li>' ) && false === strpos( $strip, '—' ), '/stats: the live figures and the list say not read until read, never a dash' );
+ok( 2 === substr_count( $strip, 'sn-public-stats__live-n" data-sn-live="' ) && 2 === preg_match_all( '/data-sn-live="(now|today)"[^>]*><noscript>not read<\/noscript>/', $strip ) && false !== strpos( $strip, '<li class="sn-public-stats__live-empty" data-sn-live-pending><noscript>not read</noscript></li>' ) && false === strpos( $strip, '—' ), '/stats: the live figures and the list say not read (without script; the script settles them, tests/public-stats-live-pending.php), never a dash' );
 $live = (string) file_get_contents( $root . '/assets/live-now.js' );
 ok( false !== strpos( $live, "typeof n === 'number' ? n.toLocaleString() : 'not read'" ), 'live-now.js: a figure the route cannot answer says not read; a real 0 is a number and stays 0' );
 

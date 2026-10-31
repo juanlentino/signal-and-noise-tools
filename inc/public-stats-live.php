@@ -2,9 +2,11 @@
 /**
  * Signal & Noise Tools: the live strip at the top of [sn_public_stats].
  *
- * /stats is edge-cached HTML, so this paints only the shell: both figures
- * read "not read" until assets/live-now.js fills them from the public live
- * route (inc/analytics-live.php). A number baked into a page the edge keeps
+ * /stats is edge-cached HTML, so this paints only the shell: assets/live-now.js
+ * fills the figures from the public live route (inc/analytics-live.php). Until
+ * it answers they are empty (2026-10-31: "not read" in display type flashed on
+ * every load); the words sit in <noscript> for a reader without script, and a
+ * read that fails writes them (data-sn-live-pending marks what is unread). A number baked into a page the edge keeps
  * for hours would be wrong for most of that time. Without JavaScript the
  * strip says the live figures need it; a figure that cannot be read stays
  * "not read" (an em dash until 2026-10-12), never 0.
@@ -28,7 +30,7 @@ function sn_public_stats_live_html() {
 			$attrs .= ' ' . esc_attr( $k ) . '="' . esc_attr( $v ) . '"';
 		}
 		return '<div class="sn-public-stats__live-fig">'
-			. '<span class="sn-public-stats__live-n"' . $attrs . '>' . esc_html__( 'not read', 'signal-and-noise-tools' ) . '</span>'
+			. '<span class="sn-public-stats__live-n"' . $attrs . ' data-sn-live-pending><noscript>' . esc_html__( 'not read', 'signal-and-noise-tools' ) . '</noscript></span>'
 			. '<span class="sn-public-stats__live-l">' . esc_html( $label ) . '</span>'
 			. '<span class="sn-public-stats__sub">' . esc_html( $sub ) . '</span>'
 			. $extra
@@ -39,7 +41,9 @@ function sn_public_stats_live_html() {
 	$hour = '<svg class="sn-public-stats__live-hour" data-sn-live-hour viewBox="0 0 240 34" preserveAspectRatio="none" role="img" aria-labelledby="sn-public-stats-live-hour-note"></svg>'
 		. '<span class="sn-public-stats__live-ax" aria-hidden="true"><span>' . esc_html__( 'an hour ago', 'signal-and-noise-tools' ) . '</span><span>' . esc_html__( 'now', 'signal-and-noise-tools' ) . '</span></span>'
 		. '<span class="sn-public-stats__sub" id="sn-public-stats-live-hour-note" data-sn-live-hour-note>' . esc_html__( 'Readers per 5 minutes over the last hour.', 'signal-and-noise-tools' ) . '</span>';
-	return '<section class="sn-public-stats__live" aria-labelledby="sn-public-stats-live-h">'
+	// data-sn-live-busy: the script sets aria-busy while it waits (set here, it
+	// would never clear for a reader without script).
+	return '<section class="sn-public-stats__live" aria-labelledby="sn-public-stats-live-h" data-sn-live-busy>'
 		. '<h2 id="sn-public-stats-live-h" class="sn-public-stats__live-h">' . esc_html__( 'Live', 'signal-and-noise-tools' ) . '</h2>'
 		. '<div class="sn-public-stats__live-row">'
 		. $fig( 'now', __( 'Reading now', 'signal-and-noise-tools' ), __( 'readers active in the last 5 minutes', 'signal-and-noise-tools' ), $hour )
@@ -48,7 +52,7 @@ function sn_public_stats_live_html() {
 		// Being read now: filled by live-now.js; only published public pages.
 		. '<div class="sn-public-stats__live-pages">'
 		. '<h3 id="sn-public-stats-live-pages-h">' . esc_html__( 'Being read now', 'signal-and-noise-tools' ) . '</h3>'
-		. '<ol class="sn-public-stats__top" aria-labelledby="sn-public-stats-live-pages-h" data-sn-live-pages><li class="sn-public-stats__live-empty">' . esc_html__( 'not read', 'signal-and-noise-tools' ) . '</li></ol>'
+		. '<ol class="sn-public-stats__top" aria-labelledby="sn-public-stats-live-pages-h" data-sn-live-pages><li class="sn-public-stats__live-empty" data-sn-live-pending><noscript>' . esc_html__( 'not read', 'signal-and-noise-tools' ) . '</noscript></li></ol>'
 		. '</div>'
 		. '<p class="sn-public-stats__live-meta" data-sn-live-meta>' . esc_html__( 'The live figures need JavaScript.', 'signal-and-noise-tools' ) . '</p>'
 		. '</section>';
