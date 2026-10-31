@@ -61,8 +61,7 @@
 	}
 
 	function fetchCredential( uid, version ) {
-		// Version 0 asks for the latest, the way prov-verify.js asks for it.
-		var url = credentialBase.replace( /\/?$/, '' ) + '/' + encodeURIComponent( uid ) + ( version ? '?v=' + encodeURIComponent( version ) : '' );
+		var url = credentialBase.replace( /\/?$/, '' ) + '/' + encodeURIComponent( uid ) + '?v=' + encodeURIComponent( version );
 		return fetch( url, { credentials: 'omit' } ).then( function ( res ) {
 			if ( ! res.ok ) {
 				return null;
@@ -183,35 +182,49 @@
 	// Arrival from a note's "Updated" line (theme, 2026.10):
 	// ?note=<uid>&compare_a=N&compare_b=M#compare, the form's own field names.
 	// Each version must be a plain number (no sign, exponent, decimal or
-	// leading zero) inside the note's range, which its latest credential states
-	// (the version prov-verify.js reports). Anything else is ignored without a
-	// word, so a bad or stale link leaves the page as a bare ?note= link does.
-	// The values reach the page only as input values, after the pattern passed.
+	// leading zero), the two must differ, and the note id is the page's own,
+	// rechecked; anything else is ignored, so a malformed link leaves the page
+	// as a bare ?note= link does. A well-formed pair runs as the form would:
+	// a version the note does not have gets the form's own sentence. No range
+	// pre-check against the latest credential (review of #2326): that URL is
+	// edge-cached for up to two hours and nothing purges it, so right after an
+	// edit it would refuse the newest version. The values reach the page only
+	// as input values, after the pattern passed.
 	var VERSION_PARAM = /^[1-9][0-9]{0,5}$/;
 	var query = new URLSearchParams( window.location.search );
 	var wantA = query.get( 'compare_a' ) || '';
 	var wantB = query.get( 'compare_b' ) || '';
 	var noteId = String( root.getAttribute( 'data-note' ) || '' ).toLowerCase();
 	if ( aIn && bIn && VERSION_PARAM.test( wantA ) && VERSION_PARAM.test( wantB ) && wantA !== wantB && Core.UUID_SHAPE.test( noteId ) ) {
-		fetchCredential( noteId, 0 ).then( function ( latest ) {
-			var top = parseInt( ( latest && latest.evidence && latest.evidence[ 0 ] && latest.evidence[ 0 ].version ) || 0, 10 ) || 0;
-			if ( Number( wantA ) > top || Number( wantB ) > top ) {
+		var arrived = false;
+		var arrive = function () {
+			if ( arrived ) {
 				return;
 			}
+			arrived = true;
 			aIn.value = wantA;
 			bIn.value = wantB;
+			var tab = document.getElementById( 'sn-tab-compare' );
+			if ( box.hidden && tab ) {
+				tab.click(); // a link without #compare: show the panel the result lands in.
+			}
 			// Land the reader on the answer, unless they have already moved on.
 			// Focus moves before the result arrives, so the polite region reads
 			// the diff once instead of focus and region reading it twice.
 			if ( document.activeElement === document.body || ! document.activeElement ) {
-				var tab = document.getElementById( 'sn-tab-compare' );
-				if ( box.hidden && tab ) {
-					tab.click(); // a link without #compare: show the panel the result lands in.
-				}
 				out.setAttribute( 'tabindex', '-1' );
 				out.focus();
 			}
 			runCompare( noteId, Number( wantA ), Number( wantB ) );
-		} );
+		};
+		// After every deferred script has run (the tabs' included), so the panel
+		// the result lands in is the one shown. load backs up a missed
+		// DOMContentLoaded; the guard keeps it to one run.
+		if ( 'complete' === document.readyState ) {
+			arrive();
+		} else {
+			document.addEventListener( 'DOMContentLoaded', arrive );
+			window.addEventListener( 'load', arrive );
+		}
 	}
 } )();
