@@ -503,7 +503,8 @@ function sn_public_stats_html() {
 		$out .= '</ol>';
 	}
 
-	$out .= '<p class="sn-public-stats__method">' . esc_html__( 'First-party, cookieless measurement at the edge. Aggregates only: the site can see that a page was read, never who read it. No consent banner: the measurement sets no cookies on readers and uses no local storage.', 'signal-and-noise-tools' ) . '</p>';
+	// The id is the target of the theme's /stats hero link, "How it's measured" (2026-10-31).
+	$out .= '<p class="sn-public-stats__method" id="sn-public-stats-method">' . esc_html__( 'First-party, cookieless measurement at the edge. Aggregates only: the site can see that a page was read, never who read it. No consent banner: the measurement sets no cookies on readers and uses no local storage.', 'signal-and-noise-tools' ) . '</p>';
 
 	return $out . '</div>';
 }

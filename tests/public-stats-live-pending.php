@@ -34,6 +34,9 @@ ok( false !== strpos( $strip, 'The live figures need JavaScript.' ), 'a reader w
 $css = (string) file_get_contents( dirname( __DIR__ ) . '/assets/public-stats-front.css' );
 ok( 1 === preg_match( '/\.sn-public-stats__live-n\{[^}]*min-height:1em/', $css ), 'an empty figure keeps its line, so the answer does not shift the page' );
 
+$stats_src = (string) file_get_contents( dirname( __DIR__ ) . '/inc/public-stats.php' );
+ok( false !== strpos( $stats_src, '<p class="sn-public-stats__method" id="sn-public-stats-method">' ), 'the method paragraph carries the id the theme\'s /stats hero links to ("How it\'s measured")' );
+
 echo "\nGroup 2: the script settles every figure\n";
 $node = trim( (string) shell_exec( 'command -v node' ) );
 if ( '' === $node ) {
