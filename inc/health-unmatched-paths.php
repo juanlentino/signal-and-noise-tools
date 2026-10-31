@@ -49,6 +49,7 @@ function sn_health_check_unmatched_paths() {
 		'people'          => array_slice( $r['people'], 0, SN_UNMATCHED_REPORT_PEOPLE ),
 		'people_total'    => count( $r['people'] ),
 		'human_views'     => array_sum( array_column( $r['people'], 'human' ) ),
+		'people_visits'   => array_sum( array_column( $r['people'], 'visits' ) ),
 		'served'          => array_slice( $r['served'], 0, SN_UNMATCHED_REPORT_SERVED ),
 		'served_total'    => count( $r['served'] ),
 		'automated'       => array_slice( $r['automated'], 0, SN_UNMATCHED_REPORT_AUTOMATED ),
@@ -76,8 +77,15 @@ function sn_unmatched_headline( array $report ) {
 			/* translators: %d: paths the site serves or already redirects. */
 			: sprintf( _n( 'None of these paths answers with an error: the %d path the site serves or already redirects is listed below.', 'None of these paths answers with an error: the %d paths the site serves or already redirects are listed below.', $served, 'signal-and-noise-tools' ), $served );
 	}
-	/* translators: 1: paths, 2: human views. */
-	$line = sprintf( _n( '%1$d path visitors reached is not a note or page (%2$d human views in all).', '%1$d paths visitors reached are not a note or page (%2$d human views in all).', $n, 'signal-and-noise-tools' ), $n, $views );
+	$visits = (int) ( $report['people_visits'] ?? 0 );
+	if ( 0 === $views && $visits > 0 ) {
+		// Only feeds or suspect-only paths left: "0 human views" would read as nothing.
+		/* translators: 1: paths, 2: visits. */
+		$line = sprintf( _n( '%1$d path visitors reached is not a note or page (no human page views, %2$d visits in all).', '%1$d paths visitors reached are not a note or page (no human page views, %2$d visits in all).', $n, 'signal-and-noise-tools' ), $n, $visits );
+	} else {
+		/* translators: 1: paths, 2: human views. */
+		$line = sprintf( _n( '%1$d path visitors reached is not a note or page (%2$d human views in all).', '%1$d paths visitors reached are not a note or page (%2$d human views in all).', $n, 'signal-and-noise-tools' ), $n, $views );
+	}
 	if ( ! empty( $report['capped'] ) ) {
 		$line .= ' ' . __( 'The read stopped at its cap of stored rows, so the list may be short.', 'signal-and-noise-tools' );
 	}
