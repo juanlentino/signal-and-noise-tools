@@ -335,8 +335,30 @@ foreach ( array( '4 URLs to request (not indexed after 7 days), 1 stuck past 30 
 	ok( false !== strpos( $classic, $needle ) && false !== strpos( $kit, $needle ), 'indexing: both surfaces print "' . $needle . '"' );
 }
 ok( false !== strpos( $kit, 'Showing 1 of 4' ) && false === strpos( $kit, 'This report has no detail view yet' ), 'indexing: the native leaf has its own view and states the cap' );
-ok( false !== strpos( $classic, 'aria-label="Inspect /notes/a in Search Console (opens a new tab)"' ) && false !== strpos( $classic, '<caption>' ), 'indexing: the classic table has a caption and the Inspect button says what it inspects' );
+ok( false !== strpos( $classic, 'aria-label="Request /notes/a in Search Console (opens a new tab)"' ) && false !== strpos( $classic, '<caption>' ), 'indexing: the classic table has a caption and the Search Console button says which page' );
 ok( false === strpos( $kit, '—' ) && false === strpos( $classic, ' — ' ), 'indexing: no em dash on either surface' );
+// 2026-10-31: the owner's marks, the live check, and what Google did since, on both surfaces.
+$ix_req = $ix_scan;
+$ix_req['checks']['indexing']['report'] += array(
+	'request_status'        => array(
+		'/notes/a' => array( 'state' => 'waiting', 'requested_at' => 1791990000, 'last_crawl' => 0, 'quiet' => true ),
+		'/about'   => array( 'state' => 'crawled_since', 'requested_at' => 1791800000, 'last_crawl' => 1791990000, 'quiet' => false ),
+	),
+	'indexed_after_request' => array( array( 'path' => '/notes/z', 'url' => 'https://example.test/notes/z/', 'requested_at' => 1791800000 ) ),
+	'checked_now'           => array( 'at' => 1792050000, 'checked' => 2, 'errors' => 1, 'remaining' => 1, 'budget_hit' => true ),
+);
+$GLOBALS['__scan'] = $ix_req;
+$classic = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
+$kit     = reports_paint();
+foreach ( array( 'Requested Oct 14 (marked); waiting on Google · never crawled', 'Requested Oct 12 (marked); Google crawled it Oct 14 and still left it out: request again', 'Checked live with Google Oct 15, 7:40 am: 2 pages. 1 did not answer and keep their last answer. 1 left at the time limit: press Check now again.', 'Indexed after your request', '/notes/z · requested Oct 12 (marked), now indexed', 'Mark requested again', 'Check now with Google', 'Request in Search Console' ) as $needle ) {
+	ok( false !== strpos( $classic, $needle ) && false !== strpos( $kit, $needle ), 'indexing: both surfaces print "' . $needle . '"' );
+}
+ok( 1 === substr_count( $kit, 'Mark requested' ) && 1 === substr_count( $classic, '>Mark requested' ), 'indexing: a row waiting quietly offers no mark button; the one to ask again does' );
+ok( false !== strpos( $kit, 'gsc_mark_requested' ) && false !== strpos( $kit, '/about' ) && false !== strpos( $classic, 'sn_gsc_mark_requested' ), 'indexing: the mark posts its own action with the row\'s path' );
+$GLOBALS['__scan'] = $ix_scan;
+$classic = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
+$kit     = reports_paint();
+ok( false !== strpos( $classic, 'Not checked live yet' ) && false !== strpos( $kit, 'Not checked live yet' ) && false === strpos( $kit, 'Mark requested' ) && false === strpos( $classic, 'Mark requested' ), 'indexing: a report stored before marks existed paints, with no status and no mark button' );
 // 2026-10-22: a row the site chrome or a template links says so on both surfaces, never a bare 0.
 $ix_site = $ix_scan;
 $ix_site['checks']['indexing']['report']['request_list'][0] = array_merge( $ix_site['checks']['indexing']['report']['request_list'][0], array( 'path' => '/now', 'inbound_indexed' => 0, 'chrome' => true, 'template' => array() ) );

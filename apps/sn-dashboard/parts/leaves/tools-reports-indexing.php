@@ -21,24 +21,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * One list of indexing rows.
  *
- * @param array $rows  Rows.
- * @param int   $total The true total.
+ * @param array $rows   Rows.
+ * @param int   $total  The true total.
+ * @param array $status path => snt_gsc_request_status() (2026-10-31).
  * @return string
  */
-function tools_reports_indexing_list( array $rows, $total ) {
+function tools_reports_indexing_list( array $rows, $total, array $status = array() ) {
 	if ( empty( $rows ) ) {
 		return '<p class="snt-hint">' . \snt_kit_esc( __( 'None.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
 	$items = '';
 	foreach ( $rows as $row ) {
-		$items .= '<li>' . \snt_kit_link( (string) ( $row['path'] ?? '' ), (string) ( $row['url'] ?? '' ) )
+		$path   = (string) ( $row['path'] ?? '' );
+		$words  = \sn_indexing_status_words( $status[ $path ] ?? null );
+		$mark   = \sn_indexing_mark_label( $status[ $path ] ?? null );
+		$items .= '<li>' . \snt_kit_link( $path, (string) ( $row['url'] ?? '' ) )
 			. ( ! empty( $row['core'] ) ? ' ' . \snt_kit_badge( '', __( 'core', 'signal-and-noise-tools' ) ) : '' )
 			. ' · ' . \snt_kit_esc( (string) ( $row['coverage_state'] ?? '' ) )
 			/* translators: %d: days since the page was published. */
 			. ' · ' . \snt_kit_esc( sprintf( __( '%d days since publish', 'signal-and-noise-tools' ), (int) ( $row['days'] ?? 0 ) ) )
 			/* translators: %s: link count, or "not in the link graph". */
 			. ' · ' . \snt_kit_esc( sprintf( __( 'links from indexed pages: %s', 'signal-and-noise-tools' ), \sn_indexing_row_inbound_words( $row ) ) )
-			. ' · ' . \snt_kit_link( __( 'Inspect in Search Console', 'signal-and-noise-tools' ), (string) ( $row['inspect_url'] ?? '' ) )
+			. ( '' === $words ? '' : ' · ' . \snt_kit_esc( $words ) )
+			. ' · ' . \snt_kit_link( __( 'Request in Search Console', 'signal-and-noise-tools' ), (string) ( $row['inspect_url'] ?? '' ) )
+			. ( '' === $mark ? '' : ' ' . \snt_kit_form( 'gsc_mark_requested', '', array( 'inline' => true, 'submit' => $mark, 'hidden' => array( 'path' => $path ) ) ) )
 			. '</li>';
 	}
 	$out = '<ul class="snt-plain">' . $items . '</ul>';
@@ -57,11 +63,21 @@ function tools_reports_indexing_list( array $rows, $total ) {
  * @return array<int,string>
  */
 function tools_reports_render_indexing( array $report ) {
-	$body = '<p class="snt-prose">' . \snt_kit_esc( \sn_indexing_headline( $report ) ) . '</p>'
+	$status = (array) ( $report['request_status'] ?? array() );
+	$body   = '<p class="snt-prose">' . \snt_kit_esc( \sn_indexing_headline( $report ) ) . '</p>'
+		. '<p class="snt-hint">' . \snt_kit_esc( \sn_indexing_checked_words( $report ) ) . '</p>'
+		. '<p>' . \snt_kit_action_button( __( 'Check now with Google', 'signal-and-noise-tools' ), 'gsc_check_now' ) . '</p>'
 		. '<p class="snt-prose"><b>' . \snt_kit_esc( __( 'Request indexing this week', 'signal-and-noise-tools' ) ) . '</b></p>'
-		. tools_reports_indexing_list( (array) ( $report['request_list'] ?? array() ), (int) ( $report['request_total'] ?? 0 ) );
+		. tools_reports_indexing_list( (array) ( $report['request_list'] ?? array() ), (int) ( $report['request_total'] ?? 0 ), $status );
 
-	$stuck = \snt_kit_section( __( 'Stuck past 30 days', 'signal-and-noise-tools' ), tools_reports_indexing_list( (array) ( $report['stuck'] ?? array() ), (int) ( $report['stuck_total'] ?? 0 ) ) );
+	$stuck = \snt_kit_section( __( 'Stuck past 30 days', 'signal-and-noise-tools' ), tools_reports_indexing_list( (array) ( $report['stuck'] ?? array() ), (int) ( $report['stuck_total'] ?? 0 ), $status ) );
+	if ( ! empty( $report['indexed_after_request'] ) ) {
+		$after = '';
+		foreach ( (array) $report['indexed_after_request'] as $a ) {
+			$after .= '<li>' . \snt_kit_esc( \sn_indexing_after_words( (array) $a ) ) . '</li>';
+		}
+		$stuck .= \snt_kit_section( __( 'Indexed after your request', 'signal-and-noise-tools' ), '<ul class="snt-plain">' . $after . '</ul>' );
+	}
 
 	$check    = (array) ( $report['publish_check'] ?? array() );
 	$failures = (array) ( $check['failures'] ?? array() );

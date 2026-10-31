@@ -241,6 +241,14 @@ $GLOBALS['__ripe'] = array( array( 'id' => 'index_gap', 'label' => 'a published 
 $gdata = snt_morning_brief_collect();
 ok( 3 === count( $gdata['watches'][0]['rows'] ?? array() ) && 3 === ( $gdata['watches'][0]['rows_total'] ?? 0 ), 'collect attaches the ranked request list to a ripe index_gap watch' );
 ok( 'Bing crawled 2026-10-01' === ( $gdata['watches'][0]['rows'][0]['bing'] ?? '' ), 'and keeps the Bing state the old note carried' );
+// 2026-10-31: a page the owner marked requested, with no crawl since, waits quietly: not in the brief.
+require_once __DIR__ . '/../inc/search-console-requested.php';
+$GLOBALS['__cov'] = array( 'entries' => array( '/about/' => array( 'coverage_state' => 'Discovered - currently not indexed', 'indexed' => false, 'last_crawl_time' => '' ) ) );
+if ( ! function_exists( 'snt_gsc_coverage_data' ) ) { function snt_gsc_coverage_data() { return $GLOBALS['__cov']; } }
+$GLOBALS['__options'][ SNT_GSC_REQUESTED_OPTION ] = array( '/about/' => time() - 86400 );
+$qdata = snt_morning_brief_collect();
+ok( array( '/notes/a-note/', '/notes/<b>/' ) === array_column( $qdata['watches'][0]['rows'] ?? array(), 'path' ) && 2 === ( $qdata['watches'][0]['rows_total'] ?? 0 ), 'a row marked requested and waiting on Google leaves the brief, and the total says so' );
+unset( $GLOBALS['__options'][ SNT_GSC_REQUESTED_OPTION ] );
 
 $saved = $GLOBALS['__report'];
 $GLOBALS['__report'] = 'throw';

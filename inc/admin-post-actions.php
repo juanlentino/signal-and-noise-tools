@@ -40,6 +40,7 @@ require_once __DIR__ . '/admin-post-actions/cloudflare.php';
 require_once __DIR__ . '/admin-post-actions/health-insights.php';
 require_once __DIR__ . '/admin-post-actions/webhooks.php';
 require_once __DIR__ . '/admin-post-actions/reports.php';
+require_once __DIR__ . '/admin-post-actions/gsc-indexing.php'; // 2026-10-31: Integrity > Reports > Indexing, Mark requested and Check now
 require_once __DIR__ . '/admin-post-actions/content.php';
 require_once __DIR__ . '/admin-post-actions/workflow.php'; // 21.7.0: Content > Workflow (/workflow)
 require_once __DIR__ . '/admin-post-actions/resume-draft.php'; // 19.9.0: /resume drafts (save, preview, publish, discard, revert)
