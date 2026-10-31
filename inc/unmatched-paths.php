@@ -33,8 +33,10 @@ require_once __DIR__ . '/unmatched-paths-clean.php';
  * Stored daily rows {path, class, first_day, last_day, views, visits} into the
  * report: the non-content paths, cleaned and merged by cleaned path, split into
  * people (human and suspect, not probe-shaped) and automated (probe-shaped, or
- * seen only as bot: by its page views, or by its visits where it has none). Sorted by human views, then the most recent. PURE: the
- * probe test and the suggester come in as callables (the 404 log's own,
+ * seen only as bot: by its page views, or by its visits where it has none).
+ * Sorted by human views, then the most recent (visits first among rows with no
+ * human view, so a feed is not ranked behind a suspect-only row). PURE: the probe
+ * test and the suggester come in as callables (the 404 log's own,
  * sn_404_should_capture() and sn_404_suggest_target(), in production).
  *
  * @param array<int,array<string,mixed>> $rows     Stored rows, any paths.
@@ -70,9 +72,9 @@ function snt_unmatched_report_rows( array $rows, array $real, callable $suggest,
 	$people    = array();
 	$automated = array();
 	foreach ( $by as $clean => $m ) {
-		// No page views at all (a feed: a fetch reaches the analytics as an event,
-		// a visit and never a view): classed by its visits, or a feed reader reads
-		// as a scanner and the path never gets the live check.
+		// No page views at all (a feed fetch, or any other event-only row: every
+		// event counts a visit, only a page view counts a view): classed by its
+		// visits, or a feed reader reads as a scanner and never gets the live check.
 		$n          = $m['human'] + $m['suspect'] + $m['bot'] > 0 ? $m : $m['visits_by'];
 		$m['class'] = $n['human'] > 0 ? 'human' : ( $n['suspect'] > 0 ? 'suspect' : 'bot' );
 		unset( $m['visits_by'] );
@@ -89,7 +91,11 @@ function snt_unmatched_report_rows( array $rows, array $real, callable $suggest,
 			$automated[] = $m;
 		}
 	}
-	$order = static fn( $a, $b ) => ( $b['human'] <=> $a['human'] ) ?: ( strcmp( $b['last_seen'], $a['last_seen'] ) ?: strcmp( $a['path'], $b['path'] ) );
+	// ponytail: visits only break a tie at zero human views; a zero-view path
+	// still ranks below every path with a human view, so past
+	// SNT_UNMATCHED_PROBE_MAX people rows (43 on 2026-10-31) it is not checked
+	// live. Rank by visits if that day comes.
+	$order = static fn( $a, $b ) => ( $b['human'] <=> $a['human'] ) ?: ( ( 0 === $a['human'] ? $b['visits'] <=> $a['visits'] : 0 ) ?: ( strcmp( $b['last_seen'], $a['last_seen'] ) ?: strcmp( $a['path'], $b['path'] ) ) );
 	usort( $people, $order );
 	foreach ( array_slice( array_keys( $people ), 0, max( 0, (int) $suggest_limit ) ) as $i ) {
 		if ( ! $people[ $i ]['variant'] ) {

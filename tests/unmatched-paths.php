@@ -155,6 +155,8 @@ ok( isset( $zp['/notes/feed'] ) && 'human' === $zp['/notes/feed']['class'], 'no 
 ok( ! isset( $zp['/notes/feed']['visits_by'] ), 'the per-class visits do not reach the report row' );
 ok( isset( $za['/go/x'] ), 'no views and no visits stays with the scanners' );
 ok( isset( $za['/mixed'] ) && 'bot' === $za['/mixed']['class'], 'page views decide wherever there are any' );
+$t = snt_unmatched_report_rows( array( $zv( '/quiet', 'suspect', 0, 1 ), $zv( '/notes/feed', 'human', 0, 17 ), array( 'last_day' => '2026-10-20' ) + $zv( '/a', 'suspect', 2, 1 ) ), $real, static fn() => '', static fn() => false );
+ok( array( '/notes/feed', '/a', '/quiet' ) === array_column( $t['people'], 'path' ) && 'suspect' === $t['people'][2]['class'], 'review 2026-10-31: with no human view, visits rank before recency, so a feed is not ranked last; suspect visits alone are people' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
