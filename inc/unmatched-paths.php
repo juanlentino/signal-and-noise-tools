@@ -33,7 +33,7 @@ require_once __DIR__ . '/unmatched-paths-clean.php';
  * Stored daily rows {path, class, first_day, last_day, views, visits} into the
  * report: the non-content paths, cleaned and merged by cleaned path, split into
  * people (human and suspect, not probe-shaped) and automated (probe-shaped, or
- * seen only as bot). Sorted by human views, then the most recent. PURE: the
+ * seen only as bot: by its page views, or by its visits where it has none). Sorted by human views, then the most recent. PURE: the
  * probe test and the suggester come in as callables (the 404 log's own,
  * sn_404_should_capture() and sn_404_suggest_target(), in production).
  *
@@ -53,13 +53,14 @@ function snt_unmatched_report_rows( array $rows, array $real, callable $suggest,
 		}
 		$clean = snt_unmatched_clean_path( $stored );
 		$class = in_array( $r['class'] ?? '', array( 'human', 'suspect', 'bot' ), true ) ? $r['class'] : 'bot';
-		$m     = $by[ $clean ] ?? array( 'path' => $clean, 'human' => 0, 'suspect' => 0, 'bot' => 0, 'visits' => 0, 'first_seen' => '', 'last_seen' => '', 'respelled' => false );
+		$m     = $by[ $clean ] ?? array( 'path' => $clean, 'human' => 0, 'suspect' => 0, 'bot' => 0, 'visits' => 0, 'first_seen' => '', 'last_seen' => '', 'respelled' => false, 'visits_by' => array( 'human' => 0, 'suspect' => 0, 'bot' => 0 ) );
 		// Stored as something the cleaned path is not (capitals, an encoded
 		// slash): asking the site about the cleaned path would ask about a URL
 		// this visitor never requested (/Provhub 404s where /provhub serves).
 		$m['respelled'] = $m['respelled'] || preg_replace( '#/+#', '/', sn_analytics_canonical_path( (string) strtok( strtok( $stored, '?' ), '#' ) ) ) !== $clean;
 		$m[ $class ] += (int) ( $r['views'] ?? 0 );
 		$m['visits'] += (int) ( $r['visits'] ?? 0 );
+		$m['visits_by'][ $class ] += (int) ( $r['visits'] ?? 0 );
 		$first = (string) ( $r['first_day'] ?? '' );
 		$last  = (string) ( $r['last_day'] ?? '' );
 		$m['first_seen'] = '' === $m['first_seen'] || ( '' !== $first && $first < $m['first_seen'] ) ? $first : $m['first_seen'];
@@ -69,7 +70,12 @@ function snt_unmatched_report_rows( array $rows, array $real, callable $suggest,
 	$people    = array();
 	$automated = array();
 	foreach ( $by as $clean => $m ) {
-		$m['class']   = $m['human'] > 0 ? 'human' : ( $m['suspect'] > 0 ? 'suspect' : 'bot' );
+		// No page views at all (a feed: a fetch reaches the analytics as an event,
+		// a visit and never a view): classed by its visits, or a feed reader reads
+		// as a scanner and the path never gets the live check.
+		$n          = $m['human'] + $m['suspect'] + $m['bot'] > 0 ? $m : $m['visits_by'];
+		$m['class'] = $n['human'] > 0 ? 'human' : ( $n['suspect'] > 0 ? 'suspect' : 'bot' );
+		unset( $m['visits_by'] );
 		$m['probe']   = (bool) $is_probe( $clean );
 		// A spelling of a page (capitals, doubled slashes): stored apart, the
 		// same page once cleaned. Said, so the row is not read as a broken link.
