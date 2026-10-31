@@ -67,6 +67,11 @@ function sn_cite_this_for( $post_id ) {
 	$head      = sn_zenodo_head_commit( (int) $post->ID );
 	$version   = (int) ( $head['version'] ?? 0 );
 	$doi       = sn_zenodo_doi_for( (int) $post->ID );
+	// The DOI only when it records the version read (owner, 2026-10-31): a note
+	// revised since its deposit cites the version read at its permalink.
+	if ( '' !== $doi && sn_zenodo_doi_version( (int) $post->ID ) !== $version ) {
+		$doi = '';
+	}
 	$doi_url   = '' === $doi ? '' : 'https://doi.org/' . $doi;
 
 	$apa = 'Lentino, J. (' . gmdate( 'Y, F j', $ts ) . '). ' . $title . ( $version > 0 ? ' (Version ' . $version . ')' : '' ) . '. Signal & Noise. ' . ( '' === $doi ? $url : $doi_url );

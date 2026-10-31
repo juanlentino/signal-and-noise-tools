@@ -321,9 +321,41 @@ function sn_zenodo_deposit( $post_id ) {
 	update_post_meta( $post_id, SN_ZENODO_RECORD_META, (string) ( $pub['body']['id'] ?? $id ) );
 	update_post_meta( $post_id, SN_ZENODO_ENV_META, $env );
 	update_post_meta( $post_id, SN_ZENODO_AT_META, gmdate( 'c' ) );
+	update_post_meta( $post_id, SN_ZENODO_VERSION_META, (int) ( $ready['commit']['version'] ?? 0 ) );
 	delete_post_meta( $post_id, $draft_key );
 	delete_post_meta( $post_id, SN_ZENODO_ERROR_META );
 	return array( 'ok' => true, 'state' => 'published', 'doi' => $doi, 'error' => '' );
+}
+
+/**
+ * The chain version a post's DOI records, or 0 when unknown. A note is
+ * deposited once, when its head commit is confirmed, so a note revised since
+ * has a DOI for an older version. Deposits from 2026-10-31 record their
+ * version; an earlier one recorded the chain head at its deposit time, which
+ * is the latest version committed by then (a newer, unconfirmed head would
+ * have held the deposit back).
+ *
+ * @param int $post_id
+ * @return int
+ */
+function sn_zenodo_doi_version( $post_id ) {
+	$recorded = (int) get_post_meta( (int) $post_id, SN_ZENODO_VERSION_META, true );
+	if ( $recorded > 0 ) {
+		return $recorded;
+	}
+	$at = strtotime( (string) get_post_meta( (int) $post_id, SN_ZENODO_AT_META, true ) );
+	if ( ! $at || ! function_exists( 'sn_prov_get_chain' ) ) {
+		return 0;
+	}
+	$version = 0;
+	foreach ( (array) sn_prov_get_chain( (int) $post_id ) as $c ) {
+		$v    = (int) ( $c['version'] ?? 0 );
+		$when = strtotime( (string) ( $c['committed_at'] ?? '' ) );
+		if ( $v > $version && $when && $when <= $at ) {
+			$version = $v;
+		}
+	}
+	return $version;
 }
 
 /**

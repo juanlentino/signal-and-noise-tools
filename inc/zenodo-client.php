@@ -33,6 +33,7 @@ const SN_ZENODO_CONCEPT_DOI_META = '_sn_zenodo_concept_doi';
 const SN_ZENODO_RECORD_META      = '_sn_zenodo_record_id';
 const SN_ZENODO_ENV_META         = '_sn_zenodo_env';
 const SN_ZENODO_AT_META          = '_sn_zenodo_deposited_at';
+const SN_ZENODO_VERSION_META     = '_sn_zenodo_version'; // the chain version the DOI records (2026-10-31).
 const SN_ZENODO_DRAFT_META       = '_sn_zenodo_draft_id';
 const SN_ZENODO_ERROR_META       = '_sn_zenodo_last_error';
 
