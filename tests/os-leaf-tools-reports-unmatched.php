@@ -142,6 +142,13 @@ $kit               = snt_leaf_paint( 'tools', 'reports' );
 $none_broken       = 'None of these paths answers with an error: the 3 paths the site serves or already redirects are listed below.';
 ok( false !== strpos( $classic, $none_broken ) && false !== strpos( $kit, $none_broken ) && false === strpos( $kit, 'No visitor reached' ), 'no broken path but served ones: both twins say so, never "No visitor reached"' );
 
+// 2026-10-31: people rows with no human page view (a feed, a suspect-only path) count visits, never "0 human views".
+$GLOBALS['__scan'] = $scan( array( 'people' => array( $row( '/notes/tag/x', array( 'human' => 0, 'suspect' => 0, 'visits' => 17 ) ) ), 'people_total' => 1, 'human_views' => 0, 'people_visits' => 17 ) + $report );
+$classic           = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
+$kit               = snt_leaf_paint( 'tools', 'reports' );
+$no_views          = '1 path visitors reached is not a note or page (no human page views, 17 visits in all).';
+ok( false !== strpos( $classic, $no_views ) && false !== strpos( $kit, $no_views ) && false === strpos( $kit, '0 human views' ), 'no human page view: both twins count visits, never "0 human views"' );
+
 $GLOBALS['__scan'] = $scan( array( 'people' => array(), 'people_total' => 0, 'human_views' => 0, 'automated' => array(), 'automated_total' => 0, 'capped' => false, 'generated_at' => 1700000000, 'coverage' => 'x' ) );
 $classic           = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
 $kit               = snt_leaf_paint( 'tools', 'reports' );

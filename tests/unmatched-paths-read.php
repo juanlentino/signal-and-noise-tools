@@ -71,6 +71,7 @@ $by    = static fn( $k ) => array_column( $check['report'][ $k ], null, 'path' )
 ok( array( '/provhub', '/notes/subscribe' ) === array_keys( $by( 'served' ) ) && 2 === $check['report']['served_total'], 'what the site serves or already redirects is listed apart' );
 ok( array( '/gated', '/tools', '/quiet' ) === array_keys( $by( 'people' ) ) && 404 === $by( 'people' )['/tools']['status'] && null === $by( 'people' )['/quiet']['status'], 'a live 404 stays with the people rows; no answer keeps the 404 log\'s word' );
 ok( null === $by( 'people' )['/gated']['status'], 'a Cloudflare challenge (403, skipped) is no answer, never a 403 on a live page' );
+ok( 5 === $check['report']['people_visits'], 'review 2026-10-31: the payload sums the people rows\' visits (the headline\'s fallback), not the served ones' );
 
 // The suggestion window covers the rows shown after served rows leave (review 2026-10-30).
 $many = array();

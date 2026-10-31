@@ -146,9 +146,16 @@ ok( true === $ad( '0.7.0' )['ripe'] && true === $ad( '1.0.0' )['ripe'], '0.7.0, 
 ok( false === $ad( '0.7.0-beta1' )['ripe'], 'a 0.7.0 pre-release does not count' );
 $ids = array_column( snt_watches(), 'id' );
 ok( in_array( 'connector_key_wipe_65551', $ids, true ) && in_array( 'mcp_adapter_read_door', $ids, true ), 'both watches are registered' );
-// #1625: the Secrets API watch ripens on the function, never the clock.
+// #1625: the Secrets API watch ripens on the function AND a 7.2 release
+// candidate (2026-10-25: wait for RC), never the clock. On 2026-10-31 the
+// function existed on a 7.1.4 site, from something other than core.
 ok( in_array( 'secrets_api_keyring_storage', $ids, true ), 'the Secrets API keyring watch is registered (#1625)' );
-ok( false === snt_watch_ripe_secrets_api( array(), 0, false )['ripe'] && true === snt_watch_ripe_secrets_api( array(), 0, true )['ripe'], 'it is pending without wp_set_secret and ripe with it' );
+$sec = static fn( $exists, $v ) => snt_watch_ripe_secrets_api( array(), 0, $exists, $v )['ripe'];
+ok( false === $sec( false, '7.2' ) && true === $sec( true, '7.2' ), 'it is pending without wp_set_secret and ripe with it on 7.2' );
+ok( false === $sec( true, '7.1.4' ) && false === $sec( true, '7.2-beta1' ) && false === $sec( true, '7.2-alpha-61234' ), 'wp_set_secret before a 7.2 release candidate (7.1.4, a beta, trunk) is not ripe' );
+ok( true === $sec( true, '7.2-RC1' ) && true === $sec( true, '7.2.1' ), 'a 7.2 release candidate or later with wp_set_secret is ripe' );
+ok( false === $sec( true, '' ), 'an unreadable WordPress version is not ripe' );
+ok( false !== strpos( snt_watch_ripe_secrets_api( array(), 0, true, '7.1.4' )['note'], 'release candidate' ), 'the early case says why it waits' );
 ok( false === snt_watch_ripe_secrets_api( array(), 0 )['ripe'], 'on this machine (WordPress 7.1 shape, no wp_set_secret) it reads pending' );
 
 echo "\nGroup: rights evidence review window (Unreleased)\n";
