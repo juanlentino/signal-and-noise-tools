@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **/verify runs a compare on arrival from a link.** `?compare_a=N&compare_b=M`, the compare form's own field names, beside the page's `?note=`: the theme's "Updated" line sends a note's last two versions this way (`#compare` opens the tab). Each version must be a plain number (no sign, exponent, decimal or leading zero, at most six digits), the two must differ, the page's note id must have the uid shape, and both versions must sit inside the note's range, which its latest credential states (the version `prov-verify.js` reports). Anything else is ignored without a word, so a bad or stale link leaves the page exactly as a bare `?note=` link does. Valid values fill the form, focus moves to the compare output (unless the reader already moved it) and the polite region reads the diff once; a link without `#compare` selects the Compare tab first. URL values reach the page only as input values, after the pattern passed. The form's own compare is unchanged (one shared `runCompare()`). The output takes focus without a ring, like the panels (`prov-verify.css`). New behavior suite `tests/prov-verify-compare-arrival.cjs` (58 assertions, sweep wrapper `.php`) runs the real script and the real core in a VM, with hostile parameters.
+
 ## [2026.10.82] - 2026-10-31 — Indexing report marks a page requested and checks with Google live
 
 ### Added
