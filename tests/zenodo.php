@@ -153,6 +153,7 @@ ok( array( 'POST deposit/depositions', 'PUT files/b-1/two-kinds-of-provenance.md
 $meta_sent = json_decode( $GLOBALS['__z']['log'][4]['body'], true );
 ok( 'Two kinds of provenance' === $meta_sent['metadata']['title'] && 'v1' === $meta_sent['metadata']['version'] && false !== strpos( $meta_sent['metadata']['notes'], 'block 957333' ), 'the metadata PUT carries the built record (title, version, the block)' );
 ok( '10.5072/zenodo.542201' === get_post_meta( 7, SN_ZENODO_DOI_META ) && 'sandbox' === get_post_meta( 7, SN_ZENODO_ENV_META ) && '' === get_post_meta( 7, sn_zenodo_draft_meta_key( 'sandbox' ) ) && '' === get_post_meta( 7, SN_ZENODO_ERROR_META ), 'the post carries the DOI and the environment; the draft and error metas are cleared' );
+ok( 1 === (int) get_post_meta( 7, SN_ZENODO_VERSION_META ), 'the deposit records the version it deposited (v1), the one value a citation can match without deriving it' );
 ok( 'already' === sn_zenodo_deposit( 7 )['state'], 'a second call in the same environment is a no-op (already)' );
 ok( '' === sn_zenodo_doi_for( 7 ), 'a sandbox DOI never flows back to a public surface' );
 // Interrupted flow: the publish fails; the draft id is kept; the next call resumes with GET, not POST.
