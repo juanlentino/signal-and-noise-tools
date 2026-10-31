@@ -80,6 +80,20 @@ $records = (string) file_get_contents( __DIR__ . '/../inc/zenodo-records.php' );
 ok( false !== strpos( $records, "update_post_meta( \$post_id, SN_ZENODO_VERSION_META, (int) ( \$ready['commit']['version'] ?? 0 ) );" ), 'a new deposit records the version it deposits' );
 $GLOBALS['__c']['queried'] = 7;
 
+echo "\nGroup E: the date is the head version's own commit (review of #2327)\n";
+// A backfilled v1 is stamped at the publish date; the founding snapshot (v0)
+// can be stamped later, and _sn_prov_last_commit_gmt takes the newest stamp in
+// the chain. The live case: how-a-music-file-gets-corrected.
+mknote( 15, 'how-a-music-file-gets-corrected', 'How a music file gets corrected', '2026-07-07 21:14:00', '2026-07-09 17:09:29', array( array( 'version' => 0, 'genesis' => true, 'committed_at' => '2026-07-09T17:09:29Z' ), array( 'version' => 1, 'committed_at' => '2026-07-07T21:14:00Z' ) ) );
+$c = sn_cite_this_for( 15 );
+ok( '2026-07-07' === $c['date'] && str_starts_with( $c['apa'], 'Lentino, J. (2026, July 7).' ) && str_contains( $c['bibtex'], 'date = {2026-07-07}' ), 'dated by v1\'s commit (July 7), not the founding snapshot\'s later stamp (July 9)' );
+mknote( 16, 'early-in-month', 'Early in the month', '2026-10-01 10:00:00', '2026-10-05 09:00:00', array( array( 'version' => 1, 'committed_at' => '2026-10-05T09:00:00Z' ) ) );
+ok( str_starts_with( sn_cite_this_for( 16 )['apa'], 'Lentino, J. (2026, October 5).' ), 'a day under 10 is not zero-padded (APA writes October 5)' );
+mknote( 17, 'missing-stamp', 'Missing stamp', '2026-10-01 10:00:00', '2026-10-01 10:00:00', array( array( 'version' => 1, 'committed_at' => '2026-10-01T10:00:00Z' ), array( 'version' => 2 ) ), '10.5281/zenodo.117', 'production', array( SN_ZENODO_AT_META => '2026-10-05T00:00:00+00:00' ) );
+ok( 1 === sn_zenodo_doi_version( 17 ) && '' === sn_cite_this_for( 17 )['doi'], 'a version with no commit time is never taken as deposited (else the v1 DOI would sit under Version 2)' );
+mknote( 18, 'genesis-only', 'Genesis only', '2026-10-01 10:00:00', '2026-10-01 10:00:00', array( array( 'version' => 0, 'genesis' => true, 'committed_at' => '2026-10-01T10:00:00Z' ) ), '10.5281/zenodo.118' );
+ok( '' === sn_cite_this_for( 18 )['doi'], 'a founding snapshot claims no version, so it is never matched to a DOI' );
+
 echo "\nGroup C: what is missing stays missing\n";
 mknote( 8, 'a-remix', 'A remix &#8220;inherits&#8221; nothing &amp; more', '2026-10-24 17:06:20', '2026-10-24 17:06:47', array( array( 'version' => 0, 'genesis' => true ) ) );
 $c = sn_cite_this_for( 8 );

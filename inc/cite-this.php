@@ -63,13 +63,18 @@ function sn_cite_this_for( $post_id ) {
 	$title     = html_entity_decode( wp_strip_all_tags( get_the_title( $post ) ), ENT_QUOTES, 'UTF-8' );
 	$url       = (string) get_permalink( $post );
 	$published = (string) get_post_time( 'Y-m-d', true, $post );
-	$ts        = (int) strtotime( sn_schema_date_modified( $post ) );
 	$head      = sn_zenodo_head_commit( (int) $post->ID );
 	$version   = (int) ( $head['version'] ?? 0 );
+	// The head version's own commit date. The Article's dateModified is the
+	// newest stamp anywhere in the chain, and a founding snapshot can be
+	// stamped after a backfilled v1 (review of #2327); it is the fallback.
+	$ts        = (int) strtotime( (string) ( $head['committed_at'] ?? '' ) );
+	$ts        = $ts ?: (int) strtotime( sn_schema_date_modified( $post ) );
 	$doi       = sn_zenodo_doi_for( (int) $post->ID );
 	// The DOI only when it records the version read (owner, 2026-10-31): a note
-	// revised since its deposit cites the version read at its permalink.
-	if ( '' !== $doi && sn_zenodo_doi_version( (int) $post->ID ) !== $version ) {
+	// revised since its deposit cites the version read at its permalink, and a
+	// founding snapshot claims no version to match.
+	if ( '' !== $doi && ( $version < 1 || sn_zenodo_doi_version( (int) $post->ID ) !== $version ) ) {
 		$doi = '';
 	}
 	$doi_url   = '' === $doi ? '' : 'https://doi.org/' . $doi;
