@@ -47,6 +47,9 @@
 	}
 
 	function write( el, text ) {
+		if ( el.removeAttribute ) {
+			el.removeAttribute( 'data-sn-live-pending' );
+		}
 		if ( el.tagName === 'OS-STAT' ) {
 			el.setAttribute( 'value', text );
 		} else {
@@ -281,15 +284,32 @@
 		if ( document.hidden || ! document.querySelector( '[data-sn-live],[data-sn-live-hour],[data-sn-live-pages],[data-sn-live-sources],[data-sn-live-top],[data-sn-live-surge]' ) ) {
 			return;
 		}
-		load().then( apply, function () {
+		// apply() throwing on an answer it cannot use settles like a failed read.
+		load().then( function ( data ) { apply( data ); } ).then( settle, function () {
 			// The figures keep what they showed; the strip says it could not read.
 			if ( cfg ) {
 				meta( String( cfg.unknown ) );
 			}
+			settle();
+		} );
+	}
+
+	// /stats paints its parts empty until the first answer (no "not read" in
+	// display type on every load): whatever is still unread then says so in
+	// words, and the strip stops being busy.
+	function settle() {
+		document.querySelectorAll( '[data-sn-live-pending]' ).forEach( function ( el ) {
+			write( el, 'not read' );
+		} );
+		document.querySelectorAll( '[data-sn-live-busy]' ).forEach( function ( el ) {
+			el.removeAttribute( 'aria-busy' );
 		} );
 	}
 
 	function start() {
+		document.querySelectorAll( '[data-sn-live-busy]' ).forEach( function ( el ) {
+			el.setAttribute( 'aria-busy', 'true' );
+		} );
 		tick();
 		window.setInterval( tick, seconds * 1000 );
 		// A surface that paints its figures after load (the Traffic widget) asks
