@@ -145,5 +145,18 @@ $asked = array();
 snt_unmatched_check_live( array_values( $re ), $check, 10 );
 ok( ! in_array( '/provhub', $asked, true ) && ! in_array( '/notes/subscribe', $asked, true ) && in_array( '/tools', $asked, true ), 'the live check never asks about the cleaned form of another spelling: /Provhub 404s where /provhub serves' );
 
+echo "\nA path with no page views\n";
+// A feed fetch reaches the analytics as an event: visits, never a page view.
+$zv = static fn( $p, $c, $v, $n ) => array( 'path' => $p, 'class' => $c, 'first_day' => '2026-10-01', 'last_day' => '2026-10-01', 'views' => $v, 'visits' => $n );
+$z  = snt_unmatched_report_rows( array( $zv( '/notes/feed', 'human', 0, 17 ), $zv( '/notes/feed', 'bot', 0, 0 ), $zv( '/go/x', 'bot', 0, 0 ), $zv( '/mixed', 'bot', 3, 1 ), $zv( '/mixed', 'human', 0, 4 ) ), $real, static fn() => '', static fn() => false );
+$zp = array_column( $z['people'], null, 'path' );
+$za = array_column( $z['automated'], null, 'path' );
+ok( isset( $zp['/notes/feed'] ) && 'human' === $zp['/notes/feed']['class'], 'no page views: classed by its visits, so a feed reader is not read as a scanner' );
+ok( ! isset( $zp['/notes/feed']['visits_by'] ), 'the per-class visits do not reach the report row' );
+ok( isset( $za['/go/x'] ), 'no views and no visits stays with the scanners' );
+ok( isset( $za['/mixed'] ) && 'bot' === $za['/mixed']['class'], 'page views decide wherever there are any' );
+$t = snt_unmatched_report_rows( array( $zv( '/quiet', 'suspect', 0, 1 ), $zv( '/notes/feed', 'human', 0, 17 ), array( 'last_day' => '2026-10-20' ) + $zv( '/a', 'suspect', 2, 1 ) ), $real, static fn() => '', static fn() => false );
+ok( array( '/notes/feed', '/a', '/quiet' ) === array_column( $t['people'], 'path' ) && 'suspect' === $t['people'][2]['class'], 'review 2026-10-31: with no human view, visits rank before recency, so a feed is not ranked last; suspect visits alone are people' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

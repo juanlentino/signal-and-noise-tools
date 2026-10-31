@@ -84,13 +84,17 @@ function sn_unmatched_headline( array $report ) {
 	return $line;
 }
 
-/** "3 human · 1 suspect" (plain text). */
+/** "3 human · 1 suspect", or "17 visits, no page views" for a feed (plain text). */
 function sn_unmatched_visits_words( array $row ) {
 	$parts = array();
 	foreach ( array( 'human', 'suspect', 'bot' ) as $class ) {
 		if ( ! empty( $row[ $class ] ) ) {
 			$parts[] = (int) $row[ $class ] . ' ' . $class;
 		}
+	}
+	if ( ! $parts && ! empty( $row['visits'] ) ) {
+		/* translators: %d: visits. */
+		return sprintf( _n( '%d visit, no page views', '%d visits, no page views', (int) $row['visits'], 'signal-and-noise-tools' ), (int) $row['visits'] );
 	}
 	return implode( ' · ', $parts );
 }

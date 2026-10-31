@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Unmatched paths: a feed is no longer read as a scanner.** The 2026.10.80 report (scan of 2026-10-31) listed seven paths under "Scanners and bots" that people reach: `/notes/feed`, `/feed/atom`, `/feed`, `/comments/feed`, `/tag/metadata`, `/notes/tag/ai-music` and `/compound`. Every analytics event counts a visit, but only a page view counts a view, so an event-only row (a feed fetch, among others) carried visits (17 human for `/notes/feed`) and no views, and the class fell through to "bot". They never got the live check, the list's own sentence ("paths only scanners or bots reached") was false for them, and `/notes/tag/ai-music` hid a 404 with a suggested fix (`/music`). A path with no page views at all is now classed by its visits; page views still decide wherever there are any, and a path with neither stays with the scanners. Among people rows with no human view, visits now rank before recency, so a feed is not ranked behind a suspect-only row (found by the independent review); every other row keeps its order. Its Views cell reads "17 visits, no page views" on both twins instead of blank, and the coverage line says how such a path is classed. Pinned in `tests/unmatched-paths.php` and `tests/os-leaf-tools-reports-unmatched.php`.
+
 ## [2026.10.80] - 2026-10-30 — served routes sit apart in unmatched paths; own probes are not feed readers
 
 ### Changed

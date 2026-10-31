@@ -88,8 +88,8 @@ $report = array(
 	),
 	'people_total'    => 3,
 	'human_views'     => 9,
-	'served'          => array( $row( '/provhub', array( 'status' => 200, 'served' => 'page' ) ), $row( '/notes/subscribe', array( 'status' => 301, 'served' => 'redirect' ) ) ),
-	'served_total'    => 2,
+	'served'          => array( $row( '/provhub', array( 'status' => 200, 'served' => 'page' ) ), $row( '/notes/subscribe', array( 'status' => 301, 'served' => 'redirect' ) ), $row( '/notes/feed', array( 'human' => 0, 'suspect' => 0, 'visits' => 17, 'status' => 200, 'served' => 'page' ) ) ),
+	'served_total'    => 3,
 	'automated'       => array( $row( '/wp-login.php', array( 'human' => 0, 'bot' => 6 ) ) ),
 	'automated_total' => 1,
 	'capped'          => false,
@@ -105,6 +105,7 @@ foreach ( array(
 	'3 paths visitors reached are not a note or page (9 human views in all).',
 	'/blog/the-free-version-already-shipped',
 	'3 human · 1 suspect',
+	'17 visits, no page views', // a feed: fetches are visits, never page views.
 	'2026-10-02 to 2026-10-20',
 	'404 · from linkedin.com',
 	'Redirect to /notes/the-free-version-already-shipped?',
@@ -138,7 +139,7 @@ ok( false !== strpos( $kit, '+247 more paths' ) && false !== strpos( $kit, '+39 
 $GLOBALS['__scan'] = $scan( array( 'people' => array(), 'people_total' => 0, 'human_views' => 0 ) + $report );
 $classic           = snt_leaf_classic_html( 'sn_admin_render_health_reports_section' );
 $kit               = snt_leaf_paint( 'tools', 'reports' );
-$none_broken       = 'None of these paths answers with an error: the 2 paths the site serves or already redirects are listed below.';
+$none_broken       = 'None of these paths answers with an error: the 3 paths the site serves or already redirects are listed below.';
 ok( false !== strpos( $classic, $none_broken ) && false !== strpos( $kit, $none_broken ) && false === strpos( $kit, 'No visitor reached' ), 'no broken path but served ones: both twins say so, never "No visitor reached"' );
 
 $GLOBALS['__scan'] = $scan( array( 'people' => array(), 'people_total' => 0, 'human_views' => 0, 'automated' => array(), 'automated_total' => 0, 'capped' => false, 'generated_at' => 1700000000, 'coverage' => 'x' ) );
