@@ -80,8 +80,10 @@ function sn_unmatched_headline( array $report ) {
 	$visits = (int) ( $report['people_visits'] ?? 0 );
 	if ( 0 === $views && $visits > 0 ) {
 		// Only feeds or suspect-only paths left: "0 human views" would read as nothing.
-		/* translators: 1: paths, 2: visits. */
-		$line = sprintf( _n( '%1$d path visitors reached is not a note or page (no human page views, %2$d visits in all).', '%1$d paths visitors reached are not a note or page (no human page views, %2$d visits in all).', $n, 'signal-and-noise-tools' ), $n, $visits );
+		/* translators: %d: visits. */
+		$in_all = sprintf( _n( '%d visit in all', '%d visits in all', $visits, 'signal-and-noise-tools' ), $visits );
+		/* translators: 1: paths, 2: "17 visits in all". */
+		$line = sprintf( _n( '%1$d path visitors reached is not a note or page (no human page views, %2$s).', '%1$d paths visitors reached are not a note or page (no human page views, %2$s).', $n, 'signal-and-noise-tools' ), $n, $in_all );
 	} else {
 		/* translators: 1: paths, 2: human views. */
 		$line = sprintf( _n( '%1$d path visitors reached is not a note or page (%2$d human views in all).', '%1$d paths visitors reached are not a note or page (%2$d human views in all).', $n, 'signal-and-noise-tools' ), $n, $views );

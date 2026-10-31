@@ -451,8 +451,11 @@ function snt_watch_ripe_secrets_api( $watch, $now, $exists = null, $version = nu
 	if ( ! $exists ) {
 		return array( 'ripe' => false, 'note' => 'no Secrets API on this site yet' );
 	}
-	if ( '' === $version || version_compare( $version, '7.2-RC1', '<' ) ) {
-		return array( 'ripe' => false, 'note' => 'wp_set_secret exists, but on WordPress ' . ( '' === $version ? '(version unreadable)' : $version ) . ', before a 7.2 release candidate: not core\'s yet, wait for the RC' );
+	if ( '' === $version ) {
+		return array( 'ripe' => false, 'note' => 'wp_set_secret exists, but the WordPress version is unreadable: wait for a 7.2 release candidate' );
+	}
+	if ( version_compare( $version, '7.2-RC1', '<' ) ) {
+		return array( 'ripe' => false, 'note' => 'wp_set_secret exists, but on WordPress ' . $version . ', before a 7.2 release candidate: not core\'s yet, wait for the RC' );
 	}
 	return array( 'ripe' => true, 'note' => 'wp_set_secret exists on WordPress ' . $version . ': move keyring storage onto the Secrets API (#1625)' );
 }
