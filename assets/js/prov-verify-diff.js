@@ -14,6 +14,11 @@
  * Each side is labeled by its own anchor state (confirmed / pending / absent),
  * so the reader knows which version is actually on-chain.
  *
+ * 2026.10: a link can arrive with ?compare_a=N&compare_b=M (a note's "Updated"
+ * line sends its last two versions). Valid, in-range numbers fill the form,
+ * run the compare and land focus on the result; anything else is ignored.
+ * Pinned by tests/prov-verify-compare-arrival.cjs.
+ *
  * Classic script IIFE; depends only on the SNProvVerifyCore global loaded
  * before it by inc/provenance-verify.php.
  *
@@ -129,21 +134,21 @@
 		out.appendChild( body );
 	}
 
-	form.addEventListener( 'submit', function ( evt ) {
-		evt.preventDefault();
-		var uid = String( ( uidIn && uidIn.value ) || '' ).trim().toLowerCase();
-		var va  = parseInt( ( aIn && aIn.value ) || '0', 10 ) || 0;
-		var vb  = parseInt( ( bIn && bIn.value ) || '0', 10 ) || 0;
+	/**
+	 * Fetch both versions and draw the diff, or say why not. Resolves once the
+	 * output holds its answer. The form and a note's "Updated" link both run it.
+	 */
+	function runCompare( uid, va, vb ) {
 		if ( ! Core.UUID_SHAPE.test( uid ) ) {
 			say( 'Enter a note id first (run a verification above, or paste one).' );
-			return;
+			return Promise.resolve();
 		}
 		if ( va < 1 || vb < 1 || va === vb ) {
 			say( 'Pick two different version numbers (1 or higher).' );
-			return;
+			return Promise.resolve();
 		}
 		say( 'Fetching both versions…' );
-		Promise.all( [ fetchCredential( uid, va ), fetchCredential( uid, vb ) ] ).then( function ( creds ) {
+		return Promise.all( [ fetchCredential( uid, va ), fetchCredential( uid, vb ) ] ).then( function ( creds ) {
 			var credA = creds[ 0 ];
 			var credB = creds[ 1 ];
 			if ( ! credA || ! credB ) {
@@ -163,5 +168,63 @@
 			}
 			renderDiff( runs, sideLabel( va, credA ), sideLabel( vb, credB ) );
 		} );
+	}
+
+	form.addEventListener( 'submit', function ( evt ) {
+		evt.preventDefault();
+		runCompare(
+			String( ( uidIn && uidIn.value ) || '' ).trim().toLowerCase(),
+			parseInt( ( aIn && aIn.value ) || '0', 10 ) || 0,
+			parseInt( ( bIn && bIn.value ) || '0', 10 ) || 0
+		);
 	} );
+
+	// Arrival from a note's "Updated" line (theme, 2026.10):
+	// ?note=<uid>&compare_a=N&compare_b=M#compare, the form's own field names.
+	// Each version must be a plain number (no sign, exponent, decimal or
+	// leading zero), the two must differ, and the note id is the page's own,
+	// rechecked; anything else is ignored, so a malformed link leaves the page
+	// as a bare ?note= link does. A well-formed pair runs as the form would:
+	// a version the note does not have gets the form's own sentence. No range
+	// pre-check against the latest credential (review of #2326): that URL is
+	// edge-cached for up to two hours and nothing purges it, so right after an
+	// edit it would refuse the newest version. The values reach the page only
+	// as input values, after the pattern passed.
+	var VERSION_PARAM = /^[1-9][0-9]{0,5}$/;
+	var query = new URLSearchParams( window.location.search );
+	var wantA = query.get( 'compare_a' ) || '';
+	var wantB = query.get( 'compare_b' ) || '';
+	var noteId = String( root.getAttribute( 'data-note' ) || '' ).toLowerCase();
+	if ( aIn && bIn && VERSION_PARAM.test( wantA ) && VERSION_PARAM.test( wantB ) && wantA !== wantB && Core.UUID_SHAPE.test( noteId ) ) {
+		var arrived = false;
+		var arrive = function () {
+			if ( arrived ) {
+				return;
+			}
+			arrived = true;
+			aIn.value = wantA;
+			bIn.value = wantB;
+			var tab = document.getElementById( 'sn-tab-compare' );
+			if ( box.hidden && tab ) {
+				tab.click(); // a link without #compare: show the panel the result lands in.
+			}
+			// Land the reader on the answer, unless they have already moved on.
+			// Focus moves before the result arrives, so the polite region reads
+			// the diff once instead of focus and region reading it twice.
+			if ( document.activeElement === document.body || ! document.activeElement ) {
+				out.setAttribute( 'tabindex', '-1' );
+				out.focus();
+			}
+			runCompare( noteId, Number( wantA ), Number( wantB ) );
+		};
+		// After every deferred script has run (the tabs' included), so the panel
+		// the result lands in is the one shown. load backs up a missed
+		// DOMContentLoaded; the guard keeps it to one run.
+		if ( 'complete' === document.readyState ) {
+			arrive();
+		} else {
+			document.addEventListener( 'DOMContentLoaded', arrive );
+			window.addEventListener( 'load', arrive );
+		}
+	}
 } )();

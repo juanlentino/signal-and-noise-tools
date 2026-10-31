@@ -155,3 +155,5 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
 .sn-public-stats__key li{display:flex;align-items:center;gap:.5em}
 .sn-public-stats__key-sw{display:inline-block;width:.85em;height:.85em;border:1px solid currentColor}
 .sn-public-stats__key-n{font-weight:700;font-variant-numeric:tabular-nums}
+/* 2026-10-31: the live parts say "not read" in the markup; where script runs they are hidden, keeping their line, until live-now.js answers. */
+@media (scripting:enabled){.sn-public-stats [data-sn-live-pending]{visibility:hidden}}
