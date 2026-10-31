@@ -15,7 +15,7 @@ function el( attrs, text ) {
 		closest() { return null; },
 	};
 }
-// With scripting on, a <noscript>'s text is still the element's textContent.
+// The server paints "not read" as real text in every pending part.
 const section = el( { 'data-sn-live-busy': '' }, '' );
 const now = el( { 'data-sn-live': 'now', 'data-sn-live-class': 'human', 'data-sn-live-pending': '' }, 'not read' );
 const today = el( { 'data-sn-live': 'today', 'data-sn-live-class': 'human', 'data-sn-live-pending': '' }, 'not read' );
@@ -40,6 +40,7 @@ global.document = {
 	addEventListener() {},
 };
 global.window = { setInterval() {} };
+// 'null': a 200 whose body the strip cannot use (apply() throws on it).
 global.fetch = () => ( 'fail' === mode ? Promise.reject( new Error( 'offline' ) ) : Promise.resolve( { ok: true, json: () => Promise.resolve( JSON.parse( mode ) ) } ) );
 const snap = () => ( { busy: section.getAttribute( 'aria-busy' ), now: now.textContent, today: today.textContent, li: li.textContent, meta: meta.textContent, pending: all.filter( ( e ) => has( e, 'data-sn-live-pending' ) ).length } );
 require( path.join( __dirname, '../../assets/live-now.js' ) );

@@ -26,16 +26,17 @@ require dirname( __DIR__ ) . '/inc/public-stats-live.php';
 
 echo "Group 1: the server paints no visible \"not read\" for a reader with script\n";
 $strip = sn_public_stats_live_html();
-ok( 2 === preg_match_all( '/data-sn-live="(now|today)"[^>]*data-sn-live-pending[^>]*><noscript>not read<\/noscript><\/span>/', $strip ), 'both figures carry not read only inside noscript, marked pending' );
-ok( false !== strpos( $strip, '<li class="sn-public-stats__live-empty" data-sn-live-pending><noscript>not read</noscript></li>' ), 'the Being read now list too' );
-ok( 0 === preg_match( '/>not read</', preg_replace( '/<noscript>not read<\/noscript>/', '', $strip ) ), 'no not read outside a noscript' );
+ok( 2 === preg_match_all( '/data-sn-live="(now|today)"[^>]*data-sn-live-pending>not read<\/span>/', $strip ), 'both figures say not read as real text, marked pending' );
+ok( false !== strpos( $strip, '<li class="sn-public-stats__live-empty" data-sn-live-pending>not read</li>' ), 'the Being read now list too' );
+ok( false === strpos( $strip, '<noscript' ), 'not in noscript: the Markdown twin\'s converter skips noscript, and an agent reading the twin must read not read (review of #2325)' );
 ok( 1 === preg_match( '/<section class="sn-public-stats__live"[^>]*data-sn-live-busy/', $strip ) && false === strpos( $strip, 'aria-busy' ), 'the strip is marked for the script; aria-busy is the script\'s to set (a server-set busy would never clear without script)' );
 ok( false !== strpos( $strip, 'The live figures need JavaScript.' ), 'a reader without script is still told why the figures are empty' );
 $css = (string) file_get_contents( dirname( __DIR__ ) . '/assets/public-stats-front.css' );
-ok( 1 === preg_match( '/\.sn-public-stats__live-n\{[^}]*min-height:1em/', $css ), 'an empty figure keeps its line, so the answer does not shift the page' );
+ok( 1 === preg_match( '/@media \(scripting:\s*enabled\)\{\.sn-public-stats \[data-sn-live-pending\]\{visibility:hidden\}\}/', $css ), 'hidden only where script runs, and hidden, not removed: the words hold their own line, so the answer shifts nothing' );
 
 $stats_src = (string) file_get_contents( dirname( __DIR__ ) . '/inc/public-stats.php' );
 ok( false !== strpos( $stats_src, '<p class="sn-public-stats__method" id="sn-public-stats-method">' ), 'the method paragraph carries the id the theme\'s /stats hero links to ("How it\'s measured")' );
+ok( 2 === substr_count( $stats_src, 'sn_public_stats_method_html()' ) - 1, 'and it is printed on the not-measured-yet page too, so the link always lands' );
 
 echo "\nGroup 2: the script settles every figure\n";
 $node = trim( (string) shell_exec( 'command -v node' ) );
@@ -51,6 +52,9 @@ if ( '' === $node ) {
 	$bad = $run( 'fail' );
 	ok( 'not read' === ( $bad['after']['now'] ?? null ) && 'not read' === ( $bad['after']['today'] ?? null ) && 'not read' === ( $bad['after']['li'] ?? null ), 'a failed read says not read in every part, never blank' );
 	ok( 'Not measured right now.' === ( $bad['after']['meta'] ?? null ) && array_key_exists( 'busy', $bad['after'] ?? array() ) && null === $bad['after']['busy'], 'with the line under it, and no longer busy' );
+	ok( 0 === ( $bad['after']['pending'] ?? -1 ), 'every part was written, not left as the server painted it' );
+	$odd = $run( 'null' );
+	ok( 'not read' === ( $odd['after']['now'] ?? null ) && 0 === ( $odd['after']['pending'] ?? -1 ) && array_key_exists( 'busy', $odd['after'] ?? array() ) && null === $odd['after']['busy'], 'an answer the strip cannot use (a null body) settles like a failed read, never stuck busy' );
 }
 
 echo "\nResult: $pass passed, $fail failed.\n";

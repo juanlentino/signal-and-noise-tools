@@ -114,7 +114,7 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
 .sn-public-stats__live-h::before{content:"";width:.6em;height:.6em;background:var(--sn-ps-red)}
 .sn-public-stats__live-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem}
 .sn-public-stats__live-fig{min-width:0}
-.sn-public-stats__live-n{display:block;min-height:1em;font-family:var(--wp--preset--font-family--heading,'Bebas Neue',Impact,sans-serif);font-size:clamp(1.9rem,3.6vw,2.8rem);line-height:1;font-variant-numeric:tabular-nums}
+.sn-public-stats__live-n{display:block;font-family:var(--wp--preset--font-family--heading,'Bebas Neue',Impact,sans-serif);font-size:clamp(1.9rem,3.6vw,2.8rem);line-height:1;font-variant-numeric:tabular-nums}
 .sn-public-stats__live-l{display:block;font-family:var(--sn-ps-mono);font-size:max(.72rem,11px);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-top:.4rem}
 .sn-public-stats__live-meta{font-family:var(--sn-ps-mono);font-size:max(.72rem,11px);color:var(--sn-ps-dim);margin:.75rem 0 0}
 @media (max-width:480px){.sn-public-stats__live-row{grid-template-columns:minmax(0,1fr)}}
@@ -155,3 +155,5 @@ main.is-layout-constrained:has(.sn-public-stats)>*,.wp-block-post-content>.sn-pu
 .sn-public-stats__key li{display:flex;align-items:center;gap:.5em}
 .sn-public-stats__key-sw{display:inline-block;width:.85em;height:.85em;border:1px solid currentColor}
 .sn-public-stats__key-n{font-weight:700;font-variant-numeric:tabular-nums}
+/* 2026-10-31: the live parts say "not read" in the markup; where script runs they are hidden, keeping their line, until live-now.js answers. */
+@media (scripting:enabled){.sn-public-stats [data-sn-live-pending]{visibility:hidden}}

@@ -284,7 +284,8 @@
 		if ( document.hidden || ! document.querySelector( '[data-sn-live],[data-sn-live-hour],[data-sn-live-pages],[data-sn-live-sources],[data-sn-live-top],[data-sn-live-surge]' ) ) {
 			return;
 		}
-		load().then( function ( data ) { apply( data ); settle(); }, function () {
+		// apply() throwing on an answer it cannot use settles like a failed read.
+		load().then( function ( data ) { apply( data ); } ).then( settle, function () {
 			// The figures keep what they showed; the strip says it could not read.
 			if ( cfg ) {
 				meta( String( cfg.unknown ) );
