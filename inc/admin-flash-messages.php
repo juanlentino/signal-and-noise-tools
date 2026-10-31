@@ -137,7 +137,6 @@ function sn_admin_flash_messages() {
 		'wh_deleted'                => array( 'success', 'Webhook deleted. Pending retries (if any) will drop on next dispatch.' ),
 		'wh_invalid'                => array( 'error', 'Could not add webhook: name and valid URL are required.' ),
 		'wh_not_found'              => array( 'error', 'Webhook not found.' ),
-		// v8.10.0 Redirects arc.
 		// 2026-10-31: Integrity > Reports > Indexing.
 		'gsc_marked'                => array( 'success', 'Marked requested today. The row reads Google\'s answer against this mark, and waits quietly for 14 days unless Google crawls it and still leaves it out.' ),
 		'gsc_mark_invalid'          => array( 'error', 'Not marked: that page is not on the inspection map, or Google has already indexed it.' ),
@@ -146,6 +145,7 @@ function sn_admin_flash_messages() {
 		'gsc_check_partial'         => array( 'info', 'Checked part of the list before the time limit. Press Check now again for the rest.' ),
 		'gsc_check_wait'            => array( 'info', 'Checked less than 10 minutes ago, so nothing was asked again: the rows already show Google\'s answer.' ),
 		'gsc_not_ready'             => array( 'error', 'Not checked: Search Console is not connected.' ),
+		// v8.10.0 Redirects arc.
 		'redirect_added'            => array( 'success', 'Redirect saved.' ),
 		'redirect_updated'          => array( 'success', 'Redirect updated.' ),
 		'redirect_deleted'          => array( 'success', 'Redirect deleted: it stops resolving immediately.' ),

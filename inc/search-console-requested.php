@@ -7,7 +7,8 @@
  * Google to index a note stays one click in Search Console. Everything around
  * that click lives here. The owner marks a row requested: the mark is the day
  * of the mark, not of the click, which the site cannot see. "Check now"
- * re-inspects the request list and the marked rows on demand. Each row's
+ * re-inspects the marked rows and the request list on demand
+ * (inc/search-console-check-now.php). Each row's
  * status reads Google's own answer against the mark. A mark younger than
  * SNT_GSC_REQUEST_QUIET_DAYS with no crawl after it is "waiting on Google":
  * the index_gap watch and the morning brief stop asking for it. A crawl after
@@ -28,9 +29,6 @@ const SNT_GSC_REQUESTED_OPTION   = 'snt_gsc_requested';
 const SNT_GSC_REQUEST_QUIET_DAYS = 14;
 const SNT_GSC_REQUEST_KEEP_DAYS  = 30; // an indexed row stays listed as "indexed after your request" this long.
 const SNT_GSC_REQUEST_MAX_DAYS   = 90; // any mark is pruned after this.
-const SNT_GSC_CHECK_NOW_LAST     = 'snt_gsc_check_now_last';
-const SNT_GSC_CHECK_NOW_GAP      = 600; // seconds after a complete check before the next press.
-const SNT_GSC_CHECK_NOW_BUDGET   = 20;  // seconds of inspections per press; Google takes 3-15s each.
 
 /** The marks: join path => unix time of the mark. */
 function snt_gsc_requested_marks() {
@@ -76,6 +74,7 @@ function snt_gsc_request_status( $entry, $requested_at, $now ) {
  * @return array{status:array,indexed_after_request:array}
  */
 function snt_gsc_request_statuses( array $entries, array $marks, array $paths, $now ) {
+	$marks  = snt_gsc_requested_prune( $marks, $entries, $now ); // the 30- and 90-day rules hold on every read, not only on a write.
 	$status = array();
 	foreach ( array_unique( $paths ) as $p ) {
 		$status[ (string) $p ] = snt_gsc_request_status( $entries[ $p ] ?? array(), $marks[ $p ] ?? 0, $now );
@@ -133,60 +132,4 @@ function snt_gsc_mark_requested( $path, $now ) {
 	return true;
 }
 
-/**
- * Post ids Check now inspects: the request list (7 days on) and every marked
- * row Google has not indexed, deduped, request list first. PURE.
- *
- * @param array $entries   Coverage map entries.
- * @param array $published post_id => publish time.
- * @param array $marks     snt_gsc_requested_marks().
- * @param int   $now
- * @return int[]
- */
-function snt_gsc_check_now_targets( array $entries, array $published, array $marks, $now ) {
-	$days = defined( 'SNT_INDEXING_REQUEST_DAYS' ) ? SNT_INDEXING_REQUEST_DAYS : 7;
-	$ids  = array_column( snt_gsc_index_stuck( $entries, $published, $now, $days ), 'post_id' );
-	foreach ( array_keys( $marks ) as $p ) {
-		if ( isset( $entries[ $p ] ) && snt_gsc_index_gap_candidate( $entries[ $p ] ) ) {
-			$ids[] = (int) $entries[ $p ]['post_id'];
-		}
-	}
-	return array_values( array_unique( array_map( 'intval', $ids ) ) );
-}
-
-/**
- * Inspect the targets now, forced past the weekly freshness guard, inside a
- * time budget. Refused within SNT_GSC_CHECK_NOW_GAP of a complete check; a
- * partial one can be pressed again at once for the rest.
- *
- * @param int           $now
- * @param int[]         $targets Post ids.
- * @param callable|null $inspect fn( $post_id, $days, $force ); snt_gsc_inspect_one by default.
- * @param callable|null $clock   fn(): float seconds; microtime by default.
- * @return array{at:int,checked:int,errors:int,remaining:int,budget_hit:bool}|WP_Error
- */
-function snt_gsc_check_now( $now, array $targets, $inspect = null, $clock = null ) {
-	if ( ! function_exists( 'snt_gsc_sync_is_ready' ) || ! snt_gsc_sync_is_ready() ) {
-		return new WP_Error( 'snt_gsc_not_ready', 'Search Console is not configured.' );
-	}
-	$last = get_option( SNT_GSC_CHECK_NOW_LAST, array() );
-	if ( is_array( $last ) && 0 === (int) ( $last['remaining'] ?? 0 ) && (int) $now - (int) ( $last['at'] ?? 0 ) < SNT_GSC_CHECK_NOW_GAP ) {
-		return new WP_Error( 'snt_gsc_check_wait', 'Checked less than 10 minutes ago.' );
-	}
-	$inspect = $inspect ?? 'snt_gsc_inspect_one';
-	$clock   = $clock ?? static fn() => microtime( true );
-	$start   = $clock();
-	$out     = array( 'at' => (int) $now, 'checked' => 0, 'errors' => 0, 'remaining' => 0, 'budget_hit' => false );
-	foreach ( $targets as $id ) {
-		if ( $clock() - $start >= SNT_GSC_CHECK_NOW_BUDGET ) {
-			$out['budget_hit'] = true;
-			++$out['remaining'];
-			continue;
-		}
-		$entry = $inspect( (int) $id, 0, true );
-		++$out['checked'];
-		$out['errors'] += ( is_wp_error( $entry ) || ( is_array( $entry ) && isset( $entry['error'] ) ) ) ? 1 : 0;
-	}
-	update_option( SNT_GSC_CHECK_NOW_LAST, $out, false );
-	return $out;
-}
+require_once __DIR__ . '/search-console-check-now.php'; // Check now: the live inspection the owner presses.

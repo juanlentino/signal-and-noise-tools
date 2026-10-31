@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise — admin POST handlers: the Indexing report's two buttons
+ * Signal & Noise: admin POST handlers for the Indexing report's two buttons
  * (2026-10-31). Each is fn( array $post ): string returning a ?sn_flash=… code,
  * reached BY NAME from sn_admin_post_handlers(), which checks the capability
  * and the nonce first.
@@ -22,7 +22,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string Flash code.
  */
 function sn_handle_gsc_mark_requested( $post ) {
-	$path = isset( $post['path'] ) ? sanitize_text_field( wp_unslash( $post['path'] ) ) : '';
+	// Only ever an isset() key into the map, never stored or printed unless it
+	// is one: sanitize_text_field() would strip a percent-encoded path's octets.
+	$path = isset( $post['path'] ) && is_string( $post['path'] ) ? (string) wp_unslash( $post['path'] ) : '';
 	if ( ! function_exists( 'snt_gsc_mark_requested' ) || ! snt_gsc_mark_requested( $path, time() ) ) {
 		return 'gsc_mark_invalid';
 	}
@@ -51,7 +53,7 @@ function sn_handle_gsc_check_now( $post ) {
 		}
 	}
 	$now = time();
-	$r   = snt_gsc_check_now( $now, snt_gsc_check_now_targets( $entries, $published, snt_gsc_requested_marks(), $now ) );
+	$r   = snt_gsc_check_now( $now, snt_gsc_check_now_targets( $entries, $published, snt_gsc_requested_marks(), $now, snt_gsc_check_now_since() ) );
 	if ( is_wp_error( $r ) ) {
 		return 'snt_gsc_check_wait' === $r->get_error_code() ? 'gsc_check_wait' : 'gsc_not_ready';
 	}

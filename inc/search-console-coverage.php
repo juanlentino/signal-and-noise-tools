@@ -448,6 +448,9 @@ function snt_gsc_inspect_one( $post_id, $days = 0, $force = false ) {
 	$entry['post_id'] = (int) $post->ID;
 	$entry['term_id'] = 0;
 	$entry['url']     = $url;
+	if ( $force && isset( $entry['error'] ) && null !== $prev && ! isset( $prev['error'] ) ) {
+		return $entry; // a forced pass that failed (timeout, 429) keeps the last good answer; the caller counts the error.
+	}
 	$entries[ $key ]  = $entry;
 	$payload = is_array( $d ) ? $d : array( 'property' => $property, 'started_at' => time(), 'complete' => false, 'inspected' => 0, 'errors' => 0, 'skipped' => 0, 'capped' => false );
 	$payload['entries']   = $entries;

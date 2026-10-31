@@ -83,7 +83,7 @@ echo "\ncheck now\n";
 $pub     = array( 11 => $now - 40 * $day, 12 => $now - 40 * $day, 13 => $now - 40 * $day, 14 => $now - 2 * $day );
 $entries['/notes/young'] = $e( 'Discovered - currently not indexed', 14 );
 $marks['/notes/young']   = $now - $day;
-ok( array( 11, 13, 14 ) === snt_gsc_check_now_targets( $entries, $pub, $marks, $now ), 'targets: the request list (7 days on) plus marked rows not indexed, deduped; indexed rows are not spent on' );
+ok( array( 11, 14, 13 ) === snt_gsc_check_now_targets( $entries, $pub, $marks, $now ), 'targets: marked rows not indexed first, then the request list (7 days on), deduped; indexed rows are not spent on' );
 $GLOBALS['opt'] = array();
 $calls = array();
 $inspect = static function ( $id, $days, $force ) use ( &$calls ) { $calls[] = array( $id, $force ); return array( 'coverage_state' => 'x' ); };
@@ -99,8 +99,52 @@ $slow  = static function ( $id, $days, $force ) use ( &$calls, &$tick ) { $calls
 $r = snt_gsc_check_now( $now, array( 11, 13, 14 ), $slow, $clock );
 ok( 2 === $r['checked'] && 1 === $r['remaining'] && 1 === $r['errors'] && true === $r['budget_hit'], 'past the time budget it stops and says what is left; an error is counted, not hidden' );
 ok( ! is_wp_error( snt_gsc_check_now( $now + 60, array( 14 ), $inspect, $clock ) ), 'a partial check can be pressed again at once for the rest' );
+// Review 2026-10-31: "press again for the rest" reaches the rest, never the same rows twice.
+$GLOBALS['opt'] = array();
+$calls = array();
+$tick  = 0;
+$ents  = $entries;
+$mark_seen = static function ( $id, $days, $force ) use ( &$calls, &$tick, &$ents, $now ) {
+	$calls[] = $id;
+	$tick   += 12;
+	foreach ( $ents as $p => $en ) {
+		if ( (int) $en['post_id'] === $id ) { $ents[ $p ]['inspected_at'] = $now; }
+	}
+	return array( 'coverage_state' => 'x' );
+};
+$r1 = snt_gsc_check_now( $now, snt_gsc_check_now_targets( $ents, $pub, $marks, $now, snt_gsc_check_now_since() ), $mark_seen, $clock );
+$r2 = snt_gsc_check_now( $now + 5, snt_gsc_check_now_targets( $ents, $pub, $marks, $now + 5, snt_gsc_check_now_since() ), $mark_seen, $clock );
+ok( 1 === $r1['remaining'] && 0 === $r2['remaining'] && array( 11, 14, 13 ) === $calls, 'two presses check every target once: the second skips what the first answered (' . implode( ',', $calls ) . ')' );
+ok( 0 === snt_gsc_check_now_since(), 'after a complete check there is nothing to continue' );
+// A check where nothing answered (or nothing was asked) does not lock the next press.
+$GLOBALS['opt'] = array();
+$fails = static fn( $id, $days, $force ) => new WP_Error( 'x' );
+snt_gsc_check_now( $now, array( 11 ), $fails, $clock );
+ok( ! is_wp_error( snt_gsc_check_now( $now + 60, array(), $inspect, $clock ) ), 'a check where every page errored does not start the 10-minute lock' );
+ok( ! is_wp_error( snt_gsc_check_now( $now + 61, array( 11 ), $inspect, $clock ) ), '...nor does a check with nothing to ask' );
+// The indexed-after list keeps its own promise: 30 days, read live, not only when a mark is written.
+$x = snt_gsc_request_statuses( $entries, array( '/notes/b' => $now - 31 * $day ), array(), $now );
+ok( array() === $x['indexed_after_request'], 'a page indexed after a mark older than 30 days leaves the indexed-after list' );
+
+echo "\nhandlers\n";
+function wp_unslash( $v ) { return $v; }
+function get_post_time( $f, $gmt, $id ) { return $GLOBALS['pubtime'][ (int) $id ] ?? 0; }
+$GLOBALS['refreshed'] = 0;
+function sn_indexing_refresh_stored_report() { ++$GLOBALS['refreshed']; return true; }
+function snt_gsc_inspect_one( $id, $days = 0, $force = false ) { $GLOBALS['inspected'][] = array( $id, $force ); return array( 'coverage_state' => 'x' ); }
+require __DIR__ . '/../inc/admin-post-actions/gsc-indexing.php';
+$GLOBALS['ready'] = true;
+$GLOBALS['opt']   = array( 'snt_gsc_coverage' => array( 'entries' => $entries ) );
+ok( 'gsc_marked' === sn_handle_gsc_mark_requested( array( 'path' => '/notes/a' ) ) && 1 === $GLOBALS['refreshed'] && isset( snt_gsc_requested_marks()['/notes/a'] ), 'mark: a listed path is marked and the stored report refreshed' );
+ok( 'gsc_mark_invalid' === sn_handle_gsc_mark_requested( array( 'path' => '/notes/b' ) ) && 'gsc_mark_invalid' === sn_handle_gsc_mark_requested( array() ), 'mark: an indexed or missing path is refused' );
+$GLOBALS['opt']['snt_gsc_coverage']['entries']['/notes/caf%c3%a9'] = $e( 'Discovered - currently not indexed', 15 );
+ok( 'gsc_marked' === sn_handle_gsc_mark_requested( array( 'path' => '/notes/caf%c3%a9' ) ), 'mark: a percent-encoded join path survives the lookup' );
+$GLOBALS['pubtime']   = $pub;
+$GLOBALS['inspected'] = array();
+ok( 'gsc_checked' === sn_handle_gsc_check_now( array() ) && array() !== $GLOBALS['inspected'] && array( true ) === array_values( array_unique( array_column( $GLOBALS['inspected'], 1 ) ) ), 'check now: every inspection is forced, and the flash says checked' );
+ok( 'gsc_check_wait' === sn_handle_gsc_check_now( array() ), 'check now: a second press inside 10 minutes says so' );
 $GLOBALS['ready'] = false;
-ok( is_wp_error( snt_gsc_check_now( $now + 9999, array( 11 ), $inspect, $clock ) ), 'nothing is inspected while Search Console is not configured' );
+ok( 'gsc_not_ready' === sn_handle_gsc_check_now( array() ), 'check now: not connected says so' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
