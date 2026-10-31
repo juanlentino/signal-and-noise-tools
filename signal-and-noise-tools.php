@@ -490,6 +490,7 @@ require_once SNT_PATH . 'inc/abilities-jev.php';    // 16.3.0: jev-notes.
 require_once SNT_PATH . 'inc/abilities-archive.php'; // 21.1.0: the Internet Archive run and state, the AI model-list state.
 require_once SNT_PATH . 'inc/zenodo-records.php';  // 15.11.0: what a document's record is, the bundle, the deposit flow, the triggers.
 require_once SNT_PATH . 'inc/abilities-zenodo.php'; // 15.11.0: zenodo-status on the read door.
+require_once SNT_PATH . 'inc/cite-this.php';       // Cite this note: the APA and BibTeX the theme's cite line prints, and the Scholar head meta.
 
 // Login defense panel: reads the sn_login_guard AE dataset + probes the
 // sn-login-guard Worker status. Loads after analytics-api + ssrf-guard +

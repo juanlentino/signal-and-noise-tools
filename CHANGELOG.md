@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Cite this note: one citation builder, and the Google Scholar head meta.** `sn_cite_this_for( $post_id )` (new `inc/cite-this.php`) returns a note's APA line and BibTeX entry as read now: pinned to the chain head's version (`sn_zenodo_head_commit()`) and that version's date (`sn_schema_date_modified()`, the provenance commit, UTC), ending with the production DOI (`sn_zenodo_doi_for()`) when there is one and the permalink when there is not. A note with only its founding snapshot claims no version. Its inputs are the Article's own, and the BibTeX escape and key are ports of the WebMCP bridge's `snBibEscape` and `snCiteKey`, pinned in `tests/cite-this.php` against that module's output. The theme's new cite line (signal-noise/note-cite) prints it; without this plugin the line renders nothing. On a single note, `wp_head` now carries `citation_title`, `citation_author`, `citation_publication_date` (the publish date, `YYYY/MM/DD`) and, with a DOI, `citation_doi`.
+
 ## [2026.10.82] - 2026-10-31 — Indexing report marks a page requested and checks with Google live
 
 ### Added
