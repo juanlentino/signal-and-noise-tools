@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Check Again lists the updates it just found.** On Dashboard > Updates, Check Again (`update-core.php?force-check=1`) ran the plugin's cache clear after WordPress's own theme and plugin checks on the same screen load, so it deleted the records those checks had just written, and the screen, which reads them right after, said there were no theme or plugin updates until the next page load. The clear now runs first (priority 9 on `load-update-core.php`, before core's checks at 10), and core's checks rebuild what it cleared from fresh GitHub tags. Confirmed through WordPress's own `WP_Hook` (records missing before, fresh after); `tests/force-check-no-nonce.php` dispatches the action the way core does and failed on the old order.
+
 ## [2026.10.82] - 2026-10-31 — Indexing report marks a page requested and checks with Google live
 
 ### Added

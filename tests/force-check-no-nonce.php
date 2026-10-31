@@ -30,9 +30,9 @@ foreach ( array( 'inc/admin-tab-dashboard.php' ) as $f ) { // inc/dash-api-summa
 
 echo "\nGroup 2: the cache clear runs on core's force-check screen\n";
 $GLOBALS['__actions'] = array(); $GLOBALS['__deleted'] = array(); $GLOBALS['__can'] = true;
-function add_action( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $h ][] = $cb; return true; }
+function add_action( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $h ][] = $cb; $GLOBALS['__prio'][ $h ][] = $p; return true; }
 function add_filter( $h, $cb, $p = 10, $a = 1 ) { return true; }
-function delete_site_transient( $k ) { $GLOBALS['__deleted'][] = $k; return true; }
+function delete_site_transient( $k ) { $GLOBALS['__deleted'][] = $k; unset( $GLOBALS['__t'][ $k ] ); return true; }
 function current_user_can( $c ) { return $GLOBALS['__can']; }
 function esc_html__( $s, $d = null ) { return $s; }
 function wp_die() {}
@@ -53,6 +53,27 @@ $GLOBALS['__deleted'] = array(); if ( $cb ) { $cb(); }
 ok( in_array( 'sn_gh_latest_theme', $GLOBALS['__deleted'], true ) && in_array( 'sn_gh_latest_plugin', $GLOBALS['__deleted'], true ) && in_array( 'update_plugins', $GLOBALS['__deleted'], true ), '?force-check=1 clears the plugin, theme and core update transients' );
 $GLOBALS['__can'] = false; $GLOBALS['__deleted'] = array(); if ( $cb ) { $cb(); }
 ok( array() === $GLOBALS['__deleted'], 'a user without update_core clears nothing (core would have refused the screen anyway)' );
+
+echo "\nGroup 3: Check Again still lists the updates it just found (2026-10-31)\n";
+// Core registers wp_update_plugins and wp_update_themes on load-update-core.php
+// at priority 10 from wp-settings.php, BEFORE any plugin loads, so at equal
+// priority they run first. The clear used to run after them: it deleted the
+// records core had just written, and update-core.php, which reads them right
+// after this action, listed no theme or plugin updates. Dispatched here the
+// way WP_Hook does it: by priority, then registration order.
+$GLOBALS['__t'] = array();
+$queue = array(
+	array( 10, 0, function () { $GLOBALS['__t']['update_plugins'] = 'fresh'; } ), // core, wp-includes/update.php
+	array( 10, 1, function () { $GLOBALS['__t']['update_themes'] = 'fresh'; } ),  // core
+);
+foreach ( $GLOBALS['__actions']['load-update-core.php'] ?? array() as $i => $plugin_cb ) {
+	$queue[] = array( $GLOBALS['__prio']['load-update-core.php'][ $i ], 2 + $i, $plugin_cb );
+}
+usort( $queue, function ( $a, $b ) { return array( $a[0], $a[1] ) <=> array( $b[0], $b[1] ); } );
+$_GET['force-check'] = '1'; $GLOBALS['__can'] = true;
+foreach ( $queue as $q ) { $q[2](); }
+ok( 'fresh' === ( $GLOBALS['__t']['update_themes'] ?? null ), 'after Check Again the theme update record is there for the screen to list' );
+ok( 'fresh' === ( $GLOBALS['__t']['update_plugins'] ?? null ), 'and so is the plugin update record' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

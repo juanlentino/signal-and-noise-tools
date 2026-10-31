@@ -168,7 +168,12 @@ function snt_cmd_force_check_on_update_core() {
 	}
 	snt_cmd_impl_force_check();
 }
-add_action( 'load-update-core.php', 'snt_cmd_force_check_on_update_core' );
+// Priority 9, BEFORE core's own wp_update_plugins and wp_update_themes on this
+// action (priority 10, registered before any plugin loads): clear first, then
+// core's check rebuilds what was cleared. At 10 the clear ran after them and
+// emptied the records update-core.php then read, so Check Again listed no
+// theme or plugin updates (2026-10-31).
+add_action( 'load-update-core.php', 'snt_cmd_force_check_on_update_core', 9 );
 
 function snt_cmd_impl_rss_stats() {
 	if ( ! function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
