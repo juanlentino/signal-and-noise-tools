@@ -447,8 +447,10 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 
 .sn-verify-panel[hidden],.sn-verify-docket[hidden]{display:none}
 /* The panel itself takes no focus ring: it is focusable only so that
-   selecting a tab lands assistive focus somewhere sensible. */
-.sn-verify-panel:focus,.sn-verify-docket:focus{outline:0}
+   selecting a tab lands assistive focus somewhere sensible. The compare
+   output is the same kind of landing spot: a note's "Updated" link moves
+   focus there (prov-verify-diff.js), and it is not a control. */
+.sn-verify-panel:focus,.sn-verify-docket:focus,.sn-verify-compare-out:focus{outline:0}
 .sn-verify-panel{margin:0 0 2.6rem}
 .sn-verify-panel > .sn-verify-sec-lede,
 .sn-verify-docket > .sn-verify-sec-lede{margin:0 0 1.6rem}
