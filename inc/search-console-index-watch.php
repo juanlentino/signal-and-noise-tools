@@ -84,9 +84,10 @@ function snt_gsc_index_stuck( $entries, $published, $now, $days ) {
  * @param array|null       $published post_id => publish time; null reads it.
  * @param string|null      $property  Search Console property; null reads it.
  * @param array|null       $bing      Bing answers by path; null reads them.
+ * @param array|null       $marks     The owner's "requested" marks (2026-10-31); null reads them.
  * @return array{ripe:bool,note:string}
  */
-function snt_watch_ripe_index_gap( $watch, $now, $data = false, $published = null, $property = null, $bing = null ) {
+function snt_watch_ripe_index_gap( $watch, $now, $data = false, $published = null, $property = null, $bing = null, $marks = null ) {
 	unset( $watch );
 	if ( false === $data ) {
 		$data = function_exists( 'snt_gsc_coverage_data' ) ? snt_gsc_coverage_data() : null;
@@ -106,6 +107,15 @@ function snt_watch_ripe_index_gap( $watch, $now, $data = false, $published = nul
 	$property = null === $property ? ( function_exists( 'sn_setting' ) ? (string) sn_setting( 'search_console.property', '' ) : '' ) : (string) $property;
 	$bing     = null === $bing ? ( function_exists( 'sn_bing_url_info_data' ) ? sn_bing_url_info_data() : array() ) : (array) $bing;
 	$stuck    = snt_gsc_index_stuck( $entries, $published, (int) $now, SNT_GSC_INDEX_WATCH_DAYS );
+	// A row marked requested, with no crawl since, waits quietly for 14 days.
+	$marks    = null === $marks ? ( function_exists( 'snt_gsc_requested_marks' ) ? snt_gsc_requested_marks() : array() ) : (array) $marks;
+	$quiet    = function_exists( 'snt_gsc_quiet_paths' ) ? snt_gsc_quiet_paths( $entries, $marks, (int) $now ) : array();
+	$all      = count( $stuck );
+	$stuck    = array_values( array_filter( $stuck, static fn( $r ) => ! in_array( $r['path'], $quiet, true ) ) );
+	$waiting  = $all - count( $stuck );
+	if ( array() === $stuck && $waiting > 0 ) {
+		return array( 'ripe' => false, 'note' => sprintf( '%d waiting on Google after your request', $waiting ) );
+	}
 	if ( array() === $stuck ) {
 		$young = 0;
 		foreach ( $entries as $e ) {
@@ -121,6 +131,7 @@ function snt_watch_ripe_index_gap( $watch, $now, $data = false, $published = nul
 	return array(
 		'ripe' => true,
 		'note' => sprintf( '%d published notes or pages not indexed after %d days: ', count( $stuck ), SNT_GSC_INDEX_WATCH_DAYS ) . implode( ' | ', $parts )
-			. '. The API cannot request indexing: open each link and click Request indexing.',
+			. '. The API cannot request indexing: open each link and click Request indexing.'
+			. ( $waiting > 0 ? sprintf( ' %d more waiting on Google after your request.', $waiting ) : '' ),
 	);
 }

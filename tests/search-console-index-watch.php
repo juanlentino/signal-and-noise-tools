@@ -38,6 +38,7 @@ require __DIR__ . '/../inc/watches.php';
 require __DIR__ . '/../inc/bing-webmaster.php';
 require __DIR__ . '/../inc/bing-url-info.php';
 require __DIR__ . '/../inc/search-console-index-watch.php';
+require __DIR__ . '/../inc/search-console-requested.php';
 
 echo "search console index watch\n\n";
 
@@ -89,6 +90,16 @@ $map2['entries']['/notes/old']['indexed'] = true;
 $v2 = snt_watch_ripe_index_gap( array(), $now, $map2, $pub, $prop, array() );
 ok( false === $v2['ripe'] && false !== strpos( $v2['note'], '1 newer' ), 'clears once indexed, and says what is still young: ' . $v2['note'] );
 ok( false === snt_watch_ripe_index_gap( array(), $now, null, $pub, $prop, array() )['ripe'], 'an unsynced map is never ripe' );
+
+// 2026-10-31: a row the owner marked requested, with no crawl since, waits quietly for 14 days.
+$q = snt_watch_ripe_index_gap( array(), $now, $map, $pub, $prop, array(), array( '/about' => $now - 2 * DAY_IN_SECONDS ) );
+ok( true === $q['ripe'] && false === strpos( $q['note'], '/about' ) && false !== strpos( $q['note'], '/notes/old' ) && false !== strpos( $q['note'], '1 more waiting on Google' ), 'a marked row with no crawl since leaves the note, which counts it as waiting: ' . $q['note'] );
+$q = snt_watch_ripe_index_gap( array(), $now, $map, $pub, $prop, array(), array( '/about' => $now - 2 * DAY_IN_SECONDS, '/notes/old' => $now - DAY_IN_SECONDS ) );
+ok( false === $q['ripe'] && false !== strpos( $q['note'], '2 waiting on Google' ), 'every stuck row marked and waiting: not ripe, and says so: ' . $q['note'] );
+$crawled = $map;
+$crawled['entries']['/about']['last_crawl_time'] = gmdate( 'Y-m-d\TH:i:s\Z', $now - DAY_IN_SECONDS );
+ok( false !== strpos( snt_watch_ripe_index_gap( array(), $now, $crawled, $pub, $prop, array(), array( '/about' => $now - 2 * DAY_IN_SECONDS ) )['note'], '/about' ), 'crawled after the mark and still out: it asks again' );
+ok( false !== strpos( snt_watch_ripe_index_gap( array(), $now, $map, $pub, $prop, array(), array( '/about' => $now - 15 * DAY_IN_SECONDS ) )['note'], '/about' ), 'a mark past 14 days with no crawl asks again' );
 
 // Registration.
 $row = null;

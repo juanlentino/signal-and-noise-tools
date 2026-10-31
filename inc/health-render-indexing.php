@@ -16,6 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/search-console-indexing.php'; // SNT_INDEXING_MIN_INBOUND.
+require_once __DIR__ . '/health-render-indexing-status.php'; // 2026-10-31: request status, both twins' words.
 
 /**
  * The inbound figure in words: unknown is not zero.
@@ -98,8 +99,9 @@ function sn_indexing_headline( array $report ) {
  * @param string $caption Table caption.
  * @param array  $rows    Rows.
  * @param int    $total   The true total.
+ * @param array  $status  path => snt_gsc_request_status() (2026-10-31).
  */
-function sn_health_render_indexing_table( $caption, array $rows, $total ) {
+function sn_health_render_indexing_table( $caption, array $rows, $total, array $status = array() ) {
 	if ( empty( $rows ) ) {
 		echo '<p class="sn-field-helper">' . esc_html( $caption ) . ': ' . esc_html__( 'none.', 'signal-and-noise-tools' ) . '</p>';
 		return;
@@ -107,15 +109,19 @@ function sn_health_render_indexing_table( $caption, array $rows, $total ) {
 	echo '<div class="snt-scroll-table"><table class="widefat striped snt-mt-half">';
 	/* translators: 1: caption, 2: rows shown, 3: total. */
 	echo '<caption>' . esc_html( sprintf( __( '%1$s (%2$d of %3$d)', 'signal-and-noise-tools' ), $caption, count( $rows ), (int) $total ) ) . '</caption>';
-	echo '<thead><tr><th scope="col">' . esc_html__( 'URL', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Google\'s state', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Days since publish', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Links from indexed pages', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Action', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
+	echo '<thead><tr><th scope="col">' . esc_html__( 'URL', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Google\'s state', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Days since publish', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Links from indexed pages', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Your request', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Action', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 	foreach ( $rows as $row ) {
 		$path = (string) ( $row['path'] ?? '' );
 		echo '<tr><td><a href="' . esc_url( (string) ( $row['url'] ?? '' ) ) . '"><code>' . esc_html( $path ) . '</code></a>' . ( ! empty( $row['core'] ) ? ' <span class="sn-badge">' . esc_html__( 'core', 'signal-and-noise-tools' ) . '</span>' : '' ) . '</td>';
 		echo '<td>' . esc_html( (string) ( $row['coverage_state'] ?? '' ) ) . '</td>';
 		echo '<td>' . esc_html( (string) (int) ( $row['days'] ?? 0 ) ) . '</td>';
 		echo '<td>' . esc_html( sn_indexing_row_inbound_words( $row ) ) . '</td>';
-		/* translators: %s: the path to inspect. */
-		echo '<td><a class="button button-small" target="_blank" rel="noopener noreferrer" href="' . esc_url( (string) ( $row['inspect_url'] ?? '' ) ) . '" aria-label="' . esc_attr( sprintf( __( 'Inspect %s in Search Console (opens a new tab)', 'signal-and-noise-tools' ), $path ) ) . '">' . esc_html__( 'Inspect', 'signal-and-noise-tools' ) . '</a></td></tr>';
+		echo '<td>' . esc_html( sn_indexing_status_words( $status[ $path ] ?? null ) ) . '</td>';
+		$mark = sn_indexing_mark_label( $status[ $path ] ?? null );
+		/* translators: %s: the path to request. */
+		echo '<td><a class="button button-small" target="_blank" rel="noopener noreferrer" href="' . esc_url( (string) ( $row['inspect_url'] ?? '' ) ) . '" aria-label="' . esc_attr( sprintf( __( 'Request %s in Search Console (opens a new tab)', 'signal-and-noise-tools' ), $path ) ) . '">' . esc_html__( 'Request in Search Console', 'signal-and-noise-tools' ) . '</a>'
+			/* translators: 1: button text, 2: path. */
+			. ( '' === $mark ? '' : sn_indexing_classic_button( 'gsc_mark_requested', $mark, array( 'path' => $path ), sprintf( __( '%1$s: %2$s', 'signal-and-noise-tools' ), $mark, $path ) ) ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sn_indexing_classic_button() escapes every part.
 	}
 	echo '</tbody></table></div>';
 }
@@ -128,8 +134,17 @@ function sn_health_render_indexing_table( $caption, array $rows, $total ) {
 function sn_health_render_indexing_report( $report ) {
 	$report = (array) $report;
 	echo '<p class="sn-health-report__headline">' . esc_html( sn_indexing_headline( $report ) ) . '</p>';
-	sn_health_render_indexing_table( __( 'Request indexing this week', 'signal-and-noise-tools' ), (array) ( $report['request_list'] ?? array() ), (int) ( $report['request_total'] ?? 0 ) );
-	sn_health_render_indexing_table( __( 'Stuck past 30 days', 'signal-and-noise-tools' ), (array) ( $report['stuck'] ?? array() ), (int) ( $report['stuck_total'] ?? 0 ) );
+	echo '<p class="sn-field-helper">' . esc_html( sn_indexing_checked_words( $report ) ) . '</p>' . sn_indexing_classic_button( 'gsc_check_now', __( 'Check now with Google', 'signal-and-noise-tools' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped inside.
+	$status = (array) ( $report['request_status'] ?? array() );
+	sn_health_render_indexing_table( __( 'Request indexing this week', 'signal-and-noise-tools' ), (array) ( $report['request_list'] ?? array() ), (int) ( $report['request_total'] ?? 0 ), $status );
+	sn_health_render_indexing_table( __( 'Stuck past 30 days', 'signal-and-noise-tools' ), (array) ( $report['stuck'] ?? array() ), (int) ( $report['stuck_total'] ?? 0 ), $status );
+	if ( ! empty( $report['indexed_after_request'] ) ) {
+		echo '<h3>' . esc_html__( 'Indexed after your request', 'signal-and-noise-tools' ) . '</h3><ul class="sn-health-report__list">';
+		foreach ( (array) $report['indexed_after_request'] as $a ) {
+			echo '<li>' . esc_html( sn_indexing_after_words( (array) $a ) ) . '</li>';
+		}
+		echo '</ul>';
+	}
 
 	$check    = (array) ( $report['publish_check'] ?? array() );
 	$failures = (array) ( $check['failures'] ?? array() );

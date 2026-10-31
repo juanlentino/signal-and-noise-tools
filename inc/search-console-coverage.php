@@ -413,13 +413,16 @@ add_action( 'transition_post_status', 'snt_gsc_coverage_on_publish', 10, 3 );
  * Idempotent and quota-aware: a post that is no longer published, or whose
  * entry is already fresher than SNT_GSC_COVERAGE_FRESH, spends nothing.
  * Never touches the run status (that belongs to the weekly run); the map's
- * `synced_at` moves so readers know the entry is current.
+ * `synced_at` moves so readers know the entry is current. $force (the
+ * owner's Check now, inc/search-console-requested.php) skips the freshness
+ * guard and leaves `synced_at` alone: a few rows checked is not the map.
  *
- * @param int $post_id
- * @param int $days    Which scheduled pass this is (for the log only).
+ * @param int  $post_id
+ * @param int  $days    Which scheduled pass this is (for the log only).
+ * @param bool $force   Inspect even when fresh; do not move synced_at.
  * @return array|WP_Error|null The written entry, WP_Error, or null when skipped.
  */
-function snt_gsc_inspect_one( $post_id, $days = 0 ) {
+function snt_gsc_inspect_one( $post_id, $days = 0, $force = false ) {
 	unset( $days );
 	if ( ! function_exists( 'snt_gsc_sync_is_ready' ) || ! snt_gsc_sync_is_ready() ) {
 		return new WP_Error( 'snt_gsc_not_ready', 'Search Console is not configured.' );
@@ -436,7 +439,7 @@ function snt_gsc_inspect_one( $post_id, $days = 0 ) {
 	$d = snt_gsc_coverage_data();
 	$entries = is_array( $d ) ? (array) $d['entries'] : array();
 	$prev    = isset( $entries[ $key ] ) && is_array( $entries[ $key ] ) ? $entries[ $key ] : null;
-	if ( null !== $prev && ! isset( $prev['error'] ) && ( time() - (int) ( $prev['inspected_at'] ?? 0 ) ) < SNT_GSC_COVERAGE_FRESH ) {
+	if ( ! $force && null !== $prev && ! isset( $prev['error'] ) && ( time() - (int) ( $prev['inspected_at'] ?? 0 ) ) < SNT_GSC_COVERAGE_FRESH ) {
 		return null; // the weekly run got there first.
 	}
 	$property         = (string) sn_setting( 'search_console.property', '' );
@@ -445,10 +448,13 @@ function snt_gsc_inspect_one( $post_id, $days = 0 ) {
 	$entry['post_id'] = (int) $post->ID;
 	$entry['term_id'] = 0;
 	$entry['url']     = $url;
+	if ( $force && isset( $entry['error'] ) && null !== $prev && ! isset( $prev['error'] ) ) {
+		return $entry; // a forced pass that failed (timeout, 429) keeps the last good answer; the caller counts the error.
+	}
 	$entries[ $key ]  = $entry;
 	$payload = is_array( $d ) ? $d : array( 'property' => $property, 'started_at' => time(), 'complete' => false, 'inspected' => 0, 'errors' => 0, 'skipped' => 0, 'capped' => false );
 	$payload['entries']   = $entries;
-	$payload['synced_at'] = time();
+	$payload['synced_at'] = $force && isset( $payload['synced_at'] ) ? $payload['synced_at'] : time();
 	$payload['inspected'] = count( $entries );
 	update_option( SNT_GSC_COVERAGE_OPTION, $payload, false );
 	return $entry;

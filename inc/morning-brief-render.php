@@ -42,8 +42,16 @@ function snt_morning_brief_watch_rows( array $watches ) {
 		}
 		$bing = function_exists( 'sn_bing_url_info_data' ) ? (array) sn_bing_url_info_data() : array();
 		$rows = array();
+		// 2026-10-31: a row the owner marked requested, not crawled since, waits quietly.
+		$cov   = function_exists( 'snt_gsc_coverage_data' ) ? snt_gsc_coverage_data() : null;
+		$quiet = function_exists( 'snt_gsc_quiet_paths' ) ? snt_gsc_quiet_paths( is_array( $cov ) ? (array) ( $cov['entries'] ?? array() ) : array(), snt_gsc_requested_marks(), time() ) : array();
+		$held  = 0;
 		foreach ( (array) ( $report['request_list'] ?? array() ) as $r ) {
 			$path   = (string) ( $r['path'] ?? '' );
+			if ( in_array( $path, $quiet, true ) ) {
+				++$held;
+				continue;
+			}
 			$label  = function_exists( 'sn_bing_url_info_label' ) ? sn_bing_url_info_label( $bing[ $path ] ?? null ) : null;
 			$rows[] = array(
 				'path'           => $path,
@@ -54,7 +62,7 @@ function snt_morning_brief_watch_rows( array $watches ) {
 			);
 		}
 		$watches[ $k ]['rows']       = $rows;
-		$watches[ $k ]['rows_total'] = (int) ( $report['request_total'] ?? count( $rows ) );
+		$watches[ $k ]['rows_total'] = (int) ( $report['request_total'] ?? count( $rows ) + $held ) - $held;
 	}
 	return $watches;
 }

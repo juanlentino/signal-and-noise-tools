@@ -45,6 +45,8 @@ function sn_admin_post_handlers() {
 		'keyring_verify'             => 'sn_handle_keyring_verify', // 15.2.0
 		'keyring_generate'           => 'sn_handle_keyring_generate', // 2026.10.18: the owner identity keys (SN Traffic Lanes)
 		'health_scan'                => 'sn_handle_health_scan',
+		'gsc_mark_requested'         => 'sn_handle_gsc_mark_requested', // 2026-10-31
+		'gsc_check_now'              => 'sn_handle_gsc_check_now',      // 2026-10-31
 		'remote_toggle'              => 'sn_handle_remote_toggle',
 		'webhook_add'                => 'sn_handle_webhook_add',
 		'webhook_update'             => 'sn_handle_webhook_update',

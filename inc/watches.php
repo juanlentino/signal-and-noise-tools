@@ -242,7 +242,7 @@ function snt_watches() {
 		array(
 			'id'        => 'index_gap',
 			'label'     => 'a published note or page is not indexed after 14 days',
-			'why'       => 'Read from the weekly URL Inspection map, never a live inspection. 14 days is one weekly run past the day-10 single inspection, so Google has had its own second look. The note lists each path with Google\'s state, the days since publish, whether Bing crawled it (Google-only gap or both engines) and a direct URL Inspection link: the API cannot request indexing, so open the link and click Request indexing. The morning brief shows the ranked indexing request list instead of the note, one line per page. Pages excluded by noindex and tag archives never count. Clears when the weekly run reads the page indexed.',
+			'why'       => 'Read from the weekly URL Inspection map, never a live inspection. 14 days is one weekly run past the day-10 single inspection, so Google has had its own second look. The note lists each path with Google\'s state, the days since publish, whether Bing crawled it (Google-only gap or both engines) and a direct URL Inspection link: the API cannot request indexing, so open the link and click Request indexing. The morning brief shows the ranked indexing request list instead of the note, one line per page. Pages excluded by noindex and tag archives never count. A page the owner marked requested (Integrity › Reports › Indexing, 2026-10-31) with no crawl since waits quietly for 14 days and is counted, not listed; a crawl after the mark that still did not index lists it again. Clears when the weekly run or a Check now reads the page indexed.',
 			'read'      => 'signal-noise/indexing-requests{request_list}',
 			'date_only' => false,
 			'due'       => '',

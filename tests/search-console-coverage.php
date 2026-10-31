@@ -245,6 +245,19 @@ ok( isset( $map['entries']['/notes/new-note'] ) && isset( $map['entries']['/note
 ok( true === $map['complete'], '   ...and the weekly run\'s completeness is untouched (this is not a run)' );
 $GLOBALS['__posted'] = array();
 ok( null === snt_gsc_inspect_one( 900, 10 ) && array() === $GLOBALS['__posted'], '   ...a second pass while the entry is fresh spends NOTHING (the weekly run may have got there first)' );
+// 2026-10-31: the owner's Check now forces past freshness, and is not a run: synced_at stays.
+$sync_before = get_option( SNT_GSC_COVERAGE_OPTION )['synced_at'];
+$GLOBALS['__opt'][ SNT_GSC_COVERAGE_OPTION ]['synced_at'] = 100;
+$f = snt_gsc_inspect_one( 900, 0, true );
+ok( is_array( $f ) && 1 === count( $GLOBALS['__posted'] ) && 100 === get_option( SNT_GSC_COVERAGE_OPTION )['synced_at'], '   ...a FORCED pass spends one call on a fresh entry and leaves synced_at alone (the headline\'s map date stays the run\'s)' );
+// Review 2026-10-31: a forced pass that fails (timeout, 429) never overwrites a good answer.
+$good = get_option( SNT_GSC_COVERAGE_OPTION )['entries']['/notes/new-note'];
+unset( $GLOBALS['__api']['https://example.test/notes/new-note/'] );
+$f = snt_gsc_inspect_one( 900, 0, true );
+ok( is_array( $f ) && isset( $f['error'] ) && $good === get_option( SNT_GSC_COVERAGE_OPTION )['entries']['/notes/new-note'], '   ...a FORCED pass that errors returns the error and keeps the good entry' );
+$GLOBALS['__api']['https://example.test/notes/new-note/'] = array( 'inspectionResult' => array( 'indexStatusResult' => array( 'coverageState' => 'Discovered - currently not indexed', 'verdict' => 'NEUTRAL' ) ) );
+$GLOBALS['__opt'][ SNT_GSC_COVERAGE_OPTION ]['synced_at'] = $sync_before;
+$GLOBALS['__posted'] = array();
 $np->post_status = 'draft';
 ok( null === snt_gsc_inspect_one( 900, 10 ) && array() === $GLOBALS['__posted'], '   ...an unpublished post spends nothing' );
 $np->post_status = 'publish';
