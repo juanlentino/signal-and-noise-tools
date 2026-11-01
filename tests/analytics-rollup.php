@@ -144,6 +144,7 @@ function sn_analytics_last_result_truncated( $set = null ) {
 	}
 	return $GLOBALS['__ar_last_truncated'];
 }
+function sn_analytics_site_tz_name() { return $GLOBALS['__ar_tz'] ?? ''; } // '' unless a test names a zone.
 function sn_analytics_query( $sql ) {
 	$GLOBALS['__ar_query_calls'][] = $sql;
 	sn_analytics_last_result_truncated( false ); // the real client resets per call.
@@ -152,7 +153,7 @@ function sn_analytics_query( $sql ) {
 	}
 	$ret = ( false !== strpos( (string) $sql, 'AS pageview_visits' ) )
 		? $GLOBALS['__ar_gated_return']
-		: $GLOBALS['__ar_query_return'];
+		: ( false !== strpos( (string) $sql, 'AS depth' ) ? ( $GLOBALS['__ar_pid_return'] ?? null ) : $GLOBALS['__ar_query_return'] );
 	if ( is_string( $ret ) ) {
 		$decoded = json_decode( $ret, true );
 		if ( ! is_array( $decoded ) ) {
@@ -298,6 +299,7 @@ function ar_reset() {
 	$GLOBALS['__ar_cap']               = true;
 	$GLOBALS['__ar_query_return']      = null;
 	$GLOBALS['__ar_gated_return']      = null;
+	$GLOBALS['__ar_pid_return']        = null;
 	$GLOBALS['__ar_query_calls']       = array();
 	$GLOBALS['__ar_config_present']    = true;
 	$GLOBALS['__ar_dbdelta_calls']     = array();
@@ -1394,6 +1396,86 @@ $GLOBALS['__ar_query_return']   = array( array( 'day' => '2026-06-11', 'path' =>
 sn_analytics_run_rollup();
 ok( 2 === count( $GLOBALS['__ar_query_calls'] ) && 'folded' === ( get_option( SN_ANALYTICS_ROLLUP_SHAPE_OPT )['shape'] ?? '' ), 'accepted fold: one main read, recorded folded' );
 $GLOBALS['__ar_overcap'] = null;
+
+// ── Scroll per view by pageview ID (2026-11-01) ──────────────────────────────
+echo "\nGroup: scroll per view counted by pageview ID\n";
+// Live 2026-11-01: 21 of the 500 busiest stored path-days read above 100%, up to 400% on one view:
+// 'sc' events whose pageview row was never stored. The v2 rows carry the view's ID (double11).
+ar_reset();
+ok( '' === sn_analytics_rollup_pid_scroll_sql( 7, '', true ), 'a legacy-dataset window (no pageview ID) has no per-view read' );
+sn_analytics_v2_clean_from( '2026-10-05' );
+sn_analytics_clock( strtotime( '2026-11-01 12:00:00 UTC' ) );
+$pid_sql = sn_analytics_rollup_pid_scroll_sql( 7, 'America/New_York', true );
+ok( false !== strpos( $pid_sql, 'FROM sn_pageviews_v2' ) && false !== strpos( $pid_sql, 'double11 AS pid' ) && false !== strpos( $pid_sql, 'max(double1) AS depth' )
+	&& false !== strpos( $pid_sql, "AND blob1 IN ('pv', 'sc') AND double11 > 0" ) && false !== strpos( $pid_sql, 'GROUP BY day, path, class, pid' ) && false !== strpos( $pid_sql, 'HAVING depth > 0' ),
+	'v2 window: one row per pageview ID with its views and deepest milestone, scrolled views only' );
+$main_pid = array(
+	array( 'day' => '2026-10-31', 'path' => '/about', 'class' => 'human', 'views' => '2', 'scroll_sum' => 325, 'scroll_events' => '13' ),
+	array( 'day' => '2026-10-31', 'path' => '/notes', 'class' => 'human', 'views' => '1', 'scroll_sum' => 250, 'scroll_events' => '5' ),
+);
+$pid_rows = array(
+	array( 'day' => '2026-10-31', 'path' => '/about', 'class' => 'human', 'pid' => 11, 'views' => '1', 'depth' => 100 ),
+	array( 'day' => '2026-10-31', 'path' => '/about', 'class' => 'human', 'pid' => 12, 'views' => '1', 'depth' => 50 ),
+	array( 'day' => '2026-10-31', 'path' => '/about', 'class' => 'human', 'pid' => 13, 'views' => '0', 'depth' => 100 ), // an 'sc' with no stored pageview
+	array( 'day' => '2026-10-31', 'path' => '/about', 'class' => 'suspect', 'pid' => 14, 'views' => '1', 'depth' => 75 ),
+);
+$mp = sn_analytics_rollup_merge_pid_scroll( $main_pid, $pid_rows );
+ok( 6 === $mp[0]['scroll_events_view'] && 0 === $mp[1]['scroll_events_view'], 'merge: each stored view counts its deepest milestone once (4 + 2), an orphan counts nowhere, another class stays out, a row with no stored scrolled view is 0' );
+ok( $main_pid === sn_analytics_rollup_merge_pid_scroll( $main_pid, null ), 'merge: a failed per-view read leaves the rows as they were (the plain count stands)' );
+$GLOBALS['__ar_query_return'] = $main_pid;
+$GLOBALS['__ar_pid_return']   = $pid_rows;
+sn_analytics_run_rollup();
+$w = (string) end( $GLOBALS['wpdb']->queries );
+ok( 3 === count( $GLOBALS['__ar_query_calls'] ) && false !== strpos( $GLOBALS['__ar_query_calls'][2], 'AS depth' ), 'run (v2): a third query, the per-view scroll read' );
+ok( false !== strpos( $w, "'/about', 'human', 2, 0, '25.00', '0.00', '150.0000', 6," ),'run (v2): /about stores 6 milestone-views and scroll_sum 150, so 75% a view, not 162.5%; the legacy scroll_avg keeps its raw ratio (325 / 13)' );
+ar_reset();
+$GLOBALS['__ar_query_return'] = $main_pid;
+$GLOBALS['__ar_pid_return']   = '{"data":[{"day":"2026-10-31","path":"/about","class":"human","pid":11,"views":"1","depth":100}],"rows":10000,"rows_before_limit_at_least":10001}';
+sn_analytics_run_rollup();
+ok( false !== strpos( (string) end( $GLOBALS['wpdb']->queries ), "'/about', 'human', 2, 0, '25.00', '0.00', '325.0000', 13," ),'run (v2): a per-view read cut by the row cap is refused; the plain count stands for this roll' );
+// The merge keys on (day, path, class): the per-view read must bucket, bound and class
+// its rows exactly as the main read does, or every row stores a measured 0.
+$cut     = static fn( $s, $a, $b ) => false === strpos( $s, $a ) ? null : substr( $s, strpos( $s, $a ) + strlen( $a ), strpos( $s, $b, strpos( $s, $a ) ) - strpos( $s, $a ) - strlen( $a ) );
+$aligned = true;
+$GLOBALS['__ar_overcap'] = array( 'hashes' => array( $oc_h ), 'ok' => true, 'truncated' => false ); // folded and unfolded differ only with an over-cap list.
+foreach ( array( null, array( 'days' => 7, 'until' => 3 ) ) as $win ) {
+	sn_analytics_rollup_window( null === $win ? false : $win );
+	foreach ( array( true, false ) as $fold ) {
+		foreach ( array( '', 'America/New_York' ) as $tz ) {
+			$m = sn_analytics_rollup_sql( 7, $tz, $fold );
+			$p = sn_analytics_rollup_pid_scroll_sql( 7, $tz, $fold );
+			$aligned = $aligned && null !== $cut( $p, 'SELECT ', ' AS day,' )
+				&& $cut( $m, 'SELECT ', ' AS day,' ) === $cut( $p, 'SELECT ', ' AS day,' )
+				&& $cut( $m, 'blob2 AS path, ', ' AS class,' ) === $cut( $p, 'blob2 AS path, ', ' AS class,' )
+				&& $cut( $m, 'WHERE ', ' GROUP BY' ) === $cut( $p, 'WHERE ', " AND blob1 IN ('pv', 'sc')" );
+		}
+	}
+}
+sn_analytics_rollup_window( false );
+ok( $aligned, 'per-view SQL: the day bucket, class expression and WHERE (lower, upper, over-cap tail) match the main query, folded or not, zoned or not, bounded or not' );
+ar_reset();
+$GLOBALS['__ar_tz']           = 'America/New_York';
+$GLOBALS['__ar_query_return'] = $main_pid;
+sn_analytics_run_rollup();
+$calls = $GLOBALS['__ar_query_calls'];
+ok( false !== strpos( (string) end( $calls ), 'AS depth' ) && $cut( $calls[0], 'SELECT ', ' AS day,' ) === $cut( (string) end( $calls ), 'SELECT ', ' AS day,' ) && false !== strpos( (string) end( $calls ), "'America/New_York'" ), 'run: the per-view read uses the zone the main read ran with' );
+ar_reset();
+$GLOBALS['__ar_tz']           = 'America/New_York';
+$GLOBALS['__ar_refuse']       = "'America/New_York'";
+$GLOBALS['__ar_query_return'] = $main_pid;
+sn_analytics_run_rollup();
+ok( false !== strpos( (string) end( $GLOBALS['__ar_query_calls'] ), 'AS depth' ) && false === strpos( (string) end( $GLOBALS['__ar_query_calls'] ), 'America/New_York' ), 'run: when the zoned main read fails and the run falls back to UTC, the per-view read is UTC too' );
+ar_reset();
+$GLOBALS['__ar_overcap']      = array( 'hashes' => array( $oc_h ), 'ok' => true, 'truncated' => false );
+$GLOBALS['__ar_refuse']       = "'bot' OR index1 IN (";
+$GLOBALS['__ar_query_return'] = $main_pid;
+sn_analytics_run_rollup();
+ok( false !== strpos( (string) end( $GLOBALS['__ar_query_calls'] ), 'AS depth' ) && false !== strpos( (string) end( $GLOBALS['__ar_query_calls'] ), "index1 NOT IN ('{$oc_h}')" ), 'run: when the folded read is refused, the per-view read runs the pre-fold shape too' );
+$GLOBALS['__ar_overcap'] = null;
+$GLOBALS['__ar_refuse']  = '';
+$GLOBALS['__ar_tz']      = '';
+sn_analytics_v2_clean_from( '' );
+sn_analytics_clock( 0 );
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";

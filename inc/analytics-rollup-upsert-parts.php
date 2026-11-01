@@ -59,6 +59,10 @@ function sn_analytics_rollup_upsert( $rows ) {
 		// max depths; see inc/analytics-derive.php's module header).
 		$scroll_sum_raw  = sn_analytics_rollup_nullable_num( $r, 'scroll_sum' );
 		$scroll_events   = sn_analytics_rollup_nullable_num( $r, 'scroll_events' );
+		// Stored milestones: by pageview ID when the per-view read ran
+		// (inc/analytics-rollup-pid-scroll.php), the plain event count otherwise.
+		// The legacy scroll_avg keeps the raw per-event ratio either way.
+		$scroll_stored   = array_key_exists( 'scroll_events_view', $r ) ? sn_analytics_rollup_nullable_num( $r, 'scroll_events_view' ) : $scroll_events;
 		$time_sum        = sn_analytics_rollup_nullable_num( $r, 'time_sum' );
 		$time_events     = sn_analytics_rollup_nullable_num( $r, 'time_events' );
 		$pageview_visits = sn_analytics_rollup_nullable_num( $r, 'pageview_visits' );
@@ -69,7 +73,7 @@ function sn_analytics_rollup_upsert( $rows ) {
 		// NEVER stored (it would reintroduce the shipped-113% milestone-point
 		// unit). The step constant lives in inc/analytics-derive.php (loaded in
 		// production; the literal fallback keeps this module standalone-testable).
-		$scroll_events_n = null === $scroll_events ? null : max( 0, (int) round( (float) $scroll_events ) );
+		$scroll_events_n = null === $scroll_stored ? null : max( 0, (int) round( (float) $scroll_stored ) );
 		$scroll_step     = defined( 'SN_ANALYTICS_SCROLL_MILESTONE_STEP' ) ? SN_ANALYTICS_SCROLL_MILESTONE_STEP : 25;
 
 		$c = array(
