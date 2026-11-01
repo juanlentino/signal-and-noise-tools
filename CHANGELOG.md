@@ -12,6 +12,17 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Two résumés from one document: music (the public one) and operations (its own PDF, never linked).** Owner brief 2026-11-01. A résumé made outside the editor had drifted (it still said Juan runs Panacea Studio day to day), so the site now builds every version from the same entries.
+  - **Shows in.** Every entry, role, education and affiliation row, publication and skills row has a choice: both (the default, what every row had), music only or operations only. Each role lists its saved bullets with the same choice, keyed by the bullet's text.
+  - **New sections.** "What I've Built" (an intro and one card per project) and "Operations résumé": headline, subhead, location, extra links, summary, section order, experience order, earlier career one line per role, file name.
+  - **Set up the operations résumé** writes the brief's appendix into the draft: settings, What I've Built, four skills rows, two affiliations, and "music only" on what the operations résumé leaves out. It finds rows by their text, never rewords them, lists what it cannot find, and changes nothing more on a second run.
+  - **Generate PDF builds both.** The operations file is `uploads/resume/JuanLentino_Resume_Operations.pdf`. It is linked from no page, sitemap, llms file or format list, and never prints the phone.
+  - **Nothing public changes.** `sn_resume_doc_get()` now returns the music view in the shape every reader already knew, so /resume, its PDF, the Spanish CV, JSON Resume, Markdown and vCard see exactly what they saw before; the editor reads the stored document. The music PDF's HTML is identical before and after the operations setup (pinned).
+  - **A check on every generation.** A built-in reader for Dompdf's output (held word for word to pdftotext) reads each PDF back. The PDF box flags control characters, ligature code points, a phone number in the text or metadata, an operations PDF over two pages, and a missing `X-Robots-Tag: noindex` on the operations file. That header comes from a Cloudflare response header rule (docs/RESUME-PDF.md); WordPress cannot set it on a static file.
+
+  Tests: `tests/resume-variants.php` (25) and `tests/resume-pdf-text-check.php` (13); the existing résumé suites pass unchanged except two pins: the Generate call now passes the music layout, and the native editor's stub reads the stored document.
+
 ## [2026.11.5] - 2026-11-01 — Reverted the per-view scroll count; stored scroll per view is the weighted ratio again
 
 ### Fixed
