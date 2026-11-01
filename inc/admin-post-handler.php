@@ -79,6 +79,7 @@ function sn_admin_post_handlers() {
 		'resume_publish'             => 'sn_handle_resume_publish',
 		'resume_discard'             => 'sn_handle_resume_discard',
 		'resume_revert'              => 'sn_handle_resume_revert',
+		'resume_operations_setup'    => 'sn_handle_resume_operations_setup', // Unreleased: the operations résumé's starting content, into the draft
 		'pattern_adoption_scan'      => 'sn_handle_pattern_adoption_scan',
 		'block_migrations_scan'      => 'sn_handle_block_migrations_scan',
 		'perf_save'                  => 'sn_handle_perf_save',

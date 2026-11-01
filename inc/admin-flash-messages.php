@@ -50,6 +50,8 @@ function sn_admin_flash_messages() {
 		'resume_draft_saved'        => array( 'success', 'Draft saved. The live /resume page is unchanged until you publish.' ),
 		'resume_draft_refused'      => array( 'error', 'Draft not saved: the resume needs at least one experience entry (with an organization) or one publication (with a title). The live page and any earlier draft are unchanged.' ),
 		'resume_no_draft'           => array( 'info', 'There is no draft to act on.' ),
+		'resume_ops_setup'          => array( 'success', 'The operations résumé is set up in the draft. Review it, then publish; Generate then builds both PDFs.' ),
+		'resume_ops_setup_partial'  => array( 'warning', 'The operations résumé is set up in the draft, but some items were not found and stay in both résumés. The Operations résumé section lists them.' ),
 		'resume_preview_failed'     => array( 'error', 'The page preview could not be built: the /resume page or its generated body is unavailable.' ),
 		'resume_nothing_to_publish' => array( 'info', 'Nothing to publish: the draft matches the live resume. The draft was cleared.' ),
 		'resume_publish_failed'     => array( 'error', 'Nothing published: the save wrote nothing. The draft stands.' ),

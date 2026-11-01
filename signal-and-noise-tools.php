@@ -284,6 +284,7 @@ require_once SNT_PATH . 'inc/resume-formats-route.php';     // The résumé as M
 require_once SNT_PATH . 'inc/link-codes.php';              // 2026-10-31: coded résumé links, /r/CODE serves the résumé page (noindex); the code is read back out of the stored path
 require_once SNT_PATH . 'inc/resume-es-stale.php';           // The stale-CV alert: English lines changed since /cv/ was translated (Résumé screen + Health)
 require_once SNT_PATH . 'inc/admin-forms/resume-page.php';   // v10.33.0: Content → Resume Page structured editor form (repeatable rows, not a text box)
+require_once SNT_PATH . 'inc/admin-forms/resume-variants.php'; // Unreleased: the editor's variant controls (Shows in, What I've Built, Operations résumé)
 require_once SNT_PATH . 'inc/admin-forms/rights-evidence.php'; // Unreleased: rights evidence on Machine Readers (view payloads, lift hold)
 require_once SNT_PATH . 'inc/admin-forms/resume-draft.php';  // Unreleased: the draft controls (previews, publish, discard, revert)
 require_once SNT_PATH . 'inc/workflow-page.php';             // Unreleased: /workflow data layer; sn_workflow_public_data() is the hidden-row wall

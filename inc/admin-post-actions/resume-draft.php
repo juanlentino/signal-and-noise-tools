@@ -146,3 +146,29 @@ function sn_handle_resume_revert( $post ) { // phpcs:ignore Generic.CodeAnalysis
 	);
 	return $codes[ sn_resume_revert() ] ?? 'resume_failed';
 }
+
+/**
+ * resume_operations_setup: write the operations résumé's starting content
+ * (inc/resume-operations-setup.php) into the draft, starting from the draft
+ * when there is one, else the published document. Nothing goes live.
+ *
+ * @param array $post Raw $_POST (unused).
+ * @return string Flash code.
+ */
+function sn_handle_resume_operations_setup( $post ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- dispatcher signature.
+	if ( ! function_exists( 'sn_resume_operations_setup' ) || ! function_exists( 'sn_resume_draft_save' ) ) {
+		return 'resume_failed';
+	}
+	$base = function_exists( 'sn_resume_draft_get' ) ? sn_resume_draft_get() : null;
+	$base = is_array( $base ) ? $base : sn_resume_doc_get_raw();
+	if ( ! is_array( $base ) ) {
+		return 'resume_failed';
+	}
+	unset( $base['updated'] );
+	$set = sn_resume_operations_setup( $base );
+	update_option( 'sn_resume_ops_setup_missing', $set['missing'], false );
+	if ( ! sn_resume_draft_save( $set['doc'] ) ) {
+		return 'resume_draft_refused';
+	}
+	return $set['missing'] ? 'resume_ops_setup_partial' : 'resume_ops_setup';
+}
