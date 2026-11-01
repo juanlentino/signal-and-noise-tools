@@ -164,11 +164,12 @@ function snt_arows_clean( $dim, $value, array $real ) {
 	if ( 'hour' === $dim ) {
 		return preg_match( '/^([01]\d|2[0-3])$/', $v ) ? $v : '(invalid)';
 	}
-	if ( 'country' === $dim ) {
-		return preg_match( '/^[A-Z0-9]{2}$/', $v ) ? $v : '(invalid)';
-	}
-	if ( 'device' === $dim ) {
-		return preg_match( '/^[a-z]{1,20}$/', $v ) ? $v : '(invalid)';
+	if ( 'country' === $dim || 'device' === $dim ) {
+		// The dims table stores a blank as (unknown) (inc/analytics-dims.php); it is a named value, not a bad one.
+		if ( '' === $v || '(unknown)' === $v ) {
+			return '(unknown)';
+		}
+		return preg_match( 'country' === $dim ? '/^[A-Z0-9]{2}$/' : '/^[a-z]{1,20}$/', $v ) ? $v : '(invalid)';
 	}
 	return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v ) ? $v : '(invalid)';
 }

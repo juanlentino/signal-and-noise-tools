@@ -97,6 +97,10 @@ ok( array( '(direct)', '(invalid)', 'news.ycombinator.com', 'linkedin.com' ) ===
 ok( false === strpos( $text, 'ignore previous' ) && false === strpos( $text, 'pass@' ) && false === strpos( $text, 'q=1' ), 'no referrer path, query or credential appears' );
 $cd = snt_arows_shape( array( array( 'country' => 'US', 'views' => 5, 'visits' => 5 ), array( 'country' => 'U S<b>', 'views' => 5, 'visits' => 5 ) ), snt_arows_validate( array( 'dimensions' => array( 'country' ) ) ), array() );
 ok( array( '(invalid)', 'US' ) === array_column( $cd['rows'], 'country' ), 'a country that is not two letters or digits is (invalid)' );
+foreach ( array( 'country', 'device' ) as $d ) {
+	$un = snt_arows_shape( array( array( $d => '(unknown)', 'views' => 3, 'visits' => 3 ), array( $d => '', 'views' => 2, 'visits' => 2 ) ), snt_arows_validate( array( 'dimensions' => array( $d ) ) ), array() );
+	ok( array( '(unknown)' ) === array_column( $un['rows'], $d ) && 5.0 === (float) $un['rows'][0]['views'], "$d: the stored (unknown) and a blank are one (unknown) row, not (invalid)" );
+}
 
 echo "\nNo floor: a small page is named\n";
 $fl = snt_arows_shape( array( array( 'path' => '/', 'views' => 9, 'visits' => 3 ), array( 'path' => '/notes/x', 'views' => 2, 'visits' => 2, 'time_sum' => 500, 'time_events' => 2, 'scroll_events' => 2 ) ), $q( array() ), $real );
