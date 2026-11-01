@@ -68,11 +68,11 @@ function snt_analytics_render_session_list( $from, $to, $class ) {
 		return;
 	}
 	$meta = sprintf(
-		/* translators: 1: sessions in the window, 2: sessions listed */
-		__( '%1$d sessions that began in the window (site days; the panels above count UTC days) · the newest %2$d · the rows the MCP sessions read returns', 'signal-and-noise-tools' ),
-		$read['total'],
-		count( $read['sessions'] )
-	) . ( $start > $from ? ' · ' . sprintf( /* translators: %s: first day Analytics Engine holds */ __( 'from %s, the first day Analytics Engine holds', 'signal-and-noise-tools' ), $start ) : '' )
+		/* translators: %d: sessions in the window */
+		__( '%d sessions that began in the window (site days; the panels above count UTC days) · the rows the MCP sessions read returns', 'signal-and-noise-tools' ),
+		$read['total']
+	) . ( count( $read['sessions'] ) < $read['total'] ? ' · ' . sprintf( /* translators: %d: sessions listed */ __( 'the newest %d', 'signal-and-noise-tools' ), count( $read['sessions'] ) ) : '' )
+		. ( $start > $from ? ' · ' . sprintf( /* translators: %s: first day Analytics Engine holds */ __( 'from %s, the first day Analytics Engine holds', 'signal-and-noise-tools' ), $start ) : '' )
 		. ( $read['capped'] ? ' · ' . __( 'capped: narrow the window for every session', 'signal-and-noise-tools' ) : '' );
 	snt_an_kv_table(
 		$title,
@@ -89,6 +89,6 @@ function snt_analytics_render_session_list( $from, $to, $class ) {
 			array( 'label' => __( 'Goals', 'signal-and-noise-tools' ) ),
 			array( 'label' => __( 'Link', 'signal-and-noise-tools' ) ),
 		),
-		array( 'header_meta' => esc_html( $meta ), 'data_colname' => true, 'empty' => __( 'No sessions in this window.', 'signal-and-noise-tools' ) )
+		array( 'header_meta' => esc_html( $meta ), 'data_colname' => true, 'clamp' => 10, 'empty' => __( 'No sessions in this window.', 'signal-and-noise-tools' ) )
 	);
 }

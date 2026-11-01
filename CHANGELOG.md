@@ -46,7 +46,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
   Windows: site days, or the last N hours (1 to 72). The read keeps 90 days and refuses anything older, naming the first day it holds.
 
-  The Sessions tab gains "Sessions, one by one", which calls the same callback for its window, so the tab and both doors list the same rows (owner test 7a, pinned).
+  The Sessions tab gains "Sessions, one by one", which calls the same callback for its window, so the tab and both doors list the same rows (owner test 7a, pinned). It shows ten rows and "View all N", as the paths and dimension tables do: `snt_an_kv_table()` gains a `clamp` option (default off, byte-identical for its other adopters).
 
   The rows read gains `entry`, `exit` and `returning` from `source: "sessions"`, with a `sessions` metric on every row (null from the other sources). The fields read lists them, with the sessions source and the sessions read.
 

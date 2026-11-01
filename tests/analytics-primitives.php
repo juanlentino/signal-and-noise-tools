@@ -325,5 +325,20 @@ $h = cap( function () {
 } );
 ok( false === strpos( $h, 'sn-an-foot' ), 'kv table: footer opt omitted by default, byte-identical to today\'s adopters' );
 
+// clamp: a long list shows its first N rows and a "View all" toggle, the way
+// the paths and dimension tables do (Sessions, one by one, 2026-11-01).
+$h = cap( function () {
+	snt_an_kv_table( 'Clamped', array( array( 'A', '1' ), array( 'B', '2' ), array( 'C', '3' ) ), array( 'Name', 'N' ), array( 'clamp' => 2 ) );
+} );
+ok( false !== strpos( $h, '<div class="sn-an-clamp sn-an-clamp--2" data-sn-an-total="3"><table' ) && false !== strpos( $h, '</table><button type="button" class="sn-an-viewall">View all 3</button></div></div></div>' ), 'kv table: clamp wraps the table and adds View all N inside the panel' );
+$h = cap( function () {
+	snt_an_kv_table( 'Short', array( array( 'A', '1' ) ), array( 'Name', 'N' ), array( 'clamp' => 2 ) );
+} );
+ok( false !== strpos( $h, 'sn-an-clamp--2' ) && false === strpos( $h, 'sn-an-viewall' ), 'kv table: a list within the clamp has no toggle' );
+$h = cap( function () {
+	snt_an_kv_table( 'Unclamped', array( array( 'A', '1' ) ), array( 'Name', 'N' ) );
+} );
+ok( false === strpos( $h, 'sn-an-clamp' ), 'kv table: clamp omitted by default, byte-identical to today\'s adopters' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
