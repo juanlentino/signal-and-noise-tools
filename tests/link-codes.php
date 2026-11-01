@@ -69,5 +69,39 @@ $live = sn_link_codes_live_from_rows( array(
 ok( array( array( 'label' => 'Resume via zed', 'url' => 'https://x.test/resume/', 'readers' => 4 ), array( 'label' => 'Resume via hera', 'url' => 'https://x.test/resume/', 'readers' => 3 ) ) === $live, 'one row per code, both spellings summed, most readers first, labeled with the page title' );
 ok( array() === sn_link_codes_live_from_rows( array( array( 'path' => '/about/', 'readers' => 1 ) ) ), 'no code read now: an empty list' );
 
+echo "\nGroup: the production path (core passes one argument; the URI is the request's)\n";
+$_SERVER['REQUEST_URI'] = '/r/hera?utm_source=mail';
+ok( array( 'page_id' => 1184 ) === sn_link_code_request( array( 'pagename' => 'r/hera' ) ), 'request: read from REQUEST_URI' );
+ok( false === sn_link_code_no_redirect( 'https://x.test/resume/' ), 'redirect_canonical: read from REQUEST_URI' );
+ok( in_array( 'noindex', sn_link_code_robots( array() ), true ), 'robots: read from REQUEST_URI' );
+ok( 'noindex' === ( sn_link_code_headers( array() )['X-Robots-Tag'] ?? '' ) && 'noindex' === ( sn_link_code_headers( array(), new stdClass() )['X-Robots-Tag'] ?? '' ), 'wp_headers: read from REQUEST_URI, even if core hands over its WP object' );
+$_SERVER['REQUEST_URI'] = '/about/';
+ok( array( 'pagename' => 'about' ) === sn_link_code_request( array( 'pagename' => 'about' ) ) && 'u' === sn_link_code_no_redirect( 'u' ) && array() === sn_link_code_headers( array() ), 'any other request: untouched' );
+unset( $_SERVER['REQUEST_URI'] );
+ok( '' === sn_link_code_requested(), 'no request URI (cron, CLI): no code' );
+
+echo "\nGroup: served content, the one shared test\n";
+ok( sn_path_is_served( '/r/hera', array() ) && sn_path_is_served( '/about', array( '/about' => true ) ), 'a coded link or a real page' );
+ok( ! sn_path_is_served( '/gone', array( '/about' => true ) ) && ! sn_path_is_served( '/r/Bad_Code', array() ), 'anything else is not' );
+
+echo "\nGroup: the live read hands the coded rows to the admin list\n";
+if ( ! defined( 'SN_ANALYTICS_REALTIME_WINDOW_MIN' ) ) { define( 'SN_ANALYTICS_REALTIME_WINDOW_MIN', 5 ); }
+function sn_analytics_source( $f, $k = 'pageviews' ) { return 'ds'; }
+function sn_analytics_trailing_from( $d ) { return '2026-10-30'; }
+function sn_analytics_class_where( $c = 'human' ) { return '1=1'; }
+function sn_analytics_excluded_path_sql() { return ''; }
+function sn_analytics_overcap_where() { return ''; }
+function url_to_postid( $u ) { return 0; }
+$GLOBALS['live_rows'] = array( array( 'path' => '/r/hera', 'readers' => 2 ), array( 'path' => '/nowhere', 'readers' => 1 ) );
+function sn_analytics_query( $sql ) { return $GLOBALS['live_rows']; }
+require $root . '/inc/analytics-live-pages.php';
+$links = null;
+$pages = sn_analytics_live_pages_read( $links );
+ok( array( array( 'label' => 'Resume via hera', 'url' => 'https://x.test/resume/', 'readers' => 2 ) ) === $links, 'the same read fills the admin list' );
+ok( array() === $pages, 'and the public list stays without it (a coded path resolves to no page)' );
+$GLOBALS['live_rows'] = null;
+$links = 'stale';
+ok( null === sn_analytics_live_pages_read( $links ) && null === $links, 'a failed read: both absent, never a stale list' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

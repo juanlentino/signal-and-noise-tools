@@ -50,11 +50,9 @@ function snt_unmatched_report_rows( array $rows, array $real, callable $suggest,
 	$by = array();
 	foreach ( $rows as $r ) {
 		$stored = (string) ( $r['path'] ?? '' );
-		if ( '' === $stored || isset( $real[ sn_analytics_canonical_path( (string) strtok( strtok( $stored, '?' ), '#' ) ) ] ) ) {
-			continue;
-		}
-		// A coded résumé link is served and reported under Links, never unmatched (inc/link-codes.php).
-		if ( function_exists( 'sn_link_code_from_path' ) && '' !== sn_link_code_from_path( (string) strtok( strtok( $stored, '?' ), '#' ) ) ) {
+		// Served content, a coded résumé link included (reported under Links): the path rows' own test.
+		$canon = sn_analytics_canonical_path( (string) strtok( strtok( $stored, '?' ), '#' ) );
+		if ( '' === $stored || ( function_exists( 'sn_path_is_served' ) ? sn_path_is_served( $canon, $real ) : isset( $real[ $canon ] ) ) ) {
 			continue;
 		}
 		$clean = snt_unmatched_clean_path( $stored );
