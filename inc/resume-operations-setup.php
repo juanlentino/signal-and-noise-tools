@@ -99,7 +99,7 @@ function sn_resume_operations_setup( $doc ) {
 	}
 
 	// Bullets and roles, in experience and earlier career alike.
-	$walk = static function ( &$entries ) use ( $mo, &$found, $mark ) {
+	$walk = static function ( &$entries ) use ( $mo, &$found ) {
 		foreach ( $entries as &$entry ) {
 			foreach ( $mo['earlier'] as $org ) {
 				if ( sn_resume_starts( $entry['org'] ?? '', $org ) ) {
