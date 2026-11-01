@@ -94,5 +94,45 @@ ok( 'Obras Metálicas S.A.' === sn_resume_pdf_soft_case( 'OBRAS METÁLICAS S.A.'
 $ord = sn_resume_pdf_order_entries( array( array( 'org' => 'A' ), array( 'org' => 'B' ), array( 'org' => 'C' ) ), array( 'c', 'a' ) );
 ok( array( 'C', 'A', 'B' ) === array_column( $ord, 'org' ), 'experience order: named entries first, by name, the rest as listed' );
 
+echo "\nGroup: held to main, not to itself (review of #2344)\n";
+// sha1 of main's template over main's normalize of the seed, computed with main's own code
+// (6c620798). A deliberate change to the music PDF updates this hash in the same commit.
+$main_sha = '222935a0924c3134587474ad4ddb9c40c5dabb90';
+$seedn    = sn_resume_doc_normalize( sn_resume_seed_doc() );
+ok( $main_sha === sha1( sn_resume_pdf_html( sn_resume_doc_view( $seedn, 'music' ), 'Juan Lentino', '/fonts', false, 'https://juanlentino.com/', sn_resume_pdf_music_config( $seedn ) ) ), 'the music PDF HTML for the seed is main\'s, byte for byte' );
+$seeds    = sn_resume_doc_normalize( sn_resume_operations_setup( $seedn )['doc'] );
+ok( $main_sha === sha1( sn_resume_pdf_html( sn_resume_doc_view( $seeds, 'music' ), 'Juan Lentino', '/fonts', false, 'https://juanlentino.com/', sn_resume_pdf_music_config( $seeds ) ) ), 'and still main\'s after the operations setup' );
+ok( array( 'summary', 'stats', 'competencies', 'built', 'experience', 'publications', 'education', 'affiliations', 'toolkit' ) === sn_resume_variant_config( array( 'variants' => array( 'music' => array( 'show_built' => true ) ) ), 'music' )['sections'], 'switched on, What I\'ve Built sits after the competencies in the music PDF' );
+$mb = sn_resume_pdf_music_config( array( 'built' => array( 'intro' => '', 'items' => array( array( 'title' => 'Ops only', 'url' => '', 'text' => 't', 'variant' => 'operations' ), array( 'title' => 'Both', 'url' => '', 'text' => 't' ) ) ) ) );
+ok( array( 'Both' ) === array_column( $mb['built']['items'], 'title' ), 'the music PDF takes What I\'ve Built items for music, never operations-only ones' );
+ok( SN_RESUME_PDF_MUSIC_SECTIONS === sn_resume_variant_config( sn_resume_doc_normalize( array( 'experience' => $seed['experience'], 'variants' => array( 'operations' => array( 'headline' => 'Only a headline' ) ) ) ), 'operations' )['sections'], 'an operations résumé with no section list falls back to the music order, as blank fields do' );
+
+echo "\nGroup: a second setup run keeps the owner's edits\n";
+$ed                                       = $after;
+$ed['variants']['operations']['summary']  = 'My own summary.';
+$ed['built']['items'][]                   = array( 'title' => 'Mine', 'url' => '', 'text' => 'x' );
+$ed['skills'][]                           = array( 'category' => 'Added later', 'items' => 'a, b' );
+$re                                       = sn_resume_doc_normalize( sn_resume_operations_setup( sn_resume_doc_normalize( $ed ) )['doc'] );
+ok( 'My own summary.' === $re['variants']['operations']['summary'] && 'Mine' === end( $re['built']['items'] )['title'], 'an edited summary and an added project survive' );
+ok( ! isset( end( $re['skills'] )['variant'] ), 'a skills row added after the first run keeps the variant its author set (both)' );
+
+echo "\nGroup: the production call sites\n";
+$ops_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/operations.php' );
+$gen_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.php' );
+$tpl_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/template.php' );
+$dr_src  = (string) file_get_contents( __DIR__ . '/../inc/resume-draft.php' );
+$act_src = (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions/resume-draft.php' );
+ok( false !== strpos( $ops_src, "sn_resume_pdf_render( sn_resume_doc_view( \$raw, 'operations' ), \$name, \$loc['dir'] . '/.font-cache', false, home_url( '/' ), \$config );" ), 'the operations PDF renders the operations view, phone off' );
+ok( false !== strpos( $tpl_src, "\$include_phone = \$include_phone && false !== ( \$config['phone'] ?? null );" ), 'and the template refuses the phone whenever the variant says none' );
+$no_phone = sn_resume_pdf_html( $phone, 'Juan Lentino', $font, true, 'https://juanlentino.com/', $cfg );
+ok( false === strpos( $no_phone, '555-0123' ), 'even when a caller asks for the phone' );
+ok( false !== strpos( $ops_src, "sn_resume_pdf_check( \$result['bytes'], \$result['pages'], 2," ) && false !== strpos( $ops_src, "delete_option( SN_RESUME_OPS_PDF_BYTES );" ), 'the operations PDF is checked at two pages, and one with a phone is never served' );
+ok( 1 === preg_match( "/0 !== strpos\\( \\\$path, '\\/resume\\/' \\) \\|\\| '\\.pdf' !== substr\\( \\\$path, -4 \\)\\s*\\) \\{\\s*return;/", $ops_src ) && strpos( $ops_src, "'.pdf' !== substr" ) < strpos( $ops_src, 'sn_resume_variant_config( function_exists' ), 'the address is matched before the document is read' );
+ok( false !== strpos( $gen_src, '$config = sn_resume_pdf_music_config(' ), 'Generate renders the music layout' );
+ok( 2 === substr_count( $dr_src, 'sn_resume_doc_same( $draft, sn_resume_doc_get_raw() )' ), 'the draft status and Publish compare the stored documents, flags included' );
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions/resume-draft.php' ), "sn_resume_body_html( sn_resume_doc_view( \$draft, 'music' ) )" ) && false !== strpos( $gen_src, "sn_resume_doc_view( sn_resume_draft_get(), 'music' )" ), 'the page and PDF previews show the draft\'s music résumé' );
+$setup_fn = substr( $act_src, (int) strpos( $act_src, 'function sn_handle_resume_operations_setup' ) );
+ok( false !== strpos( $setup_fn, 'sn_resume_draft_save( $set[\'doc\'] )' ) && false === strpos( $setup_fn, 'sn_resume_doc_save' ), 'the setup writes the draft only, never the published résumé' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -51,15 +51,35 @@ if ( '' !== $which ) {
 }
 
 echo "\nGroup: the flags\n";
-ok( array() === sn_resume_pdf_text_flags( "Founder\tand operator\nPage two\f", '/Title (Juan Lentino)', 2, 2 ), 'a clean text, two pages of two: no flags' );
-ok( array( 'control characters in the text' ) === sn_resume_pdf_text_flags( "a\x00b", '', 1 ), 'a NUL in the text' );
-ok( array( 'control characters in the text' ) === sn_resume_pdf_text_flags( "a\x1Fb", '', 1 ), 'a unit separator in the text' );
-ok( array( 'ligature characters in the text' ) === sn_resume_pdf_text_flags( "work\u{FB02}ow", '', 1 ), 'an fl ligature' );
-ok( array( 'a phone number' ) === sn_resume_pdf_text_flags( 'call (407) 555-0123 today', '', 1 ), 'a phone in the text' );
-ok( array( 'a phone number' ) === sn_resume_pdf_text_flags( 'nothing here', '/Subject (+1 407.555.0123)', 1 ), 'a phone in the metadata' );
-ok( array() === sn_resume_pdf_text_flags( 'Sep 2018 - Present, 2016 - 2021, 10,000 listeners, 0009-0006-8151-5920', '', 1 ), 'dates, counts and an ORCID are not phone numbers' );
-ok( array( '3 pages, over 2' ) === sn_resume_pdf_text_flags( 'ok', '', 3, 2 ), 'three pages where two are allowed' );
+// The thin-text flag is its own case below; these probe one flag each.
+$F = static fn( ...$a ) => array_values( array_filter( sn_resume_pdf_text_flags( ...$a ), static fn( $f ) => 0 !== strpos( $f, 'only ' ) ) );
+ok( array() === $F( "Founder\tand operator\nPage two\f", '/Title (Juan Lentino)', 2, 2 ), 'a clean text, two pages of two: no flags' );
+ok( array( 'control characters in the text' ) === $F( "a\x00b", '', 1 ), 'a NUL in the text' );
+ok( array( 'control characters in the text' ) === $F( "a\x1Fb", '', 1 ), 'a unit separator in the text' );
+ok( array( 'ligature characters in the text' ) === $F( "work\u{FB02}ow", '', 1 ), 'an fl ligature' );
+ok( array( 'a phone number' ) === $F( 'call (407) 555-0123 today', '', 1 ), 'a phone in the text' );
+ok( array( 'a phone number' ) === $F( 'nothing here', 'Subject +1 407.555.0123', 1 ), 'a phone in the metadata' );
+ok( array() === $F( 'Sep 2018 - Present, 2016 - 2021, 10,000 listeners, 0009-0006-8151-5920', '', 1 ), 'dates, counts and an ORCID are not phone numbers' );
+ok( array( '3 pages, over 2' ) === $F( 'ok', '', 3, 2 ), 'three pages where two are allowed' );
 ok( array( 'no text could be read' ) === sn_resume_pdf_text_flags( '   ', '', 1 ), 'an unreadable file never passes as clean' );
+ok( array( 'only 13 characters could be read' ) === sn_resume_pdf_text_flags( 'a short read.', '', 1 ), 'a read too short for a résumé is flagged, not passed' );
+
+echo "\nGroup: real Dompdf files\n";
+require_once __DIR__ . '/../lib/pdf/vendor/autoload.php';
+$o = new \Dompdf\Options();
+$o->set( 'fontDir', $cache ); $o->set( 'fontCache', $cache );
+$d = new \Dompdf\Dompdf( $o );
+$d->loadHtml( '<p>' . str_repeat( 'A plain résumé line. ', 80 ) . '</p>', 'UTF-8' );
+$d->addInfo( 'Subject', 'Call 407-555-0123' );
+$d->render();
+$meta_pdf = (string) $d->output();
+ok( false !== strpos( $meta_pdf, '\\376\\377' ) || false !== strpos( $meta_pdf, "\xFE\xFF" ), 'Dompdf writes the Subject as a UTF-16 literal (the case the check must decode)' );
+ok( in_array( 'a phone number', sn_resume_pdf_check( $meta_pdf, 1 )['flags'], true ), 'a phone in a real Dompdf file\'s metadata is flagged' );
+$intl            = $doc;
+$intl['pdf']['phone'] = '+54 9 11 5555-1234';
+$ri              = sn_resume_pdf_render( $intl, 'Juan Lentino', $cache, true, 'https://juanlentino.com/' );
+ok( in_array( 'a phone number', sn_resume_pdf_check( $ri['bytes'], $ri['pages'], null, '+54 9 11 5555-1234' )['flags'], true ), 'the stored phone, in any format, is found by its digits' );
+ok( ! in_array( 'a phone number', sn_resume_pdf_check( $r['bytes'], $r['pages'], null, '+54 9 11 5555-1234' )['flags'], true ), 'and a PDF without it is not flagged' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

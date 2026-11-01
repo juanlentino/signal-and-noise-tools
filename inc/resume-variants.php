@@ -138,7 +138,7 @@ function sn_resume_normalize_variants( $in ) {
 		'sections'         => array_values( array_intersect( array_unique( array_map( 'strval', sn_resume_string_list( $ops['sections'] ?? array() ) ) ), SN_RESUME_PDF_SECTION_KEYS ) ),
 		'experience_order' => array_values( array_filter( array_map( 'sn_resume_text', sn_resume_string_list( $ops['experience_order'] ?? array() ) ), 'strlen' ) ),
 		'earlier_compact'  => ! empty( $ops['earlier_compact'] ),
-		'pdf_file'         => preg_match( '/^[A-Za-z0-9_-]{1,80}\.pdf$/', (string) ( $ops['pdf_file'] ?? '' ) ) ? (string) $ops['pdf_file'] : '',
+		'pdf_file'         => preg_match( '/^[A-Za-z0-9_-]{1,80}\.pdf\z/', (string) ( $ops['pdf_file'] ?? '' ) ) ? (string) $ops['pdf_file'] : '',
 	);
 	if ( '' !== $o['headline'] || '' !== $o['summary'] || $o['sections'] ) {
 		$out['operations'] = $o;
@@ -240,9 +240,12 @@ function sn_resume_variant_config( $doc, $variant ) {
 		if ( ! is_array( $o ) ) {
 			return null;
 		}
-		$o['phone'] = false; // the operations PDF never prints the phone, whatever the switch says.
+		$o['phone'] = false; // the operations PDF never prints the phone, whatever the switch says (the template enforces it).
 		if ( '' === $o['pdf_file'] ) {
 			$o['pdf_file'] = SN_RESUME_OPERATIONS_PDF_FILE;
+		}
+		if ( ! $o['sections'] ) {
+			$o['sections'] = SN_RESUME_PDF_MUSIC_SECTIONS; // blank falls back to the music PDF's, as every other field does.
 		}
 		return $o;
 	}
@@ -251,4 +254,15 @@ function sn_resume_variant_config( $doc, $variant ) {
 		array_splice( $sections, 3, 0, array( 'built' ) );
 	}
 	return array( 'sections' => $sections );
+}
+
+/**
+ * The music PDF's layout with its "What I've Built", for every music render:
+ * Generate, the draft preview and the private copy.
+ *
+ * @param array|null $doc Stored document (or draft).
+ * @return array
+ */
+function sn_resume_pdf_music_config( $doc ) {
+	return sn_resume_variant_config( $doc, 'music' ) + array( 'built' => sn_resume_built_for( $doc, 'music' ) );
 }

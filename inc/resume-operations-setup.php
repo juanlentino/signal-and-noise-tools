@@ -8,8 +8,11 @@
  * affiliations, and music-only flags on what the operations résumé leaves out.
  * It finds existing entries, roles and bullets by the start of their text and
  * never rewords them; whatever it cannot find is reported, and stays in both
- * variants. Running it twice changes nothing more. The admin action writes the
- * result into the draft, so the owner reviews it before publishing.
+ * variants. It only fills what is missing: settings and "What I've Built"
+ * that exist are kept, rows already marked keep their mark, and the existing
+ * skills rows turn music-only only on the first run (before any operations
+ * settings exist). Running it again never undoes an edit. The admin action
+ * writes the result into the draft, so the owner reviews it before publishing.
  *
  * @package SignalNoiseTools
  */
@@ -86,30 +89,35 @@ function sn_resume_operations_setup( $doc ) {
 		$row['variant'] = 'music';
 	};
 
-	$doc['variants']               = (array) ( $doc['variants'] ?? array() );
-	$doc['variants']['operations'] = $set['operations'];
-	$doc['built']                  = $set['built'];
+	$first           = empty( $doc['variants']['operations'] ); // the first run: nothing set up yet.
+	$doc['variants'] = (array) ( $doc['variants'] ?? array() );
+	if ( $first ) {
+		$doc['variants']['operations'] = $set['operations'];
+	}
+	if ( empty( $doc['built'] ) ) {
+		$doc['built'] = $set['built'];
+	}
 
 	// Bullets and roles, in experience and earlier career alike.
 	$walk = static function ( &$entries ) use ( $mo, &$found, $mark ) {
 		foreach ( $entries as &$entry ) {
 			foreach ( $mo['earlier'] as $org ) {
 				if ( sn_resume_starts( $entry['org'] ?? '', $org ) ) {
-					$mark( $entry );
+					$entry['variant'] ??= 'music';
 					$found[ 'earlier:' . $org ] = true;
 				}
 			}
 			foreach ( $entry['roles'] as &$role ) {
 				foreach ( $mo['roles'] as $title ) {
 					if ( sn_resume_starts( $role['title'] ?? '', $title ) ) {
-						$mark( $role );
+						$role['variant'] ??= 'music';
 						$found[ 'role:' . $title ] = true;
 					}
 				}
 				foreach ( $role['bullets'] as $bullet ) {
 					foreach ( $mo['bullets'] as $start ) {
 						if ( sn_resume_starts( $bullet, $start ) ) {
-							$role['bullet_variants'][ sn_resume_bullet_key( $bullet ) ] = 'music';
+							$role['bullet_variants'][ sn_resume_bullet_key( $bullet ) ] ??= 'music';
 							$found[ 'bullet:' . $start ] = true;
 						}
 					}
@@ -130,7 +138,7 @@ function sn_resume_operations_setup( $doc ) {
 		foreach ( $mo['affiliations'] as $start ) {
 			// "Voting Member, The Recording Academy" must not catch the merged operations line.
 			if ( sn_resume_starts( $aff['title'] ?? '', $start ) && ! in_array( (string) ( $aff['title'] ?? '' ), $ours, true ) ) {
-				$mark( $aff );
+				$aff['variant'] ??= 'music';
 				$found[ 'affiliation:' . $start ] = true;
 			}
 		}
@@ -157,7 +165,7 @@ function sn_resume_operations_setup( $doc ) {
 	// Skills: the existing rows are the music résumé's; the operations rows are new.
 	$have = array_map( static fn( $r ) => (string) ( $r['category'] ?? '' ) . "\0" . ( $r['variant'] ?? '' ), $doc['skills'] );
 	foreach ( $doc['skills'] as &$row ) {
-		if ( ! isset( $row['variant'] ) ) {
+		if ( $first && ! isset( $row['variant'] ) ) { // a row added later stays as its author set it.
 			$mark( $row );
 		}
 	}

@@ -65,6 +65,7 @@ function sn_rsm_bullet_variants( $prefix, $role ) {
 	}
 	$flags = (array) ( $role['bullet_variants'] ?? array() );
 	echo '<details class="sn-rsm-bullet-variants"><summary>Which résumé each bullet shows in</summary>';
+	echo '<p class="description">Editing a bullet\'s text resets its choice to both résumés.</p>';
 	foreach ( $bullets as $bullet ) {
 		$key  = sn_resume_bullet_key( $bullet );
 		$text = wp_strip_all_tags( (string) $bullet );
@@ -144,7 +145,7 @@ function sn_admin_render_resume_operations_setup() {
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
 	wp_nonce_field( 'sn_resume_operations_setup' );
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Operations résumé setup</h2>';
-	echo '<p class="sn-fieldset-intro">Writes the operations résumé\'s starting content into the draft: its settings, What I\'ve Built, its skills rows and two affiliations, and "Music only" on what it leaves out. Existing wording is never changed. Review the draft, then publish. Running it again changes nothing more.</p>';
+	echo '<p class="sn-fieldset-intro">Writes the operations résumé\'s starting content into the draft: its settings, What I\'ve Built, its skills rows and two affiliations, and "Music only" on what it leaves out. Existing wording is never changed. Review the draft, then publish. Running it again only fills what is missing; it never undoes an edit.</p>';
 	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_operations_setup" class="button">Set up the operations résumé</button></div>';
 	echo '</div></form>';
 }

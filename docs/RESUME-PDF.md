@@ -47,7 +47,7 @@ every reader already knew, and the editor reads the stored document through `sn_
   content (the owner brief's appendix) into the **draft**: its settings, What I've Built, its four
   skills rows and two affiliations, and "music only" on what it leaves out. It finds rows by the
   start of their text, never rewords them, lists anything it cannot find (those stay in both), and
-  running it twice changes nothing more.
+  running it again only fills what is missing and never undoes an edit.
 - **Generate PDF** builds both: the music file as before, then the operations PDF, served at
   `/resume/JuanLentino_Resume_Operations.pdf` (the `sn_resume_pdf_operations` option holds its facts,
   `sn_resume_pdf_operations_bytes` the file). The music PDF's HTML is identical to what it was

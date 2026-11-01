@@ -111,8 +111,7 @@ function sn_resume_pdf_generate() {
 	// PUBLIC: the phone only when the owner switched it on (Content → Resume,
 	// PDF only). Default off; the private copy is the way to send it.
 	// The music variant's layout ("What I've Built" only when switched on).
-	$raw    = function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : $doc;
-	$config = sn_resume_variant_config( $raw, 'music' ) + array( 'built' => sn_resume_built_for( $raw, 'music' ) );
+	$config = sn_resume_pdf_music_config( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : $doc );
 	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', ! empty( $doc['pdf']['phone_public'] ), home_url( '/' ), $config );
 	if ( is_wp_error( $result ) ) {
 		return $result;
@@ -136,7 +135,7 @@ function sn_resume_pdf_generate() {
 		'url'       => $loc['url'] . '/' . SN_RESUME_PDF_FILE,
 	);
 	if ( function_exists( 'sn_resume_pdf_check' ) ) {
-		$meta['check'] = sn_resume_pdf_check( $result['bytes'], $result['pages'] );
+		$meta['check'] = sn_resume_pdf_check( $result['bytes'], $result['pages'], null, (string) ( $doc['pdf']['phone'] ?? '' ) );
 	}
 	$previous = get_option( SN_RESUME_PDF_OPTION );
 	$issued   = sn_resume_pdf_issued( get_option( SN_RESUME_PDF_ISSUED ), $previous, $meta );
@@ -234,13 +233,13 @@ function sn_resume_pdf_link( $fallback ) {
  * @param string     $filename   Attachment name (a fixed string, never input).
  * @return WP_Error|void
  */
-function sn_resume_pdf_stream( $doc, $with_phone, $filename ) {
+function sn_resume_pdf_stream( $doc, $with_phone, $filename, $config = null ) {
 	$loc = sn_resume_pdf_location();
 	if ( ! is_array( $doc ) || null === $loc ) {
 		return new WP_Error( 'sn_resume_pdf_stream', 'No resume document or uploads directory.' );
 	}
 	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', (bool) $with_phone, home_url( '/' ) );
+	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', (bool) $with_phone, home_url( '/' ), $config );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
@@ -259,7 +258,7 @@ function sn_resume_pdf_stream( $doc, $with_phone, $filename ) {
  * @return WP_Error|void
  */
 function sn_resume_pdf_private_stream() {
-	return sn_resume_pdf_stream( function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null, true, 'JuanLentino_Resume_private.pdf' );
+	return sn_resume_pdf_stream( function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null, true, 'JuanLentino_Resume_private.pdf', sn_resume_pdf_music_config( sn_resume_doc_get_raw() ) );
 }
 
 /**
@@ -271,7 +270,7 @@ function sn_resume_pdf_private_stream() {
  */
 function sn_resume_pdf_draft_stream() {
 	$doc = function_exists( 'sn_resume_draft_get' ) ? sn_resume_doc_view( sn_resume_draft_get(), 'music' ) : null;
-	return sn_resume_pdf_stream( $doc, ! empty( $doc['pdf']['phone_public'] ), 'JuanLentino_Resume_draft.pdf' );
+	return sn_resume_pdf_stream( $doc, ! empty( $doc['pdf']['phone_public'] ), 'JuanLentino_Resume_draft.pdf', sn_resume_pdf_music_config( sn_resume_draft_get() ) );
 }
 
 /**

@@ -116,6 +116,8 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $si
 	$hero   = (array) ( $doc['hero'] ?? array() );
 	$pdf    = sn_resume_pdf_variant_header( (array) ( $doc['pdf'] ?? array() ), $config );
 	$config = (array) $config;
+	// A variant that says no phone means none, whatever the caller passed (the operations PDF).
+	$include_phone = $include_phone && false !== ( $config['phone'] ?? null );
 	$parts  = array();
 	$e    = static fn( $s ) => htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' );
 	$sep  = ' <span class="sep">|</span> ';

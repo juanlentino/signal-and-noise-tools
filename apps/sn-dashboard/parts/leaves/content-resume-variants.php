@@ -59,7 +59,7 @@ function resume_bullet_variants( $prefix, array $role ) {
 		return '';
 	}
 	$flags = (array) ( $role['bullet_variants'] ?? array() );
-	$out   = '<p class="snt-prose">' . \snt_kit_esc( __( 'Which résumé each bullet shows in', 'signal-and-noise-tools' ) ) . '</p>';
+	$out   = '<p class="snt-prose">' . \snt_kit_esc( __( 'Which résumé each bullet shows in. Editing a bullet\'s text resets its choice to both résumés.', 'signal-and-noise-tools' ) ) . '</p>';
 	foreach ( $bullets as $bullet ) {
 		$key  = \sn_resume_bullet_key( $bullet );
 		$out .= resume_variant( $prefix . '[bullet_variants][' . $key . ']', $flags[ $key ] ?? '', resume_clip( \wp_strip_all_tags( (string) $bullet ), 90 ) );
@@ -133,7 +133,7 @@ function resume_music_built_toggle( $on ) {
  * @return string
  */
 function resume_operations_setup() {
-	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Writes the operations résumé\'s starting content into the draft: its settings, What I\'ve Built, its skills rows and two affiliations, and "Music only" on what it leaves out. Existing wording is never changed. Review the draft, then publish. Running it again changes nothing more.', 'signal-and-noise-tools' ) ) . '</p>';
+	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Writes the operations résumé\'s starting content into the draft: its settings, What I\'ve Built, its skills rows and two affiliations, and "Music only" on what it leaves out. Existing wording is never changed. Review the draft, then publish. Running it again only fills what is missing; it never undoes an edit.', 'signal-and-noise-tools' ) ) . '</p>';
 	return \snt_kit_section(
 		__( 'Operations résumé setup', 'signal-and-noise-tools' ),
 		\snt_kit_form( 'resume_operations_setup', $intro, array( 'submit' => __( 'Set up the operations résumé', 'signal-and-noise-tools' ) ) )

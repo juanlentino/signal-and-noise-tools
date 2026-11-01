@@ -49,11 +49,26 @@ function sn_resume_pdf_noindex( $url ) {
 
 /**
  * Render, check and publish the operations PDF. Null when the operations
- * résumé has no settings yet.
+ * résumé has no settings yet. A failure is recorded beside the last good
+ * facts, so the PDF box says so instead of showing an old success.
  *
  * @return array|WP_Error|null The stored facts.
  */
 function sn_resume_ops_pdf_generate() {
+	$out = sn_resume_ops_pdf_build();
+	if ( is_wp_error( $out ) ) {
+		$prev = get_option( SN_RESUME_OPS_PDF_OPTION );
+		update_option( SN_RESUME_OPS_PDF_OPTION, array( 'error' => $out->get_error_message(), 'error_at' => gmdate( 'c' ) ) + ( is_array( $prev ) ? $prev : array() ), false );
+	}
+	return $out;
+}
+
+/**
+ * The work of sn_resume_ops_pdf_generate().
+ *
+ * @return array|WP_Error|null
+ */
+function sn_resume_ops_pdf_build() {
 	$raw    = function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null;
 	$config = sn_resume_variant_config( $raw, 'operations' );
 	$loc    = sn_resume_pdf_location(); // for Dompdf's font cache only; the PDF itself is not written there.
@@ -72,12 +87,17 @@ function sn_resume_ops_pdf_generate() {
 	if ( 0 !== strpos( (string) $result['bytes'], '%PDF-' ) ) {
 		return new WP_Error( 'sn_resume_pdf_invalid', 'The renderer did not return a PDF.' );
 	}
+	// A phone in it is never served: checked before the bytes are stored.
+	$check = sn_resume_pdf_check( $result['bytes'], $result['pages'], 2, (string) ( $raw['pdf']['phone'] ?? '' ) );
+	if ( in_array( 'a phone number', $check['flags'], true ) ) {
+		delete_option( SN_RESUME_OPS_PDF_BYTES );
+		return new WP_Error( 'sn_resume_pdf_phone', 'The operations PDF read back with a phone number; it was not published.' );
+	}
 	update_option( SN_RESUME_OPS_PDF_BYTES, base64_encode( $result['bytes'] ), false );
 	$url = sn_resume_ops_pdf_url( $config['pdf_file'] );
 	if ( function_exists( 'sn_cf_purge_urls' ) ) {
 		sn_cf_purge_urls( array( $url ) );
 	}
-	$check = sn_resume_pdf_check( $result['bytes'], $result['pages'], 2 );
 	$noindex = sn_resume_pdf_noindex( $url );
 	if ( true !== $noindex ) {
 		$check['flags'][] = null === $noindex ? 'the noindex header could not be read' : 'no X-Robots-Tag: noindex header';
@@ -100,7 +120,10 @@ add_action( 'sn_resume_pdf_generated', 'sn_resume_ops_pdf_generate', 20 );
  * passes through untouched.
  */
 function sn_resume_ops_pdf_maybe_serve() {
-	$path   = (string) wp_parse_url( isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '', PHP_URL_PATH ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- compared to one fixed path, never echoed.
+	$path = (string) wp_parse_url( isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '', PHP_URL_PATH ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- compared to one fixed path, never echoed.
+	if ( 0 !== strpos( $path, '/resume/' ) || '.pdf' !== substr( $path, -4 ) ) {
+		return; // every other request: no document read on the hot path.
+	}
 	$config = sn_resume_variant_config( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null, 'operations' );
 	if ( null === $config || '/resume/' . $config['pdf_file'] !== $path ) {
 		return;
@@ -149,6 +172,9 @@ function sn_resume_pdf_variant_lines() {
 		$lines[] = array( 'text' => 'Music PDF. ' . sn_resume_pdf_check_line( $music ), 'url' => '' );
 	}
 	$ops = get_option( SN_RESUME_OPS_PDF_OPTION );
+	if ( is_array( $ops ) && ! empty( $ops['error'] ) ) {
+		$lines[] = array( 'text' => 'Operations PDF: the last Generate failed (' . (string) $ops['error'] . ').', 'url' => '' );
+	}
 	if ( is_array( $ops ) && ! empty( $ops['url'] ) ) {
 		$pages   = (int) ( $ops['pages'] ?? 0 );
 		$lines[] = array( 'text' => sprintf( 'Operations PDF, generated %1$s: %2$d %3$s, not linked anywhere. %4$s', function_exists( 'sn_resume_pdf_when' ) ? sn_resume_pdf_when( $ops ) : (string) ( $ops['generated'] ?? '' ), $pages, 1 === $pages ? 'page' : 'pages', sn_resume_pdf_check_line( $ops ) ), 'url' => (string) $ops['url'] );
