@@ -111,6 +111,9 @@ function resume_pdf_generate() {
 	if ( function_exists( 'snt_pdf_engine_status_line' ) ) {
 		$status .= '<p class="snt-prose">' . \snt_kit_esc( \snt_pdf_engine_status_line() ) . '</p>';
 	}
+	foreach ( function_exists( 'sn_resume_pdf_variant_lines' ) ? \sn_resume_pdf_variant_lines() : array() as $line ) {
+		$status .= '<p class="snt-prose">' . \snt_kit_esc( $line['text'] ) . ( '' !== $line['url'] ? ' ' . \snt_kit_link( __( 'Open it', 'signal-and-noise-tools' ), $line['url'] ) . '.' : '' ) . '</p>';
+	}
 	$private = '<p class="snt-prose">' . \snt_kit_esc( __( 'A private copy always includes the phone: built on demand for you, never saved on the server, so it has no public URL.', 'signal-and-noise-tools' ) ) . '</p>';
 	return \snt_kit_section(
 		__( 'Resume PDF', 'signal-and-noise-tools' ),

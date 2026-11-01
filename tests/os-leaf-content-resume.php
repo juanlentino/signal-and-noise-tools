@@ -25,6 +25,7 @@ require_once __DIR__ . '/lib/os-leaf-harness.php';
 // stored document, the seed, and NEITHER — is reachable.
 $GLOBALS['__resume_doc'] = null;
 function sn_resume_doc_get() { return $GLOBALS['__resume_doc']; }
+function sn_resume_doc_get_raw() { return $GLOBALS['__resume_doc']; } // the editor reads the stored document (variants, 2026-11-01).
 // The draft readers (inc/resume-draft.php), answering from fixtures too: no
 // draft and no previous version unless a group below sets one.
 $GLOBALS['__resume_draft'] = null;

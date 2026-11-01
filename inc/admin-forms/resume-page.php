@@ -412,6 +412,9 @@ function sn_admin_render_resume_pdf_generate() {
 	if ( function_exists( 'snt_pdf_engine_status_line' ) ) {
 		echo '<p class="description">' . esc_html( snt_pdf_engine_status_line() ) . '</p>';
 	}
+	foreach ( function_exists( 'sn_resume_pdf_variant_lines' ) ? sn_resume_pdf_variant_lines() : array() as $line ) {
+		echo '<p class="description">' . esc_html( $line['text'] ) . ( '' !== $line['url'] ? ' <a href="' . esc_url( $line['url'] ) . '" target="_blank" rel="noopener">Open it</a>.' : '' ) . '</p>';
+	}
 	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_pdf_generate" class="button">Generate PDF</button></div>';
 	echo '</div></form>';
 

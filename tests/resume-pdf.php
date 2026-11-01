@@ -114,7 +114,7 @@ if ( '' !== $pdftotext ) {
 	ok( false !== strpos( (string) shell_exec( escapeshellarg( $pdftotext ) . ' ' . escapeshellarg( $cache . '/priv.pdf' ) . ' - 2>/dev/null' ), '(555) 010-4242' ), 'the private PDF bytes carry it (control: the check above can see a phone)' );
 }
 $gen_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.php' );
-ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'] . \'/.font-cache\', ! empty( $doc[\'pdf\'][\'phone_public\'] ), home_url( \'/\' ) );' ), 'Generate PDF includes the phone ONLY per the switch' );
+ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'] . \'/.font-cache\', ! empty( $doc[\'pdf\'][\'phone_public\'] ), home_url( \'/\' ), $config );' ), 'Generate PDF includes the phone ONLY per the switch (and the music layout)' );
 // Drafts: ONE streamer (sn_resume_pdf_stream) serves the private copy and the
 // draft preview; each caller only picks the document, the phone and the name.
 $stream_src = substr( $gen_src, (int) strpos( $gen_src, 'function sn_resume_pdf_stream(' ) );
