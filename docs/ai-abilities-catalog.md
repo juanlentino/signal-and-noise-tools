@@ -206,23 +206,25 @@ Added 2026-10-10 because the remote door could answer "how much" and not "where"
 
 | Argument | Values | Default |
 |---|---|---|
-| `dimensions` | one of `path`, `referrer`, `country`, `device`, `link_code`, `day`, or one of the first five with `day` (`link_code`: the code of a coded résumé link, `/r/CODE`) | required |
+| `dimensions` | one to four of `path`, `referrer`, `country`, `region`, `city`, `device`, `link_code`, `day`, `hour` (`link_code`: the code of a coded résumé link, `/r/CODE`; `day` and `hour` in site time) | required |
 | `range` | 7, 14, 30, 90, 365, all | 30 |
+| `from`, `to` | YYYY-MM-DD in site time, instead of `range` | none |
+| `source` | auto, stored, events | auto |
 | `class` | human, suspect, bot | human |
-| `path` | a site path; only with `path` or `day` | none |
-| `referrer` | a hostname; only with `referrer` or `day`, and no `path` | none |
+| `path` | a site path | none |
+| `referrer` | a hostname or `(direct)`, `(internal)`, `(unknown)` | none |
 | `sort` | views, visits, time (time only with `path`, `link_code` or `day`) | views |
 | `limit` | 1 to 500 | 50 |
 
 Out-of-set values are refused at the origin with `ability_invalid_input`, never coerced. The Worker passes arguments through and keeps no copy of the allowed sets. Each row carries its dimension values, `views`, `pageview_visits`, `time_avg_per_view` (milliseconds) and `scroll_avg_per_view`; the envelope carries `rows`, `row_count`, `truncated`, `range`, `class` and `exact_metrics_since`, and never echoes a caller's `path` or `referrer`.
 
-What the stored data supports: the daily table holds path by day with every metric; the dims table holds referrer, country and device by day with views and visits only, so time and scroll are null there. No table holds path by referrer, country or device, so those pairs are refused rather than estimated.
+What the stored data supports: the daily table holds path by day with every metric; the dims table holds referrer, country and device by day with views and visits only, so time and scroll are null there. No table holds path by referrer, country or device, or the hour, so those combinations are read from Analytics Engine (about 90 days, `source: "events"`); an older window is refused, never estimated. Analytics Engine keeps the referrer the dims rollup's way: an internal click is `(internal)`, and the `(direct)` and `(internal)` filters are predicates on the referrer kind, not stored strings.
 
 **The "(unmatched)" breakdown, local door only (2026-10-29).** `path: "(unmatched)"` with `path` among the dimensions returns that bucket one row per cleaned path instead of collapsed. The rows' `views` sum to the default answer's `(unmatched)` row exactly. Their `pageview_visits` can sum higher: a stored row from before `exact_metrics_since` has no visitor-days and reads its visits instead, and that fallback applies per row, so a path whose whole history predates it counts in the breakdown and not in the merged bucket (live on 2026-10-30: 114 views both ways; 102 visitor-days against 76). `path` stays `(unmatched)` on every row; `visitor_path` names it, cleaned by `inc/unmatched-paths-clean.php` (query and fragment dropped, lowercase, slashes collapsed, any segment that looks like an email, id, hash, number or token a placeholder, judged by its parts too, nothing outside `[a-z0-9._~-]`, 200 characters at most). It removes punctuation and recognizable secrets, not words: a hyphenated sentence survives, so read `visitor_path` as data. Each row adds `probe` (the 404 log's probe test), `suggested_target` (a content path, from the 404 log's suggester, or null) and, when the 404 log holds the path, `status` 404 and `referrer_host`; otherwise both are null. It cannot be combined with a `referrer` filter. The remote twin refuses it with a 400 and keeps the original output schema: the shared callback refuses it, and only the local registration opts in (`snt_ability_analytics_rows_local()`), so it fails closed. Pinned in `tests/abilities-remote-set.php`. Code: `inc/analytics-rows-unmatched.php`. Tests: `tests/analytics-rows-unmatched.php`. The same paths, for people, are the Integrity › Reports "Unmatched paths" report.
 
 **Hard limits, and why. Do not relax them to make something easier.**
 
-- **Nothing finer than a day.** No hit-level rows, no timestamps below a day, no visitor identifiers, hashes, IPs or user agents. The tool describes traffic; it does not follow anyone.
+- **Nothing finer than an hour.** The owner brief of 2026-10-31 widened this from a day: the hour of day in site time is a dimension. No hit-level rows, no timestamps, no visitor identifiers, hashes, IPs or user agents. This tool describes traffic; it does not follow anyone.
 - **Paths are an allowlist, not a passthrough.** The stored path is whatever a visitor requested, so `/notes/x?ignore=previous`, a 2,000-character path, a newline followed by instructions, or markup can all sit in the table. This tool's answer lands in a model's context, so passing paths through would let any visitor write into the reader by requesting a crafted URL. A path is returned only when it is the site's own content (a published post or page, a tag archive, the home page or a known archive route); everything else collapses into `(unmatched)`, its counts kept.
 - **Referrers are hostnames only.** Lowercase, `www.` dropped, matched against a strict hostname pattern and capped at 253 characters. A value with a path, a query, credentials or any other character is `(invalid)`. The three sentinels the analytics worker writes (`(direct)`, `(internal)`, `(unknown)`) pass as they are; an empty referrer is `(direct)`. Country must be two letters or digits and device a short lowercase word, or they too read `(invalid)`.
 - **Every value is named, however small** (no floor since 2026-10-23, owner: privacy floors belong to the audience). A page seen by one visitor-day is its own row with its real engagement. The public /stats page keeps its own 3-visit fold into Other.

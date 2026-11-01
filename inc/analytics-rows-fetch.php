@@ -1,8 +1,9 @@
 <?php
 /**
- * Signal & Noise Tools: analytics rows, the read half. Reads the same stored
- * tables the dashboard reads (never Analytics Engine live): the daily table
- * for path and day, the dims table for referrer, country and device. Column
+ * Signal & Noise Tools: analytics rows, the stored half. Reads the same stored
+ * tables the dashboard reads: the daily table for path and day, the dims table
+ * for referrer, country, device, region and city (inc/analytics-rows-events.php
+ * reads Analytics Engine for the rest). Column
  * and dimension names come from fixed arrays only; caller values reach SQL
  * as prepared parameters.
  *

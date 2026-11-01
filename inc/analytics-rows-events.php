@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SNT_AROWS_EVENTS_DAYS = 90;   // what Analytics Engine keeps, about.
 const SNT_AROWS_EVENTS_CAP  = 5000; // rows per query half, under AE's 10,000-row strict cap.
-const SNT_AROWS_EVENTS_COLS = array( 'path' => 'blob2', 'link_code' => 'blob2', 'referrer' => 'blob3', 'country' => 'blob4', 'device' => 'blob5', 'region' => 'blob10', 'city' => 'blob11' );
+const SNT_AROWS_EVENTS_COLS = array( 'path' => 'blob2', 'link_code' => 'blob2', 'country' => 'blob4', 'device' => 'blob5', 'region' => 'blob10', 'city' => 'blob11' ); // referrer: sn_analytics_referrer_value_sql(), as the dims rollup.
 
 /**
  * Whether the stored rollups hold this query as one row per value. PURE.
@@ -84,7 +84,12 @@ function snt_arows_utc_bounds( $from, $to ) {
 /**
  * One Analytics Engine query for the rows. PURE given the human rule. The
  * two shapes are the daily rollup's live-proven ones: everything weighted
- * with sumIf, and visitor-days with a page view from a pv-only query.
+ * with sumIf, and visitor-days with a page view from a pv-only query. The
+ * referrer is the dims rollup's (inc/analytics-referrer-kind.php): blob3 is ''
+ * for no referrer and for an internal click alike, and double10 tells them
+ * apart, so (direct) and (internal) are predicates, never blob3 literals.
+ * Each half orders by its own figure before the cap, so a capped read keeps
+ * the top rows by views and pageview_visits is a floor.
  *
  * @param array  $q       From snt_arows_validate().
  * @param string $lo      UTC instant, inclusive.
@@ -103,20 +108,23 @@ function snt_arows_events_sql( array $q, $lo, $hi, $tz, $pv_only, $source = '', 
 	$tz   = preg_match( '#^[A-Za-z0-9_/+-]+$#', (string) $tz ) ? ", '{$tz}'" : '';
 	$cols = array();
 	foreach ( $q['dims'] as $d ) {
-		$cols[] = ( SNT_AROWS_EVENTS_COLS[ $d ] ?? ( 'day' === $d ? "formatDateTime(timestamp, '%Y-%m-%d'{$tz})" : "formatDateTime(timestamp, '%H'{$tz})" ) ) . " AS {$d}";
+		$cols[] = ( 'referrer' === $d ? sn_analytics_referrer_value_sql( 'blob3' ) : ( SNT_AROWS_EVENTS_COLS[ $d ] ?? ( 'day' === $d ? "formatDateTime(timestamp, '%Y-%m-%d'{$tz})" : "formatDateTime(timestamp, '%H'{$tz})" ) ) ) . " AS {$d}";
 	}
 	$metrics = $pv_only
 		? array( 'count(DISTINCT index1) AS pageview_visits' )
 		: array( "sumIf(_sample_interval, blob1 = 'pv') AS views", 'count(DISTINCT index1) AS visits', "sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_sum", "sumIf(_sample_interval, blob1 = 'tm') AS time_events", "sumIf(_sample_interval, blob1 = 'sc') AS scroll_events" );
+	$ref   = $q['referrer'];
+	$ref   = null === $ref ? '' : ( '(direct)' === $ref ? " AND blob3 = ''" . sn_analytics_not_internal_click_sql() : ( SN_ANALYTICS_INTERNAL_REFERRER === $ref ? ' AND ' . sn_analytics_internal_click_sql() : " AND (blob3 = '{$ref}' OR blob3 = 'www.{$ref}')" ) );
 	$where = "timestamp >= toDateTime('{$lo}') AND timestamp < toDateTime('{$hi}')" . ( sn_analytics_split_range_ok( $range ) ? $range : '' )
 		. ' AND ' . sn_analytics_class_where( $q['class'] ) . sn_analytics_excluded_path_sql()
 		. ( $pv_only ? " AND blob1 = 'pv'" : '' )
 		. ( in_array( 'link_code', $q['dims'], true ) ? " AND blob2 LIKE '/r/%'" : '' )
 		. ( null !== $q['path'] ? " AND (blob2 = '{$q['path']}' OR blob2 = '{$q['path']}/')" : '' )
-		. ( null !== $q['referrer'] ? " AND (blob3 = '{$q['referrer']}' OR blob3 = 'www.{$q['referrer']}')" : '' );
+		. $ref;
 	return 'SELECT ' . implode( ', ', array_merge( $cols, $metrics ) )
 		. ' FROM ' . ( '' !== (string) $source ? (string) $source : sn_analytics_source( substr( $lo, 0, 10 ) ) )
-		. ' WHERE ' . $where . ' GROUP BY ' . implode( ', ', $q['dims'] ) . ' LIMIT ' . SNT_AROWS_EVENTS_CAP;
+		. ' WHERE ' . $where . ' GROUP BY ' . implode( ', ', $q['dims'] )
+		. ' ORDER BY ' . ( $pv_only ? 'pageview_visits' : 'views' ) . ' DESC LIMIT ' . SNT_AROWS_EVENTS_CAP; // aliases only: AE resolves nothing else in ORDER BY.
 }
 
 /**

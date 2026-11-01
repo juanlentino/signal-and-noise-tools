@@ -30,7 +30,13 @@ adds a bullet below. A release is a separate, deliberate act:
   - The local door's `sn-metrics{analytics_rows}` takes rows.from and rows.to in place of the top-level range.
   - The fields read lists region, city, hour, the events source and the custom window.
 
-  Tests: `tests/analytics-rows-wide.php` (48), and seven older refusals of now-answered combinations became acceptance checks. Ten mutants were seen red.
+  Review fixes (independent review of #2334):
+  - The Analytics Engine read takes the referrer the dims rollup's way (`sn_analytics_referrer_value_sql()`), so an internal click is `(internal)` there too. The `(direct)` and `(internal)` filters are predicates on the referrer kind, not `blob3` literals that never match.
+  - Each half orders by its own figure before the 5,000-row cap, so a capped read keeps the top rows by views, and `pageview_visits` is a floor.
+  - The hard limit in the catalog and the door verdict now read "nothing finer than an hour", as the owner brief widened it.
+  - `analytics-rows-events.php` joins the AE dialect guard.
+
+  Tests: `tests/analytics-rows-wide.php` (56), and seven older refusals of now-answered combinations became acceptance checks. Each of these mutants was seen red: the stitched halves merge, the visitor-day join, the cap flag, the referrer relabel, and the builder's referrer and time-zone guards.
 - **The inventory and the gap list** (`docs/audits/2026-11-01-analytics-mcp-inventory.md`): every store and field, every number the wp-admin analytics screens show, and what each MCP door returns today. Gaps found:
   - City and region: on no MCP door, though stored in the dims table and Analytics Engine.
   - Entry and exit pages: local door only.

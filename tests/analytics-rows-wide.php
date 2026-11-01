@@ -29,10 +29,11 @@ function sn_analytics_stitched_rows( callable $build, $from, $to ) {
 	$sql = $build( 'v2', '' );
 	$GLOBALS['built'][] = $sql;
 	$a = array_shift( $GLOBALS['answers'] );
-	return is_array( $a ) ? array( $a ) : null;
+	return is_array( $a ) ? ( isset( $a['sets'] ) ? $a['sets'] : array( $a ) ) : null; // 'sets': both halves of a stitched read.
 }
 $root = dirname( __DIR__ );
 require $root . '/inc/link-codes.php';
+require $root . '/inc/analytics-referrer-kind.php';
 require $root . '/inc/analytics-rows.php';
 require $root . '/inc/analytics-rows-events.php';
 $v = static fn( $in ) => snt_arows_validate( $in );
@@ -83,6 +84,18 @@ ok( false !== strpos( $lc, "blob2 LIKE '/r/%'" ) && false !== strpos( $lc, "(blo
 ok( '' === snt_arows_events_sql( array( 'path' => "/x' OR 1=1 --" ) + $q, 'a', 'b', '', false ), 'the builder never interpolates an unsafe filter' );
 ok( false !== strpos( snt_arows_events_sql( $q, 'a', 'b', '', false, 'legacy', " AND timestamp < toDateTime('2026-10-05 04:00:00')" ), "FROM legacy WHERE timestamp >= toDateTime('a') AND timestamp < toDateTime('b') AND timestamp < toDateTime('2026-10-05 04:00:00')" ), 'one half of a stitched read' );
 
+echo "\nGroup: the referrer as the dims rollup reads it\n";
+$rq = snt_arows_events_sql( $v( array( 'dimensions' => array( 'referrer', 'country' ) ) ), 'a', 'b', '', false );
+ok( false !== strpos( $rq, "if((double10 = 1 AND timestamp >= toDateTime('2026-10-03 15:09:00')), '(internal)', blob3) AS referrer" ) && false !== strpos( $rq, 'GROUP BY referrer, country' ), 'an internal click is (internal), grouped by the alias' );
+$dq = snt_arows_events_sql( $v( array( 'dimensions' => array( 'country' ), 'referrer' => '(direct)' ) ), 'a', 'b', '', false );
+$iq = snt_arows_events_sql( $v( array( 'dimensions' => array( 'country' ), 'referrer' => '(internal)' ) ), 'a', 'b', '', false );
+ok( false !== strpos( $dq, " AND blob3 = '' AND NOT (double10 = 1" ) && false === strpos( $dq, "'(direct)'" ), '(direct): no referrer and not an internal click, never the literal' );
+ok( false !== strpos( $iq, " AND (double10 = 1 AND timestamp" ) && false === strpos( $iq, "blob3 = '(internal)'" ), '(internal): the internal-click predicate' );
+ok( false !== strpos( $rq, 'ORDER BY views DESC LIMIT 5000' ) && false !== strpos( snt_arows_events_sql( $v( array( 'dimensions' => array( 'country' ) ) ), 'a', 'b', '', true ), 'ORDER BY pageview_visits DESC LIMIT 5000' ), 'each half keeps its top rows when capped' );
+$bad = array( 'dims' => array( 'country' ), 'class' => 'human', 'path' => null, 'referrer' => "x' OR 1=1 --" );
+ok( '' === snt_arows_events_sql( $bad, 'a', 'b', '', false ), 'the builder refuses a referrer that is not a hostname or sentinel' );
+ok( false === strpos( snt_arows_events_sql( $v( array( 'dimensions' => array( 'hour' ) ) ), 'a', 'b', "UTC'); DROP", false ), 'DROP' ), 'the builder refuses a time zone that is not a zone name' );
+
 echo "\nGroup: four dimensions sum to the single-dimension total (test 7b)\n";
 $one  = snt_arows_events_sql( $v( array( 'dimensions' => array( 'country' ) ) ), 'a', 'b', 'UTC', false );
 $four = snt_arows_events_sql( $v( array( 'dimensions' => array( 'country', 'device', 'city', 'hour' ) ) ), 'a', 'b', 'UTC', false );
@@ -95,6 +108,16 @@ $GLOBALS['answers'] = array(
 );
 $r4 = snt_arows_events_fetch( $v( array( 'dimensions' => array( 'country', 'device', 'city', 'hour' ) ) ), '2026-10-01', '2026-10-31' );
 ok( 5.0 === array_sum( array_column( $r4['rows'], 'views' ) ) && 3 === array_sum( array_column( $r4['rows'], 'pageview_visits' ) ), 'the fetch keeps every row\'s views and joins its visitor-days by key' );
+$GLOBALS['answers'] = array(
+	array( 'sets' => array( array( array( 'country' => 'US', 'views' => 3, 'visits' => 2 ) ), array( array( 'country' => 'US', 'views' => 4, 'visits' => 1 ), array( 'country' => 'CA', 'views' => 1, 'visits' => 1 ) ) ) ),
+	array( 'sets' => array( array( array( 'country' => 'US', 'pageview_visits' => 2 ) ), array( array( 'country' => 'US', 'pageview_visits' => 1 ) ) ) ),
+);
+$st2 = snt_arows_events_fetch( $v( array( 'dimensions' => array( 'country' ) ) ), '2026-10-01', '2026-10-31' );
+$us  = array_values( array_filter( $st2['rows'], static fn( $r ) => 'US' === $r['country'] ) )[0];
+ok( 7.0 === $us['views'] && 3.0 === $us['visits'] && 3 === $us['pageview_visits'] && 2 === count( $st2['rows'] ) && false === $st2['capped'], 'the two halves of a stitched read add up, views and visitor-days alike' );
+$full = array_map( static fn( $i ) => array( 'country' => 'C' . $i, 'views' => 1, 'visits' => 1 ), range( 1, SNT_AROWS_EVENTS_CAP ) );
+$GLOBALS['answers'] = array( $full, array() );
+ok( true === snt_arows_events_fetch( $v( array( 'dimensions' => array( 'country' ) ) ), '2026-10-01', '2026-10-31' )['capped'], 'a half that reaches the cap says so' );
 $GLOBALS['answers'] = array( null );
 ok( is_wp_error( snt_arows_events_fetch( $v( array( 'dimensions' => array( 'hour' ) ) ), '2026-10-01', '2026-10-31' ) ), 'a failed read is an error, never an empty answer' );
 
