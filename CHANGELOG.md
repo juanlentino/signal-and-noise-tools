@@ -24,9 +24,17 @@ adds a bullet below. A release is a separate, deliberate act:
   - a failed read;
   - a read cut by the row cap.
 
-  The daily roll rewrites the trailing seven days. Earlier second-generation days take the per-view count when the history recompute next runs.
+  The daily roll rewrites the trailing seven days. Earlier second-generation days take the per-view count when the history recompute next runs. The exception is a recompute batch whose window starts before 2026-10-05: it reads the legacy dataset and keeps the plain count, which on 2026-11-01 covers roughly 2026-10-05 to 2026-10-11. `tools/reroll-analytics-90d.php` runs the same per-view read through its own one-day transform, so it stays the cron's twin.
 
-  Tests: `tests/analytics-rollup.php` (233), and the dialect guard now scans the new file. Each of these mutants was seen red: a pageview-less view counted as one, the row-cap refusal skipped, the upsert ignoring the per-view count, and the run skipping the merge.
+  Review fixes (independent review of #2340): pins on the per-view read's alignment with the main read (day bucket, class expression, `WHERE` with lower bound, upper bound and over-cap tail, folded or not, zoned or not), the run's zone and fold fallbacks, and the reroll tool's transform.
+
+  Tests: `tests/analytics-rollup.php` (237) and `tests/reroll-analytics-90d.php` (61); the dialect guard now scans the new file. Each of these mutants was seen red:
+  - a pageview-less view counted as one;
+  - the row-cap refusal skipped;
+  - the upsert ignoring the per-view count;
+  - the run skipping the merge;
+  - each of six alignment drifts: zone, fold and over-cap tail in the builder or the run, and the upper bound;
+  - the reroll transform losing its upper bound.
 
 ## [2026.11.3] - 2026-11-01 — The events rows keep time and scroll per view only by page and day
 

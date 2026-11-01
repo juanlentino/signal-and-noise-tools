@@ -144,6 +144,7 @@ function sn_analytics_last_result_truncated( $set = null ) {
 	}
 	return $GLOBALS['__ar_last_truncated'];
 }
+function sn_analytics_site_tz_name() { return $GLOBALS['__ar_tz'] ?? ''; } // '' unless a test names a zone.
 function sn_analytics_query( $sql ) {
 	$GLOBALS['__ar_query_calls'][] = $sql;
 	sn_analytics_last_result_truncated( false ); // the real client resets per call.
@@ -1432,6 +1433,47 @@ $GLOBALS['__ar_query_return'] = $main_pid;
 $GLOBALS['__ar_pid_return']   = '{"data":[{"day":"2026-10-31","path":"/about","class":"human","pid":11,"views":"1","depth":100}],"rows":10000,"rows_before_limit_at_least":10001}';
 sn_analytics_run_rollup();
 ok( false !== strpos( (string) end( $GLOBALS['wpdb']->queries ), "'/about', 'human', 2, 0, '25.00', '0.00', '325.0000', 13," ),'run (v2): a per-view read cut by the row cap is refused; the plain count stands for this roll' );
+// The merge keys on (day, path, class): the per-view read must bucket, bound and class
+// its rows exactly as the main read does, or every row stores a measured 0.
+$cut     = static fn( $s, $a, $b ) => false === strpos( $s, $a ) ? null : substr( $s, strpos( $s, $a ) + strlen( $a ), strpos( $s, $b, strpos( $s, $a ) ) - strpos( $s, $a ) - strlen( $a ) );
+$aligned = true;
+$GLOBALS['__ar_overcap'] = array( 'hashes' => array( $oc_h ), 'ok' => true, 'truncated' => false ); // folded and unfolded differ only with an over-cap list.
+foreach ( array( null, array( 'days' => 7, 'until' => 3 ) ) as $win ) {
+	sn_analytics_rollup_window( null === $win ? false : $win );
+	foreach ( array( true, false ) as $fold ) {
+		foreach ( array( '', 'America/New_York' ) as $tz ) {
+			$m = sn_analytics_rollup_sql( 7, $tz, $fold );
+			$p = sn_analytics_rollup_pid_scroll_sql( 7, $tz, $fold );
+			$aligned = $aligned && null !== $cut( $p, 'SELECT ', ' AS day,' )
+				&& $cut( $m, 'SELECT ', ' AS day,' ) === $cut( $p, 'SELECT ', ' AS day,' )
+				&& $cut( $m, 'blob2 AS path, ', ' AS class,' ) === $cut( $p, 'blob2 AS path, ', ' AS class,' )
+				&& $cut( $m, 'WHERE ', ' GROUP BY' ) === $cut( $p, 'WHERE ', " AND blob1 IN ('pv', 'sc')" );
+		}
+	}
+}
+sn_analytics_rollup_window( false );
+ok( $aligned, 'per-view SQL: the day bucket, class expression and WHERE (lower, upper, over-cap tail) match the main query, folded or not, zoned or not, bounded or not' );
+ar_reset();
+$GLOBALS['__ar_tz']           = 'America/New_York';
+$GLOBALS['__ar_query_return'] = $main_pid;
+sn_analytics_run_rollup();
+$calls = $GLOBALS['__ar_query_calls'];
+ok( false !== strpos( (string) end( $calls ), 'AS depth' ) && $cut( $calls[0], 'SELECT ', ' AS day,' ) === $cut( (string) end( $calls ), 'SELECT ', ' AS day,' ) && false !== strpos( (string) end( $calls ), "'America/New_York'" ), 'run: the per-view read uses the zone the main read ran with' );
+ar_reset();
+$GLOBALS['__ar_tz']           = 'America/New_York';
+$GLOBALS['__ar_refuse']       = "'America/New_York'";
+$GLOBALS['__ar_query_return'] = $main_pid;
+sn_analytics_run_rollup();
+ok( false !== strpos( (string) end( $GLOBALS['__ar_query_calls'] ), 'AS depth' ) && false === strpos( (string) end( $GLOBALS['__ar_query_calls'] ), 'America/New_York' ), 'run: when the zoned main read fails and the run falls back to UTC, the per-view read is UTC too' );
+ar_reset();
+$GLOBALS['__ar_overcap']      = array( 'hashes' => array( $oc_h ), 'ok' => true, 'truncated' => false );
+$GLOBALS['__ar_refuse']       = "'bot' OR index1 IN (";
+$GLOBALS['__ar_query_return'] = $main_pid;
+sn_analytics_run_rollup();
+ok( false !== strpos( (string) end( $GLOBALS['__ar_query_calls'] ), 'AS depth' ) && false !== strpos( (string) end( $GLOBALS['__ar_query_calls'] ), "index1 NOT IN ('{$oc_h}')" ), 'run: when the folded read is refused, the per-view read runs the pre-fold shape too' );
+$GLOBALS['__ar_overcap'] = null;
+$GLOBALS['__ar_refuse']  = '';
+$GLOBALS['__ar_tz']      = '';
 sn_analytics_v2_clean_from( '' );
 sn_analytics_clock( 0 );
 

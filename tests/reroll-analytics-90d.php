@@ -154,6 +154,19 @@ reroll_assert( is_string( $gated_day ) && false !== strpos( $gated_day, "AND tim
 $gated_day_ny = sn_reroll_gated_day_sql( sn_analytics_rollup_gated_sql( 2, 'America/New_York' ), $lower2_ny, $upper1_ny );
 reroll_assert( is_string( $gated_day_ny ) && false !== strpos( $gated_day_ny, "AND timestamp < toStartOfInterval(now(), INTERVAL '1' DAY, 'America/New_York') - INTERVAL '1' DAY AND blob1 = 'pv'" ), 'gated(zoned base): zoned strict upper bound before the pv gate' );
 
+// The per-view scroll read (inc/analytics-rollup-pid-scroll.php) gets the same one-day bound.
+sn_analytics_v2_clean_from( '2026-10-05' );
+sn_analytics_clock( strtotime( '2026-11-01 12:00:00 UTC' ) );
+$pid_day = sn_reroll_pid_day_sql( sn_analytics_rollup_pid_scroll_sql( 2, '' ), $lower2_utc, $upper1_utc );
+$main_v2 = sn_reroll_day_sql( sn_analytics_rollup_sql( 2, '' ), $lower2_utc, $upper1_utc );
+reroll_assert( is_string( $pid_day ) && false !== strpos( $pid_day, "AND timestamp < toStartOfDay(now() - INTERVAL '1' DAY) AND blob1 IN ('pv', 'sc')" )
+	&& substr( $main_v2, strpos( $main_v2, 'WHERE' ), strpos( $main_v2, ' GROUP BY' ) - strpos( $main_v2, 'WHERE' ) ) === substr( $pid_day, strpos( $pid_day, 'WHERE' ), strpos( $pid_day, " AND blob1 IN ('pv', 'sc')" ) - strpos( $pid_day, 'WHERE' ) ),
+	'per-view(v2 base): the same one-day WHERE as the main query, the upper bound before the event filter' );
+reroll_assert( null === sn_reroll_pid_day_sql( sn_analytics_rollup_gated_sql( 2, '' ), $lower2_utc, $upper1_utc ), 'per-view transform rejects the gated base (a loud null)' );
+sn_analytics_v2_clean_from( '' );
+sn_analytics_clock( 0 );
+reroll_assert( '' === sn_reroll_pid_day_sql( sn_analytics_rollup_pid_scroll_sql( 2, '' ), $lower2_utc, $upper1_utc ), 'per-view(legacy window): no read, the plain count stands' );
+
 // Both per-day queries must share IDENTICAL window bounds — the PHP merge joins
 // on (day, path, class), so a bound drift would silently mis-key the merge.
 $main_where  = substr( (string) $main_day, strpos( (string) $main_day, 'WHERE' ), strpos( (string) $main_day, ' GROUP BY' ) - strpos( (string) $main_day, 'WHERE' ) );

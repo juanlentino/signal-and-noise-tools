@@ -180,6 +180,28 @@ function sn_reroll_gated_day_sql( $base, $lower, $upper ) {
 }
 
 /**
+ * Bound the per-view scroll read (inc/analytics-rollup-pid-scroll.php) to the
+ * SAME one-day window, the upper bound before the event filter as in the
+ * gated transform. '' stays '' (a legacy-dataset window has no per-view read;
+ * the plain count stands).
+ *
+ * @param string $base  Output of sn_analytics_rollup_pid_scroll_sql( k, $tz ).
+ * @param string $lower Window lower bound (exprs for offset k).
+ * @param string $upper Window upper bound (exprs for offset k-1).
+ * @return string|null Transformed SQL, '' for no read, or null on shape drift.
+ */
+function sn_reroll_pid_day_sql( $base, $lower, $upper ) {
+	if ( '' === (string) $base ) {
+		return '';
+	}
+	$needle = "WHERE timestamp >= {$lower} AND blob1 IN ('pv', 'sc')";
+	if ( '' === (string) $lower || '' === (string) $upper || $lower === $upper || 1 !== substr_count( (string) $base, $needle ) ) {
+		return null;
+	}
+	return str_replace( $needle, "WHERE timestamp >= {$lower} AND timestamp < {$upper} AND blob1 IN ('pv', 'sc')", (string) $base );
+}
+
+/**
  * Durable-table row-level completeness COUNT for one day: how many rows still
  * lack an exact column (scroll_sum IS NULL OR pageview_visits IS NULL)?
  *
@@ -285,6 +307,9 @@ foreach ( array(
 	'sn_analytics_rollup_window_exprs',
 	'sn_analytics_rollup_gated_query',
 	'sn_analytics_rollup_merge_gated',
+	'sn_analytics_rollup_pid_scroll_sql',
+	'sn_analytics_rollup_pid_scroll_query',
+	'sn_analytics_rollup_merge_pid_scroll',
 	'sn_analytics_rollup_upsert',
 ) as $sn_reroll_fn ) {
 	if ( ! function_exists( $sn_reroll_fn ) ) {
@@ -405,7 +430,9 @@ foreach ( sn_reroll_bounded_offsets( 90 ) as $sn_reroll_k ) {
 	// ever runs over a provably complete result.
 	$sn_reroll_gated    = sn_analytics_rollup_gated_query( $sn_reroll_gated_sql );
 	$sn_reroll_gated_ok = is_array( $sn_reroll_gated );
-	$sn_reroll_written  = sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $sn_reroll_rows, $sn_reroll_gated_ok ? $sn_reroll_gated : null ) );
+	// Scroll per view by pageview ID, as the cron does; null (no read, drift, failure) keeps the plain count.
+	$sn_reroll_pid      = sn_analytics_rollup_pid_scroll_query( (string) sn_reroll_pid_day_sql( sn_analytics_rollup_pid_scroll_sql( $sn_reroll_k, $sn_reroll_tz ), $sn_reroll_lower, $sn_reroll_upper ) );
+	$sn_reroll_written  = sn_analytics_rollup_upsert( sn_analytics_rollup_merge_pid_scroll( sn_analytics_rollup_merge_gated( $sn_reroll_rows, $sn_reroll_gated_ok ? $sn_reroll_gated : null ), $sn_reroll_pid ) );
 
 	if ( ! $sn_reroll_gated_ok ) {
 		sn_reroll_echo_fail( $sn_reroll_label, 'gated query' );
@@ -474,7 +501,8 @@ if ( ! is_array( $sn_reroll_rows ) ) {
 	} else {
 		$sn_reroll_gated    = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( 1, $sn_reroll_tz ) );
 		$sn_reroll_gated_ok = is_array( $sn_reroll_gated );
-		$sn_reroll_written  = sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $sn_reroll_rows, $sn_reroll_gated_ok ? $sn_reroll_gated : null ) );
+		$sn_reroll_pid      = sn_analytics_rollup_pid_scroll_query( sn_analytics_rollup_pid_scroll_sql( 1, $sn_reroll_tz ) );
+		$sn_reroll_written  = sn_analytics_rollup_upsert( sn_analytics_rollup_merge_pid_scroll( sn_analytics_rollup_merge_gated( $sn_reroll_rows, $sn_reroll_gated_ok ? $sn_reroll_gated : null ), $sn_reroll_pid ) );
 		$sn_reroll_tail_ok  = $sn_reroll_gated_ok && $sn_reroll_written > 0;
 
 		if ( ! $sn_reroll_gated_ok ) {
