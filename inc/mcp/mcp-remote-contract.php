@@ -119,7 +119,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 // 2026.11 (coded résumé links, 2026-10-31): '24' -> '25'. Each analytics-rows
 // row may carry link_code, the code of a /r/CODE link read out of the stored
 // path (inc/link-codes.php). Additive.
-const SN_REMOTE_CONTRACT_VERSION = '25';
+// 2026-11-01 (owner brief "MCP full analytics access"): '25' -> '26'. The
+// fields read joins the map (signal-noise/remote-analytics-fields). Additive.
+const SN_REMOTE_CONTRACT_VERSION = '26';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -178,6 +180,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'24' => 'ed3e4ee3fd4ec7bda98127da1480887538b712009a871154c50d9d87cbf3d714',
 	// RED-then-pin, 2026-10-31: analytics-rows rows gained link_code.
 	'25' => '0e07b989fdeba08e7f6bb37b27c00eb958ef14bf8f29a5de034ba7b936bdf8b4',
+	// RED-then-pin, 2026-11-01: the analytics fields twin joined the map.
+	'26' => 'c75b1a5bc086fd429f8e52eff13300bf1dcb9e165d8865fe5fbf92ada9aba6a1',
 );
 
 /**

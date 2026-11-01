@@ -95,6 +95,9 @@ function sn_mcp_remote_slugs() {
 		// Contract 22, owner-approved 2026-10-22 ("so I can ask for it from my
 		// phone"): the indexing guard's read, his own action list, read-only.
 		'signal-noise/remote-indexing-requests',
+		// Contract 26, owner brief 2026-10-31 ("MCP full analytics access"):
+		// what the analytics reads accept, with units and meanings.
+		'signal-noise/remote-analytics-fields',
 	);
 }
 
@@ -208,6 +211,7 @@ function sn_mcp_remote_verdicts() {
 		'analytics_devices'    => $out( false, 'Local only in 20.4.0: device counts, every row named; a twin waits for the vocabulary to settle.' ),
 		'analytics_journeys'   => $out( false, 'Local only in 20.4.0: entry and exit PATHS carry the same requested-path residual as analytics_top_content, so it follows that verdict.' ),
 		'analytics_rows'       => $out( true, 'Owner brief 2026-10-10: the counted rows behind the dashboard by path, referrer, country, device or day, nothing finer than a day. Answers the requested-path residual the top-content verdict names: a path is returned only when it is the site\'s own content, everything else is (unmatched); referrers are hostnames only; every value is named however small (no floor since 2026-10-23).', 'signal-noise/remote-analytics-rows' ),
+		'analytics_fields'     => $out( true, 'Owner brief 2026-10-31 ("MCP full analytics access"): the vocabulary the analytics reads accept, each dimension and metric with its unit, meaning and store. No figures at all.', 'signal-noise/remote-analytics-fields' ),
 		'analytics_vitals'     => $out( false, 'Local only (theme audit idea 4, 2026-10-12): a new payload, and a twin freezes its shape byte-identically; new sections ship on the local door first and earn a twin once the shape settles. Paths are the top pages from the rollup.' ),
 		'analytics_query'      => $out( false, 'Local only in 20.4.0: a query surface widens what a remote caller can slice; it earns a twin only after the local door has shown which questions it is used for.' ),
 
