@@ -30,18 +30,21 @@ function snt_analytics_fields() {
 	$met = static fn( $name, $meaning, $unit, array $sources ) => array( 'name' => $name, 'meaning' => $meaning, 'unit' => $unit, 'sources' => $sources );
 	return array(
 		'dimensions'    => array(
-			$dim( 'path', 'The page read. Only the site\'s own content is named; anything else a visitor asked for is (unmatched).', 'site path', array( 'stored' ) ),
-			$dim( 'referrer', 'Where the visit came from: a hostname, or (direct), (internal), (unknown); anything that is not a clean hostname is (invalid).', 'hostname', array( 'stored' ) ),
-			$dim( 'country', 'The visitor\'s country, from the network.', 'ISO 3166-1 alpha-2 code', array( 'stored' ) ),
-			$dim( 'device', 'The kind of device, from the browser\'s description.', 'mobile | desktop', array( 'stored' ) ),
-			$dim( 'link_code', 'The code of a coded résumé link (/r/CODE returns CODE), read out of the stored path; a malformed one is (invalid).', 'code', array( 'stored' ) ),
-			$dim( 'day', 'The day, in the site\'s time zone.', 'YYYY-MM-DD', array( 'stored' ) ),
+			$dim( 'path', 'The page read. Only the site\'s own content is named; anything else a visitor asked for is (unmatched).', 'site path', array( 'stored', 'events' ) ),
+			$dim( 'referrer', 'Where the visit came from: a hostname, or (direct), (internal), (unknown); anything that is not a clean hostname is (invalid).', 'hostname', array( 'stored', 'events' ) ),
+			$dim( 'country', 'The visitor\'s country, from the network.', 'ISO 3166-1 alpha-2 code', array( 'stored', 'events' ) ),
+			$dim( 'region', 'The visitor\'s region, as the network names it; (unknown) when it gave none.', 'place name', array( 'stored', 'events' ) ),
+			$dim( 'city', 'The visitor\'s city, as the network names it; (unknown) when it gave none.', 'place name', array( 'stored', 'events' ) ),
+			$dim( 'device', 'The kind of device, from the browser\'s description.', 'mobile | desktop', array( 'stored', 'events' ) ),
+			$dim( 'link_code', 'The code of a coded résumé link (/r/CODE returns CODE), read out of the stored path; a malformed one is (invalid).', 'code', array( 'stored', 'events' ) ),
+			$dim( 'day', 'The day, in the site\'s time zone.', 'YYYY-MM-DD', array( 'stored', 'events' ) ),
+			$dim( 'hour', 'The hour of the day, in the site\'s time zone.', '00 to 23', array( 'events' ) ),
 		),
 		'metrics'       => array(
-			$met( 'views', 'Page views, corrected for sampling.', 'page views', array( 'stored' ) ),
-			$met( 'pageview_visits', 'Visitor-days that viewed: one visitor on one day, an estimate and not a session count.', 'visitor-days', array( 'stored' ) ),
-			$met( 'time_avg_per_view', 'Visible time on the page per view. Stored per page only: null for referrer, country and device.', 'milliseconds', array( 'stored' ) ),
-			$met( 'scroll_avg_per_view', 'How far down the page readers got per view: the mean of each view\'s deepest milestone. Stored per page only: null for referrer, country and device.', 'percent, 0 to 100', array( 'stored' ) ),
+			$met( 'views', 'Page views, corrected for sampling.', 'page views', array( 'stored', 'events' ) ),
+			$met( 'pageview_visits', 'Visitor-days that viewed: one visitor on one day, an estimate and not a session count.', 'visitor-days', array( 'stored', 'events' ) ),
+			$met( 'time_avg_per_view', 'Visible time on the page per view. The stored rollups keep it per page only: null on their referrer, country, device, region and city rows.', 'milliseconds', array( 'stored', 'events' ) ),
+			$met( 'scroll_avg_per_view', 'How far down the page readers got per view: the mean of each view\'s deepest milestone. The stored rollups keep it per page only, as time.', 'percent, 0 to 100', array( 'stored', 'events' ) ),
 		),
 		'classes'       => array(
 			array( 'name' => 'human', 'meaning' => 'Presumed human: not flagged by the user agent, the network or the over-cap rule. An inferred class.' ),
@@ -50,13 +53,15 @@ function snt_analytics_fields() {
 		),
 		'windows'       => array(
 			'ranges' => array( '7', '14', '30', '90', '365', 'all' ),
+			'custom' => 'from and to, YYYY-MM-DD in the site\'s time zone, instead of a range: back to the first stored day for what the stored rollups hold, the last 90 days for what is read from Analytics Engine.',
 			'note'   => 'A range ends today, in the site\'s time zone; "all" starts at the first stored day.',
 		),
 		'sources'       => array(
-			array( 'name' => 'stored', 'meaning' => 'The daily rollups, one row per day and value.', 'retention' => 'kept forever, from the first stored day', 'grain' => 'day' ),
+			array( 'name' => 'stored', 'meaning' => 'The daily rollups, one row per day and value: path, link_code or day, or one of referrer, country, device, region and city.', 'retention' => 'kept forever, from the first stored day', 'grain' => 'day' ),
+			array( 'name' => 'events', 'meaning' => 'Analytics Engine, every field of each page view together: any combination of up to four dimensions, and the hour.', 'retention' => 'about 90 days', 'grain' => 'event; sampled on busy days, counts corrected' ),
 		),
 		'reads'         => array(
-			array( 'name' => 'analytics_rows', 'local' => 'sn-metrics section analytics_rows', 'remote' => 'sn_remote_analytics_query', 'arguments' => 'dimensions (one, or one with day), range, class, path, referrer, sort (views | visits | time), limit (1 to 500)' ),
+			array( 'name' => 'analytics_rows', 'local' => 'sn-metrics section analytics_rows', 'remote' => 'sn_remote_analytics_query', 'arguments' => 'dimensions (one to four), range or from and to, source (auto | stored | events), class, path, referrer, sort (views | visits | time), limit (1 to 500)' ),
 			array( 'name' => 'analytics_fields', 'local' => 'sn-metrics section analytics_fields', 'remote' => 'sn_remote_analytics_fields', 'arguments' => 'none' ),
 		),
 		'not_available' => array(
@@ -77,7 +82,7 @@ function snt_analytics_fields_output_schema() {
 			'dimensions'    => $obj( array( 'name' => $s, 'meaning' => $s, 'unit' => $s, 'sources' => $list ) ),
 			'metrics'       => $obj( array( 'name' => $s, 'meaning' => $s, 'unit' => $s, 'sources' => $list ) ),
 			'classes'       => $obj( array( 'name' => $s, 'meaning' => $s ) ),
-			'windows'       => array( 'type' => 'object', 'properties' => array( 'ranges' => $list, 'note' => $s ) ),
+			'windows'       => array( 'type' => 'object', 'properties' => array( 'ranges' => $list, 'custom' => $s, 'note' => $s ) ),
 			'sources'       => $obj( array( 'name' => $s, 'meaning' => $s, 'retention' => $s, 'grain' => $s ) ),
 			'reads'         => $obj( array( 'name' => $s, 'local' => $s, 'remote' => $s, 'arguments' => $s ) ),
 			'not_available' => $obj( array( 'name' => $s, 'reason' => $s ) ),

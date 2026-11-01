@@ -59,9 +59,9 @@ function snt_arows_fetch( array $q, $from, $to ) {
 	$other = array_values( array_diff( $q['dims'], array( 'day' ) ) )[0] ?? null;
 	$day   = in_array( 'day', $q['dims'], true );
 	$cap   = SNT_AROWS_MAX_STORED + 1;
-	if ( in_array( $other, array( 'referrer', 'country', 'device' ), true ) || null !== $q['referrer'] ) {
+	if ( in_array( $other, SNT_AROWS_STORED_DIMS, true ) || null !== $q['referrer'] ) {
 		$dim  = $other ?? 'referrer';
-		$sql  = 'SELECT value AS ' . array( 'referrer' => 'referrer', 'country' => 'country', 'device' => 'device' )[ $dim ] . ( $day ? ', day' : '' )
+		$sql  = 'SELECT value AS ' . array_combine( SNT_AROWS_STORED_DIMS, SNT_AROWS_STORED_DIMS )[ $dim ] . ( $day ? ', day' : '' )
 			. ', SUM(views) AS views, SUM(visits) AS visits FROM ' . $wpdb->prefix . SN_ANALYTICS_DIMS_TABLE
 			. ' WHERE day >= %s AND day <= %s AND dim = %s AND class = %s';
 		$args = array( $from, $to, $dim, $q['class'] );

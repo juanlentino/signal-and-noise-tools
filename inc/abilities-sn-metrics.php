@@ -69,7 +69,7 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'rows'     => array(
 					'type'        => 'object',
-					'description' => 'analytics_rows only: {dimensions, path, referrer, sort, limit}; range and class come from the top level. dimensions is one of path, referrer, country, device, link_code, day, or one of the first five with day (link_code: the code of a coded résumé link, /r/CODE). Paths outside site content read (unmatched); path "(unmatched)" breaks that bucket down by cleaned path (visitor_path, with probe, suggested_target, and status and referrer_host from the 404 log). Referrers are hostnames, every value is named however small. Out-of-set values fail the whole call.',
+					'description' => 'analytics_rows only: {dimensions, from, to, source, path, referrer, sort, limit}; class comes from the top level, and so does range unless rows carries from and to (YYYY-MM-DD, site time). dimensions is one to four of path, referrer, country, region, city, device, link_code, day, hour (link_code: the code of a coded résumé link, /r/CODE); source auto|stored|events, and the answer names the one used (stored rollups kept forever, or Analytics Engine, about 90 days). Paths outside site content read (unmatched); path "(unmatched)" breaks that bucket down by cleaned path (visitor_path, with probe, suggested_target, and status and referrer_host from the 404 log). Referrers are hostnames, every value is named however small. Out-of-set values fail the whole call.',
 				),
 				'series'   => array(
 					'type'        => 'string',
@@ -183,7 +183,9 @@ function snt_ability_sn_metrics( $input ) {
 			return $valid;
 		}
 	}
-	$rows = array_merge( isset( $input['rows'] ) && is_array( $input['rows'] ) ? $input['rows'] : array(), array( 'range' => $range, 'class' => $class ) );
+	$rows_in = isset( $input['rows'] ) && is_array( $input['rows'] ) ? $input['rows'] : array();
+	// A custom window (rows.from and rows.to) replaces the top-level range; the read refuses both at once.
+	$rows = array_merge( $rows_in, isset( $rows_in['from'] ) || isset( $rows_in['to'] ) ? array( 'class' => $class ) : array( 'range' => $range, 'class' => $class ) );
 	if ( in_array( 'analytics_rows', $sections, true ) && function_exists( 'snt_arows_validate' ) ) {
 		$valid = snt_arows_validate( $rows, true ); // The local door: the "(unmatched)" breakdown is allowed here.
 		if ( is_wp_error( $valid ) ) {

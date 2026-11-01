@@ -44,7 +44,7 @@ function snt_analytics_rows_output_schema( $unmatched = false ) {
 				'items' => array(
 					'type'       => 'object',
 					'properties' => array(
-						'path' => $s, 'referrer' => $s, 'country' => $s, 'device' => $s, 'link_code' => $s, 'day' => $s,
+						'path' => $s, 'referrer' => $s, 'country' => $s, 'region' => $s, 'city' => $s, 'device' => $s, 'link_code' => $s, 'day' => $s, 'hour' => $s,
 						'views'               => array( 'type' => 'integer' ),
 						'pageview_visits'     => array( 'type' => 'integer' ),
 						'time_avg_per_view'   => $n,
@@ -55,6 +55,9 @@ function snt_analytics_rows_output_schema( $unmatched = false ) {
 			'row_count'           => array( 'type' => 'integer' ),
 			'truncated'           => array( 'type' => 'boolean' ),
 			'range'               => array( 'type' => array( 'string', 'integer' ) ),
+			'from'                => $s,
+			'to'                  => $s,
+			'source'              => $s,
 			'class'               => $s,
 			'exact_metrics_since' => array( 'type' => array( 'string', 'null' ) ),
 		),
@@ -74,8 +77,14 @@ function snt_ability_analytics_rows( $input = null, $allow_unmatched = false ) {
 	if ( is_wp_error( $q ) ) {
 		return $q;
 	}
-	list( $from, $to ) = snt_analytics_range_dates( $q['range'] );
-	$read              = snt_arows_fetch( $q, $from, $to );
+	$today             = snt_analytics_range_dates( 7 )[1];
+	list( $from, $to ) = 'custom' === $q['range'] ? array( $q['from'], min( $q['to'], $today ) ) : snt_analytics_range_dates( $q['range'] );
+	// The stored rollups when they hold the combination, else Analytics Engine (about 90 days): inc/analytics-rows-events.php.
+	$source = snt_arows_plan( $q, $from, $today );
+	if ( is_wp_error( $source ) ) {
+		return $source;
+	}
+	$read = 'events' === $source ? snt_arows_events_fetch( $q, $from, $to ) : snt_arows_fetch( $q, $from, $to );
 	if ( is_wp_error( $read ) ) {
 		return $read;
 	}
@@ -85,6 +94,9 @@ function snt_ability_analytics_rows( $input = null, $allow_unmatched = false ) {
 	$out['truncated'] = $out['truncated'] || $read['capped']; // stored groups past the read cap are rows not seen.
 	return $out + array(
 		'range'               => (string) $q['range'],
+		'from'                => $from,
+		'to'                  => $to,
+		'source'              => $source,
 		'class'               => $q['class'],
 		'exact_metrics_since' => function_exists( 'sn_analytics_exact_metrics_since' ) ? sn_analytics_exact_metrics_since() : null,
 	);
@@ -97,16 +109,17 @@ function snt_ability_perm_remote_analytics_rows() {
 
 /** The description, shared: what the numbers are and are not. */
 function snt_analytics_rows_description() {
-	return 'Stored analytics as counted rows, by one of path, referrer, country, device, link_code or day, or one of the first five with day (path and day is the finest grain served: no hit-level rows, nothing below a day). '
+	return 'Analytics as counted rows, by one to four of path, referrer, country, region, city, device, link_code, day and hour (day and hour in the site\'s time zone). '
+		. 'Two sources, named in the answer\'s source: the stored daily rollups (kept forever, from the first stored day) answer path, link_code or day, or one of referrer, country, device, region or city, each with or without day; anything else (two or more of those, hour, or a filter the rollups do not carry) is read from Analytics Engine, which keeps about 90 days, and a window older than that is refused with the first day it holds. source auto (default) picks, stored or events forces one. '
 		. 'link_code is the code of a coded résumé link (/r/CODE, for example /r/hera returns hera), read out of the stored path: only coded paths count, a malformed one is (invalid). '
-		. 'Arguments: dimensions (required), range 7|14|30|90|365|all (default 30), class human|suspect|bot (default human; human is presumed human (not flagged), an inferred class), path (a site path; only with path or day), referrer (a hostname; only with referrer or day), sort views|visits|time (time only with path, link_code or day), limit 1-500 (default 50). Out-of-set values are refused, not coerced. '
-		. 'Each row: its dimension values, views, pageview_visits, time_avg_per_view and scroll_avg_per_view. Times are MILLISECONDS; scroll is mean max depth 0-100. Time and scroll are stored per page only, so they are null for referrer, country and device. '
+		. 'Arguments: dimensions (required), range 7|14|30|90|365|all (default 30) or from and to (YYYY-MM-DD, site time; not with range), source auto|stored|events, class human|suspect|bot (default human; human is presumed human (not flagged), an inferred class), path (a site path, a filter), referrer (a hostname, a filter), sort views|visits|time (time only when path or link_code is a dimension, or day alone), limit 1-500 (default 50). Out-of-set values are refused, not coerced. '
+		. 'Each row: its dimension values, views, pageview_visits, time_avg_per_view and scroll_avg_per_view. Times are MILLISECONDS; scroll is mean max depth 0-100. In the stored rollups time and scroll are kept per page only, so they are null for referrer, country, device, region and city rows. '
 		. 'pageview_visits counts visitor-DAYS that viewed: an estimate, not a session count. views are sample-corrected. '
-		. 'truncated: true means the limit cut rows, so sums over the rows are a floor. '
-		. 'Referrers are hostnames only, with (direct), (internal) and (unknown) as stored; anything that is not a clean hostname is (invalid). Paths are returned only when they are the site\'s own content; scanner probes and other requests are (unmatched). '
+		. 'truncated: true means the limit or a read cap cut rows, so sums over the rows are a floor. '
+		. 'Referrers are hostnames only, with (direct), (internal) and (unknown) as stored; anything that is not a clean hostname is (invalid). City and region are the network\'s place names, (unknown) when it gave none. Paths are returned only when they are the site\'s own content; scanner probes and other requests are (unmatched). '
 		. 'Every value is named, however small: a page seen by one visitor-day is its own row (no privacy floor on the owner\'s reads; the public /stats page keeps one). '
 		. 'Nothing is subtracted for bot signals: human is the stored class, presumed human (not flagged); judge how much of it is automated with likely_automated on the analytics summary or the bot-signals reading. '
-		. 'Untruncated, the views of a path query sum to the analytics summary\'s views for the same range and class. Read-only.';
+		. 'Untruncated, the views of any query sum to the same total for the same window, class and source, whatever the dimensions. Read-only.';
 }
 
 add_action( 'wp_abilities_api_init', function () {
@@ -128,6 +141,9 @@ add_action( 'wp_abilities_api_init', function () {
 			'properties'           => array(
 				'dimensions' => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ),
 				'range'      => array( 'type' => array( 'string', 'integer' ), 'default' => 30 ),
+				'from'       => array( 'type' => 'string' ),
+				'to'         => array( 'type' => 'string' ),
+				'source'     => array( 'type' => 'string', 'default' => 'auto' ),
 				'class'      => array( 'type' => 'string', 'default' => 'human' ),
 				'path'       => array( 'type' => 'string' ),
 				'referrer'   => array( 'type' => 'string' ),
@@ -153,6 +169,9 @@ add_action( 'wp_abilities_api_init', function () {
 			'properties'           => array(
 				'dimensions' => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ),
 				'range'      => array( 'type' => array( 'string', 'integer' ), 'default' => 30 ),
+				'from'       => array( 'type' => 'string' ),
+				'to'         => array( 'type' => 'string' ),
+				'source'     => array( 'type' => 'string', 'default' => 'auto' ),
 				'class'      => array( 'type' => 'string', 'default' => 'human' ),
 				'path'       => array( 'type' => 'string' ),
 				'referrer'   => array( 'type' => 'string' ),
