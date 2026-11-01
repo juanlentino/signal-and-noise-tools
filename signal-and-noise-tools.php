@@ -271,16 +271,20 @@ require_once SNT_PATH . 'inc/uses-page.php';                 // v7.6.0: /uses co
 require_once SNT_PATH . 'inc/admin-forms/now-page.php';      // v7.5.0: Content → Now Page editor form
 require_once SNT_PATH . 'inc/admin-forms/uses-page.php';     // v7.6.0: Content → Uses Page editor form (prefills from the theme's live list)
 require_once SNT_PATH . 'inc/resume-page.php';               // v10.33.0: /resume structured editor data layer (document option + normalize/refuse)
+require_once SNT_PATH . 'inc/resume-operations-setup.php';   // Unreleased: the operations résumé's starting content, written into the draft
 require_once SNT_PATH . 'inc/resume-draft.php';              // Unreleased: /resume drafts (save never goes live; publish, revert)
 require_once SNT_PATH . 'inc/resume-pdf/template.php';       // Resume PDF (docs/RESUME-PDF.md): the ONE template the generator renders
 require_once SNT_PATH . 'inc/resume-pdf/engine-status.php';  // 20.6.0: Dompdf installed/patched/latest, and the bump watch
 require_once SNT_PATH . 'inc/resume-pdf/generate.php';       // Resume PDF: Dompdf (lib/pdf) -> uploads/resume, hash option, Download link
+require_once SNT_PATH . 'inc/resume-pdf/text-check.php';     // Unreleased: what a generated PDF says (control characters, ligatures, phone, pages)
+require_once SNT_PATH . 'inc/resume-pdf/operations.php';     // Unreleased: the operations résumé PDF, built by the same Generate press, never linked
 require_once SNT_PATH . 'inc/resume-es.php';                 // The Spanish résumé: /cv/ and JuanLentino_CV.pdf from seed-content/resume-data-es.json (no settings screen)
 require_once SNT_PATH . 'inc/resume-jsonresume-route.php';  // The résumé as JSON Resume v1.0.0: /resume/json-resume.json and /cv/json-resume.json
 require_once SNT_PATH . 'inc/resume-formats-route.php';     // The résumé as Markdown (/resume.md, ?output_format=markdown), vCard (/resume/contact.vcf), hasCredential schema, agents manifest entry
 require_once SNT_PATH . 'inc/link-codes.php';              // 2026-10-31: coded résumé links, /r/CODE serves the résumé page (noindex); the code is read back out of the stored path
 require_once SNT_PATH . 'inc/resume-es-stale.php';           // The stale-CV alert: English lines changed since /cv/ was translated (Résumé screen + Health)
 require_once SNT_PATH . 'inc/admin-forms/resume-page.php';   // v10.33.0: Content → Resume Page structured editor form (repeatable rows, not a text box)
+require_once SNT_PATH . 'inc/admin-forms/resume-variants.php'; // Unreleased: the editor's variant controls (Shows in, What I've Built, Operations résumé)
 require_once SNT_PATH . 'inc/admin-forms/rights-evidence.php'; // Unreleased: rights evidence on Machine Readers (view payloads, lift hold)
 require_once SNT_PATH . 'inc/admin-forms/resume-draft.php';  // Unreleased: the draft controls (previews, publish, discard, revert)
 require_once SNT_PATH . 'inc/workflow-page.php';             // Unreleased: /workflow data layer; sn_workflow_public_data() is the hidden-row wall

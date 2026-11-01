@@ -2,12 +2,12 @@
 /**
  * S&N Dashboard, Content > Resume Page: the ledger and the one edit region.
  *
- * 2026-10-11, owner rule: no collapsible sections. The classic editor's nine
+ * 2026-10-11, owner rule: no collapsible sections. The classic editor's eleven
  * folds are ONE table here: a row per section with its entry count, what it
  * opens with and a visible Edit button, under a finding built from the
  * document. `sn_edit=<section>` paints that section alone under its row
  * (2026-10-12, snt_kit_edit_list()), in the resume_draft_save form, with the
- * other eight riding along as hidden carriers (content-resume-edit.php),
+ * other ten riding along as hidden carriers (content-resume-edit.php),
  * because the handler rebuilds the whole document from the post. With no
  * section being edited no editor is painted: the sections are fixed (there is
  * no add form to open), and a long form would push the Draft and PDF controls
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The finding: how many entries the seven lists hold, and how deep
+ * The finding: how many entries the counted lists hold, and how deep
  * Experience runs.
  *
  * @param array $sections resume_section_map().
@@ -58,7 +58,7 @@ function resume_finding( array $sections, array $doc ) {
 }
 
 /**
- * The ledger of the nine sections, as snt_kit_edit_list() takes it: the
+ * The ledger of the eleven sections, as snt_kit_edit_list() takes it: the
  * finding as the lead, ONE table, the open section's row index. Never
  * capped: the sections are fixed.
  *
@@ -123,7 +123,7 @@ function resume_edit_region( array $sections, $key ) {
  * @return string
  */
 function paint_content_resume( array $ctx ) {
-	$live = function_exists( 'sn_resume_doc_get' ) ? \sn_resume_doc_get() : null;
+	$live = function_exists( 'sn_resume_doc_get_raw' ) ? \sn_resume_doc_get_raw() : null; // the stored document, variant flags included.
 	if ( ! is_array( $live ) ) {
 		return \snt_kit_empty(
 			__( 'Resume page', 'signal-and-noise-tools' ),
@@ -143,9 +143,10 @@ function paint_content_resume( array $ctx ) {
 		'lead'    => resume_es_stale_notice() . resume_intro( $live ) . $list['lead'],
 		'attrs'   => array( 'id' => 'snt-edit-list', 'tabindex' => '-1', 'data-snt-focus' => true ),
 	) + $list;
-	// 2026-10-12 audit: Draft and Resume PDF are both short; they share a row.
+	// 2026-10-12 audit: Draft and Resume PDF are both short; they share a row,
+	// and the operations setup, the classic's third box, joins them.
 	return \snt_kit_edit_list( $list, '' !== $editing ? resume_edit_region( $sections, $editing ) : '' )
-		. \snt_kit_grid( array( resume_draft_controls(), resume_pdf_generate() ) );
+		. \snt_kit_grid( array( resume_draft_controls(), resume_pdf_generate(), resume_operations_setup() ) );
 }
 
 /**

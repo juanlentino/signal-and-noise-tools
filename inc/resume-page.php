@@ -42,6 +42,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'SN_RESUME_DOC_OPTION', 'sn_resume_doc' );
 
+require_once __DIR__ . '/resume-variants.php'; // music and operations from one document (2026-11-01).
+
 /**
  * The kses allowlist for bullet fragments: emphasis + links only.
  *
@@ -134,7 +136,12 @@ function sn_resume_normalize_roles( $roles ) {
 				$bullets[] = $b;
 			}
 		}
-		$out[] = array( 'title' => $title, 'bullets' => $bullets );
+		$row   = array( 'title' => $title, 'bullets' => $bullets ) + sn_resume_variant_keep( $role );
+		$flags = sn_resume_bullet_variants( $role['bullet_variants'] ?? array(), $bullets );
+		if ( $flags ) {
+			$row['bullet_variants'] = $flags;
+		}
+		$out[] = $row;
 	}
 	return $out;
 }
@@ -168,7 +175,7 @@ function sn_resume_normalize_titled_lines( $entries ) {
 		if ( '' !== $url ) {
 			$row['credential_url'] = $url;
 		}
-		$out[] = $row;
+		$out[] = $row + sn_resume_variant_keep( $entry );
 	}
 	return $out;
 }
@@ -234,7 +241,7 @@ function sn_resume_doc_normalize( $doc ) {
 			'dates'    => sn_resume_text( $entry['dates'] ?? '' ),
 			'location' => sn_resume_text( $entry['location'] ?? '' ),
 			'roles'    => sn_resume_normalize_roles( $entry['roles'] ?? array() ),
-		);
+		) + sn_resume_variant_keep( $entry );
 	}
 
 	$earlier_in      = is_array( $doc['earlier'] ?? null ) ? $doc['earlier'] : array();
@@ -250,7 +257,7 @@ function sn_resume_doc_normalize( $doc ) {
 		$earlier_entries[] = array(
 			'org'   => $org,
 			'roles' => sn_resume_normalize_roles( $entry['roles'] ?? array() ),
-		);
+		) + sn_resume_variant_keep( $entry );
 	}
 	$earlier = array(
 		'label'   => sn_resume_text( $earlier_in['label'] ?? '' ),
@@ -270,7 +277,7 @@ function sn_resume_doc_normalize( $doc ) {
 			'meta'  => sn_resume_text( $pub['meta'] ?? '' ),
 			'title' => $title,
 			'url'   => sn_resume_url( $pub['url'] ?? '' ),
-		);
+		) + sn_resume_variant_keep( $pub );
 	}
 
 	$pdf_in = is_array( $doc['pdf'] ?? null ) ? $doc['pdf'] : array();
@@ -296,7 +303,7 @@ function sn_resume_doc_normalize( $doc ) {
 		$category = sn_resume_text( $row['category'] ?? '' );
 		$items    = sn_resume_text( $row['items'] ?? '' );
 		if ( '' !== $category && '' !== $items ) {
-			$skills[] = array( 'category' => $category, 'items' => $items );
+			$skills[] = array( 'category' => $category, 'items' => $items ) + sn_resume_variant_keep( $row );
 		}
 	}
 
@@ -304,7 +311,7 @@ function sn_resume_doc_normalize( $doc ) {
 		return null; // Not a resume — refuse rather than save something blankable.
 	}
 
-	return array(
+	$out = array(
 		'hero'         => $hero,
 		'stats'        => $stats,
 		'experience'   => $experience,
@@ -315,6 +322,17 @@ function sn_resume_doc_normalize( $doc ) {
 		'skills'       => $skills,
 		'pdf'          => $pdf,
 	);
+	// Variant blocks only when they hold something, so a document without
+	// them normalizes exactly as before (inc/resume-variants.php).
+	$built    = sn_resume_normalize_built( $doc['built'] ?? null );
+	$variants = sn_resume_normalize_variants( $doc['variants'] ?? null );
+	if ( null !== $built ) {
+		$out['built'] = $built;
+	}
+	if ( null !== $variants ) {
+		$out['variants'] = $variants;
+	}
+	return $out;
 }
 
 /**
@@ -333,12 +351,24 @@ function sn_resume_seed_doc() {
 }
 
 /**
- * The current resume document: the stored option when valid, else the seed.
- * Always normalized; null only if both the option and the seed are unusable.
+ * The resume every reader sees: the music variant of the stored document, in
+ * the shape the page, PDF, Spanish CV, JSON Resume, Markdown and vCard have
+ * always read (inc/resume-variants.php). The editor and draft read the stored
+ * document whole through sn_resume_doc_get_raw().
  *
  * @return array|null
  */
 function sn_resume_doc_get() {
+	return sn_resume_doc_view( sn_resume_doc_get_raw(), 'music' );
+}
+
+/**
+ * The stored resume document, variant flags included: the option when valid,
+ * else the seed. Always normalized; null only if both are unusable.
+ *
+ * @return array|null
+ */
+function sn_resume_doc_get_raw() {
 	$stored = get_option( SN_RESUME_DOC_OPTION );
 	if ( is_array( $stored ) ) {
 		$doc = sn_resume_doc_normalize( $stored );

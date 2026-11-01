@@ -106,11 +106,13 @@ function sn_rsm_role_row( $prefix, $bul_id, $role ) {
 	sn_rsm_input( $prefix . '[title]', (string) ( $role['title'] ?? '' ), 'Role title · dates', 'Role · Jan 2020 - Present' );
 	sn_rsm_controls();
 	echo '</div>';
+	function_exists( 'sn_rsm_variant' ) && sn_rsm_variant( $prefix . '[variant]', (string) ( $role['variant'] ?? '' ) ); // résumé rows only.
 	// v10.48.0: bullets are plain strings, so they become lines in one textarea.
 	// $bul_id is retained in the signature — the callers pass token-bearing ids
 	// and the roles list above still clones — but no longer names a nested list.
 	unset( $bul_id );
 	sn_rsm_lines( $prefix . '[bullets]', (array) ( $role['bullets'] ?? array() ), 'Bullets: one per line', 'What you did, one line each', 4 );
+	function_exists( 'sn_rsm_variant' ) && sn_rsm_bullet_variants( $prefix, $role );
 	echo '</div>';
 }
 
@@ -130,6 +132,7 @@ function sn_rsm_employer_card( $prefix, $rsm_id, $role_token, $entry, $with_meta
 	sn_rsm_input( $prefix . '[org]', (string) ( $entry['org'] ?? '' ), 'Organization', 'ORGANIZATION NAME' );
 	sn_rsm_controls();
 	echo '</div>';
+	function_exists( 'sn_rsm_variant' ) && sn_rsm_variant( $prefix . '[variant]', (string) ( $entry['variant'] ?? '' ) );
 	if ( $with_meta ) {
 		echo '<div class="sn-rsm-pair">';
 		sn_rsm_input( $prefix . '[dates]', (string) ( $entry['dates'] ?? '' ), 'Dates', 'Jan 2020 - Present' );
@@ -157,6 +160,7 @@ function sn_rsm_titled_lines_row( $prefix, $lines_id, $entry ) {
 	sn_rsm_input( $prefix . '[title]', (string) ( $entry['title'] ?? '' ), 'Title', 'Degree, membership, or certificate' );
 	sn_rsm_controls();
 	echo '</div>';
+	function_exists( 'sn_rsm_variant' ) && sn_rsm_variant( $prefix . '[variant]', (string) ( $entry['variant'] ?? '' ) );
 	unset( $lines_id );
 	sn_rsm_lines( $prefix . '[lines]', (array) ( $entry['lines'] ?? array() ), 'Detail lines: one per line', 'Institution · Place · Date', 3 );
 	sn_rsm_input( $prefix . '[credential_url]', (string) ( $entry['credential_url'] ?? '' ), 'Verification URL', 'https://…', "Optional. The issuer's own page that verifies this credential (https only)." );
@@ -192,7 +196,7 @@ function sn_rsm_section_open( $title, $hint = '', $count = -1 ) {
  * @since 10.33.0
  */
 function sn_admin_render_resume_section() {
-	$live = function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null;
+	$live = function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null; // the stored document, variant flags included.
 	if ( ! is_array( $live ) ) {
 		echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Resume page</h2><p class="sn-fieldset-intro">The resume editor is unavailable: no stored document and no readable seed.</p></div>';
 		return;
@@ -323,7 +327,9 @@ function sn_admin_render_resume_section() {
 		echo '</div><div class="sn-rsm-pair">';
 		sn_rsm_input( 'resume[publications][' . $i . '][meta]', $pub['meta'], 'Venue · date', 'SSRN Working Paper · April 2026' );
 		sn_rsm_input( 'resume[publications][' . $i . '][url]', $pub['url'], 'URL', 'https://ssrn.com/abstract=…' );
-		echo '</div></div>';
+		echo '</div>';
+		function_exists( 'sn_rsm_variant' ) && sn_rsm_variant( 'resume[publications][' . $i . '][variant]', (string) ( $pub['variant'] ?? '' ) );
+		echo '</div>';
 		$i++;
 	}
 	echo '</div>';
@@ -333,7 +339,9 @@ function sn_admin_render_resume_section() {
 	echo '</div><div class="sn-rsm-pair">';
 	sn_rsm_input( 'resume[publications][__P__][meta]', '', 'Venue · date', 'SSRN Working Paper · April 2026' );
 	sn_rsm_input( 'resume[publications][__P__][url]', '', 'URL', 'https://ssrn.com/abstract=…' );
-	echo '</div></div></template>';
+	echo '</div>';
+	function_exists( 'sn_rsm_variant' ) && sn_rsm_variant( 'resume[publications][__P__][variant]', '' );
+	echo '</div></template>';
 	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="pubs">+ Add publication</button>';
 	echo '</details>';
 
@@ -347,6 +355,7 @@ function sn_admin_render_resume_section() {
 		sn_rsm_controls();
 		echo '</div>';
 		echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Items</span><textarea rows="2" class="large-text" name="' . esc_attr( 'resume[skills][' . $i . '][items]' ) . '">' . esc_textarea( $row['items'] ) . '</textarea></label>';
+		function_exists( 'sn_rsm_variant' ) && sn_rsm_variant( 'resume[skills][' . $i . '][variant]', (string) ( $row['variant'] ?? '' ) );
 		echo '</div>';
 		$i++;
 	}
@@ -356,12 +365,18 @@ function sn_admin_render_resume_section() {
 	sn_rsm_controls();
 	echo '</div>';
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Items</span><textarea rows="2" class="large-text" name="resume[skills][__K__][items]"></textarea></label>';
+	function_exists( 'sn_rsm_variant' ) && sn_rsm_variant( 'resume[skills][__K__][variant]', '' );
 	echo '</div></template>';
 	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="skills">+ Add skills row</button>';
 	echo '</details>';
 
 	// ── PDF only ── Fields the generated PDF uses and /resume never shows (the
 	// sync engine does not read `pdf`), so the phone stays off the web page.
+	if ( function_exists( 'sn_admin_render_resume_built_section' ) ) {
+		sn_admin_render_resume_built_section( $doc );
+		sn_admin_render_resume_operations_section( $doc );
+	}
+
 	$pdf = (array) ( $doc['pdf'] ?? array() );
 	sn_rsm_section_open( 'PDF only', 'Used by the generated PDF, never shown on /resume. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.' );
 	sn_rsm_input( 'resume[pdf][headline]', (string) ( $pdf['headline'] ?? '' ), 'Headline', 'Music Business Development & Strategic Partnerships Leader' );
@@ -376,6 +391,9 @@ function sn_admin_render_resume_section() {
 	sn_rsm_input( 'resume[pdf][website]', (string) ( $pdf['website'] ?? '' ), 'Website', 'https://juanlentino.com (blank: this site)' );
 	sn_rsm_lines( 'resume[pdf][competencies]', (array) ( $pdf['competencies'] ?? array() ), 'Core competencies: one per line', 'Strategic Partnerships & Deal Negotiation', 6 );
 	sn_rsm_lines( 'resume[pdf][toolkit]', (array) ( $pdf['toolkit'] ?? array() ), 'Technical toolkit: one per line', 'Pro Tools', 4 );
+	if ( function_exists( 'sn_admin_render_resume_music_built_toggle' ) ) {
+		sn_admin_render_resume_music_built_toggle( $doc );
+	}
 	echo '</details>';
 
 	echo '<div class="sn-fieldset-actions">';
@@ -388,6 +406,9 @@ function sn_admin_render_resume_section() {
 		sn_admin_render_resume_draft_controls();
 	}
 	sn_admin_render_resume_pdf_generate();
+	if ( function_exists( 'sn_admin_render_resume_operations_setup' ) ) {
+		sn_admin_render_resume_operations_setup();
+	}
 }
 
 /**
@@ -411,6 +432,9 @@ function sn_admin_render_resume_pdf_generate() {
 	}
 	if ( function_exists( 'snt_pdf_engine_status_line' ) ) {
 		echo '<p class="description">' . esc_html( snt_pdf_engine_status_line() ) . '</p>';
+	}
+	foreach ( function_exists( 'sn_resume_pdf_variant_lines' ) ? sn_resume_pdf_variant_lines() : array() as $line ) {
+		echo '<p class="description">' . esc_html( $line['text'] ) . ( '' !== $line['url'] ? ' <a href="' . esc_url( $line['url'] ) . '" target="_blank" rel="noopener">Open it</a>.' : '' ) . '</p>';
 	}
 	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_pdf_generate" class="button">Generate PDF</button></div>';
 	echo '</div></form>';

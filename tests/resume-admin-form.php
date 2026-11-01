@@ -32,9 +32,14 @@ function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d
 function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
 function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; }
 
+function selected( $a, $b = true, $echo = true ) { $h = ( (string) $a === (string) $b ) ? ' selected="selected"' : ''; if ( $echo ) { echo $h; } return $h; }
+function checked( $a, $b = true, $echo = true ) { $h = ( (string) $a === (string) $b ) ? ' checked="checked"' : ''; if ( $echo ) { echo $h; } return $h; }
+function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); }
+
 require_once __DIR__ . '/lib/admin-post-url-stub.php';
-require_once __DIR__ . '/../inc/resume-page.php';
+require_once __DIR__ . '/../inc/resume-page.php'; // requires inc/resume-variants.php
 require_once __DIR__ . '/../inc/admin-forms/resume-page.php';
+require_once __DIR__ . '/../inc/admin-forms/resume-variants.php'; // "Shows in", What I've Built, Operations résumé, the setup form
 
 echo "\nTest: sn_admin_render_resume_section (seed prefill)\n";
 ob_start();
@@ -88,10 +93,21 @@ ok( false !== strpos( $html, 'resume[publications][__P__][title]' ), 'publicatio
 // v10.33.1: sections are COLLAPSED by default (the endless-scroll fix) —
 // no section details carries the open attribute, and populated sections
 // show a row-count badge in their summary.
-ok( 9 === substr_count( $html, '<details class="sn-rsm-section">' ), 'all nine sections (eight + PDF only) render collapsed (no open attribute)' );
+ok( 11 === substr_count( $html, '<details class="sn-rsm-section">' ), 'all eleven sections (eight, What I\'ve Built, Operations résumé, PDF only) render collapsed (no open attribute)' );
+preg_match_all( '/<span class="sn-rsm-summary-title">([^<]*)<\/span>/', $html, $m_titles );
+ok( array( 'Hero', 'Stats', 'Experience', 'Earlier career', 'Education', 'Affiliations &amp; Certifications', 'Publications', 'Skills', 'What I&#039;ve Built', 'Operations résumé', 'PDF only' ) === $m_titles[1], 'the sections in order: What I\'ve Built and Operations résumé after Skills, before PDF only (' . implode( ' / ', $m_titles[1] ) . ')' );
 ok( false === strpos( $html, '<details class="sn-rsm-section" open>' ), 'no section is open by default' );
 ok( false !== strpos( $html, '<span class="sn-rsm-summary-count">2</span>', strpos( $html, 'Publications' ) - 200 ), 'publications summary badge counts its 2 rows' );
 ok( false !== strpos( $html, '<span class="sn-rsm-summary-count">6</span>' ), 'skills summary badge counts its 6 rows' );
+
+// 2026-11-01, résumé variants: "Shows in" on every row kind, one per saved
+// bullet, What I've Built, the operations settings, the music PDF's box, and
+// the setup as its own form. The native twin's parity pins rely on these.
+foreach ( array( 'resume[experience][0][variant]', 'resume[experience][0][roles][0][variant]', 'resume[earlier][entries][0][variant]', 'resume[education][0][variant]', 'resume[affiliations][0][variant]', 'resume[publications][0][variant]', 'resume[skills][0][variant]', 'resume[built][intro]', 'resume[built][items][__B__][variant]', 'resume[variants][operations][headline]', 'resume[variants][operations][sections]', 'resume[variants][operations][earlier_compact]', 'resume[variants][music][show_built]' ) as $vn ) {
+	ok( false !== strpos( $html, 'name="' . $vn . '"' ), 'the classic paints ' . $vn );
+}
+ok( 1 === preg_match( '/name="resume\[experience\]\[0\]\[roles\]\[0\]\[bullet_variants\]\[[0-9a-f]{12}\]"/', $html ), 'a role lists its saved bullets, each with its own Shows in' );
+ok( 1 === preg_match( '#<form method="post" action="[^"]*"><input type="hidden" name="_wpnonce" value="stub"><div class="sn-fieldset"><h2 class="sn-fieldset-h">Operations résumé setup</h2>.*?value="sn_resume_operations_setup".*?</form>#s', $html ), 'the operations setup is its own form with its own nonce field' );
 
 // balanced structure: details/summary and div counts match.
 ok( substr_count( $html, '<details' ) === substr_count( $html, '</details>' ), 'details tags balance' );

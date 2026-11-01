@@ -22,6 +22,51 @@ Phase 2.
 
 Until the first generation, the Download link keeps using the **PDF URL** field in Hero.
 
+## Two résumés from one document (2026-11-01)
+
+The document builds two résumés: **music** (the /resume page, its Download link, the Spanish CV,
+JSON Resume, Markdown and vCard; the public one) and **operations** (its own PDF, never linked).
+`inc/resume-variants.php` holds the rules; `sn_resume_doc_get()` returns the music view in the shape
+every reader already knew, and the editor reads the stored document through `sn_resume_doc_get_raw()`.
+
+- **Shows in.** Every experience and earlier entry, role, education and affiliation row,
+  publication and skills row has a "Shows in" choice: both (the default, and what every row had
+  before), music only, or operations only. Under each role, "Which résumé each bullet shows in"
+  lists its saved bullets with the same choice; the flag is keyed by the bullet's text, so
+  reordering bullets never moves it, and a bullet whose text changes goes back to both.
+- **What I've Built.** An intro line and one card per project (title, link, one or two
+  sentences). The operations PDF shows it; the music PDF only with "Show What I've Built in the
+  music PDF" (PDF only). Never on /resume.
+- **Operations résumé.** Headline, subhead, location, extra contact links (after the website),
+  summary, the section order (one key per line from `summary, stats, competencies, built,
+  experience, publications, education, affiliations, skills, toolkit`; a key left out is a section
+  left out), the experience order (organizations by name; the rest follow as listed), earlier career
+  one line per role, and the file name. Blank fields fall back to the music PDF's. The phone is
+  never printed in it.
+- **Set up the operations résumé** (Content → Resume) writes the operations résumé's starting
+  content (the owner brief's appendix) into the **draft**: its settings, What I've Built, its four
+  skills rows and two affiliations, and "music only" on what it leaves out. It finds rows by the
+  start of their text, never rewords them, lists anything it cannot find (those stay in both), and
+  running it again only fills what is missing and never undoes an edit.
+- **Generate PDF** builds both: the music file as before, then the operations PDF, served at
+  `/resume/JuanLentino_Resume_Operations.pdf` (the `sn_resume_pdf_operations` option holds its facts,
+  `sn_resume_pdf_operations_bytes` the file). The music PDF's HTML is identical to what it was
+  (pinned by `tests/resume-variants.php`).
+
+**The check on every generation** (`inc/resume-pdf/text-check.php`). Each PDF's text is read back by
+a built-in reader for Dompdf's CPDF output (inflate the streams, read each font's ToUnicode map,
+decode the text operators; held word for word to `pdftotext` by `tests/resume-pdf-text-check.php`),
+and the PDF box flags control characters (U+0000 to U+001F but tab, newline and form feed), ligature
+code points (U+FB00 to U+FB06), a phone number in the text or the metadata, an operations PDF over
+two pages, and an operations file without `X-Robots-Tag: noindex`.
+
+**The operations file's noindex.** A static file's headers belong to the web server, and the owner
+did not want to spend a Cloudflare rule on one (2026-11-01), so the operations PDF is not a file in
+uploads. Its bytes live in an option, and WordPress serves them at `/resume/<file name>` with
+`X-Robots-Tag: noindex, nofollow` (`sn_resume_ops_pdf_maybe_serve()`); before the first generation
+that address is the ordinary 404. Every generation reads the header back and flags it if missing.
+The address is in no sitemap, llms file or format list, and no page links it.
+
 ## The phone
 
 The owner does not want the phone downloadable by the public (2026-09-22), and wants that under the
@@ -96,6 +141,10 @@ To update Dompdf: `cd lib/pdf && composer update`, then run `php tests/resume-pd
   and before generation; after generation only the Download URL differs.
 - `tests/resume-integrity.php`: the rendered page has no space before punctuation, every Person
   `award` appears in the visible copy, and the years figure is 15+ everywhere.
+- `tests/resume-variants.php`: the stored flags, the music and operations views, the setup (the
+  music résumé unchanged by it, idempotent, misses reported), the music PDF HTML unchanged, the
+  operations PDF's order, its missing sections, its headline and links, and no phone.
+- `tests/resume-pdf-text-check.php`: the built-in reader against pdftotext, and every flag.
 - `tests/os-leaf-content-resume.php`: the dashboard leaf and the classic form post the same fields,
   including `pdf[…]`, and both carry the separate Generate PDF form.
 

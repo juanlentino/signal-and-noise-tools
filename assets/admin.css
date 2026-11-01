@@ -2279,6 +2279,24 @@ os-cluster > .snt-verdict-panel {
 .sn-rsm-field textarea.large-text {
 	width: 100%;
 }
+/* Résumé variants (2026-11-01): "Shows in" stays as wide as its choices, and
+   a role's per-bullet choices sit in their own quiet fold under the bullets. */
+.sn-rsm-variant select {
+	min-width: 12em;
+}
+.sn-rsm-bullet-variants {
+	margin: 4px 0 8px;
+}
+.sn-rsm-bullet-variants > summary {
+	cursor: pointer;
+	color: #50575e;
+}
+.sn-rsm-bullet-variants .sn-rsm-variant {
+	margin: 8px 0 0;
+}
+.sn-rsm-bullet-variants .description {
+	margin: 2px 0 0;
+}
 .sn-rsm-pair {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
