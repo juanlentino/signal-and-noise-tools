@@ -4,7 +4,8 @@
  *
  * The admin live answer (inc/analytics-live.php) for agents: readers in the
  * last 5 minutes (every class), human views today, the last hour in 5-minute
- * slots, the pages being read, where readers arrived from, and the live-surge
+ * slots, the pages being read, where readers arrived from, one line per current
+ * reader (place, device, entry source; inc/analytics-live-readers.php), and the live-surge
  * analytics signal (inc/analytics-live-surge.php). Reads the realtime cache only;
  * never queries Analytics Engine on read. The sn-status `live` section.
  *

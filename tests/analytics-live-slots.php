@@ -80,7 +80,7 @@ $rows = array(
 	'host'   => array( array( 'slot' => (string) $last, 'host' => 'www.google.com', 'readers' => 1, 'ip' => '203.0.113.9' ), array( 'slot' => (string) $last, 'host' => '', 'readers' => 1 ) ),
 );
 $respond = static function ( $sql ) use ( $rows ) {
-	foreach ( array( 'AS class' => 'class', 'blob2 AS path' => 'path', 'blob3 AS host' => 'host' ) as $needle => $k ) {
+	foreach ( array( 'AS class' => 'class', 'blob2 AS path' => 'path', ' AS host, ' => 'host' ) as $needle => $k ) {
 		if ( false !== strpos( $sql, $needle ) ) { return $rows[ $k ]; }
 	}
 	return array();
@@ -92,6 +92,7 @@ foreach ( array( 'classes' => sn_analytics_live_slot_classes_sql(), 'pages' => s
 }
 ok( false === strpos( sn_analytics_live_slot_classes_sql(), "blob7 = 'bot') AND" ) && false !== strpos( sn_analytics_live_slot_classes_sql(), 'AS class' ), 'classes: every class, as Reading now counts them' );
 ok( false !== strpos( sn_analytics_live_slot_pages_sql(), "blob2 ILIKE '/wp-admin'" ) && false !== strpos( sn_analytics_live_slot_sources_sql(), "blob1 = 'pv'" ), 'pages and sources keep their live rules: admin paths out, sources from page views' );
+ok( false !== strpos( sn_analytics_live_slot_sources_sql(), sn_analytics_referrer_value_sql( 'blob3' ) . ' AS host' ), 'a slot\'s sources relabel an internal click, as live sources do, so the fold drops it (2026-11-01)' );
 
 echo "\nGroup: a completed slot is stored, the partial one never\n";
 $GLOBALS['answer'] = $respond;
@@ -115,7 +116,7 @@ ok( array( 'classes', 'pages', 'readers', 'sources' ) === ( static function ( $k
 
 echo "\nGroup: a failed read stores nothing\n";
 $GLOBALS['o'] = array(); $GLOBALS['q'] = array();
-$GLOBALS['answer'] = static function ( $sql ) use ( $respond ) { return false !== strpos( $sql, 'blob3 AS host' ) ? null : $respond( $sql ); };
+$GLOBALS['answer'] = static function ( $sql ) use ( $respond ) { return false !== strpos( $sql, ' AS host, ' ) ? null : $respond( $sql ); };
 ok( false === sn_analytics_live_slots_step( $hour ) && ! isset( $GLOBALS['o'][ SN_ANALYTICS_LIVE_SLOTS_OPT ] ), 'one failed read: no write, the next refresh tries again' );
 ok( false === sn_analytics_live_slots_step( null ), 'an hour that was not read: nothing to store' );
 
