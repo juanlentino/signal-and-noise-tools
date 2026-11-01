@@ -19,8 +19,14 @@ $GLOBALS['allowed'] = array();
 function sn_remote_analytics_allows( $slug ) { return in_array( $slug, $GLOBALS['allowed'], true ); }
 class WP_Error { public function __construct( ...$a ) {} }
 function is_wp_error( $t ) { return $t instanceof WP_Error; }
-define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
 $root = dirname( __DIR__ );
+// The real constants, read out of their files: a class or range added there must show here.
+$const = static function ( $file, $name ) use ( $root ) {
+	preg_match( '/const ' . $name . '\s*=\s*(array\([^)]*\));/', (string) file_get_contents( "$root/inc/$file" ), $m );
+	return eval( 'return ' . $m[1] . ';' ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test-only: the plugin's own constant literal.
+};
+define( 'SN_ANALYTICS_CLASSES', $const( 'analytics-rollup.php', 'SN_ANALYTICS_CLASSES' ) );
+define( 'SN_ANALYTICS_RANGES', $const( 'analytics-admin.php', 'SN_ANALYTICS_RANGES' ) );
 require $root . '/inc/analytics-fields.php';
 require $root . '/inc/analytics-rows.php';
 require $root . '/inc/abilities-analytics-rows.php';
@@ -33,7 +39,8 @@ ok( SNT_AROWS_DIMENSIONS === array_column( $f['dimensions'], 'name' ), 'the dime
 $row_props = array_keys( snt_analytics_rows_output_schema()['properties']['rows']['items']['properties'] );
 ok( array_values( array_diff( $row_props, SNT_AROWS_DIMENSIONS ) ) === array_column( $f['metrics'], 'name' ), 'the metrics are exactly the figures each row carries' );
 ok( SN_ANALYTICS_CLASSES === array_column( $f['classes'], 'name' ), 'the classes are the ones every read accepts' );
-ok( array( '7', '14', '30', '90', '365', 'all' ) === $f['windows']['ranges'], 'the ranges a read accepts' );
+ok( array( '7', '14', '30', '90', '365', 'all' ) === $f['windows']['ranges'], 'the ranges a read accepts (from SN_ANALYTICS_RANGES, which the validator reads)' );
+ok( false !== strpos( $f['classes'][2]['meaning'], 'path, day and link_code' ) && false !== strpos( $f['classes'][2]['meaning'], 'referrer, country and device rows leave it out' ), 'bot says where the over-cap rule lands: bot by page, nowhere by referrer, country or device' );
 
 echo "\nGroup: every entry says what it is\n";
 foreach ( array( 'dimensions', 'metrics' ) as $kind ) {
@@ -42,7 +49,7 @@ foreach ( array( 'dimensions', 'metrics' ) as $kind ) {
 		ok( array() === array_diff( $e['sources'], array_column( $f['sources'], 'name' ) ), "$kind {$e['name']}: its stores are named in sources" );
 	}
 }
-ok( false === strpos( json_encode( $f ), '—' ), 'no em dash anywhere' );
+ok( false === strpos( json_encode( $f, JSON_UNESCAPED_UNICODE ), '—' ), 'no em dash anywhere' );
 $names = array_column( $f['not_available'], 'name' );
 ok( in_array( 'returning across days', $names, true ) && in_array( 'who a visitor is', $names, true ), 'what is not measured is said: no cross-day identity, no visitor identity' );
 
