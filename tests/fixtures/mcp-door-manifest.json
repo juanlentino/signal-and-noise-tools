@@ -75,6 +75,7 @@
         "signal-noise/unschedule-cron-event"
     ],
     "remote": [
+        "signal-noise/remote-analytics-fields",
         "signal-noise/remote-analytics-rows",
         "signal-noise/remote-bot-signals",
         "signal-noise/remote-cron-health-summary",

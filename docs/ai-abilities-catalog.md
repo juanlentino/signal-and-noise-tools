@@ -29,6 +29,7 @@ The reference for the Signal & Noise WordPress Abilities: the plugin's abilities
 | `signal-noise/ai-pair-suggest` | Suggest whether two related notes should link | ai-generation | RW |
 | `signal-noise/analytics-dual-write` | Analytics: do the new datasets hold what the old one holds? | diagnostics | READ |
 | `signal-noise/analytics-query` | Query analytics (via sn-metrics{analytics_query}) | analytics | — |
+| `signal-noise/analytics-fields` | Analytics fields (via sn-metrics{analytics_fields}; twin below) | analytics | — |
 | `signal-noise/analytics-rows` | Analytics rows (via sn-metrics{analytics_rows}; twin below) | analytics | — |
 | `signal-noise/anchor-status` | Provenance anchor overview | diagnostics | READ |
 | `signal-noise/anchor-sweep` | Run the anchor upgrade sweep | maintenance | — |
@@ -143,6 +144,7 @@ The reference for the Signal & Noise WordPress Abilities: the plugin's abilities
 | `signal-noise/watches` | Watches Due | diagnostics | READ |
 | `signal-noise/zenodo-status` | Zenodo DOI status | diagnostics | READ |
 | **REMOTE TWINS** (plugin, reached only through the sn-remote-mcp Worker) | | | |
+| `signal-noise/remote-analytics-fields` | Analytics fields (remote): `sn_remote_analytics_fields` | analytics | REMOTE |
 | `signal-noise/remote-analytics-rows` | Analytics rows (remote): `sn_remote_analytics_query` | analytics | REMOTE |
 | `signal-noise/remote-bot-signals` | Beacon bot signals (remote) | analytics | REMOTE |
 | `signal-noise/remote-cron-health-summary` | Cron health, summarized (remote) | diagnostics | REMOTE |
@@ -195,6 +197,8 @@ wp ability run <slug> --input='{"post_id": 42}'
 **MCP client** — Query the `sn://abilities-catalog` resource on either door for the live registry snapshot. The read door's tools are read-only; the write door's are state-modifying ( behind a kill switch, a bound application password, a rate limit and its own audit log).
 
 ## Analytics rows: the remote query tool (contract 15)
+
+`signal-noise/analytics-fields` (local, as `sn-metrics{analytics_fields}`) and its remote twin `signal-noise/remote-analytics-fields` (the Worker's `sn_remote_analytics_fields`, contract 26) answer "what can I ask for?" before a query: every dimension and metric the analytics reads accept, each with its unit, a one-line meaning and the store that answers it, the classes, the windows, the reads that take them, and what is not measured at all (no cross-day identity, no visitor identity). No figures. Code: `inc/analytics-fields.php`; `tests/analytics-fields.php` pins the registry to what `snt_arows_validate()` and the rows schema enforce.
 
 `signal-noise/analytics-rows` (local, as `sn-metrics{analytics_rows}`) and its remote twin `signal-noise/remote-analytics-rows` (the Worker's `sn_remote_analytics_query`) return the stored analytics as counted rows. Code: `inc/analytics-rows.php` (validation, the path allowlist, the hostname rule, the floor), `inc/analytics-rows-fetch.php` (the read), `inc/abilities-analytics-rows.php` (both registrations, one schema, one callback). Tests: `tests/analytics-rows.php`.
 
