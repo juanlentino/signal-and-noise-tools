@@ -39,9 +39,9 @@ echo "\nGroup: validation\n";
 $v = static fn( $in ) => snt_arows_validate( $in );
 ok( ! is_wp_error( $v( array( 'dimensions' => array( 'link_code' ) ) ) ), 'link_code alone' );
 ok( ! is_wp_error( $v( array( 'dimensions' => array( 'link_code', 'day' ) ) ) ), 'link_code with day' );
-ok( is_wp_error( $v( array( 'dimensions' => array( 'link_code', 'path' ) ) ) ), 'link_code with path: refused, no other pair is stored' );
-ok( is_wp_error( $v( array( 'dimensions' => array( 'link_code' ), 'referrer' => 'x.com' ) ) ), 'a referrer filter: refused' );
-ok( is_wp_error( $v( array( 'dimensions' => array( 'link_code' ), 'path' => '/r/hera' ) ) ), 'a path filter: refused (path or day only)' );
+ok( ! is_wp_error( $v( array( 'dimensions' => array( 'link_code', 'path' ) ) ) ), 'link_code with path: answered since 2026-11-01 (from Analytics Engine, tests/analytics-rows-wide.php)' );
+ok( ! is_wp_error( $v( array( 'dimensions' => array( 'link_code' ), 'referrer' => 'x.com' ) ) ), 'a referrer filter: answered since 2026-11-01 (Analytics Engine)' );
+ok( ! is_wp_error( $v( array( 'dimensions' => array( 'link_code' ), 'path' => '/r/hera' ) ) ), 'a path filter: answered since 2026-11-01 (Analytics Engine)' );
 ok( ! is_wp_error( $v( array( 'dimensions' => array( 'link_code' ), 'sort' => 'time' ) ) ), 'time sort: allowed, a coded path is a page' );
 ok( false !== strpos( (string) ( is_wp_error( $e = $v( array( 'dimensions' => array( 'nope' ) ) ) ) ? $e->code : '' ), 'ability_invalid_input' ), 'an unknown dimension is still refused' );
 

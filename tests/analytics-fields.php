@@ -40,7 +40,7 @@ $row_props = array_keys( snt_analytics_rows_output_schema()['properties']['rows'
 ok( array_values( array_diff( $row_props, SNT_AROWS_DIMENSIONS ) ) === array_column( $f['metrics'], 'name' ), 'the metrics are exactly the figures each row carries' );
 ok( SN_ANALYTICS_CLASSES === array_column( $f['classes'], 'name' ), 'the classes are the ones every read accepts' );
 ok( array( '7', '14', '30', '90', '365', 'all' ) === $f['windows']['ranges'], 'the ranges a read accepts (from SN_ANALYTICS_RANGES, which the validator reads)' );
-ok( false !== strpos( $f['classes'][2]['meaning'], 'path, day and link_code' ) && false !== strpos( $f['classes'][2]['meaning'], 'referrer, country and device rows leave it out' ), 'bot says where the over-cap rule lands: bot by page, nowhere by referrer, country or device' );
+ok( false !== strpos( $f['classes'][2]['meaning'], 'path, day and link_code' ) && false !== strpos( $f['classes'][2]['meaning'], 'every Analytics Engine read' ) && false !== strpos( $f['classes'][2]['meaning'], 'region and city rows leave it out' ), 'bot says where the over-cap rule lands: bot by page, nowhere by referrer, country or device' );
 
 echo "\nGroup: every entry says what it is\n";
 foreach ( array( 'dimensions', 'metrics' ) as $kind ) {

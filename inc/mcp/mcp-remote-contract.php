@@ -121,7 +121,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // path (inc/link-codes.php). Additive.
 // 2026-11-01 (owner brief "MCP full analytics access"): '25' -> '26'. The
 // fields read joins the map (signal-noise/remote-analytics-fields). Additive.
-const SN_REMOTE_CONTRACT_VERSION = '26';
+// 2026-11-01, part 2: '26' -> '27'. Analytics rows widen: region, city and
+// hour, the window (from, to) and the source in the envelope, the fields read's
+// custom window and events source. Additive.
+const SN_REMOTE_CONTRACT_VERSION = '27';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -182,6 +185,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'25' => '0e07b989fdeba08e7f6bb37b27c00eb958ef14bf8f29a5de034ba7b936bdf8b4',
 	// RED-then-pin, 2026-11-01: the analytics fields twin joined the map.
 	'26' => 'c75b1a5bc086fd429f8e52eff13300bf1dcb9e165d8865fe5fbf92ada9aba6a1',
+	// RED-then-pin, 2026-11-01: rows gained region, city, hour, from, to, source.
+	'27' => 'e6e74803f1384469f32c22fa342f2e316604a636d8bade817d749e98cd66098d',
 );
 
 /**

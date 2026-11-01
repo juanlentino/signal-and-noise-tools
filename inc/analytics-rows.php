@@ -30,7 +30,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SNT_AROWS_DIMENSIONS = array( 'path', 'referrer', 'country', 'device', 'link_code', 'day' ); // link_code: a coded résumé link's code, read out of the stored path (inc/link-codes.php).
+const SNT_AROWS_DIMENSIONS = array( 'path', 'referrer', 'country', 'region', 'city', 'device', 'link_code', 'day', 'hour' ); // link_code: a coded résumé link's code, read out of the stored path (inc/link-codes.php).
+const SNT_AROWS_STORED_PAGE = array( 'path', 'link_code', 'day' );                       // the daily table holds these.
+const SNT_AROWS_STORED_DIMS = array( 'referrer', 'country', 'device', 'region', 'city' ); // the dims table, one per row and day.
+const SNT_AROWS_MAX_DIMS   = 4; // 2026-11-01: up to four at once (owner brief "MCP full analytics access").
+const SNT_AROWS_SOURCES    = array( 'auto', 'stored', 'events' ); // auto: the stored rollups when they hold the combination, else Analytics Engine.
 const SNT_AROWS_SORTS      = array( 'views', 'visits', 'time' );
 const SNT_AROWS_SENTINELS  = array( '(direct)', '(internal)', '(unknown)' ); // written by the analytics worker, not by visitors.
 
@@ -48,25 +52,41 @@ function snt_arows_validate( $input, $allow_unmatched = false ) {
 		return $bad( 'path "(unmatched)" is served on the local door only.' );
 	}
 	$dims = $in['dimensions'] ?? null;
-	if ( ! is_array( $dims ) || ! $dims || count( $dims ) > 2 || count( array_filter( $dims, 'is_string' ) ) !== count( $dims ) || array_diff( $dims, SNT_AROWS_DIMENSIONS ) || count( array_unique( $dims ) ) !== count( $dims ) ) {
-		return $bad( 'dimensions must be one or two different values of path, referrer, country, device, link_code, day.' );
+	if ( ! is_array( $dims ) || ! $dims || count( $dims ) > SNT_AROWS_MAX_DIMS || count( array_filter( $dims, 'is_string' ) ) !== count( $dims ) || array_diff( $dims, SNT_AROWS_DIMENSIONS ) || count( array_unique( $dims ) ) !== count( $dims ) ) {
+		return $bad( 'dimensions must be one to four different values of ' . implode( ', ', SNT_AROWS_DIMENSIONS ) . '.' );
 	}
 	$dims  = array_values( $dims );
 	$other = array_values( array_diff( $dims, array( 'day' ) ) );
-	if ( count( $other ) > 1 ) {
-		return $bad( 'two dimensions must be one of path, referrer, country, device, link_code with day: no other pair is stored.' );
-	}
-	$range = $in['range'] ?? 30;
-	if ( ! snt_analytics_range_is_valid( $range ) ) {
-		return $bad( 'range must be one of 7, 14, 30, 90, 365 or "all".' );
+	// A window is a range ending today, or from and to in the site's days, never both.
+	$from = $in['from'] ?? null;
+	$to   = $in['to'] ?? null;
+	if ( null !== $from || null !== $to ) {
+		if ( isset( $in['range'] ) ) {
+			return $bad( 'give a range or from and to, not both.' );
+		}
+		if ( ! snt_analytics_is_ymd( $from ) || ! snt_analytics_is_ymd( $to ) || $from > $to ) {
+			return $bad( 'from and to must both be days (YYYY-MM-DD, the site\'s time zone), from no later than to.' );
+		}
+		$range = 'custom';
+	} else {
+		$range = $in['range'] ?? 30;
+		if ( ! snt_analytics_range_is_valid( $range ) ) {
+			return $bad( 'range must be one of 7, 14, 30, 90, 365 or "all", or give from and to.' );
+		}
+		$range = 'all' === (string) $range ? 'all' : (int) $range;
 	}
 	$class = $in['class'] ?? 'human';
 	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) ) {
 		return $bad( 'class must be one of human, suspect, bot.' );
 	}
+	$source = $in['source'] ?? 'auto';
+	if ( ! in_array( $source, SNT_AROWS_SOURCES, true ) ) {
+		return $bad( 'source must be auto, stored or events.' );
+	}
 	$sort = $in['sort'] ?? 'views';
-	if ( ! in_array( $sort, SNT_AROWS_SORTS, true ) || ( 'time' === $sort && ! in_array( $other[0] ?? 'day', array( 'path', 'link_code', 'day' ), true ) ) ) {
-		return $bad( 'sort must be views, visits or time; time only with path, link_code or day alone (time is stored per page only).' );
+	// Time is measured per page: it means something when the rows are pages.
+	if ( ! in_array( $sort, SNT_AROWS_SORTS, true ) || ( 'time' === $sort && ! array_intersect( $dims, array( 'path', 'link_code' ) ) && array( 'day' ) !== $dims ) ) {
+		return $bad( 'sort must be views, visits or time; time only when path or link_code is a dimension, or day alone (time is measured per page).' );
 	}
 	$limit = $in['limit'] ?? 50;
 	if ( ! is_int( $limit ) || $limit < 1 || $limit > 500 ) {
@@ -76,24 +96,24 @@ function snt_arows_validate( $input, $allow_unmatched = false ) {
 	$unmatched = false;
 	if ( '(unmatched)' === ( $in['path'] ?? null ) ) {
 		// 2026-10-29: break the bucket down by cleaned path (inc/analytics-rows-unmatched.php).
-		if ( ! in_array( 'path', $dims, true ) ) {
-			return $bad( 'path "(unmatched)" breaks the bucket down by path, so dimensions must include path.' );
+		if ( ! in_array( 'path', $dims, true ) || array_diff( $dims, array( 'path', 'day' ) ) || 'events' === $source ) {
+			return $bad( 'path "(unmatched)" breaks the stored bucket down by path, so dimensions must be path, or path and day, from the stored rows.' );
 		}
 		$unmatched = true;
 	} elseif ( isset( $in['path'] ) ) {
 		$path = snt_arows_input_path( $in['path'] );
-		if ( null === $path || ! in_array( $other[0] ?? 'day', array( 'path', 'day' ), true ) ) {
-			return $bad( 'path must be a site path starting with "/", and only with path or day: other pairs are not stored per page.' );
+		if ( null === $path ) {
+			return $bad( 'path must be a site path starting with "/".' );
 		}
 	}
 	$referrer = null;
 	if ( isset( $in['referrer'] ) ) {
 		$referrer = snt_arows_host( $in['referrer'] );
-		if ( '(invalid)' === $referrer || null !== $path || $unmatched || ! in_array( $other[0] ?? 'day', array( 'referrer', 'day' ), true ) ) {
-			return $bad( 'referrer must be a hostname, and only with referrer or day and no path: referrers are not stored per page.' );
+		if ( '(invalid)' === $referrer || $unmatched ) {
+			return $bad( 'referrer must be a hostname, and not with the "(unmatched)" breakdown.' );
 		}
 	}
-	return array( 'dims' => $dims, 'range' => 'all' === (string) $range ? 'all' : (int) $range, 'class' => $class, 'path' => $path, 'referrer' => $referrer, 'sort' => $sort, 'limit' => $limit, 'unmatched' => $unmatched );
+	return array( 'dims' => $dims, 'range' => $range, 'from' => $from, 'to' => $to, 'source' => $source, 'class' => $class, 'path' => $path, 'referrer' => $referrer, 'sort' => $sort, 'limit' => $limit, 'unmatched' => $unmatched, 'other' => $other );
 }
 
 /** A caller's path filter: query and fragment stripped, canonical, or null. PURE. */
@@ -135,6 +155,14 @@ function snt_arows_clean( $dim, $value, array $real ) {
 	}
 	if ( 'referrer' === $dim ) {
 		return snt_arows_host( $v );
+	}
+	if ( 'city' === $dim || 'region' === $dim ) {
+		// Cloudflare's place names, as stored: printable text only, at most 128 characters.
+		$t = trim( (string) preg_replace( '/[\x00-\x1F\x7F]/u', '', $v ) );
+		return '' === $t ? '(unknown)' : ( mb_strlen( $t ) > 128 ? '(invalid)' : $t );
+	}
+	if ( 'hour' === $dim ) {
+		return preg_match( '/^([01]\d|2[0-3])$/', $v ) ? $v : '(invalid)';
 	}
 	if ( 'country' === $dim || 'device' === $dim ) {
 		// The dims table stores a blank as (unknown) (inc/analytics-dims.php); it is a named value, not a bad one.

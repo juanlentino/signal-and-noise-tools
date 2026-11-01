@@ -44,9 +44,8 @@ echo "\nEvery argument refuses what is not in its set\n";
 foreach ( array(
 	'no dimensions'            => array( 'dimensions' => array() ),
 	'unknown dimension'        => array( 'dimensions' => array( 'browser' ) ),
-	'three dimensions'         => array( 'dimensions' => array( 'path', 'day', 'country' ) ),
+	'five dimensions'          => array( 'dimensions' => array( 'path', 'day', 'country', 'city', 'hour' ) ), // 2026-11-01: up to four are answered (tests/analytics-rows-wide.php).
 	'a repeated dimension'     => array( 'dimensions' => array( 'day', 'day' ) ),
-	'two non-day dimensions'   => array( 'dimensions' => array( 'path', 'referrer' ) ),
 	'dimensions not a list'    => array( 'dimensions' => 'path' ),
 	'a nested dimension'       => array( 'dimensions' => array( array( 'path' ) ) ),
 	'a referrer array'         => array( 'dimensions' => array( 'referrer' ), 'referrer' => array( 'x.com' ) ),
@@ -61,9 +60,7 @@ foreach ( array(
 	'limit 501'                => array( 'limit' => 501 ),
 	'limit "50"'               => array( 'limit' => '50' ),
 	'path without a slash'     => array( 'path' => 'notes/x' ),
-	'path with a country'      => array( 'dimensions' => array( 'country' ), 'path' => '/notes/x/' ),
 	'referrer with a path'     => array( 'referrer' => 'news.ycombinator.com/item?id=1', 'dimensions' => array( 'referrer' ) ),
-	'referrer by path'         => array( 'referrer' => 'news.ycombinator.com' ),
 ) as $label => $in ) {
 	$r = $q( $in );
 	ok( is_wp_error( $r ) && 'ability_invalid_input' === $r->code, "refused: $label" );
