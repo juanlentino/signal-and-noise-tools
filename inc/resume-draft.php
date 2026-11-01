@@ -113,7 +113,7 @@ function sn_resume_draft_status() {
 		return sn_resume_draft_exists() ? 'Draft could not be read; discard it.' : 'No draft; showing the live resume.';
 	}
 	$when = '' !== $draft['updated'] ? ' ' . $draft['updated'] : '';
-	return sn_resume_doc_same( $draft, sn_resume_doc_get() )
+	return sn_resume_doc_same( $draft, sn_resume_doc_get_raw() )
 		? 'Draft saved' . $when . '; it matches the live resume.'
 		: 'Draft saved' . $when . '; differs from live.';
 }
@@ -148,7 +148,7 @@ function sn_resume_draft_publish() {
 	if ( null === $draft ) {
 		return 'none';
 	}
-	if ( sn_resume_doc_same( $draft, sn_resume_doc_get() ) ) {
+	if ( sn_resume_doc_same( $draft, sn_resume_doc_get_raw() ) ) {
 		sn_resume_draft_delete();
 		return 'identical';
 	}

@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once dirname( __DIR__ ) . '/resume-lang.php';
+require_once dirname( __DIR__ ) . '/resume-variants.php'; // section keys and the music order.
+require_once __DIR__ . '/template-variant.php';        // the parts a variant adds.
 
 /** Brand ink for the PDF only. */
 const SN_RESUME_PDF_NAVY = '#1f3864';
@@ -106,11 +108,15 @@ li strong,.lines strong{color:' . $n . ';}
  *                              off by default, controlled from the resume editor).
  * @param string $site_url      The site's home URL; printed as its bare host (the
  *                              design's "juanlentino.com"), linked.
+ * @param array|null $config    A variant's layout (sn_resume_variant_config() plus
+ *                              its `built`); null is the music PDF as it has always been.
  * @return string
  */
-function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $site_url = '' ) {
-	$hero = (array) ( $doc['hero'] ?? array() );
-	$pdf  = (array) ( $doc['pdf'] ?? array() );
+function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $site_url = '', $config = null ) {
+	$hero   = (array) ( $doc['hero'] ?? array() );
+	$pdf    = sn_resume_pdf_variant_header( (array) ( $doc['pdf'] ?? array() ), $config );
+	$config = (array) $config;
+	$parts  = array();
 	$e    = static fn( $s ) => htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' );
 	$sep  = ' <span class="sep">|</span> ';
 	$out  = '<h1>' . $e( strtoupper( (string) $name ) ) . '</h1>';
@@ -147,6 +153,9 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $si
 	if ( '' !== $host ) {
 		$contact[] = '<a href="' . $e( $site_url ) . '">' . $e( $host ) . '</a>';
 	}
+	foreach ( (array) ( $config['links'] ?? array() ) as $link ) { // a variant's extra contact links (GitHub).
+		$contact[] = '<a href="' . $e( $link ) . '">' . $e( preg_replace( '~^https?://(www\.)?~i', '', rtrim( (string) $link, '/' ) ) ) . '</a>';
+	}
 	if ( $contact ) {
 		$out .= '<p class="contact">' . implode( ' &#8226; ', $contact ) . '</p>';
 	}
@@ -154,34 +163,41 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $si
 	// PDF-only summary first; blank falls back to the page's hero summary.
 	$summary = '' !== (string) ( $pdf['summary'] ?? '' ) ? (string) $pdf['summary'] : (string) ( $hero['summary'] ?? '' );
 	if ( '' !== $summary ) {
-		$out .= '<h2>' . sn_resume_l( 'PROFESSIONAL SUMMARY', 'PERFIL PROFESIONAL' ) . '</h2><p>' . $e( $summary ) . '</p>';
+		$parts['summary'] = '<h2>' . sn_resume_l( 'PROFESSIONAL SUMMARY', 'PERFIL PROFESIONAL' ) . '</h2><p>' . $e( $summary ) . '</p>';
 	}
 
 	$stats = (array) ( $doc['stats'] ?? array() );
 	if ( $stats ) {
-		$out .= '<table class="stats"><tr>';
+		$parts['stats'] = '<table class="stats"><tr>';
 		foreach ( $stats as $s ) {
-			$out .= '<td><span class="n">' . $e( $s['n'] ?? '' ) . '</span><span class="l">' . $e( $s['label'] ?? '' ) . '</span></td>';
+			$parts['stats'] .= '<td><span class="n">' . $e( $s['n'] ?? '' ) . '</span><span class="l">' . $e( $s['label'] ?? '' ) . '</span></td>';
 		}
-		$out .= '</tr></table>';
+		$parts['stats'] .= '</tr></table>';
 	}
 
 	$comp = (array) ( $pdf['competencies'] ?? array() );
 	if ( $comp ) {
-		$out .= '<h2>' . sn_resume_l( 'CORE COMPETENCIES', 'COMPETENCIAS CLAVE' ) . '</h2><table class="comp">';
+		$parts['competencies'] = '<h2>' . sn_resume_l( 'CORE COMPETENCIES', 'COMPETENCIAS CLAVE' ) . '</h2><table class="comp">';
 		foreach ( array_chunk( $comp, 3 ) as $row ) {
-			$out .= '<tr>';
+			$parts['competencies'] .= '<tr>';
 			foreach ( array_pad( $row, 3, '' ) as $c ) {
-				$out .= '<td>' . ( '' !== $c ? '<span class="dot">&#9670;</span> ' . $e( $c ) : '' ) . '</td>';
+				$parts['competencies'] .= '<td>' . ( '' !== $c ? '<span class="dot">&#9670;</span> ' . $e( $c ) : '' ) . '</td>';
 			}
-			$out .= '</tr>';
+			$parts['competencies'] .= '</tr>';
 		}
-		$out .= '</table>';
+		$parts['competencies'] .= '</table>';
 	}
 
-	$entries = array_merge( (array) ( $doc['experience'] ?? array() ), (array) ( $doc['earlier']['entries'] ?? array() ) );
+	$parts['built'] = sn_resume_pdf_built_html( (array) ( $config['built'] ?? array() ), $e );
+	$parts['skills'] = sn_resume_pdf_skills_html( (array) ( $doc['skills'] ?? array() ), $e );
+
+	// A variant may order the entries and set its earlier career one line each.
+	$experience = sn_resume_pdf_order_entries( (array) ( $doc['experience'] ?? array() ), (array) ( $config['experience_order'] ?? array() ) );
+	$earlier    = (array) ( $doc['earlier']['entries'] ?? array() );
+	$entries    = ! empty( $config['earlier_compact'] ) ? $experience : array_merge( $experience, $earlier );
+	$x = '';
 	if ( $entries ) {
-		$out .= '<h2>' . sn_resume_l( 'PROFESSIONAL EXPERIENCE', 'EXPERIENCIA PROFESIONAL' ) . '</h2>';
+		$x .= '<h2>' . sn_resume_l( 'PROFESSIONAL EXPERIENCE', 'EXPERIENCIA PROFESIONAL' ) . '</h2>';
 		foreach ( $entries as $entry ) {
 			$org = (string) ( $entry['org'] ?? '' );
 			$loc = (string) ( $entry['location'] ?? '' );
@@ -190,26 +206,30 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $si
 			if ( '' === $loc && false !== strpos( $org, ' · ' ) ) {
 				list( $org, $loc ) = array_map( 'trim', explode( ' · ', $org, 2 ) );
 			}
-			$out .= '<div class="entry"><table class="row"><tr><td class="org">' . $e( $org ) . '</td><td class="loc">' . $e( $loc === strtoupper( $loc ) ? ucwords( strtolower( $loc ) ) : $loc ) . '</td></tr></table>';
+			$x .= '<div class="entry"><table class="row"><tr><td class="org">' . $e( $org ) . '</td><td class="loc">' . $e( $loc === strtoupper( $loc ) ? ucwords( strtolower( $loc ) ) : $loc ) . '</td></tr></table>';
 			foreach ( (array) ( $entry['roles'] ?? array() ) as $role ) {
 				list( $title, $dates ) = sn_resume_pdf_split_role( $role['title'] ?? '' );
-				$out .= '<table class="row"><tr><td class="role">' . $e( $title ) . '</td><td class="dates">' . $e( $dates ) . '</td></tr></table>';
+				$x .= '<table class="row"><tr><td class="role">' . $e( $title ) . '</td><td class="dates">' . $e( $dates ) . '</td></tr></table>';
 				$bullets = (array) ( $role['bullets'] ?? array() );
 				if ( $bullets ) {
-					$out .= '<ul><li>' . implode( '</li><li>', $bullets ) . '</li></ul>'; // kses-clean at normalize.
+					$x .= '<ul><li>' . implode( '</li><li>', $bullets ) . '</li></ul>'; // kses-clean at normalize.
 				}
 			}
-			$out .= '</div>';
+			$x .= '</div>';
 		}
 	}
+	if ( ! empty( $config['earlier_compact'] ) ) {
+		$x .= sn_resume_pdf_earlier_compact_html( $earlier, $e );
+	}
+	$parts['experience'] = $x;
 
 	$pubs = (array) ( $doc['publications'] ?? array() );
 	if ( $pubs ) {
-		$out .= '<h2>' . sn_resume_l( 'RESEARCH &amp; PUBLICATIONS', 'INVESTIGACIÓN Y PUBLICACIONES' ) . '</h2>';
+		$parts['publications'] = '<h2>' . sn_resume_l( 'RESEARCH &amp; PUBLICATIONS', 'INVESTIGACIÓN Y PUBLICACIONES' ) . '</h2>';
 		foreach ( $pubs as $p ) {
 			$t     = '' !== (string) ( $p['url'] ?? '' ) ? '<a href="' . $e( $p['url'] ) . '">' . $e( $p['title'] ?? '' ) . '</a>' : $e( $p['title'] ?? '' );
 			// Venue and date on the title's row, right-aligned like a role's dates.
-			$out  .= '<table class="pub"><tr><td>' . $t . '</td><td class="meta">' . $e( $p['meta'] ?? '' ) . '</td></tr></table>';
+			$parts['publications'] .= '<table class="pub"><tr><td>' . $t . '</td><td class="meta">' . $e( $p['meta'] ?? '' ) . '</td></tr></table>';
 		}
 	}
 
@@ -218,19 +238,23 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $si
 		if ( ! $rows ) {
 			continue;
 		}
-		$out .= '<h2>' . $head . '</h2>';
+		$parts[ $key ] = '<h2>' . $head . '</h2>';
 		foreach ( $rows as $r ) {
 			$bits = array( '<span class="t">' . $e( $r['title'] ?? '' ) . '</span>' );
 			foreach ( (array) ( $r['lines'] ?? array() ) as $l ) {
 				$bits[] = $e( $l );
 			}
-			$out .= '<p class="lines">' . implode( $sep, $bits ) . '</p>';
+			$parts[ $key ] .= '<p class="lines">' . implode( $sep, $bits ) . '</p>';
 		}
 	}
 
 	$toolkit = (array) ( $pdf['toolkit'] ?? array() );
 	if ( $toolkit ) {
-		$out .= '<h2>' . sn_resume_l( 'TECHNICAL TOOLKIT', 'HERRAMIENTAS TÉCNICAS' ) . '</h2><p class="toolkit">' . implode( ' &#8226; ', array_map( $e, $toolkit ) ) . '</p>';
+		$parts['toolkit'] = '<h2>' . sn_resume_l( 'TECHNICAL TOOLKIT', 'HERRAMIENTAS TÉCNICAS' ) . '</h2><p class="toolkit">' . implode( ' &#8226; ', array_map( $e, $toolkit ) ) . '</p>';
+	}
+
+	foreach ( (array) ( $config['sections'] ?? SN_RESUME_PDF_MUSIC_SECTIONS ) as $key ) {
+		$out .= $parts[ $key ] ?? '';
 	}
 
 	return '<!DOCTYPE html><html lang="' . sn_resume_l( 'en', 'es-AR' ) . '"><head><meta charset="utf-8"><title>' . $e( $name ) . ', ' . sn_resume_l( 'Resume', 'Curriculum vitae' ) . '</title><style>'

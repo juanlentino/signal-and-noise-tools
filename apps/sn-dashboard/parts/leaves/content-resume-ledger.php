@@ -123,7 +123,7 @@ function resume_edit_region( array $sections, $key ) {
  * @return string
  */
 function paint_content_resume( array $ctx ) {
-	$live = function_exists( 'sn_resume_doc_get' ) ? \sn_resume_doc_get() : null;
+	$live = function_exists( 'sn_resume_doc_get_raw' ) ? \sn_resume_doc_get_raw() : null; // the stored document, variant flags included.
 	if ( ! is_array( $live ) ) {
 		return \snt_kit_empty(
 			__( 'Resume page', 'signal-and-noise-tools' ),

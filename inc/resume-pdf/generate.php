@@ -54,9 +54,10 @@ function sn_resume_pdf_location() {
  * @param string $cache_dir     Writable directory for Dompdf's font metrics cache.
  * @param bool   $include_phone True only for the private copy (never written to disk).
  * @param string $site_url      Home URL for the contact line ('' leaves it out).
+ * @param array|null $config    A variant's layout (sn_resume_pdf_html()); null is music.
  * @return array{bytes:string,pages:int}|WP_Error
  */
-function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false, $site_url = '' ) {
+function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false, $site_url = '', $config = null ) {
 	$lib = dirname( __DIR__, 2 ) . '/lib/pdf';
 	if ( ! is_readable( $lib . '/vendor/autoload.php' ) ) {
 		return new WP_Error( 'sn_resume_pdf_no_renderer', 'The PDF renderer (lib/pdf/vendor) is missing from this install.' );
@@ -76,7 +77,7 @@ function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false, 
 	$options->set( 'chroot', array( $lib, $cache_dir ) );
 
 	$dompdf = new \Dompdf\Dompdf( $options );
-	$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts', (bool) $include_phone, (string) $site_url ), 'UTF-8' );
+	$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts', (bool) $include_phone, (string) $site_url, $config ), 'UTF-8' );
 	$dompdf->setPaper( 'letter', 'portrait' );
 	$dompdf->addInfo( 'Title', $name . ' — ' . ( function_exists( 'sn_resume_l' ) ? sn_resume_l( 'Resume', 'Curriculum vitae' ) : 'Resume' ) );
 	$dompdf->addInfo( 'Author', $name );
@@ -257,12 +258,13 @@ function sn_resume_pdf_private_stream() {
 
 /**
  * The DRAFT preview: the draft under the PUBLIC phone rule, so it is the file
- * Publish would generate. Streamed, never stored.
+ * Publish would generate. Streamed, never stored. It is the draft's music
+ * résumé, what Publish would put behind the Download link.
  *
  * @return WP_Error|void
  */
 function sn_resume_pdf_draft_stream() {
-	$doc = function_exists( 'sn_resume_draft_get' ) ? sn_resume_draft_get() : null;
+	$doc = function_exists( 'sn_resume_draft_get' ) ? sn_resume_doc_view( sn_resume_draft_get(), 'music' ) : null;
 	return sn_resume_pdf_stream( $doc, ! empty( $doc['pdf']['phone_public'] ), 'JuanLentino_Resume_draft.pdf' );
 }
 

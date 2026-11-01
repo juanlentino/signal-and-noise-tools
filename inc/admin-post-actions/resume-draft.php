@@ -49,7 +49,7 @@ function sn_handle_resume_preview_page( $post ) { // phpcs:ignore Generic.CodeAn
 	if ( null === $draft ) {
 		return 'resume_no_draft';
 	}
-	$body = function_exists( 'sn_resume_body_html' ) ? sn_resume_body_html( $draft ) : '';
+	$body = function_exists( 'sn_resume_body_html' ) ? sn_resume_body_html( sn_resume_doc_view( $draft, 'music' ) ) : ''; // the page is the music résumé.
 	$page = get_page_by_path( defined( 'SN_RESUME_SLUG' ) ? SN_RESUME_SLUG : 'resume' );
 	if ( '' === $body || ! $page || ( function_exists( 'snt_generated_page_guard' ) && ! snt_generated_page_guard( 'resume', $body ) ) ) {
 		return 'resume_preview_failed';

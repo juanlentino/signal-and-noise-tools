@@ -192,7 +192,7 @@ function sn_rsm_section_open( $title, $hint = '', $count = -1 ) {
  * @since 10.33.0
  */
 function sn_admin_render_resume_section() {
-	$live = function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null;
+	$live = function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null; // the stored document, variant flags included.
 	if ( ! is_array( $live ) ) {
 		echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Resume page</h2><p class="sn-fieldset-intro">The resume editor is unavailable: no stored document and no readable seed.</p></div>';
 		return;
