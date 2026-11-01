@@ -1,13 +1,14 @@
 <?php
 /**
- * S&N Dashboard, Content > Resume Page: the nine sections.
+ * S&N Dashboard, Content > Resume Page: the eleven sections.
  *
  * Each section is a title, its helper line, its entry count, what it opens
  * with, and the painter of its fields, in the classic order. The ledger
  * (content-resume-ledger.php) lists them; the edit region paints one of them
- * as fields and the other eight as hidden carriers (content-resume-edit.php).
+ * as fields and the other ten as hidden carriers (content-resume-edit.php).
  * Row painters: content-resume-parts.php; the Hero and PDF-only field groups:
- * content-resume.php.
+ * content-resume.php; What I've Built and Operations résumé:
+ * content-resume-variants.php.
  *
  * @package SignalNoiseTools
  */
@@ -31,9 +32,9 @@ function resume_first( array $rows, $field ) {
 }
 
 /**
- * The nine sections, in the classic order. `count` is null for the two
- * blocks of single fields (Hero, PDF only), which the classic summary never
- * counted either.
+ * The eleven sections, in the classic order. `count` is null for the three
+ * blocks of single fields (Hero, Operations résumé, PDF only), which the
+ * classic summary never counted either.
  *
  * @param array $doc The document.
  * @return array<string,array{title:string,hint:string,count:?int,first:string,paint:callable}>
@@ -48,6 +49,10 @@ function resume_section_map( array $doc ) {
 	$aff     = (array) ( $doc['affiliations'] ?? array() );
 	$pubs    = (array) ( $doc['publications'] ?? array() );
 	$skills  = (array) ( $doc['skills'] ?? array() );
+	$built   = (array) ( $doc['built'] ?? array() );
+	$items   = (array) ( $built['items'] ?? array() );
+	$ops     = (array) ( $doc['variants']['operations'] ?? array() );
+	$music   = ! empty( $doc['variants']['music']['show_built'] );
 	$pdf     = (array) ( $doc['pdf'] ?? array() );
 	$ns      = __NAMESPACE__;
 	$blank   = array( 'roles' => array( array() ) );
@@ -116,12 +121,26 @@ function resume_section_map( array $doc ) {
 			'first' => resume_first( $skills, 'category' ),
 			'paint' => static function () use ( $skills, $ns ) { return resume_list( $skills, $ns . '\resume_skills_row', 'resume[skills]', '__K__', __( '+ Add skills row', 'signal-and-noise-tools' ), __( 'skills row', 'signal-and-noise-tools' ), array(), 'category' ); },
 		),
+		'built'        => array(
+			'title' => __( "What I've Built", 'signal-and-noise-tools' ),
+			'hint'  => __( 'Projects for the PDF. The operations résumé shows this section; the music résumé shows it only when "Show in the music PDF" is on (PDF only). Never on /resume.', 'signal-and-noise-tools' ),
+			'count' => count( $items ),
+			'first' => resume_first( $items, 'title' ),
+			'paint' => static function () use ( $built ) { return resume_built( $built ); },
+		),
+		'variants'     => array(
+			'title' => __( 'Operations résumé', 'signal-and-noise-tools' ),
+			'hint'  => __( 'Its own PDF, built by Generate along with the music one and never linked from any page. Rows marked "Music only" leave it; "Operations only" rows show only here.', 'signal-and-noise-tools' ),
+			'count' => null,
+			'first' => (string) ( $ops['headline'] ?? '' ),
+			'paint' => static function () use ( $ops ) { return resume_operations( $ops ); },
+		),
 		'pdf'          => array(
 			'title' => __( 'PDF only', 'signal-and-noise-tools' ),
 			'hint'  => __( 'Used by the generated PDF, never shown on /resume. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.', 'signal-and-noise-tools' ),
 			'count' => null,
 			'first' => (string) ( $pdf['headline'] ?? '' ),
-			'paint' => static function () use ( $pdf ) { return resume_pdf( $pdf ); },
+			'paint' => static function () use ( $pdf, $music ) { return resume_pdf( $pdf, $music ); },
 		),
 	);
 }

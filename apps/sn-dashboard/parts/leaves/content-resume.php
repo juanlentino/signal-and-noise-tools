@@ -5,14 +5,17 @@
  * The classic leaf (inc/admin-forms/resume-page.php,
  * `sn_admin_render_resume_section()`) is the STRUCTURED editor for /resume:
  * one form (`sn_action=resume_draft_save`: Save stores a draft, see
- * content-resume-draft.php) over nine sections (Hero, Stats, Experience,
- * Earlier career, Education, Affiliations, Publications, Skills, PDF only),
- * plus the Resume PDF form (`sn_action=resume_pdf_generate`), and a hard
- * failure state when sn_resume_doc_get() has neither a stored document nor a
- * readable seed. Same reader, same names, same handler; the kit's parts
- * instead of wp-admin's. Here the nine sections are one table and one edit
+ * content-resume-draft.php) over eleven sections (Hero, Stats, Experience,
+ * Earlier career, Education, Affiliations, Publications, Skills, What I've
+ * Built, Operations résumé, PDF only), plus the Resume PDF form
+ * (`sn_action=resume_pdf_generate`), the operations setup form
+ * (`sn_action=resume_operations_setup`), and a hard failure state when
+ * sn_resume_doc_get() has neither a stored document nor a readable seed.
+ * Same reader, same names, same handler; the kit's parts instead of
+ * wp-admin's. Here the eleven sections are one table and one edit
  * region (content-resume-ledger.php, content-resume-sections.php, no folds
- * since 2026-10-11). Row painters: content-resume-parts.php.
+ * since 2026-10-11). Row painters: content-resume-parts.php; the variant
+ * controls: content-resume-variants.php.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -25,6 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/content-resume-parts.php';
+require_once __DIR__ . '/content-resume-variants.php';
 require_once __DIR__ . '/content-resume-draft.php';
 require_once __DIR__ . '/content-resume-edit.php';
 require_once __DIR__ . '/content-resume-sections.php';
@@ -70,10 +74,11 @@ function resume_hero( array $hero ) {
  * engine does not read `pdf`). Same names, labels and placeholders as the
  * classic form.
  *
- * @param array $pdf The pdf block.
+ * @param array $pdf        The pdf block.
+ * @param bool  $show_built variants.music.show_built.
  * @return string
  */
-function resume_pdf( array $pdf ) {
+function resume_pdf( array $pdf, $show_built = false ) {
 	return resume_text( 'resume[pdf][headline]', __( 'Headline', 'signal-and-noise-tools' ), $pdf['headline'] ?? '', 'Music Business Development & Strategic Partnerships Leader' )
 		. resume_text( 'resume[pdf][tagline]', __( 'Tagline', 'signal-and-noise-tools' ), $pdf['tagline'] ?? '', 'Artist & Label Relations | Latin American & U.S. Markets' )
 		. \snt_kit_field( 'textarea', 'resume[pdf][summary]', __( 'Professional summary', 'signal-and-noise-tools' ), (string) ( $pdf['summary'] ?? '' ), array( 'rows' => 4, 'hint' => __( 'Blank: the PDF uses the Summary from Hero.', 'signal-and-noise-tools' ) ) )
@@ -88,7 +93,8 @@ function resume_pdf( array $pdf ) {
 		. resume_text( 'resume[pdf][email]', __( 'Email', 'signal-and-noise-tools' ), $pdf['email'] ?? '', 'name@example.com' )
 		. resume_text( 'resume[pdf][website]', __( 'Website', 'signal-and-noise-tools' ), $pdf['website'] ?? '', 'https://juanlentino.com (blank: this site)' )
 		. resume_lines( 'resume[pdf][competencies]', $pdf['competencies'] ?? array(), __( 'Core competencies: one per line', 'signal-and-noise-tools' ), 'Strategic Partnerships & Deal Negotiation', 6 )
-		. resume_lines( 'resume[pdf][toolkit]', $pdf['toolkit'] ?? array(), __( 'Technical toolkit: one per line', 'signal-and-noise-tools' ), 'Pro Tools', 4 );
+		. resume_lines( 'resume[pdf][toolkit]', $pdf['toolkit'] ?? array(), __( 'Technical toolkit: one per line', 'signal-and-noise-tools' ), 'Pro Tools', 4 )
+		. resume_music_built_toggle( $show_built );
 }
 
 /**

@@ -5,7 +5,8 @@
  * The classic editor's repeatable rows (inc/admin-forms/resume-page.php:
  * sn_rsm_input / sn_rsm_lines / sn_rsm_role_row / sn_rsm_employer_card /
  * sn_rsm_titled_lines_row and the inline stat, publication and skills rows),
- * painted from the kit. Every field name is the classic one, token keys
+ * painted from the kit. Every row but a stat carries its "Shows in"
+ * (content-resume-variants.php). Every field name is the classic one, token keys
  * included: each list is an `<os-repeater>` (OpenStation, Stable) whose rows
  * are the kit cards slotted `row-<index>`, and the classic `<template>` for
  * the list ships verbatim inside it under the template's own key (`__S__`,
@@ -46,10 +47,10 @@ function resume_text( $name, $label, $value, $ph = '', $field = '' ) {
 	return '' === $field || false === $at ? $html : substr_replace( $html, \snt_kit_attr( array( 'data-field' => $field ) ), $at + strlen( '<os-text-field' ), 0 );
 }
 
-/** A plain string list as one textarea, one entry per line, sn_rsm_lines(). @param string $name (no []) @param mixed $items @param string $label @param string $ph @param int $rows @return string */
-function resume_lines( $name, $items, $label, $ph = '', $rows = 4 ) {
+/** A plain string list as one textarea, one entry per line, sn_rsm_lines(). @param string $name (no []) @param mixed $items @param string $label @param string $ph @param int $rows @param string $hint @return string */
+function resume_lines( $name, $items, $label, $ph = '', $rows = 4, $hint = '' ) {
 	$value = implode( "\n", array_map( 'strval', (array) $items ) );
-	return \snt_kit_field( 'textarea', $name, $label, $value, array( 'rows' => (int) $rows, 'placeholder' => '' !== $ph ? $ph : null ) );
+	return \snt_kit_field( 'textarea', $name, $label, $value, array( 'rows' => (int) $rows, 'placeholder' => '' !== $ph ? $ph : null, 'hint' => '' !== $hint ? $hint : null ) );
 }
 
 /** Two fields side by side, the classic `.sn-rsm-pair`. @param string $a @param string $b @return string */
@@ -122,12 +123,14 @@ function resume_repeater( $base, $rows, $count, $token, $add_label, $row_label, 
 	);
 }
 
-/** One role: title + bullets, sn_rsm_role_row(). @param string $prefix @param array $role {title,bullets[]} (empty for the blank row). @return string */
+/** One role: title, Shows in, bullets and each saved bullet's Shows in, sn_rsm_role_row(). @param string $prefix @param array $role {title,bullets[],variant?,bullet_variants?} (empty for the blank row). @return string */
 function resume_role_row( $prefix, array $role ) {
 	return resume_card(
 		$prefix,
 		resume_text( $prefix . '[title]', __( 'Role title · dates', 'signal-and-noise-tools' ), $role['title'] ?? '', 'Role · Jan 2020 - Present', 'title' )
-		. resume_lines( $prefix . '[bullets]', $role['bullets'] ?? array(), __( 'Bullets: one per line', 'signal-and-noise-tools' ), __( 'What you did, one line each', 'signal-and-noise-tools' ), 4 ),
+		. resume_variant( $prefix . '[variant]', $role['variant'] ?? '' )
+		. resume_lines( $prefix . '[bullets]', $role['bullets'] ?? array(), __( 'Bullets: one per line', 'signal-and-noise-tools' ), __( 'What you did, one line each', 'signal-and-noise-tools' ), 4 )
+		. resume_bullet_variants( $prefix, $role ),
 		true
 	);
 }
@@ -160,7 +163,8 @@ function resume_roles_list( $prefix, array $roles, $token ) {
  * @return string
  */
 function resume_employer_card( $prefix, $role_token, array $entry, $with_meta ) {
-	$inner = resume_text( $prefix . '[org]', __( 'Organization', 'signal-and-noise-tools' ), $entry['org'] ?? '', 'ORGANIZATION NAME', 'org' );
+	$inner = resume_text( $prefix . '[org]', __( 'Organization', 'signal-and-noise-tools' ), $entry['org'] ?? '', 'ORGANIZATION NAME', 'org' )
+		. resume_variant( $prefix . '[variant]', $entry['variant'] ?? '' );
 	if ( $with_meta ) {
 		$inner .= resume_pair(
 			resume_text( $prefix . '[dates]', __( 'Dates', 'signal-and-noise-tools' ), $entry['dates'] ?? '', 'Jan 2020 - Present' ),
@@ -175,6 +179,7 @@ function resume_titled_lines_row( $prefix, array $entry ) {
 	return resume_card(
 		$prefix,
 		resume_text( $prefix . '[title]', __( 'Title', 'signal-and-noise-tools' ), $entry['title'] ?? '', __( 'Degree, membership, or certificate', 'signal-and-noise-tools' ), 'title' )
+		. resume_variant( $prefix . '[variant]', $entry['variant'] ?? '' )
 		. resume_lines( $prefix . '[lines]', $entry['lines'] ?? array(), __( 'Detail lines: one per line', 'signal-and-noise-tools' ), 'Institution · Place · Date', 3 )
 		. resume_text( $prefix . '[credential_url]', __( 'Verification URL', 'signal-and-noise-tools' ), $entry['credential_url'] ?? '', 'https://…' ),
 		true
@@ -201,7 +206,8 @@ function resume_publication_row( $prefix, array $pub ) {
 		. resume_pair(
 			resume_text( $prefix . '[meta]', __( 'Venue · date', 'signal-and-noise-tools' ), $pub['meta'] ?? '', 'SSRN Working Paper · April 2026' ),
 			resume_text( $prefix . '[url]', __( 'URL', 'signal-and-noise-tools' ), $pub['url'] ?? '', 'https://ssrn.com/abstract=…' )
-		),
+		)
+		. resume_variant( $prefix . '[variant]', $pub['variant'] ?? '' ),
 		true
 	);
 }
@@ -211,7 +217,8 @@ function resume_skills_row( $prefix, array $row ) {
 	return resume_card(
 		$prefix,
 		resume_text( $prefix . '[category]', __( 'Category', 'signal-and-noise-tools' ), $row['category'] ?? '', __( 'Production', 'signal-and-noise-tools' ), 'category' )
-		. \snt_kit_field( 'textarea', $prefix . '[items]', __( 'Items', 'signal-and-noise-tools' ), (string) ( $row['items'] ?? '' ), array( 'rows' => 2 ) ),
+		. \snt_kit_field( 'textarea', $prefix . '[items]', __( 'Items', 'signal-and-noise-tools' ), (string) ( $row['items'] ?? '' ), array( 'rows' => 2 ) )
+		. resume_variant( $prefix . '[variant]', $row['variant'] ?? '' ),
 		true
 	);
 }
