@@ -55,6 +55,8 @@ foreach ( array(
 	'class "everyone"'         => array( 'class' => 'everyone' ),
 	'sort "random"'            => array( 'sort' => 'random' ),
 	'sort time by country'     => array( 'dimensions' => array( 'country' ), 'sort' => 'time' ),
+	'sort time by referrer'    => array( 'dimensions' => array( 'referrer' ), 'sort' => 'time' ),
+	'sort time by device'      => array( 'dimensions' => array( 'device' ), 'sort' => 'time' ),
 	'limit 0'                  => array( 'limit' => 0 ),
 	'limit 501'                => array( 'limit' => 501 ),
 	'limit "50"'               => array( 'limit' => '50' ),

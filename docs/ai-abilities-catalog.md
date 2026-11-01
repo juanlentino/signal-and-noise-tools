@@ -202,12 +202,12 @@ Added 2026-10-10 because the remote door could answer "how much" and not "where"
 
 | Argument | Values | Default |
 |---|---|---|
-| `dimensions` | one of `path`, `referrer`, `country`, `device`, `day`, or one of the first four with `day` | required |
+| `dimensions` | one of `path`, `referrer`, `country`, `device`, `link_code`, `day`, or one of the first five with `day` (`link_code`: the code of a coded résumé link, `/r/CODE`) | required |
 | `range` | 7, 14, 30, 90, 365, all | 30 |
 | `class` | human, suspect, bot | human |
 | `path` | a site path; only with `path` or `day` | none |
 | `referrer` | a hostname; only with `referrer` or `day`, and no `path` | none |
-| `sort` | views, visits, time (time only with `path` or `day`) | views |
+| `sort` | views, visits, time (time only with `path`, `link_code` or `day`) | views |
 | `limit` | 1 to 500 | 50 |
 
 Out-of-set values are refused at the origin with `ability_invalid_input`, never coerced. The Worker passes arguments through and keeps no copy of the allowed sets. Each row carries its dimension values, `views`, `pageview_visits`, `time_avg_per_view` (milliseconds) and `scroll_avg_per_view`; the envelope carries `rows`, `row_count`, `truncated`, `range`, `class` and `exact_metrics_since`, and never echoes a caller's `path` or `referrer`.
