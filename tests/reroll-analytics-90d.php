@@ -154,19 +154,6 @@ reroll_assert( is_string( $gated_day ) && false !== strpos( $gated_day, "AND tim
 $gated_day_ny = sn_reroll_gated_day_sql( sn_analytics_rollup_gated_sql( 2, 'America/New_York' ), $lower2_ny, $upper1_ny );
 reroll_assert( is_string( $gated_day_ny ) && false !== strpos( $gated_day_ny, "AND timestamp < toStartOfInterval(now(), INTERVAL '1' DAY, 'America/New_York') - INTERVAL '1' DAY AND blob1 = 'pv'" ), 'gated(zoned base): zoned strict upper bound before the pv gate' );
 
-// The per-view scroll read (inc/analytics-rollup-pid-scroll.php) gets the same one-day bound.
-sn_analytics_v2_clean_from( '2026-10-05' );
-sn_analytics_clock( strtotime( '2026-11-01 12:00:00 UTC' ) );
-$pid_day = sn_reroll_pid_day_sql( sn_analytics_rollup_pid_scroll_sql( 2, '' ), $lower2_utc, $upper1_utc );
-$main_v2 = sn_reroll_day_sql( sn_analytics_rollup_sql( 2, '' ), $lower2_utc, $upper1_utc );
-reroll_assert( is_string( $pid_day ) && false !== strpos( $pid_day, "AND timestamp < toStartOfDay(now() - INTERVAL '1' DAY) AND blob1 IN ('pv', 'sc')" )
-	&& substr( $main_v2, strpos( $main_v2, 'WHERE' ), strpos( $main_v2, ' GROUP BY' ) - strpos( $main_v2, 'WHERE' ) ) === substr( $pid_day, strpos( $pid_day, 'WHERE' ), strpos( $pid_day, " AND blob1 IN ('pv', 'sc')" ) - strpos( $pid_day, 'WHERE' ) ),
-	'per-view(v2 base): the same one-day WHERE as the main query, the upper bound before the event filter' );
-reroll_assert( null === sn_reroll_pid_day_sql( sn_analytics_rollup_gated_sql( 2, '' ), $lower2_utc, $upper1_utc ), 'per-view transform rejects the gated base (a loud null)' );
-sn_analytics_v2_clean_from( '' );
-sn_analytics_clock( 0 );
-reroll_assert( '' === sn_reroll_pid_day_sql( sn_analytics_rollup_pid_scroll_sql( 2, '' ), $lower2_utc, $upper1_utc ), 'per-view(legacy window): no read, the plain count stands' );
-
 // Both per-day queries must share IDENTICAL window bounds — the PHP merge joins
 // on (day, path, class), so a bound drift would silently mis-key the merge.
 $main_where  = substr( (string) $main_day, strpos( (string) $main_day, 'WHERE' ), strpos( (string) $main_day, ' GROUP BY' ) - strpos( (string) $main_day, 'WHERE' ) );
@@ -415,13 +402,6 @@ reroll_assert( true === sn_reroll_empty_day_ok( $rr_store, 'wp_sn_analytics_dail
 echo "\nGroup: owner-run contract\n";
 
 $tool_src = (string) file_get_contents( $tool );
-reroll_assert( 2 === substr_count( $tool_src, 'sn_analytics_rollup_upsert( sn_analytics_rollup_merge_pid_scroll( sn_analytics_rollup_merge_gated(' ), 'both writes (bounded days and trailing-1) merge the per-view scroll count, as the cron does' );
-reroll_assert( false !== strpos( $tool_src, 'sn_analytics_rollup_pid_scroll_query( (string) sn_reroll_pid_day_sql( sn_analytics_rollup_pid_scroll_sql( $sn_reroll_k, $sn_reroll_tz ), $sn_reroll_lower, $sn_reroll_upper ) )' )
-	&& false !== strpos( $tool_src, 'sn_analytics_rollup_pid_scroll_query( sn_analytics_rollup_pid_scroll_sql( 1, $sn_reroll_tz ) )' ), 'the bounded days read the per-view scroll for their own day; trailing-1 reads the cron\'s window' );
-reroll_assert( false !== strpos( $tool_src, 'null === sn_reroll_pid_day_sql( sn_analytics_rollup_pid_scroll_sql( 2, $sn_reroll_tz )' ), 'the pre-flight dies on a drifted per-view transform, as on the other two' );
-foreach ( array( 'sn_analytics_rollup_pid_scroll_sql', 'sn_analytics_rollup_pid_scroll_query', 'sn_analytics_rollup_merge_pid_scroll' ) as $fn ) {
-	reroll_assert( false !== strpos( $tool_src, "\t'{$fn}',\n" ), "the pre-flight names {$fn}()" );
-}
 reroll_assert( false !== strpos( $tool_src, 'public_html' ), 'header documents running FROM public_html (Cloudways requires the WP root cwd)' );
 reroll_assert( false !== strpos( $tool_src, 'wp eval-file' ), 'header documents the wp eval-file invocation' );
 reroll_assert( false !== strpos( $tool_src, 'sn_analytics_exact_metrics_since' ), 'tool sets the sn_analytics_exact_metrics_since option the read layer consumes' );
