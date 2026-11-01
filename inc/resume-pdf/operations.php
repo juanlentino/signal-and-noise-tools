@@ -3,11 +3,12 @@
  * Signal & Noise Tools: the operations résumé PDF (inc/resume-variants.php).
  *
  * Built by the same Generate press as the music PDF (it follows the
- * sn_resume_pdf_generated action, as the Spanish CV does), written beside it
- * under a stable name, and never linked from any page, sitemap, llms file or
- * format list. The file is static, so WordPress cannot set its headers: the
- * noindex comes from a Cloudflare response header rule on its path, and every
- * generation reads the header back and flags it when it is missing.
+ * sn_resume_pdf_generated action, as the Spanish CV does) and never linked
+ * from any page, sitemap, llms file or format list. It is not a file in
+ * uploads: a static file's headers are the web server's, and the owner did not
+ * want to spend a Cloudflare rule on one (2026-11-01). The bytes are kept in an
+ * option and served by WordPress at /resume/<file name> with X-Robots-Tag:
+ * noindex, nofollow; every generation reads that header back.
  *
  * @package SignalNoiseTools
  */
@@ -17,6 +18,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_RESUME_OPS_PDF_OPTION = 'sn_resume_pdf_operations';
+const SN_RESUME_OPS_PDF_BYTES  = 'sn_resume_pdf_operations_bytes'; // base64: a binary string in a utf8mb4 column could be mangled.
+
+/**
+ * The operations PDF's stable address: /resume/<file name>.
+ *
+ * @param string $file
+ * @return string
+ */
+function sn_resume_ops_pdf_url( $file ) {
+	return home_url( '/resume/' . $file );
+}
 
 /**
  * Whether a URL answers with X-Robots-Tag noindex. Null when it could not be read.
@@ -44,7 +56,7 @@ function sn_resume_pdf_noindex( $url ) {
 function sn_resume_ops_pdf_generate() {
 	$raw    = function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null;
 	$config = sn_resume_variant_config( $raw, 'operations' );
-	$loc    = sn_resume_pdf_location();
+	$loc    = sn_resume_pdf_location(); // for Dompdf's font cache only; the PDF itself is not written there.
 	if ( null === $config ) {
 		return null;
 	}
@@ -60,11 +72,8 @@ function sn_resume_ops_pdf_generate() {
 	if ( 0 !== strpos( (string) $result['bytes'], '%PDF-' ) ) {
 		return new WP_Error( 'sn_resume_pdf_invalid', 'The renderer did not return a PDF.' );
 	}
-	$final = $loc['dir'] . '/' . $config['pdf_file'];
-	if ( false === file_put_contents( $final . '.tmp', $result['bytes'] ) || ! rename( $final . '.tmp', $final ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic write inside uploads.
-		return new WP_Error( 'sn_resume_pdf_write', 'Could not write the operations PDF.' );
-	}
-	$url = $loc['url'] . '/' . $config['pdf_file'];
+	update_option( SN_RESUME_OPS_PDF_BYTES, base64_encode( $result['bytes'] ), false );
+	$url = sn_resume_ops_pdf_url( $config['pdf_file'] );
 	if ( function_exists( 'sn_cf_purge_urls' ) ) {
 		sn_cf_purge_urls( array( $url ) );
 	}
@@ -85,6 +94,32 @@ function sn_resume_ops_pdf_generate() {
 	return $meta;
 }
 add_action( 'sn_resume_pdf_generated', 'sn_resume_ops_pdf_generate', 20 );
+
+/**
+ * Serve the operations PDF at /resume/<file name>, noindex. Anything else
+ * passes through untouched.
+ */
+function sn_resume_ops_pdf_maybe_serve() {
+	$path   = (string) wp_parse_url( isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '', PHP_URL_PATH ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- compared to one fixed path, never echoed.
+	$config = sn_resume_variant_config( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null, 'operations' );
+	if ( null === $config || '/resume/' . $config['pdf_file'] !== $path ) {
+		return;
+	}
+	$bytes = base64_decode( (string) get_option( SN_RESUME_OPS_PDF_BYTES, '' ), true );
+	if ( false === $bytes || 0 !== strpos( $bytes, '%PDF-' ) ) {
+		return; // not generated yet: the ordinary 404.
+	}
+	status_header( 200 );
+	header( 'Content-Type: application/pdf' );
+	header( 'Content-Disposition: inline; filename="' . $config['pdf_file'] . '"' );
+	header( 'Content-Length: ' . strlen( $bytes ) );
+	header( 'X-Robots-Tag: noindex, nofollow' );
+	header( 'X-Content-Type-Options: nosniff' );
+	header( 'Cache-Control: public, max-age=300' ); // Generate purges this URL.
+	echo $bytes; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- PDF bytes.
+	exit;
+}
+add_action( 'template_redirect', 'sn_resume_ops_pdf_maybe_serve', 0 );
 
 /**
  * One line for the admin: the check's result for a generated PDF.

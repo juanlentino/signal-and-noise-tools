@@ -48,9 +48,10 @@ every reader already knew, and the editor reads the stored document through `sn_
   skills rows and two affiliations, and "music only" on what it leaves out. It finds rows by the
   start of their text, never rewords them, lists anything it cannot find (those stay in both), and
   running it twice changes nothing more.
-- **Generate PDF** builds both: the music file as before, then
-  `uploads/resume/JuanLentino_Resume_Operations.pdf` (the `sn_resume_pdf_operations` option holds its
-  facts). The music PDF's HTML is identical to what it was (pinned by `tests/resume-variants.php`).
+- **Generate PDF** builds both: the music file as before, then the operations PDF, served at
+  `/resume/JuanLentino_Resume_Operations.pdf` (the `sn_resume_pdf_operations` option holds its facts,
+  `sn_resume_pdf_operations_bytes` the file). The music PDF's HTML is identical to what it was
+  (pinned by `tests/resume-variants.php`).
 
 **The check on every generation** (`inc/resume-pdf/text-check.php`). Each PDF's text is read back by
 a built-in reader for Dompdf's CPDF output (inflate the streams, read each font's ToUnicode map,
@@ -59,11 +60,12 @@ and the PDF box flags control characters (U+0000 to U+001F but tab, newline and 
 code points (U+FB00 to U+FB06), a phone number in the text or the metadata, an operations PDF over
 two pages, and an operations file without `X-Robots-Tag: noindex`.
 
-**The operations file's noindex.** The file is static, served by the web server and Cloudflare, so
-WordPress cannot set its headers. One Cloudflare rule does: Rules → Transform Rules → **Modify
-Response Header**, when `http.request.uri.path eq "/wp-content/uploads/resume/JuanLentino_Resume_Operations.pdf"`,
-**Set static** `X-Robots-Tag` = `noindex, nofollow`. Every generation reads the header back and flags
-it while it is missing. The file is in no sitemap, llms file or format list, and no page links it.
+**The operations file's noindex.** A static file's headers belong to the web server, and the owner
+did not want to spend a Cloudflare rule on one (2026-11-01), so the operations PDF is not a file in
+uploads. Its bytes live in an option, and WordPress serves them at `/resume/<file name>` with
+`X-Robots-Tag: noindex, nofollow` (`sn_resume_ops_pdf_maybe_serve()`); before the first generation
+that address is the ordinary 404. Every generation reads the header back and flags it if missing.
+The address is in no sitemap, llms file or format list, and no page links it.
 
 ## The phone
 
