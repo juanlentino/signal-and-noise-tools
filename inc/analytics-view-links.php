@@ -63,7 +63,7 @@ function snt_analytics_render_view_links( $from, $to ) {
 			array(
 				'empty'        => __( 'No coded link was opened in this range. Send /r/CODE, for example /r/hera, and it shows here once opened.', 'signal-and-noise-tools' ),
 				'data_colname' => true,
-				'footer'       => '<p class="sn-an-note">' . esc_html__( 'Human, Suspect and Bot count visitor-days, from the daily rollup (today\'s may lag an hour).', 'signal-and-noise-tools' ) . '</p>',
+				'footer'       => '<p class="sn-an-note">' . esc_html__( 'Human, Suspect and Bot count visitor-days, from the daily rollup (today\'s may lag an hour): an estimate, since a visitor-day that opened both /r/x and /r/x/ counts twice.', 'signal-and-noise-tools' ) . '</p>',
 			)
 		);
 	}
