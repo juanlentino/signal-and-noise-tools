@@ -36,7 +36,7 @@ ok( false !== strpos( $html, '<strong>hera</strong>' ) && false !== strpos( $htm
 ok( false !== strpos( $html, '>New York, US<' ) && false !== strpos( $html, 'data-colname="Place">US<' ), 'place: city and country, or the country alone' );
 ok( false !== strpos( $html, '>likely automated<' ), 'a scanner-like visitor-day says so in its class' );
 ok( false !== strpos( $html, '/about, /notes/a, /notes/b, /notes/c, /notes/d +2 more' ), 'the rest of the visitor-day: five named, the rest counted' );
-ok( false !== strpos( $html, 'data-colname="Code"' ), 'phone cards: every cell carries its column name' );
+ok( false !== strpos( $html, 'data-colname="First seen"' ) && false !== strpos( $html, 'data-colname="Also read"' ), 'phone cards: every cell of both tables carries its column name' );
 ok( false === strpos( $html, 'class="notice' ) && false === strpos( $html, 'sn-fieldset' ), 'no light-surface classes the dark window never maps' );
 ok( false === strpos( $html, "\u{2014}" ), 'no em dash' );
 

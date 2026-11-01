@@ -74,6 +74,8 @@ ok( array( '/notes/a-note', '/about' ) === $hera['also'], 'the rest of that visi
 ok( 'likely automated' === $scan['class'], 'a human-class visitor-day whose bot signals reach the threshold reads as likely automated, not a person (an email scanner)' );
 ok( 'suspect' === $v[0]['class'] && array() === $v[0]['also'], 'a stored suspect stays suspect; no signals sent is not a verdict' );
 ok( array() === sn_link_codes_visits( array(), array() ), 'nothing opened: an empty list' );
+$old = sn_link_codes_visits( array( array( 'vid' => 'eeeeeeeeeeeeeeee', 'day' => '2026-10-01', 'path' => '/r/old', 'class' => 'human', 'webdriver' => 1, 'headless' => 8, 'present' => 0, 'views' => 1 ) ), array() );
+ok( 'human' === $old[0]['class'], 'without the presence bit the signals were never sent: no verdict from them' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
