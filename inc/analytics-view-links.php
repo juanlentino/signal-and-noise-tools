@@ -42,6 +42,21 @@ function snt_analytics_links_also( array $also ) {
 }
 
 /**
+ * Column specs: text left, counts right (the string-list mode right-aligns
+ * every column after the first, which strands Place and Also read).
+ *
+ * @param array<string,string> $cols Translated label => cell class ('num' or '').
+ * @return array<int,array{label:string,class:string}>
+ */
+function snt_analytics_links_cols( array $cols ) {
+	$out = array();
+	foreach ( $cols as $label => $class ) {
+		$out[] = array( 'label' => (string) $label, 'class' => $class );
+	}
+	return $out;
+}
+
+/**
  * Render the Links view body (inside .sn-an-view; tabs are the dispatcher's).
  *
  * @param string $from Window start (Y-m-d).
@@ -59,7 +74,7 @@ function snt_analytics_render_view_links( $from, $to ) {
 		snt_an_kv_table(
 			__( 'Links', 'signal-and-noise-tools' ),
 			array_map( static fn( $c ) => array( $c['code'], $c['first_seen'], $c['last_seen'], number_format_i18n( $c['views'] ), number_format_i18n( $c['human'] ), number_format_i18n( $c['suspect'] ), number_format_i18n( $c['bot'] ) ), $codes ),
-			array( __( 'Code', 'signal-and-noise-tools' ), __( 'First seen', 'signal-and-noise-tools' ), __( 'Last seen', 'signal-and-noise-tools' ), __( 'Views', 'signal-and-noise-tools' ), __( 'Human', 'signal-and-noise-tools' ), __( 'Suspect', 'signal-and-noise-tools' ), __( 'Bot', 'signal-and-noise-tools' ) ),
+			snt_analytics_links_cols( array( __( 'Code', 'signal-and-noise-tools' ) => '', __( 'First seen', 'signal-and-noise-tools' ) => '', __( 'Last seen', 'signal-and-noise-tools' ) => '', __( 'Views', 'signal-and-noise-tools' ) => 'num', __( 'Human', 'signal-and-noise-tools' ) => 'num', __( 'Suspect', 'signal-and-noise-tools' ) => 'num', __( 'Bot', 'signal-and-noise-tools' ) => 'num' ) ),
 			array(
 				'empty'        => __( 'No coded link was opened in this range. Send /r/CODE, for example /r/hera, and it shows here once opened.', 'signal-and-noise-tools' ),
 				'data_colname' => true,
@@ -76,7 +91,7 @@ function snt_analytics_render_view_links( $from, $to ) {
 		snt_an_kv_table(
 			$title,
 			array_map( static fn( $v ) => array( $v['code'], $v['day'], snt_analytics_links_place( $v ), $v['device'], $v['class'], number_format_i18n( $v['views'] ), snt_analytics_links_also( $v['also'] ) ), $visits ),
-			array( __( 'Code', 'signal-and-noise-tools' ), __( 'Day', 'signal-and-noise-tools' ), __( 'Place', 'signal-and-noise-tools' ), __( 'Device', 'signal-and-noise-tools' ), __( 'Class', 'signal-and-noise-tools' ), __( 'Views', 'signal-and-noise-tools' ), __( 'Also read', 'signal-and-noise-tools' ) ),
+			snt_analytics_links_cols( array( __( 'Code', 'signal-and-noise-tools' ) => '', __( 'Day', 'signal-and-noise-tools' ) => '', __( 'Place', 'signal-and-noise-tools' ) => '', __( 'Device', 'signal-and-noise-tools' ) => '', __( 'Class', 'signal-and-noise-tools' ) => '', __( 'Views', 'signal-and-noise-tools' ) => 'num', __( 'Also read', 'signal-and-noise-tools' ) => '' ) ),
 			array(
 				'empty'        => __( 'No coded link was opened in the last 90 days.', 'signal-and-noise-tools' ),
 				'data_colname' => true,
