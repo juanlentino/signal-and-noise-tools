@@ -132,11 +132,8 @@ function sn_analytics_pageviews_run_rollup() {
 		// absent (SQL NULL — "never measured"), never a fabricated 0; the main
 		// rows still write, so a flaky second query degrades, not corrupts.
 		$gated = sn_analytics_rollup_gated_query( sn_analytics_rollup_gated_sql( $days, $used_tz, $fold ) );
-		// Third query: scroll per view by pageview ID (inc/analytics-rollup-pid-scroll.php),
-		// same zone and fold; null keeps the plain event count.
-		$pid   = sn_analytics_rollup_pid_scroll_query( sn_analytics_rollup_pid_scroll_sql( $days, $used_tz, $fold ) );
-		$write = static function () use ( $rows, $gated, $pid ) {
-			sn_analytics_rollup_upsert( sn_analytics_rollup_merge_pid_scroll( sn_analytics_rollup_merge_gated( $rows, $gated ), $pid ) );
+		$write = static function () use ( $rows, $gated ) {
+			sn_analytics_rollup_upsert( sn_analytics_rollup_merge_gated( $rows, $gated ) );
 		};
 		function_exists( 'sn_analytics_rollup_replace' ) ? sn_analytics_rollup_replace( $complete, SN_ANALYTICS_DAILY_TABLE, $used_tz, $write ) : $write();
 	}

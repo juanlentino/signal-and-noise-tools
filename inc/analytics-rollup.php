@@ -130,6 +130,5 @@ const SN_ANALYTICS_INTEGRITY_ALERT_OPT = 'sn_analytics_integrity_alert';
 // loaded in the order it always ran so every hook registration keeps its place.
 require_once __DIR__ . '/analytics-rollup-schema-parts.php';
 require_once __DIR__ . '/analytics-rollup-gated-parts.php';
-require_once __DIR__ . '/analytics-rollup-pid-scroll.php';
 require_once __DIR__ . '/analytics-rollup-upsert-parts.php';
 require_once __DIR__ . '/analytics-rollup-run-parts.php';
