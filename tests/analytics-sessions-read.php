@@ -167,6 +167,11 @@ ok( snt_analytics_session_list_rows( $read['sessions'] ) === $GLOBALS['table']['
 ok( false !== strpos( $GLOBALS['table']['rows'][1][1], '/notes/x → /about' ) && count( $GLOBALS['table']['cols'] ) === count( $GLOBALS['table']['rows'][0] ), 'each row shows its pages in order, one cell per column' );
 ok( 10 === $GLOBALS['table']['opts']['clamp'], 'a long list shows ten rows and View all, like the other report tables' );
 ok( 0 === strpos( $GLOBALS['table']['opts']['header_meta'], '2 sessions that began in the window' ) && false === strpos( $GLOBALS['table']['opts']['header_meta'], 'the newest' ), 'the note says "the newest N" only when the page holds fewer than all' );
+$keep = $GLOBALS['ae'];
+$GLOBALS['ae'] = array_map( static fn( $i ) => $ev( 'n' . $i, time() - 60 + $i, 'pv', '/about/' ), range( 0, 50 ) );
+snt_analytics_render_session_list( $today, $today, 'human' );
+ok( 0 === strpos( $GLOBALS['table']['opts']['header_meta'], '51 sessions that began in the window' ) && false !== strpos( $GLOBALS['table']['opts']['header_meta'], ' · the newest 50' ), 'a window with more sessions than a page says "the newest 50"' );
+$GLOBALS['ae'] = $keep;
 snt_analytics_render_session_list( '2020-01-01', $today, 'human' );
 ok( false !== strpos( $GLOBALS['table']['opts']['header_meta'], 'the first day Analytics Engine holds' ), 'an older window starts at the first day Analytics Engine holds, and says so' );
 
