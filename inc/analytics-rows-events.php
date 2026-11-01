@@ -172,9 +172,10 @@ function snt_arows_events_fetch( array $q, $from, $to ) {
 	}
 	// A view's time and scroll beacons share its row only by page and day, as the stored
 	// rollup keeps them: the next hour, or another city when geolocation moves between a
-	// reader's requests, takes them (475% scroll per view was read live). Elsewhere they are
-	// null, and a row of beacons only (no view) is dropped.
-	$own  = ! array_diff( $q['dims'], array( 'path', 'link_code', 'day' ) );
+	// reader's requests, takes them (475% scroll per view was read live), and a beacon
+	// carries no referrer, so a referrer filter puts them all under (direct). Elsewhere
+	// they are null, and a row of beacons only (no view) is dropped.
+	$own  = ! array_diff( $q['dims'], array( 'path', 'link_code', 'day' ) ) && null === $q['referrer'];
 	$rows = array();
 	foreach ( $by as $m ) {
 		if ( $m['views'] > 0 ) {

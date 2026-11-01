@@ -94,9 +94,10 @@ function snt_arows_validate( $input, $allow_unmatched = false ) {
 	if ( 'sessions' === $sort && ! $sessions ) {
 		return $bad( 'sort sessions needs the sessions source (a session dimension, or source sessions).' );
 	}
-	// Time is measured per page: it means something when the rows are pages.
-	if ( ! in_array( $sort, SNT_AROWS_SORTS, true ) || ( 'time' === $sort && ! array_intersect( $dims, array( 'path', 'link_code' ) ) && array( 'day' ) !== $dims ) ) {
-		return $bad( 'sort must be views, visits, time or sessions; time only when path or link_code is a dimension, or day alone (time is measured per page).' );
+	// Time is kept by page and day (snt_arows_events_fetch()): elsewhere every row's time is null.
+	$timed = ( array_intersect( $dims, array( 'path', 'link_code' ) ) || array( 'day' ) === $dims ) && ! array_diff( $dims, array( 'path', 'link_code', 'day' ) ) && ! isset( $in['referrer'] );
+	if ( ! in_array( $sort, SNT_AROWS_SORTS, true ) || ( 'time' === $sort && ! $timed ) ) {
+		return $bad( 'sort must be views, visits, time or sessions; time only when the dimensions are path or link_code (with or without day), or day alone, with no referrer filter (time is kept by page and day).' );
 	}
 	$limit = $in['limit'] ?? 50;
 	if ( ! is_int( $limit ) || $limit < 1 || $limit > 500 ) {
