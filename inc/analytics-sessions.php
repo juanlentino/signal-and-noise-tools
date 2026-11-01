@@ -22,6 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
 
+require_once __DIR__ . '/analytics-referrer-kind.php'; // the ONE referrer-kind rule: an internal click's ref reads (internal).
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 const SN_ANALYTICS_SESSION_GAP_SEC     = 1800;  // >30 min idle starts a new visit.

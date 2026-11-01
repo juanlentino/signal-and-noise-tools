@@ -33,19 +33,23 @@ function snt_analytics_fields() {
 		'dimensions'    => array(
 			$dim( 'path', 'The page read. Only the site\'s own content is named; anything else a visitor asked for is (unmatched).', 'site path', array( 'stored', 'events' ) ),
 			$dim( 'referrer', 'Where the visit came from: a hostname, or (direct), (internal), (unknown); anything that is not a clean hostname is (invalid).', 'hostname', array( 'stored', 'events' ) ),
-			$dim( 'country', 'The visitor\'s country, from Cloudflare: (unknown) when none was sent; Cloudflare itself reports XX when it cannot tell and T1 for Tor.', 'ISO 3166-1 alpha-2 code, or (unknown)', array( 'stored', 'events' ) ),
-			$dim( 'region', 'The visitor\'s region, as the network names it; (unknown) when it gave none.', 'place name', array( 'stored', 'events' ) ),
-			$dim( 'city', 'The visitor\'s city, as the network names it; (unknown) when it gave none.', 'place name', array( 'stored', 'events' ) ),
-			$dim( 'device', 'The kind of device, from the browser\'s description: mobile covers phones and tablets (iPad and iPod included); (unknown) when the browser sent none.', 'mobile | desktop | (unknown)', array( 'stored', 'events' ) ),
+			$dim( 'country', 'The visitor\'s country, from Cloudflare: (unknown) when none was sent; Cloudflare itself reports XX when it cannot tell and T1 for Tor.', 'ISO 3166-1 alpha-2 code, or (unknown)', array( 'stored', 'events', 'sessions' ) ),
+			$dim( 'region', 'The visitor\'s region, as the network names it; (unknown) when it gave none.', 'place name', array( 'stored', 'events', 'sessions' ) ),
+			$dim( 'city', 'The visitor\'s city, as the network names it; (unknown) when it gave none.', 'place name', array( 'stored', 'events', 'sessions' ) ),
+			$dim( 'device', 'The kind of device, from the browser\'s description: mobile covers phones and tablets (iPad and iPod included); (unknown) when the browser sent none.', 'mobile | desktop | (unknown)', array( 'stored', 'events', 'sessions' ) ),
 			$dim( 'link_code', 'The code of a coded résumé link (/r/CODE returns CODE), read out of the stored path; a malformed one is (invalid).', 'code', array( 'stored', 'events' ) ),
-			$dim( 'day', 'The day, in the site\'s time zone.', 'YYYY-MM-DD', array( 'stored', 'events' ) ),
-			$dim( 'hour', 'The hour of the day, in the site\'s time zone.', '00 to 23', array( 'events' ) ),
+			$dim( 'day', 'The day, in the site\'s time zone.', 'YYYY-MM-DD', array( 'stored', 'events', 'sessions' ) ),
+			$dim( 'hour', 'The hour of the day, in the site\'s time zone.', '00 to 23', array( 'events', 'sessions' ) ),
+			$dim( 'entry', 'A session\'s first page: the site\'s own content or (unmatched), as path.', 'site path', array( 'sessions' ) ),
+			$dim( 'exit', 'A session\'s last page, as entry.', 'site path', array( 'sessions' ) ),
+			$dim( 'returning', 'returning: a second or later session of the same visitor-day; new: the first. No visitor is recognized on another day.', 'new | returning', array( 'sessions' ) ),
 		),
 		'metrics'       => array(
-			$met( 'views', 'Page views, corrected for sampling.', 'page views', array( 'stored', 'events' ) ),
-			$met( 'pageview_visits', 'Visitor-days that viewed: one visitor on one day, an estimate and not a session count.', 'visitor-days', array( 'stored', 'events' ) ),
-			$met( 'time_avg_per_view', 'Visible time on the page per view. The stored rollups keep it per page only: null on their referrer, country, device, region and city rows, and on a stored group that holds a day before the rows answer\'s exact_metrics_since.', 'milliseconds', array( 'stored', 'events' ) ),
-			$met( 'scroll_avg_per_view', 'How far down the page readers got per view: the mean of each view\'s deepest milestone. The stored rollups keep it per page only, as time (the same nulls).', 'percent, 0 to 100', array( 'stored', 'events' ) ),
+			$met( 'views', 'Page views: corrected for sampling from stored and events; counted as read from sessions, as the Sessions tab counts them.', 'page views', array( 'stored', 'events', 'sessions' ) ),
+			$met( 'pageview_visits', 'Visitor-days that viewed: one visitor on one day, an estimate and not a session count.', 'visitor-days', array( 'stored', 'events', 'sessions' ) ),
+			$met( 'time_avg_per_view', 'Visible time on the page per view. The stored rollups keep it per page only: null on their referrer, country, device, region and city rows, and on a stored group that holds a day before the rows answer\'s exact_metrics_since.', 'milliseconds', array( 'stored', 'events', 'sessions' ) ),
+			$met( 'scroll_avg_per_view', 'How far down the page readers got per view: the mean of each view\'s deepest milestone. The stored rollups keep it per page only, as time (the same nulls).', 'percent, 0 to 100', array( 'stored', 'events', 'sessions' ) ),
+			$met( 'sessions', 'Sessions: within-day visits split at the idle gap, with a page view. Counted from source sessions only; null from the others.', 'sessions', array( 'sessions' ) ),
 		),
 		'classes'       => array(
 			array( 'name' => 'human', 'meaning' => 'Presumed human: not flagged by the user agent, the network, the bot score or the over-cap rule. An inferred class.' ),
@@ -54,15 +58,17 @@ function snt_analytics_fields() {
 		),
 		'windows'       => array(
 			'ranges' => array_merge( array_map( 'strval', SN_ANALYTICS_RANGES ), array( 'all' ) ), // the list snt_analytics_range_is_valid() reads.
-			'custom' => 'from and to, YYYY-MM-DD in the site\'s time zone, instead of a range: back to the first stored day for what the stored rollups hold, the last 90 days for what is read from Analytics Engine.',
+			'custom' => 'from and to, YYYY-MM-DD in the site\'s time zone, instead of a range: back to the first stored day for what the stored rollups hold, the last 90 days for what is read from Analytics Engine or the sessions engine.',
 			'note'   => 'A range ends today, in the site\'s time zone; "all" starts at the first stored day.',
 		),
 		'sources'       => array(
 			array( 'name' => 'stored', 'meaning' => 'The daily rollups, one row per day and value: path, link_code or day, or one of referrer, country, device, region and city.', 'retention' => 'kept forever, from the first stored day', 'grain' => 'day' ),
 			array( 'name' => 'events', 'meaning' => 'Analytics Engine, every field of each page view together: any combination of up to four dimensions, and the hour.', 'retention' => 'about 90 days', 'grain' => 'event; sampled on busy days, counts corrected' ),
+			array( 'name' => 'sessions', 'meaning' => 'The sessions engine over Analytics Engine (the Sessions tab\'s unit): entry, exit and returning, with country, region, city, device, day or hour taken from the session\'s start and first page view. No path or referrer filter.', 'retention' => 'about 90 days', 'grain' => 'session' ),
 		),
 		'reads'         => array(
-			array( 'name' => 'analytics_rows', 'local' => 'sn-metrics section analytics_rows', 'remote' => 'sn_remote_analytics_query', 'arguments' => 'dimensions (one to four), range or from and to, source (auto | stored | events), class, path, referrer, sort (views | visits | time), limit (1 to 500)' ),
+			array( 'name' => 'analytics_rows', 'local' => 'sn-metrics section analytics_rows', 'remote' => 'sn_remote_analytics_query', 'arguments' => 'dimensions (one to four), range or from and to, source (auto | stored | events | sessions), class, path, referrer, sort (views | visits | time | sessions), limit (1 to 500)' ),
+			array( 'name' => 'analytics_sessions', 'local' => 'sn-metrics section analytics_sessions', 'remote' => 'sn_remote_analytics_sessions', 'arguments' => 'from and to (site days, default today) or hours (1 to 72), class, page, per_page (1 to 200)' ),
 			array( 'name' => 'analytics_fields', 'local' => 'sn-metrics section analytics_fields', 'remote' => 'sn_remote_analytics_fields', 'arguments' => 'none' ),
 		),
 		'not_available' => array(

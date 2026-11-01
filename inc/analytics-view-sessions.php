@@ -17,6 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/analytics-panels.php';
+require_once __DIR__ . '/analytics-view-sessions-list.php';
 
 /**
  * Render the visit-quality summary + transitions + funnels panels.
@@ -223,4 +224,9 @@ function snt_analytics_render_view_sessions( $from, $to, $class ) {
 		? sn_session_rollup_read( $from, $to, $class )
 		: false;
 	snt_analytics_render_summary_panels( $metrics, $paths, $funnels, ! empty( $data['capped'] ), $attribution, $trend_rows );
+	// 2026-10-31 (owner): the sessions one by one, the rows both MCP doors read.
+	if ( function_exists( 'snt_ability_analytics_sessions' ) ) {
+		snt_analytics_render_session_list( $from, $to, $class );
+		snt_an_flush_empty_fold();
+	}
 }

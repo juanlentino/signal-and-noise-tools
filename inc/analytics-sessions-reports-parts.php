@@ -159,9 +159,10 @@ function sn_goal_attribution( array $summaries, $goal_value, $prefix = true, $li
  * @param int    $cap   Row cap (LIMIT).
  * @param string $source One half of a stitched read; '' picks the dataset.
  * @param string $range  That half's side of the split (sn_analytics_split_range_ok()).
+ * @param array|null $bounds Exact UTC instants [inclusive, exclusive) in place of the UTC days (the sessions read's site-day windows, inc/analytics-sessions-list.php).
  * @return string SQL, or '' when inputs are invalid.
  */
-function sn_analytics_session_sql( $from, $to, $class, $cap, $source = '', $range = '' ) {
+function sn_analytics_session_sql( $from, $to, $class, $cap, $source = '', $range = '', $bounds = null ) {
 	if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from )
 		|| 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ) {
 		return '';
@@ -173,19 +174,24 @@ function sn_analytics_session_sql( $from, $to, $class, $cap, $source = '', $rang
 	$cap     = max( 1, (int) $cap );
 	$dataset = '' !== (string) $source ? (string) $source : sn_analytics_source( (string) $from );
 	$range   = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
+	$ts      = "/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$/";
+	$window  = is_array( $bounds ) && 2 === count( $bounds ) && preg_match( $ts, (string) $bounds[0] ) && preg_match( $ts, (string) $bounds[1] )
+		? "timestamp >= toDateTime('{$bounds[0]}') AND timestamp < toDateTime('{$bounds[1]}')"
+		: "timestamp >= toDateTime('{$from} 00:00:00') AND timestamp <= toDateTime('{$to} 23:59:59')";
 
 	return implode(
 		' ',
 		array(
 			'SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts,',
 			// The custom event's name: blob16 in the legacy row, blob17 on a `ce` row of the second generation.
-			'blob1 AS ev, blob2 AS path, blob3 AS ref, ' . sn_analytics_col( 'blob16', $dataset ) . ' AS ce,',
-			'double1 AS scroll, double2 AS dwell, blob5 AS device',
+			'blob1 AS ev, blob2 AS path, ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS ref, ' . sn_analytics_col( 'blob16', $dataset ) . ' AS ce,',
+			// Place and device ride on every row; the sessions read (inc/analytics-sessions-list.php) shows them per session.
+			'double1 AS scroll, double2 AS dwell, blob5 AS device, blob4 AS country, blob10 AS region, blob11 AS city',
 			'FROM ' . $dataset,
 			// AE's SQL types are strict: the DateTime `timestamp` column cannot be
 			// compared to a String literal (>= 422s), so wrap the validated bounds
 			// in toDateTime(). $from/$to are regex-checked Y-m-d above.
-			"WHERE timestamp >= toDateTime('{$from} 00:00:00') AND timestamp <= toDateTime('{$to} 23:59:59'){$range}",
+			"WHERE {$window}{$range}",
 			'AND ' . sn_analytics_class_where( $class ),
 			"AND blob1 IN ('pv','sc','tm','ce')",
 			// No ORDER BY: AE resolves ORDER BY against SELECT aliases (not raw

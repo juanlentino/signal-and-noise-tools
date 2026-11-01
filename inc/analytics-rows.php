@@ -30,12 +30,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SNT_AROWS_DIMENSIONS = array( 'path', 'referrer', 'country', 'region', 'city', 'device', 'link_code', 'day', 'hour' ); // link_code: a coded résumé link's code, read out of the stored path (inc/link-codes.php).
+const SNT_AROWS_DIMENSIONS = array( 'path', 'referrer', 'country', 'region', 'city', 'device', 'link_code', 'day', 'hour', 'entry', 'exit', 'returning' ); // link_code: a coded résumé link's code, read out of the stored path (inc/link-codes.php).
+const SNT_AROWS_SESSION_DIMS = array( 'entry', 'exit', 'returning' ); // a session's, from the sessions engine (inc/analytics-rows-sessions.php).
+const SNT_AROWS_SESSION_WITH = array( 'entry', 'exit', 'returning', 'country', 'region', 'city', 'device', 'day', 'hour' ); // what a session can be grouped by.
 const SNT_AROWS_STORED_PAGE = array( 'path', 'link_code', 'day' );                       // the daily table holds these.
 const SNT_AROWS_STORED_DIMS = array( 'referrer', 'country', 'device', 'region', 'city' ); // the dims table, one per row and day.
 const SNT_AROWS_MAX_DIMS   = 4; // 2026-11-01: up to four at once (owner brief "MCP full analytics access").
-const SNT_AROWS_SOURCES    = array( 'auto', 'stored', 'events' ); // auto: the stored rollups when they hold the combination, else Analytics Engine.
-const SNT_AROWS_SORTS      = array( 'views', 'visits', 'time' );
+const SNT_AROWS_SOURCES    = array( 'auto', 'stored', 'events', 'sessions' ); // auto: the stored rollups when they hold the combination, the sessions engine for a session dimension, else Analytics Engine.
+const SNT_AROWS_SORTS      = array( 'views', 'visits', 'time', 'sessions' );
 const SNT_AROWS_SENTINELS  = array( '(direct)', '(internal)', '(unknown)' ); // written by the analytics worker, not by visitors.
 
 /**
@@ -81,12 +83,20 @@ function snt_arows_validate( $input, $allow_unmatched = false ) {
 	}
 	$source = $in['source'] ?? 'auto';
 	if ( ! in_array( $source, SNT_AROWS_SOURCES, true ) ) {
-		return $bad( 'source must be auto, stored or events.' );
+		return $bad( 'source must be auto, stored, events or sessions.' );
+	}
+	// 2026-11-01: entry, exit and returning are a session's; so is anything asked of source sessions.
+	$sessions = array() !== array_intersect( $dims, SNT_AROWS_SESSION_DIMS ) || 'sessions' === $source;
+	if ( $sessions && ( array_diff( $dims, SNT_AROWS_SESSION_WITH ) || ! in_array( $source, array( 'auto', 'sessions' ), true ) || isset( $in['path'] ) || isset( $in['referrer'] ) ) ) {
+		return $bad( 'entry, exit and returning are session dimensions, read from source sessions: group them only with country, region, city, device, day or hour, with no path or referrer filter.' );
 	}
 	$sort = $in['sort'] ?? 'views';
+	if ( 'sessions' === $sort && ! $sessions ) {
+		return $bad( 'sort sessions needs the sessions source (a session dimension, or source sessions).' );
+	}
 	// Time is measured per page: it means something when the rows are pages.
 	if ( ! in_array( $sort, SNT_AROWS_SORTS, true ) || ( 'time' === $sort && ! array_intersect( $dims, array( 'path', 'link_code' ) ) && array( 'day' ) !== $dims ) ) {
-		return $bad( 'sort must be views, visits or time; time only when path or link_code is a dimension, or day alone (time is measured per page).' );
+		return $bad( 'sort must be views, visits, time or sessions; time only when path or link_code is a dimension, or day alone (time is measured per page).' );
 	}
 	$limit = $in['limit'] ?? 50;
 	if ( ! is_int( $limit ) || $limit < 1 || $limit > 500 ) {
@@ -113,7 +123,7 @@ function snt_arows_validate( $input, $allow_unmatched = false ) {
 			return $bad( 'referrer must be a hostname, and not with the "(unmatched)" breakdown.' );
 		}
 	}
-	return array( 'dims' => $dims, 'range' => $range, 'from' => $from, 'to' => $to, 'source' => $source, 'class' => $class, 'path' => $path, 'referrer' => $referrer, 'sort' => $sort, 'limit' => $limit, 'unmatched' => $unmatched, 'other' => $other );
+	return array( 'dims' => $dims, 'range' => $range, 'from' => $from, 'to' => $to, 'source' => $source, 'class' => $class, 'path' => $path, 'referrer' => $referrer, 'sort' => $sort, 'limit' => $limit, 'unmatched' => $unmatched, 'other' => $other, 'sessions' => $sessions );
 }
 
 /** A caller's path filter: query and fragment stripped, canonical, or null. PURE. */
@@ -144,7 +154,10 @@ function snt_arows_host( $raw ) {
 /** A stored dimension value made safe to return. PURE. */
 function snt_arows_clean( $dim, $value, array $real ) {
 	$v = (string) $value;
-	if ( 'path' === $dim ) {
+	if ( 'returning' === $dim ) {
+		return in_array( $v, array( 'new', 'returning' ), true ) ? $v : '(invalid)';
+	}
+	if ( 'path' === $dim || 'entry' === $dim || 'exit' === $dim ) {
 		$p = sn_analytics_canonical_path( (string) strtok( strtok( $v, '?' ), '#' ) );
 		// A coded résumé link is served content (inc/link-codes.php), not a visitor's guess.
 		return ( function_exists( 'sn_path_is_served' ) ? sn_path_is_served( $p, $real ) : isset( $real[ $p ] ) ) ? $p : '(unmatched)';
@@ -194,10 +207,10 @@ function snt_arows_shape( array $rows, array $q, array $real ) {
 			$keys[ $d ] = snt_arows_clean( $d, $r[ $d ] ?? '', $real );
 		}
 		$id = implode( "\n", $keys );
-		$m  = $keyed[ $id ] ?? array( 'keys' => $keys, 'views' => 0, 'visits' => 0, 'pv' => null, 'ts' => null, 'te' => null, 'se' => null );
+		$m  = $keyed[ $id ] ?? array( 'keys' => $keys, 'views' => 0, 'visits' => 0, 'pv' => null, 'ts' => null, 'te' => null, 'se' => null, 'ss' => null );
 		$m['views']  += (int) ( $r['views'] ?? 0 );
 		$m['visits'] += (int) ( $r['visits'] ?? 0 );
-		foreach ( array( 'pv' => 'pageview_visits', 'ts' => 'time_sum', 'te' => 'time_events', 'se' => 'scroll_events' ) as $k => $col ) {
+		foreach ( array( 'pv' => 'pageview_visits', 'ts' => 'time_sum', 'te' => 'time_events', 'se' => 'scroll_events', 'ss' => 'sessions' ) as $k => $col ) {
 			if ( isset( $r[ $col ] ) ) {
 				$m[ $k ] = ( $m[ $k ] ?? 0 ) + (float) $r[ $col ];
 			}
@@ -211,9 +224,10 @@ function snt_arows_shape( array $rows, array $q, array $real ) {
 			'pageview_visits'     => null === $m['pv'] ? (int) $m['visits'] : (int) $m['pv'],
 			'time_avg_per_view'   => null !== $m['ts'] && null !== $m['te'] && $v > 0 ? round( $m['ts'] / $v, 1 ) : null,
 			'scroll_avg_per_view' => null !== $m['se'] && $v > 0 ? round( 25 * $m['se'] / $v, 1 ) : null,
+			'sessions'            => null === $m['ss'] ? null : (int) $m['ss'],
 		);
 	}, array_values( $keyed ) );
-	$by = array( 'views' => 'views', 'visits' => 'pageview_visits', 'time' => 'time_avg_per_view' )[ $q['sort'] ];
+	$by = array( 'views' => 'views', 'visits' => 'pageview_visits', 'time' => 'time_avg_per_view', 'sessions' => 'sessions' )[ $q['sort'] ];
 	usort( $rows, static fn( $a, $b ) => ( (float) ( $b[ $by ] ?? 0 ) <=> (float) ( $a[ $by ] ?? 0 ) ) ?: strcmp( implode( "\n", array_intersect_key( $a, array_flip( $q['dims'] ) ) ), implode( "\n", array_intersect_key( $b, array_flip( $q['dims'] ) ) ) ) );
 	$n = count( $rows );
 	return array( 'rows' => array_slice( $rows, 0, $q['limit'] ), 'row_count' => min( $n, $q['limit'] ), 'truncated' => $n > $q['limit'] );

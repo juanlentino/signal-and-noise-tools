@@ -724,6 +724,9 @@ require_once SNT_PATH . 'inc/analytics-rows-events.php';    // 2026-11-01: the r
 require_once SNT_PATH . 'inc/analytics-rows-unmatched.php';  // 2026-10-29: the local "(unmatched)" breakdown, by cleaned path.
 require_once SNT_PATH . 'inc/abilities-analytics-rows.php'; // signal-noise/analytics-rows and its remote twin (contract 15).
 require_once SNT_PATH . 'inc/analytics-fields.php';         // 2026-11-01: the analytics fields read and its remote twin (contract 26).
+require_once SNT_PATH . 'inc/analytics-sessions-list.php';  // 2026-11-01: sessions one by one, the Sessions tab's unit (the tab's list and both doors).
+require_once SNT_PATH . 'inc/analytics-rows-sessions.php';  // 2026-11-01: entry, exit and returning in the rows read, from those sessions.
+require_once SNT_PATH . 'inc/abilities-analytics-sessions.php'; // 2026-11-01: the sessions read and its remote twin (contract 28).
 require_once SNT_PATH . 'inc/abilities-remote-analytics.php'; // R3 §3D Increment 1: remote-scoped analytics ability, off the MCP allowlists by design.
 require_once SNT_PATH . 'inc/abilities-remote-set.php'; // R3 §3D Increment 2: the remote set widens 1 -> 8, same isolation pattern applied to seven more twins.
 require_once __DIR__ . '/inc/migrate-orphan-options.php';  // v5.0.0: one-time orphan-option cleanup

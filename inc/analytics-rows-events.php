@@ -45,10 +45,10 @@ function snt_arows_stored_holds( array $q ) {
  * @param array  $q     From snt_arows_validate().
  * @param string $from  First day asked for (site time).
  * @param string $today Today (site time).
- * @return string|WP_Error 'stored' or 'events'.
+ * @return string|WP_Error 'stored', 'events' or 'sessions'.
  */
 function snt_arows_plan( array $q, $from, $today ) {
-	$stored = snt_arows_stored_holds( $q );
+	$stored = empty( $q['sessions'] ) && snt_arows_stored_holds( $q );
 	if ( 'stored' === $q['source'] && ! $stored ) {
 		return new WP_Error( 'ability_invalid_input', 'this combination is not stored as one row per day: ask with source "events" (Analytics Engine, about 90 days).', array( 'status' => 400 ) );
 	}
@@ -58,6 +58,9 @@ function snt_arows_plan( array $q, $from, $today ) {
 	$floor = ( new DateTimeImmutable( $today ) )->modify( '-' . ( SNT_AROWS_EVENTS_DAYS - 1 ) . ' days' )->format( 'Y-m-d' );
 	if ( (string) $from < $floor ) {
 		return new WP_Error( 'ability_invalid_input', sprintf( 'this combination is read from Analytics Engine, which keeps about %d days: the window must start on %s or later.', SNT_AROWS_EVENTS_DAYS, $floor ), array( 'status' => 400 ) );
+	}
+	if ( ! empty( $q['sessions'] ) ) {
+		return 'sessions'; // the sessions engine, over the same Analytics Engine days (inc/analytics-rows-sessions.php).
 	}
 	if ( null !== $q['path'] && ! preg_match( '#^/[A-Za-z0-9/._~%@!$&()*+,;=:-]*$#', $q['path'] ) ) {
 		return new WP_Error( 'ability_invalid_input', 'that path cannot be filtered in Analytics Engine; ask the stored rows for it (path or day).', array( 'status' => 400 ) );

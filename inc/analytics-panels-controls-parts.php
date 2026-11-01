@@ -148,6 +148,10 @@ function snt_an_range_pills( $param, $allowed, $active_value, $opts = array() ) 
  *                                 now that the primitive owns open+close).
  *                                 Default '' = omitted, byte-identical to
  *                                 every adopter before this option existed.
+ *     @type int    $clamp        Rows visible before "View all N" (the paths
+ *                                 and dimension tables' row clamp, around the
+ *                                 table inside the panel). Default 0 = no clamp,
+ *                                 byte-identical to every adopter before it.
  * }
  * @since 9.41.0 THE k/v table, string-list mode only.
  * @since 9.43.x Column-spec mode + $opts['footer'] — the posts leaderboard
@@ -193,6 +197,10 @@ function snt_an_kv_table( $title, $rows, $cols, $opts = array() ) {
 		$panel_args['header_meta'] = $opts['header_meta'];
 	}
 	snt_an_panel_open( $title, $panel_args );
+	$clamp = (int) ( $opts['clamp'] ?? 0 );
+	if ( $clamp > 0 ) {
+		snt_an_clamp_open( count( $rows ), $clamp );
+	}
 
 	echo '<table class="widefat striped"><thead><tr>';
 	foreach ( $columns as $col ) {
@@ -220,6 +228,9 @@ function snt_an_kv_table( $title, $rows, $cols, $opts = array() ) {
 		echo '</tr>';
 	}
 	echo '</tbody></table>';
+	if ( $clamp > 0 ) {
+		snt_an_clamp_close( count( $rows ), $clamp );
+	}
 	if ( ! empty( $opts['footer'] ) ) {
 		echo (string) $opts['footer']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- opts.footer is PRE-BUILT HTML assembled from esc_html()'d fragments at the caller (the primitive's wrap_attrs/header_meta passthrough-seam pattern, inc/analytics-panels.php).
 	}

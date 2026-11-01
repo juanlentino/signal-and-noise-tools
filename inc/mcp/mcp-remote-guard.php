@@ -98,6 +98,9 @@ function sn_mcp_remote_slugs() {
 		// Contract 26, owner brief 2026-10-31 ("MCP full analytics access"):
 		// what the rows read accepts, with units and meanings.
 		'signal-noise/remote-analytics-fields',
+		// Contract 28, the same brief: sessions one by one, the Sessions tab's
+		// unit and its list; no visitor code, IP address or user agent.
+		'signal-noise/remote-analytics-sessions',
 	);
 }
 
@@ -212,6 +215,7 @@ function sn_mcp_remote_verdicts() {
 		'analytics_journeys'   => $out( false, 'Local only in 20.4.0: entry and exit PATHS carry the same requested-path residual as analytics_top_content, so it follows that verdict.' ),
 		'analytics_rows'       => $out( true, 'Owner brief 2026-10-10: the counted rows behind the dashboard by path, referrer, country, device or day. Widened by the owner brief of 2026-10-31 ("MCP full analytics access"): up to four dimensions, region, city and the hour of day in site time, and a custom from and to; still no hit-level rows or visitor identifiers. Answers the requested-path residual the top-content verdict names: a path is returned only when it is the site\'s own content, everything else is (unmatched); referrers are hostnames only; every value is named however small (no floor since 2026-10-23).', 'signal-noise/remote-analytics-rows' ),
 		'analytics_fields'     => $out( true, 'Owner brief 2026-10-31 ("MCP full analytics access"): the vocabulary the rows read accepts, each dimension and metric with its unit, meaning and store. No figures at all.', 'signal-noise/remote-analytics-fields' ),
+		'analytics_sessions'   => $out( true, 'Owner brief 2026-10-31 ("MCP full analytics access"), decided 2026-10-31: sessions one by one, the same rows the Sessions tab lists, so the remote door shows nothing the dashboard lacks. No visitor code, IP address or user agent; paths are the site\'s own content or (unmatched).', 'signal-noise/remote-analytics-sessions' ),
 		'analytics_vitals'     => $out( false, 'Local only (theme audit idea 4, 2026-10-12): a new payload, and a twin freezes its shape byte-identically; new sections ship on the local door first and earn a twin once the shape settles. Paths are the top pages from the rollup.' ),
 		'analytics_query'      => $out( false, 'Local only in 20.4.0: a query surface widens what a remote caller can slice; it earns a twin only after the local door has shown which questions it is used for.' ),
 
