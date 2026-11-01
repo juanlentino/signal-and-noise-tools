@@ -117,9 +117,11 @@ function sn_analytics_live_pages_resolve( $path ) {
  * The read, for the realtime refresh. Null on a failed query (the list is
  * then absent, never empty), an array (possibly empty) on an answer.
  *
+ * @param array|null $links Out: the admin list's coded résumé rows from the same read (inc/link-codes.php), null when not read.
  * @return array|null
  */
-function sn_analytics_live_pages_read() {
-	$rows = sn_analytics_query( sn_analytics_live_pages_sql() );
+function sn_analytics_live_pages_read( &$links = null ) {
+	$rows  = sn_analytics_query( sn_analytics_live_pages_sql() );
+	$links = is_array( $rows ) && function_exists( 'sn_link_codes_live_from_rows' ) ? sn_link_codes_live_from_rows( $rows ) : null;
 	return is_array( $rows ) ? sn_analytics_live_pages_from_rows( $rows, 'sn_analytics_live_pages_resolve' ) : null;
 }

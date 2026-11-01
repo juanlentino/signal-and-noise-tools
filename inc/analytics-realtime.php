@@ -263,7 +263,8 @@ function sn_analytics_realtime_refresh() {
 
 	// Third read: the pages behind the live count (inc/analytics-live-pages.php).
 	// Null on failure, so the list is absent rather than falsely empty.
-	$pages = function_exists( 'sn_analytics_live_pages_read' ) ? sn_analytics_live_pages_read() : null;
+	$links = null; // Admin only: the coded résumé links read now (inc/link-codes.php), from the same query.
+	$pages = function_exists( 'sn_analytics_live_pages_read' ) ? sn_analytics_live_pages_read( $links ) : null;
 	// How far each listed page's readers have scrolled, admin only (inc/analytics-live-scroll.php). One more query.
 	if ( function_exists( 'sn_analytics_live_scroll_read' ) ) {
 		$pages = sn_analytics_live_scroll_read( $pages );
@@ -283,6 +284,7 @@ function sn_analytics_realtime_refresh() {
 		'counts'      => $counts,
 		'views_today' => $views_today,
 		'pages'       => $pages,
+		'links'       => $links,
 		'hour'        => $hour,
 		'sources'     => $sources,
 		'surge'       => $surge,

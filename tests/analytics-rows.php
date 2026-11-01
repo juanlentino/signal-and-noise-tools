@@ -35,6 +35,8 @@ foreach ( array( array( 'analytics-admin.php', 'snt_analytics_range_is_valid' ),
 define( 'SN_ANALYTICS_RANGES', array( 7, 14, 30, 90, 365 ) );
 define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
 require __DIR__ . '/../inc/analytics-rows.php';
+if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
+require __DIR__ . '/../inc/link-codes.php';
 
 $q = static fn( $in ) => snt_arows_validate( $in + array( 'dimensions' => array( 'path' ) ) );
 
@@ -122,6 +124,10 @@ echo "\nRegistration\n";
 $reg = $src( 'abilities-analytics-rows.php' );
 ok( false !== strpos( $reg, "'permission_callback' => 'snt_ability_perm_remote_analytics_rows'" ) && false !== strpos( $reg, "sn_remote_analytics_allows( 'signal-noise/remote-analytics-rows' )" ), 'the twin asks the remote door for its own slug: door off, the bridge answers the standard 404 like every twin' );
 ok( false !== strpos( $reg, "'show_in_rest' => false" ), 'the twin has no REST run route (no switch-state oracle)' );
+
+// 2026-10-31: a coded résumé link (inc/link-codes.php) is served content, so it keeps its path.
+ok( '/r/hera' === snt_arows_clean( 'path', '/r/hera/', array() ), 'a coded résumé link keeps its path, not (unmatched)' );
+ok( '(unmatched)' === snt_arows_clean( 'path', '/r/Bad_Code!', array() ), 'a malformed code is still (unmatched)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

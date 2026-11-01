@@ -53,6 +53,10 @@ function snt_unmatched_report_rows( array $rows, array $real, callable $suggest,
 		if ( '' === $stored || isset( $real[ sn_analytics_canonical_path( (string) strtok( strtok( $stored, '?' ), '#' ) ) ] ) ) {
 			continue;
 		}
+		// A coded résumé link is served and reported under Links, never unmatched (inc/link-codes.php).
+		if ( function_exists( 'sn_link_code_from_path' ) && '' !== sn_link_code_from_path( (string) strtok( strtok( $stored, '?' ), '#' ) ) ) {
+			continue;
+		}
 		$clean = snt_unmatched_clean_path( $stored );
 		$class = in_array( $r['class'] ?? '', array( 'human', 'suspect', 'bot' ), true ) ? $r['class'] : 'bot';
 		$m     = $by[ $clean ] ?? array( 'path' => $clean, 'human' => 0, 'suspect' => 0, 'bot' => 0, 'visits' => 0, 'first_seen' => '', 'last_seen' => '', 'respelled' => false, 'visits_by' => array( 'human' => 0, 'suspect' => 0, 'bot' => 0 ) );
