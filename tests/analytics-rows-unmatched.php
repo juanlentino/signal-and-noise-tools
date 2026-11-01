@@ -21,6 +21,8 @@ function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
 function add_action() {}
 define( 'SN_ANALYTICS_RANGES', array( 7, 14, 30, 90, 365 ) );
 define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
+if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
+require __DIR__ . '/../inc/link-codes.php';
 require __DIR__ . '/../inc/analytics-rows.php';
 require __DIR__ . '/../inc/analytics-rows-unmatched.php';
 require __DIR__ . '/../inc/redirects-store.php';
@@ -94,6 +96,13 @@ $two = snt_arows_shape_unmatched( $rows, $v( array( 'dimensions' => array( 'path
 ok( 2 === $two['row_count'] && true === $two['truncated'] && 6 === $two['rows'][0]['views'], 'the limit cuts the largest first and says truncated' );
 $days = snt_arows_shape_unmatched( array( array( 'path' => '/old-name', 'day' => '2026-10-28', 'views' => 2, 'visits' => 1 ), array( 'path' => '/old-name', 'day' => '2026-10-29', 'views' => 1, 'visits' => 1 ) ), $v( array( 'dimensions' => array( 'path', 'day' ), 'path' => '(unmatched)' ) ), $real, static fn() => '', static fn() => false, array() );
 ok( 2 === $days['row_count'] && array( '2026-10-28', '2026-10-29' ) === array_values( array_intersect( array( '2026-10-28', '2026-10-29' ), array_column( $days['rows'], 'day' ) ) ), 'with day, one row per path and day' );
+
+// 2026-10-31: a coded résumé link is served content in both answers.
+$mixed2 = array( array( 'path' => '/r/hera', 'views' => 3, 'visits' => 1 ), array( 'path' => '/gone', 'views' => 2, 'visits' => 1 ) );
+$def    = snt_arows_shape( $mixed2, $v( array( 'dimensions' => array( 'path' ) ) ), $real );
+$brk    = snt_arows_shape_unmatched( $mixed2, $v( array( 'dimensions' => array( 'path' ), 'path' => '(unmatched)' ) ), $real, static fn() => '', static fn() => false, array() );
+$um     = array_sum( array_column( array_filter( $def['rows'], static fn( $r ) => '(unmatched)' === $r['path'] ), 'views' ) );
+ok( 2 === $um && 2 === array_sum( array_column( $brk['rows'], 'views' ) ), 'the breakdown sums to the default answer\'s (unmatched) row: the code is in neither' );
 
 echo ( 0 === $fail ) ? "\nOK ($pass passed, $fail failed): analytics-rows-unmatched.php\n" : "\nFAILURES ($pass passed, $fail failed): analytics-rows-unmatched.php\n";
 exit( $fail > 0 ? 1 : 0 );

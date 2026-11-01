@@ -127,7 +127,7 @@ function snt_arows_clean( $dim, $value, array $real ) {
 	if ( 'path' === $dim ) {
 		$p = sn_analytics_canonical_path( (string) strtok( strtok( $v, '?' ), '#' ) );
 		// A coded résumé link is served content (inc/link-codes.php), not a visitor's guess.
-		return isset( $real[ $p ] ) || ( function_exists( 'sn_link_code_from_path' ) && '' !== sn_link_code_from_path( $p ) ) ? $p : '(unmatched)';
+		return ( function_exists( 'sn_path_is_served' ) ? sn_path_is_served( $p, $real ) : isset( $real[ $p ] ) ) ? $p : '(unmatched)';
 	}
 	if ( 'link_code' === $dim ) {
 		$code = function_exists( 'sn_link_code_from_path' ) ? sn_link_code_from_path( (string) strtok( strtok( $v, '?' ), '#' ) ) : '';
