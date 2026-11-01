@@ -80,6 +80,11 @@ function snt_analytics_render_view_body( $view, $from, $to, $class, $granularity
 			snt_analytics_render_view_reader_evidence( $range );
 			break;
 
+		case 'links':
+			// 2026-10-31: coded résumé links, inc/analytics-view-links.php.
+			snt_analytics_render_view_links( $from, $to );
+			break;
+
 		case 'campaigns':
 			// v9.29.0: UTM campaign attribution — inc/analytics-view-campaigns.php.
 			snt_analytics_render_view_campaigns( $from, $to, $class, $granularity );

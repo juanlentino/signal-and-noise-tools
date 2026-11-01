@@ -19,6 +19,7 @@ namespace {
 	function snt_analytics_render_view_overview( ...$args ) { echo json_encode( array( 'overview', $args ) ); }
 	function snt_analytics_render_view_content( ...$args ) { echo json_encode( array( 'content', $args ) ); }
 	function snt_analytics_render_view_campaigns( ...$args ) { echo json_encode( array( 'campaigns', $args ) ); }
+	function snt_analytics_render_view_links( ...$args ) { echo json_encode( array( 'links', $args ) ); }
 	function snt_analytics_render_view_technology( ...$args ) { echo json_encode( array( 'technology', $args ) ); }
 	function snt_analytics_render_view_geography( ...$args ) { echo json_encode( array( 'geography', $args ) ); }
 	function snt_analytics_render_view_engagement( ...$args ) { echo json_encode( array( 'engagement', $args ) ); }
@@ -36,7 +37,7 @@ namespace {
 	$pass = 0; $fail = 0;
 	function ok( $yes, $message ) { global $pass, $fail; $yes ? ++$pass : ++$fail; echo ( $yes ? 'PASS: ' : 'FAIL: ' ) . $message . "\n"; }
 	$ctx = array( 'view' => 'overview', 'from' => '2026-08-01', 'to' => '2026-08-31', 'class' => 'suspect', 'granularity' => 'day', 'range' => 'custom', 'compare' => 'yoy', 'get' => array( 'sn_event_prop' => 'host', 'sn_lg_range' => '30' ) );
-	foreach ( array( 'overview', 'content', 'campaigns', 'posts', 'technology', 'geography', 'engagement', 'visits', 'quality', 'search', 'events', 'edge', 'login-defense' ) as $view ) {
+	foreach ( array( 'overview', 'content', 'campaigns', 'links', 'posts', 'technology', 'geography', 'engagement', 'visits', 'quality', 'search', 'events', 'edge', 'login-defense' ) as $view ) {
 		$ctx['view'] = $view;
 		ob_start();
 		snt_analytics_render_view_body( $view, $ctx['from'], $ctx['to'], $ctx['class'], $ctx['granularity'], $ctx['range'], $ctx['compare'] );

@@ -68,6 +68,8 @@ const SN_ANALYTICS_VIEWS = array(
 	'overview'   => 'Overview',
 	'content'    => 'Content',
 	'campaigns'  => 'Campaigns',
+	// 2026-10-31: which coded résumé link (/r/CODE) was opened (inc/analytics-view-links.php).
+	'links'      => 'Links',
 	'posts'      => 'Posts',
 	'technology' => 'Technology',
 	'geography'  => 'Geography',
