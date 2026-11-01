@@ -79,6 +79,7 @@ $expected_map = array(
 	'analytics_query'     => 'signal-noise/analytics-query',
 	'analytics_rows'      => 'signal-noise/analytics-rows',
 	'analytics_vitals'    => 'signal-noise/get-analytics-vitals',
+	'analytics_fields'    => 'signal-noise/analytics-fields',
 );
 ok( $expected_map === $map, 'the map matches its sources exactly, in a pinned order' );
 

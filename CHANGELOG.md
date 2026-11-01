@@ -12,6 +12,19 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **The analytics fields read, on both MCP doors (remote contract 26).** Owner brief "MCP full analytics access" (2026-10-31), part 1 of 4. `signal-noise/analytics-fields` (local, as `sn-metrics{analytics_fields}`) and its remote twin `signal-noise/remote-analytics-fields` answer "what can I ask for?" before a query. They return every dimension and metric the rows read (`analytics_rows`, the remote analytics query) accepts, each with its unit, a one-line meaning and the store that answers it, plus the traffic classes, the windows, the reads that take them, and what is not measured at all: no cross-day identity, no visitor identity. They return no figures. One registry (`inc/analytics-fields.php`) feeds the read, and `tests/analytics-fields.php` pins it to what `snt_arows_validate()` and the rows schema enforce, so the two cannot drift; the classes and ranges are pinned to the real constants. The local `analytics_query` section keeps its own vocabulary. The rows read now names a stored blank country or device `(unknown)` instead of `(invalid)`. The remote twin is gated like every twin (switch, capability, its own slug) and the permission matrix covers it. The remote contract moves from 25 to 26 (RED-then-pin; fixture regenerated for the Worker, whose release follows the last part).
+- **The inventory and the gap list** (`docs/audits/2026-11-01-analytics-mcp-inventory.md`): every store and field, every number the wp-admin analytics screens show, and what each MCP door returns today. Gaps found:
+  - City and region: on no MCP door, though stored in the dims table and Analytics Engine.
+  - Entry and exit pages: local door only.
+  - Hour in site time: on no door; only the UTC hour is stored.
+  - Returning versus new: impossible across days by design; a same-day repeat is derivable.
+  - Queries: no more than two dimensions; no custom from/to; nothing finer than a day.
+  - Individual sessions: nowhere, and the Sessions tab shows aggregates only.
+  - Live: no per-reader detail.
+  - Also missing from MCP: session quality, UTM campaigns, browser, OS, protocol, TLS, time zone, network, colo, the hour heatmap, distributions and percentiles, event properties, the insights signals, drill-downs, edge dimensions and the login-defense counts.
+  - Every field the brief names exists in Analytics Engine for about 90 days; the ceiling was the tooling.
+
 ## [2026.11.1] - 2026-11-01 — Coded résumé links, the Links view, and link_code on the remote door
 
 ### Added

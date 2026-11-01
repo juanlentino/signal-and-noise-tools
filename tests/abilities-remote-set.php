@@ -82,6 +82,7 @@ $FULL_SET = array(
 	'signal-noise/remote-machine-readers-networks', // contract 14
 	'signal-noise/remote-analytics-rows',           // contract 15
 	'signal-noise/remote-indexing-requests',        // contract 22
+	'signal-noise/remote-analytics-fields',         // contract 26
 );
 $GLOBALS['__remote_slugs'] = $FULL_SET;
 
@@ -123,6 +124,7 @@ require __DIR__ . '/../inc/abilities-search-console.php';
 require __DIR__ . '/../inc/abilities-edge-errors.php'; // 18.0.0
 require __DIR__ . '/../inc/analytics-rows.php'; // the validator, which refuses the local-only breakdown first.
 require __DIR__ . '/../inc/abilities-analytics-rows.php'; // contract 15: admin ability and twin in one file.
+require __DIR__ . '/../inc/analytics-fields.php'; // contract 26: the fields read and its twin.
 // Contract 14: the bot-signals admin + the crosstab the networks twin slices.
 // The sensor read is stubbed so the wrapper runs over a fixed crosstab.
 if ( ! function_exists( 'snt_mr_fetch' ) ) {
@@ -168,6 +170,7 @@ $REMOTE_BS = 'signal-noise/remote-bot-signals';              $ADMIN_BS = 'signal
 $REMOTE_AN = 'signal-noise/remote-machine-readers-networks'; $ADMIN_AN = 'signal-noise/get-machine-readers-crosstab'; // contract 14
 $REMOTE_AR = 'signal-noise/remote-analytics-rows';           $ADMIN_AR = 'signal-noise/analytics-rows';                 // contract 15
 $REMOTE_IR = 'signal-noise/remote-indexing-requests';        $ADMIN_IR = 'signal-noise/indexing-requests';              // contract 22
+$REMOTE_AF = 'signal-noise/remote-analytics-fields';         $ADMIN_AF = 'signal-noise/analytics-fields';               // contract 26
 $ADMIN_PROV  = 'signal-noise/provenance-integrity-status';
 $ADMIN_MR    = 'signal-noise/get-machine-readers-summary';
 $ADMIN_CRON  = 'signal-noise/cron-health-summary';
@@ -190,6 +193,7 @@ $MAP = array(
 	$REMOTE_AN        => 'snt_ability_perm_remote_agent_networks',
 	$REMOTE_AR        => 'snt_ability_perm_remote_analytics_rows',
 	$REMOTE_IR        => 'snt_ability_perm_remote_indexing_requests',
+	$REMOTE_AF        => 'snt_ability_perm_remote_analytics_fields',
 );
 
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
@@ -224,6 +228,7 @@ $pairs_output = array(
 	array( $REMOTE_SX, $ADMIN_SX ),
 	array( $REMOTE_BS, $ADMIN_BS ),
 	array( $REMOTE_IR, $ADMIN_IR ), // contract 22
+	array( $REMOTE_AF, $ADMIN_AF ), // contract 26
 );
 foreach ( $pairs_output as $pair ) {
 	list( $remote, $admin ) = $pair;

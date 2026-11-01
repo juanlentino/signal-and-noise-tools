@@ -1,7 +1,143 @@
 {
-    "contract_version": "25",
-    "shape_hash": "0e07b989fdeba08e7f6bb37b27c00eb958ef14bf8f29a5de034ba7b936bdf8b4",
+    "contract_version": "26",
+    "shape_hash": "c75b1a5bc086fd429f8e52eff13300bf1dcb9e165d8865fe5fbf92ada9aba6a1",
     "tools": {
+        "signal-noise/remote-analytics-fields": {
+            "wrap": false,
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "dimensions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "meaning": {
+                                    "type": "string"
+                                },
+                                "unit": {
+                                    "type": "string"
+                                },
+                                "sources": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "metrics": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "meaning": {
+                                    "type": "string"
+                                },
+                                "unit": {
+                                    "type": "string"
+                                },
+                                "sources": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "classes": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "meaning": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "windows": {
+                        "type": "object",
+                        "properties": {
+                            "ranges": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "note": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "sources": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "meaning": {
+                                    "type": "string"
+                                },
+                                "retention": {
+                                    "type": "string"
+                                },
+                                "grain": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "reads": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "local": {
+                                    "type": "string"
+                                },
+                                "remote": {
+                                    "type": "string"
+                                },
+                                "arguments": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "not_available": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "reason": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "signal-noise/remote-analytics-rows": {
             "wrap": false,
             "outputSchema": {
