@@ -116,7 +116,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // (sn_remote_contract_wire_schemas), which is what a client validates. The
 // Worker carries tests/fixtures/remote-output-schemas.json and re-checks this
 // hash. The worker's own CONTRACT_VERSION bump ships with it.
-const SN_REMOTE_CONTRACT_VERSION = '24';
+// 2026.11 (coded résumé links, 2026-10-31): '24' -> '25'. Each analytics-rows
+// row may carry link_code, the code of a /r/CODE link read out of the stored
+// path (inc/link-codes.php). Additive.
+const SN_REMOTE_CONTRACT_VERSION = '25';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -173,6 +176,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'23' => '974633d777835c34a1a7b1a7c9fec9040ac8769fab9cd3ec0b804bf09193dd80',
 	// RED-then-pin, 2026-10-26: from 24 the hash is over the wire (projected) schemas.
 	'24' => 'ed3e4ee3fd4ec7bda98127da1480887538b712009a871154c50d9d87cbf3d714',
+	// RED-then-pin, 2026-10-31: analytics-rows rows gained link_code.
+	'25' => '0e07b989fdeba08e7f6bb37b27c00eb958ef14bf8f29a5de034ba7b936bdf8b4',
 );
 
 /**

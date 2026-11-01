@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SNT_AROWS_DIMENSIONS = array( 'path', 'referrer', 'country', 'device', 'day' );
+const SNT_AROWS_DIMENSIONS = array( 'path', 'referrer', 'country', 'device', 'link_code', 'day' ); // link_code: a coded résumé link's code, read out of the stored path (inc/link-codes.php).
 const SNT_AROWS_SORTS      = array( 'views', 'visits', 'time' );
 const SNT_AROWS_SENTINELS  = array( '(direct)', '(internal)', '(unknown)' ); // written by the analytics worker, not by visitors.
 
@@ -49,12 +49,12 @@ function snt_arows_validate( $input, $allow_unmatched = false ) {
 	}
 	$dims = $in['dimensions'] ?? null;
 	if ( ! is_array( $dims ) || ! $dims || count( $dims ) > 2 || count( array_filter( $dims, 'is_string' ) ) !== count( $dims ) || array_diff( $dims, SNT_AROWS_DIMENSIONS ) || count( array_unique( $dims ) ) !== count( $dims ) ) {
-		return $bad( 'dimensions must be one or two different values of path, referrer, country, device, day.' );
+		return $bad( 'dimensions must be one or two different values of path, referrer, country, device, link_code, day.' );
 	}
 	$dims  = array_values( $dims );
 	$other = array_values( array_diff( $dims, array( 'day' ) ) );
 	if ( count( $other ) > 1 ) {
-		return $bad( 'two dimensions must be one of path, referrer, country, device with day: no other pair is stored.' );
+		return $bad( 'two dimensions must be one of path, referrer, country, device, link_code with day: no other pair is stored.' );
 	}
 	$range = $in['range'] ?? 30;
 	if ( ! snt_analytics_range_is_valid( $range ) ) {
@@ -65,8 +65,8 @@ function snt_arows_validate( $input, $allow_unmatched = false ) {
 		return $bad( 'class must be one of human, suspect, bot.' );
 	}
 	$sort = $in['sort'] ?? 'views';
-	if ( ! in_array( $sort, SNT_AROWS_SORTS, true ) || ( 'time' === $sort && ! in_array( $other[0] ?? 'day', array( 'path', 'day' ), true ) ) ) {
-		return $bad( 'sort must be views, visits or time; time only with path or day alone (time is stored per page only).' );
+	if ( ! in_array( $sort, SNT_AROWS_SORTS, true ) || ( 'time' === $sort && ! in_array( $other[0] ?? 'day', array( 'path', 'link_code', 'day' ), true ) ) ) {
+		return $bad( 'sort must be views, visits or time; time only with path, link_code or day alone (time is stored per page only).' );
 	}
 	$limit = $in['limit'] ?? 50;
 	if ( ! is_int( $limit ) || $limit < 1 || $limit > 500 ) {
@@ -128,6 +128,10 @@ function snt_arows_clean( $dim, $value, array $real ) {
 		$p = sn_analytics_canonical_path( (string) strtok( strtok( $v, '?' ), '#' ) );
 		// A coded résumé link is served content (inc/link-codes.php), not a visitor's guess.
 		return ( function_exists( 'sn_path_is_served' ) ? sn_path_is_served( $p, $real ) : isset( $real[ $p ] ) ) ? $p : '(unmatched)';
+	}
+	if ( 'link_code' === $dim ) {
+		$code = function_exists( 'sn_link_code_from_path' ) ? sn_link_code_from_path( (string) strtok( strtok( $v, '?' ), '#' ) ) : '';
+		return '' === $code ? '(invalid)' : $code;
 	}
 	if ( 'referrer' === $dim ) {
 		return snt_arows_host( $v );
