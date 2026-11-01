@@ -200,20 +200,24 @@ wp ability run <slug> --input='{"post_id": 42}'
 
 `signal-noise/analytics-fields` (local, as `sn-metrics{analytics_fields}`) and its remote twin `signal-noise/remote-analytics-fields` (the Worker's `sn_remote_analytics_fields`, contract 26) answer "what can I ask for?" before a query: every dimension and metric the rows read accepts (`analytics_rows`; `analytics_query` keeps its own vocabulary), each with its unit, a one-line meaning and the store that answers it, the classes, the windows, the reads that take them, and what is not measured at all (no cross-day identity, no visitor identity). No figures. Code: `inc/analytics-fields.php`; `tests/analytics-fields.php` pins the registry to what `snt_arows_validate()` and the rows schema enforce.
 
+`signal-noise/analytics-sessions` (local, as `sn-metrics{analytics_sessions}`) and its remote twin `signal-noise/remote-analytics-sessions` (the Worker's `sn_remote_analytics_sessions`, contract 28) list sessions one by one: the Sessions tab's unit, a within-day visit split at the idle gap, with at least one page view. Owner brief 2026-10-31, which asked for the list on the Sessions tab too: the tab's "Sessions, one by one" panel calls the same callback for the view's window, so the tab and both doors show the same rows (owner test 7a). Each session carries `start` and `end` (ISO 8601, site time), `duration_s`, `pageviews`, `entry`, `exit`, `pages` in order (each view with its own `time_ms` and `scroll_pct`, null when not measured), `source` (the dashboard's label of the first page view's referrer; an internal click is `(internal)`), `country`, `region`, `city`, `device`, `class`, `returning` (a second or later session of the same visitor-day), `link_code`, `engaged` and `goals`. Arguments: `from` and `to` (site days, default today) or `hours` (1 to 72), `class`, `page`, `per_page` (1 to 200, default 50). Newest first. Analytics Engine keeps about 90 days, so an older start is refused with the first day it holds (the tab moves its start up and says so). No visitor code, IP address or user agent is returned, and paths pass the rows read's allowlist. Code: `inc/analytics-sessions-list.php` (the rows), `inc/abilities-analytics-sessions.php` (the window and both registrations), `inc/analytics-view-sessions-list.php` (the tab's panel). Tests: `tests/analytics-sessions-read.php`.
+
+The rows read takes the same sessions as `source: "sessions"` (`inc/analytics-rows-sessions.php`): `entry`, `exit` and `returning` (`new` or `returning`), grouped with country, region, city, device, day or hour from the session's start and first page view, each row adding `sessions` (null from the other sources) and counting the page views, visitor-days, time and scroll of the views in those sessions.
+
 `signal-noise/analytics-rows` (local, as `sn-metrics{analytics_rows}`) and its remote twin `signal-noise/remote-analytics-rows` (the Worker's `sn_remote_analytics_query`) return the analytics as counted rows by one to four dimensions (path, referrer, country, region, city, device, link_code, day, hour), over a range or a custom from and to. The stored rollups answer what they hold, forever; anything else reads Analytics Engine (about 90 days), and every answer names its source (contract 27). Code: `inc/analytics-rows-events.php` (the planner and the Analytics Engine read), `inc/analytics-rows.php` (validation, the path allowlist, the hostname rule, the floor), `inc/analytics-rows-fetch.php` (the read), `inc/abilities-analytics-rows.php` (both registrations, one schema, one callback). Tests: `tests/analytics-rows.php`.
 
 Added 2026-10-10 because the remote door could answer "how much" and not "where" or "from where": asked which pages moved after a Hacker News submission, it reported a 37% lift and named no page and no source.
 
 | Argument | Values | Default |
 |---|---|---|
-| `dimensions` | one to four of `path`, `referrer`, `country`, `region`, `city`, `device`, `link_code`, `day`, `hour` (`link_code`: the code of a coded résumé link, `/r/CODE`; `day` and `hour` in site time) | required |
+| `dimensions` | one to four of `path`, `referrer`, `country`, `region`, `city`, `device`, `link_code`, `day`, `hour`, `entry`, `exit`, `returning` (`link_code`: the code of a coded résumé link, `/r/CODE`; `day` and `hour` in site time; `entry`, `exit` and `returning` are a session's, with only `country`, `region`, `city`, `device`, `day` or `hour`) | required |
 | `range` | 7, 14, 30, 90, 365, all | 30 |
 | `from`, `to` | YYYY-MM-DD in site time, instead of `range` | none |
-| `source` | auto, stored, events | auto |
+| `source` | auto, stored, events, sessions | auto |
 | `class` | human, suspect, bot | human |
 | `path` | a site path | none |
 | `referrer` | a hostname or `(direct)`, `(internal)`, `(unknown)` | none |
-| `sort` | views, visits, time (time only with `path`, `link_code` or `day`) | views |
+| `sort` | views, visits, time, sessions (time only with `path`, `link_code` or `day`; sessions only from source sessions) | views |
 | `limit` | 1 to 500 | 50 |
 
 Out-of-set values are refused at the origin with `ability_invalid_input`, never coerced. The Worker passes arguments through and keeps no copy of the allowed sets. Each row carries its dimension values, `views`, `pageview_visits`, `time_avg_per_view` (milliseconds) and `scroll_avg_per_view`; the envelope carries `rows`, `row_count`, `truncated`, `range`, `class` and `exact_metrics_since`, and never echoes a caller's `path` or `referrer`.
