@@ -415,6 +415,13 @@ reroll_assert( true === sn_reroll_empty_day_ok( $rr_store, 'wp_sn_analytics_dail
 echo "\nGroup: owner-run contract\n";
 
 $tool_src = (string) file_get_contents( $tool );
+reroll_assert( 2 === substr_count( $tool_src, 'sn_analytics_rollup_upsert( sn_analytics_rollup_merge_pid_scroll( sn_analytics_rollup_merge_gated(' ), 'both writes (bounded days and trailing-1) merge the per-view scroll count, as the cron does' );
+reroll_assert( false !== strpos( $tool_src, 'sn_analytics_rollup_pid_scroll_query( (string) sn_reroll_pid_day_sql( sn_analytics_rollup_pid_scroll_sql( $sn_reroll_k, $sn_reroll_tz ), $sn_reroll_lower, $sn_reroll_upper ) )' )
+	&& false !== strpos( $tool_src, 'sn_analytics_rollup_pid_scroll_query( sn_analytics_rollup_pid_scroll_sql( 1, $sn_reroll_tz ) )' ), 'the bounded days read the per-view scroll for their own day; trailing-1 reads the cron\'s window' );
+reroll_assert( false !== strpos( $tool_src, 'null === sn_reroll_pid_day_sql( sn_analytics_rollup_pid_scroll_sql( 2, $sn_reroll_tz )' ), 'the pre-flight dies on a drifted per-view transform, as on the other two' );
+foreach ( array( 'sn_analytics_rollup_pid_scroll_sql', 'sn_analytics_rollup_pid_scroll_query', 'sn_analytics_rollup_merge_pid_scroll' ) as $fn ) {
+	reroll_assert( false !== strpos( $tool_src, "\t'{$fn}',\n" ), "the pre-flight names {$fn}()" );
+}
 reroll_assert( false !== strpos( $tool_src, 'public_html' ), 'header documents running FROM public_html (Cloudways requires the WP root cwd)' );
 reroll_assert( false !== strpos( $tool_src, 'wp eval-file' ), 'header documents the wp eval-file invocation' );
 reroll_assert( false !== strpos( $tool_src, 'sn_analytics_exact_metrics_since' ), 'tool sets the sn_analytics_exact_metrics_since option the read layer consumes' );

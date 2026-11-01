@@ -19,8 +19,9 @@
  * wp_sn_analytics_daily so the five v5 columns (scroll_sum / scroll_events /
  * time_sum / time_events / pageview_visits) exist on every day AE still
  * retains. Each day runs through the SAME production pipeline the cron uses —
- * sn_analytics_rollup_sql() + sn_analytics_rollup_gated_sql() →
- * sn_analytics_rollup_merge_gated() → sn_analytics_rollup_upsert() — so the
+ * sn_analytics_rollup_sql() + sn_analytics_rollup_gated_sql() +
+ * sn_analytics_rollup_pid_scroll_sql() → sn_analytics_rollup_merge_gated() →
+ * sn_analytics_rollup_merge_pid_scroll() → sn_analytics_rollup_upsert() — so the
  * write path (null discipline, %s FLOAT binds, 100-row chunking, the
  * never-invert guard) is byte-identical to the cron's.
  *
@@ -369,8 +370,9 @@ echo 'Run started: ' . $sn_reroll_today->format( 'Y-m-d H:i:s T' ) . "\n\n";
 list( , $sn_reroll_pf_lower ) = sn_analytics_rollup_window_exprs( 2, $sn_reroll_tz );
 list( , $sn_reroll_pf_upper ) = sn_analytics_rollup_window_exprs( 1, $sn_reroll_tz );
 if ( null === sn_reroll_day_sql( sn_analytics_rollup_sql( 2, $sn_reroll_tz ), $sn_reroll_pf_lower, $sn_reroll_pf_upper )
-	|| null === sn_reroll_gated_day_sql( sn_analytics_rollup_gated_sql( 2, $sn_reroll_tz ), $sn_reroll_pf_lower, $sn_reroll_pf_upper ) ) {
-	die( "FATAL: SQL transform returned null — sn_analytics_rollup_sql()/sn_analytics_rollup_gated_sql() shape drifted from this tool's needles. Update tools/reroll-analytics-90d.php (and tests/reroll-analytics-90d.php); nothing was written.\n" );
+	|| null === sn_reroll_gated_day_sql( sn_analytics_rollup_gated_sql( 2, $sn_reroll_tz ), $sn_reroll_pf_lower, $sn_reroll_pf_upper )
+	|| null === sn_reroll_pid_day_sql( sn_analytics_rollup_pid_scroll_sql( 2, $sn_reroll_tz ), $sn_reroll_pf_lower, $sn_reroll_pf_upper ) ) { // '' (a legacy window) passes; only drift is null.
+	die( "FATAL: SQL transform returned null — sn_analytics_rollup_sql()/sn_analytics_rollup_gated_sql()/sn_analytics_rollup_pid_scroll_sql() shape drifted from this tool's needles. Update tools/reroll-analytics-90d.php (and tests/reroll-analytics-90d.php); nothing was written.\n" );
 }
 
 $sn_reroll_results = array(); // ascending-day: [ [ 'day' => Y-m-d, 'ok' => bool ], ... ]

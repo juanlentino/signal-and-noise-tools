@@ -28,13 +28,13 @@ adds a bullet below. A release is a separate, deliberate act:
 
   Review fixes (independent review of #2340): pins on the per-view read's alignment with the main read (day bucket, class expression, `WHERE` with lower bound, upper bound and over-cap tail, folded or not, zoned or not), the run's zone and fold fallbacks, and the reroll tool's transform.
 
-  Tests: `tests/analytics-rollup.php` (237) and `tests/reroll-analytics-90d.php` (61); the dialect guard now scans the new file. Each of these mutants was seen red:
+  Tests: `tests/analytics-rollup.php` (237) and `tests/reroll-analytics-90d.php` (67); the dialect guard now scans the new file. Each of these mutants was seen red:
   - a pageview-less view counted as one;
   - the row-cap refusal skipped;
   - the upsert ignoring the per-view count;
   - the run skipping the merge;
   - each of six alignment drifts: zone, fold and over-cap tail in the builder or the run, and the upper bound;
-  - the reroll transform losing its upper bound.
+  - the reroll transform losing its upper bound, a reroll write dropping the per-view merge, its pre-flight drift check removed.
 
 ## [2026.11.3] - 2026-11-01 — The events rows keep time and scroll per view only by page and day
 
