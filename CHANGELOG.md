@@ -23,7 +23,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
   Review fix (independent review of #2338): the time sort refusal, the referrer filter, and pins on every allowlist edge.
 
-  Tests: `tests/analytics-rows-wide.php` (68). Each of these mutants was seen red: engagement kept on every row, the zero-view row kept, the referrer clause in the fetch, and the dimension and referrer clauses of the time sort.
+  Tests: `tests/analytics-rows-wide.php` (72). Each of these mutants was seen red: engagement kept on every row, the zero-view row kept, the referrer clause in the fetch, and the dimension and referrer clauses of the time sort.
 
 ## [2026.11.2] - 2026-11-01 — Full analytics access on both MCP doors: the fields read, a wider query, sessions one by one, and Live readers
 
