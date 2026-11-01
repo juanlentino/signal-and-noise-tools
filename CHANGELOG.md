@@ -12,6 +12,22 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Stored scroll per view is counted by pageview ID, so it no longer passes 100%.** Read live on 2026-11-01: 21 of the 500 busiest stored path-days read above 100% scroll per view, holding 41 of 1,226 views. The worst was `/` on 2026-09-07 at 400% on one view, and the same leak showed in the bot class.
+
+  The beacon sends each milestone once per view, so the extra milestones are `sc` events whose pageview row was never stored. The likely cause is the collector's per-visitor limit, not yet proven.
+
+  The daily rollup now runs a third query, `inc/analytics-rollup-pid-scroll.php`. It reads each second-generation view's deepest milestone by pageview ID (`double11`, recorded since 2026-10-05), and counts only views whose pageview row is in the same day, path and class. An `sc` event with no stored pageview counts nowhere. This feeds the stored `scroll_events` and `scroll_sum`; the legacy `scroll_avg` keeps its raw per-event ratio.
+
+  It falls back to the plain event count, as before, in three cases:
+  - a window read from the legacy dataset, which has no pageview ID;
+  - a failed read;
+  - a read cut by the row cap.
+
+  The daily roll rewrites the trailing seven days. Earlier second-generation days take the per-view count when the history recompute next runs.
+
+  Tests: `tests/analytics-rollup.php` (233), and the dialect guard now scans the new file. Each of these mutants was seen red: a pageview-less view counted as one, the row-cap refusal skipped, the upsert ignoring the per-view count, and the run skipping the merge.
+
 ## [2026.11.3] - 2026-11-01 — The events rows keep time and scroll per view only by page and day
 
 ### Fixed
