@@ -12,6 +12,13 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The rows read's events source no longer reports time and scroll per view where a view's beacons land in another row.** Read live on 2026-11-01, after the 2026.11.2 install:
+  - by city, one Los Angeles view read 475% scroll per view, because its reader's beacons geolocated elsewhere than its page view;
+  - by hour, hours 18 and 19 read 125%, because a view's beacons fell in the next hour.
+
+  The events source now keeps `time_avg_per_view` and `scroll_avg_per_view` only by path, link_code and day, as the stored rollups always have. On referrer, country, device, region, city and hour rows both are null. A row of beacons only, with no page view, is dropped: it carried 0 views and no figure. Views and visitor-days are unchanged, so four dimensions still add up to one (test 7b). The sessions source files each beacon under its own view and keeps both on every row, and the fields read now says all of this. Tests: `tests/analytics-rows-wide.php` (59). Each of these mutants was seen red: engagement kept on every row, and the zero-view row kept.
+
 ## [2026.11.2] - 2026-11-01 — Full analytics access on both MCP doors: the fields read, a wider query, sessions one by one, and Live readers
 
 ### Added

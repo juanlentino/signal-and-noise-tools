@@ -121,6 +121,26 @@ ok( true === snt_arows_events_fetch( $v( array( 'dimensions' => array( 'country'
 $GLOBALS['answers'] = array( null );
 ok( is_wp_error( snt_arows_events_fetch( $v( array( 'dimensions' => array( 'hour' ) ) ), '2026-10-01', '2026-10-31' ) ), 'a failed read is an error, never an empty answer' );
 
+echo "\nGroup: time and scroll per view only where a view's beacons share its row\n";
+// Live 2026-11-01: one Los Angeles view read 475% scroll (its reader's beacons geolocated elsewhere than its page view), and hours read 125%.
+$GLOBALS['answers'] = array(
+	array( array( 'city' => 'Los Angeles', 'views' => 1, 'visits' => 1, 'time_sum' => 21573, 'time_events' => 3, 'scroll_events' => 19 ), array( 'city' => 'Juneau', 'views' => 0, 'visits' => 1, 'time_sum' => 900, 'time_events' => 1, 'scroll_events' => 4 ) ),
+	array( array( 'city' => 'Los Angeles', 'pageview_visits' => 1 ) ),
+);
+$geo = snt_arows_events_fetch( $v( array( 'dimensions' => array( 'city' ) ) ), '2026-10-01', '2026-10-31' );
+ok( 1 === count( $geo['rows'] ) && null === $geo['rows'][0]['scroll_events'] && null === $geo['rows'][0]['time_sum'] && null === $geo['rows'][0]['time_events'] && 1.0 === $geo['rows'][0]['views'], 'by city: views kept, time and scroll null, and a row of beacons only (no view) is dropped' );
+$GLOBALS['answers'] = array(
+	array( array( 'path' => '/about', 'hour' => '18', 'views' => 1, 'visits' => 1, 'time_sum' => 5570, 'time_events' => 2, 'scroll_events' => 5 ) ),
+	array( array( 'path' => '/about', 'hour' => '18', 'pageview_visits' => 1 ) ),
+);
+ok( null === snt_arows_events_fetch( $v( array( 'dimensions' => array( 'path', 'hour' ) ) ), '2026-10-01', '2026-10-31' )['rows'][0]['scroll_events'], 'by hour, even with path: null (a view\'s beacons can land in the next hour)' );
+$GLOBALS['answers'] = array(
+	array( array( 'path' => '/about', 'day' => '2026-10-31', 'views' => 2, 'visits' => 1, 'time_sum' => 5570, 'time_events' => 2, 'scroll_events' => 6 ) ),
+	array( array( 'path' => '/about', 'day' => '2026-10-31', 'pageview_visits' => 1 ) ),
+);
+$pd = snt_arows_events_fetch( $v( array( 'dimensions' => array( 'path', 'day' ) ) ), '2026-10-01', '2026-10-31' )['rows'][0];
+ok( 6.0 === $pd['scroll_events'] && 5570.0 === $pd['time_sum'] && 2.0 === $pd['time_events'], 'by path and day: time and scroll kept, as the stored rollup keeps them' );
+
 echo "\nGroup: the window in site time, the values as stored\n";
 ok( array( '2026-10-01 04:00:00', '2026-11-01 04:00:00' ) === snt_arows_utc_bounds( '2026-10-01', '2026-10-31' ), 'October in New York: EDT both ends' );
 ok( array( '2026-11-01 04:00:00', '2026-11-03 05:00:00' ) === snt_arows_utc_bounds( '2026-11-01', '2026-11-02' ), 'across the November clock change' );
