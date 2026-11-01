@@ -133,6 +133,7 @@ function sn_rsm_employer_card( $prefix, $rsm_id, $role_token, $entry, $with_meta
 	sn_rsm_controls();
 	echo '</div>';
 	function_exists( 'sn_rsm_variant' ) && sn_rsm_variant( $prefix . '[variant]', (string) ( $entry['variant'] ?? '' ) );
+	function_exists( 'sn_rsm_receipt' ) && sn_rsm_receipt( $prefix, $entry );
 	if ( $with_meta ) {
 		echo '<div class="sn-rsm-pair">';
 		sn_rsm_input( $prefix . '[dates]', (string) ( $entry['dates'] ?? '' ), 'Dates', 'Jan 2020 - Present' );

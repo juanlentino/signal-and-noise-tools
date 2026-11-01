@@ -77,9 +77,10 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-prov-paper-title', 'sn-prov-papers', 'sn-prov-series', 'sn-prov-series-footer',
 	'sn-prov-series-heading', 'sn-prov-series-intro', 'sn-prov-verify',
 	'sn-prov-worker-ver', 'sn-provenance-byline-divider', 'sn-provenance-byline-reading-time', 'sn-provenance-toc',
-	'sn-resume-download', 'sn-resume-fold', 'sn-resume-hero-split', 'sn-resume-pub',
-	'sn-resume-pub-title', 'sn-resume-role', 'sn-resume-skills', 'sn-resume-stats',
-	'sn-resume-title', 'sn-rsm-list', 'sn-schedule-log', 'sn-schedule-op',
+	// sn-resume-built, -receipt, -switch: /resume's lanes and receipts (2026-11-01), styled by the theme's resume.css.
+	'sn-resume-built', 'sn-resume-download', 'sn-resume-fold', 'sn-resume-hero-split', 'sn-resume-pub',
+	'sn-resume-pub-title', 'sn-resume-receipt', 'sn-resume-role', 'sn-resume-skills', 'sn-resume-stats',
+	'sn-resume-switch', 'sn-resume-title', 'sn-rsm-list', 'sn-schedule-log', 'sn-schedule-op',
 	'sn-schedule-remainder', 'sn-uses-dek', 'sn-uses-eyebrow', 'sn-uses-headline',
 	'sn-uses-hero', 'sn-uses-item', 'sn-uses-item-name', 'sn-uses-item-note',
 	'sn-uses-meta',

@@ -85,11 +85,26 @@ function sn_jsonresume_work( array $doc ) {
 }
 
 /**
+ * Projects: "What I've Built" (the operations lane), name, url, description.
+ *
+ * @param array $items {title,url,text}.
+ * @return array<int,array>
+ */
+function sn_jsonresume_projects( array $items ) {
+	$out = array();
+	foreach ( $items as $item ) {
+		$out[] = array_filter( array( 'name' => (string) ( $item['title'] ?? '' ), 'url' => (string) ( $item['url'] ?? '' ), 'description' => (string) ( $item['text'] ?? '' ) ) );
+	}
+	return $out;
+}
+
+/**
  * Build the JSON Resume document.
  *
  * @param array|null $doc A normalized résumé document (English or Spanish).
  * @param array      $ctx name, url, canonical, last_modified, version,
- *                        profiles (URLs), provenance {verify_url,note_uid}|null.
+ *                        profiles (URLs), provenance {verify_url,note_uid}|null,
+ *                        projects ({title,url,text}), lane ('' when /resume has one).
  * @return array|null Null when there is no document.
  */
 function sn_jsonresume_build( $doc, array $ctx ) {
@@ -119,6 +134,9 @@ function sn_jsonresume_build( $doc, array $ctx ) {
 	if ( $highlights ) {
 		$meta['x-highlights'] = $highlights;
 	}
+	if ( '' !== (string) ( $ctx['lane'] ?? '' ) ) {
+		$meta['x-lane'] = (string) $ctx['lane']; // which of /resume's two résumés this is.
+	}
 	$prov = $ctx['provenance'] ?? null;
 	if ( is_array( $prov ) && '' !== (string) ( $prov['note_uid'] ?? '' ) ) {
 		$meta['x-provenance'] = array( 'verify_url' => (string) ( $prov['verify_url'] ?? '' ), 'note_uid' => (string) $prov['note_uid'] );
@@ -133,6 +151,7 @@ function sn_jsonresume_build( $doc, array $ctx ) {
 			'awards'       => array_merge( $honors, $memberships ),
 			'certificates' => $certs,
 			'publications' => sn_jsonresume_publications( $doc ),
+			'projects'     => sn_jsonresume_projects( (array) ( $ctx['projects'] ?? array() ) ),
 			'skills'       => $skills,
 			'languages'    => $languages,
 			'meta'         => $meta,

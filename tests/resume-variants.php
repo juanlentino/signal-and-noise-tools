@@ -130,7 +130,7 @@ ok( false !== strpos( $ops_src, "sn_resume_pdf_check( \$result['bytes'], \$resul
 ok( 1 === preg_match( "/0 !== strpos\\( \\\$path, '\\/resume\\/' \\) \\|\\| '\\.pdf' !== substr\\( \\\$path, -4 \\)\\s*\\) \\{\\s*return;/", $ops_src ) && strpos( $ops_src, "'.pdf' !== substr" ) < strpos( $ops_src, 'sn_resume_variant_config( function_exists' ), 'the address is matched before the document is read' );
 ok( false !== strpos( $gen_src, '$config = sn_resume_pdf_music_config(' ), 'Generate renders the music layout' );
 ok( 2 === substr_count( $dr_src, 'sn_resume_doc_same( $draft, sn_resume_doc_get_raw() )' ), 'the draft status and Publish compare the stored documents, flags included' );
-ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions/resume-draft.php' ), "sn_resume_body_html( sn_resume_doc_view( \$draft, 'music' ) )" ) && false !== strpos( $gen_src, "sn_resume_doc_view( sn_resume_draft_get(), 'music' )" ), 'the page and PDF previews show the draft\'s music résumé' );
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions/resume-draft.php' ), "sn_resume_page_body( \$draft )" ) && false !== strpos( $gen_src, "sn_resume_doc_view( sn_resume_draft_get(), 'music' )" ), 'the page preview shows the draft as the page would be (one lane or two); the PDF preview shows its music résumé' );
 $setup_fn = substr( $act_src, (int) strpos( $act_src, 'function sn_handle_resume_operations_setup' ) );
 ok( false !== strpos( $setup_fn, 'sn_resume_draft_save( $set[\'doc\'] )' ) && false === strpos( $setup_fn, 'sn_resume_doc_save' ), 'the setup writes the draft only, never the published résumé' );
 

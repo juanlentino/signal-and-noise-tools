@@ -57,13 +57,19 @@ function sn_resume_formats( $slug ) {
 	if ( 'resume' === $slug && function_exists( 'sn_resume_pdf_link' ) ) {
 		$pdf = sn_resume_pdf_link( $pdf );
 	}
+	// The operations résumé, /resume's second lane: its PDF once generated, and
+	// its JSON Resume (inc/resume-page-lanes.php).
+	$ops = 'resume' === $slug && function_exists( 'sn_resume_ops_pdf_url' ) ? get_option( SN_RESUME_OPS_PDF_OPTION ) : null;
+	$ops = is_array( $ops ) && ! empty( $ops['url'] ) ? (string) $ops['url'] : '';
 	return array_filter(
 		array(
-			'html'        => (string) get_permalink( $page ),
-			'markdown'    => home_url( '/' . $slug . '.md' ),
-			'pdf'         => $pdf,
-			'json_resume' => home_url( '/' . $slug . '/' . SN_JSONRESUME_FILE ),
-			'vcard'       => home_url( '/resume/contact.vcf' ),
+			'html'                   => (string) get_permalink( $page ),
+			'markdown'               => home_url( '/' . $slug . '.md' ),
+			'pdf'                    => $pdf,
+			'pdf_operations'         => $ops,
+			'json_resume'            => home_url( '/' . $slug . '/' . SN_JSONRESUME_FILE ),
+			'json_resume_operations' => '' !== $ops ? home_url( '/' . $slug . '/' . SN_JSONRESUME_FILE . '?lane=operations' ) : '',
+			'vcard'                  => home_url( '/resume/contact.vcf' ),
 		)
 	);
 }
@@ -85,7 +91,9 @@ function sn_resume_formats_surfaces( $surfaces ) {
 		'url'         => $f['html'],
 		'format'      => 'text/html',
 		'title'       => 'Résumé',
-		'description' => 'The résumé in every format, from one source: Markdown ' . $f['markdown'] . ', JSON Resume ' . $f['json_resume'] . ', PDF ' . ( $f['pdf'] ?? '' ) . ', vCard ' . $f['vcard'] . '.' . $es . ' The page carries a Bitcoin-anchored authorship proof; the Markdown front matter and JSON Resume meta link its verify page.',
+		'description' => 'The résumé in every format, from one source: Markdown ' . $f['markdown'] . ', JSON Resume ' . $f['json_resume'] . ', PDF ' . ( $f['pdf'] ?? '' ) . ', vCard ' . $f['vcard'] . '.'
+			. ( isset( $f['pdf_operations'] ) ? ' The operations résumé (the page\'s second lane, ?lane=operations): JSON Resume ' . $f['json_resume_operations'] . ', PDF ' . $f['pdf_operations'] . '.' : '' )
+			. $es . ' The page carries a Bitcoin-anchored authorship proof; the Markdown front matter and JSON Resume meta link its verify page.',
 	);
 	return $surfaces;
 }

@@ -164,7 +164,8 @@ function resume_roles_list( $prefix, array $roles, $token ) {
  */
 function resume_employer_card( $prefix, $role_token, array $entry, $with_meta ) {
 	$inner = resume_text( $prefix . '[org]', __( 'Organization', 'signal-and-noise-tools' ), $entry['org'] ?? '', 'ORGANIZATION NAME', 'org' )
-		. resume_variant( $prefix . '[variant]', $entry['variant'] ?? '' );
+		. resume_variant( $prefix . '[variant]', $entry['variant'] ?? '' )
+		. resume_receipt( $prefix, $entry );
 	if ( $with_meta ) {
 		$inner .= resume_pair(
 			resume_text( $prefix . '[dates]', __( 'Dates', 'signal-and-noise-tools' ), $entry['dates'] ?? '', 'Jan 2020 - Present' ),
