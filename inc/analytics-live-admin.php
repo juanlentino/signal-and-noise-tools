@@ -51,6 +51,11 @@ function sn_analytics_live_admin_html( $get = null ) {
 		/* translators: %s: a number of readers. */
 		. $list( 'data-sn-live-pages data-scroll-none="' . esc_attr__( 'not scrolled yet', 'signal-and-noise-tools' ) . '" data-scroll-quarter="' . esc_attr__( '%s past a quarter', 'signal-and-noise-tools' ) . '" data-scroll-half="' . esc_attr__( '%s past halfway', 'signal-and-noise-tools' ) . '" data-scroll-end="' . esc_attr__( '%s at the end', 'signal-and-noise-tools' ) . '"', __( 'Being read now', 'signal-and-noise-tools' ), __( 'human readers, published pages', 'signal-and-noise-tools' ), __( 'Nobody on a page right now.', 'signal-and-noise-tools' ) )
 		. $list( 'data-sn-live-sources', __( 'Arrived from', 'signal-and-noise-tools' ), __( 'new pageviews, last 5 minutes', 'signal-and-noise-tools' ), __( 'No arrivals in the last 5 minutes.', 'signal-and-noise-tools' ) )
+		// One line per reader (inc/analytics-live-readers.php): where, on what, from where, and how far into the visit.
+		/* translators: 1: minutes since the visit began, 2: pages read in the visit. */
+		. $list( 'data-sn-live-readers data-visit="' . esc_attr__( '%1$s min, %2$s pages', 'signal-and-noise-tools' ) . '"'
+			/* translators: %s: where the visit came in from, e.g. LinkedIn. */
+			. ' data-from="' . esc_attr__( 'from %s', 'signal-and-noise-tools' ) . '"', __( 'Readers now', 'signal-and-noise-tools' ), __( 'human readers, last 5 minutes: place, device, entry source', 'signal-and-noise-tools' ), __( 'Nobody reading right now.', 'signal-and-noise-tools' ) )
 		. '</div>'
 		/* translators: %s: the time of the last live read, e.g. 16:42. */
 		. '<p class="sn-live-admin__meta" data-sn-live-meta data-updated="' . esc_attr__( 'live · updated %s', 'signal-and-noise-tools' ) . '" data-unknown="' . esc_attr__( 'live · not read yet', 'signal-and-noise-tools' ) . '">' . esc_html__( 'live', 'signal-and-noise-tools' ) . '</p>'

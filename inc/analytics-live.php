@@ -53,6 +53,8 @@ function sn_analytics_live_payload( $all_classes ) {
 		// Admin only: the public answer never says where readers came from.
 		$out['surge']   = is_array( $cached ) && isset( $cached['surge'] ) && is_array( $cached['surge'] ) ? $cached['surge'] : null;
 		$out['sources'] = is_array( $cached ) && isset( $cached['sources'] ) && is_array( $cached['sources'] ) ? array_values( $cached['sources'] ) : null;
+		// Admin only (2026-11-01): one line per current reader, place, device and entry source; no visitor code.
+		$out['readers'] = is_array( $cached ) && isset( $cached['readers'] ) && is_array( $cached['readers'] ) ? array_values( $cached['readers'] ) : null;
 		// Admin only: a reader on a coded résumé link, labeled with its code
 		// ("Resume via hera", inc/link-codes.php). The public list never names one.
 		if ( is_array( $out['pages'] ) && is_array( $cached['links'] ?? null ) && $cached['links'] ) {

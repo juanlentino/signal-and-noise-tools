@@ -273,6 +273,8 @@ function sn_analytics_realtime_refresh() {
 	$hour = function_exists( 'sn_analytics_live_hour_read' ) ? sn_analytics_live_hour_read() : null;
 	// Fifth, admin only: where current readers arrived from (inc/analytics-live-sources.php).
 	$sources = function_exists( 'sn_analytics_live_sources_read' ) ? sn_analytics_live_sources_read() : null;
+	// Sixth, admin only: each current reader's place, device and entry source (inc/analytics-live-readers.php). Kept here only, never in the slots.
+	$readers = function_exists( 'sn_analytics_live_readers_read' ) ? sn_analytics_live_readers_read() : null;
 	// The live-surge signal (inc/analytics-live-surge.php): log the hour's completed slots, judge the last one.
 	$surge = function_exists( 'sn_analytics_live_surge_step' ) ? sn_analytics_live_surge_step( $hour ) : null;
 	// Rolling snapshots (inc/analytics-live-slots.php): the hour's completed slots, kept a day. Reads AE only when a slot is new.
@@ -287,6 +289,7 @@ function sn_analytics_realtime_refresh() {
 		'links'       => $links,
 		'hour'        => $hour,
 		'sources'     => $sources,
+		'readers'     => $readers,
 		'surge'       => $surge,
 		'fetched'     => time(),
 	), SN_ANALYTICS_REALTIME_RETENTION );

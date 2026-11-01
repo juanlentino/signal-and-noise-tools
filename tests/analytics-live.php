@@ -199,7 +199,7 @@ ok( false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/inc/pub
 
 echo "\nGroup: where current readers arrived from (admin only)\n";
 $sql = sn_analytics_live_sources_sql();
-ok( false !== strpos( $sql, 'blob3 AS host' ) && false !== strpos( $sql, "blob1 = 'pv'" ) && false !== strpos( $sql, "INTERVAL '5' MINUTE" ) && false !== strpos( $sql, 'GROUP BY host' ), 'pageviews in the last 5 minutes, distinct readers per referrer host' );
+ok( false !== strpos( $sql, sn_analytics_referrer_value_sql( 'blob3' ) . ' AS host' ) && false !== strpos( $sql, "blob1 = 'pv'" ) && false !== strpos( $sql, "INTERVAL '5' MINUTE" ) && false !== strpos( $sql, 'GROUP BY host' ), 'pageviews in the last 5 minutes, distinct readers per referrer host, an internal click relabelled (internal) so the fold drops it, never Direct (2026-11-01)' );
 $src = sn_analytics_live_sources_from_rows( array(
 	array( 'host' => 'www.google.com', 'readers' => 2 ),
 	array( 'host' => 'google.com', 'readers' => 1 ),

@@ -22,7 +22,8 @@ const SN_ANALYTICS_LIVE_SOURCES_MAX = 5;
  */
 function sn_analytics_live_sources_sql() {
 	return implode( ' ', array(
-		'SELECT blob3 AS host, count(DISTINCT index1) AS readers',
+		// The referrer kind (inc/analytics-referrer-kind.php): an internal click reads (internal), which the fold drops, never Direct.
+		'SELECT ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS host, count(DISTINCT index1) AS readers',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
 		"WHERE timestamp >= now() - INTERVAL '5' MINUTE AND blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where(),
 		'GROUP BY host ORDER BY readers DESC LIMIT 40',

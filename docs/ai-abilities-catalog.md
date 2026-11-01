@@ -259,6 +259,8 @@ Counts only: no user agents, IPs, paths or networks in the series. The remote do
 
 Two optional arguments. Without them both tools answer exactly what they did before (pinned by `tests/analytics-live-slots.php` and `tests/publish-window.php`). Neither is on the remote door: `live` stays local-only, and `sn_remote_analytics_query` has no publish-window filter (the owner deferred that contract bump).
 
+**`signal-noise/live-now` `readers`** (2026-11-01, owner brief "MCP full analytics access"): one line per presumed-human reader active in the last 5 minutes, newest first, at most 20: `city`, `region`, `country`, `device`, `source` (the dashboard source name of the visit's first page view in the last two hours, `""` when none is in them), `page` and `url` (the page they are on now, as `pages` labels it), `pages` (page views in the visit) and `minutes` (since its first page view). Visits split at the Sessions tab's idle gap. Kept only in the realtime cache, never in `slots`; the public live answer never carries it; no visitor code, IP address or user agent. The admin Right now block lists them as "Readers now". Code: `inc/analytics-live-readers.php`. Tests: `tests/analytics-live-readers.php`.
+
 **`signal-noise/live-now` `hours_back`** (integer, 1 to 24) adds `slots`: the stored rolling snapshots of the last N hours, oldest first, one per COMPLETED 5-minute slot.
 
 | Field | Meaning |
