@@ -44,11 +44,12 @@ function snt_analytics_rows_output_schema( $unmatched = false ) {
 				'items' => array(
 					'type'       => 'object',
 					'properties' => array(
-						'path' => $s, 'referrer' => $s, 'country' => $s, 'region' => $s, 'city' => $s, 'device' => $s, 'link_code' => $s, 'day' => $s, 'hour' => $s,
+						'path' => $s, 'referrer' => $s, 'country' => $s, 'region' => $s, 'city' => $s, 'device' => $s, 'link_code' => $s, 'day' => $s, 'hour' => $s, 'entry' => $s, 'exit' => $s, 'returning' => $s,
 						'views'               => array( 'type' => 'integer' ),
 						'pageview_visits'     => array( 'type' => 'integer' ),
 						'time_avg_per_view'   => $n,
 						'scroll_avg_per_view' => $n,
+						'sessions'            => array( 'type' => array( 'integer', 'null' ) ),
 					),
 				),
 			),
@@ -84,13 +85,13 @@ function snt_ability_analytics_rows( $input = null, $allow_unmatched = false ) {
 	if ( is_wp_error( $source ) ) {
 		return $source;
 	}
-	$read = 'events' === $source ? snt_arows_events_fetch( $q, $from, $to ) : snt_arows_fetch( $q, $from, $to );
+	$read = 'events' === $source ? snt_arows_events_fetch( $q, $from, $to ) : ( 'sessions' === $source ? snt_arows_sessions_fetch( $q, $from, $to ) : snt_arows_fetch( $q, $from, $to ) );
 	if ( is_wp_error( $read ) ) {
 		return $read;
 	}
 	$out = ! empty( $q['unmatched'] )
 		? snt_arows_unmatched( $read['rows'], $q )
-		: snt_arows_shape( $read['rows'], $q, in_array( 'path', $q['dims'], true ) ? snt_arows_real_paths() : array() );
+		: snt_arows_shape( $read['rows'], $q, array_intersect( array( 'path', 'entry', 'exit' ), $q['dims'] ) ? snt_arows_real_paths() : array() );
 	$out['truncated'] = $out['truncated'] || $read['capped']; // stored groups past the read cap are rows not seen.
 	return $out + array(
 		'range'               => (string) $q['range'],
@@ -109,14 +110,15 @@ function snt_ability_perm_remote_analytics_rows() {
 
 /** The description, shared: what the numbers are and are not. */
 function snt_analytics_rows_description() {
-	return 'Analytics as counted rows, by one to four of path, referrer, country, region, city, device, link_code, day and hour (day and hour in the site\'s time zone). '
+	return 'Analytics as counted rows, by one to four of path, referrer, country, region, city, device, link_code, day, hour, entry, exit and returning (day and hour in the site\'s time zone). '
 		. 'Two sources, named in the answer\'s source: the stored daily rollups (kept forever, from the first stored day) answer path, link_code or day, or one of referrer, country, device, region or city, each with or without day; anything else (two or more of those, hour, or a filter the rollups do not carry) is read from Analytics Engine, which keeps about 90 days, and a window older than that is refused with the first day it holds. source auto (default) picks, stored or events forces one. '
+		. 'entry, exit and returning are a session\'s (a within-day visit split at the idle gap, the Sessions tab\'s unit): its first and last page, and returning (a second or later session of the same visitor-day) or new. They come from source sessions (also about 90 days), group only with country, region, city, device, day or hour (the session\'s start and first page view), take no path or referrer filter, and add sessions to each row; source sessions groups sessions by any of those alone too. sessions is null from the other sources. '
 		. 'link_code is the code of a coded résumé link (/r/CODE, for example /r/hera returns hera), read out of the stored path: only coded paths count, a malformed one is (invalid). '
-		. 'Arguments: dimensions (required), range 7|14|30|90|365|all (default 30) or from and to (YYYY-MM-DD, site time; not with range), source auto|stored|events, class human|suspect|bot (default human; human is presumed human (not flagged), an inferred class), path (a site path, a filter), referrer (a hostname, a filter), sort views|visits|time (time only when path or link_code is a dimension, or day alone), limit 1-500 (default 50). Out-of-set values are refused, not coerced. '
+		. 'Arguments: dimensions (required), range 7|14|30|90|365|all (default 30) or from and to (YYYY-MM-DD, site time; not with range), source auto|stored|events|sessions, class human|suspect|bot (default human; human is presumed human (not flagged), an inferred class), path (a site path, a filter), referrer (a hostname, a filter), sort views|visits|time|sessions (time only when path or link_code is a dimension, or day alone; sessions only from source sessions), limit 1-500 (default 50). Out-of-set values are refused, not coerced. '
 		. 'Each row: its dimension values, views, pageview_visits, time_avg_per_view and scroll_avg_per_view. Times are MILLISECONDS; scroll is mean max depth 0-100. In the stored rollups time and scroll are kept per page only, so they are null for referrer, country, device, region and city rows. '
 		. 'pageview_visits counts visitor-DAYS that viewed: an estimate, not a session count. views are sample-corrected. '
 		. 'truncated: true means the limit or a read cap cut rows, so sums over the rows are a floor. '
-		. 'Referrers are hostnames only, with (direct), (internal) and (unknown) as stored; anything that is not a clean hostname is (invalid). City and region are the network\'s place names, (unknown) when it gave none. Paths are returned only when they are the site\'s own content; scanner probes and other requests are (unmatched). '
+		. 'Referrers are hostnames only, with (direct), (internal) and (unknown) as stored; anything that is not a clean hostname is (invalid). City and region are the network\'s place names, (unknown) when it gave none. Paths, entry and exit included, are returned only when they are the site\'s own content; scanner probes and other requests are (unmatched). '
 		. 'Every value is named, however small: a page seen by one visitor-day is its own row (no privacy floor on the owner\'s reads; the public /stats page keeps one). '
 		. 'Nothing is subtracted for bot signals: human is the stored class, presumed human (not flagged); judge how much of it is automated with likely_automated on the analytics summary or the bot-signals reading. '
 		. 'Untruncated, the views of any query sum to the same total for the same window, class and source, whatever the dimensions. Read-only.';

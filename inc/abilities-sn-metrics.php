@@ -35,7 +35,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-metrics', array(
 		'label'               => 'Batch-read readership metrics (consolidated)',
-		'description'         => 'One coherent answer to "how is the site being read?": a sectioned batch over the readership reads. analytics_summary (range totals with the honest-denominator semantics: prefer view_visit_ratio, engagement times are MILLISECONDS), analytics_events (top custom events), rss_stats (feed fetches; its own fixed 7d/30d windows), machine_readers, analytics_top_content (pages with visits, scroll, time, and Search Console impressions and position over search_window), 404_log, analytics_sources (labels with category), analytics_series (views and visits per day), analytics_geography (country), analytics_devices, analytics_journeys (entry and exit pages, human only), analytics_query (an allowlisted query: one or two dimensions, the second always day; see `query`), analytics_rows (counted rows by one to four of path, referrer, country, region, city, device, link_code, day and hour, the shape the remote door serves; see `rows`), analytics_fields (what analytics_rows accepts, before querying: every dimension and metric with its unit, meaning and store), and analytics_vitals (field Core Web Vitals: p75 and the good, needs improvement and poor shares for LCP, INP and CLS, site-wide, per device and for the top `limit` paths; samples 0 reads as null figures, never 0, and small_sample flags thin cells). Windows follow the site\'s own day. Sources, geography, devices, journeys and query name every row however small (no floor; withheld is always zero). `range` (default 30) and `class` (default human) apply as each section\'s description says. Each entry carries its source ability\'s exact payload. If a source refuses, that ONE section degrades to {error:"unavailable"}; the call fails as a whole only on invalid input (empty or unknown sections, or a bad query).',
+		'description'         => 'One coherent answer to "how is the site being read?": a sectioned batch over the readership reads. analytics_summary (range totals with the honest-denominator semantics: prefer view_visit_ratio, engagement times are MILLISECONDS), analytics_events (top custom events), rss_stats (feed fetches; its own fixed 7d/30d windows), machine_readers, analytics_top_content (pages with visits, scroll, time, and Search Console impressions and position over search_window), 404_log, analytics_sources (labels with category), analytics_series (views and visits per day), analytics_geography (country), analytics_devices, analytics_journeys (entry and exit pages, human only), analytics_query (an allowlisted query: one or two dimensions, the second always day; see `query`), analytics_rows (counted rows by one to four of path, referrer, country, region, city, device, link_code, day and hour, the shape the remote door serves; see `rows`), analytics_fields (what analytics_rows accepts, before querying: every dimension and metric with its unit, meaning and store), analytics_sessions (sessions one by one, the Sessions tab\'s unit: start and end in site time, place, device, source, pages in order with time and scroll, returning, link code; see `sessions`), and analytics_vitals (field Core Web Vitals: p75 and the good, needs improvement and poor shares for LCP, INP and CLS, site-wide, per device and for the top `limit` paths; samples 0 reads as null figures, never 0, and small_sample flags thin cells). Windows follow the site\'s own day. Sources, geography, devices, journeys and query name every row however small (no floor; withheld is always zero). `range` (default 30) and `class` (default human) apply as each section\'s description says. Each entry carries its source ability\'s exact payload. If a source refuses, that ONE section degrades to {error:"unavailable"}; the call fails as a whole only on invalid input (empty or unknown sections, or a bad query).',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_metrics',
@@ -69,7 +69,11 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'rows'     => array(
 					'type'        => 'object',
-					'description' => 'analytics_rows only: {dimensions, from, to, source, path, referrer, sort, limit}; class comes from the top level, and so does range unless rows carries from and to (YYYY-MM-DD, site time). dimensions is one to four of path, referrer, country, region, city, device, link_code, day, hour (link_code: the code of a coded résumé link, /r/CODE); source auto|stored|events, and the answer names the one used (stored rollups kept forever, or Analytics Engine, about 90 days). Paths outside site content read (unmatched); path "(unmatched)" breaks that bucket down by cleaned path (visitor_path, with probe, suggested_target, and status and referrer_host from the 404 log). Referrers are hostnames, every value is named however small. Out-of-set values fail the whole call.',
+					'description' => 'analytics_rows only: {dimensions, from, to, source, path, referrer, sort, limit}; class comes from the top level, and so does range unless rows carries from and to (YYYY-MM-DD, site time). dimensions is one to four of path, referrer, country, region, city, device, link_code, day, hour, entry, exit, returning (link_code: the code of a coded résumé link, /r/CODE; entry, exit and returning are a session\'s, from source sessions, grouped only with country, region, city, device, day or hour); source auto|stored|events|sessions, and the answer names the one used (stored rollups kept forever, or Analytics Engine, about 90 days). Paths outside site content read (unmatched); path "(unmatched)" breaks that bucket down by cleaned path (visitor_path, with probe, suggested_target, and status and referrer_host from the 404 log). Referrers are hostnames, every value is named however small. Out-of-set values fail the whole call.',
+				),
+				'sessions' => array(
+					'type'        => 'object',
+					'description' => 'analytics_sessions only: {from, to, hours, page, per_page}; class comes from the top level. from and to are site days (default today), or hours 1 to 72 for the last N hours; page from 1, per_page 1 to 200 (default 50). Sessions that START in the window, newest first. Out-of-set values fail that section.',
 				),
 				'series'   => array(
 					'type'        => 'string',
@@ -136,6 +140,7 @@ function snt_sn_metrics_map() {
 		// Theme audit idea 4 (2026-10-12): field Core Web Vitals at p75 by device and top path.
 		'analytics_vitals'    => 'signal-noise/get-analytics-vitals',
 		'analytics_fields'    => 'signal-noise/analytics-fields', // 2026-11-01: what the reads accept, before querying.
+		'analytics_sessions'  => 'signal-noise/analytics-sessions', // 2026-11-01: sessions one by one (the Sessions tab's list).
 	);
 }
 
@@ -220,6 +225,7 @@ function snt_ability_sn_metrics( $input ) {
 		'analytics_rows'        => $rows,
 		'analytics_vitals'      => $windowed,
 		'analytics_fields'      => array(),
+		'analytics_sessions'    => array_merge( isset( $input['sessions'] ) && is_array( $input['sessions'] ) ? $input['sessions'] : array(), array( 'class' => $class ) ),
 	);
 
 	$out = array();

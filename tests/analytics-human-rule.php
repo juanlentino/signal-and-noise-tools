@@ -191,8 +191,9 @@ $ref_sql = sn_analytics_dims_rollup_sql( 'referrer', 7 );
 ok( false !== strpos( $ref_sql, sn_analytics_referrer_value_sql( 'blob3' ) . ' AS value,' ), 'referrer dim: an internal click is stored as (internal), never as the blank that reads (direct)' );
 ok( false === strpos( $ref_sql, sn_analytics_not_internal_click_sql() ), 'referrer dim: relabelled, not dropped, so its total still equals the country and device totals' );
 ok( array() === $ae_clause_fns( $ref_sql ) && 1 === preg_match( '/GROUP BY day, value, class/', $ref_sql ), 'referrer dim: still groups by the alias, no function in GROUP BY' );
+ok( false !== strpos( $built['sessions:sn_analytics_session_sql'], sn_analytics_referrer_value_sql( 'blob3' ) . ' AS ref,' ), 'sessions: the referrer is relabelled, so a session opened by an internal click reads (internal), not (direct) (the sessions read, 2026-11-01)' );
 foreach ( $built as $name => $sql ) {
-	if ( 'pageroles:sn_analytics_pageroles_rollup_sql' !== $name ) {
+	if ( ! in_array( $name, array( 'pageroles:sn_analytics_pageroles_rollup_sql', 'sessions:sn_analytics_session_sql' ), true ) ) {
 		ok( false === strpos( $sql, 'double10' ), "$name does not read the referrer kind" );
 	}
 }
