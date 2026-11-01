@@ -51,6 +51,9 @@ ok( is_wp_error( $v( array( 'dimensions' => array( 'city' ), 'range' => 30, 'fro
 ok( is_wp_error( $v( array( 'dimensions' => array( 'city' ), 'from' => '2026-02-30', 'to' => '2026-03-01' ) ) ), 'a day that does not exist is refused' );
 ok( is_wp_error( $v( array( 'dimensions' => array( 'city' ), 'source' => 'cache' ) ) ), 'an unknown source is refused' );
 ok( is_wp_error( $v( array( 'dimensions' => array( 'country', 'city' ), 'sort' => 'time' ) ) ) && ! is_wp_error( $v( array( 'dimensions' => array( 'path', 'day' ), 'sort' => 'time' ) ) ), 'time sorts only rows that are pages' );
+foreach ( array( array( 'day' ), array( 'path' ), array( 'link_code' ), array( 'link_code', 'day' ) ) as $dims ) {
+	ok( ! is_wp_error( $v( array( 'dimensions' => $dims, 'sort' => 'time' ) ) ), 'time sort accepted where time is kept: ' . implode( '+', $dims ) );
+}
 foreach ( array( array( 'dimensions' => array( 'path', 'city' ) ), array( 'dimensions' => array( 'path', 'hour' ) ), array( 'dimensions' => array( 'path' ), 'referrer' => 'google.com' ) ) as $in ) {
 	ok( is_wp_error( $v( $in + array( 'sort' => 'time' ) ) ), 'time sort refused where time is null: ' . implode( '+', $in['dimensions'] ) . ( isset( $in['referrer'] ) ? ' under a referrer filter' : '' ) );
 }
