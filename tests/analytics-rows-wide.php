@@ -104,5 +104,22 @@ ok( array( '2026-11-01 04:00:00', '2026-11-03 05:00:00' ) === snt_arows_utc_boun
 ok( 'Winter Park' === snt_arows_clean( 'city', ' Winter Park ', array() ) && '(unknown)' === snt_arows_clean( 'city', '', array() ) && '(invalid)' === snt_arows_clean( 'region', str_repeat( 'x', 129 ), array() ), 'city and region as named, (unknown) when blank' );
 ok( '09' === snt_arows_clean( 'hour', '09', array() ) && '(invalid)' === snt_arows_clean( 'hour', '24', array() ), 'hour 00 to 23' );
 
+echo "\nGroup: the read end to end: routed, and the answer names its source and window\n";
+function add_action() {}
+function snt_analytics_range_dates( $r ) { return 'all' === $r ? array( '2025-06-01', '2026-10-31' ) : array( '2026-10-' . sprintf( '%02d', 32 - (int) $r ), '2026-10-31' ); }
+function sn_analytics_exact_metrics_since() { return '2026-07-11'; }
+define( 'SN_ANALYTICS_DAILY_TABLE', 'sn_analytics_daily' ); define( 'SN_ANALYTICS_DIMS_TABLE', 'sn_analytics_dims' ); define( 'ARRAY_A', 'ARRAY_A' );
+class FakeDb { public $prefix = 'wp_'; public $last_error = ''; public $q = ''; public function esc_like( $s ) { return $s; } public function prepare( $sql, $args ) { $this->q = $sql; return $sql; } public function get_results( $q, $o ) { return array( array( 'city' => 'Boston', 'views' => 4, 'visits' => 2 ) ); } }
+$GLOBALS['wpdb'] = new FakeDb();
+require $root . '/inc/analytics-rows-fetch.php';
+require $root . '/inc/abilities-analytics-rows.php';
+$st = snt_ability_analytics_rows( array( 'dimensions' => array( 'city' ), 'range' => 7 ) );
+ok( 'stored' === $st['source'] && '2026-10-25' === $st['from'] && '2026-10-31' === $st['to'] && 'Boston' === $st['rows'][0]['city'] && false !== strpos( $GLOBALS['wpdb']->q, 'FROM wp_sn_analytics_dims' ), 'city alone: the stored dims table, and the answer says so with its window' );
+$GLOBALS['answers'] = array( array( array( 'city' => 'Boston', 'hour' => '09', 'views' => 2, 'visits' => 1 ) ), array( array( 'city' => 'Boston', 'hour' => '09', 'pageview_visits' => 1 ) ) );
+$ev = snt_ability_analytics_rows( array( 'dimensions' => array( 'city', 'hour' ), 'from' => '2026-10-20', 'to' => '2026-12-31' ) );
+ok( 'events' === $ev['source'] && 'custom' === $ev['range'] && '2026-10-20' === $ev['from'] && '2026-10-31' === $ev['to'] && '09' === $ev['rows'][0]['hour'], 'city by hour: Analytics Engine; a window past today ends today' );
+$old = snt_ability_analytics_rows( array( 'dimensions' => array( 'hour' ), 'range' => 'all' ) );
+ok( is_wp_error( $old ) && false !== strpos( $old->message, 'must start on 2026-08-03' ), 'all of history by hour: refused with the first day Analytics Engine holds' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
