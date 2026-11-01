@@ -14,6 +14,23 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Added
 - **The analytics fields read, on both MCP doors (remote contract 26).** Owner brief "MCP full analytics access" (2026-10-31), part 1 of 4. `signal-noise/analytics-fields` (local, as `sn-metrics{analytics_fields}`) and its remote twin `signal-noise/remote-analytics-fields` answer "what can I ask for?" before a query. They return every dimension and metric the analytics reads accept, each with its unit, a one-line meaning and the store that answers it, plus the traffic classes, the windows, the reads that take them, and what is not measured at all: no cross-day identity, no visitor identity. They return no figures. One registry (`inc/analytics-fields.php`) feeds the read, and `tests/analytics-fields.php` pins it to what `snt_arows_validate()` and the rows schema enforce, so the two cannot drift. The remote twin is gated like every twin (switch, capability, its own slug) and the permission matrix covers it. The remote contract moves from 25 to 26 (RED-then-pin; fixture regenerated for the Worker, whose release follows the last part).
+- **The analytics query widens, on both MCP doors (remote contract 27).** Part 2 of 4. `signal-noise/analytics-rows` and its remote twin (`sn_remote_analytics_query`) accept:
+  - one to four dimensions from path, referrer, country, **region**, **city**, device, link_code, day and **hour** (day and hour in the site's time zone);
+  - a custom window, **from** and **to** in site time, in place of a range;
+  - **source** auto, stored or events.
+
+  Routing (`inc/analytics-rows-events.php`):
+  - The stored rollups answer what they hold as one row per day: path, link_code or day; or one of referrer, country, device, region or city, with or without day. They go back to the first stored day.
+  - Anything else is read from Analytics Engine, which keeps about 90 days: two or more of those dimensions, the hour, or a filter the rollups do not carry. It uses two stitched queries in the daily rollup's live-proven shapes, weighted sums plus a page-view-only count of visitor-days. A window older than 90 days is refused, naming the first day it holds.
+  - Every answer names its `source`, `from` and `to`.
+  - Over the same rows and weighted sums, a four-dimension query's views add up to the single-dimension total, pinned (owner test 7b).
+
+  Validation and safety:
+  - Origin validation is the same allowlist, widened. A path with characters outside a safe set is refused before it reaches Analytics Engine, and the SQL builder refuses it again.
+  - The local door's `sn-metrics{analytics_rows}` takes rows.from and rows.to in place of the top-level range.
+  - The fields read lists region, city, hour, the events source and the custom window.
+
+  Tests: `tests/analytics-rows-wide.php` (48), and seven older refusals of now-answered combinations became acceptance checks. Ten mutants were seen red.
 - **The inventory and the gap list** (`docs/audits/2026-11-01-analytics-mcp-inventory.md`): every store and field, every number the wp-admin analytics screens show, and what each MCP door returns today. Gaps found:
   - City and region: on no MCP door, though stored in the dims table and Analytics Engine.
   - Entry and exit pages: local door only.
