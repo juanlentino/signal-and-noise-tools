@@ -96,7 +96,7 @@ function snt_arows_validate( $input, $allow_unmatched = false ) {
 	}
 	// Time is measured per page: it means something when the rows are pages.
 	if ( ! in_array( $sort, SNT_AROWS_SORTS, true ) || ( 'time' === $sort && ! array_intersect( $dims, array( 'path', 'link_code' ) ) && array( 'day' ) !== $dims ) ) {
-		return $bad( 'sort must be views, visits or time; time only when path or link_code is a dimension, or day alone (time is measured per page).' );
+		return $bad( 'sort must be views, visits, time or sessions; time only when path or link_code is a dimension, or day alone (time is measured per page).' );
 	}
 	$limit = $in['limit'] ?? 50;
 	if ( ! is_int( $limit ) || $limit < 1 || $limit > 500 ) {

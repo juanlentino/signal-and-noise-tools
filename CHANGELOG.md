@@ -52,7 +52,19 @@ adds a bullet below. A release is a separate, deliberate act:
 
   Privacy: no visitor code, IP address or user agent; paths pass the same allowlist; owner only. The remote twin is gated like every twin (owner test 7c).
 
-  Tests: `tests/analytics-sessions-read.php` (49). Each of these mutants was seen red: returning, the timestamp strip, the time sum, a beacon filed under the wrong view, the hours filter, the 90-day floor, the remote gate, the tab dropping a row, the tab's window, path cleaning, the session count, visitor-days per group, the sessions route and its filter refusal.
+  Review fixes (independent review of #2335):
+  - **Sessions are read whole.** The read took the window's exact instants, so a session crossing the window's edge was cut: its entry and page count came out wrong, and `returning` missed the visitor's earlier session. A visitor-day is a UTC day, so it now reads the whole UTC days the window touches and lists the sessions that start in the window.
+  - **The local door reaches every argument.** `sn-metrics` declares `sessions` (`from`, `to`, `hours`, `page`, `per_page`). A new pin checks that every key the dispatch reads is declared.
+  - **The panel and the values:**
+    - The panel says when a window is older than the 90 days Analytics Engine keeps.
+    - It notes that its days are site days, while the panels above count UTC days.
+    - It shows Engaged and Goals.
+    - Place and device read `(unknown)` as in the rows read; goal names are clamped to short printable text.
+    - A beacon in the same second as its page view still belongs to it.
+    - `page` is capped at 100,000.
+  - The session query joins the AE dialect guard.
+
+  Tests: `tests/analytics-sessions-read.php` (62). Its stub now honors the query's window, so edge cases fail as they would live. Each of these mutants was seen red: returning, the timestamp strip, the time sum, a beacon filed under the wrong view, the hours filter, the 90-day floor, the remote gate, the tab dropping a row, the tab's window, path cleaning, the session count, visitor-days per group, the sessions route and its filter refusal.
 - **The inventory and the gap list** (`docs/audits/2026-11-01-analytics-mcp-inventory.md`): every store and field, every number the wp-admin analytics screens show, and what each MCP door returns today. Gaps found:
   - City and region: on no MCP door, though stored in the dims table and Analytics Engine.
   - Entry and exit pages: local door only.

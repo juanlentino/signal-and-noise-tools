@@ -69,7 +69,11 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'rows'     => array(
 					'type'        => 'object',
-					'description' => 'analytics_rows only: {dimensions, from, to, source, path, referrer, sort, limit}; class comes from the top level, and so does range unless rows carries from and to (YYYY-MM-DD, site time). dimensions is one to four of path, referrer, country, region, city, device, link_code, day, hour (link_code: the code of a coded résumé link, /r/CODE); source auto|stored|events, and the answer names the one used (stored rollups kept forever, or Analytics Engine, about 90 days). Paths outside site content read (unmatched); path "(unmatched)" breaks that bucket down by cleaned path (visitor_path, with probe, suggested_target, and status and referrer_host from the 404 log). Referrers are hostnames, every value is named however small. Out-of-set values fail the whole call.',
+					'description' => 'analytics_rows only: {dimensions, from, to, source, path, referrer, sort, limit}; class comes from the top level, and so does range unless rows carries from and to (YYYY-MM-DD, site time). dimensions is one to four of path, referrer, country, region, city, device, link_code, day, hour, entry, exit, returning (link_code: the code of a coded résumé link, /r/CODE; entry, exit and returning are a session\'s, from source sessions, grouped only with country, region, city, device, day or hour); source auto|stored|events|sessions, and the answer names the one used (stored rollups kept forever, or Analytics Engine, about 90 days). Paths outside site content read (unmatched); path "(unmatched)" breaks that bucket down by cleaned path (visitor_path, with probe, suggested_target, and status and referrer_host from the 404 log). Referrers are hostnames, every value is named however small. Out-of-set values fail the whole call.',
+				),
+				'sessions' => array(
+					'type'        => 'object',
+					'description' => 'analytics_sessions only: {from, to, hours, page, per_page}; class comes from the top level. from and to are site days (default today), or hours 1 to 72 for the last N hours; page from 1, per_page 1 to 200 (default 50). Sessions that START in the window, newest first. Out-of-set values fail that section.',
 				),
 				'series'   => array(
 					'type'        => 'string',

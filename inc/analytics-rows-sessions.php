@@ -59,7 +59,7 @@ function snt_arows_sessions_group( array $sessions, array $dims ) {
  */
 function snt_arows_sessions_fetch( array $q, $from, $to ) {
 	list( $lo, $hi ) = snt_arows_utc_bounds( $from, $to );
-	$read            = sn_analytics_sessions_read( $lo, $hi, $q['class'], 0, true );
+	$read            = sn_analytics_sessions_read( $lo, $hi, $q['class'], true );
 	if ( null === $read ) {
 		return new WP_Error( 'sn_analytics_read_failed', 'The Analytics Engine read failed; this is not an empty answer.', array( 'status' => 500 ) );
 	}

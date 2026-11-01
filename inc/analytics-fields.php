@@ -45,7 +45,7 @@ function snt_analytics_fields() {
 			$dim( 'returning', 'returning: a second or later session of the same visitor-day; new: the first. No visitor is recognized on another day.', 'new | returning', array( 'sessions' ) ),
 		),
 		'metrics'       => array(
-			$met( 'views', 'Page views, corrected for sampling.', 'page views', array( 'stored', 'events', 'sessions' ) ),
+			$met( 'views', 'Page views: corrected for sampling from stored and events; counted as read from sessions, as the Sessions tab counts them.', 'page views', array( 'stored', 'events', 'sessions' ) ),
 			$met( 'pageview_visits', 'Visitor-days that viewed: one visitor on one day, an estimate and not a session count.', 'visitor-days', array( 'stored', 'events', 'sessions' ) ),
 			$met( 'time_avg_per_view', 'Visible time on the page per view. The stored rollups keep it per page only: null on their referrer, country, device, region and city rows, and on a stored group that holds a day before the rows answer\'s exact_metrics_since.', 'milliseconds', array( 'stored', 'events', 'sessions' ) ),
 			$met( 'scroll_avg_per_view', 'How far down the page readers got per view: the mean of each view\'s deepest milestone. The stored rollups keep it per page only, as time (the same nulls).', 'percent, 0 to 100', array( 'stored', 'events', 'sessions' ) ),

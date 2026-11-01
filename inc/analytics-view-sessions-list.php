@@ -35,9 +35,11 @@ function snt_analytics_session_list_rows( array $sessions ) {
 			implode( ' → ', $pages ),
 			$s['duration_s'] . 's',
 			$s['source'],
-			implode( ', ', array_filter( array( $s['city'], $s['region'], $s['country'] ), 'strlen' ) ),
-			$s['device'],
+			implode( ', ', array_filter( array( $s['city'], $s['region'], $s['country'] ), static fn( $v ) => '' !== $v && '(unknown)' !== $v ) ),
+			'(unknown)' === $s['device'] ? '' : $s['device'],
 			$s['returning'] ? __( 'yes', 'signal-and-noise-tools' ) : '',
+			$s['engaged'] ? __( 'yes', 'signal-and-noise-tools' ) : '',
+			implode( ', ', $s['goals'] ),
 			$s['link_code'],
 		);
 	}
@@ -54,6 +56,11 @@ function snt_analytics_session_list_rows( array $sessions ) {
 function snt_analytics_render_session_list( $from, $to, $class ) {
 	$title = __( 'Sessions, one by one', 'signal-and-noise-tools' );
 	$floor = snt_analytics_sessions_floor( time() );
+	if ( (string) $to < $floor ) {
+		/* translators: %s: the first day Analytics Engine holds. */
+		snt_an_note_empty( $title, sprintf( __( 'This window is older than Analytics Engine keeps: sessions can be listed from %s on.', 'signal-and-noise-tools' ), $floor ) );
+		return;
+	}
 	$start = max( (string) $from, $floor );
 	$read  = snt_ability_analytics_sessions( array( 'from' => $start, 'to' => (string) $to, 'class' => (string) $class ) );
 	if ( is_wp_error( $read ) ) {
@@ -62,7 +69,7 @@ function snt_analytics_render_session_list( $from, $to, $class ) {
 	}
 	$meta = sprintf(
 		/* translators: 1: sessions in the window, 2: sessions listed */
-		__( '%1$d sessions · the newest %2$d · site time · the rows the MCP sessions read returns', 'signal-and-noise-tools' ),
+		__( '%1$d sessions that began in the window (site days; the panels above count UTC days) · the newest %2$d · the rows the MCP sessions read returns', 'signal-and-noise-tools' ),
 		$read['total'],
 		count( $read['sessions'] )
 	) . ( $start > $from ? ' · ' . sprintf( /* translators: %s: first day Analytics Engine holds */ __( 'from %s, the first day Analytics Engine holds', 'signal-and-noise-tools' ), $start ) : '' )
@@ -78,6 +85,8 @@ function snt_analytics_render_session_list( $from, $to, $class ) {
 			array( 'label' => __( 'Place', 'signal-and-noise-tools' ) ),
 			array( 'label' => __( 'Device', 'signal-and-noise-tools' ) ),
 			array( 'label' => __( 'Returning', 'signal-and-noise-tools' ) ),
+			array( 'label' => __( 'Engaged', 'signal-and-noise-tools' ) ),
+			array( 'label' => __( 'Goals', 'signal-and-noise-tools' ) ),
 			array( 'label' => __( 'Link', 'signal-and-noise-tools' ) ),
 		),
 		array( 'header_meta' => esc_html( $meta ), 'data_colname' => true, 'empty' => __( 'No sessions in this window.', 'signal-and-noise-tools' ) )

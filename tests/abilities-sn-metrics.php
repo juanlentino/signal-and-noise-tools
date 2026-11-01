@@ -177,5 +177,15 @@ $bad_series = snt_ability_sn_metrics( array( 'sections' => array( 'machine_reade
 ok( is_wp_error( $bad_series ) && 'ability_invalid_input' === $bad_series->get_error_code(), 'a series other than "day" fails the call rather than reading as an outage' );
 ok( array( 'day' ) === ( $reg['input_schema']['properties']['series']['enum'] ?? null ), 'the input schema declares series as enum ["day"]' );
 
+// 2026-11-01: the sessions read takes its window and paging through `sessions`, class from the top level.
+$GLOBALS['__abilities'][ $expected_map['analytics_sessions'] ] = new SN_Test_Fact_Ability( true, array() );
+snt_ability_sn_metrics( array( 'sections' => array( 'analytics_sessions' ), 'class' => 'bot', 'sessions' => array( 'hours' => 3, 'page' => 2 ) ) );
+ok( array( 'hours' => 3, 'page' => 2, 'class' => 'bot' ) === $GLOBALS['__abilities'][ $expected_map['analytics_sessions'] ]->last_call_args(), 'sessions {hours, page} reaches the sessions read, with the top-level class' );
+// Every key the dispatch reads from the caller's input is one its schema declares
+// (additionalProperties is false, so an undeclared key is refused before dispatch).
+preg_match_all( '/\$input\[\'([a-z_]+)\'\]/', (string) file_get_contents( dirname( __DIR__ ) . '/inc/abilities-sn-metrics.php' ), $read_keys );
+$undeclared = array_values( array_diff( array_unique( $read_keys[1] ), array_keys( $reg['input_schema']['properties'] ?? array() ) ) );
+ok( array() !== $read_keys[1] && array() === $undeclared, 'every input key the dispatch reads is declared in the schema' . ( $undeclared ? ': missing ' . implode( ', ', $undeclared ) : '' ) );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

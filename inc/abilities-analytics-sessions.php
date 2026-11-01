@@ -65,14 +65,14 @@ function snt_ability_analytics_sessions( $input = null ) {
 	$class = $in['class'] ?? 'human';
 	$page  = $in['page'] ?? 1;
 	$per   = $in['per_page'] ?? SN_ANALYTICS_SESSIONS_PER_PAGE;
-	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) || ! is_int( $page ) || $page < 1 || ! is_int( $per ) || $per < 1 || $per > SN_ANALYTICS_SESSIONS_MAX_PAGE ) {
-		return new WP_Error( 'ability_invalid_input', 'class must be human, suspect or bot; page an integer from 1; per_page an integer from 1 to ' . SN_ANALYTICS_SESSIONS_MAX_PAGE . '.', array( 'status' => 400 ) );
+	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) || ! is_int( $page ) || $page < 1 || $page > 100000 || ! is_int( $per ) || $per < 1 || $per > SN_ANALYTICS_SESSIONS_MAX_PAGE ) {
+		return new WP_Error( 'ability_invalid_input', 'class must be human, suspect or bot; page an integer from 1 to 100000; per_page an integer from 1 to ' . SN_ANALYTICS_SESSIONS_MAX_PAGE . '.', array( 'status' => 400 ) );
 	}
 	$w = snt_analytics_sessions_window( $in, time() );
 	if ( is_wp_error( $w ) ) {
 		return $w;
 	}
-	$read = sn_analytics_sessions_read( $w['lo'], $w['hi'], $class, $w['since'] );
+	$read = sn_analytics_sessions_read( $w['lo'], $w['hi'], $class );
 	if ( null === $read ) {
 		return new WP_Error( 'sn_analytics_read_failed', 'The Analytics Engine read failed; this is not an empty answer.', array( 'status' => 500 ) );
 	}
@@ -112,8 +112,8 @@ function snt_ability_perm_remote_analytics_sessions() {
 
 /** The description, shared. */
 function snt_analytics_sessions_description() {
-	return 'Sessions one by one, the unit of the S&N Analytics Sessions tab: a visit within one visitor-day, split at the idle gap, with at least one page view. Newest first, paged. '
-		. 'Each: start and end (ISO 8601, site time), duration_s, pageviews, entry and exit, pages in order with time_ms and scroll_pct on each (null when not measured), source (the dashboard\'s source label of the first page view\'s referrer), country, region, city, device, class, returning (a second or later session of the same visitor-day; no visitor is recognized on another day), link_code (a coded résumé link, or ""), engaged and goals. '
+	return 'Sessions one by one, the unit of the S&N Analytics Sessions tab: a visit within one visitor-day (a UTC day), split at the idle gap, with at least one page view. The sessions that START in the window, newest first, paged; each is read whole, so one still going at the window\'s end is complete, and one that began before it is not listed. '
+		. 'Each: start and end (ISO 8601, site time), duration_s, pageviews, entry and exit, pages in order with time_ms and scroll_pct on each (null when not measured), source (the dashboard\'s source label of the first page view\'s referrer), country, region, city, device, class, returning (a second or later session of the same visitor-day, counting sessions before the window too; no visitor is recognized on another day), link_code (a coded résumé link, or ""), engaged and goals (custom event names; anything that is not a short printable name reads (invalid)). Place and device read (unknown) when not sent, as in the rows read. '
 		. 'Arguments: from and to (YYYY-MM-DD, site time; default today) or hours (1 to ' . SN_ANALYTICS_SESSIONS_MAX_HOURS . ', the last N hours), class human|suspect|bot (default human), page (default 1), per_page (1 to ' . SN_ANALYTICS_SESSIONS_MAX_PAGE . ', default ' . SN_ANALYTICS_SESSIONS_PER_PAGE . '). Read from Analytics Engine: the last 90 days. capped: true means the raw read hit its cap, so the list is a floor. '
 		. 'Paths are the site\'s own content or (unmatched). No visitor code, IP address or user agent is returned. Read-only.';
 }
