@@ -31,19 +31,26 @@
 		order[ ++count ] = heading
 	}
 	current = heading
+	blank = 0
 	next
 }
 
 {
 	if ( current == "" ) { preamble = preamble $0 "\n" }
 	else if ( $0 ~ /^[ \t]*$/ ) {
-		# Blank lines INSIDE a section are dropped. Merging two "### Fixed"
+		# Blank lines BETWEEN bullets are dropped. Merging two "### Fixed"
 		# blocks otherwise leaves the first block's trailing blank sitting
 		# between two bullets, which reads as a paragraph break that was never
-		# written. Bullets in this changelog are never blank-separated; a
-		# wrapped bullet continues on the next line.
+		# written. Bullets in this changelog are never blank-separated.
+		blank = 1
 	}
-	else { body[ current ] = body[ current ] $0 "\n" }
+	else {
+		# A blank before an INDENTED line is a paragraph break inside one
+		# bullet; dropping it runs the paragraph into the sub-bullet above.
+		if ( blank && $0 ~ /^[ \t]/ ) { body[ current ] = body[ current ] "\n" }
+		blank = 0
+		body[ current ] = body[ current ] $0 "\n"
+	}
 }
 
 END {

@@ -68,6 +68,12 @@ ok( trim( consolidate( $single, $awk ) ) === trim( $single ), 'a body with no du
 $wrapped = "### Fixed\n- a bullet that\n  wraps onto a second line\n";
 ok( false !== strpos( consolidate( $wrapped, $awk ), "  wraps onto a second line" ), 'a wrapped bullet keeps its continuation line' );
 
+// 2026.11.2: the cut ran each bullet's second paragraph into the sub-bullet above it.
+$paras = "### Added\n- **A.** Each line has:\n  - one;\n  - two.\n\n  A second paragraph.\n\n  Tests: four.\n\n- **B.** next\n";
+$pout  = consolidate( $paras, $awk );
+ok( false !== strpos( $pout, "  - two.\n\n  A second paragraph.\n\n  Tests: four.\n- **B.**" ),
+	'a blank line before an indented paragraph is kept (a paragraph break inside one bullet); the one before the next bullet is still dropped' );
+
 $unknown = "### Fixed\n- a\n\n### Provenance\n- b\n\n### Provenance\n- c\n";
 $uout = consolidate( $unknown, $awk );
 ok( 1 === substr_count( $uout, '### Provenance' ) && false !== strpos( $uout, '- c' ),
