@@ -36,6 +36,19 @@ function sn_link_code_from_path( $path ) {
 }
 
 /**
+ * Whether a stored path is served content: a real page, or a coded résumé
+ * link. The one test the path rows, the unmatched report and its breakdown
+ * share, so their sums agree. PURE.
+ *
+ * @param string             $canonical A canonical stored path (no query, no trailing slash).
+ * @param array<string,bool> $real      Canonical content paths.
+ * @return bool
+ */
+function sn_path_is_served( $canonical, array $real ) {
+	return isset( $real[ (string) $canonical ] ) || '' !== sn_link_code_from_path( $canonical );
+}
+
+/**
  * The code this request asks for, or ''.
  *
  * @param string|null $uri A request URI; null reads the current request's.

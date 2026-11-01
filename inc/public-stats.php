@@ -117,6 +117,11 @@ function sn_public_stats_assemble( $class_totals, $human_rows, $window = null, $
 		// instead of ranking #2 at 57). Normalize to the site's canonical
 		// trailing-slash form before aggregating.
 		$path = '/' === $path ? '/' : rtrim( $path, '/' ) . '/';
+		// A coded résumé link (/r/CODE, inc/link-codes.php) counts in the series
+		// but never ranks: a code can be a person's name, and this page is public.
+		if ( function_exists( 'sn_link_code_from_path' ) && '' !== sn_link_code_from_path( $path ) ) {
+			continue;
+		}
 		$by_path[ $path ] = ( $by_path[ $path ] ?? 0 ) + (int) ( $row['views'] ?? 0 );
 	}
 	arsort( $by_path );
@@ -408,6 +413,9 @@ function sn_public_stats_path_label( $path ) {
 	$path = (string) $path;
 	if ( '/' === $path ) {
 		return __( 'Home', 'signal-and-noise-tools' );
+	}
+	if ( function_exists( 'sn_link_code_from_path' ) && '' !== sn_link_code_from_path( $path ) ) {
+		return ''; // a coded résumé link never surfaces on the public page (the code can be a name).
 	}
 	if ( function_exists( 'url_to_postid' ) && function_exists( 'get_the_title' ) ) {
 		$post_id = url_to_postid( home_url( $path ) );
