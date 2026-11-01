@@ -50,7 +50,13 @@ ok( is_wp_error( $v( array( 'dimensions' => array( 'city' ), 'from' => '2026-10-
 ok( is_wp_error( $v( array( 'dimensions' => array( 'city' ), 'range' => 30, 'from' => '2026-10-01', 'to' => '2026-10-02' ) ) ), 'a range and from-to together are refused' );
 ok( is_wp_error( $v( array( 'dimensions' => array( 'city' ), 'from' => '2026-02-30', 'to' => '2026-03-01' ) ) ), 'a day that does not exist is refused' );
 ok( is_wp_error( $v( array( 'dimensions' => array( 'city' ), 'source' => 'cache' ) ) ), 'an unknown source is refused' );
-ok( is_wp_error( $v( array( 'dimensions' => array( 'country', 'city' ), 'sort' => 'time' ) ) ) && ! is_wp_error( $v( array( 'dimensions' => array( 'path', 'city' ), 'sort' => 'time' ) ) ), 'time sorts only rows that are pages' );
+ok( is_wp_error( $v( array( 'dimensions' => array( 'country', 'city' ), 'sort' => 'time' ) ) ) && ! is_wp_error( $v( array( 'dimensions' => array( 'path', 'day' ), 'sort' => 'time' ) ) ), 'time sorts only rows that are pages' );
+foreach ( array( array( 'day' ), array( 'path' ), array( 'link_code' ), array( 'link_code', 'day' ) ) as $dims ) {
+	ok( ! is_wp_error( $v( array( 'dimensions' => $dims, 'sort' => 'time' ) ) ), 'time sort accepted where time is kept: ' . implode( '+', $dims ) );
+}
+foreach ( array( array( 'dimensions' => array( 'path', 'city' ) ), array( 'dimensions' => array( 'path', 'hour' ) ), array( 'dimensions' => array( 'path' ), 'referrer' => 'google.com' ) ) as $in ) {
+	ok( is_wp_error( $v( $in + array( 'sort' => 'time' ) ) ), 'time sort refused where time is null: ' . implode( '+', $in['dimensions'] ) . ( isset( $in['referrer'] ) ? ' under a referrer filter' : '' ) );
+}
 ok( is_wp_error( snt_arows_validate( array( 'dimensions' => array( 'path' ), 'path' => '(unmatched)', 'source' => 'events' ), true ) ), 'the (unmatched) breakdown reads the stored rows only' );
 
 echo "\nGroup: which source answers\n";
@@ -120,6 +126,36 @@ $GLOBALS['answers'] = array( $full, array() );
 ok( true === snt_arows_events_fetch( $v( array( 'dimensions' => array( 'country' ) ) ), '2026-10-01', '2026-10-31' )['capped'], 'a half that reaches the cap says so' );
 $GLOBALS['answers'] = array( null );
 ok( is_wp_error( snt_arows_events_fetch( $v( array( 'dimensions' => array( 'hour' ) ) ), '2026-10-01', '2026-10-31' ) ), 'a failed read is an error, never an empty answer' );
+
+echo "\nGroup: time and scroll per view only where a view's beacons share its row\n";
+// Live 2026-11-01: one Los Angeles view read 475% scroll (its reader's beacons geolocated elsewhere than its page view), and hours read 125%.
+$GLOBALS['answers'] = array(
+	array( array( 'city' => 'Los Angeles', 'views' => 1, 'visits' => 1, 'time_sum' => 21573, 'time_events' => 3, 'scroll_events' => 19 ), array( 'city' => 'Juneau', 'views' => 0, 'visits' => 1, 'time_sum' => 900, 'time_events' => 1, 'scroll_events' => 4 ) ),
+	array( array( 'city' => 'Los Angeles', 'pageview_visits' => 1 ) ),
+);
+$geo = snt_arows_events_fetch( $v( array( 'dimensions' => array( 'city' ) ) ), '2026-10-01', '2026-10-31' );
+ok( 1 === count( $geo['rows'] ) && null === $geo['rows'][0]['scroll_events'] && null === $geo['rows'][0]['time_sum'] && null === $geo['rows'][0]['time_events'] && 1.0 === $geo['rows'][0]['views'], 'by city: views kept, time and scroll null, and a row of beacons only (no view) is dropped' );
+$GLOBALS['answers'] = array(
+	array( array( 'path' => '/about', 'hour' => '18', 'views' => 1, 'visits' => 1, 'time_sum' => 5570, 'time_events' => 2, 'scroll_events' => 5 ) ),
+	array( array( 'path' => '/about', 'hour' => '18', 'pageview_visits' => 1 ) ),
+);
+ok( null === snt_arows_events_fetch( $v( array( 'dimensions' => array( 'path', 'hour' ) ) ), '2026-10-01', '2026-10-31' )['rows'][0]['scroll_events'], 'by hour, even with path: null (a view\'s beacons can land in the next hour)' );
+$GLOBALS['answers'] = array(
+	array( array( 'path' => '/about', 'day' => '2026-10-31', 'views' => 2, 'visits' => 1, 'time_sum' => 5570, 'time_events' => 2, 'scroll_events' => 6 ) ),
+	array( array( 'path' => '/about', 'day' => '2026-10-31', 'pageview_visits' => 1 ) ),
+);
+$pd = snt_arows_events_fetch( $v( array( 'dimensions' => array( 'path', 'day' ) ) ), '2026-10-01', '2026-10-31' )['rows'][0];
+ok( 6.0 === $pd['scroll_events'] && 5570.0 === $pd['time_sum'] && 2.0 === $pd['time_events'], 'by path and day: time and scroll kept, as the stored rollup keeps them' );
+
+foreach ( array( 'country', 'device', 'referrer', 'region' ) as $d ) {
+	$GLOBALS['answers'] = array( array( array( $d => 'x', 'views' => 2, 'visits' => 1, 'time_sum' => 900, 'time_events' => 1, 'scroll_events' => 3 ) ), array( array( $d => 'x', 'pageview_visits' => 1 ) ) );
+	ok( null === snt_arows_events_fetch( $v( array( 'dimensions' => array( $d ) ) ), '2026-10-01', '2026-10-31' )['rows'][0]['scroll_events'], "by {$d}: null" );
+}
+$GLOBALS['answers'] = array( array( array( 'link_code' => 'hera', 'views' => 2, 'visits' => 1, 'time_sum' => 900, 'time_events' => 1, 'scroll_events' => 3 ) ), array( array( 'link_code' => 'hera', 'pageview_visits' => 1 ) ) );
+ok( 3.0 === snt_arows_events_fetch( $v( array( 'dimensions' => array( 'link_code' ) ) ), '2026-10-01', '2026-10-31' )['rows'][0]['scroll_events'], 'by link_code: kept (a coded path is a page)' );
+// Live 2026-11-01: beacons carry no referrer, so under (direct) "/" held all 157 scroll events of its 71 views and google.com's rows read 0.
+$GLOBALS['answers'] = array( array( array( 'path' => '/', 'views' => 52, 'visits' => 30, 'time_sum' => 256069, 'time_events' => 40, 'scroll_events' => 157 ) ), array( array( 'path' => '/', 'pageview_visits' => 31 ) ) );
+ok( null === snt_arows_events_fetch( $v( array( 'dimensions' => array( 'path' ), 'referrer' => '(direct)' ) ), '2026-10-01', '2026-10-31' )['rows'][0]['scroll_events'], 'by path under a referrer filter: null (a beacon carries no referrer)' );
 
 echo "\nGroup: the window in site time, the values as stored\n";
 ok( array( '2026-10-01 04:00:00', '2026-11-01 04:00:00' ) === snt_arows_utc_bounds( '2026-10-01', '2026-10-31' ), 'October in New York: EDT both ends' );
