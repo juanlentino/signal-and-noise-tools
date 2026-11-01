@@ -16,7 +16,7 @@ function el( tag ) {
 	};
 }
 const list = el( 'ol' );
-Object.assign( list.attrs, { 'data-empty': 'Nobody reading right now.', 'data-visit': '%1$s min, %2$s pages', 'data-from': 'from %s' } );
+Object.assign( list.attrs, { 'data-empty': 'Nobody reading right now.', 'data-visit': '%1$s min, %2$s pages', 'data-visit-one': '%s min, 1 page', 'data-from': 'from %s' } );
 global.document = {
 	hidden: false, readyState: 'complete',
 	querySelector: () => list,

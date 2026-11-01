@@ -284,7 +284,12 @@
 			name.textContent = String( r.page );
 			var parts = [ [ r.city, r.region, r.country ].filter( Boolean ).join( ', ' ), String( r.device || '' ) ];
 			if ( r.source ) { parts.push( String( list.getAttribute( 'data-from' ) || '%s' ).replace( '%s', String( r.source ) ) ); }
-			parts.push( String( list.getAttribute( 'data-visit' ) || '%1$s, %2$s' ).replace( '%1$s', Number( r.minutes ).toLocaleString() ).replace( '%2$s', Number( r.pages ).toLocaleString() ) );
+			// No page view in view (only beacons): how far into the visit is not known, so nothing is said.
+			if ( Number( r.pages ) === 1 ) {
+				parts.push( String( list.getAttribute( 'data-visit-one' ) || '%s' ).replace( '%s', Number( r.minutes ).toLocaleString() ) );
+			} else if ( Number( r.pages ) > 1 ) {
+				parts.push( String( list.getAttribute( 'data-visit' ) || '%1$s, %2$s' ).replace( '%1$s', Number( r.minutes ).toLocaleString() ).replace( '%2$s', Number( r.pages ).toLocaleString() ) );
+			}
 			line.className = 'sn-live-admin__depth';
 			line.textContent = parts.filter( Boolean ).join( ' · ' );
 			li.appendChild( name );

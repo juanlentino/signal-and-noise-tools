@@ -54,6 +54,8 @@ function sn_analytics_live_admin_html( $get = null ) {
 		// One line per reader (inc/analytics-live-readers.php): where, on what, from where, and how far into the visit.
 		/* translators: 1: minutes since the visit began, 2: pages read in the visit. */
 		. $list( 'data-sn-live-readers data-visit="' . esc_attr__( '%1$s min, %2$s pages', 'signal-and-noise-tools' ) . '"'
+			/* translators: %s: minutes since the visit began. */
+			. ' data-visit-one="' . esc_attr__( '%s min, 1 page', 'signal-and-noise-tools' ) . '"'
 			/* translators: %s: where the visit came in from, e.g. LinkedIn. */
 			. ' data-from="' . esc_attr__( 'from %s', 'signal-and-noise-tools' ) . '"', __( 'Readers now', 'signal-and-noise-tools' ), __( 'human readers, last 5 minutes: place, device, entry source', 'signal-and-noise-tools' ), __( 'Nobody reading right now.', 'signal-and-noise-tools' ) )
 		. '</div>'

@@ -89,7 +89,8 @@ if ( '' === $node ) {
 } else {
 	$run = static fn( $ans ) => json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/live-now-readers.js' ) . ' ' . escapeshellarg( json_encode( $ans ) ) ), true );
 	$li  = $run( array( 'fetched' => 1, 'readers' => $r ) );
-	ok( 'SPAN' === $li[0]['tag'] && '(unmatched)|Evilcity, Massachusetts · desktop · 0 min, 0 pages' === $li[0]['text'], 'no source when none was seen, nothing invented' );
+	ok( 'SPAN' === $li[0]['tag'] && '(unmatched)|Evilcity, Massachusetts · desktop' === $li[0]['text'], 'no page view in view: no source and no visit length, nothing invented' );
+ok( 'Resume via hera|Buenos Aires, Buenos Aires, AR · mobile · from Direct · 0 min, 1 page' === $li[1]['text'], 'one page reads "1 page"' );
 	ok( 'A' === $li[2]['tag'] && 'https://x.test/notes/x/' === $li[2]['href'] && 'A note|Boston, Massachusetts, US · desktop · from LinkedIn · 25 min, 2 pages' === $li[2]['text'], 'the page links where it can; then place, device, entry source and how far into the visit' );
 	ok( array( array( 'tag' => 'LI', 'href' => '', 'text' => 'Nobody reading right now.' ) ) === $run( array( 'fetched' => 1, 'readers' => array() ) ), 'nobody reading says so' );
 }
