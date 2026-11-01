@@ -106,6 +106,8 @@ function sn_analytics_is_excluded_path( $path ) {
 	return '/wp-admin' === $path || 0 === strpos( $path, '/wp-admin/' ) || 0 === strpos( $path, '/wp-login.php' );
 }
 
+if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
+require __DIR__ . '/../inc/link-codes.php';
 require __DIR__ . '/../inc/public-stats.php';
 list( $__wf, $__wt ) = sn_public_stats_window();
 $GLOBALS['__options'][ SN_PUBLIC_STATS_MACHINES_OPT ] = array( 'from' => $__wf, 'to' => $__wt, 'machines' => array( 'total' => 4200, 'split' => array( 'verified' => 2100, 'unverified' => 1680, 'not_measured' => 420 ) ) );
@@ -497,6 +499,16 @@ ok( 30 === $cap[0]['share'] && 'Other' === end( $cap )['label'] && 140 === end( 
 $two = array( array( 'value' => 'a', 'views' => 60, 'visits' => 10 ), array( 'value' => 'b', 'views' => 40, 'visits' => 10 ) );
 ok( 60 === sn_public_stats_fold( $two, 'strval', 200 )[0]['share'] && 2 === count( sn_public_stats_fold( $two, 'strval', 200 ) ), 'a short read short of the total is missing coverage, never Other' );
 ok( 60 === sn_public_stats_fold( $two, 'strval', 50 )[0]['share'], 'a window total below the rows\' sum never pushes shares past 100' );
+
+echo "\nGroup: /stats is visitor information; the backend is the owner's (owner, 2026-10-31)\n";
+$coded = array_merge( $rows, array(
+	array( 'day' => $win_day( 2 ), 'path' => '/r/hera', 'views' => 900 ),
+	array( 'day' => $win_day( 1 ), 'path' => '/r/hera/', 'views' => 5 ),
+) );
+$ac = sn_public_stats_assemble( $ct, $coded, null, 640 );
+ok( ! array_filter( array_keys( $ac['top'] ), static fn( $p ) => 0 === strpos( $p, '/r/' ) ), 'a coded résumé link never ranks in Most read, however many views (a code can be a name)' );
+ok( $a['top'] === $ac['top'], 'Most read keeps its real pages, untouched' );
+ok( '' === sn_public_stats_path_label( '/r/hera/' ), 'and a coded path has no public label' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

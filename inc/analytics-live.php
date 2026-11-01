@@ -53,6 +53,12 @@ function sn_analytics_live_payload( $all_classes ) {
 		// Admin only: the public answer never says where readers came from.
 		$out['surge']   = is_array( $cached ) && isset( $cached['surge'] ) && is_array( $cached['surge'] ) ? $cached['surge'] : null;
 		$out['sources'] = is_array( $cached ) && isset( $cached['sources'] ) && is_array( $cached['sources'] ) ? array_values( $cached['sources'] ) : null;
+		// Admin only: a reader on a coded résumé link, labeled with its code
+		// ("Resume via hera", inc/link-codes.php). The public list never names one.
+		if ( is_array( $out['pages'] ) && is_array( $cached['links'] ?? null ) && $cached['links'] ) {
+			$out['pages'] = array_merge( $out['pages'], array_values( $cached['links'] ) );
+			usort( $out['pages'], static fn( $a, $b ) => (int) ( $b['readers'] ?? 0 ) <=> (int) ( $a['readers'] ?? 0 ) );
+		}
 		$out['classes'] = array();
 		foreach ( array( 'human', 'suspect', 'bot' ) as $class ) {
 			$out['classes'][ $class ] = sn_analytics_realtime( $class );

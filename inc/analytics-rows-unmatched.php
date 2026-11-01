@@ -39,7 +39,8 @@ function snt_arows_shape_unmatched( array $rows, array $q, array $real, callable
 	foreach ( $rows as $r ) {
 		$stored = (string) ( $r['path'] ?? '' );
 		// The default answer's test (snt_arows_clean()), so the rows' views sum to its "(unmatched)" row.
-		if ( isset( $real[ sn_analytics_canonical_path( (string) strtok( strtok( $stored, '?' ), '#' ) ) ] ) ) {
+		$canon = sn_analytics_canonical_path( (string) strtok( strtok( $stored, '?' ), '#' ) );
+		if ( function_exists( 'sn_path_is_served' ) ? sn_path_is_served( $canon, $real ) : isset( $real[ $canon ] ) ) {
 			continue;
 		}
 		$c           = snt_unmatched_clean_path( $stored );

@@ -120,5 +120,18 @@ if ( '' === $node ) {
 	ok( isset( $p[0] ) && null === $p[0]['depth'] && false !== strpos( $p[0]['text'], 'Alpha' ), 'the public strip never draws it, even if an answer carried it' );
 }
 
+echo "\nGroup: coded résumé links, admin only (2026-10-31)\n";
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array( 'human' => 3 ), 'views_today' => 4, 'fetched' => 9,
+	'pages' => array( array( 'label' => 'Alpha', 'url' => 'u1', 'readers' => 2, 'scroll' => null ) ),
+	'links' => array( array( 'label' => 'Resume via hera', 'url' => 'https://x.test/resume/', 'readers' => 3 ) ) );
+$adm = sn_analytics_live_payload( true )['pages'];
+$pub = sn_analytics_live_payload( false )['pages'];
+ok( 'Resume via hera' === ( $adm[0]['label'] ?? '' ) && 'Alpha' === ( $adm[1]['label'] ?? '' ), 'the admin list carries the coded reader, ranked by readers' );
+ok( ! in_array( 'Resume via hera', array_column( $pub, 'label' ), true ) && 1 === count( $pub ), 'the public list never names a code' );
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ]['pages'] = null;
+ok( null === sn_analytics_live_payload( true )['pages'], 'a failed pages read stays absent, coded links or not' );
+$rt = (string) file_get_contents( $root . '/inc/analytics-realtime.php' );
+ok( false !== strpos( $rt, "sn_analytics_live_pages_read( \$links )" ) && false !== strpos( $rt, "'links'       => \$links," ), 'the realtime refresh stores the coded rows from the same query' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -13,6 +13,8 @@ function sn_analytics_canonical_path( $p ) { $p = (string) $p; if ( '' === $p ) 
 function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
 function add_action() {}
 require __DIR__ . '/../inc/unmatched-paths.php';
+function add_filter() {}
+require __DIR__ . '/../inc/link-codes.php';
 // The 404 log's own probe test and suggester, as production wires them.
 require __DIR__ . '/../inc/redirects-store.php';
 require __DIR__ . '/../inc/redirects-404-log.php';
@@ -157,6 +159,16 @@ ok( isset( $za['/go/x'] ), 'no views and no visits stays with the scanners' );
 ok( isset( $za['/mixed'] ) && 'bot' === $za['/mixed']['class'], 'page views decide wherever there are any' );
 $t = snt_unmatched_report_rows( array( $zv( '/quiet', 'suspect', 0, 1 ), $zv( '/notes/feed', 'human', 0, 17 ), array( 'last_day' => '2026-10-20' ) + $zv( '/a', 'suspect', 2, 1 ) ), $real, static fn() => '', static fn() => false );
 ok( array( '/notes/feed', '/a', '/quiet' ) === array_column( $t['people'], 'path' ) && 'suspect' === $t['people'][2]['class'], 'review 2026-10-31: with no human view, visits rank before recency, so a feed is not ranked last; suspect visits alone are people' );
+
+echo "\nGroup: coded résumé links are not unmatched (2026-10-31)\n";
+$rep = snt_unmatched_report_rows( array(
+	array( 'path' => '/r/hera', 'class' => 'human', 'views' => 3, 'visits' => 1, 'first_day' => '2026-10-31', 'last_day' => '2026-10-31' ),
+	array( 'path' => '/r/hera/?x=1', 'class' => 'bot', 'views' => 1, 'visits' => 1, 'first_day' => '2026-10-31', 'last_day' => '2026-10-31' ),
+	array( 'path' => '/r/Bad_Code', 'class' => 'human', 'views' => 1, 'visits' => 1, 'first_day' => '2026-10-31', 'last_day' => '2026-10-31' ),
+), array( '/' => true ), static fn( $c ) => '', static fn( $c ) => false );
+$listed = array_column( array_merge( $rep['people'], $rep['automated'] ), 'path' );
+ok( ! array_filter( $listed, static fn( $p ) => 0 === strpos( $p, '/r/hera' ) ), 'a coded link is reported under Links, never as an unmatched path' );
+ok( 1 === count( $listed ), 'a malformed code still is' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
