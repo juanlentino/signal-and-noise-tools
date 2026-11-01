@@ -96,6 +96,7 @@ adds a bullet below. A release is a separate, deliberate act:
   - Every field the brief names exists in Analytics Engine for about 90 days; the ceiling was the tooling.
 
 ### Fixed
+- **A cut keeps the paragraphs inside a bullet.** `tools/lib/consolidate-changelog-sections.awk` dropped every blank line in a section, so a bullet's second paragraph ran into the sub-bullet above it once rendered. A blank line before an indented line now survives; the one between bullets is still dropped. Pinned in `tests/changelog-section-consolidation.php`, red both ways.
 - **Live "Arrived from" no longer counts an internal click as Direct.** `sn_analytics_live_sources_sql()` read `blob3` raw, which is `''` for no referrer and for an internal click alike. It now selects `sn_analytics_referrer_value_sql('blob3')`, so the fold drops internal clicks as its docblock always said. The stored 5-minute slots and the publish window's sources had the same raw read and take the same relabel.
 
 ## [2026.11.1] - 2026-11-01 — Coded résumé links, the Links view, and link_code on the remote door
