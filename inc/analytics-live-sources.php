@@ -22,11 +22,38 @@ const SN_ANALYTICS_LIVE_SOURCES_MAX = 5;
  */
 function sn_analytics_live_sources_sql() {
 	return implode( ' ', array(
-		'SELECT blob3 AS host, count(DISTINCT index1) AS readers',
+		// The referrer kind (inc/analytics-referrer-kind.php): an internal click reads (internal), which the fold drops, never Direct.
+		'SELECT ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS host, count(DISTINCT index1) AS readers',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
-		"WHERE timestamp >= now() - INTERVAL '5' MINUTE AND blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where(),
+		// The human class already carries the over-cap list; a second copy pushed a full list past the statement budget.
+		"WHERE timestamp >= now() - INTERVAL '5' MINUTE AND blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(),
 		'GROUP BY host ORDER BY readers DESC LIMIT 40',
 	) );
+}
+
+/**
+ * A source as an agent may read it: a dashboard brand label, Direct, or a
+ * clean hostname; (invalid) for any other referrer text (it is visitor-written
+ * and lands in a model's context, the rows read's rule in inc/analytics-rows.php);
+ * '' for an internal click, which is not a source. PURE given the rules.
+ *
+ * @param string $label sn_analytics_canonical_source() output.
+ * @return string
+ */
+function sn_analytics_live_source_label( $label ) {
+	static $brands = null;
+	$brands = $brands ?? array_column( sn_analytics_source_rules(), 'label' );
+	$label  = (string) $label;
+	if ( '' === $label || SN_ANALYTICS_INTERNAL_REFERRER === $label ) {
+		return '';
+	}
+	if ( '(direct)' === $label ) {
+		return __( 'Direct', 'signal-and-noise-tools' );
+	}
+	if ( in_array( $label, $brands, true ) ) {
+		return $label;
+	}
+	return strlen( $label ) <= 253 && preg_match( '/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/', $label ) ? $label : '(invalid)';
 }
 
 /**
@@ -42,11 +69,10 @@ function sn_analytics_live_sources_from_rows( array $rows, $self_hosts = null ) 
 		if ( ! is_array( $row ) || ! isset( $row['readers'] ) ) {
 			continue;
 		}
-		$label = sn_analytics_canonical_source( (string) ( $row['host'] ?? '' ), $self_hosts );
-		if ( SN_ANALYTICS_INTERNAL_REFERRER === $label ) {
-			continue;
+		$label = sn_analytics_live_source_label( sn_analytics_canonical_source( (string) ( $row['host'] ?? '' ), $self_hosts ) );
+		if ( '' === $label ) {
+			continue; // an internal click is not a source.
 		}
-		$label        = '(direct)' === $label ? __( 'Direct', 'signal-and-noise-tools' ) : $label;
 		$by[ $label ] = ( $by[ $label ] ?? 0 ) + max( 0, (int) $row['readers'] );
 	}
 	$out = array();

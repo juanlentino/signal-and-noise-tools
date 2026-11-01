@@ -13,6 +13,25 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Added
+- **Live names each reader: place, device and entry source (part 4 of 4).** Owner brief "MCP full analytics access" (2026-10-31). The admin Right now block gains "Readers now", and `signal-noise/live-now` (and `sn-status{live}`) gains `readers`: one line per presumed-human reader of the last 5 minutes, at most 20, newest first. Each line has:
+  - city, region and country, and device;
+  - the dashboard source of the visit's first page view;
+  - the page they are on now;
+  - pages read and minutes into the visit.
+
+  One more query per realtime refresh: human page views, scrolls and timing beacons of the last two hours, split at the Sessions tab's idle gap. The readers are held only in the realtime cache, never in the stored 24-hour slots. The public live answer is unchanged. No visitor code, IP address or user agent.
+
+  Review fixes (independent review of #2336):
+  - A visit whose first page view is an internal click shows no source, never `(internal)`.
+  - Any source that is not a dashboard name or a clean hostname reads `(invalid)`, on the reader lines and on Arrived from. A referrer is visitor-written and lands in a model's context, so this follows the rows read's rule. The shared helper is `sn_analytics_live_source_label()`.
+  - A read that reaches its 5,000-row cap is not shown, never a partial list.
+  - Each page resolves once per refresh.
+  - A coded link reads as the pages list names it, with the résumé's own title and URL.
+  - The idle gap follows the sessions config.
+  - The over-cap list rides once in the pages, sources and readers queries. The second copy could push a full list past the statement budget.
+  - The wiring is pinned end to end: a refresh stores the readers, the plugin loads the file, and live-now declares the field. The script keeps updating the rest of the block when a cache has no readers.
+
+  Tests: `tests/analytics-live-readers.php` (31, including the Live script under node). Each of these mutants was seen red: the active window to the second, the entry view, the internal key, the cap of 20, the row cap, the referrer relabel, the admin payload, the country check, an invented source, `(internal)` kept, invalid text passed, the memo, the transient key, the require, the schema, and the script's null guard.
 - **The analytics fields read, on both MCP doors (remote contract 26).** Owner brief "MCP full analytics access" (2026-10-31), part 1 of 4. `signal-noise/analytics-fields` (local, as `sn-metrics{analytics_fields}`) and its remote twin `signal-noise/remote-analytics-fields` answer "what can I ask for?" before a query. They return every dimension and metric the rows read (`analytics_rows`, the remote analytics query) accepts, each with its unit, a one-line meaning and the store that answers it, plus the traffic classes, the windows, the reads that take them, and what is not measured at all: no cross-day identity, no visitor identity. They return no figures. One registry (`inc/analytics-fields.php`) feeds the read, and `tests/analytics-fields.php` pins it to what `snt_arows_validate()` and the rows schema enforce, so the two cannot drift; the classes and ranges are pinned to the real constants. The local `analytics_query` section keeps its own vocabulary. The rows read now names a stored blank country or device `(unknown)` instead of `(invalid)`. The remote twin is gated like every twin (switch, capability, its own slug) and the permission matrix covers it. The remote contract moves from 25 to 26 (RED-then-pin; fixture regenerated for the Worker, whose release follows the last part).
 - **The analytics query widens, on both MCP doors (remote contract 27).** Part 2 of 4. `signal-noise/analytics-rows` and its remote twin (`sn_remote_analytics_query`) accept:
   - one to four dimensions from path, referrer, country, **region**, **city**, device, link_code, day and **hour** (day and hour in the site's time zone);
@@ -75,6 +94,9 @@ adds a bullet below. A release is a separate, deliberate act:
   - Live: no per-reader detail.
   - Also missing from MCP: session quality, UTM campaigns, browser, OS, protocol, TLS, time zone, network, colo, the hour heatmap, distributions and percentiles, event properties, the insights signals, drill-downs, edge dimensions and the login-defense counts.
   - Every field the brief names exists in Analytics Engine for about 90 days; the ceiling was the tooling.
+
+### Fixed
+- **Live "Arrived from" no longer counts an internal click as Direct.** `sn_analytics_live_sources_sql()` read `blob3` raw, which is `''` for no referrer and for an internal click alike. It now selects `sn_analytics_referrer_value_sql('blob3')`, so the fold drops internal clicks as its docblock always said. The stored 5-minute slots and the publish window's sources had the same raw read and take the same relabel.
 
 ## [2026.11.1] - 2026-11-01 — Coded résumé links, the Links view, and link_code on the remote door
 

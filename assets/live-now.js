@@ -85,6 +85,9 @@
 		document.querySelectorAll( '[data-sn-live-pages]' ).forEach( function ( list ) {
 			pages( list, data );
 		} );
+		document.querySelectorAll( '[data-sn-live-readers]' ).forEach( function ( list ) {
+			readers( list, data.readers );
+		} );
 		document.querySelectorAll( '[data-sn-live-sources]' ).forEach( function ( list ) {
 			rows( list, data.sources, false );
 		} );
@@ -258,6 +261,42 @@
 		return parts.length ? parts.map( function ( x ) { return list.getAttribute( x[ 1 ] ).replace( '%s', x[ 0 ].toLocaleString() ); } ).join( ', ' ) : list.getAttribute( 'data-scroll-none' );
 	}
 	function pages( list, data ) { rows( list, data.pages, true ); }
+	// Readers now (admin only): the page each reader is on, then one line of
+	// place, device, entry source and how far into the visit. Strings ride on
+	// the list. Null (not read) leaves the list as it was.
+	function readers( list, items ) {
+		if ( ! Array.isArray( items ) ) {
+			return;
+		}
+		while ( list.firstChild ) {
+			list.removeChild( list.firstChild );
+		}
+		if ( ! items.length ) {
+			var none = document.createElement( 'li' );
+			none.className = 'sn-live-admin__empty';
+			none.textContent = list.getAttribute( 'data-empty' ) || 'none';
+			list.appendChild( none );
+			return;
+		}
+		items.forEach( function ( r ) {
+			var li = document.createElement( 'li' ), name = document.createElement( r.url ? 'a' : 'span' ), line = document.createElement( 'span' );
+			if ( r.url ) { name.href = String( r.url ); }
+			name.textContent = String( r.page );
+			var parts = [ [ r.city, r.region, r.country ].filter( Boolean ).join( ', ' ), String( r.device || '' ) ];
+			if ( r.source ) { parts.push( String( list.getAttribute( 'data-from' ) || '%s' ).replace( '%s', String( r.source ) ) ); }
+			// No page view in view (only beacons): how far into the visit is not known, so nothing is said.
+			if ( Number( r.pages ) === 1 ) {
+				parts.push( String( list.getAttribute( 'data-visit-one' ) || '%s' ).replace( '%s', Number( r.minutes ).toLocaleString() ) );
+			} else if ( Number( r.pages ) > 1 ) {
+				parts.push( String( list.getAttribute( 'data-visit' ) || '%1$s, %2$s' ).replace( '%1$s', Number( r.minutes ).toLocaleString() ).replace( '%2$s', Number( r.pages ).toLocaleString() ) );
+			}
+			line.className = 'sn-live-admin__depth';
+			line.textContent = parts.filter( Boolean ).join( ' · ' );
+			li.appendChild( name );
+			li.appendChild( line );
+			list.appendChild( li );
+		} );
+	}
 
 	function load() {
 		var b = Math.floor( Date.now() / BUCKET );
@@ -281,7 +320,7 @@
 	}
 
 	function tick() {
-		if ( document.hidden || ! document.querySelector( '[data-sn-live],[data-sn-live-hour],[data-sn-live-pages],[data-sn-live-sources],[data-sn-live-top],[data-sn-live-surge]' ) ) {
+		if ( document.hidden || ! document.querySelector( '[data-sn-live],[data-sn-live-hour],[data-sn-live-pages],[data-sn-live-sources],[data-sn-live-readers],[data-sn-live-top],[data-sn-live-surge]' ) ) {
 			return;
 		}
 		// apply() throwing on an answer it cannot use settles like a failed read.

@@ -100,6 +100,7 @@ ok( false !== strpos( $sql, "blob2 IN ('/notes/launch/','/notes/launch')" ) && f
 ok( false !== strpos( sn_lanes_owner_sql( 'UTC', $scope ), "blob2 IN ('/notes/launch/','/notes/launch')" ) && false !== strpos( sn_lanes_owner_sql( 'UTC', $scope ), 'agent, part' ), 'the owner read too' );
 ok( false === strpos( sn_lanes_public_sql( 'sn_pageviews_v2', '', 'UTC' ), 'part' ) && false === strpos( sn_lanes_owner_sql( 'UTC' ), 'part' ), 'with no scope the nightly reads are unchanged' );
 ok( null === sn_publish_window_scope( "/notes/x'y/", $p, $p + 60 ) && '' === sn_publish_window_sources_sql( 'd', "/a') OR (1=1", $p, $p + 60 ), 'a path that is not a plain URL path is never interpolated' );
+ok( false !== strpos( sn_publish_window_sources_sql( 'd', '/notes/x/', $p, $p + 60 ), sn_analytics_referrer_value_sql( 'blob3' ) . ' AS host' ), 'the note window\'s sources relabel an internal click, so Direct is not inflated (2026-11-01)' );
 
 echo "\nGroup: window + after = total, lane by lane\n";
 $H   = static fn( $c ) => str_repeat( $c, 16 );
@@ -127,7 +128,7 @@ ok( 3 === $split['window']['human']['hits'] && 6 === $split['after']['human']['h
 
 echo "\nGroup: the report, read on demand, a closed window read once\n";
 $GLOBALS['__answer'] = static function ( $sql ) use ( $pub ) {
-	if ( false !== strpos( $sql, 'blob3 AS host' ) ) { return array( array( 'host' => 'news.ycombinator.com', 'readers' => 2 ) ); }
+	if ( false !== strpos( $sql, ' AS host, ' ) ) { return array( array( 'host' => 'news.ycombinator.com', 'readers' => 2 ) ); }
 	return false !== strpos( $sql, SN_LANES_OWNER_DATASET ) ? array() : $pub;
 };
 ok( 'none' === sn_publish_window_report( 99 )['state'] && array() === $GLOBALS['__q'], 'no stamp: "none", and nothing is read' );
@@ -170,7 +171,7 @@ ok( ! isset( $cache[999] ) && SN_PUBLISH_WINDOW_CACHE_MAX === count( $cache ) &&
 
 echo "\nGroup: the dossier's First hour leads with the human readers after it\n";
 $GLOBALS['__opt'] = array();
-$GLOBALS['__answer'] = static function ( $sql ) use ( $pub ) { return false !== strpos( $sql, 'blob3 AS host' ) ? array() : ( false !== strpos( $sql, SN_LANES_OWNER_DATASET ) ? array() : $pub ); };
+$GLOBALS['__answer'] = static function ( $sql ) use ( $pub ) { return false !== strpos( $sql, ' AS host, ' ) ? array() : ( false !== strpos( $sql, SN_LANES_OWNER_DATASET ) ? array() : $pub ); };
 $GLOBALS['__meta'][7][ SN_PUBLISH_WINDOW_META ] = time() - 600;
 $b = sn_note_dossier_publish_window( 7 );
 ok( 'First hour' === $b[0]['heading'] && 'Human after the window' === $b[0]['tiles'][0]['label'] && 'window open, 50 min left' === $b[1 - 1]['tiles'][1]['note'], 'the first tile is the after-window human figure; an open window says how long is left' );
