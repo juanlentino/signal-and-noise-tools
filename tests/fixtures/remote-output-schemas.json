@@ -1,6 +1,6 @@
 {
-    "contract_version": "24",
-    "shape_hash": "ed3e4ee3fd4ec7bda98127da1480887538b712009a871154c50d9d87cbf3d714",
+    "contract_version": "25",
+    "shape_hash": "0e07b989fdeba08e7f6bb37b27c00eb958ef14bf8f29a5de034ba7b936bdf8b4",
     "tools": {
         "signal-noise/remote-analytics-rows": {
             "wrap": false,
@@ -22,6 +22,9 @@
                                     "type": "string"
                                 },
                                 "device": {
+                                    "type": "string"
+                                },
+                                "link_code": {
                                     "type": "string"
                                 },
                                 "day": {

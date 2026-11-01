@@ -44,7 +44,7 @@ function snt_analytics_rows_output_schema( $unmatched = false ) {
 				'items' => array(
 					'type'       => 'object',
 					'properties' => array(
-						'path' => $s, 'referrer' => $s, 'country' => $s, 'device' => $s, 'day' => $s,
+						'path' => $s, 'referrer' => $s, 'country' => $s, 'device' => $s, 'link_code' => $s, 'day' => $s,
 						'views'               => array( 'type' => 'integer' ),
 						'pageview_visits'     => array( 'type' => 'integer' ),
 						'time_avg_per_view'   => $n,
@@ -97,7 +97,8 @@ function snt_ability_perm_remote_analytics_rows() {
 
 /** The description, shared: what the numbers are and are not. */
 function snt_analytics_rows_description() {
-	return 'Stored analytics as counted rows, by one of path, referrer, country, device or day, or one of the first four with day (path and day is the finest grain served: no hit-level rows, nothing below a day). '
+	return 'Stored analytics as counted rows, by one of path, referrer, country, device, link_code or day, or one of the first five with day (path and day is the finest grain served: no hit-level rows, nothing below a day). '
+		. 'link_code is the code of a coded résumé link (/r/CODE, for example /r/hera returns hera), read out of the stored path: only coded paths count, a malformed one is (invalid). '
 		. 'Arguments: dimensions (required), range 7|14|30|90|365|all (default 30), class human|suspect|bot (default human; human is presumed human (not flagged), an inferred class), path (a site path; only with path or day), referrer (a hostname; only with referrer or day), sort views|visits|time (time only with path or day), limit 1-500 (default 50). Out-of-set values are refused, not coerced. '
 		. 'Each row: its dimension values, views, pageview_visits, time_avg_per_view and scroll_avg_per_view. Times are MILLISECONDS; scroll is mean max depth 0-100. Time and scroll are stored per page only, so they are null for referrer, country and device. '
 		. 'pageview_visits counts visitor-DAYS that viewed: an estimate, not a session count. views are sample-corrected. '

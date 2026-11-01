@@ -77,7 +77,7 @@ function snt_arows_fetch( array $q, $from, $to ) {
 		// one: a legacy (pre-v5) row has none, and a partial sum would pass for
 		// a measured one.
 		$full = static fn( $col ) => "CASE WHEN COUNT({$col}) = COUNT(*) THEN SUM({$col}) END AS {$col}";
-		$sql  = 'SELECT ' . ( 'path' === $other ? "{$canon} AS path, " : '' ) . ( $day ? 'day, ' : '' )
+		$sql  = 'SELECT ' . ( in_array( $other, array( 'path', 'link_code' ), true ) ? "{$canon} AS {$other}, " : '' ) . ( $day ? 'day, ' : '' )
 			. 'SUM(views) AS views, SUM(visits) AS visits, ' . implode( ', ', array_map( $full, array( 'pageview_visits', 'time_sum', 'time_events', 'scroll_events' ) ) )
 			. ' FROM ' . $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE . ' WHERE day >= %s AND day <= %s AND class = %s';
 		$args = array( $from, $to, $q['class'] );
@@ -85,7 +85,11 @@ function snt_arows_fetch( array $q, $from, $to ) {
 			$sql   .= " AND {$canon} = %s";
 			$args[] = $q['path'];
 		}
-		$group = array_filter( array( 'path' === $other ? $canon : '', $day ? 'day' : '' ) );
+		if ( 'link_code' === $other ) { // coded résumé links only; snt_arows_clean() reads the code out.
+			$sql   .= ' AND path LIKE %s';
+			$args[] = $wpdb->esc_like( '/r/' ) . '%';
+		}
+		$group = array_filter( array( in_array( $other, array( 'path', 'link_code' ), true ) ? $canon : '', $day ? 'day' : '' ) );
 		$sql  .= ( $group ? ' GROUP BY ' . implode( ', ', $group ) : '' ) . ' LIMIT %d';
 	}
 	$args[] = $cap;
