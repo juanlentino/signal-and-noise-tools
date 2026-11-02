@@ -270,7 +270,12 @@ function sn_seo_meta_for_current_view() {
 		// the Analytics descriptionless-Pages recommendation share one source of
 		// truth — mirrors how the title above delegates to its resolver.
 		$description = $post ? sn_seo_resolve_singular_description( $post ) : '';
-		$url         = $post ? get_permalink( $post ) : '';
+		$url         = $post ? (string) apply_filters( 'sn_seo_view_url', get_permalink( $post ), $post ) : ''; // inc/resume-lane-address.php: /resume's operations lane.
+		// The same lane names its own title and description. View-level, not the
+		// sn_seo_singular_* seams: those lose to a written description and an
+		// excerpt, and take the site-name suffix.
+		$title       = $post ? (string) apply_filters( 'sn_seo_view_title', $title, $post ) : '';
+		$description = $post ? (string) apply_filters( 'sn_seo_view_description', $description, $post ) : '';
 	}
 
 	// 2026-10: MailPoet's subscription page is noindex and has no canonical

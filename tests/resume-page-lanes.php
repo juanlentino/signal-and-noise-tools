@@ -261,6 +261,7 @@ $head = static function ( $fn, $slug, $lane ) {
 ok( false !== strpos( $head( 'sn_jsonresume_head_link', 'resume', 'operations' ), 'href="https://juanlentino.com/resume/json-resume.json?lane=operations"' ), 'the JSON Resume alternate on ?lane=operations names the operations JSON' );
 ok( false !== strpos( $head( 'sn_jsonresume_head_link', 'resume', null ), 'href="https://juanlentino.com/resume/json-resume.json"' ) && false === strpos( $head( 'sn_jsonresume_head_link', 'cv', 'operations' ), '?lane=' ), 'and the bare page, or /cv, the plain one' );
 ok( false !== strpos( $head( 'sn_resume_formats_head_links', 'resume', 'operations' ), 'href="https://juanlentino.com/resume.md?lane=operations"' ), 'the Markdown alternate follows the lane too' );
+ok( false === strpos( $head( 'sn_resume_formats_head_links', 'resume', 'operations' ), 'text/vcard' ) && false !== strpos( $head( 'sn_resume_formats_head_links', 'resume', null ), 'type="text/vcard"' ), 'the operations lane advertises no vCard; the music page keeps its alternate' );
 $GLOBALS['__is_page'] = ''; $_GET = array();
 ok( 'https://juanlentino.com/resume.md?lane=operations' === sn_resume_markdown_url( 'resume', 'operations' ) && 'https://juanlentino.com/resume.md' === sn_resume_markdown_url( 'resume', 'music' ) && 'https://juanlentino.com/cv.md' === sn_resume_markdown_url( 'cv', 'operations' ), 'the Markdown address (the Link header\'s and the alternate\'s) names the operations lane, never on /cv' );
 $md_ops = sn_resume_format_body( 'md', 'resume', ( static function () { $_GET = array( 'lane' => 'operations' ); return sn_resume_active_lane(); } )() );
@@ -301,7 +302,7 @@ ok( 'https://juanlentino.com/resume.md?lane=operations' === ( $f_live['markdown_
 $hdr = sn_resume_format_headers( 'application/json; charset=utf-8', 'https://juanlentino.com/resume/' );
 ok( in_array( 'X-Robots-Tag: noindex', $hdr, true ) && in_array( 'Link: <https://juanlentino.com/resume/>; rel="canonical"', $hdr, true ) && in_array( 'Content-Type: application/json; charset=utf-8', $hdr, true ), 'a format answers noindex, with the page as canonical' );
 // header() records nothing under the CLI, so the wiring is read from the source: both routes send through it.
-ok( false !== strpos( (string) file_get_contents( "$root/inc/resume-jsonresume-route.php" ), "sn_resume_format_send( 'application/json; charset=utf-8', \$slug )" ) && false !== strpos( (string) file_get_contents( "$root/inc/resume-formats-route.php" ), 'sn_resume_format_send( $body[0], $route[1] )' ), 'the JSON Resume and the Markdown/vCard routes both send those headers' );
+ok( false !== strpos( (string) file_get_contents( "$root/inc/resume-jsonresume-route.php" ), "sn_resume_format_send( 'application/json; charset=utf-8', \$slug, " ) && false !== strpos( (string) file_get_contents( "$root/inc/resume-formats-route.php" ), "sn_resume_format_send( \$body[0], \$route[1], 'md' === \$route[0] ? \$lane : 'music' )" ), 'the JSON Resume and the Markdown/vCard routes both send those headers' );
 
 $ci = (string) getenv( 'CI' );
 if ( $skip > 0 && '' !== $ci && '0' !== $ci && 'false' !== strtolower( $ci ) ) {

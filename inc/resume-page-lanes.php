@@ -7,7 +7,8 @@
  * lane and the operations lane, each a full set of bands built from its own
  * view of the document. Both lanes are in the stored body, so the page's text
  * is the same whichever lane shows: if /resume is ever signed, it stays one
- * record, and /resume/ is the canonical of both. `?lane=` only chooses which lane is hidden
+ * record. Each lane has its own address all the same: /resume/?lane=operations
+ * is that lane's canonical (inc/resume-lane-address.php). `?lane=` only chooses which lane is hidden
  * at render time (inc/resume-page-lane-render.php); the theme's script
  * switches without a reload. Each lane has its own Download, so the download
  * follows the lane without script. Spanish (/cv), and a document with no
