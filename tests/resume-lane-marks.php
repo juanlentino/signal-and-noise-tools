@@ -30,10 +30,20 @@ function add_action() {}
 function add_filter() {}
 function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
 function wp_json_encode( $d, $o = 0, $depth = 512 ) { return json_encode( $d, $o, $depth ); }
-function is_preview() { return false; }
+function is_preview() { return ! empty( $GLOBALS['__preview'] ); }
+function current_user_can( $cap, $id = 0 ) { return ! empty( $GLOBALS['__editor'] ); }
+function get_the_ID() { return 7; }
+function esc_url_raw( $s ) { return (string) $s; }
+function wp_make_link_relative( $u ) { return (string) preg_replace( '|^(https?:)?//[^/]+(/?.*)|i', '$2', (string) $u ); }
 // The query helpers, as core shapes them for a path with no query of its own.
 function add_query_arg( $k, $v, $url ) { return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . $k . '=' . $v; }
-function remove_query_arg( $k, $url = null ) { return (string) $url; }
+function remove_query_arg( $k, $url = null ) {
+	$url = null === $url ? (string) $_SERVER['REQUEST_URI'] : (string) $url;
+	$p   = explode( '?', $url, 2 );
+	parse_str( $p[1] ?? '', $q );
+	unset( $q[ $k ] );
+	return $p[0] . ( $q ? '?' . http_build_query( $q ) : '' );
+}
 function sn_jsonresume_page( $slug ) { return (object) array( 'ID' => 7 ); }
 if ( ! function_exists( 'wp_has_noncharacters' ) ) { function wp_has_noncharacters( string $text ): bool { return false; } }
 if ( ! function_exists( 'wp_kses_uri_attributes' ) ) { function wp_kses_uri_attributes() { return array( 'href', 'src', 'action' ); } }
@@ -42,6 +52,7 @@ $api = rtrim( (string) getenv( 'SNT_WP_HTML_API' ), '/' );
 $api = is_file( $api . '/class-wp-html-tag-processor.php' ) ? $api : '';
 if ( '' !== $api ) {
 	if ( is_file( dirname( $api ) . '/class-wp-token-map.php' ) ) { require_once dirname( $api ) . '/class-wp-token-map.php'; }
+	if ( is_file( $api . '/html5-named-character-references.php' ) ) { require_once $api . '/html5-named-character-references.php'; } // the decoder reads &name; references in a preview's query.
 	foreach ( array( 'class-wp-html-span.php', 'class-wp-html-text-replacement.php', 'class-wp-html-attribute-token.php', 'class-wp-html-decoder.php', 'class-wp-html-tag-processor.php' ) as $f ) {
 		require_once "$api/$f";
 	}
@@ -112,6 +123,11 @@ $extra['earlier']['entries'][] = array( 'org' => 'FREELANCE · BUENOS AIRES, ARG
 $fm                            = sn_resume_lane_marks( $extra, $ops )[0];
 $free                          = end( $fm['earlier']['entries'] );
 ok( ! empty( $free['_only'] ) && empty( $free['roles'][0]['_only'] ), 'an earlier-career entry only one lane has is marked whole, and its role is not marked again' );
+$gpm  = array_search( 'Google Project Management Certificate', array_column( $music['affiliations'], 'title' ), true );
+$twin = $music;
+$twin['affiliations'][ $gpm ]['lines'] = array( 'June 2025' ); // the operations lane has this title, with May 2025.
+$tw   = sn_resume_lane_marks( $twin, $ops )[0];
+ok( false !== $gpm && empty( sn_resume_lane_marks( $music, $ops )[0]['affiliations'][ $gpm ]['_only'] ) && ! empty( $tw['affiliations'][ $gpm ]['_only'] ), 'a row whose title the other lane shares but whose lines differ is lane-only: the key is title and lines' );
 $ex = sn_resume_lane_marks( $music, $ops );
 ok( array() === array_filter( array_merge( $ex[0]['experience'], $ex[1]['experience'] ), static fn( $e ) => ! empty( $e['_only'] ) || array_filter( $e['roles'], static fn( $r ) => ! empty( $r['_only'] ) ) ), 'a role whose bullets differ is the same role: Experience carries no mark in either lane' );
 
@@ -209,6 +225,13 @@ if ( '' === $api ) {
 	ok( $render( '/resume/', 'operations' ) === $render( '/resume/?utm_source=x', 'operations' ) && false === strpos( $render( '/resume/?x="><b>', 'music' ), '<b>' ), 'and no request path or query ever reaches the markup' );
 	$x = $render( '/r/hera', '"><script>' );
 	ok( $hrefs( $x ) === array( '/r/hera', '/r/hera?lane=operations', '/r/hera?lane=operations#resume-operations-built', '/r/hera#resume-music-publications' ) && false === strpos( $x, '<script' ), 'an unknown lane is the music lane on a coded link too' );
+
+	$GLOBALS['__preview'] = true;
+	ok( $hrefs( $render( '/resume/?preview=true&lane=operations', 'operations' ) ) === $hrefs( $nav . $m_div . $o_div ), 'an anonymous ?preview=true rewrites nothing' );
+	$GLOBALS['__editor'] = true;
+	ok( array( '/resume/?preview=true&preview_id=7', '/resume/?preview=true&preview_id=7&lane=operations', '/resume/?preview=true&preview_id=7&lane=operations#resume-operations-built', '/resume/?preview=true&preview_id=7#resume-music-publications' ) === $hrefs( $render( '/resume/?preview=true&preview_id=7&lane=operations', 'operations' ) ), "an editor's preview keeps its own query, without its lane" );
+	ok( 0 === strpos( $hrefs( $render( '//evil.example/x?preview=true', 'music' ) )[0], '/x' ) , 'a leading // never becomes a protocol-relative link' );
+	$GLOBALS['__preview'] = false; $GLOBALS['__editor'] = false;
 
 	echo "\nGroup: the inactive lane is hidden, never removed\n";
 	$view   = $render( '/r/hera', 'operations' );

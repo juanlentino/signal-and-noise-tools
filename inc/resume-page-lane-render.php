@@ -26,7 +26,7 @@ function sn_resume_active_lane() {
 /**
  * Where lane links point on this request: '' on /resume/ (the stored links
  * stand), '/r/CODE' on a coded link (the code matched its strict pattern), or
- * a preview's own address without its lane.
+ * an editor's preview: its own address, relative, without its lane.
  *
  * @return string
  */
@@ -35,7 +35,10 @@ function sn_resume_lane_link_base() {
 	if ( '' !== $code ) {
 		return '/r/' . $code;
 	}
-	return function_exists( 'is_preview' ) && is_preview() ? (string) remove_query_arg( 'lane' ) : '';
+	if ( ! function_exists( 'is_preview' ) || ! is_preview() || ! current_user_can( 'edit_post', get_the_ID() ) ) {
+		return ''; // an anonymous ?preview=true is the page itself.
+	}
+	return (string) preg_replace( '#^/{2,}#', '/', wp_make_link_relative( esc_url_raw( remove_query_arg( 'lane' ) ) ) );
 }
 
 /**

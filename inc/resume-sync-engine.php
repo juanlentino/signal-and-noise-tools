@@ -83,6 +83,7 @@ function sn_resume_para( $class, $html ) {
  */
 function sn_resume_section_head( $eyebrow, $title, $band = array() ) {
 	$id = (string) ( $band['id'] ?? '' );
+	// The anchor rides in the comment JSON and the id; an editor re-save drops the JSON copy (the id stays), so the bytes drift but the block stays valid.
 	return sn_resume_para( 'sn-catalog-eyebrow', esc_html( $eyebrow ) . ( empty( $band['only'] ) ? '' : ' · Only in this version' ) )
 		. '<!-- wp:heading {' . ( '' !== $id ? '"anchor":"' . $id . '",' : '' ) . '"style":{"typography":{"fontSize":"clamp(2rem, 5vw, 3.5rem)","lineHeight":"1.05"}}} -->' . "\n"
 		. '<h2 class="wp-block-heading"' . ( '' !== $id ? ' id="' . esc_attr( $id ) . '"' : '' ) . ' style="font-size:clamp(2rem, 5vw, 3.5rem);line-height:1.05">' . esc_html( $title ) . '</h2>' . "\n"
@@ -245,7 +246,7 @@ function sn_resume_titled_lines_blocks( $heading, $entries ) {
 	return $out . '</div>' . "\n" . '<!-- /wp:column -->' . "\n\n";
 }
 
-/** The credentials band — correctly nested this time. @param array $education @param array $affiliations @param int|null $n @param array $band @return string */
+/** The credentials band, correctly nested this time. @param array $education @param array $affiliations @param int|null $n @param array $band @return string */
 function sn_resume_credentials_blocks( $education, $affiliations, $n = null, $band = array() ) {
 	if ( empty( $education ) && empty( $affiliations ) ) {
 		return '';
