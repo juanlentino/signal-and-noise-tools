@@ -66,6 +66,7 @@ function sn_resume_formats( $slug ) {
 		array(
 			'html'                   => (string) get_permalink( $page ),
 			'markdown'               => home_url( '/' . $slug . '.md' ),
+			'markdown_operations'    => '' !== $ops ? home_url( '/' . $slug . '.md?lane=operations' ) : '',
 			'pdf'                    => $pdf,
 			'pdf_operations'         => $ops,
 			'json_resume'            => home_url( '/' . $slug . '/' . SN_JSONRESUME_FILE ),
@@ -93,7 +94,7 @@ function sn_resume_formats_surfaces( $surfaces ) {
 		'format'      => 'text/html',
 		'title'       => 'Résumé',
 		'description' => 'The résumé in every format, from one source: Markdown ' . $f['markdown'] . ', JSON Resume ' . $f['json_resume'] . ', PDF ' . ( $f['pdf'] ?? '' ) . ', vCard ' . $f['vcard'] . '.'
-			. ( isset( $f['pdf_operations'] ) ? ' The operations résumé (the page\'s second lane, ?lane=operations): JSON Resume ' . $f['json_resume_operations'] . ', PDF ' . $f['pdf_operations'] . '.' : '' )
+			. ( isset( $f['pdf_operations'] ) ? ' The operations résumé (the page\'s second lane, ?lane=operations): Markdown ' . $f['markdown_operations'] . ', JSON Resume ' . $f['json_resume_operations'] . ', PDF ' . $f['pdf_operations'] . '.' : '' )
 			. $es . ' The page carries a Bitcoin-anchored authorship proof; the Markdown front matter and JSON Resume meta link its verify page.',
 	);
 	return $surfaces;
@@ -146,12 +147,7 @@ function sn_resume_formats_maybe_serve() {
 	if ( null === $body ) {
 		return;
 	}
-	status_header( 200 );
-	header( 'Content-Type: ' . $body[0] );
-	header( 'Cache-Control: public, max-age=300' );
-	header( 'Access-Control-Allow-Origin: *' );
-	header( 'X-Robots-Tag: noindex' );
-	header( 'Link: <' . esc_url_raw( (string) get_permalink( sn_jsonresume_page( $route[1] ) ) ) . '>; rel="canonical"', false );
+	sn_resume_format_send( $body[0], $route[1] );
 	if ( 'vcf' === $route[0] ) {
 		header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( strtolower( (string) get_bloginfo( 'name' ) ) ) . '.vcf"' );
 	}
@@ -168,9 +164,7 @@ function sn_resume_formats_maybe_serve() {
  * @return string
  */
 function sn_resume_markdown_url( $slug, $lane ) {
-	$ops = 'resume' === $slug && 'operations' === $lane && function_exists( 'sn_resume_variant_config' )
-		&& null !== sn_resume_variant_config( sn_resume_doc_get_raw(), 'operations' );
-	return home_url( '/' . $slug . '.md' . ( $ops ? '?lane=operations' : '' ) );
+	return home_url( '/' . $slug . '.md' . sn_resume_lane_query( $slug, $lane ) );
 }
 
 /** wp_head: the Markdown and vCard alternates on the résumé pages. */

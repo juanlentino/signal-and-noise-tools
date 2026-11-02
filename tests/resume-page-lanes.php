@@ -29,6 +29,15 @@ function add_action() {}
 function add_filter() {}
 if ( ! function_exists( 'wp_has_noncharacters' ) ) { function wp_has_noncharacters( string $text ): bool { return false; } } // core's utf8 helper the tag processor calls.
 if ( ! function_exists( 'wp_kses_uri_attributes' ) ) { function wp_kses_uri_attributes() { return array( 'href', 'src', 'action' ); } }
+// The format routes (inc/resume-formats-route.php): a published page, its permalink, is_page().
+if ( ! defined( 'OBJECT' ) ) { define( 'OBJECT', 'OBJECT' ); }
+$GLOBALS['__page'] = null; $GLOBALS['__is_page'] = '';
+function get_page_by_path( $p, $o = OBJECT, $t = 'page' ) { return $GLOBALS['__page']; }
+function get_permalink( $p = 0 ) { return 'https://juanlentino.com/resume/'; }
+function get_bloginfo( $k = '' ) { return 'Juan Lentino'; }
+function get_post_modified_time( $f = 'U', $gmt = false, $p = null ) { return '2026-11-01T19:36:23-05:00'; }
+function is_page( $s = '' ) { return $GLOBALS['__is_page'] === $s; }
+function esc_url_raw( $s ) { return (string) $s; }
 
 $api = '';
 foreach ( array( rtrim( (string) getenv( 'SNT_WP_HTML_API' ), '/' ), dirname( __DIR__, 4 ) . '/wp-includes/html-api' ) as $dir ) {
@@ -49,6 +58,7 @@ require_once "$root/inc/resume-sync-engine.php";
 require_once "$root/inc/resume-page-lane-render.php";
 require_once "$root/inc/resume-jsonresume.php";
 require_once "$root/inc/resume-markdown.php";
+require_once "$root/inc/resume-formats-route.php";
 require_once "$root/inc/provenance-core-normalize-parts.php";
 
 $plain = sn_resume_doc_normalize( sn_resume_seed_doc() );
@@ -129,7 +139,7 @@ if ( '' === $api ) {
 	ok( $x === $v && false === strpos( implode( '', $x ), 'script' ), 'an unknown lane is the music lane, and is never echoed' );
 	$n = static fn( $set ) => sn_prov_normalize_v1( $set['nav'] . $set['music'] . $set['operations'] );
 	ok( $n( $v ) === $n( $o ) && $n( $v ) === sn_prov_normalize_v1( $nav . $group( 'music' ) . $group( 'operations' ) ), 'the page text is the same whichever lane shows (the provenance normalizer reads no attributes)' );
-	ok( $html = sn_resume_lane_render( '<div class="x">a</div>', array( 'attrs' => array( 'className' => 'x' ) ) ), 'any other group passes through' );
+	ok( '<div class="x">a</div>' === sn_resume_lane_render( '<div class="x">a</div>', array( 'attrs' => array( 'className' => 'x' ) ) ) && '<div class="sn-resume-pub">a</div>' === sn_resume_lane_render( '<div class="sn-resume-pub">a</div>', array( 'attrs' => array( 'className' => 'sn-resume-pub' ) ) ), 'any other group passes through untouched, a résumé band included' );
 }
 
 echo "\nGroup: receipts\n";
@@ -179,8 +189,49 @@ $mdo     = sn_resume_markdown( $ops_doc, sn_jsonresume_build( $ops_doc, array( '
 ok( false !== strpos( $mdo, "\nFounder and Operator\n" ) && false !== strpos( $mdo, "## What I've Built" ) && false !== strpos( $mdo, '- **[can-i-apply](https://github.com/juanlentino/can-i-apply)**: Labels about 500 roles' ), 'the operations Markdown: its headline, and What I\'ve Built with each project\'s code' );
 ok( false === strpos( $mdo, '## Research & Publications' ) && false === strpos( $mdo, '## Highlights' ) && false === strpos( $mdo, '555' ), 'and nothing it leaves out: no empty sections, no phone' );
 ok( false !== strpos( $mdo, "\nlocation: \"Orlando, FL (open to relocation)\"\n" ), 'its front matter keeps the location as written, note and all' );
-$fsrc = (string) file_get_contents( "$root/inc/resume-formats-route.php" );
-ok( false !== strpos( $fsrc, "return home_url( '/' . \$slug . '.md' . ( \$ops ? '?lane=operations' : '' ) );" ) && 3 === substr_count( $fsrc, 'sn_resume_markdown_url( $slug, $lane )' ), 'the page names its lane\'s Markdown in the Link header and the head alternate' );
+ok( false !== strpos( $mdo, "\nlane: \"operations\"\n" ) && false === strpos( $mdm, "\nlane:" ), 'its front matter names its lane; the music one stays as it was' );
+$bare = sn_resume_markdown( array(), array( 'basics' => array( 'name' => 'x', 'summary' => 's' ) ), array(), 'en' );
+ok( 1 === substr_count( $bare, "\n## " ) && false !== strpos( $bare, "\n## Summary\n" ), 'a résumé with only a summary prints no empty heading (Experience, Education, Memberships, Skills, Languages)' );
+
+echo "\nGroup: the format routes per lane\n";
+$GLOBALS['__page']               = (object) array( 'ID' => 7, 'post_status' => 'publish', 'post_password' => '' );
+$GLOBALS['__opt']['sn_resume_doc'] = $raw;
+$head = static function ( $fn, $slug, $lane ) {
+	$GLOBALS['__is_page'] = $slug;
+	$_GET                 = null === $lane ? array() : array( 'lane' => $lane );
+	ob_start();
+	$fn();
+	return (string) ob_get_clean();
+};
+ok( false !== strpos( $head( 'sn_jsonresume_head_link', 'resume', 'operations' ), 'href="https://juanlentino.com/resume/json-resume.json?lane=operations"' ), 'the JSON Resume alternate on ?lane=operations names the operations JSON' );
+ok( false !== strpos( $head( 'sn_jsonresume_head_link', 'resume', null ), 'href="https://juanlentino.com/resume/json-resume.json"' ) && false === strpos( $head( 'sn_jsonresume_head_link', 'cv', 'operations' ), '?lane=' ), 'and the bare page, or /cv, the plain one' );
+ok( false !== strpos( $head( 'sn_resume_formats_head_links', 'resume', 'operations' ), 'href="https://juanlentino.com/resume.md?lane=operations"' ), 'the Markdown alternate follows the lane too' );
+$GLOBALS['__is_page'] = ''; $_GET = array();
+ok( 'https://juanlentino.com/resume.md?lane=operations' === sn_resume_markdown_url( 'resume', 'operations' ) && 'https://juanlentino.com/resume.md' === sn_resume_markdown_url( 'resume', 'music' ) && 'https://juanlentino.com/cv.md' === sn_resume_markdown_url( 'cv', 'operations' ), 'the Markdown address (the Link header\'s and the alternate\'s) names the operations lane, never on /cv' );
+$md_ops = sn_resume_format_body( 'md', 'resume', ( static function () { $_GET = array( 'lane' => 'operations' ); return sn_resume_active_lane(); } )() );
+$_GET   = array();
+$md_mus = sn_resume_format_body( 'md', 'resume' );
+ok( false !== strpos( $md_ops[1] ?? '', "\nFounder and Operator\n" ) && false !== strpos( $md_ops[1] ?? '', "## What I've Built" ), '/resume.md?lane=operations is the operations Markdown' );
+ok( false !== strpos( $md_ops[1] ?? '', "\n  markdown_operations: \"https://juanlentino.com/resume.md?lane=operations\"\n" ), 'and its front matter lists its own address' );
+ok( false === strpos( $md_mus[1] ?? '', 'Founder and Operator' ) && false !== strpos( $md_mus[1] ?? '', '## Research & Publications' ) && $md_mus === sn_resume_format_body( 'md', 'resume', 'music' ), 'and /resume.md the music one' );
+ok( 'text/vcard; charset=utf-8' === ( sn_resume_format_body( 'vcf', 'resume', 'operations' )[0] ?? '' ) && sn_resume_format_body( 'vcf', 'resume', 'operations' ) === sn_resume_format_body( 'vcf', 'resume', 'music' ), 'the vCard is the music one whatever the lane' );
+ok( 'operations' === ( sn_jsonresume_for( 'resume', 'operations' )['meta']['x-lane'] ?? '' ) && 'music' === ( sn_jsonresume_for( 'resume', 'music' )['meta']['x-lane'] ?? '' ), 'the JSON Resume follows the lane it is asked for' );
+$f_live = sn_resume_formats( 'resume' );
+$GLOBALS['__opt']['sn_resume_doc'] = $plain;
+$plain_ops = sn_jsonresume_for( 'resume', 'operations' );
+ok( ! isset( $plain_ops['meta']['x-lane'] ) && empty( $plain_ops['projects'] ) && 'https://juanlentino.com/resume.md' === sn_resume_markdown_url( 'resume', 'operations' ), 'with no operations résumé, ?lane=operations is the music résumé and the plain Markdown' );
+$f_plain = sn_resume_formats( 'resume' );
+$GLOBALS['__opt']['sn_resume_doc'] = $raw;
+$GLOBALS['__opt']['sn_resume_pdf_operations'] = array();
+$f_dead = sn_resume_formats( 'resume' );
+$GLOBALS['__opt']['sn_resume_pdf_operations'] = array( 'url' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf', 'sha256' => str_repeat( 'a', 64 ) );
+$ops_keys = array( 'markdown_operations', 'pdf_operations', 'json_resume_operations' );
+ok( array() === array_intersect( $ops_keys, array_keys( $f_dead ) ) && array() === array_intersect( $ops_keys, array_keys( $f_plain ) ), 'the format list names no operations format before its PDF is live, or with no operations résumé' );
+ok( 'https://juanlentino.com/resume.md?lane=operations' === ( $f_live['markdown_operations'] ?? '' ) && 'https://juanlentino.com/resume/json-resume.json?lane=operations' === ( $f_live['json_resume_operations'] ?? '' ) && isset( $f_live['pdf_operations'] ), 'and all three once it is' );
+$hdr = sn_resume_format_headers( 'application/json; charset=utf-8', 'https://juanlentino.com/resume/' );
+ok( in_array( 'X-Robots-Tag: noindex', $hdr, true ) && in_array( 'Link: <https://juanlentino.com/resume/>; rel="canonical"', $hdr, true ) && in_array( 'Content-Type: application/json; charset=utf-8', $hdr, true ), 'a format answers noindex, with the page as canonical' );
+// header() records nothing under the CLI, so the wiring is read from the source: both routes send through it.
+ok( false !== strpos( (string) file_get_contents( "$root/inc/resume-jsonresume-route.php" ), "sn_resume_format_send( 'application/json; charset=utf-8', \$slug )" ) && false !== strpos( (string) file_get_contents( "$root/inc/resume-formats-route.php" ), 'sn_resume_format_send( $body[0], $route[1] )' ), 'the JSON Resume and the Markdown/vCard routes both send those headers' );
 
 $ci = (string) getenv( 'CI' );
 if ( $skip > 0 && '' !== $ci && '0' !== $ci && 'false' !== strtolower( $ci ) ) {
