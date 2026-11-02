@@ -374,8 +374,8 @@ function sn_handle_resume_pdf_generate( $post ) { // phpcs:ignore Generic.CodeAn
  */
 function sn_handle_resume_pdf_private( $post ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- dispatcher signature.
 	if ( ! function_exists( 'sn_resume_pdf_private_stream' ) ) {
-		return 'resume_pdf_failed';
+		return 'resume_pdf_stream_failed';
 	}
 	sn_resume_pdf_private_stream();
-	return 'resume_pdf_failed';
+	return 'resume_pdf_stream_failed';
 }

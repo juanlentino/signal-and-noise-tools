@@ -90,16 +90,45 @@ function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false, 
 			'pages' => (int) $dompdf->getCanvas()->get_page_count(),
 		);
 	} catch ( \Throwable $e ) {
+		error_log( '[signal-and-noise-tools] résumé PDF render failed: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- deliberate: every caller (Generate, the Spanish CV, the operations PDF, the streamed copies) leaves a trace.
 		return new WP_Error( 'sn_resume_pdf_render', 'The PDF renderer failed: ' . $e->getMessage() );
 	}
 }
 
 /**
  * Generate the PDF from the stored document and publish it at the stable path.
+ * A failure is recorded beside the last good facts (the PDF box shows it); a
+ * success writes fresh facts, which clears it.
  *
  * @return array{sha256:string,bytes:int,pages:int,generated:string,url:string}|WP_Error
  */
 function sn_resume_pdf_generate() {
+	$out = sn_resume_pdf_build();
+	if ( is_wp_error( $out ) ) {
+		sn_resume_pdf_record_error( SN_RESUME_PDF_OPTION, $out );
+	}
+	return $out;
+}
+
+/**
+ * Record a failed build on a PDF's stored facts, keeping the last good ones
+ * (the file still served). The next success overwrites the whole option.
+ *
+ * @param string   $option The PDF's option.
+ * @param WP_Error $error  What failed.
+ * @return void
+ */
+function sn_resume_pdf_record_error( $option, $error ) {
+	$prev = get_option( $option );
+	update_option( $option, array( 'error' => $error->get_error_message(), 'error_at' => gmdate( 'c' ) ) + ( is_array( $prev ) ? $prev : array() ), false );
+}
+
+/**
+ * The work of sn_resume_pdf_generate().
+ *
+ * @return array{sha256:string,bytes:int,pages:int,generated:string,url:string}|WP_Error
+ */
+function sn_resume_pdf_build() {
 	$doc = function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null;
 	if ( ! is_array( $doc ) ) {
 		return new WP_Error( 'sn_resume_pdf_no_doc', 'No resume document to render.' );

@@ -92,7 +92,7 @@ function sn_handle_resume_preview_pdf( $post ) { // phpcs:ignore Generic.CodeAna
 	if ( function_exists( 'sn_resume_pdf_draft_stream' ) ) {
 		sn_resume_pdf_draft_stream();
 	}
-	return 'resume_pdf_failed';
+	return 'resume_pdf_stream_failed';
 }
 
 /**

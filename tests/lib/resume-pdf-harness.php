@@ -5,9 +5,10 @@
  *
  * Options live in $GLOBALS['opts']; `refuse` names one update_option() that
  * fails, `quiet` one that stores but returns false (as for an unchanged
- * value). Actions run: add_action() registers, do_action() calls, so Generate
- * fires the operations build as it does on the site. Uploads go under
- * $GLOBALS['tmp'], removed by sn_test_pdf_cleanup().
+ * value), and `up_error` makes uploads unavailable. Actions run: add_action()
+ * registers, do_action() calls, so Generate fires the operations build as it
+ * does on the site. Uploads go under $GLOBALS['tmp'], removed by
+ * sn_test_pdf_cleanup().
  *
  * @package SignalNoiseTools
  */
@@ -21,7 +22,7 @@ function sanitize_email( $e ) { return (string) filter_var( (string) $e, FILTER_
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function apply_filters( $t, $v ) { return 'sn_resume_pdf_name' === $t ? $GLOBALS['name'] : $v; }
 function get_bloginfo( $k ) { return 'Juan Lentino'; }
-function wp_upload_dir( $a = null, $b = true ) { return array( 'basedir' => $GLOBALS['tmp'], 'baseurl' => 'https://example.test/up' ); }
+function wp_upload_dir( $a = null, $b = true ) { return array( 'basedir' => $GLOBALS['tmp'], 'baseurl' => 'https://example.test/up', 'error' => $GLOBALS['up_error'] ?? false ); }
 function trailingslashit( $s ) { return rtrim( $s, '/' ) . '/'; }
 function add_query_arg( $k, $v, $u ) { return $u . '?' . $k . '=' . $v; }
 function wp_remote_head( $u, $a = array() ) { return array( 'code' => 200, 'hdr' => $GLOBALS['robots'] ); }
@@ -58,6 +59,7 @@ function sn_test_pdf_reset( $doc, $opts = array() ) {
 	$GLOBALS['refuse'] = '';
 	$GLOBALS['quiet']  = '';
 	$GLOBALS['purged'] = array();
+	$GLOBALS['up_error'] = false;
 }
 
 /** Remove everything the press wrote under $GLOBALS['tmp']. */

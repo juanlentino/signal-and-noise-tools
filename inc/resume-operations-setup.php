@@ -92,10 +92,13 @@ function sn_resume_operations_setup( $doc ) {
 		$row['variant'] = 'music';
 	};
 
-	$first           = empty( $doc['variants']['operations'] ); // the first run: nothing set up yet.
+	// The first run: no headline, summary or sections yet. A block holding
+	// only the "Earlier career" box or a file name is not set up; what it holds is kept.
+	$have_ops        = array_filter( (array) ( $doc['variants']['operations'] ?? array() ) );
+	$first           = ! array_intersect_key( $have_ops, array_flip( array( 'headline', 'summary', 'sections' ) ) );
 	$doc['variants'] = (array) ( $doc['variants'] ?? array() );
 	if ( $first ) {
-		$doc['variants']['operations'] = $set['operations'];
+		$doc['variants']['operations'] = $have_ops + $set['operations'];
 	}
 	if ( empty( $doc['built'] ) ) {
 		$doc['built'] = $set['built'];

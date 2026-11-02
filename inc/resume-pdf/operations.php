@@ -62,8 +62,14 @@ function sn_resume_ops_pdf_failed() {
  * @return string
  */
 function sn_resume_ops_pdf_bytes() {
-	$bytes = base64_decode( (string) get_option( SN_RESUME_OPS_PDF_BYTES, '' ), true );
-	return false !== $bytes && 0 === strpos( $bytes, '%PDF-' ) ? $bytes : '';
+	static $src = null, $out = ''; // decoded once per stored value, not on every call.
+	$b64 = (string) get_option( SN_RESUME_OPS_PDF_BYTES, '' );
+	if ( $b64 !== $src ) {
+		$bytes = base64_decode( $b64, true );
+		$src   = $b64;
+		$out   = false !== $bytes && 0 === strpos( $bytes, '%PDF-' ) ? $bytes : '';
+	}
+	return $out;
 }
 
 /**
@@ -93,8 +99,7 @@ function sn_resume_pdf_noindex( $url ) {
 function sn_resume_ops_pdf_generate() {
 	$out = sn_resume_ops_pdf_build();
 	if ( is_wp_error( $out ) ) {
-		$prev = get_option( SN_RESUME_OPS_PDF_OPTION );
-		update_option( SN_RESUME_OPS_PDF_OPTION, array( 'error' => $out->get_error_message(), 'error_at' => gmdate( 'c' ) ) + ( is_array( $prev ) ? $prev : array() ), false );
+		sn_resume_pdf_record_error( SN_RESUME_OPS_PDF_OPTION, $out );
 	}
 	// Generate syncs /resume before this file is built; sync again so the
 	// operations lane's Download follows the file (an identical body is not rewritten).
@@ -114,8 +119,12 @@ function sn_resume_ops_pdf_build() {
 	$config = sn_resume_variant_config( $raw, 'operations' );
 	$loc    = sn_resume_pdf_location(); // for Dompdf's font cache only; the PDF itself is not written there.
 	if ( null === $config ) {
+		$prev = get_option( SN_RESUME_OPS_PDF_OPTION );
 		delete_option( SN_RESUME_OPS_PDF_BYTES ); // settings removed: no file, and no facts naming one.
 		delete_option( SN_RESUME_OPS_PDF_OPTION );
+		if ( ! empty( $prev['url'] ) && function_exists( 'sn_cf_purge_urls' ) ) {
+			sn_cf_purge_urls( array( (string) $prev['url'] ) ); // and the edge stops serving the last one.
+		}
 		return null;
 	}
 	$view = sn_resume_doc_view( $raw, 'operations' );

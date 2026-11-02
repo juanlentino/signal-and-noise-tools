@@ -27,7 +27,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 function sn_resume_pdf_check( $bytes, $pages, $max_pages = null, $phone = '', $printed = '' ) {
 	$objects = sn_resume_pdf_objects( (string) $bytes );
 	$text    = sn_resume_pdf_text( $bytes, $objects );
-	$scan    = '' !== (string) $printed ? str_replace( (string) $printed, '', $text ) : $text;
+	// The public phone is left out only when it is a whole phone (7+ digits), and only where it
+	// stands alone: a short or partial value ("555") must not erase part of another number.
+	$scan    = strlen( (string) preg_replace( '/\D+/', '', (string) $printed ) ) >= 7 ? (string) preg_replace( '/(?<!\d)' . preg_quote( (string) $printed, '/' ) . '(?!\d)/', '', $text ) : $text;
 	$raw     = preg_match( '~/Info (\d+) 0 R~', (string) $bytes, $info ) && preg_match( '~(?<![0-9])' . $info[1] . ' 0 obj(.*?)endobj~s', (string) $bytes, $im ) ? $im[1] : '';
 	// Dompdf writes Info strings as UTF-16BE literals (\376\377...): decode them, or a phone there reads as octal noise.
 	$meta = '';
@@ -42,6 +44,7 @@ function sn_resume_pdf_check( $bytes, $pages, $max_pages = null, $phone = '', $p
 		$flags[] = 'a phone number';
 	}
 	list( $read, $total, $failed ) = sn_resume_pdf_pages_read( $objects );
+	$total                         = max( $total, (int) $pages ); // a page the reader did not find as a page is unread too.
 	if ( $read < $total ) {
 		$flags[] = sprintf( 'only %d of %d pages could be read', $read, $total );
 	}
@@ -95,6 +98,7 @@ function sn_resume_pdf_pages_read( $objects ) {
  */
 function sn_resume_pdf_text_flags( $text, $meta, $pages, $max_pages = null ) {
 	// Within one line: three numbers on three lines (a stats row) are not a phone. A no-break space is a space.
+	// Accepted trade-off: a phone broken across two lines is not caught here (the stored phone's digits still are).
 	$phone = '/(?<!\d)(?:\+?\d{1,3}[ \t.-]?)?\(?\d{3}\)?[ \t.-]\d{3}[ \t.-]\d{4}(?!\d)|(?<!\d)\d{10,11}(?!\d)/';
 	$flags = array();
 	if ( '' === trim( (string) $text ) ) {
