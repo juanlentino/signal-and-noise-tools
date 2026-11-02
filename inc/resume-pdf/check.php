@@ -20,16 +20,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string   $bytes     PDF file.
  * @param int      $pages     Its page count (Dompdf's).
  * @param int|null $max_pages Page limit, or null for none.
- * @param string   $phone     The stored phone, if any: its digits anywhere in the text flag it too.
- * @param string   $printed   A phone the file prints on purpose (the public one), as stored: any other still flags.
- * @return array{flags:array<int,string>,chars:int,extractor:string,public_phone?:bool}
+ * @param string   $phone     The stored phone, if any: its digits (7+) anywhere in the text flag it too.
+ *                            No PDF prints a phone, so nothing is exempt.
+ * @return array{flags:array<int,string>,chars:int,extractor:string}
  */
-function sn_resume_pdf_check( $bytes, $pages, $max_pages = null, $phone = '', $printed = '' ) {
+function sn_resume_pdf_check( $bytes, $pages, $max_pages = null, $phone = '' ) {
 	$objects = sn_resume_pdf_objects( (string) $bytes );
 	$text    = sn_resume_pdf_text( $bytes, $objects );
-	// The public phone is left out only when it is a whole phone (7+ digits), and only where it
-	// stands alone: a short or partial value ("555") must not erase part of another number.
-	$scan    = strlen( (string) preg_replace( '/\D+/', '', (string) $printed ) ) >= 7 ? (string) preg_replace( '/(?<!\d)' . preg_quote( (string) $printed, '/' ) . '(?!\d)/', '', $text ) : $text;
 	$raw     = preg_match( '~/Info (\d+) 0 R~', (string) $bytes, $info ) && preg_match( '~(?<![0-9])' . $info[1] . ' 0 obj(.*?)endobj~s', (string) $bytes, $im ) ? $im[1] : '';
 	// Dompdf writes Info strings as UTF-16BE literals (\376\377...): decode them, or a phone there reads as octal noise.
 	$meta = '';
@@ -38,7 +35,7 @@ function sn_resume_pdf_check( $bytes, $pages, $max_pages = null, $phone = '', $p
 		$s     = stripcslashes( substr( $lit, 1, -1 ) );
 		$meta .= ( "\xFE\xFF" === substr( $s, 0, 2 ) ? mb_convert_encoding( substr( $s, 2 ), 'UTF-8', 'UTF-16BE' ) : $s ) . "\n";
 	}
-	$flags  = sn_resume_pdf_text_flags( $scan, $meta, $pages, $max_pages );
+	$flags  = sn_resume_pdf_text_flags( $text, $meta, $pages, $max_pages );
 	$digits = (string) preg_replace( '/\D+/', '', (string) $phone );
 	if ( strlen( $digits ) >= 7 && ! in_array( 'a phone number', $flags, true ) && false !== strpos( preg_replace( '/\D+/', '', $text . $meta ), $digits ) ) {
 		$flags[] = 'a phone number';
@@ -58,7 +55,7 @@ function sn_resume_pdf_check( $bytes, $pages, $max_pages = null, $phone = '', $p
 		'flags'     => $flags,
 		'chars'     => mb_strlen( $text, 'UTF-8' ),
 		'extractor' => 'built-in Dompdf/CPDF reader (inc/resume-pdf/text-check.php)',
-	) + ( '' !== (string) $printed ? array( 'public_phone' => true ) : array() );
+	);
 }
 
 /**

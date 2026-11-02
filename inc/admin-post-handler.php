@@ -71,7 +71,6 @@ function sn_admin_post_handlers() {
 		'uses_save'                  => 'sn_handle_uses_save',
 		'workflow_save'              => 'sn_handle_workflow_save', // 21.7.0: Content > Workflow (/workflow)
 		'resume_pdf_generate'        => 'sn_handle_resume_pdf_generate',
-		'resume_pdf_private'         => 'sn_handle_resume_pdf_private',
 		// 19.9.0: /resume drafts. Save never goes live; these do.
 		'resume_draft_save'          => 'sn_handle_resume_draft_save',
 		'resume_preview_page'        => 'sn_handle_resume_preview_page',

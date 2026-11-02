@@ -29,6 +29,8 @@ const SN_RESUME_PDF_ISSUED = 'sn_resume_pdf_issued'; // every ?v= prefix ever li
 // ponytail: past 28 generations the oldest ?v= link is no longer purged; chunked purging already exists if that ever matters.
 const SN_RESUME_PDF_ISSUED_MAX = 28;
 
+require_once __DIR__ . '/text-check.php'; // the phone tripwire every render passes (sn_resume_pdf_render()).
+
 /**
  * Where the generated file lives.
  *
@@ -49,15 +51,20 @@ function sn_resume_pdf_location() {
  * Render bytes for a document. Pure given its inputs, so the test suite runs it
  * against fixture data without WordPress.
  *
+ * No PDF prints the phone (owner, 2026-11-02: "not in any version: human and
+ * machine"). Every render is read back, and one with a phone pattern in it, or
+ * the stored phone's digits (7+), is an error: no file, no stream. The stored
+ * phone stays in the document only so this check can find it.
+ *
  * @param array  $doc       Canonical resume document.
  * @param string $name      Header name.
  * @param string $cache_dir     Writable directory for Dompdf's font metrics cache.
- * @param bool   $include_phone True only for the private copy (never written to disk).
+ * @param bool   $unused_phone  Ignored (the phone is never printed); the slot keeps positional callers' meaning.
  * @param string $site_url      Home URL for the contact line ('' leaves it out).
  * @param array|null $config    A variant's layout (sn_resume_pdf_html()); null is music.
  * @return array{bytes:string,pages:int}|WP_Error
  */
-function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false, $site_url = '', $config = null ) {
+function sn_resume_pdf_render( $doc, $name, $cache_dir, $unused_phone = false, $site_url = '', $config = null ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- a kept positional slot.
 	$lib = dirname( __DIR__, 2 ) . '/lib/pdf';
 	if ( ! is_readable( $lib . '/vendor/autoload.php' ) ) {
 		return new WP_Error( 'sn_resume_pdf_no_renderer', 'The PDF renderer (lib/pdf/vendor) is missing from this install.' );
@@ -79,13 +86,13 @@ function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false, 
 		$options->set( 'chroot', array( $lib, $cache_dir ) );
 
 		$dompdf = new \Dompdf\Dompdf( $options );
-		$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts', (bool) $include_phone, (string) $site_url, $config ), 'UTF-8' );
+		$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts', false, (string) $site_url, $config ), 'UTF-8' );
 		$dompdf->setPaper( 'letter', 'portrait' );
 		$dompdf->addInfo( 'Title', $name . ' — ' . ( function_exists( 'sn_resume_l' ) ? sn_resume_l( 'Resume', 'Curriculum vitae' ) : 'Resume' ) );
 		$dompdf->addInfo( 'Author', $name );
 		$dompdf->render();
 
-		return array(
+		$out = array(
 			'bytes' => (string) $dompdf->output(),
 			'pages' => (int) $dompdf->getCanvas()->get_page_count(),
 		);
@@ -93,6 +100,11 @@ function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false, 
 		error_log( '[signal-and-noise-tools] résumé PDF render failed: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- deliberate: every caller (Generate, the Spanish CV, the operations PDF, the streamed copies) leaves a trace.
 		return new WP_Error( 'sn_resume_pdf_render', 'The PDF renderer failed: ' . $e->getMessage() );
 	}
+	$check = sn_resume_pdf_check( $out['bytes'], $out['pages'], null, (string) ( $doc['pdf']['phone'] ?? '' ) );
+	if ( in_array( 'a phone number', $check['flags'], true ) ) {
+		return new WP_Error( 'sn_resume_pdf_phone', 'The PDF read back with a phone number, so it was not built. No résumé PDF may carry one: take the number out of the résumé text.' );
+	}
+	return $out;
 }
 
 /**
@@ -142,11 +154,9 @@ function sn_resume_pdf_build() {
 	}
 
 	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	// PUBLIC: the phone only when the owner switched it on (Content → Resume,
-	// PDF only). Default off; the private copy is the way to send it.
 	// The music variant's layout ("What I've Built" only when switched on).
 	$config = sn_resume_pdf_music_config( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : $doc );
-	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', ! empty( $doc['pdf']['phone_public'] ), home_url( '/' ), $config );
+	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', false, home_url( '/' ), $config );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
@@ -168,12 +178,7 @@ function sn_resume_pdf_build() {
 		'generated' => gmdate( 'c' ),
 		'url'       => $loc['url'] . '/' . SN_RESUME_PDF_FILE,
 	);
-	if ( function_exists( 'sn_resume_pdf_check' ) ) {
-		// Switched on, the phone is printed on purpose: the check looks for any other.
-		$phone         = (string) ( $doc['pdf']['phone'] ?? '' );
-		$public        = ! empty( $doc['pdf']['phone_public'] );
-		$meta['check'] = sn_resume_pdf_check( $result['bytes'], $result['pages'], null, $public ? '' : $phone, $public ? $phone : '' );
-	}
+	$meta['check'] = sn_resume_pdf_check( $result['bytes'], $result['pages'], null, (string) ( $doc['pdf']['phone'] ?? '' ) );
 	$previous = get_option( SN_RESUME_PDF_OPTION );
 	$issued   = sn_resume_pdf_issued( get_option( SN_RESUME_PDF_ISSUED ), $previous, $meta );
 	update_option( SN_RESUME_PDF_ISSUED, $issued, false );
@@ -265,18 +270,18 @@ function sn_resume_pdf_link( $fallback ) {
  * checked the nonce and manage_options. Exits on success; returns a WP_Error
  * for the caller's flash on failure.
  *
- * @param array|null $doc        Document to render.
- * @param bool       $with_phone Whether the phone is printed.
- * @param string     $filename   Attachment name (a fixed string, never input).
+ * @param array|null $doc      Document to render.
+ * @param string     $filename Attachment name (a fixed string, never input).
+ * @param array|null $config   The layout.
  * @return WP_Error|void
  */
-function sn_resume_pdf_stream( $doc, $with_phone, $filename, $config = null ) {
+function sn_resume_pdf_stream( $doc, $filename, $config = null ) {
 	$loc = sn_resume_pdf_location();
 	if ( ! is_array( $doc ) || null === $loc ) {
 		return new WP_Error( 'sn_resume_pdf_stream', 'No resume document or uploads directory.' );
 	}
 	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', (bool) $with_phone, home_url( '/' ), $config );
+	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', false, home_url( '/' ), $config );
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
@@ -290,24 +295,14 @@ function sn_resume_pdf_stream( $doc, $with_phone, $filename, $config = null ) {
 }
 
 /**
- * The PRIVATE copy: the live document WITH the phone, streamed, never stored.
- *
- * @return WP_Error|void
- */
-function sn_resume_pdf_private_stream() {
-	return sn_resume_pdf_stream( function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null, true, 'JuanLentino_Resume_private.pdf', sn_resume_pdf_music_config( sn_resume_doc_get_raw() ) );
-}
-
-/**
- * The DRAFT preview: the draft under the PUBLIC phone rule, so it is the file
- * Publish would generate. Streamed, never stored. It is the draft's music
+ * The DRAFT preview: the file Publish would generate. Streamed, never stored. It is the draft's music
  * résumé, what Publish would put behind the Download link.
  *
  * @return WP_Error|void
  */
 function sn_resume_pdf_draft_stream() {
 	$doc = function_exists( 'sn_resume_draft_get' ) ? sn_resume_doc_view( sn_resume_draft_get(), 'music' ) : null;
-	return sn_resume_pdf_stream( $doc, ! empty( $doc['pdf']['phone_public'] ), 'JuanLentino_Resume_draft.pdf', sn_resume_pdf_music_config( sn_resume_draft_get() ) );
+	return sn_resume_pdf_stream( $doc, 'JuanLentino_Resume_draft.pdf', sn_resume_pdf_music_config( sn_resume_draft_get() ) );
 }
 
 /**

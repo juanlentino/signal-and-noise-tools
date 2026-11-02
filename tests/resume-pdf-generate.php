@@ -3,9 +3,9 @@
  * Guard: Generate, for real (inc/resume-pdf/generate.php through Dompdf, the
  * check and the operations build it fires).
  *
- * A renderer that throws is an error to report, not a fatal. The public
- * phone, switched on, is not flagged every time; another phone still is. And
- * what the owner is told after Generate, Publish or Revert names an
+ * A renderer that throws is an error to report, not a fatal. No PDF carries
+ * a phone: the old switch changes nothing, and a phone in the text fails
+ * Generate. And what the owner is told after Generate, Publish or Revert names an
  * operations PDF that failed beside a music one that did not. A music or
  * Spanish PDF that fails is logged and recorded, and the PDF box shows it.
  *
@@ -36,23 +36,22 @@ try {
 ok( is_wp_error( $thrown ) && 'sn_resume_pdf_render' === $thrown->get_error_code(), 'a renderer that throws returns an error, so Generate reports it instead of a fatal' );
 ok( $logged( 'résumé PDF render failed: ' ), 'and its message is written to the error log, whichever caller asked' );
 
-echo "\nGroup: the public phone\n";
+echo "\nGroup: no PDF carries a phone\n";
 $pub                        = $set;
 $pub['pdf']['phone']        = '(407) 555-0123';
-$pub['pdf']['phone_public'] = true;
+$pub['pdf']['phone_public'] = true; // the old switch, still stored: it must change nothing.
 sn_test_pdf_reset( $pub );
-ok( ! is_wp_error( sn_resume_pdf_generate() ) && ! in_array( 'a phone number', $flags(), true ), 'switched on, the phone the music PDF prints on purpose is not flagged on every Generate' );
-ok( false !== strpos( sn_resume_pdf_check_line( $GLOBALS['opts']['sn_resume_pdf'] ), 'other than the public one' ), 'and the check line says it passed with the public phone in it' );
+ok( ! is_wp_error( sn_resume_pdf_generate() ) && array() === $flags(), 'the phone stored and the old switch on: the music PDF builds without it, and nothing is flagged' );
 $other                   = $pub;
 $other['pdf']['summary'] = 'Call (321) 555-0199 for references. ' . $set['hero']['summary'];
 sn_test_pdf_reset( $other );
-sn_resume_pdf_generate();
-ok( in_array( 'a phone number', $flags(), true ), 'another phone in the music PDF is still flagged' );
-$off                        = $pub;
-$off['pdf']['phone_public'] = false;
-sn_test_pdf_reset( $off );
-sn_resume_pdf_generate();
-ok( array() === $flags(), 'switched off, the phone is not printed and nothing is flagged' );
+$e = sn_resume_pdf_generate();
+ok( is_wp_error( $e ) && 'sn_resume_pdf_phone' === $e->get_error_code() && ! isset( $GLOBALS['opts']['sn_resume_pdf']['sha256'] ) && false !== strpos( (string) ( $GLOBALS['opts']['sn_resume_pdf']['error'] ?? '' ), 'phone number' ), 'a phone in the résumé text fails Generate: nothing is published, and the error is stored for the box' );
+$own                   = $pub;
+$own['pdf']['summary'] = 'Reach me at 407 5550123 or by email. ' . $set['hero']['summary'];
+sn_test_pdf_reset( $own );
+$e = sn_resume_pdf_generate();
+ok( is_wp_error( $e ) && 'sn_resume_pdf_phone' === $e->get_error_code(), 'so does the stored phone typed into the text in a format only its digits match' );
 
 echo "\nGroup: what the owner is told\n";
 $ops_phone                                     = $set;
@@ -84,7 +83,8 @@ ok( 'The uploads directory is unavailable.' === ( $m['error'] ?? '' ) && ! empty
 ok( false !== strpos( $box(), 'Music PDF: the last Generate failed (The uploads directory is unavailable.). The file above is still the one served.' ), 'the PDF box shows it, instead of only the old check' );
 ok( false !== strpos( $box(), 'Not rebuilt since: the last Generate stopped at the music PDF.' ), 'and marks the operations PDF, built before it, as not rebuilt' );
 ok( 'resume_pdf_failed' === sn_handle_resume_pdf_generate( array() ) && false !== strpos( $flash['resume_pdf_failed'][1], 'The PDF box shows the error.' ) && false === strpos( $flash['resume_pdf_failed'][1], 'lib/pdf' ), 'Generate failing: the flash points at the PDF box and names no cause' );
-ok( 'resume_pdf_stream_failed' === sn_handle_resume_pdf_private( array() ) && isset( $flash['resume_pdf_stream_failed'] ) && false === strpos( $flash['resume_pdf_stream_failed'][1], 'PDF box' ), 'a private copy that cannot be built has its own flash: it stores nothing for the box to show' );
+$GLOBALS['opts']['sn_resume_draft'] = $changed;
+ok( 'resume_pdf_stream_failed' === sn_handle_resume_preview_pdf( array() ) && isset( $flash['resume_pdf_stream_failed'] ) && false === strpos( $flash['resume_pdf_stream_failed'][1], 'PDF box' ), 'a draft preview that cannot be built has its own flash: it stores nothing for the box to show' );
 $GLOBALS['up_error'] = false;
 ok( is_array( sn_resume_pdf_generate() ) && ! isset( $GLOBALS['opts']['sn_resume_pdf']['error'] ) && false === strpos( $box(), 'failed' ) && false === strpos( $box(), 'Not rebuilt since' ), 'the next good Generate clears the error and the marker' );
 

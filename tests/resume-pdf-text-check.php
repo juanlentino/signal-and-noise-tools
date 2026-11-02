@@ -82,21 +82,16 @@ $d->render();
 $meta_pdf = (string) $d->output();
 ok( false !== strpos( $meta_pdf, '\\376\\377' ) || false !== strpos( $meta_pdf, "\xFE\xFF" ), 'Dompdf writes the Subject as a UTF-16 literal (the case the check must decode)' );
 ok( in_array( 'a phone number', sn_resume_pdf_check( $meta_pdf, 1 )['flags'], true ), 'a phone in a real Dompdf file\'s metadata is flagged' );
-$intl            = $doc;
-$intl['pdf']['phone'] = '+54 9 11 5555-1234';
-$ri              = sn_resume_pdf_render( $intl, 'Juan Lentino', $cache, true, 'https://juanlentino.com/' );
-ok( in_array( 'a phone number', sn_resume_pdf_check( $ri['bytes'], $ri['pages'], null, '+54 9 11 5555-1234' )['flags'], true ), 'the stored phone, in any format, is found by its digits' );
-ok( ! in_array( 'a phone number', sn_resume_pdf_check( $r['bytes'], $r['pages'], null, '+54 9 11 5555-1234' )['flags'], true ), 'and a PDF without it is not flagged' );
-// The public phone the file prints on purpose is left out of the scan, but only as a whole phone.
+// A file with a phone in it, built straight with Dompdf: the résumé renderer refuses to make one.
 $pdf_of = static function ( $line ) use ( $o ) {
 	$d = new \Dompdf\Dompdf( $o );
 	$d->loadHtml( '<p>' . $line . ' ' . str_repeat( 'A plain résumé line. ', 60 ) . '</p>', 'UTF-8' );
 	$d->render();
 	return (string) $d->output();
 };
-ok( in_array( 'a phone number', sn_resume_pdf_check( $pdf_of( 'Call (321) 555-0199.' ), 1, null, '', '555' )['flags'], true ), 'a short public phone ("555") does not erase part of another phone' );
-ok( in_array( 'a phone number', sn_resume_pdf_check( $pdf_of( 'Call 4075550199.' ), 1, null, '', '5550199' )['flags'], true ), 'a public phone is not erased from inside a longer number' );
-ok( ! in_array( 'a phone number', sn_resume_pdf_check( $pdf_of( 'Call (407) 555-0123 today.' ), 1, null, '', '(407) 555-0123' )['flags'], true ), 'where it stands alone, it is left out' );
+ok( in_array( 'a phone number', sn_resume_pdf_check( $pdf_of( 'Reach me at +54 9 11 5555-1234.' ), 1, null, '+54 9 11 5555-1234' )['flags'], true ), 'the stored phone, in any format, is found by its digits' );
+ok( ! in_array( 'a phone number', sn_resume_pdf_check( $r['bytes'], $r['pages'], null, '+54 9 11 5555-1234' )['flags'], true ), 'and a PDF without it is not flagged' );
+ok( in_array( 'a phone number', sn_resume_pdf_check( $pdf_of( 'Call (321) 555-0199.' ), 1, null, '555' )['flags'], true ), 'a short stored value ("555") exempts nothing: another phone is still flagged' );
 
 echo "\nGroup: a file the reader cannot fully read is never clean\n";
 // Page two's content stream, found through its page's /Contents reference.

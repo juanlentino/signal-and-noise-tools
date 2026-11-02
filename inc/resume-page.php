@@ -18,6 +18,7 @@
  *   education[]{title,lines[]} · affiliations[]{title,lines[]}
  *   publications[]{meta,title,url} · skills[]{category,items}
  *   pdf{headline,tagline,summary,phone,phone_public,email,location,website,competencies[],toolkit[]}
+ *   (phone and phone_public are stored and never printed: docs/RESUME-PDF.md, "The phone")
  *
  * `pdf` feeds ONLY the generated PDF (inc/resume-pdf/). The sync engine never
  * reads it, so a PDF-only field (the phone, above all) cannot reach /resume.

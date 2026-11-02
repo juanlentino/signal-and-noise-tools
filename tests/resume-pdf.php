@@ -97,30 +97,22 @@ if ( '' !== $pdftotext ) {
 	echo "INFO: pdftotext not installed; the text-layer read-back ran on the HTML above only.\n";
 }
 
-echo "\nThe phone (owner, 2026-09-22: no public download with it unless switched on)\n";
-ok( false === $doc['pdf']['phone_public'], 'the switch is OFF when the form never posted it (an unchecked box posts nothing)' );
-ok( false === strpos( $html, '(555) 010-4242' ), 'the public page render leaves the phone out while the switch is off' );
-$priv = sn_resume_pdf_html( $doc, 'Juan Lentino', '/fonts', true );
-ok( false !== strpos( $priv, '(555) 010-4242' ), 'the private copy carries it' );
-$on               = $fixture;
+echo "\nThe phone (owner, 2026-11-02: in no version, human or machine)\n";
+ok( false === strpos( $html, '(555) 010-4242' ), 'the PDF template leaves the stored phone out' );
+$on                        = $fixture;
 $on['pdf']['phone_public'] = '1';
-$on_doc           = sn_resume_doc_normalize( $on );
-ok( true === $on_doc['pdf']['phone_public'], 'the switch turns on from a posted "1"' );
+ok( false === strpos( sn_resume_pdf_html( sn_resume_doc_normalize( $on ), 'Juan Lentino', '/fonts', true ), '(555) 010-4242' ), 'even with the old switch on and a caller asking for it' );
 if ( '' !== $pdftotext ) {
 	$pub_text = (string) shell_exec( escapeshellarg( $pdftotext ) . ' ' . escapeshellarg( $cache . '/out.pdf' ) . ' - 2>/dev/null' );
-	ok( false === strpos( $pub_text, '(555) 010-4242' ) && false !== strpos( $pub_text, 'Orlando, FL' ), 'the public PDF BYTES carry no phone (the contact line still prints)' );
-	$p2 = sn_resume_pdf_render( $doc, 'Juan Lentino', $cache, true );
-	file_put_contents( $cache . '/priv.pdf', is_array( $p2 ) ? $p2['bytes'] : '' );
-	ok( false !== strpos( (string) shell_exec( escapeshellarg( $pdftotext ) . ' ' . escapeshellarg( $cache . '/priv.pdf' ) . ' - 2>/dev/null' ), '(555) 010-4242' ), 'the private PDF bytes carry it (control: the check above can see a phone)' );
+	ok( false === strpos( $pub_text, '(555) 010-4242' ) && false !== strpos( $pub_text, 'Orlando, FL' ), 'the PDF BYTES carry no phone (the contact line still prints)' );
 }
 $gen_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.php' );
-ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'] . \'/.font-cache\', ! empty( $doc[\'pdf\'][\'phone_public\'] ), home_url( \'/\' ), $config );' ), 'Generate PDF includes the phone ONLY per the switch (and the music layout)' );
-// Drafts: ONE streamer (sn_resume_pdf_stream) serves the private copy and the
-// draft preview; each caller only picks the document, the phone and the name.
+ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'] . \'/.font-cache\', false, home_url( \'/\' ), $config );' ), 'Generate PDF asks for no phone (and the music layout)' );
+// Drafts: ONE streamer (sn_resume_pdf_stream) serves the draft preview.
 $stream_src = substr( $gen_src, (int) strpos( $gen_src, 'function sn_resume_pdf_stream(' ) );
-ok( false !== strpos( $gen_src, 'function sn_resume_pdf_stream(' ) && 1 === preg_match( '/^function sn_resume_pdf_stream\( \$doc, \$with_phone, \$filename, \$config = null \) \{.*?sn_resume_pdf_render\( \$doc, \$name, [^;]*, \(bool\) \$with_phone, home_url\( \'\/\' \), \$config \);.*?header\( .Content-Disposition: attachment; filename="\' \. \$filename/s', $stream_src ) && false === strpos( $stream_src, 'file_put_contents' ), 'the shared streamer renders with the phone rule it is given, sends an attachment, and nothing after it writes to disk' );
-ok( 1 === preg_match( '/function sn_resume_pdf_private_stream\(\) \{\s*return sn_resume_pdf_stream\( [^;]*sn_resume_doc_get\(\)[^;]*, true, \'JuanLentino_Resume_private\.pdf\', sn_resume_pdf_music_config\( sn_resume_doc_get_raw\(\) \) \);/', $gen_src ), 'the private copy streams the LIVE document WITH the phone' );
-ok( 1 === preg_match( '/function sn_resume_pdf_draft_stream\(\) \{\s*\$doc = [^;]*sn_resume_draft_get\(\)[^;]*;\s*return sn_resume_pdf_stream\( \$doc, ! empty\( \$doc\[\'pdf\'\]\[\'phone_public\'\] \), \'JuanLentino_Resume_draft\.pdf\', sn_resume_pdf_music_config\( sn_resume_draft_get\(\) \) \);/', $gen_src ), 'the draft preview streams the DRAFT under the public phone rule, as JuanLentino_Resume_draft.pdf' );
+ok( false !== strpos( $gen_src, 'function sn_resume_pdf_stream(' ) && 1 === preg_match( '/^function sn_resume_pdf_stream\( \$doc, \$filename, \$config = null \) \{.*?sn_resume_pdf_render\( \$doc, \$name, [^;]*, false, home_url\( \'\/\' \), \$config \);.*?header\( .Content-Disposition: attachment; filename="\' \. \$filename/s', $stream_src ) && false === strpos( $stream_src, 'file_put_contents' ), 'the streamer renders with no phone, sends an attachment, and nothing after it writes to disk' );
+ok( false === strpos( $gen_src, 'sn_resume_pdf_private_stream' ), 'there is no private copy (it existed for the phone)' );
+ok( 1 === preg_match( '/function sn_resume_pdf_draft_stream\(\) \{\s*\$doc = [^;]*sn_resume_draft_get\(\)[^;]*;\s*return sn_resume_pdf_stream\( \$doc, \'JuanLentino_Resume_draft\.pdf\', sn_resume_pdf_music_config\( sn_resume_draft_get\(\) \) \);/', $gen_src ), 'the draft preview streams the DRAFT, as JuanLentino_Resume_draft.pdf' );
 
 echo "\nThe contact line (owner, 2026-09-22: location and links were missing)\n";
 $bare                    = $fixture;

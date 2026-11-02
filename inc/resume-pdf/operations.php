@@ -137,16 +137,9 @@ function sn_resume_ops_pdf_build() {
 	$config['built'] = sn_resume_built_for( $raw, 'operations' );
 	$name            = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
 	$result          = sn_resume_pdf_render( sn_resume_doc_view( $raw, 'operations' ), $name, $loc['dir'] . '/.font-cache', false, home_url( '/' ), $config );
-	if ( is_wp_error( $result ) ) {
-		return $result;
-	}
-	if ( 0 !== strpos( (string) $result['bytes'], '%PDF-' ) ) {
-		return new WP_Error( 'sn_resume_pdf_invalid', 'The renderer did not return a PDF.' );
-	}
-	// A phone in it is never served: checked before the bytes are stored.
-	$url   = sn_resume_ops_pdf_url( $config['pdf_file'] );
-	$check = sn_resume_pdf_check( $result['bytes'], $result['pages'], 2, (string) ( $raw['pdf']['phone'] ?? '' ) );
-	if ( in_array( 'a phone number', $check['flags'], true ) ) {
+	$url             = sn_resume_ops_pdf_url( $config['pdf_file'] );
+	// A phone in it is never served (the render refuses it): the last file goes too.
+	if ( is_wp_error( $result ) && 'sn_resume_pdf_phone' === $result->get_error_code() ) {
 		delete_option( SN_RESUME_OPS_PDF_BYTES );
 		delete_option( SN_RESUME_OPS_PDF_OPTION ); // nothing is served, so nothing may link it (sn_resume_ops_pdf_live()).
 		if ( function_exists( 'sn_cf_purge_urls' ) ) {
@@ -154,6 +147,13 @@ function sn_resume_ops_pdf_build() {
 		}
 		return new WP_Error( 'sn_resume_pdf_phone', 'The operations PDF read back with a phone number; it was not published.' );
 	}
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	if ( 0 !== strpos( (string) $result['bytes'], '%PDF-' ) ) {
+		return new WP_Error( 'sn_resume_pdf_invalid', 'The renderer did not return a PDF.' );
+	}
+	$check = sn_resume_pdf_check( $result['bytes'], $result['pages'], 2, (string) ( $raw['pdf']['phone'] ?? '' ) );
 	update_option( SN_RESUME_OPS_PDF_BYTES, base64_encode( $result['bytes'] ), false );
 	// Read back: update_option() is false for an unchanged value too, and a large one can fail to store.
 	if ( sn_resume_ops_pdf_bytes() !== $result['bytes'] ) {
