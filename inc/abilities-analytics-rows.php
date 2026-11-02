@@ -66,6 +66,24 @@ function snt_analytics_rows_output_schema( $unmatched = false ) {
 }
 
 /**
+ * The window and source for a validated query, or why it cannot be answered. sn-metrics asks
+ * before its dispatch, which would fold a refusal into "unavailable".
+ *
+ * @param array $q From snt_arows_validate().
+ * @return array|WP_Error array( from, to, source ).
+ */
+function snt_arows_resolve( array $q ) {
+	$today = snt_analytics_range_dates( 7 )[1];
+	if ( 'custom' === $q['range'] && $q['from'] > $today ) {
+		return new WP_Error( 'ability_invalid_input', 'from is after today (' . $today . ', the site\'s time zone): no day in the window has happened yet.', array( 'status' => 400 ) );
+	}
+	list( $from, $to ) = 'custom' === $q['range'] ? array( $q['from'], min( $q['to'], $today ) ) : snt_analytics_range_dates( $q['range'] );
+	// The stored rollups when they hold the combination, else Analytics Engine (about 90 days): inc/analytics-rows-events.php.
+	$source = snt_arows_plan( $q, $from, $today );
+	return is_wp_error( $source ) ? $source : array( $from, $to, $source );
+}
+
+/**
  * Execute: validate, read, shape. The envelope carries the validated range
  * and class, never a caller's filter text.
  *
@@ -78,13 +96,11 @@ function snt_ability_analytics_rows( $input = null, $allow_unmatched = false ) {
 	if ( is_wp_error( $q ) ) {
 		return $q;
 	}
-	$today             = snt_analytics_range_dates( 7 )[1];
-	list( $from, $to ) = 'custom' === $q['range'] ? array( $q['from'], min( $q['to'], $today ) ) : snt_analytics_range_dates( $q['range'] );
-	// The stored rollups when they hold the combination, else Analytics Engine (about 90 days): inc/analytics-rows-events.php.
-	$source = snt_arows_plan( $q, $from, $today );
-	if ( is_wp_error( $source ) ) {
-		return $source;
+	$plan = snt_arows_resolve( $q );
+	if ( is_wp_error( $plan ) ) {
+		return $plan;
 	}
+	list( $from, $to, $source ) = $plan;
 	$read = 'events' === $source ? snt_arows_events_fetch( $q, $from, $to ) : ( 'sessions' === $source ? snt_arows_sessions_fetch( $q, $from, $to ) : snt_arows_fetch( $q, $from, $to ) );
 	if ( is_wp_error( $read ) ) {
 		return $read;
@@ -111,12 +127,12 @@ function snt_ability_perm_remote_analytics_rows() {
 /** The description, shared: what the numbers are and are not. */
 function snt_analytics_rows_description() {
 	return 'Analytics as counted rows, by one to four of path, referrer, country, region, city, device, link_code, day, hour, entry, exit and returning (day and hour in the site\'s time zone). '
-		. 'Two sources, named in the answer\'s source: the stored daily rollups (kept forever, from the first stored day) answer path, link_code or day, or one of referrer, country, device, region or city, each with or without day; anything else (two or more of those, hour, or a filter the rollups do not carry) is read from Analytics Engine, which keeps about 90 days, and a window older than that is refused with the first day it holds. source auto (default) picks, stored or events forces one. '
+		. 'Two sources, named in the answer\'s source: the stored daily rollups (kept forever, from the first stored day) answer path, link_code or day, or one of referrer, country, device, region or city, each with or without day; anything else (two or more of those, hour, or a filter the rollups do not carry) is read from Analytics Engine, which keeps about 90 days, and a window older than that is refused (the local door names the first day it holds). A window that starts after today is refused too. source auto (default) picks, stored or events forces one. '
 		. 'entry, exit and returning are a session\'s (a within-day visit split at the idle gap, the Sessions tab\'s unit): its first and last page, and returning (a second or later session of the same visitor-day) or new. They come from source sessions (also about 90 days), group only with country, region, city, device, day or hour (the session\'s start and first page view), take no path or referrer filter, and add sessions to each row; source sessions groups sessions by any of those alone too. sessions is null from the other sources. '
 		. 'link_code is the code of a coded résumé link (/r/CODE, for example /r/hera returns hera), read out of the stored path: only coded paths count, a malformed one is (invalid). '
 		. 'Arguments: dimensions (required), range 7|14|30|90|365|all (default 30) or from and to (YYYY-MM-DD, site time; not with range), source auto|stored|events|sessions, class human|suspect|bot (default human; human is presumed human (not flagged), an inferred class), path (a site path, a filter), referrer (a hostname, a filter), sort views|visits|time|sessions (time only when the dimensions are path or link_code, with or without day, or day alone, with no referrer filter; sessions only from source sessions), limit 1-500 (default 50). Out-of-set values are refused, not coerced. '
-		. 'Each row: its dimension values, views, pageview_visits, time_avg_per_view and scroll_avg_per_view. Times are MILLISECONDS; scroll is mean max depth 0-100. Time and scroll are kept by page and day only: null on referrer, country, device, region, city and hour rows and under a referrer filter, because a view\'s beacons can land in another row than its page view (the next hour, another city when geolocation moves between requests, and no referrer at all). Source sessions files each beacon under its own view and keeps both on every row. '
-		. 'pageview_visits counts visitor-DAYS that viewed: an estimate, not a session count. views are sample-corrected. '
+		. 'Each row: its dimension values, views, pageview_visits, time_avg_per_view and scroll_avg_per_view. Times are MILLISECONDS; scroll is mean max depth, 0-100 on most rows; a thin row can read above 100, because Analytics Engine samples a view\'s page view and scroll rows independently, and a view read across midnight files its beacons in the next day\'s row. Time and scroll are kept by page and day only: null on referrer, country, device, region, city and hour rows and under a referrer filter, because a view\'s beacons can land in another row than its page view (the next hour, another city when geolocation moves between requests, and no referrer at all). Source sessions files each beacon under its own view and keeps both on every row. '
+		. 'pageview_visits counts visitor-DAYS that viewed: an estimate, not a session count. views are sample-corrected from stored and events; source sessions counts them as read, as the Sessions tab does. '
 		. 'truncated: true means the limit or a read cap cut rows, so sums over the rows are a floor. '
 		. 'Referrers are hostnames only, with (direct), (internal) and (unknown) as stored; anything that is not a clean hostname is (invalid). City and region are the network\'s place names, (unknown) when it gave none. Paths, entry and exit included, are returned only when they are the site\'s own content; scanner probes and other requests are (unmatched). '
 		. 'Every value is named, however small: a page seen by one visitor-day is its own row (no privacy floor on the owner\'s reads; the public /stats page keeps one). '

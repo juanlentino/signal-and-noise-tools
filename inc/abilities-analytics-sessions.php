@@ -45,6 +45,9 @@ function snt_analytics_sessions_window( array $in, $now ) {
 	if ( ! snt_analytics_is_ymd( $from ) || ! snt_analytics_is_ymd( $to ) || $from > $to ) {
 		return $bad( 'from and to must be days (YYYY-MM-DD, the site\'s time zone), from no later than to; or give hours.' );
 	}
+	if ( $from > $today ) {
+		return $bad( 'from is after today (' . $today . ', the site\'s time zone): no day in the window has happened yet.' );
+	}
 	$to    = min( $to, $today );
 	$floor = snt_analytics_sessions_floor( $now );
 	if ( $from < $floor ) {
@@ -55,23 +58,35 @@ function snt_analytics_sessions_window( array $in, $now ) {
 }
 
 /**
- * Execute: validate, read, page.
+ * The checked arguments, or why they are refused. sn-metrics asks before its dispatch, which
+ * would fold a refusal into "unavailable".
  *
- * @param mixed $input The ability input.
- * @return array|WP_Error
+ * @param array $in The ability input.
+ * @return array|WP_Error array( class, page, per_page, window ).
  */
-function snt_ability_analytics_sessions( $input = null ) {
-	$in    = is_array( $input ) ? $input : array();
+function snt_analytics_sessions_check( array $in ) {
 	$class = $in['class'] ?? 'human';
 	$page  = $in['page'] ?? 1;
 	$per   = $in['per_page'] ?? SN_ANALYTICS_SESSIONS_PER_PAGE;
 	if ( ! in_array( $class, SN_ANALYTICS_CLASSES, true ) || ! is_int( $page ) || $page < 1 || $page > 100000 || ! is_int( $per ) || $per < 1 || $per > SN_ANALYTICS_SESSIONS_MAX_PAGE ) {
 		return new WP_Error( 'ability_invalid_input', 'class must be human, suspect or bot; page an integer from 1 to 100000; per_page an integer from 1 to ' . SN_ANALYTICS_SESSIONS_MAX_PAGE . '.', array( 'status' => 400 ) );
 	}
-	$w = snt_analytics_sessions_window( $in, time() );
-	if ( is_wp_error( $w ) ) {
-		return $w;
+	$w = snt_analytics_sessions_window( $in, sn_analytics_clock() ); // pinnable, so a test never straddles a day.
+	return is_wp_error( $w ) ? $w : array( $class, $page, $per, $w );
+}
+
+/**
+ * Execute: validate, read, page.
+ *
+ * @param mixed $input The ability input.
+ * @return array|WP_Error
+ */
+function snt_ability_analytics_sessions( $input = null ) {
+	$args = snt_analytics_sessions_check( is_array( $input ) ? $input : array() );
+	if ( is_wp_error( $args ) ) {
+		return $args;
 	}
+	list( $class, $page, $per, $w ) = $args;
 	$read = sn_analytics_sessions_read( $w['lo'], $w['hi'], $class );
 	if ( null === $read ) {
 		return new WP_Error( 'sn_analytics_read_failed', 'The Analytics Engine read failed; this is not an empty answer.', array( 'status' => 500 ) );
@@ -112,9 +127,9 @@ function snt_ability_perm_remote_analytics_sessions() {
 
 /** The description, shared. */
 function snt_analytics_sessions_description() {
-	return 'Sessions one by one, the unit of the S&N Analytics Sessions tab: a visit within one visitor-day (a UTC day), split at the idle gap, with at least one page view. The sessions that START in the window, newest first, paged; each is read whole, so one still going at the window\'s end is complete, and one that began before it is not listed. '
-		. 'Each: start and end (ISO 8601, site time), duration_s, pageviews, entry and exit, pages in order with time_ms and scroll_pct on each (null when not measured), source (the dashboard\'s source label of the first page view\'s referrer), country, region, city, device, class, returning (a second or later session of the same visitor-day, counting sessions before the window too; no visitor is recognized on another day), link_code (a coded résumé link, or ""), engaged and goals (custom event names; anything that is not a short printable name reads (invalid)). Place and device read (unknown) when not sent, as in the rows read. '
-		. 'Arguments: from and to (YYYY-MM-DD, site time; default today) or hours (1 to ' . SN_ANALYTICS_SESSIONS_MAX_HOURS . ', the last N hours), class human|suspect|bot (default human), page (default 1), per_page (1 to ' . SN_ANALYTICS_SESSIONS_MAX_PAGE . ', default ' . SN_ANALYTICS_SESSIONS_PER_PAGE . '). Read from Analytics Engine: the last 90 days. capped: true means the raw read hit its cap, so the list is a floor. '
+	return 'Sessions one by one, the unit of the S&N Analytics Sessions tab: a visit within one visitor-day (a day in America/New_York, where the visitor code rotates), split at the idle gap, with at least one page view. The sessions that START in the window, newest first, paged; each is read whole, so one still going at the window\'s end is complete, and one that began before it is not listed. '
+		. 'Each: start and end (ISO 8601, site time), duration_s, pageviews, entry and exit, pages in order with time_ms and scroll_pct on each (null when not measured), source (the dashboard\'s source label of the first page view\'s referrer), country, region, city, device, class, returning (a second or later session of the same visitor-day, counting sessions before the window too; no visitor is recognized on another day), link_code (a coded résumé link, or ""), engaged and goals (custom event names; anything that is not an identifier-shaped name, letters, digits and _ . : -, reads (invalid)); the source is (direct), (internal), a known source label or a clean hostname, else (invalid). Place and device read (unknown) when not sent, as in the rows read. '
+		. 'Arguments: from and to (YYYY-MM-DD, site time; default today) or hours (1 to ' . SN_ANALYTICS_SESSIONS_MAX_HOURS . ', the last N hours), class human|suspect|bot (default human), page (default 1), per_page (1 to ' . SN_ANALYTICS_SESSIONS_MAX_PAGE . ', default ' . SN_ANALYTICS_SESSIONS_PER_PAGE . '). Read from Analytics Engine: the last 90 days. capped: true means the raw read hit its cap, so the list is a floor. Rows are counted as read, not sample-corrected: on a heavily sampled visitor-day, pageviews and pages are floors. '
 		. 'Paths are the site\'s own content or (unmatched). No visitor code, IP address or user agent is returned. Read-only.';
 }
 

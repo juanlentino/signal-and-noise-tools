@@ -329,7 +329,7 @@ function sn_resume_upsert_page( $body ) {
 	$page    = get_page_by_path( $slug );
 
 	if ( $page ) {
-		// An identical body is never rewritten: /resume is signed, and a save
+		// An identical body is never rewritten (if /resume is ever signed, a re-save must not re-sign it), and a save
 		// that changes only data the body does not render (a credential URL)
 		// must not touch post_content. The Spanish sync makes the same check.
 		if ( isset( $page->post_content ) && (string) $page->post_content === (string) $body ) {
@@ -360,7 +360,8 @@ function sn_resume_upsert_page( $body ) {
 
 /**
  * Regenerate the /resume Page from the current document (stored option, or
- * the shipped seed before the first save). Wired to sn_resume_doc_save();
+ * the shipped seed before the first save). Wired to sn_resume_doc_save(), and run
+ * by Generate, the operations PDF build, Revert and the engine-rev regen;
  * no-op (never blanks the page) when no usable document exists.
  */
 function sn_resume_sync_page() {

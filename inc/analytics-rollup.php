@@ -44,8 +44,8 @@
  * (identical to avgIf at sample interval 1; correct under sampling).
  *
  * v9.66.0 (schema v6): the STORED scroll_sum column is re-based in PHP to TRUE
- * depth units — 25 × scroll_events, the exact sum of per-view max scroll
- * depths (the beacon's cumulative milestones are evenly spaced and fire at
+ * depth units — 25 × scroll_events, the sum of per-view max scroll depths
+ * (exact unsampled, a weighted estimate under sampling) (the beacon's cumulative milestones are evenly spaced and fire at
  * most once per view; see inc/analytics-derive.php). The SELECT's raw
  * sumIf(double1 * _sample_interval, 'sc') alias stays UNCHANGED (the AE query
  * gains no new arithmetic forms — dialect-guard / live-AE zero-risk path) but
@@ -54,9 +54,9 @@
  *
  * Note: `views` is sample-corrected (×_sample_interval) but `visits` is a raw
  * distinct count of the hashes that survived sampling — under AE sampling the
- * two diverge (views/visit inflates). This site's volume rarely trips sampling
- * (interval=1 → both exact), and this matches the locked spec, so consumers
- * should treat views/visits as an estimate, not a precise ratio.
+ * two diverge (views/visit inflates). Analytics Engine does sample this site's
+ * heavy visitor-days row by row (2026.11.5), and this matches the locked spec,
+ * so consumers should treat views/visits as an estimate, not a precise ratio.
  *
  * ── Refresh architecture (the shared outbound-client SWR pattern) ──────────────────
  *

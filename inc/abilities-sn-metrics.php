@@ -193,6 +193,14 @@ function snt_ability_sn_metrics( $input ) {
 	$rows = array_merge( $rows_in, isset( $rows_in['from'] ) || isset( $rows_in['to'] ) ? array( 'class' => $class ) : array( 'range' => $range, 'class' => $class ) );
 	if ( in_array( 'analytics_rows', $sections, true ) && function_exists( 'snt_arows_validate' ) ) {
 		$valid = snt_arows_validate( $rows, true ); // The local door: the "(unmatched)" breakdown is allowed here.
+		$valid = is_wp_error( $valid ) ? $valid : snt_arows_resolve( $valid ); // a window it cannot answer, too.
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+	}
+	$sessions = array_merge( isset( $input['sessions'] ) && is_array( $input['sessions'] ) ? $input['sessions'] : array(), array( 'class' => $class ) );
+	if ( in_array( 'analytics_sessions', $sections, true ) && function_exists( 'snt_analytics_sessions_check' ) ) {
+		$valid = snt_analytics_sessions_check( $sessions );
 		if ( is_wp_error( $valid ) ) {
 			return $valid;
 		}
@@ -225,7 +233,7 @@ function snt_ability_sn_metrics( $input ) {
 		'analytics_rows'        => $rows,
 		'analytics_vitals'      => $windowed,
 		'analytics_fields'      => array(),
-		'analytics_sessions'    => array_merge( isset( $input['sessions'] ) && is_array( $input['sessions'] ) ? $input['sessions'] : array(), array( 'class' => $class ) ),
+		'analytics_sessions'    => $sessions,
 	);
 
 	$out = array();

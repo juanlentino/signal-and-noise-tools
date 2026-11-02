@@ -95,6 +95,7 @@ function snt_analytics_render_view_links( $from, $to ) {
 			array(
 				'empty'        => __( 'No coded link was opened in the last 90 days.', 'signal-and-noise-tools' ),
 				'data_colname' => true,
+				'footer'       => function_exists( 'sn_link_codes_visits_capped' ) && sn_link_codes_visits_capped() ? '<p class="sn-an-note">' . esc_html__( 'The read reached a row cap: some opens, or the signals that would mark a visitor-day likely automated, may be missing.', 'signal-and-noise-tools' ) . '</p>' : '',
 			)
 		);
 	}

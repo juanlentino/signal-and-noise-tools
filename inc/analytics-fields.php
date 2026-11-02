@@ -48,7 +48,7 @@ function snt_analytics_fields() {
 			$met( 'views', 'Page views: corrected for sampling from stored and events; counted as read from sessions, as the Sessions tab counts them.', 'page views', array( 'stored', 'events', 'sessions' ) ),
 			$met( 'pageview_visits', 'Visitor-days that viewed: one visitor on one day, an estimate and not a session count.', 'visitor-days', array( 'stored', 'events', 'sessions' ) ),
 			$met( 'time_avg_per_view', 'Visible time on the page per view. Kept by page and day only: null on referrer, country, device, region, city and hour rows and under a referrer filter, because a view\'s beacons can land in another row than its page view (the next hour, another city when geolocation moves between requests, and no referrer at all). A stored group that holds a day before the rows answer\'s exact_metrics_since is null too. The sessions source files each beacon under its own view, so it keeps both on every row.', 'milliseconds', array( 'stored', 'events', 'sessions' ) ),
-			$met( 'scroll_avg_per_view', 'How far down the page readers got per view: the mean of each view\'s deepest milestone. The same nulls as time.', 'percent, 0 to 100', array( 'stored', 'events', 'sessions' ) ),
+			$met( 'scroll_avg_per_view', 'How far down the page readers got per view: the mean of each view\'s deepest milestone. The same nulls as time.', 'percent, 0 to 100 on most rows (a thin row can read above it)', array( 'stored', 'events', 'sessions' ) ),
 			$met( 'sessions', 'Sessions: within-day visits split at the idle gap, with a page view. Counted from source sessions only; null from the others.', 'sessions', array( 'sessions' ) ),
 		),
 		'classes'       => array(

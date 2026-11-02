@@ -20,6 +20,7 @@ $GLOBALS['visits'] = array(
 );
 function sn_link_codes_summary_read( $f, $t ) { $GLOBALS['range'] = array( $f, $t ); return $GLOBALS['codes']; }
 function sn_link_codes_visits_read() { return $GLOBALS['visits']; }
+function sn_link_codes_visits_capped() { return ! empty( $GLOBALS['capped'] ); }
 require_once __DIR__ . '/../inc/analytics-panels.php';
 require_once __DIR__ . '/../inc/analytics-view-links.php';
 $pass = 0; $fail = 0;
@@ -40,6 +41,12 @@ ok( false !== strpos( $html, 'data-colname="First seen"' ) && false !== strpos( 
 ok( false !== strpos( $html, '<td class="num" data-colname="Views">' ) && false !== strpos( $html, '<td data-colname="Place">' ) && false !== strpos( $html, '<td data-colname="Also read">' ), 'counts align right, text (place, class, also read) aligns left' );
 ok( false === strpos( $html, 'class="notice' ) && false === strpos( $html, 'sn-fieldset' ), 'no light-surface classes the dark window never maps' );
 ok( false === strpos( $html, "\u{2014}" ), 'no em dash' );
+ok( false === strpos( $html, 'reached a row cap' ), 'under the caps: no cap note' );
+$GLOBALS['capped'] = true;
+$capped_html = $render();
+$opened = substr( $capped_html, (int) strpos( $capped_html, '>Opened, last 90 days<' ) );
+ok( false !== strpos( $opened, 'The read reached a row cap: some opens, or the signals that would mark a visitor-day likely automated, may be missing.' ), 'a capped read: the Opened panel says so' );
+$GLOBALS['capped'] = false;
 
 $GLOBALS['codes'] = null; $GLOBALS['visits'] = null;
 $html = $render();
