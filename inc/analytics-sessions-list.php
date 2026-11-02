@@ -66,7 +66,7 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 		'entry'     => $pages ? $pages[0]['path'] : '',
 		'exit'      => $pages ? $pages[ count( $pages ) - 1 ]['path'] : '',
 		'pages'     => $pages,
-		'source'    => sn_analytics_canonical_source( (string) ( $first['ref'] ?? '' ) ),
+		'source'    => sn_analytics_session_source( (string) ( $first['ref'] ?? '' ) ),
 		// The rows read's values: (unknown) when blank, so the two reads join.
 		'country'   => snt_arows_clean( 'country', (string) ( $first['country'] ?? '' ), $real ),
 		'region'    => snt_arows_clean( 'region', (string) ( $first['region'] ?? '' ), $real ),
@@ -76,9 +76,28 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 		'returning' => (bool) $returning,
 		'link_code' => $code,
 		'engaged'   => (bool) $sum['engaged'],
-		// Event names are the beacon's, not the site's: short printable names only.
-		'goals'     => array_values( array_map( static fn( $g ) => preg_match( '#^[A-Za-z0-9 _.:/-]{1,64}$#', (string) $g ) ? (string) $g : '(invalid)', $sum['goals'] ) ),
+		// Event names are the beacon's, not the site's, and reach a model's context:
+		// identifier-shaped names only (the site's own are share_copy, verify,
+		// contact-<alias>, resume_lane_music); a sentence reads (invalid).
+		'goals'     => array_values( array_map( static fn( $g ) => preg_match( '#^[A-Za-z0-9_.:-]{1,64}$#', (string) $g ) ? (string) $g : '(invalid)', $sum['goals'] ) ),
 	);
+}
+
+/**
+ * A session's source as the doors may show it: (direct), (internal), a known
+ * brand label, or a clean hostname. The referrer host is visitor-written and
+ * lands in a model's context, so anything else reads (invalid), as the live
+ * readers' label does (sn_analytics_live_source_label()). PURE given the rules.
+ *
+ * @param string $ref The first page view's stored referrer.
+ * @return string
+ */
+function sn_analytics_session_source( $ref ) {
+	$src = sn_analytics_canonical_source( (string) $ref );
+	if ( in_array( $src, array( '(direct)', '(internal)' ), true ) || in_array( $src, array_column( sn_analytics_source_rules(), 'label' ), true ) ) {
+		return $src;
+	}
+	return strlen( $src ) <= 253 && preg_match( '/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/', $src ) ? $src : '(invalid)';
 }
 
 /**
