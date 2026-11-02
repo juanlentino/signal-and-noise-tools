@@ -32,7 +32,7 @@ require_once __DIR__ . '/../inc/admin-post-actions/resume-draft.php';
 
 echo "Group: a refused setup save\n";
 $GLOBALS['opts'] = array( 'sn_resume_ops_setup_missing' => array( 'bullet: from the last setup that was saved' ) );
-ok( 'resume_draft_refused' === sn_handle_resume_operations_setup( array() ), 'the action says the draft was refused' );
+ok( 'resume_draft_failed' === sn_handle_resume_operations_setup( array() ), 'the action says the draft was not stored (a valid document the store refused: sn_resume_draft_unsaved_code())' );
 ok( array( 'bullet: from the last setup that was saved' ) === $GLOBALS['opts']['sn_resume_ops_setup_missing'], 'and the not-found note still describes the setup that was saved' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

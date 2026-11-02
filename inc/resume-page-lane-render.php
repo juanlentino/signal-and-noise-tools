@@ -2,10 +2,13 @@
 /**
  * Signal & Noise Tools: /resume?lane= at render time (inc/resume-page-lanes.php).
  *
- * The stored body holds both lanes; this hides the one not asked for and marks
- * the switch's current link. It only adds attributes, never text, so the page
- * reads the same to the provenance checker whichever lane shows. Unknown or
- * missing `lane` is the music lane; the value is never echoed.
+ * The stored body holds both lanes; this names each lane as a region, hides
+ * the one not asked for and marks the switch's current link. It only adds
+ * attributes, never text, so the page reads the same to the provenance
+ * checker whichever lane shows. Unknown or missing `lane` is the music lane;
+ * the value is never echoed. On a coded link (/r/CODE) or a preview, every
+ * lane link (the switch and the hunks) points back at that address with its
+ * lane, so changing lane keeps the code; on /resume/ itself nothing changes.
  *
  * @package SignalNoiseTools
  */
@@ -21,8 +24,44 @@ function sn_resume_active_lane() {
 }
 
 /**
- * render_block_core/group: hide the other lane; label the switch and mark its
- * current link.
+ * Where lane links point on this request: '' on /resume/ (the stored links
+ * stand), '/r/CODE' on a coded link (the code matched its strict pattern), or
+ * an editor's preview: its own address, relative, without its lane.
+ *
+ * @return string
+ */
+function sn_resume_lane_link_base() {
+	$code = function_exists( 'sn_link_code_requested' ) ? sn_link_code_requested() : '';
+	if ( '' !== $code ) {
+		return '/r/' . $code;
+	}
+	if ( ! function_exists( 'is_preview' ) || ! is_preview() || ! current_user_can( 'edit_post', get_the_ID() ) ) {
+		return ''; // an anonymous ?preview=true is the page itself.
+	}
+	return (string) preg_replace( '#^/{2,}#', '/', wp_make_link_relative( esc_url_raw( remove_query_arg( 'lane' ) ) ) );
+}
+
+/**
+ * Point the processor's current a[data-lane] at $base with its allowlisted
+ * lane, keeping its fragment. Attribute-only; a no-op when $base is ''.
+ *
+ * @param WP_HTML_Tag_Processor $p
+ * @param string                $base sn_resume_lane_link_base().
+ */
+function sn_resume_lane_relink( $p, $base ) {
+	$lane = $p->get_attribute( 'data-lane' );
+	if ( '' === $base || ! is_string( $lane ) ) {
+		return;
+	}
+	$href = (string) $p->get_attribute( 'href' );
+	$hash = strpos( $href, '#' );
+	$to   = 'operations' === sn_resume_lane_param( $lane ) ? add_query_arg( 'lane', 'operations', $base ) : $base;
+	$p->set_attribute( 'href', $to . ( false === $hash ? '' : substr( $href, $hash ) ) );
+}
+
+/**
+ * render_block_core/group: name each lane, hide the other one; label the
+ * switch and mark its current link.
  *
  * @param string $html  Rendered group.
  * @param array  $block Parsed block.
@@ -35,12 +74,18 @@ function sn_resume_lane_render( $html, $block ) {
 	}
 	$active = sn_resume_active_lane();
 	if ( preg_match( '/\bsn-resume-variant--(music|operations)\b/', $class, $m ) ) {
-		if ( $m[1] === $active ) {
-			return $html;
-		}
 		$p = new WP_HTML_Tag_Processor( $html );
 		if ( $p->next_tag() ) {
-			$p->set_attribute( 'hidden', true );
+			// A landmark named as the switch names it, so a screen reader can find each résumé.
+			$p->set_attribute( 'role', 'region' );
+			$p->set_attribute( 'aria-label', SN_RESUME_LANE_LABELS[ $m[1] ] . ' résumé' );
+			if ( $m[1] !== $active ) {
+				$p->set_attribute( 'hidden', true );
+			}
+			$base = sn_resume_lane_link_base();
+			while ( '' !== $base && $p->next_tag( 'a' ) ) {
+				sn_resume_lane_relink( $p, $base ); // the hunks, in both lanes.
+			}
 		}
 		return $p->get_updated_html();
 	}
@@ -49,10 +94,12 @@ function sn_resume_lane_render( $html, $block ) {
 		if ( $p->next_tag() ) {
 			$p->set_attribute( 'aria-label', 'Résumé version' );
 		}
+		$base = sn_resume_lane_link_base();
 		while ( $p->next_tag( 'a' ) ) {
 			if ( $active === $p->get_attribute( 'data-lane' ) ) {
 				$p->set_attribute( 'aria-current', 'page' );
 			}
+			sn_resume_lane_relink( $p, $base );
 		}
 		return $p->get_updated_html();
 	}

@@ -11,8 +11,9 @@
  * are never duplicated and never committed.
  *
  * When it renders: the /cv/ page (a Spanish page paired to /resume, seeded as
- * a draft by inc/bilingual-seed.php) is filled whenever the Spanish file or
- * the English contact details change, on the next admin load; the PDF is
+ * a draft by inc/bilingual-seed.php) is filled whenever the Spanish file, the
+ * English contact details or the page engine's revision (SN_RESUME_ENGINE_REV,
+ * the bump that re-renders /resume) change, on the next admin load; the PDF is
  * regenerated with it, and every time the English PDF is generated. The
  * page's status is never touched: the owner publishes /cv/.
  *
@@ -152,20 +153,32 @@ function sn_resume_es_pdf_failed( $error ) {
 }
 
 /**
- * On an admin load: when the Spanish file or the English contact details have
- * changed since the last render, render /cv/ and its PDF again. Waits until
- * the /cv/ page exists.
+ * What /cv/ was last rendered from: the Spanish file, the English contact
+ * details it takes, and the page engine's revision, so the bump that
+ * re-renders /resume re-renders /cv/ once too.
+ *
+ * @param array $en  The live English document.
+ * @param int   $rev The page engine's revision (SN_RESUME_ENGINE_REV).
+ * @return string
+ */
+function sn_resume_es_sync_state( $en, $rev ) {
+	$contact = array( $en['hero']['linkedin'] ?? '' );
+	foreach ( array( 'email', 'phone', 'website' ) as $k ) {
+		$contact[] = $en['pdf'][ $k ] ?? ''; // Only what sn_resume_es_merge() takes.
+	}
+	return md5( (string) file_get_contents( __DIR__ . '/seed-content/resume-data-es.json' ) . wp_json_encode( $contact ) . '|rev:' . (int) $rev ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.
+}
+
+/**
+ * On an admin load: when the Spanish file, the English contact details or the
+ * page engine's revision have changed since the last render, render /cv/ and
+ * its PDF again. Waits until the /cv/ page exists.
  */
 function sn_resume_es_maybe_sync() {
 	if ( ! current_user_can( 'publish_pages' ) || ! get_page_by_path( SN_RESUME_ES_SLUG, OBJECT, 'page' ) ) {
 		return;
 	}
-	$en      = function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : array();
-	$contact = array( $en['hero']['linkedin'] ?? '' );
-	foreach ( array( 'email', 'phone', 'website' ) as $k ) {
-		$contact[] = $en['pdf'][ $k ] ?? ''; // Only what sn_resume_es_merge() takes.
-	}
-	$state = md5( (string) file_get_contents( __DIR__ . '/seed-content/resume-data-es.json' ) . wp_json_encode( $contact ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.
+	$state = sn_resume_es_sync_state( function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : array(), SN_RESUME_ENGINE_REV );
 	if ( get_option( SN_RESUME_ES_SYNC_OPT ) === $state || get_transient( 'sn_resume_es_backoff' ) ) {
 		return;
 	}
