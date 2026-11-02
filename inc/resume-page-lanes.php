@@ -8,8 +8,8 @@
  * view of the document. Both lanes are in the stored body, so the page's text
  * is the same whichever lane shows: if /resume is ever signed, it stays one
  * record, and /resume/ is the canonical of both. `?lane=` only chooses which lane is hidden
- * at render time (inc/resume-page-lane-render.php); the theme's script
- * switches without a reload. Each lane has its own Download, so the download
+ * at render time (inc/resume-page-lane-render.php); each lane is
+ * its own address and a page load (no script). Each lane has its own Download, so the download
  * follows the lane without script. Spanish (/cv), and a document with no
  * operations settings, keep the single body (sn_resume_body_html()).
  *
