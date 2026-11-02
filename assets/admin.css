@@ -2297,6 +2297,11 @@ os-cluster > .snt-verdict-panel {
 .sn-rsm-bullet-variants .description {
 	margin: 2px 0 0;
 }
+/* Receipts (brief #2): the URL and its type side by side; under a bullet,
+   spaced off the next bullet's choice. */
+.sn-rsm-bullet-variants .sn-rsm-receipt {
+	margin: 4px 0 12px;
+}
 .sn-rsm-pair {
 	display: grid;
 	grid-template-columns: 1fr 1fr;

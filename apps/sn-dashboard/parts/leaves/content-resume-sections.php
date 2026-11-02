@@ -123,14 +123,14 @@ function resume_section_map( array $doc ) {
 		),
 		'built'        => array(
 			'title' => __( "What I've Built", 'signal-and-noise-tools' ),
-			'hint'  => __( 'Projects for the PDF. The operations résumé shows this section; the music résumé shows it only when "Show in the music PDF" is on (PDF only). Never on /resume.', 'signal-and-noise-tools' ),
+			'hint'  => __( 'The operations résumé shows this section, in its PDF and in its lane on /resume; the music résumé shows it only when "Show in the music PDF" is on (PDF only).', 'signal-and-noise-tools' ),
 			'count' => count( $items ),
 			'first' => resume_first( $items, 'title' ),
 			'paint' => static function () use ( $built ) { return resume_built( $built ); },
 		),
 		'variants'     => array(
 			'title' => __( 'Operations résumé', 'signal-and-noise-tools' ),
-			'hint'  => __( 'Its own PDF, built by Generate along with the music one and never linked from any page. Rows marked "Music only" leave it; "Operations only" rows show only here.', 'signal-and-noise-tools' ),
+			'hint'  => __( 'The second lane on /resume (Operations & AI Strategy) and its own PDF, built by Generate along with the music one; the switch links both PDFs. Rows marked "Music only" leave it; "Operations only" rows show only here.', 'signal-and-noise-tools' ),
 			'count' => null,
 			'first' => (string) ( $ops['headline'] ?? '' ),
 			'paint' => static function () use ( $ops ) { return resume_operations( $ops ); },

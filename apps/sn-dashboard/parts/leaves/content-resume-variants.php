@@ -58,13 +58,42 @@ function resume_bullet_variants( $prefix, array $role ) {
 	if ( ! $bullets ) {
 		return '';
 	}
-	$flags = (array) ( $role['bullet_variants'] ?? array() );
-	$out   = '<p class="snt-prose">' . \snt_kit_esc( __( 'Which résumé each bullet shows in. Editing a bullet\'s text resets its choice to both résumés.', 'signal-and-noise-tools' ) ) . '</p>';
+	$flags    = (array) ( $role['bullet_variants'] ?? array() );
+	$receipts = (array) ( $role['bullet_receipts'] ?? array() );
+	$out      = '<p class="snt-prose">' . \snt_kit_esc( __( 'Each bullet: which résumé it shows in, and its receipt. Editing a bullet\'s text resets its choice to both résumés and drops its receipt.', 'signal-and-noise-tools' ) ) . '</p>';
 	foreach ( $bullets as $bullet ) {
 		$key  = \sn_resume_bullet_key( $bullet );
-		$out .= resume_variant( $prefix . '[bullet_variants][' . $key . ']', $flags[ $key ] ?? '', resume_clip( \wp_strip_all_tags( (string) $bullet ), 90 ) );
+		$out .= resume_variant( $prefix . '[bullet_variants][' . $key . ']', $flags[ $key ] ?? '', resume_clip( \wp_strip_all_tags( (string) $bullet ), 90 ) )
+			. resume_receipt( $prefix . '[bullet_receipts][' . $key . ']', (array) ( $receipts[ $key ] ?? array() ) );
 	}
 	return $out;
+}
+
+/**
+ * A receipt's URL and type, sn_rsm_receipt() (inc/resume-receipts.php has the rules).
+ *
+ * @param string $prefix Field prefix (an entry, or a bullet's slot in bullet_receipts).
+ * @param array  $row    {receipt_url?, receipt_type?}.
+ * @return string
+ */
+function resume_receipt( $prefix, array $row ) {
+	return resume_pair(
+		resume_text( $prefix . '[receipt_url]', __( 'Receipt URL', 'signal-and-noise-tools' ), $row['receipt_url'] ?? '', 'https://…' ),
+		\snt_kit_field(
+			'select',
+			$prefix . '[receipt_type]',
+			__( 'Receipt type', 'signal-and-noise-tools' ),
+			(string) ( $row['receipt_type'] ?? 'verification' ),
+			array(
+				'options' => array(
+					'verification' => __( 'Verification (mark: verify)', 'signal-and-noise-tools' ),
+					'publication'  => __( 'Publication (mark: paper)', 'signal-and-noise-tools' ),
+					'repository'   => __( 'Repository (mark: code)', 'signal-and-noise-tools' ),
+					'membership'   => __( 'Membership (mark: verify)', 'signal-and-noise-tools' ),
+				),
+			)
+		)
+	);
 }
 
 /** One "What I've Built" project. @param string $prefix @param array $item {title,url,text,variant?} @return string */

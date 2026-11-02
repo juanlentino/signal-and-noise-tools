@@ -3,7 +3,7 @@
  * Signal & Noise Tools: résumé variants, two résumés from one document.
  *
  * Owner brief 2026-11-01: the music résumé (the /resume page and its PDF, the
- * public one) and an operations résumé (its own PDF, never linked) are built
+ * public one) and an operations résumé (its own PDF, and since brief #2 the page's second lane) are built
  * from the same entries, so neither can drift from the editor.
  *
  * In the stored document (sn_resume_doc), every experience and earlier entry,

@@ -54,6 +54,7 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s
 require SNT_PATH . 'inc/resume-variants.php';
 require SNT_PATH . 'inc/admin-forms/resume-page.php';
 require SNT_PATH . 'inc/admin-forms/resume-variants.php'; // the classic "Shows in" rows, What I've Built, Operations résumé, the setup form.
+require SNT_PATH . 'inc/admin-forms/resume-receipts.php'; // the classic receipt URL + type on entries and bullets.
 require SNT_PATH . 'inc/admin-forms/resume-draft.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/content-resume.php';
 require_once SNT_PATH . 'inc/openstation-host-pipelines.php'; // snt_os_host_expand(): the host's own expansion of a posted bag.

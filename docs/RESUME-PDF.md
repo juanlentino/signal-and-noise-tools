@@ -25,7 +25,8 @@ Until the first generation, the Download link keeps using the **PDF URL** field 
 ## Two résumés from one document (2026-11-01)
 
 The document builds two résumés: **music** (the /resume page, its Download link, the Spanish CV,
-JSON Resume, Markdown and vCard; the public one) and **operations** (its own PDF, never linked).
+JSON Resume, Markdown and vCard; the public one) and **operations** (its own PDF, and since brief #2
+the second lane on /resume; see "The page's two lanes" below).
 `inc/resume-variants.php` holds the rules; `sn_resume_doc_get()` returns the music view in the shape
 every reader already knew, and the editor reads the stored document through `sn_resume_doc_get_raw()`.
 
@@ -36,7 +37,7 @@ every reader already knew, and the editor reads the stored document through `sn_
   reordering bullets never moves it, and a bullet whose text changes goes back to both.
 - **What I've Built.** An intro line and one card per project (title, link, one or two
   sentences). The operations PDF shows it; the music PDF only with "Show What I've Built in the
-  music PDF" (PDF only). Never on /resume.
+  music PDF" (PDF only). On /resume it shows in the Operations lane.
 - **Operations résumé.** Headline, subhead, location, extra contact links (after the website),
   summary, the section order (one key per line from `summary, stats, competencies, built,
   experience, publications, education, affiliations, skills, toolkit`; a key left out is a section
@@ -61,11 +62,46 @@ code points (U+FB00 to U+FB06), a phone number in the text or the metadata, an o
 two pages, and an operations file without `X-Robots-Tag: noindex`.
 
 **The operations file's noindex.** A static file's headers belong to the web server, and the owner
-did not want to spend a Cloudflare rule on one (2026-11-01), so the operations PDF is not a file in
+was unsure a Cloudflare rule was available for one (2026-11-01), so the operations PDF is not a file in
 uploads. Its bytes live in an option, and WordPress serves them at `/resume/<file name>` with
 `X-Robots-Tag: noindex, nofollow` (`sn_resume_ops_pdf_maybe_serve()`); before the first generation
 that address is the ordinary 404. Every generation reads the header back and flags it if missing.
-The address is in no sitemap, llms file or format list, and no page links it.
+The address is in no sitemap. Since brief #2 the Operations lane's Download links it, and the format
+list and llms.txt name it.
+
+## The page's two lanes (2026-11-01, brief #2)
+
+Once the operations résumé is set up, `sn_resume_sync_page()` writes the English /resume through
+`sn_resume_page_body()` (`inc/resume-page-lanes.php`): a shared head (eyebrow, the page title, the
+switch "Music" / "Operations & AI Strategy" and its caption), then two plain groups,
+`#resume-music` and `#resume-operations`, each a full set of bands built from
+`sn_resume_lane_doc()`. That lane document is the variant's view with the operations headline,
+subhead, location and summary laid over the music ones, the operations experience order, earlier
+career without bullets when it asks, only the sections it lists, and its "What I've Built" as
+`built`. The JSON Resume reads the same lane document (`?lane=operations`).
+
+- **Both lanes are stored; the request only hides one.** `inc/resume-page-lane-render.php`
+  (`render_block_core/group`) sets `hidden` on the lane not asked for and `aria-current="page"` on
+  the switch's current link. Attributes only, never text, so the provenance normalizer reads the
+  same page for `/resume/` and `/resume/?lane=operations` (pinned by `tests/resume-page-lanes.php`).
+  The stored body carries neither attribute. The theme keeps `[hidden]` hidden over any group
+  display rule, styles the switch, and switches in place with `assets/js/resume-switch.js`.
+- **The download follows the lane** because each lane has its own Download: the music PDF with its
+  `?v=`, and the operations PDF at its stable address (no `?v=`). The operations Download appears
+  only once that PDF exists (`sn_resume_ops_pdf_live()`); Generate syncs the page before it builds
+  the operations file, so the operations build syncs it again, and purges the address. A PDF
+  withdrawn for a phone drops its facts, and its Download goes with them.
+- **The operations résumé never carries the phone**, on the page or in its JSON Resume, whatever the
+  music PDF's switch says.
+- **An update re-renders the page once** (`SN_RESUME_ENGINE_REV` in `inc/split-hero-migration.php`,
+  4 since the lanes).
+- **Spanish and no operations settings** keep `sn_resume_body_html()`, the single body, unchanged.
+- **Every regeneration rewrites the page** only when the body changed, as before; with two lanes, an
+  edit to either résumé changes the body, so the edge's `sn-render` purge covers `?lane=` copies.
+- **Receipts** (`inc/resume-receipts.php`): `credential_url` on education and affiliation rows shows
+  `verify`, a publication's `url` shows `paper`, a "What I've Built" `url` shows `code`; experience
+  and earlier entries take `receipt_url` + `receipt_type`, and roles `bullet_receipts` keyed like
+  `bullet_variants`. https only. The English page shows them; the PDFs never do.
 
 ## The phone
 

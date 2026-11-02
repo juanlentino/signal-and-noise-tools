@@ -64,13 +64,15 @@ function sn_rsm_bullet_variants( $prefix, $role ) {
 		return;
 	}
 	$flags = (array) ( $role['bullet_variants'] ?? array() );
-	echo '<details class="sn-rsm-bullet-variants"><summary>Which résumé each bullet shows in</summary>';
-	echo '<p class="description">Editing a bullet\'s text resets its choice to both résumés.</p>';
+	$receipts = (array) ( $role['bullet_receipts'] ?? array() );
+	echo '<details class="sn-rsm-bullet-variants"><summary>Each bullet: which résumé, and its receipt</summary>';
+	echo '<p class="description">Editing a bullet\'s text resets its choice to both résumés and drops its receipt.</p>';
 	foreach ( $bullets as $bullet ) {
 		$key  = sn_resume_bullet_key( $bullet );
 		$text = wp_strip_all_tags( (string) $bullet );
 		sn_rsm_variant( $prefix . '[bullet_variants][' . $key . ']', (string) ( $flags[ $key ] ?? '' ) );
 		echo '<p class="description">' . esc_html( mb_strlen( $text ) > 90 ? mb_substr( $text, 0, 90 ) . '…' : $text ) . '</p>';
+		function_exists( 'sn_rsm_receipt' ) && sn_rsm_receipt( $prefix . '[bullet_receipts][' . $key . ']', (array) ( $receipts[ $key ] ?? array() ) );
 	}
 	echo '</details>';
 }
@@ -92,7 +94,7 @@ function sn_admin_render_resume_built_section( $doc ) {
 		sn_rsm_variant( $p . '[variant]', (string) ( $item['variant'] ?? '' ) );
 		echo '</div>';
 	};
-	sn_rsm_section_open( "What I've Built", 'Projects for the PDF. The operations résumé shows this section; the music résumé shows it only when "Show What I\'ve Built in the music PDF" is on (PDF only). Never on /resume.', count( (array) ( $built['items'] ?? array() ) ) );
+	sn_rsm_section_open( "What I've Built", 'The operations résumé shows this section, in its PDF and in its lane on /resume; the music résumé shows it only when "Show What I\'ve Built in the music PDF" is on (PDF only).', count( (array) ( $built['items'] ?? array() ) ) );
 	sn_rsm_input( 'resume[built][intro]', (string) ( $built['intro'] ?? '' ), 'Intro line', 'How these were built' );
 	echo '<div class="sn-rsm-list" data-rsm-list="built">';
 	foreach ( array_values( (array) ( $built['items'] ?? array() ) ) as $i => $item ) {
@@ -110,7 +112,7 @@ function sn_admin_render_resume_built_section( $doc ) {
  */
 function sn_admin_render_resume_operations_section( $doc ) {
 	$o = (array) ( $doc['variants']['operations'] ?? array() );
-	sn_rsm_section_open( 'Operations résumé', 'Its own PDF, built by Generate along with the music one and never linked from any page. Rows marked "Music only" leave it; "Operations only" rows show only here.' );
+	sn_rsm_section_open( 'Operations résumé', 'The second lane on /resume (Operations & AI Strategy) and its own PDF, built by Generate along with the music one; the switch links both PDFs. Rows marked "Music only" leave it; "Operations only" rows show only here.' );
 	sn_rsm_input( 'resume[variants][operations][headline]', (string) ( $o['headline'] ?? '' ), 'Headline', 'Founder and Operator' );
 	sn_rsm_input( 'resume[variants][operations][tagline]', (string) ( $o['tagline'] ?? '' ), 'Subhead', 'AI-Native Business Operations | Partnerships' );
 	sn_rsm_input( 'resume[variants][operations][location]', (string) ( $o['location'] ?? '' ), 'Location', 'Orlando, FL (open to relocation)' );

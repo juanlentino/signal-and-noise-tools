@@ -49,19 +49,28 @@ function sn_jsonresume_page( $slug ) {
 }
 
 /**
- * The JSON Resume for a slug, built from the live document and page.
+ * The JSON Resume for a slug, built from the live document and page. On
+ * /resume, `?lane=operations` is the operations résumé the page's second lane
+ * shows (inc/resume-page-lanes.php): its headline, summary, order and
+ * sections, with "What I've Built" as projects. Anything else, or no
+ * operations résumé, is the music one.
  *
  * @param string $slug 'resume' or 'cv'.
+ * @param string $lane 'music' or 'operations' (sn_resume_lane_param()).
  * @return array|null
  */
-function sn_jsonresume_for( $slug ) {
+function sn_jsonresume_for( $slug, $lane = 'music' ) {
 	$page = sn_jsonresume_page( $slug );
 	if ( ! $page ) {
 		return null;
 	}
-	$doc = 'cv' === $slug
+	$raw   = 'resume' === $slug && function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null;
+	$lanes = null !== $raw && function_exists( 'sn_resume_lane_doc' ) && null !== sn_resume_variant_config( $raw, 'operations' );
+	$lane  = $lanes ? $lane : '';
+	$doc   = 'cv' === $slug
 		? ( function_exists( 'sn_resume_es_doc' ) ? sn_resume_es_doc() : null )
-		: sn_resume_doc_get();
+		: ( 'operations' === $lane ? sn_resume_lane_doc( $raw, 'operations' ) : sn_resume_doc_get() );
+	$extra = 'operations' === $lane ? (array) sn_resume_variant_config( $raw, 'operations' )['links'] : array();
 	$man = function_exists( 'sn_prov_machine_pointers_manifest' ) ? sn_prov_machine_pointers_manifest( (int) $page->ID ) : null;
 	$uid = is_array( $man ) ? (string) ( $man['subject']['uid'] ?? '' ) : '';
 	return sn_jsonresume_build(
@@ -72,7 +81,9 @@ function sn_jsonresume_for( $slug ) {
 			'canonical'     => (string) get_permalink( $page ),
 			'last_modified' => (string) get_post_modified_time( 'c', false, $page ),
 			'version'       => defined( 'SNT_VERSION' ) ? SNT_VERSION : '',
-			'profiles'      => function_exists( 'sn_schema_person' ) ? (array) ( sn_schema_person()['sameAs'] ?? array() ) : array(),
+			'profiles'      => array_merge( function_exists( 'sn_schema_person' ) ? (array) ( sn_schema_person()['sameAs'] ?? array() ) : array(), $extra ),
+			'projects'      => (array) ( $doc['built']['items'] ?? array() ),
+			'lane'          => $lane,
 			'provenance'    => '' === $uid ? null : array( 'verify_url' => home_url( '/verify?note=' . rawurlencode( $uid ) ), 'note_uid' => $uid ),
 		)
 	);
@@ -85,7 +96,7 @@ function sn_jsonresume_maybe_serve() {
 	if ( '' === $slug ) {
 		return;
 	}
-	$resume = sn_jsonresume_for( $slug );
+	$resume = sn_jsonresume_for( $slug, function_exists( 'sn_resume_active_lane' ) ? sn_resume_active_lane() : 'music' );
 	if ( null === $resume ) {
 		return;
 	}

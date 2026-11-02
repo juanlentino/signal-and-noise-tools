@@ -43,6 +43,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'SN_RESUME_DOC_OPTION', 'sn_resume_doc' );
 
 require_once __DIR__ . '/resume-variants.php'; // music and operations from one document (2026-11-01).
+require_once __DIR__ . '/resume-receipts.php'; // receipts: the page that backs a claim (brief #2).
 
 /**
  * The kses allowlist for bullet fragments: emphasis + links only.
@@ -140,6 +141,10 @@ function sn_resume_normalize_roles( $roles ) {
 		$flags = sn_resume_bullet_variants( $role['bullet_variants'] ?? array(), $bullets );
 		if ( $flags ) {
 			$row['bullet_variants'] = $flags;
+		}
+		$receipts = sn_resume_bullet_receipts( $role['bullet_receipts'] ?? array(), $bullets );
+		if ( $receipts ) {
+			$row['bullet_receipts'] = $receipts;
 		}
 		$out[] = $row;
 	}
@@ -241,7 +246,7 @@ function sn_resume_doc_normalize( $doc ) {
 			'dates'    => sn_resume_text( $entry['dates'] ?? '' ),
 			'location' => sn_resume_text( $entry['location'] ?? '' ),
 			'roles'    => sn_resume_normalize_roles( $entry['roles'] ?? array() ),
-		) + sn_resume_variant_keep( $entry );
+		) + sn_resume_variant_keep( $entry ) + sn_resume_receipt_keep( $entry );
 	}
 
 	$earlier_in      = is_array( $doc['earlier'] ?? null ) ? $doc['earlier'] : array();
@@ -257,7 +262,7 @@ function sn_resume_doc_normalize( $doc ) {
 		$earlier_entries[] = array(
 			'org'   => $org,
 			'roles' => sn_resume_normalize_roles( $entry['roles'] ?? array() ),
-		) + sn_resume_variant_keep( $entry );
+		) + sn_resume_variant_keep( $entry ) + sn_resume_receipt_keep( $entry );
 	}
 	$earlier = array(
 		'label'   => sn_resume_text( $earlier_in['label'] ?? '' ),

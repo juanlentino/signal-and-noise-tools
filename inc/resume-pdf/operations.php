@@ -3,10 +3,12 @@
  * Signal & Noise Tools: the operations résumé PDF (inc/resume-variants.php).
  *
  * Built by the same Generate press as the music PDF (it follows the
- * sn_resume_pdf_generated action, as the Spanish CV does) and never linked
- * from any page, sitemap, llms file or format list. It is not a file in
- * uploads: a static file's headers are the web server's, and the owner did not
- * want to spend a Cloudflare rule on one (2026-11-01). The bytes are kept in an
+ * sn_resume_pdf_generated action, as the Spanish CV does). Since the page's
+ * second lane (owner brief 2026-11-01 #2) the operations lane's Download links
+ * it, and the format list and llms.txt name it; it stays out of sitemaps, and
+ * the noindex header keeps it out of search. It is not a file in
+ * uploads: a static file's headers are the web server's, and the owner was
+ * unsure a Cloudflare rule was available for one (2026-11-01). The bytes are kept in an
  * option and served by WordPress at /resume/<file name> with X-Robots-Tag:
  * noindex, nofollow; every generation reads that header back.
  *
@@ -28,6 +30,17 @@ const SN_RESUME_OPS_PDF_BYTES  = 'sn_resume_pdf_operations_bytes'; // base64: a 
  */
 function sn_resume_ops_pdf_url( $file ) {
 	return home_url( '/resume/' . $file );
+}
+
+/**
+ * Whether the operations PDF is there to link: generated, and not withdrawn
+ * by a failed check. The page's Download, the format list and llms.txt all ask.
+ *
+ * @return bool
+ */
+function sn_resume_ops_pdf_live() {
+	$meta = get_option( SN_RESUME_OPS_PDF_OPTION );
+	return is_array( $meta ) && ! empty( $meta['url'] );
 }
 
 /**
@@ -60,6 +73,11 @@ function sn_resume_ops_pdf_generate() {
 		$prev = get_option( SN_RESUME_OPS_PDF_OPTION );
 		update_option( SN_RESUME_OPS_PDF_OPTION, array( 'error' => $out->get_error_message(), 'error_at' => gmdate( 'c' ) ) + ( is_array( $prev ) ? $prev : array() ), false );
 	}
+	// Generate syncs /resume before this file is built; sync again so the
+	// operations lane's Download follows the file (an identical body is not rewritten).
+	if ( function_exists( 'sn_resume_sync_page' ) ) {
+		sn_resume_sync_page();
+	}
 	return $out;
 }
 
@@ -91,6 +109,7 @@ function sn_resume_ops_pdf_build() {
 	$check = sn_resume_pdf_check( $result['bytes'], $result['pages'], 2, (string) ( $raw['pdf']['phone'] ?? '' ) );
 	if ( in_array( 'a phone number', $check['flags'], true ) ) {
 		delete_option( SN_RESUME_OPS_PDF_BYTES );
+		delete_option( SN_RESUME_OPS_PDF_OPTION ); // nothing is served, so nothing may link it (sn_resume_ops_pdf_live()).
 		return new WP_Error( 'sn_resume_pdf_phone', 'The operations PDF read back with a phone number; it was not published.' );
 	}
 	update_option( SN_RESUME_OPS_PDF_BYTES, base64_encode( $result['bytes'] ), false );
@@ -177,7 +196,7 @@ function sn_resume_pdf_variant_lines() {
 	}
 	if ( is_array( $ops ) && ! empty( $ops['url'] ) ) {
 		$pages   = (int) ( $ops['pages'] ?? 0 );
-		$lines[] = array( 'text' => sprintf( 'Operations PDF, generated %1$s: %2$d %3$s, not linked anywhere. %4$s', function_exists( 'sn_resume_pdf_when' ) ? sn_resume_pdf_when( $ops ) : (string) ( $ops['generated'] ?? '' ), $pages, 1 === $pages ? 'page' : 'pages', sn_resume_pdf_check_line( $ops ) ), 'url' => (string) $ops['url'] );
+		$lines[] = array( 'text' => sprintf( 'Operations PDF, generated %1$s: %2$d %3$s, the Download in the Operations lane on /resume. %4$s', function_exists( 'sn_resume_pdf_when' ) ? sn_resume_pdf_when( $ops ) : (string) ( $ops['generated'] ?? '' ), $pages, 1 === $pages ? 'page' : 'pages', sn_resume_pdf_check_line( $ops ) ), 'url' => (string) $ops['url'] );
 	} elseif ( null !== sn_resume_variant_config( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null, 'operations' ) ) {
 		$lines[] = array( 'text' => 'Operations PDF: set up; Generate builds it beside the music PDF.', 'url' => '' );
 	} else {

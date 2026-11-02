@@ -285,6 +285,7 @@ require_once SNT_PATH . 'inc/link-codes.php';              // 2026-10-31: coded 
 require_once SNT_PATH . 'inc/resume-es-stale.php';           // The stale-CV alert: English lines changed since /cv/ was translated (Résumé screen + Health)
 require_once SNT_PATH . 'inc/admin-forms/resume-page.php';   // v10.33.0: Content → Resume Page structured editor form (repeatable rows, not a text box)
 require_once SNT_PATH . 'inc/admin-forms/resume-variants.php'; // Unreleased: the editor's variant controls (Shows in, What I've Built, Operations résumé)
+require_once SNT_PATH . 'inc/admin-forms/resume-receipts.php'; // Unreleased: receipt URL + type on entries and bullets (brief #2)
 require_once SNT_PATH . 'inc/admin-forms/rights-evidence.php'; // Unreleased: rights evidence on Machine Readers (view payloads, lift hold)
 require_once SNT_PATH . 'inc/admin-forms/resume-draft.php';  // Unreleased: the draft controls (previews, publish, discard, revert)
 require_once SNT_PATH . 'inc/workflow-page.php';             // Unreleased: /workflow data layer; sn_workflow_public_data() is the hidden-row wall
@@ -538,6 +539,7 @@ require_once __DIR__ . '/inc/content-surfaces.php';
 require_once __DIR__ . '/inc/generated-page-contract.php';  // v10.44.0: structural contract for engine-built page bodies, enforced at the write boundary
 require_once __DIR__ . '/inc/page-sync-engine.php';   // v9.81.0: LIVE Now/Uses per-save dossier sync engine (split out of content-migrations)
 require_once __DIR__ . '/inc/resume-sync-engine.php'; // v10.33.0: LIVE /resume per-save sync engine (structured doc → wp:html body, drift-proof)
+require_once __DIR__ . '/inc/resume-page-lane-render.php'; // Unreleased: /resume?lane= hides the other lane at render time (attributes only)
 require_once __DIR__ . '/inc/content-migrations.php'; // spent one-shot seeds behind the master sentinel (sn_run_content_migrations)
 require_once __DIR__ . '/inc/home-page-seed.php'; // seeds the front-page Page once (theme 14.3 renders its content)
 require_once __DIR__ . '/inc/split-hero-migration.php'; // v10.36.0: split-hero one-shot (own hook — master sentinel is spent on live)
