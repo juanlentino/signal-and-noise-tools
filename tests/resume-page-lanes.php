@@ -75,6 +75,28 @@ $rev_body          = explode( 'id="resume-operations"', sn_resume_page_body( $re
 ok( strpos( $rev_body[0], 'PANACEA STUDIO' ) < strpos( $rev_body[0], 'INDEPENDENT PRACTICE' ) && strpos( $rev_body[1], 'INDEPENDENT PRACTICE' ) < strpos( $rev_body[1], 'PANACEA STUDIO' ), 'the music lane keeps the document\'s order; the operations lane its own' );
 ok( false === strpos( $music_html, 'WHAT I&#039;VE BUILT' ) && false !== strpos( $music_html, '01 · Professional Experience' ) && false !== strpos( $music_html, 'PUBLICATIONS' ), 'the music lane is the music résumé, numbered as always' );
 
+echo "\nGroup: the two-lane body is well-formed block markup\n";
+// A stack parse of the delimiters: every opener closes in order, every
+// attribute blob decodes, no stray comment (each breaks the editor).
+preg_match_all( '/<!--\s*(\/?)wp:([a-z][a-z0-9-]*)(\s+(\{.*?\}))?\s*(\/?)-->|<!--(.*?)-->/s', $body, $tok, PREG_SET_ORDER );
+$stack = array(); $order_ok = true; $json_ok = true; $stray = 0;
+foreach ( $tok as $t ) {
+	if ( '' === ( $t[2] ?? '' ) ) { $stray++; continue; }
+	if ( '' !== ( $t[4] ?? '' ) && null === json_decode( $t[4], true ) ) { $json_ok = false; }
+	if ( '/' === $t[5] ) { continue; } // self-closing.
+	if ( '/' === $t[1] ) { $order_ok = $order_ok && array_pop( $stack ) === $t[2]; } else { $stack[] = $t[2]; }
+}
+ok( $order_ok && array() === $stack && 0 === $stray, 'every block opens and closes in order (' . count( $tok ) . ' delimiters), no stray comment' );
+ok( $json_ok, 'every attribute blob decodes' );
+$html = (string) preg_replace( '/<!--.*?-->/s', '', $body );
+$tags_ok = true;
+foreach ( array( 'div', 'nav', 'ul', 'li', 'p', 'h1', 'h2', 'h3', 'details', 'figure', 'a' ) as $tag ) {
+	if ( preg_match_all( '/<' . $tag . '[\s>]/', $html ) !== substr_count( $html, '</' . $tag . '>' ) ) { $tags_ok = false; echo "    (imbalance: <$tag>)\n"; }
+}
+ok( $tags_ok, 'every HTML tag the bands use opens and closes the same number of times' );
+ok( 1 === substr_count( $html, 'id="resume-music"' ) && 1 === substr_count( $html, 'id="resume-operations"' ), 'the two lanes carry their ids once each' );
+ok( 0 === preg_match_all( '/\sid="(?!resume-(music|operations)")/', $html ), 'no other id in the body, so the two lanes never repeat one' );
+
 echo "\nGroup: ?lane= at render time\n";
 if ( '' === $api ) {
 	++$skip;
