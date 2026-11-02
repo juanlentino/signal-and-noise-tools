@@ -79,7 +79,7 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 		// Event names are the beacon's, not the site's, and reach a model's context:
 		// identifier-shaped names only (the site's own are share_copy, verify,
 		// contact-<alias>, resume_lane_music); a sentence reads (invalid).
-		'goals'     => array_values( array_map( static fn( $g ) => preg_match( '#^[A-Za-z0-9_.:-]{1,64}$#', (string) $g ) ? (string) $g : '(invalid)', $sum['goals'] ) ),
+		'goals'     => array_values( array_map( static fn( $g ) => preg_match( '#^[A-Za-z0-9_.:-]{1,64}$#D', (string) $g ) ? (string) $g : '(invalid)', $sum['goals'] ) ),
 	);
 }
 

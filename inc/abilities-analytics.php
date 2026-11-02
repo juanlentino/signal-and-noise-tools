@@ -148,7 +148,7 @@ add_action( 'wp_abilities_api_init', function () {
 			. '(a server-side feed beacon creates a visitor-day with no pageview), so it reads below 1.0 on a healthy site and a low value there is not a defect to investigate. '
 			. 'Engagement in two exact denominations, both in MILLISECONDS: `time_avg_per_view` = time_sum/views; `time_avg_per_visit` = time_sum/unique_visitor_days, diluted by viewless days. '
 			. '(The beacon reports `performance.now()` deltas in ms and nothing downstream converts, so 38690 is ~39 SECONDS, not ~11 hours. Divide by 1000 before presenting it.) '
-			. 'Scroll depth (v9.64.0 unit): `scroll_avg_per_view` = 25 * scroll_events / views and `scroll_avg_per_visit` = 25 * scroll_events / unique_visitor_days (diluted by viewless days): the true mean max scroll depth (0-100), '
+			. 'Scroll depth (v9.64.0 unit): `scroll_avg_per_view` = 25 * scroll_events / views and `scroll_avg_per_visit` = 25 * scroll_events / unique_visitor_days (diluted by viewless days): the mean max scroll depth (0-100 on most rows; a weighted estimate under sampling, so a thin group can read above 100), '
 			. 'because the beacon fires one cumulative milestone event per 25/50/75/100% reached, each at most once per view; scroll_sum is stored as the same identity since v9.66.0 (25 * scroll_events, true depth units: a full-depth view contributes 100, not the pre-v9.66.0 raw milestone-point 250) and feeds no ratio. '
 						. 'Exact engagement + gated fields are null over any range containing days before `exact_metrics_since` (Y-m-d; null until the backfill has run): a data discontinuity, not an error.',
 		'category'            => 'analytics',

@@ -55,7 +55,7 @@
  * Note: `views` is sample-corrected (×_sample_interval) but `visits` is a raw
  * distinct count of the hashes that survived sampling — under AE sampling the
  * two diverge (views/visit inflates). Analytics Engine does sample this site's
- * heavy visitor-days row by row (2026.11.4), and this matches the locked spec,
+ * heavy visitor-days row by row (2026.11.5), and this matches the locked spec,
  * so consumers should treat views/visits as an estimate, not a precise ratio.
  *
  * ── Refresh architecture (the shared outbound-client SWR pattern) ──────────────────
