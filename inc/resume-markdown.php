@@ -73,10 +73,8 @@ function sn_resume_markdown_front( array $resume, array $formats, array $w ) {
 		$out[] = 'lane: ' . $y( 'operations' ); // /resume.md?lane=operations; the music résumé's front matter names none.
 	}
 	$out[] = 'updated: ' . $y( $meta['lastModified'] ?? '' );
-	foreach ( array( 'email', 'phone' ) as $k ) {
-		if ( isset( $b[ $k ] ) ) {
-			$out[] = "$k: " . $y( $b[ $k ] );
-		}
+	if ( isset( $b['email'] ) ) {
+		$out[] = 'email: ' . $y( $b['email'] ); // never a phone (sn_jsonresume_basics()).
 	}
 	$out[] = 'profiles:';
 	foreach ( $b['profiles'] ?? array() as $p ) {

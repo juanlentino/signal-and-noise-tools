@@ -97,9 +97,9 @@ career without bullets when it asks, only the sections it lists, and its "What I
   only once that PDF exists (`sn_resume_ops_pdf_live()`); Generate syncs the page before it builds
   the operations file, so the operations build syncs it again, and purges the address. A PDF
   withdrawn for a phone drops its facts, and its Download goes with them.
-- **The operations résumé never carries the phone**, on the page or in its JSON Resume, whatever the
+- **The operations résumé never carries the phone**, on the page or in any agent copy, whatever the
   music PDF's switch says.
-- **An update re-renders the page once** (`SN_RESUME_ENGINE_REV` in `inc/split-hero-migration.php`,
+- **An update re-renders the page once**, and /cv with it (`SN_RESUME_ENGINE_REV` in `inc/split-hero-migration.php`,
   5 since the layout pass: the switch beside the title, What I've Built's cards in one
   `sn-resume-built-grid` group, each lane's headline an h2, receipts out of headings, no separate
   mark on a publication, and a no-break space before each contact-rail dot).
@@ -121,6 +121,9 @@ The owner does not want the phone downloadable by the public (2026-09-22), and w
 owner's control in the resume editor:
 
 - **The web page never shows it.** The sync engine does not read `pdf`.
+- **The agent copies never carry it**, switch or not: `/resume.md` (both lanes), both JSON Resumes,
+  `/cv.md`, `/cv/json-resume.json` and `/resume/contact.vcf` have no phone field
+  (`sn_jsonresume_basics()` builds none, and the Markdown and the vCard read it).
 - **The public PDF** (Generate PDF, the Download link) includes it only when **Include the phone in
   the public PDF** is on. Off by default; an unchecked box posts nothing, so absent means off.
 - **Download private copy (with phone)** builds the same PDF with the phone and streams it to the

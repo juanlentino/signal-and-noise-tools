@@ -113,6 +113,9 @@ $block_of = static function ( $html, $open ) {
 	}
 	return '';
 };
+// The class arrives through sn_resume_hero_split_blocks()'s $class, where the
+// orphan-class scan (tests/admin-class-orphans.php) cannot see it: this is its check.
+ok( 1 === substr_count( $body, '"className":"sn-resume-head-split"} -->' ) && 1 === substr_count( $body, ' sn-resume-head-split">' ), 'the two-lane body carries the head split\'s class, once (the theme styles it)' );
 $head_cols = $block_of( $head_html, '<!-- wp:columns {"verticalAlignment":"bottom","className":"sn-resume-head-split"} -->' );
 list( $head_l, $head_r ) = explode( 'flex-basis:45%', $head_cols, 2 ) + array( '', '' );
 ok( false !== strpos( $head_cols, '<div class="wp-block-columns are-vertically-aligned-bottom sn-resume-head-split">' ) && false !== strpos( $head_l, 'flex-basis:55%' ) && false === strpos( $head_html, 'sn-resume-hero-split' ), 'the head is its own split (sn-resume-head-split, bottom-aligned, 55/45), never the hero\'s class' );
@@ -218,7 +221,7 @@ $phone['pdf']['phone']        = '+1 555 123 4567';
 $phone['pdf']['phone_public'] = true; // the music PDF's switch.
 $pj = sn_jsonresume_build( sn_resume_lane_doc( $phone, 'operations' ), array( 'name' => 'x', 'lane' => 'operations' ) );
 $pm = sn_jsonresume_build( sn_resume_doc_view( $phone, 'music' ), array( 'name' => 'x', 'lane' => 'music' ) ); // what the music JSON Resume reads (sn_resume_doc_get()).
-ok( '+1 555 123 4567' === ( $pm['basics']['phone'] ?? '' ) && ! isset( $pj['basics']['phone'] ) && false === strpos( (string) json_encode( $pj ), '555' ), 'the music PDF\'s phone switch never reaches the operations résumé: no phone in its JSON Resume' );
+ok( ! isset( $pm['basics']['phone'] ) && ! isset( $pj['basics']['phone'] ) && false === strpos( (string) json_encode( $pj ), '555' ), 'the music PDF\'s phone switch reaches neither JSON Resume' );
 $lm = sn_resume_lane_doc( $phone, 'music' );
 ok( '' === $lm['pdf']['phone'] && false === $lm['pdf']['phone_public'] && $lm['pdf']['headline'] === $phone['pdf']['headline'], 'the music lane\'s page document carries no phone either, whatever the switch says (its headline stays)' );
 ok( sha1( sn_resume_page_body( $raw ) ) === sha1( sn_resume_page_body( $phone ) ), 'and the two-lane page is the same with the phone set and public' );
@@ -268,6 +271,21 @@ ok( false !== strpos( $md_ops[1] ?? '', "\nFounder and Operator\n" ) && false !=
 ok( false !== strpos( $md_ops[1] ?? '', "\n  markdown_operations: \"https://juanlentino.com/resume.md?lane=operations\"\n" ), 'and its front matter lists its own address' );
 ok( false === strpos( $md_mus[1] ?? '', 'Founder and Operator' ) && false !== strpos( $md_mus[1] ?? '', '## Research & Publications' ) && $md_mus === sn_resume_format_body( 'md', 'resume', 'music' ), 'and /resume.md the music one' );
 ok( 'text/vcard; charset=utf-8' === ( sn_resume_format_body( 'vcf', 'resume', 'operations' )[0] ?? '' ) && sn_resume_format_body( 'vcf', 'resume', 'operations' ) === sn_resume_format_body( 'vcf', 'resume', 'music' ), 'the vCard is the music one whatever the lane' );
+ok( false === strpos( $md_ops[1] ?? '', 'vcard' ) && false === strpos( $md_ops[1] ?? '', 'contact.vcf' ) && false !== strpos( $md_mus[1] ?? '', "\n  vcard: \"https://juanlentino.com/resume/contact.vcf\"\n" ), 'the operations Markdown links no vCard; the music one keeps it' );
+// The owner: no phone anywhere near the agent copies, whatever the PDF's switch says.
+$GLOBALS['__opt']['sn_resume_doc'] = array_replace_recursive( $raw, array( 'pdf' => array( 'phone' => '+1 555 867 5309', 'phone_public' => true ) ) );
+$copies = array(
+	'music Markdown'         => sn_resume_format_body( 'md', 'resume', 'music' )[1] ?? '',
+	'operations Markdown'    => sn_resume_format_body( 'md', 'resume', 'operations' )[1] ?? '',
+	'music JSON Resume'      => (string) json_encode( sn_jsonresume_for( 'resume', 'music' ) ),
+	'operations JSON Resume' => (string) json_encode( sn_jsonresume_for( 'resume', 'operations' ) ),
+	'vCard'                  => sn_resume_format_body( 'vcf', 'resume' )[1] ?? '',
+);
+ok( '+1 555 867 5309' === sn_resume_doc_get()['pdf']['phone'] && true === sn_resume_doc_get()['pdf']['phone_public'], 'the fixture: a public phone stored on the music résumé' );
+foreach ( $copies as $name => $body ) {
+	ok( '' !== $body && ! preg_match( '~555|867|5309|tel:|\r\nTEL|"phone"|\bphone:~i', $body ), "the $name carries no phone" );
+}
+$GLOBALS['__opt']['sn_resume_doc'] = $raw;
 ok( 'operations' === ( sn_jsonresume_for( 'resume', 'operations' )['meta']['x-lane'] ?? '' ) && 'music' === ( sn_jsonresume_for( 'resume', 'music' )['meta']['x-lane'] ?? '' ), 'the JSON Resume follows the lane it is asked for' );
 $f_live = sn_resume_formats( 'resume' );
 $GLOBALS['__opt']['sn_resume_doc'] = $plain;
