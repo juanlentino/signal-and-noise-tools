@@ -13,6 +13,14 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Changed
+- **The /resume layout pass (owner yes, 2026-11-01).** /resume and the Spanish /cv re-render once on the next admin load (`SN_RESUME_ENGINE_REV` 5). No résumé text changes, and the JSON Resume and Markdown are byte for byte as they were. No PDF's content changes either; the /cv re-sync regenerates JuanLentino_CV.pdf, as every /cv sync does, so its link takes a new `?v=`.
+  - The lane switch sits beside the page title, in a bottom-aligned 55/45 split of its own (`sn-resume-head-split`), so the title and the switch share one band.
+  - What I've Built's cards sit in one `sn-resume-built-grid` group for the theme to lay out; the intro stays above it.
+  - Each lane's headline is a real heading (h2, under the page's h1), not a styled paragraph.
+  - A project's `code` receipt follows its text instead of sitting inside its h3, and an employer's receipt (when its entry has one) ends its date and place line instead of sitting inside the employer's h3, so each heading's accessible name is the title alone.
+  - A publication no longer carries a separate `paper` mark: its title already links to the same paper.
+  - The contact rail joins its items with a no-break space before each dot, so a line never starts with "·". This is the one change to the Spanish /cv.
+  - /cv follows the engine revision now: `SN_RESUME_ENGINE_REV` is part of its sync state (`sn_resume_es_sync_state()`), so a bump that re-renders /resume re-renders /cv once too. Before, /cv re-rendered only when the Spanish file or the English contact details changed, so this pass would not have reached it.
 - **The résumé's agent copies never carry a phone.** `/resume.md` and `/resume.md?lane=operations`, both JSON Resumes, `/cv.md`, `/cv/json-resume.json` and `/resume/contact.vcf` have no phone field at all now: the JSON Resume's `basics.phone`, the Markdown's `phone:` line and the vCard's `TEL` are gone, whatever **Include the phone in the public PDF** says or what phone is stored. The live copies carried none only because that switch was off. The PDFs keep their own phone handling.
 - **The operations Markdown and the operations lane's page no longer link the vCard.** The Markdown's front matter `formats` drops `vcard`, and `/resume/?lane=operations` prints no `text/vcard` alternate; the contact card stays the music résumé's, and the music Markdown keeps the link.
 

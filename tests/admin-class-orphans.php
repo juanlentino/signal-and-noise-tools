@@ -78,7 +78,9 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-prov-series-heading', 'sn-prov-series-intro', 'sn-prov-verify',
 	'sn-prov-worker-ver', 'sn-provenance-byline-divider', 'sn-provenance-byline-reading-time', 'sn-provenance-toc',
 	// sn-resume-built, -receipt, -switch: /resume's lanes and receipts (2026-11-01), styled by the theme's resume.css.
-	'sn-resume-built', 'sn-resume-download', 'sn-resume-fold', 'sn-resume-hero-split', 'sn-resume-pub',
+	// -built-grid, -headline: the layout pass (2026-11-01), styled by the theme's resume-switch.css. The hero
+	// split's class is printed through sn_resume_hero_split_blocks()'s $class now, so this scan no longer sees it.
+	'sn-resume-built', 'sn-resume-built-grid', 'sn-resume-download', 'sn-resume-fold', 'sn-resume-headline', 'sn-resume-pub',
 	'sn-resume-pub-title', 'sn-resume-receipt', 'sn-resume-role', 'sn-resume-skills', 'sn-resume-stats',
 	'sn-resume-switch', 'sn-resume-title', 'sn-rsm-list', 'sn-schedule-log', 'sn-schedule-op',
 	'sn-schedule-remainder', 'sn-uses-dek', 'sn-uses-eyebrow', 'sn-uses-headline',

@@ -562,9 +562,9 @@ add_action( 'admin_init', 'sn_migrate_split_hero_v9' );
  * sn_resume_hero_blocks() (or any body-shaping engine code) changes and
  * the stored body re-renders once on the next admin load after update.
  */
-const SN_RESUME_ENGINE_REV = 4; // 2 = eyebrow band kicker above the hero columns; 3 = publication cards drop constrained layout (full-width titles); 4 = two lanes and receipt marks (brief #2).
+const SN_RESUME_ENGINE_REV = 5; // 2 = eyebrow band kicker above the hero columns; 3 = publication cards drop constrained layout (full-width titles); 4 = two lanes and receipt marks (brief #2); 5 = the layout pass (switch beside the title, built grid, h2 headline, receipts out of headings, no duplicate paper mark, nbsp before the rail dots).
 
-/** Re-render /resume once per engine revision. */
+/** Re-render /resume once per engine revision (/cv/ follows: the revision is part of its sync state, inc/resume-es.php). */
 function sn_resume_engine_regen() {
 	if ( SN_RESUME_ENGINE_REV === (int) get_option( 'sn_resume_engine_rev' ) ) {
 		return;

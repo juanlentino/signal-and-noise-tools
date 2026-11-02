@@ -26,12 +26,18 @@ function wp_slash( $v ) { return $v; }
 function wp_update_post( $a ) { $GLOBALS['__updates'][] = $a; return $a['ID']; }
 function is_wp_error( $x ) { return false; }
 function sn_lang_en_counterpart( $id ) { return 1184; }
+function current_user_can( $c ) { return true; }
+function get_transient( $k ) { return false; }
+function set_transient( $k, $v, $t = 0 ) { return true; }
+function wp_json_encode( $v ) { return json_encode( $v ); }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 if ( ! defined( 'SN_RESUME_SLUG' ) ) { define( 'SN_RESUME_SLUG', 'resume' ); }
 if ( ! defined( 'OBJECT' ) ) { define( 'OBJECT', 'OBJECT' ); }
 
 require_once __DIR__ . '/../inc/resume-page.php';
 require_once __DIR__ . '/../inc/resume-sync-engine.php';
 require_once __DIR__ . '/../inc/resume-es.php';
+require_once __DIR__ . '/../inc/split-hero-migration.php'; // The real SN_RESUME_ENGINE_REV.
 
 echo "\nTest: the Spanish file\n";
 $raw = json_decode( (string) file_get_contents( __DIR__ . '/../inc/seed-content/resume-data-es.json' ), true );
@@ -66,6 +72,21 @@ $GLOBALS['__page']->post_content = $GLOBALS['__updates'][0]['post_content'];
 ok( true === sn_resume_es_sync_page() && 1 === count( $GLOBALS['__updates'] ), 'an unchanged body is not written again' );
 $GLOBALS['__page'] = null;
 ok( false === sn_resume_es_sync_page(), 'no /cv/ page yet: nothing to fill' );
+
+echo "\nTest: a page-engine bump re-renders /cv/ once\n";
+// No sn_resume_pdf_location() here, so the PDF step fails and the sync falls
+// through to the page write: this exercises the page branch only.
+$live = sn_resume_doc_get();
+$rev  = SN_RESUME_ENGINE_REV;
+ok( sn_resume_es_sync_state( $live, $rev ) !== sn_resume_es_sync_state( $live, $rev + 1 ) && sn_resume_es_sync_state( $live, $rev ) === sn_resume_es_sync_state( $live, $rev ), 'the engine revision is part of what /cv/ was rendered from (same inputs, same state)' );
+$GLOBALS['__page']    = (object) array( 'ID' => 3650, 'post_content' => '' );
+$GLOBALS['__updates'] = array();
+$GLOBALS['__options'][ SN_RESUME_ES_SYNC_OPT ] = sn_resume_es_sync_state( $live, $rev - 1 );
+sn_resume_es_maybe_sync();
+ok( 1 === count( $GLOBALS['__updates'] ) && array( 'ID', 'post_content' ) === array_keys( $GLOBALS['__updates'][0] ) && sn_resume_es_sync_state( $live, $rev ) === $GLOBALS['__options'][ SN_RESUME_ES_SYNC_OPT ], 'last synced under the previous revision: /cv/\'s content is rewritten and the current state recorded' );
+$GLOBALS['__page']->post_content = 'stale';
+sn_resume_es_maybe_sync();
+ok( 1 === count( $GLOBALS['__updates'] ), 'once: the next admin load leaves /cv/ alone' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail ? 1 : 0 );
