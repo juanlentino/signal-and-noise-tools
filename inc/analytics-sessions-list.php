@@ -114,11 +114,31 @@ function sn_analytics_sessions_build( array $rows, $class, array $real, array $c
 }
 
 /**
+ * The UTC instants of the whole visitor-days [$t_lo, $t_hi) touches: from the
+ * rotation zone's midnight on or before $t_lo to the one after $t_hi - 1. PURE.
+ *
+ * @param int $t_lo Unix time, inclusive.
+ * @param int $t_hi Unix time, exclusive.
+ * @return array{0:string,1:string}
+ */
+function sn_analytics_visitor_day_bounds( $t_lo, $t_hi ) {
+	$zone  = new DateTimeZone( defined( 'SN_ANALYTICS_SPLIT_TZ' ) ? SN_ANALYTICS_SPLIT_TZ : 'UTC' );
+	$utc   = new DateTimeZone( 'UTC' );
+	$start = ( new DateTimeImmutable( '@' . (int) $t_lo ) )->setTimezone( $zone )->setTime( 0, 0 );
+	$end   = ( new DateTimeImmutable( '@' . max( (int) $t_lo, (int) $t_hi - 1 ) ) )->setTimezone( $zone )->setTime( 0, 0 )->modify( '+1 day' );
+	return array( $start->setTimezone( $utc )->format( 'Y-m-d H:i:s' ), $end->setTimezone( $utc )->format( 'Y-m-d H:i:s' ) );
+}
+
+/**
  * The sessions that START in [$lo, $hi) for a class: rows plus a cap flag, or
- * null on a failed read. A visitor-day is a UTC day (the visitor code's salt
- * rotates at UTC midnight), so the read takes the whole UTC days the window
- * touches: a session is never cut at the window's edge, and returning counts
- * every earlier session of the same visitor-day, inside the window or not.
+ * null on a failed read. A visitor-day is a day in the analytics worker's
+ * rotation zone (SN_ROTATE_TZ, SN_ANALYTICS_SPLIT_TZ: the visitor code rotates
+ * at midnight there, not at UTC midnight), so the read takes the whole
+ * visitor-days the window touches: a session is never cut at the window's
+ * edge, and returning counts every earlier session of the same visitor-day,
+ * inside the window or not. (Reading whole UTC days missed the evening's
+ * earlier sessions for a window opened between 00:00 UTC and New York
+ * midnight, and cut a session that straddled 00:00 UTC.)
  *
  * @param string $lo       UTC instant, inclusive.
  * @param string $hi       UTC instant, exclusive.
@@ -130,7 +150,7 @@ function sn_analytics_sessions_read( $lo, $hi, $class, $with_vid = false ) {
 	$cfg  = sn_analytics_session_config();
 	$t_lo = strtotime( $lo . ' UTC' );
 	$t_hi = strtotime( $hi . ' UTC' );
-	$read = array( gmdate( 'Y-m-d 00:00:00', $t_lo ), gmdate( 'Y-m-d H:i:s', (int) ( ceil( $t_hi / 86400 ) * 86400 ) ) );
+	$read = sn_analytics_visitor_day_bounds( $t_lo, $t_hi );
 	$day  = substr( $read[0], 0, 10 );
 	$sets = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_analytics_session_sql( $day, $day, $class, $cfg['row_cap'], $s, $r, $read ), $day, $read[1] );
 	if ( null === $sets ) {
