@@ -9,7 +9,8 @@
  *   /resume/contact.vcf              the vCard (inc/resume-vcard.php)
  *
  * The résumé HTML also sends `Link: </resume.md>; rel="alternate";
- * type="text/markdown"`: the rights-signals worker, asked for the page with
+ * type="text/markdown"` (`</resume.md?lane=operations>` on the operations
+ * lane): the rights-signals worker, asked for the page with
  * `Accept: text/markdown`, serves that file instead of converting the HTML.
  * An older worker ignores the header and converts as before, so either side
  * can ship first. Everything answers only while the page is published, and

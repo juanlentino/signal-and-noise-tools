@@ -18,9 +18,18 @@
  *   education[]{title,lines[]} · affiliations[]{title,lines[]}
  *   publications[]{meta,title,url} · skills[]{category,items}
  *   pdf{headline,tagline,summary,phone,phone_public,email,location,website,competencies[],toolkit[]}
+ *   built{intro,items[]{title,url,text}} · variants{music{show_built},operations{...}}
+ *     (both only when they hold something; inc/resume-variants.php)
+ *   Any experience, earlier, education, affiliation, publication or skills row,
+ *   and any role, may carry `variant` ('music' or 'operations'); a role
+ *   `bullet_variants` and `bullet_receipts`; an experience or earlier entry `receipt_url` and
+ *   `receipt_type`; an education or affiliation row `credential_url`
+ *   (inc/resume-receipts.php).
  *
- * `pdf` feeds ONLY the generated PDF (inc/resume-pdf/). The sync engine never
- * reads it, so a PDF-only field (the phone, above all) cannot reach /resume.
+ * `pdf` feeds the generated PDF (inc/resume-pdf/). The single body never
+ * reads it; the two-lane body reads only `pdf.headline` and `pdf.tagline` (each
+ * lane's hero), and its lane documents blank the phone, so the phone cannot
+ * reach /resume.
  *
  * Bullets are the ONE field that carries HTML (<strong>/<em>/<a> via wp_kses
  * at normalize time); every other string is plain text, escaped at the render

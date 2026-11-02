@@ -276,7 +276,7 @@ full path is ever stored:
 | `feed` | the feed routes |
 | `wp-json` | the REST surface |
 | `sitemap` | any path containing `sitemap` |
-| `resume` | the résumé's format files: `/resume.md`, `/cv.md`, `/resume/json-resume.json`, `/cv/json-resume.json`, `/resume/contact.vcf`, a PDF under `/wp-content/uploads/resume/`, and the `/resume.json` and `/cv.json` page twins. Not a rights surface. The format rides `resume_format` (blob17): `md`, `json`, `vcf`, `pdf`, `twin`, and `html` or `md` for a read of the `/resume/` or `/cv/` page, which stays `html`. The Machine readers view paints it as the Résumé panel, beside the people who downloaded the PDF |
+| `resume` | the résumé's format files: `/resume.md`, `/cv.md`, `/resume/json-resume.json`, `/cv/json-resume.json`, `/resume/contact.vcf`, a PDF under `/wp-content/uploads/resume/`, and the `/resume.json` and `/cv.json` page twins. The operations PDF, served at `/resume/<file>.pdf`, is not in the worker's list yet and reads as `html`. Not a rights surface. The format rides `resume_format` (blob17): `md`, `json`, `vcf`, `pdf`, `twin`, and `html` or `md` for a read of the `/resume/` or `/cv/` page, which stays `html`. The Machine readers view paints it as the Résumé panel, beside the people who downloaded the PDF |
 | `asset` | `/wp-content/`, `/wp-includes/` |
 | `html` | everything else |
 

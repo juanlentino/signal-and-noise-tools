@@ -3,7 +3,8 @@
  * Signal & Noise Tools: the résumé as JSON Resume v1.0.0 (jsonresume.org).
  *
  * A pure mapper over the SAME document /resume, its PDF and /cv/ render
- * (sn_resume_doc_get(), sn_resume_es_doc()), so it can never say something
+ * (sn_resume_doc_get(), sn_resume_es_doc(), and sn_resume_lane_doc() for
+ * /resume's operations lane), so it can never say something
  * the page does not. Nothing is invented: a value that does not parse is
  * omitted, a date never gains a day it did not have, and a blank field is
  * left out rather than sent empty. The route, the head link and the WordPress
