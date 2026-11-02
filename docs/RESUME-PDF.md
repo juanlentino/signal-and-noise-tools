@@ -77,8 +77,9 @@ list and llms.txt name it.
 ## The page's two lanes (2026-11-01, brief #2)
 
 Once the operations résumé is set up, `sn_resume_sync_page()` writes the English /resume through
-`sn_resume_page_body()` (`inc/resume-page-lanes.php`): a shared head (eyebrow, the page title, the
-switch "Music" / "Operations & AI Strategy" and its caption), then two plain groups,
+`sn_resume_page_body()` (`inc/resume-page-lanes.php`): a shared head (eyebrow and the page title on
+the left, the switch "Music" / "Operations & AI Strategy" and its caption beside them on the right,
+in a bottom-aligned 55/45 columns block of its own class, `sn-resume-head-split`), then two plain groups,
 `#resume-music` and `#resume-operations`, each a full set of bands built from
 `sn_resume_lane_doc()`. That lane document is the variant's view with the operations headline,
 subhead, location and summary laid over the music ones, the operations experience order, earlier
@@ -99,13 +100,17 @@ career without bullets when it asks, only the sections it lists, and its "What I
 - **The operations résumé never carries the phone**, on the page or in its JSON Resume, whatever the
   music PDF's switch says.
 - **An update re-renders the page once** (`SN_RESUME_ENGINE_REV` in `inc/split-hero-migration.php`,
-  4 since the lanes).
+  5 since the layout pass: the switch beside the title, What I've Built's cards in one
+  `sn-resume-built-grid` group, each lane's headline an h2, receipts out of headings, no separate
+  mark on a publication, and a no-break space before each contact-rail dot).
 - **Spanish and no operations settings** keep `sn_resume_body_html()`, the single body, unchanged.
 - **Every regeneration rewrites the page** only when the body changed, as before; with two lanes, an
   edit to either résumé changes the body, so the edge's `sn-render` purge covers `?lane=` copies.
 - **Receipts** (`inc/resume-receipts.php`): `credential_url` on education and affiliation rows shows
-  `verify`, a publication's `url` shows `paper`, a "What I've Built" `url` shows `code`; experience
-  and earlier entries take `receipt_url` + `receipt_type`, and roles `bullet_receipts` keyed like
+  `verify`, a publication's `url` is its title's link (no separate mark since the layout pass), a
+  "What I've Built" `url` shows `code` after the project's text, never inside its heading; experience
+  and earlier entries take `receipt_url` + `receipt_type` (an employer's shows at the end of its date
+  and place line, never inside its heading), and roles `bullet_receipts` keyed like
   `bullet_variants`. `credential_url`, `receipt_url` and `bullet_receipts` take https only; a
   publication's and a project's `url` take http or https. The English page shows them; the PDFs never
   do.

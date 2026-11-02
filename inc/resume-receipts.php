@@ -4,7 +4,8 @@
  *
  * A receipt is the page that backs a claim: the issuer's verification page,
  * the paper, the code. Education and affiliation rows already carry theirs as
- * `credential_url`, publications as `url`, "What I've Built" items as `url`.
+ * `credential_url`, publications as `url` (the title's link is the receipt; no
+ * separate mark), "What I've Built" items as `url`.
  * Experience and earlier entries may carry `receipt_url` + `receipt_type`, and
  * a role lists receipts for single bullets in `bullet_receipts`, keyed by
  * sn_resume_bullet_key() as `bullet_variants` is. Only real, https URLs are

@@ -12,6 +12,15 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The /resume layout pass (owner yes, 2026-11-01).** The page re-renders once on the next admin load (`SN_RESUME_ENGINE_REV` 5). No résumé text changes, and the PDFs, JSON Resume and Markdown are byte for byte as they were.
+  - The lane switch sits beside the page title, in a bottom-aligned 55/45 split of its own (`sn-resume-head-split`), so the title and the switch share one band.
+  - What I've Built's cards sit in one `sn-resume-built-grid` group for the theme to lay out; the intro stays above it.
+  - Each lane's headline is a real heading (h2, under the page's h1), not a styled paragraph.
+  - A project's `code` receipt follows its text instead of sitting inside its h3, and an employer's receipt (when its entry has one) ends its date and place line instead of sitting inside the employer's h3, so each heading's accessible name is the title alone.
+  - A publication no longer carries a separate `paper` mark: its title already links to the same paper.
+  - The contact rail joins its items with a no-break space before each dot, so a line never starts with "·". This is the one change to the Spanish /cv.
+
 ### Fixed
 - **A CI flake in `tests/mcp-telemetry-read.php`** (62/63 on the 2026.11.8 cut, green on rerun). Four checks rebuilt a timestamp, to the second, with `$ago()` after the fixture had built it, so a second ticking between the two failed them. They now compare the fixture's own value. A forced 1-second pause reproduces CI's 62/63 on the old test and passes the new one.
 - **The JSON Resume split a skill at a comma inside parentheses.** "Content Provenance Standards (C2PA, TDMRep, RSL)" reached agents as three keywords, the last two "TDMRep" and "RSL)", on both lanes; the operations résumé's "cross-border market entry (U.S., Latin America)" as two. Skills now split on commas outside parentheses only. The Markdown joins the keywords back with commas, so it read right all along.

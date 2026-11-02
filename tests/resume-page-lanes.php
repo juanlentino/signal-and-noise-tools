@@ -67,16 +67,19 @@ $raw   = sn_resume_doc_normalize( sn_resume_operations_setup( $plain )['doc'] );
 echo "Group: one body or two\n";
 // Held to main's own output (0ef1762f, 2026.11.6), not to this code: the
 // English single body is main's byte for byte once the receipt marks are out;
-// the Spanish one is main's outright.
+// the Spanish one is main's outright. Since the layout pass (engine rev 5) the
+// one other change to either is the no-break space before each contact-rail
+// dot, so mapping it back must give main's bytes again.
 $strip_marks = static fn( $s ) => (string) preg_replace( '# <a class="sn-resume-receipt"[^>]*>[a-z]+</a>#', '', $s );
-ok( '8d5d27a43047a787e440be7508b18de386d32d71' === sha1( $strip_marks( sn_resume_page_body( $plain ) ) ), 'no operations settings: main\'s single body, plus only the receipt marks' );
+$unbreak     = static fn( $s ) => str_replace( "\u{00A0}· ", ' · ', (string) $s );
+ok( '8d5d27a43047a787e440be7508b18de386d32d71' === sha1( $unbreak( $strip_marks( sn_resume_page_body( $plain ) ) ) ) && '488a844f9c316d00c9925e0f5a451c3fab0fe794' === sha1( sn_resume_page_body( $plain ) ), 'no operations settings: main\'s single body, plus only the receipt marks and the rail\'s no-break spaces' );
 sn_resume_lang( 'es' );
-ok( '6d1d9c490ab9132d236b9d67d1d2d4aa9b21d869' === sha1( sn_resume_page_body( $raw ) ) && '6d1d9c490ab9132d236b9d67d1d2d4aa9b21d869' === sha1( sn_resume_page_body( $plain ) ), 'Spanish: main\'s single body exactly, operations settings or not' );
+ok( '6d1d9c490ab9132d236b9d67d1d2d4aa9b21d869' === sha1( $unbreak( sn_resume_page_body( $raw ) ) ) && 'ab72ff0aee4e342f9e51e57b50822002ba6d49e1' === sha1( sn_resume_page_body( $raw ) ) && sn_resume_page_body( $raw ) === sn_resume_page_body( $plain ), 'Spanish: main\'s single body but the rail\'s no-break spaces, operations settings or not' );
 sn_resume_lang( 'en' );
 $no_pdf = sn_resume_page_body( $raw ); // the operations PDF never generated.
 $GLOBALS['__opt']['sn_resume_pdf_operations'] = array( 'url' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf', 'sha256' => str_repeat( 'a', 64 ) );
 $body = sn_resume_page_body( $raw );
-ok( 'd6df6e93fbc7d2a6788668024a2b75a4cc8776cf' === sha1( $body ) && 'c6a5e48aae8a2313447604ed608d747625a0372f' === sha1( $no_pdf ), 'the two-lane body is pinned: request-time changes (the lane labels, ?lane=) never touch it' );
+ok( '6c6117b215cda2aa77e25fb6247b2f6317e32606' === sha1( $body ) && '71b5848893db3fba979dabee96f6a2f024c1f91a' === sha1( $no_pdf ), 'the two-lane body is pinned (engine rev 5, the layout pass): request-time changes (the lane labels, ?lane=) never touch it' );
 ok( 1 === substr_count( $body, '<h1' ) && 1 === substr_count( $body, 'class="wp-block-group sn-resume-switch"' ), 'two lanes: one page title, one switch' );
 ok( 1 === substr_count( $body, 'id="resume-music"' ) && 1 === substr_count( $body, 'id="resume-operations"' ), 'two lanes: one group each, with its id' );
 ok( false !== strpos( $body, '>Music</a>' ) && false !== strpos( $body, '>Operations &amp; AI Strategy</a>' ) && false !== strpos( $body, 'href="/resume/?lane=operations"' ) && false !== strpos( $body, 'href="/resume/"' ), 'the switch: two links, the music one without a query' );
@@ -84,7 +87,7 @@ ok( false === strpos( $body, 'hidden' ) && false === strpos( $body, 'aria-curren
 ok( function_exists( 'snt_generated_page_guard' ) ? snt_generated_page_guard( 'resume', $body ) : ( false !== strpos( $body, 'sn-resume-hero-split' ) && 0 !== strpos( ltrim( $body ), '<!-- wp:html' ) ), 'the generated-page guard still accepts it' );
 list( $head_html, $rest ) = explode( 'id="resume-music"', $body, 2 ) + array( '', '' );
 list( $music_html, $ops_html ) = explode( 'id="resume-operations"', $rest, 2 ) + array( '', '' );
-ok( false !== strpos( $ops_html, '>Founder and Operator</p>' ) && false !== strpos( $ops_html, "WHAT I&#039;VE BUILT" ) && false !== strpos( $ops_html, 'github.com/juanlentino</a>' ), 'the operations lane: its headline, What I\'ve Built, its extra link' );
+ok( false !== strpos( $ops_html, '>Founder and Operator</h2>' ) && false !== strpos( $ops_html, "WHAT I&#039;VE BUILT" ) && false !== strpos( $ops_html, 'github.com/juanlentino</a>' ), 'the operations lane: its headline, What I\'ve Built, its extra link' );
 ok( false !== strpos( $ops_html, 'href="https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf"' ) && false === strpos( $music_html, 'Operations.pdf' ), 'each lane its own Download: the operations PDF only in the operations lane' );
 ok( false === strpos( $no_pdf, 'Operations.pdf' ) && false !== strpos( $no_pdf, 'id="resume-operations"' ), 'before the operations PDF exists, its lane has no Download (never a link to a 404)' );
 ok( false !== strpos( $ops_html, '01 · Projects' ) && false !== strpos( $ops_html, '02 · Professional Experience' ) && false === strpos( $ops_html, 'PUBLICATIONS' ), 'the operations lane numbers what it shows, and leaves out what its sections leave out' );
@@ -93,6 +96,43 @@ $rev['experience'] = array_reverse( $rev['experience'] ); // Panacea first in th
 $rev_body          = explode( 'id="resume-operations"', sn_resume_page_body( $rev ), 2 );
 ok( strpos( $rev_body[0], 'PANACEA STUDIO' ) < strpos( $rev_body[0], 'INDEPENDENT PRACTICE' ) && strpos( $rev_body[1], 'INDEPENDENT PRACTICE' ) < strpos( $rev_body[1], 'PANACEA STUDIO' ), 'the music lane keeps the document\'s order; the operations lane its own' );
 ok( false === strpos( $music_html, 'WHAT I&#039;VE BUILT' ) && false !== strpos( $music_html, '01 · Professional Experience' ) && false !== strpos( $music_html, 'PUBLICATIONS' ), 'the music lane is the music résumé, numbered as always' );
+
+echo "\nGroup: the layout (owner yes 2026-11-01)\n";
+// A block's serialized inner, from its opening delimiter to its matching close.
+$block_of = static function ( $html, $open ) {
+	$at = strpos( $html, $open );
+	if ( false === $at || ! preg_match_all( '#<!-- (/?)wp:(group|columns)[ \-]#', $html, $m, PREG_OFFSET_CAPTURE, $at ) ) {
+		return '';
+	}
+	$depth = 0;
+	foreach ( $m[1] as $i => $t ) {
+		$depth += '' === $t[0] ? 1 : -1;
+		if ( 0 === $depth ) {
+			return substr( $html, $at, $m[0][ $i ][1] - $at );
+		}
+	}
+	return '';
+};
+$head_cols = $block_of( $head_html, '<!-- wp:columns {"verticalAlignment":"bottom","className":"sn-resume-head-split"} -->' );
+list( $head_l, $head_r ) = explode( 'flex-basis:45%', $head_cols, 2 ) + array( '', '' );
+ok( false !== strpos( $head_cols, '<div class="wp-block-columns are-vertically-aligned-bottom sn-resume-head-split">' ) && false !== strpos( $head_l, 'flex-basis:55%' ) && false === strpos( $head_html, 'sn-resume-hero-split' ), 'the head is its own split (sn-resume-head-split, bottom-aligned, 55/45), never the hero\'s class' );
+ok( false !== strpos( $head_l, '>Dossier · Background</p>' ) && false !== strpos( $head_l, '<h1' ) && false === strpos( $head_l, '<nav' ) && false !== strpos( $head_r, '<nav class="wp-block-group sn-resume-switch">' ) && false === strpos( $head_r, '<h1' ), 'the eyebrow and title on the left, the switch on the right' );
+$grid = $block_of( $ops_html, '<!-- wp:group {"className":"sn-resume-built-grid"} -->' );
+$card = '<!-- wp:group {"className":"sn-resume-pub sn-resume-built"} -->';
+ok( 3 === substr_count( $grid, $card ) && 3 === substr_count( $body, $card ) && 1 === substr_count( $body, '<div class="wp-block-group sn-resume-built-grid">' ) && false === strpos( $grid, 'sn-resume-built-intro' ), 'What I\'ve Built: one grid wraps exactly the three cards, the intro outside it' );
+$named = $raw;
+$named['pdf']['headline'] = 'Founder & Music Executive';
+$named_body = sn_resume_page_body( $named );
+ok( false !== strpos( $named_body, '<!-- wp:heading {"className":"sn-resume-headline"} -->' . "\n" . '<h2 class="wp-block-heading sn-resume-headline">Founder &amp; Music Executive</h2>' ) && false !== strpos( $named_body, '<h2 class="wp-block-heading sn-resume-headline">Founder and Operator</h2>' ) && false === strpos( $named_body, '<p class="sn-resume-headline' ), 'each lane\'s headline is an h2, in both lanes' );
+preg_match_all( '#<h([1-6])[\s>]#', $named_body, $lv );
+$levels = array_map( 'intval', $lv[1] );
+$skips  = 0;
+foreach ( $levels as $i => $l ) { $skips += ( $i > 0 && $l > $levels[ $i - 1 ] + 1 ) ? 1 : 0; }
+ok( 1 === ( $levels[0] ?? 0 ) && 1 === count( array_keys( $levels, 1, true ) ) && 0 === $skips, 'headings run h1, then h2s, then h3s, never skipping a level (' . count( $levels ) . ' headings)' );
+$coded = count( array_filter( array_column( $raw['built']['items'], 'url' ) ) );
+ok( 0 === preg_match( '#<h3[^>]*>(?:(?!</h3>).)*sn-resume-receipt#s', $body ) && 2 === $coded && $coded === preg_match_all( '#</h3>\n<!-- /wp:heading -->\n<!-- wp:paragraph -->\n<p>[^<]+ <a class="sn-resume-receipt"[^>]*aria-label="Code: #', $ops_html ), 'no receipt inside a heading; each project with code keeps its receipt, after its text' );
+ok( false === strpos( $body, 'aria-label="Paper: ' ) && false !== strpos( $body, 'href="https://ssrn.com/abstract=6402298" rel="noopener">' ), 'publications drop the duplicate paper mark: the title link to the paper is the receipt' );
+ok( false !== strpos( $body, "Orlando, FL\u{00A0}· <a href=" ) && false === strpos( $body, 'Orlando, FL · <a' ), 'the contact rail keeps each dot on its line (a no-break space before it)' );
 
 echo "\nGroup: the two-lane body is well-formed block markup\n";
 // A stack parse of the delimiters: every opener closes in order, every
@@ -157,7 +197,13 @@ $doc['experience'][0]['roles'][0]['bullet_receipts']    = array( sn_resume_bulle
 $doc  = sn_resume_doc_normalize( $doc );
 $html = sn_resume_body_html( sn_resume_doc_view( $doc, 'music' ) );
 ok( false !== strpos( $html, 'href="https://example.com/practice" rel="noopener" aria-label="Verify: ' ) && false !== strpos( $html, 'href="https://example.com/bullet" rel="noopener" aria-label="Paper: ' ), 'an entry and a bullet show their marks, named for what they back' );
-ok( false !== strpos( $html, 'abstract=6402298" rel="noopener" aria-label="Paper: ' ) && false !== strpos( $html, 'parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5" rel="noopener" aria-label="Verify: MBA' ), 'the papers and the MBA show theirs from the links already stored' );
+$no_h3_receipt = static fn( $h ) => 0 === preg_match( '#<h3[^>]*>(?:(?!</h3>).)*sn-resume-receipt#s', $h );
+ok( $no_h3_receipt( $html ) && 1 === preg_match( '#<p class="sn-resume-rail">Sep 2022 - Present<br>Remote <a class="sn-resume-receipt" href="https://example.com/practice"[^>]*>verify</a></p>#', $html ) && false !== strpos( $html, '<h3 class="wp-block-heading sn-resume-role">INDEPENDENT PRACTICE</h3>' ), 'an employer\'s receipt rides its date and place line, out of the heading (the heading\'s name is the employer alone)' );
+$with_org_receipt = $raw;
+$with_org_receipt['experience'][0]['receipt_url'] = 'https://example.com/practice';
+$org_body = sn_resume_page_body( sn_resume_doc_normalize( $with_org_receipt ) );
+ok( 2 === substr_count( $org_body, 'href="https://example.com/practice"' ) && $no_h3_receipt( $org_body ), 'and in both lanes of the two-lane page, no receipt sits inside any h3' );
+ok( false === strpos( $html, 'aria-label="Paper: Provenance' ) && false !== strpos( $html, '<a href="https://ssrn.com/abstract=6402298" rel="noopener">Provenance Over Detection' ) && false !== strpos( $html, 'parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5" rel="noopener" aria-label="Verify: MBA' ), 'the papers carry no mark of their own (each title links to the paper), and the MBA shows its verify mark from the link already stored' );
 sn_resume_lang( 'es' );
 ok( false === strpos( sn_resume_body_html( sn_resume_doc_view( $doc, 'music' ) ), 'sn-resume-receipt' ), 'the Spanish page shows no marks' );
 sn_resume_lang( 'en' );
