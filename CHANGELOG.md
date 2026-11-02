@@ -15,7 +15,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Fixed
 - **A résumé draft the database did not store said "Draft saved".** `sn_resume_draft_save()` ignored `update_option()`'s answer. It now compares first (the same draft saved twice in a day is already stored, and `update_option()` answers false for an unchanged value too), then reports the write. Save draft and Set up the operations résumé flash a new error, "Draft not saved: the database did not take the write", instead of success or the refusal message, which names a content rule the owner did not break. `tests/resume-draft.php` (+6).
 - **The CI tests job's timing comment said 40s.** The job now takes up to 82s over the last 8 successful runs; the comment says so. `timeout-minutes: 4` stays, about three times the measured max.
-- **docs/MACHINE-READERS.md named only the uploads PDF for the `resume` surface.** From rights-signals Worker 1.37.4 the operations PDF served at `/resume/<file>.pdf` counts as `resume`, format `pdf`, too; the surface table names both.
+- **docs/MACHINE-READERS.md named only the uploads PDF for the `resume` surface.** The operations PDF served at `/resume/<file>.pdf` counts as `resume`, format `pdf`, once the Worker counts it (sn-rights-signals-worker#117); until then those reads land in `html`. The surface table names both.
 
 ## [2026.11.8] - 2026-11-02 — The résumé's Markdown follows the lane: /resume.md?lane=operations
 
