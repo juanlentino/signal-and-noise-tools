@@ -62,7 +62,7 @@ code points (U+FB00 to U+FB06), a phone number in the text or the metadata, an o
 two pages, and an operations file without `X-Robots-Tag: noindex`.
 
 **The operations file's noindex.** A static file's headers belong to the web server, and the owner
-did not want to spend a Cloudflare rule on one (2026-11-01), so the operations PDF is not a file in
+was unsure a Cloudflare rule was available for one (2026-11-01), so the operations PDF is not a file in
 uploads. Its bytes live in an option, and WordPress serves them at `/resume/<file name>` with
 `X-Robots-Tag: noindex, nofollow` (`sn_resume_ops_pdf_maybe_serve()`); before the first generation
 that address is the ordinary 404. Every generation reads the header back and flags it if missing.

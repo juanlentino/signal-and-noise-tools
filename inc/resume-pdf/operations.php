@@ -7,8 +7,8 @@
  * second lane (owner brief 2026-11-01 #2) the operations lane's Download links
  * it, and the format list and llms.txt name it; it stays out of sitemaps, and
  * the noindex header keeps it out of search. It is not a file in
- * uploads: a static file's headers are the web server's, and the owner did not
- * want to spend a Cloudflare rule on one (2026-11-01). The bytes are kept in an
+ * uploads: a static file's headers are the web server's, and the owner was
+ * unsure a Cloudflare rule was available for one (2026-11-01). The bytes are kept in an
  * option and served by WordPress at /resume/<file name> with X-Robots-Tag:
  * noindex, nofollow; every generation reads that header back.
  *
