@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The operations résumé keeps its address when shared.** On `/resume/?lane=operations` the canonical and `og:url` said `/resume/`, and a phone's share sheet copies the canonical while a link preview reads `og:url`, so the lane was dropped. Both now keep `?lane=operations` while an operations résumé exists (`inc/resume-lane-address.php`), and the hreflang trio is left out there, as the Spanish CV has no operations lane. An owner canonical override still wins; any other lane value is the music lane, so nothing a visitor types reaches the head. The theme's switch retargets both tags when the lane changes without a reload. `tests/resume-lane-address.php` (10).
+
 ## [2026.11.8] - 2026-11-02 — The résumé's Markdown follows the lane: /resume.md?lane=operations
 
 ### Changed
