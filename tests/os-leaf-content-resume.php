@@ -555,7 +555,8 @@ ok( false === strpos( $kit, '<os-form' ) && array() === snt_leaf_actions( $kit )
 // must ride along), every PDF-only field set, an empty list, values with
 // quotes, ampersands, angle brackets and newlines, and since 2026-11-01 a
 // "Shows in" on every kind of row, two per-bullet flags, What I've Built,
-// and both variant blocks with their boxes checked.
+// and both variant blocks with their boxes checked; and since brief #2 a
+// receipt on an entry and on a bullet, and an affiliation's credential URL.
 $rich = $seed;
 unset( $rich['updated'] );
 $rich['pdf']       = array( 'headline' => 'Design Engineering Lead', 'tagline' => 'Systems | Research', 'summary' => "PDF summary, line one.\nLine two.", 'phone' => '(407) 555-0100', 'phone_public' => true, 'email' => 'name@example.com', 'location' => 'Orlando, FL', 'website' => 'https://example.org', 'competencies' => array( 'Design systems', 'Research ops' ), 'toolkit' => array( 'Figma', 'PHP' ) );
@@ -569,6 +570,11 @@ $rich['earlier']['entries'][0]['roles'][0]['variant'] = 'operations';
 $rich['affiliations'][0]['variant']                   = 'operations';
 $rich['publications'][1]['variant']                   = 'music';
 $rich['skills'][0]['variant']                         = 'operations';
+$rich['experience'][1]['receipt_url']                 = 'https://example.org/receipts/studio';
+$rich['experience'][1]['receipt_type']                = 'repository';
+$rich['earlier']['entries'][0]['receipt_url']         = 'https://example.org/receipts/earlier';
+$rich['earlier']['entries'][0]['receipt_type']        = 'membership';
+$rich['affiliations'][0]['credential_url']            = 'https://example.org/credential?id=1&x=2';
 $rich['built']    = array(
 	'intro' => 'Built with "care" & a plan',
 	'items' => array(
@@ -584,6 +590,7 @@ $rich = $spawn( $boot, $rich );
 // The bullet flags key on the NORMALIZED bullet, so they go on after one pass.
 $b0 = (array) ( $rich['experience'][0]['roles'][0]['bullets'] ?? array() );
 $rich['experience'][0]['roles'][0]['bullet_variants'] = array( sn_resume_bullet_key( (string) reset( $b0 ) ) => 'operations', sn_resume_bullet_key( (string) end( $b0 ) ) => 'music' );
+$rich['experience'][0]['roles'][0]['bullet_receipts'] = array( sn_resume_bullet_key( (string) end( $b0 ) ) => array( 'receipt_url' => 'https://example.org/receipts/bullet', 'receipt_type' => 'publication' ) );
 $rich = $spawn( $boot, $rich );
 ok( is_array( $rich ) && true === $rich['pdf']['phone_public'] && array() === $rich['education'] && 2 === count( $rich['pdf']['toolkit'] ), 'the rich fixture normalizes (phone public, Education empty, PDF lists set)' );
 ok(
@@ -591,8 +598,9 @@ ok(
 	&& 'music' === ( $rich['earlier']['entries'][0]['variant'] ?? '' ) && 'operations' === ( $rich['earlier']['entries'][0]['roles'][0]['variant'] ?? '' )
 	&& 'operations' === ( $rich['affiliations'][0]['variant'] ?? '' ) && 'music' === ( $rich['publications'][1]['variant'] ?? '' ) && 'operations' === ( $rich['skills'][0]['variant'] ?? '' )
 	&& 2 === count( $rich['experience'][0]['roles'][0]['bullet_variants'] ?? array() ) && 2 === count( $rich['built']['items'] ?? array() ) && 'operations' === ( $rich['built']['items'][0]['variant'] ?? '' )
+	&& 'repository' === ( $rich['experience'][1]['receipt_type'] ?? '' ) && 'membership' === ( $rich['earlier']['entries'][0]['receipt_type'] ?? '' ) && '' !== ( $rich['affiliations'][0]['credential_url'] ?? '' ) && 1 === count( $rich['experience'][0]['roles'][0]['bullet_receipts'] ?? array() )
 	&& true === ( $rich['variants']['music']['show_built'] ?? null ) && true === ( $rich['variants']['operations']['earlier_compact'] ?? null ) && 'Ops_Resume.pdf' === ( $rich['variants']['operations']['pdf_file'] ?? '' ) && 4 === count( $rich['variants']['operations']['sections'] ?? array() ),
-	'the rich fixture keeps every variant flag through the real normalize (rows, roles, two bullets, What I\'ve Built, both variant blocks), so the round trip below is not vacuous'
+	'the rich fixture keeps every variant flag and receipt through the real normalize (rows, roles, two bullets, a bullet receipt, entry receipts, a credential URL, What I\'ve Built, both variant blocks), so the round trip below is not vacuous'
 );
 $GLOBALS['__resume_doc'] = array( 'updated' => '' ) + (array) $rich;
 $edits = $paint_all();
