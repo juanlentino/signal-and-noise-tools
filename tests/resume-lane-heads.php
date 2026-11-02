@@ -99,6 +99,13 @@ ok( 0 === strpos( (string) sn_resume_lane_doc( $raw, 'operations' )['hero']['sum
 ok( 'https://juanlentino.com/resume/?lane=operations' === $prop( $o, 'og:url' ), 'og:url keeps the lane' );
 ok( false !== strpos( $o, 'type="application/json" href="https://juanlentino.com/resume/json-resume.json?lane=operations"' ) && false !== strpos( $o, 'type="text/markdown" href="https://juanlentino.com/resume.md?lane=operations"' ), 'the JSON Resume and Markdown alternates name the operations twins' );
 $_GET = array( 'lane' => 'operations' );
+// The AI plugin's alternate goes through esc_url() (core's clean_url) with no filter of its own.
+$ai = static fn( $u, $ctx = 'display' ) => apply_filters( 'clean_url', $u, $u, $ctx );
+ok( 'https://juanlentino.com/resume/?output_format=markdown&#038;lane=operations' === $ai( 'https://juanlentino.com/resume/?output_format=markdown' ) && 'https://juanlentino.com/resume/?output_format=markdown&lane=operations' === $ai( 'https://juanlentino.com/resume/?output_format=markdown', 'db' ), 'the AI plugin\'s ?output_format=markdown alternate names the lane, so no Markdown alternate names the other one' );
+ok( 'https://juanlentino.com/feed/markdown/' === $ai( 'https://juanlentino.com/feed/markdown/' ) && 'https://juanlentino.com/about/?output_format=markdown' === $ai( 'https://juanlentino.com/about/?output_format=markdown' ), '...and nothing else it escapes' );
+$_GET = array();
+ok( 'https://juanlentino.com/resume/?output_format=markdown' === $ai( 'https://juanlentino.com/resume/?output_format=markdown' ), '...and on the music lane it stays as it was' );
+$_GET = array( 'lane' => 'operations' );
 $wp   = sn_schema_webpage();
 ok( 'ProfilePage' === $wp['@type'] && 'https://juanlentino.com/resume/?lane=operations' === $wp['url'] && $wp['url'] === $wp['@id'] && $ops_first === $wp['description'], 'ProfilePage url, @id and description follow the lane' );
 ok( 'https://juanlentino.com/#/schema/Person' === $wp['mainEntity']['@id'] && 'https://juanlentino.com/resume/#breadcrumb' === $wp['breadcrumb']['@id'], '...the Person and the breadcrumb node it points at stay where they are' );

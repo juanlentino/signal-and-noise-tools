@@ -103,6 +103,30 @@ function sn_resume_lane_description( $description ) {
 add_filter( 'sn_seo_view_description', 'sn_resume_lane_description' );
 
 /**
+ * The AI plugin's Markdown alternate names the lane too. It prints
+ * `<permalink>?output_format=markdown` through esc_url() with no filter of its
+ * own, so core's clean_url adds `lane=operations` to exactly that address on
+ * the operations lane; inc/resume-formats-route.php serves it as the
+ * operations Markdown. The head then holds no Markdown alternate for the other lane.
+ *
+ * @param string $url      The escaped URL.
+ * @param string $original The URL as given.
+ * @param string $context  'display' (entities) or 'db'.
+ * @return string
+ */
+function sn_resume_lane_markdown_alternate( $url, $original, $context = 'display' ) {
+	if ( false === strpos( (string) $original, 'output_format=markdown' ) || ! sn_resume_lane_address_active() ) {
+		return $url;
+	}
+	$page = get_queried_object();
+	if ( ! $page || (string) $original !== add_query_arg( 'output_format', 'markdown', (string) get_permalink( $page ) ) ) {
+		return $url;
+	}
+	return $url . ( 'db' === $context ? '&' : '&#038;' ) . 'lane=operations';
+}
+add_filter( 'clean_url', 'sn_resume_lane_markdown_alternate', 10, 3 );
+
+/**
  * No hreflang pair on the operations lane.
  *
  * @param array $pair sn_lang_pair_urls().
