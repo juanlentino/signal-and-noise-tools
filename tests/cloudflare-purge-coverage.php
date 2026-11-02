@@ -106,6 +106,17 @@ ok( ! in_array( 'https://example.test/.well-known/agents.json', $urls, true ) &&
 	'agents.json and opensearch.xml are NOT purged: a post save changes neither' );
 ok( count( array_unique( $urls ) ) <= 30, 'the whole set still fits one Cloudflare purge call (' . count( array_unique( $urls ) ) . ' of 30 URLs)' );
 
+echo "\nGroup 3b: the résumé's agent copies (cached untagged, so only a URL purge reaches them)\n";
+$resume = (object) array( 'ID' => 9, 'post_type' => 'page', 'post_status' => 'publish', 'post_parent' => 0, 'post_name' => 'resume' );
+$ru     = sn_cf_post_purge_urls( 9, $resume );
+foreach ( array( '/resume.md', '/resume.md?lane=operations', '/resume/json-resume.json', '/resume/json-resume.json?lane=operations', '/resume/contact.vcf' ) as $copy ) {
+	ok( in_array( 'https://example.test' . $copy, $ru, true ), "a /resume save purges $copy" );
+}
+$cv = sn_cf_markdown_twin_urls( (object) array( 'ID' => 10, 'post_type' => 'page', 'post_name' => 'cv' ) );
+ok( in_array( 'https://example.test/cv.md', $cv, true ) && in_array( 'https://example.test/cv/json-resume.json', $cv, true ) && ! in_array( 'https://example.test/resume.md', $cv, true ), 'a /cv save purges /cv.md and its JSON Resume, in the twin list every save path sends (the tagged one included)' );
+ok( array() === array_filter( $urls, static fn( $u ) => false !== strpos( $u, 'resume' ) || false !== strpos( $u, '/cv' ) ), 'a note save purges none of them' );
+ok( 1 === count( sn_cf_markdown_twin_urls( (object) array( 'ID' => 11, 'post_type' => 'post', 'post_name' => 'resume' ) ) ), 'a note that happens to be named resume is not the résumé page' );
+
 echo "\nGroup 4: the freshness verdict says what it covered\n";
 $abil = (string) file_get_contents( __DIR__ . '/../inc/abilities-cache-freshness.php' );
 ok( false !== strpos( $abil, "'probe_scope' => 'permalink'" ),
