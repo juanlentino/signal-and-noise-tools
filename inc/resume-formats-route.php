@@ -121,7 +121,11 @@ function sn_resume_format_body( $kind, $slug, $lane = 'music' ) {
 	}
 	$ops = 'operations' === ( $resume['meta']['x-lane'] ?? '' ); // x-lane is set only while /resume has two lanes.
 	$doc = 'cv' === $slug ? sn_resume_es_doc() : ( $ops ? sn_resume_lane_doc( sn_resume_doc_get_raw(), 'operations' ) : sn_resume_doc_get() );
-	return array( 'text/markdown; charset=utf-8', sn_resume_markdown( (array) $doc, $resume, sn_resume_formats( $slug ), 'cv' === $slug ? 'es' : 'en' ) );
+	$formats = sn_resume_formats( $slug );
+	if ( $ops ) {
+		unset( $formats['vcard'] ); // the contact card is the music résumé's; the operations copies never link it.
+	}
+	return array( 'text/markdown; charset=utf-8', sn_resume_markdown( (array) $doc, $resume, $formats, 'cv' === $slug ? 'es' : 'en' ) );
 }
 
 /** template_redirect at 0: the format routes, ?output_format=markdown, the Link header. */

@@ -183,7 +183,9 @@ function sn_jsonresume_skills( array $doc ) {
 	$skills    = array();
 	$languages = array();
 	foreach ( $doc['skills'] ?? array() as $row ) {
-		$items = array_values( array_filter( array_map( 'trim', (array) preg_split( '~,(?![^()]*\))~u', $row['items'] ) ), 'strlen' ) );
+		// ponytail: nested or unbalanced parentheses split imperfectly; a small depth-counting splitter if real data ever needs it.
+		$split = preg_split( '~,(?![^()]*\))~u', (string) $row['items'] );
+		$items = array_values( array_filter( array_map( 'trim', false === $split ? explode( ',', (string) $row['items'] ) : $split ), 'strlen' ) ); // false: not valid UTF-8, split on every comma as before.
 		if ( in_array( $row['category'], array( 'Languages', 'Idiomas' ), true ) ) {
 			foreach ( $items as $item ) {
 				$languages[] = preg_match( '~^(.+?)\s*\((.+)\)$~u', $item, $m ) ? array( 'language' => $m[1], 'fluency' => $m[2] ) : array( 'language' => $item );
