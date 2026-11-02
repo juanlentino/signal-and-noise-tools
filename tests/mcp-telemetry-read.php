@@ -144,17 +144,20 @@ echo "\nGroup: the window completes once the TABLE is as old as it (2026-10-12 a
 // a window measured that way never completed: "Partial window" forever, with
 // a "Recording began" date that slid every day once the prune started.
 $wpdb->rows   = array( sn_test_row( $first_tool, 2, $ago( 89.5 ), $ago( 1 ) ) );
-$wpdb->min_ts = $ago( 120 );
+$began        = $ago( 120 ); // one value: a second can tick between two $ago() calls.
+$wpdb->min_ts = $began;
+$window_start = $ago( 90 );
 $u            = sn_mcp_telemetry_usage( 90 );
 ok( true === $u['complete'] && 90 === $u['measured_days'], 'a table older than the window completes it, though the window\'s own first row is 89 days old' );
-ok( $ago( 120 ) === $u['recording_began'] && substr( $u['since'], 0, 10 ) === substr( $ago( 90 ), 0, 10 ), 'recording began at the table\'s first row; a complete window counts from its own start' );
+ok( $began === $u['recording_began'] && substr( $u['since'], 0, 10 ) === substr( $window_start, 0, 10 ), 'recording began at the table\'s first row; a complete window counts from its own start' );
 $wpdb->rows   = array( sn_test_row( $first_tool, 2, $ago( 89.2 ), $ago( 1 ) ) );
 $wpdb->min_ts = $ago( 89.2 );
 ok( true === sn_mcp_telemetry_usage( 90 )['complete'], 'a table that began 89 whole days ago completes a 90-day window (the last day is today)' );
-$wpdb->rows   = array( sn_test_row( $first_tool, 2, $ago( 40 ), $ago( 1 ) ) );
-$wpdb->min_ts = $ago( 40 );
+$began        = $ago( 40 );
+$wpdb->rows   = array( sn_test_row( $first_tool, 2, $began, $ago( 1 ) ) );
+$wpdb->min_ts = $began;
 $u            = sn_mcp_telemetry_usage( 90 );
-ok( false === $u['complete'] && 40 === $u['measured_days'] && $ago( 40 ) === $u['since'], 'a younger table is a partial window, measured from when recording began' );
+ok( false === $u['complete'] && 40 === $u['measured_days'] && $began === $u['since'], 'a younger table is a partial window, measured from when recording began' );
 $wpdb->min_ts = null;
 
 echo "\nGroup: the remote door is a door, and the ledger knows a door's list (2026-10-12 audit)\n";
@@ -215,7 +218,7 @@ ok( 5 === $u['by_tool'][ $first_tool ]['calls'], 'calls sum across door/outcome 
 ok( 5 === $u['total_rows'], 'total_rows sums every group' );
 ok( array( 'read', 'rw' ) === $u['by_tool'][ $first_tool ]['doors'], 'both doors are recorded, de-duplicated' );
 ok( 3 === $u['by_tool'][ $first_tool ]['outcomes']['success'] && 2 === $u['by_tool'][ $first_tool ]['outcomes']['refused'], 'outcomes are counted separately' );
-ok( $u['by_tool'][ $first_tool ]['last_seen'] === $ago( 1 ), 'last_seen is the LATEST across groups' );
+ok( $u['by_tool'][ $first_tool ]['last_seen'] === $wpdb->rows[0]['last_seen'], 'last_seen is the LATEST across groups' ); // the fixture's own value: no second $ago() to race.
 
 echo "\nGroup: one ability is one row, whichever door spelled it (#1587)\n";
 // The MCP doors write the projected name, the direct door writes the slug core
@@ -236,7 +239,7 @@ $wpdb->rows = array(
 $u = sn_mcp_telemetry_usage( 90 );
 ok( 2 === count( $u['by_tool'] ) && isset( $u['by_tool'][ $first_tool ] ) && isset( $u['by_tool']['signal-and-noise__verify-page'] ), 'the three spellings are ONE row under the projected name; the theme tool keeps its own' );
 ok( 30003 === $u['by_tool'][ $first_tool ]['calls'] && 3 === $u['by_tool'][ $first_tool ]['door_calls'] && 30000 === $u['by_tool'][ $first_tool ]['direct_calls'], 'calls is every door; door_calls leaves direct out (one rw + two read = 3 against 30,000 direct)' );
-ok( array( 'read', 'rw', 'direct' ) === $u['by_tool'][ $first_tool ]['doors'] && $ago( 1 ) === $u['by_tool'][ $first_tool ]['last_seen'], 'the folded row carries every door and the latest last_seen' );
+ok( array( 'read', 'rw', 'direct' ) === $u['by_tool'][ $first_tool ]['doors'] && $wpdb->rows[2]['last_seen'] === $u['by_tool'][ $first_tool ]['last_seen'], 'the folded row carries every door and the latest last_seen' );
 ok( array( 'read' => 6, 'rw' => 1, 'direct' => 30000 ) === $u['by_door'] && array_sum( $u['by_door'] ) === $u['total_rows'], 'by_door is door => calls and sums to total_rows' );
 ok( ! in_array( $first_tool, array_column( $u['zero_call'], 'tool' ), true ), 'a tool with door calls under the other spellings is NOT a zero-call entry' );
 

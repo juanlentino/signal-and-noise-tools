@@ -312,10 +312,6 @@ function sn_resume_doc_normalize( $doc ) {
 		}
 	}
 
-	if ( empty( $experience ) && empty( $publications ) ) {
-		return null; // Not a resume — refuse rather than save something blankable.
-	}
-
 	$out = array(
 		'hero'         => $hero,
 		'stats'        => $stats,
@@ -336,6 +332,12 @@ function sn_resume_doc_normalize( $doc ) {
 	}
 	if ( null !== $variants ) {
 		$out['variants'] = $variants;
+	}
+	// Not a resume: refuse rather than save something blankable. The test is
+	// the music view, the public page, so rows marked "Operations only" do not count.
+	$music = sn_resume_doc_view( $out, 'music' );
+	if ( empty( $music['experience'] ) && empty( $music['publications'] ) ) {
+		return null;
 	}
 	return $out;
 }

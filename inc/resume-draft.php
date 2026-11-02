@@ -119,15 +119,16 @@ function sn_resume_draft_status() {
 }
 
 /**
- * After the live document changed: rebuild the PDF when one exists (the
- * generator re-syncs the Page and purges every cache), else purge /resume.
+ * After the live document changed: rebuild the PDFs when one exists (the
+ * generator re-syncs the Page and purges the files' own URLs), else purge
+ * /resume.
  *
- * @return bool False when the PDF rebuild failed.
+ * @return bool False when the music or the operations PDF failed to rebuild.
  */
 function sn_resume_refresh_outputs() {
 	$pdf_option = defined( 'SN_RESUME_PDF_OPTION' ) ? SN_RESUME_PDF_OPTION : 'sn_resume_pdf';
 	if ( is_array( get_option( $pdf_option ) ) && function_exists( 'sn_resume_pdf_generate' ) ) {
-		return ! is_wp_error( sn_resume_pdf_generate() );
+		return ! is_wp_error( sn_resume_pdf_generate() ) && ! ( function_exists( 'sn_resume_ops_pdf_failed' ) && sn_resume_ops_pdf_failed() );
 	}
 	if ( function_exists( 'sn_content_route_purge' ) ) {
 		sn_content_route_purge( '/resume' );

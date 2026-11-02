@@ -65,6 +65,7 @@ ok( '6d1d9c490ab9132d236b9d67d1d2d4aa9b21d869' === sha1( sn_resume_page_body( $r
 sn_resume_lang( 'en' );
 $no_pdf = sn_resume_page_body( $raw ); // the operations PDF never generated.
 $GLOBALS['__opt']['sn_resume_pdf_operations'] = array( 'url' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf', 'sha256' => str_repeat( 'a', 64 ) );
+$GLOBALS['__opt']['sn_resume_pdf_operations_bytes'] = base64_encode( '%PDF-1.7' ); // live means a PDF is stored too.
 $body = sn_resume_page_body( $raw );
 ok( 1 === substr_count( $body, '<h1' ) && 1 === substr_count( $body, 'class="wp-block-group sn-resume-switch"' ), 'two lanes: one page title, one switch' );
 ok( 1 === substr_count( $body, 'id="resume-music"' ) && 1 === substr_count( $body, 'id="resume-operations"' ), 'two lanes: one group each, with its id' );
