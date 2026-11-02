@@ -109,7 +109,8 @@ career without bullets when it asks, only the sections it lists, and its "What I
 - **Receipts** (`inc/resume-receipts.php`): `credential_url` on education and affiliation rows shows
   `verify`, a publication's `url` is its title's link (no separate mark since the layout pass), a
   "What I've Built" `url` shows `code` after the project's text, never inside its heading; experience
-  and earlier entries take `receipt_url` + `receipt_type`, and roles `bullet_receipts` keyed like
+  and earlier entries take `receipt_url` + `receipt_type` (an employer's shows at the end of its date
+  and place line, never inside its heading), and roles `bullet_receipts` keyed like
   `bullet_variants`. `credential_url`, `receipt_url` and `bullet_receipts` take https only; a
   publication's and a project's `url` take http or https. The English page shows them; the PDFs never
   do.

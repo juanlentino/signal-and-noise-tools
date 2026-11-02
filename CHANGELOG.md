@@ -17,7 +17,7 @@ adds a bullet below. A release is a separate, deliberate act:
   - The lane switch sits beside the page title, in a bottom-aligned 55/45 split of its own (`sn-resume-head-split`), so the title and the switch share one band.
   - What I've Built's cards sit in one `sn-resume-built-grid` group for the theme to lay out; the intro stays above it.
   - Each lane's headline is a real heading (h2, under the page's h1), not a styled paragraph.
-  - A project's `code` receipt follows its text instead of sitting inside its h3, so the heading's accessible name is the project's title alone.
+  - A project's `code` receipt follows its text instead of sitting inside its h3, and an employer's receipt (when its entry has one) ends its date and place line instead of sitting inside the employer's h3, so each heading's accessible name is the title alone.
   - A publication no longer carries a separate `paper` mark: its title already links to the same paper.
   - The contact rail joins its items with a no-break space before each dot, so a line never starts with "·". This is the one change to the Spanish /cv.
 

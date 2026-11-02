@@ -168,8 +168,10 @@ function sn_resume_employer_blocks( $entry ) {
 	if ( '' !== $entry['location'] ) {
 		$rail .= ( '' !== $rail ? '<br>' : '' ) . esc_html( $entry['location'] );
 	}
+	// The receipt ends the date and place line, so the heading's name is the employer alone.
+	$rail = ltrim( $rail . sn_resume_row_receipt( $entry, $entry['org'] ) );
 	$main = '<!-- wp:heading {"level":3,"className":"sn-resume-role"} -->' . "\n"
-		. '<h3 class="wp-block-heading sn-resume-role">' . esc_html( $entry['org'] ) . sn_resume_row_receipt( $entry, $entry['org'] ) . '</h3>' . "\n"
+		. '<h3 class="wp-block-heading sn-resume-role">' . esc_html( $entry['org'] ) . '</h3>' . "\n"
 		. '<!-- /wp:heading -->' . "\n\n";
 	foreach ( $entry['roles'] as $role ) {
 		$main .= sn_resume_role_blocks( $role );

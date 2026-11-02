@@ -197,6 +197,12 @@ $doc['experience'][0]['roles'][0]['bullet_receipts']    = array( sn_resume_bulle
 $doc  = sn_resume_doc_normalize( $doc );
 $html = sn_resume_body_html( sn_resume_doc_view( $doc, 'music' ) );
 ok( false !== strpos( $html, 'href="https://example.com/practice" rel="noopener" aria-label="Verify: ' ) && false !== strpos( $html, 'href="https://example.com/bullet" rel="noopener" aria-label="Paper: ' ), 'an entry and a bullet show their marks, named for what they back' );
+$no_h3_receipt = static fn( $h ) => 0 === preg_match( '#<h3[^>]*>(?:(?!</h3>).)*sn-resume-receipt#s', $h );
+ok( $no_h3_receipt( $html ) && 1 === preg_match( '#<p class="sn-resume-rail">Sep 2022 - Present<br>Remote <a class="sn-resume-receipt" href="https://example.com/practice"[^>]*>verify</a></p>#', $html ) && false !== strpos( $html, '<h3 class="wp-block-heading sn-resume-role">INDEPENDENT PRACTICE</h3>' ), 'an employer\'s receipt rides its date and place line, out of the heading (the heading\'s name is the employer alone)' );
+$with_org_receipt = $raw;
+$with_org_receipt['experience'][0]['receipt_url'] = 'https://example.com/practice';
+$org_body = sn_resume_page_body( sn_resume_doc_normalize( $with_org_receipt ) );
+ok( 2 === substr_count( $org_body, 'href="https://example.com/practice"' ) && $no_h3_receipt( $org_body ), 'and in both lanes of the two-lane page, no receipt sits inside any h3' );
 ok( false === strpos( $html, 'aria-label="Paper: Provenance' ) && false !== strpos( $html, '<a href="https://ssrn.com/abstract=6402298" rel="noopener">Provenance Over Detection' ) && false !== strpos( $html, 'parchment.com/lp/award/acd27b60-9389-4b6d-95e9-33c6755f53e5" rel="noopener" aria-label="Verify: MBA' ), 'the papers carry no mark of their own (each title links to the paper), and the MBA shows its verify mark from the link already stored' );
 sn_resume_lang( 'es' );
 ok( false === strpos( sn_resume_body_html( sn_resume_doc_view( $doc, 'music' ) ), 'sn-resume-receipt' ), 'the Spanish page shows no marks' );
