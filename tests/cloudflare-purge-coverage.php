@@ -109,7 +109,7 @@ ok( count( array_unique( $urls ) ) <= 30, 'the whole set still fits one Cloudfla
 echo "\nGroup 3b: the résumé's agent copies (cached untagged, so only a URL purge reaches them)\n";
 $resume = (object) array( 'ID' => 9, 'post_type' => 'page', 'post_status' => 'publish', 'post_parent' => 0, 'post_name' => 'resume' );
 $ru     = sn_cf_post_purge_urls( 9, $resume );
-foreach ( array( '/resume.md', '/resume.md?lane=operations', '/resume/json-resume.json', '/resume/json-resume.json?lane=operations', '/resume/contact.vcf' ) as $copy ) {
+foreach ( array( '/resume.md', '/resume.md?lane=operations', '/resume/json-resume.json', '/resume/json-resume.json?lane=operations', '/resume/contact.vcf', '/resume/?lane=operations&output_format=markdown' ) as $copy ) {
 	ok( in_array( 'https://example.test' . $copy, $ru, true ), "a /resume save purges $copy" );
 }
 $cv = sn_cf_markdown_twin_urls( (object) array( 'ID' => 10, 'post_type' => 'page', 'post_name' => 'cv' ) );

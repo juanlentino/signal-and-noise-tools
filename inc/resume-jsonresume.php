@@ -26,7 +26,8 @@ require_once __DIR__ . '/resume-jsonresume-parts.php';
 const SN_JSONRESUME_SCHEMA = 'https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json';
 
 /**
- * The basics block: identity, contact already public, location, profiles.
+ * The basics block: identity, the public email, location, profiles. Never a
+ * phone, whatever pdf.phone_public says: that switch is the PDF's alone.
  *
  * @param array $doc Normalized résumé document.
  * @param array $ctx See sn_jsonresume_build().
@@ -39,7 +40,6 @@ function sn_jsonresume_basics( array $doc, array $ctx ) {
 		'name'    => (string) ( $ctx['name'] ?? '' ),
 		'label'   => (string) ( $pdf['headline'] ?? '' ),
 		'email'   => (string) ( $pdf['email'] ?? '' ),
-		'phone'   => ! empty( $pdf['phone_public'] ) ? (string) ( $pdf['phone'] ?? '' ) : '',
 		'url'     => (string) ( $ctx['url'] ?? '' ),
 		'summary' => (string) ( $hero['summary'] ?? '' ),
 	);
