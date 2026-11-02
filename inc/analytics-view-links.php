@@ -16,6 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/analytics-panels.php'; // snt_an_kv_table(), the empty-fold collector.
+require_once __DIR__ . '/analytics-resume-lanes.php'; // the owner-only résumé lanes panel.
 
 const SN_LINK_CODES_ALSO_SHOWN = 5;
 
@@ -99,6 +100,8 @@ function snt_analytics_render_view_links( $from, $to ) {
 			)
 		);
 	}
+
+	snt_analytics_render_resume_lanes( $from, $to ); // owner only: per-lane views, time, scroll and clicks (inc/analytics-resume-lanes.php).
 
 	snt_an_flush_empty_fold();
 }

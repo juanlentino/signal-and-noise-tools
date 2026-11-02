@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **A Résumé lanes panel in the analytics Links view, owner only.** Per /resume lane, music and operations, for the chosen window: views, average time and scroll per view (the rows read's `resume_lane`, Analytics Engine, human class), clicks on the switch link to that lane (`resume_lane_<lane>`) and on that lane's edition mark (`resume_hunk_<lane>`). The beacon already sends any `data-sn-goal` click as a custom event and the worker keeps any name, so the four goals needed no registry; the panel reads them from the stored events. Lanes only: no link code or per-code number. Classic and native twin (`paint_resume_lanes()`), both gated on `manage_options`; a refused lane read (older than about 90 days) says why. `inc/analytics-resume-lanes.php` (new), `inc/analytics-view-links.php`, `apps/sn-analytics/parts/painters/view-links.php`. Tests: `tests/analytics-resume-lanes.php` (new, 18), `tests/analytics-rows-resume-lane.php` (the owner-only file list adds the panel).
+
 ## [2026.11.9] - 2026-11-02 — Résumé lanes as documents: edition marks, per-lane heads and PDFs, no phone anywhere
 
 ### Added
