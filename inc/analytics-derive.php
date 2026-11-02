@@ -42,8 +42,9 @@
  * 250, and the original `scroll_sum / views` ratio read 113% live. Because the
  * milestones are evenly spaced and fire at most once per view,
  * 25 × scroll_events IS the sum of per-view max depths, so
- * `scroll_avg_per_view` = 25 × scroll_events / views is the TRUE mean max
- * scroll depth (0–100) — same identity per visitor-day for
+ * `scroll_avg_per_view` = 25 × scroll_events / views is the mean max
+ * scroll depth (0–100 unsampled; under sampling a weighted estimate, and a thin
+ * row can read above 100) — same identity per visitor-day for
  * `scroll_avg_per_visit`. Since v9.66.0 (daily schema v6) the STORED
  * `scroll_sum` column is re-based to the SAME identity (25 × scroll_events,
  * true depth units; the v5-era raw milestone-point rows were repaired by the
