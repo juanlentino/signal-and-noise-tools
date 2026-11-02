@@ -48,7 +48,13 @@ if ( '' !== $which ) {
 	$words = static function ( $t ) { preg_match_all( '/[^\s.,;:()]+/u', $t, $m ); return array_count_values( $m[0] ); };
 	ok( count( $words( $text ) ) > 100 && $words( $ref ) == $words( $text ), 'it reads the same words as pdftotext, as often' ); // == : same pairs, any order.
 } else {
-	echo "SKIP: pdftotext is not installed; the strings above still had to be read\n";
+	// Under CI a missing pdftotext fails (ci.yml installs poppler-utils): a skipped oracle there is a false green.
+	$ci = (string) getenv( 'CI' );
+	if ( '' !== $ci && '0' !== $ci && 'false' !== strtolower( $ci ) ) {
+		ok( false, 'pdftotext is installed under CI, so the reader is held to it (poppler-utils in .github/workflows/ci.yml)' );
+	} else {
+		echo "SKIP: pdftotext is not installed, so the reader was NOT compared with it; the strings above still had to be read\n";
+	}
 }
 
 echo "\nGroup: the flags\n";
