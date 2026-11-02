@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SNT_AROWS_EVENTS_DAYS = 90;   // what Analytics Engine keeps, about.
 const SNT_AROWS_EVENTS_CAP  = 5000; // rows per query half, under AE's 10,000-row strict cap.
-const SNT_AROWS_EVENTS_COLS = array( 'path' => 'blob2', 'link_code' => 'blob2', 'country' => 'blob4', 'device' => 'blob5', 'region' => 'blob10', 'city' => 'blob11' ); // referrer: sn_analytics_referrer_value_sql(), as the dims rollup.
+const SNT_AROWS_EVENTS_COLS = array( 'path' => 'blob2', 'link_code' => 'blob2', 'resume_lane' => 'toUInt32(double17)', 'country' => 'blob4', 'device' => 'blob5', 'region' => 'blob10', 'city' => 'blob11' ); // referrer: sn_analytics_referrer_value_sql(), as the dims rollup. double17: the second generation only; the legacy row has no such double and reads 0.
 
 /**
  * Whether the stored rollups hold this query as one row per value. PURE.
@@ -61,6 +61,10 @@ function snt_arows_plan( array $q, $from, $today ) {
 	}
 	if ( ! empty( $q['sessions'] ) ) {
 		return 'sessions'; // the sessions engine, over the same Analytics Engine days (inc/analytics-rows-sessions.php).
+	}
+	// Only the second generation stores the lane; while it is not verified the legacy dataset answers whole and would read every view as (unknown).
+	if ( in_array( 'resume_lane', $q['dims'], true ) && function_exists( 'sn_analytics_v2_clean_from' ) && '' === sn_analytics_v2_clean_from() ) {
+		return new WP_Error( 'ability_invalid_input', 'resume_lane is stored in the second-generation dataset only, which does not answer reads right now (not verified); ask again once it does.', array( 'status' => 400 ) );
 	}
 	if ( null !== $q['path'] && ! preg_match( '#^/[A-Za-z0-9/._~%@!$&()*+,;=:-]*$#', $q['path'] ) ) {
 		return new WP_Error( 'ability_invalid_input', 'that path cannot be filtered in Analytics Engine; ask the stored rows for it (path or day).', array( 'status' => 400 ) );
@@ -170,12 +174,13 @@ function snt_arows_events_fetch( array $q, $from, $to ) {
 			}
 		}
 	}
-	// A view's time and scroll beacons share its row only by page and day, as the stored
-	// rollup keeps them: the next hour, or another city when geolocation moves between a
-	// reader's requests, takes them (475% scroll per view was read live), and a beacon
-	// carries no referrer, so a referrer filter puts them all under (direct). Elsewhere
-	// they are null, and a row of beacons only (no view) is dropped.
-	$own  = ! array_diff( $q['dims'], array( 'path', 'link_code', 'day' ) ) && null === $q['referrer'];
+	// A view's time and scroll beacons share its row only by page, résumé lane and day,
+	// as the stored rollup keeps them (the beacon reads the lane once per view and sends
+	// it on every beacon of it): the next hour, or another city when geolocation moves
+	// between a reader's requests, takes them (475% scroll per view was read live), and a
+	// beacon carries no referrer, so a referrer filter puts them all under (direct).
+	// Elsewhere they are null, and a row of beacons only (no view) is dropped.
+	$own  = ! array_diff( $q['dims'], SNT_AROWS_TIMED ) && null === $q['referrer'];
 	$rows = array();
 	foreach ( $by as $m ) {
 		if ( $m['views'] > 0 ) {

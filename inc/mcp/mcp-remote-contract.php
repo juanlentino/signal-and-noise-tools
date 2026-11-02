@@ -128,7 +128,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // (remote-analytics-sessions: sessions one by one, the Sessions tab's list),
 // and the rows read's session dimensions (entry, exit, returning; a sessions
 // metric on every row, null outside source sessions).
-const SN_REMOTE_CONTRACT_VERSION = '28';
+// 2026-11-02 (owner-only measurement of the /resume lanes): '28' -> '29'. Each
+// analytics-rows row may carry resume_lane, the lane a /resume view showed
+// (music, operations or (unknown)), from Analytics Engine double17. Additive.
+const SN_REMOTE_CONTRACT_VERSION = '29';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -192,6 +195,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	// RED-then-pin, 2026-11-01: rows gained region, city, hour, from, to, source.
 	'27' => 'e6e74803f1384469f32c22fa342f2e316604a636d8bade817d749e98cd66098d',
 	'28' => '534f2b91068746076f6d41c5b1a5db81d94a50a1cbd52974f10819ee4c1c8089',
+	// RED-then-pin, 2026-11-02: analytics-rows rows gained resume_lane.
+	'29' => 'baabfb2a3a21b1eef058da9fbc7320355e733a8d8a5bdf52162e204a00487c57',
 );
 
 /**
