@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **The machine-readability page names the résumé.** A `Résumé versions` coverage chip, live, joins the twelve on `[sn_machine_maturity]`, and the roadmap board's code floor gains a fifth Machine readability done row (now at the five-row ceiling): "The résumé served as two versions at two addresses, each under its own title, with machine copies (Markdown and JSON Resume) that name both versions; each version marks what only it holds, and no version, human or machine, carries a phone number". Code default only; the three-way merge carries the new cell to the live board unless the override moved that cell. Floor md5 pin re-pinned. `inc/machine-maturity-page.php`, `inc/maturity-roadmap-shortcode-board-parts.php`. Tests: `tests/maturity-family.php`, `tests/maturity-roadmap-shortcode.php`.
+
 ## [2026.11.9] - 2026-11-02 — Résumé lanes as documents: edition marks, per-lane heads and PDFs, no phone anywhere
 
 ### Added

@@ -164,7 +164,11 @@ $m_scope = sn_machine_maturity_scope();
 foreach ( array( 'reservation', 'signal', 'licence', 'policy', 'vocabulary', 'identity' ) as $row ) {
 	ok( isset( $m_scope[ $row ] ) && 'live' === $m_scope[ $row ][1], "coverage carries the $row row, live" );
 }
-ok( 12 === count( $m_scope ), 'twelve coverage rows (five original + the four rights surfaces + the terms vocabulary + identity discovery, v11.27.0 + behavioural deviation detection, v13.76.0)' );
+ok( 13 === count( $m_scope ), 'thirteen coverage rows (five original + the four rights surfaces + the terms vocabulary + identity discovery, v11.27.0 + behavioural deviation detection, v13.76.0 + the resume versions, 2026.11)' );
+ok( array( 'manifest', 'behaviour', 'reservation', 'signal', 'licence', 'policy', 'vocabulary', 'schema', 'feeds', 'cards', 'agents', 'identity', 'resume' ) === array_keys( $m_scope ), 'PIN: the twelve existing coverage rows keep their order, and the resume row is appended last' );
+ok( 'Résumé versions' === $m_scope['resume'][0] && 'live' === $m_scope['resume'][1], 'the resume row is labeled and live' );
+ok( false !== strpos( sn_machine_maturity_shortcode( array( 'format' => 'scope' ) ), '<strong>Résumé versions</strong> live' ), 'the page renders the resume coverage chip' );
+ok( false !== strpos( $m_full, 'Résumé versions' ), 'and the full format carries it too' );
 // The layer list is ALSO stated as prose in two other places; both drift
 // silently, so both are pinned to mention the terms.
 ok( false !== strpos( sn_machine_maturity_shortcode( array( 'format' => 'compact' ) ), 'the terms on every response' ), 'the compact blurb names the terms too' );
