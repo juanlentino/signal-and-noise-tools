@@ -115,7 +115,9 @@ function sn_cf_markdown_twin_urls( $post ) {
 
 /**
  * /resume's and /cv's agent copies (inc/resume-formats-route.php): Markdown,
- * JSON Resume and vCard, each lane's. Listed, not derived: purging one the
+ * JSON Resume and vCard, each lane's, and the operations lane's
+ * ?output_format=markdown twin (the plain one is the permalink's, above).
+ * Listed, not derived: purging one the
  * edge does not hold is free.
  *
  * @param WP_Post|object $post
@@ -123,7 +125,7 @@ function sn_cf_markdown_twin_urls( $post ) {
  */
 function sn_cf_resume_format_urls( $post ) {
 	$copies = array(
-		'resume' => array( '/resume.md', '/resume.md?lane=operations', '/resume/json-resume.json', '/resume/json-resume.json?lane=operations', '/resume/contact.vcf' ),
+		'resume' => array( '/resume.md', '/resume.md?lane=operations', '/resume/json-resume.json', '/resume/json-resume.json?lane=operations', '/resume/contact.vcf', '/resume/?lane=operations&output_format=markdown' ),
 		'cv'     => array( '/cv.md', '/cv/json-resume.json' ),
 	);
 	$slug   = 'page' === ( $post->post_type ?? '' ) ? (string) ( $post->post_name ?? '' ) : '';
