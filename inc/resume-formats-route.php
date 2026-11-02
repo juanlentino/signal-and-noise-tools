@@ -95,7 +95,7 @@ function sn_resume_formats_surfaces( $surfaces ) {
 		'title'       => 'Résumé',
 		'description' => 'The résumé in every format, from one source: Markdown ' . $f['markdown'] . ', JSON Resume ' . $f['json_resume'] . ', PDF ' . ( $f['pdf'] ?? '' ) . ', vCard ' . $f['vcard'] . '.'
 			. ( isset( $f['pdf_operations'] ) ? ' The operations résumé (the page\'s second lane, ?lane=operations): Markdown ' . $f['markdown_operations'] . ', JSON Resume ' . $f['json_resume_operations'] . ', PDF ' . $f['pdf_operations'] . '.' : '' )
-			. $es . ' The page carries a Bitcoin-anchored authorship proof; the Markdown front matter and JSON Resume meta link its verify page.',
+			. $es . ( sn_resume_proof( sn_jsonresume_page( 'resume' ) ) ? ' The page carries a Bitcoin-anchored authorship proof; the Markdown front matter and JSON Resume meta link its verify page.' : '' ),
 	);
 	return $surfaces;
 }
