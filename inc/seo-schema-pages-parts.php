@@ -172,12 +172,16 @@ function sn_schema_webpage() {
 
 	$permalink   = get_permalink( $post );
 	$name        = wp_strip_all_tags( get_the_title( $post ) );
-	$description = sn_schema_article_description( $post );
+	// The view's own address and description, as the head names them
+	// (inc/resume-lane-address.php: /resume's operations lane). The breadcrumb
+	// reference below keeps the permalink: sn_schema_breadcrumb_list() mints its node there.
+	$url         = (string) apply_filters( 'sn_seo_view_url', $permalink, $post );
+	$description = (string) apply_filters( 'sn_seo_view_description', sn_schema_article_description( $post ), $post );
 
 	$webpage = array(
 		'@type'      => 'WebPage',
-		'@id'        => $permalink,
-		'url'        => $permalink,
+		'@id'        => $url,
+		'url'        => $url,
 		'name'       => $name,
 		'inLanguage' => function_exists( 'sn_lang_schema_language' ) ? sn_lang_schema_language() : str_replace( '_', '-', sn_setting( 'identity.locale', 'en_US' ) ),
 		'isPartOf'   => array(

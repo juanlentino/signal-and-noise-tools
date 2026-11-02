@@ -69,7 +69,7 @@ function sn_resume_prev_get() {
  * any earlier draft stands. Never touches the live document or the Page.
  *
  * @param mixed $doc Candidate document (the posted form).
- * @return bool False when refused.
+ * @return bool False when refused, or when the write did not happen.
  */
 function sn_resume_draft_save( $doc ) {
 	$doc = sn_resume_doc_normalize( $doc );
@@ -77,8 +77,10 @@ function sn_resume_draft_save( $doc ) {
 		return false;
 	}
 	$doc['updated'] = function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' );
-	update_option( SN_RESUME_DRAFT_OPTION, $doc, false );
-	return true;
+	// update_option() answers false for an unchanged value as well as for a
+	// failed write. The same draft saved twice in a day is already stored, so
+	// only a real write has to succeed.
+	return get_option( SN_RESUME_DRAFT_OPTION ) === $doc || update_option( SN_RESUME_DRAFT_OPTION, $doc, false );
 }
 
 /** Drop the draft and any Page autosave built from it. @return void */
@@ -120,7 +122,8 @@ function sn_resume_draft_status() {
 
 /**
  * After the live document changed: rebuild the PDF when one exists (the
- * generator re-syncs the Page and purges every cache), else purge /resume.
+ * generator re-syncs the Page and purges every cache), else purge /resume and
+ * its agent copies.
  *
  * @return bool False when the PDF rebuild failed.
  */
@@ -131,6 +134,11 @@ function sn_resume_refresh_outputs() {
 	}
 	if ( function_exists( 'sn_content_route_purge' ) ) {
 		sn_content_route_purge( '/resume' );
+	}
+	// The agent copies are cached untagged, and a change the page body does not
+	// render (the email) rewrites no page: only their URLs reach them.
+	if ( function_exists( 'sn_cf_purge_urls' ) && function_exists( 'sn_cf_resume_format_urls' ) ) {
+		sn_cf_purge_urls( sn_cf_resume_format_urls( (object) array( 'post_type' => 'page', 'post_name' => 'resume' ) ) );
 	}
 	return true;
 }

@@ -52,8 +52,9 @@ require_once __DIR__ . '/public-stats-live.php'; // the live strip, filled clien
  * @return array{0:string,1:string} [from, to], YYYY-MM-DD inclusive.
  */
 function sn_public_stats_window() {
-	$to   = gmdate( 'Y-m-d', time() - DAY_IN_SECONDS );
-	$from = gmdate( 'Y-m-d', time() - ( SN_PUBLIC_STATS_DAYS * DAY_IN_SECONDS ) );
+	$now  = time();
+	$to   = gmdate( 'Y-m-d', $now - DAY_IN_SECONDS );
+	$from = gmdate( 'Y-m-d', $now - ( SN_PUBLIC_STATS_DAYS * DAY_IN_SECONDS ) );
 	return array( $from, $to );
 }
 

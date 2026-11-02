@@ -32,7 +32,18 @@ function sn_handle_resume_draft_save( $post ) {
 		return 'resume_failed';
 	}
 	$resume = isset( $post['resume'] ) && is_array( $post['resume'] ) ? (array) wp_unslash( $post['resume'] ) : array();
-	return sn_resume_draft_save( $resume ) ? 'resume_draft_saved' : 'resume_draft_refused';
+	return sn_resume_draft_save( $resume ) ? 'resume_draft_saved' : sn_resume_draft_unsaved_code( $resume );
+}
+
+/**
+ * Why sn_resume_draft_save() stored nothing: normalize refused the document
+ * (the owner's to fix), or the write did not happen.
+ *
+ * @param mixed $doc The document the save was handed.
+ * @return string Flash code.
+ */
+function sn_resume_draft_unsaved_code( $doc ) {
+	return null === sn_resume_doc_normalize( $doc ) ? 'resume_draft_refused' : 'resume_draft_failed';
 }
 
 /**
@@ -168,7 +179,7 @@ function sn_handle_resume_operations_setup( $post ) { // phpcs:ignore Generic.Co
 	$set = sn_resume_operations_setup( $base );
 	update_option( 'sn_resume_ops_setup_missing', $set['missing'], false );
 	if ( ! sn_resume_draft_save( $set['doc'] ) ) {
-		return 'resume_draft_refused';
+		return sn_resume_draft_unsaved_code( $set['doc'] );
 	}
 	return $set['missing'] ? 'resume_ops_setup_partial' : 'resume_ops_setup';
 }

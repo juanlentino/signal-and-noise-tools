@@ -9,7 +9,8 @@
  *   /resume/contact.vcf              the vCard (inc/resume-vcard.php)
  *
  * The résumé HTML also sends `Link: </resume.md>; rel="alternate";
- * type="text/markdown"`: the rights-signals worker, asked for the page with
+ * type="text/markdown"` (`</resume.md?lane=operations>` on the operations
+ * lane): the rights-signals worker, asked for the page with
  * `Accept: text/markdown`, serves that file instead of converting the HTML.
  * An older worker ignores the header and converts as before, so either side
  * can ship first. Everything answers only while the page is published, and
@@ -66,6 +67,7 @@ function sn_resume_formats( $slug ) {
 		array(
 			'html'                   => (string) get_permalink( $page ),
 			'markdown'               => home_url( '/' . $slug . '.md' ),
+			'markdown_operations'    => '' !== $ops ? home_url( '/' . $slug . '.md?lane=operations' ) : '',
 			'pdf'                    => $pdf,
 			'pdf_operations'         => $ops,
 			'json_resume'            => home_url( '/' . $slug . '/' . SN_JSONRESUME_FILE ),
@@ -93,8 +95,8 @@ function sn_resume_formats_surfaces( $surfaces ) {
 		'format'      => 'text/html',
 		'title'       => 'Résumé',
 		'description' => 'The résumé in every format, from one source: Markdown ' . $f['markdown'] . ', JSON Resume ' . $f['json_resume'] . ', PDF ' . ( $f['pdf'] ?? '' ) . ', vCard ' . $f['vcard'] . '.'
-			. ( isset( $f['pdf_operations'] ) ? ' The operations résumé (the page\'s second lane, ?lane=operations): JSON Resume ' . $f['json_resume_operations'] . ', PDF ' . $f['pdf_operations'] . '.' : '' )
-			. $es . ' The page carries a Bitcoin-anchored authorship proof; the Markdown front matter and JSON Resume meta link its verify page.',
+			. ( isset( $f['pdf_operations'] ) ? ' The operations résumé (the page\'s second lane, ?lane=operations): Markdown ' . $f['markdown_operations'] . ', JSON Resume ' . $f['json_resume_operations'] . ', PDF ' . $f['pdf_operations'] . '.' : '' )
+			. $es . ( sn_resume_proof( sn_jsonresume_page( 'resume' ) ) ? ' The page carries a Bitcoin-anchored authorship proof; the Markdown front matter and JSON Resume meta link its verify page.' : '' ),
 	);
 	return $surfaces;
 }
@@ -119,7 +121,11 @@ function sn_resume_format_body( $kind, $slug, $lane = 'music' ) {
 	}
 	$ops = 'operations' === ( $resume['meta']['x-lane'] ?? '' ); // x-lane is set only while /resume has two lanes.
 	$doc = 'cv' === $slug ? sn_resume_es_doc() : ( $ops ? sn_resume_lane_doc( sn_resume_doc_get_raw(), 'operations' ) : sn_resume_doc_get() );
-	return array( 'text/markdown; charset=utf-8', sn_resume_markdown( (array) $doc, $resume, sn_resume_formats( $slug ), 'cv' === $slug ? 'es' : 'en' ) );
+	$formats = sn_resume_formats( $slug );
+	if ( $ops ) {
+		unset( $formats['vcard'] ); // the contact card is the music résumé's; the operations copies never link it.
+	}
+	return array( 'text/markdown; charset=utf-8', sn_resume_markdown( (array) $doc, $resume, $formats, 'cv' === $slug ? 'es' : 'en' ) );
 }
 
 /** template_redirect at 0: the format routes, ?output_format=markdown, the Link header. */
@@ -146,12 +152,7 @@ function sn_resume_formats_maybe_serve() {
 	if ( null === $body ) {
 		return;
 	}
-	status_header( 200 );
-	header( 'Content-Type: ' . $body[0] );
-	header( 'Cache-Control: public, max-age=300' );
-	header( 'Access-Control-Allow-Origin: *' );
-	header( 'X-Robots-Tag: noindex' );
-	header( 'Link: <' . esc_url_raw( (string) get_permalink( sn_jsonresume_page( $route[1] ) ) ) . '>; rel="canonical"', false );
+	sn_resume_format_send( $body[0], $route[1], 'md' === $route[0] ? $lane : 'music' ); // the vCard has no lane.
 	if ( 'vcf' === $route[0] ) {
 		header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( strtolower( (string) get_bloginfo( 'name' ) ) ) . '.vcf"' );
 	}
@@ -168,9 +169,7 @@ function sn_resume_formats_maybe_serve() {
  * @return string
  */
 function sn_resume_markdown_url( $slug, $lane ) {
-	$ops = 'resume' === $slug && 'operations' === $lane && function_exists( 'sn_resume_variant_config' )
-		&& null !== sn_resume_variant_config( sn_resume_doc_get_raw(), 'operations' );
-	return home_url( '/' . $slug . '.md' . ( $ops ? '?lane=operations' : '' ) );
+	return home_url( '/' . $slug . '.md' . sn_resume_lane_query( $slug, $lane ) );
 }
 
 /** wp_head: the Markdown and vCard alternates on the résumé pages. */
@@ -179,7 +178,9 @@ function sn_resume_formats_head_links() {
 	foreach ( array( 'resume', 'cv' ) as $slug ) {
 		if ( is_page( $slug ) && sn_jsonresume_page( $slug ) ) {
 			printf( '<link rel="alternate" type="text/markdown" href="%s" title="Résumé as Markdown">' . "\n", esc_url( sn_resume_markdown_url( $slug, $lane ) ) );
-			printf( '<link rel="alternate" type="text/vcard" href="%s" title="Contact card">' . "\n", esc_url( home_url( '/resume/contact.vcf' ) ) );
+			if ( '' === sn_resume_lane_query( $slug, $lane ) ) { // the contact card is the music résumé's; the operations lane never links it.
+				printf( '<link rel="alternate" type="text/vcard" href="%s" title="Contact card">' . "\n", esc_url( home_url( '/resume/contact.vcf' ) ) );
+			}
 		}
 	}
 }
