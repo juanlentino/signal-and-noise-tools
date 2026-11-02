@@ -99,7 +99,7 @@ career without bullets when it asks, only the sections it lists, and its "What I
   withdrawn for a phone drops its facts, and its Download goes with them.
 - **The operations résumé never carries the phone**, on the page or in its JSON Resume, whatever the
   music PDF's switch says.
-- **An update re-renders the page once** (`SN_RESUME_ENGINE_REV` in `inc/split-hero-migration.php`,
+- **An update re-renders the page once**, and /cv with it (`SN_RESUME_ENGINE_REV` in `inc/split-hero-migration.php`,
   5 since the layout pass: the switch beside the title, What I've Built's cards in one
   `sn-resume-built-grid` group, each lane's headline an h2, receipts out of headings, no separate
   mark on a publication, and a no-break space before each contact-rail dot).
