@@ -237,7 +237,7 @@ ok( 'https://juanlentino.com/resume.md?lane=operations' === ( $f_live['markdown_
 $hdr = sn_resume_format_headers( 'application/json; charset=utf-8', 'https://juanlentino.com/resume/' );
 ok( in_array( 'X-Robots-Tag: noindex', $hdr, true ) && in_array( 'Link: <https://juanlentino.com/resume/>; rel="canonical"', $hdr, true ) && in_array( 'Content-Type: application/json; charset=utf-8', $hdr, true ), 'a format answers noindex, with the page as canonical' );
 // header() records nothing under the CLI, so the wiring is read from the source: both routes send through it.
-ok( false !== strpos( (string) file_get_contents( "$root/inc/resume-jsonresume-route.php" ), "sn_resume_format_send( 'application/json; charset=utf-8', \$slug )" ) && false !== strpos( (string) file_get_contents( "$root/inc/resume-formats-route.php" ), 'sn_resume_format_send( $body[0], $route[1] )' ), 'the JSON Resume and the Markdown/vCard routes both send those headers' );
+ok( false !== strpos( (string) file_get_contents( "$root/inc/resume-jsonresume-route.php" ), "sn_resume_format_send( 'application/json; charset=utf-8', \$slug, " ) && false !== strpos( (string) file_get_contents( "$root/inc/resume-formats-route.php" ), "sn_resume_format_send( \$body[0], \$route[1], 'md' === \$route[0] ? \$lane : 'music' )" ), 'the JSON Resume and the Markdown/vCard routes both send those headers' );
 
 $ci = (string) getenv( 'CI' );
 if ( $skip > 0 && '' !== $ci && '0' !== $ci && 'false' !== strtolower( $ci ) ) {

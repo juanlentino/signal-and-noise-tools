@@ -77,12 +77,13 @@ function sn_jsonresume_for( $slug, $lane = 'music' ) {
 		array(
 			'name'          => function_exists( 'sn_setting' ) ? (string) sn_setting( 'identity.person_name', get_bloginfo( 'name' ) ) : (string) get_bloginfo( 'name' ),
 			'url'           => '' !== (string) ( $doc['pdf']['website'] ?? '' ) ? (string) $doc['pdf']['website'] : home_url( '/' ),
-			'canonical'     => (string) get_permalink( $page ),
+			'canonical'     => sn_resume_format_canonical( $slug, $lane ),
 			'last_modified' => (string) get_post_modified_time( 'c', false, $page ),
 			'version'       => defined( 'SNT_VERSION' ) ? SNT_VERSION : '',
 			'profiles'      => array_merge( function_exists( 'sn_schema_person' ) ? (array) ( sn_schema_person()['sameAs'] ?? array() ) : array(), $extra ),
 			'projects'      => (array) ( $doc['built']['items'] ?? array() ),
 			'lane'          => $lane,
+			'lanes'         => '' !== $lane ? sn_resume_lanes() : array(),
 			'provenance'    => sn_resume_proof( $page ),
 		)
 	);
@@ -99,7 +100,7 @@ function sn_jsonresume_maybe_serve() {
 	if ( null === $resume ) {
 		return;
 	}
-	sn_resume_format_send( 'application/json; charset=utf-8', $slug );
+	sn_resume_format_send( 'application/json; charset=utf-8', $slug, (string) ( $resume['meta']['x-lane'] ?? 'music' ) );
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- application/json from wp_json_encode.
 	echo wp_json_encode( $resume, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT );
 	exit;

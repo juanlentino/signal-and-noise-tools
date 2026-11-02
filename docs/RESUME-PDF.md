@@ -96,6 +96,10 @@ career without bullets when it asks, only the sections it lists, and its "What I
   only once that PDF exists (`sn_resume_ops_pdf_live()`); Generate syncs the page before it builds
   the operations file, so the operations build syncs it again, and purges the address. A PDF
   withdrawn for a phone drops its facts, and its Download goes with them.
+- **Each lane is its own address.** On `/resume/?lane=operations` the canonical, `og:url`, title,
+  description and ProfilePage name that lane, and its twins' `Link: rel="canonical"`, JSON
+  `meta.canonical` and Markdown `url` say `/resume/?lane=operations`; both lanes' twins list both
+  lanes (`lanes:`, `meta.x-lanes`). `inc/resume-lane-address.php`, `tests/resume-lane-heads.php`.
 - **The operations résumé never carries the phone**, on the page or in its JSON Resume, whatever the
   music PDF's switch says.
 - **An update re-renders the page once** (`SN_RESUME_ENGINE_REV` in `inc/split-hero-migration.php`,

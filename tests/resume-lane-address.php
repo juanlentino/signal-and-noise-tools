@@ -38,18 +38,22 @@ function is_tag() { return false; }
 function is_singular( $t = '' ) { return '' === $t || 'page' === $t; }
 function is_page( $s = '' ) { return '' === $s || $GLOBALS['__page'] === $s; }
 function sn_setting( $p, $d = null ) { return $d; }
-function get_queried_object() { return $GLOBALS['__post']; }
-function get_queried_object_id() { return $GLOBALS['__post']->ID; }
-function get_permalink( $p ) { return 'https://example.com/' . $GLOBALS['__page'] . '/'; }
+function get_queried_object() { return $GLOBALS['__posts'][ $GLOBALS['__page'] ]; }
+function get_queried_object_id() { return get_queried_object()->ID; }
+function get_permalink( $p ) { return 'https://example.com/' . $p->post_name . '/'; }
 function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); }
 function get_post_meta( $id, $k = '', $single = false ) { return ''; }
 function get_bloginfo( $k = '' ) { return 'Site'; }
 function get_the_title( $p = 0 ) { return 'Resume'; }
 function sn_post_settings_get_canonical_url( $id ) { return $GLOBALS['__override'] ?? ''; }
-function sn_jsonresume_page( $slug ) { return 'resume' === $slug ? $GLOBALS['__post'] : null; }
+function sn_jsonresume_page( $slug ) { return 'resume' === $slug ? $GLOBALS['__posts']['resume'] : null; }
 function sn_resume_doc_get_raw() { return array(); }
+function sn_resume_doc_view( $doc, $v = 'music' ) { return null; } // no document here: the description stays the page's (tests/resume-lane-heads.php reads a real one).
 function sn_resume_variant_config( $raw, $lane ) { return $GLOBALS['__ops'] ? array( 'pdf_file' => 'x.pdf' ) : null; }
-$GLOBALS['__post'] = (object) array( 'ID' => 1184, 'post_type' => 'page' );
+$GLOBALS['__posts'] = array(
+	'resume' => (object) array( 'ID' => 1184, 'post_type' => 'page', 'post_name' => 'resume' ),
+	'about'  => (object) array( 'ID' => 5, 'post_type' => 'page', 'post_name' => 'about' ),
+);
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -67,7 +71,7 @@ require $root . '/inc/bilingual-head.php';
 $hreflang_hooks = array_slice( $GLOBALS['__f']['wp_head'][2] ?? array(), count( $before ) ); // the hreflang printer bilingual-head.php adds
 $head = static function () use ( $hreflang_hooks ) { ob_start(); foreach ( $hreflang_hooks as list( $cb ) ) { $cb(); } return (string) ob_get_clean(); };
 
-$canon = static fn() => apply_filters( 'get_canonical_url', get_permalink( $GLOBALS['__post'] ), $GLOBALS['__post'] );
+$canon = static fn() => apply_filters( 'get_canonical_url', get_permalink( get_queried_object() ), get_queried_object() );
 $og    = static function () { list( , , $url ) = sn_seo_meta_for_current_view(); return $url; };
 $pair  = array( 'en' => 'https://example.com/resume/', 'es' => 'https://example.com/cv/' );
 
