@@ -170,8 +170,11 @@ $phone                        = $raw;
 $phone['pdf']['phone']        = '+1 555 123 4567';
 $phone['pdf']['phone_public'] = true; // the music PDF's switch.
 $pj = sn_jsonresume_build( sn_resume_lane_doc( $phone, 'operations' ), array( 'name' => 'x', 'lane' => 'operations' ) );
-$pm = sn_jsonresume_build( sn_resume_lane_doc( $phone, 'music' ), array( 'name' => 'x', 'lane' => 'music' ) );
+$pm = sn_jsonresume_build( sn_resume_doc_view( $phone, 'music' ), array( 'name' => 'x', 'lane' => 'music' ) ); // what the music JSON Resume reads (sn_resume_doc_get()).
 ok( '+1 555 123 4567' === ( $pm['basics']['phone'] ?? '' ) && ! isset( $pj['basics']['phone'] ) && false === strpos( (string) json_encode( $pj ), '555' ), 'the music PDF\'s phone switch never reaches the operations résumé: no phone in its JSON Resume' );
+$lm = sn_resume_lane_doc( $phone, 'music' );
+ok( '' === $lm['pdf']['phone'] && false === $lm['pdf']['phone_public'] && $lm['pdf']['headline'] === $phone['pdf']['headline'], 'the music lane\'s page document carries no phone either, whatever the switch says (its headline stays)' );
+ok( sha1( sn_resume_page_body( $raw ) ) === sha1( sn_resume_page_body( $phone ) ), 'and the two-lane page is the same with the phone set and public' );
 $jr = sn_jsonresume_build( sn_resume_lane_doc( $raw, 'operations' ), array( 'name' => 'Juan Lentino', 'projects' => sn_resume_lane_doc( $raw, 'operations' )['built']['items'], 'lane' => 'operations', 'profiles' => array( 'https://github.com/juanlentino' ) ) );
 ok( 'Founder and Operator' === ( $jr['basics']['label'] ?? '' ) && 0 === strpos( (string) ( $jr['basics']['summary'] ?? '' ), 'Founder-operator with 15+ years' ), 'its basics are the operations headline and summary' );
 ok( 3 === count( $jr['projects'] ?? array() ) && 'https://github.com/juanlentino/can-i-apply' === ( $jr['projects'][1]['url'] ?? '' ), 'What I\'ve Built is its projects' );

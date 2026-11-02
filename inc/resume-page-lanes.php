@@ -50,14 +50,19 @@ function sn_resume_lane_param( $v ) {
 function sn_resume_lane_doc( $raw, $lane ) {
 	$doc = sn_resume_doc_view( $raw, $lane );
 	$cfg = 'operations' === $lane ? sn_resume_variant_config( $raw, 'operations' ) : null;
-	if ( ! is_array( $doc ) || null === $cfg ) {
+	if ( ! is_array( $doc ) ) {
 		return $doc;
 	}
-	$doc['pdf'] = sn_resume_pdf_variant_header( (array) ( $doc['pdf'] ?? array() ), $cfg );
-	// The operations résumé never carries the phone, whatever the music PDF's
-	// switch says (sn_resume_variant_config()): not on the page, not in its JSON Resume.
+	// A lane document never carries the phone, whatever the music PDF's switch
+	// says: not on the page, not in the operations JSON Resume. The music PDF and
+	// the music JSON Resume read the stored document, not this.
+	$doc['pdf']                 = (array) ( $doc['pdf'] ?? array() );
 	$doc['pdf']['phone']        = '';
 	$doc['pdf']['phone_public'] = false;
+	if ( null === $cfg ) {
+		return $doc;
+	}
+	$doc['pdf'] = sn_resume_pdf_variant_header( $doc['pdf'], $cfg );
 	if ( '' !== $cfg['summary'] ) {
 		$doc['hero']['summary'] = $cfg['summary'];
 	}
