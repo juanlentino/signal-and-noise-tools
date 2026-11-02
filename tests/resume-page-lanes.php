@@ -75,7 +75,7 @@ ok( function_exists( 'snt_generated_page_guard' ) ? snt_generated_page_guard( 'r
 list( $head_html, $rest ) = explode( 'id="resume-music"', $body, 2 ) + array( '', '' );
 list( $music_html, $ops_html ) = explode( 'id="resume-operations"', $rest, 2 ) + array( '', '' );
 ok( false !== strpos( $ops_html, '>Founder and Operator</p>' ) && false !== strpos( $ops_html, "WHAT I&#039;VE BUILT" ) && false !== strpos( $ops_html, 'github.com/juanlentino</a>' ), 'the operations lane: its headline, What I\'ve Built, its extra link' );
-ok( false !== strpos( $ops_html, 'href="https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf"' ) && false === strpos( $music_html, 'Operations.pdf' ), 'each lane its own Download: the operations PDF only in the operations lane' );
+ok( false !== strpos( $ops_html, 'href="https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf?v=aaaaaaaa"' ) && false === strpos( $music_html, 'Operations.pdf' ), 'each lane its own Download: the operations PDF, with its ?v=, only in the operations lane' );
 ok( false === strpos( $no_pdf, 'Operations.pdf' ) && false !== strpos( $no_pdf, 'id="resume-operations"' ), 'before the operations PDF exists, its lane has no Download (never a link to a 404)' );
 ok( false !== strpos( $ops_html, '01 · Projects' ) && false !== strpos( $ops_html, '02 · Professional Experience' ) && false === strpos( $ops_html, 'PUBLICATIONS' ), 'the operations lane numbers what it shows, and leaves out what its sections leave out' );
 $rev               = $raw;

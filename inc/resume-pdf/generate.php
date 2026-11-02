@@ -53,7 +53,7 @@ function sn_resume_pdf_location() {
  * @param string $name      Header name.
  * @param string $cache_dir     Writable directory for Dompdf's font metrics cache.
  * @param bool   $include_phone True only for the private copy (never written to disk).
- * @param string $site_url      Home URL for the contact line ('' leaves it out).
+ * @param string $site_url      The lane's address for the contact line ('' leaves it out).
  * @param array|null $config    A variant's layout (sn_resume_pdf_html()); null is music.
  * @return array{bytes:string,pages:int}|WP_Error
  */
@@ -81,8 +81,7 @@ function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false, 
 		$dompdf = new \Dompdf\Dompdf( $options );
 		$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts', (bool) $include_phone, (string) $site_url, $config ), 'UTF-8' );
 		$dompdf->setPaper( 'letter', 'portrait' );
-		$dompdf->addInfo( 'Title', $name . ' — ' . ( function_exists( 'sn_resume_l' ) ? sn_resume_l( 'Resume', 'Curriculum vitae' ) : 'Resume' ) );
-		$dompdf->addInfo( 'Author', $name );
+		$dompdf->addInfo( 'Author', $name ); // the Title is the template's <title>: render() sets it from there, per lane.
 		$dompdf->render();
 
 		return array(
@@ -117,7 +116,7 @@ function sn_resume_pdf_generate() {
 	// PDF only). Default off; the private copy is the way to send it.
 	// The music variant's layout ("What I've Built" only when switched on).
 	$config = sn_resume_pdf_music_config( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : $doc );
-	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', ! empty( $doc['pdf']['phone_public'] ), home_url( '/' ), $config );
+	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', ! empty( $doc['pdf']['phone_public'] ), home_url( '/resume/' ), $config ); // the music lane's address.
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
@@ -247,7 +246,7 @@ function sn_resume_pdf_stream( $doc, $with_phone, $filename, $config = null ) {
 		return new WP_Error( 'sn_resume_pdf_stream', 'No resume document or uploads directory.' );
 	}
 	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', (bool) $with_phone, home_url( '/' ), $config );
+	$result = sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', (bool) $with_phone, home_url( '/resume/' ), $config ); // music copies: its lane's address.
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}

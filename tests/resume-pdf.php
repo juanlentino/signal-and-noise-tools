@@ -114,11 +114,11 @@ if ( '' !== $pdftotext ) {
 	ok( false !== strpos( (string) shell_exec( escapeshellarg( $pdftotext ) . ' ' . escapeshellarg( $cache . '/priv.pdf' ) . ' - 2>/dev/null' ), '(555) 010-4242' ), 'the private PDF bytes carry it (control: the check above can see a phone)' );
 }
 $gen_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.php' );
-ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'] . \'/.font-cache\', ! empty( $doc[\'pdf\'][\'phone_public\'] ), home_url( \'/\' ), $config );' ), 'Generate PDF includes the phone ONLY per the switch (and the music layout)' );
+ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'] . \'/.font-cache\', ! empty( $doc[\'pdf\'][\'phone_public\'] ), home_url( \'/resume/\' ), $config );' ), 'Generate PDF includes the phone ONLY per the switch (and the music layout), with the music lane\'s address' );
 // Drafts: ONE streamer (sn_resume_pdf_stream) serves the private copy and the
 // draft preview; each caller only picks the document, the phone and the name.
 $stream_src = substr( $gen_src, (int) strpos( $gen_src, 'function sn_resume_pdf_stream(' ) );
-ok( false !== strpos( $gen_src, 'function sn_resume_pdf_stream(' ) && 1 === preg_match( '/^function sn_resume_pdf_stream\( \$doc, \$with_phone, \$filename, \$config = null \) \{.*?sn_resume_pdf_render\( \$doc, \$name, [^;]*, \(bool\) \$with_phone, home_url\( \'\/\' \), \$config \);.*?header\( .Content-Disposition: attachment; filename="\' \. \$filename/s', $stream_src ) && false === strpos( $stream_src, 'file_put_contents' ), 'the shared streamer renders with the phone rule it is given, sends an attachment, and nothing after it writes to disk' );
+ok( false !== strpos( $gen_src, 'function sn_resume_pdf_stream(' ) && 1 === preg_match( '/^function sn_resume_pdf_stream\( \$doc, \$with_phone, \$filename, \$config = null \) \{.*?sn_resume_pdf_render\( \$doc, \$name, [^;]*, \(bool\) \$with_phone, home_url\( \'\/resume\/\' \), \$config \);.*?header\( .Content-Disposition: attachment; filename="\' \. \$filename/s', $stream_src ) && false === strpos( $stream_src, 'file_put_contents' ), 'the shared streamer renders with the phone rule it is given, sends an attachment, and nothing after it writes to disk' );
 ok( 1 === preg_match( '/function sn_resume_pdf_private_stream\(\) \{\s*return sn_resume_pdf_stream\( [^;]*sn_resume_doc_get\(\)[^;]*, true, \'JuanLentino_Resume_private\.pdf\', sn_resume_pdf_music_config\( sn_resume_doc_get_raw\(\) \) \);/', $gen_src ), 'the private copy streams the LIVE document WITH the phone' );
 ok( 1 === preg_match( '/function sn_resume_pdf_draft_stream\(\) \{\s*\$doc = [^;]*sn_resume_draft_get\(\)[^;]*;\s*return sn_resume_pdf_stream\( \$doc, ! empty\( \$doc\[\'pdf\'\]\[\'phone_public\'\] \), \'JuanLentino_Resume_draft\.pdf\', sn_resume_pdf_music_config\( sn_resume_draft_get\(\) \) \);/', $gen_src ), 'the draft preview streams the DRAFT under the public phone rule, as JuanLentino_Resume_draft.pdf' );
 
@@ -142,7 +142,7 @@ $web                     = $bare;
 $web['pdf']['website']   = 'https://example.org/work';
 $web_doc                 = sn_resume_doc_normalize( $web );
 $web_html                = sn_resume_pdf_html( $web_doc, 'Juan Lentino', '/fonts', false, 'https://www.juanlentino.com/' );
-ok( false !== strpos( $web_html, '<a href="https://example.org/work">example.org</a>' ) && false === strpos( $web_html, 'juanlentino.com</a>' ), 'the Website field wins over the home URL' );
+ok( false !== strpos( $web_html, '<a href="https://example.org/work">example.org/work</a>' ) && false === strpos( $web_html, 'juanlentino.com</a>' ), 'the Website field wins over the lane address, printed as it links' );
 
 echo "\nPublications: venue and date on the title's row\n";
 ok( 1 === preg_match( '#<table class="pub"><tr><td><a href="[^"]+">Provenance Over Detection[^<]*</a></td><td class="meta">SSRN Working Paper[^<]*</td></tr></table>#u', $html ), 'each publication is one row: linked title left, venue and date right' );

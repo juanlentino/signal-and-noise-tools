@@ -61,7 +61,7 @@ function sn_resume_formats( $slug ) {
 	// its JSON Resume (inc/resume-page-lanes.php).
 	$ops = 'resume' === $slug && function_exists( 'sn_resume_ops_pdf_live' ) && sn_resume_ops_pdf_live()
 		&& null !== sn_resume_variant_config( sn_resume_doc_get_raw(), 'operations' )
-		? (string) get_option( SN_RESUME_OPS_PDF_OPTION )['url'] : '';
+		? sn_resume_ops_pdf_link() : ''; // with its ?v=, as the music PDF.
 	return array_filter(
 		array(
 			'html'                   => (string) get_permalink( $page ),

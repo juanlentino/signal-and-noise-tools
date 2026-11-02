@@ -122,7 +122,7 @@ $gen_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.ph
 $tpl_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/template.php' );
 $dr_src  = (string) file_get_contents( __DIR__ . '/../inc/resume-draft.php' );
 $act_src = (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions/resume-draft.php' );
-ok( false !== strpos( $ops_src, "sn_resume_pdf_render( sn_resume_doc_view( \$raw, 'operations' ), \$name, \$loc['dir'] . '/.font-cache', false, home_url( '/' ), \$config );" ), 'the operations PDF renders the operations view, phone off' );
+ok( false !== strpos( $ops_src, "sn_resume_pdf_render( sn_resume_doc_view( \$raw, 'operations' ), \$name, \$loc['dir'] . '/.font-cache', false, home_url( '/resume/?lane=operations' ), \$config );" ), 'the operations PDF renders the operations view, phone off, with its lane\'s address' );
 ok( false !== strpos( $tpl_src, "\$include_phone = \$include_phone && false !== ( \$config['phone'] ?? null );" ), 'and the template refuses the phone whenever the variant says none' );
 $no_phone = sn_resume_pdf_html( $phone, 'Juan Lentino', $font, true, 'https://juanlentino.com/', $cfg );
 ok( false === strpos( $no_phone, '555-0123' ), 'even when a caller asks for the phone' );

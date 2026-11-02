@@ -31,6 +31,21 @@ try {
 }
 ok( is_wp_error( $thrown ) && 'sn_resume_pdf_render' === $thrown->get_error_code(), 'a renderer that throws returns an error, so Generate reports it instead of a fatal' );
 
+echo "\nGroup: each PDF its own lane's address\n";
+sn_test_pdf_reset( $set );
+sn_resume_pdf_generate();
+$music = (string) file_get_contents( $GLOBALS['tmp'] . '/resume/' . SN_RESUME_PDF_FILE );
+$mtext = sn_resume_pdf_text( $music );
+ok( 1 === preg_match( '~example\.test/resume(?!/\?lane=operations)~', $mtext ) && false !== strpos( $music, '/URI (https://example.test/resume/)' ), 'the music PDF prints and links its lane: /resume' );
+ok( false === strpos( $mtext, '?lane=operations' ) && false === strpos( $music, '?lane=operations' ), 'and not the operations lane\'s address' );
+ok( 'Juan Lentino, Resume' === sn_test_pdf_title( $music ), 'the music Info Title is today\'s: "' . sn_test_pdf_title( $music ) . '"' );
+// Held to the same document rendered with the bare home URL, which prints
+// main's contact line (tests/resume-variants.php pins that HTML to main's).
+$bare = sn_resume_pdf_render( sn_resume_doc_get(), 'Juan Lentino', $GLOBALS['tmp'] . '/cache', false, 'https://example.test/', sn_resume_pdf_music_config( sn_resume_doc_get_raw() ) );
+ok( str_replace( 'example.test', 'example.test/resume', sn_resume_pdf_text( $bare['bytes'] ) ) === $mtext, 'and nothing else in the music PDF changed: its text is main\'s but the address' );
+$ops = base64_decode( $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] );
+ok( false !== strpos( sn_resume_pdf_text( $ops ), 'example.test/resume/?lane=operations' ) && 'Juan Lentino · Résumé · Operations & AI Strategy' === sn_test_pdf_title( $ops ), 'the same Generate built the operations PDF with its own address and Info Title' );
+
 echo "\nGroup: the public phone\n";
 $pub                        = $set;
 $pub['pdf']['phone']        = '(407) 555-0123';

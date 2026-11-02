@@ -87,10 +87,18 @@ career without bullets when it asks, only the sections it lists, and its "What I
   The stored body carries neither attribute. The theme keeps `[hidden]` hidden over any group
   display rule, styles the switch, and switches in place with `assets/js/resume-switch.js`.
 - **The download follows the lane** because each lane has its own Download: the music PDF with its
-  `?v=`, and the operations PDF at its stable address (no `?v=`). The operations Download appears
-  only once that PDF exists (`sn_resume_ops_pdf_live()`); Generate syncs the page before it builds
-  the operations file, so the operations build syncs it again, and purges the address. A PDF
-  withdrawn for a phone drops its facts, and its Download goes with them.
+  `?v=`, and the operations PDF at its stable address with its own `?v=<first 8 of its SHA-256>`
+  (`sn_resume_ops_pdf_link()`, also what the format list and llms.txt name). The operations Download
+  appears only once that PDF exists (`sn_resume_ops_pdf_live()`); Generate syncs the page before it
+  builds the operations file, so the operations build syncs it again, and purges the address. A PDF
+  withdrawn for a phone drops its facts, and its Download goes with them; the bare address and the
+  `?v=` one the page linked are both purged.
+- **Each PDF points home.** Its contact line prints and links its own lane: the music PDF
+  `juanlentino.com/resume`, the operations PDF `juanlentino.com/resume/?lane=operations`, both from
+  `home_url()` so they follow the site (a filled Website field still wins). The Spanish CV keeps the
+  bare home URL. The Info Title is the template's `<title>` (Dompdf sets it from there on every
+  render): "Juan Lentino, Resume" for music, unchanged, and "Juan Lentino · Résumé · Operations & AI
+  Strategy" for operations.
 - **The operations résumé never carries the phone**, on the page or in its JSON Resume, whatever the
   music PDF's switch says.
 - **An update re-renders the page once** (`SN_RESUME_ENGINE_REV` in `inc/split-hero-migration.php`,
@@ -135,7 +143,7 @@ install; it is kept in step with the live document so the tests read current cop
 | PDF section | Source in `sn_resume_doc` |
 |---|---|
 | Name | the site title (`get_bloginfo( 'name' )`, filter `sn_resume_pdf_name`) |
-| Headline, tagline, contact line | `pdf.headline`, `pdf.tagline`; location = `pdf.location` else `hero.contact_line`; `pdf.phone` only per `pdf.phone_public` (public) or always (private copy); `pdf.email`; `hero.linkedin`; site = `pdf.website` else the home URL |
+| Headline, tagline, contact line | `pdf.headline`, `pdf.tagline`; location = `pdf.location` else `hero.contact_line`; `pdf.phone` only per `pdf.phone_public` (public) or always (private copy); `pdf.email`; `hero.linkedin`; site = `pdf.website` else the lane's own address (music `/resume/`, operations `/resume/?lane=operations`), printed without its scheme |
 | Professional summary | `pdf.summary`, else `hero.summary` |
 | Stats band | `stats[]` |
 | Core competencies | `pdf.competencies[]` (three columns) |
@@ -187,6 +195,12 @@ To update Dompdf: `cd lib/pdf && composer update`, then run `php tests/resume-pd
 ## Known limits
 
 - Two pages is a property of today's content, pinned by the test fixture. A much longer resume
-  will render a third page; the generator reports the count in the admin box.
+  will render a third page; the generator reports the count in the admin box, and the operations
+  check flags one over two.
+- Measured 2026-11-02, with each PDF printing its lane address: the seed fixture renders music 2
+  pages and operations 2. With the live header strings the music contact line fits on one line
+  (348 of 533 pt) and the operations one wraps "github.com/juanlentino" to a second line, one line
+  of 8.5 pt type; the live operations PDF's second page has 487 pt free and the music one's 81 pt,
+  so both stay at two.
 - The page-count and text read-back tests use the fixture, not the live option.
 - The stats band shows whatever `stats[]` holds; keep it consistent with the summary.
