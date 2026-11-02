@@ -144,17 +144,20 @@ echo "\nGroup: the window completes once the TABLE is as old as it (2026-10-12 a
 // a window measured that way never completed: "Partial window" forever, with
 // a "Recording began" date that slid every day once the prune started.
 $wpdb->rows   = array( sn_test_row( $first_tool, 2, $ago( 89.5 ), $ago( 1 ) ) );
-$wpdb->min_ts = $ago( 120 );
+$began        = $ago( 120 ); // one value: a second can tick between two $ago() calls.
+$wpdb->min_ts = $began;
+$window_start = $ago( 90 );
 $u            = sn_mcp_telemetry_usage( 90 );
 ok( true === $u['complete'] && 90 === $u['measured_days'], 'a table older than the window completes it, though the window\'s own first row is 89 days old' );
-ok( $ago( 120 ) === $u['recording_began'] && substr( $u['since'], 0, 10 ) === substr( $ago( 90 ), 0, 10 ), 'recording began at the table\'s first row; a complete window counts from its own start' );
+ok( $began === $u['recording_began'] && substr( $u['since'], 0, 10 ) === substr( $window_start, 0, 10 ), 'recording began at the table\'s first row; a complete window counts from its own start' );
 $wpdb->rows   = array( sn_test_row( $first_tool, 2, $ago( 89.2 ), $ago( 1 ) ) );
 $wpdb->min_ts = $ago( 89.2 );
 ok( true === sn_mcp_telemetry_usage( 90 )['complete'], 'a table that began 89 whole days ago completes a 90-day window (the last day is today)' );
-$wpdb->rows   = array( sn_test_row( $first_tool, 2, $ago( 40 ), $ago( 1 ) ) );
-$wpdb->min_ts = $ago( 40 );
+$began        = $ago( 40 );
+$wpdb->rows   = array( sn_test_row( $first_tool, 2, $began, $ago( 1 ) ) );
+$wpdb->min_ts = $began;
 $u            = sn_mcp_telemetry_usage( 90 );
-ok( false === $u['complete'] && 40 === $u['measured_days'] && $ago( 40 ) === $u['since'], 'a younger table is a partial window, measured from when recording began' );
+ok( false === $u['complete'] && 40 === $u['measured_days'] && $began === $u['since'], 'a younger table is a partial window, measured from when recording began' );
 $wpdb->min_ts = null;
 
 echo "\nGroup: the remote door is a door, and the ledger knows a door's list (2026-10-12 audit)\n";
