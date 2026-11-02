@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.11.7] - 2026-11-02 — Two lanes on /resume: Music and Operations & AI Strategy, receipts, and a JSON Resume per lane
+
 ### Added
 - **/resume has two lanes: Music and Operations & AI Strategy.** Owner brief 2026-11-01 #2. Once the operations résumé is set up, the English /resume carries both résumés behind a switch under the page title ("Two doors, one standard." beside it, verbatim from /services). Each lane is the full résumé from its own view of the document: its headline and subhead over its summary, its own Download (the music PDF, or the operations PDF), and its own bands. The operations lane shows "What I've Built", its experience order, earlier career without bullets, and only the sections it lists, numbered as they fall. The music lane is the music résumé as it was, with its headline added over the summary. /cv (Spanish) and a document with no operations settings keep the single body, unchanged.
   - **Both lanes are in the stored page; `?lane=` only hides one.** `/resume/?lane=operations` renders on the server, so it works with no script: a render filter (`inc/resume-page-lane-render.php`) sets `hidden` on the other lane and `aria-current` on the switch's current link, and labels the switch. It adds attributes only, so the page's text is the same whichever lane shows: if /resume is ever signed, both addresses read as one record, and /resume/ is the canonical of both. Unknown or missing `lane` is the music lane and is never echoed. The theme's script switches in place, and its stylesheet draws the switch (the theme's matching release).
@@ -30,33 +32,4 @@ adds a bullet below. A release is a separate, deliberate act:
   - The single-body tests are held to main's own output (sha1 of 0ef1762f's English body without the marks, and its Spanish body), not to this code.
 
   Tests: `tests/resume-page-lanes.php` (31: one body or two, the render filter on core's own HTML API, the provenance normalizer reading the same text for both lanes, receipts, the operations JSON Resume; nine mutants checked red). Updated: `tests/resume-draft.php`, `tests/resume-variants.php`, `tests/os-leaf-content-resume.php` (the receipt fields match across both editors), `tests/admin-class-orphans.php` (the theme styles the new front-end classes).
-
-## [2026.11.6] - 2026-11-01 — Two résumés from one document: the music résumé and an operations PDF
-
-### Added
-- **Two résumés from one document: music (the public one) and operations (its own PDF, never linked).** Owner brief 2026-11-01. A résumé made outside the editor had drifted (it still said Juan runs Panacea Studio day to day), so the site now builds every version from the same entries.
-  - **Shows in.** Every entry, role, education and affiliation row, publication and skills row has a choice: both (the default, what every row had), music only or operations only. Each role lists its saved bullets with the same choice, keyed by the bullet's text.
-  - **New sections.** "What I've Built" (an intro and one card per project) and "Operations résumé": headline, subhead, location, extra links, summary, section order, experience order, earlier career one line per role, file name.
-  - **Set up the operations résumé** writes the brief's appendix into the draft: settings, What I've Built, four skills rows, two affiliations, and "music only" on what the operations résumé leaves out. It finds rows by their text, never rewords them, lists what it cannot find, and on a second run only fills what is missing, never undoing an edit.
-  - **Generate PDF builds both.** The operations PDF is served by WordPress at `/resume/JuanLentino_Resume_Operations.pdf` with `X-Robots-Tag: noindex, nofollow`, from bytes kept in an option, not a public file. It is linked from no page, sitemap, llms file or format list, and never prints the phone.
-  - **Nothing public changes.** `sn_resume_doc_get()` now returns the music view in the shape every reader already knew, so /resume, its PDF, the Spanish CV, JSON Resume, Markdown and vCard see exactly what they saw before; the editor reads the stored document. The music PDF's HTML is identical before and after the operations setup (pinned).
-  - **A check on every generation.** A built-in reader for Dompdf's output (held word for word to pdftotext) reads each PDF back. The PDF box flags control characters, ligature code points, a phone number in the text or metadata, an operations PDF over two pages, and a missing `X-Robots-Tag: noindex` on the operations address.
-
-  Review fixes (independent review of #2344):
-  - The setup only fills what is missing. A second run used to reset an edited operations summary and What I've Built, and turned skills rows added later into music-only.
-  - The operations PDF never prints the phone because the template refuses it whenever the variant says none. One that reads back with a phone is never stored or served.
-  - The metadata phone check decodes Dompdf's UTF-16 Info strings. It could not fire on a real file before.
-  - The stored phone's digits are looked for in any format.
-  - A read too short for a résumé is flagged.
-  - The address is matched before the document is read, so other requests never pay for it.
-  - The draft preview and the private copy use the music layout.
-  - An operations generation that fails says so in the PDF box.
-  - A blank operations section list falls back to the music order.
-  - The file name pattern ends at `\z`.
-  - The bullet choices say that editing a bullet's text resets its choice.
-  - The "music unchanged" test is held to a hash of main's own output, not the new template. Pins kill the review's thirteen surviving mutants.
-
-  Tests:
-  - `tests/resume-variants.php` (41), `tests/resume-pdf-text-check.php` (18) and `tests/resume-ops-pdf-route.php` (6).
-  - The existing résumé suites pass unchanged except for their pins on the new call signatures.
 
