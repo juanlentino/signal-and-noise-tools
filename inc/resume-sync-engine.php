@@ -253,7 +253,7 @@ function sn_resume_publications_blocks( $publications, $n = null ) {
 			: esc_html( $pub['title'] );
 		$inner .= '<!-- wp:group {"className":"sn-resume-pub"} -->' . "\n"
 			. '<div class="wp-block-group sn-resume-pub">' . "\n"
-			. sn_resume_para( 'sn-resume-pub-meta', esc_html( $pub['meta'] ) . sn_resume_receipt( $pub['url'], 'paper', $pub['title'] ) )
+			. sn_resume_para( 'sn-resume-pub-meta', esc_html( $pub['meta'] ) ) // the title's link to the paper is its receipt.
 			. '<!-- wp:heading {"level":3,"className":"sn-resume-pub-title"} -->' . "\n"
 			. '<h3 class="wp-block-heading sn-resume-pub-title">' . $title . '</h3>' . "\n"
 			. '<!-- /wp:heading -->' . "\n"

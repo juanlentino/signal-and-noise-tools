@@ -149,7 +149,12 @@ function sn_resume_ops_lane_blocks( $doc, $links, $pdf ) {
 	return $out;
 }
 
-/** The shared head: eyebrow, the page title, the lane switch. @return string */
+/**
+ * The shared head: the eyebrow and the page title on the left, the lane switch
+ * beside them on the right, both sitting on the band's baseline.
+ *
+ * @return string
+ */
 function sn_resume_lanes_head_blocks() {
 	$base  = '/' . ( defined( 'SN_RESUME_SLUG' ) ? SN_RESUME_SLUG : 'resume' ) . '/';
 	$items = array();
@@ -157,15 +162,16 @@ function sn_resume_lanes_head_blocks() {
 		$href    = 'music' === $lane ? $base : $base . '?lane=' . $lane;
 		$items[] = '<a href="' . esc_url( $href ) . '" data-lane="' . $lane . '" data-sn-goal="resume_lane_' . $lane . '">' . esc_html( $label ) . '</a>';
 	}
-	$inner = sn_resume_para( 'sn-catalog-eyebrow', sn_resume_l( 'Dossier · Background', 'Dossier · Trayectoria' ) )
+	$title  = sn_resume_para( 'sn-catalog-eyebrow', sn_resume_l( 'Dossier · Background', 'Dossier · Trayectoria' ) )
 		. '<!-- wp:heading {"level":1,"style":{"typography":{"fontSize":"clamp(3rem, 8vw, 7rem)","lineHeight":"0.95"}}} -->' . "\n"
 		. '<h1 class="wp-block-heading" style="font-size:clamp(3rem, 8vw, 7rem);line-height:0.95">' . sn_resume_l( 'RESUME', 'CURRICULUM VITAE' ) . '</h1>' . "\n"
-		. '<!-- /wp:heading -->' . "\n\n"
-		. '<!-- wp:group {"tagName":"nav","className":"sn-resume-switch"} -->' . "\n"
+		. '<!-- /wp:heading -->' . "\n\n";
+	$switch = '<!-- wp:group {"tagName":"nav","className":"sn-resume-switch"} -->' . "\n"
 		. '<nav class="wp-block-group sn-resume-switch">' . sn_resume_list( 'sn-resume-switch-list', $items )
 		. sn_resume_para( 'sn-resume-switch-caption', esc_html( SN_RESUME_LANE_CAPTION ) )
 		. '</nav>' . "\n" . '<!-- /wp:group -->' . "\n\n";
-	return sn_resume_band( '1320px', '60', '10', $inner );
+	// Its own class: sn-resume-hero-split is the hero's, which the page contract keys on.
+	return sn_resume_band( '1320px', '60', '10', sn_resume_hero_split_blocks( $title, $switch, 'bottom', 'sn-resume-head-split' ) );
 }
 
 /**
@@ -185,8 +191,9 @@ function sn_resume_lane_group( $lane, $inner ) {
 }
 
 /**
- * A lane's hero: headline, subhead and summary on the left; the credential
- * ledger, the contact rail and that lane's Download on the right.
+ * A lane's hero: headline (an h2, under the page's h1), subhead and summary on
+ * the left; the credential ledger, the contact rail and that lane's Download on
+ * the right.
  *
  * @param array    $doc     The lane's document.
  * @param string[] $links   Extra contact links for the rail.
@@ -196,10 +203,13 @@ function sn_resume_lane_group( $lane, $inner ) {
  */
 function sn_resume_lane_hero_blocks( $doc, $links, $pdf, $resolve ) {
 	$left = '';
-	foreach ( array( 'headline' => 'sn-resume-headline', 'tagline' => 'sn-resume-tagline' ) as $key => $class ) {
-		if ( '' !== (string) ( $doc['pdf'][ $key ] ?? '' ) ) {
-			$left .= sn_resume_para( $class, esc_html( $doc['pdf'][ $key ] ) );
-		}
+	if ( '' !== (string) ( $doc['pdf']['headline'] ?? '' ) ) {
+		$left .= '<!-- wp:heading {"className":"sn-resume-headline"} -->' . "\n"
+			. '<h2 class="wp-block-heading sn-resume-headline">' . esc_html( $doc['pdf']['headline'] ) . '</h2>' . "\n"
+			. '<!-- /wp:heading -->' . "\n\n";
+	}
+	if ( '' !== (string) ( $doc['pdf']['tagline'] ?? '' ) ) {
+		$left .= sn_resume_para( 'sn-resume-tagline', esc_html( $doc['pdf']['tagline'] ) );
 	}
 	$left .= sn_resume_summary_blocks( $doc['hero']['summary'] );
 	$right = sn_resume_list( 'sn-resume-chips', array_map( 'esc_html', $doc['hero']['chips'] ) )
@@ -209,8 +219,9 @@ function sn_resume_lane_hero_blocks( $doc, $links, $pdf, $resolve ) {
 }
 
 /**
- * "What I've Built" on the page: the intro, then one card per project with
- * its code as the receipt.
+ * "What I've Built" on the page: the intro, then a grid of one card per
+ * project, its code as the receipt after its text (never inside the heading,
+ * whose name is the title alone).
  *
  * @param array $built {intro,items[]{title,url,text}}.
  * @param int   $n     Section number.
@@ -221,14 +232,20 @@ function sn_resume_built_blocks( $built, $n ) {
 	if ( '' !== (string) $built['intro'] ) {
 		$inner .= sn_resume_para( 'sn-resume-built-intro', esc_html( $built['intro'] ) );
 	}
+	$cards = '';
 	foreach ( $built['items'] as $item ) {
-		$inner .= '<!-- wp:group {"className":"sn-resume-pub sn-resume-built"} -->' . "\n"
+		$after  = ltrim( esc_html( (string) $item['text'] ) . sn_resume_receipt( $item['url'], 'code', $item['title'] ) );
+		$cards .= '<!-- wp:group {"className":"sn-resume-pub sn-resume-built"} -->' . "\n"
 			. '<div class="wp-block-group sn-resume-pub sn-resume-built">' . "\n"
 			. '<!-- wp:heading {"level":3,"className":"sn-resume-pub-title"} -->' . "\n"
-			. '<h3 class="wp-block-heading sn-resume-pub-title">' . esc_html( $item['title'] ) . sn_resume_receipt( $item['url'], 'code', $item['title'] ) . '</h3>' . "\n"
+			. '<h3 class="wp-block-heading sn-resume-pub-title">' . esc_html( $item['title'] ) . '</h3>' . "\n"
 			. '<!-- /wp:heading -->' . "\n"
-			. ( '' !== (string) $item['text'] ? sn_resume_para( '', esc_html( $item['text'] ) ) : '' )
+			. ( '' !== $after ? sn_resume_para( '', $after ) : '' )
 			. '</div>' . "\n" . '<!-- /wp:group -->' . "\n\n";
 	}
+	$inner .= '<!-- wp:group {"className":"sn-resume-built-grid"} -->' . "\n"
+		. '<div class="wp-block-group sn-resume-built-grid">' . "\n"
+		. $cards
+		. '</div>' . "\n" . '<!-- /wp:group -->' . "\n\n";
 	return sn_resume_band( '1320px', '40', '40', $inner );
 }
