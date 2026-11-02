@@ -3,7 +3,8 @@
  * Signal & Noise Tools: the résumé as JSON Resume v1.0.0 (jsonresume.org).
  *
  * A pure mapper over the SAME document /resume, its PDF and /cv/ render
- * (sn_resume_doc_get(), sn_resume_es_doc()), so it can never say something
+ * (sn_resume_doc_get(), sn_resume_es_doc(), and sn_resume_lane_doc() for
+ * /resume's operations lane), so it can never say something
  * the page does not. Nothing is invented: a value that does not parse is
  * omitted, a date never gains a day it did not have, and a blank field is
  * left out rather than sent empty. The route, the head link and the WordPress
@@ -25,7 +26,8 @@ require_once __DIR__ . '/resume-jsonresume-parts.php';
 const SN_JSONRESUME_SCHEMA = 'https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json';
 
 /**
- * The basics block: identity, contact already public, location, profiles.
+ * The basics block: identity, the public email, location, profiles. Never a
+ * phone, whatever pdf.phone_public says: that switch is the PDF's alone.
  *
  * @param array $doc Normalized résumé document.
  * @param array $ctx See sn_jsonresume_build().
@@ -38,12 +40,11 @@ function sn_jsonresume_basics( array $doc, array $ctx ) {
 		'name'    => (string) ( $ctx['name'] ?? '' ),
 		'label'   => (string) ( $pdf['headline'] ?? '' ),
 		'email'   => (string) ( $pdf['email'] ?? '' ),
-		'phone'   => ! empty( $pdf['phone_public'] ) ? (string) ( $pdf['phone'] ?? '' ) : '',
 		'url'     => (string) ( $ctx['url'] ?? '' ),
 		'summary' => (string) ( $hero['summary'] ?? '' ),
 	);
 	$basic = array_filter( $basic, 'strlen' );
-	$where = '' !== (string) ( $pdf['location'] ?? '' ) ? (string) $pdf['location'] : (string) ( $hero['contact_line'] ?? '' );
+	$where = sn_jsonresume_where( $doc )[0]; // its note goes to meta.x-locationNote (sn_jsonresume_build()).
 	$parts = array_map( 'trim', explode( ',', $where ) );
 	if ( 2 === count( $parts ) && '' !== $parts[0] && '' !== $parts[1] ) {
 		$basic['location'] = array( 'city' => $parts[0], 'region' => $parts[1] );
@@ -133,6 +134,10 @@ function sn_jsonresume_build( $doc, array $ctx ) {
 	}
 	if ( $highlights ) {
 		$meta['x-highlights'] = $highlights;
+	}
+	$note = sn_jsonresume_where( $doc )[1];
+	if ( '' !== $note ) {
+		$meta['x-locationNote'] = $note; // "open to relocation": basics.location has no field for it.
 	}
 	if ( '' !== (string) ( $ctx['lane'] ?? '' ) ) {
 		$meta['x-lane'] = (string) $ctx['lane']; // which of /resume's two résumés this is.

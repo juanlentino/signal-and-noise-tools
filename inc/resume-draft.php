@@ -120,7 +120,8 @@ function sn_resume_draft_status() {
 
 /**
  * After the live document changed: rebuild the PDF when one exists (the
- * generator re-syncs the Page and purges every cache), else purge /resume.
+ * generator re-syncs the Page and purges every cache), else purge /resume and
+ * its agent copies.
  *
  * @return bool False when the PDF rebuild failed.
  */
@@ -131,6 +132,11 @@ function sn_resume_refresh_outputs() {
 	}
 	if ( function_exists( 'sn_content_route_purge' ) ) {
 		sn_content_route_purge( '/resume' );
+	}
+	// The agent copies are cached untagged, and a change the page body does not
+	// render (the email) rewrites no page: only their URLs reach them.
+	if ( function_exists( 'sn_cf_purge_urls' ) && function_exists( 'sn_cf_resume_format_urls' ) ) {
+		sn_cf_purge_urls( sn_cf_resume_format_urls( (object) array( 'post_type' => 'page', 'post_name' => 'resume' ) ) );
 	}
 	return true;
 }

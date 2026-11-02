@@ -112,7 +112,7 @@ function sn_admin_render_resume_built_section( $doc ) {
  */
 function sn_admin_render_resume_operations_section( $doc ) {
 	$o = (array) ( $doc['variants']['operations'] ?? array() );
-	sn_rsm_section_open( 'Operations résumé', 'The second lane on /resume (Operations & AI Strategy) and its own PDF, built by Generate along with the music one; the switch links both PDFs. Rows marked "Music only" leave it; "Operations only" rows show only here.' );
+	sn_rsm_section_open( 'Operations résumé', 'The second lane on /resume (Operations & AI Strategy) and its own PDF, built by Generate along with the music one. The switch links the two lanes; each lane\'s Download links its own PDF, the operations one once it is generated. Rows marked "Music only" leave it; "Operations only" rows show only here.' );
 	sn_rsm_input( 'resume[variants][operations][headline]', (string) ( $o['headline'] ?? '' ), 'Headline', 'Founder and Operator' );
 	sn_rsm_input( 'resume[variants][operations][tagline]', (string) ( $o['tagline'] ?? '' ), 'Subhead', 'AI-Native Business Operations | Partnerships' );
 	sn_rsm_input( 'resume[variants][operations][location]', (string) ( $o['location'] ?? '' ), 'Location', 'Orlando, FL (open to relocation)' );
