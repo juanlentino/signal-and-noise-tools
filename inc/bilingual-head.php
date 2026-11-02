@@ -87,7 +87,7 @@ function sn_lang_hreflang_html( $pair ) {
 add_action(
 	'wp_head',
 	function () {
-		echo sn_lang_hreflang_html( sn_lang_pair_urls() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped per attribute in the builder
+		echo sn_lang_hreflang_html( (array) apply_filters( 'sn_lang_hreflang_pair', sn_lang_pair_urls() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped per attribute in the builder
 	},
 	2
 );
