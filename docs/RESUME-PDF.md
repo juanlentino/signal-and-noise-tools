@@ -87,8 +87,14 @@ career without bullets when it asks, only the sections it lists, and its "What I
   The stored body carries neither attribute. The theme keeps `[hidden]` hidden over any group
   display rule, styles the switch, and switches in place with `assets/js/resume-switch.js`.
 - **The download follows the lane** because each lane has its own Download: the music PDF with its
-  `?v=`, and the operations PDF at its stable address (no `?v=`: Generate syncs the page before it
-  builds the operations file, and purges that address after).
+  `?v=`, and the operations PDF at its stable address (no `?v=`). The operations Download appears
+  only once that PDF exists (`sn_resume_ops_pdf_live()`); Generate syncs the page before it builds
+  the operations file, so the operations build syncs it again, and purges the address. A PDF
+  withdrawn for a phone drops its facts, and its Download goes with them.
+- **The operations résumé never carries the phone**, on the page or in its JSON Resume, whatever the
+  music PDF's switch says.
+- **An update re-renders the page once** (`SN_RESUME_ENGINE_REV` in `inc/split-hero-migration.php`,
+  4 since the lanes).
 - **Spanish and no operations settings** keep `sn_resume_body_html()`, the single body, unchanged.
 - **Every regeneration rewrites the page** only when the body changed, as before; with two lanes, an
   edit to either résumé changes the body, so the edge's `sn-render` purge covers `?lane=` copies.

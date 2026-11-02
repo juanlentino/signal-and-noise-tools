@@ -54,6 +54,10 @@ function sn_resume_lane_doc( $raw, $lane ) {
 		return $doc;
 	}
 	$doc['pdf'] = sn_resume_pdf_variant_header( (array) ( $doc['pdf'] ?? array() ), $cfg );
+	// The operations résumé never carries the phone, whatever the music PDF's
+	// switch says (sn_resume_variant_config()): not on the page, not in its JSON Resume.
+	$doc['pdf']['phone']        = '';
+	$doc['pdf']['phone_public'] = false;
 	if ( '' !== $cfg['summary'] ) {
 		$doc['hero']['summary'] = $cfg['summary'];
 	}
@@ -96,7 +100,7 @@ function sn_resume_page_body( $raw ) {
 		return ''; // the same "unusable document" rule as the single body.
 	}
 	$ops      = sn_resume_lane_doc( $raw, 'operations' );
-	$ops_pdf  = function_exists( 'sn_resume_ops_pdf_url' ) ? sn_resume_ops_pdf_url( $cfg['pdf_file'] ) : '';
+	$ops_pdf  = function_exists( 'sn_resume_ops_pdf_live' ) && sn_resume_ops_pdf_live() ? sn_resume_ops_pdf_url( $cfg['pdf_file'] ) : ''; // no Download to a 404.
 	$music_in = sn_resume_lane_hero_blocks( $music, array(), $music['hero']['pdf_url'], true )
 		. sn_resume_stats_blocks( $music['stats'] )
 		. sn_resume_experience_blocks( $music['experience'], $music['earlier'] )

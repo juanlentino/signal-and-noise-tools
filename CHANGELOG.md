@@ -21,6 +21,13 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - The draft's page preview renders the page as it would be, one lane or two.
+- **/resume re-renders once after the update** (`SN_RESUME_ENGINE_REV` 4, on the next admin page load), so the two lanes and the receipt marks reach the live page without waiting for a save. Install the theme's matching release first, so the switch is styled when the page re-renders.
+
+  Review fixes (independent review of #2346):
+  - The operations résumé never carries the phone: the music PDF's "include the phone" switch reached `basics.phone` in `/resume/json-resume.json?lane=operations`. Now the operations lane clears it, and the page never showed it.
+  - The operations lane shows its Download only once the operations PDF exists (`sn_resume_ops_pdf_live()`), never a link to a 404. Every operations generation syncs /resume again (Generate syncs the page before it builds that file), and a PDF withdrawn for a phone drops its facts too, so nothing links it.
+  - The format list and llms.txt name the operations files only while the operations résumé and its PDF both exist.
+  - The single-body tests are held to main's own output (sha1 of 0ef1762f's English body without the marks, and its Spanish body), not to this code.
 
   Tests: `tests/resume-page-lanes.php` (31: one body or two, the render filter on core's own HTML API, the provenance normalizer reading the same text for both lanes, receipts, the operations JSON Resume; nine mutants checked red). Updated: `tests/resume-draft.php`, `tests/resume-variants.php`, `tests/os-leaf-content-resume.php` (the receipt fields match across both editors), `tests/admin-class-orphans.php` (the theme styles the new front-end classes).
 

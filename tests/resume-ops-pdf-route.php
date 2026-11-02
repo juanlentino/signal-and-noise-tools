@@ -37,6 +37,10 @@ ok( 'PASSED THROUGH' === trim( $run( '/resume/Other.pdf', $pdf ) ), 'any other p
 ok( 'PASSED THROUGH' === trim( $run( '/resume/Ops.pdf', null ) ), 'before the first generation the address is the ordinary 404' );
 ok( 'PASSED THROUGH' === trim( $run( '/resume/Ops.pdf', 'not a pdf' ) ), 'stored bytes that are not a PDF are never served' );
 $src = (string) file_get_contents( $root . '/inc/resume-pdf/operations.php' );
+ok( 1 === preg_match( '/sn_resume_ops_pdf_build\(\);.*?sn_resume_sync_page\(\);\s*\}\s*return \$out;/s', $src ), 'every operations generation, failed or not, syncs /resume again so its Download follows the file' );
+ok( 1 === preg_match( "/delete_option\( SN_RESUME_OPS_PDF_BYTES \);\s*delete_option\( SN_RESUME_OPS_PDF_OPTION \);/", $src ), 'a PDF withdrawn for a phone also drops its facts, so nothing links it' );
+$fmt = (string) file_get_contents( $root . '/inc/resume-formats-route.php' );
+ok( false !== strpos( $fmt, "sn_resume_ops_pdf_live()" ) && false !== strpos( $fmt, "null !== sn_resume_variant_config( sn_resume_doc_get_raw(), 'operations' )" ), 'the format list (llms.txt, the agents manifest) names the operations files only while the résumé and its PDF exist' );
 ok( false !== strpos( $src, "header( 'X-Robots-Tag: noindex, nofollow' );" ) && false !== strpos( $src, "header( 'Content-Type: application/pdf' );" ), 'it is served as a PDF with X-Robots-Tag: noindex, nofollow' );
 ok( false === strpos( $src, 'file_put_contents' ), 'the operations PDF is never written to a public file' );
 

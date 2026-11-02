@@ -59,8 +59,9 @@ function sn_resume_formats( $slug ) {
 	}
 	// The operations résumé, /resume's second lane: its PDF once generated, and
 	// its JSON Resume (inc/resume-page-lanes.php).
-	$ops = 'resume' === $slug && function_exists( 'sn_resume_ops_pdf_url' ) ? get_option( SN_RESUME_OPS_PDF_OPTION ) : null;
-	$ops = is_array( $ops ) && ! empty( $ops['url'] ) ? (string) $ops['url'] : '';
+	$ops = 'resume' === $slug && function_exists( 'sn_resume_ops_pdf_live' ) && sn_resume_ops_pdf_live()
+		&& null !== sn_resume_variant_config( sn_resume_doc_get_raw(), 'operations' )
+		? (string) get_option( SN_RESUME_OPS_PDF_OPTION )['url'] : '';
 	return array_filter(
 		array(
 			'html'                   => (string) get_permalink( $page ),

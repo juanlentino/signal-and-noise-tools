@@ -54,10 +54,16 @@ $plain = sn_resume_doc_normalize( sn_resume_seed_doc() );
 $raw   = sn_resume_doc_normalize( sn_resume_operations_setup( $plain )['doc'] );
 
 echo "Group: one body or two\n";
-ok( sn_resume_page_body( $plain ) === sn_resume_body_html( sn_resume_doc_view( $plain, 'music' ) ), 'no operations settings: the single body, as before' );
+// Held to main's own output (0ef1762f, 2026.11.6), not to this code: the
+// English single body is main's byte for byte once the receipt marks are out;
+// the Spanish one is main's outright.
+$strip_marks = static fn( $s ) => (string) preg_replace( '# <a class="sn-resume-receipt"[^>]*>[a-z]+</a>#', '', $s );
+ok( '8d5d27a43047a787e440be7508b18de386d32d71' === sha1( $strip_marks( sn_resume_page_body( $plain ) ) ), 'no operations settings: main\'s single body, plus only the receipt marks' );
 sn_resume_lang( 'es' );
-ok( sn_resume_page_body( $raw ) === sn_resume_body_html( sn_resume_doc_view( $raw, 'music' ) ), 'Spanish: the single music body, no switch' );
+ok( '6d1d9c490ab9132d236b9d67d1d2d4aa9b21d869' === sha1( sn_resume_page_body( $raw ) ) && '6d1d9c490ab9132d236b9d67d1d2d4aa9b21d869' === sha1( sn_resume_page_body( $plain ) ), 'Spanish: main\'s single body exactly, operations settings or not' );
 sn_resume_lang( 'en' );
+$no_pdf = sn_resume_page_body( $raw ); // the operations PDF never generated.
+$GLOBALS['__opt']['sn_resume_pdf_operations'] = array( 'url' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf', 'sha256' => str_repeat( 'a', 64 ) );
 $body = sn_resume_page_body( $raw );
 ok( 1 === substr_count( $body, '<h1' ) && 1 === substr_count( $body, 'class="wp-block-group sn-resume-switch"' ), 'two lanes: one page title, one switch' );
 ok( 1 === substr_count( $body, 'id="resume-music"' ) && 1 === substr_count( $body, 'id="resume-operations"' ), 'two lanes: one group each, with its id' );
@@ -68,6 +74,7 @@ list( $head_html, $rest ) = explode( 'id="resume-music"', $body, 2 ) + array( ''
 list( $music_html, $ops_html ) = explode( 'id="resume-operations"', $rest, 2 ) + array( '', '' );
 ok( false !== strpos( $ops_html, '>Founder and Operator</p>' ) && false !== strpos( $ops_html, "WHAT I&#039;VE BUILT" ) && false !== strpos( $ops_html, 'github.com/juanlentino</a>' ), 'the operations lane: its headline, What I\'ve Built, its extra link' );
 ok( false !== strpos( $ops_html, 'href="https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf"' ) && false === strpos( $music_html, 'Operations.pdf' ), 'each lane its own Download: the operations PDF only in the operations lane' );
+ok( false === strpos( $no_pdf, 'Operations.pdf' ) && false !== strpos( $no_pdf, 'id="resume-operations"' ), 'before the operations PDF exists, its lane has no Download (never a link to a 404)' );
 ok( false !== strpos( $ops_html, '01 · Projects' ) && false !== strpos( $ops_html, '02 · Professional Experience' ) && false === strpos( $ops_html, 'PUBLICATIONS' ), 'the operations lane numbers what it shows, and leaves out what its sections leave out' );
 $rev               = $raw;
 $rev['experience'] = array_reverse( $rev['experience'] ); // Panacea first in the document; the operations order puts Independent Practice first.
@@ -145,6 +152,12 @@ $changed['experience'][0]['roles'][0]['bullets'][0] .= ' Edited.';
 ok( empty( sn_resume_doc_normalize( $changed )['experience'][0]['roles'][0]['bullet_receipts'] ), 'editing a bullet\'s text drops its receipt' );
 
 echo "\nGroup: the operations JSON Resume\n";
+$phone                        = $raw;
+$phone['pdf']['phone']        = '+1 555 123 4567';
+$phone['pdf']['phone_public'] = true; // the music PDF's switch.
+$pj = sn_jsonresume_build( sn_resume_lane_doc( $phone, 'operations' ), array( 'name' => 'x', 'lane' => 'operations' ) );
+$pm = sn_jsonresume_build( sn_resume_lane_doc( $phone, 'music' ), array( 'name' => 'x', 'lane' => 'music' ) );
+ok( '+1 555 123 4567' === ( $pm['basics']['phone'] ?? '' ) && ! isset( $pj['basics']['phone'] ) && false === strpos( (string) json_encode( $pj ), '555' ), 'the music PDF\'s phone switch never reaches the operations résumé: no phone in its JSON Resume' );
 $jr = sn_jsonresume_build( sn_resume_lane_doc( $raw, 'operations' ), array( 'name' => 'Juan Lentino', 'projects' => sn_resume_lane_doc( $raw, 'operations' )['built']['items'], 'lane' => 'operations', 'profiles' => array( 'https://github.com/juanlentino' ) ) );
 ok( 'Founder and Operator' === ( $jr['basics']['label'] ?? '' ) && 0 === strpos( (string) ( $jr['basics']['summary'] ?? '' ), 'Founder-operator with 15+ years' ), 'its basics are the operations headline and summary' );
 ok( 3 === count( $jr['projects'] ?? array() ) && 'https://github.com/juanlentino/can-i-apply' === ( $jr['projects'][1]['url'] ?? '' ), 'What I\'ve Built is its projects' );

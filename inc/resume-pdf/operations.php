@@ -33,6 +33,17 @@ function sn_resume_ops_pdf_url( $file ) {
 }
 
 /**
+ * Whether the operations PDF is there to link: generated, and not withdrawn
+ * by a failed check. The page's Download, the format list and llms.txt all ask.
+ *
+ * @return bool
+ */
+function sn_resume_ops_pdf_live() {
+	$meta = get_option( SN_RESUME_OPS_PDF_OPTION );
+	return is_array( $meta ) && ! empty( $meta['url'] );
+}
+
+/**
  * Whether a URL answers with X-Robots-Tag noindex. Null when it could not be read.
  *
  * @param string $url
@@ -61,6 +72,11 @@ function sn_resume_ops_pdf_generate() {
 	if ( is_wp_error( $out ) ) {
 		$prev = get_option( SN_RESUME_OPS_PDF_OPTION );
 		update_option( SN_RESUME_OPS_PDF_OPTION, array( 'error' => $out->get_error_message(), 'error_at' => gmdate( 'c' ) ) + ( is_array( $prev ) ? $prev : array() ), false );
+	}
+	// Generate syncs /resume before this file is built; sync again so the
+	// operations lane's Download follows the file (an identical body is not rewritten).
+	if ( function_exists( 'sn_resume_sync_page' ) ) {
+		sn_resume_sync_page();
 	}
 	return $out;
 }
@@ -93,6 +109,7 @@ function sn_resume_ops_pdf_build() {
 	$check = sn_resume_pdf_check( $result['bytes'], $result['pages'], 2, (string) ( $raw['pdf']['phone'] ?? '' ) );
 	if ( in_array( 'a phone number', $check['flags'], true ) ) {
 		delete_option( SN_RESUME_OPS_PDF_BYTES );
+		delete_option( SN_RESUME_OPS_PDF_OPTION ); // nothing is served, so nothing may link it (sn_resume_ops_pdf_live()).
 		return new WP_Error( 'sn_resume_pdf_phone', 'The operations PDF read back with a phone number; it was not published.' );
 	}
 	update_option( SN_RESUME_OPS_PDF_BYTES, base64_encode( $result['bytes'] ), false );
