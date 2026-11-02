@@ -113,6 +113,9 @@ $block_of = static function ( $html, $open ) {
 	}
 	return '';
 };
+// The class arrives through sn_resume_hero_split_blocks()'s $class, where the
+// orphan-class scan (tests/admin-class-orphans.php) cannot see it: this is its check.
+ok( 1 === substr_count( $body, '"className":"sn-resume-head-split"} -->' ) && 1 === substr_count( $body, ' sn-resume-head-split">' ), 'the two-lane body carries the head split\'s class, once (the theme styles it)' );
 $head_cols = $block_of( $head_html, '<!-- wp:columns {"verticalAlignment":"bottom","className":"sn-resume-head-split"} -->' );
 list( $head_l, $head_r ) = explode( 'flex-basis:45%', $head_cols, 2 ) + array( '', '' );
 ok( false !== strpos( $head_cols, '<div class="wp-block-columns are-vertically-aligned-bottom sn-resume-head-split">' ) && false !== strpos( $head_l, 'flex-basis:55%' ) && false === strpos( $head_html, 'sn-resume-hero-split' ), 'the head is its own split (sn-resume-head-split, bottom-aligned, 55/45), never the hero\'s class' );
