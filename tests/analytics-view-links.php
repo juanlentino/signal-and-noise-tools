@@ -20,6 +20,7 @@ $GLOBALS['visits'] = array(
 );
 function sn_link_codes_summary_read( $f, $t ) { $GLOBALS['range'] = array( $f, $t ); return $GLOBALS['codes']; }
 function sn_link_codes_visits_read() { return $GLOBALS['visits']; }
+function current_user_can( $c ) { return false; } // the résumé lanes panel has its own test (tests/analytics-resume-lanes.php).
 function sn_link_codes_visits_capped() { return ! empty( $GLOBALS['capped'] ); }
 require_once __DIR__ . '/../inc/analytics-panels.php';
 require_once __DIR__ . '/../inc/analytics-view-links.php';

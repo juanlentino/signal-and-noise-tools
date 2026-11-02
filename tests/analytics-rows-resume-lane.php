@@ -105,7 +105,7 @@ foreach ( glob( $root . '/inc/{,*/}*.php', GLOB_BRACE ) as $file ) {
 	}
 }
 sort( $named );
-ok( array( 'inc/abilities-analytics-rows.php', 'inc/analytics-fields.php', 'inc/analytics-rows-events.php', 'inc/analytics-rows.php', 'inc/mcp/mcp-remote-contract.php' ) === $named, 'only the owner\'s analytics reads name the lane: ' . implode( ', ', $named ) );
+ok( array( 'inc/abilities-analytics-rows.php', 'inc/analytics-fields.php', 'inc/analytics-resume-lanes.php', 'inc/analytics-rows-events.php', 'inc/analytics-rows.php', 'inc/mcp/mcp-remote-contract.php' ) === $named, 'only the owner\'s analytics reads name the lane: ' . implode( ', ', $named ) );
 ok( false === strpos( (string) file_get_contents( $root . '/inc/public-stats.php' ), 'lane' ), 'the public /stats page reads no lane' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

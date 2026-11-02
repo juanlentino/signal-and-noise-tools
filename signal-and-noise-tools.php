@@ -179,6 +179,7 @@ require_once SNT_PATH . 'inc/analytics-view-content.php';  // v8.5.0: the regrou
 require_once SNT_PATH . 'inc/analytics-view-campaigns.php'; // v9.29.0: the dedicated UTM Campaigns view
 require_once SNT_PATH . 'inc/link-codes-read.php';         // 2026-10-31: the Links view's reads (durable per code, 90 days per visitor-day)
 require_once SNT_PATH . 'inc/analytics-view-links.php';     // 2026-10-31: the Links view (which coded résumé link was opened)
+require_once SNT_PATH . 'inc/analytics-resume-lanes.php';  // 2026-11-02: the owner-only résumé lanes panel inside the Links view
 require_once SNT_PATH . 'inc/analytics-recommendations.php'; // v9.6.0: deep-linked action cards rendered atop the Content view (annotations R3b)
 require_once SNT_PATH . 'inc/analytics-view-technology.php'; // v8.5.0 extraction
 require_once SNT_PATH . 'inc/analytics-view-geography.php';  // v8.5.0 extraction
