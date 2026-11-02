@@ -178,7 +178,9 @@ function sn_resume_formats_head_links() {
 	foreach ( array( 'resume', 'cv' ) as $slug ) {
 		if ( is_page( $slug ) && sn_jsonresume_page( $slug ) ) {
 			printf( '<link rel="alternate" type="text/markdown" href="%s" title="Résumé as Markdown">' . "\n", esc_url( sn_resume_markdown_url( $slug, $lane ) ) );
-			printf( '<link rel="alternate" type="text/vcard" href="%s" title="Contact card">' . "\n", esc_url( home_url( '/resume/contact.vcf' ) ) );
+			if ( '' === sn_resume_lane_query( $slug, $lane ) ) { // the contact card is the music résumé's; the operations lane never links it.
+				printf( '<link rel="alternate" type="text/vcard" href="%s" title="Contact card">' . "\n", esc_url( home_url( '/resume/contact.vcf' ) ) );
+			}
 		}
 	}
 }
