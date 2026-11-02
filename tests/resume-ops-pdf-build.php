@@ -6,7 +6,8 @@
  * through Dompdf and the check, over an options array: a clean file is stored
  * and linked; a phone in it is withdrawn, the old file too, and its address
  * purged; any other flag keeps it published; a failed write keeps the old
- * file; removed settings leave nothing behind; and the PDF box says which.
+ * file; removed settings leave nothing behind, at the edge either; and the
+ * PDF box says which.
  *
  * Run: php tests/resume-ops-pdf-build.php
  */
@@ -104,6 +105,7 @@ $none = $set;
 unset( $none['variants'] );
 $reset( $none, $good + array( 'sn_resume_draft' => $set ) );
 ok( null === sn_resume_ops_pdf_build() && ! isset( $GLOBALS['opts']['sn_resume_pdf_operations'] ) && ! isset( $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] ), 'settings removed: the old file and its facts are dropped' );
+ok( array( $url ) === $GLOBALS['purged'], 'and its address is purged, so the edge does not keep serving it' );
 ok( false !== strpos( $box(), 'set up in the draft' ), 'the box says a set-up draft is waiting, not "not set up yet"' );
 $empty = $set;
 foreach ( array( 'experience', 'publications' ) as $k ) {

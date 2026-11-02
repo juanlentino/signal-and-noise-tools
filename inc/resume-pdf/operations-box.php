@@ -23,19 +23,28 @@ function sn_resume_pdf_check_line( $meta ) {
 		return '';
 	}
 	$by = ' (' . (string) ( $check['extractor'] ?? '' ) . ', ' . number_format( (int) ( $check['chars'] ?? 0 ) ) . ' characters read)';
-	return ( $check['flags'] ? 'Check flagged: ' . implode( '; ', $check['flags'] ) . '.' : 'Check passed: no control characters, ligatures or phone number' . ( empty( $check['public_phone'] ) ? '' : ' other than the public one' ) . '.' ) . $by;
+	return ( $check['flags'] ? 'Check flagged: ' . implode( '; ', $check['flags'] ) . '.' : 'Check passed: no control characters, ligatures or phone number.' ) . $by;
 }
 
 /**
- * The PDF box's lines: the music check, then the operations file.
+ * The PDF box's lines: the music PDF (a failure, then the check), the Spanish
+ * CV's failure, then the operations file.
  *
  * @return array<int,array{text:string,url:string}>
  */
 function sn_resume_pdf_variant_lines() {
 	$lines = array();
 	$music = get_option( defined( 'SN_RESUME_PDF_OPTION' ) ? SN_RESUME_PDF_OPTION : 'sn_resume_pdf' );
+	$music = is_array( $music ) ? $music : array();
+	if ( ! empty( $music['error'] ) ) {
+		$lines[] = array( 'text' => 'Music PDF: the last Generate failed (' . (string) $music['error'] . '). ' . ( ! empty( $music['url'] ) ? 'The file above is still the one served.' : 'Nothing is served.' ), 'url' => '' );
+	}
 	if ( '' !== sn_resume_pdf_check_line( $music ) ) {
 		$lines[] = array( 'text' => 'Music PDF. ' . sn_resume_pdf_check_line( $music ), 'url' => '' );
+	}
+	$es = defined( 'SN_RESUME_ES_PDF_OPT' ) ? get_option( SN_RESUME_ES_PDF_OPT ) : false;
+	if ( ! empty( $es['error'] ) ) {
+		$lines[] = array( 'text' => 'Spanish CV PDF: the last build failed (' . (string) $es['error'] . ').', 'url' => '' );
 	}
 	$ops  = get_option( SN_RESUME_OPS_PDF_OPTION );
 	$ops  = is_array( $ops ) ? $ops : array();
@@ -44,9 +53,11 @@ function sn_resume_pdf_variant_lines() {
 		$lines[] = array( 'text' => 'Operations PDF: the last Generate failed (' . (string) $ops['error'] . '). ' . ( $live ? 'The file below is still the one served.' : 'Nothing is served.' ), 'url' => '' );
 	}
 	if ( $live ) {
-		$pages   = (int) ( $ops['pages'] ?? 0 );
+		$pages = (int) ( $ops['pages'] ?? 0 );
+		// The operations PDF is built only after the music one: a music failure since leaves it as it was.
+		$stale   = ! empty( $music['error_at'] ) && (string) ( $ops['generated'] ?? '' ) <= (string) $music['error_at'] ? ' Not rebuilt since: the last Generate stopped at the music PDF.' : '';
 		$flagged = ! empty( $ops['check']['flags'] ) ? ' It stays published: only a phone number withdraws it.' : '';
-		$lines[] = array( 'text' => sprintf( 'Operations PDF, generated %1$s: %2$d %3$s, linked from the Operations lane on /resume. %4$s%5$s', function_exists( 'sn_resume_pdf_when' ) ? sn_resume_pdf_when( $ops ) : (string) ( $ops['generated'] ?? '' ), $pages, 1 === $pages ? 'page' : 'pages', sn_resume_pdf_check_line( $ops ), $flagged ), 'url' => (string) $ops['url'] );
+		$lines[] = array( 'text' => sprintf( 'Operations PDF, generated %1$s: %2$d %3$s, linked from the Operations lane on /resume. %4$s%5$s%6$s', function_exists( 'sn_resume_pdf_when' ) ? sn_resume_pdf_when( $ops ) : (string) ( $ops['generated'] ?? '' ), $pages, 1 === $pages ? 'page' : 'pages', sn_resume_pdf_check_line( $ops ), $flagged, $stale ), 'url' => (string) $ops['url'] );
 	} elseif ( ! empty( $ops['error'] ) ) {
 		return $lines; // the failure line says it all.
 	} elseif ( null !== sn_resume_ops_config() ) {

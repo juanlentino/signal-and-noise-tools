@@ -77,8 +77,14 @@ function sn_resume_ops_pdf_failed() {
  * @return string
  */
 function sn_resume_ops_pdf_bytes() {
-	$bytes = base64_decode( (string) get_option( SN_RESUME_OPS_PDF_BYTES, '' ), true );
-	return false !== $bytes && 0 === strpos( $bytes, '%PDF-' ) ? $bytes : '';
+	static $src = null, $out = ''; // decoded once per stored value, not on every call.
+	$b64 = (string) get_option( SN_RESUME_OPS_PDF_BYTES, '' );
+	if ( $b64 !== $src ) {
+		$bytes = base64_decode( $b64, true );
+		$src   = $b64;
+		$out   = false !== $bytes && 0 === strpos( $bytes, '%PDF-' ) ? $bytes : '';
+	}
+	return $out;
 }
 
 /**
@@ -108,8 +114,7 @@ function sn_resume_pdf_noindex( $url ) {
 function sn_resume_ops_pdf_generate() {
 	$out = sn_resume_ops_pdf_build();
 	if ( is_wp_error( $out ) ) {
-		$prev = get_option( SN_RESUME_OPS_PDF_OPTION );
-		update_option( SN_RESUME_OPS_PDF_OPTION, array( 'error' => $out->get_error_message(), 'error_at' => gmdate( 'c' ) ) + ( is_array( $prev ) ? $prev : array() ), false );
+		sn_resume_pdf_record_error( SN_RESUME_OPS_PDF_OPTION, $out );
 	}
 	// Generate syncs /resume before this file is built; sync again so the
 	// operations lane's Download follows the file (an identical body is not rewritten).
@@ -129,8 +134,12 @@ function sn_resume_ops_pdf_build() {
 	$config = sn_resume_variant_config( $raw, 'operations' );
 	$loc    = sn_resume_pdf_location(); // for Dompdf's font cache only; the PDF itself is not written there.
 	if ( null === $config ) {
+		$prev = get_option( SN_RESUME_OPS_PDF_OPTION );
 		delete_option( SN_RESUME_OPS_PDF_BYTES ); // settings removed: no file, and no facts naming one.
 		delete_option( SN_RESUME_OPS_PDF_OPTION );
+		if ( ! empty( $prev['url'] ) && function_exists( 'sn_cf_purge_urls' ) ) {
+			sn_cf_purge_urls( array( (string) $prev['url'] ) ); // and the edge stops serving the last one.
+		}
 		return null;
 	}
 	$view = sn_resume_doc_view( $raw, 'operations' );
@@ -145,16 +154,9 @@ function sn_resume_ops_pdf_build() {
 	$config['title'] = $name . ' · Résumé · Operations & AI Strategy'; // the Info Title (the template's <title>).
 	$view['pdf']['website'] = ''; // its own lane's address, whatever the music Website field says.
 	$result          = sn_resume_pdf_render( $view, $name, $loc['dir'] . '/.font-cache', false, home_url( '/resume/?lane=operations' ), $config ); // the lane's own address.
-	if ( is_wp_error( $result ) ) {
-		return $result;
-	}
-	if ( 0 !== strpos( (string) $result['bytes'], '%PDF-' ) ) {
-		return new WP_Error( 'sn_resume_pdf_invalid', 'The renderer did not return a PDF.' );
-	}
-	// A phone in it is never served: checked before the bytes are stored.
-	$url   = sn_resume_ops_pdf_url( $config['pdf_file'] );
-	$check = sn_resume_pdf_check( $result['bytes'], $result['pages'], 2, (string) ( $raw['pdf']['phone'] ?? '' ) );
-	if ( in_array( 'a phone number', $check['flags'], true ) ) {
+	$url             = sn_resume_ops_pdf_url( $config['pdf_file'] );
+	// A phone in it is never served (the render refuses it): the last file goes too.
+	if ( is_wp_error( $result ) && 'sn_resume_pdf_phone' === $result->get_error_code() ) {
 		$linked = sn_resume_ops_pdf_link(); // the ?v= address the page links now, if any.
 		delete_option( SN_RESUME_OPS_PDF_BYTES );
 		delete_option( SN_RESUME_OPS_PDF_OPTION ); // nothing is served, so nothing may link it (sn_resume_ops_pdf_live()).
@@ -163,6 +165,13 @@ function sn_resume_ops_pdf_build() {
 		}
 		return new WP_Error( 'sn_resume_pdf_phone', 'The operations PDF read back with a phone number; it was not published.' );
 	}
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+	if ( 0 !== strpos( (string) $result['bytes'], '%PDF-' ) ) {
+		return new WP_Error( 'sn_resume_pdf_invalid', 'The renderer did not return a PDF.' );
+	}
+	$check = sn_resume_pdf_check( $result['bytes'], $result['pages'], 2, (string) ( $raw['pdf']['phone'] ?? '' ) );
 	update_option( SN_RESUME_OPS_PDF_BYTES, base64_encode( $result['bytes'] ), false );
 	// Read back: update_option() is false for an unchanged value too, and a large one can fail to store.
 	if ( sn_resume_ops_pdf_bytes() !== $result['bytes'] ) {

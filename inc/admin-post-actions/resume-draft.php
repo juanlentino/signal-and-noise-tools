@@ -80,7 +80,7 @@ function sn_handle_resume_preview_page( $post ) { // phpcs:ignore Generic.CodeAn
 }
 
 /**
- * resume_preview_pdf: stream the draft's PDF (public phone rule), never stored.
+ * resume_preview_pdf: stream the draft's PDF, never stored.
  *
  * @param array $post Raw $_POST (unused).
  * @return string Flash code on failure; streams and exits on success.
@@ -92,7 +92,7 @@ function sn_handle_resume_preview_pdf( $post ) { // phpcs:ignore Generic.CodeAna
 	if ( function_exists( 'sn_resume_pdf_draft_stream' ) ) {
 		sn_resume_pdf_draft_stream();
 	}
-	return 'resume_pdf_failed';
+	return 'resume_pdf_stream_failed';
 }
 
 /**

@@ -5,7 +5,8 @@
  *
  * A save never leaves the public page (the music view) empty; the operations
  * settings survive the way the form posts them; the experience order matches
- * any case; a second setup run adds no row twice; and the setup action writes
+ * any case; a block with no headline, summary or sections is not yet set up;
+ * a second setup run adds no row twice; and the setup action writes
  * the draft, never the published résumé, with the code that says how it went.
  *
  * Run: php tests/resume-variants-edges.php
@@ -47,6 +48,12 @@ ok( 'resume_draft_refused' === sn_handle_resume_draft_save( array( 'resume' => $
 $one                                  = $ops_only;
 $one['publications'][0]['variant']    = 'music';
 ok( null !== sn_resume_doc_normalize( $one ), 'one publication left in the music résumé: saved' );
+$log = sys_get_temp_dir() . '/sn-resume-edges-' . getmypid() . '.log';
+ini_set( 'error_log', $log ); // phpcs:ignore WordPress.PHP.IniSet -- the test reads what the code logs.
+$GLOBALS['opts'] = array( 'sn_resume_doc' => $ops_only ); // stored before the rule tightened.
+ok( $seed === array_diff_key( sn_resume_doc_get_raw(), array( 'updated' => 1 ) ) && false !== strpos( (string) @file_get_contents( $log ), 'the stored résumé was refused' ), 'a stored résumé the rule now refuses falls back to the seed, and says so in the error log' );
+@unlink( $log );
+$GLOBALS['opts'] = array();
 
 echo "\nGroup: the operations settings as the form posts them\n";
 $v = static fn( $ops ) => sn_resume_normalize_variants( array( 'operations' => $ops ) )['operations'] ?? null;
@@ -80,6 +87,12 @@ $typed             = $seed;
 $typed['variants'] = array( 'operations' => array( 'headline' => 'Typed before the setup ran' ) );
 $t                 = sn_resume_doc_normalize( sn_resume_operations_setup( sn_resume_doc_normalize( $typed ) )['doc'] );
 ok( 1 === $tc( $t ) && array( 'Operations', 'Partnerships', 'AI and tools', 'Languages' ) === $osk( $t ), 'settings typed before the first run do not stop it adding its rows' );
+$stub             = $seed;
+$stub['variants'] = array( 'operations' => array( 'earlier_compact' => true, 'pdf_file' => 'Mine.pdf' ) );
+$st               = sn_resume_doc_normalize( sn_resume_operations_setup( sn_resume_doc_normalize( $stub ) )['doc'] );
+$so               = $st['variants']['operations'];
+ok( '' !== $so['headline'] && '' !== $so['summary'] && array() !== $so['sections'] && 'Mine.pdf' === $so['pdf_file'], 'a block holding only the "Earlier career" box and a file name is not set up: the run writes the headline, summary and sections, and keeps the file name' );
+ok( array( 'music' ) === array_values( array_unique( array_map( static fn( $r ) => $r['variant'] ?? '', array_filter( $st['skills'], static fn( $r ) => 'operations' !== ( $r['variant'] ?? '' ) ) ) ) ), 'and marks the existing skills rows "Music only"' );
 
 echo "\nGroup: the setup action\n";
 $full = $seed;

@@ -219,12 +219,10 @@ foreach ( $keys as $i => $k ) {
 }
 ok( array() === $region_bad, 'each editing paint: ONE region below the table, headed with the section, its own fields visible, every other section hidden, Save draft and a Cancel (a go that clears sn_edit) in one action row: ' . implode( ',', $region_bad ) );
 
-// The phone switch (owner, 2026-09-22: "the toggle for the phone isn't
-// working"). os-form reads only checkboxes as booleans; any other tag submits
-// its static value, so an os-switch posts '1' in BOTH positions and would
-// publish the phone on every save. The leaf must use a real checkbox.
+// The phone (owner, 2026-11-02: "not in any version"): no switch to print
+// it on either surface, and the field says it is never printed.
 $kit_dec = html_entity_decode( $edits['pdf'], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-ok( 1 === preg_match( '/<os-checkbox-label[^>]*name="resume\\[pdf\\]\\[phone_public\\]"[^>]*value="1"|<os-checkbox-label[^>]*value="1"[^>]*name="resume\\[pdf\\]\\[phone_public\\]"/', $kit_dec ), 'the phone switch is an os-checkbox-label posting 1 only when checked' );
+ok( false === strpos( $kit_dec . $classic, 'phone_public' ) && false !== strpos( $kit_dec, 'Never printed: not on /resume, not in any PDF.' ) && false !== strpos( $classic, 'Never printed: not on /resume, not in any PDF.' ), 'no phone switch on either surface, and the phone field says it is never printed' );
 ok( '' !== $kit_all && false === strpos( $kit . $kit_all, '<os-switch' ), 'the resume leaf carries no os-switch at all (os-form cannot read one as a boolean)' );
 ok( false !== strpos( $kit_dec, 'name="resume[pdf][website]"' ), 'the Website field is on the leaf' );
 ok( false !== strpos( $kit_dec, 'name="resume[pdf][summary]"' ), 'the Professional summary field is on the leaf' );
@@ -244,12 +242,12 @@ $clip90 = static function ( $bullet ) { // the bullet's text, markup out, cut at
 };
 ok( 1 === preg_match( '#<os-field-row label="Shows in" hint="' . preg_quote( snt_kit_esc( $clip90( $seed['experience'][0]['roles'][0]['bullets'][0] ) ), '#' ) . '"><os-select name="resume\[experience\]\[0\]\[roles\]\[0\]\[bullet_variants\]\[#', $edits['experience'] ) && false === strpos( $edits['experience'], '<os-disclosure' ), 'a bullet\'s select is labelled "Shows in", as the classic, and names its bullet in the hint; no fold around them' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit_all ), 'field names across the eleven editing paints match the classic form (' . count( snt_leaf_names( $kit_all ) ) . ' names): ' . implode( ',', array_diff( snt_leaf_names( $classic ), snt_leaf_names( $kit_all ) ) ) . ' missing; ' . implode( ',', array_diff( snt_leaf_names( $kit_all ), snt_leaf_names( $classic ) ) ) . ' extra' );
-// The seed's three boxes (the phone, the music PDF's What I've Built, the
+// The seed's two boxes (the music PDF's What I've Built, the
 // compact earlier career) are unchecked, which a browser never posts; a
 // carrier mirrors the browser and leaves them out. So every editing paint
 // carries the live classic names exactly, less each box its section is not.
 $classic_live_names = snt_leaf_names( $strip_tpl( $classic ) );
-$boxes              = array( 'resume[pdf][phone_public]' => 'pdf', 'resume[variants][music][show_built]' => 'pdf', 'resume[variants][operations][earlier_compact]' => 'variants' );
+$boxes              = array( 'resume[variants][music][show_built]' => 'pdf', 'resume[variants][operations][earlier_compact]' => 'variants' );
 $short              = array();
 foreach ( $edits as $k => $h ) {
 	$want_names = array_values( array_diff( $classic_live_names, array_keys( array_diff( $boxes, array( $k ) ) ) ) );
@@ -277,7 +275,7 @@ ok( false !== strpos( $kit, 'No draft; showing the live resume.' ) && false !== 
 ok( 1 === preg_match( '#' . preg_quote( snt_leaf_row( 3 ), '#' ) . '<os-section heading="Draft" stack><p class="snt-prose">No draft; showing the live resume\.</p><p class="snt-prose">Save draft stores a draft; its previews, Publish and Discard then appear here\.</p></os-section><os-section heading="Resume PDF" stack>.*</os-grid>$#s', $kit ) && 1 === substr_count( $kit, 'No draft; showing the live resume.' ), 'no draft: the Draft box holds the status and what makes a draft, and pairs with Resume PDF; the status is not in the editor lead' );
 ok( 1 === preg_match( '#<os-section heading="Resume PDF" stack>.*</os-section><os-section heading="Operations résumé setup" stack><os-form [^>]*submit-label="Set up the operations résumé"[^>]*><p class="snt-prose">Writes the operations résumé&\#039;s starting content into the draft: .*?</p><input type="hidden" name="action" value="sn_resume_operations_setup"><input type="hidden" name="_wpnonce" value="nonce-sn_resume_operations_setup"></os-form></os-section></os-grid>$#s', $kit ) && false !== strpos( $classic, '<h2 class="sn-fieldset-h">Operations résumé setup</h2>' ), 'the operations setup is its own kit form (its action, its nonce, no résumé field), the third box beside Draft and Resume PDF, as the classic\'s own fieldset' );
 ok( 1 === preg_match( '#<h2 class="sn-fieldset-h">Draft</h2><p class="sn-fieldset-intro">No draft; showing the live resume\.</p><p class="description">Save draft stores a draft; its previews, Publish and Discard then appear here\.</p></div>#', $classic ) && 1 === substr_count( $classic, 'No draft; showing the live resume.' ), 'no draft: the classic Draft box is painted too, the status in it' );
-ok( false === strpos( $classic, 'collapsed fold)' ) && false === strpos( $classic, 'set above' ) && false === strpos( $classic, 'copy below' ) && false !== strpos( $classic, 'still uses the PDF URL. Generating' ) && false !== strpos( $classic, 'only the private copy carries it.' ), 'the classic says what the window says: no positional words, "Earlier career" without "(collapsed fold)"' );
+ok( false === strpos( $classic, 'collapsed fold)' ) && false === strpos( $classic, 'set above' ) && false === strpos( $classic, 'copy below' ) && false !== strpos( $classic, 'still uses the PDF URL. Generating' ) && false !== strpos( $classic, 'Never printed: not on /resume, not in any PDF.' ), 'the classic says what the window says: no positional words, "Earlier career" without "(collapsed fold)"' );
 $GLOBALS['__options']['sn_resume_pdf'] = array( 'url' => 'https://example.test/wp-content/uploads/resume.pdf', 'pages' => 1, 'bytes' => 2048, 'sha256' => 'abcdef0123456789abcdef', 'generated' => '2026-10-11T18:30:00Z' );
 $pdf_kit     = snt_leaf_paint( 'content', 'resume' );
 $pdf_classic = snt_leaf_classic_html( 'sn_admin_render_resume_section' );
@@ -289,12 +287,8 @@ ok( array() === snt_leaf_classic_markers( $kit . $kit_all ), 'no wp-admin markup
 ok( ! preg_match( '/\sstyle="/', preg_replace( '/ style="--snt-grid-items:\d+"/', '', $kit . $kit_all ) ), 'no inline style= survives (the kit grid\'s own track count aside)' );
 ok( (bool) preg_match( '/\sstyle="/', $kit . '<p style="x">' ), 'the inline-style guard above discriminates (fails on a planted style=)' );
 ok( 2 === substr_count( $kit, '<os-form' ) && 3 === substr_count( $edits['stats'], '<os-form' ) && false !== strpos( $kit, 'submit-label="Generate PDF"' ) && false !== strpos( $edits['stats'], 'os-action="post"' ) && false !== strpos( $edits['stats'], 'submit-label="Save draft"' ) && false === strpos( $kit_all, 'os-arg-pipeline' ), 'editing: three os-forms (Save draft, Generate PDF, the operations setup) dispatching post through the admin-post pipeline; the default paint holds the last two' );
-// The private copy streams a PDF and exits; a window replays a form's handler
-// inside a dispatch (snt_os_host_intercept catches only redirects and dies),
-// so the bytes never reached the reader. It is a door now, and on the classic
-// screen the same URL in a new tab.
-$pv_url = 'admin-post.php?action=sn_resume_pdf_private&page=sn-content&tab=content&sub=resume&_wpnonce=nonce-sn_resume_pdf_private';
-ok( false === strpos( $kit, 'submit-label="Download private copy (with phone)"' ) && 1 === preg_match( '/<os-button[^>]*os-action="door"[^>]*' . preg_quote( htmlspecialchars( $pv_url, ENT_QUOTES ), '/' ) . '[^>]*>Download private copy \(with phone\)/', $kit ) && false !== strpos( html_entity_decode( $classic ), 'href="https://example.test/wp-admin/' . $pv_url . '">Download private copy (with phone)</a>' ), 'the private copy is a door (kit) and a new-tab link (classic) with its nonce, never a form' );
+// The private copy (with phone) is gone with the phone (owner, 2026-11-02).
+ok( false === strpos( $kit . $classic, 'resume_pdf_private' ) && false === stripos( $kit . $classic, 'private copy' ), 'no private copy on either surface' );
 ok( false !== strpos( $edits['experience'], 'name="resume[experience][1][roles][1][title]"' ) && false !== strpos( $edits['earlier'], 'name="resume[earlier][entries][1][roles][1][title]"' ), 'nested role names survive two levels down in both Experience and Earlier career' );
 ok( false !== strpos( $edits['experience'], 'name="resume[experience][__E__][roles][__R__][title]"' ) && false !== strpos( $edits['experience'], 'name="resume[experience][0][roles][__R__][bullets]"' ), 'the template token keys the classic bakes (__E__, __R__) are the blank rows\' names' );
 
@@ -489,7 +483,7 @@ ok( $want_actions === snt_leaf_actions( $kit_edit ) && $want_actions === snt_lea
 ok( false !== strpos( $kit_edit, 'value="DRAFT PRACTICE"' ) && false !== strpos( $classic, 'value="DRAFT PRACTICE"' ) && false === strpos( $kit_edit, 'value="INDEPENDENT PRACTICE"' ) && 'DRAFT PRACTICE' === ( snt_leaf_tables( $kit )[0]['data'][2]['first'] ?? '' ), 'with a draft, both forms paint the draft, not the live document, and the table names it' );
 ok( false !== strpos( $kit, 'Draft saved 2026-09-30; differs from live.' ) && false !== strpos( $classic, 'Draft saved 2026-09-30; differs from live.' ), 'the status line reports the draft on both surfaces' );
 $kit_dec = html_entity_decode( $kit, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-foreach ( array( 'resume_preview_page', 'resume_preview_pdf', 'resume_pdf_private' ) as $pv ) {
+foreach ( array( 'resume_preview_page', 'resume_preview_pdf' ) as $pv ) {
 	$url = 'admin-post.php?action=sn_' . $pv . '&page=sn-content&tab=content&sub=resume&_wpnonce=nonce-sn_' . $pv;
 	ok( false !== strpos( $kit_dec, 'os-action="door"' ) && false !== strpos( $kit_dec, $url ) && false !== strpos( html_entity_decode( $classic ), 'target="_blank" rel="noopener" href="https://example.test/wp-admin/' . $url ), $pv . ': a door (kit) and a new-tab link (classic) to admin-post.php with its own nonce and the Content page named' );
 }
@@ -559,7 +553,7 @@ ok( false === strpos( $kit, '<os-form' ) && array() === snt_leaf_actions( $kit )
 // receipt on an entry and on a bullet, and an affiliation's credential URL.
 $rich = $seed;
 unset( $rich['updated'] );
-$rich['pdf']       = array( 'headline' => 'Design Engineering Lead', 'tagline' => 'Systems | Research', 'summary' => "PDF summary, line one.\nLine two.", 'phone' => '(407) 555-0100', 'phone_public' => true, 'email' => 'name@example.com', 'location' => 'Orlando, FL', 'website' => 'https://example.org', 'competencies' => array( 'Design systems', 'Research ops' ), 'toolkit' => array( 'Figma', 'PHP' ) );
+$rich['pdf']       = array( 'headline' => 'Design Engineering Lead', 'tagline' => 'Systems | Research', 'summary' => "PDF summary, line one.\nLine two.", 'phone' => '(407) 555-0100', 'phone_public' => false, 'email' => 'name@example.com', 'location' => 'Orlando, FL', 'website' => 'https://example.org', 'competencies' => array( 'Design systems', 'Research ops' ), 'toolkit' => array( 'Figma', 'PHP' ) );
 $rich['education'] = array();
 $rich['hero']['chips'][] = 'A chip with "quotes" & <angle> brackets';
 $rich['experience'][0]['roles'][0]['bullets'][] = 'A bullet with <strong>markup</strong> & an ampersand';
@@ -592,7 +586,7 @@ $b0 = (array) ( $rich['experience'][0]['roles'][0]['bullets'] ?? array() );
 $rich['experience'][0]['roles'][0]['bullet_variants'] = array( sn_resume_bullet_key( (string) reset( $b0 ) ) => 'operations', sn_resume_bullet_key( (string) end( $b0 ) ) => 'music' );
 $rich['experience'][0]['roles'][0]['bullet_receipts'] = array( sn_resume_bullet_key( (string) end( $b0 ) ) => array( 'receipt_url' => 'https://example.org/receipts/bullet', 'receipt_type' => 'publication' ) );
 $rich = $spawn( $boot, $rich );
-ok( is_array( $rich ) && true === $rich['pdf']['phone_public'] && array() === $rich['education'] && 2 === count( $rich['pdf']['toolkit'] ), 'the rich fixture normalizes (phone public, Education empty, PDF lists set)' );
+ok( is_array( $rich ) && '(407) 555-0100' === $rich['pdf']['phone'] && array() === $rich['education'] && 2 === count( $rich['pdf']['toolkit'] ), 'the rich fixture normalizes (a phone stored, Education empty, PDF lists set)' );
 ok(
 	is_array( $rich ) && 'music' === ( $rich['experience'][0]['variant'] ?? '' ) && 'operations' === ( $rich['experience'][1]['roles'][1]['variant'] ?? '' )
 	&& 'music' === ( $rich['earlier']['entries'][0]['variant'] ?? '' ) && 'operations' === ( $rich['earlier']['entries'][0]['roles'][0]['variant'] ?? '' )
@@ -629,12 +623,12 @@ $cut   = preg_replace( '#<input type="hidden" name="resume\[(?:built|variants)\]
 $saved = $spawn( $handler_boot, array( 'resume' => $posted( $cut )['resume'] ?? array() ) );
 $doc   = is_array( $saved ) ? (array) ( $saved[1] ?? array() ) : array();
 ok( is_array( $saved ) && 'resume_draft_saved' === $saved[0] && ! isset( $doc['built'] ) && ! isset( $doc['variants'] ) && ! isset( $doc['experience'][0]['variant'] ) && ! isset( $doc['experience'][0]['roles'][0]['bullet_variants'] ) && ! isset( $doc['skills'][0]['variant'] ) && $doc['stats'] === $rich['stats'], 'negative control: without the variant carriers, saving Stats would drop What I\'ve Built, both variant blocks and every row and bullet flag (the round trip above discriminates)' );
-ok( false !== strpos( $edits['stats'], '<input type="hidden" name="resume[pdf][phone_public]" value="1">' ), 'phone_public on: carried as 1 while another section is edited' );
+ok( false !== strpos( $edits['stats'], '<input type="hidden" name="resume[pdf][phone]" value="(407) 555-0100">' ) && false === strpos( $edits['stats'], 'phone_public' ), 'the stored phone is carried while another section is edited, and there is no switch to carry' );
 // The guard can fail: the Stats post without the Hero and PDF carriers.
 $cut   = preg_replace( '#<input type="hidden" name="resume\[(?:hero|pdf)\][^>]*>#', '', $edits['stats'] );
 $saved = $spawn( $handler_boot, array( 'resume' => $posted( $cut )['resume'] ?? array() ) );
 $doc   = is_array( $saved ) ? (array) ( $saved[1] ?? array() ) : array();
-ok( isset( $doc['hero'] ) && '' === $doc['hero']['summary'] && false === $doc['pdf']['phone_public'] && $doc['stats'] === $rich['stats'], 'negative control: without its carriers, saving Stats would blank the Hero and turn the phone off (the round trip above discriminates)' );
+ok( isset( $doc['hero'] ) && '' === $doc['hero']['summary'] && '' === $doc['pdf']['phone'] && $doc['stats'] === $rich['stats'], 'negative control: without its carriers, saving Stats would blank the Hero and drop the stored phone (the round trip above discriminates)' );
 
 // ── Live-shaped preview: eleven sections, 41 entries, a senior design and
 // engineering résumé.

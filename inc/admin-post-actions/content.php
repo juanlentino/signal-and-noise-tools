@@ -8,7 +8,7 @@
  * a ?sn_flash=… code, and sn_admin_post_handlers() in inc/admin-post-handler.php
  * still reaches it BY NAME, which is why the move is invisible to dispatch.
  *
- * Actions served: now_save, uses_save, resume_pdf_generate, resume_pdf_private (the resume editor saves drafts: admin-post-actions/resume-draft.php)
+ * Actions served: now_save, uses_save, resume_pdf_generate (the resume editor saves drafts: admin-post-actions/resume-draft.php)
  *
  * @package SignalNoiseTools
  * @since 12.21.2
@@ -362,20 +362,4 @@ function sn_handle_resume_pdf_generate( $post ) { // phpcs:ignore Generic.CodeAn
 		return 'resume_pdf_failed';
 	}
 	return function_exists( 'sn_resume_ops_pdf_failed' ) && sn_resume_ops_pdf_failed() ? 'resume_pdf_ops_failed' : 'resume_pdf_generated';
-}
-
-/**
- * resume_pdf_private: stream the private copy (with the phone) to this admin.
- * Never written to disk; exits on success, so the dispatcher's redirect only
- * runs on failure.
- *
- * @param array $post Unused.
- * @return string Flash key (failure only).
- */
-function sn_handle_resume_pdf_private( $post ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- dispatcher signature.
-	if ( ! function_exists( 'sn_resume_pdf_private_stream' ) ) {
-		return 'resume_pdf_failed';
-	}
-	sn_resume_pdf_private_stream();
-	return 'resume_pdf_failed';
 }

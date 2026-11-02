@@ -233,7 +233,7 @@ function sn_resume_built_for( $doc, $variant ) {
  *
  * @param array|null $doc Stored document.
  * @param string     $variant
- * @return array|null {sections,headline,tagline,location,links,summary,experience_order,earlier_compact,pdf_file,phone}
+ * @return array|null {sections,headline,tagline,location,links,summary,experience_order,earlier_compact,pdf_file}
  */
 function sn_resume_variant_config( $doc, $variant ) {
 	$v = is_array( $doc['variants'] ?? null ) ? $doc['variants'] : array();
@@ -242,7 +242,6 @@ function sn_resume_variant_config( $doc, $variant ) {
 		if ( ! is_array( $o ) ) {
 			return null;
 		}
-		$o['phone'] = false; // the operations PDF never prints the phone, whatever the switch says (the template enforces it).
 		if ( '' === $o['pdf_file'] ) {
 			$o['pdf_file'] = SN_RESUME_OPERATIONS_PDF_FILE;
 		}
@@ -269,7 +268,7 @@ function sn_resume_ops_config() {
 
 /**
  * The music PDF's layout with its "What I've Built", for every music render:
- * Generate, the draft preview and the private copy.
+ * Generate and the draft preview.
  *
  * @param array|null $doc Stored document (or draft).
  * @return array

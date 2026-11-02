@@ -18,6 +18,7 @@
  *   education[]{title,lines[]} · affiliations[]{title,lines[]}
  *   publications[]{meta,title,url} · skills[]{category,items}
  *   pdf{headline,tagline,summary,phone,phone_public,email,location,website,competencies[],toolkit[]}
+ *   (phone and phone_public are stored and never printed: docs/RESUME-PDF.md, "The phone")
  *
  * `pdf` feeds ONLY the generated PDF (inc/resume-pdf/). The sync engine never
  * reads it, so a PDF-only field (the phone, above all) cannot reach /resume.
@@ -376,12 +377,17 @@ function sn_resume_doc_get() {
  * @return array|null
  */
 function sn_resume_doc_get_raw() {
+	static $logged = false;
 	$stored = get_option( SN_RESUME_DOC_OPTION );
 	if ( is_array( $stored ) ) {
 		$doc = sn_resume_doc_normalize( $stored );
 		if ( null !== $doc ) {
 			$doc['updated'] = sn_resume_text( $stored['updated'] ?? '' );
 			return $doc;
+		}
+		if ( ! $logged && function_exists( 'error_log' ) ) {
+			$logged = true; // once a request.
+			error_log( '[signal-and-noise-tools] the stored résumé was refused (its music view has no experience entry and no publication): /resume shows the seed résumé until it is saved again.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- deliberate: a stored résumé the reader refuses must not fall back to the seed silently.
 		}
 	}
 	$seed = sn_resume_doc_normalize( sn_resume_seed_doc() );

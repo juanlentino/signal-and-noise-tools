@@ -84,12 +84,8 @@ function resume_pdf( array $pdf, $show_built = false ) {
 		. \snt_kit_field( 'textarea', 'resume[pdf][summary]', __( 'Professional summary', 'signal-and-noise-tools' ), (string) ( $pdf['summary'] ?? '' ), array( 'rows' => 4, 'hint' => __( 'Blank: the PDF uses the Summary from Hero.', 'signal-and-noise-tools' ) ) )
 		. resume_pair(
 			resume_text( 'resume[pdf][location]', __( 'Location', 'signal-and-noise-tools' ), $pdf['location'] ?? '', 'Orlando, FL' ),
-			resume_text( 'resume[pdf][phone]', __( 'Phone', 'signal-and-noise-tools' ), $pdf['phone'] ?? '', '(000) 000-0000' )
+			\snt_kit_field( 'text', 'resume[pdf][phone]', __( 'Phone', 'signal-and-noise-tools' ), (string) ( $pdf['phone'] ?? '' ), array( 'placeholder' => '(000) 000-0000', 'hint' => __( 'Never printed: not on /resume, not in any PDF. It is kept only so the PDF check can refuse a file that carries it.', 'signal-and-noise-tools' ) ) )
 		)
-		// A CHECKBOX, never os-switch: os-form reads only checkboxes as booleans;
-		// a switch always submits its static value '1', which would publish the
-		// phone on every save (see security-login-defense.php).
-		. \snt_kit_field( 'checkbox', 'resume[pdf][phone_public]', __( 'Include the phone in the public PDF', 'signal-and-noise-tools' ), ! empty( $pdf['phone_public'] ), array( 'value' => '1', 'hint' => __( 'Off: the public PDF (the /resume Download link) leaves the phone out, and only the private copy carries it. The web page never shows it either way.', 'signal-and-noise-tools' ) ) )
 		. resume_text( 'resume[pdf][email]', __( 'Email', 'signal-and-noise-tools' ), $pdf['email'] ?? '', 'name@example.com' )
 		. resume_text( 'resume[pdf][website]', __( 'Website', 'signal-and-noise-tools' ), $pdf['website'] ?? '', 'https://juanlentino.com (blank: this site)' )
 		. resume_lines( 'resume[pdf][competencies]', $pdf['competencies'] ?? array(), __( 'Core competencies: one per line', 'signal-and-noise-tools' ), 'Strategic Partnerships & Deal Negotiation', 6 )
@@ -120,13 +116,9 @@ function resume_pdf_generate() {
 	foreach ( function_exists( 'sn_resume_pdf_variant_lines' ) ? \sn_resume_pdf_variant_lines() : array() as $line ) {
 		$status .= '<p class="snt-prose">' . \snt_kit_esc( $line['text'] ) . ( '' !== $line['url'] ? ' ' . \snt_kit_link( __( 'Open it', 'signal-and-noise-tools' ), $line['url'] ) . '.' : '' ) . '</p>';
 	}
-	$private = '<p class="snt-prose">' . \snt_kit_esc( __( 'A private copy always includes the phone: built on demand for you, never saved on the server, so it has no public URL.', 'signal-and-noise-tools' ) ) . '</p>';
 	return \snt_kit_section(
 		__( 'Resume PDF', 'signal-and-noise-tools' ),
 		\snt_kit_form( 'resume_pdf_generate', $status, array( 'submit' => __( 'Generate PDF', 'signal-and-noise-tools' ) ) )
-		// A DOOR, not a form: a window replays a form's handler and a streamed
-		// PDF never reaches the reader (content-resume-draft.php).
-		. $private . ( function_exists( 'sn_resume_action_url' ) ? '<p class="snt-prose">' . \snt_kit_door( __( 'Download private copy (with phone)', 'signal-and-noise-tools' ), \sn_resume_action_url( 'resume_pdf_private' ) ) . '</p>' : '' )
 	);
 }
 
