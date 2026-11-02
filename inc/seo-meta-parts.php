@@ -270,7 +270,7 @@ function sn_seo_meta_for_current_view() {
 		// the Analytics descriptionless-Pages recommendation share one source of
 		// truth — mirrors how the title above delegates to its resolver.
 		$description = $post ? sn_seo_resolve_singular_description( $post ) : '';
-		$url         = $post ? get_permalink( $post ) : '';
+		$url         = $post ? (string) apply_filters( 'sn_seo_view_url', get_permalink( $post ), $post ) : ''; // inc/resume-lane-address.php: /resume's operations lane.
 	}
 
 	// 2026-10: MailPoet's subscription page is noindex and has no canonical
