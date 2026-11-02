@@ -9,6 +9,8 @@
  * exists, so the address always names what the page shows. No hreflang pair
  * there: the Spanish CV has no operations lane. The lane's head names it too:
  * its own title and description, and the ProfilePage follows (2026-11-02).
+ * There the page's per-page SEO title and description overrides do not apply
+ * (they are the music résumé's); a canonical override still wins.
  *
  * @package SignalNoiseTools
  */
@@ -16,6 +18,9 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+/** The longest first sentence the operations description takes; past it, the page's own. */
+const SN_RESUME_LANE_DESCRIPTION_MAX = 300;
 
 /**
  * The stored résumé, and the operations summary's first sentence, read once
@@ -35,7 +40,9 @@ function sn_resume_lane_address_memo( $field ) {
 	if ( 'first' === $field && ! array_key_exists( 'first', $m ) ) {
 		$doc        = sn_resume_lane_doc( $m['raw'], 'operations' );
 		$summary    = trim( (string) ( $doc['hero']['summary'] ?? '' ) );
-		$m['first'] = '' === $summary ? '' : preg_split( '/(?<=[.!?])\s+(?=\p{Lu})/u', $summary, 2 )[0];
+		// The shortest prefix ending at . ! or ? (and any closing paren or quote)
+		// before a capital, a digit or the end; none within the limit is ''.
+		$m['first'] = preg_match( '/^.+?[.!?][)"\'\x{201D}\x{2019}]*(?=\s+[\p{Lu}\p{N}]|$)/us', $summary, $s ) && mb_strlen( $s[0] ) <= SN_RESUME_LANE_DESCRIPTION_MAX ? $s[0] : '';
 	}
 	return $m[ $field ];
 }
@@ -88,8 +95,10 @@ add_filter( 'sn_seo_view_title', 'sn_resume_lane_title' );
 
 /**
  * The operations lane's description (meta, og, twitter, the ProfilePage): the
- * first sentence of its summary as stored, never reworded. A sentence ends at
- * . ! or ? before a capital, so "the U.S. and" does not end one.
+ * first sentence of its summary as stored, never reworded or cut. A sentence
+ * ends at . ! or ? (or one inside a closing paren or quote) before a capital
+ * or a digit, so "the U.S. and" does not end one. No end within
+ * SN_RESUME_LANE_DESCRIPTION_MAX characters leaves the page's own description.
  * ponytail: an abbreviation before a capital ("U.S. Latin") would cut early; a
  * stored description field per lane is the upgrade if the summary ever reads so.
  *

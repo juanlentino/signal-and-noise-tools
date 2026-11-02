@@ -63,7 +63,7 @@ $GLOBALS['__slug'] = 'resume';
 $GLOBALS['__post'] = (object) array( 'ID' => 1184, 'post_type' => 'page', 'post_name' => 'resume', 'post_status' => 'publish', 'post_password' => '', 'post_excerpt' => '', 'post_parent' => 0 );
 
 $root = dirname( __DIR__ );
-foreach ( array( 'resume-page', 'resume-operations-setup', 'resume-pdf/operations', 'resume-sync-engine', 'resume-page-lane-render', 'resume-formats-route', 'seo', 'seo-schema-identity-parts', 'seo-schema-pages-parts', 'resume-lane-address' ) as $f ) {
+foreach ( array( 'cloudflare-purge-post-parts', 'resume-page', 'resume-operations-setup', 'resume-pdf/operations', 'resume-sync-engine', 'resume-page-lane-render', 'resume-formats-route', 'seo', 'seo-schema-identity-parts', 'seo-schema-pages-parts', 'resume-lane-address' ) as $f ) {
 	require_once "$root/inc/$f.php";
 }
 $plain = sn_resume_doc_normalize( sn_resume_seed_doc() );
@@ -102,6 +102,7 @@ $_GET = array( 'lane' => 'operations' );
 // The AI plugin's alternate goes through esc_url() (core's clean_url) with no filter of its own.
 $ai = static fn( $u, $ctx = 'display' ) => apply_filters( 'clean_url', $u, $u, $ctx );
 ok( 'https://juanlentino.com/resume/?output_format=markdown&#038;lane=operations' === $ai( 'https://juanlentino.com/resume/?output_format=markdown' ) && 'https://juanlentino.com/resume/?output_format=markdown&lane=operations' === $ai( 'https://juanlentino.com/resume/?output_format=markdown', 'db' ), 'the AI plugin\'s ?output_format=markdown alternate names the lane, so no Markdown alternate names the other one' );
+ok( in_array( $ai( 'https://juanlentino.com/resume/?output_format=markdown', 'db' ), sn_cf_resume_format_urls( $GLOBALS['__post'] ), true ), 'a /resume save purges exactly the Markdown address the head advertises (the edge keys on the query as written)' );
 ok( 'https://juanlentino.com/feed/markdown/' === $ai( 'https://juanlentino.com/feed/markdown/' ) && 'https://juanlentino.com/about/?output_format=markdown' === $ai( 'https://juanlentino.com/about/?output_format=markdown' ), '...and nothing else it escapes' );
 $_GET = array();
 ok( 'https://juanlentino.com/resume/?output_format=markdown' === $ai( 'https://juanlentino.com/resume/?output_format=markdown' ), '...and on the music lane it stays as it was' );
@@ -109,6 +110,18 @@ $_GET = array( 'lane' => 'operations' );
 $wp   = sn_schema_webpage();
 ok( 'ProfilePage' === $wp['@type'] && 'https://juanlentino.com/resume/?lane=operations' === $wp['url'] && $wp['url'] === $wp['@id'] && $ops_first === $wp['description'], 'ProfilePage url, @id and description follow the lane' );
 ok( 'https://juanlentino.com/#/schema/Person' === $wp['mainEntity']['@id'] && 'https://juanlentino.com/resume/#breadcrumb' === $wp['breadcrumb']['@id'], '...the Person and the breadcrumb node it points at stay where they are' );
+
+$first = static function ( $summary ) use ( $raw ) {
+	$doc = $raw;
+	$doc['variants']['operations']['summary'] = $summary;
+	$GLOBALS['__opt']['sn_resume_doc'] = $doc; // a new stored value: the memo reads it afresh.
+	$out = sn_resume_lane_description( 'PAGE' );
+	$GLOBALS['__opt']['sn_resume_doc'] = $raw;
+	return $out;
+};
+ok( 'Built it (twice.)' === $first( 'Built it (twice.) Then more.' ) && 'He said "go."' === $first( 'He said "go." Then went.' ), 'a sentence may end inside a closing parenthesis or quote' );
+ok( 'Fifteen years.' === $first( 'Fifteen years. 2026 now.' ), '...and before a digit' );
+ok( 'PAGE' === $first( str_repeat( 'word ', 80 ) . 'end. Next.' ) && 'PAGE' === $first( 'no end at all' ), 'no sentence end within 300 characters: the page\'s own description, never a cut one' );
 
 echo "\nGroup: the music lane is unchanged\n";
 $m = $head( null );
