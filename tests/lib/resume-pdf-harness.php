@@ -62,6 +62,21 @@ function sn_test_pdf_reset( $doc, $opts = array() ) {
 	$GLOBALS['up_error'] = false;
 }
 
+/**
+ * The Info Title as a PDF reader shows it. Dompdf writes Info strings as
+ * UTF-16BE literals, so it is decoded here (pdfinfo shows the same).
+ *
+ * @param string $bytes PDF file.
+ * @return string '' when there is none.
+ */
+function sn_test_pdf_title( $bytes ) {
+	if ( ! preg_match( '~/Info (\d+) 0 R~', $bytes, $i ) || ! preg_match( '~(?<![0-9])' . $i[1] . ' 0 obj(.*?)endobj~s', $bytes, $o ) || ! preg_match( '~/Title\s*(\((?:\\\\.|[^\\\\)])*\))~s', $o[1], $t ) ) {
+		return '';
+	}
+	$s = stripcslashes( substr( $t[1], 1, -1 ) );
+	return "\xFE\xFF" === substr( $s, 0, 2 ) ? mb_convert_encoding( substr( $s, 2 ), 'UTF-8', 'UTF-16BE' ) : $s;
+}
+
 /** Remove everything the press wrote under $GLOBALS['tmp']. */
 function sn_test_pdf_cleanup() {
 	if ( ! is_dir( $GLOBALS['tmp'] ) ) {

@@ -107,7 +107,7 @@ function sn_resume_page_body( $raw ) {
 		return ''; // the same "unusable document" rule as the single body.
 	}
 	$ops     = sn_resume_lane_doc( $raw, 'operations' );
-	$ops_pdf = function_exists( 'sn_resume_ops_pdf_live' ) && sn_resume_ops_pdf_live() ? sn_resume_ops_pdf_url( $cfg['pdf_file'] ) : ''; // no Download to a 404.
+	$ops_pdf = function_exists( 'sn_resume_ops_pdf_link' ) ? sn_resume_ops_pdf_link( $cfg['pdf_file'] ) : ''; // with its ?v=; '' before it exists (no Download to a 404).
 	$m_keys  = sn_resume_lane_band_keys( $music );
 	$o_keys  = sn_resume_lane_band_keys( $ops );
 	list( $music, $ops ) = sn_resume_lane_marks( $music, $ops );

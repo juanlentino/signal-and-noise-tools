@@ -80,7 +80,7 @@ $no_pdf = sn_resume_page_body( $raw ); // the operations PDF never generated.
 $GLOBALS['__opt']['sn_resume_pdf_operations'] = array( 'url' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf', 'sha256' => str_repeat( 'a', 64 ) );
 $GLOBALS['__opt']['sn_resume_pdf_operations_bytes'] = base64_encode( '%PDF-1.7' ); // live means a PDF is stored too.
 $body = sn_resume_page_body( $raw );
-ok( 'aa277126614615389050af0b846d6bd275ce7392' === sha1( $body ) && 'a19a8817ce26fba62c78306a8af7925fb1f4a2e2' === sha1( $no_pdf ), 'the two-lane body is pinned (engine rev 6, edition marks): request-time changes (the lane labels, ?lane=) never touch it' );
+ok( '68345273b24d46a2c5404b0bf08c98351de6be67' === sha1( $body ) && 'a19a8817ce26fba62c78306a8af7925fb1f4a2e2' === sha1( $no_pdf ), 'the two-lane body is pinned (engine rev 6, edition marks, the operations Download with its ?v=): request-time changes (the lane labels, ?lane=) never touch it' );
 ok( 1 === substr_count( $body, '<h1' ) && 1 === substr_count( $body, 'class="wp-block-group sn-resume-switch"' ), 'two lanes: one page title, one switch' );
 ok( 1 === substr_count( $body, 'id="resume-music"' ) && 1 === substr_count( $body, 'id="resume-operations"' ), 'two lanes: one group each, with its id' );
 ok( false !== strpos( $body, '>Music</a>' ) && false !== strpos( $body, '>Operations &amp; AI Strategy</a>' ) && false !== strpos( $body, 'href="/resume/?lane=operations"' ) && false !== strpos( $body, 'href="/resume/"' ), 'the switch: two links, the music one without a query' );
@@ -89,7 +89,7 @@ ok( function_exists( 'snt_generated_page_guard' ) ? snt_generated_page_guard( 'r
 list( $head_html, $rest ) = explode( 'id="resume-music"', $body, 2 ) + array( '', '' );
 list( $music_html, $ops_html ) = explode( 'id="resume-operations"', $rest, 2 ) + array( '', '' );
 ok( false !== strpos( $ops_html, '>Founder and Operator</h2>' ) && false !== strpos( $ops_html, "WHAT I&#039;VE BUILT" ) && false !== strpos( $ops_html, 'github.com/juanlentino</a>' ), 'the operations lane: its headline, What I\'ve Built, its extra link' );
-ok( false !== strpos( $ops_html, 'href="https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf"' ) && false === strpos( $music_html, 'Operations.pdf' ), 'each lane its own Download: the operations PDF only in the operations lane' );
+ok( false !== strpos( $ops_html, 'href="https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf?v=aaaaaaaa"' ) && false === strpos( $music_html, 'Operations.pdf' ), 'each lane its own Download: the operations PDF, with its ?v=, only in the operations lane' );
 ok( false === strpos( $no_pdf, 'Operations.pdf' ) && false !== strpos( $no_pdf, 'id="resume-operations"' ), 'before the operations PDF exists, its lane has no Download (never a link to a 404)' );
 ok( false !== strpos( $ops_html, '01 · Projects' ) && false !== strpos( $ops_html, '02 · Professional Experience' ) && false === strpos( $ops_html, '>PUBLICATIONS</h2>' ), 'the operations lane numbers what it shows, and leaves out what its sections leave out' );
 $rev               = $raw;

@@ -144,14 +144,14 @@ $jo    = sn_jsonresume_for( 'resume', 'operations' );
 $jm    = sn_jsonresume_for( 'resume', 'music' );
 $lanes = array(
 	'music'      => array( 'html' => 'https://juanlentino.com/resume/', 'md' => 'https://juanlentino.com/resume.md', 'json' => 'https://juanlentino.com/resume/json-resume.json', 'pdf' => (string) sn_resume_formats( 'resume' )['pdf'] ),
-	'operations' => array( 'html' => 'https://juanlentino.com/resume/?lane=operations', 'md' => 'https://juanlentino.com/resume.md?lane=operations', 'json' => 'https://juanlentino.com/resume/json-resume.json?lane=operations', 'pdf' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf' ),
+	'operations' => array( 'html' => 'https://juanlentino.com/resume/?lane=operations', 'md' => 'https://juanlentino.com/resume.md?lane=operations', 'json' => 'https://juanlentino.com/resume/json-resume.json?lane=operations', 'pdf' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf?v=aaaaaaaa' ),
 );
 ok( 'https://juanlentino.com/resume/?lane=operations' === $jo['meta']['canonical'] && 'https://juanlentino.com/resume/' === $jm['meta']['canonical'], 'JSON Resume meta.canonical is its own lane address' );
 ok( '' !== $lanes['music']['pdf'] && $lanes === ( $jo['meta']['x-lanes'] ?? null ) && $lanes === ( $jm['meta']['x-lanes'] ?? null ), 'both JSON Resumes carry meta.x-lanes: each lane\'s page, Markdown, JSON and PDF' );
 $mo = (string) sn_resume_format_body( 'md', 'resume', 'operations' )[1];
 $mm = (string) sn_resume_format_body( 'md', 'resume', 'music' )[1];
 ok( false !== strpos( $mo, "\nurl: \"https://juanlentino.com/resume/?lane=operations\"\n" ) && false !== strpos( $mm, "\nurl: \"https://juanlentino.com/resume/\"\n" ), 'the Markdown front matter url is its own lane address' );
-$yaml = "lanes:\n  music:\n    html: \"https://juanlentino.com/resume/\"\n    md: \"https://juanlentino.com/resume.md\"\n    json: \"https://juanlentino.com/resume/json-resume.json\"\n    pdf: \"" . $lanes['music']['pdf'] . "\"\n  operations:\n    html: \"https://juanlentino.com/resume/?lane=operations\"\n    md: \"https://juanlentino.com/resume.md?lane=operations\"\n    json: \"https://juanlentino.com/resume/json-resume.json?lane=operations\"\n    pdf: \"https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf\"\n";
+$yaml = "lanes:\n  music:\n    html: \"https://juanlentino.com/resume/\"\n    md: \"https://juanlentino.com/resume.md\"\n    json: \"https://juanlentino.com/resume/json-resume.json\"\n    pdf: \"" . $lanes['music']['pdf'] . "\"\n  operations:\n    html: \"https://juanlentino.com/resume/?lane=operations\"\n    md: \"https://juanlentino.com/resume.md?lane=operations\"\n    json: \"https://juanlentino.com/resume/json-resume.json?lane=operations\"\n    pdf: \"https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf?v=aaaaaaaa\"\n";
 ok( 1 === substr_count( $mo, "\n" . $yaml ) && 1 === substr_count( $mm, "\n" . $yaml ), 'both Markdown front matters carry the lanes: map' );
 ok( false !== strpos( $mo, "\n  markdown_operations: \"https://juanlentino.com/resume.md?lane=operations\"\n" ) && false !== strpos( $mm, "\n  markdown_operations: " ), 'formats.markdown_operations in both' );
 $canon = static fn( $lane ) => sn_resume_format_headers( 'text/markdown; charset=utf-8', sn_resume_format_canonical( 'resume', $lane ) )[4];
@@ -166,7 +166,8 @@ echo "\nGroup: the music twins change only by the lanes map\n";
 $jm_less = $jm;
 unset( $jm_less['meta']['x-lanes'] );
 ok( 'f01a171b101376d1e088dddd147fc6985e3e87ce' === sha1( json_encode( $jm_less ) ) && isset( $jm['meta']['x-lanes'] ), 'the music JSON Resume is the old one byte for byte, plus meta.x-lanes' );
-ok( '42b1c4c1ad45a8a60ad9d1c11a3e6c3e721f0dd7' === sha1( str_replace( $yaml, '', $mm ) ) && false !== strpos( $mm, $yaml ), 'the music Markdown is the old one byte for byte, plus the lanes: map' );
+// 75cc2713 = 42b1c4c1 (before #2355) with the operations PDF's ?v=aaaaaaaa in formats.pdf_operations.
+ok( '75cc2713a4fb48679f3ba2403675ba9f260d31ac' === sha1( str_replace( $yaml, '', $mm ) ) && false !== strpos( $mm, $yaml ), 'the music Markdown is the old one byte for byte, plus the lanes: map' );
 $GLOBALS['__opt']['sn_resume_doc'] = $plain;
 ok( ! isset( sn_jsonresume_for( 'resume', 'music' )['meta']['x-lanes'] ) && false === strpos( (string) sn_resume_format_body( 'md', 'resume', 'music' )[1], 'lanes:' ), 'one lane: no lanes map at all' );
 $GLOBALS['__opt']['sn_resume_doc'] = $raw;

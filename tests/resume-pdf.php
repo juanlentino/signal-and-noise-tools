@@ -107,10 +107,10 @@ if ( '' !== $pdftotext ) {
 	ok( false === strpos( $pub_text, '(555) 010-4242' ) && false !== strpos( $pub_text, 'Orlando, FL' ), 'the PDF BYTES carry no phone (the contact line still prints)' );
 }
 $gen_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.php' );
-ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'] . \'/.font-cache\', false, home_url( \'/\' ), $config );' ), 'Generate PDF asks for no phone (and the music layout)' );
+ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'] . \'/.font-cache\', false, home_url( \'/resume/\' ), $config );' ), 'Generate PDF asks for no phone (and the music layout), with the music lane\'s address' );
 // Drafts: ONE streamer (sn_resume_pdf_stream) serves the draft preview.
 $stream_src = substr( $gen_src, (int) strpos( $gen_src, 'function sn_resume_pdf_stream(' ) );
-ok( false !== strpos( $gen_src, 'function sn_resume_pdf_stream(' ) && 1 === preg_match( '/^function sn_resume_pdf_stream\( \$doc, \$filename, \$config = null \) \{.*?sn_resume_pdf_render\( \$doc, \$name, [^;]*, false, home_url\( \'\/\' \), \$config \);.*?header\( .Content-Disposition: attachment; filename="\' \. \$filename/s', $stream_src ) && false === strpos( $stream_src, 'file_put_contents' ), 'the streamer renders with no phone, sends an attachment, and nothing after it writes to disk' );
+ok( false !== strpos( $gen_src, 'function sn_resume_pdf_stream(' ) && 1 === preg_match( '/^function sn_resume_pdf_stream\( \$doc, \$filename, \$config = null \) \{.*?sn_resume_pdf_render\( \$doc, \$name, [^;]*, false, home_url\( \'\/resume\/\' \), \$config \);.*?header\( .Content-Disposition: attachment; filename="\' \. \$filename/s', $stream_src ) && false === strpos( $stream_src, 'file_put_contents' ), 'the streamer renders with no phone, sends an attachment, and nothing after it writes to disk' );
 ok( false === strpos( $gen_src, 'sn_resume_pdf_private_stream' ), 'there is no private copy (it existed for the phone)' );
 ok( 1 === preg_match( '/function sn_resume_pdf_draft_stream\(\) \{\s*\$doc = [^;]*sn_resume_draft_get\(\)[^;]*;\s*return sn_resume_pdf_stream\( \$doc, \'JuanLentino_Resume_draft\.pdf\', sn_resume_pdf_music_config\( sn_resume_draft_get\(\) \) \);/', $gen_src ), 'the draft preview streams the DRAFT, as JuanLentino_Resume_draft.pdf' );
 
@@ -134,7 +134,7 @@ $web                     = $bare;
 $web['pdf']['website']   = 'https://example.org/work';
 $web_doc                 = sn_resume_doc_normalize( $web );
 $web_html                = sn_resume_pdf_html( $web_doc, 'Juan Lentino', '/fonts', false, 'https://www.juanlentino.com/' );
-ok( false !== strpos( $web_html, '<a href="https://example.org/work">example.org</a>' ) && false === strpos( $web_html, 'juanlentino.com</a>' ), 'the Website field wins over the home URL' );
+ok( false !== strpos( $web_html, '<a href="https://example.org/work">example.org/work</a>' ) && false === strpos( $web_html, 'juanlentino.com</a>' ), 'the Website field wins over the lane address, printed as it links' );
 
 echo "\nPublications: venue and date on the title's row\n";
 ok( 1 === preg_match( '#<table class="pub"><tr><td><a href="[^"]+">Provenance Over Detection[^<]*</a></td><td class="meta">SSRN Working Paper[^<]*</td></tr></table>#u', $html ), 'each publication is one row: linked title left, venue and date right' );

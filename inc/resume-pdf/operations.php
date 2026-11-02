@@ -33,6 +33,21 @@ function sn_resume_ops_pdf_url( $file ) {
 }
 
 /**
+ * The operations PDF's link: its address plus ?v=<first 8 of the SHA-256>, as
+ * the music Download has (sn_resume_pdf_link()), so a new file busts every
+ * cache layer. '' while it is not live: never a link to a 404.
+ *
+ * @param string|null $file The configured file name; null reads the stored résumé's.
+ * @return string
+ */
+function sn_resume_ops_pdf_link( $file = null ) {
+	$meta = get_option( SN_RESUME_OPS_PDF_OPTION );
+	// The name the route serves now (sn_resume_ops_pdf_maybe_serve()), not the stored URL: a rename's build may have failed.
+	$file = $file ?? ( sn_resume_ops_config()['pdf_file'] ?? '' );
+	return '' !== (string) $file && sn_resume_ops_pdf_live() && ! empty( $meta['sha256'] ) ? sn_resume_ops_pdf_url( $file ) . '?v=' . substr( (string) $meta['sha256'], 0, 8 ) : '';
+}
+
+/**
  * Whether the operations PDF is there to link: generated, stored as a PDF,
  * and not withdrawn. Only a phone number in it withdraws it; a file with
  * another flag stays published, the flag shown in the PDF box. The page's
@@ -136,14 +151,17 @@ function sn_resume_ops_pdf_build() {
 	}
 	$config['built'] = sn_resume_built_for( $raw, 'operations' );
 	$name            = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	$result          = sn_resume_pdf_render( sn_resume_doc_view( $raw, 'operations' ), $name, $loc['dir'] . '/.font-cache', false, home_url( '/' ), $config );
+	$config['title'] = $name . ' · Résumé · Operations & AI Strategy'; // the Info Title (the template's <title>).
+	$view['pdf']['website'] = ''; // its own lane's address, whatever the music Website field says.
+	$result          = sn_resume_pdf_render( $view, $name, $loc['dir'] . '/.font-cache', false, home_url( '/resume/?lane=operations' ), $config ); // the lane's own address.
 	$url             = sn_resume_ops_pdf_url( $config['pdf_file'] );
 	// A phone in it is never served (the render refuses it): the last file goes too.
 	if ( is_wp_error( $result ) && 'sn_resume_pdf_phone' === $result->get_error_code() ) {
+		$linked = sn_resume_ops_pdf_link(); // the ?v= address the page links now, if any.
 		delete_option( SN_RESUME_OPS_PDF_BYTES );
 		delete_option( SN_RESUME_OPS_PDF_OPTION ); // nothing is served, so nothing may link it (sn_resume_ops_pdf_live()).
 		if ( function_exists( 'sn_cf_purge_urls' ) ) {
-			sn_cf_purge_urls( array( $url ) ); // and the edge stops serving the last one.
+			sn_cf_purge_urls( array_values( array_filter( array( $url, $linked ) ) ) ); // and the edge stops serving the last one.
 		}
 		return new WP_Error( 'sn_resume_pdf_phone', 'The operations PDF read back with a phone number; it was not published.' );
 	}

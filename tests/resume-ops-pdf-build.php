@@ -30,7 +30,21 @@ $m = sn_resume_ops_pdf_build();
 ok( is_array( $m ) && array() === $m['check']['flags'] && $url === $m['url'] && $m === $GLOBALS['opts']['sn_resume_pdf_operations'], 'it is stored with a clean check, at /resume/<file name>' );
 ok( sn_resume_ops_pdf_live() && hash( 'sha256', base64_decode( $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] ) ) === $m['sha256'], 'it is live, and the stored bytes are the file the facts describe' );
 ok( array( $url ) === $GLOBALS['purged'], 'its address is purged' );
+$bytes = base64_decode( $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] );
+$text  = sn_resume_pdf_text( $bytes );
+ok( false !== strpos( $text, 'example.test/resume/?lane=operations' ) && false !== strpos( $bytes, '/URI (https://example.test/resume/?lane=operations)' ), 'its contact line prints and links its own lane: /resume/?lane=operations' );
+ok( 0 === preg_match( '~example\.test/resume(?!/\?lane=operations)~', $text ) && false === strpos( $bytes, '/URI (https://example.test/resume/)' ), 'and not the music lane\'s address' );
+$pdftotext = trim( (string) shell_exec( 'command -v pdftotext 2>/dev/null' ) );
+if ( '' !== $pdftotext && false !== file_put_contents( $GLOBALS['tmp'] . '/ops.pdf', $bytes ) ) {
+	$ats = (string) shell_exec( escapeshellarg( $pdftotext ) . ' ' . escapeshellarg( $GLOBALS['tmp'] . '/ops.pdf' ) . ' - 2>/dev/null' );
+	ok( false !== strpos( $ats, 'example.test/resume/?lane=operations' ) && 0 === preg_match( '~example\.test/resume(?!/\?lane=operations)~', $ats ), 'pdftotext (an ATS view) reads the same address' );
+} else {
+	echo "INFO: pdftotext not installed; the built-in reader's read above stands alone.\n";
+}
+ok( 'Juan Lentino · Résumé · Operations & AI Strategy' === sn_test_pdf_title( $bytes ), 'its Info Title names the lane: "' . sn_test_pdf_title( $bytes ) . '"' );
+ok( $url . '?v=' . substr( $m['sha256'], 0, 8 ) === sn_resume_ops_pdf_link(), 'its link carries ?v=<first 8 of its SHA-256>, as the music Download does' );
 $good = $GLOBALS['opts'];
+$good_link = sn_resume_ops_pdf_link();
 
 echo "\nGroup: a phone in it\n";
 $ph = $set;
@@ -39,7 +53,8 @@ $reset( $ph, $good );
 $e = sn_resume_ops_pdf_build();
 ok( is_wp_error( $e ) && 'sn_resume_pdf_phone' === $e->get_error_code(), 'a phone in the text is refused' );
 ok( ! isset( $GLOBALS['opts']['sn_resume_pdf_operations'] ) && ! isset( $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] ) && ! sn_resume_ops_pdf_live(), 'the earlier good file and its facts are gone: nothing links it' );
-ok( in_array( $url, $GLOBALS['purged'], true ), 'and its address is purged, so the edge does not keep serving it' );
+ok( in_array( $url, $GLOBALS['purged'], true ) && in_array( $good_link, $GLOBALS['purged'], true ), 'and its address is purged, the ?v= one the page linked too, so the edge does not keep serving it' );
+ok( '' === sn_resume_ops_pdf_link(), 'withdrawn, it has no link' );
 $reset( $set, $good );
 $GLOBALS['name'] = 'Juan Lentino 407-555-0123';
 ok( 'sn_resume_pdf_phone' === sn_resume_ops_pdf_build()->get_error_code(), 'a phone in the name (the Title metadata and the header) is refused too' );
@@ -57,6 +72,20 @@ ok( false !== strpos( $box(), 'It stays published: only a phone number withdraws
 $reset( $set );
 $GLOBALS['robots'] = '';
 ok( in_array( 'no X-Robots-Tag: noindex header', sn_resume_ops_pdf_build()['check']['flags'], true ), 'an address that answers without noindex is flagged' );
+
+echo "\nGroup: a renamed file and a Website field\n";
+$ren = $set;
+$ren['variants']['operations']['pdf_file'] = 'Renamed_Operations.pdf';
+$ren['variants']['operations']['summary'] .= ' Call (407) 555-0123.'; // the build after the rename fails.
+$reset( $ren, $good );
+$GLOBALS['opts']['sn_resume_pdf_operations_bytes'] = $good['sn_resume_pdf_operations_bytes'];
+$GLOBALS['opts']['sn_resume_pdf_operations']       = $good['sn_resume_pdf_operations'] + array( 'error' => 'an earlier failure' );
+ok( 'https://example.test/resume/Renamed_Operations.pdf?v=' . substr( $m['sha256'], 0, 8 ) === sn_resume_ops_pdf_link(), 'renamed, its link names the address the route serves now, not the stored one' );
+$web = $set;
+$web['pdf']['website'] = 'https://example.org/work';
+$reset( $web );
+$wb = base64_decode( (string) ( sn_resume_ops_pdf_build() ? $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] : '' ) );
+ok( false !== strpos( sn_resume_pdf_text( $wb ), 'example.test/resume/?lane=operations' ) && false === strpos( $wb, 'example.org' ), 'a filled Website field does not replace the operations PDF\'s own address' );
 
 echo "\nGroup: a write that does not land\n";
 $changed = $set;

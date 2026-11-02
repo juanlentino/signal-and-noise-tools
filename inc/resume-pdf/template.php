@@ -106,10 +106,12 @@ li strong,.lines strong{color:' . $n . ';}
  * @param bool   $unused_phone  Ignored: no PDF prints the phone (owner,
  *                              2026-11-02: "not in any version"). The slot
  *                              stays so positional callers keep their meaning.
- * @param string $site_url      The site's home URL; printed as its bare host (the
- *                              design's "juanlentino.com"), linked.
+ * @param string $site_url      The lane's own address (music /resume/, operations
+ *                              /resume/?lane=operations), printed without its scheme
+ *                              ("juanlentino.com/resume"), linked.
  * @param array|null $config    A variant's layout (sn_resume_variant_config() plus
- *                              its `built`); null is the music PDF as it has always been.
+ *                              its `built`, and a `title` for the PDF's Info Title, which
+ *                              Dompdf takes from <title>); null is the music PDF as it has always been.
  * @return string
  */
 function sn_resume_pdf_html( $doc, $name, $font_dir, $unused_phone = false, $site_url = '', $config = null ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- a kept positional slot.
@@ -142,13 +144,12 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $unused_phone = false, $sit
 	if ( '' !== (string) ( $hero['linkedin'] ?? '' ) ) {
 		$contact[] = '<a href="' . $e( $hero['linkedin'] ) . '">' . $e( preg_replace( '~^https?://(www\.)?~i', '', (string) $hero['linkedin'] ) ) . '</a>';
 	}
-	// The Website field wins; blank falls back to the site's own home URL.
+	// The Website field wins; blank falls back to the lane's own address.
 	if ( '' !== (string) ( $pdf['website'] ?? '' ) ) {
 		$site_url = (string) $pdf['website'];
 	}
-	$host = (string) preg_replace( '~^www\.~i', '', (string) parse_url( (string) $site_url, PHP_URL_HOST ) );
-	if ( '' !== $host ) {
-		$contact[] = '<a href="' . $e( $site_url ) . '">' . $e( $host ) . '</a>';
+	if ( '' !== (string) parse_url( (string) $site_url, PHP_URL_HOST ) ) {
+		$contact[] = '<a href="' . $e( $site_url ) . '">' . $e( preg_replace( '~^https?://(www\.)?~i', '', rtrim( (string) $site_url, '/' ) ) ) . '</a>';
 	}
 	foreach ( (array) ( $config['links'] ?? array() ) as $link ) { // a variant's extra contact links (GitHub).
 		$contact[] = '<a href="' . $e( $link ) . '">' . $e( preg_replace( '~^https?://(www\.)?~i', '', rtrim( (string) $link, '/' ) ) ) . '</a>';
@@ -254,6 +255,6 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $unused_phone = false, $sit
 		$out .= $parts[ $key ] ?? '';
 	}
 
-	return '<!DOCTYPE html><html lang="' . sn_resume_l( 'en', 'es-AR' ) . '"><head><meta charset="utf-8"><title>' . $e( $name ) . ', ' . sn_resume_l( 'Resume', 'Curriculum vitae' ) . '</title><style>'
+	return '<!DOCTYPE html><html lang="' . sn_resume_l( 'en', 'es-AR' ) . '"><head><meta charset="utf-8"><title>' . $e( $config['title'] ?? $name . ', ' . sn_resume_l( 'Resume', 'Curriculum vitae' ) ) . '</title><style>'
 		. sn_resume_pdf_css( $font_dir ) . '</style></head><body>' . $out . '</body></html>';
 }
