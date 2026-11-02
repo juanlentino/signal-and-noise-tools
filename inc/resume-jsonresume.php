@@ -105,7 +105,8 @@ function sn_jsonresume_projects( array $items ) {
  * @param array|null $doc A normalized résumé document (English or Spanish).
  * @param array      $ctx name, url, canonical, last_modified, version,
  *                        profiles (URLs), provenance {verify_url,note_uid}|null,
- *                        projects ({title,url,text}), lane ('' when /resume has one).
+ *                        projects ({title,url,text}), lane ('' when /resume has one),
+ *                        lanes (sn_resume_lanes()).
  * @return array|null Null when there is no document.
  */
 function sn_jsonresume_build( $doc, array $ctx ) {
@@ -141,6 +142,9 @@ function sn_jsonresume_build( $doc, array $ctx ) {
 	}
 	if ( '' !== (string) ( $ctx['lane'] ?? '' ) ) {
 		$meta['x-lane'] = (string) $ctx['lane']; // which of /resume's two résumés this is.
+	}
+	if ( ! empty( $ctx['lanes'] ) ) {
+		$meta['x-lanes'] = (array) $ctx['lanes']; // both lanes' addresses (sn_resume_lanes()): each résumé names the other.
 	}
 	$prov = $ctx['provenance'] ?? null;
 	if ( is_array( $prov ) && '' !== (string) ( $prov['note_uid'] ?? '' ) ) {

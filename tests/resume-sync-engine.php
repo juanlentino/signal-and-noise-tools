@@ -178,7 +178,7 @@ $GLOBALS['__page'] = (object) array( 'ID' => 1184, 'post_excerpt' => '  ' );
 sn_resume_upsert_page( $body );
 ok( ! isset( $GLOBALS['__updates'][1]['post_excerpt'] ), '(changed) a blank excerpt is left blank: the seed said "twenty more" beside a 15+ resume' );
 
-// 2026-10-18: an identical body is not rewritten. /resume is signed; a save
+// 2026-10-18: an identical body is not rewritten (if /resume is ever signed, a re-save must not re-sign it); a save
 // that changes only data the body does not render (a credential URL) must
 // not touch post_content, the same check the Spanish sync already makes.
 $GLOBALS['__updates'] = array();

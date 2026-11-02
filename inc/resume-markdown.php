@@ -84,6 +84,15 @@ function sn_resume_markdown_front( array $resume, array $formats, array $w ) {
 	foreach ( $formats as $k => $u ) {
 		$out[] = "  $k: " . $y( $u );
 	}
+	if ( isset( $meta['x-lanes'] ) ) {
+		$out[] = 'lanes:'; // both of /resume's résumés, so each Markdown names the other.
+		foreach ( (array) $meta['x-lanes'] as $lane => $urls ) {
+			$out[] = "  $lane:";
+			foreach ( (array) $urls as $k => $u ) {
+				$out[] = "    $k: " . $y( $u );
+			}
+		}
+	}
 	if ( isset( $meta['x-provenance'] ) ) {
 		$out[] = 'provenance:';
 		$out[] = '  verify_url: ' . $y( $meta['x-provenance']['verify_url'] );

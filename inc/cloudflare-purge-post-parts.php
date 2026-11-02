@@ -116,7 +116,9 @@ function sn_cf_markdown_twin_urls( $post ) {
 /**
  * /resume's and /cv's agent copies (inc/resume-formats-route.php): Markdown,
  * JSON Resume and vCard, each lane's, and the operations lane's
- * ?output_format=markdown twin (the plain one is the permalink's, above).
+ * ?output_format=markdown twin in both query orders: the one an agent builds,
+ * and the one the operations head advertises (inc/resume-lane-address.php);
+ * the edge keys on the query as written. The plain one is the permalink's, above.
  * Listed, not derived: purging one the
  * edge does not hold is free.
  *
@@ -125,7 +127,7 @@ function sn_cf_markdown_twin_urls( $post ) {
  */
 function sn_cf_resume_format_urls( $post ) {
 	$copies = array(
-		'resume' => array( '/resume.md', '/resume.md?lane=operations', '/resume/json-resume.json', '/resume/json-resume.json?lane=operations', '/resume/contact.vcf', '/resume/?lane=operations&output_format=markdown' ),
+		'resume' => array( '/resume.md', '/resume.md?lane=operations', '/resume/json-resume.json', '/resume/json-resume.json?lane=operations', '/resume/contact.vcf', '/resume/?lane=operations&output_format=markdown', '/resume/?output_format=markdown&lane=operations', '/cv.md', '/cv/json-resume.json' ), // /cv's copies take /resume's email and website.
 		'cv'     => array( '/cv.md', '/cv/json-resume.json' ),
 	);
 	$slug   = 'page' === ( $post->post_type ?? '' ) ? (string) ( $post->post_name ?? '' ) : '';
