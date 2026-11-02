@@ -1,11 +1,12 @@
 <?php
 /**
- * Guard: the check on every generated résumé PDF (inc/resume-pdf/text-check.php).
+ * Guard: the check on every generated résumé PDF (inc/resume-pdf/text-check.php,
+ * inc/resume-pdf/check.php).
  *
  * The built-in reader must read what pdftotext reads (word for word, when the
  * machine has pdftotext), and the flags must fire on what the brief names:
  * control characters, ligatures, a phone number in the text or the metadata,
- * too many pages.
+ * too many pages. A page or the metadata it could not read is a flag too.
  *
  * Run: php tests/resume-pdf-text-check.php
  */
@@ -81,5 +82,21 @@ $ri              = sn_resume_pdf_render( $intl, 'Juan Lentino', $cache, true, 'h
 ok( in_array( 'a phone number', sn_resume_pdf_check( $ri['bytes'], $ri['pages'], null, '+54 9 11 5555-1234' )['flags'], true ), 'the stored phone, in any format, is found by its digits' );
 ok( ! in_array( 'a phone number', sn_resume_pdf_check( $r['bytes'], $r['pages'], null, '+54 9 11 5555-1234' )['flags'], true ), 'and a PDF without it is not flagged' );
 
+echo "\nGroup: a file the reader cannot fully read is never clean\n";
+// Page two's content stream, found through its page's /Contents reference.
+preg_match_all( '~/Type /Page\b.*?/Contents (\d+) 0 R~s', $r['bytes'], $pc );
+$p2   = strpos( $r['bytes'], "\n" . $pc[1][1] . ' 0 obj' );
+$data = strpos( $r['bytes'], 'stream', $p2 ) + 40;
+ok( 2 === $r['pages'] && array() === sn_resume_pdf_check( $r['bytes'], $r['pages'] )['flags'], 'the two-page fixture reads clean' );
+$torn = sn_resume_pdf_check( substr_replace( $r['bytes'], str_repeat( "\0", 16 ), $data, 16 ), $r['pages'] )['flags'];
+ok( in_array( 'only 1 of 2 pages could be read', $torn, true ) && in_array( '1 stream could not be inflated', $torn, true ), 'a page whose stream does not inflate is flagged, though page one alone is over 1,000 characters' );
+$ind = (string) preg_replace( '~/Length \d+ >>~', '/Length 99 0 R >>', substr( $r['bytes'], $p2, 200 ), 1 );
+ok( sn_resume_pdf_text( substr_replace( $r['bytes'], $ind, $p2, 200 ) ) === $text, 'an indirect /Length (99 0 R) is not read as a length of 9' );
+ok( in_array( 'the metadata could not be read', sn_resume_pdf_check( (string) preg_replace( '~/Info \d+ 0 R~', '', $r['bytes'] ), $r['pages'] )['flags'], true ), 'a file whose Info dictionary is not found says so, rather than passing the metadata phone check' );
+ok( array() === $F( "Sales 250\n300\n2024", '', 1 ) && array() === $F( "100\n200\n3000", '', 1 ), 'three numbers on three lines are not a phone number' );
+ok( array( 'a phone number' ) === $F( 'call 407 555 0123', '', 1 ) && array( 'a phone number' ) === $F( "call 407\u{A0}555\u{A0}0123", '', 1 ), 'a phone spaced with spaces or no-break spaces still is' );
+
+array_map( 'unlink', (array) glob( $cache . '/*' ) );
+rmdir( $cache );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
