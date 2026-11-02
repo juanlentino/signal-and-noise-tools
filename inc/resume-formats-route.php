@@ -152,7 +152,7 @@ function sn_resume_formats_maybe_serve() {
 	if ( null === $body ) {
 		return;
 	}
-	sn_resume_format_send( $body[0], $route[1] );
+	sn_resume_format_send( $body[0], $route[1], 'md' === $route[0] ? $lane : 'music' ); // the vCard has no lane.
 	if ( 'vcf' === $route[0] ) {
 		header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( strtolower( (string) get_bloginfo( 'name' ) ) ) . '.vcf"' );
 	}
