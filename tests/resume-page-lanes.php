@@ -76,6 +76,7 @@ sn_resume_lang( 'en' );
 $no_pdf = sn_resume_page_body( $raw ); // the operations PDF never generated.
 $GLOBALS['__opt']['sn_resume_pdf_operations'] = array( 'url' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf', 'sha256' => str_repeat( 'a', 64 ) );
 $body = sn_resume_page_body( $raw );
+ok( 'd6df6e93fbc7d2a6788668024a2b75a4cc8776cf' === sha1( $body ) && 'c6a5e48aae8a2313447604ed608d747625a0372f' === sha1( $no_pdf ), 'the two-lane body is pinned: request-time changes (the lane labels, ?lane=) never touch it' );
 ok( 1 === substr_count( $body, '<h1' ) && 1 === substr_count( $body, 'class="wp-block-group sn-resume-switch"' ), 'two lanes: one page title, one switch' );
 ok( 1 === substr_count( $body, 'id="resume-music"' ) && 1 === substr_count( $body, 'id="resume-operations"' ), 'two lanes: one group each, with its id' );
 ok( false !== strpos( $body, '>Music</a>' ) && false !== strpos( $body, '>Operations &amp; AI Strategy</a>' ) && false !== strpos( $body, 'href="/resume/?lane=operations"' ) && false !== strpos( $body, 'href="/resume/"' ), 'the switch: two links, the music one without a query' );
@@ -133,6 +134,8 @@ if ( '' === $api ) {
 	ok( ! $hidden( $v['music'] ) && $hidden( $v['operations'] ), 'no lane asked: music shows, operations is hidden' );
 	ok( 1 === preg_match( '/data-lane="music"[^>]*aria-current="page"|aria-current="page"[^>]*data-lane="music"/', $v['nav'] ) && 1 === substr_count( $v['nav'], 'aria-current' ), 'and the switch marks Music as current, once' );
 	ok( false !== strpos( $v['nav'], 'aria-label="Résumé version"' ), 'the switch is a labeled nav' );
+	$region = static fn( $html, $label ) => 1 === preg_match( '/^<div[^>]*\srole="region"/', $html ) && false !== strpos( $html, ' aria-label="' . $label . '"' );
+	ok( $region( $v['music'], 'Music résumé' ) && $region( $v['operations'], 'Operations &amp; AI Strategy résumé' ), 'each lane is a region named for its résumé, as the switch names it, shown or hidden' );
 	$o = $view( 'operations' );
 	ok( $hidden( $o['music'] ) && ! $hidden( $o['operations'] ) && 1 === preg_match( '/data-lane="operations"[^>]*aria-current|aria-current="page"[^>]*data-lane="operations"/', $o['nav'] ), '?lane=operations: music hidden, operations current' );
 	$x = $view( '"><script>' );
