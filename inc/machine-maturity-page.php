@@ -70,6 +70,9 @@ function sn_machine_maturity_scope() {
 		// NodeInfo, WebFinger's usual companion, is deliberately absent: its schema
 		// requires at least one federation protocol and this site speaks none.
 		'identity'    => array( __( 'Identity discovery', 'signal-and-noise-tools' ), 'live' ),
+		// 2026-11-02: the résumé as two versions, each with machine copies that
+		// name both; the sentence lives on the roadmap board's done column.
+		'resume'      => array( __( 'Résumé versions', 'signal-and-noise-tools' ), 'live' ),
 	);
 	return apply_filters( 'sn_machine_maturity_scope', $scope );
 }

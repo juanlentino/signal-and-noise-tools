@@ -336,6 +336,13 @@ ok( false !== strpos( implode( ' | ', $floor['Machine readability']['done'] ), '
 ok( false !== strpos( implode( ' | ', $floor['Machine readability']['done'] ), 'renders as unmeasured, never as zero' ), 'DR floor: and the row NAMES the three-valued contract, so a broken sensor can never be read back as a flattering zero' );
 ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Machine readability'] ) ) ), 'read from the crawler ledger at render' ), 'DR floor: no stale "read from the crawler ledger at render" phrasing survives in ANY Machine readability column' );
 
+// 2026-11-02: the resume row lands DONE as the family's fifth, at the ceiling.
+$mr_done = $floor['Machine readability']['done'];
+ok( in_array( 'The résumé served as two versions at two addresses, each under its own title, with machine copies (Markdown and JSON Resume) that name both versions; each version marks what only it holds, and no version, human or machine, carries a phone number', $mr_done, true ), 'DR floor: the resume row sits in Machine readability DONE, word for word' );
+ok( 5 === count( $mr_done ) && count( $mr_done ) <= SN_MATURITY_ROADMAP_MAX_DONE, 'DR floor: Machine readability DONE holds five rows, within the ceiling' );
+ok( 0 === strpos( $mr_done[0], 'The rights-read count' ) && 0 === strpos( $mr_done[1], 'Provenance pointers' ) && 0 === strpos( $mr_done[2], 'An in-page tool surface' ) && 0 === strpos( $mr_done[3], 'Google\'s account cross-examined' ), 'PIN: the four earlier DONE rows keep their order and openings' );
+ok( false === strpos( $mr_done[4], '/' ) && false === strpos( $mr_done[4], '—' ), 'the resume row names no address path and carries no em dash' );
+
 // Traffic rhythm flags promoted CONSIDERING -> PLANNED on 2026-08-12 (owner
 // call, R4 prep: the ML pair stays held, this row promotes). A planned row
 // names its gate, so the promoted sentence carries one — read from the rollups
@@ -491,7 +498,10 @@ echo "\nGroup: static floor pinned to the live board (2026-10-16 sync)\n";
 // md5( json_encode( board ) ). The static floor must hash the same, so the floor
 // cannot drift from the live page silently. A deliberate board move updates this
 // pin in the same PR as the door write, after re-reading the live board.
-ok( '95715684be34e8e4b8d77acf53cd4f10' === md5( json_encode( sn_maturity_roadmap_static_board() ) ), 'static floor equals the live board of 2026-10-16 (third door write), byte for byte (md5 of json_encode)' );
+// 2026-11-02: re-pinned for the resume DONE row, added in code only. The
+// three-way merge carries a code-changed cell the option did not touch to the
+// live page, so no door write accompanies it.
+ok( '067e69b35145c324e90f6b771defdf9c' === md5( json_encode( sn_maturity_roadmap_static_board() ) ), 'static floor pinned byte for byte (md5 of json_encode); last moved 2026-11-02 for the resume DONE row' );
 ok( false === strpos( json_encode( sn_maturity_roadmap_static_board() ), 'AI attention in the weekly digest' ), 'the graduated AI-attention row is off the board (it lives on the Analytics maturity page now)' );
 
 echo "\nGroup: #1227 — length caps are mb_-safe (characters, not bytes)\n";
