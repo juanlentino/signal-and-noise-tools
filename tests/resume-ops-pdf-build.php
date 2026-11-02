@@ -16,47 +16,11 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-$tmp = sys_get_temp_dir() . '/sn-resume-ops-build-' . getmypid();
-class WP_Error { public $code; public $message; function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; } function get_error_message() { return $this->message; } function get_error_code() { return $this->code; } }
-function is_wp_error( $x ) { return $x instanceof WP_Error; }
-function wp_mkdir_p( $d ) { return is_dir( $d ) || mkdir( $d, 0777, true ); }
-function wp_kses( $s, $a ) { return strip_tags( (string) $s, '<strong><em><a>' ); }
-function sanitize_email( $e ) { return (string) filter_var( (string) $e, FILTER_SANITIZE_EMAIL ); }
-function home_url( $p = '' ) { return 'https://example.test' . $p; }
-function apply_filters( $t, $v ) { return 'sn_resume_pdf_name' === $t ? $GLOBALS['name'] : $v; }
-function get_bloginfo( $k ) { return 'Juan Lentino'; }
-function wp_upload_dir( $a = null, $b = true ) { return array( 'basedir' => $GLOBALS['tmp'], 'baseurl' => 'https://example.test/up' ); }
-function trailingslashit( $s ) { return rtrim( $s, '/' ) . '/'; }
-function add_query_arg( $k, $v, $u ) { return $u . '?' . $k . '=' . $v; }
-function wp_remote_head( $u, $a = array() ) { return array( 'code' => 200, 'hdr' => $GLOBALS['robots'] ); }
-function wp_remote_retrieve_response_code( $r ) { return $r['code']; }
-function wp_remote_retrieve_header( $r, $h ) { return $r['hdr']; }
-function wp_date( $f, $ts ) { return gmdate( 'Y-m-d', $ts ); }
-function add_action() {}
-function sn_cf_purge_urls( $urls ) { $GLOBALS['purged'] = array_merge( $GLOBALS['purged'], $urls ); }
-function get_option( $k, $d = false ) { return $GLOBALS['opts'][ $k ] ?? $d; }
-function update_option( $k, $v, $a = null ) { if ( $k === $GLOBALS['refuse'] ) { return false; } $GLOBALS['opts'][ $k ] = $v; return $k !== $GLOBALS['quiet']; } // quiet: stored, but false, as for an unchanged value.
-function delete_option( $k ) { unset( $GLOBALS['opts'][ $k ] ); return true; }
-
-require_once __DIR__ . '/../inc/admin-post-actions/content.php';
-require_once __DIR__ . '/../inc/resume-page.php';
-require_once __DIR__ . '/../inc/resume-draft.php';
-require_once __DIR__ . '/../inc/resume-pdf/template.php';
-require_once __DIR__ . '/../inc/resume-pdf/generate.php';
-require_once __DIR__ . '/../inc/resume-pdf/text-check.php';
-require_once __DIR__ . '/../inc/resume-operations-setup.php';
-require_once __DIR__ . '/../inc/resume-pdf/operations.php';
+require_once __DIR__ . '/lib/resume-pdf-harness.php';
 
 $set = sn_resume_doc_normalize( sn_resume_operations_setup( sn_resume_doc_normalize( sn_resume_seed_doc() ) )['doc'] );
 $url = 'https://example.test/resume/JuanLentino_Resume_Operations.pdf';
-$reset = static function ( $doc, $opts = array() ) {
-	$GLOBALS['opts']   = array( 'sn_resume_doc' => $doc ) + $opts;
-	$GLOBALS['name']   = 'Juan Lentino';
-	$GLOBALS['robots'] = 'noindex, nofollow';
-	$GLOBALS['refuse'] = '';
-	$GLOBALS['quiet']  = '';
-	$GLOBALS['purged'] = array();
-};
+$reset = 'sn_test_pdf_reset';
 $box = static fn() => implode( "\n", array_column( sn_resume_pdf_variant_lines(), 'text' ) );
 
 echo "Group: a clean build\n";
@@ -122,7 +86,6 @@ $reset( $empty, $good );
 $v = sn_resume_ops_pdf_build();
 ok( is_wp_error( $v ) && $good['sn_resume_pdf_operations_bytes'] === $GLOBALS['opts']['sn_resume_pdf_operations_bytes'], 'an operations résumé with no experience and no publications is not built; the last file stands' );
 
-array_map( 'unlink', (array) glob( $tmp . '/resume/.font-cache/*' ) );
-array_map( 'rmdir', array( $tmp . '/resume/.font-cache', $tmp . '/resume', $tmp ) );
+sn_test_pdf_cleanup();
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

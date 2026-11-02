@@ -46,6 +46,17 @@ function sn_resume_ops_pdf_live() {
 }
 
 /**
+ * Whether the last Generate failed to build the operations PDF. A success
+ * writes facts without `error`, and removed settings delete them.
+ *
+ * @return bool
+ */
+function sn_resume_ops_pdf_failed() {
+	$meta = get_option( SN_RESUME_OPS_PDF_OPTION );
+	return is_array( $meta ) && ! empty( $meta['error'] );
+}
+
+/**
  * The stored operations PDF, or '' when there is none or it is not a PDF.
  *
  * @return string

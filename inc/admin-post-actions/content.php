@@ -358,8 +358,10 @@ function sn_handle_resume_pdf_generate( $post ) { // phpcs:ignore Generic.CodeAn
 	if ( ! function_exists( 'sn_resume_pdf_generate' ) ) {
 		return 'resume_pdf_failed';
 	}
-	$result = sn_resume_pdf_generate();
-	return is_wp_error( $result ) ? 'resume_pdf_failed' : 'resume_pdf_generated';
+	if ( is_wp_error( sn_resume_pdf_generate() ) ) {
+		return 'resume_pdf_failed';
+	}
+	return function_exists( 'sn_resume_ops_pdf_failed' ) && sn_resume_ops_pdf_failed() ? 'resume_pdf_ops_failed' : 'resume_pdf_generated';
 }
 
 /**

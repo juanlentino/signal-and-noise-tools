@@ -67,26 +67,31 @@ function sn_resume_pdf_render( $doc, $name, $cache_dir, $include_phone = false, 
 		return new WP_Error( 'sn_resume_pdf_cache', 'Could not create the PDF font cache directory.' );
 	}
 
-	$options = new \Dompdf\Options();
-	$options->set( 'isRemoteEnabled', false );
-	$options->set( 'isPhpEnabled', false );
-	$options->set( 'isFontSubsettingEnabled', true );
-	$options->set( 'defaultFont', 'Lato' );
-	$options->set( 'fontDir', $cache_dir );
-	$options->set( 'fontCache', $cache_dir );
-	$options->set( 'chroot', array( $lib, $cache_dir ) );
+	// Dompdf throws on what it cannot lay out: an error to report, not a fatal in the admin.
+	try {
+		$options = new \Dompdf\Options();
+		$options->set( 'isRemoteEnabled', false );
+		$options->set( 'isPhpEnabled', false );
+		$options->set( 'isFontSubsettingEnabled', true );
+		$options->set( 'defaultFont', 'Lato' );
+		$options->set( 'fontDir', $cache_dir );
+		$options->set( 'fontCache', $cache_dir );
+		$options->set( 'chroot', array( $lib, $cache_dir ) );
 
-	$dompdf = new \Dompdf\Dompdf( $options );
-	$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts', (bool) $include_phone, (string) $site_url, $config ), 'UTF-8' );
-	$dompdf->setPaper( 'letter', 'portrait' );
-	$dompdf->addInfo( 'Title', $name . ' — ' . ( function_exists( 'sn_resume_l' ) ? sn_resume_l( 'Resume', 'Curriculum vitae' ) : 'Resume' ) );
-	$dompdf->addInfo( 'Author', $name );
-	$dompdf->render();
+		$dompdf = new \Dompdf\Dompdf( $options );
+		$dompdf->loadHtml( sn_resume_pdf_html( $doc, $name, $lib . '/fonts', (bool) $include_phone, (string) $site_url, $config ), 'UTF-8' );
+		$dompdf->setPaper( 'letter', 'portrait' );
+		$dompdf->addInfo( 'Title', $name . ' — ' . ( function_exists( 'sn_resume_l' ) ? sn_resume_l( 'Resume', 'Curriculum vitae' ) : 'Resume' ) );
+		$dompdf->addInfo( 'Author', $name );
+		$dompdf->render();
 
-	return array(
-		'bytes' => (string) $dompdf->output(),
-		'pages' => (int) $dompdf->getCanvas()->get_page_count(),
-	);
+		return array(
+			'bytes' => (string) $dompdf->output(),
+			'pages' => (int) $dompdf->getCanvas()->get_page_count(),
+		);
+	} catch ( \Throwable $e ) {
+		return new WP_Error( 'sn_resume_pdf_render', 'The PDF renderer failed: ' . $e->getMessage() );
+	}
 }
 
 /**
@@ -135,7 +140,10 @@ function sn_resume_pdf_generate() {
 		'url'       => $loc['url'] . '/' . SN_RESUME_PDF_FILE,
 	);
 	if ( function_exists( 'sn_resume_pdf_check' ) ) {
-		$meta['check'] = sn_resume_pdf_check( $result['bytes'], $result['pages'], null, (string) ( $doc['pdf']['phone'] ?? '' ) );
+		// Switched on, the phone is printed on purpose: the check looks for any other.
+		$phone         = (string) ( $doc['pdf']['phone'] ?? '' );
+		$public        = ! empty( $doc['pdf']['phone_public'] );
+		$meta['check'] = sn_resume_pdf_check( $result['bytes'], $result['pages'], null, $public ? '' : $phone, $public ? $phone : '' );
 	}
 	$previous = get_option( SN_RESUME_PDF_OPTION );
 	$issued   = sn_resume_pdf_issued( get_option( SN_RESUME_PDF_ISSUED ), $previous, $meta );

@@ -23,7 +23,7 @@ function sn_resume_pdf_check_line( $meta ) {
 		return '';
 	}
 	$by = ' (' . (string) ( $check['extractor'] ?? '' ) . ', ' . number_format( (int) ( $check['chars'] ?? 0 ) ) . ' characters read)';
-	return ( $check['flags'] ? 'Check flagged: ' . implode( '; ', $check['flags'] ) . '.' : 'Check passed: no control characters, ligatures or phone number.' ) . $by;
+	return ( $check['flags'] ? 'Check flagged: ' . implode( '; ', $check['flags'] ) . '.' : 'Check passed: no control characters, ligatures or phone number' . ( empty( $check['public_phone'] ) ? '' : ' other than the public one' ) . '.' ) . $by;
 }
 
 /**
