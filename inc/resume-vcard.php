@@ -4,8 +4,8 @@
  *
  * Version 3.0, not 4.0, because it is the one every address book imports.
  * Built from the JSON Resume basics (inc/resume-jsonresume.php), so it holds
- * only what the résumé already publishes: no phone unless the owner made it
- * public, and the email the public PDF prints. Served at /resume/contact.vcf
+ * only what the résumé already publishes: the email the public PDF prints and
+ * never a phone, whatever the PDF's phone switch says. Served at /resume/contact.vcf
  * by inc/resume-formats-route.php.
  *
  * @package SignalNoiseTools
@@ -64,9 +64,6 @@ function sn_resume_vcard( array $resume ) {
 	}
 	if ( isset( $b['email'] ) ) {
 		$out .= sn_resume_vcard_line( 'EMAIL;TYPE=INTERNET', $e( $b['email'] ) );
-	}
-	if ( isset( $b['phone'] ) ) {
-		$out .= sn_resume_vcard_line( 'TEL;TYPE=WORK,VOICE', $e( $b['phone'] ) );
 	}
 	if ( isset( $b['location']['city'] ) ) {
 		$out .= sn_resume_vcard_line( 'ADR;TYPE=WORK', ';;;' . $e( $b['location']['city'] ) . ';' . $e( $b['location']['region'] ?? '' ) . ';;' );

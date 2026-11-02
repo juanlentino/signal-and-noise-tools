@@ -23,6 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/resume-jsonresume.php';
+require_once __DIR__ . '/resume-formats-parts.php';
 
 const SN_JSONRESUME_FILE = 'json-resume.json';
 
@@ -71,20 +72,19 @@ function sn_jsonresume_for( $slug, $lane = 'music' ) {
 		? ( function_exists( 'sn_resume_es_doc' ) ? sn_resume_es_doc() : null )
 		: ( 'operations' === $lane ? sn_resume_lane_doc( $raw, 'operations' ) : sn_resume_doc_get() );
 	$extra = 'operations' === $lane ? (array) sn_resume_variant_config( $raw, 'operations' )['links'] : array();
-	$man = function_exists( 'sn_prov_machine_pointers_manifest' ) ? sn_prov_machine_pointers_manifest( (int) $page->ID ) : null;
-	$uid = is_array( $man ) ? (string) ( $man['subject']['uid'] ?? '' ) : '';
 	return sn_jsonresume_build(
 		$doc,
 		array(
 			'name'          => function_exists( 'sn_setting' ) ? (string) sn_setting( 'identity.person_name', get_bloginfo( 'name' ) ) : (string) get_bloginfo( 'name' ),
 			'url'           => '' !== (string) ( $doc['pdf']['website'] ?? '' ) ? (string) $doc['pdf']['website'] : home_url( '/' ),
-			'canonical'     => (string) get_permalink( $page ),
+			'canonical'     => sn_resume_format_canonical( $slug, $lane ),
 			'last_modified' => (string) get_post_modified_time( 'c', false, $page ),
 			'version'       => defined( 'SNT_VERSION' ) ? SNT_VERSION : '',
 			'profiles'      => array_merge( function_exists( 'sn_schema_person' ) ? (array) ( sn_schema_person()['sameAs'] ?? array() ) : array(), $extra ),
 			'projects'      => (array) ( $doc['built']['items'] ?? array() ),
 			'lane'          => $lane,
-			'provenance'    => '' === $uid ? null : array( 'verify_url' => home_url( '/verify?note=' . rawurlencode( $uid ) ), 'note_uid' => $uid ),
+			'lanes'         => '' !== $lane ? sn_resume_lanes() : array(),
+			'provenance'    => sn_resume_proof( $page ),
 		)
 	);
 }
@@ -100,20 +100,18 @@ function sn_jsonresume_maybe_serve() {
 	if ( null === $resume ) {
 		return;
 	}
-	status_header( 200 );
-	header( 'Content-Type: application/json; charset=utf-8' );
-	header( 'Cache-Control: public, max-age=300' );
-	header( 'Access-Control-Allow-Origin: *' );
+	sn_resume_format_send( 'application/json; charset=utf-8', $slug, (string) ( $resume['meta']['x-lane'] ?? 'music' ) );
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- application/json from wp_json_encode.
 	echo wp_json_encode( $resume, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT );
 	exit;
 }
 
-/** wp_head: advertise it on the résumé pages. */
+/** wp_head: advertise it on the résumé pages, the operations one on /resume?lane=operations. */
 function sn_jsonresume_head_link() {
+	$lane = function_exists( 'sn_resume_active_lane' ) ? sn_resume_active_lane() : 'music';
 	foreach ( array( 'resume', 'cv' ) as $slug ) {
 		if ( is_page( $slug ) && sn_jsonresume_page( $slug ) ) {
-			printf( '<link rel="alternate" type="application/json" href="%s" title="JSON Resume">' . "\n", esc_url( home_url( '/' . $slug . '/' . SN_JSONRESUME_FILE ) ) );
+			printf( '<link rel="alternate" type="application/json" href="%s" title="JSON Resume">' . "\n", esc_url( home_url( '/' . $slug . '/' . SN_JSONRESUME_FILE . sn_resume_lane_query( $slug, $lane ) ) ) );
 		}
 	}
 }

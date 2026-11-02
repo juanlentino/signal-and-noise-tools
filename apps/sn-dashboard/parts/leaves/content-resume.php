@@ -10,7 +10,7 @@
  * Built, Operations résumé, PDF only), plus the Resume PDF form
  * (`sn_action=resume_pdf_generate`), the operations setup form
  * (`sn_action=resume_operations_setup`), and a hard failure state when
- * sn_resume_doc_get() has neither a stored document nor a readable seed.
+ * sn_resume_doc_get_raw() has neither a stored document nor a readable seed.
  * Same reader, same names, same handler; the kit's parts instead of
  * wp-admin's. Here the eleven sections are one table and one edit
  * region (content-resume-ledger.php, content-resume-sections.php, no folds
@@ -70,9 +70,9 @@ function resume_hero( array $hero ) {
 }
 
 /**
- * PDF only: fields the generated PDF uses and /resume never shows (the sync
- * engine does not read `pdf`). Same names, labels and placeholders as the
- * classic form.
+ * PDF only: fields the generated PDF uses. /resume shows only the headline and
+ * tagline, heading its Music lane once it has two lanes; the phone never
+ * reaches it. Same names, labels and placeholders as the classic form.
  *
  * @param array $pdf        The pdf block.
  * @param bool  $show_built variants.music.show_built.

@@ -141,7 +141,7 @@ jobs:
   tests:
     name: Test suite
     runs-on: ubuntu-latest
-    # Measured max over the last 8 successful runs: 40s. Set above that with real headroom, not at it.
+    # Measured max over the last 8 successful runs: 82s. Set above that with real headroom, not at it.
     timeout-minutes: 4
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -29,7 +29,7 @@ function sn_resume_hero_rail_blocks( $hero, $extra = array() ) {
 			$rail[] = '<a href="' . esc_url( $link ) . '" rel="noopener">' . esc_html( $label ) . '</a>';
 		}
 	}
-	return $rail ? sn_resume_para( 'sn-resume-rail', implode( ' · ', $rail ) ) : '';
+	return $rail ? sn_resume_para( 'sn-resume-rail', implode( "\u{00A0}· ", $rail ) ) : ''; // the dot ends its line, never starts the next.
 }
 
 /**
@@ -88,24 +88,60 @@ function sn_resume_receipt( $url, $kind, $context ) {
 
 /**
  * The hero's two-column split, top-aligned (v10.36.1): the right column is far
- * taller than the title block, and bottom alignment sank the title.
+ * taller than the title block, and bottom alignment sank the title. The
+ * two-lane head uses the same 55/45 split bottom-aligned, under its own class.
  *
  * @param string $left  Serialized left-column blocks.
  * @param string $right Serialized right-column blocks.
+ * @param string $align 'top' or 'bottom' (core's verticalAlignment).
+ * @param string $class The columns' class.
  * @return string
  */
-function sn_resume_hero_split_blocks( $left, $right ) {
-	return '<!-- wp:columns {"verticalAlignment":"top","className":"sn-resume-hero-split"} -->' . "\n"
-		. '<div class="wp-block-columns are-vertically-aligned-top sn-resume-hero-split">' . "\n"
-		. '<!-- wp:column {"verticalAlignment":"top","width":"55%"} -->' . "\n"
-		. '<div class="wp-block-column is-vertically-aligned-top" style="flex-basis:55%">' . "\n"
+function sn_resume_hero_split_blocks( $left, $right, $align = 'top', $class = 'sn-resume-hero-split' ) {
+	return '<!-- wp:columns {"verticalAlignment":"' . $align . '","className":"' . $class . '"} -->' . "\n"
+		. '<div class="wp-block-columns are-vertically-aligned-' . $align . ' ' . $class . '">' . "\n"
+		. '<!-- wp:column {"verticalAlignment":"' . $align . '","width":"55%"} -->' . "\n"
+		. '<div class="wp-block-column is-vertically-aligned-' . $align . '" style="flex-basis:55%">' . "\n"
 		. $left
 		. '</div>' . "\n" . '<!-- /wp:column -->' . "\n\n"
-		. '<!-- wp:column {"verticalAlignment":"top","width":"45%"} -->' . "\n"
-		. '<div class="wp-block-column is-vertically-aligned-top" style="flex-basis:45%">' . "\n"
+		. '<!-- wp:column {"verticalAlignment":"' . $align . '","width":"45%"} -->' . "\n"
+		. '<div class="wp-block-column is-vertically-aligned-' . $align . '" style="flex-basis:45%">' . "\n"
 		. $right
 		. '</div>' . "\n" . '<!-- /wp:column -->' . "\n"
 		. '</div>' . "\n" . '<!-- /wp:columns -->' . "\n\n";
+}
+
+/** What a screen reader hears first in an entry only one /resume lane holds. */
+const SN_RESUME_ONLY_TEXT = 'Only in this version.';
+
+/**
+ * An entry, or a row of entries, only this lane holds (inc/resume-lane-marks.php):
+ * its blocks in a group the theme draws a bar beside, with the words a screen
+ * reader hears first. Unmarked, the blocks come back as they were.
+ *
+ * @param bool   $only   Whether the entry is lane-only.
+ * @param string $blocks Serialized blocks.
+ * @return string
+ */
+function sn_resume_only_group( $only, $blocks ) {
+	if ( ! $only ) {
+		return $blocks;
+	}
+	return '<!-- wp:group {"className":"sn-resume-only"} -->' . "\n"
+		. '<div class="wp-block-group sn-resume-only">' . "\n"
+		. sn_resume_para( 'screen-reader-text sn-resume-only-mark', SN_RESUME_ONLY_TEXT )
+		. $blocks
+		. '</div>' . "\n" . '<!-- /wp:group -->' . "\n\n";
+}
+
+/**
+ * Whether every row of a list is lane-only (a stats band, a skills table).
+ *
+ * @param array $rows
+ * @return bool
+ */
+function sn_resume_all_only( $rows ) {
+	return $rows && ! array_filter( $rows, static fn( $r ) => empty( $r['_only'] ) );
 }
 
 /**

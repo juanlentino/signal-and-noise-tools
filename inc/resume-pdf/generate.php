@@ -195,7 +195,9 @@ function sn_resume_pdf_build() {
 	// page to drop one PDF. Now the file's own addresses go through the per-URL
 	// path, which does nothing when Cloudflare is not configured.
 	if ( function_exists( 'sn_cf_purge_urls' ) ) {
-		sn_cf_purge_urls( sn_resume_pdf_purge_urls( $meta, $issued ) );
+		// The agent copies name the new ?v= link and are cached untagged: by URL too.
+		$copies = function_exists( 'sn_cf_resume_format_urls' ) ? sn_cf_resume_format_urls( (object) array( 'post_type' => 'page', 'post_name' => 'resume' ) ) : array();
+		sn_cf_purge_urls( array_merge( sn_resume_pdf_purge_urls( $meta, $issued ), $copies ) );
 	}
 	// The Spanish CV (inc/resume-es.php) and the operations PDF (inc/resume-pdf/operations.php, priority 20) follow.
 	do_action( 'sn_resume_pdf_generated' );

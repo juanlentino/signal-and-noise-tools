@@ -30,11 +30,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SNT_AROWS_DIMENSIONS = array( 'path', 'referrer', 'country', 'region', 'city', 'device', 'link_code', 'day', 'hour', 'entry', 'exit', 'returning' ); // link_code: a coded résumé link's code, read out of the stored path (inc/link-codes.php).
+const SNT_AROWS_DIMENSIONS = array( 'path', 'referrer', 'country', 'region', 'city', 'device', 'link_code', 'resume_lane', 'day', 'hour', 'entry', 'exit', 'returning' ); // link_code: a coded résumé link's code, read out of the stored path (inc/link-codes.php). resume_lane: the /resume lane a view showed (Analytics Engine double17, 2026-11-02); not a traffic lane.
 const SNT_AROWS_SESSION_DIMS = array( 'entry', 'exit', 'returning' ); // a session's, from the sessions engine (inc/analytics-rows-sessions.php).
 const SNT_AROWS_SESSION_WITH = array( 'entry', 'exit', 'returning', 'country', 'region', 'city', 'device', 'day', 'hour' ); // what a session can be grouped by.
 const SNT_AROWS_STORED_PAGE = array( 'path', 'link_code', 'day' );                       // the daily table holds these.
 const SNT_AROWS_STORED_DIMS = array( 'referrer', 'country', 'device', 'region', 'city' ); // the dims table, one per row and day.
+const SNT_AROWS_TIMED      = array( 'path', 'link_code', 'resume_lane', 'day' ); // where a view's time and scroll beacons share its row (snt_arows_events_fetch()).
 const SNT_AROWS_MAX_DIMS   = 4; // 2026-11-01: up to four at once (owner brief "MCP full analytics access").
 const SNT_AROWS_SOURCES    = array( 'auto', 'stored', 'events', 'sessions' ); // auto: the stored rollups when they hold the combination, the sessions engine for a session dimension, else Analytics Engine.
 const SNT_AROWS_SORTS      = array( 'views', 'visits', 'time', 'sessions' );
@@ -94,10 +95,10 @@ function snt_arows_validate( $input, $allow_unmatched = false ) {
 	if ( 'sessions' === $sort && ! $sessions ) {
 		return $bad( 'sort sessions needs the sessions source (a session dimension, or source sessions).' );
 	}
-	// Time is kept by page and day (snt_arows_events_fetch()): elsewhere every row's time is null.
-	$timed = ( array_intersect( $dims, array( 'path', 'link_code' ) ) || array( 'day' ) === $dims ) && ! array_diff( $dims, array( 'path', 'link_code', 'day' ) ) && ! isset( $in['referrer'] );
+	// Time is kept by page, résumé lane and day (snt_arows_events_fetch()): elsewhere every row's time is null.
+	$timed = ( array_intersect( $dims, array( 'path', 'link_code', 'resume_lane' ) ) || array( 'day' ) === $dims ) && ! array_diff( $dims, SNT_AROWS_TIMED ) && ! isset( $in['referrer'] );
 	if ( ! in_array( $sort, SNT_AROWS_SORTS, true ) || ( 'time' === $sort && ! $timed ) ) {
-		return $bad( 'sort must be views, visits, time or sessions; time only when the dimensions are path or link_code (with or without day), or day alone, with no referrer filter (time is kept by page and day).' );
+		return $bad( 'sort must be views, visits, time or sessions; time only when the dimensions are path, link_code or resume_lane (with or without day), or day alone, with no referrer filter (time is kept by page, résumé lane and day).' );
 	}
 	$limit = $in['limit'] ?? 50;
 	if ( ! is_int( $limit ) || $limit < 1 || $limit > 500 ) {
@@ -157,6 +158,10 @@ function snt_arows_clean( $dim, $value, array $real ) {
 	$v = (string) $value;
 	if ( 'returning' === $dim ) {
 		return in_array( $v, array( 'new', 'returning' ), true ) ? $v : '(invalid)';
+	}
+	if ( 'resume_lane' === $dim ) {
+		// The stored code (the analytics worker's resumeLaneCode()), never passed through.
+		return array( '0' => '(unknown)', '1' => 'music', '2' => 'operations' )[ $v ] ?? '(invalid)';
 	}
 	if ( 'path' === $dim || 'entry' === $dim || 'exit' === $dim ) {
 		$p = sn_analytics_canonical_path( (string) strtok( strtok( $v, '?' ), '#' ) );

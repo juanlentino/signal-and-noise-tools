@@ -64,7 +64,7 @@ $dir   = dirname( __DIR__ ) . '/inc';
 // v5.4.0: analytics-buckets.php joins the scanned set — this list is HARDCODED
 // (NOT an auto-glob of inc/analytics-*.php), so every new AE SQL builder file
 // must be added here or its dialect conformance ships unguarded.
-$files = array( 'analytics-api.php', 'analytics-realtime.php', 'analytics-rollup.php', 'analytics-dims.php', 'analytics-buckets.php', 'analytics-percentiles.php', 'analytics-drilldown.php', 'analytics-pageroles.php', 'analytics-events-rollup.php', 'analytics-rows-events.php', 'analytics-sessions-reports-parts.php' );
+$files = array( 'analytics-api.php', 'analytics-realtime.php', 'analytics-rollup.php', 'analytics-dims.php', 'analytics-buckets.php', 'analytics-percentiles.php', 'analytics-drilldown.php', 'analytics-pageroles.php', 'analytics-events-rollup.php', 'analytics-rows-events.php', 'analytics-sessions-reports-parts.php', 'analytics-live-readers.php', 'link-codes-read.php', 'analytics-live-sources.php', 'analytics-live-pages.php', 'analytics-live-slots-parts.php', 'analytics-live-hour.php', 'analytics-live-scroll.php', 'analytics-sessions-list.php', 'analytics-rows-sessions.php' );
 
 echo "Group: AE SQL dialect — no count() with arguments\n";
 // analytics-rollup.php is read with its four parts files (split 2026-10-14);
