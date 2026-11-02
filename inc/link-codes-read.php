@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_LINK_CODES_DAYS  = 90;
 const SN_LINK_CODES_LIMIT = 500;
 const SN_LINK_CODES_CACHE = 'sn_link_codes_visits';
+const SN_LINK_CODES_CAPPED = 'sn_link_codes_visits_capped';
+const SN_LINK_CODES_PAGES_LIMIT = 5000;
 const SN_LINK_CODES_VID_CHUNK = 250; // hashes per IN list: 250 x 19 characters stays well under the SQL cap.
 
 /**
@@ -123,7 +125,7 @@ function sn_link_codes_pages_sql( array $vids, $days, $tz = '', $source = '', $r
 		. ' FROM ' . $source
 		. " WHERE timestamp >= {$lower}{$range}" . sn_analytics_excluded_path_sql()
 		. " AND index1 IN ('" . implode( "','", array_unique( $vids ) ) . "')"
-		. ' GROUP BY vid, path LIMIT 5000';
+		. ' GROUP BY vid, path LIMIT ' . SN_LINK_CODES_PAGES_LIMIT;
 }
 
 /**
@@ -195,8 +197,9 @@ function sn_link_codes_visits_read() {
 	if ( null === $sets ) {
 		return null;
 	}
-	$rows  = array_merge( array(), ...$sets );
-	$pages = array();
+	$rows   = array_merge( array(), ...$sets );
+	$pages  = array();
+	$capped = array() !== array_filter( $sets, static fn( $set ) => count( $set ) >= SN_LINK_CODES_LIMIT );
 	// ponytail: chunks keep each IN list under the 10,000-character SQL cap;
 	// SN_LINK_CODES_LIMIT coded visitor-days in 90 days is the ceiling, page it if outreach grows.
 	foreach ( array_chunk( array_values( array_unique( sn_analytics_valid_vday_hashes( array_column( $rows, 'vid' ) ) ) ), SN_LINK_CODES_VID_CHUNK ) as $chunk ) {
@@ -204,9 +207,21 @@ function sn_link_codes_visits_read() {
 		if ( null === $psets ) {
 			return null;
 		}
-		$pages = array_merge( $pages, ...$psets );
+		$pages  = array_merge( $pages, ...$psets );
+		$capped = $capped || array() !== array_filter( $psets, static fn( $set ) => count( $set ) >= SN_LINK_CODES_PAGES_LIMIT );
 	}
 	$out = sn_link_codes_visits( $rows, $pages );
 	set_transient( SN_LINK_CODES_CACHE, $out, 5 * MINUTE_IN_SECONDS );
+	set_transient( SN_LINK_CODES_CAPPED, $capped ? 1 : 0, 5 * MINUTE_IN_SECONDS );
 	return $out;
+}
+
+/**
+ * Whether the last visits read reached a row cap: the newest opens only, and
+ * a visitor-day past the pages cap may miss the signals that would mark it.
+ *
+ * @return bool
+ */
+function sn_link_codes_visits_capped() {
+	return 1 === (int) get_transient( SN_LINK_CODES_CAPPED );
 }

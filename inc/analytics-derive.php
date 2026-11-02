@@ -42,8 +42,9 @@
  * 250, and the original `scroll_sum / views` ratio read 113% live. Because the
  * milestones are evenly spaced and fire at most once per view,
  * 25 × scroll_events IS the sum of per-view max depths, so
- * `scroll_avg_per_view` = 25 × scroll_events / views is the TRUE mean max
- * scroll depth (0–100) — same identity per visitor-day for
+ * `scroll_avg_per_view` = 25 × scroll_events / views is the mean max
+ * scroll depth (0–100 unsampled; under sampling a weighted estimate, and a thin
+ * row can read above 100) — same identity per visitor-day for
  * `scroll_avg_per_visit`. Since v9.66.0 (daily schema v6) the STORED
  * `scroll_sum` column is re-based to the SAME identity (25 × scroll_events,
  * true depth units; the v5-era raw milestone-point rows were repaired by the
@@ -119,7 +120,7 @@ if ( ! function_exists( 'sn_analytics_derive_metrics' ) ) {
 	 *     @type int|null   $viewless_visits           unique_visitor_days − pageview_visits.
 	 *     @type float|null $view_visit_ratio          views / pageview_visits.
 	 *     @type float|null $pageviews_per_visitor_day views / unique_visitor_days.
-	 *     @type float|null $scroll_avg_per_view       25 × scroll_events / views (true mean max depth, 0–100).
+	 *     @type float|null $scroll_avg_per_view       25 × scroll_events / views (mean max depth, 0–100 on most rows; a weighted estimate under sampling).
 	 *     @type float|null $time_avg_per_view         time_sum / views (exact). MILLISECONDS.
 	 *     @type float|null $scroll_avg_per_visit      25 × scroll_events / unique_visitor_days (diluted by viewless days).
 	 *     @type float|null $time_avg_per_visit        time_sum / unique_visitor_days (diluted by viewless days). MILLISECONDS.

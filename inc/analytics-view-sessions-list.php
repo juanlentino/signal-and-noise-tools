@@ -55,7 +55,7 @@ function snt_analytics_session_list_rows( array $sessions ) {
  */
 function snt_analytics_render_session_list( $from, $to, $class ) {
 	$title = __( 'Sessions, one by one', 'signal-and-noise-tools' );
-	$floor = snt_analytics_sessions_floor( time() );
+	$floor = snt_analytics_sessions_floor( sn_analytics_clock() );
 	if ( (string) $to < $floor ) {
 		/* translators: %s: the first day Analytics Engine holds. */
 		snt_an_note_empty( $title, sprintf( __( 'This window is older than Analytics Engine keeps: sessions can be listed from %s on.', 'signal-and-noise-tools' ), $floor ) );

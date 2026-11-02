@@ -28,7 +28,7 @@ function sn_analytics_live_scroll_sql() {
 	return implode( ' ', array(
 		'SELECT blob2 AS path, double1 AS pct, count(DISTINCT index1) AS readers',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
-		"WHERE blob1 = 'sc' AND timestamp >= now() - INTERVAL '{$mins}' MINUTE AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where(),
+		"WHERE blob1 = 'sc' AND timestamp >= now() - INTERVAL '{$mins}' MINUTE AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
 		'GROUP BY path, pct ORDER BY readers DESC LIMIT 200',
 	) );
 }
