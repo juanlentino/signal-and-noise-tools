@@ -88,14 +88,16 @@ career without bullets when it asks, only the sections it lists, and its "What I
   display rule, styles the switch, and switches in place with `assets/js/resume-switch.js`.
 - **The download follows the lane** because each lane has its own Download: the music PDF with its
   `?v=`, and the operations PDF at its stable address with its own `?v=<first 8 of its SHA-256>`
-  (`sn_resume_ops_pdf_link()`, also what the format list and llms.txt name). The operations Download
+  (`sn_resume_ops_pdf_link()`, also what the format list and llms.txt name), built from the file
+  name the route serves now, so a rename whose build failed never links a 404. The operations Download
   appears only once that PDF exists (`sn_resume_ops_pdf_live()`); Generate syncs the page before it
   builds the operations file, so the operations build syncs it again, and purges the address. A PDF
   withdrawn for a phone drops its facts, and its Download goes with them; the bare address and the
   `?v=` one the page linked are both purged.
 - **Each PDF points home.** Its contact line prints and links its own lane: the music PDF
   `juanlentino.com/resume`, the operations PDF `juanlentino.com/resume/?lane=operations`, both from
-  `home_url()` so they follow the site (a filled Website field still wins). The Spanish CV keeps the
+  `home_url()` so they follow the site. A filled Website field still wins in the music PDF and the
+  Spanish CV; the operations PDF always prints its lane address. The Spanish CV keeps the
   bare home URL. The Info Title is the template's `<title>` (Dompdf sets it from there on every
   render): "Juan Lentino, Resume" for music, unchanged, and "Juan Lentino · Résumé · Operations & AI
   Strategy" for operations.

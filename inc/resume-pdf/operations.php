@@ -37,11 +37,14 @@ function sn_resume_ops_pdf_url( $file ) {
  * the music Download has (sn_resume_pdf_link()), so a new file busts every
  * cache layer. '' while it is not live: never a link to a 404.
  *
+ * @param string|null $file The configured file name; null reads the stored résumé's.
  * @return string
  */
-function sn_resume_ops_pdf_link() {
+function sn_resume_ops_pdf_link( $file = null ) {
 	$meta = get_option( SN_RESUME_OPS_PDF_OPTION );
-	return sn_resume_ops_pdf_live() && ! empty( $meta['sha256'] ) ? $meta['url'] . '?v=' . substr( (string) $meta['sha256'], 0, 8 ) : '';
+	// The name the route serves now (sn_resume_ops_pdf_maybe_serve()), not the stored URL: a rename's build may have failed.
+	$file = $file ?? ( sn_resume_ops_config()['pdf_file'] ?? '' );
+	return '' !== (string) $file && sn_resume_ops_pdf_live() && ! empty( $meta['sha256'] ) ? sn_resume_ops_pdf_url( $file ) . '?v=' . substr( (string) $meta['sha256'], 0, 8 ) : '';
 }
 
 /**
@@ -140,7 +143,8 @@ function sn_resume_ops_pdf_build() {
 	$config['built'] = sn_resume_built_for( $raw, 'operations' );
 	$name            = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
 	$config['title'] = $name . ' · Résumé · Operations & AI Strategy'; // the Info Title (the template's <title>).
-	$result          = sn_resume_pdf_render( sn_resume_doc_view( $raw, 'operations' ), $name, $loc['dir'] . '/.font-cache', false, home_url( '/resume/?lane=operations' ), $config ); // the lane's own address.
+	$view['pdf']['website'] = ''; // its own lane's address, whatever the music Website field says.
+	$result          = sn_resume_pdf_render( $view, $name, $loc['dir'] . '/.font-cache', false, home_url( '/resume/?lane=operations' ), $config ); // the lane's own address.
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}

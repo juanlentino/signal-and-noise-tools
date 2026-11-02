@@ -72,6 +72,20 @@ $reset( $set );
 $GLOBALS['robots'] = '';
 ok( in_array( 'no X-Robots-Tag: noindex header', sn_resume_ops_pdf_build()['check']['flags'], true ), 'an address that answers without noindex is flagged' );
 
+echo "\nGroup: a renamed file and a Website field\n";
+$ren = $set;
+$ren['variants']['operations']['pdf_file'] = 'Renamed_Operations.pdf';
+$ren['variants']['operations']['summary'] .= ' Call (407) 555-0123.'; // the build after the rename fails.
+$reset( $ren, $good );
+$GLOBALS['opts']['sn_resume_pdf_operations_bytes'] = $good['sn_resume_pdf_operations_bytes'];
+$GLOBALS['opts']['sn_resume_pdf_operations']       = $good['sn_resume_pdf_operations'] + array( 'error' => 'an earlier failure' );
+ok( 'https://example.test/resume/Renamed_Operations.pdf?v=' . substr( $m['sha256'], 0, 8 ) === sn_resume_ops_pdf_link(), 'renamed, its link names the address the route serves now, not the stored one' );
+$web = $set;
+$web['pdf']['website'] = 'https://example.org/work';
+$reset( $web );
+$wb = base64_decode( (string) ( sn_resume_ops_pdf_build() ? $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] : '' ) );
+ok( false !== strpos( sn_resume_pdf_text( $wb ), 'example.test/resume/?lane=operations' ) && false === strpos( $wb, 'example.org' ), 'a filled Website field does not replace the operations PDF\'s own address' );
+
 echo "\nGroup: a write that does not land\n";
 $changed = $set;
 $changed['variants']['operations']['summary'] .= ' One more sentence, so the bytes differ.';
