@@ -19,8 +19,10 @@
  *
  * sn_resume_doc_view() turns the stored document into one variant in the shape
  * every reader already knows (no variant keys, no built, no variants), and
- * sn_resume_doc_get() returns the music view, so the page, its PDF, the
- * Spanish CV, JSON Resume, Markdown and vCard see exactly what they saw before.
+ * sn_resume_doc_get() returns the music view, which the music PDF, the Spanish
+ * CV and vCard read. The page reads the stored document and paints one lane
+ * per variant (inc/resume-page-lanes.php), and JSON Resume and Markdown follow
+ * its ?lane=operations.
  *
  * @package SignalNoiseTools
  */

@@ -94,7 +94,7 @@ function sn_admin_render_resume_built_section( $doc ) {
 		sn_rsm_variant( $p . '[variant]', (string) ( $item['variant'] ?? '' ) );
 		echo '</div>';
 	};
-	sn_rsm_section_open( "What I've Built", 'The operations résumé shows this section, in its PDF and in its lane on /resume; the music résumé shows it only when "Show What I\'ve Built in the music PDF" is on (PDF only).', count( (array) ( $built['items'] ?? array() ) ) );
+	sn_rsm_section_open( "What I've Built", 'The operations résumé shows this section, in its PDF and in its lane on /resume, while "built" is in its Sections list (a blank list takes the music order, which has none). The music résumé shows it only when Show "What I\'ve Built" in the music PDF is on (PDF only).', count( (array) ( $built['items'] ?? array() ) ) );
 	sn_rsm_input( 'resume[built][intro]', (string) ( $built['intro'] ?? '' ), 'Intro line', 'How these were built' );
 	echo '<div class="sn-rsm-list" data-rsm-list="built">';
 	foreach ( array_values( (array) ( $built['items'] ?? array() ) ) as $i => $item ) {
@@ -112,14 +112,14 @@ function sn_admin_render_resume_built_section( $doc ) {
  */
 function sn_admin_render_resume_operations_section( $doc ) {
 	$o = (array) ( $doc['variants']['operations'] ?? array() );
-	sn_rsm_section_open( 'Operations résumé', 'The second lane on /resume (Operations & AI Strategy) and its own PDF, built by Generate along with the music one; the switch links both PDFs. Rows marked "Music only" leave it; "Operations only" rows show only here.' );
+	sn_rsm_section_open( 'Operations résumé', 'The second lane on /resume (Operations & AI Strategy) and its own PDF, built by Generate along with the music one; the switch links the two lanes, and each lane\'s Download links its own PDF (the operations one once it is generated). Rows marked "Music only" leave it; "Operations only" rows show only here.' );
 	sn_rsm_input( 'resume[variants][operations][headline]', (string) ( $o['headline'] ?? '' ), 'Headline', 'Founder and Operator' );
 	sn_rsm_input( 'resume[variants][operations][tagline]', (string) ( $o['tagline'] ?? '' ), 'Subhead', 'AI-Native Business Operations | Partnerships' );
 	sn_rsm_input( 'resume[variants][operations][location]', (string) ( $o['location'] ?? '' ), 'Location', 'Orlando, FL (open to relocation)' );
 	sn_rsm_lines( 'resume[variants][operations][links]', (array) ( $o['links'] ?? array() ), 'Extra contact links: one per line, after the website', 'https://github.com/…', 2 );
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Summary</span><textarea rows="4" class="large-text" name="resume[variants][operations][summary]">' . esc_textarea( (string) ( $o['summary'] ?? '' ) ) . '</textarea></label>';
 	sn_rsm_lines( 'resume[variants][operations][sections]', (array) ( $o['sections'] ?? array() ), 'Sections, in order: one per line (' . implode( ', ', SN_RESUME_PDF_SECTION_KEYS ) . ')', 'summary', 6 );
-	echo '<p class="description">A section missing from the list is missing from the PDF: leave out "stats" and "competencies" for no key-figures row and no competencies grid.</p>';
+	echo '<p class="description">A section missing from the list is missing from the PDF and the lane on /resume: leave out "stats" and "competencies" for no key-figures row and no competencies grid.</p>';
 	sn_rsm_lines( 'resume[variants][operations][experience_order]', (array) ( $o['experience_order'] ?? array() ), 'Experience order: one organization per line (the rest follow as listed)', 'Independent Practice', 3 );
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Earlier career: one line per role, no bullets</span><input type="checkbox" name="resume[variants][operations][earlier_compact]" value="1"' . checked( ! empty( $o['earlier_compact'] ), true, false ) . '></label>';
 	sn_rsm_input( 'resume[variants][operations][pdf_file]', (string) ( $o['pdf_file'] ?? '' ), 'PDF file name', defined( 'SN_RESUME_OPERATIONS_PDF_FILE' ) ? SN_RESUME_OPERATIONS_PDF_FILE : 'Resume_Operations.pdf' );

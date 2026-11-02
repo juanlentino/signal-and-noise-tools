@@ -164,7 +164,7 @@ function sn_resume_pdf_generate() {
 	if ( function_exists( 'sn_cf_purge_urls' ) ) {
 		sn_cf_purge_urls( sn_resume_pdf_purge_urls( $meta, $issued ) );
 	}
-	// The Spanish CV follows: same contact details, its own file (inc/resume-es.php).
+	// The Spanish CV (inc/resume-es.php) and the operations PDF (inc/resume-pdf/operations.php, priority 20) follow.
 	do_action( 'sn_resume_pdf_generated' );
 	return $meta;
 }

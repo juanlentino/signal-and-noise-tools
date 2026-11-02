@@ -96,7 +96,7 @@ ok( ! isset( $GLOBALS['__options'][ SN_RESUME_DRAFT_OPTION ] ) && 1 === calls( '
 echo "\nTest: publish with a PDF\n";
 fresh( array( SN_RESUME_DOC_OPTION => $live_a, 'sn_resume_pdf' => array( 'sha256' => 'old' ) ) );
 sn_resume_draft_save( $alt );
-ok( 'published' === sn_resume_draft_publish() && 1 === calls( 'pdf' ) && 0 === calls( 'purge:/resume' ), 'a PDF option exists: publish rebuilds the PDF (which purges everything), no separate route purge' );
+ok( 'published' === sn_resume_draft_publish() && 1 === calls( 'pdf' ) && 0 === calls( 'purge:/resume' ), 'a PDF option exists: publish rebuilds the PDF (which purges the files\' own URLs and re-syncs the page), no separate route purge' );
 fresh( array( SN_RESUME_DOC_OPTION => $live_a, 'sn_resume_pdf' => array( 'sha256' => 'old' ) ) );
 $GLOBALS['__pdf_fails'] = true;
 sn_resume_draft_save( $alt );

@@ -137,7 +137,7 @@ function resume_operations( array $o ) {
 			sprintf( __( 'Sections, in order: one per line (%s)', 'signal-and-noise-tools' ), implode( ', ', \SN_RESUME_PDF_SECTION_KEYS ) ),
 			'summary',
 			6,
-			__( 'A section missing from the list is missing from the PDF: leave out "stats" and "competencies" for no key-figures row and no competencies grid.', 'signal-and-noise-tools' )
+			__( 'A section missing from the list is missing from the PDF and the lane on /resume: leave out "stats" and "competencies" for no key-figures row and no competencies grid.', 'signal-and-noise-tools' )
 		)
 		. resume_lines( $p . '[experience_order]', $o['experience_order'] ?? array(), __( 'Experience order: one organization per line (the rest follow as listed)', 'signal-and-noise-tools' ), 'Independent Practice', 3 )
 		// A CHECKBOX, never os-switch (content-resume.php, the phone).

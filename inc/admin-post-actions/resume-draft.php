@@ -9,7 +9,7 @@
  * previews end in a redirect or a download and exit on success.
  *
  * Actions served: resume_draft_save, resume_preview_page, resume_preview_pdf,
- * resume_publish, resume_discard, resume_revert
+ * resume_publish, resume_discard, resume_revert, resume_operations_setup
  *
  * @package SignalNoiseTools
  * @since 19.9.0
