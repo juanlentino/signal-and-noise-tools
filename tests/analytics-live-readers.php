@@ -30,6 +30,7 @@ function sn_analytics_config() { return array( 'account_id' => 'a' ); }
 function sn_analytics_query( $sql ) {
 	$GLOBALS['queries'][] = $sql;
 	if ( false !== strpos( $sql, ' AS ref, ' ) ) { return $GLOBALS['ae'] ?? null; }
+	if ( 0 === strpos( $sql, 'SELECT blob2 AS path, count(DISTINCT index1) AS readers' ) && false !== strpos( $sql, 'LIMIT 40' ) ) { return $GLOBALS['ae_pages'] ?? array(); } // the live pages read.
 	return false !== strpos( $sql, 'AS visitors' ) ? array( array( 'class' => 'human', 'visitors' => 4 ) ) : array();
 }
 $root = dirname( __DIR__ );
@@ -101,9 +102,11 @@ echo "\nGroup: wired end to end\n";
 $shift = time() - $now; // the refresh reads with the real clock.
 $GLOBALS['ae'] = array_map( static fn( $row ) => array( 'ts' => $row['ts'] + $shift ) + $row, $rows );
 $GLOBALS['t']  = array();
+$GLOBALS['ae_pages'] = array( array( 'path' => '/r/hera', 'readers' => 2 ), array( 'path' => '/about/', 'readers' => 1 ) );
 sn_analytics_realtime_refresh();
 $cached = get_transient( SN_ANALYTICS_REALTIME_KEY );
 ok( 4 === count( $cached['readers'] ?? array() ) && in_array( 'Resume via hera', array_column( $cached['readers'], 'page' ), true ), 'a realtime refresh stores the readers in the realtime cache' );
+ok( array( 'Resume via hera' ) === array_column( $cached['links'] ?? array(), 'label' ) && 2 === $cached['links'][0]['readers'], 'the refresh stores the coded links read now, from the live pages read' );
 ok( false !== strpos( (string) file_get_contents( "$root/signal-and-noise-tools.php" ), "require_once SNT_PATH . 'inc/analytics-live-readers.php';" ), 'the plugin loads the readers file' );
 ok( false !== strpos( (string) file_get_contents( "$root/inc/abilities-live-now.php" ), "'readers' => array( 'type' => array( 'array', 'null' ) )" ), 'live-now declares readers in its output schema' );
 

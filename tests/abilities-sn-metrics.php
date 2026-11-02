@@ -181,6 +181,21 @@ ok( array( 'day' ) === ( $reg['input_schema']['properties']['series']['enum'] ??
 $GLOBALS['__abilities'][ $expected_map['analytics_sessions'] ] = new SN_Test_Fact_Ability( true, array() );
 snt_ability_sn_metrics( array( 'sections' => array( 'analytics_sessions' ), 'class' => 'bot', 'sessions' => array( 'hours' => 3, 'page' => 2 ) ) );
 ok( array( 'hours' => 3, 'page' => 2, 'class' => 'bot' ) === $GLOBALS['__abilities'][ $expected_map['analytics_sessions'] ]->last_call_args(), 'sessions {hours, page} reaches the sessions read, with the top-level class' );
+// 2026-11-01: a window the sessions or rows read would refuse fails the call before dispatch,
+// as a bad query does, instead of reading as {error:"unavailable"}.
+if ( ! function_exists( 'snt_analytics_sessions_check' ) ) {
+	function snt_analytics_sessions_check( array $in ) { return '2099-01-01' === ( $in['from'] ?? '' ) ? new WP_Error( 'ability_invalid_input', 'from is after today', array( 'status' => 400 ) ) : array(); }
+	function snt_arows_validate( $q, $local = false ) { return $q; }
+	function snt_arows_resolve( array $q ) { return '2099-01-01' === ( $q['from'] ?? '' ) ? new WP_Error( 'ability_invalid_input', 'from is after today', array( 'status' => 400 ) ) : array(); }
+}
+$GLOBALS['__abilities'][ $expected_map['analytics_sessions'] ] = new SN_Test_Fact_Ability( true, array() );
+$late = snt_ability_sn_metrics( array( 'sections' => array( 'analytics_sessions' ), 'sessions' => array( 'from' => '2099-01-01' ) ) );
+ok( is_wp_error( $late ) && 400 === $late->get_error_data()['status'] && false === $GLOBALS['__abilities'][ $expected_map['analytics_sessions'] ]->last_call_args(), 'a sessions window the read refuses fails the call and never reaches the source' );
+$GLOBALS['__abilities'][ $expected_map['analytics_rows'] ] = new SN_Test_Fact_Ability( true, array() );
+$late = snt_ability_sn_metrics( array( 'sections' => array( 'analytics_rows' ), 'rows' => array( 'dimensions' => array( 'city' ), 'from' => '2099-01-01', 'to' => '2099-01-02' ) ) );
+ok( is_wp_error( $late ) && false === $GLOBALS['__abilities'][ $expected_map['analytics_rows'] ]->last_call_args(), 'a rows window the planner refuses fails the call and never reaches the source' );
+snt_ability_sn_metrics( array( 'sections' => array( 'analytics_sessions' ), 'sessions' => array( 'hours' => 2 ) ) );
+ok( array( 'hours' => 2, 'class' => 'human' ) === $GLOBALS['__abilities'][ $expected_map['analytics_sessions'] ]->last_call_args(), 'a window the read accepts still reaches it unchanged' );
 // Every key the dispatch reads from the caller's input is one its schema declares
 // (additionalProperties is false, so an undeclared key is refused before dispatch).
 preg_match_all( '/\$input\[\'([a-z_]+)\'\]/', (string) file_get_contents( dirname( __DIR__ ) . '/inc/abilities-sn-metrics.php' ), $read_keys );

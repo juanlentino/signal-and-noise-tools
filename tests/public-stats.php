@@ -119,9 +119,11 @@ echo "[sn_public_stats] — the public stats page\n\n";
 ok( isset( $GLOBALS['__shortcodes']['sn_public_stats'] ), 'shortcode registered' );
 
 echo "\nGroup: the window\n";
+$t0                = time();
 list( $from, $to ) = sn_public_stats_window();
-ok( $to === gmdate( 'Y-m-d', time() - DAY_IN_SECONDS ), 'window ends YESTERDAY (UTC) — today is partial and would undercount' );
-ok( $from === gmdate( 'Y-m-d', time() - 30 * DAY_IN_SECONDS ), 'window spans 30 complete days' );
+$t1                = time(); // the window reads its own clock: either side of a UTC midnight is right.
+ok( in_array( $to, array( gmdate( 'Y-m-d', $t0 - DAY_IN_SECONDS ), gmdate( 'Y-m-d', $t1 - DAY_IN_SECONDS ) ), true ), 'window ends YESTERDAY (UTC) — today is partial and would undercount' );
+ok( in_array( $from, array( gmdate( 'Y-m-d', $t0 - 30 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', $t1 - 30 * DAY_IN_SECONDS ) ), true ) && ( strtotime( $to ) - strtotime( $from ) ) === 29 * DAY_IN_SECONDS, 'window spans 30 complete days' );
 
 echo "\nGroup: assemble — the honesty rules (pure)\n";
 ok( null === sn_public_stats_assemble( array(), array() ), 'nothing measured assembles to NULL — never-measured is not zero' );
