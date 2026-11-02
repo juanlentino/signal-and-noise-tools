@@ -31,7 +31,7 @@ function sn_analytics_live_hour_sql() {
 		// (review on #1966).
 		"SELECT toUnixTimestamp(toStartOfInterval(timestamp, INTERVAL '5' MINUTE)) AS slot, count(DISTINCT index1) AS readers",
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
-		"WHERE timestamp >= now() - INTERVAL '60' MINUTE AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where(),
+		"WHERE timestamp >= now() - INTERVAL '60' MINUTE AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
 		'GROUP BY slot ORDER BY slot',
 	) );
 }

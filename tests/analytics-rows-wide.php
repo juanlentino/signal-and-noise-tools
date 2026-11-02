@@ -12,7 +12,7 @@ define( 'ABSPATH', '/' );
 define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
-class WP_Error { public $code; public $message; public function __construct( $c = '', $m = '' ) { $this->code = $c; $this->message = $m; } public function get_error_message() { return $this->message; } }
+class WP_Error { public $code; public $message; public $data; public function __construct( $c = '', $m = '', $d = null ) { $this->code = $c; $this->message = $m; $this->data = $d; } public function get_error_message() { return $this->message; } public function get_error_data() { return $this->data; } }
 function is_wp_error( $t ) { return $t instanceof WP_Error; }
 function add_filter() {}
 function wp_timezone() { return new DateTimeZone( 'America/New_York' ); }
@@ -177,6 +177,9 @@ ok( 'stored' === $st['source'] && '2026-10-25' === $st['from'] && '2026-10-31' =
 $GLOBALS['answers'] = array( array( array( 'city' => 'Boston', 'hour' => '09', 'views' => 2, 'visits' => 1 ) ), array( array( 'city' => 'Boston', 'hour' => '09', 'pageview_visits' => 1 ) ) );
 $ev = snt_ability_analytics_rows( array( 'dimensions' => array( 'city', 'hour' ), 'from' => '2026-10-20', 'to' => '2026-12-31' ) );
 ok( 'events' === $ev['source'] && 'custom' === $ev['range'] && '2026-10-20' === $ev['from'] && '2026-10-31' === $ev['to'] && '09' === $ev['rows'][0]['hour'], 'city by hour: Analytics Engine; a window past today ends today' );
+ok( array_key_exists( 'scroll_avg_per_view', $ev['rows'][0] ) && null === $ev['rows'][0]['scroll_avg_per_view'] && null === $ev['rows'][0]['time_avg_per_view'] && 2 === (int) $ev['rows'][0]['views'], 'by hour, time and scroll are null in the answer, not 0, while views are kept' );
+$future = snt_ability_analytics_rows( array( 'dimensions' => array( 'city' ), 'from' => '2026-11-01', 'to' => '2026-11-02' ) );
+ok( is_wp_error( $future ) && 400 === $future->get_error_data()['status'], 'a window that starts after today is refused, not answered empty' );
 $old = snt_ability_analytics_rows( array( 'dimensions' => array( 'hour' ), 'range' => 'all' ) );
 ok( is_wp_error( $old ) && false !== strpos( $old->message, 'must start on 2026-08-03' ), 'all of history by hour: refused with the first day Analytics Engine holds' );
 

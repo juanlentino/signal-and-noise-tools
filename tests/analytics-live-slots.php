@@ -65,6 +65,7 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
 // The over-cap list is warm, so no read here is the cap's own.
+$GLOBALS['t'] = is_array( $GLOBALS['t'] ?? null ) ? $GLOBALS['t'] : array();
 $GLOBALS['t'][ SNT_ANALYTICS_VDAY_CACHE_KEY ] = array( 'hashes' => array(), 'ok' => true, 'truncated' => false );
 $now  = time();
 $cur  = intdiv( $now, 300 ) * 300;
@@ -204,6 +205,17 @@ $css = (string) file_get_contents( $root . '/assets/analytics/live-admin.css' );
 ok( 0 === preg_match( '/overflow(-x|-y)?\s*:\s*(auto|scroll)/', $css ), 'the grid never scrolls: no scrolling overflow in the stylesheet' );
 ok( 1 === preg_match( '/\.sn-live-admin\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap/', $css ) && 1 === preg_match( '/\.sn-live-admin__now\{[^}]*flex:/', $css ) && 1 === preg_match( '/\.sn-live-admin__past\{[^}]*flex:/', $css ), 'the grid sits beside the live block and wraps under it on a narrow panel' );
 ok( 1 === preg_match( '/\.sn-live-admin__heat\{[^}]*max-height:\s*1[0-4]\dpx/', $css ) && 1 === preg_match( '/\.sn-live-admin__heat\{[^}]*grid-auto-columns:\s*minmax\(0,/', $css ), '   ...its height is capped near 140px and its columns shrink to fit the panel' );
+
+echo "\nGroup: the over-cap list rides once\n";
+// The human class carries the over-cap list; a second copy pushed a full list past the
+// statement budget (#2336). A known hash in the cached list must appear once per query.
+if ( ! function_exists( 'sn_analytics_live_scroll_sql' ) ) { require $root . '/inc/analytics-live-scroll.php'; }
+$GLOBALS['t'] = is_array( $GLOBALS['t'] ?? null ) ? $GLOBALS['t'] : array();
+$GLOBALS['t'][ SNT_ANALYTICS_VDAY_CACHE_KEY ] = array( 'hashes' => array( 'feedfacefeedface' ), 'ok' => true, 'truncated' => false );
+foreach ( array( 'sn_analytics_live_hour_sql', 'sn_analytics_live_scroll_sql', 'sn_analytics_live_slot_pages_sql', 'sn_analytics_live_slot_sources_sql', 'sn_analytics_live_slot_classes_sql', 'sn_analytics_live_sources_sql', 'sn_analytics_live_pages_sql' ) as $fn ) {
+	ok( 1 === substr_count( $fn(), 'feedfacefeedface' ), "$fn names the over-cap list once" );
+}
+unset( $GLOBALS['t'][ SNT_ANALYTICS_VDAY_CACHE_KEY ] );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

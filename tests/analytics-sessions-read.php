@@ -115,7 +115,7 @@ ok( '2026-10-20 12:00:00' === $wh['lo'] && $now - 10800 === $wh['since'], 'hours
 $old = snt_analytics_sessions_window( array( 'from' => '2026-07-22' ), $now );
 ok( is_wp_error( $old ) && false !== strpos( $old->message, '2026-07-23' ), 'older than Analytics Engine holds: refused, naming the first day it does' );
 ok( '2026-07-23' === snt_analytics_sessions_window( array( 'from' => '2026-07-23', 'to' => '2026-12-31' ), $now )['from'] && '2026-10-20' === snt_analytics_sessions_window( array( 'from' => '2026-07-23', 'to' => '2026-12-31' ), $now )['to'], 'the floor itself is fine; a window past today ends today' );
-foreach ( array( array( 'hours' => 0 ), array( 'hours' => 73 ), array( 'hours' => 2, 'from' => '2026-10-19' ), array( 'class' => 'everyone' ), array( 'per_page' => 201 ), array( 'page' => 0 ), array( 'from' => '2026-10-20', 'to' => '2026-10-19' ) ) as $bad ) {
+foreach ( array( array( 'hours' => 0 ), array( 'hours' => 73 ), array( 'hours' => 2, 'from' => '2026-10-19' ), array( 'class' => 'everyone' ), array( 'per_page' => 201 ), array( 'page' => 0 ), array( 'from' => '2026-10-20', 'to' => '2026-10-19' ), array( 'from' => '2026-10-21' ) ) as $bad ) {
 	$r = snt_ability_analytics_sessions( $bad );
 	ok( is_wp_error( $r ) && 400 === $r->data['status'], 'refused with a 400: ' . json_encode( $bad ) );
 }

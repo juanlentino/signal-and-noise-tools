@@ -45,6 +45,9 @@ function snt_analytics_sessions_window( array $in, $now ) {
 	if ( ! snt_analytics_is_ymd( $from ) || ! snt_analytics_is_ymd( $to ) || $from > $to ) {
 		return $bad( 'from and to must be days (YYYY-MM-DD, the site\'s time zone), from no later than to; or give hours.' );
 	}
+	if ( $from > $today ) {
+		return $bad( 'from is after today (' . $today . ', the site\'s time zone): no day in the window has happened yet.' );
+	}
 	$to    = min( $to, $today );
 	$floor = snt_analytics_sessions_floor( $now );
 	if ( $from < $floor ) {
@@ -55,13 +58,13 @@ function snt_analytics_sessions_window( array $in, $now ) {
 }
 
 /**
- * Execute: validate, read, page.
+ * The checked arguments, or why they are refused. sn-metrics asks before its dispatch, which
+ * would fold a refusal into "unavailable".
  *
- * @param mixed $input The ability input.
- * @return array|WP_Error
+ * @param array $in The ability input.
+ * @return array|WP_Error array( class, page, per_page, window ).
  */
-function snt_ability_analytics_sessions( $input = null ) {
-	$in    = is_array( $input ) ? $input : array();
+function snt_analytics_sessions_check( array $in ) {
 	$class = $in['class'] ?? 'human';
 	$page  = $in['page'] ?? 1;
 	$per   = $in['per_page'] ?? SN_ANALYTICS_SESSIONS_PER_PAGE;
@@ -69,9 +72,21 @@ function snt_ability_analytics_sessions( $input = null ) {
 		return new WP_Error( 'ability_invalid_input', 'class must be human, suspect or bot; page an integer from 1 to 100000; per_page an integer from 1 to ' . SN_ANALYTICS_SESSIONS_MAX_PAGE . '.', array( 'status' => 400 ) );
 	}
 	$w = snt_analytics_sessions_window( $in, sn_analytics_clock() ); // pinnable, so a test never straddles a day.
-	if ( is_wp_error( $w ) ) {
-		return $w;
+	return is_wp_error( $w ) ? $w : array( $class, $page, $per, $w );
+}
+
+/**
+ * Execute: validate, read, page.
+ *
+ * @param mixed $input The ability input.
+ * @return array|WP_Error
+ */
+function snt_ability_analytics_sessions( $input = null ) {
+	$args = snt_analytics_sessions_check( is_array( $input ) ? $input : array() );
+	if ( is_wp_error( $args ) ) {
+		return $args;
 	}
+	list( $class, $page, $per, $w ) = $args;
 	$read = sn_analytics_sessions_read( $w['lo'], $w['hi'], $class );
 	if ( null === $read ) {
 		return new WP_Error( 'sn_analytics_read_failed', 'The Analytics Engine read failed; this is not an empty answer.', array( 'status' => 500 ) );

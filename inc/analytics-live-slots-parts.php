@@ -59,7 +59,7 @@ function sn_analytics_live_slot_pages_sql() {
 	return implode( ' ', array(
 		'SELECT ' . sn_analytics_live_slot_col() . ', blob2 AS path, count(DISTINCT index1) AS readers',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
-		"WHERE timestamp >= now() - INTERVAL '60' MINUTE AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where(),
+		"WHERE timestamp >= now() - INTERVAL '60' MINUTE AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
 		'GROUP BY slot, path ORDER BY slot, readers DESC LIMIT ' . SN_ANALYTICS_LIVE_SLOTS_ROWS,
 	) );
 }
@@ -74,7 +74,7 @@ function sn_analytics_live_slot_sources_sql() {
 	return implode( ' ', array(
 		'SELECT ' . sn_analytics_live_slot_col() . ', ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS host, count(DISTINCT index1) AS readers', // the live sources rule: an internal click is (internal), dropped by the fold.
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
-		"WHERE timestamp >= now() - INTERVAL '60' MINUTE AND blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where(),
+		"WHERE timestamp >= now() - INTERVAL '60' MINUTE AND blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
 		'GROUP BY slot, host ORDER BY slot, readers DESC LIMIT ' . SN_ANALYTICS_LIVE_SLOTS_ROWS,
 	) );
 }
