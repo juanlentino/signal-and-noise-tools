@@ -30,6 +30,7 @@ function is_singular() { return $GLOBALS['__singular'] ?? true; }
 function get_queried_object() { return $GLOBALS['__queried']; }
 function get_permalink( $p = 0 ) { return 'https://x.test/resume/'; }
 function get_post_modified_time( $f = 'U', $gmt = false, $p = null ) { return '2026-10-02T20:58:03-04:00'; }
+function sn_prov_machine_pointers_manifest( $id ) { return $GLOBALS['__man'] ?? null; }
 
 require_once __DIR__ . '/../inc/resume-page.php';
 require_once __DIR__ . '/../inc/resume-es.php';
@@ -111,7 +112,11 @@ $vc = sn_resume_vcard( $r );
 ok( 0 === strpos( $vc, "BEGIN:VCARD\r\nVERSION:3.0\r\n" ) && "END:VCARD\r\n" === substr( $vc, -11 ), 'a vCard 3.0 with CRLF lines' );
 ok( false !== strpos( $vc, "\r\nFN:Juan Lentino\r\n" ) && false !== strpos( $vc, "\r\nN:Lentino;Juan;;;\r\n" ), 'name, formatted and structured' );
 ok( false !== strpos( $vc, "\r\nTITLE:Founder & Music Executive\r\n" ) && false !== strpos( $vc, "\r\nEMAIL;TYPE=INTERNET:juan@example.com\r\n" ), 'title and the public email' );
-ok( false !== strpos( $vc, "\r\nADR;TYPE=WORK:;;;Orlando;FL;;\r\n" ) && false === strpos( $vc, 'TEL' ), 'city and region; no phone that is not public' );
+ok( false !== strpos( $vc, "\r\nADR;TYPE=WORK:;;;Orlando;FL;;\r\n" ) && false === strpos( $vc, 'TEL' ), 'city and region; no phone' );
+$en_ph = $en; $en_ph['pdf']['phone'] = '+1 555 867 5309'; $en_ph['pdf']['phone_public'] = true;
+$es_ph = sn_resume_es_merge( json_decode( (string) file_get_contents( __DIR__ . '/../inc/seed-content/resume-data-es.json' ), true ), $en_ph, '' );
+$cv_jr = sn_jsonresume_build( $es_ph, $ctx );
+ok( '+1 555 867 5309' === $es_ph['pdf']['phone'] && false === strpos( json_encode( $cv_jr ) . sn_resume_markdown( $es_ph, $cv_jr, $formats, 'es' ) . sn_resume_vcard( $cv_jr ), '867' ), '/cv: its JSON Resume, Markdown and vCard carry no phone, though the Spanish document holds a public one' );
 ok( false !== strpos( $vc, "\r\nX-SOCIALPROFILE;TYPE=linkedin:https://linkedin.com/in/juanlentino\r\n" ), 'profiles' );
 ok( false !== strpos( $vc, 'https://x.test/verify?note=u1' ) && false !== strpos( $vc, "\r\nURL:https://x.test/\r\n" ), 'site URL and the proof link' );
 $long = sn_resume_vcard_line( 'NOTE', str_repeat( 'á', 80 ) );
@@ -152,6 +157,10 @@ $f = sn_resume_formats( 'resume' );
 ok( array( 'html', 'markdown', 'pdf', 'json_resume', 'vcard' ) === array_keys( $f ) && 'https://x.test/resume.md' === $f['markdown'], 'the formats of a published résumé' );
 $s = sn_resume_formats_surfaces( array() );
 ok( 1 === count( $s ) && 'resume' === $s[0]['type'] && false !== strpos( $s[0]['description'], 'json-resume.json' ), 'the agents manifest lists them' );
+ok( false === strpos( $s[0]['description'], 'authorship proof' ), 'an unanchored page claims no authorship proof in the manifest' );
+$GLOBALS['__man'] = array( 'subject' => array( 'uid' => 'u7' ) );
+ok( false !== strpos( sn_resume_formats_surfaces( array() )[0]['description'], 'The page carries a Bitcoin-anchored authorship proof' ), 'an anchored one says so' );
+unset( $GLOBALS['__man'] );
 $GLOBALS['__page'] = null;
 ok( array() === sn_resume_formats( 'resume' ) && array() === sn_resume_formats_surfaces( array() ), 'no page, no formats' );
 

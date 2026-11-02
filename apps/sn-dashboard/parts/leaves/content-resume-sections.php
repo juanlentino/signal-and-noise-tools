@@ -130,14 +130,14 @@ function resume_section_map( array $doc ) {
 		),
 		'variants'     => array(
 			'title' => __( 'Operations résumé', 'signal-and-noise-tools' ),
-			'hint'  => __( 'The second lane on /resume (Operations & AI Strategy) and its own PDF, built by Generate along with the music one; the switch links both PDFs. Rows marked "Music only" leave it; "Operations only" rows show only here.', 'signal-and-noise-tools' ),
+			'hint'  => __( 'The second lane on /resume (Operations & AI Strategy) and its own PDF, built by Generate along with the music one. The switch links the two lanes; each lane\'s Download links its own PDF, the operations one once it is generated. Rows marked "Music only" leave it; "Operations only" rows show only here.', 'signal-and-noise-tools' ),
 			'count' => null,
 			'first' => (string) ( $ops['headline'] ?? '' ),
 			'paint' => static function () use ( $ops ) { return resume_operations( $ops ); },
 		),
 		'pdf'          => array(
 			'title' => __( 'PDF only', 'signal-and-noise-tools' ),
-			'hint'  => __( 'Used by the generated PDF, never shown on /resume. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.', 'signal-and-noise-tools' ),
+			'hint'  => __( 'The PDF\'s own fields. Of these, /resume shows only Headline and Tagline, at the head of its Music lane once it has two lanes; the phone never reaches the page. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.', 'signal-and-noise-tools' ),
 			'count' => null,
 			'first' => (string) ( $pdf['headline'] ?? '' ),
 			'paint' => static function () use ( $pdf, $music ) { return resume_pdf( $pdf, $music ); },
