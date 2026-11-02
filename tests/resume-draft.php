@@ -21,7 +21,11 @@ function wp_kses( $s, $allowed ) { return strip_tags( (string) $s, '<strong><em>
 $GLOBALS['__options'] = array();
 $GLOBALS['__autoload'] = array();
 function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; }
+$GLOBALS['__update_fails'] = false; // a write the database does not take
 function update_option( $k, $v, $autoload = null ) {
+	if ( $GLOBALS['__update_fails'] ) {
+		return false;
+	}
 	$same = isset( $GLOBALS['__options'][ $k ] ) && $GLOBALS['__options'][ $k ] === $v;
 	$GLOBALS['__options'][ $k ]  = $v;
 	$GLOBALS['__autoload'][ $k ] = $autoload;
@@ -69,7 +73,7 @@ require_once __DIR__ . '/../inc/cloudflare-purge-post-parts.php';
 $seed = sn_resume_doc_normalize( sn_resume_seed_doc() );
 $alt  = $seed;
 $alt['experience'][0]['org'] = 'DRAFTED PRACTICE';
-function fresh( array $opts = array() ) { $GLOBALS['__options'] = $opts; reset_calls(); $GLOBALS['__pdf_fails'] = false; $GLOBALS['__purged'] = array(); }
+function fresh( array $opts = array() ) { $GLOBALS['__options'] = $opts; reset_calls(); $GLOBALS['__pdf_fails'] = false; $GLOBALS['__update_fails'] = false; $GLOBALS['__purged'] = array(); }
 $live_a = $seed + array( 'updated' => '2020-01-01' ); // the stored shape: sn_resume_doc_save appends the stamp
 
 echo "\nTest: the draft slot\n";
@@ -163,10 +167,23 @@ $seen = array(
 	sn_handle_resume_discard( array() ),
 );
 ok( array( 'resume_draft_refused', 'resume_no_draft', 'resume_no_prev', 'resume_no_draft', 'resume_no_draft', 'resume_draft_saved', 'resume_published', 'resume_reverted', 'resume_draft_discarded' ) === $seen, 'each handler maps its outcome to its own flash code: ' . implode( ',', $seen ) );
-$all = array( 'resume_publish_failed', 'resume_draft_saved', 'resume_draft_refused', 'resume_no_draft', 'resume_preview_failed', 'resume_nothing_to_publish', 'resume_published', 'resume_published_pdf_failed', 'resume_draft_discarded', 'resume_no_prev', 'resume_reverted', 'resume_reverted_pdf_failed' );
+$all = array( 'resume_publish_failed', 'resume_draft_saved', 'resume_draft_refused', 'resume_draft_failed', 'resume_no_draft', 'resume_preview_failed', 'resume_nothing_to_publish', 'resume_published', 'resume_published_pdf_failed', 'resume_draft_discarded', 'resume_no_prev', 'resume_reverted', 'resume_reverted_pdf_failed' );
 ok( array() === array_diff( $all, array_keys( $flashes ) ), 'every draft flash code has a message: ' . implode( ',', array_diff( $all, array_keys( $flashes ) ) ) );
 $words = implode( ' ', array_map( static function ( $c ) use ( $flashes ) { return $flashes[ $c ][1] ?? ''; }, $all ) );
 ok( false === strpos( $words, "\u{2014}" ), 'no em dash in the draft messages' );
+
+echo "\nTest: a draft write the database did not take is reported\n";
+fresh( array( SN_RESUME_DOC_OPTION => $live_a ) );
+ok( true === sn_resume_draft_save( $alt ) && true === sn_resume_draft_save( $alt ), 'the same draft saved twice in a day is a save both times (update_option answers false for the unchanged value)' );
+fresh( array( SN_RESUME_DOC_OPTION => $live_a ) );
+$GLOBALS['__update_fails'] = true;
+ok( false === sn_resume_draft_save( $alt ) && ! isset( $GLOBALS['__options'][ SN_RESUME_DRAFT_OPTION ] ), 'a failed write returns false, and nothing is stored' );
+ok( 'resume_draft_failed' === sn_handle_resume_draft_save( array( 'resume' => $alt ) ), 'the handler flashes resume_draft_failed, not Draft saved' );
+ok( 'resume_draft_refused' === sn_handle_resume_draft_save( array( 'resume' => array( 'hero' => array( 'summary' => 'x' ) ) ) ), 'a refused document still says refused, write or no write' );
+function sn_resume_operations_setup( $base ) { return array( 'doc' => $base, 'missing' => array() ); }
+ok( 'resume_draft_failed' === sn_handle_resume_operations_setup( array() ), 'the operations setup reports the failed write the same way' );
+$GLOBALS['__update_fails'] = false;
+ok( 'resume_ops_setup' === sn_handle_resume_operations_setup( array() ), 'and saves when the write happens' );
 
 echo "\nTest: Preview page\n";
 fresh( array( SN_RESUME_DOC_OPTION => $live_a ) );
