@@ -125,7 +125,7 @@ function sn_cf_markdown_twin_urls( $post ) {
  */
 function sn_cf_resume_format_urls( $post ) {
 	$copies = array(
-		'resume' => array( '/resume.md', '/resume.md?lane=operations', '/resume/json-resume.json', '/resume/json-resume.json?lane=operations', '/resume/contact.vcf', '/resume/?lane=operations&output_format=markdown' ),
+		'resume' => array( '/resume.md', '/resume.md?lane=operations', '/resume/json-resume.json', '/resume/json-resume.json?lane=operations', '/resume/contact.vcf', '/resume/?lane=operations&output_format=markdown', '/cv.md', '/cv/json-resume.json' ), // /cv's copies take /resume's email and website.
 		'cv'     => array( '/cv.md', '/cv/json-resume.json' ),
 	);
 	$slug   = 'page' === ( $post->post_type ?? '' ) ? (string) ( $post->post_name ?? '' ) : '';

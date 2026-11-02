@@ -43,7 +43,7 @@ function add_action() {}
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function sn_cf_purge_urls( $urls ) { $GLOBALS['__purged'][] = (array) $urls; return true; }
 $GLOBALS['__purged'] = array();
-function purged_copies() { return count( array_filter( $GLOBALS['__purged'], static fn( $u ) => in_array( 'https://example.test/resume.md?lane=operations', $u, true ) && in_array( 'https://example.test/resume/json-resume.json', $u, true ) ) ); }
+function purged_copies() { return count( array_filter( $GLOBALS['__purged'], static fn( $u ) => in_array( 'https://example.test/resume.md?lane=operations', $u, true ) && in_array( 'https://example.test/resume/json-resume.json', $u, true ) && in_array( 'https://example.test/cv.md', $u, true ) && in_array( 'https://example.test/cv/json-resume.json', $u, true ) ) ); } // /cv's copies carry the English email and website.
 $GLOBALS['__pdf_fails'] = false;
 function sn_resume_pdf_generate() { bump( 'pdf' ); return $GLOBALS['__pdf_fails'] ? new WP_Error( 'x', 'y' ) : array( 'sha256' => 'abc' ); }
 function get_page_by_path( $slug ) { return (object) array( 'ID' => 1184, 'post_title' => 'Resume', 'post_excerpt' => 'Ex' ); }
