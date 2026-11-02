@@ -30,6 +30,7 @@ function is_singular() { return $GLOBALS['__singular'] ?? true; }
 function get_queried_object() { return $GLOBALS['__queried']; }
 function get_permalink( $p = 0 ) { return 'https://x.test/resume/'; }
 function get_post_modified_time( $f = 'U', $gmt = false, $p = null ) { return '2026-10-02T20:58:03-04:00'; }
+function sn_prov_machine_pointers_manifest( $id ) { return $GLOBALS['__man'] ?? null; }
 
 require_once __DIR__ . '/../inc/resume-page.php';
 require_once __DIR__ . '/../inc/resume-es.php';
@@ -152,6 +153,10 @@ $f = sn_resume_formats( 'resume' );
 ok( array( 'html', 'markdown', 'pdf', 'json_resume', 'vcard' ) === array_keys( $f ) && 'https://x.test/resume.md' === $f['markdown'], 'the formats of a published résumé' );
 $s = sn_resume_formats_surfaces( array() );
 ok( 1 === count( $s ) && 'resume' === $s[0]['type'] && false !== strpos( $s[0]['description'], 'json-resume.json' ), 'the agents manifest lists them' );
+ok( false === strpos( $s[0]['description'], 'authorship proof' ), 'an unanchored page claims no authorship proof in the manifest' );
+$GLOBALS['__man'] = array( 'subject' => array( 'uid' => 'u7' ) );
+ok( false !== strpos( sn_resume_formats_surfaces( array() )[0]['description'], 'The page carries a Bitcoin-anchored authorship proof' ), 'an anchored one says so' );
+unset( $GLOBALS['__man'] );
 $GLOBALS['__page'] = null;
 ok( array() === sn_resume_formats( 'resume' ) && array() === sn_resume_formats_surfaces( array() ), 'no page, no formats' );
 

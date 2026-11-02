@@ -2,10 +2,11 @@
 /**
  * Signal & Noise Tools: /resume?lane= at render time (inc/resume-page-lanes.php).
  *
- * The stored body holds both lanes; this hides the one not asked for and marks
- * the switch's current link. It only adds attributes, never text, so the page
- * reads the same to the provenance checker whichever lane shows. Unknown or
- * missing `lane` is the music lane; the value is never echoed.
+ * The stored body holds both lanes; this names each lane as a region, hides
+ * the one not asked for and marks the switch's current link. It only adds
+ * attributes, never text, so the page reads the same to the provenance
+ * checker whichever lane shows. Unknown or missing `lane` is the music lane;
+ * the value is never echoed.
  *
  * @package SignalNoiseTools
  */
@@ -21,8 +22,8 @@ function sn_resume_active_lane() {
 }
 
 /**
- * render_block_core/group: hide the other lane; label the switch and mark its
- * current link.
+ * render_block_core/group: name each lane, hide the other one; label the
+ * switch and mark its current link.
  *
  * @param string $html  Rendered group.
  * @param array  $block Parsed block.
@@ -35,12 +36,14 @@ function sn_resume_lane_render( $html, $block ) {
 	}
 	$active = sn_resume_active_lane();
 	if ( preg_match( '/\bsn-resume-variant--(music|operations)\b/', $class, $m ) ) {
-		if ( $m[1] === $active ) {
-			return $html;
-		}
 		$p = new WP_HTML_Tag_Processor( $html );
 		if ( $p->next_tag() ) {
-			$p->set_attribute( 'hidden', true );
+			// A landmark named as the switch names it, so a screen reader can find each résumé.
+			$p->set_attribute( 'role', 'region' );
+			$p->set_attribute( 'aria-label', SN_RESUME_LANE_LABELS[ $m[1] ] . ' résumé' );
+			if ( $m[1] !== $active ) {
+				$p->set_attribute( 'hidden', true );
+			}
 		}
 		return $p->get_updated_html();
 	}

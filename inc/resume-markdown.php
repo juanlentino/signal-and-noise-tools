@@ -66,9 +66,12 @@ function sn_resume_markdown_front( array $resume, array $formats, array $w ) {
 		$out[] = 'label: ' . $y( $b['label'] );
 	}
 	if ( isset( $b['location'] ) ) {
-		$out[] = 'location: ' . $y( implode( ', ', $b['location'] ) );
+		$out[] = 'location: ' . $y( implode( ', ', $b['location'] ) . ( isset( $meta['x-locationNote'] ) ? ' (' . $meta['x-locationNote'] . ')' : '' ) );
 	}
 	$out[] = 'url: ' . $y( $meta['canonical'] ?? '' );
+	if ( 'operations' === ( $meta['x-lane'] ?? '' ) ) {
+		$out[] = 'lane: ' . $y( 'operations' ); // /resume.md?lane=operations; the music résumé's front matter names none.
+	}
 	$out[] = 'updated: ' . $y( $meta['lastModified'] ?? '' );
 	foreach ( array( 'email', 'phone' ) as $k ) {
 		if ( isset( $b[ $k ] ) ) {
@@ -115,8 +118,9 @@ function sn_resume_markdown( array $doc, array $resume, array $formats, $lang = 
 	$out = sn_resume_markdown_front( $resume, $formats, $w );
 	$out = array_merge( $out, array( '', '# ' . ( $b['name'] ?? '' ) ), isset( $b['label'] ) ? array( '', $b['label'] ) : array() );
 	$out = array_merge( $out, array( '', '## ' . $w['summary'], '', (string) ( $b['summary'] ?? '' ) ) );
-	// A section with nothing in it is left out: the operations résumé (/resume.md?lane=operations)
-	// has no highlights or publications, and its projects lead.
+	// A section with nothing in it is left out, heading and all: the operations résumé
+	// (/resume.md?lane=operations) has no highlights or publications, and its projects lead.
+	$head = static fn( $rows, $key, $gap = array( '' ) ) => $rows ? array_merge( array( '', '## ' . $w[ $key ] ), $gap ) : array();
 	if ( ! empty( $doc['stats'] ) ) {
 		$out = array_merge( $out, array( '', '## ' . $w['stats'], '' ) );
 		foreach ( $doc['stats'] as $s ) {
@@ -130,7 +134,7 @@ function sn_resume_markdown( array $doc, array $resume, array $formats, $lang = 
 			$out[] = '- **' . $name . '**' . ( isset( $p['description'] ) ? ': ' . $p['description'] : '' );
 		}
 	}
-	$out  = array_merge( $out, array( '', '## ' . $w['work'] ) );
+	$out  = array_merge( $out, $head( $resume['work'] ?? array(), 'work', array() ) );
 	$last = null;
 	foreach ( $resume['work'] ?? array() as $job ) {
 		if ( $job['name'] !== $last ) {
@@ -145,17 +149,17 @@ function sn_resume_markdown( array $doc, array $resume, array $formats, $lang = 
 			$out[] = '- ' . $h;
 		}
 	}
-	$out = array_merge( $out, empty( $resume['publications'] ) ? array() : array( '', '## ' . $w['pubs'], '' ) );
+	$out = array_merge( $out, $head( $resume['publications'] ?? array(), 'pubs' ) );
 	foreach ( $resume['publications'] ?? array() as $p ) {
 		$title = isset( $p['url'] ) ? '[' . $p['name'] . '](' . $p['url'] . ')' : $p['name'];
 		$out[] = '- ' . $title . '. ' . implode( ' · ', array_filter( array( $p['publisher'] ?? '', $p['releaseDate'] ?? '', $p['summary'] ?? '' ) ) );
 	}
-	$out = array_merge( $out, array( '', '## ' . $w['edu'], '' ) );
+	$out = array_merge( $out, $head( $resume['education'] ?? array(), 'edu' ) );
 	foreach ( $resume['education'] ?? array() as $e ) {
 		$out[] = '- **' . implode( ', ', array_filter( array( $e['studyType'] ?? '', $e['area'] ?? '' ) ) ) . '** · ' . implode( ' · ', array_filter( array( $e['institution'] ?? '', $e['endDate'] ?? '' ) ) );
 		$out   = array_merge( $out, $verify( $e['x-credentialUrl'] ?? '' ) );
 	}
-	$out = array_merge( $out, array( '', '## ' . $w['creds'], '' ) );
+	$out = array_merge( $out, $head( array_merge( $resume['awards'] ?? array(), $resume['certificates'] ?? array() ), 'creds' ) );
 	foreach ( $resume['awards'] ?? array() as $a ) {
 		// A membership's summary is its "start - end" line (sn_jsonresume_affiliations()).
 		list( $start, $end ) = sn_jsonresume_range( (string) ( $a['summary'] ?? '' ) );
@@ -168,11 +172,11 @@ function sn_resume_markdown( array $doc, array $resume, array $formats, $lang = 
 		$out[] = '- ' . $c['name'];
 		$out   = array_merge( $out, $verify( $c['url'] ?? '' ) );
 	}
-	$out = array_merge( $out, array( '', '## ' . $w['skills'], '' ) );
+	$out = array_merge( $out, $head( $resume['skills'] ?? array(), 'skills' ) );
 	foreach ( $resume['skills'] ?? array() as $s ) {
 		$out[] = '- **' . $s['name'] . ':** ' . implode( ', ', $s['keywords'] );
 	}
-	$out = array_merge( $out, array( '', '## ' . $w['langs'], '' ) );
+	$out = array_merge( $out, $head( $resume['languages'] ?? array(), 'langs' ) );
 	foreach ( $resume['languages'] ?? array() as $l ) {
 		$out[] = '- ' . $l['language'] . ( isset( $l['fluency'] ) ? ' (' . $l['fluency'] . ')' : '' );
 	}

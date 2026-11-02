@@ -56,6 +56,19 @@ function sn_jsonresume_split_dated( $s ) {
 	return array( trim( (string) $s ), '' );
 }
 
+/**
+ * Where the résumé says it is (pdf.location, else the contact line), with a
+ * trailing parenthetical apart: "Orlando, FL (open to relocation)" to
+ * ["Orlando, FL", "open to relocation"].
+ *
+ * @param array $doc
+ * @return array{0:string,1:string}
+ */
+function sn_jsonresume_where( array $doc ) {
+	$where = trim( '' !== (string) ( $doc['pdf']['location'] ?? '' ) ? (string) $doc['pdf']['location'] : (string) ( $doc['hero']['contact_line'] ?? '' ) );
+	return preg_match( '~^(.+?)\s*\(([^()]+)\)$~u', $where, $m ) ? array( $m[1], trim( $m[2] ) ) : array( $where, '' );
+}
+
 /** A bullet's allowlisted HTML as plain text. @param string $s @return string */
 function sn_jsonresume_plain( $s ) {
 	return trim( html_entity_decode( strip_tags( (string) $s ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
@@ -160,7 +173,8 @@ function sn_jsonresume_publications( array $doc ) {
 }
 
 /**
- * Skills by category; the Languages / Idiomas row becomes languages[].
+ * Skills by category; the Languages / Idiomas row becomes languages[]. Items
+ * split on commas outside parentheses: "Standards (C2PA, TDMRep, RSL)" is one.
  *
  * @param array $doc
  * @return array{0:array,1:array}
@@ -169,7 +183,7 @@ function sn_jsonresume_skills( array $doc ) {
 	$skills    = array();
 	$languages = array();
 	foreach ( $doc['skills'] ?? array() as $row ) {
-		$items = array_values( array_filter( array_map( 'trim', explode( ',', $row['items'] ) ), 'strlen' ) );
+		$items = array_values( array_filter( array_map( 'trim', (array) preg_split( '~,(?![^()]*\))~u', $row['items'] ) ), 'strlen' ) );
 		if ( in_array( $row['category'], array( 'Languages', 'Idiomas' ), true ) ) {
 			foreach ( $items as $item ) {
 				$languages[] = preg_match( '~^(.+?)\s*\((.+)\)$~u', $item, $m ) ? array( 'language' => $m[1], 'fluency' => $m[2] ) : array( 'language' => $item );

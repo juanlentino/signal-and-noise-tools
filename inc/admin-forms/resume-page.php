@@ -5,7 +5,8 @@
  * The STRUCTURED editor for the /resume page: real fields and repeatable rows
  * (employers → roles → bullets, publications, stats, chips, skills), not a
  * plain-text box. Prefills from the draft when there is one, else from
- * sn_resume_doc_get() (the shipped seed before the first save);
+ * sn_resume_doc_get_raw() (the stored document with its variant flags; the
+ * shipped seed before the first save);
  * sn_action=resume_draft_save rebuilds the document from the posted arrays
  * and stores it as a DRAFT. Nothing goes live until Publish
  * (inc/admin-forms/resume-draft.php, inc/resume-draft.php).
@@ -371,15 +372,16 @@ function sn_admin_render_resume_section() {
 	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="skills">+ Add skills row</button>';
 	echo '</details>';
 
-	// ── PDF only ── Fields the generated PDF uses and /resume never shows (the
-	// sync engine does not read `pdf`), so the phone stays off the web page.
+	// ── PDF only ── Fields the generated PDF uses. /resume shows only the
+	// headline and tagline, heading its Music lane once it has two lanes
+	// (sn_resume_lane_hero_blocks()); the phone never reaches the web page.
 	if ( function_exists( 'sn_admin_render_resume_built_section' ) ) {
 		sn_admin_render_resume_built_section( $doc );
 		sn_admin_render_resume_operations_section( $doc );
 	}
 
 	$pdf = (array) ( $doc['pdf'] ?? array() );
-	sn_rsm_section_open( 'PDF only', 'Used by the generated PDF, never shown on /resume. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.' );
+	sn_rsm_section_open( 'PDF only', 'The PDF\'s own fields. Of these, /resume shows only Headline and Tagline, at the head of its Music lane once it has two lanes; the phone never reaches the page. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.' );
 	sn_rsm_input( 'resume[pdf][headline]', (string) ( $pdf['headline'] ?? '' ), 'Headline', 'Music Business Development & Strategic Partnerships Leader' );
 	sn_rsm_input( 'resume[pdf][tagline]', (string) ( $pdf['tagline'] ?? '' ), 'Tagline', 'Artist & Label Relations | Latin American & U.S. Markets' );
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Professional summary</span><textarea rows="4" class="large-text" name="resume[pdf][summary]">' . esc_textarea( (string) ( $pdf['summary'] ?? '' ) ) . '</textarea></label>';

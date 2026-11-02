@@ -101,12 +101,33 @@ function sn_cf_post_purge_urls( $post_id, $post ) {
  * path sends it by URL. Purging an address the edge does not hold costs
  * nothing.
  *
+ * The résumé pages' own copies (sn_cf_resume_format_urls()) go with it: they
+ * answer the same way, before the theme tags them.
+ *
  * @param WP_Post|object $post The post as the edge holds it (the pre-change post when leaving publish).
- * @return string[] Zero or one absolute URL.
+ * @return string[] Absolute URLs.
  */
 function sn_cf_markdown_twin_urls( $post ) {
 	$link = get_permalink( $post );
-	return is_string( $link ) && '' !== $link ? array( add_query_arg( 'output_format', 'markdown', $link ) ) : array();
+	$twin = is_string( $link ) && '' !== $link ? array( add_query_arg( 'output_format', 'markdown', $link ) ) : array();
+	return array_merge( $twin, sn_cf_resume_format_urls( $post ) );
+}
+
+/**
+ * /resume's and /cv's agent copies (inc/resume-formats-route.php): Markdown,
+ * JSON Resume and vCard, each lane's. Listed, not derived: purging one the
+ * edge does not hold is free.
+ *
+ * @param WP_Post|object $post
+ * @return string[]
+ */
+function sn_cf_resume_format_urls( $post ) {
+	$copies = array(
+		'resume' => array( '/resume.md', '/resume.md?lane=operations', '/resume/json-resume.json', '/resume/json-resume.json?lane=operations', '/resume/contact.vcf' ),
+		'cv'     => array( '/cv.md', '/cv/json-resume.json' ),
+	);
+	$slug   = 'page' === ( $post->post_type ?? '' ) ? (string) ( $post->post_name ?? '' ) : '';
+	return function_exists( 'home_url' ) ? array_map( 'home_url', $copies[ $slug ] ?? array() ) : array();
 }
 
 /** Hard ceiling on paginated archive URLs added per save. */
