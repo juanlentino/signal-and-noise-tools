@@ -49,7 +49,7 @@ function sn_admin_flash_messages() {
 		'resume_pdf_ops_failed'     => array( 'warning', 'Music PDF generated: the /resume Download link points at it. The operations PDF was not built; the PDF box says why.' ),
 		'resume_failed'             => array( 'error', 'Resume save failed: the editor module is unavailable.' ),
 		'resume_draft_saved'        => array( 'success', 'Draft saved. The live /resume page is unchanged until you publish.' ),
-		'resume_draft_refused'      => array( 'error', 'Draft not saved: the resume needs at least one experience entry (with an organization) or one publication (with a title). The live page and any earlier draft are unchanged.' ),
+		'resume_draft_refused'      => array( 'error', 'Draft not saved: the music résumé (the public page) needs at least one experience entry (with an organization) or one publication (with a title); rows marked "Operations only" do not count. The live page and any earlier draft are unchanged.' ),
 		'resume_no_draft'           => array( 'info', 'There is no draft to act on.' ),
 		'resume_ops_setup'          => array( 'success', 'The operations résumé is set up in the draft. Review it, then publish; Generate then builds both PDFs.' ),
 		'resume_ops_setup_partial'  => array( 'warning', 'The operations résumé is set up in the draft, but some items were not found and stay in both résumés. The Operations résumé section lists them.' ),

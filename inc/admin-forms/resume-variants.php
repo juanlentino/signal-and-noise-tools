@@ -121,7 +121,7 @@ function sn_admin_render_resume_operations_section( $doc ) {
 	sn_rsm_lines( 'resume[variants][operations][sections]', (array) ( $o['sections'] ?? array() ), 'Sections, in order: one per line (' . implode( ', ', SN_RESUME_PDF_SECTION_KEYS ) . ')', 'summary', 6 );
 	echo '<p class="description">A section missing from the list is missing from the PDF: leave out "stats" and "competencies" for no key-figures row and no competencies grid.</p>';
 	sn_rsm_lines( 'resume[variants][operations][experience_order]', (array) ( $o['experience_order'] ?? array() ), 'Experience order: one organization per line (the rest follow as listed)', 'Independent Practice', 3 );
-	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Earlier career one line per role, no bullets</span><input type="checkbox" name="resume[variants][operations][earlier_compact]" value="1"' . checked( ! empty( $o['earlier_compact'] ), true, false ) . '></label>';
+	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Earlier career: one line per role, no bullets</span><input type="checkbox" name="resume[variants][operations][earlier_compact]" value="1"' . checked( ! empty( $o['earlier_compact'] ), true, false ) . '></label>';
 	sn_rsm_input( 'resume[variants][operations][pdf_file]', (string) ( $o['pdf_file'] ?? '' ), 'PDF file name', defined( 'SN_RESUME_OPERATIONS_PDF_FILE' ) ? SN_RESUME_OPERATIONS_PDF_FILE : 'Resume_Operations.pdf' );
 	echo '<p class="description">The phone is never printed in this PDF.</p>';
 	$missing = (array) get_option( 'sn_resume_ops_setup_missing', array() );
@@ -147,7 +147,7 @@ function sn_admin_render_resume_operations_setup() {
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
 	wp_nonce_field( 'sn_resume_operations_setup' );
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Operations résumé setup</h2>';
-	echo '<p class="sn-fieldset-intro">Writes the operations résumé\'s starting content into the draft: its settings, What I\'ve Built, its skills rows and two affiliations, and "Music only" on what it leaves out. Existing wording is never changed. Review the draft, then publish. Running it again only fills what is missing; it never undoes an edit.</p>';
+	echo '<p class="sn-fieldset-intro">Writes the operations résumé\'s starting content into the draft: its settings, What I\'ve Built, its skills rows and two affiliations, and "Music only" on what it leaves out. Existing wording is never changed. Review the draft, then publish. Running it again never rewords anything or adds a row twice; it marks "Music only" again on what the operations résumé leaves out.</p>';
 	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_operations_setup" class="button">Set up the operations résumé</button></div>';
 	echo '</div></form>';
 }

@@ -42,11 +42,12 @@ function sn_resume_pdf_order_entries( $entries, $order ) {
 	if ( ! $order ) {
 		return $entries;
 	}
-	$rank = array_flip( array_map( 'strtolower', $order ) );
+	$low  = static fn( $s ) => mb_strtolower( (string) $s, 'UTF-8' );
+	$rank = array_flip( array_map( $low, $order ) );
 	$keys = array_keys( $entries );
-	usort( $keys, static function ( $a, $b ) use ( $entries, $rank ) {
-		$ra = $rank[ strtolower( (string) ( $entries[ $a ]['org'] ?? '' ) ) ] ?? PHP_INT_MAX;
-		$rb = $rank[ strtolower( (string) ( $entries[ $b ]['org'] ?? '' ) ) ] ?? PHP_INT_MAX;
+	usort( $keys, static function ( $a, $b ) use ( $entries, $rank, $low ) {
+		$ra = $rank[ $low( $entries[ $a ]['org'] ?? '' ) ] ?? PHP_INT_MAX;
+		$rb = $rank[ $low( $entries[ $b ]['org'] ?? '' ) ] ?? PHP_INT_MAX;
 		return $ra <=> $rb ?: $a <=> $b;
 	} );
 	return array_map( static fn( $k ) => $entries[ $k ], $keys );

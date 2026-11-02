@@ -135,12 +135,12 @@ function sn_resume_normalize_variants( $in ) {
 		'location'         => sn_resume_text( $ops['location'] ?? '' ),
 		'links'            => array_values( array_filter( array_map( 'sn_resume_url', sn_resume_string_list( $ops['links'] ?? array() ) ), 'strlen' ) ),
 		'summary'          => sn_resume_text( $ops['summary'] ?? '' ),
-		'sections'         => array_values( array_intersect( array_unique( array_map( 'strval', sn_resume_string_list( $ops['sections'] ?? array() ) ) ), SN_RESUME_PDF_SECTION_KEYS ) ),
+		'sections'         => array_values( array_intersect( array_unique( array_map( static fn( $s ) => strtolower( trim( (string) $s ) ), sn_resume_string_list( $ops['sections'] ?? array() ) ) ), SN_RESUME_PDF_SECTION_KEYS ) ),
 		'experience_order' => array_values( array_filter( array_map( 'sn_resume_text', sn_resume_string_list( $ops['experience_order'] ?? array() ) ), 'strlen' ) ),
 		'earlier_compact'  => ! empty( $ops['earlier_compact'] ),
 		'pdf_file'         => preg_match( '/^[A-Za-z0-9_-]{1,80}\.pdf\z/', (string) ( $ops['pdf_file'] ?? '' ) ) ? (string) $ops['pdf_file'] : '',
 	);
-	if ( '' !== $o['headline'] || '' !== $o['summary'] || $o['sections'] ) {
+	if ( array_filter( $o ) ) { // any field set keeps the block: the form posts every field, blank or not.
 		$out['operations'] = $o;
 	}
 	return $out ? $out : null;

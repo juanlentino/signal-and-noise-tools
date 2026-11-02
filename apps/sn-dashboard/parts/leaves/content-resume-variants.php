@@ -141,7 +141,7 @@ function resume_operations( array $o ) {
 		)
 		. resume_lines( $p . '[experience_order]', $o['experience_order'] ?? array(), __( 'Experience order: one organization per line (the rest follow as listed)', 'signal-and-noise-tools' ), 'Independent Practice', 3 )
 		// A CHECKBOX, never os-switch (content-resume.php, the phone).
-		. \snt_kit_field( 'checkbox', $p . '[earlier_compact]', __( 'Earlier career one line per role, no bullets', 'signal-and-noise-tools' ), ! empty( $o['earlier_compact'] ), array( 'value' => '1' ) )
+		. \snt_kit_field( 'checkbox', $p . '[earlier_compact]', __( 'Earlier career: one line per role, no bullets', 'signal-and-noise-tools' ), ! empty( $o['earlier_compact'] ), array( 'value' => '1' ) )
 		. \snt_kit_field( 'text', $p . '[pdf_file]', __( 'PDF file name', 'signal-and-noise-tools' ), (string) ( $o['pdf_file'] ?? '' ), array( 'placeholder' => defined( 'SN_RESUME_OPERATIONS_PDF_FILE' ) ? \SN_RESUME_OPERATIONS_PDF_FILE : 'Resume_Operations.pdf', 'hint' => __( 'The phone is never printed in this PDF.', 'signal-and-noise-tools' ) ) )
 		. $note;
 }
@@ -162,7 +162,7 @@ function resume_music_built_toggle( $on ) {
  * @return string
  */
 function resume_operations_setup() {
-	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Writes the operations résumé\'s starting content into the draft: its settings, What I\'ve Built, its skills rows and two affiliations, and "Music only" on what it leaves out. Existing wording is never changed. Review the draft, then publish. Running it again only fills what is missing; it never undoes an edit.', 'signal-and-noise-tools' ) ) . '</p>';
+	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Writes the operations résumé\'s starting content into the draft: its settings, What I\'ve Built, its skills rows and two affiliations, and "Music only" on what it leaves out. Existing wording is never changed. Review the draft, then publish. Running it again never rewords anything or adds a row twice; it marks "Music only" again on what the operations résumé leaves out.', 'signal-and-noise-tools' ) ) . '</p>';
 	return \snt_kit_section(
 		__( 'Operations résumé setup', 'signal-and-noise-tools' ),
 		\snt_kit_form( 'resume_operations_setup', $intro, array( 'submit' => __( 'Set up the operations résumé', 'signal-and-noise-tools' ) ) )
