@@ -257,6 +257,15 @@ function sn_resume_variant_config( $doc, $variant ) {
 }
 
 /**
+ * The published operations résumé's layout, or null until it has settings.
+ *
+ * @return array|null
+ */
+function sn_resume_ops_config() {
+	return sn_resume_variant_config( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null, 'operations' );
+}
+
+/**
  * The music PDF's layout with its "What I've Built", for every music render:
  * Generate, the draft preview and the private copy.
  *
