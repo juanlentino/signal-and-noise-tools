@@ -101,20 +101,24 @@ function sn_resume_formats_surfaces( $surfaces ) {
 
 /**
  * The response body for a format, or null when there is nothing to serve.
+ * The Markdown follows `?lane=` as the JSON Resume does: /resume.md?lane=operations
+ * is the operations résumé, while /resume has two lanes.
  *
  * @param string $kind 'md' or 'vcf'.
  * @param string $slug 'resume' or 'cv'.
+ * @param string $lane 'music' or 'operations' (sn_resume_active_lane()).
  * @return array{0:string,1:string}|null [content type, body].
  */
-function sn_resume_format_body( $kind, $slug ) {
-	$resume = sn_jsonresume_for( $slug );
+function sn_resume_format_body( $kind, $slug, $lane = 'music' ) {
+	$resume = sn_jsonresume_for( $slug, 'md' === $kind ? $lane : 'music' );
 	if ( null === $resume ) {
 		return null;
 	}
 	if ( 'vcf' === $kind ) {
 		return array( 'text/vcard; charset=utf-8', sn_resume_vcard( $resume ) );
 	}
-	$doc = 'cv' === $slug ? sn_resume_es_doc() : sn_resume_doc_get();
+	$ops = 'operations' === ( $resume['meta']['x-lane'] ?? '' ); // x-lane is set only while /resume has two lanes.
+	$doc = 'cv' === $slug ? sn_resume_es_doc() : ( $ops ? sn_resume_lane_doc( sn_resume_doc_get_raw(), 'operations' ) : sn_resume_doc_get() );
 	return array( 'text/markdown; charset=utf-8', sn_resume_markdown( (array) $doc, $resume, sn_resume_formats( $slug ), 'cv' === $slug ? 'es' : 'en' ) );
 }
 
@@ -131,13 +135,14 @@ function sn_resume_formats_maybe_serve() {
 	if ( ! $route && '' !== $slug && 'markdown' === sanitize_key( wp_unslash( $_GET['output_format'] ?? '' ) ) ) {
 		$route = array( 'md', $slug );
 	}
+	$lane = function_exists( 'sn_resume_active_lane' ) ? sn_resume_active_lane() : 'music';
 	if ( ! $route ) {
 		if ( '' !== $slug ) {
-			header( 'Link: <' . esc_url_raw( home_url( '/' . $slug . '.md' ) ) . '>; rel="alternate"; type="text/markdown"', false );
+			header( 'Link: <' . esc_url_raw( sn_resume_markdown_url( $slug, $lane ) ) . '>; rel="alternate"; type="text/markdown"', false );
 		}
 		return;
 	}
-	$body = sn_resume_format_body( $route[0], $route[1] );
+	$body = sn_resume_format_body( $route[0], $route[1], $lane );
 	if ( null === $body ) {
 		return;
 	}
@@ -154,11 +159,26 @@ function sn_resume_formats_maybe_serve() {
 	exit;
 }
 
+/**
+ * The Markdown for a résumé page as it is being shown: /resume.md, or
+ * /resume.md?lane=operations on /resume's operations lane.
+ *
+ * @param string $slug 'resume' or 'cv'.
+ * @param string $lane 'music' or 'operations'.
+ * @return string
+ */
+function sn_resume_markdown_url( $slug, $lane ) {
+	$ops = 'resume' === $slug && 'operations' === $lane && function_exists( 'sn_resume_variant_config' )
+		&& null !== sn_resume_variant_config( sn_resume_doc_get_raw(), 'operations' );
+	return home_url( '/' . $slug . '.md' . ( $ops ? '?lane=operations' : '' ) );
+}
+
 /** wp_head: the Markdown and vCard alternates on the résumé pages. */
 function sn_resume_formats_head_links() {
+	$lane = function_exists( 'sn_resume_active_lane' ) ? sn_resume_active_lane() : 'music';
 	foreach ( array( 'resume', 'cv' ) as $slug ) {
 		if ( is_page( $slug ) && sn_jsonresume_page( $slug ) ) {
-			printf( '<link rel="alternate" type="text/markdown" href="%s" title="Résumé as Markdown">' . "\n", esc_url( home_url( '/' . $slug . '.md' ) ) );
+			printf( '<link rel="alternate" type="text/markdown" href="%s" title="Résumé as Markdown">' . "\n", esc_url( sn_resume_markdown_url( $slug, $lane ) ) );
 			printf( '<link rel="alternate" type="text/vcard" href="%s" title="Contact card">' . "\n", esc_url( home_url( '/resume/contact.vcf' ) ) );
 		}
 	}

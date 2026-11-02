@@ -48,6 +48,7 @@ require_once "$root/inc/resume-pdf/operations.php";
 require_once "$root/inc/resume-sync-engine.php";
 require_once "$root/inc/resume-page-lane-render.php";
 require_once "$root/inc/resume-jsonresume.php";
+require_once "$root/inc/resume-markdown.php";
 require_once "$root/inc/provenance-core-normalize-parts.php";
 
 $plain = sn_resume_doc_normalize( sn_resume_seed_doc() );
@@ -165,6 +166,16 @@ ok( 'operations' === ( $jr['meta']['x-lane'] ?? '' ) && empty( $jr['publications
 $jm = sn_jsonresume_build( sn_resume_lane_doc( $raw, 'music' ), array( 'name' => 'Juan Lentino', 'lane' => 'music' ) );
 ok( empty( $jm['projects'] ) && ! empty( $jm['publications'] ) && 'music' === ( $jm['meta']['x-lane'] ?? '' ), 'the music JSON Resume is the music résumé, no projects' );
 ok( ! isset( sn_jsonresume_build( $plain, array( 'name' => 'x' ) )['meta']['x-lane'] ), 'no lanes, no x-lane' );
+
+echo "\nGroup: the Markdown per lane\n";
+$mdm = sn_resume_markdown( $plain, sn_jsonresume_build( $plain, array( 'name' => 'Juan Lentino', 'url' => 'https://juanlentino.com/', 'canonical' => 'https://juanlentino.com/resume/' ) ), array( 'html' => 'https://juanlentino.com/resume/' ), 'en' );
+ok( '5ad3a1a5732ea7b49be10099205232bca5e49d29' === sha1( $mdm ), 'the music Markdown is main\'s byte for byte (0ef1762f)' );
+$ops_doc = sn_resume_lane_doc( $phone, 'operations' );
+$mdo     = sn_resume_markdown( $ops_doc, sn_jsonresume_build( $ops_doc, array( 'name' => 'Juan Lentino', 'projects' => $ops_doc['built']['items'], 'lane' => 'operations' ) ), array(), 'en' );
+ok( false !== strpos( $mdo, "\nFounder and Operator\n" ) && false !== strpos( $mdo, "## What I've Built" ) && false !== strpos( $mdo, '- **[can-i-apply](https://github.com/juanlentino/can-i-apply)**: Labels about 500 roles' ), 'the operations Markdown: its headline, and What I\'ve Built with each project\'s code' );
+ok( false === strpos( $mdo, '## Research & Publications' ) && false === strpos( $mdo, '## Highlights' ) && false === strpos( $mdo, '555' ), 'and nothing it leaves out: no empty sections, no phone' );
+$fsrc = (string) file_get_contents( "$root/inc/resume-formats-route.php" );
+ok( false !== strpos( $fsrc, "return home_url( '/' . \$slug . '.md' . ( \$ops ? '?lane=operations' : '' ) );" ) && 3 === substr_count( $fsrc, 'sn_resume_markdown_url( $slug, $lane )' ), 'the page names its lane\'s Markdown in the Link header and the head alternate' );
 
 $ci = (string) getenv( 'CI' );
 if ( $skip > 0 && '' !== $ci && '0' !== $ci && 'false' !== strtolower( $ci ) ) {

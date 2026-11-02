@@ -27,6 +27,7 @@ function sn_resume_markdown_words( $lang ) {
 	$es = 'es' === $lang;
 	return array(
 		'summary'  => $es ? 'Resumen' : 'Summary',
+		'built'    => $es ? 'Proyectos' : "What I've Built",
 		'stats'    => $es ? 'Datos destacados' : 'Highlights',
 		'work'     => $es ? 'Experiencia' : 'Experience',
 		'pubs'     => $es ? 'Investigación y publicaciones' : 'Research & Publications',
@@ -113,9 +114,21 @@ function sn_resume_markdown( array $doc, array $resume, array $formats, $lang = 
 	$b   = $resume['basics'] ?? array();
 	$out = sn_resume_markdown_front( $resume, $formats, $w );
 	$out = array_merge( $out, array( '', '# ' . ( $b['name'] ?? '' ) ), isset( $b['label'] ) ? array( '', $b['label'] ) : array() );
-	$out = array_merge( $out, array( '', '## ' . $w['summary'], '', (string) ( $b['summary'] ?? '' ), '', '## ' . $w['stats'], '' ) );
-	foreach ( $doc['stats'] ?? array() as $s ) {
-		$out[] = '- **' . $s['n'] . '** ' . $s['label'];
+	$out = array_merge( $out, array( '', '## ' . $w['summary'], '', (string) ( $b['summary'] ?? '' ) ) );
+	// A section with nothing in it is left out: the operations résumé (/resume.md?lane=operations)
+	// has no highlights or publications, and its projects lead.
+	if ( ! empty( $doc['stats'] ) ) {
+		$out = array_merge( $out, array( '', '## ' . $w['stats'], '' ) );
+		foreach ( $doc['stats'] as $s ) {
+			$out[] = '- **' . $s['n'] . '** ' . $s['label'];
+		}
+	}
+	if ( ! empty( $resume['projects'] ) ) {
+		$out = array_merge( $out, array( '', '## ' . $w['built'], '' ) );
+		foreach ( $resume['projects'] as $p ) {
+			$name  = isset( $p['url'] ) ? '[' . $p['name'] . '](' . $p['url'] . ')' : $p['name'];
+			$out[] = '- **' . $name . '**' . ( isset( $p['description'] ) ? ': ' . $p['description'] : '' );
+		}
 	}
 	$out  = array_merge( $out, array( '', '## ' . $w['work'] ) );
 	$last = null;
@@ -132,7 +145,7 @@ function sn_resume_markdown( array $doc, array $resume, array $formats, $lang = 
 			$out[] = '- ' . $h;
 		}
 	}
-	$out = array_merge( $out, array( '', '## ' . $w['pubs'], '' ) );
+	$out = array_merge( $out, empty( $resume['publications'] ) ? array() : array( '', '## ' . $w['pubs'], '' ) );
 	foreach ( $resume['publications'] ?? array() as $p ) {
 		$title = isset( $p['url'] ) ? '[' . $p['name'] . '](' . $p['url'] . ')' : $p['name'];
 		$out[] = '- ' . $title . '. ' . implode( ' · ', array_filter( array( $p['publisher'] ?? '', $p['releaseDate'] ?? '', $p['summary'] ?? '' ) ) );
