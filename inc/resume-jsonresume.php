@@ -43,7 +43,7 @@ function sn_jsonresume_basics( array $doc, array $ctx ) {
 		'summary' => (string) ( $hero['summary'] ?? '' ),
 	);
 	$basic = array_filter( $basic, 'strlen' );
-	$where = '' !== (string) ( $pdf['location'] ?? '' ) ? (string) $pdf['location'] : (string) ( $hero['contact_line'] ?? '' );
+	$where = sn_jsonresume_where( $doc )[0]; // its note goes to meta.x-locationNote (sn_jsonresume_build()).
 	$parts = array_map( 'trim', explode( ',', $where ) );
 	if ( 2 === count( $parts ) && '' !== $parts[0] && '' !== $parts[1] ) {
 		$basic['location'] = array( 'city' => $parts[0], 'region' => $parts[1] );
@@ -133,6 +133,10 @@ function sn_jsonresume_build( $doc, array $ctx ) {
 	}
 	if ( $highlights ) {
 		$meta['x-highlights'] = $highlights;
+	}
+	$note = sn_jsonresume_where( $doc )[1];
+	if ( '' !== $note ) {
+		$meta['x-locationNote'] = $note; // "open to relocation": basics.location has no field for it.
 	}
 	if ( '' !== (string) ( $ctx['lane'] ?? '' ) ) {
 		$meta['x-lane'] = (string) $ctx['lane']; // which of /resume's two résumés this is.

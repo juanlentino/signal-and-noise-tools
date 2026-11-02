@@ -163,6 +163,10 @@ $jr = sn_jsonresume_build( sn_resume_lane_doc( $raw, 'operations' ), array( 'nam
 ok( 'Founder and Operator' === ( $jr['basics']['label'] ?? '' ) && 0 === strpos( (string) ( $jr['basics']['summary'] ?? '' ), 'Founder-operator with 15+ years' ), 'its basics are the operations headline and summary' );
 ok( 3 === count( $jr['projects'] ?? array() ) && 'https://github.com/juanlentino/can-i-apply' === ( $jr['projects'][1]['url'] ?? '' ), 'What I\'ve Built is its projects' );
 ok( 'operations' === ( $jr['meta']['x-lane'] ?? '' ) && empty( $jr['publications'] ), 'meta names the lane, and it leaves out what the operations résumé leaves out' );
+ok( array( 'city' => 'Orlando', 'region' => 'FL' ) === ( $jr['basics']['location'] ?? null ) && 'open to relocation' === ( $jr['meta']['x-locationNote'] ?? '' ), 'its location splits as Orlando, FL; "(open to relocation)" rides in meta, not in the region' );
+ok( ! isset( sn_jsonresume_build( $plain, array( 'name' => 'x' ) )['meta']['x-locationNote'] ), 'a location with no note carries no x-locationNote' );
+$kw = array_column( $jr['skills'] ?? array(), 'keywords', 'name' );
+ok( in_array( 'cross-border market entry (U.S., Latin America)', $kw['Partnerships'] ?? array(), true ) && ! in_array( 'Latin America)', $kw['Partnerships'] ?? array(), true ), 'its skills keep "(U.S., Latin America)" in one keyword (the split was live on both lanes)' );
 $jm = sn_jsonresume_build( sn_resume_lane_doc( $raw, 'music' ), array( 'name' => 'Juan Lentino', 'lane' => 'music' ) );
 ok( empty( $jm['projects'] ) && ! empty( $jm['publications'] ) && 'music' === ( $jm['meta']['x-lane'] ?? '' ), 'the music JSON Resume is the music résumé, no projects' );
 ok( ! isset( sn_jsonresume_build( $plain, array( 'name' => 'x' ) )['meta']['x-lane'] ), 'no lanes, no x-lane' );
@@ -174,6 +178,7 @@ $ops_doc = sn_resume_lane_doc( $phone, 'operations' );
 $mdo     = sn_resume_markdown( $ops_doc, sn_jsonresume_build( $ops_doc, array( 'name' => 'Juan Lentino', 'projects' => $ops_doc['built']['items'], 'lane' => 'operations' ) ), array(), 'en' );
 ok( false !== strpos( $mdo, "\nFounder and Operator\n" ) && false !== strpos( $mdo, "## What I've Built" ) && false !== strpos( $mdo, '- **[can-i-apply](https://github.com/juanlentino/can-i-apply)**: Labels about 500 roles' ), 'the operations Markdown: its headline, and What I\'ve Built with each project\'s code' );
 ok( false === strpos( $mdo, '## Research & Publications' ) && false === strpos( $mdo, '## Highlights' ) && false === strpos( $mdo, '555' ), 'and nothing it leaves out: no empty sections, no phone' );
+ok( false !== strpos( $mdo, "\nlocation: \"Orlando, FL (open to relocation)\"\n" ), 'its front matter keeps the location as written, note and all' );
 $fsrc = (string) file_get_contents( "$root/inc/resume-formats-route.php" );
 ok( false !== strpos( $fsrc, "return home_url( '/' . \$slug . '.md' . ( \$ops ? '?lane=operations' : '' ) );" ) && 3 === substr_count( $fsrc, 'sn_resume_markdown_url( $slug, $lane )' ), 'the page names its lane\'s Markdown in the Link header and the head alternate' );
 

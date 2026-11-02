@@ -66,7 +66,7 @@ function sn_resume_markdown_front( array $resume, array $formats, array $w ) {
 		$out[] = 'label: ' . $y( $b['label'] );
 	}
 	if ( isset( $b['location'] ) ) {
-		$out[] = 'location: ' . $y( implode( ', ', $b['location'] ) );
+		$out[] = 'location: ' . $y( implode( ', ', $b['location'] ) . ( isset( $meta['x-locationNote'] ) ? ' (' . $meta['x-locationNote'] . ')' : '' ) );
 	}
 	$out[] = 'url: ' . $y( $meta['canonical'] ?? '' );
 	$out[] = 'updated: ' . $y( $meta['lastModified'] ?? '' );

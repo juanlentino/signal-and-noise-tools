@@ -166,6 +166,11 @@ $sk = $r['skills'] ?? array();
 ok( ! in_array( 'Languages', array_column( $sk, 'name' ), true ) && 'Business Development' === ( $sk[0]['name'] ?? '' ), 'skills: the categories, languages pulled out' );
 ok( 'Strategic Partnerships' === ( $sk[0]['keywords'][0] ?? '' ), 'skills: keywords as a list' );
 ok( array( array( 'language' => 'English', 'fluency' => 'Fluent' ), array( 'language' => 'Spanish', 'fluency' => 'Native' ) ) === ( $r['languages'] ?? null ), 'languages: from the Languages row' );
+$en_p = $en;
+$en_p['skills'] = array( array( 'category' => 'AI', 'items' => 'Content Provenance Standards (C2PA, TDMRep, RSL), LLM Tooling (Claude, MCP), , PHP' ), array( 'category' => 'Languages', 'items' => 'English (Fluent), Spanish (Native, Rioplatense)' ) );
+list( $sk_p, $lang_p ) = sn_jsonresume_skills( $en_p );
+ok( array( 'Content Provenance Standards (C2PA, TDMRep, RSL)', 'LLM Tooling (Claude, MCP)', 'PHP' ) === ( $sk_p[0]['keywords'] ?? null ), 'skills: a comma inside parentheses stays in its keyword; blanks are dropped' );
+ok( array( 'language' => 'Spanish', 'fluency' => 'Native, Rioplatense' ) === ( $lang_p[1] ?? null ), 'languages: a comma inside the fluency stays with it' );
 
 $meta = $r['meta'] ?? array();
 ok( 'https://x.test/resume/' === ( $meta['canonical'] ?? '' ) && '2026-10-02T20:58:03-04:00' === ( $meta['lastModified'] ?? '' ) && '9.9.9' === ( $meta['version'] ?? '' ), 'meta: canonical, lastModified, version' );
