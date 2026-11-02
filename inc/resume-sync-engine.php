@@ -46,13 +46,14 @@ require_once __DIR__ . '/resume-page-lanes.php';
  * @param string $top    Top spacing preset slug (e.g. '60').
  * @param string $bottom Bottom spacing preset slug.
  * @param string $inner  Serialized inner blocks.
+ * @param string $class  className, for a band the theme styles on its own ('' for none).
  * @return string
  */
-function sn_resume_band( $size, $top, $bottom, $inner ) {
-	$attrs = '{"style":{"spacing":{"padding":{"top":"var:preset|spacing|' . $top . '","bottom":"var:preset|spacing|' . $bottom . '","left":"var:preset|spacing|40","right":"var:preset|spacing|40"}}},"backgroundColor":"void","layout":{"type":"constrained","contentSize":"' . $size . '"}}';
+function sn_resume_band( $size, $top, $bottom, $inner, $class = '' ) {
+	$attrs = '{' . ( '' !== $class ? '"className":"' . $class . '",' : '' ) . '"style":{"spacing":{"padding":{"top":"var:preset|spacing|' . $top . '","bottom":"var:preset|spacing|' . $bottom . '","left":"var:preset|spacing|40","right":"var:preset|spacing|40"}}},"backgroundColor":"void","layout":{"type":"constrained","contentSize":"' . $size . '"}}';
 	$style = 'padding-top:var(--wp--preset--spacing--' . $top . ');padding-right:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--' . $bottom . ');padding-left:var(--wp--preset--spacing--40)';
 	return '<!-- wp:group ' . $attrs . ' -->' . "\n"
-		. '<div class="wp-block-group has-void-background-color has-background" style="' . $style . '">' . "\n"
+		. '<div class="wp-block-group ' . ( '' !== $class ? esc_attr( $class ) . ' ' : '' ) . 'has-void-background-color has-background" style="' . $style . '">' . "\n"
 		. $inner
 		. '</div>' . "\n" . '<!-- /wp:group -->' . "\n\n";
 }
@@ -71,11 +72,21 @@ function sn_resume_para( $class, $html ) {
 	return '<!-- wp:paragraph' . $attrs . ' -->' . "\n" . '<p' . $cls . '>' . $html . '</p>' . "\n" . '<!-- /wp:paragraph -->' . "\n\n";
 }
 
-/** Eyebrow + clamp-sized section h2. @param string $eyebrow @param string $title @return string */
-function sn_resume_section_head( $eyebrow, $title ) {
-	return sn_resume_para( 'sn-catalog-eyebrow', esc_html( $eyebrow ) )
-		. '<!-- wp:heading {"style":{"typography":{"fontSize":"clamp(2rem, 5vw, 3.5rem)","lineHeight":"1.05"}}} -->' . "\n"
-		. '<h2 class="wp-block-heading" style="font-size:clamp(2rem, 5vw, 3.5rem);line-height:1.05">' . esc_html( $title ) . '</h2>' . "\n"
+/**
+ * Eyebrow + clamp-sized section h2. On /resume's two lanes a band also carries
+ * its h2's anchor and, when only this lane has it, says so in its eyebrow.
+ *
+ * @param string $eyebrow
+ * @param string $title
+ * @param array  $band {id?:string, only?:bool} (inc/resume-lane-marks.php).
+ * @return string
+ */
+function sn_resume_section_head( $eyebrow, $title, $band = array() ) {
+	$id = (string) ( $band['id'] ?? '' );
+	// The anchor rides in the comment JSON and the id; an editor re-save drops the JSON copy (the id stays), so the bytes drift but the block stays valid.
+	return sn_resume_para( 'sn-catalog-eyebrow', esc_html( $eyebrow ) . ( empty( $band['only'] ) ? '' : ' · Only in this version' ) )
+		. '<!-- wp:heading {' . ( '' !== $id ? '"anchor":"' . $id . '",' : '' ) . '"style":{"typography":{"fontSize":"clamp(2rem, 5vw, 3.5rem)","lineHeight":"1.05"}}} -->' . "\n"
+		. '<h2 class="wp-block-heading"' . ( '' !== $id ? ' id="' . esc_attr( $id ) . '"' : '' ) . ' style="font-size:clamp(2rem, 5vw, 3.5rem);line-height:1.05">' . esc_html( $title ) . '</h2>' . "\n"
 		. '<!-- /wp:heading -->' . "\n\n";
 }
 
@@ -106,8 +117,11 @@ function sn_resume_role_blocks( $role ) {
 		static fn( $b ) => $b . sn_resume_row_receipt( (array) ( $receipts[ sn_resume_bullet_key( $b ) ] ?? array() ), mb_substr( strip_tags( $b ), 0, 80 ) ),
 		(array) ( $role['bullets'] ?? array() )
 	);
-	return sn_resume_para( 'sn-resume-title', esc_html( (string) ( $role['title'] ?? '' ) ) )
-		. sn_resume_list( 'sn-resume-list', $bullets ); // bullets kses'd at normalize.
+	return sn_resume_only_group(
+		! empty( $role['_only'] ),
+		sn_resume_para( 'sn-resume-title', esc_html( (string) ( $role['title'] ?? '' ) ) )
+		. sn_resume_list( 'sn-resume-list', $bullets ) // bullets kses'd at normalize.
+	);
 }
 
 /**
@@ -159,7 +173,7 @@ function sn_resume_stats_blocks( $stats ) {
 	}
 	$inner = '<!-- wp:columns {"className":"sn-resume-stats"} -->' . "\n" . '<div class="wp-block-columns sn-resume-stats">' . "\n"
 		. $cols . '</div>' . "\n" . '<!-- /wp:columns -->' . "\n\n";
-	return sn_resume_band( '1320px', '30', '40', $inner );
+	return sn_resume_band( '1320px', '30', '40', sn_resume_only_group( sn_resume_all_only( $stats ), $inner ) );
 }
 
 /** One employer as a rail/main wp:columns pair. @param array $entry @return string */
@@ -186,12 +200,12 @@ function sn_resume_employer_blocks( $entry ) {
 		. '</div>' . "\n" . '<!-- /wp:columns -->' . "\n\n";
 }
 
-/** The experience band + the earlier-career wp:details fold. @param array $experience @param array $earlier @return string */
-function sn_resume_experience_blocks( $experience, $earlier, $n = null ) {
+/** The experience band + the earlier-career wp:details fold. @param array $experience @param array $earlier @param int|null $n @param array $band @return string */
+function sn_resume_experience_blocks( $experience, $earlier, $n = null, $band = array() ) {
 	if ( empty( $experience ) && empty( $earlier['entries'] ) ) {
 		return '';
 	}
-	$inner  = sn_resume_section_head( sn_resume_numbered( sn_resume_l( '01 · Professional Experience', '01 · Experiencia profesional' ), $n ), sn_resume_l( 'EXPERIENCE', 'EXPERIENCIA' ) );
+	$inner  = sn_resume_section_head( sn_resume_numbered( sn_resume_l( '01 · Professional Experience', '01 · Experiencia profesional' ), $n ), sn_resume_l( 'EXPERIENCE', 'EXPERIENCIA' ), $band );
 	$blocks = array();
 	foreach ( $experience as $entry ) {
 		$blocks[] = sn_resume_employer_blocks( $entry );
@@ -204,10 +218,11 @@ function sn_resume_experience_blocks( $experience, $earlier, $n = null ) {
 		$inner .= '<!-- wp:details {"className":"sn-resume-fold"} -->' . "\n"
 			. '<details class="wp-block-details sn-resume-fold"><summary>' . esc_html( $label ) . '</summary>' . "\n";
 		foreach ( $earlier['entries'] as $entry ) {
-			$inner .= sn_resume_para( 'sn-resume-fold-co', esc_html( $entry['org'] ) . sn_resume_row_receipt( $entry, $entry['org'] ) );
+			$entry_blocks = sn_resume_para( 'sn-resume-fold-co', esc_html( $entry['org'] ) . sn_resume_row_receipt( $entry, $entry['org'] ) );
 			foreach ( $entry['roles'] as $role ) {
-				$inner .= sn_resume_role_blocks( $role );
+				$entry_blocks .= sn_resume_role_blocks( $role );
 			}
+			$inner .= sn_resume_only_group( ! empty( $entry['_only'] ), $entry_blocks );
 		}
 		$inner .= '</details>' . "\n" . '<!-- /wp:details -->' . "\n\n";
 	}
@@ -225,17 +240,18 @@ function sn_resume_titled_lines_blocks( $heading, $entries ) {
 		foreach ( $entry['lines'] as $line ) {
 			$html .= '<br>' . esc_html( $line );
 		}
-		$out .= sn_resume_para( '', $html );
+		$only = ! empty( $entry['_only'] ); // a lane-only row: one paragraph, so the mark rides inside it.
+		$out .= sn_resume_para( $only ? 'sn-resume-only' : '', ( $only ? '<span class="screen-reader-text sn-resume-only-mark">' . SN_RESUME_ONLY_TEXT . '</span>' : '' ) . $html );
 	}
 	return $out . '</div>' . "\n" . '<!-- /wp:column -->' . "\n\n";
 }
 
-/** The credentials band — correctly nested this time. @param array $education @param array $affiliations @return string */
-function sn_resume_credentials_blocks( $education, $affiliations, $n = null ) {
+/** The credentials band, correctly nested this time. @param array $education @param array $affiliations @param int|null $n @param array $band @return string */
+function sn_resume_credentials_blocks( $education, $affiliations, $n = null, $band = array() ) {
 	if ( empty( $education ) && empty( $affiliations ) ) {
 		return '';
 	}
-	$inner = sn_resume_section_head( sn_resume_numbered( sn_resume_l( '02 · Education & Credentials', '02 · Formación y credenciales' ), $n ), sn_resume_l( 'CREDENTIALS', 'CREDENCIALES' ) )
+	$inner = sn_resume_section_head( sn_resume_numbered( sn_resume_l( '02 · Education & Credentials', '02 · Formación y credenciales' ), $n ), sn_resume_l( 'CREDENTIALS', 'CREDENCIALES' ), $band )
 		. '<!-- wp:columns -->' . "\n" . '<div class="wp-block-columns">' . "\n"
 		. sn_resume_titled_lines_blocks( sn_resume_l( 'Education', 'Formación' ), $education )
 		. sn_resume_titled_lines_blocks( sn_resume_l( 'Affiliations & Certifications', 'Afiliaciones y certificaciones' ), $affiliations )
@@ -243,12 +259,12 @@ function sn_resume_credentials_blocks( $education, $affiliations, $n = null ) {
 	return sn_resume_band( '1320px', '40', '40', $inner );
 }
 
-/** The publications band. @param array $publications @return string */
-function sn_resume_publications_blocks( $publications, $n = null ) {
+/** The publications band. @param array $publications @param int|null $n @param array $band @return string */
+function sn_resume_publications_blocks( $publications, $n = null, $band = array() ) {
 	if ( empty( $publications ) ) {
 		return '';
 	}
-	$inner = sn_resume_section_head( sn_resume_numbered( sn_resume_l( '03 · Research', '03 · Investigación' ), $n ), sn_resume_l( 'PUBLICATIONS', 'PUBLICACIONES' ) );
+	$inner = sn_resume_section_head( sn_resume_numbered( sn_resume_l( '03 · Research', '03 · Investigación' ), $n ), sn_resume_l( 'PUBLICATIONS', 'PUBLICACIONES' ), $band );
 	foreach ( $publications as $pub ) {
 		$title = '' !== $pub['url']
 			? '<a href="' . esc_url( $pub['url'] ) . '" rel="noopener">' . esc_html( $pub['title'] ) . '</a>'
@@ -264,8 +280,8 @@ function sn_resume_publications_blocks( $publications, $n = null ) {
 	return sn_resume_band( '1320px', '40', '40', $inner );
 }
 
-/** The skills band: category/items wp:table. @param array $skills @return string */
-function sn_resume_skills_blocks( $skills, $n = null ) {
+/** The skills band: category/items wp:table. @param array $skills @param int|null $n @param array $band @return string */
+function sn_resume_skills_blocks( $skills, $n = null, $band = array() ) {
 	if ( empty( $skills ) ) {
 		return '';
 	}
@@ -273,10 +289,14 @@ function sn_resume_skills_blocks( $skills, $n = null ) {
 	foreach ( $skills as $row ) {
 		$rows .= '<tr><td>' . esc_html( $row['category'] ) . '</td><td>' . esc_html( $row['items'] ) . '</td></tr>';
 	}
-	$inner = sn_resume_section_head( sn_resume_numbered( sn_resume_l( '04 · Capabilities', '04 · Capacidades' ), $n ), sn_resume_l( 'SKILLS', 'HABILIDADES' ) )
-		. '<!-- wp:table {"hasFixedLayout":false,"className":"sn-resume-skills"} -->' . "\n"
-		. '<figure class="wp-block-table sn-resume-skills"><table><tbody>' . $rows . '</tbody></table></figure>' . "\n"
-		. '<!-- /wp:table -->' . "\n\n";
+	// A lane-only table is marked on a group around it: the figure scrolls sideways and would clip the bar.
+	$inner = sn_resume_section_head( sn_resume_numbered( sn_resume_l( '04 · Capabilities', '04 · Capacidades' ), $n ), sn_resume_l( 'SKILLS', 'HABILIDADES' ), $band )
+		. sn_resume_only_group(
+			sn_resume_all_only( $skills ),
+			'<!-- wp:table {"hasFixedLayout":false,"className":"sn-resume-skills"} -->' . "\n"
+			. '<figure class="wp-block-table sn-resume-skills"><table><tbody>' . $rows . '</tbody></table></figure>' . "\n"
+			. '<!-- /wp:table -->' . "\n\n"
+		);
 	return sn_resume_band( '1320px', '40', '80', $inner );
 }
 
