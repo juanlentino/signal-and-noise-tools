@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **/resume edition marks: what only this version holds, and where the other one differs (owner yes, 2026-11-02).** The page re-renders once on the next admin load (`SN_RESUME_ENGINE_REV` 6). Inside each lane, an entry only that lane holds carries `sn-resume-only` and the screen-reader words "Only in this version." (credential and affiliation rows by title and lines, earlier-career entries by organization, roles by title, the stats band and a skills table when every row is lane-only; never a bullet), computed by string equality between the two lane documents (`inc/resume-lane-marks.php`). A band only one lane has says so in its eyebrow; where the other lane has a band this one lacks, a one-line hunk links to its lane-prefixed h2 anchor (today: Music points to What I've Built, Operations to Publications). A legend follows the switch, and each lane ends with its Markdown and JSON Resume links. On `/r/CODE` (and previews) every lane link keeps that address, so changing lane keeps the code; `/resume/` renders as before. The lane groups' block comments now spell `--` as core's serializer does, so the body survives a parse and re-save byte for byte. The single body, `/cv`, the PDFs, the JSON Resumes and the Markdown are unchanged.
+
 ### Changed
 - **The /resume layout pass (owner yes, 2026-11-01).** The page re-renders once on the next admin load (`SN_RESUME_ENGINE_REV` 5). No résumé text changes, and the PDFs, JSON Resume and Markdown are byte for byte as they were.
   - The lane switch sits beside the page title, in a bottom-aligned 55/45 split of its own (`sn-resume-head-split`), so the title and the switch share one band.

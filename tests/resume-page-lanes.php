@@ -79,7 +79,7 @@ sn_resume_lang( 'en' );
 $no_pdf = sn_resume_page_body( $raw ); // the operations PDF never generated.
 $GLOBALS['__opt']['sn_resume_pdf_operations'] = array( 'url' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf', 'sha256' => str_repeat( 'a', 64 ) );
 $body = sn_resume_page_body( $raw );
-ok( '6c6117b215cda2aa77e25fb6247b2f6317e32606' === sha1( $body ) && '71b5848893db3fba979dabee96f6a2f024c1f91a' === sha1( $no_pdf ), 'the two-lane body is pinned (engine rev 5, the layout pass): request-time changes (the lane labels, ?lane=) never touch it' );
+ok( 'aa277126614615389050af0b846d6bd275ce7392' === sha1( $body ) && 'a19a8817ce26fba62c78306a8af7925fb1f4a2e2' === sha1( $no_pdf ), 'the two-lane body is pinned (engine rev 6, edition marks): request-time changes (the lane labels, ?lane=) never touch it' );
 ok( 1 === substr_count( $body, '<h1' ) && 1 === substr_count( $body, 'class="wp-block-group sn-resume-switch"' ), 'two lanes: one page title, one switch' );
 ok( 1 === substr_count( $body, 'id="resume-music"' ) && 1 === substr_count( $body, 'id="resume-operations"' ), 'two lanes: one group each, with its id' );
 ok( false !== strpos( $body, '>Music</a>' ) && false !== strpos( $body, '>Operations &amp; AI Strategy</a>' ) && false !== strpos( $body, 'href="/resume/?lane=operations"' ) && false !== strpos( $body, 'href="/resume/"' ), 'the switch: two links, the music one without a query' );
@@ -90,12 +90,12 @@ list( $music_html, $ops_html ) = explode( 'id="resume-operations"', $rest, 2 ) +
 ok( false !== strpos( $ops_html, '>Founder and Operator</h2>' ) && false !== strpos( $ops_html, "WHAT I&#039;VE BUILT" ) && false !== strpos( $ops_html, 'github.com/juanlentino</a>' ), 'the operations lane: its headline, What I\'ve Built, its extra link' );
 ok( false !== strpos( $ops_html, 'href="https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf"' ) && false === strpos( $music_html, 'Operations.pdf' ), 'each lane its own Download: the operations PDF only in the operations lane' );
 ok( false === strpos( $no_pdf, 'Operations.pdf' ) && false !== strpos( $no_pdf, 'id="resume-operations"' ), 'before the operations PDF exists, its lane has no Download (never a link to a 404)' );
-ok( false !== strpos( $ops_html, '01 · Projects' ) && false !== strpos( $ops_html, '02 · Professional Experience' ) && false === strpos( $ops_html, 'PUBLICATIONS' ), 'the operations lane numbers what it shows, and leaves out what its sections leave out' );
+ok( false !== strpos( $ops_html, '01 · Projects' ) && false !== strpos( $ops_html, '02 · Professional Experience' ) && false === strpos( $ops_html, '>PUBLICATIONS</h2>' ), 'the operations lane numbers what it shows, and leaves out what its sections leave out' );
 $rev               = $raw;
 $rev['experience'] = array_reverse( $rev['experience'] ); // Panacea first in the document; the operations order puts Independent Practice first.
 $rev_body          = explode( 'id="resume-operations"', sn_resume_page_body( $rev ), 2 );
 ok( strpos( $rev_body[0], 'PANACEA STUDIO' ) < strpos( $rev_body[0], 'INDEPENDENT PRACTICE' ) && strpos( $rev_body[1], 'INDEPENDENT PRACTICE' ) < strpos( $rev_body[1], 'PANACEA STUDIO' ), 'the music lane keeps the document\'s order; the operations lane its own' );
-ok( false === strpos( $music_html, 'WHAT I&#039;VE BUILT' ) && false !== strpos( $music_html, '01 · Professional Experience' ) && false !== strpos( $music_html, 'PUBLICATIONS' ), 'the music lane is the music résumé, numbered as always' );
+ok( false === strpos( $music_html, "WHAT I&#039;VE BUILT</h2>" ) && false !== strpos( $music_html, '01 · Professional Experience' ) && false !== strpos( $music_html, 'PUBLICATIONS' ), 'the music lane is the music résumé, numbered as always' );
 
 echo "\nGroup: the layout (owner yes 2026-11-01)\n";
 // A block's serialized inner, from its opening delimiter to its matching close.
@@ -149,12 +149,13 @@ ok( $order_ok && array() === $stack && 0 === $stray, 'every block opens and clos
 ok( $json_ok, 'every attribute blob decodes' );
 $html = (string) preg_replace( '/<!--.*?-->/s', '', $body );
 $tags_ok = true;
-foreach ( array( 'div', 'nav', 'ul', 'li', 'p', 'h1', 'h2', 'h3', 'details', 'figure', 'a' ) as $tag ) {
+foreach ( array( 'div', 'nav', 'ul', 'li', 'p', 'h1', 'h2', 'h3', 'details', 'figure', 'a', 'span' ) as $tag ) {
 	if ( preg_match_all( '/<' . $tag . '[\s>]/', $html ) !== substr_count( $html, '</' . $tag . '>' ) ) { $tags_ok = false; echo "    (imbalance: <$tag>)\n"; }
 }
 ok( $tags_ok, 'every HTML tag the bands use opens and closes the same number of times' );
 ok( 1 === substr_count( $html, 'id="resume-music"' ) && 1 === substr_count( $html, 'id="resume-operations"' ), 'the two lanes carry their ids once each' );
-ok( 0 === preg_match_all( '/\sid="(?!resume-(music|operations)")/', $html ), 'no other id in the body, so the two lanes never repeat one' );
+preg_match_all( '/\sid="([^"]*)"/', $html, $ids );
+ok( 10 === count( $ids[1] ) && count( $ids[1] ) === count( array_unique( $ids[1] ) ) && array() === preg_grep( '/^resume-(music|operations)(-(built|experience|credentials|publications|skills))?$/', $ids[1], PREG_GREP_INVERT ), 'the only ids are the two lanes and their bands\' lane-prefixed h2 anchors, each once (' . count( $ids[1] ) . ')' );
 
 echo "\nGroup: ?lane= at render time\n";
 if ( '' === $api ) {
