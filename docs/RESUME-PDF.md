@@ -9,11 +9,9 @@ Phase 2.
 1. S&N → Content → Resume. Edit, **Save draft**, then **Publish**.
 2. The **PDF only** section holds the PDF's own fields: headline, tagline,
    professional summary (blank: the Hero summary), location, phone, email, website (blank: this site), core competencies (one per line), technical
-   toolkit (one per line), and the checkbox **Include the phone in the public PDF** (off by default).
+   toolkit (one per line). The phone is stored and never printed (see "The phone" below).
    Of these, /resume shows only the headline and tagline, at the head of its Music lane once it has
-   two lanes (see "The page's two lanes"); the phone never reaches the page.
-   It is a checkbox, never an `os-switch`: os-form reads only checkboxes as booleans, so a switch
-   would post `1` in both positions and publish the phone on every save.
+   two lanes (see "The page's two lanes").
 3. **Generate PDF** (the Resume PDF box below the form). It renders the published document, writes
    `uploads/resume/JuanLentino_Resume.pdf`, stores the timestamp, size, page count and SHA-256 in
    the `sn_resume_pdf` option, re-renders /resume so the Download link reads
@@ -121,20 +119,25 @@ career without bullets when it asks, only the sections it lists, and its "What I
 
 ## The phone
 
-The owner does not want the phone downloadable by the public (2026-09-22), and wants that under the
-owner's control in the resume editor:
+Owner, 2026-11-02: "The phone shouldn't be in any version: human and machine." So:
 
-- **The web page never shows it.** The sync engine does not read `pdf`.
-- **The agent copies never carry it**, switch or not: `/resume.md` (both lanes), both JSON Resumes,
-  `/cv.md`, `/cv/json-resume.json` and `/resume/contact.vcf` have no phone field
-  (`sn_jsonresume_basics()` builds none, and the Markdown and the vCard read it).
-- **The public PDF** (Generate PDF, the Download link) includes it only when **Include the phone in
-  the public PDF** is on. Off by default; an unchecked box posts nothing, so absent means off.
-- **Download private copy (with phone)** builds the same PDF with the phone and streams it to the
-  requesting admin as an attachment (`no-store`, `noindex`). It is never written to disk, so it has
-  no URL anyone else can fetch. Own nonce (`sn_resume_pdf_private`), `manage_options`.
-- Turning the switch off takes effect at the next **Generate PDF**; the file already published
-  keeps whatever it was built with until then.
+- **No PDF prints it**: not the music PDF, the operations PDF, the Spanish CV or the draft preview.
+  The template has no phone in its contact line, and the include-phone argument of
+  `sn_resume_pdf_html()` and `sn_resume_pdf_render()` is ignored (the slot stays so positional
+  callers keep their meaning). The private copy (with phone) and the "Include the phone in the public
+  PDF" switch are gone; `pdf.phone_public` may still be stored, and nothing that builds a PDF or a
+  page reads it.
+- **The web pages never show it.** The sync engine does not read `pdf`, so /resume, /cv and the hero
+  rail have no phone; the identity schema (JSON-LD) carries no `telephone`.
+- **The agent copies never carry it**: `/resume.md` (both lanes), both JSON Resumes, `/cv.md`,
+  `/cv/json-resume.json` and `/resume/contact.vcf` have no phone field (`sn_jsonresume_basics()`
+  builds none, and the Markdown and the vCard read it).
+- **`pdf.phone` stays stored, never output.** It exists only as the tripwire's input: every render
+  is read back (`sn_resume_pdf_check()`), and one with a phone pattern in its text or metadata, or
+  the stored phone's digits (7 or more), is refused (`sn_resume_pdf_phone`): no file is written, no
+  stream is sent, the error is stored and the PDF box shows it. An operations PDF refused this way
+  also withdraws the file served before it and purges its address.
+- A file published before this rule keeps what it was built with until the next **Generate PDF**.
 
 A draft save never renders a PDF: a save is frequent and cheap, a render is neither. **Publish**
 and **Revert** rebuild the public PDF, the operations one with it, once a PDF exists
@@ -155,7 +158,7 @@ install; it is kept in step with the live document so the tests read current cop
 | PDF section | Source in `sn_resume_doc` |
 |---|---|
 | Name | the site title (`get_bloginfo( 'name' )`, filter `sn_resume_pdf_name`) |
-| Headline, tagline, contact line | `pdf.headline`, `pdf.tagline`; location = `pdf.location` else `hero.contact_line`; `pdf.phone` only per `pdf.phone_public` (public) or always (private copy); `pdf.email`; `hero.linkedin`; site = `pdf.website` else the home URL |
+| Headline, tagline, contact line | `pdf.headline`, `pdf.tagline`; location = `pdf.location` else `hero.contact_line`; `pdf.email`; `hero.linkedin`; site = `pdf.website` else the home URL |
 | Professional summary | `pdf.summary`, else `hero.summary` |
 | Stats band | `stats[]` |
 | Core competencies | `pdf.competencies[]` (three columns) |
@@ -191,7 +194,8 @@ To update Dompdf: `cd lib/pdf && composer update`, then run `php tests/resume-pd
 
 ## Tests
 
-- `tests/resume-pdf.php` (50): the phone is absent from the public PDF's bytes while the switch is off and present in the private copy's (both read back with pdftotext), Generate follows the switch, the private copy streams and never touches disk; and it renders the fixture through the real renderer; `%PDF-`, two pages or
+- `tests/resume-no-phone.php`: with the phone stored and `phone_public` on, no PDF text layer (read back with pdftotext when installed), no page body and no JSON-LD carries it, and a phone in the résumé text stops every PDF.
+- `tests/resume-pdf.php`: the draft preview streams and never touches disk; and it renders the fixture through the real renderer; `%PDF-`, two pages or
   fewer, Letter, Lato embedded, no images, Title and Author set, key strings (read back with
   `pdftotext` when installed), remote loading off, stable path, `?v=` hash, atomic write, purge,
   the dispatcher's nonce and `manage_options`.

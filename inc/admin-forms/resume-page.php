@@ -374,7 +374,7 @@ function sn_admin_render_resume_section() {
 
 	// ── PDF only ── Fields the generated PDF uses. /resume shows only the
 	// headline and tagline, heading its Music lane once it has two lanes
-	// (sn_resume_lane_hero_blocks()); the phone never reaches the web page.
+	// (sn_resume_lane_hero_blocks()). The phone is printed nowhere.
 	if ( function_exists( 'sn_admin_render_resume_built_section' ) ) {
 		sn_admin_render_resume_built_section( $doc );
 		sn_admin_render_resume_operations_section( $doc );
@@ -388,8 +388,7 @@ function sn_admin_render_resume_section() {
 	echo '<p class="description">Blank: the PDF uses the Summary from Hero.</p>';
 	sn_rsm_input( 'resume[pdf][location]', (string) ( $pdf['location'] ?? '' ), 'Location', 'Orlando, FL' );
 	sn_rsm_input( 'resume[pdf][phone]', (string) ( $pdf['phone'] ?? '' ), 'Phone', '(000) 000-0000' );
-	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">' . esc_html( 'Include the phone in the public PDF' ) . '</span><input type="checkbox" name="resume[pdf][phone_public]" value="1"' . ( ! empty( $pdf['phone_public'] ) ? ' checked="checked"' : '' ) . '></label>';
-	echo '<p class="description">Off: the public PDF (the /resume Download link) leaves the phone out, and only the private copy carries it. The web page never shows it either way.</p>';
+	echo '<p class="description">Never printed: not on /resume, not in any PDF. It is kept only so the PDF check can refuse a file that carries it.</p>';
 	sn_rsm_input( 'resume[pdf][email]', (string) ( $pdf['email'] ?? '' ), 'Email', 'name@example.com' );
 	sn_rsm_input( 'resume[pdf][website]', (string) ( $pdf['website'] ?? '' ), 'Website', 'https://juanlentino.com (blank: this site)' );
 	sn_rsm_lines( 'resume[pdf][competencies]', (array) ( $pdf['competencies'] ?? array() ), 'Core competencies: one per line', 'Strategic Partnerships & Deal Negotiation', 6 );
@@ -441,14 +440,4 @@ function sn_admin_render_resume_pdf_generate() {
 	}
 	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_pdf_generate" class="button">Generate PDF</button></div>';
 	echo '</div></form>';
-
-	// The private copy: same PDF WITH the phone, streamed to this admin and
-	// never stored, so no public URL can ever serve the phone.
-	// A GET link with its nonce, like the draft previews (inc/admin-forms/resume-draft.php).
-	echo '<div class="sn-fieldset">';
-	echo '<p class="sn-fieldset-intro">A private copy always includes the phone: built on demand for you, never saved on the server, so it has no public URL.</p>';
-	if ( function_exists( 'sn_resume_action_url' ) ) {
-		echo '<div class="sn-fieldset-actions"><a class="button" target="_blank" rel="noopener" href="' . esc_url( sn_resume_action_url( 'resume_pdf_private' ) ) . '">Download private copy (with phone)</a></div>';
-	}
-	echo '</div>';
 }

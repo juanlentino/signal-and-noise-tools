@@ -103,21 +103,19 @@ li strong,.lines strong{color:' . $n . ';}
  * @param array  $doc      Canonical document (sn_resume_doc_normalize()).
  * @param string $name     The person's name, for the header.
  * @param string $font_dir      Absolute path to the Lato files.
- * @param bool   $include_phone The private copy always; the public file only
- *                              when pdf.phone_public is on (owner, 2026-09-22:
- *                              off by default, controlled from the resume editor).
+ * @param bool   $unused_phone  Ignored: no PDF prints the phone (owner,
+ *                              2026-11-02: "not in any version"). The slot
+ *                              stays so positional callers keep their meaning.
  * @param string $site_url      The site's home URL; printed as its bare host (the
  *                              design's "juanlentino.com"), linked.
  * @param array|null $config    A variant's layout (sn_resume_variant_config() plus
  *                              its `built`); null is the music PDF as it has always been.
  * @return string
  */
-function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $site_url = '', $config = null ) {
+function sn_resume_pdf_html( $doc, $name, $font_dir, $unused_phone = false, $site_url = '', $config = null ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- a kept positional slot.
 	$hero   = (array) ( $doc['hero'] ?? array() );
 	$pdf    = sn_resume_pdf_variant_header( (array) ( $doc['pdf'] ?? array() ), $config );
 	$config = (array) $config;
-	// A variant that says no phone means none, whatever the caller passed (the operations PDF).
-	$include_phone = $include_phone && false !== ( $config['phone'] ?? null );
 	$parts  = array();
 	$e    = static fn( $s ) => htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' );
 	$sep  = ' <span class="sep">|</span> ';
@@ -137,9 +135,6 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $include_phone = false, $si
 	$location = '' !== (string) ( $pdf['location'] ?? '' ) ? (string) $pdf['location'] : (string) ( $hero['contact_line'] ?? '' );
 	if ( '' !== $location ) {
 		$contact[] = $e( $location );
-	}
-	if ( $include_phone && '' !== (string) ( $pdf['phone'] ?? '' ) ) {
-		$contact[] = $e( $pdf['phone'] );
 	}
 	if ( '' !== (string) ( $pdf['email'] ?? '' ) ) {
 		$contact[] = '<a href="mailto:' . $e( $pdf['email'] ) . '">' . $e( $pdf['email'] ) . '</a>';

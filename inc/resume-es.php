@@ -6,8 +6,8 @@
  * settings). The Spanish text lives in one file, seed-content/resume-data-es.json,
  * in the same shape as the English document. The same page builder and the
  * same PDF template render it, with their headings switched to Spanish
- * (inc/resume-lang.php). Contact details (LinkedIn, email, phone, website, the
- * phone's public switch) always come from the live English document, so they
+ * (inc/resume-lang.php). Contact details (LinkedIn, email, website, and the
+ * phone the PDF check refuses) always come from the live English document, so they
  * are never duplicated and never committed.
  *
  * When it renders: the /cv/ page (a Spanish page paired to /resume, seeded as
@@ -47,7 +47,7 @@ function sn_resume_es_merge( $es, $en, $pdf ) {
 	$en                       = is_array( $en ) ? $en : array();
 	$es['hero']['linkedin']   = (string) ( $en['hero']['linkedin'] ?? '' );
 	$es['hero']['pdf_url']    = (string) $pdf;
-	foreach ( array( 'email', 'phone', 'phone_public', 'website' ) as $k ) {
+	foreach ( array( 'email', 'phone', 'website' ) as $k ) { // the phone only for the PDF check: it is never printed.
 		$es['pdf'][ $k ] = $en['pdf'][ $k ] ?? '';
 	}
 	return sn_resume_doc_normalize( $es );
@@ -104,7 +104,8 @@ function sn_resume_es_sync_page() {
 
 /**
  * Render JuanLentino_CV.pdf beside the English PDF, then refresh /cv/ so its
- * Download button carries the new ?v=.
+ * Download button carries the new ?v=. A failure is logged and recorded on the
+ * Spanish PDF's facts (the PDF box shows it); a success writes fresh facts.
  *
  * @return bool
  */
@@ -112,16 +113,19 @@ function sn_resume_es_pdf_generate() {
 	$doc = sn_resume_es_doc();
 	$loc = function_exists( 'sn_resume_pdf_location' ) ? sn_resume_pdf_location() : null;
 	if ( ! $doc || null === $loc || ! wp_mkdir_p( $loc['dir'] ) ) {
-		return false;
+		return sn_resume_es_pdf_failed( new WP_Error( 'sn_resume_pdf_uploads', 'No Spanish document, or uploads/resume is unavailable.' ) );
 	}
 	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	$result = sn_resume_es_render( static fn() => sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', ! empty( $doc['pdf']['phone_public'] ), home_url( '/' ) ) );
-	if ( is_wp_error( $result ) || 0 !== strpos( (string) $result['bytes'], '%PDF-' ) ) {
-		return false;
+	$result = sn_resume_es_render( static fn() => sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', false, home_url( '/' ) ) );
+	if ( is_wp_error( $result ) ) {
+		return sn_resume_es_pdf_failed( $result );
+	}
+	if ( 0 !== strpos( (string) $result['bytes'], '%PDF-' ) ) {
+		return sn_resume_es_pdf_failed( new WP_Error( 'sn_resume_pdf_invalid', 'The renderer did not return a PDF.' ) );
 	}
 	$final = $loc['dir'] . '/' . SN_RESUME_ES_PDF_FILE;
 	if ( false === file_put_contents( $final . '.tmp', $result['bytes'] ) || ! rename( $final . '.tmp', $final ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic write inside uploads.
-		return false;
+		return sn_resume_es_pdf_failed( new WP_Error( 'sn_resume_pdf_write', 'Could not write the PDF file.' ) );
 	}
 	$hash = hash( 'sha256', $result['bytes'] );
 	$url  = $loc['url'] . '/' . SN_RESUME_ES_PDF_FILE;
@@ -135,6 +139,20 @@ function sn_resume_es_pdf_generate() {
 add_action( 'sn_resume_pdf_generated', 'sn_resume_es_pdf_generate' );
 
 /**
+ * Log and record a failed Spanish PDF, so it is never a silent false.
+ *
+ * @param WP_Error $error What failed.
+ * @return false
+ */
+function sn_resume_es_pdf_failed( $error ) {
+	error_log( '[signal-and-noise-tools] Spanish CV PDF not built: ' . $error->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- deliberate: a failed build must be visible in the host error log.
+	if ( function_exists( 'sn_resume_pdf_record_error' ) ) {
+		sn_resume_pdf_record_error( SN_RESUME_ES_PDF_OPT, $error );
+	}
+	return false;
+}
+
+/**
  * What /cv/ was last rendered from: the Spanish file, the English contact
  * details it takes, and the page engine's revision, so the bump that
  * re-renders /resume re-renders /cv/ once too.
@@ -145,7 +163,7 @@ add_action( 'sn_resume_pdf_generated', 'sn_resume_es_pdf_generate' );
  */
 function sn_resume_es_sync_state( $en, $rev ) {
 	$contact = array( $en['hero']['linkedin'] ?? '' );
-	foreach ( array( 'email', 'phone', 'phone_public', 'website' ) as $k ) {
+	foreach ( array( 'email', 'phone', 'website' ) as $k ) {
 		$contact[] = $en['pdf'][ $k ] ?? ''; // Only what sn_resume_es_merge() takes.
 	}
 	return md5( (string) file_get_contents( __DIR__ . '/seed-content/resume-data-es.json' ) . wp_json_encode( $contact ) . '|rev:' . (int) $rev ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.

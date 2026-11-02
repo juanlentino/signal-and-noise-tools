@@ -11,8 +11,11 @@
  * variants. It only fills what is missing: settings and "What I've Built"
  * that exist are kept, rows already marked keep their mark, and the existing
  * skills rows turn music-only only on the first run (before any operations
- * settings exist). Running it again never undoes an edit. The admin action
- * writes the result into the draft, so the owner reviews it before publishing.
+ * settings exist). Its skills rows and affiliations go only into a list that
+ * has no operations row yet, so one deleted or renamed since is not added
+ * again. Running it again does mark "Music only" again on a row set back to
+ * both. The admin action writes the result into the draft, so the owner
+ * reviews it before publishing.
  *
  * @package SignalNoiseTools
  */
@@ -89,10 +92,13 @@ function sn_resume_operations_setup( $doc ) {
 		$row['variant'] = 'music';
 	};
 
-	$first           = empty( $doc['variants']['operations'] ); // the first run: nothing set up yet.
+	// The first run: no headline, summary or sections yet. A block holding
+	// only the "Earlier career" box or a file name is not set up; what it holds is kept.
+	$have_ops        = array_filter( (array) ( $doc['variants']['operations'] ?? array() ) );
+	$first           = ! array_intersect_key( $have_ops, array_flip( array( 'headline', 'summary', 'sections' ) ) );
 	$doc['variants'] = (array) ( $doc['variants'] ?? array() );
 	if ( $first ) {
-		$doc['variants']['operations'] = $set['operations'];
+		$doc['variants']['operations'] = $have_ops + $set['operations'];
 	}
 	if ( empty( $doc['built'] ) ) {
 		$doc['built'] = $set['built'];
@@ -144,8 +150,9 @@ function sn_resume_operations_setup( $doc ) {
 		}
 	}
 	unset( $aff );
+	// Only into a list with no operations row yet: one deleted or renamed since is not added again.
 	$new = array();
-	foreach ( $set['affiliations'] as $row ) {
+	foreach ( in_array( 'operations', array_column( $doc['affiliations'], 'variant' ), true ) ? array() : $set['affiliations'] as $row ) {
 		if ( ! in_array( $row['title'], $titles, true ) ) {
 			$new[] = $row + array( 'variant' => 'operations' );
 		}
@@ -170,7 +177,7 @@ function sn_resume_operations_setup( $doc ) {
 		}
 	}
 	unset( $row );
-	foreach ( $set['skills'] as $row ) {
+	foreach ( in_array( 'operations', array_column( $doc['skills'], 'variant' ), true ) ? array() : $set['skills'] as $row ) {
 		if ( ! in_array( $row['category'] . "\0operations", $have, true ) ) {
 			$doc['skills'][] = $row + array( 'variant' => 'operations' );
 		}

@@ -27,7 +27,7 @@ const SN_JSONRESUME_SCHEMA = 'https://raw.githubusercontent.com/jsonresume/resum
 
 /**
  * The basics block: identity, the public email, location, profiles. Never a
- * phone, whatever pdf.phone_public says: that switch is the PDF's alone.
+ * phone: no version of the résumé prints one, and pdf.phone_public is read by nothing.
  *
  * @param array $doc Normalized résumé document.
  * @param array $ctx See sn_jsonresume_build().

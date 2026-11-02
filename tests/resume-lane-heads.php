@@ -70,6 +70,7 @@ $plain = sn_resume_doc_normalize( sn_resume_seed_doc() );
 $raw   = sn_resume_doc_normalize( sn_resume_operations_setup( $plain )['doc'] );
 $GLOBALS['__opt']['sn_resume_doc']            = $raw;
 $GLOBALS['__opt']['sn_resume_pdf_operations'] = array( 'url' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf', 'sha256' => str_repeat( 'a', 64 ) );
+$GLOBALS['__opt']['sn_resume_pdf_operations_bytes'] = base64_encode( '%PDF-1.7' ); // live means a PDF is stored too (sn_resume_ops_pdf_live()).
 
 // The head as WordPress prints it: the <title> parts, then every wp_head tag this plugin's SEO prints.
 $head = static function ( $lane ) {

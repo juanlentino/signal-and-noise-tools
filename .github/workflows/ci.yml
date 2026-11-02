@@ -153,6 +153,13 @@ jobs:
           php-version: '8.3'
           coverage: none
           tools: none
+      # pdftotext is the oracle the résumé PDF reader is held to
+      # (tests/resume-pdf-text-check.php FAILS under CI without it) and the
+      # ATS read-back in tests/resume-pdf.php. Not on ubuntu-latest by default.
+      - name: Install pdftotext (poppler-utils) for the résumé PDF pins
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends poppler-utils
       # The host's rewrite pins run WordPress's own HTML API
       # (WP_HTML_Tag_Processor), which a standalone sweep has no WordPress to
       # load. Fetch the files from the core mirror at the version the
@@ -269,6 +276,12 @@ jobs:
       # than a green skip. kses.php rides beside them: the classic-notice pins
       # (tests/classic-notices-native.php) run core's own wp_kses_post() over
       # every notice, and FAIL under CI without it for the same reason.
+      # The same sweep, so the same pdftotext oracle (see the tests job).
+      - name: Install pdftotext (poppler-utils) for the résumé PDF pins
+        continue-on-error: ${{ matrix.experimental }}
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends poppler-utils
       - name: Fetch WordPress's HTML API and kses for the host and notice pins
         continue-on-error: ${{ matrix.experimental }}
         # tools/fetch-wp-test-core.sh is the one list of core files the sweep

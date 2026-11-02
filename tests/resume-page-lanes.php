@@ -78,6 +78,7 @@ ok( '6d1d9c490ab9132d236b9d67d1d2d4aa9b21d869' === sha1( $unbreak( sn_resume_pag
 sn_resume_lang( 'en' );
 $no_pdf = sn_resume_page_body( $raw ); // the operations PDF never generated.
 $GLOBALS['__opt']['sn_resume_pdf_operations'] = array( 'url' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf', 'sha256' => str_repeat( 'a', 64 ) );
+$GLOBALS['__opt']['sn_resume_pdf_operations_bytes'] = base64_encode( '%PDF-1.7' ); // live means a PDF is stored too.
 $body = sn_resume_page_body( $raw );
 ok( 'aa277126614615389050af0b846d6bd275ce7392' === sha1( $body ) && 'a19a8817ce26fba62c78306a8af7925fb1f4a2e2' === sha1( $no_pdf ), 'the two-lane body is pinned (engine rev 6, edition marks): request-time changes (the lane labels, ?lane=) never touch it' );
 ok( 1 === substr_count( $body, '<h1' ) && 1 === substr_count( $body, 'class="wp-block-group sn-resume-switch"' ), 'two lanes: one page title, one switch' );

@@ -123,7 +123,7 @@ function resume_section_map( array $doc ) {
 		),
 		'built'        => array(
 			'title' => __( "What I've Built", 'signal-and-noise-tools' ),
-			'hint'  => __( 'The operations résumé shows this section, in its PDF and in its lane on /resume; the music résumé shows it only when "Show in the music PDF" is on (PDF only).', 'signal-and-noise-tools' ),
+			'hint'  => __( 'The operations résumé shows this section, in its PDF and in its lane on /resume, while "built" is in its Sections list (a blank list takes the music order, which has none). The music résumé shows it only when Show "What I\'ve Built" in the music PDF is on (PDF only).', 'signal-and-noise-tools' ),
 			'count' => count( $items ),
 			'first' => resume_first( $items, 'title' ),
 			'paint' => static function () use ( $built ) { return resume_built( $built ); },

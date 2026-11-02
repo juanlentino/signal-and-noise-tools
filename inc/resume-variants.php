@@ -19,8 +19,10 @@
  *
  * sn_resume_doc_view() turns the stored document into one variant in the shape
  * every reader already knows (no variant keys, no built, no variants), and
- * sn_resume_doc_get() returns the music view, so the page, its PDF, the
- * Spanish CV, JSON Resume, Markdown and vCard see exactly what they saw before.
+ * sn_resume_doc_get() returns the music view, which the music PDF, the Spanish
+ * CV and vCard read. The page reads the stored document and paints one lane
+ * per variant (inc/resume-page-lanes.php), and JSON Resume and Markdown follow
+ * its ?lane=operations.
  *
  * @package SignalNoiseTools
  */
@@ -135,12 +137,12 @@ function sn_resume_normalize_variants( $in ) {
 		'location'         => sn_resume_text( $ops['location'] ?? '' ),
 		'links'            => array_values( array_filter( array_map( 'sn_resume_url', sn_resume_string_list( $ops['links'] ?? array() ) ), 'strlen' ) ),
 		'summary'          => sn_resume_text( $ops['summary'] ?? '' ),
-		'sections'         => array_values( array_intersect( array_unique( array_map( 'strval', sn_resume_string_list( $ops['sections'] ?? array() ) ) ), SN_RESUME_PDF_SECTION_KEYS ) ),
+		'sections'         => array_values( array_intersect( array_unique( array_map( static fn( $s ) => strtolower( trim( (string) $s ) ), sn_resume_string_list( $ops['sections'] ?? array() ) ) ), SN_RESUME_PDF_SECTION_KEYS ) ),
 		'experience_order' => array_values( array_filter( array_map( 'sn_resume_text', sn_resume_string_list( $ops['experience_order'] ?? array() ) ), 'strlen' ) ),
 		'earlier_compact'  => ! empty( $ops['earlier_compact'] ),
 		'pdf_file'         => preg_match( '/^[A-Za-z0-9_-]{1,80}\.pdf\z/', (string) ( $ops['pdf_file'] ?? '' ) ) ? (string) $ops['pdf_file'] : '',
 	);
-	if ( '' !== $o['headline'] || '' !== $o['summary'] || $o['sections'] ) {
+	if ( array_filter( $o ) ) { // any field set keeps the block: the form posts every field, blank or not.
 		$out['operations'] = $o;
 	}
 	return $out ? $out : null;
@@ -231,7 +233,7 @@ function sn_resume_built_for( $doc, $variant ) {
  *
  * @param array|null $doc Stored document.
  * @param string     $variant
- * @return array|null {sections,headline,tagline,location,links,summary,experience_order,earlier_compact,pdf_file,phone}
+ * @return array|null {sections,headline,tagline,location,links,summary,experience_order,earlier_compact,pdf_file}
  */
 function sn_resume_variant_config( $doc, $variant ) {
 	$v = is_array( $doc['variants'] ?? null ) ? $doc['variants'] : array();
@@ -240,7 +242,6 @@ function sn_resume_variant_config( $doc, $variant ) {
 		if ( ! is_array( $o ) ) {
 			return null;
 		}
-		$o['phone'] = false; // the operations PDF never prints the phone, whatever the switch says (the template enforces it).
 		if ( '' === $o['pdf_file'] ) {
 			$o['pdf_file'] = SN_RESUME_OPERATIONS_PDF_FILE;
 		}
@@ -257,8 +258,17 @@ function sn_resume_variant_config( $doc, $variant ) {
 }
 
 /**
+ * The published operations résumé's layout, or null until it has settings.
+ *
+ * @return array|null
+ */
+function sn_resume_ops_config() {
+	return sn_resume_variant_config( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null, 'operations' );
+}
+
+/**
  * The music PDF's layout with its "What I've Built", for every music render:
- * Generate, the draft preview and the private copy.
+ * Generate and the draft preview.
  *
  * @param array|null $doc Stored document (or draft).
  * @return array

@@ -17,10 +17,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Every object's dictionary and (inflated) stream, by object number.
+ * Every object's dictionary and (inflated) stream, by object number. A
+ * stream that does not inflate is false, so the check can count it.
  *
  * @param string $bytes PDF file.
- * @return array<int,array{dict:string,stream:string|null}>
+ * @return array<int,array{dict:string,stream:string|false|null}>
  */
 function sn_resume_pdf_objects( $bytes ) {
 	$out = array();
@@ -39,10 +40,10 @@ function sn_resume_pdf_objects( $bytes ) {
 		if ( false !== $sp && $sp < $end ) {
 			$data = $sp + 6;
 			$data += ( "\r" === ( $bytes[ $data ] ?? '' ) ) ? 2 : 1;
-			$len  = preg_match( '~/Length (\d+)(?! \d+ R)~', $dict, $lm ) ? (int) $lm[1] : max( 0, (int) strpos( $bytes, 'endstream', $data ) - $data );
+			$len  = preg_match( '~/Length (\d++)(?! \d+ R)~', $dict, $lm ) ? (int) $lm[1] : max( 0, (int) strpos( $bytes, 'endstream', $data ) - $data );
 			$raw  = substr( $bytes, $data, $len );
 			$end  = (int) strpos( $bytes, 'endobj', $data + $len );
-			$stream = false !== strpos( $dict, '/FlateDecode' ) ? (string) @gzuncompress( $raw ) : $raw; // phpcs:ignore WordPress.PHP.NoSilencedErrors -- a stream that does not inflate reads as empty.
+			$stream = false !== strpos( $dict, '/FlateDecode' ) ? @gzuncompress( $raw ) : $raw; // phpcs:ignore WordPress.PHP.NoSilencedErrors -- a stream that does not inflate is false, counted by the check.
 		}
 		$out[ (int) $hit[0] ] = array( 'dict' => $dict, 'stream' => $stream );
 	}
@@ -81,11 +82,12 @@ function sn_resume_pdf_cmap( $cmap ) {
 /**
  * The text of a Dompdf PDF, one line per text object.
  *
- * @param string $bytes PDF file.
+ * @param string     $bytes   PDF file.
+ * @param array|null $objects Its sn_resume_pdf_objects(), when already read.
  * @return string
  */
-function sn_resume_pdf_text( $bytes ) {
-	$objects = sn_resume_pdf_objects( (string) $bytes );
+function sn_resume_pdf_text( $bytes, $objects = null ) {
+	$objects = $objects ?? sn_resume_pdf_objects( (string) $bytes );
 	$maps    = array(); // font resource name => ToUnicode map.
 	foreach ( $objects as $obj ) {
 		if ( ! preg_match( '~/Font\s*<<(.*?)>>~s', $obj['dict'], $fonts ) ) {
@@ -126,67 +128,4 @@ function sn_resume_pdf_text( $bytes ) {
 	return $text;
 }
 
-/**
- * What is wrong with a generated résumé PDF: control characters or ligatures
- * in its text, a phone number in its text or its metadata, more pages than
- * allowed. An empty list is a pass. `extractor` names the reader used.
- *
- * @param string   $bytes     PDF file.
- * @param int      $pages     Its page count (Dompdf's).
- * @param int|null $max_pages Page limit, or null for none.
- * @param string   $phone     The stored phone, if any: its digits anywhere in the text flag it too.
- * @return array{flags:array<int,string>,chars:int,extractor:string}
- */
-function sn_resume_pdf_check( $bytes, $pages, $max_pages = null, $phone = '' ) {
-	$text = sn_resume_pdf_text( $bytes );
-	$raw  = preg_match( '~/Info (\d+) 0 R~', (string) $bytes, $info ) && preg_match( '~(?<![0-9])' . $info[1] . ' 0 obj(.*?)endobj~s', (string) $bytes, $im ) ? $im[1] : '';
-	// Dompdf writes Info strings as UTF-16BE literals (\376\377...): decode them, or a phone there reads as octal noise.
-	$meta = '';
-	preg_match_all( '/\((?:\\\\.|[^\\\\)])*\)/s', $raw, $lits );
-	foreach ( $lits[0] as $lit ) {
-		$s     = stripcslashes( substr( $lit, 1, -1 ) );
-		$meta .= ( "\xFE\xFF" === substr( $s, 0, 2 ) ? mb_convert_encoding( substr( $s, 2 ), 'UTF-8', 'UTF-16BE' ) : $s ) . "\n";
-	}
-	$flags  = sn_resume_pdf_text_flags( $text, $meta, $pages, $max_pages );
-	$digits = (string) preg_replace( '/\D+/', '', (string) $phone );
-	if ( strlen( $digits ) >= 7 && ! in_array( 'a phone number', $flags, true ) && false !== strpos( preg_replace( '/\D+/', '', $text . $meta ), $digits ) ) {
-		$flags[] = 'a phone number';
-	}
-	return array(
-		'flags'     => $flags,
-		'chars'     => mb_strlen( $text, 'UTF-8' ),
-		'extractor' => 'built-in Dompdf/CPDF reader (inc/resume-pdf/text-check.php)',
-	);
-}
-
-/**
- * The flags for a PDF's text and metadata. PURE.
- *
- * @param string   $text      Extracted text.
- * @param string   $meta      The Info dictionary, raw.
- * @param int      $pages     Page count.
- * @param int|null $max_pages Page limit, or null for none.
- * @return array<int,string>
- */
-function sn_resume_pdf_text_flags( $text, $meta, $pages, $max_pages = null ) {
-	$phone = '/(?<!\d)(?:\+?\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}(?!\d)|(?<!\d)\d{10,11}(?!\d)/';
-	$flags = array();
-	if ( '' === trim( (string) $text ) ) {
-		$flags[] = 'no text could be read';
-	} elseif ( mb_strlen( (string) $text, 'UTF-8' ) < 1000 ) {
-		$flags[] = 'only ' . mb_strlen( (string) $text, 'UTF-8' ) . ' characters could be read';
-	}
-	if ( preg_match( '/[\x00-\x08\x0B\x0D-\x1F]/', (string) $text ) ) {
-		$flags[] = 'control characters in the text';
-	}
-	if ( preg_match( '/[\x{FB00}-\x{FB06}]/u', (string) $text ) ) {
-		$flags[] = 'ligature characters in the text';
-	}
-	if ( preg_match( $phone, (string) $text ) || preg_match( $phone, (string) $meta ) ) {
-		$flags[] = 'a phone number';
-	}
-	if ( null !== $max_pages && (int) $pages > (int) $max_pages ) {
-		$flags[] = sprintf( '%d pages, over %d', (int) $pages, (int) $max_pages );
-	}
-	return $flags;
-}
+require_once __DIR__ . '/check.php'; // the flags read from it.

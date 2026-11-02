@@ -9,7 +9,7 @@
  * previews end in a redirect or a download and exit on success.
  *
  * Actions served: resume_draft_save, resume_preview_page, resume_preview_pdf,
- * resume_publish, resume_discard, resume_revert
+ * resume_publish, resume_discard, resume_revert, resume_operations_setup
  *
  * @package SignalNoiseTools
  * @since 19.9.0
@@ -91,7 +91,7 @@ function sn_handle_resume_preview_page( $post ) { // phpcs:ignore Generic.CodeAn
 }
 
 /**
- * resume_preview_pdf: stream the draft's PDF (public phone rule), never stored.
+ * resume_preview_pdf: stream the draft's PDF, never stored.
  *
  * @param array $post Raw $_POST (unused).
  * @return string Flash code on failure; streams and exits on success.
@@ -103,7 +103,7 @@ function sn_handle_resume_preview_pdf( $post ) { // phpcs:ignore Generic.CodeAna
 	if ( function_exists( 'sn_resume_pdf_draft_stream' ) ) {
 		sn_resume_pdf_draft_stream();
 	}
-	return 'resume_pdf_failed';
+	return 'resume_pdf_stream_failed';
 }
 
 /**
@@ -177,9 +177,9 @@ function sn_handle_resume_operations_setup( $post ) { // phpcs:ignore Generic.Co
 	}
 	unset( $base['updated'] );
 	$set = sn_resume_operations_setup( $base );
-	update_option( 'sn_resume_ops_setup_missing', $set['missing'], false );
 	if ( ! sn_resume_draft_save( $set['doc'] ) ) {
 		return sn_resume_draft_unsaved_code( $set['doc'] );
 	}
+	update_option( 'sn_resume_ops_setup_missing', $set['missing'], false ); // only for a setup that was saved.
 	return $set['missing'] ? 'resume_ops_setup_partial' : 'resume_ops_setup';
 }

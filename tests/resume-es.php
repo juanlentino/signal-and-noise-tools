@@ -24,7 +24,8 @@ $GLOBALS['__page'] = null; $GLOBALS['__updates'] = array();
 function get_page_by_path( $p ) { return $GLOBALS['__page']; }
 function wp_slash( $v ) { return $v; }
 function wp_update_post( $a ) { $GLOBALS['__updates'][] = $a; return $a['ID']; }
-function is_wp_error( $x ) { return false; }
+function is_wp_error( $x ) { return $x instanceof WP_Error; }
+if ( ! class_exists( 'WP_Error' ) ) { class WP_Error { private $m; function __construct( $c = '', $m = '' ) { $this->m = $m; } function get_error_message() { return $this->m; } } }
 function sn_lang_en_counterpart( $id ) { return 1184; }
 function current_user_can( $c ) { return true; }
 function get_transient( $k ) { return false; }

@@ -33,14 +33,43 @@ function sn_resume_ops_pdf_url( $file ) {
 }
 
 /**
- * Whether the operations PDF is there to link: generated, and not withdrawn
- * by a failed check. The page's Download, the format list and llms.txt all ask.
+ * Whether the operations PDF is there to link: generated, stored as a PDF,
+ * and not withdrawn. Only a phone number in it withdraws it; a file with
+ * another flag stays published, the flag shown in the PDF box. The page's
+ * Download, the format list and llms.txt all ask.
  *
  * @return bool
  */
 function sn_resume_ops_pdf_live() {
 	$meta = get_option( SN_RESUME_OPS_PDF_OPTION );
-	return is_array( $meta ) && ! empty( $meta['url'] );
+	return is_array( $meta ) && ! empty( $meta['url'] ) && '' !== sn_resume_ops_pdf_bytes();
+}
+
+/**
+ * Whether the last Generate failed to build the operations PDF. A success
+ * writes facts without `error`, and removed settings delete them.
+ *
+ * @return bool
+ */
+function sn_resume_ops_pdf_failed() {
+	$meta = get_option( SN_RESUME_OPS_PDF_OPTION );
+	return is_array( $meta ) && ! empty( $meta['error'] );
+}
+
+/**
+ * The stored operations PDF, or '' when there is none or it is not a PDF.
+ *
+ * @return string
+ */
+function sn_resume_ops_pdf_bytes() {
+	static $src = null, $out = ''; // decoded once per stored value, not on every call.
+	$b64 = (string) get_option( SN_RESUME_OPS_PDF_BYTES, '' );
+	if ( $b64 !== $src ) {
+		$bytes = base64_decode( $b64, true );
+		$src   = $b64;
+		$out   = false !== $bytes && 0 === strpos( $bytes, '%PDF-' ) ? $bytes : '';
+	}
+	return $out;
 }
 
 /**
@@ -70,8 +99,7 @@ function sn_resume_pdf_noindex( $url ) {
 function sn_resume_ops_pdf_generate() {
 	$out = sn_resume_ops_pdf_build();
 	if ( is_wp_error( $out ) ) {
-		$prev = get_option( SN_RESUME_OPS_PDF_OPTION );
-		update_option( SN_RESUME_OPS_PDF_OPTION, array( 'error' => $out->get_error_message(), 'error_at' => gmdate( 'c' ) ) + ( is_array( $prev ) ? $prev : array() ), false );
+		sn_resume_pdf_record_error( SN_RESUME_OPS_PDF_OPTION, $out );
 	}
 	// Generate syncs /resume before this file is built; sync again so the
 	// operations lane's Download follows the file (an identical body is not rewritten).
@@ -91,7 +119,17 @@ function sn_resume_ops_pdf_build() {
 	$config = sn_resume_variant_config( $raw, 'operations' );
 	$loc    = sn_resume_pdf_location(); // for Dompdf's font cache only; the PDF itself is not written there.
 	if ( null === $config ) {
+		$prev = get_option( SN_RESUME_OPS_PDF_OPTION );
+		delete_option( SN_RESUME_OPS_PDF_BYTES ); // settings removed: no file, and no facts naming one.
+		delete_option( SN_RESUME_OPS_PDF_OPTION );
+		if ( ! empty( $prev['url'] ) && function_exists( 'sn_cf_purge_urls' ) ) {
+			sn_cf_purge_urls( array( (string) $prev['url'] ) ); // and the edge stops serving the last one.
+		}
 		return null;
+	}
+	$view = sn_resume_doc_view( $raw, 'operations' );
+	if ( empty( $view['experience'] ) && empty( $view['publications'] ) ) {
+		return new WP_Error( 'sn_resume_pdf_empty', 'The operations résumé has no experience and no publications to show.' );
 	}
 	if ( null === $loc || ! wp_mkdir_p( $loc['dir'] ) ) {
 		return new WP_Error( 'sn_resume_pdf_uploads', 'The uploads directory is unavailable.' );
@@ -99,21 +137,28 @@ function sn_resume_ops_pdf_build() {
 	$config['built'] = sn_resume_built_for( $raw, 'operations' );
 	$name            = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
 	$result          = sn_resume_pdf_render( sn_resume_doc_view( $raw, 'operations' ), $name, $loc['dir'] . '/.font-cache', false, home_url( '/' ), $config );
+	$url             = sn_resume_ops_pdf_url( $config['pdf_file'] );
+	// A phone in it is never served (the render refuses it): the last file goes too.
+	if ( is_wp_error( $result ) && 'sn_resume_pdf_phone' === $result->get_error_code() ) {
+		delete_option( SN_RESUME_OPS_PDF_BYTES );
+		delete_option( SN_RESUME_OPS_PDF_OPTION ); // nothing is served, so nothing may link it (sn_resume_ops_pdf_live()).
+		if ( function_exists( 'sn_cf_purge_urls' ) ) {
+			sn_cf_purge_urls( array( $url ) ); // and the edge stops serving the last one.
+		}
+		return new WP_Error( 'sn_resume_pdf_phone', 'The operations PDF read back with a phone number; it was not published.' );
+	}
 	if ( is_wp_error( $result ) ) {
 		return $result;
 	}
 	if ( 0 !== strpos( (string) $result['bytes'], '%PDF-' ) ) {
 		return new WP_Error( 'sn_resume_pdf_invalid', 'The renderer did not return a PDF.' );
 	}
-	// A phone in it is never served: checked before the bytes are stored.
 	$check = sn_resume_pdf_check( $result['bytes'], $result['pages'], 2, (string) ( $raw['pdf']['phone'] ?? '' ) );
-	if ( in_array( 'a phone number', $check['flags'], true ) ) {
-		delete_option( SN_RESUME_OPS_PDF_BYTES );
-		delete_option( SN_RESUME_OPS_PDF_OPTION ); // nothing is served, so nothing may link it (sn_resume_ops_pdf_live()).
-		return new WP_Error( 'sn_resume_pdf_phone', 'The operations PDF read back with a phone number; it was not published.' );
-	}
 	update_option( SN_RESUME_OPS_PDF_BYTES, base64_encode( $result['bytes'] ), false );
-	$url = sn_resume_ops_pdf_url( $config['pdf_file'] );
+	// Read back: update_option() is false for an unchanged value too, and a large one can fail to store.
+	if ( sn_resume_ops_pdf_bytes() !== $result['bytes'] ) {
+		return new WP_Error( 'sn_resume_pdf_write', 'The operations PDF could not be stored.' );
+	}
 	if ( function_exists( 'sn_cf_purge_urls' ) ) {
 		sn_cf_purge_urls( array( $url ) );
 	}
@@ -143,12 +188,12 @@ function sn_resume_ops_pdf_maybe_serve() {
 	if ( 0 !== strpos( $path, '/resume/' ) || '.pdf' !== substr( $path, -4 ) ) {
 		return; // every other request: no document read on the hot path.
 	}
-	$config = sn_resume_variant_config( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null, 'operations' );
+	$config = sn_resume_ops_config();
 	if ( null === $config || '/resume/' . $config['pdf_file'] !== $path ) {
 		return;
 	}
-	$bytes = base64_decode( (string) get_option( SN_RESUME_OPS_PDF_BYTES, '' ), true );
-	if ( false === $bytes || 0 !== strpos( $bytes, '%PDF-' ) ) {
+	$bytes = sn_resume_ops_pdf_bytes();
+	if ( '' === $bytes ) {
 		return; // not generated yet: the ordinary 404.
 	}
 	status_header( 200 );
@@ -163,44 +208,4 @@ function sn_resume_ops_pdf_maybe_serve() {
 }
 add_action( 'template_redirect', 'sn_resume_ops_pdf_maybe_serve', 0 );
 
-/**
- * One line for the admin: the check's result for a generated PDF.
- *
- * @param array|mixed $meta A PDF's stored facts.
- * @return string Plain text; '' when the PDF was never checked.
- */
-function sn_resume_pdf_check_line( $meta ) {
-	$check = is_array( $meta['check'] ?? null ) ? $meta['check'] : null;
-	if ( null === $check ) {
-		return '';
-	}
-	$by = ' (' . (string) ( $check['extractor'] ?? '' ) . ', ' . number_format( (int) ( $check['chars'] ?? 0 ) ) . ' characters read)';
-	return ( $check['flags'] ? 'Check flagged: ' . implode( '; ', $check['flags'] ) . '.' : 'Check passed: no control characters, ligatures or phone number.' ) . $by;
-}
-
-/**
- * What the PDF box says about the checks and the operations file, as plain
- * lines; each editor (classic and native) paints them its own way.
- *
- * @return array<int,array{text:string,url:string}>
- */
-function sn_resume_pdf_variant_lines() {
-	$lines = array();
-	$music = get_option( defined( 'SN_RESUME_PDF_OPTION' ) ? SN_RESUME_PDF_OPTION : 'sn_resume_pdf' );
-	if ( '' !== sn_resume_pdf_check_line( $music ) ) {
-		$lines[] = array( 'text' => 'Music PDF. ' . sn_resume_pdf_check_line( $music ), 'url' => '' );
-	}
-	$ops = get_option( SN_RESUME_OPS_PDF_OPTION );
-	if ( is_array( $ops ) && ! empty( $ops['error'] ) ) {
-		$lines[] = array( 'text' => 'Operations PDF: the last Generate failed (' . (string) $ops['error'] . ').', 'url' => '' );
-	}
-	if ( is_array( $ops ) && ! empty( $ops['url'] ) ) {
-		$pages   = (int) ( $ops['pages'] ?? 0 );
-		$lines[] = array( 'text' => sprintf( 'Operations PDF, generated %1$s: %2$d %3$s, the Download in the Operations lane on /resume. %4$s', function_exists( 'sn_resume_pdf_when' ) ? sn_resume_pdf_when( $ops ) : (string) ( $ops['generated'] ?? '' ), $pages, 1 === $pages ? 'page' : 'pages', sn_resume_pdf_check_line( $ops ) ), 'url' => (string) $ops['url'] );
-	} elseif ( null !== sn_resume_variant_config( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null, 'operations' ) ) {
-		$lines[] = array( 'text' => 'Operations PDF: set up; Generate builds it beside the music PDF.', 'url' => '' );
-	} else {
-		$lines[] = array( 'text' => 'Operations PDF: not set up yet. "Set up the operations résumé" writes its content into the draft.', 'url' => '' );
-	}
-	return $lines;
-}
+require_once __DIR__ . '/operations-box.php'; // what the PDF box says about it.
