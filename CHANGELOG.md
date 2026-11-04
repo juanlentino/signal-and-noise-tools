@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **/cv/: the Panacea Studio founder line reworded in the owner's words.** The move in 2021, the three partners brought in to run the studio, and the non-operating founder role, keeping ownership and strategic direction. Replaces the earlier line that said the same thing; the Spanish PDF regenerates with it. `inc/seed-content/resume-data-es.json`.
+
 ## [2026.11.10] - 2026-11-02 — Résumé lane report for the owner; résumé on the maturity index
 
 ### Added
