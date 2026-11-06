@@ -9,6 +9,7 @@ What fires a "BREAK" mail, what it counts, and what it says. Code: `inc/alerts.p
    - `err_source`: who asked (request source) and who answered (edge status, origin status, cache), no path
    - `err_path_status`: edge status, cache, path; no asker
    - `err_path_asker` (new): who asked, edge status, origin status, cache, path, as `"<asker> <edge> <origin> <cache> <path>"`, the asker being `visitor`, `worker`, `other` or `unrecorded`.
+   - `err_when` (2026-11-06, its own query): `"<minute UTC> <asker> <edge> <colo> <asn> <path> <network>"`, so a 522 has a time to look for in the origin's firewall. Read it as `errors_5xx.when` on the local `cloudflare-status`. No IP address is stored.
 2. **The hourly alert run** (`snt_alerts_run`) reads the last three UTC days of those rows. A path breaks when it resolves to a real page (`snt_alerts_is_real_page`: home, published content, a known archive route; scanner paths never qualify) and its count that day is at least `SNT_ALERT_BREAK_MIN` (3). Each break mails once, keyed on the path and the day the errors happened.
 
 ## What it counts (since this release)

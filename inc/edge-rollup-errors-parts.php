@@ -35,7 +35,7 @@ function sn_edge_errors_reading( $days = 7, $today = null ) {
  *
  * @param string $from First day.
  * @param string $to   Last day.
- * @return array{from:string,to:string,total:int,paths:array,probes:array,paths_by_status:array,sources:array,days:array,asked_by:array,paths_by_day:array}
+ * @return array{from:string,to:string,total:int,paths:array,probes:array,paths_by_status:array,sources:array,days:array,asked_by:array,paths_by_day:array,when:array|null}
  */
 function sn_edge_errors_range( $from, $to ) {
 	$from    = (string) $from;
@@ -81,6 +81,8 @@ function sn_edge_errors_range( $from, $to ) {
 		// Each day's top paths with who asked; local readers only (the
 		// remote twin copies named keys, so this never reaches it).
 		'paths_by_day' => sn_edge_errors_paths_by_day( $from, $to ),
+		// Each error's minute, colo and network; local readers only, as above.
+		'when'         => function_exists( 'sn_edge_errors_when_reading' ) ? sn_edge_errors_when_reading( $from, $to ) : null,
 	);
 }
 

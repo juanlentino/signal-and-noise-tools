@@ -226,12 +226,25 @@ $GLOBALS['__edge_data']['ATTACK_QUERY'] = array(
 		array( 'count' => 7, 'avg' => array( 'sampleInterval' => 3 ), 'dimensions' => array( 'clientRequestPath' => '/.env', 'edgeResponseStatus' => 404 ) ),
 	),
 );
+// First in the list: the stub takes the first needle found, and the when query
+// also names httpRequestsAdaptiveGroups, the colo needle.
+$GLOBALS['__edge_data'] = array( 'datetimeMinute' => array(
+	'errors' => array( array( 'count' => 2, 'dimensions' => array(
+		'datetimeMinute' => '2026-06-18T13:47:00Z', 'clientRequestPath' => '/', 'edgeResponseStatus' => 522,
+		'coloCode' => 'MIA', 'clientAsn' => 7922, 'clientASNDescription' => 'COMCAST-7922', 'requestSource' => 'eyeball' ) ) ),
+) ) + $GLOBALS['__edge_data'];
 sn_edge_run_rollup( '2026-06-19' );
 
 // 5 since v13.96.3 (#1002): the 5xx document is separate, because GraphQL fails
 // the WHOLE query on one unknown field and this one asks for
 // originResponseStatus / cacheStatus that the attack query does not use.
-ok( count( $GLOBALS['__edge_calls'] ) === 5, 'run: issues 5 GraphQL queries (daily + firewall + colo + attack + errors)' );
+ok( count( $GLOBALS['__edge_calls'] ) === 6, 'run: issues 6 GraphQL queries (daily + firewall + colo + attack + errors + when)' );
+$when_seen = false;
+foreach ( $GLOBALS['wpdb']->queries as $q ) {
+	$when_seen = $when_seen || false !== strpos( (string) ( is_array( $q ) ? json_encode( $q ) : $q ), '2026-06-18T13:47 visitor 522 MIA 7922 / COMCAST-7922' );
+}
+ok( $when_seen, 'run: the when row reaches the dims write' );
+ok( '' === ( get_option( SN_EDGE_ERRORS_WHEN_OPT )['error'] ?? 'unset' ), 'run: the when query\'s outcome is kept' );
 $all_sql = implode( "\n", $GLOBALS['wpdb']->queries );
 ok( strpos( $all_sql, "'2026-06-18', 1000, 800, 5000000, 4000000, 3, 200, 900, 50, 40, 10" ) !== false, 'run: daily row parsed — status map bucketed 2xx/3xx/4xx/5xx' );
 ok( strpos( $all_sql, "'2026-06-18', 'country', 'US', 600, 3000000" ) !== false, 'run: countryMap melted into dims' );
