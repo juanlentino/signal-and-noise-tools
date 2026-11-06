@@ -54,9 +54,15 @@ dd_true(
 	false === apply_filters( 'wpai_feature_excerpt-generation_enabled', true ),
 	'ai/ai excerpt-generation feature is force-disabled'
 );
+foreach ( array( 'editorial-updates', 'editorial-notes', 'webmcp', 'text-to-speech' ) as $id ) {
+	dd_true(
+		false === apply_filters( "wpai_feature_{$id}_enabled", true ),
+		"ai/ai {$id} is locked off: it can change a signed note outside sn-apply"
+	);
+}
 dd_true(
-	true === apply_filters( 'wpai_feature_editorial-notes_enabled', true ),
-	'ai/ai non-duplicated features (editorial-notes) are left untouched'
+	true === apply_filters( 'wpai_feature_title-generation_enabled', true ),
+	'ai/ai features that touch nothing signed are left untouched'
 );
 
 // The revisit trigger must not call an existing-vocab tag mode future: the AI

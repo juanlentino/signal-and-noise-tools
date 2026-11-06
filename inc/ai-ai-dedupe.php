@@ -21,9 +21,20 @@
  *
  * Filters register at plugin-load time (before init), so they are in place
  * before ai/ai's feature loader checks is_enabled(). SN's own generators
- * (assets/ai-meta-description.js, assets/ai-excerpt.js) and ai/ai's four
- * NON-duplicated features (editorial notes, summary, suggest cats/tags,
- * title gen) are deliberately left alone.
+ * (assets/ai-meta-description.js, assets/ai-excerpt.js) and ai/ai's other
+ * NON-duplicated features (summary, suggest cats/tags, title gen) are
+ * deliberately left alone.
+ *
+ * LOCKED OFF (owner, 2026-11-06), a different reason from the duplicates above:
+ * these can change a signed note outside sn-apply, so its gates and change_class
+ * never see the edit and provenance mints an unlabeled version.
+ *   - editorial-updates rewrites content from pending Notes, and saves.
+ *   - editorial-notes feeds it.
+ *   - webmcp lets an agent browser edit and publish in the block editor.
+ *   - text-to-speech adds its player on the_content, the filter that put
+ *     MailPoet's slide-in inside the signed region of all 50 notes.
+ * A Settings checkbox was the only thing keeping them off. Ids verified at
+ * ai/ai 1.5.0; remove a line to allow one.
  *
  * COUPLING CAVEAT: the feature-id slugs below are verified against ai/ai
  * 1.0.x (audit HEAD c71c9c9, 2026-06-05). ai/ai is explicitly experimental;
@@ -62,3 +73,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 add_filter( 'wpai_feature_meta-description_enabled', '__return_false' );
 add_filter( 'wpai_feature_excerpt-generation_enabled', '__return_false' );
+add_filter( 'wpai_feature_editorial-updates_enabled', '__return_false' );
+add_filter( 'wpai_feature_editorial-notes_enabled', '__return_false' );
+add_filter( 'wpai_feature_webmcp_enabled', '__return_false' );
+add_filter( 'wpai_feature_text-to-speech_enabled', '__return_false' );
