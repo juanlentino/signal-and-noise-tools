@@ -36,11 +36,12 @@
  * A Settings checkbox was the only thing keeping them off. Ids verified at
  * ai/ai 1.5.0; remove a line to allow one.
  *
- * COUPLING CAVEAT: the feature-id slugs below are verified against ai/ai
- * 1.0.x (audit HEAD c71c9c9, 2026-06-05). ai/ai is explicitly experimental;
- * if a future release renames a feature id, the filter silently no-ops and
- * the duplicate re-surfaces — an accepted, documented fragility. Re-verify
- * on ai/ai updates. tests/ai-ai-dedupe.php asserts our filters are wired.
+ * COUPLING CAVEAT: the two duplicate ids below were verified against ai/ai
+ * 1.0.x (audit HEAD c71c9c9, 2026-06-05), the four locks at 1.5.0. ai/ai is
+ * explicitly experimental; if a future release renames a feature id, the
+ * filter silently no-ops and that feature comes back, an accepted, documented
+ * fragility. Re-verify on ai/ai updates. tests/ai-ai-dedupe.php asserts our
+ * filters are wired, not that the ids still exist upstream.
  *
  * COEXISTENCE POLICY (deliberate, owner directive 2026-06-23 — "SN should
  * complement the official one"): meta-description + excerpt are DISABLED above

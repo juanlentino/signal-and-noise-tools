@@ -508,7 +508,7 @@ function snt_watch_ripe_mcp_adapter( $watch, $now, $version = null ) {
 		// Quiet on purpose: 0.7.1 has been on WordPress.org since October 2026, so
 		// the port no longer waits on a release, only on the owner's call to turn
 		// MCP Access on. A watch ripe on that would stay ripe until the call is made.
-		return array( 'ripe' => false, 'note' => 'no adapter on this site; 0.7.0 and later are on WordPress.org, and the port waits on the owner turning MCP Access on' );
+		return array( 'ripe' => false, 'note' => sprintf( 'no adapter on this site; %s and later are on WordPress.org, and the port waits on the owner turning MCP Access on', SNT_MCP_ADAPTER_MIN ) );
 	}
 	if ( version_compare( (string) $version, SNT_MCP_ADAPTER_MIN, '<' ) ) {
 		return array( 'ripe' => false, 'note' => sprintf( 'adapter %s is loaded; the port waits on %s, the first plugin release', $version, SNT_MCP_ADAPTER_MIN ) );
