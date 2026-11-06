@@ -179,6 +179,14 @@ function sn_edge_run_rollup( $today = null, $adaptive_only = false ) {
 		}
 	}
 
+	// 6. When each 5xx happened (inc/edge-error-when.php). After the counts and
+	// apart from them: a refusal here costs the times, never the totals.
+	$when_q    = '';
+	$whenz     = sn_edge_query( sn_edge_errors_when_query(), array( 'from' => $since, 'to' => $until ), $when_q );
+	$when_rows = is_array( $whenz ) ? (array) ( $whenz['errors'] ?? array() ) : array();
+	update_option( SN_EDGE_ERRORS_WHEN_OPT, array( 'at' => time(), 'day' => $snap, 'error' => (string) $when_q, 'capped' => SN_EDGE_ERRORS_WHEN_LIMIT <= count( $when_rows ) ), false );
+	$dim_rows = array_merge( $dim_rows, sn_edge_errors_when_rows( $when_rows ) );
+
 	if ( ! empty( $daily_rows ) ) {
 		sn_edge_daily_upsert( $daily_rows );
 	}
