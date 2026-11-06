@@ -21,7 +21,13 @@ function ok( $cond, $label ) {
 $GLOBALS['__opts'] = array();
 $GLOBALS['__rows'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opts'] ) ? $GLOBALS['__opts'][ $k ] : $d; }
-function sn_edge_top_dim( $dim, $from, $to, $limit ) { $GLOBALS['__asked'] = array( $dim, $from, $to, $limit ); return $GLOBALS['__rows']; }
+if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
+if ( ! defined( 'SN_EDGE_DIMS_TABLE' ) ) { define( 'SN_EDGE_DIMS_TABLE', 'sn_edge_dims' ); }
+$GLOBALS['wpdb'] = new class {
+	public $prefix = 'wp_';
+	public function prepare( $sql, ...$args ) { $GLOBALS['__sql'] = $sql; $GLOBALS['__args'] = $args; return $sql; }
+	public function get_results( $sql, $mode = null ) { return $GLOBALS['__rows']; }
+};
 
 require __DIR__ . '/../inc/edge-error-when.php';
 
@@ -59,6 +65,11 @@ $rows = sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '/' . str_r
 ok( strlen( $rows[0]['value'] ) <= 160, 'a long path and name stay inside the 160-character column' );
 ok( 1 === preg_match( '/^2026-11-05T13:47 visitor 522 MIA 7922 \/a+ n+$/', $rows[0]['value'] ), 'and both survive, cut rather than dropped' );
 
+$mb = sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '/', 522, 'MIA', 9121, 'a' . str_repeat( 'ü', 40 ) ) ) );
+ok( 1 === preg_match( '//u', $mb[0]['value'] ), 'a non-ASCII network name cut at the limit is still valid UTF-8' );
+$sp = sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '/a b' ) ) );
+ok( '2026-11-05T13:47 visitor 522 MIA 7922 /a%20b COMCAST-7922' === $sp[0]['value'], 'a space in a path cannot split the fields' );
+
 ok( array() === sn_edge_errors_when_rows( array( $g( '', '/' ) ) ), 'no minute, no row: a time we do not have is not invented' );
 ok( array() === sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '' ) ) ), 'no path, no row' );
 ok( array() === sn_edge_errors_when_rows( array( 'garbage', array() ) ), 'malformed groups are skipped' );
@@ -69,16 +80,23 @@ ok( 1 === count( $dup ) && 2 === $dup[0]['requests'], 'two groups that cut to on
 
 echo "Reading it back\n";
 $GLOBALS['__rows'] = array(
-	array( 'value' => '2026-11-04T01:02 visitor 522 MIA 7922 / COMCAST-7922', 'requests' => 1 ),
 	array( 'value' => '2026-11-05T13:47 visitor 522 IAD 14061 /notes/ DIGITALOCEAN', 'requests' => 2 ),
+	array( 'value' => '2026-11-04T01:02 visitor 522 MIA 7922 / COMCAST-7922', 'requests' => 1 ),
 	array( 'value' => 'not a when row', 'requests' => 9 ),
 );
 $read = sn_edge_errors_when_reading( '2026-10-31', '2026-11-06' );
-ok( array( 'err_when', '2026-10-31', '2026-11-06', SN_EDGE_ERRORS_WHEN_LIMIT ) === $GLOBALS['__asked'], 'reads the window, up to the limit' );
+ok( array( '2026-10-31', '2026-11-06', 'err_when', SN_EDGE_ERRORS_WHEN_LIMIT ) === $GLOBALS['__args'], 'reads the window, up to the limit' );
+ok( false !== strpos( $GLOBALS['__sql'], 'ORDER BY value DESC' ), 'the database keeps the newest: a limit on the most requests would lose them' );
+ok( false === strpos( $GLOBALS['__sql'], 'ORDER BY requests' ), 'never ordered by count' );
+ok( false === $read['more'], 'under the limit, nothing older is hidden' );
 ok( 2 === count( $read['rows'] ), 'an unreadable row is dropped, not shown as garbage' );
-ok( '2026-11-05T13:47' === $read['rows'][0]['at'], 'newest first' );
+ok( '2026-11-05T13:47' === $read['rows'][0]['at'], 'in the order the database gave' );
 ok( array( 'at' => '2026-11-05T13:47', 'asker' => 'visitor', 'edge' => 522, 'colo' => 'IAD', 'asn' => 14061, 'path' => '/notes/', 'network' => 'DIGITALOCEAN', 'requests' => 2 ) === $read['rows'][0], 'each field comes back typed' );
 ok( null === $read['query'], 'before the first run the outcome is null, not a clean read' );
+$saved             = $GLOBALS['__rows'];
+$GLOBALS['__rows'] = array_fill( 0, SN_EDGE_ERRORS_WHEN_LIMIT, $saved[1] );
+ok( true === sn_edge_errors_when_reading( '2026-10-31', '2026-11-06' )['more'], 'at the limit it says older rows may exist, so the cut is never silent' );
+$GLOBALS['__rows'] = $saved;
 $GLOBALS['__opts'][ SN_EDGE_ERRORS_WHEN_OPT ] = array( 'at' => 5, 'day' => '2026-11-05', 'error' => 'unknown field', 'capped' => false );
 ok( 'unknown field' === sn_edge_errors_when_reading( '2026-10-31', '2026-11-06' )['query']['error'], 'a refused query is reported, so an empty list is never read as no errors' );
 

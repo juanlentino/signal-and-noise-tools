@@ -60,9 +60,12 @@ function sn_edge_errors_when_rows( array $rows ) {
 		$ask  = 'eyeball' === $from ? 'visitor' : ( 0 === strpos( $from, 'edgeWorker' ) ? 'worker' : ( '' === $from ? 'unrecorded' : 'other' ) );
 		$colo = (string) ( $d['coloCode'] ?? '' );
 		$name = str_replace( ' ', '-', (string) ( $d['clientASNDescription'] ?? '' ) );
+		$path = str_replace( ' ', '%20', $path ); // The reader splits on spaces.
 		$head = substr( $minute, 0, 16 ) . ' ' . $ask . ' ' . (int) ( $d['edgeResponseStatus'] ?? 0 ) . ' ' . ( '' !== $colo ? $colo : '-' ) . ' ' . (int) ( $d['clientAsn'] ?? 0 ) . ' ';
-		$name = substr( $name, 0, 32 );
-		$path = substr( $path, 0, 160 - strlen( $head ) - ( '' !== $name ? strlen( $name ) + 1 : 0 ) );
+		// mb_strcut, not substr: a registry name can be non-ASCII, and half a
+		// character is invalid UTF-8 in a bound parameter.
+		$name = mb_strcut( $name, 0, 32, 'UTF-8' );
+		$path = mb_strcut( $path, 0, 160 - strlen( $head ) - ( '' !== $name ? strlen( $name ) + 1 : 0 ), 'UTF-8' );
 		$val  = $head . $path . ( '' !== $name ? ' ' . $name : '' );
 		$req  = function_exists( 'sn_edge_corrected' ) ? sn_edge_corrected( $g ) : (int) ( $g['count'] ?? 0 );
 		if ( isset( $out[ $val ] ) ) {
@@ -77,19 +80,37 @@ function sn_edge_errors_when_rows( array $rows ) {
 /**
  * The stored rows back as fields, newest first, with the query's last outcome.
  * `query` null means no run has stored one, so an empty list is not a clean read.
+ * `more` says older rows exist past the limit.
+ *
+ * Its own read, not sn_edge_top_dim(): that keeps the rows with the most
+ * requests, and an error is usually one request, so a busy week would lose the
+ * newest ones. The value starts with its minute, so sorting it sorts by time.
  *
  * @param string $from First day, YYYY-MM-DD.
  * @param string $to   Last day, YYYY-MM-DD.
- * @return array{rows:array,query:array|null}
+ * @return array{rows:array,more:bool,query:array|null}
  */
 function sn_edge_errors_when_reading( $from, $to ) {
+	global $wpdb;
+	$table = $wpdb->prefix . SN_EDGE_DIMS_TABLE;
+	// The table name is the prefix and a constant; every value is a placeholder.
+	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	$found = (array) $wpdb->get_results( $wpdb->prepare(
+		"SELECT value, SUM(requests) AS requests
+		 FROM {$table} WHERE day >= %s AND day <= %s AND dim = %s
+		 GROUP BY value ORDER BY value DESC LIMIT %d",
+		(string) $from,
+		(string) $to,
+		'err_when',
+		SN_EDGE_ERRORS_WHEN_LIMIT
+	), ARRAY_A );
+	// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	$rows = array();
-	foreach ( sn_edge_top_dim( 'err_when', (string) $from, (string) $to, SN_EDGE_ERRORS_WHEN_LIMIT ) as $r ) {
+	foreach ( $found as $r ) {
 		if ( 1 === preg_match( '/^(\S+) (\S+) (\d+) (\S+) (\d+) (\S+) ?(.*)$/', (string) ( $r['value'] ?? '' ), $m ) ) {
 			$rows[] = array( 'at' => $m[1], 'asker' => $m[2], 'edge' => (int) $m[3], 'colo' => $m[4], 'asn' => (int) $m[5], 'path' => $m[6], 'network' => $m[7], 'requests' => (int) ( $r['requests'] ?? 0 ) );
 		}
 	}
-	usort( $rows, static fn( $a, $b ) => strcmp( $b['at'], $a['at'] ) );
 	$query = get_option( SN_EDGE_ERRORS_WHEN_OPT, null );
-	return array( 'rows' => $rows, 'query' => is_array( $query ) ? $query : null );
+	return array( 'rows' => $rows, 'more' => SN_EDGE_ERRORS_WHEN_LIMIT <= count( $found ), 'query' => is_array( $query ) ? $query : null );
 }
