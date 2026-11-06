@@ -110,6 +110,7 @@ require_once SNT_PATH . 'inc/rest-no-route.php'; // 2026-10-16 audit: core's res
 require_once SNT_PATH . 'inc/owner-revoked-route.php'; // Unreleased: GET signal-noise/v1/owner/revoked for the analytics Worker.
 require_once SNT_PATH . 'inc/cloudflare-readings-admin.php'; // 15.3.0: Edge (Measurement › Analytics) and Firewall (Security › Firewall), classic; the readings where their questions are asked.
 require_once SNT_PATH . 'inc/purge-ledger.php';      // 20.7.0: the purge ledger; keeps purges rare (Breeze update and nightly purges unhooked if Breeze returns)
+require_once SNT_PATH . 'inc/purge-verify-heal.php'; // A purge whose deferred verify was lost gets a new one, hourly.
 require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: Cloudways app purge, retired 2026-10-14 (Varnish is off); keeps the credential readers and the last record
 require_once SNT_PATH . 'inc/admin-forms/cloudways.php'; // v12.17.0: Connections → Cloudways status glance (display-only; reads SNT_CW_LAST_PURGE_OPT written by the purge above)
 require_once SNT_PATH . 'inc/provenance-settle.php'; // v11.10.0: settle window — one editing pass, one signed version (pure; loaded before core, which calls its predicate)

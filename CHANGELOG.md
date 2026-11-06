@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A purge can no longer sit on "verifying" until the next one.** On 2026-11-05 an automatic update's purge lost its deferred verify: no run in the cron history and nothing queued, so the Cache line stayed on "Purge dispatched, verifying". The hourly run now checks the last purge, and one still without a verdict after ten minutes gets a new verify from the theme's scheduler, which refuses a duplicate for the same epoch. A verdict of any kind, stale included, is left alone. `inc/purge-verify-heal.php` (new). Test: `tests/purge-verify-heal.php` (new).
+
 ## [2026.11.11] - 2026-11-04 — Spanish CV: Panacea founder line reworded
 
 ### Changed
