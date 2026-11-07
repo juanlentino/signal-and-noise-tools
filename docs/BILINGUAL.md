@@ -1,6 +1,6 @@
 # The bilingual storefront (English / Spanish)
 
-Four storefront pages have Spanish versions, so managers, artists and labels in Latin America can read them in Spanish. Everything else on the site stays English-only: the notes, the provenance hub, the résumé, workflow, uses and the colophon.
+Seven storefront pages have Spanish versions, so managers, artists and labels in Latin America can read them in Spanish. Everything else on the site stays English-only: the notes, the provenance hub, the résumé, workflow, uses and the colophon.
 
 | English | Spanish |
 |---|---|
@@ -8,6 +8,8 @@ Four storefront pages have Spanish versions, so managers, artists and labels in 
 | `/about/` | `/sobre-mi/` |
 | `/music/` | `/musica/` |
 | `/services/` | `/servicios/` |
+| `/services/music/` | `/servicios/musica/` |
+| `/services/consulting/` | `/servicios/consultoria/` |
 | `/resume/` | `/cv/` (since 2026-10-15) |
 
 No plugin does this. It is built into the companion plugin (`inc/bilingual*.php`) and the theme (`inc/lang-toggle.php`).
@@ -66,7 +68,7 @@ The toggle is the `signal-noise/lang-toggle` block in the theme's header. It ren
 - **Cache.** There is no APO. HTML is cached by a Cloudflare Cache Rule, and pages are tagged `sn-render`. Saving any Page purges the tag, so the Spanish and English pages purge together. `/inicio/` also gets the `sn-lists` tag (theme `sn_edge_cache_request_lists()`), so a note save refreshes it the way it refreshes the home page. Saving a release note purges the tag too.
 - **Analytics.** The cookieless beacon records `location.pathname`. `/musica` is stored as its own path, separate from `/music`, with no change. The North Star sections and the session funnels group by English path prefixes, so they do not count the Spanish pages yet. Add their paths there if you want them counted.
 - **Integrity reports.** The motion check reads stylesheets, so it is unaffected. The rendered contrast check walks every URL in the sitemap, so published Spanish pages are covered automatically.
-- **Out of scope:** `llms.txt` (left English by owner decision), the Markdown twins (notes only) and the header navigation labels (still English on Spanish pages).
+- **Out of scope:** `llms.txt` (left English by owner decision; the two new service pages are listed there in English), the Markdown twins (notes only) and the header navigation labels (still English on Spanish pages).
 
 ## /cv/ and the Spanish PDF come from one file
 
@@ -77,6 +79,23 @@ The toggle is the `signal-noise/lang-toggle` block in the theme's header. It ren
 - **The page's status is never touched:** the owner publishes /cv/.
 - **The English wording does not flow into the Spanish file.** When the English résumé changes, update `resume-data-es.json` and release.
 - **You are told when that happens.** The Résumé screen and the `resume_es_stale` Health check list the English lines changed since the translation (`inc/resume-es-stale.php`). The alert also shows an **English version** code. When updating the Spanish file, set its `translated_from` field to that code: the baseline moves only when the file names the live English, so a typo fix or a partial update cannot clear an alert whose lines are still untranslated. The alert then clears on its own after the update ships.
+
+## The services hub
+
+`/services/` is a hub with two doors, and each door is a child Page: `/services/music/` and `/services/consulting/`. `/servicios/` mirrors it with `/servicios/musica/` and `/servicios/consultoria/`. There is no hub code: every page is an ordinary Page, its text is in its own body in the block editor, and **S&N → Content** has no fields for them. `inc/services-hub-migration.php` created them once and never runs again.
+
+- **Template.** All six use the custom template **Services** (`page-services`). On a child this matters: without it, `/services/music/` would pick up `page-music.html` through its slug.
+- **A row.** A door, or a service on the Consulting page, is a Group with the class `sn-door` holding a Heading (`sn-door-label`), a Paragraph (`sn-door-line`) and, on a door, a Paragraph with the link (`sn-door-link`). The styles are in the theme's `assets/css/components-06-catalog-vocabulary.css`.
+- **The slug.** `/services/music/` has the slug `music`, the same as `/music/`, so core's `is_page( 'music' )` is true on it. Use `sn_lang_is_page( 'music' )`, which means the top-level page, for any gate on the discography page.
+- **The topic.** The Consulting button links to `/contact/?topic=Consulting`. The form's `intent` field preselects from `?topic=`, and the value must match a choice's value exactly.
+- **Structured data.** `sn_schema_professional_service()` lists the offerings once, on the hubs. The `sn_schema_service_offerings` filter changes the list.
+
+**Adding a third door:**
+
+1. Create the Page as a child of `/services/`, with the **Services** template. Create its Spanish page as a child of `/servicios/` and set **Spanish version of** to the English page.
+2. In the block editor on `/services/` and `/servicios/`, duplicate a door and change its heading, line and link. Change the dek, which says "two ways".
+3. Add the page to Key pages in the theme's `inc/llms-txt.php`, to `sn_indexing_core_pages()`, and to the offerings in `sn_schema_professional_service()`.
+4. If the slug matches a top-level page, check every `is_page()` gate on that page, as with `music`.
 
 ## Adding another page to the bilingual set
 

@@ -35,17 +35,19 @@ function sn_lang_effective_slug( $post ) {
 }
 
 /**
- * is_page( $slug ), also true on that page's Spanish counterpart.
+ * is_page( $slug ), also true on that page's Spanish counterpart. A bare slug
+ * names the top-level page: /services/music/ shares its slug with /music/ but
+ * is not that page, and neither is its Spanish pair, /servicios/musica/.
  *
  * @param string $slug English page slug.
  * @return bool
  */
 function sn_lang_is_page( $slug ) {
-	if ( is_page( $slug ) ) {
-		return true;
-	}
 	$post = is_singular( 'page' ) ? get_queried_object() : null;
-	return $post && sn_lang_effective_slug( $post ) === $slug;
+	if ( $post && ! empty( $post->post_parent ) && false === strpos( (string) $slug, '/' ) ) {
+		return false;
+	}
+	return is_page( $slug ) || ( $post && sn_lang_effective_slug( $post ) === $slug );
 }
 
 /**

@@ -262,8 +262,10 @@ function sn_schema_professional_service() {
 			'Mixing',
 			'Songwriting',
 			'Mastering',
-			'Operations & AI Strategy',
 			'Artist & Producer Development',
+			'Strategy & Growth',
+			'Pricing & Operations',
+			'AI Adoption',
 		)
 	) );
 	$items = array();

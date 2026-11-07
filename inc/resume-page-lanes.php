@@ -24,9 +24,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/resume-pdf/template-variant.php';
 require_once __DIR__ . '/resume-lane-marks.php';
 
-/** The switch's labels, in order. "Operations & AI Strategy" is the /services door's name. */
+/** The switch's labels, in order. "Operations & AI Strategy" names the work, the /services/consulting/ door. */
 const SN_RESUME_LANE_LABELS  = array( 'music' => 'Music', 'operations' => 'Operations & AI Strategy' );
-const SN_RESUME_LANE_CAPTION = 'Two doors, one standard.'; // verbatim from /services.
+const SN_RESUME_LANE_CAPTION = 'Two doors, one standard.'; // verbatim from /services/music/.
 
 /**
  * A lane name from untrusted input: 'operations', else 'music'.
