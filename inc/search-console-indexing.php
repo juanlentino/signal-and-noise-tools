@@ -46,7 +46,7 @@ const SNT_INDEXING_MIN_INBOUND  = 2;
  */
 function sn_indexing_core_pages() {
 	return array(
-		'paths'    => array( '/about', '/resume', '/workflow', '/services', '/contact', '/now', '/about/uses', '/colophon' ),
+		'paths'    => array( '/about', '/resume', '/workflow', '/services', '/services/music', '/services/consulting', '/contact', '/now', '/about/uses', '/colophon' ),
 		'prefixes' => array( '/maturity', '/provenance' ),
 	);
 }
