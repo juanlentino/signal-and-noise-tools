@@ -57,10 +57,10 @@ if ( '' !== $api ) {
 		require_once "$api/$f";
 	}
 }
-$parser = '' !== $api && is_file( dirname( $api ) . '/class-wp-block-parser.php' );
+$parser = '' !== $api && is_file( dirname( $api ) . '/class-wp-block-parser.php' ) && is_file( dirname( $api ) . '/class-wp-block-processor.php' );
 if ( $parser ) {
-	foreach ( array( 'class-wp-block-parser-block.php', 'class-wp-block-parser-frame.php', 'class-wp-block-parser.php' ) as $f ) {
-		require_once dirname( $api ) . "/$f";
+	foreach ( array( 'class-wp-block-processor.php', 'class-wp-block-parser-block.php', 'class-wp-block-parser-frame.php', 'class-wp-block-parser.php' ) as $f ) {
+		require_once dirname( $api ) . "/$f"; // The parser needs the processor from WordPress 7.2.
 	}
 }
 
