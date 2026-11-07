@@ -34,7 +34,7 @@ mkdir -p "$dest/html-api"
 for f in class-wp-html-tag-processor.php class-wp-html-attribute-token.php class-wp-html-span.php class-wp-html-text-replacement.php class-wp-html-decoder.php html5-named-character-references.php; do
 	curl -sSfL "$base/html-api/$f" -o "$dest/html-api/$f"
 done
-for f in class-wp-token-map.php kses.php formatting.php robots-template.php link-template.php class-wp.php post.php class-wp-block-parser.php class-wp-block-parser-block.php class-wp-block-parser-frame.php; do
+for f in class-wp-token-map.php kses.php formatting.php robots-template.php link-template.php class-wp.php post.php class-wp-block-processor.php class-wp-block-parser.php class-wp-block-parser-block.php class-wp-block-parser-frame.php; do
 	curl -sSfL "$base/$f" -o "$dest/$f"
 done
 

@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The test sweep is ready for WordPress 7.2's block parser.** From 7.2, `WP_Block_Parser` needs `WP_Block_Processor`, and `tests/resume-lane-marks.php` did not load it, so the suite crashed on Beta 4 with `Class "WP_Block_Processor" not found`. The suite now loads it, and `tools/fetch-wp-test-core.sh` fetches it. The file also exists in 7.1, so nothing changes for the current sweep. Checked on 7.1.4 and 7.2 Beta 4: 40 passed each. Test setup only: the site does not change.
+
 ## [2026.11.13] - 2026-11-06 — Each stored 5xx says when it happened
 
 ### Added
