@@ -9,8 +9,10 @@
  * reached Google. All the topic addresses are aliases on one Workspace account
  * and each is in that account's "Send mail as" list, so mapping them is enough.
  *
- * A mapping already stored wins. If FluentSMTP changes how it reads this, form
- * mail goes back to the connection's own sender and still arrives.
+ * A mapping already stored wins, so an address given its own connection keeps
+ * it. FluentSMTP saves what it reads, so its next write (a Google token refresh
+ * is enough) stores these mappings, and from then on they stay on that connection
+ * even if another becomes the default. Delete the old connection to clear them.
  *
  * @package SignalNoiseTools
  */
