@@ -205,7 +205,8 @@ foreach ( array( 'services-consulting', 'servicios-consultoria' ) as $name ) {
 }
 foreach ( array( 'services-hub', 'servicios-hub' ) as $name ) {
 	ok( 2 === substr_count( $seed( "$name.html" ), 'class="wp-block-column sn-side"' ) && 2 === substr_count( $seed( "$name.html" ), '<img ' ), "$name: two sides, each with its photo" );
-	ok( 2 === substr_count( $seed( "$name.html" ), 'screen-reader-text' ), "$name: each side's link names its page" );
+	ok( 2 === preg_match_all( '#<a href="/[^"]+">[^<]+<span class="screen-reader-text">: #', $seed( "$name.html" ) ), "$name: each side's link names its page" );
+	ok( false === strpos( $seed( "$name.html" ), 'sn-service-image' ), "$name: the card rules in responsive.css cannot reach the sides" );
 }
 foreach ( array( 'services-consulting', 'servicios-consultoria' ) as $name ) {
 	ok( 3 === substr_count( $seed( "$name.html" ), 'sn-service-crop"><img' ), "$name: three services, three photos" );
