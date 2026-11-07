@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The AI plugin experiments that can change a signed note are locked off in code.** Editorial Updates, Editorial Notes, WebMCP and Text to Speech can edit a note outside sn-apply, so its gates and change_class never see it and provenance mints an unlabeled version. A Settings checkbox was all that kept them off. They now use the same `wpai_feature_{id}_enabled` filter as the two duplicates, ids verified at AI plugin 1.5.0. The plugin's other features and its connector access are unchanged. `inc/ai-ai-dedupe.php`. Test: `tests/ai-ai-dedupe.php`.
+- **The MCP adapter watch says what it waits on.** MCP Adapter 0.7.1 is on WordPress.org, so the port waits on the owner turning MCP Access on, not on a release. The note says so, and the watch stays quiet rather than ripe until that call is made. `inc/watches.php`.
+
 ## [2026.11.13] - 2026-11-06 — Each stored 5xx says when it happened
 
 ### Added
