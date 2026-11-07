@@ -188,6 +188,8 @@ foreach ( array(
 	ok( false !== strpos( $seed( $set[1] ), 'id":2253' ) && false === strpos( $seed( $set[1] ), 'id":1425' ), $set[1] . ': the development card stays, the operations card goes' );
 	ok( 5 === preg_match_all( '#class="sn-catalog-number"#', $seed( $set[1] ), $m ), $set[1] . ': five offerings' );
 }
+ok( false !== strpos( $seed( 'services-hub.html' ), '<em>In the studio</em>' ) && false === strpos( $seed( 'services-hub.html' ), '<em>Panacea' ), 'the hub names no one studio: production can happen anywhere' );
+ok( false !== strpos( $seed( 'services-music.html' ), 'or wherever the record needs' ) && false !== strpos( $seed( 'servicios-musica.html' ), 'o donde el disco lo pida' ), 'neither does the music page make Panacea the only room' );
 ok( false !== strpos( $seed( 'services-music.html' ), 'Mixing, mastering, songwriting and strategy travel over the wire' ), 'the remote line drops AI as briefed' );
 ok( false !== strpos( $seed( 'servicios-musica.html' ), 'Mezcla, masterización, composición y estrategia viajan por cable' ), 'en español también' );
 
