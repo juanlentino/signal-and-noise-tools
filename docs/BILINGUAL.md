@@ -82,18 +82,20 @@ The toggle is the `signal-noise/lang-toggle` block in the theme's header. It ren
 
 ## The services hub
 
-`/services/` is a hub with two doors, and each door is a child Page: `/services/music/` and `/services/consulting/`. `/servicios/` mirrors it with `/servicios/musica/` and `/servicios/consultoria/`. There is no hub code: every page is an ordinary Page, its text is in its own body in the block editor, and **S&N → Content** has no fields for them. `inc/services-hub-migration.php` created them once and never runs again.
+`/services/` is a hub laid out like a record sleeve, Side A and Side B, and each side opens a child Page: `/services/music/` and `/services/consulting/`. `/servicios/` mirrors it with `/servicios/musica/` and `/servicios/consultoria/`. There is no hub code: every page is an ordinary Page, its text is in its own body in the block editor, and **S&N → Content** has no fields for them. `inc/services-hub-migration.php` created them once and never runs again.
 
 - **Template.** All six use the custom template **Services** (`page-services`). On a child this matters: without it, `/services/music/` would pick up `page-music.html` through its slug.
-- **A row.** A door, or a service on the Consulting page, is a Group with the class `sn-door` holding a Heading (`sn-door-label`), a Paragraph (`sn-door-line`) and, on a door, a Paragraph with the link (`sn-door-link`). The styles are in the theme's `assets/css/components-06-catalog-vocabulary.css`.
+- **A side.** A Column with the class `sn-side` inside Columns with the class `sn-sides`. It holds an Image, a Paragraph (`sn-side-key`), a Heading (`sn-side-title`), a Paragraph (`sn-side-line`), a numbered List (`sn-tracks`, italic text in an item is the right-hand note, after a hidden comma for screen readers) and a Paragraph with the link (`sn-side-go`). That one link stretches over the whole side. Its hidden text names the page, so "Play side A" is clear to a screen reader.
+- **The photos.** The Consulting photos are crops of the desk photo, in the theme at `assets/images/services/`. To change one, replace the Image in the page body.
+- **The rows.** "Who it's for" and "How" on Consulting are Groups with the class `sn-door`. The styles for all of this are in the theme's `assets/css/components-06-catalog-vocabulary.css`.
 - **The slug.** `/services/music/` has the slug `music`, the same as `/music/`, so core's `is_page( 'music' )` is true on it. Use `sn_lang_is_page( 'music' )`, which means the top-level page, for any gate on the discography page.
 - **The topic.** The Consulting button links to `/contact/?topic=Consulting`. The form's `intent` field preselects from `?topic=`, and the value must match a choice's value exactly.
 - **Structured data.** `sn_schema_professional_service()` lists the offerings once, on the hubs. The `sn_schema_service_offerings` filter changes the list.
 
-**Adding a third door:**
+**Adding a third side:**
 
 1. Create the Page as a child of `/services/`, with the **Services** template. Create its Spanish page as a child of `/servicios/` and set **Spanish version of** to the English page.
-2. In the block editor on `/services/` and `/servicios/`, duplicate a door and change its heading, line and link. Change the dek, which says "two ways".
+2. In the block editor on `/services/` and `/servicios/`, add a Column to `sn-sides` by duplicating a side, and change its text and link. Three sides need the divider and dek checked: the dek says "two ways", and the playhead sits at the middle.
 3. Add the page to Key pages in the theme's `inc/llms-txt.php`, to `sn_indexing_core_pages()`, and to the offerings in `sn_schema_professional_service()`.
 4. If the slug matches a top-level page, check every `is_page()` gate on that page, as with `music`.
 

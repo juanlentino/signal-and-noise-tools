@@ -117,7 +117,7 @@ ok( 'replaced' === $r['servicios'], 'the other hub still moves' );
 sh_reset( $live );
 $GLOBALS['pages']['services']->post_content .= "\n";
 sn_migrate_services_hub();
-ok( false !== strpos( $GLOBALS['pages']['services']->post_content, 'sn-door' ), 'a trailing newline is not an edit' );
+ok( false !== strpos( $GLOBALS['pages']['services']->post_content, 'sn-sides' ), 'a trailing newline is not an edit' );
 
 echo "\nA door never opens on nothing:\n";
 sh_reset( $live );
@@ -202,6 +202,15 @@ foreach ( array( 'services-hub', 'servicios-hub', 'services-music', 'servicios-m
 }
 foreach ( array( 'services-consulting', 'servicios-consultoria' ) as $name ) {
 	ok( false !== strpos( $seed( "$name.html" ), 'href="/contact/?topic=Consulting"' ), "$name: the call to action preselects the topic" );
+}
+foreach ( array( 'services-hub', 'servicios-hub' ) as $name ) {
+	ok( 2 === substr_count( $seed( "$name.html" ), 'class="wp-block-column sn-side"' ) && 2 === substr_count( $seed( "$name.html" ), '<img ' ), "$name: two sides, each with its photo" );
+	ok( 2 === preg_match_all( '#<a href="/[^"]+">[^<]+<span class="screen-reader-text">: #', $seed( "$name.html" ) ), "$name: each side's link names its page" );
+	ok( false === strpos( $seed( "$name.html" ), 'sn-service-image' ), "$name: the card rules in responsive.css cannot reach the sides" );
+}
+foreach ( array( 'services-consulting', 'servicios-consultoria' ) as $name ) {
+	ok( 3 === substr_count( $seed( "$name.html" ), 'sn-service-crop"><img' ), "$name: three services, three photos" );
+	ok( ! preg_match( '/<img[^>]*alt=""/', $seed( "$name.html" ) ), "$name: every photo has alt text" );
 }
 ok( false !== strpos( $seed( 'services-consulting.html' ), 'resume/?lane=operations' ), 'consulting keeps the hire line' );
 ok( false !== strpos( $seed( 'servicios-consultoria.html' ), 'juanlentino.com/cv/' ), 'and so does its Spanish page' );
