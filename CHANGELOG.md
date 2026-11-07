@@ -13,6 +13,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Changed
+- **The service pages no longer name Panacea as the only room.** The owner can be called to other studios, so the hub's Production note reads "In the studio", Artist & Producer Development gains "In the studio or remote", and the music page says records happen "at Panacea in Buenos Aires or wherever the record needs". The live pages changed through `sn-apply`, and the seed files follow.
+
+### Changed
 - **The services seed pages follow the redesign: Side A and Side B, with photos.** The owner redesigned the hub as a record sleeve and asked for images back, so `/services`, `/services/music/`, `/services/consulting/` and their Spanish pages were rewritten through `sn-apply`, and the six seed files now hold the same text. The migration is spent on the live site, so nothing runs on install. New copy on the hub: Side A, Side B, Play side A, Play side B, and a short line for each side. Eyebrows read "Side A · 05 Offerings" and "Side B · 03 Offerings". How a side is built and how to add a third: `docs/BILINGUAL.md`.
 
 ## [2026.11.14] - 2026-11-07 — Services hub, Music & Production and Consulting
