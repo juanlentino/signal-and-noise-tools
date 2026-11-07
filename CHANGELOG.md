@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Contact form mail can go out from its topic address.** Each form rule sets a From address (consulting@, press@ and so on), but FluentSMTP sends a Gmail connection only as its one sender and rewrites any other From, and it offers extra senders only for Amazon SES and toSend. `inc/mail-topic-senders.php` (new) adds the six topic addresses to its sender mappings, on the default connection, through a filter on `option_fluentmail-settings`. A mapping already stored wins, and nothing changes when there is no default connection. FluentSMTP saves what it reads, so its next write stores these mappings on that connection, and they stay there if another connection later becomes the default, until that connection is deleted. Google still has to list each address under Send mail as. Test: `tests/mail-topic-senders.php` (new).
+
 ### Changed
 - **The service pages no longer name Panacea as the only room.** The owner can be called to other studios, so the hub's Production note reads "In the studio", Artist & Producer Development gains "In the studio or remote", and the music page says records happen "at Panacea in Buenos Aires or wherever the record needs". The live pages changed through `sn-apply`, and the seed files follow.
 
