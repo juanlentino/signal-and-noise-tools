@@ -32,6 +32,7 @@ function delete_option( $k ) { unset( $GLOBALS['opts'][ $k ] ); return true; }
 function add_option( $k, $v = '', $d = '', $a = null ) { if ( isset( $GLOBALS['opts'][ $k ] ) ) { return false; } $GLOBALS['opts'][ $k ] = $v; return true; }
 function current_user_can( $c ) { return $GLOBALS['cap']; }
 function get_current_user_id() { return 1; }
+function wp_json_encode_sh( $v ) { return json_encode( $v ); }
 function get_page_by_path( $p ) { return $GLOBALS['pages'][ $p ] ?? null; }
 function update_post_meta( $id, $k, $v ) { foreach ( $GLOBALS['pages'] as $p ) { if ( $p->ID === $id ) { $p->meta[ $k ] = $v; } } }
 function wp_insert_post( $a, $e = false ) {
@@ -46,7 +47,7 @@ function wp_update_post( $a, $e = false ) {
 	foreach ( $GLOBALS['pages'] as $p ) { if ( $p->ID === $a['ID'] ) { foreach ( $a as $k => $v ) { $p->$k = $v; } } }
 	return $a['ID'];
 }
-function get_post( $id ) { return 2717 === $id ? (object) array( 'ID' => 2717 ) : null; }
+function get_post( $id ) { return 2717 === $id ? (object) array( 'ID' => 2717, 'post_type' => $GLOBALS['form_type'] ?? 'alltfo_form' ) : null; }
 
 require_once __DIR__ . '/../inc/services-hub-migration.php';
 
@@ -84,15 +85,24 @@ ok( $p['servicios/consultoria']->meta[ SN_LANG_PAIR_META ] === $p['services/cons
 ok( ! isset( $p['services/music']->meta[ SN_LANG_PAIR_META ] ), 'an English page carries no pair row' );
 ok( false !== strpos( $p['services']->post_content, 'href="/services/consulting/"' ) && false !== strpos( $p['servicios']->post_content, 'href="/servicios/musica/"' ), 'both hubs open their doors' );
 ok( '' !== $p['services']->meta['_sn_meta_description'] && false === strpos( $p['services']->post_excerpt, 'artist development' ), 'the hub description is replaced' );
-$r = $GLOBALS['opts'][ SN_SERVICES_HUB_OPT ];
-ok( 'replaced' === $r['services'] && 'replaced' === $r['servicios'] && 'created' === $r['services/music'], 'the result is kept in the flag' );
-ok( 'forms plugin not active' === $r['form'], 'no forms plugin is reported, not fatal' );
+ok( false === get_option( SN_SERVICES_HUB_OPT ), 'no forms plugin: the flag waits, so the Consulting button cannot land on a form without its topic' );
 ok( ! isset( $GLOBALS['opts'][ SN_SERVICES_HUB_LOCK ] ), 'the lock is released' );
 
-echo "\nIt runs once:\n";
+if ( true ) { // Declared here, not hoisted: the clean run above has no forms plugin.
+	function alltfo_get_form_schema( $f ) { return $GLOBALS['form']; }
+	function alltfo_save_form_schema( $id, $s ) { $GLOBALS['saved_form'] = array( $id, $s ); return $s; }
+}
+$GLOBALS['form'] = array( 'fields' => array( array( 'id' => 'intent', 'prefill' => '', 'choices' => array( array( 'label' => 'Remote music work', 'value' => 'Music' ) ) ) ) );
+
+echo "\nThe retry finishes, and then it stops:\n";
 $before = $GLOBALS['next'];
 sn_migrate_services_hub();
-ok( $before === $GLOBALS['next'], 'a second run inserts nothing' );
+$r = get_option( SN_SERVICES_HUB_OPT );
+ok( $before === $GLOBALS['next'], 'the retry inserts nothing' );
+ok( 'kept' === $r['services/music'] && 'already' === $r['services'] && 'already' === $r['servicios'] && 'added' === $r['form'], 'it finds the pages done and adds the topic: ' . wp_json_encode_sh( $r ) );
+$GLOBALS['saved_form'] = null;
+sn_migrate_services_hub();
+ok( null === $GLOBALS['saved_form'] && $before === $GLOBALS['next'], 'with the flag set, nothing runs' );
 
 echo "\nNothing is overwritten:\n";
 sh_reset( $live );
@@ -103,6 +113,11 @@ $r = $GLOBALS['opts'][ SN_SERVICES_HUB_OPT ];
 ok( 'edited, left alone' === $r['services'] && false !== strpos( $GLOBALS['pages']['services']->post_content, 'owner edit' ), 'an edited hub is left alone' );
 ok( 'kept' === $r['services/music'] && 'mine' === $GLOBALS['pages']['services/music']->post_content, 'an existing child is kept' );
 ok( 'replaced' === $r['servicios'], 'the other hub still moves' );
+
+sh_reset( $live );
+$GLOBALS['pages']['services']->post_content .= "\n";
+sn_migrate_services_hub();
+ok( false !== strpos( $GLOBALS['pages']['services']->post_content, 'sn-door' ), 'a trailing newline is not an edit' );
 
 echo "\nA door never opens on nothing:\n";
 sh_reset( $live );
@@ -125,6 +140,11 @@ sh_reset( $live );
 $GLOBALS['opts'][ SN_SERVICES_HUB_LOCK ] = time();
 sn_migrate_services_hub();
 ok( ! isset( $GLOBALS['pages']['services/music'] ), 'a fresh lock stops a second writer' );
+ok( isset( $GLOBALS['opts'][ SN_SERVICES_HUB_LOCK ] ), 'and it stays in place' );
+sh_reset( $live );
+$GLOBALS['opts'][ SN_SERVICES_HUB_LOCK ] = time() - 601;
+sn_migrate_services_hub();
+ok( isset( $GLOBALS['pages']['services/music'] ), 'a stale lock is taken over' );
 
 echo "\nThe form topic:\n";
 $schema = array( 'fields' => array(
@@ -142,11 +162,10 @@ ok( $new === sn_services_hub_topic_schema( $new ), 'applying it twice changes no
 $other = array( 'fields' => array( array( 'id' => 'name' ) ) );
 ok( $other === sn_services_hub_topic_schema( $other ), 'a form without the field is left alone' );
 
-if ( true ) { // Declared here, not hoisted: the clean run above has no forms plugin.
-	function alltfo_get_form_schema( $f ) { return $GLOBALS['form']; }
-	function alltfo_save_form_schema( $id, $s ) { $GLOBALS['saved_form'] = array( $id, $s ); return $s; }
-}
 $GLOBALS['form'] = $schema;
+$GLOBALS['form_type'] = 'page';
+ok( 'form not found' === sn_services_hub_add_topic(), 'another post with that id is not the form' );
+unset( $GLOBALS['form_type'] );
 ok( 'added' === sn_services_hub_add_topic() && 2717 === $GLOBALS['saved_form'][0], 'the live form is saved through the plugin' );
 $GLOBALS['form'] = $new; $GLOBALS['saved_form'] = null;
 ok( 'unchanged' === sn_services_hub_add_topic() && null === $GLOBALS['saved_form'], 'and not saved again' );

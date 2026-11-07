@@ -10,8 +10,9 @@
  * Nothing is overwritten: a child that already exists is kept, and a hub is
  * replaced only while its body still hashes to the text captured on
  * 2026-11-06. An edited hub is left alone, and the result is kept in the flag
- * option for reading. Own admin_init hook, because the master sentinel of
- * inc/content-migrations.php is spent on the live site.
+ * option for reading. The flag waits for the contact form too, so a run that
+ * finds the forms plugin inactive tries again. Own admin_init hook, because
+ * the master sentinel of inc/content-migrations.php is spent on the live site.
  *
  * How the hub works and how to add a third door: docs/BILINGUAL.md.
  *
@@ -150,8 +151,8 @@ function sn_services_hub_swap( $path, $target ) {
 	if ( ! $page || '' === $new ) {
 		return 'not ready';
 	}
-	$content = (string) $page->post_content;
-	if ( trim( $content ) === $new ) {
+	$content = trim( (string) $page->post_content ); // Trimmed like the sn-posts content_hash the frozen values came from.
+	if ( $content === $new ) {
 		return 'already';
 	}
 	if ( md5( $content ) !== $target['hash'] ) {
@@ -210,7 +211,7 @@ function sn_services_hub_add_topic() {
 		return 'forms plugin not active';
 	}
 	$form = get_post( SN_SERVICES_HUB_FORM );
-	if ( ! $form ) {
+	if ( ! $form || 'alltfo_form' !== $form->post_type ) {
 		return 'form not found';
 	}
 	$schema = (array) alltfo_get_form_schema( $form );
@@ -223,7 +224,7 @@ function sn_services_hub_add_topic() {
 }
 
 /**
- * The one-shot. Retries on the next admin load while a child cannot be made.
+ * The one-shot. Retries on the next admin load until every step has settled.
  */
 function sn_migrate_services_hub() {
 	if ( get_option( SN_SERVICES_HUB_OPT ) || ! current_user_can( 'manage_options' ) ) {
@@ -232,10 +233,12 @@ function sn_migrate_services_hub() {
 	// A lock first: two admin requests at once must not both insert. A lock
 	// older than ten minutes is a crashed run and is taken over.
 	$lock = (int) get_option( SN_SERVICES_HUB_LOCK, 0 );
-	if ( $lock > time() - 600 ) {
-		return;
+	if ( $lock ) {
+		if ( $lock > time() - 600 ) {
+			return;
+		}
+		delete_option( SN_SERVICES_HUB_LOCK );
 	}
-	delete_option( SN_SERVICES_HUB_LOCK );
 	if ( ! add_option( SN_SERVICES_HUB_LOCK, time(), '', false ) ) {
 		return;
 	}
@@ -248,7 +251,12 @@ function sn_migrate_services_hub() {
 			$report[ $path ] = sn_services_hub_swap( $path, $target );
 		}
 		$report['form'] = sn_services_hub_add_topic();
-		update_option( SN_SERVICES_HUB_OPT, $report, false );
+		// Every step is safe to repeat, so only a settled outcome spends the
+		// flag: the Consulting button must not land on a form without its topic.
+		$settled = array( 'created', 'kept', 'replaced', 'already', 'edited, left alone', 'added', 'unchanged' );
+		if ( ! array_diff( $report, $settled ) ) {
+			update_option( SN_SERVICES_HUB_OPT, $report, false );
+		}
 	}
 	delete_option( SN_SERVICES_HUB_LOCK );
 }
