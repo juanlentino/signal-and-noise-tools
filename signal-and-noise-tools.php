@@ -547,6 +547,7 @@ require_once __DIR__ . '/inc/content-migrations.php'; // spent one-shot seeds be
 require_once __DIR__ . '/inc/home-page-seed.php'; // seeds the front-page Page once (theme 14.3 renders its content)
 require_once __DIR__ . '/inc/split-hero-migration.php'; // v10.36.0: split-hero one-shot (own hook — master sentinel is spent on live)
 require_once __DIR__ . '/inc/services-hub-migration.php'; // the /services split, one time: four child pages, two hubs, the consulting topic
+require_once __DIR__ . '/inc/mail-topic-senders.php'; // the contact form's topic addresses, mapped onto FluentSMTP's Google connection
 require_once __DIR__ . '/inc/tag-consolidation.php';
 require_once __DIR__ . '/inc/tag-consolidation-redirects.php'; // front end too (301 handler)
 require_once __DIR__ . '/inc/tag-consolidation-admin.php';
