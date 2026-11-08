@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.11.16] - 2026-11-08 — Edge readings count the site only; Threats and attack surface read again
+
 ### Fixed
 - **The edge readings count the site only, not other services on the same zone.** The 5xx counts, their times, edge locations and the attack surface now read `juanlentino.com` and `www.juanlentino.com` only (`sn_edge_site_hosts()`, passed as `$hosts` to each sampled query). The zone also carries a Railway app on `app.juanlentino.com`, the analytics and MCP workers, and scanner hits on ports 2096 and 8443, and the stored path drops the host. So the "522s on the home page" of Nov 3 to 6 were scanners on `app.juanlentino.com/`: read live, the site itself had none. Owner rule 2026-11-08: anything that is not the site itself is left out. The exact daily totals (`httpRequests1dGroups`: requests, bandwidth, countries, the zone's daily 5xx line) have no host field and stay whole-zone. Days already stored keep their old rows until they leave the seven-day window. Tests: `tests/edge-analytics.php`, `tests/edge-rollup.php`, `tests/edge-errors-when.php`.
 - **The attack-surface and 5xx-timing readings read again.** Both asked Cloudflare for the client's network (`clientAsn`, `clientASNDescription`), which this zone's plan refuses on `httpRequestsAdaptiveGroups`, and one refused field fails the whole document. So Login doors, Door status codes, Door methods, Attacker countries and Top probed paths were always empty, and no 5xx time was ever stored (the refusal sat in `sn_edge_errors_when_last`). Both queries drop the network, and each was run live against the zone before this change. The Attacker networks card and the login-defense glance's "top network" are removed, since they could only read empty. A stored 5xx time now reads `<minute> <asker> <status> <colo> <path>`.
@@ -20,13 +22,4 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **Remote contract 30: the edge-errors twin says what it counts.** Wording only, no key moves. Its description says the 5xx are the site's own hosts (juanlentino.com and www) and that a `.php` under `/wp-content/themes/` is a scanner probe, like the core library files. `SN_REMOTE_CONTRACT_VERSION` is `30`, its hash is pinned, and `tests/fixtures/remote-output-schemas.json` is regenerated for the Worker, whose own contract 30 ships separately, after this release is installed.
-
-## [2026.11.15] - 2026-11-07 — Contact form mail from its topic address
-
-### Fixed
-- **Contact form mail can go out from its topic address.** Each form rule sets a From address (consulting@, press@ and so on), but FluentSMTP sends a Gmail connection only as its one sender and rewrites any other From, and it offers extra senders only for Amazon SES and toSend. `inc/mail-topic-senders.php` (new) adds the six topic addresses to its sender mappings, on the default connection, through a filter on `option_fluentmail-settings`. A mapping already stored wins, and nothing changes when there is no default connection. FluentSMTP saves what it reads, so its next write stores these mappings on that connection, and they stay there if another connection later becomes the default, until that connection is deleted. Google still has to list each address under Send mail as. Test: `tests/mail-topic-senders.php` (new).
-
-### Changed
-- **The service pages no longer name Panacea as the only room.** The owner can be called to other studios, so the hub's Production note reads "In the studio", Artist & Producer Development gains "In the studio or remote", and the music page says records happen "at Panacea in Buenos Aires or wherever the record needs". The live pages changed through `sn-apply`, and the seed files follow.
-- **The services seed pages follow the redesign: Side A and Side B, with photos.** The owner redesigned the hub as a record sleeve and asked for images back, so `/services`, `/services/music/`, `/services/consulting/` and their Spanish pages were rewritten through `sn-apply`, and the six seed files now hold the same text. The migration is spent on the live site, so nothing runs on install. New copy on the hub: Side A, Side B, Play side A, Play side B, and a short line for each side. Eyebrows read "Side A · 05 Offerings" and "Side B · 03 Offerings". How a side is built and how to add a third: `docs/BILINGUAL.md`.
 
