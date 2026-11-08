@@ -9,7 +9,7 @@
  *   - sn_edge_dims  — (day, dim, value) breakdowns: country (from the daily map),
  *     plus today's sampled colo + threat detail.
  *
- * A daily WP-Cron poll re-pulls the trailing ~13 months of 1dGroups (exact,
+ * A daily WP-Cron poll re-pulls the trailing ~12 months of 1dGroups (exact,
  * idempotent overwrite — the first run back-fills) and a trailing adaptive snapshot
  * (24h by default, clamped to the node's discovered retention) of the two adaptive
  * datasets (Cloudflare's own sampled estimates, taken as reported since 17.9.1). Dormant until the GraphQL
@@ -31,7 +31,10 @@ const SN_EDGE_DAILY_TABLE      = 'sn_edge_daily';
 const SN_EDGE_DIMS_TABLE       = 'sn_edge_dims';
 const SN_EDGE_DB_VERSION       = '1';
 const SN_EDGE_DB_VERSION_OPT   = 'sn_edge_db_version';
-const SN_EDGE_BACKFILL_DAYS    = 395; // ~13 months — inside httpRequests1dGroups retention.
+// 364, not 395: this zone's httpRequests1dGroups refuses a window wider than
+// 52w1d1h (settings maxDuration, read live 2026-11-08), counted from the first
+// day's 00:00 to the query. 395 was refused every day and stored nothing.
+const SN_EDGE_BACKFILL_DAYS    = 364;
 const SN_EDGE_ROLLUP_HOOK      = 'sn_edge_rollup_cron';
 const SN_EDGE_RESAMPLE_HOOK    = 'sn_edge_resample_repair'; // 17.9.1: one-shot.
 const SN_EDGE_HONEST_FROM_OPT  = 'sn_edge_honest_from';      // First day the sampled dims count honestly.

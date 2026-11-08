@@ -159,7 +159,7 @@ sn_edge_dims_upsert( array( array( 'day' => '2026-06-18', 'dim' => 'atk_path', '
 ok( strpos( $GLOBALS['wpdb']->queries[0], "'" . str_repeat( "\u{20ac}", 100 ) . "'" ) !== false, 'dims upsert: a 100-character / 300-byte value is bound whole (#1207)' );
 
 // Large row sets must be CHUNKED, not one INSERT. sn_edge_run_rollup() re-pulls
-// SN_EDGE_BACKFILL_DAYS (395) days of countryMap + adaptive threat/colo/attack dims
+// SN_EDGE_BACKFILL_DAYS (364) days of countryMap + adaptive threat/colo/attack dims
 // EVERY run, so this row set is unbounded. A single INSERT of thousands of rows
 // (5 placeholders each) blows past MySQL's 65,535-placeholder-per-statement hard
 // limit → $wpdb->query() returns false → 0 dims written → and, re-pulled each run,
@@ -267,6 +267,14 @@ ok( strpos( $all_sql, "'2026-06-18', 'colo', 'IAD', 15, 50000" ) !== false, '17.
 ok( strpos( $all_sql, "'2026-06-19', 'threat'" ) === false && strpos( $all_sql, "'2026-06-19', 'colo'" ) === false, 'run: nothing from the snapshot is stored under today (#1203)' );
 // Adaptive window: no retention discovered (null) → the complete previous day.
 ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T00:00:00Z', 'run: adaptive window starts at yesterday 00:00 (today−86400)' );
+// 2026-11-08, read live: this zone's httpRequests1dGroups refuses any window
+// wider than 52w1d1h (settings maxDuration 31,539,600 s), measured from the
+// first day's 00:00 to the moment of the query. 395 days was refused every day,
+// so the exact daily rows (requests, bandwidth, status codes, countries) were
+// never stored. The window plus today's hours must stay under a year.
+$daily_from = (string) edge_from( 'httpRequests1dGroups' );
+$daily_span = ( strtotime( '2026-06-19 00:00:00 UTC' ) + DAY_IN_SECONDS ) - strtotime( $daily_from . ' 00:00:00 UTC' );
+ok( '' !== $daily_from && $daily_span < 31539600, 'run: the daily window, to the end of today, fits the zone\'s 52w1d1h limit (from ' . $daily_from . ')' );
 ok( edge_from( 'httpRequestsAdaptiveGroups', 'to' ) === '2026-06-19T00:00:00Z', 'run: and is BOUNDED at today 00:00 — no overlap with the next run (#1203)' );
 ok( edge_from( 'firewallEventsAdaptive' ) === '2026-06-18T00:00:00Z' && edge_from( 'firewallEventsAdaptive', 'to' ) === '2026-06-19T00:00:00Z', 'run: both adaptive datasets share the one bounded window' );
 ok( strpos( $all_sql, "'2026-06-18', 'atk_door', '/wp-login.php', 25" ) !== false, 'run: atk_door marginal SUMS both rows (15+10=25), each as reported' );
