@@ -31,6 +31,8 @@ function wp_remote_post( $url, $args = array() ) {
 }
 function wp_remote_retrieve_response_code( $r ) { return $r['response']['code'] ?? 0; }
 function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; }
+function home_url( $p = '' ) { return $GLOBALS['__home'] ?? 'https://juanlentino.com'; }
+function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
 
 // sn_cf_get_zone() — the real accessor lives in inc/cloudflare-purge.php,
 // which the plugin loader requires BEFORE this file (signal-and-noise-tools.php
@@ -123,8 +125,20 @@ ok( strpos( $atk, 'probes:httpRequestsAdaptiveGroups' ) !== false, 'attack: prob
 ok( strpos( $atk, 'clientRequestPath_in:["/wp-login.php","/xmlrpc.php"]' ) !== false, 'attack: doors filter the named login paths' );
 ok( strpos( $atk, 'clientRequestPath_notin:["/wp-login.php","/xmlrpc.php"]' ) !== false, 'attack: probes exclude the named doors' );
 ok( strpos( $atk, 'edgeResponseStatus_geq:400' ) !== false && strpos( $atk, 'edgeResponseStatus_leq:499' ) !== false, 'attack: probes are the 4xx scan surface' );
-foreach ( array( 'clientRequestPath', 'clientCountryName', 'clientASNDescription', 'clientAsn', 'edgeResponseStatus', 'clientRequestHTTPMethodName' ) as $d ) {
+foreach ( array( 'clientRequestPath', 'clientCountryName', 'edgeResponseStatus', 'clientRequestHTTPMethodName' ) as $d ) {
 	ok( strpos( $atk, $d ) !== false, "attack: door dimension '$d'" );
+}
+// 2026-11-08, read live: the plan refuses clientAsn and clientASNDescription on
+// this dataset, and one refused field emptied doors AND probes for good.
+ok( stripos( $atk, 'clientasn' ) === false, 'attack: never asks for a network field this plan refuses' );
+// Owner rule 2026-11-08: the sampled readings are the site itself, not the
+// Railway app or the workers on the same zone.
+ok( array( 'juanlentino.com', 'www.juanlentino.com' ) === sn_edge_site_hosts(), 'site hosts: the bare host and its www twin' );
+$GLOBALS['__home'] = 'https://WWW.JuanLentino.com/';
+ok( array( 'juanlentino.com', 'www.juanlentino.com' ) === sn_edge_site_hosts(), 'site hosts: a www or mixed-case home reads the same two' );
+unset( $GLOBALS['__home'] );
+foreach ( array( 'colo' => $colo, 'attack' => $atk, 'errors' => sn_edge_errors_query() ) as $name => $doc ) {
+	ok( strpos( $doc, '$hosts:[string!]!' ) !== false && substr_count( $doc, 'clientRequestHTTPHost_in:$hosts' ) === substr_count( $doc, 'datetime_geq:$from' ), "$name: every selection reads the site's own hosts" );
 }
 ok( strpos( $atk, 'sampleInterval' ) !== false, 'attack: adaptive → sampleInterval present' );
 ok( strpos( $atk, '$from:Time!' ) !== false, 'attack: trailing-window Time variable' );

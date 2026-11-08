@@ -9,6 +9,11 @@
  * They are counted apart as `probes` (still visible, with paths) and left out
  * of `total`.
  *
+ * Theme files too (2026-11-08): WordPress loads a theme's PHP itself and never
+ * routes a request to it, so a direct hit on wp-content/themes/<any>/functions.php
+ * is a scanner (four in the fortnight to 2026-11-08, all on an inactive theme).
+ * Plugin files stay counted: some plugins do serve a PHP file directly.
+ *
  * Deliberately NOT probes: the /wp-admin/*.php screens (edit.php,
  * customize.php). They are routed pages the owner opens, so a 500 there may be
  * a real admin failure; SNT_EDGE_DASHBOARD_PATH_RE files them as dashboard.
@@ -28,7 +33,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * root five are loaded by WordPress itself, never routed (wp-login.php,
  * wp-cron.php, wp-comments-post.php and the like are entry points, not these).
  */
-const SN_EDGE_PROBE_PATH_RE = '#^/((wp-includes|wp-admin/includes)/.*\.php|wp-(settings|load|blog-header|config|config-sample)\.php)$#i';
+const SN_EDGE_PROBE_PATH_RE = '#^/((wp-includes|wp-admin/includes|wp-content/themes)/.*\.php|wp-(settings|load|blog-header|config|config-sample)\.php)$#i';
 
 /**
  * Whether a stored 5xx path is a scanner probe. PURE.

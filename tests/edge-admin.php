@@ -109,7 +109,7 @@ $GLOBALS['__ec_config'] = array( 'token' => 't', 'zone' => 'z' );
 $html = cap( function () { snt_edge_render_view( '2026-06-01', '2026-06-19' ); } );
 ok( strpos( $html, 'Attack-surface pressure' ) !== false, 'attack: section title present' );
 ok( strpos( $html, '/wp-login.php' ) !== false, 'attack: login door listed' );
-ok( strpos( $html, 'DIGITALOCEAN-ASN' ) !== false, 'attack: top attacker network listed' );
+ok( strpos( $html, 'Attacker networks' ) === false && strpos( $html, 'DIGITALOCEAN-ASN' ) === false, 'attack: no attacker-network card: the plan refuses the field, so it could only ever read empty (2026-11-08)' );
 ok( strpos( $html, '/.env' ) !== false, 'attack: top probed path listed' );
 ok( strpos( $html, 'POST' ) !== false, 'attack: method mix listed' );
 // Frame consistency: the section is a full-width sep divider inside the dim grid

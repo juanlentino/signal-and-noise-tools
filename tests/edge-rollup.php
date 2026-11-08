@@ -56,6 +56,7 @@ function sn_edge_errors_query() { return 'ERRORS_QUERY'; }  // #1002: 5xx pressu
 // multiplied by sampleInterval, so this suite asserted the double count.
 function sn_edge_corrected( $row ) { return max( 0, (int) ( $row['count'] ?? 0 ) ); }
 // Discovered adaptive retention (settings-node notOlderThan), seconds or null — drives the window clamp.
+function sn_edge_site_hosts() { return array( 'juanlentino.com', 'www.juanlentino.com' ); }
 function sn_edge_adaptive_retention() { return $GLOBALS['__edge_retention'] ?? null; }
 
 class Edge_Stub_wpdb {
@@ -219,8 +220,8 @@ $GLOBALS['__edge_data']['ERRORS_QUERY'] = array(
 $GLOBALS['__edge_data']['ATTACK_QUERY'] = array(
 	'doors' => array(
 		// two US /wp-login.php rows so the MARGINAL must SUM across rows (15 + 10 = 25; 17.9.1: counts as reported).
-		array( 'count' => 15, 'avg' => array( 'sampleInterval' => 2 ), 'dimensions' => array( 'clientRequestPath' => '/wp-login.php', 'clientCountryName' => 'US', 'clientASNDescription' => 'DIGITALOCEAN-ASN', 'clientAsn' => 14061, 'edgeResponseStatus' => 404, 'clientRequestHTTPMethodName' => 'POST' ) ),
-		array( 'count' => 10, 'avg' => array( 'sampleInterval' => 2 ), 'dimensions' => array( 'clientRequestPath' => '/wp-login.php', 'clientCountryName' => 'US', 'clientASNDescription' => '', 'clientAsn' => 9009, 'edgeResponseStatus' => 404, 'clientRequestHTTPMethodName' => 'GET' ) ),
+		array( 'count' => 15, 'avg' => array( 'sampleInterval' => 2 ), 'dimensions' => array( 'clientRequestPath' => '/wp-login.php', 'clientCountryName' => 'US', 'edgeResponseStatus' => 404, 'clientRequestHTTPMethodName' => 'POST' ) ),
+		array( 'count' => 10, 'avg' => array( 'sampleInterval' => 2 ), 'dimensions' => array( 'clientRequestPath' => '/wp-login.php', 'clientCountryName' => 'US', 'edgeResponseStatus' => 404, 'clientRequestHTTPMethodName' => 'GET' ) ),
 	),
 	'probes' => array(
 		array( 'count' => 7, 'avg' => array( 'sampleInterval' => 3 ), 'dimensions' => array( 'clientRequestPath' => '/.env', 'edgeResponseStatus' => 404 ) ),
@@ -231,7 +232,7 @@ $GLOBALS['__edge_data']['ATTACK_QUERY'] = array(
 $GLOBALS['__edge_data'] = array( 'datetimeMinute' => array(
 	'errors' => array( array( 'count' => 2, 'dimensions' => array(
 		'datetimeMinute' => '2026-06-18T13:47:00Z', 'clientRequestPath' => '/', 'edgeResponseStatus' => 522,
-		'coloCode' => 'MIA', 'clientAsn' => 7922, 'clientASNDescription' => 'COMCAST-7922', 'requestSource' => 'eyeball' ) ) ),
+		'coloCode' => 'MIA', 'requestSource' => 'eyeball' ) ) ),
 ) ) + $GLOBALS['__edge_data'];
 sn_edge_run_rollup( '2026-06-19' );
 
@@ -241,7 +242,7 @@ sn_edge_run_rollup( '2026-06-19' );
 ok( count( $GLOBALS['__edge_calls'] ) === 6, 'run: issues 6 GraphQL queries (daily + firewall + colo + attack + errors + when)' );
 $when_seen = false;
 foreach ( $GLOBALS['wpdb']->queries as $q ) {
-	$when_seen = $when_seen || false !== strpos( (string) ( is_array( $q ) ? json_encode( $q ) : $q ), '2026-06-18T13:47 visitor 522 MIA 7922 / COMCAST-7922' );
+	$when_seen = $when_seen || false !== strpos( (string) ( is_array( $q ) ? json_encode( $q ) : $q ), '2026-06-18T13:47 visitor 522 MIA /' );
 }
 ok( $when_seen, 'run: the when row reaches the dims write' );
 ok( '' === ( get_option( SN_EDGE_ERRORS_WHEN_OPT )['error'] ?? 'unset' ), 'run: the when query\'s outcome is kept' );
@@ -262,8 +263,15 @@ ok( edge_from( 'httpRequestsAdaptiveGroups', 'to' ) === '2026-06-19T00:00:00Z', 
 ok( edge_from( 'firewallEventsAdaptiveGroups' ) === '2026-06-18T00:00:00Z' && edge_from( 'firewallEventsAdaptiveGroups', 'to' ) === '2026-06-19T00:00:00Z', 'run: both adaptive datasets share the one bounded window' );
 ok( strpos( $all_sql, "'2026-06-18', 'atk_door', '/wp-login.php', 25" ) !== false, 'run: atk_door marginal SUMS both rows (15+10=25), each as reported' );
 ok( strpos( $all_sql, "'2026-06-18', 'atk_country', 'US', 25" ) !== false, 'run: atk_country marginal sums across rows (25)' );
-ok( strpos( $all_sql, "'2026-06-18', 'atk_asn', 'DIGITALOCEAN-ASN', 15" ) !== false, 'run: atk_asn uses clientASNDescription' );
-ok( strpos( $all_sql, "'2026-06-18', 'atk_asn', 'AS9009', 10" ) !== false, 'run: atk_asn falls back to AS{clientAsn} when description empty' );
+ok( strpos( $all_sql, "'atk_asn'" ) === false, 'run: no attacker-network row: the plan refuses the field, so none is stored (2026-11-08)' );
+// 2026-11-08: the sampled readings are the site's own hosts. A missing $hosts
+// would fail the document whole ([string!]! is required), so every one must get it.
+$hosts_ok = true;
+foreach ( $GLOBALS['__edge_calls'] as $c ) {
+	$sampled  = in_array( (string) $c['query'], array( 'httpRequestsAdaptiveGroups', 'ATTACK_QUERY', 'ERRORS_QUERY' ), true ) || false !== strpos( (string) $c['query'], 'datetimeMinute' );
+	$hosts_ok = $hosts_ok && ( ! $sampled || array( 'juanlentino.com', 'www.juanlentino.com' ) === ( $c['vars']['hosts'] ?? null ) );
+}
+ok( $hosts_ok, 'run: colo, attack, errors and when each get the site hosts' );
 ok( strpos( $all_sql, "'2026-06-18', 'atk_method', 'POST', 15" ) !== false, 'run: atk_method POST (credential attempts)' );
 ok( strpos( $all_sql, "'2026-06-18', 'atk_status', '404', 25" ) !== false, 'run: atk_status marginal' );
 ok( strpos( $all_sql, "'2026-06-18', 'atk_path', '/.env', 7" ) !== false, 'run: atk_path probe counted as reported (7, not 7×3)' );

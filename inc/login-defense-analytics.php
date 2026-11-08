@@ -267,16 +267,12 @@ function sn_login_defense_render_body() {
 			$total += (int) ( $r['requests'] ?? 0 );
 		}
 		$ctry_e = sn_edge_top_dim( 'atk_country', $from_d, $to_d, 1 );
-		$net_e  = sn_edge_top_dim( 'atk_asn', $from_d, $to_d, 1 );
 		// D5 §2: routes through snt_an_panel_open()/close() — picks up sn-an-postbox.
 		snt_an_panel_open( __( 'Door-knock pressure (CF edge)', 'signal-and-noise-tools' ) );
 		echo '<p>' . esc_html( number_format_i18n( $total ) ) . ' '
 			. esc_html__( 'hits on /wp-login.php + /xmlrpc.php', 'signal-and-noise-tools' );
 		if ( ! empty( $ctry_e[0]['value'] ) ) {
 			echo ' &middot; ' . esc_html__( 'top country', 'signal-and-noise-tools' ) . ' ' . esc_html( (string) $ctry_e[0]['value'] );
-		}
-		if ( ! empty( $net_e[0]['value'] ) ) {
-			echo ' &middot; ' . esc_html__( 'top network', 'signal-and-noise-tools' ) . ' ' . esc_html( (string) $net_e[0]['value'] );
 		}
 		echo '</p>';
 		echo '<p><a href="' . esc_url( snt_analytics_page_url( array( 'sn_view' => 'edge' ) ) ) . '">'
