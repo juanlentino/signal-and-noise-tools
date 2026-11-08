@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.11.16] - 2026-11-08 — Edge readings count the site only; Threats and attack surface read again
+
 ### Fixed
 - **The exact daily edge totals are stored again.** The daily rollup asked `httpRequests1dGroups` for 395 days at once, and this zone refuses a window wider than 52 weeks, 1 day and 1 hour (the dataset's `maxDuration`, read live 2026-11-08). The whole request failed every day, unlogged, so Traffic & edge read Edge requests 0, Bandwidth 0 B, every status code 0 and no countries. `SN_EDGE_BACKFILL_DAYS` is 364, and the first run after install back-fills the year. Test: `tests/edge-rollup.php` (the daily window fits the limit; it failed at 395).
 
@@ -23,13 +25,4 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **Remote contract 30: the edge-errors twin says what it counts.** Wording only, no key moves. Its description says the 5xx are the site's own hosts (juanlentino.com and www) and that a `.php` under `/wp-content/themes/` is a scanner probe, like the core library files. `SN_REMOTE_CONTRACT_VERSION` is `30`, its hash is pinned, and `tests/fixtures/remote-output-schemas.json` is regenerated for the Worker, whose own contract 30 ships separately, after this release is installed.
-
-## [2026.11.15] - 2026-11-07 — Contact form mail from its topic address
-
-### Fixed
-- **Contact form mail can go out from its topic address.** Each form rule sets a From address (consulting@, press@ and so on), but FluentSMTP sends a Gmail connection only as its one sender and rewrites any other From, and it offers extra senders only for Amazon SES and toSend. `inc/mail-topic-senders.php` (new) adds the six topic addresses to its sender mappings, on the default connection, through a filter on `option_fluentmail-settings`. A mapping already stored wins, and nothing changes when there is no default connection. FluentSMTP saves what it reads, so its next write stores these mappings on that connection, and they stay there if another connection later becomes the default, until that connection is deleted. Google still has to list each address under Send mail as. Test: `tests/mail-topic-senders.php` (new).
-
-### Changed
-- **The service pages no longer name Panacea as the only room.** The owner can be called to other studios, so the hub's Production note reads "In the studio", Artist & Producer Development gains "In the studio or remote", and the music page says records happen "at Panacea in Buenos Aires or wherever the record needs". The live pages changed through `sn-apply`, and the seed files follow.
-- **The services seed pages follow the redesign: Side A and Side B, with photos.** The owner redesigned the hub as a record sleeve and asked for images back, so `/services`, `/services/music/`, `/services/consulting/` and their Spanish pages were rewritten through `sn-apply`, and the six seed files now hold the same text. The migration is spent on the live site, so nothing runs on install. New copy on the hub: Side A, Side B, Play side A, Play side B, and a short line for each side. Eyebrows read "Side A · 05 Offerings" and "Side B · 03 Offerings". How a side is built and how to add a third: `docs/BILINGUAL.md`.
 
