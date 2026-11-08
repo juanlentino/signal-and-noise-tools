@@ -260,8 +260,8 @@ ok( strpos( $all_sql, "'2026-06-18', 'country', 'US', 600, 3000000" ) !== false,
 // run time]: a day's threat/colo/atk_*/err_* rows covered ~38h and a week's
 // sn_edge_top_dim() counted most events twice. The window is now the COMPLETE
 // previous day [yesterday 00:00, today 00:00), attributed to yesterday.
-ok( strpos( $all_sql, "'2026-06-18', 'threat', 'block', 5" ) !== false, 'run: raw firewall events summed by action, each row as its sampleInterval (2 + 3), attributed to the day the window covers (yesterday)' );
-ok( strpos( $all_sql, "'2026-06-18', 'threat', 'skip', 1" ) !== false, 'run: a row with no sampleInterval still counts once' );
+ok( strpos( $all_sql, "'2026-06-18', 'threat', 'block', 5, 0)" ) !== false, 'run: raw firewall events summed by action, each row as its sampleInterval (2 + 3), attributed to the day the window covers (yesterday)' );
+ok( strpos( $all_sql, "'2026-06-18', 'threat', 'skip', 1, 0)" ) !== false, 'run: a row with no sampleInterval still counts once' );
 ok( 2 === substr_count( $all_sql, "'threat'" ), 'run: a row with no action, and a malformed row, write nothing' );
 ok( strpos( $all_sql, "'2026-06-18', 'colo', 'IAD', 15, 50000" ) !== false, '17.9.1: colo dims as Cloudflare reports them, requests (15) AND bytes (50000), never multiplied by sampleInterval again' );
 ok( strpos( $all_sql, "'2026-06-19', 'threat'" ) === false && strpos( $all_sql, "'2026-06-19', 'colo'" ) === false, 'run: nothing from the snapshot is stored under today (#1203)' );

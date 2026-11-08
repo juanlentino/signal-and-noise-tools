@@ -169,7 +169,8 @@ function sn_edge_daily_query() {
 
 /**
  * Rows the threats read asks for: the raw dataset's limit.
- * ponytail: one page; a day past 10,000 sampled events reads a floor. Page when it happens.
+ * ponytail: one page; a day past 10,000 sampled events reads a floor (its earliest
+ * events, by orderBy). Page when it happens.
  */
 const SN_EDGE_FIREWALL_LIMIT = 10000;
 
@@ -187,7 +188,7 @@ const SN_EDGE_FIREWALL_LIMIT = 10000;
  */
 function sn_edge_firewall_query() {
 	return 'query($zone:string!,$hosts:[string!]!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'firewallEventsAdaptive(limit:' . SN_EDGE_FIREWALL_LIMIT . ',filter:{clientRequestHTTPHost_in:$hosts,datetime_geq:$from,datetime_lt:$to,action_notin:["skip","allow","log"]}){'
+		. 'firewallEventsAdaptive(limit:' . SN_EDGE_FIREWALL_LIMIT . ',filter:{clientRequestHTTPHost_in:$hosts,datetime_geq:$from,datetime_lt:$to,action_notin:["skip","allow","log"]},orderBy:[datetime_ASC]){'
 		. 'action sampleInterval}}}}';
 }
 
