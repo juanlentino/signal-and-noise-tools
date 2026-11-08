@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The exact daily edge totals are stored again.** The daily rollup asked `httpRequests1dGroups` for 395 days at once, and this zone refuses a window wider than 52 weeks, 1 day and 1 hour (the dataset's `maxDuration`, read live 2026-11-08). The whole request failed every day, unlogged, so Traffic & edge read Edge requests 0, Bandwidth 0 B, every status code 0 and no countries. `SN_EDGE_BACKFILL_DAYS` is 364, and the first run after install back-fills the year. Test: `tests/edge-rollup.php` (the daily window fits the limit; it failed at 395).
+
 ## [2026.11.16] - 2026-11-08 — Edge readings count the site only; Threats and attack surface read again
 
 ### Fixed

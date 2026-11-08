@@ -52,8 +52,8 @@ function sn_edge_run_rollup( $today = null, $adaptive_only = false ) {
 	$dim_rows   = array();
 
 	// 1. Exact daily (httpRequests1dGroups). Skipped by the 17.9.1 repair,
-	// which re-rolls only the sampled snapshots and must not re-pull thirteen
-	// months of exact history once per day it repairs.
+	// which re-rolls only the sampled snapshots and must not re-pull a
+	// year of exact history once per day it repairs.
 	$zone = $adaptive_only ? null : sn_edge_query( sn_edge_daily_query(), array( 'from' => $from_day, 'to' => $today ) );
 	if ( is_array( $zone ) && is_array( $zone['httpRequests1dGroups'] ?? null ) ) {
 		foreach ( $zone['httpRequests1dGroups'] as $g ) {
