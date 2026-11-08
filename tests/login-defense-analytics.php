@@ -152,7 +152,8 @@ sn_login_defense_view_render();
 $g = ob_get_clean();
 ok( strpos( $g, 'Door-knock pressure' ) !== false, 'glance: renders when edge configured' );
 ok( strpos( $g, '8,400' ) !== false || strpos( $g, '8400' ) !== false, 'glance: total door-knock pressure (8400)' );
-ok( strpos( $g, 'CN' ) !== false && strpos( $g, 'DIGITALOCEAN-ASN' ) !== false, 'glance: top country + network' );
+ok( strpos( $g, 'CN' ) !== false, 'glance: top country' );
+ok( strpos( $g, 'top network' ) === false && strpos( $g, 'DIGITALOCEAN-ASN' ) === false, 'glance: no network: the plan refuses the field (2026-11-08)' );
 ok( strpos( $g, 'page=sn-analytics&sn_view=edge' ) !== false, 'glance: links to the Traffic & edge breakdown' );
 // D5 §5: the door-knock postbox routes through snt_an_panel_open() — exact
 // byte-preserved header text, now wrapped in the shared sn-an-postbox chrome.

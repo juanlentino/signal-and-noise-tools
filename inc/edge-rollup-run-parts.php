@@ -101,7 +101,7 @@ function sn_edge_run_rollup( $today = null, $adaptive_only = false ) {
 	}
 
 	// 3. Per-colo (httpRequestsAdaptiveGroups) — sampled, previous-day snapshot → yesterday.
-	$zone = sn_edge_query( sn_edge_colo_query(), array( 'from' => $since, 'to' => $until ) );
+	$zone = sn_edge_query( sn_edge_colo_query(), array( 'from' => $since, 'to' => $until, 'hosts' => sn_edge_site_hosts() ) );
 	if ( is_array( $zone ) && is_array( $zone['httpRequestsAdaptiveGroups'] ?? null ) ) {
 		foreach ( $zone['httpRequestsAdaptiveGroups'] as $g ) {
 			$colo = (string) ( $g['dimensions']['coloCode'] ?? '' );
@@ -114,22 +114,16 @@ function sn_edge_run_rollup( $today = null, $adaptive_only = false ) {
 	}
 
 	// 4. Attack-surface pressure (httpRequestsAdaptiveGroups, aliased doors+probes) —
-	// sampled, previous-day snapshot → yesterday. Marginalize the 5-dim door rows into atk_* keys.
-	$zone = sn_edge_query( sn_edge_attack_query(), array( 'from' => $since, 'to' => $until ) );
+	// sampled, previous-day snapshot → yesterday. Marginalize the 4-dim door rows into atk_* keys.
+	$zone = sn_edge_query( sn_edge_attack_query(), array( 'from' => $since, 'to' => $until, 'hosts' => sn_edge_site_hosts() ) );
 	if ( is_array( $zone ) ) {
 		$marg = array(); // dim => value => corrected sum
 		foreach ( (array) ( $zone['doors'] ?? array() ) as $g ) {
 			$req = sn_edge_corrected( $g );
 			$d   = is_array( $g['dimensions'] ?? null ) ? $g['dimensions'] : array();
-			$asn = (string) ( $d['clientASNDescription'] ?? '' );
-			if ( '' === $asn ) {
-				$an  = (string) ( $d['clientAsn'] ?? '' );
-				$asn = '' !== $an ? 'AS' . $an : '';
-			}
 			$pairs = array(
 				'atk_door'    => (string) ( $d['clientRequestPath'] ?? '' ),
 				'atk_country' => (string) ( $d['clientCountryName'] ?? '' ),
-				'atk_asn'     => $asn,
 				'atk_status'  => (string) ( $d['edgeResponseStatus'] ?? '' ),
 				'atk_method'  => (string) ( $d['clientRequestHTTPMethodName'] ?? '' ),
 			);
@@ -168,7 +162,7 @@ function sn_edge_run_rollup( $today = null, $adaptive_only = false ) {
 	// 17.9.3: a refused errors query used to leave the day silently empty;
 	// its reason is kept, so the readers can say "not read" instead of "none".
 	$err_q = '';
-	$errz  = sn_edge_query( sn_edge_errors_query(), array( 'from' => $since, 'to' => $until ), $err_q );
+	$errz  = sn_edge_query( sn_edge_errors_query(), array( 'from' => $since, 'to' => $until, 'hosts' => sn_edge_site_hosts() ), $err_q );
 	update_option( SN_EDGE_ERRORS_QUERY_OPT, array( 'at' => time(), 'day' => $snap, 'error' => (string) $err_q ), false );
 	sn_edge_errors_mark_read( $snap, (string) $err_q );
 	if ( is_array( $errz ) ) {
@@ -182,7 +176,7 @@ function sn_edge_run_rollup( $today = null, $adaptive_only = false ) {
 	// 6. When each 5xx happened (inc/edge-error-when.php). After the counts and
 	// apart from them: a refusal here costs the times, never the totals.
 	$when_q    = '';
-	$whenz     = sn_edge_query( sn_edge_errors_when_query(), array( 'from' => $since, 'to' => $until ), $when_q );
+	$whenz     = sn_edge_query( sn_edge_errors_when_query(), array( 'from' => $since, 'to' => $until, 'hosts' => sn_edge_site_hosts() ), $when_q );
 	$when_rows = is_array( $whenz ) ? (array) ( $whenz['errors'] ?? array() ) : array();
 	update_option( SN_EDGE_ERRORS_WHEN_OPT, array( 'at' => time(), 'day' => $snap, 'error' => (string) $when_q, 'capped' => SN_EDGE_ERRORS_WHEN_LIMIT <= count( $when_rows ) ), false );
 	$dim_rows = array_merge( $dim_rows, sn_edge_errors_when_rows( $when_rows ) );

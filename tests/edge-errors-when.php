@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests: each stored 5xx says when it happened and from which network.
+ * Tests: each stored 5xx says when it happened.
  *
  * Born from 2026-11-05: six 522s on the home page, and the daily counts could
  * not say when. Without a minute there is nothing to hold up against the
@@ -31,18 +31,21 @@ $GLOBALS['wpdb'] = new class {
 
 require __DIR__ . '/../inc/edge-error-when.php';
 
-$g = static function ( $minute, $path, $edge = 522, $colo = 'MIA', $asn = 7922, $name = 'COMCAST-7922', $src = 'eyeball', $count = 1 ) {
+$g = static function ( $minute, $path, $edge = 522, $colo = 'MIA', $src = 'eyeball', $count = 1 ) {
 	return array( 'count' => $count, 'dimensions' => array(
 		'datetimeMinute' => $minute, 'clientRequestPath' => $path, 'edgeResponseStatus' => $edge,
-		'coloCode' => $colo, 'clientAsn' => $asn, 'clientASNDescription' => $name, 'requestSource' => $src,
+		'coloCode' => $colo, 'requestSource' => $src,
 	) );
 };
 
 echo "The query\n";
 $q = sn_edge_errors_when_query();
-foreach ( array( 'datetimeMinute', 'coloCode', 'clientAsn', 'clientASNDescription', 'clientRequestPath', 'edgeResponseStatus', 'requestSource' ) as $d ) {
+foreach ( array( 'datetimeMinute', 'coloCode', 'clientRequestPath', 'edgeResponseStatus', 'requestSource' ) as $d ) {
 	ok( false !== strpos( $q, $d ), "asks for $d" );
 }
+// 2026-11-08: the zone's plan refuses both, and one refused field fails the whole document.
+ok( false === stripos( $q, 'clientasn' ), 'never asks for a network field this plan refuses' );
+ok( false !== strpos( $q, '$hosts:[string!]!' ) && false !== strpos( $q, 'clientRequestHTTPHost_in:$hosts' ), "reads the site's own hosts only (app.juanlentino.com is not the site)" );
 ok( false !== strpos( $q, 'edgeResponseStatus_geq:500' ), 'reads 5xx only' );
 ok( false !== strpos( $q, 'requestSource_neq:"earlyHintsCache"' ) && false !== strpos( $q, 'requestSource_neq:"edgeWorkerCacheAPI"' ), 'leaves out the same non-errors the counts leave out' );
 ok( false !== strpos( $q, 'datetime_geq:$from' ) && false !== strpos( $q, 'datetime_lt:$to' ), 'bounded on both ends, so a day cannot overlap the next' );
@@ -54,21 +57,21 @@ $rows = sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '/' ) ) );
 ok( 1 === count( $rows ), 'one group, one row' );
 ok( '2026-11-05' === $rows[0]['day'], 'filed under the day it happened' );
 ok( 'err_when' === $rows[0]['dim'] && strlen( 'err_when' ) <= 16, 'a dim that fits the column' );
-ok( '2026-11-05T13:47 visitor 522 MIA 7922 / COMCAST-7922' === $rows[0]['value'], 'the value reads minute, asker, status, colo, network, path, name' );
+ok( '2026-11-05T13:47 visitor 522 MIA /' === $rows[0]['value'], 'the value reads minute, asker, status, colo, path' );
 ok( 1 === $rows[0]['requests'] && 0 === $rows[0]['bytes'], 'counts the request, no bytes' );
 
-$rows = sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '/', 503, 'EWR', 0, '', 'edgeWorkerFetch', 2 ) ) );
-ok( '2026-11-05T13:47 worker 503 EWR 0 /' === $rows[0]['value'], 'a Worker is a worker, and no network name leaves no trailing space' );
+$rows = sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '/', 503, 'EWR', 'edgeWorkerFetch', 2 ) ) );
+ok( '2026-11-05T13:47 worker 503 EWR /' === $rows[0]['value'], 'a Worker is a worker' );
 ok( 2 === $rows[0]['requests'], 'the count is carried' );
 
-$rows = sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '/' . str_repeat( 'a', 400 ), 522, 'MIA', 7922, str_repeat( 'n', 300 ) ) ) );
-ok( strlen( $rows[0]['value'] ) <= 160, 'a long path and name stay inside the 160-character column' );
-ok( 1 === preg_match( '/^2026-11-05T13:47 visitor 522 MIA 7922 \/a+ n+$/', $rows[0]['value'] ), 'and both survive, cut rather than dropped' );
+$rows = sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '/' . str_repeat( 'a', 400 ) ) ) );
+ok( strlen( $rows[0]['value'] ) <= 160, 'a long path stays inside the 160-character column' );
+ok( 1 === preg_match( '/^2026-11-05T13:47 visitor 522 MIA \/a+$/', $rows[0]['value'] ), 'and survives, cut rather than dropped' );
 
-$mb = sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '/', 522, 'MIA', 9121, 'a' . str_repeat( 'ü', 40 ) ) ) );
-ok( 1 === preg_match( '//u', $mb[0]['value'] ), 'a non-ASCII network name cut at the limit is still valid UTF-8' );
+$mb = sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '/' . str_repeat( 'ü', 200 ) ) ) );
+ok( 1 === preg_match( '//u', $mb[0]['value'] ), 'a non-ASCII path cut at the limit is still valid UTF-8' );
 $sp = sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '/a b' ) ) );
-ok( '2026-11-05T13:47 visitor 522 MIA 7922 /a%20b COMCAST-7922' === $sp[0]['value'], 'a space in a path cannot split the fields' );
+ok( '2026-11-05T13:47 visitor 522 MIA /a%20b' === $sp[0]['value'], 'a space in a path cannot split the fields' );
 
 ok( array() === sn_edge_errors_when_rows( array( $g( '', '/' ) ) ), 'no minute, no row: a time we do not have is not invented' );
 ok( array() === sn_edge_errors_when_rows( array( $g( '2026-11-05T13:47:00Z', '' ) ) ), 'no path, no row' );
@@ -80,8 +83,8 @@ ok( 1 === count( $dup ) && 2 === $dup[0]['requests'], 'two groups that cut to on
 
 echo "Reading it back\n";
 $GLOBALS['__rows'] = array(
-	array( 'value' => '2026-11-05T13:47 visitor 522 IAD 14061 /notes/ DIGITALOCEAN', 'requests' => 2 ),
-	array( 'value' => '2026-11-04T01:02 visitor 522 MIA 7922 / COMCAST-7922', 'requests' => 1 ),
+	array( 'value' => '2026-11-05T13:47 visitor 522 IAD /notes/', 'requests' => 2 ),
+	array( 'value' => '2026-11-04T01:02 visitor 522 MIA /', 'requests' => 1 ),
 	array( 'value' => 'not a when row', 'requests' => 9 ),
 );
 $read = sn_edge_errors_when_reading( '2026-10-31', '2026-11-06' );
@@ -91,7 +94,7 @@ ok( false === strpos( $GLOBALS['__sql'], 'ORDER BY requests' ), 'never ordered b
 ok( false === $read['more'], 'under the limit, nothing older is hidden' );
 ok( 2 === count( $read['rows'] ), 'an unreadable row is dropped, not shown as garbage' );
 ok( '2026-11-05T13:47' === $read['rows'][0]['at'], 'in the order the database gave' );
-ok( array( 'at' => '2026-11-05T13:47', 'asker' => 'visitor', 'edge' => 522, 'colo' => 'IAD', 'asn' => 14061, 'path' => '/notes/', 'network' => 'DIGITALOCEAN', 'requests' => 2 ) === $read['rows'][0], 'each field comes back typed' );
+ok( array( 'at' => '2026-11-05T13:47', 'asker' => 'visitor', 'edge' => 522, 'colo' => 'IAD', 'path' => '/notes/', 'requests' => 2 ) === $read['rows'][0], 'each field comes back typed' );
 ok( null === $read['query'], 'before the first run the outcome is null, not a clean read' );
 $saved             = $GLOBALS['__rows'];
 $GLOBALS['__rows'] = array_fill( 0, SN_EDGE_ERRORS_WHEN_LIMIT, $saved[1] );

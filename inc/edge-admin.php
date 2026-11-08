@@ -122,7 +122,6 @@ function snt_edge_render_view( $from, $to ) {
 	snt_edge_render_dim( __( 'Door status codes', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_status', $from, $to, 10 ), 'No door status data yet.', false );
 	snt_edge_render_dim( __( 'Door methods', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_method', $from, $to, 10 ), 'No door method data yet.', false );
 	snt_edge_render_dim( __( 'Attacker countries', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_country', $from, $to, 10 ), 'No attacker-country data yet.', false );
-	snt_edge_render_dim( __( 'Attacker networks', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_asn', $from, $to, 10 ), 'No attacker-network data yet.', false );
 	snt_edge_render_dim( __( 'Top probed paths (4xx)', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_path', $from, $to, 25 ), 'No probe scans recorded yet.', false );
 	echo '</div>';
 	snt_an_flush_empty_fold();

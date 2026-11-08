@@ -1,11 +1,17 @@
 <?php
 /**
- * Signal & Noise Tools: when each 5xx happened, and from which network.
+ * Signal & Noise Tools: when each 5xx happened.
  *
  * The daily rollup keeps how many and on which path, so on 2026-11-05 six 522s
- * on the home page could not be held up against the origin's firewall: there
- * was no time to look for. Each error group now also keeps its minute (UTC),
- * its Cloudflare colo and the client's network. No IP address is stored.
+ * "on the home page" could not be held up against anything: there was no time
+ * to look for. Each error group now also keeps its minute (UTC) and its
+ * Cloudflare colo. No IP address is stored.
+ *
+ * 2026-11-08: no network. The zone's plan refuses clientAsn and
+ * clientASNDescription on this dataset, so every run since the first failed
+ * whole and stored nothing (its reason sat in sn_edge_errors_when_last). Read
+ * live, those 522s were app.juanlentino.com, a Railway app on the same zone;
+ * the query now reads the site's own hosts only (sn_edge_site_hosts()).
  *
  * ITS OWN QUERY, for the reason sn_edge_errors_query() is apart from the attack
  * query: GraphQL fails a whole document on one unknown field, and the counts
@@ -26,23 +32,23 @@ const SN_EDGE_ERRORS_WHEN_OPT   = 'sn_edge_errors_when_last'; // The query's las
 const SN_EDGE_ERRORS_WHEN_LIMIT = 100; // Groups per day; 5xx are rare here (26 on 2026-11-02, the worst of that week).
 
 /**
- * The 5xx of a window, one group per minute, status, colo, network and path.
+ * The 5xx of a window, one group per minute, status, colo and path.
  *
  * @return string GraphQL document.
  */
 function sn_edge_errors_when_query() {
-	return 'query($zone:string!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'errors:httpRequestsAdaptiveGroups(limit:' . SN_EDGE_ERRORS_WHEN_LIMIT . ',filter:{datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:500,AND:[{requestSource_neq:"earlyHintsCache"},{requestSource_neq:"edgeWorkerCacheAPI"}]},orderBy:[datetimeMinute_ASC]){'
+	return 'query($zone:string!,$hosts:[string!]!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'errors:httpRequestsAdaptiveGroups(limit:' . SN_EDGE_ERRORS_WHEN_LIMIT . ',filter:{clientRequestHTTPHost_in:$hosts,datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:500,AND:[{requestSource_neq:"earlyHintsCache"},{requestSource_neq:"edgeWorkerCacheAPI"}]},orderBy:[datetimeMinute_ASC]){'
 		. 'count avg{sampleInterval}'
-		. 'dimensions{datetimeMinute clientRequestPath edgeResponseStatus coloCode clientAsn clientASNDescription requestSource}}'
+		. 'dimensions{datetimeMinute clientRequestPath edgeResponseStatus coloCode requestSource}}'
 		. '}}}';
 }
 
 /**
  * Map the groups onto err_when rows, each filed under the day it happened. PURE.
  *
- * Value: "<minute> <asker> <edge> <colo> <asn> <path> <network>", cut to the
- * column's 160 by shortening the path and the network, never the prefix.
+ * Value: "<minute> <asker> <edge> <colo> <path>", cut to the column's 160 by
+ * shortening the path, never the prefix.
  *
  * @param array $rows GraphQL `errors` groups.
  * @return array<int,array{day:string,dim:string,value:string,requests:int,bytes:int}>
@@ -59,15 +65,11 @@ function sn_edge_errors_when_rows( array $rows ) {
 		$from = (string) ( $d['requestSource'] ?? '' );
 		$ask  = 'eyeball' === $from ? 'visitor' : ( 0 === strpos( $from, 'edgeWorker' ) ? 'worker' : ( '' === $from ? 'unrecorded' : 'other' ) );
 		$colo = (string) ( $d['coloCode'] ?? '' );
-		$name = str_replace( ' ', '-', (string) ( $d['clientASNDescription'] ?? '' ) );
 		$path = str_replace( ' ', '%20', $path ); // The reader splits on spaces.
-		$head = substr( $minute, 0, 16 ) . ' ' . $ask . ' ' . (int) ( $d['edgeResponseStatus'] ?? 0 ) . ' ' . ( '' !== $colo ? $colo : '-' ) . ' ' . (int) ( $d['clientAsn'] ?? 0 ) . ' ';
-		// mb_strcut, not substr: a registry name can be non-ASCII, and half a
-		// character is invalid UTF-8 in a bound parameter.
-		$name = mb_strcut( $name, 0, 32, 'UTF-8' );
-		$path = mb_strcut( $path, 0, 160 - strlen( $head ) - ( '' !== $name ? strlen( $name ) + 1 : 0 ), 'UTF-8' );
-		$val  = $head . $path . ( '' !== $name ? ' ' . $name : '' );
-		$req  = function_exists( 'sn_edge_corrected' ) ? sn_edge_corrected( $g ) : (int) ( $g['count'] ?? 0 );
+		$head = substr( $minute, 0, 16 ) . ' ' . $ask . ' ' . (int) ( $d['edgeResponseStatus'] ?? 0 ) . ' ' . ( '' !== $colo ? $colo : '-' ) . ' ';
+		// mb_strcut, not substr: half a character is invalid UTF-8 in a bound parameter.
+		$val = $head . mb_strcut( $path, 0, 160 - strlen( $head ), 'UTF-8' );
+		$req = function_exists( 'sn_edge_corrected' ) ? sn_edge_corrected( $g ) : (int) ( $g['count'] ?? 0 );
 		if ( isset( $out[ $val ] ) ) {
 			$out[ $val ]['requests'] += $req;
 			continue;
@@ -107,8 +109,8 @@ function sn_edge_errors_when_reading( $from, $to ) {
 	// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	$rows = array();
 	foreach ( $found as $r ) {
-		if ( 1 === preg_match( '/^(\S+) (\S+) (\d+) (\S+) (\d+) (\S+) ?(.*)$/', (string) ( $r['value'] ?? '' ), $m ) ) {
-			$rows[] = array( 'at' => $m[1], 'asker' => $m[2], 'edge' => (int) $m[3], 'colo' => $m[4], 'asn' => (int) $m[5], 'path' => $m[6], 'network' => $m[7], 'requests' => (int) ( $r['requests'] ?? 0 ) );
+		if ( 1 === preg_match( '/^(\S+) (\S+) (\d+) (\S+) (\S+)$/', (string) ( $r['value'] ?? '' ), $m ) ) {
+			$rows[] = array( 'at' => $m[1], 'asker' => $m[2], 'edge' => (int) $m[3], 'colo' => $m[4], 'path' => $m[5], 'requests' => (int) ( $r['requests'] ?? 0 ) );
 		}
 	}
 	$query = get_option( SN_EDGE_ERRORS_WHEN_OPT, null );

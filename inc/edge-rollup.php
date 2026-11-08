@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/edge-error-labels.php'; // The 5xx responder rows in words (short labels and their legend).
-require_once __DIR__ . '/edge-error-when.php'; // When each 5xx happened and from which network (its own query; local door only).
+require_once __DIR__ . '/edge-error-when.php'; // When each 5xx happened (its own query; local door only).
 require_once __DIR__ . '/edge-error-probes.php'; // Scanner probes on core library files, counted apart from the 5xx total.
 
 const SN_EDGE_DAILY_TABLE      = 'sn_edge_daily';

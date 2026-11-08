@@ -72,6 +72,25 @@ function sn_edge_config() {
 }
 
 /**
+ * The site's own hostnames, for the `$hosts` filter of the sampled readings.
+ *
+ * The zone also carries other services (on 2026-11-08: a Railway app on app.,
+ * the analytics and MCP workers, scanner hits on ports 2096 and 8443), and the
+ * stored path drops the host, so an app.juanlentino.com/ 522 read as the home
+ * page failing. Owner rule 2026-11-08: anything that is not the site itself is
+ * left out. A host with a port (juanlentino.com:2096) is a different value and
+ * stays out too. The exact daily totals (httpRequests1dGroups) have no host
+ * field and stay whole-zone.
+ *
+ * @return string[] Bare host and its www twin.
+ */
+function sn_edge_site_hosts() {
+	$host = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+	$host = 0 === strpos( $host, 'www.' ) ? substr( $host, 4 ) : $host;
+	return array( $host, 'www.' . $host );
+}
+
+/**
  * POST a GraphQL query to the zone-scoped Analytics API and return the single
  * zone's dataset object (data.viewer.zones[0]), or null on any failure: no config
  * (no network call), transport error, non-200, a GraphQL 200-with-errors[] soft
@@ -173,8 +192,8 @@ function sn_edge_firewall_query() {
  * @return string GraphQL document.
  */
 function sn_edge_colo_query() {
-	return 'query($zone:string!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'httpRequestsAdaptiveGroups(limit:200,filter:{datetime_geq:$from,datetime_lt:$to},orderBy:[count_DESC]){'
+	return 'query($zone:string!,$hosts:[string!]!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'httpRequestsAdaptiveGroups(limit:200,filter:{clientRequestHTTPHost_in:$hosts,datetime_geq:$from,datetime_lt:$to},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}sum{edgeResponseBytes}'
 		. 'dimensions{coloCode}}}}}';
 }
@@ -182,17 +201,22 @@ function sn_edge_colo_query() {
 /**
  * Attack-surface pressure (httpRequestsAdaptiveGroups, two aliased selections in one
  * document) over the trailing window. `doors` = the named login doors broken down by
- * country / ASN / status / method; `probes` = the top 4xx non-content paths (the
+ * country / status / method; `probes` = the top 4xx non-content paths (the
  * generic scan surface). Adaptive → SAMPLED: callers sn_edge_corrected() each row.
+ *
+ * ponytail: no network (clientAsn, clientASNDescription). This zone's plan
+ * refuses both on httpRequestsAdaptiveGroups, and GraphQL fails the whole
+ * document on one refused field, so asking for them kept doors AND probes empty
+ * (read live 2026-11-08). Add them back if the plan changes.
  *
  * @return string GraphQL document.
  */
 function sn_edge_attack_query() {
-	return 'query($zone:string!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'doors:httpRequestsAdaptiveGroups(limit:500,filter:{datetime_geq:$from,datetime_lt:$to,clientRequestPath_in:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
+	return 'query($zone:string!,$hosts:[string!]!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'doors:httpRequestsAdaptiveGroups(limit:500,filter:{clientRequestHTTPHost_in:$hosts,datetime_geq:$from,datetime_lt:$to,clientRequestPath_in:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}'
-		. 'dimensions{clientRequestPath clientCountryName clientASNDescription clientAsn edgeResponseStatus clientRequestHTTPMethodName}}'
-		. 'probes:httpRequestsAdaptiveGroups(limit:25,filter:{datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:400,edgeResponseStatus_leq:499,clientRequestPath_notin:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
+		. 'dimensions{clientRequestPath clientCountryName edgeResponseStatus clientRequestHTTPMethodName}}'
+		. 'probes:httpRequestsAdaptiveGroups(limit:25,filter:{clientRequestHTTPHost_in:$hosts,datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:400,edgeResponseStatus_leq:499,clientRequestPath_notin:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}'
 		. 'dimensions{clientRequestPath edgeResponseStatus}}'
 		. '}}}';
@@ -228,7 +252,7 @@ function sn_edge_attack_query() {
  * @return string GraphQL document.
  */
 function sn_edge_errors_query() {
-	return 'query($zone:string!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
+	return 'query($zone:string!,$hosts:[string!]!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
 		// 17.9.3: requestSource earlyHintsCache is Cloudflare's own lookup for a
 		// cached 103 Early Hints; a miss is logged as a 504 that never reaches
 		// the origin and no visitor sees. It was ~98% of every stored 5xx
@@ -239,7 +263,7 @@ function sn_edge_errors_query() {
 		// miss though no request left the edge. On 2026-09-23 it was 31 of the
 		// 93 "worker" 5xx, all the rights-signals worker's crawler-verdict
 		// lookup. Both are excluded with AND over the neq already proven here.
-		. 'errors:httpRequestsAdaptiveGroups(limit:50,filter:{datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:500,AND:[{requestSource_neq:"earlyHintsCache"},{requestSource_neq:"edgeWorkerCacheAPI"}]},orderBy:[count_DESC]){'
+		. 'errors:httpRequestsAdaptiveGroups(limit:50,filter:{clientRequestHTTPHost_in:$hosts,datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:500,AND:[{requestSource_neq:"earlyHintsCache"},{requestSource_neq:"edgeWorkerCacheAPI"}]},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}'
 		. 'dimensions{clientRequestPath edgeResponseStatus originResponseStatus cacheStatus requestSource}}'
 		. '}}}';
