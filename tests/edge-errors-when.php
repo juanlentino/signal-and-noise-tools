@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests: each stored 5xx says when it happened and from which network.
+ * Tests: each stored 5xx says when it happened.
  *
  * Born from 2026-11-05: six 522s on the home page, and the daily counts could
  * not say when. Without a minute there is nothing to hold up against the

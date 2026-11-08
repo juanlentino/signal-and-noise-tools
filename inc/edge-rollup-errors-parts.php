@@ -81,7 +81,7 @@ function sn_edge_errors_range( $from, $to ) {
 		// Each day's top paths with who asked; local readers only (the
 		// remote twin copies named keys, so this never reaches it).
 		'paths_by_day' => sn_edge_errors_paths_by_day( $from, $to ),
-		// Each error's minute, colo and network; local readers only, as above.
+		// Each error's minute and colo; local readers only, as above.
 		'when'         => function_exists( 'sn_edge_errors_when_reading' ) ? sn_edge_errors_when_reading( $from, $to ) : null,
 	);
 }
