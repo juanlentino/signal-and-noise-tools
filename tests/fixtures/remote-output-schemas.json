@@ -1,6 +1,6 @@
 {
-    "contract_version": "29",
-    "shape_hash": "baabfb2a3a21b1eef058da9fbc7320355e733a8d8a5bdf52162e204a00487c57",
+    "contract_version": "30",
+    "shape_hash": "a6c6d8c6b1325c443cee8ad1b00092d9305460e157bd959ac284bd8c3d5c5129",
     "tools": {
         "signal-noise/remote-analytics-fields": {
             "wrap": false,
@@ -550,7 +550,7 @@
                                 }
                             }
                         },
-                        "description": "2026-10-19: 5xx on direct requests to core library files (a .php under /wp-includes/ or /wp-admin/includes/), which fatal when opened on their own and which WordPress never routes a request to: scanners, not the site failing. Counted and named (top 10) here, left out of total and paths. The /wp-admin/*.php screens (edit.php, customize.php) are NOT probes and stay in total. Same rows as total, so a window that was not read has 0 probes for the same reason it has 0 total."
+                        "description": "2026-10-19: 5xx on direct requests to core library files (a .php under /wp-includes/ or /wp-admin/includes/; since 2026-11-08 also any .php under /wp-content/themes/), which fatal when opened on their own and which WordPress never routes a request to: scanners, not the site failing. Counted and named (top 10) here, left out of total and paths. The /wp-admin/*.php screens (edit.php, customize.php) are NOT probes and stay in total. Same rows as total, so a window that was not read has 0 probes for the same reason it has 0 total."
                     },
                     "paths": {
                         "type": "array",
@@ -623,7 +623,7 @@
                                 },
                                 "probes": {
                                     "type": "integer",
-                                    "description": "2026-10-19: the day's scanner probes on core library files, out of total. Read with `read`: on a failed or pending day a 0 here is not read either. The who-asked counts still include them: visitor + worker + other + unrecorded = total + probes."
+                                    "description": "2026-10-19: the day's scanner probes on core library and theme files, out of total. Read with `read`: on a failed or pending day a 0 here is not read either. The who-asked counts still include them: visitor + worker + other + unrecorded = total + probes."
                                 },
                                 "read": {
                                     "type": "string",

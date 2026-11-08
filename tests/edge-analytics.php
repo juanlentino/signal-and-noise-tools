@@ -109,7 +109,9 @@ foreach ( array( 'requests', 'cachedRequests', 'bytes', 'cachedBytes', 'threats'
 ok( strpos( $daily, 'limit:' ) !== false, 'daily: includes a limit (always required)' );
 
 $fw = sn_edge_firewall_query();
-ok( strpos( $fw, 'firewallEventsAdaptiveGroups' ) !== false, 'firewall: uses firewallEventsAdaptiveGroups' );
+ok( strpos( $fw, 'firewallEventsAdaptive(' ) !== false && strpos( $fw, 'firewallEventsAdaptiveGroups' ) === false, 'firewall: the raw dataset, not the grouped one this plan refuses (2026-11-08)' );
+ok( strpos( $fw, 'limit:' . SN_EDGE_FIREWALL_LIMIT ) !== false && strpos( $fw, 'action' ) !== false, 'firewall: one page of raw events with their action' );
+ok( strpos( $fw, 'action_notin:["skip","allow","log"]' ) !== false, 'firewall: a skip, allow or log is not a threat (the static-asset skip rule was 61% of a day)' );
 ok( strpos( $fw, 'datetime_geq' ) !== false, 'firewall: datetime-type filter (adaptive)' );
 ok( strpos( $fw, 'sampleInterval' ) !== false, 'firewall: REQUESTS sampleInterval (adaptive → must sampling-correct)' );
 
@@ -137,7 +139,7 @@ ok( array( 'juanlentino.com', 'www.juanlentino.com' ) === sn_edge_site_hosts(), 
 $GLOBALS['__home'] = 'https://WWW.JuanLentino.com/';
 ok( array( 'juanlentino.com', 'www.juanlentino.com' ) === sn_edge_site_hosts(), 'site hosts: a www or mixed-case home reads the same two' );
 unset( $GLOBALS['__home'] );
-foreach ( array( 'colo' => $colo, 'attack' => $atk, 'errors' => sn_edge_errors_query() ) as $name => $doc ) {
+foreach ( array( 'firewall' => $fw, 'colo' => $colo, 'attack' => $atk, 'errors' => sn_edge_errors_query() ) as $name => $doc ) {
 	ok( strpos( $doc, '$hosts:[string!]!' ) !== false && substr_count( $doc, 'clientRequestHTTPHost_in:$hosts' ) === substr_count( $doc, 'datetime_geq:$from' ), "$name: every selection reads the site's own hosts" );
 }
 ok( strpos( $atk, 'sampleInterval' ) !== false, 'attack: adaptive → sampleInterval present' );

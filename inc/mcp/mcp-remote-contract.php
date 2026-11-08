@@ -131,7 +131,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 // 2026-11-02 (owner-only measurement of the /resume lanes): '28' -> '29'. Each
 // analytics-rows row may carry resume_lane, the lane a /resume view showed
 // (music, operations or (unknown)), from Analytics Engine double17. Additive.
-const SN_REMOTE_CONTRACT_VERSION = '29';
+// 2026-11-08: '29' -> '30'. Wording only, no key moves: the edge-errors twin
+// says its 5xx are the site's own hosts (juanlentino.com and www; other hosts
+// on the zone are left out) and that a .php under /wp-content/themes/ is a
+// scanner probe like the core library files.
+const SN_REMOTE_CONTRACT_VERSION = '30';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -197,6 +201,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'28' => '534f2b91068746076f6d41c5b1a5db81d94a50a1cbd52974f10819ee4c1c8089',
 	// RED-then-pin, 2026-11-02: analytics-rows rows gained resume_lane.
 	'29' => 'baabfb2a3a21b1eef058da9fbc7320355e733a8d8a5bdf52162e204a00487c57',
+	// RED-then-pin, 2026-11-08: the edge-errors twin's wording (site hosts, theme probes).
+	'30' => 'a6c6d8c6b1325c443cee8ad1b00092d9305460e157bd959ac284bd8c3d5c5129',
 );
 
 /**
