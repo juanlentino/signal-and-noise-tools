@@ -88,15 +88,19 @@ function sn_edge_run_rollup( $today = null, $adaptive_only = false ) {
 		}
 	}
 
-	// 2. Threats (firewallEventsAdaptiveGroups) — sampled, previous-day snapshot → yesterday.
-	$zone = sn_edge_query( sn_edge_firewall_query(), array( 'from' => $since, 'to' => $until ) );
-	if ( is_array( $zone ) && is_array( $zone['firewallEventsAdaptiveGroups'] ?? null ) ) {
-		foreach ( $zone['firewallEventsAdaptiveGroups'] as $g ) {
-			$action = (string) ( $g['dimensions']['action'] ?? '' );
-			if ( '' === $action ) {
-				continue;
+	// 2. Threats (raw firewallEventsAdaptive, grouped here by action) — sampled,
+	// previous-day snapshot → yesterday. A raw row stands for sampleInterval events.
+	$zone = sn_edge_query( sn_edge_firewall_query(), array( 'from' => $since, 'to' => $until, 'hosts' => sn_edge_site_hosts() ) );
+	if ( is_array( $zone ) && is_array( $zone['firewallEventsAdaptive'] ?? null ) ) {
+		$by_action = array();
+		foreach ( $zone['firewallEventsAdaptive'] as $ev ) {
+			$action = is_array( $ev ) ? (string) ( $ev['action'] ?? '' ) : '';
+			if ( '' !== $action ) {
+				$by_action[ $action ] = ( $by_action[ $action ] ?? 0 ) + max( 1, (int) ( $ev['sampleInterval'] ?? 1 ) );
 			}
-			$dim_rows[] = array( 'day' => $snap, 'dim' => 'threat', 'value' => $action, 'requests' => sn_edge_corrected( $g ), 'bytes' => 0 );
+		}
+		foreach ( $by_action as $action => $n ) {
+			$dim_rows[] = array( 'day' => $snap, 'dim' => 'threat', 'value' => (string) $action, 'requests' => $n, 'bytes' => 0 );
 		}
 	}
 

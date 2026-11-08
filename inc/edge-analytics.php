@@ -168,19 +168,27 @@ function sn_edge_daily_query() {
 }
 
 /**
- * WAF / threats (firewallEventsAdaptiveGroups) over the trailing window — by action
- * / rule / source / country. Adaptive → SAMPLED: callers must sn_edge_corrected()
- * each row's count. Retention is per-node, not a fixed Free-tier window (discovered
- * via the settings node — sn_edge_adaptive_retention); the cron polls daily to keep
- * a fresh "today" snapshot, NOT to beat a 24h deadline.
+ * Rows the threats read asks for: the raw dataset's limit.
+ * ponytail: one page; a day past 10,000 sampled events reads a floor. Page when it happens.
+ */
+const SN_EDGE_FIREWALL_LIMIT = 10000;
+
+/**
+ * WAF / threats over the trailing window, one raw event per row, grouped by
+ * action in the rollup. RAW, not firewallEventsAdaptiveGroups: the grouped
+ * dataset is not on this zone's plan, so the read was refused every day and
+ * the Threats card never filled (read live 2026-11-08; the security monitor
+ * moved to raw for the same reason in 15.0.1). Each row stands for
+ * sampleInterval events. The site's own hosts only (sn_edge_site_hosts()).
+ * Not a threat, so left out: skip (the static-asset rule lets a file past
+ * security; 1,869 of 3,051 events on 2026-11-07), allow and log.
  *
  * @return string GraphQL document.
  */
 function sn_edge_firewall_query() {
-	return 'query($zone:string!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'firewallEventsAdaptiveGroups(limit:100,filter:{datetime_geq:$from,datetime_lt:$to},orderBy:[count_DESC]){'
-		. 'count avg{sampleInterval}'
-		. 'dimensions{action source ruleId clientCountryName}}}}}';
+	return 'query($zone:string!,$hosts:[string!]!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'firewallEventsAdaptive(limit:' . SN_EDGE_FIREWALL_LIMIT . ',filter:{clientRequestHTTPHost_in:$hosts,datetime_geq:$from,datetime_lt:$to,action_notin:["skip","allow","log"]}){'
+		. 'action sampleInterval}}}}';
 }
 
 /**

@@ -47,7 +47,7 @@ function sn_analytics_range_totals( $from, $to, $class = 'human' ) { return $GLO
 // Client-layer seams (the real builders/corrected are covered by tests/edge-analytics.php).
 // Builders return just the dataset name so the sn_edge_query stub can dispatch on it.
 function sn_edge_daily_query() { return 'httpRequests1dGroups'; }
-function sn_edge_firewall_query() { return 'firewallEventsAdaptiveGroups'; }
+function sn_edge_firewall_query() { return 'firewallEventsAdaptive'; }
 function sn_edge_colo_query() { return 'httpRequestsAdaptiveGroups'; }
 function sn_edge_attack_query() { return 'ATTACK_QUERY'; } // unique sentinel (NOT 'httpRequestsAdaptiveGroups' which collides with colo).
 function sn_edge_errors_query() { return 'ERRORS_QUERY'; }  // #1002: 5xx pressure, its own document so an unknown field cannot fail the attack query.
@@ -193,8 +193,14 @@ $GLOBALS['__edge_data']['httpRequests1dGroups'] = array( 'httpRequests1dGroups' 
 		),
 	) ),
 ) );
-$GLOBALS['__edge_data']['firewallEventsAdaptiveGroups'] = array( 'firewallEventsAdaptiveGroups' => array(
-	array( 'count' => 5, 'avg' => array( 'sampleInterval' => 10 ), 'dimensions' => array( 'action' => 'block', 'source' => 'waf', 'ruleId' => 'r1', 'clientCountryName' => 'CN' ) ),
+// 2026-11-08: raw events (the grouped dataset is not on this plan), grouped here
+// by action; each row stands for its sampleInterval.
+$GLOBALS['__edge_data']['firewallEventsAdaptive'] = array( 'firewallEventsAdaptive' => array(
+	array( 'action' => 'block', 'sampleInterval' => 2 ),
+	array( 'action' => 'block', 'sampleInterval' => 3 ),
+	array( 'action' => 'skip', 'sampleInterval' => 0 ),
+	array( 'action' => '', 'sampleInterval' => 9 ),
+	'garbage',
 ) );
 $GLOBALS['__edge_data']['httpRequestsAdaptiveGroups'] = array( 'httpRequestsAdaptiveGroups' => array(
 	// sampleInterval 2, so a count of 15 / bytes 50000 that come back doubled prove the old double count (17.9.1).
@@ -254,13 +260,15 @@ ok( strpos( $all_sql, "'2026-06-18', 'country', 'US', 600, 3000000" ) !== false,
 // run time]: a day's threat/colo/atk_*/err_* rows covered ~38h and a week's
 // sn_edge_top_dim() counted most events twice. The window is now the COMPLETE
 // previous day [yesterday 00:00, today 00:00), attributed to yesterday.
-ok( strpos( $all_sql, "'2026-06-18', 'threat', 'block', 5" ) !== false, 'run: firewall counted as Cloudflare reports it (5, not 5×10), attributed to the day the window covers (yesterday)' );
+ok( strpos( $all_sql, "'2026-06-18', 'threat', 'block', 5" ) !== false, 'run: raw firewall events summed by action, each row as its sampleInterval (2 + 3), attributed to the day the window covers (yesterday)' );
+ok( strpos( $all_sql, "'2026-06-18', 'threat', 'skip', 1" ) !== false, 'run: a row with no sampleInterval still counts once' );
+ok( 2 === substr_count( $all_sql, "'threat'" ), 'run: a row with no action, and a malformed row, write nothing' );
 ok( strpos( $all_sql, "'2026-06-18', 'colo', 'IAD', 15, 50000" ) !== false, '17.9.1: colo dims as Cloudflare reports them, requests (15) AND bytes (50000), never multiplied by sampleInterval again' );
 ok( strpos( $all_sql, "'2026-06-19', 'threat'" ) === false && strpos( $all_sql, "'2026-06-19', 'colo'" ) === false, 'run: nothing from the snapshot is stored under today (#1203)' );
 // Adaptive window: no retention discovered (null) → the complete previous day.
 ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T00:00:00Z', 'run: adaptive window starts at yesterday 00:00 (today−86400)' );
 ok( edge_from( 'httpRequestsAdaptiveGroups', 'to' ) === '2026-06-19T00:00:00Z', 'run: and is BOUNDED at today 00:00 — no overlap with the next run (#1203)' );
-ok( edge_from( 'firewallEventsAdaptiveGroups' ) === '2026-06-18T00:00:00Z' && edge_from( 'firewallEventsAdaptiveGroups', 'to' ) === '2026-06-19T00:00:00Z', 'run: both adaptive datasets share the one bounded window' );
+ok( edge_from( 'firewallEventsAdaptive' ) === '2026-06-18T00:00:00Z' && edge_from( 'firewallEventsAdaptive', 'to' ) === '2026-06-19T00:00:00Z', 'run: both adaptive datasets share the one bounded window' );
 ok( strpos( $all_sql, "'2026-06-18', 'atk_door', '/wp-login.php', 25" ) !== false, 'run: atk_door marginal SUMS both rows (15+10=25), each as reported' );
 ok( strpos( $all_sql, "'2026-06-18', 'atk_country', 'US', 25" ) !== false, 'run: atk_country marginal sums across rows (25)' );
 ok( strpos( $all_sql, "'atk_asn'" ) === false, 'run: no attacker-network row: the plan refuses the field, so none is stored (2026-11-08)' );
@@ -268,10 +276,10 @@ ok( strpos( $all_sql, "'atk_asn'" ) === false, 'run: no attacker-network row: th
 // would fail the document whole ([string!]! is required), so every one must get it.
 $hosts_ok = true;
 foreach ( $GLOBALS['__edge_calls'] as $c ) {
-	$sampled  = in_array( (string) $c['query'], array( 'httpRequestsAdaptiveGroups', 'ATTACK_QUERY', 'ERRORS_QUERY' ), true ) || false !== strpos( (string) $c['query'], 'datetimeMinute' );
+	$sampled  = in_array( (string) $c['query'], array( 'firewallEventsAdaptive', 'httpRequestsAdaptiveGroups', 'ATTACK_QUERY', 'ERRORS_QUERY' ), true ) || false !== strpos( (string) $c['query'], 'datetimeMinute' );
 	$hosts_ok = $hosts_ok && ( ! $sampled || array( 'juanlentino.com', 'www.juanlentino.com' ) === ( $c['vars']['hosts'] ?? null ) );
 }
-ok( $hosts_ok, 'run: colo, attack, errors and when each get the site hosts' );
+ok( $hosts_ok, 'run: threats, colo, attack, errors and when each get the site hosts' );
 ok( strpos( $all_sql, "'2026-06-18', 'atk_method', 'POST', 15" ) !== false, 'run: atk_method POST (credential attempts)' );
 ok( strpos( $all_sql, "'2026-06-18', 'atk_status', '404', 25" ) !== false, 'run: atk_status marginal' );
 ok( strpos( $all_sql, "'2026-06-18', 'atk_path', '/.env', 7" ) !== false, 'run: atk_path probe counted as reported (7, not 7×3)' );
@@ -288,7 +296,7 @@ eo_reset();
 $GLOBALS['__edge_retention'] = 3600; // 1h < 24h → the snapshot must shrink to what the node actually retains.
 sn_edge_run_rollup( '2026-06-19' );
 ok( edge_from( 'httpRequestsAdaptiveGroups' ) === '2026-06-18T23:00:00Z' && edge_from( 'httpRequestsAdaptiveGroups', 'to' ) === '2026-06-19T00:00:00Z', 'run: window clamps to retention when retention < 24h (today−3600, still bounded at today)' );
-ok( edge_from( 'firewallEventsAdaptiveGroups' ) === '2026-06-18T23:00:00Z', 'run: clamp applies to both adaptive pulls' );
+ok( edge_from( 'firewallEventsAdaptive' ) === '2026-06-18T23:00:00Z', 'run: clamp applies to both adaptive pulls' );
 eo_reset();
 $GLOBALS['__edge_retention'] = 2678400; // 31d ≥ 24h → no clamp; the daily snapshot stays 24h (no over-wide window).
 sn_edge_run_rollup( '2026-06-19' );
