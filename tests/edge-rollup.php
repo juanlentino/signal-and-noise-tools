@@ -368,7 +368,7 @@ ok( $m2['machine'] === 0 && $m2['machine_pct'] === 0, 'machine_split: clamped at
 echo "\nGroup: 17.9.1 repair of the double-counted sampled dims\n";
 // Re-rolls every day the adaptive dataset still retains, once, with only the
 // sampled queries; records where the honest counts begin; never re-pulls the
-// thirteen months of exact history per day.
+// year of exact history per day.
 $GLOBALS['__eo']             = array();
 $GLOBALS['__edge_retention'] = 3 * DAY_IN_SECONDS;
 // Its own fixture: earlier groups leave __edge_data in whatever state they needed.
@@ -380,7 +380,7 @@ $GLOBALS['wpdb']->queries    = array();
 sn_edge_resample_repair();
 $rp_queries = array_column( $GLOBALS['__edge_calls'], 'query' );
 ok( 3 === count( array_keys( $rp_queries, 'ERRORS_QUERY', true ) ), 'repair: three retained days, three re-rolls of the sampled snapshot' );
-ok( ! in_array( 'httpRequests1dGroups', $rp_queries, true ), 'repair: the exact 13-month history is never re-pulled' );
+ok( ! in_array( 'httpRequests1dGroups', $rp_queries, true ), 'repair: the exact daily history is never re-pulled' );
 ok( gmdate( 'Y-m-d', strtotime( gmdate( 'Y-m-d' ) . ' UTC' ) - 3 * DAY_IN_SECONDS ) === get_option( SN_EDGE_HONEST_FROM_OPT ), 'repair: the first honest day is recorded (today minus the retention)' );
 $rp_sql = implode( "\n", $GLOBALS['wpdb']->queries );
 ok( 1 === preg_match( '/DELETE FROM \S*sn_edge_dims WHERE day = \S+ AND dim IN \(/', $rp_sql ), 'repair: a re-rolled day\'s rows are cleared before the fresh ones land' );

@@ -12,10 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
-## [2026.11.16] - 2026-11-08 — Edge readings count the site only; Threats and attack surface read again
-
 ### Fixed
 - **The exact daily edge totals are stored again.** The daily rollup asked `httpRequests1dGroups` for 395 days at once, and this zone refuses a window wider than 52 weeks, 1 day and 1 hour (the dataset's `maxDuration`, read live 2026-11-08). The whole request failed every day, unlogged, so Traffic & edge read Edge requests 0, Bandwidth 0 B, every status code 0 and no countries. `SN_EDGE_BACKFILL_DAYS` is 364, and the first run after install back-fills the year. Test: `tests/edge-rollup.php` (the daily window fits the limit; it failed at 395).
+
+## [2026.11.16] - 2026-11-08 — Edge readings count the site only; Threats and attack surface read again
 
 ### Fixed
 - **The edge readings count the site only, not other services on the same zone.** The 5xx counts, their times, edge locations and the attack surface now read `juanlentino.com` and `www.juanlentino.com` only (`sn_edge_site_hosts()`, passed as `$hosts` to each sampled query). The zone also carries a Railway app on `app.juanlentino.com`, the analytics and MCP workers, and scanner hits on ports 2096 and 8443, and the stored path drops the host. So the "522s on the home page" of Nov 3 to 6 were scanners on `app.juanlentino.com/`: read live, the site itself had none. Owner rule 2026-11-08: anything that is not the site itself is left out. The exact daily totals (`httpRequests1dGroups`: requests, bandwidth, countries, the zone's daily 5xx line) have no host field and stay whole-zone. Days already stored keep their old rows until they leave the seven-day window. Tests: `tests/edge-analytics.php`, `tests/edge-rollup.php`, `tests/edge-errors-when.php`.
