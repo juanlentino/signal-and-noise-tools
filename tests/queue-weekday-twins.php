@@ -60,6 +60,9 @@ ok( 1 === preg_match( '/name="from"[^>]*value="2027-01-04"|value="2027-01-04"[^>
 $checked = static fn( $h, $n ) => 1 === preg_match( '/<[^>]*name="wd_' . $n . '"[^>]*checked/', $h );
 ok( $checked( $k, 1 ) && $checked( $k, 4 ) && ! $checked( $k, 2 ) && $checked( $c, 1 ) && $checked( $c, 4 ) && ! $checked( $c, 2 ), 'both check Mon and Thu, and only those' );
 ok( false === strpos( $kit, '<details' ) && false === strpos( $kit, 'snt-fold' ), 'the box is open, never in a fold' );
+// Review: the weekday boxes are one named group on both twins, and the end field has one label.
+ok( 1 === preg_match( '/role="group"[^>]*aria-label="Weekdays"|aria-label="Weekdays"[^>]*role="group"/', $k ) && false !== strpos( $c, '<legend>Weekdays</legend>' ), 'both twins name the weekday boxes as one group, Weekdays' );
+ok( false !== strpos( $k, 'label="Ends (empty: runs on)"' ) && false !== strpos( $c, '>Ends (empty: runs on)</label>' ), 'both label the end field the same' );
 
 // An off day reaches the Cadence box on both twins. Find the next Tuesday after 2027-01-04 relative to today.
 $today = ( new DateTimeImmutable( 'now', wp_timezone() ) )->setTime( 12, 0 );

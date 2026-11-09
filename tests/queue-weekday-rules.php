@@ -56,6 +56,8 @@ ok( array() === sn_content_queue_cadence( $LIVE, null, $NOW, $NY, $HOLS, $OWNER 
 $cad = sn_content_queue_cadence( $moved, null, $NOW, $NY, $HOLS, $OWNER );
 ok( array( 'cluster', 'offday' ) === array_column( $cad, 'kind' ) && array( '2027-01-11', '2027-01-12' ) === array_column( $cad, 'from' ), 'an off day sits in date order beside the cluster it makes' );
 ok( array( 'cluster' ) === array_column( sn_content_queue_cadence( $moved, null, $NOW, $NY, $HOLS ), 'kind' ), 'without rules the warnings are exactly what they were' );
+// Review: appended after the gap, an earlier off day must sort before it.
+ok( array( 'offday', 'gap' ) === array_column( sn_content_queue_cadence( array_map( $at, array( '2027-01-12 10:00', '2027-01-14 10:00', '2027-01-25 10:00' ) ), null, $NOW, $NY, array(), $OWNER ), 'kind' ), 'an off day before a gap is said first: date order, not append order' );
 
 echo "\nSuggested slots keep to the rule\n";
 $draft = array( array( 'id' => 1, 'title' => 'A', 'edit_url' => '' ), array( 'id' => 2, 'title' => 'B', 'edit_url' => '' ), array( 'id' => 3, 'title' => 'C', 'edit_url' => '' ) );
@@ -70,7 +72,16 @@ ok( '2027-02-08' === $gap[0]['day'], 'a gap split already on an allowed day stay
 $cut = sn_content_queue_slots( array( $draft[0] ), array( $at( '2027-02-01 10:00' ), $at( '2027-02-13 10:00' ) ), null, $NOW, $NY, array(), $OWNER );
 ok( '2027-02-08' === $cut[0]['day'], 'a gap split whose even cut falls on a left-out day takes the nearest allowed one' );
 $walk = sn_content_queue_slots( array( $draft[0] ), $LIVE, null, $NOW, $NY, array_merge( $HOLS, array( '2027-03-08|2027-03-08' ) ), $OWNER );
-ok( '2027-03-11' === $walk[0]['day'], 'the walk past a planned day skips the days the rule leaves out (Tue and Wed) to Thu' );
+ok( '2027-03-11' === $walk[0]['day'] && false !== strpos( $walk[0]['reason'], ', moved to the next open day' ) && false === strpos( $walk[0]['reason'], 'weekday rule' ), 'the walk past a planned day skips the days the rule leaves out (Tue and Wed) to Thu, and says the planned day moved it' );
+// Review: the pull is held 2 to 7 days. Weekly Wednesdays to Dec 30: the usual Wed Jan 6 is left out; Thu Jan 7 is 8 days on, Mon Jan 4 is 5.
+$wed = sn_content_queue_slots( array( $draft[0] ), array_map( $at, array( '2026-12-09 10:00', '2026-12-16 10:00', '2026-12-23 10:00', '2026-12-30 10:00' ) ), null, $NOW, $NY, array(), $OWNER );
+ok( '2027-01-04' === $wed[0]['day'], 'a pull never lands over 7 days after the last note (Mon Jan 4, not Thu Jan 7)' );
+// Review: the earlier day wins a tie. Every 5 days to Mon Mar 1: the usual Sat Mar 6 sits 2 days from Thu Mar 4 and from Mon Mar 8.
+$tie = sn_content_queue_slots( array( $draft[0] ), array_map( $at, array( '2027-02-09 10:00', '2027-02-14 10:00', '2027-02-19 10:00', '2027-02-24 10:00', '2027-03-01 10:00' ) ), null, $NOW, $NY, array(), array( '2027-03-01||14' ) );
+ok( '2027-03-04' === $tie[0]['day'], 'on a tie the pull takes the earlier allowed day' );
+// Review: a pulled day that is planned walks on, and the reason says both moves.
+$both = sn_content_queue_slots( $draft, $LIVE, null, $NOW, $NY, array_merge( $HOLS, array( '2027-03-10|2027-03-12' ) ), $OWNER );
+ok( '2027-03-15' === $both[1]['day'] && false !== strpos( $both[1]['reason'], 'moved to the nearest day the weekday rule allows, then to the next open day' ), 'a pull onto a planned day walks on, and the reason names both moves' );
 
 echo "\nSaving\n";
 ok( 'queue_weekday_saved' === sn_content_queue_weekday_save( '2027-01-04', '', array( 4, 1, 4 ) ) && array( '2027-01-04||14' ) === sn_content_queue_weekday_rules(), 'a rule is stored as from|to|days, days sorted and unique' );

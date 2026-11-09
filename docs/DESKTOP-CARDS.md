@@ -167,8 +167,10 @@ inside the open-ended one). The pure functions are in
   button); on the Scheduled twins it sits in the Cadence box.
 - **Suggested slots** land only on an allowed day. When the usual spacing
   lands on a day the rule leaves out, the slot takes the nearest allowed day,
-  the earlier on a tie, never under 2 days after the last note ("moved to the
-  nearest day the weekday rule allows"): after a Monday, a Mon and Thu rule
+  the earlier on a tie, held 2 to 7 days after the last note so the slot never
+  makes a cluster or a gap itself ("moved to the nearest day the weekday rule
+  allows"; when that day is planned or taken, the walk goes on and the reason
+  adds "then to the next open day"): after a Monday, a Mon and Thu rule
   suggests that Thursday, not the next Monday a week on. A gap split takes the
   allowed day nearest its even cut. On the live queue (2026-11-09) three drafts
   would be suggested Mon Mar 8, Thu Mar 11 and Mon Mar 15, 2027.
