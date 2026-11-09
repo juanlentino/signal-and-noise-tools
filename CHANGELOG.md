@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.11.18] - 2026-11-09 — Edge readings count visitor requests only
+
 ### Fixed
 - **The login doors, probed paths and edge locations count visitor requests only.** These three readings counted every request Cloudflare logged for the site. When a Worker forwards a visitor's request, Cloudflare logs it twice (the visitor's, then the Worker's own request to the server), and it logs its own Early Hints cache lookups as requests too. Read live for 2026-11-08:
   - The doors read 28 for 17 real requests. The card's five 504s were all Early Hints lookups, each next to the visitor's real 404 or 403 in the same minute.
@@ -26,9 +28,4 @@ adds a bullet below. A release is a separate, deliberate act:
   - The install check no longer needs a Worker's row to be maintenance.
   - Remote contract 31 carries the wording. The Worker's own bump ships after this release is installed.
   - Tests: `tests/edge-analytics-sees-5xx.php`, `tests/edge-5xx-read-back.php`, `tests/desktop-status-extra.php`, `tests/remote-contract-shapes.php`.
-
-## [2026.11.17] - 2026-11-08 — The exact daily edge totals are stored again
-
-### Fixed
-- **The exact daily edge totals are stored again.** The daily rollup asked `httpRequests1dGroups` for 395 days at once, and this zone refuses a window wider than 52 weeks, 1 day and 1 hour (the dataset's `maxDuration`, read live 2026-11-08). The whole request failed every day, unlogged, so Traffic & edge read Edge requests 0, Bandwidth 0 B, every status code 0 and no countries. `SN_EDGE_BACKFILL_DAYS` is 364, and the first run after install back-fills the year. Test: `tests/edge-rollup.php` (the daily window fits the limit; it failed at 395).
 
