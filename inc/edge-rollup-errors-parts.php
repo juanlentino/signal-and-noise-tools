@@ -69,7 +69,8 @@ function sn_edge_errors_range( $from, $to ) {
 		// 17.9.3: the errors query's last outcome; a non-empty error means the
 		// window below was NOT read, which is not the same as no errors.
 		'query'       => function_exists( 'get_option' ) ? get_option( SN_EDGE_ERRORS_QUERY_OPT, null ) : null,
-		'total'       => $days ? (int) array_sum( array_column( $days, 'total' ) ) : max( 0, (int) array_sum( array_column( $sources, 'requests' ) ) - $split['probes']['total'] ),
+		// The fallback (no day reader) counts as the days do: visitor + unrecorded.
+		'total'       => $days ? (int) array_sum( array_column( $days, 'total' ) ) : max( 0, (int) array_sum( array_column( array_filter( $sources, static fn( $s ) => in_array( sn_edge_error_asker( (string) ( $s['value'] ?? '' ) ), array( 'visitor', 'unrecorded' ), true ) ), 'requests' ) ) - $split['probes']['total'] ),
 		'paths'       => $split['paths'],
 		// Scanner probes on core library files: counted, named, not in total.
 		'probes'      => $days ? array( 'total' => (int) array_sum( array_column( $days, 'probes' ) ), 'paths' => $split['probes']['paths'] ) : $split['probes'],

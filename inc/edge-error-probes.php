@@ -75,7 +75,8 @@ function sn_edge_errors_split_probes( array $rows ) {
  * who-asked (visitor, worker, ...) is NOT reduced. Since 2026-11-09 the total
  * and err_path are visitors only, so visitor + unrecorded = total + probes;
  * a day stored before that has a Worker's probes in err_path too, and the
- * clamp keeps it at 0 at worst (none in the week it shipped).
+ * clamp keeps it at 0 at worst. Read live: every probe from 2026-11-02 to
+ * 11-08 was a visitor's, so no day in the window it shipped is affected.
  *
  * @param array $days Day rows, each with day and total.
  * @param array $rows err_path rows {day, value, requests}.

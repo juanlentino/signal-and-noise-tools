@@ -52,6 +52,8 @@ function ep_extract( $src, $name ) {
 $fn = ep_extract( snt_test_edge_rollup_src(), 'sn_edge_errors_range' );
 ok( '' !== $fn, 'sn_edge_errors_range() was extracted' );
 eval( $fn ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test-only extraction.
+// The real asker words: the fallback total counts visitor + unrecorded (2026-11-09).
+eval( ep_extract( snt_test_edge_rollup_src(), 'sn_edge_error_asker' ) ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- test-only extraction.
 function sn_edge_errors_days_annotate( $d ) { return $d; }
 function sn_edge_errors_asked_by_totals( $d ) { return array(); }
 function sn_edge_errors_paths_by_day( $f, $t ) { return array(); }
