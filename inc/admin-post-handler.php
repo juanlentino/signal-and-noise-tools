@@ -118,6 +118,7 @@ function sn_admin_post_handlers() {
 		'schedule_run_now'           => 'sn_handle_schedule_run_now',
 		'schedule_repurge'           => 'sn_handle_schedule_repurge',
 		'schedule_swap_run_now'      => 'sn_handle_schedule_swap_run_now',
+		'queue_weekday_save'         => 'sn_handle_queue_weekday_save', // 2026-11-09: SN Queue weekday rules (inc/abilities-content-queue-weekdays-admin.php)
 		// R9 (v9.51.0, lane SEC-C): MCP write-door credential binding
 		// (handler body in inc/admin-post-actions/mcp.php).
 		'bind_mcp_rw_credential'     => 'sn_handle_bind_mcp_rw_credential',

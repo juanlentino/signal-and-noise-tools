@@ -287,6 +287,16 @@ ok( 'object' === ( $rw['type'] ?? null ) && array( 'string', 'null' ) === ( $rw[
 ok( isset( $res['runway']['text'] ) && array( 'through', 'days', 'text' ) === array_keys( $res['runway'] ), 'and the ability returns exactly those keys' );
 ok( isset( $props['scheduled'], $props['today'], $props['week_start'], $props['planned'], $props['draft_list'] ) && isset( $props['scheduled']['items']['properties']['day'], $props['scheduled']['items']['properties']['time'] ), 'the output schema declares the calendar\'s keys and the rows\' day and time' );
 
+// 2026-11-09 (item 4): an off day is a cadence kind the schema declares, and
+// the execute path reads the stored weekday rules.
+ok( in_array( 'offday', $props['cadence']['items']['properties']['kind']['enum'] ?? array(), true ), 'the output schema declares the offday cadence kind' );
+$first = sn_content_queue_row( ( $GLOBALS['__cq_posts']['future:ASC'] ?? array() )[0] ?? null );
+$left  = (int) ( new DateTimeImmutable( '@' . (int) ( $first['ts'] ?? 0 ) ) )->setTimezone( wp_timezone() )->format( 'N' );
+$GLOBALS['__cq_opts']['sn_content_queue_weekday_rules'] = array( '2020-01-01||' . implode( '', array_diff( range( 1, 7 ), array( $left ) ) ) );
+$wd = snt_ability_content_queue( null );
+ok( in_array( 'offday', array_column( $wd['cadence'], 'kind' ), true ), 'the ability reads the stored rule: the first scheduled note\'s weekday, left out, is an off day' );
+unset( $GLOBALS['__cq_opts']['sn_content_queue_weekday_rules'] );
+
 // Review on #2031: a contributor lists only their own drafts, and an escaped link.
 $GLOBALS['__cq_caps']     = array( 'edit_posts' );
 $GLOBALS['__cq_can_edit'] = array( 21, 666 );

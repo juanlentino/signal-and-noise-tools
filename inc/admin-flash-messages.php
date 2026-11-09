@@ -236,6 +236,9 @@ function sn_admin_flash_messages() {
 		'schedule_repurged'           => array( 'success', 'Scheduled-content URLs re-purged from Cloudflare.' ),
 		'schedule_swap_fired'         => array( 'success', 'Version swap fired: the old version hid, the new one revealed, one edge purge dispatched.' ),
 		'schedule_invalid'            => array( 'error', 'That scheduled-content row was not found.' ),
+		'queue_weekday_saved'         => array( 'success', 'Weekday rule saved. The SN Queue card and Cadence read it on their next refresh.' ),
+		'queue_weekday_removed'       => array( 'success', 'Weekday rule removed.' ),
+		'queue_weekday_invalid'       => array( 'error', 'Weekday rule not saved: the start must be a date, the end empty or on or after it, and at least one weekday checked (none removes the rule that starts that day, if there is one).' ),
 		// R9 (v9.51.0, lane SEC-C): MCP write-door credential binding.
 		'mcp_rw_bound'                => array( 'success', 'Write-door credential bound. <code>/mcp-rw</code> now accepts calls authenticated with that Application Password.' ),
 		'mcp_rw_unbound'              => array( 'info', 'Write-door credential unbound: every call to <code>/mcp-rw</code> is denied until you bind one again.' ),

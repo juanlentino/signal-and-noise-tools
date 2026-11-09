@@ -23,6 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/connections-scheduled-content-parts.php';
 require_once __DIR__ . '/connections-scheduled-content-lists.php';
+require_once __DIR__ . '/connections-scheduled-content-weekdays.php';
 
 /**
  * The module's data, read the way the classic leaf reads it: both producers,
@@ -79,6 +80,10 @@ function paint_connections_scheduled_content( array $ctx ) {
 				scheduled_content_slots_html( \sn_content_queue_slot_read( $schedule ) ),
 			)
 		);
+		// 2026-11-09 (item 4): the weekday rules, full width so the form pairs its fields.
+		if ( function_exists( 'sn_content_queue_weekday_rules' ) ) {
+			$out .= scheduled_content_weekdays_html( \sn_content_queue_weekday_rules() );
+		}
 	}
 
 	$out .= scheduled_content_swaps_html( $d['pairs'] );

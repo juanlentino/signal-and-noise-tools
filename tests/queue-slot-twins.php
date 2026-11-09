@@ -62,7 +62,8 @@ ok( false !== strpos( $ch, '<a href="https://example.test/wp-admin/post.php?post
 ok( 1 === preg_match( '/<[^>]+post\.php\?post=9[^>]*>Draft B</', $kh ) && false === strpos( $kh, '<a href="https://example.test/wp-admin/post.php?post=9"' ), 'the leaf links it through the kit (a window door), never a raw anchor' );
 ok( false === strpos( $kh, '<b>A</b>' ) && false === strpos( $ch, '<b>A</b>' ) && false !== strpos( $ch, 'Draft &lt;b&gt;A&lt;/b&gt;' ), 'a draft title is text on both twins, never markup' );
 ok( false === strpos( $kh, '<details' ) && false === strpos( $kh, 'snt-fold' ), 'the slots are open, never in a fold' );
-$box = static fn( $h ) => substr( $h, strpos( $h, 'Suggested slots' ) );
+// The box runs from its heading to the next one (2026-11-09: Weekday rules, which has a form, follows it).
+$box = static fn( $h ) => substr( $h, strpos( $h, 'Suggested slots' ), strpos( $h, 'Weekday rules' ) - strpos( $h, 'Suggested slots' ) );
 ok( false === strpos( $box( $kh ), '<button' ) && false === strpos( $box( $ch ), '<form' ), 'a suggestion only: no control, the editor is where a note is scheduled' );
 
 $GLOBALS['__drafts'] = 7;
