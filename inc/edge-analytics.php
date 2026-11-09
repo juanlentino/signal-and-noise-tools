@@ -198,11 +198,17 @@ function sn_edge_firewall_query() {
  * daily snapshot (its width is clamped to the node's discovered retention, not an
  * assumed 24h) → a current snapshot, not a long trend.
  *
+ * Visitor requests only (`requestSource:"eyeball"`, 2026-11-09). Unfiltered, a
+ * request a Worker forwards is counted twice (the visitor's, then the Worker's
+ * own to the server), and Cloudflare's Early Hints cache lookups count as
+ * requests too: read live for 2026-11-08, 18,511 of the 39,697 rows were
+ * visitors. Same filter on the doors and probes below.
+ *
  * @return string GraphQL document.
  */
 function sn_edge_colo_query() {
 	return 'query($zone:string!,$hosts:[string!]!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'httpRequestsAdaptiveGroups(limit:200,filter:{clientRequestHTTPHost_in:$hosts,datetime_geq:$from,datetime_lt:$to},orderBy:[count_DESC]){'
+		. 'httpRequestsAdaptiveGroups(limit:200,filter:{clientRequestHTTPHost_in:$hosts,requestSource:"eyeball",datetime_geq:$from,datetime_lt:$to},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}sum{edgeResponseBytes}'
 		. 'dimensions{coloCode}}}}}';
 }
@@ -218,14 +224,18 @@ function sn_edge_colo_query() {
  * document on one refused field, so asking for them kept doors AND probes empty
  * (read live 2026-11-08). Add them back if the plan changes.
  *
+ * Visitor requests only, as the colo query above: on 2026-11-08 the doors read
+ * 28 for 17 real requests, the rest Early Hints lookups (the five 504s) and the
+ * login guard Worker's own copy of each request it forwarded.
+ *
  * @return string GraphQL document.
  */
 function sn_edge_attack_query() {
 	return 'query($zone:string!,$hosts:[string!]!,$from:Time!,$to:Time!){viewer{zones(filter:{zoneTag:$zone}){'
-		. 'doors:httpRequestsAdaptiveGroups(limit:500,filter:{clientRequestHTTPHost_in:$hosts,datetime_geq:$from,datetime_lt:$to,clientRequestPath_in:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
+		. 'doors:httpRequestsAdaptiveGroups(limit:500,filter:{clientRequestHTTPHost_in:$hosts,requestSource:"eyeball",datetime_geq:$from,datetime_lt:$to,clientRequestPath_in:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}'
 		. 'dimensions{clientRequestPath clientCountryName edgeResponseStatus clientRequestHTTPMethodName}}'
-		. 'probes:httpRequestsAdaptiveGroups(limit:25,filter:{clientRequestHTTPHost_in:$hosts,datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:400,edgeResponseStatus_leq:499,clientRequestPath_notin:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
+		. 'probes:httpRequestsAdaptiveGroups(limit:25,filter:{clientRequestHTTPHost_in:$hosts,requestSource:"eyeball",datetime_geq:$from,datetime_lt:$to,edgeResponseStatus_geq:400,edgeResponseStatus_leq:499,clientRequestPath_notin:["/wp-login.php","/xmlrpc.php"]},orderBy:[count_DESC]){'
 		. 'count avg{sampleInterval}'
 		. 'dimensions{clientRequestPath edgeResponseStatus}}'
 		. '}}}';

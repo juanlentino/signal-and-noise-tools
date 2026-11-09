@@ -135,7 +135,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // says its 5xx are the site's own hosts (juanlentino.com and www; other hosts
 // on the zone are left out) and that a .php under /wp-content/themes/ is a
 // scanner probe like the core library files.
-const SN_REMOTE_CONTRACT_VERSION = '30';
+// 2026-11-09: '30' -> '31'. Wording only, no key moves: the edge-errors twin
+// says total, paths and each day's total count what visitors asked for, and
+// that a Worker's row (its own request for a visitor's) is who asked only.
+const SN_REMOTE_CONTRACT_VERSION = '31';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -203,6 +206,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'29' => 'baabfb2a3a21b1eef058da9fbc7320355e733a8d8a5bdf52162e204a00487c57',
 	// RED-then-pin, 2026-11-08: the edge-errors twin's wording (site hosts, theme probes).
 	'30' => 'a6c6d8c6b1325c443cee8ad1b00092d9305460e157bd959ac284bd8c3d5c5129',
+	// RED-then-pin, 2026-11-09: the edge-errors twin counts visitors in its totals.
+	'31' => '02deea0c871c9044af9120fafe747220c0aaceb2895ca187cfca6afe00393d12',
 );
 
 /**

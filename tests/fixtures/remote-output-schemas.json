@@ -1,6 +1,6 @@
 {
-    "contract_version": "30",
-    "shape_hash": "a6c6d8c6b1325c443cee8ad1b00092d9305460e157bd959ac284bd8c3d5c5129",
+    "contract_version": "31",
+    "shape_hash": "02deea0c871c9044af9120fafe747220c0aaceb2895ca187cfca6afe00393d12",
     "tools": {
         "signal-noise/remote-analytics-fields": {
             "wrap": false,
@@ -524,7 +524,7 @@
                     },
                     "total": {
                         "type": "integer",
-                        "description": "5xx over the window, Early Hints cache lookups excluded (17.9.3), scanner probes excluded (2026-10-19; see probes): the count that means the site failed."
+                        "description": "5xx over the window, Early Hints cache lookups excluded (17.9.3), scanner probes excluded (2026-10-19; see probes): the count that means the site failed. Since 2026-11-09 what visitors asked for: a Worker forwarding a visitor's request makes a request of its own, so its failure is the same one again, counted under asked_by.worker and not twice here."
                     },
                     "probes": {
                         "type": "object",
@@ -568,7 +568,7 @@
                                 }
                             }
                         },
-                        "description": "Which URLs failed, most first (top 10)."
+                        "description": "Which URLs failed, most first (top 10). Since 2026-11-09 as visitors asked: a Worker's copy is not counted. A day stored before keeps its Worker rows until it leaves the window."
                     },
                     "paths_by_status": {
                         "type": "array",
@@ -586,7 +586,7 @@
                                 }
                             }
                         },
-                        "description": "Which URL got which status, most first (top 10): value is \"<edge status> <cache status> <path>\", e.g. \"520 dynamic /wp-json/wp/v2/posts\" (#1006). Recorded only from the release that added it (#1006) on, so earlier days have none: empty is \"not recorded yet\", not \"no errors\"."
+                        "description": "Which URL got which status, most first (top 10): value is \"<edge status> <cache status> <path>\", e.g. \"520 dynamic /wp-json/wp/v2/posts\" (#1006). Recorded only from the release that added it (#1006) on, so earlier days have none: empty is \"not recorded yet\", not \"no errors\". Visitors only since 2026-11-09, as paths."
                     },
                     "sources": {
                         "type": "array",
@@ -619,11 +619,11 @@
                                 },
                                 "total": {
                                     "type": "integer",
-                                    "description": "The day's 5xx, probes excluded."
+                                    "description": "The day's 5xx, probes excluded. Since 2026-11-09 what visitors asked for (visitor + unrecorded); worker and other are who asked only."
                                 },
                                 "probes": {
                                     "type": "integer",
-                                    "description": "2026-10-19: the day's scanner probes on core library and theme files, out of total. Read with `read`: on a failed or pending day a 0 here is not read either. The who-asked counts still include them: visitor + worker + other + unrecorded = total + probes."
+                                    "description": "2026-10-19: the day's scanner probes on core library and theme files, out of total. Read with `read`: on a failed or pending day a 0 here is not read either. The who-asked counts still include them: visitor + unrecorded = total + probes since 2026-11-09."
                                 },
                                 "read": {
                                     "type": "string",
@@ -641,11 +641,11 @@
                                 },
                                 "worker": {
                                     "type": "integer",
-                                    "description": "Asked by a Worker subrequest (edgeWorker*)."
+                                    "description": "Asked by a Worker subrequest (edgeWorker*): usually the Worker's own request for a visitor's, so the same failure as a visitor row. Out of total since 2026-11-09."
                                 },
                                 "other": {
                                     "type": "integer",
-                                    "description": "Any other Cloudflare request source."
+                                    "description": "Any other Cloudflare request source. Out of total since 2026-11-09."
                                 },
                                 "unrecorded": {
                                     "type": "integer",
@@ -664,11 +664,11 @@
                             },
                             "worker": {
                                 "type": "integer",
-                                "description": "Asked by a Worker subrequest (edgeWorker*)."
+                                "description": "Asked by a Worker subrequest (edgeWorker*): usually the Worker's own request for a visitor's, so the same failure as a visitor row. Out of total since 2026-11-09."
                             },
                             "other": {
                                 "type": "integer",
-                                "description": "Any other Cloudflare request source."
+                                "description": "Any other Cloudflare request source. Out of total since 2026-11-09."
                             },
                             "unrecorded": {
                                 "type": "integer",

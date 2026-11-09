@@ -41,8 +41,8 @@ function snt_edge_errors_output_schema() {
 	$source['properties']['label'] = array( 'type' => 'string' );
 	$asked                         = array(
 		'visitor'    => array( 'type' => 'integer', 'description' => 'Asked by a visitor (requestSource eyeball).' ),
-		'worker'     => array( 'type' => 'integer', 'description' => 'Asked by a Worker subrequest (edgeWorker*).' ),
-		'other'      => array( 'type' => 'integer', 'description' => 'Any other Cloudflare request source.' ),
+		'worker'     => array( 'type' => 'integer', 'description' => 'Asked by a Worker subrequest (edgeWorker*): usually the Worker\'s own request for a visitor\'s, so the same failure as a visitor row. Out of total since 2026-11-09.' ),
+		'other'      => array( 'type' => 'integer', 'description' => 'Any other Cloudflare request source. Out of total since 2026-11-09.' ),
 		'unrecorded' => array( 'type' => 'integer', 'description' => 'Stored before the query carried requestSource (17.9.3): in a window spanning that change, the pre-filter leftover.' ),
 	);
 	$day                           = array(
@@ -50,8 +50,8 @@ function snt_edge_errors_output_schema() {
 		'properties' => array_merge(
 			array(
 				'day'   => array( 'type' => 'string' ),
-				'total' => array( 'type' => 'integer', 'description' => 'The day\'s 5xx, probes excluded.' ),
-				'probes' => array( 'type' => 'integer', 'description' => '2026-10-19: the day\'s scanner probes on core library and theme files, out of total. Read with `read`: on a failed or pending day a 0 here is not read either. The who-asked counts still include them: visitor + worker + other + unrecorded = total + probes.' ),
+				'total' => array( 'type' => 'integer', 'description' => 'The day\'s 5xx, probes excluded. Since 2026-11-09 what visitors asked for (visitor + unrecorded); worker and other are who asked only.' ),
+				'probes' => array( 'type' => 'integer', 'description' => '2026-10-19: the day\'s scanner probes on core library and theme files, out of total. Read with `read`: on a failed or pending day a 0 here is not read either. The who-asked counts still include them: visitor + unrecorded = total + probes since 2026-11-09.' ),
 				'read'  => array( 'type' => 'string', 'enum' => array( 'read', 'failed', 'pending', 'untracked' ), 'description' => '18.3.0: read = the errors query answered for this day; failed = it was refused, so a 0 means NOT read; pending = no rollup has covered it yet (today, or yesterday before the daily run), so a 0 means not yet; untracked = stored before this bookkeeping.' ),
 			),
 			$asked
@@ -65,7 +65,7 @@ function snt_edge_errors_output_schema() {
 			'to'          => array( 'type' => array( 'string', 'null' ), 'description' => 'Last day of the window, YYYY-MM-DD (UTC). Today is partial.' ),
 			'honest_from' => array( 'type' => array( 'string', 'null' ), 'description' => '17.9.1: sampled rows before this day were counted twice over. Blank until the one-shot repair has run.' ),
 			'query'       => array( 'type' => array( 'object', 'null' ), 'description' => 'The errors query\'s last outcome: at (unix), day, error. A non-empty error means the window was NOT read, which is not the same as no errors.' ),
-			'total'       => array( 'type' => 'integer', 'description' => '5xx over the window, Early Hints cache lookups excluded (17.9.3), scanner probes excluded (2026-10-19; see probes): the count that means the site failed.' ),
+			'total'       => array( 'type' => 'integer', 'description' => '5xx over the window, Early Hints cache lookups excluded (17.9.3), scanner probes excluded (2026-10-19; see probes): the count that means the site failed. Since 2026-11-09 what visitors asked for: a Worker forwarding a visitor\'s request makes a request of its own, so its failure is the same one again, counted under asked_by.worker and not twice here.' ),
 			'probes'      => array(
 				'type'        => 'object',
 				'properties'  => array(
@@ -74,8 +74,8 @@ function snt_edge_errors_output_schema() {
 				),
 				'description' => '2026-10-19: 5xx on direct requests to core library files (a .php under /wp-includes/ or /wp-admin/includes/; since 2026-11-08 also any .php under /wp-content/themes/), which fatal when opened on their own and which WordPress never routes a request to: scanners, not the site failing. Counted and named (top 10) here, left out of total and paths. The /wp-admin/*.php screens (edit.php, customize.php) are NOT probes and stay in total. Same rows as total, so a window that was not read has 0 probes for the same reason it has 0 total.',
 			),
-			'paths'       => array( 'type' => 'array', 'items' => $row, 'description' => 'Which URLs failed, most first (top 10).' ),
-			'paths_by_status' => array( 'type' => 'array', 'items' => $row, 'description' => 'Which URL got which status, most first (top 10): value is "<edge status> <cache status> <path>", e.g. "520 dynamic /wp-json/wp/v2/posts" (#1006). Recorded only from the release that added it (#1006) on, so earlier days have none: empty is "not recorded yet", not "no errors".' ),
+			'paths'       => array( 'type' => 'array', 'items' => $row, 'description' => 'Which URLs failed, most first (top 10). Since 2026-11-09 as visitors asked: a Worker\'s copy is not counted. A day stored before keeps its Worker rows until it leaves the window.' ),
+			'paths_by_status' => array( 'type' => 'array', 'items' => $row, 'description' => 'Which URL got which status, most first (top 10): value is "<edge status> <cache status> <path>", e.g. "520 dynamic /wp-json/wp/v2/posts" (#1006). Recorded only from the release that added it (#1006) on, so earlier days have none: empty is "not recorded yet", not "no errors". Visitors only since 2026-11-09, as paths.' ),
 			'sources'     => array( 'type' => 'array', 'items' => $source, 'description' => 'Who answered, most first (top 10). `origin=-` is Cloudflare or a Worker answering by itself; a matching origin status is the origin failing.' ),
 			'days'        => array( 'type' => 'array', 'items' => $day, 'description' => '18.2.0: one row per day of the window, oldest first, zero-filled: total and who asked. Read the day a filter changed here instead of inferring it from the week.' ),
 			'asked_by'    => array( 'type' => 'object', 'properties' => $asked, 'description' => '18.2.0: the window\'s 5xx by who asked, summed from days.' ),
@@ -120,7 +120,7 @@ add_action( 'wp_abilities_api_init', function () {
 	}
 	wp_register_ability( 'signal-noise/edge-errors-summary', array(
 		'label'               => 'Edge 5xx summary',
-		'description'         => 'The last seven days of 5xx from the daily edge rollup: total, which paths failed, who answered (edge vs origin status, request source), and since 18.2.0 one row per day with who asked (visitor, worker, other, unrecorded; unrecorded rows predate 17.9.3 and are the pre-filter leftover). Cloudflare\'s own Early Hints cache lookups are excluded (17.9.3); they were ~98% of every stored 5xx and no visitor ever saw one. Since 2026-11-08 only the site\'s own hosts (juanlentino.com and www) are counted; other hosts on the zone are left out. Since 2026-10-19 scanner probes (direct requests to .php files under /wp-includes/ or /wp-admin/includes/, and since 2026-11-08 under /wp-content/themes/, which fatal when opened on their own) are counted apart in `probes` with their paths and left out of total, paths and each day\'s total; the /wp-admin/*.php screens stay in. Read `query.error` before trusting a zero: a failed read is not a clean week. installs_by_day (local only) counts each day\'s plugin and theme installs and says whether WordPress maintenance during them explains that day\'s 5xx. Same reader as cloudflare-status errors_5xx. Read-only; never fetches.',
+		'description'         => 'The last seven days of 5xx from the daily edge rollup: total, which paths failed, who answered (edge vs origin status, request source), and since 18.2.0 one row per day with who asked (visitor, worker, other, unrecorded; unrecorded rows predate 17.9.3 and are the pre-filter leftover). Since 2026-11-09 total, paths and each day\'s total count what visitors asked for; a Worker\'s own request for a visitor\'s is the same failure again and stays under who asked. Cloudflare\'s own Early Hints cache lookups are excluded (17.9.3); they were ~98% of every stored 5xx and no visitor ever saw one. Since 2026-11-08 only the site\'s own hosts (juanlentino.com and www) are counted; other hosts on the zone are left out. Since 2026-10-19 scanner probes (direct requests to .php files under /wp-includes/ or /wp-admin/includes/, and since 2026-11-08 under /wp-content/themes/, which fatal when opened on their own) are counted apart in `probes` with their paths and left out of total, paths and each day\'s total; the /wp-admin/*.php screens stay in. Read `query.error` before trusting a zero: a failed read is not a clean week. installs_by_day (local only) counts each day\'s plugin and theme installs and says whether WordPress maintenance during them explains that day\'s 5xx. Same reader as cloudflare-status errors_5xx. Read-only; never fetches.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_edge_errors_summary_local',

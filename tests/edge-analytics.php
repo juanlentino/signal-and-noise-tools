@@ -119,6 +119,9 @@ $colo = sn_edge_colo_query();
 ok( strpos( $colo, 'httpRequestsAdaptiveGroups' ) !== false, 'colo: uses httpRequestsAdaptiveGroups' );
 ok( strpos( $colo, 'coloCode' ) !== false, 'colo: groups by coloCode' );
 ok( strpos( $colo, 'sampleInterval' ) !== false, 'colo: sampleInterval (adaptive)' );
+// 2026-11-09: unfiltered, a Worker-forwarded request is counted twice and an
+// Early Hints lookup counts as a request (2026-11-08: 39,697 rows, 18,511 visitors).
+ok( strpos( $colo, 'requestSource:"eyeball"' ) !== false, 'colo: visitor requests only' );
 
 echo "\nGroup: attack-surface query (doors + probes)\n";
 $atk = sn_edge_attack_query();
@@ -133,6 +136,11 @@ foreach ( array( 'clientRequestPath', 'clientCountryName', 'edgeResponseStatus',
 // 2026-11-08, read live: the plan refuses clientAsn and clientASNDescription on
 // this dataset, and one refused field emptied doors AND probes for good.
 ok( stripos( $atk, 'clientasn' ) === false, 'attack: never asks for a network field this plan refuses' );
+foreach ( array( 'doors', 'probes' ) as $alias ) {
+	$at  = strpos( $atk, $alias . ':' );
+	$sel = false === $at ? '' : substr( $atk, $at, strpos( $atk, '}', $at ) - $at );
+	ok( false !== strpos( $sel, 'requestSource:"eyeball"' ), "attack: $alias count visitor requests only (2026-11-08: doors read 28 for 17)" );
+}
 // Owner rule 2026-11-08: the sampled readings are the site itself, not the
 // Railway app or the workers on the same zone.
 ok( array( 'juanlentino.com', 'www.juanlentino.com' ) === sn_edge_site_hosts(), 'site hosts: the bare host and its www twin' );

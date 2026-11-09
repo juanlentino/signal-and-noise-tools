@@ -151,5 +151,22 @@ ok( 4 === ( sn_edge_errors_dims( $sampled )['err_path']['/s.js'] ?? 0 ),
 
 ok( array() === sn_edge_errors_dims( array() ), 'no errors yields no dimensions — a quiet day writes nothing' );
 
+// 2026-11-09: a Worker forwarding a visitor's request makes its own, so its
+// failure is the visitor's again. Which URLs failed counts the visitor once;
+// who asked and who answered keep both.
+$pair = array(
+	array( 'count' => 1, 'avg' => array( 'sampleInterval' => 1 ), 'dimensions' => array(
+		'clientRequestPath' => '/p', 'edgeResponseStatus' => 503, 'originResponseStatus' => 0, 'cacheStatus' => 'dynamic', 'requestSource' => 'eyeball' ) ),
+	array( 'count' => 1, 'avg' => array( 'sampleInterval' => 1 ), 'dimensions' => array(
+		'clientRequestPath' => '/p', 'edgeResponseStatus' => 503, 'originResponseStatus' => 503, 'cacheStatus' => 'dynamic', 'requestSource' => 'edgeWorkerFetch' ) ),
+	array( 'count' => 2, 'avg' => array( 'sampleInterval' => 1 ), 'dimensions' => array(
+		'clientRequestPath' => '/w', 'edgeResponseStatus' => 503, 'originResponseStatus' => 503, 'cacheStatus' => 'dynamic', 'requestSource' => 'edgeWorkerFetch' ) ),
+);
+$pd = sn_edge_errors_dims( $pair );
+ok( 1 === ( $pd['err_path']['/p'] ?? 0 ) && ! isset( $pd['err_path']['/w'] ), 'which URLs failed counts the visitor once, never the Worker\'s copy' );
+ok( 1 === ( $pd['err_path_status']['503 dynamic /p'] ?? 0 ) && ! isset( $pd['err_path_status']['503 dynamic /w'] ), 'path-by-status counts visitors only too' );
+ok( 3 === ( $pd['err_source']['src=edgeWorkerFetch edge=503 origin=503 cache=dynamic'] ?? 0 ) && 4 === array_sum( $pd['err_source'] ), 'who answered keeps every row, the Worker\'s included' );
+ok( isset( $pd['err_path_asker']['worker 503 503 dynamic /w'], $pd['err_path_asker']['visitor 503 - dynamic /p'] ), 'who asked per path keeps the Worker\'s rows' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

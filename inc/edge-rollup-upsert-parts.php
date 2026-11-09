@@ -100,7 +100,8 @@ function sn_edge_status_bucket( $status ) {
  * assertion about it read zero rows, which looked like a broken feature and was
  * a test reading the wrong side of a DB stub.
  *
- *   err_path    which URLs failed
+ *   err_path    which URLs failed, as visitors asked (2026-11-09)
+ *   err_path_status  the same with the status, visitors only
  *   err_path_asker  per path, who asked and who answered (the break alert)
  *   err_source  WHO answered. `edge=503 origin=503` is the origin, or the cache
  *               in front of it, failing. `edge=503 origin=-` is Cloudflare or a
@@ -129,22 +130,28 @@ function sn_edge_errors_dims( array $rows ) {
 			: '-';
 		$cache = (string) ( $d['cacheStatus'] ?? '' );
 		$from  = (string) ( $d['requestSource'] ?? '' );
+		// The asker words are sn_edge_error_asker()'s, inline: this function stays
+		// self-contained (tests/edge-analytics-sees-5xx.php lifts it out alone).
+		$ask = 'eyeball' === $from ? 'visitor' : ( 0 === strpos( $from, 'edgeWorker' ) ? 'worker' : ( '' === $from ? 'unrecorded' : 'other' ) );
 
-		$out['err_path'][ $path ] = ( $out['err_path'][ $path ] ?? 0 ) + $req;
 		$src = ( '' !== $from ? 'src=' . $from . ' ' : '' ) . 'edge=' . $edge . ' origin=' . $orig . ( '' !== $cache ? ' cache=' . $cache : '' );
 		$out['err_source'][ $src ] = ( $out['err_source'][ $src ] ?? 0 ) + $req;
-		// #1006: which path got which status. "<edge> <cache> <path>" in one value,
-		// capped at the column's 160 by cutting the PATH end, never the prefix.
-		$prefix = $edge . ' ' . ( '' !== $cache ? $cache : '-' ) . ' ';
-		$ps     = $prefix . substr( $path, 0, max( 0, 160 - strlen( $prefix ) ) );
-		$out['err_path_status'][ $ps ] = ( $out['err_path_status'][ $ps ] ?? 0 ) + $req;
+		// 2026-11-09: which URLs failed, and with what, count what visitors asked
+		// for. A Worker forwarding a visitor's request makes a second request of
+		// its own, so its row is the same failure again; it stays in err_source
+		// and err_path_asker (who asked, who answered), not here.
+		if ( 'visitor' === $ask || 'unrecorded' === $ask ) {
+			$out['err_path'][ $path ] = ( $out['err_path'][ $path ] ?? 0 ) + $req;
+			// #1006: which path got which status. "<edge> <cache> <path>" in one value,
+			// capped at the column's 160 by cutting the PATH end, never the prefix.
+			$prefix = $edge . ' ' . ( '' !== $cache ? $cache : '-' ) . ' ';
+			$ps     = $prefix . substr( $path, 0, max( 0, 160 - strlen( $prefix ) ) );
+			$out['err_path_status'][ $ps ] = ( $out['err_path_status'][ $ps ] ?? 0 ) + $req;
+		}
 		// Who asked for which path, with who answered: "<asker> <edge> <origin>
 		// <cache> <path>", the path cut to the column. err_source has the asker
 		// but no path and err_path_status the path but no asker, so a break
 		// alert could not tell a visitor's 522 from a Worker's 503 (2026-10-08).
-		// The asker words are sn_edge_error_asker()'s, inline: this function stays
-		// self-contained (tests/edge-analytics-sees-5xx.php lifts it out alone).
-		$ask = 'eyeball' === $from ? 'visitor' : ( 0 === strpos( $from, 'edgeWorker' ) ? 'worker' : ( '' === $from ? 'unrecorded' : 'other' ) );
 		$pa  = $ask . ' ' . $edge . ' ' . $orig . ' ' . ( '' !== $cache ? $cache : '-' ) . ' ';
 		$pa = $pa . substr( $path, 0, max( 0, 160 - strlen( $pa ) ) );
 		$out['err_path_asker'][ $pa ] = ( $out['err_path_asker'][ $pa ] ?? 0 ) + $req;
