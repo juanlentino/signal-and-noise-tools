@@ -69,7 +69,8 @@ function sn_edge_errors_range( $from, $to ) {
 		// 17.9.3: the errors query's last outcome; a non-empty error means the
 		// window below was NOT read, which is not the same as no errors.
 		'query'       => function_exists( 'get_option' ) ? get_option( SN_EDGE_ERRORS_QUERY_OPT, null ) : null,
-		'total'       => $days ? (int) array_sum( array_column( $days, 'total' ) ) : max( 0, (int) array_sum( array_column( $sources, 'requests' ) ) - $split['probes']['total'] ),
+		// The fallback (no day reader) counts as the days do: visitor + unrecorded.
+		'total'       => $days ? (int) array_sum( array_column( $days, 'total' ) ) : max( 0, (int) array_sum( array_column( array_filter( $sources, static fn( $s ) => in_array( sn_edge_error_asker( (string) ( $s['value'] ?? '' ) ), array( 'visitor', 'unrecorded' ), true ) ), 'requests' ) ) - $split['probes']['total'] ),
 		'paths'       => $split['paths'],
 		// Scanner probes on core library files: counted, named, not in total.
 		'probes'      => $days ? array( 'total' => (int) array_sum( array_column( $days, 'probes' ) ), 'paths' => $split['probes']['paths'] ) : $split['probes'],
@@ -151,7 +152,8 @@ function sn_edge_error_asker( $value ) {
 /**
  * Shape err_source rows into one entry per day of [$from,$to] (18.2.0). PURE:
  * the reader below only fetches. Every day in the range is present, zero-
- * filled, so a day with no stored 5xx reads 0 instead of vanishing.
+ * filled, so a day with no stored 5xx reads 0 instead of vanishing. `total`
+ * is visitor + unrecorded (2026-11-09); worker and other are who asked only.
  *
  * @param array  $rows Rows of {day, value, requests}.
  * @param string $from First day, YYYY-MM-DD.
@@ -174,9 +176,14 @@ function sn_edge_errors_days_shape( array $rows, $from, $to ) {
 		if ( ! isset( $out[ $day ] ) ) {
 			continue;
 		}
-		$n                      = (int) ( $r['requests'] ?? 0 );
-		$out[ $day ]['total']  += $n;
-		$out[ $day ][ sn_edge_error_asker( (string) ( $r['value'] ?? '' ) ) ] += $n;
+		$n   = (int) ( $r['requests'] ?? 0 );
+		$who = sn_edge_error_asker( (string) ( $r['value'] ?? '' ) );
+		// 2026-11-09: the total is what visitors asked for. A Worker's row is
+		// usually the same failure again (its own request for a visitor's), so
+		// it is counted under who asked, not twice in the total. Unrecorded rows
+		// stay in: unclassified is not the same as not a visitor.
+		$out[ $day ]['total'] += ( 'visitor' === $who || 'unrecorded' === $who ) ? $n : 0;
+		$out[ $day ][ $who ]  += $n;
 	}
 	return array_values( $out );
 }

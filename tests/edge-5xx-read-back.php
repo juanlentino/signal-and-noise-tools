@@ -28,7 +28,7 @@ function sn_edge_top_dim( $dim, $from, $to, $limit = 10 ) {
 	$GLOBALS['e5r_calls'][] = array( $dim, $from, $to, $limit );
 	$fx = array(
 		'err_path'   => array( array( 'value' => '/wp-cron.php', 'requests' => 7, 'bytes' => 0 ), array( 'value' => '/feed/', 'requests' => 3, 'bytes' => 0 ) ),
-		'err_source' => array( array( 'value' => 'edge=503 origin=503 cache=miss', 'requests' => 8, 'bytes' => 0 ), array( 'value' => 'edge=520 origin=- cache=miss', 'requests' => 2, 'bytes' => 0 ) ),
+		'err_source' => array( array( 'value' => 'edge=503 origin=503 cache=miss', 'requests' => 8, 'bytes' => 0 ), array( 'value' => 'edge=520 origin=- cache=miss', 'requests' => 2, 'bytes' => 0 ), array( 'value' => 'src=edgeWorkerFetch edge=503 origin=503 cache=miss', 'requests' => 5, 'bytes' => 0 ) ),
 		'err_path_status' => array( array( 'value' => '520 dynamic /wp-json/wp/v2/posts', 'requests' => 5, 'bytes' => 0 ) ),
 	);
 	return $fx[ $dim ] ?? array();
@@ -155,19 +155,23 @@ $shape = sn_edge_errors_days_shape( array(
 	array( 'day' => '2026-09-22', 'value' => 'edge=504 origin=- cache=miss', 'requests' => 5000 ),
 	array( 'day' => '2026-09-24', 'value' => 'src=eyeball edge=520 origin=- cache=none', 'requests' => 3 ),
 	array( 'day' => '2026-09-24', 'value' => 'src=edgeWorkerFetch edge=503 origin=503', 'requests' => 2 ),
+	array( 'day' => '2026-09-24', 'value' => 'src=somethingNew edge=500 origin=500', 'requests' => 4 ),
 	array( 'day' => '2026-09-30', 'value' => 'src=eyeball edge=500 origin=500', 'requests' => 99 ),
 ), '2026-09-22', '2026-09-24' );
 ok( 3 === count( $shape ), 'every day in the range is present' );
 ok( array( '2026-09-22', '2026-09-23', '2026-09-24' ) === array_column( $shape, 'day' ), 'oldest first' );
 ok( 0 === $shape[1]['total'], 'a day with nothing stored reads 0 instead of vanishing' );
 ok( 5000 === $shape[0]['unrecorded'] && 5000 === $shape[0]['total'], 'the pre-filter day is all unrecorded' );
-ok( 5 === $shape[2]['total'] && 3 === $shape[2]['visitor'] && 2 === $shape[2]['worker'], 'the post-filter day splits by who asked' );
-ok( 5005 === array_sum( array_column( $shape, 'total' ) ), 'a row outside the range is dropped, not folded into an edge day' );
+ok( 3 === $shape[2]['visitor'] && 2 === $shape[2]['worker'] && 4 === $shape[2]['other'], 'the post-filter day splits by who asked' );
+// 2026-11-09: a Worker's row is usually a visitor's failure seen again (its
+// own request for it), so the total counts visitors; who asked keeps the rest.
+ok( 3 === $shape[2]['total'], 'the total is what visitors asked for: the Worker and other rows are who asked only' );
+ok( 5003 === array_sum( array_column( $shape, 'total' ) ), 'a row outside the range is dropped, not folded into an edge day' );
 ok( array() === sn_edge_errors_days_shape( array(), '2026-09-24', '2026-09-22' ), 'an inverted range is empty, never a runaway loop' );
-ok( array( 'visitor' => 3, 'worker' => 2, 'other' => 0, 'unrecorded' => 5000 ) === sn_edge_errors_asked_by_totals( $shape ), 'the window totals sum the days' );
+ok( array( 'visitor' => 3, 'worker' => 2, 'other' => 4, 'unrecorded' => 5000 ) === sn_edge_errors_asked_by_totals( $shape ), 'the window totals sum the days' );
 
 $r = sn_edge_errors_range( '2026-09-17', '2026-09-23' );
-ok( array() === $r['days'] && 10 === $r['total'], 'without the day reader, total falls back to the responders (unchanged)' );
+ok( array() === $r['days'] && 10 === $r['total'], 'without the day reader, total falls back to the responders a visitor (or an unrecorded source) asked: the Worker\'s 5 are not counted' );
 if ( ! function_exists( 'sn_edge_errors_days' ) ) { // Conditional, so it is NOT hoisted above Group 2's no-reader assertions.
 	function sn_edge_errors_days( $from, $to ) {
 		return sn_edge_errors_days_shape( array(

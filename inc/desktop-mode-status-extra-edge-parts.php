@@ -91,18 +91,24 @@ function snt_desktop_edge_install_explained( $total, $rows, $installs ) {
 	}
 	$sum = 0;
 	foreach ( $rows as $r ) {
-		if ( ! preg_match( '/^\S+ (\d+) (?:\d+|-) \S+ (.+)$/', (string) ( is_array( $r ) ? ( $r['value'] ?? '' ) : '' ), $m ) ) {
+		if ( ! preg_match( '/^(\S+) (\d+) (?:\d+|-) \S+ (.+)$/', (string) ( is_array( $r ) ? ( $r['value'] ?? '' ) : '' ), $m ) ) {
 			return false;
+		}
+		list( , $who, $code, $path ) = $m;
+		// 2026-11-09: the total counts what visitors asked for, so a Worker's
+		// (or another source's) own row has nothing to explain.
+		if ( 'visitor' !== $who && 'unrecorded' !== $who ) {
+			continue;
 		}
 		// A scanner probe on a core library file is not a site failure and is
 		// already out of the day's total (inc/edge-error-probes.php).
-		if ( sn_edge_error_is_probe( $m[2] ) ) {
+		if ( sn_edge_error_is_probe( $path ) ) {
 			continue;
 		}
 		// Beyond the dashboard: the live poll, wp-cron, wp-login and the favicon
 		// (an open tab asks for it). A public REST route a reader loads is not.
-		$quiet = preg_match( SNT_EDGE_DASHBOARD_PATH_RE, $m[2] ) || preg_match( '#^/(wp-json/signal-noise/v1/live(/|$)|wp-cron\.php|wp-login\.php|favicon\.ico$)#', $m[2] );
-		if ( '503' !== $m[1] || ! $quiet ) {
+		$quiet = preg_match( SNT_EDGE_DASHBOARD_PATH_RE, $path ) || preg_match( '#^/(wp-json/signal-noise/v1/live(/|$)|wp-cron\.php|wp-login\.php|favicon\.ico$)#', $path );
+		if ( '503' !== $code || ! $quiet ) {
 			return false;
 		}
 		$sum += (int) ( $r['requests'] ?? 0 );

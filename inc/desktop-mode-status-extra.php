@@ -106,11 +106,14 @@ function snt_desktop_edge_yesterday() {
 		// for a few seconds, and the owner's open tabs get a 503 or two each.
 		$installs = function_exists( 'snt_deploy_history_get' ) ? snt_desktop_edge_installs_on( $d, (array) snt_deploy_history_get() ) : null;
 		$rows     = $total > 0 && function_exists( 'sn_edge_top_dim' ) ? sn_edge_top_dim( 'err_path_asker', $d, $d, 50 ) : null;
+		// Clamped: a day stored before 2026-11-09 has a Worker's rows in its
+		// paths, and its total no longer does.
+		$dash     = snt_desktop_edge_dashboard_count( $a['paths'] ?? null );
 		return array(
 			'day'       => gmdate( 'M j', $t ),
 			'total'     => $total,
 			'visitor'   => $visitor,
-			'dashboard' => snt_desktop_edge_dashboard_count( $a['paths'] ?? null ),
+			'dashboard' => null === $dash ? null : min( $total, $dash ),
 			'prior'     => $ok( $b, $pd ) ? (int) ( $b['total'] ?? 0 ) : null,
 			'installs'  => $installs,
 			'explained' => snt_desktop_edge_install_explained( $total, $rows ? $rows : null, $installs ),
