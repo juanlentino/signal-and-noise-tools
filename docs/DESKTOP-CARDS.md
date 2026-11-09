@@ -30,7 +30,8 @@ What it shows, top to bottom:
   ends); a picked day stays picked through refreshes while it is on the grid.
 - **The runway** (see Runway): "Covered through Jan 25, 2027 (103 days)",
   with the scheduled count and the draft count beside it as secondary text.
-- **The cadence lines**, one per cluster or gap (see Cadence), up to three,
+- **The cadence lines**, one per cluster, gap or off day (see Cadence and
+  Weekday rules), up to three,
   then "+N more in Scheduled". Each gap line has a **Planned** button.
 - **Drafts**, the newest three the viewer can edit, by title, each linking to
   its editor, with its suggested slot in words on a line under it
@@ -146,12 +147,47 @@ in the option `sn_content_queue_planned_gaps` (as `from|to` days, the newest
 or the Scheduled twins (a range that contains it is enough), and its days
 get a quiet dashed outline on the calendar so they do not read as holes.
 
+### Weekday rules
+
+Phase 2, item 4 (2026-11-09). The owner's rule: from Jan 4, 2027, notes go
+out on Mondays and Thursdays. Rules live in the option
+`sn_content_queue_weekday_rules` as `from|to|days` (`to` empty when the rule
+runs on; `days` the ISO weekdays, 1 for Monday, so the owner's rule is
+`2027-01-04||14`), at most 20. The owner's rule is seeded once on the first
+admin load after install; a list emptied later stays empty. Where two rules
+cover a day, the one that starts later wins (a February "Mondays only" rule
+inside the open-ended one). The pure functions are in
+`inc/abilities-content-queue-weekdays.php`.
+
+- **Off days.** A scheduled note on a weekday its rule leaves out is a cadence
+  warning of kind `offday`, in date order with the clusters and gaps: "Off day:
+  a note on Tue, Jan 12, 2027 (from Jan 4, 2027, notes go out on Mon and
+  Thu)", or "2 notes" when two share the day. The day is read in the site
+  timezone. On the card it is a cadence line like the others (no Planned
+  button); on the Scheduled twins it sits in the Cadence box.
+- **Suggested slots** land only on an allowed day. When the usual spacing
+  lands on a day the rule leaves out, the slot takes the nearest allowed day,
+  the earlier on a tie, held 2 to 7 days after the last note so the slot never
+  makes a cluster or a gap itself ("moved to the nearest day the weekday rule
+  allows"; when that day is planned or taken, the walk goes on and the reason
+  adds "then to the next open day"): after a Monday, a Mon and Thu rule
+  suggests that Thursday, not the next Monday a week on. A gap split takes the
+  allowed day nearest its even cut. On the live queue (2026-11-09) three drafts
+  would be suggested Mon Mar 8, Thu Mar 11 and Mon Mar 15, 2027.
+- **Setting them.** Connections › Scheduled has a **Weekday rules** box on both
+  twins, after Cadence and Suggested slots: each rule in words, then a form
+  (Starts, Ends, a checkbox per weekday; `POST admin-post.php`, action
+  `sn_queue_weekday_save`, `manage_options`). It opens on the latest-starting
+  rule. Saving a start day that has a rule replaces it; saving it with no
+  weekday checked removes it. The card itself does not write rules.
+
 ### Read-only by design
 
 The card reads; it does not edit. The ability is read-only (titles, dates and
 edit links; no post body leaves the server), and every action on the card is a
 link into wp-admin (the editor, Connections › Scheduled). The one write is the
-Planned button above, which stores a pair of dates and nothing else.
+Planned button above, which stores a pair of dates and nothing else. Weekday
+rules are written on Connections › Scheduled, never from the card.
 
 ### Size
 

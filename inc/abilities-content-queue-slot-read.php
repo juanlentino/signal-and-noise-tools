@@ -66,7 +66,7 @@ function sn_content_queue_slot_read( $schedule = null ) {
 	$schedule = is_array( $schedule ) ? $schedule : sn_content_queue_schedule_read();
 	$drafts   = sn_content_queue_draft_read();
 	return array(
-		'slots' => sn_content_queue_slots( $drafts['rows'], $schedule['future'], $schedule['published'], time(), wp_timezone(), sn_content_queue_planned_gaps() ),
+		'slots' => sn_content_queue_slots( $drafts['rows'], $schedule['future'], $schedule['published'], time(), wp_timezone(), sn_content_queue_planned_gaps(), sn_content_queue_weekday_rules() ),
 		'empty' => sn_content_queue_slot_empty( $drafts['count'], count( $drafts['rows'] ) ),
 		'more'  => $drafts['more'],
 	);

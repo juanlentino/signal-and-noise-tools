@@ -41,9 +41,12 @@ const SN_CONTENT_QUEUE_GAP_DAYS = 7;
  * @param int          $now       Unix time now (for the labels' year).
  * @param DateTimeZone $tz        Site timezone.
  * @param string[]     $planned   Gaps marked planned, as "from|to".
+ * @param string[]     $rules     Weekday rules (sn_content_queue_weekday_rules()): a
+ *                                scheduled note on a day its rule leaves out adds
+ *                                an "offday" warning, in date order (2026-11-09).
  * @return array<int,array{kind:string,from:string,to:string,days:int,count:int,text:string}>
  */
-function sn_content_queue_cadence( $scheduled, $published, $now, DateTimeZone $tz, array $planned = array() ) {
+function sn_content_queue_cadence( $scheduled, $published, $now, DateTimeZone $tz, array $planned = array(), array $rules = array() ) {
 	$ts = array_map( 'intval', (array) $scheduled );
 	// The newest published note always joins the walk, in date order: an
 	// overdue scheduled note (its date passed, cron not yet fired) sorts
@@ -103,6 +106,14 @@ function sn_content_queue_cadence( $scheduled, $published, $now, DateTimeZone $t
 			'text'  => sprintf( 'Gap: no note %s to %s (%d days between notes)', $label( $from ), $label( $to ), $d ),
 		);
 	}
+	$off = sn_content_queue_offdays( $scheduled, $now, $tz, $rules );
+	if ( array() === $off ) {
+		return $out;
+	}
+	// Stable (PHP 8): a cluster or gap keeps its place before an off day that
+	// starts the same day.
+	$out = array_merge( $out, $off );
+	usort( $out, static fn( $a, $b ) => strcmp( $a['from'], $b['from'] ) );
 	return $out;
 }
 
@@ -112,12 +123,12 @@ function sn_content_queue_cadence( $scheduled, $published, $now, DateTimeZone $t
  * @return string
  */
 function sn_content_queue_cadence_rule() {
-	return sprintf( 'From the latest published note through the scheduled ones, notes under %d days apart are a cluster; over %d days apart, a gap. Gaps marked Planned on the SN Queue card are left out.', SN_CONTENT_QUEUE_CLUSTER_DAYS, SN_CONTENT_QUEUE_GAP_DAYS );
+	return sprintf( 'From the latest published note through the scheduled ones, notes under %d days apart are a cluster; over %d days apart, a gap. Gaps marked Planned on the SN Queue card are left out. A scheduled note on a weekday its Weekday rule leaves out is an off day.', SN_CONTENT_QUEUE_CLUSTER_DAYS, SN_CONTENT_QUEUE_GAP_DAYS );
 }
 
 /** What the twins say when the schedule has neither. */
 function sn_content_queue_cadence_clear() {
-	return 'No clusters or gaps from the latest published note through the scheduled ones.';
+	return 'No clusters, gaps or off days from the latest published note through the scheduled ones.';
 }
 
 /**
@@ -129,7 +140,7 @@ function sn_content_queue_cadence_clear() {
  */
 function sn_content_queue_cadence_read( $schedule = null ) {
 	$schedule = is_array( $schedule ) ? $schedule : sn_content_queue_schedule_read();
-	return sn_content_queue_cadence( $schedule['future'], $schedule['published'], time(), wp_timezone(), sn_content_queue_planned_gaps() );
+	return sn_content_queue_cadence( $schedule['future'], $schedule['published'], time(), wp_timezone(), sn_content_queue_planned_gaps(), sn_content_queue_weekday_rules() );
 }
 
 /**

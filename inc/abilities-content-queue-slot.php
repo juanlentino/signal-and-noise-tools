@@ -61,9 +61,11 @@ const SN_CONTENT_QUEUE_SLOT_HORIZON = 366;
  * @param int          $now       Unix time now.
  * @param DateTimeZone $tz        Site timezone.
  * @param string[]     $planned   Gaps marked planned, as "from|to".
+ * @param string[]     $rules     Weekday rules: a slot lands only on a day its
+ *                                rule allows (2026-11-09).
  * @return array<int,array{id:int,title:string,edit_url:string,day:?string,time:?string,label:string,reason:string,text:string}>
  */
-function sn_content_queue_slots( $drafts, $scheduled, $published, $now, DateTimeZone $tz, array $planned = array() ) {
+function sn_content_queue_slots( $drafts, $scheduled, $published, $now, DateTimeZone $tz, array $planned = array(), array $rules = array() ) {
 	$sched = array_map( 'intval', (array) $scheduled );
 	$at    = static fn( $t ) => ( new DateTimeImmutable( '@' . (int) $t ) )->setTimezone( $tz );
 	$today = $at( $now )->setTime( 0, 0, 0 );
@@ -89,8 +91,8 @@ function sn_content_queue_slots( $drafts, $scheduled, $published, $now, DateTime
 	$usual = '' === $why ? $spacing[ intdiv( count( $spacing ) - 1, 2 ) ] : 0;
 	$step  = max( SN_CONTENT_QUEUE_CLUSTER_DAYS, min( SN_CONTENT_QUEUE_GAP_DAYS, $usual ) );
 
-	$open = static function ( DateTimeImmutable $c ) use ( &$days, $today, $planned, $apart ) {
-		if ( $c <= $today ) {
+	$open = static function ( DateTimeImmutable $c ) use ( &$days, $today, $planned, $apart, $rules ) {
+		if ( $c <= $today || ! sn_content_queue_weekday_allows( $c, $rules ) ) {
 			return false;
 		}
 		foreach ( $days as $o ) {
@@ -162,7 +164,26 @@ function sn_content_queue_slots( $drafts, $scheduled, $published, $now, DateTime
 		if ( null === $pick ) {
 			$last  = max( $days );
 			$start = $last->modify( '+' . $step . ' days' );
-			for ( $pick = $start, $k = 0; $k < SN_CONTENT_QUEUE_SLOT_HORIZON && ! $open( $pick ); $k++ ) {
+			// 2026-11-09 (item 4): a usual day the weekday rule leaves out
+			// moves to the nearest day it allows, the earlier on a tie (a Mon
+			// and Thu rule takes the Thu after a Mon, not the next Mon a week
+			// on), held 2 to 7 days after the last note so the pull never
+			// makes a cluster or a gap itself (review: a 7-day rhythm ending on
+			// a Wed took Thu, 8 days on, past an allowed Mon); then the walk.
+			$pick   = $start;
+			$pulled = null;
+			for ( $k = 1; $k <= 6 && null === $pulled && ! sn_content_queue_weekday_allows( $start, $rules ); $k++ ) {
+				foreach ( array( -$k, $k ) as $off ) {
+					$c = $start->modify( sprintf( '%+d days', $off ) );
+					$n = $c > $last ? $apart( $last, $c ) : 0;
+					if ( $n >= SN_CONTENT_QUEUE_CLUSTER_DAYS && $n <= SN_CONTENT_QUEUE_GAP_DAYS && sn_content_queue_weekday_allows( $c, $rules ) ) {
+						$pick   = $c;
+						$pulled = $c->format( 'Y-m-d' );
+						break;
+					}
+				}
+			}
+			for ( $k = 0; $k < SN_CONTENT_QUEUE_SLOT_HORIZON && ! $open( $pick ); $k++ ) {
 				$pick = $pick->modify( '+1 day' );
 			}
 			if ( ! $open( $pick ) ) {
@@ -175,7 +196,9 @@ function sn_content_queue_slots( $drafts, $scheduled, $published, $now, DateTime
 			$reason = ( $usual === $step
 				? sprintf( 'the usual %d days after %s', $step, $after )
 				: sprintf( '%d days after %s (the usual %d would %s)', $step, $after, $usual, $usual > $step ? 'leave a gap' : 'make a cluster' ) )
-				. ( $pick->format( 'Y-m-d' ) !== $start->format( 'Y-m-d' ) ? ', moved to the next open day' : '' );
+				. ( null !== $pulled ? ', moved to the nearest day the weekday rule allows' : '' )
+				// The walk past a planned or taken day says so too, after the pull (review).
+				. ( $pick->format( 'Y-m-d' ) !== ( $pulled ?? $start->format( 'Y-m-d' ) ) ? ( null !== $pulled ? ', then to the next open day' : ', moved to the next open day' ) : '' );
 		}
 		$when  = $pick->setTime( intdiv( $sec, 3600 ), intdiv( $sec % 3600, 60 ) );
 		$day   = $pick->format( 'D, ' ) . $name( $pick );
@@ -215,7 +238,7 @@ function sn_content_queue_slot_empty( $drafts, $listed ) {
 
 /** The rule in one sentence, said over the slots on the Scheduled twins. */
 function sn_content_queue_slot_rule() {
-	return sprintf( 'A suggestion only; nothing is scheduled. Each draft gets the next open day that keeps the cadence: not under %d days from a note, not in a planned gap, the earliest gap over %d days split first, else the usual spacing after the last note; at the usual publish time, in the site timezone.', SN_CONTENT_QUEUE_CLUSTER_DAYS, SN_CONTENT_QUEUE_GAP_DAYS );
+	return sprintf( 'A suggestion only; nothing is scheduled. Each draft gets the next open day that keeps the cadence: not under %d days from a note, not in a planned gap, on a weekday its Weekday rule allows, the earliest gap over %d days split first, else the usual spacing after the last note; at the usual publish time, in the site timezone.', SN_CONTENT_QUEUE_CLUSTER_DAYS, SN_CONTENT_QUEUE_GAP_DAYS );
 }
 
 require_once __DIR__ . '/abilities-content-queue-slot-read.php';

@@ -128,6 +128,8 @@ function sn_admin_render_scheduled_content_section() {
 		sn_admin_render_queue_runway( sn_content_queue_runway_read( $schedule ) );
 		sn_admin_render_queue_cadence( sn_content_queue_cadence_read( $schedule ) );
 		sn_admin_render_queue_slots( sn_content_queue_slot_read( $schedule ) );
+		// 2026-11-09 (item 4): the weekday rules, the one form among the boxes.
+		sn_admin_render_queue_weekdays( sn_content_queue_weekday_rules() );
 	}
 
 	// v8.0.0: version swaps — pairs DERIVED from the fragment rows (old

@@ -24,6 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/abilities-content-queue-gaps.php';
 require_once __DIR__ . '/abilities-content-queue-cadence.php';
+require_once __DIR__ . '/abilities-content-queue-weekdays.php'; // 2026-11-09 (item 4): weekday rules.
 require_once __DIR__ . '/abilities-content-queue-slot.php';
 require_once __DIR__ . '/abilities-content-queue-runway.php';
 require_once __DIR__ . '/abilities-content-queue-register.php';
@@ -149,9 +150,10 @@ function sn_content_queue_ago( $ts, $now ) {
  * @param int|null     $draft_more Drafts left off the list, or null when not read for this user.
  * @since 2026.10.9 (cadence warnings): `cadence`, every cluster and unplanned gap.
  * @since 2026.10.13 (runway): `runway`, how far ahead the schedule covers, in one sentence.
+ * @param string[]     $weekday_rules Weekday rules (2026-11-09): off days join `cadence`, and slots keep to the rules.
  * @return array{next:array,scheduled_total:int,runs_to:?array,published:array,drafts:?int,gap:?array,scheduled:array,today:string,week_start:string,planned:array,draft_list:array,draft_more:?int,cadence:array,runway:array}
  */
-function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone $tz, $drafts = null, array $planned = array(), $draft_list = array(), $draft_more = null ) {
+function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone $tz, $drafts = null, array $planned = array(), $draft_list = array(), $draft_more = null, array $weekday_rules = array() ) {
 	$future    = is_array( $future ) ? array_values( $future ) : array();
 	$published = is_array( $published ) ? array_values( $published ) : array();
 	$now       = (int) $now;
@@ -235,7 +237,7 @@ function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone
 	// Phase 2, item 2 (2026-10-13): a suggested slot per draft, never
 	// scheduled; the same sentence the Scheduled twins print.
 	$newest = $stamps( array_slice( $published, 0, 1 ) )[0] ?? null;
-	foreach ( sn_content_queue_slots( $draft_rows, $stamps( $future ), $newest, $now, $tz, $planned ) as $i => $s ) {
+	foreach ( sn_content_queue_slots( $draft_rows, $stamps( $future ), $newest, $now, $tz, $planned, $weekday_rules ) as $i => $s ) {
 		$draft_rows[ $i ]['slot'] = array_intersect_key( $s, array_flip( array( 'day', 'time', 'label', 'reason', 'text' ) ) );
 	}
 
@@ -260,7 +262,8 @@ function sn_content_queue_shape( $future, $total, $published, $now, DateTimeZone
 		'draft_more'      => null === $draft_more ? null : max( 0, (int) $draft_more ),
 		// Phase 2 (2026-10-12): every cluster and gap by the owner's rule
 		// (under 2 days, over 7), planned gaps left out, one sentence each.
-		'cadence'         => sn_content_queue_cadence( $stamps( $future ), $newest, $now, $tz, $planned ),
+		// 2026-11-09 (item 4): and every off day by the weekday rules.
+		'cadence'         => sn_content_queue_cadence( $stamps( $future ), $newest, $now, $tz, $planned, $weekday_rules ),
 		// Phase 2, item 6 (2026-10-14): "Covered through Jan 25, 2027 (103
 		// days)", the same sentence the Scheduled twins print.
 		'runway'          => sn_content_queue_runway( $stamps( $future ), $now, $tz ),
@@ -353,6 +356,7 @@ function snt_ability_content_queue( $input = null ) {
 		$draft['count'],
 		sn_content_queue_planned_gaps(),
 		$draft['rows'],
-		$draft['more']
+		$draft['more'],
+		sn_content_queue_weekday_rules()
 	);
 }
