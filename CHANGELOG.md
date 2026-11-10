@@ -17,6 +17,7 @@ adds a bullet below. A release is a separate, deliberate act:
 - **A note's "after the first hour" figures keep counting for notes that went live before October 18.** The publish window read the whole span from one dataset, the legacy one for those notes, so the figures would have stopped growing when the legacy write stops. It is now read in two halves like the lanes table. Test: `tests/publish-window.php` (fails without the fix).
 
 ### Changed
+- The `analytics-dual-write` tool's description says what it shows once worker 2.0.0 has stopped the legacy write: the verdict is frozen, and later days read as a mismatch that moves nothing.
 - The two "analytics worker misconfigured" messages name the dataset bindings worker 2.0.0 uses (`SN_AE_PV`, `SN_AE_EVENTS`) beside the old `SN_AE`.
 
 ## [2026.11.19] - 2026-11-09 — The SN Queue keeps a weekday rule
