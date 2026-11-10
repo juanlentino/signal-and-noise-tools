@@ -134,6 +134,10 @@ function snt_ai_excerpt_impl( $post_id, $concise = false ) {
  * ════════════════════════════════════════════════════════════════════════ */
 
 add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
+	// The official generator writes the excerpt when it is on (inc/ai-official-generators.php); one button, not two.
+	if ( function_exists( 'snt_ai_official_feature_on' ) && snt_ai_official_feature_on( 'excerpt-generation' ) ) {
+		return;
+	}
 	// v9.81.0: shared helper (ai-bootstrap/editor-assets.php) replaces the drifted local copy.
 	// wp-data extra dep: editPost() writes the excerpt back into the editor store.
 	snt_ai_enqueue_editor_script( $hook_suffix, 'snt-ai-excerpt', 'ai-excerpt.js', 'sntAiExcerpt', array(

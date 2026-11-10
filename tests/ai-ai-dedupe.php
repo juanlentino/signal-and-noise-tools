@@ -47,12 +47,12 @@ function dd_true( $c, $msg ) {
 }
 
 dd_true(
-	false === apply_filters( 'wpai_feature_meta-description_enabled', true ),
-	'ai/ai meta-description feature is force-disabled'
+	true === apply_filters( 'wpai_feature_meta-description_enabled', true ),
+	'ai/ai meta-description is no longer switched off: the official generator runs, S&N attached (2026-11-09)'
 );
 dd_true(
-	false === apply_filters( 'wpai_feature_excerpt-generation_enabled', true ),
-	'ai/ai excerpt-generation feature is force-disabled'
+	true === apply_filters( 'wpai_feature_excerpt-generation_enabled', true ),
+	'ai/ai excerpt-generation is no longer switched off either'
 );
 foreach ( array( 'editorial-updates', 'editorial-notes', 'webmcp', 'text-to-speech' ) as $id ) {
 	dd_true(
