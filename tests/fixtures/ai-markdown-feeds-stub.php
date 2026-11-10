@@ -19,9 +19,7 @@ class Markdown_Feeds {
 			return;
 		}
 		$sections = array( 'title' => '# Generic', 'meta' => '- Link: x', 'content' => 'generic conversion', 'comments' => '' );
-		if ( function_exists( 'sn_resume_formats_markdown_sections' ) ) {
-			$sections = \sn_resume_formats_markdown_sections( $sections, (object) array( 'ID' => 7 ) );
-		}
+		$sections = \apply_filters( 'wpai_markdown_singular_sections', $sections, (object) array( 'ID' => 7 ) );
 		$sections = array_filter( array_map( 'strval', $sections ), static fn( $s ) => '' !== $s );
 		header( 'Content-Type: text/markdown; charset=UTF-8' ); // get_option( 'blog_charset' ).
 		header( 'X-Robots-Tag: noindex' );

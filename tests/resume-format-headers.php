@@ -30,7 +30,10 @@ $run  = static function ( $uri, array $get, $is_page, $ai = false ) use ( $root,
 	file_put_contents(
 		$boot,
 		'<?php define("ABSPATH","/"); define("OBJECT","OBJECT");'
-		. 'function add_action(){} function add_filter(){} function apply_filters($t,$v){return $v;} function get_option($k,$d=false){return $d;}'
+		. '$GLOBALS["__h"]=array(); function add_filter($t,$c=null,$p=10,$n=1){$GLOBALS["__h"][$t][$p][]=array($c,$n);} function add_action($t,$c=null,$p=10,$n=1){add_filter($t,$c,$p,$n);}'
+		// Runs what the files under test registered, by priority, with the accepted argument count.
+		. 'function apply_filters($t,$v,...$r){$h=$GLOBALS["__h"][$t]??array(); ksort($h); foreach($h as $p=>$cbs){ if("template_redirect"===$t&&$p>9){break;} foreach($cbs as $cb){$v=$cb[0](...array_slice(array_merge(array($v),$r),0,$cb[1]));}} return $v;}'
+		. 'function get_option($k,$d=false){return $d;}'
 		. 'function wp_kses($s,$a){return strip_tags((string)$s,"<strong><em><a>");} function sanitize_email($e){return (string)$e;} function sanitize_text_field($s){return (string)$s;}'
 		. 'function sanitize_key($k){return preg_replace("/[^a-z0-9_\-]/","",strtolower((string)$k));} function sanitize_file_name($s){return (string)$s;}'
 		. 'function wp_unslash($v){return $v;} function esc_url_raw($s){return (string)$s;} function wp_json_encode($d,$o=0){return json_encode($d,$o);}'
@@ -44,8 +47,7 @@ $run  = static function ( $uri, array $get, $is_page, $ai = false ) use ( $root,
 		. 'header("Link: <https://example.test/wp-json/>; rel=\"https://api.w.org/\"", false);' // WordPress's own, sent earlier.
 		. '$_SERVER["REQUEST_URI"]=' . var_export( $uri, true ) . '; $_GET=' . var_export( $get, true ) . ';'
 		. $ai_stub
-		. 'sn_jsonresume_maybe_serve(); sn_resume_formats_maybe_serve();' // both at template_redirect 0, in this order.
-		. 'if ( function_exists( "sn_resume_formats_markdown_headers" ) ) { sn_resume_formats_markdown_headers(); }' // at 9.
+		. 'unset( $GLOBALS["__h"]["sn_agents_surfaces"], $GLOBALS["__h"]["sn_schema_person_credentials"] ); apply_filters( "template_redirect", null );' // the registered callbacks at 0 and 9.
 		. 'if ( isset( $GLOBALS["__ai"] ) ) { $GLOBALS["__ai"]->handle_template_redirect(); } echo "PASSED THROUGH";' // the AI plugin at 10.
 	);
 	$out = (string) shell_exec( escapeshellarg( $cgi ) . ' -d cgi.force_redirect=0 ' . escapeshellarg( $boot ) . ' 2>&1' );
