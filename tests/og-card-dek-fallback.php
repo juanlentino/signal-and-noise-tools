@@ -199,8 +199,8 @@ $want_dek = array(
 	'paragraphs inside a group'     => 'Inside the group. Two papers and a running series of notes.',
 	'paragraphs inside columns'     => 'Left column. Right column.',
 	'a quote, then prose'           => 'Quoted words. Someone Two papers and a running series of notes.',
-	// Core 7.1 leaves core/list off its excerpt list and skips the list, in its own excerpts too; 7.2 adds
-	// core/list and core/list-item, so the list opens the dek. The answer follows the loaded core's list.
+	// Core 7.1 lists core/list but not core/list-item, so a list's items are dropped, in its own excerpts too;
+	// 7.2 adds core/list-item (and makes core/list a wrapper), so the list opens the dek. The answer follows the loaded core's list.
 	'a list, then prose'            => array() === $core_allowed ? null : $list_dek,
 	'a leading heading in a group'  => 'On Provenance Two papers and a running series of notes.',
 	'a raw > in attribute JSON'     => 'Hand-edited markup. Two papers and a running series of notes.',
