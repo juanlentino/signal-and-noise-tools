@@ -21,13 +21,15 @@
  * `diagnostics`, and `ai-generation` (with its own guards). wp-settings.php
  * loads active plugins before the theme, so at equal priority this callback
  * is added first, runs first, and the plugin's category metadata is the one
- * registered. The theme, with its own guard, then skips the slug. Without guards on both
+ * registered (except `content`, see below). The theme, with its own guard, then skips the slug. Without guards on both
  * sides the second registration would fire `_doing_it_wrong` on every
  * request on debug installs.
  *
  * `content` is shared with the official AI plugin (1.5.0), which registers
- * the same slug at priority 11 behind the same guard. This callback runs at
- * 10, so today the S&N label below is the one registered.
+ * the same slug at priority 11 behind the same guard, and core may register
+ * it at 10 (core's own category hook runs at 10). S&N registers `content` in
+ * its own callback at priority 20, so another registrant's wording wins and
+ * S&N's is the fallback. The other five stay at 10.
  *
  * @package SignalNoiseTools
  * @since 4.1.3 (extracted from 2.0.4)
@@ -46,13 +48,6 @@ add_action( 'wp_abilities_api_categories_init', function() {
 		wp_register_ability_category( 'maintenance', array(
 			'label'       => 'Maintenance',
 			'description' => 'Cache + template-override + update-detection housekeeping operations.',
-		) );
-	}
-
-	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'content' ) ) {
-		wp_register_ability_category( 'content', array(
-			'label'       => 'Content',
-			'description' => 'Per-post content artifacts (OG cards, schema, etc.).',
 		) );
 	}
 
@@ -95,3 +90,18 @@ add_action( 'wp_abilities_api_categories_init', function() {
 		) );
 	}
 } );
+
+// 'content' is a generic slug other registrants share, so S&N's is the
+// fallback: priority 20 runs after the AI plugin (11) and core (10), and the
+// guard skips it when either already registered the slug.
+add_action( 'wp_abilities_api_categories_init', function() {
+	if ( ! function_exists( 'wp_register_ability_category' ) ) {
+		return;
+	}
+	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'content' ) ) {
+		wp_register_ability_category( 'content', array(
+			'label'       => 'Content',
+			'description' => 'Per-post content artifacts (OG cards, schema, etc.).',
+		) );
+	}
+}, 20 );

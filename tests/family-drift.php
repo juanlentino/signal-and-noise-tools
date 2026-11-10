@@ -38,7 +38,7 @@ class WP_Error { public $c; public function __construct( $c = '', $m = '', $d = 
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
 // The network seam: url => body (string) | null (failure).
 $GLOBALS['__net'] = array(); $GLOBALS['__fetched'] = array();
-function wp_remote_get( $url, $args = array() ) { $GLOBALS['__fetched'][] = $url; $b = $GLOBALS['__net'][ $url ] ?? null; return null === $b ? new WP_Error( 'x' ) : array( 'code' => 200, 'body' => $b ); }
+function wp_remote_get( $url, $args = array() ) { $GLOBALS['__fetched'][] = $url; $GLOBALS['__fetch_args'][] = $args; $b = $GLOBALS['__net'][ $url ] ?? null; return null === $b ? new WP_Error( 'x' ) : array( 'code' => 200, 'body' => $b ); }
 function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? $r['code'] : 0; }
 function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? $r['body'] : ''; }
 function snt_mr_valid_families() { return $GLOBALS['__plugin_enum']; }
@@ -256,6 +256,10 @@ ok( null !== $fd_marker && isset( $fd_marker['same_as_last'] ),
 $fd_near = $fd_rec;
 $fd_near['computed_at'] = 1788389984;
 ok( snt_family_drift_collapse_last_ok( $fd_rec, $fd_near ) === $fd_near, 'a one-second difference is NOT a duplicate' );
+
+$fd_args = $GLOBALS['__fetch_args'] ?? array();
+$fd_safe = array_filter( $fd_args, function ( $a ) { return true === ( $a['reject_unsafe_urls'] ?? null ); } );
+ok( count( $fd_args ) > 0 && count( $fd_args ) === count( $fd_safe ), 'every fetch sets reject_unsafe_urls, so core re-checks the URL at send time' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

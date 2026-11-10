@@ -77,19 +77,27 @@ if ( ! function_exists( 'sn_schedule_fire_purge' ) ) {
 	}
 }
 
+function wp_json_encode_test( $v ) {
+	return json_encode( $v );
+}
+$GLOBALS['__next_scheduled_args'] = array(); // json(args) => bool, checked first.
 // Record-only cron stubs for reconcile's re-arm. wp_next_scheduled consults a
 // per-test map keyed by the row id arg so "already scheduled" can be simulated.
 $GLOBALS['__armed']            = array(); // list of array( 'ts' => , 'id' => )
 $GLOBALS['__next_scheduled']   = array(); // row_id => bool (already armed?)
 if ( ! function_exists( 'wp_next_scheduled' ) ) {
 	function wp_next_scheduled( $hook, $args = array() ) {
+		$key = wp_json_encode_test( $args );
+		if ( isset( $GLOBALS['__next_scheduled_args'][ $key ] ) ) {
+			return $GLOBALS['__next_scheduled_args'][ $key ];
+		}
 		$id = isset( $args[0] ) ? (int) $args[0] : 0;
 		return ! empty( $GLOBALS['__next_scheduled'][ $id ] );
 	}
 }
 if ( ! function_exists( 'wp_schedule_single_event' ) ) {
 	function wp_schedule_single_event( $ts, $hook, $args = array() ) {
-		$GLOBALS['__armed'][] = array( 'ts' => $ts, 'id' => isset( $args[0] ) ? (int) $args[0] : 0 );
+		$GLOBALS['__armed'][] = array( 'ts' => $ts, 'id' => isset( $args[0] ) ? (int) $args[0] : 0, 'args' => $args );
 		return true;
 	}
 }
@@ -270,6 +278,7 @@ function reset_world() {
 	$GLOBALS['__purge_return']   = true;
 	$GLOBALS['__armed']          = array();
 	$GLOBALS['__next_scheduled'] = array();
+	$GLOBALS['__next_scheduled_args'] = array();
 }
 
 // Fixed UTC instants. gmmktime builds a UTC unix timestamp regardless of the
@@ -451,6 +460,79 @@ $GLOBALS['__now'] = $START_TS - 3600;
 $GLOBALS['__next_scheduled'] = array( $id => true );  // already armed.
 sn_schedule_reconcile();
 ok( count( $GLOBALS['__armed'] ) === 0, 're-arm: an already-scheduled future event is NOT double-armed' );
+
+// ─── Case: per-boundary args: an armed start does not hide a missing end ──
+echo "\nGroup: reconcile re-arms each boundary on its own args\n";
+reset_world();
+$id = sn_schedule_upsert( array(
+	'schedule_id' => 'future-3',
+	'target_type' => 'fragment',
+	'target_ref'  => '17',
+	'action'      => 'reveal',
+	'starts_at'   => $START_STR,
+	'ends_at'     => gmdate( 'Y-m-d H:i:s', $START_TS + 300 ),
+	'status'      => 'queued',
+	'purge_urls'  => $PURGE_JSON,
+) );
+$GLOBALS['__now'] = $START_TS - 3600;
+$GLOBALS['__next_scheduled_args'] = array(
+	json_encode( array( $id, 'start' ) ) => true,  // start armed.
+	json_encode( array( $id, 'end' ) )   => false, // end refused or lost.
+	json_encode( array( $id ) )          => false, // no old-shape event.
+);
+sn_schedule_reconcile();
+ok( count( $GLOBALS['__armed'] ) === 1, 'per-boundary: only the missing end is re-armed' );
+ok( isset( $GLOBALS['__armed'][0] ) && array( $id, 'end' ) === $GLOBALS['__armed'][0]['args'] && (int) $GLOBALS['__armed'][0]['ts'] === $START_TS + 300, 'per-boundary: the end is armed at ends_at with array( id, end )' );
+
+// An old-shape event armed before this release still counts as armed.
+reset_world();
+$id = sn_schedule_upsert( array(
+	'schedule_id' => 'future-4',
+	'target_type' => 'fragment',
+	'target_ref'  => '18',
+	'action'      => 'reveal',
+	'starts_at'   => $START_STR,
+	'ends_at'     => null,
+	'status'      => 'queued',
+	'purge_urls'  => $PURGE_JSON,
+) );
+$GLOBALS['__now'] = $START_TS - 3600;
+$GLOBALS['__next_scheduled_args'] = array(
+	json_encode( array( $id, 'start' ) ) => false,
+	json_encode( array( $id ) )          => true, // armed by an earlier release.
+);
+sn_schedule_reconcile();
+ok( count( $GLOBALS['__armed'] ) === 0, 'old shape: an event armed before this release is not doubled' );
+
+// The old-shape payload (row id only) still runs the transition.
+reset_world();
+$id = sn_schedule_upsert( array(
+	'schedule_id' => 'old-shape',
+	'target_type' => 'fragment',
+	'target_ref'  => '19',
+	'action'      => 'reveal',
+	'starts_at'   => $START_STR,
+	'ends_at'     => null,
+	'status'      => 'queued',
+	'purge_urls'  => $PURGE_JSON,
+) );
+$GLOBALS['__now'] = $START_TS + 60;
+sn_schedule_fire( $id );
+ok( 'active' === sn_schedule_get( $id )['status'], 'old shape: fire( id ) still reveals' );
+reset_world();
+$id = sn_schedule_upsert( array(
+	'schedule_id' => 'new-shape',
+	'target_type' => 'fragment',
+	'target_ref'  => '20',
+	'action'      => 'reveal',
+	'starts_at'   => $START_STR,
+	'ends_at'     => null,
+	'status'      => 'queued',
+	'purge_urls'  => $PURGE_JSON,
+) );
+$GLOBALS['__now'] = $START_TS + 60;
+sn_schedule_fire( $id, 'start' );
+ok( 'active' === sn_schedule_get( $id )['status'], 'new shape: fire( id, start ) reveals' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

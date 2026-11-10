@@ -479,6 +479,9 @@ function sn_webhook_dispatch( $webhook_id, $event = 'post.published', $post_id =
 		// its response body recorded in the admin-visible delivery log (SSRF +
 		// exfil). Webhook receivers expose a stable endpoint; they don't redirect.
 		'redirection' => 0,
+		// Core's own send-time check (wp_http_validate_url() on this request),
+		// beside sn_ssrf_host_blocked() at save time and the cURL pin.
+		'reject_unsafe_urls' => true,
 		'headers'     => array(
 			'Content-Type'      => 'application/json',
 			'Accept'            => 'application/json',

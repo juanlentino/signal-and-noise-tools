@@ -164,9 +164,10 @@ add_filter(
  * and consistent, and the first URL Inspection reading (v13.63.0) showed 13
  * of 37 notes not indexed with the sitemap fetched 185 times in a month:
  * Google could find them and declined. This function formats the date the
- * filter below writes over core's: GMT, W3C format, +00:00. It returns null
- * for a value that is not a real time, and the filter then leaves the entry
- * alone, so core's own lastmod stays in it. Nothing here removes a date.
+ * filter below writes over core's: GMT, W3C format, +00:00, so the sitemap
+ * and the JSON-LD agree. It returns null for a value that is not a real time,
+ * and the filter then removes core's lastmod, so the entry carries no date
+ * rather than one that disagrees with the schema.
  *
  * @param string $modified_gmt post_modified_gmt ('Y-m-d H:i:s', GMT).
  * @return string|null ISO 8601 with a +00:00 offset, or null.
@@ -178,7 +179,7 @@ function sn_sitemap_lastmod( $modified_gmt ) {
 	}
 	$dt = DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $modified_gmt, new DateTimeZone( 'UTC' ) );
 	if ( false === $dt || $dt->format( 'Y-m-d H:i:s' ) !== $modified_gmt ) {
-		return null; // Not a real timestamp: no guess. The filter then keeps core's lastmod.
+		return null; // Not a real timestamp: no guess. The filter then emits no lastmod.
 	}
 	return $dt->format( 'Y-m-d\TH:i:s+00:00' );
 }
@@ -189,7 +190,7 @@ function sn_sitemap_lastmod( $modified_gmt ) {
  * post_modified), so the sitemap and the schema name one date. 2026-10-22:
  * the sitemap read post_modified_gmt alone and said 2026-09-24 where the
  * Article said 2026-09-14. Null when neither is a real time; the filter
- * below then keeps the lastmod core put in the entry.
+ * below then removes the lastmod core put in the entry.
  *
  * @param object $post WP_Post-like.
  * @return string|null
@@ -210,8 +211,13 @@ add_filter(
 	'wp_sitemaps_posts_entry',
 	function ( $entry, $post ) {
 		$lastmod = sn_sitemap_lastmod_for( $post );
-		if ( null !== $lastmod && is_array( $entry ) ) {
+		if ( ! is_array( $entry ) ) {
+			return $entry;
+		}
+		if ( null !== $lastmod ) {
 			$entry['lastmod'] = $lastmod;
+		} else {
+			unset( $entry['lastmod'] ); // No real date: emit none, not core's.
 		}
 		return $entry;
 	},

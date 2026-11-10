@@ -452,11 +452,12 @@ ok( in_array( 'uuid-a', $sids_after, true ) && ! in_array( 'uuid-b', $sids_after
 // hooks, then calls delete_missing). Assert wp_clear_scheduled_hook was called
 // with array( uuid_b_id ).
 $cleared_args = array_map( function ( $c ) { return $c['args']; }, $GLOBALS['__test_cleared'] );
-ok( in_array( array( $uuid_b_id ), $cleared_args, true ), 'removed block: wp_clear_scheduled_hook called with the removed row id' );
+ok( in_array( array( $uuid_b_id ), $cleared_args, true ), 'removed block: wp_clear_scheduled_hook called with the old-shape args (events armed before the per-boundary args)' );
+ok( in_array( array( $uuid_b_id, 'start' ), $cleared_args, true ) && in_array( array( $uuid_b_id, 'end' ), $cleared_args, true ), 'removed block: both per-boundary events cleared' );
 // And the deleted row must NOT have been re-armed.
 $rearmed = false;
 foreach ( $GLOBALS['__test_scheduled'] as $s ) {
-	if ( array( $uuid_b_id ) === $s['args'] ) {
+	if ( isset( $s['args'][0] ) && $uuid_b_id === $s['args'][0] ) {
 		$rearmed = true;
 	}
 }
@@ -529,21 +530,24 @@ foreach ( $sched as $s ) {
 	if ( 'sn_schedule_fire' !== $s['hook'] ) {
 		$all_fire = false;
 	}
-	if ( ! ( is_array( $s['args'] ) && count( $s['args'] ) === 1 && is_int( $s['args'][0] ) ) ) {
+	if ( ! ( is_array( $s['args'] ) && count( $s['args'] ) === 2 && is_int( $s['args'][0] ) && in_array( $s['args'][1], array( 'start', 'end' ), true ) ) ) {
 		$all_intarg = false;
 	}
 }
 ok( $all_fire, 'every event uses the sn_schedule_fire hook' );
-ok( $all_intarg, 'every event arg is array( (int) row_id )' );
+ok( $all_intarg, 'every event arg is array( (int) row_id, start|end )' );
 
 // The both-boundary row arms exactly two events: at the from-instant and the
 // until-instant, each with that row id.
 $both_ts = array();
+$both_args = array();
 foreach ( $sched as $s ) {
-	if ( array( $id_both ) === $s['args'] ) {
+	if ( $id_both === $s['args'][0] ) {
 		$both_ts[] = $s['ts'];
+		$both_args[] = $s['args'];
 	}
 }
+ok( isset( $both_args ) && in_array( array( $id_both, 'start' ), $both_args, true ) && in_array( array( $id_both, 'end' ), $both_args, true ), 'both-boundary row: the two events carry distinct args, so core does not reject the second as a duplicate' );
 sort( $both_ts );
 $expect_both = array( strtotime( '2026-07-01T00:00:00 UTC' ), strtotime( '2026-08-01T00:00:00 UTC' ) );
 sort( $expect_both );
@@ -552,7 +556,7 @@ ok( $both_ts === $expect_both, 'both-boundary row: events at the from and until 
 // The start-only row arms exactly ONE event, at its from-instant.
 $start_ts = array();
 foreach ( $sched as $s ) {
-	if ( array( $id_start ) === $s['args'] ) {
+	if ( array( $id_start, 'start' ) === $s['args'] ) {
 		$start_ts[] = $s['ts'];
 	}
 }

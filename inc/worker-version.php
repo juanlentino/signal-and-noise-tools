@@ -205,9 +205,10 @@ function sn_worker_version_probe() {
 	$resp = wp_remote_get(
 		$url,
 		array(
-			'timeout'     => SN_WORKER_VERSION_TIMEOUT,
-			'redirection' => 0,
-			'sslverify'   => true,
+			'timeout'            => SN_WORKER_VERSION_TIMEOUT,
+			'redirection'        => 0,
+			'reject_unsafe_urls' => true, // core re-checks at send time, beside the guard.
+			'sslverify'          => true,
 			'headers'     => array(
 				'Accept'     => 'application/json',
 				'User-Agent' => 'SignalNoiseTools/' . ( defined( 'SNT_VERSION' ) ? SNT_VERSION : 'dev' ) . ' worker-version',

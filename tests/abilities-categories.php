@@ -42,11 +42,21 @@ echo "abilities-categories suite\n";
 // ─── Capture the SUT's add_action closure (WITHOUT defining the Abilities
 // API category functions yet — Group A below needs that absence). ────────
 $GLOBALS['__acg_actions'] = array();
-function add_action( $tag, $cb, $p = 10, $a = 1 ) { $GLOBALS['__acg_actions'][ $tag ][] = $cb; return true; }
+function add_action( $tag, $cb, $p = 10, $a = 1 ) { $GLOBALS['__acg_actions'][ $tag ][ $p ][] = $cb; return true; }
 
 require __DIR__ . '/../inc/abilities-categories.php';
-$categories_cb = $GLOBALS['__acg_actions']['wp_abilities_api_categories_init'][0] ?? null;
-ok( is_callable( $categories_cb ), 'wp_abilities_api_categories_init closure captured' );
+$acg_by_priority = $GLOBALS['__acg_actions']['wp_abilities_api_categories_init'] ?? array();
+ksort( $acg_by_priority );
+// Fires every captured callback in priority order, as do_action would.
+$categories_cb = function () use ( $acg_by_priority ) {
+	foreach ( $acg_by_priority as $cbs ) {
+		foreach ( $cbs as $cb ) {
+			call_user_func( $cb );
+		}
+	}
+};
+ok( is_callable( $acg_by_priority[10][0] ?? null ), 'wp_abilities_api_categories_init closure captured at priority 10' );
+ok( is_callable( $acg_by_priority[20][0] ?? null ), "the 'content' fallback closure is captured at priority 20" );
 
 // ════ Group A: old-WP guard — wp_register_ability_category() absent ═════
 echo "\nGroup A: old WP (<6.9.0), wp_register_ability_category() does not exist\n";
@@ -110,6 +120,19 @@ echo "\nGroup C: idempotency — re-firing the hook re-registers nothing\n";
 call_user_func( $categories_cb );
 ok_eq( 6, count( $GLOBALS['__acg_cats'] ), 'a second hook fire leaves the registered set unchanged' );
 ok_eq( 6, count( $GLOBALS['__acg_register_calls'] ), 'a second hook fire makes ZERO new wp_register_ability_category() calls (wp_has_ability_category() gate holds)' );
+
+// ════ Group F: 'content' is a fallback. A registrant at priority 11 (the
+// official AI plugin) or a future core registration at 10 must keep its own
+// wording; S&N's runs at 20 and is skipped by the guard. ═════════════════
+echo "\nGroup F: another registrant's 'content' wording wins\n";
+$GLOBALS['__acg_cats']           = array();
+$GLOBALS['__acg_register_calls'] = array();
+call_user_func( $acg_by_priority[10][0] );
+ok( ! isset( $GLOBALS['__acg_cats']['content'] ), "the priority-10 closure does not register 'content'" );
+$GLOBALS['__acg_cats']['content'] = array( 'label' => 'Content', 'description' => 'AI plugin wording' ); // priority 11.
+call_user_func( $acg_by_priority[20][0] );
+ok_eq( 'AI plugin wording', $GLOBALS['__acg_cats']['content']['description'], "the earlier registrant's 'content' description is kept" );
+ok( ! in_array( 'content', $GLOBALS['__acg_register_calls'], true ), "S&N makes no 'content' call when it is already registered" );
 
 // ════ Group D: cited-category completeness — DYNAMIC (v9.78.1) ══════════
 // The v9.78.0 regression this closes: signal-noise/anchor-status shipped

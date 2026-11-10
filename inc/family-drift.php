@@ -300,6 +300,7 @@ function sn_family_drift_fetch( $url ) {
 	$resp = wp_remote_get( $url, array(
 		'timeout'             => 15,
 		'redirection'         => 0,
+		'reject_unsafe_urls'  => true, // core re-checks at send time, beside the guard.
 		'sslverify'           => true,
 		'limit_response_size' => SN_FAMILY_DRIFT_FETCH_MAX,
 		'headers'             => array( 'Accept' => 'application/json, text/plain' ),

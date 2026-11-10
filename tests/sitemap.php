@@ -131,7 +131,7 @@ sm_eq( null, sn_sitemap_lastmod( 'yesterday' ), 'garbage → null' );
 $sm_post = (object) array( 'ID' => 7, 'post_modified_gmt' => '2026-08-29 20:36:28' );
 $sm_entry = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => 'https://juanlentino.com/notes/x/' ), $sm_post, 'post' );
 sm_eq( array( 'loc' => 'https://juanlentino.com/notes/x/', 'lastmod' => '2026-08-29T20:36:28+00:00' ), $sm_entry, 'the entry filter adds lastmod beside loc' );
-$sm_bad = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => 'https://juanlentino.com/notes/y/' ), (object) array( 'ID' => 8, 'post_modified_gmt' => '0000-00-00 00:00:00' ), 'post' );
+$sm_bad = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => 'https://juanlentino.com/notes/y/', 'lastmod' => '2026-08-29T17:36:28-03:00' ), (object) array( 'ID' => 8, 'post_modified_gmt' => '0000-00-00 00:00:00' ), 'post' );
 sm_true( ! array_key_exists( 'lastmod', $sm_bad ), 'a post with no real modified time gets NO lastmod key — a fabricated date is the inconsistency Google ignores the field for' );
 sm_true( isset( $GLOBALS['__filters']['wp_sitemaps_posts_entry'] ), 'the wp_sitemaps_posts_entry filter is registered' );
 
@@ -170,7 +170,7 @@ sm_true( ! isset( $qa['post__not_in'] ), 'nothing excluded when every note is in
 echo "\nGroup: lastmod is the content-change clock the JSON-LD dateModified reads\n";
 $sm_c = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => 'https://juanlentino.com/provenance/as-substrate/' ), (object) array( 'ID' => 7, 'post_modified_gmt' => '2026-09-24 20:35:11' ), 'page' );
 sm_eq( '2026-09-14T05:10:06+00:00', $sm_c['lastmod'] ?? null, 'a provenance commit is the lastmod, as it is the dateModified (not the row\'s later save)' );
-$sm_bad = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => 'https://juanlentino.com/notes/y/' ), (object) array( 'ID' => 8, 'post_modified_gmt' => '0000-00-00 00:00:00' ), 'post' );
+$sm_bad = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => 'https://juanlentino.com/notes/y/', 'lastmod' => '2026-08-29T17:36:28-03:00' ), (object) array( 'ID' => 8, 'post_modified_gmt' => '0000-00-00 00:00:00' ), 'post' );
 sm_true( ! array_key_exists( 'lastmod', $sm_bad ), 'still no lastmod for a post with no real modified time and no commit' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
