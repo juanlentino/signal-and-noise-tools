@@ -31,7 +31,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_remote_analytics_events',
 		'execute_callback'    => 'sn_ability_get_analytics_events',
 		'input_schema'        => array(
-			'type'       => array( 'object', 'null' ),
+			'type'       => 'object',
+			'default'    => array(),
 			'properties' => array(
 				'range' => array( 'type' => array( 'string', 'integer' ), 'default' => 30 ),
 			),
@@ -64,7 +65,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_remote_insights',
 		'execute_callback'    => 'snt_ability_get_insights',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
@@ -100,7 +102,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_remote_narration',
 		'execute_callback'    => 'snt_ability_get_narration',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
@@ -151,7 +154,8 @@ add_action( 'wp_abilities_api_init', function () {
 			// 2am case needs the last known answer, not a fresh probe. The edge
 			// gate refuses the key too — two layers, deliberately redundant.
 			// Spec: remote-mcp-increments-2-and-4.md §3.
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
@@ -224,7 +228,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_remote_health_scan',
 		'execute_callback'    => 'snt_ability_get_health_scan',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
@@ -312,7 +317,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_remote_rss_stats',
 		'execute_callback'    => 'snt_ability_get_rss_stats',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
@@ -433,7 +439,8 @@ add_action( 'wp_abilities_api_init', function () {
 			// 2am case needs the last known answer, not a fresh probe. The edge
 			// gate refuses the key too — two layers, deliberately redundant.
 			// Spec: remote-mcp-increments-2-and-4.md §3.
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),

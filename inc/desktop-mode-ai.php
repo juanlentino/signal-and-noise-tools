@@ -38,7 +38,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * offers EVERY read-only ability on the site as a tool automatically — no
  * opt-in (includes/ai-copilot/abilities.php). Its converter then passes the
  * ability's input_schema through RAW as the tool's `parameters`
- * (includes/ai-copilot/search.php:743). Our abilities deliberately declare a
+ * (includes/ai-copilot/search.php:743). Our abilities then declared a
  * ['object','null'] union — that IS their GET/null run-path — and Anthropic
  * requires input_schema.type to be the literal string "object".
  * desktop-mode's own abilities all use a plain 'object', so their Copilot
@@ -46,9 +46,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * were enrolled into a contract we never agreed to, and only a live click
  * surfaced it.
  *
- * WHY NOT "JUST FIX THE SCHEMAS". The union is load-bearing: MCP and the REST
- * GET path rely on being callable with null input. The schemas are correct;
- * the BOUNDARY was missing.
+ * WHY NOT "JUST FIX THE SCHEMAS". The null input was load-bearing: MCP and the
+ * REST GET path rely on being callable with no input. The BOUNDARY was missing.
+ * (2026-11-10: the schemas did later move off the union, to core's own idiom,
+ * 'type' => 'object' with a top-level 'default' => array() that
+ * WP_Ability::normalize_input() runs a null input with. The boundary repair
+ * stays: another plugin's union still reaches this list.)
  *
  * THE FIX. We already own the normalizer — sn_mcp_normalize_schema()
  * (inc/mcp/mcp-tools.php), which does exactly this for our own MCP door and

@@ -82,7 +82,8 @@ add_action( 'wp_abilities_api_init', function () {
 			'permission_callback' => $t['perm'],
 			'execute_callback'    => $t['exec'],
 			'input_schema'        => array(
-				'type'                 => array( 'object', 'null' ),
+				'type'                 => 'object',
+				'default'              => array(),
 				'properties'           => array(),
 				'additionalProperties' => false,
 			),

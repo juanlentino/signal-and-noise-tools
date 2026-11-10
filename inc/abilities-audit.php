@@ -164,7 +164,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_export_audit_log',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'format' => array(
 					'type'    => 'string',
@@ -209,7 +210,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_run_audit_prune',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),

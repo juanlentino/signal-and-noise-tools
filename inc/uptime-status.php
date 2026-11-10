@@ -558,9 +558,11 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_uptime_status',
 		'input_schema'        => array(
-			// null accepted: readonly abilities (GET) receive null when the
-			// caller omits ?input= (see the purge-all-caches comment).
-			'type'                 => array( 'object', 'null' ),
+			// A readonly ability (GET) receives null when the caller omits
+			// ?input=; core runs that with the top-level default (see the
+			// purge-all-caches comment).
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'force_refresh' => array(
 					'type'        => 'boolean',

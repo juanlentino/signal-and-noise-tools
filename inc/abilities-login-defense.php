@@ -154,7 +154,8 @@ function sn_abilities_login_defense_register() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'sn_ability_login_defense_ipv6_criterion',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),

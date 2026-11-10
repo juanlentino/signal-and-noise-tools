@@ -167,9 +167,10 @@ function snt_abilities_collector_status_register() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_collector_status',
 		'input_schema'        => array(
-			// The [object,null] union: readonly ⇒ GET run-path ⇒ an omitted
-			// ?input= delivers NULL, and a plain 'object' rejects every such call.
-			'type'                 => array( 'object', 'null' ),
+			// The top-level default: readonly ⇒ GET run-path ⇒ an omitted ?input=
+			// delivers NULL, and a plain 'object' with no default rejects every such call.
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'worker' => array(
 					'type'    => 'string',

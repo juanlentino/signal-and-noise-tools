@@ -14,7 +14,9 @@
 # (tests/lib/wp-html-api.php loads them for the suites that need them). The
 # block processor is for the suites that load tests/lib/wp-core-blocks.php. The
 # hook API (plugin.php) and the post-content render callback are for
-# tests/bilingual-fallback-on-core.php. A
+# tests/bilingual-fallback-on-core.php. The REST schema validator
+# (rest-api.php), its client prep (json-schema.php), WP_Error and WP_Ability
+# are for tests/abilities-bodyless-on-core.php. A
 # standalone sweep has no WordPress, so this pulls exactly those files from
 # the wordpress-develop mirror at the version the sandbox runs. CI calls it in
 # both sweep jobs; run it by hand the same way.
@@ -35,12 +37,12 @@ fi
 ref="${WP_TEST_CORE_REF:-7.1}"
 base="https://raw.githubusercontent.com/WordPress/wordpress-develop/$ref/src/wp-includes"
 dest="$dir/wp-includes"
-mkdir -p "$dest/html-api" "$dest/blocks"
+mkdir -p "$dest/html-api" "$dest/blocks" "$dest/abilities-api"
 
 for f in class-wp-html-tag-processor.php class-wp-html-attribute-token.php class-wp-html-span.php class-wp-html-text-replacement.php class-wp-html-decoder.php html5-named-character-references.php class-wp-html-doctype-info.php class-wp-html-unsupported-exception.php class-wp-html-active-formatting-elements.php class-wp-html-open-elements.php class-wp-html-token.php class-wp-html-stack-event.php class-wp-html-processor-state.php class-wp-html-processor.php; do
 	curl -sSfL "$base/html-api/$f" -o "$dest/html-api/$f"
 done
-for f in class-wp-token-map.php kses.php formatting.php robots-template.php link-template.php class-wp.php post.php class-wp-block-processor.php class-wp-block-parser.php class-wp-block-parser-block.php class-wp-block-parser-frame.php blocks.php plugin.php class-wp-hook.php class-wp-filter-sentinel.php blocks/post-content.php; do
+for f in class-wp-token-map.php kses.php formatting.php robots-template.php link-template.php class-wp.php post.php class-wp-block-processor.php class-wp-block-parser.php class-wp-block-parser-block.php class-wp-block-parser-frame.php blocks.php plugin.php class-wp-hook.php class-wp-filter-sentinel.php blocks/post-content.php class-wp-error.php rest-api.php json-schema.php abilities-api/class-wp-ability.php; do
 	curl -sSfL "$base/$f" -o "$dest/$f"
 done
 

@@ -135,7 +135,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_bot_signals',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => snt_bot_signals_output_schema(),
 		'meta'                => array(
 			'show_in_rest' => true,

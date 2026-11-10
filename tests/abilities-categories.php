@@ -163,8 +163,14 @@ foreach ( $cited as $slug => $files ) {
 // 'object' input schema rejects every such call ("input is not of type
 // object"). Each bite was fixed by pinning ONE ability. The structural rule:
 // EVERY ability annotated readonly whose input schema declares no `required`
-// list (i.e. it is legally callable bodyless) MUST type its input as the
-// array( 'object', 'null' ) union. Abilities with a `required` list are
+// list (i.e. it is legally callable bodyless) MUST type its input 'object'
+// with a TOP-LEVEL 'default' => array(). Core's WP_Ability::normalize_input()
+// swaps a null input for that default before validation, in the run
+// controller and in execute() alike, which is how core's own abilities take
+// a bodyless call (2026-11-10, core-first audit finding 10). That replaced
+// the array( 'object', 'null' ) union these abilities used to declare; this
+// gate now refuses the union, so the two idioms cannot drift back into a
+// mix. Abilities with a `required` list are
 // exempt (a bodyless call is invalid for them anyway), as are write-verb
 // (readonly=false) abilities: since 15.7.1 the shared runner sends {} on a
 // POST with no input (tests/ability-run-client.php D.9); before that it
@@ -172,7 +178,60 @@ foreach ( $cited as $slug => $files ) {
 // Scans every inc/*.php wp_register_ability() call site with balanced-paren
 // extraction, same spirit as Group D: a new read ability shipped with a
 // write ability's schema shape now fails this suite instead of the live site.
-echo "\nGroup E: every no-required readonly ability declares the [object,null] input union\n";
+echo "\nGroup E: every no-required readonly ability declares an object input with a top-level default\n";
+
+/**
+ * The top-level (depth-1) entries of an array( ... ) source, key => value
+ * source with whitespace and comments dropped. Read with PHP's own tokenizer,
+ * so a parenthesis inside a description string cannot shift the depth and a
+ * property's own 'default' never counts as the schema's.
+ */
+function acg_top_level( $schema_src ) {
+	$out   = array();
+	$depth = 0;
+	$key   = null;
+	$val   = null;
+	$prev  = '';
+	foreach ( token_get_all( '<?php ' . $schema_src ) as $t ) {
+		if ( is_array( $t ) && in_array( $t[0], array( T_OPEN_TAG, T_WHITESPACE, T_COMMENT, T_DOC_COMMENT ), true ) ) {
+			continue;
+		}
+		$text = is_array( $t ) ? $t[1] : $t;
+		if ( '(' === $text && 0 === $depth++ ) {
+			continue;
+		}
+		if ( ')' === $text && 0 === --$depth ) {
+			break;
+		}
+		if ( 1 === $depth && ',' === $text ) {
+			if ( null !== $key ) { $out[ $key ] = $val; }
+			$key = null;
+			$val = null;
+			continue;
+		}
+		if ( 1 === $depth && is_array( $t ) && T_DOUBLE_ARROW === $t[0] ) {
+			$key = trim( $prev, "'\"" );
+			$val = '';
+			continue;
+		}
+		if ( null !== $val ) { $val .= $text; }
+		$prev = $text;
+	}
+	if ( null !== $key ) { $out[ $key ] = $val; }
+	return $out;
+}
+
+/** The rule itself: type 'object' and default array(), both at depth 1. */
+function acg_bodyless_ok( $schema_src ) {
+	$top = acg_top_level( $schema_src );
+	return "'object'" === ( $top['type'] ?? null ) && 'array()' === ( $top['default'] ?? null );
+}
+
+// The checker must be able to fail, on the two shapes it exists to refuse.
+ok( acg_bodyless_ok( "( 'type' => 'object', 'default' => array(), 'properties' => array( 'a' => array( 'type' => 'string', 'description' => 'x (y' ) ) )" ), 'checker: object + top-level default passes, whatever parentheses a description holds' );
+ok( ! acg_bodyless_ok( "( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false )" ), 'checker: the retired [object,null] union fails' );
+ok( ! acg_bodyless_ok( "( 'type' => 'object', 'properties' => array( 'a' => array( 'type' => 'object', 'default' => array() ) ) )" ), 'checker: a property-level default does not count as the schema\'s' );
+
 $acg_sites = array();
 foreach ( snt_test_inc_files() as $acg_file ) {
 	$acg_src    = (string) file_get_contents( $acg_file );
@@ -227,20 +286,16 @@ foreach ( $acg_sites as $acg_site ) {
 		continue; // a required list makes a bodyless call invalid anyway.
 	}
 	$acg_read_bodyless++;
-	// The schema's TOP-LEVEL type is its first 'type' key (house style puts
-	// it first; nested property types only ever appear later).
-	$acg_union = preg_match( "/'type'\s*=>\s*array\s*\(\s*'object'\s*,\s*'null'\s*\)/", $acg_schema )
-		&& preg_match( "/'type'\s*=>\s*(array|')/", $acg_schema, $acg_tm, PREG_OFFSET_CAPTURE )
-		&& preg_match( "/^'type'\s*=>\s*array\s*\(\s*'object'\s*,\s*'null'\s*\)/", substr( $acg_schema, $acg_tm[0][1] ) );
 	ok(
-		(bool) $acg_union,
-		"readonly, no-required ability '{$acg_site['slug']}' types its input array('object','null') — bodyless GET delivers null ({$acg_site['file']})"
+		acg_bodyless_ok( $acg_schema ),
+		"readonly, no-required ability '{$acg_site['slug']}' types its input 'object' with a top-level 'default' => array(): a bodyless GET delivers null and core runs it with the default ({$acg_site['file']})"
 	);
 }
-// The rule currently covers the 12 shipped read surfaces (get-deploy-status,
-// anchor-status, uptime-status, the get-* readers...). Pin the floor so a
-// scan regression that silently skips the readonly filter can't pass green.
-ok( $acg_read_bodyless >= 12, "the gate actually exercised the read surface (got $acg_read_bodyless no-required readonly abilities)" );
+// The rule covered 12 read surfaces when it was written (v9.79.2) and 79
+// registration sites when the union gave way to the default (2026-11-10).
+// Pin the floor so a scan regression that silently skips the readonly filter
+// can't pass green.
+ok( $acg_read_bodyless >= 75, "the gate actually exercised the read surface (got $acg_read_bodyless no-required readonly abilities)" );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

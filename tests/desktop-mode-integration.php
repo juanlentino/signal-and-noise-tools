@@ -1233,7 +1233,7 @@ echo "\n── v9.52.5: the AI Copilot tool-schema normalizer ──\n";
 // Cause: desktop-mode 0.9.4 made the Copilot's tools WordPress Abilities and
 // offers EVERY read-only ability on the site automatically, with no opt-in. Its
 // converter (includes/ai-copilot/search.php) passes the ability's input_schema
-// through RAW as the tool's `parameters`. Our abilities deliberately declare a
+// through RAW as the tool's `parameters`. Our abilities then declared a
 // ['object','null'] union — that's their GET/null run-path — and Anthropic
 // requires input_schema.type to be the literal string "object". desktop-mode's
 // own abilities all use plain 'object', so their Copilot never trips on this;
@@ -1554,6 +1554,11 @@ function sn_anthropic_conformance( $schema ) {
 	if ( isset( $s['properties'] ) && is_array( $s['properties'] ) && array() === $s['properties'] ) {
 		return 'properties encodes as [] not {}';
 	}
+	// The same trap for the top-level default the abilities declare since
+	// 2026-11-10: [] is not an object, so it would contradict type "object".
+	if ( isset( $s['default'] ) && is_array( $s['default'] ) && array() === $s['default'] ) {
+		return 'default encodes as [] not {}';
+	}
 	return true;
 }
 
@@ -1561,6 +1566,8 @@ $real_shapes = array(
 	'union type + props'       => array( 'type' => array( 'object', 'null' ), 'properties' => array( 'range' => array( 'type' => array( 'string', 'integer' ) ) ), 'additionalProperties' => false ),
 	'union type + EMPTY props' => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 	'object + EMPTY props'     => array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false ),
+	'object + default + EMPTY props' => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
+	'object + default + props' => array( 'type' => 'object', 'default' => array(), 'properties' => array( 'days' => array( 'type' => 'integer', 'default' => 30 ) ), 'additionalProperties' => false ),
 	'object + props + anyOf'   => array( 'type' => 'object', 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'slug' => array( 'type' => 'string' ) ), 'anyOf' => array( array( 'required' => array( 'post_id' ) ), array( 'required' => array( 'slug' ) ) ), 'additionalProperties' => false ),
 	'object + props (already ok)' => array( 'type' => 'object', 'properties' => array( 'q' => array( 'type' => 'string' ) ) ),
 	'empty schema'             => array(),
@@ -1605,11 +1612,17 @@ ok( empty( $unhandled ),
 $weird = apply_filters( 'desktop_mode_ai_tools', array( 'not-an-array', array( 'name' => 'x', 'parameters' => 'not-an-array' ) ) );
 ok( is_array( $weird ) && count( $weird ) === 2, 'malformed tool entries pass through without fataling' );
 
-// And the abilities themselves must KEEP their union — the fix is at the
-// boundary, not in the contract. Changing these would break the GET/null path.
+// The abilities no longer carry the union. Since 2026-11-10 they take the
+// GET/null path the way core's own abilities do, 'type' => 'object' with a
+// top-level 'default' => array() that WP_Ability::normalize_input() runs a
+// null input with. The boundary repair above stays for anyone else's union.
+// Group E in tests/abilities-categories.php holds every readonly ability to
+// the idiom; this pins the file the Copilot 400 first came from (its three
+// input schemas; a nested output property may still be nullable).
 $analytics_src = file_get_contents( __DIR__ . '/../inc/abilities-analytics.php' );
-ok( strpos( $analytics_src, "array( 'object', 'null' )" ) !== false,
-	'the abilities KEEP their ["object","null"] union — normalization happens at the boundary, not by rewriting contracts MCP/REST depend on' );
+ok( 3 === preg_match_all( "/'type'\s*=>\s*'object',\s*'default'\s*=>\s*array\(\),/", $analytics_src )
+	&& 0 === preg_match( "/'input_schema'\s*=>\s*array\(\s*'type'\s*=>\s*array\(/", $analytics_src ),
+	'the analytics abilities declare core\'s bodyless idiom (object + top-level default) on all three input schemas, not the union' );
 
 echo "\n── v9.59.0: the Copilot tool list is PRUNED — ours only, matched by stripped name ──\n";
 /**

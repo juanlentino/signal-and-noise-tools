@@ -133,7 +133,7 @@ foreach ( array( 'signal-noise/get-machine-readers-crosstab' => 'snt_ability_get
 	ok( 'snt_ability_perm_manage_options' === ( $r['permission_callback'] ?? null ), "$slug is manage_options gated" );
 	ok( 'analytics' === ( $r['category'] ?? null ), "$slug cites the analytics category" );
 	ok( true === ( $r['meta']['annotations']['readonly'] ?? null ) && ! empty( $r['meta']['show_in_rest'] ), "$slug is readonly and in REST" );
-	ok( array( 'object', 'null' ) === ( $r['input_schema']['type'] ?? null ) && 90 === ( $r['input_schema']['properties']['days']['maximum'] ?? null ), "$slug takes the nullable days input, capped at 90" );
+	ok( 'object' === ( $r['input_schema']['type'] ?? null ) && array() === ( $r['input_schema']['default'] ?? null ) && 90 === ( $r['input_schema']['properties']['days']['maximum'] ?? null ), "$slug takes an optional days input (a bodyless call runs with the default), capped at 90" );
 	ok( false === strpos( (string) ( $r['description'] ?? '' ), "\u{2014}" ), "$slug description carries no em dash" );
 }
 

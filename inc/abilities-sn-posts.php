@@ -64,7 +64,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_sn_posts',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null; every field has a safe default.
+			'type'                 => 'object',
+			'default'              => array(), // A bodyless call arrives as null; core runs it with this default, and every field has its own.
 			'properties'           => array(
 				'scope'           => array(
 					'type'                 => 'object',

@@ -147,13 +147,13 @@ add_action( 'wp_abilities_api_init', function () {
 	wp_register_ability( 'signal-noise/analytics-sessions', $base + array(
 		'label'               => 'Analytics sessions',
 		// Written out in both registrations for the static readers (tests/abilities-categories.php).
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => $props, 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => $props, 'additionalProperties' => false ),
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ) ),
 	) );
 	wp_register_ability( 'signal-noise/remote-analytics-sessions', $base + array(
 		'label'               => 'Analytics sessions (remote)',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => $props, 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => $props, 'additionalProperties' => false ),
 		'permission_callback' => 'snt_ability_perm_remote_analytics_sessions',
 		'meta'                => array( 'show_in_rest' => false, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ) ),
 	) );

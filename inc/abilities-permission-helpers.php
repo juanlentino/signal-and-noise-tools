@@ -15,9 +15,10 @@
  * All 4 helpers preserve byte-identical semantics to the closures they
  * replaced. The `isset()` checks on `$input` are intentional: the
  * input_schema fires *before* the permission_callback (verified against
- * WordPress/abilities-api `includes/abilities-api.php` trunk 2026-05-17),
- * but if the schema permits null input (DELETE/GET callers), $input may
- * arrive as null at the permission stage too.
+ * WordPress/abilities-api `includes/abilities-api.php` trunk 2026-05-17).
+ * Core hands the permission stage the normalized input, so a bodyless
+ * DELETE/GET call arrives as the schema's top-level default; a caller that
+ * invokes a callback directly can still pass null, which is why they stay.
  *
  * @package SignalNoiseTools
  * @since 4.1.3

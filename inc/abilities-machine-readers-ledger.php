@@ -43,7 +43,8 @@ add_action( 'wp_abilities_api_init', function () {
 		// Spelled out per registration: tests/abilities-categories.php reads the
 		// input_schema off the source, and a shared variable is invisible to it.
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'days' => array( 'type' => 'integer', 'default' => 30, 'minimum' => 1, 'maximum' => 90, 'description' => 'Window in days, clamped to the sensor\'s 1-90.' ),
 			),
@@ -87,7 +88,8 @@ add_action( 'wp_abilities_api_init', function () {
 		// Spelled out per registration: tests/abilities-categories.php reads the
 		// input_schema off the source, and a shared variable is invisible to it.
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'days' => array( 'type' => 'integer', 'default' => 30, 'minimum' => 1, 'maximum' => 90, 'description' => 'Window in days, clamped to the sensor\'s 1-90.' ),
 			),

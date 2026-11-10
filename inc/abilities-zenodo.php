@@ -68,7 +68,8 @@ function snt_abilities_zenodo_register() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_zenodo_status',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
