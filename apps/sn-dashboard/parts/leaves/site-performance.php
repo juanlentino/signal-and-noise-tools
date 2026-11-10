@@ -48,7 +48,7 @@ function performance_state() {
  */
 function performance_intro_html() {
 	return '<p class="snt-prose">'
-		. \snt_kit_esc( __( 'WordPress 7.0 ships native', 'signal-and-noise-tools' ) ) . ' '
+		. \snt_kit_esc( __( 'Since 6.8, WordPress ships native', 'signal-and-noise-tools' ) ) . ' '
 		. \snt_kit_link( __( 'Speculation Rules', 'signal-and-noise-tools' ), 'https://developer.chrome.com/docs/web-platform/prerender-pages' )
 		. ' ' . \snt_kit_esc( __( '(default:', 'signal-and-noise-tools' ) ) . ' '
 		. \snt_kit_code( 'auto', false ) . '/' . \snt_kit_code( 'auto', false ) . '). '
@@ -124,7 +124,7 @@ function performance_setup_html( array $s ) {
 			),
 			array(
 				'label' => __( 'Excluded automatically', 'signal-and-noise-tools' ),
-				'value' => \snt_kit_esc( __( 'the custom login URL and', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( '/contact/*', false ) . '.',
+				'value' => \snt_kit_code( '/contact/*', false ) . '.',
 				'html'  => true,
 			),
 			array(

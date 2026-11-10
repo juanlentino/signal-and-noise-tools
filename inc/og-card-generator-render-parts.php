@@ -45,7 +45,8 @@ function sn_generate_og_card( $post_id ) {
 	$dmmono_path = $font_paths['dmmono'] ?? '';
 
 	if ( ! $bebas_path || ! file_exists( $bebas_path ) || ! $dmmono_path || ! file_exists( $dmmono_path ) ) {
-		// No theme-registered fonts — bail. Yoast falls back to featured image.
+		// No theme-registered fonts: bail. No card is written, so the page keeps
+		// its featured image or the site default (sn_resolve_og_image_url()).
 		return false;
 	}
 

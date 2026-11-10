@@ -234,10 +234,12 @@ function sn_admin_render_mcp_door_adapter() {
 	echo '<div class="sn-callout">';
 	echo '<p class="sn-callout-h">' . esc_html__( 'Core MCP adapter: the Abilities-registry door', 'signal-and-noise-tools' ) . '</p>';
 	// v9.48.1: attribution corrected. The adapter is NOT part of the wp.org
-	// "AI" plugin (ground-truthed 2026-07-15: that plugin's MCP integration is
-	// roadmap-only, "coming soon"); it is a separate, GitHub-only WordPress
-	// plugin (WordPress/mcp-adapter, pre-1.0, on wordpress.org since 0.7.0). The old
-	// copy here taught the owner the wrong fact — never re-attribute it.
+	// "AI" plugin; it is a separate WordPress plugin (WordPress/mcp-adapter,
+	// pre-1.0, listed on wordpress.org). Checked against AI plugin 1.5.0 on
+	// 2026-11-10: it still does not bundle the adapter, but its MCP Access
+	// experiment (includes/Experiments/MCP_Adapter) installs and activates it
+	// from WordPress.org while the experiment is enabled. The old copy here
+	// taught the owner the wrong fact. Never re-attribute it.
 	echo '<p>' . esc_html( sn_admin_mcp_adapter_sentence( $active ) ) . '</p>';
 	echo '<p><code>' . esc_url( $url ) . '</code></p>';
 	echo '</div>';

@@ -146,9 +146,10 @@ function sn_webhook_create( $input ) {
 	// T4 (Fix C): the error copy promises "https://" but the check accepted any
 	// scheme wp_http_validate_url() allows (http included), leaking the signed
 	// payload over plaintext. Enforce https to match the contract.
-	// wp_http_validate_url() omits 169.254.0.0/16 (link-local / cloud metadata);
-	// sn_ssrf_host_blocked() (v6.13.1) covers it — and, unlike the prior literal
-	// `^169\.254\.` match, RESOLVES the host first so the encoded-IP bypasses
+	// wp_http_validate_url() (core 7.1.4) rejects 169.254.0.0/16 (link-local /
+	// cloud metadata) and CGNAT, checking the one address gethostbyname() returns.
+	// sn_ssrf_host_blocked() (v6.13.1) checks every A record. Unlike the prior literal
+	// `^169\.254\.` match, it RESOLVES the host first so the encoded-IP bypasses
 	// (decimal http://2852039166/, hex/octal) of the metadata IP are caught too,
 	// plus loopback/RFC-1918/CGNAT/IPv6 ranges, failing closed on unresolvable.
 	// (redirection=0 on the send still blocks the redirect-to-metadata case; this

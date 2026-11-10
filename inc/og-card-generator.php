@@ -9,13 +9,14 @@
  * files in `wp-content/uploads/sn-og/` and rebuild on every save
  * via `wp_after_insert_post`.
  *
- * Resolution order for "what image should Yoast/the theme emit":
+ * Resolution order for the og:image the plugin emits
+ * (sn_resolve_og_image_url(); no other SEO plugin is involved):
  *
- *   1. Featured image, if the post has one — never overridden.
- *   2. Generated card (this module) — if the cache exists, or can be
- *      generated on demand.
- *   3. Fallback to whatever Yoast would have chosen (typically the
- *      site logo, or nothing).
+ *   1. The per-post _sn_og_image_url override.
+ *   2. Featured image, if the post has one.
+ *   3. Generated card (this module), if the cached file exists. It is
+ *      never generated inside the request.
+ *   4. The site default.
  *
  * Moved from theme inc/og-image.php in Phase 3 (theme v8.4.0 /
  * plugin v1.3.0, 2026-05-16). The only structural change vs the

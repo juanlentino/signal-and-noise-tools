@@ -2,9 +2,10 @@
 /**
  * Signal & Noise Tools: the generation budget of an agent-run turn.
  *
- * WHY A BUDGET AT ALL. The Core AI Client pins `max_tokens: 4096` on every
- * Anthropic /v1/messages request and sends neither `thinking` nor
- * `output_config`. On claude-sonnet-5 thinking is then CEILING-BOUNDED: it
+ * WHY A BUDGET AT ALL. The Anthropic provider falls back to `max_tokens: 4096`
+ * when ModelConfig carries none (AnthropicTextGenerationModel::DEFAULT_MAX_TOKENS;
+ * core's AI client sets no default of its own), and an unshaped request carries
+ * neither `thinking` nor `output_config`. On claude-sonnet-5 thinking is then CEILING-BOUNDED: it
  * consumes whatever output budget exists (4096 of 4096, 6144 of 6144, still
  * reasoning past 7.4k at 16384), the turn truncates inside the thinking
  * block, no text part lands, and the run reads "The agent finished without
@@ -22,7 +23,7 @@
  * naming the caller; `agents/runner` is the one this module shapes. Keys:
  * `max_tokens` goes through ModelConfig::setMaxTokens, `custom_options` are
  * provider-native parameter names copied verbatim into the request body
- * (WordPress/ai-provider-for-anthropic 1.0.4 forwards `thinking` and
+ * (WordPress/ai-provider-for-anthropic 1.0.5 forwards `thinking` and
  * `output_config` untouched), and a string `model` is a soft preference via
  * using_model_preference(): picked when the connector lists it, otherwise
  * the client's own choice stands.

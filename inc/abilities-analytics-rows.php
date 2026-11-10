@@ -178,7 +178,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'meta'                => array(
 			'show_in_rest' => true,
 			'mcp'          => array( 'public' => false, 'type' => 'tool' ), // reached locally as sn-metrics{analytics_rows}, like its sibling sections.
-			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ),
 		),
 	) );
 	wp_register_ability( 'signal-noise/remote-analytics-rows', $base + array(

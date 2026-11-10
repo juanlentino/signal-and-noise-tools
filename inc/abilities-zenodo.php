@@ -90,7 +90,7 @@ function snt_abilities_zenodo_register() {
 				'readonly'        => true,
 				'destructive'     => false,
 				'idempotent'      => true,
-				'open_world_hint' => false,
+				'openWorldHint' => false,
 			),
 		),
 	) );

@@ -30,7 +30,7 @@ add_action(
 				'meta'                => array(
 					'show_in_rest' => true,
 					'mcp'          => array( 'public' => true, 'type' => 'tool' ),
-					'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ),
+					'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ),
 				),
 			)
 		);
@@ -55,7 +55,7 @@ add_action(
 				'meta'                => array(
 					'show_in_rest' => true,
 					'mcp'          => array( 'public' => true, 'type' => 'tool' ),
-					'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ),
+					'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ),
 				),
 			)
 		);

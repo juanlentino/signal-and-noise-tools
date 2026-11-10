@@ -12,7 +12,9 @@
  * standalone suite loads it alone) and answers a 500 that says so. It is
  * not on the MCP read door and needs no listing: REST-reachable behind its
  * own permission is what the app needs. The ledger is read over HTTP on each
- * call, which is what `open_world_hint` says.
+ * call, which is what `openWorldHint` says. The key is spelled the way the
+ * MCP Adapter reads it (McpAnnotationMapper); core's own annotation set is
+ * readonly, destructive and idempotent only.
  *
  * @package SignalNoiseTools
  * @since 13.100.0
@@ -76,7 +78,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'readonly'        => true,
 				'destructive'     => false,
 				'idempotent'      => true,
-				'open_world_hint' => true,
+				'openWorldHint' => true,
 			),
 		),
 	) );

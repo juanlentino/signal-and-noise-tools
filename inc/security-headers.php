@@ -144,12 +144,18 @@ function sn_security_author_archive_guard() {
 add_action( 'template_redirect', 'sn_security_author_archive_guard', 9 );
 
 /**
- * Disable XML-RPC entirely.
+ * Disable XML-RPC and pingbacks.
  *
- *   - `xmlrpc_enabled` filter — turns the endpoint off at the WP layer.
- *   - `xmlrpc_methods` filter — empties the method map so any code path
- *     that bypasses the enabled-flag check still gets nothing.
- *   - `pings_open` / `pingback_url` — kill pingbacks at the source.
+ *   - `xmlrpc_enabled` filter: per core's own docblock
+ *     (wp_xmlrpc_server::set_is_enabled()) this switches off only the
+ *     methods that require authentication. It does not control pingbacks.
+ *   - `xmlrpc_methods` filter: removes every method in core's map,
+ *     pingback.ping among them. That is what covers the methods
+ *     `xmlrpc_enabled` leaves on.
+ *   - `pings_open` filter: answers false for every post. This overrides
+ *     Settings > Discussion and each post's own ping_status, and neither
+ *     screen shows it. Trackbacks close too: wp-trackback.php asks
+ *     pings_open(). No `pingback_url` filter is registered here.
  *
  * Belt + suspenders: the .htaccess / nginx layer should also block
  * /xmlrpc.php for total coverage, but those edits aren't theme-owned.
@@ -170,8 +176,9 @@ add_action( 'wp', function() {
 	if ( ! apply_filters( 'sn_security_disable_xmlrpc', true ) ) {
 		return;
 	}
-	// Strip the X-Pingback header WP sends by default. Already handled
-	// by xmlrpc_enabled=false on most paths, but this ensures the
-	// header never appears even if a plugin re-enables xmlrpc.
+	// Core sets X-Pingback in WP::send_headers() only for a singular post
+	// where pings_open() is true, so the `pings_open` filter above already
+	// keeps it from being set. `xmlrpc_enabled` plays no part in that header.
+	// This call is a fallback for a later filter that reopens pings.
 	header_remove( 'X-Pingback' );
 } );

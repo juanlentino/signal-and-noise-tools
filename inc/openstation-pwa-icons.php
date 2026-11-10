@@ -106,17 +106,20 @@ add_filter( 'openstation_pwa_manifest', 'snt_openstation_pwa_manifest_icons' );
  * The 180x180 tile iOS uses for a home-screen install.
  *
  * #1017 fixed the MANIFEST, which is Android's path. iOS reads
- * `<link rel="apple-touch-icon">` instead, and OpenStation prints one into the
- * admin head (`includes/pwa.php`, on `admin_head` priority 1) because core
- * hooks `wp_site_icon()` to `wp_head` and `login_head` but not `admin_head` —
- * without it an iPhone installing from wp-admin would have no tile at all.
+ * `<link rel="apple-touch-icon">` instead. Core prints one in wp-admin itself:
+ * `wp_site_icon()` is hooked on `admin_head` (wp-admin/includes/admin-filters.php)
+ * as well as `wp_head` and `login_head`, and builds the tag from
+ * `get_site_icon_url( 180 )` when a Site Icon is set. OpenStation prints a
+ * second one into the admin head (`includes/pwa.php`, on `admin_head`
+ * priority 1).
  *
  * That href comes from `openstation_pwa_apple_touch_icon_url()`, which returns
  * `get_site_icon_url( 180 )` whenever a Site Icon is set. Ours is PNG colour
  * type 6 with 61.6% fully transparent pixels, and iOS composites home-screen
  * transparency to BLACK behind a mark measuring luminance 23/255 — the black
  * tile. That function has no `apply_filters()`, so it cannot be overridden
- * directly; the seam is CORE's `get_site_icon_url`, which it calls.
+ * directly; the seam is CORE's `get_site_icon_url`, which it calls. Core's
+ * own tag reads the same function, so the one filter corrects both tags.
  *
  * Scoped hard: admin only, and only the 180 request. Every other consumer of
  * the Site Icon — the browser-tab favicon above all, where transparency is

@@ -14,12 +14,12 @@
  * come from sn_post_is_indexable() (inc/indexable.php), applied as
  * post__not_in on the `wp_sitemaps_posts_query_args` filter.
  *
- * IMPORTANT: while The SEO Framework (TSF) is active, this filter is
- * effectively dormant — TSF deregisters WP core's sitemap and serves
- * its own at `/sitemap.xml`. Our filter only takes effect once TSF
- * is deactivated (Phase 13 cutover, queued for v2.0.0). The filter is
- * registered unconditionally because doing so is cheap (~no overhead
- * when the hook never fires) and avoids coordination logic with TSF.
+ * The SEO Framework (TSF) has been inactive on the live site since the
+ * v2.0.0 (Phase 13) cutover, so core's sitemap is the one served and these
+ * filters are live. While TSF was active it served its own sitemap at
+ * `/sitemap.xml` and these filters lay dormant. They are registered
+ * unconditionally: that costs nothing when the hook never fires and needs
+ * no coordination with TSF.
  *
  * Added in v1.11.0 (2026-05-16).
  *
@@ -157,14 +157,16 @@ add_filter(
 /**
  * v13.66.0: per-URL <lastmod>.
  *
- * WP core's sitemap lists URLs with no dates. Google uses <lastmod> to decide
- * what to recrawl — when it is accurate and consistent — and the first URL
- * Inspection reading (v13.63.0) showed 13 of 37 notes not indexed with the
- * sitemap fetched 185 times in a month: Google could find them and declined.
- * Without lastmod every note looks equally stale. This emits the post's
- * modified time, GMT, W3C format, and emits NOTHING for a post without a real
- * modified time — a fabricated date would be the inconsistency Google
- * documents as the reason to ignore the field.
+ * Core's sitemap already carries a date: WP_Sitemaps_Posts::get_url_list()
+ * sets `lastmod` on every post entry from post_modified_gmt, formatted with
+ * wp_date() in the site timezone, before the wp_sitemaps_posts_entry filter
+ * runs. Google uses <lastmod> to decide what to recrawl when it is accurate
+ * and consistent, and the first URL Inspection reading (v13.63.0) showed 13
+ * of 37 notes not indexed with the sitemap fetched 185 times in a month:
+ * Google could find them and declined. This function formats the date the
+ * filter below writes over core's: GMT, W3C format, +00:00. It returns null
+ * for a value that is not a real time, and the filter then leaves the entry
+ * alone, so core's own lastmod stays in it. Nothing here removes a date.
  *
  * @param string $modified_gmt post_modified_gmt ('Y-m-d H:i:s', GMT).
  * @return string|null ISO 8601 with a +00:00 offset, or null.
@@ -176,7 +178,7 @@ function sn_sitemap_lastmod( $modified_gmt ) {
 	}
 	$dt = DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $modified_gmt, new DateTimeZone( 'UTC' ) );
 	if ( false === $dt || $dt->format( 'Y-m-d H:i:s' ) !== $modified_gmt ) {
-		return null; // Not a real timestamp: emit nothing rather than a guess.
+		return null; // Not a real timestamp: no guess. The filter then keeps core's lastmod.
 	}
 	return $dt->format( 'Y-m-d\TH:i:s+00:00' );
 }
@@ -186,7 +188,8 @@ function sn_sitemap_lastmod( $modified_gmt ) {
  * reads (sn_schema_date_modified(): the provenance commit, else
  * post_modified), so the sitemap and the schema name one date. 2026-10-22:
  * the sitemap read post_modified_gmt alone and said 2026-09-24 where the
- * Article said 2026-09-14. Null when neither is a real time.
+ * Article said 2026-09-14. Null when neither is a real time; the filter
+ * below then keeps the lastmod core put in the entry.
  *
  * @param object $post WP_Post-like.
  * @return string|null
