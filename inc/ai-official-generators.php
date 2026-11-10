@@ -75,7 +75,8 @@ function snt_ai_official_generator_takes( $id, $content ) {
 	if ( ! snt_ai_official_feature_on( $id ) || ! apply_filters( 'wpai_features_enabled', true ) ) {
 		return false;
 	}
-	$floor = (int) \WordPress\AI\get_min_content_length( $id, 250 );
+	// By name: the AI plugin is optional, so its function is not known to static analysis.
+	$floor = (int) call_user_func( 'WordPress\\AI\\get_min_content_length', $id, 250 );
 	return mb_strlen( trim( wp_strip_all_tags( (string) $content ) ) ) >= $floor;
 }
 
