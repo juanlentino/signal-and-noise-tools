@@ -41,7 +41,7 @@ if ( ! empty( $fn[0] ) ) {
 	$GLOBALS['__removed'] = array();
 	$GLOBALS['__in']      = true;
 	sn_login_scope_admin_locations();
-	ok( array() === $GLOBALS['__removed'], "signed in: core's redirect stays, so /admin and /login work as shortcuts" );
+	ok( array() === $GLOBALS['__removed'], "signed in: core's redirect stays, so /admin and /dashboard work as shortcuts (/login stays 404 in the redirect guard)" );
 }
 
 // The signup and activation scripts hand the door out too: on a single site
