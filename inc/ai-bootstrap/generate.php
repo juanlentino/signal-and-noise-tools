@@ -53,9 +53,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  *                                    @since 6.48.0.
  * @param string $image_mime          MIME type of $image_path (e.g. 'image/jpeg').
  *                                    Required alongside $image_path. @since 6.48.0.
+ * @param array|callable $options     Optional. Request options the AI Client carries
+ *                                    for this one call, or a callable given the
+ *                                    resolved model list that returns them (the
+ *                                    Insights scan decides by model family).
+ *                                    'custom_options': provider-native parameters,
+ *                                    set as ModelConfig custom options (the Anthropic
+ *                                    provider copies them into the request).
+ *                                    'max_tokens': a ceiling above the 4096 clamp,
+ *                                    raise-only. 'timeout': seconds, through core's
+ *                                    wp_ai_client_default_request_timeout filter,
+ *                                    raise-only, removed after the call.
  * @return string|WP_Error            Generated text or WP_Error on failure.
  */
-function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_tokens = 256, $feature = 'generic', $image_path = '', $image_mime = '' ) {
+function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_tokens = 256, $feature = 'generic', $image_path = '', $image_mime = '', $options = array() ) {
 	if ( ! snt_ai_is_available() ) {
 		return new WP_Error(
 			'snt_ai_unavailable',
@@ -136,6 +147,32 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	// text-only path stays byte-identical to pre-v6.48.0 when no image is passed.
 	$has_image = ( '' !== (string) $image_path && '' !== (string) $image_mime && is_readable( (string) $image_path ) );
 
+	// Per-call request options, passed through the AI Client and never
+	// rewritten on the wire. Custom options need the SDK's ModelConfig; without
+	// it the call goes out plain, ceiling and timeout included, since a raised
+	// ceiling without its effort setting is the failure the options prevent.
+	if ( is_string( $options ) || $options instanceof \Closure ) {
+		$options = is_callable( $options ) ? $options( $model_list ) : array();
+	}
+	$options        = is_array( $options ) ? $options : array();
+	$custom_options = isset( $options['custom_options'] ) && is_array( $options['custom_options'] ) ? $options['custom_options'] : array();
+	$config_class   = 'WordPress\\AiClient\\Providers\\Models\\DTO\\ModelConfig';
+	if ( $custom_options && ! class_exists( $config_class ) ) {
+		$options        = array();
+		$custom_options = array();
+	}
+	if ( isset( $options['max_tokens'] ) ) {
+		$max_tokens = max( $max_tokens, (int) $options['max_tokens'] );
+	}
+	// Core's builder reads the timeout filter when it is created, below.
+	$timeout       = isset( $options['timeout'] ) ? (float) $options['timeout'] : 0.0;
+	$raise_timeout = static function ( $seconds ) use ( $timeout ) {
+		return max( (float) $seconds, $timeout );
+	};
+	if ( $timeout > 0 ) {
+		add_filter( 'wp_ai_client_default_request_timeout', $raise_timeout, 100 );
+	}
+
 	// Core fires wp_ai_client_after_generate_result for this call too; the
 	// depth tells inc/ai-copilot-spend.php it is ours, already priced below.
 	if ( function_exists( 'snt_ai_own_call_depth' ) ) {
@@ -146,6 +183,11 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 			->using_model_preference( ...$model_list )
 			->using_system_instruction( (string) $system_instruction )
 			->using_max_tokens( $max_tokens );
+		if ( $custom_options ) {
+			$model_config = new $config_class();
+			$model_config->setCustomOptions( $custom_options );
+			$builder = $builder->using_model_config( $model_config );
+		}
 		if ( $has_image ) {
 			$builder = $builder->with_file( (string) $image_path, (string) $image_mime );
 		}
@@ -163,6 +205,9 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	} finally {
 		if ( function_exists( 'snt_ai_own_call_depth' ) ) {
 			snt_ai_own_call_depth( -1 );
+		}
+		if ( $timeout > 0 ) {
+			remove_filter( 'wp_ai_client_default_request_timeout', $raise_timeout, 100 );
 		}
 	}
 
