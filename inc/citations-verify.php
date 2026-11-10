@@ -6,12 +6,16 @@
  * the only module here that touches the network, and every request goes through
  * the shared SSRF host guard.
  *
- * REDIRECTS ARE FOLLOWED BY HAND. wp_safe_remote_get() validates redirect hops
- * with wp_http_validate_url(), which does NOT cover the link-local 169.254.0.0/16
- * range — the exact gap inc/ssrf-guard.php exists to close. So the transport is
- * pinned to `redirection => 0` and each hop is re-validated through the guard
- * before it is followed. A source that redirects more than SN_CIT_MAX_HOPS times
- * is left `unverified`: unread, not disproved.
+ * REDIRECTS ARE FOLLOWED BY HAND. Core's wp_http_validate_url() does block
+ * 169.254.0.0/16 (wp-includes/http.php, 7.1.4), so that range is not the reason.
+ * The loop stays because core's redirect check validates one gethostbyname()
+ * address, exempts the home host and can be switched off by the
+ * http_request_host_is_external filter, while sn_ssrf_host_blocked() checks
+ * every A record on each hop, and each hop is a separate request the
+ * http_api_curl pin can bind. So the transport is pinned to `redirection => 0`
+ * and each hop is re-validated through the guard before it is followed. A
+ * source that redirects more than SN_CIT_MAX_HOPS times is left `unverified`:
+ * unread, not disproved.
  *
  * @package SignalNoiseTools
  * @since 11.27.0

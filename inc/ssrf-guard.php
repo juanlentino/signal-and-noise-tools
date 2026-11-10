@@ -11,8 +11,10 @@
  *   - hex      http://0xA9.0xFE.0xA9.0xFE/   (and the flat http://0xA9FEA9FE/)
  *   - octal    http://0251.0376.0251.0376/   (and the flat http://025177524776/)
  * Each fails the literal string match — the parsed host is not "169.254.…" —
- * yet gethostbyname() resolves every one to 169.254.169.254, and
- * wp_http_validate_url() does NOT cover the 169.254.0.0/16 link-local range.
+ * yet gethostbyname() resolves every one to 169.254.169.254. Core's
+ * wp_http_validate_url() does block 169.254.0.0/16 as of 7.1.4, but it checks one
+ * gethostbyname() address, exempts the home host and is filterable
+ * (http_request_host_is_external); this guard checks every A record.
  *
  * The fix (lifted out of inc/health-external-links.php's D1 implementation,
  * v6.13.0, so webhooks + link-rot + future callers share ONE audited guard):
