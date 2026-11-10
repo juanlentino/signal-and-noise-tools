@@ -144,6 +144,22 @@ class Stub_wpdb_insights {
 }
 $GLOBALS['wpdb'] = new Stub_wpdb_insights();
 
+// The post list is read through core's get_posts() (it was a raw SELECT on
+// wp_posts). The stand-in serves the same fixture rows the suite already sets
+// on $GLOBALS['wpdb']->rows, as post objects, and models the transform the
+// query asks for: publish only, newest first, posts_per_page. It records its
+// args so the suite can pin WHAT core was asked.
+$GLOBALS['__test_get_posts_args'] = array();
+function get_posts( $args = array() ) {
+	$GLOBALS['__test_get_posts_args'][] = $args;
+	$rows = array_values( array_filter( $GLOBALS['wpdb']->rows, function ( $r ) use ( $args ) {
+		return ( $r['post_status'] ?? '' ) === ( $args['post_status'] ?? 'publish' );
+	} ) );
+	usort( $rows, function ( $a, $b ) { return strcmp( (string) $b['post_date_gmt'], (string) $a['post_date_gmt'] ); } );
+	$cap = (int) ( $args['posts_per_page'] ?? 5 );
+	return array_map( function ( $r ) { return (object) $r; }, $cap > 0 ? array_slice( $rows, 0, $cap ) : $rows );
+}
+
 if ( ! function_exists( 'get_permalink' ) ) {
 	// Test stub: return distinct permalink paths so the views-join
 	// matches against $views_map[<relative-path>]. Per-test fixtures
@@ -317,6 +333,21 @@ ins_true( is_array( $signals ), 'returns array' );
 ins_eq( 'Juan Lentino', $signals['site']['name'], 'site.name' );
 ins_eq( 'Music Producer', $signals['site']['job_title'], 'site.job_title' );
 ins_eq( 'https://juanlentino.com/', $signals['site']['home_url'], 'site.home_url' );
+
+// ─── Test 2b: the post list is asked of core, not of wp_posts ─────────
+echo "\nTest 2b: post list goes through get_posts() with a date_query\n";
+$gp = end( $GLOBALS['__test_get_posts_args'] );
+ins_true( is_array( $gp ), 'collect_signals() called get_posts()' );
+ins_eq( array( 'post', 'page' ), $gp['post_type'] ?? null, 'post_type post + page' );
+ins_eq( 'publish', $gp['post_status'] ?? null, 'publish only' );
+ins_eq( 500, $gp['posts_per_page'] ?? null, 'same 500-row bound as the SELECT had' );
+ins_eq( array( 'date', 'DESC' ), array( $gp['orderby'] ?? null, $gp['order'] ?? null ), 'the bound now cuts the OLDEST rows (the SELECT had no ORDER BY)' );
+$gp_dq = $gp['date_query'][0] ?? array();
+ins_eq( 'post_date_gmt', $gp_dq['column'] ?? null, 'date_query on the UTC column' );
+ins_true( ! empty( $gp_dq['inclusive'] ), 'date_query is inclusive, as >= was' );
+$gp_after = $gp_dq['after'] ?? array();
+$gp_ts    = is_array( $gp_after ) && 6 === count( $gp_after ) ? gmmktime( $gp_after['hour'], $gp_after['minute'], $gp_after['second'], $gp_after['month'], $gp_after['day'], $gp_after['year'] ) : 0;
+ins_true( abs( $gp_ts - ( time() - SN_INSIGHTS_POST_MAX_AGE_DAYS * DAY_IN_SECONDS ) ) <= 5, 'cutoff is the age cap, handed over as UTC date parts' );
 
 // ─── Test 3: post list shape + sort by views_7d ──────────────────────
 echo "\nTest 3: posts sorted by views_7d desc — first-party top_paths shape + nested permalink join\n";
