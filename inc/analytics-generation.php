@@ -443,8 +443,10 @@ function sn_analytics_v2_verify( $now = null ) {
 	// again would call every day since the stop a mismatch, clear a good
 	// verdict and send the reads (and the nightly rollups that REPLACE stored
 	// days) to a dataset that no longer receives rows. Clearing `frozen` is a
-	// deliberate act by hand.
-	if ( is_array( $last ) && ! empty( $last['frozen'] ) ) {
+	// deliberate act by hand. Only a GOOD freeze is final: a bad one (the
+	// watch is ripe) can still recover as before, by a worker rollback and a
+	// day that matches.
+	if ( is_array( $last ) && ! empty( $last['frozen'] ) && ! empty( $last['ok'] ) && ! empty( $last['events_ok'] ) ) {
 		return $last;
 	}
 	// Only inside the same UTC day: across midnight a new day has become

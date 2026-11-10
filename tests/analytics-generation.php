@@ -197,6 +197,10 @@ $GLOBALS['wv'] = array( 'ok' => true, 'data' => array( 'version' => '1.28.0' ) )
 $GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' => '2026-10-14', 'state' => 'mismatch' ) ) );
 $n1 = $GLOBALS['checks'];
 ok( $frozen === sn_analytics_v2_verify( $oct08 + 40 * 86400 ) && $n1 === $GLOBALS['checks'] && $frozen === $GLOBALS['opt'][ SN_ANALYTICS_V2_VERIFIED_OPT ], 'frozen is final: with the worker reading 1.x again, no comparison runs and the verdict stands' );
+$badfz = array( 'ok' => false, 'day' => '', 'clean_from' => '2026-10-17', 'events_ok' => false, 'at' => $oct08, 'why' => 'x', 'frozen' => $oct08 );
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => $badfz );
+sn_analytics_v2_verify( $oct08 + 40 * 86400 );
+ok( $GLOBALS['checks'] === $n1 + 1, 'a bad freeze is not final: with the worker back on 1.x the comparison runs again, so it can recover' );
 // Not frozen yet, the legacy write already stopped, and the edge does not answer.
 $good = array( 'ok' => true, 'day' => '2026-11-09', 'clean_from' => '2026-10-17', 'events_ok' => true, 'at' => $oct08, 'why' => '' );
 $GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => $good );

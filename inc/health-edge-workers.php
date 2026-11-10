@@ -142,7 +142,7 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 			$broken[] = 'SN_PX_TOKEN is unset (every beacon is rejected: data drops to zero)';
 		}
 		if ( isset( $analytics_config['ae_bound'] ) && ! $analytics_config['ae_bound'] ) {
-			$broken[] = 'an Analytics Engine dataset binding is missing (SN_AE_PV or SN_AE_EVENTS; SN_AE on a worker before 2.0.0): nothing is written';
+			$broken[] = 'an Analytics Engine dataset binding is missing (SN_AE_PV or SN_AE_EVENTS; SN_AE on a worker before 2.0.0): rows for that dataset are being lost';
 		}
 		if ( ! empty( $broken ) ) {
 			$findings[] = $mk(
