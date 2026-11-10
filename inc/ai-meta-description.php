@@ -186,8 +186,8 @@ function snt_ai_meta_desc_impl( $post_id, $concise = false, $focus_keyword = '' 
  * ════════════════════════════════════════════════════════════════════════ */
 
 add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
-	// The official generator writes this field when it is on (inc/ai-official-generators.php); one button, not two.
-	if ( function_exists( 'snt_ai_official_feature_on' ) && snt_ai_official_feature_on( 'meta-description' ) ) {
+	// The official generator writes this field when it is on and the post is long enough for it (inc/ai-official-generators.php); one button, never none.
+	if ( function_exists( 'snt_ai_official_generator_takes' ) && snt_ai_official_generator_takes( 'meta-description', (string) ( get_post()->post_content ?? '' ) ) ) {
 		return;
 	}
 	// v9.81.0: shared helper (ai-bootstrap/editor-assets.php) replaces the drifted local copy.

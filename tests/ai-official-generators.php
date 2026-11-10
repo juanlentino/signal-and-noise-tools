@@ -29,12 +29,20 @@ ok( false !== strpos( $e, 'Excerpt voice. No em dashes.' ) && false === strpos( 
 ok( 'OFFICIAL' === apply_filters( 'wpai_system_instruction', 'OFFICIAL', 'ai/summarization', array() ), 'any other ability is untouched' );
 
 ok( false === snt_ai_official_feature_on( 'excerpt-generation' ), 'AI plugin absent: the official feature is not on, so S&N\'s own button stays' );
-eval( 'namespace WordPress\AI; function get_min_content_length() { return 0; }' );
+eval( 'namespace WordPress\AI; function get_min_content_length( $id = "", $d = 250 ) { return $d; }' );
 ok( false === snt_ai_official_feature_on( 'excerpt-generation' ), 'AI plugin present, box unticked: not on' );
 $GLOBALS['opt']['wpai_feature_excerpt-generation_enabled'] = '1';
 ok( true === snt_ai_official_feature_on( 'excerpt-generation' ), 'ticked: on, and S&N\'s button stands down' );
 add_filter( 'wpai_feature_excerpt-generation_enabled', static fn() => false );
 ok( false === snt_ai_official_feature_on( 'excerpt-generation' ), 'ticked but filtered off: not on (the same test the AI plugin applies)' );
+
+// The official button is greyed under its content floor: S&N's stays there.
+function wp_strip_all_tags( $s ) { return strip_tags( $s ); }
+$GLOBALS['f']['wpai_feature_excerpt-generation_enabled'] = array();
+ok( false === snt_ai_official_generator_takes( 'excerpt-generation', '' ) && false === snt_ai_official_generator_takes( 'excerpt-generation', '<p>short</p>' ), 'an empty or short post: the official button cannot write it, so S&N\'s button stays' );
+ok( true === snt_ai_official_generator_takes( 'excerpt-generation', '<p>' . str_repeat( 'word ', 80 ) . '</p>' ), 'a post over the floor: the official button takes it' );
+add_filter( 'wpai_features_enabled', static fn() => false );
+ok( false === snt_ai_official_generator_takes( 'excerpt-generation', str_repeat( 'word ', 80 ) ), 'all AI plugin features switched off by filter: S&N\'s button stays' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

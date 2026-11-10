@@ -15,7 +15,9 @@
  *   - voice: the house rules are appended to the official system instruction.
  * A person still clicks Apply and then Save, as the house rule asks.
  *
- * What does not carry over: the monthly cap and the per-feature spend line.
+ * What does not carry over: the monthly cap and the per-feature spend line;
+ * the focus keyword and existing-excerpt lines S&N's own prompt adds; and the
+ * 160-character cut S&N applied to its own answer.
  * These calls are the AI plugin's and are listed under Other AI (owner call
  * 2026-10-24 A: the cap stays plugin-only). S&N's own two buttons stand down
  * while the official feature is on, and come back if it is switched off or the
@@ -58,6 +60,25 @@ function snt_ai_official_seo_plugins( $plugins ) {
 	);
 	return $plugins;
 }
+/**
+ * Whether the official button can actually do the job for this post, so
+ * S&N's own may stand down. The official buttons are greyed under a content
+ * floor (250 characters) and cannot write for an empty body; S&N's generators
+ * have no floor and handle contentless template pages. Below the floor S&N's
+ * button stays, so the author is never left with none.
+ *
+ * @param string $id      Feature id.
+ * @param string $content The post's saved content.
+ * @return bool
+ */
+function snt_ai_official_generator_takes( $id, $content ) {
+	if ( ! snt_ai_official_feature_on( $id ) || ! apply_filters( 'wpai_features_enabled', true ) ) {
+		return false;
+	}
+	$floor = (int) \WordPress\AI\get_min_content_length( $id, 250 );
+	return mb_strlen( trim( wp_strip_all_tags( (string) $content ) ) ) >= $floor;
+}
+
 add_filter( 'wpai_meta_description_seo_plugins', 'snt_ai_official_seo_plugins' );
 // The AI plugin caches which SEO plugin is active in a transient, 'none'
 // included. S&N is always the one here, whatever folder it was installed in.

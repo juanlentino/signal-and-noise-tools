@@ -134,8 +134,8 @@ function snt_ai_excerpt_impl( $post_id, $concise = false ) {
  * ════════════════════════════════════════════════════════════════════════ */
 
 add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
-	// The official generator writes the excerpt when it is on (inc/ai-official-generators.php); one button, not two.
-	if ( function_exists( 'snt_ai_official_feature_on' ) && snt_ai_official_feature_on( 'excerpt-generation' ) ) {
+	// The official generator writes the excerpt when it is on and the post is long enough for it (inc/ai-official-generators.php); one button, never none.
+	if ( function_exists( 'snt_ai_official_generator_takes' ) && snt_ai_official_generator_takes( 'excerpt-generation', (string) ( get_post()->post_content ?? '' ) ) ) {
 		return;
 	}
 	// v9.81.0: shared helper (ai-bootstrap/editor-assets.php) replaces the drifted local copy.
