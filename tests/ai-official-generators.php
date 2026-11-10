@@ -59,6 +59,8 @@ ok( 'P' === apply_filters( 'wpai_meta_description_prompt', 'P', 'c', 't' ), 'a p
 do_action( 'wp_before_execute_ability', 'ai/meta-description', array( 'post_id' => 7 ), null );
 do_action( 'wp_before_execute_ability', 'ai/meta-description', array( 'content' => 'pasted text' ), null );
 ok( 'P' === apply_filters( 'wpai_meta_description_prompt', 'P', 'c', 't' ), 'a run with no post (content only) never inherits the previous post\'s keyword' );
+do_action( 'wp_before_execute_ability', 'ai/meta-description', (object) array( 'post_id' => '7' ), null );
+ok( false !== strpos( apply_filters( 'wpai_meta_description_prompt', 'P', 'c', 't' ), 'music provenance records' ), 'an object input with a string post id is read the same way' );
 ok( 120 === mb_strlen( substr( snt_ai_official_keyword_line( str_repeat( 'k', 400 ) ), strlen( 'FOCUS KEYWORD (must appear verbatim): ' ) ) ), 'an overlong keyword is cut at 120 characters' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

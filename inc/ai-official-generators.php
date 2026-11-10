@@ -140,7 +140,7 @@ add_action(
 	'wp_before_execute_ability',
 	static function ( $name, $input ) {
 		if ( 'ai/meta-description' === $name ) {
-			snt_ai_official_meta_post( is_array( $input ) ? (int) ( $input['post_id'] ?? 0 ) : 0 );
+			snt_ai_official_meta_post( (int) ( ( (array) $input )['post_id'] ?? 0 ) );
 		}
 	},
 	10,
