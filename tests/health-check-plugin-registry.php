@@ -51,6 +51,36 @@ function get_plugins() {
 	return $GLOBALS['snt_registry'];
 }
 
+
+// Core's own verdict functions, copied from WordPress 7.1.4 so the check runs
+// the real predicate here: validate_file() (wp-includes/functions.php) and
+// validate_plugin() (wp-admin/includes/plugin.php:1115). The counter lets the
+// suite pin that the check asks core rather than deriving the verdict itself.
+class WP_Error {
+	public $code;
+	public function __construct( $code = '', $message = '' ) { $this->code = $code; }
+	public function get_error_code() { return $this->code; }
+}
+function is_wp_error( $x ) { return $x instanceof WP_Error; }
+function validate_file( $file, $allowed_files = array() ) {
+	if ( ! is_scalar( $file ) || '' === $file ) { return 0; }
+	$file = str_replace( '\\', '/', $file );
+	if ( '../' === $file ) { return 1; }
+	if ( preg_match_all( '#\.\./#', $file, $matches, PREG_SET_ORDER ) && ( count( $matches ) > 1 ) ) { return 1; }
+	if ( str_contains( $file, '../' ) && '../' !== mb_substr( $file, -3, 3 ) ) { return 1; }
+	if ( ':' === substr( $file, 1, 1 ) ) { return 2; }
+	return 0;
+}
+$GLOBALS['snt_validate_calls'] = array();
+function validate_plugin( $plugin ) {
+	$GLOBALS['snt_validate_calls'][] = $plugin;
+	if ( validate_file( $plugin ) ) { return new WP_Error( 'plugin_invalid', 'Invalid plugin path.' ); }
+	if ( ! file_exists( WP_PLUGIN_DIR . '/' . $plugin ) ) { return new WP_Error( 'plugin_not_found', 'Plugin file does not exist.' ); }
+	$installed_plugins = get_plugins();
+	if ( ! isset( $installed_plugins[ $plugin ] ) ) { return new WP_Error( 'no_plugin_header', 'The plugin does not have a valid header.' ); }
+	return 0;
+}
+
 require_once __DIR__ . '/../inc/health-check-plugin-registry.php';
 
 $pass = 0; $fail = 0;
@@ -98,6 +128,24 @@ ok(
 	( $notes['on-disk/on-disk.php'] ?? 'x' ) !== ( $notes['gone/gone.php'] ?? 'y' ),
 	'THE PIN: two opposite repairs never share one sentence'
 );
+
+echo "\nGroup 3b: the verdict is core's (validate_plugin), and says what core will do\n";
+ok( array( 'on-disk/on-disk.php', 'gone/gone.php' ) === array_slice( $GLOBALS['snt_validate_calls'], -2 ), 'each unregistered active plugin was put to validate_plugin()' );
+ok( false !== strpos( $notes['on-disk/on-disk.php'] ?? '', 'wp-admin/plugins.php' ) && false !== strpos( $notes['on-disk/on-disk.php'] ?? '', 'before flushing' ), 'stale registry: warns NOT to open wp-admin/plugins.php before flushing (core deactivates what it cannot validate)' );
+ok( false !== strpos( $notes['gone/gone.php'] ?? '', 'wp-admin/plugins.php' ), 'orphan: says loading wp-admin/plugins.php once clears it' );
+// A path core refuses outright. The file EXISTS at the traversed location, so
+// a check that builds the path itself reads it as "on disk, cache is stale".
+$outside = 'snt-outside-' . getmypid() . '.php';
+file_put_contents( dirname( $tmp ) . '/' . $outside, "<?php\n" );
+$r = run( array( 'on-disk/on-disk.php', '../' . $outside ), array( 'on-disk/on-disk.php' => array( 'Name' => 'On Disk' ) ) );
+@unlink( dirname( $tmp ) . '/' . $outside );
+$bad = $r['findings'][0]['note'] ?? '';
+ok( 1 === $r['count'] && '../' . $outside === $r['findings'][0]['subject_label'], 'a traversal path in active_plugins is a finding' );
+ok( false !== strpos( $bad, 'not a valid plugin path' ), '   ...named as an invalid path' );
+ok( false === strpos( $bad, 'wp cache flush' ) && false === strpos( $bad, 'stale' ), '   ...and NOT misread as a stale cache because a file happens to sit there' );
+$before = count( $GLOBALS['snt_validate_calls'] );
+run( array( 'on-disk/on-disk.php', '' ), array( 'on-disk/on-disk.php' => array( 'Name' => 'On Disk' ) ) );
+ok( $before === count( $GLOBALS['snt_validate_calls'] ), 'registered plugins and an empty entry are skipped without a verdict call' );
 
 echo "\nGroup 4: absence of evidence is not a pass\n";
 $r = run( array(), array() );
