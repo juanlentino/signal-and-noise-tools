@@ -513,10 +513,8 @@ ok( 1 === count( $parsed_single ) && 'a "quoted" word' === ( $parsed_single[0]['
 
 // ── #1187: \bid must not match the `id` inside `data-id` ───────────────────
 $svg_data_id = '<svg data-id="tracking-123" role="img"><rect/></svg>';
-ok( 'unnamed' === sn_health_svg_accessible_name_status( ' data-id="tracking-123" role="img"', '<rect/>' ),
-	'#1187: data-id is not aria-label/aria-labelledby -- an svg with only data-id is still unnamed' );
-ok( false === strpos( sn_health_svg_hint( 1, ' data-id="tracking-123"' ), 'id="tracking-123"' ),
-	'#1187: the svg hint does not report a fake `id` sourced from `data-id`' );
+ok( array( '<svg> #1' ) === sn_health_extract_inline_svgs_without_name( $svg_data_id ),
+	'#1187: data-id is not aria-label/aria-labelledby -- an svg with only data-id is still unnamed, and its hint does not report a fake `id` sourced from `data-id`' );
 
 /* ═════════════════════════════════════════════════════════════════════
  * 5. THE THREE READERS ON SHARED MARKUP (tests/lib/html-image-cases.php)
@@ -563,26 +561,28 @@ $want_with_alt = array(
 	'nested inline markup' => array(
 		array( 'src' => 'a2.png', 'alt' => 'A second, described picture', 'caption' => '', 'heading' => '' ),
 	),
-	'attributes in any order' => array(
-		array( 'src' => 'b.png', 'alt' => 'Bob&#39;s desk', 'caption' => '', 'heading' => '' ),
+	'attributes in any order' => array( // The regex answered alt 'Bob&#39;s desk': the stored bytes, not the text a screen reader says.
+		array( 'src' => 'b.png', 'alt' => 'Bob\'s desk', 'caption' => '', 'heading' => '' ),
 	),
 	'uppercase tags and attributes' => array(
 		array( 'src' => 'c2.png', 'alt' => 'A Chart Of Sales', 'caption' => '', 'heading' => '' ),
 	),
-	'entities in src and alt' => array(
-		array( 'src' => 'd2.png?a=1&amp;b=2', 'alt' => 'Tom &amp; Jerry at the desk', 'caption' => '', 'heading' => '' ),
+	'entities in src and alt' => array( // The regex answered src 'd2.png?a=1&amp;b=2' and alt 'Tom &amp; Jerry at the desk': stored bytes again.
+		array( 'src' => 'd2.png?a=1&b=2', 'alt' => 'Tom & Jerry at the desk', 'caption' => '', 'heading' => '' ),
 	),
-	'a > inside an attribute' => array(),
+	'a > inside an attribute' => array( // The regex answered array(): it ended the tag at the '>' inside the title and never saw the alt.
+		array( 'src' => 'e.png', 'alt' => 'An arrow from a to b', 'caption' => '', 'heading' => '' ),
+	),
 	'a bare alt with no value' => array(),
 	'data-alt and data-src' => array(),
 	'alt= inside another attribute' => array(),
-	'unquoted values' => array(),
+	'unquoted values' => array( // The regex answered array(): it needed quoted values.
+		array( 'src' => 'i2.png', 'alt' => 'word', 'caption' => '', 'heading' => '' ),
+	),
 	'self-closing tags' => array(
 		array( 'src' => 'j2.png', 'alt' => 'A self-closed picture', 'caption' => '', 'heading' => '' ),
 	),
-	'images inside a comment' => array(
-		array( 'src' => 'k2.png', 'alt' => 'Commented out', 'caption' => '', 'heading' => '' ),
-	),
+	'images inside a comment' => array(), // The regex answered with k2.png ('Commented out'): it read a comment.
 	'image blocks with JSON and captions' => array(
 		array( 'src' => 'l2.png', 'alt' => 'The 1954 ledger, reopened', 'caption' => 'The 1954 ledger, reopened', 'heading' => '' ),
 	),
@@ -590,9 +590,7 @@ $want_with_alt = array(
 		array( 'src' => 'ruido.png', 'alt' => 'Señal y ruido 日本語', 'caption' => '', 'heading' => '' ),
 	),
 	'empty input' => array(),
-	'images in a textarea and a script' => array(
-		array( 'src' => 'm2.png', 'alt' => 'In a script', 'caption' => '', 'heading' => '' ),
-	),
+	'images in a textarea and a script' => array(), // The regex answered with m2.png ('In a script'): it read a script's string as markup.
 	'the other quote inside an alt' => array(
 		array( 'src' => 'n.png', 'alt' => 'Logo\'s sketch', 'caption' => '', 'heading' => '' ),
 		array( 'src' => 'n2.png', 'alt' => 'He said "hi"', 'caption' => '', 'heading' => '' ),
@@ -651,13 +649,13 @@ $want_svg = array(
 	'svg: bare, and named four ways' => array( '<svg> #1' ),
 	'svg: decorative, four spellings' => array( '<svg> #2 (id="shown")' ),
 	'svg: a title that is not a direct child' => array( '<svg> #1 (id="in-g")', '<svg> #2 (id="empty-title")' ),
-	'svg: a > inside an attribute' => array( '<svg> #1', '<svg> #2' ),
+	'svg: a > inside an attribute' => array( '<svg> #2 (id="gt2")' ), // The regex answered array( '<svg> #1', '<svg> #2' ): it ended each tag at the '>' inside a value, so the first lost its aria-label and both lost their id.
 	'svg: nested' => array( '<svg> #1 (id="outer")' ),
 	'svg: self-closing, then a named one' => array( '<svg> #1 (id="hollow")' ),
-	'svg: inside a comment' => array( '<svg> #1 (id="commented")' ),
+	'svg: inside a comment' => array(), // The regex answered array( '<svg> #1 (id="commented")' ): it read a comment.
 	'svg: in a custom HTML block, multibyte class' => array( '<svg> #1 (class="señal icono")' ),
 	'svg: data-aria-label is not a name' => array( '<svg> #1 (class="k")' ),
-	'svg: never closed' => array(),
+	'svg: never closed' => array( '<svg> #1 (id="unclosed")' ), // The regex answered array(): it needed a closing tag. A browser draws it all the same.
 );
 foreach ( array(
 	'sn_health_extract_inline_imgs_without_alt'  => $want_no_alt,
@@ -671,6 +669,21 @@ foreach ( array(
 		ok( $want[ $name ] === $got, "$reader: $name" . ( $want[ $name ] === $got ? '' : ' (got ' . json_encode( $got, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . ')' ) );
 	}
 }
+
+echo "\nGroup: markup core's HTML parser does not support\n";
+// Text loose inside a <table> needs "foster parenting", which WP_HTML_Processor declines (get_last_error()
+// is 'unsupported'). The walk stops there: what it settled before that point stands, and an <svg> after it
+// is not reported, because "unnamed" would be a guess. The regex reported all three.
+$cut = '<svg id="before"><path d="M0"/></svg><table><tr><td>a</td></tr>loose text<svg id="inside"><path d="M0"/></svg></table><svg id="after"><path d="M0"/></svg>';
+ok( array( '<svg> #1 (id="before")' ) === sn_health_extract_inline_svgs_without_name( $cut, $was_cut ) && true === $was_cut, 'an unnamed svg before unsupported markup is reported; the ones after it are not guessed at, and the reader says it stopped early' );
+ok( array() === sn_health_extract_inline_svgs_without_name( '<svg aria-hidden="true"><path d="M0"/></svg>', $was_cut ) && false === $was_cut, 'a body read to the end says so' );
+$GLOBALS['__att_no_alt']   = array();
+$GLOBALS['__att_with_alt'] = array();
+$GLOBALS['__posts']        = array( array( 'ID' => 60, 'post_title' => 'Misnested', 'post_content' => '<p><b>bold<i>both</b>italic</i></p><svg id="late"><path d="M0"/></svg>' ) );
+$r = sn_health_check_missing_alt();
+ok( 0 === $r['count'] && is_string( $r['skipped'] ) && false !== strpos( $r['skipped'], 'Inline SVG in 1 published body could not be read to the end' ), 'a body the parser could not read through is named in `skipped`: no finding there is not a clean pass' );
+$GLOBALS['__posts'] = array();
+ok( array( 'a.png' ) === sn_health_extract_inline_imgs_without_alt( '<table><tr><td>a</td></tr>loose text</table><img src="a.png">' ), 'the no-alt reader walks tags only, so the same markup does not stop it' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

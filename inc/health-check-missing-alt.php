@@ -52,6 +52,7 @@ function sn_health_check_missing_alt() {
 	global $wpdb;
 	$findings = array();
 	$failed   = array(); // the passes whose query did not return rows (#1042)
+	$unread   = 0;       // bodies whose inline SVG could not be read to the end
 
 	// a) attachments without alt meta.
 	$rows = $wpdb->get_results(
@@ -155,7 +156,7 @@ function sn_health_check_missing_alt() {
 			// c) inline <svg> with no accessible name. NOT an alt= problem:
 			//    <svg> has no alt attribute, so the fix is a child <title>,
 			//    aria-label, or aria-hidden="true" if it is decorative.
-			foreach ( sn_health_extract_inline_svgs_without_name( $content ) as $hint ) {
+			foreach ( sn_health_extract_inline_svgs_without_name( $content, $cut_short ) as $hint ) {
 				$findings[] = array(
 					'subject_type'  => 'inline_svg',
 					'subject_id'    => $post_id,
@@ -165,6 +166,8 @@ function sn_health_check_missing_alt() {
 					'note'          => 'Inline <svg> has no accessible name. Add a direct-child <title>, or aria-label, or aria-hidden="true" if it is decorative. <svg> has no alt attribute.',
 				);
 			}
+
+			$unread += $cut_short ? 1 : 0;
 
 			// d) inline <img> whose alt exists but says nothing.
 			foreach ( sn_health_extract_inline_imgs_with_alt( $content ) as $img ) {
@@ -188,12 +191,21 @@ function sn_health_check_missing_alt() {
 	// v13.97.5 (#1042): through the shared envelope, like every other check.
 	// This one built its array by hand and so had no `skipped` field at all --
 	// three failed queries reported 'no missing alt'. A pass whose query
-	// failed is named; the tally honours it only when nothing was found.
+	// failed is named; the tally honours it only when nothing was found. The
+	// same goes for a body core's HTML parser could not read to the end: its
+	// inline SVG were checked up to that point and no further.
+	$skipped = array();
+	if ( array() !== $failed ) {
+		$skipped[] = sprintf( 'The query for %s failed, so that pass was not scanned. The check retries on the next scan.', implode( ' and ', $failed ) );
+	}
+	if ( $unread > 0 ) {
+		$skipped[] = sprintf( 'Inline SVG in %d published %s could not be read to the end, because the markup there is not something the HTML parser supports, so an unnamed one may be missing.', $unread, 1 === $unread ? 'body' : 'bodies' );
+	}
 	return sn_health_pack_check(
 		'Missing alt text',
 		$findings,
 		'Open the editor and add a descriptive alt attribute to each image. Empty alt="" is valid only for purely decorative images. Inline <svg> takes a direct-child <title> or aria-label instead — it has no alt attribute. Alt that repeats the filename or the caption, or names a category ("image", "chart") rather than the picture, reads as noise to a screen reader.',
-		array() === $failed ? null : sprintf( 'The query for %s failed, so that pass was not scanned. The check retries on the next scan.', implode( ' and ', $failed ) )
+		array() === $skipped ? null : implode( ' ', $skipped )
 	);
 }
 
