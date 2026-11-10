@@ -422,13 +422,15 @@ function sn_prov_keys_is_request( $uri ) {
 
 /**
  * Emit the DID document (200 + application/did+json), or 404 if no key.
- * status_header is REQUIRED (postless path → 404 by template_redirect).
+ * The status and the cache headers are sent here: sn_prov_route_pre_handle_404()
+ * keeps WP::handle_404() from answering this postless path first.
  */
 function sn_prov_did_send() {
 	$doc = sn_prov_did_document();
 	if ( null === $doc ) {
 		if ( function_exists( 'status_header' ) ) {
 			status_header( 404 );
+			nocache_headers(); // core sends none for this path any more (pre_handle_404)
 		}
 		return;
 	}
@@ -436,6 +438,7 @@ function sn_prov_did_send() {
 		status_header( 200 );
 	}
 	header( 'Content-Type: application/did+json; charset=utf-8' );
+	header( 'Cache-Control: public, max-age=300' );
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- application/did+json from wp_json_encode; HTML escaping would corrupt the JSON.
 	echo wp_json_encode( $doc, JSON_UNESCAPED_SLASHES );
 }
@@ -446,6 +449,7 @@ function sn_prov_keys_send() {
 	if ( null === $doc ) {
 		if ( function_exists( 'status_header' ) ) {
 			status_header( 404 );
+			nocache_headers(); // core sends none for this path any more (pre_handle_404)
 		}
 		return;
 	}
@@ -473,6 +477,26 @@ function sn_prov_did_maybe_serve() {
 	}
 }
 
+/**
+ * pre_handle_404 filter: these routes have no post, so WP::handle_404() (run by
+ * WP::main() before template_redirect) would send a 404 status and no-cache
+ * headers ahead of the answer. Claim the path so core sends neither; each
+ * route then sends its own status and cache headers.
+ *
+ * @param bool $preempt Whether another filter already claimed the request.
+ * @return bool
+ */
+function sn_prov_route_pre_handle_404( $preempt ) {
+	$req = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+	foreach ( array( 'sn_prov_did_is_request', 'sn_prov_keys_is_request', 'sn_prov_webfinger_is_request', 'sn_prov_verify_is_request' ) as $is_route ) {
+		if ( function_exists( $is_route ) && $is_route( $req ) ) {
+			return true;
+		}
+	}
+	return $preempt;
+}
+
 if ( ! defined( 'SN_PROV_DID_TEST' ) || ! SN_PROV_DID_TEST ) {
+	add_filter( 'pre_handle_404', 'sn_prov_route_pre_handle_404' );
 	add_action( 'template_redirect', 'sn_prov_did_maybe_serve', 0 );
 }
