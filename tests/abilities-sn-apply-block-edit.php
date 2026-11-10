@@ -301,6 +301,8 @@ if ( ! class_exists( 'WP_Block_Type_Registry' ) ) {
  * Load the SUT
  * ════════════════════════════════════════════════════════════════════════ */
 require_once __DIR__ . '/lib/wp-core-kses.php'; // The active-content refusal reads markup with core's HTML API and kses.
+require_once __DIR__ . '/lib/wp-core-blocks.php'; // Block delimiters are read with core's WP_Block_Processor.
+require __DIR__ . '/../inc/sn-apply/block-delimiters.php';
 require __DIR__ . '/../inc/provenance-core.php'; // v13.4.0: sn_prov_expand_block_text + normalize v2 — the prose delta must SEE dynamic-block attribute text
 require __DIR__ . '/../inc/corpus-inspect.php';
 require __DIR__ . '/../inc/health-check-drift-time-phrases.php';

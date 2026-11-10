@@ -227,6 +227,8 @@ if ( ! function_exists( 'sn_mcp_rw_audit_record' ) ) {
  * Load the SUT
  * ════════════════════════════════════════════════════════════════════════ */
 require_once __DIR__ . '/lib/wp-core-kses.php'; // The active-content refusal reads markup with core's HTML API and kses.
+require_once __DIR__ . '/lib/wp-core-blocks.php'; // Block delimiters are read with core's WP_Block_Processor.
+require __DIR__ . '/../inc/sn-apply/block-delimiters.php';
 require __DIR__ . '/../inc/corpus-inspect.php';
 require __DIR__ . '/../inc/word-count.php';
 require __DIR__ . '/../inc/sn-validate-checks.php';
@@ -470,7 +472,9 @@ ok( ! is_wp_error( $r5ok ), 'Test 5.balanced: real, balanced block-comment marku
 $delim_regression_cases = array(
 	'nested_same_name' => '<!-- wp:group --><!-- wp:group --><p>inner</p><!-- /wp:group --><!-- /wp:group -->',
 	'namespaced'        => '<!-- wp:create-block/foo --><div>x</div><!-- /wp:create-block/foo -->',
-	'dashdash_in_json'  => '<!-- wp:paragraph {"content":"a --> b","note":"c --> d"} --><p>x</p><!-- /wp:paragraph -->',
+	// As core's serializer writes "-->" inside attribute JSON. A LITERAL "-->" there ends the comment
+	// for core's WP_Block_Processor (and for a browser), so that spelling is refused below, not here.
+	'dashdash_in_json'  => '<!-- wp:paragraph {"content":"a \\u002d\\u002d\\u003e b","note":"c \\u002d\\u002d\\u003e d"} --><p>x</p><!-- /wp:paragraph -->',
 );
 foreach ( $delim_regression_cases as $case_name => $case_content ) {
 	$rdelim = snt_ability_sn_apply( array(
@@ -480,6 +484,12 @@ foreach ( $delim_regression_cases as $case_name => $case_content ) {
 	) );
 	ok( ! is_wp_error( $rdelim ), "Test 5.regression.$case_name: does not refuse (permanent regression guard)" );
 }
+$rliteral = snt_ability_sn_apply( array(
+	'target' => array( 'new_post' => true ),
+	'change' => array( 'type' => 'create_draft', 'payload' => array( 'title' => 'Delimiter: literal arrow in JSON', 'content' => '<!-- wp:paragraph {"content":"a --> b"} --><p>x</p><!-- /wp:paragraph -->' ) ),
+	'mode'   => 'revision', 'dry_run' => true,
+) );
+ok( is_wp_error( $rliteral ) && 422 === ( $rliteral->get_error_data()['status'] ?? 0 ), 'Test 5.literal_arrow_in_json: a literal "-->" inside attribute JSON ends the comment as core reads it, so the draft is refused (the former pattern read on past it)' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * Test 6: tag-vocabulary enforcement — an unknown tag refuses 422 (gate 2);

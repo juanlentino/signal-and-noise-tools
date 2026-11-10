@@ -48,6 +48,8 @@ function snt_corpus_content_hash( $c ) { return md5( (string) $c ); }
 function add_action( $h, $c, $p = 10, $a = 1 ) { return true; }
 function add_filter( $h, $c, $p = 10, $a = 1 ) { return true; }
 require_once __DIR__ . '/lib/wp-core-kses.php'; // Core's HTML API and kses, off SNT_WP_HTML_API.
+require_once __DIR__ . '/lib/wp-core-blocks.php'; // Block delimiters are read with core's WP_Block_Processor.
+require __DIR__ . '/../inc/sn-apply/block-delimiters.php';
 if ( ! SNT_KSES_IS_CORE ) {
 	echo "FAIL: core's HTML API and kses.php are not on this machine. Run bash tools/fetch-wp-test-core.sh <dir>, then set SNT_WP_HTML_API=<dir>/wp-includes/html-api.\n";
 	echo "\nResult: 0 passed, 1 failed.\n";
