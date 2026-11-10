@@ -47,6 +47,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * upsert. last_run is always stamped, even on the error path, so "last attempt"
  * is recorded.
  *
+ * Events carry array( $row_id, 'start' | 'end' ), or array( $row_id ) when
+ * armed before the per-boundary args; the hook passes only the row id
+ * (accepted_args 1) and the clock decides which boundary is due, so both
+ * shapes fire the same way.
+ *
  * @param int $row_id The schedule row id (the cron event's payload).
  * @return void
  */
@@ -105,10 +110,25 @@ function sn_schedule_fire( $row_id ) {
 add_action( SN_SCHEDULE_FIRE_HOOK, 'sn_schedule_fire' );
 
 /**
+ * Clear every boundary event of one row: the per-boundary args
+ * array( $row_id, 'start' | 'end' ) and the older array( $row_id ) shape that
+ * events armed before the per-boundary args still carry.
+ *
+ * @param int $row_id The schedule row id.
+ * @return void
+ */
+function sn_schedule_clear_row_crons( $row_id ) {
+	$row_id = (int) $row_id;
+	foreach ( array( array( $row_id ), array( $row_id, 'start' ), array( $row_id, 'end' ) ) as $args ) {
+		wp_clear_scheduled_hook( SN_SCHEDULE_FIRE_HOOK, $args );
+	}
+}
+
+/**
  * Reconcile tick: the safety net for boundaries that did not fire. WP-Cron
  * runs late events rather than dropping them; what goes missing is an event
- * core refused at arm time as a duplicate (same hook, same args, within 10
- * minutes: see SN_SCHEDULE_RECONCILE_HOOK). Registered on
+ * that was never armed or was cleared (see SN_SCHEDULE_RECONCILE_HOOK).
+ * Registered on
  * SN_SCHEDULE_RECONCILE_HOOK and scheduled every 5 minutes (see below). Two jobs:
  *
  *   1. CATCH UP. Scan every row; for any whose boundary has passed but whose
@@ -126,10 +146,10 @@ add_action( SN_SCHEDULE_FIRE_HOOK, 'sn_schedule_fire' );
  *   2. RE-ARM. For any FUTURE non-null boundary with no currently-scheduled
  *      single event, re-arm it. This repairs a row with no event left while a
  *      boundary is still in the future (so catch-up would not fire it yet).
- *      The check is per row, not per boundary: both boundaries share one hook
- *      and one args array, so while either is armed wp_next_scheduled() finds
- *      it and the other is not re-armed here. Catch-up covers that one once
- *      its time has passed.
+ *      The check is per boundary, on args array( id, 'start' | 'end' ). An
+ *      event armed before the per-boundary args (array( id ) alone) counts as
+ *      armed for either side, so it is not doubled; it still fires, since the
+ *      handler reads only the row id.
  *
  * @return void
  */
@@ -156,12 +176,14 @@ function sn_schedule_reconcile() {
 		// RE-ARM a future boundary that lost its single event. Only future,
 		// non-null boundaries: a past boundary is handled by catch-up above, not
 		// by arming an event that would fire immediately anyway.
-		foreach ( array( $start_ts, $end_ts ) as $boundary_ts ) {
+		foreach ( array( 'start' => $start_ts, 'end' => $end_ts ) as $side => $boundary_ts ) {
 			if ( null === $boundary_ts || $boundary_ts <= $now ) {
 				continue;
 			}
-			if ( ! wp_next_scheduled( SN_SCHEDULE_FIRE_HOOK, array( $row_id ) ) ) {
-				wp_schedule_single_event( $boundary_ts, SN_SCHEDULE_FIRE_HOOK, array( $row_id ) );
+			$args = array( $row_id, $side );
+			// An event armed before the per-boundary args (array( $row_id )) still counts.
+			if ( ! wp_next_scheduled( SN_SCHEDULE_FIRE_HOOK, $args ) && ! wp_next_scheduled( SN_SCHEDULE_FIRE_HOOK, array( $row_id ) ) ) {
+				wp_schedule_single_event( $boundary_ts, SN_SCHEDULE_FIRE_HOOK, $args );
 			}
 		}
 	}

@@ -262,7 +262,7 @@ function sn_schedule_clear_removed_crons( $post_id, array $keep_ids ) {
 			continue; // survives the sweep; its cron is re-armed later.
 		}
 		// About to be dropped: clear its events so nothing dangles.
-		wp_clear_scheduled_hook( SN_SCHEDULE_FIRE_HOOK, array( (int) $row['id'] ) );
+		sn_schedule_clear_row_crons( (int) $row['id'] );
 	}
 }
 
@@ -270,19 +270,18 @@ function sn_schedule_clear_removed_crons( $post_id, array $keep_ids ) {
  * (Re)arm the boundary cron for every fragment row of $post_id.
  *
  * For each row, one single event is armed PER non-null boundary (starts_at and
- * ends_at), keyed on the row id so the fire handler (Task 6) can look the row up.
- * Each boundary's event is cleared first (wp_clear_scheduled_hook) so a re-save
- * after a date edit re-arms cleanly rather than stacking a second event for the
- * same row: the clear is by row id, which removes BOTH that row's prior
- * boundary events at once, and we then re-arm the current boundaries.
+ * ends_at), with args array( $row_id, 'start' ) or array( $row_id, 'end' ) so
+ * the fire handler (Task 6) can look the row up. The two boundaries carry
+ * distinct args on purpose: core's wp_schedule_single_event() refuses an event
+ * with the same hook and args within 10 minutes of an existing one, so shared
+ * args would lose the second boundary. The row's prior events are cleared
+ * first (sn_schedule_clear_row_crons, both shapes) so a re-save after a date
+ * edit re-arms cleanly rather than stacking a second event.
  *
  * Past boundaries are NOT pre-filtered out: we arm every non-null boundary,
  * including ones already in the past. WP-Cron fires a past-due single event on
  * its next run, and Task 6's reconcile tick repairs any boundary that was
- * missed entirely. One way to miss one: both boundaries use the same hook and
- * args, and core refuses an identical single event within 10 minutes of an
- * existing one, so the second call below can return false. Arming all boundaries is the
- * simpler, safer choice: pruning past boundaries here would be a second place
+ * missed entirely. Arming all boundaries is the simpler, safer choice: pruning past boundaries here would be a second place
  * that has to agree with the reconcile about what "past" means, and getting it
  * wrong would silently skip a purge. The reconcile owns "did this boundary
  * already happen"; the sync just declares the boundaries.
@@ -300,14 +299,13 @@ function sn_schedule_arm_post_crons( $post_id ) {
 		}
 
 		$row_id = (int) $row['id'];
-		$args   = array( $row_id );
 
-		// Clear any prior events for this row id (idempotent re-arm). One clear
-		// removes every event previously armed on this hook for this row, so a
-		// date edit does not leave a stale boundary armed.
-		wp_clear_scheduled_hook( SN_SCHEDULE_FIRE_HOOK, $args );
+		// Clear any prior events for this row id (idempotent re-arm), in both
+		// the per-boundary and the older single-arg shape, so a date edit does
+		// not leave a stale boundary armed.
+		sn_schedule_clear_row_crons( $row_id );
 
-		foreach ( array( $row['starts_at'] ?? null, $row['ends_at'] ?? null ) as $boundary ) {
+		foreach ( array( 'start' => $row['starts_at'] ?? null, 'end' => $row['ends_at'] ?? null ) as $side => $boundary ) {
 			$boundary = (string) $boundary;
 			if ( '' === $boundary ) {
 				continue; // NULL/empty boundary: nothing to fire on this side.
@@ -316,7 +314,7 @@ function sn_schedule_arm_post_crons( $post_id ) {
 			if ( ! $ts ) {
 				continue; // unparseable: skip (the gate treats it as unbounded too).
 			}
-			wp_schedule_single_event( $ts, SN_SCHEDULE_FIRE_HOOK, $args );
+			wp_schedule_single_event( $ts, SN_SCHEDULE_FIRE_HOOK, array( $row_id, $side ) );
 		}
 	}
 }
