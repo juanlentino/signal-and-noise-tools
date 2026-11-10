@@ -141,10 +141,10 @@ $fp = snt_block_fp_fingerprint( $quote_block, 201, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 201, $fp, 'pull-quote' );
 ps_true( is_array( $result ), 'Test 1.1: result is array (not WP_Error)' );
 ps_true( ! empty( $result['suggestion_markup'] ), 'Test 1.2: suggestion_markup non-empty' );
-ps_contains( $result['suggestion_markup'], 'sn-pattern-pull-quote', 'Test 1.3: suggestion uses sn-pattern-pull-quote className' );
-ps_contains( $result['suggestion_markup'], 'sn-pull-quote__body', 'Test 1.4: body paragraph className present' );
+ps_eq( "<!-- wp:pullquote {\"className\":\"is-style-pull-quote\"} -->\n<figure class=\"wp-block-pullquote is-style-pull-quote\"><blockquote><p>The classifier always loses on cost before it loses on accuracy.</p><cite>Juan</cite></blockquote></figure>\n<!-- /wp:pullquote -->", $result['suggestion_markup'], 'Test 1.3: suggestion is the theme pattern (core/pullquote, is-style-pull-quote)' );
+ps_true( false === strpos( $result['suggestion_markup'], 'sn-pattern-pull-quote' ), 'Test 1.4: the old group scaffold is not suggested' );
 ps_contains( $result['suggestion_markup'], 'always loses on cost', 'Test 1.5: original quote text preserved in suggestion' );
-ps_contains( $result['suggestion_markup'], 'sn-pull-quote__attribution', 'Test 1.6: attribution paragraph present (fixture has cite)' );
+ps_contains( $result['suggestion_markup'], '<cite>Juan</cite>', 'Test 1.6: cite present (fixture has cite)' );
 ps_contains( $result['suggestion_markup'], 'Juan', 'Test 1.7: cite text preserved' );
 ps_eq( 'pull-quote', $result['pattern_type'], 'Test 1.8: pattern_type echoed back' );
 ps_eq( $fp, $result['fingerprint'], 'Test 1.9: fingerprint echoed back' );
@@ -205,7 +205,7 @@ _tas_post( 206, array( $quote_no_cite ) );
 $fp = snt_block_fp_fingerprint( $quote_no_cite, 206, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 206, $fp, 'pull-quote' );
 ps_true( is_array( $result ), 'Test 6.1: result is array' );
-ps_true( false === strpos( $result['suggestion_markup'], 'sn-pull-quote__attribution' ), 'Test 6.2: attribution paragraph absent when no cite' );
+ps_true( false === strpos( $result['suggestion_markup'], '<cite' ), 'Test 6.2: cite absent when the source has none' );
 
 // ─── Test 7: pull-quote with inline formatting preserved ─────────────
 echo "\nTest 7: pull-quote preserves inline <strong>, <em>, <a>\n";
@@ -254,7 +254,7 @@ _tas_post( 209, array( $quote_empty ) );
 $fp = snt_block_fp_fingerprint( $quote_empty, 209, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 209, $fp, 'pull-quote' );
 ps_true( is_array( $result ), 'Test 9.1: degenerate quote produces result (no fatal)' );
-ps_contains( $result['suggestion_markup'], 'sn-pull-quote__body', 'Test 9.2: body paragraph still present (empty text)' );
+ps_contains( $result['suggestion_markup'], '<blockquote><p></p>', 'Test 9.2: body paragraph still present (empty text)' );
 ps_contains( $result['suggestion_markup'], 'Author', 'Test 9.3: cite still extracted' );
 
 // ─── Test 10: steps-enumerated with empty list (zero items) ──────────
@@ -286,7 +286,7 @@ _tas_post( 211, array( $quote_empty_cite ) );
 $fp = snt_block_fp_fingerprint( $quote_empty_cite, 211, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 211, $fp, 'pull-quote' );
 ps_true( is_array( $result ), 'Test 11.1: result is array (not WP_Error)' );
-ps_true( false === strpos( $result['suggestion_markup'], 'sn-pull-quote__attribution' ), 'Test 11.2: attribution paragraph omitted when cite has only empty inline tags' );
+ps_true( false === strpos( $result['suggestion_markup'], '<cite' ), 'Test 11.2: cite omitted when it has only empty inline tags' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

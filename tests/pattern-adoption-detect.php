@@ -141,6 +141,20 @@ pa_eq( 'pull-quote', $candidates[0]['pattern_type'], 'Test 1.2: pattern_type = p
 pa_eq( 101, $candidates[0]['post_id'], 'Test 1.3: post_id matches fixture' );
 pa_true( ! empty( $candidates[0]['block_fingerprint'] ), 'Test 1.4: fingerprint is non-empty' );
 
+// ─── Test 1b: pull quotes already in a house form are not candidates ──
+echo "\nTest 1b: old group scaffold, custom block and core/pullquote are recognized, not flagged\n";
+$GLOBALS['__test_posts'] = array();
+$GLOBALS['__test_post_meta'] = array();
+$GLOBALS['__test_transients'] = array();
+_ta_post( 111, array(
+	array( 'blockName' => 'core/group', 'attrs' => array( 'className' => 'sn-pattern-pull-quote', 'tagName' => 'aside' ), 'innerBlocks' => array(
+		array( 'blockName' => 'core/paragraph', 'attrs' => array( 'className' => 'sn-pull-quote__body' ), 'innerBlocks' => array(), 'innerHTML' => '<p class="sn-pull-quote__body">Old scaffold.</p>' ),
+	), 'innerHTML' => '<aside class="wp-block-group sn-pattern-pull-quote"></aside>' ),
+	array( 'blockName' => 'signal-noise/pull-quote', 'attrs' => array( 'text' => 'Custom block.' ), 'innerBlocks' => array(), 'innerHTML' => '' ),
+	array( 'blockName' => 'core/pullquote', 'attrs' => array( 'className' => 'is-style-pull-quote' ), 'innerBlocks' => array(), 'innerHTML' => '<figure class="wp-block-pullquote is-style-pull-quote"><blockquote><p>Core.</p></blockquote></figure>' ),
+) );
+pa_eq( 0, count( snt_pattern_adoption_detect_candidates() ), 'Test 1b.1: no pull quote in a house form is flagged for rewrite' );
+
 // ─── Test 2: steps-enumerated candidate detection ────────────────────
 echo "\nTest 2: steps-enumerated detection (core/list, ordered: true)\n";
 $GLOBALS['__test_posts'] = array();
