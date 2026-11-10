@@ -327,7 +327,7 @@ Latest server-side provenance integrity sweep: summary counts (fleet, checked, c
 #### `signal-noise/get-404-log`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
 
-Recent actionable front-end 404 log (bot/probe noise filtered), most-recently-seen first, capped at 50: path, hit count, first/last seen, latest referring host, and a deterministic redirect-target suggestion from published slugs (classical string distance, similarity-floored). Read-only — redirects are still created through the audited admin form. Input is an object with a top-level `default` of `{}`. Not yet on an MCP door.
+Recent actionable front-end 404 log (bot/probe noise filtered), most-recently-seen first, capped at 50: path, hit count, first/last seen, latest referring host, and a deterministic redirect-target suggestion from published slugs (classical string distance, similarity-floored). Read-only: redirects are still created through the audited admin form. Input is an object with a top-level `default` of `{}`. Not yet on an MCP door.
 
 #### `signal-noise/get-collector-status`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
