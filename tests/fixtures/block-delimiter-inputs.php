@@ -15,7 +15,7 @@ return array(
 	'namespaced block'         => "<!-- wp:acme/card {\"id\":7} -->\n<div class=\"wp-block-acme-card\">c</div>\n<!-- /wp:acme/card -->",
 	'JSON with braces'         => "<!-- wp:group {\"style\":{\"spacing\":{\"padding\":{\"top\":\"1px\"}}},\"note\":\"a } b { c\"} -->\n<div class=\"wp-block-group\"></div>\n<!-- /wp:group -->",
 	'JSON with escaped arrow'  => "<!-- wp:paragraph {\"note\":\"a \\u002d\\u002d\\u003e b\"} -->\n<p>x</p>\n<!-- /wp:paragraph -->",
-	'multibyte text'           => "<!-- wp:paragraph -->\n<p>Señal y ruido — café ☕ 日本語</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Después.</p>\n<!-- /wp:paragraph -->",
+	'multibyte text'           => "<!-- wp:paragraph -->\n<p>Señal y ruido … café ☕ 日本語</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>Después.</p>\n<!-- /wp:paragraph -->",
 	'CRLF line endings'        => "<!-- wp:paragraph -->\r\n<p>One.</p>\r\n<!-- /wp:paragraph -->\r\n\r\n<!-- wp:paragraph -->\r\n<p>Two.</p>\r\n<!-- /wp:paragraph -->\r\n",
 	'entities and attributes'  => "<!-- wp:paragraph -->\n<p>A &amp; B &lt;tag&gt; <a href='x' title=\"a > b\">l</a></p>\n<!-- /wp:paragraph -->",
 	'plain HTML comment'       => "<!-- wp:paragraph -->\n<p>a</p>\n<!-- /wp:paragraph -->\n<!-- just a note, <b>not</b> a block -->\n<!-- wp:paragraph -->\n<p>b</p>\n<!-- /wp:paragraph -->",

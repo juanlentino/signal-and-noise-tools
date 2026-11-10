@@ -74,8 +74,9 @@ const SNT_SN_APPLY_BLOCK_EDIT_CONTEXT_WINDOW = 250;
  * Scan raw post_content for block-delimiter comments (core's
  * WP_Block_Processor finds them, see block-delimiters.php) and derive the
  * TOP-LEVEL block spans (byte ranges) plus every delimiter comment's own
- * byte range. A span's block_name drops the core/ namespace. Freeform gaps between spans are NOT spans — an anchor there
+ * byte range. Freeform gaps between spans are NOT spans — an anchor there
  * has no containing block and refuses at the boundary check.
+ * A span's block_name drops the core/ namespace.
  *
  * @param string $content Raw stored post_content.
  * @return array{spans:array<int,array{start:int,end:int,block_name:string}>,delimiters:array<int,array{0:int,1:int}>}
