@@ -530,18 +530,18 @@ $want_no_alt = array(
 	'nested inline markup' => array( 'a.png' ),
 	'attributes in any order' => array( 'b2.png' ),
 	'uppercase tags and attributes' => array( 'c.png' ),
-	'entities in src and alt' => array( 'd.png?a=1&amp;b=2' ),
-	'a > inside an attribute' => array( '', '' ),
-	'a bare alt with no value' => array( 'f.png' ),
-	'data-alt and data-src' => array( 'g2.png' ),
-	'alt= inside another attribute' => array(),
-	'unquoted values' => array( '' ),
+	'entities in src and alt' => array( 'd.png?a=1&b=2' ), // The regex answered 'd.png?a=1&amp;b=2': the stored bytes, not the URL.
+	'a > inside an attribute' => array( 'e2.png' ), // The regex answered array( '', '' ): it ended both tags at the '>' inside the title, so it lost the first image's alt and both src values.
+	'a bare alt with no value' => array(), // The regex answered array( 'f.png' ): it looked for 'alt='. A bare alt is an empty alt, the decorative marker.
+	'data-alt and data-src' => array( 'g.png', '' ), // The regex answered array( 'g2.png' ): its \balt matched data-alt (so g.png passed) and its \bsrc matched data-src. The second image has no src.
+	'alt= inside another attribute' => array( 'h.png' ), // The regex answered array(): it found 'alt=' inside the title's value.
+	'unquoted values' => array( 'i.png' ), // The regex answered array( '' ): it needed a quoted src.
 	'self-closing tags' => array( 'j.png' ),
-	'images inside a comment' => array( 'k.png' ),
+	'images inside a comment' => array(), // The regex answered array( 'k.png' ): it read a comment.
 	'image blocks with JSON and captions' => array(),
 	'multibyte text' => array( 'señal.png' ),
 	'empty input' => array(),
-	'images in a textarea and a script' => array( 'm.png' ),
+	'images in a textarea and a script' => array(), // The regex answered array( 'm.png' ): it read a textarea's text as markup.
 	'the other quote inside an alt' => array(),
 	'a card: figure, then its heading, in block markup' => array(),
 	'a heading inside the skip budget, and one outside it' => array(),

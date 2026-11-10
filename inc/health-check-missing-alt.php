@@ -223,30 +223,23 @@ function sn_health_alt_quality_note( $problem, $alt ) {
 }
 
 /**
- * Parse post_content for <img> tags that lack an alt attribute.
- * Pure regex — content has already been written to the DB so a
- * proper HTML parser is overkill for this check.
+ * The <img> tags in post_content that carry no alt attribute, read by core's
+ * HTML parser. An alt with no value (`<img alt>`) is an empty alt, which is
+ * the decorative marker, so it is present. `data-alt`, or the text `alt=`
+ * inside another attribute, is not an alt.
  *
  * @param string $content
  * @return array  src URLs of <img> tags without alt
  */
 function sn_health_extract_inline_imgs_without_alt( $content ) {
-	if ( '' === trim( $content ) ) { return array(); }
-	$out = array();
-	if ( preg_match_all( '/<img\b([^>]*)>/i', $content, $matches ) ) {
-		foreach ( $matches[1] as $attrs ) {
-			// Match alt="..." OR alt=... (some legacy markup).
-			if ( preg_match( '/\balt\s*=/i', $attrs ) ) {
-				continue;
-			}
-			$src = '';
-			if ( preg_match( '/\bsrc\s*=\s*"([^"]+)"/i', $attrs, $sm ) ) {
-				$src = $sm[1];
-			} elseif ( preg_match( "/\bsrc\s*=\s*'([^']+)'/i", $attrs, $sm ) ) {
-				$src = $sm[1];
-			}
-			$out[] = $src;
+	$out  = array();
+	$tags = new WP_HTML_Tag_Processor( (string) $content );
+	while ( $tags->next_tag( 'IMG' ) ) {
+		if ( null !== $tags->get_attribute( 'alt' ) ) {
+			continue;
 		}
+		$src   = $tags->get_attribute( 'src' );
+		$out[] = is_string( $src ) ? $src : '';
 	}
 	return $out;
 }
