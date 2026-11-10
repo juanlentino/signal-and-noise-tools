@@ -9,6 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 if ( ! function_exists( '__' ) ) { function __( $t, $d = '' ) { return $t; } }
 
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require __DIR__ . '/../inc/citations-core.php';
 
 $pass = 0; $fail = 0;

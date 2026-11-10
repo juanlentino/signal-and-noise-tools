@@ -35,6 +35,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/html-hrefs.php'; // sn_html_a_hrefs(): link targets, read by core's HTML parser.
+
 /** The four states, in descending order of what the site can actually claim. */
 const SN_CIT_TIERS = array( 'verified', 'unattributed', 'asserted', 'unverified' );
 
@@ -95,8 +97,12 @@ function sn_cit_origin( $url ) {
  * Does this HTML contain a link to the target? Compares NORMALISED hrefs so a
  * trailing slash or a mixed-case host is not a missing citation.
  *
- * Deliberately looks at href attributes only — a bare mention of the URL in
- * prose is not a link, and the webmention contract is about links. Pure.
+ * Deliberately looks at the href of real <a> elements only, read by core's
+ * HTML parser: a bare mention of the URL in prose is not a link, and neither
+ * is one inside a comment, a script, a textarea or another attribute's value.
+ * The source page is someone else's, and this answer promotes their claim to
+ * a publicly shown tier, so text that only looks like a link must not count.
+ * Pure.
  *
  * @param string $html
  * @param string $target
@@ -107,13 +113,8 @@ function sn_cit_html_links_to( $html, $target ) {
 	if ( '' === $want || '' === (string) $html ) {
 		return false;
 	}
-	if ( ! preg_match_all( '#<a\b[^>]*\bhref\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)#i', (string) $html, $m ) ) {
-		return false;
-	}
-	foreach ( $m[1] as $raw ) {
-		$href = trim( $raw, "\"' \t\n\r" );
-		$href = html_entity_decode( $href, ENT_QUOTES, 'UTF-8' );
-		if ( sn_cit_normalize_url( $href ) === $want ) {
+	foreach ( sn_html_a_hrefs( $html ) as $href ) {
+		if ( sn_cit_normalize_url( trim( $href ) ) === $want ) {
 			return true;
 		}
 	}

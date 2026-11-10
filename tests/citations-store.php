@@ -58,6 +58,7 @@ class Test_WPDB {
 }
 $GLOBALS['wpdb'] = new Test_WPDB();
 
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require __DIR__ . '/../inc/citations-core.php';
 require __DIR__ . '/../inc/citations-store.php';
 require __DIR__ . '/../inc/citations-verify.php';

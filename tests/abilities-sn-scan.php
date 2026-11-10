@@ -359,6 +359,7 @@ if ( ! function_exists( 'get_theme_mod' ) ) { function get_theme_mod( $n, $d = f
 /* ════════════════════════════════════════════════════════════════════════
  * Load the SUT
  * ════════════════════════════════════════════════════════════════════════ */
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require __DIR__ . '/../inc/block-fingerprint-engine.php';
 require __DIR__ . '/../inc/block-migrations-detect.php';
 require __DIR__ . '/../inc/block-migrations-suggest.php';

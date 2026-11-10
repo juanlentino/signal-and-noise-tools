@@ -28,6 +28,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/html-hrefs.php'; // sn_html_a_hrefs(): link targets, read by core's HTML parser.
+
 const SNT_ML_RELATED_META       = '_snt_ml_related';
 const SNT_ML_CORPUS_META_OPT    = 'snt_ml_corpus_meta';
 const SNT_ML_SEARCH_OPT         = 'snt_ml_search_index'; // v14.0.0: tf maps + idf for notes search (autoload=no).
@@ -43,18 +45,21 @@ if ( ! function_exists( 'snt_ml_extract_note_links' ) ) {
 	 *
 	 * Accepts absolute (home_url-prefixed) and site-relative hrefs; query
 	 * strings and fragments are shed. External hosts and non-/notes/ internal
-	 * paths carry no graph signal and are dropped.
+	 * paths carry no graph signal and are dropped. The hrefs are those of real
+	 * <a> elements, read by core's HTML parser (sn_html_a_hrefs).
 	 *
 	 * @param string $content Raw post_content.
 	 * @return string[] Deduped slug list (order of first appearance).
 	 */
 	function snt_ml_extract_note_links( $content ) {
-		if ( ! preg_match_all( '/href=["\']([^"\']+)["\']/i', (string) $content, $m ) ) {
+		$hrefs = sn_html_a_hrefs( $content );
+		if ( ! $hrefs ) {
 			return array();
 		}
 		$home  = untrailingslashit( home_url() );
 		$slugs = array();
-		foreach ( $m[1] as $href ) {
+		foreach ( $hrefs as $href ) {
+			$href = trim( $href );
 			if ( '' !== $home && 0 === strpos( $href, $home ) ) {
 				$href = substr( $href, strlen( $home ) );
 			}

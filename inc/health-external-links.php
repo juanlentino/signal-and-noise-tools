@@ -33,6 +33,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/html-hrefs.php'; // sn_html_a_hrefs(): link targets, read by core's HTML parser.
+
 // Cap on NETWORK probes per scan (cached URLs are free), AND a cumulative
 // wall-clock budget — external hosts are slow + rate-sensitive, and a blocking
 // DNS lookup + a 5s HEAD + a 5s GET fallback can stack. Both bounds protect the
@@ -61,31 +63,24 @@ if ( ! defined( 'SN_HEALTH_EXTLINK_TIME_BUDGET' ) ) {
  * @return string[]
  */
 function sn_health_extract_external_links( $content, $site_host ) {
-	if ( '' === trim( (string) $content ) ) {
-		return array();
-	}
 	$out = array();
-	if ( preg_match_all( '/<a\b[^>]*\bhref\s*=\s*["\']([^"\']+)["\']/i', $content, $m ) ) {
-		foreach ( $m[1] as $href ) {
-			// #1188: Gutenberg stores href HTML-escaped ("&amp;" for "&"), so a
-			// query string like `?a=1&amp;lang=en` was probed VERBATIM -- the
-			// server sees a literal `amp;lang` param, not `lang`, and a page
-			// that requires it 404s. Decode before anything else touches it.
-			$href = trim( html_entity_decode( $href, ENT_QUOTES ) );
-			if ( '' === $href || '#' === $href[0] || '/' === $href[0] ) {
-				continue; // empty, anchor, or root-relative (internal by definition)
-			}
-			if ( preg_match( '#^(mailto:|tel:|javascript:|data:)#i', $href ) ) {
-				continue;
-			}
-			$scheme = strtolower( (string) wp_parse_url( $href, PHP_URL_SCHEME ) );
-			if ( 'http' !== $scheme && 'https' !== $scheme ) {
-				continue; // only http(s) links are probeable
-			}
-			$h = wp_parse_url( $href, PHP_URL_HOST );
-			if ( $h && strtolower( $h ) !== strtolower( $site_host ) ) {
-				$out[ $href ] = true; // off-host
-			}
+	// Core's parser hands each href back decoded ("&amp;" is "&"), which is
+	// what #1188 needed: the probe must ask for the URL a browser would.
+	foreach ( sn_html_a_hrefs( $content ) as $href ) {
+		$href = trim( $href );
+		if ( '' === $href || '#' === $href[0] || '/' === $href[0] ) {
+			continue; // empty, anchor, or root-relative (internal by definition)
+		}
+		if ( preg_match( '#^(mailto:|tel:|javascript:|data:)#i', $href ) ) {
+			continue;
+		}
+		$scheme = strtolower( (string) wp_parse_url( $href, PHP_URL_SCHEME ) );
+		if ( 'http' !== $scheme && 'https' !== $scheme ) {
+			continue; // only http(s) links are probeable
+		}
+		$h = wp_parse_url( $href, PHP_URL_HOST );
+		if ( $h && strtolower( $h ) !== strtolower( $site_host ) ) {
+			$out[ $href ] = true; // off-host
 		}
 	}
 	return array_keys( $out );

@@ -162,6 +162,7 @@ $GLOBALS['__posts'] = array(
 );
 
 // ─── Load the SUT (kernel is PURE — required directly, no stubs) ─────
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require __DIR__ . '/../inc/ml-kernel.php';
 require __DIR__ . '/../inc/ml-pipelines.php';
 require __DIR__ . '/../inc/corpus-inspect.php';
