@@ -106,6 +106,12 @@ function sn_rss_tracker_recent( $limit = 20 ) {
  */
 function sn_rss_tracker_handle_form( $action ) {
 	$action = (string) $action;
+	// A form submit only: admin-post.php dispatches on $_REQUEST, so a GET link
+	// carrying a valid nonce would otherwise purge or reset. The OpenStation
+	// window replays with its form values in $_POST, so it still passes.
+	if ( empty( $_POST ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- refusing before the nonce is read.
+		wp_die( esc_html__( 'This action needs a form submit.', 'signal-and-noise-tools' ), '', array( 'response' => 405 ) );
+	}
 	check_admin_referer( 'sn_rss_' . $action );
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_die( esc_html__( 'Insufficient permissions.', 'signal-and-noise-tools' ), '', array( 'response' => 403 ) );

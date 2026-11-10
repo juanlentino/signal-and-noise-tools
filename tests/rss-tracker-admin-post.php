@@ -150,5 +150,22 @@ $r = rss_post( 'sn_rss_reset_defaults', array(), 'sn_rss_reset_defaults' );
 ok( array( 'collector_url' => 'https://sn-px.workers.dev/_sn/px' ) === $GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ], 'the RSS settings go back to defaults and the custom collector stays' );
 ok( 'reset' === $r['flash'] && false !== strpos( $r['url'], 'tab=rss&sn_rss_ok=reset' ), 'and lands with ?sn_rss_ok=reset' );
 
+echo "\nGroup 7: a GET link with a valid nonce does nothing\n";
+foreach ( array( 'purge_log', 'reset_defaults', 'save_settings' ) as $op ) {
+	$GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ] = $stored;
+	$GLOBALS['wpdb']->queries = array();
+	$_POST    = array();
+	$_REQUEST = array( 'action' => 'sn_rss_' . $op, '_wpnonce' => 'nonce-sn_rss_' . $op );
+	try {
+		do_action( 'admin_post_sn_rss_' . $op );
+		$out = 'returned';
+	} catch ( SNT_Test_Die $d ) {
+		$out = 'died-' . $d->response;
+	} catch ( SNT_Test_Redirect $r ) {
+		$out = 'redirect';
+	}
+	ok( 'died-405' === $out && array() === $GLOBALS['wpdb']->queries && $stored === $GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ], "$op from a GET (valid nonce, no form body) is refused 405 and touches nothing" );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
