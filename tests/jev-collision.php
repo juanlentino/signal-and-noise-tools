@@ -10,6 +10,7 @@ define( 'ABSPATH', '/' );
 $GLOBALS['__c'] = array( 'opt' => array(), 'posts' => array(), 'meta' => array(), 'calls' => array(), 'answer' => null, 'actions' => array(), 'abilities' => array(), 'key' => 'k' );
 function __( $s, $d = null ) { return $s; }
 function add_action( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__c']['actions'][ $t ][] = $c; return true; }
+function add_filter( $t, $c, $p = 10, $a = 1 ) { return add_action( $t, $c, $p, $a ); }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__c']['opt'] ) ? $GLOBALS['__c']['opt'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['__c']['opt'][ $k ] = $v; return true; }
 function get_post_meta( $id, $k = '', $single = false ) { return $GLOBALS['__c']['meta'][ $id ][ $k ] ?? ''; }
@@ -110,8 +111,35 @@ ok( isset( $GLOBALS['__c']['registered'][ SN_JEV_COLLISION_META ] ) && true === 
 if ( ! function_exists( '__return_false' ) ) { function __return_false() { return false; } }
 if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $cap, ...$a ) { return true; } }
 ok( false === call_user_func( $GLOBALS['__c']['registered'][ SN_JEV_COLLISION_META ]['auth_callback'], true, SN_JEV_COLLISION_META, 3, 1, 'edit_post_meta', array() ), 'G2 a REST write to the collision meta is refused, even for a user who can edit the post' );
-$panel = (string) file_get_contents( __DIR__ . '/../assets/post-settings-panel.js' );
-ok( 1 === preg_match( '/var next = Object\.assign\( \{\}, meta \);\s*(?:\/\/[^\n]*\s*)*delete next\._sn_jev_collision;\s*delete next\._sn_jev_tells;/', $panel ), 'G3 the settings panel does not send either Jev reading back with a field edit' );
+// G3: what the editor really sends. Core's post entity is `mergedEdits: { meta: true }`, so ANY meta edit
+// carries every meta key the record has, these two included, whatever a panel script deletes. The request
+// is the place to drop them: before core's meta handler, which would otherwise ask auth_callback and fail
+// the save. A stand-in with WP_REST_Request's two methods the filter uses.
+$req = static function ( $meta ) {
+	return new class( $meta ) implements ArrayAccess {
+		public $params;
+		public function __construct( $meta ) { $this->params = null === $meta ? array() : array( 'meta' => $meta ); }
+		public function offsetExists( $k ): bool { return isset( $this->params[ $k ] ); }
+		public function offsetGet( $k ): mixed { return $this->params[ $k ] ?? null; }
+		public function offsetSet( $k, $v ): void { $this->params[ $k ] = $v; }
+		public function offsetUnset( $k ): void { unset( $this->params[ $k ] ); }
+		public function set_param( $k, $v ) { $this->params[ $k ] = $v; }
+	};
+};
+$drop = $GLOBALS['__c']['actions']['rest_pre_insert_post'][0] ?? null;
+ok( 'sn_jev_rest_drop_readings' === $drop, 'G3 the drop runs on rest_pre_insert_post, ahead of the meta write' );
+$prepared = new stdClass();
+foreach ( array(
+	'never judged: the editor sends the empty defaults' => array( '_sn_jev_collision' => '', '_sn_jev_tells' => '' ),
+	'stale: the editor sends the reading it loaded'     => array( '_sn_jev_collision' => '{"checked":1,"hits":[]}', '_sn_jev_tells' => '{"judged":1}' ),
+	'changed: a client tries to blank the verdict'      => array( '_sn_jev_collision' => '{"checked":9,"hits":[]}', '_sn_jev_tells' => 'x' ),
+) as $label => $sent ) {
+	$r = $req( $sent + array( '_sn_seo_title' => 'Kept', 'footnotes' => '[]' ) );
+	ok( $prepared === sn_jev_rest_drop_readings( $prepared, $r ) && array( '_sn_seo_title' => 'Kept', 'footnotes' => '[]' ) === $r['meta'], "G3 $label: both readings leave the request, every other key stays" );
+}
+$r = $req( null );
+sn_jev_rest_drop_readings( $prepared, $r );
+ok( array() === $r->params, 'G3 a write with no meta is left as it came' );
 
 // H: 16.7.2, the per-note map is gone; the corpus for the pairs group.
 $GLOBALS['__c']['posts'] = array(); $GLOBALS['__c']['calls'] = array();
