@@ -253,9 +253,9 @@ if ( function_exists( 'add_action' ) ) {
 
 /**
  * The session rows and how many days of the window they cover. PURE. The
- * nightly rollup records the day before, so the newest day of the window can
- * lag; a run of days from the window's first day is shown with its count
- * ("29 of 30 days"). A hole inside the run, or a missing first day, is a
+ * nightly rollup records the day before at 06:15 UTC, so until then the newest
+ * day of the window lags; a run of days from the window's first day is shown
+ * with its count ("29 of 30 days"). A hole inside the run, or a missing first day, is a
  * failure, not a lag: null, and Visits and One page only are left out.
  *
  * @param array|null $rows sn_session_rollup_read() rows.
