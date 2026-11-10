@@ -77,8 +77,8 @@ function page_slug() {
  *
  * `capabilities( 'manage_options' )` already gates the window, its dock tile
  * and dispatch. This is the second check, for the same reason
- * `snt_analytics_dashboard_page()` re-checks rather than trusting the menu that
- * showed the link: menu visibility is not access control.
+ * `snt_analytics_dashboard_page()` re-checks after core has already gated the
+ * page: a direct call does not pass through the first gate.
  *
  * @return bool
  */

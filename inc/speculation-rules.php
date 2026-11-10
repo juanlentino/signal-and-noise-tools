@@ -2,7 +2,7 @@
 /**
  * Signal & Noise Tools — Speculation Rules tuning.
  *
- * WordPress 7.0 core ships native Speculation Rules support (the
+ * WordPress core ships native Speculation Rules support since 6.8 (the
  * <script type="speculationrules"> emitter in wp-includes/speculative-loading.php),
  * defaulting to mode=auto / eagerness=auto. This module opts the site into a more
  * aggressive PRERENDER + MODERATE profile — for a brutalist, mostly-static notes

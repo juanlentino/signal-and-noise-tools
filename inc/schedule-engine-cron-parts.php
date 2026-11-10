@@ -105,7 +105,10 @@ function sn_schedule_fire( $row_id ) {
 add_action( SN_SCHEDULE_FIRE_HOOK, 'sn_schedule_fire' );
 
 /**
- * Reconcile tick: the safety net for boundaries WP-Cron dropped. Registered on
+ * Reconcile tick: the safety net for boundaries that did not fire. WP-Cron
+ * runs late events rather than dropping them; what goes missing is an event
+ * core refused at arm time as a duplicate (same hook, same args, within 10
+ * minutes: see SN_SCHEDULE_RECONCILE_HOOK). Registered on
  * SN_SCHEDULE_RECONCILE_HOOK and scheduled every 5 minutes (see below). Two jobs:
  *
  *   1. CATCH UP. Scan every row; for any whose boundary has passed but whose
@@ -121,8 +124,12 @@ add_action( SN_SCHEDULE_FIRE_HOOK, 'sn_schedule_fire' );
  *      so a second reconcile pass is a no-op.
  *
  *   2. RE-ARM. For any FUTURE non-null boundary with no currently-scheduled
- *      single event, re-arm it. This repairs a row whose event was dropped while
- *      still in the future (so catch-up would not fire it yet).
+ *      single event, re-arm it. This repairs a row with no event left while a
+ *      boundary is still in the future (so catch-up would not fire it yet).
+ *      The check is per row, not per boundary: both boundaries share one hook
+ *      and one args array, so while either is armed wp_next_scheduled() finds
+ *      it and the other is not re-armed here. Catch-up covers that one once
+ *      its time has passed.
  *
  * @return void
  */

@@ -65,12 +65,19 @@ const SN_SCHEDULE_STATUSES         = array( 'queued', 'active', 'done', 'error' 
 const SN_SCHEDULE_FIRE_HOOK        = 'sn_schedule_fire';
 
 /**
- * The recurring cron hook for the reconcile tick (Task 6). WP-Cron drops a
- * single boundary event on a quiet site (it only runs on a front-end request),
- * so a 5-minute reconcile sweeps the queue, catches up any boundary that should
- * have fired but did not, and re-arms any future boundary that has lost its
- * single event. The handler ships in THIS file and add_action's on the constant
- * at file load; one source of truth for the hook name.
+ * The recurring cron hook for the reconcile tick (Task 6). WP-Cron does not
+ * drop a due event: wp-cron.php runs every event whose time has passed, late
+ * if need be. A boundary event goes missing at arm time instead. Both
+ * boundaries of a row are armed with the same hook and the same args, and
+ * wp_schedule_single_event() refuses an identical event within 10 minutes of
+ * an existing one (when the new time is under 10 minutes ahead, any earlier
+ * identical event counts too). So a 5-minute reconcile sweeps the queue,
+ * catches up any boundary that should have fired but did not, retries a row
+ * held in `error`, and
+ * re-arms a row whose future boundaries have no single event left. The
+ * reconcile is itself a WP-Cron event, so it does not help when cron is not
+ * running. The handler ships in THIS file and add_action's on the constant at
+ * file load; one source of truth for the hook name.
  */
 const SN_SCHEDULE_RECONCILE_HOOK   = 'sn_schedule_reconcile';
 

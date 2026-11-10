@@ -5,8 +5,12 @@
  * The ephemeral counterpart to inc/analytics-rollup.php's durable daily table:
  * per-class "current visitors" counts (human / suspect / bot) — distinct
  * visitor-day hashes seen in the last few minutes — read from a short-lived
- * transient that an admin_init SWR warmer keeps ~30s fresh via non-blocking
- * background single-events. Mirrors the retired Plausible client's realtime-single-events pattern.
+ * transient that an admin_init SWR warmer refreshes via non-blocking
+ * background single-events. 30 s is the age at which the warmer queues an
+ * event, not the freshness delivered: this site sets DISABLE_WP_CRON
+ * (inc/wp-cron-offload.php), so a queued event waits for the system cron,
+ * which runs every 5 minutes. Mirrors the retired Plausible client's
+ * realtime-single-events pattern.
  *
  * No table and no recurring cron: a "now" number is only meaningful while
  * someone is looking at the dashboard, so the warmer schedules single events
@@ -29,7 +33,7 @@ require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 
 const SN_ANALYTICS_REALTIME_KEY        = 'sn_analytics_realtime';
-const SN_ANALYTICS_REALTIME_TTL        = 30;                     // freshness target (seconds)
+const SN_ANALYTICS_REALTIME_TTL        = 30;                     // age (seconds) past which a refresh is queued, not delivered freshness
 const SN_ANALYTICS_REALTIME_RETENTION  = 5 * MINUTE_IN_SECONDS;  // stale value survives an API blip
 const SN_ANALYTICS_REALTIME_WINDOW_MIN = 5;                      // "now" = a visitor active in the last N minutes
 const SN_ANALYTICS_REALTIME_HOOK       = 'sn_analytics_realtime_refresh';
@@ -298,7 +302,8 @@ add_action( SN_ANALYTICS_REALTIME_HOOK, 'sn_analytics_realtime_refresh' );
 
 /**
  * Admin warmer: schedule a non-blocking background refresh when the cached
- * count is older than the 30s freshness target. Capability-gated, configured-
+ * count is older than the 30s threshold. The event runs on the next cron
+ * tick (system cron, every 5 minutes here). Capability-gated, configured-
  * gated, and single-event-only (no recurring backstop — nobody needs a fresh
  * "now" number when no admin is watching). wp_next_scheduled() prevents
  * stacking; single events clear after firing, so the warmer can re-fire.
@@ -322,9 +327,11 @@ function sn_analytics_realtime_age() {
 
 /**
  * The throttle itself, with no capability check: one background refresh when
- * the cached pair is older than the 30 s target and none is already queued.
+ * the cached pair is older than the 30 s threshold and none is already queued.
  * The admin warmer gates it on a capability; the public live route calls it
- * bare, so a reader on /stats keeps the pair fresh without an admin present.
+ * bare, so a reader on /stats queues the refresh without an admin present.
+ * Queued is not run: with DISABLE_WP_CRON set the event waits for the next
+ * system cron tick, so the pair can be about 5 minutes old.
  * However many callers arrive, at most one refresh is queued at a time.
  *
  * @return bool True when this call scheduled a refresh.

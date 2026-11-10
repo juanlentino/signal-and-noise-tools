@@ -279,7 +279,9 @@ function sn_schedule_clear_removed_crons( $post_id, array $keep_ids ) {
  * Past boundaries are NOT pre-filtered out: we arm every non-null boundary,
  * including ones already in the past. WP-Cron fires a past-due single event on
  * its next run, and Task 6's reconcile tick repairs any boundary that was
- * missed entirely (e.g. while WP-Cron was idle). Arming all boundaries is the
+ * missed entirely. One way to miss one: both boundaries use the same hook and
+ * args, and core refuses an identical single event within 10 minutes of an
+ * existing one, so the second call below can return false. Arming all boundaries is the
  * simpler, safer choice: pruning past boundaries here would be a second place
  * that has to agree with the reconcile about what "past" means, and getting it
  * wrong would silently skip a purge. The reconcile owns "did this boundary

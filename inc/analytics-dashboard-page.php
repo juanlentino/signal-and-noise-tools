@@ -31,9 +31,11 @@
  *      WordPress/openstation#475's sibling issue #650). A top-level menu is
  *      `admin.php?page=…`, which no Dashboard remap can claim.
  *
- * `add_menu_page()`'s capability gates MENU VISIBILITY only; the callback URL
- * stays directly reachable, so the render callback re-checks
- * current_user_can() itself.
+ * Core enforces `add_menu_page()`'s capability on the URL as well as on the
+ * menu: wp-admin/includes/menu.php asks user_can_access_admin_page() and
+ * answers a 403 before the callback runs. The render callback still re-checks
+ * current_user_can() itself. That is a second check, and it covers a direct
+ * call to the callback, which never passes through menu.php.
  *
  * THE URL AND THE HOOK ARE ACCESSORS, NOT LITERALS. Twelve call sites built
  * `snt_analytics_page_url()` by hand and one pinned the
@@ -138,8 +140,8 @@ add_action( 'admin_init', 'snt_analytics_redirect_legacy_url' );
 
 /**
  * Render callback for Dashboard → Analytics: the read-only dashboard wrapped in
- * the standard admin page chrome. Re-checks the capability (menu visibility
- * isn't access control), wraps in .wrap + an <h1>, resolves any ?sn_flash notice
+ * the standard admin page chrome. Re-checks the capability (core already
+ * denies the URL; this covers a direct call), wraps in .wrap + an <h1>, resolves any ?sn_flash notice
  * (so a save on the settings page can redirect here with feedback), then
  * delegates the body to snt_analytics_render_dashboard().
  */

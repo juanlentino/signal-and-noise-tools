@@ -235,6 +235,9 @@ function sn_analytics_class_totals( $from, $to ) {
  * Admin warmer: schedule a non-blocking background rollup when the freshness
  * stamp is older than the TTL. Capability-gated so we don't warm for users who
  * can never see the stats; wp_next_scheduled() prevents event stacking.
+ * The event is queued, not run in this request: with DISABLE_WP_CRON set
+ * (inc/wp-cron-offload.php) it waits for the system cron, every 5 minutes, so
+ * the rollup an admin sees can be the 15-minute TTL plus up to 5 minutes old.
  */
 function sn_analytics_rollup_warm() {
 	if ( ! current_user_can( 'view_stats' ) && ! current_user_can( 'manage_options' ) ) {

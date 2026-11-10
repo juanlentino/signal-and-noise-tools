@@ -66,7 +66,9 @@
  *     partial "today" self-corrects and late-arriving samples are absorbed.
  *   - sn_analytics_rollup_warm() (admin_init) schedules a non-blocking single
  *     event when the freshness stamp is older than SN_ANALYTICS_ROLLUP_TTL, so
- *     an active admin sees ~15-min-fresh data without ever blocking a render.
+ *     the refresh never blocks a render. The event runs on the next cron tick
+ *     (system cron, every 5 minutes here), so the data can be the TTL plus
+ *     that wait old.
  *   - sn_analytics_rollup_schedule() (init) registers a daily recurring backstop
  *     so the rollup still happens on days nobody opens wp-admin.
  *

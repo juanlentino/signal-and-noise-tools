@@ -3,7 +3,7 @@
  * Signal & Noise — Performance admin section (Content tab → Performance sub-tab).
  *
  * Renders the Speculation Rules toggle (sn_action=perf_save). When on, the site
- * opts into WP 7.0's native prerender/moderate speculative loading via the
+ * opts into core's native speculative loading (since WP 6.8) at prerender/moderate via the
  * filters in inc/speculation-rules.php; when off, that module returns null and
  * core emits no speculation rules.
  *
@@ -34,7 +34,7 @@ function sn_admin_render_performance_section() {
 	echo '<input type="hidden" name="action" value="sn_perf_save">';
 
 	echo '<h2 class="sn-fieldset-h">Speculative loading</h2>';
-	echo '<p class="sn-fieldset-intro">WordPress 7.0 ships native <a href="https://developer.chrome.com/docs/web-platform/prerender-pages" target="_blank" rel="noopener noreferrer">Speculation Rules</a> (default: <code>auto</code>/<code>auto</code>). Enabling this opts the site into a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. The Profile box lists the profile and what it leaves out.</p>';
+	echo '<p class="sn-fieldset-intro">Since 6.8, WordPress ships native <a href="https://developer.chrome.com/docs/web-platform/prerender-pages" target="_blank" rel="noopener noreferrer">Speculation Rules</a> (default: <code>auto</code>/<code>auto</code>). Enabling this opts the site into a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. The Profile box lists the profile and what it leaves out.</p>';
 
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label">Status</label>';
@@ -69,7 +69,7 @@ function sn_admin_render_performance_section() {
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Profile</h2>';
 	echo '<p class="sn-field-helper">Mode <code>prerender</code>, eagerness <code>moderate</code>: more aggressive than core\'s <code>auto</code>/<code>auto</code>.</p>';
-	echo '<p class="sn-field-helper"><strong>Excluded automatically:</strong> the custom login URL and <code>/contact/*</code>.</p>';
+	echo '<p class="sn-field-helper"><strong>Excluded automatically:</strong> <code>/contact/*</code>.</p>';
 	echo '<p class="sn-field-helper"><strong>Browser support:</strong> only modern Chromium browsers act on speculation rules; others safely ignore them.</p>';
 	echo '</div>';
 

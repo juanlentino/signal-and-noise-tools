@@ -77,7 +77,7 @@ add_action( 'wp_abilities_api_init', function () {
 			'synced_at' => array( 'type' => 'integer' ), 'model' => array( 'type' => 'string' ), 'judged' => array( 'type' => 'integer' ), 'unsure' => array( 'type' => 'integer' ),
 			'findings' => array( 'type' => 'array' ), 'notes' => array( 'type' => 'array', 'description' => 'Every judged note with its scores (0..2) and confidences.' ), 'usage' => array( 'type' => array( 'object', 'null' ) ), 'last_error' => array( 'type' => 'string' ), 'note' => array( 'type' => 'string' ),
 		) ),
-		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
 } );
 
@@ -181,7 +181,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_lanes',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'mapped' => array( 'type' => 'boolean' ), 'at' => array( 'type' => 'integer' ), 'judged' => array( 'type' => 'integer' ), 'pairs' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
 } );
 
@@ -221,7 +221,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_query_fit',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'at' => array( 'type' => 'integer' ), 'judged_notes' => array( 'type' => 'object' ), 'gaps' => array( 'type' => 'array' ), 'stray' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
 } );
 
@@ -247,7 +247,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_meter',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'ready' => array( 'type' => 'boolean' ), 'cycle' => array( 'type' => 'object' ), 'credit' => array( 'type' => 'number' ), 'spent' => array( 'type' => 'number' ), 'remaining' => array( 'type' => 'number' ), 'requests' => array( 'type' => 'integer' ), 'cached' => array( 'type' => 'integer' ), 'by_feature' => array( 'type' => 'object' ), 'note' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
 } );
 
@@ -315,7 +315,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_tells',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'flagged' => array( 'type' => 'integer' ), 'notes' => array( 'type' => 'object' ), 'note' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
 } );
 
@@ -361,6 +361,6 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_jev_tags',
 		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'flagged' => array( 'type' => 'integer' ), 'notes' => array( 'type' => 'object' ), 'by_tag' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
-		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world_hint' => false ) ),
+		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
 } );

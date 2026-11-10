@@ -3,11 +3,15 @@
  * Authenticated rollup-refresh trigger — the seam a Cloudflare Cron Trigger uses to
  * drive the durable rollup + realtime refresh on a GUARANTEED schedule.
  *
- * WHY: the rollup + "views today" freshness otherwise ride on WP-Cron, which only
- * fires when the site receives front-end traffic and silently stalls on an idle site
- * — the "views today went cold / stale" failure mode. The analytics Worker already
- * runs at the edge; a Worker Cron Trigger POSTing here every N minutes drives the
- * refresh on CF's reliable schedule regardless of site traffic or WP-Cron health.
+ * WHY: the rollup + "views today" freshness otherwise ride on WP-Cron. Core
+ * spawns cron from any request (wp_cron() is hooked on init: front end, admin
+ * and REST alike) unless DISABLE_WP_CRON is set. This site sets it
+ * (inc/wp-cron-offload.php), so no request spawns cron here and the queue
+ * drains only when the system cron requests wp-cron.php, every 5 minutes. If
+ * that driver stops, the numbers go stale: the "views today went cold" failure
+ * mode. The analytics Worker already runs at the edge; a Worker Cron Trigger
+ * POSTing here every N minutes drives the refresh on CF's schedule, whatever
+ * the site traffic or WP-Cron health.
  *
  *   POST signal-noise/v1/analytics/refresh
  *     Auth : X-SN-Refresh-Key header, constant-time-compared against SN_SRV_TOKEN —

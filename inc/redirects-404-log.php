@@ -586,7 +586,7 @@ function snt_abilities_404_log_register() {
 				'readonly'        => true,
 				'destructive'     => false,
 				'idempotent'      => true,
-				'open_world_hint' => false,
+				'openWorldHint' => false,
 			),
 		),
 	) );

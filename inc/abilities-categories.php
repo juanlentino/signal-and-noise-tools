@@ -10,19 +10,24 @@
  * `analytics` added to stop the WP 6.9.0 _doing_it_wrong for
  * inc/abilities-analytics.php's 2 abilities — see below.)
  *
- * Per upstream source, the registry checks `wp_has_ability_category()`
- * and silently bails on `wp_register_ability()` if the category isn't
- * found — so this file MUST be required before any of the per-feature
- * abilities files, which the orchestrator inc/abilities-registration.php
- * guarantees.
+ * WP_Abilities_Registry::register() checks `wp_has_ability_category()`. If
+ * the category is not registered it calls _doing_it_wrong() and returns null,
+ * so the ability is not registered. This file MUST therefore be required
+ * before any of the per-feature abilities files, which the orchestrator
+ * inc/abilities-registration.php guarantees.
  *
  * X-02 (audit, v4.1.1): every category registration is guarded by
  * `wp_has_ability_category()`. The theme also registers `content`,
- * `diagnostics`, and `ai-generation` (with its own guards) — WP loads
- * themes before plugins, so without these guards the plugin's second
- * registration would fire `_doing_it_wrong` on every request on debug
- * installs. The guards make registrations idempotent and preserve the
- * theme's category metadata as canonical when both register.
+ * `diagnostics`, and `ai-generation` (with its own guards). wp-settings.php
+ * loads active plugins before the theme, so at equal priority this callback
+ * is added first, runs first, and the plugin's category metadata is the one
+ * registered. The theme, with its own guard, then skips the slug. Without guards on both
+ * sides the second registration would fire `_doing_it_wrong` on every
+ * request on debug installs.
+ *
+ * `content` is shared with the official AI plugin (1.5.0), which registers
+ * the same slug at priority 11 behind the same guard. This callback runs at
+ * 10, so today the S&N label below is the one registered.
  *
  * @package SignalNoiseTools
  * @since 4.1.3 (extracted from 2.0.4)
@@ -68,7 +73,7 @@ add_action( 'wp_abilities_api_categories_init', function() {
 	// v4.6.0: 'tools' backs the deterministic/structural site-tool abilities —
 	// the 4 block-migrations abilities and the 2 pattern-adoption abilities
 	// cite it. Without this registration the registry's wp_has_ability_category()
-	// check silently bails on those wp_register_ability() calls in real WP.
+	// check fails: _doing_it_wrong() fires and wp_register_ability() returns null.
 	if ( ! function_exists( 'wp_has_ability_category' ) || ! wp_has_ability_category( 'tools' ) ) {
 		wp_register_ability_category( 'tools', array(
 			'label'       => 'Tools',

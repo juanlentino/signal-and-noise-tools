@@ -418,7 +418,7 @@ add_action( 'wp_abilities_api_init', function () {
 					'readonly'        => true,
 					'destructive'     => false,
 					'idempotent'      => true,
-					'open_world_hint' => false,
+					'openWorldHint' => false,
 				),
 			),
 		) );

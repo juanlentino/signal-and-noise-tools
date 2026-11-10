@@ -14,10 +14,11 @@
  *
  * SSRF HARDENING. Unlike the internal probe (which trusts same-host links and
  * skips validation), every off-host URL is validated BEFORE the request:
- *   - wp_http_validate_url() — blocks loopback + RFC-1918 + bad schemes;
- *   - sn_ssrf_host_blocked() (inc/ssrf-guard.php) — resolves the host first, so
- *     it catches link-local / cloud-metadata (169.254/16, which
- *     wp_http_validate_url() omits) INCLUDING its encoded-IP forms, plus CGNAT +
+ *   - wp_http_validate_url(): blocks loopback + RFC-1918 + bad schemes, and
+ *     (core 7.1.4) link-local 169.254/16 and CGNAT, for one resolved address;
+ *   - sn_ssrf_host_blocked() (inc/ssrf-guard.php): resolves the host first and
+ *     checks every A record, so it catches link-local / cloud-metadata
+ *     (169.254/16) INCLUDING its encoded-IP forms, plus CGNAT +
  *     IPv6, failing closed on unresolvable. This is the shared guard webhooks
  *     uses too (extracted from this module in v6.13.1);
  *   - wp_safe_remote_* + redirection=0 — the host filter only validates the
