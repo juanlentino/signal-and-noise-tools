@@ -56,6 +56,32 @@ ok( sn_cit_html_has_identity( '<a rel="mention" href="#">x</a>' ) === false, 're
 ok( sn_cit_html_has_identity( '<p>nothing here</p>' ) === false, 'a page with no identity signal has none' );
 ok( sn_cit_html_has_identity( '' ) === false, 'empty HTML has no identity' );
 
+// ── the shared cases: text that only looks like an identity link ────────────
+echo "\nGroup: sn_cit_html_has_identity on tests/lib/html-identity-title-cases.php\n";
+$cases = ( require __DIR__ . '/lib/html-identity-title-cases.php' )['identity'];
+$want_identity = array(
+	'nested inline markup' => true,
+	'uppercase tag and attribute, single quotes' => true,
+	'unquoted rel on a link element' => true,
+	'self-closing link element' => true,
+	'a > inside an earlier attribute' => true,
+	'rel=me written in prose' => true,
+	'a rel=me link inside a comment' => true,
+	'a rel=me link inside a script' => true,
+	'rel=me inside another attribute' => true,
+	'data-rel is not rel' => true,
+	'rel=me on an element that is not a link' => true,
+	'block delimiter with JSON' => false,
+	'multibyte text' => true,
+	'rel=mention' => false,
+	'a did:web in prose' => true,
+	'empty input' => false,
+);
+ok( array_keys( $want_identity ) === array_keys( $cases ), 'an answer is pinned for every shared identity case' );
+foreach ( $cases as $name => $html ) {
+	ok( $want_identity[ $name ] === sn_cit_html_has_identity( $html ), "identity: $name" );
+}
+
 // ── the ladder ──────────────────────────────────────────────────────────────
 ok( sn_cit_tier( true, true, true ) === 'verified', 'fetched + link + identity = verified' );
 ok( sn_cit_tier( true, true, false ) === 'unattributed', 'fetched + link, no identity = unattributed' );

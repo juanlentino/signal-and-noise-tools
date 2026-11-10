@@ -196,6 +196,28 @@ ok( sn_cit_verify_row( $mkrow( 'https://internal.local/p' ) ) === 'unverified', 
 ok( count( $GLOBALS['__requests'] ) === 0, 'and no request left the site' );
 
 // ── title extraction ────────────────────────────────────────────────────────
+// The shared cases: text that only looks like a title.
+$cases = ( require __DIR__ . '/lib/html-identity-title-cases.php' )['title'];
+$want_title = array(
+	'whitespace and newlines' => 'Hello World',
+	'uppercase tag with attributes' => 'Upper & Lower',
+	'markup written inside the title' => 'A bold claim',
+	'escaped markup in the title' => 'Using <template> in HTML',
+	'a title inside a comment' => 'Old title',
+	'a title inside a script' => 'Fake',
+	'only an SVG title' => 'Icon',
+	'entities' => 'a — b c "d" &apos;e&apos;',
+	'multibyte text' => 'Señal y ruido: 日本語',
+	'unclosed title' => '',
+	'no title' => '',
+	'empty input' => '',
+);
+ok( array_keys( $want_title ) === array_keys( $cases ), 'an answer is pinned for every shared title case' );
+foreach ( $cases as $name => $html ) {
+	$got = sn_cit_extract_title( $html );
+	ok( $want_title[ $name ] === $got, "title: $name" . ( $want_title[ $name ] === $got ? '' : ' (got ' . json_encode( $got, JSON_UNESCAPED_UNICODE ) . ')' ) );
+}
+
 ok( sn_cit_extract_title( '<title>  Hello   World </title>' ) === 'Hello World', 'the title is trimmed and whitespace-collapsed' );
 ok( sn_cit_extract_title( '<title>A &amp; B</title>' ) === 'A & B', 'entities are decoded' );
 ok( sn_cit_extract_title( '<p>no title</p>' ) === '', 'a page with no title yields an empty string, not a guess' );
