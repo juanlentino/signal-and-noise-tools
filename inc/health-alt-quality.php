@@ -10,12 +10,6 @@
  * Split out of inc/health-check-missing-alt.php in v10.77.0 when the check
  * grew inline-SVG coverage and alt QUALITY on top of alt PRESENCE.
  *
- * STILL A BYTE SCAN, on purpose for now: sn_health_caption_after_offset() and
- * sn_health_heading_after_offset(). They carry tuned bounds (a 2000-byte
- * window, a two-element skip budget) measured against stored block markup,
- * and a parser walk that reproduced them only roughly would move findings
- * without anyone having decided it should.
- *
  * THE CENTRAL FACT, because it is the thing everyone gets wrong: an inline
  * <svg> HAS NO alt ATTRIBUTE. Its accessible name comes from a direct-child
  * <title>, or from aria-label / aria-labelledby; aria-hidden="true" or
@@ -30,6 +24,8 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+require_once __DIR__ . '/html-token-spans.php'; // snt_html_span_processor(): where each token after an image sits.
 
 /**
  * Find inline <svg> elements that expose no accessible name and are not marked
@@ -359,6 +355,10 @@ function sn_health_normalise_alt_text( $text ) {
  * page whose author did nothing wrong: at most $max_skips text-bearing
  * elements, and the scan ends outright at the next image.
  *
+ * Read as core's Tag Processor tokenizes it, so a heading spelled inside a
+ * comment, a script, a textarea or an attribute value is not a heading, and a
+ * '>' inside an attribute does not end its tag.
+ *
  * @param string $content   Post content.
  * @param int    $offset    Byte offset just past the <img> tag.
  * @param int    $max_skips Text-bearing elements tolerated before the heading.
@@ -367,56 +367,71 @@ function sn_health_normalise_alt_text( $text ) {
 function sn_health_heading_after_offset( $content, $offset, $max_skips = 2 ) {
 	$rest = substr( (string) $content, (int) $offset );
 
-	// Step past the figure that wraps THIS image — but only when the next
-	// </figure> really is ours. A bare <img> has none, and stepping to the first
-	// one anywhere ahead teleports the scan into an unrelated card and reads its
-	// heading. An intervening <figure means the close belongs to that one, the
-	// same scoping guard sn_health_caption_after_offset() uses.
-	if ( preg_match( '#^(.*?)</figure\s*>#is', $rest, $fm )
-		&& false === stripos( $fm[1], '<figure' ) ) {
-		$rest = substr( $rest, strlen( $fm[0] ) );
+	// Step past the figure that wraps THIS image, but only when the first figure
+	// tag ahead is a closer, so it really is ours. A bare <img> has none, and
+	// stepping to the first one anywhere ahead teleports the scan into an
+	// unrelated card and reads its heading. A <figure> opening first means the
+	// close belongs to that one: the same scoping sn_health_caption_after_offset() uses.
+	if ( false !== stripos( $rest, '</figure' ) ) {
+		$figure = snt_html_span_processor( $rest );
+		if ( $figure->next_tag( array( 'tag_name' => 'FIGURE', 'tag_closers' => 'visit' ) ) && $figure->is_tag_closer() ) {
+			$rest = substr( $rest, $figure->token_span()[1] );
+		}
 	}
-
-	// Block delimiters carry nothing a reader hears.
-	$rest = (string) preg_replace( '#<!--.*?-->#s', '', $rest );
 
 	// A DISTANCE bound as well as an element bound. Layout wrappers do not spend
 	// the element budget (they announce nothing), so on wrapper-heavy markup the
-	// scan can otherwise cross a whole template region — measured running this
+	// scan can otherwise cross a whole template region: measured running this
 	// over the rendered page, where the header logo reached a heading inside
 	// <main>. Exact matching meant no false finding, but "bounded" has to mean
-	// bounded. A card's figure-to-heading gap is a few hundred bytes.
-	$rest = substr( $rest, 0, 2000 );
-
+	// bounded. A card's figure-to-heading gap is a few hundred bytes. Comments
+	// do not count toward it: block delimiters carry nothing a reader hears.
+	$window = 2000;
+	$hidden = 0; // Comment bytes passed so far.
 	$skips  = 0;
-	$offset = 0;
-	$length = strlen( $rest );
+	$tokens = snt_html_span_processor( $rest );
 
-	while ( $offset < $length
-		&& preg_match( '#<(/?)([a-z][a-z0-9]*)\b([^>]*)>#i', $rest, $m, PREG_OFFSET_CAPTURE, $offset ) ) {
-		$tag    = strtolower( $m[2][0] );
-		$offset = $m[0][1] + strlen( $m[0][0] );
-
-		// Closing tags are structure being exited, not content being read.
-		if ( '/' === $m[1][0] ) {
+	while ( $tokens->next_token() ) {
+		list( $start, $end ) = $tokens->token_span();
+		$type                = $tokens->get_token_type();
+		if ( '#comment' === $type ) {
+			$hidden += $end - $start;
 			continue;
 		}
+		if ( $end - $hidden > $window ) {
+			return '';
+		}
 
-		if ( preg_match( '/^h[1-6]$/', $tag ) ) {
-			if ( preg_match( '#^(.*?)</' . $tag . '\s*>#is', substr( $rest, $offset ), $hm ) ) {
-				return trim( strip_tags( $hm[1] ) );
+		// Closing tags are structure being exited, not content being read.
+		if ( '#tag' !== $type || $tokens->is_tag_closer() ) {
+			continue;
+		}
+		$tag = $tokens->get_tag();
+
+		if ( 1 === preg_match( '/^H[1-6]$/', $tag ) ) {
+			$text = '';
+			while ( $tokens->next_token() ) {
+				list( $start, $end ) = $tokens->token_span();
+				$type                = $tokens->get_token_type();
+				if ( '#comment' === $type ) {
+					$hidden += $end - $start;
+				} elseif ( '#text' === $type ) {
+					$text .= substr( $rest, $start, $end - $start ); // The stored bytes: entities stay as written.
+				} elseif ( '#tag' === $type && $tag === $tokens->get_tag() && $tokens->is_tag_closer() ) {
+					return $end - $hidden > $window ? '' : trim( $text );
+				}
 			}
 			return '';
 		}
 
 		// The next image owns whatever heading follows it. Stop rather than
 		// attribute a sibling card's heading to this one.
-		if ( 'img' === $tag || 'figure' === $tag ) {
+		if ( 'IMG' === $tag || 'FIGURE' === $tag ) {
 			return '';
 		}
 
 		// Layout wrappers announce nothing, so they do not spend the budget.
-		if ( in_array( $tag, array( 'div', 'section', 'article', 'main' ), true ) ) {
+		if ( in_array( $tag, array( 'DIV', 'SECTION', 'ARTICLE', 'MAIN' ), true ) ) {
 			continue;
 		}
 
@@ -439,18 +454,8 @@ function sn_health_extract_inline_imgs_with_alt( $content ) {
 	$content = (string) $content;
 
 	// Core's Tag Processor, plus where the current tag ends: the caption and
-	// heading lookups scan the bytes after the image. The processor keeps that
-	// offset in a bookmark, and core's own subclass reads it the same way
-	// (WP_Interactivity_API_Directives_Processor).
-	$tags = new class( $content ) extends WP_HTML_Tag_Processor {
-		public function tag_end() {
-			if ( ! $this->set_bookmark( 'sn-img' ) ) {
-				return null;
-			}
-			$span = $this->bookmarks['sn-img'];
-			return $span->start + $span->length;
-		}
-	};
+	// heading lookups read the markup after the image.
+	$tags = snt_html_span_processor( $content );
 
 	$out = array();
 	while ( $tags->next_tag( 'IMG' ) ) {
@@ -458,10 +463,10 @@ function sn_health_extract_inline_imgs_with_alt( $content ) {
 		// (true) and alt="" are the decorative marker.
 		$alt = $tags->get_attribute( 'alt' );
 		$alt = is_string( $alt ) ? trim( $alt ) : '';
-		$end = '' === $alt ? null : $tags->tag_end();
-		if ( null === $end ) {
+		if ( '' === $alt ) {
 			continue;
 		}
+		$end   = $tags->token_span()[1];
 		$src   = $tags->get_attribute( 'src' );
 		$out[] = array(
 			'src'     => is_string( $src ) ? $src : '',
@@ -478,22 +483,46 @@ function sn_health_extract_inline_imgs_with_alt( $content ) {
  *
  * Scoped to the enclosing </figure>: if another <figure> opens before that
  * close, the image is not the caption's sibling and no caption is returned.
+ * Read as core's Tag Processor tokenizes it, so a figcaption or a </figure>
+ * inside a comment, a script or an attribute value does not count.
  *
  * @param string $content Post content.
  * @param int    $offset  Byte offset just past the <img> tag.
- * @return string Plain-text caption, or ''.
+ * @return string Caption text with its tags dropped and entities intact, or ''.
  */
 function sn_health_caption_after_offset( $content, $offset ) {
 	$rest = substr( (string) $content, (int) $offset );
-	if ( ! preg_match( '#^(.*?)</figure\s*>#is', $rest, $fm ) ) {
+	if ( false === stripos( $rest, '<figcaption' ) || false === stripos( $rest, '</figure' ) ) {
 		return '';
 	}
-	$between = $fm[1];
-	if ( false !== stripos( $between, '<figure' ) ) {
-		return '';
-	}
-	if ( preg_match( '#<figcaption[^>]*>(.*?)</figcaption\s*>#is', $between, $cm ) ) {
-		return trim( strip_tags( $cm[1] ) );
+
+	$tokens  = snt_html_span_processor( $rest );
+	$caption = null; // A string from the first <figcaption> on.
+	$closed  = false;
+	while ( $tokens->next_token() ) {
+		$type = $tokens->get_token_type();
+		if ( '#text' === $type ) {
+			if ( null !== $caption && ! $closed ) {
+				list( $start, $end ) = $tokens->token_span();
+				$caption            .= substr( $rest, $start, $end - $start ); // The stored bytes: entities stay as written.
+			}
+			continue;
+		}
+		if ( '#tag' !== $type ) {
+			continue;
+		}
+		$tag    = $tokens->get_tag();
+		$closer = $tokens->is_tag_closer();
+		if ( 'FIGURE' === $tag ) {
+			return $closer && $closed ? trim( $caption ) : '';
+		}
+		if ( 'FIGCAPTION' === $tag ) {
+			if ( ! $closer && null === $caption ) {
+				$caption = '';
+			} elseif ( $closer && null !== $caption ) {
+				$closed = true;
+			}
+		}
 	}
 	return '';
 }

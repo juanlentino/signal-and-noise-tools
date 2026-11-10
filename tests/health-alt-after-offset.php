@@ -7,6 +7,10 @@
  * reader announces next. Each case below gives the image tag the helpers start
  * after, and pins what both return.
  *
+ * The pins were taken from the byte-regex helpers first, then the helpers moved
+ * onto core's Tag Processor. Every expectation that changed says, in its
+ * comment, what the regex answered and why that was wrong; the rest held.
+ *
  * @package SignalNoiseTools
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
@@ -121,43 +125,43 @@ $cases = array(
 	),
 	'a figcaption inside an HTML comment' => array(
 		'<figure><img src="c2.png" alt="C2"><!-- <figcaption>Old caption</figcaption> --></figure>',
-		'<img src="c2.png" alt="C2">', 'Old caption', '',
+		'<img src="c2.png" alt="C2">', '', '', // The regex answered caption 'Old caption': it read markup inside a comment.
 	),
 	'a </figure> inside an HTML comment' => array(
 		'<figure><img src="c3.png" alt="C3"><!-- </figure> --><figcaption>Real caption</figcaption></figure>',
-		'<img src="c3.png" alt="C3">', '', '',
+		'<img src="c3.png" alt="C3">', 'Real caption', '', // The regex answered caption '': it ended the figure at the </figure> inside the comment.
 	),
 	'a heading inside a comment that never closes' => array(
 		'<figure><img src="c4.png" alt="C4"></figure><p>a</p><!-- <h2>Never closed</h2>',
-		'<img src="c4.png" alt="C4">', '', 'Never closed',
+		'<img src="c4.png" alt="C4">', '', '', // The regex answered 'Never closed': it stripped only comments that close, but an unclosed one runs to the end of the document.
 	),
 	'a heading inside a script' => array(
 		'<figure><img src="s.png" alt="S"></figure><script>document.write(\'<h2>Scripted</h2>\');</script>',
-		'<img src="s.png" alt="S">', '', 'Scripted',
+		'<img src="s.png" alt="S">', '', '', // The regex answered 'Scripted': it read a script's string as markup.
 	),
 	'a figcaption inside a script' => array(
 		'<figure><img src="s2.png" alt="S2"><script>var c = \'<figcaption>Fake</figcaption>\';</script></figure>',
-		'<img src="s2.png" alt="S2">', 'Fake', '',
+		'<img src="s2.png" alt="S2">', '', '', // The regex answered caption 'Fake': it read a script's string as markup.
 	),
 	'a script inside a figcaption' => array(
 		'<figure><img src="s3.png" alt="S3"><figcaption>Caption<script>track("x")</script></figcaption></figure>',
-		'<img src="s3.png" alt="S3">', 'Captiontrack("x")', '',
+		'<img src="s3.png" alt="S3">', 'Caption', '', // The regex answered 'Captiontrack("x")': strip_tags() keeps a script's source as text.
 	),
 	'a heading inside a textarea' => array(
 		'<figure><img src="t.png" alt="T"></figure><textarea><h2>Typed</h2></textarea>',
-		'<img src="t.png" alt="T">', '', 'Typed',
+		'<img src="t.png" alt="T">', '', '', // The regex answered 'Typed': it read a textarea's text as markup.
 	),
 	'a > inside the figcaption\'s attribute' => array(
 		'<figure><img src="k.png" alt="K"><figcaption title="a > b">Arrow</figcaption></figure>',
-		'<img src="k.png" alt="K">', 'b">Arrow', '',
+		'<img src="k.png" alt="K">', 'Arrow', '', // The regex answered 'b">Arrow': it ended the tag at the '>' inside the title.
 	),
 	'a > inside the heading\'s attribute' => array(
 		'<figure><img src="k2.png" alt="K2"></figure><p title="1 > 0">a</p><h2 title="x > y">Arrow head</h2>',
-		'<img src="k2.png" alt="K2">', '', 'y">Arrow head',
+		'<img src="k2.png" alt="K2">', '', 'Arrow head', // The regex answered 'y">Arrow head': it ended the tag at the '>' inside the title.
 	),
 	'a heading spelled inside an attribute' => array(
 		'<figure><img src="k3.png" alt="K3"></figure><p title="a><h2>Fake</h2>">x</p>',
-		'<img src="k3.png" alt="K3">', '', 'Fake',
+		'<img src="k3.png" alt="K3">', '', '', // The regex answered 'Fake': it ended the <p> at the '>' inside the title and read the rest of the value as markup.
 	),
 );
 
