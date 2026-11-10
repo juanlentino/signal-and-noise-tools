@@ -227,7 +227,6 @@ function snt_block_fp_apply( $args ) {
 	}
 
 	$old_content      = (string) $post->post_content;
-	$blocks           = parse_blocks( $old_content );
 	$replacement      = parse_blocks( $replacement_markup );
 	$replacement_node = $replacement[0] ?? null;
 
@@ -263,14 +262,16 @@ function snt_block_fp_apply( $args ) {
 	// <script>/onerror payload can't be stored (front-end stored-XSS).
 	$replacement_node = snt_block_fp_sanitize_node( $replacement_node );
 
-	$found = false;
-	snt_block_fp_replace_in_tree( $blocks, $block_fingerprint, $replacement_node, $found, $post_id );
+	// A byte splice of the one matched block (inc/sn-apply/block-delimiters.php):
+	// serialize_blocks() of the whole tree rewrote bytes outside the edit.
+	$new_content = snt_sn_apply_fp_splice( $old_content, $block_fingerprint, $replacement_node, $post_id );
 
-	if ( ! $found ) {
+	if ( null === $new_content ) {
 		return $err( 'conflict', 409, __( 'Block changed or removed since scan. Re-run scan.', 'signal-and-noise-tools' ) );
 	}
-
-	$new_content = serialize_blocks( $blocks );
+	if ( is_wp_error( $new_content ) ) {
+		return $new_content;
+	}
 
 	if ( is_callable( $write_callback ) ) {
 		$result = call_user_func( $write_callback, $post_id, $new_content );

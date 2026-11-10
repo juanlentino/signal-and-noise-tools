@@ -57,7 +57,12 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			$computed = function_exists( 'snt_sn_apply_compute_block_replacement' )
 				? snt_sn_apply_compute_block_replacement( $resolved['post_id'], $fingerprint, (string) ( $payload['replacement_markup'] ?? '' ) )
 				: null;
-			$new_content = ( is_array( $computed ) && isset( $computed['new_content'] ) ) ? $computed['new_content'] : null;
+			// The block matched but its bytes could not be spliced: the write
+			// refuses too, so a dry run must not read as a clean pass.
+			if ( is_wp_error( $computed ) && 'snt_sn_apply_block_path_unresolvable' === $computed->get_error_code() ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => $fingerprint, 'skipped' => null, 'detail' => $computed->get_error_message(), 'new_content' => null );
+			}
+			$new_content =( is_array( $computed ) && isset( $computed['new_content'] ) ) ? $computed['new_content'] : null;
 			return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $fingerprint, 'skipped' => null, 'detail' => null, 'new_content' => $new_content );
 
 		case 'emdash_replace':

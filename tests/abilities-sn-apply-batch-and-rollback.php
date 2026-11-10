@@ -93,6 +93,10 @@ if ( ! function_exists( 'get_post' ) ) {
 if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $cap, $id = null ) { return true; } }
 if ( ! function_exists( 'post_type_exists' ) ) { function post_type_exists( $t ) { return in_array( $t, array( 'post', 'page', 'attachment' ), true ); } }
 if ( ! function_exists( 'get_post_type_object' ) ) { function get_post_type_object( $t ) { $o = new stdClass(); $o->public = 'attachment' !== $t; return $o; } }
+// Real block markup through core's parser and serializers: the fingerprint apply splices bytes.
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $hook, $value ) { return $value; } }
+if ( ! defined( 'SNT_TEST_WITH_BLOCKS_PHP' ) ) { define( 'SNT_TEST_WITH_BLOCKS_PHP', true ); }
+require_once __DIR__ . '/lib/wp-core-blocks.php';
 if ( ! function_exists( 'parse_blocks' ) ) {
 	function parse_blocks( $content ) {
 		$d = json_decode( (string) $content, true );
@@ -206,9 +210,9 @@ require_once __DIR__ . '/lib/assert-envelope.php'; // shared envelope contract (
  * ════════════════════════════════════════════════════════════════════════ */
 
 $block_500 = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Old</h3>', 'innerContent' => array( '<h3>Old</h3>' ) );
-tf_post( 500, array( 'post_content' => json_encode( array( $block_500 ) ) ) );
+tf_post( 500, array( 'post_content' => serialize_blocks( array( $block_500 ) ) ) );
 $fp_500          = snt_block_fp_fingerprint( $block_500, 500, '0/0' );
-$replacement_500 = json_encode( array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 2 ), 'innerBlocks' => array(), 'innerHTML' => '<h2>New</h2>', 'innerContent' => array( '<h2>New</h2>' ) ) );
+$replacement_500 = serialize_block( array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 2 ), 'innerBlocks' => array(), 'innerHTML' => '<h2>New</h2>', 'innerContent' => array( '<h2>New</h2>' ) ) );
 
 function tf_reset_writes() {
 	$GLOBALS['__write_calls'] = array( 'wp_update_post' => 0, 'update_post_meta' => 0, '_wp_put_post_revision' => 0, 'update_option' => 0, 'set_transient' => 0 );
@@ -242,7 +246,7 @@ ok( is_int( $rev_id ) && $rev_id > 0, 'Test 6.6: revision_id is a real int' );
 ok( isset( $GLOBALS['__posts'][ $rev_id ] ), 'Test 6.7: the revision row actually exists in the store' );
 eq( 'revision', $GLOBALS['__posts'][ $rev_id ]['post_type'] ?? null, 'Test 6.8: the staged row has post_type=revision' );
 eq( 500, $GLOBALS['__posts'][ $rev_id ]['post_parent'] ?? null, 'Test 6.9: the staged revision post_parent = the target post' );
-$expected_new_content = json_encode( array( json_decode( $replacement_500, true ) ) );
+$expected_new_content = $replacement_500; // The one block, spliced in place.
 eq( $expected_new_content, $GLOBALS['__posts'][ $rev_id ]['post_content'] ?? null, 'Test 6.10: the staged revision post_content holds the REPLACED tree' );
 ok( isset( $r6['rollback'] ) && 'restore_revision' === ( $r6['rollback']['method'] ?? '' ), 'Test 6.11: rollback.method = restore_revision' );
 eq( $rev_id, $r6['rollback']['revision_id'] ?? null, 'Test 6.12: rollback.revision_id = the staged revision (mode:"revision" never touches the live post, so there is no separate PRE-apply revision to point at — see FINDINGS.md session 6b for this deviation from the spec\'s own illustrative example)' );

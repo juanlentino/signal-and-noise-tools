@@ -25,6 +25,10 @@ $GLOBALS['__test_wp_updates'] = array();
 if ( ! function_exists( 'get_post' ) ) {
 	function get_post( $id ) { return $GLOBALS['__test_posts'][ $id ] ?? null; }
 }
+// Real block markup through core's parser and serializers: the fingerprint apply splices bytes.
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $hook, $value ) { return $value; } }
+if ( ! defined( 'SNT_TEST_WITH_BLOCKS_PHP' ) ) { define( 'SNT_TEST_WITH_BLOCKS_PHP', true ); }
+require_once __DIR__ . '/lib/wp-core-blocks.php';
 if ( ! function_exists( 'parse_blocks' ) ) {
 	function parse_blocks( $content ) {
 		$decoded = json_decode( $content, true );
@@ -110,7 +114,7 @@ if ( ! function_exists( 'is_wp_error' ) ) {
 function _taa_post( $id, $blocks_array ) {
 	$post = new stdClass();
 	$post->ID           = $id;
-	$post->post_content = json_encode( $blocks_array );
+	$post->post_content = serialize_blocks( $blocks_array );
 	$GLOBALS['__test_posts'][ $id ] = $post;
 }
 
@@ -123,6 +127,8 @@ if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $tra
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
 
 require_once __DIR__ . '/../inc/block-fingerprint-engine.php'; // v7.7.1 shared engine
+require_once __DIR__ . '/../inc/sn-apply/block-delimiters.php'; // The byte splice the apply writes through.
+require_once __DIR__ . '/../inc/sn-apply/block-edit-resolve-parts.php';
 require_once __DIR__ . '/../inc/pattern-adoption-apply.php';
 
 $pass = 0; $fail = 0;
@@ -147,20 +153,20 @@ $source_block = array(
 	'blockName'   => 'core/quote',
 	'attrs'       => array(),
 	'innerBlocks' => array(),
-	'innerHTML'   => '<blockquote>Original.</blockquote>',
+	'innerHTML'   => '<blockquote>Original.</blockquote>', 'innerContent' => array( '<blockquote>Original.</blockquote>' ),
 );
 _taa_post( 301, array(
-	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>Before.</p>' ),
+	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>Before.</p>', 'innerContent' => array( '<p>Before.</p>' ) ),
 	$source_block,
-	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>After.</p>' ),
+	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>After.</p>', 'innerContent' => array( '<p>After.</p>' ) ),
 ) );
 
 $fp = snt_block_fp_fingerprint( $source_block, 301, '0/1' );
-$replacement = json_encode( array( array(
+$replacement = serialize_blocks( array( array(
 	'blockName'   => 'core/group',
 	'attrs'       => array( 'className' => 'sn-pattern-pull-quote' ),
 	'innerBlocks' => array(),
-	'innerHTML'   => '<aside class="wp-block-group sn-pattern-pull-quote">Replaced.</aside>',
+	'innerHTML'   => '<aside class="wp-block-group sn-pattern-pull-quote">Replaced.</aside>', 'innerContent' => array( '<aside class="wp-block-group sn-pattern-pull-quote">Replaced.</aside>' ),
 ) ) );
 
 $result = snt_ai_pattern_adoption_apply_impl( 301, $fp, $replacement, 'pull-quote' );
@@ -182,7 +188,7 @@ echo "\nTest 2: conflict when block changed since scan\n";
 $GLOBALS['__test_posts'] = array();
 $GLOBALS['__test_wp_updates'] = array();
 _taa_post( 302, array(
-	array( 'blockName' => 'core/quote', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<blockquote>Different.</blockquote>' ),
+	array( 'blockName' => 'core/quote', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<blockquote>Different.</blockquote>', 'innerContent' => array( '<blockquote>Different.</blockquote>' ) ),
 ) );
 $result = snt_ai_pattern_adoption_apply_impl( 302, 'deadbeef' . str_repeat( '0', 24 ), $replacement, 'pull-quote' );
 pa_true( is_wp_error( $result ), 'Test 2.1: result is WP_Error' );
@@ -214,12 +220,12 @@ $nested_quote = array(
 	'blockName'   => 'core/quote',
 	'attrs'       => array(),
 	'innerBlocks' => array(),
-	'innerHTML'   => '<blockquote>Nested.</blockquote>',
+	'innerHTML'   => '<blockquote>Nested.</blockquote>', 'innerContent' => array( '<blockquote>Nested.</blockquote>' ),
 );
 _taa_post( 305, array(
 	array( 'blockName' => 'core/group', 'attrs' => array(), 'innerBlocks' => array(
 		$nested_quote,
-	), 'innerHTML' => '<div class="wp-block-group"></div>' ),
+	), 'innerHTML' => '<div class="wp-block-group"></div>', 'innerContent' => array( '<div class="wp-block-group">', null, '</div>' ) ),
 ) );
 $fp = snt_block_fp_fingerprint( $nested_quote, 305, '0/0/innerBlocks/0' );
 $result = snt_ai_pattern_adoption_apply_impl( 305, $fp, $replacement, 'pull-quote' );
@@ -282,11 +288,11 @@ $GLOBALS['__test_posts']      = array();
 $GLOBALS['__test_wp_updates'] = array();
 _taa_post( 309, array( $source_block ) );
 $fp = snt_block_fp_fingerprint( $source_block, 309, '0/0' );
-$xss_replacement = json_encode( array( array(
+$xss_replacement = serialize_blocks( array( array(
 	'blockName'   => 'core/pullquote',
 	'attrs'       => array(),
 	'innerBlocks' => array(),
-	'innerHTML'   => '<figure class="wp-block-pullquote"><blockquote>Pull.<script>alert(document.cookie)</script></blockquote></figure>',
+	'innerHTML'   => '<figure class="wp-block-pullquote"><blockquote>Pull.<script>alert(document.cookie)</script></blockquote></figure>', 'innerContent' => array( '<figure class="wp-block-pullquote"><blockquote>Pull.<script>alert(document.cookie)</script></blockquote></figure>' ),
 ) ) );
 $result = snt_ai_pattern_adoption_apply_impl( 309, $fp, $xss_replacement, 'pull-quote' );
 pa_true( is_array( $result ), 'Test 9.1: apply still succeeds with sanitizable markup' );
@@ -302,13 +308,13 @@ $GLOBALS['__test_posts']      = array();
 $GLOBALS['__test_wp_updates'] = array();
 _taa_post( 310, array( $source_block ) );
 $fp = snt_block_fp_fingerprint( $source_block, 310, '0/0' );
-$nested_xss = json_encode( array( array(
+$nested_xss = serialize_blocks( array( array(
 	'blockName'   => 'core/group',
 	'attrs'       => array(),
 	'innerBlocks' => array(
-		array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>ok<script>steal()</script></p>' ),
+		array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>ok<script>steal()</script></p>', 'innerContent' => array( '<p>ok<script>steal()</script></p>' ) ),
 	),
-	'innerHTML'   => '<div class="wp-block-group"></div>',
+	'innerHTML'   => '<div class="wp-block-group"></div>', 'innerContent' => array( '<div class="wp-block-group">', null, '</div>' ),
 ) ) );
 $result = snt_ai_pattern_adoption_apply_impl( 310, $fp, $nested_xss, 'pull-quote' );
 pa_true( is_array( $result ), 'Test 10.1: nested apply succeeds' );
