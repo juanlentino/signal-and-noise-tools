@@ -66,6 +66,40 @@ if ( ! function_exists( 'snt_test_core_missing' ) ) {
 		}
 	}
 
+	/**
+	 * Core's excerpt_remove_blocks(): the real source, cut out of
+	 * wp-includes/blocks.php (the file as a whole needs WP_Block and the block
+	 * registry). render_block() is the one stand-in, and answers as core does
+	 * for a static block: the saved markup, inner blocks in place.
+	 */
+	function snt_test_load_excerpt_remove_blocks() {
+		snt_test_load_block_parser();
+		if ( function_exists( 'excerpt_remove_blocks' ) ) {
+			return;
+		}
+		$file = dirname( snt_test_html_api_dir() ) . '/blocks.php';
+		$src  = is_file( $file ) ? (string) file_get_contents( $file ) : '';
+		foreach ( array( '_excerpt_render_inner_blocks', 'excerpt_remove_blocks' ) as $fn ) {
+			if ( ! preg_match( '/^function ' . $fn . '\(.*?^}/ms', $src, $m ) ) {
+				snt_test_core_missing( "core's $fn() (wp-includes/blocks.php)" );
+			}
+			eval( $m[0] ); // Test-only: defines core's own function from the core checkout the suite was pointed at.
+		}
+		if ( ! function_exists( 'apply_filters' ) ) {
+			function apply_filters( $hook, $value ) { return $value; }
+		}
+		if ( ! function_exists( 'render_block' ) ) {
+			function render_block( $block ) {
+				$out = '';
+				$i   = 0;
+				foreach ( $block['innerContent'] as $chunk ) {
+					$out .= is_string( $chunk ) ? $chunk : render_block( $block['innerBlocks'][ $i++ ] );
+				}
+				return $out;
+			}
+		}
+	}
+
 	// What the classes call outside themselves.
 	if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 	if ( ! function_exists( '_doing_it_wrong' ) ) { function _doing_it_wrong( $f, $m, $v ) { throw new LogicException( "_doing_it_wrong in $f: $m" ); } }

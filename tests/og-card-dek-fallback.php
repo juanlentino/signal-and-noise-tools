@@ -52,6 +52,8 @@ function wp_upload_dir() { return array( 'error' => 'test: no uploads dir' ); }
 $GLOBALS['__seo'] = array(); // sn_seo_description_for_post() by post ID
 function sn_seo_description_for_post( $p ) { return $GLOBALS['__seo'][ $p->ID ] ?? ''; }
 function sn_get_reading_time( $p ) { return 6; }
+require_once __DIR__ . '/lib/wp-html-api.php';
+snt_test_load_excerpt_remove_blocks(); // core's real parse_blocks() and excerpt_remove_blocks(): the derived dek stands on them.
 require __DIR__ . '/../inc/og-card-generator.php';
 
 echo "Group: card dek precedence\n";
@@ -143,6 +145,55 @@ ok( false !== strpos( $sn_txt( $dek ), 'A section' ), 'CONTROL: a heading furthe
 $post = (object) array( 'ID' => 14, 'post_excerpt' => 'Hand-written.',
 	'post_content' => '<h1>Ignored</h1><p>Also ignored.</p>' );
 ok( 'Hand-written.' === sn_og_card_dek_source( $post ), 'CONTROL: an excerpt still wins — precedence is unchanged' );
+
+/* ── WHICH BLOCKS REACH THE DEK ────────────────────────────────────────────
+ * The derived dek is the first words of the body. These cases pin which
+ * blocks' text counts, on stored block markup, through core's real parser and
+ * core's real excerpt_remove_blocks() (tests/lib/wp-html-api.php). Compared
+ * as text: this harness passes tags through (see the note above).
+ */
+echo "\nGroup: which blocks reach the dek\n";
+$p    = static fn( $t ) => '<!-- wp:paragraph --><p>' . $t . '</p><!-- /wp:paragraph -->';
+$body = 'Two papers and a running series of notes.';
+$dek_cases = array(
+	'paragraphs only'              => $p( 'First <strong>sentence</strong> with <a href="/x" title="a > b">a link</a>.' ) . "\n\n" . $p( 'Second sentence.' ),
+	'a buttons block first'        => '<!-- wp:buttons --><div class="wp-block-buttons"><!-- wp:button {"className":"is-style-outline"} --><div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="/paper/">Read the paper</a></div><!-- /wp:button --></div><!-- /wp:buttons -->' . $p( $body ),
+	'an embed with a caption first' => '<!-- wp:embed {"url":"https://video.example/v/1","type":"video"} --><figure class="wp-block-embed is-type-video"><div class="wp-block-embed__wrapper">' . "\nhttps://video.example/v/1\n" . '</div><figcaption class="wp-element-caption">The talk, recorded</figcaption></figure><!-- /wp:embed -->' . $p( $body ),
+	'an image with a caption first' => '<!-- wp:image {"id":5,"sizeSlug":"large"} --><figure class="wp-block-image size-large"><img src="/i.png" alt="A ledger" class="wp-image-5"/><figcaption class="wp-element-caption">The 1954 ledger</figcaption></figure><!-- /wp:image -->' . $p( $body ),
+	'a details block first'        => '<!-- wp:details --><details class="wp-block-details"><summary>Method</summary>' . $p( 'How the numbers were gathered.' ) . '</details><!-- /wp:details -->' . $p( $body ),
+	'a plugin block first'         => '<!-- wp:sn/callout {"tone":"note"} --><div class="wp-block-sn-callout"><p>Updated in October.</p></div><!-- /wp:sn/callout -->' . $p( $body ),
+	'a void dynamic block first'   => '<!-- wp:latest-posts {"postsToShow":3} /-->' . $p( $body ),
+	'paragraphs inside a group'    => '<!-- wp:group {"layout":{"type":"constrained"}} --><div class="wp-block-group">' . $p( 'Inside the group.' ) . $p( $body ) . '</div><!-- /wp:group -->',
+	'paragraphs inside columns'    => '<!-- wp:columns --><div class="wp-block-columns"><!-- wp:column --><div class="wp-block-column">' . $p( 'Left column.' ) . '</div><!-- /wp:column --><!-- wp:column --><div class="wp-block-column">' . $p( 'Right column.' ) . '</div><!-- /wp:column --></div><!-- /wp:columns -->',
+	'a quote, then prose'          => '<!-- wp:quote --><blockquote class="wp-block-quote">' . $p( 'Quoted words.' ) . '<cite>Someone</cite></blockquote><!-- /wp:quote -->' . $p( $body ),
+	'a list, then prose'           => '<!-- wp:list --><ul class="wp-block-list"><!-- wp:list-item --><li>One item</li><!-- /wp:list-item --></ul><!-- /wp:list -->' . $p( $body ),
+	'a leading heading in a group' => '<!-- wp:group --><div class="wp-block-group"><!-- wp:heading {"level":1} --><h1 class="wp-block-heading">On Provenance</h1><!-- /wp:heading -->' . $p( $body ) . '</div><!-- /wp:group -->',
+	'a raw > in attribute JSON'    => '<!-- wp:paragraph {"placeholder":"a > b"} --><p>Hand-edited markup.</p><!-- /wp:paragraph -->' . $p( $body ),
+	'multibyte text'               => $p( 'Señal y ruido: dos artículos y una serie de notas 日本語.' ),
+	'classic content, no blocks'   => "<p>Written in the classic editor.</p>\n<p>Second paragraph.</p>",
+);
+$want_dek = array(
+	'paragraphs only'               => 'First sentence with a link. Second sentence.',
+	'a buttons block first'         => 'Read the paper Two papers and a running series of notes.',
+	'an embed with a caption first' => 'https://video.example/v/1 The talk, recorded Two papers and a running series of notes.',
+	'an image with a caption first' => 'The 1954 ledger Two papers and a running series of notes.',
+	'a details block first'         => 'Method How the numbers were gathered. Two papers and a running series of notes.',
+	'a plugin block first'          => 'Updated in October. Two papers and a running series of notes.',
+	'a void dynamic block first'    => 'Two papers and a running series of notes.',
+	'paragraphs inside a group'     => 'Inside the group. Two papers and a running series of notes.',
+	'paragraphs inside columns'     => 'Left column. Right column.',
+	'a quote, then prose'           => 'Quoted words. Someone Two papers and a running series of notes.',
+	'a list, then prose'            => 'One item Two papers and a running series of notes.',
+	'a leading heading in a group'  => 'On Provenance Two papers and a running series of notes.',
+	'a raw > in attribute JSON'     => 'Hand-edited markup. Two papers and a running series of notes.',
+	'multibyte text'                => 'Señal y ruido: dos artículos y una serie de notas 日本語.',
+	'classic content, no blocks'    => 'Written in the classic editor. Second paragraph.',
+);
+ok( array_keys( $want_dek ) === array_keys( $dek_cases ), 'an answer is pinned for every dek case' );
+foreach ( $dek_cases as $name => $content ) {
+	$got = $sn_txt( sn_og_card_dek_source( (object) array( 'ID' => 40, 'post_excerpt' => '', 'post_content' => $content ) ) );
+	ok( ( $want_dek[ $name ] ?? null ) === $got, "dek: $name" . ( ( $want_dek[ $name ] ?? null ) === $got ? '' : ' (got ' . var_export( $got, true ) . ')' ) );
+}
 
 echo "\nGroup: a page's card says what its description says (Unreleased)\n";
 $GLOBALS['__seo'] = array( 1184 => 'Founder and music executive, 15+ years.' );
