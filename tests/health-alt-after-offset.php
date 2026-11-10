@@ -111,6 +111,10 @@ $cases = array(
 		'<figure class="wp-block-gallery"><figure class="wp-block-image"><img src="q.png" alt="Q"/><figcaption>One</figcaption></figure><figure class="wp-block-image"><img src="q2.png" alt="Q2"/></figure><figcaption>Whole gallery</figcaption></figure><h2>Gallery</h2>',
 		'<img src="q2.png" alt="Q2"/>', '', 'Gallery',
 	),
+	'a figure opening after the caption, before the close' => array(
+		'<figure><img src="v.png" alt="V"><figcaption>Whose?</figcaption><figure><img src="v2.png" alt="V2"></figure></figure><h2>After</h2>',
+		'<img src="v.png" alt="V">', '', '',
+	),
 	'a bare image before an unrelated card' => array(
 		'<p><img src="p.png" alt="P"></p><figure><img src="p2.png" alt="P2"></figure><h3>Card</h3>',
 		'<img src="p.png" alt="P">', '', '',
