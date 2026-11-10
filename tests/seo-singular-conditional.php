@@ -40,6 +40,7 @@ file_put_contents(
 );
 
 $cgi = trim( (string) shell_exec( 'command -v php-cgi 2>/dev/null' ) );
+$cgi = '' !== $cgi ? $cgi : ( is_executable( dirname( PHP_BINARY ) . '/php-cgi' ) ? dirname( PHP_BINARY ) . '/php-cgi' : '' );
 $bin = '' !== $cgi ? $cgi : PHP_BINARY;
 
 /** Run one request; returns headers and body as one string. */
@@ -76,6 +77,11 @@ if ( '' !== $cgi ) {
 	ok( false !== strpos( $hit, 'Status: 304' ), 'anonymous: the response status is 304' );
 	ok( false === stripos( $in, 'Last-Modified' ), 'logged in: Last-Modified is not sent again after core removed it' );
 	ok( false === stripos( $pw, 'Last-Modified' ), 'password-protected: Last-Modified is not sent again after core removed it' );
+}
+ else {
+	// Under CI a missing binary fails: a skipped header check there is a false green.
+	$ci = (string) getenv( 'CI' );
+	ok( '' === $ci || 'false' === $ci, 'php-cgi is installed, so the served headers can be read' );
 }
 
 unlink( $driver );

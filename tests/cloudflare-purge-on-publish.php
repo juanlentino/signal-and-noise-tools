@@ -78,6 +78,7 @@ function get_permalink( $p ) {
 	return 'https://example.test/notes/post-' . $id . '/';
 }
 function home_url( $path = '/' ) { return 'https://example.test' . $path; }
+require_once __DIR__ . '/lib/core-sitemaps-stub.php'; // core's sitemap API; no pages set, so only the index
 function add_query_arg( $k, $v, $u ) { return $u . ( false === strpos( $u, '?' ) ? '?' : '&' ) . $k . '=' . $v; }
 
 $GLOBALS['__http'] = array();

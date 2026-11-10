@@ -37,6 +37,8 @@ function add_filter() {}
 function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
 function add_query_arg( $k, $v, $u ) { return $u . ( false === strpos( $u, '?' ) ? '?' : '&' ) . $k . '=' . $v; }
 
+require_once __DIR__ . '/lib/core-sitemaps-stub.php';
+$GLOBALS['__sitemap_pages'] = array( 'posts' => array( 'post' => 1, 'page' => 1 ), 'taxonomies' => array( 'post_tag' => 1 ) );
 require_once __DIR__ . '/../inc/cloudflare-purge.php';
 
 $post = (object) array( 'ID' => 7, 'post_type' => 'post', 'post_status' => 'publish', 'post_parent' => 0 );
@@ -80,11 +82,20 @@ $paged = array_values( array_filter( $huge, function ( $u ) { return false !== s
 ok( count( $paged ) === SN_CF_MAX_ARCHIVE_PAGES - 1,
 	'the paginated set is CAPPED (' . count( $paged ) . ' pages) — one save must not become unbounded API calls' );
 
-// Sitemap pagination is derived too: core splits at 2000 URLs.
-$GLOBALS['__published'] = 2001;
-$two = sn_cf_sitemap_urls( 'post' );
-ok( in_array( 'https://example.test/wp-sitemap-posts-post-2.xml', $two, true ),
-	'past 2000 posts the SECOND sub-sitemap page is purged — assuming one page would silently stop being true' );
+// Sitemap pagination is CORE'S count, asked for, not worked out here: the page
+// size goes through wp_sitemaps_max_urls and the count through the provider's
+// own query, so a division by a constant 2000 honors neither.
+$GLOBALS['__sitemap_pages']['posts']['post'] = 3; // e.g. wp_sitemaps_max_urls filtered down: 39 notes, three pages
+ok( array( 'https://example.test/wp-sitemap.xml', 'https://example.test/wp-sitemap-posts-post-1.xml', 'https://example.test/wp-sitemap-posts-post-2.xml', 'https://example.test/wp-sitemap-posts-post-3.xml', 'https://example.test/wp-sitemap-taxonomies-post_tag-1.xml' ) === sn_cf_sitemap_urls( 'post' ),
+	'the sub-sitemap pages purged are the ones core says exist, whatever the post count: the index, three post pages, the tag page' );
+$GLOBALS['__sitemap_pages']['posts']['post'] = 100000;
+ok( 1 + SN_CF_MAX_ARCHIVE_PAGES + 1 === count( sn_cf_sitemap_urls( 'post' ) ), 'the sitemap pages are capped too' );
+$GLOBALS['__sitemap_pages']['posts']['post'] = 1;
+ok( in_array( 'https://example.test/wp-sitemap-taxonomies-post_tag-1.xml', $urls, true ), 'a note save purges the tag sitemap: a new tag on a note appears there' );
+ok( array( 'https://example.test/wp-sitemap.xml', 'https://example.test/wp-sitemap-posts-page-1.xml' ) === sn_cf_sitemap_urls( 'page' ), 'a page save does not: pages carry no tags' );
+$GLOBALS['__sitemap_pages']['taxonomies']['post_tag'] = false; // core lists no tag sitemap (filtered out)
+ok( array( 'https://example.test/wp-sitemap.xml', 'https://example.test/wp-sitemap-posts-post-1.xml' ) === sn_cf_sitemap_urls( 'post' ), 'a sitemap core does not list is not purged: its false URL is dropped' );
+$GLOBALS['__sitemap_pages']['taxonomies']['post_tag'] = 1;
 
 $GLOBALS['__published'] = 39;
 echo "\nGroup 3b: the feeds and the llms files (the theme holds them at the edge for five minutes)\n";

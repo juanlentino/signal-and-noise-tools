@@ -197,38 +197,41 @@ function sn_cf_machine_urls() {
 	return array_map( 'home_url', array_values( array_filter( $paths, 'is_string' ) ) );
 }
 
-/** WordPress core lists at most this many URLs per sitemap page. */
-const SN_CF_SITEMAP_MAX_URLS = 2000;
-
 /**
- * The sitemap index plus the sub-sitemap pages listing this post type.
+ * The sitemap index plus the sub-sitemap pages a save of this post type changes.
  *
  * The index is where a crawler starts; the sub-sitemap is where the new note
- * actually appears. Both are edge-cached and neither was purged.
+ * actually appears, and the tag sitemap is where a new tag on it does. All
+ * three are edge-cached (2026-11-10: the post_tag page answered
+ * cf-cache-status: EXPIRED, so the edge holds it too).
+ *
+ * The URLs and the page counts are core's, asked for rather than rebuilt: the
+ * page size goes through `wp_sitemaps_max_urls` and the count through the
+ * provider's own query, and get_sitemap_url() knows plain permalinks. A
+ * sub-sitemap core does not list answers false and is dropped. Capped like the
+ * archive pages, for the same reason.
  *
  * @param string $post_type Post type.
  * @return string[]
  */
 function sn_cf_sitemap_urls( $post_type ) {
-	if ( ! function_exists( 'home_url' ) ) {
+	if ( ! function_exists( 'get_sitemap_url' ) || ! function_exists( 'wp_sitemaps_get_server' ) ) {
 		return array();
 	}
-	$urls = array( home_url( '/wp-sitemap.xml' ) );
-
-	$published = 0;
-	if ( function_exists( 'wp_count_posts' ) ) {
-		$counts    = wp_count_posts( $post_type );
-		$published = is_object( $counts ) && isset( $counts->publish ) ? (int) $counts->publish : 0;
+	$urls     = array( get_sitemap_url( 'index' ) );
+	$subtypes = array( 'posts' => (string) $post_type );
+	if ( is_object_in_taxonomy( $post_type, 'post_tag' ) ) {
+		$subtypes['taxonomies'] = 'post_tag';
 	}
-	// At least one page always exists once anything is published; core paginates
-	// at SN_CF_SITEMAP_MAX_URLS, so the count is derived rather than assumed to
-	// be 1 - it is 1 today and silently would not be at 2001 notes.
-	$pages = $published > 0 ? (int) ceil( $published / SN_CF_SITEMAP_MAX_URLS ) : 0;
-	for ( $n = 1; $n <= $pages; $n++ ) {
-		$urls[] = home_url( '/wp-sitemap-posts-' . $post_type . '-' . $n . '.xml' );
+	foreach ( $subtypes as $name => $subtype ) {
+		$provider = wp_sitemaps_get_server()->registry->get_provider( $name );
+		$pages    = $provider ? min( SN_CF_MAX_ARCHIVE_PAGES, (int) $provider->get_max_num_pages( $subtype ) ) : 0;
+		for ( $n = 1; $n <= $pages; $n++ ) {
+			$urls[] = get_sitemap_url( $name, $subtype, $n );
+		}
 	}
 
-	return $urls;
+	return array_values( array_filter( $urls ) );
 }
 
 add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_before ) {
