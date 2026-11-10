@@ -248,7 +248,7 @@ foreach ( $GLOBALS['__cq_actions']['wp_abilities_api_init'] ?? array() as $cb ) 
 $ab = $GLOBALS['__cq_abilities']['signal-noise/content-queue'] ?? null;
 ok( is_array( $ab ), 'signal-noise/content-queue registers on wp_abilities_api_init' );
 ok( 'content' === ( $ab['category'] ?? null ), 'category is content (a registered category)' );
-ok( array( 'object', 'null' ) === ( $ab['input_schema']['type'] ?? null ), 'input schema types the [object,null] union (bodyless GET delivers null)' );
+ok( 'object' === ( $ab['input_schema']['type'] ?? null ) && array() === ( $ab['input_schema']['default'] ?? null ), 'input schema is an object with a top-level default (bodyless GET delivers null; core runs it with the default)' );
 ok( true === ( $ab['meta']['annotations']['readonly'] ?? null ) && true === ( $ab['meta']['annotations']['idempotent'] ?? null ), 'annotated readonly + idempotent' );
 ok( 'snt_ability_perm_edit_posts' === ( $ab['permission_callback'] ?? null ) && true === snt_ability_perm_edit_posts(), 'edit_posts is the gate: whoever sees the Posts screen sees the queue' );
 

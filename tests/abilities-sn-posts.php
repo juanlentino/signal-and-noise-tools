@@ -256,7 +256,7 @@ $a = $GLOBALS['__abilities']['signal-noise/sn-posts'] ?? null;
 ok( is_array( $a ), 'signal-noise/sn-posts is registered' );
 ok( 'snt_ability_perm_read_corpus' === ( $a['permission_callback'] ?? '' ), 'sn-posts gates on edit_others_posts (corpus READ tier)' );
 ok( true === ( $a['meta']['annotations']['readonly'] ?? false ) && false === ( $a['meta']['annotations']['destructive'] ?? true ) && true === ( $a['meta']['annotations']['idempotent'] ?? false ), 'sn-posts is annotated readonly + non-destructive + idempotent' );
-ok( array( 'object', 'null' ) === ( $a['input_schema']['type'] ?? null ), 'sn-posts input schema is bodyless-GET-safe (no required fields)' );
+ok( 'object' === ( $a['input_schema']['type'] ?? null ) && array() === ( $a['input_schema']['default'] ?? null ), 'sn-posts input schema is bodyless-GET-safe (an object with a top-level default, no required fields)' );
 // additionalProperties:false: an undeclared or misspelled flag is refused over MCP
 // before the callback runs, so every direct call above would stay green.
 ok( 'boolean' === ( $a['input_schema']['properties']['include_surface_checks']['type'] ?? null ), 'the schema declares include_surface_checks, so MCP does not refuse the flag' );

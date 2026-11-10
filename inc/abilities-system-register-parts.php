@@ -26,16 +26,16 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_purge_all_caches',
 		'input_schema'        => array(
-			// v2.5.4: accept null because the abilities-api REST controller
-			// passes null when the GET/DELETE caller omits the `?input=`
-			// query parameter. The union is one way to let that validate,
-			// not the only one: since WordPress 6.9 WP_Ability::normalize_input()
-			// swaps a null input for the schema's top-level `default` before
-			// validation (the run controller and execute() both call it), so
-			// 'type' => 'object' with 'default' => array() does the same job
-			// and is what core's own abilities declare. The union stays for
-			// now; moving every registration is its own change.
-			'type'                 => array( 'object', 'null' ),
+			// The abilities REST controller passes null when a GET or DELETE
+			// caller omits `?input=` (and a POST with no body). v2.5.4 let that
+			// validate with an ('object','null') type union; since 2026-11-10 it
+			// is core's own idiom instead: WP_Ability::normalize_input() (WordPress
+			// 6.9+) swaps a null input for the schema's top-level `default` before
+			// validation, in the run controller and in execute() alike, so
+			// 'type' => 'object' with 'default' => array() takes the bodyless call
+			// and the callback receives an array.
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'include_template_overrides' => array(
 					'type'        => 'boolean',
@@ -85,9 +85,10 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_deploy_status',
 		'input_schema'        => array(
-			// v2.5.4: see purge-all-caches comment — null accepted because
-			// readonly abilities (GET) receive null when caller omits ?input=.
-			'type'                 => array( 'object', 'null' ),
+			// See the purge-all-caches comment: a bodyless call arrives as null and
+			// core runs it with the top-level default.
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'force_refresh' => array(
 					'type'        => 'boolean',
@@ -200,9 +201,10 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_clear_template_overrides',
 		'input_schema'        => array(
-			// v2.5.4: see purge-all-caches comment — destructive abilities
-			// (DELETE) also receive null when caller omits ?input=.
-			'type'                 => array( 'object', 'null' ),
+			// See the purge-all-caches comment: a bodyless call arrives as null and
+			// core runs it with the top-level default.
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
@@ -234,7 +236,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'execute_callback'    => 'snt_ability_list_template_overrides',
 		'input_schema'        => array(
 			// v2.5.4: see purge-all-caches comment.
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),

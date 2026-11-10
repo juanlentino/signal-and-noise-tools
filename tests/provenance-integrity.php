@@ -514,8 +514,8 @@ ok( is_array( $ab ), 'provenance-integrity-status registered' );
 ok( 'diagnostics' === ( $ab['category'] ?? '' ), 'category comes from the REGISTERED set (diagnostics)' );
 ok( 'snt_ability_perm_manage_options' === ( $ab['permission_callback'] ?? '' ), 'manage_options-gated like its diagnostics siblings' );
 ok( true === ( $ab['meta']['annotations']['readonly'] ?? null ), 'annotated readonly (GET run-path)' );
-ok( array( 'object', 'null' ) === ( $ab['input_schema']['type'] ?? null ),
-	'input schema types the [object,null] union — bodyless GET delivers null (Group E law)' );
+ok( 'object' === ( $ab['input_schema']['type'] ?? null ) && array() === ( $ab['input_schema']['default'] ?? null ),
+	'input schema is an object with a top-level default: bodyless GET delivers null, core runs it with the default (Group E law)' );
 
 // Execute: null before any sweep; the summary + failing rows after; NEVER sweeps.
 $GLOBALS['__pi_options'] = array();

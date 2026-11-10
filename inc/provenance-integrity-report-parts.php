@@ -187,10 +187,11 @@ function snt_abilities_provenance_integrity_register() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_provenance_integrity_status',
 		'input_schema'        => array(
-			// The [object,null] union, per the Group E structural law for READ
+			// The top-level default, per the Group E structural law for READ
 			// abilities: readonly ⇒ GET run-path ⇒ a caller that omits ?input=
-			// delivers NULL, and a plain 'object' rejects every such call.
-			'type'                 => array( 'object', 'null' ),
+			// delivers NULL, and a plain 'object' with no default rejects every such call.
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),

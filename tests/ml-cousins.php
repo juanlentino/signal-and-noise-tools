@@ -207,7 +207,7 @@ ok( 'tools' === ( $a['category'] ?? '' ), 'ability sits in the tools category' )
 ok( true === ( $a['meta']['annotations']['readonly'] ?? false )
 	&& false === ( $a['meta']['annotations']['destructive'] ?? true )
 	&& true === ( $a['meta']['annotations']['idempotent'] ?? false ), 'annotated readonly + non-destructive + idempotent' );
-ok( array( 'object', 'null' ) === ( $a['input_schema']['type'] ?? null ), 'input type is [object, null] — the bodyless-GET contract' );
+ok( 'object' === ( $a['input_schema']['type'] ?? null ) && array() === ( $a['input_schema']['default'] ?? null ), 'input is an object with a top-level default: the bodyless-GET contract' );
 ok( array( 'threshold' ) === array_keys( $a['input_schema']['properties'] ?? array() ),
 	'threshold is the ONLY input — no post_type param this release' );
 $t = $a['input_schema']['properties']['threshold'] ?? array();

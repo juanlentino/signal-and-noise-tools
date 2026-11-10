@@ -50,7 +50,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_live_now',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'hours_back' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 24, 'description' => 'Add `slots`: the stored 5-minute snapshots of the last N hours (1 to 24).' ),
 			),

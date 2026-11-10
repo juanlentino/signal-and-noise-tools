@@ -141,8 +141,8 @@ function get_permalink( $id ) { return ''; }
 snt_abilities_404_log_register();
 $ab = $GLOBALS['__abilities']['signal-noise/get-404-log'] ?? null;
 ok( is_array( $ab ), 'ability: signal-noise/get-404-log registered (no bare REST route)' );
-ok( array( 'object', 'null' ) === ( $ab['input_schema']['type'] ?? null ),
-	'ability: input schema types the [object,null] union (bodyless GET law)' );
+ok( 'object' === ( $ab['input_schema']['type'] ?? null ) && array() === ( $ab['input_schema']['default'] ?? null ),
+	'ability: input schema is an object with a top-level default (bodyless GET law)' );
 ok( true === ( $ab['meta']['annotations']['readonly'] ?? null ), 'ability: annotated readonly' );
 ok( 'snt_ability_perm_manage_options' === ( $ab['permission_callback'] ?? '' ), 'ability: manage_options-gated' );
 

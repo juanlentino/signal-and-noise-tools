@@ -42,7 +42,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_duplicate_scan',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
+			'type'                 => 'object',
+			'default'              => array(), // A bodyless call arrives as null; core runs it with this default.
 			'properties'           => array(
 				'post_type' => array( 'type' => 'string', 'default' => 'post' ),
 			),
@@ -78,7 +79,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_draft_echoes',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'post_id'   => array( 'type' => 'integer', 'minimum' => 1 ),
 				'content'   => array( 'type' => 'string' ),
@@ -132,7 +134,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_near_duplicate_scan',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
+			'type'                 => 'object',
+			'default'              => array(), // A bodyless call arrives as null; core runs it with this default.
 			'properties'           => array(
 				// No post_type this release: the cousin corpus is 'post' by
 				// construction, like the ML artifact build.
@@ -170,7 +173,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	// ─── 1c. Keyword candidates — v10.17.0 ──────────────────────────
 	// post_id is REQUIRED, so the input type stays plain 'object': the
-	// [object,null] union is ONLY for no-required-fields abilities (a
+	// top-level default is ONLY for no-required-fields abilities (a
 	// bodyless GET could never satisfy `required` anyway — the exact rule
 	// tests/abilities-categories.php Group E enforces).
 	wp_register_ability( 'signal-noise/keyword-candidates', array(
@@ -258,7 +261,7 @@ add_action( 'wp_abilities_api_init', function() {
 	) );
 
 	// ─── 1e. Topic clusters — v10.21.0 ──────────────────────────────
-	// No inputs at all, so the bodyless-GET union type applies.
+	// No inputs at all, so the bodyless-GET default applies.
 	wp_register_ability( 'signal-noise/topic-clusters', array(
 		'label'               => 'Read the corpus topic partition',
 		'description'         => 'Deterministic topic map, no AI: the stored partition of published notes into topics — connected components over TF-IDF cosine similarity, computed at artifact-build time (publish transitions + the nightly rebuild), never on demand. Each cluster: {members: [post IDs ascending], label: top shared terms}. Singletons are excluded (a topic needs two notes). Returns a 503 while the ML artifacts are unbuilt; an empty cluster list is a real answer, not an error.',
@@ -266,7 +269,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_topic_clusters',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
+			'type'                 => 'object',
+			'default'              => array(), // A bodyless call arrives as null; core runs it with this default.
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
@@ -298,7 +302,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_cadence_flags',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
+			'type'                 => 'object',
+			'default'              => array(), // A bodyless call arrives as null; core runs it with this default.
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
@@ -330,7 +335,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_list_posts',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
+			'type'                 => 'object',
+			'default'              => array(), // A bodyless call arrives as null; core runs it with this default.
 			'properties'           => array(
 				'status'    => array(
 					'type'    => 'string',

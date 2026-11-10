@@ -54,7 +54,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_remote_provenance_integrity',
 		'execute_callback'    => 'snt_ability_provenance_integrity_status',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
@@ -107,7 +108,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'input_schema'        => array(
 			// The admin ability accepts days (1-90). The twin carries it too —
 			// a window is a read parameter, not a lever.
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'days' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 90, 'default' => 30 ),
 				'series' => array( 'type' => 'string', 'enum' => array( 'day' ) ),
@@ -291,7 +293,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_remote_cron_health',
 		'execute_callback'    => 'snt_ability_cron_health_summary',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),

@@ -78,7 +78,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_remote_analytics_summary',
 		'execute_callback'    => 'sn_ability_get_analytics_summary',
 		'input_schema'        => array(
-			'type'       => array( 'object', 'null' ),
+			'type'       => 'object',
+			'default'    => array(),
 			'properties' => array(
 				'range' => array( 'type' => array( 'string', 'integer' ), 'default' => 30 ),
 				'class' => array( 'type' => 'string', 'default' => 'human' ),
