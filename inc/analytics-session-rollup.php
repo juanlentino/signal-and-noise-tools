@@ -58,15 +58,7 @@ function sn_session_rollup_maybe_install() {
 }
 add_action( 'init', 'sn_session_rollup_maybe_install' );
 
-/**
- * Schedule the daily rollup cron.
- */
-function sn_session_rollup_schedule() {
-	if ( ! wp_next_scheduled( SN_SESSION_ROLLUP_HOOK ) ) {
-		wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', SN_SESSION_ROLLUP_HOOK );
-	}
-}
-add_action( 'init', 'sn_session_rollup_schedule' );
+require_once __DIR__ . '/analytics-session-rollup-schedule-parts.php'; // the run time (06:15 UTC) and its one-time move.
 
 /**
  * Normalize AE-derived rollup rows into typed, validated records.
@@ -273,7 +265,7 @@ function sn_session_rollup_run( $day = '' ) {
 	}
 }
 require_once __DIR__ . '/analytics-generation.php';
-add_action( SN_SESSION_ROLLUP_HOOK, 'sn_analytics_v2_verify', 5, 0 ); // this rollup can fire before the analytics one: it must not write from a verdict a day old.
+add_action( SN_SESSION_ROLLUP_HOOK, 'sn_analytics_v2_verify', 5, 0 ); // this rollup fires at 06:15 UTC, hours before the analytics one: it must not write from a verdict a day old.
 add_action( SN_SESSION_ROLLUP_HOOK, 'sn_session_rollup_run' );
 
 /**

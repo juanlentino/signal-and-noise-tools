@@ -434,9 +434,9 @@ function snt_watch_ripe_analytics_v2_freeze( $watch, $now, $state = null ) {
  */
 function sn_analytics_v2_verify( $now = null ) {
 	$now = null === $now ? time() : (int) $now;
-	// Two daily writers follow the verdict (the analytics rollup and the
-	// session rollup), on separate hooks minutes apart. Whichever runs first
-	// refreshes it; the other, inside half an hour, takes it as stored.
+	// Two daily writers follow the verdict (the analytics rollup, and the
+	// session rollup at 06:15 UTC), on separate hooks hours apart. Each
+	// refreshes it; a second call inside half an hour takes it as stored.
 	$last = function_exists( 'get_option' ) ? get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() ) : array();
 	// Frozen is final. The stop is known only through the worker's version
 	// read; if that read later fails, or the worker is rolled back, comparing
