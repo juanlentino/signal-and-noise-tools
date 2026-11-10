@@ -24,18 +24,23 @@
  * call — which needed its own, because the agent seam is armed only from the
  * agent runner and explicitly never fires for SN's own AI helpers.
  *
- * WHY A REQUEST FILTER AND NOT A PARAMETER. snt_ai_generate_with_constraints()
- * can only pass what the WP AI Client builder exposes — prompt, system,
- * max_tokens, model list — and `thinking`/`output_config` are Anthropic-specific,
- * below that ceiling. But every Anthropic request still leaves through core's
- * `wp_remote_request()`, so `http_request_args` can rewrite the JSON body after
- * the builder produced it. That also lets the ceiling here exceed the helper's
- * own min(4096, ...) clamp, which applies to the argument and not to the wire.
+ * HOW IT REACHES THE REQUEST. Through the AI Client. `thinking` and
+ * `output_config` are Anthropic parameters the builder has no method for, so
+ * they travel as ModelConfig custom options: the Anthropic provider copies
+ * every custom option into the request parameters (read at
+ * ai-provider-for-anthropic 1.0.5, AnthropicTextGenerationModel::
+ * prepareGenerateTextParams()). The ceiling goes through using_max_tokens and
+ * the timeout through core's wp_ai_client_default_request_timeout filter. All
+ * three are options of snt_ai_generate_with_constraints(), which keeps its 4096
+ * clamp for every caller that does not pass a ceiling.
  *
- * SCOPE. Armed immediately around the one call in snt_insights_call_ai() and
- * disarmed straight after, so no other feature — and no other plugin's traffic
- * — can see it. Non-matching requests are returned BYTE-IDENTICAL: a decode +
- * re-encode of an untouched body would still perturb the transport.
+ * Through 2026.11.20 this module rewrote the JSON body on `http_request_args`
+ * at PHP_INT_MAX, on the premise that the builder could not carry these keys.
+ * The request that reaches Anthropic is the same; nothing is decoded or
+ * re-encoded on the way out any more.
+ *
+ * SCOPE. The options are returned for the one call in snt_insights_call_ai()
+ * and belong to that call's builder, so no other feature can see them.
  *
  * @package SignalNoiseTools
  * @since   13.20.6
@@ -46,7 +51,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Ceiling for the shaped Insights request.
+ * Ceiling for the Insights request when an effort is set.
  *
  * Effort bounds thinking by demand (~3.7k measured on the agent path); the scan
  * itself needs roughly 2k for three verbose questions (established in v7.1.1).
@@ -58,7 +63,7 @@ if ( ! defined( 'SN_INSIGHTS_WIRE_MAX_TOKENS' ) ) {
 }
 
 /**
- * Transport timeout for the shaped request, in seconds.
+ * Transport timeout for that request, in seconds.
  *
  * The default 30s is what v13.20.5 died against once the generation grew. A
  * thinking pass plus a structured answer runs well past it. This is an explicit
@@ -70,27 +75,6 @@ if ( ! defined( 'SN_INSIGHTS_WIRE_TIMEOUT' ) ) {
 }
 
 /**
- * Arm the shaper for the current request. Idempotent.
- *
- * @return void
- */
-function snt_insights_budget_arm() {
-	if ( false === has_filter( 'http_request_args', 'snt_insights_budget_shape' ) ) {
-		add_filter( 'http_request_args', 'snt_insights_budget_shape', PHP_INT_MAX, 2 );
-	}
-}
-
-/**
- * Disarm it. Called in a finally, so a thrown or errored call cannot leave the
- * filter hooked for the rest of the request.
- *
- * @return void
- */
-function snt_insights_budget_disarm() {
-	remove_filter( 'http_request_args', 'snt_insights_budget_shape', PHP_INT_MAX );
-}
-
-/**
  * Whether a model id is Claude 5 family (the adaptive-thinking API shape).
  *
  * The effort keys are family-specific: `thinking.type: "enabled"` is REJECTED
@@ -98,7 +82,7 @@ function snt_insights_budget_disarm() {
  * and adaptive would 400 on older families. Anything not matching is left alone
  * rather than guessed at.
  *
- * @param string $model Model id from the request body.
+ * @param string $model Model id.
  * @return bool
  */
 function snt_insights_budget_model_is_claude5( $model ) {
@@ -106,81 +90,56 @@ function snt_insights_budget_model_is_claude5( $model ) {
 }
 
 /**
- * Shape the Insights Anthropic request so the answer can complete.
+ * The request options for an Insights scan: adaptive thinking with an effort,
+ * the ceiling that leaves the answer room, and the timeout that generation
+ * needs. Empty when any model that could serve the call is not Claude 5, or
+ * when the effort is filtered off: the ceiling and the timeout are raised only
+ * together with the effort, since headroom on a request whose thinking is
+ * ceiling-bounded goes to thinking (v13.20.5: a fast failure became a timeout).
  *
- * @param array  $args Request args; body is a JSON string on this path.
- * @param string $url  Request URL.
- * @return array Possibly-rewritten args.
+ * The AI Client serves the first listed model the provider exposes, so every
+ * id in the list has to be Claude 5 for the effort keys to be safe to send.
+ *
+ * @param string[] $model_list The model preference list for the call.
+ * @return array Options for snt_ai_generate_with_constraints(), or array().
  */
-function snt_insights_budget_shape( $args, $url ) {
-	if ( false === strpos( (string) $url, 'api.anthropic.com/v1/messages' ) ) {
-		return $args;
-	}
-	if ( ! is_array( $args ) || ! isset( $args['body'] ) || ! is_string( $args['body'] ) ) {
-		return $args;
+function snt_insights_budget_options( $model_list ) {
+	$model_list = (array) $model_list;
+	if ( ! $model_list || array_filter( $model_list, 'snt_insights_budget_model_is_claude5' ) !== $model_list ) {
+		return array();
 	}
 
-	$body = json_decode( $args['body'], true );
-	if ( ! is_array( $body ) || ! snt_insights_budget_model_is_claude5( $body['model'] ?? '' ) ) {
-		return $args;
-	}
-
-	$changed = false;
-
-	// Is thinking BOUNDED on this request — by someone else's decision, or by
-	// the effort config injected below? The ceiling raise depends on it: with
-	// thinking demand-bounded, headroom goes to the answer; with thinking
-	// ceiling-bounded, headroom goes to thinking and the answer still never
-	// lands. That is precisely how v13.20.5 turned a fast JSON failure into a
-	// 30-second timeout. Never raise the ceiling of an unbounded request.
-	$bounded = isset( $body['thinking'] ) || isset( $body['output_config'] );
-
-	// DEFERENTIAL: if anything upstream already decided how this request
-	// reasons, that decision wins and this seam self-neutralizes.
-	if ( ! $bounded ) {
-		/**
-		 * Filter the effort level injected on the Insights generation.
-		 *
-		 * Return '' (or any non-whitelisted value) to disable the injection and
-		 * leave the request untouched.
-		 *
-		 * @since 13.20.6
-		 * @param string $effort One of 'low'|'medium'|'high', or '' to disable.
-		 */
-		$effort = (string) apply_filters( 'snt_insights_anthropic_effort', 'low' );
-		if ( in_array( $effort, array( 'low', 'medium', 'high' ), true ) ) {
-			$body['thinking']      = array( 'type' => 'adaptive' );
-			$body['output_config'] = array( 'effort' => $effort );
-			$bounded               = true;
-			$changed               = true;
-		}
-	}
-
-	// Raise-only, and only above whatever the builder sent. Effort bounds the
-	// thinking; this leaves the answer somewhere to go.
 	/**
-	 * Filter the wire-level ceiling for the Insights generation.
+	 * Filter the effort level set on the Insights generation.
+	 *
+	 * Return '' (or any non-whitelisted value) to send the request plain.
 	 *
 	 * @since 13.20.6
-	 * @param int $max_tokens Default SN_INSIGHTS_WIRE_MAX_TOKENS.
+	 * @param string $effort One of 'low'|'medium'|'high', or '' to disable.
 	 */
-	$ceiling = (int) apply_filters( 'snt_insights_anthropic_max_tokens', SN_INSIGHTS_WIRE_MAX_TOKENS );
-	if ( $bounded && isset( $body['max_tokens'] ) && $ceiling > (int) $body['max_tokens'] ) {
-		$body['max_tokens'] = $ceiling;
-		$changed            = true;
+	$effort = (string) apply_filters( 'snt_insights_anthropic_effort', 'low' );
+	if ( ! in_array( $effort, array( 'low', 'medium', 'high' ), true ) ) {
+		return array();
 	}
 
-	if ( ! $changed ) {
-		return $args;
-	}
-
-	// Only extend the transport window for a request we actually shaped — a
-	// longer generation is the direct consequence of the shaping.
-	$timeout = (int) apply_filters( 'snt_insights_anthropic_timeout', SN_INSIGHTS_WIRE_TIMEOUT );
-	if ( $timeout > (int) ( $args['timeout'] ?? 0 ) ) {
-		$args['timeout'] = $timeout;
-	}
-
-	$args['body'] = wp_json_encode( $body );
-	return $args;
+	return array(
+		'custom_options' => array(
+			'thinking'      => array( 'type' => 'adaptive' ),
+			'output_config' => array( 'effort' => $effort ),
+		),
+		/**
+		 * Filter the ceiling for the Insights generation. Raise-only.
+		 *
+		 * @since 13.20.6
+		 * @param int $max_tokens Default SN_INSIGHTS_WIRE_MAX_TOKENS.
+		 */
+		'max_tokens'     => (int) apply_filters( 'snt_insights_anthropic_max_tokens', SN_INSIGHTS_WIRE_MAX_TOKENS ),
+		/**
+		 * Filter the transport timeout for the Insights generation, in seconds. Raise-only.
+		 *
+		 * @since 13.20.6
+		 * @param int $timeout Default SN_INSIGHTS_WIRE_TIMEOUT.
+		 */
+		'timeout'        => (int) apply_filters( 'snt_insights_anthropic_timeout', SN_INSIGHTS_WIRE_TIMEOUT ),
+	);
 }

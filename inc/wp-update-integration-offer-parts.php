@@ -1,10 +1,12 @@
 <?php
 /**
- * Signal & Noise Tools: WP-native update integration, the update offer (the latest tag, the Check Again test, the update_plugins transient filter).
+ * Signal & Noise Tools: WP-native update integration, the update offer (the latest tag, the Check Again test, the update_plugins_github.com filter).
  *
- * Split from inc/wp-update-integration.php (house line cap, 2026-10-15); a pure
- * move, no code changed. The file header there describes the module. Loaded
- * by require_once at the end of that file, in the order the code always ran.
+ * Split from inc/wp-update-integration.php (house line cap, 2026-10-15). The
+ * file header there describes the module. Loaded by require_once at the end of
+ * that file, in the order the code always ran. 2026-11-10: the offer moved from
+ * the raw pre_set_site_transient_update_plugins filter to the hook core runs
+ * for the plugin's Update URI (tests/wp-update-hostname-offer.php).
  *
  * @package SignalNoiseTools
  */
@@ -141,97 +143,68 @@ add_action( 'delete_site_transient_update_plugins', static fn() => delete_site_t
 add_action( 'delete_site_transient_update_themes', static fn() => delete_site_transient( 'sn_gh_latest_theme' ) );
 
 /**
- * Register the plugin with WP's update transient. WP renders it on
- * wp-admin/update-core.php and Plugins → Installed Plugins from this data.
+ * The update offer, through the hook core runs for this plugin's Update URI.
  *
- * Plugin update transient shape differs from themes: keys are basenames
- * (dir/file.php), entries are stdClass with slug/plugin/new_version/url/package.
+ * The plugin header declares `Update URI: https://github.com/...`, so on every
+ * successful check wp_update_plugins() (wp-includes/update.php) calls
+ * `update_plugins_github.com` once per plugin on that host. Core then sets
+ * `id` and `plugin`, copies `version` to `new_version`, compares it with the
+ * header Version read from disk and files the entry under `response` or
+ * `no_update`. This callback only answers "what is the latest release": it
+ * never touches the transient or another plugin's entry.
+ *
+ * Core runs the hook after api.wordpress.org answered 200. While that request
+ * fails, the last stored offer stays; a record deleted in the meantime gets
+ * no offer until the next check that reaches WordPress.org.
+ *
+ * @param array|false $update      Update data from an earlier callback, or false.
+ * @param array       $plugin_data Plugin headers.
+ * @param string      $plugin_file Plugin basename.
+ * @param string[]    $locales     Installed locales.
+ * @return array|false
  */
-add_filter( 'pre_set_site_transient_update_plugins', function( $transient ) {
-	if ( empty( $transient ) || ! is_object( $transient ) ) {
-		$transient = new stdClass();
+function sn_plugin_update_offer( $update, $plugin_data, $plugin_file, $locales ) {
+	if ( SN_GH_PLUGIN_BASENAME !== $plugin_file ) {
+		return $update;
 	}
 
-	// v1.11.1: honor WP's "Check Again" button. WP sets the WP_FORCE_UPDATE_CHECK
-	// constant during the wp-admin/update-core.php?force-check=1 flow.
-	// Without this, our 12h-cached value persists even when the user
-	// explicitly asks for a fresh check.
-	$force_refresh = sn_plugin_update_force_refresh_requested();
-
-	$latest_tag = sn_gh_latest_plugin_tag( $force_refresh );
-	if ( $latest_tag === null ) {
-		return $transient;
+	// Core's Check Again (WP_FORCE_UPDATE_CHECK, or ?force-check=1 from someone
+	// who can update plugins) asks GitHub again instead of reading the cached tag.
+	$latest_tag = sn_gh_latest_plugin_tag( sn_plugin_update_force_refresh_requested() );
+	if ( null === $latest_tag ) {
+		return $update;
 	}
 
-	$latest_version  = ltrim( $latest_tag, 'v' );
-	$current_version = defined( 'SNT_VERSION' ) ? SNT_VERSION : '0.0.0';
+	$repo_url = 'https://github.com/' . SN_GH_PLUGIN_OWNER . '/' . SN_GH_PLUGIN_REPO;
+	// Icons and banners are served from the plugin's own assets/ directory.
+	// The Updates screen reads icons svg > 2x > 1x > default, and the Add
+	// Plugins list reads `default` without an empty() guard, so every key is
+	// set; one SVG serves them all. Banners render only in View Details (the
+	// plugins_api filter) and are here for symmetry.
+	$icon_url   = plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
+	$banner_url = plugins_url( 'assets/banner.svg', SNT_PATH . 'signal-and-noise-tools.php' );
+	// The Updates screen reads tested, requires and requires_php from the
+	// entry; without them each row says "Compatibility: Unknown".
+	$compat = sn_gh_plugin_compat();
 
-	$plugin_data              = new stdClass();
-	$plugin_data->slug        = SN_GH_PLUGIN_SLUG;
-	$plugin_data->plugin      = SN_GH_PLUGIN_BASENAME;
-	$plugin_data->new_version = $latest_version;
-	$plugin_data->url         = 'https://github.com/' . SN_GH_PLUGIN_OWNER . '/' . SN_GH_PLUGIN_REPO;
-	$plugin_data->package     = 'https://github.com/' . SN_GH_PLUGIN_OWNER . '/' . SN_GH_PLUGIN_REPO . '/archive/refs/tags/' . $latest_tag . '.zip';
-	// v2.1.2: brand assets — icons + banners served from our own
-	// assets/ directory. WP core reads these from the update transient to
-	// render the plugin icon on Dashboard → Updates list (verified
-	// against wp-admin/update-core.php list_plugin_updates() which
-	// checks svg > 2x > 1x > default in that priority order). Without
-	// this, the default puzzle-piece dashicon renders.
-	//
-	// IMPORTANT: `default` key must always be set — class-wp-plugin-
-	// install-list-table.php reads `$plugin['icons']['default']`
-	// without an `! empty()` guard, so unsetting it would throw a PHP
-	// notice on the Plugins → Add New screen. We point every key at the
-	// same SVG; browsers render SVG inside <img> tags fine, and the SVG
-	// scales to any DPR without a separate retina file.
-	$icon_url                 = plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
-	$banner_low_url           = plugins_url( 'assets/banner.svg', SNT_PATH . 'signal-and-noise-tools.php' );
-	$plugin_data->icons       = array(
-		'svg'     => $icon_url,
-		'2x'      => $icon_url,
-		'1x'      => $icon_url,
-		'default' => $icon_url,
+	return array(
+		'slug'         => SN_GH_PLUGIN_SLUG,
+		'version'      => ltrim( $latest_tag, 'v' ),
+		'url'          => $repo_url,
+		'package'      => $repo_url . '/archive/refs/tags/' . $latest_tag . '.zip',
+		'icons'        => array(
+			'svg'     => $icon_url,
+			'2x'      => $icon_url,
+			'1x'      => $icon_url,
+			'default' => $icon_url,
+		),
+		'banners'      => array(
+			'low'  => $banner_url,
+			'high' => $banner_url,
+		),
+		'tested'       => $compat['tested'],
+		'requires'     => $compat['requires'],
+		'requires_php' => $compat['requires_php'],
 	);
-	// banners only render in the "View Details" modal which goes
-	// through the plugins_api filter below — included here for
-	// symmetry/scanner-tool compatibility but inert on the update list.
-	$plugin_data->banners     = array(
-		'low'  => $banner_low_url,
-		'high' => $banner_low_url,
-	);
-
-	// v2.1.4: compatibility metadata. wp-admin/update-core.php
-	// list_plugin_updates() reads $plugin_data->update->tested at
-	// line 527 (verified against WP 6.9.4 source). Without it, every
-	// upgrade row renders "Compatibility with WordPress N.N.N: Unknown".
-	// list_plugin_updates() also reads ->requires_php at line 545 to
-	// gate the "this requires PHP X" notice, and ->requires at line ~550
-	// for the core-version requirement notice. Setting all three keeps
-	// the Updates page green instead of falling through to the
-	// uncertainty messaging.
-	//
-	// `tested` must satisfy version_compare( $tested, $cur_wp_version, '>=' )
-	// — bumping it as we test against newer WP. `requires` + `requires_php`
-	// mirror the values in the plugin file header for consistency with
-	// what the View Details modal renders (plugins_api filter below).
-	$compat                    = sn_gh_plugin_compat();
-	$plugin_data->tested       = $compat['tested'];
-	$plugin_data->requires     = $compat['requires'];
-	$plugin_data->requires_php = $compat['requires_php'];
-
-	if ( version_compare( $latest_version, $current_version, '>' ) ) {
-		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
-			$transient->response = array();
-		}
-		$transient->response[ SN_GH_PLUGIN_BASENAME ] = $plugin_data;
-	} else {
-		if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) {
-			$transient->no_update = array();
-		}
-		$transient->no_update[ SN_GH_PLUGIN_BASENAME ] = $plugin_data;
-	}
-
-	return $transient;
-} );
-
+}
+add_filter( 'update_plugins_github.com', 'sn_plugin_update_offer', 10, 4 );

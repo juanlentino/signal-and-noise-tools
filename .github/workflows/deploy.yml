@@ -13,9 +13,12 @@ name: Deploy to Cloudways
 # arbitrary branch is not a fallback, it is a second way to break production.
 #
 # WHEN YOU ACTUALLY NEED THIS: if the tags fetch is broken, the self-updater
-# offers no update at all (pre_set_site_transient_update_plugins returns early
-# on a null tag), so the fix for a broken update checker cannot be delivered BY
-# the update checker. That catch-22 is this workflow's whole reason to exist.
+# offers no update at all (the update_plugins_github.com filter returns no
+# offer on a null tag), so the fix for a broken update checker cannot be
+# delivered BY the update checker. That catch-22 is this workflow's whole reason
+# to exist. Core runs that filter only after api.wordpress.org answered the
+# update check, so a WordPress.org outage on a cleared update record is a
+# second case where no offer appears and this workflow is the way in.
 #
 # ── v9.54.2: ARCHIVE-BASED, not a server-side git checkout ──────────────────
 #

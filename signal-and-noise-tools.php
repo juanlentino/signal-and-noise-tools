@@ -756,7 +756,7 @@ require_once SNT_PATH . 'inc/uptime-status.php';
 require_once SNT_PATH . 'inc/spend-watch.php'; // v10.75.0: Actions minutes + AI spend as owner-only health signals (never estimated)        // v8.2.0: Better Stack status data layer + ability + field/mount helpers (v8.3.0: + 30d availability)
 require_once SNT_PATH . 'inc/uptime-status-widget.php'; // v8.3.0: Uptime section of the home widget (S&N Health then, the Signal & Noise box in inc/dash-widget.php since 11.30.0) + panel assets
 require_once SNT_PATH . 'inc/admin-heartbeat.php';
-require_once SNT_PATH . 'inc/insights-generation-budget.php'; // v13.20.6: http_request_args seam giving the Insights generation adaptive thinking + an effort level (Claude 5) so thinking is DEMAND-bounded, plus wire ceiling + timeout headroom; armed only around snt_insights_call_ai()
+require_once SNT_PATH . 'inc/insights-generation-budget.php'; // v13.20.6: gives the Insights generation adaptive thinking + an effort level (Claude 5) so thinking is DEMAND-bounded, plus ceiling + timeout headroom; passed through the AI Client as options of the one call in snt_insights_call_ai()
 require_once SNT_PATH . 'inc/insights.php';
 require_once SNT_PATH . 'inc/insights-narration.php';
 require_once SNT_PATH . 'inc/narration-cron-cleanup.php'; // v9.5.0: one-time clear of the weekly-digest cron orphaned when R2 retired the scheduler
