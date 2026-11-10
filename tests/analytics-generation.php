@@ -206,7 +206,10 @@ $kept = sn_analytics_v2_verify( $oct08 + 40 * 86400 );
 ok( $good === $kept && $good === $GLOBALS['opt'][ SN_ANALYTICS_V2_VERIFIED_OPT ] && true === $GLOBALS['wv_forced'], 'a mismatch read while the worker version cannot be read replaces nothing: the good verdict is kept' );
 ok( null === sn_analytics_worker_version_fresh() && '' === ( function () { $GLOBALS['wv'] = array( 'ok' => true, 'data' => array() ); return sn_analytics_worker_version_fresh(); } )(), 'the fresh read is null when the probe failed, and empty when the edge answered without a version' );
 $GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => $good );
-ok( false === sn_analytics_v2_verify( $oct08 + 40 * 86400 )['ok'], 'the edge answered, with no 2.x version: the mismatch stands, as before' );
+ok( $good === sn_analytics_v2_verify( $oct08 + 40 * 86400 ), 'the edge answered without a version: it did not say which worker is live, so the good verdict is kept too' );
+$GLOBALS['wv'] = array( 'ok' => true, 'data' => array( 'version' => '1.28.0' ) );
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => $good );
+ok( false === sn_analytics_v2_verify( $oct08 + 40 * 86400 )['ok'], 'the edge answered 1.x: the mismatch stands, as before' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
