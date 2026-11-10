@@ -72,9 +72,8 @@ $want_paragraphs = array(
 	'a notice nested in columns' => array(
 		'Correction, October 1, 2026: An earlier version of this note named the wrong archive.',
 	),
-	'a quoted paragraph' => array(
+	'a quoted paragraph' => array( // The regex also read the quote's own paragraph ('Correction, they wrote in the margin, ...'): it had thrown away the block comments that said the <p> sat inside a core/quote. Quoted words are not the author's prose.
 		'The ledger was reopened in the spring, and nobody had expected what it showed.',
-		'Correction, they wrote in the margin, is the only honest form of revision there is.',
 	),
 	'an unclassed italic notice' => array(
 		'Correction, October 1, 2026: An earlier version of this note said the opposite.',
@@ -116,10 +115,7 @@ $want_paragraphs = array(
 	'a list and a paragraph inside details' => array(
 		'Inside the details block there is one more paragraph of ordinary prose to read.',
 	),
-	'a pullquote and a custom HTML block' => array(
-		'A pulled sentence that repeats the body and is long enough to count.',
-		'Correction, written by hand inside a custom HTML block, forty characters and more.',
-	),
+	'a pullquote and a custom HTML block' => array(), // The regex read both <p> elements: the pullquote's (a quote) and the one hand-written in a core/html block (not a paragraph block).
 	'a classic chunk between blocks' => array(
 		'The ledger was reopened in the spring, and nobody had expected what it showed.',
 		'Correction, typed into a Classic block years ago and never converted to a paragraph block.',
