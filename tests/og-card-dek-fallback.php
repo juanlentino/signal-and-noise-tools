@@ -25,6 +25,7 @@ function apply_filters( $tag, $value, $post = null ) {
 	if ( 'sn_seo_singular_og_image' === $tag ) {
 		return '' !== $GLOBALS['__ogimage'] ? $GLOBALS['__ogimage'] : $value;
 	}
+	foreach ( $GLOBALS['__filters'][ $tag ] ?? array() as $cb ) { $value = $cb( $value ); }
 	return $value;
 }
 // v9.84.0 ladder: the theme-fallback seam moves to apply_filters_deprecated.
@@ -38,7 +39,11 @@ function strip_shortcodes( $s ) { return $s; }
 function wp_strip_all_tags( $s ) { return $s; }
 function wp_trim_words( $s, $n = 55, $more = '...' ) { return trim( $s ); }
 function sn_post_settings_get_og_image_url( $id ) { return $GLOBALS['__override']; }
-function add_action() {} function add_filter() {}
+function add_action() {}
+// A registry, so the dek's render_block filter runs and its removal can be checked.
+$GLOBALS['__filters'] = array();
+function add_filter( $tag, $cb, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $tag ][] = $cb; return true; }
+function remove_filter( $tag, $cb, $p = 10 ) { $GLOBALS['__filters'][ $tag ] = array_values( array_filter( $GLOBALS['__filters'][ $tag ] ?? array(), static fn( $c ) => $c !== $cb ) ); return true; }
 
 // sn_og_image_url_for_post() is declared unguarded in the file, so we can't
 // stub it — instead drive it through its real dependencies. $GLOBALS['__resolved']
@@ -174,16 +179,18 @@ $dek_cases = array(
 );
 $want_dek = array(
 	'paragraphs only'               => 'First sentence with a link. Second sentence.',
-	'a buttons block first'         => 'Read the paper Two papers and a running series of notes.',
-	'an embed with a caption first' => 'https://video.example/v/1 The talk, recorded Two papers and a running series of notes.',
-	'an image with a caption first' => 'The 1954 ledger Two papers and a running series of notes.',
-	'a details block first'         => 'Method How the numbers were gathered. Two papers and a running series of notes.',
-	'a plugin block first'          => 'Updated in October. Two papers and a running series of notes.',
+	// The five below changed when the delimiter regex gave way to core's excerpt_remove_blocks(). The regex
+	// kept the text of every block; core keeps the blocks its own automatic excerpts treat as prose.
+	'a buttons block first'         => 'Two papers and a running series of notes.', // The regex answered 'Read the paper Two papers ...': a button label opened the dek.
+	'an embed with a caption first' => 'Two papers and a running series of notes.', // The regex answered 'https://video.example/v/1 The talk, recorded Two papers ...': the embed's URL and caption.
+	'an image with a caption first' => 'Two papers and a running series of notes.', // The regex answered 'The 1954 ledger Two papers ...': the image caption.
+	'a details block first'         => 'Two papers and a running series of notes.', // The regex answered 'Method How the numbers were gathered. Two papers ...': core/details is not on core's list.
+	'a plugin block first'          => 'Two papers and a running series of notes.', // The regex answered 'Updated in October. Two papers ...': no plugin block is on core's list.
 	'a void dynamic block first'    => 'Two papers and a running series of notes.',
 	'paragraphs inside a group'     => 'Inside the group. Two papers and a running series of notes.',
 	'paragraphs inside columns'     => 'Left column. Right column.',
 	'a quote, then prose'           => 'Quoted words. Someone Two papers and a running series of notes.',
-	'a list, then prose'            => 'One item Two papers and a running series of notes.',
+	'a list, then prose'            => 'Two papers and a running series of notes.', // The regex answered 'One item Two papers ...'. Core skips a list whose items are core/list-item blocks, in its own excerpts too.
 	'a leading heading in a group'  => 'On Provenance Two papers and a running series of notes.',
 	'a raw > in attribute JSON'     => 'Hand-edited markup. Two papers and a running series of notes.',
 	'multibyte text'                => 'Señal y ruido: dos artículos y una serie de notas 日本語.',
@@ -194,6 +201,7 @@ foreach ( $dek_cases as $name => $content ) {
 	$got = $sn_txt( sn_og_card_dek_source( (object) array( 'ID' => 40, 'post_excerpt' => '', 'post_content' => $content ) ) );
 	ok( ( $want_dek[ $name ] ?? null ) === $got, "dek: $name" . ( ( $want_dek[ $name ] ?? null ) === $got ? '' : ' (got ' . var_export( $got, true ) . ')' ) );
 }
+ok( array() === ( $GLOBALS['__filters']['render_block'] ?? array() ), 'the spacing filter on render_block is gone once the dek is derived' );
 
 echo "\nGroup: a page's card says what its description says (Unreleased)\n";
 $GLOBALS['__seo'] = array( 1184 => 'Founder and music executive, 15+ years.' );

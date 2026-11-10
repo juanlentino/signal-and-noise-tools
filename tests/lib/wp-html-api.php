@@ -70,7 +70,8 @@ if ( ! function_exists( 'snt_test_core_missing' ) ) {
 	 * Core's excerpt_remove_blocks(): the real source, cut out of
 	 * wp-includes/blocks.php (the file as a whole needs WP_Block and the block
 	 * registry). render_block() is the one stand-in, and answers as core does
-	 * for a static block: the saved markup, inner blocks in place.
+	 * for a static block: the saved markup, inner blocks in place, passed
+	 * through the render_block filter.
 	 */
 	function snt_test_load_excerpt_remove_blocks() {
 		snt_test_load_block_parser();
@@ -95,7 +96,7 @@ if ( ! function_exists( 'snt_test_core_missing' ) ) {
 				foreach ( $block['innerContent'] as $chunk ) {
 					$out .= is_string( $chunk ) ? $chunk : render_block( $block['innerBlocks'][ $i++ ] );
 				}
-				return $out;
+				return apply_filters( 'render_block', $out, $block );
 			}
 		}
 	}
