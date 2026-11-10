@@ -2,6 +2,11 @@
 /**
  * Signal & Noise Tools — ai/ai duplicate-feature dedupe.
  *
+ * 2026-11-09: THE TWO DUPLICATE BLOCKS BELOW ARE GONE. The official excerpt
+ * and meta description generators run again, with S&N's storage and voice
+ * attached by hook (inc/ai-official-generators.php). What follows about those
+ * two is history; the four locks further down are live.
+ *
  * The upstream "AI" plugin (folder/file ai/ai; all six ids below re-read at
  * 1.5.0 on 2026-11-09) ships two editor
  * features that DUPLICATE Signal & Noise's own generators:
@@ -76,8 +81,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-add_filter( 'wpai_feature_meta-description_enabled', '__return_false' );
-add_filter( 'wpai_feature_excerpt-generation_enabled', '__return_false' );
+// 2026-11-09: meta-description and excerpt-generation are no longer switched
+// off. The official generators run with S&N attached (inc/ai-official-generators.php).
 add_filter( 'wpai_feature_editorial-updates_enabled', '__return_false' );
 add_filter( 'wpai_feature_editorial-notes_enabled', '__return_false' );
 add_filter( 'wpai_feature_webmcp_enabled', '__return_false' );
