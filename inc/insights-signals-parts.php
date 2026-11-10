@@ -136,54 +136,63 @@ function snt_insights_collect_signals() {
 	$out['search'] = snt_insights_search_section( function_exists( 'snt_gsc_data' ) ? snt_gsc_data() : null, function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, $search_map );
 
 	// ── 3. Post list (published, post/page, < 2yo) ──
-	global $wpdb;
-	$cutoff_gmt = gmdate( 'Y-m-d H:i:s', time() - ( SN_INSIGHTS_POST_MAX_AGE_DAYS * DAY_IN_SECONDS ) );
-	$post_rows = $wpdb->get_results( $wpdb->prepare(
-		"SELECT ID, post_title, post_name, post_status, post_type, post_date_gmt, post_modified_gmt
-		 FROM {$wpdb->posts}
-		 WHERE post_status = 'publish'
-		   AND post_type IN ('post','page')
-		   AND post_date_gmt >= %s
-		 LIMIT 500",
-		$cutoff_gmt
-	), ARRAY_A );
+	// Core's get_posts(), so the rows arrive with the post and term caches
+	// primed for get_permalink() and wp_get_post_terms() below. The cutoff is
+	// handed over as UTC date parts: core parses a date STRING in the site's
+	// zone, and post_date_gmt is not in it.
+	$cutoff_ts = time() - ( SN_INSIGHTS_POST_MAX_AGE_DAYS * DAY_IN_SECONDS );
+	$post_rows = get_posts( array(
+		'post_type'      => array( 'post', 'page' ),
+		'post_status'    => 'publish',
+		'posts_per_page' => 500,
+		'orderby'        => 'date',
+		'order'          => 'DESC',
+		'no_found_rows'  => true,
+		'date_query'     => array(
+			array(
+				'column'    => 'post_date_gmt',
+				'after'     => array_combine( array( 'year', 'month', 'day', 'hour', 'minute', 'second' ), array_map( 'intval', explode( ' ', gmdate( 'Y n j G i s', $cutoff_ts ) ) ) ),
+				'inclusive' => true,
+			),
+		),
+	) );
 
 	$posts = array();
 	if ( is_array( $post_rows ) ) {
 		foreach ( $post_rows as $r ) {
-			$slug = (string) $r['post_name'];
-			$published_ts = strtotime( $r['post_date_gmt'] . ' UTC' );
-			$modified_ts  = strtotime( $r['post_modified_gmt'] . ' UTC' );
+			$slug = (string) $r->post_name;
+			$published_ts = strtotime( $r->post_date_gmt . ' UTC' );
+			$modified_ts  = strtotime( $r->post_modified_gmt . ' UTC' );
 
 			// Defense-in-depth: also enforce the age cap in PHP, so the
-			// impl is robust even if the SQL WHERE clause doesn't filter
-			// (e.g. wpdb mock in tests).
-			if ( $published_ts < time() - ( SN_INSIGHTS_POST_MAX_AGE_DAYS * DAY_IN_SECONDS ) ) {
+			// impl is robust even if the date_query does not filter
+			// (e.g. the get_posts stand-in in tests).
+			if ( $published_ts < $cutoff_ts ) {
 				continue;
 			}
 
 			$tags = array();
 			$cats = array();
 			if ( function_exists( 'wp_get_post_terms' ) ) {
-				$tag_terms = wp_get_post_terms( (int) $r['ID'], 'post_tag', array( 'fields' => 'names' ) );
-				$cat_terms = wp_get_post_terms( (int) $r['ID'], 'category', array( 'fields' => 'names' ) );
+				$tag_terms = wp_get_post_terms( (int) $r->ID, 'post_tag', array( 'fields' => 'names' ) );
+				$cat_terms = wp_get_post_terms( (int) $r->ID, 'category', array( 'fields' => 'names' ) );
 				$tags = is_array( $tag_terms ) ? array_values( $tag_terms ) : array();
 				$cats = is_array( $cat_terms ) ? array_values( $cat_terms ) : array();
 			}
 
-			$permalink = get_permalink( (int) $r['ID'] );
+			$permalink = get_permalink( (int) $r->ID );
 			$permalink_path = snt_insights_join_key( (string) $permalink ); // v13.57.0: the weave key, same as views_map/search_map.
 
 			$posts[] = array(
-				'id'                   => (int) $r['ID'],
-				'title'                => (string) $r['post_title'],
+				'id'                   => (int) $r->ID,
+				'title'                => (string) $r->post_title,
 				'slug'                 => $slug,
 				'url'                  => $permalink,
 				'published'            => gmdate( 'Y-m-d', $published_ts ),
 				'modified'             => gmdate( 'Y-m-d', $modified_ts ),
 				'days_since_publish'   => (int) floor( ( time() - $published_ts ) / DAY_IN_SECONDS ),
 				'days_since_modified'  => (int) floor( ( time() - $modified_ts ) / DAY_IN_SECONDS ),
-				'type'                 => (string) $r['post_type'],
+				'type'                 => (string) $r->post_type,
 				'tags'                 => $tags,
 				'categories'           => $cats,
 				'views_7d'             => isset( $views_map[ $permalink_path ] ) ? (int) $views_map[ $permalink_path ] : 0,
@@ -276,6 +285,7 @@ function snt_insights_collect_signals() {
 	);
 
 	// ── 5. Cron freshness — query the snt_cron_history table ──
+	global $wpdb;
 	$out['cron_freshness'] = array();
 	$table = $wpdb->prefix . 'snt_cron_history';
 	// fired_at is stored as a UTC DATETIME string (cron-history writes gmdate).

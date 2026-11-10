@@ -105,6 +105,63 @@ function snt_corpus_fetch_posts( $status = 'any', $post_type = 'post' ) {
 }
 
 /**
+ * A UTC instant as the array form WP_Date_Query takes for `after`/`before`.
+ *
+ * Core parses a date STRING in the site's zone (build_mysql_datetime), which
+ * moves a UTC wall-clock time that falls in the zone's spring-forward gap.
+ * The array form is formatted as given, so it is safe against a *_gmt column.
+ *
+ * @param int $ts Unix timestamp.
+ * @return array{year:int,month:int,day:int,hour:int,minute:int,second:int}
+ */
+function snt_corpus_gmt_date_parts( $ts ) {
+	return array_combine(
+		array( 'year', 'month', 'day', 'hour', 'minute', 'second' ),
+		array_map( 'intval', explode( ' ', gmdate( 'Y n j G i s', (int) $ts ) ) )
+	);
+}
+
+/**
+ * One page of the posts modified at or after a UTC instant, newest modified
+ * first, with the total match count. Core does the filter, the order and the
+ * page (WP_Query; get_posts() cannot report found_posts).
+ *
+ * Order is `modified` DESC then ID DESC. Core sorts `modified` on the
+ * site-local post_modified column, which agrees with UTC order except inside
+ * the one repeated hour when the site's zone leaves daylight time.
+ *
+ * @param string   $post_type Post type slug.
+ * @param int      $since_ts  Unix timestamp, inclusive.
+ * @param string[] $statuses  Post statuses to include.
+ * @param int      $offset    Rows to skip.
+ * @param int      $max       Page size.
+ * @return array{posts:WP_Post[],total:int}
+ */
+function snt_corpus_modified_since_page( $post_type, $since_ts, array $statuses, $offset, $max ) {
+	$run = static function ( $offset, $max, $fields ) use ( $post_type, $since_ts, $statuses ) {
+		return new WP_Query( array(
+			'post_type'           => $post_type,
+			'post_status'         => $statuses,
+			'date_query'          => array( array( 'column' => 'post_modified_gmt', 'after' => snt_corpus_gmt_date_parts( $since_ts ), 'inclusive' => true ) ),
+			'orderby'             => array( 'modified' => 'DESC', 'ID' => 'DESC' ),
+			'posts_per_page'      => $max,
+			'offset'              => $offset,
+			'fields'              => $fields,
+			'ignore_sticky_posts' => true,
+			'suppress_filters'    => true,
+		) );
+	};
+	$query = $run( max( 0, (int) $offset ), (int) $max, '' );
+	$total = (int) $query->found_posts;
+	// Core leaves found_posts at 0 when the page itself is empty, so a cursor
+	// past the end would hide the real total from the content cap.
+	if ( $offset > 0 && array() === $query->posts ) {
+		$total = (int) $run( 0, 1, 'ids' )->found_posts;
+	}
+	return array( 'posts' => $query->posts, 'total' => $total );
+}
+
+/**
  * Excerpt for a post: the manual excerpt when set, else a 55-word trim of
  * the content with block comments and HTML stripped. Never the full body.
  *

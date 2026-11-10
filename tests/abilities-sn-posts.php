@@ -109,6 +109,9 @@ if ( ! function_exists( 'get_post_meta' ) ) {
 	function get_post_meta( $id, $key = '', $single = false ) { return $GLOBALS['__meta'][ (int) $id ][ $key ] ?? ''; }
 }
 
+// modified_since asks core (WP_Query) for its page; the stand-in reads the
+// same fixture registry. Pinned in full by abilities-sn-posts-modified-since.php.
+require __DIR__ . '/lib/wp-query-corpus-stub.php';
 require __DIR__ . '/../inc/corpus-inspect.php';
 require __DIR__ . '/../inc/abilities-sn-posts.php';
 // The thresholds surface_checks grades by, loaded the way production loads them.

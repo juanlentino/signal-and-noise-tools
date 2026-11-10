@@ -82,6 +82,10 @@ function tf_post( $id, $status, $content, $extra = array() ) {
 	return $p;
 }
 
+require_once __DIR__ . '/lib/wp-query-corpus-stub.php'; // tf_date_query_pass()
+if ( ! function_exists( 'get_post_stati' ) ) {
+	function get_post_stati() { return array( 'publish' => 'publish', 'draft' => 'draft', 'inherit' => 'inherit', 'trash' => 'trash' ); }
+}
 $GLOBALS['__posts'] = array();
 // Nondeterminism injection for the duplicate_body ordering regression
 // (adversarial review MEDIUM 1): when set, these two post IDs (same
@@ -96,8 +100,18 @@ $GLOBALS['__dup_flip_call'] = 0;
 if ( ! function_exists( 'get_posts' ) ) {
 	function get_posts( $args ) {
 		$out = array();
+		// The scope resolver's orphan_media query: image attachments by upload
+		// date, read from the same rows the $wpdb stub serves the detector.
+		if ( 'attachment' === ( $args['post_type'] ?? '' ) ) {
+			foreach ( $GLOBALS['__attachments'] as $a ) {
+				if ( tf_date_query_pass( $a, $args ) ) { $out[] = $a['ID']; }
+			}
+			sort( $out );
+			return $out;
+		}
 		foreach ( $GLOBALS['__posts'] as $p ) {
 			$want_type = $args['post_type'] ?? 'post';
+			if ( ! tf_date_query_pass( $p, $args ) ) { continue; }
 			// #1197: real get_posts() treats post_type 'any' as a WILDCARD
 			// (every registered type), not a literal type name — the stub
 			// modeled it as a literal and would silently hide the em-dash
@@ -297,7 +311,9 @@ class SN_Test_Wpdb_Scan {
 		if ( false !== strpos( $sql, '_thumbnail_id' ) ) {
 			return $GLOBALS['__featured'];
 		}
-		// The scope resolver's modified_since query: post_date_gmt >= cutoff.
+		// The scope resolver's PRE-core modified_since query: post_date_gmt >=
+		// cutoff. Counted, so the suite can pin that it no longer runs.
+		$GLOBALS['__scope_raw_sql'] = ( $GLOBALS['__scope_raw_sql'] ?? 0 ) + 1;
 		$cutoff = $this->last_quoted( $sql );
 		return array_values( array_map( static function ( $a ) { return $a['ID']; }, array_filter( $GLOBALS['__attachments'], static function ( $a ) use ( $cutoff ) {
 			return $a['post_date_gmt'] >= $cutoff;
@@ -520,7 +536,29 @@ ok( is_wp_error( $bad_since ) && 'snt_scan_bad_scope' === $bad_since->get_error_
 $GLOBALS['__posts'][304] = tf_post( 304, 'publish', json_encode( array() ), array( 'title' => 'Boundary post', 'slug' => 'boundary-post', 'modified' => '2026-08-31 21:00:00', 'modified_gmt' => '2026-09-01 01:00:00' ) );
 $since_ids = snt_sn_scan_resolve_scope( array( 'kind' => 'modified_since', 'modified_since' => '2026-09-01T00:00:00Z' ), 'block_migrations' );
 ok( is_array( $since_ids ) && in_array( 304, $since_ids, true ), 'a post modified after the UTC cutoff (but whose LOCAL clock reads earlier) resolves as included' );
-unset( $GLOBALS['__posts'][304] );
+
+// The resolved id SET is pinned exactly: a post modified one second before the
+// cutoff, a trashed post and a page all stay out; the cutoff instant is in.
+$GLOBALS['__posts'][305] = tf_post( 305, 'draft', json_encode( array() ), array( 'modified' => '2026-08-31 19:59:59', 'modified_gmt' => '2026-08-31 23:59:59' ) );
+$GLOBALS['__posts'][306] = tf_post( 306, 'trash', json_encode( array() ), array( 'modified' => '2026-09-02 10:00:00', 'modified_gmt' => '2026-09-02 14:00:00' ) );
+$GLOBALS['__posts'][307] = tf_post( 307, 'publish', json_encode( array() ), array( 'post_type' => 'page', 'modified' => '2026-09-02 10:00:00', 'modified_gmt' => '2026-09-02 14:00:00' ) );
+$GLOBALS['__posts'][308] = tf_post( 308, 'private', json_encode( array() ), array( 'modified' => '2026-08-31 20:00:00', 'modified_gmt' => '2026-09-01 00:00:00' ) );
+$since_set = snt_sn_scan_resolve_scope( array( 'kind' => 'modified_since', 'modified_since' => '2026-09-01T00:00:00Z' ), 'block_migrations' );
+sort( $since_set );
+ok( array( 304, 308 ) === $since_set, 'modified_since resolves to exactly the corpus posts modified at or after the UTC cutoff (got ' . json_encode( $since_set ) . ')' );
+unset( $GLOBALS['__posts'][304], $GLOBALS['__posts'][305], $GLOBALS['__posts'][306], $GLOBALS['__posts'][307], $GLOBALS['__posts'][308] );
+
+// orphan_media resolves to IMAGE ATTACHMENT ids by upload date (post_date_gmt).
+$GLOBALS['__attachments'] = array(
+	array( 'ID' => 711, 'post_title' => 'Before', 'guid' => 'https://example.test/uploads/before.jpg', 'post_date_gmt' => '2026-08-31 23:59:59' ),
+	array( 'ID' => 712, 'post_title' => 'On it',  'guid' => 'https://example.test/uploads/on.jpg',     'post_date_gmt' => '2026-09-01 00:00:00' ),
+	array( 'ID' => 713, 'post_title' => 'After',  'guid' => 'https://example.test/uploads/after.jpg',  'post_date_gmt' => '2026-09-03 08:00:00' ),
+);
+$GLOBALS['__scope_raw_sql'] = 0;
+$om_since = snt_sn_scan_resolve_scope( array( 'kind' => 'modified_since', 'modified_since' => '2026-09-01T00:00:00Z' ), 'orphan_media' );
+ok( array( 712, 713 ) === $om_since, 'orphan_media modified_since resolves to the attachments uploaded at or after the UTC cutoff, as ints (got ' . json_encode( $om_since ) . ')' );
+ok( 0 === $GLOBALS['__scope_raw_sql'], 'orphan_media modified_since asks core (get_posts + date_query), not a raw $wpdb SELECT on wp_posts' );
+$GLOBALS['__attachments'] = array();
 
 $bad_cursor = snt_ability_sn_scan( array( 'scan_type' => 'block_migrations', 'cursor' => '***' ) );
 ok( is_wp_error( $bad_cursor ) && 'snt_scan_bad_cursor' === $bad_cursor->get_error_code(), 'malformed cursor is rejected (422)' );

@@ -28,8 +28,13 @@ add_action( 'wp_abilities_api_init', function() {
 		'input_schema'        => array(
 			// v2.5.4: accept null because the abilities-api REST controller
 			// passes null when the GET/DELETE caller omits the `?input=`
-			// query parameter (the only way to avoid the controller's
-			// missing JSON-decode step rejecting URL-encoded "{}" strings).
+			// query parameter. The union is one way to let that validate,
+			// not the only one: since WordPress 6.9 WP_Ability::normalize_input()
+			// swaps a null input for the schema's top-level `default` before
+			// validation (the run controller and execute() both call it), so
+			// 'type' => 'object' with 'default' => array() does the same job
+			// and is what core's own abilities declare. The union stays for
+			// now; moving every registration is its own change.
 			'type'                 => array( 'object', 'null' ),
 			'properties'           => array(
 				'include_template_overrides' => array(
