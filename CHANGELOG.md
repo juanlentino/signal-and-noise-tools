@@ -16,7 +16,7 @@ adds a bullet below. A release is a separate, deliberate act:
 - **Core-first audit, part 2: core features this plugin had switched off work again, and API detours go through core.**
   - Signed in, `/admin`, `/login` and `/dashboard` are core's shortcuts again; a visitor who is not signed in still gets the same 404.
   - Settings > Writing > Default Post Category sticks: the plugin sets it once at setup instead of rewriting it on every admin load. The permalink structure is set through `$wp_rewrite`.
-  - A post split with page breaks gets the page in its title ("Title — Site — Page 2"); every other title is unchanged.
+  - A post split with page breaks gets its page number in the title ("Page 2"); every other title is unchanged.
   - Site name, tagline and locale in Signal & Noise settings are an override of Settings > General: an empty value, or one equal to core's, reads core live. Nothing changes until the Identity form is saved again.
   - Analytics "today" is the site's day everywhere: "Today so far" no longer disappears in the evening, and a custom window cannot end tomorrow.
   - A note's Last-Modified and 304 answer are no longer sent to signed-in or password-protected views, where core strips them.
