@@ -28,6 +28,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 function snt_html_span_processor( $html ) {
 	return new class( (string) $html ) extends WP_HTML_Tag_Processor {
 		/**
+		 * Tokens stepped through by every processor this helper made, so a test
+		 * can count a reader's cost instead of timing it.
+		 *
+		 * @var int
+		 */
+		public static $tokens_visited = 0;
+
+		/**
+		 * Core's next_token(), counted. next_tag() steps through here too.
+		 *
+		 * @return bool Whether a token was found.
+		 */
+		public function next_token(): bool {
+			++self::$tokens_visited;
+			return parent::next_token();
+		}
+
+		/**
 		 * The byte range of the token the processor is paused on.
 		 *
 		 * @return array{0:int,1:int} Start and exclusive end.
