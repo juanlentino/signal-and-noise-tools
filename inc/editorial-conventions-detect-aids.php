@@ -18,6 +18,8 @@
  * Every helper reads SERIALIZED markup (serialize_block() of the top-level
  * block), so it behaves the same under core's nested parser and the flat
  * fixture parser the standalone suites use.
+ * Tags and attributes are read with core's WP_HTML_Tag_Processor and group
+ * delimiters with core's WP_Block_Processor.
  *
  * @package SignalNoiseTools
  */
@@ -25,6 +27,8 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+require_once __DIR__ . '/html-token-spans.php'; // snt_html_elements(): the table's <thead> as core reads it.
 
 /**
  * Whether a list item's opening text is a date: a month name followed by a
@@ -70,20 +74,19 @@ function snt_editorial_list_item_openers( $markup ) {
  * @return int
  */
 function snt_editorial_nested_same_class( $markup, $class ) {
-	if ( ! preg_match_all( '#<!--\s+(/)?wp:group(?:\s+(\{.*?\}))?\s+(/)?-->#s', (string) $markup, $m, PREG_SET_ORDER ) ) {
-		return 0;
-	}
-	$stack  = array();
-	$nested = 0;
-	foreach ( $m as $tok ) {
-		if ( '' !== ( $tok[1] ?? '' ) ) {
+	$stack     = array();
+	$nested    = 0;
+	$processor = new WP_Block_Processor( (string) $markup );
+	while ( $processor->next_delimiter( 'core/group' ) ) {
+		$type = $processor->get_delimiter_type();
+		if ( WP_Block_Processor::CLOSER === $type ) {
 			array_pop( $stack );
 			continue;
 		}
-		if ( '' !== ( $tok[3] ?? '' ) ) {
+		if ( WP_Block_Processor::VOID === $type ) {
 			continue; // A void group has no children.
 		}
-		$attrs = '' !== ( $tok[2] ?? '' ) ? json_decode( $tok[2], true ) : array();
+		$attrs = $processor->allocate_and_return_parsed_attributes();
 		$cn    = is_array( $attrs ) ? trim( (string) ( $attrs['className'] ?? '' ) ) : '';
 		$has   = '' !== $cn && in_array( $class, preg_split( '/\s+/', $cn ), true );
 		if ( $has && in_array( true, $stack, true ) ) {
@@ -102,15 +105,39 @@ function snt_editorial_nested_same_class( $markup, $class ) {
  * @return array{thead:bool,th:int,th_without_scope:int}
  */
 function snt_editorial_table_header( $html ) {
-	if ( ! preg_match( '#<thead\b[^>]*>(.*?)</thead>#is', (string) $html, $m ) ) {
+	$html  = (string) $html;
+	$thead = snt_html_elements( $html, array( 'THEAD' ) )[0] ?? null;
+	if ( null === $thead ) {
 		return array( 'thead' => false, 'th' => 0, 'th_without_scope' => 0 );
 	}
-	preg_match_all( '#<th\b([^>]*)>#i', $m[1], $th );
-	$without = 0;
-	foreach ( $th[1] as $attrs ) {
-		if ( ! preg_match( '/\bscope\s*=\s*"col"/i', $attrs ) ) {
+	$th        = 0;
+	$without   = 0;
+	$processor = new WP_HTML_Tag_Processor( substr( $html, $thead['open_end'], $thead['close_start'] - $thead['open_end'] ) );
+	while ( $processor->next_tag( 'TH' ) ) {
+		++$th;
+		$scope = $processor->get_attribute( 'scope' );
+		if ( ! is_string( $scope ) || 'col' !== strtolower( $scope ) ) {
 			++$without;
 		}
 	}
-	return array( 'thead' => count( $th[1] ) > 0, 'th' => count( $th[1] ), 'th_without_scope' => $without );
+	return array( 'thead' => $th > 0, 'th' => $th, 'th_without_scope' => $without );
+}
+
+/**
+ * What an inline SVG figure's <svg> tags lack of the two accessibility
+ * attributes the house form carries: role="img" and aria-labelledby.
+ *
+ * @param string $html A core/html block's markup.
+ * @return string[] Any of 'role="img"', 'aria-labelledby'.
+ */
+function snt_editorial_svg_missing_attributes( $html ) {
+	$has_role  = false;
+	$has_label = false;
+	$processor = new WP_HTML_Tag_Processor( (string) $html );
+	while ( $processor->next_tag( 'SVG' ) ) {
+		$role      = $processor->get_attribute( 'role' );
+		$has_role  = $has_role || ( is_string( $role ) && 'img' === strtolower( $role ) );
+		$has_label = $has_label || is_string( $processor->get_attribute( 'aria-labelledby' ) );
+	}
+	return array_merge( $has_role ? array() : array( 'role="img"' ), $has_label ? array() : array( 'aria-labelledby' ) );
 }

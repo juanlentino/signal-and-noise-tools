@@ -28,6 +28,7 @@ function snt_corpus_fetch_posts( $status = 'any', $post_type = 'post' ) {
 function snt_corpus_content_hash( $c ) { return md5( $c ); }
 function wp_strip_all_tags( $s ) { return strip_tags( $s ); }
 
+require_once __DIR__ . '/lib/wp-core-blocks.php'; // The code under test reads markup with core's HTML API and block processor.
 require_once __DIR__ . '/lib/block-parser-fixture.php';
 require_once __DIR__ . '/../inc/block-fingerprint-engine.php';
 require_once __DIR__ . '/../inc/editorial-conventions-detect.php';

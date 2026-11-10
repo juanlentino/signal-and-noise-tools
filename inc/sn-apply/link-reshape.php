@@ -47,6 +47,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // context_snippet disambiguation window, in bytes around the candidate tag.
+require_once dirname( __DIR__ ) . '/html-token-spans.php'; // snt_html_span_processor(): where each <a> opening tag sits.
+
 const SNT_SN_APPLY_LINK_RESHAPE_CONTEXT_WINDOW = 250;
 
 /**
@@ -111,19 +113,26 @@ function snt_sn_apply_link_reshape_pair_error( $current_anchor, $new_anchor ) {
  */
 function snt_sn_apply_link_reshape_locate( $content, $current_anchor, $context_snippet = '' ) {
 	$content = (string) $content;
-	$pattern = '#(<a\b[^>]*>)' . preg_quote( (string) $current_anchor, '#' ) . '</a>#s';
+	$needle  = (string) $current_anchor . '</a>';
+	$matches = array();
 
-	if ( ! preg_match_all( $pattern, $content, $m, PREG_OFFSET_CAPTURE ) ) {
-		return new WP_Error( 'snt_sn_apply_anchor_not_found', __( 'No <a> element with exactly this inner text exists in the post content — the match is byte-exact, entities included. Copy current_anchor verbatim from sn_posts\' content field (text between the tags only).', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
+	// Core's tag processor finds each <a> opening tag (a ">" in an attribute
+	// value, a tag inside a comment or another tag's attribute are read as a
+	// browser reads them); the inner text and its closer stay a byte compare.
+	$processor = snt_html_span_processor( $content );
+	while ( $processor->next_tag( 'A' ) ) {
+		list( $start, $end ) = $processor->token_span();
+		if ( 0 === substr_compare( $content, $needle, $end, strlen( $needle ) ) ) {
+			$matches[] = array(
+				'offset'   => $start,
+				'length'   => $end - $start + strlen( $needle ),
+				'open_tag' => substr( $content, $start, $end - $start ),
+			);
+		}
 	}
 
-	$matches = array();
-	foreach ( $m[0] as $i => $full ) {
-		$matches[] = array(
-			'offset'   => (int) $full[1],
-			'length'   => strlen( $full[0] ),
-			'open_tag' => (string) $m[1][ $i ][0],
-		);
+	if ( ! $matches ) {
+		return new WP_Error( 'snt_sn_apply_anchor_not_found', __( 'No <a> element with exactly this inner text exists in the post content — the match is byte-exact, entities included. Copy current_anchor verbatim from sn_posts\' content field (text between the tags only).', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 
 	if ( count( $matches ) > 1 && '' !== (string) $context_snippet ) {
