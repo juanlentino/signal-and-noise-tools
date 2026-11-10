@@ -39,6 +39,38 @@ function sn_mask_secret( $value ) {
 }
 
 /**
+ * Core's own value for an identity field S&N can override: the site name,
+ * the tagline and the Site Language on Settings > General. The S&N fields
+ * are an override of these, not a second copy (2026-11-10).
+ *
+ * @param string $key 'site_name', 'site_description' or 'locale'.
+ * @return string
+ */
+function sn_settings_identity_core( $key ) {
+	if ( 'locale' === $key ) {
+		return function_exists( 'get_locale' ) ? (string) get_locale() : 'en_US';
+	}
+	// Core stores both through esc_html() (sanitize_option()), so the raw
+	// option reads "A &amp; B". Decoded here: the value is compared with what
+	// the form sends and goes into JSON-LD and og tags, which escape it again.
+	$value = (string) get_bloginfo( 'site_name' === $key ? 'name' : 'description' );
+	return function_exists( 'wp_specialchars_decode' ) ? wp_specialchars_decode( $value, ENT_QUOTES ) : $value;
+}
+
+/**
+ * The stored override for that field: '' when nothing is stored, or when the
+ * stored value only repeats core (a copy saved before 2026-11-10).
+ *
+ * @param string $key 'site_name', 'site_description' or 'locale'.
+ * @return string
+ */
+function sn_settings_identity_override( $key ) {
+	$stored = (array) get_option( SN_SETTINGS_OPTION, array() );
+	$value  = (string) ( $stored['identity'][ $key ] ?? '' );
+	return sn_settings_identity_core( $key ) === $value ? '' : $value;
+}
+
+/**
  * Full settings schema with generic defaults.
  *
  * Defaults are intentionally NOT site-specific. The juanlentino.com
@@ -50,10 +82,10 @@ function sn_mask_secret( $value ) {
 function sn_settings_defaults() {
 	return array(
 		'identity' => array(
-			'site_name'        => get_bloginfo( 'name' ),
-			'site_description' => get_bloginfo( 'description' ),
+			'site_name'        => sn_settings_identity_core( 'site_name' ),
+			'site_description' => sn_settings_identity_core( 'site_description' ),
 			'person_name'      => get_bloginfo( 'name' ),
-			'locale'           => 'en_US',
+			'locale'           => sn_settings_identity_core( 'locale' ),
 			// v6.17.0 (D5): owner-edited availability line surfaced in the
 			// Contact/Services hero (theme's [sn_availability] shortcode). Empty
 			// = hidden. Lives in the identity subtree (written by the Identity

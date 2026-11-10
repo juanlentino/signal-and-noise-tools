@@ -230,8 +230,9 @@ function sn_seo_meta_for_current_view() {
 		// got.
 		//
 		// TITLE IS DELIBERATELY LEFT EMPTY. The document_title_parts filter
-		// below returns WP's own parts untouched when this is '', and WP's
-		// default is already the correct "Notes — <Tag> — Juan Lentino".
+		// below returns WP's own parts untouched when this is '', and the
+		// theme's pre_get_document_title already supplies the correct
+		// "Notes — <Tag> — Juan Lentino" (it is the theme's, not core's default).
 		// Setting a title here would REPLACE that string, so the safe fix
 		// supplies only what is actually missing.
 		//

@@ -26,6 +26,8 @@ $root = dirname( __DIR__ );
 $skip = array(
 	// Not a painted value: the palette's entity-decoding table.
 	'assets/command-palette.js' => 'maps &#8212; to the character it decodes to',
+	// Not a painted value: what core joins the <title> parts with.
+	'inc/seo-head-parts.php'    => 'the document title separator',
 );
 $dash = '/^([\'"])(—|&mdash;|\\\\u2014|&#8212;)\1$/u';
 $bad  = array();
