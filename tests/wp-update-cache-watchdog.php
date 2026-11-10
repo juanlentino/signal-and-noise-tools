@@ -134,7 +134,7 @@ ok( in_array( 'sn_plugin_update_drop_stale', $GLOBALS['__filters']['site_transie
 
 // ── 6. Core's refresh clears our tag cache too (the phone's Plugins Refresh) ──
 // wp_clean_plugins_cache(true) deletes update_plugins, then wp_update_plugins()
-// rebuilds it through pre_set_site_transient_update_plugins. Without this the
+// rebuilds it, asking update_plugins_github.com for the offer. Without this the
 // rebuild read a tag cached for up to an hour and core then held it for 12h.
 $GLOBALS['__site_trans'] = array( SN_GH_PLUGIN_CACHE_KEY => 'v1.0.0', 'sn_gh_latest_theme' => 'v1.0.0' );
 delete_site_transient( 'update_plugins' );
