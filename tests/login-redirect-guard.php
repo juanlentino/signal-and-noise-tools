@@ -44,5 +44,19 @@ ok( 1 === preg_match( '/function sn_login_guard_redirect\(.*?sn_login_send_404\(
 ok( 1 === preg_match( '/function sn_login_send_404\(\).*?get_query_template\( .404. \).*?if \( .. !== \$tpl/s', $src ), 'the 404 includes the theme template only when there is one' );
 ok( 0 === preg_match( '/include get_query_template\( .404. \)/', $src ), 'no bare include of get_query_template() is left anywhere in the file' );
 
+// The guard itself, signed in: /login stays a 404, /admin keeps core's shortcut.
+if ( function_exists( 'sn_login_redirect_reveals_door' ) ) {
+	if ( ! function_exists( 'wp_unslash' ) ) { function wp_unslash( $v ) { return $v; } }
+	if ( ! function_exists( 'sn_login_get_slug' ) ) { function sn_login_get_slug() { return 'door-k7'; } }
+	if ( ! function_exists( 'is_user_logged_in' ) ) { function is_user_logged_in() { return true; } }
+	if ( ! function_exists( 'sn_login_send_404' ) ) { function sn_login_send_404() { throw new RuntimeException( '404' ); } }
+	preg_match( '/function sn_login_guard_redirect\(.*?\n}\n/s', $src, $g );
+	eval( $g[0] ); // phpcs:ignore -- test-only.
+	$guard = static function ( $uri, $loc ) { $_SERVER['REQUEST_URI'] = $uri; try { return sn_login_guard_redirect( $loc ); } catch ( RuntimeException $e ) { return '404'; } };
+	ok( '404' === $guard( '/login', 'https://site.test/door-k7' ) && '404' === $guard( '/login/', 'https://site.test/door-k7/' ), 'signed in, /login still answers 404: a 302 to the door on a public path could be cached and served to a stranger' );
+	ok( 'https://site.test/wp-admin/' === $guard( '/admin', 'https://site.test/wp-admin/' ), "signed in, /admin keeps core's shortcut to /wp-admin/" );
+	ok( 'https://site.test/door-k7?redirect_to=x' === $guard( '/wp-admin/customize.php', 'https://site.test/door-k7?redirect_to=x' ), 'signed in, any other redirect to the door is left alone' );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
