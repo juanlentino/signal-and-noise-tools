@@ -153,10 +153,13 @@ if ( ! function_exists( 'snt_audit_get_summary_impl' ) ) {
 $GLOBALS['__ai_calls']    = 0;
 $GLOBALS['__ai_response'] = '{"headline":"Views up 12% to 1,430","paragraphs":["Traffic rose this week.","/notes/x led with 420 views."],"highlights":["views +12% to 1,430","top source: Hacker News (210)"]}';
 if ( ! function_exists( 'snt_ai_generate_with_constraints' ) ) {
-	function snt_ai_generate_with_constraints( $prompt, $system, $max = 256, $feature = 'generic' ) {
+	function snt_ai_generate_with_constraints( $prompt, $system, $max = 256, $feature = 'generic', $image_path = '', $image_mime = '', $options = array(), $json_schema = array(), &$structured = null ) {
 		$GLOBALS['__ai_calls']++;
 		$GLOBALS['__last_ai_feature'] = $feature;
 		$GLOBALS['__last_ai_max']     = $max;
+		$GLOBALS['__last_ai_schema']  = $json_schema;
+		// The wrapper reports whether the response came back under the schema.
+		$structured = ! empty( $GLOBALS['__ai_structured'] );
 		return $GLOBALS['__ai_response'];
 	}
 }
@@ -490,6 +493,46 @@ ok( is_array( $p2 ) && 'A steady week' === ( $p2['headline'] ?? null ), 'preambl
 echo "\nTest: unsalvageable truncation (no complete paragraph) → WP_Error\n";
 $tooshort = '{"headline":"A quiet week","paragraphs":["Overall activity grew modest';
 ok( is_wp_error( snt_narration_parse_response( $tooshort ) ), 'no complete paragraph → WP_Error (honest, never fabricated)' );
+
+// ── Structured JSON output (core-first audit finding 20) ──
+// The digest asks the AI Client for JSON against a schema. A response that came
+// back under it is decoded as-is: no fence strip, no truncation salvage. The
+// salvage stays for the plain-text fallback the wrapper retries with.
+echo "\nTest: the digest asks for JSON against its schema\n";
+$schema = function_exists( 'snt_narration_response_schema' ) ? snt_narration_response_schema() : null;
+ok( is_array( $schema ) && 'object' === $schema['type'] && array( 'headline', 'paragraphs', 'highlights' ) === $schema['required'] && false === $schema['additionalProperties'], 'the schema is the {headline, paragraphs, highlights} object, closed' );
+ok( is_array( $schema ) && 'string' === $schema['properties']['paragraphs']['items']['type'] && 'string' === $schema['properties']['highlights']['items']['type'], 'paragraphs and highlights are string arrays' );
+$GLOBALS['__last_ai_schema'] = null;
+snt_narration_call_ai( array( 'window' => array( 'days' => 7 ) ) );
+ok( is_array( $schema ) && $schema === $GLOBALS['__last_ai_schema'], 'snt_narration_call_ai hands the schema to the wrapper' );
+
+echo "\nTest: a structured digest parses without salvage\n";
+$sp = snt_narration_parse_response( '{"headline":"H","paragraphs":["a"],"highlights":["x"]}', true );
+ok( is_array( $sp ) && 'H' === $sp['headline'] && array( 'a' ) === $sp['paragraphs'], 'structured JSON decodes straight to the digest' );
+ok( is_wp_error( snt_narration_parse_response( $truncated, true ) ), 'structured: a truncated reply is an error, not salvaged' );
+ok( is_wp_error( snt_narration_parse_response( $preamble, true ) ), 'structured: a prose-wrapped reply is an error, not salvaged' );
+ok( is_wp_error( snt_narration_parse_response( "```json\n{\"headline\":\"H\",\"paragraphs\":[\"a\"],\"highlights\":[]}\n```", true ) ), 'structured: a fenced reply is an error, not stripped' );
+ok( is_array( snt_narration_parse_response( $truncated, false ) ), 'fallback: the same truncation is still salvaged as today' );
+
+echo "\nTest: run() passes the structured flag from the call to the parser\n";
+$GLOBALS['__transients']   = array();
+$GLOBALS['__ai_structured'] = true;
+$GLOBALS['__ai_response']   = '{"headline":"Structured week","paragraphs":["Views held at 40."],"highlights":[]}';
+$sr = snt_narration_run( true );
+ok( is_array( $sr ) && 'Structured week' === $sr['headline'], 'a structured response yields the digest' );
+$GLOBALS['__transients']   = array();
+$GLOBALS['__ai_response']   = 'Here is the digest: {"headline":"Wrapped","paragraphs":["p"],"highlights":[]}';
+ok( is_wp_error( snt_narration_run( true ) ), 'a structured response is never salvaged by run()' );
+$GLOBALS['__transients']   = array();
+$GLOBALS['__ai_structured'] = false;
+$fr = snt_narration_run( true );
+ok( is_array( $fr ) && 'Wrapped' === $fr['headline'], 'the plain fallback is salvaged by run() as today' );
+$GLOBALS['__ai_response'] = 'Sorry, nothing to report.';
+$GLOBALS['__transients']  = array();
+$ne = snt_narration_run( true );
+ok( is_wp_error( $ne ) && 'snt_narration_invalid_json' === $ne->get_error_code(), 'non-JSON on the fallback degrades as today' );
+$GLOBALS['__transients']  = array();
+$GLOBALS['__ai_response'] = '{"headline":"Views up 12% to 1,430","paragraphs":["Traffic rose this week.","/notes/x led with 420 views."],"highlights":["views +12% to 1,430","top source: Hacker News (210)"]}';
 
 // ── v9.51.2: async generation (schedule + cron handler) + scoped AI timeout ──
 echo "\nTest: snt_narration_schedule queues a deduped single event\n";
