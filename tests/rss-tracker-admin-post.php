@@ -108,9 +108,9 @@ ok( 'died' === $r['outcome'] && false !== strpos( (string) $r['message'], 'link 
 ok( $stored === $GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ], '   ...and writes nothing' );
 $GLOBALS['wpdb']->queries = array();
 $r = rss_post( 'sn_rss_purge_log', array( 'purge_days' => '30' ), 'sn_rss_save_settings' );
-ok( 'died' === $r['outcome'] && array() === $GLOBALS['wpdb']->queries, 'the Save form\'s nonce does not authorise Purge: no DELETE runs' );
+ok( 'died' === $r['outcome'] && array() === $GLOBALS['wpdb']->queries, 'the Save form\'s nonce does not authorize Purge: no DELETE runs' );
 $r = rss_post( 'sn_rss_reset_defaults', array(), 'sn_rss_purge_log' );
-ok( 'died' === $r['outcome'] && $stored === $GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ], 'the Purge form\'s nonce does not authorise Reset: the settings stand' );
+ok( 'died' === $r['outcome'] && $stored === $GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ], 'the Purge form\'s nonce does not authorize Reset: the settings stand' );
 
 echo "\nGroup 3: manage_options, after the nonce\n";
 $GLOBALS['__can'] = false;

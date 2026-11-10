@@ -100,7 +100,7 @@ foreach ( $rss_ops as $op ) {
 	ok( 1 === preg_match( '/<input type="hidden" name="action" value="sn_' . $op . '"><input type="hidden" name="_wpnonce" value="nonce-sn_' . $op . '">/', $kit ), "kit: the $op form carries its hook and a nonce minted for it alone" );
 	ok( 1 === preg_match( '/<button type="submit" name="action" value="sn_' . $op . '" formaction="[^"]*admin-post\.php\?_wpnonce=nonce-sn_' . $op . '"/', $classic ), "classic: the $op button names its hook and carries its own nonce on formaction (#1614 shape)" );
 }
-ok( 2 === preg_match_all( '/<form method="post" action="[^"]*admin-post\.php"/', $classic ) && false === strpos( $classic, 'name="_wpnonce"' ), 'classic: both forms post to admin-post.php; no shared nonce field, so no button is authorised by another\'s token' );
+ok( 2 === preg_match_all( '/<form method="post" action="[^"]*admin-post\.php"/', $classic ) && false === strpos( $classic, 'name="_wpnonce"' ), 'classic: both forms post to admin-post.php; no shared nonce field, so no button is authorized by another\'s token' );
 ok( 1 === preg_match( '/<label class="sn-field-label sn-field-label--inline" for="sn_rss_enabled">\s*<input type="checkbox" id="sn_rss_enabled" name="enabled"/', $classic ) && false !== strpos( $classic, 'for="sn_rss_event_name"' ) && false !== strpos( $classic, 'for="sn_rss_retention"' ) && false !== strpos( $classic, 'for="sn_rss_purge_days"' ), 'classic: every field keeps its label' );
 
 // ── Readouts: activity counters, most-recent line, recent rows, settings.
