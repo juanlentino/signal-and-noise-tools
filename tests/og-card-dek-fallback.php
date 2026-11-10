@@ -177,6 +177,15 @@ $dek_cases = array(
 	'multibyte text'               => $p( 'Señal y ruido: dos artículos y una serie de notas 日本語.' ),
 	'classic content, no blocks'   => "<p>Written in the classic editor.</p>\n<p>Second paragraph.</p>",
 );
+// The blocks the loaded core lets into an automatic excerpt, read from its own excerpt_allowed_blocks
+// filter rather than assumed. An empty read (the filter never ran) leaves the list case at null, so
+// it fails rather than guessing.
+$core_allowed = array();
+$read_allowed = static function ( $list ) use ( &$core_allowed ) { $core_allowed = $list; return $list; };
+add_filter( 'excerpt_allowed_blocks', $read_allowed );
+excerpt_remove_blocks( $p( 'x' ) );
+remove_filter( 'excerpt_allowed_blocks', $read_allowed );
+$list_dek = in_array( 'core/list', $core_allowed, true ) && in_array( 'core/list-item', $core_allowed, true ) ? 'One item Two papers and a running series of notes.' : 'Two papers and a running series of notes.';
 $want_dek = array(
 	'paragraphs only'               => 'First sentence with a link. Second sentence.',
 	// The five below changed when the delimiter regex gave way to core's excerpt_remove_blocks(). The regex
@@ -190,7 +199,9 @@ $want_dek = array(
 	'paragraphs inside a group'     => 'Inside the group. Two papers and a running series of notes.',
 	'paragraphs inside columns'     => 'Left column. Right column.',
 	'a quote, then prose'           => 'Quoted words. Someone Two papers and a running series of notes.',
-	'a list, then prose'            => 'Two papers and a running series of notes.', // The regex answered 'One item Two papers ...'. Core skips a list whose items are core/list-item blocks, in its own excerpts too.
+	// Core 7.1 lists core/list but not core/list-item, so a list's items are dropped, in its own excerpts too;
+	// 7.2 adds core/list-item (and makes core/list a wrapper), so the list opens the dek. The answer follows the loaded core's list.
+	'a list, then prose'            => array() === $core_allowed ? null : $list_dek,
 	'a leading heading in a group'  => 'On Provenance Two papers and a running series of notes.',
 	'a raw > in attribute JSON'     => 'Hand-edited markup. Two papers and a running series of notes.',
 	'multibyte text'                => 'Señal y ruido: dos artículos y una serie de notas 日本語.',

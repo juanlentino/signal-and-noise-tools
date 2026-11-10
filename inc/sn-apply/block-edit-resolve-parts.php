@@ -116,10 +116,12 @@ function snt_sn_apply_block_edit_span_for_path( $content, $block_path ) {
 /**
  * Suspenders: the span about to be spliced must be, byte for byte, the block
  * parse_blocks() sees at that position. The spans come from core's
- * WP_Block_Processor and the tree from core's block parser; until the parser
- * is built on the processor the two can read malformed content differently (a
- * delimiter inside a plain HTML comment, attribute JSON that never closes), and
- * a name can match while the bytes do not. Parsing the span alone must give
+ * WP_Block_Processor and the tree from core's block parser. Core 7.1's parser
+ * tokenizes with its own pattern and reads some malformed content differently
+ * (a delimiter inside a plain HTML comment, attribute JSON that never closes),
+ * so a name can match while the bytes do not. From 7.2 the parser is built on
+ * the processor and those two inputs read the same, so this check passes them;
+ * it stays because the live site runs 7.1. Parsing the span alone must give
  * back exactly the node the full parse holds there, or nothing is located.
  *
  * @param string $content Raw stored post_content.

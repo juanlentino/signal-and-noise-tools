@@ -40,6 +40,7 @@ define( 'SNT_TEST_WITH_BLOCKS_PHP', true ); // The real parse_blocks().
 require_once __DIR__ . '/lib/wp-core-blocks.php';
 require __DIR__ . '/../inc/sn-apply/block-delimiters.php';
 require __DIR__ . '/../inc/sn-apply/block-edit.php';
+require __DIR__ . '/lib/parser-walker-agree.php';
 // create-draft.php needs the whole family; its one delimiter function is read alone.
 preg_match( '/^function snt_sn_apply_block_delimiter_findings\(.*?^}/ms', (string) file_get_contents( __DIR__ . '/../inc/sn-apply/create-draft.php' ), $snt_fn );
 $snt_tmp = tempnam( sys_get_temp_dir(), 'snt' );
@@ -98,8 +99,8 @@ $former = array(
 	'core/ namespace spelled'   => array( '0-58:core/paragraph | 0-26 36-58', 'mismatch|paragraph', '"core/paragraph" and "paragraph" are one block type to core; the pattern compared the spellings' ),
 	'no space before -->'       => array( ' | ', '', 'the balance pattern took "<!-- wp:paragraph-->" for a delimiter; core and the span pattern do not' ),
 	'closer with void flag'     => array( '0-54:paragraph | 0-21 31-54', 'unclosed|paragraph', 'a delimiter with both flags is void to core; the span pattern read it as a closer' ),
-	'delimiter in a comment'    => array( ' | 11-32 46-67 77-99', 'unclosed|paragraph', 'a delimiter inside a plain HTML comment is comment text to core\'s processor and a block to its 7.1 parser: the draft is refused as before, now as unparseable, and a block edit is refused by the parser check' ),
-	'broken JSON, then a block' => array( '0-101:paragraph | 0-69 81-101', 'unparseable', 'the lazy JSON group ran on through the next comment and swallowed the heading block: the draft is refused as before, and a block edit is refused by the parser check' ),
+	'delimiter in a comment'    => array( ' | 11-32 46-67 77-99', 'unclosed|paragraph', 'a delimiter inside a plain HTML comment is comment text to core\'s processor and a block to its 7.1 parser: the draft is refused as before, now as unparseable, and on core 7.1 a block edit is refused by the parser check' ),
+	'broken JSON, then a block' => array( '0-101:paragraph | 0-69 81-101', 'unparseable', 'the lazy JSON group ran on through the next comment and swallowed the heading block: the draft is refused as before, and on core 7.1 a block edit is refused by the parser check' ),
 	'truncated last delimiter'  => array( '0-53:paragraph | 0-21 31-53', '', 'a comment that never closes went unnoticed after a balanced block' ),
 	'literal arrow in JSON'     => array( '0-75:paragraph | 0-43 53-75', '', 'a literal "-->" ends the comment for core\'s processor and for a browser; the patterns, like core\'s 7.1 parser, read on past it. Core writes it as a JSON escape. A deliberate tightening' ),
 	'attrs without a space'     => array( ' | 38-60', 'mismatch|paragraph', 'refused before and now; the text that is not a delimiter is named as well' ),
@@ -155,22 +156,50 @@ foreach ( $fixtures as $label => $content ) {
 }
 ok( $written >= 18, "the splice ran on real blocks ($written), so the two checks above are not vacuous" );
 
-// These two pin core 7.1's parser, which still tokenizes with its own pattern. When the parser is
-// built on WP_Block_Processor the two agree, and these inputs resolve like any other.
+/**
+ * A write at $span splices exactly node $i of parse_blocks(): the bytes there parse, alone, to that
+ * node, and with them replaced by $marker every other node parses back unchanged. That second half
+ * is what "nothing else moves" means; the byte identity of a substr_replace() is a given.
+ */
+function splices_exactly( $content, array $span, $i, $marker ) {
+	$tree       = parse_blocks( $content );
+	$length     = $span['end'] - $span['start'];
+	$want       = $tree;
+	$want[ $i ] = parse_blocks( $marker )[0];
+	return array( $tree[ $i ] ) === parse_blocks( substr( $content, $span['start'], $length ) )
+		&& $want === parse_blocks( substr_replace( $content, $marker, $span['start'], $length ) );
+}
+
+// Core 7.1's parser tokenizes with its own pattern and reads these two inputs differently from
+// WP_Block_Processor. From 7.2 the parser is built on the processor and the two agree. Each input
+// asserts what the loaded core does (tests/lib/parser-walker-agree.php): where they disagree the
+// write is refused, and where they agree it splices exactly the block parse_blocks() puts at the
+// path. The anchor is the visible text of the block the delimiter reader finds.
 echo "\nGroup: where core's parser and its delimiter reader disagree, nothing is located\n";
-foreach ( array( 'delimiter in a comment', 'broken JSON, then a block' ) as $label ) {
+foreach ( array( 'delimiter in a comment' => '<p>x</p>', 'broken JSON, then a block' => '<h2>y</h2>' ) as $label => $anchor ) {
 	$content = $fixtures[ $label ];
 	$path    = null;
 	foreach ( parse_blocks( $content ) as $i => $node ) {
 		if ( null !== $node['blockName'] ) { $path = "0/$i"; break; }
 	}
-	$r = snt_sn_apply_block_edit_resolve_span( $content, array( 'block_path' => (string) $path ) );
-	ok( is_wp_error( $r ) && 'snt_sn_apply_block_path_unresolvable' === $r->get_error_code(), "$label: a block_path write is refused" );
-	$r = snt_sn_apply_block_edit_resolve_span( $content, array( 'anchor' => '<p>x</p>' ) );
-	ok( is_wp_error( $r ), "$label: an anchor write is refused too" );
+	$agree = snt_test_parser_agrees_with_walker( $content );
+	foreach ( array( 'block_path' => (string) $path, 'anchor' => $anchor ) as $locator => $value ) {
+		$r = snt_sn_apply_block_edit_resolve_span( $content, array( $locator => $value ) );
+		if ( ! $agree ) {
+			$refused = is_wp_error( $r ) && 'snt_sn_apply_block_path_unresolvable' === $r->get_error_code() && 422 === $r->data['status'];
+			ok( $refused, 'block_path' === $locator ? "$label: a block_path write is refused" : "$label: an anchor write is refused too" );
+			continue;
+		}
+		ok( ! is_wp_error( $r ) && splices_exactly( $content, $r['span'], (int) substr( (string) $path, 2 ), $marker ), "$label: core's parser and its delimiter reader agree in this core, and the $locator write splices exactly the block parse_blocks() puts at $path" );
+	}
 }
-$scan = snt_sn_apply_block_edit_scan_spans( $fixtures['delimiter in a comment'] );
-ok( true !== snt_sn_apply_block_edit_parser_agrees( $fixtures['delimiter in a comment'], $scan['spans'], 0 ), 'the name matches there and the bytes do not: the parser check is what refuses it' );
+$scan  = snt_sn_apply_block_edit_scan_spans( $fixtures['delimiter in a comment'] );
+$check = snt_sn_apply_block_edit_parser_agrees( $fixtures['delimiter in a comment'], $scan['spans'], 0 );
+if ( snt_test_parser_agrees_with_walker( $fixtures['delimiter in a comment'] ) ) {
+	ok( true === $check, 'delimiter in a comment: the parser reads the comment as text in this core, and the parser check passes the block' );
+} else {
+	ok( true !== $check, 'the name matches there and the bytes do not: the parser check is what refuses it' );
+}
 ok( true === snt_sn_apply_block_edit_parser_agrees( $fixtures['two top-level'], snt_sn_apply_block_edit_scan_spans( $fixtures['two top-level'] )['spans'], 1 ), 'and it passes a well-formed block' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
