@@ -32,8 +32,11 @@ function sn_analytics_realtime( $c = 'human' ) { return 3; }
 // renders; flip __series_last_today off to model today's bucket not yet rolled
 // (last bucket = a stale prior day), which must NOT be mislabelled "Today so far".
 $GLOBALS['__series_last_today'] = true;
+// The site-local day, the one the rollups are keyed on. Settable so a test can
+// pull it apart from the UTC day.
+function sn_analytics_local_day( $now = null ) { return $GLOBALS['__local_day'] ?? gmdate( 'Y-m-d' ); }
 function sn_analytics_daily_series( $f, $t, $c = 'human', $g = 'day' ) {
-	$day = ( $GLOBALS['__series_last_today'] ?? true ) ? gmdate( 'Y-m-d' ) : $f;
+	$day = $GLOBALS['__series_day'] ?? ( ( $GLOBALS['__series_last_today'] ?? true ) ? gmdate( 'Y-m-d' ) : $f );
 	return array( array( 'day' => $day, 'views' => 10 ) );
 }
 // D2: each stub records its trailing comparison-window/mode/basis args into a
@@ -161,6 +164,18 @@ snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026
 $html_stale = (string) ob_get_clean();
 ok( false === strpos( $html_stale, 'Today so far' ), 'today cell suppressed when the last bucket is a stale prior day (not today)' );
 $GLOBALS['__series_last_today'] = true;
+// "Today" is the SITE-LOCAL day. In the local evening west of UTC the UTC day is
+// already tomorrow; the last bucket is still the local today and must keep its cell.
+$GLOBALS['__local_day']  = '2031-02-03';
+$GLOBALS['__series_day'] = '2031-02-03';
+ob_start();
+snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day' );
+ok( false !== strpos( (string) ob_get_clean(), 'Today so far' ), 'today cell present when the last bucket is the site-local today, whatever the UTC day is' );
+$GLOBALS['__series_day'] = gmdate( 'Y-m-d' );
+ob_start();
+snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day' );
+ok( false === strpos( (string) ob_get_clean(), 'Today so far' ), 'today cell suppressed when the last bucket is the UTC day but not the site-local one' );
+unset( $GLOBALS['__local_day'], $GLOBALS['__series_day'] );
 // Week granularity: no "today" cell (a week bucket is not a day).
 ob_start();
 snt_analytics_render_header_region( 'content', '90', 'human', '2026-04-01', '2026-07-07', 'week' );

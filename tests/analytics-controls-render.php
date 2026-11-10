@@ -19,6 +19,7 @@ function esc_html( $s ) { return $s; }
 function esc_html__( $s, $d = '' ) { return $s; }
 function esc_attr__( $s, $d = '' ) { return $s; }
 function __( $s, $d = '' ) { return $s; }
+function sn_analytics_local_day( $now = null ) { return '2031-02-03'; }
 
 require __DIR__ . '/../inc/analytics-admin-render.php';
 
@@ -44,6 +45,7 @@ ok( substr_count( $html, ' active' ) === 3, '90d active: exactly 3 active marks 
 ok( false === (bool) preg_match( '/ active[^"]*"[^>]*sn_range=all/', $html ), 'All entry NOT active when 90 selected' );
 ob_start(); snt_analytics_render_controls( 'custom', 'human', '2026-06-01', '2026-07-13' ); $hcus = ob_get_clean();
 ok( strpos( $hcus, 'sn-an-range-current">2026-06-01 – 2026-07-13<' ) !== false, 'summary shows the custom window' );
+ok( 2 === substr_count( $hcus, 'max="2031-02-03"' ), 'both date inputs stop at the SITE-LOCAL today, not the UTC day' );
 ok( strpos( $hcus, '<details class="sn-an-range">' ) !== false && strpos( $hcus, ' open' ) === false, 'no auto-open (the summary already names the window)' );
 
 echo "\nGroup: v9.34.0 — semantic quick-jumps + compare pills\n";

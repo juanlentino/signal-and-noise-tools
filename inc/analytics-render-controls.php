@@ -139,7 +139,8 @@ function snt_analytics_render_controls( $range, $class, $from = '', $to = '', $c
 	if ( isset( $fb_parts[1] ) ) {
 		parse_str( $fb_parts[1], $hidden );
 	}
-	$today     = gmdate( 'Y-m-d' );
+	// The site-local day, the one the rollups are keyed on and the custom window is clamped to.
+	$today     = function_exists( 'sn_analytics_local_day' ) ? sn_analytics_local_day() : gmdate( 'Y-m-d' );
 	$is_custom = ( 'custom' === (string) $range );
 
 	echo '<details class="sn-an-range">';

@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Validate + clamp a user custom window. Rejects malformed dates (→ null), swaps a
- * reversed pair, clamps `to`/`from` to today, and `from` to sn_analytics_min_day()
+ * reversed pair, clamps `to`/`from` to the site-local today, and `from` to sn_analytics_min_day()
  * when available. Returns [$from,$to] or null (caller falls back to the default).
  *
  * @param string   $from_raw
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function snt_analytics_resolve_custom_window( $from_raw, $to_raw, $now = null ) {
 	$now   = ( null === $now ) ? time() : (int) $now;
-	$today = gmdate( 'Y-m-d', $now );
+	$today = snt_analytics_range_dates( 1, $now )[1]; // the site-local day the rollups are keyed on
 	$from  = trim( (string) $from_raw );
 	$to    = trim( (string) $to_raw );
 	if ( ! snt_analytics_is_ymd( $from ) || ! snt_analytics_is_ymd( $to ) ) {
