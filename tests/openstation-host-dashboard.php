@@ -148,7 +148,7 @@ namespace {
 	// One nonce per ACTION: the estate mints four, and a global "valid" would
 	// hide the very confusion the pipelines exist to end.
 	function wp_verify_nonce( $nonce, $action = -1 ) {
-		$minted = array( 'good-nonce' => 'sn_save_identity', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_tracker_action' );
+		$minted = array( 'good-nonce' => 'sn_save_identity', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults' );
 		return ( isset( $minted[ $nonce ] ) && $minted[ $nonce ] === $action ) ? 1 : false;
 	}
 	// The interceptor needs real hook plumbing, a real wp_redirect (which filters
@@ -194,16 +194,16 @@ namespace {
 	$GLOBALS['__actions']['admin_post_sn_fixture_dies'][] = static function () {
 		wp_die( 'Insufficient permissions.', '', array( 'response' => 403 ) );
 	};
-	// The RSS leaf's admin_init handler, in its shape: its own field, its own
-	// nonce, its own redirect carrying ?sn_rss_ok.
+	// The RSS leaf's Reset handler, in its shape since 2026-11-10: its own
+	// admin-post hook, its own nonce, its own redirect carrying ?sn_rss_ok.
 	$GLOBALS['__rss_ran'] = false;
-	function sn_rss_tracker_handle_form() {
+	$GLOBALS['__actions']['admin_post_sn_rss_reset_defaults'][] = static function () {
 		// phpcs:ignore WordPress.Security.NonceVerification -- The fixture IS the nonce check.
-		if ( empty( $_POST['sn_rss_action'] ) || ! wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'sn_rss_tracker_action' ) ) { return; }
+		if ( ! wp_verify_nonce( $_REQUEST['_wpnonce'] ?? '', 'sn_rss_reset_defaults' ) ) { wp_die( 'The link you followed has expired.' ); }
 		$GLOBALS['__rss_ran'] = true;
-		wp_safe_redirect( 'https://example.test/wp-admin/themes.php?page=sn-theme-options&tab=rss&sn_rss_ok=reset' );
-		exit;
-	}
+		wp_safe_redirect( 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=rss&sn_rss_ok=reset' );
+		exit; // Never reached: the interceptor throws from the wp_redirect filter.
+	};
 	$GLOBALS['__styles']  = array();
 	$GLOBALS['__scripts'] = array();
 	function wp_register_style( $handle, $src, $deps = array(), $ver = false, $media = 'all' ) { $GLOBALS['__styles'][ $handle ] = $deps; return true; }
@@ -506,9 +506,9 @@ namespace {
 	$os->view = 'monitoring';
 	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'rss' ) );
 	$GLOBALS['__rss_ran'] = false;
-	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'rss-nonce', 'sn_rss_action' => 'reset_defaults' ) ) );
+	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'rss-nonce', 'action' => 'sn_rss_reset_defaults' ) ) );
 	ok( true === $GLOBALS['__rss_ran'] && array( 'sn_rss_ok' => 'reset' ) === $st->get( 'params' ),
-		'the RSS leaf`s own field routes to its own admin_init handler, and ?sn_rss_ok lands in state for the flash the leaf renders itself' );
+		'the RSS leaf`s action field routes to its admin-post hook, and ?sn_rss_ok lands in state for the flash the leaf renders itself' );
 
 	echo "\nGroup 5c: the inline form the leaf handles itself\n";
 	$os = new \OpenStation\App\Os();

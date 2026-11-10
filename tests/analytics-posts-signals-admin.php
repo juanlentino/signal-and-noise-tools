@@ -85,7 +85,8 @@ $t = substr( $html, strpos( $html, '<div class="snt-scroll-table"><table class="
 ok( false !== strpos( $html, '<div class="snt-scroll-table"><table' ), 'the wide table scrolls inside its own container (thirteen columns never scroll the page)' );
 $ths = substr_count( $t, '<th ' );
 ok( 13 === $ths && 13 === substr_count( $t, 'data-sort="' ), 'thirteen columns, EVERY one sortable' );
-ok( 1 === preg_match( '/class="postbox sn-an-postbox sn-an-collapsed" data-sn-an-collapsible="show-all-notes"/', $html ), 'the full table sits behind "Show all notes", collapsed by default' );
+ok( 1 === preg_match( '/<details class="postbox sn-an-postbox" data-sn-an-collapsible="show-all-notes"><summary class="postbox-header"><h2 class="hndle"><span>Show all notes<\/span>/', $html ), 'the full table sits behind "Show all notes", a native disclosure that is collapsed by default (no open attribute)' );
+ok( 1 === substr_count( $html, '</details>' ) && strpos( $html, '</details>' ) > strrpos( $html, '</table>' ) && 1 === preg_match( '#</table></div></div></details>#', $html ), '...and the disclosure closes once, after the table and its scroll wrapper, so nothing below is swallowed into it' );
 ok( 5 === substr_count( $t, '<tr><td class="column-primary"' ), 'one row per note' );
 ok( false !== strpos( $t, 'Trust doesn&#039;t disappear, it relocates</strong>' ), 'the full title, never truncated' );
 ok( false !== strpos( $t, 'Uninspected &lt;b&gt;hostile&lt;/b&gt;' ), 'a hostile title is escaped' );

@@ -138,7 +138,7 @@ function wp_verify_nonce( $nonce, $action = -1 ) {
 		'music-nonce'  => 'sn_music_save',
 		'reset-nonce'  => 'sn_full_reset',
 		'prune-nonce'  => 'sn_audit_prune_now',
-		'rss-nonce'    => 'sn_rss_tracker_action',
+		'rss-nonce'    => 'sn_rss_reset_defaults',
 		'sweep-nonce'  => 'sn_prov_runsweep',
 	);
 	return ( isset( $minted[ $nonce ] ) && $minted[ $nonce ] === $action ) ? 1 : false;
@@ -691,26 +691,34 @@ ok( $snapshot === array( $_GET, $_POST, $_REQUEST ), 'the superglobals come back
 ok( array() === ( $GLOBALS['__filters']['wp_redirect'] ?? array() ) && array() === ( $GLOBALS['__filters']['wp_die_handler'] ?? array() ),
 	'   ...and both interceptor filters are REMOVED afterwards: a wp_redirect filter left standing would throw at some later, unrelated redirect in the same request' );
 
-echo "\nGroup 3d: the RSS pipeline -- its own field, its own nonce, its own admin_init handler\n";
+echo "\nGroup 3d: the RSS writes ride the admin-post pipeline (2026-11-10, core-first audit index 28)\n";
 $GLOBALS['__options']['sn_rss_tracker_settings'] = array( 'enabled' => false );
 $reset = snt_os_host_replay(
-	array( '_wpnonce' => 'rss-nonce', 'sn_rss_action' => SN_RSS_TRACKER_ACTION_RESET ),
+	array( '_wpnonce' => 'rss-nonce', 'action' => 'sn_rss_reset_defaults' ),
 	'sn-theme-options',
 	array( 'tab' => 'monitoring', 'sub' => 'rss' )
 );
-ok( true === $reset['ok'] && 'rss' === $reset['pipeline'] && ! isset( $GLOBALS['__options']['sn_rss_tracker_settings'] ),
-	'"Reset to Defaults" RUNS the real sn_rss_tracker_handle_form(): the settings row is gone, where the window used to answer "the form expired" against a nonce that was never the shared one' );
+ok( true === $reset['ok'] && 'admin-post' === $reset['pipeline'] && ! isset( $GLOBALS['__options']['sn_rss_tracker_settings'] ),
+	'"Reset to Defaults" RUNS the real handler through do_action( admin_post_sn_rss_reset_defaults ), the hook admin-post.php fires: the settings row is gone' );
 ok( array( 'sn_rss_ok' => 'reset' ) === $reset['params'] && 'monitoring' === $reset['target']['tab'] && 'rss' === $reset['target']['sub'],
 	'   ...and its own redirect is read the way the classic page reads it: ?sn_rss_ok for the leaf\'s flash, and the legacy tab=rss resolved through the same 301 map to monitoring/rss' );
 
 $GLOBALS['__options']['sn_rss_tracker_settings'] = array( 'enabled' => true );
 $stale_rss = snt_os_host_replay(
-	array( '_wpnonce' => 'good-nonce', 'sn_rss_action' => SN_RSS_TRACKER_ACTION_RESET ),
+	array( '_wpnonce' => 'good-nonce', 'action' => 'sn_rss_reset_defaults' ),
 	'sn-theme-options',
 	array( 'tab' => 'monitoring', 'sub' => 'rss' )
 );
-ok( true === $stale_rss['ok'] && '' === $stale_rss['flash'] && null === $stale_rss['target'] && isset( $GLOBALS['__options']['sn_rss_tracker_settings'] ),
-	'   ...and a nonce that is not ITS nonce makes the handler return silently, exactly as it does on the classic page -- so the window says nothing, rather than inventing a save or an expiry' );
+ok( false === $stale_rss['ok'] && 'died' === $stale_rss['reason'] && false !== strpos( $stale_rss['detail'], 'The link you followed has expired.' ) && isset( $GLOBALS['__options']['sn_rss_tracker_settings'] ),
+	'   ...and a nonce that is not ITS nonce is refused in core\'s own words, where it used to return silently and paint as a run with nothing to say' );
+$old_shape = snt_os_host_replay(
+	array( '_wpnonce' => 'rss-nonce', 'sn_rss_action' => 'reset_defaults' ),
+	'sn-theme-options',
+	array( 'tab' => 'monitoring', 'sub' => 'rss' )
+);
+ok( false === $old_shape['ok'] && 'unknown' === $old_shape['reason'] && isset( $GLOBALS['__options']['sn_rss_tracker_settings'] ),
+	'   ...and the retired sn_rss_action shape (a window painted before the deploy) is refused by name, never reported as a save' );
+ok( ! function_exists( 'snt_os_host_replay_rss' ), '   ...because the RSS-only pipeline is gone: no handler reads sn_rss_action any more' );
 
 echo "\nGroup 3e: the inline pipeline -- the one form its own leaf handles, out of \$_POST\n";
 $inline = snt_os_host_replay(
@@ -876,7 +884,7 @@ $n = count( $GLOBALS['__resets'] );
 snt_os_host_after_write( array( 'ok' => false, 'reason' => 'nonce' ) );
 ok( $n === count( $GLOBALS['__resets'] ), 'a refused write resets nothing: no write happened' );
 $src_pipe = (string) file_get_contents( __DIR__ . '/../inc/openstation-host-pipelines.php' );
-ok( 2 === substr_count( $src_pipe, 'snt_os_host_after_write( snt_os_host_replay_' ), 'the admin-post and rss pipelines both return through the reset; the inline pipeline writes during the paint, so its leaf reads after its own write' );
+ok( 1 === substr_count( $src_pipe, 'snt_os_host_after_write( snt_os_host_replay_' ), 'the admin-post pipeline returns through the reset (the RSS writes ride it since 2026-11-10); the inline pipeline writes during the paint, so its leaf reads after its own write' );
 
 echo "\nGroup C: native windows inherit the shell palette\n";
 $admin_css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );

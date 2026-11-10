@@ -240,9 +240,9 @@
 
 	// Lazy detail: fetch the detail tier on FIRST reveal, once. v9.37.0 (D1):
 	// the merged rail Uptime card is a native <details> — bind its toggle in
-	// the capture phase ('toggle' does not bubble). The legacy sn-an-panel-open
-	// listener is kept for a future collapsible-panel producer — no surface
-	// emits data-sn-an-collapsible today. The eager [data-sn-uptime-detail]
+	// the capture phase ('toggle' does not bubble). The sn-an-panel-open
+	// listener serves a collapsible analytics panel (a native <details> since
+	// 2026-11-10; assets/admin.js announces its opening). The eager [data-sn-uptime-detail]
 	// path in boot() still serves any surface that wants detail at load; the
 	// Analytics page ships none.
 	function loadLazyDetail( mount ) {
