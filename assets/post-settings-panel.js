@@ -187,6 +187,9 @@
 		var setMeta = entity[ 1 ];
 		function set( key, value ) {
 			var next = Object.assign( {}, meta );
+			// The Jev readings are the server's: REST refuses a write to either, so a save that carried them would fail.
+			delete next._sn_jev_collision;
+			delete next._sn_jev_tells;
 			next[ key ] = value;
 			setMeta( normalize( next ) );
 		}

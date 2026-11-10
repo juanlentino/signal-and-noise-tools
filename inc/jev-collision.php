@@ -189,7 +189,12 @@ add_action( 'wp_after_insert_post', function ( $post_id, $post ) {
 	sn_jev_collision_check( (int) $post_id );
 }, 20, 2 );
 
-/** The reading as the editor sees it: registered meta, JSON string, read-only from the client. */
+/**
+ * The reading as the editor sees it: registered meta, JSON string, read-only
+ * from the client. Core asks auth_callback before every REST meta write, so
+ * false refuses them all; the server writes with update_post_meta(), which
+ * does not ask. assets/post-settings-panel.js leaves the key out of its saves.
+ */
 add_action( 'init', function () {
 	if ( ! function_exists( 'register_post_meta' ) ) {
 		return;
@@ -200,9 +205,7 @@ add_action( 'init', function () {
 		'type'              => 'string',
 		'default'           => '',
 		'sanitize_callback' => 'sanitize_textarea_field',
-		'auth_callback'     => static function () {
-			return current_user_can( 'edit_posts' );
-		},
+		'auth_callback'     => '__return_false',
 	) );
 } );
 

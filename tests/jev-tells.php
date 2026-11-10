@@ -111,6 +111,10 @@ mkpost( 4, 'future', 'Scheduled', para( $long ) ); $hook( 4, get_post( 4 ) );
 ok( $n + 1 === count( $GLOBALS['__t']['calls'] ), 'E2 a scheduled note is judged' );
 ok( true === $GLOBALS['__t']['registered'][ SN_JEV_TELLS_META ]['show_in_rest'], 'E3 meta registered for the editor' );
 
+if ( ! function_exists( '__return_false' ) ) { function __return_false() { return false; } }
+if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $cap, ...$a ) { return true; } }
+ok( false === call_user_func( $GLOBALS['__t']['registered'][ SN_JEV_TELLS_META ]['auth_callback'], true, SN_JEV_TELLS_META, 4, 1, 'edit_post_meta', array() ), 'E4 a REST write to the tells meta is refused, even for a user who can edit the post' );
+
 // F: the corpus pass.
 $GLOBALS['__t']['calls'] = array();
 mkpost( 5, 'publish', 'Clean', para( $clean[0] ) . para( $clean[1] ) );

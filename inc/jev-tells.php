@@ -235,9 +235,7 @@ add_action( 'init', function () {
 		'single'            => true,
 		'type'              => 'string',
 		'sanitize_callback' => 'sanitize_textarea_field',
-		'auth_callback'     => static function () {
-			return current_user_can( 'edit_posts' );
-		},
+		'auth_callback'     => '__return_false', // the server's reading: see inc/jev-collision.php.
 	) );
 } );
 

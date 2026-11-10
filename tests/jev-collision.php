@@ -106,6 +106,13 @@ ok( $n + 1 === count( $GLOBALS['__c']['calls'] ), 'F3 a page is not judged' );
 // G: registered meta shows in REST as a string.
 ok( isset( $GLOBALS['__c']['registered'][ SN_JEV_COLLISION_META ] ) && true === $GLOBALS['__c']['registered'][ SN_JEV_COLLISION_META ]['show_in_rest'] && 'string' === $GLOBALS['__c']['registered'][ SN_JEV_COLLISION_META ]['type'], 'G1 meta registered for the editor' );
 
+// G2: the verdict is the server's. Core asks auth_callback before a REST meta write (WP_REST_Meta_Fields::update_meta_value), so false here is rest_cannot_update there.
+if ( ! function_exists( '__return_false' ) ) { function __return_false() { return false; } }
+if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $cap, ...$a ) { return true; } }
+ok( false === call_user_func( $GLOBALS['__c']['registered'][ SN_JEV_COLLISION_META ]['auth_callback'], true, SN_JEV_COLLISION_META, 3, 1, 'edit_post_meta', array() ), 'G2 a REST write to the collision meta is refused, even for a user who can edit the post' );
+$panel = (string) file_get_contents( __DIR__ . '/../assets/post-settings-panel.js' );
+ok( 1 === preg_match( '/var next = Object\.assign\( \{\}, meta \);\s*(?:\/\/[^\n]*\s*)*delete next\._sn_jev_collision;\s*delete next\._sn_jev_tells;/', $panel ), 'G3 the settings panel does not send either Jev reading back with a field edit' );
+
 // H: 16.7.2, the per-note map is gone; the corpus for the pairs group.
 $GLOBALS['__c']['posts'] = array(); $GLOBALS['__c']['calls'] = array();
 mkpost( 1, 'publish', 'One' ); mkpost( 2, 'publish', 'Two' ); mkpost( 3, 'publish', 'Three' );
