@@ -204,6 +204,12 @@ cc_true( '' === $refuse( 'claim', $body . $notice, $body . $notice2 ), 'claim ma
 cc_true( '' === $refuse( 'reading_aid', $body . $notice, $body . $notice . $table ), 'an untouched notice does not block a reading aid' );
 cc_true( '' === $refuse( 'copy', $body . $notice, $body ), 'removing a notice is not adding or replacing one' );
 cc_true( '' === $refuse( '', $body, $body . $notice ), 'no class, no rule' );
+$group = static function ( $inner ) {
+	return '<!-- wp:group --><div class="wp-block-group">' . $inner . '</div><!-- /wp:group -->';
+};
+cc_true( '' !== $refuse( 'reading_aid', $body, $body . $group( $notice ) ), 'reading_aid refused when the added notice sits inside a group: the walk goes below the top level' );
+cc_true( '' !== $refuse( 'copy', $body, $body . $group( '<!-- wp:columns --><div class="wp-block-columns"><!-- wp:column --><div class="wp-block-column">' . $bare . '</div><!-- /wp:column --></div><!-- /wp:columns -->' ) ), 'and three levels down, unclassed' );
+cc_true( '' === $refuse( 'reading_aid', $body . $group( $notice ), $body . $group( $notice ) . $table ), 'an untouched nested notice does not block a reading aid' );
 
 // --- What counts as a notice, on the shared block markup (tests/lib/block-reader-cases.php), read by core's parser.
 $cases = require __DIR__ . '/lib/block-reader-cases.php';
@@ -235,13 +241,11 @@ $want_notices = array(
 	'entity-led text' => array(
 		'<p>&#67;orrection, October 2, 2026: the caf&eacute; was on the other side of the street.</p>',
 	),
-	'a class that only starts with sn-correction' => array(
-		'<p class="sn-correction-archive">An archive of earlier wording, kept here for readers who want to compare.</p>',
+	'a class that only starts with sn-correction' => array(), // The regex answered with this paragraph: it searched the raw attribute JSON for the substring, so sn-correction-archive counted. The class is a token of className.
+	'sn-correction in another attribute' => array(), // The regex answered with this paragraph: the substring sat in "anchor", not in className.
+	'the long block name' => array( // The regex answered array(): it only knew the short name, wp:paragraph. Core reads wp:core/paragraph as the same block.
+		'<p class="sn-correction"><strong>Correction, October 16, 2026.</strong> An earlier version of this note gave the wrong year for the ledger.</p>',
 	),
-	'sn-correction in another attribute' => array(
-		'<p id="sn-correction">Readers have asked how corrections are handled on this site, so here it is.</p>',
-	),
-	'the long block name' => array(),
 	'a void paragraph' => array(),
 	'correction mentioned mid-sentence' => array(),
 	'a heading that opens Correction,' => array(),
