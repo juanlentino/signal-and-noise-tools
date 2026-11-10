@@ -63,7 +63,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_health_check_plugin_registry() {
 	$label    = 'Plugin registry';
-	$fix_hint = 'Every active plugin must appear in get_plugins(). A plugin whose file is still on disk but missing from the registry means the object cache is serving a stale plugin list — run `wp cache flush`. Do not open wp-admin/plugins.php before flushing: core deactivates every active plugin it cannot validate when that screen loads. A plugin whose file is gone should be deactivated.';
+	$fix_hint = 'Every active plugin must appear in get_plugins(). A plugin whose file is still on disk but missing from the registry means the object cache is serving a stale plugin list: run `wp cache flush`. Do not open wp-admin/plugins.php before flushing: core deactivates every active plugin it cannot validate when that screen loads. A plugin whose file is gone should be deactivated.';
 
 	if ( ! function_exists( 'get_plugins' ) && defined( 'ABSPATH' ) && file_exists( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
