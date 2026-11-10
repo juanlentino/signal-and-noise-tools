@@ -60,6 +60,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/sn-apply/revision.php';
 require_once __DIR__ . '/sn-apply/gates.php';
 require_once __DIR__ . '/sn-apply/validation.php';
+require_once __DIR__ . '/sn-apply/block-delimiters.php';
 require_once __DIR__ . '/sn-apply/create-draft.php';
 require_once __DIR__ . '/sn-apply/delete-draft.php';
 require_once __DIR__ . '/sn-apply/link-reshape.php';

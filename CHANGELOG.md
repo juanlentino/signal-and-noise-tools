@@ -13,6 +13,14 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Changed
+- **Core-first audit, part 3: HTML and block markup are read with core's parsers, not regular expressions.** Readers move to `WP_HTML_Tag_Processor`, `WP_HTML_Processor`, `parse_blocks()` and `WP_Block_Processor`: health checks, the citation verifier, link extraction (one shared `sn_html_a_hrefs()`), the correction-notice reader (notices inside groups now count), Jev tells, the OG card dek, the world map, the em-dash and editorial scanners, and the anchor scan. Each was pinned against its old output first; the differences are regex mistakes fixed (a link inside a comment or script no longer counts; `<a title="a > b">` is now read).
+- **sn-apply's write path stands on core.** Block edits locate blocks with `WP_Block_Processor` and refuse unless `parse_blocks()` agrees on the block; link-reshape finds `<a>` with the Tag Processor. Offsets only: nothing outside the edit is re-serialized.
+- **Generated block markup comes from core.** The `/resume` body and the Spanish fallback wrapper are built with `get_comment_delimited_block_content()` and core's post-content render (the wrapper's attributes now come in core's order).
+- **The Jev verdict fields cannot be overwritten from the editor or REST.** Both keys are dropped from REST writes before the save; the server's verdict stands.
+- **Orphaned-media and missing-alt checks know about scaled uploads.** They also match the attached file's name, so a large image is no longer read as unused.
+- Tests load core's real HTML API and block parser (`tools/fetch-wp-test-core.sh` fetches them); no stubs.
+
+### Changed
 - **Core-first audit, part 2: core features this plugin had switched off work again, and API detours go through core.**
   - Signed in, `/admin` and `/dashboard` are core's shortcuts to `/wp-admin/` again. `/login` stays a 404 for everyone, so no cached redirect can hand the login address to a stranger. Visitors who are not signed in get the same 404s as before.
   - Settings > Writing > Default Post Category sticks: the plugin sets it once at setup instead of rewriting it on every admin load. The permalink structure is set through `$wp_rewrite`.

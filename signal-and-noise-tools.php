@@ -363,8 +363,8 @@ require_once SNT_PATH . 'inc/breached-credentials-set.php'; // v13.58.0: Mode A 
 require_once SNT_PATH . 'inc/breached-credentials-login.php'; // v13.59.0: Mode B — login-time, advisory, fail-OPEN, memoized against the stored hash (authenticate @30).
 require_once SNT_PATH . 'inc/breached-credentials-surface.php'; // v13.60.0: Phase 3 — Site Health row + security-digest section over Mode A's counts and Mode B's memos.
 // v11.27.0: the verified citation graph. Loads AFTER ssrf-guard — the verifier
-// re-validates every redirect hop through it, because wp_http_validate_url()
-// does not cover the link-local range that guard exists to close.
+// re-validates every redirect hop through it: the guard checks every A record,
+// where core's wp_http_validate_url() checks one (see inc/citations-verify.php).
 require_once SNT_PATH . 'inc/citations-core.php';     // pure: URL normalising, link + identity detection, the tier ladder
 require_once SNT_PATH . 'inc/citations-store.php';    // the table; last_checked_gmt is NULLable on purpose (never-measured is its own answer)
 require_once SNT_PATH . 'inc/citations-verify.php';   // the adjudicator + hourly cron

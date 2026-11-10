@@ -15,8 +15,9 @@
  * renders, so a wp:html body enqueues none of the columns/file/separator/
  * table CSS and none of the layout-support container styles. Real block
  * markup restores both. Drift-proofing now rests on generation, not on the
- * block type: every save re-emits canonical markup, each JSON attribute blob
- * is a fixed literal, and the test suite decodes every blob and balances
+ * block type: every save re-emits canonical markup, a block that carries a
+ * value is serialized by core (sn_resume_block()), every other JSON attribute
+ * blob is a fixed literal, and the test suite decodes every blob and balances
  * every delimiter pair — nothing is ever hand-edited.
  *
  * Section headings and eyebrows are layout chrome and live here, not in the
@@ -50,12 +51,46 @@ require_once __DIR__ . '/resume-page-lanes.php';
  * @return string
  */
 function sn_resume_band( $size, $top, $bottom, $inner, $class = '' ) {
-	$attrs = '{' . ( '' !== $class ? '"className":"' . $class . '",' : '' ) . '"style":{"spacing":{"padding":{"top":"var:preset|spacing|' . $top . '","bottom":"var:preset|spacing|' . $bottom . '","left":"var:preset|spacing|40","right":"var:preset|spacing|40"}}},"backgroundColor":"void","layout":{"type":"constrained","contentSize":"' . $size . '"}}';
+	$attrs = ( '' !== $class ? array( 'className' => $class ) : array() ) + array(
+		'style'           => array(
+			'spacing' => array(
+				'padding' => array(
+					'top'    => 'var:preset|spacing|' . $top,
+					'bottom' => 'var:preset|spacing|' . $bottom,
+					'left'   => 'var:preset|spacing|40',
+					'right'  => 'var:preset|spacing|40',
+				),
+			),
+		),
+		'backgroundColor' => 'void',
+		'layout'          => array(
+			'type'        => 'constrained',
+			'contentSize' => $size,
+		),
+	);
 	$style = 'padding-top:var(--wp--preset--spacing--' . $top . ');padding-right:var(--wp--preset--spacing--40);padding-bottom:var(--wp--preset--spacing--' . $bottom . ');padding-left:var(--wp--preset--spacing--40)';
-	return '<!-- wp:group ' . $attrs . ' -->' . "\n"
-		. '<div class="wp-block-group ' . ( '' !== $class ? esc_attr( $class ) . ' ' : '' ) . 'has-void-background-color has-background" style="' . $style . '">' . "\n"
+	return sn_resume_block(
+		'group',
+		$attrs,
+		'<div class="wp-block-group ' . ( '' !== $class ? esc_attr( $class ) . ' ' : '' ) . 'has-void-background-color has-background" style="' . $style . '">' . "\n"
 		. $inner
-		. '</div>' . "\n" . '<!-- /wp:group -->' . "\n\n";
+		. '</div>'
+	) . "\n\n";
+}
+
+/**
+ * One serialized block. Core writes the comment delimiters and the attribute
+ * JSON (get_comment_delimited_block_content()), so a value is JSON-encoded and
+ * comment-safe however it is spelled; the page keeps a newline inside each
+ * delimiter, as the editor saves it.
+ *
+ * @param string $name  Core block name without its namespace, e.g. 'group'.
+ * @param array  $attrs Block attributes, in the order the editor writes them.
+ * @param string $html  The block's saved markup, inner blocks included.
+ * @return string Without a trailing newline.
+ */
+function sn_resume_block( $name, array $attrs, $html ) {
+	return get_comment_delimited_block_content( 'core/' . $name, $attrs, "\n" . $html . "\n" );
 }
 
 /**
@@ -67,9 +102,8 @@ function sn_resume_band( $size, $top, $bottom, $inner, $class = '' ) {
  * @return string
  */
 function sn_resume_para( $class, $html ) {
-	$attrs = '' !== $class ? ' {"className":"' . $class . '"}' : '';
-	$cls   = '' !== $class ? ' class="' . esc_attr( $class ) . '"' : '';
-	return '<!-- wp:paragraph' . $attrs . ' -->' . "\n" . '<p' . $cls . '>' . $html . '</p>' . "\n" . '<!-- /wp:paragraph -->' . "\n\n";
+	$cls = '' !== $class ? ' class="' . esc_attr( $class ) . '"' : '';
+	return sn_resume_block( 'paragraph', '' !== $class ? array( 'className' => $class ) : array(), '<p' . $cls . '>' . $html . '</p>' ) . "\n\n";
 }
 
 /**
@@ -84,10 +118,16 @@ function sn_resume_para( $class, $html ) {
 function sn_resume_section_head( $eyebrow, $title, $band = array() ) {
 	$id = (string) ( $band['id'] ?? '' );
 	// The anchor rides in the comment JSON and the id; an editor re-save drops the JSON copy (the id stays), so the bytes drift but the block stays valid.
+	$attrs = ( '' !== $id ? array( 'anchor' => $id ) : array() ) + array(
+		'style' => array(
+			'typography' => array(
+				'fontSize'   => 'clamp(2rem, 5vw, 3.5rem)',
+				'lineHeight' => '1.05',
+			),
+		),
+	);
 	return sn_resume_para( 'sn-catalog-eyebrow', esc_html( $eyebrow ) . ( empty( $band['only'] ) ? '' : ' · Only in this version' ) )
-		. '<!-- wp:heading {' . ( '' !== $id ? '"anchor":"' . $id . '",' : '' ) . '"style":{"typography":{"fontSize":"clamp(2rem, 5vw, 3.5rem)","lineHeight":"1.05"}}} -->' . "\n"
-		. '<h2 class="wp-block-heading"' . ( '' !== $id ? ' id="' . esc_attr( $id ) . '"' : '' ) . ' style="font-size:clamp(2rem, 5vw, 3.5rem);line-height:1.05">' . esc_html( $title ) . '</h2>' . "\n"
-		. '<!-- /wp:heading -->' . "\n\n";
+		. sn_resume_block( 'heading', $attrs, '<h2 class="wp-block-heading"' . ( '' !== $id ? ' id="' . esc_attr( $id ) . '"' : '' ) . ' style="font-size:clamp(2rem, 5vw, 3.5rem);line-height:1.05">' . esc_html( $title ) . '</h2>' ) . "\n\n";
 }
 
 /**
@@ -101,13 +141,12 @@ function sn_resume_list( $class, $items ) {
 	if ( empty( $items ) ) {
 		return '';
 	}
-	$attrs = '' !== $class ? ' {"className":"' . $class . '"}' : '';
-	$cls   = '' !== $class ? ' ' . esc_attr( $class ) : '';
-	$out   = '<!-- wp:list' . $attrs . ' -->' . "\n" . '<ul class="wp-block-list' . $cls . '">';
+	$cls = '' !== $class ? ' ' . esc_attr( $class ) : '';
+	$out = '<ul class="wp-block-list' . $cls . '">';
 	foreach ( $items as $item ) {
-		$out .= '<!-- wp:list-item -->' . "\n" . '<li>' . $item . '</li>' . "\n" . '<!-- /wp:list-item -->' . "\n";
+		$out .= sn_resume_block( 'list-item', array(), '<li>' . $item . '</li>' ) . "\n";
 	}
-	return $out . '</ul>' . "\n" . '<!-- /wp:list -->' . "\n\n";
+	return sn_resume_block( 'list', '' !== $class ? array( 'className' => $class ) : array(), $out . '</ul>' ) . "\n\n";
 }
 
 /** A role: sn-resume-title line + its bullet list. @param array $role @return string */

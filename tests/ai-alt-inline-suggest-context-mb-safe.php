@@ -45,5 +45,13 @@ $ctx2      = snt_ai_extract_inline_img_context( $content2, 'https://example.test
 ok( mb_strlen( $ctx2 ) <= 50, 'the final truncation respects the CHARACTER window, not a byte count' );
 ok( 1 === preg_match( '//u', $ctx2 ), 'the final truncated context is valid UTF-8' );
 
+// The health check hands over the src decoded by core's HTML parser; stored markup spells "&" as "&amp;".
+$stored = '<p>x</p><img src="https://i.example/p.png?w=600&amp;ssl=1"><img src="/plain.png">';
+ok( 'https://i.example/p.png?w=600&amp;ssl=1' === snt_ai_inline_img_stored_src( $stored, 'https://i.example/p.png?w=600&ssl=1' ), 'a decoded src is found in its stored, entity-encoded spelling' );
+ok( 'https://i.example/p.png?w=600&amp;ssl=1' === snt_ai_inline_img_stored_src( $stored, 'https://i.example/p.png?w=600&amp;ssl=1' ), 'the stored spelling still matches itself' );
+ok( '/plain.png' === snt_ai_inline_img_stored_src( $stored, '/plain.png' ), 'a src with no entity is found as it is' );
+ok( '' === snt_ai_inline_img_stored_src( $stored, '/gone.png' ) && '' === snt_ai_inline_img_stored_src( $stored, '' ), 'a src that is not in the body, or an empty one, is not found' );
+ok( '' !== snt_ai_extract_inline_img_context( $stored . '<p>Some words after the image.</p>', snt_ai_inline_img_stored_src( $stored, 'https://i.example/p.png?w=600&ssl=1' ) ), 'and the context window is cut around it' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -15,6 +15,7 @@ function __( $s, $d = null ) { return (string) $s; }
 function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
 
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real Tag Processor reads and rewrites the path attributes.
 require_once __DIR__ . '/../inc/analytics-admin-render.php';
 
 $pass = 0; $fail = 0;
@@ -56,6 +57,25 @@ $dn = snt_analytics_recolor_world_svg(
 	array()
 );
 ok( strpos( $dn, '<title>United States — 7 views</title>' ) !== false, "recolor: falls back to the SVG path's data-name when no name is passed" );
+
+echo "\nGroup: the vendored map, read by core's HTML parser\n";
+// The two hashes were taken from the regex transform this replaced, on the same
+// inputs under this suite's stubs: the shipped map must recolor to the same bytes.
+$map = (string) file_get_contents( __DIR__ . '/../assets/analytics/world-map.svg' );
+$big = snt_analytics_recolor_world_svg( $map, array( 'US' => 1000, 'de' => 10, 'AR' => 77, 'CI' => 5 ), array( 'US' => 'United States', 'CI' => "Côte d'Ivoire" ) );
+ok( 'f05b8e1e3e89198068d77fd4aff35811d21c2610a83e608dda947f585b1cd56d' === hash( 'sha256', $big ), 'the shipped map with views recolors to the bytes the regex transform produced' );
+ok( '920417330228320fefcd8272f4ef28eb4b187b486543edeb7060c41f08f02f36' === hash( 'sha256', snt_analytics_recolor_world_svg( $map, array(), array() ) ), 'and with no views' );
+ok( 211 === substr_count( $big, '<title>' ) && 211 === substr_count( $big, '</path>' ) && false === strpos( $big, 'data-sn-title' ), 'all 211 country paths are titled and closed, and no marker attribute is left behind' );
+ok( false !== strpos( $big, '<title>Côte d&#039;Ivoire — 5 views</title>' ), 'a name with an apostrophe is escaped as before' );
+
+// Where the regex was wrong. Each line says what it answered.
+$odd = snt_analytics_recolor_world_svg( '<svg><path data-id="US" id="zz" style="fill:#f2f2f2"/><path id=\'DE\' style=\'fill:#f2f2f2\' /><PATH id="PT" style="fill:#f2f2f2" /><path id="ES" style="fill:#f2f2f2"></path><path id="IT" fill="#f2f2f2" /></svg>', array( 'US' => 9, 'DE' => 9, 'PT' => 9 ), array() );
+ok( false !== strpos( $odd, '<path data-id="US" id="zz" style="fill:#f2f2f2"/>' ), 'a path whose id is not a country is left alone (the regex read data-id="US" as its id and shaded it)' );
+ok( 1 === preg_match( '#<path id=\'DE\' style="fill:rgba\(34,113,177,[0-9.]+\)"><title>DE — 9 views</title></path>#', $odd ), 'a single-quoted id is a country (the regex needed double quotes and skipped it)' );
+ok( 1 === preg_match( '#<PATH id="PT" style="fill:rgba\(34,113,177,[0-9.]+\)"><title>PT — 9 views</title></PATH>#', $odd ), 'an uppercase tag is a path (the regex was case-sensitive and skipped it)' );
+ok( false !== strpos( $odd, '<path id="ES" style="fill:#f2f2f2"></path>' ), 'a path that is not self-closing is left alone, as before' );
+ok( false !== strpos( $odd, '<path id="IT" fill="#f2f2f2"><title>IT</title></path>' ), 'a path with no style is titled and not recolored, as before' );
+ok( false === strpos( $odd, 'data-sn-title' ), 'no marker attribute survives' );
 
 echo "\nGroup: orchestrator empty-state (no file needed)\n";
 unset( $GLOBALS['sn_an_empty_panels'] );

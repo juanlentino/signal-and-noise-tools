@@ -50,29 +50,90 @@ function sn_lang_insert_template( $templates, $extra ) {
 }
 
 /**
- * The English fallback: an empty Spanish page renders its English page's body.
- * Only the page's own post-content block, never one inside a query loop.
+ * The English page whose body the queried Spanish page borrows, or 0.
  *
- * @param string        $html     Rendered core/post-content.
- * @param array         $block    Parsed block.
- * @param WP_Block|null $instance Block instance (context carries postId).
+ * Only an empty Spanish page borrows, and only a public English page lends:
+ * never a draft, private or password-protected one, even if someone pairs to it.
+ *
+ * @return int English page id, or 0 when the queried page renders as itself.
+ */
+function sn_lang_fallback_source() {
+	$id = (int) get_queried_object_id();
+	if ( ! is_singular( 'page' ) ) {
+		return 0;
+	}
+	$en = (int) sn_lang_en_counterpart( $id );
+	if ( ! $en || '' !== trim( (string) get_post_field( 'post_content', $id ) ) || 'publish' !== get_post_status( $en ) || post_password_required( $en ) ) {
+		return 0;
+	}
+	return $en;
+}
+
+/**
+ * Whether the block being rendered took the English body. Reading it resets it.
+ *
+ * @param bool|null $set True when the English body went in; null to read.
+ * @return bool The value before this call.
+ */
+function sn_lang_fell_back( $set = null ) {
+	static $fell_back = false;
+	$was       = $fell_back;
+	$fell_back = (bool) $set;
+	return $was;
+}
+
+/**
+ * The English fallback, step one: just before core renders a post-content
+ * block on an empty Spanish page, arm a one-shot on the_content. Core's own
+ * render callback then wraps the English body the way the template asks
+ * (tag name, layout, alignment, block supports), so no wrapper is written here.
+ *
+ * @param string|null $pre   A short-circuit value from an earlier filter.
+ * @param array       $block Parsed block.
+ * @return string|null $pre, untouched.
+ */
+function sn_lang_content_fallback_arm( $pre, $block ) {
+	if ( null === $pre && 'core/post-content' === ( $block['blockName'] ?? '' ) && sn_lang_fallback_source() ) {
+		add_filter( 'the_content', 'sn_lang_content_fallback_body', 1 );
+	}
+	return $pre;
+}
+add_filter( 'pre_render_block', 'sn_lang_content_fallback_arm', 10, 2 );
+
+/**
+ * Step two, once: hand core the English page's body in place of the empty
+ * Spanish one. It removes itself first, so it never reaches an excerpt, a
+ * nested render or another post in a query loop.
+ *
+ * @param string $content The content core is about to filter.
  * @return string
  */
-function sn_lang_content_fallback( $html, $block, $instance = null ) {
-	$id = (int) get_queried_object_id();
-	if ( ! is_singular( 'page' ) || ( $instance && isset( $instance->context['postId'] ) && (int) $instance->context['postId'] !== $id ) ) {
-		return $html;
+function sn_lang_content_fallback_body( $content ) {
+	remove_filter( 'the_content', 'sn_lang_content_fallback_body', 1 );
+	$en = sn_lang_fallback_source();
+	if ( ! $en || '' !== trim( (string) $content ) || (int) get_the_ID() !== (int) get_queried_object_id() ) {
+		return $content;
 	}
-	$en = sn_lang_en_counterpart( $id );
-	// Only a public English page lends its body: never a draft, private or
-	// password-protected one, even if someone pairs to it.
-	if ( ! $en || '' !== trim( (string) get_post_field( 'post_content', $id ) ) || 'publish' !== get_post_status( $en ) || post_password_required( $en ) ) {
-		return $html;
-	}
-	$body = (string) apply_filters( 'the_content', str_replace( ']]>', ']]&gt;', (string) get_post_field( 'post_content', $en ) ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core hook
-	// Core's post-content block renders '' for an empty body, dropping its own
-	// wrapper; put the same wrapper back so the page keeps its layout track
-	// (the theme's .entry-content rules), as the English page renders it.
-	return '' === trim( $body ) ? $html : '<div class="entry-content wp-block-post-content is-layout-flow wp-block-post-content-is-layout-flow" lang="en">' . $body . '</div>';
+	sn_lang_fell_back( true );
+	return str_replace( ']]>', ']]&gt;', (string) get_post_field( 'post_content', $en ) );
 }
-add_filter( 'render_block_core/post-content', 'sn_lang_content_fallback', 9, 3 );
+
+/**
+ * Step three: mark the wrapper core rendered lang="en", so a screen reader
+ * switches voice for the borrowed body.
+ *
+ * @param string $html Rendered core/post-content.
+ * @return string
+ */
+function sn_lang_content_fallback( $html ) {
+	remove_filter( 'the_content', 'sn_lang_content_fallback_body', 1 ); // Still armed when core never reached the_content.
+	if ( ! sn_lang_fell_back() ) {
+		return $html;
+	}
+	$wrapper = new WP_HTML_Tag_Processor( (string) $html );
+	if ( $wrapper->next_tag() ) {
+		$wrapper->set_attribute( 'lang', 'en' );
+	}
+	return $wrapper->get_updated_html();
+}
+add_filter( 'render_block_core/post-content', 'sn_lang_content_fallback', 9 );

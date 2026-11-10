@@ -36,6 +36,8 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; } else { $fail++; echo "FAIL: $m\n"; } }
 $yes = static function ( $keys, $on ) { return static function ( $state, $q ) use ( $keys, $on ) { $a = array(); foreach ( array_keys( $q ) as $k ) { $a[ $k ] = array( 'type' => 'noul', 'noul' => in_array( $k, $on, true ) ? 0.81 : 0.1 ); } return array( 'ok' => true, 'code' => 200, 'answers' => $a, 'usage' => array( 'input_tokens' => 4000 ), 'error' => '' ); }; };
 
+require_once __DIR__ . '/lib/wp-html-api.php';
+snt_test_load_block_parser(); // core's real parse_blocks(): the paragraph reader walks its tree.
 require __DIR__ . '/../inc/jev-tells.php';
 require __DIR__ . '/../inc/abilities-jev.php';
 foreach ( $GLOBALS['__t']['actions']['init'] ?? array() as $cb ) { $cb(); }
@@ -49,6 +51,87 @@ ok( 2 === count( $ps ) && $long === $ps[0] && str_starts_with( $ps[1], 'Second l
 ok( array() === sn_jev_tells_paragraphs( '' ) && array() === sn_jev_tells_paragraphs( '<h2>only</h2>' ), 'A2 nothing to judge is an empty list' );
 $many = ''; for ( $i = 0; $i < 30; $i++ ) { $many .= para( $long . ' ' . $i ); }
 ok( SN_JEV_TELLS_MAX_PARAS === count( sn_jev_tells_paragraphs( $many ) ), 'A3 capped at ' . SN_JEV_TELLS_MAX_PARAS );
+
+// A4: which paragraphs are read, on the shared block markup (tests/lib/block-reader-cases.php).
+$cases = require __DIR__ . '/lib/block-reader-cases.php';
+$want_paragraphs = array(
+	'a plain paragraph and a classed notice' => array(
+		'The ledger was reopened in the spring, and nobody had expected what it showed.',
+		'Correction, October 16, 2026. An earlier version of this note gave the wrong year for the ledger.',
+	),
+	'attributes in any order, two classes' => array(
+		'Fixed the figure in the second table, which had the columns the wrong way around.',
+	),
+	'attribute JSON with nested braces and an escaped >' => array(
+		'Correction, October 16, 2026. An earlier version of this note gave the wrong year for the ledger.',
+	),
+	'a notice nested in a group' => array(
+		'The ledger was reopened in the spring, and nobody had expected what it showed.',
+		'Correction, October 16, 2026. An earlier version of this note gave the wrong year for the ledger.',
+	),
+	'a notice nested in columns' => array(
+		'Correction, October 1, 2026: An earlier version of this note named the wrong archive.',
+	),
+	'a quoted paragraph' => array( // The regex also read the quote's own paragraph ('Correction, they wrote in the margin, ...'): it had thrown away the block comments that said the <p> sat inside a core/quote. Quoted words are not the author's prose.
+		'The ledger was reopened in the spring, and nobody had expected what it showed.',
+	),
+	'an unclassed italic notice' => array(
+		'Correction, October 1, 2026: An earlier version of this note said the opposite.',
+	),
+	'uppercase lead-in with nested inline markup' => array(
+		'CORRECTION, October 16, 2026. See the ledger note for the corrected figure.',
+	),
+	'entity-led text' => array(
+		'Correction, October 2, 2026: the café was on the other side of the street.',
+	),
+	'a class that only starts with sn-correction' => array(
+		'An archive of earlier wording, kept here for readers who want to compare.',
+	),
+	'sn-correction in another attribute' => array(
+		'Readers have asked how corrections are handled on this site, so here it is.',
+	),
+	'the long block name' => array(
+		'Correction, October 16, 2026. An earlier version of this note gave the wrong year for the ledger.',
+	),
+	'a void paragraph' => array(
+		'The ledger was reopened in the spring, and nobody had expected what it showed.',
+	),
+	'correction mentioned mid-sentence' => array(
+		'What follows is not a Correction, only a longer explanation of the same point.',
+	),
+	'a heading that opens Correction,' => array(
+		'The ledger was reopened in the spring, and nobody had expected what it showed.',
+	),
+	'whitespace and newlines inside' => array(
+		'Correction, October 16, 2026. An earlier version said X, and that was wrong.',
+	),
+	'multibyte text' => array(
+		'Corrección, 16 de octubre: una versión anterior decía «señal» donde iba «ruido» 日本語.',
+		'Señal y ruido: lo que el libro mayor mostraba no era lo que nadie esperaba 日本語.',
+	),
+	'a comment holding paragraph markup' => array(
+		'The ledger was reopened in the spring, and nobody had expected what it showed.',
+	),
+	'a list and a paragraph inside details' => array(
+		'Inside the details block there is one more paragraph of ordinary prose to read.',
+	),
+	'a pullquote and a custom HTML block' => array(), // The regex read both <p> elements: the pullquote's (a quote) and the one hand-written in a core/html block (not a paragraph block).
+	'a classic chunk between blocks' => array(
+		'The ledger was reopened in the spring, and nobody had expected what it showed.',
+		'Correction, typed into a Classic block years ago and never converted to a paragraph block.',
+		'And then the note goes on in blocks, as every newer note on the site does.',
+	),
+	'classic content, no blocks' => array(
+		'Correction, October 3, 2026: this body was written in the classic editor.',
+		'It has a second paragraph that is also long enough to be read on its own.',
+	),
+	'empty input' => array(),
+);
+ok( array_keys( $want_paragraphs ) === array_keys( $cases ), 'A4 an answer is pinned for every shared block case' );
+foreach ( $cases as $name => $content ) {
+	$got = sn_jev_tells_paragraphs( $content );
+	ok( $want_paragraphs[ $name ] === $got, "A4 paragraphs: $name" . ( $want_paragraphs[ $name ] === $got ? '' : ' (got ' . json_encode( $got, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . ')' ) );
+}
 
 // B: the regex tells, positive and negative.
 $tells = array(
@@ -110,6 +193,10 @@ ok( $n === count( $GLOBALS['__t']['calls'] ), 'E1 a published note is not judged
 mkpost( 4, 'future', 'Scheduled', para( $long ) ); $hook( 4, get_post( 4 ) );
 ok( $n + 1 === count( $GLOBALS['__t']['calls'] ), 'E2 a scheduled note is judged' );
 ok( true === $GLOBALS['__t']['registered'][ SN_JEV_TELLS_META ]['show_in_rest'], 'E3 meta registered for the editor' );
+
+if ( ! function_exists( '__return_false' ) ) { function __return_false() { return false; } }
+if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $cap, ...$a ) { return true; } }
+ok( false === call_user_func( $GLOBALS['__t']['registered'][ SN_JEV_TELLS_META ]['auth_callback'], true, SN_JEV_TELLS_META, 4, 1, 'edit_post_meta', array() ), 'E4 a REST write to the tells meta is refused, even for a user who can edit the post' );
 
 // F: the corpus pass.
 $GLOBALS['__t']['calls'] = array();

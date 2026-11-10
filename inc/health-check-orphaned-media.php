@@ -70,13 +70,17 @@ function sn_health_attachment_is_referenced( $id, $guid, $featured, $chrome ) {
 		return true;
 	}
 
-	// Filenames to search: the original basename + every generated size's exact
-	// filename (photo-WxH.ext) from the attachment metadata. The classic editor and
-	// direct-URL references use THESE, not the wp-image-<id> class.
-	$needles  = array();
-	$basename = wp_basename( (string) $guid );
-	if ( '' !== $basename ) {
-		$needles[] = $basename;
+	// Filenames to search: the guid's basename, the file core actually stores
+	// (_wp_attached_file: photo-scaled.jpg for a large upload, which the guid
+	// never names), the pre-scale original, and every generated size's exact
+	// filename (photo-WxH.ext) from the attachment metadata. The classic editor
+	// and direct-URL references use THESE, not the wp-image-<id> class. Needles
+	// are only ever added: this list is a delete guard.
+	$needles = array( wp_basename( (string) $guid ) );
+	foreach ( array( get_attached_file( $id ), wp_get_original_image_path( $id ) ) as $file ) {
+		if ( is_string( $file ) && '' !== $file ) {
+			$needles[] = wp_basename( $file );
+		}
 	}
 	$meta = wp_get_attachment_metadata( $id );
 	if ( is_array( $meta ) && ! empty( $meta['sizes'] ) && is_array( $meta['sizes'] ) ) {
@@ -113,6 +117,20 @@ function sn_health_attachment_is_referenced( $id, $guid, $featured, $chrome ) {
 	}
 
 	return false;
+}
+
+/**
+ * Where an attachment is served from: core's answer (_wp_attached_file under
+ * the current uploads URL), or the guid when core has none. The guid is the
+ * URL at upload time, so it goes stale on a domain or uploads-path change.
+ *
+ * @param int    $id   Attachment ID.
+ * @param string $guid Attachment guid.
+ * @return string
+ */
+function sn_health_attachment_url( $id, $guid ) {
+	$url = wp_get_attachment_url( (int) $id );
+	return is_string( $url ) && '' !== $url ? $url : (string) $guid;
 }
 
 /**
@@ -202,7 +220,7 @@ function sn_health_check_orphaned_media() {
 		$findings[] = array(
 			'subject_type'  => 'attachment',
 			'subject_id'    => $id,
-			'subject_url'   => (string) $att['guid'],
+			'subject_url'   => sn_health_attachment_url( $id, $att['guid'] ),
 			'subject_label' => (string) $att['post_title'] . ' (' . $basename . ')',
 			'edit_url'      => admin_url( 'post.php?post=' . $id . '&action=edit' ),
 			'note'          => 'Not referenced in any post body or meta, and not a featured image, logo, or site icon.',

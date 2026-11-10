@@ -33,6 +33,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/html-token-spans.php'; // snt_html_elements(): headings, lists and links as core reads them.
+
 // Clear rule match, not a byte-exact duplicate — same tier as
 // SNT_SN_SCAN_CONF_BLOCK_MIGRATIONS (0.9), per the documented-constant
 // convention in inc/sn-scan-adapters.php.
@@ -119,42 +121,51 @@ function snt_anchor_violations_scan_content( $content ) {
 	$content    = (string) $content;
 	$violations = array();
 
-	// Heading spans first — rule 2, and an exclusion map for rule 1 (a
-	// heading wrapped entirely in a link would otherwise fire BOTH rules for
-	// one editorial defect; the heading rule owns it).
-	$excluded_spans = array();
-	if ( preg_match_all( '#<h([1-6])\b[^>]*>(.*?)</h\1>#is', $content, $headings, PREG_OFFSET_CAPTURE | PREG_SET_ORDER ) ) {
-		foreach ( $headings as $h ) {
-			$span_start      = $h[0][1];
-			$excluded_spans[] = array( $span_start, $span_start + strlen( $h[0][0] ) );
-			if ( preg_match( '/<a\b[^>]*>(.*?)<\/a>/is', $h[2][0], $a ) ) {
-				$violations[] = array(
-					'rule'          => 'heading_contains_link',
-					'anchor_text'   => snt_anchor_violations_normalize( $a[1] ),
-					'sentence'      => snt_anchor_violations_normalize( $h[2][0] ),
-					'heading_level' => (int) $h[1][0],
-				);
-			}
-		}
-	}
-
+	// One walk with core's tag processor finds every heading, list and link
+	// as a browser reads them, with their byte spans.
+	$anchors = array();
+	// Heading spans are rule 2, and an exclusion map for rule 1 (a heading
+	// wrapped entirely in a link would otherwise fire BOTH rules for one
+	// editorial defect; the heading rule owns it).
+	//
 	// A References list is the house citation form: each item ends
 	// "Source, date. <a>domain.com</a>", so the link label is a "sentence" of
 	// its own by construction. Its links are citations, not prose, and rule 1
 	// does not judge them (all 93 live findings on 2026-10-17 were this shape).
-	if ( preg_match_all( '#<(ul|ol)\b[^>]*\bclass="(?:[^"]*\s)?is-style-references(?:\s[^"]*)?"[^>]*>.*?</\1>#is', $content, $lists, PREG_OFFSET_CAPTURE ) ) {
-		foreach ( $lists[0] as $l ) {
-			$excluded_spans[] = array( $l[1], $l[1] + strlen( $l[0] ) );
+	$excluded_spans = array();
+	$elements       = snt_html_elements( $content, array( 'A', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL' ) );
+	foreach ( $elements as $el ) {
+		if ( 'A' === $el['tag'] ) {
+			$anchors[] = $el;
+		}
+	}
+	foreach ( $elements as $el ) {
+		if ( 'A' === $el['tag'] ) {
+			continue;
+		}
+		if ( 'H' !== $el['tag'][0] ) {
+			if ( in_array( 'is-style-references', $el['classes'], true ) ) {
+				$excluded_spans[] = array( $el['start'], $el['end'] );
+			}
+			continue;
+		}
+		$excluded_spans[] = array( $el['start'], $el['end'] );
+		foreach ( $anchors as $a ) {
+			if ( $a['start'] >= $el['open_end'] && $a['end'] <= $el['close_start'] ) {
+				$violations[] = array(
+					'rule'          => 'heading_contains_link',
+					'anchor_text'   => snt_anchor_violations_normalize( substr( $content, $a['open_end'], $a['close_start'] - $a['open_end'] ) ),
+					'sentence'      => snt_anchor_violations_normalize( substr( $content, $el['open_end'], $el['close_start'] - $el['open_end'] ) ),
+					'heading_level' => (int) $el['tag'][1],
+				);
+				break; // One finding per heading: its first link.
+			}
 		}
 	}
 
-	if ( ! preg_match_all( '/<a\b[^>]*>.*?<\/a>/is', $content, $anchors, PREG_OFFSET_CAPTURE ) ) {
-		return $violations;
-	}
-
-	foreach ( $anchors[0] as $match ) {
-		$anchor_html = $match[0];
-		$offset      = $match[1];
+	foreach ( $anchors as $a ) {
+		$anchor_html = substr( $content, $a['start'], $a['end'] - $a['start'] );
+		$offset      = $a['start'];
 
 		$excluded = false;
 		foreach ( $excluded_spans as $span ) {

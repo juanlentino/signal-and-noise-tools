@@ -39,6 +39,7 @@ $GLOBALS['__posts'] = array();
 function get_post( $id ) { return $GLOBALS['__posts'][ (int) $id ] ?? null; }
 function snt_corpus_fetch_posts( $status = 'any', $post_type = 'post' ) { return array_values( $GLOBALS['__posts'] ); }
 
+require_once __DIR__ . '/lib/wp-core-blocks.php'; // The code under test reads markup with core's HTML API and block processor.
 require __DIR__ . '/../inc/sn-scan-anchor-violations.php';
 
 $pass = 0; $fail = 0;

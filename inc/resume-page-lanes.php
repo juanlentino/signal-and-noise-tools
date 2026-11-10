@@ -194,12 +194,8 @@ function sn_resume_lanes_head_blocks( $legend = false ) {
  */
 function sn_resume_lane_group( $lane, $inner ) {
 	$class = 'sn-resume-variant sn-resume-variant--' . $lane;
-	// The comment's JSON spells "--" as core's serializer does (a JSON escape, never rendered; built in two
-	// pieces so tests/no-literal-unicode-escapes.php reads no rendered escape), so a parse and re-save gives the body back byte for byte.
-	return '<!-- wp:group {"className":"' . str_replace( '--', str_repeat( '\\' . 'u002d', 2 ), $class ) . '"} -->' . "\n"
-		. '<div id="resume-' . $lane . '" class="wp-block-group ' . $class . '">' . "\n"
-		. $inner
-		. '</div>' . "\n" . '<!-- /wp:group -->' . "\n\n";
+	// Core's serializer spells the "--" in the comment's JSON as a JSON escape (never rendered), so a parse and re-save gives the body back byte for byte.
+	return sn_resume_block( 'group', array( 'className' => $class ), '<div id="resume-' . $lane . '" class="wp-block-group ' . $class . '">' . "\n" . $inner . '</div>' ) . "\n\n";
 }
 
 /**

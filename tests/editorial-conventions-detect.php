@@ -11,6 +11,7 @@
 
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
+require_once __DIR__ . '/lib/wp-core-blocks.php'; // The code under test reads markup with core's HTML API and block processor.
 require_once __DIR__ . '/lib/block-parser-fixture.php';
 require_once __DIR__ . '/../inc/editorial-conventions-detect.php';
 

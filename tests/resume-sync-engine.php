@@ -16,6 +16,8 @@
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
+define( 'SNT_TEST_WITH_BLOCKS_PHP', true ); // The /resume body is serialized by core's get_comment_delimited_block_content().
+require_once __DIR__ . '/lib/wp-core-blocks.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  PASS: $m\n"; } else { $fail++; echo "  FAIL: $m\n"; } }
@@ -203,6 +205,37 @@ $GLOBALS['__options'] = array();
 sn_resume_sync_page(); // no option → seed fallback still renders a body
 ok( 1 === count( $GLOBALS['__updates'] ), 'sync regenerates from the current document (seed fallback included)' );
 ok( false !== strpos( (string) $GLOBALS['__updates'][0]['post_content'], 'PANACEA STUDIO' ), 'synced body carries the document content' );
+
+// ── delimiters come from core's serializer; the bytes are the ones the hand-built strings gave ──
+// Each sha1 is of what the helper returned while it concatenated the delimiter and its JSON by hand
+// (taken from that code before it moved to get_comment_delimited_block_content()).
+echo "\nTest: block delimiters from core's serializer, byte for byte\n";
+$same = array(
+	'48f9804fc889690520e1767a8040f5f684a763a4' => sn_resume_band( '1320px', '60', '30', "INNER\n" ),
+	'3bd3773d7cb59a27e49b983bff8588eceb6bb246' => sn_resume_band( '1320px', '20', '20', "INNER\n", 'sn-resume-hunk-band' ),
+	'8a06c761fbc07bb6f4714f0ae135adfbb3909d56' => sn_resume_para( '', 'Plain <strong>text</strong>' ),
+	'3422ea7768894c7ee0746eaec8790f542019d5ff' => sn_resume_para( 'sn-resume-title', 'Señor &amp; co' ),
+	'ccc0d4b2522d654c79a9790b2db5c547eaef26e8' => sn_resume_section_head( 'Eyebrow', 'Title & more' ),
+	'687e53b58e0b640ed35536730cc392c4eb8641cb' => sn_resume_section_head( 'Eyebrow', 'Title', array( 'id' => 'music-experience', 'only' => true ) ),
+	'b934c317b13a4e4e2bb21173e9444eb02c886777' => sn_resume_list( 'sn-resume-chips', array( 'One', '<a href="/x/">Two</a>' ) ),
+	'bc74bbbf2d5cbb92071f0bfafc8fd73fe4de957d' => sn_resume_list( '', array( 'One' ) ),
+	'6b5495ed2c73ab4a381429854019730236e5ae16' => sn_resume_lane_group( 'music', "INNER\n" ),
+	'aee4974c8033c56ff63ddba43356f3fe629c1356' => sn_resume_download_blocks( 'https://x.test/wp-content/uploads/resume.pdf?v=3', false ),
+	'11935d62b8c90371328ee07f544a6f499371ec59' => sn_resume_hero_split_blocks( "LEFT\n", "RIGHT\n" ),
+	'f381b1d2bea344c8c28e29ae8971af3a2da6ed5b' => sn_resume_hero_split_blocks( "LEFT\n", "RIGHT\n", 'bottom', 'sn-resume-head-split' ),
+);
+foreach ( $same as $sha => $out ) {
+	ok( sha1( $out ) === $sha, 'unchanged: ' . strtok( $out, "\n" ) );
+}
+ok( '' === sn_resume_list( 'k', array() ) && '' === sn_resume_download_blocks( '', false ), 'an empty list and an empty download still render nothing' );
+ok( "<!-- wp:paragraph {\"className\":\"sn-x\"} -->\n<p class=\"sn-x\">a</p>\n<!-- /wp:paragraph -->\n\n" === sn_resume_para( 'sn-x', 'a' ), 'a paragraph, spelled out' );
+// Three inputs no caller passes today, where the hand-built JSON was not what core writes.
+$u = '\\' . 'u00'; // spelled in two pieces so tests/no-literal-unicode-escapes.php reads no rendered escape.
+ok( false !== strpos( sn_resume_para( 'say "hi"', 'x' ), '{"className":"say ' . $u . '22hi' . $u . '22"}' ), 'a quote in a value is a JSON escape (formerly {"className":"say "hi""}, which is not JSON)' );
+ok( false !== strpos( sn_resume_para( 'a--b', 'x' ), '{"className":"a' . $u . '2d' . $u . '2db"}' ), 'a "--" in a value is escaped as core escapes it (formerly a raw "--" inside the comment)' );
+ok( false !== strpos( sn_resume_download_blocks( 'https://x.test/r.pdf?v=3&lane=ops', false ), '"href":"https://x.test/r.pdf?v=3' . $u . '26amp;lane=ops"' ), 'an "&" in the href is escaped in the comment as core escapes it (formerly a raw "&amp;")' );
+preg_match_all( '/<!-- wp:[a-z-]+ (\{.*?\}) -->/s', sn_resume_para( 'say "hi"', 'x' ) . sn_resume_para( 'a--b', 'x' ), $m_esc );
+ok( 2 === count( $m_esc[1] ) && array( 'say "hi"', 'a--b' ) === array_map( static function ( $j ) { return json_decode( $j, true )['className'] ?? null; }, $m_esc[1] ), 'and each decodes back to the value it was given' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

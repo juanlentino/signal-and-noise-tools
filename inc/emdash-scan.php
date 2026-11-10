@@ -29,6 +29,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/html-token-spans.php'; // snt_html_span_processor(): where each tag and comment sits.
+
 const SNT_EMDASH = "\xE2\x80\x94"; // U+2014, as raw UTF-8 bytes: post_content is a byte string.
 
 /**
@@ -44,33 +46,48 @@ const SNT_EMDASH_PATTERN = '/(\x{2014}|&mdash;|&#8212;|&#x2014;)/iu';
 /**
  * Byte ranges in $content that are markup rather than copy.
  *
- * Covers HTML tags (so attribute values are excluded), HTML/Gutenberg comments, and
- * the full span of <code>, <pre>, <kbd>, <samp>, <script> and <style> elements.
+ * Covers every HTML token that is not text (tags, so attribute values are
+ * excluded, and HTML/Gutenberg comments) and the full span of <code>, <pre>,
+ * <kbd> and <samp> elements. Core's tag processor reads the tokens, so a ">"
+ * inside an attribute value does not end the tag, and <script> and <style>
+ * arrive as one token with their text. Markup that never closes (a comment
+ * or a tag cut off at the end) is markup to the end: a writer must not treat
+ * what a browser would not show as prose.
  *
  * @param string $content Raw post content.
  * @return array<int,array{0:int,1:int}> Sorted [start, end) byte ranges.
  */
 function snt_emdash_markup_ranges( $content ) {
-	$ranges = array();
-
-	// Comments first: a block comment can contain angle brackets that would
-	// otherwise be mis-read as tags.
-	if ( preg_match_all( '/<!--.*?-->/s', $content, $m, PREG_OFFSET_CAPTURE ) ) {
-		foreach ( $m[0] as $hit ) {
-			$ranges[] = array( $hit[1], $hit[1] + strlen( $hit[0] ) );
+	$content   = (string) $content;
+	$ranges    = array();
+	$read_to   = 0;
+	$processor = snt_html_span_processor( $content );
+	while ( $processor->next_token() ) {
+		$span    = $processor->token_span();
+		$read_to = $span[1];
+		if ( '#text' === $processor->get_token_type() ) {
+			continue;
 		}
+		// <title> and <textarea> arrive as one token, text included, and their
+		// text is copy (an inline SVG's <title> is read aloud): only the tags
+		// around it are markup. Core says where the text sits by replacing it.
+		$mark = "\x01snt\x02";
+		$tags = in_array( $processor->get_tag(), array( 'TITLE', 'TEXTAREA' ), true ) && ! $processor->is_tag_closer() ? new WP_HTML_Tag_Processor( substr( $content, $span[0], $span[1] - $span[0] ) ) : null;
+		if ( $tags && false === strpos( $content, $mark ) && $tags->next_token() && $tags->set_modifiable_text( $mark ) ) {
+			$replaced = $tags->get_updated_html();
+			$opener   = (int) strpos( $replaced, $mark );
+			$ranges[] = array( $span[0], $span[0] + $opener );
+			$ranges[] = array( $span[1] - ( strlen( $replaced ) - $opener - strlen( $mark ) ), $span[1] );
+			continue;
+		}
+		$ranges[] = $span;
+	}
+	if ( $processor->paused_at_incomplete_token() ) {
+		$ranges[] = array( $read_to, strlen( $content ) );
 	}
 	// Verbatim elements, whole span including their text.
-	if ( preg_match_all( '#<(code|pre|kbd|samp|script|style)\b[^>]*>.*?</\1\s*>#is', $content, $m, PREG_OFFSET_CAPTURE ) ) {
-		foreach ( $m[0] as $hit ) {
-			$ranges[] = array( $hit[1], $hit[1] + strlen( $hit[0] ) );
-		}
-	}
-	// Any remaining tag, so attribute values are markup.
-	if ( preg_match_all( '/<[^!][^>]*>/s', $content, $m, PREG_OFFSET_CAPTURE ) ) {
-		foreach ( $m[0] as $hit ) {
-			$ranges[] = array( $hit[1], $hit[1] + strlen( $hit[0] ) );
-		}
+	foreach ( snt_html_elements( $content, array( 'CODE', 'PRE', 'KBD', 'SAMP' ) ) as $el ) {
+		$ranges[] = array( $el['start'], $el['end'] );
 	}
 	usort( $ranges, function ( $a, $b ) { return $a[0] <=> $b[0]; } );
 	return $ranges;

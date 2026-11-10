@@ -14,9 +14,10 @@
  * yet gethostbyname() resolves every one to 169.254.169.254. As of core
  * 7.1.4 wp_http_validate_url() does cover this: it resolves a non-dotted host
  * with gethostbyname() and rejects 169.254.0.0/16 and CGNAT 100.64.0.0/10. It
- * checks one A record, though, and it runs at send time only when the request
- * sets reject_unsafe_urls (wp_safe_remote_*). What this guard adds: every A
- * record (gethostbynamel()) and a cURL pin to the validated addresses.
+ * checks one A record, though, exempts the home host, is filterable
+ * (http_request_host_is_external), and runs at send time only when the
+ * request sets reject_unsafe_urls (wp_safe_remote_*). What this guard adds:
+ * every A record (gethostbynamel()) and a cURL pin to the validated addresses.
  *
  * The fix (lifted out of inc/health-external-links.php's D1 implementation,
  * v6.13.0, so webhooks + link-rot + future callers share ONE audited guard):

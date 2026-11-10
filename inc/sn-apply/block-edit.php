@@ -71,10 +71,12 @@ const SNT_SN_APPLY_BLOCK_EDIT_ANCHOR_MIN = 20;
 const SNT_SN_APPLY_BLOCK_EDIT_CONTEXT_WINDOW = 250;
 
 /**
- * Scan raw post_content for block-delimiter comments and derive the
+ * Scan raw post_content for block-delimiter comments (core's
+ * WP_Block_Processor finds them, see block-delimiters.php) and derive the
  * TOP-LEVEL block spans (byte ranges) plus every delimiter comment's own
  * byte range. Freeform gaps between spans are NOT spans — an anchor there
  * has no containing block and refuses at the boundary check.
+ * A span's block_name drops the core/ namespace.
  *
  * @param string $content Raw stored post_content.
  * @return array{spans:array<int,array{start:int,end:int,block_name:string}>,delimiters:array<int,array{0:int,1:int}>}
@@ -84,27 +86,17 @@ function snt_sn_apply_block_edit_scan_spans( $content ) {
 	$spans      = array();
 	$delimiters = array();
 
-	if ( ! preg_match_all( '#<!--\s+(/)?wp:([a-z][a-z0-9_-]*(?:/[a-z][a-z0-9_-]*)?)(\s+\{.*?\})?\s+?(/)?-->#s', $content, $m, PREG_OFFSET_CAPTURE | PREG_SET_ORDER ) ) {
-		return array( 'spans' => array(), 'delimiters' => array() );
-	}
-
 	$depth      = 0;
 	$open_start = 0;
 	$open_name  = '';
-	foreach ( $m as $match ) {
-		$offset       = (int) $match[0][1];
-		$length       = strlen( $match[0][0] );
-		$delimiters[] = array( $offset, $offset + $length );
+	foreach ( snt_sn_apply_block_delimiters( $content )['delimiters'] as $d ) {
+		$delimiters[] = array( $d['start'], $d['end'] );
 
-		$is_closer = '' !== ( $match[1][0] ?? '' );
-		$is_void   = '' !== ( $match[4][0] ?? '' );
-		$name      = (string) $match[2][0];
-
-		if ( $is_closer ) {
+		if ( 'closer' === $d['type'] ) {
 			if ( $depth > 0 ) {
 				$depth--;
 				if ( 0 === $depth ) {
-					$spans[] = array( 'start' => $open_start, 'end' => $offset + $length, 'block_name' => $open_name );
+					$spans[] = array( 'start' => $open_start, 'end' => $d['end'], 'block_name' => $open_name );
 				}
 			}
 			// A stray closer at depth 0 is malformed stored content — no span
@@ -112,16 +104,16 @@ function snt_sn_apply_block_edit_scan_spans( $content ) {
 			continue;
 		}
 
-		if ( $is_void ) {
+		if ( 'void' === $d['type'] ) {
 			if ( 0 === $depth ) {
-				$spans[] = array( 'start' => $offset, 'end' => $offset + $length, 'block_name' => $name );
+				$spans[] = array( 'start' => $d['start'], 'end' => $d['end'], 'block_name' => $d['name'] );
 			}
 			continue;
 		}
 
 		if ( 0 === $depth ) {
-			$open_start = $offset;
-			$open_name  = $name;
+			$open_start = $d['start'];
+			$open_name  = $d['name'];
 		}
 		$depth++;
 	}

@@ -58,6 +58,7 @@ class Test_WPDB {
 }
 $GLOBALS['wpdb'] = new Test_WPDB();
 
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require __DIR__ . '/../inc/citations-core.php';
 require __DIR__ . '/../inc/citations-store.php';
 require __DIR__ . '/../inc/citations-verify.php';
@@ -195,6 +196,28 @@ ok( sn_cit_verify_row( $mkrow( 'https://internal.local/p' ) ) === 'unverified', 
 ok( count( $GLOBALS['__requests'] ) === 0, 'and no request left the site' );
 
 // ── title extraction ────────────────────────────────────────────────────────
+// The shared cases: text that only looks like a title.
+$cases = ( require __DIR__ . '/lib/html-identity-title-cases.php' )['title'];
+$want_title = array(
+	'whitespace and newlines' => 'Hello World',
+	'uppercase tag with attributes' => 'Upper & Lower',
+	'markup written inside the title' => 'A <b>bold</b> claim', // The regex answered 'A bold claim': it stripped tags from what is text. Every surface escapes the stored title.
+	'escaped markup in the title' => 'Using <template> in HTML',
+	'a title inside a comment' => 'Real title', // The regex answered 'Old title': it read a comment.
+	'a title inside a script' => 'Real title', // The regex answered 'Fake': it read a script as markup.
+	'only an SVG title' => 'Icon', // Unchanged, and still not the document's title: the Tag Processor does not track the SVG namespace.
+	'entities' => 'a — b c "d" \'e\'', // The regex path left &apos; undecoded (html_entity_decode's HTML 4 table).
+	'multibyte text' => 'Señal y ruido: 日本語',
+	'unclosed title' => '',
+	'no title' => '',
+	'empty input' => '',
+);
+ok( array_keys( $want_title ) === array_keys( $cases ), 'an answer is pinned for every shared title case' );
+foreach ( $cases as $name => $html ) {
+	$got = sn_cit_extract_title( $html );
+	ok( $want_title[ $name ] === $got, "title: $name" . ( $want_title[ $name ] === $got ? '' : ' (got ' . json_encode( $got, JSON_UNESCAPED_UNICODE ) . ')' ) );
+}
+
 ok( sn_cit_extract_title( '<title>  Hello   World </title>' ) === 'Hello World', 'the title is trimmed and whitespace-collapsed' );
 ok( sn_cit_extract_title( '<title>A &amp; B</title>' ) === 'A & B', 'entities are decoded' );
 ok( sn_cit_extract_title( '<p>no title</p>' ) === '', 'a page with no title yields an empty string, not a guess' );

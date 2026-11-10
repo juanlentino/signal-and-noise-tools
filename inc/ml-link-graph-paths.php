@@ -30,20 +30,17 @@ function snt_ml_path_key( $path ) {
 
 
 /**
- * Every internal path an href set points at, from one body (lookup form).
+ * Every internal path a raw body links to (lookup form, sorted, unique): the
+ * fallback when a post could not be rendered. One reader with the rendered
+ * path, snt_ml_paths_from_html(), so a note's outbound links do not depend on
+ * which of the two ran.
  *
  * @param string $content Post content.
  * @param string $our_host Site host.
  * @return string[]
  */
 function snt_ml_outbound_paths( $content, $our_host = null ) {
-	$content = (string) $content;
-	if ( '' === trim( $content ) || false === stripos( $content, '<a' ) || ! preg_match_all( '#<a\b[^>]*\bhref\s*=\s*["\']([^"\']*)["\']#i', $content, $m ) ) {
-		return array();
-	}
-	return array_values( array_filter( array_map( static function ( $href ) use ( $our_host ) {
-		return snt_ml_link_target_path( $href, $our_host );
-	}, $m[1] ) ) );
+	return snt_ml_paths_from_html( $content, $our_host );
 }
 
 
