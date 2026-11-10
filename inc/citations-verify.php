@@ -88,17 +88,20 @@ function sn_cit_fetch( $url ) {
 }
 
 /**
- * Best-effort <title>. Pure.
+ * Best-effort <title>: the text of the first TITLE element core's HTML parser
+ * finds, decoded, whitespace collapsed. A title is text, so markup written
+ * inside one is kept as the characters it is; every surface that prints the
+ * stored title escapes it. Pure.
  *
  * @param string $html
  * @return string
  */
 function sn_cit_extract_title( $html ) {
-	if ( preg_match( '#<title\b[^>]*>(.*?)</title>#is', (string) $html, $m ) ) {
-		$t = html_entity_decode( wp_strip_all_tags( $m[1] ), ENT_QUOTES, 'UTF-8' );
-		return trim( preg_replace( '#\s+#u', ' ', $t ) );
+	$tags = new WP_HTML_Tag_Processor( (string) $html );
+	if ( ! $tags->next_tag( 'TITLE' ) ) {
+		return '';
 	}
-	return '';
+	return trim( (string) preg_replace( '#\s+#u', ' ', $tags->get_modifiable_text() ) );
 }
 
 /**

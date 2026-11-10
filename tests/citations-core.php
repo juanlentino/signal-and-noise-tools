@@ -65,12 +65,12 @@ $want_identity = array(
 	'unquoted rel on a link element' => true,
 	'self-closing link element' => true,
 	'a > inside an earlier attribute' => true,
-	'rel=me written in prose' => true,
-	'a rel=me link inside a comment' => true,
-	'a rel=me link inside a script' => true,
-	'rel=me inside another attribute' => true,
-	'data-rel is not rel' => true,
-	'rel=me on an element that is not a link' => true,
+	'rel=me written in prose' => false, // The regex answered true: it matched rel= anywhere in the bytes, prose included.
+	'a rel=me link inside a comment' => false, // The regex answered true: it read a comment.
+	'a rel=me link inside a script' => false, // The regex answered true: it read a script as markup.
+	'rel=me inside another attribute' => false, // The regex answered true: it read a title attribute's value as an attribute.
+	'data-rel is not rel' => false, // The regex answered true: its \\brel matched the end of data-rel.
+	'rel=me on an element that is not a link' => false, // The regex answered true: it never asked which element carried the rel.
 	'block delimiter with JSON' => false,
 	'multibyte text' => true,
 	'rel=mention' => false,
