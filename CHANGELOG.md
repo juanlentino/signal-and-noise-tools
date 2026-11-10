@@ -12,6 +12,25 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Core-first audit, part 2: core features this plugin had switched off work again, and API detours go through core.**
+  - Signed in, `/admin`, `/login` and `/dashboard` are core's shortcuts again; a visitor who is not signed in still gets the same 404.
+  - Settings > Writing > Default Post Category sticks: the plugin sets it once at setup instead of rewriting it on every admin load. The permalink structure is set through `$wp_rewrite`.
+  - A post split with page breaks gets the page in its title ("Title — Site — Page 2"); every other title is unchanged.
+  - Site name, tagline and locale in Signal & Noise settings are an override of Settings > General: an empty value, or one equal to core's, reads core live. Nothing changes until the Identity form is saved again.
+  - Analytics "today" is the site's day everywhere: "Today so far" no longer disappears in the evening, and a custom window cannot end tomorrow.
+  - A note's Last-Modified and 304 answer are no longer sent to signed-in or password-protected views, where core strips them.
+  - `did.json`, the key routes, webfinger and `/verify` no longer go out after core's 404 status and no-cache headers; `did.json` and `/verify` cache for five minutes.
+  - The feed-open pixel is served through core's REST pipeline (same image and caching, plus core's REST headers).
+  - The Cloudflare sitemap purge reads core's sitemap API for its pages, and purges the tag sitemap too.
+  - Recently modified posts (`sn-posts`, `sn-scan`, Insights) are read with `WP_Query` instead of raw SQL or a whole-corpus PHP filter; an old post edited recently is no longer missed behind the 2,000 newest.
+  - The theme-presets and plugin-registry health checks use core's `WP_Theme_JSON` preset list and `validate_plugin()`.
+  - RSS tracker settings are registered with the Settings API (stored values unchanged).
+
+### Changed
+- **Core-first audit, part 1: what the code says about WordPress now matches WordPress 7.1.4.** A plugin-wide audit (2026-11-10) read every module against core 7.1.4, the AI plugin and mcp-adapter. This part corrects comments, docblocks and admin text that described core wrongly. Owner-visible: the Connect screen now says which abilities mcp-adapter carries (`meta.mcp.public`, or `meta.public` when that is unset) and that the AI plugin's MCP Access experiment installs the adapter; the Performance form dates native speculative loading to WordPress 6.8 (it said 7.0) and no longer claims the login URL is excluded (it deliberately is not).
+- **The "reaches the outside world" hint reaches MCP clients.** 51 abilities declared it as `open_world_hint`, a key nothing reads; it is now `openWorldHint`, the key mcp-adapter maps.
+
 ## [2026.11.20] - 2026-11-10 — The official AI plugin writes the excerpt and meta description; guards for analytics worker 2.0.0
 
 ### Changed
