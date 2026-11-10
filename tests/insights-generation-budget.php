@@ -42,6 +42,7 @@ define( 'ABSPATH', '/' );
 define( 'SN_AI_DEFAULT_MODEL', 'claude-sonnet-5-5' );
 define( 'SN_AI_FALLBACK_MODEL', 'claude-sonnet-5' );
 define( 'SN_INSIGHTS_MAX_TOKENS', 4096 );
+define( 'SN_INSIGHTS_REC_MAX', 3 );
 
 // The SDK's ModelConfig, as far as this call uses it.
 eval( 'namespace WordPress\AiClient\Providers\Models\DTO; class ModelConfig { public $custom = array(); public function setCustomOptions( array $o ): void { $this->custom = $o; } public function getCustomOptions(): array { return $this->custom; } }' );
@@ -76,11 +77,19 @@ $GLOBALS['__spent']    = 0.0;
 $GLOBALS['__recorded'] = array();
 function snt_ai_is_available() { return true; }
 function sn_setting( $k, $d = null ) { return 'theme.ai_monthly_budget' === $k ? $GLOBALS['__budget'] : $d; }
-function snt_ai_spend_this_month() { return $GLOBALS['__spent']; }
+$GLOBALS['__spend_checks'] = 0;
+function snt_ai_spend_this_month() {
+	$GLOBALS['__spend_checks']++;
+	// A list is a sequence: what each successive budget check reads.
+	return is_array( $GLOBALS['__spent'] ) ? (float) array_shift( $GLOBALS['__spent'] ) : $GLOBALS['__spent'];
+}
 function snt_ai_record_usage( $feature, $model, $result ) { $GLOBALS['__recorded'][] = array( $feature, $model, $result ); }
 
 // ─── a recording prompt builder: what the wrapper hands the client ───
-class GbResult { public function toText() { return '[]'; } }
+// The model text, and an optional refusal of any request that asks for JSON output.
+$GLOBALS['__text']   = '[]';
+$GLOBALS['__refuse'] = null;
+class GbResult { public function toText() { return $GLOBALS['__text']; } }
 class GbBuilder {
 	public $calls = array();
 	public $timeout;
@@ -91,7 +100,8 @@ class GbBuilder {
 	}
 	public function __call( $name, $args ) {
 		$this->calls[] = array( $name, $args );
-		return 'generate_text_result' === $name ? new GbResult() : $this;
+		if ( 'generate_text_result' !== $name ) { return $this; }
+		return ( $GLOBALS['__refuse'] && ( null !== $this->arg( 'as_json_response' ) || ! empty( $GLOBALS['__refuse_all'] ) ) ) ? $GLOBALS['__refuse'] : new GbResult();
 	}
 	public function arg( $name ) {
 		foreach ( $this->calls as $c ) { if ( $name === $c[0] ) { return $c[1]; } }
@@ -107,9 +117,11 @@ require_once __DIR__ . '/../inc/insights-ai-parts.php';
 
 /** Run one Insights call and return the builder it used. */
 function gb_scan() {
-	$GLOBALS['__builders'] = array();
-	$GLOBALS['__recorded'] = array();
-	$out                   = snt_insights_call_ai( array( 'site' => 'x' ) );
+	$GLOBALS['__builders']     = array();
+	$GLOBALS['__recorded']     = array();
+	$GLOBALS['__spend_checks'] = 0;
+	$GLOBALS['__structured']   = null;
+	$out                       = snt_insights_call_ai( array( 'site' => 'x' ), $GLOBALS['__structured'] );
 	return array( $out, $GLOBALS['__builders'][0] ?? null );
 }
 /** The request the Anthropic provider builds from a builder: its params, as prepareGenerateTextParams() assembles them. */
@@ -120,6 +132,11 @@ function gb_wire( GbBuilder $b ) {
 		'system'     => $b->arg( 'using_system_instruction' )[0],
 		'max_tokens' => $b->arg( 'using_max_tokens' )[0],
 	);
+	// The provider turns a JSON response with a schema into output_format.
+	$json = $b->arg( 'as_json_response' );
+	if ( $json && ! empty( $json[0] ) ) {
+		$params['output_format'] = array( 'type' => 'json_schema', 'schema' => $json[0] );
+	}
 	foreach ( $config ? $config[0]->getCustomOptions() : array() as $k => $v ) {
 		if ( isset( $params[ $k ] ) ) { throw new Exception( "custom option $k collides" ); }
 		$params[ $k ] = $v;
@@ -132,7 +149,9 @@ list( $out, $b ) = gb_scan();
 $wire            = gb_wire( $b );
 gb( 'the scan returns the model text', '[]' === $out );
 gb( 'model list: the pinned model, then the fallback', array( 'claude-sonnet-5-5', 'claude-sonnet-5' ) === $b->arg( 'using_model_preference' ) );
-gb( 'system instruction is the Insights one', snt_insights_system_instruction() === $wire['system'] );
+gb( 'system instruction is the Insights one, worded for the object', snt_insights_system_instruction( true ) === $wire['system'] );
+gb( 'structured wording: the object, never a bare array', false === strpos( snt_insights_system_instruction( true ), 'JSON array' ) && false !== strpos( snt_insights_system_instruction( true ), '{"questions": []}' ) );
+gb( 'plain wording: today\'s text, unchanged', false !== strpos( snt_insights_system_instruction(), 'Return ONLY a JSON array. It MAY BE EMPTY.' ) && false === strpos( snt_insights_system_instruction(), '"questions"' ) );
 gb( 'the prompt is the delimited signals blob', 0 === strpos( $b->arg( 'prompt' )[0], '<<<SN_UNTRUSTED_DATA' ) );
 gb( 'thinking is adaptive', array( 'type' => 'adaptive' ) === ( $wire['thinking'] ?? null ) );
 gb( 'effort is low', array( 'effort' => 'low' ) === ( $wire['output_config'] ?? null ) );
@@ -207,6 +226,7 @@ $b = $GLOBALS['__builders'][0];
 gb( 'another feature: no ModelConfig', null === $b->arg( 'using_model_config' ) );
 gb( 'another feature: its own ceiling', 300 === $b->arg( 'using_max_tokens' )[0] );
 gb( 'another feature: the client default timeout', 30.0 === (float) $b->timeout );
+gb( 'another feature: no JSON response format', null === $b->arg( 'as_json_response' ) );
 $GLOBALS['__builders'] = array();
 snt_ai_generate_with_constraints( 'p', 's', 99999, 'generic' );
 gb( 'another feature: the 4096 clamp still holds', 4096 === $GLOBALS['__builders'][0]->arg( 'using_max_tokens' )[0] );
@@ -223,6 +243,105 @@ $GLOBALS['__spent'] = 4.99;
 list( $out, $b )    = gb_scan();
 gb( 'under budget: the scan runs, shaped as before', '[]' === $out && 8192 === gb_wire( $b )['max_tokens'] );
 $GLOBALS['__budget'] = 0.0;
+
+// ─── 7. STRUCTURED JSON OUTPUT, AND ONE PLAIN RETRY WHEN IT IS REFUSED ──
+// The scan asks the AI Client for JSON against a schema. If that request is
+// refused (a 4xx from the provider, or the client declining the options), it
+// is sent once more without the schema, and today's tolerant parser reads it.
+$GLOBALS['__log'] = tempnam( sys_get_temp_dir(), 'gb' );
+ini_set( 'error_log', $GLOBALS['__log'] );
+function gb_log() { return (string) file_get_contents( $GLOBALS['__log'] ); }
+$schema = function_exists( 'snt_insights_response_schema' ) ? snt_insights_response_schema() : null;
+$q      = '{"id":"q_credit","question":"How do readers weigh a credit list that no label vouches for?","adjacent_note":"the credits note","why_uncovered":"it covers detection, not the reader","wall_check":"an open question, no answer asserted","target":null}';
+
+// 7a. The structured request, accepted.
+$GLOBALS['__text'] = '{"questions":[' . $q . ']}';
+list( $out, $b )   = gb_scan();
+$wire              = gb_wire( $b );
+gb( 'structured: the scan asks for JSON against the Insights schema', is_array( $schema ) && array( $schema ) === $b->arg( 'as_json_response' ) );
+gb( 'structured: the schema root is an object holding the questions', is_array( $schema ) && 'object' === $schema['type'] && array( 'questions' ) === $schema['required'] && false === $schema['additionalProperties'] );
+gb( 'structured: the caller is told the response is structured', true === $GLOBALS['__structured'] );
+gb( 'structured: one request, recorded once', 1 === count( $GLOBALS['__builders'] ) && 1 === count( $GLOBALS['__recorded'] ) );
+gb( 'structured: output_format rides beside thinking and effort, no collision', isset( $wire['output_format'] ) && array( 'type' => 'adaptive' ) === $wire['thinking'] && array( 'effort' => 'low' ) === $wire['output_config'] && 8192 === $wire['max_tokens'] );
+$recs = snt_insights_parse_response( $out, $GLOBALS['__structured'] );
+gb( 'structured: the questions parse straight from the object', is_array( $recs ) && 1 === count( $recs ) && 'q_credit' === $recs[0]['id'] );
+gb( 'structured: no salvage, a fenced reply is an error', is_wp_error( snt_insights_parse_response( "```json\n{\"questions\":[" . $q . "]}\n```", true ) ) );
+gb( 'structured: no salvage, a prose-wrapped array is an error', is_wp_error( snt_insights_parse_response( 'Here: [' . $q . ']', true ) ) );
+gb( 'structured: an object without questions is an error, never an empty scan', is_wp_error( snt_insights_parse_response( '{}', true ) ) );
+gb( 'fallback: the prose-wrapped array is still recovered as today', 1 === count( (array) snt_insights_parse_response( 'Here: [' . $q . ']' ) ) );
+gb( 'structured: nothing logged', '' === gb_log() );
+
+// 7a'. The schema was asked for but the reply is not a JSON object (the API
+// ignored the format, a refusal stop, another provider): the flag stays false
+// and today's tolerant parser reads it, so it can never parse worse than today.
+$GLOBALS['__text'] = '[' . $q . ']';
+list( $out, $b )   = gb_scan();
+gb( 'unenforced: a bare array under a schema request is not called structured', false === $GLOBALS['__structured'] && 1 === count( $GLOBALS['__builders'] ) );
+$recs = snt_insights_parse_response( $out, $GLOBALS['__structured'] );
+gb( 'unenforced: the bare array still yields today\'s result', is_array( $recs ) && 1 === count( $recs ) && 'q_credit' === $recs[0]['id'] );
+$GLOBALS['__text'] = "```json\n{\"questions\":[" . $q . "]}\n```";
+gb_scan();
+gb( 'unenforced: a fenced object is not called structured', false === $GLOBALS['__structured'] );
+$recs = snt_insights_parse_response( $GLOBALS['__text'], false );
+gb( 'tolerant: a fenced {questions} object yields its questions, not an empty scan', is_array( $recs ) && 1 === count( $recs ) && 'q_credit' === $recs[0]['id'] );
+$recs = snt_insights_parse_response( '{"questions":[' . $q . ']}', false );
+gb( 'tolerant: a bare {questions} object yields its questions', is_array( $recs ) && 1 === count( $recs ) );
+$recs = snt_insights_parse_response( 'Here you go: {"questions":[' . $q . ']}', false );
+gb( 'tolerant: a prose-wrapped {questions} object yields its questions', is_array( $recs ) && 1 === count( $recs ) );
+
+// 7b. Refused with a 400: one plain retry, same budget shape, today's result.
+$GLOBALS['__refuse'] = new WP_Error( 'prompt_client_error', 'Bad Request (400) - output_format: Extra inputs are not permitted', array( 'status' => 400 ) );
+$GLOBALS['__text']   = '[' . $q . ']';
+$GLOBALS['__budget'] = 5.0;
+$GLOBALS['__spent']  = 1.0;
+list( $out, $b )     = gb_scan();
+$second              = $GLOBALS['__builders'][1] ?? null;
+gb( 'refused: exactly one retry', 2 === count( $GLOBALS['__builders'] ) );
+gb( 'refused: the first request asked for JSON, the retry does not', null !== $b->arg( 'as_json_response' ) && $second && null === $second->arg( 'as_json_response' ) );
+gb( 'refused: the retry keeps thinking, effort, ceiling and timeout', $second && array_diff_key( gb_wire( $second ), array( 'system' => 1 ) ) === array_diff_key( gb_wire( $b ), array( 'output_format' => 1, 'system' => 1 ) ) && 180.0 === (float) $second->timeout );
+gb( 'refused: the retry carries today\'s instruction, the first the object one', $second && snt_insights_system_instruction() === gb_wire( $second )['system'] && snt_insights_system_instruction( true ) === gb_wire( $b )['system'] );
+gb( 'refused: the caller gets the plain text, flagged unstructured', '[' . $q . ']' === $out && false === $GLOBALS['__structured'] );
+gb( 'refused: the budget is checked for both attempts', 2 === $GLOBALS['__spend_checks'] );
+gb( 'refused: spend recorded once, for the request that ran', 1 === count( $GLOBALS['__recorded'] ) && 'insights' === $GLOBALS['__recorded'][0][0] );
+$recs = snt_insights_parse_response( $out, $GLOBALS['__structured'] );
+gb( 'refused: the scan still yields today\'s result', is_array( $recs ) && 1 === count( $recs ) && 'q_credit' === $recs[0]['id'] );
+gb( 'refused: one line in the log says structured output was refused', 1 === substr_count( gb_log(), 'structured' ) && false !== strpos( gb_log(), 'prompt_client_error' ) && false !== strpos( gb_log(), 'insights' ) );
+
+// 7c. The cap is reached between the attempts: the retry is stopped by it.
+$GLOBALS['__spent'] = array( 4.0, 5.0 );
+list( $out, $b )    = gb_scan();
+gb( 'cap between attempts: the retry gets snt_ai_over_budget', $out instanceof WP_Error && 'snt_ai_over_budget' === $out->get_error_code() );
+gb( 'cap between attempts: only the refused request was built, nothing recorded', 1 === count( $GLOBALS['__builders'] ) && array() === $GLOBALS['__recorded'] );
+$GLOBALS['__budget'] = 0.0;
+$GLOBALS['__spent']  = 0.0;
+
+// 7d. Non-JSON on the fallback path degrades as today.
+$GLOBALS['__text'] = 'I could not find a question worth asking this week.';
+list( $out, $b )   = gb_scan();
+$err               = snt_insights_parse_response( $out, $GLOBALS['__structured'] );
+gb( 'fallback non-JSON: the same invalid-JSON error as today', is_wp_error( $err ) && 'snt_insights_invalid_json' === $err->get_error_code() );
+
+// 7e. Only a refusal retries. A truncated answer was generated and billed.
+// Core labels EVERY provider 4xx prompt_client_error; only a 400 can be the
+// schema being rejected. A 429 retried at once would only be throttled again.
+foreach ( array( array( 'prompt_token_limit_reached', 400 ), array( 'prompt_network_error', 503 ), array( 'prompt_upstream_server_error', 529 ), array( 'prompt_client_error', 429 ), array( 'prompt_client_error', 401 ), array( 'prompt_client_error', 403 ), array( 'prompt_client_error', 404 ), array( 'prompt_client_error', 413 ), array( 'prompt_client_error', null ) ) as $e ) {
+	$GLOBALS['__refuse'] = new WP_Error( $e[0], 'x', null === $e[1] ? array() : array( 'status' => $e[1] ) );
+	list( $out, $b )     = gb_scan();
+	gb( "{$e[0]} ({$e[1]}): no retry, the error comes back", 1 === count( $GLOBALS['__builders'] ) && $out instanceof WP_Error && $e[0] === $out->get_error_code() );
+}
+$GLOBALS['__refuse'] = new WP_Error( 'prompt_invalid_argument', 'No models found that support text_generation for this prompt.', array( 'status' => 400 ) );
+list( $out, $b )     = gb_scan();
+gb( 'client-side refusal: one plain retry', 2 === count( $GLOBALS['__builders'] ) && is_string( $out ) && false === $GLOBALS['__structured'] );
+
+// 7f. Once: a retry that is refused too comes back as an error, not a third try.
+$GLOBALS['__refuse']     = new WP_Error( 'prompt_client_error', 'Bad Request (400)', array( 'status' => 400 ) );
+$GLOBALS['__refuse_all'] = true;
+list( $out, $b )         = gb_scan();
+gb( 'once: two requests at most', 2 === count( $GLOBALS['__builders'] ) && $out instanceof WP_Error && 'prompt_client_error' === $out->get_error_code() );
+$GLOBALS['__refuse']     = null;
+$GLOBALS['__refuse_all'] = false;
+$GLOBALS['__text']       = '[]';
+@unlink( $GLOBALS['__log'] );
 
 echo "\ninsights-generation-budget: $pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
