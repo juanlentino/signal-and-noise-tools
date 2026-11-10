@@ -39,8 +39,9 @@ const SN_RSS_TRACKER_DB_VERSION_OPT = 'sn_rss_tracker_db_version';
 const SN_RSS_TRACKER_DB_VERSION     = '1.0.0';
 const SN_RSS_TRACKER_TABLE          = 'rss_feed_log';
 const SN_RSS_TRACKER_SETTINGS_OPT   = 'sn_rss_tracker_settings';
-const SN_RSS_TRACKER_NONCE          = 'sn_rss_tracker_action';
 const SN_RSS_TRACKER_CRON_HOOK      = 'sn_rss_tracker_daily_prune';
+// The three writes. Each posts to admin-post.php as action `sn_rss_<op>`,
+// with a nonce minted for that action alone (inc/rss-feed-tracker-form-parts.php).
 const SN_RSS_TRACKER_ACTION_SAVE    = 'save_settings';
 const SN_RSS_TRACKER_ACTION_PURGE   = 'purge_log';
 const SN_RSS_TRACKER_ACTION_RESET   = 'reset_defaults';

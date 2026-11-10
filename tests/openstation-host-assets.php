@@ -305,7 +305,7 @@ foreach ( array(
 	'sn-add-row-btn'  => 'the add-row button is still wired',
 	'social_same_as[]' => 'the added row still submits as the sameAs array',
 	'sn-an-clamp--open' => 'the analytics clamp toggle (second IIFE) is untouched',
-	'data-sn-an-collapsible' => 'the collapsible panels (second IIFE) are untouched',
+	'data-sn-an-collapsible' => 'the collapsible panels (second IIFE) still announce their opening',
 ) as $needle => $why ) {
 	ok( false !== strpos( $admin, $needle ), $why );
 }

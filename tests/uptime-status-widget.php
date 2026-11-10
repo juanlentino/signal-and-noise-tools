@@ -154,7 +154,7 @@ echo "\nTest 7: uptime-status.js lazy-detail contract\n";
 $js = (string) file_get_contents( __DIR__ . '/../assets/uptime-status.js' );
 uw_ok( false !== strpos( $js, 'data-sn-uptime-lazy-detail' ), 'JS knows the lazy mount' );
 uw_ok( false !== strpos( $js, "addEventListener( 'toggle'" ) && false !== strpos( $js, 'sn-an-uptime' ), 'JS binds the native details toggle (capture — toggle does not bubble)' );
-uw_ok( false !== strpos( $js, 'sn-an-panel-open' ), 'JS keeps the legacy panel-open path (for a future collapsible-panel producer — none ship today)' );
+uw_ok( false !== strpos( $js, 'sn-an-panel-open' ), 'JS keeps the panel-open path (a collapsible analytics panel announces its opening)' );
 uw_ok( false !== strpos( $js, "closest( 'summary' )" ) && false !== strpos( $js, "setAttribute( 'aria-label'" ), 'JS swaps the summary accessible name to the status meta after paint' );
 uw_ok( false !== strpos( $js, 'data-sn-uptime-loaded' ), 'JS once-guards the detail fetch' );
 // 2026-10-13 (owner-approved): the detail table reads the median and the
