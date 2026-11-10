@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The focus keyword reaches the AI plugin's meta description again.** Since 2026.11.20 the AI plugin writes the description, and its prompt did not carry the post's focus keyword, so the field's promise ("requires it verbatim") was not kept. The saved `_sn_focus_keyword` is now appended to the official prompt as the line the house rules already name (`inc/ai-official-generators.php`, hooks `wp_before_execute_ability` and `wpai_meta_description_prompt`). A post with no keyword, or a run on pasted text with no post, changes nothing. The field's help text says "saved keyword": a keyword typed and not yet saved is not read. Test: `tests/ai-official-generators.php`.
+
 ## [2026.11.20] - 2026-11-10 — The official AI plugin writes the excerpt and meta description; guards for analytics worker 2.0.0
 
 ### Changed

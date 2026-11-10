@@ -66,7 +66,7 @@
 		{ key: '_sn_meta_description', kind: 'textarea', rows: 3, label: __( 'Meta description', 'signal-noise-tools' ),
 			help: __( 'Overrides the post excerpt for the description meta tag, OG description, and JSON-LD. Empty falls back to excerpt.', 'signal-noise-tools' ) },
 		{ key: '_sn_focus_keyword', kind: 'text', maxLength: 80, placeholder: 'music provenance', label: __( 'Focus keyword', 'signal-noise-tools' ),
-			help: __( 'The SEO keyword this post targets. The AI meta-description generator requires it verbatim in its output; empty falls back to the title’s topic noun. Not rendered anywhere public.', 'signal-noise-tools' ) },
+			help: __( 'The SEO keyword this post targets. The AI meta-description generator requires the saved keyword verbatim in its output; empty falls back to the title’s topic noun. Not rendered anywhere public.', 'signal-noise-tools' ) },
 		{ key: '_sn_canonical_url', kind: 'url', placeholder: 'permalink', label: __( 'Canonical URL', 'signal-noise-tools' ),
 			help: __( 'Overrides the default canonical link. Use when this post is a republish or syndication of content that lives at another URL. Empty falls back to the permalink.', 'signal-noise-tools' ) },
 		{ key: '_sn_og_image_url', kind: 'url', placeholder: 'https://...', label: __( 'OG image URL', 'signal-noise-tools' ),

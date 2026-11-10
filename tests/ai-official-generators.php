@@ -9,6 +9,10 @@ if ( PHP_SAPI !== 'cli' ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
 $GLOBALS['f'] = array(); $GLOBALS['opt'] = array();
 function add_filter( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS['f'][ $h ][] = array( $cb, $a ); return true; }
+function add_action( $h, $cb, $p = 10, $a = 1 ) { return add_filter( $h, $cb, $p, $a ); }
+function do_action( $h, ...$args ) { foreach ( $GLOBALS['f'][ $h ] ?? array() as $c ) { $c[0]( ...array_slice( $args, 0, $c[1] ) ); } }
+function get_post_meta( $id, $k, $single = false ) { return $GLOBALS['meta'][ $id ][ $k ] ?? ''; }
+function wp_strip_all_tags( $s ) { return strip_tags( $s ); }
 function apply_filters( $h, $v, ...$rest ) { foreach ( $GLOBALS['f'][ $h ] ?? array() as $c ) { $v = $c[0]( ...array_slice( array_merge( array( $v ), $rest ), 0, max( 1, $c[1] ) ) ); } return $v; }
 function get_option( $k, $d = false ) { return $GLOBALS['opt'][ $k ] ?? $d; }
 const SNT_AI_EXCERPT_SYSTEM   = 'Excerpt voice. No em dashes. Output ONLY the excerpt text. No quotes.';
@@ -37,12 +41,25 @@ add_filter( 'wpai_feature_excerpt-generation_enabled', static fn() => false );
 ok( false === snt_ai_official_feature_on( 'excerpt-generation' ), 'ticked but filtered off: not on (the same test the AI plugin applies)' );
 
 // The official button is greyed under its content floor: S&N's stays there.
-function wp_strip_all_tags( $s ) { return strip_tags( $s ); }
 $GLOBALS['f']['wpai_feature_excerpt-generation_enabled'] = array();
 ok( false === snt_ai_official_generator_takes( 'excerpt-generation', '' ) && false === snt_ai_official_generator_takes( 'excerpt-generation', '<p>short</p>' ), 'an empty or short post: the official button cannot write it, so S&N\'s button stays' );
 ok( true === snt_ai_official_generator_takes( 'excerpt-generation', '<p>' . str_repeat( 'word ', 80 ) . '</p>' ), 'a post over the floor: the official button takes it' );
 add_filter( 'wpai_features_enabled', static fn() => false );
 ok( false === snt_ai_official_generator_takes( 'excerpt-generation', str_repeat( 'word ', 80 ) ), 'all AI plugin features switched off by filter: S&N\'s button stays' );
+
+// The focus keyword reaches the official prompt, for the post the ability runs on.
+$GLOBALS['meta'] = array( 7 => array( '_sn_focus_keyword' => " music <b>provenance</b>\n records " ), 8 => array() );
+ok( 'P' === apply_filters( 'wpai_meta_description_prompt', 'P', 'c', 't' ), 'no ability has run: the prompt is untouched' );
+do_action( 'wp_before_execute_ability', 'ai/meta-description', array( 'post_id' => 7 ), null );
+ok( "P\n\nFOCUS KEYWORD (must appear verbatim): music provenance records" === apply_filters( 'wpai_meta_description_prompt', 'P', 'c', 't' ), 'the post\'s stored focus keyword is appended to the official prompt, as one clean line' );
+do_action( 'wp_before_execute_ability', 'ai/excerpt-generation', array( 'post_id' => 8 ), null );
+ok( false !== strpos( apply_filters( 'wpai_meta_description_prompt', 'P', 'c', 't' ), 'music provenance records' ), 'another ability running does not change which post the description is for' );
+do_action( 'wp_before_execute_ability', 'ai/meta-description', array( 'post_id' => 8 ), null );
+ok( 'P' === apply_filters( 'wpai_meta_description_prompt', 'P', 'c', 't' ), 'a post with no focus keyword: the prompt is untouched (the title\'s topic noun rule applies)' );
+do_action( 'wp_before_execute_ability', 'ai/meta-description', array( 'post_id' => 7 ), null );
+do_action( 'wp_before_execute_ability', 'ai/meta-description', array( 'content' => 'pasted text' ), null );
+ok( 'P' === apply_filters( 'wpai_meta_description_prompt', 'P', 'c', 't' ), 'a run with no post (content only) never inherits the previous post\'s keyword' );
+ok( 120 === mb_strlen( substr( snt_ai_official_keyword_line( str_repeat( 'k', 400 ) ), strlen( 'FOCUS KEYWORD (must appear verbatim): ' ) ) ), 'an overlong keyword is cut at 120 characters' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
