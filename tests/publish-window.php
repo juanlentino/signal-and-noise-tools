@@ -201,5 +201,25 @@ ok( 30 === sn_publish_window_clamp( '30' ) && 5 === sn_publish_window_clamp( 1 )
 $root = dirname( __DIR__ );
 ok( false !== strpos( (string) file_get_contents( "$root/apps/sn-dashboard/parts/leaves/monitoring-analytics-setup.php" ), 'sn_publish_window_setup_fold()' ) && false !== strpos( (string) file_get_contents( "$root/inc/analytics-admin-settings-parts.php" ), "'snt_analytics_render_publish_window'" ), 'a native Setup fold and its classic twin, one handler' );
 
+echo "\nA note that went live before the clean day is read in two halves\n";
+// Analytics worker 2.0.0 stops the legacy write. The "after" half runs to now,
+// so read whole from the legacy dataset it would stop counting at the stop.
+$had = sn_analytics_v2_clean_from();
+sn_analytics_v2_clean_from( '2026-10-17' );
+$GLOBALS['__q'] = array(); $GLOBALS['__answer'] = array(); $GLOBALS['__capok'] = true;
+$old = strtotime( '2026-10-10 12:00:00 UTC' );
+$got = sn_publish_window_read( '/notes/launch/', $old, $old + 3600, false );
+$pub = array_values( array_filter( $GLOBALS['__q'], static fn( $q ) => false === strpos( $q, 'sn_owner_hits' ) ) );
+ok( is_array( $got ) && 2 === count( $pub )
+	&& false !== strpos( $pub[0], 'FROM sn_pageviews ' ) && false !== strpos( $pub[0], "timestamp < toDateTime('2026-10-17 04:00:00')" )
+	&& false !== strpos( $pub[1], 'FROM sn_pageviews_v2 ' ) && false !== strpos( $pub[1], "timestamp >= toDateTime('2026-10-17 04:00:00')" ),
+	'before the clean day: the legacy dataset up to the split, the second generation from it' );
+$GLOBALS['__q'] = array();
+$new = strtotime( '2026-11-01 12:00:00 UTC' );
+sn_publish_window_read( '/notes/launch/', $new, $new + 3600, false );
+$pub = array_values( array_filter( $GLOBALS['__q'], static fn( $q ) => false === strpos( $q, 'sn_owner_hits' ) ) );
+ok( 1 === count( $pub ) && false !== strpos( $pub[0], 'FROM sn_pageviews_v2 ' ) && false === strpos( $pub[0], '2026-10-17 04:00:00' ), 'on or after it: one read, the second generation whole' );
+sn_analytics_v2_clean_from( $had );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

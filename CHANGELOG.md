@@ -12,6 +12,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The analytics verdict can no longer be cleared by a failed version read or a worker rollback.** Analytics worker 2.0.0 stops writing the legacy dataset, and the plugin learns that only from the worker's version. Two gaps let the daily check compare against a dataset that receives nothing, call every day since the stop a mismatch and send every read, and the nightly rollups that replace stored days, back to it. A good frozen verdict is now final: the check returns it without comparing, whatever the version reads later; clearing `frozen` is done by hand. And a mismatch only replaces a good verdict when the edge itself answers with a version: if that read fails, the stored verdict is kept and the next run decides (it used to fall back to the last good version, which can predate the stop). Install this before worker 2.0.0 is merged. Tests: `tests/analytics-generation.php`.
+- **A note's "after the first hour" figures keep counting for notes that went live before October 18.** The publish window read the whole span from one dataset, the legacy one for those notes, so the figures would have stopped growing when the legacy write stops. It is now read in two halves like the lanes table. Test: `tests/publish-window.php` (fails without the fix).
+
+### Changed
+- The `analytics-dual-write` tool's description says what it shows once worker 2.0.0 has stopped the legacy write: the verdict is frozen, and later days read as a mismatch that moves nothing.
+- The two "analytics worker misconfigured" messages name the dataset bindings worker 2.0.0 uses (`SN_AE_PV`, `SN_AE_EVENTS`) beside the old `SN_AE`.
+
 ## [2026.11.19] - 2026-11-09 — The SN Queue keeps a weekday rule
 
 ### Added

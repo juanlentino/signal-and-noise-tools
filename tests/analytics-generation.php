@@ -143,8 +143,9 @@ sn_analytics_v2_verify( $oct08 );
 ok( in_array( SN_ANALYTICS_REALTIME_KEY, $GLOBALS['deleted'], true ) && in_array( 'option:' . SN_ANALYTICS_VIEWS_TODAY_LASTGOOD, $GLOBALS['deleted'], true ), 'the realtime snapshot and the last-good count carry no dataset in their keys, so they go with the flip' );
 
 echo "\nAnalytics 2.0.0 stops the legacy write: the comparison ends\n";
-$GLOBALS['wv'] = array(); $GLOBALS['wv_forced'] = false;
-function sn_worker_version_get( $force = false ) { if ( $force ) { $GLOBALS['wv_forced'] = true; } return $GLOBALS['wv'] ?? array(); }
+unset( $GLOBALS['wv'] ); $GLOBALS['wv_forced'] = false;
+// Unset, the edge answers as a 1.x worker: a mismatch may only replace a good verdict on a version the edge itself gave.
+function sn_worker_version_get( $force = false ) { if ( $force ) { $GLOBALS['wv_forced'] = true; } return $GLOBALS['wv'] ?? array( 'ok' => true, 'data' => array( 'version' => '1.28.0' ) ); }
 // Worker version read: the live probe, else the last good one.
 ok( sn_analytics_version_stops_legacy( '2.0.0' ) && sn_analytics_version_stops_legacy( '2.1.3' ) && ! sn_analytics_version_stops_legacy( '1.25.0' ) && ! sn_analytics_version_stops_legacy( '' ) && ! sn_analytics_version_stops_legacy( 'unknown' ), 'worker 2.0.0 or later stops the legacy write; 1.x and an unread version do not' );
 ok( false === sn_analytics_legacy_stopped( false ), 'test seam: not stopped' );
@@ -186,6 +187,33 @@ $GLOBALS['wv'] = array( 'ok' => true, 'data' => array( 'version' => '1.25.0' ) )
 $GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => array( 'ok' => true, 'day' => '2026-10-12', 'clean_from' => '2026-10-05', 'events_ok' => true, 'at' => $oct08, 'why' => '' ) );
 ok( false === sn_analytics_v2_verify( $oct08 + 9 * 86400 )['ok'], 'still 1.x when asked again: the mismatch stands' );
 sn_analytics_legacy_stopped( false );
+
+echo "\nThe stop survives a failed version read and a rollback\n";
+// A good frozen verdict, then the version read says 1.x again (a rollback, or
+// a stale last-good after a failed probe): nothing is compared, nothing moves.
+$frozen = array( 'ok' => true, 'day' => '2026-11-09', 'clean_from' => '2026-10-17', 'events_ok' => true, 'at' => $oct08, 'why' => 'frozen: x', 'frozen' => $oct08 );
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => $frozen );
+$GLOBALS['wv'] = array( 'ok' => true, 'data' => array( 'version' => '1.28.0' ) );
+$GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' => '2026-10-14', 'state' => 'mismatch' ) ) );
+$n1 = $GLOBALS['checks'];
+ok( $frozen === sn_analytics_v2_verify( $oct08 + 40 * 86400 ) && $n1 === $GLOBALS['checks'] && $frozen === $GLOBALS['opt'][ SN_ANALYTICS_V2_VERIFIED_OPT ], 'frozen is final: with the worker reading 1.x again, no comparison runs and the verdict stands' );
+$badfz = array( 'ok' => false, 'day' => '', 'clean_from' => '2026-10-17', 'events_ok' => false, 'at' => $oct08, 'why' => 'x', 'frozen' => $oct08 );
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => $badfz );
+sn_analytics_v2_verify( $oct08 + 40 * 86400 );
+ok( $GLOBALS['checks'] === $n1 + 1, 'a bad freeze is not final: with the worker back on 1.x the comparison runs again, so it can recover' );
+// Not frozen yet, the legacy write already stopped, and the edge does not answer.
+$good = array( 'ok' => true, 'day' => '2026-11-09', 'clean_from' => '2026-10-17', 'events_ok' => true, 'at' => $oct08, 'why' => '' );
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => $good );
+$GLOBALS['wv'] = array( 'ok' => false ); $GLOBALS['wv_forced'] = false;
+$GLOBALS['next_check'] = array( 'read' => true, 'days' => array( array( 'day' => '2026-11-10', 'state' => 'mismatch' ) ) ); // legacy 0 vs v2 N, after the clean day
+$kept = sn_analytics_v2_verify( $oct08 + 40 * 86400 );
+ok( $good === $kept && $good === $GLOBALS['opt'][ SN_ANALYTICS_V2_VERIFIED_OPT ] && true === $GLOBALS['wv_forced'], 'a mismatch read while the worker version cannot be read replaces nothing: the good verdict is kept' );
+ok( null === sn_analytics_worker_version_fresh() && '' === ( function () { $GLOBALS['wv'] = array( 'ok' => true, 'data' => array() ); return sn_analytics_worker_version_fresh(); } )(), 'the fresh read is null when the probe failed, and empty when the edge answered without a version' );
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => $good );
+ok( $good === sn_analytics_v2_verify( $oct08 + 40 * 86400 ), 'the edge answered without a version: it did not say which worker is live, so the good verdict is kept too' );
+$GLOBALS['wv'] = array( 'ok' => true, 'data' => array( 'version' => '1.28.0' ) );
+$GLOBALS['opt'] = array( SN_ANALYTICS_V2_VERIFIED_OPT => $good );
+ok( false === sn_analytics_v2_verify( $oct08 + 40 * 86400 )['ok'], 'the edge answered 1.x: the mismatch stands, as before' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
