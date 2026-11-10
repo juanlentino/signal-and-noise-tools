@@ -52,13 +52,18 @@ function snt_analytics_recolor_world_svg( $svg, $views, $names = array(), $tiers
 		$upper_names[ strtoupper( (string) $iso ) ] = (string) $name;
 	}
 
-	return (string) preg_replace_callback( '/<path\b[^>]*?\/>/', static function ( $m ) use ( $norm, $upper_names, $sorted, $count, $tiers ) {
-		$path = $m[0];
-		if ( ! preg_match( '/\bid="([A-Z]{2})"/', $path, $idm ) ) {
-			return $path; // structural / non-country path — leave as-is.
+	// The attribute half goes through core's HTML parser: it finds each <path>,
+	// reads id and data-name, and rewrites the style in place. It cannot add a
+	// child element, so each country path is left a numbered marker attribute
+	// and one pass below turns marker plus "/>" into "><title>...</title></path>".
+	$tags   = new WP_HTML_Tag_Processor( $svg );
+	$titles = array();
+	while ( $tags->next_tag( 'PATH' ) ) {
+		$iso = $tags->get_attribute( 'id' );
+		if ( ! is_string( $iso ) || 1 !== preg_match( '/^[A-Z]{2}$/', $iso ) || ! $tags->has_self_closing_flag() ) {
+			continue; // structural / non-country path: leave as-is.
 		}
-		$iso = $idm[1];
-		$v   = isset( $norm[ $iso ] ) ? $norm[ $iso ] : 0;
+		$v = isset( $norm[ $iso ] ) ? $norm[ $iso ] : 0;
 
 		if ( $v > 0 && $count > 0 ) {
 			$le = 0;
@@ -74,21 +79,34 @@ function snt_analytics_recolor_world_svg( $svg, $views, $names = array(), $tiers
 			$fill = '#f0f0f1';
 		}
 
-		// Rewrite the first inline fill:#hex (default #f2f2f2) to the computed fill.
-		$path = preg_replace( '/fill:\s*#[0-9a-fA-F]{3,6}/', 'fill:' . $fill, $path, 1 );
+		// Rewrite the inline fill:#hex (default #f2f2f2) to the computed fill.
+		$style = $tags->get_attribute( 'style' );
+		if ( is_string( $style ) ) {
+			$tags->set_attribute( 'style', (string) preg_replace( '/fill:\s*#[0-9a-fA-F]{3,6}/', 'fill:' . $fill, $style, 1 ) );
+		}
 
-		// Inject a <title> (esc'd) and convert the self-closing /> to <path>…</path>.
 		// Label precedence: caller-supplied name → the SVG path's own data-name
 		// (SimpleMaps ships data-name="United States" etc.) → the bare ISO code.
 		$label = isset( $upper_names[ $iso ] ) ? $upper_names[ $iso ] : $iso;
-		if ( ! isset( $upper_names[ $iso ] ) && preg_match( '/\bdata-name="([^"]*)"/', $path, $nm ) && '' !== $nm[1] ) {
-			$label = $nm[1];
+		$name  = $tags->get_attribute( 'data-name' );
+		if ( ! isset( $upper_names[ $iso ] ) && is_string( $name ) && '' !== $name ) {
+			$label = $name;
 		}
-		$title = $v > 0 ? ( $label . ' — ' . number_format_i18n( $v ) . ' views' ) : $label;
-		$path  = preg_replace( '/\s*\/>$/', '><title>' . esc_html( $title ) . '</title></path>', $path );
+		$tags->set_attribute( 'data-sn-title', (string) count( $titles ) );
+		$titles[] = $v > 0 ? ( $label . ' — ' . number_format_i18n( $v ) . ' views' ) : $label;
+	}
+	$recolored = $tags->get_updated_html();
 
-		return $path;
-	}, $svg );
+	// Inject each <title> (esc'd) and convert the self-closing /> to <path>…</path>.
+	$titled = preg_replace_callback( '/<(path) data-sn-title="(\d+)"([^>]*?)\s*\/>/i', static function ( $m ) use ( $titles ) {
+		return '<' . $m[1] . $m[3] . '><title>' . esc_html( $titles[ (int) $m[2] ] ) . '</title></' . $m[1] . '>';
+	}, $recolored );
+
+	// preg_replace_callback answers null on a PCRE failure: the map then ships
+	// recolored and unlabelled (markers dropped) instead of not at all.
+	return is_string( $titled ) ? $titled : str_replace( array_map( static function ( $i ) {
+		return ' data-sn-title="' . $i . '"';
+	}, array_keys( $titles ) ), '', $recolored );
 }
 
 /**
