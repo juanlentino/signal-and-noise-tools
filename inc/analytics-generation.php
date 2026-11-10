@@ -485,10 +485,12 @@ function sn_analytics_v2_verify( $now = null ) {
 			sn_analytics_legacy_stopped( true );
 			return sn_analytics_v2_freeze( $now );
 		}
-		// The edge did not answer. The last good version may predate the stop,
-		// so it proves nothing: a good verdict is not replaced on a read that
-		// failed. Tomorrow's run decides.
-		if ( null === $fresh ) {
+		// The edge did not answer, or answered without a version (a 1.x worker
+		// redeployed from the dashboard reports none). The last good version
+		// may predate the stop, so it proves nothing: a good verdict is not
+		// replaced on a read that did not say which worker is live. Tomorrow's
+		// run decides.
+		if ( null === $fresh || 1 !== preg_match( '/^\d+\.\d+\.\d+/', $fresh ) ) {
 			error_log( '[sn-analytics] v2 verify: a mismatch was read but the worker version could not be read; the stored verdict is kept' );
 			return $before;
 		}
