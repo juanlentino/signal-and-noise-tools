@@ -80,7 +80,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_posts_signals',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'publish_window' => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'A note id: add that note\'s publish window, its first minutes after going live (analytics.publish_window_minutes, default 60) and everything after, each by lane, read from Analytics Engine on demand.' ),
 			),

@@ -28,7 +28,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_corpus_integrity_scan',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ), // 15.7.1: an input-less call arrives as null.
+			'type'                 => 'object',
+			'default'              => array(), // A bodyless call arrives as null; core runs it with this default.
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),

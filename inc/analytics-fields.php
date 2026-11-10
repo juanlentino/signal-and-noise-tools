@@ -127,7 +127,7 @@ add_action( 'wp_abilities_api_init', function () {
 	wp_register_ability( 'signal-noise/analytics-fields', $base + array(
 		'label'               => 'Analytics fields',
 		// Written out in both registrations for the static readers (tests/abilities-categories.php).
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'meta'                => array(
 			'show_in_rest' => true,
@@ -137,7 +137,7 @@ add_action( 'wp_abilities_api_init', function () {
 	) );
 	wp_register_ability( 'signal-noise/remote-analytics-fields', $base + array(
 		'label'               => 'Analytics fields (remote)',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'permission_callback' => 'snt_ability_perm_remote_analytics_fields',
 		'meta'                => array(
 			'show_in_rest' => false, // the bridge executes it directly, as every twin.

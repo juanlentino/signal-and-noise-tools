@@ -134,7 +134,7 @@ ok( isset( $GLOBALS['__cs_actions']['wp_abilities_api_init'] ), 'registration ri
 foreach ( $GLOBALS['__cs_actions']['wp_abilities_api_init'] as $cb ) { call_user_func( $cb ); }
 $ab = $GLOBALS['__cs_abilities']['signal-noise/get-collector-status'] ?? null;
 ok( is_array( $ab ), 'signal-noise/get-collector-status registered (no bare REST route)' );
-ok( array( 'object', 'null' ) === ( $ab['input_schema']['type'] ?? null ), 'input schema types the [object,null] union' );
+ok( 'object' === ( $ab['input_schema']['type'] ?? null ) && array() === ( $ab['input_schema']['default'] ?? null ), 'input schema is an object with a top-level default (core runs a bodyless call with it)' );
 ok( array( 'analytics' ) === ( $ab['input_schema']['properties']['worker']['enum'] ?? null ),
 	'the optional worker input is a typed enum (siblings ride later without a schema break)' );
 ok( 'analytics' === ( $ab['input_schema']['properties']['worker']['default'] ?? null ), 'worker defaults to analytics' );

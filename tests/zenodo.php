@@ -236,7 +236,7 @@ sn_zenodo_on_confirmed( 7 );
 ok( ! isset( $GLOBALS['__z']['scheduled'][ SN_ZENODO_HOOK ] ), 'no token: nothing is booked' );
 foreach ( $GLOBALS['__z']['actions']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
 $ab = $GLOBALS['__z']['abilities']['signal-noise/zenodo-status'] ?? null;
-ok( is_array( $ab ) && array( 'object', 'null' ) === $ab['input_schema']['type'] && true === $ab['meta']['annotations']['readonly'], 'zenodo-status registers readonly with the [object,null] input union' );
+ok( is_array( $ab ) && 'object' === $ab['input_schema']['type'] && array() === ( $ab['input_schema']['default'] ?? null ) && true === $ab['meta']['annotations']['readonly'], 'zenodo-status registers readonly with an object input that defaults to {} (core runs a bodyless call with it)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

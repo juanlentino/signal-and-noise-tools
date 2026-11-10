@@ -23,7 +23,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_rights_evidence',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'ready' => array( 'type' => 'boolean' ), 'ledger_base' => array( 'type' => 'string' ), 'months' => array( 'type' => 'object' ), 'hold' => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ), 'backlog' => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ), 'hold_reasons' => array( 'type' => 'object' ), 'in_review' => array( 'type' => 'object' ), 'note' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
@@ -33,7 +33,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_rights_evidence_now',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'month' => array( 'type' => 'string' ), 'composed' => array( 'type' => 'integer' ), 'posted' => array( 'type' => 'integer' ), 'anchored' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'refused' => array( 'type' => 'integer' ), 'in_review' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => true ) ),
 	) );

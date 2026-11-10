@@ -70,9 +70,10 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_rss_stats_local',
 		'input_schema'        => array(
-			// v2.5.4: see purge-all-caches comment — null accepted because
-			// readonly abilities (GET) receive null when caller omits ?input=.
-			'type'                 => array( 'object', 'null' ),
+			// See the purge-all-caches comment: a bodyless call arrives as null and
+			// core runs it with the top-level default.
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
@@ -228,7 +229,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_prune_unused_tags',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),
@@ -254,7 +256,8 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_describe_tags',
 		'input_schema'        => array(
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'tags' => array(
 					'type'        => 'array',

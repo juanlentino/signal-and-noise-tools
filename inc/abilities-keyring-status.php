@@ -51,7 +51,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_keyring_status',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array(
 			'type'       => 'object',
 			'properties' => array(

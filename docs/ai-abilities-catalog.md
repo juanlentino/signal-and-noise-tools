@@ -315,7 +315,7 @@ Cached Content-Health scan (all posts for link/attachment/formatting issues). Re
 #### `signal-noise/anchor-status`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
 
-Aggregates every Note's latest anchor state: pending anchors with their in-flight Bitcoin transaction and confirmation count, plus confirmed/total counts. Readonly, idempotent; input is the `[object,null]` union (GET run-path safe). On the **read door** since v9.82.0.
+Aggregates every Note's latest anchor state: pending anchors with their in-flight Bitcoin transaction and confirmation count, plus confirmed/total counts. Readonly, idempotent; input is an object with a top-level `default` of `{}` (GET run-path safe: core runs a bodyless call with it). On the **read door** since v9.82.0.
 
 Since 2026-10-17 it also reports the author's **change class**: `change_classes` counts every minted version by class (`reading_aid`, `correction`, `copy`, `claim`, `unclassified`), and a pending or recording row carries `change_class` when one was given. The class is a label stored beside the signed payload, not covered by the signature.
 
@@ -327,7 +327,7 @@ Latest server-side provenance integrity sweep: summary counts (fleet, checked, c
 #### `signal-noise/get-404-log`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
 
-Recent actionable front-end 404 log (bot/probe noise filtered), most-recently-seen first, capped at 50: path, hit count, first/last seen, latest referring host, and a deterministic redirect-target suggestion from published slugs (classical string distance, similarity-floored). Read-only — redirects are still created through the audited admin form. Input is the `[object,null]` union. Not yet on an MCP door.
+Recent actionable front-end 404 log (bot/probe noise filtered), most-recently-seen first, capped at 50: path, hit count, first/last seen, latest referring host, and a deterministic redirect-target suggestion from published slugs (classical string distance, similarity-floored). Read-only: redirects are still created through the audited admin form. Input is an object with a top-level `default` of `{}`. Not yet on an MCP door.
 
 #### `signal-noise/get-collector-status`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object

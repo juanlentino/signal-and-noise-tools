@@ -45,7 +45,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_remote_edge_errors',
 		'execute_callback'    => 'snt_ability_edge_errors_summary',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => snt_edge_errors_output_schema(),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
@@ -103,7 +103,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_remote_bot_signals',
 		'execute_callback'    => 'snt_ability_bot_signals',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => snt_bot_signals_output_schema(),
 		'meta'                => array(
 			'show_in_rest' => false, // the surface, not a setting — see file header.
@@ -125,7 +125,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'execute_callback'    => 'snt_ability_remote_agent_networks',
 		'input_schema'        => array(
 			// A window is a read parameter, not a lever (same ruling as the summary twin).
-			'type'                 => array( 'object', 'null' ),
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'days' => array( 'type' => 'integer', 'default' => 30, 'minimum' => 1, 'maximum' => 90, 'description' => 'Window in days, clamped to the sensor\'s 1-90.' ),
 			),

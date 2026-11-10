@@ -170,7 +170,7 @@ $GLOBALS['__j']['opt']['sn_typesafe_api_key'] = 'ts-secret';
 echo "\nGroup G: the ability\n";
 foreach ( $GLOBALS['__j']['actions']['wp_abilities_api_init'] as $cb ) { $cb(); }
 $ab = $GLOBALS['__j']['abilities']['signal-noise/jev-notes'] ?? null;
-ok( is_array( $ab ) && array( 'object', 'null' ) === $ab['input_schema']['type'] && true === $ab['meta']['annotations']['readonly'], 'registers readonly with the [object,null] input union' );
+ok( is_array( $ab ) && 'object' === $ab['input_schema']['type'] && array() === ( $ab['input_schema']['default'] ?? null ) && true === $ab['meta']['annotations']['readonly'], 'registers readonly with an object input that defaults to {}' );
 $out = snt_ability_jev_notes();
 ok( 'typesafe-jev' === $out['source'] && true === $out['synced'] && 1 === $out['judged'] && 1 === $out['unsure'] && 1 === count( $out['findings'] ) && 1 === count( $out['notes'] ) && 0.3 === $out['notes'][0]['title_score'] && 0.4 === $out['notes'][0]['title_confidence'], 'the ability reads the stored pass, names its source, and hands every note\'s readings out for tuning' );
 unset( $GLOBALS['__j']['opt'][ SN_JEV_DATA_OPTION ] );

@@ -64,9 +64,10 @@ add_action( 'wp_abilities_api_init', function() {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_machine_readers_summary',
 		'input_schema'        => array(
-			// Accept null: readonly abilities (GET) receive null when the caller
-			// omits ?input= (the pattern in abilities-analytics.php).
-			'type'                 => array( 'object', 'null' ),
+			// A readonly ability (GET) receives null when the caller omits
+			// ?input=; core runs that with the top-level default.
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'days' => array(
 					'type'        => 'integer',

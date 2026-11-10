@@ -76,7 +76,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_archive_push_existing',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'result' => array( 'type' => 'string' ), 'pending' => array( 'type' => 'integer' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 	) );
@@ -86,7 +86,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_archive_status',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'configured' => array( 'type' => 'boolean' ), 'pending' => array( 'type' => 'integer' ), 'line' => array( 'type' => 'string' ), 'captures' => array( 'type' => 'object' ), 'watch' => array( 'type' => 'string' ), 'run' => array( 'type' => 'object' ), 'last' => array( 'type' => 'object' ), 'failures' => array( 'type' => 'array' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
@@ -96,7 +96,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_ai_models_status',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'models_line' => array( 'type' => 'string' ), 'prices_line' => array( 'type' => 'string' ), 'models_fetched' => array( 'type' => 'integer' ), 'models_at' => array( 'type' => 'object' ), 'models_counts' => array( 'type' => 'object' ), 'models_errors' => array( 'type' => 'object' ), 'prices_fetched' => array( 'type' => 'integer' ), 'prices_count' => array( 'type' => 'integer' ), 'prices_held' => array( 'type' => 'array' ), 'prices_error' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );

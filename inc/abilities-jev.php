@@ -71,7 +71,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_notes',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array(
 			'ok' => array( 'type' => 'boolean' ), 'source' => array( 'type' => 'string' ), 'ready' => array( 'type' => 'boolean' ), 'synced' => array( 'type' => 'boolean' ),
 			'synced_at' => array( 'type' => 'integer' ), 'model' => array( 'type' => 'string' ), 'judged' => array( 'type' => 'integer' ), 'unsure' => array( 'type' => 'integer' ),
@@ -112,7 +112,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_pass_now',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ), 'usage' => array( 'type' => array( 'object', 'null' ) ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 	) );
@@ -159,7 +159,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_collision_check',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'force' => array( 'type' => 'boolean' ) ), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'force' => array( 'type' => 'boolean' ) ), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'rows' => array( 'type' => 'array' ), 'collisions' => array( 'type' => 'integer' ), 'against' => array( 'type' => 'integer' ), 'at' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
 		'meta'                => $rw,
 	) );
@@ -169,7 +169,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_lane_map',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'requests' => array( 'type' => 'integer' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'pairs' => array( 'type' => 'integer' ), 'input_tokens' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
 		'meta'                => $rw,
 	) );
@@ -179,7 +179,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_lanes',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'mapped' => array( 'type' => 'boolean' ), 'at' => array( 'type' => 'integer' ), 'judged' => array( 'type' => 'integer' ), 'pairs' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
@@ -209,7 +209,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_fit_now',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'queries' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 	) );
@@ -219,7 +219,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_query_fit',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'at' => array( 'type' => 'integer' ), 'judged_notes' => array( 'type' => 'object' ), 'gaps' => array( 'type' => 'array' ), 'stray' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
@@ -245,7 +245,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_meter',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'ready' => array( 'type' => 'boolean' ), 'cycle' => array( 'type' => 'object' ), 'credit' => array( 'type' => 'number' ), 'spent' => array( 'type' => 'number' ), 'remaining' => array( 'type' => 'number' ), 'requests' => array( 'type' => 'integer' ), 'cached' => array( 'type' => 'integer' ), 'by_feature' => array( 'type' => 'object' ), 'note' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
@@ -293,7 +293,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_tells_check',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'force' => array( 'type' => 'boolean' ) ), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array( 'post_id' => array( 'type' => 'integer' ), 'force' => array( 'type' => 'boolean' ) ), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'rows' => array( 'type' => 'array' ), 'deterministic' => array( 'type' => 'array' ), 'paragraphs' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
 		'meta'                => $rw,
 	) );
@@ -303,7 +303,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_tells_pass',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'flagged' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
 		'meta'                => $rw,
 	) );
@@ -313,7 +313,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_tells',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'flagged' => array( 'type' => 'integer' ), 'notes' => array( 'type' => 'object' ), 'note' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );
@@ -349,7 +349,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'maintenance',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_tags_now',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'integer' ), 'failed' => array( 'type' => 'integer' ), 'misfits' => array( 'type' => 'integer' ), 'error' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => false, 'type' => 'tool' ), 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ) ),
 	) );
@@ -359,7 +359,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_jev_tags',
-		'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => array(), 'additionalProperties' => false ),
+		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array(), 'additionalProperties' => false ),
 		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'judged' => array( 'type' => 'boolean' ), 'flagged' => array( 'type' => 'integer' ), 'notes' => array( 'type' => 'object' ), 'by_tag' => array( 'type' => 'array' ), 'note' => array( 'type' => 'string' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => false ) ),
 	) );

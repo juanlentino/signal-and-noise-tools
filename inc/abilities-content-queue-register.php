@@ -37,9 +37,10 @@ function snt_abilities_content_queue_register() {
 		'permission_callback' => 'snt_ability_perm_edit_posts',
 		'execute_callback'    => 'snt_ability_content_queue',
 		'input_schema'        => array(
-			// The [object,null] union: readonly ⇒ GET run-path ⇒ an omitted
-			// ?input= delivers NULL, and a plain 'object' rejects every such call.
-			'type'                 => array( 'object', 'null' ),
+			// The top-level default: readonly ⇒ GET run-path ⇒ an omitted ?input=
+			// delivers NULL, and a plain 'object' with no default rejects every such call.
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(),
 			'additionalProperties' => false,
 		),

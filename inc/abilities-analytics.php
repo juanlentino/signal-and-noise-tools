@@ -41,10 +41,10 @@ add_action( 'wp_abilities_api_init', function () {
 	// Analytics screen's Top content panel uses, so the numbers cannot diverge.
 	//
 	// Read-only, which means OpenStation's AI Copilot AUTO-ENROLS it as a tool with
-	// no opt-out. The input_schema therefore mirrors its siblings exactly
-	// (array('object','null')): one malformed tool 400s the entire assistant, and
-	// the plugin's desktop_mode_ai_tools normalizer at PHP_INT_MAX is what makes
-	// the union type safe.
+	// no opt-out. The input_schema therefore mirrors its siblings exactly (an
+	// object with a top-level default): one malformed tool 400s the entire
+	// assistant, and the plugin's desktop_mode_ai_tools normalizer at
+	// PHP_INT_MAX keeps the list provider-safe.
 	wp_register_ability( 'signal-noise/get-analytics-top-content', array(
 		'label'               => 'Get top content',
 		'description'         => 'Top pages by first-party pageviews over a window, highest first, on the site\'s own day. `range` (7|14|30|90|365|all) wins over `days` (1-90, default 7); `limit` 1-100 (default 5); `class` human|suspect|bot (default human). Each page carries views, visits, scroll_avg, time_avg (milliseconds), and impressions and position from Search Console, whose own window is search_window (it does not follow range); null when Google has no row for the page. Paths are site-relative. Read-only.',
@@ -52,9 +52,10 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_analytics_top_content',
 		'input_schema'        => array(
-			// Accept null: readonly abilities (GET) receive null when the caller
-			// omits ?input= — the pattern its siblings above use.
-			'type'                 => array( 'object', 'null' ),
+			// A readonly ability (GET) receives null when the caller omits
+			// ?input=; core runs that with the top-level default, as its siblings do.
+			'type'                 => 'object',
+			'default'              => array(),
 			'properties'           => array(
 				'days'  => array( 'type' => 'integer', 'default' => 7, 'minimum' => 1, 'maximum' => 90 ),
 				'range' => array( 'type' => array( 'string', 'integer' ), 'description' => '7|14|30|90|365|all; wins over days.' ),
@@ -108,7 +109,8 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'sn_ability_get_analytics_events',
 		'input_schema'        => array(
-			'type'       => array( 'object', 'null' ),
+			'type'       => 'object',
+			'default'    => array(),
 			'properties' => array(
 				'range' => array( 'type' => array( 'string', 'integer' ), 'default' => 30 ),
 			),
@@ -155,9 +157,10 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'sn_ability_get_analytics_summary',
 		'input_schema'        => array(
-			// Accept null because readonly abilities (GET) receive null when
-			// the caller omits ?input= — mirrors the pattern in abilities-system.php.
-			'type'       => array( 'object', 'null' ),
+			// A readonly ability (GET) receives null when the caller omits
+			// ?input=; core runs that with the top-level default (see purge-all-caches).
+			'type'       => 'object',
+			'default'    => array(),
 			'properties' => array(
 				'range' => array( 'type' => array( 'string', 'integer' ), 'default' => 30 ),
 				'class' => array( 'type' => 'string', 'default' => 'human' ),

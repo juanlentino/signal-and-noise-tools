@@ -112,9 +112,9 @@ ok( empty( $ann['destructive'] ), 'not destructive' );
 
 echo "\nGroup D: input schema, optional days 1..90, default 30\n";
 $in = $a['input_schema'] ?? array();
-// The object|null union is the GET/null run-path the sibling reads declare;
-// desktop-mode's Copilot boundary normalizes it (see desktop_mode_ai_tools).
-ok( array( 'object', 'null' ) === ( $in['type'] ?? null ), 'input type is the object|null union (callable with no input)' );
+// The top-level default is the GET/null run-path the sibling reads declare:
+// core's normalize_input() runs a bodyless call with it.
+ok( 'object' === ( $in['type'] ?? null ) && array() === ( $in['default'] ?? null ), 'input is an object with a top-level default (callable with no input)' );
 ok( false === ( $in['additionalProperties'] ?? null ), 'additionalProperties false' );
 $days_schema = $in['properties']['days'] ?? array();
 ok( 'integer' === ( $days_schema['type'] ?? null ), 'days is an integer' );

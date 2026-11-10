@@ -118,7 +118,7 @@ ok( 'error' === sn_keyring_probe( 'bing_webmaster_key', $rows['bing_webmaster_ke
 echo "\nGroup E: the ability\n";
 foreach ( $GLOBALS['__b']['actions']['wp_abilities_api_init'] as $cb ) { $cb(); }
 $ab = $GLOBALS['__b']['abilities']['signal-noise/bing-search-performance'] ?? null;
-ok( is_array( $ab ) && array( 'object', 'null' ) === $ab['input_schema']['type'] && true === $ab['meta']['annotations']['readonly'] && 'diagnostics' === $ab['category'], 'registers readonly, diagnostics, with the [object,null] input union' );
+ok( is_array( $ab ) && 'object' === $ab['input_schema']['type'] && array() === ( $ab['input_schema']['default'] ?? null ) && true === $ab['meta']['annotations']['readonly'] && 'diagnostics' === $ab['category'], 'registers readonly, diagnostics, with an object input that defaults to {} (core runs a bodyless call with it)' );
 $out = snt_ability_bing_search_performance();
 ok( 'bing' === $out['source'] && true === $out['synced'] && 28 === $out['totals']['clicks'] && 2 === count( $out['queries'] ), 'the ability reads the stored record and names its source' );
 $GLOBALS['__b']['opt'] = array( 'sn_bing_webmaster_key' => 'k-secret' );

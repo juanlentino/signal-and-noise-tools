@@ -79,9 +79,11 @@ function sn_mcp_normalize_schema( $schema ) {
 	}
 
 	// MCP requires the top-level tool schema type to be the literal "object".
-	// The abilities declare a ['object','null'] union (their GET/null run-path),
-	// which strict MCP hosts (e.g. the Anthropic tool-schema validator that a
-	// client forwards to) reject. Force the scalar "object".
+	// The abilities declared a ['object','null'] union for their GET/null
+	// run-path until 2026-11-10 (they now use core's top-level default), and
+	// a third-party ability may still; strict MCP hosts (e.g. the Anthropic
+	// tool-schema validator that a client forwards to) reject it. Force the
+	// scalar "object".
 	$schema['type'] = 'object';
 
 	// v9.53.0: strip TOP-LEVEL oneOf / allOf / anyOf. The same strict validator
@@ -105,6 +107,12 @@ function sn_mcp_normalize_schema( $schema ) {
 	// An empty PHP array encodes to JSON as [] — an object schema needs {}.
 	if ( isset( $schema['properties'] ) && array() === $schema['properties'] ) {
 		$schema['properties'] = (object) array();
+	}
+	// The same for a top-level default of array(), core's idiom for a
+	// bodyless call (WP_Ability::normalize_input() runs a null input with it).
+	// Core's 7.1 prep above already makes it {}; this covers 7.0.
+	if ( isset( $schema['default'] ) && array() === $schema['default'] ) {
+		$schema['default'] = (object) array();
 	}
 	return $schema;
 }

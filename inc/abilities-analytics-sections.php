@@ -68,7 +68,7 @@ add_action( 'wp_abilities_api_init', function () {
 			'category'            => 'analytics',
 			'permission_callback' => 'snt_ability_perm_manage_options',
 			'execute_callback'    => $def[1],
-			'input_schema'        => array( 'type' => array( 'object', 'null' ), 'properties' => $props, 'additionalProperties' => false ),
+			'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => $props, 'additionalProperties' => false ),
 			'output_schema'       => array( 'type' => 'object' ),
 			'meta'                => array(
 				'show_in_rest' => true,
