@@ -13,6 +13,12 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Changed
+- **Core-first audit, part 4: three rebuilds on core and the official plugins.**
+  - **Plugin updates** are offered through core's `update_plugins_github.com` hook, the one core provides for this plugin's Update URI, instead of editing the update record directly. One difference: when WordPress.org itself cannot be reached during a check, no offer appears until the next successful check.
+  - **The Insights scan** passes its model options (adaptive thinking, effort, token ceiling) through the AI Client instead of rewriting the request on the wire. The request Anthropic receives is unchanged; the budget cap is untouched.
+  - **`/resume?output_format=markdown`** goes through the AI plugin's Markdown handler with the résumé as its only section. `/resume.md` and `/cv.md` are unchanged.
+
+### Changed
 - **Core-first audit, part 3: HTML and block markup are read with core's parsers, not regular expressions.** Readers move to `WP_HTML_Tag_Processor`, `WP_HTML_Processor`, `parse_blocks()` and `WP_Block_Processor`: health checks, the citation verifier, link extraction (one shared `sn_html_a_hrefs()`), the correction-notice reader (notices inside groups now count), Jev tells, the OG card dek, the world map, the em-dash and editorial scanners, and the anchor scan. Each was pinned against its old output first; the differences are regex mistakes fixed (a link inside a comment or script no longer counts; `<a title="a > b">` is now read).
 - **sn-apply's write path stands on core.** Block edits locate blocks with `WP_Block_Processor` and refuse unless `parse_blocks()` agrees on the block; link-reshape finds `<a>` with the Tag Processor. Offsets only: nothing outside the edit is re-serialized.
 - **Generated block markup comes from core.** The `/resume` body and the Spanish fallback wrapper are built with `get_comment_delimited_block_content()` and core's post-content render (the wrapper's attributes now come in core's order).
