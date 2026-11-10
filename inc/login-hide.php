@@ -277,7 +277,12 @@ function sn_login_guard_redirect( $location, $status = 302 ) {
 		return $location;
 	}
 	$request_uri = (string) wp_unslash( $_SERVER['REQUEST_URI'] );
-	if ( ! sn_login_redirect_reveals_door( (string) $location, $request_uri, sn_login_get_slug(), is_user_logged_in() ) ) {
+	// Core's /login shortcut is answered 404 for everyone, signed in or not: a
+	// 302 to the door on a public path is one cache rule away from being
+	// served to the next stranger. /admin and /dashboard lead to /wp-admin/,
+	// which reveals nothing, so they stay core's for a signed-in user.
+	$shortcut = 'login' === trim( (string) wp_parse_url( $request_uri, PHP_URL_PATH ), '/' );
+	if ( ! sn_login_redirect_reveals_door( (string) $location, $request_uri, sn_login_get_slug(), is_user_logged_in() && ! $shortcut ) ) {
 		return $location;
 	}
 	if ( function_exists( 'snt_audit_increment_counter_impl' ) ) {
@@ -296,8 +301,8 @@ add_filter( 'wp_redirect', 'sn_login_guard_redirect', 99, 2 );
  * through to the theme's 404 like /wp-login.php. Core registers it at priority
  * 1000, so this runs just before it.
  *
- * 2026-11-10: strangers only. A signed-in user already knows the door, so
- * core's /admin, /dashboard and /login shortcuts are left working for them.
+ * 2026-11-10: strangers only. A signed-in user gets core's /admin and
+ * /dashboard shortcuts back; /login stays a 404 for everyone (the guard above).
  * Fails closed: no login state means the redirect is removed.
  */
 function sn_login_scope_admin_locations() {

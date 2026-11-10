@@ -22,7 +22,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **Core-first audit, part 2: core features this plugin had switched off work again, and API detours go through core.**
-  - Signed in, `/admin`, `/login` and `/dashboard` are core's shortcuts again; a visitor who is not signed in still gets the same 404.
+  - Signed in, `/admin` and `/dashboard` are core's shortcuts to `/wp-admin/` again. `/login` stays a 404 for everyone, so no cached redirect can hand the login address to a stranger. Visitors who are not signed in get the same 404s as before.
   - Settings > Writing > Default Post Category sticks: the plugin sets it once at setup instead of rewriting it on every admin load. The permalink structure is set through `$wp_rewrite`.
   - A post split with page breaks gets its page number in the title ("Page 2"); every other title is unchanged.
   - Site name, tagline and locale in Signal & Noise settings are an override of Settings > General: an empty value, or one equal to core's, reads core live. Nothing changes until the Identity form is saved again.
