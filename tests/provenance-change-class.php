@@ -104,6 +104,8 @@ if ( ! function_exists( 'do_action' ) ) {
 	}
 }
 
+require_once __DIR__ . '/lib/wp-html-api.php';
+snt_test_load_block_parser(); // core's real parse_blocks(): the notice detector walks its tree.
 require_once SNT_PATH . 'inc/provenance-core.php';
 
 $pass = 0;
@@ -202,6 +204,64 @@ cc_true( '' === $refuse( 'claim', $body . $notice, $body . $notice2 ), 'claim ma
 cc_true( '' === $refuse( 'reading_aid', $body . $notice, $body . $notice . $table ), 'an untouched notice does not block a reading aid' );
 cc_true( '' === $refuse( 'copy', $body . $notice, $body ), 'removing a notice is not adding or replacing one' );
 cc_true( '' === $refuse( '', $body, $body . $notice ), 'no class, no rule' );
+
+// --- What counts as a notice, on the shared block markup (tests/lib/block-reader-cases.php), read by core's parser.
+$cases = require __DIR__ . '/lib/block-reader-cases.php';
+$want_notices = array(
+	'a plain paragraph and a classed notice' => array(
+		'<p class="sn-correction"><strong>Correction, October 16, 2026.</strong> An earlier version of this note gave the wrong year for the ledger.</p>',
+	),
+	'attributes in any order, two classes' => array(
+		'<p class="has-text-align-left is-style-note sn-correction">Fixed the figure in the second table, which had the columns the wrong way around.</p>',
+	),
+	'attribute JSON with nested braces and an escaped >' => array(
+		'<p class="sn-correction"><strong>Correction, October 16, 2026.</strong> An earlier version of this note gave the wrong year for the ledger.</p>',
+	),
+	'a notice nested in a group' => array(
+		'<p class="sn-correction"><strong>Correction, October 16, 2026.</strong> An earlier version of this note gave the wrong year for the ledger.</p>',
+	),
+	'a notice nested in columns' => array(
+		'<p><em>Correction, October 1, 2026: An earlier version of this note named the wrong archive.</em></p>',
+	),
+	'a quoted paragraph' => array(
+		'<p>Correction, they wrote in the margin, is the only honest form of revision there is.</p>',
+	),
+	'an unclassed italic notice' => array(
+		'<p><em>Correction, October 1, 2026: An earlier version of this note said the opposite.</em></p>',
+	),
+	'uppercase lead-in with nested inline markup' => array(
+		'<p><strong>CORRECTION, <em>October</em> 16, 2026.</strong> See <a href="/notes/ledger/" title="a > b">the ledger note</a> for the corrected figure.</p>',
+	),
+	'entity-led text' => array(
+		'<p>&#67;orrection, October 2, 2026: the caf&eacute; was on the other side of the street.</p>',
+	),
+	'a class that only starts with sn-correction' => array(
+		'<p class="sn-correction-archive">An archive of earlier wording, kept here for readers who want to compare.</p>',
+	),
+	'sn-correction in another attribute' => array(
+		'<p id="sn-correction">Readers have asked how corrections are handled on this site, so here it is.</p>',
+	),
+	'the long block name' => array(),
+	'a void paragraph' => array(),
+	'correction mentioned mid-sentence' => array(),
+	'a heading that opens Correction,' => array(),
+	'whitespace and newlines inside' => array(
+		'<p class="sn-correction"> <strong>Correction, October 16, 2026.</strong> An earlier version said X, and that was wrong. </p>',
+	),
+	'multibyte text' => array(
+		'<p class="sn-correction">Corrección, 16 de octubre: una versión anterior decía «señal» donde iba «ruido» 日本語.</p>',
+	),
+	'a comment holding paragraph markup' => array(),
+	'a list and a paragraph inside details' => array(),
+	'a pullquote and a custom HTML block' => array(),
+	'classic content, no blocks' => array(),
+	'empty input' => array(),
+);
+cc_true( array_keys( $want_notices ) === array_keys( $cases ), 'an answer is pinned for every shared block case' );
+foreach ( $cases as $name => $content ) {
+	$got = sn_prov_change_class_correction_notices( $content );
+	cc_true( $want_notices[ $name ] === $got, "notices: $name" . ( $want_notices[ $name ] === $got ? '' : ' (got ' . json_encode( $got, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . ')' ) );
+}
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
