@@ -108,31 +108,6 @@ function snt_ml_link_target_slug( $href, $our_host = null ) {
 }
 
 /**
- * Every internal note slug an href set points at, from one body.
- *
- * @param string $content Post content.
- * @param string $our_host Site host.
- * @return string[] Slugs, in document order, duplicates preserved.
- */
-function snt_ml_outbound_slugs( $content, $our_host = null ) {
-	$content = (string) $content;
-	if ( '' === trim( $content ) || false === stripos( $content, '<a' ) ) {
-		return array();
-	}
-	if ( ! preg_match_all( '#<a\b[^>]*\bhref\s*=\s*["\']([^"\']*)["\']#i', $content, $m ) ) {
-		return array();
-	}
-	$out = array();
-	foreach ( $m[1] as $href ) {
-		$slug = snt_ml_link_target_slug( $href, $our_host );
-		if ( '' !== $slug ) {
-			$out[] = $slug;
-		}
-	}
-	return $out;
-}
-
-/**
  * Published notes that nothing in the corpus links to.
  *
  * Subjects and sources are both PUBLISHED only, deliberately. A draft linking

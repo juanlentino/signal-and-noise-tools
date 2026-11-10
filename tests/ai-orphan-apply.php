@@ -70,6 +70,10 @@ if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'wp_basename' ) ) { function wp_basename( $p ) { return basename( (string) $p ); } }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } }
+// Core's attachment API: no file on record in this harness, so the guid stays the only name.
+if ( ! function_exists( 'get_attached_file' ) ) { function get_attached_file( $id ) { return false; } }
+if ( ! function_exists( 'wp_get_original_image_path' ) ) { function wp_get_original_image_path( $id ) { return false; } }
+if ( ! function_exists( 'wp_get_attachment_url' ) ) { function wp_get_attachment_url( $id ) { return false; } }
 if ( ! function_exists( 'wp_get_attachment_metadata' ) ) {
 	function wp_get_attachment_metadata( $id ) { return $GLOBALS['__att_meta'][ (int) $id ] ?? false; }
 }

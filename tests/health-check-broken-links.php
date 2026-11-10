@@ -60,6 +60,7 @@ function sn_health_pack_check( $label, $findings ) { return array( $label, $find
 
 class WP_Error {}
 
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require __DIR__ . '/../inc/health-check-broken-links.php';
 
 echo "Group: the extractor's same-host contract (the first line of defense)\n";

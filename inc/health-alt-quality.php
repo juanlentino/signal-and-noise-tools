@@ -2,10 +2,19 @@
 /**
  * Signal & Noise Tools -- alt-text parsing and quality predicates.
  *
- * Pure functions, no WordPress calls, no database: everything here takes a
- * string and returns a verdict, so tests/health-check-missing-alt.php can drive
- * it directly. Split out of inc/health-check-missing-alt.php in v10.77.0 when
- * the check grew inline-SVG coverage and alt QUALITY on top of alt PRESENCE.
+ * Pure functions, no hooks, no database: everything here takes a string and
+ * returns a verdict, so tests/health-check-missing-alt.php can drive it
+ * directly. The tags and attributes are read by core's HTML API
+ * (WP_HTML_Processor, WP_HTML_Tag_Processor), the one piece of WordPress this
+ * file stands on; the quality predicates below it are plain string functions.
+ * Split out of inc/health-check-missing-alt.php in v10.77.0 when the check
+ * grew inline-SVG coverage and alt QUALITY on top of alt PRESENCE.
+ *
+ * STILL A BYTE SCAN, on purpose for now: sn_health_caption_after_offset() and
+ * sn_health_heading_after_offset(). They carry tuned bounds (a 2000-byte
+ * window, a two-element skip budget) measured against stored block markup,
+ * and a parser walk that reproduced them only roughly would move findings
+ * without anyone having decided it should.
  *
  * THE CENTRAL FACT, because it is the thing everyone gets wrong: an inline
  * <svg> HAS NO alt ATTRIBUTE. Its accessible name comes from a direct-child
@@ -23,156 +32,143 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Read one HTML attribute's value out of a raw attribute string.
- *
- * #1187: a single `["\']([^"\']*)["\']` value class excludes BOTH quote
- * characters, so a double-quoted value containing an apostrophe (`alt="Logo's
- * sketch"`) is cut at the apostrophe -- the class can't tell "the value ended"
- * from "the other quote character showed up inside it". Matching each quote
- * style separately (this function) lets a double-quoted value contain an
- * apostrophe, and a single-quoted value contain a double quote.
- *
- * Also guards the attribute NAME with `(?<![\w-])`, so `\bid` -- which treats
- * `-` as a boundary -- cannot match the `id` inside `data-id`.
- *
- * @param string $attrs Raw attribute text.
- * @param string $name  Attribute name (no regex metacharacters expected).
- * @return string|null The attribute's value, or null if it is not present.
- */
-function sn_health_attr_value( $attrs, $name ) {
-	$pattern = '/(?<![\w-])' . preg_quote( $name, '/' ) . '\s*=\s*(?:"([^"]*)"|\'([^\']*)\')/i';
-	if ( ! preg_match( $pattern, (string) $attrs, $m ) ) {
-		return null;
-	}
-	// Siblings in an alternation: whichever branch did NOT match is simply
-	// absent from $m (not filled with ''), so this is unambiguous even when
-	// the matched value itself is the empty string.
-	return array_key_exists( 2, $m ) ? $m[2] : $m[1];
-}
-
-/**
  * Find inline <svg> elements that expose no accessible name and are not marked
  * decorative.
  *
- * Multi-line by construction: SVG spans lines and carries children, so the
- * single-tag `<img>` regex does not transfer. The `s` modifier makes `.` cross
- * newlines.
+ * Read with core's HTML parser (WP_HTML_Processor), which knows what a regex
+ * over the bytes could not: where each <svg> really ends, which <title> is its
+ * direct child, that an <svg> inside another is its own element, that a
+ * self-closing <svg/> has no children, and that markup inside a comment is not
+ * markup. Attributes come back whole, so `aria-label="a > b"` is a name and
+ * `data-id` is not an id (#1187).
  *
- * Known limits, stated rather than hidden: a self-closing `<svg/>` (which
- * renders nothing) and an <svg> nested inside another <svg> are not modelled —
- * the non-greedy close match would mis-scope the latter.
+ * When the parser meets markup it does not support (it says so: text loose in
+ * a table, misnested formatting tags, a link inside a link) the walk stops
+ * there. What it had already settled is returned; an <svg> it could not
+ * finish reading is not reported, because "unnamed" would be a guess. $unread
+ * is set so the caller can say the body was not read to the end.
  *
- * @param string $content Post content.
+ * @param string    $content Post content.
+ * @param bool|null $unread  Set to true when the walk stopped early, false otherwise.
  * @return array List of short hints identifying each unnamed SVG, in document order.
  */
-function sn_health_extract_inline_svgs_without_name( $content ) {
+function sn_health_extract_inline_svgs_without_name( $content, &$unread = null ) {
 	$content = (string) $content;
-	if ( '' === trim( $content ) ) {
+	$unread  = false;
+	if ( false === stripos( $content, '<svg' ) ) {
 		return array();
 	}
-	if ( ! preg_match_all( '#<svg\b([^>]*)>(.*?)</svg\s*>#is', $content, $matches, PREG_SET_ORDER ) ) {
+	$html = WP_HTML_Processor::create_fragment( $content );
+	if ( null === $html ) {
+		$unread = true;
 		return array();
 	}
 
-	$out     = array();
-	$ordinal = 0;
-	foreach ( $matches as $m ) {
-		++$ordinal;
-		$attrs = (string) $m[1];
-		$inner = (string) $m[2];
-		if ( 'unnamed' !== sn_health_svg_accessible_name_status( $attrs, $inner ) ) {
+	$unnamed     = array(); // ordinal => hint.
+	$open        = array(); // the <svg> elements being read, innermost last.
+	$ordinal     = 0;
+	$title_depth = 0;       // depth of the direct-child <title> being read, 0 when none.
+	$title_text  = '';
+
+	while ( $html->next_token() ) {
+		$name  = $html->get_token_name();
+		$depth = $html->get_current_depth();
+		$top   = count( $open ) - 1;
+
+		if ( '#text' === $name ) {
+			if ( $title_depth ) {
+				$title_text .= $html->get_modifiable_text();
+			}
 			continue;
 		}
-		$out[] = sn_health_svg_hint( $ordinal, $attrs );
+
+		if ( $html->is_tag_closer() ) {
+			if ( $title_depth && 'TITLE' === $name && $depth === $title_depth - 1 ) {
+				// An EMPTY title names nothing; a later sibling may still carry the name.
+				if ( '' !== trim( $title_text ) && 'unnamed' === $open[ $top ]['status'] ) {
+					$open[ $top ]['status'] = 'named';
+				}
+				$title_depth = 0;
+			} elseif ( $top >= 0 && 'SVG' === $name && $depth === $open[ $top ]['depth'] - 1 ) {
+				$done = array_pop( $open );
+				if ( 'unnamed' === $done['status'] ) {
+					$unnamed[ $done['ordinal'] ] = $done['hint'];
+				}
+			}
+			continue;
+		}
+
+		if ( 'SVG' === $name && 'svg' === $html->get_namespace() ) {
+			++$ordinal;
+			$svg = array(
+				'ordinal' => $ordinal,
+				'depth'   => $depth,
+				'status'  => sn_health_svg_accessible_name_status( $html ),
+				'hint'    => sn_health_svg_hint( $ordinal, $html ),
+			);
+			if ( $html->expects_closer() ) {
+				$open[] = $svg;
+			} elseif ( 'unnamed' === $svg['status'] ) {
+				$unnamed[ $ordinal ] = $svg['hint']; // <svg/>: no children, so no <title> can name it.
+			}
+			continue;
+		}
+
+		// Named by a DIRECT-CHILD <title>. Deliberately NOT any descendant <title>:
+		// a <title> inside a <g> or a sprite <symbol> names that child, not the root.
+		if ( 'TITLE' === $name && $top >= 0 && 0 === $title_depth && $depth === $open[ $top ]['depth'] + 1 && $html->expects_closer() ) {
+			$title_depth = $depth;
+			$title_text  = '';
+		}
 	}
-	return $out;
+
+	$unread = null !== $html->get_last_error();
+	ksort( $unnamed );
+	return array_values( $unnamed );
 }
 
 /**
- * Classify one <svg> as named, decorative, or unnamed.
+ * Classify the <svg> tag a processor is on by its own attributes: decorative,
+ * named, or (so far) unnamed. A direct-child <title> can still name it; the
+ * caller reads the children.
  *
- * @param string $attrs Raw attribute text from the root <svg> open tag.
- * @param string $inner Markup between <svg> and </svg>.
+ * @param WP_HTML_Tag_Processor $tag A processor paused on an <svg> opening tag.
  * @return string 'named' | 'decorative' | 'unnamed'
  */
-function sn_health_svg_accessible_name_status( $attrs, $inner ) {
-	$attrs = (string) $attrs;
-
+function sn_health_svg_accessible_name_status( $tag ) {
 	// Decorative: deliberately hidden from assistive technology.
-	if ( preg_match( '/\baria-hidden\s*=\s*["\']?\s*true/i', $attrs ) ) {
+	$hidden = $tag->get_attribute( 'aria-hidden' );
+	if ( is_string( $hidden ) && 0 === stripos( ltrim( $hidden ), 'true' ) ) {
 		return 'decorative';
 	}
-	if ( preg_match( '/\brole\s*=\s*["\']\s*(?:presentation|none)\s*["\']/i', $attrs ) ) {
+	$role = $tag->get_attribute( 'role' );
+	if ( is_string( $role ) && in_array( strtolower( trim( $role ) ), array( 'presentation', 'none' ), true ) ) {
 		return 'decorative';
 	}
 
 	// Named by attribute. An EMPTY value names nothing.
 	foreach ( array( 'aria-label', 'aria-labelledby' ) as $attr ) {
-		$val = sn_health_attr_value( $attrs, $attr );
-		if ( null !== $val && '' !== trim( $val ) ) {
+		$val = $tag->get_attribute( $attr );
+		if ( is_string( $val ) && '' !== trim( $val ) ) {
 			return 'named';
 		}
-	}
-
-	// Named by a DIRECT-CHILD <title>. Deliberately NOT any descendant <title>:
-	// a <title> inside a <g> or a sprite <symbol> names that child, not the root.
-	if ( sn_health_svg_has_direct_child_title( (string) $inner ) ) {
-		return 'named';
 	}
 
 	return 'unnamed';
 }
 
 /**
- * True when $inner contains a <title> at nesting depth 0 with non-empty text.
- *
- * Walks tags tracking depth rather than regexing for `<title>` anywhere, which
- * would accept a nested one and silently pass a genuinely unnamed icon.
- *
- * @param string $inner Markup between <svg> and </svg>.
- * @return bool
- */
-function sn_health_svg_has_direct_child_title( $inner ) {
-	$depth  = 0;
-	$offset = 0;
-	$len    = strlen( $inner );
-
-	while ( $offset < $len && preg_match( '#<(/?)([a-z][a-z0-9:-]*)\b([^>]*)>#i', $inner, $m, PREG_OFFSET_CAPTURE, $offset ) ) {
-		$tag        = strtolower( $m[2][0] );
-		$is_close   = ( '/' === $m[1][0] );
-		$self_close = ( '/' === substr( rtrim( $m[3][0] ), -1 ) );
-		$offset     = $m[0][1] + strlen( $m[0][0] );
-
-		if ( $is_close ) {
-			if ( $depth > 0 ) { --$depth; }
-			continue;
-		}
-
-		if ( 'title' === $tag && 0 === $depth && ! $self_close ) {
-			if ( preg_match( '#^(.*?)</title\s*>#is', substr( $inner, $offset ), $tm )
-				&& '' !== trim( strip_tags( $tm[1] ) ) ) {
-				return true;
-			}
-			// Empty title — keep scanning; a later sibling may carry the name.
-		}
-
-		if ( ! $self_close ) { ++$depth; }
-	}
-	return false;
-}
-
-/**
  * A short, human-recognisable hint for an SVG that has no src to point at.
  *
- * @param int    $ordinal 1-based position within the post body.
- * @param string $attrs   Raw attribute text.
+ * @param int                   $ordinal 1-based position within the post body.
+ * @param WP_HTML_Tag_Processor $tag     A processor paused on the <svg> opening tag.
  * @return string
  */
-function sn_health_svg_hint( $ordinal, $attrs ) {
+function sn_health_svg_hint( $ordinal, $tag ) {
 	foreach ( array( 'id', 'class' ) as $attr ) {
-		$raw = sn_health_attr_value( $attrs, $attr );
-		if ( null !== $raw ) {
-			$val = trim( preg_replace( '/\s+/', ' ', $raw ) );
+		$raw = $tag->get_attribute( $attr );
+		if ( is_string( $raw ) ) {
+			$val = trim( (string) preg_replace( '/\s+/', ' ', $raw ) );
 			if ( '' !== $val ) {
 				return sprintf( '<svg> #%d (%s="%s")', (int) $ordinal, $attr, substr( $val, 0, 60 ) );
 			}
@@ -441,33 +437,37 @@ function sn_health_heading_after_offset( $content, $offset, $max_skips = 2 ) {
  */
 function sn_health_extract_inline_imgs_with_alt( $content ) {
 	$content = (string) $content;
-	if ( '' === trim( $content ) ) {
-		return array();
-	}
-	if ( ! preg_match_all( '/<img\b([^>]*)>/i', $content, $matches, PREG_OFFSET_CAPTURE ) ) {
-		return array();
-	}
+
+	// Core's Tag Processor, plus where the current tag ends: the caption and
+	// heading lookups scan the bytes after the image. The processor keeps that
+	// offset in a bookmark, and core's own subclass reads it the same way
+	// (WP_Interactivity_API_Directives_Processor).
+	$tags = new class( $content ) extends WP_HTML_Tag_Processor {
+		public function tag_end() {
+			if ( ! $this->set_bookmark( 'sn-img' ) ) {
+				return null;
+			}
+			$span = $this->bookmarks['sn-img'];
+			return $span->start + $span->length;
+		}
+	};
 
 	$out = array();
-	foreach ( $matches[1] as $i => $attr_hit ) {
-		$attrs    = (string) $attr_hit[0];
-		$alt_attr = sn_health_attr_value( $attrs, 'alt' );
-		if ( null === $alt_attr ) {
-			continue; // No alt at all — that is the coverage pass's finding.
+	while ( $tags->next_tag( 'IMG' ) ) {
+		// null is no alt at all (the coverage pass's finding); a bare `alt`
+		// (true) and alt="" are the decorative marker.
+		$alt = $tags->get_attribute( 'alt' );
+		$alt = is_string( $alt ) ? trim( $alt ) : '';
+		$end = '' === $alt ? null : $tags->tag_end();
+		if ( null === $end ) {
+			continue;
 		}
-		$alt = trim( $alt_attr );
-		if ( '' === $alt ) {
-			continue; // Explicit alt="" is a valid decorative marker.
-		}
-
-		$src = (string) ( sn_health_attr_value( $attrs, 'src' ) ?? '' );
-
-		$tag_end = $matches[0][ $i ][1] + strlen( $matches[0][ $i ][0] );
-		$out[]   = array(
-			'src'     => $src,
+		$src   = $tags->get_attribute( 'src' );
+		$out[] = array(
+			'src'     => is_string( $src ) ? $src : '',
 			'alt'     => $alt,
-			'caption' => sn_health_caption_after_offset( $content, $tag_end ),
-			'heading' => sn_health_heading_after_offset( $content, $tag_end ),
+			'caption' => sn_health_caption_after_offset( $content, $end ),
+			'heading' => sn_health_heading_after_offset( $content, $end ),
 		);
 	}
 	return $out;

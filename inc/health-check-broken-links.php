@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/html-hrefs.php'; // sn_html_a_hrefs(): link targets, read by core's HTML parser.
+
 /* ─────────────────────────────────────────────────────────────────────
  * CHECK 3: broken internal links
  * Extract internal links (same-site origin OR root-relative) from
@@ -77,29 +79,27 @@ function sn_health_check_broken_links() {
  * Pull <a href="..."> URLs out of $content that point at $site_host
  * or are root-relative. Anchors, mailto:, tel:, javascript: are
  * stripped. Returns a deduped array.
+ *
+ * The hrefs come from core's HTML parser (sn_html_a_hrefs), already decoded
+ * as a browser decodes them. #1188 was this function probing `?a=1&amp;lang=en`
+ * verbatim, so the server saw a literal `amp;lang` parameter and a page that
+ * needed `lang` answered 404.
  */
 function sn_health_extract_internal_links( $content, $site_host ) {
-	if ( '' === trim( $content ) ) { return array(); }
 	$out = array();
-	if ( preg_match_all( '/<a\b[^>]*\bhref\s*=\s*["\']([^"\']+)["\']/i', $content, $m ) ) {
-		foreach ( $m[1] as $href ) {
-			// #1188: Gutenberg stores href HTML-escaped ("&amp;" for "&"), so a
-			// query string like `?a=1&amp;lang=en` was probed VERBATIM -- the
-			// server sees a literal `amp;lang` param, not `lang`, and a page
-			// that requires it 404s. Decode before anything else touches it.
-			$href = trim( html_entity_decode( $href, ENT_QUOTES ) );
-			if ( '' === $href || '#' === $href[0] ) { continue; }
-			if ( preg_match( '#^(mailto:|tel:|javascript:|data:)#i', $href ) ) { continue; }
+	foreach ( sn_html_a_hrefs( $content ) as $href ) {
+		$href = trim( $href );
+		if ( '' === $href || '#' === $href[0] ) { continue; }
+		if ( preg_match( '#^(mailto:|tel:|javascript:|data:)#i', $href ) ) { continue; }
 
-			if ( '/' === $href[0] && ( ! isset( $href[1] ) || '/' !== $href[1] ) ) {
-				// Root-relative — internal by definition.
-				$out[ home_url( $href ) ] = true;
-				continue;
-			}
-			$h = wp_parse_url( $href, PHP_URL_HOST );
-			if ( $h && strtolower( $h ) === strtolower( $site_host ) ) {
-				$out[ $href ] = true;
-			}
+		if ( '/' === $href[0] && ( ! isset( $href[1] ) || '/' !== $href[1] ) ) {
+			// Root-relative — internal by definition.
+			$out[ home_url( $href ) ] = true;
+			continue;
+		}
+		$h = wp_parse_url( $href, PHP_URL_HOST );
+		if ( $h && strtolower( $h ) === strtolower( $site_host ) ) {
+			$out[ $href ] = true;
 		}
 	}
 	return array_keys( $out );

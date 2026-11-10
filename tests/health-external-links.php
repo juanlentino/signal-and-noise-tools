@@ -104,6 +104,7 @@ $GLOBALS['wpdb'] = new class {
 	public function get_results( $sql, $output = null ) { return $GLOBALS['__ext']['rows']; }
 };
 
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require __DIR__ . '/../inc/ssrf-guard.php'; // shared SSRF guard (sn_ssrf_host_blocked) — resolver seam above overrides its lookup
 require __DIR__ . '/../inc/health-probe-classify.php'; // shared bot-challenge classifier (sn_health_is_bot_challenge) — unit-tested in tests/health-probe-classify.php
 require __DIR__ . '/../inc/health-external-links.php';

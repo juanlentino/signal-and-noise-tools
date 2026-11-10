@@ -187,6 +187,7 @@ $GLOBALS['__insights_html'] = '<details class="sn-an-headline">MOUNTED</details>
 if ( ! function_exists( 'snt_analytics_render_insights_band' ) ) {
 	function snt_analytics_render_insights_band( $from, $to, $class, $g ) { echo $GLOBALS['__insights_html']; }
 }
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require_once __DIR__ . '/../inc/analytics-sources.php';
 // v8.5.0 header-region dependencies: the movers tile + panel primitive run
 // REAL over the stubbed accessors; uptime surfaces stay absent (the region's

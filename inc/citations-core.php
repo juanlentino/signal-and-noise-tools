@@ -35,6 +35,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/html-hrefs.php'; // sn_html_a_hrefs(): link targets, read by core's HTML parser.
+
 /** The four states, in descending order of what the site can actually claim. */
 const SN_CIT_TIERS = array( 'verified', 'unattributed', 'asserted', 'unverified' );
 
@@ -95,8 +97,12 @@ function sn_cit_origin( $url ) {
  * Does this HTML contain a link to the target? Compares NORMALISED hrefs so a
  * trailing slash or a mixed-case host is not a missing citation.
  *
- * Deliberately looks at href attributes only — a bare mention of the URL in
- * prose is not a link, and the webmention contract is about links. Pure.
+ * Deliberately looks at the href of real <a> elements only, read by core's
+ * HTML parser: a bare mention of the URL in prose is not a link, and neither
+ * is one inside a comment, a script, a textarea or another attribute's value.
+ * The source page is someone else's, and this answer promotes their claim to
+ * a publicly shown tier, so text that only looks like a link must not count.
+ * Pure.
  *
  * @param string $html
  * @param string $target
@@ -107,13 +113,8 @@ function sn_cit_html_links_to( $html, $target ) {
 	if ( '' === $want || '' === (string) $html ) {
 		return false;
 	}
-	if ( ! preg_match_all( '#<a\b[^>]*\bhref\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)#i', (string) $html, $m ) ) {
-		return false;
-	}
-	foreach ( $m[1] as $raw ) {
-		$href = trim( $raw, "\"' \t\n\r" );
-		$href = html_entity_decode( $href, ENT_QUOTES, 'UTF-8' );
-		if ( sn_cit_normalize_url( $href ) === $want ) {
+	foreach ( sn_html_a_hrefs( $html ) as $href ) {
+		if ( sn_cit_normalize_url( trim( $href ) ) === $want ) {
 			return true;
 		}
 	}
@@ -129,6 +130,12 @@ function sn_cit_html_links_to( $html, $target ) {
  *   rel="webfinger" / a webfinger link
  *   a did:web or /.well-known/did.json reference
  *
+ * The rel is read from real <a> and <link> elements by core's HTML parser. The
+ * text `rel=me` in prose, in a comment, in a script or inside another
+ * attribute is not an identity, and this answer is what lifts a stranger's
+ * claim from "unattributed" to "verified". The did:web test is still a plain
+ * search of the page: a did:web is written as text, not as an attribute.
+ *
  * Pure — the origin-level probes that need network live in citations-verify.php.
  *
  * @param string $html
@@ -139,13 +146,15 @@ function sn_cit_html_has_identity( $html ) {
 	if ( '' === $html ) {
 		return false;
 	}
-	if ( preg_match_all( '#\brel\s*=\s*("([^"]*)"|\'([^\']*)\'|([^\s>]+))#i', $html, $all ) ) {
-		foreach ( $all[0] as $i => $_unused ) {
-			$val = strtolower( trim( $all[2][ $i ] . $all[3][ $i ] . $all[4][ $i ] ) );
-			$rels = preg_split( '#\s+#', $val, -1, PREG_SPLIT_NO_EMPTY );
-			if ( is_array( $rels ) && ( in_array( 'me', $rels, true ) || in_array( 'webfinger', $rels, true ) ) ) {
-				return true;
-			}
+	$tags = new WP_HTML_Tag_Processor( $html );
+	while ( $tags->next_tag() ) {
+		$rel = in_array( $tags->get_tag(), array( 'A', 'LINK' ), true ) ? $tags->get_attribute( 'rel' ) : null;
+		if ( ! is_string( $rel ) ) {
+			continue;
+		}
+		$rels = (array) preg_split( '#\s+#', strtolower( $rel ), -1, PREG_SPLIT_NO_EMPTY );
+		if ( in_array( 'me', $rels, true ) || in_array( 'webfinger', $rels, true ) ) {
+			return true;
 		}
 	}
 	return ( false !== stripos( $html, 'did:web:' ) );
