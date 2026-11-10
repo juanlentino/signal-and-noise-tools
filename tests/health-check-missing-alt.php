@@ -114,6 +114,9 @@ if ( ! function_exists( 'wp_update_post' ) ) {
 	function wp_update_post() { $GLOBALS['__wrote'] = true; return 1; }
 }
 
+// Core's answer for where an attachment is served; 90 moved since its guid was written.
+function wp_get_attachment_url( $id ) { return 90 === (int) $id ? 'https://cdn.example.test/uploads/beach-sunset-scaled.jpg' : false; }
+require_once __DIR__ . '/../inc/health-check-orphaned-media.php'; // sn_health_attachment_url().
 if ( ! function_exists( 'sn_health_pack_check' ) ) {
 	function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
 		return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint, 'skipped' => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null );
@@ -346,6 +349,11 @@ ok( ! isset( $qtype['inline_img_alt_quality'] ) || ! in_array( 22, $qtype['inlin
 ok( isset( $qtype['attachment_alt_quality'] ) && in_array( 90, $qtype['attachment_alt_quality'], true )
 	&& ! in_array( 91, $qtype['attachment_alt_quality'], true ),
 	'attachment alt quality: the filename echo (90) is flagged, the descriptive one (91) is not' );
+
+$by_id = array();
+foreach ( $q['findings'] as $f ) { $by_id[ (int) $f['subject_id'] ] = $f; }
+ok( 'https://cdn.example.test/uploads/beach-sunset-scaled.jpg' === $by_id[90]['subject_url'] && 'filename_echo' === $by_id[90]['quality_reason'],
+	'an attachment finding links the URL core serves, and the filename-echo rule still reads the guid' );
 
 ok( false === $GLOBALS['__wrote'],
 	'NEVER AUTO-APPLIES: running the check performed no post/meta write of any kind' );

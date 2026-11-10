@@ -73,7 +73,7 @@ function sn_health_check_missing_alt() {
 			$findings[] = array(
 				'subject_type' => 'attachment',
 				'subject_id'   => (int) $r['ID'],
-				'subject_url'  => (string) $r['guid'],
+				'subject_url'  => sn_health_attachment_url( $r['ID'], $r['guid'] ),
 				'subject_label' => (string) $r['post_title'],
 				'edit_url'     => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
 				'note'         => 'Image attachment has no alt text: bad for SEO and screen readers.',
@@ -110,7 +110,7 @@ function sn_health_check_missing_alt() {
 			$findings[] = array(
 				'subject_type'   => 'attachment_alt_quality',
 				'subject_id'     => (int) $r['ID'],
-				'subject_url'    => (string) $r['guid'],
+				'subject_url'    => sn_health_attachment_url( $r['ID'], $r['guid'] ),
 				'subject_label'  => (string) $r['post_title'],
 				'edit_url'       => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
 				'quality_reason' => $problem,
