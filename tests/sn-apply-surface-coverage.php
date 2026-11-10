@@ -64,6 +64,9 @@ $expected_surface = array(
 	'snt_sn_apply_batch_overlap_error',
 	'snt_sn_apply_block_delimiter_findings',
 	'snt_sn_apply_block_delimiters',          // 2026-11-10: the one delimiter reader, on core's WP_Block_Processor.
+	'snt_sn_apply_block_span_tree',           // 2026-11-10: nested block spans from those delimiters.
+	'snt_sn_apply_fp_path',                   // 2026-11-10: index path of a fingerprint-matched block.
+	'snt_sn_apply_fp_splice',                 // 2026-11-10: the fingerprint apply splices that block's bytes only.
 	'snt_sn_apply_block_edit_anchor_min_error',
 	'snt_sn_apply_block_edit_compute',
 	'snt_sn_apply_block_edit_compute_move',

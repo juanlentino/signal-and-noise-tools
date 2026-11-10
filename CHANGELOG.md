@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A fingerprint block replacement changes only that block.** The block-fingerprint engine (sn-apply surfaces, block migrations, pattern adoption) re-serialized the whole post with `serialize_blocks()` after swapping the matched block, so bytes elsewhere in a published note could change and mint a provenance version for nothing; the dry-run preview did the same. Both now splice the one block's byte span (`snt_sn_apply_fp_splice()` in `inc/sn-apply/block-delimiters.php`), after checking that core's block parser and its delimiter reader agree on it. A post where they disagree is refused with 422 `snt_sn_apply_block_path_unresolvable` instead of being rewritten. Test: `tests/sn-apply-fingerprint-splice.php`.
+
 ### Changed
 - **The focus keyword reaches the AI plugin's meta description again.** Since 2026.11.20 the AI plugin writes the description, and its prompt did not carry the post's focus keyword, so the field's promise ("requires it verbatim") was not kept. The saved `_sn_focus_keyword` is now appended to the official prompt as the line the house rules already name (`inc/ai-official-generators.php`, hooks `wp_before_execute_ability` and `wpai_meta_description_prompt`). A post with no keyword, or a run on pasted text with no post, changes nothing. The field's help text says "saved keyword": a keyword typed and not yet saved is not read. Test: `tests/ai-official-generators.php`.
 - **Core-first audit, part 4: three rebuilds on core and the official plugins.**

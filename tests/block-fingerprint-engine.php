@@ -38,12 +38,10 @@ $GLOBALS['__test_capabilities'] = true;
 $GLOBALS['__test_update_fail']  = false;
 
 function get_post( $id ) { return $GLOBALS['__test_posts'][ $id ] ?? null; }
-function parse_blocks( $content ) {
-	$decoded = json_decode( $content, true );
-	return is_array( $decoded ) ? $decoded : array();
-}
-function serialize_block( $block ) { return json_encode( $block ); }
-function serialize_blocks( $tree ) { return json_encode( $tree ); }
+// Real block markup through core's parser and serializers: the apply splices bytes.
+function apply_filters( $hook, $value ) { return $value; }
+define( 'SNT_TEST_WITH_BLOCKS_PHP', true );
+require_once __DIR__ . '/lib/wp-core-blocks.php';
 function current_user_can( $cap, $post_id = null ) { return $GLOBALS['__test_capabilities']; }
 // #1177: the writer now hands core wp_slash()ed data; the stub keeps the value as-is so the assertions below read what was sent.
 if ( ! function_exists( 'wp_slash' ) ) { function wp_slash( $v ) { return $v; } }
@@ -82,7 +80,7 @@ function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function _bfe_post( $id, $blocks_array ) {
 	$post = new stdClass();
 	$post->ID           = $id;
-	$post->post_content = json_encode( $blocks_array );
+	$post->post_content = serialize_blocks( $blocks_array );
 	$GLOBALS['__test_posts'][ $id ] = $post;
 }
 
@@ -91,6 +89,8 @@ $engine = __DIR__ . '/../inc/block-fingerprint-engine.php';
 $engine_exists = file_exists( $engine );
 if ( $engine_exists ) {
 	require_once $engine;
+	require_once __DIR__ . '/../inc/sn-apply/block-delimiters.php'; // The byte splice the apply writes through.
+	require_once __DIR__ . '/../inc/sn-apply/block-edit-resolve-parts.php';
 }
 
 // ─── Harness ───────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ if ( function_exists( 'snt_block_fp_apply' ) ) {
 	t( is_wp_error( $r ) && 'snt_block_migration_invalid_type' === $r->get_error_code(), 'C.2 invalid type → surface code' );
 
 	$GLOBALS['__test_posts'] = array();
-	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 999, 'block_fingerprint' => $fp, 'replacement_markup' => json_encode( array( $H2 ) ) ) ) );
+	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 999, 'block_fingerprint' => $fp, 'replacement_markup' => serialize_blocks( array( $H2 ) ) ) ) );
 	t( is_wp_error( $r ) && 'snt_block_migration_post_not_found' === $r->get_error_code(), 'C.3 missing post → surface code' );
 
 	_bfe_post( 10, array( $H3 ) );
@@ -216,26 +216,26 @@ if ( function_exists( 'snt_block_fp_apply' ) ) {
 	// v11.5.0 (audit LOW): multi-block replacement refuses LOUDLY. This
 	// engine replaces exactly one node; pre-fix, blocks after [0] were
 	// silently discarded — the caller believed their full markup applied.
-	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 10, 'block_fingerprint' => $fp, 'replacement_markup' => json_encode( array( $H2, $H3 ) ) ) ) );
+	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 10, 'block_fingerprint' => $fp, 'replacement_markup' => serialize_blocks( array( $H2, $H3 ) ) ) ) );
 	t( is_wp_error( $r ) && 'snt_block_migration_invalid_markup' === $r->get_error_code(), 'C.4b MULTI-block replacement → invalid_markup refusal, never a silent head-only apply' );
 	t( is_wp_error( $r ) && false !== strpos( $r->get_error_message(), '2 blocks' ), 'C.4c and the refusal names the count, so the caller knows what to split' );
 
-	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 10, 'block_fingerprint' => 'wrong', 'replacement_markup' => json_encode( array( $H2 ) ) ) ) );
+	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 10, 'block_fingerprint' => 'wrong', 'replacement_markup' => serialize_blocks( array( $H2 ) ) ) ) );
 	t( is_wp_error( $r ) && 'snt_block_migration_conflict' === $r->get_error_code(), 'C.5 fingerprint drift → conflict code (409)' );
 
-	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 10, 'block_fingerprint' => $fp, 'replacement_markup' => json_encode( array( $H2 ) ) ) ) );
+	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 10, 'block_fingerprint' => $fp, 'replacement_markup' => serialize_blocks( array( $H2 ) ) ) ) );
 	t( is_array( $r ) && true === $r['ok'] && 10 === $r['post_id'], 'C.6 success → { ok, post_id }' );
 	t( false !== strpos( $GLOBALS['__test_posts'][10]->post_content, '<h2>' ), 'C.7 success wrote the mutated tree' );
 
 	// C.8 sanitize-before-splice: script payload in the replacement never lands.
 	_bfe_post( 11, array( $H3 ) );
 	$evil = array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>x<script>alert(1)</script></h2>', 'innerContent' => array( '<h2>x<script>alert(1)</script></h2>' ) );
-	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 11, 'block_fingerprint' => $fp11, 'replacement_markup' => json_encode( array( $evil ) ) ) ) );
+	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 11, 'block_fingerprint' => $fp11, 'replacement_markup' => serialize_blocks( array( $evil ) ) ) ) );
 	t( is_array( $r ) && false === strpos( $GLOBALS['__test_posts'][11]->post_content, '<script' ), 'C.8 replacement sanitized before write' );
 
 	$GLOBALS['__test_update_fail'] = true;
 	_bfe_post( 12, array( $H3 ) );
-	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 12, 'block_fingerprint' => $fp12, 'replacement_markup' => json_encode( array( $H2 ) ) ) ) );
+	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 12, 'block_fingerprint' => $fp12, 'replacement_markup' => serialize_blocks( array( $H2 ) ) ) ) );
 	t( is_wp_error( $r ) && 'snt_block_migration_write_failed' === $r->get_error_code(), 'C.9 wp_update_post failure → surface code' );
 	t( false !== strpos( $r->get_error_message(), 'mocked failure' ), 'C.10 write-failed message carries the underlying error' );
 	$GLOBALS['__test_update_fail'] = false;

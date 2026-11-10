@@ -377,6 +377,18 @@ if ( ! function_exists( 'get_theme_mod' ) ) { function get_theme_mod( $n, $d = f
  * ════════════════════════════════════════════════════════════════════════ */
 require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require __DIR__ . '/../inc/block-fingerprint-engine.php';
+// This suite models post_content as JSON, which has no bytes to splice. The
+// apply's byte splice (inc/sn-apply/block-delimiters.php) is pinned on core's
+// real parser in tests/sn-apply-fingerprint-splice.php; here a JSON double
+// stands in so the scan-to-apply round trip still runs.
+if ( ! function_exists( 'snt_sn_apply_fp_splice' ) ) {
+	function snt_sn_apply_fp_splice( $content, $fingerprint, array $replacement_node, $post_id ) {
+		$tree  = parse_blocks( $content );
+		$found = false;
+		snt_block_fp_replace_in_tree( $tree, $fingerprint, $replacement_node, $found, (int) $post_id );
+		return $found ? serialize_blocks( $tree ) : null;
+	}
+}
 require __DIR__ . '/../inc/block-migrations-detect.php';
 require __DIR__ . '/../inc/block-migrations-suggest.php';
 require __DIR__ . '/../inc/block-migrations-apply.php';

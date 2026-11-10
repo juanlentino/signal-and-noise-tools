@@ -220,17 +220,19 @@ function snt_sn_apply_compute_block_replacement( $post_id, $fingerprint, $replac
 		return new WP_Error( 'snt_sn_apply_target_not_found', __( 'Post not found.', 'signal-and-noise-tools' ), array( 'status' => 404 ) );
 	}
 	$old_content      = (string) $post->post_content;
-	$blocks           = parse_blocks( $old_content );
 	$replacement      = parse_blocks( (string) $replacement_markup );
 	$replacement_node = $replacement[0] ?? null;
 	if ( ! is_array( $replacement_node ) || empty( $replacement_node['blockName'] ) ) {
 		return new WP_Error( 'snt_sn_apply_invalid_markup', __( 'Replacement markup did not parse to a valid block.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 	$replacement_node = snt_block_fp_sanitize_node( $replacement_node );
-	$found = false;
-	snt_block_fp_replace_in_tree( $blocks, $fingerprint, $replacement_node, $found, (int) $post_id );
-	if ( ! $found ) {
+	// A byte splice of the one matched block, never a whole-post re-serialize.
+	$new_content = snt_sn_apply_fp_splice( $old_content, (string) $fingerprint, $replacement_node, (int) $post_id );
+	if ( null === $new_content ) {
 		return new WP_Error( 'snt_sn_apply_conflict', __( 'Block changed or removed since scan.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
-	return array( 'old_content' => $old_content, 'new_content' => serialize_blocks( $blocks ) );
+	if ( is_wp_error( $new_content ) ) {
+		return $new_content;
+	}
+	return array( 'old_content' => $old_content, 'new_content' => $new_content );
 }

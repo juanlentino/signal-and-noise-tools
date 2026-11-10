@@ -22,6 +22,10 @@ $GLOBALS['__test_update_fail']  = false;
 if ( ! function_exists( 'get_post' ) ) {
 	function get_post( $id ) { return $GLOBALS['__test_posts'][ $id ] ?? null; }
 }
+// Real block markup through core's parser and serializers: the fingerprint apply splices bytes.
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $hook, $value ) { return $value; } }
+if ( ! defined( 'SNT_TEST_WITH_BLOCKS_PHP' ) ) { define( 'SNT_TEST_WITH_BLOCKS_PHP', true ); }
+require_once __DIR__ . '/lib/wp-core-blocks.php';
 if ( ! function_exists( 'parse_blocks' ) ) {
 	function parse_blocks( $content ) {
 		$decoded = json_decode( $content, true );
@@ -97,7 +101,7 @@ function _bma_post( $id, $blocks_array ) {
 	$post->post_status  = 'publish';
 	$post->post_type    = 'post';
 	$post->post_title   = "Fixture $id";
-	$post->post_content = json_encode( $blocks_array );
+	$post->post_content = serialize_blocks( $blocks_array );
 	$GLOBALS['__test_posts'][ $id ] = $post;
 }
 
@@ -110,6 +114,8 @@ if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $tra
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
 
 require_once __DIR__ . '/../inc/block-fingerprint-engine.php'; // v7.7.1 shared engine
+require_once __DIR__ . '/../inc/sn-apply/block-delimiters.php'; // The byte splice the apply writes through.
+require_once __DIR__ . '/../inc/sn-apply/block-edit-resolve-parts.php';
 require_once __DIR__ . '/../inc/block-migrations-apply.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
@@ -145,9 +151,9 @@ bma_eq( 'snt_block_migration_post_not_found', $result->get_error_code(), 'Test 2
 echo "\nTest 3: fingerprint conflict\n";
 $GLOBALS['__test_posts'] = array();
 _bma_post( 402, array(
-	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>p</p>' ),
+	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>p</p>', 'innerContent' => array( '<p>p</p>' ) ),
 ) );
-$result = snt_block_migrations_apply_impl( 402, 'wrongfingerprint000000000000000', json_encode( array( array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>x</h2>' ) ) ), 'heading-hierarchy-skip' );
+$result = snt_block_migrations_apply_impl( 402, 'wrongfingerprint000000000000000', serialize_blocks( array( array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>x</h2>', 'innerContent' => array( '<h2>x</h2>' ) ) ) ), 'heading-hierarchy-skip' );
 bma_true( is_wp_error( $result ), 'Test 3.1: returns WP_Error' );
 bma_eq( 'snt_block_migration_conflict', $result->get_error_code(), 'Test 3.2: error = conflict (409)' );
 
@@ -158,7 +164,7 @@ $h3_block  = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 
 $fp        = snt_block_fp_fingerprint( $h3_block, 403, '0/0' );
 _bma_post( 403, array( $h3_block ) );
 
-$replacement_markup = json_encode( array( array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>Section</h2>', 'innerContent' => array( '<h2>Section</h2>' ) ) ) );
+$replacement_markup = serialize_blocks( array( array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>Section</h2>', 'innerContent' => array( '<h2>Section</h2>' ) ) ) );
 
 $result = snt_block_migrations_apply_impl( 403, $fp, $replacement_markup, 'heading-hierarchy-skip' );
 bma_true( is_array( $result ), 'Test 4.1: returns array (success)' );
@@ -173,7 +179,7 @@ $GLOBALS['__test_update_fail'] = true;
 $h3_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Section</h3>', 'innerContent' => array( '<h3>Section</h3>' ) );
 $fp       = snt_block_fp_fingerprint( $h3_block, 404, '0/0' );
 _bma_post( 404, array( $h3_block ) );
-$replacement_markup = json_encode( array( array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>Section</h2>', 'innerContent' => array( '<h2>Section</h2>' ) ) ) );
+$replacement_markup = serialize_blocks( array( array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>Section</h2>', 'innerContent' => array( '<h2>Section</h2>' ) ) ) );
 $result = snt_block_migrations_apply_impl( 404, $fp, $replacement_markup, 'heading-hierarchy-skip' );
 bma_true( is_wp_error( $result ), 'Test 5.1: returns WP_Error' );
 bma_eq( 'snt_block_migration_write_failed', $result->get_error_code(), 'Test 5.2: error = write_failed' );
@@ -183,7 +189,7 @@ $GLOBALS['__test_update_fail'] = false;
 echo "\nTest 6: invalid replacement markup\n";
 $GLOBALS['__test_posts'] = array();
 _bma_post( 405, array(
-	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>p</p>' ),
+	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>p</p>', 'innerContent' => array( '<p>p</p>' ) ),
 ) );
 $result = snt_block_migrations_apply_impl( 405, 'fp', 'not valid block markup', 'heading-hierarchy-skip' );
 bma_true( is_wp_error( $result ), 'Test 6.1: returns WP_Error' );
@@ -198,7 +204,7 @@ $GLOBALS['__test_posts'] = array();
 $h3_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Section</h3>', 'innerContent' => array( '<h3>Section</h3>' ) );
 $fp       = snt_block_fp_fingerprint( $h3_block, 406, '0/0' );
 _bma_post( 406, array( $h3_block ) );
-$evil_markup = json_encode( array( array(
+$evil_markup = serialize_blocks( array( array(
 	'blockName'    => 'core/heading',
 	'attrs'        => array(),
 	'innerBlocks'  => array(),
