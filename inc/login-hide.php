@@ -292,11 +292,22 @@ add_filter( 'wp_redirect', 'sn_login_guard_redirect', 99, 2 );
  * /login to wp_login_url() (and /admin, /dashboard to /wp-admin/), and the
  * filter above rewrites that URL to the custom slug, so GET /login answered
  * 302 /sn-login: anyone who typed /login was given the hidden URL (found live
- * 2026-10-17). Unhooked while the mask is active, those paths fall through to
- * the theme's 404 like /wp-login.php. Core registers it at priority 1000.
+ * 2026-10-17). Unhooked for a visitor who is not signed in, those paths fall
+ * through to the theme's 404 like /wp-login.php. Core registers it at priority
+ * 1000, so this runs just before it.
+ *
+ * 2026-11-10: strangers only. A signed-in user already knows the door, so
+ * core's /admin, /dashboard and /login shortcuts are left working for them.
+ * Fails closed: no login state means the redirect is removed.
  */
-if ( function_exists( 'remove_action' ) ) {
+function sn_login_scope_admin_locations() {
+	if ( function_exists( 'is_user_logged_in' ) && is_user_logged_in() ) {
+		return;
+	}
 	remove_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );
+}
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'template_redirect', 'sn_login_scope_admin_locations', 999 );
 }
 
 /**
