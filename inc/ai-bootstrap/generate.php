@@ -72,9 +72,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  *                                    through this same function, so the budget
  *                                    cap is checked again and only a request that
  *                                    ran is recorded.
- * @param bool   $structured          Out. True when the text came back under
- *                                    $json_schema, false otherwise (including the
- *                                    plain retry).
+ * @param bool   $structured          Out. True when $json_schema was sent and the
+ *                                    text is a JSON object; false otherwise
+ *                                    (including the plain retry).
  * @return string|WP_Error            Generated text or WP_Error on failure.
  */
 function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_tokens = 256, $feature = 'generic', $image_path = '', $image_mime = '', $options = array(), $json_schema = array(), &$structured = null ) {
@@ -286,7 +286,9 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	// outer quote characters at the very start/end of the string.
 	$text = trim( $text, "\"'" );
 
-	$structured = (bool) $json_schema;
+	// Structured only when the reply IS a JSON object (both schema roots are):
+	// if the format was ignored, the caller's tolerant parser reads it instead.
+	$structured = $json_schema && 0 === strpos( $text, '{' ) && is_array( json_decode( $text, true ) );
 	return $text;
 }
 

@@ -269,6 +269,18 @@ gb( 'structured: an object without questions is an error, never an empty scan', 
 gb( 'fallback: the prose-wrapped array is still recovered as today', 1 === count( (array) snt_insights_parse_response( 'Here: [' . $q . ']' ) ) );
 gb( 'structured: nothing logged', '' === gb_log() );
 
+// 7a'. The schema was asked for but the reply is not a JSON object (the API
+// ignored the format, a refusal stop, another provider): the flag stays false
+// and today's tolerant parser reads it, so it can never parse worse than today.
+$GLOBALS['__text'] = '[' . $q . ']';
+list( $out, $b )   = gb_scan();
+gb( 'unenforced: a bare array under a schema request is not called structured', false === $GLOBALS['__structured'] && 1 === count( $GLOBALS['__builders'] ) );
+$recs = snt_insights_parse_response( $out, $GLOBALS['__structured'] );
+gb( 'unenforced: the bare array still yields today\'s result', is_array( $recs ) && 1 === count( $recs ) && 'q_credit' === $recs[0]['id'] );
+$GLOBALS['__text'] = "```json\n{\"questions\":[" . $q . "]}\n```";
+gb_scan();
+gb( 'unenforced: a fenced object is not called structured', false === $GLOBALS['__structured'] );
+
 // 7b. Refused with a 400: one plain retry, same budget shape, today's result.
 $GLOBALS['__refuse'] = new WP_Error( 'prompt_client_error', 'Bad Request (400) - output_format: Extra inputs are not permitted', array( 'status' => 400 ) );
 $GLOBALS['__text']   = '[' . $q . ']';
