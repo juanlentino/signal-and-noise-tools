@@ -3,11 +3,11 @@
  * Native window leaf: Monitoring → RSS (apps/sn-dashboard/parts/leaves/monitoring-rss.php).
  *
  * The oracle is the classic leaf (`sn_admin_render_rss_section()` →
- * `sn_rss_tracker_render_admin_tab()`). This is the ONE leaf on the Monitoring
- * tab whose form field is `sn_rss_action` (not `sn_action`) and whose nonce
- * action is `SN_RSS_TRACKER_NONCE` — so beyond the shared name/action oracles
- * the harness provides, this suite also pins the `sn_rss_action` values
- * directly, matching classic to kit.
+ * `sn_rss_tracker_render_admin_tab()`). Since 2026-11-10 (core-first audit,
+ * index 28) both surfaces post the RSS writes to admin-post.php like every
+ * other SN form: `action=sn_rss_<op>` with a nonce minted for that action
+ * alone, so the shared action oracle pins them, classic to kit. The flash
+ * stays the leaf's own `?sn_rss_ok`.
  *
  * Run: php tests/os-leaf-monitoring-rss.php
  */
@@ -61,14 +61,6 @@ require SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-rss.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-/** Every `name="sn_rss_action"` value in a markup blob. */
-function rss_actions( $html ) {
-	preg_match_all( '/name=(["\'])sn_rss_action\1[^>]*value=(["\'])([^"\']+)\2/', (string) $html, $m );
-	$out = array_values( array_unique( $m[3] ) );
-	sort( $out );
-	return $out;
-}
-
 ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['monitoring/rss'] ), 'the painter is registered under monitoring/rss' );
 
 // ── Configured state: settings saved, activity + recent rows present.
@@ -98,11 +90,18 @@ $kit     = snt_leaf_paint( 'monitoring', 'rss', array( 'params' => array( 'sn_rs
 
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( array( 'purge_log', 'reset_defaults', 'save_settings' ) === rss_actions( $classic ), 'classic offers all three sn_rss_action values' );
-ok( rss_actions( $classic ) === rss_actions( $kit ), 'sn_rss_action values match the classic form: ' . implode( ',', rss_actions( $kit ) ) . ' (classic: ' . implode( ',', rss_actions( $classic ) ) . ')' );
-ok( array() === snt_leaf_actions( $classic ) && array() === snt_leaf_actions( $kit ), 'neither carries the SHARED sn_action field name — this leaf bypasses that pipeline on both sides' );
+$rss_ops = array( 'rss_purge_log', 'rss_reset_defaults', 'rss_save_settings' );
+ok( $rss_ops === snt_leaf_actions( $classic ), 'classic offers the three admin-post actions: ' . implode( ',', snt_leaf_actions( $classic ) ) );
+ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the kit posts the same three actions: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( false === strpos( $classic . $kit, 'sn_rss_action' ) && false === strpos( $classic . $kit, 'sn_rss_tracker_action' ), 'neither surface carries the old field or the old shared nonce' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, 'os-arg-pipeline="rss"' ), 'the forms declare the rss pipeline for the host replay' );
+ok( false === strpos( $kit, 'os-arg-pipeline' ), 'the kit forms declare no pipeline: an `action` field routes to the host\'s admin-post replay, which runs the same hook' );
+foreach ( $rss_ops as $op ) {
+	ok( 1 === preg_match( '/<input type="hidden" name="action" value="sn_' . $op . '"><input type="hidden" name="_wpnonce" value="nonce-sn_' . $op . '">/', $kit ), "kit: the $op form carries its hook and a nonce minted for it alone" );
+	ok( 1 === preg_match( '/<button type="submit" name="action" value="sn_' . $op . '" formaction="[^"]*admin-post\.php\?_wpnonce=nonce-sn_' . $op . '"/', $classic ), "classic: the $op button names its hook and carries its own nonce on formaction (#1614 shape)" );
+}
+ok( 2 === preg_match_all( '/<form method="post" action="[^"]*admin-post\.php"/', $classic ) && false === strpos( $classic, 'name="_wpnonce"' ), 'classic: both forms post to admin-post.php; no shared nonce field, so no button is authorized by another\'s token' );
+ok( 1 === preg_match( '/<label class="sn-field-label sn-field-label--inline" for="sn_rss_enabled">\s*<input type="checkbox" id="sn_rss_enabled" name="enabled"/', $classic ) && false !== strpos( $classic, 'for="sn_rss_event_name"' ) && false !== strpos( $classic, 'for="sn_rss_retention"' ) && false !== strpos( $classic, 'for="sn_rss_purge_days"' ), 'classic: every field keeps its label' );
 
 // ── Readouts: activity counters, most-recent line, recent rows, settings.
 ok( false !== strpos( $kit, '<os-stat value="3"' ) && false !== strpos( $kit, '2 unique' ), '24-hour count and uniques are shown' );

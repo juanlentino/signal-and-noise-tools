@@ -344,10 +344,13 @@ INSTRUCTIONS;
 /**
  * Build the prompt + call the AI wrapper (Sonnet-pinned, tagged 'insights_narration').
  *
- * @param array $signals Collected signals.
+ * @param array $signals    Collected signals.
+ * @param bool  $structured Out. True when the text came back under
+ *                          snt_narration_response_schema(), false on the plain retry.
  * @return string|WP_Error Raw AI text or WP_Error.
  */
-function snt_narration_call_ai( $signals ) {
+function snt_narration_call_ai( $signals, &$structured = null ) {
+	$structured = false;
 	if ( ! function_exists( 'snt_ai_generate_with_constraints' ) ) {
 		return new WP_Error( 'snt_ai_unavailable', 'AI client not available.', array( 'status' => 503 ) );
 	}
@@ -370,7 +373,7 @@ function snt_narration_call_ai( $signals ) {
 		add_filter( 'wp_ai_client_default_request_timeout', $raise, 100 );
 	}
 	try {
-		$result = snt_ai_generate_with_constraints( $prompt, snt_narration_system_instruction(), SN_NARRATION_MAX_TOKENS, 'insights_narration' );
+		$result = snt_ai_generate_with_constraints( $prompt, snt_narration_system_instruction(), SN_NARRATION_MAX_TOKENS, 'insights_narration', '', '', array(), snt_narration_response_schema(), $structured );
 	} finally {
 		// finally, not a trailing remove — the raised timeout must NEVER outlive
 		// this one call, even if the generate path throws.
@@ -379,6 +382,31 @@ function snt_narration_call_ai( $signals ) {
 		}
 	}
 	return $result;
+}
+
+/**
+ * JSON schema for the digest's structured output: the AI Client's
+ * as_json_response(). Only keywords structured outputs accept: the object is
+ * closed and every key required; the 120-character headline and the
+ * paragraph and highlight caps stay in snt_narration_parse_response().
+ *
+ * @return array
+ */
+function snt_narration_response_schema() {
+	$strings = array(
+		'type'  => 'array',
+		'items' => array( 'type' => 'string' ),
+	);
+	return array(
+		'type'                 => 'object',
+		'properties'           => array(
+			'headline'   => array( 'type' => 'string' ),
+			'paragraphs' => $strings,
+			'highlights' => $strings,
+		),
+		'required'             => array( 'headline', 'paragraphs', 'highlights' ),
+		'additionalProperties' => false,
+	);
 }
 
 /**
@@ -500,18 +528,22 @@ function snt_narration_salvage_truncated( $text ) {
  * snt_narration_salvage_truncated() before erroring. Returns WP_Error on a
  * missing headline or empty body. Highlights may be empty.
  *
- * @param string $raw Raw AI text.
+ * A structured response (held to snt_narration_response_schema()) is decoded
+ * as-is: no fence strip, no salvage. Those serve only the plain-text retry.
+ *
+ * @param string $raw        Raw AI text.
+ * @param bool   $structured Whether $raw came back under the response schema.
  * @return array|WP_Error
  */
-function snt_narration_parse_response( $raw ) {
+function snt_narration_parse_response( $raw, $structured = false ) {
 	$text = trim( (string) $raw );
 
-	if ( preg_match( '/^```(?:json)?\s*(.*?)\s*```$/s', $text, $m ) ) {
+	if ( ! $structured && preg_match( '/^```(?:json)?\s*(.*?)\s*```$/s', $text, $m ) ) {
 		$text = trim( $m[1] );
 	}
 
 	$decoded = json_decode( $text, true );
-	if ( ! is_array( $decoded ) ) {
+	if ( ! $structured && ! is_array( $decoded ) ) {
 		// v9.2.1: the model hit max_tokens mid-response (or wrapped the JSON in
 		// prose), so a direct decode fails. Salvage the complete parts of the
 		// known {headline, paragraphs, highlights} object before giving up —
@@ -592,12 +624,13 @@ function snt_narration_run( $force = false ) {
 
 	$started = microtime( true );
 	$signals = snt_narration_collect_signals();
-	$raw     = snt_narration_call_ai( $signals );
+	$structured = false;
+	$raw        = snt_narration_call_ai( $signals, $structured );
 	if ( is_wp_error( $raw ) ) {
 		return $raw;
 	}
 
-	$parsed = snt_narration_parse_response( $raw );
+	$parsed = snt_narration_parse_response( $raw, $structured );
 	if ( is_wp_error( $parsed ) ) {
 		return $parsed;
 	}

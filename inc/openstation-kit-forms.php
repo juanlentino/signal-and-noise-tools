@@ -48,7 +48,7 @@ function snt_kit_hook_action( $sn_action ) {
  * pipeline, or `sn_action=<action>` for a form the leaf handles itself
  * (`pipeline` => `inline`). An `action` field routes to admin-post with no
  * declaration (snt_os_host_pipeline_for()). Options: submit (label), columns
- * (auto|1|2|3), confirm (question), danger, pipeline (`rss`|`inline`), class,
+ * (auto|1|2|3), confirm (question), danger, pipeline (`inline`), class,
  * inline (true: the compact one-button form, `.snt-form--inline` in
  * assets/os-app.css, sized to its button with no footer rule, a small
  * secondary button, or a danger outline with `danger`; several sit side by

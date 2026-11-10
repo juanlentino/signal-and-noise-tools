@@ -473,14 +473,27 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 .sn-an-viewall:hover { color: #135e96; }
 .sn-an-clamp--open .sn-an-viewall { color: var(--sn-text-muted, #646970); }
 
-/* ── v8.5.0: collapsible panels (uptime detail) ──────────────────────────── */
-.sn-an-collapsed > .inside { display: none; }
-.sn-an-toggle {
-	margin-left: auto; padding: 0 12px; background: none; border: 0; cursor: pointer;
-	color: var(--sn-text-muted, #646970);
+/* ── Collapsible panels: a native <details>, its <summary> the postbox header
+   (2026-11-10; inc/analytics-panels.php). The browser toggles it; these rules
+   only dress it. The chevron's alt text is "" so it never joins the summary's
+   accessible name; a closed panel drops the header rule, as core's
+   .postbox.closed does; focus is drawn inset, inside the panel's overflow clip,
+   with a transparent outline for forced-colors mode. ─────────────────────── */
+details.sn-an-postbox > summary.postbox-header { cursor: pointer; list-style: none; }
+details.sn-an-postbox > summary.postbox-header::-webkit-details-marker { display: none; }
+details.sn-an-postbox > summary.postbox-header .hndle { cursor: pointer; }
+details.sn-an-postbox > summary.postbox-header::after {
+	content: "\2303"; content: "\2303" / ""; flex: none; padding: 0 12px;
+	color: var(--sn-text-muted, #646970); transition: transform .15s ease;
 }
-.sn-an-toggle::before { content: "\2303"; display: inline-block; transition: transform .15s ease; }
-.sn-an-collapsed .sn-an-toggle::before { transform: rotate(180deg); }
+details.sn-an-postbox:not([open]) > summary.postbox-header::after { transform: rotate(180deg); }
+details.sn-an-postbox:not([open]) > summary.postbox-header { border-bottom: 0; }
+details.sn-an-postbox > summary.postbox-header:focus-visible {
+	outline: 2px solid transparent; box-shadow: inset 0 0 0 2px var(--wp-admin-theme-color, #2271b1);
+}
+@media ( prefers-reduced-motion: reduce ) {
+	details.sn-an-postbox > summary.postbox-header::after { transition: none; }
+}
 
 /* ── v8.5.0: header grid — full Overview (2/3) beside the rail (1/3) ─────── */
 .sn-an-header-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: start; margin-bottom: 12px; }

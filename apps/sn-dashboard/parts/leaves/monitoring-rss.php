@@ -4,16 +4,14 @@
  *
  * The classic leaf (`sn_rss_tracker_render_admin_tab()`, in inc/rss-feed-tracker-render-parts.php,
  * hooked to `sn_admin_rss_tab` and wrapped by `sn_admin_render_rss_section()`,
- * inc/admin-render-sections.php) is the ONE leaf on this tab that bypasses
- * the estate's admin-post.php `action` + `sn_<action>` nonce pipeline entirely: its form
- * field is `sn_rss_action`, its nonce action is `SN_RSS_TRACKER_NONCE`
- * (`sn_rss_tracker_action`), and its flash query arg is `sn_rss_ok` — read
- * directly in that function, bypassing the shared `?sn_flash=`
- * pipeline. `snt_kit_form()` bakes in the shared field name and nonce, so this
- * leaf paints its own `rss_form()` wrapper carrying the RIGHT field name and
- * nonce action instead; the host's `rss` write pipeline
- * (`snt_os_host_replay_rss()`, inc/openstation-host-pipelines.php) is what
- * already expects `sn_rss_action` on the wire, one for one.
+ * inc/admin-render-sections.php) posts its three writes to admin-post.php as
+ * `action=sn_rss_<op>` with a nonce minted for that action alone (2026-11-10;
+ * before, one `sn_rss_action` field and one shared nonce on admin_init). Its
+ * flash is still its own `?sn_rss_ok`, read directly in that function, not
+ * the shared `?sn_flash=`. The `action` field routes a window's submission
+ * through the host's admin-post replay (inc/openstation-host-pipelines.php),
+ * which runs the same `admin_post_sn_rss_<op>` hook. `rss_form()` stays this
+ * leaf's own wrapper only for the confirm title and label.
  *
  * Same three actions (save_settings, reset_defaults, purge_log), same six
  * field names, same activity counters, same recent-request table, same flash
@@ -33,25 +31,25 @@ require_once __DIR__ . '/monitoring-rss-parts.php';
 require_once __DIR__ . '/monitoring-rss-setup.php'; // the status line and the Setup card
 
 /**
- * This leaf's own form: hidden `sn_rss_action` + the RSS module's own nonce —
- * NOT `snt_kit_form()`'s shared `sn_action` + shared nonce, which
- * `sn_rss_tracker_handle_form()` would never recognise.
+ * This leaf's own form: the `action=sn_rss_<op>` hook and a nonce minted for
+ * it alone, the fields snt_kit_form() prints, plus the confirm title and
+ * label snt_kit_form() has no option for. No pipeline is declared: an
+ * `action` field routes to the host's admin-post replay.
  *
- * @param string              $sn_rss_action The handler's action name.
+ * @param string              $sn_rss_action The operation (an SN_RSS_TRACKER_ACTION_* value).
  * @param string              $inner         Painted fields.
  * @param array<string,mixed> $opts          submit, confirm, confirm_title, confirm_label, danger, inline (the compact one-button form, `.snt-form--inline`).
  * @return string
  */
 function rss_form( $sn_rss_action, $inner, array $opts = array() ) {
-	$nonce_action = defined( 'SN_RSS_TRACKER_NONCE' ) ? SN_RSS_TRACKER_NONCE : 'sn_rss_tracker_action';
-	$hidden       = \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'sn_rss_action', 'value' => (string) $sn_rss_action ) )
-		. \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => '_wpnonce', 'value' => function_exists( 'wp_create_nonce' ) ? (string) wp_create_nonce( $nonce_action ) : '' ) );
+	$key    = 'rss_' . (string) $sn_rss_action;
+	$hidden = \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'action', 'value' => \snt_kit_hook_action( $key ) ) )
+		. \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => '_wpnonce', 'value' => \snt_kit_nonce( $key ) ) );
 	return \snt_kit_tag(
 		'os-form',
 		array(
 			'class'             => empty( $opts['inline'] ) ? 'snt-form' : 'snt-form snt-form--inline',
 			'os-action'         => 'post',
-			'os-arg-pipeline'   => 'rss',
 			'submit-label'      => (string) ( $opts['submit'] ?? __( 'Save', 'signal-and-noise-tools' ) ),
 			'show-reset'        => 'false',
 			'columns'           => '1',

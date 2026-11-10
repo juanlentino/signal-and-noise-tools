@@ -89,27 +89,35 @@ function sn_rss_tracker_recent( $limit = 20 ) {
  */
 
 /**
- * Runs on admin_init so it processes POSTs before the tab's render
- * function fires, and so we can redirect with a flash query arg (the
- * standard redirect-after-POST pattern).
+ * One RSS write, run by its own admin-post.php hook (registered below):
+ * Save settings, Purge now or Reset to Defaults. Core's check_admin_referer()
+ * first, against a nonce minted for this action alone, then manage_options,
+ * the shape of every other SN admin write since #1614. A stale form gets
+ * core's "link expired" page; until 2026-11-10 it returned silently from
+ * admin_init, so the click did nothing and said nothing.
+ *
+ * Off the sn_admin_post_handlers() table on purpose: that dispatcher
+ * redirects with ?sn_flash, and this leaf reads its own ?sn_rss_ok on both
+ * surfaces (the OpenStation window replays the same hook through the host's
+ * admin-post pipeline).
+ *
+ * @param string $action One of the SN_RSS_TRACKER_ACTION_* values.
+ * @return void Redirects and exits.
  */
-function sn_rss_tracker_handle_form() {
-	if ( empty( $_POST['sn_rss_action'] ) ) {
-		return;
+function sn_rss_tracker_handle_form( $action ) {
+	$action = (string) $action;
+	// A form submit only: admin-post.php dispatches on $_REQUEST, so a GET link
+	// carrying a valid nonce would otherwise purge or reset. The OpenStation
+	// window replays with its form values in $_POST, so it still passes.
+	if ( empty( $_POST ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- refusing before the nonce is read.
+		wp_die( esc_html__( 'This action needs a form submit.', 'signal-and-noise-tools' ), '', array( 'response' => 405 ) );
 	}
+	check_admin_referer( 'sn_rss_' . $action );
 	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
-	}
-	// Soft nonce check — matches inc/admin-page.php:62 style. Bare
-	// check_admin_referer() would die() with a wall-of-text error page
-	// on a stale form (12-24h nonce TTL); silently bailing instead lets
-	// the user reload and resubmit.
-	if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['_wpnonce'] ), SN_RSS_TRACKER_NONCE ) ) {
-		return;
+		wp_die( esc_html__( 'Insufficient permissions.', 'signal-and-noise-tools' ), '', array( 'response' => 403 ) );
 	}
 
-	$action = sanitize_text_field( wp_unslash( $_POST['sn_rss_action'] ) );
-	$flash  = '';
+	$flash = '';
 
 	if ( SN_RSS_TRACKER_ACTION_SAVE === $action ) {
 		global $wpdb;
@@ -179,7 +187,18 @@ function sn_rss_tracker_handle_form() {
 	) );
 	exit;
 }
-add_action( 'admin_init', 'sn_rss_tracker_handle_form' );
+
+// At load, not behind is_admin(): an OpenStation window replays a form inside
+// a REST request and asks has_action() before it runs the hook.
+foreach ( array( SN_RSS_TRACKER_ACTION_SAVE, SN_RSS_TRACKER_ACTION_PURGE, SN_RSS_TRACKER_ACTION_RESET ) as $sn_rss_action ) {
+	add_action(
+		'admin_post_sn_rss_' . $sn_rss_action,
+		static function () use ( $sn_rss_action ) {
+			sn_rss_tracker_handle_form( $sn_rss_action );
+		}
+	);
+}
+unset( $sn_rss_action );
 
 function sn_rss_tracker_render_flash( $flash ) {
 	if ( 'saved' === $flash ) {

@@ -10,30 +10,29 @@
  * them apart is what stops a refusal text from being written by whoever last
  * touched the rewrite.
  *
- * THREE PIPELINES, because the estate has three and not one. The port's first
+ * TWO PIPELINES, because the estate has two and not one. The port's first
  * cut knew only a shared one and refused the others with "the form expired",
  * a cause that was never measured (2026-09-06: five Provenance forms, three
  * RSS forms, one inline audit-log form; all dead in the window, none of them
  * expired). Since #1614 the shared pipeline is gone: every table action posts
  * to admin-post.php with its own nonce, the shape the Provenance forms always
- * had.
+ * had. Since 2026-11-10 the three RSS forms do too (`sn_rss_<op>`), and the
+ * RSS-only pipeline that read `sn_rss_action` on admin_init is gone.
  *
  *   admin-post  A `<form action="admin-post.php">` with an `action` field and
  *               a nonce minted for THAT action (`sn_save_identity`,
  *               `sn_full_reset`, `sn_prov_runsweep`). The handler is on
  *               `admin_post_<action>`; for the table's 66 that is
  *               sn_handle_admin_post() (inc/admin-post-handler.php).
- *   rss         `sn_rss_action` + `SN_RSS_TRACKER_NONCE`, dispatched by
- *               `sn_rss_tracker_handle_form()` on `admin_init`.
  *   inline      A form the LEAF handles itself, inside its own render function,
  *               out of `$_POST` (`sn_action=audit_prune_now`, nonce
  *               `sn_audit_prune_now`). Nothing runs here: the values are
  *               handed to the next paint, which is exactly what the classic
  *               page does: the leaf reads `$_POST` while it renders.
  *
- * THE INTERCEPTOR. `admin-post` and `rss` handlers end in
+ * THE INTERCEPTOR. `admin-post` handlers end in
  * `wp_safe_redirect() + exit`, and refuse by `wp_die()`. A window can do
- * neither. So both run under two filters that turn each into a private
+ * neither. So they run under two filters that turn each into a private
  * exception, and the caught exception IS the readout: a redirect's query is
  * the flash, the destination and the `sn_*` params the classic page would have
  * read out of its own URL; a die's message is the refusal text, word for word,
@@ -159,9 +158,9 @@ function snt_os_host_result( array $overrides = array() ) {
  *
  * Order matters and each step is a measurement: an `action` field is an
  * admin-post form (the field admin-post.php itself routes on) unless the form
- * declared another pipeline through `os-arg-pipeline`; then the RSS leaf's own
- * field; and last, a `sn_action` whose own nonce (`sn_<action>`) verifies,
- * which is an inline form, not an error.
+ * declared another pipeline through `os-arg-pipeline`; and last, a `sn_action`
+ * whose own nonce (`sn_<action>`) verifies, which is an inline form, not an
+ * error.
  *
  * @param array<string,mixed> $values   Expanded values.
  * @param string              $declared `os-arg-pipeline` from the form, if any.
@@ -179,10 +178,6 @@ function snt_os_host_pipeline_for( array $values, $declared ) {
 	$wp_action = snt_os_host_last( isset( $values['action'] ) ? $values['action'] : null );
 	if ( '' !== $wp_action && in_array( (string) $declared, array( '', 'admin-post' ), true ) ) {
 		return $found( 'admin-post', snt_os_host_slug( $wp_action ) );
-	}
-
-	if ( isset( $values['sn_rss_action'] ) && '' !== snt_os_host_last( $values['sn_rss_action'] ) ) {
-		return $found( 'rss', snt_os_host_slug( snt_os_host_last( $values['sn_rss_action'] ) ) );
 	}
 
 	$action = snt_os_host_slug( snt_os_host_last( isset( $values['sn_action'] ) ? $values['sn_action'] : null ) );
@@ -216,7 +211,7 @@ function snt_os_host_slug( $action ) {
 /**
  * Replay one form submission through whichever pipeline the estate owns it.
  *
- * `sn_handle_admin_post()` and the two `admin-post` / `admin_init` handlers all
+ * `sn_handle_admin_post()` and the other `admin_post_*` handlers all
  * end in a redirect and an exit, which a window cannot do. Everything BEFORE
  * that is reproduced exactly — capability, nonce, page allowlist, handler
  * table, flash code, redirect target — and the exit itself becomes a value.
@@ -241,8 +236,6 @@ function snt_os_host_replay( array $values, $page_slug, array $get = array(), $p
 	switch ( $chosen['pipeline'] ) {
 		case 'admin-post':
 			return snt_os_host_after_write( snt_os_host_replay_admin_post( $values, $chosen['action'], $get, $page_slug ) );
-		case 'rss':
-			return snt_os_host_after_write( snt_os_host_replay_rss( $values, $chosen['action'], $get, $page_slug ) );
 		case 'inline':
 			return snt_os_host_replay_inline( $values, $chosen['action'], $page_slug );
 	}
@@ -340,35 +333,6 @@ function snt_os_host_replay_admin_post( array $values, $action, array $get, $pag
 }
 
 /**
- * The RSS pipeline: `sn_rss_action` + `SN_RSS_TRACKER_NONCE`, handled by
- * `sn_rss_tracker_handle_form()` on `admin_init`.
- *
- * The function verifies its own nonce and SILENTLY returns on a stale one (its
- * own recorded decision: a bare `check_admin_referer()` would wall-of-text the
- * reader). A silent return is therefore reported as exactly that — a run with
- * nothing to say — never as a save.
- *
- * @param array<string,mixed> $values    Expanded values.
- * @param string              $action    The `sn_rss_action` slug (for the refusal detail).
- * @param array<string,mixed> $get       The window's query.
- * @param string              $page_slug The window's page slug.
- * @return array<string,mixed>
- */
-function snt_os_host_replay_rss( array $values, $action, array $get, $page_slug ) {
-	if ( ! function_exists( 'sn_rss_tracker_handle_form' ) ) {
-		return snt_os_host_result(
-			array(
-				'reason'   => 'unknown',
-				'detail'   => $action,
-				'pipeline' => 'rss',
-			)
-		);
-	}
-	$outcome = snt_os_host_borrowed( $values, $get, $page_slug, 'sn_rss_tracker_handle_form' );
-	return snt_os_host_outcome_result( $outcome, 'rss' );
-}
-
-/**
  * The inline pipeline: a form its own leaf handles, out of `$_POST`.
  *
  * Nothing runs here on purpose. The classic page does not redirect for one of
@@ -440,7 +404,7 @@ function snt_os_host_lend( array $values, array $get, $page_slug, callable $run 
 
 /**
  * `snt_os_host_lend()` with the redirect/die interceptor around the run — what
- * the two pipelines whose handlers END in a redirect need.
+ * the admin-post pipeline, whose handlers END in a redirect, needs.
  *
  * @param array<string,mixed> $values    Expanded values.
  * @param array<string,mixed> $get       The window's query.
