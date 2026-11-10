@@ -64,9 +64,26 @@ if ( ! defined( 'ABSPATH' ) ) {
  *                                    raise-only. 'timeout': seconds, through core's
  *                                    wp_ai_client_default_request_timeout filter,
  *                                    raise-only, removed after the call.
+ * @param array  $json_schema         Optional. A JSON schema for the AI Client's
+ *                                    structured output (as_json_response). If that
+ *                                    request is refused (a provider 400, or the
+ *                                    client declining the options), it is logged
+ *                                    and sent once more without the schema, with
+ *                                    $system_instruction, through this same
+ *                                    function, so the budget cap is checked again
+ *                                    and only a request that ran is recorded.
+ * @param bool   $structured          Out. True when $json_schema was sent and the
+ *                                    text is a JSON object; false otherwise
+ *                                    (including the plain retry).
+ * @param string $structured_instruction Optional. The system instruction for the
+ *                                    schema attempt only, when its wording must
+ *                                    differ (the scan's object root). Empty means
+ *                                    $system_instruction for both.
  * @return string|WP_Error            Generated text or WP_Error on failure.
  */
-function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_tokens = 256, $feature = 'generic', $image_path = '', $image_mime = '', $options = array() ) {
+function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_tokens = 256, $feature = 'generic', $image_path = '', $image_mime = '', $options = array(), $json_schema = array(), &$structured = null, $structured_instruction = '' ) {
+	$structured  = false;
+	$instruction = ( $json_schema && '' !== (string) $structured_instruction ) ? $structured_instruction : $system_instruction;
 	if ( ! snt_ai_is_available() ) {
 		return new WP_Error(
 			'snt_ai_unavailable',
@@ -181,7 +198,7 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	try {
 		$builder = wp_ai_client_prompt( (string) $prompt )
 			->using_model_preference( ...$model_list )
-			->using_system_instruction( (string) $system_instruction )
+			->using_system_instruction( (string) $instruction )
 			->using_max_tokens( $max_tokens );
 		if ( $custom_options ) {
 			$model_config = new $config_class();
@@ -190,6 +207,10 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 		}
 		if ( $has_image ) {
 			$builder = $builder->with_file( (string) $image_path, (string) $image_mime );
+		}
+		// After using_model_config, which rebuilds the config it is handed.
+		if ( $json_schema ) {
+			$builder = $builder->as_json_response( $json_schema );
 		}
 		$result = $builder->generate_text_result();
 	} catch ( \Throwable $e ) {
@@ -212,6 +233,20 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	}
 
 	if ( is_wp_error( $result ) ) {
+		// Structured output refused: the provider answered 400 (the request was
+		// rejected, so not billed) or the client declined the options before
+		// sending. Retry once without the schema. Core labels every provider 4xx
+		// prompt_client_error with the HTTP status in the data, so only a 400
+		// counts: a 429 retried at once is throttled again, and 401/403/404/413
+		// are not about the schema. Not a token-limit stop either: that request
+		// ran and billed, and a retry would bill the truncation twice.
+		$error_data = $result->get_error_data();
+		$status     = is_array( $error_data ) && isset( $error_data['status'] ) ? (int) $error_data['status'] : 0;
+		$code       = $result->get_error_code();
+		if ( $json_schema && ( 'prompt_invalid_argument' === $code || ( 'prompt_client_error' === $code && 400 === $status ) ) ) {
+			error_log( sprintf( 'snt_ai %s: structured JSON output refused (%s: %s); retrying once without it.', $feature, $result->get_error_code(), $result->get_error_message() ) );
+			return snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_tokens, $feature, $image_path, $image_mime, $options );
+		}
 		// v8.1.1: the WP wrapper's converted SDK errors can carry an EMPTY
 		// message (seen live 2026-07-02 as an undiagnosable "Unknown error."
 		// in the Health-tab JS). Guarantee a code-labeled message.
@@ -262,6 +297,9 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	// outer quote characters at the very start/end of the string.
 	$text = trim( $text, "\"'" );
 
+	// Structured only when the reply IS a JSON object (both schema roots are):
+	// if the format was ignored, the caller's tolerant parser reads it instead.
+	$structured = $json_schema && 0 === strpos( $text, '{' ) && is_array( json_decode( $text, true ) );
 	return $text;
 }
 
