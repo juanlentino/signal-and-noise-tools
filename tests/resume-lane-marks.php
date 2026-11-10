@@ -13,6 +13,8 @@
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
+define( 'SNT_TEST_WITH_BLOCKS_PHP', true ); // The /resume body is serialized by core's get_comment_delimited_block_content().
+require_once __DIR__ . '/lib/wp-core-blocks.php';
 
 $pass = 0; $fail = 0; $skip = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }

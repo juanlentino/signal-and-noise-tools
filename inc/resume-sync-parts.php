@@ -53,9 +53,14 @@ function sn_resume_download_blocks( $href, $resolve = true ) {
 	// the page's own RESUME title. core/file saves no filename anchor and
 	// no aria-describedby when fileName is empty, so this is its valid shape.
 	$url = esc_url( $pdf_href );
-	return '<!-- wp:file {"href":"' . $url . '","className":"sn-resume-download"} -->' . "\n"
-		. '<div class="wp-block-file sn-resume-download"><a href="' . $url . '" class="wp-block-file__button wp-element-button" download>' . sn_resume_l( 'Download PDF', 'Descargar PDF' ) . '</a></div>' . "\n"
-		. '<!-- /wp:file -->' . "\n\n";
+	return sn_resume_block(
+		'file',
+		array(
+			'href'      => $url,
+			'className' => 'sn-resume-download',
+		),
+		'<div class="wp-block-file sn-resume-download"><a href="' . $url . '" class="wp-block-file__button wp-element-button" download>' . sn_resume_l( 'Download PDF', 'Descargar PDF' ) . '</a></div>'
+	) . "\n\n";
 }
 
 /**
@@ -98,17 +103,27 @@ function sn_resume_receipt( $url, $kind, $context ) {
  * @return string
  */
 function sn_resume_hero_split_blocks( $left, $right, $align = 'top', $class = 'sn-resume-hero-split' ) {
-	return '<!-- wp:columns {"verticalAlignment":"' . $align . '","className":"' . $class . '"} -->' . "\n"
-		. '<div class="wp-block-columns are-vertically-aligned-' . $align . ' ' . $class . '">' . "\n"
-		. '<!-- wp:column {"verticalAlignment":"' . $align . '","width":"55%"} -->' . "\n"
-		. '<div class="wp-block-column is-vertically-aligned-' . $align . '" style="flex-basis:55%">' . "\n"
-		. $left
-		. '</div>' . "\n" . '<!-- /wp:column -->' . "\n\n"
-		. '<!-- wp:column {"verticalAlignment":"' . $align . '","width":"45%"} -->' . "\n"
-		. '<div class="wp-block-column is-vertically-aligned-' . $align . '" style="flex-basis:45%">' . "\n"
-		. $right
-		. '</div>' . "\n" . '<!-- /wp:column -->' . "\n"
-		. '</div>' . "\n" . '<!-- /wp:columns -->' . "\n\n";
+	$column = static function ( $width, $inner ) use ( $align ) {
+		return sn_resume_block(
+			'column',
+			array(
+				'verticalAlignment' => $align,
+				'width'             => $width,
+			),
+			'<div class="wp-block-column is-vertically-aligned-' . $align . '" style="flex-basis:' . $width . '">' . "\n" . $inner . '</div>'
+		);
+	};
+	return sn_resume_block(
+		'columns',
+		array(
+			'verticalAlignment' => $align,
+			'className'         => $class,
+		),
+		'<div class="wp-block-columns are-vertically-aligned-' . $align . ' ' . $class . '">' . "\n"
+		. $column( '55%', $left ) . "\n\n"
+		. $column( '45%', $right ) . "\n"
+		. '</div>'
+	) . "\n\n";
 }
 
 /** What a screen reader hears first in an entry only one /resume lane holds. */
