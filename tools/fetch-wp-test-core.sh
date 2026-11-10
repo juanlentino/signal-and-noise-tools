@@ -9,7 +9,9 @@
 # (tests/seo-head-on-core.php), class-wp.php and post.php for the feed
 # conditional GET (tests/feed-conditional-get.php), the block parser for the
 # /resume parse-and-re-save pin (tests/resume-lane-marks.php), and blocks.php with
-# the block processor for the suites that load tests/lib/wp-core-blocks.php. A
+# the block processor for the suites that load tests/lib/wp-core-blocks.php. The hook API
+# (plugin.php) and the post-content render callback are for
+# tests/bilingual-fallback-on-core.php. A
 # standalone sweep has no WordPress, so this pulls exactly those files from
 # the wordpress-develop mirror at the version the sandbox runs. CI calls it in
 # both sweep jobs; run it by hand the same way.
@@ -30,12 +32,12 @@ fi
 ref="${WP_TEST_CORE_REF:-7.1}"
 base="https://raw.githubusercontent.com/WordPress/wordpress-develop/$ref/src/wp-includes"
 dest="$dir/wp-includes"
-mkdir -p "$dest/html-api"
+mkdir -p "$dest/html-api" "$dest/blocks"
 
 for f in class-wp-html-tag-processor.php class-wp-html-attribute-token.php class-wp-html-span.php class-wp-html-text-replacement.php class-wp-html-decoder.php html5-named-character-references.php; do
 	curl -sSfL "$base/html-api/$f" -o "$dest/html-api/$f"
 done
-for f in class-wp-token-map.php kses.php formatting.php robots-template.php link-template.php class-wp.php post.php blocks.php class-wp-block-processor.php class-wp-block-parser.php class-wp-block-parser-block.php class-wp-block-parser-frame.php; do
+for f in class-wp-token-map.php kses.php formatting.php robots-template.php link-template.php class-wp.php post.php blocks.php plugin.php class-wp-hook.php class-wp-filter-sentinel.php blocks/post-content.php class-wp-block-processor.php class-wp-block-parser.php class-wp-block-parser-block.php class-wp-block-parser-frame.php; do
 	curl -sSfL "$base/$f" -o "$dest/$f"
 done
 
