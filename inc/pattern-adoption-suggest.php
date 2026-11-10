@@ -104,10 +104,11 @@ function snt_ai_pattern_adoption_suggest_impl( $post_id, $block_fingerprint, $pa
  *     ├── core/paragraph[] (innerHTML = "<p>text</p>")
  *     └── (optional) <cite> in the wrapper's innerHTML
  *
- * Target: a wp:group (sn-pattern-pull-quote, tagName=aside) containing
- * a wp:paragraph (sn-pull-quote__body) and an optional wp:paragraph
- * (sn-pull-quote__attribution). NOT wp:signal-noise/pull-quote — that
- * was a pattern slug, not a block type.
+ * Target (theme 2026.11.7+): core/pullquote with the theme's Pull-quote
+ * block style (is-style-pull-quote), an optional <cite> inside the
+ * blockquote. Pull quotes already written as the older group scaffold
+ * (sn-pattern-pull-quote) or the signal-noise/pull-quote block are not
+ * candidates: the detector only flags core/quote, so they stay as written.
  *
  * Inline formatting (<strong>, <em>, <a>, <code>) is preserved via
  * wp_kses allowlist.
@@ -146,27 +147,15 @@ function snt_pattern_adoption_build_pull_quote_markup( $quote_block ) {
 		$cite_html = trim( wp_kses( $m[1], $allowed_inline ) );
 	}
 
-	// Build target markup. Attribution paragraph OMITTED if no <cite>.
-	$markup  = "<!-- wp:group {\"className\":\"sn-pattern-pull-quote\",\"tagName\":\"aside\",\"layout\":{\"type\":\"constrained\"}} -->\n";
-	$markup .= "<aside class=\"wp-block-group sn-pattern-pull-quote\">\n";
-	$markup .= "<!-- wp:paragraph {\"className\":\"sn-pull-quote__body\"} -->\n";
-	$markup .= "<p class=\"sn-pull-quote__body\">{$body_html}</p>\n";
-	$markup .= "<!-- /wp:paragraph -->\n";
 	// Edge: a cite containing only empty inline tags (e.g.,
 	// "<cite><em></em></cite>") survives wp_kses with the inline-tag
 	// wrappers intact, so $cite_html is non-empty as a string. Strip
-	// the tags to check for actual visible content before emitting an
-	// attribution paragraph; otherwise readers see an empty stylized
-	// block where an attribution should be.
-	if ( '' !== trim( strip_tags( $cite_html ) ) ) {
-		$markup .= "<!-- wp:paragraph {\"className\":\"sn-pull-quote__attribution\"} -->\n";
-		$markup .= "<p class=\"sn-pull-quote__attribution\">{$cite_html}</p>\n";
-		$markup .= "<!-- /wp:paragraph -->\n";
-	}
-	$markup .= "</aside>\n";
-	$markup .= "<!-- /wp:group -->";
+	// the tags to check for visible content before emitting a <cite>.
+	$cite = '' !== trim( strip_tags( $cite_html ) ) ? "<cite>{$cite_html}</cite>" : '';
 
-	return $markup;
+	return "<!-- wp:pullquote {\"className\":\"is-style-pull-quote\"} -->\n"
+		. "<figure class=\"wp-block-pullquote is-style-pull-quote\"><blockquote><p>{$body_html}</p>{$cite}</blockquote></figure>\n"
+		. '<!-- /wp:pullquote -->';
 }
 
 /**
