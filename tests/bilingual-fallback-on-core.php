@@ -83,7 +83,13 @@ add_filter(
 	2
 );
 
-/** One core/post-content block, rendered in the order render_block() and WP_Block::render() run. */
+/**
+ * One core/post-content block, rendered in the order core runs these hooks:
+ * pre_render_block for a top-level block (blocks.php, render_block()) and for an
+ * inner block alike (class-wp-block.php, WP_Block::render(), where the theme's
+ * templates hold post-content), then the render callback, then render_block,
+ * then render_block_{name} (both in WP_Block::render(), in that order).
+ */
 function render_post_content( $post_id, array $attrs = array() ) {
 	$parsed   = array( 'blockName' => 'core/post-content', 'attrs' => $attrs );
 	$instance = (object) array( 'context' => null === $post_id ? array() : array( 'postId' => $post_id ) );

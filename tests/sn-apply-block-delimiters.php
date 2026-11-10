@@ -84,12 +84,12 @@ $expect = array(
 	'no space after <!--'       => array( ' | ', '' ),
 	'no space before -->'       => array( ' | ', 'unparseable' ),
 	'closer with void flag'     => array( ' | 0-21 31-54', 'unclosed|paragraph' ),
-	'delimiter in a comment'    => array( '46-99:paragraph | 46-67 77-99', '' ),
-	'broken JSON, then a block' => array( '38-101:heading | 38-69 81-101', '' ),
+	'delimiter in a comment'    => array( '46-99:paragraph | 46-67 77-99', 'unparseable' ),
+	'broken JSON, then a block' => array( '38-101:heading | 38-69 81-101', 'unparseable' ),
 	'truncated last delimiter'  => array( '0-53:paragraph | 0-21 31-53', 'unparseable' ),
 	'only a truncated opener'   => array( ' | ', 'unparseable' ),
-	'literal arrow in JSON'     => array( ' | 53-75', 'mismatch|paragraph' ),
-	'attrs without a space'     => array( ' | 38-60', 'mismatch|paragraph' ),
+	'literal arrow in JSON'     => array( ' | 53-75', 'unparseable mismatch|paragraph' ),
+	'attrs without a space'     => array( ' | 38-60', 'unparseable mismatch|paragraph' ),
 );
 
 // What the former patterns returned where it differs, and why core's reading is the right one.
@@ -98,10 +98,11 @@ $former = array(
 	'core/ namespace spelled'   => array( '0-58:core/paragraph | 0-26 36-58', 'mismatch|paragraph', '"core/paragraph" and "paragraph" are one block type to core; the pattern compared the spellings' ),
 	'no space before -->'       => array( ' | ', '', 'the balance pattern took "<!-- wp:paragraph-->" for a delimiter; core and the span pattern do not' ),
 	'closer with void flag'     => array( '0-54:paragraph | 0-21 31-54', 'unclosed|paragraph', 'a delimiter with both flags is void to core; the span pattern read it as a closer' ),
-	'delimiter in a comment'    => array( ' | 11-32 46-67 77-99', 'unclosed|paragraph', 'a delimiter inside a plain HTML comment is comment text; the patterns matched it anywhere' ),
-	'broken JSON, then a block' => array( '0-101:paragraph | 0-69 81-101', 'unparseable', 'the lazy JSON group ran on through the next comment and swallowed the heading block' ),
+	'delimiter in a comment'    => array( ' | 11-32 46-67 77-99', 'unclosed|paragraph', 'a delimiter inside a plain HTML comment is comment text to core\'s processor and a block to its 7.1 parser: the draft is refused as before, now as unparseable, and a block edit is refused by the parser check' ),
+	'broken JSON, then a block' => array( '0-101:paragraph | 0-69 81-101', 'unparseable', 'the lazy JSON group ran on through the next comment and swallowed the heading block: the draft is refused as before, and a block edit is refused by the parser check' ),
 	'truncated last delimiter'  => array( '0-53:paragraph | 0-21 31-53', '', 'a comment that never closes went unnoticed after a balanced block' ),
-	'literal arrow in JSON'     => array( '0-75:paragraph | 0-43 53-75', '', 'a literal "-->" ends the comment; the patterns read on past it. Core writes it as a JSON escape' ),
+	'literal arrow in JSON'     => array( '0-75:paragraph | 0-43 53-75', '', 'a literal "-->" ends the comment for core\'s processor and for a browser; the patterns, like core\'s 7.1 parser, read on past it. Core writes it as a JSON escape. A deliberate tightening' ),
+	'attrs without a space'     => array( ' | 38-60', 'mismatch|paragraph', 'refused before and now; the text that is not a delimiter is named as well' ),
 );
 
 echo "Group: every fixture, both consumers\n";
@@ -154,6 +155,8 @@ foreach ( $fixtures as $label => $content ) {
 }
 ok( $written >= 18, "the splice ran on real blocks ($written), so the two checks above are not vacuous" );
 
+// These two pin core 7.1's parser, which still tokenizes with its own pattern. When the parser is
+// built on WP_Block_Processor the two agree, and these inputs resolve like any other.
 echo "\nGroup: where core's parser and its delimiter reader disagree, nothing is located\n";
 foreach ( array( 'delimiter in a comment', 'broken JSON, then a block' ) as $label ) {
 	$content = $fixtures[ $label ];

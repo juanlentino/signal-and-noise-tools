@@ -250,23 +250,26 @@ function snt_sn_apply_block_delimiter_findings( $content ) {
 	$content  = (string) $content;
 	$scan     = snt_sn_apply_block_delimiters( $content );
 
-	if ( ! $scan['delimiters'] ) {
-		if ( false !== strpos( $content, '<!-- wp:' ) ) {
+	// Whatever lies between the delimiters core reads must not still look like
+	// one: a delimiter inside another comment, one cut off at the end, or one
+	// whose attribute JSON never closes. Core's block parser, which is not yet
+	// built on the processor, can read those as blocks, so the two would
+	// disagree about the draft. Refuse rather than pick a reading.
+	$at = 0;
+	foreach ( array_merge( $scan['delimiters'], array( array( 'start' => strlen( $content ), 'end' => strlen( $content ) ) ) ) as $d ) {
+		$gap = substr( $content, $at, $d['start'] - $at );
+		$at  = $d['end'];
+		if ( false !== strpos( $gap, '<!-- wp:' ) || false !== strpos( $gap, '<!-- /wp:' ) ) {
 			$findings[] = snt_sn_validate_finding(
 				'create_draft', 'block_delimiters', 'error',
-				__( 'Content contains "<!-- wp:" but no valid block delimiter could be parsed from it.', 'signal-and-noise-tools' ),
+				__( 'Content contains "<!-- wp:" text that is not a valid block delimiter: it sits inside another comment, is cut off, or carries malformed attributes.', 'signal-and-noise-tools' ),
 				null, null, array(), 'create_draft|block_delimiters|unparseable'
 			);
+			break;
 		}
-		return $findings;
 	}
-	// Core stops reading at a comment that never closes: what follows it is not checked, so say so.
-	if ( null !== $scan['error'] && false !== strpos( substr( $content, end( $scan['delimiters'] )['end'] ), '<!--' ) ) {
-		$findings[] = snt_sn_validate_finding(
-			'create_draft', 'block_delimiters', 'error',
-			__( 'Content ends inside a "<!--" comment that never closes, so the block delimiters cannot all be read.', 'signal-and-noise-tools' ),
-			null, null, array(), 'create_draft|block_delimiters|unparseable'
-		);
+	if ( ! $scan['delimiters'] ) {
+		return $findings;
 	}
 
 	$stack = array();
