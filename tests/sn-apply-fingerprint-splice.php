@@ -40,6 +40,7 @@ require __DIR__ . '/../inc/block-fingerprint-engine.php';
 require __DIR__ . '/../inc/sn-apply/block-delimiters.php';
 require __DIR__ . '/../inc/sn-apply/block-edit.php';
 require __DIR__ . '/../inc/sn-apply/validation-gate2-parts.php';
+require __DIR__ . '/lib/parser-walker-agree.php';
 
 const POST = 7;
 
@@ -105,15 +106,27 @@ ok( is_wp_error( $p ) && 409 === $p->data['status'], 'unknown fingerprint: 409' 
 list( $p, $w ) = run_both( $doc, fp_at( $doc, array( $top_idx ) ), '<p>no block</p>' );
 ok( is_wp_error( $p ) && 422 === $p->data['status'], 'invalid replacement markup: 422' );
 
-// Parsers disagree: a delimiter inside a plain HTML comment. Refuse, never re-serialize.
-// (tests/fixtures/block-delimiter-inputs.php, 'delimiter in a comment'.)
-$bad  = "<!-- note: <!-- wp:paragraph --> was here -->\n<!-- wp:paragraph -->\n<p>x</p>\n<!-- /wp:paragraph -->";
-$bidx = null;
+// A delimiter inside a plain HTML comment (tests/fixtures/block-delimiter-inputs.php, 'delimiter in a
+// comment'). Core 7.1's parser reads the commented delimiter as a block and disagrees with its
+// delimiter reader: refuse, never re-serialize. From 7.2 the parser is built on WP_Block_Processor,
+// the two agree, and the one block is spliced like any other. tests/lib/parser-walker-agree.php
+// says which the loaded core does.
+$bad_pre = "<!-- note: <!-- wp:paragraph --> was here -->\n";
+$bad_blk = "<!-- wp:paragraph -->\n<p>x</p>\n<!-- /wp:paragraph -->";
+$bad     = $bad_pre . $bad_blk;
+$bidx    = null;
 foreach ( parse_blocks( $bad ) as $i => $n ) { if ( null !== $n['blockName'] && null === $bidx ) { $bidx = $i; } }
 ok( null !== $bidx, 'parser disagreement fixture: the parser sees a block to match' );
 list( $p, $w ) = run_both( $bad, fp_at( $bad, array( (int) $bidx ) ), $new_h );
-ok( is_wp_error( $p ) && 422 === $p->data['status'], 'parser disagreement: preview refuses 422, never re-serializes' );
-ok( is_wp_error( $w ) && 422 === $w->data['status'], 'parser disagreement: the write refuses 422' );
+if ( ! snt_test_parser_agrees_with_walker( $bad ) ) {
+	ok( is_wp_error( $p ) && 422 === $p->data['status'], 'parser disagreement: preview refuses 422, never re-serializes' );
+	ok( is_wp_error( $w ) && 422 === $w->data['status'], 'parser disagreement: the write refuses 422' );
+} else {
+	$want     = $bad_pre . $new_h;
+	$is_block = array( parse_blocks( $bad )[ $bidx ] ) === parse_blocks( $bad_blk );
+	ok( $is_block && is_array( $p ) && $want === $p['new_content'], "the parsers agree in this core: preview splices only the block parse_blocks() puts at 0/$bidx" );
+	ok( $is_block && $want === $w, 'the parsers agree in this core: the write stores exactly that' );
+}
 
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );

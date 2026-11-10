@@ -29,6 +29,16 @@
 #         bash tools/fetch-wp-test-core.sh <dir>
 #         SNT_WP_HTML_API=<dir>/wp-includes/html-api bash tests/run.sh
 #
+# The fetch defaults to the 7.1 branch, which the live site runs. To sweep the
+# next release, set WP_TEST_CORE_REF. WordPress 7.2's betas live on trunk until
+# wordpress-develop cuts a 7.2 branch (it had none on 2026-11-10); after that,
+# use WP_TEST_CORE_REF=7.2. Fetch into a separate dir so the two cores don't mix:
+#         WP_TEST_CORE_REF=trunk bash tools/fetch-wp-test-core.sh <dir72>
+#         SNT_WP_HTML_API=<dir72>/wp-includes/html-api bash tests/run.sh
+# The suites whose answer differs between 7.1 and 7.2 read the loaded core and
+# expect what it does (tests/lib/parser-walker-agree.php, the list case in
+# tests/og-card-dek-fallback.php), so both cores sweep green.
+#
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 2

@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The test sweep passes on WordPress 7.2 Beta 5 as well as 7.1.4.** In 7.2, core's block parser is built on `WP_Block_Processor`, so a block delimiter inside a plain HTML comment, and attribute JSON that never closes, now read the same to `parse_blocks()` and to the sn_apply delimiter reader. `tests/sn-apply-block-delimiters.php` and `tests/sn-apply-fingerprint-splice.php` now ask which the loaded core does (`tests/lib/parser-walker-agree.php`). Where the two disagree (7.1), the write is refused as before. Where they agree (7.2), the write must splice exactly the block `parse_blocks()` puts at that path and leave every other block as stored. The check that refuses a disagreement stays, because the live site runs 7.1. `tests/run.sh` now says how to sweep 7.2 (`WP_TEST_CORE_REF=trunk` until wordpress-develop has a 7.2 branch). Test setup and comments only.
+- **From WordPress 7.2, a post that opens with a list puts the list's text in its social card dek.** 7.2 adds `core/list` and `core/list-item` to the blocks core's own automatic excerpts keep, and the dek is built on core's `excerpt_remove_blocks()`, so it follows core. On 7.1 the list is skipped, as before; nothing changes until the site updates. `tests/og-card-dek-fallback.php` reads the loaded core's list and expects what it says.
+
 ## [2026.11.23] - 2026-11-10 — Pull-quote suggestions build core's Pull Quote
 
 ### Fixed
