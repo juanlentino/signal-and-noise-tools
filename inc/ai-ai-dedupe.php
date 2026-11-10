@@ -2,7 +2,8 @@
 /**
  * Signal & Noise Tools — ai/ai duplicate-feature dedupe.
  *
- * The upstream "AI" plugin (folder/file ai/ai, v1.0.x) ships two editor
+ * The upstream "AI" plugin (folder/file ai/ai; all six ids below re-read at
+ * 1.5.0 on 2026-11-09) ships two editor
  * features that DUPLICATE Signal & Noise's own generators:
  *   - meta-description  → duplicates SN's _sn_meta_description field + its
  *                         "Generate with AI" button (and, with no third-party
@@ -36,8 +37,11 @@
  * A Settings checkbox was the only thing keeping them off. Ids verified at
  * ai/ai 1.5.0; remove a line to allow one.
  *
- * COUPLING CAVEAT: the two duplicate ids below were verified against ai/ai
- * 1.0.x (audit HEAD c71c9c9, 2026-06-05), the four locks at 1.5.0. ai/ai is
+ * COUPLING CAVEAT: the two duplicate ids below were first verified against
+ * ai/ai 1.0.x (audit HEAD c71c9c9, 2026-06-05) and all six again at 1.5.0
+ * (2026-11-09). The two duplicate blocks date from 2026-06-06, before the
+ * coexistence policy below; handing those two back to the official
+ * generators, with the house voice attached by hook, is the open follow-up. ai/ai is
  * explicitly experimental; if a future release renames a feature id, the
  * filter silently no-ops and that feature comes back, an accepted, documented
  * fragility. Re-verify on ai/ai updates. tests/ai-ai-dedupe.php asserts our

@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * call's SERVED model (falling back to the requested preference). The estimate
  * is list-price based: it does NOT reflect prompt-cache or batch discounts, so
  * it is a close upper bound on real spend, not the billed figure. The WordPress
- * AI Request Logs (Settings → AI) and the provider Console hold the
+ * AI Request Logs (under Tools since AI plugin 1.5.0) and the provider Console hold the
  * authoritative per-request record.
  *
  * Filterable via `snt_ai_model_pricing` so a deployment can override or extend

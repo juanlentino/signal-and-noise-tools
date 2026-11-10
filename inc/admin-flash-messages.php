@@ -400,7 +400,7 @@ function sn_admin_flash_to_notice( $flash ) {
 				$ch   = isset( $b['chars'] ) ? (int) $b['chars'] : 0;
 
 				if ( null === $done ) {
-					$notice .= ' No token record was found for this call, so the output budget cannot be checked here; see Settings &rarr; AI &rarr; AI Request Logs.';
+					$notice .= ' No token record was found for this call, so the output budget cannot be checked here; see Tools &rarr; AI Request Logs.';
 				} elseif ( $max > 0 && $done >= (int) floor( $max * 0.95 ) ) {
 					$notice .= sprintf(
 						' <strong>This is a budget failure, not a JSON one:</strong> the call generated its entire %1$s-token output budget and returned only %2$s characters of text. Output tokens that never reach the text are billed all the same; extended thinking counts against this budget. Raise <code>SN_INSIGHTS_MAX_TOKENS</code> (currently %1$s, hard-clamped at 4096), or turn thinking off for this call.',
