@@ -18,7 +18,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 function add_action( $h, $cb = null, $p = 10, $a = 1 ) {}
 function add_filter( $h, $cb = null, $p = 10, $a = 1 ) {}
 function current_user_can( $c ) { return true; }
-function wp_verify_nonce( $n, $a ) { return true; }
+function check_admin_referer( $a = -1, $q = '_wpnonce' ) { return 1; }
 function sanitize_text_field( $s ) { return trim( (string) $s ); }
 function wp_unslash( $v ) { return $v; }
 $GLOBALS['__options'] = array();
@@ -37,11 +37,11 @@ function wp_safe_redirect( $url ) { throw new SN_RSS_Redirect( $url ); }
 require __DIR__ . '/../inc/rss-feed-tracker.php';
 
 $_POST = array(
-	'sn_rss_action' => 'reset_defaults',
-	'_wpnonce'      => 'x',
+	'action'   => 'sn_rss_reset_defaults',
+	'_wpnonce' => 'x',
 );
 try {
-	sn_rss_tracker_handle_form();
+	sn_rss_tracker_handle_form( 'reset_defaults' ); // what admin_post_sn_rss_reset_defaults runs
 	ok( false, 'expected a redirect to be thrown' );
 } catch ( SN_RSS_Redirect $r ) {
 	ok( 0 === strpos( $r->url, 'https://example.test/wp-admin/admin.php?' ), 'redirect targets admin.php, not themes.php (#1228): ' . $r->url );

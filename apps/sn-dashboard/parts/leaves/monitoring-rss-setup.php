@@ -7,7 +7,7 @@
  * kept), and the settings and the purge, changed once in a while, are folds
  * of one Setup card (snt_kit_setup_card(), inc/openstation-kit-anatomy.php)
  * whose closed lines state the setting. Same three forms, same field names,
- * same `sn_rss_action` values and nonce (rss_form()) as the boxes they replace.
+ * same admin-post actions and nonces (rss_form()) as the boxes they replace.
  *
  * @package SignalNoiseTools
  */

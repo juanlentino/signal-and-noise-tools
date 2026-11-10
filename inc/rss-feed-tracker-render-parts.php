@@ -48,13 +48,10 @@ function sn_rss_tracker_render_stats( $stats ) {
 
 function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<h2 class="sn-section-h">Settings</h2>';
-	// Empty action attr = POST to current URL. #1228: the page now lives
-	// under admin.php (add_menu_page, see inc/admin-menu.php) — themes.php
-	// is stale from before the move; easier to self-post and let admin_init
-	// route than to maintain a URL that has to match the registration site
-	// exactly.
-	echo '<form method="post" class="sn-rss-settings">';
-	wp_nonce_field( SN_RSS_TRACKER_NONCE );
+	// admin-post.php, like every SN form (2026-11-10). Save and Reset share
+	// this form, so each button names its own action and carries a nonce
+	// minted for it alone on formaction= (sn_admin_post_button(), #1614).
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-rss-settings">';
 
 	// Stacked .sn-field rows instead of two-column .form-table — fits the
 	// narrow right column of the 2-col layout much better.
@@ -91,9 +88,9 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '</div>';
 
 	echo '<p class="submit">';
-	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_SAVE ) . '" class="button button-primary">Save Settings</button> ';
+	echo '<button type="submit"' . sn_admin_post_button( 'rss_' . SN_RSS_TRACKER_ACTION_SAVE ) . ' class="button button-primary">Save Settings</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm.
-	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_RESET ) . '" class="button" data-snt-confirm="' . esc_attr__( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Measurement › Analytics is kept.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Reset', 'signal-and-noise-tools' ) . '">Reset to Defaults</button>';
+	echo '<button type="submit"' . sn_admin_post_button( 'rss_' . SN_RSS_TRACKER_ACTION_RESET ) . ' class="button" data-snt-confirm="' . esc_attr__( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Measurement › Analytics is kept.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Reset', 'signal-and-noise-tools' ) . '">Reset to Defaults</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	echo '</p>';
 	echo '</form>';
 }
@@ -125,8 +122,7 @@ function sn_rss_tracker_render_maintenance_form( $settings ) {
 	// border-top via .sn-rss-maintenance — no extra card chrome.
 	echo '<div class="sn-rss-maintenance">';
 	echo '<h2 class="sn-section-h">Maintenance</h2>';
-	echo '<form method="post">';
-	wp_nonce_field( SN_RSS_TRACKER_NONCE );
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
 	echo '<p class="sn-field-helper">Delete rows older than the number of days you enter. First-party collector events are unaffected: only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_rss_purge_days">Older than (days)</label>';
@@ -134,7 +130,7 @@ function sn_rss_tracker_render_maintenance_form( $settings ) {
 	echo '</div>';
 	echo '<p class="submit sn-submit--tight">';
 	// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm.
-	echo '<button type="submit" name="sn_rss_action" value="' . esc_attr( SN_RSS_TRACKER_ACTION_PURGE ) . '" class="button" data-snt-confirm="' . esc_attr__( 'Log entries older than the number of days in this box will be permanently deleted.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Purge old log entries?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Purge', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Purge now</button>';
+	echo '<button type="submit"' . sn_admin_post_button( 'rss_' . SN_RSS_TRACKER_ACTION_PURGE ) . ' class="button" data-snt-confirm="' . esc_attr__( 'Log entries older than the number of days in this box will be permanently deleted.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Purge old log entries?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Purge', 'signal-and-noise-tools' ) . '" data-snt-confirm-danger="1">Purge now</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	echo '</p>';
 	echo '</form>';
 	echo '</div>';
