@@ -50,7 +50,11 @@ function sn_settings_identity_core( $key ) {
 	if ( 'locale' === $key ) {
 		return function_exists( 'get_locale' ) ? (string) get_locale() : 'en_US';
 	}
-	return (string) get_bloginfo( 'site_name' === $key ? 'name' : 'description' );
+	// Core stores both through esc_html() (sanitize_option()), so the raw
+	// option reads "A &amp; B". Decoded here: the value is compared with what
+	// the form sends and goes into JSON-LD and og tags, which escape it again.
+	$value = (string) get_bloginfo( 'site_name' === $key ? 'name' : 'description' );
+	return function_exists( 'wp_specialchars_decode' ) ? wp_specialchars_decode( $value, ENT_QUOTES ) : $value;
 }
 
 /**
@@ -78,8 +82,8 @@ function sn_settings_identity_override( $key ) {
 function sn_settings_defaults() {
 	return array(
 		'identity' => array(
-			'site_name'        => get_bloginfo( 'name' ),
-			'site_description' => get_bloginfo( 'description' ),
+			'site_name'        => sn_settings_identity_core( 'site_name' ),
+			'site_description' => sn_settings_identity_core( 'site_description' ),
 			'person_name'      => get_bloginfo( 'name' ),
 			'locale'           => sn_settings_identity_core( 'locale' ),
 			// v6.17.0 (D5): owner-edited availability line surfaced in the

@@ -22,6 +22,7 @@ function get_option( $name, $default = false ) { return array_key_exists( $name,
 function update_option( $name, $value ) { $GLOBALS['__options'][ $name ] = 'sn_settings' === $name ? sn_settings_sanitize_option( $value ) : $value; return true; }
 function get_bloginfo( $what ) { return $GLOBALS['__core'][ $what ] ?? ''; }
 function get_locale() { return $GLOBALS['__core']['locale']; }
+function wp_specialchars_decode( $s, $q = ENT_NOQUOTES ) { return htmlspecialchars_decode( (string) $s, $q ); }
 function sanitize_text_field( $s ) { return trim( (string) $s ); }
 function sanitize_textarea_field( $s ) { return trim( (string) $s ); }
 function sanitize_title( $s ) { return strtolower( trim( (string) $s ) ); }
@@ -76,6 +77,14 @@ ok( 1 === preg_match( '/name="identity_site_name" value="" placeholder="Somethin
 ok( 1 === preg_match( '/name="identity_site_description"[^>]*placeholder="New tagline"[^>]*><\/textarea>/', $html ), 'the tagline too' );
 ok( 1 === preg_match( '/name="identity_locale" value="" placeholder="en_GB"/', $html ), 'and the locale' );
 ok( false !== strpos( $html, 'href="https://example.test/wp-admin/options-general.php"' ), 'the form links to Settings > General' );
+
+echo "Core stores the name and tagline entity-encoded (sanitize_option runs esc_html)\n";
+$GLOBALS['__options'] = array();
+$GLOBALS['__core']    = array( 'name' => 'Rock &amp; Roll', 'description' => 'Tom&#039;s &quot;notes&quot;', 'locale' => 'en_US' );
+ok( 'Rock & Roll' === read( 'site_name' ) && 'Tom\'s "notes"' === read( 'site_description' ), 'readers get the text, not the entities (the value goes into JSON-LD and og tags)' );
+sn_settings_save( array( 'identity_site_name' => 'Rock & Roll', 'identity_site_description' => 'Tom\'s "notes"' ) );
+ok( array() === array_intersect_key( stored_identity(), array( 'site_name' => 1, 'site_description' => 1 ) ), 'and the same text typed in the form is recognized as core\'s, so nothing is stored' );
+ok( 1 === preg_match( '/name="identity_site_name" value="" placeholder="Rock &amp; Roll"/', form() ), 'the placeholder is escaped once' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
