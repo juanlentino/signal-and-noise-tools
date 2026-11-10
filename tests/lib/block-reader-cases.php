@@ -39,6 +39,7 @@ return array(
 	'a comment holding paragraph markup'     => '<!-- <p>Correction, this sentence sits in an HTML comment and nobody reads it at all.</p> -->' . $para( $body ),
 	'a list and a paragraph inside details'  => '<!-- wp:list --><ul class="wp-block-list"><!-- wp:list-item --><li>A list item long enough to pass the floor if it were ever counted.</li><!-- /wp:list-item --></ul><!-- /wp:list --><!-- wp:details --><details class="wp-block-details"><summary>More</summary>' . $para( '<p>Inside the details block there is one more paragraph of ordinary prose to read.</p>' ) . '</details><!-- /wp:details -->',
 	'a pullquote and a custom HTML block'    => '<!-- wp:pullquote --><figure class="wp-block-pullquote"><blockquote><p>A pulled sentence that repeats the body and is long enough to count.</p><cite>Body</cite></blockquote></figure><!-- /wp:pullquote --><!-- wp:html --><p>Correction, written by hand inside a custom HTML block, forty characters and more.</p><!-- /wp:html -->',
+	'a classic chunk between blocks'         => $para( $body ) . "\n\n<p>Correction, typed into a Classic block years ago and never converted to a paragraph block.</p>\n\n" . $para( '<p>And then the note goes on in blocks, as every newer note on the site does.</p>' ),
 	'classic content, no blocks'             => "<p>Correction, October 3, 2026: this body was written in the classic editor.</p>\n<p>It has a second paragraph that is also long enough to be read on its own.</p>",
 	'empty input'                            => '',
 );

@@ -120,6 +120,11 @@ $want_paragraphs = array(
 		'A pulled sentence that repeats the body and is long enough to count.',
 		'Correction, written by hand inside a custom HTML block, forty characters and more.',
 	),
+	'a classic chunk between blocks' => array(
+		'The ledger was reopened in the spring, and nobody had expected what it showed.',
+		'Correction, typed into a Classic block years ago and never converted to a paragraph block.',
+		'And then the note goes on in blocks, as every newer note on the site does.',
+	),
 	'classic content, no blocks' => array(
 		'Correction, October 3, 2026: this body was written in the classic editor.',
 		'It has a second paragraph that is also long enough to be read on its own.',

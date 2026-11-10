@@ -254,6 +254,7 @@ $want_notices = array(
 	'a comment holding paragraph markup' => array(),
 	'a list and a paragraph inside details' => array(),
 	'a pullquote and a custom HTML block' => array(),
+	'a classic chunk between blocks' => array(),
 	'classic content, no blocks' => array(),
 	'empty input' => array(),
 );
