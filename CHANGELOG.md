@@ -12,6 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The AI plugin's bulk "Generate Summary" action is removed from the Posts list.** It wrote model text into up to 100 selected posts with nobody reading each result, and on a published note every save is a provenance version made outside the write door. The per-post Summary button in the editor stays: there a person reads the summary before saving. A crafted request for the removed action is not handled. New `inc/ai-official-complement.php`; test `tests/ai-official-complement.php`.
+- **A note advertises one Markdown copy.** Each note's head carried two `text/markdown` links to two different documents: this site's `.md` (served at the edge, with the provenance record) and the AI plugin's `?output_format=markdown`. On notes the second link is no longer printed; the Markdown feed link stays, pages are untouched, and the document itself still answers.
+- Admin text: the "no token record" notice points to Tools › AI Request Logs, where AI plugin 1.5.0 put them.
+
 ### Fixed
 - **The analytics verdict can no longer be cleared by a failed version read or a worker rollback.** Analytics worker 2.0.0 stops writing the legacy dataset, and the plugin learns that only from the worker's version. Two gaps let the daily check compare against a dataset that receives nothing, call every day since the stop a mismatch and send every read, and the nightly rollups that replace stored days, back to it. A good frozen verdict is now final: the check returns it without comparing, whatever the version reads later; clearing `frozen` is done by hand. And a mismatch only replaces a good verdict when the edge itself answers with a version: if that read fails, the stored verdict is kept and the next run decides (it used to fall back to the last good version, which can predate the stop). Install this before worker 2.0.0 is merged. Tests: `tests/analytics-generation.php`.
 - **A note's "after the first hour" figures keep counting for notes that went live before October 18.** The publish window read the whole span from one dataset, the legacy one for those notes, so the figures would have stopped growing when the legacy write stops. It is now read in two halves like the lanes table. Test: `tests/publish-window.php` (fails without the fix).

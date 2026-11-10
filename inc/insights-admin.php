@@ -114,7 +114,7 @@ function snt_insights_render_status_section( $last ) {
  * Read-only "AI usage & spend" section: token usage + estimated USD cost for
  * the plugin's OWN AI features, from the recorded usage log
  * (snt_ai_usage_summary). This is the plugin-scoped, cost-annotated complement
- * to WordPress's native AI Request Logs (Settings → AI), which hold the full
+ * to WordPress's native AI Request Logs (under Tools since AI plugin 1.5.0), which hold the full
  * per-request log of all AI Connector traffic. Cost is a list-price estimate
  * derived from the real recorded token counts.
  *
