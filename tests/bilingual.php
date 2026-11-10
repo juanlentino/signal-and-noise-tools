@@ -87,20 +87,7 @@ ok( 'front-page.php' === sn_lang_page_template_hierarchy( array( 'page-inicio.ph
 $GLOBALS['q'] = 11;
 ok( array( 'page-music.php', 'page.php' ) === sn_lang_page_template_hierarchy( array( 'page-music.php', 'page.php' ) ), 'an English page\'s hierarchy is untouched' );
 
-echo "\nGroup: English fallback\n";
-$GLOBALS['q'] = 21; $GLOBALS['content'] = array( 11 => 'English body', 21 => '' );
-ok( '<div class="entry-content wp-block-post-content is-layout-flow wp-block-post-content-is-layout-flow" lang="en"><p>English body</p></div>' === sn_lang_content_fallback( '', array() ), 'an empty Spanish page shows the English body in core\'s post-content wrapper, marked lang="en"' );
-$GLOBALS['content'][21] = 'Cuerpo';
-ok( 'X' === sn_lang_content_fallback( 'X', array() ), 'a written Spanish body renders as itself' );
-$GLOBALS['content'][21] = '';
-ok( 'X' === sn_lang_content_fallback( 'X', array(), (object) array( 'context' => array( 'postId' => 999 ) ) ), 'a post-content block for another post (a query loop) is left alone' );
-$GLOBALS['status'][11] = 'private';
-ok( 'X' === sn_lang_content_fallback( 'X', array() ), 'a private English page lends no body' );
-$GLOBALS['status'][11] = 'publish'; $GLOBALS['pw'][11] = true;
-ok( 'X' === sn_lang_content_fallback( 'X', array() ), 'a password-protected English page lends no body' );
-$GLOBALS['pw'] = array();
-$GLOBALS['q'] = 11;
-ok( 'X' === sn_lang_content_fallback( 'X', array() ), 'an English page never falls back' );
+// The English fallback runs through core's own render callback and hook API: tests/bilingual-fallback-on-core.php.
 
 echo "\nGroup: seed map\n";
 ok( array( 'inicio', 'sobre-mi', 'musica', 'servicios', 'cv' ) === array_keys( sn_lang_seed_map() ), 'the five Spanish slugs' );

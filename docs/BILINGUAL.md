@@ -32,7 +32,7 @@ The pages are CMS pages, and their text is the Page body. **S&N → Content** ha
 
 ## The fallback rule: an empty Spanish field shows the English one
 
-- **Body.** An empty Spanish Page body renders the English page's body, wrapped in `<div lang="en">` so a screen reader reads it in English (`sn_lang_content_fallback()`).
+- **Body.** An empty Spanish Page body renders the English page's body. Core's own post-content block wraps it, as the template asks, and the wrapper is marked `lang="en"` so a screen reader reads it in English (`sn_lang_content_fallback_arm()`, `sn_lang_content_fallback_body()`, `sn_lang_content_fallback()`).
 - **Meta description.** When the Spanish page has no override and no excerpt, the English page's description is used (`sn_seo_resolve_singular_description()`). For `/inicio/`, that is **S&N → Settings → SEO copy → home description**.
 - **SEO title.** There is no English fallback here, because a Spanish page always has a Spanish title. Without an override, the tab shows "Música — Juan Lentino". Set an SEO title on `/inicio/`, since "Inicio" alone says little.
 - **Release notes.** An empty Spanish note shows the English note, marked `lang="en"`.

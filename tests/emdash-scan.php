@@ -28,6 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "  ok  - $m\n"; } else { ++$fail; echo "  FAIL - $m\n"; } }
 
+require_once __DIR__ . '/lib/wp-core-blocks.php'; // The code under test reads markup with core's HTML API and block processor.
 require __DIR__ . '/../inc/emdash-scan.php';
 
 /** Convenience: only the prose candidates, in document order. */

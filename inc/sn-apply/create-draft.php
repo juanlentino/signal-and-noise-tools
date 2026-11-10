@@ -238,9 +238,9 @@ function snt_sn_apply_gate2_create_draft( array $payload ) {
  * for parse_blocks and against the documented behavior of
  * wp-includes/class-wp-block-parser.php's frame-stack design, which
  * recovers from bad input rather than failing loudly) — this check exists
- * to close exactly that gap, with a stack-based scan mirroring the block
- * parser's own frame-stack shape, using PCRE recursion `(?4)` to match
- * (possibly nested-brace) JSON attrs without truncating on the first `}`.
+ * to close exactly that gap, with a stack of open block names over the
+ * delimiters core's WP_Block_Processor finds (block-delimiters.php). Names
+ * drop the core/ namespace, so "core/paragraph" closes "paragraph".
  *
  * @param string $content
  * @return array findings (severity 'error') — empty when balanced.
@@ -248,28 +248,37 @@ function snt_sn_apply_gate2_create_draft( array $payload ) {
 function snt_sn_apply_block_delimiter_findings( $content ) {
 	$findings = array();
 	$content  = (string) $content;
-	$pattern  = '/<!--\s*(\/)?wp:([a-z][a-z0-9_-]*\/)?([a-z][a-z0-9_-]*)(?:\s+({(?:[^{}]+|(?4))*}))?\s*(\/)?-->/s';
+	$scan     = snt_sn_apply_block_delimiters( $content );
 
-	if ( ! preg_match_all( $pattern, $content, $matches, PREG_SET_ORDER ) ) {
-		if ( false !== strpos( $content, '<!-- wp:' ) ) {
+	// Whatever lies between the delimiters core reads must not still look like
+	// one: a delimiter inside another comment, one cut off at the end, or one
+	// whose attribute JSON never closes. Core's block parser, which is not yet
+	// built on the processor, can read those as blocks, so the two would
+	// disagree about the draft. Refuse rather than pick a reading.
+	$at = 0;
+	foreach ( array_merge( $scan['delimiters'], array( array( 'start' => strlen( $content ), 'end' => strlen( $content ) ) ) ) as $d ) {
+		$gap = substr( $content, $at, $d['start'] - $at );
+		$at  = $d['end'];
+		if ( false !== strpos( $gap, '<!-- wp:' ) || false !== strpos( $gap, '<!-- /wp:' ) ) {
 			$findings[] = snt_sn_validate_finding(
 				'create_draft', 'block_delimiters', 'error',
-				__( 'Content contains "<!-- wp:" but no valid block delimiter could be parsed from it.', 'signal-and-noise-tools' ),
+				__( 'Content contains "<!-- wp:" text that is not a valid block delimiter: it sits inside another comment, is cut off, or carries malformed attributes.', 'signal-and-noise-tools' ),
 				null, null, array(), 'create_draft|block_delimiters|unparseable'
 			);
+			break;
 		}
+	}
+	if ( ! $scan['delimiters'] ) {
 		return $findings;
 	}
 
 	$stack = array();
-	foreach ( $matches as $m ) {
-		$is_close        = '' !== ( $m[1] ?? '' );
-		$name            = ( $m[2] ?? '' ) . ( $m[3] ?? '' );
-		$is_self_closing = '' !== ( $m[5] ?? '' );
-		if ( $is_self_closing ) {
+	foreach ( $scan['delimiters'] as $d ) {
+		$name = $d['name'];
+		if ( 'void' === $d['type'] ) {
 			continue; // Void block, e.g. <!-- wp:separator /-->: never opens a frame.
 		}
-		if ( $is_close ) {
+		if ( 'closer' === $d['type'] ) {
 			$top = array_pop( $stack );
 			if ( $top !== $name ) {
 				$findings[] = snt_sn_validate_finding(

@@ -63,6 +63,7 @@ $expected_surface = array(
 	'snt_sn_apply_batch_edits_impl',
 	'snt_sn_apply_batch_overlap_error',
 	'snt_sn_apply_block_delimiter_findings',
+	'snt_sn_apply_block_delimiters',          // 2026-11-10: the one delimiter reader, on core's WP_Block_Processor.
 	'snt_sn_apply_block_edit_anchor_min_error',
 	'snt_sn_apply_block_edit_compute',
 	'snt_sn_apply_block_edit_compute_move',
@@ -72,6 +73,7 @@ $expected_surface = array(
 	'snt_sn_apply_block_edit_prose_delta',
 	'snt_sn_apply_block_edit_removal_range',
 	'snt_sn_apply_block_edit_resolve_span',
+	'snt_sn_apply_block_edit_parser_agrees',   // 2026-11-10: the span must be the block parse_blocks() sees.
 	'snt_sn_apply_block_edit_scan_spans',
 	'snt_sn_apply_block_edit_span_for_path',
 	'snt_sn_apply_block_edit_unknown_block',
