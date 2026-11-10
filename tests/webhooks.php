@@ -668,5 +668,7 @@ $wh_admin = (string) file_get_contents( __DIR__ . '/../inc/webhooks-admin.php' )
 wh_true( false !== strpos( $wh_admin, "sn-fieldset sn-fieldset--wide' . ( \$is_new" ), 'the per-webhook card carries --wide (source guard: this suite does not render the admin tab)' );
 wh_true( 5 === substr_count( $wh_admin, '<th scope="col">' ), 'and the delivery log still has the FIVE columns that justify it — the reason is pinned beside the class' );
 
+wh_true( true === ( $GLOBALS['__wh_last_post']['args']['reject_unsafe_urls'] ?? null ), 'dispatch sets reject_unsafe_urls, so core re-checks the URL at send time, not only at save' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

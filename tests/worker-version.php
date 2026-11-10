@@ -369,6 +369,7 @@ $GLOBALS['__test_http']      = wv_ok_http();
 $r = sn_worker_version_probe();
 wv_eq( 1, count( $GLOBALS['__test_get_calls'] ), 'public https endpoint → exactly one GET' );
 wv_eq( 0, $GLOBALS['__test_get_calls'][0]['args']['redirection'], 'redirection === 0 (no redirect off the validated host)' );
+wv_eq( true, $GLOBALS['__test_get_calls'][0]['args']['reject_unsafe_urls'] ?? null, 'reject_unsafe_urls === true (core re-checks the URL at send time, beside the guard)' );
 wv_true( $r['ok'], 'public https + valid body → ok' );
 wv_eq( '1.4.0', $r['data']['version'], 'probe surfaces the parsed version' );
 wv_eq( 'https://kuma.example.com/_sn/version', $r['url'], 'result carries the probed endpoint' );
