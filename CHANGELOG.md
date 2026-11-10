@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A fingerprint block replacement changes only that block.** The block-fingerprint engine (sn-apply surfaces, block migrations, pattern adoption) re-serialized the whole post with `serialize_blocks()` after swapping the matched block, so bytes elsewhere in a published note could change and mint a provenance version for nothing; the dry-run preview did the same. Both now splice the one block's byte span (`snt_sn_apply_fp_splice()` in `inc/sn-apply/block-delimiters.php`), after checking that core's block parser and its delimiter reader agree on it. A post where they disagree is refused with 422 `snt_sn_apply_block_path_unresolvable` instead of being rewritten. Test: `tests/sn-apply-fingerprint-splice.php`.
+
 ### Changed
 - **Core-first audit, part 3: HTML and block markup are read with core's parsers, not regular expressions.** Readers move to `WP_HTML_Tag_Processor`, `WP_HTML_Processor`, `parse_blocks()` and `WP_Block_Processor`: health checks, the citation verifier, link extraction (one shared `sn_html_a_hrefs()`), the correction-notice reader (notices inside groups now count), Jev tells, the OG card dek, the world map, the em-dash and editorial scanners, and the anchor scan. Each was pinned against its old output first; the differences are regex mistakes fixed (a link inside a comment or script no longer counts; `<a title="a > b">` is now read).
 - **sn-apply's write path stands on core.** Block edits locate blocks with `WP_Block_Processor` and refuse unless `parse_blocks()` agrees on the block; link-reshape finds `<a>` with the Tag Processor. Offsets only: nothing outside the edit is re-serialized.
