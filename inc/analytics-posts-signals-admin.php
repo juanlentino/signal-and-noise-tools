@@ -236,7 +236,7 @@ function sn_posts_render_table( array $rows, array $strip ) {
 	);
 
 	// Collapsed by default: the queue above is the work; this is the reference.
-	// The panel remembers the reader's choice (admin.js, per panel, localStorage).
+	// A native <details> (snt_an_panel_open()): it opens closed on every load.
 	snt_an_panel_open( __( 'Show all notes', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside', 'header_meta' => $win, 'collapsible' => true, 'collapsed' => true ) );
 	echo '<div class="snt-scroll-table"><table class="widefat striped sn-posts-table" data-sortable><thead><tr>';
 	foreach ( $cols as $col ) {

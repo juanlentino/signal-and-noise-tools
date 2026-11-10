@@ -33,7 +33,7 @@ if ( ! function_exists( 'snt_analytics_smooth_path' ) ) {
  *     @type string $inside_class Body class. Default 'inside'.
  *     @type string $panel_class  Extra classes on the .postbox.
  *     @type string $header_meta  Small muted note right of the title (kses'd).
- *     @type bool   $collapsible  Adds the toggle button + marker. Default false.
+ *     @type bool   $collapsible  A native <details> whose <summary> is the header. Default false.
  *     @type bool   $collapsed    Start collapsed (only with collapsible). Default false.
  * }
  */
@@ -45,24 +45,25 @@ function snt_an_panel_open( $title, $args = array() ) {
 	$panel_class  = trim( 'postbox sn-an-postbox ' . (string) ( $args['panel_class'] ?? '' ) );
 	$inside_class = (string) ( $args['inside_class'] ?? 'inside' );
 	$collapsible  = ! empty( $args['collapsible'] );
-	$collapsed    = $collapsible && ! empty( $args['collapsed'] );
-	if ( $collapsed ) {
-		$panel_class .= ' sn-an-collapsed';
-	}
+	$head         = '<h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2>'
+		. ( empty( $args['header_meta'] ) ? '' : '<span class="sn-an-head-meta">' . wp_kses_post( (string) $args['header_meta'] ) . '</span>' );
 
-	echo '<div class="' . esc_attr( $panel_class ) . '"'
-		. ( $collapsible ? ' data-sn-an-collapsible="' . esc_attr( sanitize_title( $title ) ) . '"' : '' )
-		. '>';
-	echo '<div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2>';
-	if ( ! empty( $args['header_meta'] ) ) {
-		echo '<span class="sn-an-head-meta">' . wp_kses_post( (string) $args['header_meta'] ) . '</span>';
-	}
+	// 2026-11-10 core-first audit: a collapsible panel is the platform's own
+	// disclosure, so the browser owns the toggle, the keyboard and the expanded
+	// state, and the page's `open` is the state, as for every other fold. Not
+	// core's postbox.js: add_postbox_toggles() binds every `.postbox .hndle` on
+	// the page (the plain panels would fold on a title click), save_state()
+	// writes every `.postbox` into two user metas, and postbox_classes() has
+	// no default-closed. The plain panels keep the .postbox look and nothing else.
 	if ( $collapsible ) {
-		echo '<button type="button" class="sn-an-toggle" aria-expanded="' . ( $collapsed ? 'false' : 'true' ) . '">'
-			. '<span class="screen-reader-text">' . esc_html__( 'Toggle panel', 'signal-and-noise-tools' ) . '</span>'
-			. '</button>';
+		echo '<details class="' . esc_attr( $panel_class ) . '" data-sn-an-collapsible="' . esc_attr( sanitize_title( $title ) ) . '"'
+			. ( empty( $args['collapsed'] ) ? ' open' : '' ) . '>';
+		echo '<summary class="postbox-header">' . $head . '</summary>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $head is built from esc_html() and wp_kses_post() above.
+	} else {
+		echo '<div class="' . esc_attr( $panel_class ) . '">';
+		echo '<div class="postbox-header">' . $head . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $head is built from esc_html() and wp_kses_post() above.
 	}
-	echo '</div>';
+	snt_an_panel_closers( $collapsible ? '</div></details>' : '</div></div>' );
 	echo '<div class="' . esc_attr( $inside_class ) . '">';
 }
 
@@ -73,7 +74,24 @@ function snt_an_panel_close() {
 	if ( snt_an_surface( 'panel-close', array() ) ) {
 		return;
 	}
-	echo '</div></div>';
+	echo snt_an_panel_closers(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a fixed closing-tag literal pushed by snt_an_panel_open().
+}
+
+/**
+ * The open panels' closing tags, innermost last: a collapsible panel closes
+ * as a </details>, a plain one as a </div>. With $push, remember one; without,
+ * hand back the innermost (a plain close when none is open, as it always was).
+ *
+ * @param string|null $push A closing-tag literal to remember.
+ * @return string
+ */
+function snt_an_panel_closers( $push = null ) {
+	static $open = array();
+	if ( null !== $push ) {
+		$open[] = (string) $push;
+		return '';
+	}
+	return array() === $open ? '</div></div>' : (string) array_pop( $open );
 }
 
 /**
