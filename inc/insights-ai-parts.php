@@ -16,10 +16,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Build the AI prompt + system instruction and call the AI client.
  *
- * @param array $signals Output of snt_insights_collect_signals().
+ * @param array $signals    Output of snt_insights_collect_signals().
+ * @param bool  $structured Out. True when the text came back under
+ *                          snt_insights_response_schema(), false on the plain retry.
  * @return string|WP_Error Raw AI response text, or WP_Error on failure.
  */
-function snt_insights_call_ai( $signals ) {
+function snt_insights_call_ai( $signals, &$structured = null ) {
+	$structured = false;
 	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
 		return new WP_Error(
 			'snt_insights_ai_unavailable',
@@ -46,7 +49,56 @@ function snt_insights_call_ai( $signals ) {
 	// AI Client's own model config for this one call.
 	$options = function_exists( 'snt_insights_budget_options' ) ? 'snt_insights_budget_options' : array();
 
-	return snt_ai_generate_with_constraints( $prompt, $system, SN_INSIGHTS_MAX_TOKENS, 'insights', '', '', $options );
+	return snt_ai_generate_with_constraints( $prompt, $system, SN_INSIGHTS_MAX_TOKENS, 'insights', '', '', $options, snt_insights_response_schema(), $structured );
+}
+
+/**
+ * JSON schema for the scan's structured output: the AI Client's
+ * as_json_response(). A schema root must be an object, so the question list
+ * sits under "questions". Only keywords structured outputs accept: every object
+ * closed, every key required, no length or count limits (the 200-character and
+ * SN_INSIGHTS_REC_MAX caps stay in snt_insights_parse_response()).
+ *
+ * @return array
+ */
+function snt_insights_response_schema() {
+	$text = array( 'type' => 'string' );
+	return array(
+		'type'                 => 'object',
+		'properties'           => array(
+			'questions' => array(
+				'type'  => 'array',
+				'items' => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'id'            => $text,
+						'question'      => $text,
+						'adjacent_note' => $text,
+						'why_uncovered' => $text,
+						'wall_check'    => $text,
+						'target'        => array(
+							'anyOf' => array(
+								array( 'type' => 'null' ),
+								array(
+									'type'                 => 'object',
+									'properties'           => array(
+										'post_id' => array( 'type' => 'integer' ),
+										'url'     => $text,
+									),
+									'required'             => array( 'post_id', 'url' ),
+									'additionalProperties' => false,
+								),
+							),
+						),
+					),
+					'required'             => array( 'id', 'question', 'adjacent_note', 'why_uncovered', 'wall_check', 'target' ),
+					'additionalProperties' => false,
+				),
+			),
+		),
+		'required'             => array( 'questions' ),
+		'additionalProperties' => false,
+	);
 }
 
 /**
@@ -270,30 +322,40 @@ function snt_insights_recover_json_array( $text ) {
  * "recommend nothing" is a first-class outcome, never an error. Only malformed
  * JSON (not an array) is an error.
  *
- * @param string $raw Raw text returned by the AI.
+ * A structured response (the AI Client held it to snt_insights_response_schema())
+ * is decoded as-is and unwrapped from "questions": no fence strip, no salvage.
+ * The fence strip and the recovery below serve only the plain-text retry.
+ *
+ * @param string $raw        Raw text returned by the AI.
+ * @param bool   $structured Whether $raw came back under the response schema.
  * @return array|WP_Error Array of validated recommendations (possibly empty),
  *                        OR WP_Error when the response is not a JSON array.
  */
-function snt_insights_parse_response( $raw ) {
+function snt_insights_parse_response( $raw, $structured = false ) {
 	$text = trim( (string) $raw );
 
-	// Strip ```json ... ``` or ``` ... ``` fences if present.
-	if ( preg_match( '/^```(?:json)?\s*(.*?)\s*```$/s', $text, $m ) ) {
-		$text = trim( $m[1] );
-	}
+	if ( $structured ) {
+		$decoded = json_decode( $text, true );
+		$decoded = ( is_array( $decoded ) && isset( $decoded['questions'] ) && is_array( $decoded['questions'] ) ) ? $decoded['questions'] : null;
+	} else {
+		// Strip ```json ... ``` or ``` ... ``` fences if present.
+		if ( preg_match( '/^```(?:json)?\s*(.*?)\s*```$/s', $text, $m ) ) {
+			$text = trim( $m[1] );
+		}
 
-	$decoded = json_decode( $text, true );
+		$decoded = json_decode( $text, true );
 
-	// v7.0.1: the model sometimes wraps the array in a sentence of prose
-	// ("Here are the open questions: [ ... ]  Hope this helps.") despite the
-	// system instruction, which makes the WHOLE string invalid JSON and used to
-	// surface a false snt_insights_invalid_json (mis-reported as "configure AI").
-	// Recovery runs ONLY after a direct decode already failed, so the happy path
-	// is byte-identical; genuinely non-JSON text (no bracketed array) still errors.
-	if ( ! is_array( $decoded ) ) {
-		$recovered = snt_insights_recover_json_array( $text );
-		if ( null !== $recovered ) {
-			$decoded = $recovered;
+		// v7.0.1: the model sometimes wraps the array in a sentence of prose
+		// ("Here are the open questions: [ ... ]  Hope this helps.") despite the
+		// system instruction, which makes the WHOLE string invalid JSON and used to
+		// surface a false snt_insights_invalid_json (mis-reported as "configure AI").
+		// Recovery runs ONLY after a direct decode already failed, so the happy path
+		// is byte-identical; genuinely non-JSON text (no bracketed array) still errors.
+		if ( ! is_array( $decoded ) ) {
+			$recovered = snt_insights_recover_json_array( $text );
+			if ( null !== $recovered ) {
+				$decoded = $recovered;
+			}
 		}
 	}
 

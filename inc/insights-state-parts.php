@@ -109,12 +109,13 @@ function snt_insights_run_scan( $force = false ) {
 	$started = microtime( true );
 
 	$signals = snt_insights_collect_signals();
-	$raw     = snt_insights_call_ai( $signals );
+	$structured = false;
+	$raw        = snt_insights_call_ai( $signals, $structured );
 	if ( is_wp_error( $raw ) ) {
 		return $raw;
 	}
 
-	$parsed = snt_insights_parse_response( $raw );
+	$parsed = snt_insights_parse_response( $raw, $structured );
 	if ( is_wp_error( $parsed ) ) {
 		// v13.20.4: a parse failure is frequently NOT a parse problem — the
 		// parser can only report what it was handed. Attach the call's token
