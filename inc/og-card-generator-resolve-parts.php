@@ -238,13 +238,17 @@ function sn_og_card_dek_source( $post ) {
 		$gap = static function ( $html ) {
 			return $html . ' ';
 		};
+		// Shortcodes go BEFORE the blocks are rendered, not after: a
+		// render_block listener may expand one (inc/reading-time.php turns
+		// [sn_reading_time] into "6 min read"), and the dek never carried a
+		// shortcode's output.
 		add_filter( 'render_block', $gap );
 		try {
-			$cleaned = excerpt_remove_blocks( $content );
+			$cleaned = excerpt_remove_blocks( strip_shortcodes( $content ) );
 		} finally {
 			remove_filter( 'render_block', $gap );
 		}
-		$cleaned = wp_strip_all_tags( strip_shortcodes( $cleaned ) );
+		$cleaned = wp_strip_all_tags( $cleaned );
 		$excerpt = wp_trim_words( $cleaned, 36, '…' );
 	}
 	if ( '' === trim( $excerpt ) ) {

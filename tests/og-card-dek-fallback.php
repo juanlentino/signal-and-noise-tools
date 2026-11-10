@@ -35,7 +35,7 @@ function apply_filters_deprecated( $tag, $args, $version = '', $replacement = ''
 	$GLOBALS['__deprecated_calls'][] = array( 'tag' => $tag, 'version' => $version, 'message' => $message );
 	return apply_filters( $tag, ...$args );
 }
-function strip_shortcodes( $s ) { return $s; }
+function strip_shortcodes( $s ) { return preg_replace( '/\[sn_reading_time[^\]]*\]/', '', (string) $s ); } // the one shortcode these cases use.
 function wp_strip_all_tags( $s ) { return $s; }
 function wp_trim_words( $s, $n = 55, $more = '...' ) { return trim( $s ); }
 function sn_post_settings_get_og_image_url( $id ) { return $GLOBALS['__override']; }
@@ -202,6 +202,14 @@ foreach ( $dek_cases as $name => $content ) {
 	ok( ( $want_dek[ $name ] ?? null ) === $got, "dek: $name" . ( ( $want_dek[ $name ] ?? null ) === $got ? '' : ' (got ' . var_export( $got, true ) . ')' ) );
 }
 ok( array() === ( $GLOBALS['__filters']['render_block'] ?? array() ), 'the spacing filter on render_block is gone once the dek is derived' );
+
+// A render_block listener that expands a shortcode, as inc/reading-time.php does on the live site. The
+// regex path stripped the shortcode and never rendered a block, so the dek never carried its output.
+$expand = static fn( $html ) => str_replace( '[sn_reading_time]', '6 min read', $html );
+add_filter( 'render_block', $expand );
+$got = $sn_txt( sn_og_card_dek_source( (object) array( 'ID' => 41, 'post_excerpt' => '', 'post_content' => $p( '[sn_reading_time]' ) . $p( $body ) ) ) );
+remove_filter( 'render_block', $expand );
+ok( 'Two papers and a running series of notes.' === $got, 'a shortcode is stripped before blocks render, so a listener cannot expand it into the dek (got ' . var_export( $got, true ) . ')' );
 
 echo "\nGroup: a page's card says what its description says (Unreleased)\n";
 $GLOBALS['__seo'] = array( 1184 => 'Founder and music executive, 15+ years.' );
