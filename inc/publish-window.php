@@ -150,10 +150,23 @@ function sn_publish_window_read( $path, $from, $end, $with_sources ) {
 		return 'overcap_unread'; // the cap was not applied: humans would be over-counted.
 	}
 	$tz     = function_exists( 'sn_analytics_site_tz_name' ) ? sn_analytics_site_tz_name() : '';
-	$source = sn_analytics_source( gmdate( 'Y-m-d', (int) $from - 86400 ) );
-	$public = sn_lanes_read( sn_lanes_public_sql( $source, '', $tz, $scope ) );
-	if ( ! is_array( $public ) ) {
-		return $public;
+	// The "after" half runs to now. A note that went live before the clean day
+	// is read in two halves, like the lanes table (sn_lanes_public_rows): the
+	// legacy dataset alone stopped receiving rows with analytics worker 2.0.0.
+	$from_day = gmdate( 'Y-m-d', (int) $from - 86400 );
+	$source   = sn_analytics_source( $from_day );
+	$halves   = sn_analytics_stitch( $from_day );
+	$parts    = null === $halves ? array( array( $source, '' ) ) : array(
+		array( $halves['legacy'], " AND timestamp < toDateTime('{$halves['at']}')" ),
+		array( $halves['v2'], " AND timestamp >= toDateTime('{$halves['at']}')" ),
+	);
+	$public = array();
+	foreach ( $parts as $p ) {
+		$got = sn_lanes_read( sn_lanes_public_sql( $p[0], $p[1], $tz, $scope ) );
+		if ( ! is_array( $got ) ) {
+			return $got;
+		}
+		$public = array_merge( $public, $got );
 	}
 	$owner = '' !== sn_lanes_since( 'beacon' ) ? sn_lanes_read( sn_lanes_owner_sql( $tz, $scope ) ) : array();
 	if ( ! is_array( $owner ) ) {

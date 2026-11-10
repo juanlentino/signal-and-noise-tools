@@ -319,7 +319,7 @@ function snt_analytics_pipeline_pills() {
 			$missing = array();
 			if ( array() !== $cfg ) {
 				if ( empty( $cfg['px_token_set'] ) ) { $missing[] = 'SN_PX_TOKEN'; }
-				if ( empty( $cfg['ae_bound'] ) ) { $missing[] = 'SN_AE'; }
+				if ( empty( $cfg['ae_bound'] ) ) { $missing[] = 'SN_AE_PV / SN_AE_EVENTS'; }
 			}
 			$pills[] = empty( $missing )
 				? array( 'ok', $label, '' )

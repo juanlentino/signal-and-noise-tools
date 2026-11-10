@@ -338,6 +338,18 @@ function sn_analytics_worker_version( $force = false ) {
 }
 
 /**
+ * The analytics worker's version from a probe made now, or null when that
+ * probe failed. Never the last good one: before a mismatch replaces a good
+ * verdict, only the edge's own answer counts.
+ *
+ * @return string|null '' when the edge answered without a version.
+ */
+function sn_analytics_worker_version_fresh() {
+	$r = function_exists( 'sn_worker_version_get' ) ? sn_worker_version_get( true ) : array();
+	return is_array( $r ) && ! empty( $r['ok'] ) ? (string) ( $r['data']['version'] ?? '' ) : null;
+}
+
+/**
  * Whether the legacy write has stopped: the analytics worker is 2.0.0 or
  * later. An unread version is not a stop. Request-scoped; `$set` is the test
  * seam.
@@ -426,6 +438,15 @@ function sn_analytics_v2_verify( $now = null ) {
 	// session rollup), on separate hooks minutes apart. Whichever runs first
 	// refreshes it; the other, inside half an hour, takes it as stored.
 	$last = function_exists( 'get_option' ) ? get_option( SN_ANALYTICS_V2_VERIFIED_OPT, array() ) : array();
+	// Frozen is final. The stop is known only through the worker's version
+	// read; if that read later fails, or the worker is rolled back, comparing
+	// again would call every day since the stop a mismatch, clear a good
+	// verdict and send the reads (and the nightly rollups that REPLACE stored
+	// days) to a dataset that no longer receives rows. Clearing `frozen` is a
+	// deliberate act by hand.
+	if ( is_array( $last ) && ! empty( $last['frozen'] ) ) {
+		return $last;
+	}
 	// Only inside the same UTC day: across midnight a new day has become
 	// complete, and a verdict from before it never looked at that day.
 	if ( is_array( $last ) && isset( $last['at'] ) && $now - (int) $last['at'] < 1800 && $now >= (int) $last['at'] && gmdate( 'Y-m-d', $now ) === gmdate( 'Y-m-d', (int) $last['at'] ) ) {
@@ -458,9 +479,19 @@ function sn_analytics_v2_verify( $now = null ) {
 	// that window has stopped the legacy write, and the day it reached reads
 	// as a mismatch: before a mismatch replaces a good verdict, ask the edge
 	// again, and freeze instead when the stop is real.
-	if ( empty( $verdict['ok'] ) && ! empty( $before['ok'] ) && sn_analytics_version_stops_legacy( sn_analytics_worker_version( true ) ) ) {
-		sn_analytics_legacy_stopped( true );
-		return sn_analytics_v2_freeze( $now );
+	if ( empty( $verdict['ok'] ) && ! empty( $before['ok'] ) ) {
+		$fresh = sn_analytics_worker_version_fresh();
+		if ( null !== $fresh && sn_analytics_version_stops_legacy( $fresh ) ) {
+			sn_analytics_legacy_stopped( true );
+			return sn_analytics_v2_freeze( $now );
+		}
+		// The edge did not answer. The last good version may predate the stop,
+		// so it proves nothing: a good verdict is not replaced on a read that
+		// failed. Tomorrow's run decides.
+		if ( null === $fresh ) {
+			error_log( '[sn-analytics] v2 verify: a mismatch was read but the worker version could not be read; the stored verdict is kept' );
+			return $before;
+		}
 	}
 	update_option( SN_ANALYTICS_V2_VERIFIED_OPT, $verdict, false );
 	// When the verdict flips, the reads change dataset. The over-cap visitor
