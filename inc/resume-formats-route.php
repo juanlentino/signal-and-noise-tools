@@ -3,9 +3,12 @@
  * Signal & Noise Tools: where the résumé's formats are served and announced.
  *
  *   /resume.md, /cv.md               purpose-built Markdown (inc/resume-markdown.php)
- *   /resume/?output_format=markdown  the same bytes, ahead of the AI plugin's
- *                                    generic page conversion (its template_redirect
- *                                    runs at 10; this runs at 0)
+ *   /resume/?output_format=markdown  the same bytes, served by the AI plugin's
+ *                                    Markdown feature: this file hands it the
+ *                                    document through its
+ *                                    `wpai_markdown_singular_sections` filter and
+ *                                    serves it itself only while that feature is
+ *                                    not hooked
  *   /resume/contact.vcf              the vCard (inc/resume-vcard.php)
  *
  * The résumé HTML also sends `Link: </resume.md>; rel="alternate";
@@ -128,17 +131,93 @@ function sn_resume_format_body( $kind, $slug, $lane = 'music' ) {
 	return array( 'text/markdown; charset=utf-8', sn_resume_markdown( (array) $doc, $resume, $formats, 'cv' === $slug ? 'es' : 'en' ) );
 }
 
-/** template_redirect at 0: the format routes, ?output_format=markdown, the Link header. */
-function sn_resume_formats_maybe_serve() {
-	$req   = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-	$route = sn_resume_formats_route( $req );
-	$slug  = '';
+/** 'resume' or 'cv' when the request is that published page, else ''. */
+function sn_resume_formats_page_slug() {
+	$slug = '';
 	foreach ( array( 'resume', 'cv' ) as $s ) {
 		$page = is_page( $s ) ? sn_jsonresume_page( $s ) : null;
 		$slug = $page && (int) $page->ID === get_queried_object_id() ? $s : $slug;
 	}
+	return $slug;
+}
+
+/** Whether the request asks for the page with ?output_format=markdown. */
+function sn_resume_formats_markdown_asked() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a read-only representation switch.
-	if ( ! $route && '' !== $slug && 'markdown' === sanitize_key( wp_unslash( $_GET['output_format'] ?? '' ) ) ) {
+	return 'markdown' === sanitize_key( wp_unslash( $_GET['output_format'] ?? '' ) );
+}
+
+/**
+ * Whether the AI plugin's Markdown feature will answer this request: its
+ * handler is hooked on template_redirect (found by class and method, since the
+ * plugin keeps its instances private). False when the plugin is absent or the
+ * feature is off, and then this file serves ?output_format=markdown itself.
+ *
+ * @return bool
+ */
+function sn_resume_formats_ai_markdown_hooked() {
+	$class = 'WordPress\\AI\\Experiments\\Markdown_Feeds\\Markdown_Feeds';
+	$hook  = $GLOBALS['wp_filter']['template_redirect'] ?? null;
+	foreach ( is_object( $hook ) ? (array) $hook->callbacks : array() as $callbacks ) {
+		foreach ( $callbacks as $cb ) {
+			$fn = $cb['function'] ?? null;
+			if ( is_array( $fn ) && is_object( $fn[0] ) && $fn[0] instanceof $class && 'handle_template_redirect' === $fn[1] ) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+/**
+ * `wpai_markdown_singular_sections`: on a published résumé page the AI
+ * plugin's Markdown document is the purpose-built one, as its only section.
+ * The renderer joins sections and ends the document with one newline, so the
+ * section drops its own and the response body equals /resume.md byte for byte.
+ *
+ * @param array<string,string> $sections Named Markdown sections.
+ * @param WP_Post|mixed        $post     Post being rendered.
+ * @return array<string,string>
+ */
+function sn_resume_formats_markdown_sections( $sections, $post = null ) {
+	$lane = function_exists( 'sn_resume_active_lane' ) ? sn_resume_active_lane() : 'music';
+	foreach ( array( 'resume', 'cv' ) as $slug ) {
+		$page = sn_jsonresume_page( $slug );
+		$body = $page && is_object( $post ) && (int) $page->ID === (int) ( $post->ID ?? 0 ) ? sn_resume_format_body( 'md', $slug, $lane ) : null;
+		if ( null !== $body ) {
+			return array( 'resume' => "\n" === substr( $body[1], -1 ) ? substr( $body[1], 0, -1 ) : $body[1] );
+		}
+	}
+	return $sections;
+}
+
+/**
+ * template_redirect at 9, just before the AI plugin serves
+ * ?output_format=markdown at 10: the résumé formats' own headers (cacheable
+ * for five minutes, open to any origin, the page as canonical). The AI plugin
+ * then sets Content-Type and X-Robots-Tag: noindex itself.
+ */
+function sn_resume_formats_markdown_headers() {
+	$slug = sn_resume_formats_page_slug();
+	if ( '' === $slug || ! sn_resume_formats_markdown_asked() || ! sn_resume_formats_ai_markdown_hooked() ) {
+		return;
+	}
+	$lane = function_exists( 'sn_resume_active_lane' ) ? sn_resume_active_lane() : 'music';
+	$body = sn_resume_format_body( 'md', $slug, $lane );
+	if ( null !== $body ) {
+		sn_resume_format_send( $body[0], $slug, $lane );
+	}
+}
+
+/** template_redirect at 0: the format routes, ?output_format=markdown without the AI plugin, the Link header. */
+function sn_resume_formats_maybe_serve() {
+	$req   = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+	$route = sn_resume_formats_route( $req );
+	$slug  = sn_resume_formats_page_slug();
+	if ( ! $route && '' !== $slug && sn_resume_formats_markdown_asked() ) {
+		if ( sn_resume_formats_ai_markdown_hooked() ) {
+			return; // the AI plugin serves it at 10, with the section above and the headers sent at 9.
+		}
 		$route = array( 'md', $slug );
 	}
 	$lane = function_exists( 'sn_resume_active_lane' ) ? sn_resume_active_lane() : 'music';
@@ -187,6 +266,8 @@ function sn_resume_formats_head_links() {
 
 if ( ! defined( 'SN_RESUME_FORMATS_TEST' ) || ! SN_RESUME_FORMATS_TEST ) {
 	add_action( 'template_redirect', 'sn_resume_formats_maybe_serve', 0 );
+	add_action( 'template_redirect', 'sn_resume_formats_markdown_headers', 9 );
+	add_filter( 'wpai_markdown_singular_sections', 'sn_resume_formats_markdown_sections', 10, 2 );
 	add_action( 'wp_head', 'sn_resume_formats_head_links' );
 	add_filter( 'sn_agents_surfaces', 'sn_resume_formats_surfaces' );
 	add_filter( 'sn_schema_person_credentials', 'sn_resume_person_credentials' );
