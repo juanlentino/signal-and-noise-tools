@@ -149,7 +149,9 @@ list( $out, $b ) = gb_scan();
 $wire            = gb_wire( $b );
 gb( 'the scan returns the model text', '[]' === $out );
 gb( 'model list: the pinned model, then the fallback', array( 'claude-sonnet-5-5', 'claude-sonnet-5' ) === $b->arg( 'using_model_preference' ) );
-gb( 'system instruction is the Insights one', snt_insights_system_instruction() === $wire['system'] );
+gb( 'system instruction is the Insights one, worded for the object', snt_insights_system_instruction( true ) === $wire['system'] );
+gb( 'structured wording: the object, never a bare array', false === strpos( snt_insights_system_instruction( true ), 'JSON array' ) && false !== strpos( snt_insights_system_instruction( true ), '{"questions": []}' ) );
+gb( 'plain wording: today\'s text, unchanged', false !== strpos( snt_insights_system_instruction(), 'Return ONLY a JSON array. It MAY BE EMPTY.' ) && false === strpos( snt_insights_system_instruction(), '"questions"' ) );
 gb( 'the prompt is the delimited signals blob', 0 === strpos( $b->arg( 'prompt' )[0], '<<<SN_UNTRUSTED_DATA' ) );
 gb( 'thinking is adaptive', array( 'type' => 'adaptive' ) === ( $wire['thinking'] ?? null ) );
 gb( 'effort is low', array( 'effort' => 'low' ) === ( $wire['output_config'] ?? null ) );
@@ -280,6 +282,12 @@ gb( 'unenforced: the bare array still yields today\'s result', is_array( $recs )
 $GLOBALS['__text'] = "```json\n{\"questions\":[" . $q . "]}\n```";
 gb_scan();
 gb( 'unenforced: a fenced object is not called structured', false === $GLOBALS['__structured'] );
+$recs = snt_insights_parse_response( $GLOBALS['__text'], false );
+gb( 'tolerant: a fenced {questions} object yields its questions, not an empty scan', is_array( $recs ) && 1 === count( $recs ) && 'q_credit' === $recs[0]['id'] );
+$recs = snt_insights_parse_response( '{"questions":[' . $q . ']}', false );
+gb( 'tolerant: a bare {questions} object yields its questions', is_array( $recs ) && 1 === count( $recs ) );
+$recs = snt_insights_parse_response( 'Here you go: {"questions":[' . $q . ']}', false );
+gb( 'tolerant: a prose-wrapped {questions} object yields its questions', is_array( $recs ) && 1 === count( $recs ) );
 
 // 7b. Refused with a 400: one plain retry, same budget shape, today's result.
 $GLOBALS['__refuse'] = new WP_Error( 'prompt_client_error', 'Bad Request (400) - output_format: Extra inputs are not permitted', array( 'status' => 400 ) );
@@ -290,7 +298,8 @@ list( $out, $b )     = gb_scan();
 $second              = $GLOBALS['__builders'][1] ?? null;
 gb( 'refused: exactly one retry', 2 === count( $GLOBALS['__builders'] ) );
 gb( 'refused: the first request asked for JSON, the retry does not', null !== $b->arg( 'as_json_response' ) && $second && null === $second->arg( 'as_json_response' ) );
-gb( 'refused: the retry keeps thinking, effort, ceiling and timeout', $second && gb_wire( $second ) === array_diff_key( gb_wire( $b ), array( 'output_format' => 1 ) ) && 180.0 === (float) $second->timeout );
+gb( 'refused: the retry keeps thinking, effort, ceiling and timeout', $second && array_diff_key( gb_wire( $second ), array( 'system' => 1 ) ) === array_diff_key( gb_wire( $b ), array( 'output_format' => 1, 'system' => 1 ) ) && 180.0 === (float) $second->timeout );
+gb( 'refused: the retry carries today\'s instruction, the first the object one', $second && snt_insights_system_instruction() === gb_wire( $second )['system'] && snt_insights_system_instruction( true ) === gb_wire( $b )['system'] );
 gb( 'refused: the caller gets the plain text, flagged unstructured', '[' . $q . ']' === $out && false === $GLOBALS['__structured'] );
 gb( 'refused: the budget is checked for both attempts', 2 === $GLOBALS['__spend_checks'] );
 gb( 'refused: spend recorded once, for the request that ran', 1 === count( $GLOBALS['__recorded'] ) && 'insights' === $GLOBALS['__recorded'][0][0] );
@@ -313,17 +322,19 @@ $err               = snt_insights_parse_response( $out, $GLOBALS['__structured']
 gb( 'fallback non-JSON: the same invalid-JSON error as today', is_wp_error( $err ) && 'snt_insights_invalid_json' === $err->get_error_code() );
 
 // 7e. Only a refusal retries. A truncated answer was generated and billed.
-foreach ( array( array( 'prompt_token_limit_reached', 400 ), array( 'prompt_network_error', 503 ), array( 'prompt_upstream_server_error', 529 ) ) as $e ) {
-	$GLOBALS['__refuse'] = new WP_Error( $e[0], 'x', array( 'status' => $e[1] ) );
+// Core labels EVERY provider 4xx prompt_client_error; only a 400 can be the
+// schema being rejected. A 429 retried at once would only be throttled again.
+foreach ( array( array( 'prompt_token_limit_reached', 400 ), array( 'prompt_network_error', 503 ), array( 'prompt_upstream_server_error', 529 ), array( 'prompt_client_error', 429 ), array( 'prompt_client_error', 401 ), array( 'prompt_client_error', 403 ), array( 'prompt_client_error', 404 ), array( 'prompt_client_error', 413 ), array( 'prompt_client_error', null ) ) as $e ) {
+	$GLOBALS['__refuse'] = new WP_Error( $e[0], 'x', null === $e[1] ? array() : array( 'status' => $e[1] ) );
 	list( $out, $b )     = gb_scan();
-	gb( "{$e[0]}: no retry, the error comes back", 1 === count( $GLOBALS['__builders'] ) && $out instanceof WP_Error && $e[0] === $out->get_error_code() );
+	gb( "{$e[0]} ({$e[1]}): no retry, the error comes back", 1 === count( $GLOBALS['__builders'] ) && $out instanceof WP_Error && $e[0] === $out->get_error_code() );
 }
 $GLOBALS['__refuse'] = new WP_Error( 'prompt_invalid_argument', 'No models found that support text_generation for this prompt.', array( 'status' => 400 ) );
 list( $out, $b )     = gb_scan();
 gb( 'client-side refusal: one plain retry', 2 === count( $GLOBALS['__builders'] ) && is_string( $out ) && false === $GLOBALS['__structured'] );
 
 // 7f. Once: a retry that is refused too comes back as an error, not a third try.
-$GLOBALS['__refuse']     = new WP_Error( 'prompt_client_error', 'Too Many Requests (429)', array( 'status' => 429 ) );
+$GLOBALS['__refuse']     = new WP_Error( 'prompt_client_error', 'Bad Request (400)', array( 'status' => 400 ) );
 $GLOBALS['__refuse_all'] = true;
 list( $out, $b )         = gb_scan();
 gb( 'once: two requests at most', 2 === count( $GLOBALS['__builders'] ) && $out instanceof WP_Error && 'prompt_client_error' === $out->get_error_code() );

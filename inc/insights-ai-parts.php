@@ -49,7 +49,8 @@ function snt_insights_call_ai( $signals, &$structured = null ) {
 	// AI Client's own model config for this one call.
 	$options = function_exists( 'snt_insights_budget_options' ) ? 'snt_insights_budget_options' : array();
 
-	return snt_ai_generate_with_constraints( $prompt, $system, SN_INSIGHTS_MAX_TOKENS, 'insights', '', '', $options, snt_insights_response_schema(), $structured );
+	// The schema attempt is worded for its object root; a plain retry gets $system.
+	return snt_ai_generate_with_constraints( $prompt, $system, SN_INSIGHTS_MAX_TOKENS, 'insights', '', '', $options, snt_insights_response_schema(), $structured, snt_insights_system_instruction( true ) );
 }
 
 /**
@@ -110,9 +111,16 @@ function snt_insights_response_schema() {
  * for the hard exclusions; snt_insights_recommendation_blocked() backs it as
  * best-effort defense-in-depth (it catches the obvious slips and errs toward
  * dropping on the reserved thesis), but a vocabulary filter is not a guarantee.
+ *
+ * With $structured the two return sentences describe the schema's object root
+ * ({"questions": [...]}) instead of a bare array; the rest is the same text.
+ * Without it, the text is exactly the plain request's, retry included.
+ *
+ * @param bool $structured Word the output for snt_insights_response_schema().
+ * @return string
  */
-function snt_insights_system_instruction() {
-	return <<<INSTRUCTIONS
+function snt_insights_system_instruction( $structured = false ) {
+	$text = <<<INSTRUCTIONS
 You read a personal research site's Notes and surface, at most, a few UNEXPLORED OPEN QUESTIONS the author could develop next. You will receive a JSON blob with: site identity, 7-day first-party analytics, post publish history with traffic per post, webhook delivery patterns, and cron freshness signals. The highest-priority posts include an "excerpt" field carrying a content excerpt. Use it to ground every question in what the existing notes actually say.
 
 You are NOT a content strategist and there is no content calendar to fill. Do not prescribe posts, publishing cadence, or topics to "double down" on. Your only job is to name an open question worth thinking about, or to recommend nothing.
@@ -145,6 +153,20 @@ Style:
 - The "id" is deterministic from the question (slugified, prefixed "q_", kept short).
 - Output JSON only. No preamble, no markdown fences.
 INSTRUCTIONS;
+	if ( ! $structured ) {
+		return $text;
+	}
+	return str_replace(
+		array(
+			'Return ONLY a JSON array. It MAY BE EMPTY. Returning [] is a valid and expected result whenever nothing clears the bar below. Never invent or stretch a question just to avoid an empty array. Return at most 3 objects, each:',
+			'If dropping leaves nothing, return []:',
+		),
+		array(
+			'Return ONLY a JSON object whose "questions" array holds the questions. The array MAY BE EMPTY. Returning {"questions": []} is a valid and expected result whenever nothing clears the bar below. Never invent or stretch a question just to avoid an empty array. Put at most 3 objects in it, each:',
+			'If dropping leaves nothing, return {"questions": []}:',
+		),
+		$text
+	);
 }
 
 /**
@@ -344,6 +366,12 @@ function snt_insights_parse_response( $raw, $structured = false ) {
 		}
 
 		$decoded = json_decode( $text, true );
+		// A schema-shaped {"questions": [...]} read here (fenced, so not flagged
+		// structured) holds its list under "questions"; read as an array of
+		// entries it would yield an empty scan.
+		if ( is_array( $decoded['questions'] ?? null ) ) {
+			$decoded = $decoded['questions'];
+		}
 
 		// v7.0.1: the model sometimes wraps the array in a sentence of prose
 		// ("Here are the open questions: [ ... ]  Hope this helps.") despite the
