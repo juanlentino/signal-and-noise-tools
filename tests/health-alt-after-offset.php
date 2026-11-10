@@ -99,6 +99,18 @@ $cases = array(
 		'<figure><img src="m.png" alt="M"></figure><div class="x"><h2 class="t"><a href="/x">Signal <em>&amp;</em> Noise</a></h2></div>',
 		'<img src="m.png" alt="M">', '', 'Signal &amp; Noise',
 	),
+	'an svg title inside a heading' => array(
+		'<figure><img src="w.png" alt="W"></figure><h3><svg role="img"><title>Icon</title><path d="M0"/></svg> Services</h3>',
+		'<img src="w.png" alt="W">', '', 'Icon Services',
+	),
+	'an svg title inside a figcaption' => array(
+		'<figure><img src="w2.png" alt="W2"><figcaption><svg role="img"><title>Icon</title></svg> Services</figcaption></figure>',
+		'<img src="w2.png" alt="W2">', 'Icon Services', '',
+	),
+	'a script after an inline svg' => array(
+		'<figure><img src="w3.png" alt="W3"></figure><svg aria-hidden="true"></svg><script>var s = \'<h2>Scripted</h2>\';</script>',
+		'<img src="w3.png" alt="W3">', '', '', // The regex answered 'Scripted': it read a script's string as markup.
+	),
 	'uppercase tags' => array(
 		'<FIGURE><IMG SRC="u.png" ALT="U"><FIGCAPTION>Upper</FIGCAPTION></FIGURE><H2>Loud</h2>',
 		'<IMG SRC="u.png" ALT="U">', 'Upper', 'Loud',

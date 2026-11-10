@@ -339,6 +339,27 @@ function sn_health_normalise_alt_text( $text ) {
 }
 
 /**
+ * Keep a Tag Processor's parsing namespace in step with inline <svg>, so an
+ * SVG <title> inside a heading or caption reads as text, as a browser reads it
+ * (and a screen reader announces it), rather than as HTML's RCDATA <title>.
+ *
+ * @param WP_HTML_Tag_Processor $tokens A processor paused on a tag.
+ * @param int                   $depth  Open <svg> elements, updated in place.
+ * @return void
+ */
+function sn_health_follow_svg_namespace( $tokens, &$depth ) {
+	if ( 'SVG' !== $tokens->get_tag() ) {
+		return;
+	}
+	if ( $tokens->is_tag_closer() ) {
+		$depth = max( 0, $depth - 1 );
+	} elseif ( ! $tokens->has_self_closing_flag() ) {
+		++$depth;
+	}
+	$tokens->change_parsing_namespace( $depth > 0 ? 'svg' : 'html' );
+}
+
+/**
  * The heading a screen reader announces immediately after this image, if any.
  *
  * The heading is a SIBLING of the <figure>, never a descendant, so the scan
@@ -389,6 +410,7 @@ function sn_health_heading_after_offset( $content, $offset, $max_skips = 2 ) {
 	$window = 2000;
 	$hidden = 0; // Comment bytes passed so far.
 	$skips  = 0;
+	$svg    = 0;
 	$tokens = snt_html_span_processor( $rest );
 
 	while ( $tokens->next_token() ) {
@@ -402,8 +424,12 @@ function sn_health_heading_after_offset( $content, $offset, $max_skips = 2 ) {
 			return '';
 		}
 
+		if ( '#tag' !== $type ) {
+			continue;
+		}
+		sn_health_follow_svg_namespace( $tokens, $svg );
 		// Closing tags are structure being exited, not content being read.
-		if ( '#tag' !== $type || $tokens->is_tag_closer() ) {
+		if ( $tokens->is_tag_closer() ) {
 			continue;
 		}
 		$tag = $tokens->get_tag();
@@ -417,8 +443,11 @@ function sn_health_heading_after_offset( $content, $offset, $max_skips = 2 ) {
 					$hidden += $end - $start;
 				} elseif ( '#text' === $type ) {
 					$text .= substr( $rest, $start, $end - $start ); // The stored bytes: entities stay as written.
-				} elseif ( '#tag' === $type && $tag === $tokens->get_tag() && $tokens->is_tag_closer() ) {
-					return $end - $hidden > $window ? '' : trim( $text );
+				} elseif ( '#tag' === $type ) {
+					sn_health_follow_svg_namespace( $tokens, $svg );
+					if ( $tag === $tokens->get_tag() && $tokens->is_tag_closer() ) {
+						return $end - $hidden > $window ? '' : trim( $text );
+					}
 				}
 			}
 			return '';
@@ -499,6 +528,7 @@ function sn_health_caption_after_offset( $content, $offset ) {
 	$tokens  = snt_html_span_processor( $rest );
 	$caption = null; // A string from the first <figcaption> on.
 	$closed  = false;
+	$svg     = 0;
 	while ( $tokens->next_token() ) {
 		$type = $tokens->get_token_type();
 		if ( '#text' === $type ) {
@@ -511,6 +541,7 @@ function sn_health_caption_after_offset( $content, $offset ) {
 		if ( '#tag' !== $type ) {
 			continue;
 		}
+		sn_health_follow_svg_namespace( $tokens, $svg );
 		$tag    = $tokens->get_tag();
 		$closer = $tokens->is_tag_closer();
 		if ( 'FIGURE' === $tag ) {
