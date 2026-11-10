@@ -122,6 +122,8 @@ if ( ! function_exists( 'sn_health_pack_check' ) ) {
 		return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint, 'skipped' => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null );
 	}
 }
+require_once __DIR__ . '/lib/wp-html-api.php';
+snt_test_load_html_processor(); // core's real HTML API: the three readers stand on it.
 require_once __DIR__ . '/../inc/health-alt-quality.php';
 require_once __DIR__ . '/../inc/health-check-missing-alt.php';
 
@@ -515,6 +517,160 @@ ok( 'unnamed' === sn_health_svg_accessible_name_status( ' data-id="tracking-123"
 	'#1187: data-id is not aria-label/aria-labelledby -- an svg with only data-id is still unnamed' );
 ok( false === strpos( sn_health_svg_hint( 1, ' data-id="tracking-123"' ), 'id="tracking-123"' ),
 	'#1187: the svg hint does not report a fake `id` sourced from `data-id`' );
+
+/* ═════════════════════════════════════════════════════════════════════
+ * 5. THE THREE READERS ON SHARED MARKUP (tests/lib/html-image-cases.php)
+ *
+ * Every case is pinned for all three readers. An expectation that changed
+ * when a reader moved from a regex to core's HTML parser says, in its
+ * comment, what the regex answered and why that was wrong.
+ * ═════════════════════════════════════════════════════════════════════ */
+$image_cases = require __DIR__ . '/lib/html-image-cases.php';
+$want_no_alt = array(
+	'nested inline markup' => array( 'a.png' ),
+	'attributes in any order' => array( 'b2.png' ),
+	'uppercase tags and attributes' => array( 'c.png' ),
+	'entities in src and alt' => array( 'd.png?a=1&amp;b=2' ),
+	'a > inside an attribute' => array( '', '' ),
+	'a bare alt with no value' => array( 'f.png' ),
+	'data-alt and data-src' => array( 'g2.png' ),
+	'alt= inside another attribute' => array(),
+	'unquoted values' => array( '' ),
+	'self-closing tags' => array( 'j.png' ),
+	'images inside a comment' => array( 'k.png' ),
+	'image blocks with JSON and captions' => array(),
+	'multibyte text' => array( 'señal.png' ),
+	'empty input' => array(),
+	'images in a textarea and a script' => array( 'm.png' ),
+	'the other quote inside an alt' => array(),
+	'a card: figure, then its heading, in block markup' => array(),
+	'a heading inside the skip budget, and one outside it' => array(),
+	'the next image owns the heading' => array(),
+	'nested figures' => array(),
+	'a heading with inline markup, inside a wrapper' => array(),
+	'svg: bare, and named four ways' => array(),
+	'svg: decorative, four spellings' => array(),
+	'svg: a title that is not a direct child' => array(),
+	'svg: a > inside an attribute' => array(),
+	'svg: nested' => array(),
+	'svg: self-closing, then a named one' => array(),
+	'svg: inside a comment' => array(),
+	'svg: in a custom HTML block, multibyte class' => array(),
+	'svg: data-aria-label is not a name' => array(),
+	'svg: never closed' => array(),
+);
+$want_with_alt = array(
+	'nested inline markup' => array(
+		array( 'src' => 'a2.png', 'alt' => 'A second, described picture', 'caption' => '', 'heading' => '' ),
+	),
+	'attributes in any order' => array(
+		array( 'src' => 'b.png', 'alt' => 'Bob&#39;s desk', 'caption' => '', 'heading' => '' ),
+	),
+	'uppercase tags and attributes' => array(
+		array( 'src' => 'c2.png', 'alt' => 'A Chart Of Sales', 'caption' => '', 'heading' => '' ),
+	),
+	'entities in src and alt' => array(
+		array( 'src' => 'd2.png?a=1&amp;b=2', 'alt' => 'Tom &amp; Jerry at the desk', 'caption' => '', 'heading' => '' ),
+	),
+	'a > inside an attribute' => array(),
+	'a bare alt with no value' => array(),
+	'data-alt and data-src' => array(),
+	'alt= inside another attribute' => array(),
+	'unquoted values' => array(),
+	'self-closing tags' => array(
+		array( 'src' => 'j2.png', 'alt' => 'A self-closed picture', 'caption' => '', 'heading' => '' ),
+	),
+	'images inside a comment' => array(
+		array( 'src' => 'k2.png', 'alt' => 'Commented out', 'caption' => '', 'heading' => '' ),
+	),
+	'image blocks with JSON and captions' => array(
+		array( 'src' => 'l2.png', 'alt' => 'The 1954 ledger, reopened', 'caption' => 'The 1954 ledger, reopened', 'heading' => '' ),
+	),
+	'multibyte text' => array(
+		array( 'src' => 'ruido.png', 'alt' => 'Señal y ruido 日本語', 'caption' => '', 'heading' => '' ),
+	),
+	'empty input' => array(),
+	'images in a textarea and a script' => array(
+		array( 'src' => 'm2.png', 'alt' => 'In a script', 'caption' => '', 'heading' => '' ),
+	),
+	'the other quote inside an alt' => array(
+		array( 'src' => 'n.png', 'alt' => 'Logo\'s sketch', 'caption' => '', 'heading' => '' ),
+		array( 'src' => 'n2.png', 'alt' => 'He said "hi"', 'caption' => '', 'heading' => '' ),
+	),
+	'a card: figure, then its heading, in block markup' => array(
+		array( 'src' => 'production-min.png', 'alt' => 'Production', 'caption' => '', 'heading' => 'PRODUCTION' ),
+	),
+	'a heading inside the skip budget, and one outside it' => array(
+		array( 'src' => 'o.png', 'alt' => 'Operations', 'caption' => '', 'heading' => 'Operations &amp; AI' ),
+		array( 'src' => 'o2.png', 'alt' => 'Too far', 'caption' => '', 'heading' => '' ),
+	),
+	'the next image owns the heading' => array(
+		array( 'src' => 'p.png', 'alt' => 'First', 'caption' => '', 'heading' => '' ),
+		array( 'src' => 'p2.png', 'alt' => 'Second', 'caption' => '', 'heading' => 'Second' ),
+	),
+	'nested figures' => array(
+		array( 'src' => 'q.png', 'alt' => 'Gallery one', 'caption' => 'Gallery one', 'heading' => '' ),
+		array( 'src' => 'q2.png', 'alt' => 'Gallery two', 'caption' => '', 'heading' => '' ),
+	),
+	'a heading with inline markup, inside a wrapper' => array(
+		array( 'src' => 'r.png', 'alt' => 'Signal and noise', 'caption' => '', 'heading' => 'Signal &amp; Noise' ),
+	),
+	'svg: bare, and named four ways' => array(),
+	'svg: decorative, four spellings' => array(),
+	'svg: a title that is not a direct child' => array(),
+	'svg: a > inside an attribute' => array(),
+	'svg: nested' => array(),
+	'svg: self-closing, then a named one' => array(),
+	'svg: inside a comment' => array(),
+	'svg: in a custom HTML block, multibyte class' => array(),
+	'svg: data-aria-label is not a name' => array(),
+	'svg: never closed' => array(),
+);
+$want_svg = array(
+	'nested inline markup' => array(),
+	'attributes in any order' => array(),
+	'uppercase tags and attributes' => array(),
+	'entities in src and alt' => array(),
+	'a > inside an attribute' => array(),
+	'a bare alt with no value' => array(),
+	'data-alt and data-src' => array(),
+	'alt= inside another attribute' => array(),
+	'unquoted values' => array(),
+	'self-closing tags' => array(),
+	'images inside a comment' => array(),
+	'image blocks with JSON and captions' => array(),
+	'multibyte text' => array(),
+	'empty input' => array(),
+	'images in a textarea and a script' => array(),
+	'the other quote inside an alt' => array(),
+	'a card: figure, then its heading, in block markup' => array(),
+	'a heading inside the skip budget, and one outside it' => array(),
+	'the next image owns the heading' => array(),
+	'nested figures' => array(),
+	'a heading with inline markup, inside a wrapper' => array(),
+	'svg: bare, and named four ways' => array( '<svg> #1' ),
+	'svg: decorative, four spellings' => array( '<svg> #2 (id="shown")' ),
+	'svg: a title that is not a direct child' => array( '<svg> #1 (id="in-g")', '<svg> #2 (id="empty-title")' ),
+	'svg: a > inside an attribute' => array( '<svg> #1', '<svg> #2' ),
+	'svg: nested' => array( '<svg> #1 (id="outer")' ),
+	'svg: self-closing, then a named one' => array( '<svg> #1 (id="hollow")' ),
+	'svg: inside a comment' => array( '<svg> #1 (id="commented")' ),
+	'svg: in a custom HTML block, multibyte class' => array( '<svg> #1 (class="señal icono")' ),
+	'svg: data-aria-label is not a name' => array( '<svg> #1 (class="k")' ),
+	'svg: never closed' => array(),
+);
+foreach ( array(
+	'sn_health_extract_inline_imgs_without_alt'  => $want_no_alt,
+	'sn_health_extract_inline_imgs_with_alt'     => $want_with_alt,
+	'sn_health_extract_inline_svgs_without_name' => $want_svg,
+) as $reader => $want ) {
+	echo "\nGroup: $reader on the shared cases\n";
+	ok( array_keys( $want ) === array_keys( $image_cases ), "$reader: an answer is pinned for every shared case" );
+	foreach ( $image_cases as $name => $html ) {
+		$got = $reader( $html );
+		ok( $want[ $name ] === $got, "$reader: $name" . ( $want[ $name ] === $got ? '' : ' (got ' . json_encode( $got, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . ')' ) );
+	}
+}
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
