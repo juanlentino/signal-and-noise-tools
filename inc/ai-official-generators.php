@@ -15,9 +15,12 @@
  *   - voice: the house rules are appended to the official system instruction.
  * A person still clicks Apply and then Save, as the house rule asks.
  *
+ *   - focus keyword: the post's stored `_sn_focus_keyword` is appended to the
+ *     official description prompt, in the line the house rules name.
+ *
  * What does not carry over: the monthly cap and the per-feature spend line;
- * the focus keyword and existing-excerpt lines S&N's own prompt adds; and the
- * 160-character cut S&N applied to its own answer.
+ * the existing-excerpt line S&N's own prompt adds; and the 160-character cut
+ * S&N applied to its own answer.
  * These calls are the AI plugin's and are listed under Other AI (owner call
  * 2026-10-24 A: the cap stays plugin-only). S&N's own two buttons stand down
  * while the official feature is on, and come back if it is switched off or the
@@ -105,3 +108,49 @@ function snt_ai_official_voice( $instruction, $name ) {
 	return '' === $extra ? (string) $instruction : rtrim( (string) $instruction ) . "\n\nHouse rules for this site, which take precedence on wording:\n" . $extra;
 }
 add_filter( 'wpai_system_instruction', 'snt_ai_official_voice', 10, 2 );
+
+/**
+ * The focus keyword as the prompt line the house rules name ("If a FOCUS
+ * KEYWORD line is supplied..."), or '' for none. One line, no markup. PURE.
+ *
+ * @param string $keyword The stored keyword.
+ * @return string
+ */
+function snt_ai_official_keyword_line( $keyword ) {
+	$keyword = mb_substr( trim( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $keyword ) ) ), 0, 120 );
+	return '' === $keyword ? '' : 'FOCUS KEYWORD (must appear verbatim): ' . $keyword;
+}
+
+/**
+ * The post the official meta description ability is running for. Its prompt
+ * filter is not told, so the ability's input is remembered as it starts; a
+ * run without a post (pasted content) sets 0.
+ *
+ * @param int|null $set Post id to remember, or null to read.
+ * @return int
+ */
+function snt_ai_official_meta_post( $set = null ) {
+	static $id = 0;
+	if ( null !== $set ) {
+		$id = (int) $set;
+	}
+	return $id;
+}
+add_action(
+	'wp_before_execute_ability',
+	static function ( $name, $input ) {
+		if ( 'ai/meta-description' === $name ) {
+			snt_ai_official_meta_post( (int) ( ( (array) $input )['post_id'] ?? 0 ) );
+		}
+	},
+	10,
+	2
+);
+add_filter(
+	'wpai_meta_description_prompt',
+	static function ( $prompt ) {
+		$id   = snt_ai_official_meta_post();
+		$line = $id ? snt_ai_official_keyword_line( (string) get_post_meta( $id, '_sn_focus_keyword', true ) ) : '';
+		return '' === $line ? (string) $prompt : $prompt . "\n\n" . $line;
+	}
+);

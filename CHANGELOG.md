@@ -13,6 +13,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Changed
+- **The focus keyword reaches the AI plugin's meta description again.** Since 2026.11.20 the AI plugin writes the description, and its prompt did not carry the post's focus keyword, so the field's promise ("requires it verbatim") was not kept. The saved `_sn_focus_keyword` is now appended to the official prompt as the line the house rules already name (`inc/ai-official-generators.php`, hooks `wp_before_execute_ability` and `wpai_meta_description_prompt`). A post with no keyword, or a run on pasted text with no post, changes nothing. The field's help text says "saved keyword": a keyword typed and not yet saved is not read. Test: `tests/ai-official-generators.php`.
 - **Core-first audit, part 4: three rebuilds on core and the official plugins.**
   - **Plugin updates** are offered through core's `update_plugins_github.com` hook, the one core provides for this plugin's Update URI, instead of editing the update record directly. One difference: when WordPress.org itself cannot be reached during a check, no offer appears until the next successful check.
   - **The Insights scan** passes its model options (adaptive thinking, effort, token ceiling) through the AI Client instead of rewriting the request on the wire. The request Anthropic receives is unchanged; the budget cap is untouched.
