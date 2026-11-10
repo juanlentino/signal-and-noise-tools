@@ -48,6 +48,8 @@ if ( 2000 !== strlen( $edge_in ) || 2001 !== strlen( $edge_out ) ) {
 $edge_straddle = '<div>' . str_repeat( 'ñ', 985 ) . '</div><h2>日本語の見出し</h2>';
 // Forty block delimiters: 2,440 bytes of comments before the heading.
 $many_delimiters = str_repeat( '<!-- wp:group {"layout":{"type":"constrained"}} -->', 40 ) . '<h3>Past the delimiters</h3>';
+// A heading ending at byte 2000 of non-comment markup, with a 208-byte comment inside it.
+$edge_comment = '<div>' . str_repeat( 'x', 1978 ) . '</div><h2>A<!-- ' . str_repeat( 'c', 200 ) . ' -->B</h2>';
 
 $cases = array(
 	// name => array( html, img tag the helpers start after, caption, heading ).
@@ -179,6 +181,22 @@ $cases = array(
 		'<figure><img src="k3.png" alt="K3"></figure><p title="a><h2>Fake</h2>">x</p>',
 		'<img src="k3.png" alt="K3">', '', '', // The regex answered 'Fake': it ended the <p> at the '>' inside the title and read the rest of the value as markup.
 	),
+	'a bare image, then a figure that is not its own' => array(
+		'<p><img src="x1.png" alt="X1"></p><figure><blockquote>q</blockquote></figure><h2>Pull</h2>',
+		'<img src="x1.png" alt="X1">', '', '',
+	),
+	'text after the figcaption, before the close' => array(
+		'<figure><img src="x2.png" alt="X2"><figcaption>Cap</figcaption>Credit: AP</figure>',
+		'<img src="x2.png" alt="X2">', 'Cap', '',
+	),
+	'a heading four wrappers deep' => array(
+		'<figure><img src="x3.png" alt="X3"></figure><section><div><article><main><h2>Deep</h2></main></article></div></section>',
+		'<img src="x3.png" alt="X3">', '', 'Deep',
+	),
+	'a comment inside a heading at the window edge' => array(
+		'<figure><img src="x4.png" alt="X4"></figure>' . $edge_comment,
+		'<img src="x4.png" alt="X4">', '', 'AB',
+	),
 );
 
 foreach ( $cases as $name => $case ) {
@@ -188,7 +206,46 @@ foreach ( $cases as $name => $case ) {
 	$heading = sn_health_heading_after_offset( $html, $at );
 	ok( $want_caption === $caption, "caption: $name" . ( $want_caption === $caption ? '' : ' (got ' . var_export( $caption, true ) . ')' ) );
 	ok( $want_heading === $heading, "heading: $name" . ( $want_heading === $heading ? '' : ' (got ' . var_export( $heading, true ) . ')' ) );
+
+	// The with-alt reader answers the same for this image: it finds each image's
+	// figure in one pass and hands the helpers' walks only what they need.
+	preg_match( '/src="([^"]*)"/i', $img, $m );
+	$row = array();
+	foreach ( sn_health_extract_inline_imgs_with_alt( $html ) as $r ) {
+		if ( $m[1] === $r['src'] ) {
+			$row = $r;
+		}
+	}
+	$got = array( $row['caption'] ?? null, $row['heading'] ?? null );
+	ok( array( $want_caption, $want_heading ) === $got, "reader: $name" . ( array( $want_caption, $want_heading ) === $got ? '' : ' (got ' . var_export( $got, true ) . ')' ) );
 }
+
+echo "\nGroup: the cost stays linear in the post\n";
+// 200 bare images in tag-dense paragraphs, with one captioned figure halfway.
+// A per-image search for the image's own figure walks to that figure from every
+// bare image before it: a hundred walks across half the post. Counted in
+// tokens, not timed.
+$long = '';
+for ( $i = 0; $i < 200; $i++ ) {
+	if ( 100 === $i ) {
+		$long .= '<figure><img src="mid.png" alt="Mid"><figcaption>Halfway</figcaption></figure><h2>Half</h2>';
+	}
+	$long .= '<p><img src="b' . $i . '.png" alt="Bare ' . $i . '">' . str_repeat( '<span>x</span>', 40 ) . '</p>';
+}
+$counter = get_class( snt_html_span_processor( '' ) );
+
+$counter::$tokens_visited = 0;
+$walk                     = snt_html_span_processor( $long );
+while ( $walk->next_token() ) {
+	continue;
+}
+$tokens = $counter::$tokens_visited;
+
+$counter::$tokens_visited = 0;
+$rows                     = sn_health_extract_inline_imgs_with_alt( $long );
+$visited                  = $counter::$tokens_visited;
+ok( 201 === count( $rows ) && 'Halfway' === $rows[100]['caption'] && 'Half' === $rows[100]['heading'] && '' === $rows[0]['caption'] . $rows[0]['heading'] . $rows[200]['caption'], 'the long post is read: 201 images, the figure captioned and headed, the bare ones not' );
+ok( $visited <= 3 * $tokens, "reading it visits at most three times the post's $tokens tokens (visited $visited)" );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

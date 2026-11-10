@@ -386,19 +386,49 @@ function sn_health_follow_svg_namespace( $tokens, &$depth ) {
  * @return string Raw heading text (entities intact), or ''.
  */
 function sn_health_heading_after_offset( $content, $offset, $max_skips = 2 ) {
-	$rest = substr( (string) $content, (int) $offset );
+	$content = (string) $content;
+	$offset  = (int) $offset;
+	$figure  = sn_health_own_figure_end( $content, $offset );
+	return sn_health_heading_from( substr( $content, null === $figure ? $offset : $figure ), $max_skips );
+}
 
-	// Step past the figure that wraps THIS image, but only when the first figure
-	// tag ahead is a closer, so it really is ours. A bare <img> has none, and
-	// stepping to the first one anywhere ahead teleports the scan into an
-	// unrelated card and reads its heading. A <figure> opening first means the
-	// close belongs to that one: the same scoping sn_health_caption_after_offset() uses.
-	if ( false !== stripos( $rest, '</figure' ) ) {
-		$figure = snt_html_span_processor( $rest );
-		if ( $figure->next_tag( array( 'tag_name' => 'FIGURE', 'tag_closers' => 'visit' ) ) && $figure->is_tag_closer() ) {
-			$rest = substr( $rest, $figure->token_span()[1] );
-		}
+/**
+ * Where the figure wrapping the image that ends at $offset closes, if it does.
+ *
+ * The first figure tag ahead decides. A closer is this image's own figure; a
+ * <figure> opening first means the next close belongs to that one, and a bare
+ * <img> has neither. Stepping to the first close anywhere ahead would teleport
+ * the heading scan into an unrelated card and read its heading.
+ *
+ * Walks to the next figure tag, however far, so a reader of many images
+ * resolves them all in one pass instead (sn_health_extract_inline_imgs_with_alt()).
+ *
+ * @param string $content Post content.
+ * @param int    $offset  Byte offset just past the <img> tag.
+ * @return int|null Byte offset just past that </figure>, or null.
+ */
+function sn_health_own_figure_end( $content, $offset ) {
+	$rest = substr( (string) $content, (int) $offset );
+	if ( false === stripos( $rest, '</figure' ) ) {
+		return null;
 	}
+	$figure = snt_html_span_processor( $rest );
+	if ( $figure->next_tag( array( 'tag_name' => 'FIGURE', 'tag_closers' => 'visit' ) ) && $figure->is_tag_closer() ) {
+		return (int) $offset + $figure->token_span()[1];
+	}
+	return null;
+}
+
+/**
+ * The heading at the start of $rest, within the bounds
+ * sn_health_heading_after_offset() describes.
+ *
+ * @param string $rest      Markup from just past the image, or past its own </figure>.
+ * @param int    $max_skips Text-bearing elements tolerated before the heading.
+ * @return string Raw heading text (entities intact), or ''.
+ */
+function sn_health_heading_from( $rest, $max_skips = 2 ) {
+	$rest = (string) $rest;
 
 	// A DISTANCE bound as well as an element bound. Layout wrappers do not spend
 	// the element budget (they announce nothing), so on wrapper-heavy markup the
@@ -482,12 +512,26 @@ function sn_health_heading_after_offset( $content, $offset, $max_skips = 2 ) {
 function sn_health_extract_inline_imgs_with_alt( $content ) {
 	$content = (string) $content;
 
-	// Core's Tag Processor, plus where the current tag ends: the caption and
-	// heading lookups read the markup after the image.
-	$tags = snt_html_span_processor( $content );
-
-	$out = array();
-	while ( $tags->next_tag( 'IMG' ) ) {
+	// Core's Tag Processor, plus where each tag ends. One pass finds every
+	// image and, from the first figure tag after it, its own </figure> (see
+	// sn_health_own_figure_end()); searching per image walked to the next figure
+	// from every bare image, which is quadratic on a long post.
+	$tags    = snt_html_span_processor( $content );
+	$images  = array();
+	$pending = array(); // Images whose first figure tag ahead is still unread.
+	while ( $tags->next_tag( array( 'tag_closers' => 'visit' ) ) ) {
+		$tag = $tags->get_tag();
+		if ( 'FIGURE' === $tag ) {
+			$figure = $tags->is_tag_closer() ? $tags->token_span()[1] : null;
+			foreach ( $pending as $i ) {
+				$images[ $i ]['figure'] = $figure;
+			}
+			$pending = array();
+			continue;
+		}
+		if ( 'IMG' !== $tag || $tags->is_tag_closer() ) {
+			continue;
+		}
 		// null is no alt at all (the coverage pass's finding); a bare `alt`
 		// (true) and alt="" are the decorative marker.
 		$alt = $tags->get_attribute( 'alt' );
@@ -495,13 +539,25 @@ function sn_health_extract_inline_imgs_with_alt( $content ) {
 		if ( '' === $alt ) {
 			continue;
 		}
-		$end   = $tags->token_span()[1];
-		$src   = $tags->get_attribute( 'src' );
-		$out[] = array(
-			'src'     => is_string( $src ) ? $src : '',
-			'alt'     => $alt,
-			'caption' => sn_health_caption_after_offset( $content, $end ),
-			'heading' => sn_health_heading_after_offset( $content, $end ),
+		$src       = $tags->get_attribute( 'src' );
+		$pending[] = count( $images );
+		$images[]  = array(
+			'src'    => is_string( $src ) ? $src : '',
+			'alt'    => $alt,
+			'end'    => $tags->token_span()[1],
+			'figure' => null,
+		);
+	}
+
+	$out = array();
+	foreach ( $images as $img ) {
+		$figure = $img['figure'];
+		$out[]  = array(
+			'src'     => $img['src'],
+			'alt'     => $img['alt'],
+			// Only an image in its own figure has a caption, and the walk needs no more than that figure.
+			'caption' => null === $figure ? '' : sn_health_caption_after_offset( substr( $content, $img['end'], $figure - $img['end'] ), 0 ),
+			'heading' => sn_health_heading_from( substr( $content, null === $figure ? $img['end'] : $figure ) ),
 		);
 	}
 	return $out;
