@@ -81,6 +81,7 @@ function sn_seed_content_surfaces() {
 	}
 
 	sn_ensure_notes_category();
+	sn_sync_default_category();
 	sn_ensure_notes_page();
 	sn_ensure_provenance_page();
 	sn_ensure_over_detection_page();
@@ -283,7 +284,11 @@ function sn_ensure_permalink_structure() {
 		return;
 	}
 
-	update_option( 'permalink_structure', SN_PERMALINK_STRUCTURE );
+	// Core's setter, not a bare option write: it re-reads the structure into
+	// WP_Rewrite, so the flush that follows builds rules from the new one, and
+	// it fires permalink_structure_changed.
+	global $wp_rewrite;
+	$wp_rewrite->set_permalink_structure( SN_PERMALINK_STRUCTURE );
 }
 
 /**
@@ -300,12 +305,11 @@ function sn_ensure_permalink_structure() {
  * fully-formed Note with no template dropdown, no category checkbox,
  * no manual setup.
  *
- * Self-healing: runs cheaply on every admin_init and only writes when
- * the option drifts. Safe to call before sn_seed_content_surfaces() has
- * created the category — it just no-ops in that case.
+ * Set once, by sn_seed_content_surfaces() under its one-time flag. After
+ * that Settings > Writing owns the choice: this used to run on every
+ * admin_init and put Notes back, so core's selector could not be changed
+ * (2026-11-10).
  */
-add_action( 'admin_init', 'sn_sync_default_category' );
-
 function sn_sync_default_category() {
 	$cat = get_term_by( 'slug', SN_NOTES_CATEGORY_SLUG, 'category' );
 	if ( ! $cat ) {

@@ -273,9 +273,9 @@ function snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields = null
 }
 
 /**
- * The scope='all'|'post_type'|'modified_since' path: walk the corpus via
- * snt_corpus_fetch_posts (REUSED verbatim), optionally filter by
- * modified_since, then paginate deterministically.
+ * The scope='all'|'post_type'|'modified_since' path. 'all' and 'post_type'
+ * walk the corpus via snt_corpus_fetch_posts (REUSED verbatim) and paginate
+ * deterministically; 'modified_since' asks core for its page directly.
  *
  * @param string $kind
  * @param array  $scope
@@ -293,30 +293,19 @@ function snt_sn_posts_resolve_walk( $kind, $scope, $include_content, $offset, $m
 		return snt_corpus_post_type_error(); // Reused verbatim from inc/corpus-inspect.php.
 	}
 
-	$posts = snt_corpus_fetch_posts( 'any', $post_type ); // Reused verbatim.
-
 	if ( 'modified_since' === $kind ) {
 		$since_raw = isset( $scope['modified_since'] ) ? (string) $scope['modified_since'] : '';
 		$since_ts  = '' !== $since_raw ? strtotime( $since_raw . ' UTC' ) : false;
 		if ( false === $since_ts ) {
 			return snt_sn_posts_scope_error( __( 'scope.kind "modified_since" requires a parseable scope.modified_since date/time string.', 'signal-and-noise-tools' ) );
 		}
-		// post_modified is SITE-LOCAL wall time; the caller's timestamp is UTC.
-		// Comparing local against UTC drifts by the site's offset near any
-		// boundary — post_modified_gmt is the column that is actually UTC.
-		$posts = array_values( array_filter( $posts, function( $p ) use ( $since_ts ) {
-			$mts = strtotime( (string) ( $p->post_modified_gmt ?? '' ) . ' UTC' );
-			return false !== $mts && $mts >= $since_ts;
-		} ) );
-		// Deterministic ordering (house rule: never database order): newest
-		// modified first, ID DESC as a tie-break so byte-identical output
-		// survives two runs against unchanged content.
-		usort( $posts, function( $a, $b ) {
-			$am = strtotime( (string) ( $a->post_modified_gmt ?? '' ) . ' UTC' );
-			$bm = strtotime( (string) ( $b->post_modified_gmt ?? '' ) . ' UTC' );
-			return $am === $bm ? ( (int) $b->ID <=> (int) $a->ID ) : ( $bm <=> $am );
-		} );
+		// Core filters (post_modified_gmt, the column that is actually UTC),
+		// orders, filters status and pages; see snt_corpus_modified_since_page().
+		$found = snt_corpus_modified_since_page( $post_type, $since_ts, null === $statuses ? SNT_CORPUS_STATUSES : $statuses, $offset, $max );
+		$page  = $found['posts'];
+		$total = $found['total'];
 	} else {
+		$posts = snt_corpus_fetch_posts( 'any', $post_type ); // Reused verbatim.
 		// snt_corpus_fetch_posts already orders by date DESC; add the same ID
 		// DESC tie-break for two posts sharing a post_date.
 		usort( $posts, function( $a, $b ) {
@@ -324,18 +313,19 @@ function snt_sn_posts_resolve_walk( $kind, $scope, $include_content, $offset, $m
 			$bd = strtotime( (string) ( $b->post_date ?? '' ) );
 			return $ad === $bd ? ( (int) $b->ID <=> (int) $a->ID ) : ( $bd <=> $ad );
 		} );
+
+		// Status filter runs BEFORE the count and the slice. Filtering after would
+		// make `count`, `cursor` and `has_more` describe a set the caller was never
+		// given - the page would be short and nothing would say why.
+		if ( null !== $statuses ) {
+			$posts = array_values( array_filter( $posts, function ( $p ) use ( $statuses ) {
+				return in_array( (string) ( $p->post_status ?? '' ), $statuses, true );
+			} ) );
+		}
+		$total = count( $posts );
+		$page  = array_slice( $posts, max( 0, $offset ), $max );
 	}
 
-	// Status filter runs BEFORE the count and the slice. Filtering after would
-	// make `count`, `cursor` and `has_more` describe a set the caller was never
-	// given - the page would be short and nothing would say why.
-	if ( null !== $statuses ) {
-		$posts = array_values( array_filter( $posts, function ( $p ) use ( $statuses ) {
-			return in_array( (string) ( $p->post_status ?? '' ), $statuses, true );
-		} ) );
-	}
-
-	$total = count( $posts );
 	if ( $include_content && $total > SNT_CORPUS_MAX_CONTENT_IDS ) {
 		return new WP_Error(
 			'snt_posts_content_cap_exceeded',
@@ -349,7 +339,6 @@ function snt_sn_posts_resolve_walk( $kind, $scope, $include_content, $offset, $m
 		);
 	}
 
-	$page = array_slice( $posts, max( 0, $offset ), $max );
 	$rows = array();
 	foreach ( $page as $p ) {
 		$row = snt_sn_posts_attach_surfaces( snt_corpus_post_row( $p ), $include_surface_checks );

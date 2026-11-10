@@ -8,6 +8,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 define( 'ABSPATH', '/' );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
+function wp_timezone() { return new DateTimeZone( $GLOBALS['__tz'] ?? 'UTC' ); }
 require __DIR__ . '/../inc/analytics-admin.php';
 
 $pass = 0; $fail = 0;
@@ -41,6 +42,15 @@ ok( snt_analytics_resolve_custom_window( '2026-05-20', '2030-01-01', $cnow ) ===
 ok( snt_analytics_resolve_custom_window( '2000-01-01', '2026-06-10', $cnow ) === array( '2026-05-08', '2026-06-10' ), 'from before min_day clamped to min_day' );
 ok( snt_analytics_resolve_custom_window( 'junk', '2026-06-10', $cnow ) === null, 'malformed from → null' );
 ok( snt_analytics_resolve_custom_window( '2026-02-30', '2026-06-10', $cnow ) === null, 'impossible date → null' );
+
+echo "\nGroup: resolve_custom_window clamps to the SITE-LOCAL today, the day the rollups are keyed on\n";
+$GLOBALS['__tz'] = 'America/New_York';
+$evening         = gmmktime( 2, 0, 0, 6, 13, 2026 ); // 22:00 on June 12 in New York.
+ok( snt_analytics_resolve_custom_window( '2026-06-01', '2026-06-13', $evening ) === array( '2026-06-01', '2026-06-12' ), 'west of UTC in the local evening: the UTC tomorrow is clamped back to the local today' );
+$GLOBALS['__tz'] = 'Asia/Tokyo';
+$morning         = gmmktime( 20, 0, 0, 6, 12, 2026 ); // 05:00 on June 13 in Tokyo.
+ok( snt_analytics_resolve_custom_window( '2026-06-01', '2026-06-13', $morning ) === array( '2026-06-01', '2026-06-13' ), 'east of UTC in the local morning: a window can include the local today' );
+unset( $GLOBALS['__tz'] );
 
 echo "\nGroup: resolve_window (single entry — token + dates)\n";
 ok( snt_analytics_resolve_window( '7', '', '', $cnow ) === array( 7, '2026-06-07', '2026-06-13' ), 'int range delegates to range_dates' );

@@ -31,6 +31,11 @@ if ( ! function_exists( 'esc_textarea' ) ) { function esc_textarea( $s ) { retur
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1 ) { echo '<input type="hidden" name="_wpnonce">'; } }
 if ( ! function_exists( 'sn_setting' ) ) { function sn_setting( $k, $d = '' ) { return $d; } }
+// The identity trio reads core's Settings > General (inc/settings-defaults-parts.php).
+if ( ! function_exists( 'sn_settings_identity_core' ) ) { function sn_settings_identity_core( $k ) { return ''; } }
+if ( ! function_exists( 'sn_settings_identity_override' ) ) { function sn_settings_identity_override( $k ) { return ''; } }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return (string) $u; } }
 
 require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/admin-tabs.php';          // sn_admin_render_section (the section-card wrapper)

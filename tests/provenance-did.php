@@ -12,6 +12,7 @@ ob_start(); // buffer so send()'s real header() doesn't warn after PASS lines
 if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; } }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 if ( ! function_exists( 'status_header' ) ) { function status_header( $c ) { $GLOBALS['__status'] = (int) $c; } }
+if ( ! function_exists( 'nocache_headers' ) ) { function nocache_headers() { $GLOBALS['__nocache'] = 1 + (int) ( $GLOBALS['__nocache'] ?? 0 ); } }
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $f = 0 ) { return json_encode( $d, $f ); } }
 if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; } }
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
@@ -77,8 +78,9 @@ ok( ( $key['sha256_fingerprint'] ?? '' ) === hash( 'sha256', str_repeat( "\x01",
 // no key configured → null → 404
 $GLOBALS['__pub'] = '';
 ok( sn_prov_did_document() === null, 'no pubkey → null document' );
-$GLOBALS['__status'] = 0; sn_prov_did_send();
+$GLOBALS['__status'] = 0; $GLOBALS['__nocache'] = 0; sn_prov_did_send();
 ok( $GLOBALS['__status'] === 404, 'send() with no key → 404' );
+ok( 1 === $GLOBALS['__nocache'], 'that 404 sends its own no-cache headers: core no longer answers this path first' );
 $GLOBALS['__pub'] = base64_encode( str_repeat( "\x01", 32 ) );
 
 // wrong key length → null (Ed25519 pubkey must be 32 bytes)
@@ -97,6 +99,7 @@ ok( sn_prov_keys_is_request( '/provenance-keys.json' ) === false, 'rejects key m
 // send emits 200 + valid JSON
 $GLOBALS['__status'] = 0; ob_start(); sn_prov_did_send(); $out = ob_get_clean();
 ok( $GLOBALS['__status'] === 200, 'send() with a key → 200' );
+ok( 1 === $GLOBALS['__nocache'], 'a 200 sends no no-cache headers' );
 ok( is_array( json_decode( $out, true ) ), 'send() emits valid JSON' );
 $GLOBALS['__status'] = 0; ob_start(); sn_prov_keys_send(); $keys_out = ob_get_clean();
 ok( $GLOBALS['__status'] === 200, 'key mirror send() with a key → 200' );

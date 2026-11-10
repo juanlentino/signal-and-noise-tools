@@ -212,8 +212,9 @@ function sn_prov_webfinger_parse_query( $uri ) {
 
 /**
  * Emit the JRD. 400 when `resource` is absent (RFC 7033 §4.2), 404 when it names
- * something that is not this identity, 200 otherwise. status_header is REQUIRED
- * (postless path → 404 by template_redirect).
+ * something that is not this identity, 200 otherwise. The status and the cache
+ * headers are sent here: sn_prov_route_pre_handle_404() (inc/provenance-did.php)
+ * keeps WP::handle_404() from answering this postless path first.
  *
  * @param string $uri
  */
@@ -227,6 +228,7 @@ function sn_prov_webfinger_send( $uri ) {
 	if ( '' === $q['resource'] ) {
 		if ( function_exists( 'status_header' ) ) {
 			status_header( 400 );
+			nocache_headers(); // core sends none for this path any more (pre_handle_404)
 		}
 		header( 'Content-Type: application/json; charset=utf-8' );
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON endpoint; HTML escaping would corrupt the payload.
@@ -238,6 +240,7 @@ function sn_prov_webfinger_send( $uri ) {
 	if ( null === $doc ) {
 		if ( function_exists( 'status_header' ) ) {
 			status_header( 404 );
+			nocache_headers(); // core sends none for this path any more (pre_handle_404)
 		}
 		header( 'Content-Type: application/json; charset=utf-8' );
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON endpoint; HTML escaping would corrupt the payload.

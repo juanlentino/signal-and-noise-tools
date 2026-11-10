@@ -7,8 +7,8 @@
  * endpoint as a data attribute — the JS hardcodes no URL); ALL cryptographic
  * and network verification happens in the reader's own browser
  * (assets/js/prov-verify.js). This file holds no keys and does no signing.
- * Flush-free virtual route (template_redirect priority 0, status_header(200)
- * required — a postless path 404s without it), same mechanism as
+ * Flush-free virtual route (template_redirect priority 0; WP::handle_404() is
+ * kept off this postless path by sn_prov_route_pre_handle_404()), same mechanism as
  * inc/provenance-did.php. Gated by SN_PROV_VERIFY_TEST for the standalone
  * test fixture, mirroring the SN_PROV_DID_TEST pattern.
  *
@@ -163,9 +163,10 @@ function sn_prov_verify_send() {
 	$fonts_base = function_exists( 'get_template_directory_uri' ) ? get_template_directory_uri() . '/assets/fonts' : '';
 
 	if ( function_exists( 'status_header' ) ) {
-		status_header( 200 ); // required: a postless path 404s by default via template_redirect.
+		status_header( 200 );
 	}
 	header( 'Content-Type: text/html; charset=utf-8' );
+	header( 'Cache-Control: public, max-age=300' ); // the same five minutes as did.json and the key mirror
 	?>
 <!DOCTYPE html>
 <?php // The site's own language (en-US), as every theme page says it; a bare
@@ -444,8 +445,9 @@ node verify.mjs<?php echo '' !== $uid ? ' ' . esc_html( $uid ) : ' &lt;note_uid&
 }
 
 /**
- * template_redirect handler (priority 0 — before WP resolves a 404 for this
- * postless path). Disabled under the test constant so the standalone fixture
+ * template_redirect handler (priority 0). WP::handle_404() runs before this, in
+ * WP::main(); sn_prov_route_pre_handle_404() (inc/provenance-did.php) is what
+ * keeps it from sending a 404 for this postless path. Disabled under the test constant so the standalone fixture
  * can call sn_prov_verify_send() directly without wiring the WP hook system.
  */
 function sn_prov_verify_maybe_serve() {

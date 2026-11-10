@@ -30,6 +30,7 @@ function wp_is_post_revision( $id ) { return false; }
 function wp_is_post_autosave( $id ) { return false; }
 function get_permalink( $p ) { return 'https://example.test/notes/' . ( is_object( $p ) ? $p->post_name : 'x' ) . '/'; }
 function home_url( $path = '/' ) { return 'https://example.test' . $path; }
+require_once __DIR__ . '/lib/core-sitemaps-stub.php'; // core's sitemap API; no pages set, so only the index
 function add_query_arg( $k, $v, $u ) { return $u . ( false === strpos( $u, '?' ) ? '?' : '&' ) . $k . '=' . $v; }
 function get_post( $id ) { return $GLOBALS['__db']; }
 // The stored reading time is whatever the test sets; '' when none is stored, core's shape.

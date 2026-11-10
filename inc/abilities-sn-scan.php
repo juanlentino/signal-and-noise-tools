@@ -243,32 +243,30 @@ function snt_sn_scan_resolve_scope( $scope, $scan_type ) {
 		return snt_sn_scan_scope_error( __( 'scope.kind "modified_since" requires a parseable scope.modified_since date/time string.', 'signal-and-noise-tools' ) );
 	}
 
-	if ( 'orphan_media' === $scan_type ) {
-		if ( ! function_exists( 'snt_corpus_post_type_allowed' ) ) {
-			return snt_sn_scan_scope_error( __( 'Corpus inspect helper not loaded.', 'signal-and-noise-tools' ) );
-		}
-		global $wpdb;
-		$rows = $wpdb->get_col( $wpdb->prepare(
-			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%%' AND post_date_gmt >= %s",
-			gmdate( 'Y-m-d H:i:s', $since_ts )
-		) );
-		return array_map( 'intval', (array) $rows );
-	}
-
-	if ( ! function_exists( 'snt_corpus_fetch_posts' ) ) {
+	if ( ! function_exists( 'snt_corpus_gmt_date_parts' ) ) {
 		return snt_sn_scan_scope_error( __( 'Corpus inspect helper not loaded.', 'signal-and-noise-tools' ) );
 	}
-	$posts = snt_corpus_fetch_posts( 'any', 'post' );
-	$ids   = array();
-	foreach ( $posts as $p ) {
-		// post_modified is SITE-LOCAL wall time; $since_ts is UTC.
-		// post_modified_gmt is the column that is actually UTC.
-		$mts = strtotime( (string) ( $p->post_modified_gmt ?? '' ) . ' UTC' );
-		if ( false !== $mts && $mts >= $since_ts ) {
-			$ids[] = (int) $p->ID;
-		}
-	}
-	return $ids;
+	// Core does the filter (get_posts + date_query). Both columns are the UTC
+	// ones: post_date / post_modified are SITE-LOCAL wall time, $since_ts is UTC.
+	$orphan_media = 'orphan_media' === $scan_type;
+	$ids          = get_posts( array(
+		'post_type'      => $orphan_media ? 'attachment' : 'post',
+		'post_mime_type' => $orphan_media ? 'image' : '',
+		// Attachments: every status, as the detector itself applies none.
+		'post_status'    => $orphan_media ? array_values( get_post_stati() ) : SNT_CORPUS_STATUSES,
+		'date_query'     => array(
+			array(
+				'column'    => $orphan_media ? 'post_date_gmt' : 'post_modified_gmt',
+				'after'     => snt_corpus_gmt_date_parts( $since_ts ),
+				'inclusive' => true,
+			),
+		),
+		'fields'         => 'ids',
+		'posts_per_page' => -1,
+		'orderby'        => $orphan_media ? 'ID' : 'date',
+		'order'          => $orphan_media ? 'ASC' : 'DESC',
+	) );
+	return array_map( 'intval', $ids );
 }
 
 /* ════════════════════════════════════════════════════════════════════════

@@ -33,11 +33,35 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * The families core guards, as family => [ settings path, flag path ].
- * Mirrors WP_Theme_JSON::PRESETS_METADATA (7.1).
+ *
+ * Read from core's own table, WP_Theme_JSON::PRESETS_METADATA: a row whose
+ * prevent_override is a path is a guarded family. A family core starts
+ * guarding in a later release is then checked without a change here, which
+ * is the case this check exists for.
  *
  * @return array<string,array{0:array<int,string>,1:array<int,string>}>
  */
 function sn_health_theme_preset_families() {
+	if ( ! class_exists( 'WP_Theme_JSON' ) ) {
+		return sn_health_theme_preset_families_fallback();
+	}
+	$out = array();
+	foreach ( WP_Theme_JSON::PRESETS_METADATA as $meta ) {
+		if ( isset( $meta['path'], $meta['prevent_override'] ) && is_array( $meta['path'] ) && is_array( $meta['prevent_override'] ) ) {
+			$out[ implode( '.', $meta['path'] ) ] = array( $meta['path'], $meta['prevent_override'] );
+		}
+	}
+	return $out;
+}
+
+/**
+ * The same list as of WordPress 7.1.4, for a context without the class
+ * (the standalone tests). tests/health-check-theme-presets-core.php pins it
+ * against the 7.1.4 rows.
+ *
+ * @return array<string,array{0:array<int,string>,1:array<int,string>}>
+ */
+function sn_health_theme_preset_families_fallback() {
 	return array(
 		'color.palette'           => array( array( 'color', 'palette' ), array( 'color', 'defaultPalette' ) ),
 		'color.gradients'         => array( array( 'color', 'gradients' ), array( 'color', 'defaultGradients' ) ),

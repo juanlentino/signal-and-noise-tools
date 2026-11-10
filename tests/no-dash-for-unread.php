@@ -44,6 +44,11 @@ foreach ( $files as $file ) {
 		foreach ( token_get_all( $src ) as $tok ) {
 			// A literal that is only a dash, or markup whose element holds only one.
 			if ( is_array( $tok ) && T_CONSTANT_ENCAPSED_STRING === $tok[0] && ( preg_match( $dash, $tok[1] ) || preg_match( '/>(—|&mdash;|&#8212;)</u', $tok[1] ) ) ) {
+				// Not a painted value: the separator core joins the <title> parts with.
+				// Excused on its own line only, so the rest of the file stays guarded.
+				if ( 'inc/seo-head-parts.php' === $rel && false !== strpos( (string) ( explode( "\n", $src )[ $tok[2] - 1 ] ?? '' ), "? \$sep : '—'" ) ) {
+					continue;
+				}
 				$bad[] = "$rel:{$tok[2]}";
 			}
 		}

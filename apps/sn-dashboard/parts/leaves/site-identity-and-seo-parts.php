@@ -64,8 +64,8 @@ function identity_seo_panel( $slug, $heading, $intro, $fields ) {
 /** @return string The Identity section. */
 function identity_seo_identity_panel() {
 	$knows_about = (array) \sn_setting( 'identity.knows_about', array( 'Music Production', 'Audio Engineering', 'Provenance', 'Music Industry' ) );
-	$fields      = identity_seo_field( 'text', 'identity_site_name', __( 'Site name', 'signal-and-noise-tools' ), (string) \sn_setting( 'identity.site_name', '' ) )
-		. identity_seo_field( 'textarea', 'identity_site_description', __( 'Site description', 'signal-and-noise-tools' ), (string) \sn_setting( 'identity.site_description', '' ), array( 'rows' => 2 ) )
+	$fields      = identity_seo_field( 'text', 'identity_site_name', __( 'Site name', 'signal-and-noise-tools' ), \sn_settings_identity_override( 'site_name' ), array( 'placeholder' => \sn_settings_identity_core( 'site_name' ) ), \snt_kit_esc( __( 'Empty follows the Site Title in ', 'signal-and-noise-tools' ) ) . \snt_kit_door( __( 'Settings → General', 'signal-and-noise-tools' ), admin_url( 'options-general.php' ) ) . \snt_kit_esc( __( '. Fill it only to use a different name in search and social tags.', 'signal-and-noise-tools' ) ) )
+		. identity_seo_field( 'textarea', 'identity_site_description', __( 'Site description', 'signal-and-noise-tools' ), \sn_settings_identity_override( 'site_description' ), array( 'rows' => 2, 'placeholder' => \sn_settings_identity_core( 'site_description' ) ), \snt_kit_esc( __( 'Empty follows the Tagline in Settings → General.', 'signal-and-noise-tools' ) ) )
 		. identity_seo_field( 'text', 'identity_person_name', __( 'Person name (schema author)', 'signal-and-noise-tools' ), (string) \sn_setting( 'identity.person_name', '' ) )
 		. identity_seo_field(
 			'text',
@@ -87,9 +87,9 @@ function identity_seo_identity_panel() {
 			'text',
 			'identity_locale',
 			__( 'Locale', 'signal-and-noise-tools' ),
-			(string) \sn_setting( 'identity.locale', 'en_US' ),
-			array( 'placeholder' => 'en_US' ),
-			\snt_kit_esc( __( 'WP locale code (e.g. ', 'signal-and-noise-tools' ) ) . \snt_kit_code( 'en_US', false ) . \snt_kit_esc( __( '). Used for og:locale and schema inLanguage.', 'signal-and-noise-tools' ) )
+			\sn_settings_identity_override( 'locale' ),
+			array( 'placeholder' => \sn_settings_identity_core( 'locale' ) ),
+			\snt_kit_esc( __( 'WP locale code (e.g. ', 'signal-and-noise-tools' ) ) . \snt_kit_code( 'en_US', false ) . \snt_kit_esc( __( '). Used for og:locale and schema inLanguage. Empty follows the Site Language.', 'signal-and-noise-tools' ) )
 		)
 		. identity_seo_field(
 			'textarea',

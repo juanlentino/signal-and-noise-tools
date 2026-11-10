@@ -80,5 +80,65 @@ ok( 1 === $base['value'] && $base['value'] === $with['value'] && $base['series']
 ok( 400 === $with['layers']['inputs']['feed_opens']['value'] && '7d' === $with['layers']['inputs']['feed_opens']['window'], 'feed opens show as their own input, 7-day window' );
 ok( 0 === $base['layers']['inputs']['feed_opens']['value'] && array_key_exists( 'rss_readers', $with['layers']['inputs'] ) && array_key_exists( 'feed_clicks', $with['layers']['inputs'] ), 'beside rss_readers and feed_clicks, zero when none' );
 
+// The REST route: the callback returns a response and core serves the request;
+// rest_pre_serve_request swaps the JSON body for the GIF. Nothing exits inside
+// the callback, so rest_post_dispatch and the rest of serve_request() still run.
+echo "\nThe pixel route\n";
+function absint( $n ) { return abs( (int) $n ); }
+function wp_unslash( $v ) { return $v; }
+function get_post_type( $p ) { return 'post'; }
+function get_post_status( $p ) { return 'publish'; }
+function update_option( $k, $v, $autoload = null ) { $GLOBALS['fo_opts'][ $k ] = $v; return true; }
+function wp_get_nocache_headers() { return array( 'Expires' => 'Wed, 11 Jan 1984 05:00:00 GMT', 'Cache-Control' => 'no-cache, must-revalidate, max-age=0, no-store, private', 'Last-Modified' => false ); }
+class WP_REST_Response {
+	public $data; public $status; public $headers;
+	public function __construct( $data = null, $status = 200, $headers = array() ) { $this->data = $data; $this->status = $status; $this->headers = $headers; }
+	public function get_status() { return $this->status; }
+	public function get_headers() { return $this->headers; }
+}
+class FO_Request {
+	public $route; public $method; public $p;
+	public function __construct( $route, $method = 'GET', $p = 7 ) { $this->route = $route; $this->method = $method; $this->p = $p; }
+	public function get_param( $k ) { return 'p' === $k ? $this->p : null; }
+	public function get_route() { return $this->route; }
+	public function get_method() { return $this->method; }
+}
+class FO_Server {
+	public $sent = array();
+	public function send_header( $k, $v ) { $this->sent[ $k ] = $v; }
+}
+$gif   = base64_decode( SNT_FEED_OPENS_GIF );
+$route = '/signal-noise/v1/feed-open';
+$_SERVER['HTTP_USER_AGENT'] = 'NetNewsWire/6.1';
+$GLOBALS['fo_opts'][ SNT_FEED_OPENS_OPT ] = array();
+$req = new FO_Request( $route );
+ob_start();
+$res  = snt_feed_open_serve( $req );
+$body = ob_get_clean();
+ok( $res instanceof WP_REST_Response && 200 === $res->get_status() && '' === $body, 'the callback returns a 200 response: it prints nothing and does not end the request' );
+ok( 1 === snt_feed_opens_window( $GLOBALS['fo_opts'][ SNT_FEED_OPENS_OPT ], 1, time() )['total'], 'and the open is still recorded' );
+$h = $res instanceof WP_REST_Response ? $res->get_headers() : array();
+ok( 'no-store, private, max-age=0' === ( $h['Cache-Control'] ?? '' ) && 'Wed, 11 Jan 1984 05:00:00 GMT' === ( $h['Expires'] ?? '' ) && ! array_key_exists( 'Last-Modified', $h ), 'the response carries the same no-store Cache-Control and 1984 Expires, and no empty Last-Modified line' );
+
+$srv = new FO_Server();
+ob_start();
+$served = function_exists( 'snt_feed_open_pre_serve' ) ? snt_feed_open_pre_serve( false, $res, $req, $srv ) : null;
+$body   = ob_get_clean();
+ok( true === $served && $gif === $body && 42 === strlen( $body ), 'a GET is served the same 42 GIF bytes, and core is told the body went out' );
+ok( 'image/gif' === ( $srv->sent['Content-Type'] ?? '' ) && 'no-store, private, max-age=0' === ( $srv->sent['Cache-Control'] ?? '' ), 'as image/gif, no-store' );
+ob_start();
+$served = function_exists( 'snt_feed_open_pre_serve' ) ? snt_feed_open_pre_serve( false, $res, new FO_Request( '/signal-noise/v1/Feed-Open' ), new FO_Server() ) : null;
+ok( true === $served && $gif === ob_get_clean(), 'core matches a route in any case, and so does the GIF' );
+ob_start();
+$served = function_exists( 'snt_feed_open_pre_serve' ) ? snt_feed_open_pre_serve( false, $res, new FO_Request( $route, 'HEAD' ), new FO_Server() ) : null;
+ok( true === $served && '' === ob_get_clean(), 'a HEAD gets the headers and no body' );
+$srv = new FO_Server();
+ob_start();
+$served = function_exists( 'snt_feed_open_pre_serve' ) ? snt_feed_open_pre_serve( false, new WP_REST_Response( array( 'code' => 'rest_missing_callback_param' ), 400 ), $req, $srv ) : null;
+ok( false === $served && '' === ob_get_clean() && array() === $srv->sent, 'a missing p stays core\'s JSON 400' );
+ob_start();
+$served = function_exists( 'snt_feed_open_pre_serve' ) ? snt_feed_open_pre_serve( false, new WP_REST_Response( array(), 200 ), new FO_Request( '/wp/v2/posts' ), $srv ) : null;
+ok( false === $served && '' === ob_get_clean() && array() === $srv->sent, 'every other route is left to core' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

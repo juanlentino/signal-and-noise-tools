@@ -13,6 +13,7 @@ ob_start(); // buffer so send()'s real header() cannot interleave with PASS line
 if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; } }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 if ( ! function_exists( 'status_header' ) ) { function status_header( $c ) { $GLOBALS['__status'] = (int) $c; } }
+if ( ! function_exists( 'nocache_headers' ) ) { function nocache_headers() { $GLOBALS['__nocache'] = 1 + (int) ( $GLOBALS['__nocache'] ?? 0 ); } }
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $f = 0 ) { return json_encode( $d, $f ); } }
 if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; } }
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
@@ -88,6 +89,7 @@ ok( is_array( json_decode( $out, true ) ), '400 still emits valid JSON' );
 
 $GLOBALS['__status'] = 0; ob_start(); sn_prov_webfinger_send( '/.well-known/webfinger?resource=acct%3Anobody%40example.com' ); $out = ob_get_clean();
 ok( $GLOBALS['__status'] === 404, 'an unknown resource is a 404' );
+ok( 2 === ( $GLOBALS['__nocache'] ?? 0 ), 'the 400 and the 404 each send their own no-cache headers' );
 
 $GLOBALS['__status'] = 0; ob_start(); sn_prov_webfinger_send( '/.well-known/webfinger?resource=acct%3Ajuan%40juanlentino.com' ); $out = ob_get_clean();
 ok( $GLOBALS['__status'] === 200, 'the site identity is a 200' );
@@ -119,6 +121,7 @@ $wf_script = 'define("ABSPATH", "/"); define("SN_PROV_WEBFINGER_TEST", true); de
 	. 'function home_url($p="") { return "https://juanlentino.com".$p; }'
 	. 'function wp_parse_url($u,$c=-1) { return parse_url($u,$c); }'
 	. 'function status_header($c) { $GLOBALS["__status"]=(int)$c; }'
+	. 'function nocache_headers() {}'
 	. 'function wp_json_encode($d,$f=0) { return json_encode($d,$f); }'
 	. 'function add_action() { return true; }'
 	. 'function apply_filters($t,$v) { return $v; }'

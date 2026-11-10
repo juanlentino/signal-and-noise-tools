@@ -271,6 +271,11 @@ echo "\nTest 10: every section tab has a matching form panel (#sn-sec-<slug>)\n"
 // Minimal stubs for the form render (beyond esc_attr/esc_html stubbed above).
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1, $b = '_wpnonce', $c = true, $d = true ) {} }
 if ( ! function_exists( 'sn_setting' ) ) { function sn_setting( $key, $default = '' ) { return $default; } }
+// The identity trio reads core's Settings > General (inc/settings-defaults-parts.php).
+if ( ! function_exists( 'sn_settings_identity_core' ) ) { function sn_settings_identity_core( $k ) { return ''; } }
+if ( ! function_exists( 'sn_settings_identity_override' ) ) { function sn_settings_identity_override( $k ) { return ''; } }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return (string) $u; } }
 if ( ! function_exists( 'esc_textarea' ) ) { function esc_textarea( $s ) { return esc_html( $s ); } }
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
 require_once __DIR__ . '/../inc/admin-forms/identity-and-seo.php';

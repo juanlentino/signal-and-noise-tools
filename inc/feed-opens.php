@@ -24,6 +24,8 @@ const SNT_FEED_OPENS_DAYS    = 90;
 const SNT_FEED_OPENS_PER_DAY = 500; // distinct UAs kept per note per day; bounds a UA-spraying flood.
 const SNT_FEED_OPENS_DAY_CAP = 1000; // distinct opens kept per day across ALL notes: a flood sprayed over every note stays ~30 KB a day.
 const SNT_FEED_OPENS_GIF     = 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+const SNT_FEED_OPENS_ROUTE   = '/signal-noise/v1/feed-open';
+const SNT_FEED_OPENS_CACHE   = 'no-store, private, max-age=0';
 
 /**
  * The pixel URL for a note: the note id and nothing else.
@@ -119,9 +121,13 @@ function snt_feed_opens_summary( array $store, $now, $top = 10 ) {
 }
 
 /**
- * REST handler: record a human open of a published note, then answer the GIF.
+ * REST handler: record a human open of a published note. It returns a response
+ * like any other route, so rest_post_dispatch and the rest of
+ * WP_REST_Server::serve_request() still run; snt_feed_open_pre_serve() below
+ * sends the GIF in place of a JSON body.
  *
  * @param WP_REST_Request $req Request.
+ * @return WP_REST_Response
  */
 function snt_feed_open_serve( $req ) {
 	$pid = absint( $req->get_param( 'p' ) );
@@ -133,12 +139,34 @@ function snt_feed_open_serve( $req ) {
 		$store = snt_feed_opens_record( (array) get_option( SNT_FEED_OPENS_OPT, array() ), $pid, substr( hash( 'sha256', $ua ), 0, 16 ), time() );
 		update_option( SNT_FEED_OPENS_OPT, $store, false );
 	}
-	nocache_headers();
-	header( 'Cache-Control: no-store, private, max-age=0' );
-	header( 'Content-Type: image/gif' );
-	echo base64_decode( SNT_FEED_OPENS_GIF ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- a fixed 1x1 GIF.
-	exit;
+	// array_filter() drops core's `Last-Modified => false`, which means "send none".
+	return new WP_REST_Response( null, 200, array_merge( array_filter( wp_get_nocache_headers() ), array( 'Cache-Control' => SNT_FEED_OPENS_CACHE ) ) );
 }
+
+/**
+ * rest_pre_serve_request: answer a served feed-open with the 1x1 GIF. Anything
+ * but a 200 on this route (a missing p is core's 400) stays core's JSON.
+ *
+ * @param bool             $served  Whether the request has already been served.
+ * @param WP_HTTP_Response $result  The response.
+ * @param WP_REST_Request  $request The request.
+ * @param WP_REST_Server   $server  The server.
+ * @return bool
+ */
+function snt_feed_open_pre_serve( $served, $result, $request, $server ) {
+	// strcasecmp: core matches a route without regard to case, so the path can arrive in any.
+	if ( $served || 0 !== strcasecmp( SNT_FEED_OPENS_ROUTE, (string) $request->get_route() ) || 200 !== (int) $result->get_status() ) {
+		return $served;
+	}
+	$server->send_header( 'Content-Type', 'image/gif' );
+	// Again here: for a logged-in request core sends its own no-cache set after the response's headers.
+	$server->send_header( 'Cache-Control', SNT_FEED_OPENS_CACHE );
+	if ( 'HEAD' !== $request->get_method() ) {
+		echo base64_decode( SNT_FEED_OPENS_GIF ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- a fixed 1x1 GIF.
+	}
+	return true;
+}
+add_filter( 'rest_pre_serve_request', 'snt_feed_open_pre_serve', 10, 4 );
 
 add_action(
 	'rest_api_init',
