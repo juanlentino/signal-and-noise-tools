@@ -261,13 +261,7 @@ function snt_editorial_conventions_detect( array $tree ) {
 
 		// ── svg-figure: the accessible trio and the palette ─────────────
 		if ( isset( $reg['svg-figure'] ) && 'core/html' === $name && false !== stripos( $html, '<svg' ) ) {
-			$missing = array();
-			if ( ! preg_match( '/<svg[^>]*\srole="img"/i', $html ) ) {
-				$missing[] = 'role="img"';
-			}
-			if ( ! preg_match( '/<svg[^>]*\saria-labelledby="/i', $html ) ) {
-				$missing[] = 'aria-labelledby';
-			}
+			$missing = snt_editorial_svg_missing_attributes( $html );
 			if ( false === stripos( $html, '<title' ) ) {
 				$missing[] = '<title>';
 			}

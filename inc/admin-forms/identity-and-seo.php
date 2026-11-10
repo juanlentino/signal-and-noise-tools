@@ -31,12 +31,14 @@ function sn_admin_render_identity_and_seo_form() {
 
 		echo '<div class="sn-field sn-field-w-md">';
 		echo '<label class="sn-field-label" for="sn_identity_site_name">Site name</label>';
-		echo '<input type="text" id="sn_identity_site_name" name="identity_site_name" value="' . esc_attr( sn_setting( 'identity.site_name', '' ) ) . '">';
+		echo '<input type="text" id="sn_identity_site_name" name="identity_site_name" value="' . esc_attr( sn_settings_identity_override( 'site_name' ) ) . '" placeholder="' . esc_attr( sn_settings_identity_core( 'site_name' ) ) . '">';
+		echo '<p class="sn-field-helper">Empty follows the Site Title in <a href="' . esc_url( admin_url( 'options-general.php' ) ) . '">Settings &rarr; General</a>. Fill it only to use a different name in search and social tags.</p>';
 		echo '</div>';
 
 		echo '<div class="sn-field sn-field-w-xl">';
 		echo '<label class="sn-field-label" for="sn_identity_site_description">Site description</label>';
-		echo '<textarea id="sn_identity_site_description" name="identity_site_description" rows="2">' . esc_textarea( (string) sn_setting( 'identity.site_description', '' ) ) . '</textarea>';
+		echo '<textarea id="sn_identity_site_description" name="identity_site_description" rows="2" placeholder="' . esc_attr( sn_settings_identity_core( 'site_description' ) ) . '">' . esc_textarea( sn_settings_identity_override( 'site_description' ) ) . '</textarea>';
+		echo '<p class="sn-field-helper">Empty follows the Tagline in Settings &rarr; General.</p>';
 		echo '</div>';
 
 		echo '<div class="sn-field sn-field-w-md">';
@@ -70,8 +72,8 @@ function sn_admin_render_identity_and_seo_form() {
 
 		echo '<div class="sn-field sn-field-w-xs">';
 		echo '<label class="sn-field-label" for="sn_identity_locale">Locale</label>';
-		echo '<input type="text" id="sn_identity_locale" name="identity_locale" value="' . esc_attr( sn_setting( 'identity.locale', 'en_US' ) ) . '" placeholder="en_US">';
-		echo '<p class="sn-field-helper">WP locale code (e.g. <code>en_US</code>). Used for og:locale and schema inLanguage.</p>';
+		echo '<input type="text" id="sn_identity_locale" name="identity_locale" value="' . esc_attr( sn_settings_identity_override( 'locale' ) ) . '" placeholder="' . esc_attr( sn_settings_identity_core( 'locale' ) ) . '">';
+		echo '<p class="sn-field-helper">WP locale code (e.g. <code>en_US</code>). Used for og:locale and schema inLanguage. Empty follows the Site Language.</p>';
 		echo '</div>';
 	} );
 

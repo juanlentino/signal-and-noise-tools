@@ -11,14 +11,19 @@
  *   - hex      http://0xA9.0xFE.0xA9.0xFE/   (and the flat http://0xA9FEA9FE/)
  *   - octal    http://0251.0376.0251.0376/   (and the flat http://025177524776/)
  * Each fails the literal string match — the parsed host is not "169.254.…" —
- * yet gethostbyname() resolves every one to 169.254.169.254, and
- * wp_http_validate_url() does NOT cover the 169.254.0.0/16 link-local range.
+ * yet gethostbyname() resolves every one to 169.254.169.254. As of core
+ * 7.1.4 wp_http_validate_url() does cover this: it resolves a non-dotted host
+ * with gethostbyname() and rejects 169.254.0.0/16 and CGNAT 100.64.0.0/10. It
+ * checks one A record, though, exempts the home host, is filterable
+ * (http_request_host_is_external), and runs at send time only when the
+ * request sets reject_unsafe_urls (wp_safe_remote_*). What this guard adds:
+ * every A record (gethostbynamel()) and a cURL pin to the validated addresses.
  *
  * The fix (lifted out of inc/health-external-links.php's D1 implementation,
  * v6.13.0, so webhooks + link-rot + future callers share ONE audited guard):
  * RESOLVE the host first — gethostbyname() collapses every encoded form to a
  * dotted-quad — THEN range-check the resolved IP with PHP's reserved/private
- * filter flags plus an explicit CGNAT (100.64.0.0/10) check the flags omit, and
+ * filter flags plus an explicit CGNAT (100.64.0.0/10) check PHP's flags omit, and
  * FAIL CLOSED on an unresolvable host.
  *
  * Pure functions, no hooks, the only I/O is the resolver — safe to load anywhere

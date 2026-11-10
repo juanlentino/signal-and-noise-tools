@@ -125,23 +125,34 @@ function sn_prov_set_change_class( $post_id, $version, $change_class ) {
 }
 
 /**
- * The correction notices in a body: each top-level paragraph block that
- * carries sn-correction or whose text opens "Correction," (the detector's
- * own shape, so an unclassed or italic notice still counts).
+ * The correction notices in a body: each paragraph block, at any depth, that
+ * carries the sn-correction class or whose text opens "Correction," (the
+ * detector's own shape, so an unclassed or italic notice still counts).
+ *
+ * Read from core's block tree (parse_blocks), inner blocks included: a
+ * notice inside a group or a column is still a notice, and stopping at the
+ * top level would let one through as a reading aid. The class is a token of
+ * the block's className, as inc/editorial-conventions-detect.php reads it.
  *
  * @param string $content
  * @return string[] Each notice's inner markup, whitespace-collapsed.
  */
 function sn_prov_change_class_correction_notices( $content ) {
-	preg_match_all( '#<!--\s*wp:paragraph(\s+\{.*?\})?\s*-->(.*?)<!--\s*/wp:paragraph\s*-->#s', (string) $content, $m, PREG_SET_ORDER );
-	$out = array();
-	foreach ( $m as $block ) {
-		$inner = trim( (string) preg_replace( '/\s+/', ' ', $block[2] ) );
-		$text  = trim( html_entity_decode( strip_tags( $inner ), ENT_QUOTES ) );
-		if ( false !== strpos( (string) $block[1], 'sn-correction' ) || 1 === preg_match( '/^Correction,/i', $text ) ) {
-			$out[] = $inner;
+	$out  = array();
+	$walk = static function ( array $blocks ) use ( &$walk, &$out ) {
+		foreach ( $blocks as $block ) {
+			$inner = trim( (string) preg_replace( '/\s+/', ' ', (string) ( $block['innerHTML'] ?? '' ) ) );
+			if ( 'core/paragraph' === ( $block['blockName'] ?? null ) && '' !== $inner ) {
+				$text    = trim( html_entity_decode( strip_tags( $inner ), ENT_QUOTES ) );
+				$classes = (array) preg_split( '/\s+/', (string) ( $block['attrs']['className'] ?? '' ), -1, PREG_SPLIT_NO_EMPTY );
+				if ( in_array( 'sn-correction', $classes, true ) || 1 === preg_match( '/^Correction,/i', $text ) ) {
+					$out[] = $inner;
+				}
+			}
+			$walk( (array) ( $block['innerBlocks'] ?? array() ) );
 		}
-	}
+	};
+	$walk( parse_blocks( (string) $content ) );
 	return $out;
 }
 

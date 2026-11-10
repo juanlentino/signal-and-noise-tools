@@ -99,6 +99,12 @@ add_action( 'template_redirect', function() {
 		return;
 	}
 
+	// Core marks these two views no-cache in WP::send_headers() and removes
+	// Last-Modified from them. Leave that standing: no validator, no 304.
+	if ( is_user_logged_in() || ! empty( $post->post_password ) ) {
+		return;
+	}
+
 	// The later of the content date and the last render change, or no
 	// validator at all on a computed page (2026.10 live audit, P1-1).
 	$modified_gmt = sn_seo_singular_validator_gmt( sn_seo_singular_last_modified_gmt( $post ), sn_seo_render_changed_gmt(), sn_seo_is_computed_content( (string) $post->post_content ) );
@@ -112,17 +118,7 @@ add_action( 'template_redirect', function() {
 	if ( ! empty( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) ) {
 		$client_since = strtotime( wp_unslash( $_SERVER['HTTP_IF_MODIFIED_SINCE'] ) );
 		if ( sn_seo_singular_not_modified( (int) $client_since, $modified_gmt, sn_seo_render_changed_gmt() ) ) {
-			// SERVER_PROTOCOL is normally set by the front-end web server,
-			// but allowlist defensively — a manipulated value here would
-			// be the protocol portion of an HTTP response status line, so
-			// CRLF injection could enable response splitting. The status
-			// code arg to header() handles the actual status; protocol
-			// is just the prefix string.
-			$raw_protocol = isset( $_SERVER['SERVER_PROTOCOL'] ) ? wp_unslash( $_SERVER['SERVER_PROTOCOL'] ) : '';
-			$protocol     = in_array( $raw_protocol, array( 'HTTP/1.0', 'HTTP/1.1', 'HTTP/2', 'HTTP/2.0', 'HTTP/3' ), true )
-				? $raw_protocol
-				: 'HTTP/1.1';
-			header( $protocol . ' 304 Not Modified', true, 304 );
+			status_header( 304 );
 			exit;
 		}
 	}

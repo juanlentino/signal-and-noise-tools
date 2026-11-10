@@ -24,6 +24,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/html-hrefs.php'; // sn_html_a_hrefs(): link targets, read by core's HTML parser.
+
 const SNT_ML_RENDER_CACHE = 'snt_ml_rendered_links';
 
 /**
@@ -34,14 +36,9 @@ const SNT_ML_RENDER_CACHE = 'snt_ml_rendered_links';
  * @return string[]
  */
 function snt_ml_paths_from_html( $html, $host = null ) {
-	if ( ! class_exists( 'WP_HTML_Tag_Processor' ) || '' === (string) $html ) {
-		return array();
-	}
-	$tags  = new WP_HTML_Tag_Processor( (string) $html );
 	$paths = array();
-	while ( $tags->next_tag( 'A' ) ) {
-		$href = $tags->get_attribute( 'href' );
-		$path = is_string( $href ) ? snt_ml_link_target_path( $href, $host ) : '';
+	foreach ( sn_html_a_hrefs( $html ) as $href ) {
+		$path = snt_ml_link_target_path( $href, $host );
 		if ( '' !== $path ) {
 			$paths[ $path ] = true;
 		}

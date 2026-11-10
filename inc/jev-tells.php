@@ -28,18 +28,50 @@ const SN_JEV_TELLS_MAX_PARAS = 24;
 const SN_JEV_TELLS_MIN_CHARS = 40;
 
 /**
- * The paragraphs of a note as plain text. PURE. Block markup in, one
- * string per <p> out; headings, lists and quotes are not judged.
+ * The <p> elements of classic markup, tags and all. PURE. For a body with no
+ * blocks, and for a Classic chunk inside one: there is no block tree to ask.
+ *
+ * @return array<int,string>
+ */
+function sn_jev_tells_classic_paragraphs( $html ) {
+	$html = preg_replace( '/<!--.*?-->/s', '', (string) $html );
+	return preg_match_all( '/<p\b[^>]*>(.*?)<\/p>/is', (string) $html, $m ) ? $m[1] : array();
+}
+
+/**
+ * The paragraphs of a note as plain text. PURE. Block markup in, one string
+ * per paragraph block out, at any depth (a group or a column is still the
+ * author's prose). Headings and lists are not judged, and neither is a quote
+ * or a pullquote: core's block tree (parse_blocks) is what says a <p> sits
+ * inside one, and quoted words are someone else's. Each judged paragraph is a
+ * paid request item.
  *
  * @return array<int,string>
  */
 function sn_jev_tells_paragraphs( $content ) {
-	$content = preg_replace( '/<!--.*?-->/s', '', (string) $content );
-	if ( ! preg_match_all( '/<p\b[^>]*>(.*?)<\/p>/is', $content, $m ) ) {
-		return array();
+	$content = (string) $content;
+	$raws    = array();
+	if ( has_blocks( $content ) ) {
+		$walk = static function ( array $blocks ) use ( &$walk, &$raws ) {
+			foreach ( $blocks as $block ) {
+				$name = $block['blockName'] ?? null;
+				if ( 'core/quote' === $name || 'core/pullquote' === $name ) {
+					continue;
+				}
+				if ( 'core/paragraph' === $name ) {
+					$raws[] = (string) ( $block['innerHTML'] ?? '' );
+				} elseif ( null === $name || 'core/freeform' === $name ) {
+					$raws = array_merge( $raws, sn_jev_tells_classic_paragraphs( $block['innerHTML'] ?? '' ) );
+				}
+				$walk( (array) ( $block['innerBlocks'] ?? array() ) );
+			}
+		};
+		$walk( parse_blocks( $content ) );
+	} else {
+		$raws = sn_jev_tells_classic_paragraphs( $content );
 	}
 	$out = array();
-	foreach ( $m[1] as $raw ) {
+	foreach ( $raws as $raw ) {
 		$t   = trim( preg_replace( '/\s+/', ' ', html_entity_decode( wp_strip_all_tags( $raw ), ENT_QUOTES, 'UTF-8' ) ) );
 		$len = function_exists( 'mb_strlen' ) ? mb_strlen( $t, 'UTF-8' ) : strlen( $t );
 		if ( $len >= SN_JEV_TELLS_MIN_CHARS ) {
@@ -235,9 +267,7 @@ add_action( 'init', function () {
 		'single'            => true,
 		'type'              => 'string',
 		'sanitize_callback' => 'sanitize_textarea_field',
-		'auth_callback'     => static function () {
-			return current_user_can( 'edit_posts' );
-		},
+		'auth_callback'     => '__return_false', // the server's reading: see inc/jev-collision.php.
 	) );
 } );
 

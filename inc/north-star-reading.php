@@ -246,7 +246,7 @@ add_action(
 						'readonly'        => true,
 						'destructive'     => false,
 						'idempotent'      => true,
-						'open_world_hint' => false,
+						'openWorldHint' => false,
 					),
 				),
 			)

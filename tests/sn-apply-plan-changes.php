@@ -41,6 +41,10 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s
  * then disagree about what the same markup means without either failing.
  * ──────────────────────────────────────────────────────────────────────── */
 $GLOBALS['__registered_blocks'] = array( 'core/paragraph', 'core/heading', 'core/list', 'core/quote', 'signal-noise/sidenote', 'signal-noise/pull-quote' );
+// The copied parse_blocks() below calls this; it went unnoticed while no path here reached the parser.
+function tf_be_freeform( $s ) {
+	return array( 'blockName' => null, 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => (string) $s, 'innerContent' => array( (string) $s ) );
+}
 if ( ! function_exists( 'parse_blocks' ) ) {
 	function parse_blocks( $content ) {
 		$content = (string) $content;
@@ -123,6 +127,8 @@ if ( ! class_exists( 'WP_Block_Type_Registry' ) ) {
 }
 
 require_once __DIR__ . '/lib/wp-core-kses.php'; // The active-content refusal reads markup with core's HTML API and kses.
+require_once __DIR__ . '/lib/wp-core-blocks.php'; // Block delimiters are read with core's WP_Block_Processor.
+require __DIR__ . '/../inc/sn-apply/block-delimiters.php';
 require __DIR__ . '/../inc/sn-apply/block-edit.php';
 require __DIR__ . '/../inc/sn-apply/sentence-replace.php';
 require __DIR__ . '/../inc/sn-apply/plan-changes.php';

@@ -235,10 +235,10 @@ add_action( 'wp_head', function() {
 		$graph[] = $article;
 	}
 
-	// v2.0.0 (Phase 13 TSF cutover): when TSF is inactive, also emit
-	// WebPage/CollectionPage and BreadcrumbList. These replace TSF's
-	// equivalent schema emission. Gate keeps them dormant while TSF
-	// is active to avoid duplicate JSON-LD entries on rollback.
+	// v2.0.0 (Phase 13 TSF cutover): with TSF inactive, which is the live
+	// state, this branch also emits WebPage/CollectionPage and
+	// BreadcrumbList. The gate is a rollback guard: if TSF is activated
+	// again it holds them back, so the page carries no duplicate JSON-LD.
 	if ( ! function_exists( 'the_seo_framework' ) ) {
 		$webpage = sn_schema_webpage();
 		if ( $webpage ) {

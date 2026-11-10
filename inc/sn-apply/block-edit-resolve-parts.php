@@ -106,7 +106,42 @@ function snt_sn_apply_block_edit_span_for_path( $content, $block_path ) {
 	if ( $span_full !== (string) $node['blockName'] ) {
 		return new WP_Error( 'snt_sn_apply_block_path_unresolvable', __( 'The block at this path does not match the delimiter scan (parser/scanner disagreement) — the content is malformed; nothing was located.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
+	$agrees = snt_sn_apply_block_edit_parser_agrees( (string) $content, $spans, $ordinal );
+	if ( is_wp_error( $agrees ) ) {
+		return $agrees;
+	}
 	return array( 'span' => $span, 'ordinal' => $ordinal, 'spans' => $spans );
+}
+
+/**
+ * Suspenders: the span about to be spliced must be, byte for byte, the block
+ * parse_blocks() sees at that position. The spans come from core's
+ * WP_Block_Processor and the tree from core's block parser; until the parser
+ * is built on the processor the two can read malformed content differently (a
+ * delimiter inside a plain HTML comment, attribute JSON that never closes), and
+ * a name can match while the bytes do not. Parsing the span alone must give
+ * back exactly the node the full parse holds there, or nothing is located.
+ *
+ * @param string $content Raw stored post_content.
+ * @param array  $spans   All top-level spans.
+ * @param int    $ordinal Index of the span in $spans.
+ * @return true|WP_Error
+ */
+function snt_sn_apply_block_edit_parser_agrees( $content, array $spans, $ordinal ) {
+	$nodes = array_values(
+		array_filter(
+			parse_blocks( $content ),
+			static function ( $node ) {
+				return null !== ( ( (array) $node )['blockName'] ?? null );
+			}
+		)
+	);
+	$span  = $spans[ $ordinal ] ?? null;
+	$alone = null === $span ? array() : parse_blocks( substr( $content, $span['start'], $span['end'] - $span['start'] ) );
+	if ( count( $nodes ) !== count( $spans ) || 1 !== count( $alone ) || $alone[0] != $nodes[ $ordinal ] ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- two parses of the same bytes: equal trees, whatever array or object the parser returns.
+		return new WP_Error( 'snt_sn_apply_block_path_unresolvable', __( 'Core\'s block parser and its delimiter reader disagree about this block (a block delimiter inside a plain HTML comment, or attribute JSON that never closes): the stored content is malformed; nothing was located. Repair the post in the editor first.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	return true;
 }
 
 /**
@@ -139,6 +174,10 @@ function snt_sn_apply_block_edit_resolve_span( $content, array $payload ) {
 			$ordinal = $i;
 			break;
 		}
+	}
+	$agrees = snt_sn_apply_block_edit_parser_agrees( (string) $content, $scan['spans'], (int) $ordinal );
+	if ( is_wp_error( $agrees ) ) {
+		return $agrees;
 	}
 	return array( 'span' => $located['span'], 'ordinal' => (int) $ordinal, 'spans' => $scan['spans'] );
 }

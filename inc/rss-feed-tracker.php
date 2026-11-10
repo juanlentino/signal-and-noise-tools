@@ -48,6 +48,7 @@ const SN_RSS_TRACKER_304_SINCE_OPT  = 'sn_rss_tracker_304_since'; // UTC day the
 
 // The rest of the module lives in 3 parts files (house line cap, 2026-10-16),
 // loaded in the order it always ran so every hook keeps its place.
+require_once __DIR__ . '/rss-feed-tracker-setting.php'; // The option, declared to core with its sanitizer.
 require_once __DIR__ . '/rss-feed-tracker-capture-parts.php';
 require_once __DIR__ . '/rss-feed-tracker-form-parts.php';
 require_once __DIR__ . '/rss-feed-tracker-render-parts.php';

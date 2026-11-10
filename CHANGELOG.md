@@ -14,6 +14,31 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **The focus keyword reaches the AI plugin's meta description again.** Since 2026.11.20 the AI plugin writes the description, and its prompt did not carry the post's focus keyword, so the field's promise ("requires it verbatim") was not kept. The saved `_sn_focus_keyword` is now appended to the official prompt as the line the house rules already name (`inc/ai-official-generators.php`, hooks `wp_before_execute_ability` and `wpai_meta_description_prompt`). A post with no keyword, or a run on pasted text with no post, changes nothing. The field's help text says "saved keyword": a keyword typed and not yet saved is not read. Test: `tests/ai-official-generators.php`.
+- **Core-first audit, part 3: HTML and block markup are read with core's parsers, not regular expressions.** Readers move to `WP_HTML_Tag_Processor`, `WP_HTML_Processor`, `parse_blocks()` and `WP_Block_Processor`: health checks, the citation verifier, link extraction (one shared `sn_html_a_hrefs()`), the correction-notice reader (notices inside groups now count), Jev tells, the OG card dek, the world map, the em-dash and editorial scanners, and the anchor scan. Each was pinned against its old output first; the differences are regex mistakes fixed (a link inside a comment or script no longer counts; `<a title="a > b">` is now read).
+- **sn-apply's write path stands on core.** Block edits locate blocks with `WP_Block_Processor` and refuse unless `parse_blocks()` agrees on the block; link-reshape finds `<a>` with the Tag Processor. Offsets only: nothing outside the edit is re-serialized.
+- **Generated block markup comes from core.** The `/resume` body and the Spanish fallback wrapper are built with `get_comment_delimited_block_content()` and core's post-content render (the wrapper's attributes now come in core's order).
+- **The Jev verdict fields cannot be overwritten from the editor or REST.** Both keys are dropped from REST writes before the save; the server's verdict stands.
+- **Orphaned-media and missing-alt checks know about scaled uploads.** They also match the attached file's name, so a large image is no longer read as unused.
+- Tests load core's real HTML API and block parser (`tools/fetch-wp-test-core.sh` fetches them); no stubs.
+
+### Changed
+- **Core-first audit, part 2: core features this plugin had switched off work again, and API detours go through core.**
+  - Signed in, `/admin` and `/dashboard` are core's shortcuts to `/wp-admin/` again. `/login` stays a 404 for everyone, so no cached redirect can hand the login address to a stranger. Visitors who are not signed in get the same 404s as before.
+  - Settings > Writing > Default Post Category sticks: the plugin sets it once at setup instead of rewriting it on every admin load. The permalink structure is set through `$wp_rewrite`.
+  - A post split with page breaks gets its page number in the title ("Page 2"); every other title is unchanged.
+  - Site name, tagline and locale in Signal & Noise settings are an override of Settings > General: an empty value, or one equal to core's, reads core live. Nothing changes until the Identity form is saved again.
+  - Analytics "today" is the site's day everywhere: "Today so far" no longer disappears in the evening, and a custom window cannot end tomorrow.
+  - A note's Last-Modified and 304 answer are no longer sent to signed-in or password-protected views, where core strips them.
+  - `did.json`, the key routes, webfinger and `/verify` no longer go out after core's 404 status and no-cache headers; `did.json` and `/verify` cache for five minutes.
+  - The feed-open pixel is served through core's REST pipeline (same image and caching, plus core's REST headers).
+  - The Cloudflare sitemap purge reads core's sitemap API for its pages, and purges the tag sitemap too.
+  - Recently modified posts (`sn-posts`, `sn-scan`, Insights) are read with `WP_Query` instead of raw SQL or a whole-corpus PHP filter; an old post edited recently is no longer missed behind the 2,000 newest.
+  - The theme-presets and plugin-registry health checks use core's `WP_Theme_JSON` preset list and `validate_plugin()`.
+  - RSS tracker settings are registered with the Settings API (stored values unchanged).
+
+### Changed
+- **Core-first audit, part 1: what the code says about WordPress now matches WordPress 7.1.4.** A plugin-wide audit (2026-11-10) read every module against core 7.1.4, the AI plugin and mcp-adapter. This part corrects comments, docblocks and admin text that described core wrongly. Owner-visible: the Connect screen now says which abilities mcp-adapter carries (`meta.mcp.public`, or `meta.public` when that is unset) and that the AI plugin's MCP Access experiment installs the adapter; the Performance form dates native speculative loading to WordPress 6.8 (it said 7.0) and no longer claims the login URL is excluded (it deliberately is not).
+- **The "reaches the outside world" hint reaches MCP clients.** 51 abilities declared it as `open_world_hint`, a key nothing reads; it is now `openWorldHint`, the key mcp-adapter maps.
 
 ## [2026.11.20] - 2026-11-10 — The official AI plugin writes the excerpt and meta description; guards for analytics worker 2.0.0
 

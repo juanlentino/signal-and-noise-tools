@@ -9,6 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 if ( ! function_exists( '__' ) ) { function __( $t, $d = '' ) { return $t; } }
 
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require __DIR__ . '/../inc/citations-core.php';
 
 $pass = 0; $fail = 0;
@@ -54,6 +55,32 @@ ok( sn_cit_html_has_identity( '<a rel="nofollow noopener" href="#">x</a>' ) === 
 ok( sn_cit_html_has_identity( '<a rel="mention" href="#">x</a>' ) === false, 'rel=mention is not rel=me — no substring false positive' );
 ok( sn_cit_html_has_identity( '<p>nothing here</p>' ) === false, 'a page with no identity signal has none' );
 ok( sn_cit_html_has_identity( '' ) === false, 'empty HTML has no identity' );
+
+// ── the shared cases: text that only looks like an identity link ────────────
+echo "\nGroup: sn_cit_html_has_identity on tests/lib/html-identity-title-cases.php\n";
+$cases = ( require __DIR__ . '/lib/html-identity-title-cases.php' )['identity'];
+$want_identity = array(
+	'nested inline markup' => true,
+	'uppercase tag and attribute, single quotes' => true,
+	'unquoted rel on a link element' => true,
+	'self-closing link element' => true,
+	'a > inside an earlier attribute' => true,
+	'rel=me written in prose' => false, // The regex answered true: it matched rel= anywhere in the bytes, prose included.
+	'a rel=me link inside a comment' => false, // The regex answered true: it read a comment.
+	'a rel=me link inside a script' => false, // The regex answered true: it read a script as markup.
+	'rel=me inside another attribute' => false, // The regex answered true: it read a title attribute's value as an attribute.
+	'data-rel is not rel' => false, // The regex answered true: its \\brel matched the end of data-rel.
+	'rel=me on an element that is not a link' => false, // The regex answered true: it never asked which element carried the rel.
+	'block delimiter with JSON' => false,
+	'multibyte text' => true,
+	'rel=mention' => false,
+	'a did:web in prose' => true,
+	'empty input' => false,
+);
+ok( array_keys( $want_identity ) === array_keys( $cases ), 'an answer is pinned for every shared identity case' );
+foreach ( $cases as $name => $html ) {
+	ok( $want_identity[ $name ] === sn_cit_html_has_identity( $html ), "identity: $name" );
+}
 
 // ── the ladder ──────────────────────────────────────────────────────────────
 ok( sn_cit_tier( true, true, true ) === 'verified', 'fetched + link + identity = verified' );

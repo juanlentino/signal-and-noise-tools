@@ -92,6 +92,13 @@ if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return
 if ( ! function_exists( 'wp_get_attachment_metadata' ) ) {
 	function wp_get_attachment_metadata( $id ) { return $GLOBALS['__att_meta'][ (int) $id ] ?? false; }
 }
+// Core's attachment API, as _wp_attached_file and the original_image metadata would answer.
+$GLOBALS['__att_file'] = array(); // id => get_attached_file() return
+$GLOBALS['__att_orig'] = array(); // id => wp_get_original_image_path() return
+$GLOBALS['__att_url']  = array(); // id => wp_get_attachment_url() return
+function get_attached_file( $id ) { return $GLOBALS['__att_file'][ (int) $id ] ?? false; }
+function wp_get_original_image_path( $id ) { return $GLOBALS['__att_orig'][ (int) $id ] ?? false; }
+function wp_get_attachment_url( $id ) { return $GLOBALS['__att_url'][ (int) $id ] ?? false; }
 if ( ! function_exists( 'get_theme_mod' ) ) {
 	function get_theme_mod( $name, $default = false ) { return $GLOBALS['__theme_mods'][ $name ] ?? $default; }
 }
@@ -192,6 +199,36 @@ $GLOBALS['__meta_values'] = array();
 $GLOBALS['__meta_rows']   = array();
 od_true( false === sn_health_attachment_is_referenced( 12, $guid( 'twelve.jpg' ), array(), array() ),
 	'#1182: wp-image-12 does not false-match a wp-image-123 reference (prefix collision)' );
+
+// 11. A large upload: core stores the main file as big-scaled.jpg in
+//    _wp_attached_file, keeps big.jpg as original_image, and the guid may name
+//    neither (here, a stale pre-migration URL). A body that links the full-size
+//    file links big-scaled.jpg, which no generated size and no guid names.
+$GLOBALS['__att_meta'][400] = array( 'file' => '2024/01/big-scaled.jpg', 'original_image' => 'big.jpg', 'sizes' => array( 'large' => array( 'file' => 'big-1024x576.jpg' ) ) );
+$GLOBALS['__att_file'][400] = '/srv/uploads/2024/01/big-scaled.jpg';
+$GLOBALS['__att_orig'][400] = '/srv/uploads/2024/01/big.jpg';
+$GLOBALS['__att_url'][400]  = $guid( 'big-scaled.jpg' );
+$stale = 'https://old.example/wp-content/uploads/2024/01/upload-1.jpg';
+$GLOBALS['__meta_values'] = array();
+$GLOBALS['__meta_rows']   = array();
+$GLOBALS['__post_bodies'] = array( '<img src="' . $guid( 'big-scaled.jpg' ) . '">' );
+od_true( true === sn_health_attachment_is_referenced( 400, $stale, array(), array() ),
+	'a scaled attachment referenced only by its -scaled URL is NOT an orphan (the attached file is a needle)' );
+$GLOBALS['__post_bodies'] = array( '<a href="' . $guid( 'big.jpg' ) . '">full size</a>' );
+od_true( true === sn_health_attachment_is_referenced( 400, $stale, array(), array() ),
+	'nor when only the pre-scale original is linked (wp_get_original_image_path is a needle)' );
+$GLOBALS['__post_bodies'] = array( 'see ' . $stale );
+od_true( true === sn_health_attachment_is_referenced( 400, $stale, array(), array() ),
+	'the guid basename is still a needle: the delete guard only widened' );
+$GLOBALS['__post_bodies'] = array( 'nothing here' );
+od_true( false === sn_health_attachment_is_referenced( 400, $stale, array(), array() ),
+	'and a scaled attachment nothing names is still an orphan' );
+$GLOBALS['__attachments'] = array( array( 'ID' => 400, 'post_title' => 'Big', 'guid' => $stale, 'post_date_gmt' => '2020-01-01 00:00:00' ) );
+$check = sn_health_check_orphaned_media();
+od_true( $guid( 'big-scaled.jpg' ) === ( $check['findings'][0]['subject_url'] ?? '' ), 'the finding links the file core serves (wp_get_attachment_url), not the stale guid' );
+$GLOBALS['__att_url'] = array();
+$check = sn_health_check_orphaned_media();
+od_true( $stale === ( $check['findings'][0]['subject_url'] ?? '' ), 'and falls back to the guid when core has no URL for it' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

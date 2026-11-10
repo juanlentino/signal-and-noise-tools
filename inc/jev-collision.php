@@ -189,7 +189,39 @@ add_action( 'wp_after_insert_post', function ( $post_id, $post ) {
 	sn_jev_collision_check( (int) $post_id );
 }, 20, 2 );
 
-/** The reading as the editor sees it: registered meta, JSON string, read-only from the client. */
+/**
+ * The Jev readings never travel from the client to the database.
+ *
+ * The block editor sends the WHOLE meta object back with any meta edit, from
+ * any panel: core-data merges each edit into the record's meta (the post
+ * entity's `mergedEdits: { meta: true }`), so no script can leave a key out.
+ * Both readings therefore arrive with every such save, stale or empty. They
+ * are dropped from the request here, before core's meta handler runs, so a
+ * save neither overwrites the server's reading nor trips the auth_callback
+ * below (which answers rest_cannot_update, and would fail the whole save for
+ * a note that was never judged).
+ *
+ * @param stdClass        $prepared The post about to be written.
+ * @param WP_REST_Request $request  The request.
+ * @return stdClass
+ */
+function sn_jev_rest_drop_readings( $prepared, $request ) {
+	$meta = $request['meta'];
+	if ( is_array( $meta ) ) {
+		unset( $meta[ SN_JEV_COLLISION_META ], $meta[ defined( 'SN_JEV_TELLS_META' ) ? SN_JEV_TELLS_META : '_sn_jev_tells' ] );
+		$request->set_param( 'meta', $meta );
+	}
+	return $prepared;
+}
+add_filter( 'rest_pre_insert_post', 'sn_jev_rest_drop_readings', 10, 2 );
+
+/**
+ * The reading as the editor sees it: registered meta, JSON string, read-only
+ * from the client. sn_jev_rest_drop_readings() keeps it out of post writes;
+ * auth_callback is the second lock, for any other door: core asks it before
+ * every REST meta write, so false refuses them all. The server writes with
+ * update_post_meta(), which does not ask.
+ */
 add_action( 'init', function () {
 	if ( ! function_exists( 'register_post_meta' ) ) {
 		return;
@@ -200,9 +232,7 @@ add_action( 'init', function () {
 		'type'              => 'string',
 		'default'           => '',
 		'sanitize_callback' => 'sanitize_textarea_field',
-		'auth_callback'     => static function () {
-			return current_user_can( 'edit_posts' );
-		},
+		'auth_callback'     => '__return_false',
 	) );
 } );
 

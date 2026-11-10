@@ -52,6 +52,7 @@ function sn_health_check_missing_alt() {
 	global $wpdb;
 	$findings = array();
 	$failed   = array(); // the passes whose query did not return rows (#1042)
+	$unread   = 0;       // bodies whose inline SVG could not be read to the end
 
 	// a) attachments without alt meta.
 	$rows = $wpdb->get_results(
@@ -73,7 +74,7 @@ function sn_health_check_missing_alt() {
 			$findings[] = array(
 				'subject_type' => 'attachment',
 				'subject_id'   => (int) $r['ID'],
-				'subject_url'  => (string) $r['guid'],
+				'subject_url'  => sn_health_attachment_url( $r['ID'], $r['guid'] ),
 				'subject_label' => (string) $r['post_title'],
 				'edit_url'     => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
 				'note'         => 'Image attachment has no alt text: bad for SEO and screen readers.',
@@ -110,7 +111,7 @@ function sn_health_check_missing_alt() {
 			$findings[] = array(
 				'subject_type'   => 'attachment_alt_quality',
 				'subject_id'     => (int) $r['ID'],
-				'subject_url'    => (string) $r['guid'],
+				'subject_url'    => sn_health_attachment_url( $r['ID'], $r['guid'] ),
 				'subject_label'  => (string) $r['post_title'],
 				'edit_url'       => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
 				'quality_reason' => $problem,
@@ -155,7 +156,7 @@ function sn_health_check_missing_alt() {
 			// c) inline <svg> with no accessible name. NOT an alt= problem:
 			//    <svg> has no alt attribute, so the fix is a child <title>,
 			//    aria-label, or aria-hidden="true" if it is decorative.
-			foreach ( sn_health_extract_inline_svgs_without_name( $content ) as $hint ) {
+			foreach ( sn_health_extract_inline_svgs_without_name( $content, $cut_short ) as $hint ) {
 				$findings[] = array(
 					'subject_type'  => 'inline_svg',
 					'subject_id'    => $post_id,
@@ -165,6 +166,8 @@ function sn_health_check_missing_alt() {
 					'note'          => 'Inline <svg> has no accessible name. Add a direct-child <title>, or aria-label, or aria-hidden="true" if it is decorative. <svg> has no alt attribute.',
 				);
 			}
+
+			$unread += $cut_short ? 1 : 0;
 
 			// d) inline <img> whose alt exists but says nothing.
 			foreach ( sn_health_extract_inline_imgs_with_alt( $content ) as $img ) {
@@ -188,12 +191,21 @@ function sn_health_check_missing_alt() {
 	// v13.97.5 (#1042): through the shared envelope, like every other check.
 	// This one built its array by hand and so had no `skipped` field at all --
 	// three failed queries reported 'no missing alt'. A pass whose query
-	// failed is named; the tally honours it only when nothing was found.
+	// failed is named; the tally honours it only when nothing was found. The
+	// same goes for a body core's HTML parser could not read to the end: its
+	// inline SVG were checked up to that point and no further.
+	$skipped = array();
+	if ( array() !== $failed ) {
+		$skipped[] = sprintf( 'The query for %s failed, so that pass was not scanned. The check retries on the next scan.', implode( ' and ', $failed ) );
+	}
+	if ( $unread > 0 ) {
+		$skipped[] = sprintf( 'Inline SVG in %d published %s could not be read to the end, because the markup there is not something the HTML parser supports, so an unnamed one may be missing.', $unread, 1 === $unread ? 'body' : 'bodies' );
+	}
 	return sn_health_pack_check(
 		'Missing alt text',
 		$findings,
 		'Open the editor and add a descriptive alt attribute to each image. Empty alt="" is valid only for purely decorative images. Inline <svg> takes a direct-child <title> or aria-label instead — it has no alt attribute. Alt that repeats the filename or the caption, or names a category ("image", "chart") rather than the picture, reads as noise to a screen reader.',
-		array() === $failed ? null : sprintf( 'The query for %s failed, so that pass was not scanned. The check retries on the next scan.', implode( ' and ', $failed ) )
+		array() === $skipped ? null : implode( ' ', $skipped )
 	);
 }
 
@@ -223,30 +235,23 @@ function sn_health_alt_quality_note( $problem, $alt ) {
 }
 
 /**
- * Parse post_content for <img> tags that lack an alt attribute.
- * Pure regex — content has already been written to the DB so a
- * proper HTML parser is overkill for this check.
+ * The <img> tags in post_content that carry no alt attribute, read by core's
+ * HTML parser. An alt with no value (`<img alt>`) is an empty alt, which is
+ * the decorative marker, so it is present. `data-alt`, or the text `alt=`
+ * inside another attribute, is not an alt.
  *
  * @param string $content
  * @return array  src URLs of <img> tags without alt
  */
 function sn_health_extract_inline_imgs_without_alt( $content ) {
-	if ( '' === trim( $content ) ) { return array(); }
-	$out = array();
-	if ( preg_match_all( '/<img\b([^>]*)>/i', $content, $matches ) ) {
-		foreach ( $matches[1] as $attrs ) {
-			// Match alt="..." OR alt=... (some legacy markup).
-			if ( preg_match( '/\balt\s*=/i', $attrs ) ) {
-				continue;
-			}
-			$src = '';
-			if ( preg_match( '/\bsrc\s*=\s*"([^"]+)"/i', $attrs, $sm ) ) {
-				$src = $sm[1];
-			} elseif ( preg_match( "/\bsrc\s*=\s*'([^']+)'/i", $attrs, $sm ) ) {
-				$src = $sm[1];
-			}
-			$out[] = $src;
+	$out  = array();
+	$tags = new WP_HTML_Tag_Processor( (string) $content );
+	while ( $tags->next_tag( 'IMG' ) ) {
+		if ( null !== $tags->get_attribute( 'alt' ) ) {
+			continue;
 		}
+		$src   = $tags->get_attribute( 'src' );
+		$out[] = is_string( $src ) ? $src : '';
 	}
 	return $out;
 }

@@ -105,6 +105,27 @@ function snt_ai_extract_inline_img_context( $post_content, $image_src, $window =
 }
 
 /**
+ * An image src as post_content stores it, or '' when it is not there.
+ *
+ * The health check reads each src with core's HTML parser, so a finding
+ * carries the decoded URL ("?w=600&ssl=1"), while the markup writes the "&"
+ * as "&amp;". Both spellings are the same image; the stored one is what the
+ * byte searches below need.
+ *
+ * @param string $post_content
+ * @param string $image_src
+ * @return string
+ */
+function snt_ai_inline_img_stored_src( $post_content, $image_src ) {
+	foreach ( array( (string) $image_src, str_replace( '&', '&amp;', (string) $image_src ) ) as $form ) {
+		if ( '' !== $form && false !== strpos( (string) $post_content, $form ) ) {
+			return $form;
+		}
+	}
+	return '';
+}
+
+/**
  * Pure impl: generate alt text suggestion for an inline <img> in a post body.
  *
  * @param int    $post_id   The post containing the inline <img>.
@@ -139,8 +160,10 @@ function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
 	$post_title   = trim( (string) $post->post_title );
 
 	// Verify the image src is still present in post_content (handles
-	// post-edited-since-scan + general bad input).
-	if ( false === strpos( $post_content, $image_src ) ) {
+	// post-edited-since-scan + general bad input). From here on the src is
+	// the form the markup stores.
+	$image_src = snt_ai_inline_img_stored_src( $post_content, $image_src );
+	if ( '' === $image_src ) {
 		return new WP_Error(
 			'snt_ai_img_not_found',
 			__( 'Image src no longer found in post content: post may have been edited since the scan. Re-run the Health scan to refresh.', 'signal-and-noise-tools' ),

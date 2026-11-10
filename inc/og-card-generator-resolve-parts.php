@@ -230,8 +230,25 @@ function sn_og_card_dek_source( $post ) {
 		// sentences together.
 		$content = preg_replace( '#^\s*(?:<!--\s*wp:heading[^>]*-->)?\s*<h[1-6][^>]*>.*?</h[1-6]>\s*(?:<!--\s*/wp:heading\s*-->)?#is', '', $content, 1 );
 
-		$cleaned = preg_replace( '/<!--\s*\/?wp:[^>]*-->/', ' ', $content );
-		$cleaned = wp_strip_all_tags( strip_shortcodes( $cleaned ) );
+		// Core decides which blocks are prose (the same list its own automatic
+		// excerpts use): a button label, an embed URL or a caption is not the
+		// first sentence of a page. It also drops the block delimiters, which
+		// is where the words of two blocks saved without a line break between
+		// them used to get their space; the filter puts one after each block.
+		$gap = static function ( $html ) {
+			return $html . ' ';
+		};
+		// Shortcodes go BEFORE the blocks are rendered, not after: a
+		// render_block listener may expand one (inc/reading-time.php turns
+		// [sn_reading_time] into "6 min read"), and the dek never carried a
+		// shortcode's output.
+		add_filter( 'render_block', $gap );
+		try {
+			$cleaned = excerpt_remove_blocks( strip_shortcodes( $content ) );
+		} finally {
+			remove_filter( 'render_block', $gap );
+		}
+		$cleaned = wp_strip_all_tags( $cleaned );
 		$excerpt = wp_trim_words( $cleaned, 36, '…' );
 	}
 	if ( '' === trim( $excerpt ) ) {

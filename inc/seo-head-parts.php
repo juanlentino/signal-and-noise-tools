@@ -238,5 +238,24 @@ add_filter( 'document_title_parts', function( $parts ) {
 	// must REPLACE the whole array — not just add to it — otherwise
 	// WP appends the site tagline (= bloginfo('description')) and the
 	// rendered <title> becomes "X — Y — Z" with three segments.
-	return array( 'title' => $title );
+	//
+	// 2026-11-10: core's "Page N" part is kept, so page 2 of a paginated
+	// post no longer carries page 1's title. Unpaged views have no such
+	// part and come out as the same string as before.
+	$kept = array( 'title' => $title );
+	if ( ! empty( $parts['page'] ) ) {
+		$kept['page'] = $parts['page'];
+	}
+	return $kept;
 }, 10, 1 );
+
+/**
+ * The separator core joins the parts above with: the site's own, on the
+ * views this module titles. Only a paged view has a second part to join.
+ * Every other view keeps the separator it was handed, so its title does
+ * not change.
+ */
+add_filter( 'document_title_separator', function( $sep ) {
+	list( $title, , ) = sn_seo_meta_for_current_view();
+	return '' === $title ? $sep : '—';
+} );

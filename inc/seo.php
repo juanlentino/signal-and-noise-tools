@@ -24,11 +24,13 @@ require_once __DIR__ . '/seo-validators.php'; // 2026.10 live audit: the dates t
  * This filter removes TSF from those generator pools, leaving our wp_head
  * emission as the single source of truth for OG/Twitter meta.
  *
- * Why not deactivate TSF entirely: TSF still owns canonical URLs, robots
- * meta, JSON-LD schemas, and a few fields we don't yet emit (og:locale,
- * og:image:width/height, article:published_time, twitter:site/creator).
- * Those move to our seo.php in Phase 10+11 of the absorption roadmap;
- * full TSF deactivation lands in Phase 13.
+ * TSF owns nothing here now: it has been inactive on the live site since
+ * the v2.0.0 (Phase 13) cutover. Since 2026-10-24 core prints the robots
+ * meta (wp_robots(), on wp_head) and the singular canonical
+ * (rel_canonical(), on wp_head), and inc/seo-head-parts.php feeds them
+ * through the wp_robots and get_canonical_url filters. The JSON-LD is ours
+ * (inc/seo-schema.php). This filter only does anything if TSF is activated
+ * again.
  *
  * Added in plugin v1.4.1 (2026-05-16, Phase 6 diagnostic outcome).
  */

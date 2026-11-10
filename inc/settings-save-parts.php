@@ -41,14 +41,22 @@ function sn_settings_save( $raw ) {
 	}
 
 	$sanitized['identity'] = array(
-		'site_name'        => sanitize_text_field( (string) ( $raw['identity_site_name'] ?? '' ) ),
-		'site_description' => sanitize_text_field( (string) ( $raw['identity_site_description'] ?? '' ) ),
-		'person_name'      => sanitize_text_field( (string) ( $raw['identity_person_name'] ?? '' ) ),
-		'locale'           => sanitize_text_field( (string) ( $raw['identity_locale'] ?? 'en_US' ) ),
+		'person_name'  => sanitize_text_field( (string) ( $raw['identity_person_name'] ?? '' ) ),
 		// v6.17.0 (D5): availability line. Part of the Identity form payload, so
 		// it persists directly with the rest of the identity subtree.
-		'availability'     => sanitize_text_field( (string) ( $raw['identity_availability'] ?? '' ) ),
+		'availability' => sanitize_text_field( (string) ( $raw['identity_availability'] ?? '' ) ),
 	);
+
+	// Site name, tagline and locale override core's Settings > General. A field
+	// left empty, or holding what core already says, stores nothing: the key is
+	// omitted so sn_setting() reads core's live value (same reason as job_title
+	// below). A value that differs from core is stored and wins.
+	foreach ( array( 'site_name', 'site_description', 'locale' ) as $identity_key ) {
+		$identity_value = sanitize_text_field( (string) ( $raw[ 'identity_' . $identity_key ] ?? '' ) );
+		if ( '' !== $identity_value && sn_settings_identity_core( $identity_key ) !== $identity_value ) {
+			$sanitized['identity'][ $identity_key ] = $identity_value;
+		}
+	}
 
 	// job_title / knows_about have no entry in sn_settings_defaults() — the
 	// fallback lives entirely in each sn_setting() call site's own $default

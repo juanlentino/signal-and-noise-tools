@@ -228,7 +228,7 @@ function snt_abilities_collector_status_register() {
 				'readonly'        => true,
 				'destructive'     => false,
 				'idempotent'      => true,
-				'open_world_hint' => true,
+				'openWorldHint' => true,
 			),
 		),
 	) );

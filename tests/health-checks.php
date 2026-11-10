@@ -120,6 +120,7 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
 	function wp_json_encode( $v ) { return json_encode( $v ); }
 }
 
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require_once __DIR__ . '/../inc/health-probe-classify.php'; // shared bot-challenge classifier the internal probe now consults
 require_once __DIR__ . '/../inc/health-checks.php';
 

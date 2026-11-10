@@ -196,13 +196,15 @@ ok( false !== strpos( $html, $adapter_url ), 'adapter endpoint URL rendered' );
 
 // ── Adapter door is honest: not detected in this test env → absent wording ──
 // v9.48.1: the old copy attributed the MCP Adapter to the wp.org "AI" plugin.
-// Ground-truthed 2026-07-15: the AI plugin does NOT bundle the adapter (its
-// MCP integration is "coming soon"); the adapter is a separate GitHub-only
-// plugin. The door must say the adapter is absent, name it as its own plugin,
-// and never imply the AI plugin provides it.
+// The AI plugin does NOT bundle the adapter; the adapter is a separate plugin.
+// 2026-11-10, against AI plugin 1.5.0: "coming soon" is stale, since the MCP
+// Access experiment installs the adapter when turned on. The door must say the
+// adapter is absent, name it as its own plugin, and never imply the AI plugin
+// bundles it.
 ok( ! class_exists( 'WP\\MCP\\Core\\McpAdapter' ), 'sanity: the adapter class is not defined in this test env' );
 ok( stripos( $html, 'No MCP Adapter is installed' ) !== false, 'adapter block states the adapter is absent on this site' );
-ok( stripos( $html, 'coming soon' ) !== false, 'adapter block names the AI plugin\'s MCP integration as roadmap-only' );
+ok( stripos( $html, 'coming soon' ) === false && stripos( $html, 'does not bundle it: its MCP Access experiment installs the adapter when turned on' ) !== false, 'adapter block says the AI plugin does not bundle the adapter and names the MCP Access experiment, no "coming soon"' );
+ok( stripos( $html, 'read door’s tools' ) === false && stripos( $html, 'meta.public set to true when meta.mcp.public is unset' ) !== false, 'adapter block states the meta.public fallback and no longer claims the exposed set is the read door\'s tools' );
 ok( stripos( $html, 'separate WordPress plugin' ) !== false, 'adapter block names the adapter as its own separate plugin' );
 ok( stripos( $html, 'not on wordpress.org' ) === false, 'adapter block no longer claims the adapter is missing from wordpress.org (listed since 0.7.0, 2026-10-02)' );
 ok( stripos( $html, 'If the wp.org “AI” plugin is active on this site, its MCP Adapter' ) === false, 'REGRESSION: the false "AI plugin ships the adapter" attribution is gone' );

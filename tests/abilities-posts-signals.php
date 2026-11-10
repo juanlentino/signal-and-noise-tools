@@ -28,7 +28,7 @@ echo "Group 1: registration\n";
 foreach ( $GLOBALS['__actions']['wp_abilities_api_init'] as $cb ) { $cb(); }
 $reg = $GLOBALS['__registered']['signal-noise/posts-signals'] ?? null;
 ok( is_array( $reg ) && 'snt_ability_perm_manage_options' === $reg['permission_callback'] && 'snt_ability_posts_signals' === $reg['execute_callback'], 'registered, manage_options, the execute callback' );
-ok( true === $reg['meta']['annotations']['readonly'] && true === $reg['meta']['annotations']['idempotent'] && false === $reg['meta']['annotations']['open_world_hint'], 'readonly + idempotent + closed world' );
+ok( true === $reg['meta']['annotations']['readonly'] && true === $reg['meta']['annotations']['idempotent'] && false === $reg['meta']['annotations']['openWorldHint'], 'readonly + idempotent + closed world' );
 ok( false !== strpos( $reg['description'], 'never a zero' ) && false !== strpos( $reg['description'], 'site-wide ONLY' ), 'the description carries the two reading rules an agent needs: null is not zero; machine reads are site-wide only' );
 ok( false === strpos( $reg['description'], "\u{2014}" ), 'no em dash in the description' );
 

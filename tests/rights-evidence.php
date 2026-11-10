@@ -323,7 +323,7 @@ $GLOBALS['__k']['rows_aggregate'] = $aggregate;
 
 // G: the abilities and the schedule.
 $ab = $GLOBALS['__k']['abilities'];
-ok( true === $ab['signal-noise/rights-evidence']['meta']['annotations']['readonly'] && false === $ab['signal-noise/rights-evidence-now']['meta']['annotations']['readonly'] && true === $ab['signal-noise/rights-evidence-now']['meta']['annotations']['open_world_hint'], 'G1 one read, one write that says it publishes' );
+ok( true === $ab['signal-noise/rights-evidence']['meta']['annotations']['readonly'] && false === $ab['signal-noise/rights-evidence-now']['meta']['annotations']['readonly'] && true === $ab['signal-noise/rights-evidence-now']['meta']['annotations']['openWorldHint'], 'G1 one read, one write that says it publishes' );
 $GLOBALS['__k']['opt'] = array( 'sn_rights_evidence_hold' => array() ); $GLOBALS['__k']['post_reply'] = $pending_reply;
 snt_ability_rights_evidence_now();
 $o = snt_ability_rights_evidence();

@@ -195,6 +195,7 @@ if ( ! function_exists( 'snt_analytics_page_url' ) ) {
 	}
 }
 
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require_once __DIR__ . '/../inc/analytics-sources.php';
 // v8.5.0 header-region dependencies (movers + primitive run real; uptime
 // surfaces absent = unconfigured install).

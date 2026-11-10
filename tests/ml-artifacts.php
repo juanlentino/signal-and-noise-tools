@@ -203,6 +203,7 @@ if ( ! function_exists( 'wp_enqueue_style' ) ) {
 }
 
 // ─── Load the SUTs (real kernel, real corpus walk) ───────────────────
+require_once __DIR__ . '/lib/wp-html-api.php'; // core's real HTML API: the code under test reads markup through it.
 require __DIR__ . '/../inc/ml-kernel.php';
 require __DIR__ . '/../inc/corpus-inspect.php';
 require __DIR__ . '/../inc/ml-pipelines.php';
