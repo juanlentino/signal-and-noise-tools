@@ -103,7 +103,7 @@ function snt_analytics_recolor_world_svg( $svg, $views, $names = array(), $tiers
 	}, $recolored );
 
 	// preg_replace_callback answers null on a PCRE failure: the map then ships
-	// recolored and unlabelled (markers dropped) instead of not at all.
+	// recolored and unlabeled (markers dropped) instead of not at all.
 	return is_string( $titled ) ? $titled : str_replace( array_map( static function ( $i ) {
 		return ' data-sn-title="' . $i . '"';
 	}, array_keys( $titles ) ), '', $recolored );
