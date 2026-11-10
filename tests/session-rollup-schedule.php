@@ -11,8 +11,10 @@
  * stored as human. 00:30 UTC, the first plan, fails that.
  *
  * A run at another time (21:43 UTC on the live site) is moved once. When the
- * move would leave yesterday unwritten, one run for that day is queued, with
- * the day as its argument, and only the first move ever queues one (an option).
+ * move, or re-arming an absent event after 06:15, would leave yesterday
+ * unwritten, one run for that day is queued with the day as its argument; an
+ * option holds the day queued, so no day is queued twice. A pending one-off
+ * with no arguments (a "Run now") is left alone, as in the edge rollup (#1980).
  *
  * Run: php tests/session-rollup-schedule.php
  */
@@ -31,19 +33,24 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 // The red run must print FAIL lines, not die on a function that is not there yet.
 function call( $fn, ...$a ) { return function_exists( $fn ) ? $fn( ...$a ) : null; }
 function utc( $s ) { return strtotime( $s . ' UTC' ); }
-const MOVED = 'sn_session_rollup_moved';
+const BACKFILL = 'sn_session_rollup_backfill';
 
 // WP-Cron as WordPress keeps it: the daily has no arguments, so a one-off that
 // carries a day is a separate event that neither a lookup nor a clear without
-// arguments touches.
-function wp_get_scheduled_event( $h, $args = array() ) { return ( array() === $args && $GLOBALS['daily'] ) ? (object) array( 'timestamp' => $GLOBALS['daily'], 'schedule' => 'daily' ) : false; }
-function wp_next_scheduled( $h, $args = array() ) { return array() === $args ? $GLOBALS['daily'] : false; }
-function wp_clear_scheduled_hook( $h, $args = array() ) { $GLOBALS['ev'][] = array( 'clear', $h, $args ); if ( array() === $args ) { $GLOBALS['daily'] = false; } }
+// arguments touches. A one-off WITHOUT arguments (a "Run now") sorts first.
+function wp_get_scheduled_event( $h, $args = array() ) {
+	if ( array() !== $args ) { return false; }
+	if ( $GLOBALS['runnow'] ) { return (object) array( 'timestamp' => $GLOBALS['runnow'], 'schedule' => false ); }
+	return $GLOBALS['daily'] ? (object) array( 'timestamp' => $GLOBALS['daily'], 'schedule' => 'daily' ) : false;
+}
+function wp_next_scheduled( $h, $args = array() ) { return array() === $args ? ( $GLOBALS['runnow'] ?: $GLOBALS['daily'] ) : false; }
+function wp_clear_scheduled_hook( $h, $args = array() ) { $GLOBALS['ev'][] = array( 'clear', $h, $args ); if ( array() === $args ) { $GLOBALS['daily'] = false; $GLOBALS['runnow'] = false; } }
 function wp_schedule_event( $t, $r, $h, $args = array() ) { $GLOBALS['ev'][] = array( 'event', $t, $r, $h ); $GLOBALS['daily'] = $t; }
 function wp_schedule_single_event( $t, $h, $args = array() ) { $GLOBALS['ev'][] = array( 'single', $t, $h, $args ); }
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['opt'] ) ? $GLOBALS['opt'][ $k ] : $d; }
 function add_option( $k, $v = '', $dep = '', $autoload = null ) { if ( array_key_exists( $k, $GLOBALS['opt'] ) ) { return false; } $GLOBALS['opt'][ $k ] = $v; return true; }
-function reset_cron( $daily, array $opt = array() ) { $GLOBALS['daily'] = $daily; $GLOBALS['ev'] = array(); $GLOBALS['opt'] = $opt; }
+function update_option( $k, $v, $autoload = null ) { $GLOBALS['opt'][ $k ] = $v; return true; }
+function reset_cron( $daily, array $opt = array(), $runnow = false ) { $GLOBALS['daily'] = $daily; $GLOBALS['runnow'] = $runnow; $GLOBALS['ev'] = array(); $GLOBALS['opt'] = $opt; }
 function events( $kind ) { return array_values( array_filter( $GLOBALS['ev'], static fn( $e ) => $kind === $e[0] ) ); }
 
 echo "\nThe run time\n";
@@ -69,28 +76,42 @@ ok( '2026-11-10' === call( 'sn_session_rollup_skipped_day', $old, utc( '2026-11-
 ok( '' === call( 'sn_session_rollup_skipped_day', utc( '2026-11-12 21:43:02' ), utc( '2026-11-11 22:00:00' ) ), '22:00 after the old run fired: Nov 10 is written, nothing skipped' );
 
 echo "\nScheduling\n";
-$now = utc( '2026-11-11 15:00:00' );
+$now   = utc( '2026-11-11 15:00:00' );
+$yday  = array( array( 'single', $now + 60, SN_SESSION_ROLLUP_HOOK, array( '2026-11-10' ) ) );
+$armed = array( array( 'event', utc( '2026-11-12 06:15:00' ), 'daily', SN_SESSION_ROLLUP_HOOK ) );
+reset_cron( false );
+sn_session_rollup_schedule( utc( '2026-11-11 05:00:00' ) );
+ok( array( array( 'event', utc( '2026-11-11 06:15:00' ), 'daily', SN_SESSION_ROLLUP_HOOK ) ) === $GLOBALS['ev'] && array() === $GLOBALS['opt'], 'absent before 06:15: one daily today at 06:15, which writes yesterday; nothing else queued' );
+$GLOBALS['ev'] = array();
+sn_session_rollup_schedule( utc( '2026-11-11 05:01:00' ) );
+ok( array() === $GLOBALS['ev'], 'already at 06:15: left alone' );
 reset_cron( false );
 sn_session_rollup_schedule( $now );
-ok( array( array( 'event', utc( '2026-11-12 06:15:00' ), 'daily', SN_SESSION_ROLLUP_HOOK ) ) === $GLOBALS['ev'] && array() === $GLOBALS['opt'], 'unscheduled: one daily event at 06:15 UTC, no backfill' );
-$GLOBALS['ev'] = array();
-sn_session_rollup_schedule( $now );
-ok( array() === $GLOBALS['ev'], 'already at 06:15: left alone' );
-reset_cron( $old );
-sn_session_rollup_schedule( $now );
-ok( array( 'clear', SN_SESSION_ROLLUP_HOOK, array() ) === ( $GLOBALS['ev'][0] ?? null ) && 1 === count( events( 'clear' ) ), 'a 21:43 run is cleared: this hook, its daily only' );
-ok( array( array( 'single', $now + 60, SN_SESSION_ROLLUP_HOOK, array( '2026-11-10' ) ) ) === events( 'single' ), 'the skipped day is queued once, a minute out, with the day as its argument' );
-ok( array( array( 'event', utc( '2026-11-12 06:15:00' ), 'daily', SN_SESSION_ROLLUP_HOOK ) ) === events( 'event' ), 'and the daily is set at the next 06:15 UTC' );
-ok( '2026-11-10' === ( $GLOBALS['opt'][ MOVED ]['backfill'] ?? null ) && $now === ( $GLOBALS['opt'][ MOVED ]['at'] ?? null ), 'the option records the move and the day it queued' );
+ok( $yday === events( 'single' ) && $armed === events( 'event' ) && array() === events( 'clear' ), 'absent after 06:15 (reactivated, or the event cleared): the daily at the next 06:15, and yesterday queued, as the old re-arm an hour out wrote it' );
 $GLOBALS['ev'] = array();
 sn_session_rollup_schedule( $now + 60 );
 ok( array() === $GLOBALS['ev'], 'the next request changes nothing (idempotent)' );
-reset_cron( $old, array( MOVED => array( 'at' => 1, 'backfill' => '2026-11-03' ) ) );
+$GLOBALS['daily'] = false;
+sn_session_rollup_schedule( $now + 120 );
+ok( array() === events( 'single' ) && 1 === count( events( 'event' ) ), 'absent again the same day: re-armed, but yesterday is not queued twice' );
+reset_cron( $old );
 sn_session_rollup_schedule( $now );
-ok( array() === events( 'single' ) && 1 === count( events( 'event' ) ) && '2026-11-03' === $GLOBALS['opt'][ MOVED ]['backfill'], 'moved again later: the time is fixed, but no second backfill (the option guards it)' );
+ok( array( 'clear', SN_SESSION_ROLLUP_HOOK, array() ) === ( $GLOBALS['ev'][0] ?? null ) && 1 === count( events( 'clear' ) ), 'a 21:43 run is cleared: this hook, its daily only' );
+ok( $yday === events( 'single' ), 'the skipped day is queued once, a minute out, with the day as its argument' );
+ok( $armed === events( 'event' ), 'and the daily is set at the next 06:15 UTC' );
+ok( array( 'day' => '2026-11-10', 'at' => $now ) === ( $GLOBALS['opt'][ BACKFILL ] ?? null ), 'the option holds the day queued and when' );
+$GLOBALS['ev'] = array();
+sn_session_rollup_schedule( $now + 60 );
+ok( array() === $GLOBALS['ev'], 'the next request changes nothing (idempotent)' );
+reset_cron( $old, array( BACKFILL => array( 'day' => '2026-11-10', 'at' => 1 ) ) );
+sn_session_rollup_schedule( $now );
+ok( array() === events( 'single' ) && $armed === events( 'event' ), 'moved again the same day: the time is fixed, but Nov 10 is not queued twice' );
 reset_cron( utc( '2026-11-12 21:43:02' ) );
 sn_session_rollup_schedule( utc( '2026-11-11 22:00:00' ) );
-ok( array() === events( 'single' ) && 1 === count( events( 'event' ) ) && '' === ( $GLOBALS['opt'][ MOVED ]['backfill'] ?? null ), 'moved after the old run fired: no backfill, and the option says none was needed' );
+ok( array() === events( 'single' ) && 1 === count( events( 'event' ) ) && array() === $GLOBALS['opt'], 'moved after the old run fired: nothing queued, nothing recorded' );
+reset_cron( $old, array(), $now - 5 );
+sn_session_rollup_schedule( $now );
+ok( array() === $GLOBALS['ev'], 'a pending one-off with no arguments (a "Run now"): left alone, never cleared (edge rollup #1980)' );
 
 echo "\nThe backfill is one ordinary run for its day\n";
 $on = static fn( $cb ) => array_values( array_filter( $GLOBALS['hooks'], static fn( $h ) => SN_SESSION_ROLLUP_HOOK === $h[0] && $cb === $h[1] ) );

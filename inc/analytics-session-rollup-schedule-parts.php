@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // day written. 00:30 was not: a visitor-day still open could cross the cap
 // after the run and stay stored as human. Pinned by tests/session-rollup-schedule.php.
 const SN_SESSION_ROLLUP_AT        = '06:15';
-const SN_SESSION_ROLLUP_MOVED_OPT = 'sn_session_rollup_moved'; // {at, backfill}: the move happened; backfill is the day it queued, '' for none.
+const SN_SESSION_ROLLUP_BACKFILL_OPT = 'sn_session_rollup_backfill'; // {day, at}: the last day queued by sn_session_rollup_schedule(), so none is queued twice.
 
 /**
  * The next SN_SESSION_ROLLUP_AT (UTC) strictly after $now. PURE.
@@ -55,10 +55,11 @@ function sn_session_rollup_skipped_day( $next, $now ) {
 /**
  * Keep the daily rollup at SN_SESSION_ROLLUP_AT. It used to be scheduled an
  * hour after it was first seen unscheduled (21:43 UTC on this site). A run at
- * another time is moved once; when the move would skip yesterday, one run for
- * that day is queued with the day as its argument. The option lets only the
- * first move ever queue one. The run replaces a stored day, so running it
- * again is safe.
+ * another time is moved once. When the move would skip yesterday, or an absent
+ * event (reactivation, a cleared event) is re-armed after today's run time,
+ * one run for yesterday is queued with the day as its argument; the option
+ * holds the day queued, so no day is queued twice. The run replaces a stored
+ * day, so running it again is safe.
  *
  * @param int|null $now Unix time; empty reads the clock (init passes '').
  */
@@ -68,17 +69,27 @@ function sn_session_rollup_schedule( $now = null ) {
 	}
 	$now   = $now ? (int) $now : time();
 	$event = wp_get_scheduled_event( SN_SESSION_ROLLUP_HOOK );
-	$next  = $event ? (int) $event->timestamp : 0;
+	// A one-off with no arguments (a "Run now" from a cron tool) sorts before
+	// the daily: leave both alone, or the clear below would drop it (as in
+	// sn_edge_maybe_schedule(), review on #1980).
+	if ( $event && empty( $event->schedule ) ) {
+		return;
+	}
+	$next = $event ? (int) $event->timestamp : 0;
 	if ( $next && SN_SESSION_ROLLUP_AT === gmdate( 'H:i', $next ) ) {
 		return;
 	}
 	if ( $next ) {
 		// Clears the daily only: a queued day carries an argument and stays.
 		wp_clear_scheduled_hook( SN_SESSION_ROLLUP_HOOK );
-		$day = sn_session_rollup_skipped_day( $next, $now );
-		if ( add_option( SN_SESSION_ROLLUP_MOVED_OPT, array( 'at' => $now, 'backfill' => $day ), '', false ) && '' !== $day ) {
-			wp_schedule_single_event( $now + MINUTE_IN_SECONDS, SN_SESSION_ROLLUP_HOOK, array( $day ) );
-		}
+	}
+	// An absent event owes yesterday as well: it was re-armed an hour out,
+	// which wrote yesterday; at 06:15 tomorrow it would not.
+	$day  = sn_session_rollup_skipped_day( $next ? $next : $now, $now );
+	$last = (array) get_option( SN_SESSION_ROLLUP_BACKFILL_OPT, array() );
+	if ( '' !== $day && ( $last['day'] ?? '' ) !== $day ) {
+		update_option( SN_SESSION_ROLLUP_BACKFILL_OPT, array( 'day' => $day, 'at' => $now ), false );
+		wp_schedule_single_event( $now + MINUTE_IN_SECONDS, SN_SESSION_ROLLUP_HOOK, array( $day ) );
 	}
 	wp_schedule_event( sn_session_rollup_next_run( $now ), 'daily', SN_SESSION_ROLLUP_HOOK );
 }
