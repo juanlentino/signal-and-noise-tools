@@ -20,6 +20,9 @@ adds a bullet below. A release is a separate, deliberate act:
 - **Traffic Lanes: the beacon's own-tools lane is painted.** Since identity 6 joined (#2230), the beacon's own-infrastructure page views counted in "All lanes" and in the reason split, but the by-lane table and the daily view had no row or column for them, so the beacon's lanes did not add up to their total. The beacon now lists own infrastructure as the machine sensor does, and the reference says what each own-tools reason means: `first_party` proven by the header, `first_party_claimed` a user-agent claim; on the machine sensor, `first_party` is the sensor's own-tools list or the header, which it does not tell apart.
 - **The native Quality view paints the traffic classes.** It handed the breakdown's two top-level keys (`totals`, `top_bot_networks`) to the table as rows, so its Traffic quality table held two blank rows. It now paints Presumed human, Suspect and Bot with their views, the top bot networks as the classic panel does, and the own-tools sentence.
 
+### Notes
+- **Suspect totals from 2026-10-06 until analytics Worker 2.1.0 and theme #652 are live include the theme's live contrast check.** From 2026-10-06 to 2026-11-11 the check ran 183 times (141 on push, 36 nightly, 6 by hand), against 342 suspect sessions and 3,501 suspect views in the same window, and the day-by-day session counts follow the runs. Human totals are not affected: the runner was always filed suspect. The stored rollups are not recomputed. The runner's rows carry no user agent and are recognizable only as suspect, desktop, an empty browser and OS, and a Microsoft network; that fingerprint has not been checked against a raw count. Analytics Engine keeps those days until about 2027-01-04, so a recompute stays possible until then.
+
 ## [2026.11.25] - 2026-11-11 — Ask AI carries seven abilities, legacy bookmarks redirect, RSS forms return home
 
 ### Changed
