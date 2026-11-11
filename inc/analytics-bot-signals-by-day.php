@@ -52,10 +52,12 @@ function sn_bot_signals_by_day_sql( $days = SNT_BOT_SIGNAL_DAYS, $source = '', $
 
 /**
  * Per day: human visitor-days under the page-view cap that carried signals,
- * and how many scored at the threshold. The readout's human rule. PURE.
+ * how many scored at the threshold, and the visitor-days and page views
+ * strict rule v1 removes (inc/analytics-strict-human.php). The readout's
+ * human rule. PURE.
  *
  * @param array $rows sn_bot_signals_by_day_sql() rows.
- * @return array<string,array{visitor_days:int,likely_automated:int}> Day ascending.
+ * @return array<string,array{visitor_days:int,likely_automated:int,strict_removed:int,strict_removed_views:int}> Day ascending.
  */
 function sn_bot_signals_by_day( array $rows ) {
 	$out = array();
@@ -65,9 +67,13 @@ function sn_bot_signals_by_day( array $rows ) {
 		if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) || (int) ( $r['human'] ?? 0 ) <= 0 || (float) ( $r['views'] ?? 0 ) > SNT_ANALYTICS_VDAY_PV_CAP ) {
 			continue;
 		}
-		$out[ $day ] = $out[ $day ] ?? array( 'visitor_days' => 0, 'likely_automated' => 0 );
+		$out[ $day ] = $out[ $day ] ?? array( 'visitor_days' => 0, 'likely_automated' => 0, 'strict_removed' => 0, 'strict_removed_views' => 0 );
 		++$out[ $day ]['visitor_days'];
 		$out[ $day ]['likely_automated'] += (int) ( sn_bot_signals_score( $r ) >= SNT_BOT_SIGNAL_THRESHOLD );
+		if ( sn_bot_signals_strict_removes( $r ) ) {
+			++$out[ $day ]['strict_removed'];
+			$out[ $day ]['strict_removed_views'] += (int) round( (float) ( $r['views'] ?? 0 ) );
+		}
 	}
 	ksort( $out );
 	return $out;

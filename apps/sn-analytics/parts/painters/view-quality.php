@@ -47,6 +47,10 @@ function paint_view_quality( array $ctx ) {
 	$own = is_array( $breakdown ) && array_key_exists( 'first_party', $breakdown ) && function_exists( 'sn_lanes_first_party_line' )
 		? '<p class="snt-hint">' . \snt_kit_esc( \sn_lanes_first_party_line( $breakdown['first_party'] ) ) . '</p>'
 		: '';
+	// 2026-11-11: the strict human figure beside the presumed-human one, the classic twin's words.
+	$own .= is_array( $breakdown ) && array_key_exists( 'strict', $breakdown ) && function_exists( 'sn_analytics_strict_human_line' )
+		? '<p class="snt-hint">' . \snt_kit_esc( \sn_analytics_strict_human_line( $breakdown['strict'] ) ) . '</p>'
+		: '';
 	return daily_histogram( $trend_rows, __( 'Bot share', 'signal-and-noise-tools' ) )
 		. '<div class="snt-report-columns">'
 		. dim_table( __( 'Traffic quality', 'signal-and-noise-tools' ), $break_rows, __( 'No quality breakdown in this range yet.', 'signal-and-noise-tools' ) )

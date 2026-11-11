@@ -63,6 +63,9 @@ function sn_dash_render_signals( array $signals ) {
 		echo '<span class="sn-sig__compare' . esc_attr( $dclass ) . '">';
 		echo esc_html( '' !== $compare ? $compare : $fallback );
 		echo '</span>';
+		if ( '' !== (string) ( $sig['strict'] ?? '' ) ) {
+			echo '<span class="sn-sig__compare">' . esc_html( (string) $sig['strict'] ) . '</span>';
+		}
 		echo '</div>';
 	}
 	echo '</div>';
@@ -164,6 +167,11 @@ function sn_dash_signals_from_measurement( array $data ) {
 		),
 	);
 
+	// 2026-11-11: the strict human figure under the presumed-human views.
+	if ( array_key_exists( 'views_strict', $data ) && function_exists( 'sn_analytics_strict_human_line' ) ) {
+		$spec[0]['strict'] = sn_analytics_strict_human_line( $data['views_strict'], 'views' );
+	}
+
 	$out = array();
 	foreach ( $spec as $f ) {
 		$measured = array_key_exists( $f['key'], $data ) && null !== $data[ $f['key'] ];
@@ -185,7 +193,7 @@ function sn_dash_signals_from_measurement( array $data ) {
 			'measured' => $measured,
 			'compare'  => $measured ? (string) ( $f['ctx'] ?? '' ) : '',
 			'dir'      => (string) ( $f['dir'] ?? '' ),
-		);
+		) + ( $measured && isset( $f['strict'] ) ? array( 'strict' => (string) $f['strict'] ) : array() );
 	}
 
 	return $out;

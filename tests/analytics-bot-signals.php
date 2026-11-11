@@ -101,7 +101,9 @@ foreach ( $fx['rows'] as $i => $row ) {
 	$dated[] = $row + array( 'day' => $i < 4 ? '2026-09-28' : '2026-09-29' );
 }
 $bd = sn_bot_signals_by_day( $dated );
-ok( array( '2026-09-28' => array( 'visitor_days' => 2, 'likely_automated' => 0 ), '2026-09-29' => array( 'visitor_days' => 2, 'likely_automated' => 1 ) ) === $bd, 'per day: human visitor-days under the cap that carried signals, and how many scored at the threshold (the readout\'s human rule)' );
+// 2026-11-11: each day also carries strict rule v1's removals; no_input + tz_mismatch (the likely one) removes nothing.
+$z = array( 'strict_removed' => 0, 'strict_removed_views' => 0 );
+ok( array( '2026-09-28' => array( 'visitor_days' => 2, 'likely_automated' => 0 ) + $z, '2026-09-29' => array( 'visitor_days' => 2, 'likely_automated' => 1 ) + $z ) === $bd, 'per day: human visitor-days under the cap that carried signals, and how many scored at the threshold (the readout\'s human rule)' );
 $merged = sn_bot_signals_by_day_merge( array( '2026-09-01' => array( 'visitor_days' => 9, 'likely_automated' => 1 ), '2026-09-28' => array( 'visitor_days' => 99, 'likely_automated' => 9 ), '2026-09-29' => array( 'visitor_days' => 5, 'likely_automated' => 5 ) ), array( '2026-09-28' => array( 'visitor_days' => 2, 'likely_automated' => 0 ) ), '2026-09-15' );
 ok( array( '2026-09-01', '2026-09-28' ) === array_keys( $merged ) && 2 === $merged['2026-09-28']['visitor_days'], 'a nightly read REPLACES the days it covered (a day it no longer returns is dropped) and keeps the older ones' );
 $la = sn_bot_signals_likely_automated( $bd, '2026-09-24', '2026-09-30' );

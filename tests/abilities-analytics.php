@@ -60,9 +60,11 @@ $expected_types = array(
 	'basis'                     => 'string',
 	// 2026-11-11: this site's own tools, beside the classes (local door only).
 	'first_party'               => array( 'object', 'null' ),
+	// 2026-11-11: the strict human figure beside human (local door only).
+	'strict'                    => array( 'object', 'null' ),
 );
-// The shared reader (the remote twin's) carries every field but the local one.
-$shared_types = array_diff_key( $expected_types, array( 'first_party' => 1 ) );
+// The shared reader (the remote twin's) carries every field but the local ones.
+$shared_types = array_diff_key( $expected_types, array( 'first_party' => 1, 'strict' => 1 ) );
 
 echo "\nGroup: summary output schema (Phase A spec-§4 contract)\n";
 $schema = isset( $a['output_schema'] ) && is_array( $a['output_schema'] ) ? $a['output_schema'] : array();
@@ -275,7 +277,7 @@ $shared = sn_ability_get_analytics_summary( array( 'range' => 7, 'class' => 'hum
 $local  = sn_ability_get_analytics_summary_local( array( 'range' => 7, 'class' => 'human' ) );
 ok( array_keys( $local ) === array_keys( $props ), 'the local response keys === the declared admin schema keys' );
 ok( ! array_key_exists( 'first_party', $shared ), 'the shared reader (the remote twin) carries no first_party: its pinned contract does not move' );
-ok( array_diff_key( $local, array( 'first_party' => 1 ) ) === $shared, 'every class figure is byte-identical with and without it: first-party is added to no class' );
+ok( array_diff_key( $local, array( 'first_party' => 1, 'strict' => 1 ) ) === $shared, 'every class figure is byte-identical with and without it: first-party is added to no class' );
 ok( 10 === ( $local['first_party']['views'] ?? null ) && array( 'views' => 7, 'visitor_days' => 1 ) === $local['first_party']['proven'] && array( 'views' => 3, 'visitor_days' => 2 ) === $local['first_party']['claimed'], 'first_party: 10 page views, proven 7 and claimed 3 apart; the machine sensor\'s reads are not page views' );
 ok( true === $local['first_party']['partial'] && '2026-07-17' === $local['first_party']['through'], 'it covers the complete days stored, and says it is partial' );
 $bot_local = sn_ability_get_analytics_summary_local( array( 'range' => 7, 'class' => 'bot' ) );
@@ -283,6 +285,29 @@ ok( $local['first_party'] === $bot_local['first_party'], 'first-party is no clas
 $GLOBALS['__lane_rows'] = array();
 ok( null === sn_ability_get_analytics_summary_local( array( 'range' => 7, 'class' => 'human' ) )['first_party'], 'no stored lane day in the range: first_party is null, not 0' );
 ok( false !== strpos( $desc, 'in none of the three classes' ) && false !== strpos( $desc, 'x-sn-first-party' ) && false !== strpos( $desc, 'SignalNoise-' ) && false !== strpos( $desc, '`first_party`' ), 'the description says own tools are in no class, proof against claim, and names first_party' );
+
+echo "\nGroup: strictly human beside presumed human (the local door only)\n";
+// Range 7 is 2026-07-12..18. One stored day predates the rule (no strict keys):
+// it is unmeasured, never 0 removed.
+$GLOBALS['__opts'][ SNT_BOT_SIGNAL_BY_DAY_OPTION ] = array(
+	'2026-07-10' => array( 'visitor_days' => 50, 'likely_automated' => 50, 'strict_removed' => 40, 'strict_removed_views' => 90 ), // outside the range
+	'2026-07-16' => array( 'visitor_days' => 9, 'likely_automated' => 4 ), // stored before strict rule v1
+	'2026-07-17' => array( 'visitor_days' => 12, 'likely_automated' => 2, 'strict_removed' => 2, 'strict_removed_views' => 3 ),
+	'2026-07-18' => array( 'visitor_days' => 8, 'likely_automated' => 1, 'strict_removed' => 1, 'strict_removed_views' => 1 ),
+);
+$shared = sn_ability_get_analytics_summary( array( 'range' => 7, 'class' => 'human' ) );
+$local  = sn_ability_get_analytics_summary_local( array( 'range' => 7, 'class' => 'human' ) );
+$st     = $local['strict'] ?? null;
+ok( ! array_key_exists( 'strict', $shared ), 'the shared reader (the remote twin) carries no strict: its pinned contract does not move' );
+ok( is_array( $st ) && 22 === $st['visitor_days'] && 14 === $st['views'], 'strict = human less removed: 25 - 3 visitor-days, 18 - 4 views' );
+ok( is_array( $st ) && array( 'visitor_days' => 3, 'views' => 4 ) === $st['removed'], 'removed sums only the range\'s days that carry the strict reading' );
+ok( is_array( $st ) && 'strict_v1' === $st['rule'] && 'inferred' === $st['basis'] && false !== strpos( $st['reason'], 'webdriver' ), 'the rule, its reason and the basis travel with the figure' );
+ok( is_array( $st ) && array( 'from' => '2026-07-17', 'through' => '2026-07-18', 'partial' => true ) === $st['window'], 'the window is the UTC days with the strict reading (07-16 predates the rule), partial' );
+ok( 25 === $local['unique_visitor_days'] && 18 === $local['views'], 'human itself is unchanged' );
+ok( null === sn_ability_get_analytics_summary_local( array( 'range' => 7, 'class' => 'bot' ) )['strict'], 'suspect and bot carry strict null' );
+$GLOBALS['__opts'][ SNT_BOT_SIGNAL_BY_DAY_OPTION ] = array( '2026-07-17' => array( 'visitor_days' => 12, 'likely_automated' => 2 ) );
+ok( array_key_exists( 'strict', $l2 = sn_ability_get_analytics_summary_local( array( 'range' => 7, 'class' => 'human' ) ) ) && null === $l2['strict'], 'no day of the range has the strict reading: strict is null, never 0' );
+ok( false !== strpos( $desc, '`strict`' ) && false !== strpos( $desc, 'strict_v1' ) && false !== strpos( $desc, 'UTC days' ) && false !== strpos( $desc, 'nothing is subtracted from it' ), 'the description names strict, its rule, the UTC days, and that human is unchanged' );
 
 echo "\nGroup: v10.0.0 — the deprecated quartet leaves the PUBLIC surface\n";
 foreach ( array( 'visits', 'scroll_avg', 'time_avg' ) as $gone ) {

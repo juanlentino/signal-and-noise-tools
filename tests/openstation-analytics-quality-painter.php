@@ -18,6 +18,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 require_once __DIR__ . '/lib/os-leaf-harness.php';
 
 $GLOBALS['__fp'] = array( 'views' => 12, 'proven' => array( 'views' => 9, 'visitor_days' => 1 ), 'claimed' => array( 'views' => 3, 'visitor_days' => 2 ), 'from' => '2026-11-01', 'through' => '2026-11-10', 'days' => 10, 'partial' => true );
+$GLOBALS['__st'] = array( 'visitor_days' => 96, 'views' => 383, 'removed' => array( 'visitor_days' => 4, 'views' => 17 ), 'rule' => 'strict_v1', 'reason' => 'r', 'basis' => 'inferred', 'window' => array( 'from' => '2026-11-01', 'through' => '2026-11-10', 'partial' => false ) );
 function sn_analytics_class_series( $from, $to, $g = 'day' ) { return array(); }
 function sn_analytics_distribution( $m, $from, $to, $class = 'human' ) { return array(); }
 function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
@@ -25,10 +26,12 @@ function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
 		'totals'           => array( 'human' => 100, 'suspect' => 10, 'bot' => 30, 'total' => 140 ),
 		'top_bot_networks' => array( array( 'value' => 'Amazon.com, Inc.', 'views' => 22, 'visits' => 3 ) ),
 		'first_party'      => $GLOBALS['__fp'],
+		'strict'           => $GLOBALS['__st'],
 	);
 }
 
 require_once SNT_PATH . 'inc/analytics-lanes-first-party.php';
+require_once SNT_PATH . 'inc/analytics-strict-human.php';
 require_once SNT_PATH . 'apps/sn-analytics/parts/paint-kit.php';
 require_once SNT_PATH . 'apps/sn-analytics/parts/painters/view-quality.php';
 
@@ -61,9 +64,12 @@ q_ok( ! isset( $quality[''] ), 'no blank row: the breakdown\'s keys are not pain
 q_ok( '22' === ( $quality['Amazon.com, Inc.'] ?? null ), 'the top bot networks are painted, as the classic panel paints them' );
 q_ok( ! isset( $quality["This site's own tools"] ), 'the own tools are not a row beside the classes, so no reader adds them in' );
 q_ok( false !== strpos( $text, sn_lanes_first_party_line( $GLOBALS['__fp'] ) ), 'the own-tools line is painted, the words the classic twin paints' );
+q_ok( false !== strpos( $text, 'Strictly human: 96 visitor-days (4 removed: automation signals).' ) && '100' === ( $quality['Presumed human'] ?? '' ), 'both numbers: presumed human 100 in the table and the strict line, the classic twin\'s words' );
 $GLOBALS['__fp'] = null;
+$GLOBALS['__st'] = null;
 $t2 = html_entity_decode( strip_tags( \SignalNoise\OpenStationHost\Analytics\Painters\paint_view_quality( $ctx ) ), ENT_QUOTES, 'UTF-8' );
 q_ok( false !== strpos( $t2, 'not measured in this range' ), 'a null figure says not measured' );
+q_ok( false !== strpos( $t2, 'Strictly human: not measured' ), 'a null strict figure says not measured, never 0' );
 
 echo "\n{$pass} passed, {$fail} failed\n";
 exit( $fail > 0 ? 1 : 0 );
