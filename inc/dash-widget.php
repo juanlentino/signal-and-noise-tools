@@ -213,7 +213,7 @@ function sn_dash_widget_render() {
 				echo '<span class="sn-dw__c' . esc_attr( $d ) . '">' . esc_html( (string) $sig['compare'] ) . '</span>';
 			}
 			if ( '' !== (string) ( $sig['strict'] ?? '' ) ) {
-				echo '<span class="sn-dw__c">' . esc_html( (string) $sig['strict'] ) . '</span>';
+				echo '<span class="sn-dw__c sn-dw__c--wrap">' . esc_html( (string) $sig['strict'] ) . '</span>';
 			}
 			echo '</div>';
 		}

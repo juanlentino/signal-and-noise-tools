@@ -50,7 +50,9 @@ function snt_dashboard_measurement_data() { return array(
 	'views_7d' => 128, 'views_delta' => 39, 'views_prior' => 89,
 	'search_clicks' => 5, 'search_clicks_days' => 28, 'search_impressions' => 1240,
 	'anchored' => 33, 'anchored_total' => 33, 'citations' => 0,
+	'views_strict' => array( 'visitor_days' => null, 'views' => 120, 'removed' => array( 'visitor_days' => 2, 'views' => 8 ), 'window' => array( 'from' => '2026-11-04', 'through' => '2026-11-10', 'partial' => false ) ),
 ); }
+require __DIR__ . '/../inc/analytics-strict-human.php';
 require __DIR__ . '/../inc/dash-widget.php';
 
 $pass = 0; $fail = 0;
@@ -166,6 +168,12 @@ ok( isset( $GLOBALS['__styles']['sn-dash-widget'] ), 'THE WIDGET STYLESHEET IS E
 $GLOBALS['__styles'] = array();
 foreach ( $GLOBALS['__actions']['admin_enqueue_scripts'] ?? array() as $cb ) { $cb( 'edit.php' ); }
 ok( ! isset( $GLOBALS['__styles']['sn-dash-widget'] ), 'and nowhere else — it is dead weight on every other screen' );
+
+echo "\nStrictly human beside the presumed-human views (2026-11-11)\n";
+fire();
+ob_start(); call_user_func( $GLOBALS['__widgets']['sn_dashboard'][1] ); $sw = ob_get_clean();
+ok( false !== strpos( $sw, '>128<' ) && false !== strpos( $sw, 'Strictly human: 120 views (8 removed: automation signals).' ), 'the box paints Views 128 and the strict line under it: both numbers' );
+ok( false !== strpos( $sw, 'sn-dw__c sn-dw__c--wrap' ) && false !== strpos( (string) file_get_contents( __DIR__ . '/../assets/dash-widget.css' ), '.sn-dw__c--wrap { white-space: normal;' ), 'the strict line wraps, never trimmed by the column\'s ellipsis' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
