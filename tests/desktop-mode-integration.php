@@ -1342,8 +1342,8 @@ echo "\n── v9.55.0: every desktop-mode admin link must reach a REGISTERED pa
 // ours, which is exactly why no surface here ever noticed.
 //
 // And the legacy redirect cannot rescue them: sn_admin_maybe_redirect_legacy()
-// is called from INSIDE sn_theme_options_page() — the render callback of a page
-// that no longer exists. The rescue lives in the room that burned down. A
+// runs on the load-{$hook} of a REGISTERED S&N page, and these pages no longer
+// exist. The rescue lives in the room that burned down. A
 // legacy URL only redirects if its slug is still registered; these aren't.
 //
 // So: never hardcode a page slug here. Route every link through the canonical

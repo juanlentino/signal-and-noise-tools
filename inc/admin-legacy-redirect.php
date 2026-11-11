@@ -29,10 +29,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @internal Permanent legacy infrastructure (NOT pending removal). Was marked
  *           @deprecated in v4.2.0 framing but the function is load-bearing —
  *           active call site at line ~474 (POST allowlist) plus the legacy URL
- *           redirect at sn_admin_maybe_redirect_legacy() that 302s
- *           ?page=sn-<slug> URLs to canonical tab URLs. The redirect handles
- *           GET fine but POST bodies submitted to a legacy URL are lost in
- *           the redirect. New code MUST use sn_admin_top_tabs() for routing
+ *           redirect at sn_admin_maybe_redirect_legacy() that 301s
+ *           ?page=sn-<slug> URLs to canonical tab URLs. The redirect answers
+ *           GET and HEAD only; a POST to a legacy URL is not redirected, so
+ *           its body is never lost to a 301. New code MUST use sn_admin_top_tabs() for routing
  *           decisions; this table is the source of truth for the legacy URL
  *           shape only. Re-framed 2026-05-26 after Audit C HYG-08.
  */
@@ -119,7 +119,8 @@ function sn_admin_subtab_moves() {
 		'content/rss'            => array( 'tab' => 'monitoring', 'sub' => 'rss' ),
 		'tools/block-migrations' => array( 'tab' => 'content', 'sub' => 'block-migrations' ),
 		'tools/mcp-connect'      => array( 'tab' => 'ai', 'sub' => 'mcp-connect' ),
-		'tools/copilot-usage'    => array( 'tab' => 'ai', 'sub' => 'copilot-usage' ),
+		'tools/copilot-usage'    => array( 'tab' => 'ai', 'sub' => 'agent-tools' ), // 15.6.0: Copilot Usage folded into Agent tools.
+		'ai/copilot-usage'       => array( 'tab' => 'ai', 'sub' => 'agent-tools' ),
 
 		// ── Repointed, NOT chained. These three entries already existed, aimed at
 		// destinations that have themselves now moved. This resolver runs ONCE per
@@ -214,9 +215,13 @@ function sn_admin_post_redirect_target( $requested_tab, $requested_sub = '' ) {
  * ?page=sn-<slug> URL whose tab is no longer top-level, 301-redirect
  * to the canonical destination + URL fragment.
  *
- * Called early in sn_theme_options_page() before any output. wp_safe_redirect()
- * keeps the fragment (wp_sanitize_redirect() allows '#'), and the fragment is
- * the part that scrolls the page to the right sub-section.
+ * Runs on load-{$hook} for every registered S&N page (inc/admin-menu.php),
+ * before any output. Until 2026-11-10 it ran inside sn_theme_options_page(),
+ * after admin-header.php had printed: the header failed, exit ran, and every
+ * legacy bookmark opened an empty admin page. GET and HEAD only, so a POST
+ * body is never dropped by a 301. wp_safe_redirect() keeps the fragment
+ * (wp_sanitize_redirect() allows '#'), and the fragment is the part that
+ * scrolls the page to the right sub-section.
  *
  * Same-host admin URLs are trusted; the redirect destination is always
  * constructed from a fixed allow-listed top-tab whitelist, never from
@@ -225,6 +230,11 @@ function sn_admin_post_redirect_target( $requested_tab, $requested_sub = '' ) {
  * @since 3.8.0
  */
 function sn_admin_maybe_redirect_legacy() {
+	$method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : 'GET';
+	if ( 'GET' !== $method && 'HEAD' !== $method ) {
+		return;
+	}
+
 	// Source 1: explicit ?tab=<slug> (+ ?sub=<leaf> for moved-leaf bookmarks).
 	$requested_tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
 	$requested_sub = isset( $_GET['sub'] ) ? sanitize_text_field( wp_unslash( $_GET['sub'] ) ) : '';
@@ -249,6 +259,14 @@ function sn_admin_maybe_redirect_legacy() {
 	$url = admin_url( 'admin.php?page=sn-theme-options&tab=' . rawurlencode( $dest['tab'] ) );
 	if ( ! empty( $dest['sub'] ) ) {
 		$url .= '&sub=' . rawurlencode( $dest['sub'] );
+	}
+	// Carry every other query arg through, so a handler's flash (?sn_rss_ok,
+	// ?sn_flash, ?new_id) survives a redirect that lands on a legacy URL.
+	// http_build_query() encodes each key and value; the host stays admin_url()'s.
+	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Re-encoded into a same-host admin URL, never output or stored.
+	$extra = array_diff_key( (array) wp_unslash( $_GET ), array_flip( array( 'page', 'tab', 'sub' ) ) );
+	if ( $extra ) {
+		$url .= '&' . http_build_query( $extra, '', '&', PHP_QUERY_RFC3986 );
 	}
 	if ( ! empty( $dest['anchor'] ) ) {
 		$url .= '#sn-sec-' . rawurlencode( $dest['anchor'] );

@@ -433,7 +433,7 @@ function snt_insights_render_settings_section() {
 	// from sn_admin_top_tabs(). WP core's admin.php then wp_die()s "Sorry, you
 	// are not allowed to access this page" on the POST — a routing failure that
 	// reads exactly like a permissions one. GET survived because
-	// sn_admin_maybe_redirect_legacy() 302s it, which is why only SAVING broke.
+	// sn_admin_maybe_redirect_legacy() 301s it, which is why only SAVING broke.
 	// Do not re-add an action: the current url is already canonical, and a
 	// hardcoded one goes stale the next time the admin IA moves.
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';

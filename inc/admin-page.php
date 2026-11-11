@@ -31,9 +31,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Which tab is active for this request? (v11.29.0)
  *
- * Extracted so the RENDERER and the metabox registration cannot disagree.
- * Registration runs on `load-{$hook}`, long before the renderer, and a second
- * copy of this logic would be a third chance to get it wrong.
+ * Extracted in v11.29.0 so a second reader of the active tab could not disagree
+ * with the renderer. That reader (a load-{$hook} metabox registration) is gone;
+ * the renderer is the only caller now.
  *
  * Dispatch order is unchanged from the inline version it replaces:
  *   1. explicit ?tab=… (v1.8.x deep links must keep working)
@@ -69,14 +69,12 @@ function sn_theme_options_page() {
 		wp_die( esc_html( 'You do not have sufficient permissions to access this page.' ) );
 	}
 
-	// v3.8.0+: 301-redirect legacy tab/page slugs to canonical destinations.
-	// Must run BEFORE any output so headers can still be sent.
-	sn_admin_maybe_redirect_legacy();
+	// Legacy tab/page slugs 301 to their canonical destination on load-{$hook}
+	// (inc/admin-menu.php), before admin-header.php prints. This callback runs
+	// after the header, too late to send one.
 
 	$notices = array();
 
-	// v11.29.0: one source of truth, shared with the metabox registration that
-	// runs on load-{$hook} long before this renderer.
 	$active_tab = sn_admin_page_active_tab();
 
 	// Form processing happens in sn_handle_admin_post() on admin_init —

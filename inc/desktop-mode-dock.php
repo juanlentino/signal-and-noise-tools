@@ -165,8 +165,8 @@ function snt_desktop_dock_badge() {
  * noticed, and why CI stayed green for releases on end.
  *
  * The legacy redirect could not rescue them, though it looks like it should:
- * sn_admin_maybe_redirect_legacy() is called from INSIDE sn_theme_options_page(),
- * the render callback of a page that no longer exists. A legacy URL only ever
+ * sn_admin_maybe_redirect_legacy() runs on the load-{$hook} of a REGISTERED
+ * S&N page, and these pages no longer exist. A legacy URL only ever
  * 301s if its slug is still registered. These are not. The rescue lived in the
  * room that burned down.
  *
