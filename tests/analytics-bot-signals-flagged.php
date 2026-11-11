@@ -56,7 +56,11 @@ $cnt   = sn_bot_signals_flagged_count_sql( 30, 'sn_pageviews_v2', $range );
 ok( '' !== $where( $main ) && $where( $main ) === $where( $det ), 'the details read the same window, split bound and presence bit as the readout' );
 ok( false !== strpos( $cnt, ' WHERE ' . $where( $main ) ) && false === strpos( $cnt, 'GROUP BY' ), 'the window count reads the same visitor-days, one row' );
 ok( false !== strpos( $det, "formatDateTime(timestamp, '%Y-%m-%d', 'America/New_York') AS day" ) && false !== strpos( $det, 'GROUP BY vid, day, ref, country, region, city, device, browser, os, network LIMIT ' . SNT_BOT_SIGNAL_LIMIT ), 'grouped by visitor-day, site-local day and the place, device and network columns, under the readout\'s limit' );
-ok( false !== strpos( $det, "min(if(blob1 = 'pv', toUnixTimestamp(timestamp), 4102444800)) AS first_pv" ) && false !== strpos( $det, "sum(if(blob1 = 'tm', double2 * _sample_interval, 0)) AS time_ms" ), 'the first page view picks the source; time is summed as the rollups sum it' );
+ok( false !== strpos( $det, "min(if(blob1 = 'pv', toUnixTimestamp(timestamp), 4102444800)) AS first_pv" ) && false !== strpos( $det, "sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_ms" ), 'the first page view picks the source; time is summed as the rollups sum it' );
+// Live AE, 2026-11-11: HTTP 422, "the 2nd and 3rd arguments to IF() function
+// must have the same type but instead had Double and Integer". The rollups'
+// sumIf() form has no else branch to mistype.
+ok( 0 === preg_match( '/if\([^()]*double\d+[^()]*,\s*0\)/', $det ), 'no if() pairs a double with an integer 0 (AE refuses the mixed types)' );
 ok( false === strpos( $det, 'argMin' ) && false === strpos( $det, 'ORDER BY' ), 'only constructs the plugin already runs against Analytics Engine' );
 ok( ! sn_analytics_sql_too_long( $main ) && ! sn_analytics_sql_too_long( $det ) && ! sn_analytics_sql_too_long( $cnt ), 'every statement fits the AE character cap, with the real network terms (' . strlen( $main ) . ', ' . strlen( $det ) . ')' );
 ok( false === strpos( sn_bot_signals_flagged_details_sql( 30, 'sn_pageviews_v2', ' AND 1=1', '' ) . sn_bot_signals_flagged_count_sql( 30, 'sn_pageviews_v2', ' AND 1=1' ), '1=1' ), 'the details and the count take only a split bound' );

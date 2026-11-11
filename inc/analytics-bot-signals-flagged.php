@@ -49,7 +49,7 @@ function sn_bot_signals_flagged_where( $days, $range ) {
 function sn_bot_signals_flagged_details_sql( $days, $source, $range, $tz ) {
 	list( $day_col ) = sn_analytics_rollup_window_exprs( 1, (string) $tz );
 	return 'SELECT index1 AS vid, ' . $day_col . ' AS day, ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS ref, blob4 AS country, blob10 AS region, blob11 AS city, blob5 AS device, blob8 AS browser, blob9 AS os, blob12 AS network, '
-		. "min(if(blob1 = 'pv', toUnixTimestamp(timestamp), 4102444800)) AS first_pv, sum(if(blob1 = 'tm', double2 * _sample_interval, 0)) AS time_ms"
+		. "min(if(blob1 = 'pv', toUnixTimestamp(timestamp), 4102444800)) AS first_pv, sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_ms"
 		. ' FROM ' . (string) $source . ' WHERE ' . sn_bot_signals_flagged_where( $days, $range )
 		. ' GROUP BY vid, day, ref, country, region, city, device, browser, os, network LIMIT ' . SNT_BOT_SIGNAL_LIMIT;
 }
