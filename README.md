@@ -103,7 +103,7 @@ An Attention row can be **solved where it is**: an edge row offers **Purge edge*
 
 Around the windows: 6 desktop widgets (traffic, reading, queue, systems, deploy status, provenance; twelve folded to six in 2026-10) · 22 `SN:` commands in the ⌘K palette · a dock entry with an update-count badge and two desktop icons · an attention badge carrying the plugin's real queues · an S&N Analytics card on Station Home (structured data, no plugin markup) · drop-to-draft on the shell's OS-file-drop pipeline · a repaired PWA manifest icon set · fixes to the shell's own Plugins window · a nav-id migration so dock placement survived the move from menus to apps.
 
-The AI Copilot gets its tool schemas repaired at the boundary, a prune list that keeps the tool budget paid, a system-prompt appendix teaching it the analytics vocabulary, and generation-budget shaping for ceiling-bounded reasoning (upstream #517).
+The AI Copilot gets its tool schemas repaired at the boundary, an opt-in list of the seven plugin abilities it may call (the rest stay on MCP, REST and agents), a system-prompt appendix teaching it the analytics vocabulary, and generation-budget shaping for ceiling-bounded reasoning (upstream #517).
 
 Every seam is pinned against a named upstream tag by `tests/openstation-compat.php`; `docs/openstation-compat.md` is the audit trail.
 

@@ -1648,38 +1648,61 @@ function desktop_mode_ai_ability_tool_name( $ability_name ) {
 ok( desktop_mode_ai_ability_tool_name( 'signal-noise/export-audit-log' ) === 'export_audit_log',
 	'sanity: the tool-name transform strips the namespace and underscores the slug (the real shape the prune must match)' );
 
+// The registry the allow list reads (2026-11-11). Read at filter time, so an
+// empty registry everywhere above this point changes nothing there.
+class SN_Test_Ability { private $n; public function __construct( $n ) { $this->n = $n; } public function get_name() { return $this->n; } }
+function wp_get_abilities() { return $GLOBALS['__abilities'] ?? array(); }
+$GLOBALS['__abilities'] = array_map( static function ( $n ) { return new SN_Test_Ability( $n ); }, array(
+	'signal-noise/pattern-adoption-suggest', 'signal-noise/export-audit-log', 'signal-noise/block-migrations-suggest',
+	'signal-noise/get-analytics-summary', 'signal-noise/sn-posts', 'signal-noise/sn-scan',
+	'signal-noise/a-brand-new-read', // registered tomorrow, never listed anywhere
+	'desktop-mode/search-posts', 'signal-and-noise/get-active-template-structure', 'core/get-site-info',
+) );
+
 // Feed the STRIPPED names the filter actually receives (as the existing normalizer
 // test above does with search_posts / get_analytics_summary).
-$prune_in    = array(
-	array( 'type' => 'function', 'name' => 'pattern_adoption_suggest',      'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — prune
-	array( 'type' => 'function', 'name' => 'export_audit_log',              'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — prune
-	array( 'type' => 'function', 'name' => 'block_migrations_suggest',      'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — prune
-	array( 'type' => 'function', 'name' => 'remote_get_analytics_summary',  'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours, a remote-door twin: prune (#1594)
-	array( 'type' => 'function', 'name' => 'get_analytics_summary',         'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // ours — EARNS its rent, keep
-	array( 'type' => 'function', 'name' => 'search_posts',                  'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // desktop-mode's own, keep
-	array( 'type' => 'function', 'name' => 'get_active_template_structure', 'parameters' => array( 'type' => 'object', 'properties' => array() ) ), // the THEME's, keep
-);
+$sn_tool     = static function ( $name ) { return array( 'type' => 'function', 'name' => $name, 'parameters' => array( 'type' => 'object', 'properties' => array() ) ); };
+$prune_in    = array_map( $sn_tool, array(
+	'pattern_adoption_suggest',      // ours, not kept: drop
+	'export_audit_log',              // ours, not kept: drop
+	'block_migrations_suggest',      // ours, not kept: drop
+	'remote_get_analytics_summary',  // ours, a remote-door twin: drop (#1594)
+	'sn_scan',                       // ours, agent-only (7k chars of description): drop
+	'a_brand_new_read',              // ours, never listed: drop by default
+	'get_analytics_summary',         // ours, KEPT
+	'sn_posts',                      // ours, KEPT
+	'search_posts',                  // desktop-mode's own, keep
+	'get_active_template_structure', // the THEME's, keep
+	'get_site_info',                 // core's, keep
+) );
 $prune_out   = apply_filters( 'desktop_mode_ai_tools', $prune_in );
 $prune_names = array_map( static function ( $t ) { return is_array( $t ) ? ( $t['name'] ?? '' ) : ''; }, $prune_out );
 
-ok( ! in_array( 'pattern_adoption_suggest', $prune_names, true ),
-	'pattern_adoption_suggest is pruned — needs a scan-generated block fingerprint, unusable from natural language' );
-ok( ! in_array( 'export_audit_log', $prune_names, true ),
-	'export_audit_log is pruned — an export/download action; get-audit-log already answers the readable question' );
-ok( ! in_array( 'block_migrations_suggest', $prune_names, true ),
-	'block_migrations_suggest is pruned — needs a scan-generated block fingerprint, unusable from natural language' );
-ok( in_array( 'get_analytics_summary', $prune_names, true ),
-	'a tool that EARNS its rent survives the prune (we cut the narrow ones, not the useful ones)' );
+ok( ! in_array( 'pattern_adoption_suggest', $prune_names, true ) && ! in_array( 'export_audit_log', $prune_names, true ) && ! in_array( 'block_migrations_suggest', $prune_names, true ),
+	'the three v9.59.0 prunes still drop: they are ours and not on the keep list' );
+ok( ! in_array( 'sn_scan', $prune_names, true ),
+	'an agent-only tool (sn_scan) leaves Ask AI; it stays an ability for agents and MCP' );
+ok( ! in_array( 'a_brand_new_read', $prune_names, true ),
+	'a NEW plugin ability is off Ask AI by default: it costs every turn nothing until it is added to the keep list' );
+ok( in_array( 'get_analytics_summary', $prune_names, true ) && in_array( 'sn_posts', $prune_names, true ),
+	'the kept conversational reads survive' );
 ok( in_array( 'search_posts', $prune_names, true ),
 	"desktop-mode's OWN tool is never pruned — we prune only ours" );
 ok( in_array( 'get_active_template_structure', $prune_names, true ),
 	"the THEME's tool is never pruned either — not ours to cut" );
+ok( in_array( 'get_site_info', $prune_names, true ),
+	"core's tool is never pruned" );
 ok( ! in_array( 'remote_get_analytics_summary', $prune_names, true ),
 	'remote_get_analytics_summary is pruned: its permission callback passes only the bridge principal, so the in-process Copilot loop can never run it (#1594)' );
-ok( count( $prune_out ) === 3,
-	'exactly the four listed tools were removed; the other three survive' );
+ok( count( $prune_out ) === 5,
+	'exactly the six tools of ours not kept were removed; the five others survive' );
 ok( count( array_intersect( sn_mcp_remote_slugs(), snt_dm_ai_pruned_abilities() ) ) === count( sn_mcp_remote_slugs() ),
 	'every slug the remote guard owns is on the prune list, so a twin added there drops from the Copilot without a second edit (#1594)' );
+ok( array() === array_intersect( snt_dm_ai_copilot_kept_abilities(), snt_dm_ai_pruned_abilities() ),
+	'nothing on the keep list is ever pruned' );
+ok( array() === array_filter( snt_dm_ai_copilot_kept_abilities(), static function ( $n ) { return 0 !== strpos( $n, 'signal-noise/' ); } ),
+	'the keep list names only this plugin\'s abilities: it cannot reach into the theme, OpenStation or core' );
+$GLOBALS['__abilities'] = array();
 
 echo "\n── #1594: the agents Tools picker drops the remote-door twins ──\n";
 // openstation_agent_abilities_catalogue is applied by

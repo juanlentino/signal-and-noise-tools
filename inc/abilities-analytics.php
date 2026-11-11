@@ -40,8 +40,9 @@ add_action( 'wp_abilities_api_init', function () {
 	// that no ability exposed. Wraps sn_analytics_top_paths(), the same reader the
 	// Analytics screen's Top content panel uses, so the numbers cannot diverge.
 	//
-	// Read-only, which means OpenStation's AI Copilot AUTO-ENROLS it as a tool with
-	// no opt-out. The input_schema therefore mirrors its siblings exactly (an
+	// Read-only, which means OpenStation's AI Copilot would AUTO-ENROL it as a tool;
+	// since 2026-11-11 only snt_dm_ai_copilot_kept_abilities() reach Ask AI, but the
+	// same schema serves MCP, REST and agents. It therefore mirrors its siblings (an
 	// object with a top-level default): one malformed tool 400s the entire
 	// assistant, and the plugin's desktop_mode_ai_tools normalizer at
 	// PHP_INT_MAX keeps the list provider-safe.

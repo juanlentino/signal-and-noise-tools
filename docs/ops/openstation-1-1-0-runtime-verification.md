@@ -326,8 +326,10 @@ independently of everything above.
 
 The delta check. Note the count from the baseline pass, then:
 
-- [ ] Ask the Copilot something that calls an SN tool (e.g. *"what's the site
-      health status?"*).
+- [ ] Ask the Copilot something that calls an SN tool it keeps (e.g. *"what's
+      scheduled next?"*, which reaches `content_queue`; since 2026-11-11 only
+      `snt_dm_ai_copilot_kept_abilities()` reach Ask AI, so a site-health
+      question no longer reaches a plugin tool).
 - [ ] Re-count:
       ```bash
       wp eval 'echo count( (array) get_option( "sn_ai_tool_invocations", array() ) ), "\n";'

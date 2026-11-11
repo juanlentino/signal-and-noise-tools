@@ -87,10 +87,11 @@ snt_os_compat_add_filter( 'desktop_mode_ai_tools', 'openstation_ai_tools', funct
 	// v9.59.0: PRUNE before normalize. Every read-only ability is auto-enrolled
 	// as a Copilot tool with no opt-in, and its name + description + input_schema
 	// is serialized into EVERY Ask AI turn, before the user's question is read —
-	// rent paid forever, invoked or not. snt_dm_ai_pruned_abilities() lists the
-	// ones that cannot earn it (see that function). Pruning removes a tool from
-	// the COPILOT LIST ONLY; the ability stays registered, REST/MCP-callable and
-	// usable by the UI + the scan→suggest→apply pipeline. Reversible in one line.
+	// rent paid forever, invoked or not. Since 2026-11-11 the list is opt-in:
+	// snt_dm_ai_pruned_abilities() is every one of our abilities NOT kept by
+	// snt_dm_ai_copilot_kept_abilities() (see those functions). Pruning removes a
+	// tool from the COPILOT LIST ONLY; the ability stays registered, REST/MCP-
+	// callable, pickable for an agent and usable by the UI. Reversible in one line.
 	//
 	// MATCH ON THE STRIPPED NAME. desktop-mode strips the namespace and
 	// underscores the slug (signal-noise/export-audit-log → export_audit_log) via
@@ -160,52 +161,68 @@ snt_os_compat_add_filter( 'desktop_mode_ai_tools', 'openstation_ai_tools', funct
 }, PHP_INT_MAX );
 
 /**
- * Abilities dropped from the Copilot's per-turn tool list (v9.59.0).
+ * The plugin abilities Ask AI keeps (2026-11-11). Every other signal-noise/
+ * ability is dropped from the Copilot's tool list.
  *
- * These three are read-only (so desktop-mode auto-enrols them as Copilot tools),
- * but a conversational turn can never use them:
- *   - signal-noise/pattern-adoption-suggest and signal-noise/block-migrations-suggest
- *     each require a scan-generated block FINGERPRINT as input. The model cannot
- *     produce a valid fingerprint from natural language, so it can never call them
- *     correctly — they are pure per-turn rent.
- *   - signal-noise/export-audit-log is an export/download action (a CSV/JSON blob).
- *     A chat turn should not emit a download, and signal-noise/get-audit-log already
- *     answers the readable "what's in the audit log" question — so it is redundant
- *     for the Copilot and kept only for the wp-admin export button.
+ * Measured live on 2026-11-11: each Ask AI call carried 125 tool definitions
+ * (about 156k characters) before the question was read, and this plugin's 86
+ * were 122k of them. The AI request log since 2026-07-29 shows Ask AI called
+ * only a handful of them (sn_posts, list_posts, get_post_content,
+ * provenance_integrity_status, plus the theme's get_llms_txt). So the list is
+ * now opt-in: these seven conversational reads stay, everything else leaves
+ * the Copilot. A new ability costs Ask AI nothing until it is added here.
  *
- * Pruning removes them from the COPILOT's list only. Every one stays registered,
- * REST-callable, MCP-exposed, and driven by the wp-admin UI + the
- * scan→suggest→apply pipeline. To restore one, delete its line.
+ * Dropping a tool removes it from the COPILOT'S LIST ONLY. Every ability stays
+ * registered, REST-callable, MCP-exposed and pickable for an agent (the agents
+ * runner builds its tools from the picks, not through openstation_ai_tools).
+ * To give Ask AI one back, add its line.
  *
- * #1594: the fourteen remote-door twins in sn_mcp_remote_slugs() ride along.
- * Each is readonly, so the Copilot enrols it, but its permission callback
- * passes only a caller holding sn_read_remote_analytics, and the only grant
- * of that capability is the bridge's own execute() (inc/mcp/mcp-bridge-route.php).
- * The Copilot loop runs abilities in-process, never through the bridge, so
- * every call it could make is refused inside WP_Ability::execute(). The slug
- * list the guard owns is the one source of that policy; nothing is repeated
- * here. inc/mcp/mcp-remote-guard.php loads before this file
- * (signal-and-noise-tools.php), and the call runs at filter time regardless.
+ * @since 2026-11-11 (the next release)
+ * @return string[] Full ability names.
+ */
+function snt_dm_ai_copilot_kept_abilities() {
+	return array(
+		'signal-noise/sn-posts',
+		'signal-noise/list-posts',
+		'signal-noise/get-post-content',
+		'signal-noise/content-queue',
+		'signal-noise/get-analytics-summary',
+		'signal-noise/live-now',
+		'signal-noise/provenance-integrity-status',
+	);
+}
+
+/**
+ * Abilities dropped from the Copilot's per-turn tool list.
  *
- * OURS ONLY, with a seam caveat: the caller matches on the STRIPPED tool name
- * desktop-mode produces, because the namespace is gone before any plugin can
- * filter the tool list (desktop_mode_ai_search_ability_names() exposes no filter).
- * A third-party ability whose slug stripped to one of these exact names would also
- * be dropped. The names are SN-specific and the risk is theoretical; this is the
- * best available match point.
+ * Every registered signal-noise/ ability not in
+ * snt_dm_ai_copilot_kept_abilities(), plus the remote-door twins in
+ * sn_mcp_remote_slugs() (#1594: their permission callback passes only the
+ * bridge principal, so the in-process Copilot loop could never run one; listed
+ * explicitly so they drop even before the registry is read).
  *
- * @since 9.59.0
+ * OURS ONLY. Only this plugin's namespace is cut: the theme's signal-and-noise/
+ * tools, OpenStation's and core's are never touched. Seam caveat: the caller
+ * matches on the STRIPPED tool name desktop-mode produces, because the
+ * namespace is gone before any plugin can filter the tool list
+ * (desktop_mode_ai_search_ability_names() exposes no filter). A third-party
+ * ability whose slug stripped to one of these exact names would also drop; on
+ * 2026-11-11 none of the 39 other live tools collided.
+ *
+ * @since 9.59.0 (a fixed deny list); an allow list since 2026-11-11.
  * @return string[] Full SN ability names to drop from the Copilot tool list.
  */
 function snt_dm_ai_pruned_abilities() {
-	return array_merge(
-		array(
-			'signal-noise/pattern-adoption-suggest',
-			'signal-noise/export-audit-log',
-			'signal-noise/block-migrations-suggest',
-		),
-		sn_mcp_remote_slugs()
-	);
+	$ours = array();
+	if ( function_exists( 'wp_get_abilities' ) ) {
+		foreach ( (array) wp_get_abilities() as $ability ) {
+			$name = ( is_object( $ability ) && method_exists( $ability, 'get_name' ) ) ? (string) $ability->get_name() : '';
+			if ( 0 === strpos( $name, 'signal-noise/' ) ) {
+				$ours[] = $name;
+			}
+		}
+	}
+	return array_values( array_diff( array_unique( array_merge( $ours, sn_mcp_remote_slugs() ) ), snt_dm_ai_copilot_kept_abilities() ) );
 }
 
 /**
