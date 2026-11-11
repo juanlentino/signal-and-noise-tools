@@ -70,5 +70,17 @@ $bb_empty = array(
 ob_start(); snt_analytics_render_bot_breakdown( $bb_empty ); $hbe = ob_get_clean();
 ok( strpos( $hbe, 'could not be read' ) === false, 'breakdown: an EMPTY networks list stays a quiet omission (the pre-existing honest shape)' );
 
+echo "\nGroup: this site's own tools, beside the classes and in none of them\n";
+require_once __DIR__ . '/../inc/analytics-lanes-first-party.php';
+$fp     = array( 'views' => 12, 'proven' => array( 'views' => 9, 'visitor_days' => 1 ), 'claimed' => array( 'views' => 3, 'visitor_days' => 2 ), 'from' => '2026-11-01', 'through' => '2026-11-10', 'days' => 10, 'partial' => true );
+$bb_fp  = $bb_empty + array( 'first_party' => $fp );
+ob_start(); snt_analytics_render_bot_breakdown( $bb_fp ); $hfp = ob_get_clean();
+ok( false !== strpos( $hfp, sn_lanes_first_party_line( $fp ) ), 'breakdown: the own-tools line is painted, the shared words' );
+ok( false !== strpos( $hfp, 'Presumed human 100' ) && false !== strpos( $hfp, 'Suspect 10' ) && false !== strpos( $hfp, 'Bot 30' ), 'breakdown: the three class figures are unchanged' );
+ok( 3 === preg_match_all( '/class="sn-an-q sn-an-q--/', $hfp ) && strpos( $hfp, 'Presumed human' ) < strpos( $hfp, 'own tools' ), 'breakdown: three bar segments, the classes only; the own tools follow the legend and get no segment' );
+ob_start(); snt_analytics_render_bot_breakdown( $bb_empty + array( 'first_party' => null ) ); $hnull = ob_get_clean();
+ok( false !== strpos( $hnull, 'not measured in this range' ), 'breakdown: a null figure says not measured, never a 0' );
+ok( false === strpos( $hbe, 'own tools' ), 'breakdown: a caller without the key paints no line' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

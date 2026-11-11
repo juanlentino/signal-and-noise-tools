@@ -97,8 +97,12 @@ checking the page, automation that follows a new URL, and the first readers
 from wherever it was announced. Read the after-window human figure first; it
 is what the note earns once the burst is over. The window's split says how
 much of the burst was the owner (owner, owner agent, unverified owner) or
-suspected automation against presumed humans. Own infrastructure comes from
-the machine sensor, which keeps no paths, so it is never counted per note.
+suspected automation against presumed humans. Own infrastructure (this site's
+own tools) reaches the beacon too: identity 6 since 2026-10-19 (the
+x-sn-first-party header, reason first_party) and identity 7 with analytics
+worker 2.1.0 (a SignalNoise- user agent, reason first_party_claimed, a claim),
+so a window's lane table can list own_infra; the owner-or-automation tile does
+not count it.
 
 **Where.** The Signal & Noise app's note dossier, under Numbers ("First hour"):
 the human readers after the window lead, then the window by lane, then its top
