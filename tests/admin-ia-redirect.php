@@ -44,11 +44,15 @@ eq( array( 'tab' => 'content', 'sub' => 'block-migrations', 'anchor' => null ), 
 eq( array( 'tab' => 'ai', 'sub' => 'mcp-connect', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'mcp-connect' ), 'tools/mcp-connect → ai/mcp-connect' );
 eq( array( 'tab' => 'ai', 'sub' => 'agent-tools', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'copilot-usage' ), 'tools/copilot-usage → ai/agent-tools (15.6.0 folded Copilot Usage into Agent tools; ai/copilot-usage is not a leaf)' );
 eq( array( 'tab' => 'ai', 'sub' => 'agent-tools', 'anchor' => null ), sn_admin_canonical_destination( 'ai', 'copilot-usage' ), 'ai/copilot-usage → ai/agent-tools' );
-// Every move lands on a leaf that exists: a target missing from the tab data is a dead bookmark.
-foreach ( sn_admin_subtab_moves() as $from => $to ) {
-	$leaves = array();
-	foreach ( sn_admin_top_tabs() as $t ) { if ( $t['tab'] === $to['tab'] ) { $leaves = array_keys( $t['sub_tabs'] ?? array() ); } }
-	eq( true, null === $to['sub'] || in_array( $to['sub'], $leaves, true ), "move $from lands on a registered leaf ({$to['tab']}/" . ( $to['sub'] ?? '' ) . ')' );
+// Every move and every legacy slug lands on a tab, and a leaf, that exists: a
+// target missing from the tab data is a dead bookmark.
+$sn_leaves = array();
+foreach ( sn_admin_top_tabs() as $t ) { $sn_leaves[ $t['tab'] ] = array_keys( $t['sub_tabs'] ?? array() ); }
+foreach ( array( 'move' => sn_admin_subtab_moves(), 'legacy slug' => sn_admin_legacy_redirect_map() ) as $kind => $map ) {
+	foreach ( $map as $from => $to ) {
+		$sub = $to['sub'] ?? null;
+		eq( true, isset( $sn_leaves[ $to['tab'] ] ) && ( null === $sub || in_array( $sub, $sn_leaves[ $to['tab'] ], true ) ), "$kind $from lands on a registered tab and leaf ({$to['tab']}/" . ( $sub ?? '' ) . ')' );
+	}
 }
 
 // ── Two-hop legacy: entries that pointed at a destination which has since moved
