@@ -42,7 +42,14 @@ eq( array( 'tab' => 'connections', 'sub' => 'music', 'anchor' => null ), sn_admi
 eq( array( 'tab' => 'monitoring', 'sub' => 'rss', 'anchor' => null ), sn_admin_canonical_destination( 'content', 'rss' ), 'content/rss → monitoring/rss (RSS is feed-request analytics)' );
 eq( array( 'tab' => 'content', 'sub' => 'block-migrations', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'block-migrations' ), 'tools/block-migrations → content/block-migrations' );
 eq( array( 'tab' => 'ai', 'sub' => 'mcp-connect', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'mcp-connect' ), 'tools/mcp-connect → ai/mcp-connect' );
-eq( array( 'tab' => 'ai', 'sub' => 'copilot-usage', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'copilot-usage' ), 'tools/copilot-usage → ai/copilot-usage' );
+eq( array( 'tab' => 'ai', 'sub' => 'agent-tools', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'copilot-usage' ), 'tools/copilot-usage → ai/agent-tools (15.6.0 folded Copilot Usage into Agent tools; ai/copilot-usage is not a leaf)' );
+eq( array( 'tab' => 'ai', 'sub' => 'agent-tools', 'anchor' => null ), sn_admin_canonical_destination( 'ai', 'copilot-usage' ), 'ai/copilot-usage → ai/agent-tools' );
+// Every move lands on a leaf that exists: a target missing from the tab data is a dead bookmark.
+foreach ( sn_admin_subtab_moves() as $from => $to ) {
+	$leaves = array();
+	foreach ( sn_admin_top_tabs() as $t ) { if ( $t['tab'] === $to['tab'] ) { $leaves = array_keys( $t['sub_tabs'] ?? array() ); } }
+	eq( true, null === $to['sub'] || in_array( $to['sub'], $leaves, true ), "move $from lands on a registered leaf ({$to['tab']}/" . ( $to['sub'] ?? '' ) . ')' );
+}
 
 // ── Two-hop legacy: entries that pointed at a destination which has since moved
 // again. A stale intermediate lands the bookmark on a tab that no longer owns

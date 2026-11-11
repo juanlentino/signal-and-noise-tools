@@ -29,10 +29,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @internal Permanent legacy infrastructure (NOT pending removal). Was marked
  *           @deprecated in v4.2.0 framing but the function is load-bearing —
  *           active call site at line ~474 (POST allowlist) plus the legacy URL
- *           redirect at sn_admin_maybe_redirect_legacy() that 302s
- *           ?page=sn-<slug> URLs to canonical tab URLs. The redirect handles
- *           GET fine but POST bodies submitted to a legacy URL are lost in
- *           the redirect. New code MUST use sn_admin_top_tabs() for routing
+ *           redirect at sn_admin_maybe_redirect_legacy() that 301s
+ *           ?page=sn-<slug> URLs to canonical tab URLs. The redirect answers
+ *           GET and HEAD only; a POST to a legacy URL is not redirected, so
+ *           its body is never lost to a 301. New code MUST use sn_admin_top_tabs() for routing
  *           decisions; this table is the source of truth for the legacy URL
  *           shape only. Re-framed 2026-05-26 after Audit C HYG-08.
  */
@@ -119,7 +119,8 @@ function sn_admin_subtab_moves() {
 		'content/rss'            => array( 'tab' => 'monitoring', 'sub' => 'rss' ),
 		'tools/block-migrations' => array( 'tab' => 'content', 'sub' => 'block-migrations' ),
 		'tools/mcp-connect'      => array( 'tab' => 'ai', 'sub' => 'mcp-connect' ),
-		'tools/copilot-usage'    => array( 'tab' => 'ai', 'sub' => 'copilot-usage' ),
+		'tools/copilot-usage'    => array( 'tab' => 'ai', 'sub' => 'agent-tools' ), // 15.6.0: Copilot Usage folded into Agent tools.
+		'ai/copilot-usage'       => array( 'tab' => 'ai', 'sub' => 'agent-tools' ),
 
 		// ── Repointed, NOT chained. These three entries already existed, aimed at
 		// destinations that have themselves now moved. This resolver runs ONCE per
@@ -258,6 +259,14 @@ function sn_admin_maybe_redirect_legacy() {
 	$url = admin_url( 'admin.php?page=sn-theme-options&tab=' . rawurlencode( $dest['tab'] ) );
 	if ( ! empty( $dest['sub'] ) ) {
 		$url .= '&sub=' . rawurlencode( $dest['sub'] );
+	}
+	// Carry every other query arg through, so a handler's flash (?sn_rss_ok,
+	// ?sn_flash, ?new_id) survives a redirect that lands on a legacy URL.
+	// http_build_query() encodes each key and value; the host stays admin_url()'s.
+	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Re-encoded into a same-host admin URL, never output or stored.
+	$extra = array_diff_key( (array) wp_unslash( $_GET ), array_flip( array( 'page', 'tab', 'sub' ) ) );
+	if ( $extra ) {
+		$url .= '&' . http_build_query( $extra, '', '&', PHP_QUERY_RFC3986 );
 	}
 	if ( ! empty( $dest['anchor'] ) ) {
 		$url .= '#sn-sec-' . rawurlencode( $dest['anchor'] );

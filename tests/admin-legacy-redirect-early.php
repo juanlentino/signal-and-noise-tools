@@ -15,10 +15,12 @@ define( 'ABSPATH', '/' );
 $GLOBALS['__actions'] = array();
 function add_action( $tag, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__actions'][ $tag ][] = $cb; return true; }
 function add_menu_page( $pt, $mt, $cap, $slug ) { return 'toplevel_page_' . $slug; }
-function add_submenu_page( $parent, $pt, $mt, $cap, $slug ) { return 'signal-noise_page_' . $slug; }
+// Core's get_plugin_page_hookname(): a submenu that reuses its parent's slug (the
+// Dashboard entry) shares the parent's toplevel_page_ hook.
+function add_submenu_page( $parent, $pt, $mt, $cap, $slug ) { return $slug === $parent ? 'toplevel_page_' . $slug : 'signal-noise_page_' . $slug; }
 function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . ltrim( (string) $p, '/' ); }
 function sanitize_text_field( $s ) { return is_string( $s ) ? trim( strip_tags( $s ) ) : ''; }
-function wp_unslash( $v ) { return is_string( $v ) ? stripslashes( $v ) : $v; }
+function wp_unslash( $v ) { return is_array( $v ) ? array_map( 'wp_unslash', $v ) : ( is_string( $v ) ? stripslashes( $v ) : $v ); }
 class SN_Redirected extends Exception {}
 function wp_safe_redirect( $url, $status = 302 ) { throw new SN_Redirected( $status . ' ' . $url ); }
 
@@ -64,6 +66,13 @@ ok( 0 === strpos( sn_test_load( $top, array( 'page' => 'sn-theme-options', 'tab'
 	'HEAD follows GET' );
 ok( '' === sn_test_load( $top, array( 'page' => 'sn-theme-options', 'tab' => 'rss' ), 'POST' ),
 	'POST to a legacy URL is NOT redirected: a 301 would turn it into a GET and drop the form body' );
+
+ok( '301 https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=rss&sn_rss_ok=saved' === sn_test_load( $top, array( 'page' => 'sn-theme-options', 'tab' => 'rss', 'sn_rss_ok' => 'saved' ) ),
+	'a handler\'s flash rides the 301: ?tab=rss&sn_rss_ok=saved keeps sn_rss_ok (it was dropped, and with it "Saved" and the purge-error notice)' );
+ok( '301 https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=site&sub=identity-and-seo&sn_flash=saved%20ok#sn-sec-identity' === sn_test_load( $top, array( 'page' => 'sn-theme-options', 'tab' => 'identity', 'sn_flash' => 'saved ok' ) ),
+	'   ...encoded, and ahead of the #fragment, so the anchor still scrolls' );
+ok( false === strpos( sn_test_load( $top, array( 'page' => 'sn-theme-options', 'tab' => 'rss', 'x' => "a\r\nLocation: https://evil.test/" ) ), "\n" ),
+	'   ...a CR/LF in an arg is encoded, never a header break' );
 
 $site = 'signal-noise_page_sn-site';
 if ( in_array( $site, $hooks, true ) ) {
