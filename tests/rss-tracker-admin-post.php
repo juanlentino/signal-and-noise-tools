@@ -124,7 +124,7 @@ $GLOBALS['__can'] = true;
 echo "\nGroup 4: Save stores what it always stored, and says so\n";
 $r = rss_post( 'sn_rss_save_settings', array( 'enabled' => '1', 'event_name' => ' Feed hit ', 'log_retention_days' => '9999' ), 'sn_rss_save_settings' );
 ok( array( 'enabled' => true, 'collector_url' => 'https://sn-px.workers.dev/_sn/px', 'event_name' => 'Feed hit', 'log_retention_days' => 365 ) === $GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ], 'same option, same four keys: enabled a boolean, the STORED collector kept, the event name cleaned, retention clamped to 365' );
-ok( 'redirect' === $r['outcome'] && 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=rss&sn_rss_ok=saved' === $r['url'], 'redirects to the RSS leaf with ?sn_rss_ok=saved (the URL the classic page always landed on): ' . ( $r['url'] ?? '' ) );
+ok( 'redirect' === $r['outcome'] && 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=rss&sn_rss_ok=saved' === $r['url'], 'redirects to Monitoring > RSS with ?sn_rss_ok=saved (the canonical tab and sub, not the legacy tab=rss that rendered the Dashboard): ' . ( $r['url'] ?? '' ) );
 $r = rss_post( 'sn_rss_save_settings', array( 'enabled' => '1', 'event_name' => 'Feed hit', 'log_retention_days' => '365' ), 'sn_rss_save_settings' );
 ok( 'unchanged' === $r['flash'], 'the same values again report unchanged, not saved' );
 $GLOBALS['wpdb']->last_error = 'disk full';
@@ -139,7 +139,7 @@ $GLOBALS['wpdb']->queries = array();
 $GLOBALS['wpdb']->result  = 12;
 $r = rss_post( 'sn_rss_purge_log', array( 'purge_days' => '3' ), 'sn_rss_purge_log' );
 ok( 1 === count( $GLOBALS['wpdb']->queries ) && array( 7 ) === $GLOBALS['wpdb']->queries[0][1] && false !== strpos( $GLOBALS['wpdb']->queries[0][0], 'DELETE FROM wp_rss_feed_log' ), 'one DELETE on the log table, the day count clamped to 7' );
-ok( 'purged-12' === $r['flash'] && false !== strpos( $r['url'], 'page=sn-theme-options&tab=rss&sn_rss_ok=purged-12' ), 'the flash carries the count: ?sn_rss_ok=purged-12' );
+ok( 'purged-12' === $r['flash'] && false !== strpos( $r['url'], 'page=sn-theme-options&tab=monitoring&sub=rss&sn_rss_ok=purged-12' ), 'the flash carries the count: ?sn_rss_ok=purged-12' );
 $GLOBALS['wpdb']->result = false;
 $r = rss_post( 'sn_rss_purge_log', array( 'purge_days' => '30' ), 'sn_rss_purge_log' );
 ok( 'purge-error' === $r['flash'], 'a failed DELETE reports purge-error, never "Purged 0"' );
@@ -148,7 +148,7 @@ echo "\nGroup 6: Reset to Defaults keeps the collector\n";
 $GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ] = $stored;
 $r = rss_post( 'sn_rss_reset_defaults', array(), 'sn_rss_reset_defaults' );
 ok( array( 'collector_url' => 'https://sn-px.workers.dev/_sn/px' ) === $GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ], 'the RSS settings go back to defaults and the custom collector stays' );
-ok( 'reset' === $r['flash'] && false !== strpos( $r['url'], 'tab=rss&sn_rss_ok=reset' ), 'and lands with ?sn_rss_ok=reset' );
+ok( 'reset' === $r['flash'] && false !== strpos( $r['url'], 'tab=monitoring&sub=rss&sn_rss_ok=reset' ), 'and lands with ?sn_rss_ok=reset' );
 
 echo "\nGroup 7: a GET link with a valid nonce does nothing\n";
 foreach ( array( 'purge_log', 'reset_defaults', 'save_settings' ) as $op ) {

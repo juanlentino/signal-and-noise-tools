@@ -201,7 +201,7 @@ namespace {
 		// phpcs:ignore WordPress.Security.NonceVerification -- The fixture IS the nonce check.
 		if ( ! wp_verify_nonce( $_REQUEST['_wpnonce'] ?? '', 'sn_rss_reset_defaults' ) ) { wp_die( 'The link you followed has expired.' ); }
 		$GLOBALS['__rss_ran'] = true;
-		wp_safe_redirect( 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=rss&sn_rss_ok=reset' );
+		wp_safe_redirect( 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=rss&sn_rss_ok=reset' );
 		exit; // Never reached: the interceptor throws from the wp_redirect filter.
 	};
 	$GLOBALS['__styles']  = array();

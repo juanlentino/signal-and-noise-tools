@@ -172,6 +172,9 @@ function sn_rss_tracker_handle_form( $action ) {
 		$flash = 'reset';
 	}
 
+	// 2026-11-10: straight to Monitoring -> RSS. The legacy ?tab=rss no longer
+	// redirects there on the live site (it rendered the Dashboard and dropped
+	// the flash), so the canonical tab/sub is named here.
 	// #1228: the SN page moved from Appearance (themes.php, add_theme_page)
 	// to its own top-level menu (admin.php, add_menu_page) — see
 	// inc/admin-menu.php's docblock. themes.php ignores an unrecognized
@@ -180,7 +183,8 @@ function sn_rss_tracker_handle_form( $action ) {
 	wp_safe_redirect( add_query_arg(
 		array(
 			'page'      => 'sn-theme-options',
-			'tab'       => 'rss',
+			'tab'       => 'monitoring',
+			'sub'       => 'rss',
 			'sn_rss_ok' => $flash,
 		),
 		admin_url( 'admin.php' )

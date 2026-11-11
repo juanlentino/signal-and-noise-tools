@@ -46,7 +46,7 @@ try {
 } catch ( SN_RSS_Redirect $r ) {
 	ok( 0 === strpos( $r->url, 'https://example.test/wp-admin/admin.php?' ), 'redirect targets admin.php, not themes.php (#1228): ' . $r->url );
 	ok( false === strpos( $r->url, 'themes.php' ), 'themes.php never appears in the redirect target' );
-	ok( false !== strpos( $r->url, 'page=sn-theme-options' ) && false !== strpos( $r->url, 'tab=rss' ), 'the page/tab params still land on the RSS sub-tab' );
+	ok( false !== strpos( $r->url, 'page=sn-theme-options' ) && false !== strpos( $r->url, 'tab=monitoring&sub=rss' ), 'the page/tab/sub params land on Monitoring > RSS (the canonical leaf, not the legacy tab=rss)' );
 }
 
 echo "\nResult: $pass passed, $fail failed.\n";
