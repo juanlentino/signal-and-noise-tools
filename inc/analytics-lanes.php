@@ -37,14 +37,15 @@ const SN_LANES_LAST_RUN_OPT   = 'sn_analytics_lanes_last_run'; // { sensor: { at
 const SN_LANES_OWNER_DATASET  = 'sn_owner_hits';            // the analytics Worker's DATASETS.owner.
 const SN_LANES_WINDOW_DAYS    = 7;                          // trailing complete days each run writes.
 const SN_LANES                = array( 'owner', 'owner_agent', 'unverified_owner', 'own_infra', 'verified_bot', 'claimed_bot', 'unknown_machine', 'suspected_automation', 'human' );
-// The contract's identity codes 1 to 5 (code 0 is "none"): lane and reason.
+// The contract's identity codes 1 to 7 (code 0 is "none"): lane and reason.
 const SN_LANES_IDENTITY = array(
 	1 => array( 'owner', 'owner_device' ),
 	2 => array( 'owner_agent', 'owner_token' ),
 	3 => array( 'unverified_owner', 'owner_token_invalid' ),
 	4 => array( 'unverified_owner', 'logged_in' ),
 	5 => array( 'unverified_owner', 'owner_legacy' ),
-	6 => array( 'own_infra', 'first_party' ), // x-sn-first-party header (analytics worker, 2026-10-19).
+	6 => array( 'own_infra', 'first_party' ), // x-sn-first-party header (analytics worker, 2026-10-19): proven.
+	7 => array( 'own_infra', 'first_party_claimed' ), // a SignalNoise- user agent and no stronger identity (analytics worker 2.1.0): a claim.
 );
 
 require_once __DIR__ . '/analytics-lanes-beacon.php';
@@ -52,6 +53,7 @@ require_once __DIR__ . '/analytics-lanes-machine.php';
 require_once __DIR__ . '/analytics-lanes-store.php';
 require_once __DIR__ . '/analytics-lanes-read.php';
 require_once __DIR__ . '/analytics-lanes-view.php';
+require_once __DIR__ . '/analytics-lanes-first-party.php';
 
 /**
  * The rule version rows are written under. `$set` is the test seam that

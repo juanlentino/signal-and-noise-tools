@@ -77,6 +77,7 @@ $owner = array(
 	array( 'day' => '2026-10-14', 'vid' => $H( '4' ), 'identity' => '4', 'agent' => '0', 'views' => '2' ),
 	array( 'day' => '2026-10-14', 'vid' => $H( '5' ), 'identity' => '5', 'agent' => '0', 'views' => '1' ),
 	array( 'day' => '2026-10-14', 'vid' => $H( '6' ), 'identity' => '6', 'agent' => '0', 'views' => '4' ),
+	array( 'day' => '2026-10-14', 'vid' => $H( '7' ), 'identity' => '7', 'agent' => '0', 'views' => '5' ),
 );
 $over = array( $H( 'd' ), $H( 'b' ) );
 $out  = sn_lanes_beacon_derive( $public, $owner, $over );
@@ -118,6 +119,8 @@ ok( 1 === $cell( '2026-10-14', 'unverified_owner', 'owner_token_invalid', 'playw
 ok( 2 === $cell( '2026-10-14', 'unverified_owner', 'logged_in' )['hits'], 'identity 4: unverified_owner / logged_in' );
 ok( 1 === $cell( '2026-10-14', 'unverified_owner', 'owner_legacy' )['hits'], 'identity 5: unverified_owner / owner_legacy' );
 ok( 4 === ( $cell( '2026-10-14', 'own_infra', 'first_party' )['hits'] ?? 0 ), 'identity 6: own_infra / first_party, the x-sn-first-party header (analytics worker #55), matching the machine side' );
+ok( 5 === ( $cell( '2026-10-14', 'own_infra', 'first_party_claimed' )['hits'] ?? 0 ), 'identity 7: own_infra / first_party_claimed, a SignalNoise- user agent (analytics worker 2.1.0), apart from the proven header' );
+ok( null === $cell( '2026-10-14', 'unverified_owner', 'unknown_code' ), 'identity 7 is a known code: nothing falls to unknown_code' );
 ok( 2 === $cell( '2026-10-14', 'human', 'remainder' )['visitor_days'], 'visitor-days are per lane row (a and e)' );
 
 // Human against the dashboard's rule: the daily table stores class human minus
@@ -183,6 +186,45 @@ sn_lanes_since( 'beacon', '2026-10-16' );
 sn_lanes_since( 'beacon', '2026-10-20' );
 sn_lanes_since( 'beacon', 'junk' );
 ok( '2026-10-16' === sn_lanes_since( 'beacon' ) && '' === sn_lanes_since( 'machine' ), 'the earliest evidence day stands; junk is ignored' );
+
+// --- the beacon's own-tools lane is painted, and its reasons say proof or claim --
+$flat = array();
+foreach ( $out as $day => $rows_d ) {
+	foreach ( $rows_d as $r ) {
+		$flat[] = array( 'day' => $day, 'sensor' => 'beacon', 'rule_version' => 1 ) + $r;
+	}
+}
+$rep  = sn_lanes_report( $flat, '2026-10-14', array( 'beacon' => '2026-10-01', 'machine' => '' ) );
+$win  = sn_lanes_view_windows( $rep, 'beacon' );
+$bl   = array_column( $win['rows'], 'd7', 'lane' );
+ok( '9' === ( $bl["This site's own tools"] ?? null ), "the beacon's by-lane table has the own-tools row (identity 6 and 7: 4 + 5)" );
+$sum7 = array_sum( array_map( 'intval', array_diff_key( $bl, array( 'All lanes' => 1 ) ) ) );
+ok( (int) $bl['All lanes'] === $sum7, "the beacon's lane rows add up to All lanes ({$sum7})" );
+$ref = implode( ' ', sn_lanes_view_reference( 1 )['lines'] );
+ok( false !== strpos( $ref, 'first_party_claimed' ) && false !== strpos( $ref, 'SignalNoise-' ) && false !== strpos( $ref, 'x-sn-first-party' ), 'the reference names both own-tools reasons: the header (proven) and the user agent (a claim)' );
+
+// --- this site's own tools as a figure of their own (beside the classes) -------
+$fp_rows = array(
+	array( 'day' => '2026-10-12', 'sensor' => 'beacon', 'lane' => 'own_infra', 'reason' => 'first_party', 'hits' => '100', 'visitor_days' => '9' ),
+	array( 'day' => '2026-10-13', 'sensor' => 'beacon', 'lane' => 'human', 'reason' => 'remainder', 'hits' => '10', 'visitor_days' => '3' ),
+	array( 'day' => '2026-10-13', 'sensor' => 'beacon', 'lane' => 'own_infra', 'reason' => 'first_party', 'hits' => '4', 'visitor_days' => '1' ),
+	array( 'day' => '2026-10-14', 'sensor' => 'beacon', 'lane' => 'own_infra', 'reason' => 'first_party', 'hits' => '2', 'visitor_days' => '1' ),
+	array( 'day' => '2026-10-14', 'sensor' => 'beacon', 'lane' => 'own_infra', 'reason' => 'first_party_claimed', 'hits' => '5', 'visitor_days' => '2' ),
+	array( 'day' => '2026-10-14', 'sensor' => 'machine', 'lane' => 'own_infra', 'reason' => 'first_party', 'hits' => '27840', 'visitor_days' => null ),
+);
+$fp = sn_lanes_first_party( $fp_rows, '2026-10-13', '2026-10-15' );
+ok( is_array( $fp ) && 11 === $fp['views'], 'own tools: 11 page views in the window (the machine sensor\'s reads and the day before are not page views here)' );
+ok( array( 'views' => 6, 'visitor_days' => 2 ) === ( $fp['proven'] ?? null ) && array( 'views' => 5, 'visitor_days' => 2 ) === ( $fp['claimed'] ?? null ), 'proven (header, 4 + 2) and claimed (user agent, 5) stay apart' );
+ok( '2026-10-13' === $fp['from'] && '2026-10-14' === $fp['through'] && 2 === $fp['days'] && true === $fp['partial'], 'it says which complete days it covers, and that 2026-10-15 is not stored (partial)' );
+ok( false === sn_lanes_first_party( $fp_rows, '2026-10-13', '2026-10-14' )['partial'], 'a window the table covers whole is not partial' );
+ok( null === sn_lanes_first_party( $fp_rows, '2026-11-01', '2026-11-02' ), 'no stored beacon day in the window: null (not measured), never a fabricated 0' );
+$quiet = sn_lanes_first_party( array( $fp_rows[1] ), '2026-10-13', '2026-10-13' );
+ok( 0 === $quiet['views'] && 0 === $quiet['proven']['views'] && 0 === $quiet['claimed']['visitor_days'], 'a stored day with no own-tools row is a measured 0' );
+$GLOBALS['wpdb']->rows = array_map( static fn( $r ) => $r + array( 'agent' => '', 'family' => '', 'purpose' => '', 'visits' => null, 'rule_version' => 1 ), $fp_rows );
+ok( sn_lanes_first_party_figure( '2026-10-13', '2026-10-15' ) === $fp, 'the reader reads the lanes table (visitor_days included) into the same figure' );
+$line = sn_lanes_first_party_line( $fp );
+ok( false !== strpos( $line, 'in none of the three classes' ) && false !== strpos( $line, '11 page views' ) && false !== strpos( $line, 'proven 6' ) && false !== strpos( $line, 'claimed 5' ) && false !== strpos( $line, '2026-10-13 to 2026-10-14' ), 'the shared line names the figure, both halves and the days it covers' );
+ok( false !== strpos( sn_lanes_first_party_line( null ), 'not measured' ), 'a null figure says not measured' );
 
 echo "\n{$pass} passed, {$fail} failed\n";
 exit( $fail > 0 ? 1 : 0 );

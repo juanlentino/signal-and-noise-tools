@@ -193,6 +193,7 @@ require_once SNT_PATH . 'inc/publish-window.php';           // publish windows: 
 require_once SNT_PATH . 'inc/publish-window-settings.php';  // its one setting, the window length: handler, classic form, native Setup fold
 require_once SNT_PATH . 'inc/analytics-render-signals.php'; // its Quality-tab panel
 require_once SNT_PATH . 'inc/abilities-bot-signals.php';    // its reader, sn-status{bot_signals}; local only
+require_once SNT_PATH . 'inc/abilities-bot-signals-flagged.php'; // its flagged human visitor-days, sn-metrics{bot_signals_flagged}; local only
 require_once SNT_PATH . 'inc/analytics-view-events.php';     // v8.5.0 extraction
 require_once SNT_PATH . 'inc/analytics-view-overview.php';   // v9.68.0: the wired Overview landing (default tab — the v9.67.0 mock, graduated)
 require_once SNT_PATH . 'inc/analytics-sources.php'; // v6.25.0: referrer host → canonical source fold (brand grouping + self-referral/www)

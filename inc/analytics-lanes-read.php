@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // The lanes each sensor can hold, in display order.
 const SN_LANES_BY_SENSOR = array(
-	'beacon'  => array( 'human', 'suspected_automation', 'owner', 'owner_agent', 'unverified_owner' ),
+	'beacon'  => array( 'human', 'suspected_automation', 'owner', 'owner_agent', 'unverified_owner', 'own_infra' ),
 	'machine' => array( 'verified_bot', 'claimed_bot', 'unknown_machine', 'own_infra', 'owner_agent', 'unverified_owner' ),
 );
 const SN_LANES_WINDOWS = array( 7, 30, 90 );
@@ -52,7 +52,7 @@ function sn_lanes_read_rows( $from, $to ) {
 	}
 	$table = $wpdb->prefix . SN_LANES_TABLE;
 	// phpcs:ignore WordPress.DB.PreparedSQL -- table is prefix + a plugin constant; values are bound.
-	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT day, sensor, lane, reason, hits, rule_version FROM {$table} WHERE day >= %s AND day <= %s", (string) $from, (string) $to ), ARRAY_A );
+	$rows = $wpdb->get_results( $wpdb->prepare( "SELECT day, sensor, lane, reason, hits, visitor_days, rule_version FROM {$table} WHERE day >= %s AND day <= %s", (string) $from, (string) $to ), ARRAY_A );
 	return is_array( $rows ) ? $rows : array();
 }
 

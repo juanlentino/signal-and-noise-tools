@@ -175,6 +175,13 @@ ok( $bb['totals']['total'] === 1420, 'bot-breakdown: total = human+suspect+bot' 
 ok( count( $bb['top_bot_networks'] ) === 2 && $bb['top_bot_networks'][0]['value'] === 'Amazon.com, Inc.', 'bot-breakdown: top bot ASNs from the network dim (class=bot)' );
 $last = end( $GLOBALS['__de_dim_calls'] );
 ok( $last[0] === 'network' && $last[3] === 'bot', 'bot-breakdown: queries network dim filtered to class=bot' );
+ok( array_key_exists( 'first_party', $bb ) && null === $bb['first_party'], 'bot-breakdown: first_party is null (not measured) when the lanes reader is absent' );
+if ( ! function_exists( 'sn_lanes_first_party_figure' ) ) { // conditional: declared here, not hoisted above the null check
+	function sn_lanes_first_party_figure( $from, $to ) { return array( 'views' => 40, 'proven' => array( 'views' => 30, 'visitor_days' => 2 ), 'claimed' => array( 'views' => 10, 'visitor_days' => 1 ), 'from' => $from, 'through' => $to, 'days' => 7, 'partial' => false ); }
+}
+$bb_fp = sn_analytics_bot_breakdown( '2026-06-01', '2026-06-07', 10 );
+ok( 40 === $bb_fp['first_party']['views'] && '2026-06-01' === $bb_fp['first_party']['from'], 'bot-breakdown: this site\'s own tools ride beside the classes, read for the same window' );
+ok( $bb_fp['totals'] === $bb['totals'] && 1420 === $bb_fp['totals']['total'], 'bot-breakdown: and are added to no class: the three totals and their sum are unchanged' );
 
 echo "\nGroup: v9.68.1 null-on-failure propagation\n";
 $GLOBALS['__de_dim']['referrer|human'] = null; // the accessor's failed-read verdict

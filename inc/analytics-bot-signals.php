@@ -129,6 +129,18 @@ function sn_bot_signals_score( array $row ) {
 }
 
 /**
+ * Whether the readout counts a visitor-day as human: the human flag (not a
+ * stored bot, on a network the one counted-human rule accepts) and not over
+ * the page-view cap. The flagged-humans list reads the same rule. PURE.
+ *
+ * @param array $row AE row.
+ * @return bool
+ */
+function sn_bot_signals_counted_human( array $row ) {
+	return (int) ( $row['human'] ?? 0 ) > 0 && (float) ( $row['views'] ?? 0 ) <= SNT_ANALYTICS_VDAY_PV_CAP;
+}
+
+/**
  * The readout from AE rows (numerics may arrive as strings). PURE.
  *
  * @param array $rows     sn_bot_signals_sql() rows.
@@ -159,7 +171,7 @@ function sn_bot_signals_readout( array $rows, array $day_rows ) {
 				$cohorts[ $c ]['fired'][ $name ] += (int) ( (float) ( $r[ $name ] ?? 0 ) > 0 );
 			}
 		}
-		if ( (int) ( $r['human'] ?? 0 ) > 0 && ! $in['over_cap'] ) {
+		if ( sn_bot_signals_counted_human( $r ) ) {
 			++$human['visitor_days'];
 			$human['likely_automated'] += (int) $likely;
 		}

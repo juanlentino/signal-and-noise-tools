@@ -35,7 +35,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-metrics', array(
 		'label'               => 'Batch-read readership metrics (consolidated)',
-		'description'         => 'One coherent answer to "how is the site being read?": a sectioned batch over the readership reads. analytics_summary (range totals with the honest-denominator semantics: prefer view_visit_ratio, engagement times are MILLISECONDS), analytics_events (top custom events), rss_stats (feed fetches; its own fixed 7d/30d windows), machine_readers, analytics_top_content (pages with visits, scroll, time, and Search Console impressions and position over search_window), 404_log, analytics_sources (labels with category), analytics_series (views and visits per day), analytics_geography (country), analytics_devices, analytics_journeys (entry and exit pages, human only), analytics_query (an allowlisted query: one or two dimensions, the second always day; see `query`), analytics_rows (counted rows by one to four of path, referrer, country, region, city, device, link_code, resume_lane, day and hour, the shape the remote door serves; see `rows`), analytics_fields (what analytics_rows accepts, before querying: every dimension and metric with its unit, meaning and store), analytics_sessions (sessions one by one, the Sessions tab\'s unit: start and end in site time, place, device, source, pages in order with time and scroll, returning, link code; see `sessions`), and analytics_vitals (field Core Web Vitals: p75 and the good, needs improvement and poor shares for LCP, INP and CLS, site-wide, per device and for the top `limit` paths; samples 0 reads as null figures, never 0, and small_sample flags thin cells). Windows follow the site\'s own day. Sources, geography, devices, journeys and query name every row however small (no floor; withheld is always zero). `range` (default 30) and `class` (default human) apply as each section\'s description says. Each entry carries its source ability\'s exact payload. If a source refuses, that ONE section degrades to {error:"unavailable"}; the call fails as a whole only on invalid input (empty or unknown sections, or a bad query).',
+		'description'         => 'One coherent answer to "how is the site being read?": a sectioned batch over the readership reads. analytics_summary (range totals with the honest-denominator semantics: prefer view_visit_ratio, engagement times are MILLISECONDS), analytics_events (top custom events), rss_stats (feed fetches; its own fixed 7d/30d windows), machine_readers, analytics_top_content (pages with visits, scroll, time, and Search Console impressions and position over search_window), 404_log, analytics_sources (labels with category), analytics_series (views and visits per day), analytics_geography (country), analytics_devices, analytics_journeys (entry and exit pages, human only), analytics_query (an allowlisted query: one or two dimensions, the second always day; see `query`), analytics_rows (counted rows by one to four of path, referrer, country, region, city, device, link_code, resume_lane, day and hour, the shape the remote door serves; see `rows`), analytics_fields (what analytics_rows accepts, before querying: every dimension and metric with its unit, meaning and store), analytics_sessions (sessions one by one, the Sessions tab\'s unit: start and end in site time, place, device, source, pages in order with time and scroll, returning, link code; see `sessions`), and analytics_vitals (field Core Web Vitals: p75 and the good, needs improvement and poor shares for LCP, INP and CLS, site-wide, per device and for the top `limit` paths; samples 0 reads as null figures, never 0, and small_sample flags thin cells), and bot_signals_flagged (owner-only: each presumed-human visitor-day of the last `range` days, 1 to 90, whose bot-signal score reaches the threshold, and apart the near misses one point below, with day, source, place, device, browser, OS, network, views, time, the signals that fired and the relay and intent flags; no visitor code, IP or user agent; nothing subtracted). Windows follow the site\'s own day. Sources, geography, devices, journeys and query name every row however small (no floor; withheld is always zero). `range` (default 30) and `class` (default human) apply as each section\'s description says. Each entry carries its source ability\'s exact payload. If a source refuses, that ONE section degrades to {error:"unavailable"}; the call fails as a whole only on invalid input (empty or unknown sections, or a bad query).',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_metrics',
@@ -54,12 +54,12 @@ add_action( 'wp_abilities_api_init', function() {
 				'range'    => array(
 					'type'        => array( 'string', 'integer' ),
 					'default'     => 30,
-					'description' => 'Window for analytics_summary and analytics_events (source-validated: 7|14|30|90|365|all). Ignored by rss_stats. For machine_readers the sensor clamps to 1-90, so 365 and all are refused there, and the payload\'s own days_covered reports how many days it actually holds — asking for 90 and being handed 32 is not an error, it is when the sensor started.',
+					'description' => 'Window for analytics_summary and analytics_events (source-validated: 7|14|30|90|365|all). Ignored by rss_stats. For machine_readers the sensor clamps to 1-90, so 365 and all are refused there (as on bot_signals_flagged, which takes 1-90 days), and the payload\'s own days_covered reports how many days it actually holds — asking for 90 and being handed 32 is not an error, it is when the sensor started.',
 				),
 				'class'    => array(
 					'type'        => 'string',
 					'default'     => 'human',
-					'description' => 'Traffic class (human|suspect|bot; human is presumed human (not flagged), an inferred class) for analytics_summary, top_content, sources, series, geography, devices and query. journeys is recorded for human traffic only and says so; the others ignore it.',
+					'description' => 'Traffic class (human|suspect|bot; human is presumed human (not flagged), an inferred class) for analytics_summary, top_content, sources, series, geography, devices and query. journeys is recorded for human traffic only and says so; the others ignore it. This site\'s own tools (first-party: the x-sn-first-party header, a proof, or a SignalNoise- user agent, a claim) are in none of the three; analytics_summary counts them separately as first_party, the same for every class.',
 				),
 				'limit'    => array(
 					'type'        => 'integer',
@@ -141,6 +141,7 @@ function snt_sn_metrics_map() {
 		'analytics_vitals'    => 'signal-noise/get-analytics-vitals',
 		'analytics_fields'    => 'signal-noise/analytics-fields', // 2026-11-01: what the reads accept, before querying.
 		'analytics_sessions'  => 'signal-noise/analytics-sessions', // 2026-11-01: sessions one by one (the Sessions tab's list).
+		'bot_signals_flagged' => 'signal-noise/bot-signals-flagged', // 2026-11-11: the human visitor-days the bot-signal score flags, owner-only.
 	);
 }
 
@@ -234,6 +235,7 @@ function snt_ability_sn_metrics( $input ) {
 		'analytics_vitals'      => $windowed,
 		'analytics_fields'      => array(),
 		'analytics_sessions'    => $sessions,
+		'bot_signals_flagged'   => array( 'days' => $range ), // 1 to 90: 365 and all are refused there, as machine_readers refuses them.
 	);
 
 	$out = array();

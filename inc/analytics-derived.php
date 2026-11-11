@@ -349,7 +349,12 @@ function sn_analytics_period_deltas( $from, $to, $class = 'human', $cwin = null 
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param int    $limit Max bot networks to return.
- * @return array{totals:array{human:int,suspect:int,bot:int,total:int}, top_bot_networks:array|null}
+ * 2026-11-11: `first_party` is this site's own tools over the same days, from
+ * the traffic lanes (inc/analytics-lanes-first-party.php): beside the classes,
+ * added to none of them, so `total` is still human + suspect + bot. Null when
+ * no day of the window is stored.
+ *
+ * @return array{totals:array{human:int,suspect:int,bot:int,total:int}, top_bot_networks:array|null, first_party:array|null}
  */
 function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
 	$class_totals = function_exists( 'sn_analytics_class_totals' )
@@ -374,6 +379,7 @@ function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
 		// null (the accessor's failed-read verdict) passes through; any other
 		// non-array (accessor absent in a partial harness) degrades to [].
 		'top_bot_networks' => ( is_array( $networks ) || null === $networks ) ? $networks : array(),
+		'first_party'      => function_exists( 'sn_lanes_first_party_figure' ) ? sn_lanes_first_party_figure( $from, $to ) : null,
 	);
 }
 

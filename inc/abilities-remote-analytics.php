@@ -60,6 +60,7 @@ add_action( 'wp_abilities_api_init', function () {
 			. 'Returns range analytics totals (range: 7|14|30|90|365|all, class: human|suspect|bot). '
 			. 'Read-only. Identical response contract to the admin ability. '
 			. 'Classes are inferred (basis: inferred): human is presumed human (not flagged). likely_automated (class human only) is the beacon\'s observe-only bot-signal score per UTC day over the range, beside the totals and subtracted from nothing, with measured_days and unmeasured_days. '
+			. 'This site\'s own tools (first-party: the x-sn-first-party header, a proof, or a SignalNoise- user agent, a claim) are in none of the three classes and never in these totals; they are counted separately on the owner\'s local door only (get-analytics-summary first_party). '
 			. 'UNITS, stated here rather than by reference: engagement times are MILLISECONDS '
 			. '(38690 is ~39 seconds, not ~11 hours); `scroll_avg_*` is mean max depth, 0-100 on most rows (a weighted estimate under sampling; a thin group can read above 100). '
 			. '`visits`/`unique_visitor_days` counts visitor-DAYS over all event types with no '

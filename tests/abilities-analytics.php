@@ -58,7 +58,11 @@ $expected_types = array(
 	// Unreleased: beside the totals, never subtracted from them.
 	'likely_automated'          => array( 'object', 'null' ),
 	'basis'                     => 'string',
+	// 2026-11-11: this site's own tools, beside the classes (local door only).
+	'first_party'               => array( 'object', 'null' ),
 );
+// The shared reader (the remote twin's) carries every field but the local one.
+$shared_types = array_diff_key( $expected_types, array( 'first_party' => 1 ) );
 
 echo "\nGroup: summary output schema (Phase A spec-§4 contract)\n";
 $schema = isset( $a['output_schema'] ) && is_array( $a['output_schema'] ) ? $a['output_schema'] : array();
@@ -201,7 +205,7 @@ $GLOBALS['wpdb']->rows = array(
 );
 $out = sn_ability_get_analytics_summary( array( 'range' => 30, 'class' => 'human' ) );
 ok( is_array( $out ), 'callback returns an array' );
-ok( array_keys( $out ) === array_keys( $props ), 'ACTUAL response keys === DECLARED schema keys (no contract drift)' );
+ok( array_keys( $out ) === array_keys( $shared_types ), 'ACTUAL response keys === DECLARED schema keys minus the local first_party (no contract drift)' );
 ok( 100 === ( $out['views'] ?? null ), 'views === 100 (int, legacy untouched)' );
 ok( 40 === ( $out['unique_visitor_days'] ?? null ), 'unique_visitor_days === 40 (honest alias of visits)' );
 ok( 30 === ( $out['pageview_visits'] ?? null ), 'pageview_visits === 30 (headline, gated)' );
@@ -214,7 +218,7 @@ ok( 50.0 === ( $out['scroll_avg_per_visit'] ?? null ), 'scroll_avg_per_visit ===
 ok( 7500.0 === ( $out['time_avg_per_visit'] ?? null ), 'time_avg_per_visit === 7500.0 (300000/40)' );
 ok( false === ( $out['integrity_violation'] ?? null ), 'integrity_violation === false (strict bool, valid data)' );
 ok( '2026-04-19' === ( $out['exact_metrics_since'] ?? null ), 'exact_metrics_since passes the option through' );
-foreach ( $expected_types as $field => $type ) {
+foreach ( $shared_types as $field => $type ) {
 	ok( array_key_exists( $field, $out ) && ab_type_ok( $out[ $field ], $type ), "modern: $field present + conforms to declared type" );
 }
 
@@ -235,7 +239,7 @@ ok( array_key_exists( 'scroll_avg_per_visit', $out ) && null === $out['scroll_av
 ok( array_key_exists( 'time_avg_per_visit', $out ) && null === $out['time_avg_per_visit'], 'time_avg_per_visit null' );
 ok( false === ( $out['integrity_violation'] ?? null ), 'integrity_violation false (unknown gated side is NOT a violation)' );
 ok( '2026-04-19' === ( $out['exact_metrics_since'] ?? null ), 'exact_metrics_since says WHY the exact fields are null' );
-foreach ( $expected_types as $field => $type ) {
+foreach ( $shared_types as $field => $type ) {
 	ok( array_key_exists( $field, $out ) && ab_type_ok( $out[ $field ], $type ), "legacy: $field present + conforms to declared type" );
 	if ( null === $out[ $field ] ) {
 		ok( is_array( $type ) && in_array( 'null', $type, true ), "legacy: $field is null AND its schema union allows null" );
@@ -257,6 +261,28 @@ $out = sn_ability_get_analytics_summary( array( 'range' => 7, 'class' => 'bot' )
 ok( array_key_exists( 'likely_automated', $out ) && null === $out['likely_automated'], 'suspect and bot carry likely_automated null: the score is a question about presumed humans' );
 ok( false !== strpos( $desc, 'presumed human (not flagged)' ) && false !== strpos( $desc, '`likely_automated`' ) && false !== strpos( $desc, 'unmeasured_days' ), 'the description says presumed human and documents likely_automated' );
 ok( 1 === preg_match( '/7\|14\|30\|90\|365\|all/', $desc ) && 1 === preg_match( '/human\|suspect\|bot/', $desc ), 'the range and class tokens the remote worker\'s tests read are still there' );
+
+echo "\nGroup: this site's own tools, beside the classes (the local door only)\n";
+// The lanes table's beacon rows for the fixed clock's range 7 (2026-07-12..18).
+function sn_lanes_read_rows( $from, $to ) { return $GLOBALS['__lane_rows']; }
+$GLOBALS['__lane_rows'] = array(
+	array( 'day' => '2026-07-17', 'sensor' => 'beacon', 'lane' => 'own_infra', 'reason' => 'first_party', 'hits' => '7', 'visitor_days' => '1' ),
+	array( 'day' => '2026-07-17', 'sensor' => 'beacon', 'lane' => 'own_infra', 'reason' => 'first_party_claimed', 'hits' => '3', 'visitor_days' => '2' ),
+	array( 'day' => '2026-07-17', 'sensor' => 'machine', 'lane' => 'own_infra', 'reason' => 'first_party', 'hits' => '900', 'visitor_days' => null ),
+);
+ok( 'sn_ability_get_analytics_summary_local' === $a['execute_callback'], 'the local registration runs the local reader (the remote twin keeps the shared one)' );
+$shared = sn_ability_get_analytics_summary( array( 'range' => 7, 'class' => 'human' ) );
+$local  = sn_ability_get_analytics_summary_local( array( 'range' => 7, 'class' => 'human' ) );
+ok( array_keys( $local ) === array_keys( $props ), 'the local response keys === the declared admin schema keys' );
+ok( ! array_key_exists( 'first_party', $shared ), 'the shared reader (the remote twin) carries no first_party: its pinned contract does not move' );
+ok( array_diff_key( $local, array( 'first_party' => 1 ) ) === $shared, 'every class figure is byte-identical with and without it: first-party is added to no class' );
+ok( 10 === ( $local['first_party']['views'] ?? null ) && array( 'views' => 7, 'visitor_days' => 1 ) === $local['first_party']['proven'] && array( 'views' => 3, 'visitor_days' => 2 ) === $local['first_party']['claimed'], 'first_party: 10 page views, proven 7 and claimed 3 apart; the machine sensor\'s reads are not page views' );
+ok( true === $local['first_party']['partial'] && '2026-07-17' === $local['first_party']['through'], 'it covers the complete days stored, and says it is partial' );
+$bot_local = sn_ability_get_analytics_summary_local( array( 'range' => 7, 'class' => 'bot' ) );
+ok( $local['first_party'] === $bot_local['first_party'], 'first-party is no class: the same figure beside every class' );
+$GLOBALS['__lane_rows'] = array();
+ok( null === sn_ability_get_analytics_summary_local( array( 'range' => 7, 'class' => 'human' ) )['first_party'], 'no stored lane day in the range: first_party is null, not 0' );
+ok( false !== strpos( $desc, 'in none of the three classes' ) && false !== strpos( $desc, 'x-sn-first-party' ) && false !== strpos( $desc, 'SignalNoise-' ) && false !== strpos( $desc, '`first_party`' ), 'the description says own tools are in no class, proof against claim, and names first_party' );
 
 echo "\nGroup: v10.0.0 — the deprecated quartet leaves the PUBLIC surface\n";
 foreach ( array( 'visits', 'scroll_avg', 'time_avg' ) as $gone ) {

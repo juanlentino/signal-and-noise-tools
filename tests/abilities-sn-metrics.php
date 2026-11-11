@@ -81,6 +81,7 @@ $expected_map = array(
 	'analytics_vitals'    => 'signal-noise/get-analytics-vitals',
 	'analytics_fields'    => 'signal-noise/analytics-fields',
 	'analytics_sessions'  => 'signal-noise/analytics-sessions',
+	'bot_signals_flagged' => 'signal-noise/bot-signals-flagged', // 2026-11-11, appended: the flagged human visitor-days.
 );
 ok( $expected_map === $map, 'the map matches its sources exactly, in a pinned order' );
 
@@ -159,6 +160,9 @@ ok( ! is_wp_error( $r ), 'dispatching the v13.44.0 sections does not error' );
 ok( array( 'days' => 7 ) === $GLOBALS['__abilities'][ $expected_map['machine_readers'] ]->last_call_args(), 'machine_readers receives range AS days (its own schema key)' );
 ok( array( 'limit' => 5, 'range' => 7, 'class' => 'human' ) === $GLOBALS['__abilities'][ $expected_map['analytics_top_content'] ]->last_call_args(), '(changed 20.4.0) analytics_top_content receives range, class and its own default limit of 5' );
 ok( array() === $GLOBALS['__abilities'][ $expected_map['404_log'] ]->last_call_args(), '404_log receives no args — its schema declares none' );
+$GLOBALS['__abilities'][ $expected_map['bot_signals_flagged'] ] = new SN_Test_Fact_Ability( true, array() );
+snt_ability_sn_metrics( array( 'sections' => array( 'bot_signals_flagged' ), 'range' => 90, 'class' => 'bot' ) );
+ok( array( 'days' => 90 ) === $GLOBALS['__abilities'][ $expected_map['bot_signals_flagged'] ]->last_call_args(), 'bot_signals_flagged receives range AS days and no class (it reads presumed humans only)' );
 
 // 20.4.0: a bad query fails the WHOLE call (422) before dispatch, because the
 // dispatch would fold the refusal into {error:"unavailable"} and read a typo as an outage.

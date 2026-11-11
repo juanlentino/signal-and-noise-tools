@@ -36,19 +36,23 @@ function paint_view_quality( array $ctx ) {
 			'views' => (int) ( $row['bot'] ?? $row['views'] ?? 0 ),
 		);
 	}
-	$break_rows = array();
-	foreach ( (array) $breakdown as $row ) {
-		if ( is_array( $row ) ) {
-			$break_rows[] = $row;
-		} elseif ( is_scalar( $row ) ) {
-			$break_rows[] = array( 'label' => (string) $row, 'views' => 0 );
-		}
-	}
+	// The classic panel's figures (snt_analytics_render_bot_breakdown): the three
+	// classes, the top bot networks, and the own tools beside them, in none.
+	$totals     = is_array( $breakdown['totals'] ?? null ) ? $breakdown['totals'] : array();
+	$break_rows = (int) ( $totals['total'] ?? 0 ) > 0 ? array(
+		array( 'label' => __( 'Presumed human', 'signal-and-noise-tools' ), 'views' => (int) ( $totals['human'] ?? 0 ) ),
+		array( 'label' => __( 'Suspect', 'signal-and-noise-tools' ), 'views' => (int) ( $totals['suspect'] ?? 0 ) ),
+		array( 'label' => __( 'Bot', 'signal-and-noise-tools' ), 'views' => (int) ( $totals['bot'] ?? 0 ) ),
+	) : array();
+	$own = is_array( $breakdown ) && array_key_exists( 'first_party', $breakdown ) && function_exists( 'sn_lanes_first_party_line' )
+		? '<p class="snt-hint">' . \snt_kit_esc( \sn_lanes_first_party_line( $breakdown['first_party'] ) ) . '</p>'
+		: '';
 	return daily_histogram( $trend_rows, __( 'Bot share', 'signal-and-noise-tools' ) )
 		. '<div class="snt-report-columns">'
 		. dim_table( __( 'Traffic quality', 'signal-and-noise-tools' ), $break_rows, __( 'No quality breakdown in this range yet.', 'signal-and-noise-tools' ) )
+		. dim_table( __( 'Top bot networks', 'signal-and-noise-tools' ), $breakdown['top_bot_networks'] ?? array(), __( 'No bot networks in this range.', 'signal-and-noise-tools' ) )
 		. distribution_table( __( 'Bot confidence', 'signal-and-noise-tools' ), $confidence, __( 'No bot-confidence scores in this range: needs traffic recorded with Cloudflare Bot Management enabled (scores arrive as 1–99).', 'signal-and-noise-tools' ) )
-		. '</div>';
+		. '</div>' . $own;
 }
 
 add_filter(

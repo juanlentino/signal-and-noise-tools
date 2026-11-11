@@ -138,6 +138,7 @@ function snt_analytics_rows_description() {
 		. 'Referrers are hostnames only, with (direct), (internal) and (unknown) as stored; anything that is not a clean hostname is (invalid). City and region are the network\'s place names, (unknown) when it gave none. Paths, entry and exit included, are returned only when they are the site\'s own content; scanner probes and other requests are (unmatched). '
 		. 'Every value is named, however small: a page seen by one visitor-day is its own row (no privacy floor on the owner\'s reads; the public /stats page keeps one). '
 		. 'Nothing is subtracted for bot signals: human is the stored class, presumed human (not flagged); judge how much of it is automated with likely_automated on the analytics summary or the bot-signals reading. '
+		. 'This site\'s own tools (first-party: the x-sn-first-party header, a proof, or a SignalNoise- user agent, a claim) are in none of the three classes and never in these rows; the owner\'s local door counts them separately (get-analytics-summary first_party). '
 		. 'Untruncated, the views of any query sum to the same total for the same window, class and source, whatever the dimensions. Read-only.';
 }
 

@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/analytics-panels.php';        // panel chrome + empty-fold collector
 require_once __DIR__ . '/analytics-render-helpers.php'; // snt_analytics_smooth_path (bot-share trend)
+require_once __DIR__ . '/analytics-lanes-first-party.php'; // the own-tools line both Quality twins paint
 
 /**
  * Traffic-quality panel: a stacked human/suspect/bot bar + the top bot networks
@@ -51,6 +52,10 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 	echo ' · <span class="sn-an-q-key sn-an-q--suspect"></span> ' . esc_html__( 'Suspect', 'signal-and-noise-tools' ) . ' ' . esc_html( number_format_i18n( $suspect ) );
 	echo ' · <span class="sn-an-q-key sn-an-q--bot"></span> ' . esc_html__( 'Bot', 'signal-and-noise-tools' ) . ' ' . esc_html( number_format_i18n( $bot ) );
 	echo '</p>';
+	// 2026-11-11: beside the classes, in none of them, and never a bar segment.
+	if ( is_array( $bb ) && array_key_exists( 'first_party', $bb ) ) {
+		echo '<p class="sn-an-q-legend">' . esc_html( sn_lanes_first_party_line( $bb['first_party'] ) ) . '</p>';
+	}
 
 	// v9.68.1: a NULL networks list is the dims accessor's failed-read verdict
 	// (carried through sn_analytics_bot_breakdown) — say so instead of a quiet

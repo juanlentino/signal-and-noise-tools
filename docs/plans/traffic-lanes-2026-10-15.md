@@ -52,6 +52,8 @@ First match wins. Every beacon pageview and every machine read lands in exactly 
 | Invalid or expired token | falls through | `owner_token_invalid` (kept beside the final lane) | |
 | Beacon carrying a logged-in cookie, no marker | `logged_in` (**not one of the eight**, decision 2c) | `logged_in` | today dropped |
 | Machine read, `first_party` (taxonomy flag or header) | `own_infra` | `first_party` | |
+| Beacon with the `x-sn-first-party` header and its secret (identity 6) | `own_infra` | `first_party` | added 2026-10-19 (analytics worker #55, plugin #2230): proven |
+| Beacon whose user agent starts `SignalNoise-`, no stronger identity (identity 7) | `own_infra` | `first_party_claimed` | added 2026-11-11 (analytics worker 2.1.0): a claim, never added to a class |
 | Machine read, signature `valid` | `verified_bot` | `web_bot_auth` | `purpose` sub-key kept |
 | Machine read, CF category matches purpose (`verified_matched`) | `verified_bot` | `cf_verified` | |
 | Machine read, CF category does not match purpose | `claimed_bot` | `category_mismatch` | |
@@ -153,7 +155,7 @@ Small questions, as recommended: the new reason codes `ua_list`, `network`, `ove
 
 ## Phase 1 build contract (shared by all four repos)
 
-**Identity codes** (one integer per hit): 0 none, 1 `owner_device`, 2 `owner_token`, 3 `owner_token_invalid`, 4 `logged_in` (WordPress auth cookie present, no valid marker), 5 `owner_legacy` (unsigned `sn_owner=1` present, no valid marker). Precedence at the edge: 1, then 2, then 3, then 4, then 5, then 0.
+**Identity codes** (one integer per hit): 0 none, 1 `owner_device`, 2 `owner_token`, 3 `owner_token_invalid`, 4 `logged_in` (WordPress auth cookie present, no valid marker), 5 `owner_legacy` (unsigned `sn_owner=1` present, no valid marker). Precedence at the edge: 1, then 2, then 3, then 4, then 5, then 0. Added later: 6 `first_party` (the `x-sn-first-party` header, 2026-10-19) and 7 `first_party_claimed` (a `SignalNoise-` user agent with no stronger identity, analytics worker 2.1.0, 2026-11-11), both written only to `sn_owner_hits` and filed as `own_infra`.
 **Agent codes**: 0 none, 1 `browser`, 2 `chrome-extension`, 3 `claude-code`, 4 `playwright`, 5 `script`, 6 `mcp-local`, 7 `other`. Lane 1 stores 1 (browser) unless a valid token is also present, then the token's agent.
 **`lane_rule_version`**: integer, starts at 1.
 

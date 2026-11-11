@@ -51,7 +51,14 @@ class Lanes_Fake_WPDB {
 	}
 	public function get_results( $q, $out = null ) {
 		list( $from, $to ) = $q['args'];
-		return array_values( array_filter( $this->rows, static fn( $r ) => $r['day'] >= $from && $r['day'] <= $to ) );
+		$rows = array_values( array_filter( $this->rows, static fn( $r ) => $r['day'] >= $from && $r['day'] <= $to ) );
+		// Only the columns the statement selects, as MySQL returns them, so a
+		// reader that forgets a column it needs reads it as missing here too.
+		if ( preg_match( '/^SELECT (.+?) FROM /', (string) $q['sql'], $m ) ) {
+			$cols = array_flip( array_map( 'trim', explode( ',', $m[1] ) ) );
+			$rows = array_map( static fn( $r ) => array_intersect_key( $r, $cols ), $rows );
+		}
+		return $rows;
 	}
 }
 $GLOBALS['wpdb'] = new Lanes_Fake_WPDB();
