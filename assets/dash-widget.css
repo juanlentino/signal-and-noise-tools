@@ -76,6 +76,8 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
+/* The strict human line wraps: the widget column is dense by choice, never trimmed. */
+.sn-dw__c--wrap { white-space: normal; overflow: visible; }
 .sn-dw__c--up { color: var(--sn-ok); font-weight: 600; }
 .sn-dw__c--down { color: var(--sn-err); font-weight: 600; }
 .sn-dw__foot { margin: 0; font-size: 12px; }

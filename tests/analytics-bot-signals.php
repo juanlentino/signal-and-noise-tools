@@ -101,7 +101,9 @@ foreach ( $fx['rows'] as $i => $row ) {
 	$dated[] = $row + array( 'day' => $i < 4 ? '2026-09-28' : '2026-09-29' );
 }
 $bd = sn_bot_signals_by_day( $dated );
-ok( array( '2026-09-28' => array( 'visitor_days' => 2, 'likely_automated' => 0 ), '2026-09-29' => array( 'visitor_days' => 2, 'likely_automated' => 1 ) ) === $bd, 'per day: human visitor-days under the cap that carried signals, and how many scored at the threshold (the readout\'s human rule)' );
+// 2026-11-11: each day also carries strict rule v1's removals; no_input + tz_mismatch (the likely one) removes nothing.
+$z = array( 'strict_removed' => 0, 'strict_removed_views' => 0 );
+ok( array( '2026-09-28' => array( 'visitor_days' => 2, 'likely_automated' => 0 ) + $z, '2026-09-29' => array( 'visitor_days' => 2, 'likely_automated' => 1 ) + $z ) === $bd, 'per day: human visitor-days under the cap that carried signals, and how many scored at the threshold (the readout\'s human rule)' );
 $merged = sn_bot_signals_by_day_merge( array( '2026-09-01' => array( 'visitor_days' => 9, 'likely_automated' => 1 ), '2026-09-28' => array( 'visitor_days' => 99, 'likely_automated' => 9 ), '2026-09-29' => array( 'visitor_days' => 5, 'likely_automated' => 5 ) ), array( '2026-09-28' => array( 'visitor_days' => 2, 'likely_automated' => 0 ) ), '2026-09-15' );
 ok( array( '2026-09-01', '2026-09-28' ) === array_keys( $merged ) && 2 === $merged['2026-09-28']['visitor_days'], 'a nightly read REPLACES the days it covered (a day it no longer returns is dropped) and keeps the older ones' );
 $la = sn_bot_signals_likely_automated( $bd, '2026-09-24', '2026-09-30' );
@@ -139,6 +141,59 @@ ok( $store === (array) get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION ), 'an empty but
 $GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], array_fill( 0, SNT_BOT_SIGNAL_LIMIT, $read[0] ) );
 sn_bot_signals_refresh();
 ok( $store === (array) get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION ), 'a capped read is skipped and the stored days are kept' );
+
+// 2026-11-11: the first night after install writes the strict reading for every
+// day the 90-day AE window holds, in chunks behind a cursor, so no range reads
+// partial for two weeks. A day no read returns keeps its old shape (unmeasured).
+echo "\nGroup: the first night backfills the strict reading over the AE window\n";
+$csql = sn_bot_signals_by_day_sql( 90, 'sn_pageviews', '', '2026-10-14|2026-10-28' );
+ok( false !== strpos( $csql, "WHERE timestamp >= toDateTime('2026-10-14 00:00:00') AND timestamp < toDateTime('2026-10-28 00:00:00') AND bitAnd" ) && ! sn_analytics_sql_too_long( $csql ), 'a chunk reads its own days, first day to exclusive end, under the AE character cap' );
+ok( false !== strpos( sn_bot_signals_by_day_sql( 14, 'sn_pageviews', '', '2026-10-14; DROP' ), "INTERVAL '14' DAY" ), 'a malformed span falls back to the trailing window, never interpolated' );
+sn_analytics_clock( strtotime( '2026-11-11 03:00:00 UTC' ) );
+$old = array( 'visitor_days' => 5, 'likely_automated' => 1 ); // stored before strict rule v1
+$GLOBALS['__opt'] = array( SNT_BOT_SIGNAL_BY_DAY_OPTION => array( '2026-08-01' => $old, '2026-10-01' => $old, '2026-10-20' => $old ) );
+$hit = static fn( $day ) => array( array( 'day' => $day, 'vid' => 'x', 'views' => 2, 'human' => 1, 'webdriver' => 1, 'no_input' => 0, 'ua_mismatch' => 0, 'headless' => 0, 'tz_mismatch' => 0 ) );
+// The readout, its days, the nightly 14-day read, then the backfill chunks, newest first.
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $hit( '2026-11-10' ), $hit( '2026-10-20' ), $hit( '2026-10-01' ), array(), array(), array(), array() );
+sn_bot_signals_refresh();
+$store = (array) get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION );
+ok( 1 === ( $store['2026-10-20']['strict_removed'] ?? null ) && 1 === ( $store['2026-10-01']['strict_removed'] ?? null ), 'days 3 and 6 weeks back carry the strict reading after one night' );
+ok( $old === ( $store['2026-08-01'] ?? null ), 'a day before the AE window, which no read covers, keeps its old shape: unmeasured, not 0 removed' );
+ok( array() === $GLOBALS['__ret'], 'the whole 90-day window was read in one night (every chunk asked)' );
+ok( '2026-08-13' === get_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION ), 'the cursor reaches the window\'s first day' );
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $hit( '2026-11-10' ), $hit( '2026-10-02' ) );
+sn_bot_signals_refresh();
+ok( array( $hit( '2026-10-02' ) ) === $GLOBALS['__ret'], 'once done, a night asks for no backfill' );
+
+// A chunk that reaches the row cap, or fails, stops the walk where it is: the
+// next night resumes from the cursor, and nothing is replaced from a short read.
+$GLOBALS['__opt'] = array( SNT_BOT_SIGNAL_BY_DAY_OPTION => array( '2026-10-01' => $old ) );
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $hit( '2026-11-10' ), $hit( '2026-10-20' ), array_fill( 0, SNT_BOT_SIGNAL_LIMIT, $hit( '2026-10-01' )[0] ) );
+sn_bot_signals_refresh();
+$store = (array) get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION );
+ok( $old === $store['2026-10-01'] && isset( $store['2026-10-20']['strict_removed'] ), 'a capped chunk is skipped (its days keep their shape); the chunk before it is kept' );
+ok( '2026-10-14' === get_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION ), 'the cursor stops before the capped chunk' );
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $hit( '2026-11-10' ), $hit( '2026-10-01' ), array(), array(), array(), array() );
+sn_bot_signals_refresh();
+ok( 1 === ( get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION )['2026-10-01']['strict_removed'] ?? null ) && '2026-08-13' === get_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION ), 'the next night resumes at the cursor and finishes' );
+$GLOBALS['__opt'] = array();
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $hit( '2026-11-10' ), $hit( '2026-10-20' ) );
+function_exists( 'sn_bot_signals_by_day_backfill' ) && sn_bot_signals_by_day_backfill( 0.0 );
+ok( 4 === count( $GLOBALS['__ret'] ) && false === get_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION ), 'no budget: no read, no cursor moved' );
+// Review on #2419: the budget is what is left of the nightly tick, measured from
+// the job's start, and a chunk starts only with SNT_BOT_SIGNAL_BY_DAY_MIN_LEFT to spare.
+sn_bot_signals_by_day_backfill( 7.9 );
+ok( 4 === count( $GLOBALS['__ret'] ), 'under 8 seconds left: no chunk starts (two 6-second halves would pass the cron limit)' );
+$GLOBALS['__ret'] = array( array() ); // one chunk answers; the next read fails and stops the walk
+sn_bot_signals_by_day_backfill( 9.0 );
+ok( '2026-10-14' === get_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION ), 'with 9 seconds left a chunk starts' );
+$GLOBALS['__opt'] = array();
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $hit( '2026-11-10' ), $hit( '2026-10-20' ) );
+sn_bot_signals_refresh( microtime( true ) - 30 );
+ok( array( $hit( '2026-10-20' ) ) === $GLOBALS['__ret'] && false === get_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION ), 'a nightly job 30 seconds in skips the backfill: what is left of the 35-second tick is under 8' );
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $hit( '2026-11-10' ), $hit( '2026-10-20' ) );
+sn_bot_signals_refresh( '' ); // the hook's own empty argument reads as the start of the job
+ok( array() === $GLOBALS['__ret'], 'run from the hook, the job measures from its own start and backfills' );
 sn_analytics_clock( 0 );
 
 echo "\nResult: {$pass} passed, {$fail} failed.\n";

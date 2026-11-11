@@ -23,5 +23,13 @@ ok( '2026-10-12' === gmdate( 'Y-m-d', $now ), 'sanity: it is October 12 in UTC' 
 ok( array( '2026-10-05', '2026-10-11' ) === snt_dashboard_week( $now ), 'Home\'s week is the site\'s: October 5 to 11, not UTC\'s 6 to 12' );
 ok( snt_analytics_range_dates( 7, $now ) === snt_dashboard_week( $now ), '...exactly the Analytics app\'s 7d window' );
 
+echo "\nStrictly human beside Home's views (2026-11-11)\n";
+function sn_analytics_config() { return true; }
+function sn_analytics_period_deltas( $from, $to, $class ) { return array( 'views' => array( 'current' => 128, 'previous' => 89 ) ); }
+function sn_analytics_strict_human( $from, $to, array $human ) { $GLOBALS['__strict_args'] = array( $from, $to, $human ); return array( 'views' => $human['views'] - 8 ); }
+$m = snt_dashboard_measurement_data();
+ok( 128 === ( $m['views_7d'] ?? null ) && 120 === ( $m['views_strict']['views'] ?? null ), 'the measurement carries the strict figure beside views_7d, which is unchanged' );
+ok( array( 'views' => 128 ) === ( $GLOBALS['__strict_args'][2] ?? null ) && snt_dashboard_week() === array_slice( $GLOBALS['__strict_args'], 0, 2 ), 'read over the same week from the same presumed-human views' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

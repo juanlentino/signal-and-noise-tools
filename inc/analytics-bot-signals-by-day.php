@@ -23,6 +23,18 @@ const SNT_BOT_SIGNAL_BY_DAY_OPTION = 'sn_bot_signals_by_day';
 /** Days of per-day reading kept: a year and a month, enough for range 365. */
 const SNT_BOT_SIGNAL_BY_DAY_KEEP = 400;
 
+/** Option holding the backfill cursor: the oldest UTC day (exclusive end of the next chunk) already read. */
+const SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION = 'sn_bot_signals_by_day_backfill';
+
+/** Days per backfill chunk: the nightly read's own span, which stays under the row cap. */
+const SNT_BOT_SIGNAL_BY_DAY_CHUNK = 14;
+
+/** Seconds the whole nightly bot-signals job may take, well inside WP-Cron's ~60 s. */
+const SNT_BOT_SIGNAL_TICK_BUDGET = 35.0;
+
+/** Seconds a backfill chunk needs in hand to start: two halves at a 6 s query timeout, and slack. */
+const SNT_BOT_SIGNAL_BY_DAY_MIN_LEFT = 8.0;
+
 /**
  * One row per UTC day and visitor-day that carried signals: the bits, page
  * views and the human flag. The day is a SELECT alias grouped by name, the
@@ -31,9 +43,10 @@ const SNT_BOT_SIGNAL_BY_DAY_KEEP = 400;
  * @param int    $days   Trailing window.
  * @param string $source One half of a stitched read; '' picks the dataset.
  * @param string $range  That half's side of the split.
+ * @param string $span   'Y-m-d|Y-m-d': a backfill chunk's first day and exclusive end, read instead of the trailing window.
  * @return string
  */
-function sn_bot_signals_by_day_sql( $days = SNT_BOT_SIGNAL_DAYS, $source = '', $range = '' ) {
+function sn_bot_signals_by_day_sql( $days = SNT_BOT_SIGNAL_DAYS, $source = '', $range = '', $span = '' ) {
 	$days   = max( 1, min( 92, (int) $days ) );
 	$source = '' !== (string) $source ? (string) $source : sn_analytics_source( sn_analytics_trailing_from( $days ) );
 	$range  = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
@@ -46,16 +59,21 @@ function sn_bot_signals_by_day_sql( $days = SNT_BOT_SIGNAL_DAYS, $source = '', $
 	$cols[] = "max(if(blob7 != 'bot' AND ({$net}), 1, 0)) AS human";
 	return 'SELECT ' . implode( ', ', $cols )
 		. ' FROM ' . $source
-		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY){$range} AND bitAnd(toUInt32(double8), " . SNT_BOT_SIGNAL_PRESENT . ') > 0'
+		. ' WHERE ' . ( 1 === preg_match( '/^(\d{4}-\d{2}-\d{2})\|(\d{4}-\d{2}-\d{2})$/', (string) $span, $m )
+			? "timestamp >= toDateTime('{$m[1]} 00:00:00') AND timestamp < toDateTime('{$m[2]} 00:00:00')"
+			: "timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" )
+		. "{$range} AND bitAnd(toUInt32(double8), " . SNT_BOT_SIGNAL_PRESENT . ') > 0'
 		. ' GROUP BY day, vid LIMIT ' . SNT_BOT_SIGNAL_LIMIT;
 }
 
 /**
  * Per day: human visitor-days under the page-view cap that carried signals,
- * and how many scored at the threshold. The readout's human rule. PURE.
+ * how many scored at the threshold, and the visitor-days and page views
+ * strict rule v1 removes (inc/analytics-strict-human.php). The readout's
+ * human rule. PURE.
  *
  * @param array $rows sn_bot_signals_by_day_sql() rows.
- * @return array<string,array{visitor_days:int,likely_automated:int}> Day ascending.
+ * @return array<string,array{visitor_days:int,likely_automated:int,strict_removed:int,strict_removed_views:int}> Day ascending.
  */
 function sn_bot_signals_by_day( array $rows ) {
 	$out = array();
@@ -65,9 +83,13 @@ function sn_bot_signals_by_day( array $rows ) {
 		if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) || (int) ( $r['human'] ?? 0 ) <= 0 || (float) ( $r['views'] ?? 0 ) > SNT_ANALYTICS_VDAY_PV_CAP ) {
 			continue;
 		}
-		$out[ $day ] = $out[ $day ] ?? array( 'visitor_days' => 0, 'likely_automated' => 0 );
+		$out[ $day ] = $out[ $day ] ?? array( 'visitor_days' => 0, 'likely_automated' => 0, 'strict_removed' => 0, 'strict_removed_views' => 0 );
 		++$out[ $day ]['visitor_days'];
 		$out[ $day ]['likely_automated'] += (int) ( sn_bot_signals_score( $r ) >= SNT_BOT_SIGNAL_THRESHOLD );
+		if ( sn_bot_signals_strict_removes( $r ) ) {
+			++$out[ $day ]['strict_removed'];
+			$out[ $day ]['strict_removed_views'] += (int) round( (float) ( $r['views'] ?? 0 ) );
+		}
 	}
 	ksort( $out );
 	return $out;

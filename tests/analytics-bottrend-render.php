@@ -82,5 +82,16 @@ ob_start(); snt_analytics_render_bot_breakdown( $bb_empty + array( 'first_party'
 ok( false !== strpos( $hnull, 'not measured in this range' ), 'breakdown: a null figure says not measured, never a 0' );
 ok( false === strpos( $hbe, 'own tools' ), 'breakdown: a caller without the key paints no line' );
 
+echo "\nGroup: strictly human beside presumed human (2026-11-11)\n";
+require_once __DIR__ . '/../inc/analytics-strict-human.php';
+$st = array( 'visitor_days' => 96, 'views' => 383, 'removed' => array( 'visitor_days' => 4, 'views' => 17 ), 'rule' => 'strict_v1', 'reason' => 'r', 'basis' => 'inferred', 'window' => array( 'from' => '2026-11-01', 'through' => '2026-11-10', 'partial' => false ) );
+ob_start(); snt_analytics_render_bot_breakdown( $bb_fp + array( 'strict' => $st ) ); $hst = ob_get_clean();
+ok( false !== strpos( $hst, 'Strictly human: 96 visitor-days (4 removed: automation signals).' ), 'breakdown: the strict line is painted under the legend' );
+ok( false !== strpos( $hst, 'Presumed human 100' ) && strpos( $hst, 'Presumed human 100' ) < strpos( $hst, 'Strictly human' ), 'breakdown: both numbers, the presumed-human one unchanged and first' );
+ok( strpos( $hst, 'own tools' ) < strpos( $hst, 'Strictly human' ), 'breakdown: beside the first-party sentence' );
+ob_start(); snt_analytics_render_bot_breakdown( $bb_empty + array( 'strict' => null ) ); $hsn = ob_get_clean();
+ok( false !== strpos( $hsn, 'Strictly human: not measured' ), 'breakdown: a null strict figure says not measured, never 0' );
+ok( false === strpos( $hfp, 'Strictly human' ), 'breakdown: a caller without the key paints no strict line' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

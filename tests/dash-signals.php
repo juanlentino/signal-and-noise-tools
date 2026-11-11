@@ -116,5 +116,15 @@ $html2 = ob_get_clean();
 ok( false !== strpos( $html2, 'no prior period' ), 'a MEASURED signal with no compare still says "no prior period"' );
 ok( false === strpos( $html2, 'not measured' ), 'and never claims it was unmeasured' );
 
+echo "\nGroup: strictly human under the presumed-human views (2026-11-11)\n";
+require_once __DIR__ . '/../inc/analytics-strict-human.php';
+$st = array( 'visitor_days' => null, 'views' => 95, 'removed' => array( 'visitor_days' => 2, 'views' => 8 ), 'rule' => 'strict_v1', 'reason' => 'r', 'basis' => 'inferred', 'window' => array( 'from' => '2026-11-04', 'through' => '2026-11-10', 'partial' => false ) );
+$sv = sig( sn_dash_signals_from_measurement( array( 'views_7d' => 103, 'views_delta' => 39, 'views_strict' => $st ) ), 'views' );
+ok( '103' === $sv['value'] && 'Strictly human: 95 views (8 removed: automation signals).' === ( $sv['strict'] ?? '' ), 'Views keeps 103 and carries the strict line beside it' );
+ok( false !== strpos( (string) sig( sn_dash_signals_from_measurement( array( 'views_7d' => 103, 'views_strict' => null ) ), 'views' )['strict'], 'not measured' ), 'a null strict figure says not measured, never 0' );
+ok( ! isset( sig( $s, 'views' )['strict'] ), 'measurement without the key: no strict line' );
+ob_start(); sn_dash_render_signals( array( $sv ) ); $hs = ob_get_clean();
+ok( false !== strpos( $hs, '>103' ) && false !== strpos( $hs, 'Strictly human: 95 views' ), 'the screen paints both numbers' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

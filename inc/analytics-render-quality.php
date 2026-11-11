@@ -56,6 +56,10 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 	if ( is_array( $bb ) && array_key_exists( 'first_party', $bb ) ) {
 		echo '<p class="sn-an-q-legend">' . esc_html( sn_lanes_first_party_line( $bb['first_party'] ) ) . '</p>';
 	}
+	// 2026-11-11: the strict human figure, beside the presumed-human one.
+	if ( is_array( $bb ) && array_key_exists( 'strict', $bb ) && function_exists( 'sn_analytics_strict_human_line' ) ) {
+		echo '<p class="sn-an-q-legend">' . esc_html( sn_analytics_strict_human_line( $bb['strict'] ) ) . '</p>';
+	}
 
 	// v9.68.1: a NULL networks list is the dims accessor's failed-read verdict
 	// (carried through sn_analytics_bot_breakdown) — say so instead of a quiet

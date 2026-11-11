@@ -13,6 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/analytics-bot-signals-by-day.php'; // the stored day map and its option name.
+require_once __DIR__ . '/analytics-strict-human.php'; // strict rule v1 over the same store.
 
 /**
  * Likely-automated human visitor-days over [$from, $to]. A day counts as

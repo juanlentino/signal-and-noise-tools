@@ -30,6 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/analytics-likely-automated.php'; // likely_automated: its reader and the schema both doors share.
 require_once __DIR__ . '/analytics-lanes-first-party.php'; // first_party: this site's own tools beside the classes, local door only.
+require_once __DIR__ . '/analytics-strict-human.php'; // strict: human less strict rule v1's removals, local door only.
 require_once __DIR__ . '/abilities-analytics-events.php'; // the get-analytics-events and get-analytics-top-content callbacks.
 
 add_action( 'wp_abilities_api_init', function () {
@@ -155,7 +156,8 @@ add_action( 'wp_abilities_api_init', function () {
 			. 'Scroll depth (v9.64.0 unit): `scroll_avg_per_view` = 25 * scroll_events / views and `scroll_avg_per_visit` = 25 * scroll_events / unique_visitor_days (diluted by viewless days): the mean max scroll depth (0-100 on most rows; a weighted estimate under sampling, so a thin group can read above 100), '
 			. 'because the beacon fires one cumulative milestone event per 25/50/75/100% reached, each at most once per view; scroll_sum is stored as the same identity since v9.66.0 (25 * scroll_events, true depth units: a full-depth view contributes 100, not the pre-v9.66.0 raw milestone-point 250) and feeds no ratio. '
 						. 'Exact engagement + gated fields are null over any range containing days before `exact_metrics_since` (Y-m-d; null until the backfill has run): a data discontinuity, not an error. '
-			. 'This site\'s own tools (first-party: the x-sn-first-party header, a proof, or a SignalNoise- user agent, a claim) are in none of the three classes and are counted separately as `first_party`, the same for every class: page views, and proven and claimed apart with their visitor-days, over the complete days of the range the traffic lanes store (from, through, days; partial when that is less than the range, as it is whenever the range includes today); null when no day of the range is stored. Before analytics worker 2.1.0 a SignalNoise- user agent was not told apart: its page views sit in the class they were read as (suspect, for a check run from a data center), and claimed reads 0 for those days.',
+			. 'This site\'s own tools (first-party: the x-sn-first-party header, a proof, or a SignalNoise- user agent, a claim) are in none of the three classes and are counted separately as `first_party`, the same for every class: page views, and proven and claimed apart with their visitor-days, over the complete days of the range the traffic lanes store (from, through, days; partial when that is less than the range, as it is whenever the range includes today); null when no day of the range is stored. Before analytics worker 2.1.0 a SignalNoise- user agent was not told apart: its page views sit in the class they were read as (suspect, for a check run from a data center), and claimed reads 0 for those days. '
+			. '`strict` (class human only, null otherwise) is a second human figure beside the presumed-human totals, never in their place: `human` is not changed and nothing is subtracted from it. visitor_days and views are the totals above less `removed`, the visitor-days (and their page views) strict rule v1 (`rule`: strict_v1) takes out: ' . SNT_STRICT_HUMAN_REASON . ' Removals are read from the nightly per-day bot-signal store, so they are counted over UTC days (as likely_automated is) and over the visitor-days that carried the signals; `window` is the first and last UTC day of the range with the strict reading stored, and partial when that is narrower than the range (fewer days\' removals). Null when no UTC day of the range has it (not measured, never 0). Basis inferred.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'sn_ability_get_analytics_summary_local',
@@ -194,6 +196,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'basis'                     => array( 'type' => 'string', 'enum' => array( 'inferred' ) ),
 				// Local door only: the remote twin's schema stops at basis (tests/abilities-remote-analytics.php).
 				'first_party'               => sn_lanes_first_party_schema(),
+				'strict'                    => sn_analytics_strict_human_schema(), // local door only, like first_party.
 			),
 		),
 		'meta'                => array(
@@ -260,6 +263,8 @@ function sn_ability_get_analytics_summary_local( $input ) {
 		$input = is_array( $input ) ? $input : array();
 		list( $from, $to )  = snt_analytics_range_dates( snt_analytics_resolve_range( $input['range'] ?? 30 ) );
 		$out['first_party'] = sn_lanes_first_party_figure( $from, $to );
+		// 2026-11-11: the strict human figure beside human (inc/analytics-strict-human.php).
+		$out['strict'] = 'human' === snt_analytics_resolve_class( $input['class'] ?? 'human' ) ? sn_analytics_strict_human( $from, $to, $out ) : null;
 	}
 	return $out;
 }

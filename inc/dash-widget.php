@@ -212,6 +212,9 @@ function sn_dash_widget_render() {
 				$d = ( 'up' === $sig['dir'] || 'down' === $sig['dir'] ) ? ' sn-dw__c--' . $sig['dir'] : '';
 				echo '<span class="sn-dw__c' . esc_attr( $d ) . '">' . esc_html( (string) $sig['compare'] ) . '</span>';
 			}
+			if ( '' !== (string) ( $sig['strict'] ?? '' ) ) {
+				echo '<span class="sn-dw__c sn-dw__c--wrap">' . esc_html( (string) $sig['strict'] ) . '</span>';
+			}
 			echo '</div>';
 		}
 		echo '</div>';

@@ -86,6 +86,14 @@ function snt_dwx_boxes() {
 							'delta' => array( 'label' => __( 'prior 7d', 'signal-and-noise-tools' ) ),
 						),
 						array(
+							// 2026-11-11: beside the presumed-human visitor-days, never instead
+							// of them: the same days less strict rule v1's removals.
+							'path'    => 'strict.visitor_days',
+							'label'   => __( 'Strictly human', 'signal-and-noise-tools' ),
+							/* translators: %s: visitor-days strict rule v1 removed */
+							'compare' => array( 'template' => __( '%s removed: automation signals', 'signal-and-noise-tools' ), 'path' => 'strict.removed.visitor_days' ),
+						),
+						array(
 							// A RATIO: never delta'd by subtraction.
 							'path'    => 'view_visit_ratio',
 							'label'   => __( 'Views / visit', 'signal-and-noise-tools' ),

@@ -203,6 +203,23 @@
 	}
 
 	/**
+	 * 2026-11-11: the strict human figure under the headline: the same views
+	 * less those strict rule v1 removes (sn_analytics_strict_human()), the
+	 * presumed-human number above unchanged. A null figure is "not measured",
+	 * never 0; an older cached payload without the key paints nothing.
+	 */
+	function strictLine( payload ) {
+		if ( ! ( 'strict' in payload ) ) { return null; }
+		var s = payload.strict;
+		var text = ! s || typeof s !== 'object' ? 'Strictly human: not measured yet'
+			: 'Strictly human: ' + ( typeof s.views === 'number' ? s.views.toLocaleString() : 'not read' ) + ' views (' + Number( s.removed && s.removed.views ).toLocaleString() + ' removed: automation signals)'
+				+ ( s.window && s.window.partial ? ', UTC days ' + s.window.from + ' to ' + s.window.through + ' only' : '' );
+		var node = el( 'div', { text: text, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;' } );
+		node.title = s && s.reason ? s.reason : 'Inferred from the beacon\u2019s bot signals; the presumed-human views above are unchanged.';
+		return node;
+	}
+
+	/**
 	 * "In 7 days: about 13 views a day (estimate, 5 to 39)", from the payload's
 	 * forecast (sn_analytics_forecast_of(): a per-day level, or a Holt point
 	 * where Holt measured better, already withheld when neither beats a
@@ -449,8 +466,10 @@
 			} ) );
 			body.appendChild( el( 'div', {
 				text: 'views · last 14 days',
-				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;'
+				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:' + ( 'strict' in payload ? '0' : '6px' ) + ';'
 			} ) );
+			var strict = strictLine( payload );
+			if ( strict ) { body.appendChild( strict ); }
 
 			// Today so far and Reading now as one list. Additive: an older cached
 			// payload without `today` paints no Today row; a measured 0 renders.

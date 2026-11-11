@@ -121,10 +121,11 @@ ok( $r['input_schema'] === $a['input_schema'], 'input_schema is identical to the
 // local door only), the strip pin's shape (tests/abilities-remote-set.php): the
 // twin is the admin schema minus that one field, and keeps the shared reader.
 $a_minus = $a['output_schema'];
-unset( $a_minus['properties']['first_party'] );
+unset( $a_minus['properties']['first_party'], $a_minus['properties']['strict'] ); // 2026-11-11: strict is local-only too.
 ok( isset( $a['output_schema']['properties']['first_party'] ), 'the admin schema carries the local-only first_party' );
 ok( ! isset( $r['output_schema']['properties']['first_party'] ), 'the remote twin\'s schema does not' );
-ok( $r['output_schema'] === $a_minus, 'output_schema is identical to the admin ability\'s minus first_party' );
+ok( isset( $a['output_schema']['properties']['strict'] ) && ! isset( $r['output_schema']['properties']['strict'] ), 'strict is on the admin schema and not the remote twin\'s' );
+ok( $r['output_schema'] === $a_minus, 'output_schema is identical to the admin ability\'s minus first_party and strict' );
 ok( 'sn_ability_get_analytics_summary' === $r['execute_callback'] && 'sn_ability_get_analytics_summary_local' === $a['execute_callback'], 'the twin keeps the shared reader; the admin door runs the local wrapper around it' );
 ok( $r['permission_callback'] !== $a['permission_callback'], 'but their gates are different — that is the whole point' );
 

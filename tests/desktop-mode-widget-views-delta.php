@@ -86,6 +86,14 @@ foreach ( array( '2026-09-14|2026-09-27' => 'the headline window', '2026-09-13|2
 }
 $GLOBALS['__totals_fail'] = array();
 
+// 2026-11-11: the strict human figure rides the payload, read from the headline window's own totals.
+function sn_analytics_strict_human( $from, $to, array $human ) { return array( 'views' => (int) $human['views'] - 2, 'window' => array( 'from' => $from, 'through' => $to ) ); }
+$GLOBALS['__totals'] = array( '2026-09-14|2026-09-27' => 135 );
+unset( $GLOBALS['t']['sn_desktop_site_views_2026-09-27_' . SNT_VERSION] );
+$res = snt_desktop_site_views_payload()->data;
+ok( 135 === ( $res['total'] ?? null ) && 133 === ( $res['strict']['views'] ?? null ) && '2026-09-14' === ( $res['strict']['window']['from'] ?? '' ), 'the payload carries strict over the headline window, the headline unchanged' );
+$GLOBALS['__totals'] = array();
+
 // ── The rendered rows (node, the real widget file) ──
 $node = trim( (string) shell_exec( 'command -v node' ) );
 if ( '' === $node ) {
@@ -127,6 +135,17 @@ if ( '' === $node ) {
 	ok( $up === ( $rh['▲ 99.3% vs. prior 14 days'] ?? '' ), 'under 25% likely automated: the existing rule stands, green' );
 	$ru = $render( array( 'delta_pct' => 99.3, 'total' => 400, 'likely_automated' => array( 'visitor_days' => null, 'scored_visitor_days' => 0, 'measured_days' => 0, 'unmeasured_days' => 14 ) ) );
 	ok( $up === ( $ru['▲ 99.3% vs. prior 14 days'] ?? '' ), 'likely automated not measured: the existing rule stands' );
+
+	// 2026-11-11: the strict line under the headline, both numbers shown.
+	$sp = array( 'visitor_days' => 96, 'views' => 383, 'removed' => array( 'visitor_days' => 4, 'views' => 17 ), 'window' => array( 'from' => '2026-09-14', 'through' => '2026-09-27', 'partial' => false ) );
+	$rs = $render( array( 'total' => 400, 'strict' => $sp ) );
+	ok( isset( $rs['400'] ) && isset( $rs['Strictly human: 383 views (17 removed: automation signals)'] ), 'the headline 400 and the strict line under it: both numbers' );
+	$rs = $render( array( 'total' => 400, 'strict' => array( 'window' => array( 'partial' => true, 'from' => '2026-09-20', 'through' => '2026-09-27' ) ) + $sp ) );
+	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals), UTC days 2026-09-20 to 2026-09-27 only'] ), 'a partial window names the UTC days the removals cover' );
+	$rs = $render( array( 'total' => 400, 'strict' => null ) );
+	ok( isset( $rs['Strictly human: not measured yet'] ), 'a null strict figure says not measured, never 0' );
+	$rs = $render( array( 'total' => 400 ) );
+	ok( array() === array_filter( array_keys( $rs ), static fn( $k ) => 0 === strpos( (string) $k, 'Strictly human' ) ), 'an older cached payload without the key paints no strict line' );
 
 	// SN Traffic: This week, the folded groups and the top pages paint.
 	$full = array(
