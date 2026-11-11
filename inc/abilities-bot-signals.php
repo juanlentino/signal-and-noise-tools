@@ -40,6 +40,8 @@ function sn_bot_signals_refresh() {
 	update_option( SNT_BOT_SIGNAL_OPTION, $readout + array( 'measured_at' => time() ), false );
 	// The per-day store keeps its own 14-day read and merge.
 	sn_bot_signals_by_day_refresh( sn_analytics_trailing_from( SNT_BOT_SIGNAL_DAYS ), $now );
+	// Then the older days of the AE window, once, so the strict reading covers them.
+	sn_bot_signals_by_day_backfill();
 	return true;
 }
 
@@ -73,6 +75,46 @@ function sn_bot_signals_by_day_refresh( $from, $now ) {
 	$first  = gmdate( 'Y-m-d', sn_analytics_clock() - SNT_BOT_SIGNAL_DAYS * 86400 );
 	$stored = get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION, array() );
 	update_option( SNT_BOT_SIGNAL_BY_DAY_OPTION, sn_bot_signals_by_day_merge( is_array( $stored ) ? $stored : array(), $fresh, $first ), false );
+}
+/**
+ * Write the per-day reading (the strict removals with it) for the days of the
+ * AE window the nightly 14-day read does not cover, so the first night after
+ * install measures every day Analytics Engine still holds (2026-11-11). Walks
+ * back in chunks of SNT_BOT_SIGNAL_BY_DAY_CHUNK days from a cursor, inside a
+ * time budget; a chunk that fails or reaches the row cap stops the walk where
+ * it is and the next night resumes there, as the nightly read keeps its stored
+ * days on the same faults. Only the days a chunk returns are replaced: a day
+ * no read covers keeps its shape, so a day stored before strict rule v1 stays
+ * unmeasured. Done once the cursor reaches the window's first day.
+ *
+ * @param float $budget Seconds to spend.
+ * @return void
+ */
+function sn_bot_signals_by_day_backfill( $budget = SNT_BOT_SIGNAL_BY_DAY_BUDGET ) {
+	$clock  = sn_analytics_clock();
+	$floor  = gmdate( 'Y-m-d', $clock - SNT_BOT_SIGNAL_READOUT_DAYS * 86400 ); // the readout's own window
+	$cursor = (string) get_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION, '' );
+	$cursor = 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $cursor ) ? $cursor : gmdate( 'Y-m-d', $clock - SNT_BOT_SIGNAL_DAYS * 86400 );
+	$start  = microtime( true );
+	while ( $cursor > $floor && microtime( true ) - $start < (float) $budget ) {
+		$from = max( $floor, gmdate( 'Y-m-d', (int) strtotime( $cursor . ' 00:00:00 UTC' ) - SNT_BOT_SIGNAL_BY_DAY_CHUNK * 86400 ) );
+		$span = $from . '|' . $cursor;
+		$sets = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_by_day_sql( SNT_BOT_SIGNAL_READOUT_DAYS, $s, $r, $span ), $from, $cursor . ' 00:00:00' );
+		if ( null === $sets ) {
+			return;
+		}
+		if ( array() !== array_filter( $sets, static fn( $set ) => count( $set ) >= SNT_BOT_SIGNAL_LIMIT ) ) {
+			error_log( '[sn-analytics] bot signals backfill: the chunk ' . $span . ' reached its row limit; it is retried next night' );
+			return;
+		}
+		$fresh  = array_filter( sn_bot_signals_by_day( array_merge( ...$sets ) ), static fn( $day ) => $day >= $from && $day < $cursor, ARRAY_FILTER_USE_KEY );
+		$stored = get_option( SNT_BOT_SIGNAL_BY_DAY_OPTION, array() );
+		$out    = array_merge( is_array( $stored ) ? $stored : array(), $fresh );
+		ksort( $out );
+		update_option( SNT_BOT_SIGNAL_BY_DAY_OPTION, array_slice( $out, -SNT_BOT_SIGNAL_BY_DAY_KEEP, null, true ), false );
+		$cursor = $from;
+		update_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION, $cursor, false );
+	}
 }
 if ( defined( 'SN_ANALYTICS_ROLLUP_DAILY_HOOK' ) ) {
 	add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_bot_signals_refresh', 20 );

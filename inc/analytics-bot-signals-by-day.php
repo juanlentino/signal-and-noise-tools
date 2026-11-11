@@ -23,6 +23,15 @@ const SNT_BOT_SIGNAL_BY_DAY_OPTION = 'sn_bot_signals_by_day';
 /** Days of per-day reading kept: a year and a month, enough for range 365. */
 const SNT_BOT_SIGNAL_BY_DAY_KEEP = 400;
 
+/** Option holding the backfill cursor: the oldest UTC day (exclusive end of the next chunk) already read. */
+const SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION = 'sn_bot_signals_by_day_backfill';
+
+/** Days per backfill chunk: the nightly read's own span, which stays under the row cap. */
+const SNT_BOT_SIGNAL_BY_DAY_CHUNK = 14;
+
+/** Seconds a night spends on backfill chunks before leaving the rest to the next night. */
+const SNT_BOT_SIGNAL_BY_DAY_BUDGET = 20.0;
+
 /**
  * One row per UTC day and visitor-day that carried signals: the bits, page
  * views and the human flag. The day is a SELECT alias grouped by name, the
@@ -31,9 +40,10 @@ const SNT_BOT_SIGNAL_BY_DAY_KEEP = 400;
  * @param int    $days   Trailing window.
  * @param string $source One half of a stitched read; '' picks the dataset.
  * @param string $range  That half's side of the split.
+ * @param string $span   'Y-m-d|Y-m-d': a backfill chunk's first day and exclusive end, read instead of the trailing window.
  * @return string
  */
-function sn_bot_signals_by_day_sql( $days = SNT_BOT_SIGNAL_DAYS, $source = '', $range = '' ) {
+function sn_bot_signals_by_day_sql( $days = SNT_BOT_SIGNAL_DAYS, $source = '', $range = '', $span = '' ) {
 	$days   = max( 1, min( 92, (int) $days ) );
 	$source = '' !== (string) $source ? (string) $source : sn_analytics_source( sn_analytics_trailing_from( $days ) );
 	$range  = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
@@ -46,7 +56,10 @@ function sn_bot_signals_by_day_sql( $days = SNT_BOT_SIGNAL_DAYS, $source = '', $
 	$cols[] = "max(if(blob7 != 'bot' AND ({$net}), 1, 0)) AS human";
 	return 'SELECT ' . implode( ', ', $cols )
 		. ' FROM ' . $source
-		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY){$range} AND bitAnd(toUInt32(double8), " . SNT_BOT_SIGNAL_PRESENT . ') > 0'
+		. ' WHERE ' . ( 1 === preg_match( '/^(\d{4}-\d{2}-\d{2})\|(\d{4}-\d{2}-\d{2})$/', (string) $span, $m )
+			? "timestamp >= toDateTime('{$m[1]} 00:00:00') AND timestamp < toDateTime('{$m[2]} 00:00:00')"
+			: "timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" )
+		. "{$range} AND bitAnd(toUInt32(double8), " . SNT_BOT_SIGNAL_PRESENT . ') > 0'
 		. ' GROUP BY day, vid LIMIT ' . SNT_BOT_SIGNAL_LIMIT;
 }
 
