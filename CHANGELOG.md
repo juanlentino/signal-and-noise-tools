@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **Saving, resetting or purging on the classic RSS screen returns to that screen with its message.** The forms redirected to the old `?tab=rss` address, which no longer forwards to Monitoring > RSS on the live site: the page showed the Dashboard and the "saved" message was lost. They now redirect to `tab=monitoring&sub=rss`. The OpenStation window was not affected.
+
 ## [2026.11.24] - 2026-11-10 — Core-first round: faster health scans, 06:15 rollup, structured Insights, core admin forms
 
 ### Changed

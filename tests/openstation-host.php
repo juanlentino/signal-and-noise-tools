@@ -701,7 +701,7 @@ $reset = snt_os_host_replay(
 ok( true === $reset['ok'] && 'admin-post' === $reset['pipeline'] && ! isset( $GLOBALS['__options']['sn_rss_tracker_settings'] ),
 	'"Reset to Defaults" RUNS the real handler through do_action( admin_post_sn_rss_reset_defaults ), the hook admin-post.php fires: the settings row is gone' );
 ok( array( 'sn_rss_ok' => 'reset' ) === $reset['params'] && 'monitoring' === $reset['target']['tab'] && 'rss' === $reset['target']['sub'],
-	'   ...and its own redirect is read the way the classic page reads it: ?sn_rss_ok for the leaf\'s flash, and the legacy tab=rss resolved through the same 301 map to monitoring/rss' );
+	'   ...and its own redirect is read the way the classic page reads it: ?sn_rss_ok for the leaf\'s flash, and the redirect lands on monitoring/rss directly, with no legacy map in between' );
 
 $GLOBALS['__options']['sn_rss_tracker_settings'] = array( 'enabled' => true );
 $stale_rss = snt_os_host_replay(
