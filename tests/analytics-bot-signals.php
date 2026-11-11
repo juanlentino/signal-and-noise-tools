@@ -180,6 +180,20 @@ $GLOBALS['__opt'] = array();
 $GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $hit( '2026-11-10' ), $hit( '2026-10-20' ) );
 function_exists( 'sn_bot_signals_by_day_backfill' ) && sn_bot_signals_by_day_backfill( 0.0 );
 ok( 4 === count( $GLOBALS['__ret'] ) && false === get_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION ), 'no budget: no read, no cursor moved' );
+// Review on #2419: the budget is what is left of the nightly tick, measured from
+// the job's start, and a chunk starts only with SNT_BOT_SIGNAL_BY_DAY_MIN_LEFT to spare.
+sn_bot_signals_by_day_backfill( 7.9 );
+ok( 4 === count( $GLOBALS['__ret'] ), 'under 8 seconds left: no chunk starts (two 6-second halves would pass the cron limit)' );
+$GLOBALS['__ret'] = array( array() ); // one chunk answers; the next read fails and stops the walk
+sn_bot_signals_by_day_backfill( 9.0 );
+ok( '2026-10-14' === get_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION ), 'with 9 seconds left a chunk starts' );
+$GLOBALS['__opt'] = array();
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $hit( '2026-11-10' ), $hit( '2026-10-20' ) );
+sn_bot_signals_refresh( microtime( true ) - 30 );
+ok( array( $hit( '2026-10-20' ) ) === $GLOBALS['__ret'] && false === get_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION ), 'a nightly job 30 seconds in skips the backfill: what is left of the 35-second tick is under 8' );
+$GLOBALS['__ret'] = array( $fx['rows'], $fx['days'], $hit( '2026-11-10' ), $hit( '2026-10-20' ) );
+sn_bot_signals_refresh( '' ); // the hook's own empty argument reads as the start of the job
+ok( array() === $GLOBALS['__ret'], 'run from the hook, the job measures from its own start and backfills' );
 sn_analytics_clock( 0 );
 
 echo "\nResult: {$pass} passed, {$fail} failed.\n";

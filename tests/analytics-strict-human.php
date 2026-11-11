@@ -67,7 +67,8 @@ ok( 100 === $human['unique_visitor_days'] && 400 === $human['views'], 'the presu
 ok( false === sn_bot_signals_strict( $store, '2026-11-10', '2026-11-11', $human )['window']['partial'], 'a range the stored days cover end to end is not partial' );
 ok( null === sn_bot_signals_strict( $store, '2026-11-01', '2026-11-05', $human ), 'only an old-shape day in the range: null, never 0 removed' );
 ok( null === sn_bot_signals_strict( array(), '2026-11-01', '2026-11-11', $human ), 'nothing stored: null' );
-ok( 2 === sn_bot_signals_strict( $store, '2026-11-11', '2026-11-11', array( 'visits' => 3, 'views' => 1 ) )['visitor_days'] && 0 === sn_bot_signals_strict( $store, '2026-11-11', '2026-11-11', array( 'visits' => 3, 'views' => 1 ) )['views'], 'visits stands in for unique_visitor_days; a figure never goes below 0' );
+$pv = sn_bot_signals_strict( $store, '2026-11-11', '2026-11-11', array( 'visits' => 3, 'pageview_visits' => 3, 'views' => 1 ) );
+ok( null === $pv['visitor_days'] && 0 === $pv['views'], 'visitor-days come from unique_visitor_days only (null without it, never visits); a figure never goes below 0' );
 $GLOBALS['__opt'][ SNT_BOT_SIGNAL_BY_DAY_OPTION ] = $store;
 ok( $s === sn_analytics_strict_human( '2026-11-01', '2026-11-11', $human ), 'the reader reads the nightly store (an option, no Analytics Engine query)' );
 

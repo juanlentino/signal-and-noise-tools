@@ -16,9 +16,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Read AE and store the readout. Stores only on a real read: a failed query
  * keeps the last good reading. Runs with the nightly rollup.
  *
+ * @param float|string $started microtime( true ) when the job began; anything else (the hook's empty argument) is now.
  * @return bool
  */
-function sn_bot_signals_refresh() {
+function sn_bot_signals_refresh( $started = null ) {
+	$started = is_float( $started ) ? $started : microtime( true );
 	if ( ! function_exists( 'sn_analytics_query' ) ) {
 		return false;
 	}
@@ -40,8 +42,10 @@ function sn_bot_signals_refresh() {
 	update_option( SNT_BOT_SIGNAL_OPTION, $readout + array( 'measured_at' => time() ), false );
 	// The per-day store keeps its own 14-day read and merge.
 	sn_bot_signals_by_day_refresh( sn_analytics_trailing_from( SNT_BOT_SIGNAL_DAYS ), $now );
-	// Then the older days of the AE window, once, so the strict reading covers them.
-	sn_bot_signals_by_day_backfill();
+	// Then the older days of the AE window, once, so the strict reading covers
+	// them, in what is left of the tick (review on #2419: the reads above can
+	// take their own timeouts first).
+	sn_bot_signals_by_day_backfill( SNT_BOT_SIGNAL_TICK_BUDGET - ( microtime( true ) - $started ) );
 	return true;
 }
 
@@ -87,16 +91,19 @@ function sn_bot_signals_by_day_refresh( $from, $now ) {
  * no read covers keeps its shape, so a day stored before strict rule v1 stays
  * unmeasured. Done once the cursor reaches the window's first day.
  *
- * @param float $budget Seconds to spend.
+ * A chunk starts only with SNT_BOT_SIGNAL_BY_DAY_MIN_LEFT seconds of the
+ * budget in hand, so the walk never runs past it by a chunk's own reads.
+ *
+ * @param float $budget Seconds left of the nightly tick.
  * @return void
  */
-function sn_bot_signals_by_day_backfill( $budget = SNT_BOT_SIGNAL_BY_DAY_BUDGET ) {
+function sn_bot_signals_by_day_backfill( $budget = SNT_BOT_SIGNAL_TICK_BUDGET ) {
 	$clock  = sn_analytics_clock();
 	$floor  = gmdate( 'Y-m-d', $clock - SNT_BOT_SIGNAL_READOUT_DAYS * 86400 ); // the readout's own window
 	$cursor = (string) get_option( SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION, '' );
 	$cursor = 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $cursor ) ? $cursor : gmdate( 'Y-m-d', $clock - SNT_BOT_SIGNAL_DAYS * 86400 );
 	$start  = microtime( true );
-	while ( $cursor > $floor && microtime( true ) - $start < (float) $budget ) {
+	while ( $cursor > $floor && (float) $budget - ( microtime( true ) - $start ) >= SNT_BOT_SIGNAL_BY_DAY_MIN_LEFT ) {
 		$from = max( $floor, gmdate( 'Y-m-d', (int) strtotime( $cursor . ' 00:00:00 UTC' ) - SNT_BOT_SIGNAL_BY_DAY_CHUNK * 86400 ) );
 		$span = $from . '|' . $cursor;
 		$sets = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_by_day_sql( SNT_BOT_SIGNAL_READOUT_DAYS, $s, $r, $span ), $from, $cursor . ' 00:00:00' );

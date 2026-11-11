@@ -29,8 +29,11 @@ const SNT_BOT_SIGNAL_BY_DAY_BACKFILL_OPTION = 'sn_bot_signals_by_day_backfill';
 /** Days per backfill chunk: the nightly read's own span, which stays under the row cap. */
 const SNT_BOT_SIGNAL_BY_DAY_CHUNK = 14;
 
-/** Seconds a night spends on backfill chunks before leaving the rest to the next night. */
-const SNT_BOT_SIGNAL_BY_DAY_BUDGET = 20.0;
+/** Seconds the whole nightly bot-signals job may take, well inside WP-Cron's ~60 s. */
+const SNT_BOT_SIGNAL_TICK_BUDGET = 35.0;
+
+/** Seconds a backfill chunk needs in hand to start: two halves at a 6 s query timeout, and slack. */
+const SNT_BOT_SIGNAL_BY_DAY_MIN_LEFT = 8.0;
 
 /**
  * One row per UTC day and visitor-day that carried signals: the bits, page

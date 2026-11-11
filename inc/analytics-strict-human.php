@@ -56,7 +56,7 @@ function sn_bot_signals_strict_removes( array $row ) {
  * @param array  $by_day Stored day map.
  * @param string $from   YYYY-MM-DD.
  * @param string $to     YYYY-MM-DD.
- * @param array  $human  The presumed-human totals the surface shows (unique_visitor_days or visits, views).
+ * @param array  $human  The presumed-human totals the surface shows (unique_visitor_days, views).
  * @return array|null
  */
 function sn_bot_signals_strict( array $by_day, $from, $to, array $human ) {
@@ -74,7 +74,7 @@ function sn_bot_signals_strict( array $by_day, $from, $to, array $human ) {
 		return null;
 	}
 	sort( $days );
-	$vd = $human['unique_visitor_days'] ?? $human['visits'] ?? null;
+	$vd = $human['unique_visitor_days'] ?? null; // never visits or pageview_visits: another unit
 	$vw = $human['views'] ?? null;
 	return array(
 		'visitor_days' => null === $vd ? null : max( 0, (int) $vd - $removed['visitor_days'] ),
