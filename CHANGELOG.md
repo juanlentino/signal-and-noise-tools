@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **An old admin bookmark opens its new home instead of an empty page.** `sn_admin_maybe_redirect_legacy()` ran inside `sn_theme_options_page()`, the menu render callback, which core calls after `admin-header.php` has printed. Its 301 header failed, `exit` ran, and a legacy URL such as `?page=sn-theme-options&tab=rss` answered 200 with an empty `#wpbody-content` (seen live on 2026-11-10). It now runs on `load-{$hook}` for every registered S&N page (`inc/admin-menu.php`), after core's page-access check and before any output. It answers GET and HEAD only, so a form posted to a legacy URL keeps its body. Test: `tests/admin-legacy-redirect-early.php` (new), which fails on the old wiring.
+
 ## [2026.11.24] - 2026-11-10 — Core-first round: faster health scans, 06:15 rollup, structured Insights, core admin forms
 
 ### Changed

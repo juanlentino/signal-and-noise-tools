@@ -77,7 +77,11 @@ add_action( 'admin_menu', function() {
 		);
 	}
 
-	sn_admin_page_hooks( $hooks );
+	// The legacy 301 has to send a header, so it runs on load-{$hook}: after
+	// core's page-access check, before admin-header.php prints anything.
+	foreach ( sn_admin_page_hooks( $hooks ) as $hook ) {
+		add_action( 'load-' . $hook, 'sn_admin_maybe_redirect_legacy' );
+	}
 
 } );
 

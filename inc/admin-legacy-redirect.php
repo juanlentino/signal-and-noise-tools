@@ -214,9 +214,13 @@ function sn_admin_post_redirect_target( $requested_tab, $requested_sub = '' ) {
  * ?page=sn-<slug> URL whose tab is no longer top-level, 301-redirect
  * to the canonical destination + URL fragment.
  *
- * Called early in sn_theme_options_page() before any output. wp_safe_redirect()
- * keeps the fragment (wp_sanitize_redirect() allows '#'), and the fragment is
- * the part that scrolls the page to the right sub-section.
+ * Runs on load-{$hook} for every registered S&N page (inc/admin-menu.php),
+ * before any output. Until 2026-11-10 it ran inside sn_theme_options_page(),
+ * after admin-header.php had printed: the header failed, exit ran, and every
+ * legacy bookmark opened an empty admin page. GET and HEAD only, so a POST
+ * body is never dropped by a 301. wp_safe_redirect() keeps the fragment
+ * (wp_sanitize_redirect() allows '#'), and the fragment is the part that
+ * scrolls the page to the right sub-section.
  *
  * Same-host admin URLs are trusted; the redirect destination is always
  * constructed from a fixed allow-listed top-tab whitelist, never from
@@ -225,6 +229,11 @@ function sn_admin_post_redirect_target( $requested_tab, $requested_sub = '' ) {
  * @since 3.8.0
  */
 function sn_admin_maybe_redirect_legacy() {
+	$method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : 'GET';
+	if ( 'GET' !== $method && 'HEAD' !== $method ) {
+		return;
+	}
+
 	// Source 1: explicit ?tab=<slug> (+ ?sub=<leaf> for moved-leaf bookmarks).
 	$requested_tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
 	$requested_sub = isset( $_GET['sub'] ) ? sanitize_text_field( wp_unslash( $_GET['sub'] ) ) : '';

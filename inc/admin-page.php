@@ -69,9 +69,9 @@ function sn_theme_options_page() {
 		wp_die( esc_html( 'You do not have sufficient permissions to access this page.' ) );
 	}
 
-	// v3.8.0+: 301-redirect legacy tab/page slugs to canonical destinations.
-	// Must run BEFORE any output so headers can still be sent.
-	sn_admin_maybe_redirect_legacy();
+	// Legacy tab/page slugs 301 to their canonical destination on load-{$hook}
+	// (inc/admin-menu.php), before admin-header.php prints. This callback runs
+	// after the header, too late to send one.
 
 	$notices = array();
 
