@@ -32,7 +32,7 @@ function snt_resume_es_refusal( $doc ) {
 	if ( strlen( $json ) > SN_RESUME_ES_APPLY_MAX ) {
 		return 'document is over ' . SN_RESUME_ES_APPLY_MAX . ' bytes';
 	}
-	if ( preg_match( '/"phone(_public)?"\s*:\s*(?!""|false|null)/', $json ) || snt_resume_es_has_phone( wp_strip_all_tags( implode( ' ', snt_resume_es_strings( $doc ) ) ) ) ) {
+	if ( preg_match( '/"phone(_public)?"\s*:\s*(?!""|false|null)/', $json ) || preg_match( '~tel:|wa\.me/|api\.whatsapp~i', $json ) || snt_resume_es_has_phone( wp_strip_all_tags( implode( ' ', snt_resume_es_strings( $doc ) ) ) ) ) {
 		return 'a phone number is never stored in the Spanish CV (owner, 2026-11-02)';
 	}
 	$merged = sn_resume_es_merge( $doc, array(), '' );

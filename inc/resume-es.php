@@ -45,8 +45,8 @@ const SN_RESUME_ES_DOC_OPT  = 'sn_resume_doc_es'; // the Spanish text, stored (o
  */
 function sn_resume_es_source_json() {
 	$stored = get_option( SN_RESUME_ES_DOC_OPT );
-	if ( is_string( $stored ) && '' !== $stored ) {
-		return $stored;
+	if ( is_string( $stored ) && is_array( json_decode( $stored, true ) ) && array() !== json_decode( $stored, true ) ) {
+		return $stored; // a stored value that does not decode to a document falls back to the seed, so /cv never goes blank.
 	}
 	return (string) file_get_contents( __DIR__ . '/seed-content/resume-data-es.json' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.
 }
@@ -142,6 +142,7 @@ function sn_resume_es_pdf_generate() {
 		$view                   = sn_resume_doc_view( $doc, 'operations' );
 		$view['pdf']['website'] = '';
 		$cfg['built']           = function_exists( 'sn_resume_built_for' ) ? sn_resume_built_for( $doc, 'operations' ) : array();
+		$cfg['earlier_compact'] = true; // two pages, as the English PDF (inc/resume-pdf/operations.php).
 		$cfg['title']           = $name . ' · Currículum';
 		$cfg['credits']         = sn_resume_es_render( static fn() => function_exists( 'sn_resume_credits_url' ) ? sn_resume_credits_url() : '' );
 	}

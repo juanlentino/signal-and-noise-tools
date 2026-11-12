@@ -87,6 +87,9 @@ ok( is_wp_error( snt_resume_es_apply( array( 'document' => $phone ) ) ), 'a phon
 $phone2 = $seed;
 $phone2['pdf']['phone'] = '4075550199';
 ok( is_wp_error( snt_resume_es_apply( array( 'document' => $phone2 ) ) ), 'a phone field is refused' );
+$wa = $seed;
+$wa['publications'][0]['url'] = 'https://wa.me/14075550199';
+ok( is_wp_error( snt_resume_es_apply( array( 'document' => $wa ) ) ), 'a WhatsApp or tel: link is refused, even in a link field' );
 ok( false === snt_resume_es_has_phone( 'Trayectoria anterior · 1997 - 2015, ene. 2005 - dic. 2015, de 600 a 850' ), 'date ranges and counts are not phones' );
 ok( is_wp_error( snt_resume_es_apply( array( 'document' => array( 'hero' => array( 'summary' => 'x' ) ) ) ) ), 'a document that does not render is refused' );
 ok( is_wp_error( snt_resume_es_apply( array( 'document' => 'nope' ) ) ), 'not an object: refused' );
@@ -100,6 +103,8 @@ $w = snt_resume_es_apply( array( 'document' => $next, 'dry_run' => false ) );
 ok( false === $w['dry_run'] && $next === json_decode( $GLOBALS['__opt'][ SN_RESUME_ES_DOC_OPT ], true ), 'dry_run false: stored as JSON in the option' );
 ok( 'stored' === snt_resume_es_apply( array() )['source'] && 'Resumen nuevo, de prueba.' === sn_resume_es_doc()['hero']['summary'], 'from then on /cv reads the stored text, not the bundled seed' );
 ok( false !== strpos( (string) file_get_contents( "$root/inc/mcp/mcp-capabilities.php" ), "'signal-noise/resume-es-apply'," ), 'on the write door' );
+$GLOBALS['__opt'][ SN_RESUME_ES_DOC_OPT ] = '{bad';
+ok( $seed['hero']['summary'] === sn_resume_es_doc()['hero']['summary'], 'a stored value that does not decode falls back to the bundled seed: /cv never goes blank' );
 
 $ci = (string) getenv( 'CI' );
 echo "\nResult: $pass passed, $fail failed.\n";
