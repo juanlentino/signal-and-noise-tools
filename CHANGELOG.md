@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The Spanish CV PDF's credits line is in Spanish.** The PDF template printed "Verified credits:" in English on JuanLentino_CV.pdf too; it now reads "Créditos verificados:" there, as /cv already did (`inc/resume-pdf/template.php`). Test: `tests/resume-variants.php`.
+
 ## [2026.11.32] - 2026-11-12 — Spanish CV without releases, PDF two pages, On /resume editor
 
 ### Changed

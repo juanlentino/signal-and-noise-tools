@@ -154,7 +154,7 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $unused_phone = false, $sit
 		$contact[] = '<a href="' . $e( $link ) . '">' . $e( preg_replace( '~^https?://(www\.)?~i', '', rtrim( (string) $link, '/' ) ) ) . '</a>';
 	}
 	if ( '' !== (string) ( $config['credits'] ?? '' ) ) { // /music's verified credits, the address printed in full.
-		$contact[] = 'Verified credits: <a href="' . $e( $config['credits'] ) . '">' . $e( preg_replace( '~^https?://(www\.)?~i', '', rtrim( (string) $config['credits'], '/' ) ) ) . '</a>';
+		$contact[] = sn_resume_l( 'Verified credits', 'Créditos verificados' ) . ': <a href="' . $e( $config['credits'] ) . '">' . $e( preg_replace( '~^https?://(www\.)?~i', '', rtrim( (string) $config['credits'], '/' ) ) ) . '</a>';
 	}
 	if ( $contact ) {
 		$out .= '<p class="contact">' . implode( ' &#8226; ', $contact ) . '</p>';
