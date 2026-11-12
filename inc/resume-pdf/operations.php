@@ -3,8 +3,8 @@
  * Signal & Noise Tools: the operations résumé PDF (inc/resume-variants.php).
  *
  * Built by the same Generate press as the music PDF (it follows the
- * sn_resume_pdf_generated action, as the Spanish CV does). Since the page's
- * second lane (owner brief 2026-11-01 #2) the operations lane's Download links
+ * sn_resume_pdf_generated action, as the Spanish CV does). Since the one résumé
+ * (owner, 2026-11-12) it is /resume's only PDF: the page's Download links
  * it, and the format list and llms.txt name it; it stays out of sitemaps, and
  * the noindex header keeps it out of search. It is not a file in
  * uploads: a static file's headers are the web server's, and the owner was
@@ -117,7 +117,7 @@ function sn_resume_ops_pdf_generate() {
 		sn_resume_pdf_record_error( SN_RESUME_OPS_PDF_OPTION, $out );
 	}
 	// Generate syncs /resume before this file is built; sync again so the
-	// operations lane's Download follows the file (an identical body is not rewritten).
+	// page's Download follows the file (an identical body is not rewritten).
 	if ( function_exists( 'sn_resume_sync_page' ) ) {
 		sn_resume_sync_page();
 	}
@@ -151,9 +151,10 @@ function sn_resume_ops_pdf_build() {
 	}
 	$config['built'] = sn_resume_built_for( $raw, 'operations' );
 	$name            = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	$config['title'] = $name . ' · Résumé · Operations & AI Strategy'; // the Info Title (the template's <title>).
-	$view['pdf']['website'] = ''; // its own lane's address, whatever the music Website field says.
-	$result          = sn_resume_pdf_render( $view, $name, $loc['dir'] . '/.font-cache', false, home_url( '/resume/?lane=operations' ), $config ); // the lane's own address.
+	$config['title'] = $name . ' · Résumé'; // the Info Title (the template's <title>).
+	$config['credits'] = function_exists( 'sn_resume_credits_url' ) ? sn_resume_credits_url() : ''; // "Verified credits: …/music".
+	$view['pdf']['website'] = ''; // the résumé's own address, whatever the music Website field says.
+	$result          = sn_resume_pdf_render( $view, $name, $loc['dir'] . '/.font-cache', false, home_url( '/resume/' ), $config ); // the one résumé's address (2026-11-12).
 	$url             = sn_resume_ops_pdf_url( $config['pdf_file'] );
 	// A phone in it is never served (the render refuses it): the last file goes too.
 	if ( is_wp_error( $result ) && 'sn_resume_pdf_phone' === $result->get_error_code() ) {

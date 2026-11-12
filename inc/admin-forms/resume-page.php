@@ -372,16 +372,16 @@ function sn_admin_render_resume_section() {
 	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="skills">+ Add skills row</button>';
 	echo '</details>';
 
-	// ── PDF only ── Fields the generated PDF uses. /resume shows only the
-	// headline and tagline, heading its Music lane once it has two lanes
-	// (sn_resume_lane_hero_blocks()). The phone is printed nowhere.
+	// ── PDF only ── Fields the generated music PDF uses. /resume shows the
+	// Operations résumé's headline and subhead (sn_resume_lane_hero_blocks()).
+	// The phone is printed nowhere.
 	if ( function_exists( 'sn_admin_render_resume_built_section' ) ) {
 		sn_admin_render_resume_built_section( $doc );
 		sn_admin_render_resume_operations_section( $doc );
 	}
 
 	$pdf = (array) ( $doc['pdf'] ?? array() );
-	sn_rsm_section_open( 'PDF only', 'The PDF\'s own fields. Of these, /resume shows only Headline and Tagline, at the head of its Music lane once it has two lanes; the phone never reaches the page. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.' );
+	sn_rsm_section_open( 'PDF only', 'The PDF\'s own fields. These are the music PDF\'s; /resume shows the Operations résumé\'s headline and subhead instead, and the phone never reaches the page. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.' );
 	sn_rsm_input( 'resume[pdf][headline]', (string) ( $pdf['headline'] ?? '' ), 'Headline', 'Music Business Development & Strategic Partnerships Leader' );
 	sn_rsm_input( 'resume[pdf][tagline]', (string) ( $pdf['tagline'] ?? '' ), 'Tagline', 'Artist & Label Relations | Latin American & U.S. Markets' );
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Professional summary</span><textarea rows="4" class="large-text" name="resume[pdf][summary]">' . esc_textarea( (string) ( $pdf['summary'] ?? '' ) ) . '</textarea></label>';
@@ -428,7 +428,7 @@ function sn_admin_render_resume_pdf_generate() {
 		/* translators: 1: timestamp, 2: pages, 3: file size */
 		echo '<p class="sn-fieldset-intro">' . esc_html( sprintf( _n( 'Generated %1$s: %2$s page, %3$s, SHA-256', 'Generated %1$s: %2$s pages, %3$s, SHA-256', $pages, 'signal-and-noise-tools' ), sn_resume_pdf_when( $meta ), number_format_i18n( $pages ), size_format( (int) ( $meta['bytes'] ?? 0 ) ) ) )
 			. ' <code>' . esc_html( substr( (string) ( $meta['sha256'] ?? '' ), 0, 12 ) ) . '</code>. '
-			. '<a href="' . esc_url( sn_resume_pdf_link( '' ) ) . '" target="_blank" rel="noopener">Open the PDF</a>. The /resume Download link points here.</p>';
+			. '<a href="' . esc_url( sn_resume_pdf_link( '' ) ) . '" target="_blank" rel="noopener">Open the PDF</a>. ' . ( function_exists( 'sn_resume_formats_one' ) && sn_resume_formats_one() ? 'This is the music PDF: /resume is the one résumé, and its Download links the operations PDF.' : 'The /resume Download link points here.' ) . '</p>';
 	} else {
 		echo '<p class="sn-fieldset-intro">Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the published resume and switches the link to it.</p>';
 	}

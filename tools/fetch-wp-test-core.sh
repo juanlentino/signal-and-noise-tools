@@ -9,7 +9,7 @@
 # robots-template.php and link-template.php for the head pins
 # (tests/seo-head-on-core.php), class-wp.php and post.php for the feed
 # conditional GET (tests/feed-conditional-get.php), the block parser for the
-# /resume parse-and-re-save pin (tests/resume-lane-marks.php) and for every
+# /resume parse-and-re-save pin (tests/resume-one.php) and for every
 # reader that walks parse_blocks(), and blocks.php for excerpt_remove_blocks()
 # (tests/lib/wp-html-api.php loads them for the suites that need them). The
 # block processor is for the suites that load tests/lib/wp-core-blocks.php. The

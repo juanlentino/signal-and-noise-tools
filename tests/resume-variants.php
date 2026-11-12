@@ -122,7 +122,7 @@ $gen_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/generate.ph
 $tpl_src = (string) file_get_contents( __DIR__ . '/../inc/resume-pdf/template.php' );
 $dr_src  = (string) file_get_contents( __DIR__ . '/../inc/resume-draft.php' );
 $act_src = (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions/resume-draft.php' );
-ok( false !== strpos( $ops_src, "sn_resume_pdf_render( \$view, \$name, \$loc['dir'] . '/.font-cache', false, home_url( '/resume/?lane=operations' ), \$config );" ), 'the operations PDF renders the operations view, phone off, with its lane\'s address' );
+ok( false !== strpos( $ops_src, "sn_resume_pdf_render( \$view, \$name, \$loc['dir'] . '/.font-cache', false, home_url( '/resume/' ), \$config );" ), 'the operations PDF renders the operations view, phone off, with the one résumé\'s address' );
 ok( false === strpos( $tpl_src, "\$pdf['phone']" ) && false === strpos( $tpl_src, 'include_phone' ), 'the template reads no phone at all: no variant, switch or caller can print one' );
 ok( false !== strpos( $ops_src, "sn_resume_pdf_check( \$result['bytes'], \$result['pages'], 2," ) && false !== strpos( $ops_src, "delete_option( SN_RESUME_OPS_PDF_BYTES );" ), 'the operations PDF is checked at two pages, and one with a phone is never served' );
 ok( 1 === preg_match( "/0 !== strpos\\( \\\$path, '\\/resume\\/' \\) \\|\\| '\\.pdf' !== substr\\( \\\$path, -4 \\)\\s*\\) \\{\\s*return;/", $ops_src ) && strpos( $ops_src, "'.pdf' !== substr" ) < (int) strpos( $ops_src, '$config = sn_resume_ops_config();' ), 'the address is matched before the document is read' );

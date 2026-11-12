@@ -248,5 +248,20 @@ sn_resume_engine_regen();
 ok( $GLOBALS['__resyncs'] === $n + 1, 'regen fires once per engine rev' );
 ok( SN_RESUME_ENGINE_REV === (int) $GLOBALS['__options']['sn_resume_engine_rev'], 'rev recorded' );
 
+echo "\nTest: leaving the two lanes purges their addresses once\n";
+if ( ! defined( 'SN_CF_RESUME_LANE_URLS_RETIRED' ) ) { define( 'SN_CF_RESUME_LANE_URLS_RETIRED', array( '/resume/?lane=operations', '/resume.md?lane=operations' ) ); }
+if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://example.test' . $p; } }
+if ( ! function_exists( 'sn_cf_purge_urls' ) ) { function sn_cf_purge_urls( $u ) { $GLOBALS['__lane_purges'][] = $u; return true; } }
+$GLOBALS['__lane_purges'] = array();
+$GLOBALS['__options']['sn_resume_engine_rev'] = 6;
+sn_resume_engine_regen();
+sn_resume_engine_regen();
+$lp = $GLOBALS['__lane_purges'];
+ok( 1 === count( $lp ) && in_array( 'https://example.test/resume/?lane=operations', $lp[0] ?? array(), true ) && in_array( 'https://example.test/resume.md?lane=operations', $lp[0] ?? array(), true ), 'from rev 6: the lane addresses are purged once, absolute' );
+$GLOBALS['__lane_purges'] = array();
+$GLOBALS['__options']['sn_resume_engine_rev'] = 7;
+sn_resume_engine_regen();
+ok( array() === $GLOBALS['__lane_purges'], 'already on rev 7: no purge' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

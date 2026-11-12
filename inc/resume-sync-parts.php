@@ -1,7 +1,7 @@
 <?php
 /**
  * Signal & Noise Tools: /resume body parts shared by the single body and the
- * two-lane body (inc/resume-sync-engine.php, inc/resume-page-lanes.php): the
+ * English /resume body (inc/resume-sync-engine.php, inc/resume-page-lanes.php): the
  * contact rail, the Download button, section numbers and receipt marks.
  *
  * @package SignalNoiseTools
@@ -124,39 +124,6 @@ function sn_resume_hero_split_blocks( $left, $right, $align = 'top', $class = 's
 		. $column( '45%', $right ) . "\n"
 		. '</div>'
 	) . "\n\n";
-}
-
-/** What a screen reader hears first in an entry only one /resume lane holds. */
-const SN_RESUME_ONLY_TEXT = 'Only in this version.';
-
-/**
- * An entry, or a row of entries, only this lane holds (inc/resume-lane-marks.php):
- * its blocks in a group the theme draws a bar beside, with the words a screen
- * reader hears first. Unmarked, the blocks come back as they were.
- *
- * @param bool   $only   Whether the entry is lane-only.
- * @param string $blocks Serialized blocks.
- * @return string
- */
-function sn_resume_only_group( $only, $blocks ) {
-	if ( ! $only ) {
-		return $blocks;
-	}
-	return '<!-- wp:group {"className":"sn-resume-only"} -->' . "\n"
-		. '<div class="wp-block-group sn-resume-only">' . "\n"
-		. sn_resume_para( 'screen-reader-text sn-resume-only-mark', SN_RESUME_ONLY_TEXT )
-		. $blocks
-		. '</div>' . "\n" . '<!-- /wp:group -->' . "\n\n";
-}
-
-/**
- * Whether every row of a list is lane-only (a stats band, a skills table).
- *
- * @param array $rows
- * @return bool
- */
-function sn_resume_all_only( $rows ) {
-	return $rows && ! array_filter( $rows, static fn( $r ) => empty( $r['_only'] ) );
 }
 
 /**

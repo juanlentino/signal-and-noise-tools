@@ -7,7 +7,8 @@
  * and the two goal families the page's links carry as data-sn-goal (the
  * theme beacon sends any data-sn-goal click as a custom event; no allowlist):
  * resume_lane_<lane> on the switch links, resume_hunk_<lane> on the edition
- * marks. Lanes only: no link code, no per-code number. Shown inside the Links
+ * marks. Lanes only: no link code, no per-code number. Since 2026-11-12 /resume
+ * is one résumé (SN_RESUME_LANES_ENDED): the panel stays for the history. Shown inside the Links
  * view, classic and native, and to manage_options alone.
  *
  * @package SignalNoiseTools
@@ -18,6 +19,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_RESUME_LANES = array( 'music', 'operations' );
+
+/** The day /resume became one résumé (owner, 2026-11-12): the lane field means nothing from it on. */
+const SN_RESUME_LANES_ENDED = '2026-11-12';
 
 /**
  * The four goal names the résumé page emits, by lane.
@@ -103,7 +107,8 @@ function sn_resume_lanes_labels() {
 
 /** The panel's footnote. */
 function sn_resume_lanes_note() {
-	return __( 'Views, time and scroll per view come from Analytics Engine (about 90 days), human class. Switched to counts clicks on the link to that lane; Mark clicks counts clicks on that lane\'s edition mark. Clicks are custom events, not segmented by class.', 'signal-and-noise-tools' );
+	/* translators: %s: a date, Y-m-d */
+	return sprintf( __( 'Since %s /resume is one résumé, with no switch and no marks: the lane recorded on a view from then on means nothing, and Switched to and Mark clicks stop growing. Earlier rows keep their history.', 'signal-and-noise-tools' ), SN_RESUME_LANES_ENDED ) . ' ' . __( 'Views, time and scroll per view come from Analytics Engine (about 90 days), human class. Switched to counts clicks on the link to that lane; Mark clicks counts clicks on that lane\'s edition mark. Clicks are custom events, not segmented by class.', 'signal-and-noise-tools' );
 }
 
 /**

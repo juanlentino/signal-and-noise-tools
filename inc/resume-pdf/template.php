@@ -106,8 +106,7 @@ li strong,.lines strong{color:' . $n . ';}
  * @param bool   $unused_phone  Ignored: no PDF prints the phone (owner,
  *                              2026-11-02: "not in any version"). The slot
  *                              stays so positional callers keep their meaning.
- * @param string $site_url      The lane's own address (music /resume/, operations
- *                              /resume/?lane=operations), printed without its scheme
+ * @param string $site_url      The résumé's address (/resume/), printed without its scheme
  *                              ("juanlentino.com/resume"), linked.
  * @param array|null $config    A variant's layout (sn_resume_variant_config() plus
  *                              its `built`, and a `title` for the PDF's Info Title, which
@@ -153,6 +152,9 @@ function sn_resume_pdf_html( $doc, $name, $font_dir, $unused_phone = false, $sit
 	}
 	foreach ( (array) ( $config['links'] ?? array() ) as $link ) { // a variant's extra contact links (GitHub).
 		$contact[] = '<a href="' . $e( $link ) . '">' . $e( preg_replace( '~^https?://(www\.)?~i', '', rtrim( (string) $link, '/' ) ) ) . '</a>';
+	}
+	if ( '' !== (string) ( $config['credits'] ?? '' ) ) { // /music's verified credits, the address printed in full.
+		$contact[] = 'Verified credits: <a href="' . $e( $config['credits'] ) . '">' . $e( preg_replace( '~^https?://(www\.)?~i', '', rtrim( (string) $config['credits'], '/' ) ) ) . '</a>';
 	}
 	if ( $contact ) {
 		$out .= '<p class="contact">' . implode( ' &#8226; ', $contact ) . '</p>';

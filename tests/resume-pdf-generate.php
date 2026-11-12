@@ -49,7 +49,7 @@ ok( 'Juan Lentino, Resume' === sn_test_pdf_title( $music ), 'the music Info Titl
 $bare = sn_resume_pdf_render( sn_resume_doc_get(), 'Juan Lentino', $GLOBALS['tmp'] . '/cache', false, 'https://example.test/', sn_resume_pdf_music_config( sn_resume_doc_get_raw() ) );
 ok( str_replace( 'example.test', 'example.test/resume', sn_resume_pdf_text( $bare['bytes'] ) ) === $mtext, 'and nothing else in the music PDF changed: its text is main\'s but the address' );
 $ops = base64_decode( $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] );
-ok( false !== strpos( sn_resume_pdf_text( $ops ), 'example.test/resume/?lane=operations' ) && 'Juan Lentino · Résumé · Operations & AI Strategy' === sn_test_pdf_title( $ops ), 'the same Generate built the operations PDF with its own address and Info Title' );
+ok( false !== strpos( $ops, '/URI (https://example.test/resume/)' ) && false === strpos( $ops, 'lane=' ) && 'Juan Lentino · Résumé' === sn_test_pdf_title( $ops ), 'the same Generate built the operations PDF with its own address and Info Title' );
 
 echo "\nGroup: no PDF carries a phone\n";
 $pub                        = $set;

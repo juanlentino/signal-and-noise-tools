@@ -4,7 +4,7 @@
  *
  * A pure mapper over the SAME document /resume, its PDF and /cv/ render
  * (sn_resume_doc_get(), sn_resume_es_doc(), and sn_resume_lane_doc() for
- * /resume's operations lane), so it can never say something
+ * /resume's one résumé), so it can never say something
  * the page does not. Nothing is invented: a value that does not parse is
  * omitted, a date never gains a day it did not have, and a blank field is
  * left out rather than sent empty. The route, the head link and the WordPress
@@ -86,7 +86,7 @@ function sn_jsonresume_work( array $doc ) {
 }
 
 /**
- * Projects: "What I've Built" (the operations lane), name, url, description.
+ * Projects: "What I've Built" (the one résumé), name, url, description.
  *
  * @param array $items {title,url,text}.
  * @return array<int,array>
@@ -105,8 +105,7 @@ function sn_jsonresume_projects( array $items ) {
  * @param array|null $doc A normalized résumé document (English or Spanish).
  * @param array      $ctx name, url, canonical, last_modified, version,
  *                        profiles (URLs), provenance {verify_url,note_uid}|null,
- *                        projects ({title,url,text}), lane ('' when /resume has one),
- *                        lanes (sn_resume_lanes()).
+ *                        projects ({title,url,text}).
  * @return array|null Null when there is no document.
  */
 function sn_jsonresume_build( $doc, array $ctx ) {
@@ -139,12 +138,6 @@ function sn_jsonresume_build( $doc, array $ctx ) {
 	$note = sn_jsonresume_where( $doc )[1];
 	if ( '' !== $note ) {
 		$meta['x-locationNote'] = $note; // "open to relocation": basics.location has no field for it.
-	}
-	if ( '' !== (string) ( $ctx['lane'] ?? '' ) ) {
-		$meta['x-lane'] = (string) $ctx['lane']; // which of /resume's two résumés this is.
-	}
-	if ( ! empty( $ctx['lanes'] ) ) {
-		$meta['x-lanes'] = (array) $ctx['lanes']; // both lanes' addresses (sn_resume_lanes()): each résumé names the other.
 	}
 	$prov = $ctx['provenance'] ?? null;
 	if ( is_array( $prov ) && '' !== (string) ( $prov['note_uid'] ?? '' ) ) {

@@ -69,9 +69,6 @@ function sn_resume_markdown_front( array $resume, array $formats, array $w ) {
 		$out[] = 'location: ' . $y( implode( ', ', $b['location'] ) . ( isset( $meta['x-locationNote'] ) ? ' (' . $meta['x-locationNote'] . ')' : '' ) );
 	}
 	$out[] = 'url: ' . $y( $meta['canonical'] ?? '' );
-	if ( 'operations' === ( $meta['x-lane'] ?? '' ) ) {
-		$out[] = 'lane: ' . $y( 'operations' ); // /resume.md?lane=operations; the music résumé's front matter names none.
-	}
 	$out[] = 'updated: ' . $y( $meta['lastModified'] ?? '' );
 	if ( isset( $b['email'] ) ) {
 		$out[] = 'email: ' . $y( $b['email'] ); // never a phone (sn_jsonresume_basics()).
@@ -83,15 +80,6 @@ function sn_resume_markdown_front( array $resume, array $formats, array $w ) {
 	$out[] = 'formats:';
 	foreach ( $formats as $k => $u ) {
 		$out[] = "  $k: " . $y( $u );
-	}
-	if ( isset( $meta['x-lanes'] ) ) {
-		$out[] = 'lanes:'; // both of /resume's résumés, so each Markdown names the other.
-		foreach ( (array) $meta['x-lanes'] as $lane => $urls ) {
-			$out[] = "  $lane:";
-			foreach ( (array) $urls as $k => $u ) {
-				$out[] = "    $k: " . $y( $u );
-			}
-		}
 	}
 	if ( isset( $meta['x-provenance'] ) ) {
 		$out[] = 'provenance:';
@@ -125,8 +113,8 @@ function sn_resume_markdown( array $doc, array $resume, array $formats, $lang = 
 	$out = sn_resume_markdown_front( $resume, $formats, $w );
 	$out = array_merge( $out, array( '', '# ' . ( $b['name'] ?? '' ) ), isset( $b['label'] ) ? array( '', $b['label'] ) : array() );
 	$out = array_merge( $out, array( '', '## ' . $w['summary'], '', (string) ( $b['summary'] ?? '' ) ) );
-	// A section with nothing in it is left out, heading and all: the operations résumé
-	// (/resume.md?lane=operations) has no highlights or publications, and its projects lead.
+	// A section with nothing in it is left out, heading and all: a résumé built
+	// without highlights or publications drops them, and its projects lead.
 	$head = static fn( $rows, $key, $gap = array( '' ) ) => $rows ? array_merge( array( '', '## ' . $w[ $key ] ), $gap ) : array();
 	if ( ! empty( $doc['stats'] ) ) {
 		$out = array_merge( $out, array( '', '## ' . $w['stats'], '' ) );
