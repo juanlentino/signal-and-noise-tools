@@ -17,7 +17,7 @@
  * editing paints, and the data-safety pins post each paint through the real
  * handler and require the stored document back unchanged.
  *
- * 2026-11-01 (résumé variants): every row carries "Shows in", a role's saved
+ * 2026-11-01 (résumé variants): every row carries "On /resume" ("Shows in" until 2026-11-12), a role's saved
  * bullets carry one each, What I've Built and Operations résumé are two more
  * sections (after Skills, before PDF only), PDF only gains the music PDF's
  * What I've Built box, and the operations setup is a third, separate form.
