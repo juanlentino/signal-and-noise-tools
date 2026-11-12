@@ -7,12 +7,20 @@ Phase 2.
 ## How to regenerate
 
 1. S&N → Content → Resume. Edit, **Save draft**, then **Publish**.
-2. The **PDF only** section holds the PDF's own fields: headline, tagline,
-   professional summary (blank: the Hero summary), location, phone, email, website (blank: this site), core competencies (one per line), technical
-   toolkit (one per line). The phone is stored and never printed (see "The phone" below).
-   These are the music PDF's; /resume shows the Operations résumé's headline and subhead instead
-   (see "One résumé on /resume").
-3. **Generate PDF** (the Resume PDF box below the form). It renders the published document, writes
+2. The **Contact** section ("PDF only" until 2026-11-12) holds the email the PDF's contact line
+   prints and the phone, stored and never printed (see "The phone" below). The document's other
+   `pdf.*` keys (headline, tagline, professional summary, location, website, core competencies,
+   technical toolkit) and `variants.music` are no longer in either editor; a draft save carries each
+   one the post lacks over from the draft, else the live document (`sn_resume_draft_carry_over()`),
+   so nothing stored is lost. The **Résumé settings** section ("Operations résumé" until 2026-11-12)
+   holds the one résumé's own headline, subhead and the rest (see "One résumé on /resume").
+3. **Generate PDF** (the Resume PDF box below the form). With résumé settings
+   (`variants.operations`, `sn_resume_pdf_is_one()`) it builds only the résumé PDF, the Spanish CV
+   and /resume (the `sn_resume_pdf_generated` action; see "One PDF name" below), removes
+   `uploads/resume/JuanLentino_Resume_Music.pdf` and the old `JuanLentino_Resume.pdf`, deletes the
+   `sn_resume_pdf` option, and purges both files' bare URLs and every `?v=` URL issued, plus the
+   agent copies. The file removal does not depend on Cloudflare. The rest of this step is the
+   fallback for a document **without** résumé settings: it renders the published document, writes
    `uploads/resume/JuanLentino_Resume_Music.pdf` (`JuanLentino_Resume.pdf` until 2026-11-12), stores the timestamp, size, page count and SHA-256 in
    the `sn_resume_pdf` option, re-renders /resume so the Download link reads
    `…/resume/JuanLentino_Resume_Music.pdf?v=<first 8 of the hash>`, and purges only what changed: the
@@ -37,20 +45,20 @@ every reader already knew, and the editor reads the stored document through `sn_
   `operations`). Under each role, each saved bullet has the same choice; the flag is keyed by the bullet's text, so
   reordering bullets never moves it, and a bullet whose text changes goes back to both.
 - **What I've Built.** An intro line and one card per project (title, link, one or two
-  sentences). The operations PDF shows it; the music PDF only with "Show What I've Built in the
-  music PDF" (PDF only). On /resume it shows while "built" is in the Sections list.
-- **Operations résumé.** Headline, subhead, location, extra contact links (after the website),
+  sentences). The operations PDF shows it; the music PDF only with `variants.music.show_built`
+  (its editor switch was removed 2026-11-12; the stored value is kept). On /resume it shows while
+  "built" is in the Sections list.
+- **Résumé settings** ("Operations résumé" until 2026-11-12; still `variants.operations`). Headline, subhead, location, extra contact links (after the website),
   summary, the section order (one key per line from `summary, stats, competencies, built,
   experience, publications, education, affiliations, skills, toolkit`; a key left out is a section
   left out), the experience order (organizations by name; the rest follow as listed), earlier career
-  one line per role, and the file name. Blank fields fall back to the music PDF's. The phone is
+  one line per role, and the file name. Blank fields fall back to the document's `pdf.*` values. The phone is
   never printed in it.
-- **Set up the operations résumé** (Content → Resume) writes the operations résumé's starting
-  content (the owner brief's appendix) into the **draft**: its settings, What I've Built, its four
-  skills rows and two affiliations, and "music only" on what it leaves out. It finds rows by the
-  start of their text, never rewords them, lists anything it cannot find (those stay in both), and
-  running it again only fills what is missing and never undoes an edit.
-- **Generate PDF** builds both: the music file as before, then the operations PDF, served at
+- **The operations setup** (`sn_resume_operations_setup()`, `inc/resume-operations-setup.php`)
+  wrote that starting content (the owner brief's appendix) into the draft on 2026-11-01. Its box,
+  its `resume_operations_setup` action and its flash codes left the editor on 2026-11-12; the
+  function stays because the tests build their fixtures with it.
+- **Generate PDF** builds the operations PDF (since 2026-11-12 the only one, with no music file), served at
   `/resume/<PDF file name>`, `JuanLentino_Resume.pdf` by default (the `sn_resume_pdf_operations` option holds its facts,
   `sn_resume_pdf_operations_bytes` the file). The music PDF's HTML is identical to what it was
   (pinned by `tests/resume-variants.php`).
@@ -58,7 +66,7 @@ every reader already knew, and the editor reads the stored document through `sn_
   addresses redirect there (301, `sn_resume_pdf_retired_redirect()` in `inc/resume-pdf/operations.php`):
   `/resume/JuanLentino_Resume_Operations.pdf`, and the music PDF's old uploads file
   `uploads/resume/JuanLentino_Resume.pdf`. Generate removes that file and purges its addresses, because a
-  static file is served before WordPress runs; the music PDF is now `JuanLentino_Resume_Music.pdf`. An
+  static file is served before WordPress runs; the music PDF, when the fallback builds one, is `JuanLentino_Resume_Music.pdf`. An
   address is never redirected while it is the stored PDF file name, or when no PDF is live.
 
 **The check on every generation** (`inc/resume-pdf/text-check.php`). Each PDF's text is read back by
@@ -94,8 +102,9 @@ The stored document is unchanged, so the music view still exists.
   contact rail with the extra links, the line "Verified credits: juanlentino.com/music" (only while
   /music is published, `sn_resume_credits_url()`), and the one Download.
 - **One PDF**: the operations build, printing and linking `juanlentino.com/resume` and the
-  verified-credits line, Info Title "Juan Lentino · Résumé". The music PDF is still built for the
-  record but nothing on /resume, in the format list or in llms.txt links it.
+  verified-credits line, Info Title "Juan Lentino · Résumé". Since 2026-11-12 no music PDF is
+  built beside it (the box names only the Résumé PDF and the Spanish CV's failures), and Publish
+  rebuilds it whenever it is live or its last build failed, with no music facts stored (`sn_resume_refresh_outputs()`).
 - **`?lane=` means nothing.** Every address shows the same body; the canonical and `og:url` are
   `/resume/`; the formats ignore it too: `/resume.md`, `/resume/json-resume.json` and
   `/resume/contact.vcf` are the one résumé, with no `lane:` / `lanes:` / `meta.x-lane(s)`. The JSON
@@ -206,6 +215,10 @@ To update Dompdf: `cd lib/pdf && composer update`, then run `php tests/resume-pd
   and before generation; after generation only the Download URL differs.
 - `tests/resume-integrity.php`: the rendered page has no space before punctuation, every Person
   `award` appears in the visible copy, and the years figure is 15+ everywhere.
+- `tests/resume-ops-pdf-build.php`: the résumé PDF's build, and since 2026-11-12 Generate with
+  settings (no music file, its facts and every ?v= address gone, the Spanish CV hook run), Publish
+  rebuilding it with no music facts, and the music fallback without settings.
+- `tests/resume-draft.php`: a save carries over the `pdf.*` keys and `variants.music` the post lacks.
 - `tests/resume-variants.php`: the stored flags, the music and operations views, the setup (the
   music résumé unchanged by it, idempotent, misses reported), the music PDF HTML unchanged, the
   operations PDF's order, its missing sections, its headline and links, and no phone.

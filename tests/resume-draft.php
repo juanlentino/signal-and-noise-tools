@@ -180,10 +180,34 @@ $GLOBALS['__update_fails'] = true;
 ok( false === sn_resume_draft_save( $alt ) && ! isset( $GLOBALS['__options'][ SN_RESUME_DRAFT_OPTION ] ), 'a failed write returns false, and nothing is stored' );
 ok( 'resume_draft_failed' === sn_handle_resume_draft_save( array( 'resume' => $alt ) ), 'the handler flashes resume_draft_failed, not Draft saved' );
 ok( 'resume_draft_refused' === sn_handle_resume_draft_save( array( 'resume' => array( 'hero' => array( 'summary' => 'x' ) ) ) ), 'a refused document still says refused, write or no write' );
-function sn_resume_operations_setup( $base ) { return array( 'doc' => $base, 'missing' => array() ); }
-ok( 'resume_draft_failed' === sn_handle_resume_operations_setup( array() ), 'the operations setup reports the failed write the same way' );
 $GLOBALS['__update_fails'] = false;
-ok( 'resume_ops_setup' === sn_handle_resume_operations_setup( array() ), 'and saves when the write happens' );
+
+echo "\nTest: a save keeps the fields the editor no longer shows\n";
+// The Contact section posts only the email and phone, and no editor posts
+// variants.music any more: what the post lacks comes from the document the
+// editor showed (the draft, else the live one), never blanked by normalize.
+$rich = $seed;
+$rich['pdf'] = array( 'headline' => 'Kept headline', 'tagline' => 'Kept tagline', 'summary' => 'Kept summary', 'location' => 'Kept City', 'phone' => '(407) 555-0100', 'email' => 'old@example.test', 'website' => 'https://kept.example', 'competencies' => array( 'Kept competency' ), 'toolkit' => array( 'Kept tool' ) );
+$rich['variants']['music'] = array( 'show_built' => true );
+$posted = $rich;
+$posted['pdf'] = array( 'email' => 'new@example.test' ); // the Contact section, its phone left out on purpose: absent, not blank
+unset( $posted['variants']['music'] );
+$kept = static function () {
+	$d = sn_resume_draft_get();
+	return is_array( $d ) && 'Kept headline' === $d['pdf']['headline'] && 'Kept tagline' === $d['pdf']['tagline'] && 'https://kept.example' === $d['pdf']['website'] && array( 'Kept competency' ) === $d['pdf']['competencies'] && array( 'Kept tool' ) === $d['pdf']['toolkit'] && '(407) 555-0100' === $d['pdf']['phone'] && 'new@example.test' === $d['pdf']['email'] && ! empty( $d['variants']['music']['show_built'] );
+};
+fresh( array( SN_RESUME_DOC_OPTION => $rich + array( 'updated' => '2020-01-01' ) ) );
+ok( 'resume_draft_saved' === sn_handle_resume_draft_save( array( 'resume' => $posted ) ) && $kept(), 'no draft yet: the live document\'s PDF fields and music setting are carried over, and the posted email wins' );
+$older = $rich;
+$older['pdf']['headline'] = 'Live headline';
+fresh( array( SN_RESUME_DOC_OPTION => $older + array( 'updated' => '2020-01-01' ) ) );
+sn_resume_draft_save( $rich );
+ok( 'resume_draft_saved' === sn_handle_resume_draft_save( array( 'resume' => $posted ) ) && $kept(), 'with a draft: the draft\'s values are carried over, not the live ones' );
+$cleared = $posted;
+$cleared['pdf']['phone'] = '';
+fresh( array( SN_RESUME_DOC_OPTION => $rich + array( 'updated' => '2020-01-01' ) ) );
+sn_handle_resume_draft_save( array( 'resume' => $cleared ) );
+ok( '' === sn_resume_draft_get()['pdf']['phone'], 'a field the post does carry, emptied, stays empty: only absent keys are carried over' );
 
 echo "\nTest: Preview page\n";
 fresh( array( SN_RESUME_DOC_OPTION => $live_a ) );

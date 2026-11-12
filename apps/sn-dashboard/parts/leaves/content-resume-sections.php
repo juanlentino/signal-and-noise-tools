@@ -6,8 +6,8 @@
  * with, and the painter of its fields, in the classic order. The ledger
  * (content-resume-ledger.php) lists them; the edit region paints one of them
  * as fields and the other ten as hidden carriers (content-resume-edit.php).
- * Row painters: content-resume-parts.php; the Hero and PDF-only field groups:
- * content-resume.php; What I've Built and Operations résumé:
+ * Row painters: content-resume-parts.php; the Hero and Contact field groups:
+ * content-resume.php; What I've Built and Résumé settings:
  * content-resume-variants.php.
  *
  * @package SignalNoiseTools
@@ -33,7 +33,7 @@ function resume_first( array $rows, $field ) {
 
 /**
  * The eleven sections, in the classic order. `count` is null for the three
- * blocks of single fields (Hero, Operations résumé, PDF only), which the
+ * blocks of single fields (Hero, Résumé settings, Contact), which the
  * classic summary never counted either.
  *
  * @param array $doc The document.
@@ -52,7 +52,6 @@ function resume_section_map( array $doc ) {
 	$built   = (array) ( $doc['built'] ?? array() );
 	$items   = (array) ( $built['items'] ?? array() );
 	$ops     = (array) ( $doc['variants']['operations'] ?? array() );
-	$music   = ! empty( $doc['variants']['music']['show_built'] );
 	$pdf     = (array) ( $doc['pdf'] ?? array() );
 	$ns      = __NAMESPACE__;
 	$blank   = array( 'roles' => array( array() ) );
@@ -123,24 +122,24 @@ function resume_section_map( array $doc ) {
 		),
 		'built'        => array(
 			'title' => __( "What I've Built", 'signal-and-noise-tools' ),
-			'hint'  => __( '/resume and its PDF show this section while "built" is in its Sections list (a blank list takes the music order, which has none). The music résumé shows it only when Show "What I\'ve Built" in the music PDF is on (PDF only).', 'signal-and-noise-tools' ),
+			'hint'  => __( '/resume and its PDF show this section while "built" is in its Sections list (a blank list takes the music order, which has none).', 'signal-and-noise-tools' ),
 			'count' => count( $items ),
 			'first' => resume_first( $items, 'title' ),
 			'paint' => static function () use ( $built ) { return resume_built( $built ); },
 		),
 		'variants'     => array(
-			'title' => __( 'Operations résumé', 'signal-and-noise-tools' ),
-			'hint'  => __( 'What /resume shows, and its PDF, built by Generate along with the music one: /resume is this one résumé, and its Download links this PDF once it is generated. Each row\'s "On /resume" decides whether it shows: Shown or Hidden. Never re-run Operations résumé setup: it hides rows again.', 'signal-and-noise-tools' ),
+			'title' => __( 'Résumé settings', 'signal-and-noise-tools' ),
+			'hint'  => __( 'What /resume shows, and its PDF, built by Generate: /resume\'s Download links this PDF once it is generated. Each row\'s "On /resume" decides whether it shows: Shown or Hidden.', 'signal-and-noise-tools' ),
 			'count' => null,
 			'first' => (string) ( $ops['headline'] ?? '' ),
 			'paint' => static function () use ( $ops ) { return resume_operations( $ops ); },
 		),
 		'pdf'          => array(
-			'title' => __( 'PDF only', 'signal-and-noise-tools' ),
-			'hint'  => __( 'The PDF\'s own fields. These are the music PDF\'s; /resume shows the Operations résumé\'s headline and subhead instead, and the phone never reaches the page. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.', 'signal-and-noise-tools' ),
+			'title' => __( 'Contact', 'signal-and-noise-tools' ),
+			'hint'  => __( 'Email prints in the PDF\'s contact line. The phone is never printed; it is kept only so the PDF check can refuse a file that carries it.', 'signal-and-noise-tools' ),
 			'count' => null,
-			'first' => (string) ( $pdf['headline'] ?? '' ),
-			'paint' => static function () use ( $pdf, $music ) { return resume_pdf( $pdf, $music ); },
+			'first' => (string) ( $pdf['email'] ?? '' ),
+			'paint' => static function () use ( $pdf ) { return resume_pdf( $pdf ); },
 		),
 	);
 }

@@ -143,10 +143,9 @@ function paint_content_resume( array $ctx ) {
 		'lead'    => resume_es_stale_notice() . resume_intro( $live ) . $list['lead'],
 		'attrs'   => array( 'id' => 'snt-edit-list', 'tabindex' => '-1', 'data-snt-focus' => true ),
 	) + $list;
-	// 2026-10-12 audit: Draft and Resume PDF are both short; they share a row,
-	// and the operations setup, the classic's third box, joins them.
+	// 2026-10-12 audit: Draft and Resume PDF are both short; they share a row.
 	return \snt_kit_edit_list( $list, '' !== $editing ? resume_edit_region( $sections, $editing ) : '' )
-		. \snt_kit_grid( array( resume_draft_controls(), resume_pdf_generate(), resume_operations_setup() ) );
+		. \snt_kit_grid( array( resume_draft_controls(), resume_pdf_generate() ) );
 }
 
 /**

@@ -55,10 +55,11 @@ ok( is_array( $doc ) && '(407) 555-0123' === $doc['pdf']['phone'] && true === $d
 
 echo "\nGroup: every PDF\n";
 sn_test_pdf_reset( $doc );
-$music = sn_resume_pdf_generate(); // fires the operations build too.
-$file  = (string) @file_get_contents( $GLOBALS['tmp'] . '/resume/' . SN_RESUME_PDF_FILE );
-$mt    = $text( $file );
-ok( is_array( $music ) && false !== strpos( $mt, 'juan@example.com' ) && ! $has( $mt ), 'the music PDF: built, its contact line printed, no phone in its text layer' );
+$built = sn_resume_pdf_generate(); // with résumé settings: the résumé PDF, no music file (2026-11-12).
+ok( is_array( $built ) && ! file_exists( $GLOBALS['tmp'] . '/resume/' . SN_RESUME_PDF_FILE ), 'Generate builds the résumé PDF and no music file' );
+$music = sn_resume_pdf_render( $doc, 'Juan Lentino', $GLOBALS['tmp'] . '/resume/.font-cache', false, 'https://example.test/resume/', sn_resume_pdf_music_config( $doc ) ); // what the fallback (no résumé settings) renders.
+$mt    = is_array( $music ) ? $text( $music['bytes'] ) : '';
+ok( is_array( $music ) && false !== strpos( $mt, 'juan@example.com' ) && ! $has( $mt ), 'the music PDF (the fallback): built, its contact line printed, no phone in its text layer' );
 $ops = sn_resume_ops_pdf_bytes();
 $ot  = $text( $ops );
 ok( '' !== $ops && '' !== trim( $ot ) && ! $has( $ot ), 'the operations PDF: built, no phone in its text layer' );

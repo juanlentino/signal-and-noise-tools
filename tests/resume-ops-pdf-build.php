@@ -107,7 +107,7 @@ unset( $none['variants'] );
 $reset( $none, $good + array( 'sn_resume_draft' => $set ) );
 ok( null === sn_resume_ops_pdf_build() && ! isset( $GLOBALS['opts']['sn_resume_pdf_operations'] ) && ! isset( $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] ), 'settings removed: the old file and its facts are dropped' );
 ok( array( $url ) === $GLOBALS['purged'], 'and its address is purged, so the edge does not keep serving it' );
-ok( false !== strpos( $box(), 'set up in the draft' ), 'the box says a set-up draft is waiting, not "not set up yet"' );
+ok( false !== strpos( $box(), 'Résumé PDF: set in the draft. Publish it, then Generate builds it.' ), 'the box says settings in the draft are waiting, not that there are none' );
 $empty = $set;
 foreach ( array( 'experience', 'publications' ) as $k ) {
 	foreach ( $empty[ $k ] as $i => $row ) {
@@ -151,7 +151,7 @@ $reset( $set );
 wp_mkdir_p( $GLOBALS['tmp'] . '/resume' );
 file_put_contents( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume.pdf', '%PDF-old music' );
 sn_resume_pdf_generate();
-ok( ! file_exists( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume.pdf' ) && file_exists( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume_Music.pdf' ), 'Generate writes the music PDF under its own name and removes the old JuanLentino_Resume.pdf from uploads' );
+ok( ! file_exists( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume.pdf' ) && ! file_exists( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume_Music.pdf' ), 'Generate removes the old JuanLentino_Resume.pdf from uploads, and writes no music PDF' );
 ok( in_array( 'https://example.test/up/resume/JuanLentino_Resume.pdf', $GLOBALS['purged'], true ), 'and purges the old file\'s address' );
 $GLOBALS['purged'] = array();
 sn_resume_pdf_generate();
@@ -168,6 +168,36 @@ sn_resume_ops_pdf_build();
 ok( '' === sn_resume_pdf_retired_target( '/resume/JuanLentino_Resume_Operations.pdf' ) && 0 === strpos( sn_resume_pdf_retired_target( '/up/resume/JuanLentino_Resume.pdf' ), 'https://example.test/resume/JuanLentino_Resume_Operations.pdf?v=' ), 'while the stored name is still the old one, that address is served, never redirected' );
 $reset( $set );
 ok( '' === sn_resume_pdf_retired_target( '/resume/JuanLentino_Resume_Operations.pdf' ), 'no PDF live: no redirect (never to a 404)' );
+
+echo "\nGroup: one résumé, no music PDF (2026-11-12)\n";
+add_action( 'sn_resume_pdf_generated', static function () { $GLOBALS['es_ran'] = true; } ); // the Spanish CV's hook (inc/resume-es.php), a spy here.
+$music_url = 'https://example.test/up/resume/JuanLentino_Resume_Music.pdf';
+$reset( $set, array( 'sn_resume_pdf' => array( 'url' => $music_url, 'sha256' => str_repeat( 'a', 64 ) ), 'sn_resume_pdf_issued' => array( 'aaaaaaaa', 'bbbbbbbb' ) ) );
+$GLOBALS['es_ran'] = false;
+file_put_contents( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume_Music.pdf', '%PDF-old music' );
+$out = sn_resume_pdf_generate();
+ok( ! file_exists( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume_Music.pdf' ), 'with résumé settings, Generate removes the music PDF from uploads and writes none' );
+ok( ! isset( $GLOBALS['opts']['sn_resume_pdf'] ), 'and its stored facts are gone' );
+ok( is_array( $out ) && $out === $GLOBALS['opts']['sn_resume_pdf_operations'] && sn_resume_ops_pdf_live() && $GLOBALS['es_ran'], 'the résumé PDF is built and returned, and the Spanish CV hook ran' );
+ok( array() === array_diff( array( $music_url, $music_url . '?v=aaaaaaaa', $music_url . '?v=bbbbbbbb' ), $GLOBALS['purged'] ), 'the music file\'s address and every ?v= one it was linked under are purged' );
+$lines = $box();
+ok( false === strpos( $lines, 'Music PDF' ) && false === strpos( $lines, 'Operations PDF' ) && false === strpos( $lines, 'music PDF' ) && false !== strpos( $lines, "Résumé PDF, generated" ) && false !== strpos( $lines, "linked from /resume's Download" ), 'the box names the Résumé PDF only: no music lines, no "Operations PDF"' );
+$GLOBALS['es_ran'] = false;
+$reset( $ph, $GLOBALS['opts'] );
+$e = sn_resume_pdf_generate();
+ok( is_wp_error( $e ) && ! isset( $GLOBALS['opts']['sn_resume_pdf'] ) && ! empty( $GLOBALS['opts']['sn_resume_pdf_operations']['error'] ) && $GLOBALS['es_ran'], 'a résumé PDF that fails is Generate\'s error, recorded on the résumé PDF only (no music facts come back)' );
+
+echo "\nGroup: Publish rebuilds the résumé PDF with no music PDF (2026-11-12)\n";
+$reset( $set );
+sn_resume_ops_pdf_build();
+$GLOBALS['es_ran'] = false;
+ok( ! isset( $GLOBALS['opts']['sn_resume_pdf'] ) && sn_resume_ops_pdf_live() && true === sn_resume_refresh_outputs() && $GLOBALS['es_ran'], 'a live résumé PDF and no music facts: Publish still runs Generate' );
+
+echo "\nGroup: no résumé settings: the music PDF is the fallback\n";
+$reset( $none );
+$out = sn_resume_pdf_generate();
+ok( is_array( $out ) && file_exists( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume_Music.pdf' ) && $out === $GLOBALS['opts']['sn_resume_pdf'], 'a document with no variants.operations still writes and records the music PDF' );
+ok( false !== strpos( $box(), 'Résumé PDF: no résumé settings yet.' ) && false === strpos( $box(), 'Set up the operations' ), 'and the box says there are no résumé settings, with no setup button named' );
 
 sn_test_pdf_cleanup();
 echo "\nResult: $pass passed, $fail failed.\n";

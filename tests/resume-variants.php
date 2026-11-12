@@ -135,8 +135,7 @@ ok( 1 === preg_match( "/0 !== strpos\\( \\\$path, '\\/resume\\/' \\) \\|\\| '\\.
 ok( false !== strpos( $gen_src, '$config = sn_resume_pdf_music_config(' ), 'Generate renders the music layout' );
 ok( 2 === substr_count( $dr_src, 'sn_resume_doc_same( $draft, sn_resume_doc_get_raw() )' ), 'the draft status and Publish compare the stored documents, flags included' );
 ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions/resume-draft.php' ), "sn_resume_page_body( \$draft )" ) && false !== strpos( $gen_src, "sn_resume_doc_view( sn_resume_draft_get(), 'music' )" ), 'the page preview shows the draft as the page would be (one lane or two); the PDF preview shows its music résumé' );
-$setup_fn = substr( $act_src, (int) strpos( $act_src, 'function sn_handle_resume_operations_setup' ) );
-ok( false !== strpos( $setup_fn, 'sn_resume_draft_save( $set[\'doc\'] )' ) && false === strpos( $setup_fn, 'sn_resume_doc_save' ), 'the setup writes the draft only, never the published résumé' );
+ok( false === strpos( $act_src, 'sn_handle_resume_operations_setup' ) && false === strpos( $act_src, 'sn_resume_doc_save' ), 'no setup action is left (2026-11-12), and no draft handler writes the published résumé' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

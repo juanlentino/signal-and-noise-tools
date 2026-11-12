@@ -30,7 +30,6 @@ require_once __DIR__ . '/../inc/admin-post-actions/content.php';
 require_once __DIR__ . '/../inc/resume-page.php';
 require_once __DIR__ . '/../inc/resume-draft.php';
 require_once __DIR__ . '/../inc/admin-post-actions/resume-draft.php';
-ok( 'resume_failed' === sn_handle_resume_operations_setup( array() ), 'the setup action without its module: resume_failed' );
 require_once __DIR__ . '/../inc/resume-pdf/template.php';
 require_once __DIR__ . '/../inc/resume-operations-setup.php';
 
@@ -93,27 +92,6 @@ $st               = sn_resume_doc_normalize( sn_resume_operations_setup( sn_resu
 $so               = $st['variants']['operations'];
 ok( '' !== $so['headline'] && '' !== $so['summary'] && array() !== $so['sections'] && 'Mine.pdf' === $so['pdf_file'], 'a block holding only the "Earlier career" box and a file name is not set up: the run writes the headline, summary and sections, and keeps the file name' );
 ok( array( 'music' ) === array_values( array_unique( array_map( static fn( $r ) => $r['variant'] ?? '', array_filter( $st['skills'], static fn( $r ) => 'operations' !== ( $r['variant'] ?? '' ) ) ) ) ), 'and marks the existing skills rows "Music only"' );
-
-echo "\nGroup: the setup action\n";
-$full = $seed;
-foreach ( sn_resume_operations_setup( $seed )['missing'] as $item ) {
-	list( $kind, $start ) = explode( ': ', $item, 2 );
-	if ( 'bullet' === $kind ) {
-		$full['experience'][0]['roles'][0]['bullets'][] = $start . '.';
-	} elseif ( 'role' === $kind ) {
-		$full['experience'][0]['roles'][] = array( 'title' => $start, 'bullets' => array( 'x' ) );
-	} elseif ( 'earlier' === $kind ) {
-		$full['earlier']['entries'][] = array( 'org' => $start, 'roles' => array( array( 'title' => 'T', 'bullets' => array( 'x' ) ) ) );
-	} else {
-		$full['affiliations'][] = array( 'title' => $start, 'lines' => array( '2020' ) );
-	}
-}
-$GLOBALS['opts'] = array( 'sn_resume_doc' => $seed );
-ok( 'resume_ops_setup_partial' === sn_handle_resume_operations_setup( array() ) && $GLOBALS['opts']['sn_resume_ops_setup_missing'], 'items it cannot find: partial, and the note lists them' );
-ok( $seed === $GLOBALS['opts']['sn_resume_doc'] && isset( $GLOBALS['opts']['sn_resume_draft']['variants']['operations'] ), 'the published résumé is unchanged; the draft holds the setup' );
-$GLOBALS['opts'] = array( 'sn_resume_doc' => $seed, 'sn_resume_draft' => sn_resume_doc_normalize( $full ) );
-ok( 'resume_ops_setup' === sn_handle_resume_operations_setup( array() ) && array() === $GLOBALS['opts']['sn_resume_ops_setup_missing'], 'everything found, starting from the draft: set up, and the note is cleared' );
-ok( 'music' === ( $GLOBALS['opts']['sn_resume_draft']['earlier']['entries'][ count( $full['earlier']['entries'] ) - 1 ]['variant'] ?? '' ), 'the draft gains the music-only marks' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -7,9 +7,8 @@
  * one form (`sn_action=resume_draft_save`: Save stores a draft, see
  * content-resume-draft.php) over eleven sections (Hero, Stats, Experience,
  * Earlier career, Education, Affiliations, Publications, Skills, What I've
- * Built, Operations résumé, PDF only), plus the Resume PDF form
- * (`sn_action=resume_pdf_generate`), the operations setup form
- * (`sn_action=resume_operations_setup`), and a hard failure state when
+ * Built, Résumé settings, Contact), plus the Resume PDF form
+ * (`sn_action=resume_pdf_generate`), and a hard failure state when
  * sn_resume_doc_get_raw() has neither a stored document nor a readable seed.
  * Same reader, same names, same handler; the kit's parts instead of
  * wp-admin's. Here the eleven sections are one table and one edit
@@ -70,26 +69,17 @@ function resume_hero( array $hero ) {
 }
 
 /**
- * PDF only: fields the generated music PDF uses. /resume shows the Operations
- * résumé's headline and subhead instead; the phone never reaches it. Same names, labels and placeholders as the classic form.
+ * Contact: the email the PDF's contact line prints, and the phone it never
+ * prints. The other pdf.* keys stay in the document, carried over on save
+ * (sn_resume_draft_carry_over()). Same names, labels and placeholders as the
+ * classic form.
  *
- * @param array $pdf        The pdf block.
- * @param bool  $show_built variants.music.show_built.
+ * @param array $pdf The pdf block.
  * @return string
  */
-function resume_pdf( array $pdf, $show_built = false ) {
-	return resume_text( 'resume[pdf][headline]', __( 'Headline', 'signal-and-noise-tools' ), $pdf['headline'] ?? '', 'Music Business Development & Strategic Partnerships Leader' )
-		. resume_text( 'resume[pdf][tagline]', __( 'Tagline', 'signal-and-noise-tools' ), $pdf['tagline'] ?? '', 'Artist & Label Relations | Latin American & U.S. Markets' )
-		. \snt_kit_field( 'textarea', 'resume[pdf][summary]', __( 'Professional summary', 'signal-and-noise-tools' ), (string) ( $pdf['summary'] ?? '' ), array( 'rows' => 4, 'hint' => __( 'Blank: the PDF uses the Summary from Hero.', 'signal-and-noise-tools' ) ) )
-		. resume_pair(
-			resume_text( 'resume[pdf][location]', __( 'Location', 'signal-and-noise-tools' ), $pdf['location'] ?? '', 'Orlando, FL' ),
-			\snt_kit_field( 'text', 'resume[pdf][phone]', __( 'Phone', 'signal-and-noise-tools' ), (string) ( $pdf['phone'] ?? '' ), array( 'placeholder' => '(000) 000-0000', 'hint' => __( 'Never printed: not on /resume, not in any PDF. It is kept only so the PDF check can refuse a file that carries it.', 'signal-and-noise-tools' ) ) )
-		)
-		. resume_text( 'resume[pdf][email]', __( 'Email', 'signal-and-noise-tools' ), $pdf['email'] ?? '', 'name@example.com' )
-		. resume_text( 'resume[pdf][website]', __( 'Website', 'signal-and-noise-tools' ), $pdf['website'] ?? '', 'https://juanlentino.com (blank: this site)' )
-		. resume_lines( 'resume[pdf][competencies]', $pdf['competencies'] ?? array(), __( 'Core competencies: one per line', 'signal-and-noise-tools' ), 'Strategic Partnerships & Deal Negotiation', 6 )
-		. resume_lines( 'resume[pdf][toolkit]', $pdf['toolkit'] ?? array(), __( 'Technical toolkit: one per line', 'signal-and-noise-tools' ), 'Pro Tools', 4 )
-		. resume_music_built_toggle( $show_built );
+function resume_pdf( array $pdf ) {
+	return resume_text( 'resume[pdf][email]', __( 'Email', 'signal-and-noise-tools' ), $pdf['email'] ?? '', 'name@example.com' )
+		. \snt_kit_field( 'text', 'resume[pdf][phone]', __( 'Phone', 'signal-and-noise-tools' ), (string) ( $pdf['phone'] ?? '' ), array( 'placeholder' => '(000) 000-0000', 'hint' => __( 'Never printed: not on /resume, not in any PDF. It is kept only so the PDF check can refuse a file that carries it.', 'signal-and-noise-tools' ) ) );
 }
 
 /**
@@ -98,15 +88,17 @@ function resume_pdf( array $pdf, $show_built = false ) {
  * @return string
  */
 function resume_pdf_generate() {
-	$meta = get_option( defined( 'SN_RESUME_PDF_OPTION' ) ? SN_RESUME_PDF_OPTION : 'sn_resume_pdf' );
-	if ( is_array( $meta ) && ! empty( $meta['url'] ) ) {
+	$meta   = get_option( defined( 'SN_RESUME_PDF_OPTION' ) ? SN_RESUME_PDF_OPTION : 'sn_resume_pdf' );
+	$one    = function_exists( 'sn_resume_pdf_is_one' ) && \sn_resume_pdf_is_one(); // no music PDF: the résumé PDF is in the lines below.
+	$status = '';
+	if ( ! $one && is_array( $meta ) && ! empty( $meta['url'] ) ) {
 		// 2026-10-12 audit: the classic's facts (size, SHA-256, where the
 		// Download link points) restored; "1 pages" made singular.
 		$pages  = (int) ( $meta['pages'] ?? 0 );
 		$status = '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: timestamp, 2: pages, 3: file size */ _n( 'Generated %1$s: %2$s page, %3$s, SHA-256', 'Generated %1$s: %2$s pages, %3$s, SHA-256', $pages, 'signal-and-noise-tools' ), \sn_resume_pdf_when( $meta ), number_format_i18n( $pages ), size_format( (int) ( $meta['bytes'] ?? 0 ) ) ) )
 			. ' ' . \snt_kit_code( substr( (string) ( $meta['sha256'] ?? '' ), 0, 12 ), false ) . '. '
-			. \snt_kit_link( __( 'Open the PDF', 'signal-and-noise-tools' ), \sn_resume_pdf_link( '' ) ) . '. ' . \snt_kit_esc( function_exists( 'sn_resume_formats_one' ) && \sn_resume_formats_one() ? __( 'This is the music PDF: /resume is the one résumé, and its Download links the operations PDF.', 'signal-and-noise-tools' ) : __( 'The /resume Download link points here.', 'signal-and-noise-tools' ) ) . '</p>';
-	} else {
+			. \snt_kit_link( __( 'Open the PDF', 'signal-and-noise-tools' ), \sn_resume_pdf_link( '' ) ) . '. ' . \snt_kit_esc( __( 'The /resume Download link points here.', 'signal-and-noise-tools' ) ) . '</p>';
+	} elseif ( ! $one ) {
 		$status = '<p class="snt-prose">' . \snt_kit_esc( __( 'Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the published resume and switches the link to it.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
 	if ( function_exists( 'snt_pdf_engine_status_line' ) ) {
