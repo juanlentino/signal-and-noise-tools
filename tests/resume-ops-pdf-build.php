@@ -128,7 +128,8 @@ $nc['earlier']['entries'][0]['roles'][0]['bullets'] = array( $probe );
 $reset( sn_resume_doc_normalize( $nc ) );
 sn_resume_ops_pdf_build();
 $nb = sn_resume_pdf_text( base64_decode( $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] ) );
-ok( false === strpos( $nb, 'Probe bullet' ) && false !== strpos( $nb, (string) $nc['earlier']['entries'][0]['roles'][0]['title'] === '' ? 'x' : strtok( (string) $nc['earlier']['entries'][0]['roles'][0]['title'], ' ' ) ), 'with the page showing earlier-career bullets, the PDF still lists the role and leaves its bullets out' );
+$role_word = strtok( (string) $nc['earlier']['entries'][0]['roles'][0]['title'], ' ' );
+ok( false === strpos( $nb, 'Probe bullet' ) && '' !== (string) $role_word && false !== strpos( $nb, (string) $role_word ), 'with the page showing earlier-career bullets, the PDF still lists the role and leaves its bullets out' );
 $reset( $set );
 sn_resume_ops_pdf_build();
 
