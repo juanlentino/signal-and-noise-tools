@@ -130,7 +130,7 @@ function resume_section_map( array $doc ) {
 		),
 		'variants'     => array(
 			'title' => __( 'Operations résumé', 'signal-and-noise-tools' ),
-			'hint'  => __( 'What /resume shows, and its PDF, built by Generate along with the music one: /resume is this one résumé, and its Download links this PDF once it is generated. Rows marked "Music only" stay off /resume (the music PDF and /cv keep them); "Both résumés" rows show here and there. Never re-run Operations résumé setup to add a row: it marks rows Music only again.', 'signal-and-noise-tools' ),
+			'hint'  => __( 'What /resume shows, and its PDF, built by Generate along with the music one: /resume is this one résumé, and its Download links this PDF once it is generated. Each row\'s "On /resume" decides whether it shows: Shown or Hidden. Never re-run Operations résumé setup: it hides rows again.', 'signal-and-noise-tools' ),
 			'count' => null,
 			'first' => (string) ( $ops['headline'] ?? '' ),
 			'paint' => static function () use ( $ops ) { return resume_operations( $ops ); },

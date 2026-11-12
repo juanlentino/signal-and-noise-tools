@@ -31,10 +31,10 @@ The document builds two views: **music** (the music PDF and the Spanish CV) and 
 `inc/resume-variants.php` holds the rules; `sn_resume_doc_get()` returns the music view in the shape
 every reader already knew, and the editor reads the stored document through `sn_resume_doc_get_raw()`.
 
-- **Shows in.** Every experience and earlier entry, role, education and affiliation row,
-  publication and skills row has a "Shows in" choice: both (the default, and what every row had
-  before), music only, or operations only. Under each role, "Which résumé each bullet shows in"
-  lists its saved bullets with the same choice; the flag is keyed by the bullet's text, so
+- **On /resume** (until 2026-11-12 "Shows in"). Every experience and earlier entry, role, education and affiliation row,
+  publication and skills row has a choice: Shown (stored '', the default, and what every row had
+  before), Hidden (stored `music`: the music PDF keeps it), or "Shown, not on the music PDF" (stored
+  `operations`). Under each role, each saved bullet has the same choice; the flag is keyed by the bullet's text, so
   reordering bullets never moves it, and a bullet whose text changes goes back to both.
 - **What I've Built.** An intro line and one card per project (title, link, one or two
   sentences). The operations PDF shows it; the music PDF only with "Show What I've Built in the
@@ -80,7 +80,7 @@ a head band (eyebrow and the page title), then the bands of `sn_resume_lane_doc(
 numbered as they fall, each h2 anchored `#resume-<band>`. That document is the operations view with
 its headline, subhead, location and summary, its experience order, earlier career without bullets
 when it asks, only the sections its Sections list names, and "What I've Built" as `built`. Rows the
-owner wants on /resume are tagged "Both résumés"; "Music only" rows stay on the music PDF and /cv.
+owner wants on /resume are Shown; Hidden rows stay on the music PDF.
 The stored document is unchanged, so the music view still exists.
 
 - **The hero** carries the optional **kicker** (`variants.operations.kicker`, a small line straight
