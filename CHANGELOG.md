@@ -15,6 +15,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Changed
 - **The résumé editor says "On /resume: Shown / Hidden" instead of "Shows in: Both résumés / Music only / Operations only".** Since the one résumé (2026.11.30) the per-row choice only decides whether a row is on /resume, and the old words described two résumés that no longer exist. The stored values are unchanged ('' Shown, `music` Hidden, `operations` "Shown, not on the music PDF"), so nothing moves on the page. The Operations résumé setup now says it is a one-time starting point and that running it again hides rows; the section hint says the same. Classic and native forms (`inc/admin-forms/resume-variants.php`, `apps/sn-dashboard/parts/leaves/content-resume-variants.php`, `content-resume-sections.php`). Test: `tests/os-leaf-content-resume.php`.
 
+### Fixed
+- **The résumé PDF is two pages again.** With the earlier-career bullets back on /resume (owner, 2026-11-12) the PDF ran to three pages, and its own page check flagged it. The PDF now always shows earlier career as one line per role, whatever the page shows (`inc/resume-pdf/operations.php`); the editor's checkbox now says it governs /resume and that the PDF is always compact. Test: `tests/resume-ops-pdf-build.php`.
+
 ## [2026.11.31] - 2026-11-12 — Exact page views from the analytics worker's counter
 
 ### Added
