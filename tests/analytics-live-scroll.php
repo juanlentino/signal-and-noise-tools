@@ -131,7 +131,7 @@ ok( ! in_array( 'Resume via hera', array_column( $pub, 'label' ), true ) && 1 ==
 $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ]['pages'] = null;
 ok( null === sn_analytics_live_payload( true )['pages'], 'a failed pages read stays absent, coded links or not' );
 $rt = (string) file_get_contents( $root . '/inc/analytics-realtime.php' );
-ok( false !== strpos( $rt, "sn_analytics_live_pages_read( \$links )" ) && false !== strpos( $rt, "'links'       => \$links," ), 'the realtime refresh stores the coded rows from the same query' );
+ok( false !== strpos( $rt, "sn_analytics_live_pages_read( \$links )" ) && 1 === preg_match( "/'links'\\s+=> \\\$links,/", $rt ), 'the realtime refresh stores the coded rows from the same query' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

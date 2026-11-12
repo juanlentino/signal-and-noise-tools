@@ -22,6 +22,17 @@ ok( "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS
 ok( false === strpos( sn_analytics_v2_count_sql( 'sn_pageviews', 4 ), 'double11' ), 'the legacy read asks for no pageview ID (the column does not exist there)' );
 ok( false !== strpos( sn_analytics_v2_count_sql( 'x; DROP', 99 ), "FROM sn_pageviews WHERE timestamp >= toStartOfDay(now() - INTERVAL '13' DAY)" ), 'an unknown dataset falls back to the legacy name and the window is clamped: nothing typed reaches the statement' );
 
+echo "\nSampling seen after the legacy write stopped\n";
+// 2026-11-11 live: legacy empty (worker 2.0.0), v2 pv 20 stored rows standing for 31.
+$P2 = array( array( 'day' => '2026-11-12', 'ev' => 'pv', 'n' => 31, 'r' => 20, 'v' => 3 ), array( 'day' => '2026-11-12', 'ev' => 'sc', 'n' => 41, 'r' => 41, 'v' => 3 ) );
+$c2 = sn_analytics_v2_compare( array(), $P2, array(), '2026-10-05' );
+$d2 = $c2['days'][0];
+ok( true === $d2['sampled'] && array( 'pv' ) === $d2['sampled_events'], 'an empty legacy side no longer hides a sampled v2 day: sampled is true and names pv' );
+ok( array( 'pv: pageviews 20 stored for 31' ) === $d2['sampled_rows'], 'sampled_rows says how many rows were kept and what they stand for' );
+ok( 'mismatch' === $d2['state'], 'the comparison itself still reads mismatch: the legacy side holds nothing' );
+$c3 = sn_analytics_v2_compare( array(), array( array( 'day' => '2026-11-12', 'ev' => 'pv', 'n' => 20, 'r' => 20, 'v' => 3 ) ), array(), '2026-10-05' );
+ok( false === $c3['days'][0]['sampled'] && array() === $c3['days'][0]['sampled_rows'], 'an exact v2 day stays unsampled' );
+
 echo "\nThe comparison\n";
 $L = array( array( 'day' => '2026-10-03', 'ev' => 'pv', 'n' => 60 ), array( 'day' => '2026-10-03', 'ev' => 'ce', 'n' => 9 ), array( 'day' => '2026-10-05', 'ev' => 'pv', 'n' => 40 ), array( 'day' => '2026-10-05', 'ev' => 'sc', 'n' => 80 ), array( 'day' => '2026-10-05', 'ev' => 'ce', 'n' => 5 ), array( 'day' => '2026-10-05', 'ev' => 'cp', 'n' => 7 ) );
 $P = array( array( 'day' => '2026-10-03', 'ev' => 'pv', 'n' => 4, 'with_pid' => 4 ), array( 'day' => '2026-10-05', 'ev' => 'pv', 'n' => 40, 'with_pid' => 38 ), array( 'day' => '2026-10-05', 'ev' => 'sc', 'n' => 80, 'with_pid' => 80 ), array( 'day' => '2026-10-05', 'ev' => 'ce', 'n' => 5, 'with_pid' => 5 ) ); // the ce row is in both new datasets (worker 1.25.0)
@@ -29,7 +40,7 @@ $E = array( array( 'day' => '2026-10-05', 'ev' => 'ce', 'n' => 5, 'with_pid' => 
 $c = sn_analytics_v2_compare( $L, $P, $E, '2026-10-05' );
 ok( true === $c['ok'] && true === $c['read'] && 0 === $c['mismatched'], 'equal counts from the first full day on: ok' );
 ok( 'partial' === $c['days'][0]['state'] && 69 === $c['days'][0]['legacy_pageview_side'] && 4 === $c['days'][0]['v2_pageviews'], 'the day the dual write began is partial, not a mismatch, and still shows both counts' );
-ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'sampled_events' => array(), 'identical_sample' => array(), 'human_sample' => array(), 'set_aside' => array(), 'sampled_why' => array(), 'allowed' => array(), 'figures' => null, 'differs' => array(), 'events_proven' => true, 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
+ok( array( 'day' => '2026-10-05', 'legacy_pageview_side' => 125, 'v2_pageviews' => 125, 'legacy_events' => 12, 'v2_events' => 12, 'with_pid' => 135, 'sampled' => false, 'sampled_events' => array(), 'sampled_rows' => array(), 'identical_sample' => array(), 'human_sample' => array(), 'set_aside' => array(), 'sampled_why' => array(), 'allowed' => array(), 'figures' => null, 'differs' => array(), 'events_proven' => true, 'state' => 'match' ) === $c['days'][1], 'every legacy row but cp against the pageviews dataset, ce and cp against the events dataset: a ce row counts on both sides' );
 $noce = array_slice( $P, 0, 3 );
 ok( 'mismatch' === sn_analytics_v2_compare( $L, $noce, $E, '2026-10-05' )['days'][1]['state'], 'a pageviews dataset missing the custom events\' base rows is a mismatch (the worker 1.24.0 shape)' );
 $P2 = $P; $P2[1]['n'] = 39;

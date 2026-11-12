@@ -108,7 +108,7 @@ $cached = get_transient( SN_ANALYTICS_REALTIME_KEY );
 ok( 4 === count( $cached['readers'] ?? array() ) && in_array( 'Resume via hera', array_column( $cached['readers'], 'page' ), true ), 'a realtime refresh stores the readers in the realtime cache' );
 ok( array( 'Resume via hera' ) === array_column( $cached['links'] ?? array(), 'label' ) && 2 === $cached['links'][0]['readers'], 'the refresh stores the coded links read now, from the live pages read' );
 ok( false !== strpos( (string) file_get_contents( "$root/signal-and-noise-tools.php" ), "require_once SNT_PATH . 'inc/analytics-live-readers.php';" ), 'the plugin loads the readers file' );
-ok( false !== strpos( (string) file_get_contents( "$root/inc/abilities-live-now.php" ), "'readers' => array( 'type' => array( 'array', 'null' ) )" ), 'live-now declares readers in its output schema' );
+ok( 1 === preg_match( "/'readers'\\s+=> array\\( 'type' => array\\( 'array', 'null' \\) \\)/", (string) file_get_contents( "$root/inc/abilities-live-now.php" ) ), 'live-now declares readers in its output schema' );
 
 echo "\nGroup: admin only, the realtime cache only\n";
 $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array( 'human' => 4 ), 'views_today' => 9, 'fetched' => 9, 'readers' => $r );

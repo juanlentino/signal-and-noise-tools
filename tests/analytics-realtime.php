@@ -371,6 +371,37 @@ ok( ( get_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD )['views'] ?? null ) === 55,
 	'refresh: failed today query does not clobber durable last-good' );
 ok( sn_analytics_views_today() === 55, 'accessor: failed today refresh still shows same-day last-good, not null' );
 
+// ── Today as a sampled estimate (2026-11-11: 20 stored rows standing for 31) ──
+echo "\nGroup: today sampled estimate\n";
+if ( ! function_exists( '__' ) ) { function __( $t, $d = null ) { return $t; } }
+if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n ) { return number_format( (float) $n ); } }
+ok( false !== strpos( sn_analytics_views_today_sql( 43200 ), 'count() AS stored' ), 'today sql: the stored rows beside the weighted sum, same request' );
+rt_reset();
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => 3 ) );
+$GLOBALS['__rt_query_today']  = array( array( 'views' => 31, 'stored' => 20 ) );
+sn_analytics_realtime_refresh();
+ok( 20 === ( get_transient( SN_ANALYTICS_REALTIME_KEY )['views_today_stored'] ?? null ), 'refresh: caches the stored rows' );
+ok( 20 === ( get_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD )['stored'] ?? null ), 'refresh: the last-good keeps the stored rows too' );
+ok( array( 'views' => 31, 'stored' => 20 ) === sn_analytics_today_sampling() && sn_analytics_today_is_estimate(), 'fewer stored rows than views: today is an estimate' );
+ok( false !== strpos( sn_analytics_today_estimate_note(), 'kept 20 page-view records, weighted to stand for 31' ), 'the admin note names both numbers' );
+delete_transient( SN_ANALYTICS_REALTIME_KEY );
+ok( sn_analytics_today_is_estimate(), 'cold transient: the same-day last-good still says estimate' );
+rt_reset();
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => 3 ) );
+$GLOBALS['__rt_query_today']  = array( array( 'views' => 12, 'stored' => 12 ) );
+sn_analytics_realtime_refresh();
+ok( ! sn_analytics_today_is_estimate() && '' === sn_analytics_today_estimate_note(), 'every row kept: exact, no note' );
+rt_reset();
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => 3 ) );
+$GLOBALS['__rt_query_today']  = array( array( 'views' => 12 ) );
+sn_analytics_realtime_refresh();
+ok( null === sn_analytics_today_sampling() && ! sn_analytics_today_is_estimate(), 'a reading without the stored count is unknown, never called exact or estimate' );
+rt_reset();
+$GLOBALS['__rt_query_return'] = array( array( 'class' => 'human', 'visitors' => 0 ) );
+$GLOBALS['__rt_query_today']  = array();
+sn_analytics_realtime_refresh();
+ok( array( 'views' => 0, 'stored' => 0 ) === sn_analytics_today_sampling(), 'no views yet: 0 of 0, exact' );
+
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

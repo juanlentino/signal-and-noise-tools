@@ -215,9 +215,13 @@ function snt_analytics_render_pulse_strip( $from, $to, $class, $series, $granula
 		$today = function_exists( 'sn_analytics_local_day' ) ? sn_analytics_local_day() : gmdate( 'Y-m-d' );
 		if ( is_array( $last ) && isset( $last['views'] )
 			&& isset( $last['day'] ) && (string) $last['day'] === $today ) {
+			// A sampled today is Analytics Engine's weighted estimate, not a count.
+			$today_unit = function_exists( 'sn_analytics_today_is_estimate' ) && sn_analytics_today_is_estimate()
+				? __( 'views, estimate', 'signal-and-noise-tools' )
+				: __( 'views', 'signal-and-noise-tools' );
 			$cells[] = '<span class="sn-an-pulse-cell"><span class="sn-an-pulse-k">' . esc_html__( 'Today so far', 'signal-and-noise-tools' ) . '</span>'
 				. '<span class="sn-an-pulse-v sn-an-pulse-v--big">' . esc_html( number_format_i18n( (int) $last['views'] ) ) . '</span>'
-				. '<span class="sn-an-pulse-v">' . esc_html__( 'views', 'signal-and-noise-tools' ) . '</span></span>';
+				. '<span class="sn-an-pulse-v">' . esc_html( $today_unit ) . '</span></span>';
 		}
 	}
 

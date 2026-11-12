@@ -270,6 +270,21 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day,
 			$state = 'sampled';
 		}
 		$bad   += 'mismatch' === $state ? 1 : 0;
+		// Sampling read straight off each side, whatever the comparison found.
+		// Since worker 2.0.0 the legacy side is empty, every event takes the
+		// "rows on one side only" branch above and never reached the sampling
+		// test: `sampled` read false on days Analytics Engine did sample
+		// (2026-11-11: pv 20 stored standing for 31).
+		$own = array();
+		foreach ( array( 'legacy' => $l, 'pageviews' => $p, 'events' => $e ) as $side => $set ) {
+			foreach ( $set as $ev => $x ) {
+				if ( ! $x['exact'] ) {
+					$own[ $ev ][] = $side . ' ' . $x['r'] . ' stored for ' . $x['n'];
+				}
+			}
+		}
+		ksort( $own );
+		$unresolved = array_diff( array_keys( $own ), $same, $human_ev );
 		$days[] = array(
 			'day'                  => $day,
 			'legacy_pageview_side' => $sum( $l, array( 'cp' ) ),
@@ -280,8 +295,10 @@ function sn_analytics_v2_compare( $legacy, $pageviews, $events, $first_full_day,
 			// Sampled is a fact about the day (Analytics Engine sampled some of it),
 			// whether or not the samples proved identical: `sampled_events` holds
 			// the unresolved ones, `identical_sample` the proven ones.
-			'sampled'              => array() !== $sampled || array() !== $same || array() !== $human_ev,
-			'sampled_events'       => array_values( array_unique( $sampled ) ),
+			'sampled'              => array() !== $sampled || array() !== $same || array() !== $human_ev || array() !== $own,
+			'sampled_events'       => array_values( array_unique( array_merge( $sampled, $unresolved ) ) ),
+			// Per sampled event, each side's stored rows and the weight they carry.
+			'sampled_rows'         => array_map( static fn( $ev, $sides ) => $ev . ': ' . implode( ', ', $sides ), array_keys( $own ), array_values( $own ) ),
 			'identical_sample'     => array_values( array_unique( $same ) ),
 			// Matched only once the uncounted visitor-days were set aside: those
 			// events' bot and suspect figures are estimates that may differ.

@@ -475,7 +475,10 @@
 			// payload without `today` paints no Today row; a measured 0 renders.
 			// Reading now is filled and kept current by assets/live-now.js (a
 			// dependency of this script): "not read" until read.
-			var nowRows = typeof payload.today === 'number' ? [ { label: 'Today so far', value: payload.today } ] : [];
+			// `today_estimate`: Analytics Engine sampled today's rows, so the
+			// figure is its weighted estimate, not a count (inc/analytics-today-estimate.php).
+			var todayLabel = true === payload.today_estimate ? 'Today so far (estimate)' : 'Today so far';
+			var nowRows = typeof payload.today === 'number' ? [ { label: todayLabel, value: payload.today } ] : [];
 			nowRows.push( { label: 'Reading now', value: 'not read' } );
 			var nowList = list( nowRows );
 			var nowVal  = lastCell( nowList.lastChild );
