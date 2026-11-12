@@ -3,7 +3,9 @@
  * Signal & Noise Tools: the résumé editor's variant controls (classic form;
  * the native twin is apps/sn-dashboard/parts/leaves/content-resume-variants.php).
  *
- * Every résumé row gets "Shows in: Both / Music only / Operations only"; a role
+ * Every résumé row gets "On /resume: Shown / Hidden / Shown, not on the music
+ * PDF" (stored as '', 'music', 'operations' since the two lanes; the one
+ * résumé, 2026-11-12, reads them as shown or hidden); a role
  * lists its saved bullets with the same choice; two sections hold the
  * operations résumé's settings and "What I've Built". The row helpers these
  * hook into are shared with the Workflow editor, so every control here renders
@@ -18,9 +20,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /** The choices, value => label. */
 const SN_RSM_VARIANT_CHOICES = array(
-	''           => 'Both résumés',
-	'music'      => 'Music only',
-	'operations' => 'Operations only',
+	''           => 'Shown',
+	'music'      => 'Hidden',
+	'operations' => 'Shown, not on the music PDF',
 );
 
 /**
@@ -43,7 +45,7 @@ function sn_rsm_variant( $name, $value ) {
 	if ( ! sn_rsm_is_resume( $name ) ) {
 		return;
 	}
-	echo '<label class="sn-rsm-field sn-rsm-variant"><span class="sn-rsm-label">Shows in</span><select name="' . esc_attr( $name ) . '">';
+	echo '<label class="sn-rsm-field sn-rsm-variant"><span class="sn-rsm-label">On /resume</span><select name="' . esc_attr( $name ) . '">';
 	foreach ( SN_RSM_VARIANT_CHOICES as $v => $label ) {
 		echo '<option value="' . esc_attr( $v ) . '"' . selected( (string) $value, $v, false ) . '>' . esc_html( $label ) . '</option>';
 	}
@@ -112,7 +114,7 @@ function sn_admin_render_resume_built_section( $doc ) {
  */
 function sn_admin_render_resume_operations_section( $doc ) {
 	$o = (array) ( $doc['variants']['operations'] ?? array() );
-	sn_rsm_section_open( 'Operations résumé', 'What /resume shows, and its PDF, built by Generate along with the music one: /resume is this one résumé, and its Download links this PDF once it is generated. Rows marked "Music only" stay off /resume (the music PDF and /cv keep them); "Both résumés" rows show here and there. Never re-run Operations résumé setup to add a row: it marks rows Music only again.' );
+	sn_rsm_section_open( 'Operations résumé', 'What /resume shows, and its PDF, built by Generate along with the music one: /resume is this one résumé, and its Download links this PDF once it is generated. Each row\'s "On /resume" decides whether it shows: Shown or Hidden. Never re-run Operations résumé setup: it hides rows again.' );
 	sn_rsm_input( 'resume[variants][operations][kicker]', (string) ( $o['kicker'] ?? '' ), 'Kicker: a short line that introduces the headline', 'Founder & Operator · Music, Rights & AI' );
 	sn_rsm_input( 'resume[variants][operations][headline]', (string) ( $o['headline'] ?? '' ), 'Headline', 'Founder and Operator' );
 	sn_rsm_input( 'resume[variants][operations][tagline]', (string) ( $o['tagline'] ?? '' ), 'Subhead', 'AI-Native Business Operations | Partnerships' );
@@ -148,7 +150,7 @@ function sn_admin_render_resume_operations_setup() {
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
 	wp_nonce_field( 'sn_resume_operations_setup' );
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Operations résumé setup</h2>';
-	echo '<p class="sn-fieldset-intro">Writes the operations résumé\'s starting content into the draft: its settings, What I\'ve Built, its skills rows and two affiliations, and "Music only" on what it leaves out. Existing wording is never changed. Review the draft, then publish. Running it again never rewords anything or adds a row twice; it marks "Music only" again on what the operations résumé leaves out.</p>';
+	echo '<p class="sn-fieldset-intro">A one-time starting point from 2026-11-01, kept for a fresh install: it writes the operations settings, What I\'ve Built, its skills rows and two affiliations into the draft, and marks what it leaves out Hidden. On this site it is done: running it again marks Hidden again every row it did not write, undoing what you set to Shown.</p>';
 	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_operations_setup" class="button">Set up the operations résumé</button></div>';
 	echo '</div></form>';
 }
