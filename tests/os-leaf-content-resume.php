@@ -240,7 +240,7 @@ $clip90 = static function ( $bullet ) { // the bullet's text, markup out, cut at
 	$text = trim( (string) preg_replace( '/\s+/u', ' ', strip_tags( (string) $bullet ) ) );
 	return mb_strlen( $text ) > 90 ? rtrim( mb_substr( $text, 0, 89 ) ) . '…' : $text;
 };
-ok( 1 === preg_match( '#<os-field-row label="On /resume" hint="' . preg_quote( snt_kit_esc( $clip90( $seed['experience'][0]['roles'][0]['bullets'][0] ) ), '#' ) . '"><os-select name="resume\[experience\]\[0\]\[roles\]\[0\]\[bullet_variants\]\[#', $edits['experience'] ) && false === strpos( $edits['experience'], '<os-disclosure' ), 'a bullet\'s select is labelled "Shows in", as the classic, and names its bullet in the hint; no fold around them' );
+ok( 1 === preg_match( '#<os-field-row label="On /resume" hint="' . preg_quote( snt_kit_esc( $clip90( $seed['experience'][0]['roles'][0]['bullets'][0] ) ), '#' ) . '"><os-select name="resume\[experience\]\[0\]\[roles\]\[0\]\[bullet_variants\]\[#', $edits['experience'] ) && false === strpos( $edits['experience'], '<os-disclosure' ), 'a bullet\'s select is labelled "On /resume", as the classic, and names its bullet in the hint; no fold around them' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit_all ), 'field names across the eleven editing paints match the classic form (' . count( snt_leaf_names( $kit_all ) ) . ' names): ' . implode( ',', array_diff( snt_leaf_names( $classic ), snt_leaf_names( $kit_all ) ) ) . ' missing; ' . implode( ',', array_diff( snt_leaf_names( $kit_all ), snt_leaf_names( $classic ) ) ) . ' extra' );
 // The seed's two boxes (the music PDF's What I've Built, the
 // compact earlier career) are unchecked, which a browser never posts; a
