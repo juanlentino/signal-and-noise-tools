@@ -125,5 +125,11 @@ sn_admin_render_resume_section();
 $html2 = ob_get_clean();
 ok( false !== strpos( $html2, 'Last published: <code>2026-08-03</code>' ), 'saved state shows the live document stamp' );
 
+if ( function_exists( 'sn_rsm_variant' ) ) {
+	ob_start();
+	sn_rsm_variant( 'resume[skills][0][variant]', 'operations' );
+	$sel = (string) ob_get_clean();
+	ok( false === strpos( $sel, 'value="operations"' ) && false === strpos( $sel, 'music PDF' ) && 1 === preg_match( '/<option value=""[^>]*selected/', $sel ), 'On /resume offers Shown and Hidden only; a stored operations flag shows as Shown (2026-11-12)' );
+}
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

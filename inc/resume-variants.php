@@ -276,3 +276,16 @@ function sn_resume_ops_config() {
 function sn_resume_pdf_music_config( $doc ) {
 	return sn_resume_variant_config( $doc, 'music' ) + array( 'built' => sn_resume_built_for( $doc, 'music' ) );
 }
+
+// The removed Operations résumé setup left this option behind (2026-11-12); nothing reads it.
+// ponytail: one-time cleanup on admin load, drop this once a release or two has run it.
+if ( function_exists( 'add_action' ) ) { // the pure tests load this file without WordPress.
+	add_action(
+		'admin_init',
+		static function () {
+			if ( false !== get_option( 'sn_resume_ops_setup_missing' ) ) {
+				delete_option( 'sn_resume_ops_setup_missing' );
+			}
+		}
+	);
+}

@@ -73,6 +73,20 @@ function sn_resume_credentials( $doc ) {
 }
 
 /**
+ * The document the Person's credentials come from: what /resume shows (the
+ * one résumé when it has settings), so the graph never names a row the page
+ * hides and never misses one it shows (2026-11-12).
+ *
+ * @return array|null
+ */
+function sn_resume_credentials_doc() {
+	if ( function_exists( 'sn_resume_shown_doc' ) ) {
+		return sn_resume_shown_doc();
+	}
+	return function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null;
+}
+
+/**
  * `sn_schema_person_credentials` filter: add hasCredential, on profile pages only.
  *
  * @param array $creds
@@ -84,7 +98,7 @@ function sn_resume_person_credentials( $creds ) {
 	if ( ! is_singular() || ! function_exists( 'sn_schema_is_profile_post' ) || ! sn_schema_is_profile_post( get_queried_object() ) ) {
 		return $creds;
 	}
-	$list = sn_resume_credentials( function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null );
+	$list = sn_resume_credentials( sn_resume_credentials_doc() );
 	if ( $list ) {
 		$creds['hasCredential'] = $list;
 	}
