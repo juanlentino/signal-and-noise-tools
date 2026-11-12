@@ -228,4 +228,46 @@ function sn_resume_ops_pdf_maybe_serve() {
 }
 add_action( 'template_redirect', 'sn_resume_ops_pdf_maybe_serve', 0 );
 
+/** Names the one résumé's PDF had before, served at /resume/<name> (2026-11-01 to 2026-11-12). */
+const SN_RESUME_OPS_PDF_RETIRED = array( 'JuanLentino_Resume_Operations.pdf' );
+
+/**
+ * Where an old résumé PDF address goes now: the one résumé's PDF, with its
+ * ?v=, or '' when the path is not an old address, is the current one, or no
+ * PDF is live to send it to. The old addresses: any retired /resume/<name>,
+ * and the music PDF's old uploads file (SN_RESUME_PDF_RETIRED_FILE), which
+ * reaches WordPress once Generate has removed it.
+ *
+ * @param string $path Request path, without the query string.
+ * @return string
+ */
+function sn_resume_pdf_retired_target( $path ) {
+	$cfg = sn_resume_ops_config();
+	if ( null === $cfg || '/resume/' . $cfg['pdf_file'] === $path ) {
+		return '';
+	}
+	$old = array_map( static fn( $f ) => '/resume/' . $f, SN_RESUME_OPS_PDF_RETIRED );
+	$loc = defined( 'SN_RESUME_PDF_RETIRED_FILE' ) && function_exists( 'sn_resume_pdf_location' ) ? sn_resume_pdf_location() : null;
+	if ( null !== $loc ) {
+		$old[] = (string) wp_parse_url( $loc['url'] . '/' . SN_RESUME_PDF_RETIRED_FILE, PHP_URL_PATH );
+	}
+	return in_array( $path, $old, true ) ? sn_resume_ops_pdf_link( $cfg['pdf_file'] ) : '';
+}
+
+/**
+ * Send an old résumé PDF address to the current one (301). Anything else
+ * passes through untouched.
+ */
+function sn_resume_pdf_retired_redirect() {
+	$path = (string) wp_parse_url( isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '', PHP_URL_PATH ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- compared to fixed paths, never echoed.
+	if ( '.pdf' !== substr( $path, -4 ) ) {
+		return; // every other request: no document read on the hot path.
+	}
+	$to = sn_resume_pdf_retired_target( $path );
+	if ( '' !== $to && wp_safe_redirect( $to, 301, 'Signal & Noise Tools' ) ) {
+		exit;
+	}
+}
+add_action( 'template_redirect', 'sn_resume_pdf_retired_redirect', 0 );
+
 require_once __DIR__ . '/operations-box.php'; // what the PDF box says about it.

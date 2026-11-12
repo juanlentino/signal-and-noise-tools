@@ -94,7 +94,7 @@ sn_resume_lang( 'en' );
 
 echo "\nGroup: one résumé\n";
 $no_pdf = sn_resume_page_body( $raw ); // the PDF never generated, /music not published.
-$GLOBALS['__opt']['sn_resume_pdf_operations']       = array( 'url' => 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf', 'sha256' => str_repeat( 'a', 64 ) );
+$GLOBALS['__opt']['sn_resume_pdf_operations']       = array( 'url' => 'https://juanlentino.com/resume/JuanLentino_Resume.pdf', 'sha256' => str_repeat( 'a', 64 ) );
 $GLOBALS['__opt']['sn_resume_pdf_operations_bytes'] = base64_encode( '%PDF-1.7' ); // live means a PDF is stored too.
 $GLOBALS['__music'] = true;
 $body = sn_resume_page_body( $raw );
@@ -106,7 +106,7 @@ ok( false !== strpos( $body, '<p class="sn-catalog-eyebrow sn-resume-kicker">Fou
 ok( false !== strpos( $body, '>Founder and Operator</h2>' ) && false !== strpos( $body, "WHAT I&#039;VE BUILT" ) && false !== strpos( $body, 'github.com/juanlentino</a>' ), 'the operations view: its headline, What I\'ve Built, its extra link' );
 ok( 1 === substr_count( $body, 'Verified credits: <a href="https://juanlentino.com/music/">juanlentino.com/music</a>' ), 'the verified-credits line, once, the address printed in full' );
 ok( false === strpos( $no_pdf, 'Verified credits' ), 'no /music published: no credits line (never a link to a 404)' );
-ok( false !== strpos( $body, 'href="https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf?v=aaaaaaaa"' ) && false === strpos( $body, 'JuanLentino_Resume.pdf' ) && false === strpos( $no_pdf, '.pdf' ), 'one Download: the PDF with its ?v=; before it exists, none' );
+ok( false !== strpos( $body, 'href="https://juanlentino.com/resume/JuanLentino_Resume.pdf?v=aaaaaaaa"' ) && false === strpos( $body, 'uploads/resume' ) && false === strpos( $body, '_Operations.pdf' ) && false === strpos( $no_pdf, '.pdf' ), 'one Download: the PDF with its ?v=; before it exists, none' );
 ok( 1 === substr_count( $body, '<p class="sn-resume-formats">Also as <a href="/resume.md">Markdown</a> · <a href="/resume/json-resume.json">JSON Resume</a></p>' ), 'the formats line, once, no lane' );
 ok( false !== strpos( $body, '01 · Projects' ) && false !== strpos( $body, '02 · Professional Experience' ) && false === strpos( $body, '>PUBLICATIONS</h2>' ), 'numbered as it falls; the sections the settings leave out stay out' );
 $with_pubs = $set;
@@ -119,7 +119,7 @@ ok( strpos( $rb, 'INDEPENDENT PRACTICE' ) < strpos( $rb, 'PANACEA STUDIO' ), 'th
 ok( function_exists( 'snt_generated_page_guard' ) ? snt_generated_page_guard( 'resume', $body ) : ( false !== strpos( $body, 'sn-resume-hero-split' ) && 0 !== strpos( ltrim( $body ), '<!-- wp:html' ) ), 'the generated-page guard accepts it' );
 $phone = array_replace_recursive( $raw, array( 'pdf' => array( 'phone' => '+1 555 123 4567', 'phone_public' => true ) ) );
 ok( $body === sn_resume_page_body( $phone ) && false === strpos( $body, '555' ), 'the same body with a phone stored and public: no phone' );
-ok( 'c879443a2364dde6ae441f6fdc4755abf2e27cf5' === sha1( $body ), 'the body is pinned (engine rev 7): a change to it is a deliberate one, with a rev bump' );
+ok( 'c879443a2364dde6ae441f6fdc4755abf2e27cf5' === sha1( str_replace( '/resume/JuanLentino_Resume.pdf?', '/resume/JuanLentino_Resume_Operations.pdf?', $body ) ), 'the body is pinned (engine rev 7): a change to it is a deliberate one, with a rev bump; only the PDF\'s default name changed (2026-11-12), and the live body follows the stored name on Generate' );
 
 echo "\nGroup: well-formed\n";
 preg_match_all( '/<!--\s*(\/?)wp:([a-z][a-z0-9-]*)(\s+(\{.*?\}))?\s*(\/?)-->|<!--(.*?)-->/s', $body, $tok, PREG_SET_ORDER );
@@ -213,7 +213,7 @@ ok( $md === $asked( 'music', static fn() => sn_resume_format_body( 'md', 'resume
 $vc = sn_resume_format_body( 'vcf', 'resume' )[1] ?? '';
 ok( false !== strpos( $vc, "TITLE:Founder and Operator\r\n" ) && false !== strpos( $vc, 'X-SOCIALPROFILE;TYPE=verifiedcredits:https://juanlentino.com/music/' ), 'the vCard route, still served, is the one résumé too' );
 $f = sn_resume_formats( 'resume' );
-ok( array( 'html', 'markdown', 'pdf', 'json_resume' ) === array_keys( $f ) && 'https://juanlentino.com/resume/JuanLentino_Resume_Operations.pdf?v=aaaaaaaa' === $f['pdf'], 'the format list: one PDF (the page\'s), no operations entries, no vCard' );
+ok( array( 'html', 'markdown', 'pdf', 'json_resume' ) === array_keys( $f ) && 'https://juanlentino.com/resume/JuanLentino_Resume.pdf?v=aaaaaaaa' === $f['pdf'], 'the format list: one PDF (the page\'s), no operations entries, no vCard' );
 $head = static function ( $fn, $slug, $lane ) {
 	$GLOBALS['__is_page'] = $slug;
 	$_GET                 = null === $lane ? array() : array( 'lane' => $lane );
