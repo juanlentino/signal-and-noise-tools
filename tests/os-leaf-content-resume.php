@@ -607,6 +607,24 @@ ok(
 );
 $GLOBALS['__resume_doc'] = array( 'updated' => '' ) + (array) $rich;
 $edits = $paint_all();
+// A stored 'operations' flag shows and saves as Shown since the music PDF is gone (2026-11-12): the expected save folds it.
+$fold = static function ( $d ) use ( &$fold ) {
+	if ( ! is_array( $d ) ) {
+		return $d;
+	}
+	foreach ( $d as $key => $v ) {
+		if ( 'variant' === $key && 'operations' === $v ) {
+			$d[ $key ] = '';
+		} elseif ( 'bullet_variants' === $key && is_array( $v ) ) {
+			$d[ $key ] = array_filter( $v, static fn( $x ) => 'operations' !== $x );
+		} else {
+			$d[ $key ] = $fold( $v );
+		}
+	}
+	return $d;
+};
+$expect = $spawn( $boot, $fold( $rich ) );
+unset( $expect['updated'] );
 $lost  = array();
 $kept  = array();
 foreach ( $edits as $k => $h ) {
@@ -614,18 +632,18 @@ foreach ( $edits as $k => $h ) {
 	$doc   = is_array( $saved ) ? (array) ( $saved[1] ?? array() ) : array();
 	unset( $doc['updated'] );
 	$kept[ $k ] = $doc;
-	if ( ! is_array( $saved ) || 'resume_draft_saved' !== $saved[0] || $doc !== $rich ) {
+	if ( ! is_array( $saved ) || 'resume_draft_saved' !== $saved[0] || $doc !== $expect ) {
 		$lost[] = $k;
 	}
 }
 ok( array() === $lost, 'data safety: the post from each of the eleven editing paints saves the document unchanged through the real handler (nothing lost, nothing changed): ' . implode( ',', $lost ) );
-ok( ( $rich['variants'] ?? null ) === ( $kept['stats']['variants'] ?? false ) && ( $rich['built'] ?? null ) === ( $kept['skills']['built'] ?? false ) && ( $rich['experience'] ?? null ) === ( $kept['variants']['experience'] ?? false ), 'the saved draft carries back the variant blocks (Stats edited), What I\'ve Built (Skills edited) and every row and bullet flag (Résumé settings edited)' );
+ok( ( $expect['variants'] ?? null ) === ( $kept['stats']['variants'] ?? false ) && ( $expect['built'] ?? null ) === ( $kept['skills']['built'] ?? false ) && ( $expect['experience'] ?? null ) === ( $kept['variants']['experience'] ?? false ), 'the saved draft carries back the variant blocks (Stats edited), What I\'ve Built (Skills edited) and every row and bullet flag (Résumé settings edited)' );
 // The kit paints each flag on its control, and carries it while another section is edited.
-foreach ( array( 'experience' => 'resume[experience][0][variant]" value="music"', 'earlier' => 'resume[earlier][entries][0][roles][0][variant]" value="operations"', 'affiliations' => 'resume[affiliations][0][variant]" value="operations"', 'publications' => 'resume[publications][1][variant]" value="music"', 'skills' => 'resume[skills][0][variant]" value="operations"', 'built' => 'resume[built][items][0][variant]" value="operations"' ) as $k => $frag ) {
-	ok( false !== strpos( $edits[ $k ], '<os-select name="' . $frag ) && false !== strpos( $edits['hero'], '<input type="hidden" name="' . $frag . '>' ), 'a flag paints on its os-select and rides along as a carrier: ' . $frag );
+foreach ( array( 'experience' => 'resume[experience][0][variant]" value="music"', 'earlier' => 'resume[earlier][entries][0][roles][0][variant]" value=""', 'affiliations' => 'resume[affiliations][0][variant]" value=""', 'publications' => 'resume[publications][1][variant]" value="music"', 'skills' => 'resume[skills][0][variant]" value=""', 'built' => 'resume[built][items][0][variant]" value=""' ) as $k => $frag ) {
+	ok( false !== strpos( $edits[ $k ], '<os-select name="' . $frag ) && false !== strpos( $edits['hero'], '<input type="hidden" name="' . $frag . '>' ), 'a flag paints on its os-select and rides along as a carrier (a stored operations flag as Shown): ' . $frag );
 }
 $bk = sn_resume_bullet_key( (string) reset( $b0 ) );
-ok( false !== strpos( $edits['experience'], '<os-select name="resume[experience][0][roles][0][bullet_variants][' . $bk . ']" value="operations"' ) && false !== strpos( $edits['stats'], '<input type="hidden" name="resume[experience][0][roles][0][bullet_variants][' . $bk . ']" value="operations">' ), 'a bullet flag paints on its own select and rides along as a carrier' );
+ok( false !== strpos( $edits['experience'], '<os-select name="resume[experience][0][roles][0][bullet_variants][' . $bk . ']" value=""' ) && false !== strpos( $edits['stats'], '<input type="hidden" name="resume[experience][0][roles][0][bullet_variants][' . $bk . ']" value="">' ), 'a bullet flag paints on its own select and rides along as a carrier (a stored operations flag as Shown)' );
 ok( false !== strpos( $edits['stats'], '<input type="hidden" name="resume[variants][operations][earlier_compact]" value="1">' ) && 1 === preg_match( '/<os-checkbox-label name="resume\[variants\]\[operations\]\[earlier_compact\]"[^>]* checked/', $edits['variants'] ) && false === strpos( $kit_all, 'resume[variants][music]' ), 'the variant box is a checkbox, checked when on, carried as 1 while another section is edited; the music box is gone' );
 // The carry-over is what keeps the fields no section posts any more: without the stored document behind the save, Contact's post loses them.
 $bare = $spawn( $handler_boot, array( 'resume' => $posted( $edits['pdf'] )['resume'] ?? array() ) );

@@ -18,11 +18,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** The choices, value => label. */
+/**
+ * The choices, value => label. A stored 'operations' (from when the music PDF
+ * was built, "Shown, not on the music PDF") shows as Shown and saves as Shown:
+ * with no music PDF it meant the same (2026-11-12).
+ */
 const SN_RSM_VARIANT_CHOICES = array(
-	''           => 'Shown',
-	'music'      => 'Hidden',
-	'operations' => 'Shown, not on the music PDF',
+	''      => 'Shown',
+	'music' => 'Hidden',
 );
 
 /**
@@ -46,8 +49,9 @@ function sn_rsm_variant( $name, $value ) {
 		return;
 	}
 	echo '<label class="sn-rsm-field sn-rsm-variant"><span class="sn-rsm-label">On /resume</span><select name="' . esc_attr( $name ) . '">';
+	$value = 'music' === (string) $value ? 'music' : '';
 	foreach ( SN_RSM_VARIANT_CHOICES as $v => $label ) {
-		echo '<option value="' . esc_attr( $v ) . '"' . selected( (string) $value, $v, false ) . '>' . esc_html( $label ) . '</option>';
+		echo '<option value="' . esc_attr( $v ) . '"' . selected( $value, $v, false ) . '>' . esc_html( $label ) . '</option>';
 	}
 	echo '</select></label>';
 }

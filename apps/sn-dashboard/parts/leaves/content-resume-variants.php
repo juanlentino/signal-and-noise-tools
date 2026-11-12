@@ -3,7 +3,7 @@
  * S&N Dashboard, Content > Resume Page: the résumé variant controls.
  *
  * The classic twin is inc/admin-forms/resume-variants.php. Every row gets
- * "On /resume" (shown, hidden, shown but not on the music PDF); a role lists its saved
+ * "On /resume" (Shown or Hidden; a stored 'operations' shows and saves as Shown); a role lists its saved
  * bullets with the same choice; and "What I've Built" and "Résumé settings"
  * are two more sections. Same names, labels and
  * placeholders as the classic, so the carriers (content-resume-edit.php) post
@@ -31,12 +31,11 @@ function resume_variant( $name, $value, $hint = '' ) {
 		'select',
 		$name,
 		__( 'On /resume', 'signal-and-noise-tools' ),
-		is_scalar( $value ) ? (string) $value : '',
+		'music' === $value ? 'music' : '', // a stored 'operations' meant Shown once the music PDF was gone (2026-11-12).
 		array(
 			'options' => array(
-				''           => __( 'Shown', 'signal-and-noise-tools' ),
-				'music'      => __( 'Hidden', 'signal-and-noise-tools' ),
-				'operations' => __( 'Shown, not on the music PDF', 'signal-and-noise-tools' ),
+				''      => __( 'Shown', 'signal-and-noise-tools' ),
+				'music' => __( 'Hidden', 'signal-and-noise-tools' ),
 			),
 			'hint'    => '' !== $hint ? $hint : null,
 		)
