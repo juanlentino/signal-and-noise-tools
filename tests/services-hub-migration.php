@@ -214,7 +214,7 @@ foreach ( array( 'services-consulting', 'servicios-consultoria' ) as $name ) {
 	ok( 3 === substr_count( $seed( "$name.html" ), 'sn-service-crop"><img' ), "$name: three services, three photos" );
 	ok( ! preg_match( '/<img[^>]*alt=""/', $seed( "$name.html" ) ), "$name: every photo has alt text" );
 }
-ok( false !== strpos( $seed( 'services-consulting.html' ), 'resume/?lane=operations' ), 'consulting keeps the hire line' );
+ok( false !== strpos( $seed( 'services-consulting.html' ), 'Start with the <a href="https://juanlentino.com/resume/">résumé</a>.' ) && false === strpos( $seed( 'services-consulting.html' ), 'lane=' ), 'consulting keeps the hire line, to the one résumé (2026-11-12)' );
 ok( false !== strpos( $seed( 'servicios-consultoria.html' ), 'juanlentino.com/cv/' ), 'and so does its Spanish page' );
 
 echo "\nThe slug gate (inc/bilingual-head.php):\n";

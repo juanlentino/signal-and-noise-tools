@@ -115,24 +115,29 @@ function sn_cf_markdown_twin_urls( $post ) {
 
 /**
  * /resume's and /cv's agent copies (inc/resume-formats-route.php): Markdown,
- * JSON Resume and vCard, each lane's, and the operations lane's
- * ?output_format=markdown twin in both query orders: the one an agent builds,
- * and the one the operations head advertises (inc/resume-lane-address.php);
- * the edge keys on the query as written. The plain one is the permalink's, above.
- * Listed, not derived: purging one the
- * edge does not hold is free.
+ * JSON Resume and vCard. The ?output_format=markdown twin is the permalink's,
+ * above. The lane addresses (?lane=operations) left this list with the one
+ * résumé (2026-11-12): they were purged once on that upgrade
+ * (SN_CF_RESUME_LANE_URLS_RETIRED, inc/split-hero-migration.php). Listed, not
+ * derived: purging one the edge does not hold is free.
  *
  * @param WP_Post|object $post
  * @return string[]
  */
 function sn_cf_resume_format_urls( $post ) {
 	$copies = array(
-		'resume' => array( '/resume.md', '/resume.md?lane=operations', '/resume/json-resume.json', '/resume/json-resume.json?lane=operations', '/resume/contact.vcf', '/resume/?lane=operations&output_format=markdown', '/resume/?output_format=markdown&lane=operations', '/cv.md', '/cv/json-resume.json' ), // /cv's copies take /resume's email and website.
+		'resume' => array( '/resume.md', '/resume/json-resume.json', '/resume/contact.vcf', '/cv.md', '/cv/json-resume.json' ), // /cv's copies take /resume's email and website.
 		'cv'     => array( '/cv.md', '/cv/json-resume.json' ),
 	);
 	$slug   = 'page' === ( $post->post_type ?? '' ) ? (string) ( $post->post_name ?? '' ) : '';
 	return function_exists( 'home_url' ) ? array_map( 'home_url', $copies[ $slug ] ?? array() ) : array();
 }
+
+/**
+ * The lane addresses /resume answered at until the one résumé (2026-11-12),
+ * purged once on that upgrade so the edge stops serving the two-lane copies.
+ */
+const SN_CF_RESUME_LANE_URLS_RETIRED = array( '/resume/?lane=operations', '/resume/?lane=music', '/resume.md?lane=operations', '/resume/json-resume.json?lane=operations', '/resume/?lane=operations&output_format=markdown', '/resume/?output_format=markdown&lane=operations' );
 
 /** Hard ceiling on paginated archive URLs added per save. */
 const SN_CF_MAX_ARCHIVE_PAGES = 20;

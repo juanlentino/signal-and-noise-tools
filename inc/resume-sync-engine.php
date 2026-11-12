@@ -107,12 +107,12 @@ function sn_resume_para( $class, $html ) {
 }
 
 /**
- * Eyebrow + clamp-sized section h2. On /resume's two lanes a band also carries
- * its h2's anchor and, when only this lane has it, says so in its eyebrow.
+ * Eyebrow + clamp-sized section h2. On the English /resume a band also carries
+ * its h2's anchor (inc/resume-page-lanes.php).
  *
  * @param string $eyebrow
  * @param string $title
- * @param array  $band {id?:string, only?:bool} (inc/resume-lane-marks.php).
+ * @param array  $band {id?:string}.
  * @return string
  */
 function sn_resume_section_head( $eyebrow, $title, $band = array() ) {
@@ -126,7 +126,7 @@ function sn_resume_section_head( $eyebrow, $title, $band = array() ) {
 			),
 		),
 	);
-	return sn_resume_para( 'sn-catalog-eyebrow', esc_html( $eyebrow ) . ( empty( $band['only'] ) ? '' : ' · Only in this version' ) )
+	return sn_resume_para( 'sn-catalog-eyebrow', esc_html( $eyebrow ) )
 		. sn_resume_block( 'heading', $attrs, '<h2 class="wp-block-heading"' . ( '' !== $id ? ' id="' . esc_attr( $id ) . '"' : '' ) . ' style="font-size:clamp(2rem, 5vw, 3.5rem);line-height:1.05">' . esc_html( $title ) . '</h2>' ) . "\n\n";
 }
 
@@ -156,11 +156,8 @@ function sn_resume_role_blocks( $role ) {
 		static fn( $b ) => $b . sn_resume_row_receipt( (array) ( $receipts[ sn_resume_bullet_key( $b ) ] ?? array() ), mb_substr( strip_tags( $b ), 0, 80 ) ),
 		(array) ( $role['bullets'] ?? array() )
 	);
-	return sn_resume_only_group(
-		! empty( $role['_only'] ),
-		sn_resume_para( 'sn-resume-title', esc_html( (string) ( $role['title'] ?? '' ) ) )
-		. sn_resume_list( 'sn-resume-list', $bullets ) // bullets kses'd at normalize.
-	);
+	return sn_resume_para( 'sn-resume-title', esc_html( (string) ( $role['title'] ?? '' ) ) )
+		. sn_resume_list( 'sn-resume-list', $bullets ); // bullets kses'd at normalize.
 }
 
 /**
@@ -212,7 +209,7 @@ function sn_resume_stats_blocks( $stats ) {
 	}
 	$inner = '<!-- wp:columns {"className":"sn-resume-stats"} -->' . "\n" . '<div class="wp-block-columns sn-resume-stats">' . "\n"
 		. $cols . '</div>' . "\n" . '<!-- /wp:columns -->' . "\n\n";
-	return sn_resume_band( '1320px', '30', '40', sn_resume_only_group( sn_resume_all_only( $stats ), $inner ) );
+	return sn_resume_band( '1320px', '30', '40', $inner );
 }
 
 /** One employer as a rail/main wp:columns pair. @param array $entry @return string */
@@ -261,7 +258,7 @@ function sn_resume_experience_blocks( $experience, $earlier, $n = null, $band = 
 			foreach ( $entry['roles'] as $role ) {
 				$entry_blocks .= sn_resume_role_blocks( $role );
 			}
-			$inner .= sn_resume_only_group( ! empty( $entry['_only'] ), $entry_blocks );
+			$inner .= $entry_blocks;
 		}
 		$inner .= '</details>' . "\n" . '<!-- /wp:details -->' . "\n\n";
 	}
@@ -279,8 +276,7 @@ function sn_resume_titled_lines_blocks( $heading, $entries ) {
 		foreach ( $entry['lines'] as $line ) {
 			$html .= '<br>' . esc_html( $line );
 		}
-		$only = ! empty( $entry['_only'] ); // a lane-only row: one paragraph, so the mark rides inside it.
-		$out .= sn_resume_para( $only ? 'sn-resume-only' : '', ( $only ? '<span class="screen-reader-text sn-resume-only-mark">' . SN_RESUME_ONLY_TEXT . '</span>' : '' ) . $html );
+		$out .= sn_resume_para( '', $html );
 	}
 	return $out . '</div>' . "\n" . '<!-- /wp:column -->' . "\n\n";
 }
@@ -328,14 +324,10 @@ function sn_resume_skills_blocks( $skills, $n = null, $band = array() ) {
 	foreach ( $skills as $row ) {
 		$rows .= '<tr><td>' . esc_html( $row['category'] ) . '</td><td>' . esc_html( $row['items'] ) . '</td></tr>';
 	}
-	// A lane-only table is marked on a group around it: the figure scrolls sideways and would clip the bar.
 	$inner = sn_resume_section_head( sn_resume_numbered( sn_resume_l( '04 · Capabilities', '04 · Capacidades' ), $n ), sn_resume_l( 'SKILLS', 'HABILIDADES' ), $band )
-		. sn_resume_only_group(
-			sn_resume_all_only( $skills ),
-			'<!-- wp:table {"hasFixedLayout":false,"className":"sn-resume-skills"} -->' . "\n"
-			. '<figure class="wp-block-table sn-resume-skills"><table><tbody>' . $rows . '</tbody></table></figure>' . "\n"
-			. '<!-- /wp:table -->' . "\n\n"
-		);
+		. '<!-- wp:table {"hasFixedLayout":false,"className":"sn-resume-skills"} -->' . "\n"
+		. '<figure class="wp-block-table sn-resume-skills"><table><tbody>' . $rows . '</tbody></table></figure>' . "\n"
+		. '<!-- /wp:table -->' . "\n\n";
 	return sn_resume_band( '1320px', '40', '80', $inner );
 }
 
@@ -429,7 +421,7 @@ function sn_resume_sync_page() {
 	if ( ! function_exists( 'sn_resume_doc_get_raw' ) ) {
 		return;
 	}
-	$body = sn_resume_page_body( sn_resume_doc_get_raw() ); // one lane or two (inc/resume-page-lanes.php).
+	$body = sn_resume_page_body( sn_resume_doc_get_raw() ); // the one résumé, or the music body (inc/resume-page-lanes.php).
 	if ( '' !== $body ) {
 		sn_resume_upsert_page( $body );
 	}

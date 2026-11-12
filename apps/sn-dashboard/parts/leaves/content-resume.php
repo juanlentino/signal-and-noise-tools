@@ -70,9 +70,8 @@ function resume_hero( array $hero ) {
 }
 
 /**
- * PDF only: fields the generated PDF uses. /resume shows only the headline and
- * tagline, heading its Music lane once it has two lanes; the phone never
- * reaches it. Same names, labels and placeholders as the classic form.
+ * PDF only: fields the generated music PDF uses. /resume shows the Operations
+ * résumé's headline and subhead instead; the phone never reaches it. Same names, labels and placeholders as the classic form.
  *
  * @param array $pdf        The pdf block.
  * @param bool  $show_built variants.music.show_built.

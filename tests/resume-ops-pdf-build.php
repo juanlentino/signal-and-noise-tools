@@ -32,16 +32,17 @@ ok( sn_resume_ops_pdf_live() && hash( 'sha256', base64_decode( $GLOBALS['opts'][
 ok( array( $url ) === $GLOBALS['purged'], 'its address is purged' );
 $bytes = base64_decode( $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] );
 $text  = sn_resume_pdf_text( $bytes );
-ok( false !== strpos( $text, 'example.test/resume/?lane=operations' ) && false !== strpos( $bytes, '/URI (https://example.test/resume/?lane=operations)' ), 'its contact line prints and links its own lane: /resume/?lane=operations' );
-ok( 0 === preg_match( '~example\.test/resume(?!/\?lane=operations)~', $text ) && false === strpos( $bytes, '/URI (https://example.test/resume/)' ), 'and not the music lane\'s address' );
+ok( false !== strpos( $text, 'example.test/resume' ) && false !== strpos( $bytes, '/URI (https://example.test/resume/)' ), 'its contact line prints and links the one résumé: /resume/' );
+ok( false === strpos( $text, 'lane=' ) && false === strpos( $bytes, 'lane=' ), 'and no lane address (2026-11-12)' );
+ok( false === strpos( $text, 'Verified credits' ), 'no /music page published: no credits line' );
 $pdftotext = trim( (string) shell_exec( 'command -v pdftotext 2>/dev/null' ) );
 if ( '' !== $pdftotext && false !== file_put_contents( $GLOBALS['tmp'] . '/ops.pdf', $bytes ) ) {
 	$ats = (string) shell_exec( escapeshellarg( $pdftotext ) . ' ' . escapeshellarg( $GLOBALS['tmp'] . '/ops.pdf' ) . ' - 2>/dev/null' );
-	ok( false !== strpos( $ats, 'example.test/resume/?lane=operations' ) && 0 === preg_match( '~example\.test/resume(?!/\?lane=operations)~', $ats ), 'pdftotext (an ATS view) reads the same address' );
+	ok( false !== strpos( $ats, 'example.test/resume' ) && false === strpos( $ats, 'lane=' ), 'pdftotext (an ATS view) reads the same address' );
 } else {
 	echo "INFO: pdftotext not installed; the built-in reader's read above stands alone.\n";
 }
-ok( 'Juan Lentino · Résumé · Operations & AI Strategy' === sn_test_pdf_title( $bytes ), 'its Info Title names the lane: "' . sn_test_pdf_title( $bytes ) . '"' );
+ok( 'Juan Lentino · Résumé' === sn_test_pdf_title( $bytes ), 'its Info Title is the one résumé\'s: "' . sn_test_pdf_title( $bytes ) . '"' );
 ok( $url . '?v=' . substr( $m['sha256'], 0, 8 ) === sn_resume_ops_pdf_link(), 'its link carries ?v=<first 8 of its SHA-256>, as the music Download does' );
 $good = $GLOBALS['opts'];
 $good_link = sn_resume_ops_pdf_link();
@@ -85,7 +86,7 @@ $web = $set;
 $web['pdf']['website'] = 'https://example.org/work';
 $reset( $web );
 $wb = base64_decode( (string) ( sn_resume_ops_pdf_build() ? $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] : '' ) );
-ok( false !== strpos( sn_resume_pdf_text( $wb ), 'example.test/resume/?lane=operations' ) && false === strpos( $wb, 'example.org' ), 'a filled Website field does not replace the operations PDF\'s own address' );
+ok( false !== strpos( $wb, '/URI (https://example.test/resume/)' ) && false === strpos( $wb, 'example.org' ), 'a filled Website field does not replace the PDF\'s own address' );
 
 echo "\nGroup: a write that does not land\n";
 $changed = $set;
@@ -116,6 +117,16 @@ foreach ( array( 'experience', 'publications' ) as $k ) {
 $reset( $empty, $good );
 $v = sn_resume_ops_pdf_build();
 ok( is_wp_error( $v ) && $good['sn_resume_pdf_operations_bytes'] === $GLOBALS['opts']['sn_resume_pdf_operations_bytes'], 'an operations résumé with no experience and no publications is not built; the last file stands' );
+
+echo "\nGroup: the verified-credits line (2026-11-12)\n";
+$GLOBALS['music_page'] = true;
+$reset( $set );
+sn_resume_ops_pdf_build();
+$cb = base64_decode( $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] );
+ok( 1 === preg_match( '~Verified credits:\s*example\.test/music~', sn_resume_pdf_text( $cb ) ) && false !== strpos( $cb, '/URI (https://example.test/music/)' ), 'with /music published: "Verified credits: example.test/music", printed in full and linked' );
+$GLOBALS['music_page'] = false;
+$reset( $set );
+sn_resume_ops_pdf_build();
 
 sn_test_pdf_cleanup();
 echo "\nResult: $pass passed, $fail failed.\n";

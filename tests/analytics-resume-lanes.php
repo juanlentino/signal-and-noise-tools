@@ -39,9 +39,10 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 $classic = static function () { ob_start(); snt_analytics_render_resume_lanes( '2026-10-01', '2026-10-31' ); snt_an_flush_empty_fold(); return (string) ob_get_clean(); };
 $native  = static fn() => SignalNoise\OpenStationHost\Analytics\Painters\paint_resume_lanes( array( 'from' => '2026-10-01', 'to' => '2026-10-31' ) );
 
-echo "\nGroup: the goals the page emits are the ones counted\n";
-$emitted = (string) file_get_contents( $root . '/inc/resume-lane-marks.php' ) . file_get_contents( $root . '/inc/resume-page-lanes.php' );
-ok( false !== strpos( $emitted, 'data-sn-goal="resume_hunk_\' . $lane' ) && false !== strpos( $emitted, 'data-sn-goal="resume_lane_\' . $lane' ), 'the page emits resume_hunk_<lane> and resume_lane_<lane>' );
+echo "\nGroup: the one résumé (2026-11-12): the panel keeps the history\n";
+$emitted = (string) file_get_contents( $root . '/inc/resume-page-bands.php' ) . file_get_contents( $root . '/inc/resume-page-lanes.php' );
+ok( false === strpos( $emitted, 'data-sn-goal="resume_hunk_' ) && false === strpos( $emitted, 'data-sn-goal="resume_lane_' ), 'the page no longer emits resume_hunk_<lane> or resume_lane_<lane>' );
+ok( '2026-11-12' === SN_RESUME_LANES_ENDED && false !== strpos( sn_resume_lanes_note(), 'Since 2026-11-12 /resume is one résumé' ), 'the note dates the end of the lanes' );
 ok( array( 'music' => array( 'switch' => 'resume_lane_music', 'hunk' => 'resume_hunk_music' ), 'operations' => array( 'switch' => 'resume_lane_operations', 'hunk' => 'resume_hunk_operations' ) ) === sn_resume_lane_goals(), 'the panel counts exactly those four names' );
 
 echo "\nGroup: the model\n";
