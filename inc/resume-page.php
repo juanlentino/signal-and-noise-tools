@@ -344,7 +344,7 @@ function sn_resume_doc_normalize( $doc ) {
 		$out['variants'] = $variants;
 	}
 	// Not a resume: refuse rather than save something blankable. The test is
-	// the music view, the public page, so rows marked "Operations only" do not count.
+	// the music view (the music PDF's), so rows marked "Shown, not on the music PDF" do not count.
 	$music = sn_resume_doc_view( $out, 'music' );
 	if ( empty( $music['experience'] ) && empty( $music['publications'] ) ) {
 		return null;

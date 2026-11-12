@@ -13,8 +13,8 @@
  * skills rows turn music-only only on the first run (before any operations
  * settings exist). Its skills rows and affiliations go only into a list that
  * has no operations row yet, so one deleted or renamed since is not added
- * again. Running it again does mark "Music only" again on a row set back to
- * both. The admin action writes the result into the draft, so the owner
+ * again. Running it again does mark Hidden ("Music only" before 2026-11-12)
+ * again on a row set back to Shown. The admin action writes the result into the draft, so the owner
  * reviews it before publishing.
  *
  * @package SignalNoiseTools
