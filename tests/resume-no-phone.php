@@ -56,7 +56,7 @@ ok( is_array( $doc ) && '(407) 555-0123' === $doc['pdf']['phone'] && true === $d
 echo "\nGroup: every PDF\n";
 sn_test_pdf_reset( $doc );
 $music = sn_resume_pdf_generate(); // fires the operations build too.
-$file  = (string) @file_get_contents( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume.pdf' );
+$file  = (string) @file_get_contents( $GLOBALS['tmp'] . '/resume/' . SN_RESUME_PDF_FILE );
 $mt    = $text( $file );
 ok( is_array( $music ) && false !== strpos( $mt, 'juan@example.com' ) && ! $has( $mt ), 'the music PDF: built, its contact line printed, no phone in its text layer' );
 $ops = sn_resume_ops_pdf_bytes();

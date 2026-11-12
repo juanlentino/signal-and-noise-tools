@@ -35,7 +35,7 @@ const SN_RESUME_OPS_SETUP = array(
 		'sections'         => array( 'summary', 'built', 'experience', 'education', 'affiliations', 'skills' ),
 		'experience_order' => array( 'Independent Practice', 'Panacea Studio', 'Independent Research' ),
 		'earlier_compact'  => true,
-		'pdf_file'         => 'JuanLentino_Resume_Operations.pdf',
+		'pdf_file'         => 'JuanLentino_Resume.pdf',
 	),
 	'built'      => array(
 		'intro' => 'All shipped with coding agents (Claude Code) from written briefs, with tests that must pass before release.',

@@ -13,9 +13,9 @@ Phase 2.
    These are the music PDF's; /resume shows the Operations résumé's headline and subhead instead
    (see "One résumé on /resume").
 3. **Generate PDF** (the Resume PDF box below the form). It renders the published document, writes
-   `uploads/resume/JuanLentino_Resume.pdf`, stores the timestamp, size, page count and SHA-256 in
+   `uploads/resume/JuanLentino_Resume_Music.pdf` (`JuanLentino_Resume.pdf` until 2026-11-12), stores the timestamp, size, page count and SHA-256 in
    the `sn_resume_pdf` option, re-renders /resume so the Download link reads
-   `…/resume/JuanLentino_Resume.pdf?v=<first 8 of the hash>`, and purges only what changed: the
+   `…/resume/JuanLentino_Resume_Music.pdf?v=<first 8 of the hash>`, and purges only what changed: the
    page save purges /resume/ as any page save does (the cache-tag purge, or the per-URL list with
    an older theme; Breeze through its own save handler), and the
    file's bare URL plus every `?v=` URL issued so far go through the per-URL Cloudflare purge.
@@ -51,9 +51,15 @@ every reader already knew, and the editor reads the stored document through `sn_
   start of their text, never rewords them, lists anything it cannot find (those stay in both), and
   running it again only fills what is missing and never undoes an edit.
 - **Generate PDF** builds both: the music file as before, then the operations PDF, served at
-  `/resume/JuanLentino_Resume_Operations.pdf` (the `sn_resume_pdf_operations` option holds its facts,
+  `/resume/<PDF file name>`, `JuanLentino_Resume.pdf` by default (the `sn_resume_pdf_operations` option holds its facts,
   `sn_resume_pdf_operations_bytes` the file). The music PDF's HTML is identical to what it was
   (pinned by `tests/resume-variants.php`).
+- **One PDF name (2026-11-12).** The one résumé's PDF is `/resume/JuanLentino_Resume.pdf`. Its two old
+  addresses redirect there (301, `sn_resume_pdf_retired_redirect()` in `inc/resume-pdf/operations.php`):
+  `/resume/JuanLentino_Resume_Operations.pdf`, and the music PDF's old uploads file
+  `uploads/resume/JuanLentino_Resume.pdf`. Generate removes that file and purges its addresses, because a
+  static file is served before WordPress runs; the music PDF is now `JuanLentino_Resume_Music.pdf`. An
+  address is never redirected while it is the stored PDF file name, or when no PDF is live.
 
 **The check on every generation** (`inc/resume-pdf/text-check.php`). Each PDF's text is read back by
 a built-in reader for Dompdf's CPDF output (inflate the streams, read each font's ToUnicode map,

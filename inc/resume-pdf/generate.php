@@ -3,7 +3,7 @@
  * Signal & Noise Tools — the resume PDF generator (docs/RESUME-PDF.md, Phase 2).
  *
  * Renders the resume document through inc/resume-pdf/template.php with Dompdf
- * and writes it to a STABLE path, uploads/resume/JuanLentino_Resume.pdf. The
+ * and writes it to a STABLE path, uploads/resume/JuanLentino_Resume_Music.pdf. The
  * generated timestamp, byte size, page count and SHA-256 land in one option;
  * the /resume Download link reads the stable URL plus ?v=<hash prefix>, so a
  * new PDF busts every cache layer without a new file name.
@@ -23,7 +23,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_RESUME_PDF_OPTION = 'sn_resume_pdf';
-const SN_RESUME_PDF_FILE   = 'JuanLentino_Resume.pdf';
+const SN_RESUME_PDF_FILE   = 'JuanLentino_Resume_Music.pdf'; // was JuanLentino_Resume.pdf, the one résumé's name since 2026-11-12.
+// The music PDF's old name, removed from uploads on the next Generate so its address redirects to the one résumé's PDF (inc/resume-pdf/operations.php).
+const SN_RESUME_PDF_RETIRED_FILE = 'JuanLentino_Resume.pdf';
 const SN_RESUME_PDF_ISSUED = 'sn_resume_pdf_issued'; // every ?v= prefix ever linked, newest last.
 // One Cloudflare purge call takes 30 URLs: the bare URL plus this many versions.
 // ponytail: past 28 generations the oldest ?v= link is no longer purged; chunked purging already exists if that ever matters.
@@ -197,11 +199,29 @@ function sn_resume_pdf_build() {
 	if ( function_exists( 'sn_cf_purge_urls' ) ) {
 		// The agent copies name the new ?v= link and are cached untagged: by URL too.
 		$copies = function_exists( 'sn_cf_resume_format_urls' ) ? sn_cf_resume_format_urls( (object) array( 'post_type' => 'page', 'post_name' => 'resume' ) ) : array();
-		sn_cf_purge_urls( array_merge( sn_resume_pdf_purge_urls( $meta, $issued ), $copies ) );
+		sn_cf_purge_urls( array_merge( sn_resume_pdf_purge_urls( $meta, $issued ), $copies, sn_resume_pdf_retire_old( $loc, $issued ) ) );
 	}
 	// The Spanish CV (inc/resume-es.php) and the operations PDF (inc/resume-pdf/operations.php, priority 20) follow.
 	do_action( 'sn_resume_pdf_generated' );
 	return $meta;
+}
+
+/**
+ * Remove the music PDF's old file (SN_RESUME_PDF_RETIRED_FILE) from uploads,
+ * so its address reaches WordPress and redirects to the one résumé's PDF
+ * (sn_resume_pdf_retired_redirect()). A static file is served before
+ * WordPress runs, so the redirect only works once the file is gone.
+ *
+ * @param array{dir:string,url:string} $loc    Where the PDFs live.
+ * @param string[]                     $issued Every ?v= prefix ever linked.
+ * @return string[] The old addresses to purge, or none when there was no file.
+ */
+function sn_resume_pdf_retire_old( array $loc, array $issued ) {
+	$old = $loc['dir'] . '/' . SN_RESUME_PDF_RETIRED_FILE;
+	if ( ! file_exists( $old ) || ! @unlink( $old ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- a missing file is the normal case.
+		return array();
+	}
+	return sn_resume_pdf_purge_urls( array( 'url' => $loc['url'] . '/' . SN_RESUME_PDF_RETIRED_FILE ), $issued );
 }
 
 /**

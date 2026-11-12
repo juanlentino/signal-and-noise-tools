@@ -38,7 +38,7 @@ const SN_RESUME_VARIANTS = array( 'music', 'operations' );
  */
 const SN_RESUME_PDF_SECTION_KEYS    = array( 'summary', 'stats', 'competencies', 'built', 'experience', 'publications', 'education', 'affiliations', 'skills', 'toolkit' );
 const SN_RESUME_PDF_MUSIC_SECTIONS  = array( 'summary', 'stats', 'competencies', 'experience', 'publications', 'education', 'affiliations', 'toolkit' );
-const SN_RESUME_OPERATIONS_PDF_FILE = 'JuanLentino_Resume_Operations.pdf';
+const SN_RESUME_OPERATIONS_PDF_FILE = 'JuanLentino_Resume.pdf'; // the one résumé's PDF (owner, 2026-11-12); was JuanLentino_Resume_Operations.pdf.
 
 /**
  * A variant flag: 'music', 'operations', or '' for both.

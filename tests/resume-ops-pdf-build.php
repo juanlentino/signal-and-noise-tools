@@ -20,7 +20,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 require_once __DIR__ . '/lib/resume-pdf-harness.php';
 
 $set = sn_resume_doc_normalize( sn_resume_operations_setup( sn_resume_doc_normalize( sn_resume_seed_doc() ) )['doc'] );
-$url = 'https://example.test/resume/JuanLentino_Resume_Operations.pdf';
+$url = 'https://example.test/resume/JuanLentino_Resume.pdf';
 $reset = 'sn_test_pdf_reset';
 $box = static fn() => implode( "\n", array_column( sn_resume_pdf_variant_lines(), 'text' ) );
 
@@ -142,6 +142,32 @@ ok( 1 === preg_match( '~Verified credits:\s*example\.test/music~', sn_resume_pdf
 $GLOBALS['music_page'] = false;
 $reset( $set );
 sn_resume_ops_pdf_build();
+
+echo "\nGroup: one PDF name, the old addresses redirect (2026-11-12)\n";
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
+}
+$reset( $set );
+wp_mkdir_p( $GLOBALS['tmp'] . '/resume' );
+file_put_contents( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume.pdf', '%PDF-old music' );
+sn_resume_pdf_generate();
+ok( ! file_exists( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume.pdf' ) && file_exists( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume_Music.pdf' ), 'Generate writes the music PDF under its own name and removes the old JuanLentino_Resume.pdf from uploads' );
+ok( in_array( 'https://example.test/up/resume/JuanLentino_Resume.pdf', $GLOBALS['purged'], true ), 'and purges the old file\'s address' );
+$GLOBALS['purged'] = array();
+sn_resume_pdf_generate();
+ok( ! in_array( 'https://example.test/up/resume/JuanLentino_Resume.pdf', $GLOBALS['purged'], true ), 'a later Generate has no old file to remove and purges nothing for it' );
+$link = sn_resume_ops_pdf_link();
+ok( 0 === strpos( $link, 'https://example.test/resume/JuanLentino_Resume.pdf?v=' ), 'the one résumé\'s PDF is /resume/JuanLentino_Resume.pdf, with its ?v=' );
+ok( $link === sn_resume_pdf_retired_target( '/resume/JuanLentino_Resume_Operations.pdf' ), 'the old operations name redirects to it' );
+ok( $link === sn_resume_pdf_retired_target( '/up/resume/JuanLentino_Resume.pdf' ), 'the old uploads file redirects to it' );
+ok( '' === sn_resume_pdf_retired_target( '/resume/JuanLentino_Resume.pdf' ) && '' === sn_resume_pdf_retired_target( '/resume/Other.pdf' ) && '' === sn_resume_pdf_retired_target( '/up/resume/JuanLentino_Resume_Music.pdf' ), 'the current address, an unknown name and the music file are left alone (no loop)' );
+$named = $set;
+$named['variants']['operations']['pdf_file'] = 'JuanLentino_Resume_Operations.pdf';
+$reset( $named );
+sn_resume_ops_pdf_build();
+ok( '' === sn_resume_pdf_retired_target( '/resume/JuanLentino_Resume_Operations.pdf' ) && 0 === strpos( sn_resume_pdf_retired_target( '/up/resume/JuanLentino_Resume.pdf' ), 'https://example.test/resume/JuanLentino_Resume_Operations.pdf?v=' ), 'while the stored name is still the old one, that address is served, never redirected' );
+$reset( $set );
+ok( '' === sn_resume_pdf_retired_target( '/resume/JuanLentino_Resume_Operations.pdf' ), 'no PDF live: no redirect (never to a 404)' );
 
 sn_test_pdf_cleanup();
 echo "\nResult: $pass passed, $fail failed.\n";
