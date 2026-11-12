@@ -196,10 +196,11 @@ function sn_resume_pdf_build() {
 	// the purge-everything ability, which also emptied Redis and every other
 	// page to drop one PDF. Now the file's own addresses go through the per-URL
 	// path, which does nothing when Cloudflare is not configured.
+	$retired = sn_resume_pdf_retire_old( $loc, $issued ); // removed whether or not Cloudflare is set up: a static file shadows the redirect.
 	if ( function_exists( 'sn_cf_purge_urls' ) ) {
 		// The agent copies name the new ?v= link and are cached untagged: by URL too.
 		$copies = function_exists( 'sn_cf_resume_format_urls' ) ? sn_cf_resume_format_urls( (object) array( 'post_type' => 'page', 'post_name' => 'resume' ) ) : array();
-		sn_cf_purge_urls( array_merge( sn_resume_pdf_purge_urls( $meta, $issued ), $copies, sn_resume_pdf_retire_old( $loc, $issued ) ) );
+		sn_cf_purge_urls( array_merge( sn_resume_pdf_purge_urls( $meta, $issued ), $copies, $retired ) );
 	}
 	// The Spanish CV (inc/resume-es.php) and the operations PDF (inc/resume-pdf/operations.php, priority 20) follow.
 	do_action( 'sn_resume_pdf_generated' );
