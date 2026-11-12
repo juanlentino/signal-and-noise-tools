@@ -10,7 +10,9 @@
  * English), so nobody records it by hand. The alert lists every English line
  * added or changed since, and every line removed. It shows on the Résumé
  * screen (classic and dashboard) and as a Health check, and clears on its own
- * once the Spanish file is updated and released. Owner, 2026-10-15.
+ * once the Spanish text is updated (signal-noise/resume-es-apply, no release
+ * since 2026-11-12). Owner, 2026-10-15. The English side is the résumé /resume
+ * shows (sn_resume_shown_doc()).
  *
  * @package SignalNoiseTools
  */
@@ -138,12 +140,11 @@ function sn_resume_es_should_capture( $saved, $es_hash, $translated_from, $live_
  * @return array{changed:string[],removed:string[]}|null Null when there is no Spanish CV.
  */
 function sn_resume_es_stale() {
-	$file = __DIR__ . '/seed-content/resume-data-es.json';
-	if ( ! is_readable( $file ) || ! function_exists( 'sn_resume_doc_get' ) ) {
+	if ( ! function_exists( 'sn_resume_doc_get' ) ) {
 		return null;
 	}
-	$raw     = (string) file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.
-	$current = sn_resume_lines( sn_resume_doc_get() );
+	$raw     = function_exists( 'sn_resume_es_source_json' ) ? sn_resume_es_source_json() : (string) file_get_contents( __DIR__ . '/seed-content/resume-data-es.json' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled seed.
+	$current = sn_resume_lines( function_exists( 'sn_resume_shown_doc' ) ? sn_resume_shown_doc() : sn_resume_doc_get() );
 	$saved   = get_option( SN_RESUME_ES_SOURCE_OPT );
 	if ( sn_resume_es_should_capture( $saved, md5( $raw ), (string) ( json_decode( $raw, true )['translated_from'] ?? '' ), sn_resume_lines_hash( $current ) ) ) {
 		$saved = array( 'es_hash' => md5( $raw ), 'lines' => $current );
@@ -168,7 +169,7 @@ function sn_resume_es_stale_html( $stale ) {
 	$out = '<p><strong>' . esc_html__( 'The Spanish CV (/cv/) is out of date.', 'signal-and-noise-tools' ) . '</strong> '
 		. esc_html__( 'These English lines changed since it was translated; send this list to have the Spanish updated.', 'signal-and-noise-tools' )
 		/* translators: %s: short code of the current English version */
-		. ' ' . esc_html( sprintf( __( 'English version: %s.', 'signal-and-noise-tools' ), sn_resume_lines_hash( function_exists( 'sn_resume_doc_get' ) ? sn_resume_lines( sn_resume_doc_get() ) : array() ) ) ) . '</p>';
+		. ' ' . esc_html( sprintf( __( 'English version: %s.', 'signal-and-noise-tools' ), sn_resume_lines_hash( sn_resume_lines( function_exists( 'sn_resume_shown_doc' ) ? sn_resume_shown_doc() : ( function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null ) ) ) ) ) . '</p>';
 	if ( $stale['changed'] ) {
 		$out .= '<p>' . esc_html__( 'New or changed:', 'signal-and-noise-tools' ) . '</p>' . $list( $stale['changed'] );
 	}
@@ -201,5 +202,5 @@ function sn_health_check_resume_es_stale() {
 			);
 		}
 	}
-	return sn_health_pack_check( 'Spanish CV up to date', $findings, 'Update inc/seed-content/resume-data-es.json for these lines, set its translated_from to the English version shown on the Résumé screen, and release; the check clears on its own.' );
+	return sn_health_pack_check( 'Spanish CV up to date', $findings, 'Write the Spanish CV for these lines through signal-noise/resume-es-apply, with translated_from set to the English version shown on the Résumé screen; no release needed, and the check clears on its own.' );
 }

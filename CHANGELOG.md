@@ -12,6 +12,13 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The Spanish CV is stored text, so a Spanish update is never a plugin release again (owner, 2026-11-12).** /cv/ used to read `inc/seed-content/resume-data-es.json`, so every Spanish change shipped as a release. It now reads the option `sn_resume_doc_es`; the bundled file only seeds a fresh install (`sn_resume_es_source_json()`, `inc/resume-es.php`). The stale-CV alert and its Health check compare against the résumé /resume actually shows (`sn_resume_shown_doc()`), not the old music view.
+- **/cv uses the one-résumé layout once its text carries operations settings**, as /resume does: kicker, headline, subhead, What I've Built ("LO QUE CONSTRUÍ"), "Créditos verificados" to /musica, the formats line to /cv.md and /cv/json-resume.json, and its own PDF in the same layout (`JuanLentino_CV.pdf`). The Spanish text as shipped has none, so /cv is unchanged until the Spanish text is written.
+
+### Added
+- **`signal-noise/resume-es-apply` on the write door.** Without a document it returns the Spanish text, its source, the English version code and the stale diff; with one it refuses a phone anywhere and a document that does not render, returns the line diff, and with `dry_run: false` stores it and re-renders /cv/ and its PDF (`inc/abilities-resume-es.php`). Test: `tests/resume-es-apply.php` (new); `tests/resume-one.php` covers the Spanish one-résumé render; the door's pinned lists move to 19 write tools.
+
 ## [2026.11.31] - 2026-11-12 — Exact page views from the analytics worker's counter
 
 ### Added

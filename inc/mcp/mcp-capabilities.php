@@ -382,6 +382,8 @@ function sn_mcp_rw_allowlist() {
 		'signal-noise/prune-unused-tags',
 		// Marks only entries the rules flag at call time; Forms' Not spam undoes it.
 		'signal-noise/forms-spam-apply',
+		// 2026-11-12: the Spanish CV's text, stored, so a Spanish update is never a release; dry run by default, refuses a phone.
+		'signal-noise/resume-es-apply',
 		// v13.25.0 — the tag-vocabulary pair beside prune-unused-tags: AI-billed
 		// returns-only drafting + an only-if-empty write (never clobbers an
 		// owner edit; replays answer skipped_nonempty). Owner-directed the day

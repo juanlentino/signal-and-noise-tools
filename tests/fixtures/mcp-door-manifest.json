@@ -70,6 +70,7 @@
         "signal-noise/jev-tells-pass",
         "signal-noise/prune-unused-tags",
         "signal-noise/purge-all-caches",
+        "signal-noise/resume-es-apply",
         "signal-noise/rights-evidence-now",
         "signal-noise/sn-apply",
         "signal-noise/unschedule-cron-event"

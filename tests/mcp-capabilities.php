@@ -144,7 +144,7 @@ ok( sn_mcp_negotiate_version( '1999-01-01' ) === SN_MCP_PROTOCOL_VERSION, 'negot
 echo "\nMCP rw-door allowlist (v9.50.0)\n\n";
 
 $rw = sn_mcp_rw_allowlist();
-ok( is_array( $rw ) && count( $rw ) === 18, 'rw allowlist is exactly 18 slugs (21.1.0 + archive-push-existing, the owner-started Internet Archive run; forms-spam-apply, marks only what the rules flag; 17.0.0 + rights-evidence-now, compose and post the month; 16.8.0 + jev-tags-now; 16.7.0 + jev-tells-check + jev-tells-pass; 16.5.0 + jev-fit-now; 16.4.0 + jev-collision-check + jev-lane-map; 16.3.3 + jev-pass-now, the on-demand Jev pass; v13.25.0 WIDENED by 2, owner-directed: the tag-vocabulary pair describe-tags + apply-tag-description beside prune-unused-tags; v13.0.0 wave 2 had retired 4, wave 1 (v12.0.0) 26)' );
+ok( is_array( $rw ) && count( $rw ) === 19, 'rw allowlist is exactly 19 slugs (resume-es-apply 2026-11-12; 21.1.0 + archive-push-existing, the owner-started Internet Archive run; forms-spam-apply, marks only what the rules flag; 17.0.0 + rights-evidence-now, compose and post the month; 16.8.0 + jev-tags-now; 16.7.0 + jev-tells-check + jev-tells-pass; 16.5.0 + jev-fit-now; 16.4.0 + jev-collision-check + jev-lane-map; 16.3.3 + jev-pass-now, the on-demand Jev pass; v13.25.0 WIDENED by 2, owner-directed: the tag-vocabulary pair describe-tags + apply-tag-description beside prune-unused-tags; v13.0.0 wave 2 had retired 4, wave 1 (v12.0.0) 26)' );
 
 // --- exact membership: the 8 plugin slugs, pinned individually ---
 // v13.0.0: down to sn-apply, the deliberately-kept AI link pair (see the KEPT
@@ -156,6 +156,7 @@ $rw_plugin = array(
 	'signal-noise/purge-all-caches',
 	'signal-noise/prune-unused-tags',
 	'signal-noise/forms-spam-apply',
+	'signal-noise/resume-es-apply', // 2026-11-12: the Spanish CV without a release
 	'signal-noise/unschedule-cron-event',
 	'signal-noise/ai-link-apply',
 	'signal-noise/ai-pair-suggest',
@@ -171,7 +172,7 @@ $rw_plugin = array(
 	'signal-noise/jev-tags-now',
 	'signal-noise/rights-evidence-now', // 17.0.0
 );
-ok( count( $rw_plugin ) === 18, 'sanity: the pinned plugin rw list itself is 18 (21.1.0 + archive-push-existing; forms-spam-apply; 17.0.0 was 16)' );
+ok( count( $rw_plugin ) === 19, 'sanity: the pinned plugin rw list itself is 19 (resume-es-apply; 21.1.0 + archive-push-existing; forms-spam-apply; 17.0.0 was 16)' );
 foreach ( $rw_plugin as $slug ) {
 	ok( in_array( $slug, $rw, true ), "rw-door plugin slug present: $slug" );
 }

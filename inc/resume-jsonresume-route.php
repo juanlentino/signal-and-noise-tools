@@ -64,11 +64,11 @@ function sn_jsonresume_for( $slug ) {
 	if ( ! $page ) {
 		return null;
 	}
-	$raw   = 'resume' === $slug && function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null;
-	$cfg   = null !== $raw && function_exists( 'sn_resume_lane_doc' ) ? sn_resume_variant_config( $raw, 'operations' ) : null;
-	$doc   = 'cv' === $slug
+	$raw   = 'cv' === $slug
 		? ( function_exists( 'sn_resume_es_doc' ) ? sn_resume_es_doc() : null )
-		: ( null !== $cfg ? sn_resume_lane_doc( $raw, 'operations' ) : sn_resume_doc_get() );
+		: ( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null );
+	$cfg   = null !== $raw && function_exists( 'sn_resume_lane_doc' ) ? sn_resume_variant_config( $raw, 'operations' ) : null;
+	$doc   = null !== $cfg ? sn_resume_lane_doc( $raw, 'operations' ) : ( 'cv' === $slug ? $raw : sn_resume_doc_get() );
 	$extra = null !== $cfg ? (array) $cfg['links'] : array();
 	$built = sn_jsonresume_build(
 		$doc,
@@ -83,9 +83,16 @@ function sn_jsonresume_for( $slug ) {
 			'provenance'    => sn_resume_proof( $page ),
 		)
 	);
+	$es      = 'cv' === $slug && function_exists( 'sn_resume_lang' );
+	if ( $es ) {
+		sn_resume_lang( 'es' );
+	}
 	$credits = null !== $cfg && function_exists( 'sn_resume_credits_url' ) ? sn_resume_credits_url() : '';
+	if ( $es ) {
+		sn_resume_lang( 'en' );
+	}
 	if ( '' !== $credits ) { // basics.profiles: the schema's place for a link with a name; "network" names it.
-		$built['basics']['profiles'][] = array( 'network' => 'Verified credits', 'username' => SN_RESUME_CREDITS_SLUG, 'url' => $credits );
+		$built['basics']['profiles'][] = array( 'network' => $es ? 'Créditos verificados' : 'Verified credits', 'username' => $es ? SN_RESUME_CREDITS_SLUG_ES : SN_RESUME_CREDITS_SLUG, 'url' => $credits );
 	}
 	return $built;
 }
