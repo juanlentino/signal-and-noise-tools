@@ -562,15 +562,20 @@ add_action( 'admin_init', 'sn_migrate_split_hero_v9' );
  * sn_resume_hero_blocks() (or any body-shaping engine code) changes and
  * the stored body re-renders once on the next admin load after update.
  */
-const SN_RESUME_ENGINE_REV = 6; // 2 = eyebrow band kicker above the hero columns; 3 = publication cards drop constrained layout (full-width titles); 4 = two lanes and receipt marks (brief #2); 5 = the layout pass (switch beside the title, built grid, h2 headline, receipts out of headings, no duplicate paper mark, nbsp before the rail dots); 6 = edition marks (what only one lane holds, hunks to the other lane's bands, h2 anchors, the legend and formats lines).
+const SN_RESUME_ENGINE_REV = 7; // 7 = the one résumé (owner, 2026-11-12): one body from the operations settings, no switch, marks or hunks, the kicker and the verified-credits line; 2 = eyebrow band kicker above the hero columns; 3 = publication cards drop constrained layout (full-width titles); 4 = two lanes and receipt marks (brief #2); 5 = the layout pass (switch beside the title, built grid, h2 headline, receipts out of headings, no duplicate paper mark, nbsp before the rail dots); 6 = edition marks (what only one lane holds, hunks to the other lane's bands, h2 anchors, the legend and formats lines).
 
 /** Re-render /resume once per engine revision (/cv/ follows: the revision is part of its sync state, inc/resume-es.php). */
 function sn_resume_engine_regen() {
-	if ( SN_RESUME_ENGINE_REV === (int) get_option( 'sn_resume_engine_rev' ) ) {
+	$from = (int) get_option( 'sn_resume_engine_rev' );
+	if ( SN_RESUME_ENGINE_REV === $from ) {
 		return;
 	}
 	if ( function_exists( 'sn_resume_sync_page' ) ) {
 		sn_resume_sync_page();
+	}
+	// Leaving the two lanes (rev 7): the edge drops their copies once, then they are off the purge list.
+	if ( $from < 7 && SN_RESUME_ENGINE_REV >= 7 && defined( 'SN_CF_RESUME_LANE_URLS_RETIRED' ) && function_exists( 'sn_cf_purge_urls' ) ) {
+		sn_cf_purge_urls( array_map( 'home_url', SN_CF_RESUME_LANE_URLS_RETIRED ) );
 	}
 	update_option( 'sn_resume_engine_rev', SN_RESUME_ENGINE_REV, false );
 }

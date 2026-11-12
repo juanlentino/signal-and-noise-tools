@@ -10,8 +10,8 @@ Phase 2.
 2. The **PDF only** section holds the PDF's own fields: headline, tagline,
    professional summary (blank: the Hero summary), location, phone, email, website (blank: this site), core competencies (one per line), technical
    toolkit (one per line). The phone is stored and never printed (see "The phone" below).
-   Of these, /resume shows only the headline and tagline, at the head of its Music lane once it has
-   two lanes (see "The page's two lanes").
+   These are the music PDF's; /resume shows the Operations résumé's headline and subhead instead
+   (see "One résumé on /resume").
 3. **Generate PDF** (the Resume PDF box below the form). It renders the published document, writes
    `uploads/resume/JuanLentino_Resume.pdf`, stores the timestamp, size, page count and SHA-256 in
    the `sn_resume_pdf` option, re-renders /resume so the Download link reads
@@ -25,10 +25,9 @@ Until the first generation, the Download link keeps using the **PDF URL** field 
 
 ## Two résumés from one document (2026-11-01)
 
-The document builds two résumés: **music** (the /resume page's first lane, its Download link, the
-Spanish CV, JSON Resume, Markdown and vCard) and **operations** (its own PDF, and since brief #2 the
-second lane on /resume, with its own JSON Resume and Markdown at `?lane=operations`; the vCard is
-always the music one; see "The page's two lanes" below).
+The document builds two views: **music** (the music PDF and the Spanish CV) and **operations**
+(since 2026-11-12 the one /resume, its PDF, JSON Resume, Markdown and vCard; see "One résumé on
+/resume" below).
 `inc/resume-variants.php` holds the rules; `sn_resume_doc_get()` returns the music view in the shape
 every reader already knew, and the editor reads the stored document through `sn_resume_doc_get_raw()`.
 
@@ -39,7 +38,7 @@ every reader already knew, and the editor reads the stored document through `sn_
   reordering bullets never moves it, and a bullet whose text changes goes back to both.
 - **What I've Built.** An intro line and one card per project (title, link, one or two
   sentences). The operations PDF shows it; the music PDF only with "Show What I've Built in the
-  music PDF" (PDF only). On /resume it shows in the Operations lane.
+  music PDF" (PDF only). On /resume it shows while "built" is in the Sections list.
 - **Operations résumé.** Headline, subhead, location, extra contact links (after the website),
   summary, the section order (one key per line from `summary, stats, competencies, built,
   experience, publications, education, affiliations, skills, toolkit`; a key left out is a section
@@ -69,55 +68,43 @@ was unsure a Cloudflare rule was available for one (2026-11-01), so the operatio
 uploads. Its bytes live in an option, and WordPress serves them at `/resume/<file name>` with
 `X-Robots-Tag: noindex, nofollow` (`sn_resume_ops_pdf_maybe_serve()`); before the first generation
 that address is the ordinary 404. Every generation reads the header back and flags it if missing.
-The address is in no sitemap. Since brief #2 the Operations lane's Download links it, and the format
+The address is in no sitemap. Since 2026-11-12 it is /resume's only Download, and the format
 list and llms.txt name it.
 
-## The page's two lanes (2026-11-01, brief #2)
+## One résumé on /resume (owner, 2026-11-12)
 
-Once the operations résumé is set up, `sn_resume_sync_page()` writes the English /resume through
-`sn_resume_page_body()` (`inc/resume-page-lanes.php`): a shared head (eyebrow and the page title on
-the left, the switch "Music" / "Operations & AI Strategy" and its caption beside them on the right,
-in a bottom-aligned 55/45 columns block of its own class, `sn-resume-head-split`), then two plain groups,
-`#resume-music` and `#resume-operations`, each a full set of bands built from
-`sn_resume_lane_doc()`. That lane document is the variant's view with the operations headline,
-subhead, location and summary laid over the music ones, the operations experience order, earlier
-career without bullets when it asks, only the sections it lists, and its "What I've Built" as
-`built`. The JSON Resume reads the same lane document (`?lane=operations`).
+The two lanes (2026-11-01, brief #2) are gone: readers had to notice the switch to use it, and two
+résumés were two things to keep straight. Once the operations settings exist, `sn_resume_sync_page()`
+writes the English /resume through `sn_resume_page_body()` (`inc/resume-page-lanes.php`) as one body:
+a head band (eyebrow and the page title), then the bands of `sn_resume_lane_doc( $raw, 'operations' )`,
+numbered as they fall, each h2 anchored `#resume-<band>`. That document is the operations view with
+its headline, subhead, location and summary, its experience order, earlier career without bullets
+when it asks, only the sections its Sections list names, and "What I've Built" as `built`. Rows the
+owner wants on /resume are tagged "Both résumés"; "Music only" rows stay on the music PDF and /cv.
+The stored document is unchanged, so the music view still exists.
 
-- **Both lanes are stored; the request only hides one.** `inc/resume-page-lane-render.php`
-  (`render_block_core/group`) sets `hidden` on the lane not asked for and `aria-current="page"` on
-  the switch's current link. Attributes only, never text, so the provenance normalizer reads the
-  same page for `/resume/` and `/resume/?lane=operations` (pinned by `tests/resume-page-lanes.php`).
-  The stored body carries neither attribute. The theme keeps `[hidden]` hidden over any group
-  display rule, styles the switch, and switches in place with `assets/js/resume-switch.js`.
-- **The download follows the lane** because each lane has its own Download: the music PDF with its
-  `?v=`, and the operations PDF at its stable address with its own `?v=<first 8 of its SHA-256>`
-  (`sn_resume_ops_pdf_link()`, also what the format list and llms.txt name), built from the file
-  name the route serves now, so a rename whose build failed never links a 404. The operations Download
-  appears only once that PDF exists (`sn_resume_ops_pdf_live()`); Generate syncs the page before it
-  builds the operations file, so the operations build syncs it again, and purges the address. A PDF
-  withdrawn for a phone drops its facts, and its Download goes with them; the bare address and the
-  `?v=` one the page linked are both purged.
-- **Each PDF points home.** Its contact line prints and links its own lane: the music PDF
-  `juanlentino.com/resume`, the operations PDF `juanlentino.com/resume/?lane=operations`, both from
-  `home_url()` so they follow the site. A filled Website field still wins in the music PDF and the
-  Spanish CV; the operations PDF always prints its lane address. The Spanish CV keeps the
-  bare home URL. The Info Title is the template's `<title>` (Dompdf sets it from there on every
-  render): "Juan Lentino, Resume" for music, unchanged, and "Juan Lentino · Résumé · Operations & AI
-  Strategy" for operations.
-- **Each lane is its own address.** On `/resume/?lane=operations` the canonical, `og:url`, title,
-  description and ProfilePage name that lane, and its twins' `Link: rel="canonical"`, JSON
-  `meta.canonical` and Markdown `url` say `/resume/?lane=operations`; both lanes' twins list both
-  lanes (`lanes:`, `meta.x-lanes`). `inc/resume-lane-address.php`, `tests/resume-lane-heads.php`.
-- **The operations résumé never carries the phone**, on the page or in any agent copy, whatever the
-  music PDF's switch says.
-- **An update re-renders the page once**, and /cv with it (`SN_RESUME_ENGINE_REV` in `inc/split-hero-migration.php`,
-  5 since the layout pass: the switch beside the title, What I've Built's cards in one
-  `sn-resume-built-grid` group, each lane's headline an h2, receipts out of headings, no separate
-  mark on a publication, and a no-break space before each contact-rail dot).
+- **The hero** carries the optional **kicker** (`variants.operations.kicker`, a small line straight
+  over the headline), the headline as an h2, the subhead, the summary; on the right the chips, the
+  contact rail with the extra links, the line "Verified credits: juanlentino.com/music" (only while
+  /music is published, `sn_resume_credits_url()`), and the one Download.
+- **One PDF**: the operations build, printing and linking `juanlentino.com/resume` and the
+  verified-credits line, Info Title "Juan Lentino · Résumé". The music PDF is still built for the
+  record but nothing on /resume, in the format list or in llms.txt links it.
+- **`?lane=` means nothing.** Every address shows the same body; the canonical and `og:url` are
+  `/resume/`; the formats ignore it too: `/resume.md`, `/resume/json-resume.json` and
+  `/resume/contact.vcf` are the one résumé, with no `lane:` / `lanes:` / `meta.x-lane(s)`. The JSON
+  Resume lists /music in `basics.profiles` as `{"network":"Verified credits"}`. The one résumé never
+  links the vCard (owner, 2026-11-02); the route still answers. `tests/resume-one.php`,
+  `tests/resume-head.php`.
+- **The description** of /resume (meta, og, twitter, ProfilePage) is the first sentence of the
+  résumé's summary, verbatim (`inc/resume-page-description.php`): the page's own was written for the
+  music résumé.
+- **An update re-renders the page once**, and /cv with it (`SN_RESUME_ENGINE_REV` 7 in
+  `inc/split-hero-migration.php`). Leaving rev 6 also purges the old lane addresses once
+  (`SN_CF_RESUME_LANE_URLS_RETIRED`); they are off the per-save purge list.
 - **Spanish and no operations settings** keep `sn_resume_body_html()`, the single body, unchanged.
-- **Every regeneration rewrites the page** only when the body changed, as before; with two lanes, an
-  edit to either résumé changes the body, so the edge's `sn-render` purge covers `?lane=` copies.
+- **Analytics**: the owner-only "Résumé lanes" panel keeps its history with a dated note; from
+  2026-11-12 its lane field means nothing.
 - **Receipts** (`inc/resume-receipts.php`): `credential_url` on education and affiliation rows shows
   `verify`, a publication's `url` is its title's link (no separate mark since the layout pass), a
   "What I've Built" `url` shows `code` after the project's text, never inside its heading; experience
@@ -139,7 +126,7 @@ Owner, 2026-11-02: "The phone shouldn't be in any version: human and machine." S
   page reads it.
 - **The web pages never show it.** The sync engine does not read `pdf`, so /resume, /cv and the hero
   rail have no phone; the identity schema (JSON-LD) carries no `telephone`.
-- **The agent copies never carry it**: `/resume.md` (both lanes), both JSON Resumes, `/cv.md`,
+- **The agent copies never carry it**: `/resume.md`, the JSON Resume, `/cv.md`,
   `/cv/json-resume.json` and `/resume/contact.vcf` have no phone field (`sn_jsonresume_basics()`
   builds none, and the Markdown and the vCard read it).
 - **`pdf.phone` stays stored, never output.** It exists only as the tripwire's input: every render
@@ -168,7 +155,7 @@ install; it is kept in step with the live document so the tests read current cop
 | PDF section | Source in `sn_resume_doc` |
 |---|---|
 | Name | the site title (`get_bloginfo( 'name' )`, filter `sn_resume_pdf_name`) |
-| Headline, tagline, contact line | `pdf.headline`, `pdf.tagline`; location = `pdf.location` else `hero.contact_line`; `pdf.email`; `hero.linkedin`; site = `pdf.website` else the lane's own address (music `/resume/`, operations `/resume/?lane=operations`; the operations PDF always its own), printed without its scheme |
+| Headline, tagline, contact line | `pdf.headline`, `pdf.tagline`; location = `pdf.location` else `hero.contact_line`; `pdf.email`; `hero.linkedin`; site = `pdf.website` else `/resume/` (the operations PDF always `/resume/`), printed without its scheme; the operations PDF adds "Verified credits: …/music" |
 | Professional summary | `pdf.summary`, else `hero.summary` |
 | Stats band | `stats[]` |
 | Core competencies | `pdf.competencies[]` (three columns) |
@@ -177,10 +164,10 @@ install; it is kept in step with the live document so the tests read current cop
 | Education, Affiliations & certifications | `education[]`, `affiliations[]` (title, then its lines, separated by bars) |
 | Technical toolkit | `pdf.toolkit[]` |
 
-`pdf` is a top-level key the single /resume body never reads; the two-lane body reads only
-`pdf.headline` and `pdf.tagline`, and its lane documents blank the phone, so the phone cannot reach
+`pdf` is a top-level key the single /resume body never reads; the one-résumé body reads only
+`pdf.headline` and `pdf.tagline` (the operations ones), and its document blanks the phone, so the phone cannot reach
 the page. `tests/resume-pdf-page-invariance.php` pins the single body (the only change to it is the
-Download link's URL); `tests/resume-page-lanes.php` pins the two-lane body by sha, and that it is
+Download link's URL); `tests/resume-one.php` pins the one-résumé body by sha, and that it is
 the same with the phone set and public.
 
 ## Renderer: Dompdf
@@ -217,8 +204,10 @@ To update Dompdf: `cd lib/pdf && composer update`, then run `php tests/resume-pd
   music résumé unchanged by it, idempotent, misses reported), the music PDF HTML unchanged, the
   operations PDF's order, its missing sections, its headline and links, and no phone.
 - `tests/resume-pdf-text-check.php`: the built-in reader against pdftotext, and every flag.
-- `tests/resume-page-lanes.php`: the two-lane body (pinned by sha), `?lane=` at render time, the
-  receipts, and every format per lane (JSON Resume, Markdown, the format list, the head links).
+- `tests/resume-one.php`: the one-résumé body (pinned by sha, no switch or marks, the kicker, the
+  verified-credits line, parse-and-re-save), the receipts, and every format (JSON Resume, Markdown,
+  vCard, the format list, the head links) the same whatever `?lane=` says.
+- `tests/resume-head.php`: one head on every `?lane=`, canonical and og:url /resume/, the description.
 - `tests/resume-ops-pdf-route.php`: the operations PDF's route and its noindex header.
 - `tests/os-leaf-content-resume.php`: the dashboard leaf and the classic form post the same fields,
   including `pdf[…]`, and both carry the separate Generate PDF form.

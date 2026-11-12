@@ -3,7 +3,7 @@
  * Signal & Noise Tools: résumé variants, two résumés from one document.
  *
  * Owner brief 2026-11-01: the music résumé (the /resume page and its PDF, the
- * public one) and an operations résumé (its own PDF, and since brief #2 the page's second lane) are built
+ * public one) and an operations résumé (its own PDF, and since 2026-11-12 the one /resume) are built
  * from the same entries, so neither can drift from the editor.
  *
  * In the stored document (sn_resume_doc), every experience and earlier entry,
@@ -14,15 +14,14 @@
  * keyed by sn_resume_bullet_key() of its text, so reordering bullets can never
  * move a flag onto the wrong one. Two optional top-level blocks:
  *   built{intro,items[]{title,url,text,variant?}}  "What I've Built"
- *   variants{music{show_built},operations{headline,tagline,location,links[],
+ *   variants{music{show_built},operations{kicker,headline,tagline,location,links[],
  *            summary,sections[],experience_order[],earlier_compact,pdf_file}}
  *
  * sn_resume_doc_view() turns the stored document into one variant in the shape
  * every reader already knows (no variant keys, no built, no variants), and
  * sn_resume_doc_get() returns the music view, which the music PDF, the Spanish
- * CV and vCard read. The page reads the stored document and paints one lane
- * per variant (inc/resume-page-lanes.php), and JSON Resume and Markdown follow
- * its ?lane=operations.
+ * CV read. /resume, its JSON Resume, Markdown and vCard are the operations
+ * view (inc/resume-page-lanes.php): one résumé since 2026-11-12.
  *
  * @package SignalNoiseTools
  */
@@ -132,6 +131,7 @@ function sn_resume_normalize_variants( $in ) {
 	}
 	$ops = is_array( $in['operations'] ?? null ) ? $in['operations'] : array();
 	$o   = array(
+		'kicker'           => sn_resume_text( $ops['kicker'] ?? '' ),
 		'headline'         => sn_resume_text( $ops['headline'] ?? '' ),
 		'tagline'          => sn_resume_text( $ops['tagline'] ?? '' ),
 		'location'         => sn_resume_text( $ops['location'] ?? '' ),
@@ -233,7 +233,7 @@ function sn_resume_built_for( $doc, $variant ) {
  *
  * @param array|null $doc Stored document.
  * @param string     $variant
- * @return array|null {sections,headline,tagline,location,links,summary,experience_order,earlier_compact,pdf_file}
+ * @return array|null {sections,kicker,headline,tagline,location,links,summary,experience_order,earlier_compact,pdf_file}
  */
 function sn_resume_variant_config( $doc, $variant ) {
 	$v = is_array( $doc['variants'] ?? null ) ? $doc['variants'] : array();

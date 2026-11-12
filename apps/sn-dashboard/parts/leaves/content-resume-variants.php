@@ -125,7 +125,8 @@ function resume_operations( array $o ) {
 	$missing = array_map( 'strval', (array) get_option( 'sn_resume_ops_setup_missing', array() ) );
 	/* translators: %s: the rows the last setup did not find, semicolon-separated */
 	$note = $missing ? '<p class="snt-prose">' . \snt_kit_esc( sprintf( __( 'Not found by the last setup, so still in both résumés: %s.', 'signal-and-noise-tools' ), implode( '; ', $missing ) ) ) . '</p>' : '';
-	return resume_text( $p . '[headline]', __( 'Headline', 'signal-and-noise-tools' ), $o['headline'] ?? '', 'Founder and Operator' )
+	return resume_text( $p . '[kicker]', __( 'Kicker: a short line that introduces the headline', 'signal-and-noise-tools' ), $o['kicker'] ?? '', 'Founder & Operator · Music, Rights & AI' )
+		. resume_text( $p . '[headline]', __( 'Headline', 'signal-and-noise-tools' ), $o['headline'] ?? '', 'Founder and Operator' )
 		. resume_text( $p . '[tagline]', __( 'Subhead', 'signal-and-noise-tools' ), $o['tagline'] ?? '', 'AI-Native Business Operations | Partnerships' )
 		. resume_text( $p . '[location]', __( 'Location', 'signal-and-noise-tools' ), $o['location'] ?? '', 'Orlando, FL (open to relocation)' )
 		. resume_lines( $p . '[links]', $o['links'] ?? array(), __( 'Extra contact links: one per line, after the website', 'signal-and-noise-tools' ), 'https://github.com/…', 2 )
@@ -137,7 +138,7 @@ function resume_operations( array $o ) {
 			sprintf( __( 'Sections, in order: one per line (%s)', 'signal-and-noise-tools' ), implode( ', ', \SN_RESUME_PDF_SECTION_KEYS ) ),
 			'summary',
 			6,
-			__( 'A section missing from the list is missing from the PDF and the lane on /resume: leave out "stats" and "competencies" for no key-figures row and no competencies grid.', 'signal-and-noise-tools' )
+			__( 'A section missing from the list is missing from /resume and its PDF: leave out "stats" and "competencies" for no key-figures row and no competencies grid.', 'signal-and-noise-tools' )
 		)
 		. resume_lines( $p . '[experience_order]', $o['experience_order'] ?? array(), __( 'Experience order: one organization per line (the rest follow as listed)', 'signal-and-noise-tools' ), 'Independent Practice', 3 )
 		// A CHECKBOX, never os-switch (content-resume.php, the phone).

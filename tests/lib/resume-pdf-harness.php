@@ -20,6 +20,9 @@ function wp_mkdir_p( $d ) { return is_dir( $d ) || mkdir( $d, 0777, true ); }
 function wp_kses( $s, $a ) { return strip_tags( (string) $s, '<strong><em><a>' ); }
 function sanitize_email( $e ) { return (string) filter_var( (string) $e, FILTER_SANITIZE_EMAIL ); }
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
+if ( ! function_exists( 'get_page_by_path' ) ) { function get_page_by_path( $p ) { return 'music' === $p && ! empty( $GLOBALS['music_page'] ) ? (object) array( 'ID' => 9 ) : null; } } // /music, the verified credits (sn_resume_credits_url()).
+if ( ! function_exists( 'get_post_status' ) ) { function get_post_status( $p ) { return 'publish'; } }
+if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $p ) { return 'https://example.test/music/'; } }
 function apply_filters( $t, $v ) { return 'sn_resume_pdf_name' === $t ? $GLOBALS['name'] : $v; }
 function get_bloginfo( $k ) { return 'Juan Lentino'; }
 function wp_upload_dir( $a = null, $b = true ) { return array( 'basedir' => $GLOBALS['tmp'], 'baseurl' => 'https://example.test/up', 'error' => $GLOBALS['up_error'] ?? false ); }
@@ -45,6 +48,7 @@ require_once $root . '/inc/resume-pdf/generate.php';
 require_once $root . '/inc/resume-pdf/text-check.php';
 require_once $root . '/inc/resume-operations-setup.php';
 require_once $root . '/inc/resume-pdf/operations.php';
+require_once $root . '/inc/resume-page-bands.php'; // sn_resume_credits_url(), which the operations PDF prints
 
 /**
  * A fresh press: the stored document, any other options, and clean switches.

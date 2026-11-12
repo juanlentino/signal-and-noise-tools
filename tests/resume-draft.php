@@ -47,7 +47,7 @@ function add_action() {}
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function sn_cf_purge_urls( $urls ) { $GLOBALS['__purged'][] = (array) $urls; return true; }
 $GLOBALS['__purged'] = array();
-function purged_copies() { return count( array_filter( $GLOBALS['__purged'], static fn( $u ) => in_array( 'https://example.test/resume.md?lane=operations', $u, true ) && in_array( 'https://example.test/resume/json-resume.json', $u, true ) && in_array( 'https://example.test/cv.md', $u, true ) && in_array( 'https://example.test/cv/json-resume.json', $u, true ) ) ); } // /cv's copies carry the English email and website.
+function purged_copies() { return count( array_filter( $GLOBALS['__purged'], static fn( $u ) => in_array( 'https://example.test/resume.md', $u, true ) && in_array( 'https://example.test/resume/json-resume.json', $u, true ) && in_array( 'https://example.test/cv.md', $u, true ) && in_array( 'https://example.test/cv/json-resume.json', $u, true ) ) ); } // /cv's copies carry the English email and website.
 $GLOBALS['__pdf_fails'] = false;
 function sn_resume_pdf_generate() { bump( 'pdf' ); return $GLOBALS['__pdf_fails'] ? new WP_Error( 'x', 'y' ) : array( 'sha256' => 'abc' ); }
 function get_page_by_path( $slug ) { return (object) array( 'ID' => 1184, 'post_title' => 'Resume', 'post_excerpt' => 'Ex' ); }
@@ -103,7 +103,7 @@ ok( 'published' === sn_resume_draft_publish(), 'publish returns published' );
 ok( $todays_save === $GLOBALS['__options'][ SN_RESUME_DOC_OPTION ], 'the live document is exactly what today\'s save would store' );
 ok( $live_a === ( $GLOBALS['__options'][ SN_RESUME_PREV_OPTION ] ?? null ) && false === $GLOBALS['__autoload'][ SN_RESUME_PREV_OPTION ], 'the replaced document is snapshotted to sn_resume_doc_prev with its own date, autoload=no' );
 ok( 1 === calls( 'sync' ) && 0 === calls( 'pdf' ) && 1 === calls( 'purge:/resume' ), 'no PDF option: the Page syncs once, no PDF is built, /resume is purged' );
-ok( 1 === purged_copies(), 'and its agent copies by URL (/resume.md, the JSON Resume, each lane\'s): an email edit rewrites no page, so no page save purges them' );
+ok( 1 === purged_copies(), 'and its agent copies by URL (/resume.md and the JSON Resume): an email edit rewrites no page, so no page save purges them' );
 ok( ! isset( $GLOBALS['__options'][ SN_RESUME_DRAFT_OPTION ] ) && 1 === calls( 'autosave_delete:10184' ), 'the draft and the Page autosave are deleted' );
 
 echo "\nTest: publish with a PDF\n";

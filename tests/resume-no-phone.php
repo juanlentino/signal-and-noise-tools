@@ -5,7 +5,7 @@
  * With the phone stored and the old "phone public" switch on, no PDF text
  * layer (the music PDF, the operations PDF, the Spanish CV; read with
  * pdftotext when installed, else the built-in reader), no page body (/resume
- * in both lanes, /cv, the hero rail inside them) and no identity JSON-LD
+ * on /resume, /cv, the hero rail inside them) and no identity JSON-LD
  * carries it.
  *
  * Run: php tests/resume-no-phone.php
@@ -70,8 +70,8 @@ ok( ! $has( sn_resume_pdf_html( sn_resume_doc_view( $doc, 'music' ), 'Juan Lenti
 
 echo "\nGroup: every page\n";
 $en_body = (string) $GLOBALS['resume_page']->post_content; // what Generate wrote to /resume.
-ok( '' !== $en_body && $en_body === sn_resume_page_body( $doc ) && 1 < substr_count( $en_body, 'lane' ), '/resume was written by Generate, both lanes' );
-ok( ! $has( $en_body ), '/resume (both lanes and the hero rail): no phone' );
+ok( '' !== $en_body && $en_body === sn_resume_page_body( $doc ) && false !== strpos( $en_body, 'sn-resume-headline' ) && false === strpos( $en_body, 'sn-resume-variant' ), '/resume was written by Generate: the one résumé' );
+ok( ! $has( $en_body ), '/resume (the hero rail included): no phone' );
 $cv_body = (string) sn_resume_es_render( static fn() => sn_resume_body_html( $es ) );
 ok( '' !== $cv_body && ! $has( $cv_body ), '/cv: no phone' );
 $schema = '';
