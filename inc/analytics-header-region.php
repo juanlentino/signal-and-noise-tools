@@ -217,11 +217,14 @@ function snt_analytics_render_pulse_strip( $from, $to, $class, $series, $granula
 			&& isset( $last['day'] ) && (string) $last['day'] === $today ) {
 			// A sampled today is Analytics Engine's weighted estimate, not a count.
 			// The sampling reading is of human rows: other classes carry no marker.
-			$today_unit = 'human' === $class && function_exists( 'sn_analytics_today_is_estimate' ) && sn_analytics_today_is_estimate()
+			// Worker 2.2.0: for the human figure, an exact fresh count replaces the estimate.
+			$exact      = 'human' === $class && function_exists( 'sn_analytics_exact_today' ) ? sn_analytics_exact_today() : null;
+			$today_n    = null !== $exact ? $exact['views'] : (int) $last['views'];
+			$today_unit = null === $exact && 'human' === $class && function_exists( 'sn_analytics_today_is_estimate' ) && sn_analytics_today_is_estimate()
 				? __( 'views, estimate', 'signal-and-noise-tools' )
 				: __( 'views', 'signal-and-noise-tools' );
 			$cells[] = '<span class="sn-an-pulse-cell"><span class="sn-an-pulse-k">' . esc_html__( 'Today so far', 'signal-and-noise-tools' ) . '</span>'
-				. '<span class="sn-an-pulse-v sn-an-pulse-v--big">' . esc_html( number_format_i18n( (int) $last['views'] ) ) . '</span>'
+				. '<span class="sn-an-pulse-v sn-an-pulse-v--big">' . esc_html( number_format_i18n( $today_n ) ) . '</span>'
 				. '<span class="sn-an-pulse-v">' . esc_html( $today_unit ) . '</span></span>';
 		}
 	}

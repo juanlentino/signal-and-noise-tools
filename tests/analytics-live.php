@@ -267,5 +267,15 @@ ok( 1 === preg_match( '/\[data-sn-live-hour-note\]\{min-height:2lh\}/', $scripte
 $strip = (string) file_get_contents( "$root/inc/public-stats-live.php" );
 ok( 1 === substr_count( $strip, '<li' ), 'no placeholder rows: the server paints one "not read" line, never fake pages' );
 
+echo "\nGroup: worker 2.2.0 exact count on both answers\n";
+$keys_before = array_keys( sn_analytics_live_payload( false ) );
+if ( true ) { // defined here, not hoisted: the groups above run without it.
+	function sn_analytics_exact_today() { return array( 'views' => 31, 'read_at' => time() ); }
+}
+$pub = sn_analytics_live_payload( false );
+ok( 31 === $pub['today'] && $keys_before === array_keys( $pub ), '/stats: the exact count, and the public answer keeps its shape' );
+$adm = sn_analytics_live_payload( true );
+ok( 31 === $adm['today'] && true === $adm['today_exact'], 'admin: the exact count, flagged' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

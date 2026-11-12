@@ -216,7 +216,7 @@ function snt_analytics_render_overview_rightnow( $now, $today, $class = 'human' 
 		: array( 'l' => __( 'Active visitors', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $now ), 'sub' => __( '5-minute window', 'signal-and-noise-tools' ), 'attrs' => $live( 'now' ) );
 	$cards[] = ( null === $today )
 		? array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => __( 'not read', 'signal-and-noise-tools' ), 'sub' => __( 'warming: no sample for today yet', 'signal-and-noise-tools' ), 'attrs' => $live( 'today' ) )
-		: array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $today ), 'sub' => function_exists( 'sn_analytics_today_is_estimate' ) && sn_analytics_today_is_estimate() ? __( 'human pageviews · site-local day · sampled, an estimate', 'signal-and-noise-tools' ) : __( 'human pageviews · site-local day', 'signal-and-noise-tools' ), 'attrs' => $live( 'today' ) );
+		: array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $today ), 'sub' => snt_analytics_today_sub(), 'attrs' => $live( 'today' ) );
 	snt_an_kpi_row( $cards, array( 'empty_slot' => 'omit' ) );
 	// The last hour, Being read now and Arrived from, filled live (inc/analytics-live-admin.php).
 	if ( function_exists( 'sn_analytics_live_admin_html' ) ) {
@@ -225,3 +225,17 @@ function snt_analytics_render_overview_rightnow( $now, $today, $class = 'human' 
 	snt_an_panel_close();
 }
 
+/**
+ * The Views today card's sub-line: exact, an estimate, or plain.
+ *
+ * @return string
+ */
+function snt_analytics_today_sub() {
+	if ( function_exists( 'sn_analytics_exact_today' ) && null !== sn_analytics_exact_today() ) {
+		return __( 'human pageviews · site-local day · exact count', 'signal-and-noise-tools' );
+	}
+	if ( function_exists( 'sn_analytics_today_is_estimate' ) && sn_analytics_today_is_estimate() ) {
+		return __( 'human pageviews · site-local day · sampled, an estimate', 'signal-and-noise-tools' );
+	}
+	return __( 'human pageviews · site-local day', 'signal-and-noise-tools' );
+}

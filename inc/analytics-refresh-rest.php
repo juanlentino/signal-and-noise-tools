@@ -80,7 +80,14 @@ function sn_analytics_refresh_permission( $request ) {
  */
 function sn_analytics_refresh_run( $request ) {
 	add_action( 'shutdown', 'sn_analytics_refresh_after_response' );
-	return new WP_REST_Response( array( 'ok' => true, 'queued' => array( 'rollup', 'realtime' ) ), 202 );
+	// Worker 2.2.0: exact page-view counts ride the poke (inc/analytics-exact.php).
+	// Validated now, held in memory, classified after the response; '{}' holds nothing.
+	$body  = $request->get_json_params();
+	$exact = is_array( $body ) && function_exists( 'sn_analytics_exact_validate' ) ? sn_analytics_exact_validate( $body['exact'] ?? null ) : null;
+	if ( null !== $exact ) {
+		sn_analytics_exact_pending( $exact );
+	}
+	return new WP_REST_Response( array( 'ok' => true, 'queued' => null !== $exact ? array( 'rollup', 'realtime', 'exact' ) : array( 'rollup', 'realtime' ) ), 202 );
 }
 
 /**
@@ -99,6 +106,9 @@ function sn_analytics_refresh_after_response() {
 	}
 	if ( function_exists( 'sn_analytics_realtime_refresh' ) ) {
 		sn_analytics_realtime_refresh();
+	}
+	if ( function_exists( 'sn_analytics_exact_ingest' ) ) {
+		sn_analytics_exact_ingest();
 	}
 }
 
