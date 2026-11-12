@@ -108,7 +108,7 @@ function sn_resume_lanes_labels() {
 /** The panel's footnote. */
 function sn_resume_lanes_note() {
 	/* translators: %s: a date, Y-m-d */
-	return sprintf( __( 'Since %s /resume is one résumé, with no switch and no marks: views from then on read as one lane, and Switched to and Mark clicks stay at what they were. Earlier rows keep their history.', 'signal-and-noise-tools' ), SN_RESUME_LANES_ENDED ) . ' ' . __( 'Views, time and scroll per view come from Analytics Engine (about 90 days), human class. Switched to counts clicks on the link to that lane; Mark clicks counts clicks on that lane\'s edition mark. Clicks are custom events, not segmented by class.', 'signal-and-noise-tools' );
+	return sprintf( __( 'Since %s /resume is one résumé, with no switch and no marks: the lane recorded on a view from then on means nothing, and Switched to and Mark clicks stop growing. Earlier rows keep their history.', 'signal-and-noise-tools' ), SN_RESUME_LANES_ENDED ) . ' ' . __( 'Views, time and scroll per view come from Analytics Engine (about 90 days), human class. Switched to counts clicks on the link to that lane; Mark clicks counts clicks on that lane\'s edition mark. Clicks are custom events, not segmented by class.', 'signal-and-noise-tools' );
 }
 
 /**

@@ -428,7 +428,7 @@ function sn_admin_render_resume_pdf_generate() {
 		/* translators: 1: timestamp, 2: pages, 3: file size */
 		echo '<p class="sn-fieldset-intro">' . esc_html( sprintf( _n( 'Generated %1$s: %2$s page, %3$s, SHA-256', 'Generated %1$s: %2$s pages, %3$s, SHA-256', $pages, 'signal-and-noise-tools' ), sn_resume_pdf_when( $meta ), number_format_i18n( $pages ), size_format( (int) ( $meta['bytes'] ?? 0 ) ) ) )
 			. ' <code>' . esc_html( substr( (string) ( $meta['sha256'] ?? '' ), 0, 12 ) ) . '</code>. '
-			. '<a href="' . esc_url( sn_resume_pdf_link( '' ) ) . '" target="_blank" rel="noopener">Open the PDF</a>. The /resume Download link points here.</p>';
+			. '<a href="' . esc_url( sn_resume_pdf_link( '' ) ) . '" target="_blank" rel="noopener">Open the PDF</a>. ' . ( function_exists( 'sn_resume_formats_one' ) && sn_resume_formats_one() ? 'This is the music PDF: /resume is the one résumé, and its Download links the operations PDF.' : 'The /resume Download link points here.' ) . '</p>';
 	} else {
 		echo '<p class="sn-fieldset-intro">Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the published resume and switches the link to it.</p>';
 	}

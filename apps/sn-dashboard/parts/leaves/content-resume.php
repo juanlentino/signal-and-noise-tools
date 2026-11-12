@@ -105,7 +105,7 @@ function resume_pdf_generate() {
 		$pages  = (int) ( $meta['pages'] ?? 0 );
 		$status = '<p class="snt-prose">' . \snt_kit_esc( sprintf( /* translators: 1: timestamp, 2: pages, 3: file size */ _n( 'Generated %1$s: %2$s page, %3$s, SHA-256', 'Generated %1$s: %2$s pages, %3$s, SHA-256', $pages, 'signal-and-noise-tools' ), \sn_resume_pdf_when( $meta ), number_format_i18n( $pages ), size_format( (int) ( $meta['bytes'] ?? 0 ) ) ) )
 			. ' ' . \snt_kit_code( substr( (string) ( $meta['sha256'] ?? '' ), 0, 12 ), false ) . '. '
-			. \snt_kit_link( __( 'Open the PDF', 'signal-and-noise-tools' ), \sn_resume_pdf_link( '' ) ) . '. ' . \snt_kit_esc( __( 'The /resume Download link points here.', 'signal-and-noise-tools' ) ) . '</p>';
+			. \snt_kit_link( __( 'Open the PDF', 'signal-and-noise-tools' ), \sn_resume_pdf_link( '' ) ) . '. ' . \snt_kit_esc( function_exists( 'sn_resume_formats_one' ) && \sn_resume_formats_one() ? __( 'This is the music PDF: /resume is the one résumé, and its Download links the operations PDF.', 'signal-and-noise-tools' ) : __( 'The /resume Download link points here.', 'signal-and-noise-tools' ) ) . '</p>';
 	} else {
 		$status = '<p class="snt-prose">' . \snt_kit_esc( __( 'Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the published resume and switches the link to it.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
