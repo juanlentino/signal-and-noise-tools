@@ -122,7 +122,7 @@ function sn_admin_render_resume_operations_section( $doc ) {
 	sn_rsm_lines( 'resume[variants][operations][sections]', (array) ( $o['sections'] ?? array() ), 'Sections, in order: one per line (' . implode( ', ', SN_RESUME_PDF_SECTION_KEYS ) . ')', 'summary', 6 );
 	echo '<p class="description">A section missing from the list is missing from /resume and its PDF: leave out "stats" and "competencies" for no key-figures row and no competencies grid.</p>';
 	sn_rsm_lines( 'resume[variants][operations][experience_order]', (array) ( $o['experience_order'] ?? array() ), 'Experience order: one organization per line (the rest follow as listed)', 'Independent Practice', 3 );
-	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Earlier career: one line per role, no bullets</span><input type="checkbox" name="resume[variants][operations][earlier_compact]" value="1"' . checked( ! empty( $o['earlier_compact'] ), true, false ) . '></label>';
+	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Earlier career on /resume: one line per role, no bullets (the PDF always is)</span><input type="checkbox" name="resume[variants][operations][earlier_compact]" value="1"' . checked( ! empty( $o['earlier_compact'] ), true, false ) . '></label>';
 	sn_rsm_input( 'resume[variants][operations][pdf_file]', (string) ( $o['pdf_file'] ?? '' ), 'PDF file name', defined( 'SN_RESUME_OPERATIONS_PDF_FILE' ) ? SN_RESUME_OPERATIONS_PDF_FILE : 'Resume_Operations.pdf' );
 	echo '<p class="description">The phone is never printed in this PDF.</p>';
 	$missing = (array) get_option( 'sn_resume_ops_setup_missing', array() );

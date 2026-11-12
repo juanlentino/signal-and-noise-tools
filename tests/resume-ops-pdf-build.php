@@ -118,6 +118,20 @@ $reset( $empty, $good );
 $v = sn_resume_ops_pdf_build();
 ok( is_wp_error( $v ) && $good['sn_resume_pdf_operations_bytes'] === $GLOBALS['opts']['sn_resume_pdf_operations_bytes'], 'an operations résumé with no experience and no publications is not built; the last file stands' );
 
+echo "\nGroup: two pages: the PDF's earlier career is always one line per role (2026-11-12)\n";
+$nc = $set;
+$nc['variants']['operations']['earlier_compact'] = false; // the page shows the bullets
+$nc['earlier']['entries'][0]['variant'] = '';
+$nc['earlier']['entries'][0]['roles'][0]['variant'] = '';
+$probe = 'Probe bullet that only the page may show.';
+$nc['earlier']['entries'][0]['roles'][0]['bullets'] = array( $probe );
+$reset( sn_resume_doc_normalize( $nc ) );
+sn_resume_ops_pdf_build();
+$nb = sn_resume_pdf_text( base64_decode( $GLOBALS['opts']['sn_resume_pdf_operations_bytes'] ) );
+ok( false === strpos( $nb, 'Probe bullet' ) && false !== strpos( $nb, (string) $nc['earlier']['entries'][0]['roles'][0]['title'] === '' ? 'x' : strtok( (string) $nc['earlier']['entries'][0]['roles'][0]['title'], ' ' ) ), 'with the page showing earlier-career bullets, the PDF still lists the role and leaves its bullets out' );
+$reset( $set );
+sn_resume_ops_pdf_build();
+
 echo "\nGroup: the verified-credits line (2026-11-12)\n";
 $GLOBALS['music_page'] = true;
 $reset( $set );

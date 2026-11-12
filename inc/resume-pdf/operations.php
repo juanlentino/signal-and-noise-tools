@@ -150,6 +150,7 @@ function sn_resume_ops_pdf_build() {
 		return new WP_Error( 'sn_resume_pdf_uploads', 'The uploads directory is unavailable.' );
 	}
 	$config['built'] = sn_resume_built_for( $raw, 'operations' );
+	$config['earlier_compact'] = true; // the PDF keeps to two pages: earlier career is one line per role there, whatever the page shows (owner, 2026-11-12).
 	$name            = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
 	$config['title'] = $name . ' · Résumé'; // the Info Title (the template's <title>).
 	$config['credits'] = function_exists( 'sn_resume_credits_url' ) ? sn_resume_credits_url() : ''; // "Verified credits: …/music".

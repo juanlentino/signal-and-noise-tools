@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The résumé PDF is two pages again.** With the earlier-career bullets back on /resume (owner, 2026-11-12) the PDF ran to three pages, and its own page check flagged it. The PDF now always shows earlier career as one line per role, whatever the page shows (`inc/resume-pdf/operations.php`); the editor's checkbox now says it governs /resume and that the PDF is always compact. Test: `tests/resume-ops-pdf-build.php`.
+
 ## [2026.11.31] - 2026-11-12 — Exact page views from the analytics worker's counter
 
 ### Added
