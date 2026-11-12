@@ -122,14 +122,19 @@ function sn_resume_draft_status() {
 
 /**
  * After the live document changed: rebuild the PDFs when one exists (the
- * generator re-syncs the Page and purges every cache), else purge /resume and
- * its agent copies.
+ * music PDF's facts, or for the one résumé a live résumé PDF; the generator
+ * re-syncs the Page and purges every cache), else purge /resume and its
+ * agent copies.
  *
- * @return bool False when the music or the operations PDF failed to rebuild.
+ * @return bool False when the music or the résumé PDF failed to rebuild.
  */
 function sn_resume_refresh_outputs() {
 	$pdf_option = defined( 'SN_RESUME_PDF_OPTION' ) ? SN_RESUME_PDF_OPTION : 'sn_resume_pdf';
-	if ( is_array( get_option( $pdf_option ) ) && function_exists( 'sn_resume_pdf_generate' ) ) {
+	// The one résumé has no music PDF: its résumé PDF is what gets rebuilt,
+	// when live or when the last build failed (one withdrawn for a phone is
+	// not live, and the fix must not wait for a Generate press).
+	$one = function_exists( 'sn_resume_pdf_is_one' ) && sn_resume_pdf_is_one() && function_exists( 'sn_resume_ops_pdf_live' ) && ( sn_resume_ops_pdf_live() || sn_resume_ops_pdf_failed() );
+	if ( ( $one || is_array( get_option( $pdf_option ) ) ) && function_exists( 'sn_resume_pdf_generate' ) ) {
 		return ! is_wp_error( sn_resume_pdf_generate() ) && ! ( function_exists( 'sn_resume_ops_pdf_failed' ) && sn_resume_ops_pdf_failed() );
 	}
 	if ( function_exists( 'sn_content_route_purge' ) ) {

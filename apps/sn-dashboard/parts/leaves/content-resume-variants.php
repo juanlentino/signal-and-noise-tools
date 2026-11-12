@@ -4,9 +4,8 @@
  *
  * The classic twin is inc/admin-forms/resume-variants.php. Every row gets
  * "On /resume" (shown, hidden, shown but not on the music PDF); a role lists its saved
- * bullets with the same choice; "What I've Built" and "Operations résumé" are
- * two more sections; PDF only gains the music PDF's one switch; and the
- * operations setup is its own one-button form. Same names, labels and
+ * bullets with the same choice; and "What I've Built" and "Résumé settings"
+ * are two more sections. Same names, labels and
  * placeholders as the classic, so the carriers (content-resume-edit.php) post
  * every one of them back when another section is edited.
  *
@@ -115,16 +114,14 @@ function resume_built( array $built ) {
 }
 
 /**
- * The operations résumé's settings. Blank fields fall back to the music PDF's.
+ * The résumé settings (variants.operations). Blank fields fall back to the
+ * document's pdf.* values, which no editor shows any more.
  *
  * @param array $o The variants.operations block.
  * @return string
  */
 function resume_operations( array $o ) {
-	$p       = 'resume[variants][operations]';
-	$missing = array_map( 'strval', (array) get_option( 'sn_resume_ops_setup_missing', array() ) );
-	/* translators: %s: the rows the last setup did not find, semicolon-separated */
-	$note = $missing ? '<p class="snt-prose">' . \snt_kit_esc( sprintf( __( 'Not found by the last setup, so still in both résumés: %s.', 'signal-and-noise-tools' ), implode( '; ', $missing ) ) ) . '</p>' : '';
+	$p = 'resume[variants][operations]';
 	return resume_text( $p . '[kicker]', __( 'Kicker: a short line that introduces the headline', 'signal-and-noise-tools' ), $o['kicker'] ?? '', 'Founder & Operator · Music, Rights & AI' )
 		. resume_text( $p . '[headline]', __( 'Headline', 'signal-and-noise-tools' ), $o['headline'] ?? '', 'Founder and Operator' )
 		. resume_text( $p . '[tagline]', __( 'Subhead', 'signal-and-noise-tools' ), $o['tagline'] ?? '', 'AI-Native Business Operations | Partnerships' )
@@ -143,29 +140,5 @@ function resume_operations( array $o ) {
 		. resume_lines( $p . '[experience_order]', $o['experience_order'] ?? array(), __( 'Experience order: one organization per line (the rest follow as listed)', 'signal-and-noise-tools' ), 'Independent Practice', 3 )
 		// A CHECKBOX, never os-switch (content-resume.php, the phone).
 		. \snt_kit_field( 'checkbox', $p . '[earlier_compact]', __( 'Earlier career on /resume: one line per role, no bullets (the PDF always is)', 'signal-and-noise-tools' ), ! empty( $o['earlier_compact'] ), array( 'value' => '1' ) )
-		. \snt_kit_field( 'text', $p . '[pdf_file]', __( 'PDF file name', 'signal-and-noise-tools' ), (string) ( $o['pdf_file'] ?? '' ), array( 'placeholder' => defined( 'SN_RESUME_OPERATIONS_PDF_FILE' ) ? \SN_RESUME_OPERATIONS_PDF_FILE : 'Resume_Operations.pdf', 'hint' => __( 'The phone is never printed in this PDF.', 'signal-and-noise-tools' ) ) )
-		. $note;
-}
-
-/**
- * The music PDF's one variant setting, painted inside PDF only.
- *
- * @param bool $on Whether the music PDF shows "What I've Built".
- * @return string
- */
-function resume_music_built_toggle( $on ) {
-	return \snt_kit_field( 'checkbox', 'resume[variants][music][show_built]', __( 'Show "What I\'ve Built" in the music PDF', 'signal-and-noise-tools' ), (bool) $on, array( 'value' => '1' ) );
-}
-
-/**
- * The operations setup: its own action and nonce, never the résumé document.
- *
- * @return string
- */
-function resume_operations_setup() {
-	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'A one-time starting point from 2026-11-01, kept for a fresh install: it writes the operations settings, What I\'ve Built, its skills rows and two affiliations into the draft, and marks what it leaves out Hidden. On this site it is done: running it again marks Hidden again every row it did not write, undoing what you set to Shown.', 'signal-and-noise-tools' ) ) . '</p>';
-	return \snt_kit_section(
-		__( 'Operations résumé setup', 'signal-and-noise-tools' ),
-		\snt_kit_form( 'resume_operations_setup', $intro, array( 'submit' => __( 'Set up the operations résumé', 'signal-and-noise-tools' ) ) )
-	);
+		. \snt_kit_field( 'text', $p . '[pdf_file]', __( 'PDF file name', 'signal-and-noise-tools' ), (string) ( $o['pdf_file'] ?? '' ), array( 'placeholder' => defined( 'SN_RESUME_OPERATIONS_PDF_FILE' ) ? \SN_RESUME_OPERATIONS_PDF_FILE : 'Resume_Operations.pdf', 'hint' => __( 'The phone is never printed in this PDF.', 'signal-and-noise-tools' ) ) );
 }

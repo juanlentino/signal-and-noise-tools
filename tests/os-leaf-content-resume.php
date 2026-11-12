@@ -18,9 +18,9 @@
  * handler and require the stored document back unchanged.
  *
  * 2026-11-01 (résumé variants): every row carries "On /resume" ("Shows in" until 2026-11-12), a role's saved
- * bullets carry one each, What I've Built and Operations résumé are two more
- * sections (after Skills, before PDF only), PDF only gains the music PDF's
- * What I've Built box, and the operations setup is a third, separate form.
+ * bullets carry one each, and What I've Built and Résumé settings are two more
+ * sections (after Skills, before Contact). Since 2026-11-12 Contact holds only
+ * the email and phone, and the music PDF's box and the setup form are gone.
  * The classic renders all of it here (inc/admin-forms/resume-variants.php is
  * loaded), so the names, labels and placeholders oracles cover it.
  *
@@ -46,6 +46,9 @@ function sn_resume_draft_status() { return null === $GLOBALS['__resume_draft'] ?
 // The generated PDF's readers (inc/resume-pdf/generate.php).
 function sn_resume_pdf_when( $meta ) { return 'October 11, 2026 at 6:30 pm'; }
 function sn_resume_pdf_link( $v ) { return 'https://example.test/wp-content/uploads/resume.pdf'; }
+// Whether the stored document has the résumé settings (inc/resume-pdf/generate.php): off unless a group sets it.
+$GLOBALS['__is_one'] = false;
+function sn_resume_pdf_is_one() { return $GLOBALS['__is_one']; }
 
 // The classic's bullet labels (sn_rsm_bullet_variants()) and the kit's hints strip markup.
 if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); } }
@@ -53,7 +56,7 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s
 // declares no reader, so it loads beside the fixture stubs above.
 require SNT_PATH . 'inc/resume-variants.php';
 require SNT_PATH . 'inc/admin-forms/resume-page.php';
-require SNT_PATH . 'inc/admin-forms/resume-variants.php'; // the classic "Shows in" rows, What I've Built, Operations résumé, the setup form.
+require SNT_PATH . 'inc/admin-forms/resume-variants.php'; // the classic "On /resume" rows, What I've Built, Résumé settings.
 require SNT_PATH . 'inc/admin-forms/resume-receipts.php'; // the classic receipt URL + type on entries and bullets.
 require SNT_PATH . 'inc/admin-forms/resume-draft.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/content-resume.php';
@@ -71,9 +74,9 @@ ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['content/resume'] )
 // ── Helpers. The eleven section keys and titles in the classic order, the
 // editing paint of one section, and the eleven of them.
 $keys       = array( 'hero', 'stats', 'experience', 'earlier', 'education', 'affiliations', 'publications', 'skills', 'built', 'variants', 'pdf' );
-$titles     = array( 'Hero', 'Stats', 'Experience', 'Earlier career', 'Education', 'Affiliations & Certifications', 'Publications', 'Skills', "What I've Built", 'Operations résumé', 'PDF only' );
-// The editor's three forms. The classic paints the same three.
-$forms      = array( 'resume_draft_save', 'resume_operations_setup', 'resume_pdf_generate' );
+$titles     = array( 'Hero', 'Stats', 'Experience', 'Earlier career', 'Education', 'Affiliations & Certifications', 'Publications', 'Skills', "What I've Built", 'Résumé settings', 'Contact' );
+// The editor's two forms. The classic paints the same two (the setup form left 2026-11-12).
+$forms      = array( 'resume_draft_save', 'resume_pdf_generate' );
 $paint_edit = static function ( $key ) {
 	return snt_leaf_paint( 'content', 'resume', array( 'params' => array( 'sn_edit' => $key ) ) );
 };
@@ -149,13 +152,15 @@ $boot = 'define(\'ABSPATH\',\'/\');'
 	. '$in=json_decode(file_get_contents("php://stdin"),true);'
 	. 'echo json_encode(sn_resume_doc_normalize($in));';
 // The form's action is resume_draft_save: the REAL handler, which writes the DRAFT slot.
+// An `__stored` key in the input is the live document the editor showed: the
+// save carries over from it what no section posts (sn_resume_draft_carry_over()).
 $handler_boot = 'define(\'ABSPATH\',\'/\');'
-	. 'function wp_unslash($v){return $v;} function get_option($k){return false;} function update_option($k,$v){$GLOBALS[\'saved\'][$k]=$v;return true;}'
+	. 'function wp_unslash($v){return $v;} function get_option($k){return \'sn_resume_doc\'===$k?($GLOBALS[\'stored\']??false):false;} function update_option($k,$v){$GLOBALS[\'saved\'][$k]=$v;return true;}'
 	. 'require ' . var_export( SNT_PATH . 'inc/admin-post-actions/content.php', true ) . ';' // sn_content_items_normalize(): the textarea lists
 	. 'require ' . var_export( SNT_PATH . 'inc/admin-post-actions/resume-draft.php', true ) . ';'
 	. 'require ' . var_export( SNT_PATH . 'inc/resume-page.php', true ) . ';'
 	. 'require ' . var_export( SNT_PATH . 'inc/resume-draft.php', true ) . ';'
-	. '$in=json_decode(file_get_contents("php://stdin"),true);'
+	. '$in=json_decode(file_get_contents("php://stdin"),true);$GLOBALS[\'stored\']=$in[\'__stored\']??false;unset($in[\'__stored\']);'
 	. 'echo json_encode(array(sn_handle_resume_draft_save($in),$GLOBALS[\'saved\'][\'sn_resume_draft\']??null,array_keys($GLOBALS[\'saved\']??array())));';
 
 // ── The seed, unsaved: the ledger, and one edit region per section.
@@ -174,7 +179,7 @@ ok( 1 === count( $tables ) && $titles === array_column( $t['data'], 'section' ),
 ok( count( $t['columns'] ) === count( array_filter( array_column( $t['columns'], 'label' ) ) ), 'every column carries a header label' );
 $entries      = count( $t['data'] ) === count( $keys ) ? array_combine( $keys, array_column( $t['data'], 'entries' ) ) : array();
 $want_entries = array( 'hero' => '', 'stats' => '4', 'experience' => '2', 'earlier' => (string) count( $seed['earlier']['entries'] ), 'education' => '2', 'affiliations' => '4', 'publications' => '2', 'skills' => '6', 'built' => '0', 'variants' => '', 'pdf' => '' );
-ok( $want_entries === $entries, 'the fold counts are the Entries cells (4 / 2 / ' . count( $seed['earlier']['entries'] ) . ' / 2 / 4 / 2 / 6 / 0); Hero, Operations résumé and PDF only carry none, as their classic summaries: ' . json_encode( $entries ) );
+ok( $want_entries === $entries, 'the fold counts are the Entries cells (4 / 2 / ' . count( $seed['earlier']['entries'] ) . ' / 2 / 4 / 2 / 6 / 0); Hero, Résumé settings and Contact carry none, as their classic summaries: ' . json_encode( $entries ) );
 ok( 'INDEPENDENT PRACTICE' === ( $t['data'][2]['first'] ?? '' ) && '15+ Years in the industry' === ( $t['data'][1]['first'] ?? '' ), 'each row names what the section opens with (Experience: the first employer; Stats: the first stat)' );
 $edit_ok = count( $keys ) === count( $t['data'] );
 foreach ( $t['data'] as $i => $row ) {
@@ -186,7 +191,7 @@ $n_roles   = count( $seed['experience'][0]['roles'] ) + count( $seed['experience
 ok( false !== strpos( $kit, '<p class="snt-prose">' . $n_entries . ' entries across 8 lists; Experience holds 2 employers with ' . $n_roles . ' roles.</p>' ), 'the finding over the table is built from the document (' . $n_entries . ' entries, ' . $n_roles . ' roles)' );
 ok( false === strpos( $kit, 'snt-ledger-more' ), 'eleven sections, never capped: no "+N more" line' );
 // No section is being edited: no repeater, no editor form, no field.
-ok( false === strpos( $kit, '<os-repeater' ) && array() === snt_leaf_names( $kit ) && array( 'resume_operations_setup', 'resume_pdf_generate' ) === snt_leaf_actions( $kit ), 'with no section being edited, the table is the whole editor: no repeater, no field, no Save draft (the separate PDF and setup forms stay)' );
+ok( false === strpos( $kit, '<os-repeater' ) && array() === snt_leaf_names( $kit ) && array( 'resume_pdf_generate' ) === snt_leaf_actions( $kit ), 'with no section being edited, the table is the whole editor: no repeater, no field, no Save draft (the separate PDF form stays)' );
 ok( snt_leaf_paint( 'content', 'resume', array( 'params' => array( 'sn_edit' => 'bogus' ) ) ) === $kit, 'an unknown sn_edit paints the default view' );
 
 // Exactly ONE region per editing paint, below the table, named for its
@@ -197,9 +202,9 @@ foreach ( $keys as $i => $k ) {
 	$heading = '<os-section heading="' . snt_kit_esc( $titles[ $i ] ) . '"';
 	preg_match_all( '/<(?:os-text-field|os-textarea|os-checkbox-label|os-select)\b[^>]*\sname="([^"]*)"/', $strip_tpl( $h ), $vis );
 	preg_match_all( '/<input type="hidden" name="(resume\[[^"]*)"/', $h, $hid );
-	// A section owns its key, except the two variant blocks: PDF only holds
-	// the music PDF's box, Operations résumé the operations settings.
-	$prefixes = array( 'pdf' => array( 'resume[pdf]', 'resume[variants][music]' ), 'variants' => array( 'resume[variants][operations]' ) )[ $k ] ?? array( 'resume[' . $k . ']' );
+	// A section owns its key, except the variant block: Résumé settings holds
+	// the operations settings.
+	$prefixes = array( 'variants' => array( 'resume[variants][operations]' ) )[ $k ] ?? array( 'resume[' . $k . ']' );
 	$own      = static function ( $n ) use ( $prefixes ) {
 		foreach ( $prefixes as $prefix ) {
 			if ( 0 === strpos( html_entity_decode( $n ), $prefix ) ) {
@@ -224,13 +229,17 @@ ok( array() === $region_bad, 'each editing paint: ONE region below the table, he
 $kit_dec = html_entity_decode( $edits['pdf'], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 ok( false === strpos( $kit_dec . $classic, 'phone_public' ) && false !== strpos( $kit_dec, 'Never printed: not on /resume, not in any PDF.' ) && false !== strpos( $classic, 'Never printed: not on /resume, not in any PDF.' ), 'no phone switch on either surface, and the phone field says it is never printed' );
 ok( '' !== $kit_all && false === strpos( $kit . $kit_all, '<os-switch' ), 'the resume leaf carries no os-switch at all (os-form cannot read one as a boolean)' );
-ok( false !== strpos( $kit_dec, 'name="resume[pdf][website]"' ), 'the Website field is on the leaf' );
-ok( false !== strpos( $kit_dec, 'name="resume[pdf][summary]"' ), 'the Professional summary field is on the leaf' );
+// Contact (2026-11-12): the email and phone only, on both surfaces.
+foreach ( array( 'website', 'summary', 'headline', 'tagline', 'location', 'competencies', 'toolkit' ) as $gone ) {
+	ok( false === strpos( $kit_all . $classic, 'name="resume[pdf][' . $gone . ']"' ), 'no ' . $gone . ' field on either surface' );
+}
+ok( false !== strpos( $kit_dec, 'name="resume[pdf][email]"' ) && false !== strpos( $kit_dec, 'name="resume[pdf][phone]"' ) && false !== strpos( $kit_dec, 'Email prints in the PDF\'s contact line.' ), 'Contact holds the email and the phone, and says what each is for' );
+ok( false === strpos( $kit_all . $kit . $classic, 'show_built' ) && false === strpos( $kit_all . $kit . $classic, 'Operations résumé' ) && false === strpos( $kit_all . $kit . $classic, 'PDF only' ), 'no music PDF box, no "Operations résumé" and no "PDF only" on either surface' );
 // Realness: the classic really renders the variant controls, so the parity
 // pins here cover them and cannot pass vacuously.
 $classic_names = snt_leaf_names( $classic );
 $has_name      = static function ( array $names, $needle ) { return array() !== array_filter( $names, static function ( $n ) use ( $needle ) { return false !== strpos( $n, $needle ); } ); };
-ok( $has_name( $classic_names, '[variant]' ) && $has_name( $classic_names, '[bullet_variants][' ) && in_array( 'resume[built][items][__B__][title]', $classic_names, true ) && in_array( 'resume[variants][operations][headline]', $classic_names, true ) && in_array( 'resume[variants][music][show_built]', $classic_names, true ), 'the classic form renders the variant controls (Shows in, per-bullet, What I\'ve Built, Operations résumé, the music box), so the names oracle below is a real check' );
+ok( $has_name( $classic_names, '[variant]' ) && $has_name( $classic_names, '[bullet_variants][' ) && in_array( 'resume[built][items][__B__][title]', $classic_names, true ) && in_array( 'resume[variants][operations][headline]', $classic_names, true ), 'the classic form renders the variant controls (On /resume, per-bullet, What I\'ve Built, Résumé settings), so the names oracle below is a real check' );
 foreach ( array( 'resume[experience][0][variant]', 'resume[experience][0][roles][0][variant]', 'resume[earlier][entries][0][variant]', 'resume[earlier][entries][0][roles][0][variant]', 'resume[education][0][variant]', 'resume[affiliations][0][variant]', 'resume[publications][0][variant]', 'resume[skills][0][variant]', 'resume[built][items][__B__][variant]', 'resume[variants][operations][earlier_compact]', 'resume[variants][operations][pdf_file]' ) as $vn ) {
 	ok( in_array( $vn, $classic_names, true ) && in_array( $vn, snt_leaf_names( $kit_all ), true ), 'both surfaces paint ' . $vn );
 }
@@ -266,14 +275,14 @@ foreach ( $edits as $k => $h ) {
 		$act_bad[] = $k;
 	}
 }
-ok( array() === $act_bad && snt_leaf_actions( $classic ) === $forms, 'every editing paint posts resume_draft_save plus the separate resume_pdf_generate and resume_operations_setup, as on the classic leaf (the private copy is a door or link, not a form): ' . implode( ',', $act_bad ) );
+ok( array() === $act_bad && snt_leaf_actions( $classic ) === $forms, 'every editing paint posts resume_draft_save plus the separate resume_pdf_generate, as on the classic leaf (the private copy is a door or link, not a form): ' . implode( ',', $act_bad ) );
 ok( false === strpos( $kit . $kit_all . $classic, 'resume_save"' ) && false === strpos( $kit . $kit_all . $classic, 'nonce-sn_resume_save' ), 'neither surface posts the old direct-publish resume_save any more' );
 ok( false !== strpos( $kit, 'No draft; showing the live resume.' ) && false !== strpos( $classic, 'No draft; showing the live resume.' ), 'no draft: both surfaces say the form shows the live resume' );
 // 2026-10-12 audit: the status line sits in the Draft box, which is always
 // painted and shares a row with Resume PDF (both stacked full width; the
 // status was nine rows from Publish).
-ok( 1 === preg_match( '#' . preg_quote( snt_leaf_row( 3 ), '#' ) . '<os-section heading="Draft" stack><p class="snt-prose">No draft; showing the live resume\.</p><p class="snt-prose">Save draft stores a draft; its previews, Publish and Discard then appear here\.</p></os-section><os-section heading="Resume PDF" stack>.*</os-grid>$#s', $kit ) && 1 === substr_count( $kit, 'No draft; showing the live resume.' ), 'no draft: the Draft box holds the status and what makes a draft, and pairs with Resume PDF; the status is not in the editor lead' );
-ok( 1 === preg_match( '#<os-section heading="Resume PDF" stack>.*</os-section><os-section heading="Operations résumé setup" stack><os-form [^>]*submit-label="Set up the operations résumé"[^>]*><p class="snt-prose">A one-time starting point from 2026-11-01, kept for a fresh install: .*?</p><input type="hidden" name="action" value="sn_resume_operations_setup"><input type="hidden" name="_wpnonce" value="nonce-sn_resume_operations_setup"></os-form></os-section></os-grid>$#s', $kit ) && false !== strpos( $classic, '<h2 class="sn-fieldset-h">Operations résumé setup</h2>' ), 'the operations setup is its own kit form (its action, its nonce, no résumé field), the third box beside Draft and Resume PDF, as the classic\'s own fieldset' );
+ok( 1 === preg_match( '#' . preg_quote( snt_leaf_row( 2 ), '#' ) . '<os-section heading="Draft" stack><p class="snt-prose">No draft; showing the live resume\.</p><p class="snt-prose">Save draft stores a draft; its previews, Publish and Discard then appear here\.</p></os-section><os-section heading="Resume PDF" stack>.*</os-grid>$#s', $kit ) && 1 === substr_count( $kit, 'No draft; showing the live resume.' ), 'no draft: the Draft box holds the status and what makes a draft, and pairs with Resume PDF; the status is not in the editor lead' );
+ok( 1 === preg_match( '#<os-section heading="Resume PDF" stack>.*</os-section></os-grid>$#s', $kit ) && false === strpos( $kit . $kit_all . $classic, 'Operations résumé setup' ) && false === strpos( $kit . $kit_all . $classic, 'sn_resume_operations_setup' ), 'no operations setup box on either surface: Resume PDF is the last box (2026-11-12)' );
 ok( 1 === preg_match( '#<h2 class="sn-fieldset-h">Draft</h2><p class="sn-fieldset-intro">No draft; showing the live resume\.</p><p class="description">Save draft stores a draft; its previews, Publish and Discard then appear here\.</p></div>#', $classic ) && 1 === substr_count( $classic, 'No draft; showing the live resume.' ), 'no draft: the classic Draft box is painted too, the status in it' );
 ok( false === strpos( $classic, 'collapsed fold)' ) && false === strpos( $classic, 'set above' ) && false === strpos( $classic, 'copy below' ) && false !== strpos( $classic, 'still uses the PDF URL. Generating' ) && false !== strpos( $classic, 'Never printed: not on /resume, not in any PDF.' ), 'the classic says what the window says: no positional words, "Earlier career" without "(collapsed fold)"' );
 $GLOBALS['__options']['sn_resume_pdf'] = array( 'url' => 'https://example.test/wp-content/uploads/resume.pdf', 'pages' => 1, 'bytes' => 2048, 'sha256' => 'abcdef0123456789abcdef', 'generated' => '2026-10-11T18:30:00Z' );
@@ -286,7 +295,7 @@ ok( array() === snt_leaf_classic_markers( $kit . $kit_all ), 'no wp-admin markup
 // The kit grid's own track count (snt_kit_grid(): style="--snt-grid-items:N") is the kit's, not a hand-rolled style.
 ok( ! preg_match( '/\sstyle="/', preg_replace( '/ style="--snt-grid-items:\d+"/', '', $kit . $kit_all ) ), 'no inline style= survives (the kit grid\'s own track count aside)' );
 ok( (bool) preg_match( '/\sstyle="/', $kit . '<p style="x">' ), 'the inline-style guard above discriminates (fails on a planted style=)' );
-ok( 2 === substr_count( $kit, '<os-form' ) && 3 === substr_count( $edits['stats'], '<os-form' ) && false !== strpos( $kit, 'submit-label="Generate PDF"' ) && false !== strpos( $edits['stats'], 'os-action="post"' ) && false !== strpos( $edits['stats'], 'submit-label="Save draft"' ) && false === strpos( $kit_all, 'os-arg-pipeline' ), 'editing: three os-forms (Save draft, Generate PDF, the operations setup) dispatching post through the admin-post pipeline; the default paint holds the last two' );
+ok( 1 === substr_count( $kit, '<os-form' ) && 2 === substr_count( $edits['stats'], '<os-form' ) && false !== strpos( $kit, 'submit-label="Generate PDF"' ) && false !== strpos( $edits['stats'], 'os-action="post"' ) && false !== strpos( $edits['stats'], 'submit-label="Save draft"' ) && false === strpos( $kit_all, 'os-arg-pipeline' ), 'editing: two os-forms (Save draft, Generate PDF) dispatching post through the admin-post pipeline; the default paint holds the last one' );
 // The private copy (with phone) is gone with the phone (owner, 2026-11-02).
 ok( false === strpos( $kit . $classic, 'resume_pdf_private' ) && false === stripos( $kit . $classic, 'private copy' ), 'no private copy on either surface' );
 ok( false !== strpos( $edits['experience'], 'name="resume[experience][1][roles][1][title]"' ) && false !== strpos( $edits['earlier'], 'name="resume[earlier][entries][1][roles][1][title]"' ), 'nested role names survive two levels down in both Experience and Earlier career' );
@@ -352,7 +361,7 @@ foreach ( array( 'hero' => 'The opening band: summary, credential chips, contact
 	ok( 1 === preg_match( '/<os-section heading="[^"]*" description="[^"]*' . preg_quote( $hint, '/' ) . '/', $edits[ $k ] ), 'helper line survives as the ' . $k . ' region\'s description: ' . substr( $hint, 0, 40 ) );
 }
 ok( false === strpos( $kit, 'Earlier career (collapsed fold)' ) && false !== strpos( $edits['earlier'], '<os-section heading="Earlier career" description="Rendered inside a collapsed &quot;details&quot; fold' ), 'Earlier career is named plainly; the fold it names is on /resume, and its helper line says so' );
-ok( 1 === preg_match( '/<os-section heading="Hero" description="[^"]*"/', $edits['hero'] ) && '' === $entries['hero'] && '' === $entries['variants'] && '' === $entries['pdf'], 'Hero, Operations résumé and PDF only carry no count, as the classic summaries' );
+ok( 1 === preg_match( '/<os-section heading="Hero" description="[^"]*"/', $edits['hero'] ) && '' === $entries['hero'] && '' === $entries['variants'] && '' === $entries['pdf'], 'Hero, Résumé settings and Contact carry no count, as the classic summaries' );
 
 // ── The lists are the kit's <os-repeater> (#1598), one per classic add
 // button, reorderable, its rows slotted under their index and named in
@@ -397,7 +406,7 @@ foreach ( array( 'sn-rsm-up', 'sn-rsm-down', 'snt-sr-only', 'data-rsm-row', 'Bla
 ok( $forms === snt_leaf_actions( $edits['experience'] ), 'the repeater posts nothing: add, remove and move are DOM operations, the one action is still resume_draft_save' );
 // Negative control: the action pin at the top can fail. A planted per-row
 // server action would be a second action.
-ok( array( 'resume_draft_save', 'resume_move', 'resume_operations_setup', 'resume_pdf_generate' ) === snt_leaf_actions( $edits['experience'] . '<os-button os-action="post" os-arg-action="sn_resume_move">Up</os-button>' ), 'the action pin discriminates: a planted resume_move os-button reads as a second action' );
+ok( array( 'resume_draft_save', 'resume_move', 'resume_pdf_generate' ) === snt_leaf_actions( $edits['experience'] . '<os-button os-action="post" os-arg-action="sn_resume_move">Up</os-button>' ), 'the action pin discriminates: a planted resume_move os-button reads as a second action' );
 // The script side: the three repeater events, and what each does to the DOM.
 $js = (string) file_get_contents( SNT_PATH . 'assets/resume-admin.js' );
 ok( false !== strpos( $js, "document.addEventListener( 'click'" ) && false !== strpos( $js, "'data-rsm-add'" ) && false !== strpos( $js, "'sn-rsm-up'" ), 'resume-admin.js keeps the classic page\'s click listener (data-rsm-add, sn-rsm-up)' );
@@ -478,7 +487,7 @@ $GLOBALS['__resume_prev']  = $live_doc;
 $classic  = snt_leaf_classic_html( 'sn_admin_render_resume_section' );
 $kit      = snt_leaf_paint( 'content', 'resume' );
 $kit_edit = $paint_edit( 'experience' );
-$want_actions = array( 'resume_discard', 'resume_draft_save', 'resume_operations_setup', 'resume_pdf_generate', 'resume_publish', 'resume_revert' );
+$want_actions = array( 'resume_discard', 'resume_draft_save', 'resume_pdf_generate', 'resume_publish', 'resume_revert' );
 ok( $want_actions === snt_leaf_actions( $kit_edit ) && $want_actions === snt_leaf_actions( $classic ) && array_values( array_diff( $want_actions, array( 'resume_draft_save' ) ) ) === snt_leaf_actions( $kit ), 'draft + previous: publish, discard and revert join the editor and PDF actions on both surfaces (kit, editing: ' . implode( ',', snt_leaf_actions( $kit_edit ) ) . '; the default paint has all but Save draft)' );
 ok( false !== strpos( $kit_edit, 'value="DRAFT PRACTICE"' ) && false !== strpos( $classic, 'value="DRAFT PRACTICE"' ) && false === strpos( $kit_edit, 'value="INDEPENDENT PRACTICE"' ) && 'DRAFT PRACTICE' === ( snt_leaf_tables( $kit )[0]['data'][2]['first'] ?? '' ), 'with a draft, both forms paint the draft, not the live document, and the table names it' );
 ok( false !== strpos( $kit, 'Draft saved 2026-09-30; differs from live.' ) && false !== strpos( $classic, 'Draft saved 2026-09-30; differs from live.' ), 'the status line reports the draft on both surfaces' );
@@ -487,13 +496,13 @@ foreach ( array( 'resume_preview_page', 'resume_preview_pdf' ) as $pv ) {
 	$url = 'admin-post.php?action=sn_' . $pv . '&page=sn-content&tab=content&sub=resume&_wpnonce=nonce-sn_' . $pv;
 	ok( false !== strpos( $kit_dec, 'os-action="door"' ) && false !== strpos( $kit_dec, $url ) && false !== strpos( html_entity_decode( $classic ), 'target="_blank" rel="noopener" href="https://example.test/wp-admin/' . $url ), $pv . ': a door (kit) and a new-tab link (classic) to admin-post.php with its own nonce and the Content page named' );
 }
-ok( 6 === substr_count( $kit_edit, '<os-form' ) && false !== strpos( $kit_edit, 'submit-label="Publish"' ) && false !== strpos( $kit_edit, 'os-confirm=' ), 'kit: Publish, Discard, Revert are one-button os-forms behind a confirm (6 os-forms with Save draft, Generate PDF and the operations setup)' );
+ok( 5 === substr_count( $kit_edit, '<os-form' ) && false !== strpos( $kit_edit, 'submit-label="Publish"' ) && false !== strpos( $kit_edit, 'os-confirm=' ), 'kit: Publish, Discard, Revert are one-button os-forms behind a confirm (5 os-forms with Save draft and Generate PDF)' );
 // 2026-10-16 leaf anatomy: three lone buttons took a full row each; they are
 // compact inline forms side by side in one os-cluster, Discard a danger outline.
 ok( 1 === preg_match( '#<os-cluster gap="8"><os-form class="snt-form snt-form--inline"[^>]*submit-label="Publish" show-reset="false" columns="auto" os-confirm="Publish the draft to the live /resume page\?">.*?</os-form><os-form class="snt-form snt-form--inline"[^>]*submit-label="Discard draft"[^>]*os-confirm-danger>.*?</os-form><os-form class="snt-form snt-form--inline"[^>]*submit-label="Revert to previous"[^>]*>.*?</os-form></os-cluster></os-section>#s', $kit ) && 3 === substr_count( $kit, 'snt-form--inline' ), 'kit: Publish, Discard and Revert sit side by side as inline forms in one cluster, closing the Draft box' );
 $GLOBALS['__resume_draft'] = null;
 $kit = snt_leaf_paint( 'content', 'resume' );
-ok( array( 'resume_draft_save', 'resume_operations_setup', 'resume_pdf_generate', 'resume_revert' ) === snt_leaf_actions( $paint_edit( 'hero' ) ) && array( 'resume_operations_setup', 'resume_pdf_generate', 'resume_revert' ) === snt_leaf_actions( $kit ) && false === strpos( $kit, 'resume_preview_page' ), 'previous version but no draft: only Revert joins; no preview, publish or discard' );
+ok( array( 'resume_draft_save', 'resume_pdf_generate', 'resume_revert' ) === snt_leaf_actions( $paint_edit( 'hero' ) ) && array( 'resume_pdf_generate', 'resume_revert' ) === snt_leaf_actions( $kit ) && false === strpos( $kit, 'resume_preview_page' ), 'previous version but no draft: only Revert joins; no preview, publish or discard' );
 $GLOBALS['__resume_prev'] = null;
 // An UNREADABLE stored draft: Discard paints on both surfaces so it can be
 // cleared; Publish and the previews stay hidden.
@@ -501,7 +510,7 @@ $GLOBALS['__resume_draft_unreadable'] = true;
 $classic  = snt_leaf_classic_html( 'sn_admin_render_resume_section' );
 $kit      = snt_leaf_paint( 'content', 'resume' );
 $kit_edit = $paint_edit( 'skills' );
-ok( array( 'resume_discard', 'resume_draft_save', 'resume_operations_setup', 'resume_pdf_generate' ) === snt_leaf_actions( $kit_edit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit_edit ) && false === strpos( $kit . $kit_edit . $classic, 'resume_preview_page' ), 'unreadable draft: only Discard joins, on both surfaces; no publish, no preview' );
+ok( array( 'resume_discard', 'resume_draft_save', 'resume_pdf_generate' ) === snt_leaf_actions( $kit_edit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit_edit ) && false === strpos( $kit . $kit_edit . $classic, 'resume_preview_page' ), 'unreadable draft: only Discard joins, on both surfaces; no publish, no preview' );
 $GLOBALS['__resume_draft_unreadable'] = false;
 
 // ── Escaping: a hostile summary never reaches the markup raw.
@@ -601,7 +610,7 @@ $edits = $paint_all();
 $lost  = array();
 $kept  = array();
 foreach ( $edits as $k => $h ) {
-	$saved = $spawn( $handler_boot, array( 'resume' => $posted( $h )['resume'] ?? array() ) );
+	$saved = $spawn( $handler_boot, array( 'resume' => $posted( $h )['resume'] ?? array(), '__stored' => $GLOBALS['__resume_doc'] ) );
 	$doc   = is_array( $saved ) ? (array) ( $saved[1] ?? array() ) : array();
 	unset( $doc['updated'] );
 	$kept[ $k ] = $doc;
@@ -610,14 +619,18 @@ foreach ( $edits as $k => $h ) {
 	}
 }
 ok( array() === $lost, 'data safety: the post from each of the eleven editing paints saves the document unchanged through the real handler (nothing lost, nothing changed): ' . implode( ',', $lost ) );
-ok( ( $rich['variants'] ?? null ) === ( $kept['stats']['variants'] ?? false ) && ( $rich['built'] ?? null ) === ( $kept['skills']['built'] ?? false ) && ( $rich['experience'] ?? null ) === ( $kept['variants']['experience'] ?? false ), 'the saved draft carries back the variant blocks (Stats edited), What I\'ve Built (Skills edited) and every row and bullet flag (Operations résumé edited)' );
+ok( ( $rich['variants'] ?? null ) === ( $kept['stats']['variants'] ?? false ) && ( $rich['built'] ?? null ) === ( $kept['skills']['built'] ?? false ) && ( $rich['experience'] ?? null ) === ( $kept['variants']['experience'] ?? false ), 'the saved draft carries back the variant blocks (Stats edited), What I\'ve Built (Skills edited) and every row and bullet flag (Résumé settings edited)' );
 // The kit paints each flag on its control, and carries it while another section is edited.
 foreach ( array( 'experience' => 'resume[experience][0][variant]" value="music"', 'earlier' => 'resume[earlier][entries][0][roles][0][variant]" value="operations"', 'affiliations' => 'resume[affiliations][0][variant]" value="operations"', 'publications' => 'resume[publications][1][variant]" value="music"', 'skills' => 'resume[skills][0][variant]" value="operations"', 'built' => 'resume[built][items][0][variant]" value="operations"' ) as $k => $frag ) {
 	ok( false !== strpos( $edits[ $k ], '<os-select name="' . $frag ) && false !== strpos( $edits['hero'], '<input type="hidden" name="' . $frag . '>' ), 'a flag paints on its os-select and rides along as a carrier: ' . $frag );
 }
 $bk = sn_resume_bullet_key( (string) reset( $b0 ) );
 ok( false !== strpos( $edits['experience'], '<os-select name="resume[experience][0][roles][0][bullet_variants][' . $bk . ']" value="operations"' ) && false !== strpos( $edits['stats'], '<input type="hidden" name="resume[experience][0][roles][0][bullet_variants][' . $bk . ']" value="operations">' ), 'a bullet flag paints on its own select and rides along as a carrier' );
-ok( false !== strpos( $edits['stats'], '<input type="hidden" name="resume[variants][music][show_built]" value="1">' ) && false !== strpos( $edits['stats'], '<input type="hidden" name="resume[variants][operations][earlier_compact]" value="1">' ) && 1 === preg_match( '/<os-checkbox-label name="resume\[variants\]\[music\]\[show_built\]"[^>]* checked/', $edits['pdf'] ) && 1 === preg_match( '/<os-checkbox-label name="resume\[variants\]\[operations\]\[earlier_compact\]"[^>]* checked/', $edits['variants'] ), 'both variant boxes are checkboxes, checked when on, carried as 1 while another section is edited' );
+ok( false !== strpos( $edits['stats'], '<input type="hidden" name="resume[variants][operations][earlier_compact]" value="1">' ) && 1 === preg_match( '/<os-checkbox-label name="resume\[variants\]\[operations\]\[earlier_compact\]"[^>]* checked/', $edits['variants'] ) && false === strpos( $kit_all, 'resume[variants][music]' ), 'the variant box is a checkbox, checked when on, carried as 1 while another section is edited; the music box is gone' );
+// The carry-over is what keeps the fields no section posts any more: without the stored document behind the save, Contact's post loses them.
+$bare = $spawn( $handler_boot, array( 'resume' => $posted( $edits['pdf'] )['resume'] ?? array() ) );
+$bdoc = is_array( $bare ) ? (array) ( $bare[1] ?? array() ) : array();
+ok( true === ( $kept['pdf']['variants']['music']['show_built'] ?? null ) && $rich['pdf']['toolkit'] === ( $kept['pdf']['pdf']['toolkit'] ?? null ) && $rich['pdf']['toolkit'] !== ( $bdoc['pdf']['toolkit'] ?? null ) && ! isset( $bdoc['variants']['music'] ), 'negative control: the same Contact post with no stored document to carry over from drops the toolkit and the music setting (the round trip above discriminates)' );
 // The guard can fail: the Stats post without the variant carriers loses every flag.
 $cut   = preg_replace( '#<input type="hidden" name="resume\[(?:built|variants)\][^>]*>|<input type="hidden" name="[^"]*\[(?:variant|bullet_variants)\][^"]*"[^>]*>#', '', $edits['stats'] );
 $saved = $spawn( $handler_boot, array( 'resume' => $posted( $cut )['resume'] ?? array() ) );
@@ -688,6 +701,21 @@ ok( false !== $ip_at && array() === $ip_split, 'edit in place: the editor opens 
 ok( false !== strpos( $ip_ed, '>Editing</os-badge>' ), 'edit in place: the open row says Editing in words, not only by its accent bar' );
 ok( 1 === preg_match( '/os-arg-anchor="(snt-row-[0-9a-f]{12})"[^>]*>Cancel/', $ip_ed, $ip_m ) && false !== strpos( $ip_def, 'id="' . $ip_m[1] . '" data-snt-focus' ), 'edit in place: Cancel lands back on the open row\'s own button' );
 ok( false !== strpos( $ip_table['attrs'], 'class="snt-table-full"' ), 'edit in place: the list is not boxed in an inner scroller (the app caps os-table at 440px)' );
+
+echo "\nGroup: the Resume PDF box with résumé settings (2026-11-12)\n";
+$GLOBALS['__resume_doc'] = $seed;
+$GLOBALS['__options']['sn_resume_pdf'] = array( 'url' => 'https://example.test/wp-content/uploads/resume/JuanLentino_Resume_Music.pdf', 'sha256' => str_repeat( 'a', 64 ), 'pages' => 2, 'bytes' => 9000, 'generated' => '2026-11-01T00:00:00+00:00' );
+$music_words = static fn( $h ) => false !== strpos( $h, 'Generated ' ) || false !== strpos( $h, 'Open the PDF' ) || false !== strpos( $h, 'Not generated yet' );
+$off_kit     = snt_leaf_paint( 'content', 'resume' );
+$off_classic = snt_leaf_classic_html( 'sn_admin_render_resume_pdf_generate' );
+$GLOBALS['__is_one'] = true;
+$on_kit      = snt_leaf_paint( 'content', 'resume' );
+$on_classic  = snt_leaf_classic_html( 'sn_admin_render_resume_pdf_generate' );
+unset( $GLOBALS['__options']['sn_resume_pdf'] );
+$on_none     = snt_leaf_paint( 'content', 'resume' ) . snt_leaf_classic_html( 'sn_admin_render_resume_pdf_generate' );
+$GLOBALS['__is_one'] = false;
+ok( $music_words( $off_kit ) && $music_words( $off_classic ), 'without résumé settings both boxes show the music PDF\'s facts and its Open the PDF link' );
+ok( ! $music_words( $on_kit ) && ! $music_words( $on_classic ) && ! $music_words( $on_none ) && false !== strpos( $on_kit, 'submit-label="Generate PDF"' ) && false !== strpos( $on_classic, 'value="sn_resume_pdf_generate"' ), 'with them neither box shows a music paragraph (nor "Not generated yet" once the music facts are gone), and Generate PDF stays' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

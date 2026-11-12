@@ -9,7 +9,7 @@
  * previews end in a redirect or a download and exit on success.
  *
  * Actions served: resume_draft_save, resume_preview_page, resume_preview_pdf,
- * resume_publish, resume_discard, resume_revert, resume_operations_setup
+ * resume_publish, resume_discard, resume_revert
  *
  * @package SignalNoiseTools
  * @since 19.9.0
@@ -32,7 +32,32 @@ function sn_handle_resume_draft_save( $post ) {
 		return 'resume_failed';
 	}
 	$resume = isset( $post['resume'] ) && is_array( $post['resume'] ) ? (array) wp_unslash( $post['resume'] ) : array();
+	$resume = sn_resume_draft_carry_over( $resume );
 	return sn_resume_draft_save( $resume ) ? 'resume_draft_saved' : sn_resume_draft_unsaved_code( $resume );
+}
+
+/**
+ * Keep what the editor no longer shows. The Contact section posts only the
+ * email and phone, and nothing posts variants.music; normalize blanks a key
+ * the post lacks, so each one missing is taken from the document the editor
+ * showed: the draft, else the live document. A key the post carries, even
+ * empty, stands.
+ *
+ * @param array $resume The posted document.
+ * @return array
+ */
+function sn_resume_draft_carry_over( array $resume ) {
+	$base = function_exists( 'sn_resume_draft_get' ) ? sn_resume_draft_get() : null;
+	$base = is_array( $base ) ? $base : ( function_exists( 'sn_resume_doc_get_raw' ) ? sn_resume_doc_get_raw() : null );
+	if ( ! is_array( $base ) ) {
+		return $resume;
+	}
+	$resume['pdf'] = (array) ( $resume['pdf'] ?? array() ) + (array) ( $base['pdf'] ?? array() );
+	if ( ! isset( $resume['variants']['music'] ) && isset( $base['variants']['music'] ) ) {
+		$resume['variants']          = (array) ( $resume['variants'] ?? array() );
+		$resume['variants']['music'] = $base['variants']['music'];
+	}
+	return $resume;
 }
 
 /**
@@ -156,30 +181,4 @@ function sn_handle_resume_revert( $post ) { // phpcs:ignore Generic.CodeAnalysis
 		'reverted_pdf_failed' => 'resume_reverted_pdf_failed',
 	);
 	return $codes[ sn_resume_revert() ] ?? 'resume_failed';
-}
-
-/**
- * resume_operations_setup: write the operations résumé's starting content
- * (inc/resume-operations-setup.php) into the draft, starting from the draft
- * when there is one, else the published document. Nothing goes live.
- *
- * @param array $post Raw $_POST (unused).
- * @return string Flash code.
- */
-function sn_handle_resume_operations_setup( $post ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- dispatcher signature.
-	if ( ! function_exists( 'sn_resume_operations_setup' ) || ! function_exists( 'sn_resume_draft_save' ) ) {
-		return 'resume_failed';
-	}
-	$base = function_exists( 'sn_resume_draft_get' ) ? sn_resume_draft_get() : null;
-	$base = is_array( $base ) ? $base : sn_resume_doc_get_raw();
-	if ( ! is_array( $base ) ) {
-		return 'resume_failed';
-	}
-	unset( $base['updated'] );
-	$set = sn_resume_operations_setup( $base );
-	if ( ! sn_resume_draft_save( $set['doc'] ) ) {
-		return sn_resume_draft_unsaved_code( $set['doc'] );
-	}
-	update_option( 'sn_resume_ops_setup_missing', $set['missing'], false ); // only for a setup that was saved.
-	return $set['missing'] ? 'resume_ops_setup_partial' : 'resume_ops_setup';
 }

@@ -8,6 +8,11 @@
  * the /resume Download link reads the stable URL plus ?v=<hash prefix>, so a
  * new PDF busts every cache layer without a new file name.
  *
+ * Since the one résumé (2026-11-12) that music PDF is only the fallback for a
+ * document without résumé settings: with them, Generate builds the résumé PDF
+ * (inc/resume-pdf/operations.php) and removes the music file
+ * (sn_resume_pdf_build_one()).
+ *
  * Why Dompdf: pure PHP, runs on Cloudways PHP 8.4 with no binary, and writes
  * real selectable text (ATS-readable). It lives in lib/pdf/ with its vendor/
  * COMMITTED, because the self-updater ships the tag archive and the dev
@@ -23,7 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_RESUME_PDF_OPTION = 'sn_resume_pdf';
-const SN_RESUME_PDF_FILE   = 'JuanLentino_Resume_Music.pdf'; // was JuanLentino_Resume.pdf, the one résumé's name since 2026-11-12.
+const SN_RESUME_PDF_FILE   = 'JuanLentino_Resume_Music.pdf'; // was JuanLentino_Resume.pdf, the one résumé's name since 2026-11-12. Built only without résumé settings (sn_resume_pdf_is_one()).
 // The music PDF's old name, removed from uploads on the next Generate so its address redirects to the one résumé's PDF (inc/resume-pdf/operations.php).
 const SN_RESUME_PDF_RETIRED_FILE = 'JuanLentino_Resume.pdf';
 const SN_RESUME_PDF_ISSUED = 'sn_resume_pdf_issued'; // every ?v= prefix ever linked, newest last.
@@ -118,9 +123,49 @@ function sn_resume_pdf_render( $doc, $name, $cache_dir, $unused_phone = false, $
 function sn_resume_pdf_generate() {
 	$out = sn_resume_pdf_build();
 	if ( is_wp_error( $out ) ) {
-		sn_resume_pdf_record_error( SN_RESUME_PDF_OPTION, $out );
+		// The one résumé has no music PDF: a failure is the résumé PDF's (its
+		// build records its own; this also catches one before it ran, such as
+		// no uploads directory).
+		sn_resume_pdf_record_error( sn_resume_pdf_is_one() ? SN_RESUME_OPS_PDF_OPTION : SN_RESUME_PDF_OPTION, $out );
 	}
 	return $out;
+}
+
+/**
+ * Whether the stored document has the résumé settings (variants.operations),
+ * so /resume is the one résumé and its PDF is the only one built. Without
+ * them Generate falls back to the single music PDF.
+ *
+ * @return bool
+ */
+function sn_resume_pdf_is_one() {
+	return function_exists( 'sn_resume_ops_config' ) && null !== sn_resume_ops_config();
+}
+
+/**
+ * Generate for the one résumé: no music PDF. Its file (and the old
+ * JuanLentino_Resume.pdf) leave uploads, its facts go, the résumé PDF and the
+ * Spanish CV are built (sn_resume_pdf_generated, which re-syncs /resume),
+ * and every retired address is purged.
+ *
+ * @param array{dir:string,url:string} $loc Where the PDFs live.
+ * @return array|WP_Error The résumé PDF's facts.
+ */
+function sn_resume_pdf_build_one( array $loc ) {
+	$issued  = (array) get_option( SN_RESUME_PDF_ISSUED, array() );
+	// Removed whether or not Cloudflare is set up: a static file shadows the redirect.
+	$retired = array_merge( sn_resume_pdf_retire_file( $loc, SN_RESUME_PDF_RETIRED_FILE, $issued ), sn_resume_pdf_retire_file( $loc, SN_RESUME_PDF_FILE, $issued ) );
+	delete_option( SN_RESUME_PDF_OPTION );
+	do_action( 'sn_resume_pdf_generated' );
+	if ( function_exists( 'sn_cf_purge_urls' ) ) {
+		$copies = function_exists( 'sn_cf_resume_format_urls' ) ? sn_cf_resume_format_urls( (object) array( 'post_type' => 'page', 'post_name' => 'resume' ) ) : array();
+		sn_cf_purge_urls( array_merge( $retired, $copies ) );
+	}
+	$meta = get_option( SN_RESUME_OPS_PDF_OPTION );
+	if ( ! is_array( $meta ) || ! empty( $meta['error'] ) ) {
+		return new WP_Error( 'sn_resume_pdf_one', is_array( $meta ) ? (string) $meta['error'] : 'The résumé PDF was not built.' );
+	}
+	return $meta;
 }
 
 /**
@@ -152,6 +197,9 @@ function sn_resume_pdf_build() {
 	}
 	if ( ! wp_mkdir_p( $loc['dir'] ) ) {
 		return new WP_Error( 'sn_resume_pdf_mkdir', 'Could not create uploads/resume.' );
+	}
+	if ( sn_resume_pdf_is_one() ) {
+		return sn_resume_pdf_build_one( $loc );
 	}
 
 	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
@@ -196,7 +244,7 @@ function sn_resume_pdf_build() {
 	// the purge-everything ability, which also emptied Redis and every other
 	// page to drop one PDF. Now the file's own addresses go through the per-URL
 	// path, which does nothing when Cloudflare is not configured.
-	$retired = sn_resume_pdf_retire_old( $loc, $issued ); // removed whether or not Cloudflare is set up: a static file shadows the redirect.
+	$retired = sn_resume_pdf_retire_file( $loc, SN_RESUME_PDF_RETIRED_FILE, $issued ); // removed whether or not Cloudflare is set up: a static file shadows the redirect.
 	if ( function_exists( 'sn_cf_purge_urls' ) ) {
 		// The agent copies name the new ?v= link and are cached untagged: by URL too.
 		$copies = function_exists( 'sn_cf_resume_format_urls' ) ? sn_cf_resume_format_urls( (object) array( 'post_type' => 'page', 'post_name' => 'resume' ) ) : array();
@@ -208,21 +256,23 @@ function sn_resume_pdf_build() {
 }
 
 /**
- * Remove the music PDF's old file (SN_RESUME_PDF_RETIRED_FILE) from uploads,
- * so its address reaches WordPress and redirects to the one résumé's PDF
- * (sn_resume_pdf_retired_redirect()). A static file is served before
- * WordPress runs, so the redirect only works once the file is gone.
+ * Remove a retired PDF from uploads: the music PDF's old name
+ * (SN_RESUME_PDF_RETIRED_FILE), and for the one résumé the music PDF itself
+ * (SN_RESUME_PDF_FILE). A static file is served before WordPress runs, so its
+ * address reaches WordPress (and the old name's redirect to the one résumé's
+ * PDF, sn_resume_pdf_retired_redirect()) only once the file is gone.
  *
  * @param array{dir:string,url:string} $loc    Where the PDFs live.
+ * @param string                       $file   The file name in uploads/resume.
  * @param string[]                     $issued Every ?v= prefix ever linked.
- * @return string[] The old addresses to purge, or none when there was no file.
+ * @return string[] The bare URL and every ?v= URL to purge, or none when there was no file.
  */
-function sn_resume_pdf_retire_old( array $loc, array $issued ) {
-	$old = $loc['dir'] . '/' . SN_RESUME_PDF_RETIRED_FILE;
+function sn_resume_pdf_retire_file( array $loc, $file, array $issued ) {
+	$old = $loc['dir'] . '/' . $file;
 	if ( ! file_exists( $old ) || ! @unlink( $old ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- a missing file is the normal case.
 		return array();
 	}
-	return sn_resume_pdf_purge_urls( array( 'url' => $loc['url'] . '/' . SN_RESUME_PDF_RETIRED_FILE ), $issued );
+	return sn_resume_pdf_purge_urls( array( 'url' => $loc['url'] . '/' . $file ), $issued );
 }
 
 /**
@@ -317,14 +367,31 @@ function sn_resume_pdf_stream( $doc, $filename, $config = null ) {
 }
 
 /**
- * The DRAFT preview: the file Publish would generate. Streamed, never stored. It is the draft's music
- * résumé, what Publish would put behind the Download link.
+ * The DRAFT preview: the file Publish would generate. Streamed, never stored.
+ * With résumé settings it is the one résumé's PDF (sn_resume_ops_pdf_layout());
+ * without, the single résumé's.
  *
  * @return WP_Error|void
  */
 function sn_resume_pdf_draft_stream() {
-	$doc = function_exists( 'sn_resume_draft_get' ) ? sn_resume_doc_view( sn_resume_draft_get(), 'music' ) : null;
-	return sn_resume_pdf_stream( $doc, 'JuanLentino_Resume_draft.pdf', sn_resume_pdf_music_config( sn_resume_draft_get() ) );
+	$parts = sn_resume_pdf_draft_parts( function_exists( 'sn_resume_draft_get' ) ? sn_resume_draft_get() : null );
+	return sn_resume_pdf_stream( $parts[0], 'JuanLentino_Resume_draft.pdf', $parts[1] );
+}
+
+/**
+ * What the draft preview renders: [view, layout]. PURE but for the filters.
+ *
+ * @param array|null $draft The draft document.
+ * @return array{0:mixed,1:array}
+ */
+function sn_resume_pdf_draft_parts( $draft ) {
+	$ops = sn_resume_variant_config( $draft, 'operations' );
+	if ( null !== $ops && function_exists( 'sn_resume_ops_pdf_layout' ) ) {
+		$view                   = sn_resume_doc_view( $draft, 'operations' );
+		$view['pdf']['website'] = '';
+		return array( $view, sn_resume_ops_pdf_layout( $draft, $ops ) );
+	}
+	return array( sn_resume_doc_view( $draft, 'music' ), sn_resume_pdf_music_config( $draft ) );
 }
 
 /**

@@ -96,7 +96,7 @@ function sn_admin_render_resume_built_section( $doc ) {
 		sn_rsm_variant( $p . '[variant]', (string) ( $item['variant'] ?? '' ) );
 		echo '</div>';
 	};
-	sn_rsm_section_open( "What I've Built", '/resume and its PDF show this section while "built" is in its Sections list (a blank list takes the music order, which has none). The music résumé shows it only when Show "What I\'ve Built" in the music PDF is on (PDF only).', count( (array) ( $built['items'] ?? array() ) ) );
+	sn_rsm_section_open( "What I've Built", '/resume and its PDF show this section while "built" is in its Sections list (a blank list takes the music order, which has none).', count( (array) ( $built['items'] ?? array() ) ) );
 	sn_rsm_input( 'resume[built][intro]', (string) ( $built['intro'] ?? '' ), 'Intro line', 'How these were built' );
 	echo '<div class="sn-rsm-list" data-rsm-list="built">';
 	foreach ( array_values( (array) ( $built['items'] ?? array() ) ) as $i => $item ) {
@@ -108,13 +108,14 @@ function sn_admin_render_resume_built_section( $doc ) {
 }
 
 /**
- * The operations résumé's settings. Blank fields fall back to the music PDF's.
+ * The résumé settings (variants.operations). Blank fields fall back to the
+ * document's pdf.* values, which no editor shows any more.
  *
  * @param array $doc The document being edited.
  */
 function sn_admin_render_resume_operations_section( $doc ) {
 	$o = (array) ( $doc['variants']['operations'] ?? array() );
-	sn_rsm_section_open( 'Operations résumé', 'What /resume shows, and its PDF, built by Generate along with the music one: /resume is this one résumé, and its Download links this PDF once it is generated. Each row\'s "On /resume" decides whether it shows: Shown or Hidden. Never re-run Operations résumé setup: it hides rows again.' );
+	sn_rsm_section_open( 'Résumé settings', 'What /resume shows, and its PDF, built by Generate: /resume\'s Download links this PDF once it is generated. Each row\'s "On /resume" decides whether it shows: Shown or Hidden.' );
 	sn_rsm_input( 'resume[variants][operations][kicker]', (string) ( $o['kicker'] ?? '' ), 'Kicker: a short line that introduces the headline', 'Founder & Operator · Music, Rights & AI' );
 	sn_rsm_input( 'resume[variants][operations][headline]', (string) ( $o['headline'] ?? '' ), 'Headline', 'Founder and Operator' );
 	sn_rsm_input( 'resume[variants][operations][tagline]', (string) ( $o['tagline'] ?? '' ), 'Subhead', 'AI-Native Business Operations | Partnerships' );
@@ -127,30 +128,5 @@ function sn_admin_render_resume_operations_section( $doc ) {
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Earlier career on /resume: one line per role, no bullets (the PDF always is)</span><input type="checkbox" name="resume[variants][operations][earlier_compact]" value="1"' . checked( ! empty( $o['earlier_compact'] ), true, false ) . '></label>';
 	sn_rsm_input( 'resume[variants][operations][pdf_file]', (string) ( $o['pdf_file'] ?? '' ), 'PDF file name', defined( 'SN_RESUME_OPERATIONS_PDF_FILE' ) ? SN_RESUME_OPERATIONS_PDF_FILE : 'Resume_Operations.pdf' );
 	echo '<p class="description">The phone is never printed in this PDF.</p>';
-	$missing = (array) get_option( 'sn_resume_ops_setup_missing', array() );
-	if ( $missing ) {
-		echo '<p class="description">Not found by the last setup, so still in both résumés: ' . esc_html( implode( '; ', $missing ) ) . '.</p>';
-	}
 	echo '</details>';
-}
-
-/**
- * The music PDF's one variant setting, inside "PDF only".
- *
- * @param array $doc The document being edited.
- */
-function sn_admin_render_resume_music_built_toggle( $doc ) {
-	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Show "What I\'ve Built" in the music PDF</span><input type="checkbox" name="resume[variants][music][show_built]" value="1"' . checked( ! empty( $doc['variants']['music']['show_built'] ), true, false ) . '></label>';
-}
-
-/**
- * The button that writes the operations résumé's starting content into the draft.
- */
-function sn_admin_render_resume_operations_setup() {
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
-	wp_nonce_field( 'sn_resume_operations_setup' );
-	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Operations résumé setup</h2>';
-	echo '<p class="sn-fieldset-intro">A one-time starting point from 2026-11-01, kept for a fresh install: it writes the operations settings, What I\'ve Built, its skills rows and two affiliations into the draft, and marks what it leaves out Hidden. On this site it is done: running it again marks Hidden again every row it did not write, undoing what you set to Shown.</p>';
-	echo '<div class="sn-fieldset-actions"><button type="submit" name="action" value="sn_resume_operations_setup" class="button">Set up the operations résumé</button></div>';
-	echo '</div></form>';
 }

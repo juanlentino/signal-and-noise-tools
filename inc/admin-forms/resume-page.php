@@ -372,30 +372,19 @@ function sn_admin_render_resume_section() {
 	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="skills">+ Add skills row</button>';
 	echo '</details>';
 
-	// ── PDF only ── Fields the generated music PDF uses. /resume shows the
-	// Operations résumé's headline and subhead (sn_resume_lane_hero_blocks()).
-	// The phone is printed nowhere.
+	// ── Contact ── The email the PDF's contact line prints, and the phone it
+	// never prints. The other pdf.* keys stay in the document, carried over
+	// on save (sn_resume_draft_carry_over()).
 	if ( function_exists( 'sn_admin_render_resume_built_section' ) ) {
 		sn_admin_render_resume_built_section( $doc );
 		sn_admin_render_resume_operations_section( $doc );
 	}
 
 	$pdf = (array) ( $doc['pdf'] ?? array() );
-	sn_rsm_section_open( 'PDF only', 'The PDF\'s own fields. These are the music PDF\'s; /resume shows the Operations résumé\'s headline and subhead instead, and the phone never reaches the page. Preview PDF shows the draft; Publish rebuilds the public PDF once one exists.' );
-	sn_rsm_input( 'resume[pdf][headline]', (string) ( $pdf['headline'] ?? '' ), 'Headline', 'Music Business Development & Strategic Partnerships Leader' );
-	sn_rsm_input( 'resume[pdf][tagline]', (string) ( $pdf['tagline'] ?? '' ), 'Tagline', 'Artist & Label Relations | Latin American & U.S. Markets' );
-	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Professional summary</span><textarea rows="4" class="large-text" name="resume[pdf][summary]">' . esc_textarea( (string) ( $pdf['summary'] ?? '' ) ) . '</textarea></label>';
-	echo '<p class="description">Blank: the PDF uses the Summary from Hero.</p>';
-	sn_rsm_input( 'resume[pdf][location]', (string) ( $pdf['location'] ?? '' ), 'Location', 'Orlando, FL' );
+	sn_rsm_section_open( 'Contact', 'Email prints in the PDF\'s contact line. The phone is never printed; it is kept only so the PDF check can refuse a file that carries it.' );
+	sn_rsm_input( 'resume[pdf][email]', (string) ( $pdf['email'] ?? '' ), 'Email', 'name@example.com' );
 	sn_rsm_input( 'resume[pdf][phone]', (string) ( $pdf['phone'] ?? '' ), 'Phone', '(000) 000-0000' );
 	echo '<p class="description">Never printed: not on /resume, not in any PDF. It is kept only so the PDF check can refuse a file that carries it.</p>';
-	sn_rsm_input( 'resume[pdf][email]', (string) ( $pdf['email'] ?? '' ), 'Email', 'name@example.com' );
-	sn_rsm_input( 'resume[pdf][website]', (string) ( $pdf['website'] ?? '' ), 'Website', 'https://juanlentino.com (blank: this site)' );
-	sn_rsm_lines( 'resume[pdf][competencies]', (array) ( $pdf['competencies'] ?? array() ), 'Core competencies: one per line', 'Strategic Partnerships & Deal Negotiation', 6 );
-	sn_rsm_lines( 'resume[pdf][toolkit]', (array) ( $pdf['toolkit'] ?? array() ), 'Technical toolkit: one per line', 'Pro Tools', 4 );
-	if ( function_exists( 'sn_admin_render_resume_music_built_toggle' ) ) {
-		sn_admin_render_resume_music_built_toggle( $doc );
-	}
 	echo '</details>';
 
 	echo '<div class="sn-fieldset-actions">';
@@ -408,9 +397,6 @@ function sn_admin_render_resume_section() {
 		sn_admin_render_resume_draft_controls();
 	}
 	sn_admin_render_resume_pdf_generate();
-	if ( function_exists( 'sn_admin_render_resume_operations_setup' ) ) {
-		sn_admin_render_resume_operations_setup();
-	}
 }
 
 /**
@@ -423,13 +409,14 @@ function sn_admin_render_resume_pdf_generate() {
 	wp_nonce_field( 'sn_resume_pdf_generate' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Resume PDF</h2>';
-	if ( is_array( $meta ) && ! empty( $meta['url'] ) ) {
+	$one = function_exists( 'sn_resume_pdf_is_one' ) && sn_resume_pdf_is_one(); // no music PDF: the résumé PDF is in the lines below.
+	if ( ! $one && is_array( $meta ) && ! empty( $meta['url'] ) ) {
 		$pages = (int) ( $meta['pages'] ?? 0 );
 		/* translators: 1: timestamp, 2: pages, 3: file size */
 		echo '<p class="sn-fieldset-intro">' . esc_html( sprintf( _n( 'Generated %1$s: %2$s page, %3$s, SHA-256', 'Generated %1$s: %2$s pages, %3$s, SHA-256', $pages, 'signal-and-noise-tools' ), sn_resume_pdf_when( $meta ), number_format_i18n( $pages ), size_format( (int) ( $meta['bytes'] ?? 0 ) ) ) )
 			. ' <code>' . esc_html( substr( (string) ( $meta['sha256'] ?? '' ), 0, 12 ) ) . '</code>. '
-			. '<a href="' . esc_url( sn_resume_pdf_link( '' ) ) . '" target="_blank" rel="noopener">Open the PDF</a>. ' . ( function_exists( 'sn_resume_formats_one' ) && sn_resume_formats_one() ? 'This is the music PDF: /resume is the one résumé, and its Download links the operations PDF.' : 'The /resume Download link points here.' ) . '</p>';
-	} else {
+			. '<a href="' . esc_url( sn_resume_pdf_link( '' ) ) . '" target="_blank" rel="noopener">Open the PDF</a>. The /resume Download link points here.</p>';
+	} elseif ( ! $one ) {
 		echo '<p class="sn-fieldset-intro">Not generated yet: the /resume Download link still uses the PDF URL. Generating builds the PDF from the published resume and switches the link to it.</p>';
 	}
 	if ( function_exists( 'snt_pdf_engine_status_line' ) ) {

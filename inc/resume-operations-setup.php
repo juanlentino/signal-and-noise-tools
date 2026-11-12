@@ -14,8 +14,9 @@
  * settings exist). Its skills rows and affiliations go only into a list that
  * has no operations row yet, so one deleted or renamed since is not added
  * again. Running it again does mark Hidden ("Music only" before 2026-11-12)
- * again on a row set back to Shown. The admin action writes the result into the draft, so the owner
- * reviews it before publishing.
+ * again on a row set back to Shown. No button runs it any more (the setup box
+ * left the résumé editor 2026-11-12, its work done on this site); the test
+ * suite builds its fixtures with it.
  *
  * @package SignalNoiseTools
  */
