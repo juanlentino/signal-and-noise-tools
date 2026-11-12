@@ -27,6 +27,7 @@ function do_action( $hook, ...$args ) { $GLOBALS['__fired'][] = array( $hook, $a
 function sn_analytics_range_totals( $f, $t, $c = 'human' ) { return array( 'views' => 1284, 'visits' => 316 ); }
 function sn_analytics_class_totals( $f, $t ) { return array( 'human' => 300, 'suspect' => 10, 'bot' => 90 ); }
 function sn_analytics_realtime( $c = 'human' ) { return 3; }
+function sn_analytics_today_is_estimate() { return ! empty( $GLOBALS['__today_est'] ); }
 // The pulse "Today so far" cell reads the series' LAST bucket. Its day is
 // controllable: default = today (a rolled current-day bucket) so the positive case
 // renders; flip __series_last_today off to model today's bucket not yet rolled
@@ -164,6 +165,19 @@ snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026
 $html_stale = (string) ob_get_clean();
 ok( false === strpos( $html_stale, 'Today so far' ), 'today cell suppressed when the last bucket is a stale prior day (not today)' );
 $GLOBALS['__series_last_today'] = true;
+// A sampled today (2026-11-11): the human figure says "estimate"; another class,
+// whose rows the sampling reading never measured, carries no marker.
+$GLOBALS['__today_est'] = true;
+ob_start();
+snt_analytics_render_header_region( 'content', '7', 'human', '2026-07-01', '2026-07-07', 'day' );
+$html_est = (string) ob_get_clean();
+ok( false !== strpos( $html_est, '>views, estimate<' ), 'today cell: a sampled human today reads "views, estimate"' );
+ob_start();
+snt_analytics_render_header_region( 'content', '7', 'bot', '2026-07-01', '2026-07-07', 'day' );
+$html_bot = (string) ob_get_clean();
+ok( false !== strpos( $html_bot, 'Today so far' ) && false === strpos( $html_bot, 'estimate' ), 'today cell: another class carries no estimate marker' );
+$GLOBALS['__today_est'] = false;
+ok( false === strpos( $html, 'estimate' ), 'today cell: an unsampled today carries no marker' );
 // "Today" is the SITE-LOCAL day. In the local evening west of UTC the UTC day is
 // already tomorrow; the last bucket is still the local today and must keep its cell.
 $GLOBALS['__local_day']  = '2031-02-03';

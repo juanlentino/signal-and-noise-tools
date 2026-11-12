@@ -216,7 +216,8 @@ function snt_analytics_render_pulse_strip( $from, $to, $class, $series, $granula
 		if ( is_array( $last ) && isset( $last['views'] )
 			&& isset( $last['day'] ) && (string) $last['day'] === $today ) {
 			// A sampled today is Analytics Engine's weighted estimate, not a count.
-			$today_unit = function_exists( 'sn_analytics_today_is_estimate' ) && sn_analytics_today_is_estimate()
+			// The sampling reading is of human rows: other classes carry no marker.
+			$today_unit = 'human' === $class && function_exists( 'sn_analytics_today_is_estimate' ) && sn_analytics_today_is_estimate()
 				? __( 'views, estimate', 'signal-and-noise-tools' )
 				: __( 'views', 'signal-and-noise-tools' );
 			$cells[] = '<span class="sn-an-pulse-cell"><span class="sn-an-pulse-k">' . esc_html__( 'Today so far', 'signal-and-noise-tools' ) . '</span>'

@@ -15,7 +15,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Fixed
 - **Today's view count says when it is an estimate.** On 2026-11-11 "Today so far" read 31 while the Sessions tab listed 20 page views. Nothing was counted twice: Analytics Engine sampled two visitor-days when it wrote them, keeping 7 page-view rows that stand for 17, and 2 that stand for 3. The figures add up those weights, so 31 is the right estimate; the Sessions tab lists the rows that were kept. The realtime warmer's today read now also asks for `count()` beside `sum(_sample_interval)`, in the same request (`inc/analytics-realtime.php`), and `inc/analytics-today-estimate.php` (new) says whether today was sampled. When it was, admin surfaces say so:
   - **The SN Traffic desktop card** reads "Today so far (estimate)" (payload key `today_estimate`, additive).
-  - **The Analytics header strip's Today so far** reads "views, estimate".
+  - **The Analytics header strip's Today so far** reads "views, estimate" (human class only: the reading is of human rows).
   - **Analytics › Overview, Views today** reads "human pageviews · site-local day · sampled, an estimate".
   - **The Sessions tab**, when its window includes today, names the kept rows and the views they stand for.
   - **`live-now`** answers `today_stored` beside `today` (admin answer only).
