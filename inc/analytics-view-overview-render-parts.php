@@ -398,7 +398,9 @@ function snt_analytics_render_view_overview( $from, $to, $class, $range = '7', $
 	// promotes: instantaneous — it cannot be notable vs a prior period.
 	snt_analytics_render_overview_rightnow(
 		function_exists( 'sn_analytics_realtime' ) ? sn_analytics_realtime( $class ) : null,
-		function_exists( 'sn_analytics_views_today' ) ? sn_analytics_views_today() : null,
+		// Worker 2.2.0: an exact, fresh count first, else the weighted figure.
+		function_exists( 'sn_analytics_exact_today' ) && null !== sn_analytics_exact_today() ? sn_analytics_exact_today()['views']
+			: ( function_exists( 'sn_analytics_views_today' ) ? sn_analytics_views_today() : null ),
 		$class
 	);
 

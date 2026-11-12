@@ -157,6 +157,7 @@ require_once SNT_PATH . 'inc/analytics-rollup.php';
 require_once SNT_PATH . 'inc/public-stats.php'; // v10.65.0: [sn_public_stats] — the public stats page, rollups read-only (roadmap Analytics planned row)
 require_once SNT_PATH . 'inc/analytics-derive.php'; // Phase A pure derive layer (spec §4) — zero WP calls; consumed by the read layer
 require_once SNT_PATH . 'inc/analytics-realtime.php';
+require_once SNT_PATH . 'inc/analytics-exact.php'; // worker 2.2.0: exact page-view counts pushed with the refresh poke
 require_once SNT_PATH . 'inc/analytics-live-pages.php'; // being read now: readers per public page, top five
 require_once SNT_PATH . 'inc/analytics-live-scroll.php'; // admin only: how far each of those pages' readers have scrolled
 require_once SNT_PATH . 'inc/analytics-live-hour.php'; // the last hour behind Reading now, twelve 5-minute slots

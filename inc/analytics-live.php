@@ -57,6 +57,13 @@ function sn_analytics_live_payload( $all_classes ) {
 		// `today`, today was sampled and `today` is its weighted estimate.
 		$sampling            = function_exists( 'sn_analytics_today_sampling' ) ? sn_analytics_today_sampling() : null;
 		$out['today_stored'] = null !== $sampling ? $sampling['stored'] : null;
+		// Worker 2.2.0, admin only: an exact, fresh count replaces the weighted
+		// `today`; /stats keeps the weighted figure until the owner decides.
+		$exact              = function_exists( 'sn_analytics_exact_today' ) ? sn_analytics_exact_today() : null;
+		$out['today_exact'] = null !== $exact;
+		if ( null !== $exact ) {
+			$out['today'] = $exact['views'];
+		}
 		// Admin only (2026-11-01): one line per current reader, place, device and entry source; no visitor code.
 		$out['readers'] = is_array( $cached ) && isset( $cached['readers'] ) && is_array( $cached['readers'] ) ? array_values( $cached['readers'] ) : null;
 		// Admin only: a reader on a coded résumé link, labeled with its code

@@ -31,9 +31,10 @@ class WP_REST_Response {
 	public function get_status() { return $this->status; }
 }
 class WP_REST_Request {
-	private $h;
-	public function __construct( $h = array() ) { $this->h = $h; }
+	private $h; private $json;
+	public function __construct( $h = array(), $json = null ) { $this->h = $h; $this->json = $json; }
 	public function get_header( $k ) { return $this->h[ $k ] ?? ''; }
+	public function get_json_params() { return $this->json; }
 }
 
 $GLOBALS['__routes'] = array();
@@ -117,6 +118,21 @@ ok( $res instanceof WP_REST_Response && ! empty( $res->get_data()['ok'] ) && arr
 ok( array( 'sn_analytics_refresh_after_response' ) === $GLOBALS['__shutdown'], 'callback: queues the work on shutdown, once' );
 foreach ( $GLOBALS['__shutdown'] as $cb ) { call_user_func( $cb ); }
 ok( array( 'rollup', 'realtime' ) === $GLOBALS['__ran'], 'shutdown: runs the durable rollup, then the realtime refresh' );
+
+echo "\nGroup: worker 2.2.0, exact counts ride the poke\n";
+$GLOBALS['__held'] = null;
+if ( true ) { // defined here, not hoisted: the groups above run without the exact store.
+	function sn_analytics_exact_validate( $x ) { return is_array( $x ) && 1 === ( $x['v'] ?? null ) ? $x : null; }
+	function sn_analytics_exact_pending( $x = null ) { if ( null !== $x ) { $GLOBALS['__held'] = $x; } return $GLOBALS['__held']; }
+	function sn_analytics_exact_ingest() { $GLOBALS['__ran'][] = 'exact'; }
+}
+$res = sn_analytics_refresh_run( new WP_REST_Request( array(), array() ) );
+ok( array( 'rollup', 'realtime' ) === $res->get_data()['queued'] && null === $GLOBALS['__held'], 'a {} poke holds nothing' );
+$res = sn_analytics_refresh_run( new WP_REST_Request( array(), array( 'exact' => array( 'v' => 1 ) ) ) );
+ok( array( 'rollup', 'realtime', 'exact' ) === $res->get_data()['queued'] && array( 'v' => 1 ) === $GLOBALS['__held'], 'a poke with counts holds them and says so' );
+$GLOBALS['__ran'] = array();
+sn_analytics_refresh_after_response();
+ok( array( 'rollup', 'realtime', 'exact' ) === $GLOBALS['__ran'], 'shutdown: the counts are classified after the rollup and the realtime refresh' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
