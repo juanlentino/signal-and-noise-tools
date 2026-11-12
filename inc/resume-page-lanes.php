@@ -78,22 +78,38 @@ function sn_resume_lane_doc( $raw, $lane ) {
 }
 
 /**
- * The /resume body for a stored document: the one résumé when the operations
- * settings exist and the page is English, else the single music body.
+ * The résumé /resume shows, as a document: the one résumé when the operations
+ * settings exist, else the music view. The JSON Resume, the Markdown and the
+ * Spanish CV's staleness check read this.
  *
- * @param array|null $raw Stored document.
+ * @return array|null
+ */
+function sn_resume_shown_doc() {
+	$raw = sn_resume_doc_get_raw();
+	return null !== sn_resume_variant_config( $raw, 'operations' ) ? sn_resume_lane_doc( $raw, 'operations' ) : sn_resume_doc_get();
+}
+
+/**
+ * A résumé page body for a stored document, /resume or /cv (rendered in
+ * Spanish by inc/resume-es.php): the one résumé when it carries operations
+ * settings, else the single body.
+ *
+ * @param array|null  $raw Stored document.
+ * @param string|null $pdf The Download's address; null is /resume's operations PDF.
  * @return string
  */
-function sn_resume_page_body( $raw ) {
+function sn_resume_page_body( $raw, $pdf = null ) {
 	$cfg = sn_resume_variant_config( $raw, 'operations' );
-	if ( 'en' !== sn_resume_lang() || null === $cfg ) {
+	if ( null === $cfg ) {
 		return sn_resume_body_html( sn_resume_doc_view( $raw, 'music' ) );
 	}
 	$doc = sn_resume_lane_doc( $raw, 'operations' );
 	if ( '' === sn_resume_body_html( $doc ) ) {
 		return ''; // the same "unusable document" rule as the single body.
 	}
-	$pdf   = function_exists( 'sn_resume_ops_pdf_link' ) ? sn_resume_ops_pdf_link( $cfg['pdf_file'] ) : ''; // with its ?v=; '' before it exists (no Download to a 404).
+	if ( null === $pdf ) {
+		$pdf = function_exists( 'sn_resume_ops_pdf_link' ) ? sn_resume_ops_pdf_link( $cfg['pdf_file'] ) : ''; // with its ?v=; '' before it exists (no Download to a 404).
+	}
 	$bands = sn_resume_lane_bands( $doc, sn_resume_lane_hero_blocks( $doc, $cfg['links'], $pdf ) );
 	$keys  = sn_resume_lane_band_keys( $doc );
 	$last  = end( $keys );
@@ -183,7 +199,7 @@ function sn_resume_lane_hero_blocks( $doc, $links, $pdf ) {
  * @return string
  */
 function sn_resume_built_blocks( $built, $n, $band = array() ) {
-	$inner = sn_resume_section_head( sprintf( '%02d · Projects', $n ), "WHAT I'VE BUILT", $band );
+	$inner = sn_resume_section_head( sprintf( '%02d · ' . sn_resume_l( 'Projects', 'Proyectos' ), $n ), sn_resume_l( "WHAT I'VE BUILT", 'LO QUE CONSTRUÍ' ), $band );
 	if ( '' !== (string) $built['intro'] ) {
 		$inner .= sn_resume_para( 'sn-resume-built-intro', esc_html( $built['intro'] ) );
 	}

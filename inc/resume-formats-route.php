@@ -124,8 +124,9 @@ function sn_resume_format_body( $kind, $slug ) {
 	if ( 'vcf' === $kind ) {
 		return array( 'text/vcard; charset=utf-8', sn_resume_vcard( $resume ) );
 	}
-	$one = 'resume' === $slug && sn_resume_formats_one();
-	$doc = 'cv' === $slug ? sn_resume_es_doc() : ( $one ? sn_resume_lane_doc( sn_resume_doc_get_raw(), 'operations' ) : sn_resume_doc_get() );
+	$raw = 'cv' === $slug ? sn_resume_es_doc() : sn_resume_doc_get_raw();
+	$one = null !== $raw && null !== sn_resume_variant_config( $raw, 'operations' );
+	$doc = $one ? sn_resume_lane_doc( $raw, 'operations' ) : ( 'cv' === $slug ? $raw : sn_resume_doc_get() );
 	return array( 'text/markdown; charset=utf-8', sn_resume_markdown( (array) $doc, $resume, sn_resume_formats( $slug ), 'cv' === $slug ? 'es' : 'en' ) );
 }
 

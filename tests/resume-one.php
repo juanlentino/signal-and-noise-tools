@@ -36,7 +36,7 @@ if ( ! function_exists( 'wp_kses_uri_attributes' ) ) { function wp_kses_uri_attr
 if ( ! defined( 'OBJECT' ) ) { define( 'OBJECT', 'OBJECT' ); }
 $GLOBALS['__page'] = null; $GLOBALS['__is_page'] = '';
 function get_page_by_path( $p, $o = OBJECT, $t = 'page' ) {
-	if ( 'music' === $p ) { return empty( $GLOBALS['__music'] ) ? null : (object) array( 'ID' => 9, 'path' => 'music' ); } // /music, the verified credits.
+	if ( 'music' === $p || 'musica' === $p ) { return empty( $GLOBALS['__music'] ) ? null : (object) array( 'ID' => 9, 'path' => $p ); } // /music and /musica, the verified credits.
 	return $GLOBALS['__page'];
 }
 function get_permalink( $p = 0 ) { return 'https://juanlentino.com/' . ( is_object( $p ) && isset( $p->path ) ? $p->path : 'resume' ) . '/'; }
@@ -72,6 +72,7 @@ require_once "$root/inc/resume-jsonresume.php";
 require_once "$root/inc/resume-markdown.php";
 require_once "$root/inc/resume-formats-route.php";
 require_once "$root/inc/resume-vcard.php";
+require_once "$root/inc/resume-es.php";
 require_once "$root/inc/provenance-core-normalize-parts.php";
 
 $plain = sn_resume_doc_normalize( sn_resume_seed_doc() );
@@ -82,7 +83,13 @@ $raw   = sn_resume_doc_normalize( $set );
 echo "Group: the music body stays where it is used\n";
 ok( '488a844f9c316d00c9925e0f5a451c3fab0fe794' === sha1( sn_resume_page_body( $plain ) ), 'no operations settings: the single music body, byte for byte as before' );
 sn_resume_lang( 'es' );
-ok( 'ab72ff0aee4e342f9e51e57b50822002ba6d49e1' === sha1( sn_resume_page_body( $raw ) ) && sn_resume_page_body( $raw ) === sn_resume_page_body( $plain ), 'Spanish (/cv): the single body, byte for byte as before, operations settings or not' );
+$es_file = sn_resume_es_merge( json_decode( (string) file_get_contents( "$root/inc/seed-content/resume-data-es.json" ), true ), $plain, '' );
+ok( 'ab72ff0aee4e342f9e51e57b50822002ba6d49e1' === sha1( sn_resume_page_body( $plain ) ) && sn_resume_page_body( $es_file ) === sn_resume_body_html( $es_file ), 'Spanish with no operations settings (the bundled seed): the single body, byte for byte as before' );
+$GLOBALS['__music'] = true;
+$es_one = sn_resume_page_body( $raw, 'https://juanlentino.com/wp-content/uploads/resume/JuanLentino_CV.pdf?v=bbbbbbbb' );
+ok( false !== strpos( $es_one, '>CURRICULUM VITAE</h1>' ) && false !== strpos( $es_one, "LO QUE CONSTRUÍ" ) && false !== strpos( $es_one, 'Créditos verificados: <a href="https://juanlentino.com/musica/">juanlentino.com/musica</a>' ), 'Spanish with operations settings (/cv since 2026-11-12): the one résumé, in Spanish, credits to /musica' );
+ok( false !== strpos( $es_one, 'También en <a href="/cv.md">Markdown</a> · <a href="/cv/json-resume.json">JSON Resume</a>' ) && false !== strpos( $es_one, 'JuanLentino_CV.pdf?v=bbbbbbbb' ) && false === strpos( $es_one, 'Operations.pdf' ), '...its formats line and Download are /cv\'s own' );
+$GLOBALS['__music'] = false;
 sn_resume_lang( 'en' );
 
 echo "\nGroup: one résumé\n";

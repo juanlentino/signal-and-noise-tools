@@ -3,8 +3,12 @@
  * Signal & Noise Tools: the Spanish résumé, /cv/ and JuanLentino_CV.pdf.
  *
  * Not a second résumé system (owner, 2026-10-15: no new screen in the
- * settings). The Spanish text lives in one file, seed-content/resume-data-es.json,
- * in the same shape as the English document. The same page builder and the
+ * settings). The Spanish text is stored in the option sn_resume_doc_es, written
+ * by the signal-noise/resume-es-apply ability, in the same shape as the English
+ * document (owner, 2026-11-12: a Spanish update is never a plugin update). The
+ * bundled seed-content/resume-data-es.json only seeds a fresh install. With
+ * operations settings (variants.operations) it renders as the one résumé, as
+ * /resume does (inc/resume-page-lanes.php). The same page builder and the
  * same PDF template render it, with their headings switched to Spanish
  * (inc/resume-lang.php). Contact details (LinkedIn, email, website, and the
  * phone the PDF check refuses) always come from the live English document, so they
@@ -30,6 +34,22 @@ const SN_RESUME_ES_SLUG     = 'cv';
 const SN_RESUME_ES_PDF_FILE = 'JuanLentino_CV.pdf';
 const SN_RESUME_ES_PDF_OPT  = 'sn_resume_pdf_es';
 const SN_RESUME_ES_SYNC_OPT = 'sn_resume_es_synced';
+const SN_RESUME_ES_DOC_OPT  = 'sn_resume_doc_es'; // the Spanish text, stored (owner, 2026-11-12: never a plugin update again).
+
+/**
+ * The Spanish source as JSON text: the stored option when one has been
+ * written (signal-noise/resume-es-apply), else the bundled file, which only
+ * seeds a fresh install.
+ *
+ * @return string
+ */
+function sn_resume_es_source_json() {
+	$stored = get_option( SN_RESUME_ES_DOC_OPT );
+	if ( is_string( $stored ) && is_array( json_decode( $stored, true ) ) && array() !== json_decode( $stored, true ) ) {
+		return $stored; // a stored value that does not decode to a document falls back to the seed, so /cv never goes blank.
+	}
+	return (string) file_get_contents( __DIR__ . '/seed-content/resume-data-es.json' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.
+}
 
 /**
  * The Spanish document: the file, plus the English contact details and the
@@ -59,7 +79,7 @@ function sn_resume_es_merge( $es, $en, $pdf ) {
  * @return array|null
  */
 function sn_resume_es_doc() {
-	$raw  = json_decode( (string) file_get_contents( __DIR__ . '/seed-content/resume-data-es.json' ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.
+	$raw  = json_decode( sn_resume_es_source_json(), true );
 	$meta = get_option( SN_RESUME_ES_PDF_OPT );
 	$pdf  = is_array( $meta ) ? (string) ( $meta['url'] ?? '' ) : '';
 	return sn_resume_es_merge( $raw, function_exists( 'sn_resume_doc_get' ) ? sn_resume_doc_get() : null, $pdf );
@@ -92,7 +112,7 @@ function sn_resume_es_sync_page() {
 	if ( ! $page || ! $doc || ! function_exists( 'sn_lang_en_counterpart' ) || ! sn_lang_en_counterpart( (int) $page->ID ) ) {
 		return false;
 	}
-	$body = (string) sn_resume_es_render( static fn() => sn_resume_body_html( $doc ) );
+	$body = (string) sn_resume_es_render( static fn() => sn_resume_page_body( $doc, (string) ( $doc['hero']['pdf_url'] ?? '' ) ) ); // one résumé when it carries operations settings, else the single body.
 	if ( '' === $body ) {
 		return false;
 	}
@@ -116,7 +136,18 @@ function sn_resume_es_pdf_generate() {
 		return sn_resume_es_pdf_failed( new WP_Error( 'sn_resume_pdf_uploads', 'No Spanish document, or uploads/resume is unavailable.' ) );
 	}
 	$name   = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	$result = sn_resume_es_render( static fn() => sn_resume_pdf_render( $doc, $name, $loc['dir'] . '/.font-cache', false, home_url( '/' ) ) );
+	$cfg    = sn_resume_variant_config( $doc, 'operations' );
+	$view   = $doc;
+	if ( null !== $cfg ) { // the one résumé's layout, as the English PDF (inc/resume-pdf/operations.php).
+		$view                   = sn_resume_doc_view( $doc, 'operations' );
+		$view['pdf']['website'] = '';
+		$cfg['built']           = function_exists( 'sn_resume_built_for' ) ? sn_resume_built_for( $doc, 'operations' ) : array();
+		$cfg['earlier_compact'] = true; // two pages, as the English PDF (inc/resume-pdf/operations.php).
+		$cfg['title']           = $name . ' · Currículum';
+		$cfg['credits']         = sn_resume_es_render( static fn() => function_exists( 'sn_resume_credits_url' ) ? sn_resume_credits_url() : '' );
+	}
+	$site   = null !== $cfg ? home_url( '/cv/' ) : home_url( '/' );
+	$result = sn_resume_es_render( static fn() => sn_resume_pdf_render( $view, $name, $loc['dir'] . '/.font-cache', false, $site, $cfg ) );
 	if ( is_wp_error( $result ) ) {
 		return sn_resume_es_pdf_failed( $result );
 	}
@@ -166,7 +197,7 @@ function sn_resume_es_sync_state( $en, $rev ) {
 	foreach ( array( 'email', 'phone', 'website' ) as $k ) {
 		$contact[] = $en['pdf'][ $k ] ?? ''; // Only what sn_resume_es_merge() takes.
 	}
-	return md5( (string) file_get_contents( __DIR__ . '/seed-content/resume-data-es.json' ) . wp_json_encode( $contact ) . '|rev:' . (int) $rev ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bundled file.
+	return md5( sn_resume_es_source_json() . wp_json_encode( $contact ) . '|rev:' . (int) $rev );
 }
 
 /**

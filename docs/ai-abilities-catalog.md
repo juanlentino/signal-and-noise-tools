@@ -55,6 +55,7 @@ The reference for the Signal & Noise WordPress Abilities: the plugin's abilities
 | `signal-noise/export-audit-log` | Export login-audit log | diagnostics | — |
 | `signal-noise/family-drift` | Crawler-family enum drift (stored report) | diagnostics | READ |
 | `signal-noise/forms-spam-apply` | Forms spam apply | content | WRITE |
+| `signal-noise/resume-es-apply` | Spanish CV apply | content | WRITE |
 | `signal-noise/forms-spam-scan` | Forms spam scan | diagnostics | READ |
 | `signal-noise/get-404-log` | Recent front-end 404 log | diagnostics | — |
 | `signal-noise/get-analytics-devices` | Get devices (via sn-metrics{analytics_devices}) | analytics | — |
