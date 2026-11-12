@@ -73,7 +73,8 @@ function snt_analytics_render_session_list( $from, $to, $class ) {
 		$read['total']
 	) . ( count( $read['sessions'] ) < $read['total'] ? ' · ' . sprintf( /* translators: %d: sessions listed */ __( 'the newest %d', 'signal-and-noise-tools' ), count( $read['sessions'] ) ) : '' )
 		. ( $start > $from ? ' · ' . sprintf( /* translators: %s: first day Analytics Engine holds */ __( 'from %s, the first day Analytics Engine holds', 'signal-and-noise-tools' ), $start ) : '' )
-		. ( $read['capped'] ? ' · ' . __( 'capped: narrow the window for every session', 'signal-and-noise-tools' ) : '' );
+		. ( $read['capped'] ? ' · ' . __( 'capped: narrow the window for every session', 'signal-and-noise-tools' ) : '' )
+		. snt_analytics_session_list_sampled_meta( (string) $to );
 	snt_an_kv_table(
 		$title,
 		snt_analytics_session_list_rows( $read['sessions'] ),
@@ -90,5 +91,26 @@ function snt_analytics_render_session_list( $from, $to, $class ) {
 			array( 'label' => __( 'Link', 'signal-and-noise-tools' ) ),
 		),
 		array( 'header_meta' => esc_html( $meta ), 'data_colname' => true, 'clamp' => 10, 'empty' => __( 'No sessions in this window.', 'signal-and-noise-tools' ) )
+	);
+}
+
+/**
+ * The header note when the window takes in a sampled today: the list shows
+ * the page-view records Analytics Engine kept, and the figures weigh them up.
+ * '' when today is outside the window or not known to be sampled.
+ *
+ * @param string $to Window end (Y-m-d, site time).
+ * @return string
+ */
+function snt_analytics_session_list_sampled_meta( $to ) {
+	$s = function_exists( 'sn_analytics_today_sampling' ) && function_exists( 'sn_analytics_local_day' ) && $to >= sn_analytics_local_day() ? sn_analytics_today_sampling() : null;
+	if ( null === $s || $s['stored'] >= $s['views'] ) {
+		return '';
+	}
+	return ' · ' . sprintf(
+		/* translators: 1: page-view records kept today, 2: the views they stand for. */
+		__( 'today was sampled: %1$s page-view records kept, standing for %2$s views, so today\'s sessions list fewer pages than the figures count', 'signal-and-noise-tools' ),
+		number_format_i18n( $s['stored'] ),
+		number_format_i18n( $s['views'] )
 	);
 }

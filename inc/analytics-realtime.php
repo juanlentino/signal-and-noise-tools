@@ -31,6 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
 
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+require_once __DIR__ . '/analytics-today-estimate.php'; // whether today's figure is a sampled estimate (reads this file's cache).
 
 const SN_ANALYTICS_REALTIME_KEY        = 'sn_analytics_realtime';
 const SN_ANALYTICS_REALTIME_TTL        = 30;                     // age (seconds) past which a refresh is queued, not delivered freshness
@@ -124,7 +125,9 @@ function sn_analytics_views_today_sql( $elapsed, $tz = '' ) {
 		? "toStartOfInterval(now(), INTERVAL '1' DAY, '{$tz}')"
 		: "now() - INTERVAL '" . max( 0, (int) $elapsed ) . "' SECOND";
 	return implode( ' ', array(
-		'SELECT sum(_sample_interval) AS views',
+		// `stored` beside the weighted sum: below it, Analytics Engine sampled today's
+		// rows and `views` is its estimate (inc/analytics-today-estimate.php).
+		'SELECT sum(_sample_interval) AS views, count() AS stored',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
 		"WHERE blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql() . " AND timestamp >= {$lower}",
 	) );
@@ -249,8 +252,10 @@ function sn_analytics_realtime_refresh() {
 		$today_rows = sn_analytics_query( sn_analytics_views_today_sql( $elapsed, '' ) );
 	}
 	$views_today = null;
+	$stored      = null; // rows Analytics Engine kept; null when the read did not say.
 	if ( is_array( $today_rows ) ) {
 		$views_today = isset( $today_rows[0]['views'] ) ? max( 0, (int) $today_rows[0]['views'] ) : 0;
+		$stored      = isset( $today_rows[0]['stored'] ) ? max( 0, (int) $today_rows[0]['stored'] ) : ( isset( $today_rows[0]['views'] ) ? null : 0 );
 	}
 
 	// Persist the durable same-day last-good ONLY on a successful today read (int) —
@@ -260,8 +265,9 @@ function sn_analytics_realtime_refresh() {
 	// stable when the short transient lapses between dashboard visits.
 	if ( is_int( $views_today ) ) {
 		update_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD, array(
-			'day'   => sn_analytics_local_day(),
-			'views' => $views_today,
+			'day'    => sn_analytics_local_day(),
+			'views'  => $views_today,
+			'stored' => $stored,
 		), false );
 	}
 
@@ -287,15 +293,16 @@ function sn_analytics_realtime_refresh() {
 	}
 
 	set_transient( SN_ANALYTICS_REALTIME_KEY, array(
-		'counts'      => $counts,
-		'views_today' => $views_today,
-		'pages'       => $pages,
-		'links'       => $links,
-		'hour'        => $hour,
-		'sources'     => $sources,
-		'readers'     => $readers,
-		'surge'       => $surge,
-		'fetched'     => time(),
+		'counts'             => $counts,
+		'views_today'        => $views_today,
+		'views_today_stored' => $stored,
+		'pages'              => $pages,
+		'links'              => $links,
+		'hour'               => $hour,
+		'sources'            => $sources,
+		'readers'            => $readers,
+		'surge'              => $surge,
+		'fetched'            => time(),
 	), SN_ANALYTICS_REALTIME_RETENTION );
 }
 add_action( SN_ANALYTICS_REALTIME_HOOK, 'sn_analytics_realtime_refresh' );

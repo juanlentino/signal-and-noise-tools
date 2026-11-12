@@ -362,6 +362,10 @@ function snt_desktop_site_views_payload() {
 		}
 		if ( array_key_exists( 'views', $row ) && null !== $row['views'] ) {
 			$payload['today'] = (int) $row['views'];
+			// Additive: present only when today is known to be a sampled estimate.
+			if ( function_exists( 'sn_analytics_today_is_estimate' ) && sn_analytics_today_is_estimate() ) {
+				$payload['today_estimate'] = true;
+			}
 		}
 		break;
 	}
