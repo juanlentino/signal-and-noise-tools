@@ -15,6 +15,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **"On /resume" is Shown or Hidden, nothing else.** The third choice, "Shown, not on the music PDF", is gone from both editors: with no music PDF it meant Shown. A row or bullet still stored with it shows as Shown and is saved as Shown on the next save, which changes nothing on /resume or in either PDF (`inc/admin-forms/resume-variants.php`, `apps/sn-dashboard/parts/leaves/content-resume-variants.php`). Tests: `tests/resume-admin-form.php` (fails on the old select), `tests/os-leaf-content-resume.php` (the data-safety round trip now expects the fold).
+- **The Person's credentials (schema.org `hasCredential` on profile pages) come from what /resume shows.** They read the old music view, which the fold above would have changed on the next save; they now read `sn_resume_shown_doc()` through `sn_resume_credentials_doc()`, so the graph lists the same degrees and certificates as /resume, no more and no fewer (`inc/resume-credentials.php`). Test: `tests/resume-one.php` (fails with the old source).
 - **The removed setup's leftover option is deleted.** `sn_resume_ops_setup_missing`, which nothing reads since 2026.11.35, is removed on the next admin load (`inc/resume-variants.php`).
 - **Not changed, on purpose:** the stored headline, tagline, summary, location, competencies and toolkit stay in the document. The résumé settings fall back to them only when a setting is blank, and all of them are set.
 

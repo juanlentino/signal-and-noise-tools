@@ -192,6 +192,10 @@ ok( empty( sn_resume_doc_normalize( $changed )['experience'][0]['roles'][0]['bul
 echo "\nGroup: every format is the same résumé, and ?lane= changes nothing\n";
 $GLOBALS['__page']                 = (object) array( 'ID' => 7, 'post_status' => 'publish', 'post_password' => '' );
 $GLOBALS['__opt']['sn_resume_doc'] = $raw;
+require_once __DIR__ . '/../inc/resume-credentials.php';
+$shown_doc = sn_resume_shown_doc();
+ok( $shown_doc === sn_resume_credentials_doc() && $shown_doc !== sn_resume_doc_get(), 'the Person\'s credentials read what /resume shows, not the old music view (2026-11-12)' );
+
 $asked = static function ( $lane, $fn ) {
 	$_GET = null === $lane ? array() : array( 'lane' => $lane );
 	$out  = $fn();
