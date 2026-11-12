@@ -367,14 +367,31 @@ function sn_resume_pdf_stream( $doc, $filename, $config = null ) {
 }
 
 /**
- * The DRAFT preview: the file Publish would generate. Streamed, never stored. It is the draft's music
- * résumé, what Publish would put behind the Download link.
+ * The DRAFT preview: the file Publish would generate. Streamed, never stored.
+ * With résumé settings it is the one résumé's PDF (sn_resume_ops_pdf_layout());
+ * without, the single résumé's.
  *
  * @return WP_Error|void
  */
 function sn_resume_pdf_draft_stream() {
-	$doc = function_exists( 'sn_resume_draft_get' ) ? sn_resume_doc_view( sn_resume_draft_get(), 'music' ) : null;
-	return sn_resume_pdf_stream( $doc, 'JuanLentino_Resume_draft.pdf', sn_resume_pdf_music_config( sn_resume_draft_get() ) );
+	$parts = sn_resume_pdf_draft_parts( function_exists( 'sn_resume_draft_get' ) ? sn_resume_draft_get() : null );
+	return sn_resume_pdf_stream( $parts[0], 'JuanLentino_Resume_draft.pdf', $parts[1] );
+}
+
+/**
+ * What the draft preview renders: [view, layout]. PURE but for the filters.
+ *
+ * @param array|null $draft The draft document.
+ * @return array{0:mixed,1:array}
+ */
+function sn_resume_pdf_draft_parts( $draft ) {
+	$ops = sn_resume_variant_config( $draft, 'operations' );
+	if ( null !== $ops && function_exists( 'sn_resume_ops_pdf_layout' ) ) {
+		$view                   = sn_resume_doc_view( $draft, 'operations' );
+		$view['pdf']['website'] = '';
+		return array( $view, sn_resume_ops_pdf_layout( $draft, $ops ) );
+	}
+	return array( sn_resume_doc_view( $draft, 'music' ), sn_resume_pdf_music_config( $draft ) );
 }
 
 /**

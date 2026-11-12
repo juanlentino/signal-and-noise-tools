@@ -199,6 +199,14 @@ $out = sn_resume_pdf_generate();
 ok( is_array( $out ) && file_exists( $GLOBALS['tmp'] . '/resume/JuanLentino_Resume_Music.pdf' ) && $out === $GLOBALS['opts']['sn_resume_pdf'], 'a document with no variants.operations still writes and records the music PDF' );
 ok( false !== strpos( $box(), 'Résumé PDF: no résumé settings yet.' ) && false === strpos( $box(), 'Set up the operations' ), 'and the box says there are no résumé settings, with no setup button named' );
 
+echo "\nGroup: Preview PDF is the file Publish would build (2026-11-12)\n";
+$pp = sn_resume_pdf_draft_parts( $set );
+ok( ' · Résumé' === substr( (string) ( $pp[1]['title'] ?? '' ), -strlen( ' · Résumé' ) ) && ! empty( $pp[1]['earlier_compact'] ) && array_key_exists( 'built', $pp[1] ) && '' === $pp[0]['pdf']['website'], 'with résumé settings the preview uses the one résumé\'s layout' );
+$plain = $set;
+unset( $plain['variants'] );
+$pm = sn_resume_pdf_draft_parts( sn_resume_doc_normalize( $plain ) );
+ok( ! isset( $pm[1]['title'] ) && empty( $pm[1]['earlier_compact'] ), 'without them, the single résumé\'s layout' );
+
 sn_test_pdf_cleanup();
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -112,7 +112,7 @@ ok( false !== strpos( $gen_src, 'sn_resume_pdf_render( $doc, $name, $loc[\'dir\'
 $stream_src = substr( $gen_src, (int) strpos( $gen_src, 'function sn_resume_pdf_stream(' ) );
 ok( false !== strpos( $gen_src, 'function sn_resume_pdf_stream(' ) && 1 === preg_match( '/^function sn_resume_pdf_stream\( \$doc, \$filename, \$config = null \) \{.*?sn_resume_pdf_render\( \$doc, \$name, [^;]*, false, home_url\( \'\/resume\/\' \), \$config \);.*?header\( .Content-Disposition: attachment; filename="\' \. \$filename/s', $stream_src ) && false === strpos( $stream_src, 'file_put_contents' ), 'the streamer renders with no phone, sends an attachment, and nothing after it writes to disk' );
 ok( false === strpos( $gen_src, 'sn_resume_pdf_private_stream' ), 'there is no private copy (it existed for the phone)' );
-ok( 1 === preg_match( '/function sn_resume_pdf_draft_stream\(\) \{\s*\$doc = [^;]*sn_resume_draft_get\(\)[^;]*;\s*return sn_resume_pdf_stream\( \$doc, \'JuanLentino_Resume_draft\.pdf\', sn_resume_pdf_music_config\( sn_resume_draft_get\(\) \) \);/', $gen_src ), 'the draft preview streams the DRAFT, as JuanLentino_Resume_draft.pdf' );
+ok( 1 === preg_match( '/function sn_resume_pdf_draft_stream\(\) \{\s*\$parts = sn_resume_pdf_draft_parts\( [^;]*sn_resume_draft_get\(\)[^;]*;\s*return sn_resume_pdf_stream\( \$parts\[0\], \'JuanLentino_Resume_draft\.pdf\', \$parts\[1\] \);/', $gen_src ), 'the draft preview streams the DRAFT, as JuanLentino_Resume_draft.pdf' );
 
 echo "\nThe contact line (owner, 2026-09-22: location and links were missing)\n";
 $bare                    = $fixture;

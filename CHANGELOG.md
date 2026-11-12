@@ -9,6 +9,7 @@ lives in [docs/changelog/](docs/changelog/).
 A pull request does not bump `Version` and does not tag — it closes an issue and
 adds a bullet below. A release is a separate, deliberate act:
 `tools/cut-release.sh`.
+- **Preview PDF previews the résumé PDF.** With résumé settings in the draft it streams the one résumé's layout (two pages, What I've Built, verified credits), the file Publish would build, instead of the music layout nothing publishes (`sn_resume_pdf_draft_parts()`, layout shared with Generate through `sn_resume_ops_pdf_layout()`). Test: `tests/resume-ops-pdf-build.php`.
 
 ## [Unreleased]
 

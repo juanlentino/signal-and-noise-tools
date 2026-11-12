@@ -105,6 +105,24 @@ function sn_resume_pdf_noindex( $url ) {
 }
 
 /**
+ * The résumé PDF's layout over its settings: What I've Built, earlier career
+ * one line per role (two pages, owner 2026-11-12), the Info Title and the
+ * verified-credits line. Generate and the draft preview both use it, so the
+ * preview is the file Publish would build.
+ *
+ * @param array|null $raw    Stored document or draft.
+ * @param array      $config sn_resume_variant_config( $raw, 'operations' ).
+ * @return array
+ */
+function sn_resume_ops_pdf_layout( $raw, array $config ) {
+	$config['built']           = sn_resume_built_for( $raw, 'operations' );
+	$config['earlier_compact'] = true;
+	$config['title']           = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) ) . ' · Résumé'; // the Info Title (the template's <title>).
+	$config['credits']         = function_exists( 'sn_resume_credits_url' ) ? sn_resume_credits_url() : ''; // "Verified credits: …/music".
+	return $config;
+}
+
+/**
  * Render, check and publish the operations PDF. Null when the operations
  * résumé has no settings yet. A failure is recorded beside the last good
  * facts, so the PDF box says so instead of showing an old success.
@@ -149,12 +167,9 @@ function sn_resume_ops_pdf_build() {
 	if ( null === $loc || ! wp_mkdir_p( $loc['dir'] ) ) {
 		return new WP_Error( 'sn_resume_pdf_uploads', 'The uploads directory is unavailable.' );
 	}
-	$config['built'] = sn_resume_built_for( $raw, 'operations' );
-	$config['earlier_compact'] = true; // the PDF keeps to two pages: earlier career is one line per role there, whatever the page shows (owner, 2026-11-12).
+	$config          = sn_resume_ops_pdf_layout( $raw, $config );
+	$view['pdf']['website'] = ''; // the résumé's own address, whatever the stored Website says.
 	$name            = (string) apply_filters( 'sn_resume_pdf_name', get_bloginfo( 'name' ) );
-	$config['title'] = $name . ' · Résumé'; // the Info Title (the template's <title>).
-	$config['credits'] = function_exists( 'sn_resume_credits_url' ) ? sn_resume_credits_url() : ''; // "Verified credits: …/music".
-	$view['pdf']['website'] = ''; // the résumé's own address, whatever the music Website field says.
 	$result          = sn_resume_pdf_render( $view, $name, $loc['dir'] . '/.font-cache', false, home_url( '/resume/' ), $config ); // the one résumé's address (2026-11-12).
 	$url             = sn_resume_ops_pdf_url( $config['pdf_file'] );
 	// A phone in it is never served (the render refuses it): the last file goes too.
