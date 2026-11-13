@@ -215,7 +215,8 @@
 		var text = ! s || typeof s !== 'object' ? 'Strictly human: not measured yet'
 			: 'Strictly human: ' + ( typeof s.views === 'number' ? s.views.toLocaleString() : 'not read' ) + ' views (' + Number( s.removed && s.removed.views ).toLocaleString() + ' removed: automation signals; '
 				+ ( s.removed_no_engagement && typeof s.removed_no_engagement === 'object' ? Number( s.removed_no_engagement.views ).toLocaleString() + ' removed: no engagement recorded' : 'no engagement recorded: not measured' ) + ')'
-				+ ( s.window && s.window.partial ? ', UTC days ' + s.window.from + ' to ' + s.window.through + ' only' : '' );
+				+ ( s.window && s.window.partial ? ', UTC days ' + s.window.from + ' to ' + s.window.through + ' only' : '' )
+				+ ( s.window_no_engagement && s.window_no_engagement.partial ? '; no-engagement removals over UTC days ' + s.window_no_engagement.from + ' to ' + s.window_no_engagement.through + ' only' : '' );
 		var node = el( 'div', { text: text, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;' } );
 		node.title = s && s.reason ? s.reason + ( s.reason_no_engagement ? ' ' + s.reason_no_engagement : '' ) : 'Inferred from the beacon\u2019s bot signals; the presumed-human views above are unchanged.';
 		return node;

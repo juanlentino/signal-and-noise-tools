@@ -142,6 +142,8 @@ if ( '' === $node ) {
 	ok( isset( $rs['400'] ) && isset( $rs['Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded)'] ), 'the headline 400 and the strict line under it: both numbers' );
 	$rs = $render( array( 'total' => 400, 'strict' => array( 'window' => array( 'partial' => true, 'from' => '2026-09-20', 'through' => '2026-09-27' ) ) + $sp ) );
 	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded), UTC days 2026-09-20 to 2026-09-27 only'] ), 'a partial window names the UTC days the removals cover' );
+	$rs = $render( array( 'total' => 400, 'strict' => array( 'window_no_engagement' => array( 'partial' => true, 'from' => '2026-09-25', 'through' => '2026-09-27' ) ) + $sp ) );
+	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded); no-engagement removals over UTC days 2026-09-25 to 2026-09-27 only'] ), 'a partial no-engagement window names its own UTC days' );
 	// 2026-11-13: a payload whose days predate the no-engagement reading says so, never 0.
 	$sn = $sp; unset( $sn['removed_no_engagement'] );
 	$rs = $render( array( 'total' => 400, 'strict' => $sn ) );
