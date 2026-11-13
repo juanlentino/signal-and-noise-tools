@@ -3,7 +3,9 @@
  * Strictly human (owner decision 2026-11-11): a second figure beside the
  * presumed-human one, never in its place. `human` is not changed and nothing
  * is subtracted from it; the strict figure is human less the visitor-days the
- * rule below removes, and both are always shown, with the count removed.
+ * rule removes, and both are always shown, with each count removed and why.
+ * Rule v2 (2026-11-13) removes for two reasons, each its own count: automation
+ * signals (below) and no engagement recorded (inc/analytics-strict-no-engagement.php).
  *
  * The removals come from the nightly per-day bot-signal store
  * (inc/analytics-bot-signals-by-day.php), so they are counted over UTC days
@@ -18,6 +20,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-strict-no-engagement.php'; // the second removal, no engagement recorded (2026-11-13).
+require_once __DIR__ . '/analytics-strict-human-parts.php'; // the one line and the schema.
+
 /**
  * Strict rule v1. A presumed-human visitor-day (the readout's human flag, not
  * over the page-view cap) leaves the strict figure only when its score reaches
@@ -29,9 +34,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * - an intent reader (a download, a verify, a contact) fired no_input with
  *   headless, so that pair never removes a visitor-day either.
  */
-const SNT_STRICT_HUMAN_RULE = 'strict_v1';
+const SNT_STRICT_HUMAN_RULE = 'strict_v2'; // v1 (2026-11-11) was the automation-signal removal alone.
 
-/** The reason, in one sentence, for every surface that carries the figure. */
+/** The automation-signal reason, in one sentence, for every surface that carries the figure. */
 const SNT_STRICT_HUMAN_REASON = 'Presumed-human visitor-days removed when the beacon\'s bot-signal score reaches 3 and they fired webdriver, a user-agent mismatch, or headless with a time-zone mismatch; no_input and tz_mismatch never remove one alone or together.';
 
 /**
@@ -50,8 +55,10 @@ function sn_bot_signals_strict_removes( array $row ) {
 
 /**
  * The strict figure over [$from, $to]: the presumed-human totals less what the
- * stored days removed. A day counts only when it carries the strict reading;
- * null when none does (not measured, never 0). PURE.
+ * stored days removed, each reason counted apart. A day counts for a reason
+ * only when it carries that reason's reading; null when no day carries the
+ * automation reading (not measured, never 0), and removed_no_engagement null
+ * when no day carries that one. PURE.
  *
  * @param array  $by_day Stored day map.
  * @param string $from   YYYY-MM-DD.
@@ -60,31 +67,40 @@ function sn_bot_signals_strict_removes( array $row ) {
  * @return array|null
  */
 function sn_bot_signals_strict( array $by_day, $from, $to, array $human ) {
-	$removed = array( 'visitor_days' => 0, 'views' => 0 );
-	$days    = array();
-	foreach ( $by_day as $day => $d ) {
-		if ( (string) $day < (string) $from || (string) $day > (string) $to || ! is_array( $d ) || ! array_key_exists( 'strict_removed', $d ) ) {
-			continue;
+	$sum = static function ( $key ) use ( $by_day, $from, $to ) {
+		$removed = array( 'visitor_days' => 0, 'views' => 0 );
+		$days    = array();
+		foreach ( $by_day as $day => $d ) {
+			if ( (string) $day < (string) $from || (string) $day > (string) $to || ! is_array( $d ) || ! array_key_exists( $key, $d ) ) {
+				continue;
+			}
+			$days[]                   = (string) $day;
+			$removed['visitor_days'] += (int) $d[ $key ];
+			$removed['views']        += (int) ( $d[ $key . '_views' ] ?? 0 );
 		}
-		$days[]                   = (string) $day;
-		$removed['visitor_days'] += (int) $d['strict_removed'];
-		$removed['views']        += (int) ( $d['strict_removed_views'] ?? 0 );
-	}
-	if ( array() === $days ) {
+		sort( $days );
+		// partial: the stored days start after the range or end before it.
+		return array() === $days ? null : array( $removed, array( 'from' => $days[0], 'through' => end( $days ), 'partial' => $days[0] > (string) $from || end( $days ) < (string) $to ) );
+	};
+	$auto  = $sum( 'strict_removed' );
+	$quiet = $sum( 'no_engagement_removed' );
+	if ( null === $auto ) {
 		return null;
 	}
-	sort( $days );
-	$vd = $human['unique_visitor_days'] ?? null; // never visits or pageview_visits: another unit
-	$vw = $human['views'] ?? null;
+	$out = static fn( $unit ) => $auto[0][ $unit ] + ( null === $quiet ? 0 : $quiet[0][ $unit ] );
+	$vd  = $human['unique_visitor_days'] ?? null; // never visits or pageview_visits: another unit
+	$vw  = $human['views'] ?? null;
 	return array(
-		'visitor_days' => null === $vd ? null : max( 0, (int) $vd - $removed['visitor_days'] ),
-		'views'        => null === $vw ? null : max( 0, (int) $vw - $removed['views'] ),
-		'removed'      => $removed,
-		'rule'         => SNT_STRICT_HUMAN_RULE,
-		'reason'       => SNT_STRICT_HUMAN_REASON,
-		'basis'        => 'inferred',
-		// partial: the stored days start after the range or end before it.
-		'window'       => array( 'from' => $days[0], 'through' => end( $days ), 'partial' => $days[0] > (string) $from || end( $days ) < (string) $to ),
+		'visitor_days'                 => null === $vd ? null : max( 0, (int) $vd - $out( 'visitor_days' ) ),
+		'views'                        => null === $vw ? null : max( 0, (int) $vw - $out( 'views' ) ),
+		'removed'                      => $auto[0], // automation signals
+		'removed_no_engagement'        => null === $quiet ? null : $quiet[0],
+		'rule'                         => SNT_STRICT_HUMAN_RULE,
+		'reason'                       => SNT_STRICT_HUMAN_REASON,
+		'reason_no_engagement'         => SNT_STRICT_NO_ENGAGEMENT_REASON,
+		'basis'                        => 'inferred',
+		'window'                       => $auto[1],
+		'window_no_engagement'         => null === $quiet ? null : $quiet[1],
 	);
 }
 
@@ -101,47 +117,3 @@ function sn_analytics_strict_human( $from, $to, array $human ) {
 	return sn_bot_signals_strict( is_array( $by_day ) ? $by_day : array(), (string) $from, (string) $to, $human );
 }
 
-/**
- * The one sentence every surface paints beside the presumed-human number. PURE.
- *
- * @param array|null $strict sn_bot_signals_strict().
- * @param string     $unit   visitor_days|views.
- * @return string
- */
-function sn_analytics_strict_human_line( $strict, $unit = 'visitor_days' ) {
-	$word = 'views' === $unit ? 'views' : 'visitor-days';
-	if ( ! is_array( $strict ) ) {
-		return 'Strictly human: not measured in this range (no UTC day of it has the strict reading stored).';
-	}
-	$num  = static fn( $n ) => function_exists( 'number_format_i18n' ) ? (string) number_format_i18n( (int) $n ) : number_format( (int) $n );
-	$key  = 'views' === $unit ? 'views' : 'visitor_days';
-	$n    = null === $strict[ $key ] ? 'not read' : $num( $strict[ $key ] );
-	$line = sprintf( 'Strictly human: %1$s %2$s (%3$s removed: automation signals)', $n, $word, $num( $strict['removed'][ $key ] ) );
-	if ( ! empty( $strict['window']['partial'] ) ) {
-		$line .= sprintf( '; removals counted over UTC days %1$s to %2$s only', $strict['window']['from'], $strict['window']['through'] );
-	}
-	return $line . '.';
-}
-
-/**
- * The field's schema on the local summary (never on its remote twin). PURE.
- *
- * @return array
- */
-function sn_analytics_strict_human_schema() {
-	$count = array( 'type' => array( 'integer', 'null' ) );
-	$int   = array( 'type' => 'integer' );
-	return array(
-		'type'        => array( 'object', 'null' ),
-		'description' => 'Class human only (null otherwise, and null when no UTC day of the range has the strict reading stored). The presumed-human totals less the visitor-days strict rule v1 removes: ' . SNT_STRICT_HUMAN_REASON . ' Removals are counted over UTC days and over the visitor-days that carried the beacon\'s signals (window: the first and last such day; partial when that is narrower than the range); human itself is unchanged. Basis inferred.',
-		'properties'  => array(
-			'visitor_days' => $count,
-			'views'        => $count,
-			'removed'      => array( 'type' => 'object', 'properties' => array( 'visitor_days' => $int, 'views' => $int ) ),
-			'rule'         => array( 'type' => 'string', 'enum' => array( SNT_STRICT_HUMAN_RULE ) ),
-			'reason'       => array( 'type' => 'string' ),
-			'basis'        => array( 'type' => 'string', 'enum' => array( 'inferred' ) ),
-			'window'       => array( 'type' => 'object', 'properties' => array( 'from' => array( 'type' => 'string' ), 'through' => array( 'type' => 'string' ), 'partial' => array( 'type' => 'boolean' ) ) ),
-		),
-	);
-}

@@ -381,7 +381,7 @@ function sn_analytics_bot_breakdown( $from, $to, $limit = 10 ) {
 		// non-array (accessor absent in a partial harness) degrades to [].
 		'top_bot_networks' => ( is_array( $networks ) || null === $networks ) ? $networks : array(),
 		'first_party'      => function_exists( 'sn_lanes_first_party_figure' ) ? sn_lanes_first_party_figure( $from, $to ) : null,
-		// Presumed human less strict rule v1's removals, beside human, never instead of it.
+		// Presumed human less strict rule v2's two removals, beside human, never instead of it.
 		'strict'           => function_exists( 'sn_analytics_strict_human' ) && function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_strict_human( $from, $to, (array) sn_analytics_range_totals( $from, $to, 'human' ) ) : null,
 	);
 }

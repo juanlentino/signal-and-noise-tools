@@ -137,11 +137,15 @@ if ( '' === $node ) {
 	ok( $up === ( $ru['▲ 99.3% vs. prior 14 days'] ?? '' ), 'likely automated not measured: the existing rule stands' );
 
 	// 2026-11-11: the strict line under the headline, both numbers shown.
-	$sp = array( 'visitor_days' => 96, 'views' => 383, 'removed' => array( 'visitor_days' => 4, 'views' => 17 ), 'window' => array( 'from' => '2026-09-14', 'through' => '2026-09-27', 'partial' => false ) );
+	$sp = array( 'visitor_days' => 96, 'views' => 383, 'removed' => array( 'visitor_days' => 4, 'views' => 17 ), 'removed_no_engagement' => array( 'visitor_days' => 2, 'views' => 2 ), 'window' => array( 'from' => '2026-09-14', 'through' => '2026-09-27', 'partial' => false ) );
 	$rs = $render( array( 'total' => 400, 'strict' => $sp ) );
-	ok( isset( $rs['400'] ) && isset( $rs['Strictly human: 383 views (17 removed: automation signals)'] ), 'the headline 400 and the strict line under it: both numbers' );
+	ok( isset( $rs['400'] ) && isset( $rs['Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded)'] ), 'the headline 400 and the strict line under it: both numbers' );
 	$rs = $render( array( 'total' => 400, 'strict' => array( 'window' => array( 'partial' => true, 'from' => '2026-09-20', 'through' => '2026-09-27' ) ) + $sp ) );
-	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals), UTC days 2026-09-20 to 2026-09-27 only'] ), 'a partial window names the UTC days the removals cover' );
+	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded), UTC days 2026-09-20 to 2026-09-27 only'] ), 'a partial window names the UTC days the removals cover' );
+	// 2026-11-13: a payload whose days predate the no-engagement reading says so, never 0.
+	$sn = $sp; unset( $sn['removed_no_engagement'] );
+	$rs = $render( array( 'total' => 400, 'strict' => $sn ) );
+	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals; no engagement recorded: not measured)'] ), 'no-engagement unmeasured: named as not measured, never 0' );
 	$rs = $render( array( 'total' => 400, 'strict' => null ) );
 	ok( isset( $rs['Strictly human: not measured yet'] ), 'a null strict figure says not measured, never 0' );
 	$rs = $render( array( 'total' => 400 ) );

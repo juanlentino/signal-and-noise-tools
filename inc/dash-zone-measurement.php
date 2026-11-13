@@ -52,7 +52,7 @@ function snt_dashboard_measurement_data() {
 				$data['views_prior']  = (int) $deltas['views']['previous'];
 				$data['views_delta']  = (int) ( $deltas['views']['current'] ?? 0 ) - (int) $deltas['views']['previous'];
 			}
-			// 2026-11-11: the same views less strict rule v1's removals, beside
+			// 2026-11-11: the same views less strict rule v2's two removals, beside
 			// them (an option read; null when no day of the week is stored).
 			if ( function_exists( 'sn_analytics_strict_human' ) ) {
 				$data['views_strict'] = sn_analytics_strict_human( $from, $to, array( 'views' => $data['views_7d'] ) );

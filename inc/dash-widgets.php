@@ -87,11 +87,18 @@ function snt_dwx_boxes() {
 						),
 						array(
 							// 2026-11-11: beside the presumed-human visitor-days, never instead
-							// of them: the same days less strict rule v1's removals.
+							// of them: the same days less strict rule v2's two removals.
 							'path'    => 'strict.visitor_days',
 							'label'   => __( 'Strictly human', 'signal-and-noise-tools' ),
-							/* translators: %s: visitor-days strict rule v1 removed */
+							/* translators: %s: visitor-days removed for automation signals */
 							'compare' => array( 'template' => __( '%s removed: automation signals', 'signal-and-noise-tools' ), 'path' => 'strict.removed.visitor_days' ),
+						),
+						array(
+							// 2026-11-13: the second removal, named apart, never folded into the first.
+							'path'    => 'strict.removed_no_engagement.visitor_days',
+							'label'   => __( 'Removed: no engagement recorded', 'signal-and-noise-tools' ),
+							/* translators: %s: presumed-human visitor-days */
+							'compare' => array( 'template' => __( 'of %s presumed human', 'signal-and-noise-tools' ), 'path' => 'unique_visitor_days' ),
 						),
 						array(
 							// A RATIO: never delta'd by subtraction.

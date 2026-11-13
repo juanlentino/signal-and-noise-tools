@@ -84,9 +84,9 @@ ok( false === strpos( $hbe, 'own tools' ), 'breakdown: a caller without the key 
 
 echo "\nGroup: strictly human beside presumed human (2026-11-11)\n";
 require_once __DIR__ . '/../inc/analytics-strict-human.php';
-$st = array( 'visitor_days' => 96, 'views' => 383, 'removed' => array( 'visitor_days' => 4, 'views' => 17 ), 'rule' => 'strict_v1', 'reason' => 'r', 'basis' => 'inferred', 'window' => array( 'from' => '2026-11-01', 'through' => '2026-11-10', 'partial' => false ) );
+$st = array( 'visitor_days' => 96, 'views' => 383, 'removed' => array( 'visitor_days' => 4, 'views' => 17 ), 'removed_no_engagement' => array( 'visitor_days' => 2, 'views' => 2 ), 'rule' => 'strict_v2', 'reason' => 'r', 'basis' => 'inferred', 'window' => array( 'from' => '2026-11-01', 'through' => '2026-11-10', 'partial' => false ) );
 ob_start(); snt_analytics_render_bot_breakdown( $bb_fp + array( 'strict' => $st ) ); $hst = ob_get_clean();
-ok( false !== strpos( $hst, 'Strictly human: 96 visitor-days (4 removed: automation signals).' ), 'breakdown: the strict line is painted under the legend' );
+ok( false !== strpos( $hst, 'Strictly human: 96 visitor-days (4 removed: automation signals; 2 removed: no engagement recorded).' ), 'breakdown: the strict line is painted under the legend' );
 ok( false !== strpos( $hst, 'Presumed human 100' ) && strpos( $hst, 'Presumed human 100' ) < strpos( $hst, 'Strictly human' ), 'breakdown: both numbers, the presumed-human one unchanged and first' );
 ok( strpos( $hst, 'own tools' ) < strpos( $hst, 'Strictly human' ), 'breakdown: beside the first-party sentence' );
 ob_start(); snt_analytics_render_bot_breakdown( $bb_empty + array( 'strict' => null ) ); $hsn = ob_get_clean();
