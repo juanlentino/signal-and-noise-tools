@@ -13,6 +13,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Strictly human removes a second kind of visitor-day: no engagement recorded (strict rule v2, owner decision 2026-11-13).** A presumed-human visitor-day leaves the strict figure when it had exactly one page view, direct, on desktop, with no time, scroll or custom event recorded, on a page other than `/resume`, `/cv` or an `/r/` link code. Behavior only: no country, city or network test. Mobile, any referrer and the job-search pages stay counted. The visitor-day is judged whole across UTC days, so a page view whose time event lands after UTC midnight is kept. Two such sessions in one visitor-day are kept too, which narrows the brief's "every session". Where both reasons apply the automation-signal removal wins, so a visitor-day is removed once. Every surface names the two counts apart ("1 removed: automation signals; 21 removed: no engagement recorded"), and a range whose days predate the reading says "not measured", never 0. `human` is unchanged. The nightly per-day store reads the new columns (`inc/analytics-strict-no-engagement.php`) and walks the Analytics Engine window again under a new cursor (`sn_bot_signals_by_day_backfill_v2`), so the first nights after install fill in the older days. The `strict` field gains `removed_no_engagement`, `reason_no_engagement` and `window_no_engagement`; `rule` is now `strict_v2`. The SN dashboard gains a "Removed: no engagement recorded" tile. Test: `tests/analytics-strict-no-engagement.php` (new).
+
 ## [2026.11.36] - 2026-11-12 — Résumé editor: On /resume is Shown or Hidden; credentials follow /resume
 
 ### Changed

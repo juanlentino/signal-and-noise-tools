@@ -60,7 +60,7 @@ function sn_bot_signals_refresh( $started = null ) {
  * @return void
  */
 function sn_bot_signals_by_day_refresh( $from, $now ) {
-	$bset = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_by_day_sql( SNT_BOT_SIGNAL_DAYS, $s, $r ), $from, $now );
+	$bset = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_by_day_sql( SNT_BOT_SIGNAL_DAYS, $s, $r, '', true ), $from, $now );
 	if ( null === $bset ) {
 		return;
 	}
@@ -106,7 +106,7 @@ function sn_bot_signals_by_day_backfill( $budget = SNT_BOT_SIGNAL_TICK_BUDGET ) 
 	while ( $cursor > $floor && (float) $budget - ( microtime( true ) - $start ) >= SNT_BOT_SIGNAL_BY_DAY_MIN_LEFT ) {
 		$from = max( $floor, gmdate( 'Y-m-d', (int) strtotime( $cursor . ' 00:00:00 UTC' ) - SNT_BOT_SIGNAL_BY_DAY_CHUNK * 86400 ) );
 		$span = $from . '|' . $cursor;
-		$sets = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_by_day_sql( SNT_BOT_SIGNAL_READOUT_DAYS, $s, $r, $span ), $from, $cursor . ' 00:00:00' );
+		$sets = sn_analytics_stitched_rows( static fn( $s, $r ) => sn_bot_signals_by_day_sql( SNT_BOT_SIGNAL_READOUT_DAYS, $s, $r, $span, true ), $from, $cursor . ' 00:00:00' );
 		if ( null === $sets ) {
 			return;
 		}

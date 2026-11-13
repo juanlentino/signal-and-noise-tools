@@ -204,7 +204,8 @@
 
 	/**
 	 * 2026-11-11: the strict human figure under the headline: the same views
-	 * less those strict rule v1 removes (sn_analytics_strict_human()), the
+	 * less those strict rule v2 removes, each reason named apart (2026-11-13:
+	 * automation signals; no engagement recorded) (sn_analytics_strict_human()), the
 	 * presumed-human number above unchanged. A null figure is "not measured",
 	 * never 0; an older cached payload without the key paints nothing.
 	 */
@@ -212,10 +213,12 @@
 		if ( ! ( 'strict' in payload ) ) { return null; }
 		var s = payload.strict;
 		var text = ! s || typeof s !== 'object' ? 'Strictly human: not measured yet'
-			: 'Strictly human: ' + ( typeof s.views === 'number' ? s.views.toLocaleString() : 'not read' ) + ' views (' + Number( s.removed && s.removed.views ).toLocaleString() + ' removed: automation signals)'
-				+ ( s.window && s.window.partial ? ', UTC days ' + s.window.from + ' to ' + s.window.through + ' only' : '' );
+			: 'Strictly human: ' + ( typeof s.views === 'number' ? s.views.toLocaleString() : 'not read' ) + ' views (' + Number( s.removed && s.removed.views ).toLocaleString() + ' removed: automation signals; '
+				+ ( s.removed_no_engagement && typeof s.removed_no_engagement === 'object' ? Number( s.removed_no_engagement.views ).toLocaleString() + ' removed: no engagement recorded' : 'no engagement recorded: not measured' ) + ')'
+				+ ( s.window && s.window.partial ? ', UTC days ' + s.window.from + ' to ' + s.window.through + ' only' : '' )
+				+ ( s.window_no_engagement && s.window_no_engagement.partial ? '; no-engagement removals over UTC days ' + s.window_no_engagement.from + ' to ' + s.window_no_engagement.through + ' only' : '' );
 		var node = el( 'div', { text: text, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;' } );
-		node.title = s && s.reason ? s.reason : 'Inferred from the beacon\u2019s bot signals; the presumed-human views above are unchanged.';
+		node.title = s && s.reason ? s.reason + ( s.reason_no_engagement ? ' ' + s.reason_no_engagement : '' ) : 'Inferred from the beacon\u2019s bot signals; the presumed-human views above are unchanged.';
 		return node;
 	}
 

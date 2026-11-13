@@ -301,13 +301,13 @@ $st     = $local['strict'] ?? null;
 ok( ! array_key_exists( 'strict', $shared ), 'the shared reader (the remote twin) carries no strict: its pinned contract does not move' );
 ok( is_array( $st ) && 22 === $st['visitor_days'] && 14 === $st['views'], 'strict = human less removed: 25 - 3 visitor-days, 18 - 4 views' );
 ok( is_array( $st ) && array( 'visitor_days' => 3, 'views' => 4 ) === $st['removed'], 'removed sums only the range\'s days that carry the strict reading' );
-ok( is_array( $st ) && 'strict_v1' === $st['rule'] && 'inferred' === $st['basis'] && false !== strpos( $st['reason'], 'webdriver' ), 'the rule, its reason and the basis travel with the figure' );
+ok( is_array( $st ) && 'strict_v2' === $st['rule'] && 'inferred' === $st['basis'] && false !== strpos( $st['reason'], 'webdriver' ), 'the rule, its reason and the basis travel with the figure' );
 ok( is_array( $st ) && array( 'from' => '2026-07-17', 'through' => '2026-07-18', 'partial' => true ) === $st['window'], 'the window is the UTC days with the strict reading (07-16 predates the rule), partial' );
 ok( 25 === $local['unique_visitor_days'] && 18 === $local['views'], 'human itself is unchanged' );
 ok( null === sn_ability_get_analytics_summary_local( array( 'range' => 7, 'class' => 'bot' ) )['strict'], 'suspect and bot carry strict null' );
 $GLOBALS['__opts'][ SNT_BOT_SIGNAL_BY_DAY_OPTION ] = array( '2026-07-17' => array( 'visitor_days' => 12, 'likely_automated' => 2 ) );
 ok( array_key_exists( 'strict', $l2 = sn_ability_get_analytics_summary_local( array( 'range' => 7, 'class' => 'human' ) ) ) && null === $l2['strict'], 'no day of the range has the strict reading: strict is null, never 0' );
-ok( false !== strpos( $desc, '`strict`' ) && false !== strpos( $desc, 'strict_v1' ) && false !== strpos( $desc, 'UTC days' ) && false !== strpos( $desc, 'nothing is subtracted from it' ), 'the description names strict, its rule, the UTC days, and that human is unchanged' );
+ok( false !== strpos( $desc, '`strict`' ) && false !== strpos( $desc, 'strict_v2' ) && false !== strpos( $desc, 'removed_no_engagement' ) && false !== strpos( $desc, 'UTC days' ) && false !== strpos( $desc, 'nothing is subtracted from it' ), 'the description names strict, its rule, the UTC days, and that human is unchanged' );
 
 echo "\nGroup: v10.0.0 — the deprecated quartet leaves the PUBLIC surface\n";
 foreach ( array( 'visits', 'scroll_avg', 'time_avg' ) as $gone ) {

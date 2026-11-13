@@ -45,7 +45,7 @@ ok( ! sn_bot_signals_strict_removes( $rows['no_input_tz'] ), 'no_input + tz_mism
 ok( ! sn_bot_signals_strict_removes( $rows['intent'] ), 'no_input + headless scores 3 and is kept: an intent reader fired it' );
 ok( ! sn_bot_signals_strict_removes( $rows['ua_only'] ), 'ua_mismatch alone scores 2: under the threshold, kept' );
 ok( ! sn_bot_signals_strict_removes( $rows['over_cap'] ) && ! sn_bot_signals_strict_removes( $rows['non_human'] ), 'over the cap or not presumed human: never in human, so never removed from it' );
-ok( 'strict_v1' === SNT_STRICT_HUMAN_RULE && false !== strpos( SNT_STRICT_HUMAN_REASON, 'tz_mismatch' ), 'the rule is named once, with its reason' );
+ok( 'strict_v2' === SNT_STRICT_HUMAN_RULE && false !== strpos( SNT_STRICT_HUMAN_REASON, 'tz_mismatch' ), 'the rule is named once, with its reason' );
 
 echo "\nGroup: the per-day store carries the removals\n";
 $bd = sn_bot_signals_by_day( array_values( $rows ) );
@@ -74,9 +74,9 @@ ok( $s === sn_analytics_strict_human( '2026-11-01', '2026-11-11', $human ), 'the
 
 echo "\nGroup: the one line\n";
 $line = sn_analytics_strict_human_line( $s );
-ok( 0 === strpos( $line, 'Strictly human: 96 visitor-days (4 removed: automation signals)' ), 'visitor-days: "' . $line . '"' );
+ok( 0 === strpos( $line, 'Strictly human: 96 visitor-days (4 removed: automation signals; no engagement recorded: not measured)' ), 'visitor-days: "' . $line . '"' );
 ok( false !== strpos( $line, 'UTC days 2026-11-10 to 2026-11-11 only' ), 'a partial window says which UTC days the removals cover' );
-ok( 0 === strpos( sn_analytics_strict_human_line( $s, 'views' ), 'Strictly human: 383 views (17 removed: automation signals)' ), 'views: the same figure in views' );
+ok( 0 === strpos( sn_analytics_strict_human_line( $s, 'views' ), 'Strictly human: 383 views (17 removed: automation signals; no engagement recorded: not measured)' ), 'views: the same figure in views' );
 ok( false !== strpos( sn_analytics_strict_human_line( null ), 'not measured' ), 'null says not measured, never 0' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

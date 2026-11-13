@@ -409,7 +409,7 @@ function snt_desktop_site_views_payload() {
 		$payload['likely_automated'] = sn_analytics_likely_automated( $from, $today, 'human' );
 	}
 	// 2026-11-11: the strict human figure under the headline: the same views
-	// less strict rule v1's removals, from the nightly store (no AE read).
+	// less strict rule v2's two removals, from the nightly store (no AE read).
 	if ( function_exists( 'sn_analytics_strict_human' ) && isset( $this_window ) && is_array( $this_window ) ) {
 		$payload['strict'] = sn_analytics_strict_human( $from, $today, $this_window );
 	}
