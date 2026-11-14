@@ -33,6 +33,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/analytics-likely-automated.php'; // likely_automated: its reader and the schema both doors share.
+require_once __DIR__ . '/analytics-reads.php'; // reads: its figure and the schema both doors share.
 
 /**
  * Permission callback for `signal-noise/remote-get-analytics-summary`.
@@ -59,6 +60,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'description'         => 'Remote-scoped twin of signal-noise/get-analytics-summary. '
 			. 'Returns range analytics totals (range: 7|14|30|90|365|all, class: human|suspect|bot). '
 			. 'Read-only. Identical response contract to the admin ability. '
+			. sn_analytics_reads_description()
 			. 'Classes are inferred (basis: inferred): human is presumed human (not flagged). likely_automated (class human only) is the beacon\'s observe-only bot-signal score per UTC day over the range, beside the totals and subtracted from nothing, with measured_days and unmeasured_days. '
 			. 'This site\'s own tools (first-party: the x-sn-first-party header, a proof, or a SignalNoise- user agent, a claim) are in none of the three classes and never in these totals; they are counted separately on the owner\'s local door only (get-analytics-summary first_party). '
 			. 'UNITS, stated here rather than by reference: engagement times are MILLISECONDS '
@@ -105,6 +107,7 @@ add_action( 'wp_abilities_api_init', function () {
 				// Contract 16: byte-identical to the admin registration (one function).
 				'likely_automated'          => snt_analytics_likely_automated_schema(),
 				'basis'                     => array( 'type' => 'string', 'enum' => array( 'inferred' ) ),
+				'reads'                     => sn_analytics_reads_schema(), // contract 32: byte-identical to the admin registration.
 			),
 		),
 		'meta'                => array(

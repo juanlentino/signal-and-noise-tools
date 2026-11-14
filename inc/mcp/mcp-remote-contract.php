@@ -138,7 +138,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 // 2026-11-09: '30' -> '31'. Wording only, no key moves: the edge-errors twin
 // says total, paths and each day's total count what visitors asked for, and
 // that a Worker's row (its own request for a visitor's) is who asked only.
-const SN_REMOTE_CONTRACT_VERSION = '31';
+// 2026-11-14: '31' -> '32'. The analytics summary twin gained reads (proven
+// reading: reads, days, measured_days, partial, definition). Additive.
+const SN_REMOTE_CONTRACT_VERSION = '32';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -208,6 +210,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'30' => 'a6c6d8c6b1325c443cee8ad1b00092d9305460e157bd959ac284bd8c3d5c5129',
 	// RED-then-pin, 2026-11-09: the edge-errors twin counts visitors in its totals.
 	'31' => '02deea0c871c9044af9120fafe747220c0aaceb2895ca187cfca6afe00393d12',
+	// RED-then-pin, 2026-11-14: reads on the analytics summary twin.
+	'32' => '61dca1b1156d4a2e6acfa5aa9e0c040f8a40a6a1d5e9e90be20306898e33e4bd',
 );
 
 /**

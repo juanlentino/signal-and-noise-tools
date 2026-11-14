@@ -1,6 +1,6 @@
 {
-    "contract_version": "31",
-    "shape_hash": "02deea0c871c9044af9120fafe747220c0aaceb2895ca187cfca6afe00393d12",
+    "contract_version": "32",
+    "shape_hash": "61dca1b1156d4a2e6acfa5aa9e0c040f8a40a6a1d5e9e90be20306898e33e4bd",
     "tools": {
         "signal-noise/remote-analytics-fields": {
             "wrap": false,
@@ -809,6 +809,29 @@
                         "enum": [
                             "inferred"
                         ]
+                    },
+                    "reads": {
+                        "type": "object",
+                        "properties": {
+                            "reads": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "days": {
+                                "type": "integer"
+                            },
+                            "measured_days": {
+                                "type": "integer"
+                            },
+                            "partial": {
+                                "type": "boolean"
+                            },
+                            "definition": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }

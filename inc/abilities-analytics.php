@@ -31,6 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/analytics-likely-automated.php'; // likely_automated: its reader and the schema both doors share.
 require_once __DIR__ . '/analytics-lanes-first-party.php'; // first_party: this site's own tools beside the classes, local door only.
 require_once __DIR__ . '/analytics-strict-human.php'; // strict: human less strict rule v2's two removals, local door only.
+require_once __DIR__ . '/analytics-reads.php'; // reads: proven reading, both doors.
 require_once __DIR__ . '/abilities-analytics-events.php'; // the get-analytics-events and get-analytics-top-content callbacks.
 
 add_action( 'wp_abilities_api_init', function () {
@@ -140,6 +141,7 @@ add_action( 'wp_abilities_api_init', function () {
 		// an AI caller must be able to pick the right field from this text
 		// alone, so each metric names its exact denominator and its traps.
 		'description'         => 'Returns range analytics totals (range: 7|14|30|90|365|all, class: human|suspect|bot). Read-only. '
+			. sn_analytics_reads_description()
 			. 'Classes are inferred, not verified: `human` is presumed human (not flagged): not a stored bot, on a network the one counted-human rule accepts, and under the page-view cap; `suspect` failed the network rule; `bot` is a self-declared bot user agent or a visitor-day over the cap. `basis` says so (inferred). '
 			. '`likely_automated` (class human only, null otherwise) sits BESIDE the totals and is subtracted from nothing: the beacon\'s observe-only bot-signal score (sum of the weights of the signals a visitor-day fired, at or above the threshold of 3) per UTC day, summed over the range. visitor_days is how many presumed-human visitor-days scored likely automated, scored_visitor_days how many carried the signals at all; measured_days counts the range\'s UTC days with signals stored and unmeasured_days the rest (before the beacon carried the signals, or not yet stored by the nightly read); visitor_days is null when no day is measured. A heuristic, basis inferred. '
 			. 'Denominators, honestly named: '
@@ -194,6 +196,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'exact_metrics_since'       => array( 'type' => array( 'string', 'null' ) ),
 				'likely_automated'          => snt_analytics_likely_automated_schema(),
 				'basis'                     => array( 'type' => 'string', 'enum' => array( 'inferred' ) ),
+				'reads'                     => sn_analytics_reads_schema(),
 				// Local door only: the remote twin's schema stops at basis (tests/abilities-remote-analytics.php).
 				'first_party'               => sn_lanes_first_party_schema(),
 				'strict'                    => sn_analytics_strict_human_schema(), // local door only, like first_party.
@@ -245,6 +248,8 @@ function sn_ability_get_analytics_summary( $input ) {
 	// never queries Analytics Engine.
 	$totals['likely_automated'] = function_exists( 'sn_analytics_likely_automated' ) ? sn_analytics_likely_automated( $from, $to, $class ) : null;
 	$totals['basis']            = 'inferred';
+	// 2026-11-14: proven reading, the headline, from the nightly store (inc/analytics-reads.php).
+	$totals['reads'] = function_exists( 'sn_analytics_reads_figure' ) ? sn_analytics_reads_figure( $from, $to, $class ) : null;
 	return $totals;
 }
 

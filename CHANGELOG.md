@@ -13,6 +13,15 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Reads lead the owner's numbers: proven reading, not page loads (owner decision 2026-11-14).** A read is a page view with at least 10 seconds of visible time, a scroll to 50 percent or more, or a custom event (an outbound click, a download, a goal click; every custom event the beacon sends follows a click). One rule, `sn_analytics_is_read()`, so every surface counts the same way. A scraper that loads a page and leaves never makes one, wherever it rents servers. A read is counted once per visitor-day, page and site day: the beacons of two views of the same page that day add up, so two short views can make one read and two long ones count one. A new nightly store (`sn_analytics_reads_by_day`, `inc/analytics-reads.php` and `inc/analytics-reads-store.php`) keeps reads per site day, page and class, reads the trailing week each night, and walks back 14 days a night as far as Analytics Engine holds (88 days). A day not yet stored reads "not measured", never 0, and a read that fails or reaches its row cap stores nothing. The read keys on the site's day, not the UTC day, because the visitor code rotates there. It uses only shapes already live on Analytics Engine (`sumIf` over the time column, `max(if(cond, 1, 0))`), so it avoids the Double/Integer mix that refused the 11-11 query.
+  - **SN Traffic** leads with reads (human) over 14 days, with the presumed-human views and the strictly-human line under it.
+  - **The Analytics Overview** gains a Reads card, first in the strip.
+  - **The Links view** gains a Reads column per `/r/` code (human).
+  - **`get-analytics-summary` and its remote twin** gain `reads` (`reads`, `days`, `measured_days`, `partial`, `definition`), with the definition in both descriptions. The remote contract moves 31 to 32, and the sn-remote-mcp worker's `CONTRACT_VERSION` moves with it.
+  - Views, `human` and the strict count are computed as before. Public `/stats` is unchanged.
+  - Test: `tests/analytics-reads.php` (new: each branch of the definition, the brief's four named views, measured with none against not measured, the per-code count, the read's SQL); `tests/desktop-mode-widget-views-delta.php` pins the card's three states.
+
 ## [2026.11.37] - 2026-11-13 — Strictly human removes zero-engagement visitor-days, named apart
 
 ### Added

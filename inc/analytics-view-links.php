@@ -72,14 +72,18 @@ function snt_analytics_render_view_links( $from, $to ) {
 	if ( null === $codes ) {
 		snt_an_note_empty( __( 'Links', 'signal-and-noise-tools' ), snt_an_read_failed_copy( __( 'Links', 'signal-and-noise-tools' ) ) );
 	} else {
+		// 2026-11-14: human reads per code (inc/analytics-reads.php); not measured, never 0.
+		$measured = function_exists( 'sn_analytics_reads_window' ) && sn_analytics_reads_window( (string) $from, (string) $to )['measured_days'] > 0;
+		$rc       = $measured ? sn_analytics_reads_by_code( (string) $from, (string) $to ) : array();
+		$reads    = static fn( $code ) => $measured ? number_format_i18n( (int) ( $rc[ $code ] ?? 0 ) ) : __( 'not measured', 'signal-and-noise-tools' );
 		snt_an_kv_table(
 			__( 'Links', 'signal-and-noise-tools' ),
-			array_map( static fn( $c ) => array( $c['code'], $c['first_seen'], $c['last_seen'], number_format_i18n( $c['views'] ), number_format_i18n( $c['human'] ), number_format_i18n( $c['suspect'] ), number_format_i18n( $c['bot'] ) ), $codes ),
-			snt_analytics_links_cols( array( __( 'Code', 'signal-and-noise-tools' ) => '', __( 'First seen', 'signal-and-noise-tools' ) => '', __( 'Last seen', 'signal-and-noise-tools' ) => '', __( 'Views', 'signal-and-noise-tools' ) => 'num', __( 'Human', 'signal-and-noise-tools' ) => 'num', __( 'Suspect', 'signal-and-noise-tools' ) => 'num', __( 'Bot', 'signal-and-noise-tools' ) => 'num' ) ),
+			array_map( static fn( $c ) => array( $c['code'], $c['first_seen'], $c['last_seen'], number_format_i18n( $c['views'] ), $reads( $c['code'] ), number_format_i18n( $c['human'] ), number_format_i18n( $c['suspect'] ), number_format_i18n( $c['bot'] ) ), $codes ),
+			snt_analytics_links_cols( array( __( 'Code', 'signal-and-noise-tools' ) => '', __( 'First seen', 'signal-and-noise-tools' ) => '', __( 'Last seen', 'signal-and-noise-tools' ) => '', __( 'Views', 'signal-and-noise-tools' ) => 'num', __( 'Reads', 'signal-and-noise-tools' ) => 'num', __( 'Human', 'signal-and-noise-tools' ) => 'num', __( 'Suspect', 'signal-and-noise-tools' ) => 'num', __( 'Bot', 'signal-and-noise-tools' ) => 'num' ) ),
 			array(
 				'empty'        => __( 'No coded link was opened in this range. Send /r/CODE, for example /r/hera, and it shows here once opened.', 'signal-and-noise-tools' ),
 				'data_colname' => true,
-				'footer'       => '<p class="sn-an-note">' . esc_html__( 'Human, Suspect and Bot count visitor-days, from the daily rollup (today\'s may lag an hour): an estimate, since a visitor-day that opened both /r/x and /r/x/ counts twice.', 'signal-and-noise-tools' ) . '</p>',
+				'footer'       => '<p class="sn-an-note">' . esc_html__( 'Human, Suspect and Bot count visitor-days, from the daily rollup (today\'s may lag an hour): an estimate, since a visitor-day that opened both /r/x and /r/x/ counts twice.', 'signal-and-noise-tools' ) . ( defined( 'SN_ANALYTICS_READS_DEFINITION' ) ? ' ' . esc_html( SN_ANALYTICS_READS_DEFINITION ) . ' ' . esc_html__( 'Reads are human, from the nightly store.', 'signal-and-noise-tools' ) : '' ) . '</p>',
 			)
 		);
 	}

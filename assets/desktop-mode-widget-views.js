@@ -463,14 +463,31 @@
 		}
 
 		function headline( payload ) {
+			// 2026-11-14: reads lead (sn_analytics_reads_figure()); the views are the
+			// line under them. Not measured is said, never 0; an older cached
+			// payload without the key keeps the views headline.
+			var r = payload.reads;
+			var hasReads = !! r && typeof r === 'object' && typeof r.reads === 'number';
 			body.appendChild( el( 'div', {
-				text: String( payload.total ),
+				text: hasReads ? r.reads.toLocaleString() : String( payload.total ),
 				style: 'font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1;'
 			} ) );
-			body.appendChild( el( 'div', {
-				text: 'views · last 14 days',
-				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:' + ( 'strict' in payload ? '0' : '6px' ) + ';'
-			} ) );
+			// The last line before the strict one keeps the 6px gap when there is no strict line.
+			var muted = 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));';
+			var gap   = 'strict' in payload ? '' : 'margin-bottom:6px;';
+			var under = 'reads' in payload;
+			var sub = el( 'div', {
+				text: hasReads ? 'reads (human) · last 14 days' + ( r.partial ? ', ' + r.measured_days + ' of ' + r.days + ' days measured' : '' ) : 'views · last 14 days',
+				style: muted + ( under ? '' : gap )
+			} );
+			if ( hasReads && r.definition ) { sub.title = r.definition; }
+			body.appendChild( sub );
+			if ( under ) {
+				body.appendChild( el( 'div', {
+					text: hasReads ? Number( payload.total ).toLocaleString() + ' views (presumed human)' : 'Reads: not measured yet',
+					style: muted + gap
+				} ) );
+			}
 			var strict = strictLine( payload );
 			if ( strict ) { body.appendChild( strict ); }
 
