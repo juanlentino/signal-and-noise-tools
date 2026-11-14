@@ -343,23 +343,6 @@
 	}
 
 	/**
-	 * Engaged visitor-days (the north star) with their change, DOI downloads and
-	 * inquiries, the owner's pick of Site Views' north star rows (2026-10-04). Additive: an
-	 * absent key (analytics unset, an older cached payload) paints no row, and
-	 * a measured 0 is a number and paints.
-	 */
-	function weekRows( ns ) {
-		var rows = [];
-		if ( ! ns || typeof ns.value !== 'number' ) { return rows; }
-		var d = ns.value - ( ns.previous || 0 );
-		// Visitor-days, not views: SN Reading's "of views engaged" is another figure.
-		rows.push( { label: 'Engaged visitor-days · 7d', value: String( ns.value ) + ( d ? ' ' + deltaText( d ) : '' ), style: d ? 'color:' + deltaColor( d, d, relOf( d, ns.previous || 0 ), false ) + ';' : '' } );
-		if ( ns.doi && typeof ns.doi.value === 'number' ) { rows.push( { label: 'DOI downloads · ' + ns.doi.window, value: ns.doi.value } ); }
-		if ( typeof ns.inquiries === 'number' ) { rows.push( { label: 'Inquiries · 7d', value: ns.inquiries } ); }
-		return rows;
-	}
-
-	/**
 	 * A change, said twice: the arrow for the eye (aria-hidden) and the
 	 * direction in words for a screen reader. Null for no change or no prior.
 	 */
@@ -431,11 +414,8 @@
 				headline( payload );
 			}
 
-			// This week: three of the north star's rows, right under the headline.
-			var week = weekRows( payload.north_star );
-			if ( week.length ) {
-				body.appendChild( group( 'This week', week ) );
-			}
+			// This week and Top pages moved to SN Reading (owner 2026-11-14): what
+			// people read is Reading's; this card keeps who came and from where.
 
 			// Reach: distinct countries and named sources with views in the window,
 			// each with its change against the prior 14 days. Absent when it could
@@ -460,12 +440,6 @@
 				}
 			}
 
-			var pageRows = ( payload.top_paths || [] ).filter( function( pg ) { return pg && pg.path; } ).map( function( pg ) {
-				return { label: pg.path, value: String( pg.views ) };
-			} );
-			if ( pageRows.length ) {
-				body.appendChild( group( 'Top pages', pageRows ) );
-			}
 
 			// When these figures were read, as a clock time (SN Reading's foot): a
 			// relative age would go stale on a desktop left open. Kept out of the

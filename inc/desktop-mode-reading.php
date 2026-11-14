@@ -11,6 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/desktop-mode-reading-moved.php'; // This week and Top pages, moved from SN Traffic.
+
 /**
  * On-the-page rows. PURE. The beacon fires one scroll event per milestone a
  * view reaches (25, 50, 75, 100), each at most once, so the events are
@@ -240,11 +242,18 @@ function snt_desktop_reading_groups( array $win ) {
 	// so neither is repeated as a row here.
 	$page = array_values( array_filter( snt_desktop_reading_page_rows( $totals, $dist( 'scroll' ), $engaged ), static fn( $r ) => ! in_array( $r['label'], array( 'Engaged', 'Visitor-days' ), true ) ) );
 	$hero = is_array( $totals ) && (int) ( $totals['views'] ?? 0 ) > 0 ? snt_desktop_reading_hero( $engaged ) : null;
-	return ( $hero ? array( 'hero' => $hero ) : array() ) + array(
+	// 2026-11-14 (owner): moved here from SN Traffic (inc/desktop-mode-reading-moved.php).
+	$week = snt_desktop_reading_week_rows( function_exists( 'snt_nsm_reading' ) ? snt_nsm_reading() : null );
+	$top  = function_exists( 'sn_analytics_top_paths' ) ? sn_analytics_top_paths( $win['from'], $win['to'], 'human', 3 ) : null;
+	$topf = snt_desktop_db_failed();
+	$top  = $topf ? array() : snt_desktop_reading_top_rows( $top );
+	return ( $hero ? array( 'hero' => $hero ) : array() ) + array_values( array_filter( array(
+		$week ? snt_desktop_group( 'This week', $week, '' ) : null, // absent when the north star is not set up, as on Traffic.
 		snt_desktop_group( 'On the page', $page, 'No page views in this window, or the daily totals could not be read.' ), // a failed read and an empty window share one shape (views 0); the sentence claims neither.
+		snt_desktop_group( 'Top pages', $top, $topf ? 'The top pages could not be read.' : 'No page views in this window.' ),
 		snt_desktop_group( 'Sessions', (array) $visits, null === $visits ? 'The sessions could not be read.' : 'No sessions rolled up in this window.' ), // sessions, not Site Views' visitor-days: the heading keeps the two apart.
 		snt_desktop_group( 'Custom events · all traffic', $events, // the events rollup has no traffic class; unlike the rows above, this is not people only.
 			isset( $failed['events'] ) ? 'The custom events could not be read.' : 'No custom events in this window.' ),
 		snt_desktop_group( 'Core Web Vitals', $vitals, array_intersect_key( $failed, array( 'lcp' => 1, 'inp' => 1, 'cls' => 1 ) ) ? 'The field measurements could not be read.' : 'No field measurements in this window.' ),
-	);
+	) ) );
 }

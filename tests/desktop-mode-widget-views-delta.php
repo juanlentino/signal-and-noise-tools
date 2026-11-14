@@ -178,21 +178,15 @@ if ( '' === $node ) {
 		),
 	);
 	$t = $render( $full );
-	foreach ( array( 'Today so far', 'Countries', 'US', '30 · 75%', 'Feed subscribers', 'No feed requests logged yet.', 'Top pages', '/a', '9' ) as $want ) {
+	foreach ( array( 'Today so far', 'Countries', 'US', '30 · 75%', 'Feed subscribers', 'No feed requests logged yet.' ) as $want ) {
 		ok( isset( $t[ $want ] ), "Traffic paints \"$want\"" );
 	}
-	$text = implode( ' | ', array_keys( $t ) );
-	// Owner's pick, 2026-10-04: three north star rows come back as This week,
-	// under the headline; the rest stays in S&N Analytics.
-	foreach ( array( 'This week', 'Engaged visitor-days · 7d', '4 ▲ 3', 'DOI downloads · 28d', 'Inquiries · 7d' ) as $want ) {
-		ok( isset( $t[ $want ] ), "Traffic paints \"$want\" in This week" );
+	// 2026-11-14 (owner): This week and Top pages moved to SN Reading (tests/desktop-mode-reading-moved.php).
+	foreach ( array( 'Top pages', '/a', 'This week', 'Engaged visitor-days · 7d', 'DOI downloads · 28d', 'Inquiries · 7d' ) as $gone ) {
+		ok( ! isset( $t[ $gone ] ), "Traffic no longer paints \"$gone\" (it is SN Reading's)" );
 	}
-	ok( strpos( $text, 'vs. prior 14 days' ) < strpos( $text, 'This week' ) && strpos( $text, 'This week' ) < strpos( $text, 'Countries' ), 'This week sits right under the headline block, before the audience groups' );
-	ok( $muted( $t['4 ▲ 3'] ), '+3 on 1 (abs 3 < 5): muted' );
-	$t2 = $render( array( 'north_star' => array( 'value' => 30, 'previous' => 25 ) ) );
-	ok( '#3fb950' === ( $t2['30 ▲ 5'] ?? '' ), 'at threshold (abs 5, rel 20%): green' );
+	$text = implode( ' | ', array_keys( $t ) );
 	ok( 0 === preg_match( '/Read 2\+ pages|Downloads, outbound|Bot share/', $text ) && ! isset( $t['▼ 16'] ) && false === strpos( $text, '/notes' ), 'not restored: read 2+ pages, downloads outbound, the bot share and the top mover live in S&N Analytics: ' . $text );
-	ok( ! isset( $render( array() )['This week'] ), 'an older payload without the north star paints no This week group (absent is not zero)' );
 
 	// The reach row: distinct countries and sources, each with its change
 	// against the prior 14 days, the arrow hidden and the direction in words.
@@ -266,8 +260,8 @@ if ( '' === $node ) {
 	ok( isset( $fl['▼ 50% vs. prior 14 days'] ) && $down === $fl['▼ 50% vs. prior 14 days'], 'control: an older payload without the base still reads the drop from the headline total' );
 	$out = $render( $full, true );
 	ok( 1 === $out['links'] && 'Open Analytics' === $out['link']['text'] && 'Open Analytics, from the SN Traffic widget' === $out['link']['name'] && true === $out['link']['arrowHidden'], 'exactly one footer link, Open Analytics, its name starting with the visible words and the arrow hidden' );
-	ok( 'status' === $out['bodyRole'] && 4 === count( array_filter( $out['roles'], static fn( $r ) => 'heading' === $r ) ), 'the body is a status region and each group title (This week, two groups, Top pages) is a heading' );
-	ok( count( array_filter( $out['roles'], static fn( $r ) => 'list' === $r ) ) >= 3, 'rows are lists (today, each group with rows, top pages)' );
+	ok( 'status' === $out['bodyRole'] && 2 === count( array_filter( $out['roles'], static fn( $r ) => 'heading' === $r ) ), 'the body is a status region and each group title (the two audience groups) is a heading' );
+	ok( count( array_filter( $out['roles'], static fn( $r ) => 'list' === $r ) ) >= 2, 'rows are lists (today, each group with rows)' );
 
 	// Hunt 2026-10-25: each day sits at its date; a day with no row breaks the line.
 	$win  = array( 'from' => '2026-09-14', 'to' => '2026-09-27' );
