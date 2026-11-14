@@ -23,6 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/analytics-reads-store.php';
+require_once __DIR__ . '/analytics-reads-parts.php';
 
 /** Visible time that makes a read, ms: the engaged rate's own threshold. */
 const SN_ANALYTICS_READ_TIME_MS = 10000;
@@ -31,7 +32,7 @@ const SN_ANALYTICS_READ_TIME_MS = 10000;
 const SN_ANALYTICS_READ_SCROLL_PCT = 50;
 
 /** Rows one read may return; a read at the cap is not stored. */
-const SN_ANALYTICS_READS_LIMIT = 20000;
+const SN_ANALYTICS_READS_LIMIT = 5000; // the bot-signal read's cap, well under Analytics Engine's 10,000-row strict limit
 
 /** The definition, in one sentence, for every surface that carries the count. */
 const SN_ANALYTICS_READS_DEFINITION = 'A read is a page view with at least 10 seconds of visible time, a scroll to 50 percent or more, or a custom event (an outbound click, a download, a goal click); counted once per visitor-day, page and site day.';

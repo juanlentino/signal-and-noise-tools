@@ -166,10 +166,12 @@
 		return scored > 0 && la.visitor_days / scored >= AUTOMATED_SHARE;
 	}
 
-	function deltaLine( pct, total, la, base ) {
+	function deltaLine( pct, total, la, base, lead ) {
+		// 2026-11-14: under a reads headline the delta still compares views, so it says so.
+		lead = lead || '';
 		if ( pct === null || typeof pct === 'undefined' ) {
 			// No prior window to compare — say nothing rather than imply flat.
-			return el( 'div', { text: 'vs. prior 14 days: not measured', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+			return el( 'div', { text: lead + 'vs. prior 14 days: not measured', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 		}
 		// The counts the delta compares (2026-10-25: full days, not the headline
 		// total). An older payload: the prior recovered from the percentage.
@@ -178,7 +180,7 @@
 		}
 		var prior = base && typeof base.prior === 'number' ? base.prior : ( typeof total === 'number' && pct > -100 ? total / ( 1 + pct / 100 ) : 0 );
 		var node = el( 'div', {
-			text: deltaText( pct, '%' ) + ' vs. prior 14 days',
+			text: lead + deltaText( pct, '%' ) + ' vs. prior 14 days',
 			// 2026-10-25: the delta compares full days, so today's partial count never pulls it down.
 			title: 'The 14 full days through yesterday against the 14 days before them. Today is still filling in, so it is left out of the comparison.',
 			style: 'font-size:11px;font-weight:600;color:' + ( mostlyAutomated( la ) ? MUTED : deltaColor( pct, total - prior, pct, false ) ) + ';'
@@ -564,7 +566,7 @@
 			chart.appendChild( sparkline( payload.days, payload.window ) );
 			body.appendChild( chart );
 
-			body.appendChild( deltaLine( payload.delta_pct, payload.total, payload.likely_automated, payload.delta_base ) );
+			body.appendChild( deltaLine( payload.delta_pct, payload.total, payload.likely_automated, payload.delta_base, payload.reads && typeof payload.reads.reads === 'number' ? 'Views ' : '' ) );
 			var auto = automatedLine( payload.likely_automated );
 			if ( auto ) { body.appendChild( auto ); }
 			var next = forecastLine( payload.forecast );

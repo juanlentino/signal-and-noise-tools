@@ -17,7 +17,7 @@ const SN_ANALYTICS_READS_OPTION          = 'sn_analytics_reads_by_day';
 const SN_ANALYTICS_READS_BACKFILL_OPTION = 'sn_analytics_reads_backfill';
 const SN_ANALYTICS_READS_KEEP            = 400;
 const SN_ANALYTICS_READS_NIGHTLY_DAYS    = 7;
-const SN_ANALYTICS_READS_CHUNK           = 14;
+const SN_ANALYTICS_READS_CHUNK           = 7;
 const SN_ANALYTICS_READS_HOLD_DAYS       = 88; // Analytics Engine keeps about 90 days; the oldest is partial.
 
 /** Today in the site's zone, 'Y-m-d'. */
@@ -65,25 +65,35 @@ function sn_analytics_reads_measure( $first, $end ) {
 	return true;
 }
 
-/** Nightly: the trailing week again, then the backfill walks back a chunk at a time. */
+/**
+ * Nightly: the trailing week again, then ONE backfill chunk back (the
+ * bot-signal job runs on the same tick and has most of WP-Cron's minute;
+ * about 12 nights reach the 88 days Analytics Engine holds).
+ */
 function sn_analytics_reads_refresh() {
 	$today = sn_analytics_reads_today();
 	sn_analytics_reads_measure( sn_analytics_reads_shift( $today, 1 - SN_ANALYTICS_READS_NIGHTLY_DAYS ), sn_analytics_reads_shift( $today, 1 ) );
 	$floor  = sn_analytics_reads_shift( $today, -SN_ANALYTICS_READS_HOLD_DAYS );
 	$cursor = (string) get_option( SN_ANALYTICS_READS_BACKFILL_OPTION, '' );
 	$cursor = 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $cursor ) ? $cursor : sn_analytics_reads_shift( $today, 1 - SN_ANALYTICS_READS_NIGHTLY_DAYS );
-	$start  = microtime( true );
-	while ( $cursor > $floor && microtime( true ) - $start < 20.0 ) {
+	if ( $cursor > $floor ) {
 		$from = max( $floor, sn_analytics_reads_shift( $cursor, -SN_ANALYTICS_READS_CHUNK ) );
-		if ( ! sn_analytics_reads_measure( $from, $cursor ) ) {
-			return;
+		if ( sn_analytics_reads_measure( $from, $cursor ) ) {
+			update_option( SN_ANALYTICS_READS_BACKFILL_OPTION, $from, false );
 		}
-		$cursor = $from;
-		update_option( SN_ANALYTICS_READS_BACKFILL_OPTION, $cursor, false );
 	}
+}
+
+/** With the on-demand rollup (the hourly warmer): yesterday and today, so reads keep pace with the views under them. */
+function sn_analytics_reads_refresh_recent() {
+	$today = sn_analytics_reads_today();
+	sn_analytics_reads_measure( sn_analytics_reads_shift( $today, -1 ), sn_analytics_reads_shift( $today, 1 ) );
 }
 if ( defined( 'SN_ANALYTICS_ROLLUP_DAILY_HOOK' ) ) {
 	add_action( SN_ANALYTICS_ROLLUP_DAILY_HOOK, 'sn_analytics_reads_refresh', 21 );
+}
+if ( defined( 'SN_ANALYTICS_ROLLUP_HOOK' ) ) {
+	add_action( SN_ANALYTICS_ROLLUP_HOOK, 'sn_analytics_reads_refresh_recent', 21 );
 }
 
 /**
@@ -120,44 +130,6 @@ function sn_analytics_reads_window( $from, $to, $class = 'human', $keep = null, 
 		'partial'       => array() !== $measured && count( $measured ) < count( $by ),
 		'by_day'        => $by,
 	);
-}
-
-/** The summary's reads field: the window's reads for the class asked. PURE given the store. */
-function sn_analytics_reads_figure( $from, $to, $class = 'human', $store = null ) {
-	$w = sn_analytics_reads_window( $from, $to, $class, null, $store );
-	unset( $w['by_day'] );
-	return $w + array( 'definition' => SN_ANALYTICS_READS_DEFINITION );
-}
-
-/** Its schema, one function for both doors. PURE. */
-function sn_analytics_reads_schema() {
-	$i = array( 'type' => 'integer' );
-	return array(
-		'type'       => 'object',
-		'properties' => array( 'reads' => array( 'type' => array( 'integer', 'null' ) ), 'days' => $i, 'measured_days' => $i, 'partial' => array( 'type' => 'boolean' ), 'definition' => array( 'type' => 'string' ) ),
-	);
-}
-
-/** The Overview strip's Reads card. PURE. */
-function snt_analytics_reads_card( $fig ) {
-	$fig = is_array( $fig ) ? $fig : array( 'reads' => null );
-	$sub = null === ( $fig['reads'] ?? null )
-		? __( 'not measured for this range yet; the nightly store fills it', 'signal-and-noise-tools' )
-		: ( ! empty( $fig['partial'] )
-			/* translators: 1: site days measured, 2: site days in the range. */
-			? sprintf( __( '%1$d of %2$d days measured', 'signal-and-noise-tools' ), (int) $fig['measured_days'], (int) $fig['days'] )
-			: __( '10 s, half the page, or a click', 'signal-and-noise-tools' ) );
-	return array(
-		'l'        => __( 'Reads', 'signal-and-noise-tools' ),
-		'n'        => null === ( $fig['reads'] ?? null ) ? __( 'not measured', 'signal-and-noise-tools' ) : number_format_i18n( (int) $fig['reads'] ),
-		'sub'      => $sub,
-		'promoted' => true,
-	);
-}
-
-/** The ability text for the field, shared by both doors. */
-function sn_analytics_reads_description() {
-	return '`reads`: proven reading for the class asked, the headline figure. ' . SN_ANALYTICS_READS_DEFINITION . ' Counted over site days (America/New_York) from a nightly store kept as far back as Analytics Engine holds (about 90 days): reads is null when no day of the range is stored (not measured, never 0); measured_days counts the stored days and partial says the range holds days that were not measured. ';
 }
 
 /**
