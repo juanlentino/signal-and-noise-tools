@@ -33,7 +33,14 @@ function sn_share_echoes_read( $days = 14 ) {
 	}
 	$raw  = (array) ( $res['rows'] ?? array() );
 	$rows = sn_share_echoes_rows( $raw );
-	if ( array() !== $raw && array() === $rows ) {
+	$all  = $rows;
+	// The site's own pages only: a scanner sending a preview agent at /.env is
+	// not a share. The sessions read's own test (inc/link-codes.php).
+	if ( function_exists( 'sn_path_is_served' ) && function_exists( 'snt_arows_real_paths' ) ) {
+		$real = snt_arows_real_paths();
+		$rows = array_values( array_filter( $rows, static fn( $r ) => sn_path_is_served( function_exists( 'sn_analytics_canonical_path' ) ? sn_analytics_canonical_path( $r['path'] ) : $r['path'], $real ) ) );
+	}
+	if ( array() !== $raw && array() === $all ) {
 		error_log( '[sn-analytics] share echoes: the worker answered rows that are not echoes (is rights-signals 1.39.0 deployed?)' );
 		return null;
 	}
