@@ -13,6 +13,21 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **"Reading now" counts readers, not arrivals (owner brief 2026-11-14).** At 16:50 ET on 11-14 a page view of `/cv` with nothing after it showed as "Reading now 1" and "Top now: Curriculum vitae" for five minutes. The owner's live figures now count only visitors whose visit sent an engagement signal in the last 5 minutes: visible time (a `tm` with time in it), a scroll milestone or a custom event (`inc/analytics-live-engaged.php`, the strict rule's own engagement shape). Visitors with a page view and nothing else yet are counted apart as `arrived`.
+  - **The tile** shows them on a smaller line, "Just arrived", under "Reading now".
+  - **Top now** lists only pages with a reader on them, coded links included.
+  - **The Now card and Right now** read `sn_analytics_realtime_readers()`, which is null when the cache predates the split, never the arrivals' total.
+  - **The readers list** keeps only engaged visits.
+  - **The live-now ability** gains `arrived` and `arrived_classes`.
+  - **Unchanged:** the public `/stats` count and its pages list, which read the same cache.
+  - **Surge** still reads the hour's active visitors. Moving it to readers would restart its 4-day learning window; that is left for the owner.
+  - The theme's "still here" ping (theme 2026.11.13) is what lets a reader who neither scrolls nor leaves show as reading after 10 seconds.
+  - Tests: `tests/analytics-live-readers.php`, `tests/analytics-live.php`, `tests/analytics-realtime.php`, `tests/analytics-live-scroll.php`, `tests/desktop-mode-widget-views-delta.php`.
+
+### Fixed
+- **Time on page is bucketed per view, not per `tm` delta.** A view's visible time arrives as one or more deltas: the leave flush, each return to the tab, and now the 10-second ping. The time distribution and the engaged rate bucketed each delta on its own, so a 25-second view sent as 10 s and 15 s counted twice, once in 0–10s. `inc/analytics-buckets-time.php` sums the deltas per visitor-day, page and UTC day in Analytics Engine, then buckets that sum in PHP; a read that reaches its 5,000-row cap is not written. Test: `tests/analytics-buckets-time.php` (new).
+
 ## [2026.11.38] - 2026-11-14 — Reads lead the owner's numbers; share echoes show which shares turned into visits
 
 ### Added

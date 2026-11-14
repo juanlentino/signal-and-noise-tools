@@ -40,6 +40,10 @@
 		if ( key === 'today' ) {
 			return data.today;
 		}
+		// 2026-11-14: visitors with a page view and nothing else yet (admin answer only).
+		if ( key === 'arrived' ) {
+			return data.arrived_classes && Object.prototype.hasOwnProperty.call( data.arrived_classes, cls ) ? data.arrived_classes[ cls ] : ( cls === 'human' ? data.arrived : undefined );
+		}
 		if ( data.classes && Object.prototype.hasOwnProperty.call( data.classes, cls ) ) {
 			return data.classes[ cls ];
 		}

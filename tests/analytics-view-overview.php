@@ -155,6 +155,11 @@ function sn_analytics_realtime( $class = 'human' ) {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_realtime', $class );
 	return $GLOBALS['__ov']['realtime'];
 }
+// 2026-11-14: the mini's "Right now" reads readers (inc/analytics-live-engaged.php), the same realtime read.
+function sn_analytics_realtime_readers( $class = 'human' ) {
+	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_realtime', $class );
+	return $GLOBALS['__ov']['realtime'];
+}
 function sn_analytics_views_today() {
 	$GLOBALS['__ov_calls'][] = array( 'sn_analytics_views_today' );
 	return $GLOBALS['__ov']['views_today'];

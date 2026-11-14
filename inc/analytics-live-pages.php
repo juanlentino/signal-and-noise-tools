@@ -22,12 +22,13 @@ const SN_ANALYTICS_LIVE_PAGES_MAX = 5;
 /**
  * @return string AE SQL.
  */
-function sn_analytics_live_pages_sql() {
+function sn_analytics_live_pages_sql( $engaged = false ) {
 	$mins = max( 1, (int) SN_ANALYTICS_REALTIME_WINDOW_MIN );
+	$only = $engaged && defined( 'SN_ANALYTICS_LIVE_ENGAGED_SQL' ) ? ' AND ' . SN_ANALYTICS_LIVE_ENGAGED_SQL : ''; // 2026-11-14: readers only.
 	return implode( ' ', array(
 		'SELECT blob2 AS path, count(DISTINCT index1) AS readers',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
-		"WHERE timestamp >= now() - INTERVAL '{$mins}' MINUTE AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
+		"WHERE timestamp >= now() - INTERVAL '{$mins}' MINUTE{$only} AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
 		'GROUP BY path ORDER BY readers DESC LIMIT 40',
 	) );
 }
@@ -120,8 +121,8 @@ function sn_analytics_live_pages_resolve( $path ) {
  * @param array|null $links Out: the admin list's coded résumé rows from the same read (inc/link-codes.php), null when not read.
  * @return array|null
  */
-function sn_analytics_live_pages_read( &$links = null ) {
-	$rows  = sn_analytics_query( sn_analytics_live_pages_sql() );
+function sn_analytics_live_pages_read( &$links = null, $engaged = false ) {
+	$rows  = sn_analytics_query( sn_analytics_live_pages_sql( $engaged ) );
 	$links = is_array( $rows ) && function_exists( 'sn_link_codes_live_from_rows' ) ? sn_link_codes_live_from_rows( $rows ) : null;
 	return is_array( $rows ) ? sn_analytics_live_pages_from_rows( $rows, 'sn_analytics_live_pages_resolve' ) : null;
 }

@@ -64,16 +64,21 @@ function sn_analytics_live_payload( $all_classes ) {
 		$out['today_exact'] = null !== $exact;
 		// Admin only (2026-11-01): one line per current reader, place, device and entry source; no visitor code.
 		$out['readers'] = is_array( $cached ) && isset( $cached['readers'] ) && is_array( $cached['readers'] ) ? array_values( $cached['readers'] ) : null;
+		// 2026-11-14: the owner's live figures count readers, not arrivals
+		// (inc/analytics-live-engaged.php); arrivals are counted apart and
+		// never listed in Top now. The public answer above keeps its count.
+		$split          = function_exists( 'sn_analytics_live_split' ) ? sn_analytics_live_split( is_array( $cached ) ? ( $cached['counts'] ?? null ) : null, is_array( $cached ) ? ( $cached['engaged'] ?? null ) : null ) : array( 'readers' => null, 'arrived' => null );
+		$out['now']     = null === $split['readers'] ? null : $split['readers']['human'];
+		$out['arrived'] = null === $split['arrived'] ? null : $split['arrived']['human'];
+		$out['pages']   = is_array( $cached ) && is_array( $cached['pages_engaged'] ?? null ) ? array_values( $cached['pages_engaged'] ) : null;
 		// Admin only: a reader on a coded résumé link, labeled with its code
 		// ("Resume via hera", inc/link-codes.php). The public list never names one.
-		if ( is_array( $out['pages'] ) && is_array( $cached['links'] ?? null ) && $cached['links'] ) {
-			$out['pages'] = array_merge( $out['pages'], array_values( $cached['links'] ) );
+		if ( is_array( $out['pages'] ) && is_array( $cached['links_engaged'] ?? null ) && $cached['links_engaged'] ) {
+			$out['pages'] = array_merge( $out['pages'], array_values( $cached['links_engaged'] ) );
 			usort( $out['pages'], static fn( $a, $b ) => (int) ( $b['readers'] ?? 0 ) <=> (int) ( $a['readers'] ?? 0 ) );
 		}
-		$out['classes'] = array();
-		foreach ( array( 'human', 'suspect', 'bot' ) as $class ) {
-			$out['classes'][ $class ] = sn_analytics_realtime( $class );
-		}
+		$out['classes'] = null === $split['readers'] ? array( 'human' => null, 'suspect' => null, 'bot' => null ) : $split['readers'];
+		$out['arrived_classes'] = $split['arrived'];
 	}
 	return $out;
 }

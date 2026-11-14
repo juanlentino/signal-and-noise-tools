@@ -155,7 +155,8 @@ $GLOBALS['__rt_query_return']   = array(
 	array( 'class' => 'bot',   'visitors' => 50 ),
 );
 sn_analytics_realtime_refresh();
-ok( count( $GLOBALS['__rt_query_calls'] ) === 2, 'refresh: issues the visitors-now + views-today queries' );
+ok( count( $GLOBALS['__rt_query_calls'] ) === 3, 'refresh: issues the visitors-now, views-today and readers-now queries' );
+ok( false !== strpos( $GLOBALS['__rt_query_calls'][2], SN_ANALYTICS_LIVE_ENGAGED_SQL ) && false === strpos( $GLOBALS['__rt_query_calls'][0], 'double2 > 0' ), 'the readers-now query adds the engagement rows; the visitors-now query is unchanged (2026-11-14)' );
 $c = get_transient( SN_ANALYTICS_REALTIME_KEY );
 ok( is_array( $c ) && ( $c['counts']['human'] ?? null ) === 7, 'refresh: caches per-class human count' );
 ok( ( $c['counts']['bot'] ?? null ) === 50, 'refresh: caches per-class bot count' );
