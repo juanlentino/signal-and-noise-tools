@@ -81,11 +81,11 @@ $r = $has ? sn_analytics_live_scroll_read( $pages ) : null;
 ok( 1 === count( $GLOBALS['q'] ) && 0 === ( $r[0]['scroll']['readers_with_scroll'] ?? null ), 'one query for every listed page' );
 $GLOBALS['q'] = array();
 ok( ! $has || ( array() === sn_analytics_live_scroll_read( array() ) && 0 === count( $GLOBALS['q'] ) ), 'nobody on a page: no query' );
-ok( false !== strpos( (string) file_get_contents( $root . '/inc/analytics-realtime.php' ), 'sn_analytics_live_scroll_read( $pages )' ), 'the realtime refresh attaches it to the cached list' );
+ok( false !== strpos( (string) file_get_contents( $root . '/inc/analytics-realtime.php' ), 'sn_analytics_live_scroll_read( $pages_engaged )' ), 'the realtime refresh attaches it to the cached list (the readers\' pages, the list the admin answer shows)' );
 ok( false !== strpos( (string) file_get_contents( $root . '/signal-and-noise-tools.php' ), "inc/analytics-live-scroll.php'" ), 'the plugin loads the module' );
 
 echo "\nGroup: admin only\n";
-$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array( 'human' => 3 ), 'views_today' => 4, 'fetched' => 9, 'pages' => $out ?: $pages );
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array( 'human' => 3 ), 'views_today' => 4, 'fetched' => 9, 'pages' => $out ?: $pages, 'pages_engaged' => $out ?: $pages ); // 2026-11-14: the admin list is the readers'.
 $pub = sn_analytics_live_payload( false )['pages'];
 $adm = sn_analytics_live_payload( true )['pages'];
 ok( ! array_key_exists( 'scroll', $pub[0] ) && 'Alpha' === $pub[0]['label'], 'the public answer (/stats, edge-cached) carries no scroll' );
@@ -123,12 +123,14 @@ if ( '' === $node ) {
 echo "\nGroup: coded résumé links, admin only (2026-10-31)\n";
 $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array( 'human' => 3 ), 'views_today' => 4, 'fetched' => 9,
 	'pages' => array( array( 'label' => 'Alpha', 'url' => 'u1', 'readers' => 2, 'scroll' => null ) ),
-	'links' => array( array( 'label' => 'Resume via hera', 'url' => 'https://x.test/resume/', 'readers' => 3 ) ) );
+	'links' => array( array( 'label' => 'Resume via hera', 'url' => 'https://x.test/resume/', 'readers' => 3 ) ),
+	'pages_engaged' => array( array( 'label' => 'Alpha', 'url' => 'u1', 'readers' => 2, 'scroll' => null ) ),
+	'links_engaged' => array( array( 'label' => 'Resume via hera', 'url' => 'https://x.test/resume/', 'readers' => 3 ) ) );
 $adm = sn_analytics_live_payload( true )['pages'];
 $pub = sn_analytics_live_payload( false )['pages'];
 ok( 'Resume via hera' === ( $adm[0]['label'] ?? '' ) && 'Alpha' === ( $adm[1]['label'] ?? '' ), 'the admin list carries the coded reader, ranked by readers' );
 ok( ! in_array( 'Resume via hera', array_column( $pub, 'label' ), true ) && 1 === count( $pub ), 'the public list never names a code' );
-$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ]['pages'] = null;
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ]['pages_engaged'] = null; // the admin list is the readers'.
 ok( null === sn_analytics_live_payload( true )['pages'], 'a failed pages read stays absent, coded links or not' );
 $rt = (string) file_get_contents( $root . '/inc/analytics-realtime.php' );
 ok( false !== strpos( $rt, "sn_analytics_live_pages_read( \$links )" ) && 1 === preg_match( "/'links'\\s+=> \\\$links,/", $rt ), 'the realtime refresh stores the coded rows from the same query' );

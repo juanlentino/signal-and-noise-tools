@@ -40,6 +40,9 @@ function sn_analytics_query( $sql ) {
 	if ( strpos( $sql, 'double1' ) !== false ) { // scroll
 		return array( array( 'day' => '2026-06-11', 'class' => 'human', 'b0' => 5, 'b1' => 10, 'b2' => 20, 'b3' => 40 ) );
 	}
+	if ( strpos( $sql, 'sum(double2) AS ms' ) !== false ) { // time, per view (2026-11-14): one view in each band
+		return array_map( static fn( $ms, $i ) => array( 'day' => '2026-06-11', 'class' => 'human', 'vid' => 'v' . $i, 'path' => '/', 'ms' => $ms, 'w' => 1 ), array( 4000, 20000, 45000, 90000, 200000 ), array( 0, 1, 2, 3, 4 ) );
+	}
 	if ( strpos( $sql, 'double2' ) !== false ) { // time
 		return array( array( 'day' => '2026-06-11', 'class' => 'human', 'b0' => 3, 'b1' => 6, 'b2' => 9, 'b3' => 12, 'b4' => 15 ) );
 	}
@@ -228,7 +231,7 @@ ok( count( $GLOBALS['wpdb']->queries ) === 1, 'run: one batched upsert' );
 $uq = $GLOBALS['wpdb']->queries[0];
 ok( substr_count( $uq, "'hour'" ) === 1, 'run: one hour row from the hour query fixture' );
 ok( substr_count( $uq, "'scroll'" ) === 4, 'run: scroll wide-row melted into 4 bucket rows' );
-ok( substr_count( $uq, "'time'" ) === 5, 'run: time wide-row melted into 5 bucket rows' );
+ok( substr_count( $uq, "'time'" ) === 5, 'run: time per-view rows bucketed into 5 bucket rows' );
 ok( substr_count( $uq, "'botscore'" ) === 3, 'run: botscore wide-row melted into 3 bucket rows' );
 ok( substr_count( $uq, "'rtt'" ) === 5, 'run: rtt wide-row melted into 5 bucket rows' );
 ok( substr_count( $uq, "'lcp'" ) === 3 && substr_count( $uq, "'inp'" ) === 3 && substr_count( $uq, "'cls'" ) === 3, 'run: each CWV metric melted into 3 good/NI/poor bucket rows' );

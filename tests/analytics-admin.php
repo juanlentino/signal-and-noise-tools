@@ -103,6 +103,7 @@ $GLOBALS['__aa'] = array( 'realtime' => null, 'totals' => array(), 'class_totals
 $GLOBALS['__aa_calls'] = array( 'realtime' => 0, 'range_totals' => 0, 'class_totals' => 0, 'daily_series' => 0, 'top_paths' => 0 );
 function aa_reset_call_counts() { $GLOBALS['__aa_calls'] = array( 'realtime' => 0, 'range_totals' => 0, 'class_totals' => 0, 'daily_series' => 0, 'top_paths' => 0 ); }
 function sn_analytics_realtime( $class = 'human' ) { ++$GLOBALS['__aa_calls']['realtime']; return $GLOBALS['__aa']['realtime']; }
+function sn_analytics_realtime_readers( $class = 'human' ) { ++$GLOBALS['__aa_calls']['realtime']; return $GLOBALS['__aa']['realtime']; } // 2026-11-14: the Now card reads readers.
 function sn_analytics_range_totals( $from, $to, $class = 'human' ) { ++$GLOBALS['__aa_calls']['range_totals']; return $GLOBALS['__aa']['totals']; }
 function sn_analytics_class_totals( $from, $to ) { ++$GLOBALS['__aa_calls']['class_totals']; return $GLOBALS['__aa']['class_totals']; }
 function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day' ) { ++$GLOBALS['__aa_calls']['daily_series']; return $GLOBALS['__aa']['series']; }

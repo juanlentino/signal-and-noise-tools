@@ -38,10 +38,10 @@ const SN_ANALYTICS_LIVE_READERS_ROW_CAP  = 5000;
 function sn_analytics_live_readers_sql() {
 	$look = max( 1, (int) SN_ANALYTICS_LIVE_READERS_LOOKBACK );
 	return implode( ' ', array(
-		'SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts, blob1 AS ev, blob2 AS path, ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS ref, blob4 AS country, blob10 AS region, blob11 AS city, blob5 AS device',
+		'SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts, blob1 AS ev, blob2 AS path, ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS ref, blob4 AS country, blob10 AS region, blob11 AS city, blob5 AS device, double2 AS dwell',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
 		// The human class carries the over-cap list once.
-		"WHERE timestamp >= now() - INTERVAL '{$look}' MINUTE AND blob1 IN ('pv','sc','tm') AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(),
+		"WHERE timestamp >= now() - INTERVAL '{$look}' MINUTE AND blob1 IN ('pv','sc','tm','ce','cp') AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(),
 		'LIMIT ' . SN_ANALYTICS_LIVE_READERS_ROW_CAP,
 	) );
 }
@@ -62,7 +62,8 @@ function sn_analytics_live_readers_from_rows( array $rows, $now, callable $resol
 	$out   = array();
 	foreach ( sn_sessionize( $rows, $gap ) as $visit ) {
 		$last = end( $visit );
-		if ( (int) $last['ts'] < $since ) {
+		// 2026-11-14: a reader, not an arrival: the visit sent an engagement signal in the window (inc/analytics-live-engaged.php).
+		if ( (int) $last['ts'] < $since || ( function_exists( 'sn_analytics_live_visit_engaged' ) && ! sn_analytics_live_visit_engaged( $visit, $since ) ) ) {
 			continue;
 		}
 		$views  = array_values( array_filter( $visit, static fn( $e ) => 'pv' === ( $e['ev'] ?? '' ) ) );

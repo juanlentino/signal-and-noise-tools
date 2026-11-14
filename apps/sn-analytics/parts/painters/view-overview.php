@@ -24,7 +24,7 @@ function paint_view_overview( array $ctx ) {
 	$from  = (string) $ctx['from'];
 	$to    = (string) $ctx['to'];
 	$class = (string) $ctx['class'];
-	$now   = function_exists( 'sn_analytics_realtime' ) ? sn_analytics_realtime( $class ) : null;
+	$now   = function_exists( 'sn_analytics_realtime_readers' ) ? sn_analytics_realtime_readers( $class ) : null;
 	$today = function_exists( 'sn_analytics_views_today' ) ? sn_analytics_views_today() : null;
 	$out   = stats(
 		array(

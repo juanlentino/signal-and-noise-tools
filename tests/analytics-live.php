@@ -76,7 +76,12 @@ $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array( 'human' =
 $p = sn_analytics_live_payload( false );
 ok( 3 === $p['now'] && 41 === $p['today'] && ! array_key_exists( 'classes', $p ), 'the public payload is human only and carries no class breakdown' );
 $a = sn_analytics_live_payload( true );
-ok( array( 'human' => 3, 'suspect' => 2, 'bot' => 9 ) === $a['classes'], 'the admin payload carries every class' );
+ok( array( 'human' => null, 'suspect' => null, 'bot' => null ) === $a['classes'] && null === $a['now'] && null === $a['arrived'], 'a cache from before the reader split: the admin answer says not read, never the arrivals\' total as readers' );
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ]['engaged'] = array( 'human' => 1, 'bot' => 0, 'suspect' => 2 );
+$a = sn_analytics_live_payload( true );
+ok( array( 'human' => 1, 'suspect' => 2, 'bot' => 0 ) === $a['classes'] && 1 === $a['now'], 'the admin payload carries every class, readers only (2026-11-14)' );
+ok( 2 === $a['arrived'] && array( 'human' => 2, 'suspect' => 0, 'bot' => 9 ) === $a['arrived_classes'], 'arrivals are counted apart: active in the window, no engagement signal yet' );
+ok( 3 === sn_analytics_live_payload( false )['now'], 'the public /stats count is unchanged' );
 
 echo "\nGroup: a stale cache schedules one refresh, with no capability needed\n";
 reset_all();

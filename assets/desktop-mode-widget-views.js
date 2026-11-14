@@ -502,11 +502,20 @@
 			var todayLabel = true === payload.today_estimate ? 'Today so far (estimate)' : 'Today so far';
 			var nowRows = typeof payload.today === 'number' ? [ { label: todayLabel, value: payload.today } ] : [];
 			nowRows.push( { label: 'Reading now', value: 'not read' } );
+			// 2026-11-14: readers apart from arrivals. "Reading now" counts visitors
+			// with visible time, a scroll or a click in the last 5 minutes; a page
+			// view with nothing else yet is "Just arrived", the smaller line under it.
+			nowRows.push( { label: 'Just arrived', value: 'not read', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 			var nowList = list( nowRows );
-			var nowVal  = lastCell( nowList.lastChild );
+			var nowVal  = lastCell( nowList.children[ nowList.children.length - 2 ] );
 			if ( nowVal ) {
 				nowVal.setAttribute( 'data-sn-live', 'now' );
 				nowVal.setAttribute( 'data-sn-live-class', 'human' );
+			}
+			var arrVal = lastCell( nowList.lastChild );
+			if ( arrVal ) {
+				arrVal.setAttribute( 'data-sn-live', 'arrived' );
+				arrVal.setAttribute( 'data-sn-live-class', 'human' );
 			}
 			body.appendChild( nowList );
 			// The last hour as small bars and the page most read right now. Both

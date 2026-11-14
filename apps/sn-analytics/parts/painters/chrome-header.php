@@ -25,7 +25,7 @@ function paint_chrome_header( array $ctx ) {
 	$class       = (string) ( $ctx['class'] ?? 'human' );
 	$granularity = (string) ( $ctx['granularity'] ?? 'day' );
 	$totals      = function_exists( 'sn_analytics_range_totals' ) ? (array) sn_analytics_range_totals( $from, $to, $class ) : array();
-	$now         = function_exists( 'sn_analytics_realtime' ) ? sn_analytics_realtime( $class ) : null;
+	$now         = function_exists( 'sn_analytics_realtime_readers' ) ? sn_analytics_realtime_readers( $class ) : null;
 	$series      = function_exists( 'sn_analytics_daily_series' ) ? (array) sn_analytics_daily_series( $from, $to, $class, $granularity ) : array();
 	$known       = static function ( $key ) use ( $totals ) {
 		return array_key_exists( $key, $totals ) && null !== $totals[ $key ];

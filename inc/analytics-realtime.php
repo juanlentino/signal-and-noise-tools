@@ -32,6 +32,7 @@ require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses
 
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
 require_once __DIR__ . '/analytics-today-estimate.php'; // whether today's figure is a sampled estimate (reads this file's cache).
+require_once __DIR__ . '/analytics-live-engaged.php'; // 2026-11-14: readers apart from arrivals.
 
 const SN_ANALYTICS_REALTIME_KEY        = 'sn_analytics_realtime';
 const SN_ANALYTICS_REALTIME_TTL        = 30;                     // age (seconds) past which a refresh is queued, not delivered freshness
@@ -57,13 +58,15 @@ const SN_ANALYTICS_VIEWS_TODAY_LASTGOOD = 'sn_analytics_views_today_lastgood';
  *
  * @return string AE SQL.
  */
-function sn_analytics_realtime_sql() {
+function sn_analytics_realtime_sql( $engaged = false ) {
 	$mins = max( 1, (int) SN_ANALYTICS_REALTIME_WINDOW_MIN );
+	// 2026-11-14: with $engaged, only the visitors that sent an engagement signal in the window (inc/analytics-live-engaged.php).
+	$only = $engaged && defined( 'SN_ANALYTICS_LIVE_ENGAGED_SQL' ) ? ' AND ' . SN_ANALYTICS_LIVE_ENGAGED_SQL : '';
 
 	return implode( ' ', array(
 		'SELECT ' . sn_analytics_class_select() . ' AS class, count(DISTINCT index1) AS visitors',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
-		"WHERE timestamp >= now() - INTERVAL '{$mins}' MINUTE" . sn_analytics_overcap_where(),
+		"WHERE timestamp >= now() - INTERVAL '{$mins}' MINUTE" . $only . sn_analytics_overcap_where(),
 		'GROUP BY class',
 	) );
 }
@@ -156,6 +159,20 @@ function sn_analytics_realtime( $class = 'human' ) {
 	}
 	// Warmed, but this class had no hits in the window → a real 0.
 	return 0;
+}
+
+/**
+ * The owner's "now": visitors with an engagement signal in the window, not
+ * every arrival (inc/analytics-live-engaged.php). Null when the cache is cold
+ * or predates the split: not read, never the arrivals' total. No network call.
+ *
+ * @param string $class Traffic class.
+ * @return int|null
+ */
+function sn_analytics_realtime_readers( $class = 'human' ) {
+	$cached = get_transient( SN_ANALYTICS_REALTIME_KEY );
+	$split  = sn_analytics_live_split( is_array( $cached ) ? ( $cached['counts'] ?? null ) : null, is_array( $cached ) ? ( $cached['engaged'] ?? null ) : null );
+	return null === $split['readers'] ? null : ( $split['readers'][ $class ] ?? 0 );
 }
 
 /**
@@ -271,13 +288,29 @@ function sn_analytics_realtime_refresh() {
 		), false );
 	}
 
+	// 2026-11-14: the same count over engagement rows only, the owner's readers
+	// (inc/analytics-live-engaged.php). Null on failure: not read, never the total.
+	$engaged = null;
+	$erows   = function_exists( 'sn_analytics_live_split' ) ? sn_analytics_query( sn_analytics_realtime_sql( true ) ) : null;
+	if ( is_array( $erows ) ) {
+		$engaged = array();
+		foreach ( $erows as $er ) {
+			if ( is_array( $er ) && isset( $er['class'], $er['visitors'] ) ) {
+				$engaged[ (string) $er['class'] ] = max( 0, (int) $er['visitors'] );
+			}
+		}
+	}
+	// The owner's Top now: pages with a reader on them, not an arrival (admin only, with its scroll).
+	$links_engaged = null;
+	$pages_engaged = function_exists( 'sn_analytics_live_pages_read' ) && null !== $engaged ? sn_analytics_live_pages_read( $links_engaged, true ) : null;
+
 	// Third read: the pages behind the live count (inc/analytics-live-pages.php).
 	// Null on failure, so the list is absent rather than falsely empty.
 	$links = null; // Admin only: the coded résumé links read now (inc/link-codes.php), from the same query.
 	$pages = function_exists( 'sn_analytics_live_pages_read' ) ? sn_analytics_live_pages_read( $links ) : null;
 	// How far each listed page's readers have scrolled, admin only (inc/analytics-live-scroll.php). One more query.
 	if ( function_exists( 'sn_analytics_live_scroll_read' ) ) {
-		$pages = sn_analytics_live_scroll_read( $pages );
+		$pages_engaged = sn_analytics_live_scroll_read( $pages_engaged ); // scroll is admin only, and the admin list is the readers'.
 	}
 	// Fourth: readers per 5-minute slot over the last hour (inc/analytics-live-hour.php).
 	$hour = function_exists( 'sn_analytics_live_hour_read' ) ? sn_analytics_live_hour_read() : null;
@@ -298,6 +331,9 @@ function sn_analytics_realtime_refresh() {
 		'views_today_stored' => $stored,
 		'pages'              => $pages,
 		'links'              => $links,
+		'engaged'            => $engaged,
+		'pages_engaged'      => $pages_engaged,
+		'links_engaged'      => $links_engaged,
 		'hour'               => $hour,
 		'sources'            => $sources,
 		'readers'            => $readers,

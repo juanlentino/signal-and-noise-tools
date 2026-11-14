@@ -39,7 +39,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 function snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity, $compare = 'off', $controls = true, $annotations_after = false ) {
 	$totals       = sn_analytics_range_totals( $from, $to, $class );
 	$class_totals = sn_analytics_class_totals( $from, $to );
-	$now          = sn_analytics_realtime( $class );
+	$now          = function_exists( 'sn_analytics_realtime_readers' ) ? sn_analytics_realtime_readers( $class ) : null; // 2026-11-14: readers, not arrivals.
 	$series       = sn_analytics_daily_series( $from, $to, $class, $granularity );
 	// v9.34.0 (maturity I5): first-class comparison — display-only; the predictive
 	// baseline is $to-anchored and never reads this window.
