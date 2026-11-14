@@ -1,6 +1,6 @@
 {
-    "contract_version": "32",
-    "shape_hash": "61dca1b1156d4a2e6acfa5aa9e0c040f8a40a6a1d5e9e90be20306898e33e4bd",
+    "contract_version": "33",
+    "shape_hash": "0c8483bd47ffa59b2ae7b37f40eb5107d5d942f5aedbc3c79b24a09d1fdad418",
     "tools": {
         "signal-noise/remote-analytics-fields": {
             "wrap": false,
@@ -297,6 +297,9 @@
                                                     "integer",
                                                     "null"
                                                 ]
+                                            },
+                                            "read": {
+                                                "type": "boolean"
                                             }
                                         }
                                     }
@@ -332,6 +335,26 @@
                                     "type": "array",
                                     "items": {
                                         "type": "string"
+                                    }
+                                },
+                                "share": {
+                                    "type": [
+                                        "object",
+                                        "null"
+                                    ],
+                                    "properties": {
+                                        "app": {
+                                            "type": "string"
+                                        },
+                                        "family": {
+                                            "type": "string"
+                                        },
+                                        "gap_s": {
+                                            "type": "integer"
+                                        },
+                                        "read": {
+                                            "type": "boolean"
+                                        }
                                     }
                                 }
                             }

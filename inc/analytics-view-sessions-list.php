@@ -41,6 +41,7 @@ function snt_analytics_session_list_rows( array $sessions ) {
 			$s['engaged'] ? __( 'yes', 'signal-and-noise-tools' ) : '',
 			implode( ', ', $s['goals'] ),
 			$s['link_code'],
+			function_exists( 'sn_share_echo_text' ) ? sn_share_echo_text( $s['share'] ?? null ) : '',
 		);
 	}
 	return $rows;
@@ -89,6 +90,7 @@ function snt_analytics_render_session_list( $from, $to, $class ) {
 			array( 'label' => __( 'Engaged', 'signal-and-noise-tools' ) ),
 			array( 'label' => __( 'Goals', 'signal-and-noise-tools' ) ),
 			array( 'label' => __( 'Link', 'signal-and-noise-tools' ) ),
+			array( 'label' => __( 'After a share', 'signal-and-noise-tools' ) ),
 		),
 		array( 'header_meta' => esc_html( $meta ), 'data_colname' => true, 'clamp' => 10, 'empty' => __( 'No sessions in this window.', 'signal-and-noise-tools' ) )
 	);

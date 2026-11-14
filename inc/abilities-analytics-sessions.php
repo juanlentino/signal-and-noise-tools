@@ -93,7 +93,10 @@ function snt_ability_analytics_sessions( $input = null ) {
 	}
 	$total = count( $read['rows'] );
 	return array(
-		'sessions' => array_slice( $read['rows'], ( $page - 1 ) * $per, $per ),
+		// 2026-11-14: each human session says which share it followed, if any (inc/share-echoes.php).
+		'sessions' => function_exists( 'sn_share_echoes_on_sessions' )
+			? sn_share_echoes_on_sessions( array_slice( $read['rows'], ( $page - 1 ) * $per, $per ), $class )
+			: array_map( static fn( $r ) => $r + array( 'share' => null ), array_slice( $read['rows'], ( $page - 1 ) * $per, $per ) ),
 		'total'    => $total,
 		'page'     => $page,
 		'per_page' => $per,
@@ -112,8 +115,9 @@ function snt_analytics_sessions_output_schema() {
 	$i    = array( 'type' => 'integer' );
 	$ni   = array( 'type' => array( 'integer', 'null' ) );
 	$b    = array( 'type' => 'boolean' );
-	$page = array( 'type' => 'object', 'properties' => array( 'path' => $s, 'time_ms' => $ni, 'scroll_pct' => $ni ) );
-	$row  = array( 'start' => $s, 'end' => $s, 'duration_s' => $i, 'pageviews' => $i, 'entry' => $s, 'exit' => $s, 'pages' => array( 'type' => 'array', 'items' => $page ), 'source' => $s, 'country' => $s, 'region' => $s, 'city' => $s, 'device' => $s, 'class' => $s, 'returning' => $b, 'link_code' => $s, 'engaged' => $b, 'goals' => array( 'type' => 'array', 'items' => $s ) );
+	$page = array( 'type' => 'object', 'properties' => array( 'path' => $s, 'time_ms' => $ni, 'scroll_pct' => $ni, 'read' => $b ) );
+	$share = array( 'type' => array( 'object', 'null' ), 'properties' => array( 'app' => $s, 'family' => $s, 'gap_s' => $i, 'read' => $b ) );
+	$row  = array( 'start' => $s, 'end' => $s, 'duration_s' => $i, 'pageviews' => $i, 'entry' => $s, 'exit' => $s, 'pages' => array( 'type' => 'array', 'items' => $page ), 'source' => $s, 'country' => $s, 'region' => $s, 'city' => $s, 'device' => $s, 'class' => $s, 'returning' => $b, 'link_code' => $s, 'engaged' => $b, 'goals' => array( 'type' => 'array', 'items' => $s ), 'share' => $share );
 	return array(
 		'type'       => 'object',
 		'properties' => array( 'sessions' => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'properties' => $row ) ), 'total' => $i, 'page' => $i, 'per_page' => $i, 'pages' => $i, 'from' => $s, 'to' => $s, 'hours' => $ni, 'class' => $s, 'capped' => $b ),
@@ -130,6 +134,7 @@ function snt_analytics_sessions_description() {
 	return 'Sessions one by one, the unit of the S&N Analytics Sessions tab: a visit within one visitor-day (a day in America/New_York, where the visitor code rotates), split at the idle gap, with at least one page view. The sessions that START in the window, newest first, paged; each is read whole, so one still going at the window\'s end is complete, and one that began before it is not listed. '
 		. 'Each: start and end (ISO 8601, site time), duration_s, pageviews, entry and exit, pages in order with time_ms and scroll_pct on each (null when not measured), source (the dashboard\'s source label of the first page view\'s referrer), country, region, city, device, class, returning (a second or later session of the same visitor-day, counting sessions before the window too; no visitor is recognized on another day), link_code (a coded résumé link, or ""), engaged and goals (custom event names; anything that is not an identifier-shaped name, letters, digits and _ . : -, reads (invalid)); the source is (direct), (internal), a known source label or a clean hostname, else (invalid). Place and device read (unknown) when not sent, as in the rows read. '
 		. 'Arguments: from and to (YYYY-MM-DD, site time; default today) or hours (1 to ' . SN_ANALYTICS_SESSIONS_MAX_HOURS . ', the last N hours), class human|suspect|bot (default human), page (default 1), per_page (1 to ' . SN_ANALYTICS_SESSIONS_MAX_PAGE . ', default ' . SN_ANALYTICS_SESSIONS_PER_PAGE . '). Read from Analytics Engine: the last 90 days. capped: true means the raw read hit its cap, so the list is a floor. Rows are counted as read, not sample-corrected: on a heavily sampled visitor-day, pageviews and pages are floors. '
+		. 'Each page view carries read (' . ( defined( 'SN_ANALYTICS_READS_DEFINITION' ) ? SN_ANALYTICS_READS_DEFINITION : 'proven reading' ) . '). Each human session carries share: the most recent link-preview fetch of its entry page (for /r/CODE, the same code) in the 72 hours before it, joined by page and time only, never by a visitor identifier: app (the preview service: Meta, WhatsApp, LinkedIn, Slack, Discord, Telegram, X, Apple Messages or another app), family, gap_s (seconds from the share to the visit) and read (whether the entry view was a read); null when no share preceded it, for other classes, or when the share read failed. A preview fires when anyone shares the link, so this is after a share, never whose share, and it names no person. '
 		. 'Paths are the site\'s own content or (unmatched). No visitor code, IP address or user agent is returned. Read-only.';
 }
 

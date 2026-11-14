@@ -1,0 +1,184 @@
+<?php
+/**
+ * Share echoes (owner decision 2026-11-14). When a link to the site is pasted
+ * into WhatsApp, Messenger, LinkedIn, Slack, Discord or similar, that app
+ * fetches the page within seconds to build a preview. The rights-signals
+ * worker (1.39.0) records each such fetch: time, path and the app's preview
+ * family, nothing else. Here each human visit is joined to the most recent
+ * echo on the same page (for /r/CODE, the same code) in the 72 hours before
+ * it, by page and time only, never by any visitor identifier.
+ *
+ * An echo fires when ANYONE shares the link, and a public post draws echoes
+ * from many people, so the copy says "after a share", never "from your
+ * share", and names the app, never a person.
+ *
+ * @package SignalNoiseTools
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+require_once __DIR__ . '/share-echoes-store.php';
+
+/** Preview family => the app's name. The worker's fixed list (src/share-echoes.mjs). */
+const SN_SHARE_ECHO_FAMILIES = array(
+	'meta'           => 'Meta',
+	'whatsapp'       => 'WhatsApp',
+	'linkedin'       => 'LinkedIn',
+	'slack'          => 'Slack',
+	'discord'        => 'Discord',
+	'telegram'       => 'Telegram',
+	'x'              => 'X',
+	'apple-messages' => 'Apple Messages',
+	'other-preview'  => 'another app',
+);
+
+/** How far back a visit looks for the share before it, seconds. */
+const SN_SHARE_ECHO_WINDOW = 259200; // 72 hours
+
+/** Fetches of one page by one app this close together are one share (preview services fetch two or three times). */
+const SN_SHARE_ECHO_COLLAPSE = 60;
+
+/**
+ * The join key of a page: 'r:CODE' for a coded link (/r/x and /r/x/ alike),
+ * else the path with its trailing slash. PURE.
+ *
+ * @param string $path A path, or a session's cleaned entry path.
+ * @return string '' when it is not a page.
+ */
+function sn_share_echo_key( $path ) {
+	$path = (string) $path;
+	if ( '' === $path || '/' !== $path[0] ) {
+		return '';
+	}
+	$code = function_exists( 'sn_link_code_from_path' ) ? sn_link_code_from_path( $path ) : '';
+	if ( '' !== (string) $code ) {
+		return 'r:' . $code;
+	}
+	return '/' === substr( $path, -1 ) || false !== strpos( basename( $path ), '.' ) ? $path : $path . '/';
+}
+
+/**
+ * The worker's rows, validated field by field (untrusted), oldest first, with
+ * repeat fetches collapsed. PURE.
+ *
+ * @param array $raw snt_mr_fetch( $days, 'echoes' )['rows'].
+ * @return array<int,array{ts:int,family:string,path:string,key:string}>
+ */
+function sn_share_echoes_rows( array $raw ) {
+	$rows = array();
+	foreach ( $raw as $r ) {
+		$r      = (array) $r;
+		$family = (string) ( $r['family'] ?? '' );
+		$path   = (string) ( $r['path'] ?? '' );
+		$ts     = is_string( $r['observed_at'] ?? null ) ? strtotime( $r['observed_at'] ) : false;
+		if ( ! isset( SN_SHARE_ECHO_FAMILIES[ $family ] ) || 1 !== preg_match( '#^/[^\s<>"\'\\\\]{0,511}$#', $path ) || false === $ts ) {
+			continue;
+		}
+		$rows[] = array( 'ts' => (int) $ts, 'family' => $family, 'path' => $path, 'key' => sn_share_echo_key( $path ) );
+	}
+	usort( $rows, static fn( $a, $b ) => $a['ts'] <=> $b['ts'] );
+	$out  = array();
+	$last = array();
+	foreach ( $rows as $r ) {
+		$k = $r['key'] . '|' . $r['family'];
+		if ( isset( $last[ $k ] ) && $r['ts'] - $last[ $k ] <= SN_SHARE_ECHO_COLLAPSE ) {
+			$last[ $k ] = $r['ts'];
+			continue;
+		}
+		$last[ $k ] = $r['ts'];
+		$out[]      = $r;
+	}
+	return $out;
+}
+
+/**
+ * The share a visit followed: the latest echo on its page in the 72 hours
+ * before it, or null. PURE.
+ *
+ * @param array  $echoes sn_share_echoes_rows() rows, oldest first.
+ * @param string $key    The visit's page key.
+ * @param int    $start  The visit's start, Unix time.
+ * @return array{family:string,app:string,at:int,gap_s:int}|null
+ */
+function sn_share_echo_for( array $echoes, $key, $start ) {
+	$hit = null;
+	foreach ( $echoes as $e ) {
+		if ( $e['ts'] > $start ) {
+			break;
+		}
+		if ( $e['key'] === $key && '' !== $key && $start - $e['ts'] <= SN_SHARE_ECHO_WINDOW ) {
+			$hit = $e;
+		}
+	}
+	return null === $hit ? null : array( 'family' => $hit['family'], 'app' => SN_SHARE_ECHO_FAMILIES[ $hit['family'] ], 'at' => $hit['ts'], 'gap_s' => $start - $hit['ts'] );
+}
+
+/** A session's page key: its code, else its entry page. PURE. */
+function sn_share_echo_session_key( array $s ) {
+	return '' !== (string) ( $s['link_code'] ?? '' ) ? 'r:' . $s['link_code'] : sn_share_echo_key( (string) ( $s['entry'] ?? '' ) );
+}
+
+/** Whether a session's entry view was a read (inc/analytics-reads.php). PURE. */
+function sn_share_echo_session_read( array $s ) {
+	return ! empty( $s['pages'][0]['read'] );
+}
+
+/**
+ * Each session with `share`: the share it followed (app, gap, whether the
+ * visit was a read), or null. PURE.
+ *
+ * @param array $sessions Session rows (inc/analytics-sessions-list.php).
+ * @param array $echoes   sn_share_echoes_rows() rows.
+ * @return array
+ */
+function sn_share_echo_annotate( array $sessions, array $echoes ) {
+	return array_map( static function ( $s ) use ( $echoes ) {
+		$hit        = sn_share_echo_for( $echoes, sn_share_echo_session_key( $s ), (int) strtotime( (string) ( $s['start'] ?? '' ) ) );
+		$s['share'] = null === $hit ? null : array( 'app' => $hit['app'], 'family' => $hit['family'], 'gap_s' => $hit['gap_s'], 'read' => sn_share_echo_session_read( $s ) );
+		return $s;
+	}, $sessions );
+}
+
+/** "40 min, read": the gap from the share to the visit, and whether it was a read. PURE. */
+function sn_share_echo_follow_text( $gap_s, $read ) {
+	$m   = (int) round( (int) $gap_s / 60 );
+	$gap = $m < 1 ? 'under a minute' : ( $m < 120 ? $m . ' min' : round( $m / 60 ) . ' h' );
+	return $gap . ', ' . ( $read ? 'read' : 'not read' );
+}
+
+/** "after a share via WhatsApp, 40 min, read"; '' for no share. PURE. */
+function sn_share_echo_text( $share ) {
+	return is_array( $share ) ? 'after a share via ' . $share['app'] . ', ' . sn_share_echo_follow_text( $share['gap_s'], ! empty( $share['read'] ) ) : '';
+}
+
+/**
+ * The Shares list: each echo, newest first, with every human visit that
+ * followed it (the visits it is the latest share for). A share no one opened
+ * yet is listed too, with no visits. PURE.
+ *
+ * @param array $echoes   sn_share_echoes_rows() rows.
+ * @param array $sessions Human session rows.
+ * @return array<int,array{at:int,path:string,family:string,app:string,visits:array}>
+ */
+function sn_share_echoes_list( array $echoes, array $sessions ) {
+	$list = array();
+	foreach ( $echoes as $i => $e ) {
+		$list[ $i ] = array( 'at' => $e['ts'], 'path' => $e['path'], 'family' => $e['family'], 'app' => SN_SHARE_ECHO_FAMILIES[ $e['family'] ], 'visits' => array() );
+	}
+	foreach ( $sessions as $s ) {
+		$start = (int) strtotime( (string) ( $s['start'] ?? '' ) );
+		$hit   = sn_share_echo_for( $echoes, sn_share_echo_session_key( $s ), $start );
+		if ( null === $hit ) {
+			continue;
+		}
+		foreach ( $echoes as $i => $e ) {
+			if ( $e['ts'] === $hit['at'] && $e['family'] === $hit['family'] && $e['key'] === sn_share_echo_session_key( $s ) ) {
+				$list[ $i ]['visits'][] = array( 'start' => (string) $s['start'], 'gap_s' => $hit['gap_s'], 'read' => sn_share_echo_session_read( $s ) );
+				break;
+			}
+		}
+	}
+	return array_reverse( array_values( $list ) );
+}

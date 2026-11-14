@@ -161,7 +161,9 @@ function snt_mr_normalize_rows( $data ) {
 // `unknown-network` is the unknown view with `detail=network` (rights-signals
 // 1.30.0): rows split by verified_bot and network, for the crosstab's unnamed
 // fold. The admin review list keeps reading `unknown`, the top-50 default.
-const SNT_MR_VIEWS = array( 'aggregate', 'unknown', 'rights', 'totals', 'unknown-network' );
+// `echoes` (rights-signals 1.39.0): share echoes, one row per link-preview
+// fetch (family, path, observed_at), returned raw and validated by inc/share-echoes.php.
+const SNT_MR_VIEWS = array( 'aggregate', 'unknown', 'rights', 'totals', 'unknown-network', 'echoes' );
 
 /**
  * The display-transient key for one (window, view) pair — the ONE builder,
@@ -368,7 +370,7 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate', array $filter = array() 
 	// The split runs on the RAW rows: the normalizer folds an unknown family
 	// into `other-bot` and an unknown surface into `html`, which would turn a
 	// tool call into a bot read of an HTML page.
-	$split  = 'rights' === $view || 'totals' === $view
+	$split  = 'rights' === $view || 'totals' === $view || 'echoes' === $view
 		? array( 'rows' => $decoded['data'], 'webmcp' => array( 'calls' => 0, 'by_tool' => array(), 'outcomes' => array() ) )
 		: snt_mr_split_webmcp( (array) $decoded['data'] );
 	$result = array(
@@ -377,11 +379,13 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate', array $filter = array() 
 		// timestamp) and needs its own normalizer; the aggregate normalizer
 		// would silently discard exactly the fields that view exists for. The
 		// totals view is {day, hits} only and needs neither.
-		'rows'      => 'rights' === $view
+		'rows'      => 'echoes' === $view
+			? array_values( (array) $decoded['data'] ) // untrusted: sn_share_echoes_rows() validates every field.
+			: ( 'rights' === $view
 			? snt_mr_normalize_rights_rows( $decoded['data'] )
 			: ( 'totals' === $view
 				? snt_mr_normalize_totals_rows( $decoded['data'] )
-				: snt_mr_normalize_rows( $split['rows'] ) ),
+				: snt_mr_normalize_rows( $split['rows'] ) ) ),
 		'webmcp'    => $split['webmcp'],
 		// 2026.10.1: the detail the edge applied ('network' from rights-signals
 		// 1.30.0 on a detail=network read, '' otherwise). The normalizer writes
