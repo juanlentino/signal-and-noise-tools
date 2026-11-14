@@ -224,8 +224,18 @@
 		var partial = !! s && typeof s === 'object' && ( ( s.window && s.window.partial ) || ( s.window_no_engagement && s.window_no_engagement.partial ) );
 		var text = ! s || typeof s !== 'object' ? 'Strictly human: not measured yet'
 			: ( typeof s.views === 'number' ? s.views.toLocaleString() : 'not read' ) + ' strictly human views' + ( partial ? ' (partial)' : '' );
-		var node = el( 'div', { text: text, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;' } );
+		var node = el( 'div', { style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;' } );
+		var line = el( 'span', { text: text } );
+		node.appendChild( line );
+		// The removal counts stay reachable without a pointer: screen readers read
+		// the full sentence; the hover carries it for sighted pointer users.
+		if ( detail ) {
+			var sr = el( 'span', { text: ' ' + detail + '.' } );
+			sr.className = 'screen-reader-text';
+			node.appendChild( sr );
+		}
 		node.title = ( detail ? detail + '. ' : '' ) + ( s && s.reason ? s.reason + ( s.reason_no_engagement ? ' ' + s.reason_no_engagement : '' ) : 'Inferred from the beacon\u2019s bot signals; the presumed-human views above are unchanged.' );
+		line.title = node.title; // the hover sits on the line a pointer lands on.
 		return node;
 	}
 

@@ -152,6 +152,8 @@ if ( '' === $node ) {
 	$rs = $render( array( 'total' => 400, 'strict' => $sp ) );
 	ok( isset( $rs['400'] ) && isset( $rs['383 strictly human views'] ), 'the headline 400 and the strict line under it, one line (2026-11-14 owner)' );
 	ok( 0 === strpos( $GLOBALS['__titles']['383 strictly human views'] ?? '', 'Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded).' ), 'both removal counts ride in its hover text' );
+	$sr = (array) ( $render( array( 'total' => 400, 'strict' => $sp ), true )['srText'] ?? array() );
+	ok( in_array( ' Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded).', $sr, true ), 'and in screen-reader text, so they never depend on a pointer' );
 	$rs = $render( array( 'total' => 400, 'strict' => array( 'window' => array( 'partial' => true, 'from' => '2026-09-20', 'through' => '2026-09-27' ) ) + $sp ) );
 	ok( isset( $rs['383 strictly human views (partial)'] ) && false !== strpos( $GLOBALS['__titles']['383 strictly human views (partial)'] ?? '', ', UTC days 2026-09-20 to 2026-09-27 only' ), 'a partial window says partial, and its hover names the UTC days the removals cover' );
 	$rs = $render( array( 'total' => 400, 'strict' => array( 'window_no_engagement' => array( 'partial' => true, 'from' => '2026-09-25', 'through' => '2026-09-27' ) ) + $sp ) );

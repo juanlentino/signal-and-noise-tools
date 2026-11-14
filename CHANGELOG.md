@@ -14,7 +14,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Changed
-- **SN Traffic's strictly-human line is one line (owner 2026-11-14).** Under the reads headline the card's strict line spelled out both removal reasons and wrapped to three lines, so the Traffic card grew while the others stayed the same. It now reads "66 strictly human views", with "(partial)" when a removal window is partial. The two removal counts, any partial UTC window and the rule's reasons ride word for word in its hover text. The figure and its sources are unchanged. Test: `tests/desktop-mode-widget-views-delta.php` (the render harness now reports each row's hover text).
+- **SN Traffic's strictly-human line is one line (owner 2026-11-14).** Under the reads headline the card's strict line spelled out both removal reasons and wrapped to three lines, so the Traffic card grew while the others stayed the same. It now reads "66 strictly human views", with "(partial)" when a removal window is partial. The two removal counts, any partial UTC window and the rule's reasons ride word for word in its hover text and, so they never depend on a pointer, in screen-reader text. The figure and its sources are unchanged. Test: `tests/desktop-mode-widget-views-delta.php` (the render harness now reports each row's hover text).
 
 ## [2026.11.39] - 2026-11-14 — Reading now counts readers; a read needs a page view; time bucketed per view
 
