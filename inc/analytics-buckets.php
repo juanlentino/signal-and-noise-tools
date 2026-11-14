@@ -39,6 +39,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
 
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
+require_once __DIR__ . '/analytics-buckets-time.php'; // time bucketed per view
 
 const SN_ANALYTICS_BUCKETS_TABLE          = 'sn_analytics_buckets';
 const SN_ANALYTICS_BUCKETS_DB_VERSION     = '1';
@@ -362,6 +363,15 @@ function sn_analytics_buckets_run_rollup() {
 
 	// 2. Distributions — melt each wide (day,class,b0..bN) row into per-band rows.
 	foreach ( sn_analytics_buckets_metrics() as $metric => $m ) {
+		// Time is bucketed per view, not per `tm` delta (inc/analytics-buckets-time.php).
+		if ( 'time' === $metric && function_exists( 'sn_analytics_buckets_time_view_sql' ) ) {
+			$views = sn_analytics_query( sn_analytics_buckets_time_view_sql( sn_analytics_rollup_window()['days'] ) );
+			if ( is_array( $views ) && count( $views ) < SN_ANALYTICS_BUCKETS_TIME_LIMIT && ( ! function_exists( 'sn_analytics_last_result_truncated' ) || ! sn_analytics_last_result_truncated() ) ) {
+				$done['time'] = ! empty( $views );
+				$rows         = array_merge( $rows, sn_analytics_buckets_time_melt( $views, $m['buckets'] ) );
+			}
+			continue;
+		}
 		$wide = sn_analytics_query( sn_analytics_buckets_dist_sql( $m['event'], $m['col'], $m['buckets'], sn_analytics_rollup_window()['days'] ) );
 		if ( ! is_array( $wide ) ) {
 			continue;
