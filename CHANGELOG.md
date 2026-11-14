@@ -13,6 +13,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A read needs a page view.** The first live run of the reads store (2026-11-14) counted 23 reads for 11-08 to 11-14, where the Sessions read gives 15. The read grouped time, scroll and custom-event beacons without asking for a page view, and a beacon-only visitor-day (about 30 of 100 in that fortnight) sends those with none. The read now also reads page views, and only a visitor-day, page and site day with at least one counts. Bot-class rows are left out of this read to keep it under its row cap. The backfill walks again under a new cursor (`sn_analytics_reads_backfill_v2`), so every stored day is measured again: the trailing week on the next run, then one older week a night. Test: `tests/analytics-reads.php` (a beacon-only row is not a read; it is red without the check).
+
 ## [2026.11.38] - 2026-11-14 — Reads lead the owner's numbers; share echoes show which shares turned into visits
 
 ### Added

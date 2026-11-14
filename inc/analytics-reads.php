@@ -50,8 +50,8 @@ function sn_analytics_is_read( $time_ms, $scroll_pct, $custom ) {
 }
 
 /**
- * One row per site day, visitor-day, page and class that sent an engagement
- * beacon. Only the shapes already live on Analytics Engine: sumIf over a
+ * One row per site day, visitor-day, page and class that sent a page view or
+ * an engagement beacon. Only the shapes already live on Analytics Engine: sumIf over a
  * Double, max(if(cond, 1, 0)) with integer branches, a zoned formatDateTime,
  * toDateTime bounds, GROUP BY aliases. PURE.
  *
@@ -75,10 +75,14 @@ function sn_analytics_reads_sql( $source, $range, $lo, $hi, $tz, $class ) {
 		"SELECT {$day} AS day, index1 AS vid, blob2 AS path, {$class} AS class,",
 		"sumIf(double2, blob1 = 'tm') AS time_ms,",
 		"max(if(blob1 = 'sc' AND double1 >= " . SN_ANALYTICS_READ_SCROLL_PCT . ', 1, 0)) AS scrolled,',
-		"max(if(blob1 = 'ce', 1, 0)) AS custom",
+		"max(if(blob1 = 'ce', 1, 0)) AS custom,",
+		"sumIf(_sample_interval, blob1 = 'pv') AS views",
 		'FROM ' . (string) $source,
 		"WHERE timestamp >= toDateTime('{$lo}') AND timestamp < toDateTime('{$hi}'){$range}",
-		"AND blob1 IN ('sc','tm','ce')",
+		// The page views too: a read is a page VIEW, and a beacon-only visitor-day
+		// (about 30 of 100 in the fortnight to 2026-11-14) sends time and scroll
+		// with none. Bot rows are left out to keep the read under its cap.
+		"AND blob1 IN ('pv','sc','tm','ce') AND blob7 != 'bot'",
 		'GROUP BY day, vid, path, class',
 		'LIMIT ' . SN_ANALYTICS_READS_LIMIT,
 	) );
@@ -97,7 +101,7 @@ function sn_analytics_reads_fold( array $rows, array $days ) {
 	foreach ( $rows as $r ) {
 		$r   = (array) $r;
 		$day = (string) ( $r['day'] ?? '' );
-		if ( ! array_key_exists( $day, $out ) || ! sn_analytics_is_read( $r['time_ms'] ?? 0, ! empty( $r['scrolled'] ) ? SN_ANALYTICS_READ_SCROLL_PCT : 0, ! empty( $r['custom'] ) ) ) {
+		if ( ! array_key_exists( $day, $out ) || (int) ( $r['views'] ?? 0 ) < 1 || ! sn_analytics_is_read( $r['time_ms'] ?? 0, ! empty( $r['scrolled'] ) ? SN_ANALYTICS_READ_SCROLL_PCT : 0, ! empty( $r['custom'] ) ) ) {
 			continue;
 		}
 		$path  = (string) ( $r['path'] ?? '' );
