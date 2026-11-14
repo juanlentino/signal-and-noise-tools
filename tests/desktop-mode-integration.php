@@ -2067,12 +2067,7 @@ echo "\n── Site Views tile: one forecast line, Top pages list of 3 ──\n"
 $views_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
 ok( false === strpos( $views_js, 'function forecastBlock' ), 'forecastBlock stays gone (its interval cried wolf on this site\'s volumes); one line replaces it' );
 ok( false !== strpos( $views_js, 'forecastLine( payload.forecast )' ) && false !== strpos( $views_js, "' a day (estimate'" ) && false !== strpos( $views_js, "f.confidence === 'high'" ), '2026-10-10: one forecast line, said as an estimate, its spread only at measured high confidence (render pins: tests/desktop-mode-widget-views-delta.php)' );
-ok( false !== strpos( $views_js, "'Top pages'" ), 'tile renders a Top pages list' );
-ok( false !== strpos( $views_js, 'payload.top_paths' ), 'tile reads the additive top_paths array' );
-ok(
-	1 === preg_match( '/\(\s*payload\.top_paths\s*\|\|\s*\[\s*\]\s*\)\.filter\(/', $views_js ),
-	'top_paths render is guarded: an older cached payload without the array paints no Top pages'
-);
+ok( false === strpos( $views_js, "'Top pages'" ) && false === strpos( $views_js, 'payload.top_paths' ), '2026-11-14 (owner): Top pages moved to SN Reading; the tile no longer paints it' );
 ok( false === strpos( $views_js, 'forecastBlock( payload.forecast )' ),
 	'the widget no longer calls forecastBlock on payload.forecast' );
 
@@ -2082,7 +2077,7 @@ ok( false !== strpos( $views_js, 'payload.today' ), 'tile reads the additive tod
 ok( 1 === preg_match( '/typeof payload\.today === \'number\'/', $views_js ),
 	'today render is guarded on a number — an older cached payload without the key paints nothing' );
 ok( false === strpos( $views_js, "'Engaged'" ) && false === strpos( $views_js, "'Visits'" ) && false === strpos( $views_js, "'Top sources'" ), '21.2.1: Engaged and Visits moved to SN Reading and Top sources to SN Audience; the tile paints none of them (the payload keeps the keys)' );
-ok( false === strpos( $views_js, 'payload.top_mover' ) && false === strpos( $views_js, 'payload.bot_pct' ) && false !== strpos( $views_js, "weekRows( payload.north_star )" ) && false === strpos( $views_js, 'ns.deep' ) && false === strpos( $views_js, 'ns.actions' ), 'SN Traffic paints three north star rows (engaged visitor-days, DOI downloads, inquiries) and no top mover, bot share, read 2+ pages or downloads outbound (the owner\'s pick; the payload no longer computes the top mover or bot share)' );
+ok( false === strpos( $views_js, 'payload.top_mover' ) && false === strpos( $views_js, 'payload.bot_pct' ) && false === strpos( $views_js, "weekRows( payload.north_star )" ) && false === strpos( $views_js, 'ns.deep' ) && false === strpos( $views_js, 'ns.actions' ), 'SN Traffic paints no top mover, bot share, read 2+ pages or downloads outbound, and since 2026-11-14 its three north star rows (This week) are SN Reading\'s' );
 ok( false === strpos( $views_js, 'innerHTML' ),
 	'views tile never uses innerHTML — glance strings reach the DOM as textContent only' );
 

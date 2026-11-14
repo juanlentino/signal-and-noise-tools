@@ -25,7 +25,7 @@ const out = [];
 ( function walk( n ) {
 	if ( n.tag === 'span' || ( n.tag === 'div' && ! n.children.length ) ) {
 		const m = /(?:^|;)color:([^;]+);/.exec( n.attrs.style || '' );
-		out.push( { text: n.textContent, color: m ? m[ 1 ] : '' } );
+		out.push( { text: n.textContent, color: m ? m[ 1 ] : '', title: n.title || '' } );
 	}
 	n.children.forEach( walk );
 } )( root );

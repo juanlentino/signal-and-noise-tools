@@ -104,7 +104,7 @@ if ( '' === $node ) {
 		$out = json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/site-views-render.js' ) . ' ' . escapeshellarg( json_encode( $p ) ) ), true );
 		if ( $raw ) { return $out; }
 		$rows = array();
-		foreach ( (array) ( $out['rows'] ?? array() ) as $r ) { $rows[ $r['text'] ] = $r['color']; }
+		foreach ( (array) ( $out['rows'] ?? array() ) as $r ) { $rows[ $r['text'] ] = $r['color']; $GLOBALS['__titles'][ $r['text'] ] = $r['title'] ?? ''; }
 		return $rows;
 	};
 	// 2026-10-12 audit: the down text is the cards' text red (4.0:1 was #c9503f).
@@ -150,19 +150,22 @@ if ( '' === $node ) {
 	// 2026-11-11: the strict line under the headline, both numbers shown.
 	$sp = array( 'visitor_days' => 96, 'views' => 383, 'removed' => array( 'visitor_days' => 4, 'views' => 17 ), 'removed_no_engagement' => array( 'visitor_days' => 2, 'views' => 2 ), 'window' => array( 'from' => '2026-09-14', 'through' => '2026-09-27', 'partial' => false ) );
 	$rs = $render( array( 'total' => 400, 'strict' => $sp ) );
-	ok( isset( $rs['400'] ) && isset( $rs['Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded)'] ), 'the headline 400 and the strict line under it: both numbers' );
+	ok( isset( $rs['400'] ) && isset( $rs['383 strictly human views'] ), 'the headline 400 and the strict line under it, one line (2026-11-14 owner)' );
+	ok( 0 === strpos( $GLOBALS['__titles']['383 strictly human views'] ?? '', 'Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded).' ), 'both removal counts ride in its hover text' );
+	$sr = (array) ( $render( array( 'total' => 400, 'strict' => $sp ), true )['srText'] ?? array() );
+	ok( in_array( ' Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded).', $sr, true ), 'and in screen-reader text, so they never depend on a pointer' );
 	$rs = $render( array( 'total' => 400, 'strict' => array( 'window' => array( 'partial' => true, 'from' => '2026-09-20', 'through' => '2026-09-27' ) ) + $sp ) );
-	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded), UTC days 2026-09-20 to 2026-09-27 only'] ), 'a partial window names the UTC days the removals cover' );
+	ok( isset( $rs['383 strictly human views (partial)'] ) && false !== strpos( $GLOBALS['__titles']['383 strictly human views (partial)'] ?? '', ', UTC days 2026-09-20 to 2026-09-27 only' ), 'a partial window says partial, and its hover names the UTC days the removals cover' );
 	$rs = $render( array( 'total' => 400, 'strict' => array( 'window_no_engagement' => array( 'partial' => true, 'from' => '2026-09-25', 'through' => '2026-09-27' ) ) + $sp ) );
-	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded); no-engagement removals over UTC days 2026-09-25 to 2026-09-27 only'] ), 'a partial no-engagement window names its own UTC days' );
+	ok( isset( $rs['383 strictly human views (partial)'] ) && false !== strpos( $GLOBALS['__titles']['383 strictly human views (partial)'] ?? '', '; no-engagement removals over UTC days 2026-09-25 to 2026-09-27 only' ), 'a partial no-engagement window names its own UTC days in the hover' );
 	// 2026-11-13: a payload whose days predate the no-engagement reading says so, never 0.
 	$sn = $sp; unset( $sn['removed_no_engagement'] );
 	$rs = $render( array( 'total' => 400, 'strict' => $sn ) );
-	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals; no engagement recorded: not measured)'] ), 'no-engagement unmeasured: named as not measured, never 0' );
+	ok( isset( $rs['383 strictly human views'] ) && false !== strpos( $GLOBALS['__titles']['383 strictly human views'] ?? '', 'no engagement recorded: not measured' ), 'no-engagement unmeasured: named as not measured in the hover, never 0' );
 	$rs = $render( array( 'total' => 400, 'strict' => null ) );
 	ok( isset( $rs['Strictly human: not measured yet'] ), 'a null strict figure says not measured, never 0' );
 	$rs = $render( array( 'total' => 400 ) );
-	ok( array() === array_filter( array_keys( $rs ), static fn( $k ) => 0 === strpos( (string) $k, 'Strictly human' ) ), 'an older cached payload without the key paints no strict line' );
+	ok( array() === array_filter( array_keys( $rs ), static fn( $k ) => false !== stripos( (string) $k, 'strictly human' ) ), 'an older cached payload without the key paints no strict line' );
 
 	// SN Traffic: This week, the folded groups and the top pages paint.
 	$full = array(
@@ -175,21 +178,15 @@ if ( '' === $node ) {
 		),
 	);
 	$t = $render( $full );
-	foreach ( array( 'Today so far', 'Countries', 'US', '30 · 75%', 'Feed subscribers', 'No feed requests logged yet.', 'Top pages', '/a', '9' ) as $want ) {
+	foreach ( array( 'Today so far', 'Countries', 'US', '30 · 75%', 'Feed subscribers', 'No feed requests logged yet.' ) as $want ) {
 		ok( isset( $t[ $want ] ), "Traffic paints \"$want\"" );
 	}
-	$text = implode( ' | ', array_keys( $t ) );
-	// Owner's pick, 2026-10-04: three north star rows come back as This week,
-	// under the headline; the rest stays in S&N Analytics.
-	foreach ( array( 'This week', 'Engaged visitor-days · 7d', '4 ▲ 3', 'DOI downloads · 28d', 'Inquiries · 7d' ) as $want ) {
-		ok( isset( $t[ $want ] ), "Traffic paints \"$want\" in This week" );
+	// 2026-11-14 (owner): This week and Top pages moved to SN Reading (tests/desktop-mode-reading-moved.php).
+	foreach ( array( 'Top pages', '/a', 'This week', 'Engaged visitor-days · 7d', 'DOI downloads · 28d', 'Inquiries · 7d' ) as $gone ) {
+		ok( ! isset( $t[ $gone ] ), "Traffic no longer paints \"$gone\" (it is SN Reading's)" );
 	}
-	ok( strpos( $text, 'vs. prior 14 days' ) < strpos( $text, 'This week' ) && strpos( $text, 'This week' ) < strpos( $text, 'Countries' ), 'This week sits right under the headline block, before the audience groups' );
-	ok( $muted( $t['4 ▲ 3'] ), '+3 on 1 (abs 3 < 5): muted' );
-	$t2 = $render( array( 'north_star' => array( 'value' => 30, 'previous' => 25 ) ) );
-	ok( '#3fb950' === ( $t2['30 ▲ 5'] ?? '' ), 'at threshold (abs 5, rel 20%): green' );
+	$text = implode( ' | ', array_keys( $t ) );
 	ok( 0 === preg_match( '/Read 2\+ pages|Downloads, outbound|Bot share/', $text ) && ! isset( $t['▼ 16'] ) && false === strpos( $text, '/notes' ), 'not restored: read 2+ pages, downloads outbound, the bot share and the top mover live in S&N Analytics: ' . $text );
-	ok( ! isset( $render( array() )['This week'] ), 'an older payload without the north star paints no This week group (absent is not zero)' );
 
 	// The reach row: distinct countries and sources, each with its change
 	// against the prior 14 days, the arrow hidden and the direction in words.
@@ -263,8 +260,8 @@ if ( '' === $node ) {
 	ok( isset( $fl['▼ 50% vs. prior 14 days'] ) && $down === $fl['▼ 50% vs. prior 14 days'], 'control: an older payload without the base still reads the drop from the headline total' );
 	$out = $render( $full, true );
 	ok( 1 === $out['links'] && 'Open Analytics' === $out['link']['text'] && 'Open Analytics, from the SN Traffic widget' === $out['link']['name'] && true === $out['link']['arrowHidden'], 'exactly one footer link, Open Analytics, its name starting with the visible words and the arrow hidden' );
-	ok( 'status' === $out['bodyRole'] && 4 === count( array_filter( $out['roles'], static fn( $r ) => 'heading' === $r ) ), 'the body is a status region and each group title (This week, two groups, Top pages) is a heading' );
-	ok( count( array_filter( $out['roles'], static fn( $r ) => 'list' === $r ) ) >= 3, 'rows are lists (today, each group with rows, top pages)' );
+	ok( 'status' === $out['bodyRole'] && 2 === count( array_filter( $out['roles'], static fn( $r ) => 'heading' === $r ) ), 'the body is a status region and each group title (the two audience groups) is a heading' );
+	ok( count( array_filter( $out['roles'], static fn( $r ) => 'list' === $r ) ) >= 2, 'rows are lists (today, each group with rows)' );
 
 	// Hunt 2026-10-25: each day sits at its date; a day with no row breaks the line.
 	$win  = array( 'from' => '2026-09-14', 'to' => '2026-09-27' );

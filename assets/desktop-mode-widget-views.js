@@ -214,13 +214,28 @@
 	function strictLine( payload ) {
 		if ( ! ( 'strict' in payload ) ) { return null; }
 		var s = payload.strict;
-		var text = ! s || typeof s !== 'object' ? 'Strictly human: not measured yet'
+		// 2026-11-14 (owner): one line on the card; the two removal counts and
+		// any partial window ride in its hover text, word for word as before.
+		var detail = ! s || typeof s !== 'object' ? ''
 			: 'Strictly human: ' + ( typeof s.views === 'number' ? s.views.toLocaleString() : 'not read' ) + ' views (' + Number( s.removed && s.removed.views ).toLocaleString() + ' removed: automation signals; '
 				+ ( s.removed_no_engagement && typeof s.removed_no_engagement === 'object' ? Number( s.removed_no_engagement.views ).toLocaleString() + ' removed: no engagement recorded' : 'no engagement recorded: not measured' ) + ')'
 				+ ( s.window && s.window.partial ? ', UTC days ' + s.window.from + ' to ' + s.window.through + ' only' : '' )
 				+ ( s.window_no_engagement && s.window_no_engagement.partial ? '; no-engagement removals over UTC days ' + s.window_no_engagement.from + ' to ' + s.window_no_engagement.through + ' only' : '' );
-		var node = el( 'div', { text: text, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;' } );
-		node.title = s && s.reason ? s.reason + ( s.reason_no_engagement ? ' ' + s.reason_no_engagement : '' ) : 'Inferred from the beacon\u2019s bot signals; the presumed-human views above are unchanged.';
+		var partial = !! s && typeof s === 'object' && ( ( s.window && s.window.partial ) || ( s.window_no_engagement && s.window_no_engagement.partial ) );
+		var text = ! s || typeof s !== 'object' ? 'Strictly human: not measured yet'
+			: ( typeof s.views === 'number' ? s.views.toLocaleString() : 'not read' ) + ' strictly human views' + ( partial ? ' (partial)' : '' );
+		var node = el( 'div', { style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;' } );
+		var line = el( 'span', { text: text } );
+		node.appendChild( line );
+		// The removal counts stay reachable without a pointer: screen readers read
+		// the full sentence; the hover carries it for sighted pointer users.
+		if ( detail ) {
+			var sr = el( 'span', { text: ' ' + detail + '.' } );
+			sr.className = 'screen-reader-text';
+			node.appendChild( sr );
+		}
+		node.title = ( detail ? detail + '. ' : '' ) + ( s && s.reason ? s.reason + ( s.reason_no_engagement ? ' ' + s.reason_no_engagement : '' ) : 'Inferred from the beacon\u2019s bot signals; the presumed-human views above are unchanged.' );
+		line.title = node.title; // the hover sits on the line a pointer lands on.
 		return node;
 	}
 
@@ -328,23 +343,6 @@
 	}
 
 	/**
-	 * Engaged visitor-days (the north star) with their change, DOI downloads and
-	 * inquiries, the owner's pick of Site Views' north star rows (2026-10-04). Additive: an
-	 * absent key (analytics unset, an older cached payload) paints no row, and
-	 * a measured 0 is a number and paints.
-	 */
-	function weekRows( ns ) {
-		var rows = [];
-		if ( ! ns || typeof ns.value !== 'number' ) { return rows; }
-		var d = ns.value - ( ns.previous || 0 );
-		// Visitor-days, not views: SN Reading's "of views engaged" is another figure.
-		rows.push( { label: 'Engaged visitor-days · 7d', value: String( ns.value ) + ( d ? ' ' + deltaText( d ) : '' ), style: d ? 'color:' + deltaColor( d, d, relOf( d, ns.previous || 0 ), false ) + ';' : '' } );
-		if ( ns.doi && typeof ns.doi.value === 'number' ) { rows.push( { label: 'DOI downloads · ' + ns.doi.window, value: ns.doi.value } ); }
-		if ( typeof ns.inquiries === 'number' ) { rows.push( { label: 'Inquiries · 7d', value: ns.inquiries } ); }
-		return rows;
-	}
-
-	/**
 	 * A change, said twice: the arrow for the eye (aria-hidden) and the
 	 * direction in words for a screen reader. Null for no change or no prior.
 	 */
@@ -416,11 +414,8 @@
 				headline( payload );
 			}
 
-			// This week: three of the north star's rows, right under the headline.
-			var week = weekRows( payload.north_star );
-			if ( week.length ) {
-				body.appendChild( group( 'This week', week ) );
-			}
+			// This week and Top pages moved to SN Reading (owner 2026-11-14): what
+			// people read is Reading's; this card keeps who came and from where.
 
 			// Reach: distinct countries and named sources with views in the window,
 			// each with its change against the prior 14 days. Absent when it could
@@ -445,12 +440,6 @@
 				}
 			}
 
-			var pageRows = ( payload.top_paths || [] ).filter( function( pg ) { return pg && pg.path; } ).map( function( pg ) {
-				return { label: pg.path, value: String( pg.views ) };
-			} );
-			if ( pageRows.length ) {
-				body.appendChild( group( 'Top pages', pageRows ) );
-			}
 
 			// When these figures were read, as a clock time (SN Reading's foot): a
 			// relative age would go stale on a desktop left open. Kept out of the
