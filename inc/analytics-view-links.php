@@ -17,6 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/analytics-panels.php'; // snt_an_kv_table(), the empty-fold collector.
 require_once __DIR__ . '/analytics-resume-lanes.php'; // the owner-only résumé lanes panel.
+require_once __DIR__ . '/analytics-view-shares.php'; // the Shares panel.
 
 const SN_LINK_CODES_ALSO_SHOWN = 5;
 
@@ -86,6 +87,10 @@ function snt_analytics_render_view_links( $from, $to ) {
 				'footer'       => '<p class="sn-an-note">' . esc_html__( 'Human, Suspect and Bot count visitor-days, from the daily rollup (today\'s may lag an hour): an estimate, since a visitor-day that opened both /r/x and /r/x/ counts twice.', 'signal-and-noise-tools' ) . ( defined( 'SN_ANALYTICS_READS_DEFINITION' ) ? ' ' . esc_html( SN_ANALYTICS_READS_DEFINITION ) . ' ' . esc_html__( 'Reads are human, from the nightly store.', 'signal-and-noise-tools' ) : '' ) . '</p>',
 			)
 		);
+	}
+
+	if ( function_exists( 'snt_analytics_render_shares' ) && function_exists( 'sn_share_echoes_read' ) && function_exists( 'sn_analytics_sessions_read' ) ) {
+		snt_analytics_render_shares(); // 2026-11-14: link-preview fetches and the visits after them (inc/analytics-view-shares.php).
 	}
 
 	$visits = function_exists( 'sn_link_codes_visits_read' ) ? sn_link_codes_visits_read() : null;
