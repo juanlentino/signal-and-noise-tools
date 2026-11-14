@@ -79,5 +79,14 @@ ok( false === stripos( $copy, 'from your share' ) && false !== strpos( $copy, 'a
 $privacy = file_get_contents( __DIR__ . '/../inc/privacy-exporters.php' );
 ok( false !== strpos( $privacy, 'The site notes when link-preview services fetch a page, and keeps the time, page and service only.' ), 'the privacy policy text carries the sentence' );
 
+echo "\nGroup: the read\n";
+$GLOBALS['__mr'] = array( 'ok' => true, 'rows' => array( $raw( 'whatsapp', '/notes/x/', $t0 ) ), 'truncated' => true );
+function snt_mr_fetch() { return $GLOBALS['__mr']; }
+ok( null === sn_share_echoes_read( 14 ), 'a read that reached its row cap is not every share: null, never joined or stored' );
+$GLOBALS['__mr']['truncated'] = false;
+ok( 1 === count( (array) sn_share_echoes_read( 14 ) ), 'a complete read answers its shares' );
+$GLOBALS['__mr']['rows'] = array( array( 'surface' => 'html', 'family' => 'meta-ai', 'day' => '2026-11-14', 'hits' => 9 ) );
+ok( null === sn_share_echoes_read( 14 ), 'a worker that answers rows that are not echoes reads as a failed read' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

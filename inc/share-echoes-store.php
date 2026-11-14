@@ -17,7 +17,7 @@ const SN_SHARE_ECHOES_KEEP   = 400;
 
 /**
  * The echoes of the last $days days, validated and collapsed, oldest first.
- * Null when the read failed, or when the worker answered rows that are not
+ * Null when the read failed or reached its row cap, or when the worker answered rows that are not
  * echoes (a worker before 1.39.0 answers an unknown view with its aggregate).
  *
  * @param int $days 1 to 90.
@@ -28,7 +28,8 @@ function sn_share_echoes_read( $days = 14 ) {
 		return null;
 	}
 	$res = snt_mr_fetch( max( 1, min( 90, (int) $days ) ), 'echoes' );
-	if ( empty( $res['ok'] ) ) {
+	// A read that reached its cap is not every share: never joined or stored as if it were.
+	if ( empty( $res['ok'] ) || ! empty( $res['truncated'] ) ) {
 		return null;
 	}
 	$raw  = (array) ( $res['rows'] ?? array() );
