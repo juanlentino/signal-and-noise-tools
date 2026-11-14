@@ -23,7 +23,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m
 
 $t0  = strtotime( '2026-11-14T11:54:00Z' );
 $iso = static fn( $ts ) => gmdate( 'Y-m-d\TH:i:s\Z', $ts );
-$raw = static fn( $family, $path, $ts ) => array( 'family' => $family, 'path' => $path, 'observed_at' => gmdate( 'Y-m-d\TH:i:s.000\Z', $ts ), 'hits' => 1 );
+$raw = static fn( $family, $path, $ts, $verified = '1' ) => array( 'family' => $family, 'path' => $path, 'observed_at' => gmdate( 'Y-m-d\TH:i:s.000\Z', $ts ), 'verified' => $verified, 'hits' => 1 );
 $ses = static fn( $entry, $ts, array $o = array() ) => $o + array( 'start' => ( new DateTimeImmutable( '@' . $ts ) )->setTimezone( new DateTimeZone( 'America/New_York' ) )->format( 'Y-m-d\TH:i:sP' ), 'entry' => $entry, 'link_code' => '', 'pages' => array( array( 'path' => $entry, 'time_ms' => 0, 'scroll_pct' => null, 'read' => false ) ) );
 
 echo "Group: the worker's rows, untrusted\n";
@@ -37,6 +37,13 @@ $rows = sn_share_echoes_rows( array(
 ) );
 ok( 1 === count( $rows ) && 'whatsapp' === $rows[0]['family'], 'only well-formed echoes on the fixed list survive, repeat fetches within a minute collapse: ' . count( $rows ) );
 ok( '/notes/x/' === sn_share_echo_key( '/notes/x' ) && 'r:jill' === sn_share_echo_key( '/r/jill' ) && 'r:jill' === sn_share_echo_key( '/r/jill/' ) && '' === sn_share_echo_key( '(unmatched)' ), 'page keys: a trailing slash, /r/x and /r/x/ alike, no key for an unmatched page' );
+
+$gate = sn_share_echoes_rows( array( $raw( 'discord', '/notes/x/', $t0, '0' ), $raw( 'linkedin', '/notes/x/', $t0 + 100, '1' ), $raw( 'apple-messages', '/notes/y/', $t0, '0' ), $raw( 'whatsapp', '/notes/z/', $t0, '0' ) ) );
+$fams = array_column( $gate, 'family' );
+sort( $fams );
+ok( array( 'apple-messages', 'linkedin', 'whatsapp' ) === $fams, 'an unverified Discordbot is not a share; a verified LinkedInBot is; WhatsApp and Apple Messages (built on the sender\'s phone) need no verification' );
+$meta = sn_share_echoes_rows( array( $raw( 'meta', '/notes/x/', $t0 ), $raw( 'meta', '/r/jill', $t0 ) ) );
+ok( array( 'r:jill' ) === array_column( $meta, 'key' ), 'a Meta fetch is a share only on an /r/ link (it crawls notes on its own schedule)' );
 
 echo "\nGroup: the join, by page and time only\n";
 $echoes = sn_share_echoes_rows( array( $raw( 'whatsapp', '/notes/x/', $t0 ) ) );

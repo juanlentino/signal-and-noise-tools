@@ -35,6 +35,15 @@ const SN_SHARE_ECHO_FAMILIES = array(
 	'other-preview'  => 'another app',
 );
 
+/**
+ * Apps that fetch previews from their own servers, which Cloudflare verifies
+ * when genuine: an unverified row claiming one is not a share (14 days to
+ * 2026-11-14: 20 of 20 Discordbot reads came from Google's cloud). WhatsApp
+ * and Apple Messages build the preview on the sender's own phone, so they
+ * cannot be verified and are not gated.
+ */
+const SN_SHARE_ECHO_VERIFIED_FAMILIES = array( 'meta', 'linkedin', 'slack', 'discord', 'x', 'telegram' );
+
 /** How far back a visit looks for the share before it, seconds. */
 const SN_SHARE_ECHO_WINDOW = 259200; // 72 hours
 
@@ -77,7 +86,17 @@ function sn_share_echoes_rows( array $raw ) {
 		if ( ! isset( SN_SHARE_ECHO_FAMILIES[ $family ] ) || 1 !== preg_match( '#^/[^\s<>"\'\\\\]{0,511}$#', $path ) || false === $ts ) {
 			continue;
 		}
-		$rows[] = array( 'ts' => (int) $ts, 'family' => $family, 'path' => $path, 'key' => sn_share_echo_key( $path ) );
+		$key = sn_share_echo_key( $path );
+		if ( in_array( $family, SN_SHARE_ECHO_VERIFIED_FAMILIES, true ) && '1' !== (string) ( $r['verified'] ?? '' ) ) {
+			continue;
+		}
+		// Meta's fetcher also crawls on its own schedule (about 300 page fetches a
+		// day here, 2026-11), so a Meta fetch is a share only on an /r/ link,
+		// which nothing finds without being sent it.
+		if ( 'meta' === $family && 0 !== strpos( $key, 'r:' ) ) {
+			continue;
+		}
+		$rows[] = array( 'ts' => (int) $ts, 'family' => $family, 'path' => $path, 'key' => $key );
 	}
 	usort( $rows, static fn( $a, $b ) => $a['ts'] <=> $b['ts'] );
 	$out  = array();
