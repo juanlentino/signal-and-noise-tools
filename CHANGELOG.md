@@ -13,6 +13,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.11.38] - 2026-11-14 — Reads lead the owner's numbers; share echoes show which shares turned into visits
+
 ### Added
 - **Share echoes: the owner can see which shares turned into visits (owner decision 2026-11-14).** When a link to the site is pasted into WhatsApp, Messenger, LinkedIn, Slack, Discord, Telegram, X or Apple Messages, the app fetches the page for its preview. Rights-signals 1.39.0 records each fetch (time, path and app only), and the plugin reads it through the existing machine-readers read with `view=echoes`. Every field is validated. A worker that answers rows that are not echoes reads as a failed read, never as shares. A read that reached its row cap is treated as failed, never joined or stored as complete. Repeat fetches by one app within a minute count as one share. Two rules keep crawls out:
   - **A Meta fetch counts only on an `/r/` link.** Verified `facebookexternalhit` fetched about 4,300 pages in the 14 days to 11-14, about 300 a day, so on any other page almost every visit would follow one.
@@ -31,9 +33,4 @@ adds a bullet below. A release is a separate, deliberate act:
   - **`get-analytics-summary` and its remote twin** gain `reads` (`reads`, `days`, `measured_days`, `partial`, `definition`), with the definition in both descriptions. The remote contract moves 31 to 32, and the sn-remote-mcp worker's `CONTRACT_VERSION` moves with it.
   - Views, `human` and the strict count are computed as before. Public `/stats` is unchanged.
   - Test: `tests/analytics-reads.php` (new: each branch of the definition, the brief's four named views, measured with none against not measured, the per-code count, the read's SQL); `tests/desktop-mode-widget-views-delta.php` pins the card's three states.
-
-## [2026.11.37] - 2026-11-13 — Strictly human removes zero-engagement visitor-days, named apart
-
-### Added
-- **Strictly human removes a second kind of visitor-day: no engagement recorded (strict rule v2, owner decision 2026-11-13).** A presumed-human visitor-day leaves the strict figure when it had exactly one page view, direct, on desktop, with no time, scroll or custom event recorded, on a page other than `/resume`, `/cv` or an `/r/` link code. Behavior only: no country, city or network test. Mobile, any referrer and the job-search pages stay counted. The visitor-day is judged whole across UTC days, so a page view whose time event lands after UTC midnight is kept. Two such sessions in one visitor-day are kept too, which narrows the brief's "every session". Where both reasons apply the automation-signal removal wins, so a visitor-day is removed once. Every surface names the two counts apart ("1 removed: automation signals; 21 removed: no engagement recorded"), and a range whose days predate the reading says "not measured", never 0. `human` is unchanged. The nightly per-day store reads the new columns (`inc/analytics-strict-no-engagement.php`) and walks the Analytics Engine window again under a new cursor (`sn_bot_signals_by_day_backfill_v2`), so the first nights after install fill in the older days. The `strict` field gains `removed_no_engagement`, `reason_no_engagement` and `window_no_engagement`; `rule` is now `strict_v2`. The SN dashboard gains a "Removed: no engagement recorded" tile. Test: `tests/analytics-strict-no-engagement.php` (new).
 
