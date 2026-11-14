@@ -39,13 +39,14 @@ ok( ! sn_analytics_is_read( 0, 0, false ), 'Cachoeiro de Itapemirim tag hit, 0 s
 ok( ! sn_analytics_is_read( 0, null, false ), 'Morton Grove /resume, 0 s: a view, not a read' );
 
 echo "\nGroup: the fold\n";
-$row  = static fn( $vid, $path, array $o = array() ) => $o + array( 'day' => '2026-11-12', 'vid' => $vid, 'path' => $path, 'class' => 'human', 'time_ms' => 0, 'scrolled' => 0, 'custom' => 0 );
+$row  = static fn( $vid, $path, array $o = array() ) => $o + array( 'day' => '2026-11-12', 'vid' => $vid, 'path' => $path, 'class' => 'human', 'time_ms' => 0, 'scrolled' => 0, 'custom' => 0, 'views' => 1 );
 $rows = array(
 	$row( 'a', '/r/rylo', array( 'time_ms' => 118000 ) ),
 	$row( 'b', '/resume/', array( 'custom' => 1, 'time_ms' => 5000 ) ),
 	$row( 'c', '/tag/c2pa/' ),
 	$row( 'd', '/notes/x/', array( 'scrolled' => 1, 'class' => 'suspect' ) ),
 	$row( 'e', '/notes/x/', array( 'time_ms' => 20000, 'day' => '2026-11-01' ) ), // outside the covered days
+	$row( 'f', '/notes/y/', array( 'time_ms' => 60000, 'scrolled' => 1, 'views' => 0 ) ), // beacons with no page view
 );
 $f = sn_analytics_reads_fold( $rows, array( '2026-11-12', '2026-11-13' ) );
 ok( 1 === $f['2026-11-12']['/r/rylo']['human'] && 1 === $f['2026-11-12']['/resume/']['human'], 'reads are counted per day, page and class' );
@@ -53,6 +54,7 @@ ok( ! isset( $f['2026-11-12']['/tag/c2pa/'] ), 'a page with no read is not store
 ok( 1 === $f['2026-11-12']['/notes/x/']['suspect'], 'the class is kept' );
 ok( array() === $f['2026-11-13'], 'a covered day with no read is measured with none' );
 ok( ! isset( $f['2026-11-01'] ), 'a row outside the covered days is dropped' );
+ok( ! isset( $f['2026-11-12']['/notes/y/'] ), 'time and scroll with no page view behind them are not a read (a beacon-only visitor-day)' );
 
 echo "\nGroup: the window, not measured vs 0\n";
 $store = array( '2026-11-12' => $f['2026-11-12'], '2026-11-13' => array() );
@@ -75,7 +77,7 @@ ok( array( 'jon' => 2, 'rylo' => 1 ) === $codes, 'human reads per code, /r/x and
 
 echo "\nGroup: the read\n";
 $sql = sn_analytics_reads_sql( 'sn_pageviews_v2', '', '2026-11-12 05:00:00', '2026-11-13 05:00:00', 'America/New_York', "if(blob7 = 'bot', 'bot', 'human')" );
-foreach ( array( "formatDateTime(timestamp, '%Y-%m-%d', 'America/New_York') AS day", "sumIf(double2, blob1 = 'tm') AS time_ms", "max(if(blob1 = 'sc' AND double1 >= 50, 1, 0)) AS scrolled", "max(if(blob1 = 'ce', 1, 0)) AS custom", "blob1 IN ('sc','tm','ce')", 'GROUP BY day, vid, path, class', "toDateTime('2026-11-12 05:00:00')" ) as $needle ) {
+foreach ( array( "formatDateTime(timestamp, '%Y-%m-%d', 'America/New_York') AS day", "sumIf(double2, blob1 = 'tm') AS time_ms", "max(if(blob1 = 'sc' AND double1 >= 50, 1, 0)) AS scrolled", "max(if(blob1 = 'ce', 1, 0)) AS custom", 'GROUP BY day, vid, path, class', "toDateTime('2026-11-12 05:00:00')", "sumIf(_sample_interval, blob1 = 'pv') AS views", "blob1 IN ('pv','sc','tm','ce') AND blob7 != 'bot'" ) as $needle ) {
 	ok( false !== strpos( $sql, $needle ), 'the read carries ' . $needle );
 }
 ok( false === strpos( $sql, ', double2, 0)' ) && false === strpos( $sql, ', double1, 0)' ), 'no if() mixing a Double with an Integer (the 11-11 422)' );

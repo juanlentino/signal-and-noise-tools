@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_ANALYTICS_READS_OPTION          = 'sn_analytics_reads_by_day';
-const SN_ANALYTICS_READS_BACKFILL_OPTION = 'sn_analytics_reads_backfill';
+const SN_ANALYTICS_READS_BACKFILL_OPTION = 'sn_analytics_reads_backfill_v2'; // v2 (2026-11-14): walk again, a read now needs a page view.
 const SN_ANALYTICS_READS_KEEP            = 400;
 const SN_ANALYTICS_READS_NIGHTLY_DAYS    = 7;
 const SN_ANALYTICS_READS_CHUNK           = 7;
