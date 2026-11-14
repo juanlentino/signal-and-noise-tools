@@ -40,9 +40,11 @@ const SN_SHARE_ECHO_FAMILIES = array(
  * when genuine: an unverified row claiming one is not a share (14 days to
  * 2026-11-14: 20 of 20 Discordbot reads came from Google's cloud). WhatsApp
  * and Apple Messages build the preview on the sender's own phone, so they
- * cannot be verified and are not gated.
+ * cannot be verified and are not gated; nor are Telegram (no verified listing
+ * could be confirmed) or the other apps (Signal and Bluesky fetch from the
+ * sender's side or a proxy).
  */
-const SN_SHARE_ECHO_VERIFIED_FAMILIES = array( 'meta', 'linkedin', 'slack', 'discord', 'x', 'telegram' );
+const SN_SHARE_ECHO_VERIFIED_FAMILIES = array( 'meta', 'linkedin', 'slack', 'discord', 'x' );
 
 /** How far back a visit looks for the share before it, seconds. */
 const SN_SHARE_ECHO_WINDOW = 259200; // 72 hours
