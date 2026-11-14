@@ -214,13 +214,18 @@
 	function strictLine( payload ) {
 		if ( ! ( 'strict' in payload ) ) { return null; }
 		var s = payload.strict;
-		var text = ! s || typeof s !== 'object' ? 'Strictly human: not measured yet'
+		// 2026-11-14 (owner): one line on the card; the two removal counts and
+		// any partial window ride in its hover text, word for word as before.
+		var detail = ! s || typeof s !== 'object' ? ''
 			: 'Strictly human: ' + ( typeof s.views === 'number' ? s.views.toLocaleString() : 'not read' ) + ' views (' + Number( s.removed && s.removed.views ).toLocaleString() + ' removed: automation signals; '
 				+ ( s.removed_no_engagement && typeof s.removed_no_engagement === 'object' ? Number( s.removed_no_engagement.views ).toLocaleString() + ' removed: no engagement recorded' : 'no engagement recorded: not measured' ) + ')'
 				+ ( s.window && s.window.partial ? ', UTC days ' + s.window.from + ' to ' + s.window.through + ' only' : '' )
 				+ ( s.window_no_engagement && s.window_no_engagement.partial ? '; no-engagement removals over UTC days ' + s.window_no_engagement.from + ' to ' + s.window_no_engagement.through + ' only' : '' );
+		var partial = !! s && typeof s === 'object' && ( ( s.window && s.window.partial ) || ( s.window_no_engagement && s.window_no_engagement.partial ) );
+		var text = ! s || typeof s !== 'object' ? 'Strictly human: not measured yet'
+			: ( typeof s.views === 'number' ? s.views.toLocaleString() : 'not read' ) + ' strictly human views' + ( partial ? ' (partial)' : '' );
 		var node = el( 'div', { text: text, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:6px;' } );
-		node.title = s && s.reason ? s.reason + ( s.reason_no_engagement ? ' ' + s.reason_no_engagement : '' ) : 'Inferred from the beacon\u2019s bot signals; the presumed-human views above are unchanged.';
+		node.title = ( detail ? detail + '. ' : '' ) + ( s && s.reason ? s.reason + ( s.reason_no_engagement ? ' ' + s.reason_no_engagement : '' ) : 'Inferred from the beacon\u2019s bot signals; the presumed-human views above are unchanged.' );
 		return node;
 	}
 

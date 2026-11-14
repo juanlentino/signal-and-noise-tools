@@ -104,7 +104,7 @@ if ( '' === $node ) {
 		$out = json_decode( (string) shell_exec( escapeshellarg( $node ) . ' ' . escapeshellarg( __DIR__ . '/js/site-views-render.js' ) . ' ' . escapeshellarg( json_encode( $p ) ) ), true );
 		if ( $raw ) { return $out; }
 		$rows = array();
-		foreach ( (array) ( $out['rows'] ?? array() ) as $r ) { $rows[ $r['text'] ] = $r['color']; }
+		foreach ( (array) ( $out['rows'] ?? array() ) as $r ) { $rows[ $r['text'] ] = $r['color']; $GLOBALS['__titles'][ $r['text'] ] = $r['title'] ?? ''; }
 		return $rows;
 	};
 	// 2026-10-12 audit: the down text is the cards' text red (4.0:1 was #c9503f).
@@ -150,19 +150,20 @@ if ( '' === $node ) {
 	// 2026-11-11: the strict line under the headline, both numbers shown.
 	$sp = array( 'visitor_days' => 96, 'views' => 383, 'removed' => array( 'visitor_days' => 4, 'views' => 17 ), 'removed_no_engagement' => array( 'visitor_days' => 2, 'views' => 2 ), 'window' => array( 'from' => '2026-09-14', 'through' => '2026-09-27', 'partial' => false ) );
 	$rs = $render( array( 'total' => 400, 'strict' => $sp ) );
-	ok( isset( $rs['400'] ) && isset( $rs['Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded)'] ), 'the headline 400 and the strict line under it: both numbers' );
+	ok( isset( $rs['400'] ) && isset( $rs['383 strictly human views'] ), 'the headline 400 and the strict line under it, one line (2026-11-14 owner)' );
+	ok( 0 === strpos( $GLOBALS['__titles']['383 strictly human views'] ?? '', 'Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded).' ), 'both removal counts ride in its hover text' );
 	$rs = $render( array( 'total' => 400, 'strict' => array( 'window' => array( 'partial' => true, 'from' => '2026-09-20', 'through' => '2026-09-27' ) ) + $sp ) );
-	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded), UTC days 2026-09-20 to 2026-09-27 only'] ), 'a partial window names the UTC days the removals cover' );
+	ok( isset( $rs['383 strictly human views (partial)'] ) && false !== strpos( $GLOBALS['__titles']['383 strictly human views (partial)'] ?? '', ', UTC days 2026-09-20 to 2026-09-27 only' ), 'a partial window says partial, and its hover names the UTC days the removals cover' );
 	$rs = $render( array( 'total' => 400, 'strict' => array( 'window_no_engagement' => array( 'partial' => true, 'from' => '2026-09-25', 'through' => '2026-09-27' ) ) + $sp ) );
-	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals; 2 removed: no engagement recorded); no-engagement removals over UTC days 2026-09-25 to 2026-09-27 only'] ), 'a partial no-engagement window names its own UTC days' );
+	ok( isset( $rs['383 strictly human views (partial)'] ) && false !== strpos( $GLOBALS['__titles']['383 strictly human views (partial)'] ?? '', '; no-engagement removals over UTC days 2026-09-25 to 2026-09-27 only' ), 'a partial no-engagement window names its own UTC days in the hover' );
 	// 2026-11-13: a payload whose days predate the no-engagement reading says so, never 0.
 	$sn = $sp; unset( $sn['removed_no_engagement'] );
 	$rs = $render( array( 'total' => 400, 'strict' => $sn ) );
-	ok( isset( $rs['Strictly human: 383 views (17 removed: automation signals; no engagement recorded: not measured)'] ), 'no-engagement unmeasured: named as not measured, never 0' );
+	ok( isset( $rs['383 strictly human views'] ) && false !== strpos( $GLOBALS['__titles']['383 strictly human views'] ?? '', 'no engagement recorded: not measured' ), 'no-engagement unmeasured: named as not measured in the hover, never 0' );
 	$rs = $render( array( 'total' => 400, 'strict' => null ) );
 	ok( isset( $rs['Strictly human: not measured yet'] ), 'a null strict figure says not measured, never 0' );
 	$rs = $render( array( 'total' => 400 ) );
-	ok( array() === array_filter( array_keys( $rs ), static fn( $k ) => 0 === strpos( (string) $k, 'Strictly human' ) ), 'an older cached payload without the key paints no strict line' );
+	ok( array() === array_filter( array_keys( $rs ), static fn( $k ) => false !== stripos( (string) $k, 'strictly human' ) ), 'an older cached payload without the key paints no strict line' );
 
 	// SN Traffic: This week, the folded groups and the top pages paint.
 	$full = array(
