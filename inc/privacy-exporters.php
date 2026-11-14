@@ -248,6 +248,7 @@ function sn_register_privacy_policy_content() {
 
 	// (c) First-party analytics.
 	$sentences[] = __( 'This site uses its own cookieless analytics to collect aggregate usage statistics. It stores no personal data and performs no cross-site tracking.', 'signal-and-noise-tools' );
+	$sentences[] = __( 'The site notes when link-preview services fetch a page, and keeps the time, page and service only.', 'signal-and-noise-tools' );
 
 	$content = implode( "\n\n", $sentences );
 

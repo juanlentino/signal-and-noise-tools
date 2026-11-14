@@ -39,6 +39,7 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 	$sum   = sn_visit_summary( $events, $cfg['engaged_scroll'], $cfg['engaged_ms'] );
 	$pages = array();
 	$last  = array(); // path => its latest view: a beacon belongs to the view it follows.
+	$custom = array(); // view index => a custom event followed it.
 	$first = null;
 	$code  = '';
 	foreach ( $events as $e ) {
@@ -53,7 +54,13 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 			$pages[ $last[ $p ] ]['time_ms'] = (int) $pages[ $last[ $p ] ]['time_ms'] + (int) ( $e['dwell'] ?? 0 ); // deltas: they add up.
 		} elseif ( isset( $last[ $p ] ) && 'sc' === $ev ) {
 			$pages[ $last[ $p ] ]['scroll_pct'] = max( (int) $pages[ $last[ $p ] ]['scroll_pct'], (int) ( $e['scroll'] ?? 0 ) );
+		} elseif ( isset( $last[ $p ] ) && 'ce' === $ev ) {
+			$custom[ $last[ $p ] ] = true;
 		}
+	}
+	// 2026-11-14: each view says whether it was a read, by the one rule (inc/analytics-reads.php).
+	foreach ( $pages as $i => $pg ) {
+		$pages[ $i ]['read'] = function_exists( 'sn_analytics_is_read' ) && sn_analytics_is_read( $pg['time_ms'], $pg['scroll_pct'], ! empty( $custom[ $i ] ) );
 	}
 	$tz   = function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( 'UTC' );
 	$when = static fn( $ts ) => ( new DateTimeImmutable( '@' . (int) $ts ) )->setTimezone( $tz )->format( 'Y-m-d\TH:i:sP' );

@@ -166,10 +166,12 @@
 		return scored > 0 && la.visitor_days / scored >= AUTOMATED_SHARE;
 	}
 
-	function deltaLine( pct, total, la, base ) {
+	function deltaLine( pct, total, la, base, lead ) {
+		// 2026-11-14: under a reads headline the delta still compares views, so it says so.
+		lead = lead || '';
 		if ( pct === null || typeof pct === 'undefined' ) {
 			// No prior window to compare — say nothing rather than imply flat.
-			return el( 'div', { text: 'vs. prior 14 days: not measured', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+			return el( 'div', { text: lead + 'vs. prior 14 days: not measured', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 		}
 		// The counts the delta compares (2026-10-25: full days, not the headline
 		// total). An older payload: the prior recovered from the percentage.
@@ -178,7 +180,7 @@
 		}
 		var prior = base && typeof base.prior === 'number' ? base.prior : ( typeof total === 'number' && pct > -100 ? total / ( 1 + pct / 100 ) : 0 );
 		var node = el( 'div', {
-			text: deltaText( pct, '%' ) + ' vs. prior 14 days',
+			text: lead + deltaText( pct, '%' ) + ' vs. prior 14 days',
 			// 2026-10-25: the delta compares full days, so today's partial count never pulls it down.
 			title: 'The 14 full days through yesterday against the 14 days before them. Today is still filling in, so it is left out of the comparison.',
 			style: 'font-size:11px;font-weight:600;color:' + ( mostlyAutomated( la ) ? MUTED : deltaColor( pct, total - prior, pct, false ) ) + ';'
@@ -463,14 +465,31 @@
 		}
 
 		function headline( payload ) {
+			// 2026-11-14: reads lead (sn_analytics_reads_figure()); the views are the
+			// line under them. Not measured is said, never 0; an older cached
+			// payload without the key keeps the views headline.
+			var r = payload.reads;
+			var hasReads = !! r && typeof r === 'object' && typeof r.reads === 'number';
 			body.appendChild( el( 'div', {
-				text: String( payload.total ),
+				text: hasReads ? r.reads.toLocaleString() : String( payload.total ),
 				style: 'font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1;'
 			} ) );
-			body.appendChild( el( 'div', {
-				text: 'views · last 14 days',
-				style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));margin-bottom:' + ( 'strict' in payload ? '0' : '6px' ) + ';'
-			} ) );
+			// The last line before the strict one keeps the 6px gap when there is no strict line.
+			var muted = 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));';
+			var gap   = 'strict' in payload ? '' : 'margin-bottom:6px;';
+			var under = 'reads' in payload;
+			var sub = el( 'div', {
+				text: hasReads ? 'reads (human) · last 14 days' + ( r.partial ? ', ' + r.measured_days + ' of ' + r.days + ' days measured' : '' ) : 'views · last 14 days',
+				style: muted + ( under ? '' : gap )
+			} );
+			if ( hasReads && r.definition ) { sub.title = r.definition; }
+			body.appendChild( sub );
+			if ( under ) {
+				body.appendChild( el( 'div', {
+					text: hasReads ? Number( payload.total ).toLocaleString() + ' views (presumed human)' : 'Reads: not measured yet',
+					style: muted + gap
+				} ) );
+			}
 			var strict = strictLine( payload );
 			if ( strict ) { body.appendChild( strict ); }
 
@@ -547,7 +566,7 @@
 			chart.appendChild( sparkline( payload.days, payload.window ) );
 			body.appendChild( chart );
 
-			body.appendChild( deltaLine( payload.delta_pct, payload.total, payload.likely_automated, payload.delta_base ) );
+			body.appendChild( deltaLine( payload.delta_pct, payload.total, payload.likely_automated, payload.delta_base, payload.reads && typeof payload.reads.reads === 'number' ? 'Views ' : '' ) );
 			var auto = automatedLine( payload.likely_automated );
 			if ( auto ) { body.appendChild( auto ); }
 			var next = forecastLine( payload.forecast );

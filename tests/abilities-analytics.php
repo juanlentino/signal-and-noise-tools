@@ -58,6 +58,8 @@ $expected_types = array(
 	// Unreleased: beside the totals, never subtracted from them.
 	'likely_automated'          => array( 'object', 'null' ),
 	'basis'                     => 'string',
+	// 2026-11-14: reads, proven reading (both doors).
+	'reads'                     => 'object',
 	// 2026-11-11: this site's own tools, beside the classes (local door only).
 	'first_party'               => array( 'object', 'null' ),
 	// 2026-11-11: the strict human figure beside human (local door only).

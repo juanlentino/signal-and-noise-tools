@@ -122,6 +122,16 @@ if ( '' === $node ) {
 	$rn = $render( array( 'delta_pct' => null ) );
 	ok( isset( $rn['vs. prior 14 days: not measured'] ), 'no prior window: the line says not measured, never an em dash' );
 
+	// 2026-11-14: reads lead the card; the views are the line under them; not measured is said.
+	$rr = $render( array( 'reads' => array( 'reads' => 9, 'days' => 14, 'measured_days' => 14, 'partial' => false, 'definition' => 'd' ) ) );
+	ok( isset( $rr['9'], $rr['reads (human) · last 14 days'], $rr['100 views (presumed human)'] ), 'reads lead: 9, "reads (human) · last 14 days", then "100 views (presumed human)"' );
+	$rd = $render( array( 'delta_pct' => -41.3, 'reads' => array( 'reads' => 9, 'days' => 14, 'measured_days' => 14, 'partial' => false, 'definition' => 'd' ) ) );
+	ok( isset( $rd['Views ▼ 41.3% vs. prior 14 days'] ), 'under a reads headline the delta names what it compares: "Views ▼ 41.3% vs. prior 14 days"' );
+	$rp = $render( array( 'reads' => array( 'reads' => 3, 'days' => 14, 'measured_days' => 5, 'partial' => true, 'definition' => 'd' ) ) );
+	ok( isset( $rp['reads (human) · last 14 days, 5 of 14 days measured'] ), 'a partial window says how many days it measured' );
+	$rx = $render( array( 'reads' => array( 'reads' => null, 'days' => 14, 'measured_days' => 0, 'partial' => false, 'definition' => 'd' ) ) );
+	ok( isset( $rx['100'], $rx['Reads: not measured yet'] ) && ! isset( $rx['0'] ), 'reads not measured: the views keep the headline and the card says so, never 0' );
+
 	// 2026-10-16 (owner): a change mostly likely automated is not good news.
 	$up = '#3fb950';
 	$la = function ( $auto, $scored ) { return array( 'visitor_days' => $auto, 'scored_visitor_days' => $scored, 'measured_days' => 14, 'unmeasured_days' => 0 ); };

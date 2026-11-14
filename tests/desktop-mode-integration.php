@@ -658,7 +658,7 @@ foreach ( array(
 	ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../assets/' . $sn_w ), $sn_key ), "$sn_w links to its own leaf ($sn_key)" );
 }
 $sn_views_code = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
-ok( false !== strpos( $sn_views_code, "text: deltaText( pct, '%' ) + ' vs. prior 14 days'," ) && false === strpos( $sn_views_code, 'top_mover' ), 'SN Traffic\'s trend rides the one arrow-only formatter, and the top mover is not painted (render pins: tests/desktop-mode-widget-views-delta.php)' );
+ok( false !== strpos( $sn_views_code, "text: lead + deltaText( pct, '%' ) + ' vs. prior 14 days'," ) && false === strpos( $sn_views_code, 'top_mover' ), 'SN Traffic\'s trend rides the one arrow-only formatter, and the top mover is not painted (render pins: tests/desktop-mode-widget-views-delta.php)' );
 $sn_an_raw = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-anchors.js' );
 ok( false !== strpos( $sn_an_raw, "data.pages.machine_readers" ) && false !== strpos( $sn_an_raw, "[ 'Machine readers in S&N Analytics', readersUrl, rbox ]" ), 'SN Provenance links to the Machine readers view in S&N Analytics, inside the readers section (render pin in tests/desktop-status-resilience.cjs)' );
 // Same rule for SN Anchors' Sweep now: the result is a shell toast, the card

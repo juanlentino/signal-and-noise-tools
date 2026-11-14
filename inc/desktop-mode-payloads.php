@@ -414,6 +414,12 @@ function snt_desktop_site_views_payload() {
 		$payload['strict'] = sn_analytics_strict_human( $from, $today, $this_window );
 	}
 
+	// 2026-11-14: reads (proven reading) lead the card; views and strictly
+	// human views become the lines under it. From the nightly store, no AE read.
+	if ( function_exists( 'sn_analytics_reads_figure' ) ) {
+		$payload['reads'] = sn_analytics_reads_figure( $from, $today, 'human' );
+	}
+
 	// SN Traffic: SN Audience and SN RSS Subscribers folded into this card.
 	// Their rows ride the same 15-minute cache as the series above.
 	if ( function_exists( 'snt_desktop_traffic_groups' ) ) {

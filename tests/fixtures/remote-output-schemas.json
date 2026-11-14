@@ -1,6 +1,6 @@
 {
-    "contract_version": "31",
-    "shape_hash": "02deea0c871c9044af9120fafe747220c0aaceb2895ca187cfca6afe00393d12",
+    "contract_version": "33",
+    "shape_hash": "0c8483bd47ffa59b2ae7b37f40eb5107d5d942f5aedbc3c79b24a09d1fdad418",
     "tools": {
         "signal-noise/remote-analytics-fields": {
             "wrap": false,
@@ -297,6 +297,9 @@
                                                     "integer",
                                                     "null"
                                                 ]
+                                            },
+                                            "read": {
+                                                "type": "boolean"
                                             }
                                         }
                                     }
@@ -332,6 +335,26 @@
                                     "type": "array",
                                     "items": {
                                         "type": "string"
+                                    }
+                                },
+                                "share": {
+                                    "type": [
+                                        "object",
+                                        "null"
+                                    ],
+                                    "properties": {
+                                        "app": {
+                                            "type": "string"
+                                        },
+                                        "family": {
+                                            "type": "string"
+                                        },
+                                        "gap_s": {
+                                            "type": "integer"
+                                        },
+                                        "read": {
+                                            "type": "boolean"
+                                        }
                                     }
                                 }
                             }
@@ -809,6 +832,29 @@
                         "enum": [
                             "inferred"
                         ]
+                    },
+                    "reads": {
+                        "type": "object",
+                        "properties": {
+                            "reads": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "days": {
+                                "type": "integer"
+                            },
+                            "measured_days": {
+                                "type": "integer"
+                            },
+                            "partial": {
+                                "type": "boolean"
+                            },
+                            "definition": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }

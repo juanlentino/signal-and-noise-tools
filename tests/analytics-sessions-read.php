@@ -55,6 +55,7 @@ require $root . '/inc/link-codes.php';
 require $root . '/inc/analytics-rows.php';
 require $root . '/inc/analytics-rows-events.php';
 require $root . '/inc/abilities-permission-helpers.php';
+require $root . '/inc/analytics-reads.php';
 require $root . '/inc/analytics-sessions-list.php';
 require $root . '/inc/abilities-analytics-sessions.php';
 require $root . '/inc/analytics-view-sessions-list.php';
@@ -87,7 +88,8 @@ ok( 3 === $all['total'] && 3 === count( $s ), 'three sessions: a pageview-less v
 ok( array( '/r/hera', '(unmatched)', '/notes/x' ) === array_column( $s, 'entry' ), 'newest first; a path that is not the site\'s own content is (unmatched)' );
 ok( array( true, false, false ) === array_column( $s, 'returning' ), 'returning: the second session of the same visitor-day, and only that one' );
 $a1 = $s[2];
-ok( array( array( 'path' => '/notes/x', 'time_ms' => 12000, 'scroll_pct' => 75 ), array( 'path' => '/about', 'time_ms' => 3000, 'scroll_pct' => null ), array( 'path' => '/notes/x', 'time_ms' => 5000, 'scroll_pct' => null ) ) === $a1['pages'], 'pages in order, each view with its own visible time and deepest scroll (null when not measured); a page read twice is two views' );
+ok( array( array( 'path' => '/notes/x', 'time_ms' => 12000, 'scroll_pct' => 75, 'read' => true ), array( 'path' => '/about', 'time_ms' => 3000, 'scroll_pct' => null, 'read' => false ), array( 'path' => '/notes/x', 'time_ms' => 5000, 'scroll_pct' => null, 'read' => false ) ) === $a1['pages'], 'pages in order, each view with its own visible time and deepest scroll (null when not measured) and whether it was a read; a page read twice is two views' );
+ok( array_key_exists( 'share', $a1 ) && null === $a1['share'], 'share is null when no share preceded the session' );
 ok( '/notes/x' === $a1['exit'] && 150 === $a1['duration_s'] && 3 === $a1['pageviews'], 'exit, duration and page views' );
 ok( sn_analytics_canonical_source( 'news.ycombinator.com' ) === $a1['source'] && '(internal)' === $s[0]['source'] && '(direct)' === $s[1]['source'], 'source: the dashboard\'s label of the first page view\'s referrer; an internal click stays (internal)' );
 ok( 'Boston' === $a1['city'] && 'Massachusetts' === $a1['region'] && 'US' === $a1['country'] && 'desktop' === $a1['device'] && 'CA' === $s[1]['country'] && 'mobile' === $s[1]['device'], 'place and device from the first page view' );

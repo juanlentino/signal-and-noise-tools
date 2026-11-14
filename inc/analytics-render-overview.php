@@ -131,9 +131,11 @@ function snt_analytics_render_cards( $now, $totals, $deltas = array(), $engaged 
 		? sprintf( __( 'exact since %s', 'signal-and-noise-tools' ), $since )
 		: __( 'no exact data yet', 'signal-and-noise-tools' );
 
-	$cards   = array(
+	// 2026-11-14: Reads lead the strip (inc/analytics-reads.php); not measured, never 0.
+	$cards   = function_exists( 'snt_analytics_reads_card' ) ? array( snt_analytics_reads_card( $totals['reads'] ?? null ) ) : array();
+	$cards   = array_merge( $cards, array(
 		array( 'l' => 'Views', 'n' => number_format_i18n( (int) ( $totals['views'] ?? 0 ) ), 'delta' => $deltas['views'] ?? null, 'promoted' => true ),
-	);
+	) );
 	$cards[] = $known( 'pageview_visits' )
 		? array( 'l' => 'Visits', 'n' => number_format_i18n( (int) $totals['pageview_visits'] ), 'delta' => $deltas['pageview_visits'] ?? null, 'promoted' => true )
 		: array( 'l' => 'Visits', 'n' => __( 'not read', 'signal-and-noise-tools' ), 'sub' => $caveat, 'promoted' => true );
