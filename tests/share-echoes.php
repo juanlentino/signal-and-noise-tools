@@ -59,7 +59,7 @@ ok( null === $other[0]['share'], 'a visit to another page is not' );
 $two = sn_share_echoes_rows( array( $raw( 'slack', '/notes/x/', $t0 ), $raw( 'linkedin', '/notes/x/', $t0 + 3600 ) ) );
 $b   = sn_share_echo_annotate( array( $ses( '/notes/x/', $t0 + 2 * 3600 ) ), $two );
 ok( 'LinkedIn' === $b[0]['share']['app'] && 3600 === $b[0]['share']['gap_s'], 'two echoes before one visit: the later one' );
-$codes = sn_share_echoes_rows( array( $raw( 'meta', '/r/jill', $t0 ), $raw( 'meta', '/r/jon/', $t0 + 10 ) ) );
+$codes = sn_share_echoes_rows( array( $raw( 'meta', '/r/jill', $t0 ), $raw( 'meta', '/r/jon/', $t0 + 120 ) ) ); // two sends, two minutes apart
 $c     = sn_share_echo_annotate( array( $ses( '/resume/', $t0 + 600, array( 'link_code' => 'jill' ) ), $ses( '/resume/', $t0 + 900, array( 'link_code' => 'rylo' ) ) ), $codes );
 ok( 'Meta' === $c[0]['share']['app'] && null === $c[1]['share'], 'an /r/ echo matches only the same code' );
 
@@ -78,6 +78,23 @@ $copy = file_get_contents( __DIR__ . '/../inc/analytics-view-shares.php' ) . fil
 ok( false === stripos( $copy, 'from your share' ) && false !== strpos( $copy, 'after a share' ), 'the copy says "after a share", never "from your share"' );
 $privacy = file_get_contents( __DIR__ . '/../inc/privacy-exporters.php' );
 ok( false !== strpos( $privacy, 'The site notes when link-preview services fetch a page, and keeps the time, page and service only.' ), 'the privacy policy text carries the sentence' );
+
+echo "\nGroup: a link typed into the app is one share (2026-11-14 owner test)\n";
+$at = static fn( $sec, $ms = 0 ) => gmdate( 'Y-m-d\TH:i:s', $sec ) . sprintf( '.%03dZ', $ms );
+$tg = array();
+foreach ( array( array( '/', 4, 0 ), array( '/notes/', 4, 10 ), array( '/r/te', 9, 0 ), array( '/r/tel', 9, 100 ), array( '/r/telegra', 10, 0 ), array( '/r/tes', 13, 0 ), array( '/r/prue', 16, 100 ), array( '/r/prueb', 16, 200 ), array( '/r/prueba', 16, 300 ) ) as $x ) {
+	$tg[] = array( 'family' => 'telegram', 'path' => $x[0], 'observed_at' => $at( $t0 + $x[1], $x[2] ), 'verified' => '0' );
+}
+$wa = array(
+	array( 'family' => 'whatsapp', 'path' => '/', 'observed_at' => $at( $t0 + 86, 0 ), 'verified' => '0' ),
+	array( 'family' => 'whatsapp', 'path' => '/r/pru', 'observed_at' => $at( $t0 + 90, 0 ), 'verified' => '0' ),
+	array( 'family' => 'whatsapp', 'path' => '/r/prueba', 'observed_at' => $at( $t0 + 91, 0 ), 'verified' => '0' ),
+);
+$typed = sn_share_echoes_rows( array_merge( array_reverse( $tg ), $wa ) ); // the worker answers newest first
+ok( array( 'telegram /r/prueba', 'whatsapp /r/prueba' ) === array_map( static fn( $e ) => $e['family'] . ' ' . $e['path'], $typed ), 'the owner\'s test reads as two shares, each the link actually sent: ' . json_encode( array_column( $typed, 'path' ) ) );
+ok( $t0 + 16 === $typed[0]['ts'], 'credited at the last fetch of the burst' );
+$two = sn_share_echoes_rows( array( $raw( 'whatsapp', '/r/a', $t0 ), $raw( 'whatsapp', '/r/b', $t0 + 3600 ) ) );
+ok( 2 === count( $two ), 'two sends an hour apart are two shares' );
 
 echo "\nGroup: the read\n";
 $GLOBALS['__mr'] = array( 'ok' => true, 'rows' => array( $raw( 'whatsapp', '/notes/x/', $t0 ) ), 'truncated' => true );

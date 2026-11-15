@@ -13,6 +13,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A link typed into a messaging app is one share, not a dozen (owner test 2026-11-14).** Telegram and WhatsApp fetch a preview as the link is typed, so sending `/r/prueba` recorded `/`, `/notes/`, `/r/te`, `/r/tel` ... `/r/prueba` within 16 seconds, and each would have listed as its own share (a code "tele" that was never sent). Fetches by one app, each within 60 seconds of the one before, now count as one share, credited to the last page fetched, the link actually sent. Ordering uses the worker's milliseconds, because a typed burst lands within one second. The owner's test now reads as two shares, Telegram and WhatsApp, both `/r/prueba`. Two people sharing through the same app within a minute of each other count once, which is fine at this site's volume. Test: `tests/share-echoes.php` (the owner's test as a fixture; red without the burst rule).
+
 ## [2026.11.41] - 2026-11-15 — Reads on /stats; live slots and surge tell readers from arrivals
 
 ### Added
