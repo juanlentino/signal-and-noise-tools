@@ -49,12 +49,13 @@ function sn_share_echoes_read( $days = 14 ) {
 }
 
 /**
- * Echoes per site day, app and page, over the days the rows cover. PURE.
+ * Echoes per site day, app and page, over the days the rows cover. A page is
+ * its join key (sn_share_echo_key()), so /r/x and /r/x/ count as one link. PURE.
  *
  * @param array    $rows sn_share_echoes_rows() rows.
  * @param string[] $days The site days the read covered completely.
  * @param string   $tz   The site's zone ('' = UTC).
- * @return array<string,array<string,array<string,int>>> day => family => path => echoes.
+ * @return array<string,array<string,array<string,int>>> day => family => page key => echoes.
  */
 function sn_share_echoes_fold( array $rows, array $days, $tz = '' ) {
 	$zone = new DateTimeZone( '' !== $tz ? $tz : 'UTC' );
@@ -62,7 +63,7 @@ function sn_share_echoes_fold( array $rows, array $days, $tz = '' ) {
 	foreach ( $rows as $r ) {
 		$day = ( new DateTimeImmutable( '@' . (int) $r['ts'] ) )->setTimezone( $zone )->format( 'Y-m-d' );
 		if ( array_key_exists( $day, $out ) ) {
-			$out[ $day ][ $r['family'] ][ $r['path'] ] = (int) ( $out[ $day ][ $r['family'] ][ $r['path'] ] ?? 0 ) + 1;
+			$out[ $day ][ $r['family'] ][ $r['key'] ] = (int) ( $out[ $day ][ $r['family'] ][ $r['key'] ] ?? 0 ) + 1;
 		}
 	}
 	return $out;

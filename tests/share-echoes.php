@@ -73,6 +73,8 @@ ok( '40 min, not read' === sn_share_echo_follow_text( 2400, false ) && '3 h, rea
 echo "\nGroup: durable counts\n";
 $f = sn_share_echoes_fold( sn_share_echoes_rows( array( $raw( 'whatsapp', '/notes/x/', $t0 ), $raw( 'slack', '/notes/x/', $t0 + 7200 ), $raw( 'slack', '/notes/x/', $t0 + 9000 ) ) ), array( '2026-11-13', '2026-11-14' ), 'America/New_York' );
 ok( 1 === $f['2026-11-14']['whatsapp']['/notes/x/'] && 2 === $f['2026-11-14']['slack']['/notes/x/'] && array() === $f['2026-11-13'], 'echoes per site day, app and page; a covered day without any is measured with none' );
+$fr = sn_share_echoes_fold( sn_share_echoes_rows( array( $raw( 'apple-messages', '/r/jill', $t0 ), $raw( 'apple-messages', '/r/jill/', $t0 + 7200 ) ) ), array( '2026-11-14' ), 'America/New_York' );
+ok( array( 'r:jill' => 2 ) === $fr['2026-11-14']['apple-messages'], 'a coded link counts as one page with or without its trailing slash' );
 
 echo "\nGroup: honest wording\n";
 $copy = file_get_contents( __DIR__ . '/../inc/analytics-view-shares.php' ) . file_get_contents( __DIR__ . '/../inc/share-echoes.php' ) . file_get_contents( __DIR__ . '/../inc/abilities-analytics-sessions.php' );
