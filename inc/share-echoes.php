@@ -49,7 +49,14 @@ const SN_SHARE_ECHO_VERIFIED_FAMILIES = array( 'meta', 'linkedin', 'slack', 'dis
 /** How far back a visit looks for the share before it, seconds. */
 const SN_SHARE_ECHO_WINDOW = 259200; // 72 hours
 
-/** Fetches of one page by one app this close together are one share (preview services fetch two or three times). */
+/**
+ * Fetches by one app, each this close to the one before, are ONE share,
+ * credited to the last page fetched (2026-11-14 owner test). Telegram and
+ * WhatsApp fetch a preview as the link is typed: /, /r/te, /r/tel ... /r/prueba
+ * in 16 seconds; the last one is the link that was sent. Preview services also
+ * fetch the same page two or three times. ponytail: two people sharing through
+ * the same app within a minute of each other count once; fine at this volume.
+ */
 const SN_SHARE_ECHO_COLLAPSE = 60;
 
 /**
@@ -84,7 +91,11 @@ function sn_share_echoes_rows( array $raw ) {
 		$r      = (array) $r;
 		$family = (string) ( $r['family'] ?? '' );
 		$path   = (string) ( $r['path'] ?? '' );
-		$ts     = is_string( $r['observed_at'] ?? null ) ? strtotime( $r['observed_at'] ) : false;
+		// The worker's ISO time only (toISOString()): date_create would also read
+		// "", "now" or "tomorrow" as a time. Milliseconds kept: a typed burst lands within one second.
+		$iso    = is_string( $r['observed_at'] ?? null ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/D', $r['observed_at'] );
+		$at     = $iso ? date_create_immutable( $r['observed_at'] ) : false;
+		$ts     = false === $at ? false : (int) $at->format( 'U' );
 		if ( ! isset( SN_SHARE_ECHO_FAMILIES[ $family ] ) || 1 !== preg_match( '#^/[^\s<>"\'\\\\]{0,511}$#', $path ) || false === $ts ) {
 			continue;
 		}
@@ -98,21 +109,24 @@ function sn_share_echoes_rows( array $raw ) {
 		if ( 'meta' === $family && 0 !== strpos( $key, 'r:' ) ) {
 			continue;
 		}
-		$rows[] = array( 'ts' => (int) $ts, 'family' => $family, 'path' => $path, 'key' => $key );
+		$rows[] = array( 'ts' => (int) $ts, 'ms' => (float) $at->format( 'U.u' ), 'family' => $family, 'path' => $path, 'key' => $key );
 	}
-	usort( $rows, static fn( $a, $b ) => $a['ts'] <=> $b['ts'] );
+	usort( $rows, static fn( $a, $b ) => $a['ms'] <=> $b['ms'] );
+	// One share per burst per app: a later fetch within the window replaces the
+	// burst's share with itself, so the last page fetched is the one kept.
 	$out  = array();
-	$last = array();
+	$open = array(); // family => index in $out of its burst's share, and when its last fetch was.
 	foreach ( $rows as $r ) {
-		$k = $r['key'] . '|' . $r['family'];
-		if ( isset( $last[ $k ] ) && $r['ts'] - $last[ $k ] <= SN_SHARE_ECHO_COLLAPSE ) {
-			$last[ $k ] = $r['ts'];
+		$f = $r['family'];
+		if ( isset( $open[ $f ] ) && $r['ms'] - $open[ $f ]['ms'] <= SN_SHARE_ECHO_COLLAPSE ) {
+			$out[ $open[ $f ]['i'] ] = $r;
+			$open[ $f ]['ms']        = $r['ms'];
 			continue;
 		}
-		$last[ $k ] = $r['ts'];
+		$open[ $f ] = array( 'i' => count( $out ), 'ms' => $r['ms'] );
 		$out[]      = $r;
 	}
-	return $out;
+	return array_map( static fn( $r ) => array_diff_key( $r, array( 'ms' => 1 ) ), $out );
 }
 
 /**
