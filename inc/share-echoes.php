@@ -118,13 +118,19 @@ function sn_share_echoes_rows( array $raw ) {
 	}
 	usort( $rows, static fn( $a, $b ) => $a['ms'] <=> $b['ms'] );
 	// One share per burst per app: a later fetch within the window replaces the
-	// burst's share with itself, so the last page fetched is the one kept.
+	// burst's share with itself, so the last page fetched is the one kept. Except
+	// an /r/ link is never replaced by a plain page: the app then followed the
+	// link's og:url (/r/CODE names /resume/), it did not send /resume (2026-11-14
+	// 20:01 ET, Telegram: /r/prueba sent, /resume/ fetched after it).
 	$out  = array();
 	$open = array(); // family => index in $out of its burst's share, and when its last fetch was.
 	foreach ( $rows as $r ) {
 		$f = $r['family'];
 		if ( isset( $open[ $f ] ) && $r['ms'] - $open[ $f ]['ms'] <= SN_SHARE_ECHO_COLLAPSE ) {
-			$out[ $open[ $f ]['i'] ] = $r;
+			$held = $out[ $open[ $f ]['i'] ]['key'];
+			if ( 0 !== strpos( $held, 'r:' ) || 0 === strpos( $r['key'], 'r:' ) ) {
+				$out[ $open[ $f ]['i'] ] = $r;
+			}
 			$open[ $f ]['ms']        = $r['ms'];
 			continue;
 		}
