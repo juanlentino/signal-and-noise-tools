@@ -68,7 +68,7 @@ function snt_analytics_render_topics( $from, $to ) {
 		echo '<tr>';
 		echo '<td>' . esc_html( (string) $r['label'] ) . '</td>';
 		echo '<td>' . esc_html( number_format_i18n( (int) $r['notes'] ) ) . '</td>';
-		echo '<td>' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>';
+		echo '<td>' . esc_html( number_format_i18n( (int) ( $r['views'] ?? 0 ) ) ) . '</td>';
 		echo '<td>' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td>';
 		echo '</tr>';
 	}

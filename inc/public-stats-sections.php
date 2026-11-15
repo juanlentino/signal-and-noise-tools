@@ -107,17 +107,22 @@ function sn_public_stats_fold( $rows, $label, $all = 0 ) {
  * @param array|null $sessions sn_session_rollup_read().
  * @return array<int,array{label:string,value:string}>|null
  */
-function sn_public_stats_reading_rows( $totals, $dist, $sessions ) {
+function sn_public_stats_reading_rows( $totals, $dist, $sessions, $reads = null ) {
 	$rows = array();
+	// 2026-11-14 (owner): reads, proven reading, first. Shown only when every
+	// day of the window was measured, so a partial count is never published.
+	if ( is_array( $reads ) && is_int( $reads['reads'] ?? null ) && empty( $reads['partial'] ) && (int) ( $reads['measured_days'] ?? 0 ) === (int) ( $reads['days'] ?? -1 ) ) {
+		$rows[] = array( 'key' => 'reads', 'label' => 'Reads (10 seconds on the page, half of it scrolled, or a click)', 'value' => number_format_i18n( $reads['reads'] ) );
+	}
 	if ( function_exists( 'snt_desktop_reading_page_rows' ) ) {
-		$rows = snt_desktop_reading_page_rows( $totals, (array) $dist );
+		$rows = array_merge( $rows, (array) snt_desktop_reading_page_rows( $totals, (array) $dist ) );
 	}
 	if ( function_exists( 'snt_desktop_reading_visit_rows' ) ) {
 		$rows = array_merge( $rows, (array) snt_desktop_reading_visit_rows( $sessions ) );
 	}
 	// Kept by key, not by the desktop's English label: a reworded or translated
 	// label would have dropped the row from /stats without a sound.
-	$keep = array( 'half', 'depth', 'time', 'one_page' );
+	$keep = array( 'reads', 'half', 'depth', 'time', 'one_page' );
 	$rows = array_values( array_filter( $rows, static fn( $r ) => in_array( $r['key'] ?? '', $keep, true ) && '' !== (string) $r['value'] ) );
 	return array() === $rows ? null : $rows;
 }

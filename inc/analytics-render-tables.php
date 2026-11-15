@@ -64,7 +64,7 @@ function snt_analytics_render_paths_table( $paths ) {
 		}
 		echo '<tr>'
 			. '<td class="column-primary"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
-			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
+			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) ( $r['views'] ?? 0 ) ) ) . '</td>'
 			. '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td>'
 			. '<td class="num" data-colname="Scroll">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
 			. '<td class="num" data-colname="Time">' . esc_html( snt_analytics_fmt_time( (float) $r['time_avg'] ) ) . '</td>'
@@ -139,7 +139,7 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 		if ( $has_spark ) {
 			echo '<td>' . snt_analytics_sparkline( $series[ $v ] ?? array() ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- returns pre-escaped markup: an SVG with esc_attr'd path d + a per-call gradient id minted by the helper.
 		}
-		echo '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) );
+		echo '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) ( $r['views'] ?? 0 ) ) );
 		if ( null !== $deltas && isset( $deltas[ $v ] ) ) {
 			snt_an_delta_badge( $deltas[ $v ] ); // inline variant — leading space is the badge's own.
 		}
@@ -172,7 +172,7 @@ function snt_analytics_sparkline( $series ) {
 	$n    = count( $series );
 	$max  = 1;
 	foreach ( $series as $row ) {
-		$max = max( $max, (int) $row['views'] );
+		$max = max( $max, (int) ( $row['views'] ?? 0 ) );
 	}
 	$w    = 72.0;
 	$top  = 2.0;
@@ -182,7 +182,7 @@ function snt_analytics_sparkline( $series ) {
 	$py   = array();
 	foreach ( array_values( $series ) as $i => $row ) {
 		$px[] = round( $i * $step, 2 );
-		$py[] = round( $base - ( (int) $row['views'] / $max ) * ( $base - $top ), 2 );
+		$py[] = round( $base - ( (int) ( $row['views'] ?? 0 ) / $max ) * ( $base - $top ), 2 );
 	}
 	// A single data point smooths to a bare moveto (invisible). Pad it to a flat
 	// full-width line so a one-bucket dimension still shows a mark — the old bar
@@ -227,7 +227,7 @@ function snt_analytics_render_lowengage( $rows ) {
 	foreach ( $rows as $r ) {
 		echo '<tr>'
 			. '<td class="column-primary"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
-			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
+			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) ( $r['views'] ?? 0 ) ) ) . '</td>'
 			. '<td class="num" data-colname="Scroll">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
 			. '<td class="num" data-colname="Time">' . esc_html( snt_analytics_fmt_time( (float) $r['time_avg'] ) ) . '</td>'
 			. '</tr>';
@@ -301,7 +301,7 @@ function snt_analytics_render_pageroles_table( $rows, $role, $header_meta = '', 
 		$path = (string) $r['path'];
 		echo '<tr>'
 			. '<td class="column-primary"><strong>' . esc_html( $path ) . '</strong></td>'
-			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) );
+			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) ( $r['views'] ?? 0 ) ) );
 		if ( null !== $deltas && isset( $deltas[ $path ] ) ) {
 			snt_an_delta_badge( $deltas[ $path ] ); // inline variant — leading space is the badge's own.
 		}

@@ -13,6 +13,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **Public `/stats` opens How they read with reads (owner 2026-11-14).** "Reads (10 seconds on the page, half of it scrolled, or a click)", from the nightly reads store. It is shown only when every day of the window was measured, so a partial count is never published; a window the backfill has not reached shows no row, never 0. Test: `tests/public-stats.php`.
+- **Live slots and surge tell readers from arrivals.** Each 5-minute slot of the live hour carries `engaged` (visitors with an engagement signal in the slot) beside `readers` (every active visitor), and each stored slot carries `engaged` and `arrived` (null for slots stored before this release, never 0). Surge keeps a second baseline of engaged readers (`sn_live_slot_log_readers`). Until that baseline holds the four days surge needs, it judges all active visitors as before, and once it does, it judges readers. Either way the verdict names its basis (`basis`: readers or visitors, with `readers_days` while learning). The hour bars still draw active visitors. Tests: `tests/analytics-live-surge.php`, `tests/analytics-live-slots.php`.
+
+### Fixed
+- **An `Undefined array key "views"` warning from an analytics render file (seen 2026-11-12).** The log redacts which file, so every unguarded `views` read in `inc/analytics-render-*.php` now defaults to 0.
+- **The two retired backfill cursors are removed** (`sn_bot_signals_by_day_backfill`, `sn_analytics_reads_backfill`). Nothing has read them since the walks restarted under new names.
+
 ## [2026.11.40] - 2026-11-14 — SN Traffic: one-line strict figure; This week and Top pages move to SN Reading
 
 ### Changed

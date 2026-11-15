@@ -24,14 +24,16 @@ const SN_ANALYTICS_LIVE_HOUR_SLOTS = 12;
  *
  * @return string AE SQL.
  */
-function sn_analytics_live_hour_sql() {
+function sn_analytics_live_hour_sql( $engaged = false ) {
+	// 2026-11-14: with $engaged, only visitors that sent an engagement signal in the slot (inc/analytics-live-engaged.php).
+	$only = $engaged && defined( 'SN_ANALYTICS_LIVE_ENGAGED_SQL' ) ? ' AND ' . SN_ANALYTICS_LIVE_ENGAGED_SQL : '';
 	return implode( ' ', array(
 		// The slot as unix seconds: no date-string format to parse, so a change
 		// in how Analytics Engine prints a DateTime cannot read as an empty hour
 		// (review on #1966).
 		"SELECT toUnixTimestamp(toStartOfInterval(timestamp, INTERVAL '5' MINUTE)) AS slot, count(DISTINCT index1) AS readers",
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
-		"WHERE timestamp >= now() - INTERVAL '60' MINUTE AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
+		"WHERE timestamp >= now() - INTERVAL '60' MINUTE{$only} AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
 		'GROUP BY slot ORDER BY slot',
 	) );
 }
@@ -73,5 +75,18 @@ function sn_analytics_live_hour_read() {
 	// 5-minute boundary could pass and leave the newest slot an empty 0.
 	$now  = time();
 	$rows = sn_analytics_query( sn_analytics_live_hour_sql() );
-	return is_array( $rows ) ? sn_analytics_live_hour_from_rows( $rows, $now ) : null;
+	if ( ! is_array( $rows ) ) {
+		return null;
+	}
+	$hour = sn_analytics_live_hour_from_rows( $rows, $now );
+	// 2026-11-14: each slot also says how many of its visitors were readers
+	// (an engagement signal in the slot); absent when that read failed, never 0.
+	$erows = sn_analytics_query( sn_analytics_live_hour_sql( true ) );
+	if ( is_array( $erows ) ) {
+		$eng = array_column( sn_analytics_live_hour_from_rows( $erows, $now ), 'readers', 't' );
+		foreach ( $hour as $i => $slot ) {
+			$hour[ $i ]['engaged'] = min( (int) $slot['readers'], (int) ( $eng[ $slot['t'] ] ?? 0 ) );
+		}
+	}
+	return $hour;
 }

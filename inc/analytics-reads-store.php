@@ -71,6 +71,10 @@ function sn_analytics_reads_measure( $first, $end ) {
  * about 12 nights reach the 88 days Analytics Engine holds).
  */
 function sn_analytics_reads_refresh() {
+	// The cursors the backfills walked under before they were restarted
+	// (2026-11-13, 2026-11-14): nothing reads them. Idempotent, one cheap call each.
+	delete_option( 'sn_bot_signals_by_day_backfill' );
+	delete_option( 'sn_analytics_reads_backfill' );
 	$today = sn_analytics_reads_today();
 	sn_analytics_reads_measure( sn_analytics_reads_shift( $today, 1 - SN_ANALYTICS_READS_NIGHTLY_DAYS ), sn_analytics_reads_shift( $today, 1 ) );
 	$floor  = sn_analytics_reads_shift( $today, -SN_ANALYTICS_READS_HOLD_DAYS );

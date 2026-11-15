@@ -130,6 +130,9 @@ function sn_analytics_live_slots_from_rows( array $hour, array $classes, array $
 		}
 		$out[ $t ] = array(
 			'readers' => max( 0, (int) $s['readers'] ),
+			// 2026-11-14: readers apart from arrivals; null for a slot read before the split.
+			'engaged' => isset( $s['engaged'] ) ? max( 0, (int) $s['engaged'] ) : null,
+			'arrived' => isset( $s['engaged'] ) ? max( 0, (int) $s['readers'] - (int) $s['engaged'] ) : null,
 			'classes' => $split,
 			'pages'   => sn_analytics_live_pages_from_rows( $pg[ $t ] ?? array(), $resolve ),
 			'sources' => sn_analytics_live_sources_from_rows( $src[ $t ] ?? array(), $self_hosts ),
