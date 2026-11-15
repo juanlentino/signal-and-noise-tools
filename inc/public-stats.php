@@ -365,7 +365,7 @@ function sn_public_stats_data() {
 		}
 		$assembled['sources']   = sn_public_stats_fold( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $from, $to, 'human', SN_PUBLIC_STATS_READ_CAP ) : null, 'sn_public_stats_source_label', $assembled['views'] );
 		$assembled['countries'] = sn_public_stats_fold( function_exists( 'sn_analytics_top_dimension' ) ? sn_analytics_top_dimension( 'country', $from, $to, 'human', SN_PUBLIC_STATS_READ_CAP ) : null, 'sn_public_stats_country_label', $assembled['views'] );
-		$assembled['reading']   = sn_public_stats_reading_rows( function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $from, $to, 'human' ) : null, $dist, $sessions );
+		$assembled['reading']   = sn_public_stats_reading_rows( function_exists( 'sn_analytics_range_totals' ) ? sn_analytics_range_totals( $from, $to, 'human' ) : null, $dist, $sessions, function_exists( 'sn_analytics_reads_figure' ) ? sn_analytics_reads_figure( $from, $to, 'human' ) : null );
 		$assembled['machines']  = sn_public_stats_machines_stored( get_option( SN_PUBLIC_STATS_MACHINES_OPT ), $from, $to );
 		$assembled['likely_automated'] = function_exists( 'sn_analytics_likely_automated' ) ? sn_analytics_likely_automated( $from, $to, 'human' ) : null;
 	}

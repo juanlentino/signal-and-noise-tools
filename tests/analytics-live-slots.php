@@ -113,7 +113,7 @@ $blob = serialize( $store );
 foreach ( array( 'SECRET', '203.0.113.9', 'index1', 'Mozilla', 'utm=' ) as $needle ) {
 	ok( false === strpos( $blob, $needle ), "the stored slots never contain \"$needle\"" );
 }
-ok( array( 'classes', 'pages', 'readers', 'sources' ) === ( static function ( $k ) { sort( $k ); return $k; } )( array_keys( $store[ $last ] ) ), 'a slot holds exactly readers, classes, pages and sources' );
+ok( array( 'arrived', 'classes', 'engaged', 'pages', 'readers', 'sources' ) === ( static function ( $k ) { sort( $k ); return $k; } )( array_keys( $store[ $last ] ) ), 'a slot holds exactly readers, engaged, arrived, classes, pages and sources (2026-11-14: readers apart from arrivals)' );
 
 echo "\nGroup: a failed read stores nothing\n";
 $GLOBALS['o'] = array(); $GLOBALS['q'] = array();
@@ -148,7 +148,10 @@ foreach ( array( 'null' => null, 'empty' => array() ) as $k => $in ) {
 	ok( json_encode( $plain ) === json_encode( snt_ability_live_now( $in ) ), "input $k: byte-identical to the live payload, no slots key" );
 }
 $with = snt_ability_live_now( array( 'hours_back' => 24 ) );
-ok( isset( $with['slots'] ) && 11 <= count( $with['slots'] ) && array( 't', 'readers', 'classes', 'pages', 'sources' ) === array_keys( $with['slots'][ count( $with['slots'] ) - 1 ] ), 'hours_back adds the stored slots, each { t, readers, classes, pages, sources }' );
+ok( isset( $with['slots'] ) && 11 <= count( $with['slots'] ) && array( 't', 'readers', 'engaged', 'arrived', 'classes', 'pages', 'sources' ) === array_keys( $with['slots'][ count( $with['slots'] ) - 1 ] ), 'hours_back adds the stored slots, each { t, readers, engaged, arrived, classes, pages, sources }' );
+$__h  = array( array( 't' => 600, 'readers' => 3, 'engaged' => 1 ), array( 't' => 900, 'readers' => 2 ) );
+$__s  = sn_analytics_live_slots_from_rows( $__h, array(), array(), array(), 1200, static fn( $p ) => null, array() );
+ok( 1 === $__s[600]['engaged'] && 2 === $__s[600]['arrived'] && null === $__s[900]['engaged'] && null === $__s[900]['arrived'], 'a slot splits its visitors into readers and arrivals; one read before the split says null, never 0' );
 $rest = $with;
 unset( $rest['slots'] );
 ok( json_encode( $plain ) === json_encode( $rest ), '   ...and everything else is the live answer, unchanged' );

@@ -31,6 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_ANALYTICS_SURGE_LOG         = 'sn_live_slot_log';
+const SN_ANALYTICS_SURGE_LOG_READERS = 'sn_live_slot_log_readers'; // 2026-11-14: engaged readers per slot, its own baseline.
 const SN_ANALYTICS_SURGE_KEEP        = 8 * 86400;
 const SN_ANALYTICS_SURGE_SLOT        = 300;
 const SN_ANALYTICS_SURGE_MIN_DAYS    = 4;
@@ -117,6 +118,24 @@ function sn_analytics_live_surge_step( $hour ) {
 	if ( $log !== $old ) {
 		update_option( SN_ANALYTICS_SURGE_LOG, $log, false );
 	}
-	$last = $hour[ count( $hour ) - 2 ]; // the last COMPLETED slot
-	return sn_analytics_live_surge( $log, (int) $last['t'], (int) $last['readers'] );
+	$last    = $hour[ count( $hour ) - 2 ]; // the last COMPLETED slot
+	$verdict = sn_analytics_live_surge( $log, (int) $last['t'], (int) $last['readers'] ) + array( 'basis' => 'visitors' );
+	// 2026-11-14: surge judges READERS (an engagement signal in the slot) on
+	// their own baseline once it holds the days it needs; until then it judges
+	// all active visitors as before, and says which (`basis`).
+	if ( isset( $last['engaged'] ) ) {
+		$eng  = array_map( static fn( $s ) => isset( $s['engaged'] ) ? array( 't' => $s['t'], 'readers' => $s['engaged'] ) : null, $hour );
+		$eold = get_option( SN_ANALYTICS_SURGE_LOG_READERS, array() );
+		$eold = is_array( $eold ) ? $eold : array();
+		$elog = sn_analytics_live_log_merge( $eold, array_values( array_filter( $eng ) ), time() );
+		if ( $elog !== $eold ) {
+			update_option( SN_ANALYTICS_SURGE_LOG_READERS, $elog, false );
+		}
+		$on = sn_analytics_live_surge( $elog, (int) $last['t'], (int) $last['engaged'] );
+		if ( 'learning' !== $on['state'] ) {
+			return $on + array( 'basis' => 'readers' );
+		}
+		$verdict['readers_days'] = $on['days']; // how far the readers' baseline has come.
+	}
+	return $verdict;
 }

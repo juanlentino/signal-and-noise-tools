@@ -36,7 +36,7 @@ function snt_analytics_render_trend( $series, $granularity = 'day', $compare_ser
 	$views = array();
 	$peak  = 0;
 	foreach ( $series as $r ) {
-		$v       = (int) $r['views'];
+		$v       = (int) ( $r['views'] ?? 0 );
 		$views[] = $v;
 		$peak    = max( $peak, $v );
 	}

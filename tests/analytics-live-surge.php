@@ -46,5 +46,24 @@ ok( 4 === $v['days'] && 'usual' === $v['state'], 'the baseline is the same time 
 $v = sn_analytics_live_surge( $base( array( 1, 1, 1, 1 ) ) + array( $slot - 600 => 40 ), $slot, 1 );
 ok( 'usual' === $v['state'], 'the last hour of today is not part of its own baseline' );
 
+
+echo "\nGroup: readers apart from arrivals (2026-11-14)\n";
+$GLOBALS['__o'] = array();
+function get_option( $k, $d = false ) { return $GLOBALS['__o'][ $k ] ?? $d; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['__o'][ $k ] = $v; return true; }
+$tn  = time();
+$tc  = intdiv( $tn, 300 ) * 300;
+$hr  = array();
+for ( $i = 11; $i >= 0; $i-- ) { $hr[] = array( 't' => $tc - $i * 300, 'readers' => 8, 'engaged' => 6 ); }
+$v = sn_analytics_live_surge_step( $hr );
+ok( 'visitors' === $v['basis'] && 0 === $v['readers_days'] && isset( $GLOBALS['__o'][ SN_ANALYTICS_SURGE_LOG_READERS ][ $tc - 300 ] ), 'with no readers baseline yet, surge judges visitors as before, says so, and starts the readers log' );
+$seed = array();
+for ( $d = 1; $d <= 5; $d++ ) { $seed[ $tc - 300 - $d * 86400 ] = 1; }
+$GLOBALS['__o'][ SN_ANALYTICS_SURGE_LOG_READERS ] = $seed;
+$v = sn_analytics_live_surge_step( $hr );
+ok( 'readers' === $v['basis'] && 'surge' === $v['state'] && 6 === $v['readers'], 'once the readers baseline holds four days, surge judges readers: 6 against a usual 1 is a surge' );
+unset( $hr[10]['engaged'] );
+ok( 'visitors' === sn_analytics_live_surge_step( $hr )['basis'], 'an hour read before the split judges visitors' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

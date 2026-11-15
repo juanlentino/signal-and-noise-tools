@@ -512,5 +512,12 @@ ok( ! array_filter( array_keys( $ac['top'] ), static fn( $p ) => 0 === strpos( $
 ok( $a['top'] === $ac['top'], 'Most read keeps its real pages, untouched' );
 ok( '' === sn_public_stats_path_label( '/r/hera/' ), 'and a coded path has no public label' );
 
+// 2026-11-14 (owner): reads, first in How they read, only for a fully measured window.
+$__full = array( 'reads' => 27, 'days' => 30, 'measured_days' => 30, 'partial' => false );
+$__rr   = sn_public_stats_reading_rows( $GLOBALS['__totals'], (array) $GLOBALS['__dist'], $GLOBALS['__sessions'], $__full );
+ok( 'reads' === ( $__rr[0]['key'] ?? '' ) && '27' === $__rr[0]['value'] && false !== strpos( $__rr[0]['label'], '10 seconds' ), 'How they read opens with reads, its rule in the label' );
+ok( 'reads' !== ( sn_public_stats_reading_rows( $GLOBALS['__totals'], (array) $GLOBALS['__dist'], $GLOBALS['__sessions'], array( 'measured_days' => 14, 'partial' => true ) + $__full )[0]['key'] ?? '' ), 'a partly measured window publishes no reads row, never a short count' );
+ok( 'reads' !== ( sn_public_stats_reading_rows( $GLOBALS['__totals'], (array) $GLOBALS['__dist'], $GLOBALS['__sessions'], array( 'reads' => null ) + $__full )[0]['key'] ?? '' ), 'not measured: no row, never 0' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

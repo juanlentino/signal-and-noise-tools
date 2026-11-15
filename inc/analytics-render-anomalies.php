@@ -41,7 +41,7 @@ function snt_analytics_render_anomalies( $anom ) {
 			esc_html( $d['path'] ),
 			esc_html( $label ),
 			esc_html( $d['scroll_avg'] . '% scroll · ' . round( $d['time_avg_ms'] / 1000, 1 ) . 's' ),
-			esc_html( number_format_i18n( $d['views'] ) )
+			esc_html( number_format_i18n( (int) ( $d['views'] ?? 0 ) ) )
 		);
 	}
 	foreach ( $out as $o ) {
@@ -51,7 +51,7 @@ function snt_analytics_render_anomalies( $anom ) {
 			esc_html( $o['path'] ),
 			esc_html( ucfirst( $o['dir'] ) . ' outlier · ' . $metric ),
 			esc_html( $o['value'] . ' vs ' . $o['mean'] . ' avg (z ' . $o['z'] . ')' ),
-			esc_html( number_format_i18n( $o['views'] ) )
+			esc_html( number_format_i18n( (int) ( $o['views'] ?? 0 ) ) )
 		);
 	}
 	echo '</tbody></table>';
