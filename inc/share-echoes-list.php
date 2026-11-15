@@ -37,7 +37,7 @@ function sn_share_echoes_list( array $echoes, array $sessions ) {
 	}
 	foreach ( $sessions as $s ) {
 		$start = (int) strtotime( (string) ( $s['start'] ?? '' ) );
-		$hit   = sn_share_echo_for( $echoes, sn_share_echo_session_key( $s ), $start );
+		$hit   = sn_share_echo_for( $echoes, sn_share_echo_session_key( $s ), $start, sn_share_echo_source_family( (string) ( $s['source'] ?? '' ) ) );
 		if ( null === $hit ) {
 			continue;
 		}
