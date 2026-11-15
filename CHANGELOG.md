@@ -14,7 +14,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Fixed
-- **The Shares note and the sessions ability say how shares are joined now.** The note under Links › Shares still said a Meta fetch counts only on an `/r/` link and that shares are joined by page and time only. It now says a visit whose source names an app counts only a share through that app, a share of an `/r/` link stays on the link when the app then fetches the page it names, and Meta's preview renderer, recognized by its network, counts on any page while its crawler counts only on `/r/` links. The `share` field in the sessions ability description says the same; its output schema, which the remote contract hashes, is unchanged.
+- **The Shares note and the sessions ability say how shares are joined now.** The note under Links › Shares still said a Meta fetch counts only on an `/r/` link and that shares are joined by page and time only. It now says a visit whose source names an app counts only a share through that app, a share of an `/r/` link stays on the link when the app then fetches the page it names, and Meta's preview renderer, recognized by its network, counts on any page while its crawler counts only on `/r/` links. The `share` field in the sessions ability description now names the app match; its output schema, which the remote contract hashes, is unchanged.
 
 ## [2026.11.45] - 2026-11-15 — A coded link stays the share when the app fetches the page it names
 
