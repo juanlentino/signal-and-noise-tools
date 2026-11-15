@@ -93,6 +93,7 @@ foreach ( array( 'classes' => sn_analytics_live_slot_classes_sql(), 'pages' => s
 }
 ok( false === strpos( sn_analytics_live_slot_classes_sql(), "blob7 = 'bot') AND" ) && false !== strpos( sn_analytics_live_slot_classes_sql(), 'AS class' ), 'classes: every class, as Reading now counts them' );
 ok( false !== strpos( sn_analytics_live_slot_pages_sql(), "blob2 ILIKE '/wp-admin'" ) && false !== strpos( sn_analytics_live_slot_sources_sql(), "blob1 = 'pv'" ), 'pages and sources keep their live rules: admin paths out, sources from page views' );
+ok( false !== strpos( sn_analytics_live_slot_pages_sql(), ' AND ' . SN_ANALYTICS_LIVE_ENGAGED_SQL ) && false === strpos( sn_analytics_live_slot_sources_sql(), SN_ANALYTICS_LIVE_ENGAGED_SQL ), 'a slot\'s pages are its readers only, as Top now is; arrivals stay out (2026-11-15). Sources keep every arrival' );
 ok( false !== strpos( sn_analytics_live_slot_sources_sql(), sn_analytics_referrer_value_sql( 'blob3' ) . ' AS host' ), 'a slot\'s sources relabel an internal click, as live sources do, so the fold drops it (2026-11-01)' );
 
 echo "\nGroup: a completed slot is stored, the partial one never\n";
