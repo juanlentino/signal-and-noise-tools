@@ -129,5 +129,13 @@ ok( 'meta' === sn_share_echo_source_family( 'Facebook' ) && 'meta' === sn_share_
 $lst = sn_share_echoes_list( $only_tg, array( $ses( '/resume', $t0 + 300, array( 'source' => 'Instagram' ) ) ) );
 ok( array() === $lst[0]['visits'], 'the Shares list follows the same rule' );
 
+echo "\nGroup: an /r/ link is not replaced by the page it names (2026-11-14 20:01 ET Telegram send)\n";
+$sent = sn_share_echoes_rows( array( $raw( 'telegram', '/r/prueba', $t0 ), $raw( 'telegram', '/resume/', $t0 + 2 ) ) );
+ok( array( 'r:prueba' ) === array_column( $sent, 'key' ), 'Telegram fetching /resume/ after /r/prueba (the og:url) is still the /r/prueba share: ' . json_encode( array_column( $sent, 'key' ) ) );
+$after = sn_share_echo_annotate( array( $ses( '/resume', $t0 + 600, array( 'source' => '(direct)' ) ) ), $sent );
+ok( null === $after[0]['share'], 'so a plain /resume visit does not inherit it' );
+$typed2 = sn_share_echoes_rows( array( $raw( 'whatsapp', '/', $t0 ), $raw( 'whatsapp', '/r/pr', $t0 + 3 ), $raw( 'whatsapp', '/r/prueba', $t0 + 6 ) ) );
+ok( array( 'r:prueba' ) === array_column( $typed2, 'key' ), 'a typed link still ends on the link sent' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
