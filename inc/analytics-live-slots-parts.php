@@ -51,15 +51,18 @@ function sn_analytics_live_slot_classes_sql() {
 }
 
 /**
- * Human readers per slot and path, the live pages rule per slot.
+ * Human readers per slot and path, the live pages rule per slot: readers
+ * only, as Top now (2026-11-15). A visitor who arrived and sent nothing yet
+ * stays in the slot's `arrived`, never in its pages.
  *
  * @return string AE SQL.
  */
 function sn_analytics_live_slot_pages_sql() {
+	$only = defined( 'SN_ANALYTICS_LIVE_ENGAGED_SQL' ) ? ' AND ' . SN_ANALYTICS_LIVE_ENGAGED_SQL : '';
 	return implode( ' ', array(
 		'SELECT ' . sn_analytics_live_slot_col() . ', blob2 AS path, count(DISTINCT index1) AS readers',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
-		"WHERE timestamp >= now() - INTERVAL '60' MINUTE AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
+		"WHERE timestamp >= now() - INTERVAL '60' MINUTE{$only} AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
 		'GROUP BY slot, path ORDER BY slot, readers DESC LIMIT ' . SN_ANALYTICS_LIVE_SLOTS_ROWS,
 	) );
 }
