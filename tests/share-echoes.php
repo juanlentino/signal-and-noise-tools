@@ -56,6 +56,7 @@ $before = sn_share_echo_annotate( array( $ses( '/notes/x/', $t0 - 60 ) ), $echoe
 ok( null === $before[0]['share'], 'a visit before the echo is not' );
 $other = sn_share_echo_annotate( array( $ses( '/notes/y/', $t0 + 60 ) ), $echoes );
 ok( null === $other[0]['share'], 'a visit to another page is not' );
+ok( array() === sn_share_echoes_rows( array( array( 'family' => 'whatsapp', 'path' => '/r/x', 'observed_at' => '' ), array( 'family' => 'whatsapp', 'path' => '/r/y', 'observed_at' => 'now' ), array( 'family' => 'whatsapp', 'path' => '/r/z', 'observed_at' => 'tomorrow' ) ) ), 'a time that is not the worker\'s ISO stamp is no share, never "now"' );
 $two = sn_share_echoes_rows( array( $raw( 'slack', '/notes/x/', $t0 ), $raw( 'linkedin', '/notes/x/', $t0 + 3600 ) ) );
 $b   = sn_share_echo_annotate( array( $ses( '/notes/x/', $t0 + 2 * 3600 ) ), $two );
 ok( 'LinkedIn' === $b[0]['share']['app'] && 3600 === $b[0]['share']['gap_s'], 'two echoes before one visit: the later one' );

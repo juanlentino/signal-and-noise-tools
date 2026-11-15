@@ -91,7 +91,10 @@ function sn_share_echoes_rows( array $raw ) {
 		$r      = (array) $r;
 		$family = (string) ( $r['family'] ?? '' );
 		$path   = (string) ( $r['path'] ?? '' );
-		$at     = is_string( $r['observed_at'] ?? null ) ? date_create_immutable( $r['observed_at'] ) : false; // milliseconds kept: a typed burst lands within one second.
+		// The worker's ISO time only (toISOString()): date_create would also read
+		// "", "now" or "tomorrow" as a time. Milliseconds kept: a typed burst lands within one second.
+		$iso    = is_string( $r['observed_at'] ?? null ) && 1 === preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/D', $r['observed_at'] );
+		$at     = $iso ? date_create_immutable( $r['observed_at'] ) : false;
 		$ts     = false === $at ? false : (int) $at->format( 'U' );
 		if ( ! isset( SN_SHARE_ECHO_FAMILIES[ $family ] ) || 1 !== preg_match( '#^/[^\s<>"\'\\\\]{0,511}$#', $path ) || false === $ts ) {
 			continue;
