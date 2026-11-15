@@ -147,7 +147,7 @@ function sn_share_echo_source_family( $source ) {
 	if ( 'x' === $s ) {
 		return 'x';
 	}
-	foreach ( array( 'instagram' => 'meta', 'facebook' => 'meta', 'threads' => 'meta', 'whatsapp' => 'whatsapp', 'linkedin' => 'linkedin', 'telegram' => 'telegram', 'slack' => 'slack', 'discord' => 'discord' ) as $needle => $family ) {
+	foreach ( array( 'instagram' => 'meta', 'facebook' => 'meta', 'threads' => 'meta', 'messenger' => 'meta', 'whatsapp' => 'whatsapp', 'linkedin' => 'linkedin', 'telegram' => 'telegram', 'slack' => 'slack', 'discord' => 'discord' ) as $needle => $family ) {
 		if ( false !== strpos( $s, $needle ) ) {
 			return $family;
 		}

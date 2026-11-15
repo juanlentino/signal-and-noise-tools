@@ -125,7 +125,7 @@ $v3      = sn_share_echo_annotate( array( $ses( '/resume', $t0 + 300, array( 'so
 ok( null === $v3[0]['share'], 'an Instagram visit with only a Telegram echo has no share' );
 $v4 = sn_share_echo_annotate( array( $ses( '/resume', $t0 + 300, array( 'source' => '(direct)' ) ) ), $late_tg );
 ok( 'telegram' === $v4[0]['share']['family'], 'a direct visit still takes the latest echo of any app' );
-ok( 'meta' === sn_share_echo_source_family( 'Facebook' ) && 'whatsapp' === sn_share_echo_source_family( 'web.whatsapp.com' ) && 'x' === sn_share_echo_source_family( 'X' ) && '' === sn_share_echo_source_family( 'Google' ) && '' === sn_share_echo_source_family( '(internal)' ), 'sources name their apps; a search engine or internal names none' );
+ok( 'meta' === sn_share_echo_source_family( 'Facebook' ) && 'meta' === sn_share_echo_source_family( 'messenger.com' ) && 'whatsapp' === sn_share_echo_source_family( 'web.whatsapp.com' ) && 'x' === sn_share_echo_source_family( 'X' ) && '' === sn_share_echo_source_family( 'Google' ) && '' === sn_share_echo_source_family( '(internal)' ), 'sources name their apps; a search engine or internal names none' );
 $lst = sn_share_echoes_list( $only_tg, array( $ses( '/resume', $t0 + 300, array( 'source' => 'Instagram' ) ) ) );
 ok( array() === $lst[0]['visits'], 'the Shares list follows the same rule' );
 
