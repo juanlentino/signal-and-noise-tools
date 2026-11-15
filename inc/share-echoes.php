@@ -100,13 +100,18 @@ function sn_share_echoes_rows( array $raw ) {
 			continue;
 		}
 		$key = sn_share_echo_key( $path );
-		if ( in_array( $family, SN_SHARE_ECHO_VERIFIED_FAMILIES, true ) && '1' !== (string) ( $r['verified'] ?? '' ) ) {
+		// 'network' (rights-signals 1.40.0): matched by Meta's network, not its
+		// agent. That is Meta's phone-like preview renderer, which runs the page
+		// the moment a link is sent in Instagram or Facebook; its network is the
+		// proof Cloudflare's verified-bot header cannot give a browser agent.
+		$by_net = 'meta' === $family && 'network' === (string) ( $r['via'] ?? '' );
+		if ( ! $by_net && in_array( $family, SN_SHARE_ECHO_VERIFIED_FAMILIES, true ) && '1' !== (string) ( $r['verified'] ?? '' ) ) {
 			continue;
 		}
-		// Meta's fetcher also crawls on its own schedule (about 300 page fetches a
-		// day here, 2026-11), so a Meta fetch is a share only on an /r/ link,
-		// which nothing finds without being sent it.
-		if ( 'meta' === $family && 0 !== strpos( $key, 'r:' ) ) {
+		// Meta's facebookexternalhit also crawls on its own schedule (about 300
+		// page fetches a day here, 2026-11), so an agent-matched Meta fetch is a
+		// share only on an /r/ link, which nothing finds without being sent it.
+		if ( 'meta' === $family && ! $by_net && 0 !== strpos( $key, 'r:' ) ) {
 			continue;
 		}
 		$rows[] = array( 'ts' => (int) $ts, 'ms' => (float) $at->format( 'U.u' ), 'family' => $family, 'path' => $path, 'key' => $key );
@@ -130,19 +135,45 @@ function sn_share_echoes_rows( array $raw ) {
 }
 
 /**
+ * The preview family a visit's source names, or '' when it names no app on
+ * the list (direct, internal, a search engine). Labels from
+ * inc/analytics-sources.php; an unlabeled app arrives as its host. PURE.
+ *
+ * @param string $source A session's source label.
+ * @return string
+ */
+function sn_share_echo_source_family( $source ) {
+	$s = strtolower( (string) $source );
+	if ( 'x' === $s ) {
+		return 'x';
+	}
+	foreach ( array( 'instagram' => 'meta', 'facebook' => 'meta', 'threads' => 'meta', 'messenger' => 'meta', 'whatsapp' => 'whatsapp', 'linkedin' => 'linkedin', 'telegram' => 'telegram', 'slack' => 'slack', 'discord' => 'discord' ) as $needle => $family ) {
+		if ( false !== strpos( $s, $needle ) ) {
+			return $family;
+		}
+	}
+	return '';
+}
+
+/**
  * The share a visit followed: the latest echo on its page in the 72 hours
- * before it, or null. PURE.
+ * before it, or null. When the visit's source names an app, only that app's
+ * echoes count: an Instagram visit never borrows a Telegram share. PURE.
  *
  * @param array  $echoes sn_share_echoes_rows() rows, oldest first.
  * @param string $key    The visit's page key.
  * @param int    $start  The visit's start, Unix time.
+ * @param string $family Only this family's echoes ('' = any).
  * @return array{family:string,app:string,at:int,gap_s:int}|null
  */
-function sn_share_echo_for( array $echoes, $key, $start ) {
+function sn_share_echo_for( array $echoes, $key, $start, $family = '' ) {
 	$hit = null;
 	foreach ( $echoes as $e ) {
 		if ( $e['ts'] > $start ) {
 			break;
+		}
+		if ( '' !== $family && $e['family'] !== $family ) {
+			continue;
 		}
 		if ( $e['key'] === $key && '' !== $key && $start - $e['ts'] <= SN_SHARE_ECHO_WINDOW ) {
 			$hit = $e;
@@ -171,7 +202,7 @@ function sn_share_echo_session_read( array $s ) {
  */
 function sn_share_echo_annotate( array $sessions, array $echoes ) {
 	return array_map( static function ( $s ) use ( $echoes ) {
-		$hit        = sn_share_echo_for( $echoes, sn_share_echo_session_key( $s ), (int) strtotime( (string) ( $s['start'] ?? '' ) ) );
+		$hit        = sn_share_echo_for( $echoes, sn_share_echo_session_key( $s ), (int) strtotime( (string) ( $s['start'] ?? '' ) ), sn_share_echo_source_family( (string) ( $s['source'] ?? '' ) ) );
 		$s['share'] = null === $hit ? null : array( 'app' => $hit['app'], 'family' => $hit['family'], 'gap_s' => $hit['gap_s'], 'read' => sn_share_echo_session_read( $s ) );
 		return $s;
 	}, $sessions );

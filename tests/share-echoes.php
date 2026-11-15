@@ -108,5 +108,26 @@ ok( 1 === count( (array) sn_share_echoes_read( 14 ) ), 'a complete read answers 
 $GLOBALS['__mr']['rows'] = array( array( 'surface' => 'html', 'family' => 'meta-ai', 'day' => '2026-11-14', 'hits' => 9 ) );
 ok( null === sn_share_echoes_read( 14 ), 'a worker that answers rows that are not echoes reads as a failed read' );
 
+echo "\nGroup: Meta by network, and the app a visit came from (2026-11-15 Instagram send)\n";
+$net = static fn( $path, $ts ) => array( 'family' => 'meta', 'path' => $path, 'observed_at' => gmdate( 'Y-m-d\TH:i:s.000\Z', $ts ), 'verified' => '0', 'via' => 'network', 'hits' => 1 );
+$mn  = sn_share_echoes_rows( array( $net( '/resume', $t0 ), $raw( 'meta', '/resume', $t0 + 3600, '1' ) ) );
+ok( array( '/resume/' ) === array_column( $mn, 'key' ), 'a Meta fetch matched by its network is a share on a plain page, unverified; an agent-matched one there is still a crawl' );
+$ig   = array_merge( $net( '/resume', $t0 ), array() );
+$tg   = $raw( 'telegram', '/resume', $t0 - 19 * 3600 );
+$both = sn_share_echoes_rows( array( $tg, $ig ) );
+$v    = sn_share_echo_annotate( array( $ses( '/resume', $t0 + 300, array( 'source' => 'Instagram' ) ) ), $both );
+ok( 'meta' === $v[0]['share']['family'] && 300 === $v[0]['share']['gap_s'], 'an Instagram visit 5 minutes after a Meta echo is credited to it' );
+$late_tg = sn_share_echoes_rows( array( $ig, $raw( 'telegram', '/resume', $t0 + 120 ) ) );
+$v2      = sn_share_echo_annotate( array( $ses( '/resume', $t0 + 300, array( 'source' => 'Instagram' ) ) ), $late_tg );
+ok( 'meta' === $v2[0]['share']['family'], 'even when a Telegram echo is more recent' );
+$only_tg = sn_share_echoes_rows( array( $tg ) );
+$v3      = sn_share_echo_annotate( array( $ses( '/resume', $t0 + 300, array( 'source' => 'Instagram' ) ) ), $only_tg );
+ok( null === $v3[0]['share'], 'an Instagram visit with only a Telegram echo has no share' );
+$v4 = sn_share_echo_annotate( array( $ses( '/resume', $t0 + 300, array( 'source' => '(direct)' ) ) ), $late_tg );
+ok( 'telegram' === $v4[0]['share']['family'], 'a direct visit still takes the latest echo of any app' );
+ok( 'meta' === sn_share_echo_source_family( 'Facebook' ) && 'meta' === sn_share_echo_source_family( 'messenger.com' ) && 'whatsapp' === sn_share_echo_source_family( 'web.whatsapp.com' ) && 'x' === sn_share_echo_source_family( 'X' ) && '' === sn_share_echo_source_family( 'Google' ) && '' === sn_share_echo_source_family( '(internal)' ), 'sources name their apps; a search engine or internal names none' );
+$lst = sn_share_echoes_list( $only_tg, array( $ses( '/resume', $t0 + 300, array( 'source' => 'Instagram' ) ) ) );
+ok( array() === $lst[0]['visits'], 'the Shares list follows the same rule' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
