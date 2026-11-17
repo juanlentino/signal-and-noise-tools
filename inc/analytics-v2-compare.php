@@ -511,7 +511,7 @@ function snt_ability_analytics_dual_write( $input = array() ) {
 	}
 	// The stored sampled-day record (no live read): per site day and event, stored rows vs what they stand for.
 	if ( function_exists( 'sn_analytics_sampled_report' ) ) {
-		$out['sampled_days'] = sn_analytics_sampled_report( (array) get_option( SN_ANALYTICS_SAMPLED_OPT, array() ) );
+		$out['sampled_days'] = sn_analytics_sampled_report( (array) get_option( SN_ANALYTICS_SAMPLED_OPT, array() ), (array) get_option( SN_ANALYTICS_SAMPLED_RUN_OPT, array() ) );
 	}
 	return $out;
 }
@@ -527,7 +527,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_analytics_dual_write',
 		'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => array( 'days' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 14, 'default' => 4, 'description' => 'UTC days back, today included.' ) ), 'additionalProperties' => false ),
-		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'read' => array( 'type' => 'boolean' ), 'days' => array( 'type' => 'array' ), 'mismatched' => array( 'type' => 'integer' ), 'first_full_day' => array( 'type' => 'string' ), 'datasets' => array( 'type' => 'array' ), 'failed' => array( 'type' => 'string' ), 'error' => array( 'type' => 'string' ), 'verdict' => array( 'type' => 'object' ), 'sampled_visitors' => array( 'type' => 'object' ), 'sampled_days' => array( 'type' => 'object', 'description' => 'The stored sampled-day record, kept by the nightly rollup for the last 90 site days and never pruned: {onset, days:[{day, estimated, events:{ev:{sampled, stored, stands_for, human:{sampled, stored, stands_for}}}}]}. `stored` is the rows Analytics Engine kept, `stands_for` the events they stand for; `estimated` means a counted-human row that day was sampled, and `onset` is the earliest such day. Reports label those days estimated (sampled); no number is changed.' ) ) ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'ok' => array( 'type' => 'boolean' ), 'read' => array( 'type' => 'boolean' ), 'days' => array( 'type' => 'array' ), 'mismatched' => array( 'type' => 'integer' ), 'first_full_day' => array( 'type' => 'string' ), 'datasets' => array( 'type' => 'array' ), 'failed' => array( 'type' => 'string' ), 'error' => array( 'type' => 'string' ), 'verdict' => array( 'type' => 'object' ), 'sampled_visitors' => array( 'type' => 'object' ), 'sampled_days' => array( 'type' => 'object', 'description' => 'The stored sampled-day record, kept by the nightly rollup for the last 90 site days and never pruned: {onset, days:[{day, estimated, events:{ev:{sampled, stored, stands_for, human:{sampled, stored, stands_for}}}}]}. `stored` is the rows Analytics Engine kept, `stands_for` the events they stand for; `estimated` means a counted-human row that day was sampled, and `onset` is the earliest such day, as a 90-day read saw it. `last_run` is {at, outcome} of the nightly run (wrote, wrote_unfolded, overcap_failed, read_failed, truncated, never_ran): an empty record is evidence of nothing unless a run wrote. Reports label those days estimated (sampled); no number is changed.' ) ) ),
 		'meta'                => array( 'show_in_rest' => true, 'mcp' => array( 'public' => true, 'type' => 'tool' ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'openWorldHint' => true ) ),
 	) );
 } );

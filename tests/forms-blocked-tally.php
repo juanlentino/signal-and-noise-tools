@@ -48,5 +48,25 @@ ok( $spam === $cb( $spam ), 'a spam verdict is returned untouched' );
 ok( 1 === $GLOBALS['o'][ SNT_FS_TALLY_OPT ]['2026-11-17']['rate_limit'], 'a spam verdict adds one under its guard on the site day' );
 ok( 'x' === $cb( 'x' ), 'a non-array verdict passes through' );
 
+echo "Both Reports views\n";
+function esc_html__( $s ) { return $s; } function esc_html( $s ) { return htmlspecialchars( (string) $s ); } function __( $s ) { return $s; }
+function number_format_i18n( $n ) { return number_format( (float) $n ); }
+function snt_kit_section( $h, $inner, $d = '' ) { return '<section data-h="' . $h . '">' . $inner . '</section>'; }
+function snt_kit_table( $cols, $rows, $opts = array() ) { return json_encode( array( 'cols' => array_column( $cols, 'key' ), 'rows' => $rows, 'more' => $opts['more'] ?? '' ) ); }
+function snt_kit_esc( $s ) { return htmlspecialchars( (string) $s ); }
+// A fixed string, no input: the leaf helpers live in a namespace this un-namespaced test file cannot open inline.
+eval( 'namespace SignalNoise\\OpenStationHost\\Dashboard\\Leaves; const TOOLS_REPORTS_ROWS = 10; function tools_reports_ledger_opts( $m ) { return array( "more" => $m ); }' );
+require __DIR__ . '/../apps/sn-dashboard/parts/leaves/tools-reports-blocked.php';
+$GLOBALS['o'] = array();
+ob_start(); snt_fs_tally_render(); $empty = ob_get_clean();
+ok( false !== strpos( $empty, 'No blocked attempt recorded yet.' ), 'classic: an empty tally says so' );
+$GLOBALS['o'][ SNT_FS_TALLY_OPT ] = array( '2026-11-16' => array( 'honeypot' => 3 ), '2026-11-17' => array( 'rule' => 2 ) );
+ob_start(); snt_fs_tally_render(); $html = ob_get_clean();
+ok( false !== strpos( $html, '<th scope="row">2026-11-17</th>' ) && strpos( $html, '2026-11-17' ) < strpos( $html, '2026-11-16' ), 'classic: one row per day, newest first' );
+ok( 1 === preg_match( '#<th scope="row">2026-11-16</th><td class="num">3</td>#', $html ), 'classic: the honeypot count sits in its column' );
+$native = \SignalNoise\OpenStationHost\Dashboard\Leaves\tools_reports_blocked_html();
+$json   = json_decode( substr( $native, strpos( $native, '{' ), strrpos( $native, '}' ) - strpos( $native, '{' ) + 1 ), true );
+ok( 'day' === $json['cols'][0] && '2026-11-17' === $json['rows'][0]['day'] && 2 === $json['rows'][0]['rule'] && 3 === $json['rows'][1]['honeypot'], 'native twin: the same rows from the same reader' );
+
 echo "\n{$pass} passed, {$fail} failed.\n";
 exit( $fail ? 1 : 0 );

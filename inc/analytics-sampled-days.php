@@ -11,9 +11,10 @@
  *
  * The record only grows: a day is added or overwritten from a fresh complete
  * read, never deleted, because Analytics Engine drops rows after about 90 days
- * and this record is then the only evidence. A day older than
- * SN_ANALYTICS_SAMPLED_FREEZE_DAYS keeps what was first stored: a re-read at
- * the edge of retention can come back thinner.
+ * and this record is then the only evidence. Per day and event the reading
+ * that holds more stored rows wins: a re-read at the edge of retention, or one
+ * Analytics Engine answers at a coarser resolution, can come back thinner.
+ * The nightly run lives in inc/analytics-sampled-days-run.php.
  *
  * @package SignalNoiseTools
  */
@@ -24,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SN_ANALYTICS_SAMPLED_OPT         = 'sn_analytics_sampled_days';
 const SN_ANALYTICS_SAMPLED_WINDOW_DAYS = 90;
-const SN_ANALYTICS_SAMPLED_FREEZE_DAYS = 80;
+const SN_ANALYTICS_SAMPLED_RUN_OPT     = 'sn_analytics_sampled_days_run'; // {at, outcome} of the last nightly run.
 
 /**
  * AE SQL for one dataset (or one side of the split). Day buckets and the lower
@@ -33,14 +34,15 @@ const SN_ANALYTICS_SAMPLED_FREEZE_DAYS = 80;
  * @param string $source Dataset.
  * @param string $range  '' or one side of the split.
  * @param string $tz     Site zone ('' = UTC days).
- * @param string $class  Class SELECT expression (sn_analytics_counted_class_select()).
+ * @param string $class  Class SELECT expression (sn_analytics_rollup_class_parts()).
+ * @param string $tail   WHERE tail from the same parts ('' when folded).
  * @return string
  */
-function sn_analytics_sampled_sql( $source, $range, $tz, $class ) {
+function sn_analytics_sampled_sql( $source, $range, $tz, $class, $tail = '' ) {
 	list( $day_col, $lower ) = sn_analytics_rollup_window_exprs( SN_ANALYTICS_SAMPLED_WINDOW_DAYS, $tz );
 	$range = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
 	return "SELECT {$day_col} AS day, blob1 AS ev, {$class} AS class, count() AS r, sum(_sample_interval) AS n"
-		. ' FROM ' . $source . " WHERE timestamp >= {$lower}{$range} GROUP BY day, ev, class";
+		. ' FROM ' . $source . " WHERE timestamp >= {$lower}{$range}{$tail} GROUP BY day, ev, class";
 }
 
 /**
@@ -75,21 +77,22 @@ function sn_analytics_sampled_fold( array $sets ) {
 }
 
 /**
- * Merge a fresh fold into the stored record: add or overwrite days, never
- * delete one, and keep a frozen (old) day as first stored. PURE.
+ * Merge a fresh fold into the stored record: add or overwrite, never delete.
+ * Per day and event the reading with more stored rows wins (ties go to the
+ * fresh one), so a thinner re-read never replaces a fuller one. PURE.
  *
- * @param array  $stored Stored record.
- * @param array  $fresh  sn_analytics_sampled_fold() output.
- * @param string $today  Site-local Y-m-d.
+ * @param array $stored Stored record.
+ * @param array $fresh  sn_analytics_sampled_fold() output.
  * @return array
  */
-function sn_analytics_sampled_merge( array $stored, array $fresh, $today ) {
-	$frozen = gmdate( 'Y-m-d', strtotime( $today . ' 12:00:00 UTC' ) - SN_ANALYTICS_SAMPLED_FREEZE_DAYS * 86400 );
+function sn_analytics_sampled_merge( array $stored, array $fresh ) {
 	foreach ( $fresh as $day => $events ) {
-		if ( isset( $stored[ $day ] ) && (string) $day < $frozen ) {
-			continue;
+		foreach ( (array) $events as $ev => $c ) {
+			$old = $stored[ $day ][ $ev ] ?? null;
+			if ( null === $old || (int) $c['stored'] >= (int) ( $old['stored'] ?? 0 ) ) {
+				$stored[ $day ][ $ev ] = $c;
+			}
 		}
-		$stored[ $day ] = $events;
 	}
 	ksort( $stored );
 	return $stored;
@@ -100,10 +103,14 @@ function sn_analytics_sampled_merge( array $stored, array $fresh, $today ) {
  * stands_for} for all classes and for human, `estimated` when any human row
  * that day was sampled, and `onset`, the earliest such day. PURE.
  *
+ * `last_run` is the nightly run's {at, outcome}: an empty record with no run,
+ * or a run that read nothing, is not evidence that nothing was sampled.
+ *
  * @param array $stored Stored record.
- * @return array{onset:?string,days:array}
+ * @param array $run    Stored {at, outcome} of the last run.
+ * @return array{onset:?string,days:array,last_run:array}
  */
-function sn_analytics_sampled_report( array $stored ) {
+function sn_analytics_sampled_report( array $stored, array $run = array() ) {
 	$days  = array();
 	$onset = null;
 	ksort( $stored );
@@ -124,7 +131,7 @@ function sn_analytics_sampled_report( array $stored ) {
 		}
 		$days[] = $row;
 	}
-	return array( 'onset' => $onset, 'days' => $days );
+	return array( 'onset' => $onset, 'days' => $days, 'last_run' => $run ? $run : array( 'at' => null, 'outcome' => 'never_ran' ) );
 }
 
 /**
@@ -144,33 +151,4 @@ function sn_analytics_day_estimated( $day ) {
 	return isset( $estimated[ (string) $day ] );
 }
 
-/**
- * Daily run: read the trailing 90 days and merge. Writes nothing when the
- * over-cap list did not read (bots would read as human and fake an onset), a
- * read failed, or a set reached the row cap.
- */
-function sn_analytics_sampled_days_run() {
-	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() || ! function_exists( 'sn_analytics_stitched_rows' ) ) {
-		return;
-	}
-	$list = sn_analytics_overcap_vdays();
-	if ( empty( $list['ok'] ) ) {
-		error_log( '[sn-analytics] sampled-day record skipped: the over-cap list did not read' );
-		return;
-	}
-	$tz    = sn_analytics_site_tz_name();
-	$class = sn_analytics_counted_class_select( (array) $list['hashes'] );
-	$sets  = sn_analytics_stitched_rows(
-		static fn( $source, $range ) => sn_analytics_sampled_sql( $source, $range, $tz, $class ),
-		sn_analytics_trailing_from( SN_ANALYTICS_SAMPLED_WINDOW_DAYS ),
-		gmdate( 'Y-m-d H:i:s' )
-	);
-	$cap = defined( 'SN_ANALYTICS_AE_ROW_CAP' ) ? SN_ANALYTICS_AE_ROW_CAP : 10000;
-	if ( null === $sets || array() !== array_filter( $sets, static fn( $s ) => count( $s ) >= $cap ) ) {
-		error_log( '[sn-analytics] sampled-day record skipped: the read failed or reached the row cap' );
-		return;
-	}
-	$today = function_exists( 'wp_date' ) ? wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' );
-	update_option( SN_ANALYTICS_SAMPLED_OPT, sn_analytics_sampled_merge( (array) get_option( SN_ANALYTICS_SAMPLED_OPT, array() ), sn_analytics_sampled_fold( $sets ), $today ), false );
-}
-add_action( 'sn_analytics_rollup_daily', 'sn_analytics_sampled_days_run', 20 ); // SN_ANALYTICS_ROLLUP_DAILY_HOOK, after the rollup; never the 15-minute on-demand hook.
+require_once __DIR__ . '/analytics-sampled-days-run.php';
