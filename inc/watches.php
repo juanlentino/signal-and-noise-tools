@@ -464,7 +464,8 @@ function snt_watch_ripe_secrets_api( $watch, $now, $exists = null, $version = nu
  * #65551: ripe once Core's connectors settings save no longer blanks a key on
  * a validation answer that is not strictly true. Read from the source of
  * _wp_connectors_rest_settings_dispatch(), not the version: 7.2 RC1 still has
- * the line (2026-11-17). PURE given the source.
+ * the line (2026-11-17). Ripe means that exact line is gone, not that the bug
+ * is fixed: a reshaped wipe also ripens it, so the note says verify. PURE given the source.
  *
  * @param array       $watch  The watch row (unused).
  * @param int         $now    Unix time (unused: a state, not a date).
