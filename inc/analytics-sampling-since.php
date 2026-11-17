@@ -77,7 +77,7 @@ function sn_analytics_sampling_since_fold( $rows, $now ) {
 
 /**
  * The cached answer (one read an hour). Null when analytics is not configured
- * or the over-cap list did not read (bots would then count as human).
+ * or the over-cap list did not read whole (bots would then count as human).
  *
  * @return array|null
  */
@@ -86,7 +86,13 @@ function sn_analytics_sampling_since() {
 	if ( is_array( $cached ) ) {
 		return $cached;
 	}
-	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() || empty( sn_analytics_overcap_vdays()['ok'] ) ) {
+	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() ) {
+		return null;
+	}
+	// A failed or cut list lets over-cap visitor-days read as human, so a bot's
+	// sampled rows would read as a sampled human (the sampled-days run's rule).
+	$cap = sn_analytics_overcap_vdays();
+	if ( empty( $cap['ok'] ) || ! empty( $cap['truncated'] ) ) {
 		return null;
 	}
 	list( $class ) = sn_analytics_rollup_class_parts( true );
