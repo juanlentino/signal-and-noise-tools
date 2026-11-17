@@ -26,6 +26,7 @@ ok( 'LinkedIn' === sn_share_echo_link_scan( $echoes, $angela ), 'the Boydton bro
 ok( null === sn_share_echo_link_scan( $echoes, array( 'start' => '2026-11-17T10:48:03-05:00' ) + $angela ), '62 s after the last fetch is not' );
 ok( null === sn_share_echo_link_scan( $echoes, array( 'start' => '2026-11-17T10:46:50-05:00' ) + $angela ), 'a visit before the fetch is not' );
 ok( null === sn_share_echo_link_scan( $echoes, array( 'pageviews' => 2 ) + $angela ), 'two page views is a reader, not a scan' );
+ok( null === sn_share_echo_link_scan( $echoes, array( 'pageviews_est' => 3 ) + $angela ), 'one stored row standing for 3 views is a reader, not a scan' );
 ok( null === sn_share_echo_link_scan( $echoes, array( 'link_code' => 'reign' ) + $angela ), 'another code is not' );
 ok( null === sn_share_echo_link_scan( $echoes, array( 'link_code' => '' ) + $angela ), 'a plain page is not' );
 $tg = sn_share_echoes_rows( array( array( 'family' => 'telegram', 'path' => '/r/angela', 'observed_at' => '2026-11-17T15:47:01.937Z' ) ) );

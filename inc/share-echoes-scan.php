@@ -39,7 +39,8 @@ const SN_SHARE_ECHO_SCAN_FAMILIES = array( 'linkedin' );
 function sn_share_echo_link_scan( array $echoes, array $s ) {
 	$code  = (string) ( $s['link_code'] ?? '' );
 	$start = (int) strtotime( (string) ( $s['start'] ?? '' ) );
-	if ( '' === $code || $start <= 0 || (int) ( $s['pageviews'] ?? 0 ) > 1 ) {
+	// One view, stored AND estimated: a sampled visitor-day can keep 1 row of 3 views.
+	if ( '' === $code || $start <= 0 || (int) ( $s['pageviews'] ?? 0 ) > 1 || (int) ( $s['pageviews_est'] ?? 1 ) > 1 ) {
 		return null;
 	}
 	foreach ( $echoes as $e ) {
