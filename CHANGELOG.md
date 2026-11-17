@@ -13,6 +13,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **A side-by-side WordPress boot for judging a core release candidate.** `tools/wp-boot/` installs the version live runs and the candidate on SQLite, with the theme from GitHub main and this plugin checkout, outbound HTTP blocked, and compares them: status per path, proof that the real theme and plugin rendered, the lines that differ once ports and version strings are folded, and the PHP log lines only one side has. A local-only sign-in (`boot-login.php`, under the rig's own constant) opens the editor. First run, 7.1.4 vs 7.2 RC1 (2026-11-17): same statuses on 12 paths, differences only in core's CSS and emoji loader, identical PHP logs, editor and the Signal & Noise inspector panel the same on both. Development tooling only; nothing here ships in the plugin's runtime. See `tools/wp-boot/README.md`.
+
 ## [2026.11.49] - 2026-11-17 — LinkedIn link scans leave the suspect list; sampled-day labels on Countries, Sources and Top pages
 
 ### Changed
