@@ -13,6 +13,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **An app checking a coded link it was just sent is no longer a suspect visit.** When a coded link is sent in a LinkedIn message, LinkedIn's verified preview bot fetches it and, within a minute, a browser on Microsoft's network opens it for a few seconds (2026-11-17, /r/angela: verified fetches 15:46:54 to 15:47:01 UTC, the browser at 15:47:48 from AS8075). The browser alone proves nothing, since the same network carries this site's own smoke tests, so it is recognized only through the verified fetch: a suspect-class session on the same /r/ code, one page view, starting within 60 seconds after it, joined by code and time only. The sessions read takes it out of the suspect list and counts it in `link_scans` (class suspect only; null otherwise or when the shares could not be read). The share itself is already in Links › Shares; class totals elsewhere still count the visit. Remote contract 35 to 36 (additive). Code: `inc/share-echoes-scan.php`. Test: `tests/share-echoes-scan.php` (red with a wider window or without the after-the-fetch guard).
+
 ## [2026.11.48] - 2026-11-17 — Analytics Engine sampling check; Today so far says how many Sessions lists; direct to contact by measured time
 
 ### Added
