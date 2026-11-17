@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 const SN_PUBLISH_WINDOW_META      = '_sn_published_at';
 const SN_PUBLISH_WINDOW_CACHE     = 'sn_publish_window_cache';
 const SN_PUBLISH_WINDOW_DEFAULT   = 60;
@@ -108,7 +110,7 @@ function sn_publish_window_sources_sql( $source, $path, $start, $end ) {
 	if ( array() === $paths ) {
 		return '';
 	}
-	return 'SELECT ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS host, count(DISTINCT index1) AS readers FROM ' . $source
+	return 'SELECT ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS host, count(DISTINCT ' . SN_AE_VID . ') AS readers FROM ' . $source
 		. " WHERE timestamp >= toDateTime('" . gmdate( 'Y-m-d H:i:s', (int) $start ) . "') AND timestamp < toDateTime('" . gmdate( 'Y-m-d H:i:s', (int) $end ) . "')"
 		. " AND blob2 IN ('" . implode( "','", $paths ) . "') AND blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql()
 		. ' GROUP BY host ORDER BY readers DESC LIMIT 40';

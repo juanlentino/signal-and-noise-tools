@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 const SN_LINK_CODES_DAYS  = 90;
 const SN_LINK_CODES_LIMIT = 500;
 const SN_LINK_CODES_CACHE = 'sn_link_codes_visits';
@@ -90,7 +92,7 @@ function sn_link_codes_visits_sql( $days, $tz, $source = '', $range = '' ) {
 	list( $day_col, $lower ) = sn_analytics_rollup_window_exprs( (int) $days, (string) $tz );
 	$source = '' !== (string) $source ? (string) $source : sn_analytics_source( sn_analytics_trailing_from( (int) $days ) );
 	$range  = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
-	return 'SELECT index1 AS vid, ' . $day_col . ' AS day, blob2 AS path, blob11 AS city, blob4 AS country, blob5 AS device, '
+	return 'SELECT ' . SN_AE_VID . ' AS vid, ' . $day_col . ' AS day, blob2 AS path, blob11 AS city, blob4 AS country, blob5 AS device, '
 		. sn_analytics_rollup_class_parts( true )[0] . ' AS class, sum(_sample_interval) AS views'
 		. ' FROM ' . $source
 		. " WHERE blob1 = 'pv' AND blob2 LIKE '/r/%' AND timestamp >= {$lower}{$range}"
@@ -117,14 +119,14 @@ function sn_link_codes_pages_sql( array $vids, $days, $tz = '', $source = '', $r
 	list( , $lower ) = sn_analytics_rollup_window_exprs( (int) $days, (string) $tz );
 	$source = '' !== (string) $source ? (string) $source : sn_analytics_source( sn_analytics_trailing_from( (int) $days ) );
 	$range  = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
-	$cols   = array( 'index1 AS vid', 'blob2 AS path', "sum(if(blob1 = 'pv', _sample_interval, 0)) AS views" );
+	$cols   = array( SN_AE_VID . ' AS vid', 'blob2 AS path', "sum(if(blob1 = 'pv', _sample_interval, 0)) AS views" );
 	foreach ( array( 1 => 'webdriver', 2 => 'no_input', 4 => 'ua_mismatch', 8 => 'headless', 16 => 'tz_mismatch', 32 => 'present' ) as $bit => $name ) {
 		$cols[] = "max(bitAnd(toUInt32(double8), {$bit})) AS {$name}";
 	}
 	return 'SELECT ' . implode( ', ', $cols )
 		. ' FROM ' . $source
 		. " WHERE timestamp >= {$lower}{$range}" . sn_analytics_excluded_path_sql()
-		. " AND index1 IN ('" . implode( "','", array_unique( $vids ) ) . "')"
+		. " AND " . SN_AE_VID . " IN ('" . implode( "','", array_unique( $vids ) ) . "')"
 		. ' GROUP BY vid, path LIMIT ' . SN_LINK_CODES_PAGES_LIMIT;
 }
 

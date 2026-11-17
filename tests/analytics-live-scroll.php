@@ -43,9 +43,9 @@ ok( $has, 'the live scroll module exists' );
 
 echo "\nGroup: one grouped query, aggregates only\n";
 $sql = $has ? sn_analytics_live_scroll_sql() : '';
-ok( false !== strpos( $sql, "blob1 = 'sc'" ) && false !== strpos( $sql, 'double1 AS pct' ) && false !== strpos( $sql, 'count(DISTINCT index1) AS readers' ), "scroll events only, distinct readers per milestone" );
+ok( false !== strpos( $sql, "blob1 = 'sc'" ) && false !== strpos( $sql, 'double1 AS pct' ) && false !== strpos( $sql, 'count(DISTINCT substring(index1, 1, 16)) AS readers' ), "scroll events only, distinct readers per milestone" );
 ok( false !== strpos( $sql, "INTERVAL '5' MINUTE" ) && false !== strpos( $sql, sn_analytics_class_where( 'human' ) ) && false !== strpos( $sql, sn_analytics_excluded_path_sql() ), 'the same window, human rule and excluded paths as the list' );
-ok( false !== strpos( $sql, 'GROUP BY path, pct' ) && false === stripos( preg_replace( '/count\(DISTINCT index1\)/', '', $sql ), 'index1' ), 'grouped by path and milestone; no reader key is selected or grouped' );
+ok( false !== strpos( $sql, 'GROUP BY path, pct' ) && false === stripos( str_replace( 'count(DISTINCT substring(index1, 1, 16))', '', $sql ), 'index1' ), 'grouped by path and milestone; no reader key is selected or grouped' );
 
 echo "\nGroup: the fold onto the listed pages\n";
 $resolve = static function ( $path ) {

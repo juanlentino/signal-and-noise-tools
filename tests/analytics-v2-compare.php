@@ -18,7 +18,7 @@ require __DIR__ . '/../inc/analytics-v2-compare.php';
 
 echo "\nThe statement\n";
 $stmt = sn_analytics_v2_count_sql( "sn_pageviews_v2", 4, true );
-ok( "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, sum(_sample_interval) AS n, count() AS r, count(DISTINCT index1) AS v, sum(if(double11 > 0, _sample_interval, 0)) AS with_pid FROM sn_pageviews_v2 WHERE timestamp >= toStartOfDay(now() - INTERVAL '3' DAY) GROUP BY day, ev" === $stmt, 'the exact v2 statement: weighted counts, aliases in GROUP BY, no function there' );
+ok( "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, sum(_sample_interval) AS n, count() AS r, count(DISTINCT substring(index1, 1, 16)) AS v, sum(if(double11 > 0, _sample_interval, 0)) AS with_pid FROM sn_pageviews_v2 WHERE timestamp >= toStartOfDay(now() - INTERVAL '3' DAY) GROUP BY day, ev" === $stmt, 'the exact v2 statement: weighted counts, aliases in GROUP BY, no function there' );
 ok( false === strpos( sn_analytics_v2_count_sql( 'sn_pageviews', 4 ), 'double11' ), 'the legacy read asks for no pageview ID (the column does not exist there)' );
 ok( false !== strpos( sn_analytics_v2_count_sql( 'x; DROP', 99 ), "FROM sn_pageviews WHERE timestamp >= toStartOfDay(now() - INTERVAL '13' DAY)" ), 'an unknown dataset falls back to the legacy name and the window is clamped: nothing typed reaches the statement' );
 

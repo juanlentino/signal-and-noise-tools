@@ -19,6 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
 
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
@@ -138,7 +140,7 @@ function sn_analytics_dims_rollup_sql( $dim, $days, $tz = '' ) {
 		"{$col} AS value,",
 		sn_analytics_class_select() . ' AS class,',
 		'sum(_sample_interval) AS views,',
-		'count(DISTINCT index1) AS visits',
+		'count(DISTINCT ' . SN_AE_VID . ') AS visits',
 		'FROM ' . $source,
 		"WHERE blob1 = 'pv' AND timestamp >= {$lower}" . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where() . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, value, class',

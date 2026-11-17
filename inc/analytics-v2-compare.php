@@ -17,6 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 const SN_ANALYTICS_DATASET_PV_V2     = 'sn_pageviews_v2';
 const SN_ANALYTICS_DATASET_EVENTS_V2 = 'sn_events_v2';
 const SN_ANALYTICS_V2_SAMPLED_MAX    = 200; // visitor-days listed per dataset in the sampling diagnostic.
@@ -39,7 +41,7 @@ const SN_ANALYTICS_V2_SAMPLED_ROWS_MAX = 1000; // sampled day/event/visitor grou
 function sn_analytics_v2_count_sql( $dataset, $days, $pid = false ) {
 	$dataset = in_array( $dataset, array( SN_ANALYTICS_DATASET, SN_ANALYTICS_DATASET_PV_V2, SN_ANALYTICS_DATASET_EVENTS_V2 ), true ) ? $dataset : SN_ANALYTICS_DATASET;
 	$days    = max( 1, min( 14, (int) $days ) );
-	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, sum(_sample_interval) AS n, count() AS r, count(DISTINCT index1) AS v"
+	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, sum(_sample_interval) AS n, count() AS r, count(DISTINCT " . SN_AE_VID . ") AS v"
 		. ( $pid ? ', sum(if(double11 > 0, _sample_interval, 0)) AS with_pid' : '' )
 		. ' FROM ' . $dataset
 		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '" . ( $days - 1 ) . "' DAY)"
@@ -394,7 +396,7 @@ function sn_analytics_v2_sampled_rows_sql( $dataset, $days ) {
 	// `human`: whether this visitor-day's rows of this event are ones the human
 	// reads count (the read-time rule, before the over-cap list).
 	$net = function_exists( 'sn_analytics_network_human_sql' ) ? sn_analytics_network_human_sql() : '1';
-	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, index1 AS vid, sum(_sample_interval) AS n, count() AS r, max(if(blob7 != 'bot' AND ({$net}), 1, 0)) AS human"
+	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, blob1 AS ev, " . SN_AE_VID . " AS vid, sum(_sample_interval) AS n, count() AS r, max(if(blob7 != 'bot' AND ({$net}), 1, 0)) AS human"
 		. ' FROM ' . $dataset
 		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '" . ( $days - 1 ) . "' DAY) AND _sample_interval > 1"
 		. ' GROUP BY day, ev, vid LIMIT ' . ( SN_ANALYTICS_V2_SAMPLED_ROWS_MAX + 1 );
@@ -418,7 +420,7 @@ function sn_analytics_v2_sampled_sql( $dataset, $days ) {
 	// and the network rule); the over-cap list is applied in PHP. One row past
 	// the cap says the list was cut short.
 	$net = function_exists( 'sn_analytics_network_human_sql' ) ? sn_analytics_network_human_sql() : '1';
-	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, index1 AS vid, sum(_sample_interval) AS n, count() AS r, max(if(blob7 = 'bot', 1, 0)) AS stored_bot, max(if(blob7 != 'bot' AND ({$net}), 1, 0)) AS human"
+	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, " . SN_AE_VID . " AS vid, sum(_sample_interval) AS n, count() AS r, max(if(blob7 = 'bot', 1, 0)) AS stored_bot, max(if(blob7 != 'bot' AND ({$net}), 1, 0)) AS human"
 		. ' FROM ' . $dataset
 		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '" . ( $days - 1 ) . "' DAY) AND _sample_interval > 1"
 		. ' GROUP BY day, vid LIMIT ' . ( SN_ANALYTICS_V2_SAMPLED_MAX + 1 );

@@ -17,6 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 const SNT_AROWS_EVENTS_DAYS = 90;   // what Analytics Engine keeps, about.
 const SNT_AROWS_EVENTS_CAP  = 5000; // rows per query half, under AE's 10,000-row strict cap.
 const SNT_AROWS_EVENTS_COLS = array( 'path' => 'blob2', 'link_code' => 'blob2', 'resume_lane' => 'toUInt32(double17)', 'country' => 'blob4', 'device' => 'blob5', 'region' => 'blob10', 'city' => 'blob11' ); // referrer: sn_analytics_referrer_value_sql(), as the dims rollup. double17: the second generation only; the legacy row has no such double and reads 0.
@@ -118,8 +120,8 @@ function snt_arows_events_sql( array $q, $lo, $hi, $tz, $pv_only, $source = '', 
 		$cols[] = ( 'referrer' === $d ? sn_analytics_referrer_value_sql( 'blob3' ) : ( SNT_AROWS_EVENTS_COLS[ $d ] ?? ( 'day' === $d ? "formatDateTime(timestamp, '%Y-%m-%d'{$tz})" : "formatDateTime(timestamp, '%H'{$tz})" ) ) ) . " AS {$d}";
 	}
 	$metrics = $pv_only
-		? array( 'count(DISTINCT index1) AS pageview_visits' )
-		: array( "sumIf(_sample_interval, blob1 = 'pv') AS views", 'count(DISTINCT index1) AS visits', "sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_sum", "sumIf(_sample_interval, blob1 = 'tm') AS time_events", "sumIf(_sample_interval, blob1 = 'sc') AS scroll_events" );
+		? array( 'count(DISTINCT ' . SN_AE_VID . ') AS pageview_visits' )
+		: array( "sumIf(_sample_interval, blob1 = 'pv') AS views", 'count(DISTINCT ' . SN_AE_VID . ') AS visits', "sumIf(double2 * _sample_interval, blob1 = 'tm') AS time_sum", "sumIf(_sample_interval, blob1 = 'tm') AS time_events", "sumIf(_sample_interval, blob1 = 'sc') AS scroll_events" );
 	$ref   = $q['referrer'];
 	$ref   = null === $ref ? '' : ( '(direct)' === $ref ? " AND blob3 = ''" . sn_analytics_not_internal_click_sql() : ( SN_ANALYTICS_INTERNAL_REFERRER === $ref ? ' AND ' . sn_analytics_internal_click_sql() : " AND (blob3 = '{$ref}' OR blob3 = 'www.{$ref}')" ) );
 	$where = "timestamp >= toDateTime('{$lo}') AND timestamp < toDateTime('{$hi}')" . ( sn_analytics_split_range_ok( $range ) ? $range : '' )

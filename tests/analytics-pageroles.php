@@ -181,7 +181,7 @@ ok( strpos( $rsql, "blob1 = 'pv'" ) !== false, "rollup_sql: filters blob1 = 'pv'
 ok( strpos( $rsql, sn_analytics_counted_condition( 'human', array() ) ) !== false, 'rollup_sql: filters the counted-human rule' );
 ok( strpos( $rsql, 'blob2 AS path' ) !== false, 'rollup_sql: selects blob2 AS path' );
 ok( strpos( $rsql, 'sum(_sample_interval) AS views' ) !== false, 'rollup_sql: sum(_sample_interval) AS views' );
-ok( strpos( $rsql, 'count(DISTINCT index1) AS visits' ) !== false, 'rollup_sql: count(DISTINCT index1) AS visits' );
+ok( strpos( $rsql, 'count(DISTINCT substring(index1, 1, 16)) AS visits' ) !== false, 'rollup_sql: count(DISTINCT substring(index1, 1, 16)) AS visits' );
 ok( strpos( $rsql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'rollup_sql: floored 7-day lower bound (UTC when no zone is passed)' );
 // #1201 -- entry pages bucketed on the UTC day beside "Views today" on the
 // site day: at UTC-3 the entry tile's "today" ran 21:00 yesterday-local to

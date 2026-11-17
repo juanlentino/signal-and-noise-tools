@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 const SN_ANALYTICS_EXACT_VID_MAX = 5000; // visitor-days per day the class read takes; one more says it was cut.
 
 /**
@@ -48,7 +50,7 @@ function sn_analytics_exact_class_sql( $day, array $hashes ) {
 	if ( null === $b ) {
 		return '';
 	}
-	return 'SELECT index1 AS vid, ' . sn_analytics_counted_class_select( $hashes ) . ' AS class, sum(if(blob1 = \'pv\', 1, 0)) AS pv_stored'
+	return 'SELECT ' . SN_AE_VID . ' AS vid, ' . sn_analytics_counted_class_select( $hashes ) . ' AS class, sum(if(blob1 = \'pv\', 1, 0)) AS pv_stored'
 		. ' FROM ' . sn_analytics_source( $day )
 		. " WHERE timestamp >= toDateTime('{$b[0]}') AND timestamp < toDateTime('{$b[1]}')"
 		. ' GROUP BY vid, class LIMIT ' . ( SN_ANALYTICS_EXACT_VID_MAX + 1 );

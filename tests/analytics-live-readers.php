@@ -30,7 +30,7 @@ function sn_analytics_config() { return array( 'account_id' => 'a' ); }
 function sn_analytics_query( $sql ) {
 	$GLOBALS['queries'][] = $sql;
 	if ( false !== strpos( $sql, ' AS ref, ' ) ) { return $GLOBALS['ae'] ?? null; }
-	if ( 0 === strpos( $sql, 'SELECT blob2 AS path, count(DISTINCT index1) AS readers' ) && false !== strpos( $sql, 'LIMIT 40' ) ) { return $GLOBALS['ae_pages'] ?? array(); } // the live pages read.
+	if ( 0 === strpos( $sql, 'SELECT blob2 AS path, count(DISTINCT substring(index1, 1, 16)) AS readers' ) && false !== strpos( $sql, 'LIMIT 40' ) ) { return $GLOBALS['ae_pages'] ?? array(); } // the live pages read.
 	return false !== strpos( $sql, 'AS visitors' ) ? array( array( 'class' => 'human', 'visitors' => 4 ) ) : array();
 }
 $root = dirname( __DIR__ );

@@ -19,6 +19,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - **The analytics-integrity check names what it recorded.** A flagged check's fix hint now leads with the recorded UTC time, day, path, class, views and pageview_visits, so `get-health-scan` and its remote twin show the scope without wp-cli. The record and its writer are unchanged. Test: `tests/health-analytics-integrity.php`.
+- **Every Analytics Engine read takes the visitor-day from the first 16 characters of the index.** The analytics worker can then give each event type its own index, so Analytics Engine stops sampling a burst of one visitor's events as one; figures are unchanged, because every index written today is exactly those 16 characters. One constant, `SN_AE_VID` in `inc/analytics-vid.php`, holds the expression; each reader requires it. `count(DISTINCT substring(index1, 1, 16))` was checked on the live dataset on 2026-11-17 and matched `count(DISTINCT index1)`, so the dialect guard now allows exactly that expression and still rejects every other one. Tests: `tests/analytics-vid-prefix.php` (no SQL string in `inc/` names `index1` outside the helper), `tests/analytics-sql-dialect.php`.
 
 ## [2026.11.46] - 2026-11-15 — The Shares note describes how shares are joined
 

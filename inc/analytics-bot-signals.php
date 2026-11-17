@@ -19,6 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
 
 require_once __DIR__ . '/analytics-network-terms.php';
@@ -57,7 +59,7 @@ function sn_bot_signals_sql( $days = SNT_BOT_SIGNAL_DAYS, $source = '', $range =
 	$range  = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
 	$t    = sn_analytics_network_terms();
 	$net  = sn_analytics_network_human_sql();
-	$cols = array( 'index1 AS vid' );
+	$cols = array( SN_AE_VID . ' AS vid' );
 	foreach ( SNT_BOT_SIGNAL_BITS as $bit => $name ) {
 		$cols[] = "max(bitAnd(toUInt32(double8), {$bit})) AS {$name}";
 	}
