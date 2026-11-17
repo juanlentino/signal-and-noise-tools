@@ -37,7 +37,7 @@ ok( array() === snt_desktop_reading_top_rows( null ), 'no rows: none' );
 $src = file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' );
 ok( false === strpos( $src, "group( 'This week'" ) && false === strpos( $src, "group( 'Top pages'" ), 'SN Traffic no longer paints them' );
 $rd = file_get_contents( __DIR__ . '/../inc/desktop-mode-reading.php' );
-ok( false !== strpos( $rd, "snt_desktop_group( 'This week'" ) && false !== strpos( $rd, "snt_desktop_group( 'Top pages'" ), 'SN Reading does' );
+ok( false !== strpos( $rd, "snt_desktop_group( 'This week'" ) && false !== strpos( $rd, "sn_analytics_title_estimated( 'Top pages'" ), 'SN Reading does' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
