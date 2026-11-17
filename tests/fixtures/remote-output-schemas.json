@@ -1,6 +1,6 @@
 {
-    "contract_version": "34",
-    "shape_hash": "1a203caec2a0fada5ec94eb7da2aaa77ec3aeba6bbddcd8be4286b1ef2ffc6c0",
+    "contract_version": "35",
+    "shape_hash": "6922993f54744c793305c35f8a3e9dc81aa334addfa590703ebe291a6b63fcab",
     "tools": {
         "signal-noise/remote-analytics-fields": {
             "wrap": false,
@@ -905,6 +905,13 @@
                                 "type": "string"
                             }
                         }
+                    },
+                    "sampling_since_fix": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "Whether Analytics Engine still samples at write time since analytics worker 2.3.0 (`since`, UTC): per event type of the page-view dataset, rows written since then (`rows`) and those with a sample interval above 1 (`sampled`), for every class and for the counted-human class (`human_rows`, `human_sampled`). `human_sampled` 0 means no human row was sampled since the fix. `read` false: the read failed and nothing is known. `hours`: hours since the fix. Cached up to an hour. Null when not read."
                     }
                 }
             }

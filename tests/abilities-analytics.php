@@ -60,6 +60,8 @@ $expected_types = array(
 	'basis'                     => 'string',
 	// 2026-11-14: reads, proven reading (both doors).
 	'reads'                     => 'object',
+	// 2026-11-17: whether any human row was sampled since the per-kind index fix (both doors).
+	'sampling_since_fix'        => array( 'object', 'null' ),
 	// 2026-11-11: this site's own tools, beside the classes (local door only).
 	'first_party'               => array( 'object', 'null' ),
 	// 2026-11-11: the strict human figure beside human (local door only).
@@ -122,6 +124,7 @@ define( 'SN_ANALYTICS_DAILY_TABLE', 'sn_analytics_daily' );
 
 $GLOBALS['__opts'] = array( 'sn_analytics_exact_metrics_since' => '2026-04-19' );
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opts'] ) ? $GLOBALS['__opts'][ $k ] : $d; }
+function get_transient( $k ) { return false; } // sampling_since_fix: nothing cached, analytics unconfigured, so it reads null.
 function update_option( $k, $v, $autoload = null ) { $GLOBALS['__opts'][ $k ] = $v; return true; }
 
 // Input plumbing (inc/analytics-admin.php) — faithful return SHAPES (whitelisted
