@@ -14,7 +14,8 @@
  * and this record is then the only evidence. Per day and event the reading
  * that holds more stored rows wins: a re-read at the edge of retention, or one
  * Analytics Engine answers at a coarser resolution, can come back thinner.
- * The nightly run lives in inc/analytics-sampled-days-run.php.
+ * The nightly run lives in inc/analytics-sampled-days-run.php, the day labels
+ * in inc/analytics-sampled-days-label.php.
  *
  * @package SignalNoiseTools
  */
@@ -134,21 +135,5 @@ function sn_analytics_sampled_report( array $stored, array $run = array() ) {
 	return array( 'onset' => $onset, 'days' => $days, 'last_run' => $run ? $run : array( 'at' => null, 'outcome' => 'never_ran' ) );
 }
 
-/**
- * Whether a site day's figures are estimates: Analytics Engine sampled at least
- * one counted-human row that day. Per-day evidence, not a range from onset to
- * a fix date (no fix date exists yet). Label only; never change a number.
- *
- * @param string $day Y-m-d (site day).
- * @return bool
- */
-function sn_analytics_day_estimated( $day ) {
-	static $estimated = null;
-	if ( null === $estimated ) {
-		$report    = sn_analytics_sampled_report( (array) get_option( SN_ANALYTICS_SAMPLED_OPT, array() ) );
-		$estimated = array_column( array_filter( $report['days'], static fn( $d ) => $d['estimated'] ), 'estimated', 'day' );
-	}
-	return isset( $estimated[ (string) $day ] );
-}
-
+require_once __DIR__ . '/analytics-sampled-days-label.php';
 require_once __DIR__ . '/analytics-sampled-days-run.php';

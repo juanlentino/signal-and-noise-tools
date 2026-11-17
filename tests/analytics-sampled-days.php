@@ -64,6 +64,14 @@ ok( sn_analytics_day_estimated( '2026-11-11' ) && ! sn_analytics_day_estimated( 
 
 ok( array( 'at' => null, 'outcome' => 'never_ran' ) === $r['last_run'], 'no run yet reads never_ran, not an empty clean record' );
 
+echo "Labels on day rows\n";
+$rows   = array( array( 'day' => '2026-11-11', 'views' => 4, 'visits' => 2 ), array( 'day' => '2026-11-12', 'views' => 9, 'visits' => 3 ) );
+$marked = sn_analytics_mark_estimated( $rows );
+ok( true === $marked[0]['estimated'] && false === $marked[1]['estimated'], 'each day row gains estimated from the record' );
+ok( array( 'day' => '2026-11-11', 'views' => 4, 'visits' => 2 ) === array_diff_key( $marked[0], array( 'estimated' => 1 ) ), 'every other key and number is unchanged' );
+$week = sn_analytics_mark_estimated( array( array( 'day' => '2026-11-09', 'views' => 1 ) ), 7 );
+ok( true === $week[0]['estimated'] && false === sn_analytics_mark_estimated( array( array( 'day' => '2026-11-09' ) ) )[0]['estimated'], 'a week bucket is estimated when any of its seven days is' );
+
 echo "Nightly run\n";
 $GLOBALS['cfg'] = true; $GLOBALS['cap_ok'] = true; $GLOBALS['sets'] = array( 1 => null, 0 => null ); $GLOBALS['folds'] = array();
 function sn_analytics_config() { return $GLOBALS['cfg']; }

@@ -129,7 +129,9 @@ function snt_ability_get_analytics_series( $input ) {
 		return $a;
 	}
 	list( $win, $class ) = $a;
-	return $win + array( 'class' => $class, 'days' => sn_analytics_daily_series( $win['from'], $win['to'], $class, 'day' ) );
+	$days = sn_analytics_daily_series( $win['from'], $win['to'], $class, 'day' );
+	// `estimated` per day (2026-11-17): Analytics Engine sampled a counted-human row that day. Label only.
+	return $win + array( 'class' => $class, 'days' => function_exists( 'sn_analytics_mark_estimated' ) ? sn_analytics_mark_estimated( $days ) : $days );
 }
 
 /** Journeys: entry and exit pages. Recorded for human traffic only, so class is not applied. */
