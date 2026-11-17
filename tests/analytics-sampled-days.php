@@ -75,7 +75,7 @@ ok( true === $week[0]['estimated'] && false === sn_analytics_mark_estimated( arr
 echo "Nightly run\n";
 $GLOBALS['cfg'] = true; $GLOBALS['cap_ok'] = true; $GLOBALS['sets'] = array( 1 => null, 0 => null ); $GLOBALS['folds'] = array();
 function sn_analytics_config() { return $GLOBALS['cfg']; }
-function sn_analytics_overcap_vdays() { return array( 'ok' => $GLOBALS['cap_ok'], 'hashes' => array() ); }
+function sn_analytics_overcap_vdays() { return array( 'ok' => $GLOBALS['cap_ok'], 'hashes' => array(), 'truncated' => ! empty( $GLOBALS['cap_cut'] ) ); }
 function sn_analytics_site_tz_name() { return 'America/New_York'; }
 function sn_analytics_trailing_from( $d ) { return '2026-08-18'; }
 function sn_analytics_rollup_class_parts( $fold ) { $GLOBALS['cur'] = (int) $fold; return array( $fold ? 'F' : 'U', '' ); }
@@ -84,6 +84,9 @@ function update_option( $k, $v ) { $GLOBALS['o'][ $k ] = $v; return true; }
 $GLOBALS['o'] = array();
 $GLOBALS['cap_ok'] = false; sn_analytics_sampled_days_run();
 ok( 'overcap_failed' === $GLOBALS['o'][ SN_ANALYTICS_SAMPLED_RUN_OPT ]['outcome'] && ! isset( $GLOBALS['o'][ SN_ANALYTICS_SAMPLED_OPT ] ), 'no over-cap list: nothing written, the outcome says why' );
+$GLOBALS['cap_ok'] = true; $GLOBALS['cap_cut'] = true; sn_analytics_sampled_days_run();
+ok( 'overcap_truncated' === $GLOBALS['o'][ SN_ANALYTICS_SAMPLED_RUN_OPT ]['outcome'] && ! isset( $GLOBALS['o'][ SN_ANALYTICS_SAMPLED_OPT ] ), 'a cut over-cap list: nothing written, the outcome says why' );
+$GLOBALS['cap_cut'] = false;
 $GLOBALS['cap_ok'] = true; sn_analytics_sampled_days_run();
 ok( 'read_failed' === $GLOBALS['o'][ SN_ANALYTICS_SAMPLED_RUN_OPT ]['outcome'] && array( 1, 0 ) === $GLOBALS['folds'], 'a failed read tries the folded then the pre-fold shape, then records read_failed' );
 $GLOBALS['sets'][0] = array( array( array( 'day' => '2026-11-11', 'ev' => 'pv', 'class' => 'human', 'r' => 1, 'n' => 3 ) ) );

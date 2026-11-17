@@ -27,8 +27,15 @@ function sn_analytics_sampled_days_run() {
 			error_log( '[sn-analytics] sampled-day record not written: ' . $outcome );
 		}
 	};
-	if ( empty( sn_analytics_overcap_vdays()['ok'] ) ) {
+	$cap = sn_analytics_overcap_vdays();
+	if ( empty( $cap['ok'] ) ) {
 		$done( 'overcap_failed' );
+		return;
+	}
+	// A cut list lets over-cap visitor-days read as human, and the record is
+	// never pruned, so a bot's sampled rows would mark a day estimated for good.
+	if ( ! empty( $cap['truncated'] ) ) {
+		$done( 'overcap_truncated' );
 		return;
 	}
 	$tz = sn_analytics_site_tz_name();
