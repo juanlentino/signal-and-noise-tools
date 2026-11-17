@@ -170,6 +170,8 @@ function snt_dashboard_tab_data() {
 	$series = ( function_exists( 'sn_analytics_daily_series' ) && function_exists( 'sn_analytics_config' ) && sn_analytics_config() )
 		? sn_analytics_daily_series( gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', time() ), 'human', 'day' )
 		: array();
+	// Label only (2026-11-17): days Analytics Engine sampled carry `estimated`; the trend says how many.
+	$series = function_exists( 'sn_analytics_mark_estimated' ) ? sn_analytics_mark_estimated( (array) $series ) : $series;
 
 	// ── HOW OLD IS THIS SCREEN? ──────────────────────────────────────────────
 	// The headline is present tense; its inputs are not. The readings come from

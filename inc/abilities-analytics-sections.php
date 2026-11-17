@@ -42,7 +42,7 @@ add_action( 'wp_abilities_api_init', function () {
 	$floor = ' Every row is named however small (no floor; floor is null and withheld {rows, views, visits} is always zero, kept for contract stability).';
 	$table = array(
 		'signal-noise/get-analytics-sources'   => array( 'Get traffic sources', 'snt_ability_get_analytics_sources', 'Referrer sources folded to labels, each with its category (search, ai, social, direct, other), views and visits.' . $floor ),
-		'signal-noise/get-analytics-series'    => array( 'Get daily series', 'snt_ability_get_analytics_series', 'Site-wide views and visits per day over the window. Not floored: these are whole-site totals.' ),
+		'signal-noise/get-analytics-series'    => array( 'Get daily series', 'snt_ability_get_analytics_series', 'Site-wide views and visits per day over the window. Not floored: these are whole-site totals. `estimated` is true on a day Analytics Engine sampled a counted-human row (the sampled-day record): its figures are estimates, unchanged.' ),
 		'signal-noise/get-analytics-geography' => array( 'Get geography', 'snt_ability_get_analytics_geography', 'Views and visits by country.' . $floor ),
 		'signal-noise/get-analytics-devices'   => array( 'Get devices', 'snt_ability_get_analytics_devices', 'Views and visits by device.' . $floor ),
 		'signal-noise/get-analytics-journeys'  => array( 'Get entry and exit pages', 'snt_ability_get_analytics_journeys', 'Entry and exit pages with views and visits. Recorded for human traffic only, so class is not applied (class_applied says so).' . $floor ),

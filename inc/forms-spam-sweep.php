@@ -60,7 +60,7 @@ function snt_fs_mask_hint( $title ) {
  */
 function snt_fs_scan() {
 	if ( ! snt_fs_available() ) {
-		return array( 'available' => false, 'forms' => array(), 'flagged' => array(), 'scanned' => 0 );
+		return array( 'available' => false, 'forms' => array(), 'flagged' => array(), 'scanned' => 0, 'blocked_daily' => function_exists( 'snt_fs_blocked_daily' ) ? snt_fs_blocked_daily() : array() );
 	}
 	$forms   = array();
 	$schemas = array();
@@ -87,7 +87,7 @@ function snt_fs_scan() {
 			$flagged[] = array( 'id' => (int) $id, 'form' => $form, 'hint' => snt_fs_mask_hint( get_the_title( $id ) ), 'date' => get_post_time( 'c', true, $id ), 'reason' => $reason );
 		}
 	}
-	return array( 'available' => true, 'forms' => $forms, 'flagged' => $flagged, 'scanned' => count( $ids ), 'spam_folder' => snt_fs_spam_folder_check( $schemas ) );
+	return array( 'available' => true, 'forms' => $forms, 'flagged' => $flagged, 'scanned' => count( $ids ), 'spam_folder' => snt_fs_spam_folder_check( $schemas ), 'blocked_daily' => function_exists( 'snt_fs_blocked_daily' ) ? snt_fs_blocked_daily() : array() );
 }
 
 /**

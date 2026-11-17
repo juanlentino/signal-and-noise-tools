@@ -206,6 +206,7 @@ require_once SNT_PATH . 'inc/analytics-utm.php';    // v9.28.0: UTM campaign att
 require_once SNT_PATH . 'inc/analytics-generation.php'; // which Analytics Engine dataset a read uses.
 require_once SNT_PATH . 'inc/analytics-v2-figures.php'; // what the v2 check accepts when exact equality is unreachable (owner rule 2026-10-07).
 require_once SNT_PATH . 'inc/analytics-v2-compare.php'; // the dual-write check for the second-generation datasets (worker 1.24.0).
+require_once SNT_PATH . 'inc/analytics-sampled-days.php'; // the sampled-day record: which site days Analytics Engine sampled (label only, never a rewrite).
 require_once SNT_PATH . 'inc/analytics-events.php'; // v6.2.0: custom-events table install + read accessors
 require_once SNT_PATH . 'inc/analytics-events-rollup.php'; // v6.10.0: live ce/cp rollups feeding the events tables
 require_once SNT_PATH . 'inc/analytics-buckets.php'; // derived: hour-of-day heatmap + scroll/time distributions
@@ -634,6 +635,7 @@ require_once __DIR__ . '/inc/abilities-sn-posts.php';      // v10.26.0: MCP cons
 require_once __DIR__ . '/inc/abilities-sn-site-facts.php'; // v10.26.0: MCP consolidation — sn_site_facts, absorbs 10 of 11 site-facts reads (get-design-system-summary retired, not absorbed)
 require_once __DIR__ . '/inc/abilities-sn-status.php';  // v13.1.0: read-door coherence — sectioned batch over the ten narrow status reads (new-alongside-old; needs sn-site-facts' dispatcher above)
 require_once __DIR__ . '/inc/forms-spam.php'; // content spam rules on AllTerrain Forms' verdict filter, plus the sweep abilities
+require_once __DIR__ . '/inc/forms-blocked-tally.php'; // the contact form's blocked attempts, counted per guard per day (Integrity › Reports)
 require_once __DIR__ . '/inc/feed-utm.php'; // RSS/Atom item links carry utm_source=rss so feed click-throughs show as visits
 require_once __DIR__ . '/inc/feed-subscribers.php'; // feed reach: subscriber counts aggregators report in their fetcher UA, a ceiling
 require_once __DIR__ . '/inc/feed-opens.php'; // feed reach: a no-cookie 1x1 in each notes feed item counts opens in a feed reader, a floor

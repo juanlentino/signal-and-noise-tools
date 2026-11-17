@@ -30,6 +30,7 @@ require_once __DIR__ . '/tools-reports-motion.php';
 require_once __DIR__ . '/tools-reports-indexing.php';
 require_once __DIR__ . '/tools-reports-unmatched.php';
 require_once __DIR__ . '/tools-reports-facts.php';
+require_once __DIR__ . '/tools-reports-blocked.php'; // 2026-11-17: the contact form's blocked attempts.
 
 /**
  * Rows a report's ledger shows before its counted "+N more" line. Every
@@ -134,7 +135,7 @@ function paint_tools_reports( array $ctx ) {
 		$blocks['motion_scan'] = \snt_kit_grid( array( $blocks['motion_scan'], $facts ), 290, 18, array( 'class' => 'snt-reports-pair' ) );
 		$facts                 = '';
 	}
-	return implode( '', $blocks ) . $facts;
+	return implode( '', $blocks ) . $facts . tools_reports_blocked_html();
 }
 
 /**

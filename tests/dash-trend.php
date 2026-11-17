@@ -14,6 +14,7 @@ if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlsp
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = '' ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $s, $d = '' ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( '_n' ) ) { function _n( $a, $b, $n, $d = '' ) { return 1 === (int) $n ? $a : $b; } }
 if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n ) { return number_format( (float) $n ); } }
 
 require __DIR__ . '/../inc/dash-trend.php';
@@ -63,6 +64,14 @@ ok( 3 === count( $pts2 ), 'even fixture renders three points' );
 $e1 = $pts2[1][0] - $pts2[0][0];
 $e2 = $pts2[2][0] - $pts2[1][0];
 ok( abs( $e1 - $e2 ) < 0.1, 'evenly-spaced days still render evenly spaced' );
+
+echo "\nGroup: days Analytics Engine sampled are labeled, numbers unchanged (2026-11-17)\n";
+ob_start();
+sn_dash_render_trend( array( array( 'day' => '2026-11-10', 'views' => 5, 'estimated' => true ), array( 'day' => '2026-11-11', 'views' => 4, 'estimated' => true ), array( 'day' => '2026-11-12', 'views' => 7, 'estimated' => false ) ) );
+$est_html = ob_get_clean();
+ok( false !== strpos( $est_html, '2 days estimated (sampled)' ), 'the trend header says how many days are estimates' );
+ok( false !== strpos( $est_html, '<b>7</b>' ) && false !== strpos( $est_html, 'peak <b>7</b>' ), 'latest and peak are the stored numbers' );
+ok( false === strpos( $svg2, 'estimated' ), 'no label when no day is estimated' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

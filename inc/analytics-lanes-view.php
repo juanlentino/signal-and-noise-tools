@@ -165,7 +165,9 @@ function sn_lanes_view_daily( array $report, $sensor ) {
 		if ( ! isset( $by[ $sensor ] ) ) {
 			continue;
 		}
-		$row = array( 'day' => (string) $day );
+		// Label only (2026-11-17): a beacon day Analytics Engine sampled is an estimate; its numbers stay as stored.
+		$est = 'beacon' === $sensor && function_exists( 'sn_analytics_day_estimated' ) && sn_analytics_day_estimated( (string) $day );
+		$row = array( 'day' => (string) $day . ( $est ? ' · estimated (sampled)' : '' ) );
 		foreach ( SN_LANES_BY_SENSOR[ $sensor ] as $lane ) {
 			$row[ $lane ] = sn_lanes_num( (int) ( $by[ $sensor ][ $lane ] ?? 0 ) );
 		}
