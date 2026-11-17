@@ -83,6 +83,8 @@ function sn_dash_render_trend( array $series ) {
 	$latest = (int) ( $series[ $n - 1 ]['views'] ?? 0 );
 	$first  = (string) ( $series[0]['day'] ?? '' );
 	$lastd  = (string) ( $series[ $n - 1 ]['day'] ?? '' );
+	// Days Analytics Engine sampled: their views are estimates (label only).
+	$est_n  = count( array_filter( $series, static fn( $r ) => ! empty( $r['estimated'] ) ) );
 
 	echo '<section class="sn-stage__trend">';
 
@@ -94,6 +96,11 @@ function sn_dash_render_trend( array $series ) {
 	echo '<i class="sn-card__sep" aria-hidden="true"></i>';
 	/* translators: %s the highest daily views in the window */
 	echo esc_html__( 'peak', 'signal-and-noise-tools' ) . ' <b>' . esc_html( number_format_i18n( $max ) ) . '</b>';
+	if ( $est_n > 0 ) {
+		echo '<i class="sn-card__sep" aria-hidden="true"></i>';
+		/* translators: %d days whose figures are estimates */
+		echo esc_html( sprintf( _n( '%d day estimated (sampled)', '%d days estimated (sampled)', $est_n, 'signal-and-noise-tools' ), $est_n ) );
+	}
 	echo '</span>';
 	echo '</header>';
 

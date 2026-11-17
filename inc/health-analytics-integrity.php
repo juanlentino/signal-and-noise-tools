@@ -143,9 +143,36 @@ function sn_health_check_analytics_integrity() {
 		);
 	}
 
+	// The scope leads the hint: get-health-scan and its remote twin return a
+	// flagged check's label, count and fix_hint, not its findings, so a reader
+	// saw "1 flagged" and needed wp-cli to learn which day and path. The stamp
+	// is absolute (UTC) because the scan is cached and an age goes stale.
+	$findings = sn_health_analytics_integrity_findings( $alert, time() );
 	return sn_health_pack_check(
 		$label,
-		sn_health_analytics_integrity_findings( $alert, time() ),
-		'views < pageview_visits is arithmetically impossible (every gated visit implies at least one view), so a recorded violation is a genuine rollup/sampling bug (investigate the AE rollup queries and the collector worker for the recorded scope. The record never expires on its own: after the investigation, clear it explicitly (`wp option delete sn_analytics_integrity_alert`) to reset this check. Values were served un-clamped throughout) the alarm is the feature.'
+		$findings,
+		sn_health_analytics_integrity_scope( $alert ) . ' '
+		. 'views < pageview_visits is arithmetically impossible (every gated visit implies at least one view), so a recorded violation is a genuine rollup/sampling bug (investigate the AE rollup queries and the collector worker for the recorded scope. The record never expires on its own: after the investigation, clear it explicitly (`wp option delete sn_analytics_integrity_alert`) to reset this check. Values were served un-clamped throughout) the alarm is the feature.'
 	);
+}
+
+/**
+ * One sentence naming what the stored record holds: day, path, views, visits,
+ * class and when it was recorded (UTC). PURE. Absent values read "unknown",
+ * never an invented number.
+ *
+ * @param mixed $alert The stored sn_analytics_integrity_alert value.
+ * @return string
+ */
+function sn_health_analytics_integrity_scope( $alert ) {
+	if ( ! is_array( $alert ) ) {
+		return 'Recorded: the stored record is unreadable.';
+	}
+	$v  = static fn( $k ) => array_key_exists( $k, $alert ) ? (string) (int) $alert[ $k ] : 'unknown';
+	$ts = (int) ( $alert['time'] ?? 0 );
+	$at = $ts > 0 ? gmdate( 'Y-m-d H:i \U\T\C', $ts ) : 'an unknown time';
+	$where = 'read-range' === (string) ( $alert['scope'] ?? '' )
+		? sprintf( 'range %s..%s', (string) ( $alert['from'] ?? '?' ), (string) ( $alert['to'] ?? '?' ) )
+		: sprintf( 'day %s, path %s', (string) ( $alert['day'] ?? 'unknown' ), (string) ( $alert['path'] ?? 'unknown' ) );
+	return sprintf( 'Recorded %s: %s, class %s, views %s, pageview_visits %s.', $at, $where, (string) ( $alert['class'] ?? 'human' ), $v( 'views' ), $v( 'pageview_visits' ) );
 }

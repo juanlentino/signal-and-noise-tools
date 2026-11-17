@@ -47,10 +47,10 @@ ok( "blob7 = 'bot'" === sn_analytics_counted_condition( 'bot', array() ), 'bot: 
 ok( false === strpos( sn_analytics_counted_condition( 'human', array() ), "blob7 = 'human'" ), 'human never trusts the stored human class' );
 ok( 0 === strpos( $net, "(blob8 = 'Safari' AND (blob9 = 'iOS' OR blob9 = 'macOS') AND (blob12 ILIKE '%akamai%' OR blob12 ILIKE '%fastly%')) OR NOT (blob12 ILIKE '%amazon%'" ), 'network rule: relay Safari on iOS/macOS first, then NOT (DC or hosting)' );
 ok( "blob12 ILIKE '%web2objects%')" === substr( $net, -29 ), 'network rule: the hosting list closes the NOT clause' );
-ok( "{$H} AND index1 NOT IN ('c70545e0be2a6240','abcdef01')" === sn_analytics_counted_condition( 'human', array( 'c70545e0be2a6240', 'ABCDEF01' ) ), 'hashes: the NOT IN clause (lower-cased)' );
+ok( "{$H} AND substring(index1, 1, 16) NOT IN ('c70545e0be2a6240','abcdef01')" === sn_analytics_counted_condition( 'human', array( 'c70545e0be2a6240', 'ABCDEF01' ) ), 'hashes: the NOT IN clause (lower-cased)' );
 ok( $H === sn_analytics_counted_condition( 'human', array( "x' OR 1=1 --", 'zzzzzzzz', 'abc' ) ), 'non-hex / short hashes are refused' );
 ok( false === strpos( sn_analytics_counted_condition( 'human', array( "c70545e0be2a6240'", 'c70545e0be2a6241' ) ), "c70545e0be2a6240'" ), 'a quote-bearing hash never reaches SQL' );
-ok( "(blob7 = 'bot' OR index1 IN ('c70545e0be2a6240'))" === sn_analytics_counted_condition( 'bot', array( 'c70545e0be2a6240' ) ), 'bot: over-cap visitor-days read as automated' );
+ok( "(blob7 = 'bot' OR substring(index1, 1, 16) IN ('c70545e0be2a6240'))" === sn_analytics_counted_condition( 'bot', array( 'c70545e0be2a6240' ) ), 'bot: over-cap visitor-days read as automated' );
 ok( $H === sn_analytics_counted_condition( "human' --", array() ), 'unknown class reads as human' );
 ok( "if(blob7 = 'bot', 'bot', if({$net}, 'human', 'suspect'))" === sn_analytics_class_select(), 'class select: bot from storage, human/suspect from the network rule' );
 ok( '' === sn_analytics_overcap_and( array() ), 'group-by builders: no clause when empty' );
@@ -138,7 +138,7 @@ sn_analytics_clock( 0 ); sn_analytics_v2_clean_from( '' ); $GLOBALS['__t'] = $__
 
 echo "\nGroup: every routed builder carries the exclusion\n";
 $GLOBALS['__q_ret'] = array();
-$not = "index1 NOT IN ('c70545e0be2a6240')";
+$not = "substring(index1, 1, 16) NOT IN ('c70545e0be2a6240')";
 $built = array(
 	'sessions:sn_analytics_session_sql'                 => sn_analytics_session_sql( '2026-09-01', '2026-09-27', 'human', 100 ),
 	'drilldown:sn_analytics_drilldown_sql'              => sn_analytics_drilldown_sql( 'country', array( 'US' ), '2026-09-01', '2026-09-27', 'human' ),

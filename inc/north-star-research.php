@@ -15,6 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
 
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
@@ -78,7 +80,7 @@ function snt_nsm_research_links( $from, $to, $now ) {
 	$dataset = sn_analytics_source( (string) $from, 'events' );
 	$c       = static fn( $col ) => sn_analytics_col( $col, $dataset );
 	$rows    = sn_analytics_query(
-		'SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts, ' . $c( 'blob18' ) . " AS host FROM {$dataset}"
+		'SELECT ' . SN_AE_VID . ' AS vid, toUnixTimestamp(timestamp) AS ts, ' . $c( 'blob18' ) . " AS host FROM {$dataset}"
 		. " WHERE timestamp >= toDateTime('{$from} 00:00:00') AND timestamp <= toDateTime('{$to} 23:59:59')"
 		. " AND " . sn_analytics_class_where( 'human' ) . " AND blob1 = 'cp' AND " . $c( 'blob16' ) . " = 'outbound' AND " . $c( 'blob17' ) . " = 'host' LIMIT 10000"
 	);

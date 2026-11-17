@@ -22,6 +22,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 require_once __DIR__ . '/analytics-reads-store.php';
 require_once __DIR__ . '/analytics-reads-parts.php';
 
@@ -72,7 +74,7 @@ function sn_analytics_reads_sql( $source, $range, $lo, $hi, $tz, $class ) {
 	$day   = '' !== $tz ? "formatDateTime(timestamp, '%Y-%m-%d', '{$tz}')" : "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d')";
 	$range = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
 	return implode( ' ', array(
-		"SELECT {$day} AS day, index1 AS vid, blob2 AS path, {$class} AS class,",
+		"SELECT {$day} AS day, " . SN_AE_VID . " AS vid, blob2 AS path, {$class} AS class,",
 		"sumIf(double2, blob1 = 'tm') AS time_ms,",
 		"max(if(blob1 = 'sc' AND double1 >= " . SN_ANALYTICS_READ_SCROLL_PCT . ', 1, 0)) AS scrolled,',
 		"max(if(blob1 = 'ce', 1, 0)) AS custom,",

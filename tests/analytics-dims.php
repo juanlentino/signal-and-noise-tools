@@ -150,7 +150,7 @@ ok( strpos( $sql, sn_analytics_class_select() . ' AS class' ) !== false, 'dims-s
 // (sum() + count(DISTINCT <column>)). AE rejects count(*)/count(DISTINCT <expr>).
 ok( strpos( $sql, "WHERE blob1 = 'pv'" ) !== false, 'dims-sql: window filtered to pv events' );
 ok( strpos( $sql, 'sum(_sample_interval) AS views' ) !== false, 'dims-sql: views = sample-corrected sum over pv window' );
-ok( strpos( $sql, 'count(DISTINCT index1) AS visits' ) !== false, 'dims-sql: visits = distinct visitor-day hashes (plain-column DISTINCT)' );
+ok( strpos( $sql, 'count(DISTINCT substring(index1, 1, 16)) AS visits' ) !== false, 'dims-sql: visits = distinct visitor-day hashes (plain-column DISTINCT)' );
 ok( strpos( $sql, 'count(*)' ) === false && strpos( $sql, 'count(DISTINCT if' ) === false, 'dims-sql: avoids AE-invalid count(*) / count(DISTINCT <expr>)' );
 ok( strpos( $sql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'dims-sql: floored trailing window' );
 ok( strpos( $sql, 'GROUP BY day, value, class' ) !== false, 'dims-sql: groups by day, value, class' );

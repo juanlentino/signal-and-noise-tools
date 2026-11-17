@@ -19,6 +19,11 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 	exit;
 }
 
+// The SQL inc/analytics-vid.php's SN_AE_VID builds, read from that file so the
+// guard and the helper cannot drift apart.
+preg_match( "/const SN_AE_VID = '([^']+)';/", (string) file_get_contents( dirname( __DIR__ ) . '/inc/analytics-vid.php' ), $snt_vid );
+define( 'SN_AE_VID_SQL', $snt_vid[1] ?? 'SN_AE_VID missing' );
+
 $pass = 0;
 $fail = 0;
 function dq( $cond, $label ) {
@@ -36,6 +41,9 @@ function dq( $cond, $label ) {
 function dialect_code_only( $src ) {
 	$src = preg_replace( '!/\*.*?\*/!s', '', (string) $src );
 	$src = preg_replace( '!//.*$!m', '', $src );
+	// Spell the visitor-day helper (inc/analytics-vid.php) out as the SQL it builds,
+	// so the guard judges the statement AE actually receives.
+	$src = str_replace( array( "' . SN_AE_VID . '", '" . SN_AE_VID . "' ), SN_AE_VID_SQL, (string) $src );
 	return (string) $src;
 }
 
@@ -54,11 +62,22 @@ function dialect_bad_count_arg( $code ) {
 /**
  * AE-invalid: count(DISTINCT <X>) where X is anything but a single bare column
  * identifier — catches count(DISTINCT if(...)), count(DISTINCT toX(...)), etc.,
- * while allowing the documented count(DISTINCT index1).
+ * while allowing the documented count(DISTINCT index1) and the visitor-day prefix.
  */
 function dialect_bad_count_distinct( $code ) {
-	return preg_match( '/\bcount\s*\(\s*DISTINCT\s+(?![a-z_][a-z0-9_]*\s*\))/i', $code ) === 1;
+	// The ONE allowed expression is the visitor-day prefix, SN_AE_VID exactly:
+	// count(DISTINCT substring(index1, 1, 16)) returned 200 on the live dataset on
+	// 2026-11-17 (owner's probe via sn_analytics_query on sn_pageviews_v2, equal to
+	// count(DISTINCT index1)). Every other count(DISTINCT <expr>) stays rejected.
+	return preg_match( '/\bcount\s*\(\s*DISTINCT\s+(?!' . preg_quote( SN_AE_VID_SQL, '/' ) . '\s*\))(?![a-z_][a-z0-9_]*\s*\))/i', $code ) === 1;
 }
+
+echo "Group: the count(DISTINCT) rule allows exactly the visitor-day prefix\n";
+dq( ! dialect_bad_count_distinct( 'count(DISTINCT index1)' ), 'count(DISTINCT index1) allowed (bare column)' );
+dq( ! dialect_bad_count_distinct( 'count(DISTINCT substring(index1, 1, 16))' ), 'count(DISTINCT substring(index1, 1, 16)) allowed (probed live 2026-11-17)' );
+dq( dialect_bad_count_distinct( 'count(DISTINCT substring(index1, 1, 8))' ), 'count(DISTINCT substring(index1, 1, 8)) rejected (not the probed expression)' );
+dq( dialect_bad_count_distinct( "count(DISTINCT if(blob1 = 'pv', index1, NULL))" ), 'count(DISTINCT if(...)) still rejected' );
+echo "\n";
 
 $dir   = dirname( __DIR__ ) . '/inc';
 // v5.4.0: analytics-buckets.php joins the scanned set — this list is HARDCODED
@@ -81,13 +100,13 @@ $api = dialect_code_only( file_get_contents( "$dir/analytics-api.php" ) );
 dq( preg_match( '/SELECT\s+count\(\)\s+AS\s+n/i', $api ) === 1, 'probe: SELECT count() AS n (0-arg row count)' );
 
 $rt = dialect_code_only( file_get_contents( "$dir/analytics-realtime.php" ) );
-dq( strpos( $rt, 'count(DISTINCT index1)' ) !== false, 'realtime: count(DISTINCT index1) (plain column)' );
+dq( strpos( $rt, 'count(DISTINCT ' . SN_AE_VID_SQL . ')' ) !== false, 'realtime: count(DISTINCT <visitor-day prefix>)' );
 
 $rollup = dialect_code_only( snt_test_analytics_rollup_src() );
-dq( strpos( $rollup, 'count(DISTINCT index1)' ) !== false, 'rollup: count(DISTINCT index1) (plain column)' );
+dq( strpos( $rollup, 'count(DISTINCT ' . SN_AE_VID_SQL . ')' ) !== false, 'rollup: count(DISTINCT <visitor-day prefix>)' );
 
 $dims = dialect_code_only( file_get_contents( "$dir/analytics-dims.php" ) );
-dq( strpos( $dims, 'count(DISTINCT index1)' ) !== false, 'dims: count(DISTINCT index1) (plain column)' );
+dq( strpos( $dims, 'count(DISTINCT ' . SN_AE_VID_SQL . ')' ) !== false, 'dims: count(DISTINCT <visitor-day prefix>)' );
 dq( strpos( $dims, "WHERE blob1 = 'pv'" ) !== false, 'dims: pv-filtered window enables plain sum()/count(DISTINCT col)' );
 
 echo "\nGroup: derived buckets use only the proven primitives (no toHour/quantile)\n";
@@ -116,7 +135,7 @@ dq( strpos( $pctl, 'toDateTime(' ) !== false, 'percentiles: explicit date-bounde
 echo "\nGroup: drill-down uses proven primitives, no LIMIT\n";
 $drill = dialect_code_only( file_get_contents( "$dir/analytics-drilldown.php" ) );
 dq( strpos( $drill, 'sum(_sample_interval)' ) !== false, 'drilldown: sample-corrected views' );
-dq( strpos( $drill, 'count(DISTINCT index1)' ) !== false, 'drilldown: visits via count(DISTINCT bare column)' );
+dq( strpos( $drill, 'count(DISTINCT ' . SN_AE_VID_SQL . ')' ) !== false, 'drilldown: visits via count(DISTINCT bare column)' );
 dq( preg_match( '/\bLIMIT\b/i', $drill ) === 0, 'drilldown: no LIMIT against AE (PHP-slices instead)' );
 dq( strpos( $drill, '{$col} IN (' ) !== false, 'drilldown: parent-col IN-set filter (proven shape; a brand drills its member hosts)' );
 

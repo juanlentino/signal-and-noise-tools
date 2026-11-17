@@ -27,6 +27,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
 
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
@@ -129,7 +131,7 @@ function sn_analytics_utm_rollup_sql( $days ) {
 			'blob17 AS us, blob18 AS um, blob19 AS uc, blob20 AS utc,',
 			sn_analytics_class_select() . ' AS class,',
 			'sum(_sample_interval) AS views,',
-			'count(DISTINCT index1) AS visits',
+			'count(DISTINCT ' . SN_AE_VID . ') AS visits',
 			'FROM ' . $source,
 			"WHERE blob1 = 'pv' AND (blob17 != '' OR blob18 != '' OR blob19 != '' OR blob20 != '') AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where() . sn_analytics_window_upper(),
 			'GROUP BY day, us, um, uc, utc, class',
@@ -142,7 +144,7 @@ function sn_analytics_utm_rollup_sql( $days ) {
 		'blob20 AS packed,',
 		sn_analytics_class_select() . ' AS class,',
 		'sum(_sample_interval) AS views,',
-		'count(DISTINCT index1) AS visits',
+		'count(DISTINCT ' . SN_AE_VID . ') AS visits',
 		'FROM ' . $source,
 		"WHERE blob1 = 'pv' AND blob20 != '' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where() . sn_analytics_window_upper(),
 		'GROUP BY day, packed, class',

@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 const SN_ANALYTICS_LIVE_OPEN_TAB_CAP = 1000;
 
 /**
@@ -30,7 +32,7 @@ function sn_analytics_live_open_tab_sql() {
 	$mins = max( 1, (int) SN_ANALYTICS_REALTIME_WINDOW_MIN );
 	$tz   = defined( 'SN_ANALYTICS_SPLIT_TZ' ) && preg_match( '#^[A-Za-z0-9_/+-]+$#', SN_ANALYTICS_SPLIT_TZ ) ? SN_ANALYTICS_SPLIT_TZ : 'UTC';
 	return implode( ' ', array(
-		"SELECT index1 AS vid, sum(if(blob1 = 'pv', 1, 0)) AS views, max(if(" . SN_ANALYTICS_LIVE_ENGAGED_SQL . " AND timestamp >= now() - INTERVAL '{$mins}' MINUTE, 1, 0)) AS live",
+		'SELECT ' . SN_AE_VID . " AS vid, sum(if(blob1 = 'pv', 1, 0)) AS views, max(if(" . SN_ANALYTICS_LIVE_ENGAGED_SQL . " AND timestamp >= now() - INTERVAL '{$mins}' MINUTE, 1, 0)) AS live",
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
 		"WHERE timestamp >= toStartOfInterval(now(), INTERVAL '1' DAY, '{$tz}') AND " . sn_analytics_class_where( 'human' ),
 		'GROUP BY vid HAVING views = 0 AND live = 1',

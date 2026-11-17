@@ -149,7 +149,7 @@ ok( 1 === $GLOBALS['spawned'], 'GET /live/admin (authenticated) on a cold cache 
 
 echo "\nGroup: being read now\n";
 $sql = sn_analytics_live_pages_sql();
-ok( false !== strpos( $sql, 'count(DISTINCT index1) AS readers' ) && false !== strpos( $sql, "INTERVAL '5' MINUTE" ) && false !== strpos( $sql, 'GROUP BY path' ), 'one grouped query: distinct readers per path over the same 5-minute window as Reading now' );
+ok( false !== strpos( $sql, 'count(DISTINCT substring(index1, 1, 16)) AS readers' ) && false !== strpos( $sql, "INTERVAL '5' MINUTE" ) && false !== strpos( $sql, 'GROUP BY path' ), 'one grouped query: distinct readers per path over the same 5-minute window as Reading now' );
 ok( false !== strpos( $sql, "blob2 ILIKE '/wp-admin'" ), 'admin, login and asset paths are excluded in the query' );
 $resolve = static function ( $path ) {
 	$known = array( '/' => array( 'Home', 'https://x.test/' ), '/notes/alpha/' => array( 'Alpha', 'https://x.test/notes/alpha/' ), '/about/' => array( 'About', 'https://x.test/about/' ) );
@@ -186,7 +186,7 @@ ok( false !== strpos( (string) file_get_contents( dirname( __DIR__ ) . '/inc/pub
 echo "\nGroup: the last hour\n";
 $sql = sn_analytics_live_hour_sql();
 ok( false !== strpos( $sql, "toUnixTimestamp(toStartOfInterval(timestamp, INTERVAL '5' MINUTE)) AS slot" ) && false !== strpos( $sql, 'GROUP BY slot' ) && false === strpos( $sql, 'GROUP BY toStart' ), 'twelve 5-minute slots, grouped by the SELECT alias (Analytics Engine refuses a function in GROUP BY)' );
-ok( false !== strpos( $sql, 'count(DISTINCT index1) AS readers' ) && false !== strpos( $sql, "INTERVAL '60' MINUTE" ), 'distinct readers per slot over the last hour' );
+ok( false !== strpos( $sql, 'count(DISTINCT substring(index1, 1, 16)) AS readers' ) && false !== strpos( $sql, "INTERVAL '60' MINUTE" ), 'distinct readers per slot over the last hour' );
 $now  = 1791490000; // 2026-10-08 16:06:40 UTC
 $cur  = intdiv( $now, 300 ) * 300;
 $rows = array( array( 'slot' => gmdate( 'Y-m-d H:i:s', $cur ), 'readers' => 3 ), array( 'slot' => gmdate( 'Y-m-d H:i:s', $cur - 600 ), 'readers' => 4 ), array( 'slot' => gmdate( 'Y-m-d H:i:s', $cur - 7200 ), 'readers' => 9 ) );

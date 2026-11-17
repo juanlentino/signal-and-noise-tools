@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 /** Rows one read may return; a read at the cap is not written. */
 const SN_ANALYTICS_BUCKETS_TIME_LIMIT = 5000;
 
@@ -30,7 +32,7 @@ function sn_analytics_buckets_time_view_sql( $days ) {
 	return implode( ' ', array(
 		"SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day,",
 		sn_analytics_class_select() . ' AS class,',
-		'index1 AS vid, blob2 AS path, sum(double2) AS ms, max(_sample_interval) AS w',
+		SN_AE_VID . ' AS vid, blob2 AS path, sum(double2) AS ms, max(_sample_interval) AS w',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
 		"WHERE blob1 = 'tm' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY)" . sn_analytics_excluded_path_sql() . sn_analytics_overcap_where() . sn_analytics_window_upper(),
 		'GROUP BY day, class, vid, path',

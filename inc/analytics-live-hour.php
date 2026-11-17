@@ -15,6 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 const SN_ANALYTICS_LIVE_HOUR_SLOT  = 300;
 const SN_ANALYTICS_LIVE_HOUR_SLOTS = 12;
 
@@ -31,7 +33,7 @@ function sn_analytics_live_hour_sql( $engaged = false ) {
 		// The slot as unix seconds: no date-string format to parse, so a change
 		// in how Analytics Engine prints a DateTime cannot read as an empty hour
 		// (review on #1966).
-		"SELECT toUnixTimestamp(toStartOfInterval(timestamp, INTERVAL '5' MINUTE)) AS slot, count(DISTINCT index1) AS readers",
+		"SELECT toUnixTimestamp(toStartOfInterval(timestamp, INTERVAL '5' MINUTE)) AS slot, count(DISTINCT " . SN_AE_VID . ") AS readers",
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
 		"WHERE timestamp >= now() - INTERVAL '60' MINUTE{$only} AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
 		'GROUP BY slot ORDER BY slot',

@@ -142,7 +142,9 @@ function sn_analytics_rest_series( $request ) {
 		? ( (int) floor( ( strtotime( $to . ' 00:00:00 UTC' ) - strtotime( $from . ' 00:00:00 UTC' ) ) / DAY_IN_SECONDS ) + 1 )
 		: (int) $range;
 	$gran = sn_analytics_granularity( $days );
-	return sn_analytics_daily_series( $from, $to, $class, $gran );
+	$rows = sn_analytics_daily_series( $from, $to, $class, $gran );
+	// `estimated` per row (2026-11-17): a day, or any day of a week bucket, Analytics Engine sampled. Label only.
+	return function_exists( 'sn_analytics_mark_estimated' ) ? sn_analytics_mark_estimated( $rows, 'week' === $gran ? 7 : 1 ) : $rows;
 }
 
 /**

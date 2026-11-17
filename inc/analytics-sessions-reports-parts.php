@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 /**
  * Does one compact event (from a summary 'events' list) satisfy a funnel step?
  *
@@ -182,7 +184,7 @@ function sn_analytics_session_sql( $from, $to, $class, $cap, $source = '', $rang
 	return implode(
 		' ',
 		array(
-			'SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts,',
+			'SELECT ' . SN_AE_VID . ' AS vid, toUnixTimestamp(timestamp) AS ts,',
 			// The custom event's name: blob16 in the legacy row, blob17 on a `ce` row of the second generation.
 			'blob1 AS ev, blob2 AS path, ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS ref, ' . sn_analytics_col( 'blob16', $dataset ) . ' AS ce,',
 			// Place and device ride on every row; the sessions read (inc/analytics-sessions-list.php) shows them per session.

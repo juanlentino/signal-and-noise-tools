@@ -30,6 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/analytics-pairing.php';       // 2026-11-17: a (direct) visit near an automated hit.
 require_once __DIR__ . '/analytics-live-open-tab.php'; // 2026-11-17: returning to an open tab.
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
 
 const SN_ANALYTICS_LIVE_READERS_MAX      = 20;
 const SN_ANALYTICS_LIVE_READERS_LOOKBACK = 120; // minutes: a visit's start, within reason.
@@ -41,7 +42,7 @@ const SN_ANALYTICS_LIVE_READERS_ROW_CAP  = 5000;
 function sn_analytics_live_readers_sql() {
 	$look = max( 1, (int) SN_ANALYTICS_LIVE_READERS_LOOKBACK );
 	return implode( ' ', array(
-		'SELECT index1 AS vid, toUnixTimestamp(timestamp) AS ts, blob1 AS ev, blob2 AS path, ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS ref, blob4 AS country, blob10 AS region, blob11 AS city, blob5 AS device, double2 AS dwell',
+		'SELECT ' . SN_AE_VID . ' AS vid, toUnixTimestamp(timestamp) AS ts, blob1 AS ev, blob2 AS path, ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS ref, blob4 AS country, blob10 AS region, blob11 AS city, blob5 AS device, double2 AS dwell',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
 		// The human class carries the over-cap list once.
 		"WHERE timestamp >= now() - INTERVAL '{$look}' MINUTE AND blob1 IN ('pv','sc','tm','ce','cp') AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(),

@@ -125,7 +125,7 @@ echo "Analytics realtime tier — plugin v5.0.1\n\n";
 echo "Group: realtime SQL\n";
 rt_reset();
 $sql = sn_analytics_realtime_sql();
-ok( strpos( $sql, 'count(DISTINCT index1) AS visitors' ) !== false, 'sql: counts distinct visitor hashes' );
+ok( strpos( $sql, 'count(DISTINCT substring(index1, 1, 16)) AS visitors' ) !== false, 'sql: counts distinct visitor hashes' );
 ok( strpos( $sql, 'FROM sn_pageviews' ) !== false, 'sql: FROM the dataset' );
 ok( preg_match( "/INTERVAL '5' MINUTE/", $sql ) === 1, 'sql: 5-minute "now" window' );
 ok( strpos( $sql, sn_analytics_class_select() . ' AS class' ) !== false, 'sql: selects the class' );
