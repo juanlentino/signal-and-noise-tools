@@ -75,11 +75,11 @@ function snt_watches() {
 		array(
 			'id'        => 'connector_key_wipe_65551',
 			'label'     => 'Core connector wipes a key it cannot validate (Trac #65551)',
-			'why'       => 'Since 16.5.2 the TypeSafe key lives in Core\'s connector, and Core\'s settings save deletes a stored key whenever validation is not strictly true, INCLUDING null for "the provider did not answer". A Connectors-screen save during a TypeSafe blip erases the key with no notice. The fix is on the 7.2 list, unmerged. Until the ticket closes: do not re-save Connectors while TypeSafe is down. Ripe when WordPress reports 7.2 or later, which is when to verify the fix landed and retire this.',
+			'why'       => 'Since 16.5.2 the TypeSafe key lives in Core\'s connector, and Core\'s settings save deletes a stored key whenever validation is not strictly true, INCLUDING null for "the provider did not answer". A Connectors-screen save during a TypeSafe blip erases the key with no notice. 2026-11-17: still there in WordPress 7.2 RC1 (connectors.php, `true !==` then update_option( $setting_name, \'\' )), so 7.2 does not fix it. Until it does: do not re-save Connectors while TypeSafe is down. Ripe when Core\'s settings save no longer has that line (read from Core\'s own code, not its version): then verify on the ticket and retire this.',
 			'read'      => 'https://core.trac.wordpress.org/ticket/65551',
 			'date_only' => false,
 			'due'       => '',
-			'ripe'      => 'snt_watch_ripe_wp_72',
+			'ripe'      => 'snt_watch_ripe_65551',
 		),
 		array(
 			'id'        => 'mcp_adapter_read_door',
@@ -94,7 +94,7 @@ function snt_watches() {
 		array(
 			'id'        => 'secrets_api_keyring_storage',
 			'label'     => 'keyring storage onto the Secrets API (#1625)',
-			'why'       => 'Seventeen keyring rows are plain options and two live inside sn_settings. WordPress 7.2 proposes a Secrets API (wp_set_secret, encrypted at rest, hidden from options.php and /wp/v2/settings). Ripe when wp_set_secret exists AND WordPress is a 7.2 release candidate or later (2026-10-25: build against the RC; on 2026-10-31 the function existed on a 7.1.4 site, from something other than core). Then: sn_keyring_stored() and sn_keyring_write() go through it behind function_exists, one upgrade import per option-backed row flagged for rotation; the registry, the probes, Verify all and the site-secret derivation stay ours. Issued rows do NOT become Core connectors (one paste surface).',
+			'why'       => 'Seventeen keyring rows are plain options and two live inside sn_settings. A Secrets API (wp_set_secret, encrypted at rest, hidden from options.php and /wp/v2/settings) was proposed for 7.2 but is not in 7.2 RC1 (2026-11-17: no wp_set_secret in core), so this waits for a later release. Ripe when wp_set_secret exists AND WordPress is a 7.2 release candidate or later (2026-10-25: build against the RC; on 2026-10-31 the function existed on a 7.1.4 site, from something other than core). Then: sn_keyring_stored() and sn_keyring_write() go through it behind function_exists, one upgrade import per option-backed row flagged for rotation; the registry, the probes, Verify all and the site-secret derivation stay ours. Issued rows do NOT become Core connectors (one paste surface).',
 			'read'      => 'Connections › Credentials; https://github.com/juanlentino/signal-and-noise-tools/issues/1625',
 			'date_only' => false,
 			'due'       => '',
@@ -461,25 +461,49 @@ function snt_watch_ripe_secrets_api( $watch, $now, $exists = null, $version = nu
 }
 
 /**
- * Ripe once the running WordPress is 7.2 or later. PURE given the version.
+ * #65551: ripe once Core's connectors settings save no longer blanks a key on
+ * a validation answer that is not strictly true. Read from the source of
+ * _wp_connectors_rest_settings_dispatch(), not the version: 7.2 RC1 still has
+ * the line (2026-11-17). Ripe means that exact line is gone, not that the bug
+ * is fixed: a reshaped wipe also ripens it, so the note says verify. PURE given the source.
  *
- * @since 16.6.1
- * @param array $watch The watch row.
- * @param int   $now   Unix time (unused).
- * @param string|null $version Injected for tests; null reads the global.
+ * @param array       $watch  The watch row (unused).
+ * @param int         $now    Unix time (unused: a state, not a date).
+ * @param string|null $source The function's source; null reads it from Core; '' when it cannot be read.
  * @return array{ripe:bool,note:string}
  */
-function snt_watch_ripe_wp_72( $watch, $now, $version = null ) {
+function snt_watch_ripe_65551( $watch, $now, $source = null ) {
 	unset( $watch, $now );
-	if ( null === $version ) {
-		$version = isset( $GLOBALS['wp_version'] ) ? (string) $GLOBALS['wp_version'] : '';
+	if ( null === $source ) {
+		$source = snt_watch_core_function_source( '_wp_connectors_rest_settings_dispatch' );
 	}
-	if ( '' === $version ) {
-		return array( 'ripe' => false, 'note' => 'WordPress version unreadable' );
+	if ( '' === $source ) {
+		return array( 'ripe' => false, 'note' => 'Core\'s connectors settings save could not be read: check Trac #65551 by hand' );
 	}
-	return version_compare( $version, '7.2', '>=' )
-		? array( 'ripe' => true, 'note' => 'WordPress ' . $version . ': verify Trac #65551 landed, then retire this watch' )
-		: array( 'ripe' => false, 'note' => 'WordPress ' . $version . ', before 7.2' );
+	$wipes = 1 === preg_match( '/true\s*!==\s*_wp_connectors_is_ai_api_key_valid\b[^;]*\)\s*\)\s*\{\s*update_option\(\s*\$setting_name\s*,\s*\'\'\s*\)/', $source );
+	return $wipes
+		? array( 'ripe' => false, 'note' => 'Core still blanks a key it could not validate (Trac #65551): do not re-save Connectors while TypeSafe is down' )
+		: array( 'ripe' => true, 'note' => 'Core\'s settings save no longer blanks an unvalidated key: verify Trac #65551 landed, then retire this watch' );
+}
+
+/**
+ * A Core function's source text, or '' when it does not exist or cannot be read.
+ *
+ * @param string $fn Function name.
+ * @return string
+ */
+function snt_watch_core_function_source( $fn ) {
+	if ( ! function_exists( $fn ) ) {
+		return '';
+	}
+	try {
+		$r    = new ReflectionFunction( $fn );
+		$file = (string) $r->getFileName();
+		$all  = '' !== $file && is_readable( $file ) ? file( $file ) : false;
+	} catch ( ReflectionException $e ) {
+		return '';
+	}
+	return is_array( $all ) ? implode( '', array_slice( $all, $r->getStartLine() - 1, $r->getEndLine() - $r->getStartLine() + 1 ) ) : '';
 }
 
 /**
