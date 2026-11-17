@@ -96,7 +96,7 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 		// contact-<alias>, resume_lane_music); a sentence reads (invalid).
 		'goals'     => array_values( array_map( static fn( $g ) => preg_match( '#^[A-Za-z0-9_.:-]{1,64}$#D', (string) $g ) ? (string) $g : '(invalid)', $sum['goals'] ) ),
 		// The candidate; the sessions read settles it against form entries (inc/analytics-contact-direct.php).
-		'contact_direct' => sn_analytics_contact_direct_candidate( $views, $src ),
+		'contact_direct' => sn_analytics_contact_direct_candidate( $views, $src, $pages[0]['time_ms'] ?? null ),
 	);
 }
 

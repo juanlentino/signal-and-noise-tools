@@ -13,6 +13,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **"Direct to contact, nothing sent" now flags a visit that spent a moment on another page first.** A session counts when its second page is a contact page and its entry view was short. Short was measured as the gap between the two page views, which includes load and idle time, so the Niigata visit of 2026-11-16 (3.1 s measured on /, then /contact/personal) read false live. The entry page's measured time on page now decides when there is one; the gap is the fallback. Test: `tests/analytics-contact-direct.php` (2 checks, red without the fix).
+
 ## [2026.11.47] - 2026-11-17 — Sessions flag paired and direct-to-contact visits; sampled days are recorded
 
 ### Added
