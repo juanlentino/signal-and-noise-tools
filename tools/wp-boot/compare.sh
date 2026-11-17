@@ -15,11 +15,16 @@ fold() { sed -E 's#127\.0\.0\.1(:|%3A)807[12]#HOST#g; s#localhost:807[12]#HOST#g
 fail=0
 for p in "${PATHS[@]}"; do
 	n=$(echo "$p" | tr -c 'a-zA-Z0-9' '_')
+	rm -f "$O/old$n.html" "$O/new$n.html"   # a failed fetch must not reuse an earlier run's page
 	a=$(curl -s -o "$O/old$n.html" -w '%{http_code}' "http://127.0.0.1:8071$p")
 	b=$(curl -s -o "$O/new$n.html" -w '%{http_code}' "http://127.0.0.1:8072$p")
-	t=$(grep -c "themes/signal-and-noise/" "$O/new$n.html"); s=$(grep -c 'name="twitter:card"' "$O/new$n.html")  # printed by this plugin (inc/seo-og-parts.php)
-	d=$(diff <(fold < "$O/old$n.html") <(fold < "$O/new$n.html") | grep -c '^[<>]')
-	[ "$a" = "$b" ] || fail=1
+	if [ -f "$O/old$n.html" ] && [ -f "$O/new$n.html" ]; then
+		t=$(grep -c "themes/signal-and-noise/" "$O/new$n.html"); s=$(grep -c 'name="twitter:card"' "$O/new$n.html")  # printed by this plugin (inc/seo-og-parts.php)
+		d=$(diff <(fold < "$O/old$n.html") <(fold < "$O/new$n.html") | grep -c '^[<>]')
+	else
+		t=-; s=-; d=-
+	fi
+	[ "$a" = "$b" ] && [ "$a" != 000 ] || fail=1   # 000: no server answered, never a match
 	printf '%-24s old %s new %s  theme %-3s plugin %-3s differing lines %s\n' "$p" "$a" "$b" "$t" "$s" "$d"
 done
 # The logs, timestamps and paths folded: only lines one side has count.
