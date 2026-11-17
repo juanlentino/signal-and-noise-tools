@@ -1,6 +1,6 @@
 // Runs assets/live-now.js (admin mode) against a fake "Readers now" list
 // carrying the strings of inc/analytics-live-admin.php, answers its one read
-// with argv[2] (JSON), and prints { readers, sources }, each row { tag, href,
+// with argv[2] (JSON), and prints { readers, sources, open }, each row { tag, href,
 // text }: the sources list shows apply() went on past the readers list. Used
 // by tests/analytics-live-readers.php.
 'use strict';
@@ -17,13 +17,15 @@ function el( tag ) {
 	};
 }
 const list = el( 'ol' );
-Object.assign( list.attrs, { 'data-empty': 'Nobody reading right now.', 'data-visit': '%1$s min, %2$s pages', 'data-visit-one': '%s min, 1 page', 'data-from': 'from %s' } );
+Object.assign( list.attrs, { 'data-empty': 'Nobody reading right now.', 'data-visit': '%1$s min, %2$s pages', 'data-visit-one': '%s min, 1 page', 'data-from': 'from %s', 'data-open-tab': 'returning to an open tab', 'data-paired': 'near an automated hit' } );
+const open = el( 'p' );
+Object.assign( open.attrs, { 'data-open': '%s returning to an open tab, not counted in Reading now', 'data-open-one': '1 returning to an open tab, not counted in Reading now' } );
 const sources = el( 'ol' );
 sources.attrs[ 'data-empty' ] = 'No arrivals.';
 global.document = {
 	hidden: false, readyState: 'complete',
 	querySelector: () => list,
-	querySelectorAll: ( sel ) => ( '[data-sn-live-readers]' === sel ? [ list ] : ( '[data-sn-live-sources]' === sel ? [ sources ] : [] ) ),
+	querySelectorAll: ( sel ) => ( '[data-sn-live-readers]' === sel ? [ list ] : ( '[data-sn-live-sources]' === sel ? [ sources ] : ( '[data-sn-live-open]' === sel ? [ open ] : [] ) ) ),
 	createElement: el,
 	addEventListener() {},
 	getElementById: () => null,
@@ -36,4 +38,4 @@ const rows = ( l ) => l.children.map( ( li ) => ( {
 	href: li.children[ 0 ] ? li.children[ 0 ].href : '',
 	text: li.children.map( ( c ) => c.textContent ).join( '|' ) || li.textContent,
 } ) );
-setTimeout( () => process.stdout.write( JSON.stringify( { readers: rows( list ), sources: rows( sources ) } ) ), 20 );
+setTimeout( () => process.stdout.write( JSON.stringify( { readers: rows( list ), sources: rows( sources ), open: open.textContent } ) ), 20 );

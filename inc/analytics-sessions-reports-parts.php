@@ -186,7 +186,7 @@ function sn_analytics_session_sql( $from, $to, $class, $cap, $source = '', $rang
 			// The custom event's name: blob16 in the legacy row, blob17 on a `ce` row of the second generation.
 			'blob1 AS ev, blob2 AS path, ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS ref, ' . sn_analytics_col( 'blob16', $dataset ) . ' AS ce,',
 			// Place and device ride on every row; the sessions read (inc/analytics-sessions-list.php) shows them per session.
-			'double1 AS scroll, double2 AS dwell, blob5 AS device, blob4 AS country, blob10 AS region, blob11 AS city',
+			'double1 AS scroll, double2 AS dwell, blob5 AS device, blob4 AS country, blob10 AS region, blob11 AS city, _sample_interval AS si', // si: the rows a kept row stands for.
 			'FROM ' . $dataset,
 			// AE's SQL types are strict: the DateTime `timestamp` column cannot be
 			// compared to a String literal (>= 422s), so wrap the validated bounds

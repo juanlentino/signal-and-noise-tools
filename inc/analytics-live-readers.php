@@ -28,6 +28,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-pairing.php';       // 2026-11-17: a (direct) visit near an automated hit.
+require_once __DIR__ . '/analytics-live-open-tab.php'; // 2026-11-17: returning to an open tab.
+
 const SN_ANALYTICS_LIVE_READERS_MAX      = 20;
 const SN_ANALYTICS_LIVE_READERS_LOOKBACK = 120; // minutes: a visit's start, within reason.
 const SN_ANALYTICS_LIVE_READERS_ROW_CAP  = 5000;
@@ -53,9 +56,15 @@ function sn_analytics_live_readers_sql() {
  * @param int        $now        Unix time.
  * @param callable   $resolve    Canonical path => array{0:label,1:url}|null (sn_analytics_live_pages_resolve()).
  * @param array|null $self_hosts The site's own hosts (null reads the site's).
- * @return array<int,array{city:string,region:string,country:string,device:string,source:string,page:string,url:string,pages:int,minutes:int}>
+ * @param int[]|null $hits       Bot- and suspect-class page-view times (inc/analytics-pairing.php); null when not read.
+ * @param array|null $open       Open-tab visitor codes (inc/analytics-live-open-tab.php); null when not read.
+ * @return array<int,array{city:string,region:string,country:string,device:string,source:string,page:string,url:string,pages:int,minutes:int,open_tab:bool,paired:bool|null}>
  */
-function sn_analytics_live_readers_from_rows( array $rows, $now, callable $resolve, $self_hosts = null ) {
+function sn_analytics_live_readers_from_rows( array $rows, $now, callable $resolve, $self_hosts = null, $hits = null, $open = null ) {
+	if ( is_array( $hits ) ) {
+		$hits = array_map( 'intval', $hits );
+		sort( $hits );
+	}
 	$since = (int) $now - 60 * max( 1, (int) SN_ANALYTICS_REALTIME_WINDOW_MIN );
 	$gap   = function_exists( 'sn_analytics_session_config' ) ? sn_analytics_session_config()['gap_sec'] : SN_ANALYTICS_SESSION_GAP_SEC;
 	$seen  = array(); // one resolve per page, however many readers are on it.
@@ -79,7 +88,8 @@ function sn_analytics_live_readers_from_rows( array $rows, $now, callable $resol
 		// A coded résumé link reads as the pages list reads it ("Resume via hera"), with the résumé's own title and URL.
 		$coded  = null === $hit && null !== $path && function_exists( 'sn_link_codes_live_from_rows' ) ? sn_link_codes_live_from_rows( array( array( 'path' => rtrim( $path, '/' ), 'readers' => 1 ) ) ) : array();
 		$hit    = $hit ?? ( $coded ? array( $coded[0]['label'], $coded[0]['url'] ) : null );
-		$source = $views ? sn_analytics_live_source_label( sn_analytics_canonical_source( (string) ( $first['ref'] ?? '' ), $self_hosts ) ) : '';
+		$canon  = $views ? sn_analytics_canonical_source( (string) ( $first['ref'] ?? '' ), $self_hosts ) : '';
+		$source = $views ? sn_analytics_live_source_label( $canon ) : '';
 		$place  = static fn( $v ) => trim( (string) preg_replace( '/[\x00-\x1F\x7F]/u', '', (string) $v ) );
 		$out[]  = array(
 			'city'    => mb_substr( $place( $who['city'] ?? '' ), 0, 128 ),
@@ -91,6 +101,9 @@ function sn_analytics_live_readers_from_rows( array $rows, $now, callable $resol
 			'url'     => is_array( $hit ) ? (string) $hit[1] : '',
 			'pages'   => count( $views ),
 			'minutes' => max( 0, (int) floor( ( (int) $now - $start ) / 60 ) ),
+			// 2026-11-17: no page view today, so a tab opened before the visitor code rotated.
+			'open_tab' => is_array( $open ) && isset( $open[ (string) ( $last['vid'] ?? '' ) ] ),
+			'paired'   => is_array( $hits ) ? sn_analytics_paired( (int) reset( $visit )['ts'], (int) $last['ts'], $canon, $hits ) : null,
 			'_ts'     => (int) $last['ts'],
 		);
 	}
@@ -101,12 +114,15 @@ function sn_analytics_live_readers_from_rows( array $rows, $now, callable $resol
 /**
  * The read, for the realtime refresh. Null on a failed query.
  *
+ * @param array|null $open Open-tab visitor codes, or null when not read.
  * @return array|null
  */
-function sn_analytics_live_readers_read() {
+function sn_analytics_live_readers_read( $open = null ) {
 	$rows = sn_analytics_query( sn_analytics_live_readers_sql() );
 	if ( ! is_array( $rows ) || count( $rows ) >= SN_ANALYTICS_LIVE_READERS_ROW_CAP || ! function_exists( 'sn_sessionize' ) ) {
 		return null; // not read, or capped: a partial list would name the wrong readers.
 	}
-	return sn_analytics_live_readers_from_rows( $rows, time(), 'sn_analytics_live_pages_resolve' );
+	$now = time();
+	$hits = sn_analytics_pairing_hits( $now - 60 * SN_ANALYTICS_LIVE_READERS_LOOKBACK - SN_ANALYTICS_PAIRING_SLACK, $now + 1 );
+	return sn_analytics_live_readers_from_rows( $rows, $now, 'sn_analytics_live_pages_resolve', null, $hits, $open );
 }

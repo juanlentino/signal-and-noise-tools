@@ -70,6 +70,9 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 		'end'       => $when( $start + (int) $sum['duration'] ),
 		'duration_s' => (int) $sum['duration'],
 		'pageviews' => (int) $sum['pageviews'],
+		// 2026-11-17: stored page-view rows, and the views they stand for (Analytics Engine's sample interval; 1 when not read).
+		'pageviews_stored' => (int) $sum['pageviews'],
+		'pageviews_est'    => (int) array_sum( array_map( static fn( $e ) => 'pv' === ( $e['ev'] ?? '' ) ? max( 1, (int) ( $e['si'] ?? 1 ) ) : 0, $events ) ),
 		'entry'     => $pages ? $pages[0]['path'] : '',
 		'exit'      => $pages ? $pages[ count( $pages ) - 1 ]['path'] : '',
 		'pages'     => $pages,

@@ -1,6 +1,6 @@
 {
-    "contract_version": "33",
-    "shape_hash": "0c8483bd47ffa59b2ae7b37f40eb5107d5d942f5aedbc3c79b24a09d1fdad418",
+    "contract_version": "34",
+    "shape_hash": "dfb146adc9fe708371ac46413daed48fb3ab157f3f5fbafbb01e6c14e3b39a6a",
     "tools": {
         "signal-noise/remote-analytics-fields": {
             "wrap": false,
@@ -272,6 +272,12 @@
                                 "pageviews": {
                                     "type": "integer"
                                 },
+                                "pageviews_stored": {
+                                    "type": "integer"
+                                },
+                                "pageviews_est": {
+                                    "type": "integer"
+                                },
                                 "entry": {
                                     "type": "string"
                                 },
@@ -356,6 +362,12 @@
                                             "type": "boolean"
                                         }
                                     }
+                                },
+                                "paired": {
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ]
                                 }
                             }
                         }
@@ -389,6 +401,29 @@
                     },
                     "capped": {
                         "type": "boolean"
+                    },
+                    "paired_by_day": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "day": {
+                                    "type": "string"
+                                },
+                                "sessions": {
+                                    "type": "integer"
+                                },
+                                "direct": {
+                                    "type": "integer"
+                                },
+                                "paired": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
                     }
                 }
             }

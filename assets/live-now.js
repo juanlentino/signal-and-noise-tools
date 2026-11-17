@@ -92,6 +92,12 @@
 		document.querySelectorAll( '[data-sn-live-readers]' ).forEach( function ( list ) {
 			readers( list, data.readers );
 		} );
+		// 2026-11-17: how many are returning to an open tab, counted apart from Reading now (admin only).
+		document.querySelectorAll( '[data-sn-live-open]' ).forEach( function ( el ) {
+			if ( typeof data.open_tab === 'number' ) {
+				el.textContent = data.open_tab ? String( el.getAttribute( data.open_tab === 1 ? 'data-open-one' : 'data-open' ) || '%s' ).replace( '%s', data.open_tab.toLocaleString() ) : '';
+			}
+		} );
 		document.querySelectorAll( '[data-sn-live-sources]' ).forEach( function ( list ) {
 			rows( list, data.sources, false );
 		} );
@@ -288,6 +294,9 @@
 			name.textContent = String( r.page );
 			var parts = [ [ r.city, r.region, r.country ].filter( Boolean ).join( ', ' ), String( r.device || '' ) ];
 			if ( r.source ) { parts.push( String( list.getAttribute( 'data-from' ) || '%s' ).replace( '%s', String( r.source ) ) ); }
+			// 2026-11-17: in words, never color alone. A tab opened before the visitor code rotated; a (direct) visit near an automated hit.
+			if ( r.open_tab ) { parts.unshift( String( list.getAttribute( 'data-open-tab' ) || '' ) ); }
+			if ( r.paired === true ) { parts.push( String( list.getAttribute( 'data-paired' ) || '' ) ); }
 			// No page view in view (only beacons): how far into the visit is not known, so nothing is said.
 			if ( Number( r.pages ) === 1 ) {
 				parts.push( String( list.getAttribute( 'data-visit-one' ) || '%s' ).replace( '%s', Number( r.minutes ).toLocaleString() ) );

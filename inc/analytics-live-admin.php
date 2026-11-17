@@ -57,8 +57,12 @@ function sn_analytics_live_admin_html( $get = null ) {
 			/* translators: %s: minutes since the visit began. */
 			. ' data-visit-one="' . esc_attr__( '%s min, 1 page', 'signal-and-noise-tools' ) . '"'
 			/* translators: %s: where the visit came in from, e.g. LinkedIn. */
-			. ' data-from="' . esc_attr__( 'from %s', 'signal-and-noise-tools' ) . '"', __( 'Readers now', 'signal-and-noise-tools' ), __( 'human readers, last 5 minutes: place, device, entry source', 'signal-and-noise-tools' ), __( 'Nobody reading right now.', 'signal-and-noise-tools' ) )
+			. ' data-from="' . esc_attr__( 'from %s', 'signal-and-noise-tools' ) . '"'
+			// 2026-11-17: a line's marks, in words (inc/analytics-live-open-tab.php, inc/analytics-pairing.php).
+			. ' data-open-tab="' . esc_attr__( 'returning to an open tab', 'signal-and-noise-tools' ) . '" data-paired="' . esc_attr__( 'near an automated hit', 'signal-and-noise-tools' ) . '"', __( 'Readers now', 'signal-and-noise-tools' ), __( 'human readers, last 5 minutes: place, device, entry source', 'signal-and-noise-tools' ), __( 'Nobody reading right now.', 'signal-and-noise-tools' ) )
 		. '</div>'
+		/* translators: %s: visitors returning to a tab opened before today, counted apart from Reading now. */
+		. '<p class="sn-live-admin__sub" data-sn-live-open data-open="' . esc_attr__( '%s returning to an open tab, not counted in Reading now', 'signal-and-noise-tools' ) . '" data-open-one="' . esc_attr__( '1 returning to an open tab, not counted in Reading now', 'signal-and-noise-tools' ) . '"></p>'
 		/* translators: %s: the time of the last live read, e.g. 16:42. */
 		. '<p class="sn-live-admin__meta" data-sn-live-meta data-updated="' . esc_attr__( 'live · updated %s', 'signal-and-noise-tools' ) . '" data-unknown="' . esc_attr__( 'live · not read yet', 'signal-and-noise-tools' ) . '">' . esc_html__( 'live', 'signal-and-noise-tools' ) . '</p>'
 		. '</div>'
