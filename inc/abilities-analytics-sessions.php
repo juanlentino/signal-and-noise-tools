@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/analytics-pairing.php'; // 2026-11-17: paired, a (direct) session near an automated hit.
 require_once __DIR__ . '/analytics-contact-direct.php'; // 2026-11-17: contact_direct, direct to contact, nothing sent.
+require_once __DIR__ . '/share-echoes-scan.php'; // 2026-11-17: link_scans, an app checking a link it was just sent.
 
 const SN_ANALYTICS_SESSIONS_MAX_HOURS = 72;
 
@@ -94,7 +95,10 @@ function snt_ability_analytics_sessions( $input = null ) {
 	if ( null === $read ) {
 		return new WP_Error( 'sn_analytics_read_failed', 'The Analytics Engine read failed; this is not an empty answer.', array( 'status' => 500 ) );
 	}
-	$total = count( $read['rows'] );
+	// 2026-11-17: an app checking a coded link it was just sent is not a suspect visit (inc/share-echoes-scan.php).
+	$scan         = sn_share_echo_scans_on_sessions( $read['rows'], $class );
+	$read['rows'] = $scan['rows'];
+	$total        = count( $read['rows'] );
 	// 2026-11-17: the observe-only flags, paired and contact_direct, over the whole window for the per-day count.
 	$flags = sn_analytics_session_flags( $read['rows'], $class, ( $page - 1 ) * $per, $per );
 	return array(
@@ -114,6 +118,7 @@ function snt_ability_analytics_sessions( $input = null ) {
 		'class'    => $class,
 		'capped'   => $read['capped'],
 		'flags_by_day' => $flags['by_day'],
+		'link_scans'   => $scan['scans'],
 	);
 }
 
@@ -130,7 +135,7 @@ function snt_analytics_sessions_output_schema() {
 	$row  = array( 'start' => $s, 'end' => $s, 'duration_s' => $i, 'pageviews' => $i, 'pageviews_stored' => $i, 'pageviews_est' => $i, 'entry' => $s, 'exit' => $s, 'pages' => array( 'type' => 'array', 'items' => $page ), 'source' => $s, 'country' => $s, 'region' => $s, 'city' => $s, 'device' => $s, 'class' => $s, 'returning' => $b, 'link_code' => $s, 'engaged' => $b, 'goals' => array( 'type' => 'array', 'items' => $s ), 'contact_direct' => $nb, 'share' => $share, 'paired' => $nb );
 	return array(
 		'type'       => 'object',
-		'properties' => array( 'sessions' => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'properties' => $row ) ), 'total' => $i, 'page' => $i, 'per_page' => $i, 'pages' => $i, 'from' => $s, 'to' => $s, 'hours' => $ni, 'class' => $s, 'capped' => $b, 'flags_by_day' => array( 'type' => array( 'array', 'null' ), 'items' => $day ) ),
+		'properties' => array( 'sessions' => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'properties' => $row ) ), 'total' => $i, 'page' => $i, 'per_page' => $i, 'pages' => $i, 'from' => $s, 'to' => $s, 'hours' => $ni, 'class' => $s, 'capped' => $b, 'flags_by_day' => array( 'type' => array( 'array', 'null' ), 'items' => $day ), 'link_scans' => $ni ),
 	);
 }
 
@@ -146,6 +151,7 @@ function snt_analytics_sessions_description() {
 		. 'Arguments: from and to (YYYY-MM-DD, site time; default today) or hours (1 to ' . SN_ANALYTICS_SESSIONS_MAX_HOURS . ', the last N hours), class human|suspect|bot (default human), page (default 1), per_page (1 to ' . SN_ANALYTICS_SESSIONS_MAX_PAGE . ', default ' . SN_ANALYTICS_SESSIONS_PER_PAGE . '). Read from Analytics Engine: the last 90 days. capped: true means the raw read hit its cap, so the list is a floor. pageviews and pageviews_stored are the page-view rows Analytics Engine kept; pageviews_est is the views they stand for (the sum of its sample interval). When pageviews_est is above pageviews_stored the visitor-day was sampled: read it as "about pageviews_est, from pageviews_stored stored", and pages lists the kept views only. '
 		. 'Each page view carries read (' . ( defined( 'SN_ANALYTICS_READS_DEFINITION' ) ? SN_ANALYTICS_READS_DEFINITION : 'proven reading' ) . '). Each human session carries share: the most recent link-preview fetch of its entry page (for /r/CODE, the same code) in the 72 hours before it, through the app its source names when it names one (Instagram, Facebook, Messenger and Threads are Meta), else through any app; joined by page, time and app only, never by a visitor identifier: app (the preview service: Meta, WhatsApp, LinkedIn, Slack, Discord, Telegram, X, Apple Messages or another app), family, gap_s (seconds from the share to the visit) and read (whether the entry view was a read); null when no share preceded it, for other classes, or when the share read failed. A preview fires when anyone shares the link, so this is after a share, never whose share, and it names no person. '
 		. 'Each human session carries paired (observe only, nothing is subtracted): true when its source is (direct) and it overlaps in time with, or starts or ends within 60 seconds of, any bot- or suspect-class page view (an automated or data-center read), joined by time only, never by visitor code, place or network; false otherwise; null for other classes or when that read failed or hit its cap. Each human session also carries contact_direct (observe only): true when its source is (direct), its entry page is a contact page (/contact or /contact/...) or its second page is one after an entry view of under 10 seconds, and no contact form entry (AllTerrain Forms, inbox or spam) was created between its start and 60 seconds after its end, joined by time only; false otherwise; null for other classes, or for a candidate when the entries could not be read. flags_by_day counts, per site day of the session\'s start in the window, { day, sessions, direct, paired, contact_direct } over every human session in it, not only this page; a flag that could not be read is null on every day (null for other classes); ask from six days ago to today for the last 7 days. '
+		. 'link_scans (class suspect only, null otherwise or when the shares could not be read): suspect sessions taken out of this list because an app was checking a coded link it had just been sent: one page view on /r/CODE starting within 60 seconds after that app\'s verified preview fetch of the same code (LinkedIn, 2026-11-17), joined by code and time only. The share itself is in the shares list; class totals elsewhere still count the visit. '
 		. 'Paths are the site\'s own content or (unmatched). No visitor code, IP address or user agent is returned. Read-only.';
 }
 

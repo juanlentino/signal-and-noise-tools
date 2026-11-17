@@ -149,7 +149,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // straight to a contact page with no form entry in its time), pageviews_stored
 // and pageviews_est (the views the kept rows stand for), and the answer gains
 // flags_by_day. Additive.
-const SN_REMOTE_CONTRACT_VERSION = '35';
+const SN_REMOTE_CONTRACT_VERSION = '36';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -227,6 +227,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'34' => '1a203caec2a0fada5ec94eb7da2aaa77ec3aeba6bbddcd8be4286b1ef2ffc6c0',
 	// RED-then-pin, 2026-11-17: sampling_since_fix on the analytics summary twin.
 	'35' => '6922993f54744c793305c35f8a3e9dc81aa334addfa590703ebe291a6b63fcab',
+	// RED-then-pin, 2026-11-17: link_scans on the sessions twin.
+	'36' => '2c8581c01458b127b68dd20bb639fff6e0d44d15395761052bf57de3b9b57fdf',
 );
 
 /**
