@@ -49,3 +49,24 @@ function sn_analytics_mark_estimated( array $rows, $span = 1 ) {
 	}
 	return $out;
 }
+
+/**
+ * A card title over a window, with " · estimated (sampled)" when any site day
+ * from $from to $to (Y-m-d, inclusive) is estimated: a country, source or page
+ * total over that window carries the day's weighted-up rows. Label only.
+ *
+ * @param string $title Card title.
+ * @param string $from  Y-m-d.
+ * @param string $to    Y-m-d.
+ * @return string
+ */
+function sn_analytics_title_estimated( $title, $from, $to ) {
+	$t   = strtotime( (string) $from . ' 12:00:00 UTC' );
+	$end = strtotime( (string) $to . ' 12:00:00 UTC' );
+	for ( $i = 0; false !== $t && false !== $end && $t <= $end && $i < 400; $t += 86400, $i++ ) {
+		if ( sn_analytics_day_estimated( gmdate( 'Y-m-d', $t ) ) ) {
+			return $title . ' · estimated (sampled)';
+		}
+	}
+	return $title;
+}

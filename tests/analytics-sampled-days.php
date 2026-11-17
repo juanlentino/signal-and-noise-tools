@@ -72,6 +72,9 @@ ok( array( 'day' => '2026-11-11', 'views' => 4, 'visits' => 2 ) === array_diff_k
 $week = sn_analytics_mark_estimated( array( array( 'day' => '2026-11-09', 'views' => 1 ) ), 7 );
 ok( true === $week[0]['estimated'] && false === sn_analytics_mark_estimated( array( array( 'day' => '2026-11-09' ) ) )[0]['estimated'], 'a week bucket is estimated when any of its seven days is' );
 
+ok( 'Countries · estimated (sampled)' === sn_analytics_title_estimated( 'Countries', '2026-11-04', '2026-11-17' ), 'a window holding an estimated day says so in the title' );
+ok( 'Top pages' === sn_analytics_title_estimated( 'Top pages', '2026-11-12', '2026-11-17' ) && 'Top pages' === sn_analytics_title_estimated( 'Top pages', '2026-11-12', '2026-11-01' ), 'a window without one, or a reversed window, keeps its title' );
+
 echo "Nightly run\n";
 $GLOBALS['cfg'] = true; $GLOBALS['cap_ok'] = true; $GLOBALS['sets'] = array( 1 => null, 0 => null ); $GLOBALS['folds'] = array();
 function sn_analytics_config() { return $GLOBALS['cfg']; }

@@ -109,10 +109,12 @@ function snt_desktop_traffic_groups( array $win ) {
 	// Countries and Sources are short and split a whole: each draws a share
 	// bar over its rows (`share`), and the two sit side by side (`pair`: this
 	// group and the next share a row). Both keys are hints a client may ignore.
+	// A window holding a sampled day says so on the cards built from its rows.
+	$est = static fn( $t ) => function_exists( 'sn_analytics_title_estimated' ) ? sn_analytics_title_estimated( $t, $win['from'], $win['to'] ) : $t;
 	$out = array(
-		array( 'share' => true, 'pair' => true ) + snt_desktop_group( 'Countries', snt_desktop_audience_rows( $dim( 'country' ), 'value', 3 ), 'No views in this window.' ),
+		array( 'share' => true, 'pair' => true ) + snt_desktop_group( $est( 'Countries' ), snt_desktop_audience_rows( $dim( 'country' ), 'value', 3 ), 'No views in this window.' ),
 		// Named sources (Hacker News, LinkedIn, direct): a name says more than a category.
-		array( 'share' => true ) + snt_desktop_group( 'Sources', snt_desktop_audience_rows( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $win['from'], $win['to'], 'human', 500 ) : null, 'value', 4 ), 'No views in this window.' ),
+		array( 'share' => true ) + snt_desktop_group( $est( 'Sources' ), snt_desktop_audience_rows( function_exists( 'sn_analytics_top_sources' ) ? sn_analytics_top_sources( $win['from'], $win['to'], 'human', 500 ) : null, 'value', 4 ), 'No views in this window.' ),
 	);
 	// Campaigns, only when a tagged link was followed, as SN Audience showed
 	// them. '(none)' is the rollup's bucket for a tagged link that named no

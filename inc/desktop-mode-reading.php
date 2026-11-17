@@ -250,7 +250,7 @@ function snt_desktop_reading_groups( array $win ) {
 	return ( $hero ? array( 'hero' => $hero ) : array() ) + array_values( array_filter( array(
 		$week ? snt_desktop_group( 'This week', $week, '' ) : null, // absent when the north star is not set up, as on Traffic.
 		snt_desktop_group( 'On the page', $page, 'No page views in this window, or the daily totals could not be read.' ), // a failed read and an empty window share one shape (views 0); the sentence claims neither.
-		snt_desktop_group( 'Top pages', $top, $topf ? 'The top pages could not be read.' : 'No page views in this window.' ),
+		snt_desktop_group( function_exists( 'sn_analytics_title_estimated' ) ? sn_analytics_title_estimated( 'Top pages', $win['from'], $win['to'] ) : 'Top pages', $top, $topf ? 'The top pages could not be read.' : 'No page views in this window.' ),
 		snt_desktop_group( 'Sessions', (array) $visits, null === $visits ? 'The sessions could not be read.' : 'No sessions rolled up in this window.' ), // sessions, not Site Views' visitor-days: the heading keeps the two apart.
 		snt_desktop_group( 'Custom events · all traffic', $events, // the events rollup has no traffic class; unlike the rows above, this is not people only.
 			isset( $failed['events'] ) ? 'The custom events could not be read.' : 'No custom events in this window.' ),
