@@ -35,6 +35,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
 
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
@@ -289,7 +291,7 @@ function sn_analytics_pageroles_rollup_sql( $days, $tz = '' ) {
 		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
 		'sum(_sample_interval) AS views,',
-		'count(DISTINCT index1) AS visits',
+		'count(DISTINCT ' . SN_AE_VID . ') AS visits',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
 		"WHERE blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(),
 		"AND ( blob3 = '' OR blob3 NOT IN ('{$host}','www.{$host}') )" . sn_analytics_not_internal_click_sql(),

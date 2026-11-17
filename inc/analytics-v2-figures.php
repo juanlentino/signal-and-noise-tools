@@ -19,6 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 const SN_ANALYTICS_V2_ROW_ALLOWANCE = 2;    // rows an exact non-pageview event may differ by.
 const SN_ANALYTICS_V2_FIGURE_MARGIN = 0.01; // share a human figure may differ by on a sampled day.
 const SN_ANALYTICS_V2_FIGURE_FLOOR  = 2;    // and never less than this many.
@@ -54,7 +56,7 @@ function sn_analytics_v2_figures_sql( $dataset, $days, array $hashes ) {
 	$dataset = in_array( $dataset, array( SN_ANALYTICS_DATASET, SN_ANALYTICS_DATASET_PV_V2 ), true ) ? $dataset : SN_ANALYTICS_DATASET;
 	$days    = max( 1, min( 14, (int) $days ) );
 	$human   = function_exists( 'sn_analytics_counted_condition' ) ? sn_analytics_counted_condition( 'human', $hashes ) : "blob7 != 'bot'";
-	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, sum(_sample_interval) AS views, count(DISTINCT index1) AS visits"
+	return 'SELECT ' . "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, sum(_sample_interval) AS views, count(DISTINCT " . SN_AE_VID . ") AS visits"
 		. ' FROM ' . $dataset
 		. " WHERE timestamp >= toStartOfDay(now() - INTERVAL '" . ( $days - 1 ) . "' DAY) AND blob1 = 'pv' AND " . $human
 		. ' GROUP BY day';

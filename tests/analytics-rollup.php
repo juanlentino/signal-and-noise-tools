@@ -348,7 +348,7 @@ ar_reset();
 $sql = sn_analytics_rollup_sql( 7 );
 ok( strpos( $sql, 'FROM sn_pageviews' ) !== false, 'rollup-sql: FROM the sn_pageviews dataset' );
 ok( strpos( $sql, "sumIf(_sample_interval, blob1 = 'pv')" ) !== false, 'rollup-sql: views = sumIf(_sample_interval, pv)' );
-ok( strpos( $sql, 'count(DISTINCT index1)' ) !== false, 'rollup-sql: visits = count(DISTINCT index1)' );
+ok( strpos( $sql, 'count(DISTINCT substring(index1, 1, 16))' ) !== false, 'rollup-sql: visits = count(DISTINCT substring(index1, 1, 16))' );
 ok( strpos( $sql, "avgIf(double1, blob1 = 'sc')" ) !== false, 'rollup-sql: scroll_avg = avgIf(double1, sc)' );
 ok( strpos( $sql, "avgIf(double2, blob1 = 'tm')" ) !== false, 'rollup-sql: time_avg = avgIf(double2, tm)' );
 ok( strpos( $sql, "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d')" ) !== false, 'rollup-sql: day-bucket via toStartOfDay+formatDateTime' );
@@ -402,7 +402,7 @@ ok( strpos( $sql, "sumIf(_sample_interval, blob1 = 'tm') AS time_events" ) !== f
 $expected_main = "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
 	. 'blob2 AS path, ' . sn_analytics_class_select() . ' AS class, '
 	. "sumIf(_sample_interval, blob1 = 'pv') AS views, "
-	. 'count(DISTINCT index1) AS visits, '
+	. 'count(DISTINCT substring(index1, 1, 16)) AS visits, '
 	. "avgIf(double1, blob1 = 'sc') AS scroll_avg, "
 	. "avgIf(double2, blob1 = 'tm') AS time_avg, "
 	. "sumIf(double1 * _sample_interval, blob1 = 'sc') AS scroll_sum, "
@@ -427,7 +427,7 @@ echo "\nGroup: gated pageview_visits SQL builder (Task 3)\n";
 $gated_sql = sn_analytics_rollup_gated_sql( 7 );
 $expected_gated = "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
 	. 'blob2 AS path, ' . sn_analytics_class_select() . ' AS class, '
-	. 'count(DISTINCT index1) AS pageview_visits '
+	. 'count(DISTINCT substring(index1, 1, 16)) AS pageview_visits '
 	. 'FROM sn_pageviews '
 	. "WHERE timestamp >= toStartOfDay(now() - INTERVAL '7' DAY) "
 	. "AND blob1 = 'pv' "
@@ -1323,7 +1323,7 @@ $oc_rows = array(
  * Evaluate the bot-condition forms the rule emits (blob7 = 'bot', index1 IN / NOT IN, OR) for one row.
  */
 function oc_eval( $cond, array $r ) {
-	$php = preg_replace_callback( "/index1 (NOT )?IN \\(([^)]*)\\)/", static function ( $m ) {
+	$php = preg_replace_callback( "/substring\\(index1, 1, 16\\) (NOT )?IN \\(([^)]*)\\)/", static function ( $m ) {
 		return ( $m[1] ? '!' : '' ) . 'in_array($r[\'vid\'], array(' . $m[2] . '), true)';
 	}, $cond );
 	$php = str_replace( array( "blob7 = 'bot'", ' OR ', ' AND ', 'NET' ), array( "(\$r['blob7'] === 'bot')", ' || ', ' && ', "\$r['net']" ), $php );
@@ -1349,7 +1349,7 @@ foreach ( array( 'human', 'suspect' ) as $c ) {
 ok( 65 === $oc_reader, 'fixture: the AE reader counts 65 bot views (stored bot + over-cap)' );
 ok( 10 === $oc_reader_cls['human'] && 7 === $oc_reader_cls['suspect'], 'fixture: the AE reader counts 10 human, 7 suspect' );
 foreach ( array( 'rollup_sql' => sn_analytics_rollup_sql( 7 ), 'gated_sql' => sn_analytics_rollup_gated_sql( 7 ) ) as $oc_name => $oc_sql ) {
-	$oc_where = preg_match( '/index1 NOT IN \([^)]*\)/', $oc_sql, $m ) ? $m[0] : '';
+	$oc_where = preg_match( '/substring\(index1, 1, 16\) NOT IN \([^)]*\)/', $oc_sql, $m ) ? $m[0] : '';
 	$oc_bot   = preg_match( "/AS path, if\\((.*?), 'bot', if\\(/", $oc_sql, $m ) ? $m[1] : 'false';
 	$oc_daily = 0;
 	foreach ( $oc_rows as $r ) {
@@ -1375,13 +1375,13 @@ ok( sn_analytics_class_select() === sn_analytics_counted_class_select( array() )
 ar_reset();
 $GLOBALS['__ar_overcap']        = array( 'hashes' => array( $oc_h ), 'ok' => true, 'truncated' => false );
 $GLOBALS['__ar_config_present'] = true;
-$GLOBALS['__ar_refuse']         = "'bot' OR index1 IN (";
+$GLOBALS['__ar_refuse']         = "'bot' OR substring(index1, 1, 16) IN (";
 $GLOBALS['__ar_query_return']   = array(
 	array( 'day' => '2026-06-11', 'path' => '/', 'class' => 'human', 'views' => 9, 'visits' => 7, 'scroll_avg' => 50, 'time_avg' => 3000 ),
 );
 sn_analytics_run_rollup();
 $oc_calls = $GLOBALS['__ar_query_calls'];
-ok( isset( $oc_calls[1] ) && false !== strpos( $oc_calls[0], $GLOBALS['__ar_refuse'] ) && false !== strpos( $oc_calls[1], "index1 NOT IN ('{$oc_h}')" ) && false === strpos( $oc_calls[1], $GLOBALS['__ar_refuse'] ), 'fallback: the refused folded read is followed by the pre-fold read' );
+ok( isset( $oc_calls[1] ) && false !== strpos( $oc_calls[0], $GLOBALS['__ar_refuse'] ) && false !== strpos( $oc_calls[1], "substring(index1, 1, 16) NOT IN ('{$oc_h}')" ) && false === strpos( $oc_calls[1], $GLOBALS['__ar_refuse'] ), 'fallback: the refused folded read is followed by the pre-fold read' );
 ok( isset( $oc_calls[2] ) && false !== strpos( $oc_calls[2], 'AS pageview_visits' ) && false !== strpos( $oc_calls[2], 'NOT IN' ), 'fallback: the gated read runs in the same pre-fold shape (the merge keys agree)' );
 ok( 1 === count( $GLOBALS['wpdb']->queries ) && false !== strpos( $GLOBALS['wpdb']->queries[0], '2026-06-11' ), 'fallback: the day is still written' );
 ok( 'unfolded' === ( get_option( SN_ANALYTICS_ROLLUP_SHAPE_OPT )['shape'] ?? '' ), 'fallback: the run records the pre-fold shape' );

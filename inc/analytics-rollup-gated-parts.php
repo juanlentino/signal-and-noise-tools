@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 /**
  * Build the SECOND rollup query: pageview-gated distinct visitor-days.
  *
@@ -40,7 +42,7 @@ function sn_analytics_rollup_gated_sql( $days, $tz = '', $fold = true ) {
 		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
 		$class . ' AS class,',
-		'count(DISTINCT index1) AS pageview_visits',
+		'count(DISTINCT ' . SN_AE_VID . ') AS pageview_visits',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
 		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . $cap,
 		"AND blob1 = 'pv'",

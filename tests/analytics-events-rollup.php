@@ -69,7 +69,7 @@ ok( strpos( $esql, "WHERE blob1 = 'ce'" ) !== false, 'events-sql: filters to ce 
 ok( strpos( $esql, sn_analytics_counted_condition( 'human', array() ) ) !== false, 'events-sql: human-only' );
 ok( strpos( $esql, 'blob16 AS name' ) !== false, 'events-sql: blob16 → name' );
 ok( strpos( $esql, 'sum(_sample_interval) AS events' ) !== false, 'events-sql: events = sample-corrected sum' );
-ok( strpos( $esql, 'count(DISTINCT index1) AS visitors' ) !== false, 'events-sql: visitors = distinct visitor-day hashes (bare column)' );
+ok( strpos( $esql, 'count(DISTINCT substring(index1, 1, 16)) AS visitors' ) !== false, 'events-sql: visitors = distinct visitor-day hashes (bare column)' );
 ok( strpos( $esql, 'GROUP BY day, name' ) !== false, 'events-sql: groups by day, name' );
 ok( strpos( $esql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'events-sql: floored trailing window (UTC when no zone is passed)' );
 $zsql = sn_analytics_events_rollup_sql( 7, 'America/Sao_Paulo' );
@@ -86,7 +86,7 @@ ok( strpos( $psql, sn_analytics_counted_condition( 'human', array() ) ) !== fals
 ok( strpos( $psql, 'blob17 AS property' ) !== false, 'props-sql: blob17 → property' );
 ok( strpos( $psql, 'blob18 AS value' ) !== false, 'props-sql: blob18 → value' );
 ok( strpos( $psql, 'sum(_sample_interval) AS events' ) !== false, 'props-sql: events = sample-corrected sum' );
-ok( strpos( $psql, 'count(DISTINCT index1) AS visitors' ) !== false, 'props-sql: visitors via bare-column DISTINCT' );
+ok( strpos( $psql, 'count(DISTINCT substring(index1, 1, 16)) AS visitors' ) !== false, 'props-sql: visitors via bare-column DISTINCT' );
 ok( strpos( $psql, 'GROUP BY day, property, value' ) !== false, 'props-sql: groups by day, property, value' );
 ok( strpos( $psql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'props-sql: floored trailing window (UTC when no zone is passed)' );
 $zsql = sn_analytics_event_props_rollup_sql( 7, 'America/Sao_Paulo' );
