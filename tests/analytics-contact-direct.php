@@ -65,6 +65,8 @@ $v = static fn( ...$pairs ) => $pairs;
 ok( true === sn_analytics_contact_direct_candidate( $v( array( '/', 0 ), array( '/contact/personal', 3 ) ), '(direct)' ), 'Niigata: / for 3 seconds, then /contact/personal' );
 ok( true === sn_analytics_contact_direct_candidate( $v( array( '/contact', 0 ) ), '(direct)' ) && true === sn_analytics_contact_direct_candidate( $v( array( '/contact/', 0 ) ), '(direct)' ), 'entry on /contact' );
 ok( false === sn_analytics_contact_direct_candidate( $v( array( '/', 0 ), array( '/contact', 10 ) ), '(direct)' ), 'an entry view of 10 seconds is not under 10' );
+ok( true === sn_analytics_contact_direct_candidate( $v( array( '/', 0 ), array( '/contact/personal', 25 ) ), '(direct)', 3139 ), 'Niigata as read live: 3.1 s measured on /, the next page view 25 s later' );
+ok( false === sn_analytics_contact_direct_candidate( $v( array( '/', 0 ), array( '/contact', 3 ) ), '(direct)', 12000 ), 'a measured 12 s on the entry page is not straight on, whatever the gap' );
 ok( false === sn_analytics_contact_direct_candidate( $v( array( '/', 0 ), array( '/about', 2 ), array( '/contact', 4 ) ), '(direct)' ), 'contact as the third page is not direct to contact' );
 ok( false === sn_analytics_contact_direct_candidate( $v( array( '/contact', 0 ) ), 'LinkedIn' ) && false === sn_analytics_contact_direct_candidate( $v( array( '/contact', 0 ) ), '(internal)' ), 'a referrer present: never' );
 ok( false === sn_analytics_contact_direct_candidate( $v( array( '/contacts-old', 0 ) ), '(direct)' ), 'only /contact and what is under it' );

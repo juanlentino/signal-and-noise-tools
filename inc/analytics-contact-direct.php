@@ -28,14 +28,20 @@ const SN_ANALYTICS_CONTACT_MAX       = 500; // entries read per window; a full r
  *
  * @param array  $views  Its page views in order, each array{0:string canonical path, 1:int unix time}.
  * @param string $source Its canonical source.
+ * @param ?int   $entry_ms The entry page's measured time on page, ms; null when not measured.
  * @return bool
  */
-function sn_analytics_contact_direct_candidate( array $views, $source ) {
+function sn_analytics_contact_direct_candidate( array $views, $source, $entry_ms = null ) {
 	$is = static fn( $p ) => 1 === preg_match( '#^/contact(?:/|$)#', (string) $p );
 	if ( '(direct)' !== (string) $source || array() === $views ) {
 		return false;
 	}
-	return $is( $views[0][0] ) || ( isset( $views[1] ) && $is( $views[1][0] ) && (int) $views[1][1] - (int) $views[0][1] < SN_ANALYTICS_CONTACT_ENTRY_SEC );
+	// Short by its measured time on page, or by the gap to the next page view:
+	// a gap counts load and idle time (Niigata 2026-11-16: 3.1 s on /, a longer
+	// gap), so a measured time decides when there is one.
+	$short = null !== $entry_ms ? (int) $entry_ms < SN_ANALYTICS_CONTACT_ENTRY_SEC * 1000
+		: ( isset( $views[1] ) && (int) $views[1][1] - (int) $views[0][1] < SN_ANALYTICS_CONTACT_ENTRY_SEC );
+	return $is( $views[0][0] ) || ( isset( $views[1] ) && $is( $views[1][0] ) && $short );
 }
 
 /**
