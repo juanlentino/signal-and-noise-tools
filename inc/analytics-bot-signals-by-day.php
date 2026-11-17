@@ -17,6 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 /** Option holding day => {visitor_days, likely_automated}. */
 const SNT_BOT_SIGNAL_BY_DAY_OPTION = 'sn_bot_signals_by_day';
 
@@ -53,7 +55,7 @@ function sn_bot_signals_by_day_sql( $days = SNT_BOT_SIGNAL_DAYS, $source = '', $
 	$source = '' !== (string) $source ? (string) $source : sn_analytics_source( sn_analytics_trailing_from( $days ) );
 	$range  = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
 	$net    = sn_analytics_network_human_sql();
-	$cols   = array( "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day", 'index1 AS vid' );
+	$cols   = array( "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day", SN_AE_VID . ' AS vid' );
 	foreach ( SNT_BOT_SIGNAL_BITS as $bit => $name ) {
 		$cols[] = "max(bitAnd(toUInt32(double8), {$bit})) AS {$name}";
 	}

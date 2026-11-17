@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 /**
  * One UTC day's signal-bearing rows for one path: the shape
  * sn_bot_signals_by_day() scores, filtered to the path in both spellings.
@@ -41,7 +43,7 @@ function snt_alerts_automated_sql( $path, $day, $source = '', $range = '' ) {
 	$bare   = rtrim( (string) $path, '/' );
 	$lit    = static fn( $v ) => "'" . str_replace( array( '\\', "'" ), array( '\\\\', "\\'" ), $v ) . "'";
 	$paths  = '' === $bare ? $lit( '/' ) : $lit( $bare ) . ', ' . $lit( $bare . '/' );
-	$cols   = array( "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day", 'index1 AS vid' );
+	$cols   = array( "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day", SN_AE_VID . ' AS vid' );
 	foreach ( SNT_BOT_SIGNAL_BITS as $bit => $name ) {
 		$cols[] = "max(bitAnd(toUInt32(double8), {$bit})) AS {$name}";
 	}

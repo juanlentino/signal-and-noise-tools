@@ -123,7 +123,7 @@ ok( strpos( $sql, "WHERE blob1 = 'pv'" ) !== false, 'utm-sql: pageviews only' );
 ok( strpos( $sql, "blob20 != ''" ) !== false, 'utm-sql: excludes the ~99% of pageviews with no campaign tag' );
 ok( strpos( $sql, sn_analytics_class_select() . ' AS class' ) !== false, 'utm-sql: selects class' );
 ok( strpos( $sql, 'sum(_sample_interval) AS views' ) !== false, 'utm-sql: views = sample-corrected sum' );
-ok( strpos( $sql, 'count(DISTINCT index1) AS visits' ) !== false, 'utm-sql: visits = distinct visitor-day hashes' );
+ok( strpos( $sql, 'count(DISTINCT substring(index1, 1, 16)) AS visits' ) !== false, 'utm-sql: visits = distinct visitor-day hashes' );
 ok( strpos( $sql, 'count(*)' ) === false && strpos( $sql, 'count(DISTINCT if' ) === false, 'utm-sql: avoids AE-invalid count(*) / count(DISTINCT <expr>)' );
 ok( strpos( $sql, "toStartOfDay(now() - INTERVAL '7' DAY)" ) !== false, 'utm-sql: floored trailing window' );
 ok( strpos( $sql, 'GROUP BY day, packed, class' ) !== false, 'utm-sql: groups by day, packed, class' );

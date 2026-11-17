@@ -21,6 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 /**
  * The day column and the window bounds for the trailing complete days: from
  * the start of the day `SN_LANES_WINDOW_DAYS` ago to the start of today, in
@@ -93,7 +95,7 @@ function sn_lanes_public_sql( $source, $range, $tz, array $scope = array() ) {
 	$window = isset( $scope['where'] ) ? (string) $scope['where'] : $window;
 	$range  = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
 	$ce     = sn_analytics_col( 'blob16', $source );
-	$cols   = array( "{$day_col} AS day", 'index1 AS vid', sn_analytics_class_select() . ' AS class', "if(blob1 = 'ce' AND {$ce} = '" . sn_lanes_feed_event() . "', 1, 0) AS feed", "sum(if(blob1 = 'pv', _sample_interval, 0)) AS views" );
+	$cols   = array( "{$day_col} AS day", SN_AE_VID . ' AS vid', sn_analytics_class_select() . ' AS class', "if(blob1 = 'ce' AND {$ce} = '" . sn_lanes_feed_event() . "', 1, 0) AS feed", "sum(if(blob1 = 'pv', _sample_interval, 0)) AS views" );
 	foreach ( SNT_BOT_SIGNAL_BITS as $bit => $name ) {
 		$cols[] = "max(bitAnd(toUInt32(double8), {$bit})) AS {$name}";
 	}
@@ -116,7 +118,7 @@ function sn_lanes_owner_sql( $tz, array $scope = array() ) {
 	list( $day_col, $window ) = sn_lanes_window_sql( $tz );
 	$window = isset( $scope['where'] ) ? (string) $scope['where'] : $window;
 	$part   = isset( $scope['part'] ) ? ', ' . (string) $scope['part'] . ' AS part' : '';
-	return "SELECT {$day_col} AS day, index1 AS vid, toUInt32(double14) AS identity, toUInt32(double15) AS agent, sum(if(blob1 = 'pv', _sample_interval, 0)) AS views{$part} FROM " . SN_LANES_OWNER_DATASET
+	return "SELECT {$day_col} AS day, " . SN_AE_VID . " AS vid, toUInt32(double14) AS identity, toUInt32(double15) AS agent, sum(if(blob1 = 'pv', _sample_interval, 0)) AS views{$part} FROM " . SN_LANES_OWNER_DATASET
 		. ' WHERE ' . $window . sn_analytics_excluded_path_sql() . ' GROUP BY day, vid, identity, agent' . ( '' !== $part ? ', part' : '' );
 }
 

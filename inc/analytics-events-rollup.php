@@ -32,6 +32,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
 
 require_once __DIR__ . '/analytics-human-rule.php'; // the ONE counted-human rule
@@ -60,7 +62,7 @@ function sn_analytics_events_rollup_sql( $days, $tz = '' ) {
 		"SELECT {$day_col} AS day,",
 		sn_analytics_col( 'blob16', $source ) . ' AS name,',
 		'sum(_sample_interval) AS events,',
-		'count(DISTINCT index1) AS visitors',
+		'count(DISTINCT ' . SN_AE_VID . ') AS visitors',
 		'FROM ' . $source,
 		"WHERE blob1 = 'ce' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, name',
@@ -86,7 +88,7 @@ function sn_analytics_event_props_rollup_sql( $days, $tz = '' ) {
 		sn_analytics_col( 'blob17', $source ) . ' AS property,',
 		sn_analytics_col( 'blob18', $source ) . ' AS value,',
 		'sum(_sample_interval) AS events,',
-		'count(DISTINCT index1) AS visitors',
+		'count(DISTINCT ' . SN_AE_VID . ') AS visitors',
 		'FROM ' . $source,
 		"WHERE blob1 = 'cp' AND " . sn_analytics_class_where( 'human' ) . " AND timestamp >= {$lower}" . sn_analytics_window_upper( $tz ),
 		'GROUP BY day, property, value',

@@ -20,13 +20,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 /**
  * @return string AE SQL.
  */
 function sn_analytics_live_scroll_sql() {
 	$mins = max( 1, (int) SN_ANALYTICS_REALTIME_WINDOW_MIN );
 	return implode( ' ', array(
-		'SELECT blob2 AS path, double1 AS pct, count(DISTINCT index1) AS readers',
+		'SELECT blob2 AS path, double1 AS pct, count(DISTINCT ' . SN_AE_VID . ') AS readers',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
 		"WHERE blob1 = 'sc' AND timestamp >= now() - INTERVAL '{$mins}' MINUTE AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(), // the human class carries the over-cap list once.
 		'GROUP BY path, pct ORDER BY readers DESC LIMIT 200',

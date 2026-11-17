@@ -35,7 +35,7 @@ $GLOBALS['ae']  = array( 'main' => array(), 'details' => array(), 'count' => arr
 $GLOBALS['sql'] = array();
 function sn_analytics_query( $sql ) {
 	$GLOBALS['sql'][] = $sql;
-	$kind = false !== strpos( $sql, 'AS first_pv' ) ? 'details' : ( false !== strpos( $sql, 'count(DISTINCT index1) AS n' ) ? 'count' : 'main' );
+	$kind = false !== strpos( $sql, 'AS first_pv' ) ? 'details' : ( false !== strpos( $sql, 'count(DISTINCT substring(index1, 1, 16)) AS n' ) ? 'count' : 'main' );
 	return $GLOBALS['ae'][ $kind ];
 }
 

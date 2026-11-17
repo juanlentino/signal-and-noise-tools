@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
 
 require_once __DIR__ . '/analytics-network-terms.php';
@@ -52,7 +54,7 @@ function sn_analytics_overcap_sql( $source = '', $range = '' ) {
 	$max   = (int) SNT_ANALYTICS_VDAY_LIST_MAX;
 	$range = sn_analytics_split_range_ok( $range ) ? (string) $range : '';
 	return implode( ' ', array(
-		'SELECT index1 AS vid, sum(_sample_interval) AS views',
+		'SELECT ' . SN_AE_VID . ' AS vid, sum(_sample_interval) AS views',
 		'FROM ' . ( '' !== (string) $source ? (string) $source : sn_analytics_source( sn_analytics_trailing_from( $days ) ) ),
 		"WHERE blob1 = 'pv' AND timestamp >= toStartOfDay(now() - INTERVAL '{$days}' DAY){$range}",
 		'GROUP BY vid',
@@ -153,7 +155,7 @@ function sn_analytics_overcap_vdays() {
  */
 function sn_analytics_overcap_and( array $hashes ) {
 	$hashes = sn_analytics_valid_vday_hashes( $hashes );
-	return array() === $hashes ? '' : " AND index1 NOT IN ('" . implode( "','", $hashes ) . "')";
+	return array() === $hashes ? '' : " AND " . SN_AE_VID . " NOT IN ('" . implode( "','", $hashes ) . "')";
 }
 
 /**
@@ -170,7 +172,7 @@ function sn_analytics_counted_condition( $class, array $hashes ) {
 	$class  = in_array( $class, array( 'human', 'suspect', 'bot' ), true ) ? $class : 'human';
 	$hashes = sn_analytics_valid_vday_hashes( $hashes );
 	if ( 'bot' === $class ) {
-		return array() === $hashes ? "blob7 = 'bot'" : "(blob7 = 'bot' OR index1 IN ('" . implode( "','", $hashes ) . "'))";
+		return array() === $hashes ? "blob7 = 'bot'" : "(blob7 = 'bot' OR " . SN_AE_VID . " IN ('" . implode( "','", $hashes ) . "'))";
 	}
 	$net = sn_analytics_network_human_sql();
 	return "(blob7 != 'bot' AND " . ( 'human' === $class ? "({$net})" : "NOT ({$net})" ) . ')' . sn_analytics_overcap_and( $hashes );

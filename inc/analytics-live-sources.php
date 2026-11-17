@@ -15,6 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 const SN_ANALYTICS_LIVE_SOURCES_MAX = 5;
 
 /**
@@ -23,7 +25,7 @@ const SN_ANALYTICS_LIVE_SOURCES_MAX = 5;
 function sn_analytics_live_sources_sql() {
 	return implode( ' ', array(
 		// The referrer kind (inc/analytics-referrer-kind.php): an internal click reads (internal), which the fold drops, never Direct.
-		'SELECT ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS host, count(DISTINCT index1) AS readers',
+		'SELECT ' . sn_analytics_referrer_value_sql( 'blob3' ) . ' AS host, count(DISTINCT ' . SN_AE_VID . ') AS readers',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( 0 ) ),
 		// The human class already carries the over-cap list; a second copy pushed a full list past the statement budget.
 		"WHERE timestamp >= now() - INTERVAL '5' MINUTE AND blob1 = 'pv' AND " . sn_analytics_class_where( 'human' ) . sn_analytics_excluded_path_sql(),

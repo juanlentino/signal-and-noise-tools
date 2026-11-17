@@ -151,6 +151,7 @@ require_once SNT_PATH . 'inc/analytics-panels.php'; // v8.5.0: the ONE panel-chr
 require_once SNT_PATH . 'inc/analytics-annotations.php'; // v9.4.0: rules-only panel-annotation resolvers
 // First-party edge analytics (P2 data layer). analytics-api.php is the AE SQL
 // read-client; analytics-rollup.php (its first consumer) must load after it.
+require_once SNT_PATH . 'inc/analytics-vid.php'; // SN_AE_VID: the visitor-day hash every AE read uses (first 16 characters of index1).
 require_once SNT_PATH . 'inc/analytics-api.php';
 require_once SNT_PATH . 'inc/analytics-human-rule.php'; // the ONE counted-human rule (network class + page-view cap per visitor-day)
 require_once SNT_PATH . 'inc/analytics-rollup.php';

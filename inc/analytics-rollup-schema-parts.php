@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+
 /**
  * dbDelta CREATE TABLE for the daily aggregate.
  *
@@ -186,7 +188,7 @@ function sn_analytics_rollup_sql( $days, $tz = '', $fold = true ) {
 		'blob2 AS path,',
 		$class . ' AS class,',
 		"sumIf(_sample_interval, blob1 = 'pv') AS views,",
-		'count(DISTINCT index1) AS visits,',
+		'count(DISTINCT ' . SN_AE_VID . ') AS visits,',
 		"avgIf(double1, blob1 = 'sc') AS scroll_avg,",
 		"avgIf(double2, blob1 = 'tm') AS time_avg,",
 		"sumIf(double1 * _sample_interval, blob1 = 'sc') AS scroll_sum,",

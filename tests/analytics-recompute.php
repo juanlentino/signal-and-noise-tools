@@ -94,7 +94,7 @@ ok( 'done' === $st['state'] && 90 === $st['done'] && 0 === $st['step'], "13 batc
 ok( array( 'state', 'done', 'total', 'through', 'error', 'started', 'last_tick', 'step', 'unit' ) === array_keys( $st ), 'progress option shape' );
 ok( 'Recomputed through ' . gmdate( 'Y-m-d' ) . ', 90 of 90 days.' === sn_analytics_recompute_line( $st ), 'status line: ' . sn_analytics_recompute_line( $st ) );
 $sqls = $GLOBALS['sql'];
-$no_rule = array_filter( $sqls, function ( $s ) { return false === strpos( $s, "index1 NOT IN ('abcdef0123')" ) && false === strpos( $s, "OR index1 IN ('abcdef0123')" ); } );
+$no_rule = array_filter( $sqls, function ( $s ) { return false === strpos( $s, "substring(index1, 1, 16) NOT IN ('abcdef0123')" ) && false === strpos( $s, "OR substring(index1, 1, 16) IN ('abcdef0123')" ); } );
 ok( count( $sqls ) > 0 && array() === $no_rule, 'every rollup read applies the over-cap rule (human/suspect exclude it, bot adds it; ' . count( $sqls ) . ' reads)' );
 foreach ( array( 'sn_analytics_rollup_sql' => 'sumIf(_sample_interval, blob1 = \'pv\') AS views', 'gated' => 'AS pageview_visits', 'dims' => 'AS value,', 'utm' => 'blob20 AS packed', 'hour' => "'%H') AS bucket", 'pageroles' => "blob3 NOT IN", 'events' => 'blob16 AS name', 'props' => 'blob17 AS property', 'sessions' => "AND day = '" ) as $k => $needle ) {
 	$hits = array_filter( $sqls, function ( $s ) use ( $needle ) { return false !== strpos( $s, $needle ); } );
