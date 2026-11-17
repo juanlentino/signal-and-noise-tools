@@ -367,6 +367,12 @@ function snt_desktop_site_views_payload() {
 			if ( null !== $exact ) {
 				$payload['today']       = $exact['views'];
 				$payload['today_exact'] = true;
+				// 2026-11-17: Sessions lists only the rows Analytics Engine kept; when
+				// that is fewer, say how many it lists (the rest were sampled away).
+				$kept = function_exists( 'sn_analytics_today_sampling' ) ? sn_analytics_today_sampling() : null;
+				if ( null !== $kept && (int) $kept['stored'] < $exact['views'] ) {
+					$payload['today_listed'] = (int) $kept['stored'];
+				}
 			} elseif ( function_exists( 'sn_analytics_today_is_estimate' ) && sn_analytics_today_is_estimate() ) {
 				// Additive: present only when today is known to be a sampled estimate.
 				$payload['today_estimate'] = true;

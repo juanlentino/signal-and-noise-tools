@@ -490,6 +490,11 @@
 			// figure is its weighted estimate, not a count (inc/analytics-today-estimate.php).
 			var todayLabel = true === payload.today_estimate ? 'Today so far (estimate)' : 'Today so far';
 			var nowRows = typeof payload.today === 'number' ? [ { label: todayLabel, value: payload.today } ] : [];
+			// 2026-11-17: today is the exact count; Sessions lists only the rows
+			// Analytics Engine kept, so a sampled day lists fewer.
+			if ( nowRows.length && typeof payload.today_listed === 'number' ) {
+				nowRows.push( { label: 'Listed in Sessions (rest sampled)', value: payload.today_listed, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+			}
 			nowRows.push( { label: 'Reading now', value: 'not read' } );
 			// 2026-11-14: readers apart from arrivals. "Reading now" counts visitors
 			// with visible time, a scroll or a click in the last 5 minutes; a page

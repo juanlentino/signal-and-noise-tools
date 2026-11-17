@@ -34,6 +34,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/analytics-likely-automated.php'; // likely_automated: its reader and the schema both doors share.
 require_once __DIR__ . '/analytics-reads.php'; // reads: its figure and the schema both doors share.
+require_once __DIR__ . '/analytics-sampling-since.php'; // sampling_since_fix: its reader and the schema both doors share.
 
 /**
  * Permission callback for `signal-noise/remote-get-analytics-summary`.
@@ -108,6 +109,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'likely_automated'          => snt_analytics_likely_automated_schema(),
 				'basis'                     => array( 'type' => 'string', 'enum' => array( 'inferred' ) ),
 				'reads'                     => sn_analytics_reads_schema(), // contract 32: byte-identical to the admin registration.
+				'sampling_since_fix'        => sn_analytics_sampling_since_schema(), // contract 35.
 			),
 		),
 		'meta'                => array(

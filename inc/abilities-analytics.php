@@ -32,6 +32,7 @@ require_once __DIR__ . '/analytics-likely-automated.php'; // likely_automated: i
 require_once __DIR__ . '/analytics-lanes-first-party.php'; // first_party: this site's own tools beside the classes, local door only.
 require_once __DIR__ . '/analytics-strict-human.php'; // strict: human less strict rule v2's two removals, local door only.
 require_once __DIR__ . '/analytics-reads.php'; // reads: proven reading, both doors.
+require_once __DIR__ . '/analytics-sampling-since.php'; // sampling_since_fix: both doors.
 require_once __DIR__ . '/abilities-analytics-events.php'; // the get-analytics-events and get-analytics-top-content callbacks.
 
 add_action( 'wp_abilities_api_init', function () {
@@ -197,6 +198,7 @@ add_action( 'wp_abilities_api_init', function () {
 				'likely_automated'          => snt_analytics_likely_automated_schema(),
 				'basis'                     => array( 'type' => 'string', 'enum' => array( 'inferred' ) ),
 				'reads'                     => sn_analytics_reads_schema(),
+				'sampling_since_fix'        => sn_analytics_sampling_since_schema(),
 				// Local door only: the remote twin's schema stops at basis (tests/abilities-remote-analytics.php).
 				'first_party'               => sn_lanes_first_party_schema(),
 				'strict'                    => sn_analytics_strict_human_schema(), // local door only, like first_party.
@@ -250,6 +252,8 @@ function sn_ability_get_analytics_summary( $input ) {
 	$totals['basis']            = 'inferred';
 	// 2026-11-14: proven reading, the headline, from the nightly store (inc/analytics-reads.php).
 	$totals['reads'] = function_exists( 'sn_analytics_reads_figure' ) ? sn_analytics_reads_figure( $from, $to, $class ) : null;
+	// 2026-11-17: whether any human row was sampled since the per-kind index fix (inc/analytics-sampling-since.php).
+	$totals['sampling_since_fix'] = function_exists( 'sn_analytics_sampling_since' ) ? sn_analytics_sampling_since() : null;
 	return $totals;
 }
 
