@@ -46,7 +46,9 @@ ok( array( 'start', 'end', 'source', 'paired' ) === array_keys( sn_analytics_pai
 
 echo "\nGroup: per day\n";
 $days = sn_analytics_pairing_by_day( sn_analytics_pairing_flag( array( $yer, $nii, $s( '2026-11-17T10:00:00-05:00', '2026-11-17T10:01:00-05:00', 'LinkedIn' ) ), array( $ash1, $ash2 ) ) );
-ok( array( array( 'day' => '2026-11-16', 'sessions' => 1, 'direct' => 1, 'paired' => 1 ), array( 'day' => '2026-11-17', 'sessions' => 2, 'direct' => 1, 'paired' => 1 ) ) === $days, 'paired sessions per site day of their start, oldest first, beside sessions and direct ones' );
+ok( array( array( 'day' => '2026-11-16', 'sessions' => 1, 'direct' => 1, 'paired' => 1, 'contact_direct' => 0 ), array( 'day' => '2026-11-17', 'sessions' => 2, 'direct' => 1, 'paired' => 1, 'contact_direct' => 0 ) ) === $days, 'paired sessions per site day of their start, oldest first, beside sessions and direct ones' );
+
+ok( null === sn_analytics_pairing_by_day( sn_analytics_pairing_flag( array( $nii ), null ) )[0]['paired'], 'a flag not read is null on every day, never 0' );
 
 echo "\nGroup: the read\n";
 $GLOBALS['ae'] = array( array( 'ts' => $ash1, 'n' => 3 ) );

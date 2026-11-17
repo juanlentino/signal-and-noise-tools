@@ -90,6 +90,7 @@ $adm = sn_analytics_live_payload( true );
 ok( 1 === $adm['open_tab'] && 3 === $adm['now'] && 3 === $adm['classes']['human'], 'the admin answer counts the open tab apart and takes it out of now and the human class' );
 $pub = sn_analytics_live_payload( false );
 ok( ! array_key_exists( 'open_tab', $pub ) && 4 === $pub['now'], 'the public answer keeps its shape and its count' );
+ok( 3 === sn_analytics_realtime_readers( 'human' ) && 0 === sn_analytics_realtime_readers( 'bot' ), 'the Overview and header figure (sn_analytics_realtime_readers) agrees with the admin answer' );
 $GLOBALS['open'] = null;
 sn_analytics_realtime_refresh();
 $adm = sn_analytics_live_payload( true );

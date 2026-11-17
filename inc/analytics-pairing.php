@@ -71,21 +71,29 @@ function sn_analytics_pairing_flag( array $sessions, $hits ) {
 }
 
 /**
- * Paired sessions per site day of their start. PURE.
+ * The observe-only flags per site day of the sessions' start. PURE. A flag
+ * any session could not read (null) is null for every day: not read, never 0.
  *
- * @param array $sessions Flagged session rows.
- * @return array<int,array{day:string,sessions:int,direct:int,paired:int}> Oldest first.
+ * @param array $sessions Flagged session rows (paired, contact_direct).
+ * @return array<int,array{day:string,sessions:int,direct:int,paired:?int,contact_direct:?int}> Oldest first.
  */
 function sn_analytics_pairing_by_day( array $sessions ) {
-	$by = array();
+	$unread = static fn( $k ) => array() !== array_filter( $sessions, static fn( $s ) => array_key_exists( $k, $s ) && null === $s[ $k ] );
+	$by     = array();
 	foreach ( $sessions as $s ) {
-		$d          = substr( (string) $s['start'], 0, 10 );
-		$by[ $d ]   = $by[ $d ] ?? array( 'day' => $d, 'sessions' => 0, 'direct' => 0, 'paired' => 0 );
-		$by[ $d ]['sessions'] += 1;
-		$by[ $d ]['direct']   += '(direct)' === $s['source'] ? 1 : 0;
-		$by[ $d ]['paired']   += true === ( $s['paired'] ?? null ) ? 1 : 0;
+		$d        = substr( (string) $s['start'], 0, 10 );
+		$by[ $d ] = $by[ $d ] ?? array( 'day' => $d, 'sessions' => 0, 'direct' => 0, 'paired' => 0, 'contact_direct' => 0 );
+		$by[ $d ]['sessions']       += 1;
+		$by[ $d ]['direct']         += '(direct)' === $s['source'] ? 1 : 0;
+		$by[ $d ]['paired']         += true === ( $s['paired'] ?? null ) ? 1 : 0;
+		$by[ $d ]['contact_direct'] += true === ( $s['contact_direct'] ?? null ) ? 1 : 0;
 	}
 	ksort( $by );
+	foreach ( array( 'paired', 'contact_direct' ) as $k ) {
+		if ( $unread( $k ) ) {
+			$by = array_map( static fn( $r ) => array_replace( $r, array( $k => null ) ), $by );
+		}
+	}
 	return array_values( $by );
 }
 

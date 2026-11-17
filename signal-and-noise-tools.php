@@ -163,6 +163,7 @@ require_once SNT_PATH . 'inc/analytics-live-scroll.php'; // admin only: how far 
 require_once SNT_PATH . 'inc/analytics-live-hour.php'; // the last hour behind Reading now, twelve 5-minute slots
 require_once SNT_PATH . 'inc/analytics-live-sources.php'; // admin only: where current readers arrived from
 require_once SNT_PATH . 'inc/analytics-pairing.php'; // 2026-11-17: observe only, a (direct) session near an automated hit (sessions and live readers)
+require_once SNT_PATH . 'inc/analytics-contact-direct.php'; // 2026-11-17: observe only, a (direct) session straight to contact with nothing sent
 require_once SNT_PATH . 'inc/analytics-live-open-tab.php'; // admin only, 2026-11-17: returning to an open tab, counted apart from Reading now
 require_once SNT_PATH . 'inc/analytics-live-readers.php'; // admin only, 2026-11-01: each current reader's place, device and entry source
 require_once SNT_PATH . 'inc/analytics-live-slots.php'; // rolling live snapshots: each completed 5-minute slot, kept 24 hours

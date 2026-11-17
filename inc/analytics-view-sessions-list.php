@@ -36,7 +36,8 @@ function snt_analytics_session_list_rows( array $sessions ) {
 			snt_analytics_session_views_text( $s ),
 			$s['duration_s'] . 's',
 			// 2026-11-17: observe only, a (direct) session near an automated hit (inc/analytics-pairing.php).
-			$s['source'] . ( true === ( $s['paired'] ?? null ) ? ' · ' . __( 'near an automated hit', 'signal-and-noise-tools' ) : '' ),
+			$s['source'] . ( true === ( $s['paired'] ?? null ) ? ' · ' . __( 'near an automated hit', 'signal-and-noise-tools' ) : '' )
+				. ( true === ( $s['contact_direct'] ?? null ) ? ' · ' . __( 'direct to contact, nothing sent', 'signal-and-noise-tools' ) : '' ),
 			implode( ', ', array_filter( array( $s['city'], $s['region'], $s['country'] ), static fn( $v ) => '' !== $v && '(unknown)' !== $v ) ),
 			'(unknown)' === $s['device'] ? '' : $s['device'],
 			$s['returning'] ? __( 'yes', 'signal-and-noise-tools' ) : '',
@@ -91,6 +92,9 @@ function snt_analytics_render_session_list( $from, $to, $class ) {
 	) . ( count( $read['sessions'] ) < $read['total'] ? ' · ' . sprintf( /* translators: %d: sessions listed */ __( 'the newest %d', 'signal-and-noise-tools' ), count( $read['sessions'] ) ) : '' )
 		. ( $start > $from ? ' · ' . sprintf( /* translators: %s: first day Analytics Engine holds */ __( 'from %s, the first day Analytics Engine holds', 'signal-and-noise-tools' ), $start ) : '' )
 		. ( $read['capped'] ? ' · ' . __( 'capped: narrow the window for every session', 'signal-and-noise-tools' ) : '' )
+		// 2026-11-17: a flag that was not read is said, never shown as "no".
+		. ( in_array( null, array_column( $read['sessions'], 'paired' ), true ) && 'human' === $class ? ' · ' . __( 'automated hits not read: no session is marked near one', 'signal-and-noise-tools' ) : '' )
+		. ( in_array( null, array_column( $read['sessions'], 'contact_direct' ), true ) && 'human' === $class ? ' · ' . __( 'contact form entries not read: no session is marked direct to contact', 'signal-and-noise-tools' ) : '' )
 		. snt_analytics_session_list_sampled_meta( (string) $to );
 	snt_an_kv_table(
 		$title,

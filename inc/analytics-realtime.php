@@ -172,7 +172,12 @@ function sn_analytics_realtime( $class = 'human' ) {
 function sn_analytics_realtime_readers( $class = 'human' ) {
 	$cached = get_transient( SN_ANALYTICS_REALTIME_KEY );
 	$split  = sn_analytics_live_split( is_array( $cached ) ? ( $cached['counts'] ?? null ) : null, is_array( $cached ) ? ( $cached['engaged'] ?? null ) : null );
-	return null === $split['readers'] ? null : ( $split['readers'][ $class ] ?? 0 );
+	if ( null === $split['readers'] ) {
+		return null;
+	}
+	// 2026-11-17: returning to an open tab is counted apart, as in the admin payload (inc/analytics-live-open-tab.php).
+	$open = 'human' === $class && is_int( $cached['open_tab'] ?? null ) ? $cached['open_tab'] : 0;
+	return max( 0, ( $split['readers'][ $class ] ?? 0 ) - $open );
 }
 
 /**

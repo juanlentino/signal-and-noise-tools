@@ -20,6 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-contact-direct.php'; // 2026-11-17: direct to contact, nothing sent.
+
 const SN_ANALYTICS_SESSIONS_PER_PAGE = 50;
 const SN_ANALYTICS_SESSIONS_MAX_PAGE = 200;
 
@@ -42,6 +44,7 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 	$custom = array(); // view index => a custom event followed it.
 	$first = null;
 	$code  = '';
+	$views = array(); // each page view's canonical path and time, for contact_direct.
 	foreach ( $events as $e ) {
 		$p  = (string) ( $e['path'] ?? '' );
 		$ev = (string) ( $e['ev'] ?? '' );
@@ -49,6 +52,7 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 			$first      = $first ?? $e;
 			$code       = '' === $code && function_exists( 'sn_link_code_from_path' ) ? sn_link_code_from_path( sn_analytics_canonical_path( $p ) ) : $code;
 			$last[ $p ] = count( $pages );
+			$views[]    = array( sn_analytics_canonical_path( $p ), (int) $e['ts'] );
 			$pages[]    = array( 'path' => snt_arows_clean( 'path', $p, $real ), 'time_ms' => null, 'scroll_pct' => null );
 		} elseif ( isset( $last[ $p ] ) && 'tm' === $ev ) {
 			$pages[ $last[ $p ] ]['time_ms'] = (int) $pages[ $last[ $p ] ]['time_ms'] + (int) ( $e['dwell'] ?? 0 ); // deltas: they add up.
@@ -65,6 +69,7 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 	$tz   = function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( 'UTC' );
 	$when = static fn( $ts ) => ( new DateTimeImmutable( '@' . (int) $ts ) )->setTimezone( $tz )->format( 'Y-m-d\TH:i:sP' );
 	$start = (int) ( $events[0]['ts'] ?? 0 );
+	$src   = sn_analytics_session_source( (string) ( $first['ref'] ?? '' ) );
 	return array(
 		'start'     => $when( $start ),
 		'end'       => $when( $start + (int) $sum['duration'] ),
@@ -76,7 +81,7 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 		'entry'     => $pages ? $pages[0]['path'] : '',
 		'exit'      => $pages ? $pages[ count( $pages ) - 1 ]['path'] : '',
 		'pages'     => $pages,
-		'source'    => sn_analytics_session_source( (string) ( $first['ref'] ?? '' ) ),
+		'source'    => $src,
 		// The rows read's values: (unknown) when blank, so the two reads join.
 		'country'   => snt_arows_clean( 'country', (string) ( $first['country'] ?? '' ), $real ),
 		'region'    => snt_arows_clean( 'region', (string) ( $first['region'] ?? '' ), $real ),
@@ -90,6 +95,8 @@ function sn_analytics_session_row( array $events, $returning, $class, array $rea
 		// identifier-shaped names only (the site's own are share_copy, verify,
 		// contact-<alias>, resume_lane_music); a sentence reads (invalid).
 		'goals'     => array_values( array_map( static fn( $g ) => preg_match( '#^[A-Za-z0-9_.:-]{1,64}$#D', (string) $g ) ? (string) $g : '(invalid)', $sum['goals'] ) ),
+		// The candidate; the sessions read settles it against form entries (inc/analytics-contact-direct.php).
+		'contact_direct' => sn_analytics_contact_direct_candidate( $views, $src ),
 	);
 }
 

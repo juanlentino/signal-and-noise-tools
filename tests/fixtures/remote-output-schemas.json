@@ -1,6 +1,6 @@
 {
     "contract_version": "34",
-    "shape_hash": "dfb146adc9fe708371ac46413daed48fb3ab157f3f5fbafbb01e6c14e3b39a6a",
+    "shape_hash": "1a203caec2a0fada5ec94eb7da2aaa77ec3aeba6bbddcd8be4286b1ef2ffc6c0",
     "tools": {
         "signal-noise/remote-analytics-fields": {
             "wrap": false,
@@ -343,6 +343,12 @@
                                         "type": "string"
                                     }
                                 },
+                                "contact_direct": {
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ]
+                                },
                                 "share": {
                                     "type": [
                                         "object",
@@ -402,7 +408,7 @@
                     "capped": {
                         "type": "boolean"
                     },
-                    "paired_by_day": {
+                    "flags_by_day": {
                         "type": [
                             "array",
                             "null"
@@ -420,7 +426,16 @@
                                     "type": "integer"
                                 },
                                 "paired": {
-                                    "type": "integer"
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ]
+                                },
+                                "contact_direct": {
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ]
                                 }
                             }
                         }

@@ -145,9 +145,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // gap_s, read; null when none). Additive.
 // 2026-11-17: '33' -> '34'. The sessions twin: each session gains paired (a
 // (direct) session within 60 seconds of a bot- or suspect-class page view,
-// joined by time only; null when not read), pageviews_stored and pageviews_est
-// (the views the kept rows stand for), and the answer gains paired_by_day.
-// Additive.
+// joined by time only; null when not read), contact_direct (a (direct) session
+// straight to a contact page with no form entry in its time), pageviews_stored
+// and pageviews_est (the views the kept rows stand for), and the answer gains
+// flags_by_day. Additive.
 const SN_REMOTE_CONTRACT_VERSION = '34';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
@@ -222,8 +223,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'32' => '61dca1b1156d4a2e6acfa5aa9e0c040f8a40a6a1d5e9e90be20306898e33e4bd',
 	// RED-then-pin, 2026-11-14: read per page view and share per session on the sessions twin.
 	'33' => '0c8483bd47ffa59b2ae7b37f40eb5107d5d942f5aedbc3c79b24a09d1fdad418',
-	// RED-then-pin, 2026-11-17: paired, pageviews_stored, pageviews_est and paired_by_day on the sessions twin.
-	'34' => 'dfb146adc9fe708371ac46413daed48fb3ab157f3f5fbafbb01e6c14e3b39a6a',
+	// RED-then-pin, 2026-11-17: paired, contact_direct, pageviews_stored, pageviews_est and flags_by_day on the sessions twin.
+	'34' => '1a203caec2a0fada5ec94eb7da2aaa77ec3aeba6bbddcd8be4286b1ef2ffc6c0',
 );
 
 /**

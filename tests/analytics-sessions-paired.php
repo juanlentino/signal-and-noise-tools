@@ -31,7 +31,11 @@ function snt_arows_real_paths() { return array( '/' => true, '/notes/x' => true,
 // Analytics Engine: session rows for the session read, bot times for the pairing read.
 function sn_analytics_query( $sql ) {
 	$GLOBALS['q'][] = $sql;
-	if ( false !== strpos( $sql, 'GROUP BY ts' ) ) { return $GLOBALS['bots']; }
+	if ( false !== strpos( $sql, 'GROUP BY ts' ) ) {
+		// With wide_caps, a read spanning more than half an hour reaches its cap, as a 90-day window can.
+		preg_match_all( "/toDateTime\\('([^']+)'\\)/", $sql, $m );
+		return ! empty( $GLOBALS['wide_caps'] ) && strtotime( $m[1][1] ) - strtotime( $m[1][0] ) > 1800 ? array_fill( 0, SN_ANALYTICS_PAIRING_ROW_CAP, array( 'ts' => 1 ) ) : $GLOBALS['bots'];
+	}
 	return false !== strpos( $sql, ' AS ref, ' ) ? $GLOBALS['ae'] : array();
 }
 function snt_an_kv_table( $title, $rows, $cols, $opts = array() ) { $GLOBALS['table'] = array( 'rows' => $rows, 'cols' => $cols, 'opts' => $opts ); }
@@ -70,9 +74,9 @@ $all = snt_ability_analytics_sessions( array() );
 $by  = array_column( $all['sessions'], null, 'entry' );
 ok( true === $by['/notes/x']['paired'], 'the Yerevan (direct) session with an Ashburn read inside it is paired' );
 ok( false === $by['/about']['paired'] && false === $by['/']['paired'], 'a referred session at the same time is not; a (direct) one an hour later is not' );
-ok( array( array( 'day' => '2026-11-17', 'sessions' => 3, 'direct' => 2, 'paired' => 1 ) ) === $all['paired_by_day'], 'paired_by_day counts the window\'s human sessions per site day' );
+ok( array( array( 'day' => '2026-11-17', 'sessions' => 3, 'direct' => 2, 'paired' => 1, 'contact_direct' => 0 ) ) === $all['flags_by_day'], 'flags_by_day counts the window\'s human sessions per site day' );
 $one = snt_ability_analytics_sessions( array( 'per_page' => 1 ) );
-ok( array( array( 'day' => '2026-11-17', 'sessions' => 3, 'direct' => 2, 'paired' => 1 ) ) === $one['paired_by_day'], 'paired_by_day covers every session in the window, not only the page' );
+ok( array( array( 'day' => '2026-11-17', 'sessions' => 3, 'direct' => 2, 'paired' => 1, 'contact_direct' => 0 ) ) === $one['flags_by_day'], 'flags_by_day covers every session in the window, not only the page' );
 ok( 2 === $by['/notes/x']['pageviews'] && 2 === $by['/notes/x']['pageviews_stored'] && 6 === $by['/notes/x']['pageviews_est'], 'a sampled session: pageviews stays the stored rows, pageviews_est the views they stand for' );
 ok( 1 === $by['/']['pageviews_stored'] && 1 === $by['/']['pageviews_est'], 'an unsampled session: the two agree' );
 $session_sql = (string) current( array_filter( $GLOBALS['q'], static fn( $q ) => false !== strpos( $q, ' AS ref, ' ) ) );
@@ -80,12 +84,18 @@ ok( false !== strpos( $session_sql, '_sample_interval AS si' ), 'the session rea
 $schema = snt_analytics_sessions_output_schema();
 ok( array_keys( $schema['properties']['sessions']['items']['properties'] ) === array_keys( $by['/notes/x'] ) && array_keys( $schema['properties'] ) === array_keys( $all ), 'every field is in the schema, in order' );
 ok( array( 'boolean', 'null' ) === $schema['properties']['sessions']['items']['properties']['paired']['type'], 'paired may be null: not read, never false' );
+$GLOBALS['wide_caps'] = true;
+$capped = snt_ability_analytics_sessions( array( 'per_page' => 1, 'page' => 3 ) );
+ok( true === $capped['sessions'][0]['paired'] && null === $capped['flags_by_day'][0]['paired'], 'the window\'s read capped: the page reads its own span and is still flagged; only the per-day count is null' );
+$GLOBALS['wide_caps'] = false;
 $GLOBALS['bots'] = null;
 $down = snt_ability_analytics_sessions( array() );
-ok( null === $down['sessions'][0]['paired'] && null === $down['paired_by_day'], 'a failed pairing read: paired and paired_by_day are null' );
+ok( null === $down['sessions'][0]['paired'] && null === $down['flags_by_day'][0]['paired'] && 0 === $down['flags_by_day'][0]['contact_direct'], 'a failed pairing read: paired is null, and so is its per-day count; the other flag still counts' );
+snt_analytics_render_session_list( '2026-11-17', '2026-11-17', 'human' );
+ok( false !== strpos( $GLOBALS['table']['opts']['header_meta'], 'automated hits not read' ), 'when the automated hits were not read, the tab\'s header says so' );
 $GLOBALS['bots'] = array( array( 'ts' => strtotime( '2026-11-17 14:09:20 UTC' ), 'n' => 1 ) );
 $bot = snt_ability_analytics_sessions( array( 'class' => 'bot' ) );
-ok( null === $bot['sessions'][0]['paired'] && null === $bot['paired_by_day'], 'other classes: null' );
+ok( null === $bot['sessions'][0]['paired'] && null === $bot['sessions'][0]['contact_direct'] && null === $bot['flags_by_day'], 'other classes: null' );
 $desc = snt_analytics_sessions_description();
 ok( false !== strpos( $desc, 'joined by time only, never by visitor code, place or network' ) && false !== strpos( $desc, 'about pageviews_est, from pageviews_stored stored' ), 'the description says how pairing joins and how to read an estimate' );
 
