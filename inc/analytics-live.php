@@ -79,6 +79,8 @@ function sn_analytics_live_payload( $all_classes ) {
 		}
 		$out['classes'] = null === $split['readers'] ? array( 'human' => null, 'suspect' => null, 'bot' => null ) : $split['readers'];
 		$out['arrived_classes'] = $split['arrived'];
+		// 2026-11-17: returning to an open tab is counted apart, never in `now` (inc/analytics-live-open-tab.php).
+		$out = function_exists( 'sn_analytics_live_open_tab_apply' ) ? sn_analytics_live_open_tab_apply( $out, is_array( $cached ) ? ( $cached['open_tab'] ?? null ) : null ) : $out;
 	}
 	return $out;
 }

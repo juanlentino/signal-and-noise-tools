@@ -174,7 +174,12 @@ function sn_analytics_realtime( $class = 'human' ) {
 function sn_analytics_realtime_readers( $class = 'human' ) {
 	$cached = get_transient( SN_ANALYTICS_REALTIME_KEY );
 	$split  = sn_analytics_live_split( is_array( $cached ) ? ( $cached['counts'] ?? null ) : null, is_array( $cached ) ? ( $cached['engaged'] ?? null ) : null );
-	return null === $split['readers'] ? null : ( $split['readers'][ $class ] ?? 0 );
+	if ( null === $split['readers'] ) {
+		return null;
+	}
+	// 2026-11-17: returning to an open tab is counted apart, as in the admin payload (inc/analytics-live-open-tab.php).
+	$open = 'human' === $class && is_int( $cached['open_tab'] ?? null ) ? $cached['open_tab'] : 0;
+	return max( 0, ( $split['readers'][ $class ] ?? 0 ) - $open );
 }
 
 /**
@@ -319,7 +324,9 @@ function sn_analytics_realtime_refresh() {
 	// Fifth, admin only: where current readers arrived from (inc/analytics-live-sources.php).
 	$sources = function_exists( 'sn_analytics_live_sources_read' ) ? sn_analytics_live_sources_read() : null;
 	// Sixth, admin only: each current reader's place, device and entry source (inc/analytics-live-readers.php). Kept here only, never in the slots.
-	$readers = function_exists( 'sn_analytics_live_readers_read' ) ? sn_analytics_live_readers_read() : null;
+	// 2026-11-17: visitor-days engaged now with no page view today, returning to an open tab (inc/analytics-live-open-tab.php).
+	$open    = function_exists( 'sn_analytics_live_open_tab_read' ) ? sn_analytics_live_open_tab_read() : null;
+	$readers = function_exists( 'sn_analytics_live_readers_read' ) ? sn_analytics_live_readers_read( $open ) : null;
 	// The live-surge signal (inc/analytics-live-surge.php): log the hour's completed slots, judge the last one.
 	$surge = function_exists( 'sn_analytics_live_surge_step' ) ? sn_analytics_live_surge_step( $hour ) : null;
 	// Rolling snapshots (inc/analytics-live-slots.php): the hour's completed slots, kept a day. Reads AE only when a slot is new.
@@ -339,6 +346,7 @@ function sn_analytics_realtime_refresh() {
 		'hour'               => $hour,
 		'sources'            => $sources,
 		'readers'            => $readers,
+		'open_tab'           => null === $open ? null : count( $open ),
 		'surge'              => $surge,
 		'fetched'            => time(),
 	), SN_ANALYTICS_REALTIME_RETENTION );

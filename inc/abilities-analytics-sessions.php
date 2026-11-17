@@ -13,6 +13,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-pairing.php'; // 2026-11-17: paired, a (direct) session near an automated hit.
+require_once __DIR__ . '/analytics-contact-direct.php'; // 2026-11-17: contact_direct, direct to contact, nothing sent.
+
 const SN_ANALYTICS_SESSIONS_MAX_HOURS = 72;
 
 /** The first day Analytics Engine holds, in site time: today less 89 days. PURE given the clock. */
@@ -92,11 +95,15 @@ function snt_ability_analytics_sessions( $input = null ) {
 		return new WP_Error( 'sn_analytics_read_failed', 'The Analytics Engine read failed; this is not an empty answer.', array( 'status' => 500 ) );
 	}
 	$total = count( $read['rows'] );
+	// 2026-11-17: the observe-only flags, paired and contact_direct, over the whole window for the per-day count.
+	$flags = sn_analytics_session_flags( $read['rows'], $class, ( $page - 1 ) * $per, $per );
 	return array(
 		// 2026-11-14: each human session says which share it followed, if any (inc/share-echoes.php).
-		'sessions' => function_exists( 'sn_share_echoes_on_sessions' )
-			? sn_share_echoes_on_sessions( array_slice( $read['rows'], ( $page - 1 ) * $per, $per ), $class )
-			: array_map( static fn( $r ) => $r + array( 'share' => null ), array_slice( $read['rows'], ( $page - 1 ) * $per, $per ) ),
+		'sessions' => array_map(
+			static fn( $r, $p ) => $r + array( 'paired' => $p ),
+			function_exists( 'sn_share_echoes_on_sessions' ) ? sn_share_echoes_on_sessions( $flags['slice'], $class ) : array_map( static fn( $r ) => $r + array( 'share' => null ), $flags['slice'] ),
+			$flags['paired']
+		),
 		'total'    => $total,
 		'page'     => $page,
 		'per_page' => $per,
@@ -106,6 +113,7 @@ function snt_ability_analytics_sessions( $input = null ) {
 		'hours'    => $w['hours'],
 		'class'    => $class,
 		'capped'   => $read['capped'],
+		'flags_by_day' => $flags['by_day'],
 	);
 }
 
@@ -117,10 +125,12 @@ function snt_analytics_sessions_output_schema() {
 	$b    = array( 'type' => 'boolean' );
 	$page = array( 'type' => 'object', 'properties' => array( 'path' => $s, 'time_ms' => $ni, 'scroll_pct' => $ni, 'read' => $b ) );
 	$share = array( 'type' => array( 'object', 'null' ), 'properties' => array( 'app' => $s, 'family' => $s, 'gap_s' => $i, 'read' => $b ) );
-	$row  = array( 'start' => $s, 'end' => $s, 'duration_s' => $i, 'pageviews' => $i, 'entry' => $s, 'exit' => $s, 'pages' => array( 'type' => 'array', 'items' => $page ), 'source' => $s, 'country' => $s, 'region' => $s, 'city' => $s, 'device' => $s, 'class' => $s, 'returning' => $b, 'link_code' => $s, 'engaged' => $b, 'goals' => array( 'type' => 'array', 'items' => $s ), 'share' => $share );
+	$nb   = array( 'type' => array( 'boolean', 'null' ) );
+	$day  = array( 'type' => 'object', 'properties' => array( 'day' => $s, 'sessions' => $i, 'direct' => $i, 'paired' => $ni, 'contact_direct' => $ni ) );
+	$row  = array( 'start' => $s, 'end' => $s, 'duration_s' => $i, 'pageviews' => $i, 'pageviews_stored' => $i, 'pageviews_est' => $i, 'entry' => $s, 'exit' => $s, 'pages' => array( 'type' => 'array', 'items' => $page ), 'source' => $s, 'country' => $s, 'region' => $s, 'city' => $s, 'device' => $s, 'class' => $s, 'returning' => $b, 'link_code' => $s, 'engaged' => $b, 'goals' => array( 'type' => 'array', 'items' => $s ), 'contact_direct' => $nb, 'share' => $share, 'paired' => $nb );
 	return array(
 		'type'       => 'object',
-		'properties' => array( 'sessions' => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'properties' => $row ) ), 'total' => $i, 'page' => $i, 'per_page' => $i, 'pages' => $i, 'from' => $s, 'to' => $s, 'hours' => $ni, 'class' => $s, 'capped' => $b ),
+		'properties' => array( 'sessions' => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'properties' => $row ) ), 'total' => $i, 'page' => $i, 'per_page' => $i, 'pages' => $i, 'from' => $s, 'to' => $s, 'hours' => $ni, 'class' => $s, 'capped' => $b, 'flags_by_day' => array( 'type' => array( 'array', 'null' ), 'items' => $day ) ),
 	);
 }
 
@@ -133,8 +143,9 @@ function snt_ability_perm_remote_analytics_sessions() {
 function snt_analytics_sessions_description() {
 	return 'Sessions one by one, the unit of the S&N Analytics Sessions tab: a visit within one visitor-day (a day in America/New_York, where the visitor code rotates), split at the idle gap, with at least one page view. The sessions that START in the window, newest first, paged; each is read whole, so one still going at the window\'s end is complete, and one that began before it is not listed. '
 		. 'Each: start and end (ISO 8601, site time), duration_s, pageviews, entry and exit, pages in order with time_ms and scroll_pct on each (null when not measured), source (the dashboard\'s source label of the first page view\'s referrer), country, region, city, device, class, returning (a second or later session of the same visitor-day, counting sessions before the window too; no visitor is recognized on another day), link_code (a coded résumé link, or ""), engaged and goals (custom event names; anything that is not an identifier-shaped name, letters, digits and _ . : -, reads (invalid)); the source is (direct), (internal), a known source label or a clean hostname, else (invalid). Place and device read (unknown) when not sent, as in the rows read. '
-		. 'Arguments: from and to (YYYY-MM-DD, site time; default today) or hours (1 to ' . SN_ANALYTICS_SESSIONS_MAX_HOURS . ', the last N hours), class human|suspect|bot (default human), page (default 1), per_page (1 to ' . SN_ANALYTICS_SESSIONS_MAX_PAGE . ', default ' . SN_ANALYTICS_SESSIONS_PER_PAGE . '). Read from Analytics Engine: the last 90 days. capped: true means the raw read hit its cap, so the list is a floor. Rows are counted as read, not sample-corrected: on a heavily sampled visitor-day, pageviews and pages are floors. '
+		. 'Arguments: from and to (YYYY-MM-DD, site time; default today) or hours (1 to ' . SN_ANALYTICS_SESSIONS_MAX_HOURS . ', the last N hours), class human|suspect|bot (default human), page (default 1), per_page (1 to ' . SN_ANALYTICS_SESSIONS_MAX_PAGE . ', default ' . SN_ANALYTICS_SESSIONS_PER_PAGE . '). Read from Analytics Engine: the last 90 days. capped: true means the raw read hit its cap, so the list is a floor. pageviews and pageviews_stored are the page-view rows Analytics Engine kept; pageviews_est is the views they stand for (the sum of its sample interval). When pageviews_est is above pageviews_stored the visitor-day was sampled: read it as "about pageviews_est, from pageviews_stored stored", and pages lists the kept views only. '
 		. 'Each page view carries read (' . ( defined( 'SN_ANALYTICS_READS_DEFINITION' ) ? SN_ANALYTICS_READS_DEFINITION : 'proven reading' ) . '). Each human session carries share: the most recent link-preview fetch of its entry page (for /r/CODE, the same code) in the 72 hours before it, through the app its source names when it names one (Instagram, Facebook, Messenger and Threads are Meta), else through any app; joined by page, time and app only, never by a visitor identifier: app (the preview service: Meta, WhatsApp, LinkedIn, Slack, Discord, Telegram, X, Apple Messages or another app), family, gap_s (seconds from the share to the visit) and read (whether the entry view was a read); null when no share preceded it, for other classes, or when the share read failed. A preview fires when anyone shares the link, so this is after a share, never whose share, and it names no person. '
+		. 'Each human session carries paired (observe only, nothing is subtracted): true when its source is (direct) and it overlaps in time with, or starts or ends within 60 seconds of, any bot- or suspect-class page view (an automated or data-center read), joined by time only, never by visitor code, place or network; false otherwise; null for other classes or when that read failed or hit its cap. Each human session also carries contact_direct (observe only): true when its source is (direct), its entry page is a contact page (/contact or /contact/...) or its second page is one after an entry view of under 10 seconds, and no contact form entry (AllTerrain Forms, inbox or spam) was created between its start and 60 seconds after its end, joined by time only; false otherwise; null for other classes, or for a candidate when the entries could not be read. flags_by_day counts, per site day of the session\'s start in the window, { day, sessions, direct, paired, contact_direct } over every human session in it, not only this page; a flag that could not be read is null on every day (null for other classes); ask from six days ago to today for the last 7 days. '
 		. 'Paths are the site\'s own content or (unmatched). No visitor code, IP address or user agent is returned. Read-only.';
 }
 

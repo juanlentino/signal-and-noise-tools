@@ -33,8 +33,11 @@ function snt_analytics_session_list_rows( array $sessions ) {
 		$rows[] = array(
 			substr( $s['start'], 0, 10 ) . ' ' . substr( $s['start'], 11, 5 ),
 			implode( ' → ', $pages ),
+			snt_analytics_session_views_text( $s ),
 			$s['duration_s'] . 's',
-			$s['source'],
+			// 2026-11-17: observe only, a (direct) session near an automated hit (inc/analytics-pairing.php).
+			$s['source'] . ( true === ( $s['paired'] ?? null ) ? ' · ' . __( 'near an automated hit', 'signal-and-noise-tools' ) : '' )
+				. ( true === ( $s['contact_direct'] ?? null ) ? ' · ' . __( 'direct to contact, nothing sent', 'signal-and-noise-tools' ) : '' ),
 			implode( ', ', array_filter( array( $s['city'], $s['region'], $s['country'] ), static fn( $v ) => '' !== $v && '(unknown)' !== $v ) ),
 			'(unknown)' === $s['device'] ? '' : $s['device'],
 			$s['returning'] ? __( 'yes', 'signal-and-noise-tools' ) : '',
@@ -45,6 +48,20 @@ function snt_analytics_session_list_rows( array $sessions ) {
 		);
 	}
 	return $rows;
+}
+
+/**
+ * A session's page-view figure: the stored count, or "about N, from M stored"
+ * when Analytics Engine sampled its visitor-day. PURE.
+ *
+ * @param array $s A session row.
+ * @return string
+ */
+function snt_analytics_session_views_text( array $s ) {
+	$stored = (int) ( $s['pageviews_stored'] ?? $s['pageviews'] ?? 0 );
+	$est    = (int) ( $s['pageviews_est'] ?? $stored );
+	/* translators: 1: estimated page views, 2: page-view records kept. */
+	return $est > $stored ? sprintf( __( 'about %1$s, from %2$s stored', 'signal-and-noise-tools' ), $est, $stored ) : (string) $stored;
 }
 
 /**
@@ -75,6 +92,9 @@ function snt_analytics_render_session_list( $from, $to, $class ) {
 	) . ( count( $read['sessions'] ) < $read['total'] ? ' · ' . sprintf( /* translators: %d: sessions listed */ __( 'the newest %d', 'signal-and-noise-tools' ), count( $read['sessions'] ) ) : '' )
 		. ( $start > $from ? ' · ' . sprintf( /* translators: %s: first day Analytics Engine holds */ __( 'from %s, the first day Analytics Engine holds', 'signal-and-noise-tools' ), $start ) : '' )
 		. ( $read['capped'] ? ' · ' . __( 'capped: narrow the window for every session', 'signal-and-noise-tools' ) : '' )
+		// 2026-11-17: a flag that was not read is said, never shown as "no".
+		. ( in_array( null, array_column( $read['sessions'], 'paired' ), true ) && 'human' === $class ? ' · ' . __( 'automated hits not read: no session is marked near one', 'signal-and-noise-tools' ) : '' )
+		. ( in_array( null, array_column( $read['sessions'], 'contact_direct' ), true ) && 'human' === $class ? ' · ' . __( 'contact form entries not read: no session is marked direct to contact', 'signal-and-noise-tools' ) : '' )
 		. snt_analytics_session_list_sampled_meta( (string) $to );
 	snt_an_kv_table(
 		$title,
@@ -82,6 +102,7 @@ function snt_analytics_render_session_list( $from, $to, $class ) {
 		array(
 			array( 'label' => __( 'Start', 'signal-and-noise-tools' ) ),
 			array( 'label' => __( 'Pages, in order (time, scroll)', 'signal-and-noise-tools' ) ),
+			array( 'label' => __( 'Page views', 'signal-and-noise-tools' ), 'class' => 'num' ),
 			array( 'label' => __( 'Duration', 'signal-and-noise-tools' ), 'class' => 'num' ),
 			array( 'label' => __( 'Source', 'signal-and-noise-tools' ) ),
 			array( 'label' => __( 'Place', 'signal-and-noise-tools' ) ),
@@ -110,9 +131,9 @@ function snt_analytics_session_list_sampled_meta( $to ) {
 		return '';
 	}
 	return ' · ' . sprintf(
-		/* translators: 1: page-view records kept today, 2: the views they stand for. */
-		__( 'today was sampled: %1$s page-view records kept, standing for %2$s views, so today\'s sessions list fewer pages than the figures count', 'signal-and-noise-tools' ),
-		number_format_i18n( $s['stored'] ),
-		number_format_i18n( $s['views'] )
+		/* translators: 1: the views today's kept records stand for, 2: page-view records kept today. */
+		__( 'today was sampled: page views about %1$s, from %2$s stored, so today\'s sessions list the stored ones only', 'signal-and-noise-tools' ),
+		number_format_i18n( $s['views'] ),
+		number_format_i18n( $s['stored'] )
 	);
 }
