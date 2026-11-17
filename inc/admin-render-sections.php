@@ -100,6 +100,10 @@ function sn_admin_render_trust_section() {
  * future report-only DEFECT would stay on Health where it belongs.
  */
 function sn_admin_render_health_reports_section() {
+	// 2026-11-17: the contact form's blocked attempts stand on their own, scan or no scan.
+	if ( function_exists( 'snt_fs_tally_render' ) ) {
+		snt_fs_tally_render();
+	}
 	$scan = function_exists( 'sn_health_last_scan' ) ? sn_health_last_scan() : null;
 	if ( ! is_array( $scan ) ) {
 		// The words Trust checks uses, the leaf name a link (2026-10-12).

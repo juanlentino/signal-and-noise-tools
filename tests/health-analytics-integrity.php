@@ -129,6 +129,14 @@ ok( 1 === $check2['count'], 'stored violation → check FLAGS (1 finding)' );
 ok( false !== strpos( $check2['findings'][0]['note'], '(2 < 5)' ), 'flagged finding surfaces the stored payload values' );
 ok( false !== strpos( $check2['fix_hint'], 'sn_analytics_integrity_alert' ), 'fix hint names the option to clear after investigating' );
 ok( false !== strpos( $check2['fix_hint'], 'never expires' ), 'fix hint states the record never expires on its own' );
+// 2026-11-17: get-health-scan returns the hint, not the findings, so the hint
+// must name the scope itself (the owner read "1 flagged" and needed wp-cli).
+ok( 0 === strpos( $check2['fix_hint'], 'Recorded ' . gmdate( 'Y-m-d H:i', $rollup_alert['time'] ) . ' UTC: day 2026-07-16, path /, class human, views 2, pageview_visits 5.' ),
+	'flagged hint LEADS with the recorded day, path, views, visits and absolute UTC stamp' );
+ok( false !== strpos( sn_health_analytics_integrity_scope( array( 'day' => '2026-11-11', 'path' => '/r/rylo' ) ), 'views unknown, pageview_visits unknown' ),
+	'scope sentence: absent values read unknown, never an invented 0' );
+ok( false !== strpos( sn_health_analytics_integrity_scope( array( 'scope' => 'read-range', 'from' => '2026-11-01', 'to' => '2026-11-07', 'views' => 1, 'pageview_visits' => 3 ) ), 'range 2026-11-01..2026-11-07' ),
+	'scope sentence: the read-guard shape names its range' );
 ok( $GLOBALS['__hai_options']['sn_analytics_integrity_alert'] === $rollup_alert,
 	'the check is READ-ONLY: the stored alert is untouched (clearing is the owner\'s explicit call)' );
 

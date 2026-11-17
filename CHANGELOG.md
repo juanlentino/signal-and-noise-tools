@@ -13,6 +13,13 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **A record of which days Analytics Engine sampled.** The nightly rollup now also reads the last 90 site days and keeps, per day and event type, the rows Analytics Engine stored and the events they stand for, for every class and for the counted-human class alone (`inc/analytics-sampled-days.php`, option `sn_analytics_sampled_days`). A day is only added or overwritten from a complete fresh read, never deleted, and a day older than 80 days keeps what was first stored, so the evidence outlives Analytics Engine's retention. The `analytics-dual-write` ability returns it as `sampled_days` with `onset`, the earliest day a human row was sampled; `sn_analytics_day_estimated()` answers per day, and Integrity › Lanes labels such a beacon day "estimated (sampled)". No number changes. Test: `tests/analytics-sampled-days.php`.
+- **The contact form's blocked attempts, counted per day.** A late hook on Forms' spam verdict adds one per refused submission to that site day's count for the guard that caught it (honeypot, time trap, rate limit, rule, challenge, Akismet, other), kept 90 days, counts only. Integrity › Reports shows the daily table in both twins, scan or no scan, and `forms-spam-scan` returns it as `blocked_daily` (`inc/forms-blocked-tally.php`). Test: `tests/forms-blocked-tally.php`.
+
+### Changed
+- **The analytics-integrity check names what it recorded.** A flagged check's fix hint now leads with the recorded UTC time, day, path, class, views and pageview_visits, so `get-health-scan` and its remote twin show the scope without wp-cli. The record and its writer are unchanged. Test: `tests/health-analytics-integrity.php`.
+
 ## [2026.11.46] - 2026-11-15 — The Shares note describes how shares are joined
 
 ### Fixed
