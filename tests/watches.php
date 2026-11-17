@@ -134,11 +134,18 @@ foreach ( snt_watches() as $watch ) {
 
 
 echo "\nGroup: the two 7.2-roadmap watches (16.6.1)\n";
-$w72 = snt_watch_ripe_wp_72( array(), 0, '7.1.1' );
-ok( false === $w72['ripe'] && false !== strpos( $w72['note'], 'before 7.2' ), 'on 7.1.1 the connector-wipe watch is quiet and says why' );
-$w72 = snt_watch_ripe_wp_72( array(), 0, '7.2' );
-ok( true === $w72['ripe'] && false !== strpos( $w72['note'], '65551' ), 'on 7.2 it ripens and names the ticket to verify' );
-ok( true === snt_watch_ripe_wp_72( array(), 0, '7.2.1' )['ripe'] && false === snt_watch_ripe_wp_72( array(), 0, '' )['ripe'], '7.2.1 ripens; an unreadable version never does' );
+// 2026-11-17: ripens on Core's code, not the version (7.2 RC1 still wipes).
+$rc1 = 'if ( true !== _wp_connectors_is_ai_api_key_valid( $value, $connector_id ) ) {' . "\n\t\t\t\t" . 'update_option( $setting_name, \'\' );';
+$w = snt_watch_ripe_65551( array(), 0, $rc1 );
+ok( false === $w['ripe'] && false !== strpos( $w['note'], '65551' ), 'with 7.2 RC1\'s wiping line the connector watch stays quiet and says why' );
+$w = snt_watch_ripe_65551( array(), 0, str_replace( 'true !==', 'false ===', $rc1 ) );
+ok( true === $w['ripe'] && false !== strpos( $w['note'], 'retire' ), 'once only a definite false blanks the key, it ripens' );
+ok( false === snt_watch_ripe_65551( array(), 0, '' )['ripe'], 'an unreadable Core never ripens it' );
+ok( '' === snt_watch_core_function_source( 'sn_no_such_function_65551' ), 'a missing Core function reads as empty source' );
+$rc1_file = getenv( 'SNT_WP_HTML_API' ) ? dirname( getenv( 'SNT_WP_HTML_API' ) ) . '/connectors.php' : '';
+if ( '' !== $rc1_file && is_readable( $rc1_file ) && false !== strpos( (string) file_get_contents( $rc1_file ), '_wp_connectors_rest_settings_dispatch' ) ) {
+	ok( false === snt_watch_ripe_65551( array(), 0, (string) file_get_contents( $rc1_file ) )['ripe'], 'the core connectors.php on this machine still wipes (quiet)' );
+}
 $ad = static function ( $v ) { return snt_watch_ripe_mcp_adapter( array(), 0, $v ); };
 ok( false === $ad( '' )['ripe'] && false !== strpos( $ad( '' )['note'], 'no adapter' ) && false !== strpos( $ad( '' )['note'], 'WordPress.org' ), 'no adapter on the site: quiet, and the note says what the port waits on' );
 ok( false === $ad( '0.6.1' )['ripe'] && false !== strpos( $ad( '0.6.1' )['note'], '0.7.0' ), '17.8.1: a loaded 0.6.1 library is not the port signal, and the note names the version it waits on' );

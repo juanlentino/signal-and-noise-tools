@@ -13,6 +13,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **The connector key-wipe watch reads Core's code, not its version (Trac #65551).** It was set to ripen at WordPress 7.2 and say "verify the fix landed", but 7.2 RC1 still blanks a stored key when validation is not strictly true (`connectors.php`, `true !==` then `update_option( $setting_name, '' )`), so on 7.2 it would have announced a fix that is not there. It now reads the source of `_wp_connectors_rest_settings_dispatch()` and ripens only once that line is gone; an unreadable Core never ripens it. The Secrets API watch now says the API is not in 7.2 RC1. Code: `snt_watch_ripe_65551()` in `inc/watches.php`. Test: `tests/watches.php` (red with the check inverted; against a 7.2 RC1 `connectors.php` when one is on the machine).
+
 ## [2026.11.49] - 2026-11-17 — LinkedIn link scans leave the suspect list; sampled-day labels on Countries, Sources and Top pages
 
 ### Changed
