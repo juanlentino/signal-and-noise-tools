@@ -13,6 +13,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **The Person node carries the full name and the GitHub profile.** Every page's Person JSON-LD (`#/schema/Person`, `@id` unchanged) gains `alternateName` "Juan Martín Lentino" and "Juan Martin Lentino" (US records drop the accent), and `sameAs` gains `https://github.com/juanlentino`, the profile /resume links. `name`, `jobTitle` and every visible page still say what they said. alumniOf and memberOf were already there. No SSRN author page: the site links papers by DOI only, never an author page. Test: `tests/seo-schema.php` (+3).
+- **Feed opens where you look.** `live-now` gains `feed_opens`: today (since 00:00 UTC, the day the store keys on), the last 7 days and which notes, labeled a floor. The SN Traffic widget and the Analytics footer pulse show "Feed: at least N opens today (UTC), M this week" beside Today so far. Same pixel count and same 7-day window as rss_stats and north-star, no new counter. Tests: `tests/feed-opens.php` (+3), `tests/analytics-live-slots.php` (the live answer plus `feed_opens`).
+
 ## [2026.11.50] - 2026-11-17 — The #65551 watch reads Core's code; a side-by-side WordPress boot for release candidates
 
 ### Added

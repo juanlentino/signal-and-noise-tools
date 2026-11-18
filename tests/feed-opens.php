@@ -140,5 +140,9 @@ ob_start();
 $served = function_exists( 'snt_feed_open_pre_serve' ) ? snt_feed_open_pre_serve( false, new WP_REST_Response( array(), 200 ), new FO_Request( '/wp/v2/posts' ), $srv ) : null;
 ok( false === $served && '' === ob_get_clean() && array() === $srv->sent, 'every other route is left to core' );
 
+$live = snt_feed_opens_live( $s, $now + DAY_IN_SECONDS );
+ok( 1 === $live['today'] && 4 === $live['week'] && snt_feed_opens_window( $s, 7, $now + DAY_IN_SECONDS )['total'] === $live['week'], 'live: today is the UTC day, week is the same 7-day total rss_stats reads' );
+ok( array( 10, 11 ) === array_column( $live['notes_7d'], 'post_id' ) && 3 === $live['notes_7d'][0]['opens'] && 'floor' === $live['basis'], 'live: which notes, busiest first, labeled a floor' );
+ok( 'Feed: at least 1 opens today (UTC), 4 this week' === snt_feed_opens_line( $live ), 'the dashboard line says "at least"' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -229,6 +229,10 @@ function snt_analytics_render_pulse_strip( $from, $to, $class, $series, $granula
 			$cells[] = '<span class="sn-an-pulse-cell"><span class="sn-an-pulse-k">' . esc_html__( 'Today so far', 'signal-and-noise-tools' ) . '</span>'
 				. '<span class="sn-an-pulse-v sn-an-pulse-v--big">' . esc_html( number_format_i18n( $today_n ) ) . '</span>'
 				. '<span class="sn-an-pulse-v">' . esc_html( $today_unit ) . '</span></span>';
+			// 2026-11-17: feed opens beside it (feed readers never click through).
+			if ( function_exists( 'snt_feed_opens_live' ) ) {
+				$cells[] = '<span class="sn-an-pulse-cell"><span class="sn-an-pulse-v">' . esc_html( snt_feed_opens_line( snt_feed_opens_live( (array) get_option( SNT_FEED_OPENS_OPT, array() ), time() ) ) ) . '</span></span>';
+			}
 		}
 	}
 

@@ -121,6 +121,45 @@ function snt_feed_opens_summary( array $store, $now, $top = 10 ) {
 }
 
 /**
+ * Feed opens for the live answer and the dashboard: today and the last 7
+ * days, with which notes. The store is keyed by UTC day, so "today" starts at
+ * 00:00 UTC. 7 days is the same window rss_stats and north-star read. PURE.
+ *
+ * @param array $store Store.
+ * @param int   $now   Epoch seconds.
+ * @param int   $top   How many notes to list.
+ * @return array
+ */
+function snt_feed_opens_live( array $store, $now, $top = 5 ) {
+	$week  = snt_feed_opens_window( $store, 7, $now );
+	$notes = array();
+	foreach ( array_slice( $week['notes'], 0, $top, true ) as $pid => $n ) {
+		$notes[] = array(
+			'post_id' => (int) $pid,
+			'title'   => function_exists( 'get_the_title' ) ? (string) get_the_title( $pid ) : '',
+			'opens'   => (int) $n,
+		);
+	}
+	return array(
+		'basis'     => 'floor',
+		'today'     => snt_feed_opens_window( $store, 1, $now )['total'],
+		'today_utc' => gmdate( 'Y-m-d', $now ),
+		'week'      => $week['total'],
+		'notes_7d'  => $notes,
+	);
+}
+
+/**
+ * The dashboard line under "Today so far". PURE.
+ *
+ * @param array $live snt_feed_opens_live().
+ * @return string
+ */
+function snt_feed_opens_line( array $live ) {
+	return sprintf( 'Feed: at least %s opens today (UTC), %s this week', number_format( (int) $live['today'] ), number_format( (int) $live['week'] ) );
+}
+
+/**
  * REST handler: record a human open of a published note. It returns a response
  * like any other route, so rest_post_dispatch and the rest of
  * WP_REST_Server::serve_request() still run; snt_feed_open_pre_serve() below

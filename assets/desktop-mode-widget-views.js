@@ -495,6 +495,10 @@
 			if ( nowRows.length && typeof payload.today_listed === 'number' ) {
 				nowRows.push( { label: 'Listed in Sessions (rest sampled)', value: payload.today_listed, style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
 			}
+			// 2026-11-17: feed opens, the audience that never clicks through. Additive.
+			if ( nowRows.length && typeof payload.feed_line === 'string' ) {
+				nowRows.push( { label: payload.feed_line, value: '', style: 'font-size:11px;color:var(--os-ui-color-text-subtle, rgba(255,255,255,.6));' } );
+			}
 			nowRows.push( { label: 'Reading now', value: 'not read' } );
 			// 2026-11-14: readers apart from arrivals. "Reading now" counts visitors
 			// with visible time, a scroll or a click in the last 5 minutes; a page

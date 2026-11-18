@@ -142,11 +142,12 @@ $read = sn_analytics_live_slots( 24 );
 ok( 1 === count( $read ) && 1 === count( $GLOBALS['o'][ SN_ANALYTICS_LIVE_SLOTS_OPT ] ) && 3 === reset( $GLOBALS['o'][ SN_ANALYTICS_LIVE_SLOTS_OPT ] )['readers'], 'a read deletes a slot past the day from the option, not only hides it, even with no refresh since' );
 sn_analytics_live_slots_step( $hour );
 
-echo "\nGroup: live-now with no argument is exactly the live answer\n";
+echo "\nGroup: live-now with no argument is exactly the live answer, plus feed_opens\n";
 $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array( 'human' => 3, 'bot' => 1 ), 'views_today' => 4, 'fetched' => 99, 'pages' => array(), 'hour' => $hour, 'sources' => array(), 'surge' => null );
-$plain = sn_analytics_live_payload( true );
+// 2026-11-17: live-now adds feed_opens (null here: inc/feed-opens.php is not loaded).
+$plain = sn_analytics_live_payload( true ) + array( 'feed_opens' => null );
 foreach ( array( 'null' => null, 'empty' => array() ) as $k => $in ) {
-	ok( json_encode( $plain ) === json_encode( snt_ability_live_now( $in ) ), "input $k: byte-identical to the live payload, no slots key" );
+	ok( json_encode( $plain ) === json_encode( snt_ability_live_now( $in ) ), "input $k: byte-identical to the live payload plus feed_opens, no slots key" );
 }
 $with = snt_ability_live_now( array( 'hours_back' => 24 ) );
 ok( isset( $with['slots'] ) && 11 <= count( $with['slots'] ) && array( 't', 'readers', 'engaged', 'arrived', 'classes', 'pages', 'sources' ) === array_keys( $with['slots'][ count( $with['slots'] ) - 1 ] ), 'hours_back adds the stored slots, each { t, readers, engaged, arrived, classes, pages, sources }' );

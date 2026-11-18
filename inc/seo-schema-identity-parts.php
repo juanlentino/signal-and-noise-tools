@@ -35,9 +35,11 @@ function sn_schema_person() {
 	// into the sameAs list BEFORE the sn_schema_same_as filter (so it stays fully
 	// overridable) with a dedupe guard so a configured/duplicate entry is not doubled.
 	$same_as = (array) sn_schema_default_same_as();
-	$orcid   = 'https://orcid.org/0009-0006-8151-5920';
-	if ( ! in_array( $orcid, $same_as, true ) ) {
-		$same_as[] = $orcid;
+	// 2026-11-17: GitHub joins, the profile /resume links. Same dedupe guard.
+	foreach ( array( 'https://orcid.org/0009-0006-8151-5920', 'https://github.com/juanlentino' ) as $own ) {
+		if ( ! in_array( $own, $same_as, true ) ) {
+			$same_as[] = $own;
+		}
 	}
 	$same_as = (array) apply_filters( 'sn_schema_same_as', $same_as );
 
@@ -47,6 +49,10 @@ function sn_schema_person() {
 		'@type'      => 'Person',
 		'@id'        => $home . '#/schema/Person',
 		'name'       => $name,
+		// 2026-11-17 (owner): the full name, with and without the accent (US
+		// records drop it). It keeps search engines from fusing this Person with
+		// an unrelated namesake. Pages still say "Juan Lentino".
+		'alternateName' => array( 'Juan Martín Lentino', 'Juan Martin Lentino' ),
 		'url'        => $home,
 		'sameAs'     => array_values( $same_as ),
 		'jobTitle'   => sn_setting( 'identity.job_title', 'Music Producer' ),
