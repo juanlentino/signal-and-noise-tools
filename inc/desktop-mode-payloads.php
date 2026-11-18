@@ -381,6 +381,11 @@ function snt_desktop_site_views_payload() {
 		break;
 	}
 
+	// 2026-11-17: feed opens under Today so far (feed readers never click through).
+	if ( function_exists( 'snt_feed_opens_live' ) ) {
+		$payload['feed_line'] = snt_feed_opens_line( snt_feed_opens_live( (array) get_option( SNT_FEED_OPENS_OPT, array() ), time() ) );
+	}
+
 	// Display-window convention, matching the widget/narration call sites:
 	// sn_analytics_engaged_rate( $from, $to, 'human' ) +
 	// sn_analytics_engaged_rate_delta( $from, $to, 'human' ) with null $cwin

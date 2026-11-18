@@ -483,6 +483,10 @@ $GLOBALS['__ss']['is_singular_post'] = true;
 $GLOBALS['__ss']['is_page']          = true;
 $GLOBALS['__ss']['is_front_page']    = false;
 $GLOBALS['__ss']['queried']          = (object) array( 'ID' => 20, 'post_title' => 'Notes', 'post_name' => 'notes' );
+// 2026-11-17: GitHub in sameAs (linked on /resume); the full name as alternateName.
+ss_true( in_array( 'https://github.com/juanlentino', (array) $pid['sameAs'], true ), 'sameAs includes the GitHub profile' );
+ss_eq( array( 'Juan Martín Lentino', 'Juan Martin Lentino' ), $pid['alternateName'] ?? null, 'alternateName is the full name, with and without the accent' );
+ss_true( false === stripos( json_encode( $pid ), 'Pablo' ), 'nothing names the unrelated namesake' );
 $notes_webpage = sn_schema_webpage();
 ss_true( null === $notes_webpage, 'sn_schema_webpage() returns null on /notes — CollectionPage owns that @id' );
 
