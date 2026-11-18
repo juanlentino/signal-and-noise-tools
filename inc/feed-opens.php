@@ -38,6 +38,22 @@ function snt_feed_open_pixel_url( $post_id ) {
 }
 
 /**
+ * The site-timezone day (America/New_York on this site), $back days before the
+ * one $now falls in: the key the store uses since 2026-11-17, the day `today`,
+ * today_stored and Sessions count. Days, not 86,400-second steps, so DST never
+ * shifts the cut. PURE given the timezone.
+ *
+ * @param int $now  Epoch seconds.
+ * @param int $back Days back, 0 = today.
+ * @return string Y-m-d.
+ */
+function snt_feed_opens_day( $now, $back = 0 ) {
+	$tz  = function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( 'UTC' );
+	$day = ( new DateTimeImmutable( '@' . (int) $now ) )->setTimezone( $tz );
+	return $back > 0 ? $day->modify( '-' . (int) $back . ' days' )->format( 'Y-m-d' ) : $day->format( 'Y-m-d' );
+}
+
+/**
  * Record one open into a store. PURE.
  *
  * @param array  $store   {Y-m-d: {post_id: {ua_hash: 1}}}.
@@ -47,7 +63,7 @@ function snt_feed_open_pixel_url( $post_id ) {
  * @return array The new store, pruned to SNT_FEED_OPENS_DAYS.
  */
 function snt_feed_opens_record( array $store, $post_id, $ua_hash, $now ) {
-	$day = gmdate( 'Y-m-d', $now );
+	$day = snt_feed_opens_day( $now );
 	$pid = (string) (int) $post_id;
 	$set = $store[ $day ][ $pid ] ?? array();
 	$today = array_sum( array_map( 'count', (array) ( $store[ $day ] ?? array() ) ) );
@@ -55,7 +71,7 @@ function snt_feed_opens_record( array $store, $post_id, $ua_hash, $now ) {
 		$set[ $ua_hash ] = 1;
 	}
 	$store[ $day ][ $pid ] = $set;
-	$cut = gmdate( 'Y-m-d', $now - ( SNT_FEED_OPENS_DAYS - 1 ) * DAY_IN_SECONDS );
+	$cut = snt_feed_opens_day( $now, SNT_FEED_OPENS_DAYS - 1 );
 	return array_filter( $store, static fn( $d ) => $d >= $cut, ARRAY_FILTER_USE_KEY );
 }
 
@@ -68,7 +84,7 @@ function snt_feed_opens_record( array $store, $post_id, $ua_hash, $now ) {
  * @return array{total:int, notes:array<int,int>}
  */
 function snt_feed_opens_window( array $store, $days, $now ) {
-	$cut   = gmdate( 'Y-m-d', $now - ( max( 1, (int) $days ) - 1 ) * DAY_IN_SECONDS );
+	$cut   = snt_feed_opens_day( $now, max( 1, (int) $days ) - 1 );
 	$notes = array();
 	foreach ( $store as $day => $per ) {
 		if ( $day < $cut ) {
@@ -122,8 +138,9 @@ function snt_feed_opens_summary( array $store, $now, $top = 10 ) {
 
 /**
  * Feed opens for the live answer and the dashboard: today and the last 7
- * days, with which notes. The store is keyed by UTC day, so "today" starts at
- * 00:00 UTC. 7 days is the same window rss_stats and north-star read. PURE.
+ * days, with which notes. Days are site days (midnight in New York), as
+ * `today` and Sessions count. 7 days is the same window rss_stats and
+ * north-star read. PURE.
  *
  * @param array $store Store.
  * @param int   $now   Epoch seconds.
@@ -143,7 +160,7 @@ function snt_feed_opens_live( array $store, $now, $top = 5 ) {
 	return array(
 		'basis'     => 'floor',
 		'today'     => snt_feed_opens_window( $store, 1, $now )['total'],
-		'today_utc' => gmdate( 'Y-m-d', $now ),
+		'today_day' => snt_feed_opens_day( $now ),
 		'week'      => $week['total'],
 		'notes_7d'  => $notes,
 	);
@@ -156,7 +173,7 @@ function snt_feed_opens_live( array $store, $now, $top = 5 ) {
  * @return string
  */
 function snt_feed_opens_line( array $live ) {
-	return sprintf( 'Feed: at least %s opens today (UTC), %s this week', number_format( (int) $live['today'] ), number_format( (int) $live['week'] ) );
+	return sprintf( 'Feed: at least %s opens today, %s this week', number_format( (int) $live['today'] ), number_format( (int) $live['week'] ) );
 }
 
 /**

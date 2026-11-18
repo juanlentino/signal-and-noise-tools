@@ -51,84 +51,11 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 	) );
 
-	wp_register_ability( 'signal-noise/remote-get-insights', array(
-		'label'               => 'Get content insights (remote)',
-		'description'         => 'Remote-scoped twin of signal-noise/get-insights. '
-			. 'Returns the cached result of the last synthesis scan (open-questions '
-			. 'array + metadata); the recommendations array may be empty. Returns '
-			. 'null when no scan has run yet. Read-only, served from the origin\'s '
-			. 'cache. Returns operational commentary in the owner\'s voice '
-			. '(R-3D-d accepted). Reachable only by a principal holding the '
-			. 'sn_read_remote_analytics capability, and only while the remote door '
-			. 'is explicitly enabled.',
-		'category'            => 'diagnostics',
-		'permission_callback' => 'snt_ability_perm_remote_insights',
-		'execute_callback'    => 'snt_ability_get_insights',
-		'input_schema'        => array(
-			'type'                 => 'object',
-			'default'              => array(),
-			'properties'           => array(),
-			'additionalProperties' => false,
-		),
-		// output_schema: copied BYTE-IDENTICAL from the admin registration in
-		// inc/abilities-insights.php — the parity pin in tests enforces ===.
-		'output_schema'       => array(
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(
-				'scanned_at'      => array( 'type' => array( 'integer', 'null' ) ),
-				'elapsed_ms'      => array( 'type' => array( 'integer', 'null' ) ),
-				'signal_summary'  => array( 'type' => array( 'object', 'null' ) ),
-				'recommendations' => array( 'type' => 'array' ),
-			),
-		),
-		'meta'                => array(
-			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
-			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
-		),
-	) );
-
-	wp_register_ability( 'signal-noise/remote-get-narration', array(
-		'label'               => 'Get analytics narration (remote)',
-		'description'         => 'Remote-scoped twin of signal-noise/get-narration. '
-			. 'Returns the cached weekly analytics digest (headline + paragraphs + '
-			. 'highlights + metadata), or null when none has been generated yet. '
-			. 'Read-only, served from the origin\'s cache — never triggers an AI '
-			. 'call. Returns operational commentary in the owner\'s voice, which '
-			. 'may reference content titles (R-3D-d accepted). Reachable only by a '
-			. 'principal holding the sn_read_remote_analytics capability, and only '
-			. 'while the remote door is explicitly enabled.',
-		'category'            => 'diagnostics',
-		'permission_callback' => 'snt_ability_perm_remote_narration',
-		'execute_callback'    => 'snt_ability_get_narration',
-		'input_schema'        => array(
-			'type'                 => 'object',
-			'default'              => array(),
-			'properties'           => array(),
-			'additionalProperties' => false,
-		),
-		// output_schema: copied BYTE-IDENTICAL from the admin registration in
-		// inc/abilities-narration.php — the parity pin in tests enforces ===.
-		'output_schema'       => array(
-			'type'       => array( 'object', 'null' ),
-			'properties' => array(
-				'state'        => array( 'type' => 'string', 'enum' => array( 'ready', 'unavailable' ) ),
-				'reason'       => array( 'type' => array( 'string', 'null' ) ),
-				'message'      => array( 'type' => array( 'string', 'null' ) ),
-				'failed_at'    => array( 'type' => array( 'integer', 'null' ) ),
-				'generated_at' => array( 'type' => array( 'integer', 'null' ) ),
-				'elapsed_ms'   => array( 'type' => array( 'integer', 'null' ) ),
-				'headline'     => array( 'type' => array( 'string', 'null' ) ),
-				'paragraphs'   => array( 'type' => 'array' ),
-				'highlights'   => array( 'type' => 'array' ),
-			),
-		),
-		'meta'                => array(
-			'show_in_rest' => false, // the surface, not a setting — see file header.
-			'mcp'          => array( 'public' => false, 'type' => 'tool' ),
-			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
-		),
-	) );
+	// 2026-11-17 (owner): remote-get-insights and remote-get-narration retired from
+	// the door. Both read 7-day caches that only an admin run fills (the weekly
+	// narration was retired in v9.4.1, the insights cron is opt-in and off), so the
+	// door, which cannot start a run, could only ever answer null. The local
+	// get-insights and get-narration abilities stay.
 
 	wp_register_ability( 'signal-noise/remote-uptime-status', array(
 		'label'               => 'Get Better Stack uptime status (remote)',

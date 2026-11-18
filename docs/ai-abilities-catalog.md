@@ -155,8 +155,6 @@ The reference for the Signal & Noise WordPress Abilities: the plugin's abilities
 | `signal-noise/remote-get-analytics-summary` | Get analytics summary (remote) | analytics | REMOTE |
 | `signal-noise/remote-get-deploy-status` | Get theme + plugin deploy status (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-get-health-scan` | Get content-health scan summary (remote) | diagnostics | REMOTE |
-| `signal-noise/remote-get-insights` | Get content insights (remote) | diagnostics | REMOTE |
-| `signal-noise/remote-get-narration` | Get analytics narration (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-get-rss-stats` | Get RSS feed activity statistics (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-indexing-requests` | Search Console: URLs to request indexing for (remote) | diagnostics | REMOTE |
 | `signal-noise/remote-machine-readers-networks` | Machine readers: is this crawler real (remote) | analytics | REMOTE |

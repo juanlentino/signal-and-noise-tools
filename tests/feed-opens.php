@@ -18,6 +18,7 @@ function get_option( $k, $d = false ) { return $GLOBALS['fo_opts'][ $k ] ?? $d; 
 function get_transient() { return false; }
 function set_transient() { return true; }
 function get_posts() { return array(); }
+function wp_timezone() { return new DateTimeZone( 'America/New_York' ); } // the site's zone
 require __DIR__ . '/../inc/feed-opens.php';
 require __DIR__ . '/../inc/north-star.php';
 
@@ -37,7 +38,7 @@ $w = snt_feed_opens_window( $s, 7, $now + DAY_IN_SECONDS );
 ok( 4 === $w['total'] && array( 10 => 3, 11 => 1 ) === $w['notes'], 'another reader, another note and another day each count; per-note totals, busiest first' );
 ok( 1 === snt_feed_opens_window( $s, 1, $now + DAY_IN_SECONDS )['total'], 'a 1-day window reads only today' );
 $old = snt_feed_opens_record( array(), 9, 'x', $now - 100 * DAY_IN_SECONDS );
-ok( ! isset( snt_feed_opens_record( $old, 10, 'y', $now )[ gmdate( 'Y-m-d', $now - 100 * DAY_IN_SECONDS ) ] ), 'days older than 90 are pruned on write' );
+ok( ! isset( snt_feed_opens_record( $old, 10, 'y', $now )[ snt_feed_opens_day( $now - 100 * DAY_IN_SECONDS ) ] ), 'days older than 90 are pruned on write' );
 $cap = array();
 for ( $i = 0; $i < SNT_FEED_OPENS_PER_DAY + 20; $i++ ) {
 	$cap = snt_feed_opens_record( $cap, 10, 'ua' . $i, $now );
@@ -141,8 +142,15 @@ $served = function_exists( 'snt_feed_open_pre_serve' ) ? snt_feed_open_pre_serve
 ok( false === $served && '' === ob_get_clean() && array() === $srv->sent, 'every other route is left to core' );
 
 $live = snt_feed_opens_live( $s, $now + DAY_IN_SECONDS );
-ok( 1 === $live['today'] && 4 === $live['week'] && snt_feed_opens_window( $s, 7, $now + DAY_IN_SECONDS )['total'] === $live['week'], 'live: today is the UTC day, week is the same 7-day total rss_stats reads' );
+ok( 1 === $live['today'] && 4 === $live['week'] && snt_feed_opens_window( $s, 7, $now + DAY_IN_SECONDS )['total'] === $live['week'], 'live: today is the site day, week is the same 7-day total rss_stats reads' );
 ok( array( 10, 11 ) === array_column( $live['notes_7d'], 'post_id' ) && 3 === $live['notes_7d'][0]['opens'] && 'floor' === $live['basis'], 'live: which notes, busiest first, labeled a floor' );
-ok( 'Feed: at least 1 opens today (UTC), 4 this week' === snt_feed_opens_line( $live ), 'the dashboard line says "at least"' );
+ok( 'Feed: at least 1 opens today, 4 this week' === snt_feed_opens_line( $live ), 'the dashboard line says "at least"' );
+// 2026-11-17 (owner): days are site days. 8 pm ET on Nov 17 is 01:00 UTC on Nov 18.
+$eve = gmmktime( 1, 0, 0, 11, 18, 2026 );
+$ny  = snt_feed_opens_record( array(), 10, 'ev', $eve );
+ok( array( '2026-11-17' ) === array_keys( $ny ) && 1 === snt_feed_opens_live( $ny, $eve )['today'] && '2026-11-17' === snt_feed_opens_live( $ny, $eve )['today_day'], 'an 8 pm ET open is today in New York, not tomorrow in UTC' );
+ok( 0 === snt_feed_opens_live( $ny, gmmktime( 5, 30, 0, 11, 18, 2026 ) )['today'], 'after midnight in New York it is yesterday' );
+$dst = gmmktime( 16, 0, 0, 11, 8, 2026 ); // the week after DST ends (Nov 1)
+ok( '2026-11-02' === snt_feed_opens_day( $dst, 6 ), 'the 7-day cut counts days, not 86,400-second steps' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

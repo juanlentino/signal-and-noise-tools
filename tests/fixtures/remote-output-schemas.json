@@ -1,6 +1,6 @@
 {
-    "contract_version": "36",
-    "shape_hash": "2c8581c01458b127b68dd20bb639fff6e0d44d15395761052bf57de3b9b57fdf",
+    "contract_version": "37",
+    "shape_hash": "21ac7ac039f4550d616cc62d8869568d5c6f85be1257bf3b722901804fcbed62",
     "tools": {
         "signal-noise/remote-analytics-fields": {
             "wrap": false,
@@ -1152,114 +1152,6 @@
                                         }
                                     }
                                 }
-                            }
-                        }
-                    }
-                },
-                "required": [
-                    "result"
-                ]
-            }
-        },
-        "signal-noise/remote-get-insights": {
-            "wrap": true,
-            "outputSchema": {
-                "type": "object",
-                "properties": {
-                    "result": {
-                        "type": [
-                            "object",
-                            "null"
-                        ],
-                        "properties": {
-                            "scanned_at": {
-                                "type": [
-                                    "integer",
-                                    "null"
-                                ]
-                            },
-                            "elapsed_ms": {
-                                "type": [
-                                    "integer",
-                                    "null"
-                                ]
-                            },
-                            "signal_summary": {
-                                "type": [
-                                    "object",
-                                    "null"
-                                ]
-                            },
-                            "recommendations": {
-                                "type": "array"
-                            }
-                        }
-                    }
-                },
-                "required": [
-                    "result"
-                ]
-            }
-        },
-        "signal-noise/remote-get-narration": {
-            "wrap": true,
-            "outputSchema": {
-                "type": "object",
-                "properties": {
-                    "result": {
-                        "type": [
-                            "object",
-                            "null"
-                        ],
-                        "properties": {
-                            "state": {
-                                "type": "string",
-                                "enum": [
-                                    "ready",
-                                    "unavailable"
-                                ]
-                            },
-                            "reason": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ]
-                            },
-                            "message": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ]
-                            },
-                            "failed_at": {
-                                "type": [
-                                    "integer",
-                                    "null"
-                                ]
-                            },
-                            "generated_at": {
-                                "type": [
-                                    "integer",
-                                    "null"
-                                ]
-                            },
-                            "elapsed_ms": {
-                                "type": [
-                                    "integer",
-                                    "null"
-                                ]
-                            },
-                            "headline": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ]
-                            },
-                            "paragraphs": {
-                                "type": "array"
-                            },
-                            "highlights": {
-                                "type": "array"
                             }
                         }
                     }
