@@ -239,7 +239,7 @@ ok( array() === $GLOBALS['__audit_rows'], 'observer: read-class direct execution
 // calls were filed as door=direct (the plugin's own polling). A caller that is
 // a door names it, and the next execution is direct again once it resets.
 sn_ability_guard_door( 'remote' );
-sn_ability_guard_filter_execute_result( array(), 'signal-noise/remote-get-insights', array(), null );
+sn_ability_guard_filter_execute_result( array(), 'signal-noise/remote-get-rss-stats', array(), null );
 sn_ability_guard_door( '' );
 sn_ability_guard_filter_execute_result( array(), 'signal-noise/sn-scan', array(), null );
 ok( 'remote' === $GLOBALS['__telemetry_rows'][1]['door'] && 'direct' === $GLOBALS['__telemetry_rows'][2]['door'], 'observer: a door the caller names (the remote bridge) is the door recorded, and a reset files the next one as direct' );

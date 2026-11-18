@@ -69,24 +69,6 @@ function snt_ability_perm_remote_analytics_events() {
 }
 
 /**
- * Permission callback for `signal-noise/remote-get-insights`.
- *
- * @return bool
- */
-function snt_ability_perm_remote_insights() {
-	return sn_remote_analytics_allows( 'signal-noise/remote-get-insights' );
-}
-
-/**
- * Permission callback for `signal-noise/remote-get-narration`.
- *
- * @return bool
- */
-function snt_ability_perm_remote_narration() {
-	return sn_remote_analytics_allows( 'signal-noise/remote-get-narration' );
-}
-
-/**
  * Permission callback for `signal-noise/remote-uptime-status`.
  *
  * @return bool

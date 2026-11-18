@@ -149,7 +149,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 // straight to a contact page with no form entry in its time), pageviews_stored
 // and pageviews_est (the views the kept rows stand for), and the answer gains
 // flags_by_day. Additive.
-const SN_REMOTE_CONTRACT_VERSION = '36';
+// 2026-11-17: '36' -> '37'. remote-get-insights and remote-get-narration retired:
+// both read caches only an admin run fills, so the door could only answer null.
+// Not additive: a client listing those two tools loses them.
+const SN_REMOTE_CONTRACT_VERSION = '37';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -229,6 +232,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'35' => '6922993f54744c793305c35f8a3e9dc81aa334addfa590703ebe291a6b63fcab',
 	// RED-then-pin, 2026-11-17: link_scans on the sessions twin.
 	'36' => '2c8581c01458b127b68dd20bb639fff6e0d44d15395761052bf57de3b9b57fdf',
+	// RED-then-pin, 2026-11-17: 19-twin map, insights and narration retired.
+	'37' => '21ac7ac039f4550d616cc62d8869568d5c6f85be1257bf3b722901804fcbed62',
 );
 
 /**

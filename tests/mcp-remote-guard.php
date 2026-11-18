@@ -52,8 +52,6 @@ echo "Group: the slug list names exactly eight members, and it is not on either 
 ok( array(
 	'signal-noise/remote-get-analytics-summary',
 	'signal-noise/remote-get-analytics-events',
-	'signal-noise/remote-get-insights',
-	'signal-noise/remote-get-narration',
 	'signal-noise/remote-uptime-status',
 	'signal-noise/remote-get-health-scan',
 	'signal-noise/remote-get-rss-stats',
@@ -74,7 +72,7 @@ ok( array(
 	'signal-noise/remote-indexing-requests',        // contract 22, owner 2026-10-22.
 	'signal-noise/remote-analytics-fields',         // contract 26, owner 2026-10-31.
 	'signal-noise/remote-analytics-sessions',       // contract 28, owner 2026-10-31.
-) === sn_mcp_remote_slugs(), 'the remote list holds exactly the twenty-one slugs: eight from Increments 1+2, three ratified 2026-09-01, three Search Console twins, the 5xx rollup, bot signals, agent networks, analytics rows, indexing requests, analytics fields, analytics sessions' );
+) === sn_mcp_remote_slugs(), 'the remote list holds exactly the nineteen slugs: six from Increments 1+2 (insights and narration retired 2026-11-17), three ratified 2026-09-01, three Search Console twins, the 5xx rollup, bot signals, agent networks, analytics rows, indexing requests, analytics fields, analytics sessions' );
 ok( true === sn_mcp_remote_verdicts()['indexing_requests']['remote'] && false === sn_mcp_remote_verdicts()['search_coverage']['remote'], 'contract 22: the narrow indexing read is remote, the broad coverage map stays local' );
 
 // Contract 14 kept two things LOCAL by owner ruling: the deploy runtime (pinned

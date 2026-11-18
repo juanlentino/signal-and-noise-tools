@@ -96,8 +96,6 @@ echo "\nGroup: null-capability declarations (the August incident class)\n";
 // These three answer null by design (no scan/digest yet). The worker omits
 // structuredContent for exactly this; the DECLARED type must keep saying so.
 foreach ( array(
-	'signal-noise/remote-get-insights',
-	'signal-noise/remote-get-narration',
 	'signal-noise/remote-get-health-scan',
 	'signal-noise/remote-provenance-integrity-status', // null before the first sweep; missing here until 2026-10-26
 ) as $slug ) {
@@ -130,8 +128,8 @@ foreach ( $schemas as $slug => $schema ) {
 	$wraps[ $slug ] = sn_mcp_schema_needs_wrap( $schema );
 	ok( 'object' === ( $wire[ $slug ]['type'] ?? null ), "$slug: the wire schema's root is an object (MCP requires it)" );
 }
-ok( array( 'signal-noise/remote-get-analytics-events', 'signal-noise/remote-get-health-scan', 'signal-noise/remote-get-insights', 'signal-noise/remote-get-narration', 'signal-noise/remote-provenance-integrity-status' ) === sn_test_sorted( array_keys( array_filter( $wraps ) ) ),
-	'exactly the five list-or-null twins wrap as {result: …}' );
+ok( array( 'signal-noise/remote-get-analytics-events', 'signal-noise/remote-get-health-scan', 'signal-noise/remote-provenance-integrity-status' ) === sn_test_sorted( array_keys( array_filter( $wraps ) ) ),
+	'exactly the three list-or-null twins wrap as {result: …}' );
 $tools = array();
 foreach ( $wire as $slug => $schema ) {
 	$tools[ $slug ] = array( 'wrap' => $wraps[ $slug ], 'outputSchema' => $schema );

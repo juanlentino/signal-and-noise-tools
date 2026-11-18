@@ -64,8 +64,6 @@ function add_action( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $hoo
 $FULL_SET = array(
 	'signal-noise/remote-get-analytics-summary',
 	'signal-noise/remote-get-analytics-events',
-	'signal-noise/remote-get-insights',
-	'signal-noise/remote-get-narration',
 	'signal-noise/remote-uptime-status',
 	'signal-noise/remote-get-health-scan',
 	'signal-noise/remote-get-rss-stats',
@@ -145,16 +143,12 @@ foreach ( $GLOBALS['__actions']['wp_abilities_api_init'] as $cb ) { $cb(); }
 
 $REMOTE_SUMMARY = 'signal-noise/remote-get-analytics-summary';
 $REMOTE_EVENTS  = 'signal-noise/remote-get-analytics-events';
-$REMOTE_INSIGHTS = 'signal-noise/remote-get-insights';
-$REMOTE_NARRATION = 'signal-noise/remote-get-narration';
 $REMOTE_UPTIME  = 'signal-noise/remote-uptime-status';
 $REMOTE_HEALTH  = 'signal-noise/remote-get-health-scan';
 $REMOTE_RSS     = 'signal-noise/remote-get-rss-stats';
 $REMOTE_DEPLOY  = 'signal-noise/remote-get-deploy-status';
 
 $ADMIN_EVENTS   = 'signal-noise/get-analytics-events';
-$ADMIN_INSIGHTS = 'signal-noise/get-insights';
-$ADMIN_NARRATION = 'signal-noise/get-narration';
 $ADMIN_UPTIME   = 'signal-noise/uptime-status';
 $ADMIN_HEALTH   = 'signal-noise/get-health-scan';
 $ADMIN_RSS      = 'signal-noise/get-rss-stats';
@@ -183,8 +177,6 @@ $ADMIN_CRON  = 'signal-noise/cron-health-summary';
 $MAP = array(
 	$REMOTE_SUMMARY   => 'snt_ability_perm_remote_analytics_summary',
 	$REMOTE_EVENTS    => 'snt_ability_perm_remote_analytics_events',
-	$REMOTE_INSIGHTS  => 'snt_ability_perm_remote_insights',
-	$REMOTE_NARRATION => 'snt_ability_perm_remote_narration',
 	$REMOTE_UPTIME    => 'snt_ability_perm_remote_uptime_status',
 	$REMOTE_HEALTH    => 'snt_ability_perm_remote_health_scan',
 	$REMOTE_RSS       => 'snt_ability_perm_remote_rss_stats',
@@ -221,8 +213,6 @@ $GLOBALS['__remote_slugs'] = $FULL_SET;
 echo "Group: PARITY, output — every twin's output_schema copies the admin's byte-identically\n";
 $pairs_output = array(
 	array( $REMOTE_EVENTS, $ADMIN_EVENTS ),
-	array( $REMOTE_INSIGHTS, $ADMIN_INSIGHTS ),
-	array( $REMOTE_NARRATION, $ADMIN_NARRATION ),
 	array( $REMOTE_UPTIME, $ADMIN_UPTIME ),
 	array( $REMOTE_HEALTH, $ADMIN_HEALTH ),
 	array( $REMOTE_PROV, $ADMIN_PROV ),
@@ -284,8 +274,6 @@ ok(
 ok( $GLOBALS['__abilities'][ $REMOTE_AR ]['input_schema'] === $GLOBALS['__abilities'][ $ADMIN_AR ]['input_schema'], "$REMOTE_AR input_schema === $ADMIN_AR's (contract 15: one input definition)" );
 ok( $GLOBALS['__abilities'][ $REMOTE_AS ]['input_schema'] === $GLOBALS['__abilities'][ $ADMIN_AS ]['input_schema'] && $GLOBALS['__abilities'][ $REMOTE_AS ]['execute_callback'] === $GLOBALS['__abilities'][ $ADMIN_AS ]['execute_callback'], "$REMOTE_AS takes $ADMIN_AS's input and runs its callback (contract 28: the Sessions tab's rows)" );
 $empty_pairs = array(
-	array( $REMOTE_INSIGHTS, $ADMIN_INSIGHTS ),
-	array( $REMOTE_NARRATION, $ADMIN_NARRATION ),
 	array( $REMOTE_HEALTH, $ADMIN_HEALTH ),
 	array( $REMOTE_RSS, $ADMIN_RSS ),
 	array( $REMOTE_EE, $ADMIN_EE ),
@@ -353,11 +341,15 @@ foreach ( $MAP as $remote_slug => $ignored_cb ) {
 }
 ok( $read_count_before === count( sn_mcp_allowlist() ), "the read list's cardinality pin is unchanged by widening the remote set ($read_count_before members)" );
 
+echo "Group: RETIRED 2026-11-17 — insights and narration are off the remote door\n";
+foreach ( array( 'signal-noise/remote-get-insights', 'signal-noise/remote-get-narration' ) as $gone ) {
+	ok( ! in_array( $gone, sn_mcp_remote_slugs(), true ), "$gone is not on the remote list" );
+	ok( ! function_exists( 'snt_ability_perm_remote_' . substr( $gone, strlen( 'signal-noise/remote-get-' ) ) ), "$gone has no permission callback left" );
+}
+
 echo "Group: EXECUTE SHARING — each twin dispatches to the SAME reader as its admin twin\n";
 $execute_pairs = array(
 	array( $REMOTE_EVENTS, $ADMIN_EVENTS ),
-	array( $REMOTE_INSIGHTS, $ADMIN_INSIGHTS ),
-	array( $REMOTE_NARRATION, $ADMIN_NARRATION ),
 	array( $REMOTE_UPTIME, $ADMIN_UPTIME ),
 	array( $REMOTE_HEALTH, $ADMIN_HEALTH ),
 	array( $REMOTE_PROV, $ADMIN_PROV ),
