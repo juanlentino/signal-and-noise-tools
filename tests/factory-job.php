@@ -84,6 +84,16 @@ put( 'round-1/build.md', "STATUS: READY\n" ); job( 'advance', '7', 'gate' ); put
 ok( 0 !== job( 'advance', '7', 'ready' )[0], 'after a restart, ready needs a fresh review' );
 $GLOBALS['owner_ok'] = '0';
 
+job( 'new', '9' );
+list( $c, $o ) = job( 'advance', '9', 'needs-human' );
+ok( 0 !== $c && false !== strpos( $o, 'job escalate' ), 'needs-human is entered only through escalate, which records the stop and tells the owner' );
+$j9 = json_decode( file_get_contents( "$jobs/9/job.json" ), true ); $j9['stage'] = 'needs-human'; unset( $j9['stopped'] ); file_put_contents( "$jobs/9/job.json", json_encode( $j9 ) );
+file_put_contents( "$jobs/9/intake.md", "DECISION: ACCEPT\nSURFACES: public\n" ); file_put_contents( "$jobs/9/spec.md", "1.\n" );
+$GLOBALS['owner_ok'] = '1';
+ok( 0 !== job( 'advance', '9', 'spec' )[0] && 0 !== job( 'advance', '9', 'build' )[0], 'a waiting job with no recorded stop takes no comment as an answer' );
+$GLOBALS['owner_ok'] = '0';
+ok( isset( json_decode( file_get_contents( "$jobs/7/job.json" ), true )['stopped'] ), 'reaching ready records when the job stopped' );
+
 job( 'new', '8' );
 list( $c, $o ) = job( 'escalate', '8', 'needs a decision' );
 ok( 0 === $c && false !== strpos( $o, 'factory:needs-human' ), 'escalate labels the issue and says why' );
@@ -91,6 +101,7 @@ file_put_contents( "$jobs/8/intake.md", "DECISION: ACCEPT\nSURFACES: public\n" )
 list( $c, $o ) = job( 'advance', '8', 'spec' );
 ok( 0 !== $c && false !== strpos( $o, 'waiting for the owner' ), 'escalating is no way around the owner: needs-human -> spec waits for their answer' );
 $GLOBALS['owner_ok'] = '1';
+ok( 0 !== job( 'advance', '8', 'build' )[0], 'an escalated job with no spec cannot jump to build' );
 ok( 0 === job( 'advance', '8', 'spec' )[0], 'once the owner answers, a public-surface job may go on' );
 ok( false === strpos( file_get_contents( "$jobs/8/issue.md" ), "\n# Issue 8: " ) && false !== strpos( file_get_contents( "$jobs/8/issue.md" ), "## Title\n\n> " ), 'the issue title is quoted as data too' );
 $src = file_get_contents( __DIR__ . '/../tools/factory/job' ) . file_get_contents( __DIR__ . '/../tools/factory/gate' );

@@ -79,9 +79,11 @@ def owner_answered(j):
     """True when the owner commented on the issue after the job stopped.
     The factory's own comments (same account) open with "Factory" and never count."""
     if DRY:
-        return os.environ.get("FACTORY_OWNER_OK") == "1"
+        return bool(j.get("stopped")) and os.environ.get("FACTORY_OWNER_OK") == "1"
     data = json.loads(gh("issue", "view", j["id"], "--json", "comments", capture=True))
-    since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(j.get("stopped", 0)))
+    if not j.get("stopped"):
+        return False  # no recorded stop: nothing can count as an answer to it
+    since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(j["stopped"]))
     return any(c["author"]["login"] == CFG["owner"] and c["createdAt"] > since and not c["body"].lstrip().startswith("Factory")
                for c in data["comments"])
 
@@ -101,7 +103,7 @@ def evidence(j, to):
             return "intake.md has no SURFACES line"  # fail closed
         if "public" in m.group(1).lower() and not stopped:
             return "intake names a public surface: escalate for the owner's yes first"
-    if to == "build" and j["stage"] == "spec" and not os.path.isfile(path(job, "spec.md")):
+    if to == "build" and not os.path.isfile(path(job, "spec.md")):
         return "spec.md is missing"
     if to == "gate" and first_line(job, rnd, "build.md") != "STATUS: READY":
         return rnd + "/build.md must open with STATUS: READY"
@@ -141,6 +143,8 @@ def cmd_advance(job, to):
     j = load(job)
     if j["stage"] in TERMINAL:
         die("job %s is %s" % (job, j["stage"]))
+    if to == "needs-human":
+        die("use `job escalate %s <reason>`: it tells the owner and records when the job stopped" % job)
     if to not in MOVES.get(j["stage"], set()):
         die("%s -> %s is not a legal move (from %s: %s)" % (j["stage"], to, j["stage"], ", ".join(sorted(MOVES.get(j["stage"], [])))))
     why = evidence(j, to)
@@ -162,6 +166,8 @@ def cmd_advance(job, to):
         j["round"] = 1
     os.makedirs(path(job, "round-%d" % j["round"]), exist_ok=True)
     j["stage"] = to
+    if to == "ready":
+        j["stopped"] = int(time.time())  # every way into a waiting state records when
     save(j)
     print("job %s: %s (round %d)" % (job, to, j["round"]))
 
@@ -183,7 +189,8 @@ def cmd_ready(job):
         die("job %s is at %s, not ready" % (job, j["stage"]))
     if not DRY:  # the pull request's head must be the commit the gate and the review saw
         wt = j["worktree"]
-        subprocess.run(["git", "-C", wt, "fetch", "-q", "origin", j["branch"]])
+        if subprocess.run(["git", "-C", wt, "fetch", "-q", "origin", j["branch"]]).returncode != 0:
+            die("could not fetch origin/%s, so the pushed head is unknown" % j["branch"])
         remote = subprocess.run(["git", "-C", wt, "rev-parse", "origin/" + j["branch"]], capture_output=True, text=True).stdout.strip()
         if remote != head(j):
             die("the pushed branch (%s) is not the gated HEAD (%s): push, or run the gate again" % (remote[:8], head(j)[:8]))
