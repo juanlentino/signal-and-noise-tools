@@ -49,7 +49,7 @@ const SN_ANALYTICS_REALTIME_HOOK       = 'sn_analytics_realtime_refresh';
 // 55→40) whenever the transient was cold. This option preserves the last successful
 // site-timezone figure across that gap, resetting at local midnight (the stored day
 // no longer matches), so the cold path keeps the SAME definition instead of the UTC
-// bucket. Shape: { day: 'YYYY-MM-DD' (site tz), views: int }. Non-autoloaded.
+// bucket. Shape: { day: 'YYYY-MM-DD' (site tz), views: int, stored: int|null, at: int }. Non-autoloaded.
 const SN_ANALYTICS_VIEWS_TODAY_LASTGOOD = 'sn_analytics_views_today_lastgood';
 
 /**
@@ -292,6 +292,7 @@ function sn_analytics_realtime_refresh() {
 			'day'    => sn_analytics_local_day(),
 			'views'  => $views_today,
 			'stored' => $stored,
+			'at'     => time(), // 2026-11-22: when it was read, so no later count is compared with it (inc/analytics-today-estimate.php).
 		), false );
 	}
 

@@ -150,7 +150,14 @@ $eve = gmmktime( 1, 0, 0, 11, 18, 2026 );
 $ny  = snt_feed_opens_record( array(), 10, 'ev', $eve );
 ok( array( '2026-11-17' ) === array_keys( $ny ) && 1 === snt_feed_opens_live( $ny, $eve )['today'] && '2026-11-17' === snt_feed_opens_live( $ny, $eve )['today_day'], 'an 8 pm ET open is today in New York, not tomorrow in UTC' );
 ok( 0 === snt_feed_opens_live( $ny, gmmktime( 5, 30, 0, 11, 18, 2026 ) )['today'], 'after midnight in New York it is yesterday' );
-$dst = gmmktime( 16, 0, 0, 11, 8, 2026 ); // the week after DST ends (Nov 1)
-ok( '2026-11-02' === snt_feed_opens_day( $dst, 6 ), 'the 7-day cut counts days, not 86,400-second steps' );
+// 2026-11-22: the old instant here (16:00 UTC on Nov 8, six days back) read Nov 2
+// under every formula, so it could not fail. 11:30 pm in New York on Nov 1, the
+// day the clocks fell back, does: six calendar days back is Oct 26. Six
+// 86,400-second steps land at 04:30 UTC on Oct 27, which is Oct 27 both as a
+// UTC date (plain gmdate arithmetic) and as a New York date (00:30 EDT), so
+// each of the two wrong formulas answers Oct 27. Both were run by hand against
+// this line and failed it.
+$dst = gmmktime( 4, 30, 0, 11, 2, 2026 );
+ok( '2026-11-01' === snt_feed_opens_day( $dst ) && '2026-10-26' === snt_feed_opens_day( $dst, 6 ), 'the 7-day cut counts days, not 86,400-second steps, across the fall-back' );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

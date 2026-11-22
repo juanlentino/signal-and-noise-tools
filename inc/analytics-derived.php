@@ -350,7 +350,8 @@ function sn_analytics_period_deltas( $from, $to, $class = 'human', $cwin = null 
  * @param string $to    Inclusive end day, YYYY-MM-DD.
  * @param int    $limit Max bot networks to return.
  * 2026-11-11: `first_party` is this site's own tools over the same days, from
- * the traffic lanes (inc/analytics-lanes-first-party.php): beside the classes,
+ * the traffic lanes (inc/analytics-lanes-first-party.php; page views of
+ * /_sn/canary, the ingest canary, are not in it): beside the classes,
  * added to none of them, so `total` is still human + suspect + bot. Null when
  * no day of the window is stored. `strict` is the strict human figure
  * (inc/analytics-strict-human.php), beside human and subtracted from nothing.

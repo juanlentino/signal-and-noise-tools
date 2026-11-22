@@ -369,9 +369,11 @@ function snt_desktop_site_views_payload() {
 				$payload['today_exact'] = true;
 				// 2026-11-17: Sessions lists only the rows Analytics Engine kept; when
 				// that is fewer, say how many it lists (the rest were sampled away).
-				$kept = function_exists( 'sn_analytics_today_sampling' ) ? sn_analytics_today_sampling() : null;
-				if ( null !== $kept && (int) $kept['stored'] < $exact['views'] ) {
-					$payload['today_listed'] = (int) $kept['stored'];
+				// 2026-11-22: only from stored rows read with the exact count; an older
+				// same-day last-good is fewer because the day went on, not from sampling.
+				$kept = function_exists( 'sn_analytics_today_stored_beside' ) ? sn_analytics_today_stored_beside( $exact['read_at'] ) : null;
+				if ( null !== $kept && $kept < $exact['views'] ) {
+					$payload['today_listed'] = $kept;
 				}
 			} elseif ( function_exists( 'sn_analytics_today_is_estimate' ) && sn_analytics_today_is_estimate() ) {
 				// Additive: present only when today is known to be a sampled estimate.

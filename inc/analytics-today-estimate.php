@@ -21,23 +21,50 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Today's weighted views and stored rows, from the realtime cache or the
- * same-day last-good. Null when no reading carries both (cold, failed, or a
- * cache written before the stored count existed): unknown, never "exact".
+ * Today's weighted views and stored rows with the time they were read, from
+ * the realtime cache or the same-day last-good. `at` is 0 for a last-good
+ * written before 2026-11-22, which carried no read time.
  *
- * @return array{views:int,stored:int}|null
+ * @return array{views:int,stored:int,at:int}|null
  */
-function sn_analytics_today_sampling() {
+function sn_analytics_today_sampling_read() {
 	$cached = function_exists( 'get_transient' ) && defined( 'SN_ANALYTICS_REALTIME_KEY' ) ? get_transient( SN_ANALYTICS_REALTIME_KEY ) : false;
 	if ( is_array( $cached ) && is_int( $cached['views_today'] ?? null ) && is_int( $cached['views_today_stored'] ?? null ) ) {
-		return array( 'views' => $cached['views_today'], 'stored' => $cached['views_today_stored'] );
+		return array( 'views' => $cached['views_today'], 'stored' => $cached['views_today_stored'], 'at' => (int) ( $cached['fetched'] ?? 0 ) );
 	}
 	$lastgood = function_exists( 'get_option' ) && defined( 'SN_ANALYTICS_VIEWS_TODAY_LASTGOOD' ) ? get_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD, array() ) : array();
 	if ( is_array( $lastgood ) && is_int( $lastgood['views'] ?? null ) && is_int( $lastgood['stored'] ?? null )
 		&& function_exists( 'sn_analytics_local_day' ) && ( $lastgood['day'] ?? '' ) === sn_analytics_local_day() ) {
-		return array( 'views' => $lastgood['views'], 'stored' => $lastgood['stored'] );
+		return array( 'views' => $lastgood['views'], 'stored' => $lastgood['stored'], 'at' => (int) ( $lastgood['at'] ?? 0 ) );
 	}
 	return null;
+}
+
+/**
+ * Today's weighted views and stored rows, from one reading. Null when no
+ * reading carries both (cold, failed, or a cache written before the stored
+ * count existed): unknown, never "exact".
+ *
+ * @return array{views:int,stored:int}|null
+ */
+function sn_analytics_today_sampling() {
+	$s = sn_analytics_today_sampling_read();
+	return null === $s ? null : array( 'views' => $s['views'], 'stored' => $s['stored'] );
+}
+
+/**
+ * Today's stored rows when they can be set beside a count read at $read_at
+ * (the worker's exact count): read no earlier than the realtime cache's
+ * retention before it. Otherwise null: the last-good has no age limit, and
+ * rows stored at 9 am say nothing about sampling in a count read at 2 pm.
+ *
+ * @param int $read_at Unix time the other count was read.
+ * @return int|null
+ */
+function sn_analytics_today_stored_beside( $read_at ) {
+	$s      = sn_analytics_today_sampling_read();
+	$window = defined( 'SN_ANALYTICS_REALTIME_RETENTION' ) ? (int) SN_ANALYTICS_REALTIME_RETENTION : 300;
+	return null !== $s && $s['at'] > 0 && $s['at'] >= (int) $read_at - $window ? $s['stored'] : null;
 }
 
 /**

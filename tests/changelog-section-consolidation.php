@@ -102,5 +102,12 @@ ok( false === strpos( $awk_code, '-v next=' ) && false === strpos( $awk_code, 'n
 ok( false !== strpos( $awk_code, 'next' ),
 	'CONTROL: the stripper did not delete the whole file — `next` still appears, as the statement it is' );
 
+echo "\nGroup: nothing sits outside a section\n";
+// 2026-11-22: a bullet above "## [Unreleased]" belongs to no release, so no cut
+// carries it and no reader finds it (one sat there from 2026-11-12, #2435).
+$log   = (string) file_get_contents( $root . '/CHANGELOG.md' );
+$intro = substr( $log, 0, (int) strpos( $log, "\n## [Unreleased]" ) );
+ok( false !== strpos( $log, "\n## [Unreleased]" ) && 0 === preg_match( '/^\s*[-*] /m', $intro ), 'CHANGELOG.md has no bullet above ## [Unreleased]' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -58,8 +58,11 @@ function sn_analytics_live_payload( $all_classes ) {
 		$out['sources'] = is_array( $cached ) && isset( $cached['sources'] ) && is_array( $cached['sources'] ) ? array_values( $cached['sources'] ) : null;
 		// Admin only: the page-view records Analytics Engine kept today. Below
 		// `today`, today was sampled and `today` is its weighted estimate.
+		// 2026-11-22: beside the exact count, only stored rows read with it; null otherwise (no comparison).
 		$sampling            = function_exists( 'sn_analytics_today_sampling' ) ? sn_analytics_today_sampling() : null;
-		$out['today_stored'] = null !== $sampling ? $sampling['stored'] : null;
+		$out['today_stored'] = null !== $exact
+			? ( function_exists( 'sn_analytics_today_stored_beside' ) ? sn_analytics_today_stored_beside( $exact['read_at'] ) : null )
+			: ( null !== $sampling ? $sampling['stored'] : null );
 		// Admin only: whether `today` above is the exact count.
 		$out['today_exact'] = null !== $exact;
 		// Admin only (2026-11-01): one line per current reader, place, device and entry source; no visitor code.

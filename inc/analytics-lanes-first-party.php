@@ -10,6 +10,10 @@
  * added to one, from the beacon rows the lanes table already stores per
  * site-local complete day. Read by the Quality view (both twins) and the
  * local door's get-analytics-summary; the remote twin does not carry it.
+ * The hourly ingest canary (inc/analytics-ingest-canary.php) is a SignalNoise-
+ * page view too; since 2026-11-22 it is sent on its own path, /_sn/canary,
+ * and the lanes read leaves that path out, so it is not in this figure.
+ * Canary rows sent before that, on the path /, are.
  *
  * @package SignalNoiseTools
  */
@@ -85,7 +89,7 @@ function sn_lanes_first_party_line( $fp ) {
 	}
 	$num = static fn( $n ) => function_exists( 'number_format_i18n' ) ? (string) number_format_i18n( (int) $n ) : number_format( (int) $n );
 	return sprintf(
-		'This site\'s own tools, in none of the three classes: %1$s page views, proven %2$s on %3$s visitor-days (the x-sn-first-party header) and claimed %4$s on %5$s visitor-days (a SignalNoise- user agent), complete days %6$s to %7$s%8$s.',
+		'This site\'s own tools, in none of the three classes: %1$s page views, proven %2$s on %3$s visitor-days (the x-sn-first-party header) and claimed %4$s on %5$s visitor-days (a SignalNoise- user agent), complete days %6$s to %7$s%8$s; page views of /_sn/canary, the hourly ingest canary, are not counted.',
 		$num( $fp['views'] ),
 		$num( $fp['proven']['views'] ),
 		$num( $fp['proven']['visitor_days'] ),
