@@ -66,11 +66,14 @@ Run every command from the repository root. `J=tools/factory/job`.
    `DECISION: ACCEPT`, `DECISION: NEEDS-INFO` or `DECISION: REJECT`, then
    `RISK: low|medium|high`, one `SURFACES:` line, a `## Summary` of three to
    five bullets and a `## Scope` saying exactly what will and will not be
-   done. The SURFACES line is checked strictly: exactly one such line in the
-   file, the surfaces on that same line separated by commas or spaces, each
-   one of `public`, `admin`, `security`, `data`, or `none` alone. Anything
-   else (a bulleted list under it, other words, a second SURFACES line) is
-   refused, with the problem named.
+   done. `job` checks SURFACES strictly and refuses anything else, naming
+   the problem. Exactly one line in the file may start with the word SURFACES
+   (any case, with or without a colon or leading punctuation). It reads
+   `SURFACES: a, b`: the whole list on that one line, separated by commas or
+   spaces, each word one of `public`, `admin`, `security`, `data`, or `none`
+   alone, and no trailing comma. The next non-empty line after it must not be
+   a list item or a bare surface word: follow it with a blank line and the
+   `## Summary` heading.
    - ACCEPT: `$J advance <id> spec`. If it refuses for a public surface,
      escalate as above.
    - NEEDS-INFO: `$J advance <id> needs-info`, then `gh issue comment <id>
@@ -117,31 +120,30 @@ Run every command from the repository root. `J=tools/factory/job`.
 
 ## What `job` enforces, and what it cannot
 
-`job advance <id> ready` checks that the gate passed on the worktree's
-current HEAD, that the review passed that same commit, and, when intake
-names `security` or `data`, that the review's second line is `SECURITY: PASS`
-with that commit. `job ready` runs the same check again, then checks that the
-pushed branch is that commit and that `gh pr checks <branch>` is all green,
-and only then marks the pull request ready. A commit after the gate means the
-gate and the review run again. `job advance <id> merged` asks GitHub and
-refuses unless the pull request is merged.
+Stage `ready` means the evidence ON DISK is complete: `job advance <id>
+ready` checks the gate and the review on the worktree's HEAD (and the
+`SECURITY: PASS` line for `security` or `data`). It does not look at GitHub,
+so a job can be at `ready` unpushed or with red CI. `job ready` is the
+evidence ON GITHUB: it repeats that check, then requires the worktree's
+origin to be this repository, the pull request to be open with GitHub's head
+equal to that commit, and `gh pr checks` all green. Only then does it mark
+the pull request ready and comment, once per commit: a second run says there
+is nothing to do. If it refuses for red CI the job needs rework, and rework
+from `ready` needs the owner's answer first. `job advance <id> merged`
+refuses unless GitHub says the pull request is merged.
 
-Known limits, stated plainly:
+Known limits (the full list is in `tools/factory/README.md`):
 
-- **Any owner comment is the go-ahead.** A job at `needs-human` or `ready`
-  restarts once the owner has commented on the issue after it stopped. `job`
-  does not read what the comment means: "no, leave this alone" unlocks the
-  restart exactly as "yes" does. Reading the answer is your job, from the
-  refreshed `issue.md`: if it is not a clear go-ahead, do not restart.
-- **Job state is local to one checkout.** `jobs/` is gitignored, so another
-  checkout or worktree knows nothing of a job here. That is why `job new`
-  refuses an issue already labeled `factory:needs-human` or `factory:ready`:
-  go back to the checkout that holds the job, or have the owner remove the
-  label.
-- **The evidence files are plain files.** `checks.md` and `review.md` are
-  trusted as written. `job` ties them to a commit and to the pushed branch;
-  it cannot tell who wrote them. Only `tools/factory/gate` writes
-  `checks.md`, and only a reviewer agent writes `review.md`.
-- **The gate runs the branch's tests.** The runner is the base branch's, but
-  the suites and their helpers are the branch's own, which is why a reviewer
-  reads the test changes.
+- **Any owner comment is the go-ahead.** `job` does not read what the comment
+  means: "no, leave this alone" unlocks a restart exactly as "yes" does.
+  Reading the answer is your job, from the refreshed `issue.md`.
+- **Job state is local to one checkout.** That is why `job new` refuses an
+  issue already labeled `factory:needs-human` or `factory:ready`: go back to
+  the checkout that holds the job, or have the owner remove the label.
+- **The files are trusted as written.** `job` cannot know who wrote
+  `intake.md`, `checks.md` or `review.md`, or whether a stage in `job.json`
+  was set by hand. Only the intake agent writes `intake.md`, only
+  `tools/factory/gate` writes `checks.md`, only a reviewer writes `review.md`,
+  and nobody edits `job.json`.
+- **The gate runs the branch's tests.** A gutted test that still prints its
+  summary passes, which is why a reviewer reads the test changes.

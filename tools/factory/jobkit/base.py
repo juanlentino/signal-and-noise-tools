@@ -1,22 +1,28 @@
-"""Shared ground for the factory's state keeper: configuration, the gh
-wrapper, the job folder and the worktree's HEAD."""
-import json, os, subprocess, sys, time
+"""Shared ground for the factory's state keeper: where things are, the gh
+wrapper, and git asked in a way the caller's environment cannot redirect."""
+import json, os, subprocess, sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-ROOT = os.environ.get("FACTORY_ROOT") or os.path.dirname(os.path.dirname(HERE))
-REAL_JOBS = os.path.join(HERE, "jobs")
-JOBS = os.environ.get("FACTORY_JOBS") or REAL_JOBS
-CFG = json.load(open(os.path.join(HERE, "config.json")))
 DRY = os.environ.get("FACTORY_DRY") == "1"
+# FACTORY_ROOT is a test seam like FACTORY_DRY: a live run's root is where this script sits.
+ROOT = os.path.realpath((DRY and os.environ.get("FACTORY_ROOT")) or os.path.dirname(os.path.dirname(HERE)))
+REAL_JOBS = os.path.realpath(os.path.join(HERE, "jobs"))
+JOBS = os.path.realpath(os.environ.get("FACTORY_JOBS") or REAL_JOBS)
+CFG = json.load(open(os.path.join(HERE, "config.json")))
+BASE_REF = "refs/remotes/origin/" + CFG["base"]  # never "origin/<base>": a local branch can carry that name
+# What `git rev-parse --local-env-vars` lists: the variables that choose the repository.
+GIT_LOCAL = ("GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT GIT_OBJECT_DIRECTORY GIT_DIR"
+             " GIT_WORK_TREE GIT_IMPLICIT_WORK_TREE GIT_GRAFT_FILE GIT_INDEX_FILE GIT_NO_REPLACE_OBJECTS GIT_REPLACE_REF_BASE"
+             " GIT_PREFIX GIT_SHALLOW_FILE GIT_COMMON_DIR").split()
 
 
 def die(msg):
     sys.exit("factory: " + msg)
 
 
-# FACTORY_DRY is a test seam. It skips GitHub and takes FACTORY_OWNER_OK for the
-# owner's answer, so it must never be able to write the real jobs folder.
-if DRY and os.path.realpath(JOBS) == os.path.realpath(REAL_JOBS):
+# FACTORY_DRY skips GitHub and takes FACTORY_OWNER_OK for the owner's answer,
+# so it must never be able to write the real jobs folder, however it is spelled.
+if DRY and JOBS == REAL_JOBS:
     die("FACTORY_DRY=1 is for tests: set FACTORY_JOBS to a folder that is not the real jobs folder")
 
 
@@ -40,17 +46,22 @@ def gh(*args):
     return out
 
 
+def gh_json(*args):
+    """A gh answer as a dict. A dry run has no answer: it returns None."""
+    out = gh(*args)
+    if DRY:
+        return None
+    try:
+        data = json.loads(out)
+    except ValueError:
+        data = None
+    if not isinstance(data, dict):
+        die("gh " + " ".join(args[:2]) + " did not answer with a JSON object")
+    return data
+
+
 def path(job, *parts):
     return os.path.join(JOBS, str(job), *parts)
-
-
-def load(job):
-    try:
-        return json.load(open(path(job, "job.json")))
-    except FileNotFoundError:
-        die("no job " + str(job))
-    except (OSError, ValueError):
-        die("job %s has an unreadable job.json" % job)
 
 
 def write_atomic(target, text):
@@ -60,11 +71,6 @@ def write_atomic(target, text):
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(text)
     os.replace(tmp, target)
-
-
-def save(j, folder=None):
-    j["updated"] = int(time.time())
-    write_atomic(os.path.join(folder or path(j["id"]), "job.json"), json.dumps(j, indent=1))
 
 
 def lines(job, *parts):
@@ -79,9 +85,14 @@ def first_line(job, *parts):
     return (lines(job, *parts) or [""])[0]
 
 
+def git_run(where, *args):
+    env = {k: v for k, v in os.environ.items() if k not in GIT_LOCAL}
+    return subprocess.run(["git", "-C", where, *args], capture_output=True, text=True, env=env)
+
+
 def git(where, *args):
     """A git command's output, or '' when it fails."""
-    r = subprocess.run(["git", "-C", where, *args], capture_output=True, text=True)
+    r = git_run(where, *args)
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
@@ -96,5 +107,4 @@ def is_worktree_of(wt, branch):
 
 
 def head(j):
-    wt = j.get("worktree") or ""
-    return git(wt, "rev-parse", "HEAD") if is_worktree_of(wt, j["branch"]) else ""
+    return git(j["worktree"], "rev-parse", "HEAD") if is_worktree_of(j["worktree"], j["branch"]) else ""

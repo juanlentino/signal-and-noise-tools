@@ -4,7 +4,7 @@
  * stage move, a move without its evidence file, and a public surface without
  * the owner; a failed round costs one; it stops at ready and never merges.
  * The parts in tests/lib/factory-*.php cover the bypasses an audit reproduced
- * (factory-job-evidence, -live, -worktree) and the gate (factory-gate).
+ * (factory-job-evidence, -live, -worktree, -seams) and the gate (factory-gate).
  * Run: php tests/factory-job.php
  */
 if ( PHP_SAPI !== 'cli' ) { http_response_code( 404 ); exit; }
@@ -13,7 +13,6 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 if ( '' === trim( (string) shell_exec( 'command -v python3' ) ) ) { echo "SKIP: python3 not found\n\nResult: 0 passed, 0 failed.\n"; exit( 0 ); }
 
 require __DIR__ . '/lib/factory-harness.php';
-$wt = "$tmp/wt";
 function put( $rel, $text ) { putj( '7', $rel, $text ); }
 
 ok( 0 === job( 'new', '7' )[0] && is_file( "$jobs/7/issue.md" ), 'new: a job folder with the issue as quoted data' );
@@ -44,9 +43,7 @@ ok( 0 === job( 'advance', '7', 'gate' )[0], 'a READY build moves to gate' );
 ok( 0 !== job( 'advance', '7', 'review' )[0], 'gate -> review is refused without a passing checks.md' );
 
 // A real worktree HEAD, so the gate's sha is checked against it.
-sh( 'git init -q ' . escapeshellarg( $wt ) ); git( $wt, 'checkout -q -b factory/7' ); git( $wt, 'commit -q --allow-empty -m one' );
-$j = json_decode( file_get_contents( "$jobs/7/job.json" ), true ); $j['worktree'] = $wt; file_put_contents( "$jobs/7/job.json", json_encode( $j ) );
-$sha = trim( (string) shell_exec( 'git -C ' . escapeshellarg( $wt ) . ' rev-parse HEAD' ) );
+job( 'worktree', '7' ); $sha = head_of( '7' );
 put( 'round-1/checks.md', "PASS 0000000000000000000000000000000000000000\n" );
 ok( 0 !== job( 'advance', '7', 'review' )[0], 'a gate that passed on another commit does not count' );
 put( 'round-1/checks.md', "PASS $sha\n" );
@@ -106,7 +103,7 @@ ok( false === strpos( file_get_contents( "$jobs/8/issue.md" ), "\n# Issue 8: " )
 $src = file_get_contents( __DIR__ . '/../tools/factory/job' ) . file_get_contents( __DIR__ . '/../tools/factory/gate' ) . implode( '', array_map( 'file_get_contents', glob( __DIR__ . '/../tools/factory/jobkit/*.py' ) ) );
 ok( false === strpos( $src, 'pr", "merge' ) && false === strpos( $src, 'pr merge' ) && false === strpos( $src, '--admin' ) && false === strpos( $src, 'cut-' ), 'neither script can merge, use --admin or cut' );
 
-foreach ( array( 'evidence', 'live', 'worktree' ) as $part ) { require __DIR__ . "/lib/factory-job-$part.php"; }
+foreach ( array( 'evidence', 'live', 'worktree', 'seams' ) as $part ) { require __DIR__ . "/lib/factory-job-$part.php"; }
 require __DIR__ . '/lib/factory-gate.php';
 
 rrmdir( $tmp );

@@ -4,20 +4,7 @@ import os
 from .base import first_line, head, lines, path
 from .intake import intake_problem, surfaces
 from .issue import owner_answered
-
-# The legal moves. `ready` is where the pilot stops: a person merges.
-MOVES = {
-    "intake": {"spec", "needs-info", "rejected", "needs-human"},
-    "needs-info": {"intake", "abandoned"},
-    "spec": {"build", "needs-human", "abandoned"},
-    "build": {"gate", "needs-human"},
-    "gate": {"review", "build", "needs-human"},
-    "review": {"ready", "build", "needs-human"},
-    "needs-human": {"spec", "build", "abandoned"},
-    "ready": {"build", "merged", "abandoned"},
-}
-TERMINAL = {"merged", "rejected", "abandoned"}
-WAITING = ("needs-human", "ready")
+from .state import WAITING
 
 
 def gate_problem(j):

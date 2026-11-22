@@ -12,12 +12,12 @@ $bullet = function ( $under ) use ( $g ) { file_put_contents( "$g/CHANGELOG.md",
 $good   = function () use ( $g, $bullet ) { file_put_contents( "$g/tests/new.php", "<?php\necho \"1 passed, 0 failed\";\n" ); file_put_contents( "$g/inc/a.php", "<?php\n\$a = 1;\n" ); $bullet( 'Unreleased' ); };
 /** Run the gate. Returns [exit code, checks.md, checks.log]. */
 $run = function () use ( $jobs, $tool ) {
-	$code = sh( 'FACTORY_JOBS=' . escapeshellarg( $jobs ) . ' bash ' . escapeshellarg( "$tool/gate" ) . ' 71' )[0];
+	$code = sh( 'FACTORY_DRY=1 FACTORY_ROOT=' . escapeshellarg( $GLOBALS['root'] ) . ' FACTORY_JOBS=' . escapeshellarg( $jobs ) . ' bash ' . escapeshellarg( "$tool/gate" ) . ' 71' )[0];
 	return array( $code, (string) @file_get_contents( "$jobs/71/round-1/checks.md" ), (string) @file_get_contents( "$jobs/71/round-1/checks.log" ) );
 };
 /** Reset the branch to the base, apply a change, commit it, run the gate. */
-$gate = function ( callable $change ) use ( $g, $run ) {
-	git( $g, 'reset -q --hard origin/main' ); git( $g, 'clean -qfd' ); $change(); git( $g, 'add -A' ); git( $g, 'commit -q -m change' );
+$gate = function ( callable $change ) use ( $g, $run, $BASE ) {
+	git( $g, "reset -q --hard $BASE" ); git( $g, 'clean -qfd' ); $change(); git( $g, 'add -A' ); git( $g, 'commit -q -m change' );
 	return $run();
 };
 $fails = function ( $md ) { preg_match_all( '/^- FAIL: (.*)$/m', $md, $m ); return $m[1]; };
@@ -37,11 +37,34 @@ ok( 0 !== $c && in_array( 'tests/run.sh is unchanged and no test is deleted or r
 list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); unlink( "$g/tests/new.php" ); unlink( "$g/tests/old.php" ); } );
 ok( 0 !== $c && in_array( 'the change adds or modifies a file under tests/', $fails( $md ), true ), 'a deletion under tests/ is not a touched test' );
 
-list( $c, $md ) = $gate( function () use ( $good, $bullet, $g ) { $good(); git( $g, 'checkout -q origin/main -- CHANGELOG.md' ); $bullet( '1.0.0' ); } );
+list( $c, $md ) = $gate( function () use ( $good, $bullet, $g ) { $good(); git( $g, "checkout -q $BASE -- CHANGELOG.md" ); $bullet( '1.0.0' ); } );
 ok( 0 !== $c && array( 'CHANGELOG has a new Unreleased bullet' ) === $fails( $md ), 'a bullet added under an old release is not an Unreleased bullet' );
 
 list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); file_put_contents( "$g/inc/caf\xc3\xa9.php", "<?php if (\n" ); } );
 ok( 0 !== $c && array( 'php -l on every changed PHP file' ) === $fails( $md ), 'a parse error in a PHP file with a non-ASCII name is linted and fails' );
+
+$step = 'CHANGELOG has a new Unreleased bullet';
+list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); file_put_contents( "$g/CHANGELOG.md", "\n## [Unreleased]\n", FILE_APPEND ); } );
+ok( 0 !== $c && array( $step ) === $fails( $md ), 'a second Unreleased heading fails, even beside a real new bullet' );
+list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); file_put_contents( "$g/CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n\n- an old bullet\n\n## [1.0.0]\n" ); } );
+ok( 0 !== $c && array( $step ) === $fails( $md ), 'an old bullet that ends up inside Unreleased because a heading moved is not an added bullet' );
+
+$lint = 'php -l on every changed PHP file';
+list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); file_put_contents( "$g/-d.php", "<?php\n" ); file_put_contents( "$g/inc/zbroken.php", "<?php if (\n" ); } );
+ok( 0 !== $c && array( $lint ) === $fails( $md ), 'a file named -d.php does not stop the lint: a broken file after it still fails' );
+list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); file_put_contents( "$g/inc/b.PHP", "<?php if (\n" ); } );
+ok( 0 !== $c && array( $lint ) === $fails( $md ), 'a .PHP file is a PHP file' );
+
+list( $c, $md ) = $gate( function () use ( $g, $good, $EM ) { $good(); file_put_contents( "$g/inc/quiet.txt", "a $EM b\n" ); } );
+ok( 0 !== $c && array( 'no em dash in added lines' ) === $fails( $md ), 'a -diff attribute does not hide an em dash from the gate' );
+list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); @mkdir( "$g/inc/deep" ); file_put_contents( "$g/inc/deep/.gitattributes", "*.php -diff\n" ); } );
+ok( 0 !== $c && array( 'the change does not touch .gitattributes' ) === $fails( $md ), 'a change to any .gitattributes fails the gate' );
+
+// A local branch named origin/main must not become the base the branch is judged against.
+git( $g, "reset -q --hard $BASE" ); file_put_contents( "$g/tests/run.sh", "#!/usr/bin/env bash\necho BRANCH-RUNNER\nexit 0\n" ); git( $g, 'add -A' ); git( $g, 'commit -q -m runner' );
+git( $g, 'branch origin/main HEAD' ); $good(); git( $g, 'add -A' ); git( $g, 'commit -q -m change' );
+list( $c, $md, $log ) = $run(); git( $g, 'branch -D origin/main' );
+ok( 0 !== $c && array( 'tests/run.sh is unchanged and no test is deleted or renamed away' ) === $fails( $md ) && false === strpos( $log, 'BRANCH-RUNNER' ), 'the base is refs/remotes/origin/main even when a local branch is named origin/main' );
 
 foreach ( array( '+ a line that starts with a plus', '++ b/inc/a.php and looks like a diff header' ) as $line ) {
 	list( $c, $md ) = $gate( function () use ( $g, $good, $line, $EM ) { $good(); file_put_contents( "$g/inc/notes.txt", "$line $EM here\n" ); } );

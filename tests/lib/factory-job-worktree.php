@@ -35,3 +35,7 @@ job( 'new', '63' ); $wt63 = "$root/.claude/worktrees/factory-63"; mkdir( $wt63, 
 set_state( '63', array( 'worktree' => $wt63, 'stage' => 'gate' ) ); putj( '63', 'round-1/checks.md', "PASS $main\n" );
 list( $c, $o ) = job( 'advance', '63', 'review' ); git( $root, 'checkout -q main' );
 ok( 0 !== $c && false !== strpos( $o, 'no worktree HEAD' ), 'the folder must be the top of its own worktree, whatever branch the main checkout is on' );
+// A local branch named origin/main does not stand in for the base: the worktree starts from the remote's main.
+$other = commit_in( '61', 'not the base' ); git( $root, 'branch origin/main ' . $other );
+job( 'new', '65' ); job( 'worktree', '65' ); git( $root, 'branch -D origin/main' );
+ok( $main === head_of( '65' ), 'a new worktree starts at refs/remotes/origin/main, whatever a local branch is called' );

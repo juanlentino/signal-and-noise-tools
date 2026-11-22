@@ -1,15 +1,16 @@
 """`job worktree`: the one folder a job's builder may change."""
-import os, subprocess
+import os
 
-from .base import CFG, ROOT, die, is_worktree_of, load, save
+from .base import BASE_REF, ROOT, die, git_run, is_worktree_of, path
+from .state import load, save
 
 
 def cmd_worktree(job):
     j = load(job)
-    wt, br = os.path.join(ROOT, ".claude", "worktrees", "factory-" + j["id"]), j["branch"]
+    wt, br = j["worktree"], j["branch"]
 
     def run(*args):
-        r = subprocess.run(["git", "-C", ROOT, *args], capture_output=True, text=True)
+        r = git_run(ROOT, *args)
         if r.returncode != 0:
             die("git %s failed: %s" % (" ".join(args[:2]), r.stderr.strip()))
 
@@ -21,11 +22,16 @@ def cmd_worktree(job):
     else:
         run("fetch", "-q", "origin")
         run("worktree", "prune")  # forget a worktree whose folder was deleted by hand
-        known = subprocess.run(["git", "-C", ROOT, "rev-parse", "-q", "--verify", "refs/heads/" + br], capture_output=True)
-        if known.returncode == 0:  # the branch outlived its folder: keep its commits
-            run("worktree", "add", "-q", wt, br)
+        if git_run(ROOT, "rev-parse", "-q", "--verify", "refs/heads/" + br).returncode == 0:
+            run("worktree", "add", "-q", wt, br)  # the branch outlived its folder: keep its commits
         else:
-            run("worktree", "add", "-q", "-b", br, wt, "origin/" + CFG["base"])
-    j["worktree"] = wt
+            run("worktree", "add", "-q", "-b", br, wt, BASE_REF)
     save(j)
     print(wt)
+
+
+def cmd_where(job):
+    """For tools/factory/gate: the job's worktree, round and folder, one per
+    line, from the same checked read every command uses."""
+    j = load(job)
+    print("%s\n%d\n%s" % (j["worktree"], j["round"], path(j["id"])))

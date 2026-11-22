@@ -8,8 +8,9 @@ orchestrating session never improvises them. See tools/factory/README.md.
 Usage: job new <issue> | refresh <id> | advance <id> <stage>
        job escalate <id> <reason> | ready <id> | worktree <id> | status [<id>]
 FACTORY_DRY=1 prints GitHub commands instead of running them. It is a test
-seam: it refuses to run on the real jobs folder (set FACTORY_JOBS elsewhere),
-and FACTORY_OWNER_OK is read only under it.
+seam: it refuses the real jobs folder (set FACTORY_JOBS elsewhere) and any
+job a live run made, and FACTORY_OWNER_OK and FACTORY_ROOT are read only
+under it. A live run refuses a job a dry run made.
 """
 import os, sys
 

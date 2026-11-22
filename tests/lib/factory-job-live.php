@@ -4,6 +4,7 @@
  * against the stand-in `gh` from the harness. The test seams cannot write real
  * state, `new` reads the issue's state and labels, merged and green checks are
  * verified, `refresh` carries the owner's answer, and state survives a bad file.
+ * Every live call here runs the copy inside the fixture (see the harness).
  */
 if ( PHP_SAPI !== 'cli' ) { http_response_code( 404 ); exit; }
 if ( ! $live_ok ) { ok( false, 'the stand-in gh is first on PATH (the live part did not run)' ); return; }
@@ -59,18 +60,31 @@ list( $c, $o ) = live( 'status' );
 ok( 0 === $c && false !== strpos( $o, "51\tbuild" ) && false !== strpos( $o, 'skipping job 98' ) && false !== strpos( $o, 'skipping job 99' ), 'status skips an unreadable job.json with a warning and lists the rest' );
 rrmdir( "$jobs/98" ); rrmdir( "$jobs/99" );
 
-// 8 and 9. merged is verified with gh; `job ready` needs the pushed head and green checks.
-walk( '54' ); $wt54 = state( '54' )['worktree'];
-stub( 'pr.json', array( 'state' => 'OPEN' ) );
+// 7, 8 and 9. merged and "pushed" are GitHub's word; `job ready` also needs green checks, and runs once.
+issue(); walk( '54', 'admin', 'ready', 'live' ); $sha54 = head_of( '54' );
+$pr = function ( $state, $head ) { stub( 'pr.json', array( 'state' => $state, 'isDraft' => true, 'headRefOid' => $head ) ); };
+$pr( 'OPEN', $sha54 ); stub( 'checks.rc', '0' ); file_put_contents( "$tmp/bin/calls.log", '' );
 list( $c, $o ) = live( 'advance', '54', 'merged' );
-ok( 0 !== $c && false !== strpos( $o, 'OPEN' ) && 'ready' === state( '54' )['stage'], 'ready -> merged is refused while gh says the pull request is open' );
-git( $wt54, 'push -q origin factory/54' ); stub( 'checks.rc', '1' ); file_put_contents( "$tmp/bin/calls.log", '' );
+ok( 'ready' === ( state( '54' )['stage'] ?? '' ) && 0 !== $c && false !== strpos( $o, 'not MERGED' ), 'ready -> merged is refused while gh says the pull request is open' );
 list( $c, $o ) = live( 'ready', '54' );
-ok( 0 !== $c && false !== strpos( $o, 'checks' ) && false === strpos( calls(), 'pr ready' ), '`job ready` refuses while `gh pr checks` is not all green' );
+ok( 0 !== $c && false !== strpos( $o, "the worktree's origin" ) && false === strpos( calls(), 'pr ready' ), '`job ready` refuses a worktree whose origin is not the configured repository' );
+git( $root, 'remote set-url origin ' . escapeshellarg( $GITHUB ) ); // no fetch or push may happen until this is put back
+$pr( 'OPEN', str_repeat( '0', 40 ) );
+list( $c, $o ) = live( 'ready', '54' );
+ok( 0 !== $c && false !== strpos( $o, "GitHub's head" ) && false === strpos( calls(), 'pr ready' ), '`job ready` refuses when GitHub\'s head for the pull request is not the gated commit' );
+$pr( 'CLOSED', $sha54 );
+list( $c, $o ) = live( 'ready', '54' );
+ok( 0 !== $c && false !== strpos( $o, 'not OPEN' ), '`job ready` refuses a pull request that is not open' );
+$pr( 'OPEN', $sha54 ); stub( 'checks.rc', '1' );
+list( $c, $o ) = live( 'ready', '54' );
+ok( 0 !== $c && false !== strpos( $o, 'CI is not all green' ) && false !== strpos( $o, "owner's answer" ) && false === strpos( calls(), 'pr ready' ), '`job ready` refuses while `gh pr checks` is not all green, and says rework needs the owner' );
 stub( 'checks.rc', '0' );
 list( $c, $o ) = live( 'ready', '54' );
-ok( 0 === $c && false !== strpos( calls(), 'pr checks factory/54' ) && false !== strpos( calls(), 'pr ready factory/54' ), 'pushed head, gate, review and green checks: the pull request is marked ready' );
-stub( 'pr.json', array( 'state' => 'MERGED' ) );
+ok( 0 === $c && false !== strpos( calls(), 'pr checks factory/54' ) && false !== strpos( calls(), 'pr ready factory/54' ) && 1 === substr_count( calls(), 'issue comment' ), 'GitHub\'s head, gate, review and green checks: the pull request is marked ready, with one comment' );
+list( $c, $o ) = live( 'ready', '54' );
+ok( 0 === $c && false !== strpos( $o, 'nothing to do' ) && 1 === substr_count( calls(), 'issue comment' ) && 1 === substr_count( calls(), 'pr ready' ), 'a second live `job ready` posts nothing' );
+git( $root, 'remote set-url origin ' . escapeshellarg( $origin ) );
+$pr( 'MERGED', $sha54 );
 ok( 0 === live( 'advance', '54', 'merged' )[0] && 'merged' === state( '54' )['stage'], 'once gh says MERGED the job closes as merged' );
 walk( '55' );
 ok( 0 === job( 'advance', '55', 'merged' )[0], 'a dry run accepts ready -> merged without asking gh' );

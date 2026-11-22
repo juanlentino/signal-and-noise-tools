@@ -19,8 +19,9 @@ ok( 0 !== $c && false !== strpos( $o, 'review.md' ), '`job ready` refuses a comm
 putj( '21', 'round-1/review.md', "VERDICT: PASS $new\n" ); set_state( '21', array( 'stopped' => 1000 ) );
 list( $c, $o ) = job( 'ready', '21' );
 ok( 0 === $c && false !== strpos( $o, 'gh pr ready' ), 'with the gate and the review on the new HEAD, `job ready` goes through' );
-job( 'ready', '21' );
+list( $c, $o ) = job( 'ready', '21' );
 ok( 1000 === state( '21' )['stopped'], '`job ready` never moves the recorded stop, however often it runs' );
+ok( 0 === $c && false !== strpos( $o, 'nothing to do' ) && false === strpos( $o, 'gh ' ), 'a second `job ready` on the same commit is a no-op that says so: no second comment' );
 
 // 2. SURFACES is an allowlist: exactly one line, a value on it, known words only.
 job( 'new', '22' );
@@ -31,13 +32,19 @@ $bad = array(
 	"SURFACES: admin\nThe surfaces: public"              => 'exactly one',
 	'SURFACES: none, admin'                              => 'none',
 	'SURFACES: admin; public'                            => 'admin;',
+	"SURFACES: admin,\n  public"                         => 'empty item',
+	"SURFACES: admin\n- public"                          => 'line after SURFACES',
+	"SURFACES: admin\n\n* public"                        => 'line after SURFACES',
+	"SURFACES: admin\n\nPublic"                          => 'line after SURFACES',
+	"SURFACES: admin\n\n## Scope\nSURFACES public"       => 'exactly one',
+	"SURFACES: admin\n\n## Scope\n- surfaces = public"   => 'exactly one',
 );
 foreach ( $bad as $lines => $names ) {
 	putj( '22', 'intake.md', "DECISION: ACCEPT\nRISK: low\n$lines\n" );
 	list( $c, $o ) = job( 'advance', '22', 'spec' );
 	ok( 0 !== $c && false !== strpos( $o, $names ) && 'intake' === state( '22' )['stage'], 'refused, naming "' . $names . '": ' . str_replace( "\n", ' / ', $lines ) );
 }
-putj( '22', 'intake.md', "DECISION: ACCEPT\nRISK: low\n**SURFACES:** `admin`, Data security\n" );
+putj( '22', 'intake.md', "DECISION: ACCEPT\nRISK: low\n**SURFACES:** `admin`, Data security\n\n## Summary\n- one\n- public pages stay as they are\n" );
 ok( 0 === job( 'advance', '22', 'spec' )[0], 'known surfaces, comma or space separated and decorated, move to spec' );
 job( 'new', '23' ); putj( '23', 'intake.md', "DECISION: ACCEPT\nSURFACES: none\n" );
 ok( 0 === job( 'advance', '23', 'spec' )[0], '`none` alone moves to spec' );
