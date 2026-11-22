@@ -13,6 +13,12 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **An hourly ingest canary, so a quiet day no longer reads as a dead collector.** Once an hour the plugin sends one pageview of `/` to the real collector (`/_sn/px`, through Cloudflare, with the public beacon key) under the user agent `SignalNoise-IngestCanary/1.0`. The analytics Worker files a SignalNoise- user agent as this site's own tool (identity 7) in `sn_owner_hits`, so it is in no human, suspect or bot count; it shows only in the own-tools figure. The last answer is stored in `sn_ingest_canary_last`. New: `inc/analytics-ingest-canary.php`, test `tests/analytics-ingest-canary.php`.
+
+### Changed
+- **The Analytics ingest health check reads the canary.** It still flags at 24 hours without a human pageview when the canary is missing (the collector is likely dark) or could not be read. When a canary arrived in the last 24 hours, the collector is proven to write, so it waits 72 hours before flagging, and then points at the theme beacon or the worker's classifier. Prompted by 2026-11-20: a day with no presumed-human pageview (nine data-center visits, all suspect) raised the alarm though ingest was fine. Test: `tests/health-check-analytics-ingest.php` (+7; the quiet-day test goes red with the canary branch removed).
+
 ## [2026.11.52] - 2026-11-18 — Feed opens count New York days; insights and narration retired from the remote door
 
 ### Changed

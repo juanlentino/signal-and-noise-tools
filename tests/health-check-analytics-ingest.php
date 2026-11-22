@@ -57,5 +57,22 @@ $GLOBALS['__q']['rows'] = array();
 $r = sn_health_check_analytics_ingest();
 ok( 1 === $r['count'] && null === $r['skipped'], 'a successful empty read flags through the wrapper' );
 
+// 2026-11-21: the canary tells a quiet day from a dead collector.
+$quiet = array(
+	array( 'cls' => 'human', 'recent' => '0', 'recent_pv' => '0', 'last_pv' => (string) ( $now - 38 * 3600 ) ),
+	array( 'cls' => 'suspect', 'recent' => '9', 'recent_pv' => '9', 'last_pv' => (string) ( $now - 3600 ) ),
+);
+ok( array() === sn_health_analytics_ingest_findings( $quiet, $now, $now - 1800 ), 'canary seen 30 minutes ago and a human 38 h ago: a quiet day, no finding' );
+$f = sn_health_analytics_ingest_findings( $quiet, $now, 0 );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'canary did not arrive' ), 'no canary in 24 h: flagged at 24 h, and the note says the canary is missing too' );
+$f = sn_health_analytics_ingest_findings( $quiet, $now, null );
+ok( 1 === count( $f ) && false === strpos( $f[0]['note'], 'canary' ), 'canary not read (null): the old 24 h rule, and no claim about the canary' );
+$old = array( array( 'cls' => 'human', 'recent' => '0', 'recent_pv' => '0', 'last_pv' => (string) ( $now - 80 * 3600 ) ) );
+$f   = sn_health_analytics_ingest_findings( $old, $now, $now - 600 );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'the collector writes, but no person has been recorded for 3 days' ), 'canary fine but no human for over 72 h: flagged as the beacon or the classifier' );
+ok( 1 === count( sn_health_analytics_ingest_findings( array(), $now, $now - 600 ) ), 'canary fine but no human row in 7 days: still flagged' );
+ok( 1 === count( sn_health_analytics_ingest_findings( $quiet, $now, $now - 25 * 3600 ) ), 'a canary older than 24 h proves nothing' );
+ok( false !== strpos( sn_health_analytics_canary_sql(), 'sn_owner_hits' ) && false !== strpos( sn_health_analytics_canary_sql(), 'double14) = 7' ), 'the canary read looks for identity 7 in the owner dataset' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
