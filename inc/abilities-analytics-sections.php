@@ -35,6 +35,32 @@ function snt_metrics_section_props() {
 	);
 }
 
+/**
+ * The output schema of signal-noise/get-analytics-vitals: the payload stays
+ * open, the CLS source keys are declared. None is required: a payload cached
+ * before this release lacks them for its 15 minutes.
+ *
+ * @return array
+ */
+function snt_metrics_vitals_output_schema() {
+	$int = array( 'type' => 'integer', 'minimum' => 0 );
+	return array(
+		'type'       => 'object',
+		'properties' => array(
+			'cls_sources'              => array(
+				'type'     => array( 'array', 'null' ),
+				'maxItems' => 50, // SNT_VITALS_SOURCES_MAX; a literal, this file loads without the vitals read (tests/analytics-vitals-sources.php pins the two).
+				'items'    => array(
+					'type'       => 'object',
+					'properties' => array( 'path' => array( 'type' => 'string' ), 'source' => array( 'type' => 'string' ), 'readings' => $int, 'needs_improvement' => $int, 'poor' => $int, 'worst' => array( 'type' => 'number' ) ),
+				),
+			),
+			'cls_sources_unattributed' => array( 'type' => array( 'integer', 'null' ), 'minimum' => 0 ),
+			'cls_sources_failure'      => array( 'type' => 'string' ),
+		),
+	);
+}
+
 add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
@@ -46,7 +72,7 @@ add_action( 'wp_abilities_api_init', function () {
 		'signal-noise/get-analytics-geography' => array( 'Get geography', 'snt_ability_get_analytics_geography', 'Views and visits by country.' . $floor ),
 		'signal-noise/get-analytics-devices'   => array( 'Get devices', 'snt_ability_get_analytics_devices', 'Views and visits by device.' . $floor ),
 		'signal-noise/get-analytics-journeys'  => array( 'Get entry and exit pages', 'snt_ability_get_analytics_journeys', 'Entry and exit pages with views and visits. Recorded for human traffic only, so class is not applied (class_applied says so).' . $floor ),
-		'signal-noise/get-analytics-vitals'    => array( 'Get Core Web Vitals', 'snt_ability_get_analytics_vitals', 'Field Core Web Vitals (LCP, INP, CLS) from the theme beacon over the window: site, devices (mobile, desktop, unknown) and paths (the top `limit` paths by views, default 25, max 50), each metric with samples (sample-weighted measurements), p75 (LCP and INP in milliseconds, CLS unitless) and the good, needs_improvement and poor shares in percent against Google\'s thresholds (listed in thresholds). A cell with no measurements has samples 0 and null figures, never 0; small_sample is true under min_samples. analytics_query does not carry these: its rollups are daily sums and a p75 is not one.' ),
+		'signal-noise/get-analytics-vitals'    => array( 'Get Core Web Vitals', 'snt_ability_get_analytics_vitals', 'Field Core Web Vitals (LCP, INP, CLS) from the theme beacon over the window: site, devices (mobile, desktop, unknown) and paths (the top `limit` paths by views, default 25, max 50), each metric with samples (sample-weighted measurements), p75 (LCP and INP in milliseconds, CLS unitless) and the good, needs_improvement and poor shares in percent against Google\'s thresholds (listed in thresholds). A cell with no measurements has samples 0 and null figures, never 0; small_sample is true under min_samples. cls_sources lists which page elements account for the not-good CLS readings (over thresholds.cls.good_max): rows {path, source, readings, needs_improvement, poor, worst}, grouped by path and source, most readings first, at most 50. source is a short selector of the element that moved most in the page\'s largest layout shift, page markup only (tag, id, class names); readings is the sample-weighted count, needs_improvement and poor are counts that add up to it (not shares), worst is the largest CLS score seen. cls_sources_unattributed counts the not-good CLS readings that carried no source (a beacon cached from before the field, or the moved node was gone), so an empty list does not mean nothing shifted. Until analytics worker 2.4.0 and a theme release carrying the field are live, cls_sources is empty and every not-good reading counts as unattributed. If that read fails, cls_sources and cls_sources_unattributed are null and cls_sources_failure says why; the rest of the payload is unaffected. analytics_query does not carry these: its rollups are daily sums and a p75 is not one.' ),
 		'signal-noise/analytics-query'         => array( 'Query analytics', 'snt_ability_analytics_query', 'A query over the stored rollups, allowlisted vocabulary only. dimensions: one or two of day, path, source, referrer_category, country, device; two must be day plus one. metrics: views, visits, scroll_avg and time_avg (milliseconds; need path). filters: {dimension: {include, exclude}} on grouped dimensions. compare: none|previous (previous values, deltas and share of views). order_by, order, limit (max 500). Unknown words refuse (422).' . $floor ),
 	);
 	$query_props = array(
@@ -69,7 +95,7 @@ add_action( 'wp_abilities_api_init', function () {
 			'permission_callback' => 'snt_ability_perm_manage_options',
 			'execute_callback'    => $def[1],
 			'input_schema'        => array( 'type' => 'object', 'default' => array(), 'properties' => $props, 'additionalProperties' => false ),
-			'output_schema'       => array( 'type' => 'object' ),
+			'output_schema'       => 'signal-noise/get-analytics-vitals' === $slug ? snt_metrics_vitals_output_schema() : array( 'type' => 'object' ),
 			'meta'                => array(
 				'show_in_rest' => true,
 				'mcp'          => array( 'public' => false, 'type' => 'tool' ),
