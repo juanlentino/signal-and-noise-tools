@@ -27,6 +27,7 @@ const SN_HEALTH_INGEST_STALE_SECS = 86400;
 // analytics-ingest-canary.php) seen in the last 24 hours the collector is
 // proven to write, so no human pageview only flags after 72 hours.
 const SN_HEALTH_INGEST_QUIET_SECS = 259200;
+const SN_HEALTH_INGEST_WHY_MAX    = 200; // characters of a stored send reason that reach a note.
 
 /**
  * The newest canary pageview in the last 24 hours: identity 7 (a SignalNoise-
@@ -57,14 +58,37 @@ function sn_health_analytics_ingest_sql() {
 }
 
 /**
+ * Pure: one sentence (leading space) on a last canary send that was not a clean 204, else ''. Not escaped here.
+ * @param mixed $last_send The stored { at, http, why }.
+ * @param int   $now       Current unix time.
+ * @return string
+ */
+function sn_health_analytics_ingest_send_note( $last_send, $now ) {
+	if ( ! is_array( $last_send ) || ! is_numeric( $last_send['http'] ?? null ) ) {
+		return ''; // unreadable is not a status
+	}
+	$http = (int) $last_send['http'];
+	$why  = is_string( $last_send['why'] ?? null ) ? $last_send['why'] : '';
+	$why  = mb_substr( rtrim( trim( (string) preg_replace( '/\s+/', ' ', $why ) ), '.' ), 0, SN_HEALTH_INGEST_WHY_MAX );
+	if ( 204 === $http && '' === $why ) {
+		return '';
+	}
+	$at  = (int) ( $last_send['at'] ?? 0 );
+	$age = (int) $now - $at;
+	$ago = ( $at <= 0 || $age < 0 ) ? '' : ( $age < 3600 ? sprintf( ', %d minutes ago,', (int) floor( $age / 60 ) ) : sprintf( ', %d hours ago,', (int) floor( $age / 3600 ) ) );
+	return ' The last canary send' . $ago . ( $http > 0 ? ' was answered HTTP ' . $http : ' got no answer' ) . ( '' !== $why ? ': ' . $why : '' ) . '.';
+}
+
+/**
  * Pure: rows from the query above to zero or one finding.
  *
  * @param array    $rows   Rows { cls, recent, recent_pv, last_pv }.
  * @param int      $now    Current unix time.
  * @param int|null $canary The newest canary pageview in the last 24 hours (unix), 0 for none, null when not read.
+ * @param mixed    $last_send The stored last canary send { at, http, why }, null when not read.
  * @return array[] Finding rows.
  */
-function sn_health_analytics_ingest_findings( array $rows, $now, $canary = null ) {
+function sn_health_analytics_ingest_findings( array $rows, $now, $canary = null, $last_send = null ) {
 	$human_last = 0;
 	$human_pv   = 0;
 	$other      = 0;
@@ -104,7 +128,7 @@ function sn_health_analytics_ingest_findings( array $rows, $now, $canary = null 
 			'subject_url'   => '',
 			'subject_label' => 'human pageviews',
 			'edit_url'      => '',
-			'note'          => $age . $why,
+			'note'          => $age . $why . sn_health_analytics_ingest_send_note( $last_send, $now ),
 		),
 	);
 }
@@ -126,5 +150,6 @@ function sn_health_check_analytics_ingest() {
 	}
 	$c      = sn_analytics_query( sn_health_analytics_canary_sql() );
 	$canary = is_array( $c ) ? (int) ( $c[0]['last'] ?? 0 ) : null; // a failed read is unknown, never a canary
-	return sn_health_pack_check( $label, sn_health_analytics_ingest_findings( $rows, time(), $canary ), $fix_hint );
+	$last_send = function_exists( 'get_option' ) ? get_option( 'sn_ingest_canary_last', null ) : null; // SN_INGEST_CANARY_OPT; that file is not required here
+	return sn_health_pack_check( $label, sn_health_analytics_ingest_findings( $rows, time(), $canary, $last_send ), $fix_hint );
 }

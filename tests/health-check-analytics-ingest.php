@@ -16,6 +16,8 @@ function sn_analytics_query( $sql ) { $GLOBALS['__q']['sql'] = $sql; return $GLO
 function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
 	return array( 'count' => count( $findings ), 'findings' => $findings, 'skipped' => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null );
 }
+$GLOBALS['__opt'] = array();
+function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opt'] ) ? $GLOBALS['__opt'][ $k ] : $d; }
 
 require_once __DIR__ . '/../inc/health-check-analytics-ingest.php';
 
@@ -73,6 +75,60 @@ ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'the collector writes,
 ok( 1 === count( sn_health_analytics_ingest_findings( array(), $now, $now - 600 ) ), 'canary fine but no human row in 7 days: still flagged' );
 ok( 1 === count( sn_health_analytics_ingest_findings( $quiet, $now, $now - 25 * 3600 ) ), 'a canary older than 24 h proves nothing' );
 ok( false !== strpos( sn_health_analytics_canary_sql(), 'sn_owner_hits' ) && false !== strpos( sn_health_analytics_canary_sql(), 'double14) = 7' ), 'the canary read looks for identity 7 in the owner dataset' );
+
+// Issue 2484: a failed canary send is named in the note of a finding that is already raised, and nowhere else.
+$errs = 0;
+set_error_handler( function () use ( &$errs ) { $errs++; return true; } );
+function nt( $rows, $canary, $ls = null ) { global $now; $f = sn_health_analytics_ingest_findings( $rows, $now, $canary, $ls ); return 1 === count( $f ) ? $f[0]['note'] : null; }
+function has( $h, $n ) { return is_string( $h ) && false !== strpos( $h, $n ); }
+$base = nt( $quiet, 0 );
+$s403 = array( 'at' => $now - 42 * 60, 'http' => 403, 'why' => '' );
+$n    = nt( $quiet, 0, $s403 );
+ok( has( $n, 'The last canary send, 42 minutes ago, was answered HTTP 403.' ) && has( $n, 'canary did not arrive' ), 'T1: a 403 send adds the status and the age in minutes to the finding' );
+$n = nt( $quiet, 0, array( 'at' => $now - 3 * 3600, 'http' => 0, 'why' => 'cURL error 28: Operation timed out' ) );
+ok( has( $n, 'The last canary send, 3 hours ago, got no answer: cURL error 28: Operation timed out.' ) && ! has( $n, 'HTTP 0' ), 'T2: http 0 reads as no answer with the reason, in hours, never as HTTP 0' );
+ok( has( nt( $quiet, 0, array( 'at' => $now - 60, 'http' => 0, 'why' => 'no beacon key configured' ) ), 'got no answer: no beacon key configured.' ), 'T3: a missing beacon key is named' );
+ok( is_string( $base ) && $base === nt( $quiet, 0, array( 'at' => $now - 60, 'http' => 204, 'why' => '' ) ), 'T4: a clean 204 adds nothing' );
+$same = is_string( $base );
+foreach ( array( null, false, 'x', 403, array(), array( 'at' => $now - 60, 'why' => 'boom' ) ) as $bad ) {
+	$same = $same && $base === nt( $quiet, 0, $bad );
+}
+ok( $same, 'T5: a missing or unreadable option adds nothing' );
+ok( has( nt( $quiet, 0, array( 'at' => $now - 60, 'http' => 204, 'why' => 'odd' ) ), 'was answered HTTP 204: odd.' ), 'T6: a 204 with a reason still adds the sentence' );
+$t7 = true;
+foreach ( array( array( 'http' => 403 ), array( 'at' => 0, 'http' => 403 ), array( 'at' => $now + 600, 'http' => 403 ) ) as $ls ) {
+	$n  = nt( $quiet, 0, $ls );
+	$t7 = $t7 && has( $n, 'The last canary send was answered HTTP 403.' ) && ! has( $n, ' ago, was answered' );
+}
+ok( $t7, 'T7: a missing, zero or future send time omits the age' );
+$n = nt( $quiet, 0, array( 'http' => 403, 'why' => str_repeat( 'a', 500 ) ) );
+ok( has( $n, str_repeat( 'a', 200 ) . '.' ) && ! has( $n, str_repeat( 'a', 201 ) ), 'T8: a long reason is cut at 200 characters' );
+$n = nt( $quiet, 0, array( 'http' => 403, 'why' => "line one\n  line two." ) );
+ok( has( $n, ': line one line two.' ) && ! has( $n, 'two..' ), 'T8: whitespace runs collapse to one space and the period is not doubled' );
+ok( has( nt( $quiet, 0, array( 'http' => 500, 'why' => array( 'x' ) ) ), 'was answered HTTP 500.' ) && 0 === $errs, 'T8: a reason that is not a string is dropped without a PHP notice' );
+restore_error_handler();
+$n = nt( $old, $now - 600, $s403 );
+ok( has( $n, 'the collector writes, but no person has been recorded for 3 days' ) && has( $n, 'The last canary send' ), 'T9: the sentence is added on the 72 hour path' );
+$n = nt( array(), null, $s403 );
+ok( has( $n, 'stopped writing' ) && has( $n, 'The last canary send' ), 'T9: the sentence is added on the dark collector path' );
+$healthy = array( array( 'cls' => 'human', 'recent' => '40', 'recent_pv' => '12', 'last_pv' => (string) ( $now - 600 ) ) );
+ok( array() === sn_health_analytics_ingest_findings( $healthy, $now, null, $s403 ) && array() === sn_health_analytics_ingest_findings( $quiet, $now, $now - 1800, $s403 ),
+	'T10: a failed send never raises a finding on a healthy read or a quiet day' );
+
+$GLOBALS['__q']['rows']                  = array();
+$GLOBALS['__opt']['sn_ingest_canary_last'] = array( 'at' => time() - 120, 'http' => 403, 'why' => '' );
+$r                                       = sn_health_check_analytics_ingest();
+ok( 1 === $r['count'] && has( $r['findings'][0]['note'], 'The last canary send' ) && has( $r['findings'][0]['note'], 'was answered HTTP 403.' ), 'T11: the wrapper reads the stored send and passes it on' );
+$GLOBALS['__q']['rows'] = null;
+$r                      = sn_health_check_analytics_ingest();
+ok( 0 === $r['count'] && has( $r['skipped'], 'could not be checked' ) && ! has( $r['skipped'], 'canary send' ), 'T12: a failed query stays skipped and unchanged with a failed send stored' );
+$GLOBALS['__q']['cfg'] = false;
+$r                     = sn_health_check_analytics_ingest();
+ok( 0 === $r['count'] && is_string( $r['skipped'] ) && ! has( $r['skipped'], 'canary send' ), 'T12: unconfigured analytics stays skipped and unchanged with a failed send stored' );
+unset( $GLOBALS['__opt']['sn_ingest_canary_last'] );
+$GLOBALS['__q'] = array( 'cfg' => true, 'rows' => array(), 'sql' => '' );
+$r              = sn_health_check_analytics_ingest();
+ok( 1 === $r['count'] && ! has( $r['findings'][0]['note'], 'The last canary send' ), 'T11: with no stored send the wrapper adds nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
