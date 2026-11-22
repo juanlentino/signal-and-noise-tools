@@ -8,8 +8,14 @@
  * (/_sn/px, through Cloudflare, with the public beacon key) under a
  * SignalNoise- user agent. The analytics Worker files that as this site's own
  * tool (identity 7) in sn_owner_hits, never in human, suspect or bot, so it
- * changes no count. The ingest check reads it back: a canary row in the last
- * 24 hours proves the collector writes.
+ * changes none of those three. It would add about 24 page views a day to the
+ * owner's own-tools figure, which sums identity 6 and 7 from that dataset, so
+ * since 2026-11-22 it is a page view of SN_INGEST_CANARY_PATH, a path the site
+ * never serves, and the own-tools read leaves that path out
+ * (sn_lanes_owner_sql()). The ingest check reads it back by the same path: a
+ * canary row in the last 24 hours proves the collector writes, and no other
+ * SignalNoise- tool can stand in for it. Canary rows sent before that date
+ * carry the path / and stay in the own-tools figure for their days.
  *
  * @package SignalNoiseTools
  */
@@ -21,26 +27,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_INGEST_CANARY_HOOK = 'sn_ingest_canary';
 const SN_INGEST_CANARY_UA   = 'SignalNoise-IngestCanary/1.0';
 const SN_INGEST_CANARY_OPT  = 'sn_ingest_canary_last';
+// What the Worker stores as blob2 (the path, inc/analytics-api.php). 11 characters, no dot, no query, no trailing slash.
+const SN_INGEST_CANARY_PATH = '/_sn/canary';
 
 /**
- * The beacon body: a pageview of the home page. PURE.
+ * The beacon body: a pageview of the canary path. PURE.
  *
  * @param string $token The public beacon key.
  * @return array
  */
 function sn_ingest_canary_payload( $token ) {
-	return array( 'k' => (string) $token, 'e' => 'pv', 'u' => '/' );
+	return array( 'k' => (string) $token, 'e' => 'pv', 'u' => SN_INGEST_CANARY_PATH );
 }
 
 /**
  * Send one canary pageview and store what the collector answered.
  *
  * @param callable|null $post Test seam: ( $url, $args ) => wp_remote_post result.
- * @return array The stored { at, http, why }.
+ * @return array The stored { at, http, why, since }: `since` is the first send on SN_INGEST_CANARY_PATH, kept from then on.
  */
 function sn_ingest_canary_send( $post = null ) {
 	$token = function_exists( 'sn_rss_tracker_token' ) ? (string) sn_rss_tracker_token() : '';
-	$last  = array( 'at' => time(), 'http' => 0, 'why' => '' );
+	$prev  = function_exists( 'get_option' ) ? get_option( SN_INGEST_CANARY_OPT, array() ) : array();
+	$last  = array( 'at' => time(), 'http' => 0, 'why' => '', 'since' => is_array( $prev ) && is_int( $prev['since'] ?? null ) ? $prev['since'] : time() );
 	if ( '' === $token ) {
 		$last['why'] = 'no beacon key configured';
 	} else {
@@ -62,7 +71,7 @@ function sn_ingest_canary_send( $post = null ) {
 	return $last;
 }
 
-if ( ! defined( 'SN_INGEST_CANARY_TEST' ) || ! SN_INGEST_CANARY_TEST ) {
+if ( function_exists( 'add_action' ) && ( ! defined( 'SN_INGEST_CANARY_TEST' ) || ! SN_INGEST_CANARY_TEST ) ) {
 	add_action( SN_INGEST_CANARY_HOOK, 'sn_ingest_canary_send', 10, 0 );
 	add_action(
 		'init',

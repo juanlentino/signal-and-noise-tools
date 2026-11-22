@@ -158,6 +158,7 @@ ok( false !== strpos( $window, "timestamp < toStartOfInterval(now(), INTERVAL '1
 
 // --- AE limits -----------------------------------------------------------------
 ok( ! sn_analytics_sql_too_long( $sql ) && ! sn_analytics_sql_too_long( sn_lanes_owner_sql( 'America/New_York' ) ), 'both reads fit the AE character cap (' . strlen( $sql ) . ')' );
+ok( false !== strpos( sn_lanes_owner_sql( '' ), " AND blob2 != '/_sn/canary'" ) && false === strpos( $sql, '/_sn/canary' ), 'the owner read leaves the ingest canary out of the own-tools rows; the public read never held it' );
 ok( false !== strpos( sn_lanes_owner_sql( '' ), 'FROM sn_owner_hits' ) && false !== strpos( sn_lanes_owner_sql( '' ), 'toUInt32(double14) AS identity, toUInt32(double15) AS agent' ), 'the owner read groups by double14 identity and double15 agent' );
 ok( false !== strpos( sn_lanes_beacon_since_sql( '' ), 'FROM sn_pageviews_v2 WHERE' ) && false !== strpos( sn_lanes_beacon_since_sql( '' ), 'double16 >= 1' ), 'beacon lanes_since: the first public v2 row stamped with a rule version' );
 
@@ -225,6 +226,7 @@ ok( sn_lanes_first_party_figure( '2026-10-13', '2026-10-15' ) === $fp, 'the read
 $line = sn_lanes_first_party_line( $fp );
 ok( false !== strpos( $line, 'in none of the three classes' ) && false !== strpos( $line, '11 page views' ) && false !== strpos( $line, 'proven 6' ) && false !== strpos( $line, 'claimed 5' ) && false !== strpos( $line, '2026-10-13 to 2026-10-14' ), 'the shared line names the figure, both halves and the days it covers' );
 ok( false !== strpos( sn_lanes_first_party_line( null ), 'not measured' ), 'a null figure says not measured' );
+ok( false !== strpos( $line, 'page views of /_sn/canary, the hourly ingest canary, are not counted' ), 'the own-tools line says the canary is left out' );
 
 echo "\n{$pass} passed, {$fail} failed\n";
 exit( $fail > 0 ? 1 : 0 );
