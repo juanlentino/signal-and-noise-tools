@@ -10,11 +10,15 @@ walk( '71', 'admin', 'gate' ); $g = state( '71' )['worktree'];
 @mkdir( "$jobs/.wp-core/wp-includes/html-api", 0777, true ); // the core fetch is not what is under test
 $bullet = function ( $under ) use ( $g ) { file_put_contents( "$g/CHANGELOG.md", str_replace( "## [$under]\n", "## [$under]\n\n- **A new bullet.**\n", file_get_contents( "$g/CHANGELOG.md" ) ) ); };
 $good   = function () use ( $g, $bullet ) { file_put_contents( "$g/tests/new.php", "<?php\necho \"1 passed, 0 failed\";\n" ); file_put_contents( "$g/inc/a.php", "<?php\n\$a = 1;\n" ); $bullet( 'Unreleased' ); };
-/** Reset the branch to the base, apply a change, commit it, run the gate. Returns [exit code, checks.md, checks.log]. */
-$gate = function ( callable $change ) use ( $g, $jobs, $tool ) {
-	git( $g, 'reset -q --hard origin/main' ); git( $g, 'clean -qfd' ); $change(); git( $g, 'add -A' ); git( $g, 'commit -q -m change' );
+/** Run the gate. Returns [exit code, checks.md, checks.log]. */
+$run = function () use ( $jobs, $tool ) {
 	$code = sh( 'FACTORY_JOBS=' . escapeshellarg( $jobs ) . ' bash ' . escapeshellarg( "$tool/gate" ) . ' 71' )[0];
 	return array( $code, (string) @file_get_contents( "$jobs/71/round-1/checks.md" ), (string) @file_get_contents( "$jobs/71/round-1/checks.log" ) );
+};
+/** Reset the branch to the base, apply a change, commit it, run the gate. */
+$gate = function ( callable $change ) use ( $g, $run ) {
+	git( $g, 'reset -q --hard origin/main' ); git( $g, 'clean -qfd' ); $change(); git( $g, 'add -A' ); git( $g, 'commit -q -m change' );
+	return $run();
 };
 $fails = function ( $md ) { preg_match_all( '/^- FAIL: (.*)$/m', $md, $m ); return $m[1]; };
 
@@ -43,7 +47,15 @@ foreach ( array( '+ a line that starts with a plus', '++ b/inc/a.php and looks l
 	list( $c, $md ) = $gate( function () use ( $g, $good, $line, $EM ) { $good(); file_put_contents( "$g/inc/notes.txt", "$line $EM here\n" ); } );
 	ok( 0 !== $c && array( 'no em dash in added lines' ) === $fails( $md ), "an em dash on an added line is caught: \"$line\"" );
 }
+// The protections the gate already had still hold.
 list( $c, $md ) = $gate( function () {} );
 ok( 0 !== $c && 0 === strpos( $md, 'FAIL ' ), 'an empty change still fails the gate' );
+$gate( $good ); file_put_contents( "$g/stray.txt", "not committed\n" );
+list( $c, $md ) = $run(); unlink( "$g/stray.txt" );
+ok( 0 !== $c && array( 'the work is committed (clean tree)' ) === $fails( $md ), 'uncommitted work still fails the gate' );
+git( $root, 'update-ref -d refs/remotes/origin/main' );
+list( $c, $md ) = $run(); git( $root, 'fetch -q origin' );
+ok( 0 !== $c && 0 === strpos( $md, 'FAIL ' ) && false !== strpos( $md, 'cannot diff against origin/main' ), 'a missing base ref still fails the gate, and says so' );
+ok( 0 === $run()[0], 'with the base ref fetched again the same commit passes (control)' );
 $src = file_get_contents( "$tool/gate" );
 ok( false === strpos( $src, $EM ), 'the gate spells its em dash in bytes, so it passes its own check' );

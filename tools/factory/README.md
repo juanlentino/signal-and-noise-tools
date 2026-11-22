@@ -70,7 +70,9 @@ old gate or review can stand in for a new one. `job refresh <id>` rewrites
   already carries a stop label.
 - **Evidence files are plain files.** `job` ties `checks.md` and `review.md`
   to a commit; it cannot tell who wrote them.
-- **The gate runs the branch's own suites** (with the base branch's runner).
+- **The gate runs the branch's own suites** (with the base branch's runner),
+  and, when the shared `.wp-core` copy is missing, the branch's own
+  `tools/fetch-wp-test-core.sh` to fetch it.
 - `FACTORY_DRY=1` and `FACTORY_OWNER_OK=1` are test seams. A dry run refuses
   the real jobs folder, and `FACTORY_OWNER_OK` is read only in a dry run.
 
