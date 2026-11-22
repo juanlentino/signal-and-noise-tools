@@ -89,7 +89,7 @@ function sn_lanes_first_party_line( $fp ) {
 	}
 	$num = static fn( $n ) => function_exists( 'number_format_i18n' ) ? (string) number_format_i18n( (int) $n ) : number_format( (int) $n );
 	return sprintf(
-		'This site\'s own tools, in none of the three classes: %1$s page views, proven %2$s on %3$s visitor-days (the x-sn-first-party header) and claimed %4$s on %5$s visitor-days (a SignalNoise- user agent), complete days %6$s to %7$s%8$s; the hourly ingest canary (/_sn/canary) is not counted.',
+		'This site\'s own tools, in none of the three classes: %1$s page views, proven %2$s on %3$s visitor-days (the x-sn-first-party header) and claimed %4$s on %5$s visitor-days (a SignalNoise- user agent), complete days %6$s to %7$s%8$s; page views of /_sn/canary, the hourly ingest canary, are not counted.',
 		$num( $fp['views'] ),
 		$num( $fp['proven']['views'] ),
 		$num( $fp['proven']['visitor_days'] ),

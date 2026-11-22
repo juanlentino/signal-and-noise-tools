@@ -226,7 +226,7 @@ ok( sn_lanes_first_party_figure( '2026-10-13', '2026-10-15' ) === $fp, 'the read
 $line = sn_lanes_first_party_line( $fp );
 ok( false !== strpos( $line, 'in none of the three classes' ) && false !== strpos( $line, '11 page views' ) && false !== strpos( $line, 'proven 6' ) && false !== strpos( $line, 'claimed 5' ) && false !== strpos( $line, '2026-10-13 to 2026-10-14' ), 'the shared line names the figure, both halves and the days it covers' );
 ok( false !== strpos( sn_lanes_first_party_line( null ), 'not measured' ), 'a null figure says not measured' );
-ok( false !== strpos( $line, 'the hourly ingest canary (/_sn/canary) is not counted' ), 'the own-tools line says the canary is left out' );
+ok( false !== strpos( $line, 'page views of /_sn/canary, the hourly ingest canary, are not counted' ), 'the own-tools line says the canary is left out' );
 
 echo "\n{$pass} passed, {$fail} failed\n";
 exit( $fail > 0 ? 1 : 0 );
