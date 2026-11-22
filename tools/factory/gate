@@ -60,7 +60,7 @@ php_lint()    {
 changelog()   {
 	local s e
 	[ "$(grep -ciE '^##[[:space:]]*\[unreleased\]' <<< "$NOTES")" = 1 ] || { echo "CHANGELOG.md needs exactly one ## [Unreleased] heading"; return 1; }
-	s="$(awk '/^## \[Unreleased\]/{print NR}' <<< "$NOTES")"; [ -n "$s" ] || return 1
+	s="$(awk '/^## \[Unreleased\]/ && !s {s=NR} END{print s}' <<< "$NOTES")"; [ -n "$s" ] || return 1
 	e="$(awk -v s="$s" 'NR>s && /^## / && !e {e=NR} END{print e+0}' <<< "$NOTES")"; [ "$e" -gt 0 ] || e=999999999
 	d -U0 "$MB" HEAD -- CHANGELOG.md | awk -v s="$s" -v e="$e" '
 		/^diff --git /{h=1;next} /^@@/{h=0; split($3,a,","); n=substr(a[1],2)+0; next} h{next}

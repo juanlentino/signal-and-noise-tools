@@ -37,7 +37,7 @@ ok( 0 !== $c && in_array( 'tests/run.sh is unchanged and no test is deleted or r
 list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); unlink( "$g/tests/new.php" ); unlink( "$g/tests/old.php" ); } );
 ok( 0 !== $c && in_array( 'the change adds or modifies a file under tests/', $fails( $md ), true ), 'a deletion under tests/ is not a touched test' );
 
-list( $c, $md ) = $gate( function () use ( $good, $bullet, $g ) { $good(); git( $g, "checkout -q $BASE -- CHANGELOG.md" ); $bullet( '1.0.0' ); } );
+list( $c, $md ) = $gate( function () use ( $good, $bullet, $g, $BASE ) { $good(); git( $g, "checkout -q $BASE -- CHANGELOG.md" ); $bullet( '1.0.0' ); } );
 ok( 0 !== $c && array( 'CHANGELOG has a new Unreleased bullet' ) === $fails( $md ), 'a bullet added under an old release is not an Unreleased bullet' );
 
 list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); file_put_contents( "$g/inc/caf\xc3\xa9.php", "<?php if (\n" ); } );
@@ -52,6 +52,8 @@ ok( 0 !== $c && array( $step ) === $fails( $md ), 'an old bullet that ends up in
 $lint = 'php -l on every changed PHP file';
 list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); file_put_contents( "$g/-d.php", "<?php\n" ); file_put_contents( "$g/inc/zbroken.php", "<?php if (\n" ); } );
 ok( 0 !== $c && array( $lint ) === $fails( $md ), 'a file named -d.php does not stop the lint: a broken file after it still fails' );
+list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); file_put_contents( "$g/-d.php", "<?php if (\n" ); } );
+ok( 0 !== $c && array( $lint ) === $fails( $md ), 'a broken file named -d.php is linted as a file, not read as an option' );
 list( $c, $md ) = $gate( function () use ( $g, $good ) { $good(); file_put_contents( "$g/inc/b.PHP", "<?php if (\n" ); } );
 ok( 0 !== $c && array( $lint ) === $fails( $md ), 'a .PHP file is a PHP file' );
 

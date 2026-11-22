@@ -26,7 +26,7 @@ ok( 0 === $c && false !== strpos( $o, 'nothing to do' ) && false === strpos( $o,
 // 2. SURFACES is an allowlist: exactly one line, a value on it, known words only.
 job( 'new', '22' );
 $bad = array(
-	"SURFACES:\n- public\n- admin"                       => 'empty',
+	"SURFACES:\n- public\n- admin"                       => 'is empty',
 	'SURFACES: front-end page, visitor copy'             => 'front-end',
 	"SURFACES: admin\n\n## Scope\nSURFACES: public (x)"  => 'exactly one',
 	"SURFACES: admin\nThe surfaces: public"              => 'exactly one',
