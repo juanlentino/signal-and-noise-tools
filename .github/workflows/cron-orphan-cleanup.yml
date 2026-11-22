@@ -75,7 +75,6 @@ jobs:
           set -euo pipefail
           case "$DRY_RUN" in true|false) ;; *) echo "ERROR: dry_run must be true or false"; exit 1 ;; esac
           HOOKS_INPUT="${HOOKS_INPUT// /}"
-          HOOKS_INPUT="${HOOKS_INPUT:+$HOOKS_INPUT,}"   # a blank value stays blank (the documented list); a given one never reads as blank
           if [[ ! "$HOOKS_INPUT" =~ ^[A-Za-z0-9_,]*$ ]]; then
             echo "ERROR: hooks takes hook names (letters, digits, underscores) separated by commas"
             exit 1
