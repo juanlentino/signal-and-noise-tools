@@ -708,6 +708,7 @@ require_once __DIR__ . '/inc/login-guard-routes.php'; // 2026-10-18: saving the 
 require_once __DIR__ . '/inc/login-door-leak-check.php'; // 2026-10-18: daily check that no public page publishes the login address.
 require_once __DIR__ . '/inc/csp-hash-parts.php'; // 2026-10-18: hashing, extraction and header parsing for the strict-CSP check.
 require_once __DIR__ . '/inc/csp-hash-check.php'; // 2026-10-18: daily check that the strict script-src pins every inline script's hash.
+require_once __DIR__ . '/inc/analytics-ingest-canary.php'; // 2026-11-21: hourly own-tool pageview so the ingest check tells a quiet day from a dead collector.
 require_once __DIR__ . '/inc/csp-hash-health.php'; // 2026-10-18: the csp_hashes watch and its Site Health test.
 require_once __DIR__ . '/inc/csp-lax-marker.php'; // 2026-10-20: X-SN-CSP: lax on responses the strict CSP must leave loose.
 require_once __DIR__ . '/inc/security-watches.php'; // 2026-10-18: app passwords, admin 2FA coverage, guard route drift (observe, never enforce).
