@@ -75,6 +75,22 @@ ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'the collector writes,
 ok( 1 === count( sn_health_analytics_ingest_findings( array(), $now, $now - 600 ) ), 'canary fine but no human row in 7 days: still flagged' );
 ok( 1 === count( sn_health_analytics_ingest_findings( $quiet, $now, $now - 25 * 3600 ) ), 'a canary older than 24 h proves nothing' );
 ok( false !== strpos( sn_health_analytics_canary_sql(), 'sn_owner_hits' ) && false !== strpos( sn_health_analytics_canary_sql(), 'double14) = 7' ), 'the canary read looks for identity 7 in the owner dataset' );
+// 2026-11-22: the canary is its own path, so another SignalNoise- tool cannot stand in for it.
+ok( false !== strpos( sn_health_analytics_canary_sql(), "blob2 = '/_sn/canary'" ), 'the canary read matches the canary path, not any identity 7 page view' );
+ok( false !== strpos( sn_health_analytics_canary_sql( true ), "blob2 IN ('/_sn/canary', '/')" ), 'in the first day it also takes the old path /' );
+$t0 = 1790000000;
+ok( true === sn_health_analytics_canary_legacy( null, $t0 ) && true === sn_health_analytics_canary_legacy( array( 'at' => $t0, 'http' => 204, 'why' => '' ), $t0 ), 'no stored start (the new canary has not sent yet): the old path still counts' );
+ok( true === sn_health_analytics_canary_legacy( array( 'since' => $t0 - 86399 ), $t0 ), 'under 24 hours since the first new send: an old row can still be in the window' );
+ok( false === sn_health_analytics_canary_legacy( array( 'since' => $t0 - 86400 ), $t0 ), '24 hours on, every old row is outside the window: the canary path only' );
+$GLOBALS['__opt']['sn_ingest_canary_last'] = array( 'at' => time(), 'http' => 204, 'why' => '', 'since' => time() - 90000 );
+$GLOBALS['__q']['rows'] = array();
+sn_health_check_analytics_ingest();
+ok( false !== strpos( $GLOBALS['__q']['sql'], "blob2 = '/_sn/canary'" ), 'the check itself reads the canary path only once the first day is over' );
+$GLOBALS['__opt']['sn_ingest_canary_last']['since'] = time() - 60;
+sn_health_check_analytics_ingest();
+ok( false !== strpos( $GLOBALS['__q']['sql'], "IN ('/_sn/canary', '/')" ), 'and both paths inside it' );
+unset( $GLOBALS['__opt']['sn_ingest_canary_last'] );
+$GLOBALS['__q']['rows'] = null;
 
 // Issue 2484: a failed canary send is named in the note of a finding that is already raised, and nowhere else.
 $errs = 0;

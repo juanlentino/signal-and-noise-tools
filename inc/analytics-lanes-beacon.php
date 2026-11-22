@@ -22,6 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/analytics-vid.php'; // SN_AE_VID: the visitor-day hash, the first 16 characters of index1.
+require_once __DIR__ . '/analytics-ingest-canary.php'; // SN_INGEST_CANARY_PATH: the canary's page views are not this site's tools at work.
 
 /**
  * The day column and the window bounds for the trailing complete days: from
@@ -108,7 +109,9 @@ function sn_lanes_public_sql( $source, $range, $tz, array $scope = array() ) {
 }
 
 /**
- * Owner-routed page views per site-local day, visitor-day, identity and agent. PURE.
+ * Owner-routed page views per site-local day, visitor-day, identity and agent.
+ * The hourly ingest canary's own path is left out (2026-11-22): it is a probe
+ * of the collector, about 24 rows a day, not one of this site's tools at work. PURE.
  *
  * @param string                           $tz    Zone.
  * @param array{where?:string,part?:string} $scope As sn_lanes_public_sql().
@@ -119,7 +122,7 @@ function sn_lanes_owner_sql( $tz, array $scope = array() ) {
 	$window = isset( $scope['where'] ) ? (string) $scope['where'] : $window;
 	$part   = isset( $scope['part'] ) ? ', ' . (string) $scope['part'] . ' AS part' : '';
 	return "SELECT {$day_col} AS day, " . SN_AE_VID . " AS vid, toUInt32(double14) AS identity, toUInt32(double15) AS agent, sum(if(blob1 = 'pv', _sample_interval, 0)) AS views{$part} FROM " . SN_LANES_OWNER_DATASET
-		. ' WHERE ' . $window . sn_analytics_excluded_path_sql() . ' GROUP BY day, vid, identity, agent' . ( '' !== $part ? ', part' : '' );
+		. ' WHERE ' . $window . sn_analytics_excluded_path_sql() . " AND blob2 != '" . SN_INGEST_CANARY_PATH . "'" . ' GROUP BY day, vid, identity, agent' . ( '' !== $part ? ', part' : '' );
 }
 
 /**
