@@ -29,7 +29,8 @@ clean_tree()  { [ -z "$(git status --porcelain)" ]; }
 have_diff()   { git rev-parse -q --verify "origin/$BASE" >/dev/null && DIFF="$(git diff "origin/$BASE"...HEAD)" && FILES="$(git diff --name-only "origin/$BASE"...HEAD)"; }
 php_lint()    { local bad=0 f; while IFS= read -r f; do case "$f" in *.php) [ -f "$f" ] && { php -l "$f" >/dev/null || bad=1; };; esac; done <<< "$FILES"; return $bad; }
 changelog()   { grep -q '^+- ' <<< "$(git diff "origin/$BASE"...HEAD -- CHANGELOG.md)"; }
-no_emdash()   { [ -n "$DIFF" ] && ! grep '^+[^+]' <<< "$DIFF" | grep -c '—' >/dev/null; }
+EMDASH=$'\xe2\x80\x94' # spelled in bytes, so this file passes its own check
+no_emdash()   { [ -n "$DIFF" ] && ! grep '^+[^+]' <<< "$DIFF" | grep -c "$EMDASH" >/dev/null; }
 has_tests()   { grep -q '^tests/' <<< "$FILES"; }
 sweep()       { # core's HTML API, fetched once and shared by every job, as CI does
 	local core="$JOBS/.wp-core"
