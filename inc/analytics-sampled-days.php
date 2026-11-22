@@ -9,11 +9,9 @@
  * and for the counted-human class alone (the human rule's own class
  * expression). Reports mark a day estimated from it; no number is rewritten.
  *
- * A day is added or overwritten from a fresh complete read and outlives
- * Analytics Engine, which drops rows after about 90 days: this record is then
- * the only evidence. It is kept to the newest SN_ANALYTICS_SAMPLED_KEEP days
- * (2026-11-22; before that it was never cut), so `onset` is the earliest
- * sampled day still stored. Per day and event the reading
+ * The record only grows: a day is added or overwritten from a fresh complete
+ * read, never deleted, because Analytics Engine drops rows after about 90 days
+ * and this record is then the only evidence. Per day and event the reading
  * that holds more stored rows wins: a re-read at the edge of retention, or one
  * Analytics Engine answers at a coarser resolution, can come back thinner.
  * The nightly run lives in inc/analytics-sampled-days-run.php, the day labels
@@ -28,7 +26,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SN_ANALYTICS_SAMPLED_OPT         = 'sn_analytics_sampled_days';
 const SN_ANALYTICS_SAMPLED_WINDOW_DAYS = 90;
-const SN_ANALYTICS_SAMPLED_KEEP        = 400; // stored days, as the exact counts and the bot-signal days keep.
 const SN_ANALYTICS_SAMPLED_RUN_OPT     = 'sn_analytics_sampled_days_run'; // {at, outcome} of the last nightly run.
 
 /**
@@ -81,10 +78,9 @@ function sn_analytics_sampled_fold( array $sets ) {
 }
 
 /**
- * Merge a fresh fold into the stored record: add or overwrite, then keep the
- * newest SN_ANALYTICS_SAMPLED_KEEP days. Per day and event the reading with
- * more stored rows wins (ties go to the fresh one), so a thinner re-read
- * never replaces a fuller one. PURE.
+ * Merge a fresh fold into the stored record: add or overwrite, never delete.
+ * Per day and event the reading with more stored rows wins (ties go to the
+ * fresh one), so a thinner re-read never replaces a fuller one. PURE.
  *
  * @param array $stored Stored record.
  * @param array $fresh  sn_analytics_sampled_fold() output.
@@ -100,7 +96,7 @@ function sn_analytics_sampled_merge( array $stored, array $fresh ) {
 		}
 	}
 	ksort( $stored );
-	return array_slice( $stored, -SN_ANALYTICS_SAMPLED_KEEP, null, true );
+	return $stored;
 }
 
 /**

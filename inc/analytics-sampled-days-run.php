@@ -32,8 +32,8 @@ function sn_analytics_sampled_days_run() {
 		$done( 'overcap_failed' );
 		return;
 	}
-	// A cut list lets over-cap visitor-days read as human, and a day leaves the
-	// record only after 400 days, so a bot's sampled rows would mark it estimated until then.
+	// A cut list lets over-cap visitor-days read as human, and the record is
+	// never pruned, so a bot's sampled rows would mark a day estimated for good.
 	if ( ! empty( $cap['truncated'] ) ) {
 		$done( 'overcap_truncated' );
 		return;
