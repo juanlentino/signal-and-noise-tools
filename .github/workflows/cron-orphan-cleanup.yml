@@ -33,7 +33,7 @@ on:
         type: boolean
         default: true
       hooks:
-        description: 'Comma-separated hook names (leave blank for documented 14)'
+        description: 'Comma-separated hook names (leave blank for the documented list)'
         type: string
         default: ''
 
@@ -75,6 +75,7 @@ jobs:
           set -euo pipefail
           case "$DRY_RUN" in true|false) ;; *) echo "ERROR: dry_run must be true or false"; exit 1 ;; esac
           HOOKS_INPUT="${HOOKS_INPUT// /}"
+          HOOKS_INPUT="${HOOKS_INPUT:+$HOOKS_INPUT,}"   # a blank value stays blank (the documented list); a given one never reads as blank
           if [[ ! "$HOOKS_INPUT" =~ ^[A-Za-z0-9_,]*$ ]]; then
             echo "ERROR: hooks takes hook names (letters, digits, underscores) separated by commas"
             exit 1
@@ -163,7 +164,7 @@ jobs:
               continue
             fi
 
-            HAS=$(SN_HOOK="$hook" "$WP_CLI" eval 'echo has_action( getenv( "SN_HOOK" ) ) ? "1" : "0";' 2>/dev/null || echo "?")
+            HAS=$(SN_HOOK="$hook" "$WP_CLI" eval '$h = getenv( "SN_HOOK" ); echo ( is_string( $h ) && "" !== $h ) ? ( has_action( $h ) ? "1" : "0" ) : "?";' 2>/dev/null || echo "?")
             if [ "$HAS" != "0" ]; then
               echo "  [GUARD]  $hook  ($COUNT events, has_action=$HAS: REFUSING to delete)"
               GUARDED=$((GUARDED + 1))
@@ -188,7 +189,7 @@ jobs:
           echo "Total cron events after:  $TOTAL_AFTER"
           echo "Delta: $((TOTAL_BEFORE - TOTAL_AFTER))"
           echo "Already absent: $ABSENT"
-          echo "Guarded (live handler): $GUARDED"
+          echo "Guarded (live handler, unreadable check or refused name): $GUARDED"
           if [ "$DRY_RUN" = "false" ]; then
             echo "Deleted: $DELETED"
           fi
