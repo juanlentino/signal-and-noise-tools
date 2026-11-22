@@ -34,9 +34,10 @@ A failed gate or a review asking for changes costs a round. After
 What `job` checks before a move:
 
 - **to spec or build, from any stage:** `intake.md` opens with
-  `DECISION: ACCEPT` and exactly one line starts with SURFACES. It reads
+  `DECISION: ACCEPT` and exactly one line starts with SURFACES or contains
+  `SURFACES:`. It reads
   `SURFACES: a, b`, with every word from `public`, `admin`, `security`,
-  `data`, `none` (`none` alone), no trailing comma, and no list item or bare
+  `data`, `none` (`none` alone), no empty item, and no list item or bare
   surface word on the next non-empty line. Anything else is refused.
   `public` is refused unless the job is restarting from a
   stop with the owner's answer, or did so earlier while intake named `public`.

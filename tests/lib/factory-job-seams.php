@@ -9,6 +9,9 @@ if ( PHP_SAPI !== 'cli' ) { http_response_code( 404 ); exit; }
 if ( ! $live_ok ) { ok( false, 'the stand-in gh is first on PATH (the seams part did not run)' ); return; }
 $dry_at = function ( $folder, ...$a ) { global $root; return run_job( array( 'FACTORY_DRY' => '1', 'FACTORY_ROOT' => $root, 'FACTORY_JOBS' => $folder ), $a ); };
 
+// The harness itself: its git helper resets and cleans, so it must refuse anything outside the fixture.
+ok( 1 === git( '', 'rev-parse HEAD' )[0] && 1 === git( dirname( dirname( $tool ) ), 'rev-parse HEAD' )[0] && 0 === git( $root, 'rev-parse HEAD' )[0], 'the test helper runs git inside the fixture only: an empty path or the real checkout is refused' );
+
 // 5. A job born in a dry run is a dry job for good, and a live job is never a dry one.
 walk( '81', 'admin', 'build' ); issue(); live( 'new', '82' );
 ok( true === ( state( '81' )['dry'] ?? null ) && ! isset( state( '82' )['dry'] ), 'a job made under FACTORY_DRY is marked dry in job.json; a live one is not' );

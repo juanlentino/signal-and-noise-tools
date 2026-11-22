@@ -68,10 +68,11 @@ Run every command from the repository root. `J=tools/factory/job`.
    five bullets and a `## Scope` saying exactly what will and will not be
    done. `job` checks SURFACES strictly and refuses anything else, naming
    the problem. Exactly one line in the file may start with the word SURFACES
-   (any case, with or without a colon or leading punctuation). It reads
-   `SURFACES: a, b`: the whole list on that one line, separated by commas or
-   spaces, each word one of `public`, `admin`, `security`, `data`, or `none`
-   alone, and no trailing comma. The next non-empty line after it must not be
+   (any case, with or without a colon or leading punctuation) or contain
+   `SURFACES:` anywhere. It reads `SURFACES: a, b`: the whole list on that one
+   line, separated by commas or spaces, each word one of `public`, `admin`,
+   `security`, `data`, or `none` alone, with no empty item (no leading,
+   doubled or trailing comma). The next non-empty line after it must not be
    a list item or a bare surface word: follow it with a blank line and the
    `## Summary` heading.
    - ACCEPT: `$J advance <id> spec`. If it refuses for a public surface,
