@@ -3,7 +3,8 @@
  * CLS shift sources (inc/analytics-vitals-sources.php): which page elements
  * account for the not-good CLS readings. The SQL shape, the fold (sort, cap,
  * sample correction, worst as a score), the unattributed count, a failed leg
- * that leaves the rest of the vitals payload standing, and the ability schema.
+ * that leaves the rest of the vitals payload standing. The ability's schema
+ * and description: tests/analytics-vitals-sources-on-core.php.
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 
@@ -135,34 +136,6 @@ $GLOBALS['__t'] = array();
 $GLOBALS['__src_rows'] = $rows;
 $fine = sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 );
 ok( 3 === count( $fine['cls_sources'] ) && '' === sn_analytics_vitals_failure(), 'a read that answers leaves no reason behind' );
-
-echo "\nGroup: the ability\n";
-class WP_Error { public $m; function __construct( $c, $m ) { $this->m = $m; } }
-function is_wp_error( $x ) { return $x instanceof WP_Error; }
-function snt_metrics_args( $i ) { return array( array( 'from' => '2026-09-14', 'to' => '2026-10-11' ), 'human', 5 ); }
-$out = snt_ability_get_analytics_vitals( array() );
-ok( is_array( $out ) && isset( $out['cls_sources'], $out['cls_sources_unattributed'] ), 'the ability returns the new keys' );
-$GLOBALS['__actions'] = array(); $GLOBALS['__reg'] = array();
-function add_action( $tag, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $tag ][] = $cb; }
-function wp_register_ability( $slug, $args ) { $GLOBALS['__reg'][ $slug ] = $args; }
-define( 'SNT_MQ_DIMENSIONS', array( 'day' ) );
-define( 'SNT_MQ_METRICS', array( 'views' ) );
-$src = (string) file_get_contents( __DIR__ . '/../inc/abilities-analytics-sections.php' );
-// The registration closure alone: its requires pull the whole sn-metrics stack.
-eval( '?>' . preg_replace( '/^require_once [^\n]*\n/m', '', $src ) );
-foreach ( $GLOBALS['__actions']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
-$reg   = $GLOBALS['__reg']['signal-noise/get-analytics-vitals'] ?? array();
-$props = $reg['output_schema']['properties'] ?? array();
-ok( array( 'array', 'null' ) === ( $props['cls_sources']['type'] ?? null ) && SNT_VITALS_SOURCES_MAX === ( $props['cls_sources']['maxItems'] ?? null ), 'output schema: cls_sources is a list of at most 50, or null' );
-ok( array( 'path', 'source', 'readings', 'needs_improvement', 'poor', 'worst' ) === array_keys( $props['cls_sources']['items']['properties'] ?? array() ), 'output schema: a row is path, source, readings, needs_improvement, poor, worst' );
-ok( array( 'integer', 'null' ) === ( $props['cls_sources_unattributed']['type'] ?? null ) && 'string' === ( $props['cls_sources_failure']['type'] ?? null ), 'output schema: the unattributed count (or null) and the failure sentence' );
-ok( empty( $reg['output_schema']['required'] ) && ! isset( $reg['output_schema']['additionalProperties'] ), 'the new keys are not required (a payload cached before this release lacks them) and the rest of the payload stays open' );
-$fit = is_array( $out ) && ( null === $out['cls_sources'] || is_array( $out['cls_sources'] ) ) && array() === array_diff( array_keys( $out['cls_sources'][0] ?? array() ), array_keys( $props['cls_sources']['items']['properties'] ?? array() ) );
-ok( $fit, 'the real payload row carries only the keys the schema declares' );
-$desc = (string) ( $reg['description'] ?? '' );
-ok( false !== strpos( $desc, 'cls_sources' ) && false !== strpos( $desc, 'cls_sources_unattributed' ) && false !== strpos( $desc, 'worker 2.4.0' ) && false !== strpos( $desc, 'tag, id' ), 'the description says what it is, when it fills, and that a source is page markup only' );
-ok( false === strpos( $desc, "\u{2014}" ), 'no em dash in the description' );
-ok( array( 'type' => 'object' ) === ( $GLOBALS['__reg']['signal-noise/get-analytics-devices']['output_schema'] ?? null ), 'the other sections keep their open object schema' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
