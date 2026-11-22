@@ -46,11 +46,18 @@ $fresh = array(
 	'2026-11-11' => $fold['2026-11-11'],
 );
 $m = sn_analytics_sampled_merge( $stored, $fresh );
-ok( isset( $m['2026-08-01'] ), 'a day past Analytics Engine\'s window is never deleted' );
+ok( isset( $m['2026-08-01'] ), 'a day past Analytics Engine\'s 90-day window is kept' );
 ok( 7 === $m['2026-08-25']['pv']['stored'], 'a thinner re-read (fewer stored rows) never replaces a fuller reading' );
 ok( 3 === $m['2026-11-10']['pv']['stored'] && isset( $m['2026-11-11'] ), 'a fuller fresh reading overwrites; a new day is added' );
 $tie = sn_analytics_sampled_merge( array( 'd' => array( 'pv' => array( 'stored' => 2, 'stands_for' => 2 ), 'sc' => array( 'stored' => 1, 'stands_for' => 1 ) ) ), array( 'd' => array( 'pv' => array( 'stored' => 2, 'stands_for' => 5 ) ) ) );
 ok( 5 === $tie['d']['pv']['stands_for'] && isset( $tie['d']['sc'] ), 'a tie goes to the fresh reading; an event the fresh read lacks is kept' );
+// 2026-11-22: the option is kept to the newest 400 days, so it cannot grow without end.
+$long = array();
+for ( $i = 0; $i < 401; $i++ ) {
+	$long[ gmdate( 'Y-m-d', gmmktime( 12, 0, 0, 1, 1 + $i, 2025 ) ) ] = array( 'pv' => array( 'stored' => 1, 'stands_for' => 1 ) );
+}
+$cut = sn_analytics_sampled_merge( $long, array( '2026-03-01' => array( 'pv' => array( 'stored' => 1, 'stands_for' => 1 ) ) ) );
+ok( 400 === SN_ANALYTICS_SAMPLED_KEEP && 400 === count( $cut ) && ! isset( $cut['2025-01-01'], $cut['2025-01-02'] ) && isset( $cut['2025-01-03'], $cut['2026-03-01'] ), 'the newest 400 days are kept; older ones leave' );
 
 echo "Report and helper\n";
 $r = sn_analytics_sampled_report( $m );
