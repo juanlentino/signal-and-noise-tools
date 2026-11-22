@@ -113,10 +113,6 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.3'
-          # A PHP security release makes roave/security-advisories refuse the runner's
-          # preinstalled patch version until the image catches up (2026-11-21: 8.3.36
-          # vs 8.3.37). update asks setup-php for the newest patch instead.
-          update: true
           coverage: none
           tools: composer
       # Install only the dev tooling (PHPCS + WPCS + PHPCompatibilityWP) declared
