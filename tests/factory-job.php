@@ -104,7 +104,7 @@ $GLOBALS['owner_ok'] = '1';
 ok( 0 !== job( 'advance', '8', 'build' )[0], 'an escalated job with no spec cannot jump to build' );
 ok( 0 === job( 'advance', '8', 'spec' )[0], 'once the owner answers, a public-surface job may go on' );
 ok( false === strpos( file_get_contents( "$jobs/8/issue.md" ), "\n# Issue 8: " ) && false !== strpos( file_get_contents( "$jobs/8/issue.md" ), "## Title\n\n> " ), 'the issue title is quoted as data too' );
-$src = file_get_contents( __DIR__ . '/../tools/factory/job' ) . file_get_contents( __DIR__ . '/../tools/factory/gate' );
+$src = file_get_contents( __DIR__ . '/../tools/factory/job' ) . file_get_contents( __DIR__ . '/../tools/factory/gate' ) . implode( '', array_map( 'file_get_contents', glob( __DIR__ . '/../tools/factory/jobkit/*.py' ) ) );
 ok( false === strpos( $src, 'pr", "merge' ) && false === strpos( $src, 'pr merge' ) && false === strpos( $src, '--admin' ) && false === strpos( $src, 'cut-' ), 'neither script can merge, use --admin or cut' );
 
 exec( 'rm -rf ' . escapeshellarg( $jobs ) );
