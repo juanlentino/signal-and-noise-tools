@@ -383,6 +383,7 @@ $GLOBALS['__rt_query_today']  = array( array( 'views' => 31, 'stored' => 20 ) );
 sn_analytics_realtime_refresh();
 ok( 20 === ( get_transient( SN_ANALYTICS_REALTIME_KEY )['views_today_stored'] ?? null ), 'refresh: caches the stored rows' );
 ok( 20 === ( get_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD )['stored'] ?? null ), 'refresh: the last-good keeps the stored rows too' );
+ok( abs( time() - (int) ( get_option( SN_ANALYTICS_VIEWS_TODAY_LASTGOOD )['at'] ?? 0 ) ) <= 2, 'refresh: the last-good says when it was read' );
 ok( array( 'views' => 31, 'stored' => 20 ) === sn_analytics_today_sampling() && sn_analytics_today_is_estimate(), 'fewer stored rows than views: today is an estimate' );
 ok( false !== strpos( sn_analytics_today_estimate_note(), 'kept 20 page-view records, weighted to stand for 31' ), 'the admin note names both numbers' );
 delete_transient( SN_ANALYTICS_REALTIME_KEY );

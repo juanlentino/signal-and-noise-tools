@@ -9,9 +9,11 @@ lives in [docs/changelog/](docs/changelog/).
 A pull request does not bump `Version` and does not tag — it closes an issue and
 adds a bullet below. A release is a separate, deliberate act:
 `tools/cut-release.sh`.
-- **Preview PDF previews the résumé PDF.** With résumé settings in the draft it streams the one résumé's layout (two pages, What I've Built, verified credits), the file Publish would build, instead of the music layout nothing publishes (`sn_resume_pdf_draft_parts()`, layout shared with Generate through `sn_resume_ops_pdf_layout()`). Test: `tests/resume-ops-pdf-build.php`.
 
 ## [Unreleased]
+
+### Fixed
+- **"Listed in Sessions (rest sampled)" appears only when the stored-row figure and the exact count describe the same moment.** SN Traffic compared the worker's exact count for today (at most 45 minutes old) with stored rows that could come from the same-day last-good option, which has no age limit: 12 rows stored at 9 am against an exact 20 at 2 pm printed "rest sampled: 12" on a day with no sampling. The last-good now records when it was read (`at`), and the new `sn_analytics_today_stored_beside()` returns the stored rows only when they were read no earlier than the realtime cache's 5-minute retention before the exact read. SN Traffic's `today_listed` and live-now's `today_stored` (beside an exact `today`) use it; otherwise the row is absent and `today_stored` is null. `today` is unchanged, and with no exact count `today_stored` is what it was. A last-good written before this change has no read time and is not compared.
 
 ## [2026.11.55] - 2026-11-22 — The vitals read names the elements behind not-good CLS readings
 
