@@ -20,6 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/analytics-ingest-canary.php'; // SN_INGEST_CANARY_PATH, the path the canary is read back by.
 require_once __DIR__ . '/analytics-generation.php'; // which dataset a read uses (legacy, or the second generation once verified).
 
 const SN_HEALTH_INGEST_STALE_SECS = 86400;
@@ -31,13 +32,30 @@ const SN_HEALTH_INGEST_WHY_MAX    = 200; // characters of a stored send reason t
 
 /**
  * The newest canary pageview in the last 24 hours: identity 7 (a SignalNoise-
- * user agent) in the owner dataset, where the Worker files this site's own
- * tools.
+ * user agent) on the canary's own path, in the owner dataset, where the Worker
+ * files this site's own tools. The path is what makes it the canary: any other
+ * SignalNoise- tool is identity 7 too.
  *
+ * @param bool $legacy Also take the path /, which the canary sent before 2026-11-22.
  * @return string AE SQL.
  */
-function sn_health_analytics_canary_sql() {
-	return "SELECT max(toUnixTimestamp(timestamp)) AS last FROM sn_owner_hits WHERE blob1 = 'pv' AND toUInt32(double14) = 7 AND timestamp >= now() - INTERVAL '1' DAY";
+function sn_health_analytics_canary_sql( $legacy = false ) {
+	$path = $legacy ? "blob2 IN ('" . SN_INGEST_CANARY_PATH . "', '/')" : "blob2 = '" . SN_INGEST_CANARY_PATH . "'";
+	return "SELECT max(toUnixTimestamp(timestamp)) AS last FROM sn_owner_hits WHERE blob1 = 'pv' AND toUInt32(double14) = 7 AND {$path} AND timestamp >= now() - INTERVAL '1' DAY";
+}
+
+/**
+ * Pure: whether a canary row on the old path / can still be inside the 24-hour
+ * window: until the canary's first send on its own path is 24 hours old, or
+ * while that time is not stored (it has not sent on it yet).
+ *
+ * @param mixed $last_send The stored { at, http, why, since }.
+ * @param int   $now       Current unix time.
+ * @return bool
+ */
+function sn_health_analytics_canary_legacy( $last_send, $now ) {
+	$since = is_array( $last_send ) && is_numeric( $last_send['since'] ?? null ) ? (int) $last_send['since'] : 0;
+	return $since <= 0 || (int) $now - $since < SN_HEALTH_INGEST_STALE_SECS;
 }
 
 /**
@@ -140,7 +158,7 @@ function sn_health_analytics_ingest_findings( array $rows, $now, $canary = null,
  */
 function sn_health_check_analytics_ingest() {
 	$label    = 'Analytics ingest';
-	$fix_hint = 'A dead analytics collector reads as a quiet day. This check flags when no human pageview has been recorded for 24 hours, or for 72 hours when the hourly canary (a SignalNoise- pageview kept out of every count) proves the collector writes. Look at the analytics worker (deploy, Analytics Engine binding, classifier) with `wrangler tail`.';
+	$fix_hint = 'A dead analytics collector reads as a quiet day. This check flags when no human pageview has been recorded for 24 hours, or for 72 hours when the hourly canary (a SignalNoise- pageview of /_sn/canary, in none of the classes and left out of the own-tools figure) proves the collector writes. Look at the analytics worker (deploy, Analytics Engine binding, classifier) with `wrangler tail`.';
 	if ( ! function_exists( 'sn_analytics_config' ) || ! sn_analytics_config() || ! function_exists( 'sn_analytics_query' ) ) {
 		return sn_health_pack_check( $label, array(), $fix_hint, 'Analytics is not configured, so ingest could not be checked.' );
 	}
@@ -148,8 +166,8 @@ function sn_health_check_analytics_ingest() {
 	if ( ! is_array( $rows ) ) {
 		return sn_health_pack_check( $label, array(), $fix_hint, 'The analytics query failed, so ingest could not be checked. This is not a reading of zero.' );
 	}
-	$c      = sn_analytics_query( sn_health_analytics_canary_sql() );
-	$canary = is_array( $c ) ? (int) ( $c[0]['last'] ?? 0 ) : null; // a failed read is unknown, never a canary
-	$last_send = function_exists( 'get_option' ) ? get_option( 'sn_ingest_canary_last', null ) : null; // SN_INGEST_CANARY_OPT; that file is not required here
+	$last_send = function_exists( 'get_option' ) ? get_option( SN_INGEST_CANARY_OPT, null ) : null;
+	$c         = sn_analytics_query( sn_health_analytics_canary_sql( sn_health_analytics_canary_legacy( $last_send, time() ) ) );
+	$canary    = is_array( $c ) ? (int) ( $c[0]['last'] ?? 0 ) : null; // a failed read is unknown, never a canary
 	return sn_health_pack_check( $label, sn_health_analytics_ingest_findings( $rows, time(), $canary, $last_send ), $fix_hint );
 }

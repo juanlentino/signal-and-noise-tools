@@ -4,7 +4,8 @@
  *
  * Every beacon page view and every machine read lands in exactly one lane per
  * day (docs/plans/traffic-lanes-2026-10-15.md, the mapping table and advisor
- * checkpoint 3). The lane is derived at READ time from stored fields under
+ * checkpoint 3). One exception since 2026-11-22: page views of /_sn/canary,
+ * the hourly ingest canary, are a probe of the collector and land in no lane. The lane is derived at READ time from stored fields under
  * `lane_rule_version`; a stored day whose rule version differs from the
  * current one is never re-rolled, so a rule change never relabels history.
  *

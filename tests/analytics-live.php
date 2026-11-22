@@ -281,6 +281,15 @@ $pub = sn_analytics_live_payload( false );
 ok( 31 === $pub['today'] && $keys_before === array_keys( $pub ), '/stats: the exact count, and the public answer keeps its shape' );
 $adm = sn_analytics_live_payload( true );
 ok( 31 === $adm['today'] && true === $adm['today_exact'], 'admin: the exact count, flagged' );
+// 2026-11-22: beside the exact count, stored rows from an older read are not offered for comparison.
+if ( ! function_exists( 'sn_analytics_local_day' ) ) { function sn_analytics_local_day() { return 'today'; } }
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array(), 'fetched' => time() ); // no stored count in the cache
+$GLOBALS['o'][ SN_ANALYTICS_VIEWS_TODAY_LASTGOOD ] = array( 'day' => sn_analytics_local_day(), 'views' => 12, 'stored' => 12, 'at' => time() - 5 * 3600 );
+$adm = sn_analytics_live_payload( true );
+ok( 31 === $adm['today'] && null === $adm['today_stored'], 'admin: a last-good from hours before the exact read is not set beside it' );
+$GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'counts' => array(), 'views_today' => 40, 'views_today_stored' => 25, 'fetched' => time() );
+$adm = sn_analytics_live_payload( true );
+ok( 31 === $adm['today'] && 25 === $adm['today_stored'], 'admin: stored rows read with the exact count are' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

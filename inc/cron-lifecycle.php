@@ -69,6 +69,7 @@ function sn_cron_hooks() {
 		SN_AI_MODELS_HOOK,   // 21.0.0: daily AI model-list read.
 		SNT_ALERTS_HOOK, // 20.8.0: hourly spike and break alerts.
 		SN_PUBLIC_STATS_MACHINES_HOOK, // 22.0.0: hourly /stats machine-reads snapshot.
+		SN_INGEST_CANARY_HOOK, // hourly analytics ingest canary.
 		// Single events, some with arguments.
 		SN_ARCHIVE_PUSH_HOOK, // one Internet Archive capture after a first publish.
 		SN_ARCHIVE_EXISTING_HOOK, // 21.1.0: one tick of the owner-started run over older notes.
@@ -81,7 +82,6 @@ function sn_cron_hooks() {
 		SN_CF_RETRY_HOOK,
 		SN_DOOR_LEAK_HOOK,
 		SN_CSP_HASH_HOOK, // daily strict-CSP inline-hash check.
-		SN_INGEST_CANARY_HOOK, // hourly analytics ingest canary.
 		SN_SEC_GUARD_ROUTES_HOOK,
 		SN_FI_HOOK,
 		SN_INBOUND_PASS_PUBLISH_HOOK,
