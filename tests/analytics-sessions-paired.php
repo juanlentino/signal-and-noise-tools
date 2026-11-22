@@ -108,7 +108,11 @@ ok( 'Page views' === $GLOBALS['table']['cols'][2]['label'], 'the column is named
 $plain = current( array_filter( $GLOBALS['table']['rows'], static fn( $r ) => 0 === strpos( $r[1], '/ ' ) || '/' === $r[1] ) );
 ok( '1' === $plain[2] && '(direct)' === $plain[4], 'an unsampled, unpaired session: the plain count and no marker' );
 $GLOBALS['t'][ SN_ANALYTICS_REALTIME_KEY ] = array( 'views_today' => 31, 'views_today_stored' => 20 );
-ok( false !== strpos( snt_analytics_session_list_sampled_meta( '2026-11-17' ), 'page views about 31, from 20 stored' ), 'the sampled-today note uses the same wording' );
+// The note is for today only: pass the current site day, never a fixed date
+// (a fixed one went stale the day after it was written, 2026-11-18).
+$today = sn_analytics_local_day();
+ok( false !== strpos( snt_analytics_session_list_sampled_meta( $today ), 'page views about 31, from 20 stored' ), 'the sampled-today note uses the same wording' );
+ok( '' === snt_analytics_session_list_sampled_meta( gmdate( 'Y-m-d', strtotime( $today . ' 12:00 UTC' ) - 2 * 86400 ) ), 'a window ending before today carries no sampled-today note' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail ? 1 : 0 );

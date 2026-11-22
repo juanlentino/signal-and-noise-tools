@@ -13,6 +13,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A test that expired with its date.** `tests/analytics-sessions-paired.php` passed a fixed day (2026-11-17) as today to the sampled-today note, so it went red on 2026-11-18. It now passes the current site day, and also pins that a window ending before today carries no note (red with the day comparison removed). Test only; no runtime change.
+- **Composer's PHP platform pin is 8.3.37.** PHP shipped a security release on 2026-11-19 and `roave/security-advisories` now conflicts with 8.3 below 8.3.37, so the dev-dependency install failed and took PHPStan and the coding-standards job down on every pull request. `config.platform.php` moves from 8.3.36 to 8.3.37, as `docs/changelog/v13.md` says to do when roave raises the floor. Dev tooling only.
+
 ## [2026.11.52] - 2026-11-18 — Feed opens count New York days; insights and narration retired from the remote door
 
 ### Changed
