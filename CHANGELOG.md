@@ -13,6 +13,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **A test that expired with its date.** `tests/analytics-sessions-paired.php` passed a fixed day (2026-11-17) as today to the sampled-today note, so it went red on 2026-11-18. It now passes the current site day, and also pins that a window ending before today carries no note (red with the day comparison removed). Test only; no runtime change.
+
 ## [2026.11.52] - 2026-11-18 — Feed opens count New York days; insights and narration retired from the remote door
 
 ### Changed
