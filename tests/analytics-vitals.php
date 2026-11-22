@@ -92,13 +92,13 @@ $GLOBALS['__path_rows'] = array(
 	array( 'e' => 'vl', 'k' => '/notes/a', 'v' => '3000', 'w' => '1' ),
 );
 $v = sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 );
-ok( 2 === count( $GLOBALS['__q'] ), 'two queries: by device, by path' );
+ok( 4 === count( $GLOBALS['__q'] ) && 2 === count( array_filter( $GLOBALS['__q'], static fn( $q ) => false !== strpos( $q, 'blob17' ) ) ), 'four queries: by device, by path, and the two CLS source legs (tests/analytics-vitals-sources.php)' );
 ok( 41 === $v['site']['lcp']['samples'], 'site-wide is the devices merged' );
 ok( '/notes/a' === $v['paths'][0]['path'] && 4 === $v['paths'][0]['lcp']['samples'], 'a path folds both spellings into its canonical one' );
 ok( '/' === $v['paths'][1]['path'] && null === $v['paths'][1]['lcp']['p75'], 'a top path with no measurements is listed, not measured' );
 ok( 2500.0 === $v['thresholds']['lcp']['good_max'] && 0.25 === $v['thresholds']['cls']['poor_over'] && 30 === $v['min_samples'], 'the payload names its thresholds and the small-sample floor' );
 sn_analytics_vitals( '2026-09-14', '2026-10-11', 'human', 10 );
-ok( 2 === count( $GLOBALS['__q'] ), 'cached: a second read asks nothing' );
+ok( 4 === count( $GLOBALS['__q'] ), 'cached: a second read asks nothing' );
 ok( 2 === count( $v['paths'] ), 'a top path the SQL refuses is dropped from the list, not shown as not measured' );
 
 $GLOBALS['__t'] = array();
