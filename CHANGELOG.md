@@ -13,6 +13,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.11.53] - 2026-11-22 — An hourly ingest canary tells a quiet day from a dead collector
+
 ### Added
 - **An hourly ingest canary, so a quiet day no longer reads as a dead collector.** Once an hour the plugin sends one pageview of `/` to the real collector (`/_sn/px`, through Cloudflare, with the public beacon key) under the user agent `SignalNoise-IngestCanary/1.0`. The analytics Worker files a SignalNoise- user agent as this site's own tool (identity 7) in `sn_owner_hits`, so it is in no human, suspect or bot count; it shows only in the own-tools figure. The last answer is stored in `sn_ingest_canary_last`. New: `inc/analytics-ingest-canary.php`, test `tests/analytics-ingest-canary.php`.
 
@@ -22,12 +24,4 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Fixed
 - **A test that expired with its date.** `tests/analytics-sessions-paired.php` passed a fixed day (2026-11-17) as today to the sampled-today note, so it went red on 2026-11-18. It now passes the current site day, and also pins that a window ending before today carries no note (red with the day comparison removed). Test only; no runtime change.
 - **Composer's PHP platform pin is 8.3.37.** PHP shipped a security release on 2026-11-19 and `roave/security-advisories` now conflicts with 8.3 below 8.3.37, so the dev-dependency install failed and took PHPStan and the coding-standards job down on every pull request. `config.platform.php` moves from 8.3.36 to 8.3.37, as `docs/changelog/v13.md` says to do when roave raises the floor. Dev tooling only.
-
-## [2026.11.52] - 2026-11-18 — Feed opens count New York days; insights and narration retired from the remote door
-
-### Changed
-- **Feed opens count site days.** The open store is keyed by the day in the site timezone (midnight in New York), the day `today`, today_stored and Sessions count, instead of the UTC day. `feed_opens.today` in live-now is now since midnight in New York (`today_day` replaces `today_utc`), and the dashboard line reads "Feed: at least N opens today, M this week". The 7-day window counts calendar days, so a DST change never moves the cut. rss_stats and north-star use the same window, so their 7-day totals stay equal. One-time seam: opens recorded before this release are keyed by UTC day, so for the first day after install, an evening open in New York (after 7 or 8 pm) may count on the next day. Test: `tests/feed-opens.php` (+3; red with the UTC day).
-
-### Removed
-- **remote-get-insights and remote-get-narration are off the remote door (contract 36 -> 37).** Both answered null: they read 7-day caches that only an admin run fills. The weekly narration digest was retired in v9.4.1, and the insights weekly scan is opt-in and off (`insights.weekly_cron_enabled`), so no cron writes either cache. That is also why cron health showed nothing late. The remote door cannot start a run, so it could never fill them. The local get-insights and get-narration abilities, and the admin pages that run them, stay. The remote worker drops the two tools at contract 37. Tests: `tests/abilities-remote-set.php` (pins the retirement), `tests/remote-contract-shapes.php`, `tests/mcp-remote-guard.php`, `tests/mcp-door-manifest.php`, `tests/os-leaf-ai-agent-tools.php`; fixture `tests/fixtures/remote-output-schemas.json` regenerated.
 
