@@ -71,7 +71,8 @@ function sn_analytics_vitals_sources_fold( array $rows ) {
 		$r    = (array) $r;
 		$path = sn_analytics_canonical_path( (string) ( $r['k'] ?? '' ) );
 		$src  = (string) ( $r['s'] ?? '' );
-		if ( '' === $src || ! sn_analytics_vitals_path_ok( $path ) ) {
+		// The worker cleans a source, but a stored row is not trusted: its shape is checked again.
+		if ( 1 !== preg_match( '/^[A-Za-z][A-Za-z0-9_#.-]{0,95}\z/', $src ) || ! sn_analytics_vitals_path_ok( $path ) ) {
 			continue;
 		}
 		$key         = $path . "\n" . $src;
@@ -140,7 +141,7 @@ function sn_analytics_vitals_stitched( callable $build, $what, $from, $to ) {
 		return null;
 	}
 	if ( array() !== array_filter( $sets, static fn( $s ) => count( $s ) >= $cap ) ) {
-		sn_analytics_vitals_failure( $what . ' reached the row cap, so its answer would be partial' );
+		sn_analytics_vitals_failure( $what . ' reached the row cap, so its distribution would be partial' );
 		return null;
 	}
 	return array_merge( ...$sets );

@@ -80,6 +80,15 @@ $many = array();
 for ( $i = 0; $i < 60; $i++ ) {
 	$many[] = array( 'k' => '/p' . $i, 's' => 'div', 'w' => (string) ( $i + 1 ), 'p' => '0', 'm' => '120' );
 }
+$hostile = sn_analytics_vitals_sources_fold(
+	array(
+		array( 'k' => '/a', 's' => '<img onerror=x>', 'w' => '3', 'p' => '0', 'm' => '200' ),
+		array( 'k' => '/a', 's' => '#starts-with-hash', 'w' => '3', 'p' => '0', 'm' => '200' ),
+		array( 'k' => '/a', 's' => 'div.' . str_repeat( 'a', 200 ), 'w' => '3', 'p' => '0', 'm' => '200' ),
+		array( 'k' => '/a', 's' => 'div.ok_1-x#y', 'w' => '3', 'p' => '0', 'm' => '200' ),
+	)
+);
+ok( 1 === count( $hostile ) && 'div.ok_1-x#y' === $hostile[0]['source'], 'a stored source is checked again on the way out: markup, a leading #, and an overlong value are dropped' );
 $capped = sn_analytics_vitals_sources_fold( $many );
 ok( 50 === count( $capped ) && 60 === $capped[0]['readings'] && 11 === $capped[49]['readings'], 'capped at 50, after the sort: the 50 with the most readings' );
 
