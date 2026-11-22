@@ -14,6 +14,7 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Fixed
 - **"Listed in Sessions (rest sampled)" appears only when the stored-row figure and the exact count describe the same moment.** SN Traffic compared the worker's exact count for today (at most 45 minutes old) with stored rows that could come from the same-day last-good option, which has no age limit: 12 rows stored at 9 am against an exact 20 at 2 pm printed "rest sampled: 12" on a day with no sampling. The last-good now records when it was read (`at`), and the new `sn_analytics_today_stored_beside()` returns the stored rows only when they were read no earlier than the realtime cache's 5-minute retention before the exact read. SN Traffic's `today_listed` and live-now's `today_stored` (beside an exact `today`) use it; otherwise the row is absent and `today_stored` is null. `today` is unchanged, and with no exact count `today_stored` is what it was. A last-good written before this change has no read time and is not compared.
+- **The feed-opens daylight-saving test can fail.** Its instant (16:00 UTC on Nov 8, six days back) read Nov 2 under UTC arithmetic, under 86,400-second steps in New York time and under calendar days alike. It is now 11:30 pm in New York on Nov 1, 2026, the day of the fall-back, six days back: calendar days answer Oct 26, and both wrong formulas answer Oct 27. Each was swapped in by hand and failed the line. No code change.
 
 ## [2026.11.55] - 2026-11-22 — The vitals read names the elements behind not-good CLS readings
 
