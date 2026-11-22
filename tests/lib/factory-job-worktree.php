@@ -30,3 +30,8 @@ $main = trim( git( $root, 'rev-parse HEAD' )[1] );
 set_state( '62', array( 'worktree' => $wt62, 'stage' => 'gate' ) ); putj( '62', 'round-1/checks.md', "PASS $main\n" );
 list( $c, $o ) = job( 'advance', '62', 'review' );
 ok( 0 !== $c && false !== strpos( $o, 'no worktree HEAD' ), 'the main checkout\'s HEAD is never read as the job\'s HEAD' );
+// Even when the main checkout sits on the job's own branch name, a plain folder is not the job's worktree.
+job( 'new', '63' ); $wt63 = "$root/.claude/worktrees/factory-63"; mkdir( $wt63, 0777, true ); git( $root, 'checkout -q -b factory/63' );
+set_state( '63', array( 'worktree' => $wt63, 'stage' => 'gate' ) ); putj( '63', 'round-1/checks.md', "PASS $main\n" );
+list( $c, $o ) = job( 'advance', '63', 'review' ); git( $root, 'checkout -q main' );
+ok( 0 !== $c && false !== strpos( $o, 'no worktree HEAD' ), 'the folder must be the top of its own worktree, whatever branch the main checkout is on' );
