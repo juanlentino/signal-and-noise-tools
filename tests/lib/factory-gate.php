@@ -6,7 +6,7 @@
  */
 if ( PHP_SAPI !== 'cli' ) { http_response_code( 404 ); exit; }
 
-walk( '71', 'admin', 'gate' ); $g = state( '71' )['worktree'];
+walk( '71', 'admin', 'gate' ); $g = wt_of( '71' );
 @mkdir( "$jobs/.wp-core/wp-includes/html-api", 0777, true ); // the core fetch is not what is under test
 $bullet = function ( $under ) use ( $g ) { file_put_contents( "$g/CHANGELOG.md", str_replace( "## [$under]\n", "## [$under]\n\n- **A new bullet.**\n", file_get_contents( "$g/CHANGELOG.md" ) ) ); };
 $good   = function () use ( $g, $bullet ) { file_put_contents( "$g/tests/new.php", "<?php\necho \"1 passed, 0 failed\";\n" ); file_put_contents( "$g/inc/a.php", "<?php\n\$a = 1;\n" ); $bullet( 'Unreleased' ); };

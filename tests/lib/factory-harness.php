@@ -23,7 +23,13 @@ $GITHUB = 'https://github.com/juanlentino/signal-and-noise-tools.git';
 $EM     = "\xe2\x80\x94";
 
 function sh( $cmd ) { exec( $cmd . ' 2>&1', $out, $code ); return array( $code, implode( "\n", $out ) ); }
-function git( $dir, $args ) { return sh( 'git -C ' . escapeshellarg( $dir ) . ' -c user.name=t -c user.email=t@example.test -c commit.gpgsign=false ' . $args ); }
+/** git, in the fixture ONLY. An empty or outside path would run in the caller's checkout (these tests reset and clean), so it is refused. */
+function git( $dir, $args ) {
+	global $tmp;
+	if ( 0 !== strpos( (string) realpath( $dir ) . '/', "$tmp/" ) ) { return array( 1, 'refused: not inside the fixture' ); }
+	return sh( 'git -C ' . escapeshellarg( $dir ) . ' -c user.name=t -c user.email=t@example.test -c commit.gpgsign=false ' . $args );
+}
+function wt_of( $id ) { global $root; return "$root/.claude/worktrees/factory-$id"; } // from the id, never from job.json
 function run_job( array $env, array $a, $script = null ) {
 	global $jobs, $tool;
 	$e = '';
@@ -43,8 +49,8 @@ function calls() { global $tmp; return (string) @file_get_contents( "$tmp/bin/ca
 function putj( $id, $rel, $text ) { global $jobs; @mkdir( dirname( "$jobs/$id/$rel" ), 0777, true ); file_put_contents( "$jobs/$id/$rel", $text ); }
 function state( $id ) { global $jobs; return json_decode( (string) @file_get_contents( "$jobs/$id/job.json" ), true ); }
 function set_state( $id, array $over ) { global $jobs; file_put_contents( "$jobs/$id/job.json", json_encode( $over + state( $id ) ) ); }
-function head_of( $id ) { return trim( sh( 'git -C ' . escapeshellarg( state( $id )['worktree'] ) . ' rev-parse HEAD' )[1] ); }
-function commit_in( $id, $msg ) { git( state( $id )['worktree'], 'commit -q --allow-empty -m ' . escapeshellarg( $msg ) ); return head_of( $id ); }
+function head_of( $id ) { return trim( git( wt_of( $id ), 'rev-parse HEAD' )[1] ); }
+function commit_in( $id, $msg ) { git( wt_of( $id ), 'commit -q --allow-empty -m ' . escapeshellarg( $msg ) ); return head_of( $id ); }
 /** Walk a fresh job to a stage, with a real worktree in the fixture. */
 function walk( $id, $surfaces = 'admin', $to = 'ready', $job = 'job' ) {
 	$job( 'new', $id ); putj( $id, 'intake.md', "DECISION: ACCEPT\nRISK: low\nSURFACES: $surfaces\n" ); $job( 'advance', $id, 'spec' );
