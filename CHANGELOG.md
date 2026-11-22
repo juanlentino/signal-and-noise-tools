@@ -16,6 +16,9 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Added
 - **A factory pilot for this repository (maintainer tooling, nothing ships).** `tools/factory/` turns a GitHub issue labeled `factory` into a reviewed pull request and stops at ready to merge: it never merges and never cuts. `job` keeps each job's stage, refuses a move the stage table does not allow or whose evidence file is missing (an accepting intake, a spec, a READY build, a gate that passed on the worktree's current HEAD, a review that says PASS), refuses a public surface without the owner, caps a job at three rounds, and performs the GitHub side effects. `gate` runs the checks before review (clean tree, `php -l`, a CHANGELOG bullet, no em dash, a touched test, `tests/run.sh`). `SKILL.md` is the orchestrator a Claude Code session follows. Modeled on OpenStation's software factory (GPL-2.0), cut down for one maintainer. See `tools/factory/README.md`. Test: `tests/factory-job.php` (new; red with the public-surface, round-limit or review guard removed).
 
+### Changed
+- **The Analytics ingest health check says when the canary send itself failed.** When the check already raises a finding and the last stored canary send (`sn_ingest_canary_last`) was not a clean 204, the finding's note adds one sentence with the HTTP status, the reason, and how long ago the send was, so a rotated beacon key or a timeout no longer reads only as a canary that did not arrive. A 204, a missing option or an unreadable value adds nothing, and no finding is raised or removed because of it. Test: `tests/health-check-analytics-ingest.php` (+17; the 403 case and the wrapper case go red with the change removed).
+
 ## [2026.11.53] - 2026-11-22 — An hourly ingest canary tells a quiet day from a dead collector
 
 ### Added
