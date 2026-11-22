@@ -31,6 +31,13 @@ A failed gate or a review asking for changes costs a round. After
 `max_rounds` the job must be escalated. An issue whose intake names a
 `public` surface cannot reach `spec` without the owner: it is escalated.
 
+A job at `needs-human` or `ready` restarts only when the owner has commented
+on the issue since it stopped (the factory's own comments open with
+"Factory" and do not count). The restart archives the earlier rounds, so no
+old gate or review can stand in for a new one. The gate and the review are
+both tied to a commit: `ready` needs both on the worktree's HEAD, and the
+pushed branch must be that commit.
+
 ## Install the skill
 
 `.claude/` is gitignored here, so the skill is linked from the user's skills:

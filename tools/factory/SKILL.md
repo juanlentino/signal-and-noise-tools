@@ -28,6 +28,8 @@ Run every command from the repository root. `J=tools/factory/job`.
   over about 150 lines, a test that fails without the change, a CHANGELOG
   Unreleased bullet, estimates labeled as estimates.
 - A job that cannot proceed is escalated with a plain reason, never guessed.
+- **An escalated job waits for the owner.** Any comment you post on an issue
+  starts with "Factory", which `job` does not count as the owner's answer.
 
 ## Commands
 
@@ -37,9 +39,12 @@ Run every command from the repository root. `J=tools/factory/job`.
   `factory:needs-human` and issues that already have a job past intake, then
   run the pipeline for each, one at a time.
 - `/factory run <issue>`: the pipeline for that issue.
-- `/factory rework <issue>`: for a job at `needs-human` or `ready`, after the
-  owner answered: `$J advance <id> build` (or `spec` if the answer changes
-  scope), resume the builder with the owner's answer, then continue at Gate.
+- `/factory rework <issue>`: for a job at `needs-human` or `ready`. `job`
+  only restarts it when the owner has commented on the issue since it
+  stopped: `$J advance <id> build` (or `spec` if the answer changes scope).
+  Never post that comment yourself. The earlier rounds are archived, so the
+  restarted job needs a fresh gate and a fresh review. Resume the builder
+  with the owner's answer, then continue at Gate.
 
 ## The pipeline
 
@@ -64,7 +69,8 @@ Run every command from the repository root. `J=tools/factory/job`.
    `checks.log` and `review.md`. Writes the test first and sees it fail,
    makes the change, commits on the job branch. On round 1 it pushes and
    opens a DRAFT pull request (`gh pr create --draft`, body ending with
-   "Closes #<issue>"). Writes `jobs/<id>/build.md`, first line
+   "Closes #<issue>"), and on every round it pushes its commits. Writes
+   `jobs/<id>/round-N/build.md` (one per round), first line
    `STATUS: READY` or `STATUS: BLOCKED`, with each criterion ticked or the
    blocker named. BLOCKED: `$J escalate <id> "<blocker>"` and stop.
    READY: `$J advance <id> gate`.
@@ -75,7 +81,8 @@ Run every command from the repository root. `J=tools/factory/job`.
    named `security` or `data`). Reads `spec.md`, `build.md`, the round's
    `checks.md` and the diff against `origin/main`. It is told what the change
    must do, never that it is correct. Writes `round-N/review.md`, first line
-   `VERDICT: PASS` or `VERDICT: CHANGES`, with blockers and nits apart. With
+   `VERDICT: PASS <the full commit sha it reviewed>` or `VERDICT: CHANGES`,
+   with blockers and nits apart. With
    two reviewers, the file says PASS only if both do.
    Wait for the pull request's CI too (`gh pr checks <branch> --watch`).
    - CHANGES or red CI: `$J advance <id> build`, resume the builder.
@@ -84,5 +91,6 @@ Run every command from the repository root. `J=tools/factory/job`.
    changed, the rounds it took, and that it is ready for them to merge.
 
 `job advance <id> ready` checks that the gate passed on the worktree's
-current HEAD and that the review says PASS. A commit after the gate means the
-gate runs again.
+current HEAD and that the review passed that same commit, and `job ready`
+checks that the pushed branch is that commit. A commit after the gate means
+the gate and the review run again.

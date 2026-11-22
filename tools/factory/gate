@@ -24,16 +24,21 @@ step() { # name, command...
 	if "$@" >> "$LOG" 2>&1; then echo "- pass: $name"; else fails+=("$name"); echo "- FAIL: $name"; fi
 }
 clean_tree()  { [ -z "$(git status --porcelain)" ]; }
-php_lint()    { local bad=0 f; while IFS= read -r f; do [ -f "$f" ] && { php -l "$f" >/dev/null || bad=1; }; done < <(git diff --name-only "origin/$BASE"...HEAD -- '*.php'); return $bad; }
-changelog()   { git diff "origin/$BASE"...HEAD -- CHANGELOG.md | grep -q '^+- '; }
-no_emdash()   { ! git diff "origin/$BASE"...HEAD | grep '^+[^+]' | grep -q '—'; }
-has_tests()   { git diff --name-only "origin/$BASE"...HEAD | grep -q '^tests/'; }
+# The diff is captured once, so a failed `git diff` fails every check that
+# reads it, and no early-exiting grep can turn a broken pipe into a pass.
+have_diff()   { git rev-parse -q --verify "origin/$BASE" >/dev/null && DIFF="$(git diff "origin/$BASE"...HEAD)" && FILES="$(git diff --name-only "origin/$BASE"...HEAD)"; }
+php_lint()    { local bad=0 f; while IFS= read -r f; do case "$f" in *.php) [ -f "$f" ] && { php -l "$f" >/dev/null || bad=1; };; esac; done <<< "$FILES"; return $bad; }
+changelog()   { grep -q '^+- ' <<< "$(git diff "origin/$BASE"...HEAD -- CHANGELOG.md)"; }
+no_emdash()   { [ -n "$DIFF" ] && ! grep '^+[^+]' <<< "$DIFF" | grep -c '—' >/dev/null; }
+has_tests()   { grep -q '^tests/' <<< "$FILES"; }
 sweep()       { # core's HTML API, fetched once and shared by every job, as CI does
 	local core="$JOBS/.wp-core"
 	[ -d "$core/wp-includes/html-api" ] || bash tools/fetch-wp-test-core.sh "$core" || return 1
 	SNT_WP_HTML_API="$core/wp-includes/html-api" bash tests/run.sh
 }
 
+DIFF=""; FILES=""
+if ! have_diff; then echo "FAIL $SHA" > "$RND/checks.md"; echo "- FAIL: cannot diff against origin/$BASE (fetch it)" | tee -a "$RND/checks.md"; exit 1; fi
 RES="$( { step "the work is committed (clean tree)" clean_tree
           step "php -l on every changed PHP file" php_lint
           step "CHANGELOG has a new Unreleased bullet" changelog

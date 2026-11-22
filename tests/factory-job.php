@@ -14,7 +14,7 @@ $jobs = sys_get_temp_dir() . '/factory-test-' . getmypid();
 $wt   = $jobs . '/wt';
 function job( ...$a ) {
 	global $jobs;
-	$cmd = 'FACTORY_DRY=1 FACTORY_JOBS=' . escapeshellarg( $jobs ) . ' python3 ' . escapeshellarg( __DIR__ . '/../tools/factory/job' ) . ' ' . implode( ' ', array_map( 'escapeshellarg', $a ) ) . ' 2>&1';
+	$cmd = 'FACTORY_DRY=1 FACTORY_OWNER_OK=' . ( $GLOBALS['owner_ok'] ?? '0' ) . ' FACTORY_JOBS=' . escapeshellarg( $jobs ) . ' python3 ' . escapeshellarg( __DIR__ . '/../tools/factory/job' ) . ' ' . implode( ' ', array_map( 'escapeshellarg', $a ) ) . ' 2>&1';
 	exec( $cmd, $out, $code );
 	return array( $code, implode( "\n", $out ) );
 }
@@ -28,6 +28,12 @@ ok( 0 !== job( 'advance', '7', 'spec' )[0], 'intake -> spec is refused without a
 put( 'intake.md', "DECISION: ACCEPT\nRISK: low\nSURFACES: public, admin\n" );
 list( $c, $o ) = job( 'advance', '7', 'spec' );
 ok( 0 !== $c && false !== strpos( $o, 'public surface' ), 'a public surface cannot reach spec: the owner decides first' );
+foreach ( array( 'SURFACES: Public', '**SURFACES:** public', 'Surfaces : admin, PUBLIC' ) as $line ) {
+	put( 'intake.md', "DECISION: ACCEPT\nRISK: low\n$line\n" );
+	ok( 0 !== job( 'advance', '7', 'spec' )[0], "the public stop reads \"$line\" too" );
+}
+put( 'intake.md', "DECISION: ACCEPT\nRISK: low\n" );
+ok( 0 !== job( 'advance', '7', 'spec' )[0], 'an intake with no SURFACES line is refused (fail closed)' );
 put( 'intake.md', "DECISION: ACCEPT\nRISK: low\nSURFACES: admin\n" );
 ok( 0 === job( 'advance', '7', 'spec' )[0], 'an accepted, non-public intake moves to spec' );
 ok( 0 !== job( 'advance', '7', 'build' )[0], 'spec -> build is refused without spec.md' );
@@ -35,6 +41,8 @@ put( 'spec.md', "1. a criterion\n" );
 ok( 0 === job( 'advance', '7', 'build' )[0], 'with spec.md the job moves to build' );
 ok( 0 !== job( 'advance', '7', 'gate' )[0], 'build -> gate is refused until build.md says STATUS: READY' );
 put( 'build.md', "STATUS: READY\n" );
+ok( 0 !== job( 'advance', '7', 'gate' )[0], 'a build.md outside the round folder is not this round\'s evidence' );
+put( 'round-1/build.md', "STATUS: READY\n" );
 ok( 0 === job( 'advance', '7', 'gate' )[0], 'a READY build moves to gate' );
 ok( 0 !== job( 'advance', '7', 'review' )[0], 'gate -> review is refused without a passing checks.md' );
 
@@ -52,18 +60,39 @@ ok( 0 !== job( 'advance', '7', 'ready' )[0], 'a review asking for changes is not
 ok( 0 === job( 'advance', '7', 'build' )[0] && 2 === json_decode( file_get_contents( "$jobs/7/job.json" ), true )['round'], 'changes send it back to build and cost a round' );
 ok( 0 !== job( 'ready', '7' )[0], '`ready` refuses a job that is not at the ready stage' );
 
-job( 'advance', '7', 'gate' ); put( 'round-2/checks.md', "PASS $sha\n" ); job( 'advance', '7', 'review' ); job( 'advance', '7', 'build' );
-job( 'advance', '7', 'gate' ); put( 'round-3/checks.md', "PASS $sha\n" ); job( 'advance', '7', 'review' );
+ok( 0 !== job( 'advance', '7', 'gate' )[0], 'round 2 needs its own build.md: round 1\'s READY does not carry over' );
+put( 'round-2/build.md', "STATUS: READY\n" ); job( 'advance', '7', 'gate' ); put( 'round-2/checks.md', "PASS $sha\n" ); job( 'advance', '7', 'review' ); job( 'advance', '7', 'build' );
+put( 'round-3/build.md', "STATUS: READY\n" ); job( 'advance', '7', 'gate' ); put( 'round-3/checks.md', "PASS $sha\n" ); job( 'advance', '7', 'review' );
 list( $c, $o ) = job( 'advance', '7', 'build' );
 ok( 0 !== $c && false !== strpos( $o, 'round limit' ), 'after three rounds another round is refused: escalate' );
 put( 'round-3/review.md', "VERDICT: PASS\n" );
-ok( 0 === job( 'advance', '7', 'ready' )[0], 'gate PASS on HEAD and review PASS reach ready' );
+ok( 0 !== job( 'advance', '7', 'ready' )[0], 'a review that names no commit is not ready' );
+put( 'round-3/review.md', "VERDICT: PASS 0000000000000000000000000000000000000000\n" );
+ok( 0 !== job( 'advance', '7', 'ready' )[0], 'a review of another commit is not ready' );
+put( 'round-3/review.md', "VERDICT: PASS $sha\n" );
+ok( 0 === job( 'advance', '7', 'ready' )[0], 'gate PASS and review PASS, both on the current HEAD, reach ready' );
 list( $c, $o ) = job( 'ready', '7' );
 ok( 0 === $c && false !== strpos( $o, 'gh pr ready' ) && false === strpos( $o, 'pr merge' ), 'ready marks the pull request ready and comments; it never merges' );
+
+// After a stop, only the owner's answer restarts a job, and old rounds cannot stand in for new ones.
+list( $c, $o ) = job( 'advance', '7', 'build' );
+ok( 0 !== $c && false !== strpos( $o, 'waiting for the owner' ), 'ready -> build is refused until the owner answers on the issue' );
+$GLOBALS['owner_ok'] = '1';
+ok( 0 === job( 'advance', '7', 'build' )[0] && 1 === json_decode( file_get_contents( "$jobs/7/job.json" ), true )['round'], 'with the owner\'s answer the job restarts at round 1' );
+ok( ! is_file( "$jobs/7/round-1/review.md" ) && ! is_file( "$jobs/7/round-3/review.md" ) && 1 === count( glob( "$jobs/7/archive-*/round-3/review.md" ) ), 'the earlier rounds are archived: no old gate or review survives the restart' );
+put( 'round-1/build.md', "STATUS: READY\n" ); job( 'advance', '7', 'gate' ); put( 'round-1/checks.md', "PASS $sha\n" ); job( 'advance', '7', 'review' );
+ok( 0 !== job( 'advance', '7', 'ready' )[0], 'after a restart, ready needs a fresh review' );
+$GLOBALS['owner_ok'] = '0';
 
 job( 'new', '8' );
 list( $c, $o ) = job( 'escalate', '8', 'needs a decision' );
 ok( 0 === $c && false !== strpos( $o, 'factory:needs-human' ), 'escalate labels the issue and says why' );
+file_put_contents( "$jobs/8/intake.md", "DECISION: ACCEPT\nSURFACES: public\n" );
+list( $c, $o ) = job( 'advance', '8', 'spec' );
+ok( 0 !== $c && false !== strpos( $o, 'waiting for the owner' ), 'escalating is no way around the owner: needs-human -> spec waits for their answer' );
+$GLOBALS['owner_ok'] = '1';
+ok( 0 === job( 'advance', '8', 'spec' )[0], 'once the owner answers, a public-surface job may go on' );
+ok( false === strpos( file_get_contents( "$jobs/8/issue.md" ), "\n# Issue 8: " ) && false !== strpos( file_get_contents( "$jobs/8/issue.md" ), "## Title\n\n> " ), 'the issue title is quoted as data too' );
 $src = file_get_contents( __DIR__ . '/../tools/factory/job' ) . file_get_contents( __DIR__ . '/../tools/factory/gate' );
 ok( false === strpos( $src, 'pr", "merge' ) && false === strpos( $src, 'pr merge' ) && false === strpos( $src, '--admin' ) && false === strpos( $src, 'cut-' ), 'neither script can merge, use --admin or cut' );
 
