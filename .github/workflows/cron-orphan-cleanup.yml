@@ -16,11 +16,14 @@ name: Cron orphan cleanup
 # Runs as the same app-scoped sn-plugin SSH user as deploy.yml.
 # Blast radius is bounded to the WP app's cron state.
 #
-# Security note: inputs are typed (boolean / string) and passed via
-# env: → positional args to the remote heredoc body, so they never
-# get expanded by the runner shell. The remote-side `has_action()`
-# guard refuses to delete any hook that has a live handler, even if
-# someone supplies it on the input list.
+# Security note: inputs reach the runner through env:, never interpolated
+# into the script. ssh joins its arguments into one string that the REMOTE
+# shell parses again, so the runner refuses any `hooks` value that is not
+# hook names (letters, digits, underscores) separated by commas, and strips
+# the spaces, before ssh sees it. The remote side checks each name again and
+# hands it to PHP through the environment, not inside the code. A hook with
+# a live handler is never deleted, and neither is one whose handler check
+# could not run.
 
 on:
   workflow_dispatch:
@@ -70,6 +73,12 @@ jobs:
           HOOKS_INPUT: ${{ inputs.hooks }}
         run: |
           set -euo pipefail
+          case "$DRY_RUN" in true|false) ;; *) echo "ERROR: dry_run must be true or false"; exit 1 ;; esac
+          HOOKS_INPUT="${HOOKS_INPUT// /}"
+          if [[ ! "$HOOKS_INPUT" =~ ^[A-Za-z0-9_,]*$ ]]; then
+            echo "ERROR: hooks takes hook names (letters, digits, underscores) separated by commas"
+            exit 1
+          fi
           ssh "$SSH_USER@$SSH_HOST" bash -s -- "$DRY_RUN" "$HOOKS_INPUT" <<'REMOTE'
           set -eo pipefail
           # Note: -u (nounset) is NOT enabled here because positional $2
@@ -141,6 +150,11 @@ jobs:
           GUARDED=0
           for hook in "${ORPHANS[@]}"; do
             [ -z "$hook" ] && continue
+            if [[ ! "$hook" =~ ^[A-Za-z0-9_]+$ ]]; then
+              echo "  [GUARD]  (a name that is not a hook name was refused)"
+              GUARDED=$((GUARDED + 1))
+              continue
+            fi
             COUNT=$("$WP_CLI" cron event list --hook="$hook" --format=count 2>/dev/null || echo 0)
 
             if [ "$COUNT" -eq 0 ]; then
@@ -149,9 +163,9 @@ jobs:
               continue
             fi
 
-            HAS=$("$WP_CLI" eval "echo has_action('$hook') ? '1' : '0';" 2>/dev/null || echo "?")
-            if [ "$HAS" = "1" ]; then
-              echo "  [GUARD]  $hook  ($COUNT events, has_action=true — REFUSING to delete)"
+            HAS=$(SN_HOOK="$hook" "$WP_CLI" eval 'echo has_action( getenv( "SN_HOOK" ) ) ? "1" : "0";' 2>/dev/null || echo "?")
+            if [ "$HAS" != "0" ]; then
+              echo "  [GUARD]  $hook  ($COUNT events, has_action=$HAS: REFUSING to delete)"
               GUARDED=$((GUARDED + 1))
               continue
             fi
