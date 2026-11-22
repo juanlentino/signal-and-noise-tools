@@ -32,8 +32,8 @@ $GLOBALS['can'] = false;
 function current_user_can( $cap ) { $GLOBALS['asked'][] = $cap; return $GLOBALS['can']; }
 
 $GLOBALS['ae']  = array();
-$GLOBALS['sql'] = array();
-function sn_analytics_query( $sql ) { $GLOBALS['sql'][] = $sql; return $GLOBALS['ae']; }
+$GLOBALS['__sql'] = array();
+function sn_analytics_query( $sql ) { $GLOBALS['__sql'][] = $sql; return $GLOBALS['ae']; }
 
 $root = dirname( __DIR__ );
 require $root . '/inc/abilities-permission-helpers.php';
@@ -123,10 +123,10 @@ foreach ( array( 0, 91, 'all', '7 days', 1.5 ) as $bad ) {
 	ok( is_wp_error( snt_ability_relay_networks( array( 'days' => $bad ) ) ), 'days ' . json_encode( $bad ) . ' is refused, as the sibling read refuses it' );
 }
 $GLOBALS['ae']  = $v2;
-$GLOBALS['sql'] = array();
+$GLOBALS['__sql'] = array();
 $res = snt_ability_relay_networks( null );
-ok( is_array( $res ) && 90 === $res['days'] && false !== strpos( $GLOBALS['sql'][0] ?? '', "INTERVAL '90' DAY" ), 'no input reads 90 days' );
-ok( 7 === snt_ability_relay_networks( array( 'days' => '7' ) )['days'] && false !== strpos( end( $GLOBALS['sql'] ), "INTERVAL '7' DAY" ), 'days: 7 reads 7 days' );
+ok( is_array( $res ) && 90 === $res['days'] && false !== strpos( $GLOBALS['__sql'][0] ?? '', "INTERVAL '90' DAY" ), 'no input reads 90 days' );
+ok( 7 === snt_ability_relay_networks( array( 'days' => '7' ) )['days'] && false !== strpos( end( $GLOBALS['__sql'] ), "INTERVAL '7' DAY" ), 'days: 7 reads 7 days' );
 ok( 'akamai|fastly' === $res['pattern'] && false === $res['subtracted'] && false !== strpos( $res['basis'], 'Nothing is changed or subtracted' ) && false !== strpos( $res['basis'], 'ASN 0' ), 'it names the pattern, says what it is for, that nothing is changed or subtracted, and what ASN 0 means' );
 $schema = $ab['output_schema'] ?? array();
 $valid  = static function ( $payload ) use ( $schema ) {
