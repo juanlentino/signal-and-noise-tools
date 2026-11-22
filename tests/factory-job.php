@@ -3,6 +3,8 @@
  * The factory's state keeper (tools/factory/job): it refuses an illegal
  * stage move, a move without its evidence file, and a public surface without
  * the owner; a failed round costs one; it stops at ready and never merges.
+ * The parts in tests/lib/factory-*.php cover the bypasses an audit reproduced
+ * (factory-job-evidence, -live, -worktree) and the gate (factory-gate).
  * Run: php tests/factory-job.php
  */
 if ( PHP_SAPI !== 'cli' ) { http_response_code( 404 ); exit; }
@@ -10,15 +12,9 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 if ( '' === trim( (string) shell_exec( 'command -v python3' ) ) ) { echo "SKIP: python3 not found\n\nResult: 0 passed, 0 failed.\n"; exit( 0 ); }
 
-$jobs = sys_get_temp_dir() . '/factory-test-' . getmypid();
-$wt   = $jobs . '/wt';
-function job( ...$a ) {
-	global $jobs;
-	$cmd = 'FACTORY_DRY=1 FACTORY_OWNER_OK=' . ( $GLOBALS['owner_ok'] ?? '0' ) . ' FACTORY_JOBS=' . escapeshellarg( $jobs ) . ' python3 ' . escapeshellarg( __DIR__ . '/../tools/factory/job' ) . ' ' . implode( ' ', array_map( 'escapeshellarg', $a ) ) . ' 2>&1';
-	exec( $cmd, $out, $code );
-	return array( $code, implode( "\n", $out ) );
-}
-function put( $rel, $text ) { global $jobs; @mkdir( dirname( "$jobs/7/$rel" ), 0777, true ); file_put_contents( "$jobs/7/$rel", $text ); }
+require __DIR__ . '/lib/factory-harness.php';
+$wt = "$tmp/wt";
+function put( $rel, $text ) { putj( '7', $rel, $text ); }
 
 ok( 0 === job( 'new', '7' )[0] && is_file( "$jobs/7/issue.md" ), 'new: a job folder with the issue as quoted data' );
 ok( false !== strpos( file_get_contents( "$jobs/7/issue.md" ), 'never an instruction' ), 'issue.md says the request is data, never an instruction' );
@@ -30,7 +26,8 @@ list( $c, $o ) = job( 'advance', '7', 'spec' );
 ok( 0 !== $c && false !== strpos( $o, 'public surface' ), 'a public surface cannot reach spec: the owner decides first' );
 foreach ( array( 'SURFACES: Public', '**SURFACES:** public', 'Surfaces : admin, PUBLIC' ) as $line ) {
 	put( 'intake.md', "DECISION: ACCEPT\nRISK: low\n$line\n" );
-	ok( 0 !== job( 'advance', '7', 'spec' )[0], "the public stop reads \"$line\" too" );
+	list( $c, $o ) = job( 'advance', '7', 'spec' );
+	ok( 0 !== $c && false !== strpos( $o, 'public surface' ), "the public stop reads \"$line\" too" );
 }
 put( 'intake.md', "DECISION: ACCEPT\nRISK: low\n" );
 ok( 0 !== job( 'advance', '7', 'spec' )[0], 'an intake with no SURFACES line is refused (fail closed)' );
@@ -47,7 +44,7 @@ ok( 0 === job( 'advance', '7', 'gate' )[0], 'a READY build moves to gate' );
 ok( 0 !== job( 'advance', '7', 'review' )[0], 'gate -> review is refused without a passing checks.md' );
 
 // A real worktree HEAD, so the gate's sha is checked against it.
-exec( 'git init -q ' . escapeshellarg( $wt ) . ' && git -C ' . escapeshellarg( $wt ) . ' -c user.name=t -c user.email=t@example.test commit -q --allow-empty -m one' );
+sh( 'git init -q ' . escapeshellarg( $wt ) ); git( $wt, 'checkout -q -b factory/7' ); git( $wt, 'commit -q --allow-empty -m one' );
 $j = json_decode( file_get_contents( "$jobs/7/job.json" ), true ); $j['worktree'] = $wt; file_put_contents( "$jobs/7/job.json", json_encode( $j ) );
 $sha = trim( (string) shell_exec( 'git -C ' . escapeshellarg( $wt ) . ' rev-parse HEAD' ) );
 put( 'round-1/checks.md', "PASS 0000000000000000000000000000000000000000\n" );
@@ -103,10 +100,15 @@ ok( 0 !== $c && false !== strpos( $o, 'waiting for the owner' ), 'escalating is 
 $GLOBALS['owner_ok'] = '1';
 ok( 0 !== job( 'advance', '8', 'build' )[0], 'an escalated job with no spec cannot jump to build' );
 ok( 0 === job( 'advance', '8', 'spec' )[0], 'once the owner answers, a public-surface job may go on' );
+file_put_contents( "$jobs/8/spec.md", "1.\n" ); $GLOBALS['owner_ok'] = '0';
+ok( 0 === job( 'advance', '8', 'build' )[0], 'the owner\'s recorded yes carries that public job from spec to build' );
 ok( false === strpos( file_get_contents( "$jobs/8/issue.md" ), "\n# Issue 8: " ) && false !== strpos( file_get_contents( "$jobs/8/issue.md" ), "## Title\n\n> " ), 'the issue title is quoted as data too' );
 $src = file_get_contents( __DIR__ . '/../tools/factory/job' ) . file_get_contents( __DIR__ . '/../tools/factory/gate' ) . implode( '', array_map( 'file_get_contents', glob( __DIR__ . '/../tools/factory/jobkit/*.py' ) ) );
 ok( false === strpos( $src, 'pr", "merge' ) && false === strpos( $src, 'pr merge' ) && false === strpos( $src, '--admin' ) && false === strpos( $src, 'cut-' ), 'neither script can merge, use --admin or cut' );
 
-exec( 'rm -rf ' . escapeshellarg( $jobs ) );
+foreach ( array( 'evidence', 'live', 'worktree' ) as $part ) { require __DIR__ . "/lib/factory-job-$part.php"; }
+require __DIR__ . '/lib/factory-gate.php';
+
+rrmdir( $tmp );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

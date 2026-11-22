@@ -5,9 +5,11 @@ It holds each job's stage, refuses a move the table does not allow or whose
 evidence file is missing, and performs every GitHub side effect, so the
 orchestrating session never improvises them. See tools/factory/README.md.
 
-Usage: job new <issue> | advance <id> <stage> | escalate <id> <reason>
-       job ready <id> | worktree <id> | status [<id>]
-FACTORY_DRY=1 prints GitHub commands instead of running them (tests).
+Usage: job new <issue> | refresh <id> | advance <id> <stage>
+       job escalate <id> <reason> | ready <id> | worktree <id> | status [<id>]
+FACTORY_DRY=1 prints GitHub commands instead of running them. It is a test
+seam: it refuses to run on the real jobs folder (set FACTORY_JOBS elsewhere),
+and FACTORY_OWNER_OK is read only under it.
 """
 import os, sys
 
