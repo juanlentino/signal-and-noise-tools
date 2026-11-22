@@ -13,6 +13,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **A read lists which network numbers the relay rule's readers arrive from, before that rule is changed.** The analytics worker presumes a page view human when its network name matches `akamai|fastly` and the browser is Safari on iOS or macOS (iCloud Private Relay); it matches by name, never by AS number. `signal-noise/relay-networks` (sn-metrics' `relay_networks`, owner-only, local door only, no remote twin) reads the page views of the trailing `days` (1 to 90, default 90; 30 through sn-metrics unless `range` says otherwise) on networks whose name matches and returns `rows` of `{asn, network, class, browser, os, views, visitor_days}` (class as the worker stored it, views sample-corrected), most views first, at most 200 with `truncated`, and a `summary` read before that cap: `relay_human` (stored human, Safari, iOS or macOS: views, the distinct ASNs with their views, and `asn_unrecorded_views`) beside `safari_apple` and `not_safari_apple`, each the views by stored class. The AS number is double12 of a second-generation row (the worker's README and its doubles order; the plugin's own column notes stop at double11), so rows before 2026-10-05 read ASN 0, which is counted apart and never listed as a network. Nothing is changed or subtracted, nothing is stored, no screen changes, and no visitor code, IP address or user agent is returned (`inc/analytics-relay-networks.php`, `inc/abilities-relay-networks.php`, both new). Test: `tests/analytics-relay-networks.php` (new; red before the change, and with the page-view filter, the cap, the sort, the OS half of the split, the window clamp, the input bound, the permission callback or the closed row schema removed; the real payload passes core's output validation).
+
 ## [2026.11.55] - 2026-11-22 — The vitals read names the elements behind not-good CLS readings
 
 ### Added

@@ -82,6 +82,7 @@ $expected_map = array(
 	'analytics_fields'    => 'signal-noise/analytics-fields',
 	'analytics_sessions'  => 'signal-noise/analytics-sessions',
 	'bot_signals_flagged' => 'signal-noise/bot-signals-flagged', // 2026-11-11, appended: the flagged human visitor-days.
+	'relay_networks'      => 'signal-noise/relay-networks', // 2026-11-22, appended: the ASNs behind the relay rule's network names.
 );
 ok( $expected_map === $map, 'the map matches its sources exactly, in a pinned order' );
 
@@ -163,6 +164,9 @@ ok( array() === $GLOBALS['__abilities'][ $expected_map['404_log'] ]->last_call_a
 $GLOBALS['__abilities'][ $expected_map['bot_signals_flagged'] ] = new SN_Test_Fact_Ability( true, array() );
 snt_ability_sn_metrics( array( 'sections' => array( 'bot_signals_flagged' ), 'range' => 90, 'class' => 'bot' ) );
 ok( array( 'days' => 90 ) === $GLOBALS['__abilities'][ $expected_map['bot_signals_flagged'] ]->last_call_args(), 'bot_signals_flagged receives range AS days and no class (it reads presumed humans only)' );
+$GLOBALS['__abilities'][ $expected_map['relay_networks'] ] = new SN_Test_Fact_Ability( true, array() );
+snt_ability_sn_metrics( array( 'sections' => array( 'relay_networks' ), 'range' => 90, 'class' => 'bot' ) );
+ok( array( 'days' => 90 ) === $GLOBALS['__abilities'][ $expected_map['relay_networks'] ]->last_call_args(), 'relay_networks receives range AS days and no class (it lists every stored class)' );
 
 // 20.4.0: a bad query fails the WHOLE call (422) before dispatch, because the
 // dispatch would fold the refusal into {error:"unavailable"} and read a typo as an outage.
