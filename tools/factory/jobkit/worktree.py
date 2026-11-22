@@ -31,7 +31,7 @@ def cmd_worktree(job):
 
 
 def cmd_where(job):
-    """For tools/factory/gate: the job's worktree, round and folder, one per
-    line, from the same checked read every command uses."""
+    """For tools/factory/gate: the job's worktree, round, folder and stage,
+    one per line, from the same checked read every command uses."""
     j = load(job)
-    print("%s\n%d\n%s" % (j["worktree"], j["round"], path(j["id"])))
+    print("%s\n%d\n%s\n%s" % (j["worktree"], j["round"], path(j["id"]), j["stage"]))

@@ -98,12 +98,13 @@ Run every command from the repository root. `J=tools/factory/job`.
    `STATUS: READY` or `STATUS: BLOCKED`, with each criterion ticked or the
    blocker named. BLOCKED: `$J escalate <id> "<blocker>"` and stop.
    READY: `$J advance <id> gate`.
-5. **Gate.** `bash tools/factory/gate <id>`. PASS: `$J advance <id> review`.
-   FAIL: `$J advance <id> build` and resume the builder with the round's
-   files. If `advance` says the round limit is used up, escalate. The gate
-   runs the base branch's `tests/run.sh`, and fails a change that edits that
-   file or deletes or renames a file under `tests/`: such a change is the
-   owner's to make, so escalate it.
+5. **Gate.** `bash tools/factory/gate <id>`, once per round: it runs only at
+   stage `gate`, and after a FAIL it refuses to run again. PASS: `$J advance
+   <id> review`. FAIL: `$J advance <id> build` (it costs the round) and resume
+   the builder with the round's files; at the round limit, escalate. A commit
+   after the gate or the review takes the same road. The gate fails a change
+   to `tests/run.sh`, a deleted or renamed test, or any `.gitattributes`
+   change: those are the owner's to make, so escalate.
 6. **Review** (Agent, `code-reviewer`; add `security-reviewer` when intake
    named `security` or `data`). Reads `spec.md`, `build.md`, the round's
    `checks.md` and the diff against `origin/main`. It is told what the change
@@ -142,9 +143,8 @@ Known limits (the full list is in `tools/factory/README.md`):
   issue already labeled `factory:needs-human` or `factory:ready`: go back to
   the checkout that holds the job, or have the owner remove the label.
 - **The files are trusted as written.** `job` cannot know who wrote
-  `intake.md`, `checks.md` or `review.md`, or whether a stage in `job.json`
-  was set by hand. Only the intake agent writes `intake.md`, only
-  `tools/factory/gate` writes `checks.md`, only a reviewer writes `review.md`,
-  and nobody edits `job.json`.
-- **The gate runs the branch's tests.** A gutted test that still prints its
-  summary passes, which is why a reviewer reads the test changes.
+  `intake.md`, `checks.md` or `review.md`, or whether `job.json` was edited.
+- **The gate runs the branch's tests and does not fetch.** A gutted test that
+  still prints its summary passes, and an edited Unreleased bullet counts as
+  a new one, so a reviewer reads both. The base is the local copy of
+  `origin/<base>`; `job ready`'s CI check is the backstop.

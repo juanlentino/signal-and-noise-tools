@@ -105,6 +105,7 @@ ok( false === strpos( $src, 'pr", "merge' ) && false === strpos( $src, 'pr merge
 
 foreach ( array( 'evidence', 'live', 'worktree', 'seams' ) as $part ) { require __DIR__ . "/lib/factory-job-$part.php"; }
 require __DIR__ . '/lib/factory-gate.php';
+require __DIR__ . '/lib/factory-gate-rounds.php';
 
 rrmdir( $tmp );
 echo "\nResult: $pass passed, $fail failed.\n";

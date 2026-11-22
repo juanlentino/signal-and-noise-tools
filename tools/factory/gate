@@ -12,6 +12,7 @@
 #
 set -uo pipefail
 unset $(git rev-parse --local-env-vars 2>/dev/null) # the caller's GIT_DIR does not choose the repository
+export GIT_NO_REPLACE_OBJECTS=1                     # and a `git replace` does not choose what the base is
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # `job where` is the same checked read every command uses: the worktree comes
 # from the job's id, never from job.json, and a dry job stays out of a live run.
@@ -23,6 +24,14 @@ REF="refs/remotes/origin/$BASE" # the full name: a local branch called origin/$B
 # A plain folder inside another checkout would answer git with that checkout.
 TOP="$(git -C "$WT" rev-parse --show-toplevel 2>/dev/null)"
 [ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" = "$(cd "$WT" && pwd -P)" ] || { echo "factory: $WT is not the top of a git worktree" >&2; exit 2; }
+# The gate is not a thing to retry until it passes. It runs at stage gate only,
+# and a FAIL stands: the way on is `job advance <id> build`, which costs the round.
+# A PASS may be run again, and a PASS for an older HEAD is simply run afresh.
+STAGE="$(sed -n 4p <<< "$INFO")"
+[ "$STAGE" = gate ] || { echo "factory: job $1 is at stage $STAGE: the gate runs at stage gate only (job advance $1 build, then gate)" >&2; exit 2; }
+case "$(head -n 1 "$RND/checks.md" 2>/dev/null)" in
+	FAIL*) echo "factory: this round's gate already failed: job advance $1 build (it costs the round), then run the gate again" >&2; exit 2;;
+esac
 mkdir -p "$RND"; LOG="$RND/checks.log"; : > "$LOG"
 cd "$WT"; SHA="$(git rev-parse HEAD)"; fails=()
 TMP="$(mktemp -d)"; trap 'rm -f "$TMP/files" "$TMP/run.sh"; rmdir "$TMP"' EXIT
@@ -70,7 +79,8 @@ EMDASH=$'\xe2\x80\x94' # spelled in bytes, so this file passes its own check
 # Added lines by position, not by pattern: after a file's header ends at its
 # first "@@", every line that opens with "+" is added text, whatever follows.
 added()       { awk '/^diff --git /{h=1;next} /^@@/{h=0;next} !h&&/^\+/' <<< "$DIFF"; }
-no_emdash()   { local a; [ -n "$DIFF" ] && a="$(added)" && ! grep -q "$EMDASH" <<< "$a"; }
+# The character, or its HTML entity by name or number in any case. The en dash is allowed.
+no_emdash()   { local a; [ -n "$DIFF" ] && a="$(added)" && ! grep -qiE "$EMDASH|&(mdash|#0*8212|#x0*2014);" <<< "$a"; }
 has_tests()   { [ -n "$TOUCHED" ]; } # added or modified: a deletion is not a test
 tests_kept()  { echo "deleted: ${GONE:-none}; runner changed: ${RUNNER:-no}"; [ -z "$GONE" ] && [ -z "$RUNNER" ]; }
 no_attrs()    { echo "changed: ${ATTR:-none}"; [ -z "$ATTR" ]; } # an attribute can change what git shows of a file
@@ -82,7 +92,10 @@ sweep()       { # core's HTML API, fetched once and shared by every job, as CI d
 }
 
 DIFF=""; MB=""; GONE=""; RUNNER=""; TOUCHED=""; ATTR=""; NOTES=""
-if ! have_diff; then echo "FAIL $SHA" > "$RND/checks.md"; echo "- FAIL: cannot diff against origin/$BASE (fetch it)" | tee -a "$RND/checks.md"; exit 1; fi
+# No base to compare against is no verdict on the work, so it is an ERROR, not a FAIL that would cost the round.
+if ! have_diff; then
+	echo "ERROR $SHA" > "$RND/checks.md"; echo "- cannot diff against origin/$BASE (fetch it, then run the gate again)" | tee -a "$RND/checks.md"; exit 1
+fi
 RES="$( { step "the work is committed (clean tree)" clean_tree
           step "php -l on every changed PHP file" php_lint
           step "CHANGELOG has a new Unreleased bullet" changelog

@@ -10,14 +10,17 @@ walk( '71', 'admin', 'gate' ); $g = wt_of( '71' );
 @mkdir( "$jobs/.wp-core/wp-includes/html-api", 0777, true ); // the core fetch is not what is under test
 $bullet = function ( $under ) use ( $g ) { file_put_contents( "$g/CHANGELOG.md", str_replace( "## [$under]\n", "## [$under]\n\n- **A new bullet.**\n", file_get_contents( "$g/CHANGELOG.md" ) ) ); };
 $good   = function () use ( $g, $bullet ) { file_put_contents( "$g/tests/new.php", "<?php\necho \"1 passed, 0 failed\";\n" ); file_put_contents( "$g/inc/a.php", "<?php\n\$a = 1;\n" ); $bullet( 'Unreleased' ); };
-/** Run the gate. Returns [exit code, checks.md, checks.log]. */
+/** Run the gate. Returns [exit code, checks.md, checks.log, what it printed]. */
 $run = function () use ( $jobs, $tool ) {
-	$code = sh( 'FACTORY_DRY=1 FACTORY_ROOT=' . escapeshellarg( $GLOBALS['root'] ) . ' FACTORY_JOBS=' . escapeshellarg( $jobs ) . ' bash ' . escapeshellarg( "$tool/gate" ) . ' 71' )[0];
-	return array( $code, (string) @file_get_contents( "$jobs/71/round-1/checks.md" ), (string) @file_get_contents( "$jobs/71/round-1/checks.log" ) );
+	$r = sh( 'FACTORY_DRY=1 FACTORY_ROOT=' . escapeshellarg( $GLOBALS['root'] ) . ' FACTORY_JOBS=' . escapeshellarg( $jobs ) . ' bash ' . escapeshellarg( "$tool/gate" ) . ' 71' );
+	$rnd = "$jobs/71/round-" . state( '71' )['round'];
+	return array( $r[0], (string) @file_get_contents( "$rnd/checks.md" ), (string) @file_get_contents( "$rnd/checks.log" ), $r[1] );
 };
+/** Each case below stands for a round of its own, so the last case's verdict is cleared first. */
+$fresh = function () use ( $jobs ) { @unlink( "$jobs/71/round-1/checks.md" ); };
 /** Reset the branch to the base, apply a change, commit it, run the gate. */
-$gate = function ( callable $change ) use ( $g, $run, $BASE ) {
-	git( $g, "reset -q --hard $BASE" ); git( $g, 'clean -qfd' ); $change(); git( $g, 'add -A' ); git( $g, 'commit -q -m change' );
+$gate = function ( callable $change ) use ( $g, $run, $fresh, $BASE ) {
+	git( $g, "reset -q --hard $BASE" ); git( $g, 'clean -qfd' ); $change(); git( $g, 'add -A' ); git( $g, 'commit -q -m change' ); $fresh();
 	return $run();
 };
 $fails = function ( $md ) { preg_match_all( '/^- FAIL: (.*)$/m', $md, $m ); return $m[1]; };
@@ -64,7 +67,7 @@ ok( 0 !== $c && array( 'the change does not touch .gitattributes' ) === $fails( 
 
 // A local branch named origin/main must not become the base the branch is judged against.
 git( $g, "reset -q --hard $BASE" ); file_put_contents( "$g/tests/run.sh", "#!/usr/bin/env bash\necho BRANCH-RUNNER\nexit 0\n" ); git( $g, 'add -A' ); git( $g, 'commit -q -m runner' );
-git( $g, 'branch origin/main HEAD' ); $good(); git( $g, 'add -A' ); git( $g, 'commit -q -m change' );
+git( $g, 'branch origin/main HEAD' ); $good(); git( $g, 'add -A' ); git( $g, 'commit -q -m change' ); $fresh();
 list( $c, $md, $log ) = $run(); git( $g, 'branch -D origin/main' );
 ok( 0 !== $c && array( 'tests/run.sh is unchanged and no test is deleted or renamed away' ) === $fails( $md ) && false === strpos( $log, 'BRANCH-RUNNER' ), 'the base is refs/remotes/origin/main even when a local branch is named origin/main' );
 
@@ -78,9 +81,9 @@ ok( 0 !== $c && 0 === strpos( $md, 'FAIL ' ), 'an empty change still fails the g
 $gate( $good ); file_put_contents( "$g/stray.txt", "not committed\n" );
 list( $c, $md ) = $run(); unlink( "$g/stray.txt" );
 ok( 0 !== $c && array( 'the work is committed (clean tree)' ) === $fails( $md ), 'uncommitted work still fails the gate' );
-git( $root, 'update-ref -d refs/remotes/origin/main' );
+$fresh(); git( $root, 'update-ref -d refs/remotes/origin/main' );
 list( $c, $md ) = $run(); git( $root, 'fetch -q origin' );
-ok( 0 !== $c && 0 === strpos( $md, 'FAIL ' ) && false !== strpos( $md, 'cannot diff against origin/main' ), 'a missing base ref still fails the gate, and says so' );
-ok( 0 === $run()[0], 'with the base ref fetched again the same commit passes (control)' );
+ok( 0 !== $c && 0 === strpos( $md, 'ERROR ' ) && false !== strpos( $md, 'cannot diff against origin/main' ), 'a missing base ref still stops the gate, and says so' );
+ok( 0 === $run()[0], 'that is no verdict on the work: with the base ref fetched again the same commit passes (control)' );
 $src = file_get_contents( "$tool/gate" );
 ok( false === strpos( $src, $EM ), 'the gate spells its em dash in bytes, so it passes its own check' );

@@ -20,9 +20,21 @@ def die(msg):
     sys.exit("factory: " + msg)
 
 
+# FACTORY_DRY is "1" or it is not set. A near miss (true, yes, 01) would
+# otherwise run live while its caller believes it is a dry run.
+if os.environ.get("FACTORY_DRY", "") not in ("", "1"):
+    die("FACTORY_DRY must be exactly 1 or unset (got %r)" % os.environ["FACTORY_DRY"])
+
+
+def same_folder(a, b):
+    """The same folder, however it is spelled: a symlink, or another case on
+    a filesystem that ignores case."""
+    return a == b or (os.path.exists(a) and os.path.exists(b) and os.path.samefile(a, b))
+
+
 # FACTORY_DRY skips GitHub and takes FACTORY_OWNER_OK for the owner's answer,
 # so it must never be able to write the real jobs folder, however it is spelled.
-if DRY and JOBS == REAL_JOBS:
+if DRY and same_folder(JOBS, REAL_JOBS):
     die("FACTORY_DRY=1 is for tests: set FACTORY_JOBS to a folder that is not the real jobs folder")
 
 
@@ -87,6 +99,7 @@ def first_line(job, *parts):
 
 def git_run(where, *args):
     env = {k: v for k, v in os.environ.items() if k not in GIT_LOCAL}
+    env["GIT_NO_REPLACE_OBJECTS"] = "1"  # a `git replace` cannot change which commit a name means
     return subprocess.run(["git", "-C", where, *args], capture_output=True, text=True, env=env)
 
 

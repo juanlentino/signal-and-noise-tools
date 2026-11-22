@@ -30,6 +30,16 @@ symlink( "$tool/jobs", "$tmp/alias" );
 list( $c, $o ) = $dry_at( "$tmp/alias", 'status' );
 ok( 0 !== $c && false !== strpos( $o, 'FACTORY_JOBS' ), 'a symlink to the real jobs folder is still the real jobs folder' );
 
+@mkdir( "$copy/jobs" ); $shout = "$root/tools/factory/JOBS"; // the copy's own real jobs folder, spelled in capitals
+if ( is_dir( $shout ) ) { // a case-insensitive filesystem: the same folder under another spelling
+	list( $c, $o ) = run_job( array( 'FACTORY_DRY' => '1', 'FACTORY_ROOT' => $root, 'FACTORY_JOBS' => $shout ), array( 'status' ), "$copy/job" );
+	ok( 0 !== $c && false !== strpos( $o, 'FACTORY_JOBS' ), 'the real jobs folder spelled in another case is still the real jobs folder' );
+}
+foreach ( array( 'true', 'yes', '01', '0', ' 1' ) as $v ) {
+	list( $c, $o ) = run_job( array( 'FACTORY_DRY' => $v, 'FACTORY_ROOT' => $root ), array( 'status' ) );
+	ok( 0 !== $c && false !== strpos( $o, 'FACTORY_DRY' ) && 1 === count( explode( "\n", trim( $o ) ) ), "FACTORY_DRY=\"$v\" is refused in one line, not run live" );
+}
+
 // 6. FACTORY_ROOT moves the root only in a dry run. (`where` only prints; it creates nothing.)
 $real = dirname( dirname( $tool ) );
 list( $c, $o ) = run_job( live_env() + array( 'FACTORY_ROOT' => $root ), array( 'where', '82' ) );

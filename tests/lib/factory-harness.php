@@ -39,7 +39,7 @@ function run_job( array $env, array $a, $script = null ) {
 function job( ...$a ) { global $root; return run_job( array( 'FACTORY_DRY' => '1', 'FACTORY_ROOT' => $root ), $a ); }
 function live_env() {
 	global $tmp;
-	return array( 'PATH' => "$tmp/bin:" . getenv( 'PATH' ), 'GH_STUB_DIR' => "$tmp/bin", 'GH_CONFIG_DIR' => "$tmp/ghcfg", 'GH_TOKEN' => '', 'GITHUB_TOKEN' => '', 'GH_ENTERPRISE_TOKEN' => '', 'GH_HOST' => '', 'FACTORY_DRY' => '0' );
+	return array( 'PATH' => "$tmp/bin:" . getenv( 'PATH' ), 'GH_STUB_DIR' => "$tmp/bin", 'GH_CONFIG_DIR' => "$tmp/ghcfg", 'GH_TOKEN' => '', 'GITHUB_TOKEN' => '', 'GH_ENTERPRISE_TOKEN' => '', 'GH_HOST' => '', 'FACTORY_DRY' => '' );
 }
 function live( ...$a ) { global $copy; return run_job( live_env(), $a, "$copy/job" ); }
 function stub( $name, $text ) { global $tmp; file_put_contents( "$tmp/bin/$name", is_array( $text ) ? json_encode( $text ) : $text ); }

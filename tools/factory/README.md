@@ -43,6 +43,12 @@ What `job` checks before a move:
   stop with the owner's answer, or did so earlier while intake named `public`.
   A move to build also needs `spec.md`.
 - **to gate:** the round's `build.md` opens with `STATUS: READY`.
+- **the gate itself:** it runs only at stage `gate`, and once this round's
+  `checks.md` opens with `FAIL` it refuses to run again: a failed gate goes
+  through `advance <id> build`, which costs a round. A `PASS` may be rerun,
+  and a `PASS` for an older HEAD is run afresh. A missing base ref writes
+  `ERROR`, which is no verdict and costs nothing. An added line with an em
+  dash, as the character or as its HTML entity (named or numeric), fails.
 - **to review:** the round's `checks.md` opens with `PASS` and the worktree's
   HEAD. The worktree must be a git worktree on the job's branch.
 - **to ready:** the same, plus the round's `review.md` opens with
@@ -87,11 +93,18 @@ old gate or review can stand in for a new one. `job refresh <id>` rewrites
   `review.md` are trusted as written; `job` only ties them to a commit.
 - **A stage set by hand in `job.json` is not detected.** The file's shape is
   checked, its history is not.
+- **An edited Unreleased bullet satisfies the changelog check.** The gate
+  looks for a bullet line the diff adds inside the section; rewording an
+  existing bullet adds such a line.
+- **The gate does not fetch.** It compares against the local copy of
+  `origin/<base>`, which may be behind. `job ready`'s CI check on GitHub is
+  the backstop.
 - **A gutted test that still prints its summary passes the gate.** The gate
   runs the branch's own suites and helpers (with the base branch's runner),
   and, when the shared `.wp-core` copy is missing, the branch's own
   `tools/fetch-wp-test-core.sh`. A reviewer reads the test changes.
 - `FACTORY_DRY=1`, `FACTORY_OWNER_OK=1` and `FACTORY_ROOT` are test seams.
+  `FACTORY_DRY` is exactly `1` or unset; any other value is refused.
   A dry run refuses the real jobs folder; a job made in a dry run is marked
   `"dry": true` and a live run refuses it, as a dry run refuses a live job;
   `FACTORY_OWNER_OK` and `FACTORY_ROOT` are read only in a dry run.
