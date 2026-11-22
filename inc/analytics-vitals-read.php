@@ -26,28 +26,7 @@ function sn_analytics_vitals_rows( $dim, $from, $to, $class, array $paths = arra
 	if ( 'path' === $dim && array() === $paths ) {
 		return array();
 	}
-	list( $lo, $hi ) = sn_analytics_local_day_bounds_utc( $from, $to );
-	$started         = time();
-	$sets            = sn_analytics_stitched_rows(
-		static fn( $source, $range ) => sn_analytics_vitals_sql( $dim, $from, $to, $class, $paths, $source, $range ),
-		substr( $lo, 0, 10 ),
-		$hi
-	);
-	$cap  = defined( 'SN_ANALYTICS_AE_ROW_CAP' ) ? SN_ANALYTICS_AE_ROW_CAP : 10000;
-	$what = 'path' === $dim ? 'the by-path read' : 'the by-device read';
-	if ( null === $sets ) {
-		// Quote the stored error only when it was recorded during this read.
-		$err = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error( $started ) : null;
-		// The code and the body excerpt only: the URL carries the account id.
-		$why = is_array( $err ) ? ' (Analytics Engine said HTTP ' . (int) $err['code'] . ': ' . (string) $err['message'] . ')' : ' (no error was recorded)';
-		sn_analytics_vitals_failure( $what . ' failed' . $why );
-		return null;
-	}
-	if ( array() !== array_filter( $sets, static fn( $s ) => count( $s ) >= $cap ) ) {
-		sn_analytics_vitals_failure( $what . ' reached the row cap, so its distribution would be partial' );
-		return null;
-	}
-	return array_merge( ...$sets );
+	return sn_analytics_vitals_stitched( static fn( $source, $range ) => sn_analytics_vitals_sql( $dim, $from, $to, $class, $paths, $source, $range ), 'path' === $dim ? 'the by-path read' : 'the by-device read', $from, $to );
 }
 
 /**
@@ -89,6 +68,7 @@ function sn_analytics_vitals( $from, $to, $class = 'human', $limit = 10 ) {
 			sn_analytics_vitals_failure( '' !== (string) $cached ? (string) $cached : 'an earlier read failed' );
 			return null;
 		}
+		sn_analytics_vitals_failure( (string) ( $cached['cls_sources_failure'] ?? '' ) );
 		return $cached;
 	}
 	$paths   = $limit > 0 ? sn_analytics_vitals_top_paths( $from, $to, $class, $limit ) : array();
@@ -114,7 +94,11 @@ function sn_analytics_vitals( $from, $to, $class = 'human', $limit = 10 ) {
 	foreach ( sn_analytics_vitals_fold( $by_path, $paths, 'sn_analytics_canonical_path' ) as $path => $cells ) {
 		$out['paths'][] = array( 'path' => (string) $path ) + $cells;
 	}
-	set_transient( $key, $out, 15 * MINUTE_IN_SECONDS );
+	// The CLS sources are their own leg (inc/analytics-vitals-sources.php): a
+	// failure there nulls its keys and says why, and the rest stands. Not on
+	// the devices-only read, which names no path.
+	$out += $limit > 0 ? sn_analytics_vitals_sources( $from, $to, $class ) : array();
+	set_transient( $key, $out, ( '' === ( $out['cls_sources_failure'] ?? '' ) ? 15 : 5 ) * MINUTE_IN_SECONDS );
 	return $out;
 }
 

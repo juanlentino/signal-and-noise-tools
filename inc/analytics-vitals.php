@@ -169,3 +169,4 @@ function sn_analytics_vitals_fold( array $rows, array $keys, callable $key_of ) 
 }
 
 require_once __DIR__ . '/analytics-vitals-read.php'; // the live read, the ability and the display rows.
+require_once __DIR__ . '/analytics-vitals-sources.php'; // which elements account for the not-good CLS readings.
