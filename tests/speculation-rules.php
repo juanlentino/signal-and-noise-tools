@@ -99,10 +99,16 @@ assertEq( array( 'mode' => 'prerender', 'eagerness' => 'moderate' ), $config_on,
 // 2026-10-24: core passes null for a logged-in visitor; that stays off.
 assertEq( null, sn_speculation_configuration( null ), 'core\'s null (a logged-in visitor) stays null: no prerender for the admin bar' );
 
-// ── 3. Config filter OFF: returns null (disables core feature) ──
+// ── 3. Config filter OFF: core's own configuration passes through unchanged ──
+// 2026-11: a plugin setting complements a core function and never turns it
+// off. Off used to return null, which removed core's own speculative loading.
 sn_setting_update( 'perf.speculative_loading', false );
 sn_setting_reset_cache();
-assertEq( null, sn_speculation_configuration( array( 'mode' => 'auto', 'eagerness' => 'auto' ) ), 'config OFF returns null (disables speculative loading)' );
+$core_default = array( 'mode' => 'auto', 'eagerness' => 'auto' );
+assertEq( $core_default, sn_speculation_configuration( $core_default ), 'config OFF returns the incoming array unchanged: core\'s own default applies' );
+$other = array( 'mode' => 'prefetch', 'eagerness' => 'eager' );
+assertEq( $other, sn_speculation_configuration( $other ), 'config OFF passes through whatever another filter set, untouched' );
+assertEq( null, sn_speculation_configuration( null ), 'config OFF: core\'s null (a logged-in visitor, plain permalinks) stays null' );
 
 // Re-enable for the exclude-path tests.
 sn_setting_update( 'perf.speculative_loading', true );

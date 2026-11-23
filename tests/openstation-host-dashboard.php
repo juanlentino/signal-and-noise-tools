@@ -148,7 +148,7 @@ namespace {
 	// One nonce per ACTION: the estate mints four, and a global "valid" would
 	// hide the very confusion the pipelines exist to end.
 	function wp_verify_nonce( $nonce, $action = -1 ) {
-		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'login-nonce' => 'sn_save_login', 'ret-nonce' => 'sn_audit_save_retention', 'ai-nonce' => 'sn_ai_settings_save', 'reads-nonce' => 'sn_scheduled_reads_save', 'remote-nonce' => 'sn_remote_toggle', 'rw-nonce' => 'sn_bind_mcp_rw_credential', 'read-nonce' => 'sn_bind_mcp_read_credential', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults' );
+		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'login-nonce' => 'sn_save_login', 'ret-nonce' => 'sn_audit_save_retention', 'ai-nonce' => 'sn_ai_settings_save', 'reads-nonce' => 'sn_scheduled_reads_save', 'remote-nonce' => 'sn_remote_toggle', 'rw-nonce' => 'sn_bind_mcp_rw_credential', 'read-nonce' => 'sn_bind_mcp_read_credential', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults', 'theme-nonce' => 'sn_save_theme', 'perf-nonce' => 'sn_perf_save' );
 		return ( isset( $minted[ $nonce ] ) && $minted[ $nonce ] === $action ) ? 1 : false;
 	}
 	// The interceptor needs real hook plumbing, a real wp_redirect (which filters
@@ -250,6 +250,9 @@ namespace {
 	function sn_handle_remote_toggle( $post ) { return empty( $post['sn_remote_enabled'] ) ? 'remote_disabled' : 'remote_enabled'; }
 	function sn_handle_bind_mcp_rw_credential( $post ) { return '' === (string) ( $post['sn_mcp_rw_uuid'] ?? '' ) ? 'mcp_rw_bind_choose' : 'mcp_rw_bound'; }
 	function sn_handle_bind_mcp_read_credential( $post ) { return 'mcp_read_bound'; }
+	// Settings > Front end's two actions, each answering its real flash code.
+	function sn_handle_save_theme( $post ) { return isset( $post['theme_related_count'] ) ? 'theme_saved' : 'theme_unchanged'; }
+	function sn_handle_perf_save( $post ) { return 'perf_saved'; }
 	$GLOBALS['__handler_calls'] = array();
 
 	// The rewrite half of the view needs core's WP_HTML_Tag_Processor. Found on
@@ -514,6 +517,28 @@ namespace {
 			"Settings > AI: $case[1] (nonce $case[0]) lands back on the pane with its " . $case[3] . ' notice' );
 	}
 
+	// Settings > Front end: both of its saves are answered on the pane, sub
+	// front-end under the settings tab, never on the Site tab the leaf left.
+	$st6 = new \OpenStation\App\State( $app->state, array( 'sub' => 'front-end' ) );
+	foreach ( array(
+		array( 'theme-nonce', 'sn_save_theme', array( 'theme_related_count' => '4' ), array( 'success', 'Front-end settings saved.' ), true ),
+		array( 'perf-nonce', 'sn_perf_save', array( 'speculative_loading' => '1' ), array( 'success', 'Performance settings saved.' ), true ),
+		array( 'stale', 'sn_perf_save', array( 'speculative_loading' => '1' ), null, false ),
+	) as $case ) {
+		$app->actions['post']( $st6, $os2, array( 'values' => array( '_wpnonce' => $case[0], 'action' => $case[1] ) + $case[2] ) );
+		ok( 'front-end' === $st6->get( 'sub' ) && ( null === $case[3] ? 'error' === ( $st6->get( 'notice' )[0] ?? '' ) : $case[3] === $st6->get( 'notice' ) ) && $case[4] === $st6->get( 'saved' ),
+			"Settings > Front end: $case[1] (nonce $case[0]) lands back on the pane with its notice" );
+	}
+	// In flight across the move: a Site-tab session painted before the update
+	// still holds sub=front-end. Its save runs, and the answer paints on that
+	// tab's first leaf, never a blank.
+	$os4 = new \OpenStation\App\Os();
+	$os4->view = 'site';
+	$st7 = new \OpenStation\App\State( $app->state, array( 'sub' => 'front-end' ) );
+	$app->actions['post']( $st7, $os4, array( 'values' => array( '_wpnonce' => 'theme-nonce', 'action' => 'sn_save_theme', 'theme_related_count' => '4' ) ) );
+	ok( 'identity-and-seo' === $st7->get( 'sub' ) && array( 'success', 'Front-end settings saved.' ) === $st7->get( 'notice' ),
+		'a save in flight from the old Site > Front-End leaf is still answered, on the Site tab\'s first leaf' );
+
 	// In flight across the move: a Security-tab session painted before the
 	// update still holds sub=login. Its save runs (the action is found by
 	// name), and the answer paints on that tab's first leaf, never a blank.
@@ -673,7 +698,7 @@ namespace {
 		'the native leaf does not retain the classic dispatcher navigation; the framework strip owns navigation' );
 
 
-	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'notice' => array( 'error', 'It <a href="x">broke</a>.' ) ) );
+	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'performance', 'notice' => array( 'error', 'It <a href="x">broke</a>.' ) ) );
 	ok( false !== strpos( $html, '<os-notice tone="danger" role="alert">It <a href="x">broke</a>.</os-notice>' ),
 		'the notice is the kit`s notice, and its deliberate inline <a> survives -- about fifteen flash codes ship one' );
 	ok( strpos( $html, '<os-notice' ) < strpos( $html, 'snt-leaf' ), '   ...above the leaf, where the classic page puts it under the heading' );
@@ -700,14 +725,14 @@ namespace {
 	// so a Refresh or an inline post paints with an empty one: one save
 	// scrolls once.
 	$os   = new \OpenStation\App\Os();
-	$st   = new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => 'sn-sec-identity' ) );
-	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end' ), $os, $st );
+	$st   = new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'performance', 'anchor' => 'sn-sec-identity' ) );
+	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'performance' ), $os, $st );
 	ok( array( array( 'type' => 'snt-paint', 'anchor' => 'sn-sec-identity', 'refused' => false, 'saved' => false, 'answered' => '' ) ) === $os->effects->all(),
 		'the view queues ONE snt-paint effect carrying the id UNCHANGED -- assets/os-host.js looks the value up as an id, and a view that prefixed would double it' );
 	ok( false === strpos( $html, 'data-snt-anchor=' ), 'and paints NO data-snt-anchor: the effect is the carrier' );
 	ok( '' === (string) $st->get( 'anchor' ), 'and clears the anchor from state once it is queued: the id rides one paint' );
 	$os = new \OpenStation\App\Os();
-	paint( $app, array( 'tab' => 'site', 'sub' => 'front-end' ), $os, $st );
+	paint( $app, array( 'tab' => 'site', 'sub' => 'performance' ), $os, $st );
 	ok( array( array( 'type' => 'snt-paint', 'anchor' => '', 'refused' => false, 'saved' => false, 'answered' => '' ) ) === $os->effects->all(), '   ...so the next paint of the same session (a Refresh, an inline post) queues an EMPTY anchor and scrolls nowhere' );
 	$os = new \OpenStation\App\Os();
 	paint( $app, array( 'tab' => 'site' ), $os );
@@ -716,19 +741,19 @@ namespace {
 	// keeps a submitted form's typed text; any other notice lets it go.
 	foreach ( array( array( array( 'error', 'Nothing was saved.' ), true ), array( array( 'success', 'Saved.' ), false ), array( null, false ) ) as list( $notice, $want ) ) {
 		$os = new \OpenStation\App\Os();
-		paint( $app, array( 'tab' => 'site', 'sub' => 'front-end' ), $os, new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'front-end', 'notice' => $notice ) ) );
+		paint( $app, array( 'tab' => 'site', 'sub' => 'performance' ), $os, new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'performance', 'notice' => $notice ) ) );
 		ok( $want === ( $os->effects->all()[0]['refused'] ?? null ), 'the paint effect reports refused=' . var_export( $want, true ) . ' for a ' . ( is_array( $notice ) ? $notice[0] : 'missing' ) . ' notice' );
 	}
 	// `saved` answers ONE paint after a save that took, then clears; a refusal never says saved.
-	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'front-end', 'saved' => true, 'answered' => 'sn_save_identity', 'notice' => array( 'success', 'Saved.' ) ) );
+	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'performance', 'saved' => true, 'answered' => 'sn_save_identity', 'notice' => array( 'success', 'Saved.' ) ) );
 	$os = new \OpenStation\App\Os();
-	paint( $app, array( 'tab' => 'site', 'sub' => 'front-end' ), $os, $st );
+	paint( $app, array( 'tab' => 'site', 'sub' => 'performance' ), $os, $st );
 	ok( true === ( $os->effects->all()[0]['saved'] ?? null ) && 'sn_save_identity' === ( $os->effects->all()[0]['answered'] ?? null ) && false === $st->get( 'saved' ) && '' === $st->get( 'answered' ), 'a save that took says saved=true and names its action on the next paint, and only that one' );
 	$os = new \OpenStation\App\Os();
-	paint( $app, array( 'tab' => 'site', 'sub' => 'front-end' ), $os, $st );
+	paint( $app, array( 'tab' => 'site', 'sub' => 'performance' ), $os, $st );
 	ok( false === ( $os->effects->all()[0]['saved'] ?? null ), '   ...a later paint (a tick, an Edit) does not' );
 	$os = new \OpenStation\App\Os();
-	paint( $app, array( 'tab' => 'site', 'sub' => 'front-end' ), $os, new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'front-end', 'saved' => true, 'notice' => array( 'error', 'Login slug cannot be empty.' ) ) ) );
+	paint( $app, array( 'tab' => 'site', 'sub' => 'performance' ), $os, new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'performance', 'saved' => true, 'notice' => array( 'error', 'Login slug cannot be empty.' ) ) ) );
 	ok( false === ( $os->effects->all()[0]['saved'] ?? null ) && true === ( $os->effects->all()[0]['refused'] ?? null ), 'an error notice is refused, never saved' );
 
 	echo "\nGroup 8: the leaf never keeps the request\n";

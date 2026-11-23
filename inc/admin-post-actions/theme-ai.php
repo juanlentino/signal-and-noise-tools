@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * v4.12.0: the AI text-generation model allowlist (single source for the
- * Front-End form's <select> AND the save handler's validation). Keys are the
+ * Settings > AI form's <select> AND the save handler's validation). Keys are the
  * model ids passed to the snt_ai_model_preference filter; values are UI labels.
  *
  * Ids are the alias form (no date suffix), verified Active against the
@@ -52,7 +52,10 @@ function sn_theme_ai_vision_models() {
 }
 
 /**
- * v4.12.0: persist the Front-End settings form (Site → Front-End sub-tab).
+ * v4.12.0: persist the front-end settings form (Settings > Front end since
+ * 2026-11; Site > Front-End before). All eight settings are written on every
+ * save, so the form that posts here must carry all eight
+ * (tests/lib/whole-forms.php).
  *
  * Sparse writes via sn_setting_update() so the sibling sn_settings subtrees are
  * never clobbered (same whole-option-replace hazard the audit/monitoring/perf

@@ -1,13 +1,16 @@
 <?php
 /**
- * Native window leaf: Site → Performance (apps/sn-dashboard/parts/leaves/site-performance.php).
+ * Native window leaf: Site › Performance (apps/sn-dashboard/parts/leaves/site-performance.php).
  *
- * The oracle is the classic leaf: the kit form must carry the same field
- * name and the same sn_action in both the on and the off state, every rail
- * readout (status box, pill, profile reference) must survive, and none of
- * wp-admin's markup may. Second oracle: the Site Health panel
- * (sn_httpdiag_debug_information) for the slow admin requests ledger the
- * leaf paints at full width under the row.
+ * The leaf is readings: which speculative loading profile the site serves,
+ * the Profile reference, and the outbound calls from admin pages. Its switch
+ * left for Settings › Front end in 2026-11 (tests/os-leaf-settings-front-end-pane.php
+ * pins the switch, the pointer this leaf keeps, and that no form is left
+ * here). The oracle for the profile is the classic leaf: both twins say the
+ * same state, in the same words, for on and for off, and neither state reads
+ * as a warning, because off is WordPress's own default and not nothing.
+ * Second oracle: the Site Health panel (sn_httpdiag_debug_information) for
+ * the outbound-call ledger the leaf paints at full width under the row.
  *
  * Run: php tests/os-leaf-site-performance.php
  */
@@ -23,6 +26,7 @@ require SNT_PATH . 'inc/http-diagnostics.php';
 
 require SNT_PATH . 'inc/admin-shell.php';
 require SNT_PATH . 'inc/admin-forms/performance.php';
+require SNT_PATH . 'inc/admin-forms/settings-front-end.php'; // the line saying where the switch went.
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/site-performance.php';
 
 $pass = 0; $fail = 0;
@@ -30,55 +34,53 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 
 ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['site/performance'] ), 'the painter is registered under site/performance' );
 
-// ── Enabled state: the same field, the same action.
+// ── Switch on: the plugin's profile, said the same way on both twins.
 $GLOBALS['__settings'] = array( 'perf.speculative_loading' => true );
 $classic = snt_leaf_classic_html( 'sn_admin_render_performance_section' );
 $kit     = snt_leaf_paint( 'site', 'performance' );
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( array( 'perf_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is perf_save, as on the classic leaf' );
+ok( array() === snt_leaf_names( $classic ) && array() === snt_leaf_names( $kit ) && array() === snt_leaf_actions( $kit ) && array() === snt_leaf_actions( $classic ) && false === strpos( $kit, '<os-form' ) && false === strpos( $classic, '<form' ), 'no field, no action and no form on either twin: the switch is on Settings › Front end' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post through the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
-ok( false !== strpos( $kit, 'submit-label="Save"' ), 'the submit is labelled Save, as the classic button is' );
-ok( false !== strpos( $kit, '<os-checkbox-label name="speculative_loading" value="1" checked label="Enabled: prerender the pages a visitor is likely to open next"' ), 'the toggle is a kit checkbox carrying name, value 1, checked and the classic label' );
-ok( false !== strpos( $kit, '<os-field-row label="Status" hint="Turning this off disables speculative loading entirely: WordPress then adds no speculation rules to any page."' ) && false !== strpos( $classic, 'Turning this off disables speculative loading entirely: WordPress then adds no speculation rules to any page.' ), 'the Status row carries the classic helper as its hint, in plain words on both twins' );
 // 2026.10.4 audit (batch 4): "summarized alongside" pointed at a position.
-ok( false !== strpos( $kit, 'The Profile box lists the profile and what it leaves out.' ) && false !== strpos( $classic, 'The Profile box lists the profile and what it leaves out.' ) && false === strpos( $kit . $classic, 'alongside' ), 'the intro names the Profile box, on both twins' );
-ok( false !== strpos( $kit, 'heading="Speculative loading"' ) && false !== strpos( $kit, 'href="https://developer.chrome.com/docs/web-platform/prerender-pages"' ) && false !== strpos( $kit, '>Speculation Rules</a>' ) && false !== strpos( $kit, '<os-code>auto</os-code>/<os-code>auto</os-code>' ), 'the intro keeps the Speculation Rules link and the auto/auto default as inline code' );
+ok( false !== strpos( $kit, 'The Profile box lists what is in effect and what it leaves out.' ) && false !== strpos( $classic, 'The Profile box lists what is in effect and what it leaves out.' ) && false === strpos( $kit . $classic, 'alongside' ), 'the intro names the Profile box, on both twins' );
+ok( false !== strpos( $kit, 'href="https://developer.chrome.com/docs/web-platform/prerender-pages"' ) && false !== strpos( $kit, '>Speculation Rules</a>' ) && false !== strpos( $kit, '<os-code>auto</os-code>/<os-code>auto</os-code>, which WordPress resolves to prefetch). With its switch on,' ) && false !== strpos( $classic, '<code>auto</code>/<code>auto</code>, which WordPress resolves to prefetch). With its switch on,' ), 'the intro keeps the Speculation Rules link and the auto/auto default as inline code, and says what that default is and what the switch adds' );
+ok( false !== strpos( $kit, 'With it off, WordPress’s default stays.' ) && false !== strpos( html_entity_decode( $classic, ENT_QUOTES | ENT_HTML5, 'UTF-8' ), 'With it off, WordPress’s default stays.' ), 'and both twins say what off leaves in place' );
 // 2026-10-16, the leaf anatomy (docs/kit-leaf-anatomy.md): the state is the
-// status line's first chip, the intro a How this works fold, the setting and
-// its Profile two folds of one Setup card under the outbound-call ledger.
-$line = strpos( $kit, '<div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success">Speculative loading is on</os-badge>' );
-ok( false !== $line && false === strpos( $kit, '<os-notice tone="success"' ) && false === strpos( $kit, '<b>' ) && false !== strpos( $classic, 'Speculative loading is on.' ), 'the on state is one chip on the status line that leads the leaf, no notice box, no bold lead-in' );
-$how = strpos( $kit, '<os-disclosure heading="How this works" hint="Speculation Rules prerender the pages a visitor is likely to open next."' );
-ok( false !== $how && $line < $how && $how < strpos( $kit, 'Since 6.8, WordPress ships native' ) && false === strpos( $kit, 'aria-label="Speculative loading status"' ), 'the intro is a How this works fold under the status line; the classic rail is gone' );
-ok( false !== strpos( $kit, '<os-disclosure heading="Speculative loading" hint="On"' ) && false !== strpos( $kit, '<os-disclosure heading="Profile" hint="prerender, moderate eagerness"' ) && 1 === substr_count( $kit, 'heading="Setup"' ) && strpos( $kit, 'heading="Setup"' ) < strpos( $kit, 'heading="Speculative loading"' ), 'one Setup card holds the setting (summary On) and the Profile (summary its mode), each a closed fold' );
-ok( false !== strpos( $kit, 'heading="Profile"' ) && false !== strpos( $kit, '<os-fact label="Mode"><span class="snt-kv__v"><os-code>prerender</os-code>, eagerness <os-code>moderate</os-code>' ) && false !== strpos( $kit, '<os-fact label="Excluded automatically"><span class="snt-kv__v"><os-code>/contact/*</os-code>.</span>' ) && false !== strpos( $kit, '<os-fact label="Browser support"><span class="snt-kv__v">only modern Chromium browsers act on speculation rules; others safely ignore them.</span>' ) && false === strpos( $kit, '<strong>' ), 'the Profile reference survives as labeled facts, not bold lead-ins: mode, eagerness, exclusions, support' );
-ok( 0 === substr_count( $kit, '<os-card' ) && false === strpos( $kit, 'aria-label="Speculative loading status"' ), 'no classic rail card left' );
-// 2026-10-16: the status and its settings belong together. One grid row holds
+// status line's first chip, the intro a How this works fold, the Profile the
+// one fold of a Setup card beside it.
+$line = strpos( $kit, '<div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success">Prerender is on</os-badge>' );
+ok( false !== $line && false === strpos( $kit, '<os-notice tone="success"' ) && false === strpos( $kit, '<b>' ) && false !== strpos( $classic, '<p class="sn-status-box-title">Prerender is on.</p></div><span class="sn-pill sn-pill--ok">On</span>' ), 'the on state is one chip on the status line that leads the leaf, no notice box, no bold lead-in; the classic box says the same' );
+$how = strpos( $kit, '<os-disclosure heading="How this works" hint="Speculation Rules load the pages a visitor is likely to open next before the click."' );
+ok( false !== $how && $line < $how && $how < strpos( $kit, 'Since 6.8, WordPress ships native' ) && false === strpos( $kit, 'aria-label="Speculative loading' ), 'the intro is a How this works fold under the status line; the classic rail is gone' );
+ok( false !== strpos( $kit, '<os-disclosure heading="Profile" hint="prerender, moderate eagerness"' ) && 1 === substr_count( $kit, 'heading="Setup"' ) && false === strpos( $kit, 'heading="Speculative loading"' ) && 2 === substr_count( $kit, '<os-disclosure' ), 'one Setup card holds the Profile (summary the profile in effect), a closed fold; the setting\'s fold left with the switch' );
+ok( false !== strpos( $kit, '<os-fact label="Mode"><span class="snt-kv__v"><os-code>prerender</os-code>, eagerness <os-code>moderate</os-code>' ) && false !== strpos( $kit, '<os-fact label="Excluded automatically"><span class="snt-kv__v"><os-code>/contact/*</os-code>.</span>' ) && false !== strpos( $kit, '<os-fact label="Browser support"><span class="snt-kv__v">only modern Chromium browsers act on speculation rules; others safely ignore them.</span>' ) && false !== strpos( $classic, 'Mode <code>prerender</code>, eagerness <code>moderate</code>' ), 'on: the Profile names prerender and moderate, the exclusion and browser support, each under its own label' );
+ok( 0 === substr_count( $kit, '<os-card' ), 'no classic rail card left' );
+// 2026-10-16: the status and its reference belong together. One grid row holds
 // [status card | Setup card], in that order, and closes before the ledger.
 $grid = strpos( $kit, snt_leaf_row() );
 ok( 0 === $grid && 1 === substr_count( $kit, '<os-grid' ) && $grid < strpos( $kit, 'heading="Performance"' ) && strpos( $kit, 'heading="Performance"' ) < strpos( $kit, 'heading="Setup"' ) && strpos( $kit, 'heading="Setup"' ) < strpos( $kit, '</os-grid>' ), 'the leaf opens on one row of two: the Performance status card, then the Setup card' );
 
-// ── Disabled state: unchecked, warning box, plain Off pill; parity holds.
+// ── Switch off: WordPress's own default is in effect. A plain chip and a plain
+// box, never a warning: until 2026-11 off meant no speculation rules at all.
 $GLOBALS['__settings'] = array( 'perf.speculative_loading' => false );
 $classic = snt_leaf_classic_html( 'sn_admin_render_performance_section' );
 $kit     = snt_leaf_paint( 'site', 'performance' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'perf_save' ) === snt_leaf_actions( $kit ), 'off: field names and the action still match the classic form' );
-ok( false !== strpos( $kit, '<os-checkbox-label name="speculative_loading" value="1" label="Enabled:' ) && false === strpos( $kit, ' checked ' ), 'off: the checkbox is unchecked' );
-ok( false !== strpos( $kit, '<div class="snt-status-line"><os-cluster gap="8"><os-badge tone="warning">Speculative loading is off</os-badge>' ) && false !== strpos( $kit, '<os-disclosure heading="Speculative loading" hint="Off"' ) && false === strpos( $kit, 'tone="success"' ), 'off: an amber chip on the status line, and the setting\'s fold says Off' );
-ok( false !== strpos( $classic, 'sn-status-box--warn' ) && false !== strpos( $classic, '<span class="sn-pill">Off</span>' ), 'off: the classic oracle really paints the warn box and the plain pill (the control is not vacuous)' );
+$decoded = html_entity_decode( $classic, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+ok( false !== strpos( $kit, '<div class="snt-status-line"><os-cluster gap="8"><os-chip>Prerender is off; WordPress’s own default applies</os-chip>' ) && false === strpos( $kit, 'tone="success"' ) && false === strpos( $kit, 'tone="warning"' ), 'off: a neutral chip says prerender is off and WordPress\'s default applies; no amber, no green' );
+ok( false !== strpos( $decoded, '<div class="sn-status-box"><div><p class="sn-status-box-title">Prerender is off; WordPress’s own default applies.</p></div><span class="sn-pill">Off</span></div>' ) && false === strpos( $classic, 'sn-status-box--warn' ), 'off: the classic box says the same, with the plain pill and no warn box' );
+ok( false !== strpos( $kit, '<os-disclosure heading="Profile" hint="WordPress’s default"' ) && false !== strpos( $kit, '<os-fact label="Mode"><span class="snt-kv__v">WordPress’s default (<os-code>auto</os-code>/<os-code>auto</os-code>): <os-code>prefetch</os-code>, eagerness <os-code>conservative</os-code>, unless the host set another.</span>' ) && false === strpos( $kit, '<os-code>prerender</os-code>' ), 'off, native: the Profile names what is served, prefetch and conservative, and no longer prerender' );
+ok( false !== strpos( $decoded, 'WordPress’s default (<code>auto</code>/<code>auto</code>): mode <code>prefetch</code>, eagerness <code>conservative</code>, unless the host set another.' ) && false === strpos( $classic, '<code>prerender</code>' ) && false !== strpos( $classic, '<code>/contact/*</code>' ), 'off, classic: the same, and the /contact/ exclusion still stands (the filter appends it in both states)' );
 
 // ── Default state: no stored value reads as on, as sn_setting's default does.
 $GLOBALS['__settings'] = array();
 $kit = snt_leaf_paint( 'site', 'performance' );
-ok( false !== strpos( $kit, ' checked ' ) && false !== strpos( $kit, 'tone="success"' ), 'unset: the setting defaults to on, as the classic reader does' );
+ok( false !== strpos( $kit, '<os-badge tone="success">Prerender is on</os-badge>' ), 'unset: the setting defaults to on, as the classic reader does' );
 
-// ── Escaping: a hostile stored value never reaches the markup raw — the leaf
+// ── Escaping: a hostile stored value never reaches the markup raw. The leaf
 // reduces the option to a boolean before painting, exactly as the classic does.
 $GLOBALS['__settings'] = array( 'perf.speculative_loading' => '"><script>x</script>' );
 $kit = snt_leaf_paint( 'site', 'performance' );
-ok( false === strpos( $kit, '<script>' ) && false === strpos( $kit, 'script&gt;' ) && false !== strpos( $kit, ' checked ' ), 'a hostile stored value is reduced to the boolean it truthy-casts to; nothing of it reaches the markup' );
+ok( false === strpos( $kit, '<script>' ) && false === strpos( $kit, 'script&gt;' ) && false !== strpos( $kit, 'Prerender is on' ), 'a hostile stored value is reduced to the boolean it truthy-casts to; nothing of it reaches the markup' );
 $GLOBALS['__settings'] = array();
 
 // ── Slow admin requests: the ledger under the row, read from the module's log.
@@ -108,7 +110,7 @@ $GLOBALS['__options']['snt_httpdiag_log'] = $fixture;
 $classic = snt_leaf_classic_html( 'sn_admin_render_performance_section' );
 $kit     = snt_leaf_paint( 'site', 'performance' );
 snt_leaf_preview( 'site-performance', $kit );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && array( 'perf_save' ) === snt_leaf_actions( $kit ) && array() === snt_leaf_classic_markers( $kit ), 'with a log: names, the one action and no classic markers are unchanged' );
+ok( array() === snt_leaf_names( $kit ) && array() === snt_leaf_actions( $kit ) && array() === snt_leaf_classic_markers( $kit ), 'with a log: still no field, no action and no classic markers' );
 $ledger = strpos( $kit, 'heading="Outbound calls from admin pages"' );
 ok( false !== $ledger && strpos( $kit, 'heading="Setup"' ) < strpos( $kit, '</os-grid>' ) && strpos( $kit, '</os-grid>' ) < $ledger, 'the ledger is the working content at full width: under the [status | Setup] row, outside its grid' );
 ok( false !== strpos( $kit, '<os-badge tone="warning">2 failed outbound calls</os-badge>' ) && false !== strpos( $kit, '2 failed calls; the slowest was slow.example.com.' ), 'the status line counts the failed calls in amber, and the ledger keeps its open warning naming the host' );

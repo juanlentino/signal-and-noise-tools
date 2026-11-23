@@ -47,7 +47,7 @@ function sn_admin_render_agent_tools_section() { $GLOBALS['__calls'][] = 'fn:sn_
 function sn_admin_render_performance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_performance_section'; }
 function sn_admin_render_release_notes_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_release_notes_section'; }
 function sn_admin_render_provenance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_provenance_section'; } // v9.8.0: Tools → Provenance (real fn lives in inc/provenance-admin.php)
-function sn_admin_render_front_end_form() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_front_end_form'; }
+function sn_admin_render_settings_front_end_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_settings_front_end_section'; } // Settings > Front end (real fn lives in inc/admin-forms/settings-front-end.php); it calls sn_admin_render_front_end_form(), which the registry no longer names
 function sn_admin_render_tag_cleanup_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_tag_cleanup_section'; }
 function sn_admin_render_scheduled_content_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_scheduled_content_section'; }
 function sn_admin_render_now_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_now_section'; } // v7.5.0: Content → Now Page
@@ -115,8 +115,12 @@ ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connection
 // Settings: the plugin's own preferences, one pane per subject. The first pane
 // is the three email switches that sat on Connections > Cron and Security >
 // Login defense. 'wide' because its render fn paints two cards of its own.
-ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications', 'security', 'ai' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
-	'settings: slug sn-settings, three panes, notifications, security, ai' );
+ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications', 'security', 'ai', 'front-end' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
+	'settings: slug sn-settings, four panes, notifications, security, ai, front-end' );
+ok( 'Front end' === ( $by_tab['settings']['sub_tabs']['front-end']['label'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['front-end']['wide'] ),
+	'the fourth pane is labelled "Front end" and is wide (it owns its boxes: reading, the command palette, replies, performance)' );
+sn_admin_render_active_tab( 'settings', 'front-end' );
+ok( 'fn:sn_admin_render_settings_front_end_section' === end( $GLOBALS['__calls'] ), 'the dispatcher routes settings/front-end to its pane' );
 ok( 'AI' === ( $by_tab['settings']['sub_tabs']['ai']['label'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['ai']['wide'] ),
 	'the third pane is labelled "AI" and is wide (it owns its boxes: models and budget, the MCP doors, scheduled reads)' );
 sn_admin_render_active_tab( 'settings', 'ai' );
@@ -133,10 +137,11 @@ ok( 'fn:sn_admin_render_notifications_section' === end( $GLOBALS['__calls'] ), '
 // Site: was the single-leaf Identity & SEO tab; now the whole "how the site
 // itself behaves" group, so its label loses the leaf's name.
 ok( ( $by_tab['site']['label'] ?? '' ) === 'Site', "site relabelled 'Site' (was 'Identity & SEO' — now more than that one leaf)" );
-ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'identity-and-seo', 'front-end', 'performance', 'redirects', 'broken-links' ),
+ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'identity-and-seo', 'performance', 'redirects', 'broken-links' ),
 	// v13.109.8: broken-links joins, LAST — the registry's order is the nav's order,
 	// so this pin is also an assertion about where the tab appears.
-	'site leaves: identity-and-seo, front-end, performance, redirects, broken-links' );
+	// 2026-11: front-end left whole for settings/front-end.
+	'site leaves: identity-and-seo, performance, redirects, broken-links; front-end moved whole to settings/front-end' );
 
 // Content: page editors + the three sibling content scanners (finding 5 —
 // Tags / Pattern Adoption / Block Migrations were in three different tabs).
@@ -196,7 +201,7 @@ ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login-defense', 'f
 // Moved leaves must carry their layout flags across verbatim — a dropped 'wide'
 // silently re-caps a two-column surface at 820px.
 foreach ( array(
-	'site/front-end', 'site/performance', 'site/redirects',
+	'settings/front-end', 'site/performance', 'site/redirects',
 	'connections/music', 'monitoring/rss', 'content/tags', 'content/pattern-adoption', 'content/block-migrations',
 ) as $pair ) {
 	list( $t, $s ) = explode( '/', $pair );

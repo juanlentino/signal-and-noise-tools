@@ -121,15 +121,15 @@ function sn_settings_save( $raw ) {
 		$sanitized['monitoring'] = $existing_settings['monitoring'];
 	}
 
-	// v4.10.0 (T6): preserve the perf subtree (Speculation Rules toggle),
-	// configured on the Tools tab via sn_setting_update('perf.*', …), NOT in
+	// v4.10.0 (T6): preserve the perf subtree (the speculative loading switch),
+	// configured on Settings > Front end via sn_setting_update('perf.*', …), NOT in
 	// this Identity-tab form payload. Same whole-option-replace hazard as the
 	// audit/monitoring subtrees above.
 	if ( isset( $existing_settings['perf'] ) && is_array( $existing_settings['perf'] ) ) {
 		$sanitized['perf'] = $existing_settings['perf'];
 	}
 
-	// v4.12.0: preserve the theme subtree (Tools -> Front-End render knobs),
+	// v4.12.0: preserve the theme subtree (the Settings > Front end form),
 	// configured via sn_setting_update('theme.*', ...) by sn_handle_save_theme(),
 	// NOT in this Identity-tab form payload. Without this, saving Identity
 	// silently reverts every configured front-end knob to its default -- the same

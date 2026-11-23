@@ -22,14 +22,14 @@ require_once __DIR__ . '/lib/settings-ai-fixture.php';
 $classic = ai_classic();
 $kit     = ai_kit();
 
-// ── 1) The registry: a third pane, and no leaf left its tab.
+// ── 1) The registry: a third pane (a fourth, Front end, follows it), and no leaf left its tab.
 $by_tab = array();
 foreach ( sn_admin_top_tabs() as $t ) { $by_tab[ $t['tab'] ] = $t; }
 $panes = (array) ( $by_tab['settings']['sub_tabs'] ?? array() );
-ok( array( 'notifications', 'security', 'ai' ) === array_keys( $panes ) && 'AI' === ( $panes['ai']['label'] ?? '' ) && 'sn_admin_render_settings_ai_section' === ( $panes['ai']['render'] ?? '' ) && ! empty( $panes['ai']['wide'] ), 'Settings has three panes, ai ("AI") after security, wide: it paints its own boxes' );
+ok( array( 'notifications', 'security', 'ai' ) === array_slice( array_keys( $panes ), 0, 3 ) && 'AI' === ( $panes['ai']['label'] ?? '' ) && 'sn_admin_render_settings_ai_section' === ( $panes['ai']['render'] ?? '' ) && ! empty( $panes['ai']['wide'] ), 'ai ("AI") is the third pane, after security, wide: it paints its own boxes' );
 ok( array( 'models-budget', 'mcp-connect', 'agent-tools' ) === array_keys( $by_tab['ai']['sub_tabs'] ) && isset( $by_tab['connections']['sub_tabs']['cron'] ), 'the AI tab keeps its three leaves and Connections keeps Cron: fields moved, no leaf did' );
 ok( false !== strpos( (string) $by_tab['settings']['subtitle'], 'AI:' ) && false === stripos( (string) $by_tab['ai']['subtitle'], 'what they may cost' ), 'the subtitles follow: Settings names the pane, the AI tab no longer promises the budget setting' );
-ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['settings/ai'] ) && array( 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI' ) === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ), 'native: the painter is registered under settings/ai and the frame lists three panes' );
+ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['settings/ai'] ) && array( 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI', 'front-end' => 'Front end' ) === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ), 'native: the painter is registered under settings/ai and the frame lists the four panes' );
 $here = array( 'tab' => 'settings', 'sub' => 'ai', 'anchor' => null );
 ok( null === sn_admin_canonical_destination( 'settings', 'ai' ) && $here === sn_admin_post_redirect_target( 'settings', 'ai' ), 'classic: settings/ai is canonical and a save posted from it returns to it' );
 foreach ( array( array( 'ai', 'models-budget' ), array( 'ai', 'mcp-connect' ), array( 'connections', 'cron' ) ) as $old ) {

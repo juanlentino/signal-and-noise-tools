@@ -129,7 +129,7 @@ function sn_admin_top_tabs() {
 			// the tab. KEY unchanged — only the label moved.
 			'label'    => 'Site',
 			'title'    => 'Signal & Noise — Site',
-			'subtitle' => 'How the site itself behaves: identity and SEO, how pages render, performance, redirects, and broken links.',
+			'subtitle' => 'How the site itself behaves: identity and SEO, performance readings, redirects, and broken links.',
 			'sub_tabs' => array(
 				// One composite leaf: 4 tightly-coupled form sections under one save
 				// button, navigated by the internal TOC. Cloudflare moved to Connections
@@ -145,12 +145,12 @@ function sn_admin_top_tabs() {
 						'seo-copy'   => array( 'label' => 'SEO Copy' ),
 					),
 				),
-				// v10.46.0: Front-End + Performance move here from Content. Both
-				// configure how the site RENDERS, not what is published on it —
-				// Content had become "everything with words in it". 'wide' flags
+				// v10.46.0: Performance moved here from Content with Front-End. 'wide'
 				// carried across verbatim (a dropped flag silently re-caps the
-				// field grid / two-column shell at 820px).
-				'front-end'        => array( 'label' => 'Front-End', 'render' => 'sn_admin_render_front_end_form', 'wide' => true ),
+				// two-column shell at 820px). Front-End left WHOLE in 2026-11 for
+				// Settings > Front end (sn_admin_subtab_moves() redirects it): it was
+				// nothing but the one settings form. Performance's switch went to the
+				// same pane; the leaf kept its readings, so it stays.
 				'performance'      => array( 'label' => 'Performance', 'render' => 'sn_admin_render_performance_section', 'wide' => true ),
 				// v10.46.0: Redirects moves here from Connections. A redirect map +
 				// 404 log is site routing, not an outbound integration.
@@ -394,12 +394,15 @@ function sn_admin_top_tabs() {
 			// models, budget and Jev credit from AI > Models & Budget, the remote
 			// door's switch and the two door credentials from AI > MCP Clients,
 			// and the daily read-only run switch from Connections > Cron. All
-			// three leaves kept their readings, so none has a moves line.
+			// three leaves kept their readings, so none has a moves line. The
+			// fourth pane, Front end, took Site > Front-End WHOLE (one form, eight
+			// settings, nothing else: it has a moves line) and the speculative
+			// loading switch from Site > Performance, which kept its readings.
 			'slug'     => 'sn-settings',
 			'tab'      => 'settings',
 			'label'    => 'Settings',
 			'title'    => 'Signal & Noise. Settings',
-			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address. Security: the login address and how long the audit log is kept. AI: the models, the monthly budget, the MCP doors and the daily read-only run.',
+			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address. Security: the login address and how long the audit log is kept. AI: the models, the monthly budget, the MCP doors and the daily read-only run. Front end: how notes are listed and read, the command palette, where a note reply goes and prerendering.',
 			'sub_tabs' => array(
 				// 'wide': the render fn paints two cards of its own side by side
 				// (.sn-2up); capped, the wrapper would nest them in a third.
@@ -411,6 +414,9 @@ function sn_admin_top_tabs() {
 				// doors, scheduled reads). The sub slug repeats the AI tab's slug;
 				// every lookup is by tab first, so the two never meet.
 				'ai'            => array( 'label' => 'AI', 'render' => 'sn_admin_render_settings_ai_section', 'wide' => true ),
+				// 'wide' again: three boxes in one form (reading, the command
+				// palette, replies) and a fourth with its own (performance).
+				'front-end'     => array( 'label' => 'Front end', 'render' => 'sn_admin_render_settings_front_end_section', 'wide' => true ),
 			),
 		),
 	);

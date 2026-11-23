@@ -1,11 +1,14 @@
 <?php
 /**
- * Signal & Noise — Performance admin section (Content tab → Performance sub-tab).
+ * Signal & Noise: Site > Performance, the classic section.
  *
- * Renders the Speculation Rules toggle (sn_action=perf_save). When on, the site
- * opts into core's native speculative loading (since WP 6.8) at prerender/moderate via the
- * filters in inc/speculation-rules.php; when off, that module returns null and
- * core emits no speculation rules.
+ * The readings about speculative loading: which profile the site serves
+ * (this plugin's prerender/moderate, or WordPress's own default) and the
+ * Profile reference. The switch that chooses between them left for Settings >
+ * Front end in 2026-11 (inc/admin-forms/settings-front-end.php); this leaf
+ * keeps one line saying so. The filters are inc/speculation-rules.php: the
+ * switch never turns core's speculative loading off, so neither state here
+ * reads as "off".
  *
  * Added in v4.10.0 (T6).
  *
@@ -17,58 +20,62 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * The reading's words, shared by both twins: the state sentence, the pill
+ * and the profile in effect.
+ *
+ * @param bool $enabled The `perf.speculative_loading` setting.
+ * @return array{state:string,pill:string,profile:string}
+ */
+function snt_speculative_loading_copy( $enabled ) {
+	return $enabled
+		? array(
+			'state'   => __( 'Prerender is on', 'signal-and-noise-tools' ),
+			'pill'    => __( 'On', 'signal-and-noise-tools' ),
+			'profile' => __( 'prerender, moderate eagerness', 'signal-and-noise-tools' ),
+		)
+		: array(
+			'state'   => __( 'Prerender is off; WordPress’s own default applies', 'signal-and-noise-tools' ),
+			'pill'    => __( 'Off', 'signal-and-noise-tools' ),
+			'profile' => __( 'WordPress’s default', 'signal-and-noise-tools' ),
+		);
+}
+
+/**
  * Render the Performance section body. Used as the sn_admin_render_section()
  * callback for the 'performance' sub-tab.
  */
 function sn_admin_render_performance_section() {
 	$spec_enabled = (bool) sn_setting( 'perf.speculative_loading', true );
+	$copy         = snt_speculative_loading_copy( $spec_enabled );
 
-	// Phase 4b: a single-toggle form earns full width only by pairing the
-	// control with a second column — so the toggle (primary action) lives in the
-	// shell's MAIN column and a status/reference readout in the narrower rail.
+	// Phase 4b: the leaf earns full width by pairing two columns: the state
+	// and what it means in the shell's MAIN column, the Profile reference in
+	// the narrower rail.
 	sn_admin_shell_open();
 
 	echo '<div class="sn-fieldset">';
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
-	wp_nonce_field( 'sn_perf_save' );
-	echo '<input type="hidden" name="action" value="sn_perf_save">';
-
 	echo '<h2 class="sn-fieldset-h">Speculative loading</h2>';
-	echo '<p class="sn-fieldset-intro">Since 6.8, WordPress ships native <a href="https://developer.chrome.com/docs/web-platform/prerender-pages" target="_blank" rel="noopener noreferrer">Speculation Rules</a> (default: <code>auto</code>/<code>auto</code>). Enabling this opts the site into a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. The Profile box lists the profile and what it leaves out.</p>';
-
-	echo '<div class="sn-field">';
-	echo '<label class="sn-field-label">Status</label>';
-	echo '<label><input type="checkbox" name="speculative_loading" value="1"' . checked( $spec_enabled, true, false ) . '> Enabled: prerender the pages a visitor is likely to open next</label>';
-	echo '<p class="sn-field-helper">Turning this off disables speculative loading entirely: WordPress then adds no speculation rules to any page.</p>';
+	echo '<p class="sn-fieldset-intro">Since 6.8, WordPress ships native <a href="https://developer.chrome.com/docs/web-platform/prerender-pages" target="_blank" rel="noopener noreferrer">Speculation Rules</a> (default: <code>auto</code>/<code>auto</code>, which WordPress resolves to prefetch). With its switch on, this plugin asks for a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. With it off, WordPress&rsquo;s default stays. The Profile box lists what is in effect and what it leaves out.</p>';
+	// Neither state is a warning: off is WordPress's own default, not nothing.
+	echo '<div class="sn-status-box">';
+	echo '<div><p class="sn-status-box-title">' . esc_html( $copy['state'] ) . '.</p></div>';
+	echo '<span class="sn-pill' . ( $spec_enabled ? ' sn-pill--ok' : '' ) . '">' . esc_html( $copy['pill'] ) . '</span>';
 	echo '</div>';
-
-	echo '<div class="sn-fieldset-actions">';
-	echo '<button type="submit" class="button button-primary">Save</button>';
-	echo '</div>';
-
-	echo '</form>';
+	if ( function_exists( 'snt_settings_front_end_moved_line' ) ) {
+		snt_settings_front_end_moved_line();
+	}
 	echo '</div>'; // .sn-fieldset
 
-	// ── Rail: the active profile + exclusions + browser-support reference. ──
-	// Echo static literals only (no composed-variable echo) so WPCS EscapeOutput
-	// stays clean — same discipline as the shell helpers.
-	sn_admin_shell_rail( 'Speculative loading status' );
-
-	if ( $spec_enabled ) {
-		echo '<div class="sn-status-box">';
-		echo '<div><p class="sn-status-box-title">Speculative loading is on.</p></div>';
-		echo '<span class="sn-pill sn-pill--ok">On</span>';
-		echo '</div>';
-	} else {
-		echo '<div class="sn-status-box sn-status-box--warn">';
-		echo '<div><p class="sn-status-box-title">Speculative loading is off.</p></div>';
-		echo '<span class="sn-pill">Off</span>';
-		echo '</div>';
-	}
+	// ── Rail: the profile in effect + exclusions + browser-support reference. ──
+	sn_admin_shell_rail( 'Speculative loading profile' );
 
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Profile</h2>';
-	echo '<p class="sn-field-helper">Mode <code>prerender</code>, eagerness <code>moderate</code>: more aggressive than core\'s <code>auto</code>/<code>auto</code>.</p>';
+	if ( $spec_enabled ) {
+		echo '<p class="sn-field-helper">Mode <code>prerender</code>, eagerness <code>moderate</code>: more aggressive than core\'s <code>auto</code>/<code>auto</code>.</p>';
+	} else {
+		echo '<p class="sn-field-helper">WordPress&rsquo;s default (<code>auto</code>/<code>auto</code>): mode <code>prefetch</code>, eagerness <code>conservative</code>, unless the host set another.</p>';
+	}
 	echo '<p class="sn-field-helper"><strong>Excluded automatically:</strong> <code>/contact/*</code>.</p>';
 	echo '<p class="sn-field-helper"><strong>Browser support:</strong> only modern Chromium browsers act on speculation rules; others safely ignore them.</p>';
 	echo '</div>';

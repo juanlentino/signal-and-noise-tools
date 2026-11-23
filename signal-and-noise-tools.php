@@ -274,8 +274,9 @@ require_once SNT_PATH . 'inc/admin-forms/notifications.php'; // Settings > Notif
 require_once SNT_PATH . 'inc/admin-forms/security-settings.php'; // Settings > Security: the login address (from Security > Login URL, whole) and audit log retention
 require_once SNT_PATH . 'inc/admin-forms/settings-ai.php'; // Settings > AI: the models and budget, the MCP doors' controls and the daily read-only run switch
 require_once SNT_PATH . 'inc/admin-forms/links.php';
-require_once SNT_PATH . 'inc/admin-forms/performance.php'; // v4.10.0: Tools → Performance (Speculation Rules toggle)
-require_once SNT_PATH . 'inc/admin-forms/front-end.php';     // v4.12.0: Site → Front-End (theme render knobs)
+require_once SNT_PATH . 'inc/admin-forms/performance.php'; // v4.10.0: Site > Performance (which speculative loading profile is in effect)
+require_once SNT_PATH . 'inc/admin-forms/front-end.php';     // v4.12.0: the eight front-end settings, painted on Settings > Front end
+require_once SNT_PATH . 'inc/admin-forms/settings-front-end.php'; // Settings > Front end: that form and the speculative loading switch
 require_once SNT_PATH . 'inc/admin-forms/ai-settings.php';   // v10.46.0: AI → Models & Budget (extracted out of front-end.php)
 require_once SNT_PATH . 'inc/admin-forms/music.php';         // v4.13.0: Connections → Discography (Spotify creds + Muso profile + Sync now)
 require_once SNT_PATH . 'inc/admin-forms/indexnow.php';     // v5.1.0: Automation → IndexNow (enable toggle + key URL + backfill)
@@ -830,7 +831,7 @@ require_once SNT_PATH . 'inc/alerts-notice.php';     // Unreleased: the alert he
 require_once SNT_PATH . 'inc/hn-mentions.php';       // Unreleased: Hacker News stories for this site, read hourly inside the alert run
 require_once SNT_PATH . 'inc/scheduled-reads.php';   // R6a: daily read-door-only ability runs with a capped outcome history
 require_once SNT_PATH . 'inc/privacy-exporters.php'; // v4.10.0: GDPR exporter/eraser + suggested privacy policy text
-require_once SNT_PATH . 'inc/speculation-rules.php'; // v4.10.0: opt-in Speculation Rules tuning (prerender/moderate)
+require_once SNT_PATH . 'inc/speculation-rules.php'; // v4.10.0: Speculation Rules tuning (prerender/moderate, or core's own default)
 
 // Settings migration: seed legacy values once per environment.
 // register_activation_hook fires only on WP-upgrader-driven activations;
