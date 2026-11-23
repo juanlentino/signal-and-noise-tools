@@ -39,6 +39,7 @@ function sn_admin_render_citations_section() { $GLOBALS['__calls'][] = 'fn:sn_ad
 function snt_analytics_render_settings_section() { $GLOBALS['__calls'][] = 'fn:snt_analytics_render_settings_section'; }
 function sn_admin_render_music_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_music_section'; }
 function sn_admin_render_links_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_links_section'; }
+function sn_admin_render_settings_ai_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_settings_ai_section'; } // Settings > AI (real fn lives in inc/admin-forms/settings-ai.php)
 function sn_admin_render_security_settings_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_security_settings_section'; } // Settings > Security (real fn lives in inc/admin-forms/security-settings.php)
 function sn_admin_render_notifications_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_notifications_section'; } // Settings > Notifications and reports (real fn lives in inc/admin-forms/notifications.php)
 function sn_admin_render_mcp_connect_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_mcp_connect_section'; } // v9.47.0: Tools → Connect an MCP client
@@ -114,8 +115,12 @@ ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connection
 // Settings: the plugin's own preferences, one pane per subject. The first pane
 // is the three email switches that sat on Connections > Cron and Security >
 // Login defense. 'wide' because its render fn paints two cards of its own.
-ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications', 'security' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
-	'settings: slug sn-settings, two panes, notifications then security' );
+ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications', 'security', 'ai' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
+	'settings: slug sn-settings, three panes, notifications, security, ai' );
+ok( 'AI' === ( $by_tab['settings']['sub_tabs']['ai']['label'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['ai']['wide'] ),
+	'the third pane is labelled "AI" and is wide (it owns its boxes: models and budget, the MCP doors, scheduled reads)' );
+sn_admin_render_active_tab( 'settings', 'ai' );
+ok( 'fn:sn_admin_render_settings_ai_section' === end( $GLOBALS['__calls'] ), 'the dispatcher routes settings/ai to its pane, not to the AI tab' );
 ok( 'Security' === ( $by_tab['settings']['sub_tabs']['security']['label'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['security']['wide'] ),
 	'the second pane is labelled "Security" and is wide (it owns its two cards, the login address and audit log retention)' );
 sn_admin_render_active_tab( 'settings', 'security' );

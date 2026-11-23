@@ -274,9 +274,9 @@ namespace {
 	$spliced_missing = array_diff( $spliced, array_keys( $painters ) );
 	ok( array() === $spliced_missing, 'the two spliced leaves (Search Console, Machine Readers) have painters too' . ( $spliced_missing ? ' -- MISSING: ' . implode( ', ', $spliced_missing ) : '' ) );
 
-	// Settings has two panes (Notifications and reports, Security). Painted
+	// Settings has three panes (Notifications and reports, Security, AI). Painted
 	// through the frame (the tab's own view, not the painter alone): the first
-	// pane lands without being named, the leaf bar offers both (it hid while
+	// pane lands without being named, the leaf bar offers all three (it hid while
 	// the tab had one leaf; the classic strip shows from two the same way),
 	// and a save's notice paints on top of the pane.
 	$os = new \OpenStation\App\Os(); $os->view = 'settings';
@@ -286,8 +286,8 @@ namespace {
 	$settings_html = (string) ob_get_clean();
 	ok( 0 === strpos( $settings_html, '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="settings"' ) && false !== strpos( $settings_html, '<div class="snt-leaf" data-snt-leaf="notifications">' ) && false === strpos( $settings_html, 'Section not found' ),
 		'the settings tab, unnamed, paints its first pane, notifications, through the frame' );
-	ok( false !== strpos( $settings_html, 'slot="toolbar"' ) && 1 === preg_match( '#<os-segmented[^>]*value="notifications"[^>]*>(?:(?!</os-segmented>).)*<os-segment value="notifications">Notifications and reports</os-segment><os-segment value="security">Security</os-segment></os-segmented>#s', $settings_html ) && array( 'notifications' => 'Notifications and reports', 'security' => 'Security' ) === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ),
-		'   ...with the leaf bar: two panes, in the registry\'s order, the first one active' );
+	ok( false !== strpos( $settings_html, 'slot="toolbar"' ) && 1 === preg_match( '#<os-segmented[^>]*value="notifications"[^>]*>(?:(?!</os-segmented>).)*<os-segment value="notifications">Notifications and reports</os-segment><os-segment value="security">Security</os-segment><os-segment value="ai">AI</os-segment></os-segmented>#s', $settings_html ) && array( 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI' ) === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ),
+		'   ...with the leaf bar: three panes, in the registry\'s order, the first one active' );
 	ok( strpos( $settings_html, 'Morning brief and alert settings saved.' ) < strpos( $settings_html, 'data-snt-leaf="notifications"' ) && false !== strpos( $settings_html, 'Morning brief and alert settings saved.' ),
 		'   ...and the saved notice sits on top of the pane' );
 

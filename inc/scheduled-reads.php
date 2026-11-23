@@ -124,18 +124,4 @@ function snt_scheduled_reads_daily_cron_cb() {
 }
 add_action( SNT_SCHEDULED_READS_CRON_HOOK, 'snt_scheduled_reads_daily_cron_cb' );
 
-function snt_scheduled_reads_render_settings() {
-	$history = get_option( SNT_SCHEDULED_READS_HISTORY, array() );
-	$last    = is_array( $history ) && isset( $history[0] ) ? $history[0] : null;
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset"><input type="hidden" name="action" value="sn_scheduled_reads_save" />'; wp_nonce_field( 'sn_scheduled_reads_save' );
-	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Scheduled read-only runs', 'signal-and-noise-tools' ) . '</h2>';
-	echo '<label><input type="checkbox" name="snt_scheduled_reads_enabled" value="1" '; checked( snt_scheduled_reads_enabled() ); echo ' /> ' . esc_html__( 'Run a fixed set of read-door abilities daily and keep a two-week outcome history', 'signal-and-noise-tools' ) . '</label>';
-	echo '<p class="sn-field-helper">' . esc_html__( 'Read door only — the run goes through the same gate, kill switch, and telemetry as a live caller, and the tool list is fixed in code.', 'signal-and-noise-tools' ) . '</p>';
-	if ( $last ) {
-		$errors = 0;
-		foreach ( (array) $last['tools'] as $tool_outcome ) { $errors += empty( $tool_outcome['error'] ) ? 0 : 1; }
-		echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Last run %s ago: %d of %d reads failed.', human_time_diff( (int) $last['ran_at'], time() ), $errors, count( (array) $last['tools'] ) ) ) . '</p>';
-	}
-	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button> <button type="submit" class="button" name="snt_scheduled_reads_now" value="1">' . esc_html__( 'Run now', 'signal-and-noise-tools' ) . '</button></div></form>';
-}
-add_action( 'sn_admin_cron_tab', 'snt_scheduled_reads_render_settings', 30 );
+require_once __DIR__ . '/scheduled-reads-admin.php'; // the switch's form (Settings > AI) and the box Connections > Cron keeps.

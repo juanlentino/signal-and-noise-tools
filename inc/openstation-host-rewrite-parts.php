@@ -76,7 +76,9 @@ function snt_os_host_capture( callable $paint, array $get = array(), array $post
  * function submit_button()" while the same leaf captured cleanly under
  * WP-CLI. admin-ajax.php sets the precedent -- it requires this file for
  * exactly this reason -- so the host does the same, once, and only when the
- * library is absent. get_current_screen() still answers null here: a REST
+ * library is absent. (The form that calls submit_button() is the remote door's
+ * switch, on Settings > AI since 2026-11; the bootstrap is per capture, not
+ * per leaf, so it covers the pane as it covered the leaf.) get_current_screen() still answers null here: a REST
  * request has no screen, and the one leaf that reads it already guards.
  *
  * @return void

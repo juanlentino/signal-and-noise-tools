@@ -199,7 +199,7 @@ function analytics_mirrors_html( $tab ) {
 	}
 	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Also gates cache purge and the Edge view.', 'signal-and-noise-tools' ) ) . '</p>';
 	$out .= '<os-cluster gap="8">'
-		. \snt_kit_go( __( 'AI → Models & Budget →', 'signal-and-noise-tools' ), array( 'tab' => 'ai', 'sub' => 'models-budget', 'current' => $tab ) )
+		. \snt_kit_go( __( 'Settings → AI →', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'ai', 'current' => $tab ) )
 		. \snt_kit_go( __( 'Measurement → Insights →', 'signal-and-noise-tools' ), array( 'tab' => 'monitoring', 'sub' => 'insights', 'current' => $tab ) )
 		. \snt_kit_go( __( 'Connections → Credentials →', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => $tab ) ) // 15.3.1: the zone id is a keyring row
 		. '</os-cluster>';

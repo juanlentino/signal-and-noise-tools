@@ -162,13 +162,24 @@ require __DIR__ . '/../inc/agent-tools.php';
 require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/lib/wp-admin-notice-stub.php'; // 17.4.4: every classic notice is wp_admin_notice() (#1618).
 require __DIR__ . '/../inc/agent-tools-admin.php';
+require __DIR__ . '/../inc/admin-forms/settings-ai.php'; // 2026-11: the doors' three controls paint on Settings > AI.
 ob_start();
 sn_admin_render_mcp_connect_section();
 $html_connect = ob_get_clean();
+// 2026-11: the two credential forms and the remote switch are settings and
+// moved to Settings > AI, whose "MCP doors" box calls the same three
+// renderers. That box is rendered here as a third part, so every assertion
+// below about the forms still reads them; the pins right under say which part
+// carries what. The pane as a whole is tests/os-leaf-settings-ai-doors.php.
+ob_start();
+snt_settings_ai_render_doors();
+$html_doors = ob_get_clean();
 ob_start();
 sn_admin_render_agent_tools_section();
 $html_tools = ob_get_clean();
-$html = $html_connect . $html_tools;
+$html = $html_connect . $html_doors . $html_tools;
+ok( 0 === substr_count( $html_connect, '<form' ) && 0 === substr_count( $html_connect, '<select' ) && 0 === substr_count( $html_connect, 'name="action"' ) && 0 === substr_count( $html_tools, '<form' ), '2026-11: MCP Clients is read-only again: no form, no select, no action; neither has Agent tools' );
+ok( 3 === substr_count( $html_doors, '<form' ) && 1 === substr_count( $html_connect, 'tab=settings&sub=ai">Settings › AI</a>' ), '2026-11: the three forms paint in the Settings > AI doors box, and MCP Clients links to it once' );
 ok( false === strpos( $html_connect, 'read-only tools exposed' ) && false !== strpos( $html_tools, 'read-only tools exposed' ), '15.6.0: the read door\'s inventory paints on Agent tools, not on MCP Clients' );
 ok( false !== strpos( $html_connect, 'claude_desktop_config.json' ) && false === strpos( $html_tools, 'claude_desktop_config.json' ), '15.6.0: how to connect stays on MCP Clients' );
 ok( false !== strpos( $html_tools, 'On the page' ) && false !== strpos( $html_tools, 'Through MCP' ) && false !== strpos( $html_tools, 'Through Copilot' ) && false !== strpos( $html_tools, 'copilot-usage-stub' ), 'Agent tools: three doors in order, Copilot rendered through its own renderer' );
@@ -450,12 +461,14 @@ $GLOBALS['__app_passwords'] = array(
 	array( 'uuid' => $uuid_b, 'name' => $escaping_name, 'created' => 1700000000, 'last_used' => null ),
 );
 
-// ── MIRROR RULE, updated for the bridge half: this leaf now carries TWO
-// deliberate write surfaces — the R9 credential-binding form and the remote
-// door's kill-switch toggle. The rule's point is that no THIRD, unreviewed
-// write surface slips in unnoticed, so the count rises only alongside the
-// sn_action pins below that name each surface's action. ──
-ok( 3 === substr_count( $html, '<form' ), 'MIRROR RULE: exactly THREE <form>s on the whole leaf (R9 binding, the read binding, remote toggle)' );
+// ── MIRROR RULE, updated for the bridge half: the doors carry THREE
+// deliberate write surfaces: the R9 credential-binding form, the read door's
+// binding and the remote door's kill-switch toggle. The rule's point is that
+// no FOURTH, unreviewed write surface slips in unnoticed, so the count rises
+// only alongside the sn_action pins below that name each surface's action.
+// Since 2026-11 the three sit in the Settings > AI doors box, and the count
+// is taken over MCP Clients, that box and Agent tools together. ──
+ok( 3 === substr_count( $html, '<form' ), 'MIRROR RULE: exactly THREE <form>s across the two leaves and the doors box (R9 binding, the read binding, remote toggle)' );
 ok( 3 === substr_count( $html, 'name="action"' ), 'MIRROR RULE: every form declares an action, so none is an unnamed write surface' );
 ok( 1 === substr_count( $html, 'value="sn_bind_mcp_rw_credential"' ), 'MIRROR RULE: exactly one form carries the credential-bind action' );
 ok( 1 === substr_count( $html, 'value="sn_bind_mcp_read_credential"' ), 'MIRROR RULE: exactly one form carries the read-door bind action (2026-10-26)' );
@@ -472,8 +485,8 @@ ok( false === strpos( $html, '<textarea' ), 'MIRROR RULE: still no <textarea> an
 $bind_pos       = strpos( $html, 'Bind the write-door credential' );
 $connect_pos    = strpos( $html, 'Connect a client' );
 $first_list_pos = strpos( $html, 'sn-mcp-tool-list' );
-ok( false !== $bind_pos && false !== $first_list_pos && $bind_pos < $first_list_pos,
-	'M1: binding-form heading appears before the first sn-mcp-tool-list' );
+ok( false !== $bind_pos && false !== $first_list_pos && false === strpos( $html_connect, 'Bind the write-door credential' ) && false !== strpos( $html_doors, 'Bind the write-door credential' ),
+	'M1, since 2026-11: the binding form is not on MCP Clients; it is in the Settings > AI doors box' );
 ok( false !== $connect_pos && false !== $first_list_pos && $connect_pos < $first_list_pos,
 	'M1: "Connect a client" heading appears before the first sn-mcp-tool-list' );
 
@@ -511,7 +524,7 @@ ok( is_int( $first_list_in_details ) && $read_details_at < $first_list_in_detail
 // pinned through the PURE card builder instead.
 ok( function_exists( 'sn_admin_mcp_status_cards' ), 'M3: pure card builder sn_admin_mcp_status_cards() exists' );
 $glance_at = strpos( $html, '<div class="sn-glance">' );
-ok( is_int( $glance_at ) && is_int( $bind_pos ) && $glance_at < $bind_pos, 'M3: the status glance renders before the binding form' );
+ok( is_int( $glance_at ) && is_int( $bind_pos ) && false !== strpos( $html_connect, '<div class="sn-glance">' ) && false === strpos( $html_doors, '<div class="sn-glance">' ), 'M3: the status glance stays on MCP Clients; the doors box has the forms and no glance' );
 ok( false !== strpos( $html, (string) count( $slugs ) . ' tools' ), 'M3: the read-door card counts the live allowlist' );
 ok( stripos( $html, 'INACTIVE' ) !== false, 'M3: the unbound write door reads INACTIVE in the glance (same word the binding form uses)' );
 ok( stripos( $html, 'Not installed' ) !== false, 'M3: the absent adapter card says Not installed' );

@@ -89,6 +89,18 @@ eq( $sec, sn_admin_canonical_destination( 'login', '' ), 'legacy flat slug login
 eq( null, sn_admin_canonical_destination( 'settings', 'security' ), 'settings/security canonical' );
 eq( $sec, sn_admin_post_redirect_target( 'settings', 'security' ), 'POST PRG: a save from Settings > Security returns to it' );
 eq( null, sn_admin_canonical_destination( 'security', 'audit-log' ), 'security/audit-log still canonical: the retention field left it, the leaf did not move' );
+
+// Settings > AI took FIELDS from three leaves and no leaf whole, so none of
+// the three redirects, and a save from the pane returns to the pane. The sub
+// slug `ai` repeats the AI tab's own slug; the resolver keys on the pair.
+$ai_pane = array( 'tab' => 'settings', 'sub' => 'ai', 'anchor' => null );
+eq( null, sn_admin_canonical_destination( 'settings', 'ai' ), 'settings/ai canonical' );
+eq( $ai_pane, sn_admin_post_redirect_target( 'settings', 'ai' ), 'POST PRG: a save from Settings > AI returns to it, not to the AI tab' );
+eq( null, sn_admin_canonical_destination( 'ai', 'models-budget' ), 'ai/models-budget still canonical: its settings left it, the leaf did not move' );
+eq( null, sn_admin_canonical_destination( 'ai', 'mcp-connect' ), 'ai/mcp-connect still canonical: its three controls left it, the leaf did not move' );
+eq( null, sn_admin_canonical_destination( 'connections', 'cron' ), 'connections/cron still canonical: the daily run switch left it, the leaf did not move' );
+eq( array( 'tab' => 'connections', 'sub' => 'cron', 'anchor' => null ), sn_admin_post_redirect_target( 'connections', 'cron' ), 'POST PRG: Run now, posted from Cron, returns to Cron' );
+eq( 'ai', sn_admin_post_redirect_target( 'ai', '' )['tab'], 'POST PRG: a bare tab=ai is still the AI tab, never the pane' );
 eq( array( 'tab' => 'connections', 'sub' => 'cron', 'anchor' => null ), sn_admin_post_redirect_target( 'connections', 'cron' ), 'POST PRG: Acknowledge and the reads form still return to Cron' );
 
 // ── Legacy flat slugs + retired tab ──
@@ -115,7 +127,7 @@ eq( array( 'tab' => 'connections', 'sub' => 'music', 'anchor' => null ), sn_admi
 // so tab/sub arrive via $_REQUEST and flow through this same resolver.
 eq( array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => null ), sn_admin_post_redirect_target( 'content', 'front-end' ), 'POST stale content/front-end → site/front-end' );
 eq( array( 'tab' => 'monitoring', 'sub' => 'rss', 'anchor' => null ), sn_admin_post_redirect_target( 'content', 'rss' ), 'POST stale content/rss → monitoring/rss' );
-eq( array( 'tab' => 'ai', 'sub' => 'models-budget', 'anchor' => null ), sn_admin_post_redirect_target( 'ai', 'models-budget' ), 'POST ai/models-budget → passthrough (the extracted AI form saves in place)' );
+eq( array( 'tab' => 'ai', 'sub' => 'models-budget', 'anchor' => null ), sn_admin_post_redirect_target( 'ai', 'models-budget' ), 'POST ai/models-budget → passthrough (Run comparison, the one form the leaf keeps, answers in place)' );
 eq( array( 'tab' => 'connections', 'sub' => 'cloudflare', 'anchor' => null ), sn_admin_post_redirect_target( 'site', 'cloudflare' ), 'POST stale site/cloudflare → connections/cloudflare' );
 eq( array( 'tab' => 'connections', 'sub' => 'webhooks', 'anchor' => null ), sn_admin_post_redirect_target( 'connections', 'webhooks' ), 'POST connections/webhooks → passthrough' );
 eq( array( 'tab' => 'site', 'sub' => 'identity-and-seo', 'anchor' => 'identity' ), sn_admin_post_redirect_target( 'identity', '' ), 'POST legacy identity → site/identity-and-seo#identity (anchor preserved)' );

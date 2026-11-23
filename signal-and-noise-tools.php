@@ -272,6 +272,7 @@ require_once SNT_PATH . 'inc/admin-forms/identity-and-seo.php';
 require_once SNT_PATH . 'inc/admin-forms/login.php';
 require_once SNT_PATH . 'inc/admin-forms/notifications.php'; // Settings > Notifications and reports: the three email switches, one pane
 require_once SNT_PATH . 'inc/admin-forms/security-settings.php'; // Settings > Security: the login address (from Security > Login URL, whole) and audit log retention
+require_once SNT_PATH . 'inc/admin-forms/settings-ai.php'; // Settings > AI: the models and budget, the MCP doors' controls and the daily read-only run switch
 require_once SNT_PATH . 'inc/admin-forms/links.php';
 require_once SNT_PATH . 'inc/admin-forms/performance.php'; // v4.10.0: Tools → Performance (Speculation Rules toggle)
 require_once SNT_PATH . 'inc/admin-forms/front-end.php';     // v4.12.0: Site → Front-End (theme render knobs)

@@ -9,6 +9,11 @@
  * by-feature readout, the same embeddings-token status, and the same
  * TF-IDF-vs-embeddings comparison states, with none of wp-admin's markup.
  *
+ * 2026-11: the ai_settings_save form moved to Settings › AI. Its assertions
+ * are kept and read the form where it paints (mb_form_kit(),
+ * mb_form_classic() below); the leaf is asserted to hold readings, the
+ * comparison's one action, and the line saying where the settings went.
+ *
  * Run: php tests/os-leaf-ai-models-budget.php
  */
 require_once __DIR__ . '/lib/os-leaf-harness.php';
@@ -75,7 +80,17 @@ function sn_mask_secret( $value ) {
 
 require SNT_PATH . 'inc/admin-post-actions/theme-ai.php'; // sn_theme_ai_models(), sn_theme_ai_vision_models(), the classic handlers.
 require SNT_PATH . 'inc/admin-forms/ai-settings.php';
+require SNT_PATH . 'inc/admin-forms/settings-ai.php'; // the "moved to" line the leaf keeps.
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-models-budget.php';
+require SNT_PATH . 'apps/sn-dashboard/parts/leaves/settings-ai.php'; // settings_ai_models_html(): the form, on Settings > AI.
+
+// 2026-11: the five settings (the two models, the budget, the Jev credit and
+// its day) moved to Settings › AI. Every assertion this suite made about the
+// FORM is kept and reads the form where it paints now: the pane's Models and
+// budget box, native and classic. The leaf keeps its readings, and says once
+// where the settings went. The pane as a whole is tests/os-leaf-settings-ai.php.
+function mb_form_kit() { return \SignalNoise\OpenStationHost\Dashboard\Leaves\settings_ai_models_html(); }
+function mb_form_classic() { return snt_leaf_classic_html( 'sn_admin_render_ai_models_form' ); }
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -86,37 +101,42 @@ ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['ai/models-budget']
 $classic = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
 $kit     = snt_leaf_paint( 'ai', 'models-budget' );
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( array( 'ai_settings_save' ) === snt_leaf_actions( $kit ) && array( 'ai_settings_save' ) === snt_leaf_actions( $classic ), 'unconfigured: only ai_settings_save is offered (the comparison button is gated off), matching the classic leaf' );
+$form_k = mb_form_kit();
+$form_c = mb_form_classic();
+ok( array( 'theme_ai_alt_model', 'theme_ai_model', 'theme_ai_monthly_budget', 'theme_jev_credit', 'theme_jev_cycle_day' ) === snt_leaf_names( $form_k ) && snt_leaf_names( $form_c ) === snt_leaf_names( $form_k ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $form_k ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $form_c ) ) . ')' );
+ok( array() === snt_leaf_names( $kit ) && array() === snt_leaf_names( $classic ), '2026-11: the leaf itself holds no field on either twin' );
+ok( array( 'ai_settings_save' ) === snt_leaf_actions( $form_k ) && array( 'ai_settings_save' ) === snt_leaf_actions( $form_c ) && array() === snt_leaf_actions( $kit ) && array() === snt_leaf_actions( $classic ), 'unconfigured: the form offers ai_settings_save alone, and the leaf offers no action (the comparison button is gated off), on both twins' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, '<os-form' ) && false !== strpos( $kit, 'os-action="post"' ), 'the settings form is an os-form dispatching post' );
-ok( false !== strpos( $kit, 'name="theme_ai_model"' ) && false !== strpos( $kit, 'name="theme_ai_alt_model"' ) && false !== strpos( $kit, 'name="theme_ai_monthly_budget"' ) && false === strpos( $kit, 'name="sn_ml_embeddings_token"' ), '15.3.1: three classic fields survive as kit fields; the token field is the keyring\'s now: all four classic fields survive as kit fields' );
+ok( false !== strpos( $form_k, '<os-form' ) && false !== strpos( $form_k, 'os-action="post"' ) && false === strpos( $kit, '<os-form' ), 'the settings form is an os-form dispatching post, and the unconfigured leaf has no form' );
+ok( false !== strpos( $form_k, 'name="theme_ai_model"' ) && false !== strpos( $form_k, 'name="theme_ai_alt_model"' ) && false !== strpos( $form_k, 'name="theme_ai_monthly_budget"' ) && false === strpos( $form_k . $kit, 'name="sn_ml_embeddings_token"' ), '15.3.1: three classic fields survive as kit fields; the token field is the keyring\'s now: all four classic fields survive as kit fields' );
 ok( false !== strpos( $kit, 'No cap set' ) && false !== strpos( $kit, 'Spent this month: $0.00' ), 'no-cap state reads the same as the classic leaf' );
 $model_ids = array_keys( sn_theme_ai_models() );
 $vision_ids = array_keys( sn_theme_ai_vision_models() );
 ok(
-	false !== strpos( $kit, '<os-option value="' . $model_ids[0] . '"' )
-	&& substr_count( $kit, '<os-option' ) === count( $model_ids ) + count( $vision_ids ),
+	false !== strpos( $form_k, '<os-option value="' . $model_ids[0] . '"' )
+	&& substr_count( $form_k, '<os-option' ) === count( $model_ids ) + count( $vision_ids ),
 	'both model selects paint every option the classic <select> offers'
 );
-ok( false !== strpos( $kit, 'value="claude-sonnet-5"' ), 'the stored prose-model value lands on its os-select' );
+ok( false !== strpos( $form_k, 'value="claude-sonnet-5"' ), 'the stored prose-model value lands on its os-select' );
 // 2026-10-12 audit: "Set 0 to remove the cap." sat in the spend box; it is the
 // budget field's own hint now, on both twins, whatever the budget.
-ok( false !== strpos( $kit, '<os-field-row label="Monthly budget (USD)" hint="Set 0 to remove the cap."><os-number-field name="theme_ai_monthly_budget"' ) && 1 === substr_count( $kit, 'Set 0 to remove the cap.' ) && false !== strpos( $classic, 'name="theme_ai_monthly_budget" value="0.00"><p class="sn-field-helper">Set 0 to remove the cap.</p>' ), 'the remove-cap hint is the budget field\'s own, once, on both twins' );
+ok( false !== strpos( $form_k, '<os-field-row label="Monthly budget (USD)" hint="Set 0 to remove the cap."><os-number-field name="theme_ai_monthly_budget"' ) && 1 === substr_count( $form_k, 'Set 0 to remove the cap.' ) && false !== strpos( $form_c, 'name="theme_ai_monthly_budget" value="0.00"><p class="sn-field-helper">Set 0 to remove the cap.</p>' ) && false === strpos( $kit . $classic, 'Set 0 to remove the cap.' ), 'the remove-cap hint is the budget field\'s own, once, on both twins, and went to the pane with the field' );
 ok( false !== strpos( $kit, 'draws on the same monthly budget. Copilot and agents run outside it.' ) && false !== strpos( $classic, 'draws on the same monthly budget. Copilot and agents run outside it.' ), 'the intro says Copilot and agents run outside the budget, on both twins' );
 ok( false === strpos( $kit . $classic, 'except Copilot' ), 'no twin says "except Copilot": agents are outside the cap too' );
 // 2026-10-16 leaf anatomy (docs/kit-leaf-anatomy.md): a status line leads,
 // the intro is the How this works fold on that card, and the settings form is
-// a Setup card of folds, each summary the setting as it stands. Since the
+// a Setup card of folds (2026-11: the form left for the pane, open). Since the
 // live audit of 2026-10-16 the two share the first row; the readings follow.
 $prose_label = 'Claude Sonnet 5'; // the catalog's label, its parenthetical note left to the select
 ok( 0 === strpos( $kit, snt_leaf_row() . '<os-section heading="AI budget" stack><div class="snt-status-line"><os-cluster gap="8"><os-chip>No monthly cap</os-chip><os-badge tone="warning">Workers AI token not set</os-badge>' ), 'anatomy: one status line leads the leaf: no cap (neutral), the Workers AI token not set (amber)' );
 ok( 1 === preg_match( '#^' . preg_quote( snt_leaf_row(), '#' ) . '<os-section heading="AI budget" stack>.*?<os-disclosure heading="How this works" hint="One monthly budget for every AI feature here; Copilot and agents run outside it\."[^>]*>.*?draws on the same monthly budget\. Copilot and agents run outside it\..*?</os-disclosure></os-section>#s', $kit ), 'anatomy: the intro paragraph is the closed How this works fold on the status card' );
 $setup = (string) substr( $kit, (int) strpos( $kit, '<os-section heading="Setup"' ) );
 $row0  = preg_match( '#^' . preg_quote( snt_leaf_row(), '#' ) . '.*?</os-section></os-grid>#s', $kit, $m ) ? $m[0] : '';
-ok( false !== strpos( $row0, '<os-section heading="AI budget"' ) && 1 === preg_match( '#</os-disclosure></os-section><os-section heading="Setup" .*</os-form>.*</os-section></os-grid>$#s', $row0 ) && false === strpos( $row0, 'heading="This month, by feature"' ), 'live audit 2026-10-16: the status card and the Setup card share the first row, the Setup card beside the status card; the readings follow under it' );
-ok( false !== strpos( $kit, '<os-section heading="Setup"' ) && 1 === preg_match( '#^<os-section heading="Setup" description="Model changes apply to the next AI call\. The budget is evaluated per calendar month\." stack><os-disclosure heading="Models and budget" hint="Prose ' . preg_quote( $prose_label, '#' ) . '; vision [^";]+; no cap" data-snt-fold="models-and-budget" data-snt-open="0">.*?<os-form[^>]*submit-label="Save AI settings".*?name="theme_ai_model".*?name="theme_jev_cycle_day".*?</os-form>.*?</os-disclosure><os-disclosure heading="Workers AI token" hint="Not set" open #s', $setup ), 'anatomy: the Setup card: Models and budget folds the whole form (one form, one Save) with its current values as the summary; the Workers AI token fold opens while it is not set' );
-ok( false === strpos( (string) substr( $kit, 0, (int) strpos( $kit, '<os-section heading="Setup"' ) ), 'name="theme_ai_model"' ) && 1 === substr_count( $kit, 'name="theme_ai_model"' ), 'anatomy: no setting field paints outside the Setup card' );
+ok( false !== strpos( $row0, '<os-section heading="AI budget"' ) && 1 === preg_match( '#</os-disclosure></os-section><os-section heading="Setup" stack><os-disclosure heading="Workers AI token".*</os-section></os-grid>$#s', $row0 ) && false === strpos( $row0, 'heading="This month, by feature"' ), 'live audit 2026-10-16: the status card and the Setup card share the first row, the Setup card beside the status card; the readings follow under it' );
+ok( 1 === preg_match( '#^<os-section heading="Setup" stack><os-disclosure heading="Workers AI token" hint="Not set" open #s', $setup ) && false === strpos( $kit, '<os-disclosure heading="Models and budget"' ), 'anatomy: the Setup card holds the Workers AI token fold, open while it is not set; the Models and budget fold left with the form' );
+ok( 1 === preg_match( '#^<os-section heading="Models and budget" description="Model changes apply to the next AI call\. The budget is evaluated per calendar month\." stack><os-form[^>]*submit-label="Save AI settings".*?name="theme_ai_model".*?name="theme_jev_cycle_day".*?</os-form></os-section>$#s', $form_k ) && false === strpos( $form_k, '<os-disclosure' ), 'on the pane: the whole form (one form, one Save) in a box headed Models and budget, open, its hint the box\'s description' );
+ok( 0 === substr_count( $kit, 'name="theme_ai_model"' ) && 1 === substr_count( $form_k, 'name="theme_ai_model"' ), 'no setting field paints on the leaf; the form paints each once' );
+ok( 1 === preg_match( '#<os-section heading="AI budget" stack><div class="snt-status-line">.*?</div>(?:<p class="snt-hint">[^<]*</p>)?<p class="snt-hint">The models, the monthly budget and the Jev credit moved to <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="ai"[^>]*>Settings › AI</os-button>\.</p><os-disclosure heading="How this works"#s', $kit ) && 1 === substr_count( $classic, 'moved to <a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=ai">Settings › AI</a>.' ), 'the leaf says once where its settings went, on the status card (native) and under the intro (classic), with a link' );
 // 17.4.1 (#1573): rows of comparable height, no 2up. The form beside the spend
 // box and the platform box stacked; nothing configured, the Jev box stands
 // alone at full width with the bare status notice under it, not beside it.
@@ -139,8 +159,8 @@ ok( false !== strpos( $kit, 'Spent this month: $12.50 of $50.00 (25%)' ), 'the s
 ok( false !== strpos( $kit, 'drafts' ) && false !== strpos( $kit, '$9.00' ) && false !== strpos( $kit, 'alt-text' ) && false !== strpos( $kit, '$3.50' ), 'the by-feature breakdown lists both features and their costs' );
 ok( false === strpos( $kit, 'The cap is reached' ), 'under cap: no cap-reached notice' );
 ok( false !== strpos( $kit, '<os-progress-bar value="25" max="100" tone="default"' ), 'the spend meter paints at the classic width' );
-ok( false !== strpos( $kit, '<os-badge tone="success">$12.50 of $50.00 used (25%)</os-badge>' ) && 1 === preg_match( '#<os-disclosure heading="Models and budget" hint="Prose [^"]+; \$50\.00 a month"#', $kit ), 'anatomy, under cap: the status chip reads the spend against the cap in the ok tone; the fold summary states the cap' );
-ok( false !== strpos( $kit, 'Set 0 to remove the cap.' ) && false !== strpos( $kit, 'This month, by feature' ), 'the capped branch carries the classic hint and the by-feature heading' );
+ok( false !== strpos( $kit, '<os-badge tone="success">$12.50 of $50.00 used (25%)</os-badge>' ) && false !== strpos( mb_form_kit(), '<os-number-field name="theme_ai_monthly_budget" value="50.00"' ), 'anatomy, under cap: the status chip reads the spend against the cap in the ok tone; the budget field on the pane carries the cap' );
+ok( false !== strpos( mb_form_kit(), 'Set 0 to remove the cap.' ) && false !== strpos( $kit, 'This month, by feature' ), 'the capped branch: the field keeps its hint on the pane, the leaf its by-feature heading' );
 
 // ── Cap reached.
 $GLOBALS['__spend'] = 50.0;
@@ -149,7 +169,7 @@ ok( false !== strpos( $kit, 'The cap is reached' ) && false !== strpos( $kit, 't
 ok( strpos( $kit, 'The cap is reached' ) < strpos( $kit, 'Spent this month: $50.00' ) && strpos( $kit, 'The cap is reached' ) > strpos( $kit, 'heading="This month, by feature"' ), '17.4.1: the cap notice sits on top of its box, above the spend line' );
 // Owner call A (2026-10-24): the cap is plugin-only. It pauses the plugin's own
 // features; Copilot, Agents and the AI plugin keep running, listed separately.
-$cap_notice = 'The cap is reached. The AI features of this plugin pause until the next calendar month, or until you raise this number. Copilot, Agents and the AI plugin keep running; their spend is listed separately and not counted against the cap.';
+$cap_notice = 'The cap is reached. The AI features of this plugin pause until the next calendar month, or until you raise the monthly budget in Settings › AI. Copilot, Agents and the AI plugin keep running; their spend is listed separately and not counted against the cap.';
 $__classic  = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
 ok( false !== strpos( $kit, $cap_notice ), 'cap reached: the notice says only the plugin pauses; Copilot, Agents and the AI plugin keep running, listed separately' );
 ok( false !== strpos( $__classic, $cap_notice ), 'classic, cap reached: the same notice' );
@@ -176,7 +196,8 @@ $GLOBALS['__embed_token']      = 'a-real-token-value';
 $GLOBALS['__embed_configured'] = true;
 $classic = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
 $kit     = snt_leaf_paint( 'ai', 'models-budget' );
-ok( array( 'ai_settings_save', 'ml_embed_compare' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'configured: both actions are offered, matching the classic leaf: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( array( 'ml_embed_compare' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'configured: the comparison is the leaf\'s one action, on both twins: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( 1 === preg_match( '#<form method="post" action="https://example\.test/wp-admin/admin-post\.php\?_wpnonce=nonce-sn_ml_embed_compare"><input type="hidden" name="action" value="sn_ml_embed_compare"><p><button type="submit" class="button">Run comparison</button></p></form>#', $classic ) && 1 === substr_count( $classic, '<form' ), 'classic: Run comparison is its own form with its own nonce (it was a second button inside the settings form), the only form on the leaf' );
 ok( false !== strpos( $kit, 'Not run yet' ) && false !== strpos( $kit, 'Run comparison' ), 'configured, not run yet: the runner prompt and button paint' );
 ok( false === strpos( $kit, 'a-real-token-value' ) && false !== strpos( $kit, '>set</os-badge>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.3.1: the token is never on the leaf; a set badge and the door to the keyring are' );
 ok( false !== strpos( $kit, 'Configured' ), 'the embeddings-token status pill reads Configured' );

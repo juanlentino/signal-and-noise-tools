@@ -212,7 +212,7 @@ function insights_usage_html() {
 			. \snt_kit_esc( sprintf( __( 'of $%s budget (%d%%)', 'signal-and-noise-tools' ), number_format_i18n( $budget, 2 ), $pct ) )
 			. ( $spent >= $budget ? \snt_kit_esc( __( ': limit reached; AI features are paused until next month', 'signal-and-noise-tools' ) ) : '' ) . '.</p>';
 	} else {
-		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'No monthly AI budget set (unlimited). Set a cap under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'AI › Models & Budget', 'signal-and-noise-tools' ), array( 'tab' => 'ai', 'sub' => 'models-budget', 'current' => 'monitoring' ) ) . ' ' . \snt_kit_esc( __( 'to pause AI features once a month\'s spend is reached.', 'signal-and-noise-tools' ) ) . '</p>';
+		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'No monthly AI budget set (unlimited). Set a cap under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Settings › AI', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'ai', 'current' => 'monitoring' ) ) . ' ' . \snt_kit_esc( __( 'to pause AI features once a month\'s spend is reached.', 'signal-and-noise-tools' ) ) . '</p>';
 	}
 
 	if ( ! empty( $s30['by_feature'] ) && is_array( $s30['by_feature'] ) ) {

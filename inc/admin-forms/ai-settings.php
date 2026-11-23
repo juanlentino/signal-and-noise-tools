@@ -2,6 +2,13 @@
 /**
  * Signal & Noise — AI models & budget (AI tab → Models & Budget sub-tab).
  *
+ * 2026-11: the leaf is readings only. Its five settings (the two models, the
+ * monthly budget, the Jev credit and its renewal day) are painted by
+ * sn_admin_render_ai_models_form() (ai-models-form.php) on Settings > AI; what
+ * stays here is the spend against the cap, the by-feature itemization, the
+ * Copilot row, the Workers AI token's state and the embeddings comparison,
+ * which is its own form now. The history below is how the settings got here.
+ *
  * Extracted from inc/admin-forms/front-end.php in v10.46.0. Until then these
  * three settings were fields 8-10 of the Front-End render-knobs form, whose own
  * intro described its contents as "render knobs the companion theme reads via
@@ -17,15 +24,16 @@
  * where they were born, not where they are edited; only the editing surface
  * moved.
  *
- * SAVE PATH: sn_action=ai_settings_save → sn_handle_ai_settings_save()
- * (inc/admin-post-actions/theme-ai.php). Splitting one form into two is normally the
- * settings-subtree clobber trap, but sn_handle_save_theme() writes with per-key
- * sn_setting_update() rather than a subtree write, so the two handlers cannot
- * overwrite each other's keys. See the note on sn_handle_ai_settings_save().
+ * SAVE PATH (of the form, wherever it is painted): sn_action=ai_settings_save →
+ * sn_handle_ai_settings_save() (inc/admin-post-actions/theme-ai.php). Splitting
+ * one form into two is normally the settings-subtree clobber trap, but
+ * sn_handle_save_theme() writes with per-key sn_setting_update() rather than a
+ * subtree write, so the two handlers cannot overwrite each other's keys. See
+ * the note on sn_handle_ai_settings_save().
  *
  * Wide leaf (v10.47.0): sn_admin_render_section() emits a bare .sn-section, so
- * this form owns its own .sn-fieldset — same contract as the Front-End form it
- * was extracted from, and the reason the field grid can lay out across the full
+ * this leaf owns its own .sn-fieldset, the same contract as the Front-End form
+ * it was extracted from, and the reason its rows can lay out across the full
  * content width.
  *
  * @package SignalNoiseTools
@@ -38,76 +46,34 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once dirname( __DIR__ ) . '/ai-model-catalog.php'; // the model defaults and lists (21.0.0).
 require_once __DIR__ . '/ai-settings-parts.php'; // the embeddings sentence and the Copilot row both twins print (2026-10-12).
+require_once __DIR__ . '/ai-models-form.php'; // the five settings, painted on Settings > AI (2026-11).
 
 /**
- * Render the AI settings form. Used as the sn_admin_render_section() callback
- * for the AI tab's 'models-budget' sub-tab.
+ * Render the Models & Budget leaf: readings, and one line saying where its
+ * settings went. Used as the sn_admin_render_section() callback for the AI
+ * tab's 'models-budget' sub-tab. The name is the one the registry has had
+ * since 10.46.0, when this painted the form.
  *
  * @since 10.46.0
  */
 function sn_admin_render_ai_settings_form() {
-	$model     = (string) sn_setting( 'theme.ai_model', sn_ai_default_model() );
-	$alt_model = (string) sn_setting( 'theme.ai_alt_model', sn_ai_default_vision_model() );
-	$budget    = (float) sn_setting( 'theme.ai_monthly_budget', 0 );
-	$spent     = function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0;
+	$budget = (float) sn_setting( 'theme.ai_monthly_budget', 0 );
+	$spent  = function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0;
 
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'ai_settings_save' ) ) . '" class="sn-ai-settings-form">';
-	echo '<input type="hidden" name="action" value="sn_ai_settings_save">';
-
-	// v10.47.0: the leaf became 'wide', so the dispatcher emits a bare
-	// .sn-section and this form owns its card — the same contract the Front-End
-	// form follows. Live, the capped version rendered a ~620px card in a ~1200px
-	// tab: two thirds of the leaf empty. .sn-ai-settings-form .sn-fieldset lays
-	// the fields out as auto-fit columns (assets/admin.css), the Phase-4a
-	// treatment where a multi-field form earns its width by making the FIELDS the
-	// columns rather than stretching one.
+	// 2026-11: the five settings moved to Settings > AI (ai-models-form.php),
+	// so no form wraps this leaf any more. A form here posting
+	// ai_settings_save without its fields would remove the cap: the handler
+	// writes the budget from `?? 0` on every save. The class stays on a div
+	// for the field grid (assets/admin.css, .sn-ai-settings-form .sn-fieldset).
+	echo '<div class="sn-ai-settings-form">';
 	echo '<div class="sn-fieldset">';
 
 	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Models &amp; budget', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here (drafts, insights, meta descriptions, alt text) draws on the same monthly budget. Copilot and agents run outside it.', 'signal-and-noise-tools' ) . '</p>';
-
-	echo '<div class="sn-field sn-field-w-md">';
-	echo '<label class="sn-field-label" for="sn_theme_ai_model">' . esc_html__( 'Prose model', 'signal-and-noise-tools' ) . '</label>';
-	echo '<select id="sn_theme_ai_model" name="theme_ai_model">';
-	foreach ( sn_theme_ai_models() as $id => $label ) {
-		echo '<option value="' . esc_attr( $id ) . '"' . selected( $model, $id, false ) . '>' . esc_html( $label ) . '</option>';
+	if ( function_exists( 'snt_settings_ai_moved_line' ) ) {
+		snt_settings_ai_moved_line( 'models' );
 	}
-	echo '</select>';
-	echo '<p class="sn-field-helper">' . esc_html__( 'Used for AI-assisted prose features (drafts, insights, meta descriptions).', 'signal-and-noise-tools' ) . '</p>';
-	echo '</div>';
 	echo '<p class="sn-field-helper">' . esc_html( sn_ai_models_status_line() . ' ' . sn_ai_prices_status_line() ) . '</p>';
-
-	echo '<div class="sn-field sn-field-w-md">';
-	echo '<label class="sn-field-label" for="sn_theme_ai_alt_model">' . esc_html__( 'Vision model (alt text)', 'signal-and-noise-tools' ) . '</label>';
-	echo '<select id="sn_theme_ai_alt_model" name="theme_ai_alt_model">';
-	foreach ( sn_theme_ai_vision_models() as $id => $label ) {
-		echo '<option value="' . esc_attr( $id ) . '"' . selected( $alt_model, $id, false ) . '>' . esc_html( $label ) . '</option>';
-	}
-	echo '</select>';
-	/* translators: %s: the alt-text model filter name, wrapped in <code>. */
-	echo '<p class="sn-field-helper">' . sprintf( esc_html__( 'Used to LOOK at images when suggesting alt text. The %s filter still overrides this for code-level pins.', 'signal-and-noise-tools' ), '<code>snt_ai_alt_text_model</code>' ) . '</p>';
-	echo '</div>';
-
-	// The budget field carries the spend readout that used to be a sentence
-	// fragment in a helper line. .sn-an-mirror-meter is the analytics settings
-	// hub's existing spend bar — analytics-admin.css is enqueued on every SN
-	// admin page (inc/admin-menu.php:121, deliberately: its rules are scoped to
-	// .sn-an-* so loading it everywhere is inert), so this reuses the shipped
-	// component rather than inventing a second meter that would drift from it.
-	echo '<div class="sn-field sn-field-w-xs">';
-	echo '<label class="sn-field-label" for="sn_theme_ai_monthly_budget">' . esc_html__( 'Monthly budget (USD)', 'signal-and-noise-tools' ) . '</label>';
-	echo '<input type="number" min="0" step="0.5" id="sn_theme_ai_monthly_budget" name="theme_ai_monthly_budget" value="' . esc_attr( number_format( $budget, 2, '.', '' ) ) . '">';
-	echo '<p class="sn-field-helper">' . esc_html__( 'Set 0 to remove the cap.', 'signal-and-noise-tools' ) . '</p>';
-	echo '</div>';
-	// 16.6.0: the Jev credit and its cycle day, the same two fields the native leaf carries.
-	echo '<div class="sn-field sn-field-w-xs">';
-	echo '<label class="sn-field-label" for="sn_theme_jev_credit">' . esc_html__( 'Jev monthly credit (USD)', 'signal-and-noise-tools' ) . '</label>';
-	echo '<input type="number" min="0" step="0.5" id="sn_theme_jev_credit" name="theme_jev_credit" value="' . esc_attr( number_format( (float) sn_setting( 'theme.jev_credit', 5 ), 2, '.', '' ) ) . '">';
-	echo '</div>';
-	echo '<div class="sn-field sn-field-w-xs">';
-	echo '<label class="sn-field-label" for="sn_theme_jev_cycle_day">' . esc_html__( 'Jev credit renews on day', 'signal-and-noise-tools' ) . '</label>';
-	echo '<input type="number" min="1" max="28" step="1" id="sn_theme_jev_cycle_day" name="theme_jev_cycle_day" value="' . esc_attr( (string) (int) sn_setting( 'theme.jev_cycle_day', 17 ) ) . '">';
-	echo '</div>';
 
 	echo '<div class="sn-field">';
 	if ( $budget > 0 ) {
@@ -122,7 +88,7 @@ function sn_admin_render_ai_settings_form() {
 		) . '</p>';
 		echo '<span class="sn-an-mirror-meter"><span style="width:' . esc_attr( (string) $pct_width ) . '%"></span></span>';
 		if ( $spent >= $budget ) {
-			echo '<p class="sn-field-helper"><strong>' . esc_html__( 'The cap is reached. The AI features of this plugin pause until the next calendar month, or until you raise this number. Copilot, Agents and the AI plugin keep running; their spend is listed separately and not counted against the cap.', 'signal-and-noise-tools' ) . '</strong></p>';
+			echo '<p class="sn-field-helper"><strong>' . esc_html__( 'The cap is reached. The AI features of this plugin pause until the next calendar month, or until you raise the monthly budget in Settings › AI. Copilot, Agents and the AI plugin keep running; their spend is listed separately and not counted against the cap.', 'signal-and-noise-tools' ) . '</strong></p>';
 		}
 	} else {
 		echo '<p class="sn-field-helper">' . sprintf(
@@ -131,8 +97,6 @@ function sn_admin_render_ai_settings_form() {
 			esc_html( number_format_i18n( $spent, 2 ) )
 		) . '</p>';
 	}
-	// 2026-10-12 audit: "Set 0 to remove the cap." is the budget field's own
-	// hint now, beside the number it explains, on both twins.
 	echo '</div>';
 
 	// v13.21.0: the same estimated month, itemized by the feature label every
@@ -255,15 +219,11 @@ function sn_admin_render_ai_settings_form() {
 		} else {
 			echo '<p class="sn-field-helper">' . esc_html__( 'Not run yet. This embeds every published note once (cached by content hash) and compares both rankings.', 'signal-and-noise-tools' ) . '</p>';
 		}
-		echo '<p><button type="submit"' . sn_admin_post_button( 'ml_embed_compare' ) . ' class="button">' . esc_html__( 'Run comparison', 'signal-and-noise-tools' ) . '</button></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+		// Its own form since 2026-11: the button was a second action inside the settings form, which left this leaf.
+		echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'ml_embed_compare' ) ) . '"><input type="hidden" name="action" value="sn_ml_embed_compare"><p><button type="submit" class="button">' . esc_html__( 'Run comparison', 'signal-and-noise-tools' ) . '</button></p></form>';
 		echo '</div>';
 	}
 
-	echo '<div class="sn-fieldset-actions">';
-	echo '<p class="sn-fieldset-actions-hint">' . esc_html__( 'Model changes apply to the next AI call. The budget is evaluated per calendar month.', 'signal-and-noise-tools' ) . '</p>';
-	echo '<button type="submit" class="button button-primary">' . esc_html__( 'Save AI settings', 'signal-and-noise-tools' ) . '</button>';
-	echo '</div>';
-
 	echo '</div>'; // .sn-fieldset
-	echo '</form>';
+	echo '</div>'; // .sn-ai-settings-form
 }

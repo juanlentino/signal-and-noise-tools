@@ -165,7 +165,7 @@ function snt_insights_render_usage_section() {
 			. ( $sn_spent >= $sn_budget ? ': <strong>limit reached; AI features are paused until next month</strong>' : '' )
 			. '.</p>';
 	} else {
-		echo '<p class="sn-field-helper">No monthly AI budget set (unlimited). Set a cap under AI &rsaquo; Models &amp; Budget to pause AI features once a month&rsquo;s spend is reached.</p>';
+		echo '<p class="sn-field-helper">No monthly AI budget set (unlimited). Set a cap under Settings &rsaquo; AI to pause AI features once a month&rsquo;s spend is reached.</p>';
 	}
 
 	if ( ! empty( $s30['by_feature'] ) ) {

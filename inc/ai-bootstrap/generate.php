@@ -104,7 +104,7 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 				'snt_ai_over_budget',
 				sprintf(
 					/* translators: 1: month-to-date spend, 2: monthly budget, both USD */
-					__( 'Monthly AI budget reached (%1$s of %2$s). Raise it on the Front-End settings tab, or wait for next month.', 'signal-and-noise-tools' ),
+					__( 'Monthly AI budget reached (%1$s of %2$s). Raise it in S&N Home, Settings › AI, or wait for next month.', 'signal-and-noise-tools' ),
 					'$' . number_format( $sn_ai_spent, 2 ),
 					'$' . number_format( $sn_ai_budget, 2 )
 				),

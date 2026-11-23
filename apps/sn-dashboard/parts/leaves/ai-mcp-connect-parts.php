@@ -18,8 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The write-door credential-binding form, the one form on this otherwise
- * read-only leaf. Same states (off, unbound, bound, unresolvable), same "no
+ * The write-door credential-binding form, painted on Settings > AI since
+ * 2026-11 (mcp_connect_controls_html(), ai-mcp-connect.php). Same states (off, unbound, bound, unresolvable), same "no
  * Application Passwords yet" fallback (a door to the profile screen, no form
  * at all), same field (`sn_mcp_rw_uuid`), same action
  * (`bind_mcp_rw_credential`). 2026-10-12 audit: a killed or switched-off door

@@ -2,13 +2,16 @@
 /**
  * S&N Dashboard, AI > Models & Budget: the Setup card.
  *
- * 2026-10-16 (the leaf anatomy, docs/kit-leaf-anatomy.md): the models, the
- * budget and the Jev credit are settings, changed once in a while, so the
- * whole `ai_settings_save` form (one form, one Save, the same names) is one
- * earned fold whose closed summary states the models and the cap; the
- * Workers AI token, a keyring row this leaf only reads, is a second fold that
- * opens while it is not set. One snt_kit_setup_card() call
+ * 2026-10-16 (the leaf anatomy, docs/kit-leaf-anatomy.md): the Workers AI
+ * token, a keyring row this leaf only reads, is an earned fold that opens
+ * while it is not set. One snt_kit_setup_card() call
  * (inc/openstation-kit-anatomy.php), listed in tests/sn-dashboard-no-folds.php.
+ *
+ * 2026-11: the `ai_settings_save` form (the models, the budget, the Jev
+ * credit) was this card's other fold. Those are settings and paint, open, on
+ * Settings > AI (settings-ai.php), which calls models_budget_fields_html()
+ * below; one line on the status card (ai-models-budget-status.php) says
+ * where they went.
  *
  * @package SignalNoiseTools
  */
@@ -26,23 +29,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function models_budget_setup_html( array $d ) {
-	$models  = sn_theme_ai_models();
-	$vision  = sn_theme_ai_vision_models();
-	$cap     = $d['budget'] > 0
-		/* translators: %s: the monthly cap in USD. */
-		? sprintf( __( '$%s a month', 'signal-and-noise-tools' ), number_format_i18n( $d['budget'], 2 ) )
-		: __( 'no cap', 'signal-and-noise-tools' );
-	// A model's name, its catalog note ("(previous default)") left to the select.
-	$name    = static fn( array $list, $id ) => (string) preg_replace( '/\s*\(.*\)$/', '', (string) ( $list[ $id ] ?? $id ) );
-	/* translators: 1: the prose model, 2: the vision model, 3: the cap ("$50.00 a month" or "no cap"). */
-	$summary = sprintf( __( 'Prose %1$s; vision %2$s; %3$s', 'signal-and-noise-tools' ), $name( $models, $d['model'] ), $name( $vision, $d['alt_model'] ), $cap );
-	$folds   = array(
-		array(
-			'title'   => __( 'Models and budget', 'signal-and-noise-tools' ),
-			'summary' => $summary,
-			'body'    => \snt_kit_form( 'ai_settings_save', models_budget_fields_html( $d, $models, $vision ), array( 'submit' => __( 'Save AI settings', 'signal-and-noise-tools' ), 'columns' => 'auto' ) ),
-		),
-	);
+	$folds = array();
 	// 15.3.1: the Workers AI token is a keyring row (Connections › Credentials);
 	// this leaf reads it and says so.
 	$token_set = '' !== (string) $d['embed_token'];
@@ -52,7 +39,7 @@ function models_budget_setup_html( array $d ) {
 		'body'    => '<p class="snt-hint">' . \snt_kit_esc( __( 'Workers AI token (semantic embeddings):', 'signal-and-noise-tools' ) ) . ' ' . ( $token_set ? \snt_kit_badge( 'ok', __( 'set', 'signal-and-noise-tools' ) ) : \snt_kit_badge( 'warn', __( 'not set', 'signal-and-noise-tools' ) ) ) . ' ' . \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'monitoring' ) ) . '.</p>',
 		'open'    => ! $token_set,
 	);
-	return \snt_kit_setup_card( __( 'Setup', 'signal-and-noise-tools' ), $folds, __( 'Model changes apply to the next AI call. The budget is evaluated per calendar month.', 'signal-and-noise-tools' ) );
+	return \snt_kit_setup_card( __( 'Setup', 'signal-and-noise-tools' ), $folds );
 }
 
 /**

@@ -186,6 +186,9 @@ function sn_admin_mcp_status_cards( array $state ) {
 	// History matters most precisely when the door is off — "Last used yesterday
 	// · 12 refused" under a Switched-off card is the record of why it was shut.
 	// Appended after the switch so no future state can forget it.
+	// 2026-11: the state sentence alone is kept too, for the switch on
+	// Settings > AI. The usage is a reading and stays on this leaf's card.
+	$remote_state_html = $remote_meta;
 	if ( function_exists( 'sn_mcp_remote_log_summary_text' ) ) {
 		$remote_meta .= '<br>' . esc_html( sn_mcp_remote_log_summary_text() );
 	}
@@ -195,6 +198,8 @@ function sn_admin_mcp_status_cards( array $state ) {
 		'value'     => $remote_value,
 		'meta_html' => $remote_meta,
 		'pill'      => $remote_pill,
+		// The state alone, without the usage line: what the switch's own form prints.
+		'state_html' => $remote_state_html,
 	);
 
 	return array( $read_card, $rw_card, $adapter_card, $remote_card );
@@ -279,7 +284,7 @@ function sn_admin_mcp_status_state() {
 }
 
 /**
- * Echo the remote-door toggle. The house admin form pattern: a POST to
+ * Echo the remote-door toggle, on Settings > AI. The house admin form pattern: a POST to
  * admin-post.php carrying action=sn_remote_toggle and that action's nonce, read
  * by the existing options handler: no settings-API registration, no bespoke
  * hook of its own.
@@ -308,7 +313,9 @@ function sn_admin_render_mcp_remote_toggle() {
 }
 
 /**
- * Echo the MCP status glance. Silent when the grid helper is absent.
+ * Echo the MCP status glance. Silent when the grid helper is absent. The
+ * remote door's switch painted under it until 2026-11; it is on Settings > AI
+ * now (snt_settings_ai_render_doors()), with the Remote card's state sentence.
  *
  * @return void
  */
@@ -317,5 +324,4 @@ function sn_admin_render_mcp_status_glance() {
 		return;
 	}
 	sn_admin_glance_grid( sn_admin_mcp_status_cards( sn_admin_mcp_status_state() ) );
-	sn_admin_render_mcp_remote_toggle();
 }

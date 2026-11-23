@@ -602,8 +602,9 @@ function snt_analytics_render_mirrors() {
 	} else {
 		echo ' · ' . esc_html__( 'no monthly budget cap', 'signal-and-noise-tools' );
 	}
-	// v10.46.0: the AI settings left Content → Front-End for their own tab.
-	echo '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=ai&sub=models-budget' ) ) . '">' . esc_html__( 'AI → Models &amp; Budget →', 'signal-and-noise-tools' ) . '</a></div>';
+	// v10.46.0: the AI settings left Content → Front-End for their own tab;
+	// 2026-11: the model and the budget are set on Settings > AI.
+	echo '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=settings&sub=ai' ) ) . '">' . esc_html__( 'Settings → AI →', 'signal-and-noise-tools' ) . '</a></div>';
 
 	// Weekly digest cron (the AI-insights sibling leaf).
 	$cron_on = function_exists( 'snt_insights_weekly_cron_enabled' ) && snt_insights_weekly_cron_enabled();

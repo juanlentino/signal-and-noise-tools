@@ -1,6 +1,6 @@
 <?php
 /**
- * Tools > MCP: the read door's optional credential binding (2026-10-26 MCP doors
+ * Settings > AI (AI > MCP Clients until 2026-11): the read door's optional credential binding (2026-10-26 MCP doors
  * audit, N0's read half). Twin of apps/sn-dashboard/parts/leaves/
  * ai-mcp-connect-read-binding.php: same states, field, action and words.
  *
@@ -59,7 +59,7 @@ function sn_admin_mcp_read_binding_status( array $s ) {
 }
 
 /**
- * The classic Tools > MCP form.
+ * The classic form, painted in the MCP doors box of Settings > AI.
  */
 function sn_admin_render_mcp_read_binding() {
 	$s = sn_admin_mcp_read_binding_state();

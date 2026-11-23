@@ -7,6 +7,9 @@
  * (bind_mcp_rw_credential, remote_toggle), same field names, same live
  * allowlist counts, same withheld-abilities list, none of wp-admin's markup.
  *
+ * 2026-11: the forms moved to Settings › AI and are read here through the
+ * calls the pane makes (see ai_leaf_both() below).
+ *
  * Run: php tests/os-leaf-ai-mcp-connect.php
  */
 require_once __DIR__ . '/lib/os-leaf-harness.php';
@@ -41,6 +44,7 @@ class WP_Application_Passwords {
 require SNT_PATH . 'inc/admin-glance.php';
 require SNT_PATH . 'inc/admin-forms/mcp-connect.php';
 require SNT_PATH . 'inc/admin-forms/mcp-usage-block.php';
+require SNT_PATH . 'inc/admin-forms/settings-ai.php'; // 2026-11: the doors' three controls paint on Settings > AI.
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-mcp-connect.php';
 // 15.6.0: the door inventories and the call log moved to AI › Agent tools. The
 // two leaves are painted as ONE string here (and the two classic sections as
@@ -61,13 +65,19 @@ require SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-agent-tools.php';
 function ai_unearned_folds( $html ) {
 	return snt_leaf_folds( preg_replace( '/<os-disclosure heading="(Connect a client|Read door: the native MCP server|Write door: the same server, read-write|Remote door: through the Cloudflare Worker)"/', '<os-section heading="$1"', (string) $html ) );
 }
+// 2026-11: the two door credentials and the remote switch moved to Settings ›
+// AI. The pane paints them through mcp_connect_controls_html() (native) and
+// snt_settings_ai_render_doors() (classic), the calls the leaf made, so they
+// are painted here as a third part of the same string and every state
+// assertion below still reads them. That MCP Clients itself no longer holds
+// them, and the pane as a whole, are tests/os-leaf-settings-ai-doors.php.
 function ai_leaf_both() {
-	$html                    = snt_leaf_paint( 'ai', 'mcp-connect' ) . snt_leaf_paint( 'ai', 'agent-tools' );
+	$html                    = snt_leaf_paint( 'ai', 'mcp-connect' ) . \SignalNoise\OpenStationHost\Dashboard\Leaves\mcp_connect_controls_html( \SignalNoise\OpenStationHost\Dashboard\Leaves\mcp_connect_status() ) . snt_leaf_paint( 'ai', 'agent-tools' );
 	$GLOBALS['__fold_hits']  = array_merge( $GLOBALS['__fold_hits'] ?? array(), ai_unearned_folds( $html ) );
 	$GLOBALS['__fold_paint'] = ( $GLOBALS['__fold_paint'] ?? 0 ) + 1;
 	return $html;
 }
-function ai_classic_both() { return snt_leaf_classic_html( 'sn_admin_render_mcp_connect_section' ) . snt_leaf_classic_html( 'sn_admin_render_agent_tools_section' ); }
+function ai_classic_both() { return snt_leaf_classic_html( 'sn_admin_render_mcp_connect_section' ) . snt_leaf_classic_html( 'snt_settings_ai_render_doors' ) . snt_leaf_classic_html( 'sn_admin_render_agent_tools_section' ); }
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -347,11 +357,15 @@ foreach ( array( 'Door 1', 'Door 2', 'door below', 'door above', 'tools above', 
 ok( false !== strpos( $tools_leaf, 'heading="Read door: ' ) && false !== strpos( $tools_leaf, 'heading="Write door: ' ) && false !== strpos( $tools_leaf, 'heading="Core MCP adapter: ' ), 'Agent tools heads each door with the name its MCP Clients tile uses' );
 ok( false !== strpos( $mcp, 'Four MCP doors can answer for this site' ) && false !== strpos( $mcp, 'That inbound grant is the Application Password each client signs in with.' ), 'the intro counts the four doors the tiles show, and the footnote points at the grant it means' );
 ok( 4 === substr_count( $mcp, '<os-stat ' ) && false !== strpos( $mcp, 'label="Read door"' ) && false !== strpos( $mcp, 'label="Write door"' ) && false !== strpos( $mcp, 'label="Remote door"' ) && false !== strpos( $mcp, 'label="Core MCP adapter"' ), 'the four doors are four tiles' );
-$ctl = strpos( $mcp, '<os-section heading="Write-door credential"' );
-$rem = strpos( $mcp, '<os-section heading="Remote door"' );
-$rd = strpos( $mcp, '<os-section heading="Read-door credential (optional)"' );
-ok( false !== strpos( $mcp, snt_leaf_row( 3, 320, 18 ) . '<os-section heading="Read-door credential (optional)"' ) && false !== $rd && $rd < $ctl && false !== $rem && $rem > $ctl && false === strpos( substr( $mcp, $rd, $rem - $rd ), '</os-grid>' ), 'the read-door credential, the write-door credential and the remote door share one row, in door order' );
-ok( false !== strpos( substr( $mcp, (int) $rem ), 'name="sn_remote_enabled"' ) && strpos( $mcp, 'name="sn_remote_enabled"' ) > $rem, 'the remote switch sits inside the Remote door, not floating under the tiles' );
+// 2026-11: the row of three controls paints on Settings › AI; the same row, read off the call the pane makes.
+$row = \SignalNoise\OpenStationHost\Dashboard\Leaves\mcp_connect_controls_html( \SignalNoise\OpenStationHost\Dashboard\Leaves\mcp_connect_status() );
+$ctl = strpos( $row, '<os-section heading="Write-door credential"' );
+$rem = strpos( $row, '<os-section heading="Remote door"' );
+$rd = strpos( $row, '<os-section heading="Read-door credential (optional)"' );
+ok( 0 === strpos( $row, snt_leaf_row( 3, 320, 18 ) . '<os-section heading="Read-door credential (optional)"' ) && false !== $rd && $rd < $ctl && false !== $rem && $rem > $ctl && false === strpos( substr( $row, $rd, $rem - $rd ), '</os-grid>' ), 'the read-door credential, the write-door credential and the remote door share one row, in door order' );
+ok( false !== strpos( substr( $row, (int) $rem ), 'name="sn_remote_enabled"' ) && strpos( $row, 'name="sn_remote_enabled"' ) > $rem, 'the remote switch sits inside the Remote door, not floating beside it' );
+$rem_leaf = strpos( $mcp, '<os-section heading="Remote door"' );
+ok( false !== $rem_leaf && $rem_leaf > strpos( $mcp, '<os-stat ' ) && $rem_leaf < strpos( $mcp, 'heading="Connect a client"' ) && false === strpos( $mcp, 'name="sn_remote_enabled"' ) && false === strpos( $mcp, 'heading="Write-door credential"' ) && false === strpos( $mcp, '<os-form' ), 'MCP Clients keeps a Remote door box under the tiles (its state and usage in words) and none of the three controls' );
 $con = strpos( $mcp, '<os-disclosure heading="Connect a client"' );
 $con_html = false !== $con ? substr( $mcp, $con ) : '';
 ok( false !== strpos( $con_html, '<os-fact label="Read door">' ) && false !== strpos( $con_html, '<os-fact label="Write door">' ) && false !== strpos( $con_html, '/mcp-rw' ), 'Connect a client names both door addresses' );

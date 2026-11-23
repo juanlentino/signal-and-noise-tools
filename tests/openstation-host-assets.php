@@ -371,7 +371,8 @@ echo "\nGroup S2: a repeated name becomes an ARRAY, not PHP's later-value-wins\n
 // `o[i]=Array.isArray(r)?[...r,s]:[r,s]` (23311). The replay requires a SCALAR
 // sn_action, so appending beside inc/admin-forms/ai-settings.php's hidden
 // sn_action shipped [ ai_settings_save, ml_embed_compare ] and "Run
-// comparison" answered "Nothing was saved."
+// comparison" answered "Nothing was saved." (That form split in 2026-11; the
+// fold is the runtime's, for any named button beside a same-named field.)
 ok( false === strpos( $host_js, "so PHP's later-value-wins rule" ), 'THE CLAIM IS GONE: the comment no longer says the append makes PHP\'s later-value-wins rule apply -- this runtime never sends a urlencoded body and has no such rule' );
 ok( false !== strpos( $host_js, 'Array.isArray(r)?[...r,s]:[r,s]' ), '...and the comment quotes the fold that actually happens, from the bundle' );
 $shadow_fn = snt_js_code( snt_region( $host_js, 'function shadowSameName(' ) );

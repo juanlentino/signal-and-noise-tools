@@ -21,7 +21,7 @@
  *
  * The other two callbacks, `snt_config_drift_render_cron_box()` (priority 20,
  * the Acknowledge form on `morning_brief_save`, only while drift exists) and
- * `snt_scheduled_reads_render_settings()` (priority 30, `scheduled_reads_save`),
+ * `snt_scheduled_reads_render_cron_box()` (priority 30, `scheduled_reads_save`),
  * paint here with the same names through snt_kit_form(), one row under the
  * ledger: connections-cron-parts.php. The morning brief and alerts switches
  * that sat in the priority-20 box are a pane of Settings now. The Action Scheduler backlog box
