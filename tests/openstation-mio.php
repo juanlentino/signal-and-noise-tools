@@ -57,8 +57,24 @@ $bag = snt_os_mio_client_bag();
 ok( false === $bag['help'] && array() === $bag['documents'] && array() === $bag['prompts'] && true === $bag['tips'], 'with help off, no documents and no prompts leave the server; tips stay on their own switch' );
 $GLOBALS['__prefs']['mio_help'] = true;
 ok( isset( $GLOBALS['__actions']['admin_enqueue_scripts'] ) && 6 === $GLOBALS['__actions']['admin_enqueue_scripts'][1], 'the bag is localized on admin_enqueue_scripts at priority 6, after the settings script registers at 5' );
+$GLOBALS['__shell'] = true; // a shell request (the stub below is hoisted)
 snt_os_mio_localize();
 ok( isset( $GLOBALS['__localized']['sntMio'] ) && true === $GLOBALS['__localized']['sntMio']['tips'], 'localized as window.sntMio on the settings-tab handle' );
+// The handle is registered on window requests too (2026-11-22). The help
+// documents are read from disk, so the bag is built on the shell and on the
+// menu-refresh probe only, not on every window request.
+$GLOBALS['__shell'] = false;
+function openstation_is_shell_request() { return ! empty( $GLOBALS['__shell'] ); }
+$GLOBALS['__localized'] = array();
+snt_os_mio_localize();
+ok( ! isset( $GLOBALS['__localized']['sntMio'] ), 'a plain window request does not build the bag' );
+$_GET['openstation_menu_refresh'] = '1';
+snt_os_mio_localize();
+ok( isset( $GLOBALS['__localized']['sntMio'] ), 'the menu-refresh probe does, so a tab first loaded from a refresh has it' );
+unset( $_GET['openstation_menu_refresh'] );
+$GLOBALS['__localized'] = array(); $GLOBALS['__shell'] = true;
+snt_os_mio_localize();
+ok( isset( $GLOBALS['__localized']['sntMio'] ), 'and the shell request does' );
 
 // ── The look
 $cfg = array( 'appearance' => array( 'radius' => 56, 'hueStart' => 296.5 ), 'physics' => array( 'magnetStrength' => 2400 ) );

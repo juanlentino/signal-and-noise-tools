@@ -329,7 +329,15 @@ add_action( 'admin_init', 'snt_os_register_settings_tab' );
  * @return void
  */
 function snt_os_enqueue_settings_script() {
-	if ( ! function_exists( 'openstation_is_shell_request' ) || ! openstation_is_shell_request() ) {
+	// The shell rebuilds its payload inside window requests too (the hidden
+	// menu-refresh probe behind wp.os.refreshMenu(), the Plugins and Updates
+	// screens), and unregisters every tab whose script handle that payload no
+	// longer names. So the handle is REGISTERED on a window request as well;
+	// it is ENQUEUED on the shell only. Registered on the shell alone, saving
+	// a switch in this tab (which refreshes the menu) removed the tab.
+	$shell  = function_exists( 'openstation_is_shell_request' ) && openstation_is_shell_request();
+	$window = function_exists( 'openstation_is_chromeless_request' ) && openstation_is_chromeless_request();
+	if ( ! $shell && ! $window ) {
 		return;
 	}
 
@@ -357,7 +365,9 @@ function snt_os_enqueue_settings_script() {
 		)
 	);
 
-	wp_enqueue_script( 'snt-os-settings-tab' );
+	if ( $shell ) {
+		wp_enqueue_script( 'snt-os-settings-tab' );
+	}
 }
 // The shell harvests registered settings-tab providers at priority 10.
 add_action( 'admin_enqueue_scripts', 'snt_os_enqueue_settings_script', 5 );
