@@ -38,8 +38,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * restyled to in-form tabs for visual parity with the other tabs' sub-tab nav.
  *
  * @since 3.8.0  (3.8.1 added $sub_tab_slug; 6.19.4 renamed + restyled to tabs)
- * @param string $tab_slug      The top-tab slug (e.g., 'site').
- * @param string $sub_tab_slug  The sub-tab slug (e.g., 'identity-and-seo').
+ * @param string $tab_slug      The top-tab slug (e.g., 'settings').
+ * @param string $sub_tab_slug  The sub-tab slug (e.g., 'general').
  */
 function sn_admin_render_section_tabs( $tab_slug, $sub_tab_slug ) {
 	foreach ( sn_admin_top_tabs() as $top ) {

@@ -129,22 +129,12 @@ function sn_admin_top_tabs() {
 			// the tab. KEY unchanged — only the label moved.
 			'label'    => 'Site',
 			'title'    => 'Signal & Noise — Site',
-			'subtitle' => 'How the site itself behaves: identity and SEO, performance readings, redirects, and broken links.',
+			'subtitle' => 'How the site itself behaves: performance readings, redirects, and broken links. Its name, social profiles, Open Graph card and SEO copy are in Settings › General.',
 			'sub_tabs' => array(
-				// One composite leaf: 4 tightly-coupled form sections under one save
-				// button, navigated by the internal TOC. Cloudflare moved to Connections
-				// in v6.18.0; from v10.46.0 this is no longer the sole leaf, so the
-				// sub-tab nav (auto-hidden at count < 2) now renders.
-				'identity-and-seo' => array(
-					'label'        => 'Identity & SEO',
-					'render'       => 'sn_admin_render_identity_and_seo_form',
-					'sub_sections' => array(
-						'identity'   => array( 'label' => 'Identity' ),
-						'social'     => array( 'label' => 'Social' ),
-						'open-graph' => array( 'label' => 'Open Graph' ),
-						'seo-copy'   => array( 'label' => 'SEO Copy' ),
-					),
-				),
+				// Identity & SEO, the tab's first leaf since v3.8, left WHOLE in
+				// 2026-11 for Settings > General (sn_admin_subtab_moves() redirects
+				// it): it was eighteen settings in one form and nothing else. A bare
+				// tab=site now opens on Performance.
 				// v10.46.0: Performance moved here from Content with Front-End. 'wide'
 				// carried across verbatim (a dropped flag silently re-caps the
 				// two-column shell at 820px). Front-End left WHOLE in 2026-11 for
@@ -383,7 +373,8 @@ function sn_admin_top_tabs() {
 			// 2026-11: Settings, the ninth tab and the last, where a preferences
 			// area sits by convention (System Settings on macOS, Settings on
 			// Windows: one pane per subject). Settings had been scattered among
-			// the readings; they move here one pane at a time. The first pane
+			// the readings; they move here one pane at a time. The first pane made
+			// (General, the last made, now sits ahead of it in the bar)
 			// holds the three email switches that sat on Connections > Cron and
 			// Security > Login defense. Only switches moved, no whole leaf, so
 			// sn_admin_subtab_moves() has no line for it: an entry there would
@@ -408,12 +399,31 @@ function sn_admin_top_tabs() {
 			// leaves that kept their readings (Analytics, RSS, Machine Readers,
 			// Insights). Search Console's credential and property joined the
 			// Accounts pane. No moves line: every leaf stayed.
+			// 2026-11, seventh and last pane: General, which took Site > Identity
+			// & SEO WHOLE (eighteen settings in one form, four sections, no
+			// reading: it has a moves line) and sits FIRST.
 			'slug'     => 'sn-settings',
 			'tab'      => 'settings',
 			'label'    => 'Settings',
 			'title'    => 'Signal & Noise. Settings',
-			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address. Security: the login address and how long the audit log is kept. AI: the models, the monthly budget, the MCP doors and the daily read-only run. Front end: how notes are listed and read, the command palette, where a note reply goes and prerendering. Accounts and connections: every credential with its state, the Zenodo environment and downloads line, the IndexNow switch, the Muso.AI profile and the Search Console credential and property. Analytics: the collector endpoint, the roles kept out of the counts, engine tuning, session funnels, publish windows, the north star, feed tracking, the machine-readers Worker URL and the weekly insights scan.',
+			'subtitle' => 'The plugin\'s own preferences, by pane. General: the site name and description overrides, the author, the locale, social profiles, the Open Graph card and the title and description of Home, /notes and /provenance. Notifications and reports: which emails it sends to the admin address. Security: the login address and how long the audit log is kept. AI: the models, the monthly budget, the MCP doors and the daily read-only run. Front end: how notes are listed and read, the command palette, where a note reply goes and prerendering. Accounts and connections: every credential with its state, the Zenodo environment and downloads line, the IndexNow switch, the Muso.AI profile and the Search Console credential and property. Analytics: the collector endpoint, the roles kept out of the counts, engine tuning, session funnels, publish windows, the north star, feed tracking, the machine-readers Worker URL and the weekly insights scan.',
 			'sub_tabs' => array(
+				// General is FIRST: a General pane opens a preferences window
+				// (System Settings on macOS, Settings on Windows), so a bare
+				// tab=settings lands on it. One composite leaf: 4 tightly-coupled
+				// form sections under one save button (save_identity writes every
+				// field on every save), navigated by the internal TOC. No 'wide':
+				// the dispatcher paints a composite leaf bare, with no wrapper.
+				'general'       => array(
+					'label'        => 'General',
+					'render'       => 'sn_admin_render_identity_and_seo_form',
+					'sub_sections' => array(
+						'identity'   => array( 'label' => 'Identity' ),
+						'social'     => array( 'label' => 'Social' ),
+						'open-graph' => array( 'label' => 'Open Graph' ),
+						'seo-copy'   => array( 'label' => 'SEO Copy' ),
+					),
+				),
 				// 'wide': the render fn paints two cards of its own side by side
 				// (.sn-2up); capped, the wrapper would nest them in a third.
 				'notifications' => array( 'label' => 'Notifications and reports', 'render' => 'sn_admin_render_notifications_section', 'wide' => true ),

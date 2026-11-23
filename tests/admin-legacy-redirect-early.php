@@ -69,7 +69,7 @@ ok( '' === sn_test_load( $top, array( 'page' => 'sn-theme-options', 'tab' => 'rs
 
 ok( '301 https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=rss&sn_rss_ok=saved' === sn_test_load( $top, array( 'page' => 'sn-theme-options', 'tab' => 'rss', 'sn_rss_ok' => 'saved' ) ),
 	'a handler\'s flash rides the 301: ?tab=rss&sn_rss_ok=saved keeps sn_rss_ok (it was dropped, and with it "Saved" and the purge-error notice)' );
-ok( '301 https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=site&sub=identity-and-seo&sn_flash=saved%20ok#sn-sec-identity' === sn_test_load( $top, array( 'page' => 'sn-theme-options', 'tab' => 'identity', 'sn_flash' => 'saved ok' ) ),
+ok( '301 https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=general&sn_flash=saved%20ok#sn-sec-identity' === sn_test_load( $top, array( 'page' => 'sn-theme-options', 'tab' => 'identity', 'sn_flash' => 'saved ok' ) ),
 	'   ...encoded, and ahead of the #fragment, so the anchor still scrolls' );
 ok( false === strpos( sn_test_load( $top, array( 'page' => 'sn-theme-options', 'tab' => 'rss', 'x' => "a\r\nLocation: https://evil.test/" ) ), "\n" ),
 	'   ...a CR/LF in an arg is encoded, never a header break' );

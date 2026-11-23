@@ -1,6 +1,9 @@
 <?php
 /**
- * S&N Dashboard — Site → Identity & SEO, painted from the kit.
+ * S&N Dashboard: Settings > General, painted from the kit. The first pane
+ * of the Settings tab. It was Site > Identity & SEO (site-identity-and-seo.php)
+ * until 2026-11 and moved whole: eighteen settings in one form, four sections,
+ * no reading. Only its address changed.
  *
  * Classic (inc/admin-forms/identity-and-seo.php,
  * `sn_admin_render_identity_and_seo_form()`): dispatcher paints four section
@@ -9,7 +12,7 @@
  * `sn_handle_save_identity()` → `sn_settings_save()`). Here: one `<os-form>`
  * wrapping an `<os-tabs>` strip + four `<os-tabpanel>` siblings (client-side
  * swap), same fields, same handler; the window's `anchor` plays the hash.
- * Panels live in site-identity-and-seo-parts.php.
+ * Panels live in settings-general-parts.php.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -21,22 +24,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-require_once __DIR__ . '/site-identity-and-seo-parts.php';
+require_once __DIR__ . '/settings-general-parts.php';
 
 /**
  * The sections, slug => label, from the registry the classic strip reads
- * (`sn_admin_top_tabs()` → site → identity-and-seo → sub_sections).
+ * (`sn_admin_top_tabs()` → settings → general → sub_sections).
  *
  * @return array<string,string>
  */
 function identity_seo_sections() {
 	if ( function_exists( 'sn_admin_top_tabs' ) ) {
 		foreach ( (array) \sn_admin_top_tabs() as $top ) {
-			if ( 'site' !== (string) ( $top['tab'] ?? '' ) ) {
+			if ( 'settings' !== (string) ( $top['tab'] ?? '' ) ) {
 				continue;
 			}
 			$out = array();
-			foreach ( (array) ( $top['sub_tabs']['identity-and-seo']['sub_sections'] ?? array() ) as $slug => $sub ) {
+			foreach ( (array) ( $top['sub_tabs']['general']['sub_sections'] ?? array() ) as $slug => $sub ) {
 				$out[ (string) $slug ] = is_array( $sub ) && isset( $sub['label'] ) ? (string) $sub['label'] : (string) $slug;
 			}
 			if ( array() !== $out ) {
@@ -48,7 +51,7 @@ function identity_seo_sections() {
 }
 
 /**
- * The sub-tab's OWN label (`sn_admin_top_tabs()` → site → identity-and-seo →
+ * The sub-tab's OWN label (`sn_admin_top_tabs()` → settings → general →
  * `label`), the same registry node `identity_seo_sections()` walks — so
  * renaming the sub-tab in the registry renames the strip's accessible name
  * here too, the way it already renames the classic page's.
@@ -58,15 +61,15 @@ function identity_seo_sections() {
 function identity_seo_strip_label() {
 	if ( function_exists( 'sn_admin_top_tabs' ) ) {
 		foreach ( (array) \sn_admin_top_tabs() as $top ) {
-			if ( 'site' !== (string) ( $top['tab'] ?? '' ) ) {
+			if ( 'settings' !== (string) ( $top['tab'] ?? '' ) ) {
 				continue;
 			}
-			if ( isset( $top['sub_tabs']['identity-and-seo']['label'] ) ) {
-				return (string) $top['sub_tabs']['identity-and-seo']['label'];
+			if ( isset( $top['sub_tabs']['general']['label'] ) ) {
+				return (string) $top['sub_tabs']['general']['label'];
 			}
 		}
 	}
-	return 'Identity & SEO';
+	return 'General';
 }
 
 /**
@@ -103,7 +106,7 @@ function identity_seo_strip( array $sections, $active ) {
 			'class' => 'snt-subtabs',
 			'value' => (string) $active,
 			'label' => sprintf(
-				/* translators: %s: the sub-tab's registry label, e.g. "Identity & SEO". */
+				/* translators: %s: the sub-tab's registry label, e.g. "General". */
 				__( '%s sections', 'signal-and-noise-tools' ),
 				identity_seo_strip_label()
 			),
@@ -118,7 +121,7 @@ function identity_seo_strip( array $sections, $active ) {
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
  */
-function paint_site_identity_and_seo( array $ctx ) {
+function paint_settings_general( array $ctx ) {
 	$sections = identity_seo_sections();
 	$inner    = identity_seo_strip( $sections, identity_seo_active_section( $ctx, $sections ) );
 	foreach ( array_keys( $sections ) as $slug ) {
@@ -134,7 +137,7 @@ function paint_site_identity_and_seo( array $ctx ) {
 add_filter(
 	'snt_os_dashboard_painters',
 	static function ( array $painters ) {
-		$painters['site/identity-and-seo'] = __NAMESPACE__ . '\\paint_site_identity_and_seo';
+		$painters['settings/general'] = __NAMESPACE__ . '\\paint_settings_general';
 		return $painters;
 	}
 );

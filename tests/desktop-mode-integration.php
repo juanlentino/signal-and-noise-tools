@@ -1386,7 +1386,7 @@ foreach ( $sn_targets as $sn_label => $sn_url ) {
 // that test first and it went green. Assert the DESTINATION.
 $sn_expect = array(
 	'pages.dashboard'    => 'admin.php?page=sn-theme-options&tab=dashboard',
-	'pages.identity'     => 'admin.php?page=sn-theme-options&tab=site&sub=identity-and-seo#sn-sec-identity',
+	'pages.identity'     => 'admin.php?page=sn-theme-options&tab=settings&sub=general#sn-sec-identity', // 2026-11: Site > Identity & SEO moved whole to Settings > General
 	'pages.login'        => 'admin.php?page=sn-theme-options&tab=settings&sub=security', // the Login URL leaf moved whole to Settings > Security
 	'pages.cloudflare'   => 'admin.php?page=sn-theme-options&tab=connections&sub=cloudflare',
 	'pages.cron'         => 'admin.php?page=sn-theme-options&tab=connections&sub=cron',
@@ -1396,7 +1396,7 @@ $sn_expect = array(
 	// NOT an SN tab: it is its own top-level menu (v12.10.0). The resolver alone
 	// sends it to tab=dashboard — loads fine, wrong page.
 	'pages.analytics'    => 'admin.php?page=sn-analytics',
-	'icon.sn-icon-identity' => 'admin.php?page=sn-theme-options&tab=site&sub=identity-and-seo#sn-sec-identity',
+	'icon.sn-icon-identity' => 'admin.php?page=sn-theme-options&tab=settings&sub=general#sn-sec-identity', // 2026-11: Site > Identity & SEO moved whole to Settings > General
 );
 foreach ( $sn_expect as $sn_label => $sn_want ) {
 	$sn_got = (string) ( $sn_targets[ $sn_label ] ?? '' );

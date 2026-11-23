@@ -1,6 +1,7 @@
 <?php
 /**
- * Native window leaf: Site → Identity & SEO (apps/sn-dashboard/parts/leaves/site-identity-and-seo.php).
+ * Native window leaf: Settings > General (apps/sn-dashboard/parts/leaves/settings-general.php),
+ * the composite leaf that was Site > Identity & SEO until 2026-11 and moved whole.
  *
  * The oracle is the classic composite leaf: the section strip the dispatcher
  * paints (sn_admin_render_section_tabs) plus sn_admin_render_identity_and_seo_form().
@@ -11,7 +12,7 @@
  * the kit's payload, expanded the way the host expands a dispatch, through
  * sn_settings_save(), back out through sn_setting().
  *
- * Run: php tests/os-leaf-site-identity-and-seo.php
+ * Run: php tests/os-leaf-settings-general.php
  */
 require_once __DIR__ . '/lib/os-leaf-harness.php';
 
@@ -25,7 +26,7 @@ require SNT_PATH . 'inc/settings.php';                   // sn_setting(), sn_set
 require SNT_PATH . 'inc/admin-tabs.php';                 // sn_admin_render_section(), sn_admin_render_section_tabs().
 require SNT_PATH . 'inc/openstation-host-pipelines.php'; // snt_os_host_expand(): the wire bag as PHP's $_POST.
 require SNT_PATH . 'inc/admin-forms/identity-and-seo.php';
-require SNT_PATH . 'apps/sn-dashboard/parts/leaves/site-identity-and-seo.php';
+require SNT_PATH . 'apps/sn-dashboard/parts/leaves/settings-general.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -141,14 +142,14 @@ $rich = array(
 	'seo_copy' => array( 'home_title' => 'Home T', 'home_description' => 'Home D', 'notes_title' => 'Notes T', 'notes_description' => 'Notes D', 'provenance_title' => 'Prov T', 'provenance_description' => 'Prov D' ),
 );
 
-ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['site/identity-and-seo'] ), 'the painter is registered under site/identity-and-seo' );
+ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['settings/general'] ) && ! isset( \SignalNoise\OpenStationHost\Dashboard\painters()['site/identity-and-seo'] ), 'the painter is registered under settings/general, and no longer under site/identity-and-seo' );
 
 // ── The rich fixture: the same fields, the one action, no wp-admin markup.
 fixture( $rich );
-$classic_strip = snt_leaf_classic_html( static function () { sn_admin_render_section_tabs( 'site', 'identity-and-seo' ); } );
+$classic_strip = snt_leaf_classic_html( static function () { sn_admin_render_section_tabs( 'settings', 'general' ); } );
 $classic       = snt_leaf_classic_html( 'sn_admin_render_identity_and_seo_form' );
-$kit           = snt_leaf_paint( 'site', 'identity-and-seo' );
-snt_leaf_preview( 'site-identity-and-seo', $kit );
+$kit           = snt_leaf_paint( 'settings', 'general' );
+snt_leaf_preview( 'settings-general', $kit );
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === names_folded( snt_leaf_names( $kit ) ), 'field names match the classic form (sameAs rows indexed, folded): kit ' . implode( ',', snt_leaf_names( $kit ) ) . ' | classic ' . implode( ',', snt_leaf_names( $classic ) ) );
 ok( array( 'save_identity' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is save_identity, as on the classic leaf' );
@@ -163,7 +164,7 @@ foreach ( $cs as $s ) {
 	$strip_ok = $strip_ok && false !== strpos( $kit, '<os-tab value="' . $s[1] . '">' . $s[2] . '</os-tab>' ) && false !== strpos( $kit, '<os-tabpanel for="' . $s[1] . '" id="sn-sec-' . $s[1] . '">' );
 }
 ok( $strip_ok, 'the four classic sections are os-tab + os-tabpanel pairs keyed by the classic #sn-sec-<slug> anchors' );
-ok( false !== strpos( $kit, '<os-tabs class="snt-subtabs" value="identity" label="Identity &amp; SEO sections">' ) && false === strpos( $kit, 'os-bind' ), 'the strip opens on Identity (the classic is-active) and is not bound to state (client-side swap)' );
+ok( false !== strpos( $kit, '<os-tabs class="snt-subtabs" value="identity" label="General sections">' ) && false !== strpos( $classic_strip, 'aria-label="General sections"' ) && false === strpos( $kit, 'os-bind' ), 'the strip is named from the pane\'s registry label on both surfaces, opens on Identity (the classic is-active) and is not bound to state (client-side swap)' );
 ok( false !== strpos( $kit, '<p slot="footer-leading" class="snt-hint">Saving a change refreshes the site’s cached pages, so the live site shows it the next time a page loads.</p>' ), 'the save-bar hint sits beside the submit button' );
 // 2026.10.4 audit (batch 4): the one button saves all four sections, in the
 // sentence case of its siblings, and the hint keeps its promise (a changed
@@ -237,30 +238,30 @@ $post['seo_home_title']     = 'Home T2';
 sn_settings_save( $post );
 sn_setting_reset_cache();
 $stored = (array) get_option( 'sn_settings' );
-$again  = snt_leaf_paint( 'site', 'identity-and-seo' );
+$again  = snt_leaf_paint( 'settings', 'general' );
 ok( array( 'https://a.example/juan', 'https://b.example/juan' ) === ( $stored['social']['same_as'] ?? null ) && array( 'Mixing', 'Mastering', 'Provenance' ) === ( $stored['identity']['knows_about'] ?? null ) && 1600 === ( $stored['og']['card_width'] ?? null ) && 'Prov D' === ( $stored['seo_copy']['provenance_description'] ?? null ), 'sn_settings_save() stores the kit payload exactly as the classic POST (sameAs, knowsAbout, OG ints, SEO copy)' );
 ok( false !== strpos( $again, 'value="Renamed"' ) && false !== strpos( $again, 'value="Home T2"' ) && 3 === count( folded_values( field_values( $again, true ) )['social_same_as'] ), 'the repaint reads the saved values back through sn_setting(), still with one empty sameAs row' );
 
 // ── Escaping: hostile stored values never reach the markup raw.
 fixture( array( 'identity' => array( 'site_name' => '"><script>x</script>', 'knows_about' => array( '<b>bold</b>' ) ), 'social' => array( 'same_as' => array( 'javascript:alert(1)"><img src=x>' ) ) ) );
-$kit = snt_leaf_paint( 'site', 'identity-and-seo' );
+$kit = snt_leaf_paint( 'settings', 'general' );
 ok( false === strpos( $kit, '<script>' ) && false !== strpos( $kit, '&quot;&gt;&lt;script&gt;x&lt;/script&gt;' ) && false === strpos( $kit, '<img' ) && false !== strpos( $kit, '&lt;b&gt;bold&lt;/b&gt;' ), 'hostile site name, sameAs row and knowsAbout line are escaped' );
 
 // 2026.10.4 audit (batch 4): Knows about is tall enough for every topic and one more (it scrolled inside itself).
 fixture( array( 'identity' => array( 'knows_about' => array( 'A', 'B', 'C', 'D', 'E', 'F', 'G' ) ) ) );
-ok( 1 === preg_match( '/<os-textarea name="identity_knows_about"[^>]* rows="8"/', snt_leaf_paint( 'site', 'identity-and-seo' ) ), 'seven topics: the Knows about box is eight rows tall' );
+ok( 1 === preg_match( '/<os-textarea name="identity_knows_about"[^>]* rows="8"/', snt_leaf_paint( 'settings', 'general' ) ), 'seven topics: the Knows about box is eight rows tall' );
 
 // ── The defaults state: an empty option paints the classic defaults.
 fixture( array() );
 $classic = snt_leaf_classic_html( 'sn_admin_render_identity_and_seo_form' );
-$kit     = snt_leaf_paint( 'site', 'identity-and-seo' );
+$kit     = snt_leaf_paint( 'settings', 'general' );
 ok( folded_values( field_values( $classic, false ) ) === folded_values( field_values( $kit, true ) ), 'defaults: every field carries the classic default value' );
 ok( false !== strpos( $kit, 'name="identity_job_title" type="text" value="Music Producer"' ) && false !== strpos( $kit, 'name="identity_locale" type="text" value="" placeholder="en_US"' ) && false !== strpos( $kit, 'name="identity_site_name" type="text" value="" placeholder="Example Site"' ) && false !== strpos( $kit, 'value="1200"' ) && false !== strpos( $kit, 'value="630"' ) && false !== strpos( $kit, "Music Production\nAudio Engineering\nProvenance\nMusic Industry" ) && false !== strpos( $kit, 'value="Example Site"' ), 'defaults: Music Producer, 1200x630, the four knowsAbout topics, the blog name as the person; site name and locale are empty over core\'s value as the placeholder (an override, not a copy, 2026-11-10)' );
 ok( false !== strpos( $kit, 'name="social_same_as[0]" type="url" value=""' ) && false === strpos( $kit, 'social_same_as[1]' ), 'defaults: exactly one (empty) sameAs row' );
 
 // ── The anchor state: a save or a go that named a section opens it (the classic hash).
 foreach ( array( 'sn-sec-social' => 'social', 'sn-sec-open-graph' => 'open-graph', 'sn-sec-seo-copy' => 'seo-copy', 'sn-sec-nope' => 'identity', '' => 'identity' ) as $anchor => $expect ) {
-	$kit = snt_leaf_paint( 'site', 'identity-and-seo', array( 'anchor' => $anchor ) );
+	$kit = snt_leaf_paint( 'settings', 'general', array( 'anchor' => $anchor ) );
 	ok( false !== strpos( $kit, '<os-tabs class="snt-subtabs" value="' . $expect . '"' ), "anchor '$anchor' opens the $expect section" );
 }
 

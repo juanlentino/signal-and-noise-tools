@@ -478,16 +478,18 @@ namespace {
 	$GLOBALS['__caps']['manage_options'] = true;
 
 	echo "\nGroup 5: post\n";
+	// Settings > General (Site > Identity & SEO until 2026-11): the one
+	// save_identity form, answered on its pane under the settings tab.
 	$os = new \OpenStation\App\Os();
-	$os->view = 'site';
-	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'identity-and-seo', 'params' => array( 'sn_tag_preview' => '1' ) ) );
+	$os->view = 'settings';
+	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'general', 'params' => array( 'sn_tag_preview' => '1' ) ) );
 	$GLOBALS['__handler_calls'] = array();
 	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'action' => 'sn_save_identity', 'site_name' => 'Signal' ) ) );
 	ok( 1 === count( $GLOBALS['__handler_calls'] ) && 'Signal' === $GLOBALS['__handler_calls'][0]['site_name'], 'the handler ran with the posted values' );
 	ok( array( 'success', 'Identity settings saved.' ) === $st->get( 'notice' ) && 'identity_saved' === $st->get( 'flash' ),
 		'the flash becomes the classic notice, and the CODE is kept (the Webhooks leaf reads an id out of it)' );
 	ok( array( 'Identity settings saved.' ) === $os->toasts, '   ...and the same sentence is toasted, as plain text' );
-	ok( 'identity-and-seo' === $st->get( 'sub' ) && array() === $st->get( 'params' ),
+	ok( 'general' === $st->get( 'sub' ) && array() === $st->get( 'params' ),
 		'the redirect target is applied to this tab`s session, and the query params are dropped -- the classic redirect keeps only page/tab/sub/sn_flash' );
 	ok( array( 2 ) === $os->badges && 1 === $os->refresh, 'a save re-reads the badge and asks the shell for a fresh payload' );
 	ok( true === $st->get( 'saved' ) && 'sn_save_identity' === $st->get( 'answered' ), 'a save that took marks the next paint saved and names the form it answers, so the host lets only that form\'s typing go' );
@@ -628,8 +630,22 @@ namespace {
 	$os4->view = 'site';
 	$st7 = new \OpenStation\App\State( $app->state, array( 'sub' => 'front-end' ) );
 	$app->actions['post']( $st7, $os4, array( 'values' => array( '_wpnonce' => 'theme-nonce', 'action' => 'sn_save_theme', 'theme_related_count' => '4' ) ) );
-	ok( 'identity-and-seo' === $st7->get( 'sub' ) && array( 'success', 'Front-end settings saved.' ) === $st7->get( 'notice' ),
-		'a save in flight from the old Site > Front-End leaf is still answered, on the Site tab\'s first leaf' );
+	ok( 'performance' === $st7->get( 'sub' ) && array( 'success', 'Front-end settings saved.' ) === $st7->get( 'notice' ),
+		'a save in flight from the old Site > Front-End leaf is still answered, on the Site tab\'s first leaf (Performance now)' );
+	// The same for the leaf that left last: a Site session still holding
+	// sub=identity-and-seo saves, and is answered on Site's first leaf.
+	$os5 = new \OpenStation\App\Os();
+	$os5->view = 'site';
+	$st8 = new \OpenStation\App\State( $app->state, array( 'sub' => 'identity-and-seo' ) );
+	$app->actions['post']( $st8, $os5, array( 'values' => array( '_wpnonce' => 'good-nonce', 'action' => 'sn_save_identity', 'site_name' => 'Signal' ) ) );
+	ok( 'performance' === $st8->get( 'sub' ) && array( 'success', 'Identity settings saved.' ) === $st8->get( 'notice' ) && true === $st8->get( 'saved' ),
+		'a save in flight from the old Site > Identity & SEO leaf is applied and answered, on the Site tab\'s first leaf' );
+	// A bare Settings session (no sub named: General, its first pane) saves
+	// and stays on the pane.
+	$st9 = new \OpenStation\App\State( $app->state, array() );
+	$app->actions['post']( $st9, $os2, array( 'values' => array( '_wpnonce' => 'good-nonce', 'action' => 'sn_save_identity', 'site_name' => 'Signal' ) ) );
+	ok( 'general' === $st9->get( 'sub' ) && 'general' === \SignalNoise\OpenStationHost\Dashboard\active_sub( 'settings', $st9 ) && array( 'success', 'Identity settings saved.' ) === $st9->get( 'notice' ),
+		'a save from the unnamed Settings tab lands back on General with its notice' );
 
 	// In flight across the move: a Security-tab session painted before the
 	// update still holds sub=login. Its save runs (the action is found by
@@ -801,8 +817,8 @@ namespace {
 	// and a fragment that is not `sn-sec-*` survives -- the Dashboard's
 	// attention strip links #sn-dash-diagnostics, which prefixing here dropped.
 	$os = new \OpenStation\App\Os();
-	$os->view = 'site';
-	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'identity-and-seo' ) );
+	$os->view = 'settings';
+	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'general' ) );
 	$app->actions['go']( $st, $os, array( 'anchor' => 'sn-sec-identity' ) );
 	ok( 'sn-sec-identity' === $st->get( 'anchor' ),
 		'an anchor enters state as the ELEMENT ID, painted unchanged' );

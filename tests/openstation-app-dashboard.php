@@ -111,12 +111,14 @@ namespace {
 	ok( 'dashboard' === \SignalNoise\OpenStationHost\Dashboard\current_tab( $os ), 'main IS the Dashboard tab' );
 	$os->view = 'monitoring';
 	ok( 'monitoring' === \SignalNoise\OpenStationHost\Dashboard\current_tab( $os ), 'a tab slug is itself' );
-	ok( array( 'identity-and-seo', 'performance', 'redirects', 'broken-links' ) === array_keys( \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'site' ) ), 'a tab`s leaves come from the registry in its order' );
+	ok( array( 'performance', 'redirects', 'broken-links' ) === array_keys( \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'site' ) ), 'a tab`s leaves come from the registry in its order' );
 	ok( array() === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'dashboard' ), 'the Dashboard tab has no leaves' );
 	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'redirects' ) );
 	ok( 'redirects' === \SignalNoise\OpenStationHost\Dashboard\active_sub( 'site', $st ), 'the state`s sub is the active leaf when the tab has it' );
 	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'health' ) );
-	ok( 'identity-and-seo' === \SignalNoise\OpenStationHost\Dashboard\active_sub( 'site', $st ), 'a sub from another tab falls back to the tab`s first leaf' );
+	ok( 'performance' === \SignalNoise\OpenStationHost\Dashboard\active_sub( 'site', $st ), 'a sub from another tab falls back to the tab`s first leaf (Performance, since Identity & SEO left for Settings > General)' );
+	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'identity-and-seo' ) );
+	ok( 'performance' === \SignalNoise\OpenStationHost\Dashboard\active_sub( 'site', $st ), 'a Site session still holding the leaf that left falls back the same way, never a blank' );
 	ok( '' === \SignalNoise\OpenStationHost\Dashboard\active_sub( 'dashboard', $st ), 'a landing tab has no sub' );
 	$view = \SignalNoise\OpenStationHost\Dashboard\tab_view( 'dashboard' );
 	ob_start();
@@ -274,23 +276,37 @@ namespace {
 	$spliced_missing = array_diff( $spliced, array_keys( $painters ) );
 	ok( array() === $spliced_missing, 'the two spliced leaves (Search Console, Machine Readers) have painters too' . ( $spliced_missing ? ' -- MISSING: ' . implode( ', ', $spliced_missing ) : '' ) );
 
-	// Settings has six panes (Notifications and reports, Security, AI, Front
-	// end, Accounts and connections, Analytics). Painted
-	// through the frame (the tab's own view, not the painter alone): the first
-	// pane lands without being named, the leaf bar offers all six (it hid while
+	// Settings has seven panes (General, Notifications and reports, Security,
+	// AI, Front end, Accounts and connections, Analytics). Painted through the
+	// frame (the tab's own view, not the painter alone): the first pane lands
+	// without being named, and it is General since 2026-11 (it was
+	// Notifications and reports); the leaf bar offers all seven (it hid while
 	// the tab had one leaf; the classic strip shows from two the same way),
 	// and a save's notice paints on top of the pane.
+	if ( ! function_exists( 'sn_setting' ) ) { function sn_setting( $path, $default = null ) { return $default; } }
+	if ( ! function_exists( 'sn_settings_identity_core' ) ) { function sn_settings_identity_core( $k ) { return ''; } }
+	if ( ! function_exists( 'sn_settings_identity_override' ) ) { function sn_settings_identity_override( $k ) { return ''; } }
+	$seven = array( 'general' => 'General', 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI', 'front-end' => 'Front end', 'accounts' => 'Accounts and connections', 'analytics' => 'Analytics' );
+	$bar   = '';
+	foreach ( $seven as $slug => $label ) { $bar .= '<os-segment value="' . $slug . '">' . $label . '</os-segment>'; }
 	$os = new \OpenStation\App\Os(); $os->view = 'settings';
-	$st = new \OpenStation\App\State( $app->state, array( 'notice' => array( 'success', 'Morning brief and alert settings saved.' ) ) );
+	$st = new \OpenStation\App\State( $app->state, array( 'notice' => array( 'success', 'Identity settings saved.' ) ) );
 	ob_start();
 	call_user_func( $app->tabs['settings']['view'], $st, $os );
 	$settings_html = (string) ob_get_clean();
-	ok( 0 === strpos( $settings_html, '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="settings"' ) && false !== strpos( $settings_html, '<div class="snt-leaf" data-snt-leaf="notifications">' ) && false === strpos( $settings_html, 'Section not found' ),
-		'the settings tab, unnamed, paints its first pane, notifications, through the frame' );
-	ok( false !== strpos( $settings_html, 'slot="toolbar"' ) && 1 === preg_match( '#<os-segmented[^>]*value="notifications"[^>]*>(?:(?!</os-segmented>).)*<os-segment value="notifications">Notifications and reports</os-segment><os-segment value="security">Security</os-segment><os-segment value="ai">AI</os-segment><os-segment value="front-end">Front end</os-segment><os-segment value="accounts">Accounts and connections</os-segment><os-segment value="analytics">Analytics</os-segment></os-segmented>#s', $settings_html ) && array( 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI', 'front-end' => 'Front end', 'accounts' => 'Accounts and connections', 'analytics' => 'Analytics' ) === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ),
-		'   ...with the leaf bar: six panes, in the registry\'s order, the first one active' );
-	ok( strpos( $settings_html, 'Morning brief and alert settings saved.' ) < strpos( $settings_html, 'data-snt-leaf="notifications"' ) && false !== strpos( $settings_html, 'Morning brief and alert settings saved.' ),
+	ok( 0 === strpos( $settings_html, '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="settings"' ) && false !== strpos( $settings_html, '<div class="snt-leaf" data-snt-leaf="general">' ) && false !== strpos( $settings_html, 'name="identity_person_name"' ) && false === strpos( $settings_html, 'data-snt-leaf="notifications"' ) && false === strpos( $settings_html, 'Section not found' ),
+		'the settings tab, unnamed, paints its first pane, general, through the frame' );
+	ok( false !== strpos( $settings_html, 'slot="toolbar"' ) && 1 === preg_match( '#<os-segmented[^>]*value="general"[^>]*>(?:(?!</os-segmented>).)*' . preg_quote( $bar, '#' ) . '</os-segmented>#s', $settings_html ) && $seven === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ),
+		'   ...with the leaf bar: seven panes, in the registry\'s order, the first one active' );
+	ok( strpos( $settings_html, 'Identity settings saved.' ) < strpos( $settings_html, 'data-snt-leaf="general"' ) && false !== strpos( $settings_html, 'Identity settings saved.' ),
 		'   ...and the saved notice sits on top of the pane' );
+	// The pane that was first is still reached by name, its notice on top.
+	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'notifications', 'notice' => array( 'success', 'Morning brief and alert settings saved.' ) ) );
+	ob_start();
+	call_user_func( $app->tabs['settings']['view'], $st, $os );
+	$settings_html = (string) ob_get_clean();
+	ok( false !== strpos( $settings_html, '<div class="snt-leaf" data-snt-leaf="notifications">' ) && 1 === preg_match( '#<os-segmented[^>]*value="notifications"#', $settings_html ) && false !== strpos( $settings_html, 'Morning brief and alert settings saved.' ) && strpos( $settings_html, 'Morning brief and alert settings saved.' ) < strpos( $settings_html, 'data-snt-leaf="notifications"' ),
+		'Notifications and reports, named, paints with its notice on top: second in the bar now, same pane' );
 
 	echo "\nGroup 5: S&N Home UI & unescaped HTML\n";
 	require_once SNT_PATH . 'inc/openstation-kit-triggers.php';

@@ -146,11 +146,11 @@ html[data-os-mode="mobile"] .snt-subbar > .os-app-list__toolbar-left > os-segmen
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="audit-log"],
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="tags"],
 /* 2026.10.4 audit: Front end (a Settings pane since 2026-11, the same leaf
-   slug) and Site › Identity & SEO use the window's width
+   slug) and Settings › General (Site › Identity & SEO until 2026-11) use the window's width
    (their forms lift the 760px cap below; the leaf's 820px held them anyway). */
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf:has( .snt-site-form ),
 .snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="front-end"],
-.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="identity-and-seo"] {
+.snt-app[data-os-app="sn-dashboard"] os-app-frame > .snt-leaf[data-snt-leaf="general"] {
 	max-width: 100%;
 }
 
@@ -1272,9 +1272,9 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 	font: 400 12px/1.45 var( --os-ui-font, system-ui, sans-serif );
 
 /* ══════════════════════════════════════════════════════════════════════════
- * Site › Identity & SEO and Settings › Front end (2026.10.4 audit)
+ * Settings › General (once Site › Identity & SEO) and Settings › Front end (2026.10.4 audit)
  * The two forms use the window's width: Front end's eight short fields take
- * a row of three boxes (the classic page's wide pane), and each Identity & SEO
+ * a row of three boxes (the classic page's wide pane), and each General
  * section sets two fields to a row. Capped at 760px, both left the right
  * half of a 1,300px window empty.
  * ══════════════════════════════════════════════════════════════════════════ */

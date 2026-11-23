@@ -2,7 +2,8 @@
 /**
  * S&N Dashboard: Settings > Notifications and reports, painted from the kit.
  *
- * The first pane of the Settings tab, the native twin of
+ * The first pane the Settings tab had (the second in its bar since General
+ * took first place), the native twin of
  * inc/admin-forms/notifications.php: the three email switches, each with its
  * hint, its test button and its last-sent lines. The morning brief and the
  * alerts email came from Connections > Cron (connections-cron-parts.php), the

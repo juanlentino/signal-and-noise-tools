@@ -66,7 +66,7 @@ $tabs = sn_admin_top_tabs();
 $last = end( $tabs );
 ok( 9 === count( $tabs ) && 'settings' === ( $last['tab'] ?? '' ) && 'sn-settings' === ( $last['slug'] ?? '' ) && 'Settings' === ( $last['label'] ?? '' ), 'Settings is the ninth top tab, last, on page slug sn-settings' );
 $subs = (array) ( $last['sub_tabs'] ?? array() );
-ok( 'notifications' === ( array_keys( $subs )[0] ?? '' ) && 'Notifications and reports' === ( $subs['notifications']['label'] ?? '' ) && 'sn_admin_render_notifications_section' === ( $subs['notifications']['render'] ?? '' ), 'its first pane is notifications, labelled "Notifications and reports" (the pane list is pinned in tests/os-leaf-settings-security.php)' );
+ok( array( 'general', 'notifications' ) === array_slice( array_keys( $subs ), 0, 2 ) && 'Notifications and reports' === ( $subs['notifications']['label'] ?? '' ) && 'sn_admin_render_notifications_section' === ( $subs['notifications']['render'] ?? '' ), 'notifications, labelled "Notifications and reports", is the second pane: the first until 2026-11, when General took that place (the pane list is pinned in tests/os-leaf-settings-security.php)' );
 ok( 1 === count( array_keys( array_column( $tabs, 'slug' ), 'sn-settings', true ) ) && ! in_array( 'sn-settings', array_column( sn_admin_pages(), 'slug' ), true ) && ! isset( sn_admin_legacy_redirect_map()['settings'] ), 'the slug and the tab key collide with no legacy page and no legacy redirect' );
 
 // ── 2) Where a save lands (classic PRG; the window uses the same resolver).
