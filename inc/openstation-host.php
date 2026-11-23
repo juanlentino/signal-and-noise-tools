@@ -3,7 +3,7 @@
  * Signal & Noise Tools — the HOST: an admin page painted inside an
  * OpenStation app window, unchanged.
  *
- * WHY THIS EXISTS. The classic Signal & Noise admin page is 8 top tabs over
+ * WHY THIS EXISTS. The classic Signal & Noise admin page is 9 top tabs over
  * ~35 leaves, 57 forms, one flash table and one handler table. Rewriting any
  * of that for the App Framework would be a redesign, and a redesign is not a
  * port. So nothing is rewritten: the SAME render callables paint the SAME

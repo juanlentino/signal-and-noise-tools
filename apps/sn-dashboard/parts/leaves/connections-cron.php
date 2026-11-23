@@ -19,11 +19,12 @@
  * #862), a grid of seven tracks with each row a subgrid (assets/os-app.css).
  * The classic `#sn-cron-filter` is cron_filter_html(); the Args clamp stays.
  *
- * The other two callbacks, `snt_morning_brief_render_settings()` (priority 20)
- * and `snt_scheduled_reads_render_settings()` (priority 30), each carry one
- * classic form and one `sn_action` (`morning_brief_save`, `scheduled_reads_save`).
- * They paint here with the same names through snt_kit_form(), one row under
- * the ledger: connections-cron-parts.php. The Action Scheduler backlog box
+ * The other two callbacks, `snt_config_drift_render_cron_box()` (priority 20,
+ * the Acknowledge form on `morning_brief_save`, only while drift exists) and
+ * `snt_scheduled_reads_render_settings()` (priority 30, `scheduled_reads_save`),
+ * paint here with the same names through snt_kit_form(), one row under the
+ * ledger: connections-cron-parts.php. The morning brief and alerts switches
+ * that sat in the priority-20 box are a pane of Settings now. The Action Scheduler backlog box
  * (same file), the Site Health reading on the leaf where scheduled jobs are
  * asked about, is the third box on that row.
  *

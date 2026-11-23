@@ -2,12 +2,13 @@
 /**
  * Signal & Noise — admin tab data (v10.46.0 Phase-3 IA).
  *
- * The single source of truth for the 8 top-level admin tabs and their
+ * The single source of truth for the 9 top-level admin tabs and their
  * sub-tabs / in-page sub-sections. Pure data (no side effects, no output) so
  * registration, routing, rendering, and the legacy-redirect layer all read
  * from one place. Extracted from inc/admin-page.php in v4.5.4; restructured
  * to 7 intent-coherent tabs in v6.18.0 (admin refactor Phase 2); regrouped to
  * 8 in v10.46.0 after eleven leaves had accumulated wherever there was room.
+ * Settings is the ninth (2026-11): the plugin's own preferences, by pane.
  *
  * Also holds sn_admin_suggest_js_leaves() at the foot of the file — a second
  * registry-adjacent list that must agree with this one, kept here so the two
@@ -21,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The 8 top-level tabs of the SN admin UI (v10.46.0 Phase-3 IA).
+ * The 9 top-level tabs of the SN admin UI (v10.46.0 Phase-3 IA, plus Settings).
  *
  * Each entry has a `sub_tabs` array (empty for the Dashboard landing page).
  * Sub-tab ordering = display order in both the in-page sub-tab nav and the
@@ -375,6 +376,26 @@ function sn_admin_top_tabs() {
 				'citations'  => array( 'label' => 'Citations', 'render' => 'sn_admin_render_citations_section', 'wide' => true ),
 				// Links last — reference shortcuts (GitHub, release pages, Cloudflare, Cloudways).
 				'links'      => array( 'label' => 'Links', 'render' => 'sn_admin_render_links_section' ),
+			),
+		),
+		array(
+			// 2026-11: Settings, the ninth tab and the last, where a preferences
+			// area sits by convention (System Settings on macOS, Settings on
+			// Windows: one pane per subject). Settings had been scattered among
+			// the readings; they move here one pane at a time. The first pane
+			// holds the three email switches that sat on Connections > Cron and
+			// Security > Login defense. Only switches moved, no whole leaf, so
+			// sn_admin_subtab_moves() has no line for it: an entry there would
+			// redirect the Cron and Login defense leaves themselves.
+			'slug'     => 'sn-settings',
+			'tab'      => 'settings',
+			'label'    => 'Settings',
+			'title'    => 'Signal & Noise. Settings',
+			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address.',
+			'sub_tabs' => array(
+				// 'wide': the render fn paints two cards of its own side by side
+				// (.sn-2up); capped, the wrapper would nest them in a third.
+				'notifications' => array( 'label' => 'Notifications and reports', 'render' => 'sn_admin_render_notifications_section', 'wide' => true ),
 			),
 		),
 	);

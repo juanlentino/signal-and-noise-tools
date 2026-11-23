@@ -2,11 +2,12 @@
 /**
  * Native window leaf: Security → Login defense (apps/sn-dashboard/parts/leaves/security-login-defense.php).
  *
- * The oracle is the classic leaf (inc/login-defense.php `sn_login_defense_render()`,
- * which mounts inc/security-digest.php `snt_security_digest_render_settings()`
- * after its status card): the kit port must carry the same field names, the
- * same one `sn_action` (`security_digest_save`), the same readouts, and none
- * of wp-admin's markup.
+ * The oracle is the classic leaf (inc/login-defense.php `sn_login_defense_render()`):
+ * the kit port must carry the same readouts and none of wp-admin's markup.
+ * Neither twin paints a form any more: the weekly security digest's switch,
+ * hint, Send test digest and last-sent lines moved to Settings > Notifications
+ * and reports (tests/os-leaf-settings-notifications.php holds their pins),
+ * and each twin keeps one line that says so.
  *
  * Run: php tests/os-leaf-security-login-defense.php
  */
@@ -50,37 +51,11 @@ function sn_hibp_set_disabled() { return $GLOBALS['__set_off']; }
 
 require SNT_PATH . 'inc/login-defense.php';
 require SNT_PATH . 'inc/security-digest.php';
+require SNT_PATH . 'inc/admin-forms/notifications.php'; // the "moved to" line.
 require SNT_PATH . 'inc/breached-credentials.php';
 require SNT_PATH . 'inc/breached-credentials-login.php';
 require SNT_PATH . 'inc/breached-credentials-surface.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/security-login-defense.php';
-require_once SNT_PATH . 'inc/openstation-host-pipelines.php'; // for snt_os_host_expand() — the round-trip pin below.
-
-/**
- * Mirror of os-form.ts's `_readField()` for the one field this leaf cares
- * about: OS-CHECKBOX-LABEL (and OS-CHECKBOX / INPUT[checkbox]) read their
- * boolean off the `checked` attribute; every other tag (OS-SWITCH included)
- * falls through to its static `value` attribute regardless of on/off state
- * (os-form.ts:536-556). Extracts the tag whose attributes contain
- * `name="$name"` and returns bool for a checkbox-shaped tag, else the string
- * `value="…"`.
- */
-function os_form_read_field( $html, $name ) {
-	if ( ! preg_match( '/<([a-z-]+)([^>]*\bname="' . preg_quote( $name, '/' ) . '"[^>]*)>/i', $html, $m ) ) {
-		return null;
-	}
-	$tag   = strtoupper( $m[1] );
-	$attrs = $m[2];
-	$is_checkbox_shaped = in_array( $tag, array( 'OS-CHECKBOX', 'OS-CHECKBOX-LABEL' ), true )
-		|| ( 'INPUT' === $tag && false !== strpos( $attrs, 'type="checkbox"' ) );
-	if ( $is_checkbox_shaped ) {
-		return (bool) preg_match( '/(^|\s)checked(\s|=|$|>)/', $attrs );
-	}
-	if ( preg_match( '/\bvalue="([^"]*)"/', $attrs, $vm ) ) {
-		return $vm[1];
-	}
-	return null;
-}
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -89,6 +64,8 @@ ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['security/login-def
 
 /**
  * Set the digest option fixtures directly (get_option() reads $GLOBALS['__options']).
+ * Kept after the move: with this state set the digest box WOULD paint here,
+ * so its absence below is a fact about the leaf, not an empty fixture.
  */
 function set_digest_options( $enabled, $last_sent, $last_error ) {
 	$GLOBALS['__settings']['audit.digest_email_enabled'] = $enabled;
@@ -108,9 +85,18 @@ set_digest_options( true, time() - 3600, false );
 $classic = snt_leaf_classic_html( 'sn_login_defense_render' );
 $kit     = snt_leaf_paint( 'security', 'login-defense' );
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( false !== strpos( $kit, 'Last sent <os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>.' ), '#1596: the last-sent hint is an os-relative-time with the server reading as its fallback' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( array( 'security_digest_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is security_digest_save, as on the classic leaf' );
+// What LEFT for Settings > Notifications and reports, on both twins (the
+// digest is ON, sent an hour ago: the box would paint if it were still here).
+ok( array() === snt_leaf_names( $kit ) && array() === snt_leaf_names( $classic ), 'neither twin carries a field any more: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+ok( array() === snt_leaf_actions( $kit ) && array() === snt_leaf_actions( $classic ) && false === strpos( $kit, '<os-form' ) && false === strpos( $classic, '<form' ), 'neither twin posts an action or paints a form' );
+foreach ( array( 'native' => $kit, 'classic' => $classic ) as $side => $html ) {
+	ok( false === strpos( $html, 'sn_digest_enabled' ) && false === strpos( $html, 'sn_digest_test' ) && false === strpos( $html, 'Send test digest' ) && false === strpos( $html, 'Weekly security digest' ), "$side: the digest switch, its box and Send test digest are gone from Login defense" );
+	ok( false === strpos( $html, 'Last sent' ) && false === strpos( $html, 'Last send failed' ) && false === strpos( $html, 'the quiet email is the heartbeat' ) && false === strpos( $html, 'Sends this week’s digest' ), "$side: so are its hint, its Last sent and Last send failed lines, and the test button's line" );
+	ok( 1 === substr_count( $html, 'The weekly security digest switch moved to' ) && 1 === substr_count( $html, 'Settings › Notifications and reports' ), "$side: one line says where it went" );
+}
+ok( 1 === preg_match( '#moved to <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="notifications"[^>]*>Settings › Notifications and reports</os-button>\.</p>#', $kit ), 'native: the line carries a go to the settings tab, notifications leaf' );
+ok( 1 === preg_match( '#moved to <a href="https://example.test/wp-admin/admin.php\?page=sn-theme-options&(amp;|\#038;)?tab=settings&(amp;|\#038;)?sub=notifications">Settings › Notifications and reports</a>\.</p>#', $classic ), 'classic: the line links to tab=settings&sub=notifications' );
+snt_leaf_preview( 'security-login-defense', $kit );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 // 2026-10-12 audit: the deploy and refresh times read as how long ago, never raw ISO or "UTC".
@@ -118,56 +104,14 @@ ok( false !== strpos( $kit, 'sn-login-guard v1.7.0, deployed 1 hour ago' ) && fa
 ok( false !== strpos( $kit, '1,234 ranges, updated 1 hour ago' ) && false === strpos( $kit, ' UTC' ), 'the denylist count + refresh time are shown, readably' );
 ok( false !== strpos( $kit, 'Spamhaus' ), 'the FireHOL/Spamhaus attribution survives' );
 ok( false !== strpos( $kit, 'os-action="door"' ) && false !== strpos( $kit, 'page=sn-analytics' ) && false !== strpos( $kit, 'sn_view=login-defense' ), 'the analytics link is a door to the other admin screen' );
-preg_match( '/<[^>]*name="sn_digest_enabled"[^>]*>/', $kit, $toggle_tag ); // the tag, not the leaf: the breach box says "N of N checked".
-ok( isset( $toggle_tag[0] ) && false !== strpos( $toggle_tag[0], ' checked' ), 'the digest toggle is a kit switch, checked when enabled' );
-ok( false !== strpos( $kit, '1 hour' ), 'the last-sent readout survives (human_time_diff stub)' );
-ok( false !== strpos( $kit, 'Save' ) && false !== strpos( $kit, 'Send test digest' ), 'both digest buttons survive' );
-ok( false !== strpos( $kit, 'name="sn_digest_test"' ), 'the test button carries its differentiator field' );
-ok( 1 === preg_match( '/<p class="snt-hint">Sends this week’s digest[^<]*<\/p><os-form class="snt-form snt-form--inline"[^>]*submit-label="Send test digest"[^>]*><input type="hidden" name="sn_digest_test" value="1">/', $kit ), '2026-10-16: Send test digest is the compact one-button form under its line, its differentiator inside' );
 
-// ── Escaping: a hostile worker string / error message never reaches the markup raw.
+// ── Escaping: a hostile worker string never reaches the markup raw.
 $GLOBALS['__lg_remote']['deployed_at'] = '"><script>x</script>';
 set_digest_options( true, time() - 3600, array( 'message' => '<script>y</script>' ) );
 $kit = snt_leaf_paint( 'security', 'login-defense' );
 ok( false === strpos( $kit, '<script>x</script>' ) && false !== strpos( $kit, '&lt;script&gt;x&lt;/script&gt;' ), 'a hostile worker string is escaped' );
-ok( false === strpos( $kit, '<script>y</script>' ) && false !== strpos( $kit, '&lt;script&gt;y&lt;/script&gt;' ), 'a hostile last-error message is escaped' );
+ok( false === strpos( $kit, 'script&gt;y' ) && false === strpos( $kit, '<script>y' ), 'the digest\'s last error is not painted here at all, escaped or raw' );
 $GLOBALS['__lg_remote']['deployed_at'] = '2026-09-01T00:00:00Z';
-
-// ── The last-error notice: shown when present, silent when absent.
-ok( false !== strpos( $kit, 'Last send failed' ), 'a last-send error paints a notice' );
-set_digest_options( true, time() - 3600, false );
-$kit = snt_leaf_paint( 'security', 'login-defense' );
-ok( false === strpos( $kit, 'Last send failed' ), 'no error notice when last_error is false' );
-
-// ── Digest disabled + never sent: the toggle is unchecked, no last-sent line.
-set_digest_options( false, 0, false );
-$kit = snt_leaf_paint( 'security', 'login-defense' );
-preg_match( '/<[^>]*name="sn_digest_enabled"[^>]*>/', $kit, $toggle_tag ); // the tag, not the leaf: the breach box says "0 of 0 checked".
-ok( isset( $toggle_tag[0] ) && false === strpos( $toggle_tag[0], 'checked' ), 'the toggle is unchecked when the digest is disabled' );
-ok( false === strpos( $kit, 'Last sent' ) && false === strpos( $kit, '<os-relative-time' ), 'no last-sent line when it has never been sent' );
-
-// ── Round-trip pin (refuter finding, major): the painted OFF state must
-// survive os-form's field reader + the host's snt_os_host_expand() as an
-// EMPTY value the handler's `! empty()` (not `isset()`) test would read as
-// off. This is what actually distinguishes 'checkbox' from 'switch': a switch
-// always submits its static value='1', so this pin goes RED against the
-// pre-fix 'switch' paint and GREEN against the 'checkbox' paint below.
-// NOTE: the shipped handler (inc/admin-post-actions/reports.php:38) still
-// tests `isset( $post['sn_digest_enabled'] )`, which is true for '' just as
-// much as for '1' — so this pin proves the FIELD carries the off-state
-// correctly; it does not prove the handler reads it correctly. That handler
-// line is outside this leaf's file scope (see the final report's `changed`).
-$off_read   = os_form_read_field( $kit, 'sn_digest_enabled' );
-$off_expand = \snt_os_host_expand( array( 'sn_digest_enabled' => $off_read ) );
-ok( false === $off_read, 'os-form would read the unchecked field as boolean false' );
-ok( empty( $off_expand['sn_digest_enabled'] ), 'the digest OFF state round-trips through snt_os_host_expand() as empty (would read off under !empty())' );
-
-set_digest_options( true, time() - 3600, false );
-$kit_on    = snt_leaf_paint( 'security', 'login-defense' );
-$on_read   = os_form_read_field( $kit_on, 'sn_digest_enabled' );
-$on_expand = \snt_os_host_expand( array( 'sn_digest_enabled' => $on_read ) );
-ok( true === $on_read, 'os-form would read the checked field as boolean true' );
-ok( ! empty( $on_expand['sn_digest_enabled'] ), 'the digest ON state round-trips through snt_os_host_expand() as non-empty' );
 
 // ── Worker status unavailable (probe fails): the classic "unavailable" line, no Worker/Denylist facts.
 $GLOBALS['__lg_remote'] = null;
@@ -215,17 +159,14 @@ $classic = snt_leaf_classic_html( 'sn_login_defense_render' );
 $kit     = snt_leaf_paint( 'security', 'login-defense' );
 $cols_at = strpos( $kit, snt_leaf_row() );
 $box_at  = strpos( $kit, 'heading="Breached passwords"' );
-$dig_at  = strpos( $kit, 'heading="Weekly security digest"' );
-// 2026-10-12 audit: the digest's two forms sat alone at full width (760px of
-// form, half the window empty); the three boxes share one row.
-ok( 0 === strpos( $kit, snt_leaf_row( 3, 280 ) ) && 1 === substr_count( $kit, '<os-grid' ), 'one row of three' );
+// The digest's box was the third on this row until it moved to Settings.
+ok( 0 === strpos( $kit, snt_leaf_row( 2, 280 ) ) && 1 === substr_count( $kit, '<os-grid' ), 'one row of two' );
 // Live check on #2022: the cards were 212 / 251 / 375px, a 295px label left its value 29px.
 ok( array( 'Flagged at login', 'Refused when set', 'Refused, service down' ) === array_column( sn_hibp_surface_rows( sn_hibp_surface_data(), sn_hibp_health( sn_hibp_surface_data(), time() ) ), 'label' ), 'Breached passwords\' labels are short, the same on both twins and in Site Health' );
 $__css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
 ok( 1 === preg_match( '/\[data-snt-leaf="login-defense"\] \.snt-kv os-fact::part\( label \) \{\s*max-width: 14em;/', $__css ) && 1 === preg_match( '/\[data-snt-leaf="login-defense"\] \.snt-kv__v \{\s*overflow-wrap: normal;\s*word-break: normal;/', $__css ), 'the label column is capped and a value never breaks inside a word' );
 ok( 1 === preg_match( '/:is\( \[data-snt-leaf="mcp-connect"\], \[data-snt-leaf="login-defense"\] \) os-grid > os-section \{\s*display: flex;\s*flex-direction: column;/', $__css ) && 1 === preg_match( '/os-grid > os-section::part\( body \) \{\s*flex: 1 1 auto;/', $__css ), 'the boxes of a row stretch to the row on Login defense and MCP Clients' );
-ok( strpos( $kit, 'heading="Login guard status"' ) < $box_at && $box_at < $dig_at && strpos( $kit, '</os-grid>' ) > $dig_at, 'the row holds Login guard status, Breached passwords and the weekly digest, in that order' );
-ok( false !== strpos( $kit, 'Sends this week’s digest to the admin address now, whether or not the weekly email is on.' ) && false !== strpos( $classic, 'Sends this week’s digest to the admin address now' ), 'Send test digest says what it does, on both twins, instead of floating under Save' );
+ok( strpos( $kit, 'heading="Login guard status"' ) < $box_at && $box_at < strpos( $kit, '</os-grid>' ) && strpos( $kit, '</os-grid>' ) < strpos( $kit, 'The weekly security digest switch moved to' ), 'the row holds Login guard status and Breached passwords, in that order, and the moved line sits after the row' );
 ok( 'recommended' === $row['status'] && preg_match( '/(\d+) of (\d+) checked/', $text, $m ) && '1' === $m[1] && '2' === $m[2], 'oracle: the Site Health row reads 1 of 2 checked' );
 $flagged = kv_row( $kit, 'Flagged at login' );
 ok( null !== $flagged && $m[1] . ' of ' . $m[2] . ' checked accounts' === $flagged[0] && false !== strpos( $flagged[1], 'data-tone="warning"' ), 'the flagged row carries the row\'s numbers and says what they count, toned warning: ' . ( $flagged[0] ?? 'absent' ) );

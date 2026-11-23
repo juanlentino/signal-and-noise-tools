@@ -22,7 +22,7 @@ The rest of this file is the detail: [what it does](#what-it-does), then [in dep
 - **Citation graph** — a Webmention receiver that treats every claim as unverified until cron checks it
 - **Edge cache** — one tagged Cloudflare purge on save, confirmed and retried; no routine purge button
 - **Music / discography** — a daily Muso.AI + Spotify sync the theme's `/music` page reads
-- **Admin UI** — eight tabs, the analytics dashboard, command palette, cron, audit log, deploy/health
+- **Admin UI** — nine tabs, the analytics dashboard, command palette, cron, audit log, deploy/health
 - **OpenStation** — the admin as a desktop: three app windows, six cards, and commands in the palette
 - **AI, models and Jev** — three kinds of model, one job each: a text model suggests, an embedding model relates, and Jev (the site's editorial judge, a model that scores notes against the house rules) judges; nothing a model says is written to a note without a human's click
 - **Agent surface** — more than a hundred abilities (WordPress's named, permission-checked actions); an MCP server with a read-only endpoint, a separate write endpoint (every write gated and a dry run by default; `tests/mcp-capabilities.php` pins both doors' tool lists), and a remote endpoint for an assistant on a phone; the site as something agents read, with the rights terms they read it under
@@ -77,7 +77,7 @@ a daily sync mirrors Muso.AI verified producer credits + Spotify album media int
 
 ### Admin UI
 
-eight intent-coherent tabs (Dashboard, Site, Content, Connections, Measurement, AI, Security, Integrity) plus the analytics dashboard, command palette, cron dashboard, audit log, and deploy/health views (native wp-admin styling)
+nine intent-coherent tabs (Dashboard, Site, Content, Connections, Measurement, AI, Security, Integrity, Settings) plus the analytics dashboard, command palette, cron dashboard, audit log, and deploy/health views (native wp-admin styling)
 
 ### OpenStation
 

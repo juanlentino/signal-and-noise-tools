@@ -1,19 +1,15 @@
 <?php
 /**
- * S&N Dashboard — Security → Login defense, painted from the kit.
+ * S&N Dashboard: Security > Login defense, painted from the kit.
  *
  * The classic leaf (inc/login-defense.php, `sn_login_defense_render()`) paints
  * a read-only status card (worker version/deploy time, denylist size/refresh,
- * attribution, a link to the Analytics-dashboard Login defense view) followed
- * by the weekly security-digest settings card from inc/security-digest.php
- * (`snt_security_digest_render_settings()`): a toggle, last-sent/last-error
- * readout, and two submit buttons — Save and Send test digest — sharing one
- * classic `<form>` and one `sn_action` (`security_digest_save`), the click
- * differentiated by an extra `sn_digest_test` field only the test button
- * carries. Same readings, same field names, same one action; the kit's parts
- * instead of wp-admin's. Beside the status card, a "Breached passwords" box
- * (security-login-defense-parts.php) carries the viewer's login memo and the
- * Site Health row's figures, two classic readings that had no leaf at all.
+ * attribution, a link to the Analytics-dashboard Login defense view). Same
+ * readings; the kit's parts instead of wp-admin's. Beside the status card, a
+ * "Breached passwords" box (security-login-defense-parts.php) carries the
+ * viewer's login memo and the Site Health row's figures. The weekly security
+ * digest's settings sat here until they became a pane of Settings
+ * (settings-notifications.php); one line points there. No form is painted.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -52,94 +48,6 @@ function login_defense_status_html( $status ) {
 }
 
 /**
- * The digest settings' state, read the way the classic leaf reads it.
- *
- * @return array{enabled:bool,last_sent:int,last_error:mixed}
- */
-function login_defense_digest_state() {
-	$sent_key  = defined( 'SN_SECURITY_DIGEST_LAST_SENT' ) ? SN_SECURITY_DIGEST_LAST_SENT : 'sn_security_digest_last_sent';
-	$error_key = defined( 'SN_SECURITY_DIGEST_LAST_ERROR' ) ? SN_SECURITY_DIGEST_LAST_ERROR : 'sn_security_digest_last_error';
-	return array(
-		'enabled'    => function_exists( 'snt_security_digest_enabled' ) ? (bool) snt_security_digest_enabled() : false,
-		'last_sent'  => (int) get_option( $sent_key, 0 ),
-		'last_error' => get_option( $error_key ),
-	);
-}
-
-/**
- * The weekly security-digest card: toggle + last-sent/last-error + Save +
- * Send test digest. The classic leaf shares ONE `<form>`/ONE `sn_action`
- * between both buttons, differentiated by whether `sn_digest_test` rode
- * along — an `<os-form>` fires one event per submit and cannot tell which of
- * two buttons was pressed, so this becomes two kit forms, each carrying the
- * same `sn_action`, the second pre-loading the differentiator as a hidden
- * field. See the file docblock and the report's `changed` note.
- *
- * @param array $d From login_defense_digest_state().
- * @return string
- */
-function login_defense_digest_html( array $d ) {
-	// Not `os-switch`: os-form's field reader (os-form.ts) only special-cases
-	// OS-CHECKBOX / OS-CHECKBOX-LABEL / INPUT[type=checkbox] as booleans; any
-	// other tag falls through to its static `value` attribute regardless of
-	// on/off state, so a switch here would always submit '1'. `checkbox` is
-	// what every sibling leaf uses (connections-indexnow.php, site-performance.php,
-	// site-front-end.php, connections-webhooks.php) — see the refuter's finding.
-	$checkbox  = \snt_kit_field(
-		'checkbox',
-		'sn_digest_enabled',
-		__( 'Email a weekly security digest to the admin address', 'signal-and-noise-tools' ),
-		$d['enabled'],
-		array( 'value' => '1' )
-	);
-	// os-checkbox-label has no `description` prop (unlike os-switch), so the
-	// helper sentence is painted separately, mirroring the classic
-	// <p class="sn-field-helper"> at inc/security-digest.php:314.
-	$checkbox .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Failed logins, recon probes, account and site changes, app-password sign-ins, lockouts, login-guard blocks, denylist freshness, and the last message the mail server refused, for the last 7 days. Sends every week, including quiet weeks: the quiet email is the heartbeat.', 'signal-and-noise-tools' ) ) . '</p>';
-
-	$hints = '';
-	if ( $d['last_sent'] > 0 ) {
-		$hints .= '<p class="snt-hint">' . sprintf(
-			/* translators: %s: relative time element */
-			\snt_kit_esc( __( 'Last sent %s.', 'signal-and-noise-tools' ) ),
-			\snt_kit_relative_time( (int) $d['last_sent'] )
-		) . '</p>';
-	}
-	if ( is_array( $d['last_error'] ) && ! empty( $d['last_error']['message'] ) ) {
-		$hints .= \snt_kit_notice(
-			'err',
-			'<b>' . \snt_kit_esc( __( 'Last send failed:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( (string) $d['last_error']['message'] )
-		);
-	}
-
-	// Reading order mirrors the classic card (inc/security-digest.php:314-336):
-	// toggle, helper, last-sent, last-error, THEN both buttons — so the
-	// readouts live inside the Save form's body, not between the two forms.
-	$save_form = \snt_kit_form(
-		'security_digest_save',
-		$checkbox . $hints,
-		array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) )
-	);
-	// 2026-10-12 audit: the second button floated under Save with nothing to
-	// say what it does; it carries its own line now. 2026-10-16: the line,
-	// then the button as the kit's compact one-button form, not a form row.
-	$test_form = '<p class="snt-hint">' . \snt_kit_esc( __( 'Sends this week’s digest to the admin address now, whether or not the weekly email is on.', 'signal-and-noise-tools' ) ) . '</p>'
-		. \snt_kit_form(
-			'security_digest_save',
-			\snt_kit_field( 'hidden', 'sn_digest_test', '', '1' ),
-			array(
-				'submit' => __( 'Send test digest', 'signal-and-noise-tools' ),
-				'inline' => true,
-			)
-		);
-
-	return \snt_kit_section(
-		__( 'Weekly security digest', 'signal-and-noise-tools' ),
-		$save_form . $test_form
-	);
-}
-
-/**
  * The leaf.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
@@ -164,8 +72,11 @@ function paint_security_login_defense( array $ctx ) {
 	// alone at full width under them, half the window empty; the three boxes
 	// are of a height, so they share one row. A side that paints nothing
 	// (module absent) is dropped from the row.
-	$digest = function_exists( 'snt_security_digest_render_settings' ) ? login_defense_digest_html( login_defense_digest_state() ) : '';
-	return \snt_kit_grid( array( $status_box, login_defense_breach_html(), $digest ), 280 );
+	// The weekly digest's box shared this row until its switch moved to
+	// Settings > Notifications and reports; one line under the row says so.
+	$moved = '<p class="snt-hint">' . \snt_kit_esc( __( 'The weekly security digest switch moved to', 'signal-and-noise-tools' ) ) . ' '
+		. \snt_kit_go( __( 'Settings › Notifications and reports', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'notifications', 'current' => 'security' ) ) . '.</p>';
+	return \snt_kit_grid( array( $status_box, login_defense_breach_html() ), 280 ) . $moved;
 }
 
 add_filter(

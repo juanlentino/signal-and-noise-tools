@@ -109,3 +109,28 @@ function snt_config_drift_status() {
 		'captured_at'     => (int) ( $snapshot['captured_at'] ?? 0 ),
 	);
 }
+
+/**
+ * The box Connections > Cron keeps. Drift is a warning about operations, not a
+ * notification setting, so it stayed here when the brief's email switches
+ * moved to Settings > Notifications and reports. Its form posts
+ * morning_brief_save carrying snt_config_drift_acknowledge on every submit,
+ * and the handler returns on that field before it writes a switch.
+ */
+function snt_config_drift_render_cron_box() {
+	$drift = snt_config_drift_status();
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Configuration drift', 'signal-and-noise-tools' ) . '</h2>';
+	if ( empty( $drift['has_drift'] ) ) {
+		echo '<p class="sn-field-helper">' . esc_html__( 'No settings differ from the acknowledged snapshot.', 'signal-and-noise-tools' ) . '</p>';
+	} else {
+		echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Configuration drift: %d settings differ from the acknowledged snapshot.', (int) $drift['count'] ) ) . '</p>';
+		echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '"><input type="hidden" name="action" value="sn_morning_brief_save" /><input type="hidden" name="snt_config_drift_acknowledge" value="1" />';
+		wp_nonce_field( 'sn_morning_brief_save' );
+		echo '<div class="sn-fieldset-actions"><button type="submit" class="button">' . esc_html__( 'Acknowledge current settings', 'signal-and-noise-tools' ) . '</button></div></form>';
+	}
+	if ( function_exists( 'snt_notifications_moved_line' ) ) {
+		snt_notifications_moved_line( __( 'The morning brief and alert email switches moved to', 'signal-and-noise-tools' ) );
+	}
+	echo '</div>';
+}
+add_action( 'sn_admin_cron_tab', 'snt_config_drift_render_cron_box', 20 );

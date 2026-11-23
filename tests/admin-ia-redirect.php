@@ -72,6 +72,15 @@ eq( null, sn_admin_canonical_destination( 'site', 'front-end' ), 'site/front-end
 eq( null, sn_admin_canonical_destination( 'content', 'pattern-adoption' ), 'content/pattern-adoption canonical (new leaf, never had a prior home)' );
 eq( null, sn_admin_canonical_destination( 'ai', 'models-budget' ), 'ai/models-budget canonical' );
 eq( null, sn_admin_canonical_destination( 'tools', 'links' ), 'tools/links canonical' );
+// Settings > Notifications and reports took three switches, not a leaf: the
+// pane is canonical, and the two leaves the switches came from must NOT
+// redirect (a move entry would send every Cron and Login defense bookmark,
+// and every save from them, to Settings).
+eq( null, sn_admin_canonical_destination( 'settings', 'notifications' ), 'settings/notifications canonical (new pane)' );
+eq( null, sn_admin_canonical_destination( 'connections', 'cron' ), 'connections/cron still canonical: switches left it, the leaf did not move' );
+eq( null, sn_admin_canonical_destination( 'security', 'login-defense' ), 'security/login-defense still canonical' );
+eq( array( 'tab' => 'settings', 'sub' => 'notifications', 'anchor' => null ), sn_admin_post_redirect_target( 'settings', 'notifications' ), 'POST PRG: a save from the pane returns to the pane' );
+eq( array( 'tab' => 'connections', 'sub' => 'cron', 'anchor' => null ), sn_admin_post_redirect_target( 'connections', 'cron' ), 'POST PRG: Acknowledge and the reads form still return to Cron' );
 
 // ── Legacy flat slugs + retired tab ──
 $d = sn_admin_canonical_destination( 'cloudflare', '' );

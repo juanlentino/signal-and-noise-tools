@@ -29,7 +29,7 @@
  *          `run-cron-event` / `unschedule-cron-event` abilities, the same
  *          code path the classic buttons and the MCP door take.
  * Framework tabs (`App::tab()`) declare the window chrome tabs (Dashboard,
- * Site, Content, Connections, Measurement, AI, Security, Integrity). Each tab
+ * Site, Content, Connections, Measurement, AI, Security, Integrity, Settings). Each tab
  * is its own server session painted by the frame, while `sub` and parameters
  * live in tab session state.
  *
