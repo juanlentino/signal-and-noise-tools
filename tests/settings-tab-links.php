@@ -16,7 +16,9 @@
  * pointer write. It is the plugin's one spelling, not a highlight fix: by the
  * same rule it lights Dashboard, as every tab link does, and only the menu's
  * own `page=sn-settings` lights Settings. This suite reads the source of
- * inc/ and apps/ and fails on any other slug beside `tab=settings`.
+ * inc/ and apps/ and fails on any other slug written as a string beside
+ * `tab=settings` (`page=<slug>&tab=settings`). It does not read a link built
+ * from an array of query args; none exists today.
  *
  * Run: php tests/settings-tab-links.php
  */
