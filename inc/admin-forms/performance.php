@@ -55,7 +55,7 @@ function sn_admin_render_performance_section() {
 
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Speculative loading</h2>';
-	echo '<p class="sn-fieldset-intro">Since 6.8, WordPress ships native <a href="https://developer.chrome.com/docs/web-platform/prerender-pages" target="_blank" rel="noopener noreferrer">Speculation Rules</a> (default: <code>auto</code>/<code>auto</code>, which WordPress resolves to prefetch). With its switch on, this plugin asks for a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. With it off, WordPress&rsquo;s default stays. The Profile box lists what is in effect and what it leaves out.</p>';
+	echo '<p class="sn-fieldset-intro">Since 6.8, WordPress ships native <a href="https://developer.chrome.com/docs/web-platform/prerender-pages" target="_blank" rel="noopener noreferrer">Speculation Rules</a> (default: <code>auto</code>/<code>auto</code>, which WordPress resolves to prefetch unless the host set another). With its switch on, this plugin asks for a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. With it off, WordPress&rsquo;s default stays. The Profile box lists what is in effect and what it leaves out.</p>';
 	// Neither state is a warning: off is WordPress's own default, not nothing.
 	echo '<div class="sn-status-box">';
 	echo '<div><p class="sn-status-box-title">' . esc_html( $copy['state'] ) . '.</p></div>';

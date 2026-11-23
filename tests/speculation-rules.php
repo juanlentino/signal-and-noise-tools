@@ -109,6 +109,7 @@ assertEq( $core_default, sn_speculation_configuration( $core_default ), 'config 
 $other = array( 'mode' => 'prefetch', 'eagerness' => 'eager' );
 assertEq( $other, sn_speculation_configuration( $other ), 'config OFF passes through whatever another filter set, untouched' );
 assertEq( null, sn_speculation_configuration( null ), 'config OFF: core\'s null (a logged-in visitor, plain permalinks) stays null' );
+assertContains( '/contact/*', sn_speculation_href_exclude_paths( array(), 'prefetch' ), 'config OFF: /contact/* is still excluded, since core\'s own rules are now emitted' );
 
 // Re-enable for the exclude-path tests.
 sn_setting_update( 'perf.speculative_loading', true );
