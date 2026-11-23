@@ -17,6 +17,7 @@ $classic = acc_classic();
 $kit     = acc_kit();
 $ctext   = html_entity_decode( strip_tags( $classic ), ENT_QUOTES, 'UTF-8' );
 $ktext   = html_entity_decode( $kit, ENT_QUOTES, 'UTF-8' );
+snt_leaf_preview( 'settings-accounts', $kit );
 
 // ── 1) Headed boxes by account, Credentials first.
 $order = array( strpos( $classic, '<h2 class="sn-section-h">Credentials</h2><div class="sn-shell">' ), strpos( $classic, '</aside></div><div class="sn-2up"><div class="sn-fieldset"><h2 class="sn-fieldset-h">Zenodo</h2>' ), strpos( $classic, '<h2 class="sn-fieldset-h">Search engines (IndexNow)</h2>' ), strpos( $classic, '<h2 class="sn-fieldset-h">Muso.AI</h2>' ) );
