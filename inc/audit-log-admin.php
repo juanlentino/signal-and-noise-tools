@@ -55,8 +55,10 @@ function snt_audit_log_render_tab() {
 
 	// v7.1.0: two-column sn_admin_shell, matching the other leaves (Insights /
 	// Health). Wide data (glance hero + the 7-column counter timeline + the
-	// logins table) belongs in the MAIN column; the passive readouts and config
-	// (guard lockouts, retention, maintenance + export) move to the narrower RAIL.
+	// logins table) belongs in the MAIN column; the passive readouts and the
+	// actions (guard lockouts, maintenance + export) sit in the narrower RAIL.
+	// The retention form left for Settings > Security in 2026-11; the
+	// Maintenance card says so in one line.
 	// Contract: no early return between shell_open() and shell_close().
 	sn_admin_shell_open();
 
@@ -69,9 +71,8 @@ function snt_audit_log_render_tab() {
 	snt_audit_log_render_changes_table( function_exists( 'snt_audit_get_changes_impl' ) ? snt_audit_get_changes_impl( 30 ) : array() );
 
 	// ── RAIL: passive readouts + config ──
-	sn_admin_shell_rail( 'Lockouts, retention and maintenance' );
+	sn_admin_shell_rail( 'Lockouts and maintenance' );
 	snt_audit_log_render_guard_card( $summary['guard'] ?? array() );
-	snt_audit_log_render_retention_form();
 	snt_audit_log_render_prune_form();
 
 	sn_admin_shell_close();
@@ -211,7 +212,7 @@ function snt_audit_log_render_guard_card( $guard ) {
  */
 function snt_audit_log_render_prune_form() {
 	// v6.47.0: own a .sn-fieldset card so the block doesn't float bare now the
-	// leaf is 'wide' (bare .sn-section). Mirrors the retention form's chrome.
+	// leaf is 'wide' (bare .sn-section).
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Maintenance</h2>';
 	echo '<form method="post">';
@@ -221,6 +222,10 @@ function snt_audit_log_render_prune_form() {
 	echo '<p class="sn-prose">' . esc_html( snt_audit_prune_lead_text( $retention_days ) ) . '</p>';
 	echo '<p><button type="submit" class="button" data-snt-confirm="' . esc_attr( snt_audit_prune_confirm_text( $retention_days ) ) . '" data-snt-confirm-danger="1">Prune now</button></p>';
 	echo '</form>';
+	// The window the prune reads is set on Settings > Security since 2026-11.
+	if ( function_exists( 'snt_security_settings_moved_line' ) ) {
+		snt_security_settings_moved_line();
+	}
 
 	// v4.10.0: download the audit log (counters + login successes) as CSV/JSON.
 	// Nonce-protected admin-post.php GET links — NOT a form POST, so they never
@@ -244,7 +249,9 @@ function snt_audit_log_render_prune_form() {
 }
 
 /**
- * Render the retention-days form on the Audit log tab. Mirrors the
+ * Render the retention-days form. Painted on Settings > Security since
+ * 2026-11 (inc/admin-forms/security-settings.php); it sat in the Audit log
+ * tab's rail until then, which is why the card names the log now. Mirrors the
  * RSS tracker retention pattern (`sn_rss_tracker_render_settings_form()`).
  *
  * @since 4.2.0
@@ -255,7 +262,7 @@ function snt_audit_log_render_retention_form() {
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset">';
 	wp_nonce_field( 'sn_audit_save_retention' );
 	echo '<input type="hidden" name="action" value="sn_audit_save_retention">';
-	echo '<h2 class="sn-fieldset-h">Retention</h2>';
+	echo '<h2 class="sn-fieldset-h">Audit log retention</h2>';
 	echo '<label class="sn-field-label" for="sn_audit_retention">Retention (days)</label>';
 	echo '<input type="number" id="sn_audit_retention" name="audit_retention_days" class="small-text" min="7" max="365" value="' . esc_attr( (string) $retention ) . '">';
 	echo '<p class="sn-field-helper">' . esc_html__( 'How long to keep the daily counts, the successful-login records and the change records, 7 to 365 days. A daily cleanup deletes anything older.', 'signal-and-noise-tools' ) . '</p>';

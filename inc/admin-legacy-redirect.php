@@ -81,7 +81,7 @@ function sn_admin_legacy_redirect_map() {
 		'open-graph'   => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'open-graph' ),   // v3.8.1
 		'seo-copy'     => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'seo-copy' ),     // v3.8.1
 		'cloudflare'   => array( 'tab' => 'connections', 'sub' => 'cloudflare',        'anchor' => null ),  // v6.18.0: Site → Connections
-		'login'        => array( 'tab' => 'security',    'sub' => 'login',             'anchor' => null ),
+		'login'        => array( 'tab' => 'settings',    'sub' => 'security',          'anchor' => null ),  // 2026-11: Security > Login URL moved whole to Settings > Security; named directly, this map does not chain
 		'webhooks'     => array( 'tab' => 'connections', 'sub' => 'webhooks',          'anchor' => null ),  // v6.18.0: Automation → Connections
 		'cron'         => array( 'tab' => 'connections', 'sub' => 'cron',              'anchor' => null ),  // v6.18.0
 		'insights'     => array( 'tab' => 'monitoring',  'sub' => 'insights',          'anchor' => null ),
@@ -131,6 +131,11 @@ function sn_admin_subtab_moves() {
 		'tools/performance'   => array( 'tab' => 'site', 'sub' => 'performance' ),      // was content
 		'tools/front-end'     => array( 'tab' => 'site', 'sub' => 'front-end' ),        // was content
 		'monitoring/music'    => array( 'tab' => 'connections', 'sub' => 'music' ),     // was content
+
+		// ── 2026-11 Settings tab: the one leaf that moved there whole. The
+		// other panes took fields, not leaves, and have no line (an entry would
+		// redirect the leaf the field came from). ──
+		'security/login'      => array( 'tab' => 'settings', 'sub' => 'security' ),
 		// 'monitoring/rss' is deliberately ABSENT: RSS now lives in monitoring, so an
 		// entry here would bounce the leaf straight back out of its own tab.
 	);
@@ -285,7 +290,7 @@ function sn_admin_maybe_redirect_legacy() {
  * sn-site, sn-security, sn-automation, sn-monitoring, sn-tools) AND
  * sn_admin_pages() (legacy 12 slugs). Legacy slugs return their legacy
  * tab name (e.g., 'sn-login' → 'login'); the redirect map in
- * sn_admin_maybe_redirect_legacy() then 301s 'login' → 'security#sn-sec-login'.
+ * sn_admin_maybe_redirect_legacy() then 301s 'login' → tab=settings&sub=security.
  * New slugs return their canonical top-tab name (e.g., 'sn-site' → 'site');
  * no redirect needed.
  */

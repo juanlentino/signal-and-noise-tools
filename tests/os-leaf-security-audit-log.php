@@ -3,7 +3,7 @@
  * Native window leaf: Security → Audit log (apps/sn-dashboard/parts/leaves/security-audit-log.php).
  *
  * The oracle is the classic leaf (`snt_audit_log_render_tab()`,
- * inc/audit-log-admin.php): the kit port must carry the same two field names
+ * inc/audit-log-admin.php): the kit port must carry the same field names
  * / sn_action values, the same numbers off the same readers, and none of
  * wp-admin's markup.
  *
@@ -47,15 +47,18 @@ if ( ! function_exists( 'sn_admin_glance_grid' ) ) {
 
 require SNT_PATH . 'inc/audit-log.php';
 require SNT_PATH . 'inc/audit-log-admin.php';
+if ( is_file( SNT_PATH . 'inc/admin-forms/security-settings.php' ) ) { // Absent before the change: the pointer assertions go red.
+	require SNT_PATH . 'inc/admin-forms/security-settings.php';
+}
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/security-audit-log.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
-// 2026-10-16: the one earned fold is the Setup card's Retention (a setting,
-// its summary the window; tests/sn-dashboard-no-folds.php lists it). Any
-// other fold, the logins ledger above all, is still a failure.
+// The leaf earns no fold: its one fold was the Setup card's Retention, and
+// the retention field moved to Settings › Security. Any fold, the logins
+// ledger above all, is a failure.
 function al_unearned_folds( $html ) {
-	return snt_leaf_folds( preg_replace( '/<os-disclosure heading="Retention" hint="[0-9,]+ days?"/', '', (string) $html, 1 ) );
+	return snt_leaf_folds( (string) $html );
 }
 
 /** One day key, matching how the readers compute it (today = 0). */
@@ -96,7 +99,7 @@ $kit     = snt_leaf_paint( 'security', 'audit-log' );
 
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( array( 'audit_prune_now', 'audit_save_retention' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'both actions offered, matching the classic leaf: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( array( 'audit_prune_now' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action left is Prune now, on both twins (Save retention moved to Settings › Security): ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 // ── Glance hero: last-24h totals, 7d trend, unique IPs, guard lockouts.
@@ -152,9 +155,13 @@ foreach ( $classic_headings[1] as $heading ) {
 ok( 1 === preg_match( '/<os-button variant="link" os-action="go" os-arg-sub="login-defense">Open Login defense →<\/os-button>/', $kit ), 'the guard card goes to the Login defense sub-tab inside the window' );
 ok( false !== strpos( $classic, 'sub=login-defense" class="button button-secondary">Open Login defense →</a>' ), 'the classic guard card links to the Login defense sub-tab' );
 
-// ── Retention form: same field, same value, same handler.
-ok( false !== strpos( $kit, '<os-number-field name="audit_retention_days" value="90"' ), 'the retention field carries the current value' );
-ok( 1 === substr_count( $kit, '<os-disclosure' ) && false !== strpos( $kit, 'heading="Setup"' ) && 1 === preg_match( '/<os-disclosure heading="Retention" hint="90 days"[^>]*data-snt-open="0"><os-stack gap="12"><os-form[^>]*submit-label="Save retention"/', $kit ), 'Retention is the one fold, in a Setup card: closed, its summary the window (90 days), the form inside' );
+// ── Retention: the field moved to Settings › Security; the reading and one line stay.
+ok( false === strpos( $kit . $classic, 'audit_retention_days' ) && false === strpos( $kit . $classic, 'audit_save_retention' ) && false === strpos( $kit . $classic, 'Save retention' ), 'no retention field or Save on either twin' );
+ok( 0 === substr_count( $kit, '<os-disclosure' ) && false === strpos( $kit, 'heading="Setup"' ), 'no Setup card and no fold: the one setting it folded is gone' );
+ok( false !== strpos( $kit, 'Kept 90 days.' ) && false !== strpos( $classic, 'Kept 90 days.' ), 'the lead sentence still reads the window (a reading, it stays)' );
+ok( 1 === substr_count( $kit, '<p class="snt-hint">The retention setting moved to <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="security" data-snt-anchor="">Settings › Security</os-button>.</p>' ), 'native: one line says where the setting went, a go to the pane (not a door)' );
+ok( 1 === substr_count( $classic, '<p class="sn-field-helper">The retention setting moved to <a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=security">Settings › Security</a>.</p>' ), 'classic: the same one line, a link to the pane' );
+ok( false !== strpos( $classic, '<h2>Lockouts and maintenance</h2>' ), 'classic: the rail is headed for what it still holds' );
 ok( 1 === preg_match( '/<p class="snt-prose">Run the daily cleanup now[^<]*<\/p><os-form class="snt-form snt-form--inline"[^>]*submit-label="Prune now"/', $kit ), 'Prune now is the compact one-button form under its sentence, not a full-width form row' );
 
 // ── Maintenance: prune form (inline pipeline) + both export doors, nonce intact.
@@ -254,16 +261,17 @@ ok( array() === al_unearned_folds( $first_paint ) && array() === al_unearned_fol
 // ── Siblings pair; a stack is for steps. ──
 // 2026-10-11 (no folds): the logins log is an open table of up to 50 rows,
 // several times the lockouts card's height, so it stands alone at full width and
-// only the two controls (retention, maintenance) still share a row.
+// the short boxes share a row. Retention left for Settings › Security, so the
+// row is two: lockouts and maintenance.
 $kitP = snt_leaf_paint( 'security', 'audit-log' );
 // 2026-10-12 audit: the lockouts box stood alone at full width; it joins the two controls.
 ok(
-	1 === substr_count( $kitP, snt_leaf_row( 3, 260 ) ),
-	'the lockouts box and the two controls are painted in one row of three -- ' . substr_count( $kitP, snt_leaf_row( 3, 260 ) )
+	1 === substr_count( $kitP, snt_leaf_row( 2, 260 ) ),
+	'the lockouts box and Maintenance are painted in one row of two -- ' . substr_count( $kitP, snt_leaf_row( 2, 260 ) )
 );
-$al_pair = substr( $kitP, (int) strpos( $kitP, snt_leaf_row( 3, 260 ) ) );
+$al_pair = substr( $kitP, (int) strpos( $kitP, snt_leaf_row( 2, 260 ) ) );
 $al_pair = substr( $al_pair, 0, (int) strpos( $al_pair, '</os-grid>' ) );
-ok( false === strpos( $al_pair, 'Recent successful logins' ) && false !== strpos( $al_pair, 'heading="Login lockouts (login guard)"' ) && false !== strpos( $al_pair, 'heading="Retention"' ) && false !== strpos( $al_pair, 'heading="Maintenance"' ), 'the logins ledger is not in the row; the row is lockouts, retention and maintenance' );
+ok( false === strpos( $al_pair, 'Recent successful logins' ) && false !== strpos( $al_pair, 'heading="Login lockouts (login guard)"' ) && false === strpos( $kitP, 'heading="Retention"' ) && false !== strpos( $al_pair, 'heading="Maintenance"' ) && false !== strpos( $al_pair, 'The retention setting moved to' ), 'the logins ledger is not in the row; the row is lockouts and maintenance, the moved line inside Maintenance' );
 ok( 1 === preg_match( '/<os-form[^>]*os-confirm="Delete the audit records older than 90 days now\? This cannot be undone\."[^>]*os-confirm-danger/', $kitP ) && false !== strpos( snt_leaf_classic_html( 'snt_audit_log_render_tab' ), 'data-snt-confirm="Delete the audit records older than 90 days now? This cannot be undone." data-snt-confirm-danger="1">Prune now' ), 'Prune now asks first, on both twins (it deletes rows)' );
 
 // ── Live-shaped preview: ~180 successful logins by two users, a few failed.

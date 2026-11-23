@@ -113,7 +113,7 @@ function snt_watch_ripe_guard_routes( $watch, $now ) {
 		return array( 'ripe' => true, 'note' => 'Cloudflare routes could not be read: ' . $last['error'] );
 	}
 	if ( (int) $last['missing'] > 0 || (int) $last['stale'] > 0 ) {
-		return array( 'ripe' => true, 'note' => sprintf( '%d of the login address\'s guard routes missing, %d left from a retired address. Save the Login URL again in S&N Home: one save restores and prunes them.', (int) $last['missing'], (int) $last['stale'] ) );
+		return array( 'ripe' => true, 'note' => sprintf( '%d of the login address\'s guard routes missing, %d left from a retired address. Save the Login URL again in S&N Home, Settings › Security: one save restores and prunes them.', (int) $last['missing'], (int) $last['stale'] ) );
 	}
 	if ( (int) $now - (int) $last['at'] > 2 * DAY_IN_SECONDS ) {
 		return array( 'ripe' => true, 'note' => 'the daily route check has not run since ' . gmdate( 'Y-m-d H:i', (int) $last['at'] ) . ' UTC' );

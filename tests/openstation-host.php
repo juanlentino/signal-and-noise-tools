@@ -424,7 +424,7 @@ if ( '' === $api ) {
 	ok( 'go' === $back['os-action'] && 'content' === $back['os-arg-tab'] && 'tags' === $back['os-arg-sub'] && null === $back['os-arg-url'],
 		'an own-page link written with a TOP-TAB slug (page=sn-content, what sn_admin_tag_page_url() returns) is a `go` -- with one literal slug it was a door, and Cancel on the merge preview opened a second admin window' );
 	$legacy = $attrs( $out, 'A', 'lnk-legacy' );
-	ok( 'go' === $legacy['os-action'] && 'security' === $legacy['os-arg-tab'] && 'login' === $legacy['os-arg-sub'],
+	ok( 'go' === $legacy['os-action'] && 'settings' === $legacy['os-arg-tab'] && 'security' === $legacy['os-arg-sub'],
 		'   ...and a pre-v3.8 slug (page=sn-login) resolves through sn_admin_page_tab_for_slug() + sn_admin_canonical_destination() -- the SAME map the 301 uses, called' );
 	$diag = $attrs( $out, 'A', 'lnk-diag' );
 	ok( 'sn-dash-diagnostics' === $diag['os-arg-anchor'],
@@ -742,10 +742,10 @@ $hooked     = array_filter( $table_keys, static function ( $key ) { return has_a
 ok( count( $table_keys ) === count( $hooked ) && count( $table_keys ) > 60, 'every entry of sn_admin_post_handlers() has its admin_post_sn_<action> hook (' . count( $hooked ) . ' of ' . count( $table_keys ) . '), the table staying the single source of truth' );
 $src_dispatch = (string) file_get_contents( __DIR__ . '/../inc/admin-post-handler.php' );
 ok( false === strpos( $src_dispatch, "'admin_init'" ) && false !== strpos( $src_dispatch, "check_admin_referer( 'sn_' . \$action )" ), '   ...and nothing dispatches from admin_init any more: the one shared gate is check_admin_referer( sn_<action> ) on each hook' );
-$_GET = array( 'page' => 'sn-theme-options', 'tab' => 'security', 'sub' => 'login', 'other' => 'dropped' );
-ok( 'https://example.test/wp-admin/admin-post.php?page=sn-theme-options&tab=security&sub=login' === sn_admin_post_url(), 'sn_admin_post_url() posts to admin-post.php carrying the page, tab and sub the form was painted on, and nothing else' );
-ok( 'https://example.test/wp-admin/admin-post.php?page=sn-theme-options&tab=security&sub=login&_wpnonce=nonce-sn_full_reset' === html_entity_decode( sn_admin_post_url( 'full_reset' ) ), '   ...and with an action, the nonce minted for THAT action rides the URL (wp_nonce_url)' );
-ok( ' name="action" value="sn_full_reset" formaction="https://example.test/wp-admin/admin-post.php?page=sn-theme-options&tab=security&sub=login&_wpnonce=nonce-sn_full_reset"' === html_entity_decode( html_entity_decode( sn_admin_post_button( 'full_reset' ) ) ), 'sn_admin_post_button() names the hook and carries that action\'s nonce on formaction=, so a form with several buttons has one nonce per button' );
+$_GET = array( 'page' => 'sn-theme-options', 'tab' => 'settings', 'sub' => 'security', 'other' => 'dropped' );
+ok( 'https://example.test/wp-admin/admin-post.php?page=sn-theme-options&tab=settings&sub=security' === sn_admin_post_url(), 'sn_admin_post_url() posts to admin-post.php carrying the page, tab and sub the form was painted on, and nothing else' );
+ok( 'https://example.test/wp-admin/admin-post.php?page=sn-theme-options&tab=settings&sub=security&_wpnonce=nonce-sn_full_reset' === html_entity_decode( sn_admin_post_url( 'full_reset' ) ), '   ...and with an action, the nonce minted for THAT action rides the URL (wp_nonce_url)' );
+ok( ' name="action" value="sn_full_reset" formaction="https://example.test/wp-admin/admin-post.php?page=sn-theme-options&tab=settings&sub=security&_wpnonce=nonce-sn_full_reset"' === html_entity_decode( html_entity_decode( sn_admin_post_button( 'full_reset' ) ) ), 'sn_admin_post_button() names the hook and carries that action\'s nonce on formaction=, so a form with several buttons has one nonce per button' );
 $_GET = array();
 // (decoded twice: core's esc_url() folds wp_nonce_url()'s &amp; into &#038;; this suite's esc_url() stub escapes again.)
 $fragment = snt_os_host_borrowed( array( '_wpnonce' => 'good-nonce', 'action' => 'sn_save_identity' ), array( 'tab' => 'identity' ), 'sn-theme-options', static function () { do_action( 'admin_post_sn_save_identity' ); } );
@@ -786,7 +786,8 @@ foreach ( array( 'monitoring', 'site', 'content', 'connections', 'security', 'to
 $_GET = array();
 ok( '' === snt_os_host_resolve_sub( 'dashboard', 'anything' ), 'a landing tab has no sub-tab, whatever was asked for' );
 ok( 'health' === snt_os_host_resolve_sub( 'monitoring', 'health' ), 'a leaf the tab really has is kept' );
-ok( 'notifications' === snt_os_host_resolve_sub( 'settings', '' ) && 'notifications' === snt_os_host_resolve_sub( 'settings', 'notifications' ), 'the settings tab lands on its one pane, named or not' );
+ok( 'notifications' === snt_os_host_resolve_sub( 'settings', '' ) && 'notifications' === snt_os_host_resolve_sub( 'settings', 'notifications' ) && 'security' === snt_os_host_resolve_sub( 'settings', 'security' ), 'the settings tab lands on its first pane unnamed, and on the pane it is asked for' );
+ok( 'login-defense' === snt_os_host_resolve_sub( 'security', 'login' ), 'a Security session still holding the moved leaf (login) falls to the tab\'s first leaf, never a blank' );
 
 echo "\nGroup 6: the `sn_*` params a window carries\n";
 // The WIRE shape, expanded the way every entry point expands it -- feeding
