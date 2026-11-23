@@ -140,7 +140,7 @@ foreach ( $field_names as $fn ) {
 	}
 }
 ok( empty( $missing ), 'form: emits all 7 render-knob inputs (' . ( $missing ? 'missing: ' . implode( ',', $missing ) : 'all present' ) . ')' );
-// v10.46.0: the model selects moved to inc/admin-forms/ai-settings.php.
+// v10.46.0: the model selects moved to the AI settings form (inc/admin-forms/ai-models-form.php since 2026-11).
 ok( strpos( $form, 'value="claude-opus-4-8"' ) === false, 'form: no model options remain in the render-knobs form' );
 
 // ── P5: theme-filter callbacks (the cross-package contract) ──────────
