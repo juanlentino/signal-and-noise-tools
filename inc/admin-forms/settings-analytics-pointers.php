@@ -56,9 +56,10 @@ function snt_settings_analytics_titles() {
 /**
  * The sentence an old screen keeps, up to the link. It names settings and
  * never a value. Measurement > Analytics names the boxes it lost by their
- * titles; the native leaf also had North star, which has no classic form.
+ * titles; the native leaf also had North star, which the classic leaf never
+ * had (its classic twin was born on the pane).
  *
- * @param string $from `analytics`, `analytics-native`, `rss`, `machine-readers` or `insights`.
+ * @param string $from `analytics`, `analytics-native`, `device` (the window's Your devices card), `rss`, `machine-readers` or `insights`.
  * @return string
  */
 function snt_settings_analytics_moved_text( $from ) {
@@ -70,6 +71,7 @@ function snt_settings_analytics_moved_text( $from ) {
 		return sprintf( __( '%1$s and %2$s moved to', 'signal-and-noise-tools' ), implode( ', ', $boxes ), $last );
 	}
 	$texts = array(
+		'device'          => __( 'Excluding this device when logged out, or counting it again, moved to', 'signal-and-noise-tools' ),
 		'rss'             => __( 'The tracking switch, the event name and the log retention moved to', 'signal-and-noise-tools' ),
 		'machine-readers' => __( 'The Worker URL moved to', 'signal-and-noise-tools' ),
 		'insights'        => __( 'The weekly scan switch moved to', 'signal-and-noise-tools' ),

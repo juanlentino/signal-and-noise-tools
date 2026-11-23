@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/admin-forms/settings-accounts-pointers.php'; // snt_settings_accounts_url(): the pane these boxes point at.
+
 add_action( 'sn_admin_webhooks_tab', 'sn_webhooks_render_admin_tab' );
 
 /**
@@ -221,7 +223,7 @@ function sn_webhooks_render_admin_tab() {
 		}
 		echo '</tbody></table>';
 	}
-	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=settings&sub=accounts' ) ) . '">Settings › Accounts and connections</a>.</p>';
+	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( snt_settings_accounts_url() ) . '">Settings › Accounts and connections</a>.</p>';
 	echo '</div>'; // .sn-fieldset
 
 	// ── RAIL: at-a-glance status + payload reference ──

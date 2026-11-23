@@ -34,7 +34,8 @@ function sn_setting_reset_cache() {}
 function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
 function sn_beacon_excludable_roles() { return $GLOBALS['__roles']; }
 function sn_beacon_sanitize_exclude_roles( $submitted ) { return array_values( array_intersect( array_map( 'strval', (array) $submitted ), array_keys( $GLOBALS['__roles'] ) ) ); }
-function sn_beacon_owner_current_user_excluded() { return false; }
+function sn_beacon_owner_current_user_excluded() { return $GLOBALS['__owner_excluded'] ?? false; } // a suite sets it to see This device.
+function sn_owner_device_flagged() { return $GLOBALS['__device_flagged'] ?? false; }
 function snt_mr_cache_flush() {}
 function snt_insights_weekly_cron_enabled() { return (bool) sn_setting( 'insights.weekly_cron_enabled', false ); }
 function sn_admin_shell_open() {}

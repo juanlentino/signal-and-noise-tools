@@ -2,8 +2,9 @@
 /**
  * S&N Dashboard: the collector and exclusion forms, the bodies of two boxes
  * on Settings > Analytics since 2026-11 (settings-analytics.php heads them
- * from the pane's one list of titles), and the This device control the Your
- * devices card on Measurement > Analytics paints. Readers, field names and
+ * from the pane's one list of titles), and the This device control, which the
+ * pane paints after the roles since 2026-11 (it was on the Your devices card
+ * of Measurement > Analytics). Readers, field names and
  * sn_action values are the classic renderer's, unchanged.
  *
  * @package SignalNoiseTools
@@ -100,7 +101,8 @@ function analytics_exclusion_html() {
  * This device: excluded even when logged out, or counted when logged out,
  * and the one action that flips it (2026-10-12 audit: the classic box had
  * it, S&N Home did not, so a device could not be flagged here). Only for a
- * user whose role is excluded, as on the classic box. Its own form, because
+ * user whose role is excluded, as on the classic box, and beside the roles
+ * as it is there. Its own form, because
  * the role form's submit is Save exclusion; `analytics_owner_device` sets
  * the same cookie the classic link does.
  *

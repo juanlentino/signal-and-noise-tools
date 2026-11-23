@@ -8,7 +8,9 @@
  *
  * Every body is the function the old leaf called, so every field, name,
  * bound and word is the one it was: the collector, the roles kept out (one
- * select per role, generated from sn_beacon_excludable_roles(), ONE form),
+ * select per role, generated from sn_beacon_excludable_roles(), ONE form)
+ * with This device after it, where the classic box has it (its own form, for
+ * a user whose role is excluded; it was on the Your devices card until 2026-11),
  * engine tuning, session funnels, publish windows and North star from
  * Measurement > Analytics; feed tracking from Measurement > RSS (ONE form of
  * three fields; its notice is the tracker's own `sn_rss_ok`); the Worker URL
@@ -60,7 +62,7 @@ function settings_analytics_bodies() {
 	$bodies = array();
 	if ( function_exists( '\snt_an_tuning_presets' ) && function_exists( '\snt_an_funnels_copy' ) ) {
 		$bodies['collector'] = analytics_collector_html();
-		$bodies['roles']     = analytics_exclusion_html();
+		$bodies['roles']     = analytics_exclusion_html() . analytics_device_html();
 		$bodies['tuning']    = analytics_tuning_html();
 		$bodies['funnels']   = analytics_funnels_html();
 	}

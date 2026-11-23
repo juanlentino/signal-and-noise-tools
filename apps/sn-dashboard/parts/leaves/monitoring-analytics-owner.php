@@ -10,16 +10,20 @@
  *
  * 2026-10-16: the Your devices card, open (a control in regular use, never a
  * fold): this browser, who is kept out while logged in, the devices with a
- * Revoke each, enroll, This device and Revoke all; the long explanation sits
+ * Revoke each, enroll and Revoke all; the long explanation sits
  * under a small How this works fold (snt_kit_how_fold()).
  *
  * Live check (owner, desktop PWA, 2026-10-16): each Revoke sat alone on a
  * full-width row with its form's footer rule, so the card stood twice its
  * neighbors' height. Every action here is a compact one-button form
  * (snt_kit_form( ..., array( 'inline' => true ) )): the revokes and Revoke
- * all in one wrapping row under the table, danger outlines, and This device
- * beside its own line. Revoke all's long hint moved into How this works; its
- * confirm still states it before anything is revoked.
+ * all in one wrapping row under the table, danger outlines. Revoke all's
+ * long hint moved into How this works; its confirm still states it before
+ * anything is revoked.
+ *
+ * 2026-11: This device (a per-browser switch, not a row of the list) left for
+ * Settings > Analytics, beside the roles, where the classic screen has it.
+ * The card keeps one line saying so, for the user who was offered it.
  *
  * @package SignalNoiseTools
  * @since 2026.10.18
@@ -31,7 +35,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-require_once __DIR__ . '/monitoring-analytics-settings.php'; // analytics_device_html()
+require_once __DIR__ . '/settings-analytics-parts.php'; // settings_analytics_moved_html()
 
 /**
  * The Your devices card.
@@ -39,7 +43,8 @@ require_once __DIR__ . '/monitoring-analytics-settings.php'; // analytics_device
  * @return string
  */
 function analytics_owner_devices_html() {
-	$device = analytics_device_html();
+	// Where This device was: one line, under the condition the control has.
+	$device = ( function_exists( '\sn_beacon_owner_current_user_excluded' ) && \sn_beacon_owner_current_user_excluded() && function_exists( '\sn_owner_device_flagged' ) ) ? settings_analytics_moved_html( 'device' ) : '';
 	if ( ! function_exists( '\sn_owner_devices_view' ) ) {
 		$who = analytics_kept_out_html();
 		return '' === $device . $who ? '' : \snt_kit_section( __( 'Your devices', 'signal-and-noise-tools' ), $who . $device );

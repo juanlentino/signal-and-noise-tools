@@ -62,7 +62,8 @@
  * - sn_handle_north_star_save() (inc/north-star-settings.php) writes the page
  *   groups (none posted: every group counts), the scroll depth (`?? 50`) and
  *   the time on page (`?? 30`) as one setting. The groups are one select per
- *   group, so the rule adds: one form, holding one per group.
+ *   group, so the rule adds: one form, holding one per group. Held on BOTH
+ *   twins since the classic pane gained the box (2026-11).
  *
  * One more backs Settings > General, the widest of them:
  *

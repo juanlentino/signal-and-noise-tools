@@ -21,6 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/settings-accounts-pointers.php'; // snt_settings_accounts_url(): the pane these boxes point at.
+
 /**
  * Which of the four sync states the store is in, in the words both surfaces
  * say (2026-10-12 audit: the twins pointed at different places, "the status
@@ -100,7 +102,7 @@ function sn_admin_render_music_section() {
 	echo '<tr><th scope="row">Client ID</th><td>' . esc_html( $id_const ? 'wp-config (SN_SPOTIFY_CLIENT_ID)' : ( '' !== $id_opt ? 'Saved' : 'Not set' ) ) . '</td></tr>';
 	echo '<tr><th scope="row">Client Secret</th><td>' . esc_html( $secret_const ? 'wp-config (SN_SPOTIFY_CLIENT_SECRET)' : ( '' !== $secret_opt ? 'Saved' : 'Not set' ) ) . '</td></tr>';
 	echo '</tbody></table>';
-	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=settings&sub=accounts' ) ) . '">Settings › Accounts and connections</a>.</p>';
+	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( snt_settings_accounts_url() ) . '">Settings › Accounts and connections</a>.</p>';
 	echo '</div>';
 
 	// ── Featured release (v4.14.0): the one "press play" player on /music. ──

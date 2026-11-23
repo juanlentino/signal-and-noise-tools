@@ -41,28 +41,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/settings-accounts-pointers.php'; // the pane's address and name.
 require_once __DIR__ . '/settings-accounts-forms.php';
 require_once __DIR__ . '/settings-accounts-search-console.php'; // the Search Console box (2026-11).
-
-/**
- * The pane's address, for the lines the old screens keep.
- *
- * @return string
- */
-function snt_settings_accounts_url() {
-	return function_exists( 'snt_desktop_admin_url' )
-		? snt_desktop_admin_url( 'sn-settings', 'accounts' )
-		: admin_url( 'admin.php?page=sn-theme-options&tab=settings&sub=accounts' );
-}
-
-/**
- * The pane's name as every pointer says it. Shared by both twins.
- *
- * @return string
- */
-function snt_settings_accounts_label() {
-	return __( 'Settings › Accounts and connections', 'signal-and-noise-tools' );
-}
 
 /**
  * The sentence an old screen keeps, up to the link. Shared by both twins. It

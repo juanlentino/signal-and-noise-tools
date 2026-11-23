@@ -244,6 +244,20 @@ $nh = analytics_owner_devices_html();
 $ch = $classic();
 ok( false === strpos( $nh, '<script>' ) && false === strpos( $nh, '"><' . 'script' ) && false !== strpos( $nh, '&lt;script&gt;' ), 'native: the label is escaped in the revoke confirm and the table' );
 ok( false === strpos( $ch, '<script>' ) && false !== strpos( $ch, '&lt;script&gt;' ), 'classic: the label is escaped in the confirm and the table' );
+
+// ── 2026-11: This device left the card for Settings › Analytics. The card
+// production paints (the list, the revokes, How this works) keeps one line
+// about it, for the user who was offered the control, and no device form.
+if ( ! function_exists( 'sn_beacon_owner_current_user_excluded' ) ) { function sn_beacon_owner_current_user_excluded() { return ! empty( $GLOBALS['__owner_excluded'] ); } }
+if ( ! function_exists( 'sn_owner_device_flagged' ) ) { function sn_owner_device_flagged() { return false; } }
+require_once SNT_PATH . 'inc/admin-forms/settings-analytics-pointers.php';
+$line = 'Excluding this device when logged out, or counting it again, moved to <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="analytics" data-snt-anchor="">Settings › Analytics</os-button>.';
+$plain = analytics_owner_devices_html();
+$GLOBALS['__owner_excluded'] = true;
+$moved = analytics_owner_devices_html();
+$GLOBALS['__owner_excluded'] = false;
+ok( false === strpos( $plain, 'Excluding this device' ) && 1 === substr_count( $moved, $line ) && strpos( $moved, $line ) > strpos( $moved, 'submit-label="Revoke' ) && strpos( $moved, $line ) < strpos( $moved, '<os-disclosure' ) && 1 === substr_count( $moved, '<os-disclosure' ), 'native: a user whose role is excluded reads where This device went, once, after the revokes and before How this works; a counted user reads nothing about it' );
+ok( false === strpos( $plain . $moved, 'sn_analytics_owner_device' ) && false === strpos( $plain . $moved, 'This device is' ) && str_replace( '<p class="snt-hint">' . $line . '</p>', '', $moved ) === $plain, 'native: the card has no This device form, and the line is the only thing an excluded role changes on it: the list, the revokes and the fold are untouched' );
 $GLOBALS['__options']['sn_owner_devices'] = array();
 
 // ── One key, two domains: a device marker never verifies as an agent token or back.

@@ -44,6 +44,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/settings-accounts-pointers.php'; // snt_settings_accounts_url(): the pane these boxes point at.
+
 require_once dirname( __DIR__ ) . '/ai-model-catalog.php'; // the model defaults and lists (21.0.0).
 require_once __DIR__ . '/ai-settings-parts.php'; // the embeddings sentence and the Copilot row both twins print (2026-10-12).
 require_once __DIR__ . '/ai-models-form.php'; // the five settings, painted on Settings > AI (2026-11).
@@ -129,13 +131,13 @@ function sn_admin_render_ai_settings_form() {
 	echo '<div class="sn-field">';
 	echo '<span class="sn-field-label">' . esc_html__( 'Workers AI token (semantic embeddings)', 'signal-and-noise-tools' ) . '</span>';
 	$embed_token = function_exists( 'snt_ml_embed_token' ) ? snt_ml_embed_token() : '';
-	echo '<p class="sn-field-helper">' . ( '' !== $embed_token ? '<span class="sn-pill sn-pill--ok">' . esc_html__( 'set', 'signal-and-noise-tools' ) . '</span>' : '<span class="sn-pill sn-pill--warn">' . esc_html__( 'not set', 'signal-and-noise-tools' ) . '</span>' ) . ' ' . esc_html__( 'Set under', 'signal-and-noise-tools' ) . ' <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=settings&sub=accounts' ) ) . '">Settings › Accounts and connections</a>.</p>';
+	echo '<p class="sn-field-helper">' . ( '' !== $embed_token ? '<span class="sn-pill sn-pill--ok">' . esc_html__( 'set', 'signal-and-noise-tools' ) . '</span>' : '<span class="sn-pill sn-pill--warn">' . esc_html__( 'not set', 'signal-and-noise-tools' ) . '</span>' ) . ' ' . esc_html__( 'Set under', 'signal-and-noise-tools' ) . ' <a href="' . esc_url( snt_settings_accounts_url() ) . '">Settings › Accounts and connections</a>.</p>';
 	if ( function_exists( 'snt_ml_embed_configured' ) ) {
 		$embed_text = sn_admin_ai_embed_sentence( snt_ml_embed_configured(), function_exists( 'snt_ml_embed_account_id' ) ? (string) snt_ml_embed_account_id() : '' );
 		if ( snt_ml_embed_configured() ) {
 			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--ok">' . esc_html__( 'Configured', 'signal-and-noise-tools' ) . '</span> ' . esc_html( $embed_text ) . '</p>';
 		} else {
-			echo '<p class="sn-field-helper"><strong>' . esc_html__( 'Semantic embeddings', 'signal-and-noise-tools' ) . ':</strong> ' . esc_html( $embed_text ) . ' <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=settings&sub=accounts' ) ) . '">' . esc_html__( 'Settings › Accounts and connections', 'signal-and-noise-tools' ) . '</a>.</p>';
+			echo '<p class="sn-field-helper"><strong>' . esc_html__( 'Semantic embeddings', 'signal-and-noise-tools' ) . ':</strong> ' . esc_html( $embed_text ) . ' <a href="' . esc_url( snt_settings_accounts_url() ) . '">' . esc_html__( 'Settings › Accounts and connections', 'signal-and-noise-tools' ) . '</a>.</p>';
 		}
 	}
 	echo '</div>';
