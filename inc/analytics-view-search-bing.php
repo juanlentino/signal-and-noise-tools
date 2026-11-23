@@ -4,7 +4,7 @@
  *
  * Painted after Google's tables from the record the daily Bing sync stores
  * (inc/bing-webmaster.php). Three states, each naming its one next action:
- * no key (Connections › Credentials), a key with nothing synced yet, a
+ * no key (Settings › Accounts and connections), a key with nothing synced yet, a
  * synced window with its KPIs and top queries. Same table renderer as the
  * Google tables, so the two readings sit in the same shape.
  *
@@ -29,7 +29,7 @@ function snt_analytics_render_search_bing() {
 	// collected here would leak into the next view; see the flush contract).
 	if ( ! sn_bing_is_ready() ) {
 		snt_an_panel_open( __( 'Bing', 'signal-and-noise-tools' ) );
-		echo '<p>' . esc_html__( 'No Bing Webmaster API key yet. Mint one at Bing Webmaster Tools › Settings › API access and paste it under Connections › Credentials.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html__( 'No Bing Webmaster API key yet. Mint one at Bing Webmaster Tools › Settings › API access and paste it under Settings › Accounts and connections.', 'signal-and-noise-tools' ) . '</p>';
 		snt_an_panel_close();
 		return;
 	}

@@ -43,7 +43,7 @@ The site is also something models fetch, and the plugin treats that as a first-c
 |---|---|---|
 | Anthropic (text) | WordPress AI Client | Settings › Connectors (Core's `ai_provider` card) |
 | Google (alt text, vision) | WordPress AI Client | Settings › Connectors (Core's `ai_provider` card) |
-| Cloudflare Workers AI (embeddings) | this plugin's keyring | S&N › Connections › Credentials (`workers_ai_token`) |
+| Cloudflare Workers AI (embeddings) | this plugin's keyring | S&N › Settings › Accounts and connections (`workers_ai_token`) |
 | TypeSafe (Jev) | Tribar Connector for TypeSafe Jev | Settings › Connectors (`typesafe`, type `ai_decision`) |
 
 The connector does not register as an `ai_provider` yet: on save, Core checks each `ai_provider` key against the AI Client provider class registered under the same id and clears it when there is none, and Jev has no provider class because the AI Client has no capability for decision models ([php-ai-client#296](https://github.com/WordPress/php-ai-client/issues/296)). Its `CLAUDE.md` records that decision and the others that look like bugs until you know why they are there.

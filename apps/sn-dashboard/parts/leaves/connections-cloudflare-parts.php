@@ -112,7 +112,7 @@ function cloudflare_status_html( array $d ) {
 		return \snt_kit_notice(
 			'warn',
 			'<b>' . \snt_kit_esc( __( 'Not configured', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_badge( 'warn', __( 'Inactive', 'signal-and-noise-tools' ) ) . '<br>'
-			. \snt_kit_esc( __( 'Auto-purge disabled. Set both the API token and zone ID under Credentials to activate.', 'signal-and-noise-tools' ) )
+			. \snt_kit_esc( __( 'Auto-purge disabled. Set both the API token and zone ID in Settings › Accounts and connections to activate.', 'signal-and-noise-tools' ) )
 		);
 	}
 	$last = (array) $d['last_purge'];

@@ -99,7 +99,7 @@ function sn_admin_firewall_render() {
 	$record = sn_cf_readings_record();
 	echo '<p class="sn-prose">What Cloudflare stopped before WordPress ran, from the zone\'s firewall log, read daily with the monitor.</p>';
 	if ( ! is_array( $record ) || empty( $record['configured'] ) ) {
-		echo '<p class="sn-field-helper">' . ( is_array( $record ) ? 'Not configured: set the Cloudflare token under Connections › Credentials.' : 'The monitor has not run yet.' ) . '</p>';
+		echo '<p class="sn-field-helper">' . ( is_array( $record ) ? 'Not configured: set the Cloudflare token under Settings › Accounts and connections.' : 'The monitor has not run yet.' ) . '</p>';
 		sn_cf_readings_refresh_form( $record );
 		sn_admin_firewall_pinning_render(); // the posture does not wait for Cloudflare.
 		return;

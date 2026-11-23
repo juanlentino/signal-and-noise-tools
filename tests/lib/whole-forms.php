@@ -25,6 +25,20 @@
  *   speculative loading switch from `! empty()`. It is the handler's only
  *   field, so the rule for it is that exactly one form posts the action.
  *
+ * Three more back Settings > Accounts and connections, and a fourth is held
+ * to the same rule because its two fields are one instruction:
+ *
+ * - sn_handle_zenodo_env_save() (inc/admin-post-actions/zenodo.php) writes the
+ *   environment (anything but `production` is sandbox) and the ledger concept
+ *   DOI (`?? ''`, which clears it): a form without the DOI removes it.
+ * - sn_handle_zenodo_doi_line_save() (same file) writes the downloads line's
+ *   switch (`! empty()`), label (`?? ''`) and floor (`?? 0`) as one option.
+ * - sn_handle_indexnow_save() (inc/admin-post-actions/indexnow.php) writes
+ *   the IndexNow switch from `! empty()`, its only field.
+ * - sn_handle_keyring_save() (inc/admin-post-actions/keyring.php) resets
+ *   nothing by omission (no `key_id` is refused, an empty `key_value` changes
+ *   nothing), but the picker and the value are useless apart.
+ *
  * So a form posting one of these actions must carry every field the handler
  * writes, or, as a HIDDEN field so it rides every submit, a verb the handler
  * returns on first. A submit button's name does not count: it is sent only
@@ -66,3 +80,15 @@ const SNT_THEME_SAVE_FIELDS = array( 'theme_related_count', 'theme_palette_recen
 
 /** The one field sn_handle_perf_save() writes on every save. */
 const SNT_PERF_SAVE_FIELDS = array( 'speculative_loading' );
+
+/** The two fields sn_handle_zenodo_env_save() writes on every save. */
+const SNT_ZENODO_ENV_SAVE_FIELDS = array( 'zenodo_env', 'zenodo_ledger_doi' );
+
+/** The three fields sn_handle_zenodo_doi_line_save() writes on every save. */
+const SNT_ZENODO_DOI_LINE_SAVE_FIELDS = array( 'zenodo_doi_line_enabled', 'zenodo_doi_line_label', 'zenodo_doi_line_floor' );
+
+/** The one field sn_handle_indexnow_save() writes on every save. */
+const SNT_INDEXNOW_SAVE_FIELDS = array( 'indexnow_enabled' );
+
+/** The two fields sn_handle_keyring_save() reads: which row, and what to do with it. */
+const SNT_KEYRING_SAVE_FIELDS = array( 'key_id', 'key_value' );

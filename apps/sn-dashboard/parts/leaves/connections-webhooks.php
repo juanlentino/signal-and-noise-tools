@@ -107,7 +107,7 @@ function webhooks_monitoring_fold( array $box ) {
 	}
 	$inner = '<p class="snt-prose">' . \snt_kit_esc( $box['about'] ) . '</p>'
 		. ( array() !== $rows ? \snt_kit_kv( $rows ) : '' )
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'connections' ) ) . '.</p>';
+		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Settings › Accounts and connections', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'accounts', 'current' => 'connections' ) ) . '.</p>';
 	return array( 'title' => __( 'Uptime monitoring', 'signal-and-noise-tools' ), 'summary' => implode( ' · ', $summary ), 'body' => $inner, 'open' => $unset );
 }
 

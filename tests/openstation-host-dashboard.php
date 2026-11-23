@@ -148,7 +148,7 @@ namespace {
 	// One nonce per ACTION: the estate mints four, and a global "valid" would
 	// hide the very confusion the pipelines exist to end.
 	function wp_verify_nonce( $nonce, $action = -1 ) {
-		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'login-nonce' => 'sn_save_login', 'ret-nonce' => 'sn_audit_save_retention', 'ai-nonce' => 'sn_ai_settings_save', 'reads-nonce' => 'sn_scheduled_reads_save', 'remote-nonce' => 'sn_remote_toggle', 'rw-nonce' => 'sn_bind_mcp_rw_credential', 'read-nonce' => 'sn_bind_mcp_read_credential', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults', 'theme-nonce' => 'sn_save_theme', 'perf-nonce' => 'sn_perf_save' );
+		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'login-nonce' => 'sn_save_login', 'ret-nonce' => 'sn_audit_save_retention', 'ai-nonce' => 'sn_ai_settings_save', 'reads-nonce' => 'sn_scheduled_reads_save', 'remote-nonce' => 'sn_remote_toggle', 'rw-nonce' => 'sn_bind_mcp_rw_credential', 'read-nonce' => 'sn_bind_mcp_read_credential', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults', 'theme-nonce' => 'sn_save_theme', 'perf-nonce' => 'sn_perf_save', 'key-nonce' => 'sn_keyring_save', 'zen-nonce' => 'sn_zenodo_env_save', 'line-nonce' => 'sn_zenodo_doi_line_save', 'in-nonce' => 'sn_indexnow_save', 'music-nonce' => 'sn_music_save' );
 		return ( isset( $minted[ $nonce ] ) && $minted[ $nonce ] === $action ) ? 1 : false;
 	}
 	// The interceptor needs real hook plumbing, a real wp_redirect (which filters
@@ -253,6 +253,12 @@ namespace {
 	// Settings > Front end's two actions, each answering its real flash code.
 	function sn_handle_save_theme( $post ) { return isset( $post['theme_related_count'] ) ? 'theme_saved' : 'theme_unchanged'; }
 	function sn_handle_perf_save( $post ) { return 'perf_saved'; }
+	// Settings > Accounts and connections' five saves, each answering its real flash code. The value is an obviously fake string.
+	function sn_handle_keyring_save( $post ) { return '' === (string) ( $post['key_value'] ?? '' ) ? 'keyring_unchanged' : 'keyring_saved'; }
+	function sn_handle_zenodo_env_save( $post ) { return 'zenodo_env_saved'; }
+	function sn_handle_zenodo_doi_line_save( $post ) { return 'zenodo_doi_line_saved'; }
+	function sn_handle_indexnow_save( $post ) { return 'indexnow_saved'; }
+	function sn_handle_music_save( $post ) { return 'music_saved'; }
 	$GLOBALS['__handler_calls'] = array();
 
 	// The rewrite half of the view needs core's WP_HTML_Tag_Processor. Found on
@@ -375,7 +381,7 @@ namespace {
 	}
 	ok( 'health' === $sessions['monitoring'][0]->get( 'sub' ) && 1 === $land( $sessions['monitoring'][1] ),
 		'a cold open lands the named tab`s session on its leaf and queues ONE snt-land, which assets/os-kit.js turns into the visible tab' );
-	ok( 0 === $land( $sessions['main'][1] ) && 0 === $land( $sessions['connections'][1] ) && 'credentials' === $sessions['connections'][0]->get( 'sub' ),
+	ok( 0 === $land( $sessions['main'][1] ) && 0 === $land( $sessions['connections'][1] ) && 'cloudflare' === $sessions['connections'][0]->get( 'sub' ),
 		'   ...every other tab opens on its first leaf and queues nothing, so only one tab asks to be shown' );
 
 	list( $s, $o ) = $sessions['connections'];
@@ -529,6 +535,35 @@ namespace {
 		ok( 'front-end' === $st6->get( 'sub' ) && ( null === $case[3] ? 'error' === ( $st6->get( 'notice' )[0] ?? '' ) : $case[3] === $st6->get( 'notice' ) ) && $case[4] === $st6->get( 'saved' ),
 			"Settings > Front end: $case[1] (nonce $case[0]) lands back on the pane with its notice" );
 	}
+	// Settings > Accounts and connections: each of its five saves is answered
+	// on the pane, sub accounts under the settings tab, never on the
+	// Connections leaf the form came from, and its notice never repeats the
+	// value that was posted.
+	$st8 = new \OpenStation\App\State( $app->state, array( 'sub' => 'accounts' ) );
+	foreach ( array(
+		array( 'key-nonce', 'sn_keyring_save', array( 'key_id' => 'cf_token', 'key_value' => 'fake-value-for-test-0000' ), array( 'success', 'Credentials saved. Press Verify all to check them.' ), true ),
+		array( 'zen-nonce', 'sn_zenodo_env_save', array( 'zenodo_env' => 'sandbox', 'zenodo_ledger_doi' => '' ), 'success', true ),
+		array( 'line-nonce', 'sn_zenodo_doi_line_save', array( 'zenodo_doi_line_enabled' => '1', 'zenodo_doi_line_label' => '', 'zenodo_doi_line_floor' => '0' ), 'success', true ),
+		array( 'in-nonce', 'sn_indexnow_save', array( 'indexnow_enabled' => '1' ), 'success', true ),
+		array( 'music-nonce', 'sn_music_save', array( 'sn_muso_profile' => 'profile-fake-1' ), 'success', true ),
+		array( 'stale', 'sn_keyring_save', array( 'key_id' => 'cf_token', 'key_value' => 'fake-value-for-test-0000' ), 'error', false ),
+	) as $case ) {
+		$os8 = new \OpenStation\App\Os(); $os8->view = 'settings';
+		$app->actions['post']( $st8, $os8, array( 'values' => array( '_wpnonce' => $case[0], 'action' => $case[1] ) + $case[2] ) );
+		$notice = (array) $st8->get( 'notice' );
+		ok( 'accounts' === $st8->get( 'sub' ) && ( is_array( $case[3] ) ? $case[3] === $notice : $case[3] === ( $notice[0] ?? '' ) && '' !== (string) ( $notice[1] ?? '' ) ) && $case[4] === $st8->get( 'saved' ) && false === strpos( implode( ' ', $notice ) . implode( ' ', $os8->toasts ), 'fake-value' ),
+			"Settings > Accounts and connections: $case[1] (nonce $case[0]) lands back on the pane with its notice, which does not repeat the value" );
+	}
+	// In flight across the move: a Connections-tab session painted before the
+	// update still holds sub=credentials. Its save runs, and the answer paints
+	// on that tab's first leaf, never a blank.
+	$os9 = new \OpenStation\App\Os();
+	$os9->view = 'connections';
+	$st9 = new \OpenStation\App\State( $app->state, array( 'sub' => 'credentials' ) );
+	$app->actions['post']( $st9, $os9, array( 'values' => array( '_wpnonce' => 'key-nonce', 'action' => 'sn_keyring_save', 'key_id' => 'cf_token', 'key_value' => 'fake-value-for-test-0000' ) ) );
+	ok( 'cloudflare' === $st9->get( 'sub' ) && array( 'success', 'Credentials saved. Press Verify all to check them.' ) === $st9->get( 'notice' ),
+		'a save in flight from the old Connections > Credentials leaf is still answered, on the Connections tab\'s first leaf' );
+
 	// In flight across the move: a Site-tab session painted before the update
 	// still holds sub=front-end. Its save runs, and the answer paints on that
 	// tab's first leaf, never a blank.

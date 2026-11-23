@@ -95,13 +95,13 @@ function snt_mr_sensor_pills( $info, $status, $result ) {
 		|| ( function_exists( 'sn_setting' ) && '' !== (string) sn_setting( 'machine_readers.read_token', '' ) );
 	$pills[] = $has_token
 		? array( 'ok', __( 'Read token set', 'signal-and-noise-tools' ), '' )
-		: array( 'warn', __( 'Read token missing', 'signal-and-noise-tools' ), __( 'Set the read token under Connections › Credentials, or define SN_MR_READ_TOKEN in wp-config.php.', 'signal-and-noise-tools' ) );
+		: array( 'warn', __( 'Read token missing', 'signal-and-noise-tools' ), __( 'Set the read token under Settings › Accounts and connections, or define SN_MR_READ_TOKEN in wp-config.php.', 'signal-and-noise-tools' ) );
 
 	// 3. The read itself.
 	if ( ! empty( $result['ok'] ) ) {
 		$pills[] = array( 'ok', __( 'Aggregates current', 'signal-and-noise-tools' ), '' );
 	} elseif ( 'not_configured' === (string) ( $result['error'] ?? '' ) ) {
-		$pills[] = array( 'warn', __( 'Not configured', 'signal-and-noise-tools' ), __( 'The sensor cannot be read until the read token is set under Connections › Credentials.', 'signal-and-noise-tools' ) );
+		$pills[] = array( 'warn', __( 'Not configured', 'signal-and-noise-tools' ), __( 'The sensor cannot be read until the read token is set under Settings › Accounts and connections.', 'signal-and-noise-tools' ) );
 	} else {
 		// 15.1.1: the code's meaning, from the one map every tile reads.
 		$hint    = function_exists( 'snt_mr_error_hint' ) ? snt_mr_error_hint( (string) ( $result['error'] ?? 'unknown' ) ) : array( 'title' => __( 'Read failed', 'signal-and-noise-tools' ), 'detail' => '' );

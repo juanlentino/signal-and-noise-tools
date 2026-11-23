@@ -21,6 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/settings-accounts-parts.php'; // accounts_moved_html(): the line saying where this leaf's settings went.
+
 /**
  * The module's state, read the way the classic leaf reads it.
  *
@@ -45,7 +47,7 @@ function indexnow_status_html( array $d ) {
 	if ( ! $d['enabled'] ) {
 		$kind  = 'warn';
 		$title = __( 'Disabled', 'signal-and-noise-tools' );
-		$body  = \snt_kit_esc( __( 'Enable it under IndexNow to start notifying search engines.', 'signal-and-noise-tools' ) );
+		$body  = \snt_kit_esc( \sn_indexnow_disabled_sentence() );
 		$pill  = __( 'Off', 'signal-and-noise-tools' );
 	} elseif ( '' !== ( $problem = function_exists( 'sn_indexnow_result_problem' ) ? sn_indexnow_result_problem( (array) $d['result'] ) : (string) ( $d['result']['error'] ?? '' ) ) ) {
 		$kind  = 'err';
@@ -62,26 +64,15 @@ function indexnow_status_html( array $d ) {
 }
 
 /**
- * The IndexNow box: the status notice above the enable form, so the one
- * checkbox shares its box with what it switches (2026-10-12 audit: alone it
- * was a mostly empty box).
+ * The IndexNow box: the status notice, then the line saying where the switch
+ * went. The enable form is on Settings > Accounts and connections since
+ * 2026-11 (settings-accounts-parts.php).
  *
  * @param array $d From indexnow_data().
  * @return string
  */
 function indexnow_enable_html( array $d ) {
-	$toggle = \snt_kit_field( 'checkbox', 'indexnow_enabled', __( 'Notify search engines when content changes', 'signal-and-noise-tools' ), $d['enabled'] );
-	return \snt_kit_section(
-		__( 'IndexNow', 'signal-and-noise-tools' ),
-		indexnow_status_html( $d ) . \snt_kit_form(
-			'indexnow_save',
-			$toggle,
-			array(
-				'submit' => __( 'Save IndexNow settings', 'signal-and-noise-tools' ),
-				'hidden' => array( 'tab' => 'connections', 'sub' => 'indexnow' ),
-			)
-		)
-	);
+	return \snt_kit_section( __( 'IndexNow', 'signal-and-noise-tools' ), indexnow_status_html( $d ) . accounts_moved_html( 'indexnow' ) );
 }
 
 /**

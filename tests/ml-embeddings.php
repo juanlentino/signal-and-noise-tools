@@ -229,7 +229,7 @@ $handler = (string) implode( '', array_map( 'file_get_contents', array_merge(
 ) ) );
 // 15.3.1: the token is a keyring row; the form reads it, the handler no longer writes it.
 $keyring = (string) file_get_contents( __DIR__ . '/../inc/keyring.php' );
-ok( false === strpos( $form, 'name="sn_ml_embeddings_token"' ) && false !== strpos( $form, 'Connections › Credentials' ) && false !== strpos( $form, 'snt_ml_embed_token()' ), 'the AI settings form carries no token field: it reads the token and points to the keyring' );
+ok( false === strpos( $form, 'name="sn_ml_embeddings_token"' ) && false !== strpos( $form, 'Settings › Accounts and connections' ) && false !== strpos( $form, 'snt_ml_embed_token()' ), 'the AI settings form carries no token field: it reads the token and points to the keyring' );
 ok( false === strpos( $handler, "sn_setting_update( 'ml.embeddings_token'" ), 'the save handler no longer writes the token' );
 ok( false !== strpos( $keyring, "'setting' => 'ml.embeddings_token'" ) && false !== strpos( $keyring, "Workers AI › Read" ) && false !== strpos( $keyring, "'probe' => 'cloudflare_token'" ), 'the keyring row keeps the setting as its home, names the exact permission (Account › Workers AI › Read) and verifies with its own bytes' );
 

@@ -227,7 +227,7 @@ ok( false === strpos( $kit, '<ol' ), 'no browser ordered list survives on Analyt
 // ── 2026-10-11, owner rule: no folds. Each settings form is an open section
 // whose description is the one-line current state the fold's hint carried.
 ok( an_only_setup_folds( $kit ), 'rich: the only folds are the earned Setup ones: ' . implode( ',', an_fold_headings( $kit ) ) );
-ok( false !== strpos( $kit, 'Read credentials missing</b> The dashboard can’t read Analytics Engine: set the Cloudflare API token and Account ID under Connections › Credentials.' ) && false === strpos( $kit, 'credentials below' ) && false === strpos( $classic, 'credentials below' ), 'the missing-credentials pill names the screen, not "below", on both surfaces' );
+ok( false !== strpos( $kit, 'Read credentials missing</b> The dashboard can’t read Analytics Engine: set the Cloudflare API token and Account ID under Settings › Accounts and connections.' ) && false === strpos( $kit, 'credentials below' ) && false === strpos( $classic, 'credentials below' ), 'the missing-credentials pill names the screen, not "below", on both surfaces' );
 ok( false !== strpos( $kit, '<os-disclosure heading="Collector endpoint" hint="This site (default)"' ), 'the Collector endpoint state is the closed fold\'s summary' );
 ok( false !== strpos( $kit, '<os-disclosure heading="Roles kept out" hint="Off"' ), 'the exclusion state is the closed fold\'s summary' );
 ok( false !== strpos( $kit, 'Logged-in visits never count as readers, whatever the role' ) && false !== strpos( $kit, 'their browser is marked as the owner’s' ) && false === strpos( $kit, 'selected roles out of the reader counts' ), 'native intro: every logged-in visit is kept out whatever the role; the role list only marks the browser (SN Traffic Lanes round 2)' );
@@ -295,7 +295,7 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: 
 // ── Specific readouts for the rich fixture.
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, 'Beacon token set' ), 'the beacon pill reads ok when the token resolves' );
 ok( false !== strpos( $kit, 'Zone ID set' ), 'the zone pill reads ok' );
-ok( false === strpos( $kit, 'name="sn_cf_account_id"' ) && false !== strpos( $kit, 'label="Account ID"' ) && false !== strpos( $kit, 'Connections › Credentials' ) && false !== strpos( $kit, 'label="Reads with"' ), '15.2.0: no account-ID field; the fold reads the source and points to the keyring' );
+ok( false === strpos( $kit, 'name="sn_cf_account_id"' ) && false !== strpos( $kit, 'label="Account ID"' ) && false !== strpos( $kit, 'Settings › Accounts and connections' ) && false !== strpos( $kit, 'label="Reads with"' ), '15.2.0: no account-ID field; the fold reads the source and points to the keyring' );
 ok( false !== strpos( $kit, 'zone-abc123' ), 'the Zone ID mirror shows the live zone' );
 ok( false !== strpos( $kit, 'sn-analytics' ) && false !== strpos( $kit, 'v1.14.2' ), 'the edge-worker card shows the live worker + version' );
 ok( false !== strpos( $kit, '2 salt keys at the edge' ), 'the salt-window card shows the live key count' );

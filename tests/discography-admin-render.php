@@ -109,7 +109,7 @@ ok( substr_count( $html, 'name="sub" value="music"' ) >= 2, 'both forms carry su
 
 // ── Secret is MASKED, never echoed raw ───────────────────────────────
 ok( strpos( $html, 'topsecretvalue9999' ) === false, 'raw client secret never rendered' );
-ok( strpos( $html, '••••9999' ) === false && strpos( $html, 'name="sn_spotify_secret"' ) === false && strpos( $html, 'Connections › Credentials' ) !== false, '15.3.1: no secret field and no masked value; the block points to the keyring' );
+ok( strpos( $html, '••••9999' ) === false && strpos( $html, 'name="sn_spotify_secret"' ) === false && strpos( $html, 'Settings › Accounts and connections' ) !== false, '15.3.1: no secret field and no masked value; the block points to the keyring' );
 
 // ── Status reflects the store (2 releases, healthy) ──────────────────
 ok( strpos( $html, 'sn-pill--ok' ) !== false, 'healthy store → Synced pill' );

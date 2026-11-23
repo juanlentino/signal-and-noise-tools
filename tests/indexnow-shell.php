@@ -5,8 +5,9 @@ if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 
 /**
  * Standalone test: IndexNow sub-tab two-column shell contract (v6.42.0).
  *
- * The enable toggle + maintenance actions stay in the main column; the
- * status box + status table (key-file URL, last submission) move to the rail.
+ * The maintenance actions stay in the main column, with the line saying the
+ * enable toggle is on Settings > Accounts and connections (2026-11); the
+ * status box + status table (key-file URL, last submission) are the rail.
  *
  * Run: php tests/indexnow-shell.php
  *
@@ -38,6 +39,8 @@ $GLOBALS['__opts'] = array( 'sn_indexnow_result' => array( 'time' => time() - 60
 
 require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/admin-shell.php';
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . ltrim( $p, '/' ); } }
+require_once __DIR__ . '/../inc/admin-forms/settings-accounts.php'; // the line the leaf keeps for its moved switch
 require_once __DIR__ . '/../inc/admin-forms/indexnow.php';
 
 if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
@@ -56,8 +59,12 @@ $rail_at = strpos( $html, '<aside class="sn-shell__rail"' );
 in_assert( false !== strpos( $html, '<div class="sn-shell">' ), 'wrapped in the two-column shell' );
 in_assert( false !== $rail_at, 'has a right rail' );
 
-$enable_at = strpos( $html, 'Notify search engines' );
-in_assert( false !== $enable_at && $enable_at < $rail_at, 'enable toggle sits in the main column' );
+// 2026-11: the enable toggle left for Settings > Accounts and connections;
+// the line saying so and the maintenance actions hold the main column.
+$moved_at = strpos( $html, 'The switch that turns IndexNow on moved to <a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=accounts">Settings › Accounts and connections</a>.' );
+$maint_at = strpos( $html, 'Submit recent content now' );
+in_assert( false === strpos( $html, 'Notify search engines when content changes' ) && false === strpos( $html, 'indexnow_enabled' ), 'the enable toggle is not on the leaf' );
+in_assert( false !== $moved_at && $moved_at < $rail_at && false !== $maint_at && $moved_at < $maint_at && $maint_at < $rail_at, 'the line saying where the switch went, then the maintenance actions, sit in the main column' );
 
 $keyfile_at = strpos( $html, 'Key file' );
 $active_at  = strpos( $html, 'Active' );
@@ -77,9 +84,9 @@ sn_admin_render_indexnow_section();
 $html_b   = ob_get_clean();
 $rail_b   = strpos( $html_b, '<aside class="sn-shell__rail"' );
 $off_at   = strpos( $html_b, 'Off' );
-$toggle_b = strpos( $html_b, 'Notify search engines' );
+$toggle_b = strpos( $html_b, 'The switch that turns IndexNow on moved to' );
 in_assert( is_int( $rail_b ) && false !== $off_at && $off_at > $rail_b, 'Disabled (Off) status sits in the rail' );
-in_assert( is_int( $rail_b ) && false !== $toggle_b && $toggle_b < $rail_b, 'enable toggle stays in the main column when disabled' );
+in_assert( is_int( $rail_b ) && false !== $toggle_b && $toggle_b < $rail_b, 'the line saying where the switch went stays in the main column when disabled' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

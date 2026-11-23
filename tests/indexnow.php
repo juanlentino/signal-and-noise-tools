@@ -258,8 +258,16 @@ $GLOBALS['__settings']['indexnow.enabled'] = true;
 ob_start();
 sn_admin_render_indexnow_section();
 $html = ob_get_clean();
-ok( strpos( $html, 'name="indexnow_enabled"' ) !== false, 'render: emits the enable toggle' );
-ok( strpos( $html, 'value="sn_indexnow_save"' ) !== false, 'render: emits the save action' );
+// 2026-11: the enable toggle is on Settings > Accounts and connections; the
+// leaf keeps its status and its two maintenance actions.
+ok( strpos( $html, 'name="indexnow_enabled"' ) === false && strpos( $html, 'value="sn_indexnow_save"' ) === false && strpos( $html, 'value="sn_indexnow_ping_now"' ) !== false && strpos( $html, 'value="sn_indexnow_regenerate"' ) !== false, 'render: the leaf carries no enable toggle and no save action; the two maintenance actions stay' );
+if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+require_once __DIR__ . '/../inc/admin-forms/settings-accounts-forms.php';
+ob_start();
+snt_accounts_render_indexnow_box();
+$box = ob_get_clean();
+ok( strpos( $box, 'name="indexnow_enabled" value="1" checked' ) !== false, 'render: the pane\'s box emits the enable toggle, checked while enabled' );
+ok( strpos( $box, 'value="sn_indexnow_save"' ) !== false && strpos( $box, 'name="tab"' ) === false && strpos( $box, 'name="sub"' ) === false, 'render: the pane\'s box emits the save action and no hidden tab or sub, so the save lands on the pane' );
 ok( strpos( $html, sn_indexnow_get_key() . '.txt' ) !== false, 'render: shows the key-file URL' );
 
 echo "Result: $pass passed, $fail failed.\n";

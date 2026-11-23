@@ -294,7 +294,7 @@ add_action( 'admin_enqueue_scripts', function() {
 			'scheduled'       => snt_desktop_admin_url( 'sn-connections', 'scheduled-content' ),
 			// 2026-10-10: where SN Systems' failing-credential line and SN
 			// Provenance's failed-deposit line are fixed.
-			'credentials'     => snt_desktop_admin_url( 'sn-connections', 'credentials' ),
+			'credentials'     => snt_desktop_admin_url( 'sn-settings', 'accounts' ), // 2026-11: the keyring is Settings > Accounts and connections
 			'zenodo'          => snt_desktop_admin_url( 'sn-connections', 'zenodo' ),
 		),
 	);

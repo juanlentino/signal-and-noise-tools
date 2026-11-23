@@ -47,6 +47,7 @@ function sn_admin_render_agent_tools_section() { $GLOBALS['__calls'][] = 'fn:sn_
 function sn_admin_render_performance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_performance_section'; }
 function sn_admin_render_release_notes_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_release_notes_section'; }
 function sn_admin_render_provenance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_provenance_section'; } // v9.8.0: Tools → Provenance (real fn lives in inc/provenance-admin.php)
+function sn_admin_render_settings_accounts_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_settings_accounts_section'; } // Settings > Accounts and connections (real fn lives in inc/admin-forms/settings-accounts.php); it calls sn_admin_render_credentials_section(), which the registry no longer names
 function sn_admin_render_settings_front_end_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_settings_front_end_section'; } // Settings > Front end (real fn lives in inc/admin-forms/settings-front-end.php); it calls sn_admin_render_front_end_form(), which the registry no longer names
 function sn_admin_render_tag_cleanup_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_tag_cleanup_section'; }
 function sn_admin_render_scheduled_content_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_scheduled_content_section'; }
@@ -115,8 +116,10 @@ ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connection
 // Settings: the plugin's own preferences, one pane per subject. The first pane
 // is the three email switches that sat on Connections > Cron and Security >
 // Login defense. 'wide' because its render fn paints two cards of its own.
-ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications', 'security', 'ai', 'front-end' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
-	'settings: slug sn-settings, four panes, notifications, security, ai, front-end' );
+ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications', 'security', 'ai', 'front-end', 'accounts' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
+	'settings: slug sn-settings, five panes, notifications, security, ai, front-end, accounts' );
+ok( 'Accounts and connections' === ( $by_tab['settings']['sub_tabs']['accounts']['label'] ?? '' ) && 'sn_admin_render_settings_accounts_section' === ( $by_tab['settings']['sub_tabs']['accounts']['render'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['accounts']['wide'] ),
+	'the fifth pane is labelled "Accounts and connections", wide: the keyring\'s own shell and a row of boxes' );
 ok( 'Front end' === ( $by_tab['settings']['sub_tabs']['front-end']['label'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['front-end']['wide'] ),
 	'the fourth pane is labelled "Front end" and is wide (it owns its boxes: reading, the command palette, replies, performance)' );
 sn_admin_render_active_tab( 'settings', 'front-end' );
@@ -162,8 +165,8 @@ ok( ( $by_tab['content']['sub_tabs']['pattern-adoption']['render'] ?? '' ) === '
 // origin cache, the same job at two layers. ORDER is asserted, not just
 // membership: a purge that clears one and not the other is the confusing case,
 // and the two leaves reading adjacently is what makes that legible.
-ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'credentials', 'cloudflare', 'cloudways', 'webhooks', 'indexnow', 'zenodo', 'music', 'cron', 'scheduled-content' ),
-	'connections leaves: credentials (15.2.0, first: the precondition for the rest), cloudflare, cloudways, webhooks, indexnow, zenodo (15.11.0), music, cron, scheduled-content' );
+ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'cloudways', 'webhooks', 'indexnow', 'zenodo', 'music', 'cron', 'scheduled-content' ),
+	'connections leaves: cloudflare, cloudways, webhooks, indexnow, zenodo (15.11.0), music, cron, scheduled-content (2026-11: credentials, first since 15.2.0, moved whole to Settings > Accounts and connections)' );
 ok( ( $by_tab['connections']['sub_tabs']['cloudways']['render'] ?? '' ) === 'sn_admin_render_cloudways_section',
 	'cloudways names its own leaf render fn' );
 ok( ! empty( $by_tab['connections']['sub_tabs']['cloudways']['wide'] ),

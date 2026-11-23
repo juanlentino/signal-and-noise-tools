@@ -79,16 +79,16 @@ function snt_analytics_render_credentials() {
 	$central     = function_exists( 'sn_cf_get_token' ) && '' !== (string) sn_cf_get_token();
 
 	// 15.2.0: no fields here. The token, the override and the account id are
-	// rows on the keyring (Connections › Credentials); this fold reads them,
+	// rows on the keyring (Settings › Accounts and connections); this fold reads them,
 	// says which token is in force, and keeps the connection test.
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings">';
 	wp_nonce_field( 'sn_analytics_test' );
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Credentials', 'signal-and-noise-tools' ) . '</h3>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Set under Connections › Credentials, with every other key. Analytics Engine reads use the Cloudflare API token (Account › Account Analytics › Read on it) unless an analytics token override is set there.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Set under Settings › Accounts and connections, with every other key. Analytics Engine reads use the Cloudflare API token (Account › Account Analytics › Read on it) unless an analytics token override is set there.', 'signal-and-noise-tools' ) . '</p>';
 	if ( '' !== $override ) {
 		wp_admin_notice( esc_html__( 'An analytics token override is in force; the Cloudflare API token is not used for these reads. Clear the override on the keyring to use one token.', 'signal-and-noise-tools' ), array( 'type' => 'warning', 'additional_classes' => array( 'inline' ) ) );
 	} elseif ( ! $central ) {
-		wp_admin_notice( esc_html__( 'No token anywhere: set the Cloudflare API token under Connections › Credentials.', 'signal-and-noise-tools' ), array( 'type' => 'error', 'additional_classes' => array( 'inline' ) ) );
+		wp_admin_notice( esc_html__( 'No token anywhere: set the Cloudflare API token under Settings › Accounts and connections.', 'signal-and-noise-tools' ), array( 'type' => 'error', 'additional_classes' => array( 'inline' ) ) );
 	} else {
 		echo '<p class="sn-an-empty">' . esc_html__( 'Reading with the Cloudflare API token.', 'signal-and-noise-tools' ) . '</p>';
 	}
@@ -270,7 +270,7 @@ function snt_analytics_render_worker_setup() {
 	echo '<ol class="sn-an-steps">';
 	echo '<li><strong>' . esc_html__( 'Read token', 'signal-and-noise-tools' ) . '</strong> ';
 	/* translators: 1: the Cloudflare API-token permission scope, wrapped in <code>; 2: the Cloudflare dashboard URL pattern, wrapped in <code>. */
-	echo sprintf( esc_html__( '(set under Connections › Credentials): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.', 'signal-and-noise-tools' ), '<code>Account · Analytics · Read</code>', '<code>dash.cloudflare.com/&lt;account_id&gt;</code>' ) . '</li>';
+	echo sprintf( esc_html__( '(set under Settings › Accounts and connections): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.', 'signal-and-noise-tools' ), '<code>Account · Analytics · Read</code>', '<code>dash.cloudflare.com/&lt;account_id&gt;</code>' ) . '</li>';
 	echo '<li><strong>' . esc_html__( 'Deploy the edge Worker + its secrets', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( '(from the analytics-worker repo: this can’t be done from WordPress):', 'signal-and-noise-tools' ) . '<pre class="sn-an-pre">wrangler secret put SN_PX_TOKEN' . "\n" . 'wrangler secret put SN_PX_SALT_SEED' . "\n" . 'wrangler deploy</pre></li>';
 	echo '<li><strong>' . esc_html__( 'Theme beacon', 'signal-and-noise-tools' ) . '</strong>: ';
 	/* translators: 1: the beacon-token wp-config constant name, wrapped in <code>; 2: the wp-config file name, wrapped in <code>; 3: the worker’s token constant name, wrapped in <code>. */
@@ -336,7 +336,7 @@ function snt_analytics_pipeline_pills() {
 	$configured = function_exists( 'sn_analytics_config' ) && sn_analytics_config();
 	$pills[]    = $configured
 		? array( 'ok', __( 'Read credentials', 'signal-and-noise-tools' ), '' )
-		: array( 'warn', __( 'Read credentials missing', 'signal-and-noise-tools' ), __( 'The dashboard can’t read Analytics Engine: set the Cloudflare API token and Account ID under Connections › Credentials.', 'signal-and-noise-tools' ) );
+		: array( 'warn', __( 'Read credentials missing', 'signal-and-noise-tools' ), __( 'The dashboard can’t read Analytics Engine: set the Cloudflare API token and Account ID under Settings › Accounts and connections.', 'signal-and-noise-tools' ) );
 
 	// 4. Server token — the */15 cron-refresh auth (fails CLOSED when unset,
 	// which today is completely invisible; this pill is that failure's only UI).
@@ -352,7 +352,7 @@ function snt_analytics_pipeline_pills() {
 	if ( '' !== $srv ) {
 		$pills[] = array( 'ok', __( 'Server token set', 'signal-and-noise-tools' ), '' );
 	} else {
-		$note = __( 'The 15-minute refresh is off: it does not run without the analytics server token. Set it under Connections › Credentials (Analytics server token).', 'signal-and-noise-tools' );
+		$note = __( 'The 15-minute refresh is off: it does not run without the analytics server token. Set it under Settings › Accounts and connections (Analytics server token).', 'signal-and-noise-tools' );
 		if ( '' === $rss_srv ) {
 			$note .= ' ' . __( 'Feed requests the server reports are no longer marked as trusted either.', 'signal-and-noise-tools' );
 		}
@@ -370,7 +370,7 @@ function snt_analytics_pipeline_pills() {
 		: (string) get_option( 'sn_cf_zone_id', '' );
 	$pills[] = ( '' !== $zone )
 		? array( 'ok', __( 'Zone ID set', 'signal-and-noise-tools' ), '' )
-		: array( 'warn', __( 'Zone ID missing', 'signal-and-noise-tools' ), __( 'The Edge view stays dormant: set the Zone ID under Connections › Credentials.', 'signal-and-noise-tools' ) );
+		: array( 'warn', __( 'Zone ID missing', 'signal-and-noise-tools' ), __( 'The Edge view stays dormant: set the Zone ID under Settings › Accounts and connections.', 'signal-and-noise-tools' ) );
 
 	return $pills;
 }
@@ -633,7 +633,7 @@ function snt_analytics_render_mirrors() {
 		echo '<br><span class="sn-an-empty">' . sprintf( esc_html__( 'Locked by the %s constant.', 'signal-and-noise-tools' ), '<code>SN_CLOUDFLARE_ZONE_ID</code>' ) . '</span>';
 	}
 	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'Also gates cache purge and the Edge view.', 'signal-and-noise-tools' ) . '</span>'
-		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=credentials' ) ) . '">' . esc_html__( 'Connections → Credentials →', 'signal-and-noise-tools' ) . '</a></div>'; // 15.3.1: the zone id is a keyring row
+		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=settings&sub=accounts' ) ) . '">' . esc_html__( 'Settings → Accounts and connections →', 'signal-and-noise-tools' ) . '</a></div>'; // 15.3.1: the zone id is a keyring row
 
 	echo '</div>';
 }

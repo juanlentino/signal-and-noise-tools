@@ -115,9 +115,9 @@ function models_budget_platform_html( array $d ) {
 			)
 			: '$' . number_format( (float) $r['total'], 2 ) );
 	}
-	$inner = $failed ? \snt_kit_notice( 'warn', \snt_kit_esc( __( 'A billing read failed: the key may be wrong or refused. Verify all under Connections › Credentials probes the GitHub token; the Anthropic key has no probe, and this row is its witness.', 'signal-and-noise-tools' ) ) ) : '';
+	$inner = $failed ? \snt_kit_notice( 'warn', \snt_kit_esc( __( 'A billing read failed: the key may be wrong or refused. Verify all under Settings › Accounts and connections probes the GitHub token; the Anthropic key has no probe, and this row is its witness.', 'signal-and-noise-tools' ) ) ) : '';
 	$inner .= \snt_kit_kv( $rows );
-	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Both keys are keyring rows; set or rotate under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'ai' ) ) . '. ' . \snt_kit_esc( __( 'Cached six hours; a rotated key drops the cache.', 'signal-and-noise-tools' ) ) . '</p>';
+	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Both keys are keyring rows; set or rotate under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Settings › Accounts and connections', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'accounts', 'current' => 'ai' ) ) . '. ' . \snt_kit_esc( __( 'Cached six hours; a rotated key drops the cache.', 'signal-and-noise-tools' ) ) . '</p>';
 	return \snt_kit_section(
 		__( 'Platform-reported, this month', 'signal-and-noise-tools' ),
 		$inner,
@@ -143,5 +143,5 @@ function models_budget_embed_html( array $d ) {
 	if ( $d['embed_configured'] ) {
 		return \snt_kit_notice( 'ok', \snt_kit_badge( 'ok', __( 'Configured', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_esc( $text ) );
 	}
-	return \snt_kit_section( __( 'Semantic embeddings', 'signal-and-noise-tools' ), '<p class="snt-prose">' . \snt_kit_esc( $text ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'ai' ) ) . '.</p>' );
+	return \snt_kit_section( __( 'Semantic embeddings', 'signal-and-noise-tools' ), '<p class="snt-prose">' . \snt_kit_esc( $text ) . ' ' . \snt_kit_go( __( 'Settings › Accounts and connections', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'accounts', 'current' => 'ai' ) ) . '.</p>' );
 }

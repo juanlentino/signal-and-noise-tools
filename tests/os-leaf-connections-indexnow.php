@@ -2,11 +2,13 @@
 /**
  * Native window leaf: Connections → IndexNow (apps/sn-dashboard/parts/leaves/connections-indexnow.php).
  *
- * The oracle is the classic leaf: the kit leaf must carry the same field
- * names and the same three sn_action values, paint every readout the classic
- * rail paints in each of its three states (disabled / failed / active, in the
- * classic order of precedence), escape what came from an option, and none of
- * wp-admin's markup.
+ * The oracle is the classic leaf: the kit leaf must carry the same two
+ * sn_action values, paint every readout the classic rail paints in each of
+ * its three states (disabled / failed / active, in the classic order of
+ * precedence), escape what came from an option, and none of wp-admin's
+ * markup. The enable switch left for Settings › Accounts and connections in
+ * 2026-11 (tests/os-leaf-settings-accounts.php); each twin keeps one line
+ * saying so.
  *
  * Run: php tests/os-leaf-connections-indexnow.php
  */
@@ -25,6 +27,7 @@ function sn_setting( $path, $default = null ) { return array_key_exists( $path, 
 require SNT_PATH . 'inc/admin-shell.php';
 require SNT_PATH . 'inc/indexnow.php';
 require SNT_PATH . 'inc/admin-forms/indexnow.php';
+require SNT_PATH . 'inc/admin-forms/settings-accounts.php'; // the line saying where the switch went.
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-indexnow.php';
 
 $pass = 0; $fail = 0;
@@ -45,14 +48,12 @@ snt_indexnow_fixture( true, $key, array( 'time' => time() - 3600, 'code' => 200,
 $classic = snt_leaf_classic_html( 'sn_admin_render_indexnow_section' );
 $kit     = snt_leaf_paint( 'connections', 'indexnow' );
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic forms: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( array( 'indexnow_ping_now', 'indexnow_regenerate', 'indexnow_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the three actions are indexnow_ping_now, indexnow_regenerate, indexnow_save, as on the classic leaf: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( array( 'sub', 'tab' ) === snt_leaf_names( $classic ) && array() === snt_leaf_names( $kit ), '2026-11: no setting is left on the leaf: the classic maintenance form keeps its hidden tab/sub pair, the native one-click writes carry no field: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+ok( array( 'indexnow_ping_now', 'indexnow_regenerate' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the two actions are indexnow_ping_now and indexnow_regenerate, as on the classic leaf; indexnow_save left with its switch: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-preg_match( '/<os-form\b[^>]*>/', $kit, $form_tag );
-ok( isset( $form_tag[0] ) && false !== strpos( $form_tag[0], 'os-action="post"' ) && false === strpos( $form_tag[0], 'os-arg-pipeline' ), 'the enable form is an os-form dispatching post through the admin-post pipeline (no pipeline declared: an action field is admin-post)' );
-ok( false !== strpos( $kit, '<os-checkbox-label name="indexnow_enabled" value="1" checked label="Notify search engines when content changes">' ), 'the toggle is a kit checkbox carrying the enabled state' );
-ok( false !== strpos( $kit, 'name="tab" value="connections"' ) && false !== strpos( $kit, 'name="sub" value="indexnow"' ), 'the classic hidden tab/sub fields survive on the enable form' );
-ok( false !== strpos( $kit, 'submit-label="Save IndexNow settings"' ), 'the save button keeps its classic label' );
+ok( false === strpos( $kit, '<os-form' ) && false === strpos( $kit . $classic, 'indexnow_enabled' ) && false === strpos( $kit . $classic, 'Notify search engines when content changes' ) && false === strpos( $kit . $classic, 'Save IndexNow settings' ), 'no form, no switch and no Save on either twin: the setting is on Settings › Accounts and connections' );
+ok( 1 === preg_match( '#<p class="snt-hint">The switch that turns IndexNow on moved to <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="accounts"[^>]*>Settings › Accounts and connections</os-button>\.</p>#', $kit ) && 1 === substr_count( $kit, 'moved to' ), 'native: one line says where the switch went, an in-window link to the pane' );
+ok( 1 === substr_count( $classic, '<p class="sn-field-helper">The switch that turns IndexNow on moved to <a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=accounts">Settings › Accounts and connections</a>.</p>' ), 'classic: the same line, once, with a link to the pane' );
 ok( false !== strpos( $kit, 'os-arg-action="sn_indexnow_ping_now"' ) && false !== strpos( $kit, '>Submit recent content now</os-button>' ), 'Submit recent content now is a one-click write of indexnow_ping_now' );
 ok( false !== strpos( $kit, 'os-arg-action="sn_indexnow_regenerate"' ) && false !== strpos( $kit, '>Regenerate key</os-button>' ), 'Regenerate key is a one-click write of indexnow_regenerate' );
 ok( 1 === substr_count( $kit, 'os-arg-nonce="nonce-sn_indexnow_ping_now"' ) && 1 === substr_count( $kit, 'os-arg-nonce="nonce-sn_indexnow_regenerate"' ), 'each one-click write carries the nonce minted for ITS action (#1614)' );
@@ -67,16 +68,10 @@ ok( false !== strpos( $kit, 'href="https://example.test/' . $key . '.txt"' ) && 
 ok( false !== strpos( $kit, 'Last submission' ) && false !== strpos( $kit, '<os-relative-time datetime="' ) && false !== strpos( $kit, '>1 hour ago</os-relative-time>: HTTP 200, 12 URLs' ), '#1596: the last submission is an os-relative-time, then HTTP code and URL count' );
 // 2026-10-12 audit: the IndexNow box was one checkbox and a button in a
 // mostly empty box. Two paired boxes now: IndexNow (status + toggle) | Status.
-ok( false !== strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2"><os-section heading="IndexNow" stack><os-notice' ) && false !== strpos( $kit, '<os-section heading="Status" stack role="region" aria-label="IndexNow status">' ), 'the IndexNow box (status notice first, then the toggle) beside the Status box, one row' );
+ok( false !== strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2"><os-section heading="IndexNow" stack><os-notice' ) && false !== strpos( $kit, '<os-section heading="Status" stack role="region" aria-label="IndexNow status">' ), 'the IndexNow box (status notice first, then where the switch went) beside the Status box, one row' );
 ok( false === strpos( $kit, '<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2" aria-label' ), 'PR #2025 review: the "IndexNow status" name sits on a landmark (the Status box, role="region"), not on a bare os-grid' );
-ok( false === strpos( $kit, '<os-row' ) && false === strpos( $kit, 'col="4"' ) && strpos( $kit, '<os-form' ) < strpos( $kit, 'heading="Status"' ) && strpos( $kit, 'heading="Status"' ) < strpos( $kit, 'os-arg-action="sn_indexnow_ping_now"' ), 'no rail: the toggle sits in the IndexNow box, the two maintenance actions in Status' );
+ok( false === strpos( $kit, '<os-row' ) && false === strpos( $kit, 'col="4"' ) && strpos( $kit, 'moved to' ) < strpos( $kit, 'heading="Status"' ) && strpos( $kit, 'heading="Status"' ) < strpos( $kit, 'os-arg-action="sn_indexnow_ping_now"' ), 'no rail: the line about the switch sits in the IndexNow box, the two maintenance actions in Status' );
 snt_leaf_preview( 'connections-indexnow', $kit );
-
-// ── Per-form field census: the enable form alone carries all five classic
-// field names (the whole-blob names oracle can't see which form a hidden
-// field lives on, so this pins it directly).
-preg_match( '/<os-form\b.*?<\/os-form>/s', $kit, $m );
-ok( isset( $m[0] ) && array( 'indexnow_enabled', 'sub', 'tab' ) === snt_leaf_names( $m[0] ), 'the enable form alone carries all three classic field names (the action and its nonce are the transport\'s): ' . implode( ',', snt_leaf_names( $m[0] ?? '' ) ) );
 
 // ── The availability guard (an addition over the classic, defensive against
 // a leaf loaded before its readers exist) is present in the source.
@@ -94,7 +89,7 @@ $kit     = snt_leaf_paint( 'connections', 'indexnow' );
 ok( false !== strpos( $kit, 'tone="danger"' ) && false !== strpos( $kit, '<b>Last submission failed</b>' ) && false !== strpos( $kit, '<os-badge tone="danger">Error</os-badge>' ), 'the failed state paints a danger notice with the Error pill' );
 ok( false !== strpos( $kit, 'HTTP 429 slow down' ), 'the recorded error is shown' );
 ok( false !== strpos( $kit, '>1 hour ago</os-relative-time>: HTTP 429, 3 URLs' ), 'the failed submission still paints its Last submission row, as the classic table does' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'failed state: field names still match the classic forms' );
+ok( array() === snt_leaf_names( $kit ) && array( 'sub', 'tab' ) === snt_leaf_names( $classic ), 'failed state: still no setting on either twin' );
 
 // ── Escaping: a hostile error and a hostile key never reach the markup raw.
 snt_indexnow_fixture( true, '"><script>x</script>', array( 'time' => time() - 60, 'code' => 500, 'count' => 1, 'error' => '<script>alert(1)</script>' ) );
@@ -107,9 +102,9 @@ ok( array() === snt_leaf_classic_markers( $kit ), 'hostile fixture: no <script> 
 snt_indexnow_fixture( false, '', array() );
 $classic = snt_leaf_classic_html( 'sn_admin_render_indexnow_section' );
 $kit     = snt_leaf_paint( 'connections', 'indexnow' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'disabled: names and actions still match the classic leaf' );
-ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>Disabled</b>' ) && false !== strpos( $kit, '<os-badge tone="warning">Off</os-badge>' ) && false !== strpos( $kit, 'Enable it under IndexNow' ), 'the disabled state paints a warning notice with the Off pill' );
-ok( false !== strpos( $kit, '<os-checkbox-label name="indexnow_enabled" value="1" label="Notify search engines when content changes">' ), 'disabled: the toggle is unchecked' );
+ok( array() === snt_leaf_names( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'disabled: still no setting, and the actions still match the classic leaf' );
+ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>Disabled</b>' ) && false !== strpos( $kit, '<os-badge tone="warning">Off</os-badge>' ) && false !== strpos( $kit, 'Enable it in Settings › Accounts and connections to start notifying search engines.' ), 'the disabled state paints a warning notice with the Off pill, and says where it is enabled' );
+ok( false !== strpos( $classic, 'Enable it in Settings › Accounts and connections to start notifying search engines.' ) && false === strpos( $kit . $classic, 'Enable it under IndexNow' ), 'the classic status box says the same; neither names a box that no longer holds the switch' );
 ok( false !== strpos( $kit, '<em>not generated yet</em>' ) && false === strpos( $kit, '.txt' ), 'disabled with no key: Key file reads not generated yet, no link' );
 ok( false === strpos( $kit, 'Last submission' ), 'disabled with no result: no Last submission row' );
 

@@ -75,12 +75,14 @@ ok( false !== strpos( snt_kit_form( 'save_identity', '', array( 'columns' => '1'
 
 // #8: the leaf bar says how wide its pills need the window to be.
 $connections = array( 'credentials' => 'Credentials', 'cloudflare' => 'Cloudflare', 'cloudways' => 'Cloudways', 'webhooks' => 'Webhooks', 'indexnow' => 'IndexNow', 'zenodo' => 'Zenodo', 'music' => 'Discography', 'cron' => 'Cron', 'scheduled-content' => 'Scheduled' );
-ok( false !== strpos( snt_kit_tabs( 'cron', $connections, 'sub', 'Sections' ), 'data-snt-fit="920"' ), 'nine Connections pills (819px measured) ask for the select twin under a 920px window' );
+ok( false !== strpos( snt_kit_tabs( 'cron', $connections, 'sub', 'Sections' ), 'data-snt-fit="920"' ), 'the nine pills Connections had until 2026-11 (819px measured, the estimate\'s calibration) ask for the select twin under a 920px window' );
+unset( $connections['credentials'] ); // 2026-11: Credentials moved whole to Settings > Accounts and connections.
+ok( false !== strpos( snt_kit_tabs( 'cron', $connections, 'sub', 'Sections' ), 'data-snt-fit="760"' ), 'Connections\' eight pills today (about 711px estimated) switch under a 760px window' );
 ok( false === strpos( snt_kit_tabs( 'login', array( 'login' => 'Login URL', 'login-defense' => 'Login defense', 'firewall' => 'Firewall' ), 'sub', 'Sections' ), 'data-snt-fit' ), 'three short pills fit even a 360px window and keep the segmented control' );
 $site = array( 'identity-and-seo' => 'Identity & SEO', 'performance' => 'Performance', 'redirects' => 'Redirects', 'broken-links' => 'Broken links' );
 ok( false !== strpos( snt_kit_tabs( 'performance', $site, 'sub', 'Sections' ), 'data-snt-fit="600"' ), 'Site\'s four pills (about 450px estimated; five and about 545px until Front-End left in 2026-11) switch under a 600px window: a short bar is not exempt (review on #2023)' );
-$settings = array( 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI', 'front-end' => 'Front end' );
-ok( false !== strpos( snt_kit_tabs( 'front-end', $settings, 'sub', 'Sections' ), 'data-snt-fit="600"' ), 'Settings\' four panes (about 436px estimated) switch under a 600px window too' );
+$settings = array( 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI', 'front-end' => 'Front end', 'accounts' => 'Accounts and connections' );
+ok( false !== strpos( snt_kit_tabs( 'front-end', $settings, 'sub', 'Sections' ), 'data-snt-fit="760"' ), 'Settings\' five panes (about 636px estimated; four and about 436px until Accounts and connections came in 2026-11) switch under a 760px window' );
 
 // #15: an empty table or list says what none means, or the kit says who forgot.
 $log = tempnam( sys_get_temp_dir(), 'snt-kit-empty' );

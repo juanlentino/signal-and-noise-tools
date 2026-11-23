@@ -30,13 +30,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function models_budget_setup_html( array $d ) {
 	$folds = array();
-	// 15.3.1: the Workers AI token is a keyring row (Connections › Credentials);
+	// 15.3.1: the Workers AI token is a keyring row (Settings › Accounts and connections);
 	// this leaf reads it and says so.
 	$token_set = '' !== (string) $d['embed_token'];
 	$folds[]   = array(
 		'title'   => __( 'Workers AI token', 'signal-and-noise-tools' ),
 		'summary' => $token_set ? __( 'Set', 'signal-and-noise-tools' ) : __( 'Not set', 'signal-and-noise-tools' ),
-		'body'    => '<p class="snt-hint">' . \snt_kit_esc( __( 'Workers AI token (semantic embeddings):', 'signal-and-noise-tools' ) ) . ' ' . ( $token_set ? \snt_kit_badge( 'ok', __( 'set', 'signal-and-noise-tools' ) ) : \snt_kit_badge( 'warn', __( 'not set', 'signal-and-noise-tools' ) ) ) . ' ' . \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'monitoring' ) ) . '.</p>',
+		'body'    => '<p class="snt-hint">' . \snt_kit_esc( __( 'Workers AI token (semantic embeddings):', 'signal-and-noise-tools' ) ) . ' ' . ( $token_set ? \snt_kit_badge( 'ok', __( 'set', 'signal-and-noise-tools' ) ) : \snt_kit_badge( 'warn', __( 'not set', 'signal-and-noise-tools' ) ) ) . ' ' . \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Settings › Accounts and connections', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'accounts', 'current' => 'monitoring' ) ) . '.</p>',
 		'open'    => ! $token_set,
 	);
 	return \snt_kit_setup_card( __( 'Setup', 'signal-and-noise-tools' ), $folds );

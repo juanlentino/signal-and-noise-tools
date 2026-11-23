@@ -1,8 +1,11 @@
 <?php
 /**
- * Signal & Noise Tools -- Connections › Zenodo: the words and the preview for
- * the DOI downloads line on /provenance (inc/provenance-doi-line.php), shared
- * by the classic leaf and the kit leaf so the two say the same sentences.
+ * Signal & Noise Tools -- Zenodo: the words and the preview for the DOI
+ * downloads line on /provenance (inc/provenance-doi-line.php), shared by the
+ * classic and the native twin so the two say the same sentences. The form is
+ * in the Zenodo box of Settings › Accounts and connections since 2026-11
+ * (inc/admin-forms/settings-accounts-forms.php); it was on Connections ›
+ * Zenodo.
  *
  * @package SignalNoiseTools
  */

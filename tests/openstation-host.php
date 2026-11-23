@@ -789,6 +789,7 @@ ok( 'health' === snt_os_host_resolve_sub( 'monitoring', 'health' ), 'a leaf the 
 ok( 'notifications' === snt_os_host_resolve_sub( 'settings', '' ) && 'notifications' === snt_os_host_resolve_sub( 'settings', 'notifications' ) && 'security' === snt_os_host_resolve_sub( 'settings', 'security' ), 'the settings tab lands on its first pane unnamed, and on the pane it is asked for' );
 ok( 'login-defense' === snt_os_host_resolve_sub( 'security', 'login' ), 'a Security session still holding the moved leaf (login) falls to the tab\'s first leaf, never a blank' );
 ok( 'front-end' === snt_os_host_resolve_sub( 'settings', 'front-end' ) && 'identity-and-seo' === snt_os_host_resolve_sub( 'site', 'front-end' ), 'the fourth pane resolves, and a Site session still holding the moved leaf (front-end) falls to the tab\'s first leaf, never a blank' );
+ok( 'accounts' === snt_os_host_resolve_sub( 'settings', 'accounts' ) && 'cloudflare' === snt_os_host_resolve_sub( 'connections', 'credentials' ) && 'cloudflare' === snt_os_host_resolve_sub( 'connections', '' ), 'the fifth pane resolves, and a Connections session still holding the moved leaf (credentials) falls to the tab\'s first leaf, Cloudflare, never a blank' );
 
 echo "\nGroup 6: the `sn_*` params a window carries\n";
 // The WIRE shape, expanded the way every entry point expands it -- feeding

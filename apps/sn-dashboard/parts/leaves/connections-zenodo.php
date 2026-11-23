@@ -3,15 +3,15 @@
  * S&N Dashboard — Connections → Zenodo, painted from the kit (15.11.0).
  *
  * The same reads as the classic leaf (inc/admin-forms/zenodo.php,
- * `sn_admin_render_zenodo_section()`): the environment switch, one deposit
- * action, the ledger as the house table, the status. Tokens live in
- * Credentials.
+ * `sn_admin_render_zenodo_section()`): one deposit action, the ledger as the
+ * house table, the status. The environment switch, the ledger concept DOI
+ * and the downloads line are on Settings > Accounts and connections since
+ * 2026-11 (settings-accounts-parts.php), with the tokens; the Status card
+ * keeps one line saying so.
  *
  * 2026-10-16 (leaf anatomy, docs/kit-leaf-anatomy.md): a Status card leads
  * (one status line, a problem's notice, the states, Deposit, the intro as
- * How this works) beside a Setup card whose one fold is the environment form,
- * one row; the ledger follows at full width. Before: an 8/4 row with a
- * status rail.
+ * How this works); the ledger follows at full width.
  *
  * @package SignalNoiseTools
  * @since 15.11.0
@@ -23,72 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/**
- * The environment form as a Setup fold: the closed summary is the
- * environment and the ledger DOI; it opens while no token is set, since the
- * environment names which token to add.
- *
- * @param array<string,mixed> $d sn_zenodo_leaf_data().
- * @return array<string,mixed> A Setup fold.
- */
-function zenodo_env_fold( array $d ) {
-	$env_field = \snt_kit_field(
-		'select',
-		'zenodo_env',
-		__( 'Environment', 'signal-and-noise-tools' ),
-		$d['env'],
-		array(
-			'options' => array(
-				'sandbox'    => __( 'Sandbox (sandbox.zenodo.org): test DOIs, never public', 'signal-and-noise-tools' ),
-				'production' => __( 'Production (zenodo.org)', 'signal-and-noise-tools' ),
-			),
-			'hint'    => __( 'Each environment reads its own token from Connections › Credentials.', 'signal-and-noise-tools' ),
-		)
-	);
-	$doi_field = \snt_kit_field(
-		'text',
-		'zenodo_ledger_doi',
-		__( 'Ledger concept DOI', 'signal-and-noise-tools' ),
-		(string) ( $d['ledger'] ?? '' ),
-		array(
-			'placeholder' => '10.5281/zenodo.NNNNNNN',
-			'hint'        => __( 'The DOI Zenodo minted for the ledger repository\'s monthly snapshot (the concept DOI, which resolves to the latest snapshot). Every deposit names it as the record it is part of. Empty until the first snapshot release.', 'signal-and-noise-tools' ),
-		)
-	);
-	$ledger  = (string) ( $d['ledger'] ?? '' );
-	$summary = ucfirst( (string) $d['env'] ) . ' · ' . ( '' !== $ledger
-		/* translators: %s: the ledger concept DOI. */
-		? sprintf( __( 'ledger DOI %s', 'signal-and-noise-tools' ), $ledger )
-		: __( 'ledger DOI not set', 'signal-and-noise-tools' ) );
-	return array(
-		'title'   => __( 'Environment', 'signal-and-noise-tools' ),
-		'summary' => $summary,
-		'body'    => \snt_kit_form( 'zenodo_env_save', $env_field . $doi_field, array( 'submit' => __( 'Save environment', 'signal-and-noise-tools' ), 'hidden' => array( 'tab' => 'connections', 'sub' => 'zenodo' ) ) ),
-		'open'    => empty( $d['enabled'] ),
-	);
-}
-
-/**
- * The DOI downloads line on /provenance as a Setup fold: the closed summary
- * is what the line reads now, or why it is hidden; the classic leaf carries
- * the same fields and words (sn_zenodo_doi_line_copy()).
- *
- * @return array<string,mixed> A Setup fold.
- */
-function zenodo_doi_line_fold() {
-	$c    = \sn_zenodo_doi_line_copy();
-	$s    = \snt_prov_doi_settings();
-	$body = '<p class="snt-hint">' . \snt_kit_esc( $c['intro'] ) . '</p>'
-		. \snt_kit_field( 'checkbox', 'zenodo_doi_line_enabled', $c['enabled'], $s['enabled'] )
-		. \snt_kit_field( 'text', 'zenodo_doi_line_label', $c['label'], $s['label'], array( 'hint' => $c['label_hint'], 'maxlength' => 80 ) )
-		. \snt_kit_field( 'number', 'zenodo_doi_line_floor', $c['floor'], $s['floor'], array( 'hint' => $c['floor_hint'], 'min' => 0, 'step' => 1 ) );
-	return array(
-		'title'   => $c['title'],
-		'summary' => \sn_zenodo_doi_line_preview(),
-		'body'    => \snt_kit_form( 'zenodo_doi_line_save', $body, array( 'submit' => $c['submit'], 'hidden' => array( 'tab' => 'connections', 'sub' => 'zenodo' ) ) ),
-		'open'    => false,
-	);
-}
+require_once __DIR__ . '/settings-accounts-parts.php'; // accounts_moved_html(): the line saying where this leaf's settings went.
 
 /**
  * The deposit action and what one pass does.
@@ -191,7 +126,7 @@ function zenodo_status_html( array $d ) {
 	);
 	return \snt_kit_section(
 		__( 'Status', 'signal-and-noise-tools' ),
-		$line . $under . ( array() !== $rows ? \snt_kit_kv( $rows ) : '' ) . zenodo_deposit_html( $d ) . $how,
+		$line . $under . ( array() !== $rows ? \snt_kit_kv( $rows ) : '' ) . zenodo_deposit_html( $d ) . accounts_moved_html( 'zenodo' ) . $how,
 		'',
 		array( 'role' => 'region', 'aria-label' => __( 'Zenodo status', 'signal-and-noise-tools' ) )
 	);
@@ -212,11 +147,9 @@ function paint_connections_zenodo( array $ctx ) {
 		return \snt_kit_empty( __( 'Zenodo is not available.', 'signal-and-noise-tools' ) );
 	}
 	$d = \sn_zenodo_leaf_data();
-	// 2026-10-16 (live audit): the Status card and the Setup card share the
-	// first row, the state beside the setting that names its token; the
-	// ledger follows at full width.
-	return \snt_kit_grid( array( zenodo_status_html( $d ), \snt_kit_setup_card( __( 'Setup', 'signal-and-noise-tools' ), array( zenodo_env_fold( $d ), zenodo_doi_line_fold() ), __( 'Set once; open it to change it.', 'signal-and-noise-tools' ) ) ) )
-		. zenodo_ledger_html( $d );
+	// The Setup card (the environment and the downloads line) left for
+	// Settings > Accounts and connections in 2026-11; the Status card says so.
+	return zenodo_status_html( $d ) . zenodo_ledger_html( $d );
 }
 
 add_filter(

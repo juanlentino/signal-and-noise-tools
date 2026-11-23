@@ -132,13 +132,16 @@ function sn_admin_subtab_moves() {
 		'tools/front-end'     => array( 'tab' => 'settings', 'sub' => 'front-end' ),    // was content, then site
 		'monitoring/music'    => array( 'tab' => 'connections', 'sub' => 'music' ),     // was content
 
-		// ── 2026-11 Settings tab: the two leaves that moved there whole (Login
-		// URL, then Site > Front-End, which was nothing but the one form). The
+		// ── 2026-11 Settings tab: the leaves that moved there whole (Login URL,
+		// then Site > Front-End, which was nothing but the one form). The
 		// other panes took fields, not leaves, and have no line (an entry would
 		// redirect the leaf the field came from: Site > Performance kept its
 		// readings when its switch left, so it has none). ──
 		'security/login'      => array( 'tab' => 'settings', 'sub' => 'security' ),
 		'site/front-end'      => array( 'tab' => 'settings', 'sub' => 'front-end' ),
+		// The fifth pane took Connections > Credentials whole. IndexNow, Zenodo
+		// and Discography gave it fields and kept their leaves: no line.
+		'connections/credentials' => array( 'tab' => 'settings', 'sub' => 'accounts' ),
 		// 'monitoring/rss' is deliberately ABSENT: RSS now lives in monitoring, so an
 		// entry here would bounce the leaf straight back out of its own tab.
 	);

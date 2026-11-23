@@ -65,7 +65,7 @@ $s = snt_morning_brief_read_split( 'Measurement › Machine Readers › Rights e
 ok( 'Measurement › Machine Readers › Rights evidence' === $s['human'] && 'signal-noise/rights-evidence{in_review,hold_reasons}' === $s['agents'], 'a tool slug leaves the human line' );
 $s = snt_morning_brief_read_split( 'option sn_csp_hash_last; signal-noise/get-cron-history sn_csp_hash_check' );
 ok( '' === $s['human'] && 2 === count( explode( '; ', $s['agents'] ) ), 'options and cron-history reads are for agents' );
-$s = snt_morning_brief_read_split( 'Connections › Credentials; https://github.com/juanlentino/signal-and-noise-tools/issues/1625' );
+$s = snt_morning_brief_read_split( 'Settings › Accounts and connections; https://github.com/juanlentino/signal-and-noise-tools/issues/1625' );
 ok( '' === $s['agents'] && false !== strpos( $s['human'], 'https://github.com/' ), 'a screen name and a public URL stay for people' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

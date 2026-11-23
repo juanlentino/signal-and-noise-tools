@@ -35,7 +35,7 @@ function sn_admin_render_firewall_section() {
 	do_action( 'sn_admin_firewall_tab' );
 }
 
-/** Connections → Credentials (15.2.0): the keyring's classic leaf. */
+/** Settings → Accounts and connections (15.2.0): the keyring's classic leaf. */
 function sn_admin_render_credentials_section() {
 	do_action( 'sn_admin_credentials_tab' );
 }

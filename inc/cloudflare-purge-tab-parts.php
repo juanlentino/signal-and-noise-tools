@@ -77,12 +77,12 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	// the main column, the module status + manual-purge action in the rail.
 	sn_admin_shell_open();
 
-	// ── MAIN: WHERE THE CREDENTIALS LIVE (15.2.0: Connections › Credentials) ──
+	// ── MAIN: WHERE THE CREDENTIALS LIVE (15.2.0: Settings › Accounts and connections) ──
 	// The token, zone and account are set on the keyring with every other key;
 	// this leaf reads them and says where each comes from.
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Credentials</h2>';
-	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=connections&sub=credentials' ) ) . '">Connections › Credentials</a>.</p>';
+	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=settings&sub=accounts' ) ) . '">Settings › Accounts and connections</a>.</p>';
 	$sources = array(
 		'API token'  => $token_const_set ? 'locked by SN_CLOUDFLARE_API_TOKEN' : ( '' !== $token ? 'saved (' . $token_obscured . ')' : 'not set' ),
 		'Zone ID'    => $zone_const_set ? 'locked by SN_CLOUDFLARE_ZONE_ID' : ( '' !== $zone ? $zone : 'not set' ),
@@ -220,7 +220,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		echo '<div class="sn-status-box sn-status-box--warn">';
 		echo '<div>';
 		echo '<p class="sn-status-box-title">Not configured</p>';
-		echo '<p class="sn-status-box-body">Auto-purge disabled. Set both the API token and zone ID under Credentials to activate.</p>';
+		echo '<p class="sn-status-box-body">Auto-purge disabled. Set both the API token and zone ID in Settings › Accounts and connections to activate.</p>';
 		echo '</div>';
 		echo '<span class="sn-pill sn-pill--warn">Inactive</span>';
 		echo '</div>';

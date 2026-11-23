@@ -152,8 +152,8 @@ require_once __DIR__ . '/../inc/analytics-render-settings.php';
 echo "\nTest: settings surface: credentials fold (15.2.0: read-only; the fields live on the keyring) routes its copy through i18n\n";
 $html = capture( 'snt_analytics_render_credentials' );
 ok( sn_i18n_seen( 'Credentials' ), 'credentials heading translatable' );
-ok( sn_i18n_seen( 'Set under Connections › Credentials, with every other key. Analytics Engine reads use the Cloudflare API token (Account › Account Analytics › Read on it) unless an analytics token override is set there.' ), 'the pointer prose is translatable' );
-ok( sn_i18n_seen( 'No token anywhere: set the Cloudflare API token under Connections › Credentials.' ), 'the no-token notice translatable' );
+ok( sn_i18n_seen( 'Set under Settings › Accounts and connections, with every other key. Analytics Engine reads use the Cloudflare API token (Account › Account Analytics › Read on it) unless an analytics token override is set there.' ), 'the pointer prose is translatable' );
+ok( sn_i18n_seen( 'No token anywhere: set the Cloudflare API token under Settings › Accounts and connections.' ), 'the no-token notice translatable' );
 ok( sn_i18n_seen( 'Account ID:' ), 'Account ID label translatable' );
 ok( sn_i18n_seen( 'Test connection' ), 'Test connection button translatable' );
 ok( false !== strpos( $html, '<h3 class="sn-fieldset-h">Credentials</h3>' ), 'credentials heading English byte-identical' );
@@ -172,14 +172,14 @@ echo "\nTest: settings surface: worker-setup reference routes the summary + setu
 $html3 = capture( 'snt_analytics_render_worker_setup' );
 ok( sn_i18n_seen( 'Cloudflare Worker setup (manual, one-time)' ), 'worker-setup summary translatable' );
 ok( sn_i18n_seen( 'Read token' ), 'Read-token step label translatable' );
-ok( sn_i18n_seen( '(set under Connections › Credentials): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.' ), 'Read-token step prose is a translatable sprintf msgid (2026-10-12: names the screen, not "the fields above")' );
+ok( sn_i18n_seen( '(set under Settings › Accounts and connections): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.' ), 'Read-token step prose is a translatable sprintf msgid (2026-10-12: names the screen, not "the fields above")' );
 ok( sn_i18n_seen( 'Deploy the edge Worker + its secrets' ), 'Deploy step label translatable' );
 ok( sn_i18n_seen( '(from the analytics-worker repo: this can’t be done from WordPress):' ), 'Deploy step prose translatable' );
 ok( sn_i18n_seen( 'Theme beacon' ), 'Theme-beacon step label translatable' );
 ok( sn_i18n_seen( 'set %1$s in %2$s to the SAME value as the Worker’s %3$s so the front-end beacon is accepted.' ), 'Theme-beacon step prose is a translatable sprintf msgid' );
 ok( sn_i18n_seen( 'Press %s once the token and Account ID are set, to confirm the read side works. Pageview data appears within about 15 minutes.' ), 'final step prose is a translatable sprintf msgid (2026-10-12: no "above")' );
 ok( false !== strpos( $html3, '<summary>Cloudflare Worker setup (manual, one-time)</summary>' ), 'worker-setup summary English byte-identical' );
-ok( false !== strpos( $html3, '<li><strong>Read token</strong> (set under Connections › Credentials): Cloudflare dashboard → My Profile → API Tokens → create a token with <code>Account · Analytics · Read</code>. The Account ID is in the dashboard URL: <code>dash.cloudflare.com/&lt;account_id&gt;</code>.</li>' ), 'Read-token step English byte-identical (Cloudflare permission scope + URL pattern stay outside the msgid)' );
+ok( false !== strpos( $html3, '<li><strong>Read token</strong> (set under Settings › Accounts and connections): Cloudflare dashboard → My Profile → API Tokens → create a token with <code>Account · Analytics · Read</code>. The Account ID is in the dashboard URL: <code>dash.cloudflare.com/&lt;account_id&gt;</code>.</li>' ), 'Read-token step English byte-identical (Cloudflare permission scope + URL pattern stay outside the msgid)' );
 ok( false !== strpos( $html3, '<li><strong>Deploy the edge Worker + its secrets</strong> (from the analytics-worker repo: this can’t be done from WordPress):<pre class="sn-an-pre">wrangler secret put SN_PX_TOKEN' ), 'Deploy step English byte-identical through the <pre> block' );
 ok( false !== strpos( $html3, "wrangler deploy</pre></li>" ), 'wrangler command block unchanged (literal shell commands, not translatable)' );
 ok( false !== strpos( $html3, '<li><strong>Theme beacon</strong>: set <code>SN_BEACON_TOKEN</code> in <code>wp-config.php</code> to the SAME value as the Worker’s <code>SN_PX_TOKEN</code> so the front-end beacon is accepted.</li>' ), 'Theme-beacon step English byte-identical (constant names + file name stay outside the msgid)' );
@@ -241,12 +241,12 @@ $contract = array(
 	),
 	'inc/analytics-render-settings.php'   => array(
 		"esc_html__( 'Credentials', 'signal-and-noise-tools' )",
-		"esc_html__( 'Set under Connections › Credentials, with every other key. Analytics Engine reads use the Cloudflare API token (Account › Account Analytics › Read on it) unless an analytics token override is set there.', 'signal-and-noise-tools' )",
+		"esc_html__( 'Set under Settings › Accounts and connections, with every other key. Analytics Engine reads use the Cloudflare API token (Account › Account Analytics › Read on it) unless an analytics token override is set there.', 'signal-and-noise-tools' )",
 		"esc_html__( 'Account ID:', 'signal-and-noise-tools' )",
 		"esc_html__( 'Test connection', 'signal-and-noise-tools' )",
 		"esc_html__( 'Cloudflare Worker setup (manual, one-time)', 'signal-and-noise-tools' )",
 		"esc_html__( 'Read token', 'signal-and-noise-tools' )",
-		"esc_html__( '(set under Connections › Credentials): Cloudflare dashboard → My Profile → API Tokens → create a token with %1\$s. The Account ID is in the dashboard URL: %2\$s.', 'signal-and-noise-tools' )",
+		"esc_html__( '(set under Settings › Accounts and connections): Cloudflare dashboard → My Profile → API Tokens → create a token with %1\$s. The Account ID is in the dashboard URL: %2\$s.', 'signal-and-noise-tools' )",
 		"esc_html__( 'Deploy the edge Worker + its secrets', 'signal-and-noise-tools' )",
 		"esc_html__( '(from the analytics-worker repo: this can’t be done from WordPress):', 'signal-and-noise-tools' )",
 		"esc_html__( 'Theme beacon', 'signal-and-noise-tools' )",

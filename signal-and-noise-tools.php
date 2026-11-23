@@ -103,7 +103,7 @@ require_once SNT_PATH . 'inc/cloudflare-posture.php';         // 15.4.0: zone se
 require_once SNT_PATH . 'inc/keyring.php';        // 15.2.0: every credential in one registry; the site secret the handshakes derive from.
 require_once SNT_PATH . 'inc/keyring-changes.php'; // 19.6.2: every keyring option write logged (row, verb, a keyed fingerprint, source); never a value nor any part of one.
 require_once SNT_PATH . 'inc/keyring-verify.php'; // 15.2.0: one probe per credential, verdicts stored; "Verify all".
-require_once SNT_PATH . 'inc/keyring-admin.php';  // 15.2.0: the row model both leaves paint; the classic Connections › Credentials leaf.
+require_once SNT_PATH . 'inc/keyring-admin.php';  // 15.2.0: the row model both twins paint; the classic Credentials box of Settings › Accounts and connections.
 require_once SNT_PATH . 'inc/owner-identity-sign.php'; // Unreleased (SN Traffic Lanes): the device marker and agent token signer, pinned to the Workers' vectors.
 require_once SNT_PATH . 'inc/owner-devices.php';       // Unreleased: owner device enrollment, renewal on admin_init, revoke.
 require_once SNT_PATH . 'inc/rest-no-route.php'; // 2026-10-16 audit: core's rest_no_route 404, byte for byte, for token-gated machine routes.
@@ -278,9 +278,10 @@ require_once SNT_PATH . 'inc/admin-forms/performance.php'; // v4.10.0: Site > Pe
 require_once SNT_PATH . 'inc/admin-forms/front-end.php';     // v4.12.0: the eight front-end settings, painted on Settings > Front end
 require_once SNT_PATH . 'inc/admin-forms/settings-front-end.php'; // Settings > Front end: that form and the speculative loading switch
 require_once SNT_PATH . 'inc/admin-forms/ai-settings.php';   // v10.46.0: AI → Models & Budget (extracted out of front-end.php)
-require_once SNT_PATH . 'inc/admin-forms/music.php';         // v4.13.0: Connections → Discography (Spotify creds + Muso profile + Sync now)
-require_once SNT_PATH . 'inc/admin-forms/indexnow.php';     // v5.1.0: Automation → IndexNow (enable toggle + key URL + backfill)
-require_once SNT_PATH . 'inc/admin-forms/zenodo.php';       // 15.11.0: Connections → Zenodo (environment, ledger, deposit)
+require_once SNT_PATH . 'inc/admin-forms/music.php';         // v4.13.0: Connections → Discography (the sync, the featured release, Sync now)
+require_once SNT_PATH . 'inc/admin-forms/indexnow.php';     // v5.1.0: Connections → IndexNow (status + key URL + backfill)
+require_once SNT_PATH . 'inc/admin-forms/zenodo.php';       // 15.11.0: Connections → Zenodo (status, ledger, deposit)
+require_once SNT_PATH . 'inc/admin-forms/settings-accounts.php'; // Settings > Accounts and connections: the keyring (from Connections > Credentials, whole) and the Zenodo, IndexNow and Muso.AI settings
 require_once SNT_PATH . 'inc/theme-filters.php';             // v4.12.0: supply configured theme.* values to theme/plugin filters (front-end)
 require_once SNT_PATH . 'inc/now-page.php';                  // v7.5.0: /now content editor data layer + sn_now_sections/sn_now_updated feed
 require_once SNT_PATH . 'inc/uses-page.php';                 // v7.6.0: /uses content editor data layer + sn_uses_groups feed (shares the /now section grammar)

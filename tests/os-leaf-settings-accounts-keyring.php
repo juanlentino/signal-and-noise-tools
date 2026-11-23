@@ -1,13 +1,17 @@
 <?php
 /**
- * Native window leaf: Connections → Credentials (apps/sn-dashboard/parts/leaves/connections-keyring.php).
+ * The Credentials box of Settings › Accounts and connections
+ * (apps/sn-dashboard/parts/leaves/settings-accounts.php, accounts_credentials_html()).
+ * It was the Connections → Credentials leaf until 2026-11 and moved whole;
+ * this suite was tests/os-leaf-connections-keyring.php and keeps every
+ * assertion, read off the box instead of the leaf.
  *
- * The oracle is the classic leaf (sn_admin_render_credentials_section →
+ * The oracle is the classic box (sn_admin_render_credentials_section →
  * sn_admin_keyring_render). Both paint the one row model as a LEDGER
  * (15.2.1): three tables, one form (key_id + key_value), two actions, the
  * refusals as notices, never a raw secret, the four worker commands.
  *
- * Run: php tests/os-leaf-connections-keyring.php
+ * Run: php tests/os-leaf-settings-accounts-keyring.php
  */
 require_once __DIR__ . '/lib/os-leaf-harness.php';
 
@@ -19,12 +23,15 @@ require SNT_PATH . 'inc/admin-render-sections.php';
 require SNT_PATH . 'inc/keyring.php';
 require SNT_PATH . 'inc/keyring-verify.php';
 require SNT_PATH . 'inc/keyring-admin.php';
-require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-keyring.php';
+require SNT_PATH . 'apps/sn-dashboard/parts/leaves/settings-accounts.php';
+
+/** The native Credentials box alone, as the leaf painted it. */
+function kr_kit() { return \SignalNoise\OpenStationHost\Dashboard\Leaves\accounts_credentials_html(); }
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['connections/credentials'] ), 'the painter is registered under connections/credentials' );
+ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['settings/accounts'] ) && ! isset( \SignalNoise\OpenStationHost\Dashboard\painters()['connections/credentials'] ), 'the painter is registered under settings/accounts, and none is left under connections/credentials' );
 function kr_table_rows( $html, $heading ) {
 	$at = strpos( $html, 'heading="' . $heading . '"' );
 	if ( false === $at ) { return null; }
@@ -36,7 +43,7 @@ function kr_table_rows( $html, $heading ) {
 // ── Nothing set, never verified.
 $GLOBALS['__options'] = array(); $GLOBALS['__settings'] = array();
 $classic = snt_leaf_classic_html( 'sn_admin_render_credentials_section' );
-$kit     = snt_leaf_paint( 'connections', 'credentials' );
+$kit     = kr_kit();
 ok( '' !== $kit && '' !== $classic, 'both leaves paint' );
 $names = array_values( array_diff( snt_leaf_names( $kit ), array( '_wpnonce', 'sn_action' ) ) );
 ok( array( 'key_id', 'key_value' ) === $names && $names === array_values( array_diff( snt_leaf_names( $classic ), array( '_wpnonce', 'sn_action' ) ) ), '15.2.1: two fields, key_id and key_value, on both leaves; never a field per row' );
@@ -66,7 +73,7 @@ $GLOBALS['__options'][ SN_SITE_SECRET_OPT ] = 'site-secret-value-7777';
 $GLOBALS['__options'][ SN_KEYRING_SITE_ROWS ] = array( 'srv_token' );
 define( 'SN_BETTERSTACK_API_TOKEN', 'bs-constant-value-4242' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_credentials_section' );
-$kit     = snt_leaf_paint( 'connections', 'credentials' );
+$kit     = kr_kit();
 foreach ( array( 'cf-secret-value-9999', 'site-secret-value-7777', 'bs-constant-value-4242' ) as $raw ) {
 	ok( false === strpos( $kit, $raw ) && false === strpos( $classic, $raw ), "the raw value $raw is on neither leaf" );
 }
@@ -85,7 +92,7 @@ if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { uns
 $owner_paste = 'c0ffee' . str_repeat( '1', 54 ) . 'BEEF';
 ok( 'keyring_saved' === sn_handle_keyring_save( array( 'key_id' => 'owner_key', 'key_value' => $owner_paste ) ), 'the owner key takes a pasted 64-hex value' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_credentials_section' );
-$kit     = snt_leaf_paint( 'connections', 'credentials' );
+$kit     = kr_kit();
 ok( false === stripos( $kit, substr( $owner_paste, 0, 60 ) ) && false === stripos( $classic, substr( $owner_paste, 0, 60 ) ) && false !== strpos( $kit, '••••beef' ) && false !== strpos( $classic, '••••beef' ), 'the pasted owner key is on neither leaf; both show its last four, lowercase' );
 foreach ( array( $kit, $classic ) as $html ) {
 	$plain = html_entity_decode( $html, ENT_QUOTES, 'UTF-8' );
@@ -97,7 +104,7 @@ $GLOBALS['__options'][ SN_KEYRING_VERDICTS_OPT ] = array(
 	'mr_read_token' => array( 'status' => 'refused', 'detail' => "The sensor refused it: this value and the worker's SN_MR_READ_TOKEN differ.", 'at' => 1789500000 ),
 	'cf_token'      => array( 'status' => 'ok', 'detail' => 'Cloudflare answers active (user token).', 'at' => 1789500000 ),
 );
-$kit     = snt_leaf_paint( 'connections', 'credentials' );
+$kit     = kr_kit();
 $classic = snt_leaf_classic_html( 'sn_admin_render_credentials_section' );
 ok( 1 === substr_count( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>Machine Readers read token</b>' ) && false !== strpos( $kit, 'SN_MR_READ_TOKEN differ' ) && strpos( $kit, 'SN_MR_READ_TOKEN differ' ) < strpos( $kit, 'heading="Site secret and the workers"' ), 'the one refusal is a notice above the ledger, naming the row and the side' );
 ok( 'refused' === kr_table_rows( $kit, 'Site secret and the workers' )[1]['verified'] && 'ok' === kr_table_rows( $kit, 'Cloudflare' )[0]['verified'], 'the table cells carry the verdict word' );
@@ -108,7 +115,7 @@ ok( false !== strpos( $classic, 'notice-warning' ) && false !== strpos( $classic
 // 2026-10-12, live: the picker painted an empty box (value '' matches no
 // option), which read as "no credentials". It says what to do instead, and
 // every kit select with no matching value gets a placeholder.
-$picker = snt_leaf_paint( 'connections', 'credentials' );
+$picker = kr_kit();
 ok( 1 === preg_match( '/<os-select[^>]*name="key_id"[^>]*placeholder="Choose a credential"/', $picker ), 'the credential picker says "Choose a credential" until one is chosen' );
 ok( false !== strpos( snt_kit_field( 'select', 'x', 'X', '', array( 'options' => array( 'a' => 'A' ) ) ), 'placeholder="Choose one"' ) && false === strpos( snt_kit_field( 'select', 'x', 'X', 'a', array( 'options' => array( 'a' => 'A' ) ) ), 'placeholder=' ), 'a kit select whose value matches no option shows a placeholder; one with a match shows its option' );
 

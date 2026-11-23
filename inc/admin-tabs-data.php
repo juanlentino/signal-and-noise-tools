@@ -222,16 +222,17 @@ function sn_admin_top_tabs() {
 			'tab'      => 'connections',
 			'label'    => 'Connections',
 			'title'    => 'Signal & Noise. Connections',
-			'subtitle' => 'Everything that talks to a third party: the credentials in one place, Cloudflare, webhooks, IndexNow, the Spotify discography, and scheduled jobs.',
+			'subtitle' => 'Everything that talks to a third party: Cloudflare, Cloudways, webhooks, IndexNow, Zenodo, the Spotify discography, and scheduled jobs. Their credentials and settings are in Settings.',
 			'sub_tabs' => array(
 				// Cloudflare moved from Site; webhooks/indexnow/cron from the retired
 				// Automation tab (v6.18.0). 'wide' (Phase 3, v6.45.0): all
 				// Connections leaves use the full-width layout — Cloudflare/Webhooks lay
 				// out work + status/reference in the two-column sn_admin_shell; Cron and
 				// Scheduled lead with a glance hero over a full-width data table.
-				// 15.2.0: every credential in one place, first, because it is the
-				// precondition for every other leaf under this tab.
-				'credentials'       => array( 'label' => 'Credentials', 'render' => 'sn_admin_render_credentials_section', 'wide' => true ),
+				// 2026-11: Credentials (15.2.0, every credential in one place) moved
+				// WHOLE to Settings > Accounts and connections and has a moves line.
+				// IndexNow, Zenodo and Discography kept their readings and actions;
+				// their settings went to the same pane, so they have none.
 				'cloudflare'        => array( 'label' => 'Cloudflare', 'render' => 'sn_admin_render_cloudflare_section', 'wide' => true ),
 				// v12.17.0: Cloudways sits directly under Cloudflare because the two
 				// are the same job at two layers — edge cache and origin cache — and
@@ -398,11 +399,16 @@ function sn_admin_top_tabs() {
 			// fourth pane, Front end, took Site > Front-End WHOLE (one form, eight
 			// settings, nothing else: it has a moves line) and the speculative
 			// loading switch from Site > Performance, which kept its readings.
+			// The fifth pane, Accounts and connections, took Connections >
+			// Credentials WHOLE (the list of accounts with their state: it has a
+			// moves line) and the settings of three Connections leaves that kept
+			// their readings: IndexNow's switch, Zenodo's environment, ledger DOI
+			// and downloads line, and the Muso.AI profile ID from Discography.
 			'slug'     => 'sn-settings',
 			'tab'      => 'settings',
 			'label'    => 'Settings',
 			'title'    => 'Signal & Noise. Settings',
-			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address. Security: the login address and how long the audit log is kept. AI: the models, the monthly budget, the MCP doors and the daily read-only run. Front end: how notes are listed and read, the command palette, where a note reply goes and prerendering.',
+			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address. Security: the login address and how long the audit log is kept. AI: the models, the monthly budget, the MCP doors and the daily read-only run. Front end: how notes are listed and read, the command palette, where a note reply goes and prerendering. Accounts and connections: every credential with its state, the Zenodo environment and downloads line, the IndexNow switch and the Muso.AI profile.',
 			'sub_tabs' => array(
 				// 'wide': the render fn paints two cards of its own side by side
 				// (.sn-2up); capped, the wrapper would nest them in a third.
@@ -417,6 +423,9 @@ function sn_admin_top_tabs() {
 				// 'wide' again: three boxes in one form (reading, the command
 				// palette, replies) and a fourth with its own (performance).
 				'front-end'     => array( 'label' => 'Front end', 'render' => 'sn_admin_render_settings_front_end_section', 'wide' => true ),
+				// 'wide' again: the keyring's own two-column shell, then a row of
+				// boxes, one per account (Zenodo, IndexNow, Muso.AI).
+				'accounts'      => array( 'label' => 'Accounts and connections', 'render' => 'sn_admin_render_settings_accounts_section', 'wide' => true ),
 			),
 		),
 	);
