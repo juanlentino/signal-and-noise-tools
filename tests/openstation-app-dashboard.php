@@ -279,7 +279,7 @@ namespace {
 	// named, there is no leaf bar to pick from (the classic strip hides under
 	// two leaves the same way), and a save's notice paints on top of it.
 	$os = new \OpenStation\App\Os(); $os->view = 'settings';
-	$st = new \OpenStation\App\State( $app->state, array( 'notice' => array( 'success', 'Morning operations brief settings saved.' ) ) );
+	$st = new \OpenStation\App\State( $app->state, array( 'notice' => array( 'success', 'Morning brief and alert settings saved.' ) ) );
 	ob_start();
 	call_user_func( $app->tabs['settings']['view'], $st, $os );
 	$settings_html = (string) ob_get_clean();
@@ -287,7 +287,7 @@ namespace {
 		'the settings tab paints its one pane, notifications, through the frame' );
 	ok( false === strpos( $settings_html, 'slot="toolbar"' ) && false === strpos( $settings_html, '<os-segmented' ) && false !== strpos( \snt_kit_tabs( 'a', array( 'a' => 'A', 'b' => 'B' ) ), '<os-segmented' ) && array( 'notifications' => 'Notifications and reports' ) === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ),
 		'   ...with no leaf bar: one leaf is nothing to choose between' );
-	ok( strpos( $settings_html, 'Morning operations brief settings saved.' ) < strpos( $settings_html, 'data-snt-leaf="notifications"' ) && false !== strpos( $settings_html, 'Morning operations brief settings saved.' ),
+	ok( strpos( $settings_html, 'Morning brief and alert settings saved.' ) < strpos( $settings_html, 'data-snt-leaf="notifications"' ) && false !== strpos( $settings_html, 'Morning brief and alert settings saved.' ),
 		'   ...and the saved notice sits on top of the pane' );
 
 	echo "\nGroup 5: S&N Home UI & unescaped HTML\n";

@@ -58,7 +58,7 @@ function notifications_brief_html() {
 	$inner .= notifications_last_lines( (int) get_option( SNT_MORNING_BRIEF_LAST_SENT, 0 ), get_option( SNT_MORNING_BRIEF_LAST_ERROR ) );
 	$test   = \snt_kit_form( 'morning_brief_save', \snt_kit_field( 'hidden', 'snt_morning_brief_test', '', '1' ), array( 'submit' => __( 'Send test brief', 'signal-and-noise-tools' ), 'inline' => true ) );
 	return \snt_kit_section(
-		__( 'Morning operations brief', 'signal-and-noise-tools' ),
+		__( 'Morning brief and alerts', 'signal-and-noise-tools' ),
 		\snt_kit_form( 'morning_brief_save', $inner, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) ) . \snt_kit_tag( 'os-cluster', array( 'gap' => '8' ), $test )
 	);
 }

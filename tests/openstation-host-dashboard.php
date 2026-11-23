@@ -471,7 +471,7 @@ namespace {
 	$os2->view = 'settings';
 	$st2 = new \OpenStation\App\State( $app->state, array( 'sub' => 'notifications' ) );
 	$app->actions['post']( $st2, $os2, array( 'values' => array( '_wpnonce' => 'brief-nonce', 'action' => 'sn_morning_brief_save', 'snt_morning_brief_enabled' => true, 'snt_alerts_enabled' => false ) ) );
-	ok( 'notifications' === $st2->get( 'sub' ) && array( 'success', 'Morning operations brief settings saved.' ) === $st2->get( 'notice' ) && true === $st2->get( 'saved' ),
+	ok( 'notifications' === $st2->get( 'sub' ) && array( 'success', 'Morning brief and alert settings saved.' ) === $st2->get( 'notice' ) && true === $st2->get( 'saved' ),
 		'a save from Settings > Notifications and reports lands back on that pane with its saved notice' );
 	$app->actions['post']( $st2, $os2, array( 'values' => array( '_wpnonce' => 'brief-nonce', 'action' => 'sn_morning_brief_save', 'snt_morning_brief_test' => '1' ) ) );
 	ok( 'notifications' === $st2->get( 'sub' ) && array( 'error', 'Test morning operations brief could not be sent.' ) === $st2->get( 'notice' ) && false === $st2->get( 'saved' ),

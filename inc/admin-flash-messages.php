@@ -176,7 +176,7 @@ function sn_admin_flash_messages() {
 		'block_migrations_scanned'  => array( 'success', 'Block migration scan complete.' ),
 		'audit_retention_saved'     => array( 'success', 'Audit retention saved.' ),
 		'audit_retention_unchanged' => array( 'info', 'Audit retention unchanged.' ),
-		'morning_brief_saved'       => array( 'success', 'Morning operations brief settings saved.' ),
+		'morning_brief_saved'       => array( 'success', 'Morning brief and alert settings saved.' ),
 		'morning_brief_test_sent'   => array( 'success', 'Test morning operations brief sent.' ),
 		'morning_brief_test_failed' => array( 'error', 'Test morning operations brief could not be sent.' ),
 		'config_drift_acknowledged' => array( 'success', 'Current settings acknowledged as the configuration baseline.' ),
