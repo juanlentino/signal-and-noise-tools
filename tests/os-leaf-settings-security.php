@@ -154,7 +154,7 @@ ok( 1 === preg_match( '/<os-field-row label="Slug"><os-text-field type="text" va
 ok( false !== strpos( $kit, '<os-disclosure heading="Emergency unlock" hint="SN_LOGIN_SLUG is set"' ) && false !== strpos( $kit, 'data-snt-fold="emergency-unlock" data-snt-open="1"' ) && false !== strpos( $kit, '>Slug pinned in wp-config.php<' ), 'locked: the unlock fold opens and names the constant, and the status line says the slug is pinned' );
 ok( false !== strpos( $kit, 'Option 2: disable' ) && false !== strpos( $kit, 'Restores /wp-login.php' ) && false !== strpos( $kit, 'SN_LOGIN_SLUG' ), 'both emergency-unlock options survive, labeled' );
 
-// ── Bypassed state (SN_LOGIN_BYPASS constant set — one-way, so it must run last).
+// ── Bypassed state (SN_LOGIN_BYPASS constant set: one-way, so it must run last).
 define( 'SN_LOGIN_BYPASS', true );
 $kit = snt_leaf_paint( 'settings', 'security' );
 ok( false !== strpos( $kit, 'Module bypassed' ) && false !== strpos( $kit, '>Bypassed<' ) && false !== strpos( $kit, 'tone="warning"' ), 'the bypassed state paints a warning notice with the Bypassed badge' );
