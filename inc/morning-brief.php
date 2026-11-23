@@ -280,8 +280,14 @@ add_action( 'init', 'snt_morning_brief_maybe_schedule_cron' );
 function snt_morning_brief_daily_cron_cb() { snt_morning_brief_send(); }
 add_action( SNT_MORNING_BRIEF_CRON_HOOK, 'snt_morning_brief_daily_cron_cb' );
 
+/**
+ * The brief and alerts form on Settings > Notifications and reports
+ * (inc/admin-forms/notifications.php). Both checkboxes sit in this ONE form:
+ * sn_handle_morning_brief_save() writes both switches on every plain save, so
+ * a form carrying one would turn the other off. The drift notice and its
+ * Acknowledge button stayed on Connections > Cron (inc/config-drift.php).
+ */
 function snt_morning_brief_render_settings() {
-	$drift = function_exists( 'snt_config_drift_status' ) ? snt_config_drift_status() : array( 'has_drift' => false );
 	$last_sent = (int) get_option( SNT_MORNING_BRIEF_LAST_SENT, 0 );
 	$last_error = get_option( SNT_MORNING_BRIEF_LAST_ERROR );
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset"><input type="hidden" name="action" value="sn_morning_brief_save" />'; wp_nonce_field( 'sn_morning_brief_save' );
@@ -294,9 +300,6 @@ function snt_morning_brief_render_settings() {
 	}
 	if ( $last_sent > 0 ) { echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Last sent %s ago.', human_time_diff( $last_sent, time() ) ) ) . '</p>'; }
 	if ( is_array( $last_error ) && ! empty( $last_error['message'] ) ) { echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Last send failed: %s', $last_error['message'] ) ) . '</p>'; }
-	if ( ! empty( $drift['has_drift'] ) ) { echo '<p class="sn-field-helper">' . esc_html( sprintf( 'Configuration drift: %d settings differ from the acknowledged snapshot.', $drift['count'] ) ) . '</p>'; }
 	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button> <button type="submit" class="button" name="snt_morning_brief_test" value="1">' . esc_html__( 'Send test brief', 'signal-and-noise-tools' ) . '</button>';
-	if ( ! empty( $drift['has_drift'] ) ) { echo ' <button type="submit" class="button" name="snt_config_drift_acknowledge" value="1">' . esc_html__( 'Acknowledge current settings', 'signal-and-noise-tools' ) . '</button>'; }
 	echo '</div></form>';
 }
-add_action( 'sn_admin_cron_tab', 'snt_morning_brief_render_settings', 20 );

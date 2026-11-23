@@ -39,6 +39,7 @@ function sn_admin_render_citations_section() { $GLOBALS['__calls'][] = 'fn:sn_ad
 function snt_analytics_render_settings_section() { $GLOBALS['__calls'][] = 'fn:snt_analytics_render_settings_section'; }
 function sn_admin_render_music_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_music_section'; }
 function sn_admin_render_links_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_links_section'; }
+function sn_admin_render_notifications_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_notifications_section'; } // Settings > Notifications and reports (real fn lives in inc/admin-forms/notifications.php)
 function sn_admin_render_mcp_connect_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_mcp_connect_section'; } // v9.47.0: Tools → Connect an MCP client
 function sn_admin_render_agent_tools_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_agent_tools_section'; } // 15.6.0: AI → Agent tools (real fn lives in inc/agent-tools-admin.php); absorbed Copilot Usage.
 function sn_admin_render_performance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_performance_section'; }
@@ -107,8 +108,17 @@ foreach ( $tabs as $top ) {
 // is hardcoded in five call sites and stays valid.
 $by_tab = array();
 foreach ( sn_admin_top_tabs() as $t ) { $by_tab[ $t['tab'] ] = $t; }
-ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connections', 'monitoring', 'ai', 'security', 'tools' ),
-	'8 top tabs in IA order (ai is new, between monitoring and security)' );
+ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connections', 'monitoring', 'ai', 'security', 'tools', 'settings' ),
+	'9 top tabs in IA order (ai between monitoring and security; settings is the ninth and the last, where a preferences area sits by convention)' );
+// Settings: the plugin's own preferences, one pane per subject. The first pane
+// is the three email switches that sat on Connections > Cron and Security >
+// Login defense. 'wide' because its render fn paints two cards of its own.
+ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
+	'settings: slug sn-settings, one pane, notifications' );
+ok( 'Notifications and reports' === ( $by_tab['settings']['sub_tabs']['notifications']['label'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['notifications']['wide'] ),
+	'the pane is labelled "Notifications and reports" and is wide (it owns its two cards; capped would nest them in a third)' );
+sn_admin_render_active_tab( 'settings', '' );
+ok( 'fn:sn_admin_render_notifications_section' === end( $GLOBALS['__calls'] ), 'the dispatcher routes the settings tab to its one pane' );
 
 // Site: was the single-leaf Identity & SEO tab; now the whole "how the site
 // itself behaves" group, so its label loses the leaf's name.

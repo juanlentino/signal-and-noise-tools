@@ -27,7 +27,7 @@ function sn_handle_audit_save_retention( $post ) {
 }
 
 /**
- * v7.2.0: save the weekly security-digest opt-in (Security → Login defense), or
+ * v7.2.0: save the weekly security-digest opt-in (Settings > Notifications and reports), or
  * send a test digest when the test button submitted. Single-key write via
  * sn_setting_update() (no whole-subtree replace), then immediate cron sync so
  * the toggle takes effect without waiting for the next init.

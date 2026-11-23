@@ -96,9 +96,9 @@ namespace {
 	ok( array( 'go', 'post', 'door', 'refresh', 'reopen', 'poll', 'cron_run', 'cron_unschedule' ) === array_keys( $app->actions ), 'eight actions: go, post, door, refresh, reopen, poll, cron_run, cron_unschedule (#1604)' );
 	$tabs = array();
 	foreach ( sn_admin_top_tabs() as $t ) { if ( 'dashboard' !== $t['tab'] ) { $tabs[ $t['tab'] ] = $t['label']; } }
-	ok( array_keys( $tabs ) === array_keys( $app->tabs ) && array_values( $tabs ) === array_column( $app->tabs, 'label' ), 'the framework`s tabs are the registry`s seven tabs after Dashboard, in order, with the registry`s labels: ' . implode( ', ', array_keys( $app->tabs ) ) );
+	ok( array_keys( $tabs ) === array_keys( $app->tabs ) && array_values( $tabs ) === array_column( $app->tabs, 'label' ), 'the framework`s tabs are the registry`s eight tabs after Dashboard, in order, with the registry`s labels: ' . implode( ', ', array_keys( $app->tabs ) ) );
 	$positions = array_column( $app->tabs, 'position' ); $sorted = $positions; sort( $sorted );
-	ok( $positions === $sorted && count( array_unique( $positions ) ) === 7 && ! in_array( false, array_map( 'is_callable', array_column( $app->tabs, 'view' ) ), true ), 'each tab has a view callable and an ascending, distinct position' );
+	ok( $positions === $sorted && count( array_unique( $positions ) ) === 8 && ! in_array( false, array_map( 'is_callable', array_column( $app->tabs, 'view' ) ), true ), 'each tab has a view callable and an ascending, distinct position' );
 	ok( is_callable( $app->view ), 'the main view is the Dashboard tab' );
 	$args = snt_os_host_window_args( array( 'styles' => array(), 'scripts' => array() ), 'sn-dashboard' );
 	ok( 'Dashboard' === ( $args['main_tab_label'] ?? null ), 'the first tab is labelled Dashboard through the window args, not the window title' );
@@ -273,6 +273,22 @@ namespace {
 	$spliced = array( 'monitoring/search-console', 'monitoring/machine-readers' );
 	$spliced_missing = array_diff( $spliced, array_keys( $painters ) );
 	ok( array() === $spliced_missing, 'the two spliced leaves (Search Console, Machine Readers) have painters too' . ( $spliced_missing ? ' -- MISSING: ' . implode( ', ', $spliced_missing ) : '' ) );
+
+	// Settings is the one tab with exactly ONE leaf. Painted through the frame
+	// (the tab's own view, not the painter alone): the leaf lands without being
+	// named, there is no leaf bar to pick from (the classic strip hides under
+	// two leaves the same way), and a save's notice paints on top of it.
+	$os = new \OpenStation\App\Os(); $os->view = 'settings';
+	$st = new \OpenStation\App\State( $app->state, array( 'notice' => array( 'success', 'Morning operations brief settings saved.' ) ) );
+	ob_start();
+	call_user_func( $app->tabs['settings']['view'], $st, $os );
+	$settings_html = (string) ob_get_clean();
+	ok( 0 === strpos( $settings_html, '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="settings"' ) && false !== strpos( $settings_html, '<div class="snt-leaf" data-snt-leaf="notifications">' ) && false === strpos( $settings_html, 'Section not found' ),
+		'the settings tab paints its one pane, notifications, through the frame' );
+	ok( false === strpos( $settings_html, 'slot="toolbar"' ) && false === strpos( $settings_html, '<os-segmented' ) && false !== strpos( \snt_kit_tabs( 'a', array( 'a' => 'A', 'b' => 'B' ) ), '<os-segmented' ) && array( 'notifications' => 'Notifications and reports' ) === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ),
+		'   ...with no leaf bar: one leaf is nothing to choose between' );
+	ok( strpos( $settings_html, 'Morning operations brief settings saved.' ) < strpos( $settings_html, 'data-snt-leaf="notifications"' ) && false !== strpos( $settings_html, 'Morning operations brief settings saved.' ),
+		'   ...and the saved notice sits on top of the pane' );
 
 	echo "\nGroup 5: S&N Home UI & unescaped HTML\n";
 	require_once SNT_PATH . 'inc/openstation-kit-triggers.php';

@@ -35,7 +35,7 @@ function sn_admin_flash_messages() {
 		'remote_constant_locked'    => array( 'error', 'Nothing changed: SN_MCP_REMOTE_DISABLED in wp-config.php keeps the remote door off. Remove that line to use this switch.' ),
 		'digest_saved'              => array( 'success', 'Security digest settings saved.' ),
 		'digest_test_sent'          => array( 'success', 'Test digest sent to the admin email address.' ),
-		'digest_test_failed'        => array( 'error', 'Test digest failed to send: check the mail configuration (see the error note on the Login defense panel).' ),
+		'digest_test_failed'        => array( 'error', 'Test digest failed to send: check the mail configuration (the reason is on the Weekly security digest box, Settings › Notifications and reports).' ),
 		'now_saved'                 => array( 'success', 'Now page saved: the live /now renders this content with today\'s date.' ),
 		'now_cleared'               => array( 'info', 'Now page override cleared. /now reverts to the theme\'s built-in content.' ),
 		'now_unchanged'             => array( 'info', 'No changes to save.' ),

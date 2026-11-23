@@ -234,9 +234,10 @@ function sn_login_defense_render() {
 		. esc_html__( 'View login defense analytics', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
 	echo '</div></div>'; // .sn-status-box, .sn-fieldset
 	sn_login_defense_render_breach(); // 2026-10-12 audit: native-only until then.
-	// v7.2.1: the digest settings card mounts AFTER the status card.
-	if ( function_exists( 'snt_security_digest_render_settings' ) ) {
-		snt_security_digest_render_settings();
+	// The weekly digest's settings card sat here from v7.2.1; it is a pane of
+	// Settings now (inc/admin-forms/notifications.php). One line says so.
+	if ( function_exists( 'snt_notifications_moved_line' ) ) {
+		snt_notifications_moved_line( __( 'The weekly security digest switch moved to', 'signal-and-noise-tools' ) );
 	}
 }
 

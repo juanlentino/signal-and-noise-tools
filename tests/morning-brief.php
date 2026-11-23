@@ -186,7 +186,12 @@ $rendered = ob_get_clean();
 ok( false !== strpos( $rendered, 'class="sn-fieldset"' ), 'settings render uses the digest fieldset shape' );
 ok( false !== strpos( $rendered, 'name="snt_morning_brief_enabled"' ), 'settings render includes the opt-in toggle' );
 ok( false !== strpos( $rendered, 'name="snt_morning_brief_test"' ), 'settings render includes a test-send action' );
-ok( false !== strpos( $rendered, 'name="snt_config_drift_acknowledge"' ), 'settings render exposes explicit drift acknowledgement only when needed' );
+ok( false !== strpos( $rendered, 'name="snt_alerts_enabled"' ) || ! function_exists( 'snt_alerts_enabled' ), 'the alerts toggle rides the same form whenever the alerts module is loaded' );
+// The drift notice and its Acknowledge button are a warning about operations:
+// they stayed on Connections > Cron (inc/config-drift.php) when this form
+// moved to Settings > Notifications and reports. Drift is ON in this fixture.
+ok( false === strpos( $rendered, 'snt_config_drift_acknowledge' ) && false === strpos( $rendered, 'Configuration drift' ), 'the brief form carries no drift notice and no Acknowledge button, drift or not' );
+ok( 1 === substr_count( $rendered, '<form' ) && 1 === substr_count( $rendered, 'value="sn_morning_brief_save"' ), 'one form, one action' );
 
 
 // ─── v13.90.0: watches that have come due ─────────────────────────────────

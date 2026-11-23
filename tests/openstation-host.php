@@ -778,7 +778,7 @@ ok( 'Zenodo’s answer — a draft…' === snt_os_host_toast_text( array( 'error
 
 echo "\nGroup 5: where a (tab, sub) pair lands\n";
 $_GET = array();
-foreach ( array( 'monitoring', 'site', 'content', 'connections', 'security', 'tools', 'ai', 'dashboard' ) as $tab ) {
+foreach ( array( 'monitoring', 'site', 'content', 'connections', 'security', 'tools', 'ai', 'settings', 'dashboard' ) as $tab ) {
 	$_GET = array( 'sub' => 'no-such-leaf' );
 	ok( sn_admin_resolve_active_sub( $tab ) === snt_os_host_resolve_sub( $tab, 'no-such-leaf' ),
 		"snt_os_host_resolve_sub() agrees with sn_admin_resolve_active_sub() on $tab -- the same two rules, read off the same registry, with the \$_GET read replaced by state" );
@@ -786,6 +786,7 @@ foreach ( array( 'monitoring', 'site', 'content', 'connections', 'security', 'to
 $_GET = array();
 ok( '' === snt_os_host_resolve_sub( 'dashboard', 'anything' ), 'a landing tab has no sub-tab, whatever was asked for' );
 ok( 'health' === snt_os_host_resolve_sub( 'monitoring', 'health' ), 'a leaf the tab really has is kept' );
+ok( 'notifications' === snt_os_host_resolve_sub( 'settings', '' ) && 'notifications' === snt_os_host_resolve_sub( 'settings', 'notifications' ), 'the settings tab lands on its one pane, named or not' );
 
 echo "\nGroup 6: the `sn_*` params a window carries\n";
 // The WIRE shape, expanded the way every entry point expands it -- feeding

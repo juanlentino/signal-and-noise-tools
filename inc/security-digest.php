@@ -9,7 +9,7 @@
  * and since 2026-10-18 its lockouts and throttles), and guard denylist freshness. Sends every week including quiet
  * weeks: the zero week is the heartbeat that proves the pipeline is alive.
  *
- * Opt-in, default OFF (settings toggle on Security → Login defense), weekly
+ * Opt-in, default OFF (settings toggle on Settings > Notifications and reports), weekly
  * cron with the self-healing schedule-sync pattern from inc/insights-narration.php,
  * wp_mail() cloned from inc/api-rate-monitor.php. No AI anywhere in this path:
  * security observability must not fail when the AI client fails, and the email
@@ -280,7 +280,7 @@ function snt_security_digest_compose( $data ) {
 		$lines[] = '';
 	}
 	$lines[] = 'Enforcement happens at the edge in real time; this digest is observability.';
-	$lines[] = 'Turn it off in Security › Login defense.';
+	$lines[] = 'Turn it off in Settings › Notifications and reports.';
 
 	return implode( "\n", $lines ) . "\n";
 }
@@ -358,7 +358,7 @@ function snt_security_digest_weekly_cron_cb() {
 add_action( SN_SECURITY_DIGEST_CRON_HOOK, 'snt_security_digest_weekly_cron_cb' );
 
 /**
- * Settings section for the Security → Login defense sub-tab: the opt-in toggle,
+ * Settings card on Settings > Notifications and reports (Security > Login defense until 2026-11): the opt-in toggle,
  * last-sent/last-error readout, save + test-send buttons. Posts through the
  * central dispatcher (sn_action=security_digest_save; nonce + caps + page
  * allowlist enforced centrally by sn_handle_admin_post()).

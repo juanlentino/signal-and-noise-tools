@@ -148,7 +148,7 @@ namespace {
 	// One nonce per ACTION: the estate mints four, and a global "valid" would
 	// hide the very confusion the pipelines exist to end.
 	function wp_verify_nonce( $nonce, $action = -1 ) {
-		$minted = array( 'good-nonce' => 'sn_save_identity', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults' );
+		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults' );
 		return ( isset( $minted[ $nonce ] ) && $minted[ $nonce ] === $action ) ? 1 : false;
 	}
 	// The interceptor needs real hook plumbing, a real wp_redirect (which filters
@@ -241,6 +241,7 @@ namespace {
 		return 'identity_saved';
 	}
 	function sn_handle_webhook_add( $post ) { return 'wh_added_abc123'; }
+	function sn_handle_morning_brief_save( $post ) { return isset( $post['snt_morning_brief_test'] ) ? 'morning_brief_test_failed' : 'morning_brief_saved'; }
 	$GLOBALS['__handler_calls'] = array();
 
 	// The rewrite half of the view needs core's WP_HTML_Tag_Processor. Found on
@@ -462,6 +463,19 @@ namespace {
 		'the redirect target is applied to this tab`s session, and the query params are dropped -- the classic redirect keeps only page/tab/sub/sn_flash' );
 	ok( array( 2 ) === $os->badges && 1 === $os->refresh, 'a save re-reads the badge and asks the shell for a fresh payload' );
 	ok( true === $st->get( 'saved' ) && 'sn_save_identity' === $st->get( 'answered' ), 'a save that took marks the next paint saved and names the form it answers, so the host lets only that form\'s typing go' );
+
+	// Settings > Notifications and reports: a save or a test from the pane is
+	// answered ON the pane. The tab is the session's (settings), the redirect
+	// target keeps its sub, and the flash is the notice, success or failure.
+	$os2 = new \OpenStation\App\Os();
+	$os2->view = 'settings';
+	$st2 = new \OpenStation\App\State( $app->state, array( 'sub' => 'notifications' ) );
+	$app->actions['post']( $st2, $os2, array( 'values' => array( '_wpnonce' => 'brief-nonce', 'action' => 'sn_morning_brief_save', 'snt_morning_brief_enabled' => true, 'snt_alerts_enabled' => false ) ) );
+	ok( 'notifications' === $st2->get( 'sub' ) && array( 'success', 'Morning operations brief settings saved.' ) === $st2->get( 'notice' ) && true === $st2->get( 'saved' ),
+		'a save from Settings > Notifications and reports lands back on that pane with its saved notice' );
+	$app->actions['post']( $st2, $os2, array( 'values' => array( '_wpnonce' => 'brief-nonce', 'action' => 'sn_morning_brief_save', 'snt_morning_brief_test' => '1' ) ) );
+	ok( 'notifications' === $st2->get( 'sub' ) && array( 'error', 'Test morning operations brief could not be sent.' ) === $st2->get( 'notice' ) && false === $st2->get( 'saved' ),
+		'   ...and a failed test send stays there too, with its failed notice' );
 
 	$os = new \OpenStation\App\Os();
 	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'stale', 'action' => 'sn_save_identity' ) ) );

@@ -301,7 +301,7 @@ function snt_alerts_compose( array $alerts, $sources, $site, $where ) {
 		$body .= "\n" . ( $top ? 'Top sources today, site-wide (views): ' . implode( ', ', $top ) . '.' : $none );
 		$body .= "\nVisits with no referrer (apps, RSS readers, privacy browsers) show as direct.\n";
 	}
-	$body .= "\nOpen the dashboard: " . $where . "\nEach alert mails once for its day. Switch alerts off in Connections › Cron.\n";
+	$body .= "\nOpen the dashboard: " . $where . "\nEach alert mails once for its day. Switch alerts off in Settings › Notifications and reports.\n";
 	$breaks = count( $alerts ) - $spikes - $caches - $hns;
 	$what   = array_filter( array( $spikes ? $spikes . ( 1 === $spikes ? ' spike' : ' spikes' ) : '', $breaks ? $breaks . ( 1 === $breaks ? ' break' : ' breaks' ) : '', $caches ? 'cache refresh failed' : '', $hns ? 'Hacker News' : '' ) );
 	return array( sprintf( '[%s] Alert: %s', $site, implode( ', ', $what ) ), $body );

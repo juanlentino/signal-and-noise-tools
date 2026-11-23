@@ -3,19 +3,20 @@
  * S&N Dashboard: Connections → Cron, the readout box and the settings row.
  *
  * The classic tab is do_action( 'sn_admin_cron_tab' ), and two of its three
- * callbacks carry a form: the morning brief (inc/morning-brief.php,
- * `snt_morning_brief_render_settings()`, priority 20, `morning_brief_save`)
- * and the scheduled read-only runs (inc/scheduled-reads.php,
+ * callbacks carry a form: the configuration drift box (inc/config-drift.php,
+ * `snt_config_drift_render_cron_box()`, priority 20, `morning_brief_save`
+ * with `snt_config_drift_acknowledge`, painted only while drift exists) and
+ * the scheduled read-only runs (inc/scheduled-reads.php,
  * `snt_scheduled_reads_render_settings()`, priority 30, `scheduled_reads_save`).
- * Each classic form shares one `sn_action` between its Save button and its
- * secondary verbs (Send test brief, Acknowledge current settings, Run now),
- * the click told apart by an extra field only that button carries. An
- * `<os-form>` fires one event per submit and a one-click button drops extra
- * args (sn-dashboard.os.php posted_values), so each verb is its own kit form
- * with the differentiator as a hidden field: the security-login-defense.php
- * shape. Same readers, same field names, same actions. 2026-10-16 (leaf
- * anatomy, docs/kit-leaf-anatomy.md): those secondary verbs are the compact
- * inline forms, side by side under Save, not a full-width row each.
+ * The morning brief and alerts switches that shared the drift box are a pane
+ * of Settings now (settings-notifications.php). A classic form shares one
+ * `sn_action` between its Save button and its secondary verb (Run now), the
+ * click told apart by an extra field only that button carries. An `<os-form>`
+ * fires one event per submit and a one-click button drops extra args
+ * (sn-dashboard.os.php posted_values), so each verb is its own kit form with
+ * the differentiator as a hidden field. Same readers, same field names, same
+ * actions. 2026-10-16 (leaf anatomy, docs/kit-leaf-anatomy.md): a secondary
+ * verb is the compact inline form under Save, not a full-width row.
  *
  * @package SignalNoiseTools
  * @since 17.3.0
@@ -28,50 +29,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The morning brief box: toggle, helper, readouts, Save, Send test brief,
- * and Acknowledge current settings while drift exists. Drift is a problem,
- * so it is a notice on top of the box, not a helper line under the toggle.
+ * The configuration drift box: what stayed here when the brief's email
+ * switches moved to Settings > Notifications and reports
+ * (settings-notifications.php). Drift is a problem, so it is a warn notice,
+ * with Acknowledge current settings under it while it exists; the form posts
+ * `morning_brief_save` carrying `snt_config_drift_acknowledge`, and the
+ * handler returns on that field before it writes a switch. One line says
+ * where the switches went.
  *
  * @return string
  */
-function cron_morning_brief_html() {
-	$drift      = function_exists( 'snt_config_drift_status' ) ? \snt_config_drift_status() : array( 'has_drift' => false );
-	$has_drift  = ! empty( $drift['has_drift'] );
-	$last_sent  = (int) get_option( SNT_MORNING_BRIEF_LAST_SENT, 0 );
-	$last_error = get_option( SNT_MORNING_BRIEF_LAST_ERROR );
-
-	$top = '';
-	if ( $has_drift ) {
-		$top = \snt_kit_notice(
+function cron_drift_html() {
+	$drift = function_exists( 'snt_config_drift_status' ) ? \snt_config_drift_status() : array( 'has_drift' => false );
+	if ( empty( $drift['has_drift'] ) ) {
+		$body = '<p class="snt-hint">' . \snt_kit_esc( __( 'No settings differ from the acknowledged snapshot.', 'signal-and-noise-tools' ) ) . '</p>';
+	} else {
+		$body = \snt_kit_notice(
 			'warn',
 			\snt_kit_esc( sprintf(
 				/* translators: %d: number of settings that differ from the acknowledged snapshot */
 				__( 'Configuration drift: %d settings differ from the acknowledged snapshot.', 'signal-and-noise-tools' ),
 				(int) ( $drift['count'] ?? 0 )
 			) )
-		);
+		) . \snt_kit_tag( 'os-cluster', array( 'gap' => '8' ), \snt_kit_form( 'morning_brief_save', \snt_kit_field( 'hidden', 'snt_config_drift_acknowledge', '', '1' ), array( 'submit' => __( 'Acknowledge current settings', 'signal-and-noise-tools' ), 'inline' => true ) ) );
 	}
-
-	$inner = \snt_kit_field( 'checkbox', 'snt_morning_brief_enabled', __( 'Email a daily morning brief to the admin address', 'signal-and-noise-tools' ), \snt_morning_brief_enabled(), array( 'value' => '1', 'hint' => __( 'A deterministic prose reading of the latest health scan, cron history, uptime status, deploy state, and any unacknowledged settings drift. Scheduled for 7:00 a.m. site time.', 'signal-and-noise-tools' ) ) );
-	if ( function_exists( 'snt_alerts_enabled' ) ) {
-		// 20.8.0: the alerts toggle, the native twin of the classic box's second checkbox.
-		$inner .= \snt_kit_field( 'checkbox', 'snt_alerts_enabled', __( 'Email an alert when a page spikes or breaks', 'signal-and-noise-tools' ), \snt_alerts_enabled(), array( 'value' => '1', 'hint' => __( 'Checked hourly against stored data: a page or the whole site far above its 7-day mean, or a page with 3 or more server errors in a day. One email per alert per day, to the admin address.', 'signal-and-noise-tools' ) ) );
-	}
-	if ( $last_sent > 0 ) {
-		/* translators: %s: relative time element */
-		$inner .= '<p class="snt-hint">' . sprintf( \snt_kit_esc( __( 'Last sent %s.', 'signal-and-noise-tools' ) ), \snt_kit_relative_time( (int) $last_sent ) ) . '</p>';
-	}
-	if ( is_array( $last_error ) && ! empty( $last_error['message'] ) ) {
-		$inner .= \snt_kit_notice( 'err', '<b>' . \snt_kit_esc( __( 'Last send failed:', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( (string) $last_error['message'] ) );
-	}
-
-	$verbs = \snt_kit_form( 'morning_brief_save', \snt_kit_field( 'hidden', 'snt_morning_brief_test', '', '1' ), array( 'submit' => __( 'Send test brief', 'signal-and-noise-tools' ), 'inline' => true ) );
-	if ( $has_drift ) {
-		$verbs .= \snt_kit_form( 'morning_brief_save', \snt_kit_field( 'hidden', 'snt_config_drift_acknowledge', '', '1' ), array( 'submit' => __( 'Acknowledge current settings', 'signal-and-noise-tools' ), 'inline' => true ) );
-	}
-	$out = \snt_kit_form( 'morning_brief_save', $inner, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) )
-		. \snt_kit_tag( 'os-cluster', array( 'gap' => '8' ), $verbs );
-	return \snt_kit_section( __( 'Morning operations brief', 'signal-and-noise-tools' ), $top . $out );
+	$moved = '<p class="snt-hint">' . \snt_kit_esc( __( 'The morning brief and alert email switches moved to', 'signal-and-noise-tools' ) ) . ' '
+		. \snt_kit_go( __( 'Settings › Notifications and reports', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'notifications', 'current' => 'connections' ) ) . '.</p>';
+	return \snt_kit_section( __( 'Configuration drift', 'signal-and-noise-tools' ), $body . $moved );
 }
 
 /**
@@ -153,8 +137,8 @@ function cron_backlog_html() {
 }
 
 /**
- * The boxes under the ledger, on one row (17.2.1: boxes share a row): the two
- * settings boxes and the Action Scheduler backlog, five short facts that stood
+ * The boxes under the ledger, on one row (17.2.1: boxes share a row): the
+ * drift box, the scheduled reads box and the Action Scheduler backlog, five short facts that stood
  * alone across the full width above them (2026-10-12 audit). Each settings
  * side paints only when its classic callback is loaded and only while not
  * watching (its checkboxes cannot ride a poll); a missing box leaves the rest
@@ -164,7 +148,7 @@ function cron_backlog_html() {
  * @return string
  */
 function cron_settings_row_html( $watching = false ) {
-	$brief = ! $watching && function_exists( 'snt_morning_brief_render_settings' ) ? cron_morning_brief_html() : '';
+	$brief = ! $watching && function_exists( 'snt_config_drift_render_cron_box' ) ? cron_drift_html() : '';
 	$reads = ! $watching && function_exists( 'snt_scheduled_reads_render_settings' ) ? cron_scheduled_reads_html() : '';
 	$boxes = array();
 	foreach ( array( $brief, $reads, cron_backlog_html() ) as $box ) {

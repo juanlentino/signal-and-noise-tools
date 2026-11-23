@@ -12,6 +12,16 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **S&N Home has a Settings tab, and the three email switches are its first pane: Settings › Notifications and reports.** Settings sat among the readings; the convention this follows is the preferences area of System Settings on macOS and Settings on Windows, one pane per subject, last in the list. The tab is the ninth (page slug `sn-settings`), on the classic screens and in the native window, both read from `sn_admin_top_tabs()`. Option keys, form actions (`morning_brief_save`, `security_digest_save`) and handlers are unchanged, and a save or a test from the pane returns to the pane with its notice on both surfaces.
+  - **Left Connections › Cron** (the "Morning operations brief" box), for the pane: the switch "Email a daily morning brief to the admin address" and its hint; the switch "Email an alert when a page spikes or breaks" and its hint; the Save button for the two; the "Send test brief" button; the brief's "Last sent" line and its "Last send failed" line.
+  - **Stayed on Connections › Cron:** the "Configuration drift: N settings differ from the acknowledged snapshot." notice and its "Acknowledge current settings" button, now in a box of their own headed "Configuration drift" (it reads "No settings differ from the acknowledged snapshot." when there is none, a line that is new); the events ledger; the "Scheduled read-only runs" box; the "Action Scheduler backlog" box. One line was added: where the two switches went, with a link.
+  - **Left Security › Login defense** (the "Weekly security digest" box, whole), for the pane: the switch "Email a weekly security digest to the admin address" and its hint; its Save button; the "Send test digest" button and the line that says what it does; the digest's "Last sent" line and its "Last send failed" line.
+  - **Stayed on Security › Login defense:** the "Login guard status" box and the "Breached passwords" box, every figure in them. One line was added: where the switch went, with a link.
+  - **New on the pane:** one line saying in-app alert notifications are set in OS Settings › Signal & Noise. It has no control.
+  - **Repointed:** the alert email's footer ("Switch alerts off in…"), the weekly digest's footer ("Turn it off in…") and the failed test digest notice now name the pane.
+  - Tests: `tests/os-leaf-settings-notifications.php` (new), `tests/os-leaf-connections-cron.php`, `tests/os-leaf-security-login-defense.php`, `tests/admin-ia-redirect.php`, `tests/openstation-host-dashboard.php`.
+
 ## [2026.11.59] - 2026-11-23 — OS Settings › Signal & Noise in three sections, with an alert notification switch and Restore defaults
 
 ### Changed
