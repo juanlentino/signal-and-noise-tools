@@ -234,8 +234,8 @@ function sn_mcp_set_rw_bound_uuid( $uuid ) {
 function sn_mcp_rw_error_messages() {
 	return array(
 		'rw_disabled'               => __( 'The MCP write door is currently disabled.', 'signal-and-noise-tools' ),
-		'rw_credential_unbound'     => __( 'The MCP write door has no Application Password bound to it yet. Set the write-door Application Password in Tools -> MCP.', 'signal-and-noise-tools' ),
-		'credential_not_authorized' => __( 'This request did not authenticate with the Application Password bound to the MCP write door. Use that Application Password, or re-bind the write door in Tools -> MCP.', 'signal-and-noise-tools' ),
+		'rw_credential_unbound'     => __( 'The MCP write door has no Application Password bound to it yet. Set the write-door Application Password in S&N Home, Settings › AI.', 'signal-and-noise-tools' ),
+		'credential_not_authorized' => __( 'This request did not authenticate with the Application Password bound to the MCP write door. Use that Application Password, or re-bind the write door in S&N Home, Settings › AI.', 'signal-and-noise-tools' ),
 	);
 }
 

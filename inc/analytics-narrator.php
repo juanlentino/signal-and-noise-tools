@@ -37,7 +37,7 @@ const SN_ANALYTICS_DIGEST_LASTGOOD_OPT   = 'sn_analytics_digest_lastgood';
  * below), so the reporting window is implicitly covered — no separate range
  * component is needed in the key. The model-preference filter is applied
  * read-only here (mirroring, not duplicating, snt_ai_generate_with_constraints()'s
- * own resolution) so a live picker change (Front-End settings tab) still busts
+ * own resolution) so a live picker change (Settings > AI) still busts
  * the cache instead of serving text generated under a different model.
  *
  * @param string $namespace 'narrate' | 'digest' — keeps the two artifacts in
