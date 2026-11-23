@@ -42,7 +42,21 @@ function models_budget_status_html( array $d ) {
 		__( 'One monthly budget for every AI feature here; Copilot and agents run outside it.', 'signal-and-noise-tools' ),
 		'<p class="snt-prose">' . \snt_kit_esc( __( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here (drafts, insights, meta descriptions, alt text) draws on the same monthly budget. Copilot and agents run outside it.', 'signal-and-noise-tools' ) ) . '</p>'
 	);
-	return \snt_kit_section( __( 'AI budget', 'signal-and-noise-tools' ), \snt_kit_status_line( $chips ) . models_budget_reads_html() . $how );
+	return \snt_kit_section( __( 'AI budget', 'signal-and-noise-tools' ), \snt_kit_status_line( $chips ) . models_budget_reads_html() . models_budget_moved_html() . $how );
+}
+
+/**
+ * The one line this leaf keeps about its settings: the models, the budget and
+ * the Jev credit are on Settings > AI (settings-ai.php) since 2026-11. The
+ * sentence is the classic twin's (inc/admin-forms/settings-ai.php).
+ *
+ * @return string
+ */
+function models_budget_moved_html() {
+	if ( ! function_exists( 'snt_settings_ai_moved_text' ) ) {
+		return '';
+	}
+	return '<p class="snt-hint">' . \snt_kit_esc( \snt_settings_ai_moved_text( 'models' ) ) . ' ' . \snt_kit_go( __( 'Settings › AI', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'ai', 'current' => 'ai' ) ) . '.</p>';
 }
 
 /**

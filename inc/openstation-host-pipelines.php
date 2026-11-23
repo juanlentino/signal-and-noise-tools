@@ -110,8 +110,10 @@ function snt_os_host_expand( array $values ) {
  * The last value PHP would have kept for a field name.
  *
  * A duplicate name in a urlencoded body is later-wins; the runtime turns the
- * same duplicate into an ARRAY (`sn_action` appears twice on the AI leaf: a
- * hidden `ai_settings_save` and the `ml_embed_compare` button). `expand()`
+ * same duplicate into an ARRAY (`sn_action` appeared twice on the AI leaf
+ * until 2026-11: a hidden `ai_settings_save` and the `ml_embed_compare`
+ * button; any form with a named button beside a same-named field does the
+ * same). `expand()`
  * already collapses the wire shape, and this is the belt for a bag that
  * arrived as an array by any other route — never a `is_scalar()` refusal,
  * which is what "Run comparison" got.

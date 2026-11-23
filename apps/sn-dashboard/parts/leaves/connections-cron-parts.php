@@ -6,10 +6,11 @@
  * callbacks carry a form: the configuration drift box (inc/config-drift.php,
  * `snt_config_drift_render_cron_box()`, priority 20, `morning_brief_save`
  * with `snt_config_drift_acknowledge`, painted only while drift exists) and
- * the scheduled read-only runs (inc/scheduled-reads.php,
- * `snt_scheduled_reads_render_settings()`, priority 30, `scheduled_reads_save`).
- * The morning brief and alerts switches that shared the drift box are a pane
- * of Settings now (settings-notifications.php). A classic form shares one
+ * the scheduled read-only runs (inc/scheduled-reads-admin.php,
+ * `snt_scheduled_reads_render_cron_box()`, priority 30, Run now alone).
+ * The brief and alerts switches that shared the drift box are a pane of
+ * Settings now (settings-notifications.php), as is the daily run switch
+ * (settings-ai.php). A classic form shares one
  * `sn_action` between its Save button and its secondary verb (Run now), the
  * click told apart by an extra field only that button carries. An `<os-form>`
  * fires one event per submit and a one-click button drops extra args
@@ -59,21 +60,23 @@ function cron_drift_html() {
 }
 
 /**
- * The scheduled read-only runs box: toggle, helper, last-run tally, Save, Run now.
+ * The scheduled read-only runs box: what the run is, the last-run tally, Run
+ * now, and one line on where the daily run switch went (Settings > AI). Run
+ * now posts `scheduled_reads_save` with `snt_scheduled_reads_now` hidden; the
+ * handler returns on that field before it writes the switch.
  *
  * @return string
  */
 function cron_scheduled_reads_html() {
 	$history = get_option( SNT_SCHEDULED_READS_HISTORY, array() );
 	$last    = is_array( $history ) && isset( $history[0] ) ? $history[0] : null;
-
-	$inner = \snt_kit_field( 'checkbox', 'snt_scheduled_reads_enabled', __( 'Run a fixed set of read-door abilities daily and keep a two-week outcome history', 'signal-and-noise-tools' ), \snt_scheduled_reads_enabled(), array( 'value' => '1', 'hint' => __( 'Read door only: the run goes through the same gate, kill switch, and telemetry as a live caller, and the tool list is fixed in code.', 'signal-and-noise-tools' ) ) );
+	$out     = function_exists( 'snt_scheduled_reads_about' ) ? '<p class="snt-hint">' . \snt_kit_esc( \snt_scheduled_reads_about() ) . '</p>' : '';
 	if ( $last ) {
 		$errors = 0;
 		foreach ( (array) $last['tools'] as $tool_outcome ) {
 			$errors += empty( $tool_outcome['error'] ) ? 0 : 1;
 		}
-		$inner .= '<p class="snt-hint">' . sprintf(
+		$out .= '<p class="snt-hint">' . sprintf(
 			/* translators: 1: relative time element, 2: failed reads, 3: total reads */
 			\snt_kit_esc( __( 'Last run %1$s: %2$d of %3$d reads failed.', 'signal-and-noise-tools' ) ),
 			\snt_kit_relative_time( (int) $last['ran_at'] ),
@@ -81,9 +84,10 @@ function cron_scheduled_reads_html() {
 			count( (array) $last['tools'] )
 		) . '</p>';
 	}
-
-	$out  = \snt_kit_form( 'scheduled_reads_save', $inner, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
 	$out .= \snt_kit_tag( 'os-cluster', array( 'gap' => '8' ), \snt_kit_form( 'scheduled_reads_save', \snt_kit_field( 'hidden', 'snt_scheduled_reads_now', '', '1' ), array( 'submit' => __( 'Run now', 'signal-and-noise-tools' ), 'inline' => true ) ) );
+	if ( function_exists( 'snt_settings_ai_moved_text' ) ) {
+		$out .= '<p class="snt-hint">' . \snt_kit_esc( \snt_settings_ai_moved_text( 'reads' ) ) . ' ' . \snt_kit_go( __( 'Settings › AI', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'ai', 'current' => 'connections' ) ) . '.</p>';
+	}
 	return \snt_kit_section( __( 'Scheduled read-only runs', 'signal-and-noise-tools' ), $out );
 }
 
@@ -149,7 +153,7 @@ function cron_backlog_html() {
  */
 function cron_settings_row_html( $watching = false ) {
 	$brief = ! $watching && function_exists( 'snt_config_drift_render_cron_box' ) ? cron_drift_html() : '';
-	$reads = ! $watching && function_exists( 'snt_scheduled_reads_render_settings' ) ? cron_scheduled_reads_html() : '';
+	$reads = ! $watching && function_exists( 'snt_scheduled_reads_render_cron_box' ) ? cron_scheduled_reads_html() : '';
 	$boxes = array();
 	foreach ( array( $brief, $reads, cron_backlog_html() ) as $box ) {
 		if ( '' !== $box ) {

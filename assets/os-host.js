@@ -633,10 +633,13 @@
 	// (`o[i]=Array.isArray(r)?[...r,s]:[r,s]`, offset 23311) and the replay
 	// requires a SCALAR `sn_action` (inc/openstation-host.php, `is_scalar`),
 	// refusing anything else as unknown. inc/admin-forms/ai-settings.php
-	// carries both a hidden `sn_action=ai_settings_save` (line 53) and a
-	// `sn_action=ml_embed_compare` button (line 252), so a bare append ships
-	// [ 'ai_settings_save', 'ml_embed_compare' ] and "Run comparison" answers
-	// "Nothing was saved." What later-value-wins MEANS for one scalar is
+	// carried both a hidden `sn_action=ai_settings_save` and a
+	// `sn_action=ml_embed_compare` button (until 2026-11, when the settings
+	// form moved to Settings > AI and the button became its own form), so a
+	// bare append shipped [ 'ai_settings_save', 'ml_embed_compare' ] and
+	// "Run comparison" answered "Nothing was saved." Any form with a named
+	// button beside a same-named field has that shape, so the rule stays.
+	// What later-value-wins MEANS for one scalar is
 	// therefore reproduced directly: every other field of the submitter's name
 	// is DISABLED for this dispatch -- FormData skips disabled fields -- and
 	// re-enabled on the next tick, so a refused dispatch leaves the form

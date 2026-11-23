@@ -32,6 +32,10 @@
  * anything — see that handler's own docblock for the ownership check that
  * keeps a POSTed UUID from binding a credential this user doesn't hold.
  *
+ * 2026-11: the leaf is read-only again. The binding forms and the remote
+ * door's switch are settings; inc/admin-forms/settings-ai.php calls their
+ * renderers on Settings > AI, and this leaf keeps one line linking there.
+ *
  * @package SignalNoiseTools
  * @since 9.47.0
  */
@@ -53,11 +57,13 @@ function sn_admin_render_mcp_connect_section() {
 
 	sn_admin_render_mcp_status_glance();
 
-	// M1 (IA): bind + connect sit above both tool-list doors so the returning
-	// owner's job and the first-run job are reachable without scrolling past
-	// the live slug inventories. No disclosure wrapping here — that is M2.
-	sn_admin_render_mcp_read_binding();
-	sn_admin_render_mcp_rw_binding();
+	// 2026-11: the remote door's switch and the two credential forms are
+	// settings and moved to Settings > AI (inc/admin-forms/settings-ai.php),
+	// which calls the same three renderers. This leaf is read-only again: the
+	// doors' states above, how to connect below, and one line between.
+	if ( function_exists( 'snt_settings_ai_moved_line' ) ) {
+		snt_settings_ai_moved_line( 'doors' );
+	}
 	sn_admin_render_mcp_owner_steps();
 	// 15.6.0: the door inventories and the call log moved to AI › Agent tools
 	// (inc/agent-tools-admin.php); this leaf keeps how to connect.
@@ -86,7 +92,7 @@ function sn_admin_render_mcp_door_native( $usage = null ) {
 	echo '<p class="sn-callout-h">' . esc_html__( 'Read door: the native MCP server', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . sprintf(
 		/* translators: %s: the WordPress capability slug, wrapped in <code>. */
-		esc_html__( 'A dependency-free JSON-RPC 2.0 endpoint this plugin hand-rolls. Every call needs a WordPress login with the %s capability, and this door’s tool list is the whole surface: nothing outside it is reachable, even by request. Binding an Application Password to it in Tools -> MCP is optional and limits that one password to this door and its tools.', 'signal-and-noise-tools' ),
+		esc_html__( 'A dependency-free JSON-RPC 2.0 endpoint this plugin hand-rolls. Every call needs a WordPress login with the %s capability, and this door’s tool list is the whole surface: nothing outside it is reachable, even by request. Binding an Application Password to it in Settings › AI is optional and limits that one password to this door and its tools.', 'signal-and-noise-tools' ),
 		'<code>manage_options</code>'
 	) . '</p>';
 	echo '<p><code>POST ' . esc_url( $url ) . '</code> <span class="sn-badge">' . esc_html__( 'read-only', 'signal-and-noise-tools' ) . '</span></p>';
@@ -131,7 +137,7 @@ function sn_admin_render_mcp_door_native_write( $usage = null ) {
 	echo '<p class="sn-callout-h">' . esc_html__( 'Write door: the same server, read-write', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . sprintf(
 		/* translators: %s: the WordPress capability slug, wrapped in <code>. */
-		esc_html__( 'The exact same JSON-RPC 2.0 server and the same %s capability as the read door, with its own Application Password, the one bound to this door in Tools -> MCP. That password works only on this door and its tools, so the read door needs a different one. What changes is the surface: most tools here can modify your content (posts, postmeta, taxonomy terms, scheduled cron events, cached files); some spend the AI budget configured on this site, and the Jev passes spend TypeSafe credit.', 'signal-and-noise-tools' ),
+		esc_html__( 'The exact same JSON-RPC 2.0 server and the same %s capability as the read door, with its own Application Password, the one bound to this door in Settings › AI. That password works only on this door and its tools, so the read door needs a different one. What changes is the surface: most tools here can modify your content (posts, postmeta, taxonomy terms, scheduled cron events, cached files); some spend the AI budget configured on this site, and the Jev passes spend TypeSafe credit.', 'signal-and-noise-tools' ),
 		'<code>manage_options</code>'
 	) . '</p>';
 	echo '<p><code>POST ' . esc_url( $url ) . '</code> <span class="sn-badge">' . esc_html__( 'read-write', 'signal-and-noise-tools' ) . '</span></p>';

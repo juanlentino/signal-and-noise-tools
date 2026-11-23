@@ -14,8 +14,13 @@
  * the name, since FormData has no equivalent to "last value on the wire wins").
  *
  * 2026-10-16 (the leaf anatomy, docs/kit-leaf-anatomy.md): a status line
- * leads (ai-models-budget-status.php) beside the Setup card whose fold is the
- * settings form (ai-models-budget-setup.php), one row; the readings follow.
+ * leads (ai-models-budget-status.php) beside the Setup card
+ * (ai-models-budget-setup.php), one row; the readings follow.
+ *
+ * 2026-11: the `ai_settings_save` form described above is no longer on this
+ * leaf on either twin. Its five fields are settings and paint on Settings >
+ * AI (settings-ai.php); the leaf keeps every reading, the comparison and its
+ * one action, and one line on the status card saying where they went.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -81,7 +86,7 @@ function models_budget_spend_html( array $d ) {
 		$pct_width = max( 0, min( 100, $pct_true ) );
 		// 17.4.1: a problem is a notice on top of its box.
 		if ( $spent >= $budget ) {
-			$out .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The cap is reached. The AI features of this plugin pause until the next calendar month, or until you raise this number. Copilot, Agents and the AI plugin keep running; their spend is listed separately and not counted against the cap.', 'signal-and-noise-tools' ) ) . '</b>' );
+			$out .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The cap is reached. The AI features of this plugin pause until the next calendar month, or until you raise the monthly budget in Settings › AI. Copilot, Agents and the AI plugin keep running; their spend is listed separately and not counted against the cap.', 'signal-and-noise-tools' ) ) . '</b>' );
 		}
 		$out .= '<p class="snt-prose">' . sprintf(
 			esc_html__( 'Spent this month: $%1$s of $%2$s (%3$s%%).', 'signal-and-noise-tools' ),

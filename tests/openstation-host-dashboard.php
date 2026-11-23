@@ -148,7 +148,7 @@ namespace {
 	// One nonce per ACTION: the estate mints four, and a global "valid" would
 	// hide the very confusion the pipelines exist to end.
 	function wp_verify_nonce( $nonce, $action = -1 ) {
-		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'login-nonce' => 'sn_save_login', 'ret-nonce' => 'sn_audit_save_retention', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults' );
+		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'login-nonce' => 'sn_save_login', 'ret-nonce' => 'sn_audit_save_retention', 'ai-nonce' => 'sn_ai_settings_save', 'reads-nonce' => 'sn_scheduled_reads_save', 'remote-nonce' => 'sn_remote_toggle', 'rw-nonce' => 'sn_bind_mcp_rw_credential', 'read-nonce' => 'sn_bind_mcp_read_credential', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults' );
 		return ( isset( $minted[ $nonce ] ) && $minted[ $nonce ] === $action ) ? 1 : false;
 	}
 	// The interceptor needs real hook plumbing, a real wp_redirect (which filters
@@ -244,6 +244,12 @@ namespace {
 	function sn_handle_save_login( $post ) { return '' === (string) ( $post['login_slug'] ?? '' ) ? 'login_empty' : 'login_failed'; } // both are plain flashes; the real handler is inc/admin-post-actions/system.php
 	function sn_handle_audit_save_retention( $post ) { return 'audit_retention_saved'; }
 	function sn_handle_morning_brief_save( $post ) { return isset( $post['snt_morning_brief_test'] ) ? 'morning_brief_test_failed' : 'morning_brief_saved'; }
+	// Settings > AI's five actions, each answering a real flash code; the real handlers are in inc/admin-post-actions/.
+	function sn_handle_ai_settings_save( $post ) { return 'ai_settings_saved'; }
+	function sn_handle_scheduled_reads_save( $post ) { return isset( $post['snt_scheduled_reads_now'] ) ? 'scheduled_reads_ran' : 'scheduled_reads_saved'; }
+	function sn_handle_remote_toggle( $post ) { return empty( $post['sn_remote_enabled'] ) ? 'remote_disabled' : 'remote_enabled'; }
+	function sn_handle_bind_mcp_rw_credential( $post ) { return '' === (string) ( $post['sn_mcp_rw_uuid'] ?? '' ) ? 'mcp_rw_bind_choose' : 'mcp_rw_bound'; }
+	function sn_handle_bind_mcp_read_credential( $post ) { return 'mcp_read_bound'; }
 	$GLOBALS['__handler_calls'] = array();
 
 	// The rewrite half of the view needs core's WP_HTML_Tag_Processor. Found on
@@ -490,6 +496,24 @@ namespace {
 	$app->actions['post']( $st3, $os2, array( 'values' => array( '_wpnonce' => 'stale', 'action' => 'sn_save_login', 'login_slug' => 'x' ) ) );
 	ok( 'security' === $st3->get( 'sub' ) && false === $st3->get( 'saved' ) && 'error' === ( $st3->get( 'notice' )[0] ?? '' ),
 		'   ...and a slug save with a wrong nonce is refused on the pane, as it was on the old leaf' );
+	// Settings > AI: each of its five saves is answered on the pane, sub=ai
+	// under the settings tab, never on the AI tab or the leaf the setting
+	// came from, with the notice the handler's flash names.
+	$st5 = new \OpenStation\App\State( $app->state, array( 'sub' => 'ai' ) );
+	foreach ( array(
+		array( 'ai-nonce', 'sn_ai_settings_save', array( 'theme_ai_monthly_budget' => '50' ), 'success', true ),
+		array( 'reads-nonce', 'sn_scheduled_reads_save', array( 'snt_scheduled_reads_enabled' => '1' ), 'success', true ),
+		array( 'remote-nonce', 'sn_remote_toggle', array( 'sn_remote_enabled' => '1' ), 'success', true ),
+		array( 'rw-nonce', 'sn_bind_mcp_rw_credential', array( 'sn_mcp_rw_uuid' => 'a' ), 'success', true ),
+		array( 'rw-nonce', 'sn_bind_mcp_rw_credential', array( 'sn_mcp_rw_uuid' => '' ), 'error', false ),
+		array( 'read-nonce', 'sn_bind_mcp_read_credential', array( 'sn_mcp_read_uuid' => 'b' ), 'success', true ),
+		array( 'stale', 'sn_remote_toggle', array( 'sn_remote_enabled' => '1' ), 'error', false ),
+	) as $case ) {
+		$app->actions['post']( $st5, $os2, array( 'values' => array( '_wpnonce' => $case[0], 'action' => $case[1] ) + $case[2] ) );
+		ok( 'ai' === $st5->get( 'sub' ) && $case[3] === ( $st5->get( 'notice' )[0] ?? '' ) && '' !== (string) ( $st5->get( 'notice' )[1] ?? '' ) && $case[4] === $st5->get( 'saved' ),
+			"Settings > AI: $case[1] (nonce $case[0]) lands back on the pane with its " . $case[3] . ' notice' );
+	}
+
 	// In flight across the move: a Security-tab session painted before the
 	// update still holds sub=login. Its save runs (the action is found by
 	// name), and the answer paints on that tab's first leaf, never a blank.

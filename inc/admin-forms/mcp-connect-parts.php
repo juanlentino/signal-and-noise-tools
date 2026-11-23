@@ -65,8 +65,9 @@ function sn_admin_mcp_rw_options( array $passwords, $bound_uuid, $resolved ) {
 }
 
 /**
- * R9 (v9.51.0, lane SEC-C): the write-door credential-binding form, the ONE
- * form on MCP Clients' otherwise read-only classic leaf. Reads the bound state
+ * R9 (v9.51.0, lane SEC-C): the write-door credential-binding form, painted in
+ * the MCP doors box of Settings > AI since 2026-11 (it was the one form on MCP
+ * Clients' otherwise read-only classic leaf). Reads the bound state
  * through sn_mcp_rw_bound_uuid() (inc/mcp/mcp-rw-guard.php, lane SEC-A,
  * called through a function_exists() guard and never required directly, like
  * every other cross-lane call here) and cross-references it against the

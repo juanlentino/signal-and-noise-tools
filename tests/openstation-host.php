@@ -539,7 +539,7 @@ ok( array( 'groups' => array( 0 => array( 'items' => "one\ntwo" ) ) ) === $expan
 ok( array( '4' ) === $expanded['sn_tag_from'], '   ...a single-element bracket name is still a list, as PHP builds it' );
 ok( 'v' === $expanded['plain'] && ! isset( $expanded['social_same_as[]'] ), '   ...a plain key stays plain, and no bracketed key survives' );
 ok( 'ml_embed_compare' === $expanded['sn_action'],
-	'   ...a REPEATED name is later-wins, not an array: the AI leaf ships sn_action twice (a hidden save + the ml_embed_compare button) and PHP keeps the last, which is what "Run comparison" means' );
+	'   ...a REPEATED name is later-wins, not an array: the AI leaf shipped sn_action twice until 2026-11 (a hidden save + the ml_embed_compare button) and PHP keeps the last, which is what "Run comparison" meant' );
 ok( isset( $expanded['dotted_key'] ), '   ...and a dot in a name is mangled to an underscore, because that is what PHP itself does to $_POST' );
 ok( 'b' === snt_os_host_last( array( 'a', 'b' ) ) && 'x' === snt_os_host_last( 'x' ) && '' === snt_os_host_last( null ),
 	'snt_os_host_last() collapses an array-valued field to its LAST element -- the belt for a bag that arrived as an array by any other route, where is_scalar() used to refuse it outright' );
@@ -861,7 +861,7 @@ $ob_at   = strpos( $host_src, 'ob_start();', $cap_at );
 $swap_at = strpos( $host_src, '$_GET     = $get;', $cap_at );
 ok( false !== $boot_at && false !== $ob_at && $boot_at < $ob_at, '...before the buffer opens, so a library that prints nothing on load cannot leak into the leaf' );
 ok( false !== $swap_at && $boot_at < $swap_at, '...and before the superglobals are SWAPPED, which is what Group 0 measures the consequence of' );
-ok( ! function_exists( 'submit_button' ), 'this suite has no wp-admin either, so the SANDBOX is where the leaf is measured (it is: MCP Clients paints after the fix)' );
+ok( ! function_exists( 'submit_button' ), 'this suite has no wp-admin either, so the SANDBOX is where the leaf is measured (it is: the remote door\'s switch, the form that calls submit_button(), painted on MCP Clients after the fix and paints on Settings > AI since 2026-11)' );
 
 echo "\nGroup W: a write resets the request memos the repaint reads\n";
 // sn_setting() memoises the merged settings once per request and the save never

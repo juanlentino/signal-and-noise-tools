@@ -289,16 +289,17 @@ function sn_admin_top_tabs() {
 			'tab'      => 'ai',
 			'label'    => 'AI',
 			'title'    => 'Signal & Noise — AI',
-			'subtitle' => 'Which models run, what they may cost, and which tools are exposed to external clients.',
+			'subtitle' => 'What the AI features spent this month, the MCP doors and how to connect a client, and every tool an agent can call.',
 			'sub_tabs' => array(
-				// The three extracted settings (prose model, vision model, monthly
-				// budget). Capped card — three fields earn no extra width.
+				// What the AI features spent against the cap, what the platforms
+				// billed, the Jev meter. Its settings (the two models, the budget,
+				// the Jev credit) are Settings > AI since 2026-11; the leaf kept
+				// its readings, so it has no moves line.
 				'models-budget' => array( 'label' => 'Models & Budget', 'render' => 'sn_admin_render_ai_settings_form', 'wide' => true ),
-				// v10.47.0 order: the two CONFIGURATION leaves first (which models run,
-				// which clients may connect), then the observation leaf. It read
-				// config / observation / config before.
 				// v9.47.0: read-only "how to connect an external MCP client" doc leaf.
-				// No form, no side effects — pure reference, like Links.
+				// No form, no side effects: pure reference, like Links. The remote
+				// door's switch and the two door credentials it carried for a while
+				// are Settings > AI since 2026-11.
 				'mcp-connect'   => array( 'label' => 'MCP Clients', 'wide_card' => true, // v11.13.1: the door inventories are wide lists; the leaf's own renderers emit no card chrome, so it takes the .sn-fieldset--wide uncap rather than 'wide' (which would strip the card entirely).
 					'render' => 'sn_admin_render_mcp_connect_section' ),
 				// v9.62.2: Copilot tool-usage diagnostic. 'wide' => true so the
@@ -389,12 +390,16 @@ function sn_admin_top_tabs() {
 			// pane, Security, took Security > Login URL WHOLE (that leaf was
 			// nothing but the slug setting and its own state), so that one has a
 			// moves line, and audit log retention as a field: the Audit log leaf
-			// stays and has none.
+			// stays and has none. The third pane, AI, took fields only: the
+			// models, budget and Jev credit from AI > Models & Budget, the remote
+			// door's switch and the two door credentials from AI > MCP Clients,
+			// and the daily read-only run switch from Connections > Cron. All
+			// three leaves kept their readings, so none has a moves line.
 			'slug'     => 'sn-settings',
 			'tab'      => 'settings',
 			'label'    => 'Settings',
 			'title'    => 'Signal & Noise. Settings',
-			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address. Security: the login address and how long the audit log is kept.',
+			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address. Security: the login address and how long the audit log is kept. AI: the models, the monthly budget, the MCP doors and the daily read-only run.',
 			'sub_tabs' => array(
 				// 'wide': the render fn paints two cards of its own side by side
 				// (.sn-2up); capped, the wrapper would nest them in a third.
@@ -402,6 +407,10 @@ function sn_admin_top_tabs() {
 				// 'wide' for the same reason: two cards of its own, the login
 				// address and audit log retention.
 				'security'      => array( 'label' => 'Security', 'render' => 'sn_admin_render_security_settings_section', 'wide' => true ),
+				// 'wide' again: three boxes of its own (models and budget, the MCP
+				// doors, scheduled reads). The sub slug repeats the AI tab's slug;
+				// every lookup is by tab first, so the two never meet.
+				'ai'            => array( 'label' => 'AI', 'render' => 'sn_admin_render_settings_ai_section', 'wide' => true ),
 			),
 		),
 	);

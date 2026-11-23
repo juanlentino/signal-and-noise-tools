@@ -78,7 +78,7 @@ ok( false === strpos( $kit, 'tone="success"><b>Module active' ), 'the active sta
 $by_tab = array();
 foreach ( sn_admin_top_tabs() as $t ) { $by_tab[ $t['tab'] ] = $t; }
 $panes = (array) ( $by_tab['settings']['sub_tabs'] ?? array() );
-ok( array( 'notifications', 'security' ) === array_keys( $panes ) && 'Security' === ( $panes['security']['label'] ?? '' ) && 'sn_admin_render_security_settings_section' === ( $panes['security']['render'] ?? '' ) && ! empty( $panes['security']['wide'] ), 'Settings has two panes, notifications then security ("Security"), wide: it paints its own two cards' );
+ok( array( 'notifications', 'security' ) === array_slice( array_keys( $panes ), 0, 2 ) && 'Security' === ( $panes['security']['label'] ?? '' ) && 'sn_admin_render_security_settings_section' === ( $panes['security']['render'] ?? '' ) && ! empty( $panes['security']['wide'] ), 'Settings\' second pane is security ("Security"), after notifications, wide: it paints its own two cards (the third, AI, is tests/os-leaf-settings-ai.php)' );
 ok( array( 'login-defense', 'firewall', 'audit-log' ) === array_keys( $by_tab['security']['sub_tabs'] ), 'the Security tab keeps login-defense, firewall and audit-log; login left it' );
 ok( false === stripos( (string) $by_tab['security']['subtitle'], 'login URL' ) && false !== strpos( (string) $by_tab['settings']['subtitle'], 'Security' ), 'the two subtitles follow: Security no longer promises the login URL, Settings names the pane' );
 
@@ -94,8 +94,8 @@ ok( null === sn_admin_canonical_destination( 'security', 'audit-log' ) && array(
 ob_start();
 sn_admin_render_sub_tabs( 'settings', 'security' );
 $strip = (string) ob_get_clean();
-ok( 1 === preg_match( '#^<nav class="sn-sub-tabs"[^>]*><a href="[^"]*tab=settings&sub=notifications" class="sn-sub-tab">Notifications and reports</a><a href="[^"]*tab=settings&sub=security" class="sn-sub-tab is-active" aria-current="page">Security</a></nav>$#', $strip ), 'classic: the Settings tab paints its sub-tab strip, Security active: ' . $strip );
-ok( array( 'notifications' => 'Notifications and reports', 'security' => 'Security' ) === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ), 'native: the frame lists both panes for the strip' );
+ok( 1 === preg_match( '#^<nav class="sn-sub-tabs"[^>]*><a href="[^"]*tab=settings&sub=notifications" class="sn-sub-tab">Notifications and reports</a><a href="[^"]*tab=settings&sub=security" class="sn-sub-tab is-active" aria-current="page">Security</a><a href="[^"]*tab=settings&sub=ai" class="sn-sub-tab">AI</a></nav>$#', $strip ), 'classic: the Settings tab paints its sub-tab strip, Security active: ' . $strip );
+ok( array( 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI' ) === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ), 'native: the frame lists the three panes for the strip' );
 
 // ── The classic slug form is the old one, byte for byte (nonce, action, field, hint, URL, Save, unlock).
 $old_leaf = snt_leaf_classic_html( 'sn_admin_render_login_section' );

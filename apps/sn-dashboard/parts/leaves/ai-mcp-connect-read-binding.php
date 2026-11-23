@@ -1,6 +1,6 @@
 <?php
 /**
- * AI > MCP Clients: the read door's optional credential binding, the native
+ * Settings > AI (AI > MCP Clients until 2026-11): the read door's optional credential binding, the native
  * twin of inc/admin-forms/mcp-connect-read-binding.php (same state, words,
  * field `sn_mcp_read_uuid` and action `bind_mcp_read_credential`).
  *
