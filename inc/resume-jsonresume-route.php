@@ -22,6 +22,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/identity-person-name.php'; // sn_identity_person_name(): basics.name
+
 require_once __DIR__ . '/resume-jsonresume.php';
 require_once __DIR__ . '/resume-formats-parts.php';
 
@@ -73,7 +75,7 @@ function sn_jsonresume_for( $slug ) {
 	$built = sn_jsonresume_build(
 		$doc,
 		array(
-			'name'          => function_exists( 'sn_identity_person_name' ) ? (string) sn_identity_person_name( $page ) : (string) get_bloginfo( 'name' ),
+			'name'          => function_exists( 'sn_setting' ) ? (string) sn_identity_person_name( $page ) : (string) get_bloginfo( 'name' ),
 			'url'           => '' !== (string) ( $doc['pdf']['website'] ?? '' ) ? (string) $doc['pdf']['website'] : home_url( '/' ),
 			'canonical'     => sn_resume_format_canonical( $slug ),
 			'last_modified' => (string) get_post_modified_time( 'c', false, $page ),
