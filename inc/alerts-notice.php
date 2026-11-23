@@ -83,11 +83,32 @@ function snt_alerts_notice( $now = null ) {
 	return array( 'id' => (int) $n['id'], 'title' => (string) $n['title'], 'body' => (string) ( $n['body'] ?? '' ), 'app' => (string) ( $n['app'] ?? 'sn-analytics' ), 'section' => (string) ( $n['section'] ?? '' ) );
 }
 
+/**
+ * The notice for the user asking, or null when they turned alert
+ * notifications off (OS Settings, Signal & Noise, Notifications). The stored
+ * notice and the email are untouched: the switch is this user's, and it only
+ * decides whether the app is handed a notice to show.
+ *
+ * @param int|null   $now   Unix time; null reads the clock.
+ * @param array|null $prefs Test seam: the user's preferences.
+ * @return array{id:int,title:string,body:string,app:string,section:string}|null
+ */
+function snt_alerts_notice_for_user( $now = null, $prefs = null ) {
+	if ( null === $prefs ) {
+		$prefs = function_exists( 'snt_os_native_window_preferences' ) ? snt_os_native_window_preferences() : array();
+	}
+	// Absent means on: the notice showed for every owner before the switch.
+	if ( array_key_exists( 'alert_notify', $prefs ) && ! $prefs['alert_notify'] ) {
+		return null;
+	}
+	return snt_alerts_notice( $now );
+}
+
 if ( function_exists( 'add_action' ) ) {
 	add_action( 'rest_api_init', static function () {
 		register_rest_route( 'signal-noise/v1', '/desktop/alert-notice', array(
 			'methods'             => 'GET',
-			'callback'            => static fn() => array( 'notice' => snt_alerts_notice() ),
+			'callback'            => static fn() => array( 'notice' => snt_alerts_notice_for_user() ),
 			'permission_callback' => static function () {
 				return current_user_can( 'manage_options' );
 			},

@@ -314,9 +314,10 @@ echo "\nSection 2: snt_os_preferences_rest_update() payload stress testing\n";
 
 $GLOBALS['__user_id'] = 100;
 // 14.8.0: three MIO switches joined the schema. Every whole-shape pin below
-// spells the five keys; the MIO defaults are tips/help on, look off.
-$MIO_DEFAULTS = array( 'mio_tips' => true, 'mio_help' => true, 'mio_look' => false );
-$KEYS         = array( 'dashboard', 'analytics', 'mio_tips', 'mio_help', 'mio_look' );
+// spells the keys; the MIO defaults are tips/help on, look off, and the
+// alert notification switch (2026-11-23) rides the same list, on.
+$MIO_DEFAULTS = array( 'mio_tips' => true, 'mio_help' => true, 'mio_look' => false, 'alert_notify' => true );
+$KEYS         = array( 'dashboard', 'analytics', 'mio_tips', 'mio_help', 'mio_look', 'alert_notify' );
 snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' => true ), 100 );
 
 // 2.1 Nested array value

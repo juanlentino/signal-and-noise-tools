@@ -216,6 +216,14 @@ ok( is_array( snt_alerts_notice( $now ) ), 'a cache notice is readable while its
 $GLOBALS['cf_fail'] = null;
 ok( null === snt_alerts_notice( $now ), 'and gone once the failure record is cleared' );
 $GLOBALS['mail_ok'] = true;
+// 2026-11-23: the OS Settings switch. Off, neither the boot value nor the
+// 15-minute read hands this user a notice; the stored notice is untouched.
+$GLOBALS['opt'][ SNT_ALERTS_NOTICE_OPT ] = array( 'id' => $now - 60, 'title' => 'Alert: 1 spike', 'body' => 'SPIKE: x', 'app' => 'sn-analytics' );
+ok( 'Alert: 1 spike' === ( snt_alerts_notice_for_user( $now, array( 'alert_notify' => true ) )['title'] ?? '' ) && 'Alert: 1 spike' === ( snt_alerts_notice_for_user( $now, array() )['title'] ?? '' ), 'switch on, or no stored choice: the user gets the notice' );
+ok( null === snt_alerts_notice_for_user( $now, array( 'alert_notify' => false ) ) && is_array( snt_alerts_notice( $now ) ), 'switch off: this user gets none, and the notice itself stays stored' );
+$asrc = (string) file_get_contents( __DIR__ . '/../inc/alerts-notice.php' ) . (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-assets.php' );
+ok( 2 === substr_count( $asrc, 'snt_alerts_notice_for_user()' ), 'both doors to the app (the boot value and the REST read) go through the switch' );
+unset( $GLOBALS['opt'][ SNT_ALERTS_NOTICE_OPT ] );
 $njs = (string) file_get_contents( __DIR__ . '/../assets/snt-alert-notify.js' );
 ok( false !== strpos( $njs, '( function boot() {' ) && false !== strpos( $njs, 'window.wp.os.whenReady( boot )' ) && false !== strpos( $njs, "document.addEventListener( 'DOMContentLoaded', boot )" ) && false !== strpos( $njs, 'boot._retried' ), 'the shell bundle is deferred: a failed gate retries once on the shell\'s readiness, it does not give up' );
 ok( false !== strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) && strpos( $njs, "typeof window.wp.os.notify !== 'function'" ) < strpos( $njs, 'window.setInterval' ) && false !== strpos( $njs, 'n.id <= seen()' ) && false !== strpos( $njs, "tag: 'signal-noise/alert'" ) && false !== strpos( $njs, 'os.openWindow( n.app, { params: { section: String( n.section ) } } )' ), 'the script runs only where wp.os.notify exists, shows a notice once per device, and collapses on one tag' );

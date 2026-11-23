@@ -311,8 +311,9 @@ echo "openstation-preferences — Option B Unit Tests\n\n";
 echo "Group 1: Default preferences\n";
 $defaults = snt_os_native_window_defaults();
 ok( is_array( $defaults ), 'snt_os_native_window_defaults() returns an array' );
-ok( array( 'dashboard', 'analytics', 'mio_tips', 'mio_help', 'mio_look' ) === array_keys( $defaults ), 'defaults has exact keys: the two windows and the three MIO switches (14.8.0)' );
+ok( array( 'dashboard', 'analytics', 'mio_tips', 'mio_help', 'mio_look', 'alert_notify' ) === array_keys( $defaults ), 'defaults has exact keys: the two windows, the three MIO switches (14.8.0) and the alert notification switch' );
 ok( true === $defaults['dashboard'] && true === $defaults['analytics'] && true === $defaults['mio_tips'] && true === $defaults['mio_help'], 'windows and MIO tips/help default on' );
+ok( true === $defaults['alert_notify'], 'alert notifications default on: they showed for every owner before the switch existed' );
 ok( false === $defaults['mio_look'], 'the site palette on the mascot is opt-in: it recolours the companion until the user picks their own look' );
 
 $user_prefs = snt_os_native_window_preferences( 99 );
@@ -353,7 +354,7 @@ $step_single = snt_os_save_native_window_preferences( array( 'signal-noise' => f
 ok( false === $step_single['dashboard'] && false === $step_single['analytics'] && ! isset( $step_single['signal-noise'] ), 'native-only Signal & Noise is ignored as a preference key' );
 
 $step3 = snt_os_save_native_window_preferences( array( 'unknown_window' => true, 'invalid_flag' => false ), 10 );
-ok( array( 'dashboard', 'analytics', 'mio_tips', 'mio_help', 'mio_look' ) === array_keys( $step3 ), 'saving unknown keys does not pollute preferences array' );
+ok( array( 'dashboard', 'analytics', 'mio_tips', 'mio_help', 'mio_look', 'alert_notify' ) === array_keys( $step3 ), 'saving unknown keys does not pollute preferences array' );
 
 $step4 = snt_os_save_native_window_preferences( array( 'dashboard' => 1, 'analytics' => 0, 'signal-noise' => true ), 10 );
 ok( true === $step4['dashboard'] && false === $step4['analytics'] && ! isset( $step4['signal-noise'] ), 'integer inputs 1 and 0 are strictly coerced to booleans' );
@@ -409,7 +410,7 @@ snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' =
 $get_response = snt_os_preferences_rest_get();
 ok( $get_response instanceof WP_REST_Response, 'GET handler returns WP_REST_Response' );
 ok( 200 === $get_response->get_status(), 'GET handler returns HTTP 200' );
-ok( array( 'dashboard' => true, 'analytics' => true, 'mio_tips' => true, 'mio_help' => true, 'mio_look' => false ) === $get_response->get_data(), 'GET handler returns current preferences' );
+ok( array( 'dashboard' => true, 'analytics' => true, 'mio_tips' => true, 'mio_help' => true, 'mio_look' => false, 'alert_notify' => true ) === $get_response->get_data(), 'GET handler returns current preferences' );
 
 $post_req = new WP_REST_Request( array( 'dashboard' => false ) );
 $post_response = snt_os_preferences_rest_update( $post_req );
@@ -543,7 +544,7 @@ ok( 2 === substr_count( $settings_js, 'window.wp.os.registerNativeUrlRemap( {' )
 foreach ( array( 'mio_tips', 'mio_help', 'mio_look' ) as $k ) {
 	ok( false !== strpos( $settings_js, "createToggle(\n\t\t\t'$k'," ) || false !== strpos( $settings_js, "'$k'," ), "the settings tab paints a toggle for $k" );
 }
-ok( false !== strpos( $settings_js, "key === 'mio_look'" ) && 1 === preg_match( "/'Saved\. MIO [^']*reload\.'/", $settings_js ), 'saving the look says it lands on reload, since openstation_mio_config ships at boot' );
+ok( false !== strpos( $settings_js, "'mio_look' )" ) && 1 === preg_match( "/'Saved\. MIO [^']*reload\.'/", $settings_js ), 'saving the look says it lands on reload, since openstation_mio_config ships at boot' );
 ok( false !== strpos( $settings_js, "nativeWindowId: 'sn-dashboard'" ), 'Dashboard classic page remaps to sn-dashboard' );
 ok( false !== strpos( $settings_js, "nativeWindowId: 'sn-analytics'" ), 'Analytics classic page remaps to sn-analytics' );
 ok( false !== strpos( $settings_js, "parsed.pathname.endsWith( '/admin.php' )" ), 'remaps are scoped to WordPress admin.php URLs' );
@@ -566,7 +567,18 @@ ok( false !== strpos( $settings_js, "'phase', 'saving'" ) && false !== strpos( $
 // `error` first only completes the detail of the os-save-status-change
 // event. Two matches: the in-place site and the re-rendered one.
 ok( 2 === preg_match_all( "/setAttribute\( 'error', __\( 'Could not save preference\.'[^\n]*\n\s*[a-zA-Z.]*\.setAttribute\( 'phase', 'failed' \)/", $settings_js ), 'settings tab: the failure text rides `error` at both failed sites, the in-place pill and the re-rendered one' );
-ok( 1 === preg_match( "/setAttribute\( 'saved-label', key === 'mio_look'/", $settings_js ), 'settings tab: the MIO next-reload line rides saved-label' );
+ok( 1 === preg_match( "/savedLabel = lookChanged\n/", $settings_js ) && 2 === substr_count( $settings_js, "setAttribute( 'saved-label', savedLabel )" ), 'settings tab: the MIO next-reload line rides saved-label' );
+// 2026-11-23: the tab follows the desktop convention (System Settings on
+// macOS, Settings on Windows): one headed group per subject, the app's
+// notification switch beside a test, and a way back to the defaults.
+ok( 3 === substr_count( $settings_js, ' = createSection(' ) && false === strpos( $settings_js, 'Native window replacements' ), 'settings tab: three headed sections, not one catch-all' );
+foreach ( array( 'Windows', 'MIO', 'Notifications' ) as $h ) {
+	ok( false !== strpos( $settings_js, "createSection(\n\t\t\t__( '$h'," ), "settings tab: a section headed $h" );
+}
+ok( false !== strpos( $settings_js, "'alert_notify'," ) && false !== strpos( $settings_js, 'alert_notify: true' ), 'settings tab: the alert notification switch is painted and defaults on in the client too' );
+ok( false !== strpos( $settings_js, "tag: 'signal-noise/test'" ) && false === strpos( $settings_js, "tag: 'signal-noise/alert'" ) && false === strpos( $settings_js, 'sntAlertNoticeSeen' ), 'settings tab: the test notification has its own tag and never touches the seen mark, so it cannot replace or suppress a real alert' );
+ok( false !== strpos( $settings_js, 'commit( Object.assign( {}, config.defaults )' ) && false === strpos( $settings_js, 'dashboard: true, analytics: true, mio_tips: true, mio_help: true, mio_look: false }, null' ), 'settings tab: Restore defaults posts the server\'s defaults in one request, no second copy in the client' );
+ok( snt_os_native_window_defaults() === ( $l10n['defaults'] ?? null ), 'the defaults ride the localized data' );
 // The pill's label is capped at 200px with an ellipsis (os-save-status
 // .styles.ts; no CSS prop widens it). "Saved. MIO wears it on the next
 // reload." measured 209px under the system-ui fallback (clipped to "next

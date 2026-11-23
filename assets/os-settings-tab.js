@@ -11,9 +11,10 @@
 	var stamps = 0;
 	var mountedControls = [];
 	var mountedStatus;
+	var mountedRestore;
 	var mountedBody;
 	var preferences = Object.assign(
-		{ dashboard: true, analytics: true, mio_tips: true, mio_help: true, mio_look: false },
+		{ dashboard: true, analytics: true, mio_tips: true, mio_help: true, mio_look: false, alert_notify: true },
 		config.preferences || {}
 	);
 
@@ -207,25 +208,112 @@
 		}
 	}
 
+	/**
+	 * One save, for a switch (a one-key patch) or Restore defaults (every
+	 * key). The server's answer is the truth; a failure puts back what was
+	 * there and repaints, because a checked ATTRIBUTE cannot reset a native
+	 * input the user already clicked.
+	 *
+	 * @param {Object}  patch   Keys to save.
+	 * @param {boolean} repaint Repaint on success too (Restore defaults).
+	 */
+	function commit( patch, repaint ) {
+		if ( saving ) { return; }
+		saving = true;
+		var previous = Object.assign( {}, preferences );
+		var failed = false;
+		var savedLabel = '';
+		// Read BEFORE the controls are disabled: a disabled control drops focus
+		// to the body, and the repaint below has to know where it was.
+		var focusedEntry = mountedControls.find( function( entry ) { return document.activeElement === entry.control; } );
+		var focusedKey = focusedEntry ? focusedEntry.key : null;
+		var focusedRestore = !! mountedRestore && document.activeElement === mountedRestore;
+		preferences = Object.assign( {}, preferences, patch );
+		mountedControls.forEach( function( entry ) { entry.control.setAttribute( 'disabled', '' ); } );
+		if ( mountedRestore ) { mountedRestore.setAttribute( 'disabled', '' ); }
+		mountedStatus.removeAttribute( 'error' );
+		mountedStatus.setAttribute( 'phase', 'saving' );
+
+		save( patch ).then( function( saved ) {
+			preferences = Object.assign( {}, preferences, saved );
+			// The mascot's look is shipped in the shell's boot config
+			// (openstation_mio_config), so a change lands on the next
+			// reload; the other switches are read at the next paint.
+			// The pill's label is capped at 200px with an ellipsis
+			// (os-save-status.styles.ts, no CSS prop for the width):
+			// this string measures 166px under system-ui, 157px under
+			// Geist; a longer one clips on the fallback face.
+			var lookChanged = Object.prototype.hasOwnProperty.call( patch, 'mio_look' ) && !! preferences.mio_look !== !! previous.mio_look;
+			savedLabel = lookChanged
+				? __( 'Saved. MIO changes on reload.', 'signal-and-noise-tools' )
+				: __( 'Saved.', 'signal-and-noise-tools' );
+			mountedStatus.setAttribute( 'saved-label', savedLabel );
+			mountedStatus.setAttribute( 'phase', 'saved' );
+			// Shell refresh is secondary to persistence: its failure must not
+			// roll back a preference the server has already accepted.
+			Promise.resolve().then( function() {
+				wireUrlRemaps();
+				syncDockTiles( preferences );
+				if ( window.wp && window.wp.os && typeof window.wp.os.refreshMenu === 'function' ) {
+					return window.wp.os.refreshMenu();
+				}
+			} ).then( function() {
+				syncDockTiles( preferences );
+			} ).catch( function() {
+				// No write rollback: reopening the shell retries menu discovery.
+			} );
+		} ).catch( function() {
+			failed = true;
+			preferences = previous;
+			mountedStatus.setAttribute( 'error', __( 'Could not save preference.', 'signal-and-noise-tools' ) );
+			mountedStatus.setAttribute( 'phase', 'failed' );
+		} ).finally( function() {
+			saving = false;
+			mountedControls.forEach( function( entry ) {
+				entry.control.toggleAttribute( 'checked', !! preferences[ entry.key ] );
+				entry.control.removeAttribute( 'disabled' );
+			} );
+			if ( mountedRestore ) { mountedRestore.removeAttribute( 'disabled' ); }
+			if ( ( ! failed && ! repaint ) || ! mountedBody || ! mountedBody.isConnected ) {
+				return;
+			}
+			render( mountedBody );
+			if ( failed ) {
+				mountedStatus.setAttribute( 'error', __( 'Could not save preference.', 'signal-and-noise-tools' ) );
+				mountedStatus.setAttribute( 'phase', 'failed' );
+			} else {
+				mountedStatus.setAttribute( 'saved-label', savedLabel );
+				mountedStatus.setAttribute( 'phase', 'saved' );
+			}
+			window.requestAnimationFrame( function() {
+				// The kit's hosts do not delegate focus: the focusable element
+				// is the native control inside each shadow root.
+				var entry = focusedKey && mountedControls.find( function( item ) { return item.key === focusedKey; } );
+				var host = focusedRestore ? mountedRestore : ( entry ? entry.control : null );
+				var inner = host && host.shadowRoot && host.shadowRoot.querySelector( focusedRestore ? 'button' : 'input' );
+				if ( inner ) { inner.focus(); }
+			} );
+		} );
+	}
+
+	/**
+	 * The tab, laid out as desktop preference panes are (System Settings on
+	 * macOS, Settings on Windows): one headed group per subject, and only
+	 * the choices that belong to the system, never a setting of the site.
+	 */
 	function render( body ) {
 		mountedBody = body;
 		body.replaceChildren();
 		mountedControls = [];
 
-		var section = document.createElement( 'os-section' );
-		section.setAttribute( 'heading', __( 'Native window replacements', 'signal-and-noise-tools' ) );
-		section.setAttribute( 'description', __( 'Choose whether to use OpenStation native windows or classic WordPress admin windows for the S&N Home and Analytics screens. Signal & Noise is native-only.', 'signal-and-noise-tools' ) );
-		section.setAttribute( 'stack', '' );
-
-		// The kit's save indicator (os-save-status, Stable), the same pill
-		// the window title bar wears; the shell's window bundle defines it
-		// before any tab renders. `phase` is set by hand because the save is
-		// this plugin's REST call, not the shell's own settings lifecycle.
-		var status = document.createElement( 'os-save-status' );
-		status.setAttribute( 'mode', 'pill' );
-		status.setAttribute( 'saving-label', __( 'Saving…', 'signal-and-noise-tools' ) );
-		mountedStatus = status;
-		if ( saving ) { status.setAttribute( 'phase', 'saving' ); }
+		function createSection( heading, description ) {
+			var section = document.createElement( 'os-section' );
+			section.setAttribute( 'heading', heading );
+			section.setAttribute( 'description', description );
+			section.setAttribute( 'stack', '' );
+			body.appendChild( section );
+			return section;
+		}
 
 		function createToggle( key, label, desc ) {
 			var item = document.createElement( 'div' );
@@ -243,95 +331,37 @@
 				sw.setAttribute( 'checked', '' );
 			}
 			sw.addEventListener( 'os-checkbox-change', function( event ) {
-				if ( saving ) { return; }
-				saving = true;
-				var checked = Boolean(
+				var patch = {};
+				patch[ key ] = Boolean(
 					event.detail && typeof event.detail.checked !== 'undefined'
 						? event.detail.checked
 						: ( event.target && event.target.checked )
 				);
-				var previous = !! preferences[ key ];
-				var failed = false;
-				preferences[ key ] = checked;
-				mountedControls.forEach( function( entry ) { entry.control.setAttribute( 'disabled', '' ); } );
-				status = mountedStatus;
-				status.removeAttribute( 'error' );
-				status.setAttribute( 'phase', 'saving' );
-
-				var patch = {};
-				patch[ key ] = checked;
-
-				save( patch ).then( function( saved ) {
-					preferences = Object.assign( {}, preferences, saved );
-					status = mountedStatus;
-					// The mascot's look is shipped in the shell's boot config
-					// (openstation_mio_config), so a change lands on the next
-					// reload; the other switches are read at the next paint.
-					// The pill's label is capped at 200px with an ellipsis
-					// (os-save-status.styles.ts, no CSS prop for the width):
-					// this string measures 166px under system-ui, 157px under
-					// Geist; a longer one clips on the fallback face.
-					status.setAttribute( 'saved-label', key === 'mio_look'
-						? __( 'Saved. MIO changes on reload.', 'signal-and-noise-tools' )
-						: __( 'Saved.', 'signal-and-noise-tools' ) );
-					status.setAttribute( 'phase', 'saved' );
-					// Shell refresh is secondary to persistence: its failure must not
-					// roll back a preference the server has already accepted.
-					Promise.resolve().then( function() {
-						wireUrlRemaps();
-						syncDockTiles( preferences );
-						if ( window.wp && window.wp.os && typeof window.wp.os.refreshMenu === 'function' ) {
-							return window.wp.os.refreshMenu();
-						}
-					} ).then( function() {
-						syncDockTiles( preferences );
-					} ).catch( function() {
-						// No write rollback: reopening the shell retries menu discovery.
-					} );
-				} ).catch( function() {
-					failed = true;
-					preferences[ key ] = previous;
-					if ( previous ) {
-						sw.setAttribute( 'checked', '' );
-					} else {
-						sw.removeAttribute( 'checked' );
-					}
-					status = mountedStatus;
-					status.setAttribute( 'error', __( 'Could not save preference.', 'signal-and-noise-tools' ) );
-					status.setAttribute( 'phase', 'failed' );
-				} ).finally( function() {
-					saving = false;
-					mountedControls.forEach( function( entry ) {
-						entry.control.toggleAttribute( 'checked', !! preferences[ entry.key ] );
-						entry.control.removeAttribute( 'disabled' );
-					} );
-					if ( failed && mountedBody && mountedBody.isConnected ) {
-						// 1.1.7 binds a checked ATTRIBUTE, which cannot reset a dirty
-						// native input property. Recreate it from the restored state.
-						var restoreFocus = mountedControls.some( function( entry ) { return document.activeElement === entry.control; } );
-						render( mountedBody );
-						mountedStatus.setAttribute( 'error', __( 'Could not save preference.', 'signal-and-noise-tools' ) );
-						mountedStatus.setAttribute( 'phase', 'failed' );
-						if ( restoreFocus ) {
-							window.requestAnimationFrame( function() {
-								var entry = mountedControls.find( function( item ) { return item.key === key; } );
-								var input = entry && entry.control.shadowRoot && entry.control.shadowRoot.querySelector( 'input' );
-								if ( input ) { input.focus(); }
-							} );
-						}
-					}
-				} );
+				commit( patch, false );
 			} );
 			return item;
 		}
 
-		section.appendChild( createToggle(
+		function createButton( label, onClick ) {
+			var button = document.createElement( 'os-button' );
+			button.setAttribute( 'variant', 'secondary' );
+			button.textContent = label;
+			button.addEventListener( 'click', function() {
+				if ( ! button.hasAttribute( 'disabled' ) ) { onClick(); }
+			} );
+			return button;
+		}
+
+		var windows = createSection(
+			__( 'Windows', 'signal-and-noise-tools' ),
+			__( 'Which window opens for S&N Home and Analytics: the native one or the classic WordPress screen. Signal & Noise is native-only.', 'signal-and-noise-tools' )
+		);
+		windows.appendChild( createToggle(
 			'dashboard',
 			__( 'Use S&N Home', 'signal-and-noise-tools' ),
 			__( 'Opens S&N Home instead of the classic S&N Dashboard. Toggle off to use the classic dashboard.', 'signal-and-noise-tools' )
 		) );
-
-		section.appendChild( createToggle(
+		windows.appendChild( createToggle(
 			'analytics',
 			__( 'Use the native S&N Analytics window', 'signal-and-noise-tools' ),
 			__( 'Replaces the classic S&N Analytics admin page with the native App Framework window.', 'signal-and-noise-tools' )
@@ -339,24 +369,68 @@
 
 		// 14.8.0: what MIO, the shell's companion, may do in this plugin's
 		// windows. The shell's own MIO switch (Features) sits above these.
-		section.appendChild( createToggle(
+		var mio = createSection(
+			__( 'MIO', 'signal-and-noise-tools' ),
+			__( 'What the companion may do in Signal & Noise windows. The MIO switch under Features sits above these.', 'signal-and-noise-tools' )
+		);
+		mio.appendChild( createToggle(
 			'mio_tips',
 			__( 'MIO tips in Signal & Noise windows', 'signal-and-noise-tools' ),
 			__( 'Plain-text callouts that say which state an item is in. Never a model call.', 'signal-and-noise-tools' )
 		) );
-		section.appendChild( createToggle(
+		mio.appendChild( createToggle(
 			'mio_help',
 			__( 'Ask MIO about Signal & Noise', 'signal-and-noise-tools' ),
 			__( 'Registers the plugin\'s help and read-only tools for Ask MIO. Needs the shell\'s AI switch and a configured connector; makes no call of its own.', 'signal-and-noise-tools' )
 		) );
-		section.appendChild( createToggle(
+		mio.appendChild( createToggle(
 			'mio_look',
 			__( 'Dress MIO in the site\'s palette', 'signal-and-noise-tools' ),
 			__( 'Bone body, blood ring. Your own saved look in Make it yours still wins.', 'signal-and-noise-tools' )
 		) );
 
-		section.appendChild( status );
-		body.appendChild( section );
+		var notifications = createSection(
+			__( 'Notifications', 'signal-and-noise-tools' ),
+			__( 'Alerts reach you by email either way. Which alerts fire, and where the email goes, is set in S&N Home.', 'signal-and-noise-tools' )
+		);
+		notifications.appendChild( createToggle(
+			'alert_notify',
+			__( 'Show alerts as notifications in this app', 'signal-and-noise-tools' ),
+			__( 'A spike or a break shows once per device while the app is open. If the browser blocks notifications, it shows as a toast.', 'signal-and-noise-tools' )
+		) );
+		// wp.os.notify asks the browser for permission on its first call, and
+		// Safari only allows that inside a click: so the call sits in this one.
+		// Its own tag, never the alert's, and no seen mark: a test cannot
+		// replace or suppress a real alert. It works with the switch off, as
+		// the test in a system's notification pane does.
+		notifications.appendChild( createButton( __( 'Send a test notification', 'signal-and-noise-tools' ), function() {
+			if ( window.wp && window.wp.os && typeof window.wp.os.notify === 'function' ) {
+				window.wp.os.notify( {
+					title: __( 'Signal & Noise', 'signal-and-noise-tools' ),
+					body: __( 'This is a test. Alerts look like this.', 'signal-and-noise-tools' ),
+					tag: 'signal-noise/test'
+				} );
+			}
+		} ) );
+
+		var footer = document.createElement( 'os-section' );
+		footer.setAttribute( 'stack', '' );
+		mountedRestore = createButton( __( 'Restore defaults', 'signal-and-noise-tools' ), function() {
+			commit( Object.assign( {}, config.defaults ), true );
+		} );
+		if ( saving || ! config.defaults ) { mountedRestore.setAttribute( 'disabled', '' ); }
+
+		// The kit's save indicator (os-save-status, Stable), the same pill
+		// the window title bar wears; the shell's window bundle defines it
+		// before any tab renders. `phase` is set by hand because the save is
+		// this plugin's REST call, not the shell's own settings lifecycle.
+		var status = document.createElement( 'os-save-status' );
+		status.setAttribute( 'mode', 'pill' );
+		status.setAttribute( 'saving-label', __( 'Saving…', 'signal-and-noise-tools' ) );
+		mountedStatus = status;
+		if ( saving ) { status.setAttribute( 'phase', 'saving' ); }
+		footer.append( mountedRestore, status );
+		body.appendChild( footer );
 	}
 
 	function init() {
