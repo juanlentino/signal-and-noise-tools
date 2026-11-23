@@ -98,7 +98,7 @@ foreach ( sn_admin_top_tabs() as $t ) {
 ap_ok( is_array( $sec ), 'security tab present' );
 $subs = is_array( $sec ) ? ( $sec['sub_tabs'] ?? array() ) : array();
 ap_ok( ! empty( $subs['audit-log']['wide'] ), '#2 audit-log leaf is wide' );
-ap_ok( empty( $subs['login']['wide'] ) && empty( $subs['login-defense']['wide'] ), 'login + login-defense stay capped (only audit-log earns width)' );
+ap_ok( isset( $subs['login-defense'] ) && empty( $subs['login-defense']['wide'] ) && ! isset( $subs['login'] ), 'login-defense stays capped (audit-log and firewall earn width); login moved to settings/security' );
 
 // ── Group: audit-log glance hero (#10) + carded Maintenance (#2) ────────────
 echo "\nGroup: audit-log — glance hero + carded Maintenance\n";

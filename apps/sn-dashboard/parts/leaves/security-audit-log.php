@@ -5,10 +5,12 @@
  * The classic leaf (inc/audit-log-admin.php, `snt_audit_log_render_tab()`)
  * paints a two-column sn_admin_shell: MAIN carries the intro prose, a 4-card
  * glance hero, the 7-column counter timeline and the recent-logins log; RAIL
- * carries the guard lockouts card, the retention form and the prune-now form plus
+ * carries the guard lockouts card and the prune-now form plus
  * export links. The window has no shell equivalent, so every reading is
  * painted in one linear column (see the report's `changed` note) — nothing
- * is dropped. Same readers, same two forms, same handlers.
+ * is dropped. Same readers, same form, same handler. The retention form
+ * moved to Settings > Security in 2026-11 (settings-security.php); the
+ * Maintenance box keeps one line that goes there.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -85,7 +87,7 @@ function audit_log_counter_table_html( array $counters ) {
  * The lockouts box: the login guard's last 7 days (2026-10-18: its own
  * lockouts and throttles replace the retired lockout plugin), the same rows
  * as the classic rail, and a go to Security › Login defense in this window.
- * In the row with Retention and Maintenance (2026-10-12 audit).
+ * In the row with Maintenance (2026-10-12 audit).
  *
  * @param array<string,mixed> $guard From snt_audit_get_summary_impl()['guard'].
  * @return string
@@ -94,39 +96,6 @@ function audit_log_guard_html( array $guard ) {
 	$body = \snt_kit_kv( function_exists( 'snt_audit_log_guard_rows' ) ? snt_audit_log_guard_rows( $guard ) : array() )
 		. \snt_kit_go( __( 'Open Login defense', 'signal-and-noise-tools' ) . ' →', array( 'tab' => 'security', 'sub' => 'login-defense', 'current' => 'security' ) );
 	return \snt_kit_section( __( 'Login lockouts (login guard)', 'signal-and-noise-tools' ), $body );
-}
-
-/**
- * The Setup card: the retention-days form as a fold whose closed summary is
- * the window (docs/kit-leaf-anatomy.md: a setting changed once in a while).
- * Same field, same handler, same PRG pipeline.
- *
- * @return string
- */
-function audit_log_setup_html() {
-	$retention = (int) sn_setting( 'audit.retention_days', 90 );
-	$field     = \snt_kit_field(
-		'number',
-		'audit_retention_days',
-		__( 'Retention (days)', 'signal-and-noise-tools' ),
-		$retention,
-		array(
-			'min'  => 7,
-			'max'  => 365,
-			'hint' => __( 'How long to keep the daily counts, the successful-login records and the change records, 7 to 365 days. A daily cleanup deletes anything older.', 'signal-and-noise-tools' ),
-		)
-	);
-	return \snt_kit_setup_card(
-		__( 'Setup', 'signal-and-noise-tools' ),
-		array(
-			array(
-				'title'   => __( 'Retention', 'signal-and-noise-tools' ),
-				/* translators: %s: retention days. */
-				'summary' => sprintf( _n( '%s day', '%s days', $retention, 'signal-and-noise-tools' ), number_format_i18n( $retention ) ),
-				'body'    => \snt_kit_form( 'audit_save_retention', $field, array( 'submit' => __( 'Save retention', 'signal-and-noise-tools' ) ) ),
-			),
-		)
-	);
 }
 
 /**
@@ -158,7 +127,11 @@ function audit_log_maintenance_html() {
 	$exports         = '<p class="snt-prose">' . \snt_kit_esc( __( 'Download the audit log (per-day counters, successful-login rows and account and site changes over the retention window). The export contains plaintext usernames.', 'signal-and-noise-tools' ) ) . '</p>'
 		. '<os-cluster gap="8">' . \snt_kit_door( __( 'Export JSON', 'signal-and-noise-tools' ), $export_json_url ) . \snt_kit_door( __( 'Export CSV', 'signal-and-noise-tools' ), $export_csv_url ) . '</os-cluster>';
 
-	return \snt_kit_section( __( 'Maintenance', 'signal-and-noise-tools' ), $form . $exports );
+	// The window the prune reads is set on Settings > Security since 2026-11.
+	$moved = function_exists( 'snt_security_settings_moved_text' ) ? '<p class="snt-hint">' . \snt_kit_esc( \snt_security_settings_moved_text() ) . ' '
+		. \snt_kit_go( __( 'Settings › Security', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'security', 'current' => 'security' ) ) . '.</p>' : '';
+
+	return \snt_kit_section( __( 'Maintenance', 'signal-and-noise-tools' ), $form . $moved . $exports );
 }
 
 /**
@@ -210,10 +183,10 @@ function paint_security_audit_log( array $ctx ) {
 	// The counter timeline keeps the full width (eight columns), and so does
 	// the open logins ledger (up to 50 rows). 2026-10-12 audit: the lockouts
 	// box stood alone at full width with two rows in it; it shares one row
-	// with the two controls, three short boxes of a height.
+	// with Maintenance (retention, the third box, left for Settings > Security).
 	$out .= audit_log_logins_html( $logins );
 	$out .= audit_log_changes_html( function_exists( 'snt_audit_get_changes_impl' ) ? snt_audit_get_changes_impl( 30 ) : array() );
-	$out .= \snt_kit_grid( array( audit_log_guard_html( (array) ( $summary['guard'] ?? array() ) ), audit_log_setup_html(), audit_log_maintenance_html() ), 260 );
+	$out .= \snt_kit_grid( array( audit_log_guard_html( (array) ( $summary['guard'] ?? array() ) ), audit_log_maintenance_html() ), 260 );
 	return $out;
 }
 

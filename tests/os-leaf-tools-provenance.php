@@ -6,7 +6,7 @@
  * inc/provenance-admin.php:266) plus the two conditional fieldsets it pulls
  * in (inc/provenance-chain-backfill.php, inc/provenance-rotation.php). Both
  * sides run against the SAME fixture readers this file stubs directly — the
- * pattern the exemplar (tests/os-leaf-security-login.php) uses, applied to a
+ * pattern the exemplar (tests/os-leaf-settings-security.php) uses, applied to a
  * leaf whose real readers (sn_prov_get_chain(), sn_prov_worker_url(), …) live
  * three files deep and are out of scope to drag in whole.
  *

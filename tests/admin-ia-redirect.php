@@ -80,6 +80,15 @@ eq( null, sn_admin_canonical_destination( 'settings', 'notifications' ), 'settin
 eq( null, sn_admin_canonical_destination( 'connections', 'cron' ), 'connections/cron still canonical: switches left it, the leaf did not move' );
 eq( null, sn_admin_canonical_destination( 'security', 'login-defense' ), 'security/login-defense still canonical' );
 eq( array( 'tab' => 'settings', 'sub' => 'notifications', 'anchor' => null ), sn_admin_post_redirect_target( 'settings', 'notifications' ), 'POST PRG: a save from the pane returns to the pane' );
+// Settings > Security took a WHOLE leaf (Security > Login URL) and one field
+// (audit log retention). The leaf redirects; the Audit log leaf does not.
+$sec = array( 'tab' => 'settings', 'sub' => 'security', 'anchor' => null );
+eq( $sec, sn_admin_canonical_destination( 'security', 'login' ), 'security/login -> settings/security (the leaf moved whole)' );
+eq( $sec, sn_admin_post_redirect_target( 'security', 'login' ), 'POST PRG: an in-flight save from the old Login URL leaf lands on the pane' );
+eq( $sec, sn_admin_canonical_destination( 'login', '' ), 'legacy flat slug login -> settings/security in ONE hop (not via security/login)' );
+eq( null, sn_admin_canonical_destination( 'settings', 'security' ), 'settings/security canonical' );
+eq( $sec, sn_admin_post_redirect_target( 'settings', 'security' ), 'POST PRG: a save from Settings > Security returns to it' );
+eq( null, sn_admin_canonical_destination( 'security', 'audit-log' ), 'security/audit-log still canonical: the retention field left it, the leaf did not move' );
 eq( array( 'tab' => 'connections', 'sub' => 'cron', 'anchor' => null ), sn_admin_post_redirect_target( 'connections', 'cron' ), 'POST PRG: Acknowledge and the reads form still return to Cron' );
 
 // ── Legacy flat slugs + retired tab ──

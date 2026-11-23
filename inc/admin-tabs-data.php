@@ -317,9 +317,8 @@ function sn_admin_top_tabs() {
 			'tab'      => 'security',
 			'label'    => 'Security',
 			'title'    => 'Signal & Noise. Security',
-			'subtitle' => 'Custom login URL, login defense, the edge firewall and the admin audit log.',
+			'subtitle' => 'Login defense, the edge firewall and the admin audit log.',
 			'sub_tabs' => array(
-				'login'         => array( 'label' => 'Login URL', 'render' => 'sn_admin_render_login_section' ),
 				'login-defense' => array( 'label' => 'Login defense', 'render' => 'sn_login_defense_render' ),
 				// 15.3.0: the edge's own log, what Cloudflare stopped before WordPress
 				// ran, read daily with the monitor. 'wide': tables.
@@ -329,9 +328,9 @@ function sn_admin_top_tabs() {
 				// 'wide' (v6.47.0): the audit log leads with a 4-card glance hero over a
 				// 7-column counter-timeline table — it earns full width via the wide table
 				// (like Cron/Scheduled/Tags). It self-chromes (.postbox panels + glance
-				// grid), so it opts out of the wrapper's default capped card. Login URL (a
-				// short form) and Login defense (a status box) stay capped — neither earns
-				// full width.
+				// grid), so it opts out of the wrapper's default capped card. Login defense
+				// (a status box) stays capped. Login URL left this tab whole in 2026-11
+				// for Settings > Security (sn_admin_subtab_moves() redirects it).
 				'audit-log' => array( 'label' => 'Audit log', 'render' => 'snt_audit_log_render_tab', 'wide' => true ),
 			),
 		),
@@ -386,16 +385,23 @@ function sn_admin_top_tabs() {
 			// holds the three email switches that sat on Connections > Cron and
 			// Security > Login defense. Only switches moved, no whole leaf, so
 			// sn_admin_subtab_moves() has no line for it: an entry there would
-			// redirect the Cron and Login defense leaves themselves.
+			// redirect the Cron and Login defense leaves themselves. The second
+			// pane, Security, took Security > Login URL WHOLE (that leaf was
+			// nothing but the slug setting and its own state), so that one has a
+			// moves line, and audit log retention as a field: the Audit log leaf
+			// stays and has none.
 			'slug'     => 'sn-settings',
 			'tab'      => 'settings',
 			'label'    => 'Settings',
 			'title'    => 'Signal & Noise. Settings',
-			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address.',
+			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address. Security: the login address and how long the audit log is kept.',
 			'sub_tabs' => array(
 				// 'wide': the render fn paints two cards of its own side by side
 				// (.sn-2up); capped, the wrapper would nest them in a third.
 				'notifications' => array( 'label' => 'Notifications and reports', 'render' => 'sn_admin_render_notifications_section', 'wide' => true ),
+				// 'wide' for the same reason: two cards of its own, the login
+				// address and audit log retention.
+				'security'      => array( 'label' => 'Security', 'render' => 'sn_admin_render_security_settings_section', 'wide' => true ),
 			),
 		),
 	);

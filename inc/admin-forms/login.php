@@ -1,6 +1,8 @@
 <?php
 /**
- * Signal & Noise — Login URL admin section (Security tab → Login sub-tab).
+ * Signal & Noise: the Login URL section. Since 2026-11 it is painted on
+ * Settings > Security (inc/admin-forms/security-settings.php); it was the
+ * Security tab's Login sub-tab until then.
  *
  * Renders the custom-login-URL module status (active / dormant-conflict /
  * bypassed / constant-locked), the slug form (sn_action=save_login), and the
@@ -77,8 +79,8 @@ function sn_login_status_copy( $state ) {
 }
 
 /**
- * Render the Login URL section body. Used as the sn_admin_render_section()
- * callback for the 'login' sub-tab.
+ * Render the Login URL section body. Called by
+ * sn_admin_render_security_settings_section(), the Settings > Security pane.
  */
 function sn_admin_render_login_section() {
 	$st         = sn_login_module_state();

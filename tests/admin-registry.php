@@ -39,6 +39,7 @@ function sn_admin_render_citations_section() { $GLOBALS['__calls'][] = 'fn:sn_ad
 function snt_analytics_render_settings_section() { $GLOBALS['__calls'][] = 'fn:snt_analytics_render_settings_section'; }
 function sn_admin_render_music_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_music_section'; }
 function sn_admin_render_links_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_links_section'; }
+function sn_admin_render_security_settings_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_security_settings_section'; } // Settings > Security (real fn lives in inc/admin-forms/security-settings.php)
 function sn_admin_render_notifications_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_notifications_section'; } // Settings > Notifications and reports (real fn lives in inc/admin-forms/notifications.php)
 function sn_admin_render_mcp_connect_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_mcp_connect_section'; } // v9.47.0: Tools → Connect an MCP client
 function sn_admin_render_agent_tools_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_agent_tools_section'; } // 15.6.0: AI → Agent tools (real fn lives in inc/agent-tools-admin.php); absorbed Copilot Usage.
@@ -113,12 +114,16 @@ ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connection
 // Settings: the plugin's own preferences, one pane per subject. The first pane
 // is the three email switches that sat on Connections > Cron and Security >
 // Login defense. 'wide' because its render fn paints two cards of its own.
-ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
-	'settings: slug sn-settings, one pane, notifications' );
+ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications', 'security' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
+	'settings: slug sn-settings, two panes, notifications then security' );
+ok( 'Security' === ( $by_tab['settings']['sub_tabs']['security']['label'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['security']['wide'] ),
+	'the second pane is labelled "Security" and is wide (it owns its two cards, the login address and audit log retention)' );
+sn_admin_render_active_tab( 'settings', 'security' );
+ok( 'fn:sn_admin_render_security_settings_section' === end( $GLOBALS['__calls'] ), 'the dispatcher routes settings/security to its pane' );
 ok( 'Notifications and reports' === ( $by_tab['settings']['sub_tabs']['notifications']['label'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['notifications']['wide'] ),
 	'the pane is labelled "Notifications and reports" and is wide (it owns its two cards; capped would nest them in a third)' );
 sn_admin_render_active_tab( 'settings', '' );
-ok( 'fn:sn_admin_render_notifications_section' === end( $GLOBALS['__calls'] ), 'the dispatcher routes the settings tab to its one pane' );
+ok( 'fn:sn_admin_render_notifications_section' === end( $GLOBALS['__calls'] ), 'the dispatcher lands the settings tab on its first pane' );
 
 // Site: was the single-leaf Identity & SEO tab; now the whole "how the site
 // itself behaves" group, so its label loses the leaf's name.
@@ -180,8 +185,8 @@ ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'provenance', 'trust',
 ok( ! empty( $by_tab['tools']['sub_tabs']['trust']['wide'] ), 'trust leaf is wide (glance hero + full-width table)' );
 ok( ! empty( $by_tab['ai']['sub_tabs']['models-budget']['wide'] ),
 	'models-budget is wide (v10.47.0: it joins the Phase-4a field grid instead of sitting as a 620px card in a 1200px tab)' );
-ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'login-defense', 'firewall', 'audit-log' ),
-	'security leaves: login, login-defense, firewall (15.3.0: the edge\'s own log), audit-log' );
+ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login-defense', 'firewall', 'audit-log' ),
+	'security leaves: login-defense, firewall (15.3.0: the edge\'s own log), audit-log; login moved whole to settings/security' );
 
 // Moved leaves must carry their layout flags across verbatim — a dropped 'wide'
 // silently re-caps a two-column surface at 820px.

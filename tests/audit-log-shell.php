@@ -77,6 +77,9 @@ if ( ! defined( 'SN_AUDIT_LOGIN_SUCCESS_CAP' ) ) {
 
 require_once __DIR__ . '/lib/admin-post-url-stub.php';
 require_once __DIR__ . '/../inc/admin-shell.php';    // real shell primitive
+if ( is_file( __DIR__ . '/../inc/admin-forms/security-settings.php' ) ) {
+	require_once __DIR__ . '/../inc/admin-forms/security-settings.php'; // the line the leaf keeps for its moved retention field
+}
 require_once __DIR__ . '/../inc/audit-log-admin.php'; // SUT
 
 $_POST = array(); // no prune action → skip the POST branch
@@ -97,7 +100,8 @@ al_before( $html, 'sn-audit-logins', 'sn-shell__rail', 'the recent-logins table 
 
 echo "\nGroup: passive readouts + CONFIG live in the RAIL (after the rail marker)\n";
 al_before( $html, 'sn-shell__rail', 'sub=login-defense', 'the login guard lockouts card is in the rail' );
-al_before( $html, 'sn-shell__rail', 'audit_save_retention', 'the retention form is in the rail' );
+al_ok( false === strpos( $html, 'audit_save_retention' ) && false === strpos( $html, 'audit_retention_days' ), 'the retention form left the leaf for Settings › Security' );
+al_before( $html, 'sn-shell__rail', 'The retention setting moved to', 'the line saying where it went is in the rail' );
 al_before( $html, 'sn-shell__rail', 'audit_prune_now', 'the maintenance / prune form is in the rail' );
 al_before( $html, 'sn-shell__rail', 'sn_audit_export', 'the export links are in the rail' );
 

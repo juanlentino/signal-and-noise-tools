@@ -133,7 +133,7 @@ function snt_watch_ripe_login_door_leak( $watch, $now ) {
 	}
 	$found = (array) ( $last['found'] ?? array() );
 	if ( $found ) {
-		return array( 'ripe' => true, 'note' => 'the login address is published on: ' . implode( ', ', array_slice( $found, 0, 8 ) ) . '. Find what prints it, fix it, then change the Login URL (one save).' );
+		return array( 'ripe' => true, 'note' => 'the login address is published on: ' . implode( ', ', array_slice( $found, 0, 8 ) ) . '. Find what prints it, fix it, then change the Login URL in Settings › Security (one save).' );
 	}
 	if ( 2 * (int) $last['errors'] > (int) $last['checked'] ) {
 		return array( 'ripe' => true, 'note' => sprintf( 'the last check could read only %d of %d surfaces, too few to call it clean', (int) $last['checked'] - (int) $last['errors'], (int) $last['checked'] ) );

@@ -1387,7 +1387,7 @@ foreach ( $sn_targets as $sn_label => $sn_url ) {
 $sn_expect = array(
 	'pages.dashboard'    => 'admin.php?page=sn-theme-options&tab=dashboard',
 	'pages.identity'     => 'admin.php?page=sn-theme-options&tab=site&sub=identity-and-seo#sn-sec-identity',
-	'pages.login'        => 'admin.php?page=sn-theme-options&tab=security&sub=login',
+	'pages.login'        => 'admin.php?page=sn-theme-options&tab=settings&sub=security', // the Login URL leaf moved whole to Settings > Security
 	'pages.cloudflare'   => 'admin.php?page=sn-theme-options&tab=connections&sub=cloudflare',
 	'pages.cron'         => 'admin.php?page=sn-theme-options&tab=connections&sub=cron',
 	'pages.insights'     => 'admin.php?page=sn-theme-options&tab=monitoring&sub=insights',

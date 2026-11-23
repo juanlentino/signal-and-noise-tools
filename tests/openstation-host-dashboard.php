@@ -148,7 +148,7 @@ namespace {
 	// One nonce per ACTION: the estate mints four, and a global "valid" would
 	// hide the very confusion the pipelines exist to end.
 	function wp_verify_nonce( $nonce, $action = -1 ) {
-		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults' );
+		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'login-nonce' => 'sn_save_login', 'ret-nonce' => 'sn_audit_save_retention', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults' );
 		return ( isset( $minted[ $nonce ] ) && $minted[ $nonce ] === $action ) ? 1 : false;
 	}
 	// The interceptor needs real hook plumbing, a real wp_redirect (which filters
@@ -241,6 +241,8 @@ namespace {
 		return 'identity_saved';
 	}
 	function sn_handle_webhook_add( $post ) { return 'wh_added_abc123'; }
+	function sn_handle_save_login( $post ) { return '' === (string) ( $post['login_slug'] ?? '' ) ? 'login_empty' : 'login_failed'; } // both are plain flashes; the real handler is inc/admin-post-actions/system.php
+	function sn_handle_audit_save_retention( $post ) { return 'audit_retention_saved'; }
 	function sn_handle_morning_brief_save( $post ) { return isset( $post['snt_morning_brief_test'] ) ? 'morning_brief_test_failed' : 'morning_brief_saved'; }
 	$GLOBALS['__handler_calls'] = array();
 
@@ -476,6 +478,27 @@ namespace {
 	$app->actions['post']( $st2, $os2, array( 'values' => array( '_wpnonce' => 'brief-nonce', 'action' => 'sn_morning_brief_save', 'snt_morning_brief_test' => '1' ) ) );
 	ok( 'notifications' === $st2->get( 'sub' ) && array( 'error', 'Test morning operations brief could not be sent.' ) === $st2->get( 'notice' ) && false === $st2->get( 'saved' ),
 		'   ...and a failed test send stays there too, with its failed notice' );
+
+	// Settings > Security: both of its saves are answered on the pane.
+	$st3 = new \OpenStation\App\State( $app->state, array( 'sub' => 'security' ) );
+	$app->actions['post']( $st3, $os2, array( 'values' => array( '_wpnonce' => 'ret-nonce', 'action' => 'sn_audit_save_retention', 'audit_retention_days' => '30' ) ) );
+	ok( 'security' === $st3->get( 'sub' ) && array( 'success', 'Audit retention saved.' ) === $st3->get( 'notice' ) && true === $st3->get( 'saved' ),
+		'a retention save from Settings > Security lands back on that pane with its saved notice' );
+	$app->actions['post']( $st3, $os2, array( 'values' => array( '_wpnonce' => 'login-nonce', 'action' => 'sn_save_login', 'login_slug' => '' ) ) );
+	ok( 'security' === $st3->get( 'sub' ) && array( 'error', 'Login slug cannot be empty.' ) === $st3->get( 'notice' ) && false === $st3->get( 'saved' ),
+		'   ...and a refused slug save stays there too, with its notice' );
+	$app->actions['post']( $st3, $os2, array( 'values' => array( '_wpnonce' => 'stale', 'action' => 'sn_save_login', 'login_slug' => 'x' ) ) );
+	ok( 'security' === $st3->get( 'sub' ) && false === $st3->get( 'saved' ) && 'error' === ( $st3->get( 'notice' )[0] ?? '' ),
+		'   ...and a slug save with a wrong nonce is refused on the pane, as it was on the old leaf' );
+	// In flight across the move: a Security-tab session painted before the
+	// update still holds sub=login. Its save runs (the action is found by
+	// name), and the answer paints on that tab's first leaf, never a blank.
+	$os3 = new \OpenStation\App\Os();
+	$os3->view = 'security';
+	$st4 = new \OpenStation\App\State( $app->state, array( 'sub' => 'login' ) );
+	$app->actions['post']( $st4, $os3, array( 'values' => array( '_wpnonce' => 'login-nonce', 'action' => 'sn_save_login', 'login_slug' => '' ) ) );
+	ok( 'login-defense' === $st4->get( 'sub' ) && array( 'error', 'Login slug cannot be empty.' ) === $st4->get( 'notice' ),
+		'a slug save in flight from the old Security > Login URL leaf is still answered, on the Security tab\'s first leaf' );
 
 	$os = new \OpenStation\App\Os();
 	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'stale', 'action' => 'sn_save_identity' ) ) );
