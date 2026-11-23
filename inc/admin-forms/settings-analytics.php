@@ -5,7 +5,7 @@
  * The sixth pane of the Settings tab: eleven settings, gathered from four
  * Measurement leaves. All four kept their readings, tables and actions and
  * one line saying where their settings went, so sn_admin_subtab_moves() has
- * no line. Eight headed boxes, each heading from the one list of titles
+ * no line. Nine headed boxes, each heading from the one list of titles
  * (snt_settings_analytics_titles(), settings-analytics-pointers.php):
  *
  * 1. Collector endpoint, from Measurement > Analytics: the Endpoint URL.
@@ -16,13 +16,15 @@
  *    ONE form: the save writes both, each from its default when missing.
  * 4. Session funnels, same leaf: the one textarea.
  * 5. Publish windows, same leaf: the window length.
- * 6. Feed tracking, from Measurement > RSS: the switch, the event name and
+ * 6. North star: which page groups count, the scroll depth and the time on
+ *    page (snt_nsm_render_settings(), inc/north-star-settings.php). The
+ *    window had it first; this twin came in 2026-11. ONE form: the save
+ *    rewrites all three.
+ * 7. Feed tracking, from Measurement > RSS: the switch, the event name and
  *    the log retention. ONE form: the save rebuilds the tracker's option.
  *    Its notice is the tracker's own (?sn_rss_ok), painted on this pane.
- * 7. Machine readers, from Measurement > Machine Readers: the Worker URL.
- * 8. Insights, from Measurement > Insights: the weekly scan switch.
- *
- * The native pane has a ninth, North star, which never had a classic form.
+ * 8. Machine readers, from Measurement > Machine Readers: the Worker URL.
+ * 9. Insights, from Measurement > Insights: the weekly scan switch.
  *
  * Every renderer is CALLED as it is, not retyped, so each form keeps its
  * nonce, names, ids, bounds and words. Owner devices (a managed list),
@@ -92,6 +94,7 @@ function sn_admin_render_settings_analytics_section() {
 		'tuning'          => array( 'snt_analytics_render_engine_tuning', 'snt_analytics_render_engine_tuning' ),
 		'funnels'         => array( 'snt_analytics_render_funnels', 'snt_analytics_render_funnels' ),
 		'publish'         => array( 'snt_analytics_render_publish_window', 'snt_analytics_render_publish_window' ),
+		'north_star'      => array( 'snt_nsm_render_settings', 'snt_nsm_render_settings' ),
 		'feed'            => array( 'snt_settings_analytics_render_feed', 'sn_rss_tracker_render_settings_form' ),
 		'machine_readers' => array( 'snt_settings_analytics_render_machine_readers', 'snt_mr_render_url_form' ),
 		'insights'        => array( 'snt_insights_render_settings_section', 'snt_insights_render_settings_section' ),

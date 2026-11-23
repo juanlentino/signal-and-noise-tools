@@ -498,8 +498,9 @@ ok( false !== strpos( $kit, 'Who answered and which paths for October 11, 2026 w
 unset( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] );
 
 // ── The North star form (inc/north-star-settings.php) is a box on Settings ›
-// Analytics since 2026-11, native only as it always was (the classic hub has
-// no twin). Loaded here, after every classic oracle pin.
+// Analytics since 2026-11. The classic leaf never had it; its classic twin is
+// a box on the classic pane (tests/os-leaf-settings-analytics.php). Loaded
+// here, after every classic oracle pin.
 require_once SNT_PATH . 'inc/north-star.php';
 $GLOBALS['__settings']['north_star'] = array( 'sections' => array( 'notes', 'provenance' ), 'scroll' => 60, 'dwell_s' => 45 );
 $kit  = snt_leaf_paint( 'monitoring', 'analytics' );

@@ -56,7 +56,8 @@ function snt_settings_analytics_titles() {
 /**
  * The sentence an old screen keeps, up to the link. It names settings and
  * never a value. Measurement > Analytics names the boxes it lost by their
- * titles; the native leaf also had North star, which has no classic form.
+ * titles; the native leaf also had North star, which the classic leaf never
+ * had (its classic twin was born on the pane).
  *
  * @param string $from `analytics`, `analytics-native`, `rss`, `machine-readers` or `insights`.
  * @return string
