@@ -6,9 +6,10 @@
  * load them without the pane, as settings-analytics-pointers.php does.
  *
  * The address is written ONCE, here: `page=sn-theme-options&tab=settings`,
- * the spelling snt_desktop_admin_url() builds. A link that names another
- * registered page beside `tab=settings` still opens the pane, with the wrong
- * sidebar item lit (tests/settings-tab-links.php).
+ * the spelling snt_desktop_admin_url() builds and every other link to the
+ * tab uses. `?tab=` picks the pane, so a link naming another registered page
+ * (six said `sn-tools`) still opens it, but as that page: a save made there
+ * returns to that page's address (tests/settings-tab-links.php).
  *
  * @package SignalNoiseTools
  */

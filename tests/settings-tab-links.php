@@ -5,14 +5,18 @@
  * A classic S&N admin URL is `admin.php?page=<slug>&tab=<tab>&sub=<leaf>`.
  * `?tab=` picks what is painted (sn_admin_page_active_tab()), so a link with
  * the wrong `page=` still opens the right pane: nothing looks broken. What
- * `page=` decides is the sidebar item WordPress lights and the page a save
- * posted from there returns to. Six pointers to Settings > Accounts and
- * connections named `sn-tools` (2026-11), so the pane opened with Tools lit.
+ * `page=` decides is the page a save posted from there returns to
+ * (sn_handle_admin_post() keeps it) and, by core's menu rule as read and not
+ * observed here, the sidebar item that is lit: the one whose slug equals
+ * `page`. Six pointers to Settings > Accounts and connections named
+ * `sn-tools` (2026-11), so the pane opened as the Tools page.
  *
  * The one spelling is `page=sn-theme-options&tab=settings`, the one
  * snt_desktop_admin_url(), the tab strip, the legacy 301 and every other
- * pointer write. This suite reads the source of inc/ and apps/ and fails on
- * any other slug beside `tab=settings`.
+ * pointer write. It is the plugin's one spelling, not a highlight fix: by the
+ * same rule it lights Dashboard, as every tab link does, and only the menu's
+ * own `page=sn-settings` lights Settings. This suite reads the source of
+ * inc/ and apps/ and fails on any other slug beside `tab=settings`.
  *
  * Run: php tests/settings-tab-links.php
  */

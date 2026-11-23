@@ -3,7 +3,7 @@
  * Signal & Noise: Settings > Analytics, the classic section.
  *
  * The sixth pane of the Settings tab: eleven settings, gathered from four
- * Measurement leaves. All four kept their readings, tables and actions and
+ * Measurement leaves, and the north star's three. All four kept their readings, tables and actions and
  * one line saying where their settings went, so sn_admin_subtab_moves() has
  * no line. Nine headed boxes, each heading from the one list of titles
  * (snt_settings_analytics_titles(), settings-analytics-pointers.php):
