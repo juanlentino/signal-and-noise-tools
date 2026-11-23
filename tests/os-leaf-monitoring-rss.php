@@ -57,6 +57,7 @@ require SNT_PATH . 'inc/admin-glance.php'; // 2026-10-12: the classic tiles the 
 require SNT_PATH . 'inc/admin-render-sections.php';
 require SNT_PATH . 'inc/rss-feed-tracker.php';
 require SNT_PATH . 'inc/feed-subscribers.php';
+require SNT_PATH . 'inc/admin-forms/settings-analytics-pointers.php'; // 2026-11: the line the leaf keeps.
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-rss.php';
 
 $pass = 0; $fail = 0;
@@ -90,13 +91,25 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_rss_section' );
 $kit     = snt_leaf_paint( 'monitoring', 'rss', array( 'params' => array( 'sn_rss_ok' => 'saved' ) ) );
 
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+// 2026-11: the three settings and their Save are the Feed tracking box on
+// Settings › Analytics. $form_c and $form_k are that box's body on each twin,
+// the same two functions the pane calls; the leaf keeps Reset and Purge.
+$form_c = snt_leaf_classic_html( static function () { sn_rss_tracker_render_settings_form( sn_rss_tracker_settings() ); } );
+$form_k = \SignalNoise\OpenStationHost\Dashboard\Leaves\rss_settings_form_html( (array) sn_rss_tracker_settings() );
+ok( array( 'purge_days' ) === snt_leaf_names( $kit ) && snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'the leaf keeps one field, the purge\'s days, on both surfaces: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+ok( array( 'enabled', 'event_name', 'log_retention_days' ) === snt_leaf_names( $form_k ) && snt_leaf_names( $form_c ) === snt_leaf_names( $form_k ), 'the pane\'s box carries the three settings, the same names on both twins' );
 $rss_ops = array( 'rss_purge_log', 'rss_reset_defaults', 'rss_save_settings' );
-ok( $rss_ops === snt_leaf_actions( $classic ), 'classic offers the three admin-post actions: ' . implode( ',', snt_leaf_actions( $classic ) ) );
-ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the kit posts the same three actions: ' . implode( ',', snt_leaf_actions( $kit ) ) );
-// 2026-11: the three settings stayed here (their save lands on this leaf
-// whatever posted it: tests/rss-tracker-admin-post.php), whole, in one form.
-ok( 1 === snt_whole_forms( $classic, 'form', 'rss_save_settings', SNT_RSS_SAVE_FIELDS ) && 1 === snt_whole_forms( $kit, 'os-form', 'rss_save_settings', SNT_RSS_SAVE_FIELDS ) && -1 === snt_whole_forms( '<form>sn_rss_save_settings<input name="enabled"><input name="event_name"></form>', 'form', 'rss_save_settings', SNT_RSS_SAVE_FIELDS ), 'one form posts rss_save_settings on each surface and carries the switch, the event name and the retention; a form missing one would be -1' );
+ok( array( 'rss_purge_log', 'rss_reset_defaults' ) === snt_leaf_actions( $classic ) && array( 'rss_save_settings' ) === snt_leaf_actions( $form_c ), 'classic: the leaf offers Purge and Reset, the pane\'s box the save: ' . implode( ',', snt_leaf_actions( $classic ) ) );
+ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $form_c ) === snt_leaf_actions( $form_k ), 'the kit posts the same actions from the same two places: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( 1 === substr_count( $classic, 'The tracking switch, the event name and the log retention moved to <a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=analytics">Settings › Analytics</a>.</p>' ) && 1 === substr_count( $kit, '<p class="snt-hint">The tracking switch, the event name and the log retention moved to <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="analytics" data-snt-anchor="">Settings › Analytics</os-button>.</p>' ), 'the leaf keeps one line saying where the three settings went, the same sentence on both surfaces, with a link' );
+$classic_leaf = $classic;
+$kit_leaf     = $kit;
+$classic     .= $form_c; // from here the form's own assertions read the leaf and the box together.
+$kit         .= $form_k;
+// The save rebuilds its option, so the three stay whole, in one form, and the
+// leaf's Reset form posts its own action and none of them.
+ok( 0 === snt_whole_forms( $classic_leaf, 'form', 'rss_save_settings', SNT_RSS_SAVE_FIELDS ) && 0 === snt_whole_forms( $kit_leaf, 'os-form', 'rss_save_settings', SNT_RSS_SAVE_FIELDS ) && 1 === preg_match( '#<form method="post" action="[^"]*" class="sn-rss-settings"><p class="submit"><button type="submit" name="action" value="sn_rss_reset_defaults"#', $classic_leaf ), 'no form on the leaf posts the save; classic Reset to Defaults is a form of its own whose one button names its own action' );
+ok( 1 === snt_whole_forms( $form_c, 'form', 'rss_save_settings', SNT_RSS_SAVE_FIELDS ) && 1 === snt_whole_forms( $form_k, 'os-form', 'rss_save_settings', SNT_RSS_SAVE_FIELDS ) && -1 === snt_whole_forms( '<form>sn_rss_save_settings<input name="enabled"><input name="event_name"></form>', 'form', 'rss_save_settings', SNT_RSS_SAVE_FIELDS ), 'one form posts rss_save_settings on each surface and carries the switch, the event name and the retention; a form missing one would be -1' );
 ok( false !== strpos( $classic, 'Configured on <a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=analytics">Settings › Analytics</a>.</p>' ) && 1 === preg_match( '#Configured on <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="analytics"[^>]*>Settings › Analytics</os-button>\.</p>#', $kit ) && false === strpos( $classic . $kit, 'alongside the credentials' ), 'the read-only collector line points at Settings › Analytics, where the endpoint is set now, on both surfaces' );
 ok( false === strpos( $classic . $kit, 'sn_rss_action' ) && false === strpos( $classic . $kit, 'sn_rss_tracker_action' ), 'neither surface carries the old field or the old shared nonce' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
@@ -105,7 +118,7 @@ foreach ( $rss_ops as $op ) {
 	ok( 1 === preg_match( '/<input type="hidden" name="action" value="sn_' . $op . '"><input type="hidden" name="_wpnonce" value="nonce-sn_' . $op . '">/', $kit ), "kit: the $op form carries its hook and a nonce minted for it alone" );
 	ok( 1 === preg_match( '/<button type="submit" name="action" value="sn_' . $op . '" formaction="[^"]*admin-post\.php\?_wpnonce=nonce-sn_' . $op . '"/', $classic ), "classic: the $op button names its hook and carries its own nonce on formaction (#1614 shape)" );
 }
-ok( 2 === preg_match_all( '/<form method="post" action="[^"]*admin-post\.php"/', $classic ) && false === strpos( $classic, 'name="_wpnonce"' ), 'classic: both forms post to admin-post.php; no shared nonce field, so no button is authorized by another\'s token' );
+ok( 3 === preg_match_all( '/<form method="post" action="[^"]*admin-post\.php"/', $classic ) && false === strpos( $classic, 'name="_wpnonce"' ), 'classic: all three forms (Reset, Purge, and the pane\'s save) post to admin-post.php; no shared nonce field, so no button is authorized by another\'s token' );
 ok( 1 === preg_match( '/<label class="sn-field-label sn-field-label--inline" for="sn_rss_enabled">\s*<input type="checkbox" id="sn_rss_enabled" name="enabled"/', $classic ) && false !== strpos( $classic, 'for="sn_rss_event_name"' ) && false !== strpos( $classic, 'for="sn_rss_retention"' ) && false !== strpos( $classic, 'for="sn_rss_purge_days"' ), 'classic: every field keeps its label' );
 
 // ── Readouts: activity counters, most-recent line, recent rows, settings.
@@ -206,7 +219,7 @@ ok( 1 === substr_count( $kitP, snt_leaf_row() ), 'anatomy: one paired row -- ' .
 preg_match_all( '/<os-section heading="([^"]+)"/', $kitP, $h );
 ok( array( 'Activity', 'Setup', 'Recent requests' ) === $h[1], 'anatomy: Activity, then Setup under it, beside Recent requests -- ' . implode( ' | ', $h[1] ) );
 ok( 1 === preg_match( '/^' . preg_quote( snt_leaf_row(), '/' ) . '<os-stack gap="18"><os-section heading="Activity"[^>]*><div class="snt-status-line">.*?Tracking on.*?Keeps 45 days/s', $kitP ), 'anatomy: the leaf opens on the row, Activity leads with the status line (tracking on, retention)' );
-ok( 1 === preg_match( '/<os-disclosure heading="Settings" hint="On · RSS Feed Request · 45 days"[^>]*data-snt-open="0"[^>]*>.*name="event_name".*name="log_retention_days"/s', $kitP ), 'anatomy: Settings is a closed Setup fold whose summary is tracking, event and retention' );
+ok( 1 === preg_match( '/<os-disclosure heading="Settings" hint="On · RSS Feed Request · 45 days"[^>]*data-snt-open="0"[^>]*>.*Collector endpoint:.*moved to.*Reset to Defaults/s', $kitP ) && false === strpos( $kitP, 'name="event_name"' ), 'anatomy: Settings is a closed Setup fold whose summary is still tracking, event and retention; it holds the collector line, where the settings went and Reset, and no field' );
 ok( 1 === preg_match( '/<os-disclosure heading="Maintenance" hint="[^"]*45 days[^"]*"[^>]*data-snt-open="0"[^>]*>.*name="purge_days"/s', $kitP ), 'anatomy: Maintenance (the purge form) is a closed Setup fold that names the daily prune' );
 ok( 1 === preg_match( '/<os-form class="snt-form snt-form--inline"[^>]*submit-label="Reset to Defaults"/', $kitP ) && 1 === substr_count( $kitP, 'snt-form--inline' ), 'anatomy: Reset to Defaults is the one compact inline form' );
 $GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ]['enabled'] = false;

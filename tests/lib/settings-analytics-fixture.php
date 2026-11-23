@@ -18,7 +18,12 @@ require_once __DIR__ . '/whole-forms.php';
 const SA_FAKE_COLLECTOR = 'https://fake-collector.example.test/_sn/px';
 const SA_FAKE_WORKER    = 'https://fake-sensor.example.test';
 if ( ! defined( 'SN_SETTINGS_OPTION' ) ) { define( 'SN_SETTINGS_OPTION', 'sn_settings' ); }
-if ( ! defined( 'SN_RSS_TRACKER_SETTINGS_OPT' ) ) { define( 'SN_RSS_TRACKER_SETTINGS_OPT', 'sn_rss_tracker_settings' ); }
+if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
+function wp_parse_args( $args, $defaults ) { return array_merge( $defaults, (array) $args ); }
+function delete_transient( $k ) { return true; }
+/** The tracker's table is never read by the pane; its prefix is. */
+class SNT_Test_SA_Wpdb { public $prefix = 'wp_'; public $last_error = ''; public function get_charset_collate() { return ''; } }
+$GLOBALS['wpdb'] = new SNT_Test_SA_Wpdb();
 
 $GLOBALS['__settings'] = array();
 $GLOBALS['__roles']    = array( 'administrator' => 'Administrator', 'editor' => 'Editor', 'subscriber' => 'Subscriber' );
@@ -27,7 +32,6 @@ function sn_setting( $path, $default = null ) { return array_key_exists( $path, 
 function sn_setting_update( $key, $value ) { $GLOBALS['__settings'][ $key ] = $value; return true; }
 function sn_setting_reset_cache() {}
 function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
-function sn_rss_tracker_settings() { return (array) ( $GLOBALS['__options'][ SN_RSS_TRACKER_SETTINGS_OPT ] ?? array() ); }
 function sn_beacon_excludable_roles() { return $GLOBALS['__roles']; }
 function sn_beacon_sanitize_exclude_roles( $submitted ) { return array_values( array_intersect( array_map( 'strval', (array) $submitted ), array_keys( $GLOBALS['__roles'] ) ) ); }
 function sn_beacon_owner_current_user_excluded() { return false; }
@@ -39,6 +43,7 @@ function sn_admin_shell_close() {}
 
 $snt_sa_files = array(
 	'inc/admin-legacy-redirect.php', 'inc/analytics-sessions.php', 'inc/analytics-render-settings.php',
+	'inc/rss-feed-tracker.php', 'inc/publish-window.php', 'inc/publish-window-settings.php', 'inc/north-star.php',
 	'inc/machine-readers-admin.php', 'inc/insights-admin.php',
 	'inc/admin-post-actions/analytics.php', 'inc/admin-post-actions/health-insights.php',
 );
@@ -62,6 +67,8 @@ function sa_seed() {
 		'analytics.exclude_roles'        => array( 'administrator', 'editor' ),
 		'analytics.signal_baseline_days' => 45,
 		'analytics.anomaly_sensitivity'  => 'strict',
+		'analytics.publish_window_minutes' => 90,
+		'north_star'                     => array( 'sections' => array( 'notes' ), 'scroll' => 60, 'dwell_s' => 45 ),
 		'analytics.funnels'              => array( array( 'name' => 'Home flow', 'steps' => array( array( 'match' => 'exact', 'value' => '/' ), array( 'match' => 'exact', 'value' => '/notes/' ) ) ) ),
 		'machine_readers.worker_url'     => SA_FAKE_WORKER,
 		'machine_readers.read_token'     => 'fake-read-token-for-test',

@@ -46,34 +46,23 @@ function sn_rss_tracker_render_stats( $stats ) {
 	}
 }
 
+/**
+ * The three settings and Save, a box on Settings > Analytics since 2026-11
+ * (the pane prints its heading). ONE form: the save rebuilds the tracker's
+ * option, so a form without a field would reset it. Same fields, ids,
+ * labels, bounds and button as the leaf's form had.
+ *
+ * @param array $settings sn_rss_tracker_settings().
+ * @return void
+ */
 function sn_rss_tracker_render_settings_form( $settings ) {
-	echo '<h2 class="sn-section-h">Settings</h2>';
-	// admin-post.php, like every SN form (2026-11-10). Save and Reset share
-	// this form, so each button names its own action and carries a nonce
-	// minted for it alone on formaction= (sn_admin_post_button(), #1614).
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-rss-settings">';
 
-	// Stacked .sn-field rows instead of two-column .form-table — fits the
-	// narrow right column of the 2-col layout much better.
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label sn-field-label--inline" for="sn_rss_enabled">';
 	echo '<input type="checkbox" id="sn_rss_enabled" name="enabled" value="1"' . checked( ! empty( $settings['enabled'] ), true, false ) . '> Enable feed-request tracking';
 	echo '</label>';
 	echo '<p class="sn-field-helper">When off, feed requests are neither logged nor sent to the collector.</p>';
-	echo '</div>';
-
-	// v10.46.0: the Collector endpoint field moved to Measurement → Analytics,
-	// and in 2026-11 from there to Settings › Analytics.
-	// It was never an RSS setting — EVERY beacon on the site posts to that URL,
-	// and this leaf is one of its callers, not its owner. A read-only pointer
-	// stays because this form's POSTs do go there, so seeing the target while
-	// configuring the tracker is genuinely useful; the write surface is single
-	// and lives on the Analytics leaf (the same one-writer rule
-	// snt_analytics_render_mirrors() enforces in the other direction).
-	echo '<div class="sn-field">';
-	echo '<label class="sn-field-label">Collector endpoint</label>';
-	echo '<p class="sn-field-helper"><code>' . esc_html( (string) $settings['collector_url'] ) . '</code><br>';
-	echo 'Where this tracker POSTs feed requests. Configured on <a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=settings&sub=analytics' ) ) . '">Settings › Analytics</a>.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field">';
@@ -85,15 +74,37 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_rss_retention">Log retention (days)</label>';
 	echo '<input type="number" id="sn_rss_retention" name="log_retention_days" class="small-text" min="7" max="365" value="' . esc_attr( (int) $settings['log_retention_days'] ) . '">';
-	echo '<p class="sn-field-helper">How long to keep rows in <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code>. A daily WP-Cron job prunes rows older than this threshold; Purge now, under Maintenance, forces a prune right now.</p>';
+	echo '<p class="sn-field-helper">How long to keep rows in <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code>. A daily WP-Cron job prunes rows older than this threshold; Purge now, under Maintenance on Measurement › RSS, forces a prune right now.</p>';
 	echo '</div>';
 
 	echo '<p class="submit">';
-	echo '<button type="submit"' . sn_admin_post_button( 'rss_' . SN_RSS_TRACKER_ACTION_SAVE ) . ' class="button button-primary">Save Settings</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
-	// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm.
-	echo '<button type="submit"' . sn_admin_post_button( 'rss_' . SN_RSS_TRACKER_ACTION_RESET ) . ' class="button" data-snt-confirm="' . esc_attr__( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Settings › Analytics is kept.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Reset', 'signal-and-noise-tools' ) . '">Reset to Defaults</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+	echo '<button type="submit"' . sn_admin_post_button( 'rss_' . SN_RSS_TRACKER_ACTION_SAVE ) . ' class="button button-primary">Save Settings</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	echo '</p>';
 	echo '</form>';
+}
+
+/**
+ * What the leaf keeps under "Settings": where the tracker posts (a reading),
+ * the line saying where its three settings went, and Reset to Defaults, an
+ * action, in a form of its own whose one button names its own action.
+ *
+ * @param array $settings sn_rss_tracker_settings().
+ * @return void
+ */
+function sn_rss_tracker_render_settings_kept( $settings ) {
+	echo '<h2 class="sn-section-h">Settings</h2>';
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label">Collector endpoint</label>';
+	echo '<p class="sn-field-helper"><code>' . esc_html( (string) $settings['collector_url'] ) . '</code><br>';
+	echo 'Where this tracker POSTs feed requests. Configured on <a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=settings&sub=analytics' ) ) . '">Settings › Analytics</a>.</p>';
+	echo '</div>';
+	if ( function_exists( 'snt_settings_analytics_moved_line' ) ) {
+		snt_settings_analytics_moved_line( 'rss' );
+	}
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-rss-settings"><p class="submit">';
+	// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm.
+	echo '<button type="submit"' . sn_admin_post_button( 'rss_' . SN_RSS_TRACKER_ACTION_RESET ) . ' class="button" data-snt-confirm="' . esc_attr__( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Settings › Analytics is kept.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Reset', 'signal-and-noise-tools' ) . '">Reset to Defaults</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+	echo '</p></form>';
 }
 
 function sn_rss_tracker_render_recent_table( $recent ) {
@@ -161,7 +172,7 @@ function sn_rss_tracker_render_admin_tab() {
 	echo '</div>';
 
 	echo '<div class="sn-2col__col">';
-	sn_rss_tracker_render_settings_form( $settings );
+	sn_rss_tracker_render_settings_kept( $settings );
 	sn_rss_tracker_render_maintenance_form( $settings );
 	echo '</div>';
 

@@ -69,8 +69,8 @@ function snt_analytics_render_settings_section() {
 		snt_an_credentials_fold_open(),
 		'snt_analytics_render_credentials'
 	);
-	// 2026-11: the collector endpoint, the role exclusion, engine tuning and the
-	// session funnels are settings and moved to Settings > Analytics
+	// 2026-11: the collector endpoint, the role exclusion, engine tuning, the
+	// session funnels and the publish window are settings and moved to Settings > Analytics
 	// (inc/admin-forms/settings-analytics.php). One line says so.
 	if ( function_exists( 'snt_settings_analytics_moved_line' ) ) {
 		snt_settings_analytics_moved_line( 'analytics' );
@@ -82,15 +82,6 @@ function snt_analytics_render_settings_section() {
 			sn_owner_devices_snapshot(),
 			false,
 			'snt_analytics_render_owner_devices'
-		);
-	}
-	// 2026-10-16: the publish window's length (inc/publish-window-settings.php).
-	if ( function_exists( 'snt_analytics_render_publish_window' ) ) {
-		snt_an_settings_fold(
-			__( 'Publish windows', 'signal-and-noise-tools' ),
-			sn_publish_window_snapshot(),
-			false,
-			'snt_analytics_render_publish_window'
 		);
 	}
 	echo '</div>';

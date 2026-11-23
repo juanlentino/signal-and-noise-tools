@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * name are the classic twin's (snt_settings_analytics_moved_text(),
  * snt_settings_analytics_label()). It names settings and never a value.
  *
- * @param string $from    `analytics`, `machine-readers` or `insights`.
+ * @param string $from    `analytics-native`, `rss`, `machine-readers` or `insights`.
  * @param string $current The tab the line is painted on.
  * @return string '' before the classic twin is loaded.
  */

@@ -5,12 +5,13 @@
  * The twin of the classic leaf (`snt_analytics_render_settings_section()`,
  * inc/analytics-admin-settings-parts.php): readings, status and actions. A
  * five-check Pipeline card, the Edge card, Your devices (a managed list), a
- * Setup card (Credentials with Test connection, Publish windows, the edge
- * Worker and salt, "Configured elsewhere") and North star; the Cloudflare
- * Worker setup steps close the leaf while the pipeline is incomplete.
+ * Setup card (Credentials with Test connection, the edge Worker and salt,
+ * "Configured elsewhere"); the Cloudflare Worker setup steps close the leaf
+ * while the pipeline is incomplete.
  *
- * 2026-11: the collector endpoint, the roles kept out, engine tuning and
- * session funnels are settings and moved to Settings > Analytics
+ * 2026-11: the collector endpoint, the roles kept out, engine tuning,
+ * session funnels, publish windows and the north star are settings and
+ * moved to Settings > Analytics
  * (settings-analytics.php, which calls the same four functions from
  * monitoring-analytics-settings.php and monitoring-analytics-tuning.php).
  * One line under the cards says so.
@@ -66,8 +67,8 @@ function paint_monitoring_analytics( array $ctx ) {
 
 	return analytics_status_html( $worker, $salt )
 		. $edge
-		. \snt_kit_grid( array( analytics_owner_devices_html(), analytics_setup_html( $ctx, $worker, $salt ), function_exists( '\\snt_nsm_settings_html' ) ? \snt_nsm_settings_html() : '' ), 290, 24 )
-		. settings_analytics_moved_html( 'analytics', (string) ( $ctx['tab'] ?? 'monitoring' ) ) // 2026-11: four settings left for Settings > Analytics.
+		. \snt_kit_grid( array( analytics_owner_devices_html(), analytics_setup_html( $ctx, $worker, $salt ) ), 290, 24 )
+		. settings_analytics_moved_html( 'analytics-native', (string) ( $ctx['tab'] ?? 'monitoring' ) ) // 2026-11: six boxes left for Settings > Analytics, North star among them.
 		. analytics_worker_setup_html();
 }
 

@@ -30,14 +30,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function analytics_setup_html( array $ctx, array $worker, $salt ) {
 	$tab = (string) ( $ctx['tab'] ?? 'monitoring' );
-	// 2026-11: the collector endpoint, the roles kept out, engine tuning and
-	// session funnels are settings and moved to Settings > Analytics
+	// 2026-11: the collector endpoint, the roles kept out, engine tuning,
+	// session funnels and publish windows are settings and moved to Settings > Analytics
 	// (settings-analytics.php); the leaf says so in one line under its cards.
 	return \snt_kit_setup_card(
 		__( 'Setup', 'signal-and-noise-tools' ),
 		array(
 			analytics_credentials_html( $tab ),
-			function_exists( '\sn_publish_window_setup_fold' ) ? \sn_publish_window_setup_fold() : null,
 			analytics_edge_worker_html( $ctx, $worker, $salt ),
 			analytics_mirrors_html( $tab ),
 		),

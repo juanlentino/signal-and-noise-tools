@@ -39,7 +39,7 @@
  *   nothing by omission (no `key_id` is refused, an empty `key_value` changes
  *   nothing), but the picker and the value are useless apart.
  *
- * Five more back Settings > Analytics, and a sixth stayed on its leaf:
+ * Eight more back Settings > Analytics:
  *
  * - sn_handle_analytics_exclude_save() (inc/admin-post-actions/analytics.php)
  *   writes the whole role list from `?? array()`: a form without the roles
@@ -57,6 +57,12 @@
  * - sn_rss_tracker_handle_form() (inc/rss-feed-tracker-form-parts.php) rebuilds
  *   the tracker's option on a save: the switch from `! empty()`, the event
  *   name and the retention from their defaults when missing.
+ * - sn_handle_analytics_publish_window_save() (inc/publish-window-settings.php)
+ *   sets a missing window length back to 60, its only field.
+ * - sn_handle_north_star_save() (inc/north-star-settings.php) writes the page
+ *   groups (none posted: every group counts), the scroll depth (`?? 50`) and
+ *   the time on page (`?? 30`) as one setting. The groups are one select per
+ *   group, so the rule adds: one form, holding one per group.
  *
  * sn_handle_analytics_collector_save(), sn_handle_gsc_credential_save() and
  * sn_handle_gsc_property_save() reset nothing: a missing or empty field is
@@ -130,3 +136,9 @@ const SNT_INSIGHTS_SAVE_FIELDS = array( 'insights_weekly_cron' );
 
 /** The three fields the RSS tracker's save rebuilds its option from. */
 const SNT_RSS_SAVE_FIELDS = array( 'enabled', 'event_name', 'log_retention_days' );
+
+/** The one field sn_handle_analytics_publish_window_save() writes on every save. */
+const SNT_PUBLISH_WINDOW_SAVE_FIELDS = array( 'sn_publish_window_minutes' );
+
+/** The two fixed fields sn_handle_north_star_save() writes beside its page groups. */
+const SNT_NORTH_STAR_SAVE_FIELDS = array( 'sn_nsm_scroll', 'sn_nsm_dwell_s' );

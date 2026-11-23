@@ -53,8 +53,9 @@ function rss_status_html( array $settings ) {
 }
 
 /**
- * The Setup card: Settings (the switch, event name and retention, then
- * Reset to Defaults) and Maintenance (the purge). Settings opens itself
+ * The Setup card: Settings (what the three settings are set to, in its
+ * closed line; where they are changed since 2026-11; Reset to Defaults) and
+ * Maintenance (the purge). Settings opens itself
  * while its required event name is empty.
  *
  * @param array  $settings sn_rss_tracker_settings() result.
@@ -74,7 +75,7 @@ function rss_setup_html( array $settings, $tab ) {
 			array(
 				'title'   => __( 'Settings', 'signal-and-noise-tools' ),
 				'summary' => implode( ' · ', $parts ),
-				'body'    => rss_settings_form_html( $settings, $tab ) . rss_reset_form_html(),
+				'body'    => rss_settings_kept_html( $settings, $tab ),
 				'open'    => '' === $event,
 			),
 			array(

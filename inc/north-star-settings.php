@@ -1,7 +1,8 @@
 <?php
 /**
  * The north star's settings: which page groups count and what counts as a
- * read. One open section on Measurement › Analytics, one save handler on the
+ * read. One open box on Settings › Analytics (native; it was on Measurement ›
+ * Analytics until 2026-11), one save handler on the
  * shared sn_action dispatcher (the nonce is checked there before any handler
  * runs).
  *
@@ -41,7 +42,7 @@ function sn_handle_north_star_save( $post ) {
 }
 
 /**
- * The settings, painted on Measurement › Analytics as an open section: the
+ * The settings, painted on Settings › Analytics as an open box: the
  * current definition as its one-line description, the form below it.
  * 2026-10-11: no fold (owner rule: no collapsible sections on S&N Home).
  *

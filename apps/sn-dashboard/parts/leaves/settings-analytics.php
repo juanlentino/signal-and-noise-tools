@@ -2,29 +2,23 @@
 /**
  * S&N Dashboard: Settings > Analytics, painted from the kit. The sixth pane
  * of the Settings tab, the native twin of inc/admin-forms/settings-analytics.php:
- * seven settings, gathered from three Measurement leaves that keep their
- * readings, tables and actions and one line each saying where the settings
- * went.
+ * the settings of four Measurement leaves that keep their readings, tables
+ * and actions and one line each saying where the settings went. Nine boxes,
+ * headed from the pane's one list of titles (snt_settings_analytics_titles()).
  *
- * 1. Collector endpoint, Roles kept out, Engine tuning and Session funnels,
- *    from Measurement > Analytics: the four functions that leaf's Setup card
- *    called (monitoring-analytics-settings.php, monitoring-analytics-tuning.php),
- *    so every field, name, bound and word is the one it was. They were closed
- *    folds there; a setting on a settings pane is open, so the fold's body is
- *    the box and its title the heading. The roles are one select per role,
- *    generated from sn_beacon_excludable_roles() by that same function, in
- *    ONE form: analytics_exclude_save writes the whole list on every save.
- * 2. Machine readers, from Measurement > Machine Readers: the Worker URL
- *    (machine_readers_url_form_html()), without the hidden tab and sub that
- *    named the leaf.
- * 3. Insights, from Measurement > Insights: the weekly scan switch
- *    (insights_weekly_box_html()).
+ * Every body is the function the old leaf called, so every field, name,
+ * bound and word is the one it was: the collector, the roles kept out (one
+ * select per role, generated from sn_beacon_excludable_roles(), ONE form),
+ * engine tuning, session funnels, publish windows and North star from
+ * Measurement > Analytics; feed tracking from Measurement > RSS (ONE form of
+ * three fields; its notice is the tracker's own `sn_rss_ok`); the Worker URL
+ * from Machine Readers, without the hidden tab and sub that named the leaf;
+ * the weekly scan switch from Insights. They were closed folds there; a
+ * setting on a settings pane is open.
  *
  * A save is answered on the tab and leaf it was posted from
  * (sn-dashboard.os.php, the `post` action), and no form here carries a hidden
  * tab or sub, so it lands back on this pane.
- *
- * NOT here: the three RSS feed-tracking settings (see the classic twin).
  *
  * @package SignalNoiseTools
  */
@@ -38,65 +32,78 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/settings-analytics-parts.php'; // the line the leaves keep.
 require_once __DIR__ . '/monitoring-analytics-settings.php'; // the collector and the roles kept out.
 require_once __DIR__ . '/monitoring-analytics-tuning.php'; // engine tuning and session funnels.
+require_once __DIR__ . '/monitoring-rss.php'; // rss_form(), the feed tracking form and the tracker's notice.
 require_once __DIR__ . '/monitoring-machine-readers-parts.php'; // machine_readers_url_form_html().
-require_once __DIR__ . '/monitoring-insights-setup.php'; // insights_weekly_box_html().
+require_once __DIR__ . '/monitoring-insights-setup.php'; // insights_weekly_form_html().
 
 /**
- * The four boxes from Measurement > Analytics: each Setup fold's title and
- * body, open.
- *
- * @return string[] Painted boxes; none before the classic renderers are loaded.
- */
-function settings_analytics_boxes() {
-	if ( ! function_exists( '\snt_an_tuning_presets' ) || ! function_exists( '\snt_an_funnels_copy' ) ) {
-		return array();
-	}
-	$boxes = array();
-	foreach ( array( analytics_collector_html(), analytics_exclusion_html(), analytics_tuning_html(), analytics_funnels_html() ) as $fold ) {
-		$boxes[] = \snt_kit_section( (string) $fold['title'], (string) $fold['body'] );
-	}
-	return $boxes;
-}
-
-/**
- * The Machine readers box: the Worker URL and Save. Reads the three values
- * the field shows, as the classic twin does; the sensor is not asked.
+ * The Machine readers box's body: the Worker URL and Save. Reads the three
+ * values the field shows, as the classic twin does; the sensor is not asked.
  *
  * @return string
  */
 function settings_analytics_machine_readers_html() {
-	return \snt_kit_section(
-		__( 'Machine readers', 'signal-and-noise-tools' ),
-		machine_readers_url_form_html(
-			defined( 'SN_MR_WORKER_URL' ) && '' !== (string) constant( 'SN_MR_WORKER_URL' ),
-			(string) \sn_setting( 'machine_readers.worker_url', '' ),
-			defined( 'SN_MR_DEFAULT_ENDPOINT' ) ? (string) constant( 'SN_MR_DEFAULT_ENDPOINT' ) : ''
-		)
+	return machine_readers_url_form_html(
+		defined( 'SN_MR_WORKER_URL' ) && '' !== (string) constant( 'SN_MR_WORKER_URL' ),
+		(string) \sn_setting( 'machine_readers.worker_url', '' ),
+		defined( 'SN_MR_DEFAULT_ENDPOINT' ) ? (string) constant( 'SN_MR_DEFAULT_ENDPOINT' ) : ''
 	);
 }
 
 /**
- * The pane: six headed boxes by subject. A box paints only when its module is
- * loaded. Every leaf these came from sits behind manage_options; so does the
- * pane.
+ * Each box's body, keyed as the titles are, for the modules that are loaded
+ * (the same gates as the classic twin, so both paint the same boxes).
+ *
+ * @return array<string,string>
+ */
+function settings_analytics_bodies() {
+	$bodies = array();
+	if ( function_exists( '\snt_an_tuning_presets' ) && function_exists( '\snt_an_funnels_copy' ) ) {
+		$bodies['collector'] = analytics_collector_html();
+		$bodies['roles']     = analytics_exclusion_html();
+		$bodies['tuning']    = analytics_tuning_html();
+		$bodies['funnels']   = analytics_funnels_html();
+	}
+	if ( function_exists( '\sn_publish_window_form_html' ) ) {
+		$bodies['publish'] = \sn_publish_window_form_html();
+	}
+	if ( function_exists( '\sn_rss_tracker_render_settings_form' ) ) {
+		$bodies['feed'] = rss_settings_form_html( (array) \sn_rss_tracker_settings() );
+	}
+	if ( function_exists( '\snt_mr_render_url_form' ) ) {
+		$bodies['machine_readers'] = settings_analytics_machine_readers_html();
+	}
+	if ( function_exists( '\snt_insights_render_settings_section' ) ) {
+		$bodies['insights'] = insights_weekly_form_html();
+	}
+	return $bodies;
+}
+
+/**
+ * The pane: the tracker's notice when a feed tracking save was just
+ * answered, then one headed box per subject in the titles' order. North star
+ * paints its own box (snt_nsm_settings_html(), unchanged). Every leaf these
+ * came from sits behind manage_options; so does the pane.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
  */
 function paint_settings_analytics( array $ctx ) {
-	unset( $ctx );
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return \snt_kit_empty( __( 'This account cannot manage options.', 'signal-and-noise-tools' ) );
 	}
-	$boxes = settings_analytics_boxes();
-	// The same two gates as the classic twin, so both paint the same boxes.
-	if ( function_exists( '\snt_mr_render_url_form' ) ) {
-		$boxes[] = settings_analytics_machine_readers_html();
+	$state  = $ctx['state'] ?? null;
+	$params = is_object( $state ) ? (array) $state->get( 'params' ) : array();
+	$bodies = settings_analytics_bodies();
+	$boxes  = array();
+	foreach ( function_exists( 'snt_settings_analytics_titles' ) ? \snt_settings_analytics_titles() : array() as $key => $title ) {
+		if ( 'north_star' === $key && function_exists( '\snt_nsm_settings_html' ) ) {
+			$boxes[] = \snt_nsm_settings_html();
+		} elseif ( isset( $bodies[ $key ] ) ) {
+			$boxes[] = \snt_kit_section( $title, $bodies[ $key ] );
+		}
 	}
-	if ( function_exists( '\snt_insights_render_settings_section' ) ) {
-		$boxes[] = insights_weekly_box_html();
-	}
-	return \snt_kit_grid( $boxes, 290 );
+	return rss_flash_html( isset( $params['sn_rss_ok'] ) && is_scalar( $params['sn_rss_ok'] ) ? (string) $params['sn_rss_ok'] : '' ) . \snt_kit_grid( $boxes, 290 );
 }
 
 add_filter(
