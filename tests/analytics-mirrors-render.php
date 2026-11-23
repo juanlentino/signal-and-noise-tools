@@ -53,7 +53,7 @@ $h = ob_get_clean();
 ok( strpos( $h, 'Claude Sonnet 5' ) !== false, 'AI model label shown' );
 ok( strpos( $h, '4.20' ) !== false && strpos( $h, '10.00' ) !== false, 'spend + budget shown' );
 ok( strpos( $h, 'tab=settings&sub=ai' ) !== false && strpos( $h, 'tab=ai&sub=models-budget' ) === false, 'AI row links to Settings → AI, where the model and the budget are set (2026-11: they left AI → Models & Budget, which keeps the spend)' );
-ok( strpos( $h, 'tab=monitoring&sub=insights' ) !== false, 'cron row links to Monitoring → Insights' );
+ok( strpos( $h, 'tab=settings&sub=analytics' ) !== false && strpos( $h, 'tab=monitoring&sub=insights' ) === false, 'cron row links to Settings → Analytics, where the weekly scan switch is set since 2026-11' );
 // v10.46.0: the collector row is GONE from the mirrors block — the endpoint
 // now has a real write surface in this leaf's own writable column, so mirroring
 // it here would be a mirror pointing at itself.

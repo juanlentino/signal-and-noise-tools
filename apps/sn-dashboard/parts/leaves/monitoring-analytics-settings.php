@@ -98,7 +98,7 @@ function analytics_exclusion_html() {
 	$status = ( function_exists( '\sn_beacon_owner_current_user_excluded' ) && \sn_beacon_owner_current_user_excluded() )
 		? '<p class="snt-hint" full-width><b>' . \snt_kit_esc( __( 'Your role is selected: your logged-in visits are kept out, and this browser is marked as yours when you log in.', 'signal-and-noise-tools' ) ) . '</b></p>'
 		: '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your role is not selected: your logged-in visits are still kept out, but this browser is not marked for your logged-out visits.', 'signal-and-noise-tools' ) ) . '</p>';
-	$footnote = '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Your devices.', 'signal-and-noise-tools' ) ) . '</p>';
+	$footnote = '<p class="snt-hint" full-width>' . \snt_kit_esc( __( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Your devices, on Measurement › Analytics.', 'signal-and-noise-tools' ) ) . '</p>';
 
 	$form = \snt_kit_form( 'analytics_exclude_save', $fields . $status . $footnote, array( 'submit' => __( 'Save exclusion', 'signal-and-noise-tools' ), 'columns' => 'auto' ) );
 	return array( 'title' => $heading, 'summary' => \snt_an_exclusion_snapshot(), 'body' => $intro . $form );

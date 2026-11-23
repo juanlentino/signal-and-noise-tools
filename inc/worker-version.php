@@ -302,7 +302,7 @@ function sn_worker_version_unknown_text( $url ) {
 		/* translators: %s: the /_sn/version URL probed. */
 		? sprintf( __( 'Couldn’t reach the /_sn/version endpoint at %s.', 'signal-and-noise-tools' ), (string) $url )
 		: __( 'Couldn’t reach the /_sn/version endpoint.', 'signal-and-noise-tools' );
-	return $where . ' ' . __( 'The Worker may not be deployed yet (it needs worker v1.4.0+), or this host can’t reach it: if the origin cannot reach the edge from here, set the Collector endpoint on this screen to the Worker’s *.workers.dev URL.', 'signal-and-noise-tools' );
+	return $where . ' ' . __( 'The Worker may not be deployed yet (it needs worker v1.4.0+), or this host can’t reach it: if the origin cannot reach the edge from here, set the Collector endpoint in Settings › Analytics to the Worker’s *.workers.dev URL.', 'signal-and-noise-tools' );
 }
 
 /**

@@ -64,8 +64,9 @@ function snt_gsc_admin_register( $tabs ) {
 function snt_gsc_render_settings_section() {
 	$identity = function_exists( 'snt_gsc_credential_identity' ) ? snt_gsc_credential_identity() : null;
 	$stored   = function_exists( 'snt_gsc_credential_raw' ) ? '' !== snt_gsc_credential_raw() : false;
+	$copy     = snt_gsc_copy();
 
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'gsc_credential_save' ) ) . '" class="sn-gsc-settings">';
+	echo '<div class="sn-gsc-settings">';
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Search Console credential', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="description">' . esc_html__( 'A Google Cloud service-account key, granted read access to the Search Console property. Test connection lists the properties it can read; Sync now pulls their pages and queries, and a daily sync keeps them fresh.', 'signal-and-noise-tools' ) . '</p>';
 
@@ -91,7 +92,7 @@ function snt_gsc_render_settings_section() {
 		}
 		echo '</td></tr>';
 		echo '</tbody></table>';
-		echo '<p class="description">' . esc_html__( 'The private key is never displayed. To change the credential, paste a whole new key file into Service-account JSON; to remove it, type clear there.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="description">' . esc_html( $copy['never'] ) . '</p>';
 	} elseif ( $stored ) {
 		// Stored but no identity == stored but unparseable. Say so plainly
 		// rather than rendering an empty card that reads as "not configured".
@@ -107,26 +108,46 @@ function snt_gsc_render_settings_section() {
 		echo '<li>' . esc_html__( 'In Google Cloud, ENABLE the "Google Search Console API" for the project. Skipping this returns 403 later even when everything else is correct: the error looks exactly like a missing permission.', 'signal-and-noise-tools' ) . '</li>';
 		echo '<li>' . esc_html__( 'In that same project, create a service account and download a JSON key.', 'signal-and-noise-tools' ) . '</li>';
 		echo '<li>' . esc_html__( 'In Search Console → Settings → Users and permissions, add that service account\'s email as a user on the property.', 'signal-and-noise-tools' ) . '</li>';
-		echo '<li>' . esc_html__( 'Paste the whole JSON key file into Service-account JSON, then press Test connection.', 'signal-and-noise-tools' ) . '</li>';
+		echo '<li>' . esc_html( $copy['paste'] ) . '</li>';
 		echo '</ol>';
 	}
 
-	echo '<p><label for="sn_gsc_credential"><strong>' . esc_html__( 'Service-account JSON', 'signal-and-noise-tools' ) . '</strong></label><br>';
-	echo '<textarea id="sn_gsc_credential" name="sn_gsc_credential" rows="8" class="large-text code" spellcheck="false" autocomplete="off" placeholder="' . esc_attr( $stored ? __( 'Paste a fresh key file to replace; type clear to remove; leave empty to keep the current one', 'signal-and-noise-tools' ) : __( '{ "type": "service_account", … }', 'signal-and-noise-tools' ) ) . '"></textarea></p>';
-
-	echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_credential_save' ) . ' class="button button-primary">' . esc_html__( 'Save credential', 'signal-and-noise-tools' ) . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+	// 2026-11: the credential field and the property picker are settings of an
+	// account and moved to Settings > Accounts and connections
+	// (inc/admin-forms/settings-accounts-search-console.php). Test connection
+	// acts on the STORED credential, so it stayed, in a form of its own whose
+	// one button names its own action: gsc_test reads nothing from the post.
 	if ( null !== $identity ) {
-		echo ' <button type="submit"' . sn_admin_post_button( 'gsc_test' ) . ' class="button">' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+		echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'gsc_test' ) ) . '"><p><button type="submit"' . sn_admin_post_button( 'gsc_test' ) . ' class="button">' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button></p></form>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	}
-	echo '</p>';
-	echo '</form>';
+	if ( function_exists( 'snt_settings_accounts_moved_line' ) ) {
+		snt_settings_accounts_moved_line( 'gsc' );
+	}
+	echo '</div>';
 
 	if ( null !== $identity ) {
-		snt_gsc_render_property_form();
+		snt_gsc_render_property_status();
 		if ( '' !== (string) sn_setting( 'search_console.property', '' ) ) {
 			snt_gsc_render_unanswered();
 		}
 	}
+}
+
+/**
+ * The sentences both twins of the leaf and of the pane's box say, so a
+ * wording change is made once. None names a value.
+ *
+ * @return array{never:string,replace:string,paste:string,list:string,list_at:string,none:string}
+ */
+function snt_gsc_copy() {
+	return array(
+		'never'   => __( 'The private key is never displayed.', 'signal-and-noise-tools' ),
+		'replace' => __( 'To change the credential, paste a whole new key file into Service-account JSON; to remove it, type clear there.', 'signal-and-noise-tools' ),
+		'paste'   => __( 'Paste the whole JSON key file into Service-account JSON, in Settings › Accounts and connections, then press Test connection here.', 'signal-and-noise-tools' ),
+		'list'    => __( 'Run Test connection to list the properties this service account can read.', 'signal-and-noise-tools' ),
+		'list_at' => __( 'To list the properties this service account can read, press Test connection on', 'signal-and-noise-tools' ),
+		'none'    => __( 'No property chosen yet.', 'signal-and-noise-tools' ),
+	);
 }
 
 /**
@@ -174,19 +195,21 @@ function snt_gsc_render_unanswered( $u = null ) {
 }
 
 /**
- * Property selection + sync, shown once a credential is stored.
+ * The property this leaf reads, and Sync, shown once a credential is stored.
+ * The picker itself is on Settings > Accounts and connections since 2026-11.
  *
  * The property list comes from the last Test connection rather than a fresh API
  * call on every page load: rendering an admin screen should not spend quota, and
- * a stale list is visibly stale (its age is printed) where a silent per-load
- * fetch would be neither visible nor free.
+ * a stale list is visibly stale where a silent per-load fetch would be neither
+ * visible nor free.
  */
-function snt_gsc_render_property_form() {
+function snt_gsc_render_property_status() {
 	$last     = get_transient( 'snt_gsc_last_test' );
 	$current  = (string) sn_setting( 'search_console.property', '' );
 	$data     = function_exists( 'snt_gsc_data' ) ? snt_gsc_data() : null;
+	$copy     = snt_gsc_copy();
 
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'gsc_property_save' ) ) . '" class="sn-gsc-settings">';
+	echo '<div class="sn-gsc-settings">';
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Property', 'signal-and-noise-tools' ) . '</h3>';
 
 	if ( is_array( $last ) && empty( $last['ok'] ) ) {
@@ -197,33 +220,19 @@ function snt_gsc_render_property_form() {
 
 	$sites = ( is_array( $last ) && ! empty( $last['ok'] ) ) ? (array) ( $last['sites'] ?? array() ) : array();
 	if ( empty( $sites ) ) {
-		echo '<p class="description">' . esc_html__( 'Run Test connection to list the properties this service account can read.', 'signal-and-noise-tools' ) . '</p>';
-		if ( '' !== $current ) {
-			/* translators: %s: the stored property string. */
-			echo '<p>' . sprintf( esc_html__( 'Currently reading: %s', 'signal-and-noise-tools' ), '<code>' . esc_html( $current ) . '</code>' ) . '</p>';
-		}
-	} else {
-		echo '<p><label for="sn_gsc_property"><strong>' . esc_html__( 'Read search data for', 'signal-and-noise-tools' ) . '</strong></label><br>';
-		echo '<select id="sn_gsc_property" name="sn_gsc_property">';
-		echo '<option value="">' . esc_html__( 'Choose a property', 'signal-and-noise-tools' ) . '</option>';
-		foreach ( $sites as $site ) {
-			$url = (string) ( $site['siteUrl'] ?? '' );
-			if ( '' === $url ) {
-				continue;
-			}
-			printf(
-				'<option value="%1$s"%2$s>%3$s (%4$s)</option>',
-				esc_attr( $url ),
-				selected( $url, $current, false ),
-				esc_html( $url ),
-				esc_html( (string) ( $site['permissionLevel'] ?? 'unknown' ) )
-			);
-		}
-		echo '</select></p>';
-		echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_property_save' ) . ' class="button button-primary">' . esc_html__( 'Use this property', 'signal-and-noise-tools' ) . '</button></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+		echo '<p class="description">' . esc_html( $copy['list'] ) . '</p>';
 	}
+	if ( '' !== $current ) {
+		/* translators: %s: the stored property string. */
+		echo '<p>' . sprintf( esc_html__( 'Currently reading: %s', 'signal-and-noise-tools' ), '<code>' . esc_html( $current ) . '</code>' ) . '</p>';
+	} elseif ( ! empty( $sites ) ) {
+		echo '<p class="description">' . esc_html( $copy['none'] ) . '</p>';
+	}
+	echo '</div>';
 
 	if ( '' !== $current ) {
+		// Sync now keeps a form of its own: its one button names gsc_sync.
+		echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'gsc_sync' ) ) . '" class="sn-gsc-settings">';
 		echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Sync', 'signal-and-noise-tools' ) . '</h3>';
 		if ( null === $data ) {
 			echo '<p><span class="sn-pill">' . esc_html__( 'Never synced.', 'signal-and-noise-tools' ) . '</span></p>';
@@ -273,6 +282,6 @@ function snt_gsc_render_property_form() {
 		echo '</p>';
 		echo '<p><button type="submit"' . sn_admin_post_button( 'gsc_sync' ) . ' class="button">' . esc_html__( 'Sync now', 'signal-and-noise-tools' ) . '</button></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 		echo '<p class="description">' . esc_html__( 'Data appears in Analytics › Search, and as the Impressions and Position columns of the Top pages table.', 'signal-and-noise-tools' ) . '</p>';
+		echo '</form>';
 	}
-	echo '</form>';
 }

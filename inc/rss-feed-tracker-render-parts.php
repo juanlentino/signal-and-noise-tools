@@ -62,7 +62,8 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<p class="sn-field-helper">When off, feed requests are neither logged nor sent to the collector.</p>';
 	echo '</div>';
 
-	// v10.46.0: the Collector endpoint field moved to Measurement → Analytics.
+	// v10.46.0: the Collector endpoint field moved to Measurement → Analytics,
+	// and in 2026-11 from there to Settings › Analytics.
 	// It was never an RSS setting — EVERY beacon on the site posts to that URL,
 	// and this leaf is one of its callers, not its owner. A read-only pointer
 	// stays because this form's POSTs do go there, so seeing the target while
@@ -72,7 +73,7 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label">Collector endpoint</label>';
 	echo '<p class="sn-field-helper"><code>' . esc_html( (string) $settings['collector_url'] ) . '</code><br>';
-	echo 'Where this tracker POSTs feed requests. Configured on <a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=analytics' ) ) . '">Measurement &rarr; Analytics</a>, alongside the credentials that read the same pipeline.</p>';
+	echo 'Where this tracker POSTs feed requests. Configured on <a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=settings&sub=analytics' ) ) . '">Settings › Analytics</a>.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field">';
@@ -90,7 +91,7 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<p class="submit">';
 	echo '<button type="submit"' . sn_admin_post_button( 'rss_' . SN_RSS_TRACKER_ACTION_SAVE ) . ' class="button button-primary">Save Settings</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	// v4.1.1 (U-01): replaced onclick="return confirm(...)" with data-snt-confirm.
-	echo '<button type="submit"' . sn_admin_post_button( 'rss_' . SN_RSS_TRACKER_ACTION_RESET ) . ' class="button" data-snt-confirm="' . esc_attr__( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Measurement › Analytics is kept.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Reset', 'signal-and-noise-tools' ) . '">Reset to Defaults</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
+	echo '<button type="submit"' . sn_admin_post_button( 'rss_' . SN_RSS_TRACKER_ACTION_RESET ) . ' class="button" data-snt-confirm="' . esc_attr__( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Settings › Analytics is kept.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Reset', 'signal-and-noise-tools' ) . '">Reset to Defaults</button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	echo '</p>';
 	echo '</form>';
 }

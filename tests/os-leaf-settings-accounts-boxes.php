@@ -20,12 +20,12 @@ $ktext   = html_entity_decode( $kit, ENT_QUOTES, 'UTF-8' );
 snt_leaf_preview( 'settings-accounts', $kit );
 
 // ── 1) Headed boxes by account, Credentials first.
-$order = array( strpos( $classic, '<h2 class="sn-section-h">Credentials</h2><div class="sn-shell">' ), strpos( $classic, '</aside></div><div class="sn-2up"><div class="sn-fieldset"><h2 class="sn-fieldset-h">Zenodo</h2>' ), strpos( $classic, '<h2 class="sn-fieldset-h">Search engines (IndexNow)</h2>' ), strpos( $classic, '<h2 class="sn-fieldset-h">Muso.AI</h2>' ) );
+$order = array( strpos( $classic, '<h2 class="sn-section-h">Credentials</h2><div class="sn-shell">' ), strpos( $classic, '</aside></div><div class="sn-2up"><div class="sn-fieldset"><h2 class="sn-fieldset-h">Zenodo</h2>' ), strpos( $classic, '<h2 class="sn-fieldset-h">Search engines (IndexNow)</h2>' ), strpos( $classic, '<h2 class="sn-fieldset-h">Muso.AI</h2>' ), strpos( $classic, '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Search Console</h2>' ) );
 $sorted = $order; sort( $sorted );
-ok( 0 === $order[0] && ! in_array( false, $order, true ) && $order === $sorted, 'classic: Credentials heads the pane over the keyring\'s shell, then one row of boxes: Zenodo, Search engines (IndexNow), Muso.AI: ' . implode( ' < ', $order ) );
-$order = array( strpos( $kit, '<h3 class="snt-h">Credentials</h3>' . snt_leaf_row( 2, 290, 24 ) ), strpos( $kit, snt_leaf_row( 3, 290, 18 ) . '<os-section heading="Zenodo" stack>' ), strpos( $kit, '<os-section heading="Search engines (IndexNow)" stack>' ), strpos( $kit, '<os-section heading="Muso.AI" stack>' ) );
+ok( 0 === $order[0] && ! in_array( false, $order, true ) && $order === $sorted, 'classic: Credentials heads the pane over the keyring\'s shell, then one row of boxes: Zenodo, Search engines (IndexNow), Muso.AI, Search Console (2026-11): ' . implode( ' < ', $order ) );
+$order = array( strpos( $kit, '<h3 class="snt-h">Credentials</h3>' . snt_leaf_row( 2, 290, 24 ) ), strpos( $kit, snt_leaf_row( 4, 290, 18 ) . '<os-section heading="Zenodo" stack>' ), strpos( $kit, '<os-section heading="Search engines (IndexNow)" stack>' ), strpos( $kit, '<os-section heading="Muso.AI" stack>' ), strpos( $kit, '<os-section heading="Search Console" stack>' ) );
 $sorted = $order; sort( $sorted );
-ok( 0 === $order[0] && ! in_array( false, $order, true ) && $order === $sorted, 'native: the same four, in the same order: ' . implode( ' < ', $order ) );
+ok( 0 === $order[0] && ! in_array( false, $order, true ) && $order === $sorted, 'native: the same five, in the same order: ' . implode( ' < ', $order ) );
 foreach ( array( 'Deposit the next batch', 'No signed documents yet.', 'Submit recent content now', 'Regenerate key', 'Key file', 'Sync now', 'Featured release', 'sn_music_featured', 'Release notes' ) as $reading ) {
 	ok( false === strpos( $kit, $reading ) && false === strpos( $classic, $reading ), "no reading or action came along from a leaf that stayed: \"$reading\" is on neither twin" );
 }

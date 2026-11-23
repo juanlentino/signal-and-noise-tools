@@ -127,6 +127,15 @@ ok( array( 'enabled' => true, 'collector_url' => 'https://sn-px.workers.dev/_sn/
 ok( 'redirect' === $r['outcome'] && 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=rss&sn_rss_ok=saved' === $r['url'], 'redirects to Monitoring > RSS with ?sn_rss_ok=saved (the canonical tab and sub, not the legacy tab=rss that rendered the Dashboard): ' . ( $r['url'] ?? '' ) );
 $r = rss_post( 'sn_rss_save_settings', array( 'enabled' => '1', 'event_name' => 'Feed hit', 'log_retention_days' => '365' ), 'sn_rss_save_settings' );
 ok( 'unchanged' === $r['flash'], 'the same values again report unchanged, not saved' );
+// 2026-11: why the three RSS settings did NOT move to Settings › Analytics
+// with the other Measurement settings. The handler names its own landing and
+// reads neither the address the form was posted from nor a posted tab or sub,
+// so a save from that pane would leave it. Moving the fields needs this
+// redirect to follow the posting address first, which is a handler change.
+$_GET = array( 'page' => 'sn-theme-options', 'tab' => 'settings', 'sub' => 'analytics' );
+$r    = rss_post( 'sn_rss_save_settings', array( 'enabled' => '1', 'event_name' => 'Feed hit', 'log_retention_days' => '365', 'tab' => 'settings', 'sub' => 'analytics' ), 'sn_rss_save_settings' );
+$_GET = array();
+ok( 'redirect' === $r['outcome'] && false !== strpos( (string) $r['url'], 'tab=monitoring&sub=rss&sn_rss_ok=' ) && false === strpos( (string) $r['url'], 'tab=settings' ), 'a save posted from Settings › Analytics still lands on Measurement › RSS: the landing is hardcoded, which is why these three fields stayed on their leaf: ' . ( $r['url'] ?? '' ) );
 $GLOBALS['wpdb']->last_error = 'disk full';
 $r = rss_post( 'sn_rss_save_settings', array( 'event_name' => 'Other' ), 'sn_rss_save_settings' );
 ok( 'save-error' === $r['flash'], 'a database failure reports save-error, never saved' );

@@ -25,11 +25,11 @@ $GLOBALS['__settings'] = array( 'indexnow.enabled' => true );
 $classic = acc_classic();
 $kit     = acc_kit();
 
-// ── 1) The registry: a fifth pane; Connections lost Credentials and kept the rest.
+// ── 1) The registry: the fifth pane (the sixth, Analytics, has its own suite); Connections lost Credentials and kept the rest.
 $by_tab = array();
 foreach ( sn_admin_top_tabs() as $t ) { $by_tab[ $t['tab'] ] = $t; }
 $panes = (array) ( $by_tab['settings']['sub_tabs'] ?? array() );
-ok( array( 'notifications', 'security', 'ai', 'front-end', 'accounts' ) === array_keys( $panes ) && 'Accounts and connections' === ( $panes['accounts']['label'] ?? '' ) && 'sn_admin_render_settings_accounts_section' === ( $panes['accounts']['render'] ?? '' ) && ! empty( $panes['accounts']['wide'] ), 'Settings has five panes, accounts ("Accounts and connections") after front-end, wide: it paints its own boxes' );
+ok( array( 'notifications', 'security', 'ai', 'front-end', 'accounts' ) === array_slice( array_keys( $panes ), 0, 5 ) && 'Accounts and connections' === ( $panes['accounts']['label'] ?? '' ) && 'sn_admin_render_settings_accounts_section' === ( $panes['accounts']['render'] ?? '' ) && ! empty( $panes['accounts']['wide'] ), 'accounts ("Accounts and connections") is the fifth pane of Settings, after front-end, wide: it paints its own boxes' );
 ok( array( 'cloudflare', 'cloudways', 'webhooks', 'indexnow', 'zenodo', 'music', 'cron', 'scheduled-content' ) === array_keys( $by_tab['connections']['sub_tabs'] ), 'Connections keeps eight leaves: Credentials left whole; IndexNow, Zenodo and Discography stayed' );
 ok( false !== strpos( (string) $by_tab['settings']['subtitle'], 'Accounts and connections:' ) && false === strpos( (string) $by_tab['connections']['subtitle'], 'the credentials in one place' ) && false !== strpos( (string) $by_tab['connections']['subtitle'], 'are in Settings' ), 'the subtitles follow: Settings names the pane, Connections no longer holds the credentials and says where they are' );
 ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['settings/accounts'] ) && ! isset( \SignalNoise\OpenStationHost\Dashboard\painters()['connections/credentials'] ) && ! is_file( SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-keyring.php' ), 'native: the painter is registered under settings/accounts, none under connections/credentials, and the old leaf file is gone' );
@@ -41,12 +41,15 @@ foreach ( array( 'indexnow', 'zenodo', 'music' ) as $kept ) {
 }
 
 // ── 2) The pane: the settings of four accounts, in whole forms, on both twins.
-$fields = array( 'key_id', 'key_value', 'indexnow_enabled', 'zenodo_env', 'zenodo_ledger_doi', 'zenodo_doi_line_enabled', 'zenodo_doi_line_label', 'zenodo_doi_line_floor', 'sn_muso_profile' );
+// 2026-11: the Search Console box brought the credential field (the property
+// picker joins it once a credential parses and a test listed the properties:
+// tests/os-leaf-settings-accounts-search-console.php).
+$fields = array( 'key_id', 'key_value', 'indexnow_enabled', 'zenodo_env', 'zenodo_ledger_doi', 'zenodo_doi_line_enabled', 'zenodo_doi_line_label', 'zenodo_doi_line_floor', 'sn_muso_profile', 'sn_gsc_credential' );
 sort( $fields );
-$actions = array( 'indexnow_save', 'keyring_generate', 'keyring_save', 'keyring_verify', 'music_save', 'zenodo_doi_line_save', 'zenodo_env_save' );
-ok( '' !== $kit && $fields === snt_leaf_names( $kit ), 'native: exactly the nine field names: ' . implode( ',', snt_leaf_names( $kit ) ) );
-ok( '' !== $classic && $fields === snt_leaf_names( $classic ), 'classic: exactly the nine field names: ' . implode( ',', snt_leaf_names( $classic ) ) );
-ok( $actions === snt_leaf_actions( $kit ) && $actions === snt_leaf_actions( $classic ), 'the seven existing actions, unchanged, on both twins; no deposit, sync, ping or regenerate came along: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+$actions = array( 'gsc_credential_save', 'indexnow_save', 'keyring_generate', 'keyring_save', 'keyring_verify', 'music_save', 'zenodo_doi_line_save', 'zenodo_env_save' );
+ok( '' !== $kit && $fields === snt_leaf_names( $kit ), 'native: exactly the ten field names: ' . implode( ',', snt_leaf_names( $kit ) ) );
+ok( '' !== $classic && $fields === snt_leaf_names( $classic ), 'classic: exactly the ten field names: ' . implode( ',', snt_leaf_names( $classic ) ) );
+ok( $actions === snt_leaf_actions( $kit ) && $actions === snt_leaf_actions( $classic ), 'the eight existing actions, unchanged, on both twins; no deposit, sync, ping, regenerate or connection test came along: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ) && false === strpos( $kit, '<os-disclosure' ), 'native: no wp-admin markup, and no fold: a setting on a settings pane is open' );
 $guards = array( 'keyring_save' => SNT_KEYRING_SAVE_FIELDS, 'indexnow_save' => SNT_INDEXNOW_SAVE_FIELDS, 'zenodo_env_save' => SNT_ZENODO_ENV_SAVE_FIELDS, 'zenodo_doi_line_save' => SNT_ZENODO_DOI_LINE_SAVE_FIELDS );
 foreach ( array( 'form' => $classic, 'os-form' => $kit ) as $tag => $html ) {

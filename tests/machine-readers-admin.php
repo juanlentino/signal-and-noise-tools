@@ -108,8 +108,18 @@ ok( false !== strpos( $tab, '<div class="sn-fieldset sn-fieldset--wide sn-an-pip
 ok( 1 === substr_count( $tab, 'sn-fieldset--wide' ), 'exactly one width modifier: the hero' );
 ok( false !== strpos( $tab, 'Machine readers in S&amp;N Analytics' ) || false !== strpos( $tab, 'Machine readers in S&N Analytics' ), 'a visible-text link to Machine readers in S&N Analytics' );
 ok( false !== strpos( $tab, 'Reader evidence in S&amp;N Analytics' ) || false !== strpos( $tab, 'Reader evidence in S&N Analytics' ), 'a visible-text link to Reader evidence in S&N Analytics' );
-ok( false !== strpos( $tab, 'sn_mr_worker_url' ) && false !== strpos( $tab, 'sn_machine_readers_save' ), 'the worker URL form posts machine_readers_save, unchanged' );
-ok( false === strpos( $tab, 'sn-disclosure' ) && false === strpos( $tab, '<details' ), 'nothing folded: the settings form is open' );
+// 2026-11: the Worker URL is a setting and moved to Settings › Analytics; the
+// leaf keeps the read token's state. The form itself is snt_mr_render_url_form().
+ok( false === strpos( $tab, 'sn_mr_worker_url' ) && false === strpos( $tab, 'sn_machine_readers_save' ) && false === strpos( $tab, '<form' ), 'the worker URL form left the leaf: no field, no action, no form' );
+ok( false !== strpos( $tab, '<span class="sn-field-label">Read token <span class="sn-pill sn-pill--' ), 'the read token\'s state stayed, as a pill' );
+ob_start();
+snt_mr_render_url_form( false, 'https://fake-sensor.example.test', '' );
+$mr_form = ob_get_clean();
+ok( false !== strpos( $mr_form, '<label class="sn-field-label" for="sn_mr_worker_url">Worker URL</label><input type="url" class="regular-text" id="sn_mr_worker_url" name="sn_mr_worker_url" value="https://fake-sensor.example.test"' ) && false !== strpos( $mr_form, '<input type="hidden" name="action" value="sn_machine_readers_save">' ) && false === strpos( $mr_form, 'name="tab"' ) && false === strpos( $mr_form, 'name="sub"' ), 'the worker URL form posts machine_readers_save, field and label unchanged, without the hidden tab and sub that named the leaf' );
+ob_start();
+snt_mr_render_url_form( true, '', '' );
+ok( false !== strpos( ob_get_clean(), 'name="sn_mr_worker_url" value="" placeholder="" disabled>' ), 'and it is still disabled while SN_MR_WORKER_URL locks it' );
+ok( false === strpos( $tab, 'sn-disclosure' ) && false === strpos( $tab, '<details' ), 'nothing folded' );
 foreach ( array( 'sn-kpi-row', 'Reads per crawler family', 'Rights-surface reads, in full', 'Unclassified user agents', 'Feed fetches per window', 'Observed vs declared' ) as $sn_gone ) {
 	ok( false === strpos( $tab, $sn_gone ), "no reading left on the tab ($sn_gone)" );
 }

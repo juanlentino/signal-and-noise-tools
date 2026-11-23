@@ -270,7 +270,7 @@ function sn_admin_top_tabs() {
 			// KEY STAYS 'monitoring' — hardcoded in five call sites.
 			'label'    => 'Measurement',
 			'title'    => 'Signal & Noise. Measurement',
-			'subtitle' => 'What the site records about itself: analytics, AI insights, content health, and feed requests.',
+			'subtitle' => 'What the site records about itself: analytics, AI insights, content health, and feed requests. The collector, exclusion, tuning, funnel, sensor and weekly scan settings are in Settings › Analytics; the Search Console credential is in Settings › Accounts and connections.',
 			// Built above so the Machine Readers preview leaf can splice in.
 			'sub_tabs' => $monitoring_sub_tabs,
 		),
@@ -404,11 +404,15 @@ function sn_admin_top_tabs() {
 			// moves line) and the settings of three Connections leaves that kept
 			// their readings: IndexNow's switch, Zenodo's environment, ledger DOI
 			// and downloads line, and the Muso.AI profile ID from Discography.
+			// 2026-11, sixth pane: Analytics, seven settings from three Measurement
+			// leaves that kept their readings (Analytics, Machine Readers,
+			// Insights). Search Console's credential and property joined the
+			// Accounts pane. No moves line: every leaf stayed.
 			'slug'     => 'sn-settings',
 			'tab'      => 'settings',
 			'label'    => 'Settings',
 			'title'    => 'Signal & Noise. Settings',
-			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address. Security: the login address and how long the audit log is kept. AI: the models, the monthly budget, the MCP doors and the daily read-only run. Front end: how notes are listed and read, the command palette, where a note reply goes and prerendering. Accounts and connections: every credential with its state, the Zenodo environment and downloads line, the IndexNow switch and the Muso.AI profile.',
+			'subtitle' => 'The plugin\'s own preferences, by pane. Notifications and reports: which emails it sends to the admin address. Security: the login address and how long the audit log is kept. AI: the models, the monthly budget, the MCP doors and the daily read-only run. Front end: how notes are listed and read, the command palette, where a note reply goes and prerendering. Accounts and connections: every credential with its state, the Zenodo environment and downloads line, the IndexNow switch, the Muso.AI profile and the Search Console credential and property. Analytics: the collector endpoint, the roles kept out of the counts, engine tuning, session funnels, the machine-readers Worker URL and the weekly insights scan.',
 			'sub_tabs' => array(
 				// 'wide': the render fn paints two cards of its own side by side
 				// (.sn-2up); capped, the wrapper would nest them in a third.
@@ -426,6 +430,11 @@ function sn_admin_top_tabs() {
 				// 'wide' again: the keyring's own two-column shell, then a row of
 				// boxes, one per account (Zenodo, IndexNow, Muso.AI).
 				'accounts'      => array( 'label' => 'Accounts and connections', 'render' => 'sn_admin_render_settings_accounts_section', 'wide' => true ),
+				// 'wide' again: six boxes of its own (the collector, who is counted,
+				// engine tuning, session funnels, the machine-readers Worker and
+				// the weekly insights scan). The sub slug repeats Measurement's
+				// first leaf; every lookup is by tab first, so the two never meet.
+				'analytics'     => array( 'label' => 'Analytics', 'render' => 'sn_admin_render_settings_analytics_section', 'wide' => true ),
 			),
 		),
 	);

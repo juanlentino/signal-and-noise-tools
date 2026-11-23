@@ -135,7 +135,8 @@ $settings_at = strpos( $html, 'Run a weekly scan automatically' );
 // to `$x > 0`, which any positive offset satisfies.
 ish_assert( is_int( $rail_at ) && false !== $usage_at && $usage_at < $rail_at, 'AI usage & spend (a wide table) sits in the MAIN column' );
 ish_assert( is_int( $rail_at ) && false !== $status_at && $status_at > $rail_at, 'scan status box sits in the rail' );
-ish_assert( is_int( $rail_at ) && false !== $settings_at && $settings_at > $rail_at, 'automation settings sit in the rail' );
+// 2026-11: the weekly scan switch is a setting and moved to Settings › Analytics.
+ish_assert( is_int( $rail_at ) && false === $settings_at && false === strpos( $html, 'name="insights_weekly_cron"' ), 'the weekly scan switch is no longer on the leaf: the rail holds the scan status alone' );
 
 // Balanced shell (2 shell divs + N inner, but at least the aside closes).
 ish_assert( 1 === substr_count( $html, '<aside class="sn-shell__rail"' ) && 1 === substr_count( $html, '</aside>' ), 'rail aside is opened once and closed once' );

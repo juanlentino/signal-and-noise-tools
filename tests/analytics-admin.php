@@ -716,12 +716,14 @@ $mirrors = strpos( $html, 'sn-an-mirrors' );
 $filters = strpos( $html, 'sn-an-filters' );
 $setup   = strpos( $html, 'Cloudflare Worker setup' ); // collision-free: the strip's warn note can also contain 'wrangler'
 ok( false !== $pipe && false !== $twoup && $pipe < $twoup, 'hub: pipeline status strip renders ABOVE the .sn-2up columns' );
-ok( false !== $creds && false !== $excl && false !== $tune && false !== $funnels && $creds < $excl && $excl < $tune && $tune < $funnels,
-	'hub(left): credentials → exclusion → engine tuning → funnels (writable column order)' );
-ok( strpos( $html, 'name="sn_funnels"' ) !== false, 'hub(left): the funnels card\'s textarea is present' );
+// 2026-11: the collector, the exclusion, engine tuning and the funnels are
+// settings and moved to Settings › Analytics (tests/os-leaf-settings-analytics.php).
+ok( false !== $creds && false === $excl && false === $tune && false === $funnels && false === strpos( $html, 'sn-an-collector' ),
+	'hub(left): credentials stay; the collector, exclusion, engine tuning and funnels cards left for Settings › Analytics' );
+ok( false === strpos( $html, 'name="sn_funnels"' ) && false === strpos( $html, 'name="sn_exclude_roles[]"' ) && false === strpos( $html, 'name="sn_signal_baseline_days"' ) && false === strpos( $html, 'name="sn_an_collector_url"' ), 'hub(left): none of the four moved forms\' fields is painted here' );
 ok( false !== $mirrors && false !== $filters && false !== $setup && $mirrors < $filters && $filters < $setup,
 	'hub(right): mirrors → filter reference → worker setup (reference column order)' );
-ok( $funnels < $mirrors, 'hub: the writable column (funnels last) precedes the reference column\'s first marker' );
+ok( $creds < $mirrors, 'hub: the left column (credentials) precedes the reference column\'s first marker' );
 
 echo "\nGroup: the v5.3.0 Dashboard-tab hook is reverted (no auto-render on the plugin Dashboard tab)\n";
 require_once __DIR__ . '/lib/inc-population.php'; // the module and its three parts files (split 2026-10-16)

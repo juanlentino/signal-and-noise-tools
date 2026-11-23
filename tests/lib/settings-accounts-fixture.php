@@ -33,6 +33,15 @@ function sn_zenodo_token_verdict() { return $GLOBALS['__zl']['verdict'] ?? null;
 function sn_zenodo_ledger() { return $GLOBALS['__zl']['rows']; }
 if ( ! defined( 'SN_ZENODO_PASS_MAX' ) ) { define( 'SN_ZENODO_PASS_MAX', 5 ); }
 if ( getenv( 'SNT_MUSO_LOCK' ) ) { define( 'SN_MUSO_PROFILE_ID', 'locked-profile-fake' ); }
+// Search Console (2026-11, the pane's fourth box): the real credential module
+// and save handlers; the sync side is stubbed, the pane never reads it.
+const SNT_GSC_SYNC_HOOK = 'sn_gsc_sync_daily';
+function snt_gsc_data() { return null; }
+function snt_gsc_sync_last_status() { return null; }
+function wp_next_scheduled( $hook ) { return false; }
+function snt_gsc_list_sites( $force = false ) { return (array) ( $GLOBALS['__gsc_sites'] ?? array() ); }
+function is_wp_error( $v ) { return false; }
+function wp_list_pluck( $list, $field ) { return array_column( (array) $list, $field ); }
 
 $snt_accounts_files = array(
 	'inc/admin-legacy-redirect.php', 'inc/admin-tabs.php', 'inc/admin-shell.php', 'inc/admin-render-sections.php',
@@ -40,13 +49,14 @@ $snt_accounts_files = array(
 	'inc/indexnow.php', 'inc/admin-forms/indexnow.php', 'inc/admin-post-actions/indexnow.php',
 	'inc/zenodo-client.php', 'inc/provenance-doi-line.php', 'inc/admin-forms/zenodo.php', 'inc/admin-post-actions/zenodo.php',
 	'inc/discography-store.php', 'inc/muso-api.php', 'inc/spotify-api.php', 'inc/music-featured.php', 'inc/admin-forms/music.php', 'inc/admin-post-actions/music.php',
+	'inc/search-console-credential.php', 'inc/search-console-admin.php', 'inc/admin-post-actions/gsc.php',
 	'inc/admin-flash-messages.php',
 	'apps/sn-dashboard/parts/leaves/connections-indexnow.php', 'apps/sn-dashboard/parts/leaves/connections-zenodo.php', 'apps/sn-dashboard/parts/leaves/connections-music.php',
 );
 foreach ( $snt_accounts_files as $snt_accounts_file ) {
 	require_once SNT_PATH . $snt_accounts_file;
 }
-foreach ( array( 'inc/admin-forms/settings-accounts.php', 'inc/admin-forms/settings-accounts-forms.php', 'apps/sn-dashboard/parts/leaves/settings-accounts-parts.php', 'apps/sn-dashboard/parts/leaves/settings-accounts.php' ) as $snt_accounts_file ) {
+foreach ( array( 'inc/admin-forms/settings-accounts.php', 'inc/admin-forms/settings-accounts-forms.php', 'apps/sn-dashboard/parts/leaves/settings-accounts-parts.php', 'apps/sn-dashboard/parts/leaves/monitoring-search-console.php', 'apps/sn-dashboard/parts/leaves/settings-accounts.php' ) as $snt_accounts_file ) {
 	if ( is_file( SNT_PATH . $snt_accounts_file ) ) { // Absent before the change: the assertions go red, the suite still reports.
 		require_once SNT_PATH . $snt_accounts_file;
 	}

@@ -69,7 +69,9 @@ function sn_admin_shell_rail( $title = '' ) {}
 function sn_admin_shell_close() {}
 
 require SNT_PATH . 'inc/insights-admin.php';
+require SNT_PATH . 'inc/admin-forms/settings-analytics.php'; // 2026-11: the line the leaf keeps, and the pane the weekly scan switch moved to.
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-insights.php';
+require SNT_PATH . 'apps/sn-dashboard/parts/leaves/settings-analytics.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -82,17 +84,22 @@ $classic = snt_leaf_classic_html( 'snt_insights_render_admin_tab' );
 $kit     = snt_leaf_paint( 'monitoring', 'insights' );
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'no-scan state: field names match: ' . names_line( $classic, $kit ) );
-ok( array( 'insights_run', 'save_insights_settings' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'no-scan state: only insights_run and save_insights_settings are offered: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( array( 'insights_run' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'no-scan state: only insights_run is offered (2026-11: save_insights_settings is on Settings › Analytics): ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, 'No scan run yet' ) && false !== strpos( $kit, 'tone="warning"' ), 'the status box says no scan run yet' );
 ok( false === strpos( $kit, 'name="force"' ), 'no-scan state: no force checkbox is offered yet' );
-ok( 1 === substr_count( $kit, snt_leaf_row( 3 ) ) && 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-insights-cards' ), '#1573 no-scan state: a row of three and a pair, no card grid between them' );
+ok( 0 === substr_count( $kit, snt_leaf_row( 3 ) ) && 2 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'snt-insights-cards' ), '#1573 no-scan state: two pairs (the third box of row one left for Settings in 2026-11), no card grid between them' );
 // 2026-10-16 leaf anatomy (docs/kit-leaf-anatomy.md): the leaf opens on its
 // working row, the intro prose is a How this works fold at the foot of Run
-// Analysis, and the weekly scan is a Setup fold whose closed line is its value.
-ok( 0 === strpos( $kit, snt_leaf_row( 3 ) ), 'anatomy: the leaf opens on the row of three, no intro paragraph above it' );
+// Analysis. 2026-11: the weekly scan switch moved to Settings › Analytics.
+ok( 0 === strpos( $kit, snt_leaf_row() ), 'anatomy: the leaf opens on its first row, no intro paragraph above it' );
 ok( 1 === preg_match( '/<os-disclosure heading="How this works" hint="[^"]+"[^>]*data-snt-open="0"[^>]*>.*reads your first-party analytics/s', $kit ) && strpos( $kit, 'heading="How this works"' ) < strpos( $kit, 'heading="Scan status"' ), 'anatomy: the intro is a closed How this works fold in the Run Analysis card' );
-ok( 1 === preg_match( '/<os-section heading="Setup"[^>]*>.*<os-disclosure heading="Weekly scan" hint="Off"[^>]*data-snt-open="0"[^>]*>.*name="insights_weekly_cron"/s', $kit ), 'anatomy: the weekly scan is a closed Setup fold whose summary is its value (Off)' );
+ok( false === strpos( $kit, 'heading="Setup"' ) && false === strpos( $kit, 'heading="Weekly scan"' ) && false === strpos( $kit, 'name="insights_weekly_cron"' ) && false === strpos( $classic, 'name="insights_weekly_cron"' ), 'the weekly scan switch left the leaf on both surfaces: no Setup card, no field' );
+ok( 1 === substr_count( $kit, '<p class="snt-hint">The weekly scan switch moved to <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="analytics" data-snt-anchor="">Settings › Analytics</os-button>.</p>' ) && strpos( $kit, 'The weekly scan switch moved to' ) > strpos( $kit, 'heading="Scan status"' ) && 1 === substr_count( $classic, 'The weekly scan switch moved to <a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=analytics">Settings › Analytics</a>.</p>' ), 'the leaf keeps one line saying where it went, under Scan status, the same sentence on both surfaces' );
+$in_pane  = snt_leaf_paint( 'settings', 'analytics' );
+$in_cpane = snt_leaf_classic_html( 'snt_insights_render_settings_section' );
+ok( 1 === preg_match( '#<os-section heading="Insights" stack><p class="snt-prose">A weekly automated scan can be enabled here\. Defaults off\. When enabled, fires weekly\. You can still click Run Analysis any time\.</p><os-form[^>]*submit-label="Save settings"[^>]*>(?:(?!</os-form>).)*name="insights_weekly_cron"(?:(?!</os-form>).)*value="sn_save_insights_settings"#s', $in_pane ) && false === strpos( $in_pane, '<os-disclosure' ), 'the pane paints it as an open Insights box: the same line, checkbox, action and Save' );
+ok( false !== strpos( $in_cpane, '<h2 class="sn-fieldset-h">Insights</h2><p class="sn-fieldset-intro">A weekly automated scan can be enabled here. Defaults off. When enabled, fires weekly. You can still click Run Analysis any time.</p>' ) && false !== strpos( $in_cpane, '<label><input type="checkbox" name="insights_weekly_cron" value="1"> Run a weekly scan automatically</label>' ) && false !== strpos( $in_cpane, '<input type="hidden" name="_wpnonce" value="nonce-sn_save_insights_settings">' ) && false !== strpos( $in_cpane, '<button type="submit" name="action" value="sn_save_insights_settings" class="button button-primary">Save settings</button>' ) && false === strpos( $in_cpane, 'name="tab"' ), 'classic: the box is the form the leaf had (label around its checkbox, nonce, action, Save), headed Insights, with no hidden tab or sub' );
 
 // ── State 2: AI unavailable — the setup-steps notice + gated form. ──
 $GLOBALS['__ai_ready'] = false;
@@ -127,7 +134,7 @@ ok( false !== strpos( $kit, '4 questions: 0 open, 2 done, 1 dismissed, 1 snoozed
 $GLOBALS['__state'] = array( 'dismissed_ids' => array( 'r1' ), 'snoozed_until' => array(), 'done_ids' => array() );
 $GLOBALS['__transient']['recommendations'] = array( array( 'id' => 'r1', 'question' => 'Q1?' ) );
 $kit = snt_leaf_paint( 'monitoring', 'insights' );
-ok( array( 'insights_run', 'save_insights_settings' ) === snt_leaf_actions( $kit ), 'all-dismissed state: no per-recommendation action is offered' );
+ok( array( 'insights_run' ) === snt_leaf_actions( $kit ), 'all-dismissed state: no per-recommendation action is offered' );
 $GLOBALS['__state']['dismissed_ids'] = array();
 
 // ── State 5: one active, undone recommendation and one already-done one. ──
@@ -139,7 +146,7 @@ $GLOBALS['__state']['done_ids'] = array( 'r2' );
 $classic = snt_leaf_classic_html( 'snt_insights_render_admin_tab' );
 $kit     = snt_leaf_paint( 'monitoring', 'insights' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && in_array( 'rec_id', snt_leaf_names( $kit ), true ), 'active-recs state: field names match, rec_id included: ' . names_line( $classic, $kit ) );
-ok( array( 'insights_dismiss', 'insights_mark_done', 'insights_run', 'insights_snooze', 'save_insights_settings' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'active-recs state: all four insights actions are offered alongside the other two: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( array( 'insights_dismiss', 'insights_mark_done', 'insights_run', 'insights_snooze' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'active-recs state: all four insights actions are offered, and no settings save: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( false !== strpos( $kit, 'Should we cover X?' ) && false !== strpos( $kit, 'Note A' ) && false !== strpos( $kit, 'Never mentioned.' ) && false !== strpos( $kit, 'Clears it.' ), 'active-recs state: the open question and its three notes are printed' );
 ok( false !== strpos( $kit, 'post.php?post=42&amp;action=edit' ) || false !== strpos( $kit, 'post.php?post=42&action=edit' ), 'active-recs state: the adjacent-note door carries the right post id' );
 ok( false !== strpos( $kit, 'Mark done' ) && false !== strpos( $kit, 'Already handled Y' ), 'active-recs state: r2 is present' );
@@ -148,16 +155,16 @@ ok( false !== strpos( $kit, 'Mark done' ) && false !== strpos( $kit, 'Already ha
 ok( 1 === substr_count( $kit, '>done<' ), 'active-recs state: exactly one recommendation is badged done' );
 ok( false !== strpos( $kit, 'os-confirm="It' ) || false !== strpos( $kit, "It won't appear again" ), 'active-recs state: dismiss carries the classic confirm text' );
 // ── #1573: boxes on rows of comparable height (live at 1581px: Run Analysis 223,
-// Scan status 129 and Settings 222 three across since 2026-10-16; AI usage &
-// spend 494 beside the probe 371), the recommendation cards at full width
-// between the rows, three across where they fit. ──
-$row1 = strpos( $kit, snt_leaf_row( 3 ) );
-$row2 = strpos( $kit, snt_leaf_row() );
+// Scan status 129 beside it; the third box, the weekly switch, left for
+// Settings › Analytics in 2026-11; AI usage & spend 494 beside the probe 371),
+// the recommendation cards at full width between the rows, three across
+// where they fit. ──
+$row1 = strpos( $kit, snt_leaf_row() );
+$row2 = strrpos( $kit, snt_leaf_row() );
 $grid = strpos( $kit, 'class="snt-insights-cards"' );
-$settings_at = strpos( $kit, 'heading="Setup"' );
 $status_at   = strpos( $kit, 'heading="Scan status"' );
-ok( 1 === substr_count( $kit, snt_leaf_row( 3 ) ) && 1 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, snt_leaf_row( 2, 290, 24 ) ) && false === strpos( $kit, '<os-grid columns="2"' ), '#1573: a row of three and a pair, no two-up column pair, no fixed two-column card grid' );
-ok( false !== $row1 && $row1 < strpos( $kit, 'heading="Run Analysis"' ) && strpos( $kit, 'heading="Run Analysis"' ) < $status_at && $status_at < $settings_at && $settings_at < $grid, '#1573: row one is Run Analysis, Scan status and Setup, three across' );
+ok( 0 === substr_count( $kit, snt_leaf_row( 3 ) ) && 2 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, snt_leaf_row( 2, 290, 24 ) ) && false === strpos( $kit, '<os-grid columns="2"' ), '#1573: two pairs, no two-up column pair, no fixed two-column card grid' );
+ok( 0 === $row1 && $row1 < strpos( $kit, 'heading="Run Analysis"' ) && strpos( $kit, 'heading="Run Analysis"' ) < $status_at && $status_at < $grid, '#1573: row one is Run Analysis beside Scan status' );
 ok( 5 === substr_count( $kit, 'class="snt-form snt-form--inline' ) && false === strpos( $kit, 'snt-form--inline', strpos( $kit, 'heading="AI usage' ) ), 'anatomy: the triage buttons are compact inline forms (three on the open card, two on the done one), nothing else is' );
 ok( false !== $grid && 1 === preg_match( '/<os-grid min-item-width="290" gap="18" style="--snt-grid-items:2" class="snt-insights-cards">/', $kit ) && false !== $row2 && $grid < $row2, '2026-10-16: the recommendation cards auto-fit (three across where they fit), at full width between the rows' );
 ok( false !== $row2 && strpos( $kit, 'heading="AI usage' ) > $row2 && strpos( $kit, 'heading="Prompt-cache probe"' ) > $row2, '#1573: row two is AI usage & spend beside the Prompt-cache probe' );
@@ -242,8 +249,9 @@ foreach ( $cache_state_clauses as $cache_state => $clause ) {
 // ── Weekly-cron settings: checked state survives. ──
 $GLOBALS['__cron_on'] = true;
 $kit = snt_leaf_paint( 'monitoring', 'insights' );
-ok( false !== strpos( $kit, 'name="insights_weekly_cron"' ) && false !== strpos( $kit, 'checked' ), 'settings: the weekly-cron checkbox reflects the enabled setting' );
-ok( false !== strpos( $kit, '<os-disclosure heading="Weekly scan" hint="On"' ), 'settings: the Setup fold\'s closed line reads On when the weekly scan is enabled' );
+$in_pane = snt_leaf_paint( 'settings', 'analytics' );
+ok( 1 === preg_match( '#<os-checkbox[^>]*name="insights_weekly_cron"[^>]*checked#', $in_pane ) || ( false !== strpos( $in_pane, 'name="insights_weekly_cron"' ) && false !== strpos( $in_pane, 'checked' ) ), 'settings: on the pane, the weekly-cron checkbox reflects the enabled setting' );
+ok( false === strpos( $kit, 'name="insights_weekly_cron"' ), 'and the leaf still does not paint it' );
 $GLOBALS['__cron_on'] = false;
 
 // ── Escaping: a hostile question never reaches the markup raw. ──

@@ -18,7 +18,8 @@
  * `keyring_save`, `keyring_generate` and `keyring_verify`.
  *
  * Under it, one box per account for the settings three Connections leaves
- * gave up (settings-accounts-parts.php): Zenodo, IndexNow, Muso.AI.
+ * gave up (settings-accounts-parts.php): Zenodo, IndexNow, Muso.AI; and a
+ * fourth, Search Console, from Measurement (settings-accounts-search-console.php).
  *
  * A save is answered on the tab and leaf it was posted from
  * (sn-dashboard.os.php, the `post` action), and no form here carries a hidden
@@ -36,6 +37,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/settings-accounts-parts.php'; // the three boxes under Credentials.
+require_once __DIR__ . '/settings-accounts-search-console.php'; // the Search Console box (2026-11).
 
 /**
  * The Credentials box: the ledger and its rail, as the Connections >
@@ -120,7 +122,7 @@ function paint_settings_accounts( array $ctx ) {
 	$out = function_exists( 'sn_keyring_models' )
 		? '<h3 class="snt-h">' . \snt_kit_esc( __( 'Credentials', 'signal-and-noise-tools' ) ) . '</h3>' . accounts_credentials_html()
 		: \snt_kit_empty( __( 'The keyring module is not loaded.', 'signal-and-noise-tools' ) );
-	return $out . \snt_kit_grid( array_values( array_filter( array( accounts_zenodo_html(), accounts_indexnow_html(), accounts_muso_html() ) ) ), 290 );
+	return $out . \snt_kit_grid( array_values( array_filter( array( accounts_zenodo_html(), accounts_indexnow_html(), accounts_muso_html(), accounts_search_console_html() ) ) ), 290 );
 }
 
 add_filter(

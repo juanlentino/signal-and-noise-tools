@@ -13,6 +13,7 @@
  */
 require_once __DIR__ . '/lib/site-timezone-stub.php'; // 14.7.4: the site's zone, not UTC
 require_once __DIR__ . '/lib/os-leaf-harness.php';
+require_once __DIR__ . '/lib/whole-forms.php'; // 2026-11: the save rebuilds its option, so its three fields stay in one form.
 
 if ( ! defined( 'ARRAY_A' ) ) {
 	define( 'ARRAY_A', 'ARRAY_A' );
@@ -93,6 +94,10 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match th
 $rss_ops = array( 'rss_purge_log', 'rss_reset_defaults', 'rss_save_settings' );
 ok( $rss_ops === snt_leaf_actions( $classic ), 'classic offers the three admin-post actions: ' . implode( ',', snt_leaf_actions( $classic ) ) );
 ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the kit posts the same three actions: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+// 2026-11: the three settings stayed here (their save lands on this leaf
+// whatever posted it: tests/rss-tracker-admin-post.php), whole, in one form.
+ok( 1 === snt_whole_forms( $classic, 'form', 'rss_save_settings', SNT_RSS_SAVE_FIELDS ) && 1 === snt_whole_forms( $kit, 'os-form', 'rss_save_settings', SNT_RSS_SAVE_FIELDS ) && -1 === snt_whole_forms( '<form>sn_rss_save_settings<input name="enabled"><input name="event_name"></form>', 'form', 'rss_save_settings', SNT_RSS_SAVE_FIELDS ), 'one form posts rss_save_settings on each surface and carries the switch, the event name and the retention; a form missing one would be -1' );
+ok( false !== strpos( $classic, 'Configured on <a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=analytics">Settings › Analytics</a>.</p>' ) && 1 === preg_match( '#Configured on <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="analytics"[^>]*>Settings › Analytics</os-button>\.</p>#', $kit ) && false === strpos( $classic . $kit, 'alongside the credentials' ), 'the read-only collector line points at Settings › Analytics, where the endpoint is set now, on both surfaces' );
 ok( false === strpos( $classic . $kit, 'sn_rss_action' ) && false === strpos( $classic . $kit, 'sn_rss_tracker_action' ), 'neither surface carries the old field or the old shared nonce' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false === strpos( $kit, 'os-arg-pipeline' ), 'the kit forms declare no pipeline: an `action` field routes to the host\'s admin-post replay, which runs the same hook' );
@@ -128,7 +133,7 @@ ok( 1 === preg_match( '/<os-text-field name="event_name"[^>]*\brequired\b/', $ki
 ok( false !== strpos( $kit, 'name="log_retention_days"' ) && false !== strpos( $kit, 'value="45"' ), 'the retention field carries the stored value' );
 ok( false !== strpos( $kit, 'checked' ) && false !== strpos( $kit, 'name="enabled"' ), 'the enabled switch reflects the stored (on) value' );
 ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, 'Settings saved' ), 'the saved flash paints a success notice' );
-ok( 1 === preg_match( '/os-confirm="Tracking, the event name and log retention return to their defaults\. The collector endpoint on Measurement › Analytics is kept\."[^>]*os-confirm-title="Reset RSS tracker to defaults\?"[^>]*os-confirm-label="Reset"/', $kit ), 'the reset form carries its own confirm (which says the collector endpoint is kept), title and label' );
+ok( 1 === preg_match( '/os-confirm="Tracking, the event name and log retention return to their defaults\. The collector endpoint on Settings › Analytics is kept\."[^>]*os-confirm-title="Reset RSS tracker to defaults\?"[^>]*os-confirm-label="Reset"/', $kit ), 'the reset form carries its own confirm (which says the collector endpoint is kept), title and label' );
 ok( false !== strpos( $kit, 'Delete rows older than the number of days you enter.' ) && false === strpos( $kit, 'threshold below' ), 'the purge helper names no position (PR #2014 review)' );
 ok( 1 === preg_match( '/os-confirm="Log entries older than[^"]*"[^>]*os-confirm-title="Purge old log entries\?"[^>]*os-confirm-label="Purge"[^>]*os-confirm-danger/', $kit ), 'the purge form carries its own confirm, title, label and danger' );
 ok( 1 === substr_count( $kit, 'os-confirm-danger' ), 'only the purge form (not reset) carries danger' );

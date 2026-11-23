@@ -15,6 +15,13 @@
  * sn_analytics_pipeline_complete() seam (§3); the filter reference is now a
  * single deep link to docs/FILTERS.md instead of an inline 12-entry list (§4).
  *
+ * 2026-11: four of these forms are painted on Settings > Analytics, not on the
+ * Measurement leaf: the collector endpoint, the role exclusion, engine tuning
+ * and the session funnels (inc/admin-forms/settings-analytics.php calls
+ * snt_analytics_render_collector(), _exclusion(), _engine_tuning() and
+ * _funnels() as they are). Their four snapshot functions summarized the
+ * closed folds; a box on a pane is open, so nothing paints those summaries now.
+ *
  * @package SignalNoiseTools
  * @since 5.0.1
  */
@@ -130,7 +137,7 @@ function snt_analytics_render_collector() {
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-collector">';
 	wp_nonce_field( 'sn_analytics_collector_save' );
-	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Collector endpoint', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Collector endpoint', 'signal-and-noise-tools' ) . '</h2>';
 	/* translators: 1: the worker route, wrapped in <code>; 2: the shared-token constant name, wrapped in <code>. */
 	echo '<p class="sn-an-settings-help">' . sprintf( esc_html__( 'Where every first-party beacon on this site posts: the Cloudflare Worker\'s %1$s route. Authenticated with the shared %2$s constant from wp-config.php.', 'signal-and-noise-tools' ), '<code>/_sn/px</code>', '<code>SN_BEACON_TOKEN</code>' ) . '</p>';
 
@@ -204,7 +211,7 @@ function snt_analytics_render_exclusion() {
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-exclude">';
 	wp_nonce_field( 'sn_analytics_exclude_save' );
-	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Exclude my own visits', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Exclude my own visits', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Logged-in visits never count as readers, whatever the role: the collector keeps them out at the edge. The roles you select here get one more thing: when they log in, their browser is marked as the owner’s, so their visits after logging out are kept out too. Forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) . '</p>';
 
 	if ( empty( $roles ) ) {
@@ -230,7 +237,7 @@ function snt_analytics_render_exclusion() {
 		echo '<p class="sn-an-status">' . esc_html__( 'Your role is not selected: your logged-in visits are still kept out, but this browser is not marked for your logged-out visits.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Owner devices.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Owner devices, on Measurement › Analytics.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<p><button type="submit" name="action" value="sn_analytics_exclude_save" class="button button-primary">' . esc_html__( 'Save exclusion', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
@@ -461,7 +468,7 @@ function snt_analytics_render_engine_tuning() {
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-tuning">';
 	wp_nonce_field( 'sn_analytics_tuning_save' );
-	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Engine tuning', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Engine tuning', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'How the anomaly detectors read your history. Trend and forecast signals aren’t tunable here. Developers can override more via the sn_analytics_signal_config filter: see the Developer filter seams link.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<p><label for="sn_signal_baseline_days"><strong>' . esc_html__( 'Baseline window', 'signal-and-noise-tools' ) . '</strong></label><br>';
@@ -521,7 +528,7 @@ function snt_analytics_render_funnels() {
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-funnels">';
 	wp_nonce_field( 'sn_analytics_funnels_save' );
-	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Session funnels', 'signal-and-noise-tools' ) . '</h3>';
+	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Session funnels', 'signal-and-noise-tools' ) . '</h2>';
 	// Both clamps render from their constants (SN_ANALYTICS_FUNNELS_MAX_STEPS /
 	// SN_ANALYTICS_FUNNELS_MAX, inc/analytics-sessions.php) so the copy can't
 	// drift from the parser again (T3 review: it shipped saying "2–10 steps"
@@ -610,7 +617,7 @@ function snt_analytics_render_mirrors() {
 	$cron_on = function_exists( 'snt_insights_weekly_cron_enabled' ) && snt_insights_weekly_cron_enabled();
 	echo '<div class="sn-an-mirror-row"><strong>' . esc_html__( 'Weekly insights cron', 'signal-and-noise-tools' ) . ':</strong> '
 		. esc_html( $cron_on ? __( 'On', 'signal-and-noise-tools' ) : __( 'Off', 'signal-and-noise-tools' ) )
-		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=insights' ) ) . '">' . esc_html__( 'Measurement → Insights →', 'signal-and-noise-tools' ) . '</a></div>';
+		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=settings&sub=analytics' ) ) . '">' . esc_html__( 'Settings → Analytics →', 'signal-and-noise-tools' ) . '</a></div>'; // 2026-11: the weekly scan switch
 
 	// v10.46.0: the Collector URL row is GONE from this block. It was the clearest
 	// evidence in the whole "Configured elsewhere" list — the pipeline's own

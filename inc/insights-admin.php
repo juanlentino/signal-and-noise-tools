@@ -68,11 +68,14 @@ function snt_insights_render_admin_tab() {
 	snt_insights_render_cache_probe_section();
 
 	// ── RIGHT RAIL: compact passive readouts + automation ──
-	// The scan status and the weekly-cron settings are compact reference/config,
-	// so they sit in the narrower side; the main opens on the scan workflow.
+	// The scan status is a compact readout, so it sits in the narrower side;
+	// the main opens on the scan workflow. 2026-11: the weekly scan switch is
+	// a setting and moved to Settings > Analytics; one line says so.
 	sn_admin_shell_rail( 'Scan status and automation' );
 	snt_insights_render_status_section( $last );
-	snt_insights_render_settings_section();
+	if ( function_exists( 'snt_settings_analytics_moved_line' ) ) {
+		snt_settings_analytics_moved_line( 'insights' );
+	}
 
 	sn_admin_shell_close();
 }
@@ -421,7 +424,10 @@ function snt_insights_render_recommendations_section( $last ) {
 }
 
 /**
- * Renders the weekly-cron settings section.
+ * The weekly scan switch, in its own headed box. Painted on Settings >
+ * Analytics since 2026-11 (it was the Insights leaf's Settings box); the form
+ * is the one the leaf had. ONE field: sn_handle_save_insights_settings()
+ * writes the switch from `! empty()` on every save.
  */
 function snt_insights_render_settings_section() {
 	$enabled = function_exists( 'snt_insights_weekly_cron_enabled' ) ? snt_insights_weekly_cron_enabled() : false;
@@ -439,7 +445,7 @@ function snt_insights_render_settings_section() {
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
 	wp_nonce_field( 'sn_save_insights_settings' );
 	echo '<div class="sn-fieldset">';
-	echo '<h2 class="sn-fieldset-h">Settings</h2>';
+	echo '<h2 class="sn-fieldset-h">Insights</h2>';
 	echo '<p class="sn-fieldset-intro">A weekly automated scan can be enabled here. Defaults off. When enabled, fires weekly. You can still click Run Analysis any time.</p>';
 	echo '<div class="sn-field">';
 	echo '<label><input type="checkbox" name="insights_weekly_cron" value="1"' . checked( $enabled, true, false ) . '> Run a weekly scan automatically</label>';
