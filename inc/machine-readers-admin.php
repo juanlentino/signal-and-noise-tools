@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/admin-forms/settings-accounts-pointers.php'; // snt_settings_accounts_url(): the pane these boxes point at.
+
 /**
  * True iff the Machine Readers preview surface is enabled. Reads the plain
  * option (one WP-CLI line to toggle), then offers the house filter seam (the
@@ -256,7 +258,7 @@ function snt_mr_render_url_form( $url_locked, $stored_url, $default_url ) {
  */
 function snt_mr_render_token_status( $token_locked, $has_token ) {
 	echo '<div class="sn-field"><span class="sn-field-label">Read token ' . ( $token_locked ? '<span class="sn-pill sn-pill--ok">constant</span>' : ( $has_token ? '<span class="sn-pill sn-pill--ok">set</span>' : '<span class="sn-pill sn-pill--warn">not set</span>' ) ) . '</span>';
-	echo '<p class="sn-field-helper">' . ( $token_locked ? 'Locked by the <code>SN_MR_READ_TOKEN</code> constant in wp-config.php.' : 'Set under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=settings&sub=accounts' ) ) . '">Settings › Accounts and connections</a>: a shared secret with the sensor, the same value as the worker\'s <code>SN_MR_READ_TOKEN</code>. Not a Cloudflare token.' ) . '</p></div>';
+	echo '<p class="sn-field-helper">' . ( $token_locked ? 'Locked by the <code>SN_MR_READ_TOKEN</code> constant in wp-config.php.' : 'Set under <a href="' . esc_url( snt_settings_accounts_url() ) . '">Settings › Accounts and connections</a>: a shared secret with the sensor, the same value as the worker\'s <code>SN_MR_READ_TOKEN</code>. Not a Cloudflare token.' ) . '</p></div>';
 }
 
 /**

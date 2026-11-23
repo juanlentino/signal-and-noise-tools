@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/admin-forms/settings-accounts-pointers.php'; // snt_settings_accounts_url(): the pane these boxes point at.
+
 /**
  * Check the note's page SN_CF_PROBE_DELAY seconds after its purge, once:
  * three saves in ten minutes probe once, after the last (v11.10.0). Runs
@@ -82,7 +84,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	// this leaf reads them and says where each comes from.
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Credentials</h2>';
-	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=settings&sub=accounts' ) ) . '">Settings › Accounts and connections</a>.</p>';
+	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( snt_settings_accounts_url() ) . '">Settings › Accounts and connections</a>.</p>';
 	$sources = array(
 		'API token'  => $token_const_set ? 'locked by SN_CLOUDFLARE_API_TOKEN' : ( '' !== $token ? 'saved (' . $token_obscured . ')' : 'not set' ),
 		'Zone ID'    => $zone_const_set ? 'locked by SN_CLOUDFLARE_ZONE_ID' : ( '' !== $zone ? $zone : 'not set' ),
