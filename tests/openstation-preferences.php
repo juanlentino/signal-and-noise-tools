@@ -278,6 +278,13 @@ function openstation_is_shell_request() {
 	return ! empty( $GLOBALS['__os_shell_request'] );
 }
 
+// A window (chromeless) request: every admin page inside the shell, and the
+// hidden menu-refresh probe the shell opens on wp.os.refreshMenu().
+$GLOBALS['__os_window_request'] = false;
+function openstation_is_chromeless_request() {
+	return ! empty( $GLOBALS['__os_window_request'] );
+}
+
 $GLOBALS['__os_icons'] = array();
 function openstation_register_icon( $id, $args ) {
 	$GLOBALS['__os_icons'][ $id ] = $args;
@@ -496,6 +503,23 @@ $GLOBALS['__os_shell_request'] = true;
 snt_os_enqueue_settings_script();
 ok( isset( $GLOBALS['__scripts']['snt-os-settings-tab'] ), 'shell request: snt-os-settings-tab script is registered' );
 ok( isset( $GLOBALS['__enqueued_scripts']['snt-os-settings-tab'] ), 'shell request: snt-os-settings-tab script is enqueued' );
+
+// 2026-11-22: the shell rebuilds its payload inside WINDOW requests too (the
+// menu-refresh probe, the Plugins and Updates screens), and unregisters every
+// tab whose script handle is missing from it. The handle was registered on
+// shell requests only, so saving any switch here (which refreshes the menu)
+// removed this tab until a reload.
+$GLOBALS['__os_shell_request']  = false;
+$GLOBALS['__os_window_request'] = true;
+$GLOBALS['__scripts'] = array(); $GLOBALS['__enqueued_scripts'] = array(); $GLOBALS['__localized_scripts'] = array();
+snt_os_enqueue_settings_script();
+ok( isset( $GLOBALS['__scripts']['snt-os-settings-tab'] ), 'window request: the handle is REGISTERED, so the payload the shell rebuilds there still names the tab' );
+ok( isset( $GLOBALS['__localized_scripts']['snt-os-settings-tab']['sntOpenStationPreferences'] ), 'window request: its data rides the handle, as on the shell' );
+ok( ! isset( $GLOBALS['__enqueued_scripts']['snt-os-settings-tab'] ), 'window request: it is not ENQUEUED (a window never runs the settings tab)' );
+$GLOBALS['__os_window_request'] = false;
+$GLOBALS['__os_shell_request']  = true;
+$GLOBALS['__scripts'] = array(); $GLOBALS['__enqueued_scripts'] = array(); $GLOBALS['__localized_scripts'] = array();
+snt_os_enqueue_settings_script();
 
 $script_reg = $GLOBALS['__scripts']['snt-os-settings-tab'];
 ok( SNT_VERSION === $script_reg['ver'] && true === $script_reg['in_footer'], 'script registered with SNT_VERSION in footer' );

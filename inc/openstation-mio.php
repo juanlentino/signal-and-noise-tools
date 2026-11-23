@@ -109,6 +109,13 @@ function snt_os_mio_localize() {
 	if ( ! function_exists( 'wp_script_is' ) || ! wp_script_is( 'snt-os-settings-tab', 'registered' ) ) {
 		return;
 	}
+	// The handle is registered on window requests too; the documents below are
+	// read from disk, so the bag is built on the shell and on the menu-refresh
+	// probe (a tab first loaded from a refresh needs it), not on every window.
+	$probe = ! empty( $_GET['openstation_menu_refresh'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a presence check that only decides whether read-only help text is attached.
+	if ( function_exists( 'openstation_is_shell_request' ) && ! openstation_is_shell_request() && ! $probe ) {
+		return;
+	}
 	wp_localize_script( 'snt-os-settings-tab', 'sntMio', snt_os_mio_client_bag() );
 }
 add_action( 'admin_enqueue_scripts', 'snt_os_mio_localize', 6 ); // after snt_os_enqueue_settings_script at 5
