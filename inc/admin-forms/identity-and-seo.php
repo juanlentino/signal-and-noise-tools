@@ -46,7 +46,7 @@ function sn_admin_render_identity_and_seo_form() {
 		echo '<div class="sn-field sn-field-w-md">';
 		echo '<label class="sn-field-label" for="sn_identity_person_name">Person name (schema author)</label>';
 		echo '<input type="text" id="sn_identity_person_name" name="identity_person_name" value="' . esc_attr( sn_setting( 'identity.person_name', '' ) ) . '">';
-		echo '<p class="sn-field-helper">Leave empty to use your profile&rsquo;s display name. A page with no author, such as an archive, uses the site title.</p>';
+		echo '<p class="sn-field-helper">Leave empty to use the site title.</p>';
 		echo '</div>';
 
 		echo '<div class="sn-field sn-field-w-md">';

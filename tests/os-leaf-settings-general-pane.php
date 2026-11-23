@@ -35,7 +35,7 @@ if ( is_file( SNT_PATH . 'apps/sn-dashboard/parts/leaves/settings-general.php' )
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
-const GEN_HINT     = 'Leave empty to use your profile’s display name. A page with no author, such as an archive, uses the site title.';
+const GEN_HINT     = 'Leave empty to use the site title.';
 const GEN_SECTIONS = array( 'identity', 'social', 'open-graph', 'seo-copy' );
 
 $by_tab = array();

@@ -295,23 +295,20 @@ ss_true( ! isset( $person3['image'] ), 'Person.image absent when og + site-icon 
 // sameAs/jobTitle/knowsAbout untouched.
 ss_true( isset( $person3['sameAs'] ) && isset( $person3['jobTitle'] ) && isset( $person3['knowsAbout'] ), 'sameAs/jobTitle/knowsAbout untouched' );
 
-// 2026-11: Person.name. The field when it is set; empty, the display name
-// provenance resolves for the post in view (stubbed here: the real resolver is
-// driven in tests/identity-person-name.php), else the site title.
-echo "\nT3b: Person.name (field, then the author's display name, then the site title)\n";
-if ( ! function_exists( 'sn_prov_author' ) ) {
-	function sn_prov_author( $post ) { return 5 === (int) $post->post_author ? 'Display Name' : ''; }
-}
+// 2026-11: Person.name. The field when it is set, else the site title: a
+// field saved empty printed "name": "". Never the page's author: one node,
+// one name on every page.
+echo "\nT3b: Person.name (the field, else the site title, the same on every page)\n";
 $ss_was = array( $GLOBALS['__ss']['settings'], $GLOBALS['__ss']['is_singular_post'], $GLOBALS['__ss']['queried'] );
 $GLOBALS['__ss']['settings']         = array( 'identity.person_name' => 'Juan Example' );
 $GLOBALS['__ss']['is_singular_post'] = true;
 $GLOBALS['__ss']['queried']          = (object) array( 'ID' => 9, 'post_author' => 5 );
-ss_eq( 'Juan Example', sn_schema_person()['name'] ?? null, 'Person.name is the field when it is set, on a post with an author too' );
+ss_eq( 'Juan Example', sn_schema_person()['name'] ?? null, 'Person.name is the field when it is set' );
 $GLOBALS['__ss']['settings'] = array( 'identity.person_name' => '' );
-ss_eq( 'Display Name', sn_schema_person()['name'] ?? null, 'field empty, a post in view: its author\'s display name' );
+ss_eq( 'Example', sn_schema_person()['name'] ?? null, 'field empty, a post in view: the site title, never an empty name and never the post\'s author' );
 $GLOBALS['__ss']['is_singular_post'] = false;
 $GLOBALS['__ss']['queried']          = null;
-ss_eq( 'Example', sn_schema_person()['name'] ?? null, 'field empty, no post in view: the site title, never an empty name' );
+ss_eq( 'Example', sn_schema_person()['name'] ?? null, 'field empty, no post in view: the same site title' );
 list( $GLOBALS['__ss']['settings'], $GLOBALS['__ss']['is_singular_post'], $GLOBALS['__ss']['queried'] ) = $ss_was;
 
 // REGRESSION (v4.8.1 adversarial fix 1): Person is the cross-URL-stable

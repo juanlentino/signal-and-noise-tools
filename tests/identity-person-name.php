@@ -2,9 +2,11 @@
 /**
  * The schema author's name, sn_identity_person_name()
  * (inc/identity-person-name.php): identity.person_name when it is set, else
- * the display name provenance resolves for the post in context
- * (sn_prov_author(), inc/provenance-core-subject-parts.php), else the site
- * title. Real settings store, real provenance resolver.
+ * the site title. A saved-empty field printed an empty name while a site that
+ * never saved it printed the site title; the two now agree. The name never
+ * depends on the page in view: one Person node, one name. Real settings
+ * store; the real provenance resolver is loaded to pin that it is untouched
+ * and never consulted.
  *
  * Run: php tests/identity-person-name.php
  */
@@ -51,43 +53,47 @@ function eq( $want, $got, $label ) {
 }
 function save_name( $name ) { sn_settings_save( array( 'identity_person_name' => $name ) ); sn_setting_reset_cache(); }
 
-$post    = (object) array( 'ID' => 1, 'post_author' => 7 );
-$orphan  = (object) array( 'ID' => 2, 'post_author' => 0 );
-$unnamed = (object) array( 'ID' => 3, 'post_author' => 8 );
+$post = (object) array( 'ID' => 1, 'post_author' => 7 );
+/** The name with no post in view (an archive) and on a singular view of $post. */
+function both_views() {
+	$GLOBALS['__queried'] = null;
+	$archive              = sn_identity_person_name();
+	$GLOBALS['__queried'] = $GLOBALS['post'];
+	$singular             = sn_identity_person_name();
+	$GLOBALS['__queried'] = null;
+	return array( $archive, $singular );
+}
 
-echo "Set: the field wins everywhere\n";
+echo "Set: the field\n";
 save_name( 'Juan Example' );
-eq( 'Juan Example', sn_identity_person_name( $post ), 'set, on a post with an author: the field' );
-eq( 'Juan Example', sn_identity_person_name(), 'set, with no post: the field' );
-eq( sn_setting( 'identity.person_name', get_bloginfo( 'name' ) ), sn_identity_person_name( $post ), 'set: the very value every reader printed before (same expression)' );
+eq( array( 'Juan Example', 'Juan Example' ), both_views(), 'set: the field, on an archive and on a singular page' );
+eq( sn_setting( 'identity.person_name', get_bloginfo( 'name' ) ), sn_identity_person_name(), 'set: the very value every reader printed before (same expression)' );
 
 echo "\nSaved empty\n";
 save_name( '' );
 eq( '', sn_setting( 'identity.person_name', get_bloginfo( 'name' ) ), 'fixture: a saved-empty field reads back empty from sn_setting(), which is what the schema printed' );
-eq( 'Juan Display', sn_identity_person_name( $post ), 'empty, post with an author: the author\'s display name' );
-eq( 'Test Site', sn_identity_person_name(), 'empty, no post in context: the site title' );
-eq( 'Test Site', sn_identity_person_name( $orphan ), 'empty, a post with no author: the site title' );
-eq( 'Test Site', sn_identity_person_name( $unnamed ), 'empty, an author with no display name: the site title' );
-$GLOBALS['__queried'] = $post;
-eq( 'Juan Display', sn_identity_person_name(), 'empty, no post passed on a singular view: the queried post\'s author' );
-$GLOBALS['__queried'] = null;
+eq( array( 'Test Site', 'Test Site' ), both_views(), 'saved empty: the site title, the same name on an archive and on a singular page whose author has a display name' );
 
-echo "\nNever saved (the default merges the site title in)\n";
+echo "\nWhitespace only (the save trims; an option written another way may not be)\n";
+$GLOBALS['__options'][ SN_SETTINGS_OPTION ] = array( 'identity' => array( 'person_name' => "  \t " ) );
+sn_setting_reset_cache();
+eq( array( 'Test Site', 'Test Site' ), both_views(), 'whitespace only: the site title' );
+
+echo "\nNever saved\n";
 $GLOBALS['__options'] = array();
 sn_setting_reset_cache();
-eq( 'Test Site', sn_setting( 'identity.person_name', '' ), 'fixture: sn_setting() alone cannot tell never-saved from set to the site title' );
-eq( 'Juan Display', sn_identity_person_name( $post ), 'never saved, post with an author: the display name, not the default' );
-eq( 'Test Site', sn_identity_person_name(), 'never saved, no post: the site title' );
+eq( array( 'Test Site', 'Test Site' ), both_views(), 'never saved: the site title, as before, and now the same as saved empty' );
 
-echo "\nOne resolution: provenance's own, its filter included\n";
-$GLOBALS['__filter'] = static function ( $author, $p ) { return $author . ' (post ' . (int) $p->ID . ')'; };
-eq( 'Juan Display (post 1)', sn_identity_person_name( $post ), 'the sn_prov_author filter reaches the schema name' );
-eq( sn_prov_author( $post ), sn_identity_person_name( $post ), 'empty field: the two outputs name the author alike' );
+echo "\nThe page in view never changes the name\n";
+$GLOBALS['__filter'] = static function ( $author, $p ) { return 'FILTERED'; };
+save_name( '' );
+eq( array( 'Test Site', 'Test Site' ), both_views(), 'the provenance resolver is not consulted: its filter cannot reach the name' );
+$code = (string) file_get_contents( __DIR__ . '/../inc/identity-person-name.php' );
+eq( false, strpos( $code, 'sn_prov_author' ) || strpos( $code, 'get_queried_object' ) || strpos( $code, 'post_author' ), 'the function reads no post, no author and no provenance' );
 $GLOBALS['__filter'] = null;
 
 echo "\nProvenance is unchanged\n";
 eq( 'Juan Display', sn_prov_author( $post ), 'sn_prov_author() is the post author\'s display name' );
-eq( '', sn_prov_author( $orphan ), 'and empty for a post with no author, as before' );
 save_name( 'Juan Example' );
 eq( 'Juan Display', sn_prov_author( $post ), 'and never the identity field: a set field does not reach provenance' );
 $src = (string) file_get_contents( __DIR__ . '/../inc/provenance-core-subject-parts.php' );

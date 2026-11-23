@@ -66,7 +66,7 @@ function identity_seo_identity_panel() {
 	$knows_about = (array) \sn_setting( 'identity.knows_about', array( 'Music Production', 'Audio Engineering', 'Provenance', 'Music Industry' ) );
 	$fields      = identity_seo_field( 'text', 'identity_site_name', __( 'Site name', 'signal-and-noise-tools' ), \sn_settings_identity_override( 'site_name' ), array( 'placeholder' => \sn_settings_identity_core( 'site_name' ) ), \snt_kit_esc( __( 'Empty follows the Site Title in ', 'signal-and-noise-tools' ) ) . \snt_kit_door( __( 'Settings → General', 'signal-and-noise-tools' ), admin_url( 'options-general.php' ) ) . \snt_kit_esc( __( '. Fill it only to use a different name in search and social tags.', 'signal-and-noise-tools' ) ) )
 		. identity_seo_field( 'textarea', 'identity_site_description', __( 'Site description', 'signal-and-noise-tools' ), \sn_settings_identity_override( 'site_description' ), array( 'rows' => 2, 'placeholder' => \sn_settings_identity_core( 'site_description' ) ), \snt_kit_esc( __( 'Empty follows the Tagline in Settings → General.', 'signal-and-noise-tools' ) ) )
-		. identity_seo_field( 'text', 'identity_person_name', __( 'Person name (schema author)', 'signal-and-noise-tools' ), (string) \sn_setting( 'identity.person_name', '' ), array( 'hint' => __( 'Leave empty to use your profile’s display name. A page with no author, such as an archive, uses the site title.', 'signal-and-noise-tools' ) ) )
+		. identity_seo_field( 'text', 'identity_person_name', __( 'Person name (schema author)', 'signal-and-noise-tools' ), (string) \sn_setting( 'identity.person_name', '' ), array( 'hint' => __( 'Leave empty to use the site title.', 'signal-and-noise-tools' ) ) )
 		. identity_seo_field(
 			'text',
 			'identity_job_title',
