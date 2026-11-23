@@ -214,16 +214,20 @@
 	 * there and repaints, because a checked ATTRIBUTE cannot reset a native
 	 * input the user already clicked.
 	 *
-	 * @param {Object}      patch    Keys to save.
-	 * @param {string|null} focusKey The switch to refocus after a repaint.
-	 * @param {boolean}     repaint  Repaint on success too (Restore defaults).
+	 * @param {Object}  patch   Keys to save.
+	 * @param {boolean} repaint Repaint on success too (Restore defaults).
 	 */
-	function commit( patch, focusKey, repaint ) {
+	function commit( patch, repaint ) {
 		if ( saving ) { return; }
 		saving = true;
 		var previous = Object.assign( {}, preferences );
 		var failed = false;
 		var savedLabel = '';
+		// Read BEFORE the controls are disabled: a disabled control drops focus
+		// to the body, and the repaint below has to know where it was.
+		var focusedEntry = mountedControls.find( function( entry ) { return document.activeElement === entry.control; } );
+		var focusedKey = focusedEntry ? focusedEntry.key : null;
+		var focusedRestore = !! mountedRestore && document.activeElement === mountedRestore;
 		preferences = Object.assign( {}, preferences, patch );
 		mountedControls.forEach( function( entry ) { entry.control.setAttribute( 'disabled', '' ); } );
 		if ( mountedRestore ) { mountedRestore.setAttribute( 'disabled', '' ); }
@@ -273,8 +277,6 @@
 			if ( ( ! failed && ! repaint ) || ! mountedBody || ! mountedBody.isConnected ) {
 				return;
 			}
-			var restoreFocus = mountedControls.some( function( entry ) { return document.activeElement === entry.control; } );
-			var restoreButton = document.activeElement === mountedRestore;
 			render( mountedBody );
 			if ( failed ) {
 				mountedStatus.setAttribute( 'error', __( 'Could not save preference.', 'signal-and-noise-tools' ) );
@@ -284,13 +286,12 @@
 				mountedStatus.setAttribute( 'phase', 'saved' );
 			}
 			window.requestAnimationFrame( function() {
-				if ( restoreButton && mountedRestore ) {
-					mountedRestore.focus();
-					return;
-				}
-				var entry = restoreFocus && mountedControls.find( function( item ) { return item.key === focusKey; } );
-				var input = entry && entry.control.shadowRoot && entry.control.shadowRoot.querySelector( 'input' );
-				if ( input ) { input.focus(); }
+				// The kit's hosts do not delegate focus: the focusable element
+				// is the native control inside each shadow root.
+				var entry = focusedKey && mountedControls.find( function( item ) { return item.key === focusedKey; } );
+				var host = focusedRestore ? mountedRestore : ( entry ? entry.control : null );
+				var inner = host && host.shadowRoot && host.shadowRoot.querySelector( focusedRestore ? 'button' : 'input' );
+				if ( inner ) { inner.focus(); }
 			} );
 		} );
 	}
@@ -336,7 +337,7 @@
 						? event.detail.checked
 						: ( event.target && event.target.checked )
 				);
-				commit( patch, key, false );
+				commit( patch, false );
 			} );
 			return item;
 		}
@@ -415,7 +416,7 @@
 		var footer = document.createElement( 'os-section' );
 		footer.setAttribute( 'stack', '' );
 		mountedRestore = createButton( __( 'Restore defaults', 'signal-and-noise-tools' ), function() {
-			commit( Object.assign( {}, config.defaults ), null, true );
+			commit( Object.assign( {}, config.defaults ), true );
 		} );
 		if ( saving || ! config.defaults ) { mountedRestore.setAttribute( 'disabled', '' ); }
 

@@ -16,7 +16,8 @@ const DEFAULTS = { dashboard: true, analytics: true, mio_tips: true, mio_help: t
 
 class El {
 	constructor( tag ) { this.tag = tag; this.attrs = {}; this.children = []; this.listeners = {}; this.isConnected = true; this.textContent = ''; }
-	setAttribute( k, v ) { this.attrs[ k ] = String( v ); }
+	// A disabled control drops focus to the body, as the browser does.
+	setAttribute( k, v ) { this.attrs[ k ] = String( v ); if ( 'disabled' === k && El.active === this ) { El.active = null; } }
 	getAttribute( k ) { return k in this.attrs ? this.attrs[ k ] : null; }
 	hasAttribute( k ) { return k in this.attrs; }
 	removeAttribute( k ) { delete this.attrs[ k ]; }
@@ -26,11 +27,13 @@ class El {
 	replaceChildren() { this.children = []; }
 	addEventListener( type, cb ) { ( this.listeners[ type ] = this.listeners[ type ] || [] ).push( cb ); }
 	fire( type, event = {} ) { ( this.listeners[ type ] || [] ).forEach( ( cb ) => cb( { target: this, ...event } ) ); }
-	focus() {}
+	focus() { El.active = this.host || this; }
+	get shadowRoot() { const inner = new El( 'inner' ); inner.host = this; return { querySelector: ( sel ) => ( ( 'os-button' === this.tag ? 'button' : 'input' ) === sel ? inner : null ) }; }
 	all( out = [] ) { this.children.forEach( ( c ) => { out.push( c ); c.all( out ); } ); return out; }
 }
 
 function boot( prefs, { fail = false, answer = null } = {} ) {
+	El.active = null;
 	const posts = [];
 	const notes = [];
 	let refreshes = 0;
@@ -40,7 +43,7 @@ function boot( prefs, { fail = false, answer = null } = {} ) {
 		location: { href: 'https://example.test/wp-admin/', origin: 'https://example.test' },
 		sntOpenStationPreferences: { endpoint: '/prefs', preferences: prefs, defaults: DEFAULTS },
 		requestAnimationFrame: ( cb ) => cb(),
-		document: { readyState: 'complete', activeElement: null, addEventListener() {}, createElement: ( tag ) => new El( tag ) },
+		document: { readyState: 'complete', get activeElement() { return El.active || null; }, addEventListener() {}, createElement: ( tag ) => new El( tag ) },
 		wp: {
 			i18n: { __: ( s ) => s },
 			os: {
@@ -129,6 +132,20 @@ await scenario( 'a second save while one is in flight is ignored', async () => {
 	p.sw( 'mio_tips' ).fire( 'os-checkbox-change', { detail: { checked: false } } );
 	await settle();
 	return { pass: JSON.stringify( posts ) === JSON.stringify( [ { analytics: false } ] ), detail: JSON.stringify( posts ) };
+} );
+
+await scenario( 'keyboard focus survives the repaint: Restore defaults keeps it, a failed switch gets it back', async () => {
+	const a = boot( { ...DEFAULTS, mio_tips: false } );
+	a.paint().button( 'Restore defaults' ).focus();
+	a.paint().button( 'Restore defaults' ).fire( 'click' );
+	await settle();
+	const onRestore = El.active === a.paint().button( 'Restore defaults' );
+	const b = boot( { ...DEFAULTS }, { fail: true } );
+	b.paint().sw( 'mio_help' ).focus();
+	b.paint().sw( 'mio_help' ).fire( 'os-checkbox-change', { detail: { checked: false } } );
+	await settle();
+	const onSwitch = El.active === b.paint().sw( 'mio_help' );
+	return { pass: onRestore && onSwitch, detail: JSON.stringify( { onRestore, onSwitch } ) };
 } );
 
 await scenario( 'the test notification has its own tag, saves nothing, and works with the switch off', async () => {

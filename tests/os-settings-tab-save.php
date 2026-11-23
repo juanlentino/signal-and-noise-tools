@@ -47,6 +47,7 @@ $expected = array(
 	'a failed save puts the switch back and says so',
 	'Restore defaults posts the server list once and repaints from the answer',
 	'a second save while one is in flight is ignored',
+	'keyboard focus survives the repaint: Restore defaults keeps it, a failed switch gets it back',
 	'the test notification has its own tag, saves nothing, and works with the switch off',
 );
 foreach ( $expected as $name ) {
