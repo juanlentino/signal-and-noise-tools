@@ -201,6 +201,7 @@ require_once SNT_PATH . 'inc/abilities-bot-signals.php';    // its reader, sn-st
 require_once SNT_PATH . 'inc/analytics-reads.php';          // 2026-11-14: reads (proven reading), the nightly store and its readers
 require_once SNT_PATH . 'inc/share-echoes.php';           // 2026-11-14: share echoes, link-preview fetches joined to the visits after them
 require_once SNT_PATH . 'inc/abilities-bot-signals-flagged.php'; // its flagged human visitor-days, sn-metrics{bot_signals_flagged}; local only
+require_once SNT_PATH . 'inc/abilities-relay-networks.php'; // the ASNs behind the relay rule's network names, sn-metrics{relay_networks}; local only
 require_once SNT_PATH . 'inc/analytics-view-events.php';     // v8.5.0 extraction
 require_once SNT_PATH . 'inc/analytics-view-overview.php';   // v9.68.0: the wired Overview landing (default tab — the v9.67.0 mock, graduated)
 require_once SNT_PATH . 'inc/analytics-sources.php'; // v6.25.0: referrer host → canonical source fold (brand grouping + self-referral/www)
