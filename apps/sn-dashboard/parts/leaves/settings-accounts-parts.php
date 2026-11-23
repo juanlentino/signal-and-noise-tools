@@ -35,14 +35,15 @@ function accounts_go( $current ) {
  * The one line a Connections leaf keeps: what moved, with a link to the pane.
  * The sentence is the classic twin's (snt_settings_accounts_moved_text()).
  *
- * @param string $from `indexnow`, `zenodo` or `muso`.
+ * @param string $from    `indexnow`, `zenodo`, `muso` or `gsc`.
+ * @param string $current The tab the line is painted on (`monitoring` for gsc).
  * @return string '' before the classic twin is loaded.
  */
-function accounts_moved_html( $from ) {
+function accounts_moved_html( $from, $current = 'connections' ) {
 	if ( ! function_exists( 'snt_settings_accounts_moved_text' ) ) {
 		return '';
 	}
-	return '<p class="snt-hint">' . \snt_kit_esc( \snt_settings_accounts_moved_text( $from ) ) . ' ' . accounts_go( 'connections' ) . '.</p>';
+	return '<p class="snt-hint">' . \snt_kit_esc( \snt_settings_accounts_moved_text( $from ) ) . ' ' . accounts_go( $current ) . '.</p>';
 }
 
 /**

@@ -147,7 +147,12 @@ if ( false === strpos( $tab, 'sn_view=intelligence' ) ) { $pass++; echo "  PASS:
 if ( false === strpos( $tab, 'value="narration_run"' ) ) { $pass++; echo "  PASS: Insights no longer renders the digest Generate button\n"; } else { $fail++; echo "  FAIL: digest Generate button still present\n"; }
 if ( false === strpos( $tab, 'name="insights_narration"' ) ) { $pass++; echo "  PASS: Insights no longer renders the digest automation toggle\n"; } else { $fail++; echo "  FAIL: digest toggle still present\n"; }
 hc_contains( $tab, 'value="sn_insights_run"', 'Insights still renders the advisor scan' );
-hc_contains( $tab, 'name="insights_weekly_cron"', 'Insights still renders the advisor weekly-cron toggle' );
+// 2026-11: the weekly scan switch is a setting and moved to Settings › Analytics;
+// the same function paints its box there, with the same one field and action.
+if ( false === strpos( $tab, 'name="insights_weekly_cron"' ) && false === strpos( $tab, 'sn_save_insights_settings' ) ) { $pass++; echo "  PASS: Insights no longer renders the weekly-cron toggle (it is on Settings › Analytics)\n"; } else { $fail++; echo "  FAIL: the weekly-cron toggle is still on the Insights leaf\n"; }
+ob_start();
+snt_insights_render_settings_section();
+hc_contains( ob_get_clean(), '<label><input type="checkbox" name="insights_weekly_cron" value="1"> Run a weekly scan automatically</label>', 'the box the pane paints still holds the advisor weekly-cron toggle, labeled' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -134,24 +134,15 @@ function rss_recent_table_html( array $recent ) {
 }
 
 /**
- * The settings form: enable switch, event name, retention. The collector
- * endpoint moved to Measurement → Analytics (v10.46.0) and stays a read-only
- * pointer here — never a second write surface.
+ * The settings form: enable switch, event name, retention. The body of the
+ * Feed tracking box on Settings > Analytics since 2026-11. ONE form: the
+ * save rebuilds the tracker's option, so a missing field would reset it.
  *
- * @param array  $settings sn_rss_tracker_settings() result.
- * @param string $tab      The painting tab, for the go-target.
+ * @param array $settings sn_rss_tracker_settings() result.
  * @return string
  */
-function rss_settings_form_html( array $settings, $tab ) {
+function rss_settings_form_html( array $settings ) {
 	$fields  = \snt_kit_field( 'switch', 'enabled', __( 'Enable feed-request tracking', 'signal-and-noise-tools' ), ! empty( $settings['enabled'] ), array( 'hint' => __( 'When off, feed requests are neither logged nor sent to the collector.', 'signal-and-noise-tools' ) ) );
-	$fields .= '<p class="snt-prose">' . \snt_kit_esc( __( 'Collector endpoint:', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( (string) ( $settings['collector_url'] ?? '' ) ) . '</os-code></p>'
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Where this tracker POSTs feed requests. Configured on', 'signal-and-noise-tools' ) ) . ' '
-		. \snt_kit_go( __( 'Measurement → Analytics', 'signal-and-noise-tools' ), array(
-			'tab'     => 'monitoring',
-			'sub'     => 'analytics',
-			'current' => $tab,
-		) )
-		. ', ' . \snt_kit_esc( __( 'alongside the credentials that read the same pipeline.', 'signal-and-noise-tools' ) ) . '</p>';
 	$fields .= \snt_kit_field( 'text', 'event_name', __( 'Event name', 'signal-and-noise-tools' ), (string) ( $settings['event_name'] ?? '' ), array(
 		'required' => true,
 		'hint'     => __( 'Custom event name recorded in first-party analytics: surfaces under Analytics → Events. Kept as "RSS Feed Request" to continue the series imported from Plausible.', 'signal-and-noise-tools' ),
@@ -161,13 +152,31 @@ function rss_settings_form_html( array $settings, $tab ) {
 		'min'  => 7,
 		'max'  => 365,
 		/* translators: %s: prefixed DB table name, e.g. wp_rss_feed_log */
-		'hint' => sprintf( __( 'How long to keep rows in %s. A daily WP-Cron job prunes rows older than this threshold; Purge now, under Maintenance, forces a prune right now.', 'signal-and-noise-tools' ), $table ),
+		'hint' => sprintf( __( 'How long to keep rows in %s. A daily WP-Cron job prunes rows older than this threshold; Purge now, under Maintenance on Measurement › RSS, forces a prune right now.', 'signal-and-noise-tools' ), $table ),
 	) );
 	return rss_form(
 		defined( 'SN_RSS_TRACKER_ACTION_SAVE' ) ? SN_RSS_TRACKER_ACTION_SAVE : 'save_settings',
 		$fields,
 		array( 'submit' => __( 'Save Settings', 'signal-and-noise-tools' ) )
 	);
+}
+
+/**
+ * What the leaf keeps in its Settings fold: where the tracker posts (a
+ * reading, never a second write surface), the line saying where its three
+ * settings went, and Reset to Defaults.
+ *
+ * @param array  $settings sn_rss_tracker_settings() result.
+ * @param string $tab      The painting tab, for the go-targets.
+ * @return string
+ */
+function rss_settings_kept_html( array $settings, $tab ) {
+	return '<p class="snt-prose">' . \snt_kit_esc( __( 'Collector endpoint:', 'signal-and-noise-tools' ) ) . ' <os-code>' . \snt_kit_esc( (string) ( $settings['collector_url'] ?? '' ) ) . '</os-code></p>'
+		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Where this tracker POSTs feed requests. Configured on', 'signal-and-noise-tools' ) ) . ' '
+		. \snt_kit_go( __( 'Settings › Analytics', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'analytics', 'current' => $tab ) )
+		. '.</p>'
+		. settings_analytics_moved_html( 'rss', $tab )
+		. rss_reset_form_html();
 }
 
 /**
@@ -183,7 +192,7 @@ function rss_reset_form_html() {
 		'',
 		array(
 			'submit'        => __( 'Reset to Defaults', 'signal-and-noise-tools' ),
-			'confirm'       => __( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Measurement › Analytics is kept.', 'signal-and-noise-tools' ),
+			'confirm'       => __( 'Tracking, the event name and log retention return to their defaults. The collector endpoint on Settings › Analytics is kept.', 'signal-and-noise-tools' ),
 			'confirm_title' => __( 'Reset RSS tracker to defaults?', 'signal-and-noise-tools' ),
 			'confirm_label' => __( 'Reset', 'signal-and-noise-tools' ),
 			'inline'        => true,

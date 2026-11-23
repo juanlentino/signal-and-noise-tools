@@ -48,6 +48,7 @@ function sn_admin_render_performance_section() { $GLOBALS['__calls'][] = 'fn:sn_
 function sn_admin_render_release_notes_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_release_notes_section'; }
 function sn_admin_render_provenance_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_provenance_section'; } // v9.8.0: Tools → Provenance (real fn lives in inc/provenance-admin.php)
 function sn_admin_render_settings_accounts_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_settings_accounts_section'; } // Settings > Accounts and connections (real fn lives in inc/admin-forms/settings-accounts.php); it calls sn_admin_render_credentials_section(), which the registry no longer names
+function sn_admin_render_settings_analytics_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_settings_analytics_section'; } // Settings > Analytics (real fn lives in inc/admin-forms/settings-analytics.php)
 function sn_admin_render_settings_front_end_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_settings_front_end_section'; } // Settings > Front end (real fn lives in inc/admin-forms/settings-front-end.php); it calls sn_admin_render_front_end_form(), which the registry no longer names
 function sn_admin_render_tag_cleanup_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_tag_cleanup_section'; }
 function sn_admin_render_scheduled_content_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_scheduled_content_section'; }
@@ -116,8 +117,8 @@ ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connection
 // Settings: the plugin's own preferences, one pane per subject. The first pane
 // is the three email switches that sat on Connections > Cron and Security >
 // Login defense. 'wide' because its render fn paints two cards of its own.
-ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications', 'security', 'ai', 'front-end', 'accounts' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
-	'settings: slug sn-settings, five panes, notifications, security, ai, front-end, accounts' );
+ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications', 'security', 'ai', 'front-end', 'accounts', 'analytics' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
+	'settings: slug sn-settings, six panes, notifications, security, ai, front-end, accounts, analytics' );
 ok( 'Accounts and connections' === ( $by_tab['settings']['sub_tabs']['accounts']['label'] ?? '' ) && 'sn_admin_render_settings_accounts_section' === ( $by_tab['settings']['sub_tabs']['accounts']['render'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['accounts']['wide'] ),
 	'the fifth pane is labelled "Accounts and connections", wide: the keyring\'s own shell and a row of boxes' );
 ok( 'Front end' === ( $by_tab['settings']['sub_tabs']['front-end']['label'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['front-end']['wide'] ),

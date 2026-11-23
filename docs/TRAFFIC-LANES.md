@@ -65,8 +65,8 @@ backfill: a note published before 2026-10-16 has no window, and its report
 says "Published before publish windows existed."
 
 **The length.** `analytics.publish_window_minutes`, default 60, 5 to 1440.
-Set under Measurement › Analytics › Setup › Publish windows (native) or the
-Publish windows fold of the classic Analytics settings. A changed length
+Set in the Publish windows box on Settings › Analytics, on both surfaces
+(until 2026-11 a fold on Measurement › Analytics). A changed length
 re-reads closed windows on their next report.
 
 **Computed on demand.** No stored series. When a report opens, the SN Traffic

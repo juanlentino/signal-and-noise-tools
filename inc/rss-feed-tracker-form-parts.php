@@ -97,8 +97,8 @@ function sn_rss_tracker_recent( $limit = 20 ) {
  * admin_init, so the click did nothing and said nothing.
  *
  * Off the sn_admin_post_handlers() table on purpose: that dispatcher
- * redirects with ?sn_flash, and this leaf reads its own ?sn_rss_ok on both
- * surfaces (the OpenStation window replays the same hook through the host's
+ * redirects with ?sn_flash, and the RSS forms' screens read their own
+ * ?sn_rss_ok on both surfaces (the OpenStation window replays the same hook through the host's
  * admin-post pipeline).
  *
  * @param string $action One of the SN_RSS_TRACKER_ACTION_* values.
@@ -172,24 +172,50 @@ function sn_rss_tracker_handle_form( $action ) {
 		$flash = 'reset';
 	}
 
-	// 2026-11-10: straight to Monitoring -> RSS. The legacy ?tab=rss no longer
-	// redirects there on the live site (it rendered the Dashboard and dropped
-	// the flash), so the canonical tab/sub is named here.
-	// #1228: the SN page moved from Appearance (themes.php, add_theme_page)
-	// to its own top-level menu (admin.php, add_menu_page) — see
-	// inc/admin-menu.php's docblock. themes.php ignores an unrecognized
-	// ?page= and just renders the Themes screen, so this redirect silently
-	// stranded the owner there instead of back on Connections -> RSS.
+	// 2026-11: back to the address the form was posted from, as the shared
+	// dispatcher does (inc/admin-post-handler.php), so the three settings can
+	// be saved from Settings > Analytics and Reset or Purge from this leaf.
+	// #1228: admin.php, not themes.php (the SN page has its own top-level menu).
+	$landing = sn_rss_tracker_landing();
 	wp_safe_redirect( add_query_arg(
 		array(
 			'page'      => 'sn-theme-options',
-			'tab'       => 'monitoring',
-			'sub'       => 'rss',
+			'tab'       => $landing['tab'],
+			'sub'       => $landing['sub'],
 			'sn_rss_ok' => $flash,
 		),
 		admin_url( 'admin.php' )
 	) );
 	exit;
+}
+
+/**
+ * Where an RSS write lands: the tab and sub the form was posted from, when
+ * the registry has that leaf (a moved leaf resolves to its home first, the
+ * shared resolver's job); Measurement > RSS otherwise. The returned values
+ * are the REGISTRY's own keys, never the request's: a posted value is only
+ * compared, strictly, so it cannot reach the URL.
+ *
+ * @return array{tab:string,sub:string}
+ */
+function sn_rss_tracker_landing() {
+	$home = array( 'tab' => 'monitoring', 'sub' => 'rss' );
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput -- read after the caller's check_admin_referer(), and only compared against registry keys.
+	$tab = isset( $_REQUEST['tab'] ) && is_string( $_REQUEST['tab'] ) ? wp_unslash( $_REQUEST['tab'] ) : '';
+	$sub = isset( $_REQUEST['sub'] ) && is_string( $_REQUEST['sub'] ) ? wp_unslash( $_REQUEST['sub'] ) : '';
+	// phpcs:enable
+	if ( '' === $tab || '' === $sub || ! function_exists( 'sn_admin_post_redirect_target' ) || ! function_exists( 'sn_admin_top_tabs' ) ) {
+		return $home;
+	}
+	$target = sn_admin_post_redirect_target( $tab, $sub );
+	foreach ( sn_admin_top_tabs() as $entry ) {
+		foreach ( array_keys( (array) ( $entry['sub_tabs'] ?? array() ) ) as $leaf ) {
+			if ( (string) $entry['tab'] === (string) $target['tab'] && (string) $leaf === (string) $target['sub'] ) {
+				return array( 'tab' => (string) $entry['tab'], 'sub' => (string) $leaf );
+			}
+		}
+	}
+	return $home;
 }
 
 // At load, not behind is_admin(): an OpenStation window replays a form inside

@@ -82,7 +82,9 @@ ok( false === strpos( snt_kit_tabs( 'login', array( 'login' => 'Login URL', 'log
 $site = array( 'identity-and-seo' => 'Identity & SEO', 'performance' => 'Performance', 'redirects' => 'Redirects', 'broken-links' => 'Broken links' );
 ok( false !== strpos( snt_kit_tabs( 'performance', $site, 'sub', 'Sections' ), 'data-snt-fit="600"' ), 'Site\'s four pills (about 450px estimated; five and about 545px until Front-End left in 2026-11) switch under a 600px window: a short bar is not exempt (review on #2023)' );
 $settings = array( 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI', 'front-end' => 'Front end', 'accounts' => 'Accounts and connections' );
-ok( false !== strpos( snt_kit_tabs( 'front-end', $settings, 'sub', 'Sections' ), 'data-snt-fit="760"' ), 'Settings\' five panes (about 636px estimated; four and about 436px until Accounts and connections came in 2026-11) switch under a 760px window' );
+ok( false !== strpos( snt_kit_tabs( 'front-end', $settings, 'sub', 'Sections' ), 'data-snt-fit="760"' ), 'the five panes Settings had until Analytics came in 2026-11 (about 636px estimated) switch under a 760px window' );
+$settings['analytics'] = 'Analytics';
+ok( false !== strpos( snt_kit_tabs( 'front-end', $settings, 'sub', 'Sections' ), 'data-snt-fit="920"' ), 'Settings\' six panes today (about 731px estimated) switch under a 920px window' );
 
 // #15: an empty table or list says what none means, or the kit says who forgot.
 $log = tempnam( sys_get_temp_dir(), 'snt-kit-empty' );

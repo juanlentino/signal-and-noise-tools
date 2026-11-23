@@ -116,8 +116,38 @@ function machine_readers_token_snapshot( array $d ) {
 }
 
 /**
- * The sensor settings form: the body of the Setup card's Sensor settings
- * fold (monitoring-machine-readers-setup.php).
+ * The Worker URL form, painted on Settings > Analytics since 2026-11
+ * (settings-analytics.php). The form the leaf had, minus the hidden tab and
+ * sub that named the leaf. ONE field in ONE form: machine_readers_save writes
+ * the URL on every save, and a missing field clears it.
+ *
+ * @param bool   $url_locked  Locked by SN_MR_WORKER_URL.
+ * @param string $stored_url  The stored URL.
+ * @param string $default_url The built-in endpoint (placeholder).
+ * @return string
+ */
+function machine_readers_url_form_html( $url_locked, $stored_url, $default_url ) {
+	$field = \snt_kit_field(
+		'url',
+		'sn_mr_worker_url',
+		__( 'Worker URL', 'signal-and-noise-tools' ),
+		$stored_url,
+		array(
+			'placeholder' => $default_url,
+			'disabled'    => $url_locked,
+			'hint'        => $url_locked
+				? __( 'Locked by the SN_MR_WORKER_URL constant in wp-config.php.', 'signal-and-noise-tools' )
+				: __( 'Blank uses the built-in live endpoint. A SN_MR_WORKER_URL constant in wp-config.php overrides both.', 'signal-and-noise-tools' ),
+		)
+	);
+	return \snt_kit_form( 'machine_readers_save', $field, array( 'submit' => __( 'Save sensor settings', 'signal-and-noise-tools' ) ) );
+}
+
+/**
+ * The read token's state, which the leaf keeps (the body of the Setup card's
+ * Sensor settings fold): a badge and where it is set, then the line saying
+ * where the Worker URL went. 15.2.0: the token is a row on the keyring; a
+ * shared secret with the sensor, not a Cloudflare token. Never the value.
  *
  * @param array<string,mixed> $d machine_readers_data() output.
  * @return string
@@ -126,32 +156,8 @@ function machine_readers_settings_html( array $d ) {
 	$badge = $d['token_locked']
 		? \snt_kit_badge( 'info', __( 'constant', 'signal-and-noise-tools' ) )
 		: ( $d['has_token'] ? \snt_kit_badge( 'ok', __( 'set', 'signal-and-noise-tools' ) ) : \snt_kit_badge( 'warn', __( 'not set', 'signal-and-noise-tools' ) ) );
-
-	$fields = \snt_kit_field(
-		'url',
-		'sn_mr_worker_url',
-		__( 'Worker URL', 'signal-and-noise-tools' ),
-		$d['stored_url'],
-		array(
-			'placeholder' => $d['default_url'],
-			'disabled'    => $d['url_locked'],
-			'hint'        => $d['url_locked']
-				? __( 'Locked by the SN_MR_WORKER_URL constant in wp-config.php.', 'signal-and-noise-tools' )
-				: __( 'Blank uses the built-in live endpoint. A SN_MR_WORKER_URL constant in wp-config.php overrides both.', 'signal-and-noise-tools' ),
-		)
-	);
-	// 15.2.0: the read token is a row on the keyring; a shared secret with the
-	// sensor, not a Cloudflare token. This form keeps the URL.
-	$fields .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Read token:', 'signal-and-noise-tools' ) ) . ' ' . $badge . ' ' . ( $d['token_locked']
+	return '<p class="snt-hint">' . \snt_kit_esc( __( 'Read token:', 'signal-and-noise-tools' ) ) . ' ' . $badge . ' ' . ( $d['token_locked']
 		? \snt_kit_esc( __( 'Locked by the SN_MR_READ_TOKEN constant in wp-config.php.', 'signal-and-noise-tools' ) )
-		: \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Settings › Accounts and connections', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'accounts', 'current' => 'monitoring' ) ) . ': ' . \snt_kit_esc( __( 'a shared secret with the sensor, the same value as the worker\'s SN_MR_READ_TOKEN. Not a Cloudflare token.', 'signal-and-noise-tools' ) ) ) . '</p>';
-
-	return \snt_kit_form(
-		'machine_readers_save',
-		$fields,
-		array(
-			'submit' => __( 'Save sensor settings', 'signal-and-noise-tools' ),
-			'hidden' => array( 'tab' => 'monitoring', 'sub' => 'machine-readers' ),
-		)
-	);
+		: \snt_kit_esc( __( 'Set under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Settings › Accounts and connections', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'accounts', 'current' => 'monitoring' ) ) . ': ' . \snt_kit_esc( __( 'a shared secret with the sensor, the same value as the worker\'s SN_MR_READ_TOKEN. Not a Cloudflare token.', 'signal-and-noise-tools' ) ) ) . '</p>'
+		. settings_analytics_moved_html( 'machine-readers', 'monitoring' );
 }

@@ -2,18 +2,19 @@
 /**
  * S&N Dashboard — Monitoring → Analytics, painted from the kit.
  *
- * The classic leaf (`snt_analytics_render_settings_section()`,
- * in inc/analytics-admin-settings-parts.php, assembled from the small renderers in
- * inc/analytics-render-settings.php) is a settings hub: a five-pill pipeline
- * status strip, five writable settings (Credentials, Collector endpoint,
- * Exclude my own visits, Engine tuning, Session funnels: each a native
- * `<details>` fold on the classic page) and a read-only reference column
- * (edge-Worker version, identity-salt window, "Configured elsewhere" mirrors,
- * a developer filter-reference link, and the Cloudflare Worker setup steps
- * while the pipeline is incomplete). Same six sn_action values, same field
- * names, same readers; the kit's parts instead of wp-admin's two-column
- * `.sn-2up` layout. Helpers live in the monitoring-analytics-*.php siblings
- * to keep this file to the assembly.
+ * The twin of the classic leaf (`snt_analytics_render_settings_section()`,
+ * inc/analytics-admin-settings-parts.php): readings, status and actions. A
+ * five-check Pipeline card, the Edge card, Your devices (a managed list), a
+ * Setup card (Credentials with Test connection, the edge Worker and salt,
+ * "Configured elsewhere"); the Cloudflare Worker setup steps close the leaf
+ * while the pipeline is incomplete.
+ *
+ * 2026-11: the collector endpoint, the roles kept out, engine tuning,
+ * session funnels, publish windows and the north star are settings and
+ * moved to Settings > Analytics
+ * (settings-analytics.php, which calls the same four functions from
+ * monitoring-analytics-settings.php and monitoring-analytics-tuning.php).
+ * One line under the cards says so.
  *
  * 2026-10-16 (owner, desktop PWA: "a mess. Design, design, design."): one
  * Pipeline status card, the Edge card, then three cards across: Your devices
@@ -31,11 +32,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/monitoring-analytics-parts.php';
+require_once __DIR__ . '/settings-analytics-parts.php'; // settings_analytics_moved_html(): the line saying where this leaf's settings went.
 require_once __DIR__ . '/monitoring-analytics-status.php'; // the Pipeline card
 require_once __DIR__ . '/monitoring-analytics-setup.php'; // the Setup card, analytics_fold()
-require_once __DIR__ . '/monitoring-analytics-settings.php'; // collector, roles kept out, this device
+require_once __DIR__ . '/monitoring-analytics-settings.php'; // this device (and the collector and roles forms the Settings pane paints)
 require_once __DIR__ . '/monitoring-analytics-owner.php'; // Your devices (SN Traffic Lanes)
-require_once __DIR__ . '/monitoring-analytics-tuning.php'; // tuning, funnels, the Worker setup steps
+require_once __DIR__ . '/monitoring-analytics-tuning.php'; // the Worker setup steps (and the tuning and funnels forms the Settings pane paints)
 
 /**
  * The leaf.
@@ -65,7 +67,8 @@ function paint_monitoring_analytics( array $ctx ) {
 
 	return analytics_status_html( $worker, $salt )
 		. $edge
-		. \snt_kit_grid( array( analytics_owner_devices_html(), analytics_setup_html( $ctx, $worker, $salt ), function_exists( '\\snt_nsm_settings_html' ) ? \snt_nsm_settings_html() : '' ), 290, 24 )
+		. \snt_kit_grid( array( analytics_owner_devices_html(), analytics_setup_html( $ctx, $worker, $salt ) ), 290, 24 )
+		. settings_analytics_moved_html( 'analytics-native', (string) ( $ctx['tab'] ?? 'monitoring' ) ) // 2026-11: six boxes left for Settings > Analytics, North star among them.
 		. analytics_worker_setup_html();
 }
 

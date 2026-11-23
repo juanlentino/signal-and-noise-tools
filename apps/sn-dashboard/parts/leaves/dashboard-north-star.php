@@ -142,7 +142,7 @@ function north_star_html( $tab ) {
 	$note = __( 'Counted per visitor per day: cookieless, so a reader on two days counts twice.', 'signal-and-noise-tools' )
 		. ( ! empty( $r['capped'] ) ? ' ' . __( 'The event cap was hit; the count is a floor.', 'signal-and-noise-tools' ) : '' )
 		. ' ' . __( 'Feed opens: notes opened in a feed reader, counted by an image in the feed. A floor, since many readers block images, and never part of the star.', 'signal-and-noise-tools' );
-	$edit = \snt_kit_go( __( 'Change what counts', 'signal-and-noise-tools' ), array( 'tab' => 'monitoring', 'sub' => 'analytics', 'current' => $tab ) );
+	$edit = \snt_kit_go( __( 'Change what counts', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'analytics', 'current' => $tab ) ); // 2026-11: the North star box is on Settings > Analytics.
 	$all  = '<div class="snt-home__detail-group snt-ns-all"><div class="snt-home__pulse-group-label">' . \snt_kit_esc( __( 'All signals, last 7 days', 'signal-and-noise-tools' ) ) . '</div>'
 		. '<div class="snt-home__detail">'
 		. $col( __( 'Intent', 'signal-and-noise-tools' ), north_star_layer_html( $intent ) )

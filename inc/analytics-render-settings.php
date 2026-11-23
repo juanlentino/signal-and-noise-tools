@@ -15,6 +15,14 @@
  * sn_analytics_pipeline_complete() seam (§3); the filter reference is now a
  * single deep link to docs/FILTERS.md instead of an inline 12-entry list (§4).
  *
+ * 2026-11: four of these forms are painted on Settings > Analytics, not on the
+ * Measurement leaf: the collector endpoint, the role exclusion, engine tuning
+ * and the session funnels (inc/admin-forms/settings-analytics.php calls
+ * snt_analytics_render_collector(), _exclusion(), _engine_tuning() and
+ * _funnels() as they are, under a heading the pane prints from its one list
+ * of box titles). The four snapshot functions that summarized their closed
+ * folds are gone with the folds: a box on a pane is open.
+ *
  * @package SignalNoiseTools
  * @since 5.0.1
  */
@@ -130,7 +138,6 @@ function snt_analytics_render_collector() {
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-collector">';
 	wp_nonce_field( 'sn_analytics_collector_save' );
-	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Collector endpoint', 'signal-and-noise-tools' ) . '</h3>';
 	/* translators: 1: the worker route, wrapped in <code>; 2: the shared-token constant name, wrapped in <code>. */
 	echo '<p class="sn-an-settings-help">' . sprintf( esc_html__( 'Where every first-party beacon on this site posts: the Cloudflare Worker\'s %1$s route. Authenticated with the shared %2$s constant from wp-config.php.', 'signal-and-noise-tools' ), '<code>/_sn/px</code>', '<code>SN_BEACON_TOKEN</code>' ) . '</p>';
 
@@ -145,27 +152,6 @@ function snt_analytics_render_collector() {
 
 	echo '<p><button type="submit" name="action" value="sn_analytics_collector_save" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
-}
-
-/**
- * The collector fold's one-line snapshot: the host it points at, or a note that
- * it is this site's own default. Never the full URL — the summary line is a
- * glance, and a workers.dev URL would wrap it.
- *
- * @since 10.46.0
- */
-function snt_an_collector_snapshot() {
-	$rss       = function_exists( 'sn_rss_tracker_settings' ) ? (array) sn_rss_tracker_settings() : array();
-	$collector = (string) ( $rss['collector_url'] ?? '' );
-	if ( '' === $collector ) {
-		return __( 'Not set', 'signal-and-noise-tools' );
-	}
-	$default = function_exists( 'home_url' ) ? home_url( '/_sn/px' ) : '';
-	if ( '' !== $default && $collector === $default ) {
-		return __( 'This site (default)', 'signal-and-noise-tools' );
-	}
-	$host = (string) wp_parse_url( $collector, PHP_URL_HOST );
-	return '' !== $host ? $host : __( 'Custom', 'signal-and-noise-tools' );
 }
 
 /**
@@ -204,7 +190,6 @@ function snt_analytics_render_exclusion() {
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-exclude">';
 	wp_nonce_field( 'sn_analytics_exclude_save' );
-	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Exclude my own visits', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Logged-in visits never count as readers, whatever the role: the collector keeps them out at the edge. The roles you select here get one more thing: when they log in, their browser is marked as the owner’s, so their visits after logging out are kept out too. Forward-only: visits already recorded are unaffected.', 'signal-and-noise-tools' ) . '</p>';
 
 	if ( empty( $roles ) ) {
@@ -230,26 +215,10 @@ function snt_analytics_render_exclusion() {
 		echo '<p class="sn-an-status">' . esc_html__( 'Your role is not selected: your logged-in visits are still kept out, but this browser is not marked for your logged-out visits.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Owner devices.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'Your logged-in views never count as readers: the collector recognizes the WordPress login cookie, even on a page served from cache. To prove a device when you are logged out, enroll it under Owner devices, on Measurement › Analytics.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<p><button type="submit" name="action" value="sn_analytics_exclude_save" class="button button-primary">' . esc_html__( 'Save exclusion', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
-}
-
-/**
- * The exclusion fold's one-line snapshot (v9.45.0, §2): the excluded-role
- * count, or "Off" when the allow-list is empty.
- *
- * @since 9.45.0
- */
-function snt_an_exclusion_snapshot() {
-	$excluded = (array) sn_setting( 'analytics.exclude_roles', array() );
-	$n        = count( $excluded );
-	if ( 0 === $n ) {
-		return __( 'Off', 'signal-and-noise-tools' );
-	}
-	/* translators: %d: number of excluded roles */
-	return sprintf( _n( '%d role excluded', '%d roles excluded', $n, 'signal-and-noise-tools' ), $n );
 }
 
 /**
@@ -428,9 +397,8 @@ function snt_analytics_render_pipeline_status() {
 }
 
 /**
- * Shared preset copy for the engine-tuning radios (v9.45.0 extraction, §2):
- * one msgid set, used by both the radio labels and the writable-column fold's
- * one-line snapshot, so the two can never drift apart.
+ * Shared preset copy for engine tuning: one msgid set, used by the classic
+ * radio labels and the native select's options, so the two can never drift.
  *
  * @since 9.45.0
  */
@@ -461,7 +429,6 @@ function snt_analytics_render_engine_tuning() {
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-tuning">';
 	wp_nonce_field( 'sn_analytics_tuning_save' );
-	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Engine tuning', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'How the anomaly detectors read your history. Trend and forecast signals aren’t tunable here. Developers can override more via the sn_analytics_signal_config filter: see the Developer filter seams link.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<p><label for="sn_signal_baseline_days"><strong>' . esc_html__( 'Baseline window', 'signal-and-noise-tools' ) . '</strong></label><br>';
@@ -480,22 +447,6 @@ function snt_analytics_render_engine_tuning() {
 
 	echo '<p><button type="submit" name="action" value="sn_analytics_tuning_save" class="button button-primary">' . esc_html__( 'Save tuning', 'signal-and-noise-tools' ) . '</button></p>';
 	echo '</form>';
-}
-
-/**
- * The tuning fold's one-line snapshot (v9.45.0, §2): baseline window + the
- * effective preset label, reusing the exact radio-label msgids via
- * snt_an_tuning_presets() so the two copies can't drift.
- *
- * @since 9.45.0
- */
-function snt_an_tuning_snapshot() {
-	$baseline = (int) sn_setting( 'analytics.signal_baseline_days', 30 );
-	$preset   = (string) sn_setting( 'analytics.anomaly_sensitivity', 'standard' );
-	$presets  = snt_an_tuning_presets();
-	$preset   = isset( $presets[ $preset ] ) ? $preset : 'standard';
-	/* translators: 1: baseline window in days, 2: the anomaly-sensitivity preset label */
-	return sprintf( __( '%1$d-day baseline · %2$s', 'signal-and-noise-tools' ), $baseline, $presets[ $preset ] );
 }
 
 /**
@@ -521,7 +472,6 @@ function snt_analytics_render_funnels() {
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-an-settings sn-an-funnels">';
 	wp_nonce_field( 'sn_analytics_funnels_save' );
-	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Session funnels', 'signal-and-noise-tools' ) . '</h3>';
 	// Both clamps render from their constants (SN_ANALYTICS_FUNNELS_MAX_STEPS /
 	// SN_ANALYTICS_FUNNELS_MAX, inc/analytics-sessions.php) so the copy can't
 	// drift from the parser again (T3 review: it shipped saying "2–10 steps"
@@ -552,22 +502,6 @@ function snt_an_funnels_copy() {
 			defined( 'SN_ANALYTICS_FUNNELS_MAX' ) ? (int) SN_ANALYTICS_FUNNELS_MAX : 10
 		),
 	);
-}
-
-/**
- * The funnels fold's one-line snapshot (v9.45.0, §2): the funnel count, or
- * "None" when the setting is empty.
- *
- * @since 9.45.0
- */
-function snt_an_funnels_snapshot() {
-	$funnels = (array) sn_setting( 'analytics.funnels', array() );
-	$n       = count( $funnels );
-	if ( 0 === $n ) {
-		return __( 'None', 'signal-and-noise-tools' );
-	}
-	/* translators: %d: number of session funnels */
-	return sprintf( _n( '%d funnel', '%d funnels', $n, 'signal-and-noise-tools' ), $n );
 }
 
 /**
@@ -610,7 +544,7 @@ function snt_analytics_render_mirrors() {
 	$cron_on = function_exists( 'snt_insights_weekly_cron_enabled' ) && snt_insights_weekly_cron_enabled();
 	echo '<div class="sn-an-mirror-row"><strong>' . esc_html__( 'Weekly insights cron', 'signal-and-noise-tools' ) . ':</strong> '
 		. esc_html( $cron_on ? __( 'On', 'signal-and-noise-tools' ) : __( 'Off', 'signal-and-noise-tools' ) )
-		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=insights' ) ) . '">' . esc_html__( 'Measurement → Insights →', 'signal-and-noise-tools' ) . '</a></div>';
+		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=settings&sub=analytics' ) ) . '">' . esc_html__( 'Settings → Analytics →', 'signal-and-noise-tools' ) . '</a></div>'; // 2026-11: the weekly scan switch
 
 	// v10.46.0: the Collector URL row is GONE from this block. It was the clearest
 	// evidence in the whole "Configured elsewhere" list — the pipeline's own

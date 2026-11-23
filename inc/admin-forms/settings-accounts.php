@@ -20,14 +20,18 @@
  *    file, the last submission and the two maintenance actions.
  * 4. Muso.AI: the profile ID. Discography keeps the sync, the featured
  *    release (an editorial pick, not a setting of the account) and the notes.
+ * 5. Search Console (2026-11, from Measurement): the service-account
+ *    credential and the property to read. The leaf keeps the identity card,
+ *    Test connection, Sync and Unanswered searches.
  *
  * Nothing about saving changed: keyring_save, keyring_verify,
- * keyring_generate, zenodo_env_save, zenodo_doi_line_save, indexnow_save and
- * music_save, the same fields, the same handlers. A form posts back to the
+ * keyring_generate, zenodo_env_save, zenodo_doi_line_save, indexnow_save,
+ * music_save, gsc_credential_save and gsc_property_save, the same fields, the same handlers. A form posts back to the
  * address it was painted on (sn_admin_post_url()) and carries no hidden tab
  * or sub of its own, so a save from this pane returns to it.
  *
- * The three boxes are inc/admin-forms/settings-accounts-forms.php; the native
+ * Three boxes are inc/admin-forms/settings-accounts-forms.php and the fourth
+ * is inc/admin-forms/settings-accounts-search-console.php; the native
  * twin is apps/sn-dashboard/parts/leaves/settings-accounts.php.
  *
  * @package SignalNoiseTools
@@ -38,6 +42,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/settings-accounts-forms.php';
+require_once __DIR__ . '/settings-accounts-search-console.php'; // the Search Console box (2026-11).
 
 /**
  * The pane's address, for the lines the old screens keep.
@@ -63,7 +68,7 @@ function snt_settings_accounts_label() {
  * The sentence an old screen keeps, up to the link. Shared by both twins. It
  * names settings and never a value.
  *
- * @param string $from `indexnow`, `zenodo` or `muso` (Connections > Discography).
+ * @param string $from `indexnow`, `zenodo`, `muso` (Connections > Discography) or `gsc` (Measurement > Search Console).
  * @return string
  */
 function snt_settings_accounts_moved_text( $from ) {
@@ -71,6 +76,7 @@ function snt_settings_accounts_moved_text( $from ) {
 		'indexnow' => __( 'The switch that turns IndexNow on moved to', 'signal-and-noise-tools' ),
 		'zenodo'   => __( 'The environment, the ledger concept DOI and the downloads line moved to', 'signal-and-noise-tools' ),
 		'muso'     => __( 'The Muso.AI profile ID moved to', 'signal-and-noise-tools' ),
+		'gsc'      => __( 'The service-account JSON and the property picker moved to', 'signal-and-noise-tools' ),
 	);
 	return (string) ( $texts[ $from ] ?? '' );
 }
@@ -110,6 +116,9 @@ function sn_admin_render_settings_accounts_section() {
 	}
 	if ( function_exists( 'sn_muso_profile_id' ) ) {
 		snt_accounts_render_muso_box();
+	}
+	if ( function_exists( 'snt_gsc_credential_identity' ) && function_exists( 'snt_gsc_copy' ) ) {
+		snt_accounts_render_search_console_box();
 	}
 	echo '</div>';
 }

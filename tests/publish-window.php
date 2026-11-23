@@ -199,7 +199,8 @@ ok( 'analytics_publish_window_saved' === sn_handle_analytics_publish_window_save
 ok( 'analytics_publish_window_saved' === sn_handle_analytics_publish_window_save( array( 'sn_publish_window_minutes' => array( 'x' ) ) ) && 60 === $GLOBALS['__setting'], 'a crafted array falls back to the default' );
 ok( 30 === sn_publish_window_clamp( '30' ) && 5 === sn_publish_window_clamp( 1 ) && 60 === sn_publish_window_clamp( 'x' ), 'the clamp' );
 $root = dirname( __DIR__ );
-ok( false !== strpos( (string) file_get_contents( "$root/apps/sn-dashboard/parts/leaves/monitoring-analytics-setup.php" ), 'sn_publish_window_setup_fold()' ) && false !== strpos( (string) file_get_contents( "$root/inc/analytics-admin-settings-parts.php" ), "'snt_analytics_render_publish_window'" ), 'a native Setup fold and its classic twin, one handler' );
+// 2026-11: the length is a box on Settings › Analytics, on both twins.
+ok( false !== strpos( (string) file_get_contents( "$root/apps/sn-dashboard/parts/leaves/settings-analytics.php" ), 'sn_publish_window_form_html()' ) && false !== strpos( (string) file_get_contents( "$root/inc/admin-forms/settings-analytics.php" ), "'snt_analytics_render_publish_window'" ) && ! function_exists( 'sn_publish_window_snapshot' ) && ! function_exists( 'sn_publish_window_setup_fold' ), 'a native box and its classic twin on Settings › Analytics, one handler; the fold and its snapshot are gone' );
 
 echo "\nA note that went live before the clean day is read in two halves\n";
 // Analytics worker 2.0.0 stops the legacy write. The "after" half runs to now,

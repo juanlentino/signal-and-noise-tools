@@ -3,9 +3,9 @@
  * S&N Dashboard, Monitoring > Analytics: engine tuning, session funnels and
  * the Worker setup steps.
  *
- * The two settings are Setup folds (2026-10-16) whose summary is the classic
- * fold's one-line snapshot; the setup steps are an open `<os-steps>` under a short heading, painted
- * only while the pipeline is incomplete, as before.
+ * The two forms are the bodies of two boxes on Settings > Analytics since
+ * 2026-11; the setup steps are an open `<os-steps>` under a short heading on
+ * Measurement > Analytics, painted only while the pipeline is incomplete.
  *
  * @package SignalNoiseTools
  */
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * classic radios (a `<fieldset>` of three presets) are a kit select: same
  * field name, same three values.
  *
- * @return array<string,mixed> A Setup fold (snt_kit_setup_card()).
+ * @return string The body of the pane's Engine tuning box.
  */
 function analytics_tuning_html() {
 	$baseline = (int) ( function_exists( '\sn_setting' ) ? \sn_setting( 'analytics.signal_baseline_days', 30 ) : 30 );
@@ -36,13 +36,13 @@ function analytics_tuning_html() {
 	$body  = '<p class="snt-prose">' . \snt_kit_esc( __( 'How the anomaly detectors read your history. Trend and forecast signals aren’t tunable here. Developers can override more via the sn_analytics_signal_config filter:', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_link( __( 'Developer filter seams', 'signal-and-noise-tools' ), 'https://github.com/juanlentino/signal-and-noise-tools/blob/main/docs/FILTERS.md' ) . '.</p>';
 	$body .= \snt_kit_form( 'analytics_tuning_save', $fields, array( 'submit' => __( 'Save tuning', 'signal-and-noise-tools' ), 'columns' => 'auto' ) );
 
-	return array( 'title' => __( 'Engine tuning', 'signal-and-noise-tools' ), 'summary' => \snt_an_tuning_snapshot(), 'body' => $body );
+	return $body;
 }
 
 /**
  * Session funnels: one named funnel per line.
  *
- * @return array<string,mixed> A Setup fold (snt_kit_setup_card()).
+ * @return string The body of the pane's Session funnels box.
  */
 function analytics_funnels_html() {
 	$funnels   = (array) ( function_exists( '\sn_setting' ) ? \sn_setting( 'analytics.funnels', array() ) : array() );
@@ -65,7 +65,7 @@ function analytics_funnels_html() {
 	$body  = '<p class="snt-prose">' . \snt_kit_esc( $copy['about'] ) . '</p>';
 	$body .= \snt_kit_form( 'analytics_funnels_save', $fields, array( 'submit' => __( 'Save funnels', 'signal-and-noise-tools' ) ) );
 
-	return array( 'title' => __( 'Session funnels', 'signal-and-noise-tools' ), 'summary' => \snt_an_funnels_snapshot(), 'body' => $body );
+	return $body;
 }
 
 /**

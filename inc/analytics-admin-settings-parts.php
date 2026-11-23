@@ -69,66 +69,19 @@ function snt_analytics_render_settings_section() {
 		snt_an_credentials_fold_open(),
 		'snt_analytics_render_credentials'
 	);
-	// v10.46.0: the collector endpoint, moved here from Content → RSS. Sits
-	// directly under Credentials because the two describe the same pipeline from
-	// both ends — this is where beacons WRITE, those are what READS them — and
-	// because the worker-version card in the reference column probes this origin.
-	// Opens when unset, on the same "open while incomplete" principle as
-	// Credentials; a configured endpoint is a one-line snapshot, not a task.
-	if ( function_exists( 'snt_analytics_render_collector' ) ) {
-		$__collector_rss = function_exists( 'sn_rss_tracker_settings' ) ? (array) sn_rss_tracker_settings() : array();
-		snt_an_settings_fold(
-			__( 'Collector endpoint', 'signal-and-noise-tools' ),
-			snt_an_collector_snapshot(),
-			'' === (string) ( $__collector_rss['collector_url'] ?? '' ),
-			'snt_analytics_render_collector'
-		);
+	// 2026-11: the collector endpoint, the role exclusion, engine tuning, the
+	// session funnels and the publish window are settings and moved to Settings > Analytics
+	// (inc/admin-forms/settings-analytics.php). One line says so.
+	if ( function_exists( 'snt_settings_analytics_moved_line' ) ) {
+		snt_settings_analytics_moved_line( 'analytics' );
 	}
-	// The "Exclude my own visits" role allow-list is a primary analytics setting,
-	// so it sits with the credentials in the active-settings column (v6.23.0).
-	if ( function_exists( 'snt_analytics_render_exclusion' ) ) {
-		snt_an_settings_fold(
-			__( 'Exclude my own visits', 'signal-and-noise-tools' ),
-			snt_an_exclusion_snapshot(),
-			false,
-			'snt_analytics_render_exclusion'
-		);
-	}
-	// 2026.10.18 (SN Traffic Lanes): the signed owner marker, beside the exclusion.
+	// 2026.10.18 (SN Traffic Lanes): the signed owner marker: a managed list, so it stayed.
 	if ( function_exists( 'snt_analytics_render_owner_devices' ) ) {
 		snt_an_settings_fold(
 			__( 'Owner devices', 'signal-and-noise-tools' ),
 			sn_owner_devices_snapshot(),
 			false,
 			'snt_analytics_render_owner_devices'
-		);
-	}
-	// v9.36.0: the two owner-tunable predictive-engine knobs.
-	if ( function_exists( 'snt_analytics_render_engine_tuning' ) ) {
-		snt_an_settings_fold(
-			__( 'Engine tuning', 'signal-and-noise-tools' ),
-			snt_an_tuning_snapshot(),
-			false,
-			'snt_analytics_render_engine_tuning'
-		);
-	}
-	// 2026-10-16: the publish window's length (inc/publish-window-settings.php).
-	if ( function_exists( 'snt_analytics_render_publish_window' ) ) {
-		snt_an_settings_fold(
-			__( 'Publish windows', 'signal-and-noise-tools' ),
-			sn_publish_window_snapshot(),
-			false,
-			'snt_analytics_render_publish_window'
-		);
-	}
-	// S2 §3 (v9.42.0 arc): owner-defined session funnels, after engine tuning —
-	// the writable column's last card.
-	if ( function_exists( 'snt_analytics_render_funnels' ) ) {
-		snt_an_settings_fold(
-			__( 'Session funnels', 'signal-and-noise-tools' ),
-			snt_an_funnels_snapshot(),
-			false,
-			'snt_analytics_render_funnels'
 		);
 	}
 	echo '</div>';

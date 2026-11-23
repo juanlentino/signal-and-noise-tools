@@ -88,7 +88,7 @@ echo "Group: every state renders VISIBLE output\n";
 $GLOBALS['__configured'] = false; $GLOBALS['__property'] = ''; $GLOBALS['__data'] = null;
 $out = render();
 ok( '' !== trim( $out ), 'no credential -> renders something (this was BLANK in v11.19.0)' );
-ok( false !== strpos( $out, 'Measurement' ), 'and names where to go' );
+ok( false !== strpos( $out, 'Settings › Accounts and connections' ), 'and names where to go: the pane that holds the credential field since 2026-11' );
 
 $GLOBALS['__configured'] = true;
 $out = render();

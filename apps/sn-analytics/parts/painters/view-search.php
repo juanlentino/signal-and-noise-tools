@@ -127,10 +127,10 @@ function paint_view_search( array $ctx ) {
 	$url = function_exists( 'snt_analytics_settings_url' ) ? snt_analytics_settings_url() : '';
 	$door = '' !== (string) $url ? \snt_kit_door( __( 'Measurement → Search Console', 'signal-and-noise-tools' ), $url ) : '';
 	if ( ! function_exists( 'snt_gsc_credential_is_configured' ) || ! snt_gsc_credential_is_configured() ) {
-		return \snt_kit_empty( __( 'Search', 'signal-and-noise-tools' ), __( 'No Search Console credential yet. Add one under Measurement → Search Console.', 'signal-and-noise-tools' ) ) . $door;
+		return \snt_kit_empty( __( 'Search', 'signal-and-noise-tools' ), __( 'No Search Console credential yet. Add one under Settings › Accounts and connections.', 'signal-and-noise-tools' ) ) . $door;
 	}
 	if ( function_exists( 'sn_setting' ) && '' === (string) sn_setting( 'search_console.property', '' ) ) {
-		return \snt_kit_empty( __( 'Search', 'signal-and-noise-tools' ), __( 'The credential is stored, but no property is selected yet. Open Measurement → Search Console, run Test connection, then choose the property to read.', 'signal-and-noise-tools' ) ) . $door;
+		return \snt_kit_empty( __( 'Search', 'signal-and-noise-tools' ), __( 'The credential is stored, but no property is selected yet. Open Measurement → Search Console, run Test connection, then choose the property in Settings › Accounts and connections.', 'signal-and-noise-tools' ) ) . $door;
 	}
 	$data = function_exists( 'snt_gsc_data' ) ? snt_gsc_data() : null;
 	if ( null === $data || ! is_array( $data ) ) {

@@ -89,7 +89,9 @@ $GLOBALS['__anomalies'] = null;
 function snt_ml_reader_anomalies( $now = null ) { return $GLOBALS['__anomalies']; }
 require SNT_PATH . 'inc/family-drift.php';
 require SNT_PATH . 'inc/ml-reader-anomalies-health.php';
+require SNT_PATH . 'inc/admin-forms/settings-analytics.php'; // 2026-11: the line the leaf keeps, and the pane the Worker URL moved to.
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers.php';
+require SNT_PATH . 'apps/sn-dashboard/parts/leaves/settings-analytics.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -138,7 +140,7 @@ $classic = snt_leaf_classic_html( 'snt_mr_render_tab' );
 $kit     = snt_leaf_paint( 'monitoring', 'machine-readers' );
 ok( '' !== $kit, 'the kit leaf paints' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( array( 'machine_readers_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is machine_readers_save, as on the classic leaf' );
+ok( array() === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array() === snt_leaf_names( $kit ) && array() === snt_leaf_names( $classic ), 'the leaf saves nothing on either surface: machine_readers_save and its field are on Settings › Analytics (2026-11)' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 // ── Configuration only since the evidence-basis arc. Every reading this leaf
@@ -160,7 +162,7 @@ foreach ( array( 'kit' => $kit, 'classic' => $classic ) as $twin => $h ) {
 		preg_match_all( '/<os-disclosure heading="([^"]+)"/', $h, $folds );
 		ok( array( 'Edge sensor', 'Sensor settings' ) === $folds[1] && false === strpos( $h, 'sn-disclosure' ) && false === strpos( $h, '<details' ), "$twin: the only folds are the Setup card's Edge sensor and Sensor settings (2026-10-16 leaf anatomy) -- " . implode( ',', $folds[1] ) );
 	}
-	ok( false !== strpos( $h, 'sn_mr_worker_url' ), "$twin: the worker URL form is on the leaf" );
+	ok( false === strpos( $h, 'sn_mr_worker_url' ) && false === strpos( $h, 'sn_machine_readers_save' ) && 1 === substr_count( $h, 'The Worker URL moved to' ) && false !== strpos( $h, 'Settings › Analytics' ), "$twin: the worker URL form left the leaf, which keeps one line saying where it went" );
 }
 ok( false !== strpos( $kit, 'sn-rights-signals' ) && false !== strpos( $kit, 'v1.20.0' ), 'the edge-sensor readout names the deployed worker version' );
 // 2026-10-12 audit: the readout is facts rows, the deploy time in the site's
@@ -198,13 +200,18 @@ $GLOBALS['__deleted_transients'] = array();
 snt_leaf_paint( 'monitoring', 'machine-readers' );
 ok( array() === $GLOBALS['__deleted_transients'], 'an ordinary paint keeps the cache' );
 ok( false === strpos( (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-evidence.php' ), "'<h3>'" ), 'rights evidence sub-blocks are snt-h headings, not a bare <h3>' );
-ok( false !== strpos( $kit, 'token set' ) && false !== strpos( $kit, '<os-text-field name="sn_mr_worker_url"' ), 'the settings section says "token set" and the worker-url field is present' );
+ok( false !== strpos( $kit, 'token set' ) && false === strpos( $kit, 'name="sn_mr_worker_url"' ) && 1 === preg_match( '#<p class="snt-hint">Read token: <os-badge tone="[a-z]+"[^>]*>set</os-badge>#', $kit ), 'the settings fold says "token set" and keeps the read token\'s state; the worker-url field is gone' );
+$mr_pane  = snt_leaf_paint( 'settings', 'analytics' );
+$mr_cpane = snt_leaf_classic_html( 'sn_admin_render_settings_analytics_section' );
+ok( 1 === preg_match( '#<os-section heading="Machine readers" stack><os-form class="snt-form" os-action="post" submit-label="Save sensor settings" show-reset="false" columns="auto"><os-field-row label="Worker URL" hint="Blank uses the built-in live endpoint\. A SN_MR_WORKER_URL constant in wp-config\.php overrides both\."><os-text-field name="sn_mr_worker_url" type="url" value="[^"]*" placeholder="[^"]*"></os-text-field></os-field-row><input type="hidden" name="action" value="sn_machine_readers_save"><input type="hidden" name="_wpnonce" value="nonce-sn_machine_readers_save"></os-form></os-section>#', $mr_pane ), 'native pane: the Machine readers box is the form the leaf had (label, hint on its row, type url, action, nonce), without the hidden tab and sub' );
+ok( 1 === preg_match( '#<h2 class="sn-fieldset-h">Machine readers</h2><form method="post" action="[^"]*" class="sn-mr-settings"><input type="hidden" name="_wpnonce" value="nonce-sn_machine_readers_save"><input type="hidden" name="action" value="sn_machine_readers_save"><div class="sn-field"><label class="sn-field-label" for="sn_mr_worker_url">Worker URL</label><input type="url" class="regular-text" id="sn_mr_worker_url" name="sn_mr_worker_url" value="[^"]*" placeholder="[^"]*">#', $mr_cpane ), 'classic pane: the same, its label tied to its field' );
+ok( false === strpos( $mr_pane . $mr_cpane, 'name="tab"' ) && false === strpos( $mr_pane . $mr_cpane, 'name="sub"' ) && false === strpos( $mr_pane . $mr_cpane, 'Read token' ), 'neither twin carries the hidden tab or sub the leaf\'s form had, and the read token\'s state did not come along' );
 ok( false !== strpos( $kit, '✓ Sensor v1.20.0' ) || false !== strpos( $kit, '! ' ) || false !== strpos( $kit, '? ' ), 'pill state marks (✓/!/?) survive alongside the tone' );
 // 2026-10-16 leaf anatomy (docs/kit-leaf-anatomy.md): the pills are the
 // status line, the two doors on its right; the readout and the settings are
 // Setup folds, closed while they answer; the rights-evidence buttons are compact.
 ok( 1 === preg_match( '#<os-section heading="Sensor status"[^>]*>.*?<div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success">✓ Sensor v1.20.0</os-badge>.*?</os-cluster><os-cluster gap="8"><os-button[^>]*>Machine readers in S&amp;N Analytics#s', $kit ), 'anatomy: the sensor pills are one status line, the doors to S&N Analytics on its right' );
-ok( 1 === preg_match( '#<os-section heading="Setup"[^>]*>.*<os-disclosure heading="Edge sensor" hint="sn-rights-signals v1.20.0"[^>]*data-snt-open="0".*<os-disclosure heading="Sensor settings" hint="token set"[^>]*data-snt-open="0"[^>]*>.*name="sn_mr_worker_url"#s', $kit ), 'anatomy: Edge sensor and Sensor settings are closed Setup folds whose summaries are the worker version and the token state' );
+ok( 1 === preg_match( '#<os-section heading="Setup"[^>]*>.*<os-disclosure heading="Edge sensor" hint="sn-rights-signals v1.20.0"[^>]*data-snt-open="0".*<os-disclosure heading="Sensor settings" hint="token set"[^>]*data-snt-open="0"[^>]*>.*Read token:#s', $kit ), 'anatomy: Edge sensor and Sensor settings are closed Setup folds whose summaries are the worker version and the token state' );
 
 // ── not_configured: no token, sensor unreachable, crawler check unmeasured.
 $GLOBALS['__sn_settings'] = array();
@@ -278,7 +285,7 @@ $GLOBALS['__anomalies'] = array( 'state' => 'ok', 'counts' => array( 'anomalies'
 $kit   = snt_leaf_paint( 'monitoring', 'machine-readers' );
 $anoms = mr_leaf_box( $kit, 'Reader behavior' );
 ok( false !== strpos( $anoms, '<os-notice tone="warning"' ) && false !== strpos( $anoms, '2 deviation(s) from the 30-day norm and 1 family-day(s) of total silence' ), 'a deviation and a silence: a warning notice with both counts' );
-ok( array() === snt_leaf_classic_markers( $kit ) && array( 'machine_readers_save' ) === snt_leaf_actions( $kit ), 'still one action and no wp-admin markup with the two boxes painted' );
+ok( array() === snt_leaf_classic_markers( $kit ) && array() === snt_leaf_actions( $kit ), 'still no save action and no wp-admin markup with the two boxes painted' );
 
 // The evidence basis (the split, the impersonations, the anomaly series, the
 // line that tells verified from signed, unmapped purposes) is painted by the

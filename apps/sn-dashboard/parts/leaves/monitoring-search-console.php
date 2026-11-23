@@ -2,23 +2,17 @@
 /**
  * S&N Dashboard — Monitoring → Search Console, painted from the kit.
  *
- * The classic leaf (inc/search-console-admin.php, `snt_gsc_render_settings_section()`
- * + `snt_gsc_render_property_form()`) paints two classic `<form>`s: the
- * credential form (service-account JSON textarea, `sn_action=gsc_credential_save`,
- * plus a second submit `gsc_test` once an identity parses) and the property
- * form (property `<select>`, `sn_action=gsc_property_save`, plus a second
- * submit `gsc_sync` once a property is chosen). `gsc_test` and `gsc_sync`
- * read nothing from $_POST (both handlers `unset( $post )` immediately), so
- * here they paint as standalone action buttons instead of a second submit
- * crammed into an `<os-form>` that only supports one; the field-carrying
- * actions (`gsc_credential_save`, `gsc_property_save`) stay `snt_kit_form()`.
- * Same readers, same fields, same actions, same three-state credential card
- * and three-state scheduled-sync paragraph.
+ * Readings and actions, the twin of inc/search-console-admin.php: the
+ * credential's identity card (or its two other states) with Test connection,
+ * the property in force, Sync with Sync now, and Unanswered searches.
+ * `gsc_test` and `gsc_sync` read nothing from $_POST, so they are standalone
+ * action buttons.
  *
- * Composition (17.4.1, #1573; 2026-10-12): the readout (identity card or its
- * two other states, plus Test connection, which acts on the stored
- * credential rather than the textarea) shares a row with the form that sets
- * it; Property shares the next with Sync.
+ * 2026-11: the two forms that SET something (the service-account JSON,
+ * `gsc_credential_save`, and the property picker, `gsc_property_save`) moved
+ * to Settings > Accounts and connections (settings-accounts-search-console.php),
+ * which calls search_console_credential_form_html() and
+ * search_console_property_picker_html() from this file, unchanged.
  *
  * @package SignalNoiseTools
  * @since 13.106.0
@@ -30,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-require_once __DIR__ . '/monitoring-search-console-setup.php'; // the Setup card (the credential form, a fold)
+require_once __DIR__ . '/settings-accounts-parts.php'; // accounts_moved_html(): the line saying where the credential form and the picker went.
 require_once __DIR__ . '/monitoring-search-console-unanswered.php'; // Unanswered searches, the row under Sync
 
 /**
@@ -83,7 +77,7 @@ function search_console_credential_html( array $s ) {
 
 	if ( null !== $s['identity'] ) {
 		$out .= search_console_identity_html( (array) $s['identity'] );
-		$out .= '<p class="snt-prose">' . \snt_kit_esc( __( 'The private key is never displayed. To change the credential, paste a whole new key file into Service-account JSON; to remove it, type clear there.', 'signal-and-noise-tools' ) ) . '</p>';
+		$out .= '<p class="snt-prose">' . \snt_kit_esc( \snt_gsc_copy()['never'] ) . '</p>';
 	} elseif ( $s['stored'] ) {
 		$out .= '<p class="snt-prose">' . \snt_kit_badge( 'warn', __( 'A credential is stored but no longer parses as a service-account key. Paste a fresh one, or type clear to remove it.', 'signal-and-noise-tools' ) ) . '</p>';
 	} else {
@@ -92,14 +86,16 @@ function search_console_credential_html( array $s ) {
 			__( 'In Google Cloud, ENABLE the "Google Search Console API" for the project. Skipping this returns 403 later even when everything else is correct: the error looks exactly like a missing permission.', 'signal-and-noise-tools' ),
 			__( 'In that same project, create a service account and download a JSON key.', 'signal-and-noise-tools' ),
 			__( 'In Search Console → Settings → Users and permissions, add that service account\'s email as a user on the property.', 'signal-and-noise-tools' ),
-			__( 'Paste the whole JSON key file into Service-account JSON, then press Test connection.', 'signal-and-noise-tools' ),
+			\snt_gsc_copy()['paste'],
 		);
 		$out .= \snt_kit_steps( array_map( '\snt_kit_esc', $steps ) );
 	}
 	if ( null !== $s['identity'] ) {
 		$out .= \snt_kit_action_button( __( 'Test connection', 'signal-and-noise-tools' ), 'gsc_test' );
 	}
-	return $out;
+	// 2026-11: the credential form and the property picker are settings of an
+	// account and moved to Settings > Accounts and connections.
+	return $out . accounts_moved_html( 'gsc', 'monitoring' );
 }
 
 /**
@@ -117,25 +113,42 @@ function search_console_credential_form_html( array $s ) {
 }
 
 /**
- * The property picker: the last Test connection's site list, or a nudge to
- * run it; the current property when one is set.
+ * The property this leaf reads: the last test's error when it failed, the
+ * nudge to run it while there is no list, and the property in force. The
+ * picker is on Settings > Accounts and connections since 2026-11.
  *
  * @param array<string,mixed> $s From search_console_state().
  * @return string
  */
 function search_console_property_html( array $s ) {
-	$out = '';
+	$copy = \snt_gsc_copy();
+	$out  = '';
 	if ( is_array( $s['last'] ) && empty( $s['last']['ok'] ) ) {
 		$out .= '<p class="snt-prose">' . \snt_kit_badge( 'warn', (string) ( $s['last']['error'] ?? '' ) ) . '</p>';
 	}
+	if ( empty( $s['sites'] ) ) {
+		$out .= '<p class="snt-prose">' . \snt_kit_esc( $copy['list'] ) . '</p>';
+	}
+	if ( '' !== $s['current'] ) {
+		/* translators: %s: the stored property string. */
+		$out .= '<p class="snt-prose">' . sprintf( \snt_kit_esc( __( 'Currently reading: %s', 'signal-and-noise-tools' ) ), \snt_kit_code( (string) $s['current'], false ) ) . '</p>';
+	} elseif ( ! empty( $s['sites'] ) ) {
+		$out .= '<p class="snt-hint">' . \snt_kit_esc( $copy['none'] ) . '</p>';
+	}
+	return $out;
+}
+
+/**
+ * The property picker, painted on Settings > Accounts and connections: the
+ * last Test connection's site list in one form, or where to run the test.
+ *
+ * @param array<string,mixed> $s From search_console_state().
+ * @return string
+ */
+function search_console_property_picker_html( array $s ) {
 	$sites = (array) $s['sites'];
 	if ( empty( $sites ) ) {
-		$out .= '<p class="snt-prose">' . \snt_kit_esc( __( 'Run Test connection to list the properties this service account can read.', 'signal-and-noise-tools' ) ) . '</p>';
-		if ( '' !== $s['current'] ) {
-			/* translators: %s: the stored property string. */
-			$out .= '<p class="snt-prose">' . sprintf( \snt_kit_esc( __( 'Currently reading: %s', 'signal-and-noise-tools' ) ), \snt_kit_code( (string) $s['current'], false ) ) . '</p>';
-		}
-		return $out;
+		return '<p class="snt-hint">' . \snt_kit_esc( \snt_gsc_copy()['list_at'] ) . ' ' . \snt_kit_go( __( 'Measurement › Search Console', 'signal-and-noise-tools' ), array( 'tab' => 'monitoring', 'sub' => 'search-console', 'current' => 'settings' ) ) . '.</p>';
 	}
 	$options = array( '' => __( 'Choose a property', 'signal-and-noise-tools' ) );
 	foreach ( $sites as $site ) {
@@ -146,8 +159,7 @@ function search_console_property_html( array $s ) {
 		$options[ $url ] = $url . ' (' . (string) ( $site['permissionLevel'] ?? 'unknown' ) . ')';
 	}
 	$field = \snt_kit_field( 'select', 'sn_gsc_property', __( 'Read search data for', 'signal-and-noise-tools' ), (string) $s['current'], array( 'options' => $options ) );
-	$out  .= \snt_kit_form( 'gsc_property_save', $field, array( 'submit' => __( 'Use this property', 'signal-and-noise-tools' ) ) );
-	return $out;
+	return \snt_kit_form( 'gsc_property_save', $field, array( 'submit' => __( 'Use this property', 'signal-and-noise-tools' ) ) );
 }
 
 /**
@@ -202,13 +214,11 @@ function search_console_sync_html( array $s ) {
 }
 
 /**
- * The leaf (2026-10-12 audit: "Set the credential" stood alone at full width
- * holding one 760px form, and Sync was an uppercase sub-label inside
- * Property). The credential readout beside the form that sets it; once the
- * credential parses, Property, and once a property is chosen, Property over
- * Sync in one column beside the form (live check: Property beside Sync was
- * 97 against 194px, 2.0x; the two short boxes stacked match the form's
- * height). Before a property is chosen, Property stands under the row.
+ * The leaf: readings and actions. The credential readout (identity card or
+ * its two other states, Test connection, and the line saying where the
+ * credential form went); once the credential parses, Property beside it, and
+ * once a property is chosen, Property over Sync in that column, then
+ * Unanswered searches on a row of its own.
  *
  * @param array<string,mixed> $ctx tab, sub, state, os.
  * @return string
@@ -216,21 +226,18 @@ function search_console_sync_html( array $s ) {
 function paint_monitoring_search_console( array $ctx ) {
 	unset( $ctx );
 	$s    = search_console_state();
-	$row  = array(
-		\snt_kit_section( __( 'Search Console credential', 'signal-and-noise-tools' ), search_console_credential_html( $s ) ),
-		search_console_setup_html( $s ), // 2026-10-16: the form is a Setup fold, closed once a key parses.
-	);
+	$cred = \snt_kit_section( __( 'Search Console credential', 'signal-and-noise-tools' ), search_console_credential_html( $s ) );
 	if ( null === $s['identity'] ) {
-		return \snt_kit_grid( $row );
+		return $cred;
 	}
 	$property = \snt_kit_section( __( 'Property', 'signal-and-noise-tools' ), search_console_property_html( $s ) );
 	if ( '' === $s['current'] ) {
-		return \snt_kit_grid( $row ) . $property;
+		return \snt_kit_grid( array( $cred, $property ) );
 	}
-	$row[] = \snt_kit_tag( 'os-stack', array( 'gap' => '18' ), $property . \snt_kit_section( __( 'Sync', 'signal-and-noise-tools' ), search_console_sync_html( $s ) ) );
 	// 2026-10-16: Unanswered searches is a wide table, so it takes the next
 	// row alone (docs/kit-leaf-anatomy.md), under the Sync box whose window it reads.
-	return \snt_kit_grid( $row ) . search_console_unanswered_html();
+	return \snt_kit_grid( array( $cred, \snt_kit_tag( 'os-stack', array( 'gap' => '18' ), $property . \snt_kit_section( __( 'Sync', 'signal-and-noise-tools' ), search_console_sync_html( $s ) ) ) ) )
+		. search_console_unanswered_html();
 }
 
 add_filter(

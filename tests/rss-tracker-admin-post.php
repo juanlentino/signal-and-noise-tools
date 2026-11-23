@@ -74,6 +74,8 @@ function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) {
 	return 1;
 }
 
+require __DIR__ . '/../inc/admin-tabs-data.php'; // the registry the landing is validated against.
+require __DIR__ . '/../inc/admin-legacy-redirect.php';
 require __DIR__ . '/../inc/rss-feed-tracker.php';
 
 /** Submit one form to admin-post.php: what core's admin-post.php does with it. */
@@ -127,6 +129,23 @@ ok( array( 'enabled' => true, 'collector_url' => 'https://sn-px.workers.dev/_sn/
 ok( 'redirect' === $r['outcome'] && 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=rss&sn_rss_ok=saved' === $r['url'], 'redirects to Monitoring > RSS with ?sn_rss_ok=saved (the canonical tab and sub, not the legacy tab=rss that rendered the Dashboard): ' . ( $r['url'] ?? '' ) );
 $r = rss_post( 'sn_rss_save_settings', array( 'enabled' => '1', 'event_name' => 'Feed hit', 'log_retention_days' => '365' ), 'sn_rss_save_settings' );
 ok( 'unchanged' === $r['flash'], 'the same values again report unchanged, not saved' );
+// 2026-11: the landing follows the address the form was posted from, as the
+// shared dispatcher's does, so the three settings could move to Settings ›
+// Analytics. Built from registry values only; anything else lands on the leaf.
+$rss_same = array( 'enabled' => '1', 'event_name' => 'Feed hit', 'log_retention_days' => '365' );
+$rss_land = static function ( array $from ) use ( $rss_same ) {
+	$r = rss_post( 'sn_rss_save_settings', $rss_same + $from, 'sn_rss_save_settings' );
+	return 'redirect' === $r['outcome'] ? (string) $r['url'] : 'no redirect';
+};
+$rss_leaf = 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=rss&sn_rss_ok=unchanged';
+ok( 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=analytics&sn_rss_ok=unchanged' === $rss_land( array( 'tab' => 'settings', 'sub' => 'analytics' ) ), 'a save posted from Settings › Analytics lands on Settings › Analytics with its notice: ' . $rss_land( array( 'tab' => 'settings', 'sub' => 'analytics' ) ) );
+ok( $rss_leaf === $rss_land( array( 'tab' => 'monitoring', 'sub' => 'rss' ) ) && $rss_leaf === $rss_land( array( 'tab' => 'content', 'sub' => 'rss' ) ), 'a save posted from Measurement › RSS still lands there, and so does one from the leaf\'s older address' );
+foreach ( array( 'no tab or sub' => array(), 'an unknown tab' => array( 'tab' => 'nowhere', 'sub' => 'rss' ), 'an unknown sub' => array( 'tab' => 'settings', 'sub' => 'nowhere' ), 'a tab alone' => array( 'tab' => 'settings' ) ) as $what => $from ) {
+	ok( $rss_leaf === $rss_land( $from ), "$what lands on Measurement › RSS, the old address" );
+}
+foreach ( array( 'a parameter in the tab' => array( 'tab' => 'settings&evil=1', 'sub' => 'analytics' ), 'a parameter in the sub' => array( 'tab' => 'settings', 'sub' => 'analytics&evil=1#frag' ), 'a URL as the tab' => array( 'tab' => 'https://evil.test/', 'sub' => '//evil.test' ), 'arrays' => array( 'tab' => array( 'settings' ), 'sub' => array( 'analytics' ) ) ) as $what => $from ) {
+	ok( $rss_leaf === $rss_land( $from ), "$what cannot change the host or add a parameter: the landing is the old address, built from fixed values" );
+}
 $GLOBALS['wpdb']->last_error = 'disk full';
 $r = rss_post( 'sn_rss_save_settings', array( 'event_name' => 'Other' ), 'sn_rss_save_settings' );
 ok( 'save-error' === $r['flash'], 'a database failure reports save-error, never saved' );

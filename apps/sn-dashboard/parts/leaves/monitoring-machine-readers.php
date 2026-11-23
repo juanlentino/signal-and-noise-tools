@@ -30,6 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/monitoring-machine-readers-parts.php';
+require_once __DIR__ . '/settings-analytics-parts.php'; // settings_analytics_moved_html(): the line saying where the Worker URL went.
 require_once __DIR__ . '/monitoring-machine-readers-health.php';
 require_once __DIR__ . '/monitoring-machine-readers-evidence.php';
 require_once __DIR__ . '/monitoring-machine-readers-setup.php'; // Edge sensor and Sensor settings, Setup folds

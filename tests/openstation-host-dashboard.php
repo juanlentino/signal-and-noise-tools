@@ -148,7 +148,7 @@ namespace {
 	// One nonce per ACTION: the estate mints four, and a global "valid" would
 	// hide the very confusion the pipelines exist to end.
 	function wp_verify_nonce( $nonce, $action = -1 ) {
-		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'login-nonce' => 'sn_save_login', 'ret-nonce' => 'sn_audit_save_retention', 'ai-nonce' => 'sn_ai_settings_save', 'reads-nonce' => 'sn_scheduled_reads_save', 'remote-nonce' => 'sn_remote_toggle', 'rw-nonce' => 'sn_bind_mcp_rw_credential', 'read-nonce' => 'sn_bind_mcp_read_credential', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults', 'theme-nonce' => 'sn_save_theme', 'perf-nonce' => 'sn_perf_save', 'key-nonce' => 'sn_keyring_save', 'zen-nonce' => 'sn_zenodo_env_save', 'line-nonce' => 'sn_zenodo_doi_line_save', 'in-nonce' => 'sn_indexnow_save', 'music-nonce' => 'sn_music_save' );
+		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'login-nonce' => 'sn_save_login', 'ret-nonce' => 'sn_audit_save_retention', 'ai-nonce' => 'sn_ai_settings_save', 'reads-nonce' => 'sn_scheduled_reads_save', 'remote-nonce' => 'sn_remote_toggle', 'rw-nonce' => 'sn_bind_mcp_rw_credential', 'read-nonce' => 'sn_bind_mcp_read_credential', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults', 'theme-nonce' => 'sn_save_theme', 'perf-nonce' => 'sn_perf_save', 'key-nonce' => 'sn_keyring_save', 'zen-nonce' => 'sn_zenodo_env_save', 'line-nonce' => 'sn_zenodo_doi_line_save', 'in-nonce' => 'sn_indexnow_save', 'music-nonce' => 'sn_music_save', 'col-nonce' => 'sn_analytics_collector_save', 'excl-nonce' => 'sn_analytics_exclude_save', 'tune-nonce' => 'sn_analytics_tuning_save', 'fun-nonce' => 'sn_analytics_funnels_save', 'mr-nonce' => 'sn_machine_readers_save', 'ins-nonce' => 'sn_save_insights_settings', 'gsc-nonce' => 'sn_gsc_credential_save', 'prop-nonce' => 'sn_gsc_property_save', 'pw-nonce' => 'sn_analytics_publish_window_save', 'ns-nonce' => 'sn_north_star_save' );
 		return ( isset( $minted[ $nonce ] ) && $minted[ $nonce ] === $action ) ? 1 : false;
 	}
 	// The interceptor needs real hook plumbing, a real wp_redirect (which filters
@@ -259,6 +259,17 @@ namespace {
 	function sn_handle_zenodo_doi_line_save( $post ) { return 'zenodo_doi_line_saved'; }
 	function sn_handle_indexnow_save( $post ) { return 'indexnow_saved'; }
 	function sn_handle_music_save( $post ) { return 'music_saved'; }
+	// Settings > Analytics' six saves and the Accounts pane's two Search Console saves (2026-11), each answering its real flash code.
+	function sn_handle_analytics_collector_save( $post ) { return 'analytics_collector_saved'; }
+	function sn_handle_analytics_exclude_save( $post ) { return 'analytics_exclude_saved'; }
+	function sn_handle_analytics_tuning_save( $post ) { return 'analytics_tuning_saved'; }
+	function sn_handle_analytics_funnels_save( $post ) { return 'analytics_funnels_saved'; }
+	function sn_handle_machine_readers_save( $post ) { return 'machine_readers_saved'; }
+	function sn_handle_save_insights_settings( $post ) { return 'insights_settings_saved'; }
+	function sn_handle_gsc_credential_save( $post ) { return '' === (string) ( $post['sn_gsc_credential'] ?? '' ) ? 'gsc_credential_unchanged' : 'gsc_credential_saved'; }
+	function sn_handle_gsc_property_save( $post ) { return 'gsc_property_saved'; }
+	function sn_handle_analytics_publish_window_save( $post ) { return 'analytics_publish_window_saved'; }
+	function sn_handle_north_star_save( $post ) { return 'north_star_saved'; }
 	$GLOBALS['__handler_calls'] = array();
 
 	// The rewrite half of the view needs core's WP_HTML_Tag_Processor. Found on
@@ -554,6 +565,52 @@ namespace {
 		ok( 'accounts' === $st8->get( 'sub' ) && ( is_array( $case[3] ) ? $case[3] === $notice : $case[3] === ( $notice[0] ?? '' ) && '' !== (string) ( $notice[1] ?? '' ) ) && $case[4] === $st8->get( 'saved' ) && false === strpos( implode( ' ', $notice ) . implode( ' ', $os8->toasts ), 'fake-value' ),
 			"Settings > Accounts and connections: $case[1] (nonce $case[0]) lands back on the pane with its notice, which does not repeat the value" );
 	}
+	// Settings > Analytics (2026-11): each save on the shared dispatcher (the
+	// feed tracking save has its own hook: tests/rss-tracker-admin-post.php) is answered on the
+	// pane, sub analytics under the settings tab, never on the Measurement leaf
+	// the form came from (the Worker URL form named that leaf in hidden fields
+	// until it moved), and no notice repeats a posted URL.
+	$st10 = new \OpenStation\App\State( $app->state, array( 'sub' => 'analytics' ) );
+	foreach ( array(
+		array( 'col-nonce', 'sn_analytics_collector_save', array( 'sn_an_collector_url' => 'https://fake-collector.example.test/_sn/px' ), 'success', true ),
+		array( 'excl-nonce', 'sn_analytics_exclude_save', array( 'sn_exclude_roles[0]' => 'administrator', 'sn_exclude_roles[1]' => '' ), 'success', true ),
+		array( 'tune-nonce', 'sn_analytics_tuning_save', array( 'sn_signal_baseline_days' => '45', 'sn_anomaly_sensitivity' => 'strict' ), 'success', true ),
+		array( 'fun-nonce', 'sn_analytics_funnels_save', array( 'sn_funnels' => 'Home flow: / > /notes/' ), 'success', true ),
+		array( 'mr-nonce', 'sn_machine_readers_save', array( 'sn_mr_worker_url' => 'https://fake-sensor.example.test' ), 'success', true ),
+		array( 'ins-nonce', 'sn_save_insights_settings', array( 'insights_weekly_cron' => '1' ), 'success', true ),
+		array( 'pw-nonce', 'sn_analytics_publish_window_save', array( 'sn_publish_window_minutes' => '90' ), 'success', true ),
+		array( 'ns-nonce', 'sn_north_star_save', array( 'sn_nsm_sections[0]' => 'notes', 'sn_nsm_scroll' => '60', 'sn_nsm_dwell_s' => '45' ), 'success', true ),
+		array( 'stale', 'sn_analytics_collector_save', array( 'sn_an_collector_url' => 'https://fake-collector.example.test/_sn/px' ), 'error', false ),
+	) as $case ) {
+		$os10 = new \OpenStation\App\Os(); $os10->view = 'settings';
+		$app->actions['post']( $st10, $os10, array( 'values' => array( '_wpnonce' => $case[0], 'action' => $case[1] ) + $case[2] ) );
+		$notice = (array) $st10->get( 'notice' );
+		ok( 'analytics' === $st10->get( 'sub' ) && $case[3] === ( $notice[0] ?? '' ) && '' !== (string) ( $notice[1] ?? '' ) && $case[4] === $st10->get( 'saved' ) && false === strpos( implode( ' ', $notice ) . implode( ' ', $os10->toasts ), 'fake-' ),
+			"Settings > Analytics: $case[1] (nonce $case[0]) lands back on the pane with its notice, which does not repeat the URL" );
+	}
+	// The Accounts pane's two Search Console saves land on that pane too, and
+	// the notice says nothing of the pasted key file.
+	$st11 = new \OpenStation\App\State( $app->state, array( 'sub' => 'accounts' ) );
+	foreach ( array(
+		array( 'gsc-nonce', 'sn_gsc_credential_save', array( 'sn_gsc_credential' => '{"type":"service_account","fake":"FAKE-JSON-FOR-TEST"}' ), 'success' ),
+		array( 'gsc-nonce', 'sn_gsc_credential_save', array( 'sn_gsc_credential' => '' ), 'info' ),
+		array( 'prop-nonce', 'sn_gsc_property_save', array( 'sn_gsc_property' => 'sc-domain:fake.example.test' ), 'success' ),
+	) as $case ) {
+		$os11 = new \OpenStation\App\Os(); $os11->view = 'settings';
+		$app->actions['post']( $st11, $os11, array( 'values' => array( '_wpnonce' => $case[0], 'action' => $case[1] ) + $case[2] ) );
+		$notice = (array) $st11->get( 'notice' );
+		ok( 'accounts' === $st11->get( 'sub' ) && $case[3] === ( $notice[0] ?? '' ) && '' !== (string) ( $notice[1] ?? '' ) && false === stripos( implode( ' ', $notice ) . implode( ' ', $os11->toasts ), 'fake' ),
+			"Settings > Accounts and connections: $case[1] lands back on the pane with a $case[3] notice that says nothing of what was pasted" );
+	}
+	// In flight across the move: a Measurement-tab session painted before the
+	// update still holds the Worker URL form with its hidden tab and sub. Its
+	// save runs and is answered on the leaf it was posted from.
+	$os12 = new \OpenStation\App\Os(); $os12->view = 'monitoring';
+	$st12 = new \OpenStation\App\State( $app->state, array( 'sub' => 'machine-readers' ) );
+	$app->actions['post']( $st12, $os12, array( 'values' => array( '_wpnonce' => 'mr-nonce', 'action' => 'sn_machine_readers_save', 'tab' => 'monitoring', 'sub' => 'machine-readers', 'sn_mr_worker_url' => 'https://fake-sensor.example.test' ) ) );
+	// (This harness's registry has no Machine Readers leaf, so the tab's first leaf stands in for it.)
+	ok( in_array( $st12->get( 'sub' ), array( 'machine-readers', 'analytics' ), true ) && 'success' === ( $st12->get( 'notice' )[0] ?? '' ) && 'Machine Readers sensor settings saved. The panels read with the new credentials on the next load.' === ( $st12->get( 'notice' )[1] ?? '' ), 'a save in flight from the old Measurement > Machine Readers form is still applied and answered on the Measurement tab: ' . $st12->get( 'sub' ) );
+
 	// In flight across the move: a Connections-tab session painted before the
 	// update still holds sub=credentials. Its save runs, and the answer paints
 	// on that tab's first leaf, never a blank.

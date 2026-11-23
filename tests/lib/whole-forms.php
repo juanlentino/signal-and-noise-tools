@@ -39,6 +39,35 @@
  *   nothing by omission (no `key_id` is refused, an empty `key_value` changes
  *   nothing), but the picker and the value are useless apart.
  *
+ * Eight more back Settings > Analytics:
+ *
+ * - sn_handle_analytics_exclude_save() (inc/admin-post-actions/analytics.php)
+ *   writes the whole role list from `?? array()`: a form without the roles
+ *   counts every role again. The role controls are generated per role, so
+ *   the rule for it is one form, holding one control per role.
+ * - sn_handle_analytics_tuning_save() (same file) writes the baseline window
+ *   (`?? 30`) and the sensitivity (`?? 'standard'`): a form with one resets
+ *   the other.
+ * - sn_handle_analytics_funnels_save() (same file) parses the textarea from
+ *   `?? ''` and saves the result: a form without it saves no funnels.
+ * - sn_handle_machine_readers_save() (same file) writes the Worker URL from
+ *   `?? ''`, which clears it. The read token is left alone when blank.
+ * - sn_handle_save_insights_settings() (inc/admin-post-actions/health-insights.php)
+ *   writes the weekly scan switch from `! empty()`, its only field.
+ * - sn_rss_tracker_handle_form() (inc/rss-feed-tracker-form-parts.php) rebuilds
+ *   the tracker's option on a save: the switch from `! empty()`, the event
+ *   name and the retention from their defaults when missing.
+ * - sn_handle_analytics_publish_window_save() (inc/publish-window-settings.php)
+ *   sets a missing window length back to 60, its only field.
+ * - sn_handle_north_star_save() (inc/north-star-settings.php) writes the page
+ *   groups (none posted: every group counts), the scroll depth (`?? 50`) and
+ *   the time on page (`?? 30`) as one setting. The groups are one select per
+ *   group, so the rule adds: one form, holding one per group.
+ *
+ * sn_handle_analytics_collector_save(), sn_handle_gsc_credential_save() and
+ * sn_handle_gsc_property_save() reset nothing: a missing or empty field is
+ * refused or changes nothing.
+ *
  * So a form posting one of these actions must carry every field the handler
  * writes, or, as a HIDDEN field so it rides every submit, a verb the handler
  * returns on first. A submit button's name does not count: it is sent only
@@ -92,3 +121,24 @@ const SNT_INDEXNOW_SAVE_FIELDS = array( 'indexnow_enabled' );
 
 /** The two fields sn_handle_keyring_save() reads: which row, and what to do with it. */
 const SNT_KEYRING_SAVE_FIELDS = array( 'key_id', 'key_value' );
+
+/** The two fields sn_handle_analytics_tuning_save() writes on every save. */
+const SNT_ANALYTICS_TUNING_SAVE_FIELDS = array( 'sn_signal_baseline_days', 'sn_anomaly_sensitivity' );
+
+/** The one field sn_handle_analytics_funnels_save() writes on every save. */
+const SNT_ANALYTICS_FUNNELS_SAVE_FIELDS = array( 'sn_funnels' );
+
+/** The one field sn_handle_machine_readers_save() clears when it is missing. */
+const SNT_MR_SAVE_FIELDS = array( 'sn_mr_worker_url' );
+
+/** The one field sn_handle_save_insights_settings() writes on every save. */
+const SNT_INSIGHTS_SAVE_FIELDS = array( 'insights_weekly_cron' );
+
+/** The three fields the RSS tracker's save rebuilds its option from. */
+const SNT_RSS_SAVE_FIELDS = array( 'enabled', 'event_name', 'log_retention_days' );
+
+/** The one field sn_handle_analytics_publish_window_save() writes on every save. */
+const SNT_PUBLISH_WINDOW_SAVE_FIELDS = array( 'sn_publish_window_minutes' );
+
+/** The two fixed fields sn_handle_north_star_save() writes beside its page groups. */
+const SNT_NORTH_STAR_SAVE_FIELDS = array( 'sn_nsm_scroll', 'sn_nsm_dwell_s' );

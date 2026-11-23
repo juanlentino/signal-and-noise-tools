@@ -2,7 +2,7 @@
 /**
  * Tests for the settings-leaf prune (v9.45.0 design, §1-§4):
  *  - snt_an_settings_fold(): the native <details> writable-column wrapper.
- *  - Per-form snapshot builders: credentials / exclusion / tuning / funnels.
+ *  - The credentials snapshot builder (the other four left with their folds, 2026-11).
  *  - sn_analytics_pipeline_complete(): the shared completeness seam behind
  *    both the credentials fold's open state and the worker-setup conditional.
  *  - snt_analytics_render_worker_setup(): renders ONLY while incomplete.
@@ -112,34 +112,10 @@ ok( 'Configured' === snt_an_credentials_snapshot(), 'configured via options only
 if ( ! defined( 'SN_CF_ACCOUNT_ID' ) ) { define( 'SN_CF_ACCOUNT_ID', 'abc123' ); }
 ok( 'Configured: locked by wp-config' === snt_an_credentials_snapshot(), 'configured AND locked by a wp-config constant' );
 
-echo "\nGroup: exclusion snapshot. Off / singular / plural\n";
-$GLOBALS['__settings']['analytics.exclude_roles'] = array();
-ok( 'Off' === snt_an_exclusion_snapshot(), 'no excluded roles' );
-$GLOBALS['__settings']['analytics.exclude_roles'] = array( 'editor' );
-ok( '1 role excluded' === snt_an_exclusion_snapshot(), 'singular (1 role)' );
-$GLOBALS['__settings']['analytics.exclude_roles'] = array( 'editor', 'author' );
-ok( '2 roles excluded' === snt_an_exclusion_snapshot(), 'plural (2 roles)' );
-
-echo "\nGroup: tuning snapshot: baseline + preset label (reuses the radio labels)\n";
-$GLOBALS['__settings']['analytics.signal_baseline_days'] = 30;
-$GLOBALS['__settings']['analytics.anomaly_sensitivity']   = 'standard';
-ok( '30-day baseline · Standard: designed default (≈3.5σ)' === snt_an_tuning_snapshot(), 'default snapshot' );
-$GLOBALS['__settings']['analytics.signal_baseline_days'] = 60;
-$GLOBALS['__settings']['analytics.anomaly_sensitivity']   = 'strict';
-ok( '60-day baseline · Strict: only extremes (≈4.5σ)' === snt_an_tuning_snapshot(), 'stored preset (strict) reflected' );
-$GLOBALS['__settings']['analytics.anomaly_sensitivity'] = 'garbage-preset';
-ok( strpos( snt_an_tuning_snapshot(), 'Standard' ) !== false, 'unknown stored preset falls back to standard (engine parity)' );
-$GLOBALS['__settings']['analytics.signal_baseline_days'] = 30;
-$GLOBALS['__settings']['analytics.anomaly_sensitivity']   = 'standard';
-
-echo "\nGroup: funnels snapshot. None / singular / plural\n";
-$GLOBALS['__settings']['analytics.funnels'] = array();
-ok( 'None' === snt_an_funnels_snapshot(), 'no funnels' );
-$GLOBALS['__settings']['analytics.funnels'] = array( array( 'name' => 'a' ) );
-ok( '1 funnel' === snt_an_funnels_snapshot(), 'singular (1 funnel)' );
-$GLOBALS['__settings']['analytics.funnels'] = array( array( 'name' => 'a' ), array( 'name' => 'b' ) );
-ok( '2 funnels' === snt_an_funnels_snapshot(), 'plural (2 funnels)' );
-$GLOBALS['__settings']['analytics.funnels'] = array();
+// 2026-11: the exclusion, tuning and funnels snapshot builders (and the
+// collector's) summarized closed folds on Measurement > Analytics. Those four
+// forms are open boxes on Settings > Analytics now, so the builders were deleted.
+ok( ! function_exists( 'snt_an_collector_snapshot' ) && ! function_exists( 'snt_an_exclusion_snapshot' ) && ! function_exists( 'snt_an_tuning_snapshot' ) && ! function_exists( 'snt_an_funnels_snapshot' ), 'the four snapshot builders whose folds are gone are gone too; credentials keeps its own' );
 
 echo "\nGroup: credentials fold open-state (§2): the review-fold pin for both directions\n";
 an_all_pipeline_ok();

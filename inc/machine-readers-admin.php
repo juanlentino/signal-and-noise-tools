@@ -184,16 +184,17 @@ function snt_mr_render_tab() {
 	$info   = snt_mr_sensor_info();
 	$status = snt_mr_crawler_list_status();
 
-	// The settings fields echo; capture them so the composer stays pure. Open,
-	// never folded: configuration is this leaf's question now.
+	// 2026-11: the Worker URL is a setting and moved to Settings > Analytics
+	// (snt_mr_render_url_form(), called from that pane). The read token's state
+	// is a reading and stayed, with the line saying where the URL went.
 	ob_start();
-	snt_mr_render_settings_fields(
-		defined( 'SN_MR_WORKER_URL' ) && '' !== (string) SN_MR_WORKER_URL,
+	snt_mr_render_token_status(
 		defined( 'SN_MR_READ_TOKEN' ) && '' !== (string) SN_MR_READ_TOKEN,
-		function_exists( 'sn_setting' ) ? (string) sn_setting( 'machine_readers.worker_url', '' ) : '',
-		function_exists( 'sn_setting' ) && '' !== (string) sn_setting( 'machine_readers.read_token', '' ),
-		defined( 'SN_MR_DEFAULT_ENDPOINT' ) ? SN_MR_DEFAULT_ENDPOINT : ''
+		function_exists( 'sn_setting' ) && '' !== (string) sn_setting( 'machine_readers.read_token', '' )
 	);
+	if ( function_exists( 'snt_settings_analytics_moved_line' ) ) {
+		snt_settings_analytics_moved_line( 'machine-readers' );
+	}
 	$settings_html = (string) ob_get_clean();
 
 	$verdicts = array();
@@ -219,17 +220,20 @@ function snt_mr_render_tab() {
 
 
 /**
- * The fields themselves (v10.1.1 extraction, so the Analytics fold can wrap
- * them without the form markup changing).
+ * The Worker URL form, painted on Settings > Analytics since 2026-11. It is
+ * the form the leaf had, field for field, minus the hidden tab and sub that
+ * named the leaf (a POST field outranks the address, so with them a save from
+ * the pane would land on Measurement). ONE field in ONE form:
+ * sn_handle_machine_readers_save() writes the URL on every save, and a
+ * missing field clears it. While SN_MR_WORKER_URL locks it the input is
+ * disabled, as it was.
  *
- * @param bool   $url_locked   Worker URL locked by constant.
- * @param bool   $token_locked Read token locked by constant.
- * @param string $stored_url   Stored worker URL.
- * @param bool   $has_token    Whether a token is stored.
- * @param string $default_url  Built-in endpoint (placeholder).
+ * @param bool   $url_locked  Worker URL locked by constant.
+ * @param string $stored_url  Stored worker URL.
+ * @param string $default_url Built-in endpoint (placeholder).
  */
-function snt_mr_render_settings_fields( $url_locked, $token_locked, $stored_url, $has_token, $default_url ) {
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-mr-settings"><input type="hidden" name="tab" value="monitoring"><input type="hidden" name="sub" value="machine-readers">';
+function snt_mr_render_url_form( $url_locked, $stored_url, $default_url ) {
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-mr-settings">';
 	wp_nonce_field( 'sn_machine_readers_save' );
 	echo '<input type="hidden" name="action" value="sn_machine_readers_save">';
 
@@ -237,14 +241,22 @@ function snt_mr_render_settings_fields( $url_locked, $token_locked, $stored_url,
 	echo '<input type="url" class="regular-text" id="sn_mr_worker_url" name="sn_mr_worker_url" value="' . esc_attr( $stored_url ) . '" placeholder="' . esc_attr( $default_url ) . '"' . ( $url_locked ? ' disabled' : '' ) . '>';
 	echo '<p class="sn-field-helper">' . ( $url_locked ? 'Locked by the <code>SN_MR_WORKER_URL</code> constant in wp-config.php.' : 'Blank uses the built-in live endpoint. A <code>SN_MR_WORKER_URL</code> constant in wp-config.php overrides both.' ) . '</p></div>';
 
-	// 15.2.0: the read token is a row on the keyring (Settings › Accounts and connections),
-	// a shared secret with the sensor and not a Cloudflare token; the field left
-	// with the mistake it invited. This form keeps the URL.
-	echo '<div class="sn-field"><span class="sn-field-label">Read token ' . ( $token_locked ? '<span class="sn-pill sn-pill--ok">constant</span>' : ( $has_token ? '<span class="sn-pill sn-pill--ok">set</span>' : '<span class="sn-pill sn-pill--warn">not set</span>' ) ) . '</span>';
-	echo '<p class="sn-field-helper">' . ( $token_locked ? 'Locked by the <code>SN_MR_READ_TOKEN</code> constant in wp-config.php.' : 'Set under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=settings&sub=accounts' ) ) . '">Settings › Accounts and connections</a>: a shared secret with the sensor, the same value as the worker\'s <code>SN_MR_READ_TOKEN</code>. Not a Cloudflare token.' ) . '</p></div>';
-
 	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save sensor settings</button></div>';
 	echo '</form>';
+}
+
+/**
+ * The read token's state, which the leaf keeps: a pill and where it is set.
+ * 15.2.0: the token is a row on the keyring (Settings › Accounts and
+ * connections), a shared secret with the sensor and not a Cloudflare token.
+ * Never the value.
+ *
+ * @param bool $token_locked Read token locked by constant.
+ * @param bool $has_token    Whether a token is stored.
+ */
+function snt_mr_render_token_status( $token_locked, $has_token ) {
+	echo '<div class="sn-field"><span class="sn-field-label">Read token ' . ( $token_locked ? '<span class="sn-pill sn-pill--ok">constant</span>' : ( $has_token ? '<span class="sn-pill sn-pill--ok">set</span>' : '<span class="sn-pill sn-pill--warn">not set</span>' ) ) . '</span>';
+	echo '<p class="sn-field-helper">' . ( $token_locked ? 'Locked by the <code>SN_MR_READ_TOKEN</code> constant in wp-config.php.' : 'Set under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=settings&sub=accounts' ) ) . '">Settings › Accounts and connections</a>: a shared secret with the sensor, the same value as the worker\'s <code>SN_MR_READ_TOKEN</code>. Not a Cloudflare token.' ) . '</p></div>';
 }
 
 /**

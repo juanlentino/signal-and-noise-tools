@@ -28,6 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/monitoring-rss-parts.php';
+require_once __DIR__ . '/settings-analytics-parts.php'; // settings_analytics_moved_html(): the line saying where the three settings went.
 require_once __DIR__ . '/monitoring-rss-setup.php'; // the status line and the Setup card
 
 /**

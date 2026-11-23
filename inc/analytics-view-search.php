@@ -249,11 +249,11 @@ function snt_analytics_render_view_search() {
 	// Which is exactly what shipped in v11.19.0: three early returns queued a
 	// note, returned, and rendered a blank tab.
 	if ( ! function_exists( 'snt_gsc_credential_is_configured' ) || ! snt_gsc_credential_is_configured() ) {
-		snt_gsc_render_setup_notice( __( 'No Search Console credential yet. Add one under Measurement → Search Console.', 'signal-and-noise-tools' ) );
+		snt_gsc_render_setup_notice( __( 'No Search Console credential yet. Add one under Settings › Accounts and connections.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	if ( '' === (string) sn_setting( 'search_console.property', '' ) ) {
-		snt_gsc_render_setup_notice( __( 'The credential is stored, but no property is selected yet. Open Measurement → Search Console, run Test connection, then choose the property to read.', 'signal-and-noise-tools' ) );
+		snt_gsc_render_setup_notice( __( 'The credential is stored, but no property is selected yet. Open Measurement → Search Console, run Test connection, then choose the property in Settings › Accounts and connections.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	if ( null === $data ) {
