@@ -118,5 +118,26 @@ unset( $_GET['sn_rss_ok'] );
 $said_k = snt_leaf_paint( 'settings', 'analytics', array( 'params' => array( 'sn_rss_ok' => 'saved' ) ) );
 ok( false !== strpos( $said_c, 'Settings saved.' ) && false !== strpos( $said_k, 'Settings saved.' ) && false === strpos( sa_classic() . sa_kit(), 'Settings saved.' ), 'the pane paints the tracker\'s "Settings saved." when the save\'s landing carries sn_rss_ok, on both twins, and not otherwise' );
 
+// ── 6) This device: on the pane beside Roles kept out, on both twins, for a user whose role is excluded.
+ok( false === strpos( $classic . $kit, 'sn_owner_device' ) && false === strpos( $classic . $kit, 'This device is' ), 'a user whose role is counted is offered no device control on either twin' );
+$GLOBALS['__owner_excluded'] = true;
+foreach ( array( false => array( 'This device is counted when logged out.', 'Exclude this device', 'mark' ), true => array( 'This device is excluded even when logged out.', 'Count this device again', 'forget' ) ) as $flagged => $say ) {
+	$GLOBALS['__device_flagged'] = (bool) $flagged;
+	$dev_c  = sa_classic();
+	$dev_k  = sa_kit();
+	$box_c  = (string) substr( $dev_c, (int) strpos( $dev_c, '>Roles kept out</h2>' ), (int) strpos( $dev_c, '>Engine tuning</h2>' ) - (int) strpos( $dev_c, '>Roles kept out</h2>' ) );
+	$box_k  = (string) substr( $dev_k, (int) strpos( $dev_k, '<os-section heading="Roles kept out"' ), (int) strpos( $dev_k, '<os-section heading="Engine tuning"' ) - (int) strpos( $dev_k, '<os-section heading="Roles kept out"' ) );
+	$form_k = sa_form( $box_k, 'os-form', 'analytics_owner_device' );
+	ok( 1 === substr_count( $dev_c, $say[0] ) && 1 === substr_count( $box_c, $say[0] ) && 1 === substr_count( $dev_k, $say[0] ) && 1 === substr_count( $box_k, $say[0] ), "excluded role, device $say[2]: \"$say[0]\" is said once on each twin, in the Roles kept out box" );
+	ok( 1 === preg_match( '#<a href="[^"]*sn_owner_device=' . $say[2] . '[^"]*_wpnonce=nonce-sn_owner_device">' . $say[1] . '</a>#', $box_c ), "classic: the nonce'd link \"$say[1]\" it always was (sn_owner_device=$say[2])" );
+	ok( '' !== $form_k && false !== strpos( $form_k, 'submit-label="' . $say[1] . '"' ) && false !== strpos( $form_k, 'name="sn_owner_device" value="' . $say[2] . '"' ) && false !== strpos( $box_k, '<os-cluster gap="8" class="snt-actions"><p class="snt-hint">' . $say[0] . '</p><os-form class="snt-form snt-form--inline"' ), "native: one form posts analytics_owner_device=$say[2], labeled \"$say[1]\", its line and compact button on one row as they were on Measurement" );
+	ok( strpos( $box_k, 'sn_analytics_owner_device' ) > strpos( $box_k, 'sn_analytics_exclude_save' ) && 1 === count( sa_forms( $box_k, 'os-form', 'analytics_exclude_save' ) ) && false === strpos( sa_form( $box_k, 'os-form', 'analytics_exclude_save' ), 'sn_owner_device' ), 'native: the device form follows the roles form and is not inside it, so Save exclusion never posts the device verb' );
+	$with = array_merge( $actions, array( 'analytics_owner_device' ) );
+	sort( $with );
+	ok( $with === snt_leaf_actions( $dev_k ) && $actions === snt_leaf_actions( $dev_c ), 'native gains the one action analytics_owner_device and nothing else; the classic link is a GET, so its actions are the nine' );
+}
+$GLOBALS['__owner_excluded'] = false;
+$GLOBALS['__device_flagged'] = false;
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

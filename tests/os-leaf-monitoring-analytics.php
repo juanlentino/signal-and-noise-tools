@@ -359,18 +359,28 @@ ok( false !== strpos( $kit, 'locked by SN_CF_ACCOUNT_ID' ) && false !== strpos( 
 ok( normalize_exclude_names( snt_leaf_names( $classic ) ) === normalize_exclude_names( snt_leaf_names( $kit ) ), 'locked: kit field names still match the classic set (role list folded back to its shared name): ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 
 // ── 2026-10-12 audit: the classic box let an excluded user exclude this
-// device even when logged out; S&N Home had no such control.
+// device even when logged out; S&N Home had no such control. 2026-11: the
+// classic box is on Settings › Analytics, so the control left the Your devices
+// card for the pane's Roles kept out box (tests/os-leaf-settings-analytics.php
+// pins it there on both twins). The card keeps one line saying where it went,
+// for the user who was offered it.
+const AN_DEVICE_LINE = '<p class="snt-hint">Excluding this device when logged out, or counting it again, moved to <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="analytics" data-snt-anchor="">Settings › Analytics</os-button>.</p>';
 $GLOBALS['__device_flagged'] = false;
 if ( ! function_exists( 'sn_owner_device_flagged' ) ) { function sn_owner_device_flagged() { return $GLOBALS['__device_flagged']; } }
 $GLOBALS['__excluded_now'] = true;
-$dev = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( false !== strpos( $dev, '<p class="snt-hint">This device is counted when logged out.</p>' ) && 1 === preg_match( '#<os-form[^>]*submit-label="Exclude this device"[^>]*>(?:(?!</os-form>).)*name="sn_owner_device" value="mark"(?:(?!</os-form>).)*value="sn_analytics_owner_device"#s', $dev ), 'excluded user: the device line and an Exclude this device form posting analytics_owner_device=mark' );
-ok( false !== strpos( $dev, '<os-cluster gap="8" class="snt-actions"><p class="snt-hint">This device is counted when logged out.</p><os-form class="snt-form snt-form--inline"' ), 'excluded user: the device line and its compact button share one line (2026-10-16)' );
-$GLOBALS['__device_flagged'] = true;
-$dev = snt_leaf_paint( 'monitoring', 'analytics' );
-ok( false !== strpos( $dev, 'This device is excluded even when logged out.' ) && false !== strpos( $dev, 'submit-label="Count this device again"' ) && false !== strpos( $dev, 'name="sn_owner_device" value="forget"' ), 'a flagged device offers Count this device again (forget)' );
+foreach ( array( false, true ) as $an_flagged ) {
+	$GLOBALS['__device_flagged'] = $an_flagged;
+	$dev      = snt_leaf_paint( 'monitoring', 'analytics' );
+	$dev_card = (string) substr( $dev, (int) strpos( $dev, '<os-section heading="Your devices"' ), (int) strpos( $dev, '<os-section heading="Setup"' ) - (int) strpos( $dev, '<os-section heading="Your devices"' ) );
+	ok( false === strpos( $dev, 'sn_owner_device"' ) && ! in_array( 'analytics_owner_device', snt_leaf_actions( $dev ), true ) && false === strpos( $dev, 'This device is' ) && false === strpos( $dev, 'submit-label="Exclude this device"' ) && false === strpos( $dev, 'submit-label="Count this device again"' ), 'excluded user, device ' . ( $an_flagged ? 'flagged' : 'counted' ) . ': the leaf has no This device line and no analytics_owner_device form; the control is on the pane' );
+	ok( 1 === substr_count( $dev, AN_DEVICE_LINE ) && 1 === substr_count( $dev_card, AN_DEVICE_LINE ), 'and the Your devices card says where it went, once, with an in-window link to Settings › Analytics' );
+}
+$GLOBALS['__device_flagged'] = false;
+$dev_pane = snt_leaf_paint( 'settings', 'analytics' );
+ok( 1 === preg_match( '#<os-section heading="Roles kept out"(?:(?!<os-section).)*<os-form[^>]*submit-label="Exclude this device"[^>]*>(?:(?!</os-form>).)*name="sn_owner_device" value="mark"(?:(?!</os-form>).)*value="sn_analytics_owner_device"#s', $dev_pane ), 'excluded user: the pane\'s Roles kept out box holds the Exclude this device form posting analytics_owner_device=mark' );
 $GLOBALS['__excluded_now'] = false;
-ok( false === strpos( snt_leaf_paint( 'monitoring', 'analytics' ), 'sn_owner_device' ), 'a counted user is offered no device control, as on the classic box' );
+$dev = snt_leaf_paint( 'monitoring', 'analytics' );
+ok( false === strpos( $dev, 'sn_owner_device"' ) && false === strpos( $dev, 'Excluding this device' ) && false === strpos( snt_leaf_paint( 'settings', 'analytics' ), 'sn_owner_device' ), 'a counted user is offered no device control on the pane and no line about one on the leaf, as on the classic box' );
 
 // ── Worker unreachable: the warning branch, no Test-connection field noise.
 // Clear the last-good option first — otherwise the stale-fallback branch
@@ -526,7 +536,7 @@ ok( 1 === preg_match( '#<os-stat value="4,473" label="5xx at the edge" caption="
 $an_row = snt_leaf_row( 2, 290, 24 );
 ok( false !== strpos( $kit, $an_row . '<os-section heading="Your devices"' ) && strpos( $kit, 'heading="Your devices"' ) < strpos( $kit, '<os-section heading="Setup"' ), 'layout: Your devices | Setup, in one kit grid that collapses on a narrow window (North star, the third, left for Settings › Analytics in 2026-11)' );
 $an_dev = (string) substr( $kit, (int) strpos( $kit, '<os-section heading="Your devices"' ), (int) strpos( $kit, '<os-section heading="Setup"' ) - (int) strpos( $kit, '<os-section heading="Your devices"' ) );
-ok( 1 === preg_match( '#<os-section heading="Your devices"[^>]*>(?:(?!<os-disclosure).)*submit-label="(?:Exclude this device|Count this device again)"#s', $an_dev ), 'layout: Your devices is an open card, its controls before any fold' );
+ok( 1 === preg_match( '#<os-section heading="Your devices"[^>]*>(?:(?!<os-disclosure).)*Excluding this device when logged out, or counting it again, moved to #s', $an_dev ), 'layout: Your devices is an open card, the line about This device before any fold' );
 ok( array( 'Credentials', 'Edge worker and salt', 'Configured elsewhere' ) === an_fold_headings( (string) substr( $kit, (int) strpos( $kit, '<os-section heading="Setup"' ) ) ) && 0 === preg_match( '/<os-disclosure heading="[^"]+" hint=""/', $kit ), 'layout: Setup holds the three folds that stayed, in order, each with a summary that answers when closed (four setting folds left for Settings › Analytics in 2026-11; Publish windows joins them where its module is loaded)' );
 unset( $GLOBALS['__options'][ SN_CF_MONITOR_OPT ] );
 $GLOBALS['__excluded_now'] = false;

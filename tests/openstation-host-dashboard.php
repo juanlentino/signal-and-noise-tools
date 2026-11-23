@@ -148,7 +148,7 @@ namespace {
 	// One nonce per ACTION: the estate mints four, and a global "valid" would
 	// hide the very confusion the pipelines exist to end.
 	function wp_verify_nonce( $nonce, $action = -1 ) {
-		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'login-nonce' => 'sn_save_login', 'ret-nonce' => 'sn_audit_save_retention', 'ai-nonce' => 'sn_ai_settings_save', 'reads-nonce' => 'sn_scheduled_reads_save', 'remote-nonce' => 'sn_remote_toggle', 'rw-nonce' => 'sn_bind_mcp_rw_credential', 'read-nonce' => 'sn_bind_mcp_read_credential', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults', 'theme-nonce' => 'sn_save_theme', 'perf-nonce' => 'sn_perf_save', 'key-nonce' => 'sn_keyring_save', 'zen-nonce' => 'sn_zenodo_env_save', 'line-nonce' => 'sn_zenodo_doi_line_save', 'in-nonce' => 'sn_indexnow_save', 'music-nonce' => 'sn_music_save', 'col-nonce' => 'sn_analytics_collector_save', 'excl-nonce' => 'sn_analytics_exclude_save', 'tune-nonce' => 'sn_analytics_tuning_save', 'fun-nonce' => 'sn_analytics_funnels_save', 'mr-nonce' => 'sn_machine_readers_save', 'ins-nonce' => 'sn_save_insights_settings', 'gsc-nonce' => 'sn_gsc_credential_save', 'prop-nonce' => 'sn_gsc_property_save', 'pw-nonce' => 'sn_analytics_publish_window_save', 'ns-nonce' => 'sn_north_star_save' );
+		$minted = array( 'good-nonce' => 'sn_save_identity', 'brief-nonce' => 'sn_morning_brief_save', 'login-nonce' => 'sn_save_login', 'ret-nonce' => 'sn_audit_save_retention', 'ai-nonce' => 'sn_ai_settings_save', 'reads-nonce' => 'sn_scheduled_reads_save', 'remote-nonce' => 'sn_remote_toggle', 'rw-nonce' => 'sn_bind_mcp_rw_credential', 'read-nonce' => 'sn_bind_mcp_read_credential', 'hook-nonce' => 'sn_webhook_add', 'prune-nonce' => 'sn_audit_prune_now', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_reset_defaults', 'theme-nonce' => 'sn_save_theme', 'perf-nonce' => 'sn_perf_save', 'key-nonce' => 'sn_keyring_save', 'zen-nonce' => 'sn_zenodo_env_save', 'line-nonce' => 'sn_zenodo_doi_line_save', 'in-nonce' => 'sn_indexnow_save', 'music-nonce' => 'sn_music_save', 'col-nonce' => 'sn_analytics_collector_save', 'excl-nonce' => 'sn_analytics_exclude_save', 'dev-nonce' => 'sn_analytics_owner_device', 'tune-nonce' => 'sn_analytics_tuning_save', 'fun-nonce' => 'sn_analytics_funnels_save', 'mr-nonce' => 'sn_machine_readers_save', 'ins-nonce' => 'sn_save_insights_settings', 'gsc-nonce' => 'sn_gsc_credential_save', 'prop-nonce' => 'sn_gsc_property_save', 'pw-nonce' => 'sn_analytics_publish_window_save', 'ns-nonce' => 'sn_north_star_save' );
 		return ( isset( $minted[ $nonce ] ) && $minted[ $nonce ] === $action ) ? 1 : false;
 	}
 	// The interceptor needs real hook plumbing, a real wp_redirect (which filters
@@ -270,6 +270,7 @@ namespace {
 	function sn_handle_gsc_property_save( $post ) { return 'gsc_property_saved'; }
 	function sn_handle_analytics_publish_window_save( $post ) { return 'analytics_publish_window_saved'; }
 	function sn_handle_north_star_save( $post ) { return 'north_star_saved'; }
+	function sn_handle_analytics_owner_device( $post ) { return 'analytics_exclude_saved'; }
 	$GLOBALS['__handler_calls'] = array();
 
 	// The rewrite half of the view needs core's WP_HTML_Tag_Processor. Found on
@@ -582,6 +583,8 @@ namespace {
 		array( 'ins-nonce', 'sn_save_insights_settings', array( 'insights_weekly_cron' => '1' ), 'success', true ),
 		array( 'pw-nonce', 'sn_analytics_publish_window_save', array( 'sn_publish_window_minutes' => '90' ), 'success', true ),
 		array( 'ns-nonce', 'sn_north_star_save', array( 'sn_nsm_sections[0]' => 'notes', 'sn_nsm_scroll' => '60', 'sn_nsm_dwell_s' => '45' ), 'success', true ),
+		// This device, on the pane since 2026-11 (it was on Measurement > Analytics): a press lands back on the pane.
+		array( 'dev-nonce', 'sn_analytics_owner_device', array( 'sn_owner_device' => 'mark' ), 'success', true ),
 		array( 'stale', 'sn_analytics_collector_save', array( 'sn_an_collector_url' => 'https://fake-collector.example.test/_sn/px' ), 'error', false ),
 	) as $case ) {
 		$os10 = new \OpenStation\App\Os(); $os10->view = 'settings';

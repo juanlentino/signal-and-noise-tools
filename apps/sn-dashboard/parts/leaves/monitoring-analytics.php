@@ -35,7 +35,7 @@ require_once __DIR__ . '/monitoring-analytics-parts.php';
 require_once __DIR__ . '/settings-analytics-parts.php'; // settings_analytics_moved_html(): the line saying where this leaf's settings went.
 require_once __DIR__ . '/monitoring-analytics-status.php'; // the Pipeline card
 require_once __DIR__ . '/monitoring-analytics-setup.php'; // the Setup card, analytics_fold()
-require_once __DIR__ . '/monitoring-analytics-settings.php'; // this device (and the collector and roles forms the Settings pane paints)
+require_once __DIR__ . '/monitoring-analytics-settings.php'; // the collector, roles and This device forms the Settings pane paints
 require_once __DIR__ . '/monitoring-analytics-owner.php'; // Your devices (SN Traffic Lanes)
 require_once __DIR__ . '/monitoring-analytics-tuning.php'; // the Worker setup steps (and the tuning and funnels forms the Settings pane paints)
 
