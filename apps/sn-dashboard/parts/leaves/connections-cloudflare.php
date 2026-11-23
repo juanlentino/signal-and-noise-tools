@@ -67,7 +67,7 @@ function cloudflare_data() {
 
 /**
  * The keys, read-only since 15.2.0: where each of the three comes from, the
- * grant list, and the door to Connections › Credentials, where every key is
+ * grant list, and the door to Settings › Accounts and connections, where every key is
  * set. A Setup fold since 2026-10-16: the closed summary says which source is
  * set (never a value, not even masked), and it opens while the token or the
  * zone is missing. The analytics-token warning is the Status card's.
@@ -88,7 +88,7 @@ function cloudflare_keys_fold( array $d ) {
 		array( 'label' => __( 'Zone ID', 'signal-and-noise-tools' ), 'value' => $source( $d['zone_const_set'], 'SN_CLOUDFLARE_ZONE_ID', $d['zone'], $d['zone'] ) ),
 		array( 'label' => __( 'Account ID', 'signal-and-noise-tools' ), 'value' => $source( ! empty( $d['account_const_set'] ), 'SN_CF_ACCOUNT_ID', (string) ( $d['account'] ?? '' ), (string) ( $d['account'] ?? '' ) ) ),
 	) );
-	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'connections' ) ) . '.</p>';
+	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Settings › Accounts and connections', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'accounts', 'current' => 'connections' ) ) . '.</p>';
 	// 14.10.0: the grant list, one place to compare against the token summary.
 	if ( function_exists( 'sn_cf_required_grants' ) ) {
 		$rows = array();

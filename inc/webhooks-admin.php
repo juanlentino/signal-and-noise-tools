@@ -221,7 +221,7 @@ function sn_webhooks_render_admin_tab() {
 		}
 		echo '</tbody></table>';
 	}
-	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=connections&sub=credentials' ) ) . '">Connections › Credentials</a>.</p>';
+	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=settings&sub=accounts' ) ) . '">Settings › Accounts and connections</a>.</p>';
 	echo '</div>'; // .sn-fieldset
 
 	// ── RAIL: at-a-glance status + payload reference ──

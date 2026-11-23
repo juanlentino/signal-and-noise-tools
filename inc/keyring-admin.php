@@ -1,7 +1,7 @@
 <?php
 /**
  * Signal & Noise Tools — the keyring's row model and its classic leaf
- * (Connections › Credentials). The native leaf paints the same model
+ * (Settings › Accounts and connections). The native leaf paints the same model
  * (apps/sn-dashboard/parts/leaves/connections-keyring.php), so the two
  * agree by construction: one field name per row (`key_<id>`), two actions
  * (`keyring_save`, `keyring_verify`).
@@ -225,7 +225,7 @@ function sn_keyring_verified_at() {
 	return $at;
 }
 
-/** Connections → Credentials, classic (on the wrapper's action). 15.2.1: a ledger and one form. */
+/** Settings → Accounts and connections, classic (on the wrapper's action). 15.2.1: a ledger and one form. */
 function sn_admin_keyring_render() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;

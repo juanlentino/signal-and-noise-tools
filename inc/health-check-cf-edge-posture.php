@@ -35,7 +35,7 @@ function sn_health_check_cf_edge_posture() {
 		return sn_health_pack_check( $label, array(), $fix_hint, 'the edge posture has never been read; it reads daily with the Cloudflare monitor, or on Refresh now (Security › Firewall).' );
 	}
 	if ( empty( $record['configured'] ) ) {
-		return sn_health_pack_check( $label, array(), $fix_hint, 'Cloudflare is not configured (Connections › Credentials).' );
+		return sn_health_pack_check( $label, array(), $fix_hint, 'Cloudflare is not configured (Settings › Accounts and connections).' );
 	}
 	if ( (int) ( $record['fetched_at'] ?? 0 ) < time() - 2 * DAY_IN_SECONDS ) {
 		return sn_health_pack_check( $label, array(), $fix_hint, 'the edge posture record is older than two days; the daily read did not run.' );

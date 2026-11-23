@@ -2,9 +2,11 @@
 /**
  * Signal & Noise Tools -- Connections › Zenodo (classic leaf, 15.11.0).
  *
- * The environment switch, the ledger (every signed document with its DOI
- * state), one action. The tokens live in the keyring (Connections ›
- * Credentials), never here. See docs/zenodo-doi-design.md.
+ * The ledger (every signed document with its DOI state), the status and one
+ * action. The environment switch, the ledger concept DOI and the downloads
+ * line are on Settings › Accounts and connections since 2026-11, with the
+ * tokens (keyring rows); this leaf keeps one line saying so. See
+ * docs/zenodo-doi-design.md.
  *
  * @package SignalNoiseTools
  */
@@ -176,7 +178,7 @@ function sn_zenodo_state_label( $state ) {
  */
 function sn_zenodo_tile_state( $has_token, $verdict, $env, $minted, $total ) {
 	if ( ! $has_token ) {
-		return array( 'tone' => 'warn', 'badge' => 'Off', 'body' => sprintf( 'Add the %s token under Credentials.', $env ) );
+		return array( 'tone' => 'warn', 'badge' => 'Off', 'body' => sprintf( 'Add the %s token in Settings › Accounts and connections.', $env ) );
 	}
 	$status = is_array( $verdict ) ? (string) ( $verdict['status'] ?? '' ) : '';
 	if ( 'refused' === $status || 'error' === $status ) {
@@ -200,36 +202,16 @@ function sn_admin_render_zenodo_section() {
 
 	echo '<p class="sn-prose">Every signed document (the notes, the pillar essays) gets a DOI on <strong>Zenodo</strong> once its anchor is confirmed, with the Markdown, the signed record and the Bitcoin proof filed with it. The papers stay with SSRN. Sandbox DOIs are test DOIs and never reach a public surface.</p>';
 
-	echo '<div class="sn-2up">';
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';
-	wp_nonce_field( 'sn_zenodo_env_save' );
-	echo '<input type="hidden" name="action" value="sn_zenodo_env_save">';
-	echo '<h2 class="sn-fieldset-h">Environment</h2>';
-	echo '<div class="sn-field"><label for="sn_zenodo_env">Environment</label><select id="sn_zenodo_env" name="zenodo_env"><option value="sandbox"' . selected( $d['env'], 'sandbox', false ) . '>Sandbox (sandbox.zenodo.org): test DOIs, never public</option><option value="production"' . selected( $d['env'], 'production', false ) . '>Production (zenodo.org)</option></select></div>';
-	echo '<p class="sn-helper">Each environment reads its own token from Connections &rsaquo; Credentials.</p>';
-	echo '<div class="sn-field"><label for="sn_zenodo_ledger_doi">Ledger concept DOI</label><input type="text" id="sn_zenodo_ledger_doi" name="zenodo_ledger_doi" value="' . esc_attr( $d['ledger'] ) . '" placeholder="10.5281/zenodo.NNNNNNN" autocomplete="off"></div>';
-	echo '<p class="sn-helper">The DOI Zenodo minted for the ledger repository\'s monthly snapshot (the concept DOI, which resolves to the latest snapshot). Every deposit names it as the record it is part of. Empty until the first snapshot release.</p>';
-	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save environment</button></div></form>';
+	// The environment and downloads line forms left for Settings > Accounts
+	// and connections in 2026-11 (inc/admin-forms/settings-accounts-forms.php).
+	if ( function_exists( 'snt_settings_accounts_moved_line' ) ) {
+		snt_settings_accounts_moved_line( 'zenodo' );
+	}
 
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';
 	wp_nonce_field( 'sn_zenodo_deposit_batch' );
 	echo '<strong>Deposit</strong><p class="sn-helper">Runs one pass now: up to ' . (int) SN_ZENODO_PASS_MAX . ' confirmed documents without a DOI. The hourly pass does the same on its own.</p>';
 	echo '<button type="submit" name="action" value="sn_zenodo_deposit_batch" class="button" data-snt-confirm="' . esc_attr( sn_zenodo_deposit_confirm( $d['env'] ) ) . '" data-snt-confirm-title="' . esc_attr__( 'Deposit the next batch', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Deposit', 'signal-and-noise-tools' ) . '"' . ( $d['enabled'] ? '' : ' disabled' ) . '>Deposit the next batch</button></form>';
-	echo '</div>';
-
-	$line = snt_prov_doi_settings();
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="zenodo">';
-	wp_nonce_field( 'sn_zenodo_doi_line_save' );
-	echo '<input type="hidden" name="action" value="sn_zenodo_doi_line_save">';
-	echo '<h2 class="sn-fieldset-h">' . esc_html( sn_zenodo_doi_line_copy()['title'] ) . '</h2>';
-	echo '<p class="sn-helper">' . esc_html( sn_zenodo_doi_line_copy()['intro'] ) . '</p>';
-	echo '<div class="sn-field"><label><input type="checkbox" id="sn_zenodo_doi_line_enabled" name="zenodo_doi_line_enabled" value="1"' . checked( $line['enabled'], true, false ) . '> ' . esc_html( sn_zenodo_doi_line_copy()['enabled'] ) . '</label></div>';
-	echo '<div class="sn-field"><label for="sn_zenodo_doi_line_label">' . esc_html( sn_zenodo_doi_line_copy()['label'] ) . '</label><input type="text" id="sn_zenodo_doi_line_label" name="zenodo_doi_line_label" value="' . esc_attr( $line['label'] ) . '" maxlength="80" autocomplete="off"></div>';
-	echo '<p class="sn-helper">' . esc_html( sn_zenodo_doi_line_copy()['label_hint'] ) . '</p>';
-	echo '<div class="sn-field"><label for="sn_zenodo_doi_line_floor">' . esc_html( sn_zenodo_doi_line_copy()['floor'] ) . '</label><input type="number" id="sn_zenodo_doi_line_floor" name="zenodo_doi_line_floor" value="' . (int) $line['floor'] . '" min="0" step="1"></div>';
-	echo '<p class="sn-helper">' . esc_html( sn_zenodo_doi_line_copy()['floor_hint'] ) . '</p>';
-	echo '<p class="sn-helper">' . esc_html( sn_zenodo_doi_line_preview() ) . '</p>';
-	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">' . esc_html( sn_zenodo_doi_line_copy()['submit'] ) . '</button></div></form>';
 
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Ledger</h2>';
 	if ( array() === $d['rows'] ) {

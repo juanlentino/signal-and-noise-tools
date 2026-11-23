@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/settings-accounts-parts.php'; // accounts_moved_html(): the line saying where this leaf's settings went.
+
 /**
  * A field helper line (the classic `.sn-field-helper`), inline code kept.
  *
@@ -82,7 +84,7 @@ function music_spotify_fold( array $s ) {
 	$intro = '<p class="snt-prose">'
 		. \snt_kit_esc( __( 'Client-credentials app from', 'signal-and-noise-tools' ) ) . ' <em>developer.spotify.com</em>. '
 		. \snt_kit_esc( __( 'Resolves each release to its Spotify album for the lazy click-to-play embed.', 'signal-and-noise-tools' ) ) . ' '
-		. \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Connections › Credentials', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => 'connections' ) ) . '.'
+		. \snt_kit_esc( __( 'Set with every other key under', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_go( __( 'Settings › Accounts and connections', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'accounts', 'current' => 'connections' ) ) . '.'
 		. '</p>';
 	return array(
 		'title'   => __( 'Spotify (optional)', 'signal-and-noise-tools' ),
@@ -95,37 +97,10 @@ function music_spotify_fold( array $s ) {
 }
 
 /**
- * Muso.AI profile: intro + the profile id (locked, or editable with its
- * helper), as a Setup fold whose closed summary is the profile id and its
- * lock. An empty id leaves no summary, so the fold paints open.
- *
- * @param array<string,mixed> $s From music_state().
- * @return array<string,mixed> A Setup fold.
- */
-function music_muso_fold( array $s ) {
-	$intro = '<p class="snt-prose">'
-		. \snt_kit_esc( __( 'The public profile whose credits are mirrored. Defaults to Juan’s. No credential: it’s the same id in the public credits URL. Lockable via', 'signal-and-noise-tools' ) ) . ' '
-		. \snt_kit_code( 'SN_MUSO_PROFILE_ID', false ) . '.'
-		. '</p>';
-	$field = $s['profile_const']
-		? music_locked_field( __( 'Profile ID', 'signal-and-noise-tools' ), $s['profile_id'], 'SN_MUSO_PROFILE_ID' )
-		: \snt_kit_field( 'text', 'sn_muso_profile', __( 'Profile ID', 'signal-and-noise-tools' ), $s['profile_id'] )
-			. music_helper_html( \snt_kit_esc( __( 'Type', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_code( 'clear', false ) . ' ' . \snt_kit_esc( __( 'to revert to the default profile.', 'signal-and-noise-tools' ) ) );
-	$summary = (string) $s['profile_id'];
-	if ( '' !== $summary && $s['profile_const'] ) {
-		/* translators: %s: the profile id. */
-		$summary = sprintf( __( '%s, locked by SN_MUSO_PROFILE_ID', 'signal-and-noise-tools' ), $summary );
-	}
-	return array(
-		'title'   => __( 'Muso.AI profile', 'signal-and-noise-tools' ),
-		'summary' => $summary,
-		'body'    => $intro . ( $s['profile_const'] ? $field : music_save_form( $field ) ),
-	);
-}
-
-/**
- * The Setup card (2026-10-16, docs/kit-leaf-anatomy.md): the two sources,
- * set once, each a fold whose closed line is its current value.
+ * The Setup card (2026-10-16, docs/kit-leaf-anatomy.md): the Spotify source,
+ * a fold whose closed line says whether it is configured. The Muso.AI
+ * profile ID is on Settings > Accounts and connections since 2026-11; the
+ * Status card says so.
  *
  * @param array<string,mixed> $s From music_state().
  * @return string
@@ -133,8 +108,8 @@ function music_muso_fold( array $s ) {
 function music_setup_html( array $s ) {
 	return \snt_kit_setup_card(
 		__( 'Setup', 'signal-and-noise-tools' ),
-		array( music_muso_fold( $s ), music_spotify_fold( $s ) ),
-		__( 'Each line is the source as it stands; open one to change it.', 'signal-and-noise-tools' )
+		array( music_spotify_fold( $s ) ),
+		__( 'The line is the source as it stands; open it to see where its keys come from.', 'signal-and-noise-tools' )
 	);
 }
 
@@ -214,7 +189,7 @@ function music_rail_status_html( array $s, $foot = '' ) {
 		$rows[] = array( 'label' => __( 'Last error', 'signal-and-noise-tools' ), 'html' => true, 'value' => \snt_kit_code( $s['last_error'], false ) );
 	}
 	// The "Sync status" landmark is this box alone, not the row it shares.
-	return \snt_kit_section( __( 'Status', 'signal-and-noise-tools' ), music_status_line_html( $s ) . \snt_kit_kv( $rows ) . music_sync_html() . $foot, '', array( 'role' => 'complementary', 'aria-label' => __( 'Sync status', 'signal-and-noise-tools' ) ) );
+	return \snt_kit_section( __( 'Status', 'signal-and-noise-tools' ), music_status_line_html( $s ) . \snt_kit_kv( $rows ) . accounts_moved_html( 'muso' ) . music_sync_html() . $foot, '', array( 'role' => 'complementary', 'aria-label' => __( 'Sync status', 'signal-and-noise-tools' ) ) );
 }
 
 /**

@@ -7,7 +7,7 @@
  * with its own field, handler and hint, and none said which of the others it
  * was NOT: on 2026-09-15 a Cloudflare token was pasted over a worker's shared
  * secret and the sensor answered 401 for an hour. The keyring is the one
- * place: Connections › Credentials paints it, one handler saves it, one
+ * place: Settings › Accounts and connections paints it, one handler saves it, one
  * "Verify all" probes it (inc/keyring-verify.php), and every feature tab
  * that used to carry a field points here instead.
  *

@@ -110,6 +110,17 @@ eq( $fe, sn_admin_post_redirect_target( 'site', 'front-end' ), 'POST PRG: an in-
 eq( null, sn_admin_canonical_destination( 'settings', 'front-end' ), 'settings/front-end canonical' );
 eq( $fe, sn_admin_post_redirect_target( 'settings', 'front-end' ), 'POST PRG: a save from Settings > Front end returns to it' );
 eq( null, sn_admin_canonical_destination( 'site', 'performance' ), 'site/performance still canonical: the switch left it, the leaf did not move' );
+// Settings > Accounts and connections took a WHOLE leaf (Connections >
+// Credentials, the account list with its state) and the settings of three
+// leaves that kept their readings. The leaf redirects; the three do not.
+$acc = array( 'tab' => 'settings', 'sub' => 'accounts', 'anchor' => null );
+eq( $acc, sn_admin_canonical_destination( 'connections', 'credentials' ), 'connections/credentials -> settings/accounts (the leaf moved whole)' );
+eq( $acc, sn_admin_post_redirect_target( 'connections', 'credentials' ), 'POST PRG: an in-flight save from the old Credentials leaf lands on the pane' );
+eq( null, sn_admin_canonical_destination( 'settings', 'accounts' ), 'settings/accounts canonical' );
+eq( $acc, sn_admin_post_redirect_target( 'settings', 'accounts' ), 'POST PRG: a save from Settings > Accounts and connections returns to it' );
+foreach ( array( 'indexnow', 'zenodo', 'music' ) as $kept ) {
+	eq( null, sn_admin_canonical_destination( 'connections', $kept ), "connections/$kept still canonical: its settings left it, the leaf did not move" );
+}
 eq( array( 'tab' => 'site', 'sub' => 'performance', 'anchor' => null ), sn_admin_post_redirect_target( 'site', 'performance' ), 'POST PRG: an in-flight switch save from Site > Performance returns to that leaf with its notice' );
 eq( array( 'tab' => 'connections', 'sub' => 'cron', 'anchor' => null ), sn_admin_post_redirect_target( 'connections', 'cron' ), 'POST PRG: Acknowledge and the reads form still return to Cron' );
 

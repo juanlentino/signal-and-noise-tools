@@ -44,7 +44,7 @@ function sn_owner_token_mint( $agent, $ttl, $now, $key ) {
 		return $fail( 'The TTL must be a whole number of seconds from 1 to ' . SN_OWNER_TOKEN_MAX_TTL . '.' );
 	}
 	if ( ! sn_owner_key_ok( $key ) ) {
-		return $fail( 'The owner key is not set. Generate it in Connections › Credentials.' );
+		return $fail( 'The owner key is not set. Generate it in Settings › Accounts and connections.' );
 	}
 	return array( 'ok' => true, 'line' => 'SN-Owner-Agent: ' . sn_owner_agent_token( $key, (string) $agent, (int) $now + (int) $ttl ), 'error' => '' );
 }

@@ -147,7 +147,7 @@ $row1 = preg_match( '#' . preg_quote( snt_leaf_row(), '#' ) . '.*?</os-card></os
 ok( false !== strpos( $row1, 'heading="This month, by feature"' ) && false !== strpos( $row1, 'heading="Platform-reported, this month"' ) && false === strpos( $row1, 'heading="Models' ) && false === strpos( $row1, 'heading="Jev' ) && strpos( $kit, 'heading="Jev' ) > strpos( $kit, $row1 ) + strlen( $row1 ), '2026-10-16: row one is the two spend readouts (the plugin estimate beside what the platforms billed); the form is in Setup, Jev under the row' );
 // 2026-10-12 audit: the page ended on a bare "Not configured." notice. Now a
 // titled box says what is missing and links to where it is set, beside Jev.
-ok( 1 === preg_match( '#<os-card><os-section heading="Jev"#', $kit ) && 1 === preg_match( '#<os-card><os-section heading="Semantic embeddings"[^>]*><p class="snt-prose">Not configured: no Cloudflare account ID is set, so nothing is embedded\. Set it under <os-button class="snt-go" variant="link" data-snt-tab="connections" data-snt-sub="credentials"[^>]*>Connections › Credentials</os-button>\.</p></os-section></os-card></os-grid>#', $kit ), 'nothing configured: Semantic embeddings says what is missing, with the door to where it is set, beside the Jev box' );
+ok( 1 === preg_match( '#<os-card><os-section heading="Jev"#', $kit ) && 1 === preg_match( '#<os-card><os-section heading="Semantic embeddings"[^>]*><p class="snt-prose">Not configured: no Cloudflare account ID is set, so nothing is embedded\. Set it under <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="accounts"[^>]*>Settings › Accounts and connections</os-button>\.</p></os-section></os-card></os-grid>#', $kit ), 'nothing configured: Semantic embeddings says what is missing, with the door to where it is set, beside the Jev box' );
 
 // ── Budget set, under cap, with a by-feature breakdown.
 $GLOBALS['__settings']['theme.ai_monthly_budget'] = 50.0;
@@ -199,7 +199,7 @@ $kit     = snt_leaf_paint( 'ai', 'models-budget' );
 ok( array( 'ml_embed_compare' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'configured: the comparison is the leaf\'s one action, on both twins: ' . implode( ',', snt_leaf_actions( $kit ) ) );
 ok( 1 === preg_match( '#<form method="post" action="https://example\.test/wp-admin/admin-post\.php\?_wpnonce=nonce-sn_ml_embed_compare"><input type="hidden" name="action" value="sn_ml_embed_compare"><p><button type="submit" class="button">Run comparison</button></p></form>#', $classic ) && 1 === substr_count( $classic, '<form' ), 'classic: Run comparison is its own form with its own nonce (it was a second button inside the settings form), the only form on the leaf' );
 ok( false !== strpos( $kit, 'Not run yet' ) && false !== strpos( $kit, 'Run comparison' ), 'configured, not run yet: the runner prompt and button paint' );
-ok( false === strpos( $kit, 'a-real-token-value' ) && false !== strpos( $kit, '>set</os-badge>' ) && false !== strpos( $kit, 'Connections › Credentials' ), '15.3.1: the token is never on the leaf; a set badge and the door to the keyring are' );
+ok( false === strpos( $kit, 'a-real-token-value' ) && false !== strpos( $kit, '>set</os-badge>' ) && false !== strpos( $kit, 'Settings › Accounts and connections' ), '15.3.1: the token is never on the leaf; a set badge and the door to the keyring are' );
 ok( false !== strpos( $kit, 'Configured' ), 'the embeddings-token status pill reads Configured' );
 ok( false !== strpos( $kit, '<os-badge tone="success">Workers AI token set</os-badge>' ) && 1 === preg_match( '#<os-disclosure heading="Workers AI token" hint="Set" data-snt-fold#', $kit ), 'anatomy, token set: the chip reads set and its Setup fold stays closed' );
 $__shadow = 'Embeddings run in SHADOW mode: they are computed and compared against the existing ranking, and nothing the site serves uses them yet.';
@@ -300,8 +300,8 @@ $box = platform_box( snt_leaf_paint( 'ai', 'models-budget' ) );
 ok( false !== strpos( $box, '>unknown, the billing read failed</span></os-fact>' ) && false !== strpos( $box, '<os-notice tone="warning"' ) && ! preg_match( '/\d min\b/', $box ), 'a failed read says unknown with a warning notice on the box, never a number' );
 ok( false !== strpos( $box, '>$120.39</span></os-fact>' ), 'the other row still paints its figure' );
 ok( false !== strpos( $box, 'the Anthropic key has no probe' ), 'the notice does not send an Anthropic failure to a probe that does not exist' );
-// (d) the door to the keyring, from the ai tab to connections/credentials.
-ok( false !== strpos( $box, 'Connections › Credentials' ) && false !== strpos( $box, 'data-snt-tab="connections"' ) && false !== strpos( $box, 'data-snt-sub="credentials"' ), 'the hint carries the door to Connections › Credentials' );
+// (d) the door to the keyring, from the ai tab to settings/accounts.
+ok( false !== strpos( $box, 'Settings › Accounts and connections' ) && false !== strpos( $box, 'data-snt-tab="settings"' ) && false !== strpos( $box, 'data-snt-sub="accounts"' ), 'the hint carries the door to Settings › Accounts and connections' );
 $GLOBALS['__gh'] = null;
 $GLOBALS['__ai'] = null;
 

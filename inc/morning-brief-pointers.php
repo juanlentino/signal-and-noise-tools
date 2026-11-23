@@ -30,7 +30,7 @@ function snt_morning_brief_screen_url( $tab, $sub ) {
 function snt_morning_brief_watch_screen( array $w ) {
 	$screens = array(
 		'index_gap'                   => array( 'Integrity › Reports', 'tools', 'reports' ),
-		'secrets_api_keyring_storage' => array( 'Connections › Credentials', 'connections', 'credentials' ),
+		'secrets_api_keyring_storage' => array( 'Settings › Accounts and connections', 'settings', 'accounts' ),
 		'mcp_adapter_read_door'       => array( 'AI › MCP Clients', 'ai', 'mcp-connect' ),
 		'dompdf_bump'                 => array( 'Content › Resume Page', 'content', 'resume' ),
 	);

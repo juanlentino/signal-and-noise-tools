@@ -95,7 +95,7 @@ function snt_watches() {
 			'id'        => 'secrets_api_keyring_storage',
 			'label'     => 'keyring storage onto the Secrets API (#1625)',
 			'why'       => 'Seventeen keyring rows are plain options and two live inside sn_settings. A Secrets API (wp_set_secret, encrypted at rest, hidden from options.php and /wp/v2/settings) was proposed for 7.2 but is not in 7.2 RC1 (2026-11-17: no wp_set_secret in core), so this waits for a later release. Ripe when wp_set_secret exists AND WordPress is a 7.2 release candidate or later (2026-10-25: build against the RC; on 2026-10-31 the function existed on a 7.1.4 site, from something other than core). Then: sn_keyring_stored() and sn_keyring_write() go through it behind function_exists, one upgrade import per option-backed row flagged for rotation; the registry, the probes, Verify all and the site-secret derivation stay ours. Issued rows do NOT become Core connectors (one paste surface).',
-			'read'      => 'Connections › Credentials; https://github.com/juanlentino/signal-and-noise-tools/issues/1625',
+			'read'      => 'Settings › Accounts and connections; https://github.com/juanlentino/signal-and-noise-tools/issues/1625',
 			'date_only' => false,
 			'due'       => '',
 			'ripe'      => 'snt_watch_ripe_secrets_api',

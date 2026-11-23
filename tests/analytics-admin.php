@@ -656,7 +656,7 @@ $GLOBALS['__aa_opts']   = array();
 $html = capture( 'snt_analytics_render_settings_section' );
 ok( strpos( $html, 'name="sn_cf_account_id"' ) === false, '15.2.0: no account_id input; the keyring holds it' );
 ok( strpos( $html, 'name="sn_cf_analytics_token"' ) === false, '15.2.0: no token input; the keyring holds it' );
-ok( strpos( $html, 'value="analytics_save"' ) === false && strpos( $html, 'Connections › Credentials' ) !== false, '15.2.0: no analytics_save submit; the fold points to Connections › Credentials' );
+ok( strpos( $html, 'value="analytics_save"' ) === false && strpos( $html, 'Settings › Accounts and connections' ) !== false, '15.2.0: no analytics_save submit; the fold points to Settings › Accounts and connections' );
 ok( strpos( $html, 'value="sn_analytics_test"' ) !== false, 'settings: analytics_test submit present' );
 ok( strpos( $html, 'wrangler' ) !== false && strpos( $html, 'SN_PX_TOKEN' ) !== false, 'settings: Worker-setup console present' );
 ok( stripos( $html, 'View dashboard' ) !== false, 'settings: links back to the read-only dashboard' );

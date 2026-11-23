@@ -1,7 +1,9 @@
 <?php
 /**
- * Connections › Zenodo (15.11.0): the kit leaf paints the same fields and
- * actions as the classic leaf, the ledger as the house table, the rail.
+ * Connections › Zenodo (15.11.0): the kit leaf paints the same action as the
+ * classic leaf, the ledger as the house table, the status. The environment
+ * and downloads line forms left for Settings › Accounts and connections in
+ * 2026-11 (tests/os-leaf-settings-accounts-boxes.php).
  *
  * Run: php tests/os-leaf-connections-zenodo.php
  */
@@ -19,6 +21,7 @@ if ( ! function_exists( 'selected' ) ) { function selected( $a, $b, $echo = true
 require SNT_PATH . 'inc/admin-shell.php';
 require SNT_PATH . 'inc/provenance-doi-line.php';
 require SNT_PATH . 'inc/admin-forms/zenodo.php';
+require SNT_PATH . 'inc/admin-forms/settings-accounts.php'; // the line saying where the settings went.
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-zenodo.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -41,22 +44,17 @@ $GLOBALS['__zl']['env'] = 'production';
 $prod = snt_leaf_paint( 'connections', 'zenodo' );
 ok( false !== strpos( $prod, 'permanent public DOI' ), 'on production the question says each document gets a permanent public DOI' );
 $GLOBALS['__zl']['env'] = 'sandbox';
-ok( false !== strpos( $kit, 'reads its own token from Connections › Credentials' ) && false !== strpos( $kit, 'Empty until the first snapshot release' ), 'the two field hints paint, in the classic page\'s words' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names match the classic forms: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
-ok( array( 'zenodo_deposit_batch', 'zenodo_doi_line_save', 'zenodo_env_save' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the three actions match the classic leaf: ' . implode( ',', snt_leaf_actions( $kit ) ) );
-// 2026-10-21: the DOI downloads line on /provenance, a Setup fold here and a fieldset there, the same words.
-foreach ( array( 'zenodo_doi_line_enabled', 'zenodo_doi_line_label', 'zenodo_doi_line_floor' ) as $__n ) {
-	ok( in_array( $__n, snt_leaf_names( $kit ), true ) && in_array( $__n, snt_leaf_names( $classic ), true ), "the downloads line field $__n is on both surfaces" );
-}
-$__classic_text = html_entity_decode( strip_tags( $classic ), ENT_QUOTES, 'UTF-8' );
-foreach ( sn_zenodo_doi_line_copy() as $__k => $__line ) {
-	ok( false !== strpos( html_entity_decode( $kit, ENT_QUOTES, 'UTF-8' ), $__line ) && false !== strpos( $__classic_text, $__line ), "both surfaces say the $__k words" );
-}
-ok( false !== strpos( $kit, '<os-checkbox-label name="zenodo_doi_line_enabled" value="1" checked' ) && false !== strpos( $classic, 'name="zenodo_doi_line_enabled" value="1" checked="checked"' ), 'defaults: the line is on, on both surfaces' );
-ok( false !== strpos( $kit, 'Now hidden: no recent snapshot with the site split yet.' ) && false !== strpos( $__classic_text, 'Now hidden: no recent snapshot with the site split yet.' ), 'with no snapshot both surfaces say the line is hidden and why' );
+// 2026-11: the environment form and the downloads line form left for Settings ›
+// Accounts and connections (tests/os-leaf-settings-accounts-boxes.php holds
+// their fields, words and defaults). The leaf keeps its readings, Deposit and
+// one line saying where the settings went.
+ok( array( 'sub', 'tab' ) === snt_leaf_names( $classic ) && array() === snt_leaf_names( $kit ), 'no setting is left on the leaf: the classic Deposit form keeps its hidden tab/sub pair, the native one-click write carries no field: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+ok( array( 'zenodo_deposit_batch' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action left is the deposit, on both twins: ' . implode( ',', snt_leaf_actions( $kit ) ) );
+ok( false === strpos( $kit, '<os-form' ) && false === strpos( $kit . $classic, 'zenodo_env' ) && false === strpos( $kit . $classic, 'zenodo_doi_line' ) && false === strpos( $kit . $classic, 'Save environment' ) && false === strpos( $kit . $classic, sn_zenodo_doi_line_copy()['enabled'] ), 'neither settings form is on the leaf, on either twin' );
+ok( 1 === preg_match( '#<p class="snt-hint">The environment, the ledger concept DOI and the downloads line moved to <os-button class="snt-go" variant="link" data-snt-tab="settings" data-snt-sub="accounts"[^>]*>Settings › Accounts and connections</os-button>\.</p>#', $kit ) && 1 === substr_count( $kit, 'moved to' ), 'native: one line says where the settings went, an in-window link to the pane' );
+ok( 1 === substr_count( $classic, '<p class="sn-field-helper">The environment, the ledger concept DOI and the downloads line moved to <a href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=accounts">Settings › Accounts and connections</a>.</p>' ), 'classic: the same line, once, with a link to the pane' );
 ok( 1 !== preg_match( '/\x{2014}|\x{2013}/u', implode( ' ', sn_zenodo_doi_line_copy() ) ), 'no em or en dash in the new words' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
-ok( false !== strpos( $kit, '<os-select' ) && false !== strpos( $kit, 'name="zenodo_env"' ) && false !== strpos( $kit, '<os-option value="production">' ), 'the environment is a kit select with the two environments' );
 ok( false !== strpos( $kit, 'os-arg-action="sn_zenodo_deposit_batch"' ) && false !== strpos( $kit, '>Deposit the next batch</os-button>' ), 'Deposit the next batch is a one-click write' );
 ok( 1 === preg_match( '/<os-table[^>]*os-prop-columns=/', $kit ) && false !== strpos( $kit, '&quot;key&quot;:&quot;doi&quot;' ) && false !== strpos( $kit, '10.5281/zenodo.42' ) && false !== strpos( $kit, 'publish: down' ), 'the ledger is the house table with a DOI column, the minted DOI and the failed row\'s error' );
 ok( false !== strpos( $kit, 'Anchor pending' ) && false !== strpos( $kit, 'Sandbox' ) && false !== strpos( $kit, '1 minted of 3 documents.' ), 'the rail names the environment and the minted count; states are labelled' );
@@ -103,18 +101,16 @@ ok( 1 === preg_match( '/function sn_zenodo_backfill_pass\(\).*?set_transient\( \
 $GLOBALS['__transients']['sn_zenodo_last_batch'] = array( 'attempted' => 2, 'published' => 1, 'failed' => 1 );
 // 2026-10-16 (leaf anatomy, docs/kit-leaf-anatomy.md): the rail is a Status
 // card leading the leaf (one status line, a problem's notice, the counts,
-// Deposit, the intro as How this works) beside one Setup card whose
-// Environment fold says the environment and ledger DOI (one row, since the
-// live audit of 2026-10-16), then the ledger at full width.
-ok( 0 === strpos( $kit, snt_leaf_row() . '<os-section heading="Status" stack role="region" aria-label="Zenodo status"><div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success" title="1 minted of 3 documents.">On</os-badge><os-chip>Sandbox</os-chip></os-cluster></div><p class="snt-hint">1 minted of 3 documents.</p>' ), 'the leaf leads with the Status card: one status line (the token\'s verdict, the environment); an ok verdict paints no notice, its sentence a hint' );
+// Deposit, the intro as How this works), then the ledger at full width. The
+// Setup card beside it left with its two forms in 2026-11.
+ok( 0 === strpos( $kit, '<os-section heading="Status" stack role="region" aria-label="Zenodo status"><div class="snt-status-line"><os-cluster gap="8"><os-badge tone="success" title="1 minted of 3 documents.">On</os-badge><os-chip>Sandbox</os-chip></os-cluster></div><p class="snt-hint">1 minted of 3 documents.</p>' ), 'the leaf leads with the Status card: one status line (the token\'s verdict, the environment); an ok verdict paints no notice, its sentence a hint' );
 ok( false === strpos( $kit, '<os-row' ) && false === strpos( $kit, 'col="4"' ) && false === strpos( $kit, '<os-notice' ), 'no rail and no notice while the token is verified' );
 ok( 1 === preg_match( '#<os-disclosure heading="How this works" hint="[^"]+"[^>]*><os-stack gap="12"><p class="snt-prose">Every signed document#', $kit ) && 1 === substr_count( $kit, 'The papers stay with SSRN' ), 'the intro is the Status card\'s How this works fold, painted once' );
-$order = array( strpos( $kit, 'class="snt-status-line"' ), strpos( $kit, 'os-arg-action="sn_zenodo_deposit_batch"' ), strpos( $kit, 'heading="How this works"' ), strpos( $kit, 'heading="Setup"' ), strpos( $kit, '</os-grid>' ), strpos( $kit, 'heading="Ledger"' ) );
+$order = array( strpos( $kit, 'class="snt-status-line"' ), strpos( $kit, 'os-arg-action="sn_zenodo_deposit_batch"' ), strpos( $kit, 'moved to' ), strpos( $kit, 'heading="How this works"' ), strpos( $kit, 'heading="Ledger"' ) );
 $sorted = $order;
 sort( $sorted );
-ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: status line, Deposit, How this works, Setup (one row), then the ledger: ' . implode( ' < ', $order ) );
-ok( 1 === substr_count( $kit, snt_leaf_row() ) && 1 === preg_match( '#</os-section><os-section heading="Setup" description="[^"]*" stack>.*?</os-section></os-grid><os-section heading="Ledger"#s', $kit ), 'live audit 2026-10-16: the Status card and the Setup card share the first row; the ledger follows it at full width' );
-ok( 1 === preg_match( '#<os-section heading="Setup" description="[^"]*" stack><os-disclosure heading="Environment" hint="Sandbox · ledger DOI not set"[^>]*data-snt-open="0"><os-stack gap="12"><os-form[^>]*submit-label="Save environment"#', $kit ), 'one Setup card: the Environment form is a fold whose summary is the environment and the ledger DOI, closed while a token is set' );
+ok( ! in_array( false, $order, true ) && $order === $sorted, 'the order: status line, Deposit, where the settings went, How this works, then the ledger: ' . implode( ' < ', $order ) );
+ok( 0 === substr_count( $kit, snt_leaf_row() ) && false === strpos( $kit, 'heading="Setup"' ) && false === strpos( $kit, 'heading="Environment"' ) && 1 === preg_match( '#</os-section><os-section heading="Ledger"#', $kit ), '2026-11: no Setup card and no Environment fold; the ledger follows the Status card at full width' );
 // 16.2.2: the tile reads the keyring's verdict. A stored token the keyring REFUSED is not On.
 $GLOBALS['__zl']['verdict'] = array( 'status' => 'refused', 'detail' => 'Zenodo sandbox refused to create a draft (HTTP 403: Permission denied.).', 'at' => 1 );
 $kit = snt_leaf_paint( 'connections', 'zenodo' );
@@ -126,7 +122,7 @@ $GLOBALS['__zl']['verdict'] = array( 'status' => 'ok', 'detail' => 'creates a dr
 $GLOBALS['__zl']['enabled'] = false;
 $kit = snt_leaf_paint( 'connections', 'zenodo' );
 ok( false !== strpos( $kit, '<b>No token</b>' ) && false !== strpos( $kit, 'disabled' ), 'no token: the rail says so and the deposit button is disabled' );
-ok( false !== strpos( $kit, '<os-badge tone="warning" title="Add the sandbox token under Credentials.">Off</os-badge><os-chip>No token</os-chip>' ) && 1 === preg_match( '#<os-disclosure heading="Environment" hint="Sandbox · ledger DOI not set"[^>]*\sopen[\s=>]#', $kit ), 'no token: the status line says Off and No token, the notice stays open, and the Environment fold opens itself' );
+ok( false !== strpos( $kit, '<os-badge tone="warning" title="Add the sandbox token in Settings › Accounts and connections.">Off</os-badge><os-chip>No token</os-chip>' ) && false !== strpos( $kit, '<os-notice' ) && false !== strpos( snt_leaf_classic_html( 'sn_admin_render_zenodo_section' ), 'Add the sandbox token in Settings › Accounts and connections.' ), 'no token: the status line says Off and No token, the notice stays open, and both twins say where the token is added' );
 $GLOBALS['__zl']['rows'] = array();
 $kit = snt_leaf_paint( 'connections', 'zenodo' );
 ok( false !== strpos( $kit, 'No signed documents yet.' ), 'an empty ledger is honest' );

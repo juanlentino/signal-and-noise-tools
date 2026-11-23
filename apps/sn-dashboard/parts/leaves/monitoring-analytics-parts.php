@@ -142,7 +142,7 @@ function analytics_reads_notice() {
 		return \snt_kit_notice( 'warning', \snt_kit_esc( __( 'An analytics token override is in force; the Cloudflare API token is not used for these reads. Clear the override on the keyring to use one token.', 'signal-and-noise-tools' ) ) );
 	}
 	if ( ! ( function_exists( '\sn_cf_get_token' ) && '' !== (string) \sn_cf_get_token() ) ) {
-		return \snt_kit_notice( 'error', \snt_kit_esc( __( 'No token anywhere: set the Cloudflare API token under Connections › Credentials.', 'signal-and-noise-tools' ) ) );
+		return \snt_kit_notice( 'error', \snt_kit_esc( __( 'No token anywhere: set the Cloudflare API token under Settings › Accounts and connections.', 'signal-and-noise-tools' ) ) );
 	}
 	return '';
 }
@@ -201,7 +201,7 @@ function analytics_mirrors_html( $tab ) {
 	$out .= '<os-cluster gap="8">'
 		. \snt_kit_go( __( 'Settings → AI →', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'ai', 'current' => $tab ) )
 		. \snt_kit_go( __( 'Measurement → Insights →', 'signal-and-noise-tools' ), array( 'tab' => 'monitoring', 'sub' => 'insights', 'current' => $tab ) )
-		. \snt_kit_go( __( 'Connections → Credentials →', 'signal-and-noise-tools' ), array( 'tab' => 'connections', 'sub' => 'credentials', 'current' => $tab ) ) // 15.3.1: the zone id is a keyring row
+		. \snt_kit_go( __( 'Settings → Accounts and connections →', 'signal-and-noise-tools' ), array( 'tab' => 'settings', 'sub' => 'accounts', 'current' => $tab ) ) // 15.3.1: the zone id is a keyring row
 		. '</os-cluster>';
 
 	/* translators: 1: the AI model; 2: On or Off; 3: set or not set. */

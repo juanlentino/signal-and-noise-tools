@@ -215,9 +215,9 @@ ok( false !== strpos( $kit, 'Sensor unreachable' ), 'sensor-unreachable pill sho
 ok( false !== strpos( $kit, 'Read token missing' ) && false !== strpos( $kit, 'tone="warning"' ), 'read-token-missing pill shown when no token is configured' );
 // 2026-10-12 audit: the pills pointed at a token field "below"/"above" that
 // moved to the keyring in 15.2.0, after an em dash.
-ok( false !== strpos( $kit, 'Read token missing: Set the read token under Connections › Credentials, or define SN_MR_READ_TOKEN in wp-config.php.' ) && false !== strpos( $kit, 'Not configured: The sensor cannot be read until the read token is set under Connections › Credentials.' ) && false === strpos( $kit, ' — ' ), 'the pill notes name the screen, after a colon' );
+ok( false !== strpos( $kit, 'Read token missing: Set the read token under Settings › Accounts and connections, or define SN_MR_READ_TOKEN in wp-config.php.' ) && false !== strpos( $kit, 'Not configured: The sensor cannot be read until the read token is set under Settings › Accounts and connections.' ) && false === strpos( $kit, ' — ' ), 'the pill notes name the screen, after a colon' );
 $classic_nc = snt_leaf_classic_html( 'snt_mr_render_tab' );
-ok( false !== strpos( $classic_nc, 'Read token missing: Set the read token under Connections › Credentials' ) && false === strpos( $classic_nc, 'token below' ), 'the classic page says the same' );
+ok( false !== strpos( $classic_nc, 'Read token missing: Set the read token under Settings › Accounts and connections' ) && false === strpos( $classic_nc, 'token below' ), 'the classic page says the same' );
 // The version endpoint did not answer: the Edge sensor box says not read,
 // instead of naming the Worker and its source as if it had read them.
 ok( false !== strpos( $kit, 'Not read: the version endpoint did not answer.' ) && false !== strpos( $classic_nc, 'Not read: the version endpoint did not answer.' ) && 1 === preg_match( '#heading="Edge sensor"(?:(?!</os-section>).)*</os-section>#s', $kit, $es ) && false === strpos( $es[0], 'sn-rights-signals' ), 'sensor unreachable: the Edge sensor box says not read, on both surfaces' );

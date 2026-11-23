@@ -98,7 +98,7 @@ function firewall_cloudflare_html() {
 	$record = cloudflare_monitor_record();
 	if ( ! is_array( $record ) || empty( $record['configured'] ) ) {
 		$why = is_array( $record )
-			? __( 'Not configured: set the Cloudflare token under Connections › Credentials.', 'signal-and-noise-tools' )
+			? __( 'Not configured: set the Cloudflare token under Settings › Accounts and connections.', 'signal-and-noise-tools' )
 			: __( 'The monitor has not run yet. It runs daily; press Refresh to run it now.', 'signal-and-noise-tools' );
 		return \snt_kit_section( __( 'Firewall, 24 hours', 'signal-and-noise-tools' ), '<p class="snt-hint">' . \snt_kit_esc( $why ) . '</p>' . cloudflare_monitor_footer_html( $d, $record ), __( 'What Cloudflare stopped before WordPress ran.', 'signal-and-noise-tools' ) );
 	}

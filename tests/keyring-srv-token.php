@@ -1,7 +1,7 @@
 <?php
 /**
  * The analytics server token resolves through the keyring on every reader:
- * with no SN_SRV_TOKEN constant and a value saved in Connections › Credentials,
+ * with no SN_SRV_TOKEN constant and a value saved in Settings › Accounts and connections,
  * the refresh route, the RSS tracker and the settings pill all use the saved
  * value; unset, the route answers core's rest_no_route 404 (2026-10-16 audit)
  * and the settings pill names the keyring row, not wp-config.
@@ -41,7 +41,7 @@ ok( ! defined( 'SN_SRV_TOKEN' ), 'precondition: no SN_SRV_TOKEN constant' );
 $e = sn_analytics_refresh_permission( new Req() );
 ok( $e instanceof WP_Error && 'rest_no_route' === $e->c && 404 === $e->d['status'] && false === strpos( $e->m, 'SN_SRV_TOKEN' ), 'unset: the route reads as absent (rest_no_route 404); the pill below names the keyring row' );
 $h = pills();
-ok( false !== strpos( $h, 'Server token missing' ) && false !== strpos( $h, 'Connections › Credentials' ) && false === strpos( $h, 'wp-config' ), 'unset: the pill points at the keyring row' );
+ok( false !== strpos( $h, 'Server token missing' ) && false !== strpos( $h, 'Settings › Accounts and connections' ) && false === strpos( $h, 'wp-config' ), 'unset: the pill points at the keyring row' );
 
 $GLOBALS['__opt']['sn_srv_token'] = 'saved-srv-42';
 ok( 'saved-srv-42' === sn_analytics_refresh_secret(), 'refresh route: constant absent, saved value used' );

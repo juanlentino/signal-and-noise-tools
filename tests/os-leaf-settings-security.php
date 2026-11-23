@@ -94,8 +94,8 @@ ok( null === sn_admin_canonical_destination( 'security', 'audit-log' ) && array(
 ob_start();
 sn_admin_render_sub_tabs( 'settings', 'security' );
 $strip = (string) ob_get_clean();
-ok( 1 === preg_match( '#^<nav class="sn-sub-tabs"[^>]*><a href="[^"]*tab=settings&sub=notifications" class="sn-sub-tab">Notifications and reports</a><a href="[^"]*tab=settings&sub=security" class="sn-sub-tab is-active" aria-current="page">Security</a><a href="[^"]*tab=settings&sub=ai" class="sn-sub-tab">AI</a><a href="[^"]*tab=settings&sub=front-end" class="sn-sub-tab">Front end</a></nav>$#', $strip ), 'classic: the Settings tab paints its sub-tab strip, Security active: ' . $strip );
-ok( array( 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI', 'front-end' => 'Front end' ) === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ), 'native: the frame lists the four panes for the strip' );
+ok( 1 === preg_match( '#^<nav class="sn-sub-tabs"[^>]*><a href="[^"]*tab=settings&sub=notifications" class="sn-sub-tab">Notifications and reports</a><a href="[^"]*tab=settings&sub=security" class="sn-sub-tab is-active" aria-current="page">Security</a><a href="[^"]*tab=settings&sub=ai" class="sn-sub-tab">AI</a><a href="[^"]*tab=settings&sub=front-end" class="sn-sub-tab">Front end</a><a href="[^"]*tab=settings&sub=accounts" class="sn-sub-tab">Accounts and connections</a></nav>$#', $strip ), 'classic: the Settings tab paints its sub-tab strip, Security active: ' . $strip );
+ok( array( 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI', 'front-end' => 'Front end', 'accounts' => 'Accounts and connections' ) === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ), 'native: the frame lists the five panes for the strip' );
 
 // ── The classic slug form is the old one, byte for byte (nonce, action, field, hint, URL, Save, unlock).
 $old_leaf = snt_leaf_classic_html( 'sn_admin_render_login_section' );

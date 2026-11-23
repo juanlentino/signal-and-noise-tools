@@ -3,9 +3,11 @@
  * Signal & Noise — Connections → IndexNow (Automation was retired in v6.18.0) admin sub-tab.
  *
  * Render-only (POST handled in sn_handle_indexnow_* on admin_init, PRG).
- * Surfaces the enable toggle, the served key-file URL (so the owner can
- * verify it resolves), the last submission result, a "Regenerate key", and
- * a one-shot "Submit recent content now" backfill. Native WP styling only.
+ * Surfaces the served key-file URL (so the owner can verify it resolves), the
+ * last submission result, a "Regenerate key", and a one-shot "Submit recent
+ * content now" backfill. The enable toggle is on Settings > Accounts and
+ * connections since 2026-11; this leaf keeps one line saying so. Native WP
+ * styling only.
  *
  * @package SignalNoiseTools
  * @since 5.1.0
@@ -46,6 +48,16 @@ function sn_indexnow_key_label( $url ) {
 	return '' !== $path ? $path : (string) $url;
 }
 
+/**
+ * The disabled state's sentence, the same on both surfaces. The switch is on
+ * Settings > Accounts and connections since 2026-11.
+ *
+ * @return string
+ */
+function sn_indexnow_disabled_sentence() {
+	return __( 'Enable it in Settings › Accounts and connections to start notifying search engines.', 'signal-and-noise-tools' );
+}
+
 function sn_admin_render_indexnow_section() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
@@ -56,20 +68,13 @@ function sn_admin_render_indexnow_section() {
 
 	sn_admin_shell_open();
 
-	// ── MAIN: intro + a 2-up of [settings card] + [maintenance card] ──
+	// ── MAIN: intro, where the switch went, the maintenance card. The enable
+	// form left for Settings > Accounts and connections in 2026-11
+	// (inc/admin-forms/settings-accounts-forms.php). ──
 	echo '<p class="sn-prose">' . sprintf( esc_html( sn_indexnow_intro_sentence() ), '<strong>IndexNow</strong>' ) . '</p>';
-
-	echo '<div class="sn-2up">';
-
-	// ── ENABLE FORM (carded — IndexNow is a wide leaf, so the section wrapper
-	// provides no card; the form must own its chrome, or the .sn-savebar's
-	// negative card-bleed margin overflows the bare .sn-section). v6.43.1. ──
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
-	wp_nonce_field( 'sn_indexnow_save' );
-	echo '<input type="hidden" name="action" value="sn_indexnow_save">';
-	echo '<h2 class="sn-fieldset-h">IndexNow</h2>';
-	echo '<div class="sn-field"><label><input type="checkbox" name="indexnow_enabled" value="1"' . checked( $enabled, true, false ) . '> Notify search engines when content changes</label></div>';
-	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save IndexNow settings</button></div></form>';
+	if ( function_exists( 'snt_settings_accounts_moved_line' ) ) {
+		snt_settings_accounts_moved_line( 'indexnow' );
+	}
 
 	// ── ACTIONS (regenerate + backfill) ──
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url( 'indexnow_ping_now' ) ) . '" class="sn-card sn-card--narrow"><input type="hidden" name="tab" value="connections"><input type="hidden" name="sub" value="indexnow">';
@@ -77,14 +82,12 @@ function sn_admin_render_indexnow_section() {
 	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_ping_now' ) . ' class="button">Submit recent content now</button> '; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 	echo '<button type="submit"' . sn_admin_post_button( 'indexnow_regenerate' ) . ' class="button" data-snt-confirm="' . esc_attr__( 'Regenerate the IndexNow key? The old key file stops answering at once; search engines verify the new key on the next submission.', 'signal-and-noise-tools' ) . '" data-snt-confirm-title="' . esc_attr__( 'Regenerate key', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Regenerate', 'signal-and-noise-tools' ) . '">Regenerate key</button></form>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every attribute is escaped inside sn_admin_post_button().
 
-	echo '</div>'; // .sn-2up
-
 	// ── RAIL: status pill + status table (v6.42.0) ──
 	sn_admin_shell_rail( 'IndexNow status' );
 
 	// ── STATUS ──
 	if ( ! $enabled ) {
-		echo '<div class="sn-status-box sn-status-box--warn"><div><p class="sn-status-box-title">Disabled</p><p class="sn-status-box-body">Enable it under IndexNow to start notifying search engines.</p></div><span class="sn-pill sn-pill--warn">Off</span></div>';
+		echo '<div class="sn-status-box sn-status-box--warn"><div><p class="sn-status-box-title">Disabled</p><p class="sn-status-box-body">' . esc_html( sn_indexnow_disabled_sentence() ) . '</p></div><span class="sn-pill sn-pill--warn">Off</span></div>';
 	} elseif ( '' !== ( $problem = function_exists( 'sn_indexnow_result_problem' ) ? sn_indexnow_result_problem( (array) $result ) : (string) ( $result['error'] ?? '' ) ) ) {
 		echo '<div class="sn-status-box sn-status-box--err"><div><p class="sn-status-box-title">Last submission failed</p><p class="sn-status-box-body">' . esc_html( $problem ) . '</p></div><span class="sn-pill sn-pill--err">Error</span></div>';
 	} else {

@@ -124,7 +124,7 @@ function cloudflare_edge_html( array $d ) {
 		return \snt_kit_section( __( 'Edge, 7 days', 'signal-and-noise-tools' ), $inner );
 	}
 	if ( empty( $record['configured'] ) ) {
-		$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Not configured: set the API token and zone ID under Credentials.', 'signal-and-noise-tools' ) ) . '</p>';
+		$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Not configured: set the API token and zone ID in Settings › Accounts and connections.', 'signal-and-noise-tools' ) ) . '</p>';
 		return \snt_kit_section( __( 'Edge, 7 days', 'signal-and-noise-tools' ), $inner );
 	}
 	// ── Zone, seven days

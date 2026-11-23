@@ -4,10 +4,12 @@
  *
  * Render-only (POST is handled in sn_handle_music_save / sn_handle_music_sync on
  * admin_init, PRG). Surfaces the discography sync: a status panel (last run,
- * release count, last error) read from the store, the Spotify credentials
- * (masked, constant-lockable — mirrors the Plausible tab), the Muso profile id
- * (the only Muso input — there is NO Muso credential; the data source is the
- * unauthenticated public endpoint), and a "Sync now" button.
+ * release count, last error) read from the store, where the Spotify
+ * credentials come from (keyring rows), the featured release, and a "Sync
+ * now" button. The Muso profile id (the only Muso input: there is NO Muso
+ * credential; the data source is the unauthenticated public endpoint) is on
+ * Settings > Accounts and connections since 2026-11; this leaf keeps one line
+ * saying so.
  *
  * Native WP styling only (brand vocabulary belongs to the front end).
  *
@@ -62,7 +64,6 @@ function sn_admin_render_music_section() {
 
 	$id_const      = defined( 'SN_SPOTIFY_CLIENT_ID' ) && SN_SPOTIFY_CLIENT_ID;
 	$secret_const  = defined( 'SN_SPOTIFY_CLIENT_SECRET' ) && SN_SPOTIFY_CLIENT_SECRET;
-	$profile_const = defined( 'SN_MUSO_PROFILE_ID' ) && SN_MUSO_PROFILE_ID;
 	$id_opt        = (string) get_option( SN_SPOTIFY_ID_OPT, '' );
 	$secret_opt    = (string) get_option( SN_SPOTIFY_SECRET_OPT, '' );
 	$spotify_on    = (bool) sn_spotify_config();
@@ -99,23 +100,8 @@ function sn_admin_render_music_section() {
 	echo '<tr><th scope="row">Client ID</th><td>' . esc_html( $id_const ? 'wp-config (SN_SPOTIFY_CLIENT_ID)' : ( '' !== $id_opt ? 'Saved' : 'Not set' ) ) . '</td></tr>';
 	echo '<tr><th scope="row">Client Secret</th><td>' . esc_html( $secret_const ? 'wp-config (SN_SPOTIFY_CLIENT_SECRET)' : ( '' !== $secret_opt ? 'Saved' : 'Not set' ) ) . '</td></tr>';
 	echo '</tbody></table>';
-	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=connections&sub=credentials' ) ) . '">Connections › Credentials</a>.</p>';
+	echo '<p class="sn-field-helper">Set with every other key under <a href="' . esc_url( admin_url( 'admin.php?page=sn-tools&tab=settings&sub=accounts' ) ) . '">Settings › Accounts and connections</a>.</p>';
 	echo '</div>';
-
-	echo '<div class="sn-fieldset">';
-	echo '<h2 class="sn-fieldset-h">Muso.AI profile</h2>';
-	echo '<p class="sn-fieldset-intro">The public profile whose credits are mirrored. Defaults to Juan&rsquo;s. No credential: it&rsquo;s the same id in the public credits URL. Lockable via <code>SN_MUSO_PROFILE_ID</code>.</p>';
-	echo '<div class="sn-field sn-field-w-lg">';
-	echo '<label class="sn-field-label" for="sn_muso_profile">Profile ID</label>';
-	if ( $profile_const ) {
-		echo '<input type="text" value="' . esc_attr( $profile_id ) . '" disabled class="sn-mono">';
-		echo '<p class="sn-field-helper"><strong>Locked</strong> by <code>SN_MUSO_PROFILE_ID</code>.</p>';
-	} else {
-		echo '<input type="text" id="sn_muso_profile" name="sn_muso_profile" value="' . esc_attr( $profile_id ) . '" class="sn-mono">';
-		echo '<p class="sn-field-helper">Type <code>clear</code> to revert to the default profile.</p>';
-	}
-	echo '</div>';
-	echo '</div>'; // .sn-fieldset (Muso profile)
 
 	// ── Featured release (v4.14.0): the one "press play" player on /music. ──
 	echo '<div class="sn-fieldset">';
@@ -155,6 +141,10 @@ function sn_admin_render_music_section() {
 		echo '<tr><th>Last error</th><td><code>' . esc_html( $last_error ) . '</code></td></tr>';
 	}
 	echo '</tbody></table>';
+	// The profile ID left for Settings > Accounts and connections in 2026-11.
+	if ( function_exists( 'snt_settings_accounts_moved_line' ) ) {
+		snt_settings_accounts_moved_line( 'muso' );
+	}
 	echo '</div>';
 
 	// ── SYNC NOW ──

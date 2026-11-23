@@ -413,7 +413,7 @@ function sn_cf_monitor_refresh_sentence( $when, $configured ) {
 		? __( 'The token changed after the last read.', 'signal-and-noise-tools' )
 		: __( 'The monitor has not run yet.', 'signal-and-noise-tools' );
 	if ( ! $configured ) {
-		return $lead . ' ' . __( 'Refresh reads it once the API token and zone ID are set under Credentials.', 'signal-and-noise-tools' );
+		return $lead . ' ' . __( 'Refresh reads it once the API token and zone ID are set in Settings › Accounts and connections.', 'signal-and-noise-tools' );
 	}
 	return $lead . ' ' . ( 'changed' === $when
 		? __( 'Press Refresh now to read the new one.', 'signal-and-noise-tools' )
