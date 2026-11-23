@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/identity-person-name.php'; // sn_identity_person_name(): the name these nodes print
+
 /**
  * Default social profile URLs (sameAs). Filterable.
  */
@@ -43,7 +45,7 @@ function sn_schema_person() {
 	}
 	$same_as = (array) apply_filters( 'sn_schema_same_as', $same_as );
 
-	$name = sn_setting( 'identity.person_name', get_bloginfo( 'name' ) );
+	$name = sn_identity_person_name();
 
 	$person = array(
 		'@type'      => 'Person',

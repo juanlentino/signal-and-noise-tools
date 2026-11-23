@@ -64,6 +64,19 @@
  *   the time on page (`?? 30`) as one setting. The groups are one select per
  *   group, so the rule adds: one form, holding one per group.
  *
+ * One more backs Settings > General, the widest of them:
+ *
+ * - sn_handle_save_identity() (inc/admin-post-actions/system.php) hands the
+ *   post to sn_settings_save() (inc/settings-save-parts.php), which rebuilds
+ *   the identity, social, og and seo_copy subtrees from the post alone: the
+ *   person name, availability, handle, OG image and six SEO strings from
+ *   `?? ''`, the card size from `?? 1200` and `?? 630`, the profile URLs from
+ *   `?? array()`; the site name, description and locale overrides, the job
+ *   title and the topics are stored only when posted and non-empty. A form
+ *   without a field clears it or sets it back to its default. The profile
+ *   rows are `social_same_as[]` on the classic form and `social_same_as[N]`
+ *   in the window, so a suite adds its surface's spelling to the list.
+ *
  * sn_handle_analytics_collector_save(), sn_handle_gsc_credential_save() and
  * sn_handle_gsc_property_save() reset nothing: a missing or empty field is
  * refused or changes nothing.
@@ -142,3 +155,6 @@ const SNT_PUBLISH_WINDOW_SAVE_FIELDS = array( 'sn_publish_window_minutes' );
 
 /** The two fixed fields sn_handle_north_star_save() writes beside its page groups. */
 const SNT_NORTH_STAR_SAVE_FIELDS = array( 'sn_nsm_scroll', 'sn_nsm_dwell_s' );
+
+/** The seventeen fixed fields sn_settings_save() writes beside the profile URL rows. */
+const SNT_IDENTITY_SAVE_FIELDS = array( 'identity_site_name', 'identity_site_description', 'identity_person_name', 'identity_job_title', 'identity_availability', 'identity_knows_about', 'identity_locale', 'social_twitter_handle', 'og_default_image_url', 'og_card_width', 'og_card_height', 'seo_home_title', 'seo_home_description', 'seo_notes_title', 'seo_notes_description', 'seo_provenance_title', 'seo_provenance_description' );

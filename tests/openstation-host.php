@@ -580,13 +580,13 @@ $_GET     = array( 'sentinel' => 'get' );
 $_POST    = array( 'sentinel' => 'post' );
 $_REQUEST = array( 'sentinel' => 'request' );
 $snapshot = array( $_GET, $_POST, $_REQUEST );
-$result   = snt_os_host_replay( $values, 'sn-theme-options', array( 'tab' => 'site', 'sub' => 'identity-and-seo' ) );
+$result   = snt_os_host_replay( $values, 'sn-theme-options', array( 'tab' => 'settings', 'sub' => 'general' ) );
 ok( true === $result['ok'] && 'identity_saved' === $result['flash'] && 'admin-post' === $result['pipeline'], 'a table action runs on the admin-post pipeline through do_action( admin_post_sn_save_identity ) and its flash code comes back out of the intercepted redirect' );
 $call = $GLOBALS['__handler_calls'][0];
 ok( "Juan\\'s \\\"site\\\"" === $call[1]['site_name'],
 	'the handler is called with SLASHED values -- every handler wp_unslash()es what it reads, so an unslashed replay would silently eat the quotes in a saved title' );
 ok( 'sn-theme-options' === $call[2]['page'], 'a handler reading $_REQUEST[\'page\'] sees the window\'s page slug' );
-ok( array( 'tab' => 'site', 'sub' => 'identity-and-seo', 'anchor' => null ) === $result['target'],
+ok( array( 'tab' => 'settings', 'sub' => 'general', 'anchor' => null ) === $result['target'],
 	'the target is sn_admin_post_redirect_target()\'s, called -- a current tab passes through with its sub' );
 ok( array() === $result['params'], '   ...and a table save carries no params forward: the classic redirect keeps only page/tab/sub/sn_flash' );
 ok( $snapshot === array( $_GET, $_POST, $_REQUEST ), 'the superglobals are restored after the handler ran' );
@@ -749,7 +749,7 @@ ok( ' name="action" value="sn_full_reset" formaction="https://example.test/wp-ad
 $_GET = array();
 // (decoded twice: core's esc_url() folds wp_nonce_url()'s &amp; into &#038;; this suite's esc_url() stub escapes again.)
 $fragment = snt_os_host_borrowed( array( '_wpnonce' => 'good-nonce', 'action' => 'sn_save_identity' ), array( 'tab' => 'identity' ), 'sn-theme-options', static function () { do_action( 'admin_post_sn_save_identity' ); } );
-ok( 'redirect' === $fragment['outcome'] && 'https://example.test/wp-admin/admin.php?page=sn-theme-options&sn_flash=identity_saved&tab=site&sub=identity-and-seo#sn-sec-identity' === $fragment['location'], 'the Location a legacy tab redirects to carries page, flash, home and the #sn-sec- fragment, through wp_safe_redirect(): wp_sanitize_redirect() keeps the fragment, so the raw header() the old comment justified is gone' );
+ok( 'redirect' === $fragment['outcome'] && 'https://example.test/wp-admin/admin.php?page=sn-theme-options&sn_flash=identity_saved&tab=settings&sub=general#sn-sec-identity' === $fragment['location'], 'the Location a legacy tab redirects to carries page, flash, home and the #sn-sec- fragment, through wp_safe_redirect(): wp_sanitize_redirect() keeps the fragment, so the raw header() the old comment justified is gone' );
 $src_legacy   = (string) file_get_contents( __DIR__ . '/../inc/admin-legacy-redirect.php' );
 ok( false === strpos( $src_dispatch, 'header(' ) && false === strpos( $src_legacy, 'header( \'Location' ) && false === strpos( $src_dispatch . $src_legacy, 'strips' ), '   ...source: no raw header() and no "strips the fragment" premise in either file' );
 require_once __DIR__ . '/lib/inc-population.php';
@@ -786,9 +786,10 @@ foreach ( array( 'monitoring', 'site', 'content', 'connections', 'security', 'to
 $_GET = array();
 ok( '' === snt_os_host_resolve_sub( 'dashboard', 'anything' ), 'a landing tab has no sub-tab, whatever was asked for' );
 ok( 'health' === snt_os_host_resolve_sub( 'monitoring', 'health' ), 'a leaf the tab really has is kept' );
-ok( 'notifications' === snt_os_host_resolve_sub( 'settings', '' ) && 'notifications' === snt_os_host_resolve_sub( 'settings', 'notifications' ) && 'security' === snt_os_host_resolve_sub( 'settings', 'security' ), 'the settings tab lands on its first pane unnamed, and on the pane it is asked for' );
+ok( 'general' === snt_os_host_resolve_sub( 'settings', '' ) && 'general' === snt_os_host_resolve_sub( 'settings', 'general' ) && 'notifications' === snt_os_host_resolve_sub( 'settings', 'notifications' ) && 'security' === snt_os_host_resolve_sub( 'settings', 'security' ), 'the settings tab lands on its first pane unnamed (General since 2026-11; it was Notifications and reports), and on the pane it is asked for' );
 ok( 'login-defense' === snt_os_host_resolve_sub( 'security', 'login' ), 'a Security session still holding the moved leaf (login) falls to the tab\'s first leaf, never a blank' );
-ok( 'front-end' === snt_os_host_resolve_sub( 'settings', 'front-end' ) && 'identity-and-seo' === snt_os_host_resolve_sub( 'site', 'front-end' ), 'the fourth pane resolves, and a Site session still holding the moved leaf (front-end) falls to the tab\'s first leaf, never a blank' );
+ok( 'front-end' === snt_os_host_resolve_sub( 'settings', 'front-end' ) && 'performance' === snt_os_host_resolve_sub( 'site', 'front-end' ), 'the Front end pane resolves, and a Site session still holding the moved leaf (front-end) falls to the tab\'s first leaf, never a blank' );
+ok( 'performance' === snt_os_host_resolve_sub( 'site', 'identity-and-seo' ) && 'performance' === snt_os_host_resolve_sub( 'site', '' ), 'a Site session still holding identity-and-seo (moved whole to Settings > General) falls to Site\'s first leaf, Performance, as a bare Site tab does' );
 ok( 'accounts' === snt_os_host_resolve_sub( 'settings', 'accounts' ) && 'cloudflare' === snt_os_host_resolve_sub( 'connections', 'credentials' ) && 'cloudflare' === snt_os_host_resolve_sub( 'connections', '' ), 'the fifth pane resolves, and a Connections session still holding the moved leaf (credentials) falls to the tab\'s first leaf, Cloudflare, never a blank' );
 
 echo "\nGroup 6: the `sn_*` params a window carries\n";

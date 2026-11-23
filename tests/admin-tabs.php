@@ -215,7 +215,8 @@ foreach ( sn_admin_top_tabs() as $p ) {
 tabs_assert_eq( '', sn_admin_page_subtitle_for_tab( 'nonexistent-tab' ), 'unknown tab returns empty string' );
 
 // ─── Test 9: sn_admin_render_section_tabs() selector contract (v6.19.4) ─────
-// The composite Identity & SEO leaf renders its 4 sub-sections as in-form
+// The composite leaf (Settings > General since 2026-11; it was Site >
+// Identity & SEO) renders its 4 sub-sections as in-form
 // section tabs (visually identical to the cross-page sub-tab nav the other top
 // tabs use), enhanced by assets/admin.js initSectionTabs() into a JS panel
 // switcher. Without JS the anchors degrade to in-page jump links (all panels
@@ -225,7 +226,7 @@ tabs_assert_eq( '', sn_admin_page_subtitle_for_tab( 'nonexistent-tab' ), 'unknow
 // slugs matching what sn_admin_render_section() emits as section ids.
 echo "\nTest 9: sn_admin_render_section_tabs() emits the .sn-section-tabs + #sn-sec-<slug> selector contract\n";
 ob_start();
-sn_admin_render_section_tabs( 'site', 'identity-and-seo' );
+sn_admin_render_section_tabs( 'settings', 'general' );
 $nav_html = ob_get_clean();
 
 // Reuses .sn-sub-tabs (visual parity with the cross-page sub-tab nav) plus the
@@ -233,15 +234,15 @@ $nav_html = ob_get_clean();
 tabs_assert_true( false !== strpos( $nav_html, 'class="sn-sub-tabs sn-section-tabs"' ), 'nav carries class="sn-sub-tabs sn-section-tabs" (visual parity + JS root selector)' );
 tabs_assert_true( false === strpos( $nav_html, 'sn-toc' ), 'old .sn-toc "Jump to" markup is gone' );
 
-// One <a class="sn-sub-tab" href="#sn-sec-<slug>"> per sub_section of site/identity-and-seo.
+// One <a class="sn-sub-tab" href="#sn-sec-<slug>"> per sub_section of settings/general.
 $sub_sections = array();
 foreach ( sn_admin_top_tabs() as $top ) {
-	if ( 'site' === $top['tab'] ) {
-		$sub_sections = array_keys( $top['sub_tabs']['identity-and-seo']['sub_sections'] );
+	if ( 'settings' === $top['tab'] ) {
+		$sub_sections = array_keys( $top['sub_tabs']['general']['sub_sections'] );
 		break;
 	}
 }
-tabs_assert_true( count( $sub_sections ) > 0, 'site/identity-and-seo defines sub_sections (fixture sanity)' );
+tabs_assert_true( count( $sub_sections ) > 0, 'settings/general defines sub_sections (fixture sanity)' );
 
 $tab_count = preg_match_all( '/<a class="sn-sub-tab[^"]*" href="#sn-sec-[a-z0-9\-]+"/', $nav_html );
 tabs_assert_eq( count( $sub_sections ), $tab_count, 'one .sn-sub-tab anchor per sub_section' );
@@ -281,7 +282,7 @@ if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string)
 require_once __DIR__ . '/../inc/admin-forms/identity-and-seo.php';
 
 ob_start();
-sn_admin_render_section_tabs( 'site', 'identity-and-seo' );
+sn_admin_render_section_tabs( 'settings', 'general' );
 $nav_for_wiring = ob_get_clean();
 ob_start();
 sn_admin_render_identity_and_seo_form();

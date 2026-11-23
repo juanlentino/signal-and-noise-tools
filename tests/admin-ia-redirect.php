@@ -67,7 +67,7 @@ eq( null, sn_admin_canonical_destination( 'connections', 'music' ), 'connections
 eq( null, sn_admin_canonical_destination( 'monitoring', 'rss' ), 'monitoring/rss now canonical (the old move entry must be GONE, or RSS bounces out of its new home)' );
 eq( null, sn_admin_canonical_destination( 'connections', 'cloudflare' ), 'connections/cloudflare canonical' );
 eq( null, sn_admin_canonical_destination( 'monitoring', 'health' ), 'monitoring/health canonical' );
-eq( null, sn_admin_canonical_destination( 'site', 'identity-and-seo' ), 'site/identity-and-seo canonical' );
+eq( null, sn_admin_canonical_destination( 'settings', 'general' ), 'settings/general canonical (2026-11: Site > Identity & SEO moved there whole)' );
 eq( null, sn_admin_canonical_destination( 'site', 'redirects' ), 'site/redirects canonical' );
 eq( null, sn_admin_canonical_destination( 'content', 'pattern-adoption' ), 'content/pattern-adoption canonical (new leaf, never had a prior home)' );
 eq( null, sn_admin_canonical_destination( 'ai', 'models-budget' ), 'ai/models-budget canonical' );
@@ -110,6 +110,16 @@ eq( $fe, sn_admin_post_redirect_target( 'site', 'front-end' ), 'POST PRG: an in-
 eq( null, sn_admin_canonical_destination( 'settings', 'front-end' ), 'settings/front-end canonical' );
 eq( $fe, sn_admin_post_redirect_target( 'settings', 'front-end' ), 'POST PRG: a save from Settings > Front end returns to it' );
 eq( null, sn_admin_canonical_destination( 'site', 'performance' ), 'site/performance still canonical: the switch left it, the leaf did not move' );
+// Settings > General took a WHOLE leaf (Site > Identity & SEO, the one
+// save_identity form). The leaf redirects; Site's other three do not. A bare
+// tab=site carries no sub, so nothing can redirect it: it opens on Performance.
+$gen = array( 'tab' => 'settings', 'sub' => 'general', 'anchor' => null );
+eq( $gen, sn_admin_canonical_destination( 'site', 'identity-and-seo' ), 'site/identity-and-seo -> settings/general (the leaf moved whole)' );
+eq( $gen, sn_admin_post_redirect_target( 'site', 'identity-and-seo' ), 'POST PRG: an in-flight save from the old Identity & SEO leaf lands on the pane' );
+eq( $gen, sn_admin_post_redirect_target( 'settings', 'general' ), 'POST PRG: a save from Settings > General returns to it' );
+eq( array( 'tab' => 'settings', 'sub' => null, 'anchor' => null ), sn_admin_post_redirect_target( 'settings', '' ), 'POST PRG: a save from the bare Settings tab (General, its first pane) returns to the bare tab' );
+eq( null, sn_admin_canonical_destination( 'site', '' ), 'a bare tab=site is not redirected: no sub names the leaf that left' );
+eq( array( 'tab' => 'site', 'sub' => null, 'anchor' => null ), sn_admin_post_redirect_target( 'site', '' ), 'POST PRG: an identity save in flight from a bare tab=site page is applied and answered on the Site tab (its first leaf, Performance), the one in-flight case with no sub to redirect' );
 // Settings > Accounts and connections took a WHOLE leaf (Connections >
 // Credentials, the account list with its state) and the settings of three
 // leaves that kept their readings. The leaf redirects; the three do not.
@@ -151,7 +161,10 @@ eq( array( 'tab' => 'monitoring', 'sub' => 'rss', 'anchor' => null ), sn_admin_p
 eq( array( 'tab' => 'ai', 'sub' => 'models-budget', 'anchor' => null ), sn_admin_post_redirect_target( 'ai', 'models-budget' ), 'POST ai/models-budget → passthrough (Run comparison, the one form the leaf keeps, answers in place)' );
 eq( array( 'tab' => 'connections', 'sub' => 'cloudflare', 'anchor' => null ), sn_admin_post_redirect_target( 'site', 'cloudflare' ), 'POST stale site/cloudflare → connections/cloudflare' );
 eq( array( 'tab' => 'connections', 'sub' => 'webhooks', 'anchor' => null ), sn_admin_post_redirect_target( 'connections', 'webhooks' ), 'POST connections/webhooks → passthrough' );
-eq( array( 'tab' => 'site', 'sub' => 'identity-and-seo', 'anchor' => 'identity' ), sn_admin_post_redirect_target( 'identity', '' ), 'POST legacy identity → site/identity-and-seo#identity (anchor preserved)' );
+eq( array( 'tab' => 'settings', 'sub' => 'general', 'anchor' => 'identity' ), sn_admin_post_redirect_target( 'identity', '' ), 'POST legacy identity → settings/general#identity (anchor preserved; named directly, not via site)' );
+foreach ( array( 'social', 'open-graph', 'seo-copy' ) as $flat ) {
+	eq( array( 'tab' => 'settings', 'sub' => 'general', 'anchor' => $flat ), sn_admin_canonical_destination( $flat, '' ), "GET legacy $flat → settings/general#$flat" );
+}
 eq( array( 'tab' => 'dashboard', 'sub' => null, 'anchor' => null ), sn_admin_post_redirect_target( 'bogus-tab', '' ), 'POST unknown tab → dashboard fallback' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

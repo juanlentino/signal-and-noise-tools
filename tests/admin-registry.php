@@ -117,8 +117,10 @@ ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connection
 // Settings: the plugin's own preferences, one pane per subject. The first pane
 // is the three email switches that sat on Connections > Cron and Security >
 // Login defense. 'wide' because its render fn paints two cards of its own.
-ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'notifications', 'security', 'ai', 'front-end', 'accounts', 'analytics' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
-	'settings: slug sn-settings, six panes, notifications, security, ai, front-end, accounts, analytics' );
+ok( 'sn-settings' === ( $by_tab['settings']['slug'] ?? '' ) && 'Settings' === ( $by_tab['settings']['label'] ?? '' ) && array( 'general', 'notifications', 'security', 'ai', 'front-end', 'accounts', 'analytics' ) === array_keys( $by_tab['settings']['sub_tabs'] ),
+	'settings: slug sn-settings, seven panes, general first, then notifications, security, ai, front-end, accounts, analytics' );
+ok( 'General' === ( $by_tab['settings']['sub_tabs']['general']['label'] ?? '' ) && array( 'identity', 'social', 'open-graph', 'seo-copy' ) === array_keys( (array) ( $by_tab['settings']['sub_tabs']['general']['sub_sections'] ?? array() ) ),
+	'the first pane is labelled "General" and is the composite leaf: its four sections came with it from Site' );
 ok( 'Accounts and connections' === ( $by_tab['settings']['sub_tabs']['accounts']['label'] ?? '' ) && 'sn_admin_render_settings_accounts_section' === ( $by_tab['settings']['sub_tabs']['accounts']['render'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['accounts']['wide'] ),
 	'the fifth pane is labelled "Accounts and connections", wide: the keyring\'s own shell and a row of boxes' );
 ok( 'Front end' === ( $by_tab['settings']['sub_tabs']['front-end']['label'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['front-end']['wide'] ),
@@ -135,17 +137,25 @@ sn_admin_render_active_tab( 'settings', 'security' );
 ok( 'fn:sn_admin_render_security_settings_section' === end( $GLOBALS['__calls'] ), 'the dispatcher routes settings/security to its pane' );
 ok( 'Notifications and reports' === ( $by_tab['settings']['sub_tabs']['notifications']['label'] ?? '' ) && ! empty( $by_tab['settings']['sub_tabs']['notifications']['wide'] ),
 	'the pane is labelled "Notifications and reports" and is wide (it owns its two cards; capped would nest them in a third)' );
+sn_admin_render_active_tab( 'settings', 'notifications' );
+ok( 'fn:sn_admin_render_notifications_section' === end( $GLOBALS['__calls'] ), 'the dispatcher routes settings/notifications to its pane' );
+// General is the first pane since 2026-11 (Notifications and reports was):
+// the bare tab lands on it.
 sn_admin_render_active_tab( 'settings', '' );
-ok( 'fn:sn_admin_render_notifications_section' === end( $GLOBALS['__calls'] ), 'the dispatcher lands the settings tab on its first pane' );
+ok( 'form:identity' === end( $GLOBALS['__calls'] ), 'the dispatcher lands the bare settings tab on its first pane, General' );
 
 // Site: was the single-leaf Identity & SEO tab; now the whole "how the site
 // itself behaves" group, so its label loses the leaf's name.
 ok( ( $by_tab['site']['label'] ?? '' ) === 'Site', "site relabelled 'Site' (was 'Identity & SEO' — now more than that one leaf)" );
-ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'identity-and-seo', 'performance', 'redirects', 'broken-links' ),
+ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'performance', 'redirects', 'broken-links' ),
 	// v13.109.8: broken-links joins, LAST — the registry's order is the nav's order,
 	// so this pin is also an assertion about where the tab appears.
-	// 2026-11: front-end left whole for settings/front-end.
-	'site leaves: identity-and-seo, performance, redirects, broken-links; front-end moved whole to settings/front-end' );
+	// 2026-11: front-end left whole for settings/front-end, then
+	// identity-and-seo, whole, for settings/general.
+	'site leaves: performance, redirects, broken-links; front-end and identity-and-seo moved whole to settings' );
+$GLOBALS['__calls'] = array();
+sn_admin_render_active_tab( 'site', '' );
+ok( array( 'subtabs:site', 'section:performance', 'fn:sn_admin_render_performance_section' ) === $GLOBALS['__calls'], 'a bare tab=site opens on Performance, its first leaf now' );
 
 // Content: page editors + the three sibling content scanners (finding 5 —
 // Tags / Pattern Adoption / Block Migrations were in three different tabs).
@@ -219,11 +229,12 @@ ok( $GLOBALS['__calls'] === array( 'subtabs:tools', 'section:trust', 'action:sn_
 	'route tools/trust → nav + section + its own sn_admin_trust_tab delegator' );
 
 // ── Dispatcher routing (Task 3) ──
-// identity-and-seo: sub-tab nav + in-form section tabs + the form, NO section wrapper.
+// The composite leaf (settings/general, site/identity-and-seo until 2026-11):
+// sub-tab nav + in-form section tabs + the form, NO section wrapper.
 $GLOBALS['__calls'] = array();
-sn_admin_render_active_tab( 'site', 'identity-and-seo' );
-ok( $GLOBALS['__calls'] === array( 'subtabs:site', 'sectiontabs:site/identity-and-seo', 'form:identity' ),
-	'route site/identity-and-seo → nav + section tabs + form (no section wrapper)' );
+sn_admin_render_active_tab( 'settings', 'general' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:settings', 'sectiontabs:settings/general', 'form:identity' ),
+	'route settings/general → nav + section tabs + form (no section wrapper)' );
 
 // connections/cloudflare: sub-tab nav + section-wrapped do_action.
 $GLOBALS['__calls'] = array();

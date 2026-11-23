@@ -14,6 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/identity-person-name.php'; // sn_identity_person_name(): the name these nodes print
+
 /**
  * Build the Article schema for the current singular post, or pillar page.
  * Returns null elsewhere.
@@ -280,7 +282,7 @@ function sn_schema_professional_service() {
 	return array(
 		'@type'           => 'ProfessionalService',
 		'@id'             => $home . '#/schema/ProfessionalService',
-		'name'            => sn_setting( 'identity.person_name', get_bloginfo( 'name' ) ),
+		'name'            => sn_identity_person_name(),
 		'url'             => $queried ? get_permalink( $queried ) : $home . 'services/',
 		'provider'        => array( '@id' => $home . '#/schema/Person' ),
 		'hasOfferCatalog' => array(

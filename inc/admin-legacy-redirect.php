@@ -74,12 +74,14 @@ function sn_admin_legacy_redirect_map() {
 	// (introduced by the sub-tabs IA). The `anchor` field stays — it's the inner
 	// section anchor within the Identity & SEO sub-tab for the 4 form sections
 	// (identity, social, open-graph, seo-copy). Other sub-tabs have anchor=null.
+	// 2026-11: that leaf moved whole to Settings > General; the four slugs name
+	// the pane directly (this map does not chain) and keep their anchors.
 	return array(
 		'dashboard'    => array( 'tab' => 'dashboard',  'sub' => null,                'anchor' => null ),
-		'identity'     => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'identity' ),
-		'social'       => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'social' ),       // v3.8.1: previously inner section, now redirectable
-		'open-graph'   => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'open-graph' ),   // v3.8.1
-		'seo-copy'     => array( 'tab' => 'site',       'sub' => 'identity-and-seo',  'anchor' => 'seo-copy' ),     // v3.8.1
+		'identity'     => array( 'tab' => 'settings',   'sub' => 'general',           'anchor' => 'identity' ),
+		'social'       => array( 'tab' => 'settings',   'sub' => 'general',           'anchor' => 'social' ),       // v3.8.1: previously inner section, now redirectable
+		'open-graph'   => array( 'tab' => 'settings',   'sub' => 'general',           'anchor' => 'open-graph' ),   // v3.8.1
+		'seo-copy'     => array( 'tab' => 'settings',   'sub' => 'general',           'anchor' => 'seo-copy' ),     // v3.8.1
 		'cloudflare'   => array( 'tab' => 'connections', 'sub' => 'cloudflare',        'anchor' => null ),  // v6.18.0: Site → Connections
 		'login'        => array( 'tab' => 'settings',    'sub' => 'security',          'anchor' => null ),  // 2026-11: Security > Login URL moved whole to Settings > Security; named directly, this map does not chain
 		'webhooks'     => array( 'tab' => 'connections', 'sub' => 'webhooks',          'anchor' => null ),  // v6.18.0: Automation → Connections
@@ -142,6 +144,9 @@ function sn_admin_subtab_moves() {
 		// The fifth pane took Connections > Credentials whole. IndexNow, Zenodo
 		// and Discography gave it fields and kept their leaves: no line.
 		'connections/credentials' => array( 'tab' => 'settings', 'sub' => 'accounts' ),
+		// The seventh pane, General, took Site > Identity & SEO whole: one form,
+		// eighteen settings, no reading. Site keeps its other three leaves.
+		'site/identity-and-seo'   => array( 'tab' => 'settings', 'sub' => 'general' ),
 		// 'monitoring/rss' is deliberately ABSENT: RSS now lives in monitoring, so an
 		// entry here would bounce the leaf straight back out of its own tab.
 	);

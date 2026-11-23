@@ -2,7 +2,8 @@
 /**
  * Signal & Noise: Settings > Notifications and reports, the classic section.
  *
- * The first pane of the Settings tab: the three email switches, gathered from
+ * The first pane the Settings tab had (the second in its bar since General
+ * took first place): the three email switches, gathered from
  * the two readings they sat on. The morning brief and the alerts email came
  * from Connections > Cron, the weekly security digest from Security > Login
  * defense. Each brought its hint, its test button and its last-sent lines.

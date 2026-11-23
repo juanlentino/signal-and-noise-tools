@@ -80,11 +80,15 @@ unset( $connections['credentials'] ); // 2026-11: Credentials moved whole to Set
 ok( false !== strpos( snt_kit_tabs( 'cron', $connections, 'sub', 'Sections' ), 'data-snt-fit="760"' ), 'Connections\' eight pills today (about 711px estimated) switch under a 760px window' );
 ok( false === strpos( snt_kit_tabs( 'login', array( 'login' => 'Login URL', 'login-defense' => 'Login defense', 'firewall' => 'Firewall' ), 'sub', 'Sections' ), 'data-snt-fit' ), 'three short pills fit even a 360px window and keep the segmented control' );
 $site = array( 'identity-and-seo' => 'Identity & SEO', 'performance' => 'Performance', 'redirects' => 'Redirects', 'broken-links' => 'Broken links' );
-ok( false !== strpos( snt_kit_tabs( 'performance', $site, 'sub', 'Sections' ), 'data-snt-fit="600"' ), 'Site\'s four pills (about 450px estimated; five and about 545px until Front-End left in 2026-11) switch under a 600px window: a short bar is not exempt (review on #2023)' );
+ok( false !== strpos( snt_kit_tabs( 'performance', $site, 'sub', 'Sections' ), 'data-snt-fit="600"' ), 'the four pills Site had until Identity & SEO left in 2026-11 (about 450px estimated; five and about 545px before Front-End left) switch under a 600px window: a short bar is not exempt (review on #2023)' );
+unset( $site['identity-and-seo'] ); // 2026-11: Identity & SEO moved whole to Settings > General.
+ok( false === strpos( snt_kit_tabs( 'performance', $site, 'sub', 'Sections' ), 'data-snt-fit' ), 'Site\'s three pills today (about 320px estimated) fit even a 360px window and keep the segmented control' );
 $settings = array( 'notifications' => 'Notifications and reports', 'security' => 'Security', 'ai' => 'AI', 'front-end' => 'Front end', 'accounts' => 'Accounts and connections' );
 ok( false !== strpos( snt_kit_tabs( 'front-end', $settings, 'sub', 'Sections' ), 'data-snt-fit="760"' ), 'the five panes Settings had until Analytics came in 2026-11 (about 636px estimated) switch under a 760px window' );
 $settings['analytics'] = 'Analytics';
-ok( false !== strpos( snt_kit_tabs( 'front-end', $settings, 'sub', 'Sections' ), 'data-snt-fit="920"' ), 'Settings\' six panes today (about 731px estimated) switch under a 920px window' );
+ok( false !== strpos( snt_kit_tabs( 'front-end', $settings, 'sub', 'Sections' ), 'data-snt-fit="920"' ), 'the six panes Settings had until General came in 2026-11 (about 731px estimated) switch under a 920px window' );
+$settings = array( 'general' => 'General' ) + $settings;
+ok( array_keys( $settings ) === array_keys( \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'settings' ) ) && false !== strpos( snt_kit_tabs( 'general', $settings, 'sub', 'Sections' ), 'data-snt-fit="920"' ), 'Settings\' seven panes today (about 812px estimated), General first, still switch under a 920px window' );
 
 // #15: an empty table or list says what none means, or the kit says who forgot.
 $log = tempnam( sys_get_temp_dir(), 'snt-kit-empty' );

@@ -182,9 +182,9 @@ scenario( 'every link is stamped, once, outside sn_*: two links to one leaf diff
 
 scenario( 'a #fragment rides as the anchor the classic page scrolls to', () => {
 	const { ctx, opened } = boot( { dashboard: true, analytics: true } );
-	ctx.sntOpenStationPreferences.tryNativeRemap( ORIGIN + '/wp-admin/admin.php?page=sn-theme-options&tab=site&sub=identity-and-seo#sn-sec-identity' );
+	ctx.sntOpenStationPreferences.tryNativeRemap( ORIGIN + '/wp-admin/admin.php?page=sn-theme-options&tab=settings&sub=general#sn-sec-identity' );
 	const p = ( ( opened[ 0 ] || [] )[ 1 ] || {} ).params || {};
-	return { pass: p.tab === 'site' && p.sub === 'identity-and-seo' && p.anchor === 'sn-sec-identity', detail: JSON.stringify( p ) };
+	return { pass: p.tab === 'settings' && p.sub === 'general' && p.anchor === 'sn-sec-identity', detail: JSON.stringify( p ) };
 } );
 
 scenario( 'snt-land shows the tab whose session landed, in that window', () => {

@@ -133,10 +133,10 @@ ok(
 );
 
 // ── 2026.10.4 audit (live check of #2020): Front end (Settings › Front end
-// since 2026-11, the same leaf slug) and Site › Identity & SEO lift their
+// since 2026-11, the same leaf slug) and Settings › General (Site › Identity & SEO until then) lift their
 // form's 760px cap, so the leaf's 820px cap must open too, on
 // its own (whatever form-wide release batch 9 adds later). By class and by leaf. ──
-foreach ( array( '.snt-leaf:has( .snt-site-form )', '.snt-leaf[data-snt-leaf="front-end"]', '.snt-leaf[data-snt-leaf="identity-and-seo"]' ) as $site_hatch ) {
+foreach ( array( '.snt-leaf:has( .snt-site-form )', '.snt-leaf[data-snt-leaf="front-end"]', '.snt-leaf[data-snt-leaf="general"]' ) as $site_hatch ) {
 	$found = array_values( array_filter( $escapes, static fn( $s ) => false !== strpos( $s, $site_hatch ) ) );
 	ok( 1 === count( $found ) && spec( $found[0] ) > $cap_spec, "the Site form leaves are released: $site_hatch, outranking the cap" );
 }
