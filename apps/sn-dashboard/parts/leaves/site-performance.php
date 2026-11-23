@@ -54,7 +54,7 @@ function performance_intro_html() {
 		. \snt_kit_esc( __( 'Since 6.8, WordPress ships native', 'signal-and-noise-tools' ) ) . ' '
 		. \snt_kit_link( __( 'Speculation Rules', 'signal-and-noise-tools' ), 'https://developer.chrome.com/docs/web-platform/prerender-pages' )
 		. ' ' . \snt_kit_esc( __( '(default:', 'signal-and-noise-tools' ) ) . ' '
-		. \snt_kit_code( 'auto', false ) . '/' . \snt_kit_code( 'auto', false ) . \snt_kit_esc( __( ', which WordPress resolves to prefetch). ', 'signal-and-noise-tools' ) )
+		. \snt_kit_code( 'auto', false ) . '/' . \snt_kit_code( 'auto', false ) . \snt_kit_esc( __( ', which WordPress resolves to prefetch unless the host set another). ', 'signal-and-noise-tools' ) )
 		. \snt_kit_esc( __( 'With its switch on, this plugin asks for a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. With it off, WordPress’s default stays. The Profile box lists what is in effect and what it leaves out.', 'signal-and-noise-tools' ) )
 		. '</p>';
 }
