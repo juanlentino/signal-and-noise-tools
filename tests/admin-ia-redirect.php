@@ -35,7 +35,7 @@ eq( array( 'tab' => 'connections', 'sub' => 'webhooks', 'anchor' => null ), sn_a
 eq( array( 'tab' => 'connections', 'sub' => 'indexnow', 'anchor' => null ), sn_admin_canonical_destination( 'automation', 'indexnow' ), 'automation/indexnow → connections/indexnow' );
 
 // ── v10.46.0 Phase-3 IA: the leaves that moved in the regroup ──
-eq( array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => null ), sn_admin_canonical_destination( 'content', 'front-end' ), 'content/front-end → site/front-end' );
+eq( array( 'tab' => 'settings', 'sub' => 'front-end', 'anchor' => null ), sn_admin_canonical_destination( 'content', 'front-end' ), 'content/front-end → settings/front-end (2026-11: the leaf moved again, whole; named directly, not via site)' );
 eq( array( 'tab' => 'site', 'sub' => 'performance', 'anchor' => null ), sn_admin_canonical_destination( 'content', 'performance' ), 'content/performance → site/performance' );
 eq( array( 'tab' => 'site', 'sub' => 'redirects', 'anchor' => null ), sn_admin_canonical_destination( 'connections', 'redirects' ), 'connections/redirects → site/redirects' );
 eq( array( 'tab' => 'connections', 'sub' => 'music', 'anchor' => null ), sn_admin_canonical_destination( 'content', 'music' ), 'content/music → connections/music' );
@@ -58,7 +58,7 @@ foreach ( array( 'move' => sn_admin_subtab_moves(), 'legacy slug' => sn_admin_le
 // ── Two-hop legacy: entries that pointed at a destination which has since moved
 // again. A stale intermediate lands the bookmark on a tab that no longer owns
 // the leaf, so these must be repointed at the FINAL home, not the old one. ──
-eq( array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'front-end' ), 'tools/front-end → site/front-end (was content — repointed, not two-hopped)' );
+eq( array( 'tab' => 'settings', 'sub' => 'front-end', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'front-end' ), 'tools/front-end → settings/front-end (was content, then site: repointed each time, never two-hopped)' );
 eq( array( 'tab' => 'site', 'sub' => 'performance', 'anchor' => null ), sn_admin_canonical_destination( 'tools', 'performance' ), 'tools/performance → site/performance (was content)' );
 eq( array( 'tab' => 'connections', 'sub' => 'music', 'anchor' => null ), sn_admin_canonical_destination( 'monitoring', 'music' ), 'monitoring/music → connections/music (was content)' );
 
@@ -68,7 +68,7 @@ eq( null, sn_admin_canonical_destination( 'monitoring', 'rss' ), 'monitoring/rss
 eq( null, sn_admin_canonical_destination( 'connections', 'cloudflare' ), 'connections/cloudflare canonical' );
 eq( null, sn_admin_canonical_destination( 'monitoring', 'health' ), 'monitoring/health canonical' );
 eq( null, sn_admin_canonical_destination( 'site', 'identity-and-seo' ), 'site/identity-and-seo canonical' );
-eq( null, sn_admin_canonical_destination( 'site', 'front-end' ), 'site/front-end canonical' );
+eq( null, sn_admin_canonical_destination( 'site', 'redirects' ), 'site/redirects canonical' );
 eq( null, sn_admin_canonical_destination( 'content', 'pattern-adoption' ), 'content/pattern-adoption canonical (new leaf, never had a prior home)' );
 eq( null, sn_admin_canonical_destination( 'ai', 'models-budget' ), 'ai/models-budget canonical' );
 eq( null, sn_admin_canonical_destination( 'tools', 'links' ), 'tools/links canonical' );
@@ -101,6 +101,16 @@ eq( null, sn_admin_canonical_destination( 'ai', 'mcp-connect' ), 'ai/mcp-connect
 eq( null, sn_admin_canonical_destination( 'connections', 'cron' ), 'connections/cron still canonical: the daily run switch left it, the leaf did not move' );
 eq( array( 'tab' => 'connections', 'sub' => 'cron', 'anchor' => null ), sn_admin_post_redirect_target( 'connections', 'cron' ), 'POST PRG: Run now, posted from Cron, returns to Cron' );
 eq( 'ai', sn_admin_post_redirect_target( 'ai', '' )['tab'], 'POST PRG: a bare tab=ai is still the AI tab, never the pane' );
+// Settings > Front end took a WHOLE leaf (Site > Front-End, nothing but the
+// one save_theme form) and one switch (speculative loading, from Site >
+// Performance). The leaf redirects; the Performance leaf does not.
+$fe = array( 'tab' => 'settings', 'sub' => 'front-end', 'anchor' => null );
+eq( $fe, sn_admin_canonical_destination( 'site', 'front-end' ), 'site/front-end -> settings/front-end (the leaf moved whole)' );
+eq( $fe, sn_admin_post_redirect_target( 'site', 'front-end' ), 'POST PRG: an in-flight save from the old Front-End leaf lands on the pane' );
+eq( null, sn_admin_canonical_destination( 'settings', 'front-end' ), 'settings/front-end canonical' );
+eq( $fe, sn_admin_post_redirect_target( 'settings', 'front-end' ), 'POST PRG: a save from Settings > Front end returns to it' );
+eq( null, sn_admin_canonical_destination( 'site', 'performance' ), 'site/performance still canonical: the switch left it, the leaf did not move' );
+eq( array( 'tab' => 'site', 'sub' => 'performance', 'anchor' => null ), sn_admin_post_redirect_target( 'site', 'performance' ), 'POST PRG: an in-flight switch save from Site > Performance returns to that leaf with its notice' );
 eq( array( 'tab' => 'connections', 'sub' => 'cron', 'anchor' => null ), sn_admin_post_redirect_target( 'connections', 'cron' ), 'POST PRG: Acknowledge and the reads form still return to Cron' );
 
 // ── Legacy flat slugs + retired tab ──
@@ -125,7 +135,7 @@ eq( array( 'tab' => 'connections', 'sub' => 'music', 'anchor' => null ), sn_admi
 // A save posted from a leaf that moved in THIS release must land on the new
 // home, not 404 back into the old tab. The forms self-post to the current URL,
 // so tab/sub arrive via $_REQUEST and flow through this same resolver.
-eq( array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => null ), sn_admin_post_redirect_target( 'content', 'front-end' ), 'POST stale content/front-end → site/front-end' );
+eq( array( 'tab' => 'settings', 'sub' => 'front-end', 'anchor' => null ), sn_admin_post_redirect_target( 'content', 'front-end' ), 'POST stale content/front-end → settings/front-end' );
 eq( array( 'tab' => 'monitoring', 'sub' => 'rss', 'anchor' => null ), sn_admin_post_redirect_target( 'content', 'rss' ), 'POST stale content/rss → monitoring/rss' );
 eq( array( 'tab' => 'ai', 'sub' => 'models-budget', 'anchor' => null ), sn_admin_post_redirect_target( 'ai', 'models-budget' ), 'POST ai/models-budget → passthrough (Run comparison, the one form the leaf keeps, answers in place)' );
 eq( array( 'tab' => 'connections', 'sub' => 'cloudflare', 'anchor' => null ), sn_admin_post_redirect_target( 'site', 'cloudflare' ), 'POST stale site/cloudflare → connections/cloudflare' );

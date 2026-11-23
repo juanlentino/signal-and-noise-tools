@@ -27,7 +27,8 @@ require_once __DIR__ . '/../inc/admin-tabs-data.php';
 
 // v10.46.0: these five leaves still lay themselves out full-width, but four of
 // them no longer live on the Content tab — the Phase-3 IA sent Front-End and
-// Performance to Site, Music to Connections, and RSS to Measurement. The
+// Performance to Site, Music to Connections, and RSS to Measurement (and in
+// 2026-11 Front-End went on, whole, to Settings). The
 // contract being guarded was never "the Content tab is wide"; it was "a leaf
 // whose render fn draws a two-column shell or a wide table carries 'wide' so the
 // dispatcher gives it a bare .sn-section". So the addresses move and the
@@ -37,7 +38,7 @@ $by_tab = array();
 foreach ( sn_admin_top_tabs() as $t ) { $by_tab[ $t['tab'] ?? '' ] = $t; }
 ct_assert( isset( $by_tab['content'] ), 'content tab present in registry' );
 foreach ( array(
-	'site/front-end',        // auto-fit FIELD grid (the fields are the columns)
+	'settings/front-end',    // a row of boxes in one form, each an auto-fit FIELD grid
 	'site/performance',      // two-column sn_admin_shell
 	'monitoring/rss',        // activity hero + asymmetric .sn-2col
 	'content/tags',          // glance hero over full-width tables

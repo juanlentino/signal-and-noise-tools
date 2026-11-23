@@ -602,7 +602,7 @@ ok( true === $bracketed['ok'] && array( 'https://a', 'https://b' ) === end( $GLO
 $moved = snt_os_host_replay(
 	array( '_wpnonce' => 'music-nonce', 'action' => 'sn_music_save', 'tab' => 'content', 'sub' => 'music' ),
 	'sn-theme-options',
-	array( 'tab' => 'site', 'sub' => 'front-end' )
+	array( 'tab' => 'site', 'sub' => 'redirects' )
 );
 ok( 'connections' === $moved['target']['tab'] && 'music' === $moved['target']['sub'],
 	'a form\'s own hidden tab/sub beats the window\'s AND is re-homed by sn_admin_subtab_moves() -- Music still posts the stale content/music pair, and without both the save would land on the wrong tab' );
@@ -788,6 +788,7 @@ ok( '' === snt_os_host_resolve_sub( 'dashboard', 'anything' ), 'a landing tab ha
 ok( 'health' === snt_os_host_resolve_sub( 'monitoring', 'health' ), 'a leaf the tab really has is kept' );
 ok( 'notifications' === snt_os_host_resolve_sub( 'settings', '' ) && 'notifications' === snt_os_host_resolve_sub( 'settings', 'notifications' ) && 'security' === snt_os_host_resolve_sub( 'settings', 'security' ), 'the settings tab lands on its first pane unnamed, and on the pane it is asked for' );
 ok( 'login-defense' === snt_os_host_resolve_sub( 'security', 'login' ), 'a Security session still holding the moved leaf (login) falls to the tab\'s first leaf, never a blank' );
+ok( 'front-end' === snt_os_host_resolve_sub( 'settings', 'front-end' ) && 'identity-and-seo' === snt_os_host_resolve_sub( 'site', 'front-end' ), 'the fourth pane resolves, and a Site session still holding the moved leaf (front-end) falls to the tab\'s first leaf, never a blank' );
 
 echo "\nGroup 6: the `sn_*` params a window carries\n";
 // The WIRE shape, expanded the way every entry point expands it -- feeding

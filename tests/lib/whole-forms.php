@@ -14,6 +14,17 @@
  * - sn_handle_remote_toggle() (inc/admin-post-actions/mcp.php) writes the
  *   remote door's switch from `! empty()`.
  *
+ * Two more back Settings > Front end:
+ *
+ * - sn_handle_save_theme() (inc/admin-post-actions/theme-ai.php) writes all
+ *   eight front-end settings on every save: six numbers from `?? <default>`
+ *   (a form without Notes per page sets it back to 20), the palette switch
+ *   from `! empty()` (omitted, the palette turns off) and the reply alias
+ *   from `?? 'research'`.
+ * - sn_handle_perf_save() (inc/admin-post-actions/monitoring.php) writes the
+ *   speculative loading switch from `! empty()`. It is the handler's only
+ *   field, so the rule for it is that exactly one form posts the action.
+ *
  * So a form posting one of these actions must carry every field the handler
  * writes, or, as a HIDDEN field so it rides every submit, a verb the handler
  * returns on first. A submit button's name does not count: it is sent only
@@ -49,3 +60,9 @@ function snt_whole_forms( $html, $tag, $action, array $fields, array $verbs = ar
 
 /** The five fields sn_handle_ai_settings_save() writes on every save. */
 const SNT_AI_SAVE_FIELDS = array( 'theme_ai_model', 'theme_ai_alt_model', 'theme_ai_monthly_budget', 'theme_jev_credit', 'theme_jev_cycle_day' );
+
+/** The eight fields sn_handle_save_theme() writes on every save. */
+const SNT_THEME_SAVE_FIELDS = array( 'theme_related_count', 'theme_palette_recent_count', 'theme_palette_enabled', 'theme_json_feed_items', 'theme_updated_threshold_days', 'theme_reading_wpm', 'theme_notes_per_page', 'theme_note_reply_alias' );
+
+/** The one field sn_handle_perf_save() writes on every save. */
+const SNT_PERF_SAVE_FIELDS = array( 'speculative_loading' );

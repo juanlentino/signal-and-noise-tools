@@ -87,7 +87,7 @@ sn_setting_update( 'login.slug', 'my-secret-login' );
 // credentials under it), so it remains a valid subject for the survive-a-save
 // property even though it ships no defaults.
 sn_setting_update( 'monitoring.uptime_api_token', 'tok-survives' );
-// v4.12.0: the theme subtree (Tools → Front-End render knobs) is configured via
+// v4.12.0: the theme subtree (the Settings > Front end form) is configured via
 // sn_setting_update('theme.*', …), NOT in the Identity form payload. Same
 // whole-option-replace hazard as audit/monitoring/perf above.
 sn_setting_update( 'theme.related_count', 9 );

@@ -112,7 +112,7 @@ function sn_admin_subtab_moves() {
 		'tools/reading-time'  => array( 'tab' => 'content', 'sub' => null ),           // v10.24.0: tool retired in v10.0.0
 
 		// ── v10.46.0 Phase-3 IA: leaves that changed parent tab. ──
-		'content/front-end'      => array( 'tab' => 'site', 'sub' => 'front-end' ),
+		'content/front-end'      => array( 'tab' => 'settings', 'sub' => 'front-end' ), // 2026-11: moved again, to Settings > Front end; named directly
 		'content/performance'    => array( 'tab' => 'site', 'sub' => 'performance' ),
 		'connections/redirects'  => array( 'tab' => 'site', 'sub' => 'redirects' ),
 		'content/music'          => array( 'tab' => 'connections', 'sub' => 'music' ),
@@ -129,13 +129,16 @@ function sn_admin_subtab_moves() {
 		// owns the leaf (a silent mis-route, the exact failure class recorded at
 		// CHANGELOG.md:874). Each now names the FINAL home directly. ──
 		'tools/performance'   => array( 'tab' => 'site', 'sub' => 'performance' ),      // was content
-		'tools/front-end'     => array( 'tab' => 'site', 'sub' => 'front-end' ),        // was content
+		'tools/front-end'     => array( 'tab' => 'settings', 'sub' => 'front-end' ),    // was content, then site
 		'monitoring/music'    => array( 'tab' => 'connections', 'sub' => 'music' ),     // was content
 
-		// ── 2026-11 Settings tab: the one leaf that moved there whole. The
+		// ── 2026-11 Settings tab: the two leaves that moved there whole (Login
+		// URL, then Site > Front-End, which was nothing but the one form). The
 		// other panes took fields, not leaves, and have no line (an entry would
-		// redirect the leaf the field came from). ──
+		// redirect the leaf the field came from: Site > Performance kept its
+		// readings when its switch left, so it has none). ──
 		'security/login'      => array( 'tab' => 'settings', 'sub' => 'security' ),
+		'site/front-end'      => array( 'tab' => 'settings', 'sub' => 'front-end' ),
 		// 'monitoring/rss' is deliberately ABSENT: RSS now lives in monitoring, so an
 		// entry here would bounce the leaf straight back out of its own tab.
 	);

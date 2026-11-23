@@ -130,7 +130,7 @@ function snt_ai_generate_with_constraints( $prompt, $system_instruction, $max_to
 	 *   ID, so the pin is portable across provider changes.
 	 *
 	 * Filter `snt_ai_model_preference` lets callers override per feature; the
-	 * Front-End settings tab feeds the owner's dropdown choice through it (see
+	 * Settings > AI pane feeds the owner's dropdown choice through it (see
 	 * sn_tf_ai_model in inc/theme-filters.php) and the alt-text route overrides
 	 * to a vision model below. The default is SN_AI_DEFAULT_MODEL.
 	 *

@@ -1,13 +1,13 @@
 <?php
 /**
- * Standalone test: Front-End settings form — open-and-wide 2-up field layout (Phase 4b, v6.46.0).
+ * Standalone test: the front-end settings form, open and wide (Phase 4b,
+ * v6.46.0; three headed boxes since 2026-11, on Settings > Front end).
  *
- * The Front-End leaf is a lone multi-field form. Like Identity (Phase 4a) it
- * earns full width by making its FIELDS the columns: the form gets a
- * .sn-front-end-form hook + a single real .sn-fieldset card (so it owns its
- * chrome once the leaf goes 'wide' and loses the wrapper card), and the CSS
- * grids the fields auto-fit. This locks (a) the render still emits the form +
- * all fields + the single save button, and (b) the new card/class structure.
+ * The form earns full width with a .sn-front-end-form hook and real
+ * .sn-fieldset cards of its own (the pane is 'wide' and has no wrapper card):
+ * one row of three boxes by subject, each gridding its fields auto-fit, then
+ * the one save row. This locks (a) the render still emits the ONE form + all
+ * fields + the single save button, and (b) the card/class structure.
  *
  * Run: php tests/front-end-form.php
  *
@@ -34,9 +34,11 @@ ob_start();
 sn_admin_render_front_end_form();
 $h = ob_get_clean();
 
-echo "Group: render — full-width 2-up field form\n";
+echo "Group: render, full-width form of three boxes\n";
 fe_assert( false !== strpos( $h, 'class="sn-front-end-form"' ), 'form carries the .sn-front-end-form class (the field-grid hook)' );
-fe_assert( 1 === substr_count( $h, 'class="sn-fieldset"' ), 'form body wrapped in exactly one real .sn-fieldset card (owns chrome at full width)' );
+fe_assert( 3 === substr_count( $h, 'class="sn-fieldset"' ) && 1 === substr_count( $h, '<div class="sn-2up">' ), 'the form body is one row of exactly three real .sn-fieldset cards (it owns its chrome at full width)' );
+fe_assert( 1 === substr_count( $h, '<form' ) && 1 === substr_count( $h, 'type="submit"' ) && '</form>' === substr( $h, -7 ), 'ONE form and ONE save button: the handler writes all eight fields on every save, so the boxes are headings inside it' );
+fe_assert( substr_count( $h, '<div' ) === substr_count( $h, '</div>' ), 'every div is closed' );
 fe_assert( false !== strpos( $h, 'name="action" value="sn_save_theme"' ), 'carries the save_theme action' );
 fe_assert( false !== strpos( $h, 'name="theme_related_count"' ) && false !== strpos( $h, 'name="theme_notes_per_page"' ), 'first + last fields render (form body intact)' );
 // v10.46.0: the three AI settings left this form for the AI tab. Asserting their
@@ -47,16 +49,16 @@ fe_assert( false === strpos( $h, 'name="theme_ai_model"' ), 'the prose-model sel
 fe_assert( false === strpos( $h, 'name="theme_ai_alt_model"' ), 'the vision-model select is gone too' );
 fe_assert( false === strpos( $h, 'name="theme_ai_monthly_budget"' ), 'the monthly budget is gone (it was never a render knob)' );
 
-// Wide-leaf card-ownership: the save row is a card-owned .sn-fieldset-actions,
-// NOT a bare .sn-savebar — whose negative card-bleed margin overflows the bare
-// .sn-section (the v6.43.1 IndexNow regression). Matches Performance + IndexNow.
+// Wide pane: the save row is a .sn-fieldset-actions, NOT a bare .sn-savebar,
+// whose negative card-bleed margin overflows the bare .sn-section (the
+// v6.43.1 IndexNow regression).
 fe_assert( false === strpos( $h, 'class="sn-savebar"' ), 'no bare .sn-savebar (its negative bleed margin would overflow the wide .sn-section)' );
-fe_assert( false !== strpos( $h, 'class="sn-fieldset-actions"' ), 'save row uses the card-owned .sn-fieldset-actions primitive' );
+fe_assert( false !== strpos( $h, 'class="sn-fieldset-actions"' ), 'save row uses the .sn-fieldset-actions primitive' );
 
-// Structure: the save row sits INSIDE the fieldset card (after it opens).
-$fs_pos  = strpos( $h, 'class="sn-fieldset"' );
-$act_pos = strpos( $h, 'class="sn-fieldset-actions"' );
-fe_assert( false !== $fs_pos && false !== $act_pos && $act_pos > $fs_pos, 'the save row sits inside the fieldset card (after the card opens)' );
+// Structure: the save row follows the row of boxes, inside the form, so it
+// reads as the Save for all three and not for the last one.
+$row_end = strpos( $h, '</div></div><div class="sn-fieldset-actions">' );
+fe_assert( false !== $row_end && $row_end > strrpos( $h, 'class="sn-fieldset"' ), 'the save row sits after the three boxes close, inside the form' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

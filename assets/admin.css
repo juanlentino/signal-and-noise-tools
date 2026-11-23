@@ -512,11 +512,12 @@
 	margin-bottom: 0;
 	min-width: 0;
 }   /* multi-line descriptions */
-/* Front-End's save row lives inside the grid card, so span it across all
-   columns (it is a grid item). Card-owned .sn-fieldset-actions, not a bleeding
-   .sn-savebar — see inc/admin-forms/front-end.php. */
-.sn-front-end-form .sn-fieldset > .sn-fieldset-actions {
-	grid-column: 1 / -1;
+/* Settings > Front end (2026-11): the form holds a row of three boxes
+   (.sn-2up) and then its save row, a .sn-fieldset-actions and never a bleeding
+   .sn-savebar (inc/admin-forms/front-end.php). The Performance box is the
+   form's next sibling, so the form keeps a card's bottom margin. */
+.sn-front-end-form {
+	margin-bottom: var(--sn-space-4);
 }
 
 /* ─── Health findings: full-width cards (v6.47.0) ────────────────────────────
