@@ -4,48 +4,106 @@
 # before any reviewer looks. Writes round-N/checks.md, whose first line is
 # "PASS <head sha>" or "FAIL <head sha>", and round-N/checks.log.
 #
+# The branch under test does not get to supply its own judge: the sweep runs
+# the BASE branch's tests/run.sh, and a change to that file, or a test that is
+# deleted or renamed away, fails the gate outright.
+#
 # Usage: bash tools/factory/gate <job-id>
 #
 set -uo pipefail
+unset $(git rev-parse --local-env-vars 2>/dev/null) # the caller's GIT_DIR does not choose the repository
+export GIT_NO_REPLACE_OBJECTS=1                     # and a `git replace` does not choose what the base is
 HERE="$(cd "$(dirname "$0")" && pwd)"
-JOBS="${FACTORY_JOBS:-$HERE/jobs}"
-J="$JOBS/${1:?job id}/job.json"
-[ -f "$J" ] || { echo "factory: no job $1" >&2; exit 2; }
-WT="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["worktree"])' "$J")"
-RND="$JOBS/$1/round-$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["round"])' "$J")"
+# `job where` is the same checked read every command uses: the worktree comes
+# from the job's id, never from job.json, and a dry job stays out of a live run.
+INFO="$(python3 "$HERE/job" where "${1:?job id}")" || exit 2
+WT="$(sed -n 1p <<< "$INFO")"; DIR="$(sed -n 3p <<< "$INFO")"; RND="$DIR/round-$(sed -n 2p <<< "$INFO")"; JOBS="$(dirname "$DIR")"
 BASE="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["base"])' "$HERE/config.json")"
+REF="refs/remotes/origin/$BASE" # the full name: a local branch called origin/$BASE must not stand in for the base
 [ -d "$WT" ] || { echo "factory: job $1 has no worktree" >&2; exit 2; }
+# A plain folder inside another checkout would answer git with that checkout.
+TOP="$(git -C "$WT" rev-parse --show-toplevel 2>/dev/null)"
+[ -n "$TOP" ] && [ "$(cd "$TOP" && pwd -P)" = "$(cd "$WT" && pwd -P)" ] || { echo "factory: $WT is not the top of a git worktree" >&2; exit 2; }
+# The gate is not a thing to retry until it passes. It runs at stage gate only,
+# and a FAIL stands: the way on is `job advance <id> build`, which costs the round.
+# A PASS may be run again, and a PASS for an older HEAD is simply run afresh.
+STAGE="$(sed -n 4p <<< "$INFO")"
+[ "$STAGE" = gate ] || { echo "factory: job $1 is at stage $STAGE: the gate runs at stage gate only (job advance $1 build, then gate)" >&2; exit 2; }
+case "$(head -n 1 "$RND/checks.md" 2>/dev/null)" in
+	FAIL*) echo "factory: this round's gate already failed: job advance $1 build (it costs the round), then run the gate again" >&2; exit 2;;
+esac
 mkdir -p "$RND"; LOG="$RND/checks.log"; : > "$LOG"
 cd "$WT"; SHA="$(git rev-parse HEAD)"; fails=()
+TMP="$(mktemp -d)"; trap 'rm -f "$TMP/files" "$TMP/run.sh"; rmdir "$TMP"' EXIT
 
 step() { # name, command...
 	local name="$1"; shift
 	echo "== $name" >> "$LOG"
 	if "$@" >> "$LOG" 2>&1; then echo "- pass: $name"; else fails+=("$name"); echo "- FAIL: $name"; fi
 }
+# Every diff the gate reads is forced to text, so no attribute (-diff, binary, a textconv) can hide a line.
+d() { git diff --no-color --no-ext-diff --no-textconv --text --no-renames "$@"; }
 clean_tree()  { [ -z "$(git status --porcelain)" ]; }
-# The diff is captured once, so a failed `git diff` fails every check that
-# reads it, and no early-exiting grep can turn a broken pipe into a pass.
-have_diff()   { git rev-parse -q --verify "origin/$BASE" >/dev/null && DIFF="$(git diff "origin/$BASE"...HEAD)" && FILES="$(git diff --name-only "origin/$BASE"...HEAD)"; }
-php_lint()    { local bad=0 f; while IFS= read -r f; do case "$f" in *.php) [ -f "$f" ] && { php -l "$f" >/dev/null || bad=1; };; esac; done <<< "$FILES"; return $bad; }
-changelog()   { grep -q '^+- ' <<< "$(git diff "origin/$BASE"...HEAD -- CHANGELOG.md)"; }
+# Everything the checks read is captured once, each capture's exit status
+# checked: a failed `git diff` fails the gate, and no early-exiting grep can
+# turn a broken pipe into a pass. Paths go to a file, NUL-separated, so a
+# quoted or non-ASCII name is still the name.
+have_diff()   {
+	git rev-parse -q --verify "$REF^{commit}" >/dev/null && MB="$(git merge-base "$REF" HEAD)" \
+	&& DIFF="$(d "$MB" HEAD)" && d -z --name-only --diff-filter=ACMR "$MB" HEAD > "$TMP/files" \
+	&& GONE="$(d --name-only --diff-filter=D "$MB" HEAD -- tests/)" && RUNNER="$(d --name-only "$MB" HEAD -- tests/run.sh)" \
+	&& TOUCHED="$(d --name-only --diff-filter=AM "$MB" HEAD -- tests/)" && ATTR="$(d --name-only "$MB" HEAD -- ':(glob)**/.gitattributes')" \
+	&& NOTES="$(git show HEAD:CHANGELOG.md)" && git show "$REF:tests/run.sh" > "$TMP/run.sh"
+}
+# The list is read on its own descriptor and php gets no stdin, so nothing in the
+# loop can eat the list; "./" keeps a name that starts with "-" from being an option.
+php_lint()    {
+	local bad=0 f
+	while IFS= read -r -d '' f <&3; do
+		case "$f" in *.[pP][hH][pP]) echo "$f"; { [ -f "./$f" ] && php -l "./$f" </dev/null >/dev/null; } || bad=1;; esac
+	done 3< "$TMP/files"
+	return $bad
+}
+# One Unreleased heading, and a bullet the diff ADDS at a line inside that section
+# (from the heading to the next "## "): hunk headers give the new line numbers.
+changelog()   {
+	local s e
+	[ "$(grep -ciE '^##[[:space:]]*\[unreleased\]' <<< "$NOTES")" = 1 ] || { echo "CHANGELOG.md needs exactly one ## [Unreleased] heading"; return 1; }
+	s="$(awk '/^## \[Unreleased\]/ && !s {s=NR} END{print s}' <<< "$NOTES")"; [ -n "$s" ] || return 1
+	e="$(awk -v s="$s" 'NR>s && /^## / && !e {e=NR} END{print e+0}' <<< "$NOTES")"; [ "$e" -gt 0 ] || e=999999999
+	d -U0 "$MB" HEAD -- CHANGELOG.md | awk -v s="$s" -v e="$e" '
+		/^diff --git /{h=1;next} /^@@/{h=0; split($3,a,","); n=substr(a[1],2)+0; next} h{next}
+		/^\+/{ if (/^\+- / && n>s && n<e) ok=1; n++ } END{exit !ok}'
+}
 EMDASH=$'\xe2\x80\x94' # spelled in bytes, so this file passes its own check
-no_emdash()   { [ -n "$DIFF" ] && ! grep '^+[^+]' <<< "$DIFF" | grep -c "$EMDASH" >/dev/null; }
-has_tests()   { grep -q '^tests/' <<< "$FILES"; }
+# Added lines by position, not by pattern: after a file's header ends at its
+# first "@@", every line that opens with "+" is added text, whatever follows.
+added()       { awk '/^diff --git /{h=1;next} /^@@/{h=0;next} !h&&/^\+/' <<< "$DIFF"; }
+# The character, or its HTML entity by name or number in any case. The en dash is allowed.
+no_emdash()   { local a; [ -n "$DIFF" ] && a="$(added)" && ! grep -qiE "$EMDASH|&(mdash|#0*8212|#x0*2014);" <<< "$a"; }
+has_tests()   { [ -n "$TOUCHED" ]; } # added or modified: a deletion is not a test
+tests_kept()  { echo "deleted: ${GONE:-none}; runner changed: ${RUNNER:-no}"; [ -z "$GONE" ] && [ -z "$RUNNER" ]; }
+no_attrs()    { echo "changed: ${ATTR:-none}"; [ -z "$ATTR" ]; } # an attribute can change what git shows of a file
 sweep()       { # core's HTML API, fetched once and shared by every job, as CI does
 	local core="$JOBS/.wp-core"
 	[ -d "$core/wp-includes/html-api" ] || bash tools/fetch-wp-test-core.sh "$core" || return 1
-	SNT_WP_HTML_API="$core/wp-includes/html-api" bash tests/run.sh
+	# The base's runner, sourced under the name tests/run.sh so it finds the repository from $0 as usual.
+	SNT_WP_HTML_API="$core/wp-includes/html-api" FACTORY_RUNNER="$TMP/run.sh" bash -c 'source "$FACTORY_RUNNER"' tests/run.sh
 }
 
-DIFF=""; FILES=""
-if ! have_diff; then echo "FAIL $SHA" > "$RND/checks.md"; echo "- FAIL: cannot diff against origin/$BASE (fetch it)" | tee -a "$RND/checks.md"; exit 1; fi
+DIFF=""; MB=""; GONE=""; RUNNER=""; TOUCHED=""; ATTR=""; NOTES=""
+# No base to compare against is no verdict on the work, so it is an ERROR, not a FAIL that would cost the round.
+if ! have_diff; then
+	echo "ERROR $SHA" > "$RND/checks.md"; echo "- cannot diff against origin/$BASE (fetch it, then run the gate again)" | tee -a "$RND/checks.md"; exit 1
+fi
 RES="$( { step "the work is committed (clean tree)" clean_tree
           step "php -l on every changed PHP file" php_lint
           step "CHANGELOG has a new Unreleased bullet" changelog
           step "no em dash in added lines" no_emdash
-          step "the change touches tests/" has_tests
-          step "tests/run.sh (the CI sweep)" sweep
+          step "the change adds or modifies a file under tests/" has_tests
+          step "tests/run.sh is unchanged and no test is deleted or renamed away" tests_kept
+          step "the change does not touch .gitattributes" no_attrs
+          step "tests/run.sh from origin/$BASE (the CI sweep)" sweep
           [ ${#fails[@]} -eq 0 ] && echo "VERDICT PASS" || echo "VERDICT FAIL"; } )"
 V="$(echo "$RES" | sed -n 's/^VERDICT //p')"
 { echo "$V $SHA"; echo; echo "## Summary"; echo "$RES" | grep '^- '; echo; echo "Log: $LOG"; } > "$RND/checks.md"
