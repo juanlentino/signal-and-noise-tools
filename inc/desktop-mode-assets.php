@@ -250,7 +250,7 @@ add_action( 'admin_enqueue_scripts', function() {
 		'plugin'        => $plugin,
 		'cronSummary'   => function_exists( 'snt_cron_summary_for_localize' ) ? snt_cron_summary_for_localize() : array(),
 		// 20.9.0: the last alert the hourly run fired, for wp.os.notify. Owner only.
-		'alertNotice'   => $sn_is_owner && function_exists( 'snt_alerts_notice' ) ? snt_alerts_notice() : null,
+		'alertNotice'   => $sn_is_owner && function_exists( 'snt_alerts_notice_for_user' ) ? snt_alerts_notice_for_user() : null,
 		'insightsSummary' => function_exists( 'snt_insights_summary_for_localize' ) ? snt_insights_summary_for_localize() : null,
 		// v9.52.0: cheap/durable summaries for the Pulse + Health widgets.
 		// Both are a single option read; both return null (never a fabricated

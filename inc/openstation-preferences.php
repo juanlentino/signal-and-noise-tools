@@ -37,6 +37,9 @@ function snt_os_native_window_defaults() {
 		'mio_tips'     => true,  // plain-text callouts beside a control; never invoke AI
 		'mio_help'     => true,  // register help documents, a prompt and read-only tools for Ask MIO
 		'mio_look'     => false, // dress the mascot in the site's palette
+		// An alert the hourly run fired, shown through wp.os.notify while the
+		// app is open (inc/alerts-notice.php). On: it showed before the switch.
+		'alert_notify' => true,
 	);
 }
 
@@ -294,6 +297,7 @@ function snt_os_register_preferences_rest() {
 					'mio_tips'     => array( 'type' => 'boolean', 'required' => false ),
 					'mio_help'     => array( 'type' => 'boolean', 'required' => false ),
 					'mio_look'     => array( 'type' => 'boolean', 'required' => false ),
+					'alert_notify' => array( 'type' => 'boolean', 'required' => false ),
 				),
 			),
 		)
@@ -362,6 +366,8 @@ function snt_os_enqueue_settings_script() {
 		array(
 			'endpoint'    => rest_url( 'signal-noise/v1/openstation/preferences' ),
 			'preferences' => snt_os_native_window_preferences(),
+			// What Restore defaults posts: one list, never a second copy in the client.
+			'defaults'    => snt_os_native_window_defaults(),
 		)
 	);
 
