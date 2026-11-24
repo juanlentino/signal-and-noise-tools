@@ -212,7 +212,8 @@ $sent1 = sn_mcp_rw_notify_maybe_send( $row_a );
 ok( true === $sent1 && 1 === count( $GLOBALS['__mails_sent'] ), 'first call, enabled + valid admin_email -> sends immediately' );
 ok( false !== strpos( $GLOBALS['__mails_sent'][0]['subject'], 'purge-all-caches' ), 'subject names the tool' );
 ok( false !== strpos( $GLOBALS['__mails_sent'][0]['subject'], 'ok' ), 'subject names the outcome' );
-ok( false !== stripos( $GLOBALS['__mails_sent'][0]['alt'], 'notification setting is on' ) && false !== stripos( $GLOBALS['__mails_sent'][0]['body'], 'notification setting is on' ), 'body includes the "why you got this" line, in both parts' );
+ok( false !== stripos( $GLOBALS['__mails_sent'][0]['alt'], 'Write-door alerts are on' ) && false !== stripos( $GLOBALS['__mails_sent'][0]['body'], 'Write-door alerts are on' ), 'body includes the "why you got this" line, in both parts' );
+ok( false !== strpos( $GLOBALS['__mails_sent'][0]['alt'], 'Settings > Notifications and reports' ) && false === strpos( $GLOBALS['__mails_sent'][0]['alt'], 'wp option update' ), 'and it names the switch on Settings > Notifications and reports, not a WP-CLI command' );
 // 2026-10-22: HTML with the same text as its plain-text alternative.
 $rw = $GLOBALS['__mails_sent'][0];
 ok( in_array( 'Content-Type: text/html; charset=UTF-8', (array) $rw['headers'], true ) && 0 === strpos( $rw['body'], '<!DOCTYPE html><html lang="en">' ), 'the body is an HTML document in English' );
