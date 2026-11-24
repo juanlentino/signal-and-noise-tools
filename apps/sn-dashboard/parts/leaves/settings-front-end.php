@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The eight knobs (six for save_theme, two for reading_save) and the alias allowlist, read the way the classic form reads them
+ * Every knob on the pane (save_theme's six, reading_save's two) and the alias allowlist, read the way the classic form reads them
  * (inc/admin-forms/front-end.php), defaults included.
  *
  * @return array{related:int,precent:int,penab:bool,jfeed:int,uthr:int,wpm:int,nperp:int,ralias:string,aliases:array<int,string>}
@@ -140,10 +140,11 @@ function front_end_speculative_html() {
  */
 function paint_settings_front_end( array $ctx ) {
 	unset( $ctx );
-	$form = \snt_kit_form(
+	$state = front_end_state();
+	$form  = \snt_kit_form(
 		'save_theme',
 		'<p class="snt-prose">' . \snt_kit_esc( __( 'How the site’s pages render; the companion theme reads these values. The defaults are the theme’s own, so nothing changes until you save here.', 'signal-and-noise-tools' ) ) . '</p>'
-		. front_end_boxes_html( front_end_state() )
+		. front_end_boxes_html( $state )
 		. '<p class="snt-hint" slot="footer-leading">' . \snt_kit_esc( __( 'Saving a change refreshes the site’s cached pages, so the live site shows it the next time a page loads.', 'signal-and-noise-tools' ) ) . '</p>',
 		array(
 			'submit'  => __( 'Save front-end settings', 'signal-and-noise-tools' ),
@@ -152,7 +153,7 @@ function paint_settings_front_end( array $ctx ) {
 			'class'   => 'snt-site-form',
 		)
 	);
-	return $form . front_end_reading_html( front_end_state() ) . ( function_exists( 'snt_speculative_loading_hint' ) ? front_end_speculative_html() : '' );
+	return $form . front_end_reading_html( $state ) . ( function_exists( 'snt_speculative_loading_hint' ) ? front_end_speculative_html() : '' );
 }
 
 add_filter(
