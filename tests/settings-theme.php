@@ -81,17 +81,17 @@ ok( array_key_exists( 'claude-opus-4-8', $models ) && array_key_exists( 'claude-
 sn_handle_save_theme( array(
 	'theme_related_count'          => '99',
 	'theme_palette_recent_count'   => '-3',
-	'theme_json_feed_items'        => '0',
+	'theme_json_feed_items'        => '0',   // no longer this handler's: must be inert
 	'theme_palette_enabled'        => '1',
 	'theme_ai_model'               => 'totally-fake-model',
 	'theme_updated_threshold_days' => '500',
 	'theme_reading_wpm'            => '5',
-	'theme_notes_per_page'         => '500',
+	'theme_notes_per_page'         => '500', // no longer this handler's: must be inert
 	'theme_ai_monthly_budget'      => '-5',
 ) );
 ok( (int) sn_setting( 'theme.related_count' ) === 12, 'save: related_count clamps to max 12' );
 ok( (int) sn_setting( 'theme.palette_recent_count' ) === 0, 'save: palette_recent_count clamps to min 0' );
-ok( (int) sn_setting( 'theme.json_feed_items' ) === 1, 'save: json_feed_items clamps to min 1' );
+ok( (int) sn_setting( 'theme.json_feed_items' ) === 20, 'save_theme ignores a posted json_feed_items (Settings › Reading owns it now)' );
 ok( (int) sn_setting( 'theme.updated_threshold_days' ) === 90, 'save: updated_threshold clamps to max 90' );
 ok( (int) sn_setting( 'theme.reading_wpm' ) === 100, 'save: reading_wpm clamps to min 100' );
 // v10.46.0: the ai_* keys are saved by sn_handle_ai_settings_save() now — a
@@ -100,7 +100,10 @@ ok( (int) sn_setting( 'theme.reading_wpm' ) === 100, 'save: reading_wpm clamps t
 // handler's own clamping and allow-listing.
 ok( sn_setting( 'theme.ai_model' ) === 'claude-sonnet-5-5', 'save_theme ignores a posted ai_model (handled by the AI form now)' );
 ok( sn_setting( 'theme.palette_enabled' ) === true, 'save: palette_enabled true when checkbox present' );
-ok( (int) sn_setting( 'theme.notes_per_page' ) === 100, 'save: notes_per_page clamps to max 100' );
+ok( (int) sn_setting( 'theme.notes_per_page' ) === 20, 'save_theme ignores a posted notes_per_page (Settings › Reading owns it now)' );
+ok( 'reading_saved' === sn_handle_reading_save( array( 'theme_notes_per_page' => '500', 'theme_json_feed_items' => '0' ) ), 'reading_save: returns its flash' );
+ok( (int) sn_setting( 'theme.notes_per_page' ) === 100 && (int) sn_setting( 'theme.json_feed_items' ) === 1, 'reading_save: notes_per_page clamps to max 100, json_feed_items to min 1' );
+sn_handle_reading_save( array( 'theme_notes_per_page' => '20', 'theme_json_feed_items' => '20' ) );
 ok( (float) sn_setting( 'theme.ai_monthly_budget' ) === 0.0, 'save_theme leaves ai_monthly_budget alone (still the seeded 0)' );
 
 // Checkbox absent/empty → false. A posted ai_model stays ignored here.
@@ -123,6 +126,7 @@ sn_handle_save_theme( array( 'theme_ai_alt_model' => 'evil-model' ) );
 ok( sn_setting( 'theme.ai_alt_model' ) === 'gemini-2.5-flash', 'save_theme cannot park an off-list vision model (it does not touch the key at all)' );
 
 // ── P4: front-end form renders without fatal + emits every field ─────
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . ltrim( (string) $p, '/' ); } }
 require __DIR__ . '/../inc/admin-forms/front-end.php';
 ob_start();
 sn_admin_render_front_end_form();
@@ -130,8 +134,7 @@ $form = ob_get_clean();
 ok( strpos( $form, 'name="action" value="sn_save_theme"' ) !== false, 'form: posts the save_theme action' );
 $field_names = array(
 	'theme_related_count', 'theme_palette_recent_count', 'theme_palette_enabled',
-	'theme_json_feed_items', 'theme_updated_threshold_days', 'theme_reading_wpm',
-	'theme_notes_per_page',
+	'theme_updated_threshold_days', 'theme_reading_wpm',
 );
 $missing = array();
 foreach ( $field_names as $fn ) {

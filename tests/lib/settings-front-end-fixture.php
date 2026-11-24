@@ -24,6 +24,7 @@ function sn_setting_update( $key, $value ) { $GLOBALS['__written'][ $key ] = $va
 function sn_settings_snapshot() { return array(); }
 function sn_settings_purge_if_changed( $before ) { return false; }
 function sn_note_reply_aliases() { return $GLOBALS['__aliases']; }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . ltrim( (string) $p, '/' ); } }
 function is_admin() { return false; } // the outbound-call module's load-time wiring asks.
 
 require SNT_PATH . 'inc/admin-legacy-redirect.php';
@@ -32,6 +33,7 @@ require SNT_PATH . 'inc/admin-shell.php';
 require SNT_PATH . 'inc/http-diagnostics.php';
 require SNT_PATH . 'inc/ai-model-catalog.php';
 require SNT_PATH . 'inc/admin-post-actions/theme-ai.php';
+if ( is_file( SNT_PATH . 'inc/admin-post-actions/reading.php' ) ) { require SNT_PATH . 'inc/admin-post-actions/reading.php'; }
 require SNT_PATH . 'inc/admin-post-actions/monitoring.php';
 require SNT_PATH . 'inc/admin-forms/front-end.php';
 require SNT_PATH . 'inc/admin-forms/performance.php';

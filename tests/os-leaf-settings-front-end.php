@@ -1,12 +1,12 @@
 <?php
 /**
- * Settings › Front end, the eight save_theme fields, both twins: the native
+ * Settings › Front end, the six save_theme fields, both twins: the native
  * pane (apps/sn-dashboard/parts/leaves/settings-front-end.php) and the
  * classic form (inc/admin-forms/front-end.php).
  *
  * This is the old Site › Front-End suite, every assertion kept, painted on
  * the pane the leaf moved to whole in 2026-11. The oracle is still the
- * classic form: the kit form must carry the same eight names, the one
+ * classic form: the kit form must carry the same six names, the one
  * sn_action, and every value, bound, option, label and helper the classic
  * form prints (for the theme's defaults, a rich fixture, the palette-off
  * state, a hostile alias and a one-alias allowlist) and none of wp-admin's
@@ -27,10 +27,8 @@ $knobs = array(
 	// name => [ min, max, default ], the classic bounds (front-end.php:50-100) and defaults (:27-33).
 	'theme_related_count'          => array( 1, 12, 3 ),
 	'theme_palette_recent_count'   => array( 0, 20, 8 ),
-	'theme_json_feed_items'        => array( 1, 50, 20 ),
 	'theme_updated_threshold_days' => array( 1, 90, 14 ),
 	'theme_reading_wpm'            => array( 100, 400, 225 ),
-	'theme_notes_per_page'         => array( 1, 100, 20 ),
 );
 $number_tag = static function ( $name, $value ) use ( $knobs ) { return '<os-number-field name="' . $name . '" value="' . $value . '" min="' . $knobs[ $name ][0] . '" max="' . $knobs[ $name ][1] . '">'; };
 
@@ -40,7 +38,7 @@ ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['settings/front-end
 $classic = fe_classic_form();
 $kit     = fe_kit_form();
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 8 === count( snt_leaf_names( $kit ) ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 6 === count( snt_leaf_names( $kit ) ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'save_theme' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is save_theme, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, '<os-form class="snt-form snt-site-form" os-action="post" submit-label="Save front-end settings" show-reset="false" columns="auto">' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post on the admin-post pipeline, auto columns for the wide leaf, the classic submit label' );
@@ -54,22 +52,21 @@ ok( false !== strpos( $kit, '<os-select name="theme_note_reply_alias" value="res
 // 2026-11: the Front-End heading became three headed boxes by subject, inside the one form; the intro leads them.
 ok( false !== strpos( $kit, '<p class="snt-prose">How the site’s pages render; the companion theme reads these values. The defaults are the theme’s own, so nothing changes until you save here.</p>' ) && false === strpos( $kit, 'heading="Front-End"' ), 'the intro leads the form; the lone Front-End heading is gone' );
 $box = static function ( $heading ) use ( &$kit ) { return 1 === preg_match( '#<os-section heading="' . $heading . '" stack>(.*?)</os-section>#s', $kit, $m ) ? $m[1] : ''; };
-ok( array( 'theme_json_feed_items', 'theme_notes_per_page', 'theme_reading_wpm', 'theme_related_count', 'theme_updated_threshold_days' ) === snt_leaf_names( $box( 'Reading' ) ) && array( 'theme_palette_enabled', 'theme_palette_recent_count' ) === snt_leaf_names( $box( 'Command palette' ) ) && array( 'theme_note_reply_alias' ) === snt_leaf_names( $box( 'Replies' ) ), 'native: three headed boxes by subject, Reading (five), Command palette (two) and Replies (one)' );
+ok( array( 'theme_reading_wpm', 'theme_related_count', 'theme_updated_threshold_days' ) === snt_leaf_names( $box( 'Reading' ) ) && array( 'theme_palette_enabled', 'theme_palette_recent_count' ) === snt_leaf_names( $box( 'Command palette' ) ) && array( 'theme_note_reply_alias' ) === snt_leaf_names( $box( 'Replies' ) ), 'native: three headed boxes by subject, Reading (three), Command palette (two) and Replies (one)' );
 ok( 1 === preg_match( '#^<os-form [^>]*>' . preg_quote( '<p class="snt-prose">', '#' ) . '.*?</p>' . preg_quote( snt_leaf_row( 3, 260 ), '#' ) . '<os-section heading="Reading" stack>.*</os-section><os-section heading="Command palette" stack>.*</os-section><os-section heading="Replies" stack>.*</os-section></os-grid><p class="snt-hint" slot="footer-leading">#s', $kit ), 'native: the three boxes are one row inside the form, in that order, then the save-row hint' );
+ok( 1 === substr_count( $classic, '<p class="sn-field-helper">Notes per page and JSON feed items are on <a href="https://example.test/wp-admin/options-reading.php#sn_reading_notes_per_page">Settings &rsaquo; Reading</a>, with WordPress&rsquo;s own.</p>' ) && false === strpos( $classic, 'theme_notes_per_page' ) && false === strpos( $classic, 'theme_json_feed_items' ), 'classic: the Reading box says where Notes per page and JSON feed items went, with a link to Settings › Reading, and posts neither' );
 ok( 1 === preg_match( '#^<form [^>]*class="sn-front-end-form">.*<p class="sn-fieldset-intro">.*</p><div class="sn-2up"><div class="sn-fieldset"><h2 class="sn-fieldset-h">Reading</h2>.*</div><div class="sn-fieldset"><h2 class="sn-fieldset-h">Command palette</h2>.*</div><div class="sn-fieldset"><h2 class="sn-fieldset-h">Replies</h2>.*</div></div><div class="sn-fieldset-actions">.*</div></form>$#s', $classic ), 'classic: the same three headed boxes, one row inside the one form, then its save row' );
-ok( has_all( $kit, array( 'Related notes shown', 'Note reply goes to', 'Command-palette recent notes', 'Reader command palette', 'JSON feed items', '“Updated” badge after (days)', 'Reading speed (words/min)', 'Notes per page' ), $missing ), 'all eight classic labels are painted' . ( $missing ? ': missing ' . implode( ' | ', $missing ) : '' ) );
+ok( has_all( $kit, array( 'Related notes shown', 'Note reply goes to', 'Command-palette recent notes', 'Reader command palette', '“Updated” badge after (days)', 'Reading speed (words/min)' ), $missing ), 'all six classic labels are painted' . ( $missing ? ': missing ' . implode( ' | ', $missing ) : '' ) );
 $helpers = array(
 	'hint="How many related notes appear under a single note (1 to 12)."',
 	'hint="Which existing alias the Reply row on a note writes to. Only aliases the mailbox already filters are offered; a new address would arrive unfiltered."',
 	'hint="Recent notes listed in the ⌘K reader palette (0 to 20)."',
 	'hint="Turning this off hides the trigger and skips loading the palette’s scripts and styles."',
-	'hint="Number of notes in the JSON feed (1 to 50)."',
 	'hint="Show the “Updated” badge when a note was revised this many days after publishing (1 to 90)."',
 	'hint="Words per minute used to estimate reading time (100 to 400)."',
-	'hint="How many notes per page on the /notes index (1 to 100). Pagination appears once published notes exceed this."',
 	'<p class="snt-hint" slot="footer-leading">Saving a change refreshes the site’s cached pages, so the live site shows it the next time a page loads.</p>',
 );
-ok( has_all( $kit, $helpers, $missing ), 'all eight helpers ride the field rows as hints and the save-row hint rides the form footer' . ( $missing ? ': missing ' . implode( ' | ', $missing ) : '' ) );
+ok( has_all( $kit, $helpers, $missing ), 'all six helpers ride the field rows as hints and the save-row hint rides the form footer' . ( $missing ? ': missing ' . implode( ' | ', $missing ) : '' ) );
 // 2026.10.4 audit (batch 4): the twins say the same sentences, in plain words
 // ("render knobs", "JS/CSS", "local part" gone), ranges in words, no dashes,
 // and the save hint keeps its promise (a changed save purges the page cache).
@@ -87,16 +84,14 @@ $GLOBALS['__settings'] = array(
 	'theme.related_count'          => 5,
 	'theme.palette_recent_count'   => 0,
 	'theme.palette_enabled'        => false,
-	'theme.json_feed_items'        => 33,
 	'theme.updated_threshold_days' => 45,
 	'theme.reading_wpm'            => 310,
-	'theme.notes_per_page'         => 12,
 	'theme.note_reply_alias'       => 'speaking',
 );
 $classic = fe_classic_form();
 $kit     = fe_kit_form();
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'rich: field names still match the classic form' );
-$stored = array( $number_tag( 'theme_related_count', 5 ), $number_tag( 'theme_palette_recent_count', 0 ), $number_tag( 'theme_json_feed_items', 33 ), $number_tag( 'theme_updated_threshold_days', 45 ), $number_tag( 'theme_reading_wpm', 310 ), $number_tag( 'theme_notes_per_page', 12 ) );
+$stored = array( $number_tag( 'theme_related_count', 5 ), $number_tag( 'theme_palette_recent_count', 0 ), $number_tag( 'theme_updated_threshold_days', 45 ), $number_tag( 'theme_reading_wpm', 310 ) );
 ok( has_all( $kit, $stored, $missing ), 'rich: every number knob carries its stored value (0 included) with its bounds' . ( $missing ? ' — missing ' . implode( ' | ', $missing ) : '' ) );
 ok( false !== strpos( $kit, '<os-select name="theme_note_reply_alias" value="speaking">' ) && false !== strpos( $classic, 'value="speaking" selected="selected"' ), 'rich: the stored alias is the select value, the one the classic select marks selected' );
 ok( false !== strpos( $kit, '<os-checkbox-label name="theme_palette_enabled" value="1" label="Enable the ⌘K command palette and its footer trigger">' ) && false === strpos( $kit, ' checked' ) && false === strpos( $classic, 'checked="checked"' ), 'palette off: the checkbox is unchecked, as on the classic leaf' );

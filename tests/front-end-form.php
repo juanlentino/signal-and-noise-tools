@@ -28,6 +28,7 @@ if ( ! function_exists( 'sn_theme_ai_models' ) ) { function sn_theme_ai_models()
 if ( ! function_exists( 'sn_theme_ai_vision_models' ) ) { function sn_theme_ai_vision_models() { return array( 'gemini-2.5-flash-lite' => 'Gemini 2.5 Flash-Lite' ); } }
 
 require_once __DIR__ . '/lib/admin-post-url-stub.php';
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . ltrim( (string) $p, '/' ); } }
 require_once __DIR__ . '/../inc/admin-forms/front-end.php';
 
 ob_start();
@@ -40,7 +41,8 @@ fe_assert( 3 === substr_count( $h, 'class="sn-fieldset"' ) && 1 === substr_count
 fe_assert( 1 === substr_count( $h, '<form' ) && 1 === substr_count( $h, 'type="submit"' ) && '</form>' === substr( $h, -7 ), 'ONE form and ONE save button: the handler writes all eight fields on every save, so the boxes are headings inside it' );
 fe_assert( substr_count( $h, '<div' ) === substr_count( $h, '</div>' ), 'every div is closed' );
 fe_assert( false !== strpos( $h, 'name="action" value="sn_save_theme"' ), 'carries the save_theme action' );
-fe_assert( false !== strpos( $h, 'name="theme_related_count"' ) && false !== strpos( $h, 'name="theme_notes_per_page"' ), 'first + last fields render (form body intact)' );
+fe_assert( false !== strpos( $h, 'name="theme_related_count"' ) && false !== strpos( $h, 'name="theme_note_reply_alias"' ), 'first + last fields render (form body intact)' );
+fe_assert( false === strpos( $h, 'name="theme_notes_per_page"' ) && false === strpos( $h, 'name="theme_json_feed_items"' ) && false !== strpos( $h, 'options-reading.php' ), 'Notes per page and JSON feed items left the form; a link to Settings › Reading took their place' );
 // v10.46.0: the three AI settings left this form for the AI tab. Asserting their
 // ABSENCE matters as much as the old presence checks did — a stray input left
 // behind here would post ai_* keys at save_theme, which no longer reads them, so

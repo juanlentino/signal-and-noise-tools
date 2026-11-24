@@ -2,11 +2,13 @@
 /**
  * Signal & Noise: Settings > Front end, the classic section.
  *
- * The fourth pane of the Settings tab, nine settings:
+ * The fourth pane of the Settings tab, seven settings:
  *
- * 1. The eight front-end settings (related notes, the "Updated" badge,
- *    reading speed, notes per page, JSON feed items, the command palette and
- *    its recent notes, where a note reply goes). They came WHOLE from Site >
+ * 1. The six front-end settings (related notes, the "Updated" badge,
+ *    reading speed, the command palette and its recent notes, where a note
+ *    reply goes). Notes per page and JSON feed items moved on to WordPress's
+ *    Settings > Reading (inc/reading-settings-screen.php); the Reading box
+ *    says so. They came WHOLE from Site >
  *    Front-End: that leaf was nothing but this one form, so it moved rather
  *    than leave a leaf holding only a pointer. sn_admin_render_front_end_form()
  *    (inc/admin-forms/front-end.php) is the form; sn_admin_subtab_moves()

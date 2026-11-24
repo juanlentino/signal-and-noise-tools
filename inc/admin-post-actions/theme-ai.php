@@ -53,9 +53,12 @@ function sn_theme_ai_vision_models() {
 
 /**
  * v4.12.0: persist the front-end settings form (Settings > Front end since
- * 2026-11; Site > Front-End before). All eight settings are written on every
- * save, so the form that posts here must carry all eight
- * (tests/lib/whole-forms.php).
+ * 2026-11; Site > Front-End before). All six settings are written on every
+ * save, so the form that posts here must carry all six
+ * (tests/lib/whole-forms.php). Notes per page and JSON feed items left this
+ * form for Settings > Reading (inc/admin-post-actions/reading.php) and MUST
+ * NOT be read here: a front-end save no longer posts them, so a read would
+ * set both back to 20 on every save.
  *
  * Sparse writes via sn_setting_update() so the sibling sn_settings subtrees are
  * never clobbered (same whole-option-replace hazard the audit/monitoring/perf
@@ -72,10 +75,8 @@ function sn_handle_save_theme( $post ) {
 	$ok  = sn_setting_update( 'theme.related_count', max( 1, min( 12, (int) ( $post['theme_related_count'] ?? 3 ) ) ) );
 	$ok &= sn_setting_update( 'theme.palette_recent_count', max( 0, min( 20, (int) ( $post['theme_palette_recent_count'] ?? 8 ) ) ) );
 	$ok &= sn_setting_update( 'theme.palette_enabled', ! empty( $post['theme_palette_enabled'] ) );
-	$ok &= sn_setting_update( 'theme.json_feed_items', max( 1, min( 50, (int) ( $post['theme_json_feed_items'] ?? 20 ) ) ) );
 	$ok &= sn_setting_update( 'theme.updated_threshold_days', max( 1, min( 90, (int) ( $post['theme_updated_threshold_days'] ?? 14 ) ) ) );
 	$ok &= sn_setting_update( 'theme.reading_wpm', max( 100, min( 400, (int) ( $post['theme_reading_wpm'] ?? 225 ) ) ) );
-	$ok &= sn_setting_update( 'theme.notes_per_page', max( 1, min( 100, (int) ( $post['theme_notes_per_page'] ?? 20 ) ) ) );
 	// Allowlisted, like the AI model ids below: an off-list POST resolves to the
 	// default rather than being stored. A stored bad value would mint an address
 	// the mailbox does not filter, so this must not round-trip whatever arrives.

@@ -3,13 +3,15 @@
  * S&N Dashboard: Settings > Front end, painted from the kit. The fourth pane
  * of the Settings tab, the native twin of inc/admin-forms/settings-front-end.php.
  *
- * 1. The eight front-end settings the companion theme reads. This file WAS
+ * 1. The six front-end settings the companion theme reads. This file WAS
  *    the Site > Front-End leaf (site-front-end.php) until 2026-11; the leaf
  *    held nothing but this one form, so it moved whole. Same readers
  *    (`sn_setting()`, `sn_note_reply_aliases()`), same field names, bounds
  *    and copy as the classic form (inc/admin-forms/front-end.php), same
  *    action (`save_theme`). ONE form, because sn_handle_save_theme() writes
- *    all eight on every save; the three headed boxes are sections inside it.
+ *    all six on every save; the three headed boxes are sections inside it.
+ * 1b. Notes per page and JSON feed items, the native twin of their section on
+ *    WordPress's Settings > Reading: their own form (`reading_save`).
  * 2. The speculative loading switch, from Site > Performance, which keeps
  *    its readings. Same field, same action (`perf_save`). It was a Setup
  *    fold there; a setting on a settings pane is open.
@@ -28,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The eight knobs and the alias allowlist, read the way the classic form reads them
+ * Every knob on the pane (save_theme's six, reading_save's two) and the alias allowlist, read the way the classic form reads them
  * (inc/admin-forms/front-end.php), defaults included.
  *
  * @return array{related:int,precent:int,penab:bool,jfeed:int,uthr:int,wpm:int,nperp:int,ralias:string,aliases:array<int,string>}
@@ -64,7 +66,7 @@ function front_end_number( $name, $label, $value, $min, $max, $hint ) {
 }
 
 /**
- * The eight fields as three headed boxes, in the classic twin's order:
+ * The six save_theme fields as three headed boxes, in the classic twin's order:
  * Reading, Command palette, Replies. Each box is a section INSIDE the one
  * form; assets/os-app.css lays a section's field rows out as the form's own.
  *
@@ -78,9 +80,7 @@ function front_end_boxes_html( array $s ) {
 	}
 	$reading = front_end_number( 'theme_related_count', __( 'Related notes shown', 'signal-and-noise-tools' ), $s['related'], 1, 12, __( 'How many related notes appear under a single note (1 to 12).', 'signal-and-noise-tools' ) )
 		. front_end_number( 'theme_updated_threshold_days', __( '“Updated” badge after (days)', 'signal-and-noise-tools' ), $s['uthr'], 1, 90, __( 'Show the “Updated” badge when a note was revised this many days after publishing (1 to 90).', 'signal-and-noise-tools' ) )
-		. front_end_number( 'theme_reading_wpm', __( 'Reading speed (words/min)', 'signal-and-noise-tools' ), $s['wpm'], 100, 400, __( 'Words per minute used to estimate reading time (100 to 400).', 'signal-and-noise-tools' ) )
-		. front_end_number( 'theme_notes_per_page', __( 'Notes per page', 'signal-and-noise-tools' ), $s['nperp'], 1, 100, __( 'How many notes per page on the /notes index (1 to 100). Pagination appears once published notes exceed this.', 'signal-and-noise-tools' ) )
-		. front_end_number( 'theme_json_feed_items', __( 'JSON feed items', 'signal-and-noise-tools' ), $s['jfeed'], 1, 50, __( 'Number of notes in the JSON feed (1 to 50).', 'signal-and-noise-tools' ) );
+		. front_end_number( 'theme_reading_wpm', __( 'Reading speed (words/min)', 'signal-and-noise-tools' ), $s['wpm'], 100, 400, __( 'Words per minute used to estimate reading time (100 to 400).', 'signal-and-noise-tools' ) );
 	// The kit field helper paints a bare <os-checkbox-label>, so the classic
 	// label + helper ride an <os-field-row label hint> around it.
 	$palette = \snt_kit_tag(
@@ -98,6 +98,21 @@ function front_end_boxes_html( array $s ) {
 		),
 		260
 	);
+}
+
+/**
+ * Notes per page and JSON feed items: the native twin of their section on
+ * WordPress's Settings > Reading (inc/reading-settings-screen.php), its own
+ * form posting `reading_save`, which keeps a value that is missing.
+ *
+ * @param array<string,mixed> $s From front_end_state().
+ * @return string
+ */
+function front_end_reading_html( array $s ) {
+	$fields = front_end_number( 'theme_notes_per_page', __( 'Notes per page', 'signal-and-noise-tools' ), $s['nperp'], 1, 100, __( 'How many notes per page on the /notes index (1 to 100). Pagination appears once published notes exceed this.', 'signal-and-noise-tools' ) )
+		. front_end_number( 'theme_json_feed_items', __( 'JSON feed items', 'signal-and-noise-tools' ), $s['jfeed'], 1, 50, __( 'Number of notes in the JSON feed (1 to 50).', 'signal-and-noise-tools' ) )
+		. '<p class="snt-hint">' . \snt_kit_esc( __( 'The same two numbers are on WordPress’s Settings › Reading too.', 'signal-and-noise-tools' ) ) . '</p>';
+	return \snt_kit_section( __( 'Notes and the JSON feed', 'signal-and-noise-tools' ), \snt_kit_form( 'reading_save', $fields, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) ) );
 }
 
 /**
@@ -125,10 +140,11 @@ function front_end_speculative_html() {
  */
 function paint_settings_front_end( array $ctx ) {
 	unset( $ctx );
-	$form = \snt_kit_form(
+	$state = front_end_state();
+	$form  = \snt_kit_form(
 		'save_theme',
 		'<p class="snt-prose">' . \snt_kit_esc( __( 'How the site’s pages render; the companion theme reads these values. The defaults are the theme’s own, so nothing changes until you save here.', 'signal-and-noise-tools' ) ) . '</p>'
-		. front_end_boxes_html( front_end_state() )
+		. front_end_boxes_html( $state )
 		. '<p class="snt-hint" slot="footer-leading">' . \snt_kit_esc( __( 'Saving a change refreshes the site’s cached pages, so the live site shows it the next time a page loads.', 'signal-and-noise-tools' ) ) . '</p>',
 		array(
 			'submit'  => __( 'Save front-end settings', 'signal-and-noise-tools' ),
@@ -137,7 +153,7 @@ function paint_settings_front_end( array $ctx ) {
 			'class'   => 'snt-site-form',
 		)
 	);
-	return $form . ( function_exists( 'snt_speculative_loading_hint' ) ? front_end_speculative_html() : '' );
+	return $form . front_end_reading_html( $state ) . ( function_exists( 'snt_speculative_loading_hint' ) ? front_end_speculative_html() : '' );
 }
 
 add_filter(
