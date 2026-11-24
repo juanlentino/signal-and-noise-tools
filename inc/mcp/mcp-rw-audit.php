@@ -439,9 +439,8 @@ function sn_mcp_rw_notify_body( $row, $overflow_count ) {
 		$lines[] = sprintf( 'Plus %d more write-door call(s) since the last email (coalesced within a %ds window).', (int) $overflow_count, SN_MCP_RW_NOTIFY_COALESCE_WINDOW_SECONDS );
 		$lines[] = '';
 	}
-	// 2026-10-22: the old line sent the reader to "Tools -> MCP", a screen that
-	// has no such toggle. The option has no screen yet; say how to turn it off.
-	$lines[] = "You're getting this because the MCP write-door notification setting is on (the sn_mcp_rw_notify option). No admin screen sets it yet: run `wp option update sn_mcp_rw_notify 0` to turn it off.";
+	// 2026-11-24: the switch has a screen now (inc/admin-forms/mcp-door-switches.php).
+	$lines[] = "You're getting this because Write-door alerts are on. Turn them off in S&N Home, Settings > Notifications and reports.";
 	return implode( "\n", $lines ) . "\n";
 }
 
