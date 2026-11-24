@@ -82,6 +82,9 @@ function sn_admin_post_handlers() {
 		'block_migrations_scan'      => 'sn_handle_block_migrations_scan',
 		'perf_save'                  => 'sn_handle_perf_save',
 		'save_theme'                 => 'sn_handle_save_theme',
+		'mcp_doors_save'             => 'sn_handle_mcp_doors_save',      // Settings > AI: the read and write door switches
+		'mcp_rw_notify_save'         => 'sn_handle_mcp_rw_notify_save',  // Settings > Notifications and reports: the write-door email
+		'related_source_save'        => 'sn_handle_related_source_save', // Settings > AI: the related-notes ranking
 		'reading_save'               => 'sn_handle_reading_save', // Notes per page and JSON feed items (the native twin of Settings > Reading)
 		'ai_settings_save'           => 'sn_handle_ai_settings_save',
 		'ml_embed_compare'           => 'sn_handle_ml_embed_compare',        // v10.46.0: split out of save_theme with the AI tab

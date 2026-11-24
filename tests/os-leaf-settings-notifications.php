@@ -41,6 +41,9 @@ require_once SNT_PATH . 'inc/security-digest.php';
 require_once SNT_PATH . 'inc/admin-legacy-redirect.php';
 require_once SNT_PATH . 'inc/admin-post-actions/reports.php';
 require_once SNT_PATH . 'inc/openstation-host-pipelines.php';
+require_once SNT_PATH . 'inc/admin-post-actions/mcp-doors.php';
+require_once SNT_PATH . 'inc/admin-forms/mcp-door-switches.php';
+require_once __DIR__ . '/lib/whole-forms.php';
 foreach ( array( 'inc/admin-forms/notifications.php', 'apps/sn-dashboard/parts/leaves/settings-notifications.php' ) as $sn_new ) {
 	if ( is_file( SNT_PATH . $sn_new ) ) { // Absent before the change: the assertions go red, the suite still reports.
 		require_once SNT_PATH . $sn_new;
@@ -84,10 +87,10 @@ $GLOBALS['__options'][ SN_SECURITY_DIGEST_LAST_ERROR ] = array( 'message' => '<s
 ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['settings/notifications'] ), 'the painter is registered under settings/notifications' );
 $kit     = snt_leaf_paint( 'settings', 'notifications' );
 $classic = function_exists( 'sn_admin_render_notifications_section' ) ? snt_leaf_classic_html( 'sn_admin_render_notifications_section' ) : '';
-$names   = array( 'sn_digest_enabled', 'sn_digest_test', 'snt_alerts_enabled', 'snt_morning_brief_enabled', 'snt_morning_brief_test' );
+$names   = array( 'sn_digest_enabled', 'sn_digest_test', 'sn_rw_notify', 'snt_alerts_enabled', 'snt_morning_brief_enabled', 'snt_morning_brief_test' );
 
-ok( $names === snt_leaf_names( $kit ), 'native: the three switches and the two test verbs, nothing else: ' . json_encode( snt_leaf_names( $kit ) ) );
-ok( array( 'morning_brief_save', 'security_digest_save' ) === snt_leaf_actions( $kit ), 'native: the two existing actions, unchanged' );
+ok( $names === snt_leaf_names( $kit ), 'native: the four switches (the write-door email since 2026-11) and the two test verbs, nothing else: ' . json_encode( snt_leaf_names( $kit ) ) );
+ok( array( 'mcp_rw_notify_save', 'morning_brief_save', 'security_digest_save' ) === snt_leaf_actions( $kit ), 'native: the two existing actions, and mcp_rw_notify_save' );
 ok( 2 === snt_brief_forms( $kit, 'os-form' ), 'native: two brief forms (Save with BOTH checkboxes, Send test brief), none that would switch one off' );
 ok( 1 === preg_match( '#<os-form class="snt-form" os-action="post"[^>]*submit-label="Save"[^>]*>(?:(?!</os-form>).)*name="snt_morning_brief_enabled"(?:(?!</os-form>).)*name="snt_alerts_enabled"(?:(?!</os-form>).)*value="sn_morning_brief_save"#s', $kit ), 'native: both brief checkboxes sit in ONE Save form posting morning_brief_save' );
 ok( 1 === preg_match( '/<os-field-row hint="A deterministic prose reading[^"]*"><os-checkbox-label name="snt_morning_brief_enabled"[^>]* checked/', $kit ) && 1 === preg_match( '/<os-field-row hint="Checked hourly[^"]*"><os-checkbox-label name="snt_alerts_enabled" value="1" label="Email an alert when a page spikes or breaks">/', $kit ), 'native: each brief switch is a labelled kit checkbox with its hint, ON painted checked and OFF not' );
@@ -104,7 +107,7 @@ ok( false === strpos( $kit . $classic, "\xe2\x80\x94" ), 'no em dash in either t
 
 // ── 4) The classic twin: the same fields, the same actions, real labels.
 ok( $names === snt_leaf_names( $classic ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'classic: the same names and actions as the native leaf: ' . json_encode( snt_leaf_names( $classic ) ) );
-ok( 2 === substr_count( $classic, '<form' ) && 1 === snt_brief_forms( $classic, 'form' ), 'classic: two forms, and the one brief form carries BOTH checkboxes' );
+ok( 3 === substr_count( $classic, '<form' ) && 1 === snt_brief_forms( $classic, 'form' ), 'classic: three forms, and the one brief form carries BOTH checkboxes' );
 ok( 3 === preg_match_all( '#<label><input type="checkbox" name="(snt_morning_brief_enabled|snt_alerts_enabled|sn_digest_enabled)" value="1"[^>]*/> [^<]+</label>#', $classic ), 'classic: each switch is a checkbox inside its own <label>' );
 ok( false !== strpos( $classic, 'name="snt_morning_brief_test"' ) && false !== strpos( $classic, 'name="sn_digest_test"' ) && 2 === substr_count( $classic, 'Last sent 1 hour ago.' ) && 2 === substr_count( $classic, 'Last send failed:' ), 'classic: both test buttons, both Last sent lines, both Last send failed lines' );
 ok( false === strpos( $classic, 'Configuration drift' ) && false === strpos( $classic, 'snt_config_drift_acknowledge' ), 'classic: the drift notice and Acknowledge did NOT move' );
@@ -144,6 +147,16 @@ foreach ( array(
 	$src = (string) file_get_contents( SNT_PATH . $file );
 	ok( false !== strpos( $src, $want ) && false === strpos( $src, 'off in Connections › Cron' ) && false === strpos( $src, 'off in Security › Login defense' ) && false === strpos( $src, 'on the Login defense panel' ), "$file points at the pane, not at the old screen" );
 }
+
+// ── 2026-11: the write-door email, with the other email switches, both twins.
+$GLOBALS['__options']['sn_mcp_rw_notify'] = '1';
+$nc = snt_leaf_classic_html( 'sn_admin_render_notifications_section' );
+$nk = snt_leaf_paint( 'settings', 'notifications' );
+foreach ( array( 'form' => $nc, 'os-form' => $nk ) as $tag => $html ) {
+	ok( 1 === snt_whole_forms( $html, $tag, 'mcp_rw_notify_save', SNT_MCP_RW_NOTIFY_SAVE_FIELDS ), "<$tag>: one form posts mcp_rw_notify_save with its switch" );
+	ok( false !== strpos( html_entity_decode( $html, ENT_QUOTES | ENT_HTML5, 'UTF-8' ), 'Email the admin address each time the write door is used' ) && false !== strpos( $html, 'Write-door alerts' ), "<$tag>: the box is headed Write-door alerts and says what it sends" );
+}
+ok( false !== strpos( $nc, 'name="sn_rw_notify" value="1" checked="checked"' ) && 1 === preg_match( '#<os-checkbox-label name="sn_rw_notify" value="1" checked #', $nk ), 'on: both twins paint it checked' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

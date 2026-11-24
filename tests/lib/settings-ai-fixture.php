@@ -65,6 +65,8 @@ require SNT_PATH . 'inc/admin-forms/mcp-connect.php';
 require SNT_PATH . 'inc/scheduled-reads.php';
 require SNT_PATH . 'inc/openstation-host-pipelines.php'; // snt_os_host_expand(): a native form's values as the handler receives them.
 require SNT_PATH . 'inc/admin-post-actions/mcp.php';
+require SNT_PATH . 'inc/admin-post-actions/mcp-doors.php';
+require SNT_PATH . 'inc/admin-forms/mcp-door-switches.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-models-budget.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-mcp-connect.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/connections-cron-parts.php';

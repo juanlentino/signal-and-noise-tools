@@ -121,6 +121,15 @@ const SNT_AI_SAVE_FIELDS = array( 'theme_ai_model', 'theme_ai_alt_model', 'theme
 /** The six fields sn_handle_save_theme() writes on every save. */
 const SNT_THEME_SAVE_FIELDS = array( 'theme_related_count', 'theme_palette_recent_count', 'theme_palette_enabled', 'theme_updated_threshold_days', 'theme_reading_wpm', 'theme_note_reply_alias' );
 
+/** The two switches sn_handle_mcp_doors_save() writes on every save (an unchecked box writes off). */
+const SNT_MCP_DOORS_SAVE_FIELDS = array( 'sn_read_door_enabled', 'sn_rw_door_enabled' );
+
+/** The one field sn_handle_related_source_save() reads. */
+const SNT_RELATED_SOURCE_SAVE_FIELDS = array( 'sn_related_source' );
+
+/** The one field sn_handle_mcp_rw_notify_save() writes on every save. */
+const SNT_MCP_RW_NOTIFY_SAVE_FIELDS = array( 'sn_rw_notify' );
+
 /** The two fields sn_handle_reading_save() reads (it keeps a value that is missing, so one form carrying both is a parity rule, not a reset guard). */
 const SNT_READING_SAVE_FIELDS = array( 'theme_notes_per_page', 'theme_json_feed_items' );
 

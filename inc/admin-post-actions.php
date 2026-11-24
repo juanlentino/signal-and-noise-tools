@@ -57,6 +57,7 @@ require_once __DIR__ . '/admin-post-actions/zenodo.php'; // 15.11.0
 require_once __DIR__ . '/admin-post-actions/analytics.php';
 require_once __DIR__ . '/admin-post-actions/gsc.php';
 require_once __DIR__ . '/admin-post-actions/mcp.php';
+require_once __DIR__ . '/admin-post-actions/mcp-doors.php'; // the read and write door switches, the write-door email, the related-notes source
 require_once __DIR__ . '/admin-post-actions/rights-evidence.php'; // 20.0.0: view a held month's payloads, lift the hold
 require_once __DIR__ . '/admin-post-actions/rights-evidence-retract.php'; // 20.1.0: post one signed retraction
 require_once __DIR__ . '/admin-post-actions/archive-push-existing.php'; // 21.1.0: start or resume the Internet Archive run over older notes
