@@ -16,6 +16,9 @@
  *    fields, its warnings and its confirmed Unbind.
  * 3. Scheduled reads, from Connections > Cron: the daily run switch. Run now
  *    is an operation and stayed on Cron with the last-run tally.
+ * 4. Two boxes for choices that had no control until 2026-11
+ *    (inc/admin-forms/mcp-door-switches.php): Related notes (the ranking)
+ *    and Door switches (the read and write doors' own switches).
  *
  * Nothing about saving changed: ai_settings_save, bind_mcp_read_credential,
  * bind_mcp_rw_credential, remote_toggle and scheduled_reads_save, the same
@@ -101,8 +104,14 @@ function sn_admin_render_settings_ai_section() {
 	if ( function_exists( 'sn_admin_render_ai_models_form' ) ) {
 		sn_admin_render_ai_models_form();
 	}
+	if ( function_exists( 'sn_admin_render_related_source' ) ) {
+		sn_admin_render_related_source();
+	}
 	if ( function_exists( 'sn_admin_render_mcp_rw_binding' ) && function_exists( 'sn_admin_render_mcp_read_binding' ) && function_exists( 'sn_admin_render_mcp_remote_toggle' ) ) {
 		snt_settings_ai_render_doors();
+	}
+	if ( function_exists( 'sn_admin_render_mcp_door_switches' ) ) {
+		sn_admin_render_mcp_door_switches();
 	}
 	if ( function_exists( 'snt_scheduled_reads_render_settings' ) ) {
 		snt_scheduled_reads_render_settings();

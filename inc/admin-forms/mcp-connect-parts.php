@@ -28,8 +28,7 @@ function sn_admin_mcp_status_off_reason( array $state ) {
 			/* translators: %s: SN_MCP_RW_DISABLED wrapped in <code>. */
 			return sprintf( esc_html__( 'The %s constant is set in wp-config.php, and only removing it reopens this door.', 'signal-and-noise-tools' ), '<code>SN_MCP_RW_DISABLED</code>' );
 		case 'option_off':
-			/* translators: %s: sn_mcp_rw_enabled wrapped in <code>. */
-			return sprintf( esc_html__( 'The write door’s switch is off (the %s option).', 'signal-and-noise-tools' ), '<code>sn_mcp_rw_enabled</code>' );
+			return esc_html__( 'The write door’s switch is off (Settings › AI, Door switches).', 'signal-and-noise-tools' );
 	}
 	return '';
 }

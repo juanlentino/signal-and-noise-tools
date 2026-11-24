@@ -68,6 +68,9 @@ function sn_admin_render_notifications_section() {
 	if ( function_exists( 'snt_security_digest_render_settings' ) ) {
 		snt_security_digest_render_settings();
 	}
+	if ( function_exists( 'sn_admin_render_mcp_rw_notify' ) ) {
+		sn_admin_render_mcp_rw_notify();
+	}
 	echo '</div>';
 	echo '<p class="sn-field-helper">' . esc_html( snt_notifications_os_pointer_text() ) . '</p>';
 }

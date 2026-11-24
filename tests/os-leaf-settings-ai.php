@@ -36,12 +36,14 @@ foreach ( array( array( 'ai', 'models-budget' ), array( 'ai', 'mcp-connect' ), a
 	ok( null === sn_admin_canonical_destination( $old[0], $old[1] ), "$old[0]/$old[1] is NOT redirected: fields left it, the leaf stayed" );
 }
 
-// ── 2) The pane holds the nine settings and nothing else, on both twins.
-$nine = array( 'sn_mcp_read_uuid', 'sn_mcp_rw_uuid', 'sn_remote_enabled', 'snt_scheduled_reads_enabled', 'theme_ai_alt_model', 'theme_ai_model', 'theme_ai_monthly_budget', 'theme_jev_credit', 'theme_jev_cycle_day' );
-$five = array( 'ai_settings_save', 'bind_mcp_read_credential', 'bind_mcp_rw_credential', 'remote_toggle', 'scheduled_reads_save' );
-ok( '' !== $kit && $nine === snt_leaf_names( $kit ), 'native: exactly the nine settings: ' . implode( ',', snt_leaf_names( $kit ) ) );
-ok( '' !== $classic && $nine === array_values( array_diff( snt_leaf_names( $classic ), array( 'submit' ) ) ), 'classic: exactly the nine settings (submit_button()\'s own "submit" aside): ' . implode( ',', snt_leaf_names( $classic ) ) );
-ok( $five === snt_leaf_actions( $kit ) && $five === snt_leaf_actions( $classic ), 'the five existing actions, unchanged, on both twins: ' . implode( ',', snt_leaf_actions( $classic ) ) );
+// ── 2) The pane holds the twelve settings and nothing else, on both twins:
+// the nine that moved here, and three that had no control until 2026-11
+// (the two door switches and the related-notes ranking, tests/settings-switches.php).
+$nine = array( 'sn_mcp_read_uuid', 'sn_mcp_rw_uuid', 'sn_read_door_enabled', 'sn_related_source', 'sn_remote_enabled', 'sn_rw_door_enabled', 'snt_scheduled_reads_enabled', 'theme_ai_alt_model', 'theme_ai_model', 'theme_ai_monthly_budget', 'theme_jev_credit', 'theme_jev_cycle_day' );
+$five = array( 'ai_settings_save', 'bind_mcp_read_credential', 'bind_mcp_rw_credential', 'mcp_doors_save', 'related_source_save', 'remote_toggle', 'scheduled_reads_save' );
+ok( '' !== $kit && $nine === snt_leaf_names( $kit ), 'native: exactly the twelve settings: ' . implode( ',', snt_leaf_names( $kit ) ) );
+ok( '' !== $classic && $nine === array_values( array_diff( snt_leaf_names( $classic ), array( 'submit' ) ) ), 'classic: exactly the twelve settings (submit_button()\'s own "submit" aside): ' . implode( ',', snt_leaf_names( $classic ) ) );
+ok( $five === snt_leaf_actions( $kit ) && $five === snt_leaf_actions( $classic ), 'the seven actions, the same on both twins: ' . implode( ',', snt_leaf_actions( $classic ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ) && false === strpos( $kit, '<os-disclosure' ), 'native: no wp-admin markup, and no fold: a setting on a settings pane is open' );
 ok( 1 === preg_match( '#^<div class="sn-2up"><form [^>]*class="sn-ai-settings-form">.*<h2 class="sn-fieldset-h">Models and budget</h2>.*</form><div class="sn-fieldset"><h2 class="sn-fieldset-h">MCP doors</h2>.*</div><form [^>]*class="sn-fieldset">.*<h2 class="sn-fieldset-h">Scheduled reads</h2>.*</form></div>$#s', $classic ), 'classic: three headed boxes in .sn-2up: Models and budget, MCP doors, Scheduled reads' );
 $at = static fn( $h ) => strpos( $kit, '<os-section heading="' . $h . '"' );
@@ -129,6 +131,26 @@ foreach ( array(
 	$src = (string) file_get_contents( SNT_PATH . $file );
 	ok( false !== strpos( $src, $pair[0] ) && false === strpos( $src, $pair[1] ), "$file points at Settings › AI, not at the old spot" );
 }
+
+// ── 2026-11: Related notes and Door switches, both twins (handlers: tests/settings-switches-save.php).
+$GLOBALS['__options'] = array( 'sn_mcp_read_enabled' => '0' ); // read off, write untouched (absent means on).
+$GLOBALS['__settings']['ml.related_source'] = 'tfidf';
+$c = ai_classic(); $k = ai_kit();
+foreach ( array( 'form' => $c, 'os-form' => $k ) as $tag => $html ) {
+	ok( 1 === snt_whole_forms( $html, $tag, 'mcp_doors_save', SNT_MCP_DOORS_SAVE_FIELDS ) && 1 === snt_whole_forms( $html, $tag, 'related_source_save', SNT_RELATED_SOURCE_SAVE_FIELDS ), "<$tag>: one form posts mcp_doors_save with both switches, one posts related_source_save with the ranking" );
+}
+ok( false !== strpos( $c, '<input type="checkbox" name="sn_read_door_enabled" value="1"> Read door enabled' ) && false !== strpos( $c, '<input type="checkbox" name="sn_rw_door_enabled" value="1" checked="checked"> Write door enabled' ), 'classic: the read door paints off, the untouched write door on' );
+ok( 1 === preg_match( '#<os-checkbox-label name="sn_read_door_enabled" value="1" label="Read door enabled">#', $k ) && 1 === preg_match( '#<os-checkbox-label name="sn_rw_door_enabled" value="1" checked label="Write door enabled">#', $k ), 'native: the same two states' );
+ok( false !== strpos( $c, '<option value="tfidf" selected="selected">Shared words</option>' ) && false !== strpos( $k, '<os-select name="sn_related_source" value="tfidf">' ), 'both twins show the stored ranking, Shared words' );
+foreach ( snt_switches_text() as $key => $line ) {
+	ok( false !== strpos( html_entity_decode( $c, ENT_QUOTES | ENT_HTML5, 'UTF-8' ), $line ) && false !== strpos( html_entity_decode( $k, ENT_QUOTES | ENT_HTML5, 'UTF-8' ), $line ) || in_array( $key, array( 'notify_h', 'notify_label', 'notify_hint' ), true ), "both twins say the $key line" );
+}
+ok( strpos( $k, 'heading="Remote door"' ) < strpos( $k, 'heading="Door switches"' ) && strpos( $c, 'MCP doors</h2>' ) < strpos( $c, 'Door switches</h2>' ), 'Door switches follows the doors on both twins' );
+// Locked last: the constant stays defined.
+define( 'SN_MCP_RW_DISABLED', true );
+$c = ai_classic(); $k = ai_kit();
+ok( false !== strpos( $c, 'name="sn_rw_door_enabled" value="1" disabled="disabled"> Write door enabled' ) && 1 === preg_match( '#<os-checkbox-label name="sn_rw_door_enabled" disabled value="1" label="Write door enabled">#', $k ), 'locked by SN_MCP_RW_DISABLED: the write switch paints unchecked and disabled on both twins' );
+ok( false !== strpos( $c, 'Locked off by SN_MCP_RW_DISABLED in wp-config.php; only removing it reopens this door.' ) && false !== strpos( $k, 'Locked off by SN_MCP_RW_DISABLED in wp-config.php; only removing it reopens this door.' ), 'and both twins name the constant instead of the hint' );
 
 snt_leaf_preview( 'settings-ai', $kit );
 echo "\nResult: $pass passed, $fail failed.\n";

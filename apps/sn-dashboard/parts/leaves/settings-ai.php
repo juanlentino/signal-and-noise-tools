@@ -32,6 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once dirname( __DIR__, 4 ) . '/inc/ai-model-catalog.php'; // the model defaults and lists.
 require_once __DIR__ . '/ai-models-budget-setup.php'; // models_budget_fields_html(): the five fields.
 require_once __DIR__ . '/ai-mcp-connect.php'; // the doors' status and their three controls.
+require_once __DIR__ . '/settings-switches.php'; // Related notes and Door switches (and the Notifications pane's write-door email).
 
 /**
  * The models and budget box: the five fields, one Save. Only the three
@@ -77,10 +78,14 @@ function paint_settings_ai( array $ctx ) {
 	if ( function_exists( 'sn_theme_ai_models' ) && function_exists( 'sn_theme_ai_vision_models' ) ) {
 		$boxes[] = settings_ai_models_html();
 	}
+	if ( function_exists( 'snt_switches_text' ) ) {
+		$boxes[] = switches_related_html();
+	}
 	if ( function_exists( 'snt_scheduled_reads_enabled' ) && function_exists( 'snt_scheduled_reads_about' ) ) {
 		$boxes[] = settings_ai_reads_html();
 	}
-	return \snt_kit_grid( $boxes, 320 ) . mcp_connect_controls_html( mcp_connect_status() );
+	$switches = function_exists( 'snt_switches_text' ) ? switches_doors_html() : '';
+	return \snt_kit_grid( $boxes, 320 ) . mcp_connect_controls_html( mcp_connect_status() ) . $switches;
 }
 
 add_filter(

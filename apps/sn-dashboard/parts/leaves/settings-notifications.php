@@ -101,6 +101,10 @@ function paint_settings_notifications( array $ctx ) {
 	if ( function_exists( 'snt_security_digest_render_settings' ) ) {
 		$boxes[] = notifications_digest_html();
 	}
+	if ( function_exists( 'snt_switches_text' ) ) {
+		require_once __DIR__ . '/settings-switches.php';
+		$boxes[] = switches_notify_html();
+	}
 	// One sentence, shared with the classic twin (inc/admin-forms/notifications.php).
 	$pointer = function_exists( 'snt_notifications_os_pointer_text' ) ? '<p class="snt-hint">' . \snt_kit_esc( \snt_notifications_os_pointer_text() ) . '</p>' : '';
 	return ( array() === $boxes ? '' : \snt_kit_grid( $boxes, 320 ) ) . $pointer;
