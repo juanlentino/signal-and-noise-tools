@@ -48,6 +48,7 @@ require_once __DIR__ . '/admin-post-actions/scans.php';
 require_once __DIR__ . '/admin-post-actions/monitoring.php';
 require_once dirname( __DIR__ ) . '/inc/ai-model-catalog.php'; // 21.0.0: the model lists, the defaults, and the owner's typed ids
 require_once __DIR__ . '/admin-post-actions/theme-ai.php';
+require_once __DIR__ . '/admin-post-actions/reading.php'; // Notes per page and JSON feed items: one save for Settings > Reading and the native form
 require_once __DIR__ . '/admin-post-actions/music.php';
 require_once __DIR__ . '/admin-post-actions/keyring.php'; // 15.2.0: one form for every credential; Verify all
 require_once __DIR__ . '/admin-post-actions/tags.php';

@@ -70,8 +70,8 @@ function sn_admin_render_front_end_form() {
 	sn_admin_front_end_number( 'theme_related_count', 'Related notes shown', sn_setting( 'theme.related_count', 3 ), 1, 12, 'How many related notes appear under a single note (1 to 12).' );
 	sn_admin_front_end_number( 'theme_updated_threshold_days', '&ldquo;Updated&rdquo; badge after (days)', sn_setting( 'theme.updated_threshold_days', 14 ), 1, 90, 'Show the &ldquo;Updated&rdquo; badge when a note was revised this many days after publishing (1 to 90).' );
 	sn_admin_front_end_number( 'theme_reading_wpm', 'Reading speed (words/min)', sn_setting( 'theme.reading_wpm', 225 ), 100, 400, 'Words per minute used to estimate reading time (100 to 400).' );
-	sn_admin_front_end_number( 'theme_notes_per_page', 'Notes per page', sn_setting( 'theme.notes_per_page', 20 ), 1, 100, 'How many notes per page on the <code>/notes</code> index (1 to 100). Pagination appears once published notes exceed this.' );
-	sn_admin_front_end_number( 'theme_json_feed_items', 'JSON feed items', sn_setting( 'theme.json_feed_items', 20 ), 1, 50, 'Number of notes in the JSON feed (1 to 50).' );
+	// Moved to WordPress's Settings > Reading (inc/reading-settings-screen.php).
+	echo '<p class="sn-field-helper">Notes per page and JSON feed items are on <a href="' . esc_url( admin_url( 'options-reading.php#sn_reading_notes_per_page' ) ) . '">Settings &rsaquo; Reading</a>, with WordPress&rsquo;s own.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Command palette</h2>';

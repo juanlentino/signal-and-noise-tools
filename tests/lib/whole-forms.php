@@ -17,8 +17,8 @@
  * Two more back Settings > Front end:
  *
  * - sn_handle_save_theme() (inc/admin-post-actions/theme-ai.php) writes all
- *   eight front-end settings on every save: six numbers from `?? <default>`
- *   (a form without Notes per page sets it back to 20), the palette switch
+ *   six front-end settings on every save: four numbers from `?? <default>`
+ *   (a form without Reading speed sets it back to 225), the palette switch
  *   from `! empty()` (omitted, the palette turns off) and the reply alias
  *   from `?? 'research'`.
  * - sn_handle_perf_save() (inc/admin-post-actions/monitoring.php) writes the
@@ -118,8 +118,11 @@ function snt_whole_forms( $html, $tag, $action, array $fields, array $verbs = ar
 /** The five fields sn_handle_ai_settings_save() writes on every save. */
 const SNT_AI_SAVE_FIELDS = array( 'theme_ai_model', 'theme_ai_alt_model', 'theme_ai_monthly_budget', 'theme_jev_credit', 'theme_jev_cycle_day' );
 
-/** The eight fields sn_handle_save_theme() writes on every save. */
-const SNT_THEME_SAVE_FIELDS = array( 'theme_related_count', 'theme_palette_recent_count', 'theme_palette_enabled', 'theme_json_feed_items', 'theme_updated_threshold_days', 'theme_reading_wpm', 'theme_notes_per_page', 'theme_note_reply_alias' );
+/** The six fields sn_handle_save_theme() writes on every save. */
+const SNT_THEME_SAVE_FIELDS = array( 'theme_related_count', 'theme_palette_recent_count', 'theme_palette_enabled', 'theme_updated_threshold_days', 'theme_reading_wpm', 'theme_note_reply_alias' );
+
+/** The two fields sn_handle_reading_save() reads (it keeps a value that is missing, so one form carrying both is a parity rule, not a reset guard). */
+const SNT_READING_SAVE_FIELDS = array( 'theme_notes_per_page', 'theme_json_feed_items' );
 
 /** The one field sn_handle_perf_save() writes on every save. */
 const SNT_PERF_SAVE_FIELDS = array( 'speculative_loading' );

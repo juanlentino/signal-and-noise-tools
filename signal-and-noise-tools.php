@@ -284,6 +284,7 @@ require_once SNT_PATH . 'inc/admin-forms/zenodo.php';       // 15.11.0: Connecti
 require_once SNT_PATH . 'inc/admin-forms/settings-accounts.php'; // Settings > Accounts and connections: the keyring (from Connections > Credentials, whole) and the Zenodo, IndexNow and Muso.AI settings
 require_once SNT_PATH . 'inc/admin-forms/settings-analytics.php'; // Settings > Analytics: the collector, exclusion, tuning, funnels and publish window (from Measurement > Analytics), feed tracking (from RSS), the machine-readers Worker URL and the weekly insights scan
 require_once SNT_PATH . 'inc/theme-filters.php';             // v4.12.0: supply configured theme.* values to theme/plugin filters (front-end)
+require_once SNT_PATH . 'inc/reading-settings-screen.php';  // Settings > Reading: Notes per page and JSON feed items, below core's two
 require_once SNT_PATH . 'inc/now-page.php';                  // v7.5.0: /now content editor data layer + sn_now_sections/sn_now_updated feed
 require_once SNT_PATH . 'inc/uses-page.php';                 // v7.6.0: /uses content editor data layer + sn_uses_groups feed (shares the /now section grammar)
 require_once SNT_PATH . 'inc/admin-forms/now-page.php';      // v7.5.0: Content → Now Page editor form

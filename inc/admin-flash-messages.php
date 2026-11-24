@@ -201,6 +201,7 @@ function sn_admin_flash_messages() {
 		// AI config for a drafting failure is the same misdirection the insights
 		// v7.0.1 fix removed.
 		'theme_saved'               => array( 'success', 'Front-end settings saved.' ),
+		'reading_saved'             => array( 'success', 'Notes per page and JSON feed items saved.' ),
 		'theme_unchanged'           => array( 'info', 'No front-end settings changed.' ),
 		// v10.46.0: the AI tab's own save (models + monthly budget), split out of
 		// save_theme so each form reports on what it actually changed.

@@ -82,6 +82,7 @@ function sn_admin_post_handlers() {
 		'block_migrations_scan'      => 'sn_handle_block_migrations_scan',
 		'perf_save'                  => 'sn_handle_perf_save',
 		'save_theme'                 => 'sn_handle_save_theme',
+		'reading_save'               => 'sn_handle_reading_save', // Notes per page and JSON feed items (the native twin of Settings > Reading)
 		'ai_settings_save'           => 'sn_handle_ai_settings_save',
 		'ml_embed_compare'           => 'sn_handle_ml_embed_compare',        // v10.46.0: split out of save_theme with the AI tab
 		'analytics_collector_save'   => 'sn_handle_analytics_collector_save', // v10.46.0: collector endpoint moved off Content → RSS
