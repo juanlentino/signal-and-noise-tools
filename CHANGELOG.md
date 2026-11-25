@@ -22,7 +22,7 @@ adds a bullet below. A release is a separate, deliberate act:
   - Tests: `tests/settings-switches-save.php` (new). It uses an option store that keeps core's early return, and it goes red when the switches store a boolean or when the lock is skipped. `tests/os-leaf-settings-ai.php` and `tests/os-leaf-settings-notifications.php` pin both twins: fields, values, the locked state and the whole-form rule.
 
 ### Fixed
-- **The AI screen no longer says embeddings run in "shadow mode".** That sentence was written before embeddings began ranking the related notes and has been false since. With embeddings configured, it now follows the related-notes ranking: by meaning, it says embeddings rank the related notes; by shared words, it says nothing readers see uses them. Same sentence on both twins. Test: `tests/os-leaf-ai-models-budget.php`.
+- **The AI screen no longer says embeddings run in "shadow mode".** That sentence was written before embeddings began ranking the related notes and has been false since. With embeddings configured, it now follows the related-notes ranking: by meaning, it says embeddings rank the related notes from the next rebuild, and that a note that fails to embed puts that rebuild back on shared words; by shared words, it says nothing readers see uses them. Same sentence on both twins. Test: `tests/os-leaf-ai-models-budget.php`.
 
 ## [2026.11.61] - 2026-11-24 — Notes per page and JSON feed items move to WordPress's Settings › Reading
 

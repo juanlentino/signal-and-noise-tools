@@ -202,7 +202,7 @@ ok( false !== strpos( $kit, 'Not run yet' ) && false !== strpos( $kit, 'Run comp
 ok( false === strpos( $kit, 'a-real-token-value' ) && false !== strpos( $kit, '>set</os-badge>' ) && false !== strpos( $kit, 'Settings › Accounts and connections' ), '15.3.1: the token is never on the leaf; a set badge and the door to the keyring are' );
 ok( false !== strpos( $kit, 'Configured' ), 'the embeddings-token status pill reads Configured' );
 ok( false !== strpos( $kit, '<os-badge tone="success">Workers AI token set</os-badge>' ) && 1 === preg_match( '#<os-disclosure heading="Workers AI token" hint="Set" data-snt-fold#', $kit ), 'anatomy, token set: the chip reads set and its Setup fold stays closed' );
-$__embed = 'Embeddings rank the related notes under each note by meaning.';
+$__embed = 'Embeddings rank the related notes under each note by meaning from the next rebuild of the lists. If any note fails to embed, that rebuild ranks by shared words instead.';
 ok( false !== strpos( $kit, $__embed ) && false !== strpos( $classic, $__embed ) && false === strpos( $kit . $classic, 'SHADOW' ), 'configured, ranked by meaning (the default): one embeddings sentence on both twins, and it no longer claims shadow mode' );
 $GLOBALS['__settings']['ml.related_source'] = 'tfidf';
 $__tf = 'so nothing the site serves uses them.';
