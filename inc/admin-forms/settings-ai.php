@@ -87,14 +87,14 @@ function snt_settings_ai_render_doors() {
 	foreach ( array( 'read' => __( 'Read door', 'signal-and-noise-tools' ), 'rw' => __( 'Write door', 'signal-and-noise-tools' ) ) as $door => $name ) {
 		echo '<p class="sn-callout-h">' . esc_html( $name ) . '</p>';
 		if ( function_exists( 'sn_admin_render_mcp_door_switch' ) ) {
-			sn_admin_render_mcp_door_switch( $door ); // The door's own switch, first, as the Remote door's.
+			sn_admin_render_mcp_door_switch( $door ); // The door's own switch, first, as all three doors.
 		}
 		'read' === $door ? sn_admin_render_mcp_read_binding() : sn_admin_render_mcp_rw_binding();
 	}
 	$cards = sn_admin_mcp_status_cards( sn_admin_mcp_status_state() );
 	echo '<p class="sn-callout-h">' . esc_html__( 'Remote door', 'signal-and-noise-tools' ) . '</p>';
+	sn_admin_render_mcp_remote_toggle(); // The switch first, as the Read and Write doors'.
 	echo '<p>' . (string) ( $cards[3]['state_html'] ?? '' ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped where it is built (sn_admin_mcp_status_cards()).
-	sn_admin_render_mcp_remote_toggle();
 	echo '</div>';
 }
 

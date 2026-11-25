@@ -69,7 +69,8 @@ function mcp_connect_tiles_html( array $state, array $cards ) {
 }
 
 /**
- * The remote door's control: what its state means, then its switch. Same
+ * The remote door's control: its switch, then what its state means (the
+ * Read and Write door boxes' order). Same
  * field (`sn_remote_enabled`), same disabled-when-constant-killed rule, same
  * action (`remote_toggle`).
  *
@@ -82,8 +83,8 @@ function mcp_connect_remote_html( array $card ) {
 	$field           = \snt_kit_field( 'checkbox', 'sn_remote_enabled', __( 'Remote door enabled', 'signal-and-noise-tools' ), $door_open, array( 'value' => '1', 'disabled' => $constant_killed ) );
 	// The card's meta is built escaped by the classic builder (it carries <code> and a <br>).
 	$meta = '' !== (string) ( $card['meta_html'] ?? '' ) ? '<p class="snt-prose">' . (string) $card['meta_html'] . '</p>' : '';
-	// The description says what the switch decides; the tile above names the state.
-	return \snt_kit_section( __( 'Remote door', 'signal-and-noise-tools' ), $meta . \snt_kit_form( 'remote_toggle', $field, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) ), __( 'Whether this site answers the Cloudflare Worker', 'signal-and-noise-tools' ) );
+	// The description says what the switch decides; the state sentence follows the switch.
+	return \snt_kit_section( __( 'Remote door', 'signal-and-noise-tools' ), \snt_kit_form( 'remote_toggle', $field, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) ) . $meta, __( 'Whether this site answers the Cloudflare Worker', 'signal-and-noise-tools' ) );
 }
 
 /**
