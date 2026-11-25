@@ -12,23 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [2026.11.63] - 2026-11-25 — Settings regrouped: door switches in their own boxes, the related-notes ranking in Front end, and the AI screen states the ranking readers see
+
 ### Changed
 - **Settings › AI is regrouped: each door's switch sits in that door's box, and the related-notes ranking moved to Settings › Front end.** 2026.11.62 added the switches as a separate Door switches box and the ranking as a third box in the AI pane's top row, which split each door across two boxes and left gaps beside the tall Models box. Now the Read door and Write door boxes each start with their own on/off switch, the way the Remote door box already did (macOS System Settings › Sharing puts each service's switch with that service). Each switch is its own form and saves only its door. "Rank related notes by" sits in the Reading box beside "Related notes shown" and saves with the rest of that form (WordPress Settings › Reading groups how lists of posts appear). The AI pane's top row is back to Models and budget plus Scheduled reads. Both twins. The boxes are renamed Read door and Write door. Tests: `tests/settings-switches-save.php`, `tests/os-leaf-settings-ai.php`, `tests/os-leaf-ai-mcp-connect.php`, `tests/os-leaf-settings-front-end.php`, `tests/os-leaf-settings-front-end-pane.php`.
-
-### Changed
 - **The AI screen states which ranking the related notes actually use.** Each rebuild of the related-notes lists now records whether it ranked by meaning (embeddings) or by shared words, as a `source` key in `snt_ml_corpus_meta`. The embeddings sentence compares that record with the Related notes setting and says what readers see: ranked by meaning; set to meaning but the last rebuild ranked by shared words; ranked by shared words; or set to shared words while the current lists still rank by meaning until the next rebuild. Before the first rebuild that records it, the sentence is about the next rebuild. Tests: `tests/ml-artifacts.php`, `tests/os-leaf-ai-models-budget.php`.
-
-## [2026.11.62] - 2026-11-25 — Controls for the read and write door switches, the write-door email and the related-notes ranking
-
-### Added
-- **Controls for four stored choices that had none.** Each could only be changed in the database. Each now has a control on both surfaces, in the classic screens and the native window, placed with the settings it belongs to. Defaults are unchanged, so nothing behaves differently until a control is saved.
-  - **Settings › AI, "Door switches":** "Read door enabled" (`sn_mcp_read_enabled`) and "Write door enabled" (`sn_mcp_rw_enabled`), one form (action `mcp_doors_save`). The box sits next to the doors' credentials and the remote door's switch. Both default to on, as the guards read an untouched option. They are stored as 1 or 0, not as a boolean: WordPress's `update_option()` stores nothing when a `false` equals the `false` a missing row reads as, so a first "off" would not have saved. A door that `SN_MCP_READ_DISABLED` or `SN_MCP_RW_DISABLED` locks in wp-config.php paints disabled and names the constant, and the handler leaves its option alone.
-  - **Settings › AI, "Related notes":** "Rank related notes by", with the choices Meaning (embeddings) and Shared words (`ml.related_source`, action `related_source_save`). The value is allowlisted, and a missing or off-list post keeps what is stored. A change queues the related-notes rebuild, which runs within a minute.
-  - **Settings › Notifications and reports, "Write-door alerts":** "Email the admin address each time the write door is used" (`sn_mcp_rw_notify`, action `mcp_rw_notify_save`), beside the other email switches. It defaults to off. Calls within a minute of an email are counted in the next one.
-  - The write door's off reason on its status card now names the pane, not the option.
-  - New: `inc/admin-post-actions/mcp-doors.php`, `inc/admin-forms/mcp-door-switches.php`, `apps/sn-dashboard/parts/leaves/settings-switches.php`.
-  - Tests: `tests/settings-switches-save.php` (new). It uses an option store that keeps core's early return, and it goes red when the switches store a boolean or when the lock is skipped. `tests/os-leaf-settings-ai.php` and `tests/os-leaf-settings-notifications.php` pin both twins: fields, values, the locked state and the whole-form rule.
-
-### Fixed
-- **The AI screen no longer says embeddings run in "shadow mode".** That sentence was written before embeddings began ranking the related notes and has been false since. With embeddings configured, it now follows the related-notes ranking: by meaning, it says embeddings rank the related notes from the next rebuild, and that a note that fails to embed puts that rebuild back on shared words; by shared words, it says nothing readers see uses them. Same sentence on both twins. Test: `tests/os-leaf-ai-models-budget.php`.
 
