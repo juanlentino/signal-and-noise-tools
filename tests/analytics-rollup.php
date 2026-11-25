@@ -1400,7 +1400,7 @@ ok( 2 === count( $GLOBALS['__ar_query_calls'] ) && 'folded' === ( get_option( SN
 $GLOBALS['__ar_overcap'] = null;
 
 // ── 2026-11-25: a cross-query sampling disagreement is not an inversion ──────
-echo "\nGroup: integrity guard — the two queries' own pv mass decides (2026-11-25)\n";
+echo "\nGroup: integrity guard: the two queries' own pv mass decides (2026-11-25)\n";
 // views and pageview_visits come from two Analytics Engine queries, each
 // sampled on its own. The gated query now carries its pv mass (pv_weight,
 // sum(_sample_interval) over the same pv rows): when the main query's views
