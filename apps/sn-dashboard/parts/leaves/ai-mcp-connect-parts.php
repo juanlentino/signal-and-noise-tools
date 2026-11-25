@@ -65,12 +65,13 @@ function mcp_connect_rw_binding_html( $rw_state = '', $explain = '' ) {
 		$status = \snt_kit_notice( 'warn', \snt_kit_esc( __( 'A write-door credential is bound, but it no longer matches any of your own Application Passwords: it may have been revoked, or belongs to a different user. Bind a current one.', 'signal-and-noise-tools' ) ) );
 	}
 
+	$status = ( function_exists( __NAMESPACE__ . '\\switches_door_html' ) ? switches_door_html( 'rw' ) : '' ) . $status;
 	if ( empty( $passwords ) ) {
 		$profile = function_exists( 'get_edit_profile_url' ) ? get_edit_profile_url() . '#application-passwords-section' : '';
 		return \snt_kit_section(
-			__( 'Write-door credential', 'signal-and-noise-tools' ),
+			__( 'Write door', 'signal-and-noise-tools' ),
 			$status . '<p class="snt-prose">' . \snt_kit_esc( __( 'You have no Application Passwords yet: create one under your profile first.', 'signal-and-noise-tools' ) ) . ' ' . \snt_kit_door( __( 'Your profile', 'signal-and-noise-tools' ), $profile ) . '</p>',
-			__( 'Which Application Password may call the write door', 'signal-and-noise-tools' )
+			__( 'Whether it answers, and which Application Password may call it', 'signal-and-noise-tools' )
 		);
 	}
 
@@ -103,7 +104,7 @@ function mcp_connect_rw_binding_html( $rw_state = '', $explain = '' ) {
 		)
 	);
 	$form   = '' === $unbind ? $form : \snt_kit_tag( 'div', array( 'class' => 'snt-bind-row' ), $form . $unbind );
-	return \snt_kit_section( __( 'Write-door credential', 'signal-and-noise-tools' ), $status . $form, __( 'Which Application Password may call the write door', 'signal-and-noise-tools' ) );
+	return \snt_kit_section( __( 'Write door', 'signal-and-noise-tools' ), $status . $form, __( 'Whether it answers, and which Application Password may call it', 'signal-and-noise-tools' ) );
 }
 
 /**

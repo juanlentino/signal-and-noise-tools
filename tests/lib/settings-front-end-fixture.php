@@ -35,6 +35,7 @@ require SNT_PATH . 'inc/ai-model-catalog.php';
 require SNT_PATH . 'inc/admin-post-actions/theme-ai.php';
 if ( is_file( SNT_PATH . 'inc/admin-post-actions/reading.php' ) ) { require SNT_PATH . 'inc/admin-post-actions/reading.php'; }
 require SNT_PATH . 'inc/admin-post-actions/monitoring.php';
+require SNT_PATH . 'inc/admin-forms/mcp-door-switches.php'; // the related-notes ranking field, in the Reading box
 require SNT_PATH . 'inc/admin-forms/front-end.php';
 require SNT_PATH . 'inc/admin-forms/performance.php';
 require SNT_PATH . 'apps/sn-dashboard/parts/leaves/site-performance.php';

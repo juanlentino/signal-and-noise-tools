@@ -201,11 +201,10 @@ function sn_admin_flash_messages() {
 		// AI config for a drafting failure is the same misdirection the insights
 		// v7.0.1 fix removed.
 		'theme_saved'               => array( 'success', 'Front-end settings saved.' ),
-		'mcp_doors_saved'           => array( 'success', 'Door switches saved.' ),
-		'mcp_doors_locked'          => array( 'warning', 'Both doors are locked by wp-config.php, so nothing was saved.' ),
+		'mcp_doors_saved'           => array( 'success', 'Door switch saved.' ),
+		'mcp_doors_unknown'         => array( 'warning', 'That is not one of the doors, so nothing changed.' ),
+		'mcp_doors_locked'          => array( 'warning', 'That door is locked by wp-config.php, so nothing was saved.' ),
 		'mcp_rw_notify_saved'       => array( 'success', 'Write-door alerts saved.' ),
-		'related_source_saved'      => array( 'success', 'Related notes ranking saved.' ),
-		'related_source_unchanged'  => array( 'warning', 'That ranking is not one of the choices, so nothing changed.' ),
 		'reading_saved'             => array( 'success', 'Notes per page and JSON feed items saved.' ),
 		'theme_unchanged'           => array( 'info', 'No front-end settings changed.' ),
 		// v10.46.0: the AI tab's own save (models + monthly budget), split out of

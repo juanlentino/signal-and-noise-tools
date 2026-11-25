@@ -3,10 +3,12 @@
  * The classic controls for the four stored choices (handlers:
  * inc/admin-post-actions/mcp-doors.php), and the words both twins share.
  *
- * - Settings > AI, "Door switches": the read and write doors, one form
- *   (`mcp_doors_save`). A door its wp-config constant locks paints disabled,
- *   with the constant named.
- * - Settings > AI, "Related notes": the ranking (`related_source_save`).
+ * - Settings > AI, the Read door and Write door boxes: each door's switch,
+ *   its own form (`mcp_doors_save` with `sn_door`), first in that door's
+ *   box, the way the Remote door box holds its switch. A door its wp-config
+ *   constant locks paints disabled, with the constant named.
+ * - Settings > Front end, the Reading box: the related-notes ranking, a field
+ *   of the `save_theme` form beside Related notes shown.
  * - Settings > Notifications and reports: the write-door email
  *   (`mcp_rw_notify_save`), with the other email switches.
  *
@@ -26,12 +28,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function snt_switches_text() {
 	return array(
-		'doors_h'      => __( 'Door switches', 'signal-and-noise-tools' ),
 		'read_label'   => __( 'Read door enabled', 'signal-and-noise-tools' ),
 		'read_hint'    => __( 'Off, the read door answers no MCP client, whatever credential it brings.', 'signal-and-noise-tools' ),
 		'rw_label'     => __( 'Write door enabled', 'signal-and-noise-tools' ),
-		'rw_hint'      => __( 'Off, the write door refuses every call. It also needs its own credential, bound on this pane.', 'signal-and-noise-tools' ),
-		'related_h'    => __( 'Related notes', 'signal-and-noise-tools' ),
+		'rw_hint'      => __( 'Off, the write door refuses every call, bound credential or not.', 'signal-and-noise-tools' ),
 		'related_lbl'  => __( 'Rank related notes by', 'signal-and-noise-tools' ),
 		'related_hint' => __( 'Embeddings rank by meaning and need Workers AI set up (Settings › Accounts and connections); until it is, the lists use shared words. A change queues a rebuild of the lists, which runs on the next scheduled-task run.', 'signal-and-noise-tools' ),
 		'emb'          => __( 'Meaning (embeddings)', 'signal-and-noise-tools' ),
@@ -67,37 +67,33 @@ function snt_switches_render_door( $door ) {
 }
 
 /**
- * Settings > AI: the Door switches box.
+ * Settings > AI: one door's switch, its own form, for that door's box.
  *
+ * @param string $door `read` or `rw`.
  * @return void
  */
-function sn_admin_render_mcp_door_switches() {
-	$t = snt_switches_text();
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset">';
+function sn_admin_render_mcp_door_switch( $door ) {
+	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
 	wp_nonce_field( 'sn_mcp_doors_save' );
-	echo '<input type="hidden" name="action" value="sn_mcp_doors_save"><h2 class="sn-fieldset-h">' . esc_html( $t['doors_h'] ) . '</h2>';
-	snt_switches_render_door( 'read' );
-	snt_switches_render_door( 'rw' );
-	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button></div></form>';
+	echo '<input type="hidden" name="action" value="sn_mcp_doors_save"><input type="hidden" name="sn_door" value="' . esc_attr( $door ) . '">';
+	snt_switches_render_door( $door );
+	echo '<div class="sn-fieldset-actions"><button type="submit" class="button">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button></div></form>';
 }
 
 /**
- * Settings > AI: the Related notes box.
+ * Settings > Front end, the Reading box: the ranking select, a field of the
+ * save_theme form.
  *
  * @return void
  */
-function sn_admin_render_related_source() {
+function sn_admin_render_related_source_field() {
 	$t   = snt_switches_text();
 	$cur = (string) sn_setting( 'ml.related_source', 'embeddings' );
-	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset">';
-	wp_nonce_field( 'sn_related_source_save' );
-	echo '<input type="hidden" name="action" value="sn_related_source_save"><h2 class="sn-fieldset-h">' . esc_html( $t['related_h'] ) . '</h2>';
 	echo '<div class="sn-field"><label class="sn-field-label" for="sn_related_source">' . esc_html( $t['related_lbl'] ) . '</label><select id="sn_related_source" name="sn_related_source">';
 	foreach ( array( 'embeddings' => $t['emb'], 'tfidf' => $t['tfidf'] ) as $v => $label ) {
 		echo '<option value="' . esc_attr( $v ) . '"' . selected( $cur, $v, false ) . '>' . esc_html( $label ) . '</option>';
 	}
 	echo '</select><p class="sn-field-helper">' . esc_html( $t['related_hint'] ) . '</p></div>';
-	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button></div></form>';
 }
 
 /**

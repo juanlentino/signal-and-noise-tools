@@ -37,17 +37,17 @@ foreach ( array( array( 'ai', 'models-budget' ), array( 'ai', 'mcp-connect' ), a
 }
 
 // ── 2) The pane holds the twelve settings and nothing else, on both twins:
-// the nine that moved here, and three that had no control until 2026-11
-// (the two door switches and the related-notes ranking, tests/settings-switches.php).
-$nine = array( 'sn_mcp_read_uuid', 'sn_mcp_rw_uuid', 'sn_read_door_enabled', 'sn_related_source', 'sn_remote_enabled', 'sn_rw_door_enabled', 'snt_scheduled_reads_enabled', 'theme_ai_alt_model', 'theme_ai_model', 'theme_ai_monthly_budget', 'theme_jev_credit', 'theme_jev_cycle_day' );
-$five = array( 'ai_settings_save', 'bind_mcp_read_credential', 'bind_mcp_rw_credential', 'mcp_doors_save', 'related_source_save', 'remote_toggle', 'scheduled_reads_save' );
+// the nine that moved here, the two door switches that had no control until
+// 2026-11 (tests/settings-switches-save.php), and each switch's sn_door.
+$nine = array( 'sn_door', 'sn_mcp_read_uuid', 'sn_mcp_rw_uuid', 'sn_read_door_enabled', 'sn_remote_enabled', 'sn_rw_door_enabled', 'snt_scheduled_reads_enabled', 'theme_ai_alt_model', 'theme_ai_model', 'theme_ai_monthly_budget', 'theme_jev_credit', 'theme_jev_cycle_day' );
+$five = array( 'ai_settings_save', 'bind_mcp_read_credential', 'bind_mcp_rw_credential', 'mcp_doors_save', 'remote_toggle', 'scheduled_reads_save' );
 ok( '' !== $kit && $nine === snt_leaf_names( $kit ), 'native: exactly the twelve settings: ' . implode( ',', snt_leaf_names( $kit ) ) );
 ok( '' !== $classic && $nine === array_values( array_diff( snt_leaf_names( $classic ), array( 'submit' ) ) ), 'classic: exactly the twelve settings (submit_button()\'s own "submit" aside): ' . implode( ',', snt_leaf_names( $classic ) ) );
 ok( $five === snt_leaf_actions( $kit ) && $five === snt_leaf_actions( $classic ), 'the seven actions, the same on both twins: ' . implode( ',', snt_leaf_actions( $classic ) ) );
 ok( array() === snt_leaf_classic_markers( $kit ) && false === strpos( $kit, '<os-disclosure' ), 'native: no wp-admin markup, and no fold: a setting on a settings pane is open' );
 ok( 1 === preg_match( '#^<div class="sn-2up"><form [^>]*class="sn-ai-settings-form">.*<h2 class="sn-fieldset-h">Models and budget</h2>.*</form><div class="sn-fieldset"><h2 class="sn-fieldset-h">MCP doors</h2>.*</div><form [^>]*class="sn-fieldset">.*<h2 class="sn-fieldset-h">Scheduled reads</h2>.*</form></div>$#s', $classic ), 'classic: three headed boxes in .sn-2up: Models and budget, MCP doors, Scheduled reads' );
 $at = static fn( $h ) => strpos( $kit, '<os-section heading="' . $h . '"' );
-ok( false !== $at( 'Models and budget' ) && $at( 'Models and budget' ) < $at( 'Scheduled reads' ) && $at( 'Scheduled reads' ) < $at( 'Read-door credential (optional)' ) && $at( 'Read-door credential (optional)' ) < $at( 'Write-door credential' ) && $at( 'Write-door credential' ) < $at( 'Remote door' ), 'native: headed boxes by subject: Models and budget, Scheduled reads, then the three doors in door order' );
+ok( false !== $at( 'Models and budget' ) && $at( 'Models and budget' ) < $at( 'Scheduled reads' ) && $at( 'Scheduled reads' ) < $at( 'Read door' ) && $at( 'Read door' ) < $at( 'Write door' ) && $at( 'Write door' ) < $at( 'Remote door' ) && false === $at( 'Related notes' ) && false === $at( 'Door switches' ), 'native: headed boxes by subject: Models and budget, Scheduled reads, then the three doors in door order' );
 foreach ( array( 'Spent this month', 'This month, by feature', 'Workers AI token', 'TF-IDF', 'Run now', 'Last run', 'claude_desktop_config.json', 'Jev meter' ) as $reading ) {
 	ok( false === strpos( $kit . $classic, $reading ), "no reading or operation came along: the pane does not say \"$reading\"" );
 }
@@ -132,20 +132,26 @@ foreach ( array(
 	ok( false !== strpos( $src, $pair[0] ) && false === strpos( $src, $pair[1] ), "$file points at Settings › AI, not at the old spot" );
 }
 
-// ── 2026-11: Related notes and Door switches, both twins (handlers: tests/settings-switches-save.php).
+// ── 2026-11: each door's switch, first in that door's box, both twins (handlers: tests/settings-switches-save.php).
 $GLOBALS['__options'] = array( 'sn_mcp_read_enabled' => '0' ); // read off, write untouched (absent means on).
-$GLOBALS['__settings']['ml.related_source'] = 'tfidf';
 $c = ai_classic(); $k = ai_kit();
 foreach ( array( 'form' => $c, 'os-form' => $k ) as $tag => $html ) {
-	ok( 1 === snt_whole_forms( $html, $tag, 'mcp_doors_save', SNT_MCP_DOORS_SAVE_FIELDS ) && 1 === snt_whole_forms( $html, $tag, 'related_source_save', SNT_RELATED_SOURCE_SAVE_FIELDS ), "<$tag>: one form posts mcp_doors_save with both switches, one posts related_source_save with the ranking" );
+	preg_match_all( '#<' . $tag . '\b.*?</' . $tag . '>#s', $html, $fm );
+	$doors = array_values( array_filter( $fm[0], static fn( $f ) => false !== strpos( $f, 'sn_mcp_doors_save' ) ) );
+	ok( 2 === snt_whole_forms( $html, $tag, 'mcp_doors_save', SNT_MCP_DOORS_SAVE_FIELDS ) && 2 === count( $doors ) && 1 === preg_match( '#name="sn_door" value="read"#', $doors[0] ) && false !== strpos( $doors[0], 'name="sn_read_door_enabled"' ) && false === strpos( $doors[0], 'sn_rw_door_enabled' ) && 1 === preg_match( '#name="sn_door" value="rw"#', $doors[1] ) && false !== strpos( $doors[1], 'name="sn_rw_door_enabled"' ) && false === strpos( $doors[1], 'sn_read_door_enabled' ), "<$tag>: one switch form per door, each naming its door and carrying only its own switch" );
+	ok( 0 === substr_count( $html, 'sn_related_source' ), "<$tag>: the ranking left this pane (Settings › Front end)" );
 }
 ok( false !== strpos( $c, '<input type="checkbox" name="sn_read_door_enabled" value="1"> Read door enabled' ) && false !== strpos( $c, '<input type="checkbox" name="sn_rw_door_enabled" value="1" checked="checked"> Write door enabled' ), 'classic: the read door paints off, the untouched write door on' );
 ok( 1 === preg_match( '#<os-checkbox-label name="sn_read_door_enabled" value="1" label="Read door enabled">#', $k ) && 1 === preg_match( '#<os-checkbox-label name="sn_rw_door_enabled" value="1" checked label="Write door enabled">#', $k ), 'native: the same two states' );
-ok( false !== strpos( $c, '<option value="tfidf" selected="selected">Shared words</option>' ) && false !== strpos( $k, '<os-select name="sn_related_source" value="tfidf">' ), 'both twins show the stored ranking, Shared words' );
-foreach ( snt_switches_text() as $key => $line ) {
-	ok( false !== strpos( html_entity_decode( $c, ENT_QUOTES | ENT_HTML5, 'UTF-8' ), $line ) && false !== strpos( html_entity_decode( $k, ENT_QUOTES | ENT_HTML5, 'UTF-8' ), $line ) || in_array( $key, array( 'notify_h', 'notify_label', 'notify_hint' ), true ), "both twins say the $key line" );
+foreach ( array( 'read_label', 'read_hint', 'rw_label', 'rw_hint' ) as $key ) {
+	$line = snt_switches_text()[ $key ];
+	ok( false !== strpos( html_entity_decode( $c, ENT_QUOTES | ENT_HTML5, 'UTF-8' ), $line ) && false !== strpos( html_entity_decode( $k, ENT_QUOTES | ENT_HTML5, 'UTF-8' ), $line ), "both twins say the $key line" );
 }
-ok( strpos( $k, 'heading="Remote door"' ) < strpos( $k, 'heading="Door switches"' ) && strpos( $c, 'MCP doors</h2>' ) < strpos( $c, 'Door switches</h2>' ), 'Door switches follows the doors on both twins' );
+// Each switch sits inside its own door's box, before that box's credential.
+$box = static function ( $h ) use ( $k ) { $a = strpos( $k, '<os-section heading="' . $h . '"' ); return false === $a ? '' : substr( $k, $a, strpos( $k, '</os-section>', $a ) - $a ); };
+ok( false !== strpos( $box( 'Read door' ), 'sn_read_door_enabled' ) && strpos( $box( 'Read door' ), 'sn_read_door_enabled' ) < (int) strpos( $box( 'Read door' ), 'bind_mcp_read_credential' ) && false === strpos( $box( 'Read door' ), 'sn_rw_door_enabled' ), 'native: the read switch is first in the Read door box, and only there' );
+ok( false !== strpos( $box( 'Write door' ), 'sn_rw_door_enabled' ) && strpos( $box( 'Write door' ), 'sn_rw_door_enabled' ) < (int) strpos( $box( 'Write door' ), 'bind_mcp_rw_credential' ) && false === strpos( $box( 'Write door' ), 'sn_read_door_enabled' ), 'native: the write switch is first in the Write door box, and only there' );
+ok( strpos( $c, 'Read door</p>' ) < strpos( $c, 'sn_read_door_enabled' ) && strpos( $c, 'sn_read_door_enabled' ) < strpos( $c, 'Bind the read-door credential' ) && strpos( $c, 'Write door</p>' ) < strpos( $c, 'sn_rw_door_enabled' ) && strpos( $c, 'sn_rw_door_enabled' ) < strpos( $c, 'Bind the write-door credential' ), 'classic: each switch heads its door, before its credential' );
 // Locked last: the constant stays defined.
 define( 'SN_MCP_RW_DISABLED', true );
 $c = ai_classic(); $k = ai_kit();

@@ -53,7 +53,7 @@ ok( 1 === snt_whole_forms( $kit, 'os-form', 'reading_save', SNT_READING_SAVE_FIE
 ok( strpos( $kit, 'heading="Replies"' ) < strpos( $kit, 'heading="Notes and the JSON feed"' ) && strpos( $kit, 'heading="Notes and the JSON feed"' ) < strpos( $kit, 'heading="Performance"' ), 'native: the Reading box sits between the front-end form and Performance' );
 ok( array() === snt_leaf_classic_markers( $kit ) && false === strpos( $kit, '<os-disclosure' ), 'native: no wp-admin markup, and no fold: a setting on a settings pane is open' );
 foreach ( array( 'form' => $classic, 'os-form' => $kit ) as $tag => $html ) {
-	ok( 1 === snt_whole_forms( $html, $tag, 'save_theme', SNT_THEME_SAVE_FIELDS ), "<$tag>: one form posts save_theme and it carries all six fields the handler writes" );
+	ok( 1 === snt_whole_forms( $html, $tag, 'save_theme', SNT_THEME_SAVE_FIELDS ), "<$tag>: one form posts save_theme and it carries all seven fields the handler saves" );
 	ok( 1 === snt_whole_forms( $html, $tag, 'perf_save', SNT_PERF_SAVE_FIELDS ), "<$tag>: one form posts perf_save and it carries the switch" );
 	ok( false === strpos( fe_form( $html, $tag, 'save_theme' ), 'speculative_loading' ) && false === strpos( fe_form( $html, $tag, 'perf_save' ), 'theme_' ), "<$tag>: the two forms are siblings, neither inside the other" );
 }

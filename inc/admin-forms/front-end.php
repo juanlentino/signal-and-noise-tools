@@ -68,6 +68,9 @@ function sn_admin_render_front_end_form() {
 
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Reading</h2>';
 	sn_admin_front_end_number( 'theme_related_count', 'Related notes shown', sn_setting( 'theme.related_count', 3 ), 1, 12, 'How many related notes appear under a single note (1 to 12).' );
+	if ( function_exists( 'sn_admin_render_related_source_field' ) ) {
+		sn_admin_render_related_source_field(); // The ranking, beside the count (2026-11, from Settings > AI).
+	}
 	sn_admin_front_end_number( 'theme_updated_threshold_days', '&ldquo;Updated&rdquo; badge after (days)', sn_setting( 'theme.updated_threshold_days', 14 ), 1, 90, 'Show the &ldquo;Updated&rdquo; badge when a note was revised this many days after publishing (1 to 90).' );
 	sn_admin_front_end_number( 'theme_reading_wpm', 'Reading speed (words/min)', sn_setting( 'theme.reading_wpm', 225 ), 100, 400, 'Words per minute used to estimate reading time (100 to 400).' );
 	// Moved to WordPress's Settings > Reading (inc/reading-settings-screen.php).

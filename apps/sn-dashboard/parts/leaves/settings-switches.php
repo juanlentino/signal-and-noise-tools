@@ -1,8 +1,9 @@
 <?php
 /**
  * S&N Dashboard: the native twin of inc/admin-forms/mcp-door-switches.php.
- * The Door switches and Related notes boxes on Settings > AI, the
- * Write-door alerts box on Settings > Notifications and reports. Same field
+ * Each door's switch, first in that door's box on Settings > AI; the
+ * related-notes ranking, a field of the Reading box on Settings > Front end;
+ * the Write-door alerts box on Settings > Notifications and reports. Same field
  * names, actions and words (snt_switches_text()), so the two twins cannot
  * drift.
  *
@@ -16,29 +17,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * The Door switches box: both doors, one form.
+ * One door's switch, its own form, for that door's box. '' when the switch
+ * module is not loaded.
  *
+ * @param string $door `read` or `rw`.
  * @return string
  */
-function switches_doors_html() {
-	$t      = \snt_switches_text();
-	$fields = '';
-	foreach ( array( 'read', 'rw' ) as $door ) {
-		$locked  = \snt_mcp_door_locked( $door );
-		$fields .= \snt_kit_field( 'checkbox', 'sn_' . $door . '_door_enabled', $t[ $door . '_label' ], ! $locked && \snt_mcp_door_switch_on( $door ), array( 'value' => '1', 'disabled' => $locked, 'hint' => $locked ? \snt_switches_locked_text( $door ) : $t[ $door . '_hint' ] ) );
+function switches_door_html( $door ) {
+	if ( ! function_exists( 'snt_switches_text' ) ) {
+		return '';
 	}
-	return \snt_kit_section( $t['doors_h'], \snt_kit_form( 'mcp_doors_save', $fields, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) ) );
+	$t      = \snt_switches_text();
+	$locked = \snt_mcp_door_locked( $door );
+	$field  = \snt_kit_field( 'checkbox', 'sn_' . $door . '_door_enabled', $t[ $door . '_label' ], ! $locked && \snt_mcp_door_switch_on( $door ), array( 'value' => '1', 'disabled' => $locked, 'hint' => $locked ? \snt_switches_locked_text( $door ) : $t[ $door . '_hint' ] ) );
+	return \snt_kit_form( 'mcp_doors_save', $field, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ), 'hidden' => array( 'sn_door' => $door ) ) );
 }
 
 /**
- * The Related notes box.
+ * The ranking select, a field of the Front end pane's save_theme form.
  *
  * @return string
  */
-function switches_related_html() {
-	$t     = \snt_switches_text();
-	$field = \snt_kit_field( 'select', 'sn_related_source', $t['related_lbl'], (string) \sn_setting( 'ml.related_source', 'embeddings' ), array( 'options' => array( 'embeddings' => $t['emb'], 'tfidf' => $t['tfidf'] ), 'hint' => $t['related_hint'] ) );
-	return \snt_kit_section( $t['related_h'], \snt_kit_form( 'related_source_save', $field, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) ) );
+function switches_related_field_html() {
+	if ( ! function_exists( 'snt_switches_text' ) ) {
+		return '';
+	}
+	$t = \snt_switches_text();
+	return \snt_kit_field( 'select', 'sn_related_source', $t['related_lbl'], (string) \sn_setting( 'ml.related_source', 'embeddings' ), array( 'options' => array( 'embeddings' => $t['emb'], 'tfidf' => $t['tfidf'] ), 'hint' => $t['related_hint'] ) );
 }
 
 /**
