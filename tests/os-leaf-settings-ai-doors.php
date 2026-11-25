@@ -99,7 +99,12 @@ foreach ( array( 'form' => $classic, 'os-form' => $kit ) as $tag => $html ) {
 ok( false !== strpos( $classic, 'The door’s switch is off (the <code>sn_mcp_remote_enabled</code> option), so the endpoint answers 404.' ) && false !== strpos( $kit, 'The door’s switch is off (the <code>sn_mcp_remote_enabled</code> option), so the endpoint answers 404.' ), 'the switch has its state sentence beside it on both twins (the classic toggle had none of its own)' );
 ok( false === strpos( $classic . $kit, 'Last used yesterday' ) && false !== strpos( snt_leaf_classic_html( 'sn_admin_render_mcp_connect_section' ), 'Last used yesterday, 2 refused' ) && false !== strpos( snt_leaf_paint( 'ai', 'mcp-connect' ), 'Last used yesterday, 2 refused' ), 'the door\'s usage line is a reading: it stays on AI › MCP Clients and is not on the pane' );
 $sentence = 'The door’s switch is off (the <code>sn_mcp_remote_enabled</code> option)';
-ok( strpos( $classic, 'name="sn_remote_enabled"' ) < strpos( $classic, $sentence ) && strpos( $kit, 'name="sn_remote_enabled"' ) < strpos( $kit, $sentence ), 'the Remote door box puts its switch first and the state sentence after it, as the Read and Write door boxes do, on both twins' );
+$door_order = static function ( $html ) use ( $sentence ) {
+	$sw = strpos( $html, 'name="sn_remote_enabled"' );
+	$st = strpos( $html, $sentence );
+	return false !== $sw && false !== $st && $sw < $st;
+};
+ok( $door_order( $classic ) && $door_order( $kit ), 'the Remote door box puts its switch first and the state sentence after it, as the Read and Write door boxes do, on both twins' );
 ok( 1 === preg_match( '#<input type="checkbox" name="sn_remote_enabled" value="1"\s*/>#', $classic ) && false === strpos( $classic, 'disabled="disabled"' ), 'classic: off and not locked, the switch is unchecked and enabled' );
 define( 'SN_MCP_REMOTE_DISABLED', true );
 $classic = ai_classic();

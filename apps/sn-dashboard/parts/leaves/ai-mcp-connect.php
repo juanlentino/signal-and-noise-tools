@@ -69,10 +69,9 @@ function mcp_connect_tiles_html( array $state, array $cards ) {
 }
 
 /**
- * The remote door's control: its switch, then what its state means (the
- * Read and Write door boxes' order). Same
- * field (`sn_remote_enabled`), same disabled-when-constant-killed rule, same
- * action (`remote_toggle`).
+ * The remote door's control: its switch, then what its state means, the
+ * Read and Write door boxes' order. Same field (`sn_remote_enabled`), same
+ * disabled-when-constant-killed rule, same action (`remote_toggle`).
  *
  * @param array $card The remote card.
  * @return string
