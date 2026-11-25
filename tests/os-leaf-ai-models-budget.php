@@ -203,11 +203,22 @@ ok( false === strpos( $kit, 'a-real-token-value' ) && false !== strpos( $kit, '>
 ok( false !== strpos( $kit, 'Configured' ), 'the embeddings-token status pill reads Configured' );
 ok( false !== strpos( $kit, '<os-badge tone="success">Workers AI token set</os-badge>' ) && 1 === preg_match( '#<os-disclosure heading="Workers AI token" hint="Set" data-snt-fold#', $kit ), 'anatomy, token set: the chip reads set and its Setup fold stays closed' );
 $__embed = 'Embeddings rank the related notes under each note by meaning from the next rebuild of the lists. If any note fails to embed, that rebuild ranks by shared words instead.';
-ok( false !== strpos( $kit, $__embed ) && false !== strpos( $classic, $__embed ) && false === strpos( $kit . $classic, 'SHADOW' ), 'configured, ranked by meaning (the default): one embeddings sentence on both twins, and it no longer claims shadow mode' );
-$GLOBALS['__settings']['ml.related_source'] = 'tfidf';
-$__tf = 'so nothing the site serves uses them.';
-ok( false !== strpos( snt_leaf_paint( 'ai', 'models-budget' ), $__tf ) && false !== strpos( snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' ), $__tf ), 'configured, ranked by shared words: both twins say readers do not see them' );
-unset( $GLOBALS['__settings']['ml.related_source'] );
+ok( false !== strpos( $kit, $__embed ) && false !== strpos( $classic, $__embed ) && false === strpos( $kit . $classic, 'SHADOW' ), 'configured, never stamped: the sentence is conditional on the next rebuild, on both twins, and never claims shadow mode' );
+// The four stamped states: SET ranking (ml.related_source) x BUILT ranking (corpus meta `source`).
+$__cases = array(
+	array( 'embeddings', 'embeddings', 'Embeddings rank the related notes under each note by meaning.</' ),
+	array( 'embeddings', 'tfidf', 'but the last rebuild ranked them by shared words' ),
+	array( 'tfidf', 'tfidf', 'so nothing the site serves uses them.' ),
+	array( 'tfidf', 'embeddings', 'the current lists still rank by meaning (embeddings) until the next rebuild.' ),
+);
+foreach ( $__cases as $__c ) {
+	$GLOBALS['__settings']['ml.related_source'] = $__c[0];
+	$GLOBALS['__options']['snt_ml_corpus_meta'] = array( 'built_at' => 1, 'posts' => 2, 'source' => $__c[1] );
+	$__k = snt_leaf_paint( 'ai', 'models-budget' );
+	$__cl = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
+	ok( false !== strpos( $__k, $__c[2] ) && false !== strpos( $__cl, $__c[2] ), "set {$__c[0]}, built {$__c[1]}: both twins state what readers see" );
+}
+unset( $GLOBALS['__settings']['ml.related_source'], $GLOBALS['__options']['snt_ml_corpus_meta'] );
 ok( strpos( $kit, '>Configured</os-badge>' ) > strpos( $kit, 'heading="TF-IDF vs embeddings"' ) && strpos( $kit, '>Configured</os-badge>' ) < strpos( $kit, 'Not run yet' ), '17.4.1: configured, the status notice is the lead of the comparison box' );
 $row2 = substr( $kit, (int) strrpos( $kit, snt_leaf_row() ) );
 ok( 3 === substr_count( $kit, snt_leaf_row() ) && 1 === preg_match( '#<os-card><os-section heading="Jev#', $row2 ) && false !== strpos( $row2, 'heading="TF-IDF vs embeddings"' ), '17.4.1: configured with no result, the short comparison box sits beside the Jev box on row two' );

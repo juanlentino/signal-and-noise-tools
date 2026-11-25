@@ -239,6 +239,9 @@ if ( ! function_exists( 'snt_ml_build_corpus' ) ) {
 			'fingerprint' => md5( implode( '|', $stamp ) ),
 			'built_at'    => $built_at,
 			'posts'       => $n,
+			// ADDITIVE: the lexical source this build used, stored so the AI
+			// screen can say what readers see (the global above lasts one request).
+			'source'      => $use_embed ? 'embeddings' : 'tfidf',
 		), false );
 
 		// v14.0.0: the SEARCH INDEX. The related rows above are per-post and

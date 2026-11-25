@@ -246,6 +246,7 @@ ok( 15 === $env['pairs'], '(c) all 15 pairs scored (6*5/2)' );
 ok( is_int( $env['built_at'] ) && $env['built_at'] > 0, '(c) built_at stamped' );
 
 $opt = get_option( SNT_ML_CORPUS_META_OPT );
+ok( is_array( $opt ) && 'tfidf' === ( $opt['source'] ?? '' ), 'the corpus meta stores the lexical source the build used (tfidf with no embeddings configured)' );
 ok( is_array( $opt ) && 32 === strlen( (string) $opt['fingerprint'] ), '(c) option carries a 32-char corpus fingerprint' );
 ok( 6 === $opt['posts'] && is_int( $opt['built_at'] ), '(c) option carries posts + built_at' );
 
