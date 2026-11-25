@@ -44,15 +44,18 @@ function sn_admin_ai_embed_ranking_sentence() {
 	$meta  = function_exists( 'get_option' ) ? get_option( 'snt_ml_corpus_meta', false ) : false;
 	$built = is_array( $meta ) && isset( $meta['source'] ) ? (string) $meta['source'] : '';
 	if ( 'tfidf' === $set ) {
-		return 'embeddings' === $built
-			? __( 'The related notes are set to rank by shared words, but the current lists still rank by meaning (embeddings) until the next rebuild.', 'signal-and-noise-tools' )
-			: __( 'Embeddings can be computed and compared against the shared-words ranking, but the related notes under each note are ranked by shared words, so nothing the site serves uses them.', 'signal-and-noise-tools' );
+		if ( 'embeddings' === $built ) {
+			return __( 'The related notes are set to rank by shared words, but the current lists still rank by meaning (embeddings) until the next rebuild.', 'signal-and-noise-tools' );
+		}
+		return 'tfidf' === $built
+			? __( 'Embeddings can be computed and compared against the shared-words ranking, but the related notes under each note are ranked by shared words, so nothing the site serves uses them.', 'signal-and-noise-tools' )
+			: __( 'The related notes are set to rank by shared words. From the next rebuild of the lists, nothing the site serves uses embeddings.', 'signal-and-noise-tools' );
 	}
 	if ( 'embeddings' === $built ) {
 		return __( 'Embeddings rank the related notes under each note by meaning.', 'signal-and-noise-tools' );
 	}
 	if ( 'tfidf' === $built ) {
-		return __( 'The related notes are set to rank by meaning, but the last rebuild ranked them by shared words, because it ran before embeddings were set up or a note failed to embed. The next rebuild tries again.', 'signal-and-noise-tools' );
+		return __( 'The related notes are set to rank by meaning, but the last rebuild ranked them by shared words. The next rebuild ranks by meaning unless a note fails to embed.', 'signal-and-noise-tools' );
 	}
 	return __( 'Embeddings rank the related notes under each note by meaning from the next rebuild of the lists. If any note fails to embed, that rebuild ranks by shared words instead.', 'signal-and-noise-tools' );
 }

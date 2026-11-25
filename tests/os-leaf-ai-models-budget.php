@@ -210,10 +210,11 @@ $__cases = array(
 	array( 'embeddings', 'tfidf', 'but the last rebuild ranked them by shared words' ),
 	array( 'tfidf', 'tfidf', 'so nothing the site serves uses them.' ),
 	array( 'tfidf', 'embeddings', 'the current lists still rank by meaning (embeddings) until the next rebuild.' ),
+	array( 'tfidf', '', 'From the next rebuild of the lists, nothing the site serves uses embeddings.' ),
 );
 foreach ( $__cases as $__c ) {
 	$GLOBALS['__settings']['ml.related_source'] = $__c[0];
-	$GLOBALS['__options']['snt_ml_corpus_meta'] = array( 'built_at' => 1, 'posts' => 2, 'source' => $__c[1] );
+	$GLOBALS['__options']['snt_ml_corpus_meta'] = '' === $__c[1] ? array( 'built_at' => 1, 'posts' => 2 ) : array( 'built_at' => 1, 'posts' => 2, 'source' => $__c[1] );
 	$__k = snt_leaf_paint( 'ai', 'models-budget' );
 	$__cl = snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' );
 	ok( false !== strpos( $__k, $__c[2] ) && false !== strpos( $__cl, $__c[2] ), "set {$__c[0]}, built {$__c[1]}: both twins state what readers see" );

@@ -13,7 +13,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Changed
-- **The AI screen states which ranking the related notes actually use.** Each rebuild of the related-notes lists now records whether it ranked by meaning (embeddings) or by shared words, as a `source` key in `snt_ml_corpus_meta`. The embeddings sentence compares that record with the Related notes setting and says what readers see: ranked by meaning; set to meaning but the last rebuild fell back to shared words (it ran before embeddings were set up, or a note failed to embed); ranked by shared words; or set to shared words while the current lists still rank by meaning until the next rebuild. Before the first rebuild that records it, the sentence stays conditional. Tests: `tests/ml-artifacts.php`, `tests/os-leaf-ai-models-budget.php`.
+- **The AI screen states which ranking the related notes actually use.** Each rebuild of the related-notes lists now records whether it ranked by meaning (embeddings) or by shared words, as a `source` key in `snt_ml_corpus_meta`. The embeddings sentence compares that record with the Related notes setting and says what readers see: ranked by meaning; set to meaning but the last rebuild ranked by shared words; ranked by shared words; or set to shared words while the current lists still rank by meaning until the next rebuild. Before the first rebuild that records it, the sentence is about the next rebuild. Tests: `tests/ml-artifacts.php`, `tests/os-leaf-ai-models-budget.php`.
 
 ## [2026.11.62] - 2026-11-25 — Controls for the read and write door switches, the write-door email and the related-notes ranking
 

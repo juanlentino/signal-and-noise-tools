@@ -240,7 +240,7 @@ if ( ! function_exists( 'snt_ml_build_corpus' ) ) {
 			'built_at'    => $built_at,
 			'posts'       => $n,
 			// ADDITIVE: the lexical source this build used, stored so the AI
-			// screen can say what readers see (the global above lasts one request).
+			// screen can say what readers see (the request global lasts one request).
 			'source'      => $use_embed ? 'embeddings' : 'tfidf',
 		), false );
 
