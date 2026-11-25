@@ -427,12 +427,16 @@ echo "\nGroup: gated pageview_visits SQL builder (Task 3)\n";
 $gated_sql = sn_analytics_rollup_gated_sql( 7 );
 $expected_gated = "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
 	. 'blob2 AS path, ' . sn_analytics_class_select() . ' AS class, '
-	. 'count(DISTINCT substring(index1, 1, 16)) AS pageview_visits '
+	. 'count(DISTINCT substring(index1, 1, 16)) AS pageview_visits, '
+	. 'sum(_sample_interval) AS pv_weight '
 	. 'FROM sn_pageviews '
 	. "WHERE timestamp >= toStartOfDay(now() - INTERVAL '7' DAY) "
 	. "AND blob1 = 'pv' "
 	. 'GROUP BY day, path, class '
 	. 'ORDER BY day DESC, pageview_visits DESC';
+// 2026-11-25: pv_weight added. The same pair (sum(_sample_interval) beside
+// count(DISTINCT <visitor-day prefix>) under WHERE blob1 = 'pv') is the
+// live analytics-dims.php query, so the shape adds no new AE form.
 ok( $expected_gated === $gated_sql, 'gated-sql: FULL SELECT === the pinned P0.1 Fallback A live-verified shape' );
 // Alias-only ORDER BY gotcha: the `views` alias does not exist in this SELECT,
 // so ordering by it would 422 — the ORDER BY must use the defined alias.
@@ -1394,6 +1398,53 @@ $GLOBALS['__ar_query_return']   = array( array( 'day' => '2026-06-11', 'path' =>
 sn_analytics_run_rollup();
 ok( 2 === count( $GLOBALS['__ar_query_calls'] ) && 'folded' === ( get_option( SN_ANALYTICS_ROLLUP_SHAPE_OPT )['shape'] ?? '' ), 'accepted fold: one main read, recorded folded' );
 $GLOBALS['__ar_overcap'] = null;
+
+// ── 2026-11-25: a cross-query sampling disagreement is not an inversion ──────
+echo "\nGroup: integrity guard: the two queries' own pv mass decides (2026-11-25)\n";
+// views and pageview_visits come from two Analytics Engine queries, each
+// sampled on its own. The gated query now carries its pv mass (pv_weight,
+// sum(_sample_interval) over the same pv rows): when the main query's views
+// differ from it, the queries read different samples and the "inversion" is
+// that, not a rollup bug. The two real payloads (2026-11-11 /r/rylo 0 < 2,
+// 2026-11-17 /resume/ 0 < 1) stay quiet; queries that agree and still invert fire.
+$sg = static function ( $path, $views, $pvv, $weight ) {
+	$r = array( 'day' => '2026-11-17', 'path' => $path, 'class' => 'human', 'views' => $views, 'visits' => $pvv,
+		'scroll_avg' => 0, 'time_avg' => 0, 'scroll_sum' => 0, 'scroll_events' => 0, 'time_sum' => 0, 'time_events' => 0,
+		'pageview_visits' => $pvv );
+	if ( null !== $weight ) {
+		$r['pv_weight'] = $weight;
+	}
+	return $r;
+};
+ar_reset();
+$sg_log = tempnam( sys_get_temp_dir(), 'sn_guard' );
+$sg_old = ini_set( 'error_log', $sg_log );
+$n = sn_analytics_rollup_upsert( array( $sg( '/resume/', 0, '1', '1' ), $sg( '/r/rylo', 0, '2', '4' ) ) );
+ini_set( 'error_log', (string) $sg_old );
+ok( 2 === $n && false === get_option( 'sn_analytics_integrity_alert' ),
+	'sampling: the two real payloads (0 < 1, 0 < 2) write and raise no alert, the gated query saw pv mass the main query did not' );
+ok( strpos( (string) @file_get_contents( $sg_log ), 'sampling disagreement' ) !== false,
+	'sampling: the disagreement is still logged, never silent' );
+ok( strpos( $GLOBALS['wpdb']->queries[0], 'pv_weight' ) === false,
+	'sampling: pv_weight is a check, never a stored column' );
+@unlink( $sg_log );
+ar_reset();
+sn_analytics_rollup_upsert( array( $sg( '/agree', 2, '5', '2' ) ) );
+$sg_alert = get_option( 'sn_analytics_integrity_alert' );
+ok( is_array( $sg_alert ) && 2 === ( $sg_alert['views'] ?? null ) && 5 === ( $sg_alert['pageview_visits'] ?? null ),
+	'sampling: queries that agree on the pv mass and still invert raise the alert' );
+ar_reset();
+sn_analytics_rollup_upsert( array( $sg( '/unknown', 0, '1', null ) ) );
+ok( is_array( get_option( 'sn_analytics_integrity_alert' ) ),
+	'sampling: no pv_weight (an older gated shape) keeps the alarm, unknown is not an excuse' );
+$sg_merged = sn_analytics_rollup_merge_gated(
+	array( array( 'day' => '2026-11-17', 'path' => '/resume/', 'class' => 'human', 'views' => 0 ) ),
+	array( array( 'day' => '2026-11-17', 'path' => '/resume/', 'class' => 'human', 'pageview_visits' => '1', 'pv_weight' => '1' ) )
+);
+ok( '1' === ( $sg_merged[0]['pv_weight'] ?? null ) && '1' === ( $sg_merged[0]['pageview_visits'] ?? null ),
+	'sampling: the merge carries the gated pv_weight beside pageview_visits' );
+ok( strpos( sn_analytics_rollup_gated_sql( 3 ), 'sum(_sample_interval) AS pv_weight' ) !== false,
+	'sampling: the gated query reads its pv mass (the plain sum(_sample_interval) live AE runs in five pv-filtered queries)' );
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 echo "\nResult: $pass passed, $fail failed.\n";

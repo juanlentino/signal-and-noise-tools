@@ -152,7 +152,7 @@ function sn_health_check_analytics_integrity() {
 		$label,
 		$findings,
 		sn_health_analytics_integrity_scope( $alert ) . ' '
-		. 'views < pageview_visits is arithmetically impossible (every gated visit implies at least one view), so a recorded violation is a genuine rollup/sampling bug (investigate the AE rollup queries and the collector worker for the recorded scope. The record never expires on its own: after the investigation, clear it explicitly (`wp option delete sn_analytics_integrity_alert`) to reset this check. Values were served un-clamped throughout) the alarm is the feature.'
+		. 'views < pageview_visits is arithmetically impossible (every gated visit implies at least one view), so a recorded violation is a genuine rollup/sampling bug (since 2026-11-25 the nightly rollup records one only when its two Analytics Engine queries agreed on the page views; a disagreement between their samples is logged, not recorded. Investigate the AE rollup queries and the collector worker for the recorded scope. The record never expires on its own: after the investigation, clear it explicitly (`wp option delete sn_analytics_integrity_alert`) to reset this check. Values were served un-clamped throughout) the alarm is the feature.'
 	);
 }
 

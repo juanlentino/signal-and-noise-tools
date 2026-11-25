@@ -74,15 +74,16 @@ ok( ! in_array( 'notes_drift_reread', array_column( snt_watches(), 'id' ), true 
 // --- date-only watches ripen on their date and STAY ripe ------------------
 $GLOBALS['__drift'] = array();
 // (search_coverage_reread retired 2026-09-14, answered; wave4_telemetry, due
-// 2026-11-25 since its second read on 2026-10-24, carries the date-only pins.)
-$WAVE4_AFTER = strtotime( '2026-11-26 12:00:00 UTC' );
+// 2026-12-26 since its third read on 2026-11-25, carries the date-only pins.)
+$WAVE4_AFTER = strtotime( '2026-12-27 12:00:00 UTC' );
 ok( null === has_id( snt_watches_ripe( $AFTER ), 'wave4_telemetry' ), 'a date-only watch is quiet before its date' );
 ok( null === has_id( snt_watches_ripe( strtotime( '2026-10-26 12:00:00 UTC' ) ), 'wave4_telemetry' ), 'the old date no longer ripens it (moved to 2026-11-25 after the second read)' );
+ok( null === has_id( snt_watches_ripe( strtotime( '2026-11-26 12:00:00 UTC' ) ), 'wave4_telemetry' ), 'nor does 2026-11-25 (moved to 2026-12-26 after the third read)' );
 // Hunt 2026-10-25: the site's midnight, not UTC's (UTC midnight is 7 PM the
 // evening before in New York).
 function wp_timezone() { return new DateTimeZone( 'America/New_York' ); }
-ok( null === has_id( snt_watches_ripe( strtotime( '2026-11-25 03:00:00 UTC' ) ), 'wave4_telemetry' ), 'quiet at 10 PM New York time on the 24th, though UTC already reads the 25th' );
-ok( null !== has_id( snt_watches_ripe( strtotime( '2026-11-25 05:30:00 UTC' ) ), 'wave4_telemetry' ), 'ripe after midnight New York time on the 25th' );
+ok( null === has_id( snt_watches_ripe( strtotime( '2026-12-26 03:00:00 UTC' ) ), 'wave4_telemetry' ), 'quiet at 10 PM New York time on the 25th, though UTC already reads the 26th' );
+ok( null !== has_id( snt_watches_ripe( strtotime( '2026-12-26 05:30:00 UTC' ) ), 'wave4_telemetry' ), 'ripe after midnight New York time on the 26th' );
 ok( PHP_INT_MAX === snt_watch_due_ts( 'not-a-date' ), 'an unreadable due date never ripens' );
 $w = has_id( snt_watches_ripe( $WAVE4_AFTER ), 'wave4_telemetry' );
 ok( null !== $w && ! empty( $w['date_only'] ), 'and ripens after it, FLAGGED as date-only so a reader knows nothing was measured' );

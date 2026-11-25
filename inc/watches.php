@@ -259,7 +259,11 @@ function snt_watches() {
 			// singles' inputs (force_refresh, detail, sn_only, limit, a
 			// cron_scheduled hook), so callers fell back to them. Those
 			// inputs ride sn-status now; re-read a month on.
-			'due'       => '2026-11-25',
+			// 2026-11-25 read: none collapsed. The callers are agent sessions
+			// (get-deploy-status 87, get-cron-history 24, list-cron-events 21,
+			// get-analytics-summary 20, get-health-scan 16 in 30 days); the
+			// dashboard widgets call the abilities directly and stay either way.
+			'due'       => '2026-12-26',
 			'ripe'      => '',
 		),
 	);

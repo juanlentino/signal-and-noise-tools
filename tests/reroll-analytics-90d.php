@@ -136,7 +136,8 @@ echo "\nGroup: gated per-day window transform\n";
 
 $expected_gated = "SELECT formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
 	. 'blob2 AS path, ' . sn_analytics_class_select() . ' AS class, '
-	. 'count(DISTINCT substring(index1, 1, 16)) AS pageview_visits '
+	. 'count(DISTINCT substring(index1, 1, 16)) AS pageview_visits, '
+	. 'sum(_sample_interval) AS pv_weight '
 	. 'FROM sn_pageviews '
 	. "WHERE timestamp >= toStartOfDay(now() - INTERVAL '2' DAY) "
 	. "AND timestamp < toStartOfDay(now() - INTERVAL '1' DAY) "
