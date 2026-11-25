@@ -246,6 +246,7 @@ ok( 15 === $env['pairs'], '(c) all 15 pairs scored (6*5/2)' );
 ok( is_int( $env['built_at'] ) && $env['built_at'] > 0, '(c) built_at stamped' );
 
 $opt = get_option( SNT_ML_CORPUS_META_OPT );
+ok( is_array( $opt ) && 'tfidf' === ( $opt['source'] ?? '' ), 'the corpus meta stores the lexical source the build used (tfidf with no embeddings configured)' );
 ok( is_array( $opt ) && 32 === strlen( (string) $opt['fingerprint'] ), '(c) option carries a 32-char corpus fingerprint' );
 ok( 6 === $opt['posts'] && is_int( $opt['built_at'] ), '(c) option carries posts + built_at' );
 
@@ -466,6 +467,19 @@ unset( $GLOBALS['__options']['snt_ml_search_index'] );
 ok( function_exists( 'snt_ml_search_index' ) && null === snt_ml_search_index(), 'a missing index reads as NULL' );
 snt_ml_build_corpus(); // restore for anything below
 
+echo "\nGroup: the stored source follows the all-or-nothing fallback\n";
+// Stubs for the embeddings layer (inc/ml-embeddings.php is not loaded here);
+// off by default, so every build above stayed on shared words.
+$GLOBALS['__embed_on'] = true;
+$GLOBALS['__embed_fail_id'] = 0;
+snt_ml_build_corpus();
+ok( 'embeddings' === ( get_option( SNT_ML_CORPUS_META_OPT )['source'] ?? '' ) && get_option( SNT_ML_CORPUS_META_OPT )['posts'] > 0, 'every note embeds: the build stores embeddings (over a non-empty corpus)' );
+$GLOBALS['__embed_fail_id'] = -1; // every lookup fails
+snt_ml_build_corpus();
+ok( 'tfidf' === ( get_option( SNT_ML_CORPUS_META_OPT )['source'] ?? '' ) && get_option( SNT_ML_CORPUS_META_OPT )['posts'] > 0, 'a note fails to embed: the whole build falls back and stores tfidf' );
+$GLOBALS['__embed_on'] = false;
+snt_ml_build_corpus(); // restore the shared-words artifacts
+
 echo "\nGroup (h): empty corpus\n";
 foreach ( $GLOBALS['__posts'] as $p ) { $p->post_status = 'draft'; }
 $empty_env = snt_ml_build_corpus();
@@ -484,3 +498,8 @@ ok( array() === $GLOBALS['__php_errors'], '(i) zero notices/warnings/deprecation
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
+
+function snt_ml_embed_configured() { return ! empty( $GLOBALS['__embed_on'] ); }
+function snt_ml_embedding_for_post( $post_id, $hash ) { return -1 === ( $GLOBALS['__embed_fail_id'] ?? 0 ) ? array() : array( 1.0, (float) ( $post_id % 3 ), 0.5 ); }
+function snt_ml_vec_cosine( $a, $b ) { $d = 0.0; $na = 0.0; $nb = 0.0; foreach ( $a as $i => $x ) { $d += $x * $b[ $i ]; $na += $x * $x; $nb += $b[ $i ] * $b[ $i ]; } return ( $na && $nb ) ? $d / sqrt( $na * $nb ) : 0.0; }
+function get_post_field( $field, $id ) { return ''; } // the embedding stub ignores the content hash
