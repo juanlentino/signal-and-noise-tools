@@ -47,14 +47,14 @@ function accounts_moved_html( $from, $current = 'connections' ) {
 }
 
 /**
- * The Zenodo box: the environment with the ledger concept DOI, then the
- * downloads line on /provenance, each a form with its own Save.
+ * The Zenodo boxes: the environment with the ledger concept DOI, then the
+ * downloads line on /provenance as a box of its own, each with its own Save.
  *
- * @return string '' when Zenodo is not loaded.
+ * @return array<int,string> Empty when Zenodo is not loaded.
  */
-function accounts_zenodo_html() {
+function accounts_zenodo_boxes() {
 	if ( ! function_exists( 'sn_zenodo_leaf_data' ) || ! function_exists( 'snt_prov_doi_settings' ) || ! function_exists( 'snt_accounts_zenodo_env_hint' ) ) {
-		return '';
+		return array();
 	}
 	$d   = \sn_zenodo_leaf_data();
 	$env = \snt_kit_field(
@@ -82,15 +82,15 @@ function accounts_zenodo_html() {
 		);
 	$c    = \sn_zenodo_doi_line_copy();
 	$s    = \snt_prov_doi_settings();
-	$line = '<h4 class="snt-h">' . \snt_kit_esc( $c['title'] ) . '</h4><p class="snt-hint">' . \snt_kit_esc( $c['intro'] ) . '</p>'
+	$line = '<p class="snt-hint">' . \snt_kit_esc( $c['intro'] ) . '</p>'
 		. \snt_kit_field( 'checkbox', 'zenodo_doi_line_enabled', $c['enabled'], $s['enabled'] )
 		. \snt_kit_field( 'text', 'zenodo_doi_line_label', $c['label'], $s['label'], array( 'hint' => $c['label_hint'], 'maxlength' => 80 ) )
 		. \snt_kit_field( 'number', 'zenodo_doi_line_floor', $c['floor'], $s['floor'], array( 'hint' => $c['floor_hint'], 'min' => 0, 'step' => 1 ) )
 		. '<p class="snt-hint">' . \snt_kit_esc( \sn_zenodo_doi_line_preview() ) . '</p>';
-	return \snt_kit_section(
-		__( 'Zenodo', 'signal-and-noise-tools' ),
-		\snt_kit_form( 'zenodo_env_save', $env, array( 'submit' => __( 'Save environment', 'signal-and-noise-tools' ) ) )
-		. \snt_kit_form( 'zenodo_doi_line_save', $line, array( 'submit' => $c['submit'] ) )
+	// Two boxes (2026-11-24): the downloads line is its own, so the row evens out.
+	return array(
+		\snt_kit_section( __( 'Zenodo', 'signal-and-noise-tools' ), \snt_kit_form( 'zenodo_env_save', $env, array( 'submit' => __( 'Save environment', 'signal-and-noise-tools' ) ) ) ),
+		\snt_kit_section( $c['title'], \snt_kit_form( 'zenodo_doi_line_save', $line, array( 'submit' => $c['submit'] ) ) ),
 	);
 }
 
@@ -104,7 +104,7 @@ function accounts_indexnow_html() {
 		return '';
 	}
 	$toggle = \snt_kit_field( 'checkbox', 'indexnow_enabled', __( 'Notify search engines when content changes', 'signal-and-noise-tools' ), (bool) \sn_indexnow_is_enabled() );
-	return \snt_kit_section( __( 'Search engines (IndexNow)', 'signal-and-noise-tools' ), \snt_kit_form( 'indexnow_save', $toggle, array( 'submit' => __( 'Save IndexNow settings', 'signal-and-noise-tools' ) ) ) );
+	return \snt_kit_section( __( 'IndexNow', 'signal-and-noise-tools' ), \snt_kit_form( 'indexnow_save', $toggle, array( 'submit' => __( 'Save IndexNow settings', 'signal-and-noise-tools' ) ) ) );
 }
 
 /**

@@ -97,15 +97,21 @@ function paint_settings_analytics( array $ctx ) {
 	$state  = $ctx['state'] ?? null;
 	$params = is_object( $state ) ? (array) $state->get( 'params' ) : array();
 	$bodies = settings_analytics_bodies();
-	$boxes  = array();
-	foreach ( function_exists( 'snt_settings_analytics_titles' ) ? \snt_settings_analytics_titles() : array() as $key => $title ) {
-		if ( 'north_star' === $key && function_exists( '\snt_nsm_settings_html' ) ) {
-			$boxes[] = \snt_nsm_settings_html();
-		} elseif ( isset( $bodies[ $key ] ) ) {
-			$boxes[] = \snt_kit_section( $title, $bodies[ $key ] );
+	$titles = function_exists( 'snt_settings_analytics_titles' ) ? \snt_settings_analytics_titles() : array();
+	$rows   = '';
+	// Headed rows of three by subject (snt_settings_analytics_groups()).
+	foreach ( function_exists( 'snt_settings_analytics_groups' ) ? \snt_settings_analytics_groups() : array() as $heading => $keys ) {
+		$boxes = array();
+		foreach ( $keys as $key ) {
+			if ( 'north_star' === $key && function_exists( '\snt_nsm_settings_html' ) ) {
+				$boxes[] = \snt_nsm_settings_html();
+			} elseif ( isset( $bodies[ $key ], $titles[ $key ] ) ) {
+				$boxes[] = \snt_kit_section( $titles[ $key ], $bodies[ $key ] );
+			}
 		}
+		$rows .= array() === $boxes ? '' : '<h3 class="snt-h">' . \snt_kit_esc( $heading ) . '</h3>' . \snt_kit_grid( $boxes, 290 );
 	}
-	return rss_flash_html( isset( $params['sn_rss_ok'] ) && is_scalar( $params['sn_rss_ok'] ) ? (string) $params['sn_rss_ok'] : '' ) . \snt_kit_grid( $boxes, 290 );
+	return rss_flash_html( isset( $params['sn_rss_ok'] ) && is_scalar( $params['sn_rss_ok'] ) ? (string) $params['sn_rss_ok'] : '' ) . $rows;
 }
 
 add_filter(

@@ -20,12 +20,12 @@ $ktext   = html_entity_decode( $kit, ENT_QUOTES, 'UTF-8' );
 snt_leaf_preview( 'settings-accounts', $kit );
 
 // ── 1) Headed boxes by account, Credentials first.
-$order = array( strpos( $classic, '<h2 class="sn-section-h">Credentials</h2><div class="sn-shell">' ), strpos( $classic, '</aside></div><div class="sn-2up"><div class="sn-fieldset"><h2 class="sn-fieldset-h">Zenodo</h2>' ), strpos( $classic, '<h2 class="sn-fieldset-h">Search engines (IndexNow)</h2>' ), strpos( $classic, '<h2 class="sn-fieldset-h">Muso.AI</h2>' ), strpos( $classic, '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Search Console</h2>' ) );
+$order = array( strpos( $classic, '<h2 class="sn-section-h">Credentials</h2><div class="sn-shell">' ), strpos( $classic, '<h2 class="sn-section-h">Search engines</h2><div class="sn-2up">' ), strpos( $classic, '<h2 class="sn-fieldset-h">IndexNow</h2>' ), strpos( $classic, '<div class="sn-fieldset"><h2 class="sn-fieldset-h">Search Console</h2>' ), strpos( $classic, '<h2 class="sn-section-h">Records and profiles</h2><div class="sn-2up">' ), strpos( $classic, '<h2 class="sn-fieldset-h">Zenodo</h2>' ), strpos( $classic, '<h2 class="sn-fieldset-h">Downloads on /provenance</h2>' ), strpos( $classic, '<h2 class="sn-fieldset-h">Muso.AI</h2>' ) );
 $sorted = $order; sort( $sorted );
-ok( 0 === $order[0] && ! in_array( false, $order, true ) && $order === $sorted, 'classic: Credentials heads the pane over the keyring\'s shell, then one row of boxes: Zenodo, Search engines (IndexNow), Muso.AI, Search Console (2026-11): ' . implode( ' < ', $order ) );
-$order = array( strpos( $kit, '<h3 class="snt-h">Credentials</h3>' . snt_leaf_row( 2, 290, 24 ) ), strpos( $kit, snt_leaf_row( 4, 290, 18 ) . '<os-section heading="Zenodo" stack>' ), strpos( $kit, '<os-section heading="Search engines (IndexNow)" stack>' ), strpos( $kit, '<os-section heading="Muso.AI" stack>' ), strpos( $kit, '<os-section heading="Search Console" stack>' ) );
+ok( 0 === $order[0] && ! in_array( false, $order, true ) && $order === $sorted, 'classic: Credentials heads the pane, then two headed rows (2026-11-24): Search engines (IndexNow, Search Console), Records and profiles (Zenodo, Downloads on /provenance, Muso.AI): ' . implode( ' < ', $order ) );
+$order = array( strpos( $kit, '<h3 class="snt-h">Credentials</h3>' . snt_leaf_row( 2, 290, 24 ) ), strpos( $kit, '<h3 class="snt-h">Search engines</h3>' . snt_leaf_row( 2, 290, 18 ) . '<os-section heading="IndexNow" stack>' ), strpos( $kit, '<os-section heading="Search Console" stack>' ), strpos( $kit, '<h3 class="snt-h">Records and profiles</h3>' . snt_leaf_row( 3, 290, 18 ) . '<os-section heading="Zenodo" stack>' ), strpos( $kit, '<os-section heading="Downloads on /provenance" stack>' ), strpos( $kit, '<os-section heading="Muso.AI" stack>' ) );
 $sorted = $order; sort( $sorted );
-ok( 0 === $order[0] && ! in_array( false, $order, true ) && $order === $sorted, 'native: the same five, in the same order: ' . implode( ' < ', $order ) );
+ok( 0 === $order[0] && ! in_array( false, $order, true ) && $order === $sorted, 'native: the same rows, boxes and order: ' . implode( ' < ', $order ) );
 foreach ( array( 'Deposit the next batch', 'No signed documents yet.', 'Submit recent content now', 'Regenerate key', 'Key file', 'Sync now', 'Featured release', 'sn_music_featured', 'Release notes' ) as $reading ) {
 	ok( false === strpos( $kit, $reading ) && false === strpos( $classic, $reading ), "no reading or action came along from a leaf that stayed: \"$reading\" is on neither twin" );
 }
@@ -53,6 +53,10 @@ foreach ( SNT_ZENODO_DOI_LINE_SAVE_FIELDS as $name ) {
 	ok( in_array( $name, snt_leaf_names( $line_k ), true ) && in_array( $name, snt_leaf_names( $line_c ), true ), "the downloads line field $name is on both twins" );
 }
 foreach ( sn_zenodo_doi_line_copy() as $key => $words ) {
+	if ( 'title' === $key ) { // 2026-11-24: the title heads the line's own box.
+		ok( false !== strpos( $kit, '<os-section heading="' . $words . '"' ) && false !== strpos( $classic, '<h2 class="sn-fieldset-h">' . $words . '</h2>' ), 'both twins head the downloads line\'s own box with the title words' );
+		continue;
+	}
 	ok( false !== strpos( html_entity_decode( $line_k, ENT_QUOTES, 'UTF-8' ), $words ) && false !== strpos( html_entity_decode( strip_tags( $line_c ), ENT_QUOTES, 'UTF-8' ), $words ), "both twins say the $key words" );
 }
 ok( false !== strpos( $line_k, '<os-checkbox-label name="zenodo_doi_line_enabled" value="1" checked' ) && false !== strpos( $line_c, '<input type="checkbox" id="sn_zenodo_doi_line_enabled" name="zenodo_doi_line_enabled" value="1" checked="checked">' ), 'defaults: the line is on, on both twins' );
@@ -62,10 +66,10 @@ ok( false !== strpos( $line_k, 'Now hidden: no recent snapshot with the site spl
 ok( false !== strpos( $line_c, '<input type="hidden" name="_wpnonce" value="nonce-sn_zenodo_doi_line_save"><input type="hidden" name="action" value="sn_zenodo_doi_line_save">' ) && false !== strpos( $line_k, '<input type="hidden" name="_wpnonce" value="nonce-sn_zenodo_doi_line_save">' ), 'the downloads line form keeps its action and nonce' );
 ok( false === strpos( $env_c . $env_k, 'zenodo_doi_line' ) && false === strpos( $line_c . $line_k, 'zenodo_env' ), 'the two Zenodo forms are siblings, neither inside the other' );
 
-// ── 4) Search engines (IndexNow): the one switch.
+// ── 4) IndexNow: the one switch.
 $in_c = acc_form( $classic, 'form', 'indexnow_save' );
 $in_k = acc_form( $kit, 'os-form', 'indexnow_save' );
-ok( '<form method="post" action="https://example.test/wp-admin/admin-post.php" class="sn-fieldset"><input type="hidden" name="_wpnonce" value="nonce-sn_indexnow_save"><input type="hidden" name="action" value="sn_indexnow_save"><h2 class="sn-fieldset-h">Search engines (IndexNow)</h2><div class="sn-field"><label><input type="checkbox" name="indexnow_enabled" value="1" checked="checked"> Notify search engines when content changes</label></div><div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save IndexNow settings</button></div></form>' === $in_c, 'classic: the form IndexNow had, field for field, under the box heading and without the hidden tab and sub' );
+ok( '<form method="post" action="https://example.test/wp-admin/admin-post.php" class="sn-fieldset"><input type="hidden" name="_wpnonce" value="nonce-sn_indexnow_save"><input type="hidden" name="action" value="sn_indexnow_save"><h2 class="sn-fieldset-h">IndexNow</h2><div class="sn-field"><label><input type="checkbox" name="indexnow_enabled" value="1" checked="checked"> Notify search engines when content changes</label></div><div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save IndexNow settings</button></div></form>' === $in_c, 'classic: the form IndexNow had, field for field, under the box heading and without the hidden tab and sub' );
 ok( '<os-form class="snt-form" os-action="post" submit-label="Save IndexNow settings" show-reset="false" columns="auto"><os-checkbox-label name="indexnow_enabled" value="1" checked label="Notify search engines when content changes"></os-checkbox-label><input type="hidden" name="action" value="sn_indexnow_save"><input type="hidden" name="_wpnonce" value="nonce-sn_indexnow_save"></os-form>' === $in_k, 'native: the form IndexNow had, field for field, without the hidden tab and sub' );
 $GLOBALS['__settings'] = array( 'indexnow.enabled' => false );
 ok( false === strpos( acc_form( acc_kit(), 'os-form', 'indexnow_save' ), ' checked' ) && false === strpos( acc_form( acc_classic(), 'form', 'indexnow_save' ), 'checked=' ), 'off: the switch paints unchecked on both twins' );

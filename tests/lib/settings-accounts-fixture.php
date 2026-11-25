@@ -53,7 +53,8 @@ $snt_accounts_files = array(
 	'inc/admin-flash-messages.php',
 	'apps/sn-dashboard/parts/leaves/connections-indexnow.php', 'apps/sn-dashboard/parts/leaves/connections-zenodo.php', 'apps/sn-dashboard/parts/leaves/connections-music.php',
 );
-foreach ( $snt_accounts_files as $snt_accounts_file ) {
+// A suite may set $GLOBALS['__acc_skip'] first to paint the pane with modules absent.
+foreach ( array_diff( $snt_accounts_files, (array) ( $GLOBALS['__acc_skip'] ?? array() ) ) as $snt_accounts_file ) {
 	require_once SNT_PATH . $snt_accounts_file;
 }
 foreach ( array( 'inc/admin-forms/settings-accounts.php', 'inc/admin-forms/settings-accounts-forms.php', 'apps/sn-dashboard/parts/leaves/settings-accounts-parts.php', 'apps/sn-dashboard/parts/leaves/monitoring-search-console.php', 'apps/sn-dashboard/parts/leaves/settings-accounts.php' ) as $snt_accounts_file ) {
