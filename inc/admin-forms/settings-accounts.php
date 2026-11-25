@@ -81,9 +81,6 @@ function snt_settings_accounts_moved_line( $from ) {
  * @return void
  */
 function sn_admin_render_settings_accounts_section() {
-	// Rows by subject (owner, 2026-11-24): search engines, as Google Search
-	// Console and Bing Webmaster Tools treat submission and indexing; then
-	// records and profiles. Credentials keeps its own heading.
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
@@ -91,22 +88,32 @@ function sn_admin_render_settings_accounts_section() {
 		echo '<h2 class="sn-section-h">' . esc_html__( 'Credentials', 'signal-and-noise-tools' ) . '</h2>';
 		sn_admin_render_credentials_section();
 	}
-	$h = snt_settings_accounts_rows();
-	echo '<h2 class="sn-section-h">' . esc_html( $h['search'] ) . '</h2><div class="sn-2up">';
-	if ( function_exists( 'sn_indexnow_is_enabled' ) ) {
-		snt_accounts_render_indexnow_box();
+	// Rows by subject (owner, 2026-11-24): search engines, as Google Search
+	// Console and Bing Webmaster Tools treat submission and indexing; then
+	// records and profiles. Credentials keeps its own heading. A box paints
+	// when its module is loaded; a row with none paints nothing.
+	$h    = snt_settings_accounts_rows();
+	$rows = array(
+		$h['search']  => array(
+			'snt_accounts_render_indexnow_box'       => function_exists( 'sn_indexnow_is_enabled' ),
+			'snt_accounts_render_search_console_box' => function_exists( 'snt_gsc_credential_identity' ) && function_exists( 'snt_gsc_copy' ),
+		),
+		$h['records'] => array(
+			'snt_accounts_render_zenodo_box' => function_exists( 'sn_zenodo_leaf_data' ) && function_exists( 'snt_prov_doi_settings' ), // Two boxes: Zenodo, then the downloads line.
+			'snt_accounts_render_muso_box'   => function_exists( 'sn_muso_profile_id' ),
+		),
+	);
+	foreach ( $rows as $heading => $boxes ) {
+		$boxes = array_keys( array_filter( $boxes ) );
+		if ( array() === $boxes ) {
+			continue;
+		}
+		echo '<h2 class="sn-section-h">' . esc_html( $heading ) . '</h2><div class="sn-2up">';
+		foreach ( $boxes as $render ) {
+			$render();
+		}
+		echo '</div>';
 	}
-	if ( function_exists( 'snt_gsc_credential_identity' ) && function_exists( 'snt_gsc_copy' ) ) {
-		snt_accounts_render_search_console_box();
-	}
-	echo '</div><h2 class="sn-section-h">' . esc_html( $h['records'] ) . '</h2><div class="sn-2up">';
-	if ( function_exists( 'sn_zenodo_leaf_data' ) && function_exists( 'snt_prov_doi_settings' ) ) {
-		snt_accounts_render_zenodo_box(); // Two boxes: Zenodo, then the downloads line on /provenance.
-	}
-	if ( function_exists( 'sn_muso_profile_id' ) ) {
-		snt_accounts_render_muso_box();
-	}
-	echo '</div>';
 }
 
 /**
