@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Settings › AI: the Remote door box now shows its switch first and the state sentence after it**, the same order as the Read door and Write door boxes, on both the classic screen and the S&N window. Test: `tests/os-leaf-settings-ai-doors.php`.
+
 ## [2026.11.64] - 2026-11-25 — Settings › Analytics and Accounts and connections in headed rows by subject
 
 ### Changed
