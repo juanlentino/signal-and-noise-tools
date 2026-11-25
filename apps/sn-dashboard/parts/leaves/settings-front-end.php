@@ -3,7 +3,9 @@
  * S&N Dashboard: Settings > Front end, painted from the kit. The fourth pane
  * of the Settings tab, the native twin of inc/admin-forms/settings-front-end.php.
  *
- * 1. The six front-end settings the companion theme reads. This file WAS
+ * 1. The six front-end settings the companion theme reads, and the
+ *    related-notes ranking beside Related notes shown (2026-11, from
+ *    Settings > AI; sn_handle_save_theme() saves it too). This file WAS
  *    the Site > Front-End leaf (site-front-end.php) until 2026-11; the leaf
  *    held nothing but this one form, so it moved whole. Same readers
  *    (`sn_setting()`, `sn_note_reply_aliases()`), same field names, bounds
@@ -28,6 +30,8 @@ namespace SignalNoise\OpenStationHost\Dashboard\Leaves;
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
+
+require_once __DIR__ . '/settings-switches.php'; // The related-notes ranking, in the Reading box.
 
 /**
  * Every knob on the pane (save_theme's six, reading_save's two) and the alias allowlist, read the way the classic form reads them
@@ -79,6 +83,7 @@ function front_end_boxes_html( array $s ) {
 		$options[ (string) $alias ] = (string) $alias . '@';
 	}
 	$reading = front_end_number( 'theme_related_count', __( 'Related notes shown', 'signal-and-noise-tools' ), $s['related'], 1, 12, __( 'How many related notes appear under a single note (1 to 12).', 'signal-and-noise-tools' ) )
+		. switches_related_field_html()
 		. front_end_number( 'theme_updated_threshold_days', __( '“Updated” badge after (days)', 'signal-and-noise-tools' ), $s['uthr'], 1, 90, __( 'Show the “Updated” badge when a note was revised this many days after publishing (1 to 90).', 'signal-and-noise-tools' ) )
 		. front_end_number( 'theme_reading_wpm', __( 'Reading speed (words/min)', 'signal-and-noise-tools' ), $s['wpm'], 100, 400, __( 'Words per minute used to estimate reading time (100 to 400).', 'signal-and-noise-tools' ) );
 	// The kit field helper paints a bare <os-checkbox-label>, so the classic

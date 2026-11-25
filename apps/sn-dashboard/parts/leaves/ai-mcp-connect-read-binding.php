@@ -23,9 +23,9 @@ function mcp_connect_read_binding_html() {
 		return '';
 	}
 	$s      = sn_admin_mcp_read_binding_state();
-	$title  = __( 'Read-door credential (optional)', 'signal-and-noise-tools' );
-	$lede   = __( 'Which Application Password, if any, is limited to the read door', 'signal-and-noise-tools' );
-	$status = '';
+	$title  = __( 'Read door', 'signal-and-noise-tools' );
+	$lede   = __( 'Whether it answers, and which Application Password, if any, is limited to it', 'signal-and-noise-tools' );
+	$status = function_exists( __NAMESPACE__ . '\\switches_door_html' ) ? switches_door_html( 'read' ) : '';
 	if ( $s['off'] ) {
 		$status .= \snt_kit_notice( 'warn', '<b>' . \snt_kit_esc( __( 'The read door is off.', 'signal-and-noise-tools' ) ) . '</b> ' . \snt_kit_esc( __( 'Binding a credential does not open it while it is off.', 'signal-and-noise-tools' ) ) );
 	}

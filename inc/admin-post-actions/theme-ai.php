@@ -86,6 +86,10 @@ function sn_handle_save_theme( $post ) {
 		$alias = 'research';
 	}
 	$ok &= sn_setting_update( 'theme.note_reply_alias', $alias );
+	// The related-notes ranking, in the Reading box beside Related notes shown.
+	if ( isset( $post['sn_related_source'] ) && function_exists( 'snt_related_source_apply' ) ) {
+		snt_related_source_apply( $post['sn_related_source'] );
+	}
 	// The pages render these: refresh the cache when one changed (2026.10.4).
 	sn_settings_purge_if_changed( $before );
 

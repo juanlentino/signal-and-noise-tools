@@ -35,11 +35,14 @@ require __DIR__ . '/../inc/mcp/mcp-rw-guard.php';
 
 // ── The door switches, from an untouched site.
 ok( snt_mcp_door_switch_on( 'read' ) && snt_mcp_door_switch_on( 'rw' ) && ! sn_mcp_rw_kill_switch_engaged(), 'untouched: both doors read as on (absent means on), and the write guard agrees' );
-ok( 'mcp_doors_saved' === sn_handle_mcp_doors_save( array() ), 'a save with both boxes unchecked answers saved' );
-ok( '0' === get_option( 'sn_mcp_read_enabled', 'absent' ) && '0' === get_option( 'sn_mcp_rw_enabled', 'absent' ), 'and it really stored off for both (0, not false: core skips a false that equals a missing row)' );
-ok( ! snt_mcp_door_switch_on( 'read' ) && ! snt_mcp_door_switch_on( 'rw' ) && sn_mcp_rw_kill_switch_engaged(), 'both doors now read as off, and the write guard refuses' );
-sn_handle_mcp_doors_save( array( 'sn_rw_door_enabled' => '1' ) );
-ok( ! snt_mcp_door_switch_on( 'read' ) && snt_mcp_door_switch_on( 'rw' ) && ! sn_mcp_rw_kill_switch_engaged(), 'checking only the write door reopens it and leaves the read door off' );
+ok( 'mcp_doors_unknown' === sn_handle_mcp_doors_save( array( 'sn_read_door_enabled' => '1' ) ) && 'absent' === get_option( 'sn_mcp_read_enabled', 'absent' ), 'a save that names no door writes nothing' );
+ok( 'mcp_doors_unknown' === sn_handle_mcp_doors_save( array( 'sn_door' => 'remote' ) ), 'and an off-list door is refused' );
+ok( 'mcp_doors_saved' === sn_handle_mcp_doors_save( array( 'sn_door' => 'read' ) ), 'the read door box saved unchecked answers saved' );
+ok( '0' === get_option( 'sn_mcp_read_enabled', 'absent' ) && 'absent' === get_option( 'sn_mcp_rw_enabled', 'absent' ), 'it stored off for the read door only (0, not false: core skips a false that equals a missing row); the write door is untouched' );
+sn_handle_mcp_doors_save( array( 'sn_door' => 'rw' ) );
+ok( ! snt_mcp_door_switch_on( 'read' ) && ! snt_mcp_door_switch_on( 'rw' ) && sn_mcp_rw_kill_switch_engaged(), 'the write door box saved unchecked: both off, and the write guard refuses' );
+sn_handle_mcp_doors_save( array( 'sn_door' => 'rw', 'sn_rw_door_enabled' => '1' ) );
+ok( ! snt_mcp_door_switch_on( 'read' ) && snt_mcp_door_switch_on( 'rw' ) && ! sn_mcp_rw_kill_switch_engaged(), 'checking the write door reopens it and leaves the read door off' );
 
 // ── The write-door email: default off, saved both ways.
 ok( false === (bool) get_option( 'sn_mcp_rw_notify', false ), 'the write-door email defaults to off' );
@@ -47,21 +50,30 @@ ok( 'mcp_rw_notify_saved' === sn_handle_mcp_rw_notify_save( array( 'sn_rw_notify
 sn_handle_mcp_rw_notify_save( array() );
 ok( '0' === get_option( 'sn_mcp_rw_notify', 'absent' ) && false === (bool) get_option( 'sn_mcp_rw_notify', false ), 'unchecked, it turns off' );
 
-// ── The related-notes ranking: allowlisted, a change queues one rebuild.
-ok( 'related_source_unchanged' === sn_handle_related_source_save( array( 'sn_related_source' => 'evil' ) ) && ! isset( $GLOBALS['__settings']['ml.related_source'] ) && 0 === $GLOBALS['__rebuilds'], 'an off-list ranking is refused: nothing stored, no rebuild' );
-ok( 'related_source_unchanged' === sn_handle_related_source_save( array() ), 'a missing ranking keeps what is stored' );
-ok( 'related_source_saved' === sn_handle_related_source_save( array( 'sn_related_source' => 'tfidf' ) ) && 'tfidf' === $GLOBALS['__settings']['ml.related_source'] && 1 === $GLOBALS['__rebuilds'], 'tfidf is stored and the lists are rebuilt' );
-sn_handle_related_source_save( array( 'sn_related_source' => 'tfidf' ) );
+// ── The related-notes ranking (saved by the Front end form): allowlisted, a change queues one rebuild.
+snt_related_source_apply( 'evil' );
+ok( ! isset( $GLOBALS['__settings']['ml.related_source'] ) && 0 === $GLOBALS['__rebuilds'], 'an off-list ranking is refused: nothing stored, no rebuild' );
+snt_related_source_apply( 'tfidf' );
+ok( 'tfidf' === $GLOBALS['__settings']['ml.related_source'] && 1 === $GLOBALS['__rebuilds'], 'tfidf is stored and the lists are rebuilt' );
+snt_related_source_apply( 'tfidf' );
 ok( 1 === $GLOBALS['__rebuilds'], 'saving the same ranking again queues no rebuild' );
+
+// ── The Front end form's save carries the ranking to the same rule.
+function sn_settings_snapshot() { return array(); }
+function sn_settings_purge_if_changed( $b ) { return false; }
+require __DIR__ . '/../inc/admin-post-actions/theme-ai.php';
+sn_handle_save_theme( array( 'sn_related_source' => 'embeddings' ) );
+ok( 'embeddings' === $GLOBALS['__settings']['ml.related_source'] && 2 === $GLOBALS['__rebuilds'], 'the Front end save stores the ranking and queues a rebuild' );
+sn_handle_save_theme( array( 'sn_related_source' => 'evil' ) );
+ok( 'embeddings' === $GLOBALS['__settings']['ml.related_source'], 'an off-list ranking in that save keeps what is stored' );
 
 // ── Locked doors: the constant wins and the handler leaves the option alone (last: constants stay defined).
 $GLOBALS['__options']['sn_mcp_rw_enabled'] = '1';
 define( 'SN_MCP_RW_DISABLED', true );
 ok( snt_mcp_door_locked( 'rw' ) && ! snt_mcp_door_locked( 'read' ), 'SN_MCP_RW_DISABLED locks the write door only' );
-sn_handle_mcp_doors_save( array( 'sn_read_door_enabled' => '1' ) );
-ok( '1' === $GLOBALS['__options']['sn_mcp_rw_enabled'] && snt_mcp_door_switch_on( 'read' ), 'a save with the write door locked writes the read door and leaves the write option as it was' );
-define( 'SN_MCP_READ_DISABLED', true );
-ok( 'mcp_doors_locked' === sn_handle_mcp_doors_save( array() ) && '1' === $GLOBALS['__options']['sn_mcp_read_enabled'], 'both locked: nothing is written and the answer says so' );
+ok( 'mcp_doors_locked' === sn_handle_mcp_doors_save( array( 'sn_door' => 'rw' ) ) && '1' === $GLOBALS['__options']['sn_mcp_rw_enabled'], 'the locked write door is left as it was, and the answer says so' );
+sn_handle_mcp_doors_save( array( 'sn_door' => 'read', 'sn_read_door_enabled' => '1' ) );
+ok( snt_mcp_door_switch_on( 'read' ) && '1' === $GLOBALS['__options']['sn_mcp_rw_enabled'], 'the read door still saves while the write door is locked' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

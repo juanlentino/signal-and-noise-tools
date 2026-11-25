@@ -16,9 +16,9 @@
  *    fields, its warnings and its confirmed Unbind.
  * 3. Scheduled reads, from Connections > Cron: the daily run switch. Run now
  *    is an operation and stayed on Cron with the last-run tally.
- * 4. Two boxes for choices that had no control until 2026-11
- *    (inc/admin-forms/mcp-door-switches.php): Related notes (the ranking)
- *    and Door switches (the read and write doors' own switches).
+ * 4. Each door's own switch (inc/admin-forms/mcp-door-switches.php), first
+ *    under that door in the doors box, as the Remote door's. The related-notes
+ *    ranking is on Settings > Front end, beside Related notes shown.
  *
  * Nothing about saving changed: ai_settings_save, bind_mcp_read_credential,
  * bind_mcp_rw_credential, remote_toggle and scheduled_reads_save, the same
@@ -84,8 +84,13 @@ function snt_settings_ai_moved_line( $from ) {
  */
 function snt_settings_ai_render_doors() {
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'MCP doors', 'signal-and-noise-tools' ) . '</h2>';
-	sn_admin_render_mcp_read_binding();
-	sn_admin_render_mcp_rw_binding();
+	foreach ( array( 'read' => __( 'Read door', 'signal-and-noise-tools' ), 'rw' => __( 'Write door', 'signal-and-noise-tools' ) ) as $door => $name ) {
+		echo '<p class="sn-callout-h">' . esc_html( $name ) . '</p>';
+		if ( function_exists( 'sn_admin_render_mcp_door_switch' ) ) {
+			sn_admin_render_mcp_door_switch( $door ); // The door's own switch, first, as the Remote door's.
+		}
+		'read' === $door ? sn_admin_render_mcp_read_binding() : sn_admin_render_mcp_rw_binding();
+	}
 	$cards = sn_admin_mcp_status_cards( sn_admin_mcp_status_state() );
 	echo '<p class="sn-callout-h">' . esc_html__( 'Remote door', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . (string) ( $cards[3]['state_html'] ?? '' ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped where it is built (sn_admin_mcp_status_cards()).
@@ -104,14 +109,8 @@ function sn_admin_render_settings_ai_section() {
 	if ( function_exists( 'sn_admin_render_ai_models_form' ) ) {
 		sn_admin_render_ai_models_form();
 	}
-	if ( function_exists( 'sn_admin_render_related_source' ) ) {
-		sn_admin_render_related_source();
-	}
 	if ( function_exists( 'sn_admin_render_mcp_rw_binding' ) && function_exists( 'sn_admin_render_mcp_read_binding' ) && function_exists( 'sn_admin_render_mcp_remote_toggle' ) ) {
 		snt_settings_ai_render_doors();
-	}
-	if ( function_exists( 'sn_admin_render_mcp_door_switches' ) ) {
-		sn_admin_render_mcp_door_switches();
 	}
 	if ( function_exists( 'snt_scheduled_reads_render_settings' ) ) {
 		snt_scheduled_reads_render_settings();

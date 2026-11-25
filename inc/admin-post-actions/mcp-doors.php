@@ -45,21 +45,24 @@ function snt_mcp_door_switch_on( $door ) {
 }
 
 /**
- * Settings > AI > Door switches: both switches, one form.
+ * Settings > AI, the Read door and Write door boxes: each door's switch is its
+ * own form, posting `sn_door` (which door) and the checkbox. Only that door is
+ * written, so saving one never touches the other.
  *
  * @param array $post Raw $_POST.
  * @return string Flash code.
  */
 function sn_handle_mcp_doors_save( $post ) {
-	$wrote = false;
-	foreach ( array( 'read' => 'sn_mcp_read_enabled', 'rw' => 'sn_mcp_rw_enabled' ) as $door => $option ) {
-		if ( snt_mcp_door_locked( $door ) ) {
-			continue;
-		}
-		update_option( $option, empty( $post[ 'sn_' . $door . '_door_enabled' ] ) ? 0 : 1, false );
-		$wrote = true;
+	$options = array( 'read' => 'sn_mcp_read_enabled', 'rw' => 'sn_mcp_rw_enabled' );
+	$door    = (string) ( $post['sn_door'] ?? '' );
+	if ( ! isset( $options[ $door ] ) ) {
+		return 'mcp_doors_unknown';
 	}
-	return $wrote ? 'mcp_doors_saved' : 'mcp_doors_locked';
+	if ( snt_mcp_door_locked( $door ) ) {
+		return 'mcp_doors_locked';
+	}
+	update_option( $options[ $door ], empty( $post[ 'sn_' . $door . '_door_enabled' ] ) ? 0 : 1, false );
+	return 'mcp_doors_saved';
 }
 
 /**
@@ -74,22 +77,22 @@ function sn_handle_mcp_rw_notify_save( $post ) {
 }
 
 /**
- * Settings > AI > Related notes: which ranking builds the related lists.
- * Allowlisted; a missing or off-list value keeps what is stored. A change
- * queues the coalesced rebuild, so the lists follow within a minute.
+ * Settings > Front end, the Reading box: which ranking builds the related
+ * lists. Saved by sn_handle_save_theme() with the box's other fields.
+ * Allowlisted; an off-list or missing value keeps what is stored. A change
+ * queues the coalesced rebuild, so the lists follow it.
  *
- * @param array $post Raw $_POST.
- * @return string Flash code.
+ * @param mixed $source The posted value.
+ * @return void
  */
-function sn_handle_related_source_save( $post ) {
-	$source = (string) ( $post['sn_related_source'] ?? '' );
+function snt_related_source_apply( $source ) {
+	$source = (string) $source;
 	if ( ! in_array( $source, SNT_RELATED_SOURCES, true ) ) {
-		return 'related_source_unchanged';
+		return;
 	}
 	$before = (string) sn_setting( 'ml.related_source', 'embeddings' );
 	sn_setting_update( 'ml.related_source', $source );
 	if ( $before !== $source && function_exists( 'snt_ml_schedule_rebuild' ) ) {
 		snt_ml_schedule_rebuild();
 	}
-	return 'related_source_saved';
 }

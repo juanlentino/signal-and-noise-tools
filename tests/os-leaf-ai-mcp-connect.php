@@ -359,13 +359,13 @@ ok( false !== strpos( $mcp, 'Four MCP doors can answer for this site' ) && false
 ok( 4 === substr_count( $mcp, '<os-stat ' ) && false !== strpos( $mcp, 'label="Read door"' ) && false !== strpos( $mcp, 'label="Write door"' ) && false !== strpos( $mcp, 'label="Remote door"' ) && false !== strpos( $mcp, 'label="Core MCP adapter"' ), 'the four doors are four tiles' );
 // 2026-11: the row of three controls paints on Settings › AI; the same row, read off the call the pane makes.
 $row = \SignalNoise\OpenStationHost\Dashboard\Leaves\mcp_connect_controls_html( \SignalNoise\OpenStationHost\Dashboard\Leaves\mcp_connect_status() );
-$ctl = strpos( $row, '<os-section heading="Write-door credential"' );
+$ctl = strpos( $row, '<os-section heading="Write door"' );
 $rem = strpos( $row, '<os-section heading="Remote door"' );
-$rd = strpos( $row, '<os-section heading="Read-door credential (optional)"' );
-ok( 0 === strpos( $row, snt_leaf_row( 3, 320, 18 ) . '<os-section heading="Read-door credential (optional)"' ) && false !== $rd && $rd < $ctl && false !== $rem && $rem > $ctl && false === strpos( substr( $row, $rd, $rem - $rd ), '</os-grid>' ), 'the read-door credential, the write-door credential and the remote door share one row, in door order' );
+$rd = strpos( $row, '<os-section heading="Read door"' );
+ok( 0 === strpos( $row, snt_leaf_row( 3, 320, 18 ) . '<os-section heading="Read door"' ) && false !== $rd && $rd < $ctl && false !== $rem && $rem > $ctl && false === strpos( substr( $row, $rd, $rem - $rd ), '</os-grid>' ), 'the Read door, Write door and Remote door boxes share one row, in door order' );
 ok( false !== strpos( substr( $row, (int) $rem ), 'name="sn_remote_enabled"' ) && strpos( $row, 'name="sn_remote_enabled"' ) > $rem, 'the remote switch sits inside the Remote door, not floating beside it' );
 $rem_leaf = strpos( $mcp, '<os-section heading="Remote door"' );
-ok( false !== $rem_leaf && $rem_leaf > strpos( $mcp, '<os-stat ' ) && $rem_leaf < strpos( $mcp, 'heading="Connect a client"' ) && false === strpos( $mcp, 'name="sn_remote_enabled"' ) && false === strpos( $mcp, 'heading="Write-door credential"' ) && false === strpos( $mcp, '<os-form' ), 'MCP Clients keeps a Remote door box under the tiles (its state and usage in words) and none of the three controls' );
+ok( false !== $rem_leaf && $rem_leaf > strpos( $mcp, '<os-stat ' ) && $rem_leaf < strpos( $mcp, 'heading="Connect a client"' ) && false === strpos( $mcp, 'name="sn_remote_enabled"' ) && false === strpos( $mcp, 'heading="Write door"' ) && false === strpos( $mcp, '<os-form' ), 'MCP Clients keeps a Remote door box under the tiles (its state and usage in words) and none of the three controls' );
 $con = strpos( $mcp, '<os-disclosure heading="Connect a client"' );
 $con_html = false !== $con ? substr( $mcp, $con ) : '';
 ok( false !== strpos( $con_html, '<os-fact label="Read door">' ) && false !== strpos( $con_html, '<os-fact label="Write door">' ) && false !== strpos( $con_html, '/mcp-rw' ), 'Connect a client names both door addresses' );
@@ -386,7 +386,7 @@ ok( false === strpos( $mcp, 'config below' ) && false === strpos( $mcp, 'config 
 ok( 1 === preg_match( '#<os-button variant="link" os-action="go" os-arg-sub="agent-tools">[^<]{20,}</os-button>#', $mcp ), 'MCP Clients points at Agent tools for the door lists with a visible in-window link, not a second copy of them' );
 
 // Nothing was dropped in the rearrangement: every section still paints.
-foreach ( array( 'Write-door credential', 'Remote door', 'Connect a client', 'Read door: the native MCP server', 'Write door: the same server, read-write', 'Resources &amp; prompts', 'Core MCP adapter: the Abilities-registry door', 'Not the same as Connector Approvals' ) as $heading ) {
+foreach ( array( 'heading="Write door"', 'Remote door', 'Connect a client', 'Read door: the native MCP server', 'Write door: the same server, read-write', 'Resources &amp; prompts', 'Core MCP adapter: the Abilities-registry door', 'Not the same as Connector Approvals' ) as $heading ) {
 	ok( false !== strpos( $kit, $heading ), "still painted after the regroup: $heading" );
 }
 

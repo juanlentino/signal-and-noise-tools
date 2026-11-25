@@ -38,7 +38,7 @@ ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['settings/front-end
 $classic = fe_classic_form();
 $kit     = fe_kit_form();
 ok( '' !== $kit, 'the kit leaf paints' );
-ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 6 === count( snt_leaf_names( $kit ) ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 7 === count( snt_leaf_names( $kit ) ), 'field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 ok( array( 'save_theme' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'the one action is save_theme, as on the classic leaf' );
 ok( array() === snt_leaf_classic_markers( $kit ), 'no wp-admin markup survives: ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 ok( false !== strpos( $kit, '<os-form class="snt-form snt-site-form" os-action="post" submit-label="Save front-end settings" show-reset="false" columns="auto">' ) && false === strpos( $kit, 'os-arg-pipeline' ), 'the form is an os-form dispatching post on the admin-post pipeline, auto columns for the wide leaf, the classic submit label' );
@@ -52,7 +52,7 @@ ok( false !== strpos( $kit, '<os-select name="theme_note_reply_alias" value="res
 // 2026-11: the Front-End heading became three headed boxes by subject, inside the one form; the intro leads them.
 ok( false !== strpos( $kit, '<p class="snt-prose">How the site’s pages render; the companion theme reads these values. The defaults are the theme’s own, so nothing changes until you save here.</p>' ) && false === strpos( $kit, 'heading="Front-End"' ), 'the intro leads the form; the lone Front-End heading is gone' );
 $box = static function ( $heading ) use ( &$kit ) { return 1 === preg_match( '#<os-section heading="' . $heading . '" stack>(.*?)</os-section>#s', $kit, $m ) ? $m[1] : ''; };
-ok( array( 'theme_reading_wpm', 'theme_related_count', 'theme_updated_threshold_days' ) === snt_leaf_names( $box( 'Reading' ) ) && array( 'theme_palette_enabled', 'theme_palette_recent_count' ) === snt_leaf_names( $box( 'Command palette' ) ) && array( 'theme_note_reply_alias' ) === snt_leaf_names( $box( 'Replies' ) ), 'native: three headed boxes by subject, Reading (three), Command palette (two) and Replies (one)' );
+ok( array( 'sn_related_source', 'theme_reading_wpm', 'theme_related_count', 'theme_updated_threshold_days' ) === snt_leaf_names( $box( 'Reading' ) ) && array( 'theme_palette_enabled', 'theme_palette_recent_count' ) === snt_leaf_names( $box( 'Command palette' ) ) && array( 'theme_note_reply_alias' ) === snt_leaf_names( $box( 'Replies' ) ), 'native: three headed boxes by subject, Reading (three numbers and the ranking), Command palette (two) and Replies (one)' );
 ok( 1 === preg_match( '#^<os-form [^>]*>' . preg_quote( '<p class="snt-prose">', '#' ) . '.*?</p>' . preg_quote( snt_leaf_row( 3, 260 ), '#' ) . '<os-section heading="Reading" stack>.*</os-section><os-section heading="Command palette" stack>.*</os-section><os-section heading="Replies" stack>.*</os-section></os-grid><p class="snt-hint" slot="footer-leading">#s', $kit ), 'native: the three boxes are one row inside the form, in that order, then the save-row hint' );
 ok( 1 === substr_count( $classic, '<p class="sn-field-helper">Notes per page and JSON feed items are on <a href="https://example.test/wp-admin/options-reading.php#sn_reading_notes_per_page">Settings &rsaquo; Reading</a>, with WordPress&rsquo;s own.</p>' ) && false === strpos( $classic, 'theme_notes_per_page' ) && false === strpos( $classic, 'theme_json_feed_items' ), 'classic: the Reading box says where Notes per page and JSON feed items went, with a link to Settings › Reading, and posts neither' );
 ok( 1 === preg_match( '#^<form [^>]*class="sn-front-end-form">.*<p class="sn-fieldset-intro">.*</p><div class="sn-2up"><div class="sn-fieldset"><h2 class="sn-fieldset-h">Reading</h2>.*</div><div class="sn-fieldset"><h2 class="sn-fieldset-h">Command palette</h2>.*</div><div class="sn-fieldset"><h2 class="sn-fieldset-h">Replies</h2>.*</div></div><div class="sn-fieldset-actions">.*</div></form>$#s', $classic ), 'classic: the same three headed boxes, one row inside the one form, then its save row' );
@@ -77,7 +77,7 @@ foreach ( array( 'How the site’s pages render; the companion theme reads these
 ok( 1 !== preg_match( '/Render knobs|JS\/CSS|local part|re-renders|\x{2014}|\x{2013}/u', $kit . $classic_text ), 'neither twin says "render knobs", "JS/CSS", "local part" or "re-renders", or carries an em or en dash' );
 $options = array();
 foreach ( $GLOBALS['__aliases'] as $a ) { $options[] = '<os-option value="' . $a . '">' . $a . '@</os-option>'; }
-ok( has_all( $kit, $options, $missing ) && 5 === substr_count( $kit, '<os-option ' ) && 5 === substr_count( $classic, '<option ' ), 'the alias select offers exactly the five allowlisted aliases as alias@, as the classic select does' );
+ok( has_all( $kit, $options, $missing ) && 7 === substr_count( $kit, '<os-option ' ) && 7 === substr_count( $classic, '<option ' ), 'the alias select offers exactly the five allowlisted aliases as alias@, as the classic select does' );
 
 // ── Rich fixture: every knob stored off its default, palette off, another alias.
 $GLOBALS['__settings'] = array(
@@ -112,7 +112,8 @@ $GLOBALS['__settings'] = array();
 $GLOBALS['__aliases'] = array( 'research' );
 $classic = fe_classic_form();
 $kit     = fe_kit_form();
-ok( 1 === substr_count( $kit, '<os-option ' ) && false !== strpos( $kit, '<os-option value="research">research@</os-option>' ) && 1 === substr_count( $classic, '<option ' ), 'a one-alias allowlist paints one option, as the classic select does' );
+// Option counts include the ranking select's two (Meaning, Shared words).
+ok( 3 === substr_count( $kit, '<os-option ' ) && false !== strpos( $kit, '<os-option value="research">research@</os-option>' ) && 3 === substr_count( $classic, '<option ' ), 'a one-alias allowlist paints one option, as the classic select does' );
 
 $GLOBALS['__aliases'] = array( 'research', 'press', 'speaking', 'role', 'music' );
 snt_leaf_preview( 'settings-front-end', fe_kit() );
