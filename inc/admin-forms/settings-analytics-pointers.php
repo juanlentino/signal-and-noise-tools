@@ -54,6 +54,22 @@ function snt_settings_analytics_titles() {
 }
 
 /**
+ * The pane's rows, by subject, three boxes each (owner, 2026-11-24: the boxes
+ * spread to six thin columns). The split follows Google Analytics' Admin,
+ * which files property settings under data collection and data display.
+ * Keys are snt_settings_analytics_titles() keys.
+ *
+ * @return array<string,array<int,string>> Row heading => box keys.
+ */
+function snt_settings_analytics_groups() {
+	return array(
+		__( 'Data collection', 'signal-and-noise-tools' )       => array( 'collector', 'roles', 'feed' ),
+		__( 'What counts as a read', 'signal-and-noise-tools' ) => array( 'north_star', 'funnels', 'publish' ),
+		__( 'Signals and scans', 'signal-and-noise-tools' )     => array( 'tuning', 'machine_readers', 'insights' ),
+	);
+}
+
+/**
  * The sentence an old screen keeps, up to the link. It names settings and
  * never a value. Measurement > Analytics names the boxes it lost by their
  * titles; the native leaf also had North star, which the classic leaf never

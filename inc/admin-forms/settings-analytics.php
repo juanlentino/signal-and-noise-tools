@@ -100,18 +100,23 @@ function sn_admin_render_settings_analytics_section() {
 		'insights'        => array( 'snt_insights_render_settings_section', 'snt_insights_render_settings_section' ),
 	);
 	$titles = snt_settings_analytics_titles();
-	echo '<div class="sn-an-settings-leaf"><div class="sn-2up">';
-	foreach ( $boxes as $key => $box ) {
-		if ( ! function_exists( $box[1] ) ) {
+	echo '<div class="sn-an-settings-leaf">';
+	foreach ( snt_settings_analytics_groups() as $heading => $keys ) {
+		$keys = array_values( array_filter( $keys, static fn( $k ) => function_exists( $boxes[ $k ][1] ) ) );
+		if ( array() === $keys ) {
 			continue;
 		}
-		echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html( $titles[ $key ] ) . '</h2>';
-		$box[0]();
-		// Engine tuning's intro points at this link, which sat in the leaf's reference column.
-		if ( 'tuning' === $key && function_exists( 'snt_analytics_render_filter_reference' ) ) {
-			snt_analytics_render_filter_reference();
+		echo '<h2 class="sn-section-h">' . esc_html( $heading ) . '</h2><div class="sn-2up">';
+		foreach ( $keys as $key ) {
+			echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html( $titles[ $key ] ) . '</h2>';
+			$boxes[ $key ][0]();
+			// Engine tuning's intro points at this link, which sat in the leaf's reference column.
+			if ( 'tuning' === $key && function_exists( 'snt_analytics_render_filter_reference' ) ) {
+				snt_analytics_render_filter_reference();
+			}
+			echo '</div>';
 		}
 		echo '</div>';
 	}
-	echo '</div></div>';
+	echo '</div>';
 }

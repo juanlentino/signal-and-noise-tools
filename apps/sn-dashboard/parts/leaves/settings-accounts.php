@@ -122,7 +122,18 @@ function paint_settings_accounts( array $ctx ) {
 	$out = function_exists( 'sn_keyring_models' )
 		? '<h3 class="snt-h">' . \snt_kit_esc( __( 'Credentials', 'signal-and-noise-tools' ) ) . '</h3>' . accounts_credentials_html()
 		: \snt_kit_empty( __( 'The keyring module is not loaded.', 'signal-and-noise-tools' ) );
-	return $out . \snt_kit_grid( array_values( array_filter( array( accounts_zenodo_html(), accounts_indexnow_html(), accounts_muso_html(), accounts_search_console_html() ) ) ), 290 );
+	$h    = function_exists( 'snt_settings_accounts_rows' ) ? \snt_settings_accounts_rows() : array( 'search' => '', 'records' => '' );
+	$rows = array(
+		$h['search']  => array( accounts_indexnow_html(), accounts_search_console_html() ),
+		$h['records'] => array_merge( accounts_zenodo_boxes(), array( accounts_muso_html() ) ),
+	);
+	foreach ( $rows as $heading => $boxes ) {
+		$boxes = array_values( array_filter( $boxes ) );
+		if ( array() !== $boxes ) {
+			$out .= ( '' !== $heading ? '<h3 class="snt-h">' . \snt_kit_esc( $heading ) . '</h3>' : '' ) . \snt_kit_grid( $boxes, 290 );
+		}
+	}
+	return $out;
 }
 
 add_filter(

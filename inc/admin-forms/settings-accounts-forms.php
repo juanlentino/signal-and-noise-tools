@@ -53,11 +53,13 @@ function snt_accounts_render_zenodo_box() {
 	echo '<div class="sn-field"><label for="sn_zenodo_ledger_doi">Ledger concept DOI</label><input type="text" id="sn_zenodo_ledger_doi" name="zenodo_ledger_doi" value="' . esc_attr( $d['ledger'] ) . '" placeholder="10.5281/zenodo.NNNNNNN" autocomplete="off"></div>';
 	echo '<p class="sn-helper">The DOI Zenodo minted for the ledger repository\'s monthly snapshot (the concept DOI, which resolves to the latest snapshot). Every deposit names it as the record it is part of. Empty until the first snapshot release.</p>';
 	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save environment</button></div></form>';
+	echo '</div>';
 
+	// The downloads line is its own box (2026-11-24), so Zenodo's row evens out.
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html( $copy['title'] ) . '</h2>';
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '">';
 	wp_nonce_field( 'sn_zenodo_doi_line_save' );
 	echo '<input type="hidden" name="action" value="sn_zenodo_doi_line_save">';
-	echo '<p class="sn-callout-h">' . esc_html( $copy['title'] ) . '</p>';
 	echo '<p class="sn-helper">' . esc_html( $copy['intro'] ) . '</p>';
 	echo '<div class="sn-field"><label><input type="checkbox" id="sn_zenodo_doi_line_enabled" name="zenodo_doi_line_enabled" value="1"' . checked( $line['enabled'], true, false ) . '> ' . esc_html( $copy['enabled'] ) . '</label></div>';
 	echo '<div class="sn-field"><label for="sn_zenodo_doi_line_label">' . esc_html( $copy['label'] ) . '</label><input type="text" id="sn_zenodo_doi_line_label" name="zenodo_doi_line_label" value="' . esc_attr( $line['label'] ) . '" maxlength="80" autocomplete="off"></div>';
@@ -79,7 +81,7 @@ function snt_accounts_render_indexnow_box() {
 	echo '<form method="post" action="' . esc_url( sn_admin_post_url() ) . '" class="sn-fieldset">';
 	wp_nonce_field( 'sn_indexnow_save' );
 	echo '<input type="hidden" name="action" value="sn_indexnow_save">';
-	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Search engines (IndexNow)', 'signal-and-noise-tools' ) . '</h2>';
+	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'IndexNow', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<div class="sn-field"><label><input type="checkbox" name="indexnow_enabled" value="1"' . checked( sn_indexnow_is_enabled(), true, false ) . '> Notify search engines when content changes</label></div>';
 	echo '<div class="sn-fieldset-actions"><button type="submit" class="button button-primary">Save IndexNow settings</button></div></form>';
 }
