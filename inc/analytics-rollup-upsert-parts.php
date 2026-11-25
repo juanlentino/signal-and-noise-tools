@@ -101,7 +101,22 @@ function sn_analytics_rollup_upsert( $rows ) {
 		// bug. Surface it — error_log + a timestamped option the Health scan
 		// reads — and STILL write the row un-clamped. The alarm is the feature;
 		// a clamp or skip would silently serve corrupt arithmetic as clean.
-		if ( 'human' === $c['class'] && null !== $c['pageview_visits'] && $c['views'] < $c['pageview_visits'] ) {
+		// 2026-11-25: the two numbers come from two AE queries, each sampled on
+		// its own. When the gated query's pv mass (pv_weight) differs from this
+		// row's views, they read different samples: logged, not raised. Queries
+		// that agree and still invert, or no pv_weight at all, raise the alarm.
+		$inverted = 'human' === $c['class'] && null !== $c['pageview_visits'] && $c['views'] < $c['pageview_visits'];
+		$weight   = sn_analytics_rollup_nullable_num( $r, 'pv_weight' );
+		if ( $inverted && null !== $weight && (int) round( (float) $weight ) !== $c['views'] ) {
+			error_log( sprintf(
+				'[sn-analytics] sampling disagreement: views %d vs the gated query\'s pv mass %d for %s %s (pageview_visits %d): not an integrity alert',
+				$c['views'],
+				(int) round( (float) $weight ),
+				$c['day'],
+				$c['path'],
+				$c['pageview_visits']
+			) );
+		} elseif ( $inverted ) {
 			error_log( sprintf(
 				'[sn-analytics] integrity violation: views < pageview_visits for %s %s (%d < %d): row written unmodified',
 				$c['day'],

@@ -42,7 +42,10 @@ function sn_analytics_rollup_gated_sql( $days, $tz = '', $fold = true ) {
 		"SELECT {$day_col} AS day,",
 		'blob2 AS path,',
 		$class . ' AS class,',
-		'count(DISTINCT ' . SN_AE_VID . ') AS pageview_visits',
+		'count(DISTINCT ' . SN_AE_VID . ') AS pageview_visits,',
+		// The pv mass this query saw, for the upsert's never-invert guard: when
+		// it differs from the main query's views, the two read different samples.
+		'sum(_sample_interval) AS pv_weight',
 		'FROM ' . sn_analytics_source( sn_analytics_trailing_from( $days ) ),
 		"WHERE timestamp >= {$lower}" . sn_analytics_window_upper( $tz ) . $cap,
 		"AND blob1 = 'pv'",
@@ -115,15 +118,18 @@ function sn_analytics_rollup_merge_gated( $rows, $gated ) {
 	$map = array();
 	foreach ( $gated as $g ) {
 		if ( is_array( $g ) && array_key_exists( 'pageview_visits', $g ) ) {
-			$map[ sn_analytics_rollup_row_key( $g ) ] = $g['pageview_visits'];
+			$map[ sn_analytics_rollup_row_key( $g ) ] = $g;
 		}
 	}
 
 	$merged = array();
 	foreach ( $rows as $r ) {
 		if ( is_array( $r ) ) {
-			$key                   = sn_analytics_rollup_row_key( $r );
-			$r['pageview_visits']  = array_key_exists( $key, $map ) ? $map[ $key ] : 0;
+			$key                  = sn_analytics_rollup_row_key( $r );
+			$r['pageview_visits'] = array_key_exists( $key, $map ) ? $map[ $key ]['pageview_visits'] : 0;
+			if ( isset( $map[ $key ]['pv_weight'] ) ) {
+				$r['pv_weight'] = $map[ $key ]['pv_weight']; // a check for the upsert guard, never stored.
+			}
 		}
 		$merged[] = $r;
 	}
