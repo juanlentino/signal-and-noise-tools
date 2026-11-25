@@ -202,8 +202,12 @@ ok( false !== strpos( $kit, 'Not run yet' ) && false !== strpos( $kit, 'Run comp
 ok( false === strpos( $kit, 'a-real-token-value' ) && false !== strpos( $kit, '>set</os-badge>' ) && false !== strpos( $kit, 'Settings › Accounts and connections' ), '15.3.1: the token is never on the leaf; a set badge and the door to the keyring are' );
 ok( false !== strpos( $kit, 'Configured' ), 'the embeddings-token status pill reads Configured' );
 ok( false !== strpos( $kit, '<os-badge tone="success">Workers AI token set</os-badge>' ) && 1 === preg_match( '#<os-disclosure heading="Workers AI token" hint="Set" data-snt-fold#', $kit ), 'anatomy, token set: the chip reads set and its Setup fold stays closed' );
-$__shadow = 'Embeddings run in SHADOW mode: they are computed and compared against the existing ranking, and nothing the site serves uses them yet.';
-ok( false !== strpos( $kit, $__shadow ) && false !== strpos( $classic, $__shadow ), 'configured: one embeddings sentence on both twins (#23: the classic said "never shown to a reader")' );
+$__embed = 'Embeddings rank the related notes under each note by meaning from the next rebuild of the lists. If any note fails to embed, that rebuild ranks by shared words instead.';
+ok( false !== strpos( $kit, $__embed ) && false !== strpos( $classic, $__embed ) && false === strpos( $kit . $classic, 'SHADOW' ), 'configured, ranked by meaning (the default): one embeddings sentence on both twins, and it no longer claims shadow mode' );
+$GLOBALS['__settings']['ml.related_source'] = 'tfidf';
+$__tf = 'so nothing the site serves uses them.';
+ok( false !== strpos( snt_leaf_paint( 'ai', 'models-budget' ), $__tf ) && false !== strpos( snt_leaf_classic_html( 'sn_admin_render_ai_settings_form' ), $__tf ), 'configured, ranked by shared words: both twins say readers do not see them' );
+unset( $GLOBALS['__settings']['ml.related_source'] );
 ok( strpos( $kit, '>Configured</os-badge>' ) > strpos( $kit, 'heading="TF-IDF vs embeddings"' ) && strpos( $kit, '>Configured</os-badge>' ) < strpos( $kit, 'Not run yet' ), '17.4.1: configured, the status notice is the lead of the comparison box' );
 $row2 = substr( $kit, (int) strrpos( $kit, snt_leaf_row() ) );
 ok( 3 === substr_count( $kit, snt_leaf_row() ) && 1 === preg_match( '#<os-card><os-section heading="Jev#', $row2 ) && false !== strpos( $row2, 'heading="TF-IDF vs embeddings"' ), '17.4.1: configured with no result, the short comparison box sits beside the Jev box on row two' );

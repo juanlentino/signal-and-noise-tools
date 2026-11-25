@@ -24,7 +24,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_admin_ai_embed_sentence( $configured, $account_id ) {
 	if ( $configured ) {
-		return __( 'Embeddings run in SHADOW mode: they are computed and compared against the existing ranking, and nothing the site serves uses them yet.', 'signal-and-noise-tools' );
+		// The related-notes ranking (ml.related_source, read by the artifact
+		// build in inc/ml-artifacts.php) decides whether readers see them.
+		$source = function_exists( 'sn_setting' ) ? (string) sn_setting( 'ml.related_source', 'embeddings' ) : 'embeddings';
+		return 'tfidf' === $source
+			? __( 'Embeddings can be computed and compared against the shared-words ranking, but the related notes under each note are ranked by shared words, so nothing the site serves uses them.', 'signal-and-noise-tools' )
+			: __( 'Embeddings rank the related notes under each note by meaning from the next rebuild of the lists. If any note fails to embed, that rebuild ranks by shared words instead.', 'signal-and-noise-tools' );
 	}
 	return '' === (string) $account_id
 		? __( 'Not configured: no Cloudflare account ID is set, so nothing is embedded. Set it under', 'signal-and-noise-tools' )
