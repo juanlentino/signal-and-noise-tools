@@ -9,7 +9,16 @@
 $root = realpath( $_SERVER['DOCUMENT_ROOT'] );
 $path = (string) parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
 $real = realpath( $root . $path );
-$file = ( false !== $real && ( $real === $root || str_starts_with( $real, $root . DIRECTORY_SEPARATOR ) ) ) ? $real : '';
+// The plugin is symlinked in from the checkout, so its realpath leaves the
+// docroot: its own target is an allowed root too, or every plugin asset falls
+// through to WordPress and 301s (the editor then loads none of its scripts).
+$roots = array_filter( array( $root, realpath( $root . '/wp-content/plugins/signal-and-noise-tools' ) ) );
+$file  = '';
+foreach ( $roots as $base ) {
+	if ( false !== $real && ( $real === $base || str_starts_with( $real, $base . DIRECTORY_SEPARATOR ) ) ) {
+		$file = $real;
+	}
+}
 
 if ( '' !== $file && is_dir( $file ) ) {
 	$file = is_file( $file . '/index.php' ) && $file !== $root ? $file . '/index.php' : '';
